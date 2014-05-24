@@ -5,6 +5,7 @@ def al_clock_probe(spectroscopy_freq, A1, A2):
 	state_0_count = 0
 	for count in range(100):
 		wait_edge("mains_sync")
+		delay(10*us)
 		pulse("laser_cooling", 100*MHz, 100*us)
 		delay(5*us)
 		with parallel:
