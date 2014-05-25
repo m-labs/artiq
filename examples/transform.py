@@ -75,18 +75,23 @@ def unroll_loops(stmts, limit):
 				pass
 			else:
 				unroll_loops(stmt.body, limit)
-				n = len(it)*_count_stmts(stmt.body)
-				if n < limit:
-					replacement = []
-					for i in it:
-						if not isinstance(i, int):
-							replacement = None
-							break
-						replacement.append(ast.copy_location(
-							ast.Assign(targets=[stmt.target], value=ast.Num(n=i)), stmt))
-						replacement += stmt.body
-					if replacement is not None:
-						replacements.append((stmt_i, replacement))
+				unroll_loops(stmt.orelse, limit)
+				l_it = len(it)
+				if l_it:
+					n = l_it*_count_stmts(stmt.body)
+					if n < limit:
+						replacement = []
+						for i in it:
+							if not isinstance(i, int):
+								replacement = None
+								break
+							replacement.append(ast.copy_location(
+								ast.Assign(targets=[stmt.target], value=ast.Num(n=i)), stmt))
+							replacement += stmt.body
+						if replacement is not None:
+							replacements.append((stmt_i, replacement))
+				else:
+					replacements.append((stmt_i, stmt.orelse))
 		if isinstance(stmt, (ast.While, ast.If)):
 			unroll_loops(stmt.body, limit)
 			unroll_loops(stmt.orelse, limit)
@@ -106,5 +111,5 @@ if __name__ == "__main__":
 
 	explicit_delays(node)
 	unroll_loops(node, 50)
-	
+
 	unparse.Unparser(node)
