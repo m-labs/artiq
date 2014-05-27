@@ -5,3 +5,4 @@ __pycache__
 *.elf
 *.fbi
 doc/manual/_build
+/build
