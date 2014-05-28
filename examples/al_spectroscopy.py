@@ -1,30 +1,51 @@
-from artiq.sim import *
-from artiq.units import *
+from artiq.language.units import *
+from artiq.language.experiment import *
 
-def al_clock_probe(spectroscopy_freq, A1, A2):
-	state_0_count = 0
-	for count in range(100):
-		wait_edge("mains_sync")
-		delay(10*us)
-		pulse("laser_cooling", 100*MHz, 100*us)
-		delay(5*us)
-		with parallel:
-			pulse("spectroscopy", spectroscopy_freq, 100*us)
-			with sequential:
-				delay(50*us)
-				set_dac_voltage("spectroscopy_b")
-		delay(5*us)
-		while True:
+class AluminumSpectroscopy(Experiment):
+	channels = "core mains_sync laser_cooling spectroscopy spectroscopy_b state_detection pmt"
+	parameters = "spectroscopy_freq photon_limit_low photon_limit_high"
+
+	@kernel
+	def run(self):
+		state_0_count = 0
+		for count in range(100):
+			self.mains_sync.wait_edge()
+			delay(10*us)
+			self.laser_cooling.pulse(100*MHz, 100*us)
 			delay(5*us)
 			with parallel:
-				pulse("state_detection", 100*MHz, 10*us)
-				photon_count = count_gate("pmt", 10*us)
-			if photon_count < A1 or photon_count > A2:
-				break
-		if photon_count < A1:
-			state_0_count += 1
-	return state_0_count 
+				self.spectroscopy.pulse(self.spectroscopy_freq, 100*us)
+				with sequential:
+					delay(50*us)
+					self.spectroscopy_b.set(200)
+			delay(5*us)
+			while True:
+				delay(5*us)
+				with parallel:
+					self.state_detection.pulse(100*MHz, 10*us)
+					photon_count = self.pmt.count_gate(10*us)
+				if photon_count < self.photon_limit_low or photon_count > self.photon_limit_high:
+					break
+			if photon_count < self.photon_limit_low:
+				state_0_count += 1
+		return state_0_count
 
 if __name__ == "__main__":
-	al_clock_probe(30*MHz, 3, 30)
-	print(time_manager.format_timeline())
+	from artiq.sim import devices as sd
+	from artiq.sim import time
+
+	exp = AluminumSpectroscopy(
+		core=sd.Core(),
+		mains_sync=sd.Input("mains_sync"),
+		laser_cooling=sd.WaveOutput("laser_cooling"),
+		spectroscopy=sd.WaveOutput("spectroscopy"),
+		spectroscopy_b=sd.VoltageOutput("spectroscopy_b"),
+		state_detection=sd.WaveOutput("state_detection"),
+		pmt=sd.Input("pmt"),
+
+		spectroscopy_freq=432*MHz,
+		photon_limit_low=10,
+		photon_limit_high=15
+	)
+	exp.run()
+	print(time.manager.format_timeline())

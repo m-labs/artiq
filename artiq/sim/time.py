@@ -1,7 +1,6 @@
-from random import Random
 from operator import itemgetter
 
-from artiq import units
+from artiq.language import units, experiment
 
 class SequentialTimeContext:
 	def __init__(self, current_time):
@@ -21,7 +20,7 @@ class ParallelTimeContext:
 		if amount > self.block_duration:
 			self.block_duration = amount	
 
-class TimeManager:
+class Manager:
 	def __init__(self):
 		self.stack = [SequentialTimeContext(0)]
 		self.timeline = []
@@ -38,8 +37,8 @@ class TimeManager:
 		old_context = self.stack.pop()
 		self.take_time(old_context.block_duration)
 
-	def take_time(self, amount):
-		self.stack[-1].take_time(amount)
+	def take_time(self, duration):
+		self.stack[-1].take_time(duration)
 
 	def event(self, description):
 		self.timeline.append((self.stack[-1].current_time, description))
@@ -57,48 +56,5 @@ class TimeManager:
 			prev_time = time
 		return r
 
-# global namespace for interpreted kernels
-
-time_manager = TimeManager()
-prng = Random(42)
-
-class _Sequential:
-	def __enter__(self):
-		time_manager.enter_sequential()
-
-	def __exit__(self, type, value, traceback):
-		time_manager.exit()
-sequential = _Sequential()
-
-class _Parallel:
-	def __enter__(self):
-		time_manager.enter_parallel()
-
-	def __exit__(self, type, value, traceback):
-		time_manager.exit()
-parallel = _Parallel()
-
-def delay(duration):
-	units.check_unit(duration, units.base_s_unit)
-	time_manager.take_time(duration.amount)
-
-def wait_edge(input):
-	duration = prng.randrange(17)*units.ms
-	time_manager.event(("wait_edge", input, duration))
-	time_manager.take_time(duration.amount)
-
-def pulse(output, frequency, duration):
-	units.check_unit(frequency, units.base_Hz_unit)
-	units.check_unit(duration, units.base_s_unit)
-	time_manager.event(("pulse", output, frequency, duration))
-	time_manager.take_time(duration.amount)
-
-def count_gate(input, duration):
-	result = prng.randrange(100)
-	units.check_unit(duration, units.base_s_unit)
-	time_manager.event(("count_gate", input, duration, result))
-	time_manager.take_time(duration.amount)
-	return result
-
-def set_dac_voltage(output):
-	time_manager.event(("set_dac_voltage", output))
+manager = Manager()
+experiment.set_time_manager(manager)
