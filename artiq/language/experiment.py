@@ -44,6 +44,8 @@ class _DummyTimeManager:
 	enter_sequential = _not_implemented
 	exit = _not_implemented
 	take_time = _not_implemented
+	get_time = _not_implemented
+	set_time = _not_implemented
 
 _time_manager = _DummyTimeManager()
 
@@ -70,4 +72,10 @@ class _Parallel:
 parallel = _Parallel()
 
 def delay(duration):
-	_time_manager.take_time(duration.amount)
+	_time_manager.take_time(duration)
+
+def now():
+	return _time_manager.get_time()
+
+def at(time):
+	_time_manager.set_time(time)

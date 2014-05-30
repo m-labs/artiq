@@ -19,13 +19,12 @@ class Input:
 	def wait_edge(self):
 		duration = self.prng.randrange(self.wait_min, self.wait_max)*units.ms
 		time.manager.event(("wait_edge", self.name, duration))
-		time.manager.take_time(duration.amount)
+		time.manager.take_time(duration)
 
 	def count_gate(self, duration):
 		result = self.prng.randrange(self.count_min, self.count_max)
-		units.check_unit(duration, units.base_s_unit)
 		time.manager.event(("count_gate", self.name, duration, result))
-		time.manager.take_time(duration.amount)
+		time.manager.take_time(duration)
 		return result
 
 class WaveOutput:
@@ -33,10 +32,8 @@ class WaveOutput:
 		self.name = name
 
 	def pulse(self, frequency, duration):
-		units.check_unit(frequency, units.base_Hz_unit)
-		units.check_unit(duration, units.base_s_unit)
 		time.manager.event(("pulse", self.name, frequency, duration))
-		time.manager.take_time(duration.amount)
+		time.manager.take_time(duration)
 
 class VoltageOutput:
 	def __init__(self, name):
