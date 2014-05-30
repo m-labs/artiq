@@ -32,9 +32,55 @@ class Quantity:
 			return NotImplemented
 		return Quantity(self.amount*other, self.unit)
 
+	def __neg__(self):
+		return Quantity(-self.amount, self.unit)
+
+	def __add__(self, other):
+		if self.unit != other.unit:
+			raise DimensionError
+		return Quantity(self.amount + other.amount, self.unit)
+	def __radd__(self, other):
+		if self.unit != other.unit:
+			raise DimensionError
+		return Quantity(other.amount + self.amount, self.unit)
+	def __sub__(self, other):
+		if self.unit != other.unit:
+			raise DimensionError
+		return Quantity(self.amount - other.amount, self.unit)
+	def __rsub__(self, other):
+		if self.unit != other.unit:
+			raise DimensionError
+		return Quantity(other.amount - self.amount, self.unit)
+
+	def __lt__(self, other):
+		if self.unit != other.unit:
+			raise DimensionError
+		return self.amount < other.amount
+	def __le__(self, other):
+		if self.unit != other.unit:
+			raise DimensionError
+		return self.amount <= other.amount
+	def __eq__(self, other):
+		if self.unit != other.unit:
+			raise DimensionError
+		return self.amount == other.amount
+	def __ne__(self, other):
+		if self.unit != other.unit:
+			raise DimensionError
+		return self.amount != other.amount
+	def __gt__(self, other):
+		if self.unit != other.unit:
+			raise DimensionError
+		return self.amount > other.amount
+	def __ge__(self, other):
+		if self.unit != other.unit:
+			raise DimensionError
+		return self.amount >= other.amount
+
 def check_unit(value, unit):
 	if not isinstance(value, Quantity) or value.unit != unit:
 		raise DimensionError
+	return value.amount
 
 def _register_unit(base_prefix, name, prefixes):
 	base_prefix_exp = _prefixes_str.index(base_prefix)
