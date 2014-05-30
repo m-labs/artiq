@@ -4,8 +4,8 @@ from artiq.language import units
 from artiq.sim import time
 
 class Core:
-	def run(self, function, *args, **kwargs):
-		return function(*args, **kwargs)
+	def run(self, k_function, *k_args, **k_kwargs):
+		return k_function(*k_args, **k_kwargs)
 
 class Input:
 	def __init__(self, name, prng_seed=None, wait_max=20, count_max=100, wait_min=0, count_min=0):

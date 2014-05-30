@@ -1,6 +1,9 @@
 import itertools
 
 class Experiment:
+	channels = ""
+	parameters = ""
+
 	def __init__(self, *args, **kwargs):
 		channels = self.channels.split()
 		parameters = self.parameters.split()
@@ -24,9 +27,9 @@ class Experiment:
 
 def kernel(arg):
 	if isinstance(arg, str):
-		def real_decorator(function):
+		def real_decorator(k_function):
 			def run_on_core(exp, *k_args, **k_kwargs):
-				getattr(exp, arg).run(function, exp, *k_args, **k_kwargs)
+				getattr(exp, arg).run(k_function, exp, *k_args, **k_kwargs)
 			return run_on_core	
 		return real_decorator
 	else:

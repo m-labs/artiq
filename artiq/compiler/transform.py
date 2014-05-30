@@ -1,6 +1,7 @@
 import inspect, textwrap, ast, types
 
-from artiq import units, unparse
+from artiq.language import units
+from artiq.compiler import unparse
 
 def find_kernel_body(node):
 	while True:
@@ -196,11 +197,8 @@ def collapse(stmts):
 		stmts[offset+location:offset+location+1] = new_stmts
 		offset += len(new_stmts) - 1
 
-if __name__ == "__main__":
-	import collapse_test
-	kernel = collapse_test.collapse_test
-
-	node = ast.parse(textwrap.dedent(inspect.getsource(kernel)))
+def transform(k_function, k_args, k_kwargs):
+	node = ast.parse(textwrap.dedent(inspect.getsource(k_function)))
 	node = find_kernel_body(node)
 
 	explicit_delays(node)
