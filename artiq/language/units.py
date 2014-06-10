@@ -21,12 +21,6 @@ class Quantity:
 				r_prefix += 1
 		return str(r_amount) + " " + _prefixes_str[r_prefix] + self.unit.name
 
-	def __add__(self, other):
-		if self.unit != other.unit:
-			raise DimensionError
-		return Quantity(self.amount + other.amount, self.unit)
-	__radd__ = __add__
-
 	def __rmul__(self, other):
 		if isinstance(other, Quantity):
 			return NotImplemented
