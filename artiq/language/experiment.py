@@ -42,6 +42,7 @@ class _DummyTimeManager:
 		raise NotImplementedError("Attempted to interpret kernel without a time manager")
 
 	enter_sequential = _not_implemented
+	enter_parallel = _not_implemented
 	exit = _not_implemented
 	take_time = _not_implemented
 	get_time = _not_implemented
