@@ -54,7 +54,9 @@ def set_time_manager(time_manager):
 	global _time_manager
 	_time_manager = time_manager
 
-# global namespace for interpreted kernels
+# global namespace for kernels
+
+kernel_globals = "sequential", "parallel", "delay", "now", "at"
 
 class _Sequential:
 	def __enter__(self):
