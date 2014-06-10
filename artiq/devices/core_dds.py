@@ -11,8 +11,8 @@ class DDS:
 
 		self._previous_frequency = 0*MHz
 
-	kernel_attr_ro = {"reg_channel", "rtio_channel", "latency", "phase_mode"}
-	kernel_attr = {"_previous_frequency"}
+	kernel_attr_ro = "reg_channel rtio_channel latency phase_mode"
+	kernel_attr = "_previous_frequency"
 
 	@kernel
 	def pulse(self, frequency, duration):

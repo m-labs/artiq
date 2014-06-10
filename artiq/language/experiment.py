@@ -5,9 +5,7 @@ class Experiment:
 	parameters = ""
 
 	def __init__(self, *args, **kwargs):
-		channels = self.channels.split()
-		parameters = self.parameters.split()
-		argnames = channels + parameters
+		argnames = self.channels.split() + self.parameters.split()
 		undef_args = list(argnames)
 
 		if len(argnames) < len(args):
@@ -23,7 +21,7 @@ class Experiment:
 			raise TypeError("__init__() missing {} argument(s): ".format(len(undef_args),
 				", ".join(["'"+s+"'" for s in undef_args])))
 
-		self.kernel_attr_ro = set(parameters)
+		self.kernel_attr_ro = self.parameters
 
 def kernel(arg):
 	if isinstance(arg, str):
