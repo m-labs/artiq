@@ -2,6 +2,7 @@ import inspect, textwrap, ast, types
 
 from artiq.language import units
 from artiq.compiler import unparse
+from artiq.compiler.tools import eval_ast
 
 def find_kernel_body(node):
 	while True:
@@ -13,12 +14,6 @@ def find_kernel_body(node):
 			return node.body
 		else:
 			raise TypeError
-
-def eval_ast(expr, symdict=dict()):
-	if not isinstance(expr, ast.Expression):
-		expr = ast.Expression(expr)
-	code = compile(expr, "<ast>", "eval")
-	return eval(code, symdict)
 
 def _try_eval_with_units(node):
 	try:
