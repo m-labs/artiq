@@ -9,14 +9,15 @@ class CompilerTest(Experiment):
 	def print_done(self):
 		print("Done!")
 
-	def print_iter(self, n):
-		print("Iteration: {}".format(n))
+	def set_some_slowdev(self, n):
+		print("Slow device setting: {}".format(n))
 
 	@kernel
 	def run(self, n, t2):
 		t2 += 1*us
 		for i in my_range(n):
-			self.print_iter(i)
+			self.set_some_slowdev(i)
+			delay(100*ms)
 			with parallel:
 				with sequential:
 					self.a.pulse(100*MHz, 20*us)
