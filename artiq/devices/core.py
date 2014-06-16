@@ -1,5 +1,5 @@
-from artiq.compiler.transform import transform
+from artiq.compiler.inline import inline
 
 class Core:
-	def run(self, k_function, *k_args, **k_kwargs):
-		transform(k_function, k_args, k_kwargs)
+	def run(self, k_function, k_args, k_kwargs):
+		inline(k_function, k_args, k_kwargs)
