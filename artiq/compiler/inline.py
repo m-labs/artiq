@@ -1,5 +1,5 @@
 from collections import namedtuple, defaultdict
-import inspect, textwrap, ast, builtins
+import inspect, textwrap, ast
 
 from artiq.compiler.tools import eval_ast
 from artiq.language import experiment, units
@@ -39,13 +39,11 @@ class _ReferenceManager:
 
 		# reserved names
 		self.use_count["Quantity"] = 1
-		self.use_count["syscall"] = 1
 		self.use_count["base_s_unit"] = 1
 		self.use_count["base_Hz_unit"] = 1
 		for kg in experiment.kernel_globals:
 			self.use_count[kg] = 1
-		for bi in dir(builtins):
-			self.use_count[bi] = 1
+		self.use_count["range"] = 1
 
 	def new_name(self, base_name):
 		if base_name[-1].isdigit():
@@ -87,8 +85,7 @@ class _ReferenceManager:
 			if repl is not None:
 				return repl
 		
-		print("GET: {}.{} {}".format(str(obj), funcname, ast.dump(ref)))
-		return ref
+		raise KeyError
 
 	def set(self, obj, funcname, name, value):
 		self.to_inlined[(id(obj), funcname, name)] = value
@@ -99,6 +96,12 @@ class _ReferenceManager:
 			if objid == id(r_obj)
 				and funcname == r_funcname
 				and not isinstance(v, _UserVariable)}
+
+_embeddable_calls = {
+	units.Quantity,
+	experiment.delay, experiment.at, experiment.now, experiment.syscall,
+	range
+}
 
 class _ReferenceReplacer(ast.NodeTransformer):
 	def __init__(self, rm, obj, funcname):
@@ -119,7 +122,7 @@ class _ReferenceReplacer(ast.NodeTransformer):
 		calldict.update(self.module.__dict__)
 		func = eval_ast(node.func, calldict)
 
-		if inspect.getmodule(func) is builtins:
+		if func in _embeddable_calls:
 			new_func = ast.Name(func.__name__, ast.Load())
 			new_args = [self.visit(arg) for arg in node.args]
 			return ast.Call(func=new_func, args=new_args,
