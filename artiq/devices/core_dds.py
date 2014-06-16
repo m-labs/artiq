@@ -17,9 +17,9 @@ class DDS:
 	@kernel
 	def pulse(self, frequency, duration):
 		if self._previous_frequency != frequency:
-			self.core.syscall("rtio_sync", self.rtio_channel) # wait until output is off
-			self.core.syscall("dds_program", self.reg_channel, frequency)
+			syscall("rtio_sync", self.rtio_channel) # wait until output is off
+			syscall("dds_program", self.reg_channel, frequency)
 			self._previous_frequency = frequency
-		self.core.syscall("rtio_set", now()-self.latency, self.rtio_channel, 1)
+		syscall("rtio_set", now()-self.latency, self.rtio_channel, 1)
 		delay(duration)
-		self.core.syscall("rtio_set", now()-self.latency, self.rtio_channel, 0)
+		syscall("rtio_set", now()-self.latency, self.rtio_channel, 0)

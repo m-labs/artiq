@@ -57,9 +57,19 @@ def set_time_manager(time_manager):
 	global _time_manager
 	_time_manager = time_manager
 
+class _DummySyscallManager:
+	def do(self, *args):
+		raise NotImplementedError("Attempted to interpret kernel without a syscall manager")
+
+_syscall_manager = _DummySyscallManager()
+
+def set_syscall_manager(syscall_manager):
+	global _syscall_manager
+	_syscall_manager = syscall_manager
+
 # global namespace for kernels
 
-kernel_globals = "sequential", "parallel", "delay", "now", "at"
+kernel_globals = "sequential", "parallel", "delay", "now", "at", "syscall"
 
 class _Sequential:
 	def __enter__(self):
@@ -85,3 +95,6 @@ def now():
 
 def at(time):
 	_time_manager.set_time(time)
+
+def syscall(*args):
+	return _syscall_manager.do(*args)
