@@ -1,7 +1,6 @@
 from collections import namedtuple, defaultdict
 import inspect, textwrap, ast, builtins
 
-from artiq.compiler import unparse
 from artiq.compiler.tools import eval_ast
 from artiq.language import experiment, units
 
@@ -181,4 +180,4 @@ def inline(k_function, k_args, k_kwargs, rm=None):
 
 	funcdef.body[0:0] = param_init
 
-	unparse.Unparser(funcdef.body)
+	return funcdef.body
