@@ -35,6 +35,7 @@ class _ReferenceManager:
 		self.to_inlined = dict()
 		# inlined_name -> use_count
 		self.use_count = dict()
+		self.rpc_map = defaultdict(lambda: len(self.rpc_map))
 
 		# reserved names
 		self.use_count["Quantity"] = 1
@@ -126,9 +127,12 @@ class _ReferenceReplacer(ast.NodeTransformer):
 		elif hasattr(func, "k_function_info"):
 			print(func.k_function_info)
 			# TODO: inline called kernel
-
-		self.generic_visit(node)
-		return node
+			return node
+		else:
+			args = [ast.Str("rpc"), ast.Num(self.rm.rpc_map[func])]
+			args += [self.visit(arg) for arg in node.args]
+			return ast.Call(func=ast.Name("syscall", ast.Load()),
+				args=args, keywords=[], starargs=None, kwargs=None)
 
 class _ListReadOnlyParams(ast.NodeVisitor):
 	def visit_FunctionDef(self, node):
@@ -180,4 +184,4 @@ def inline(k_function, k_args, k_kwargs, rm=None):
 
 	funcdef.body[0:0] = param_init
 
-	return funcdef.body
+	return funcdef.body, rm.rpc_map
