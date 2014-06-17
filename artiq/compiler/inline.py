@@ -107,7 +107,8 @@ _embeddable_calls = {
 }
 
 class _ReferenceReplacer(ast.NodeTransformer):
-	def __init__(self, rm, obj, funcname):
+	def __init__(self, core, rm, obj, funcname):
+		self.core = core
 		self.rm = rm
 		self.obj = obj
 		self.funcname = funcname
@@ -131,9 +132,9 @@ class _ReferenceReplacer(ast.NodeTransformer):
 			new_func = ast.Name(func.__name__, ast.Load())
 			return ast.Call(func=new_func, args=new_args,
 				keywords=[], starargs=None, kwargs=None)
-		elif hasattr(func, "k_function_info"):
+		elif hasattr(func, "k_function_info") and getattr(func.__self__, func.k_function_info.core_name) is self.core:
 			args = [func.__self__] + new_args
-			inlined, _ = inline(func.k_function_info.k_function, args, dict(), self.rm)
+			inlined, _ = inline(self.core, func.k_function_info.k_function, args, dict(), self.rm)
 			return inlined
 		else:
 			args = [ast.Str("rpc"), ast.Num(self.rm.rpc_map[func])]
@@ -192,7 +193,7 @@ def _initialize_function_params(funcdef, k_args, k_kwargs, rm):
 			param_init.append(ast.Assign(targets=[target], value=value))
 	return param_init
 
-def inline(k_function, k_args, k_kwargs, rm=None):
+def inline(core, k_function, k_args, k_kwargs, rm=None):
 	if rm is None:
 		rm = _ReferenceManager()
 
@@ -202,7 +203,7 @@ def inline(k_function, k_args, k_kwargs, rm=None):
 
 	obj = k_args[0]
 	funcname = funcdef.name
-	rr = _ReferenceReplacer(rm, obj, funcname)
+	rr = _ReferenceReplacer(core, rm, obj, funcname)
 	rr.visit(funcdef)
 
 	funcdef.body[0:0] = param_init

@@ -5,7 +5,7 @@ from artiq.compiler.unparse import Unparser
 
 class Core:
 	def run(self, k_function, k_args, k_kwargs):
-		stmts, rpc_map = inline(k_function, k_args, k_kwargs)
+		stmts, rpc_map = inline(self, k_function, k_args, k_kwargs)
 
 		print("=========================")
 		print(" Inlined")
