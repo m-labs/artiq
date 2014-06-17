@@ -29,6 +29,11 @@ def _replace_global(obj, ref):
 
 _UserVariable = namedtuple("_UserVariable", "name")
 
+def _is_in_attr_list(obj, attr, al):
+	if not hasattr(obj, al):
+		return False
+	return attr in getattr(obj, al).split()
+
 class _ReferenceManager:
 	def __init__(self):
 		# (id(obj), funcname, local) -> _UserVariable(name) / ast / constant_object
@@ -82,6 +87,20 @@ class _ReferenceManager:
 						if a is None:
 							raise NotImplementedError("Cannot represent inlined value")
 						return a
+
+		if isinstance(ref, ast.Attribute) and isinstance(ref.value, ast.Name):
+			try:
+				value = self.to_inlined[(id(obj), funcname, ref.value.id)]
+			except KeyError:
+				pass
+			else:
+				if _is_in_attr_list(value, ref.attr, "kernel_attr_ro"):
+					if isinstance(ref.ctx, ast.Store):
+						raise TypeError("Attempted to assign to read-only kernel attribute")
+					a = _value_to_ast(getattr(value, ref.attr))
+					if a is None:
+						raise NotImplementedError("Cannot represent read-only kernel attribute")
+					return a
 
 		if not store:
 			repl = _replace_global(obj, ref)
