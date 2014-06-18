@@ -37,10 +37,12 @@ def _is_in_attr_list(obj, attr, al):
 class _ReferenceManager:
 	def __init__(self):
 		# (id(obj), funcname, local) -> _UserVariable(name) / ast / constant_object
+		# local is None for kernel attributes
 		self.to_inlined = dict()
 		# inlined_name -> use_count
 		self.use_count = dict()
 		self.rpc_map = defaultdict(lambda: len(self.rpc_map))
+		self.kernel_attr_init = []
 
 		# reserved names
 		self.use_count["Quantity"] = 1
@@ -101,6 +103,22 @@ class _ReferenceManager:
 					if a is None:
 						raise NotImplementedError("Cannot represent read-only kernel attribute")
 					return a
+				if _is_in_attr_list(value, ref.attr, "kernel_attr"):
+					key = (id(value), ref.attr, None)
+					try:
+						ival = self.to_inlined[key]
+						assert(isinstance(ival, _UserVariable))
+						iname = ival.name
+					except KeyError:
+						iname = self.new_name(ref.attr)
+						ival = _UserVariable(iname)
+						self.to_inlined[key] = _UserVariable(iname)
+						a = _value_to_ast(getattr(value, ref.attr))
+						if a is None:
+							raise NotImplementedError("Cannot represent initial value of kernel attribute")
+						self.kernel_attr_init.append(ast.Assign(
+							[ast.Name(iname, ast.Store())], a))
+					return ast.Name(iname, ref.ctx)
 
 		if not store:
 			repl = _replace_global(obj, ref)
@@ -213,6 +231,7 @@ def _initialize_function_params(funcdef, k_args, k_kwargs, rm):
 	return param_init
 
 def inline(core, k_function, k_args, k_kwargs, rm=None):
+	init_kernel_attr = rm is None
 	if rm is None:
 		rm = _ReferenceManager()
 
@@ -226,5 +245,7 @@ def inline(core, k_function, k_args, k_kwargs, rm=None):
 	rr.visit(funcdef)
 
 	funcdef.body[0:0] = param_init
+	if init_kernel_attr:
+		funcdef.body[0:0] = rm.kernel_attr_init
 
 	return funcdef.body, rm.rpc_map
