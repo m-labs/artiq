@@ -1,11 +1,14 @@
 from operator import itemgetter
 
 from artiq.compiler.inline import inline
+from artiq.compiler.fold_constants import fold_constants
 from artiq.compiler.unparse import Unparser
 
 class Core:
 	def run(self, k_function, k_args, k_kwargs):
 		stmts, rpc_map = inline(self, k_function, k_args, k_kwargs)
+		fold_constants(stmts)
+
 
 		print("=========================")
 		print(" Inlined")
