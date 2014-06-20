@@ -23,3 +23,10 @@ def value_to_ast(value):
 					args=[ast.Num(value.amount), ast.Name("base_"+value.unit.name+"_unit", ast.Load())],
 					keywords=[], starargs=None, kwargs=None)
 		return None
+
+def make_stmt_transformer(transformer_class):
+	def stmt_transformer(stmts):
+		transformer = transformer_class()
+		new_stmts = [transformer.visit(stmt) for stmt in stmts]
+		stmts[:] = new_stmts
+	return stmt_transformer

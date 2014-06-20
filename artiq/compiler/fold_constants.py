@@ -1,7 +1,7 @@
 import ast, operator
 
 from artiq.language import units
-from artiq.compiler.tools import value_to_ast
+from artiq.compiler.tools import value_to_ast, make_stmt_transformer
 
 class _NotConstant(Exception):
 	pass
@@ -79,7 +79,4 @@ class _ConstantFolder(ast.NodeTransformer):
 			return node
 		return result
 
-def fold_constants(stmts):
-	constant_folder = _ConstantFolder()
-	new_stmts = [constant_folder.visit(stmt) for stmt in stmts]
-	stmts[:] = new_stmts
+fold_constants = make_stmt_transformer(_ConstantFolder)
