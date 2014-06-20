@@ -1,31 +1,15 @@
 from collections import namedtuple, defaultdict
 import inspect, textwrap, ast
 
-from artiq.compiler.tools import eval_ast
+from artiq.compiler.tools import eval_ast, value_to_ast
 from artiq.language import experiment, units
-
-def _value_to_ast(value):
-	if isinstance(value, int):
-		return ast.Num(value)
-	elif isinstance(value, str):
-		return ast.Str(value)
-	else:
-		for kg in experiment.kernel_globals:
-			if value is getattr(experiment, kg):
-				return ast.Name(kg, ast.Load())
-		if isinstance(value, units.Quantity):
-			return ast.Call(
-					func=ast.Name("Quantity", ast.Load()),
-					args=[ast.Num(value.amount), ast.Name("base_"+value.unit.name+"_unit", ast.Load())],
-					keywords=[], starargs=None, kwargs=None)
-		return None
 
 def _replace_global(obj, ref):
 	try:
 		value = eval_ast(ref, inspect.getmodule(obj).__dict__)
 	except:
 		return None
-	return _value_to_ast(value)
+	return value_to_ast(value)
 
 _UserVariable = namedtuple("_UserVariable", "name")
 
@@ -85,7 +69,7 @@ class _ReferenceManager:
 					if store:
 						raise NotImplementedError("Cannot turn object into user variable")
 					else:
-						a = _value_to_ast(ival)
+						a = value_to_ast(ival)
 						if a is None:
 							raise NotImplementedError("Cannot represent inlined value")
 						return a
@@ -99,7 +83,7 @@ class _ReferenceManager:
 				if _is_in_attr_list(value, ref.attr, "kernel_attr_ro"):
 					if isinstance(ref.ctx, ast.Store):
 						raise TypeError("Attempted to assign to read-only kernel attribute")
-					a = _value_to_ast(getattr(value, ref.attr))
+					a = value_to_ast(getattr(value, ref.attr))
 					if a is None:
 						raise NotImplementedError("Cannot represent read-only kernel attribute")
 					return a
@@ -113,7 +97,7 @@ class _ReferenceManager:
 						iname = self.new_name(ref.attr)
 						ival = _UserVariable(iname)
 						self.to_inlined[key] = _UserVariable(iname)
-						a = _value_to_ast(getattr(value, ref.attr))
+						a = value_to_ast(getattr(value, ref.attr))
 						if a is None:
 							raise NotImplementedError("Cannot represent initial value of kernel attribute")
 						self.kernel_attr_init.append(ast.Assign(
@@ -226,7 +210,7 @@ def _initialize_function_params(funcdef, k_args, k_kwargs, rm):
 			rm.set(obj, funcname, arg_name, arg_value)
 		else:
 			target = rm.get(obj, funcname, ast.Name(arg_name, ast.Store()))
-			value = _value_to_ast(arg_value)
+			value = value_to_ast(arg_value)
 			param_init.append(ast.Assign(targets=[target], value=value))
 	return param_init
 
