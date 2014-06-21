@@ -136,7 +136,9 @@ class _ReferenceReplacer(ast.NodeTransformer):
 		self.module = inspect.getmodule(self.obj)
 
 	def visit_ref(self, node):
-		return self.rm.get(self.obj, self.funcname, node)
+		return ast.copy_location(
+			self.rm.get(self.obj, self.funcname, node),
+			node)
 
 	visit_Name = visit_ref
 	visit_Attribute = visit_ref
@@ -151,8 +153,10 @@ class _ReferenceReplacer(ast.NodeTransformer):
 
 		if func in _embeddable_calls:
 			new_func = ast.Name(func.__name__, ast.Load())
-			return ast.Call(func=new_func, args=new_args,
-				keywords=[], starargs=None, kwargs=None)
+			return ast.copy_location(
+				ast.Call(func=new_func, args=new_args,
+				keywords=[], starargs=None, kwargs=None),
+				node)
 		elif hasattr(func, "k_function_info") and getattr(func.__self__, func.k_function_info.core_name) is self.core:
 			args = [func.__self__] + new_args
 			inlined, _ = inline(self.core, func.k_function_info.k_function, args, dict(), self.rm)
@@ -160,8 +164,10 @@ class _ReferenceReplacer(ast.NodeTransformer):
 		else:
 			args = [ast.Str("rpc"), ast.Num(self.rm.rpc_map[func])]
 			args += new_args
-			return ast.Call(func=ast.Name("syscall", ast.Load()),
-				args=args, keywords=[], starargs=None, kwargs=None)
+			return ast.copy_location(
+				ast.Call(func=ast.Name("syscall", ast.Load()),
+				args=args, keywords=[], starargs=None, kwargs=None),
+				node)
 
 	def visit_Expr(self, node):
 		if isinstance(node.value, ast.Call):

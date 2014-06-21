@@ -4,7 +4,8 @@ from artiq.language import experiment, units
 
 def eval_ast(expr, symdict=dict()):
 	if not isinstance(expr, ast.Expression):
-		expr = ast.Expression(expr)
+		expr = ast.copy_location(ast.Expression(expr), expr)
+	ast.fix_missing_locations(expr)
 	code = compile(expr, "<ast>", "eval")
 	return eval(code, symdict)
 

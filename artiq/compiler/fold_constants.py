@@ -61,7 +61,7 @@ class _ConstantFolder(ast.NodeTransformer):
 			result = value_to_ast(op(operand))
 		except:
 			return node
-		return result
+		return ast.copy_location(result, node)
 
 	def visit_BinOp(self, node):
 		self.generic_visit(node)
@@ -77,6 +77,6 @@ class _ConstantFolder(ast.NodeTransformer):
 			result = value_to_ast(op(left, right))
 		except:
 			return node
-		return result
+		return ast.copy_location(result, node)
 
 fold_constants = make_stmt_transformer(_ConstantFolder)
