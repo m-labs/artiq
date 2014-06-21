@@ -21,12 +21,6 @@ class _Namespace:
 	def load(self, builder, name):
 		return builder.load(self.bindings[name])
 
-def _dict_isinstance(d, instance):
-	for k, v in d.items():
-		if isinstance(instance, getattr(ast, k)):
-			return v
-	raise NotImplementedError
-
 def _emit_expr(builder, ns, node):
 	if isinstance(node, ast.Name):
 		return ns.load(builder, node.id)
@@ -36,13 +30,13 @@ def _emit_expr(builder, ns, node):
 		left = _emit_expr(builder, ns, node.left)
 		right = _emit_expr(builder, ns, node.right)
 		mapping = {
-			"Add": builder.add,
-			"Sub": builder.sub,
-			"Mult": builder.mul,
-			"FloorDiv": builder.sdiv,
-			"Mod": builder.srem
+			ast.Add: builder.add,
+			ast.Sub: builder.sub,
+			ast.Mult: builder.mul,
+			ast.FloorDiv: builder.sdiv,
+			ast.Mod: builder.srem
 		}
-		bf = _dict_isinstance(mapping, node.op)
+		bf = mapping[type(node.op)]
 		return bf(left, right)
 	elif isinstance(node, ast.Compare):
 		comparisons = []
@@ -50,14 +44,14 @@ def _emit_expr(builder, ns, node):
 		for op, comparator_a in zip(node.ops, node.comparators):
 			comparator = _emit_expr(builder, ns, comparator_a)
 			mapping = {
-				"Eq": lc.ICMP_EQ,
-				"NotEq": lc.ICMP_NE,
-				"Lt": lc.ICMP_SLT,
-				"LtE": lc.ICMP_SLE,
-				"Gt": lc.ICMP_SGT,
-				"GtE": lc.ICMP_SGE
+				ast.Eq: lc.ICMP_EQ,
+				ast.NotEq: lc.ICMP_NE,
+				ast.Lt: lc.ICMP_SLT,
+				ast.LtE: lc.ICMP_SLE,
+				ast.Gt: lc.ICMP_SGT,
+				ast.GtE: lc.ICMP_SGE
 			}
-			comparison = builder.icmp(_dict_isinstance(mapping, op), old_comparator, comparator)
+			comparison = builder.icmp(mapping[type(op)], old_comparator, comparator)
 			comparisons.append(comparison)
 			old_comparator = comparator
 		r = comparisons[0]
