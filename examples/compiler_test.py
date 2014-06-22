@@ -14,14 +14,14 @@ class CompilerTest(Experiment):
 
 	@kernel
 	def run(self, n, t2):
-		t2 += 1*us
 		for i in my_range(n):
 			self.set_some_slowdev(i)
 			delay(100*ms)
 			with parallel:
 				with sequential:
-					self.a.pulse(100*MHz, 20*us)
-					self.b.pulse(100*MHz, t2)
+					for j in my_range(3):
+						self.a.pulse((j+1)*100*MHz, 20*us)
+						self.b.pulse(100*MHz, t2)
 				with sequential:
 					self.A.pulse(100*MHz, 10*us)
 					self.B.pulse(100*MHz, t2)

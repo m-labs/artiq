@@ -3,6 +3,7 @@ from operator import itemgetter
 from artiq.compiler.inline import inline
 from artiq.compiler.fold_constants import fold_constants
 from artiq.compiler.unroll_loops import unroll_loops
+from artiq.compiler.interleave import interleave
 from artiq.compiler.unparse import Unparser
 
 class Core:
@@ -10,6 +11,7 @@ class Core:
 		stmts, rpc_map = inline(self, k_function, k_args, k_kwargs)
 		fold_constants(stmts)
 		unroll_loops(stmts, 50)
+		interleave(stmts)
 
 		print("=========================")
 		print(" Inlined")
