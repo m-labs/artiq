@@ -380,3 +380,16 @@ index 8f260f0..1771bce 100644
  }
  namespace {
  /// OR1K Code Generator Pass Configuration Options.
+
+In llvmpy, edit core.h and replace line 177:
+
+if llvm.version <= (3, 3):
+        OPCODE_ICMP           = 45
+        OPCODE_FCMP           = 46
+...
+
+with:
+if True:
+        OPCODE_ICMP           = 45
+        OPCODE_FCMP           = 46
+...
