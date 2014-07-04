@@ -61,7 +61,7 @@ def _emit_expr(builder, ns, node):
 	else:
 		raise NotImplementedError
 
-def _emit_statements(builder, ns, stmts):
+def _emit_statements(env, builder, ns, stmts):
 	for stmt in stmts:
 		if isinstance(stmt, ast.Return):
 			val = _emit_expr(builder, ns, stmt.value)
@@ -83,11 +83,11 @@ def _emit_statements(builder, ns, stmts):
 			builder.cbranch(condition, then_block, else_block)
 
 			builder.position_at_end(then_block)
-			_emit_statements(builder, ns, stmt.body)
+			_emit_statements(env, builder, ns, stmt.body)
 			builder.branch(merge_block)
 
 			builder.position_at_end(else_block)
-			_emit_statements(builder, ns, stmt.orelse)
+			_emit_statements(env, builder, ns, stmt.orelse)
 			builder.branch(merge_block)
 
 			builder.position_at_end(merge_block)
@@ -101,19 +101,25 @@ def _emit_statements(builder, ns, stmts):
 			builder.cbranch(condition, body_block, else_block)
 
 			builder.position_at_end(body_block)
-			_emit_statements(builder, ns, stmt.body)
+			_emit_statements(env, builder, ns, stmt.body)
 			condition = _emit_expr(builder, ns, stmt.test)
 			builder.cbranch(condition, body_block, merge_block)
 
 			builder.position_at_end(else_block)
-			_emit_statements(builder, ns, stmt.orelse)
+			_emit_statements(env, builder, ns, stmt.orelse)
 			builder.branch(merge_block)
 
 			builder.position_at_end(merge_block)
+		elif isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
+			call = stmt.value
+			if call.func.id == "syscall":
+				env.emit_syscall(builder, call.args[0].s, [])
+			else:
+				raise NotImplementedError
 		else:
 			raise NotImplementedError
 
-def _emit_function_def(module, node):
+def _emit_function_def(env, module, node):
 	function_type = lc.Type.function(lc.Type.int(), [lc.Type.int()]*len(node.args.args))
 	function = module.add_function(function_type, node.name)
 	bb = function.append_basic_block("entry")
@@ -124,27 +130,34 @@ def _emit_function_def(module, node):
 		llvm_arg.name = ast_arg.arg
 		ns.store(builder, llvm_arg, ast_arg.arg)
 
-	_emit_statements(builder, ns, node.body)
+	_emit_statements(env, builder, ns, node.body)
 
 if __name__ == "__main__":
 	from llvm import target as lt
 	from llvm import passes as lp
 	import subprocess
 
+	from artiq.devices import runtime
+
 	testcode = """
-def is_prime(x):
+def run():
+	x = 37
 	d = 2
+	prime = 1
 	while d*d <= x:
 		if x % d == 0:
-			return 0
+			prime = 0
 		d = d + 1
-	return 1
+	syscall("rpc")
+	if prime == 1:
+		syscall("rpc")
+	return prime
 """
 
 	node = ast.parse(testcode)
 	fdef = node.body[0]
-	my_module = lc.Module.new("my_module")
-	_emit_function_def(my_module, fdef)
+	module = lc.Module.new("main")
+	_emit_function_def(runtime.Environment(), module, fdef)
 
 	pass_manager = lp.PassManager.new()
 	pass_manager.add(lp.PASS_MEM2REG)
@@ -152,18 +165,18 @@ def is_prime(x):
 	pass_manager.add(lp.PASS_REASSOCIATE)
 	pass_manager.add(lp.PASS_GVN)
 	pass_manager.add(lp.PASS_SIMPLIFYCFG)
-	pass_manager.run(my_module)
+	pass_manager.run(module)
 
 	lt.initialize_all()
 	tm = lt.TargetMachine.new(triple="or1k", cpu="generic")
 	with open("test.out", "wb") as fout:
-		objfile = tm.emit_object(my_module)
+		objfile = tm.emit_object(module)
 		fout.write(objfile)
 
 	print("=========================")
 	print(" LLVM IR")
 	print("=========================")
-	print(my_module)
+	print(module)
 
 	print("")
 	print("=========================")
