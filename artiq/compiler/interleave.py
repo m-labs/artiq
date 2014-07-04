@@ -48,8 +48,6 @@ def _interleave_timelines(timelines):
 
 	while current_stmts:
 		dt = min(stmt.delay for stmt in current_stmts)
-		print("\n".join("{} -> {}".format(ast.dump(stmt.stmt), stmt.delay) for stmt in current_stmts))
-		print("")
 		if dt < 0:
 			# contains statement(s) with indeterminate duration
 			return None
