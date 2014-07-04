@@ -28,14 +28,14 @@ class CompilerTest(Experiment):
 		self.print_done()
 
 if __name__ == "__main__":
-	from artiq.devices import core, core_dds
+	from artiq.devices import core, dds_core
 
 	coredev = core.Core()
 	exp = CompilerTest(
 		core=coredev,
-		a=core_dds.DDS(coredev, 0, 0),
-		b=core_dds.DDS(coredev, 1, 1),
-		A=core_dds.DDS(coredev, 2, 2),
-		B=core_dds.DDS(coredev, 3, 3)
+		a=dds_core.DDS(coredev, 0, 0),
+		b=dds_core.DDS(coredev, 1, 1),
+		A=dds_core.DDS(coredev, 2, 2),
+		B=dds_core.DDS(coredev, 3, 3)
 	)
 	exp.run(3, 100*us)
