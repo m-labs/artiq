@@ -1,1 +1,6 @@
 __pycache__
+*.o
+*.d
+*.bin
+*.elf
+*.fbi
