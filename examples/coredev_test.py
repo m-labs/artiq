@@ -9,9 +9,10 @@ class CompilerTest(Experiment):
 		self.led.set(1)
 
 if __name__ == "__main__":
-	coredev = core.Core(runtime.Environment(), corecom_serial.CoreCom())
-	exp = CompilerTest(
-		core=coredev,
-		led=gpio_core.GPIOOut(coredev, 0)
-	)
-	exp.run()
+	with corecom_serial.CoreCom() as com:
+		coredev = core.Core(runtime.Environment(), com)
+		exp = CompilerTest(
+			core=coredev,
+			led=gpio_core.GPIOOut(coredev, 0)
+		)
+		exp.run()
