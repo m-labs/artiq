@@ -138,27 +138,24 @@ if __name__ == "__main__":
 	from llvm import passes as lp
 	import subprocess
 
-	from artiq.devices import runtime
+	from artiq.devices import runtime, corecom_serial
 
 	testcode = """
-def run():
-	x = 37
+def run(x):
 	d = 2
 	prime = 1
 	while d*d <= x:
 		if x % d == 0:
 			prime = 0
 		d = d + 1
-	syscall("rpc")
-	if prime == 1:
-		syscall("rpc")
+	syscall("printint", prime)
 	return prime
 """
 
 	node = ast.parse(testcode)
 	fdef = node.body[0]
 	module = lc.Module.new("main")
-	_emit_function_def(runtime.Environment(), module, fdef)
+	_emit_function_def(runtime.Environment(module), module, fdef)
 
 	pass_manager = lp.PassManager.new()
 	pass_manager.add(lp.PASS_MEM2REG)
@@ -184,3 +181,5 @@ def run():
 	print(" OR1K ASM")
 	print("=========================")
 	subprocess.call("or1k-elf-objdump -d test.out".split())
+
+	corecom_serial.CoreCom().run(objfile)
