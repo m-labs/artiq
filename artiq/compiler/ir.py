@@ -113,7 +113,8 @@ def _emit_statements(env, builder, ns, stmts):
 		elif isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
 			call = stmt.value
 			if call.func.id == "syscall":
-				env.emit_syscall(builder, call.args[0].s, [])
+				env.emit_syscall(builder, call.args[0].s,
+					[_emit_expr(builder, ns, expr) for expr in call.args[1:]])
 			else:
 				raise NotImplementedError
 		else:
