@@ -29,12 +29,13 @@ static void receive_sync(void)
 
 static int receive_length(void)
 {
-	int r, i;
+	unsigned int r;
+	int i;
 
 	r = 0;
 	for(i=0;i<4;i++) {
 		r <<= 8;
-		r |= readchar();
+		r |= (unsigned char)readchar();
 	}
 	return r;
 }
@@ -53,6 +54,16 @@ static int download_kernel(void *buffer, int maxlength)
 		_buffer[i] = readchar();
 	return length;
 }
+
+static void printint(int x)
+{
+	printf("%d\n", x);
+}
+
+static const struct symbol syscalls[] = {
+	{"__syscall_printint", printint},
+	{NULL, NULL}
+};
 
 typedef void (*kernel_function)(int);
 
@@ -73,11 +84,10 @@ int main(void)
 	while(1) {
 		length = download_kernel(kbuf, sizeof(kbuf));
 		if(length > 0) {
-			load_elf(kbuf, length, kcode, sizeof(kcode));
+			load_elf(syscalls, kbuf, length, kcode, sizeof(kcode));
 			flush_cpu_icache();
-			for(i=0;i<20;i++) {
-				printf("=== %2d ===\n", i);
-				readchar();
+			for(i=0;i<40;i++) {
+				printf("%2d: ", i);
 				k(i);
 			}
 		}

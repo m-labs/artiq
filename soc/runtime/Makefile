@@ -3,7 +3,7 @@ include $(MSCDIR)/software/common.mak
 BOARD=papilio_pro
 SERIAL=/dev/ttyUSB1
 
-OBJECTS=esr.o elf_loader.o main.o
+OBJECTS=isr.o elf_loader.o main.o
 
 all: runtime.bin
 
