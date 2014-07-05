@@ -2,7 +2,7 @@ from fractions import Fraction
 
 from migen.fhdl.std import *
 
-from misoclib import lasmicon, spiflash
+from misoclib import lasmicon, spiflash, gpio
 from misoclib.sdramphy import gensdrphy
 from misoclib.gensoc import SDRAMSoC
 
@@ -91,5 +91,7 @@ class ARTIQSoC(SDRAMSoC):
 			cmd=0xefef, cmd_width=16, addr_width=24, dummy=4, div=4)
 		self.flash_boot_address = 0x70000
 		self.register_rom(self.spiflash.bus)
+
+		self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))
 
 default_subtarget = ARTIQSoC
