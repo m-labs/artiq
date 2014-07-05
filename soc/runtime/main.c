@@ -71,7 +71,7 @@ static const struct symbol syscalls[] = {
 	{NULL, NULL}
 };
 
-typedef void (*kernel_function)(int);
+typedef void (*kernel_function)(void);
 
 int main(void)
 {
@@ -92,10 +92,7 @@ int main(void)
 		if(length > 0) {
 			load_elf(syscalls, kbuf, length, kcode, sizeof(kcode));
 			flush_cpu_icache();
-			for(i=0;i<40;i++) {
-				printf("%2d: ", i);
-				k(i);
-			}
+			k();
 		}
 	}
 	
