@@ -1,6 +1,7 @@
 import ast
 
 from llvm import core as lc
+from llvm import passes as lp
 
 class _Namespace:
 	def __init__(self, function):
@@ -120,42 +121,17 @@ def _emit_statements(env, builder, ns, stmts):
 		else:
 			raise NotImplementedError
 
-def _emit_function_def(env, module, node):
-	function_type = lc.Type.function(lc.Type.int(), [lc.Type.int()]*len(node.args.args))
-	function = module.add_function(function_type, node.name)
+def get_runtime_binary(env, stmts):
+	module = lc.Module.new("main")
+	env.set_module(module)
+
+	function_type = lc.Type.function(lc.Type.void(), [])
+	function = module.add_function(function_type, "run")
 	bb = function.append_basic_block("entry")
 	builder = lc.Builder.new(bb)
-
 	ns = _Namespace(function)
-	for ast_arg, llvm_arg in zip(node.args.args, function.args):
-		llvm_arg.name = ast_arg.arg
-		ns.store(builder, llvm_arg, ast_arg.arg)
-
-	_emit_statements(env, builder, ns, node.body)
-
-if __name__ == "__main__":
-	from llvm import target as lt
-	from llvm import passes as lp
-	import subprocess
-
-	from artiq.devices import runtime, corecom_serial
-
-	testcode = """
-def run(x):
-	d = 2
-	prime = 1
-	while d*d <= x:
-		if x % d == 0:
-			prime = 0
-		d = d + 1
-	syscall("printint", prime)
-	return prime
-"""
-
-	node = ast.parse(testcode)
-	fdef = node.body[0]
-	module = lc.Module.new("main")
-	_emit_function_def(runtime.Environment(module), module, fdef)
+	_emit_statements(env, builder, ns, stmts)
+	builder.ret_void()
 
 	pass_manager = lp.PassManager.new()
 	pass_manager.add(lp.PASS_MEM2REG)
@@ -165,21 +141,4 @@ def run(x):
 	pass_manager.add(lp.PASS_SIMPLIFYCFG)
 	pass_manager.run(module)
 
-	lt.initialize_all()
-	tm = lt.TargetMachine.new(triple="or1k", cpu="generic")
-	with open("test.out", "wb") as fout:
-		objfile = tm.emit_object(module)
-		fout.write(objfile)
-
-	print("=========================")
-	print(" LLVM IR")
-	print("=========================")
-	print(module)
-
-	print("")
-	print("=========================")
-	print(" OR1K ASM")
-	print("=========================")
-	subprocess.call("or1k-elf-objdump -d test.out".split())
-
-	corecom_serial.CoreCom().run(objfile)
+	return env.emit_object()
