@@ -1,7 +1,8 @@
 from llvm import core as lc
 
 _syscalls = [
-	("printint", lc.Type.void(), [lc.Type.int()])
+	("print_int",	lc.Type.void(),		[lc.Type.int()]),
+	("gpio_set",	lc.Type.void(),		[lc.Type.int(), lc.Type.int()])
 ]
 
 class Environment:

@@ -55,13 +55,19 @@ static int download_kernel(void *buffer, int maxlength)
 	return length;
 }
 
-static void printint(int x)
+static void print_int(int x)
 {
 	printf("%d\n", x);
 }
 
+static void gpio_set(int channel, int level)
+{
+	leds_out_write(!!level);
+}
+
 static const struct symbol syscalls[] = {
-	{"__syscall_printint", printint},
+	{"__syscall_print_int",		print_int},
+	{"__syscall_gpio_set",		gpio_set},
 	{NULL, NULL}
 };
 
