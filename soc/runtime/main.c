@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include <irq.h>
 #include <uart.h>
@@ -55,9 +56,17 @@ static int download_kernel(void *buffer, int maxlength)
 	return length;
 }
 
-static void print_int(int x)
+static int rpc(int rpc_num, int n_args, ...)
 {
-	printf("%d\n", x);
+	printf("rpc_num=%d n_args=%d\n", rpc_num, n_args);
+
+	va_list args;
+	va_start(args, n_args);
+	while(n_args--)
+		printf("%d\n", va_arg(args, int));
+	va_end(args);
+
+	return 1;
 }
 
 static void gpio_set(int channel, int level)
@@ -66,7 +75,7 @@ static void gpio_set(int channel, int level)
 }
 
 static const struct symbol syscalls[] = {
-	{"__syscall_print_int",		print_int},
+	{"__syscall_rpc",			rpc},
 	{"__syscall_gpio_set",		gpio_set},
 	{NULL, NULL}
 };
@@ -78,7 +87,6 @@ int main(void)
 	unsigned char kbuf[256*1024];
 	unsigned char kcode[256*1024];
 	kernel_function k = (kernel_function)kcode;
-	int i;
 	int length;
 
 	irq_setmask(0);

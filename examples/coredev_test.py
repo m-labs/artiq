@@ -16,7 +16,7 @@ class CompilerTest(Experiment):
 					prime = 0
 				d = d + 1
 			if prime == 1:
-				syscall("print_int", x)
+				syscall("rpc", 42, x)
 			x = x + 1
 		self.led.set(0)
 
