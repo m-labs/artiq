@@ -238,4 +238,5 @@ def inline(core, k_function, k_args, k_kwargs, rm=None):
 	if init_kernel_attr:
 		funcdef.body[0:0] = rm.kernel_attr_init
 
-	return funcdef.body, rm.rpc_map
+	r_rpc_map = dict((rpc_num, rpc_fun) for rpc_fun, rpc_num in rm.rpc_map.items())
+	return funcdef.body, r_rpc_map
