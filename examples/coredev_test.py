@@ -1,4 +1,4 @@
-from artiq.language.experiment import Experiment, kernel, syscall
+from artiq.language.experiment import Experiment, kernel
 from artiq.devices import corecom_serial, runtime, core, gpio_core
 
 class CompilerTest(Experiment):
