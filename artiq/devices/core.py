@@ -17,3 +17,4 @@ class Core:
 
 		binary = get_runtime_binary(self.runtime_env, stmts)
 		self.core_com.run(binary)
+		self.core_com.serve(rpc_map)
