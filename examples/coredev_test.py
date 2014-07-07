@@ -4,11 +4,18 @@ from artiq.devices import corecom_serial, runtime, core, gpio_core
 class CompilerTest(Experiment):
 	channels = "core led"
 
+	def output(self, n):
+		print("Received: "+str(n))
+
+	def get_max(self):
+		return int(input("Maximum: "))
+
 	@kernel
 	def run(self):
 		self.led.set(1)
 		x = 1
-		while x < 100:
+		m = self.get_max()
+		while x < m:
 			d = 2
 			prime = 1
 			while d*d <= x:
@@ -16,7 +23,7 @@ class CompilerTest(Experiment):
 					prime = 0
 				d = d + 1
 			if prime == 1:
-				syscall("rpc", 42, x)
+				self.output(x)
 			x = x + 1
 		self.led.set(0)
 
