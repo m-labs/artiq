@@ -3,7 +3,7 @@ from artiq.language.experiment import *
 
 my_range = range
 
-class CompilerTest(Experiment):
+class CompilerTest(MPO):
 	channels = "core a b A B"
 
 	def print_done(self):

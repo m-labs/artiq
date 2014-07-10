@@ -1,7 +1,7 @@
-from artiq.language.experiment import Experiment, kernel
+from artiq.language.experiment import MPO, kernel
 from artiq.devices import corecom_serial, runtime, core, gpio_core
 
-class CompilerTest(Experiment):
+class CompilerTest(MPO):
 	channels = "core led"
 
 	def output(self, n):

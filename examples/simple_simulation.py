@@ -1,7 +1,7 @@
 from artiq.language.units import *
 from artiq.language.experiment import *
 
-class SimpleSimulation(Experiment):
+class SimpleSimulation(MPO):
 	channels = "core a b c d"
 
 	@kernel

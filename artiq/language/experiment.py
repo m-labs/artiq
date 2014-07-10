@@ -1,7 +1,7 @@
 import itertools
 from collections import namedtuple
 
-class Experiment:
+class MPO:
 	channels = ""
 	parameters = ""
 
