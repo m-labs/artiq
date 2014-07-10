@@ -4,7 +4,7 @@ from artiq.language.core import *
 my_range = range
 
 class CompilerTest(MPO):
-	channels = "a b A B"
+	parameters = "a b A B"
 
 	def print_done(self):
 		print("Done!")

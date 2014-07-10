@@ -2,7 +2,7 @@ from artiq.language.core import MPO, kernel
 from artiq.devices import corecom_serial, runtime, core, gpio_core
 
 class CompilerTest(MPO):
-	channels = "led"
+	parameters = "led"
 
 	def output(self, n):
 		print("Received: "+str(n))

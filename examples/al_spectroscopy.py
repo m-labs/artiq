@@ -2,8 +2,8 @@ from artiq.language.units import *
 from artiq.language.core import *
 
 class AluminumSpectroscopy(MPO):
-	channels = "mains_sync laser_cooling spectroscopy spectroscopy_b state_detection pmt"
-	parameters = "spectroscopy_freq photon_limit_low photon_limit_high"
+	parameters = "mains_sync laser_cooling spectroscopy spectroscopy_b state_detection pmt \
+		spectroscopy_freq photon_limit_low photon_limit_high"
 
 	@kernel
 	def run(self):

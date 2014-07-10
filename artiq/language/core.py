@@ -1,31 +1,49 @@
 import itertools
 from collections import namedtuple
 
+from artiq.language import units
+
+def _make_kernel_ro(value):
+	return isinstance(value, (int, float, str, units.Quantity))
+
 class MPO:
-	channels = ""
 	parameters = ""
 	implicit_core = True
 
-	def __init__(self, *args, **kwargs):
-		argnames = self.channels.split() + self.parameters.split()
+	def __init__(self, mvs=None, **kwargs):
+		kernel_attr_ro = []
+
+		self.mvs = mvs
+		for k, v in kwargs.items():
+			setattr(self, k, v)
+			if _make_kernel_ro(v):
+				kernel_attr_ro.append(k)
+
+		parameters = self.parameters.split()
 		if self.implicit_core:
-			argnames.insert(0, "core")
-		undef_args = list(argnames)
+			parameters.append("core")
+		for parameter in parameters:
+			try:
+				value = getattr(self, parameter)
+			except AttributeError:
+				value = self.mvs.get_missing_value(parameter)
+				setattr(self, parameter, value)
+			if _make_kernel_ro(value):
+				kernel_attr_ro.append(parameter)
+				
+		self.kernel_attr_ro = " ".join(kernel_attr_ro)
 
-		if len(argnames) < len(args):
-			raise TypeError("__init__() takes {} positional arguments but {} were given".format(len(argnames), len(args)))
-		for argname, value in itertools.chain(zip(argnames, args), kwargs.items()):
-			if hasattr(self, argname):
-				raise TypeError("__init__() got multiple values for argument '{}'".format(argname))
-			if argname not in argnames:
-				raise TypeError("__init__() got an unexpected keyword argument: '{}'".format(argname))
-			setattr(self, argname, value)
-			undef_args.remove(argname)
-		if undef_args:
-			raise TypeError("__init__() missing {} argument(s): ".format(len(undef_args),
-				", ".join(["'"+s+"'" for s in undef_args])))
+		self.build()
 
-		self.kernel_attr_ro = self.parameters
+	def get_missing_value(self, parameter):
+		try:
+			return getattr(self, parameter)
+		except AttributeError:
+			return self.mvs.get_missing_value(parameter)
+
+	def build(self):
+		""" Overload this function to add sub-experiments"""
+		pass
 
 KernelFunctionInfo = namedtuple("KernelFunctionInfo", "core_name k_function")
 
