@@ -4,9 +4,12 @@ from collections import namedtuple
 class MPO:
 	channels = ""
 	parameters = ""
+	implicit_core = True
 
 	def __init__(self, *args, **kwargs):
 		argnames = self.channels.split() + self.parameters.split()
+		if self.implicit_core:
+			argnames.insert(0, "core")
 		undef_args = list(argnames)
 
 		if len(argnames) < len(args):

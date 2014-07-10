@@ -2,7 +2,7 @@ from artiq.language.units import *
 from artiq.language.experiment import *
 
 class SimpleSimulation(MPO):
-	channels = "core a b c d"
+	channels = "a b c d"
 
 	@kernel
 	def run(self):

@@ -2,7 +2,7 @@ from artiq.language.units import *
 from artiq.language.experiment import *
 
 class AluminumSpectroscopy(MPO):
-	channels = "core mains_sync laser_cooling spectroscopy spectroscopy_b state_detection pmt"
+	channels = "mains_sync laser_cooling spectroscopy spectroscopy_b state_detection pmt"
 	parameters = "spectroscopy_freq photon_limit_low photon_limit_high"
 
 	@kernel
