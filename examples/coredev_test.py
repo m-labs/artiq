@@ -1,4 +1,4 @@
-from artiq.language.experiment import MPO, kernel
+from artiq.language.core import MPO, kernel
 from artiq.devices import corecom_serial, runtime, core, gpio_core
 
 class CompilerTest(MPO):

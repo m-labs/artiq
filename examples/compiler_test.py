@@ -1,5 +1,5 @@
 from artiq.language.units import *
-from artiq.language.experiment import *
+from artiq.language.core import *
 
 my_range = range
 

@@ -1,6 +1,7 @@
 import ast
 
-from artiq.language import experiment, units
+from artiq.language import core as core_language
+from artiq.language import units
 
 def eval_ast(expr, symdict=dict()):
 	if not isinstance(expr, ast.Expression):
@@ -15,8 +16,8 @@ def value_to_ast(value):
 	elif isinstance(value, str):
 		return ast.Str(value)
 	else:
-		for kg in experiment.kernel_globals:
-			if value is getattr(experiment, kg):
+		for kg in core_language.kernel_globals:
+			if value is getattr(core_language, kg):
 				return ast.Name(kg, ast.Load())
 		if isinstance(value, units.Quantity):
 			return ast.Call(

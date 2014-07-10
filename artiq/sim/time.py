@@ -1,7 +1,7 @@
 from operator import itemgetter
 
 from artiq.language.units import *
-from artiq.language import experiment
+from artiq.language import core as core_language
 
 class SequentialTimeContext:
 	def __init__(self, current_time):
@@ -65,4 +65,4 @@ class Manager:
 		return r
 
 manager = Manager()
-experiment.set_time_manager(manager)
+core_language.set_time_manager(manager)

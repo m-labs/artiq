@@ -1,4 +1,4 @@
-from artiq.language.experiment import *
+from artiq.language.core import *
 
 class GPIOOut:
 	def __init__(self, core, channel=0):

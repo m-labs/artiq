@@ -2,7 +2,8 @@ from collections import namedtuple, defaultdict
 import inspect, textwrap, ast
 
 from artiq.compiler.tools import eval_ast, value_to_ast
-from artiq.language import experiment, units
+from artiq.language import core as core_language
+from artiq.language import units
 
 def _replace_global(obj, ref):
 	try:
@@ -32,7 +33,7 @@ class _ReferenceManager:
 		self.use_count["Quantity"] = 1
 		self.use_count["base_s_unit"] = 1
 		self.use_count["base_Hz_unit"] = 1
-		for kg in experiment.kernel_globals:
+		for kg in core_language.kernel_globals:
 			self.use_count[kg] = 1
 		self.use_count["range"] = 1
 
@@ -123,7 +124,8 @@ class _ReferenceManager:
 
 _embeddable_calls = {
 	units.Quantity,
-	experiment.delay, experiment.at, experiment.now, experiment.syscall,
+	core_language.delay, core_language.at, core_language.now,
+	core_language.syscall,
 	range
 }
 

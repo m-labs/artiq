@@ -1,4 +1,4 @@
-from artiq.language.experiment import *
+from artiq.language.core import *
 from artiq.language.units import *
 
 class DDS:

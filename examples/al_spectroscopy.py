@@ -1,5 +1,5 @@
 from artiq.language.units import *
-from artiq.language.experiment import *
+from artiq.language.core import *
 
 class AluminumSpectroscopy(MPO):
 	channels = "mains_sync laser_cooling spectroscopy spectroscopy_b state_detection pmt"
