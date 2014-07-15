@@ -12,8 +12,10 @@
 #include "elf_loader.h"
 
 enum {
-	MSGTYPE_KERNEL_FINISHED		= 0x01,
-	MSGTYPE_RPC_REQUEST			= 0x02,
+	MSGTYPE_REQUEST_IDENT		= 0x01,
+	MSGTYPE_LOAD_KERNEL			= 0x02,
+	MSGTYPE_KERNEL_FINISHED		= 0x03,
+	MSGTYPE_RPC_REQUEST			= 0x04,
 };
 
 static int receive_int(void)
@@ -75,20 +77,30 @@ static void send_sync(void)
 	send_int(0x5a5a5a5a);
 }
 
-static int download_kernel(void *buffer, int maxlength)
+static int ident_and_download_kernel(void *buffer, int maxlength)
 {
 	int length;
 	int i;
+	char msgtype;
 	unsigned char *_buffer = buffer;
 
-	receive_sync();
-	length = receive_int();
-	if(length > maxlength)
-		return -1;
-	for(i=0;i<length;i++)
-		_buffer[i] = receive_char();
-	send_char(0x4f);
-	return length;
+	while(1) {
+		receive_sync();
+		msgtype = receive_char();
+		if(msgtype == MSGTYPE_REQUEST_IDENT) {
+			send_int(0x41524f52); /* "AROR" - ARTIQ runtime on OpenRISC */
+			send_int(1000000000000LL/identifier_frequency_read()); /* RTIO clock period in picoseconds */
+		} else if(msgtype == MSGTYPE_LOAD_KERNEL) {
+			length = receive_int();
+			if(length > maxlength)
+				return -1;
+			for(i=0;i<length;i++)
+				_buffer[i] = receive_char();
+			send_char(0x4f); /* kernel reception OK */
+			return length;
+		} else
+			return -1;
+	}
 }
 
 static int rpc(int rpc_num, int n_args, ...)
@@ -134,7 +146,7 @@ int main(void)
 	puts("ARTIQ runtime built "__DATE__" "__TIME__"\n");
 	
 	while(1) {
-		length = download_kernel(kbuf, sizeof(kbuf));
+		length = ident_and_download_kernel(kbuf, sizeof(kbuf));
 		if(length > 0) {
 			if(load_elf(syscalls, kbuf, length, kcode, sizeof(kcode))) {
 				flush_cpu_icache();

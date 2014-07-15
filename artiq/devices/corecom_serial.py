@@ -1,9 +1,17 @@
 import os, termios, struct
 from enum import Enum
 
+from artiq.language import units
+from artiq.devices.runtime import Environment
+
+class UnsupportedDevice(Exception):
+	pass
+
 class _MsgType(Enum):
-	KERNEL_FINISHED		= 0x01
-	RPC_REQUEST			= 0x02
+	REQUEST_IDENT		= 0x01
+	LOAD_KERNEL			= 0x02
+	KERNEL_FINISHED		= 0x03
+	RPC_REQUEST			= 0x04
 
 def _write_exactly(f, data):
 	remaining = len(data)
@@ -47,9 +55,8 @@ class CoreCom:
 	def __exit__(self, type, value, traceback):
 		self.close()
 
-	def run(self, kcode):
-		_write_exactly(self.port, struct.pack(">ll", 0x5a5a5a5a, len(kcode)))
-		_write_exactly(self.port, kcode)
+	def get_runtime_env(self):
+		_write_exactly(self.port, struct.pack(">lb", 0x5a5a5a5a, _MsgType.REQUEST_IDENT.value))
 		# FIXME: when loading immediately after a board reset, we erroneously get some zeros back.
 		# Ignore them with a warning for now.
 		spurious_zero_count = 0
@@ -57,12 +64,26 @@ class CoreCom:
 			(reply, ) = struct.unpack("b", _read_exactly(self.port, 1))
 			if reply == 0:
 				spurious_zero_count += 1
-			elif reply == 0x4f:
-				break
 			else:
-				raise IOError("Incorrect reply from device: "+hex(reply))
+				break
 		if spurious_zero_count:
 			print("Warning: received {} spurious zeros".format(spurious_zero_count))
+		runtime_id = chr(reply)
+		for i in range(3):
+			(reply, ) = struct.unpack("b", _read_exactly(self.port, 1))
+			runtime_id += chr(reply)
+		if runtime_id != "AROR":
+			raise UnsupportedDevice("Unsupported runtime ID: "+runtime_id)
+		(ref_period, ) = struct.unpack(">l", _read_exactly(self.port, 4))
+		return Environment(ref_period*units.ps)
+
+	def run(self, kcode):
+		_write_exactly(self.port, struct.pack(">lbl",
+			0x5a5a5a5a, _MsgType.LOAD_KERNEL.value, len(kcode)))
+		_write_exactly(self.port, kcode)
+		(reply, ) = struct.unpack("b", _read_exactly(self.port, 1))
+		if reply != 0x4f:
+			raise IOError("Incorrect reply from device: "+hex(reply))
 
 	def _wait_sync(self):
 		recognized = 0
