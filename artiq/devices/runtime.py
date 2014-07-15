@@ -26,7 +26,7 @@ def _str_to_functype(s):
 			type_args.append(_chr_to_type[c]())
 	return var_arg_fixcount, lc.Type.function(type_ret, type_args, var_arg=var_arg_fixcount is not None)
 
-class Environment:
+class LinkInterface:
 	def set_module(self, module):
 		self.var_arg_fixcount = dict()
 		for func_name, func_type_str in _syscalls:
@@ -44,6 +44,10 @@ class Environment:
 				+ [lc.Constant.int(lc.Type.int(), len(args) - fixcount)] \
 				+ args[fixcount:]
 		return builder.call(self.module.get_function_named("__syscall_"+syscall_name), args)
+
+class Environment(LinkInterface):
+	def __init__(self, ref_period):
+		self.ref_period = ref_period
 
 	def emit_object(self):
 		tm = lt.TargetMachine.new(triple="or1k", cpu="generic")

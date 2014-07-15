@@ -1,5 +1,5 @@
 from artiq.language.core import MPO, kernel
-from artiq.devices import corecom_serial, runtime, core, gpio_core
+from artiq.devices import corecom_serial, core, gpio_core
 
 class CompilerTest(MPO):
 	parameters = "led"
@@ -29,7 +29,7 @@ class CompilerTest(MPO):
 
 if __name__ == "__main__":
 	with corecom_serial.CoreCom() as com:
-		coredev = core.Core(runtime.Environment(), com)
+		coredev = core.Core(com)
 		exp = CompilerTest(
 			core=coredev,
 			led=gpio_core.GPIOOut(coredev, 0)

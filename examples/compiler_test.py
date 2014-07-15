@@ -28,9 +28,9 @@ class CompilerTest(MPO):
 		self.print_done()
 
 if __name__ == "__main__":
-	from artiq.devices import core, dds_core
+	from artiq.devices import corecom_dummy, core, dds_core
 
-	coredev = core.Core()
+	coredev = core.Core(corecom_dummy.CoreCom())
 	exp = CompilerTest(
 		core=coredev,
 		a=dds_core.DDS(coredev, 0, 0),

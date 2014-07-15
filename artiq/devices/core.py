@@ -5,7 +5,9 @@ from artiq.compiler.interleave import interleave
 from artiq.compiler.ir import get_runtime_binary
 
 class Core:
-	def __init__(self, runtime_env, core_com):
+	def __init__(self, core_com, runtime_env=None):
+		if runtime_env is None:
+			runtime_env = core_com.get_runtime_env()
 		self.runtime_env = runtime_env
 		self.core_com = core_com
 
