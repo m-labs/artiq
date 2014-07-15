@@ -2,6 +2,7 @@ from artiq.compiler.inline import inline
 from artiq.compiler.fold_constants import fold_constants
 from artiq.compiler.unroll_loops import unroll_loops
 from artiq.compiler.interleave import interleave
+from artiq.compiler.lower_time import lower_time
 from artiq.compiler.ir import get_runtime_binary
 
 class Core:
@@ -16,6 +17,8 @@ class Core:
 		fold_constants(stmts)
 		unroll_loops(stmts, 50)
 		interleave(stmts)
+		lower_time(stmts, self.runtime_env.ref_period)
+		fold_constants(stmts)
 
 		binary = get_runtime_binary(self.runtime_env, stmts)
 		self.core_com.run(binary)
