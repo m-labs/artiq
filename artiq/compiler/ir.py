@@ -22,6 +22,14 @@ class _Namespace:
 	def load(self, builder, name):
 		return builder.load(self.bindings[name])
 
+_binop_to_builder = {
+	ast.Add: "add",
+	ast.Sub: "sub",
+	ast.Mult: "mul",
+	ast.FloorDiv: "sdiv",
+	ast.Mod: "srem"
+}
+
 def _emit_expr(env, builder, ns, node):
 	if isinstance(node, ast.Name):
 		return ns.load(builder, node.id)
@@ -30,14 +38,7 @@ def _emit_expr(env, builder, ns, node):
 	elif isinstance(node, ast.BinOp):
 		left = _emit_expr(env, builder, ns, node.left)
 		right = _emit_expr(env, builder, ns, node.right)
-		mapping = {
-			ast.Add: builder.add,
-			ast.Sub: builder.sub,
-			ast.Mult: builder.mul,
-			ast.FloorDiv: builder.sdiv,
-			ast.Mod: builder.srem
-		}
-		bf = mapping[type(node.op)]
+		bf = getattr(builder, _binop_to_builder[type(node.op)])
 		return bf(left, right)
 	elif isinstance(node, ast.Compare):
 		comparisons = []
@@ -80,6 +81,12 @@ def _emit_statements(env, builder, ns, stmts):
 					ns.store(builder, val, target.id)
 				else:
 					raise NotImplementedError
+		elif isinstance(stmt, ast.AugAssign):
+			left = _emit_expr(env, builder, ns, stmt.target)
+			right = _emit_expr(env, builder, ns, stmt.value)
+			bf = getattr(builder, _binop_to_builder[type(stmt.op)])
+			result = bf(left, right)
+			ns.store(builder, result, stmt.target.id)
 		elif isinstance(stmt, ast.If):
 			function = builder.basic_block.function
 			then_block = function.append_basic_block("i_then")
