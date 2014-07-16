@@ -1,0 +1,141 @@
+\documentclass{beamer}
+\usepackage{marvosym}
+\usepackage{wasysym}
+\usepackage{siunitx}
+\usepackage{moreverb}
+\usepackage{lato}
+
+\definecolor{UniBlue}{RGB}{43,61,81}
+\definecolor{UniBlueHL}{RGB}{67,98,129}
+\definecolor{UniGreen}{RGB}{54,188,123}
+
+\renewcommand*{\familydefault}{fla}
+\renewcommand*{\sfdefault}{fla}
+
+\setbeamercolor{title}{fg=white}
+\setbeamercolor{frametitle}{fg=UniGreen}
+\setbeamercolor{structure}{fg=white}
+\setbeamercolor{normal text}{fg=white}
+\setbeamercolor{background canvas}{bg=UniBlue}
+
+\begin{document}
+\fontseries{l}\selectfont
+
+\title{ARTIQ}
+\subtitle{A new control system for trapped ion experiments}
+\author{\fontseries{el}\selectfont S\'ebastien Bourdeauducq}
+\date{\fontseries{el}\selectfont july 2014}
+
+\frame{\titlepage}
+
+\begin{frame}
+\frametitle{\fontseries{l}\selectfont Key points}
+\begin{itemize}
+\item High performance --- nanosecond resolution, hundreds of ns latency
+\item Expressive --- describe algorithms with few lines of code
+\item Portable --- treat FPGA boards as commodity
+\item Modular --- separate components as much as possible
+\item Flexible --- hard-code as little as possible
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{\fontseries{l}\selectfont Kernels}
+\begin{itemize}
+\item The real-time parts of the experiments
+\item Written in a subset of Python
+\item Executed on a CPU embedded in a FPGA (\textit{core device})
+\item Special constructs to specify timing
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{\fontseries{l}\selectfont Timing}
+\begin{itemize}
+\item Exact time of interactions with the outside world is kept in an internal variable
+\item That variable only loosely tracks the execution time of CPU instructions
+\item The value of that variable is exchanged with the \textit{RTIO core} that does precise timing
+\end{itemize}
+\begin{verbatimtab}
+self.mains_sync.wait_edge()
+for i in range(10):
+    delay(10*us)
+    self.X.pulse(100*MHz, 100*us)
+\end{verbatimtab}
+\center First X pulse is emitted exactly \SI{10}{\micro\second} after mains edge
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{\fontseries{l}\selectfont Parallel and sequential blocks}
+\begin{itemize}
+\item All statements in a \verb!parallel! block are executed at the same exact time
+\item A \verb!parallel! block can spawn a \verb!sequential! block, where exact time increases
+\item \verb!Parallel! and \verb!sequential! blocks can be arbitrarily nested
+\end{itemize}
+\begin{verbatimtab}
+with parallel:
+    with sequential:
+        self.a.pulse(100*MHz, 20*us)
+        self.b.pulse(200*MHz, 20*us)
+    with sequential:
+        self.c.pulse(300*MHz, 10*us)
+        self.d.pulse(400*MHz, 20*us)
+\end{verbatimtab}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{\fontseries{l}\selectfont Object orientation and code reuse}
+\begin{verbatimtab}
+class Main(MPO):
+    def build(self):
+        self.ion1 = Ion(...)
+        self.ion2 = Ion(...)
+        self.transporter = Transporter(...)
+
+    @kernel
+    def run(self):
+        self.ion1.cool(duration=10*us)
+        self.ion2.cool(frequency=...)
+        self.transporter.move(speed=...)
+        self.ion1.detect(duration=...)
+\end{verbatimtab}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{\fontseries{l}\selectfont Communication with the kernel}
+\begin{itemize}
+\item When the kernel function calls a non-kernel function, it generates a RPC
+\item The callee is executed on the host
+\item The callee may receive parameters from the kernel and may return a value to the kernel
+\item The kernel must have a loose real-time constraint (a long \verb!delay!) to cover communication and host delays
+\item Mechanism to report results and control slow devices
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{\fontseries{l}\selectfont Kernel deployment process}
+\begin{enumerate}
+\item Constants and called kernels are inlined
+\item Loops are unrolled
+\item Statements from concurrent sequential blocks are interleaved. Threads are currently unsupported.
+\item Time is converted to RTIO clock units
+\item The Python AST is converted to LLVM IR
+\item The LLVM IR is compiled to OpenRISC machine code
+\item The OpenRISC binary is sent to the core device
+\item The runtime in the core device links and run the kernel
+\item The kernel calls the runtime for communication (RPC) and access to core device peripherals (RTIO, DDS)
+\end{enumerate}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{\fontseries{l}\selectfont Channels and parameters}
+\begin{itemize}
+\item A kernel is a method of a class that derives from the \verb!MPO! class
+\item The entry point for an experiment is called \verb!run! --- may or may not be a kernel
+\item The \verb!MPO! class manages channels and parameters, and sets them as attributes
+\item If channels/parameters are passed as constructor arguments, those are used
+\item Otherwise, they are looked up in the device and parameter databases
+\end{itemize}
+\end{frame}
+
+\end{document}
