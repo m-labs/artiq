@@ -1,10 +1,13 @@
 from fractions import Fraction
 
 from migen.fhdl.std import *
+from mibuild.generic_platform import *
 
 from misoclib import lasmicon, spiflash, gpio
 from misoclib.sdramphy import gensdrphy
 from misoclib.gensoc import SDRAMSoC
+
+from artiqlib import rtio
 
 class _CRG(Module):
 	def __init__(self, platform, clk_freq):
@@ -57,13 +60,21 @@ class _CRG(Module):
 				i_C0=self.cd_sys.clk, i_C1=~self.cd_sys.clk,
 				o_Q=platform.request("sdram_clock"))
 
+_ttl_io = [("ttl", i, Pins("C:"+str(i)), IOStandard("LVTTL")) for i in range(16)]
+
 class ARTIQSoC(SDRAMSoC):
 	default_platform = "papilio_pro"
+
+	csr_map = {
+		"rtio":			10
+	}
+	csr_map.update(SDRAMSoC.csr_map)
 
 	def __init__(self, platform, cpu_type="or1k", **kwargs):
 		clk_freq = 80*1000*1000
 		SDRAMSoC.__init__(self, platform, clk_freq,
 			cpu_reset_address=0x160000, cpu_type=cpu_type, **kwargs)
+		platform.add_extension(_ttl_io)
 
 		self.submodules.crg = _CRG(platform, clk_freq)
 
@@ -93,5 +104,6 @@ class ARTIQSoC(SDRAMSoC):
 		self.register_rom(self.spiflash.bus)
 
 		self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))
+		self.submodules.rtio = rtio.RTIO([platform.request("ttl", i) for i in range(16)])
 
 default_subtarget = ARTIQSoC
