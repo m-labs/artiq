@@ -6,13 +6,14 @@ from migen.genlib.cdc import MultiReg
 class RTIOChannelO(Module):
 	def __init__(self, signal, counter_width, fifo_depth):
 		self.submodules.fifo = SyncFIFOBuffered([
-			("timestamp", counter_width), ("level", 1)],
+			("timestamp", counter_width), ("value", 1)],
 			fifo_depth)
 
 		self.event = self.fifo.din
 		self.writable = self.fifo.writable
 		self.we = self.fifo.we
 		self.underflow = Signal()
+		self.level = self.fifo.level
 
 		###
 
@@ -31,17 +32,18 @@ class RTIOChannelO(Module):
 				(self.fifo.dout.timestamp == counter)),
 			self.fifo.re.eq(time_hit)
 		]
-		self.sync += If(time_hit, signal.eq(self.fifo.dout.level))
+		self.sync += If(time_hit, signal.eq(self.fifo.dout.value))
 
 class RTIO(Module, AutoCSR):
 	def __init__(self, channels, counter_width=32, ofifo_depth=8, ififo_depth=8):
 		self._r_reset = CSRStorage(reset=1)
 		self._r_chan_sel = CSRStorage(bits_for(len(channels)-1))
 		self._r_o_timestamp = CSRStorage(counter_width)
-		self._r_o_level = CSRStorage()
+		self._r_o_value = CSRStorage()
 		self._r_o_writable = CSRStatus()
 		self._r_o_we = CSR()
 		self._r_o_underflow = CSRStatus()
+		self._r_o_level = CSRStatus(bits_for(ofifo_depth))
 
 		channel_os = []
 		for n, channel in enumerate(channels):
@@ -51,12 +53,13 @@ class RTIO(Module, AutoCSR):
 			self.comb += [
 				channel_o.reset.eq(self._r_reset.storage),
 				channel_o.event.timestamp.eq(self._r_o_timestamp.storage),
-				channel_o.event.level.eq(self._r_o_level.storage),
+				channel_o.event.value.eq(self._r_o_value.storage),
 				channel_o.we.eq(self._r_o_we.re & (self._r_chan_sel == n))
 			]
 
 		channel_o = Array(channel_os)[self._r_chan_sel.storage]
 		self.comb += [
 			self._r_o_writable.status.eq(channel_o.writable),
-			self._r_o_underflow.status.eq(channel_o.underflow)
+			self._r_o_underflow.status.eq(channel_o.underflow),
+			self._r_o_level.status.eq(channel_o.level)
 		]
