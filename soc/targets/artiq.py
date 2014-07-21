@@ -104,6 +104,6 @@ class ARTIQSoC(SDRAMSoC):
 		self.register_rom(self.spiflash.bus)
 
 		self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))
-		self.submodules.rtio = rtio.RTIO([platform.request("ttl", i) for i in range(16)])
+		self.submodules.rtio = rtio.RTIO([platform.request("ttl", i) for i in range(8)])
 
 default_subtarget = ARTIQSoC
