@@ -7,7 +7,6 @@ class TTLTest(MPO):
 
 	@kernel
 	def run(self):
-		delay(10*us)
 		i = 0
 		while i < 100000:
 			with parallel:

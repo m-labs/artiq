@@ -17,7 +17,8 @@ class Core:
 		fold_constants(stmts)
 		unroll_loops(stmts, 50)
 		interleave(stmts)
-		lower_time(stmts, self.runtime_env.ref_period)
+		lower_time(stmts, self.runtime_env.ref_period,
+			getattr(self.runtime_env, "initial_time", 0))
 		fold_constants(stmts)
 
 		binary = get_runtime_binary(self.runtime_env, stmts)

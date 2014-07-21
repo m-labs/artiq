@@ -49,6 +49,7 @@ class LinkInterface:
 class Environment(LinkInterface):
 	def __init__(self, ref_period):
 		self.ref_period = ref_period
+		self.initial_time = 8000
 
 	def emit_object(self):
 		tm = lt.TargetMachine.new(triple="or1k", cpu="generic")
