@@ -119,14 +119,24 @@ static int rpc(int rpc_num, int n_args, ...)
 	return receive_int();
 }
 
-static void gpio_set(int channel, int level)
+static void gpio_set(int channel, int value)
 {
-	leds_out_write(!!level);
+	leds_out_write(value);
+}
+
+static void rtio_set(int timestamp, int channel, int value)
+{
+	rtio_chan_sel_write(channel);
+	rtio_o_timestamp_write(timestamp);
+	rtio_o_value_write(value);
+	while(!rtio_o_writable_read());
+	rtio_o_we_write(1);
 }
 
 static const struct symbol syscalls[] = {
 	{"__syscall_rpc",			rpc},
 	{"__syscall_gpio_set",		gpio_set},
+	{"__syscall_rtio_set",		rtio_set},
 	{NULL, NULL}
 };
 
@@ -144,13 +154,15 @@ int main(void)
 	uart_init();
 	
 	puts("ARTIQ runtime built "__DATE__" "__TIME__"\n");
-	
+
 	while(1) {
 		length = ident_and_download_kernel(kbuf, sizeof(kbuf));
 		if(length > 0) {
 			if(load_elf(syscalls, kbuf, length, kcode, sizeof(kcode))) {
 				flush_cpu_icache();
+				rtio_reset_write(0);
 				k();
+				rtio_reset_write(1);
 				send_sync();
 				send_char(MSGTYPE_KERNEL_FINISHED);
 			}
