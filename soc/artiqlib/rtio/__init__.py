@@ -54,7 +54,7 @@ class RTIO(Module, AutoCSR):
 				channel_o.reset.eq(self._r_reset.storage),
 				channel_o.event.timestamp.eq(self._r_o_timestamp.storage),
 				channel_o.event.value.eq(self._r_o_value.storage),
-				channel_o.we.eq(self._r_o_we.re & (self._r_chan_sel == n))
+				channel_o.we.eq(self._r_o_we.re & (self._r_chan_sel.storage == n))
 			]
 
 		channel_o = Array(channel_os)[self._r_chan_sel.storage]
