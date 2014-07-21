@@ -22,13 +22,16 @@ class TimeTest(MPO):
 
 	@kernel
 	def run(self):
-		with parallel:
-			with sequential:
-				self.a.pulse(100, 20*us)
-				self.b.pulse(200, 20*us)
-			with sequential:
-				self.c.pulse(300, 10*us)
-				self.d.pulse(400, 20*us)
+		i = 0
+		while i < 3:
+			with parallel:
+				with sequential:
+					self.a.pulse(100+i, 20*us)
+					self.b.pulse(200+i, 20*us)
+				with sequential:
+					self.c.pulse(300+i, 10*us)
+					self.d.pulse(400+i, 20*us)
+			i += 1
 
 if __name__ == "__main__":
 	with corecom_serial.CoreCom() as com:
