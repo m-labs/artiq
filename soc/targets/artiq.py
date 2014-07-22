@@ -72,10 +72,10 @@ _tester_io = [
 		Subsignal("d", Pins("A:12 B:3 A:13 B:2 A:14 B:1 A:15 B:0")),
 		Subsignal("sel", Pins("A:2 B:14 A:1 B:15 A:0")),
 		Subsignal("p", Pins("A:8 B:12")),
-		Subsignal("fud", Pins("B:11")),
+		Subsignal("fud_n", Pins("B:11")),
 		Subsignal("wr_n", Pins("A:4")),
 		Subsignal("rd_n", Pins("B:13")),
-		Subsignal("reset", Pins("A:3")),
+		Subsignal("rst_n", Pins("A:3")),
 		IOStandard("LVTTL")),
 ]
 

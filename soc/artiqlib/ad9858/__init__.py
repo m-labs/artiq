@@ -23,9 +23,16 @@ class AD9858(Module):
 	rd_n is asserted for 3 cycles.
 	Data is sampled 2 cycles into the assertion of rd_n.
 
-	FUD is asserted for fud_cycles cycles.
+	Design:
+	All IO pads are registered.
+
+	LVDS driver/receiver propagation delays are 3.6+4.5 ns max
+	LVDS state transition delays are 20, 15 ns max
+	Schmitt trigger delays are 6.4ns max
+	Round-trip addr A setup (> RX, RD, D to Z), RD prop, D valid (< D
+	valid), D prop is ~15 + 10 + 20 + 10 = 55ns
 	"""
-	def __init__(self, pads, fud_cycles=3, bus=None):
+	def __init__(self, pads, bus=None):
 		if bus is None:
 			bus = wishbone.Interface()
 		self.bus = bus
@@ -35,46 +42,39 @@ class AD9858(Module):
 		dts = TSTriple(8)
 		self.specials += dts.get_tristate(pads.d)
 		dr = Signal(8)
-		oe_p = Signal()
+		rx = Signal()
 		self.sync += [
-			pads.a.eq(bus.adr[:6]),
+			pads.a.eq(bus.adr),
 			dts.o.eq(bus.dat_w),
 			dr.eq(dts.i),
-			dts.oe.eq(oe_p)
+			dts.oe.eq(~rx)
 		]
 
 		gpio = Signal(flen(pads.sel) + flen(pads.p) + 1)
 		gpio_load = Signal()
 		self.sync += If(gpio_load, gpio.eq(bus.dat_w))
-		self.comb += Cat(pads.sel, pads.p, pads.reset).eq(gpio)
+		self.comb += [
+				Cat(pads.sel, pads.p).eq(gpio),
+				pads.rst_n.eq(~gpio[-1]),
+				]
 
-		bus_r_sel_gpio = Signal()
-		self.comb += If(bus_r_sel_gpio,
+		bus_r_gpio = Signal()
+		self.comb += If(bus_r_gpio,
 				bus.dat_r.eq(gpio)
 			).Else(
 				bus.dat_r.eq(dr)
 			)
 
-		fud_p = Signal()
-		self.sync += pads.fud.eq(fud_p)
-		fud_counter_max = fud_cycles - 1
-		fud_counter = Signal(max=fud_counter_max+1)
-		fud_counter_en = Signal()
-		fud_counter_done = Signal()
-		self.comb += fud_counter_done.eq(fud_counter == fud_counter_max)
-		self.sync += If(fud_counter_en,
-				fud_counter.eq(fud_counter + 1)
-			).Else(
-				fud_counter.eq(0)
-			)
+		fud = Signal()
+		self.sync += pads.fud_n.eq(~fud)
 
 		pads.wr_n.reset = 1
 		pads.rd_n.reset = 1
-		wr_n_p = Signal(reset=1)
-		rd_n_p = Signal(reset=1)
-		self.sync += pads.wr_n.eq(wr_n_p), pads.rd_n.eq(rd_n_p)
+		wr = Signal()
+		rd = Signal()
+		self.sync += pads.wr_n.eq(~wr), pads.rd_n.eq(~rd)
 
-		fsm = FSM()
+		fsm = FSM("IDLE")
 		self.submodules += fsm
 
 		fsm.act("IDLE",
@@ -95,60 +95,83 @@ class AD9858(Module):
 			)
 		)
 		fsm.act("WRITE",
-			oe_p.eq(1),
-			wr_n_p.eq(0),
+			# 3ns A setup to WR active
+			wr.eq(1),
+			NextState("WRITE0")
+		)
+		fsm.act("WRITE0",
+			# 3.5ns D setup to WR inactive
+			# 0ns D and A hold to WR inactive
 			bus.ack.eq(1),
 			NextState("IDLE")
 		)
 		fsm.act("READ",
-			rd_n_p.eq(0),
+			# 15ns D valid to A setup
+			# 15ns D valid to RD active
+			rx.eq(1),
+			rd.eq(1),
 			NextState("READ0")
 		)
 		fsm.act("READ0",
-			rd_n_p.eq(0),
+			rx.eq(1),
+			rd.eq(1),
 			NextState("READ1")
 		)
 		fsm.act("READ1",
-			rd_n_p.eq(0),
+			rx.eq(1),
+			rd.eq(1),
 			NextState("READ2")
 		)
 		fsm.act("READ2",
+			rx.eq(1),
+			rd.eq(1),
 			NextState("READ3")
 		)
 		fsm.act("READ3",
+			rx.eq(1),
+			rd.eq(1),
+			NextState("READ4")
+		)
+		fsm.act("READ4",
+			rx.eq(1),
+			NextState("READ5")
+		)
+		fsm.act("READ5",
+			# 5ns D three-state to RD inactive
+			# 10ns A hold to RD inactive
+			rx.eq(1),
 			bus.ack.eq(1),
 			NextState("IDLE")
 		)
 		fsm.act("GPIO",
 			bus.ack.eq(1),
-			bus_r_sel_gpio.eq(1),
+			bus_r_gpio.eq(1),
 			If(bus.we, gpio_load.eq(1)),
 			NextState("IDLE")
 		)
 		fsm.act("FUD",
-			fud_p.eq(1),
-			fud_counter_en.eq(1),
-			If(fud_counter_done,
-				bus.ack.eq(1),
-				NextState("IDLE")
-			)
+			# 4ns FUD setup to SYNCLK
+			# 0ns FUD hold to SYNCLK
+			fud.eq(1),
+			bus.ack.eq(1),
+			NextState("IDLE")
 		)
 
 def _test_gen():
 	# Test external bus writes
 	yield TWrite(4, 2)
 	yield TWrite(5, 3)
-
+	yield
 	# Test external bus reads
 	yield TRead(14)
 	yield TRead(15)
-
+	yield
 	# Test FUD
 	yield TWrite(64, 0)
-
+	yield
 	# Test GPIO
 	yield TWrite(65, 0xff)
-	yield None
+	yield
 
 class _TestPads:
 	def __init__(self):
@@ -156,10 +179,10 @@ class _TestPads:
 		self.d = Signal(8)
 		self.sel = Signal(5)
 		self.p = Signal(2)
-		self.fud = Signal()
+		self.fud_n = Signal()
 		self.wr_n = Signal()
 		self.rd_n = Signal()
-		self.reset = Signal()
+		self.rst_n = Signal()
 
 class _TB(Module):
 	def __init__(self):
