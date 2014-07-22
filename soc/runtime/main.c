@@ -139,10 +139,17 @@ static void rtio_set(int timestamp, int channel, int value)
 	rtio_o_we_write(1);
 }
 
+static void rtio_sync(int channel)
+{
+	rtio_chan_sel_write(channel);
+	while(rtio_o_level_read() != 0);
+}
+
 static const struct symbol syscalls[] = {
 	{"__syscall_rpc",			rpc},
 	{"__syscall_gpio_set",		gpio_set},
 	{"__syscall_rtio_set",		rtio_set},
+	{"__syscall_rtio_sync",		rtio_sync},
 	{NULL, NULL}
 };
 

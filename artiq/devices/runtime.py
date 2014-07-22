@@ -6,7 +6,8 @@ lt.initialize_all()
 _syscalls = [
 	("rpc",			"i+:i"),
 	("gpio_set",	"ii:v"),
-	("rtio_set",	"iii:v")
+	("rtio_set",	"iii:v"),
+	("rtio_sync",	"i:v"),
 ]
 
 def _str_to_functype(s):
