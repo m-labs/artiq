@@ -7,7 +7,7 @@ from misoclib import lasmicon, spiflash, gpio
 from misoclib.sdramphy import gensdrphy
 from misoclib.gensoc import SDRAMSoC
 
-from artiqlib import rtio
+from artiqlib import rtio, ad9858
 
 class _CRG(Module):
 	def __init__(self, platform, clk_freq):
@@ -124,5 +124,7 @@ class ARTIQSoC(SDRAMSoC):
 			platform.request("user_led", 1)))
 		self.comb += platform.request("ttl_tx_en").eq(1)
 		self.submodules.rtio = rtio.RTIO([platform.request("ttl", i) for i in range(4)])
+		self.submodules.dds = ad9858.AD9858(platform.request("dds"))
+		self.add_wb_slave(lambda a: a[26:29] == 3, self.dds.bus)
 
 default_subtarget = ARTIQSoC
