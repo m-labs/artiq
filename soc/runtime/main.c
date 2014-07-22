@@ -121,7 +121,13 @@ static int rpc(int rpc_num, int n_args, ...)
 
 static void gpio_set(int channel, int value)
 {
-	leds_out_write(value);
+	static int csr_value;
+
+	if(value)
+		csr_value |= 1 << channel;
+	else
+		csr_value &= ~(1 << channel);
+	leds_out_write(csr_value);
 }
 
 static void rtio_set(int timestamp, int channel, int value)

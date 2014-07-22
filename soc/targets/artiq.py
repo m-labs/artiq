@@ -60,7 +60,24 @@ class _CRG(Module):
 				i_C0=self.cd_sys.clk, i_C1=~self.cd_sys.clk,
 				o_Q=platform.request("sdram_clock"))
 
-_ttl_io = [("ttl", i, Pins("C:"+str(i)), IOStandard("LVTTL")) for i in range(16)]
+_tester_io = [
+	("user_led", 1, Pins("B:7"), IOStandard("LVTTL")),
+	("ttl", 0, Pins("C:13"), IOStandard("LVTTL")),
+	("ttl", 1, Pins("C:11"), IOStandard("LVTTL")),
+	("ttl", 2, Pins("C:10"), IOStandard("LVTTL")),
+	("ttl", 3, Pins("C:9"), IOStandard("LVTTL")),
+	("ttl_tx_en", 0, Pins("A:9"), IOStandard("LVTTL")),
+	("dds", 0,
+		Subsignal("a", Pins("A:5 B:10 A:6 B:9 A:7 B:8")),
+		Subsignal("d", Pins("A:12 B:3 A:13 B:2 A:14 B:1 A:15 B:0")),
+		Subsignal("sel", Pins("A:2 B:14 A:1 B:15 A:0")),
+		Subsignal("p", Pins("A:8 B:12")),
+		Subsignal("fud", Pins("B:11")),
+		Subsignal("wr_n", Pins("A:4")),
+		Subsignal("rd_n", Pins("B:13")),
+		Subsignal("reset", Pins("A:3")),
+		IOStandard("LVTTL")),
+]
 
 class ARTIQSoC(SDRAMSoC):
 	default_platform = "papilio_pro"
@@ -74,7 +91,7 @@ class ARTIQSoC(SDRAMSoC):
 		clk_freq = 80*1000*1000
 		SDRAMSoC.__init__(self, platform, clk_freq,
 			cpu_reset_address=0x160000, cpu_type=cpu_type, **kwargs)
-		platform.add_extension(_ttl_io)
+		platform.add_extension(_tester_io)
 
 		self.submodules.crg = _CRG(platform, clk_freq)
 
@@ -103,7 +120,9 @@ class ARTIQSoC(SDRAMSoC):
 		self.flash_boot_address = 0x70000
 		self.register_rom(self.spiflash.bus)
 
-		self.submodules.leds = gpio.GPIOOut(platform.request("user_led"))
-		self.submodules.rtio = rtio.RTIO([platform.request("ttl", i) for i in range(8)])
+		self.submodules.leds = gpio.GPIOOut(Cat(platform.request("user_led", 0),
+			platform.request("user_led", 1)))
+		self.comb += platform.request("ttl_tx_en").eq(1)
+		self.submodules.rtio = rtio.RTIO([platform.request("ttl", i) for i in range(4)])
 
 default_subtarget = ARTIQSoC
