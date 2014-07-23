@@ -27,7 +27,9 @@ _binop_to_builder = {
 	ast.Sub: "sub",
 	ast.Mult: "mul",
 	ast.FloorDiv: "sdiv",
-	ast.Mod: "srem"
+	ast.Mod: "srem",
+	ast.LShift: "shl",
+	ast.RShift: "ashr"
 }
 
 def _emit_expr(env, builder, ns, node):
