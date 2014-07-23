@@ -1,25 +1,21 @@
 from artiq.language.core import *
 from artiq.language.units import *
 
-class DDS:
-	def __init__(self, core, reg_channel, rtio_channel, latency=0*ps, phase_mode="continuous"):
-		self.core = core
-		self.reg_channel = reg_channel
-		self.rtio_channel = rtio_channel
-		self.latency = latency
-		self.phase_mode = phase_mode
+class DDS(MPO):
+	parameters = "dds_sysclk reg_channel rtio_channel"
 
+	def build(self):
 		self._previous_frequency = 0*MHz
 
-	kernel_attr_ro = "reg_channel rtio_channel latency phase_mode"
 	kernel_attr = "_previous_frequency"
 
 	@kernel
 	def pulse(self, frequency, duration):
 		if self._previous_frequency != frequency:
 			syscall("rtio_sync", self.rtio_channel) # wait until output is off
-			syscall("dds_program", self.reg_channel, frequency)
+			syscall("dds_program", self.reg_channel,
+				(frequency << 2)//(self.dds_sysclk >> 15) << 15)
 			self._previous_frequency = frequency
-		syscall("rtio_set", now()-self.latency, self.rtio_channel, 1)
+		syscall("rtio_set", now(), self.rtio_channel, 1)
 		delay(duration)
-		syscall("rtio_set", now()-self.latency, self.rtio_channel, 0)
+		syscall("rtio_set", now(), self.rtio_channel, 0)
