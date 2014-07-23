@@ -28,8 +28,12 @@ _binop_to_builder = {
 	ast.Mult: "mul",
 	ast.FloorDiv: "sdiv",
 	ast.Mod: "srem",
+
 	ast.LShift: "shl",
-	ast.RShift: "ashr"
+	ast.RShift: "ashr",
+
+	ast.BitAnd: "and_",
+	ast.BitOr: "or_",
 }
 
 def _emit_expr(env, builder, ns, node):
