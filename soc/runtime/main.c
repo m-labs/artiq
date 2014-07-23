@@ -7,6 +7,7 @@
 #include <uart.h>
 #include <console.h>
 #include <system.h>
+#include <hw/common.h>
 #include <generated/csr.h>
 
 #include "elf_loader.h"
@@ -145,11 +146,35 @@ static void rtio_sync(int channel)
 	while(rtio_o_level_read() != 0);
 }
 
+#define DDS_FTW   0x0a
+#define DDS_PTW   0x0e
+#define DDS_FUD   0x40
+#define DDS_GPIO  0x41
+
+#define DDS_WRITE1(addr, data) \
+	MMPTR(0xb0000000 + (addr)*4) = data
+
+#define DDS_WRITE2(addr, data) \
+	DDS_WRITE1(addr, (data) >> 8); \
+	DDS_WRITE1((addr) + 1, data)
+
+#define DDS_WRITE4(addr, data) \
+	DDS_WRITE2(addr, (data) >> 16); \
+	DDS_WRITE2((addr) + 2, data)
+
+static void dds_program(int channel, int ftw)
+{
+	DDS_WRITE1(DDS_GPIO, channel);
+	DDS_WRITE4(DDS_FTW, ftw);
+	DDS_WRITE1(DDS_FUD, 0);
+}
+
 static const struct symbol syscalls[] = {
 	{"__syscall_rpc",			rpc},
 	{"__syscall_gpio_set",		gpio_set},
 	{"__syscall_rtio_set",		rtio_set},
 	{"__syscall_rtio_sync",		rtio_sync},
+	{"__syscall_dds_program",	dds_program},
 	{NULL, NULL}
 };
 

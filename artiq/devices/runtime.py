@@ -8,6 +8,7 @@ _syscalls = [
 	("gpio_set",	"ii:v"),
 	("rtio_set",	"iii:v"),
 	("rtio_sync",	"i:v"),
+	("dds_program",	"ii:v"),
 ]
 
 def _str_to_functype(s):
