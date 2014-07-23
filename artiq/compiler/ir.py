@@ -66,6 +66,8 @@ def _emit_expr(env, builder, ns, node):
 		if node.func.id == "syscall":
 			return env.emit_syscall(builder, node.args[0].s,
 				[_emit_expr(env, builder, ns, expr) for expr in node.args[1:]])
+		elif node.func.id == "Quantity":
+			return _emit_expr(env, builder, ns, node.args[0])
 		else:
 			raise NotImplementedError
 	else:
