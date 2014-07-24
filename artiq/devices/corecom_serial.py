@@ -1,4 +1,4 @@
-import os, termios, struct
+import os, termios, struct, zlib
 from enum import Enum
 
 from artiq.language import units
@@ -78,8 +78,8 @@ class CoreCom:
 		return Environment(ref_period*units.ps)
 
 	def run(self, kcode):
-		_write_exactly(self.port, struct.pack(">lbl",
-			0x5a5a5a5a, _MsgType.LOAD_KERNEL.value, len(kcode)))
+		_write_exactly(self.port, struct.pack(">lblL",
+			0x5a5a5a5a, _MsgType.LOAD_KERNEL.value, len(kcode), zlib.crc32(kcode)))
 		_write_exactly(self.port, kcode)
 		(reply, ) = struct.unpack("b", _read_exactly(self.port, 1))
 		if reply != 0x4f:
