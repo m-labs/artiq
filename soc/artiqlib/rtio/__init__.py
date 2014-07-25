@@ -74,8 +74,10 @@ class RTIO(Module, AutoCSR):
 
 		# CSRs
 		self._r_reset = CSRStorage(reset=1)
-		self._r_oe = CSRStorage(len(oes))
 		self._r_chan_sel = CSRStorage(flen(self.bank_o.sel))
+		
+		self._r_oe = CSR()
+
 		self._r_o_timestamp = CSRStorage(counter_width+fine_ts_width)
 		self._r_o_value = CSRStorage()
 		self._r_o_writable = CSRStatus()
@@ -84,7 +86,17 @@ class RTIO(Module, AutoCSR):
 		self._r_o_level = CSRStatus(bits_for(ofifo_depth))
 
 		# OE
-		self.comb += Cat(*oes).eq(self._r_oe.storage)
+		oes = []
+		for n, padif in enumerate(phy.interface):
+			if hasattr(padif, "oe"):
+				self.sync += \
+					If(self._r_oe.re & (self._r_chan_sel.storage == n),
+						padif.oe.eq(self._r_oe.r)
+					)
+				oes.append(padif.oe)
+			else:
+				oes.append(1)
+		self.comb += self._r_oe.w.eq(Array(oes)[self._r_chan_sel.storage])
 
 		# Output/Gate
 		self.comb += [
