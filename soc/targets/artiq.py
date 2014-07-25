@@ -122,8 +122,13 @@ class ARTIQSoC(SDRAMSoC):
 
 		self.submodules.leds = gpio.GPIOOut(Cat(platform.request("user_led", 0),
 			platform.request("user_led", 1)))
+
 		self.comb += platform.request("ttl_tx_en").eq(1)
-		self.submodules.rtio = rtio.RTIO([platform.request("ttl", i) for i in range(4)])
+		rtio_pads = [platform.request("ttl", i) for i in range(4)]
+		self.submodules.rtiophy = rtio.phy.SimplePHY(rtio_pads,
+			{rtio_pads[1], rtio_pads[2], rtio_pads[3]})
+		self.submodules.rtio = rtio.RTIO(self.rtiophy)
+
 		self.submodules.dds = ad9858.AD9858(platform.request("dds"))
 		self.add_wb_slave(lambda a: a[26:29] == 3, self.dds.bus)
 
