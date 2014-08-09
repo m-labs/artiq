@@ -32,6 +32,6 @@ if __name__ == "__main__":
 		coredev = core.Core(com)
 		exp = CompilerTest(
 			core=coredev,
-			led=gpio_core.GPIOOut(coredev, 0)
+			led=gpio_core.GPIOOut(core=coredev, channel=0)
 		)
 		exp.run()
