@@ -1,12 +1,12 @@
 import ast, types
 
 from artiq.language import units
-from artiq.compiler.tools import eval_ast
+from artiq.compiler.tools import *
 
 # -1 statement duration could not be pre-determined
 #  0 statement has no effect on timeline
 # >0 statement is a static delay that advances the timeline
-#     by the given amount (in base_s_unit)
+#     by the given amount (in seconds)
 def _get_duration(stmt):
 	if isinstance(stmt, (ast.Expr, ast.Assign)):
 		return _get_duration(stmt.value)
@@ -18,16 +18,13 @@ def _get_duration(stmt):
 	elif isinstance(stmt, ast.Call) and isinstance(stmt.func, ast.Name):
 		name = stmt.func.id
 		if name == "delay":
-			da = stmt.args[0]
-			if isinstance(da, ast.Call) \
-			  and isinstance(da.func, ast.Name) \
-			  and da.func.id == "Quantity" \
-			  and isinstance(da.args[0], ast.Num):
-				if not isinstance(da.args[1], ast.Name) or da.args[1].id != "base_s_unit":
-					raise units.DimensionError("Delay not expressed in seconds")
-				return da.args[0].n
-			else:
+			try:
+				da = eval_constant(stmt.args[0])
+			except NotConstant:
 				return -1
+			if da.unit != units.s_unit:
+				raise units.DimensionError("Delay not expressed in seconds")
+			return da.amount
 		else:
 			return 0
 	else:
