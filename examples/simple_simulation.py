@@ -18,12 +18,13 @@ if __name__ == "__main__":
 	from artiq.sim import devices as sd
 	from artiq.sim import time
 
+	coredev = sd.Core()
 	exp = SimpleSimulation(
-		core=sd.Core(),
-		a=sd.WaveOutput("a"),
-		b=sd.WaveOutput("b"),
-		c=sd.WaveOutput("c"),
-		d=sd.WaveOutput("d"),
+		core=coredev,
+		a=sd.WaveOutput(core=coredev, name="a"),
+		b=sd.WaveOutput(core=coredev, name="b"),
+		c=sd.WaveOutput(core=coredev, name="c"),
+		d=sd.WaveOutput(core=coredev, name="d"),
 	)
 	exp.run()
 	print(time.manager.format_timeline())
