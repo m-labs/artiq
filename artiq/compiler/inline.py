@@ -1,16 +1,10 @@
 from collections import namedtuple, defaultdict
+from fractions import Fraction
 import inspect, textwrap, ast
 
 from artiq.compiler.tools import eval_ast, value_to_ast
 from artiq.language import core as core_language
 from artiq.language import units
-
-def _replace_global(obj, ref):
-	try:
-		value = eval_ast(ref, inspect.getmodule(obj).__dict__)
-	except:
-		return None
-	return value_to_ast(value)
 
 _UserVariable = namedtuple("_UserVariable", "name")
 
@@ -30,12 +24,13 @@ class _ReferenceManager:
 		self.kernel_attr_init = []
 
 		# reserved names
-		self.use_count["Quantity"] = 1
-		self.use_count["base_s_unit"] = 1
-		self.use_count["base_Hz_unit"] = 1
 		for kg in core_language.kernel_globals:
 			self.use_count[kg] = 1
 		self.use_count["range"] = 1
+		self.use_count["Fraction"] = 1
+		self.use_count["Quantity"] = 1
+		self.use_count["s_unit"] = 1
+		self.use_count["Hz_unit"] = 1
 
 	def new_name(self, base_name):
 		if base_name[-1].isdigit():
@@ -54,26 +49,12 @@ class _ReferenceManager:
 		if isinstance(ref, ast.Name):
 			key = (id(obj), funcname, ref.id)
 			try:
-				ival = self.to_inlined[key]
+				return self.to_inlined[key]
 			except KeyError:
 				if store:
-					iname = self.new_name(ref.id)
-					self.to_inlined[key] = _UserVariable(iname)
-					return ast.Name(iname, ast.Store())
-			else:
-				if isinstance(ival, _UserVariable):
-					return ast.Name(ival.name, ref.ctx)
-				elif isinstance(ival, ast.AST):
-					assert(not store)
+					ival = _UserVariable(self.new_name(ref.id))
+					self.to_inlined[key] = ival
 					return ival
-				else:
-					if store:
-						raise NotImplementedError("Cannot turn object into user variable")
-					else:
-						a = value_to_ast(ival)
-						if a is None:
-							raise NotImplementedError("Cannot represent inlined value")
-						return a
 
 		if isinstance(ref, ast.Attribute) and isinstance(ref.value, ast.Name):
 			try:
@@ -82,35 +63,31 @@ class _ReferenceManager:
 				pass
 			else:
 				if _is_in_attr_list(value, ref.attr, "kernel_attr_ro"):
-					if isinstance(ref.ctx, ast.Store):
+					if store:
 						raise TypeError("Attempted to assign to read-only kernel attribute")
-					a = value_to_ast(getattr(value, ref.attr))
-					if a is None:
-						raise NotImplementedError("Cannot represent read-only kernel attribute")
-					return a
+					return getattr(value, ref.attr)
 				if _is_in_attr_list(value, ref.attr, "kernel_attr"):
 					key = (id(value), ref.attr, None)
 					try:
 						ival = self.to_inlined[key]
 						assert(isinstance(ival, _UserVariable))
-						iname = ival.name
 					except KeyError:
 						iname = self.new_name(ref.attr)
 						ival = _UserVariable(iname)
-						self.to_inlined[key] = _UserVariable(iname)
+						self.to_inlined[key] = ival
 						a = value_to_ast(getattr(value, ref.attr))
 						if a is None:
 							raise NotImplementedError("Cannot represent initial value of kernel attribute")
 						self.kernel_attr_init.append(ast.Assign(
 							[ast.Name(iname, ast.Store())], a))
-					return ast.Name(iname, ref.ctx)
+					return ival
 
 		if not store:
-			repl = _replace_global(obj, ref)
-			if repl is not None:
-				return repl
-		
-		raise KeyError
+			evd = self.get_constants(obj, funcname)
+			evd.update(inspect.getmodule(obj).__dict__)
+			return eval_ast(ref, evd)
+		else:
+			raise KeyError
 
 	def set(self, obj, funcname, name, value):
 		self.to_inlined[(id(obj), funcname, name)] = value
@@ -119,14 +96,14 @@ class _ReferenceManager:
 		return {local: v for (objid, funcname, local), v
 			in self.to_inlined.items()
 			if objid == id(r_obj)
-				and funcname == r_funcname
-				and not isinstance(v, (_UserVariable, ast.AST))}
+			and funcname == r_funcname
+			and not isinstance(v, (_UserVariable, ast.AST))}
 
 _embeddable_calls = {
-	units.Quantity,
 	core_language.delay, core_language.at, core_language.now,
 	core_language.syscall,
-	range
+	range,
+	Fraction, units.Quantity
 }
 
 class _ReferenceReplacer(ast.NodeTransformer):
@@ -135,22 +112,30 @@ class _ReferenceReplacer(ast.NodeTransformer):
 		self.rm = rm
 		self.obj = obj
 		self.funcname = funcname
-		self.module = inspect.getmodule(self.obj)
 
 	def visit_ref(self, node):
-		return ast.copy_location(
-			self.rm.get(self.obj, self.funcname, node),
-			node)
+		store = isinstance(node.ctx, ast.Store)
+		ival = self.rm.get(self.obj, self.funcname, node)
+		if isinstance(ival, _UserVariable):
+			newnode = ast.Name(ival.name, node.ctx)
+		elif isinstance(ival, ast.AST):
+			assert(not store)
+			newnode = ival
+		else:
+			if store:
+				raise NotImplementedError("Cannot turn object into user variable")
+			else:
+				newnode = value_to_ast(ival)
+				if newnode is None:
+					raise NotImplementedError("Cannot represent inlined value")
+		return ast.copy_location(newnode, node)
 
 	visit_Name = visit_ref
 	visit_Attribute = visit_ref
 	visit_Subscript = visit_ref
 
 	def visit_Call(self, node):
-		calldict = self.rm.get_constants(self.obj, self.funcname)
-		calldict.update(self.module.__dict__)
-		func = eval_ast(node.func, calldict)
-
+		func = self.rm.get(self.obj, self.funcname, node.func)
 		new_args = [self.visit(arg) for arg in node.args]
 
 		if func in _embeddable_calls:
