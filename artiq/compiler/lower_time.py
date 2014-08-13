@@ -1,4 +1,5 @@
 import ast
+from artiq.compiler.tools import value_to_ast
 
 class _TimeLowerer(ast.NodeTransformer):
 	def __init__(self, ref_period):
@@ -6,9 +7,9 @@ class _TimeLowerer(ast.NodeTransformer):
 
 	def visit_Call(self, node):
 		if isinstance(node.func, ast.Name) \
-		  and node.func.id == "Quantity" and node.args[1].id == "base_s_unit":
+		  and node.func.id == "Quantity" and node.args[1].id == "s_unit":
 			return ast.copy_location(
-				ast.BinOp(left=node.args[0], op=ast.FloorDiv(), right=ast.Num(self.ref_period.amount)),
+				ast.BinOp(left=node.args[0], op=ast.Div(), right=value_to_ast(self.ref_period.amount)),
 				node)
 		elif isinstance(node.func, ast.Name) and node.func.id == "now":
 			return ast.copy_location(ast.Name("now", ast.Load()), node)
