@@ -1,6 +1,6 @@
 from artiq.language.core import *
 
-class TTLOut(MPO):
+class TTLOut(AutoContext):
 	parameters = "channel"
 
 	@kernel

@@ -1,7 +1,7 @@
 from artiq.language.core import *
 from artiq.language.units import *
 
-class DDS(MPO):
+class DDS(AutoContext):
 	parameters = "dds_sysclk reg_channel rtio_channel"
 
 	def build(self):

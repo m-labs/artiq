@@ -3,7 +3,7 @@ from artiq.language.core import *
 
 my_range = range
 
-class CompilerTest(MPO):
+class CompilerTest(AutoContext):
 	parameters = "a b A B"
 
 	def print_done(self):

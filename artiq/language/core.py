@@ -5,7 +5,7 @@ from artiq.language import units
 def _make_kernel_ro(value):
 	return isinstance(value, (int, float, str, units.Quantity))
 
-class MPO:
+class AutoContext:
 	parameters = ""
 	implicit_core = True
 

@@ -1,7 +1,7 @@
 from artiq.language.units import *
 from artiq.language.core import *
 
-class SimpleSimulation(MPO):
+class SimpleSimulation(AutoContext):
 	parameters = "a b c d"
 
 	@kernel

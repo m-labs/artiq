@@ -2,7 +2,7 @@ from artiq.language.units import *
 from artiq.language.core import *
 from artiq.devices import corecom_serial, core, dds_core, gpio_core
 
-class DDSTest(MPO):
+class DDSTest(AutoContext):
 	parameters = "a b c d led"
 
 	@kernel

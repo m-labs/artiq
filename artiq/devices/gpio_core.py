@@ -1,6 +1,6 @@
 from artiq.language.core import *
 
-class GPIOOut(MPO):
+class GPIOOut(AutoContext):
 	parameters = "channel"
 
 	@kernel

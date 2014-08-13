@@ -86,7 +86,7 @@ with parallel:
 \begin{frame}[fragile]
 \frametitle{\fontseries{l}\selectfont Object orientation and code reuse}
 \begin{verbatimtab}
-class Main(MPO):
+class Main(AutoContext):
     def build(self):
         self.ion1 = Ion(...)
         self.ion2 = Ion(...)
@@ -130,9 +130,9 @@ class Main(MPO):
 \begin{frame}[fragile]
 \frametitle{\fontseries{l}\selectfont Channels and parameters}
 \begin{itemize}
-\item A kernel is a method of a class that derives from the \verb!MPO! class
+\item A kernel is a method of a class that derives from the \verb!AutoContext! class
 \item The entry point for an experiment is called \verb!run! --- may or may not be a kernel
-\item The \verb!MPO! class manages channels and parameters, and sets them as attributes
+\item The \verb!AutoContext! class manages channels and parameters, and sets them as attributes
 \item If channels/parameters are passed as constructor arguments, those are used
 \item Otherwise, they are looked up in the device and parameter databases
 \end{itemize}

@@ -1,7 +1,7 @@
-from artiq.language.core import MPO, kernel
+from artiq.language.core import AutoContext, kernel
 from artiq.devices import corecom_serial, core, gpio_core
 
-class CompilerTest(MPO):
+class CompilerTest(AutoContext):
 	parameters = "led"
 
 	def output(self, n):

@@ -2,7 +2,7 @@ from artiq.language.units import *
 from artiq.language.core import *
 from artiq.devices import corecom_serial, core
 
-class DummyPulse(MPO):
+class DummyPulse(AutoContext):
 	parameters = "name"
 
 	def print_on(self, t, f):
@@ -17,7 +17,7 @@ class DummyPulse(MPO):
 		delay(duration)
 		self.print_off(now())
 
-class TimeTest(MPO):
+class TimeTest(AutoContext):
 	parameters = "a b c d"
 
 	@kernel
