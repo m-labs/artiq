@@ -1,6 +1,6 @@
 import ast
 
-from artiq.compiler.tools import eval_ast, make_stmt_transformer
+from artiq.compiler.tools import eval_ast, make_stmt_transformer, value_to_ast
 
 def _count_stmts(node):
 	if isinstance(node, (ast.For, ast.While, ast.If)):
@@ -32,7 +32,7 @@ class _LoopUnroller(ast.NodeTransformer):
 						replacement = None
 						break
 					replacement.append(ast.copy_location(
-						ast.Assign(targets=[node.target], value=ast.Num(n=i)), node))
+						ast.Assign(targets=[node.target], value=value_to_ast(i)), node))
 					replacement += node.body
 				if replacement is not None:
 					return replacement

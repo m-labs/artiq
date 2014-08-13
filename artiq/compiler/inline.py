@@ -149,7 +149,7 @@ class _ReferenceReplacer(ast.NodeTransformer):
 			inlined, _ = inline(self.core, func.k_function_info.k_function, args, dict(), self.rm)
 			return inlined
 		else:
-			args = [ast.Str("rpc"), ast.Num(self.rm.rpc_map[func])]
+			args = [ast.Str("rpc"), value_to_ast(self.rm.rpc_map[func])]
 			args += new_args
 			return ast.copy_location(
 				ast.Call(func=ast.Name("syscall", ast.Load()),

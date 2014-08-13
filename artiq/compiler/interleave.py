@@ -56,7 +56,7 @@ def _interleave_timelines(timelines):
 					ref_stmt = stmt.stmt
 			da_expr = ast.copy_location(
 					ast.Call(func=ast.Name("Quantity", ast.Load()),
-					args=[ast.Num(dt), ast.Name("base_s_unit", ast.Load())],
+					args=[value_to_ast(dt), ast.Name("s_unit", ast.Load())],
 					keywords=[], starargs=[], kwargs=[]),
 				ref_stmt)
 			delay_stmt = ast.copy_location(
