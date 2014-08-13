@@ -72,6 +72,10 @@ def _emit_expr(env, builder, ns, node):
 				[_emit_expr(env, builder, ns, expr) for expr in node.args[1:]])
 		elif node.func.id == "Quantity":
 			return _emit_expr(env, builder, ns, node.args[0])
+		elif node.func.id == "Fraction":
+			if not isinstance(node.args[1], ast.Num) or node.args[1].n != 1:
+				raise NotImplementedError
+			return _emit_expr(env, builder, ns, node.args[0])
 		else:
 			raise NotImplementedError
 	else:
