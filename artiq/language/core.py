@@ -1,4 +1,3 @@
-import itertools
 from collections import namedtuple
 
 from artiq.language import units
