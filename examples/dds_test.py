@@ -28,10 +28,10 @@ if __name__ == "__main__":
 		coredev = core.Core(com)
 		exp = DDSTest(
 			core=coredev,
-			a=dds_core.DDS(core=coredev, dds_sysclk=1000*MHz, reg_channel=0, rtio_channel=0),
-			b=dds_core.DDS(core=coredev, dds_sysclk=1000*MHz, reg_channel=1, rtio_channel=1),
-			c=dds_core.DDS(core=coredev, dds_sysclk=1000*MHz, reg_channel=2, rtio_channel=2),
-			d=dds_core.DDS(core=coredev, dds_sysclk=1000*MHz, reg_channel=3, rtio_channel=3),
+			a=dds_core.DDS(core=coredev, dds_sysclk=1*GHz, reg_channel=0, rtio_channel=0),
+			b=dds_core.DDS(core=coredev, dds_sysclk=1*GHz, reg_channel=1, rtio_channel=1),
+			c=dds_core.DDS(core=coredev, dds_sysclk=1*GHz, reg_channel=2, rtio_channel=2),
+			d=dds_core.DDS(core=coredev, dds_sysclk=1*GHz, reg_channel=3, rtio_channel=3),
 			led=gpio_core.GPIOOut(core=coredev, channel=1)
 		)
 		exp.run()
