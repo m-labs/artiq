@@ -33,9 +33,9 @@ if __name__ == "__main__":
 	coredev = core.Core(corecom_dummy.CoreCom())
 	exp = CompilerTest(
 		core=coredev,
-		a=dds_core.DDS(coredev, 0, 0),
-		b=dds_core.DDS(coredev, 1, 1),
-		A=dds_core.DDS(coredev, 2, 2),
-		B=dds_core.DDS(coredev, 3, 3)
+		a=dds_core.DDS(core=coredev, dds_sysclk=1*GHz, reg_channel=0, rtio_channel=0),
+		b=dds_core.DDS(core=coredev, dds_sysclk=1*GHz, reg_channel=1, rtio_channel=1),
+		A=dds_core.DDS(core=coredev, dds_sysclk=1*GHz, reg_channel=2, rtio_channel=2),
+		B=dds_core.DDS(core=coredev, dds_sysclk=1*GHz, reg_channel=3, rtio_channel=3)
 	)
 	exp.run(3, 100*us)
