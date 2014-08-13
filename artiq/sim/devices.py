@@ -10,6 +10,7 @@ class Core:
 
 class Input(AutoContext):
 	parameters = "name"
+	implicit_core = False
 
 	def build(self):
 		self.prng = Random()
@@ -27,6 +28,7 @@ class Input(AutoContext):
 
 class WaveOutput(AutoContext):
 	parameters = "name"
+	implicit_core = False
 
 	def pulse(self, frequency, duration):
 		time.manager.event(("pulse", self.name, frequency, duration))
@@ -34,6 +36,7 @@ class WaveOutput(AutoContext):
 
 class VoltageOutput(AutoContext):
 	parameters = "name"
+	implicit_core = False
 
 	def set(self, value):
 		time.manager.event(("set_voltage", self.name, value))
