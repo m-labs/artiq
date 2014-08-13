@@ -36,12 +36,12 @@ if __name__ == "__main__":
 
 	exp = AluminumSpectroscopy(
 		core=sd.Core(),
-		mains_sync=sd.Input("mains_sync"),
-		laser_cooling=sd.WaveOutput("laser_cooling"),
-		spectroscopy=sd.WaveOutput("spectroscopy"),
-		spectroscopy_b=sd.VoltageOutput("spectroscopy_b"),
-		state_detection=sd.WaveOutput("state_detection"),
-		pmt=sd.Input("pmt"),
+		mains_sync=sd.Input(name="mains_sync"),
+		laser_cooling=sd.WaveOutput(name="laser_cooling"),
+		spectroscopy=sd.WaveOutput(name="spectroscopy"),
+		spectroscopy_b=sd.VoltageOutput(name="spectroscopy_b"),
+		state_detection=sd.WaveOutput(name="state_detection"),
+		pmt=sd.Input(name="pmt"),
 
 		spectroscopy_freq=432*MHz,
 		photon_limit_low=10,
