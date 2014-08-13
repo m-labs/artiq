@@ -1,30 +1,53 @@
 from collections import namedtuple
+from fractions import Fraction
 
-_prefixes_str = "pnum_kM"
+_prefixes_str = "pnum_kMG"
+_smallest_prefix = Fraction(1, 10**12)
 
-Unit = namedtuple("Unit", "base_prefix name")
+Unit = namedtuple("Unit", "name")
 
 class DimensionError(Exception):
 	pass
 
 class Quantity:
 	def __init__(self, amount, unit):
-		self.amount = int(amount)
+		self.amount = amount
 		self.unit = unit
 
 	def __repr__(self):
 		r_amount = self.amount
-		r_prefix = self.unit.base_prefix
-		if r_amount:
-			while not r_amount % 1000 and r_prefix < len(_prefixes_str):
-				r_amount //= 1000
-				r_prefix += 1
-		return str(r_amount) + " " + _prefixes_str[r_prefix] + self.unit.name
+		if isinstance(r_amount, int) or isinstance(r_amount, Fraction):
+			r_prefix = 0
+			r_amount = r_amount/_smallest_prefix
+			if r_amount:
+				numerator = r_amount.numerator
+				while numerator % 1000 == 0 and r_prefix < len(_prefixes_str):
+					numerator /= 1000
+					r_amount /= 1000
+					r_prefix += 1
+			prefix_str = _prefixes_str[r_prefix]
+			if prefix_str == "_":
+				prefix_str = ""
+			return str(r_amount) + " " + prefix_str + self.unit.name
+		else:
+			return str(r_amount) + " " + self.unit.name
 
-	def __rmul__(self, other):
+	def __mul__(self, other):
 		if isinstance(other, Quantity):
 			return NotImplemented
 		return Quantity(self.amount*other, self.unit)
+	def __rmul__(self, other):
+		if isinstance(other, Quantity):
+			return NotImplemented
+		return Quantity(other*self.amount, self.unit)
+	def __truediv__(self, other):
+		if isinstance(other, Quantity):
+			return NotImplemented
+		return Quantity(self.amount/other, self.unit)
+	def __floordiv__(self, other):
+		if isinstance(other, Quantity):
+			return NotImplemented
+		return Quantity(self.amount//other, self.unit)
 
 	def __neg__(self):
 		return Quantity(-self.amount, self.unit)
@@ -76,17 +99,16 @@ def check_unit(value, unit):
 		raise DimensionError
 	return value.amount
 
-def _register_unit(base_prefix, name, prefixes):
-	base_prefix_exp = _prefixes_str.index(base_prefix)
-	unit = Unit(base_prefix_exp, name)
-	globals()["base_"+name+"_unit"] = unit
-	for prefix in prefixes:
-		prefix_exp = _prefixes_str.index(prefix)
-		exp_d = prefix_exp - base_prefix_exp
-		assert(exp_d >= 0)
-		quantity = Quantity(1000**exp_d, unit)
-		full_name = prefix + name if prefix != "_" else name
-		globals()[full_name] = quantity
+def _register_unit(name, prefixes):
+	unit = Unit(name)
+	globals()[name+"_unit"] = unit
+	amount = _smallest_prefix
+	for prefix in _prefixes_str:
+		if prefix in prefixes:
+			quantity = Quantity(amount, unit)
+			full_name = prefix + name if prefix != "_" else name
+			globals()[full_name] = quantity
+		amount *= 1000
 
-_register_unit("p", "s", "pnum_")
-_register_unit("_", "Hz", "_kM")
+_register_unit("s", "pnum_")
+_register_unit("Hz", "_kMG")
