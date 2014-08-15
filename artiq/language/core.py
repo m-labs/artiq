@@ -2,6 +2,34 @@ from collections import namedtuple
 
 from artiq.language import units
 
+class int64(int):
+	pass
+
+def _make_int64_op_method(int_method):
+	def method(self, *args):
+		r = int_method(self, *args)
+		if isinstance(r, int):
+			r = int64(r)
+		return r
+	return method
+
+for _op_name in (
+  "neg", "pos", "abs", "invert", "round",
+  "add", "radd", "sub", "rsub", "mul", "rmul", "pow", "rpow",
+  "lshift", "rlshift", "rshift", "rrshift",
+  "and", "rand", "xor", "rxor", "or", "ror",
+  "floordiv", "rfloordiv", "mod", "rmod"):
+	method_name = "__" + _op_name + "__"
+	orig_method = getattr(int, method_name)
+	setattr(int64, method_name, _make_int64_op_method(orig_method))
+
+for _op_name in (
+  "add", "sub", "mul", "floordiv", "mod",
+  "pow", "lshift", "rshift", "lshift",
+  "and", "xor", "or"):
+	op_method = getattr(int, "__" + _op_name + "__")
+	setattr(int64, "__i" + _op_name + "__", _make_int64_op_method(op_method))
+
 def _make_kernel_ro(value):
 	return isinstance(value, (int, float, str, units.Quantity))
 
