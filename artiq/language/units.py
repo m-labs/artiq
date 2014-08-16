@@ -42,12 +42,20 @@ class Quantity:
 		return Quantity(other*self.amount, self.unit)
 	def __truediv__(self, other):
 		if isinstance(other, Quantity):
-			return NotImplemented
-		return Quantity(self.amount/other, self.unit)
+			if other.unit == self.unit:
+				return self.amount/other.amount
+			else:
+				return NotImplemented
+		else:
+			return Quantity(self.amount/other, self.unit)
 	def __floordiv__(self, other):
 		if isinstance(other, Quantity):
-			return NotImplemented
-		return Quantity(self.amount//other, self.unit)
+			if other.unit == self.unit:
+				return self.amount//other.amount
+			else:
+				return NotImplemented
+		else:
+			return Quantity(self.amount//other, self.unit)
 
 	def __neg__(self):
 		return Quantity(-self.amount, self.unit)
