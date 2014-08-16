@@ -1,4 +1,5 @@
 from collections import namedtuple
+from fractions import Fraction
 
 from artiq.language import units
 
@@ -34,7 +35,7 @@ def round64(x):
 	return int64(round(x))
 
 def _make_kernel_ro(value):
-	return isinstance(value, (int, float, str, units.Quantity))
+	return isinstance(value, (bool, int, int64, float, Fraction, units.Quantity))
 
 class AutoContext:
 	parameters = ""
