@@ -30,6 +30,9 @@ for _op_name in (
 	op_method = getattr(int, "__" + _op_name + "__")
 	setattr(int64, "__i" + _op_name + "__", _make_int64_op_method(op_method))
 
+def round64(x):
+	return int64(round(x))
+
 def _make_kernel_ro(value):
 	return isinstance(value, (int, float, str, units.Quantity))
 
