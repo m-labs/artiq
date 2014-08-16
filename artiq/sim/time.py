@@ -6,7 +6,7 @@ from artiq.language import core as core_language
 class SequentialTimeContext:
 	def __init__(self, current_time):
 		self.current_time = current_time
-		self.block_duration = 0*ps
+		self.block_duration = 0*s
 
 	def take_time(self, amount):
 		self.current_time += amount
@@ -15,7 +15,7 @@ class SequentialTimeContext:
 class ParallelTimeContext:
 	def __init__(self, current_time):
 		self.current_time = current_time
-		self.block_duration = 0*ps
+		self.block_duration = 0*s
 
 	def take_time(self, amount):
 		if amount > self.block_duration:
@@ -23,7 +23,7 @@ class ParallelTimeContext:
 
 class Manager:
 	def __init__(self):
-		self.stack = [SequentialTimeContext(0*ps)]
+		self.stack = [SequentialTimeContext(0*s)]
 		self.timeline = []
 
 	def enter_sequential(self):
@@ -46,7 +46,7 @@ class Manager:
 
 	def set_time(self, t):
 		dt = t - self.get_time()
-		if dt < 0*ps:
+		if dt < 0*s:
 			raise ValueError("Attempted to go back in time")
 		self.take_time(dt)
 
@@ -55,7 +55,7 @@ class Manager:
 
 	def format_timeline(self):
 		r = ""
-		prev_time = 0*ps
+		prev_time = 0*s
 		for time, description in sorted(self.timeline, key=itemgetter(0)):
 			r += "@{:10} (+{:10}) ".format(str(time), str(time-prev_time))
 			for item in description:
