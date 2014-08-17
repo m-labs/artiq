@@ -115,6 +115,12 @@ class VBool(VInt):
 	def create_constant(self, b):
 		VInt.create_constant(self, int(b))
 
+	def o_bool(self, builder):
+		if builder is None:
+			return VBool()
+		else:
+			return self
+
 # Operators
 
 def _make_unary_operator(op_name):
