@@ -2,6 +2,28 @@ from types import SimpleNamespace
 
 from llvm import core as lc
 
+# None type
+
+class VNone:
+	def __repr__(self):
+		return "<VNone>"
+
+	def same_type(self, other):
+		return isinstance(other, VNone)
+
+	def merge(self, other):
+		if not isinstance(other, VNone):
+			raise TypeError
+
+	def create_alloca(self, builder, name):
+		pass
+
+	def o_bool(self, builder):
+		r = VBool()
+		if builder is not None:
+			r.create_constant(False)
+		return r
+
 # Integer type
 
 class VInt:

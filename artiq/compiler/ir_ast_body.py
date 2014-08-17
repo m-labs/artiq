@@ -34,7 +34,9 @@ class Visitor:
 
 	def _visit_expr_NameConstant(self, node):
 		v = node.value
-		if isinstance(v, bool):
+		if v is None:
+			r = ir_values.VNone()
+		elif isinstance(v, bool):
 			r = ir_values.VBool()
 		else:
 			raise NotImplementedError

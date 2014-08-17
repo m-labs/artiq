@@ -51,6 +51,7 @@ d = 4          # stays int32
 x = int64(7)
 a += x         # promotes a to int64
 foo = True
+bar = None
 """
 	ns = infer_types(ast.parse(testcode))
 	for k, v in sorted(ns.items(), key=itemgetter(0)):
