@@ -1,11 +1,14 @@
 import ast
+from copy import copy
+
+from llvm import core as lc
 
 from artiq.compiler import ir_values
 
 class Visitor:
-	def __init__(self, builder, ns):
-		self.builder = builder
+	def __init__(self, ns, builder=None):
 		self.ns = ns
+		self.builder = builder
 
 	# builder can be None for visit_expression
 	def visit_expression(self, node):
@@ -17,7 +20,17 @@ class Visitor:
 		return visitor(node)
 
 	def _visit_expr_Name(self, node):
-		return self.ns.load(self.builder, node.id)
+		try:
+			r = self.ns[node.id]
+		except KeyError:
+			raise NameError("Name '{}' is not defined".format(node.id))
+		r = copy(r)
+		if self.builder is None:
+			r.llvm_value = None
+		else:
+			if isinstance(r.llvm_value, lc.AllocaInstruction):
+				r.llvm_value = self.builder.load(r.llvm_value)
+		return r
 
 	def _visit_expr_NameConstant(self, node):
 		v = node.value
@@ -112,14 +125,14 @@ class Visitor:
 		val = self.visit_expression(node.value)
 		for target in node.targets:
 			if isinstance(target, ast.Name):
-				self.ns.store(self.builder, val, target.id)
+				self.builder.store(val, self.ns[target.id])
 			else:
 				raise NotImplementedError
 
 	def _visit_stmt_AugAssign(self, node):
 		val = self.visit_expression(ast.BinOp(op=node.op, left=node.target, right=node.value))
 		if isinstance(node.target, ast.Name):
-			self.ns.store(self.builder, val, node.target.id)
+			self.builder.store(val, self.ns[node.target.id])
 		else:
 			raise NotImplementedError
 
