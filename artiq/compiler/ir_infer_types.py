@@ -2,7 +2,7 @@ import ast
 from operator import itemgetter
 from copy import deepcopy
 
-from artiq.compiler.ir_ast_body import ExpressionVisitor
+from artiq.compiler.ir_ast_body import Visitor
 
 class _Namespace:
 	def __init__(self, name_to_value):
@@ -13,10 +13,10 @@ class _Namespace:
 
 class _TypeScanner(ast.NodeVisitor):
 	def __init__(self, namespace):
-		self.exprv = ExpressionVisitor(None, namespace)
+		self.exprv = Visitor(None, namespace)
 
 	def visit_Assign(self, node):
-		val = self.exprv.visit(node.value)
+		val = self.exprv.visit_expression(node.value)
 		n2v = self.exprv.ns.name_to_value
 		for target in node.targets:
 			if isinstance(target, ast.Name):
@@ -28,7 +28,7 @@ class _TypeScanner(ast.NodeVisitor):
 				raise NotImplementedError
 
 	def visit_AugAssign(self, node):
-		val = self.exprv.visit(ast.BinOp(op=node.op, left=node.target, right=node.value))
+		val = self.exprv.visit_expression(ast.BinOp(op=node.op, left=node.target, right=node.value))
 		n2v = self.exprv.ns.name_to_value
 		target = node.target
 		if isinstance(target, ast.Name):
