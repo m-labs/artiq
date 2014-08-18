@@ -26,15 +26,10 @@ class _ReferenceManager:
 		# reserved names
 		for kg in core_language.kernel_globals:
 			self.use_count[kg] = 1
-		self.use_count["range"] = 1
-		self.use_count["int"] = 1
-		self.use_count["round"] = 1
-		self.use_count["int64"] = 1
-		self.use_count["round64"] = 1
-		self.use_count["Fraction"] = 1
-		self.use_count["Quantity"] = 1
-		self.use_count["s_unit"] = 1
-		self.use_count["Hz_unit"] = 1
+		for name in "int", "round", "int64", "round64", \
+		  "range", "Fraction", "Quantity", \
+		  "s_unit", "Hz_unit", "microcycle_unit":
+			self.use_count[name] = 1
 
 	def new_name(self, base_name):
 		if base_name[-1].isdigit():
