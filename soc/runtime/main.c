@@ -142,6 +142,7 @@ static void gpio_set(int channel, int value)
 
 static void rtio_set(long long int timestamp, int channel, int value)
 {
+	rtio_reset_write(0);
 	rtio_chan_sel_write(channel);
 	rtio_o_timestamp_write(timestamp);
 	rtio_o_value_write(value);
@@ -224,7 +225,6 @@ int main(void)
 			if(load_elf(syscalls, kbuf, length, kcode, sizeof(kcode))) {
 				flush_cpu_icache();
 				dds_init();
-				rtio_reset_write(0);
 				k();
 				rtio_reset_write(1);
 				send_sync();
