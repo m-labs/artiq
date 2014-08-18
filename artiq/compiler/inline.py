@@ -151,7 +151,7 @@ class _ReferenceReplacer(ast.NodeTransformer):
 		elif hasattr(func, "k_function_info") and getattr(func.__self__, func.k_function_info.core_name) is self.core:
 			args = [func.__self__] + new_args
 			inlined, _ = inline(self.core, func.k_function_info.k_function, args, dict(), self.rm)
-			return inlined
+			return inlined.body
 		else:
 			args = [ast.Str("rpc"), value_to_ast(self.rm.rpc_map[func])]
 			args += new_args
@@ -173,6 +173,7 @@ class _ReferenceReplacer(ast.NodeTransformer):
 			return node
 
 	def visit_FunctionDef(self, node):
+		node.args = ast.arguments(args=[], vararg=None, kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[])
 		node.decorator_list = []
 		self.generic_visit(node)
 		return node
@@ -230,4 +231,4 @@ def inline(core, k_function, k_args, k_kwargs, rm=None):
 		funcdef.body[0:0] = rm.kernel_attr_init
 
 	r_rpc_map = dict((rpc_num, rpc_fun) for rpc_fun, rpc_num in rm.rpc_map.items())
-	return funcdef.body, r_rpc_map
+	return funcdef, r_rpc_map

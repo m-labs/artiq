@@ -13,14 +13,13 @@ class Core:
 		self.core_com = core_com
 
 	def run(self, k_function, k_args, k_kwargs):
-		stmts, rpc_map = inline(self, k_function, k_args, k_kwargs)
-		fold_constants(stmts)
-		unroll_loops(stmts, 50)
-		interleave(stmts)
-		lower_time(stmts, self.runtime_env.ref_period,
-			getattr(self.runtime_env, "initial_time", 0))
-		fold_constants(stmts)
+		funcdef, rpc_map = inline(self, k_function, k_args, k_kwargs)
+		fold_constants(funcdef)
+		unroll_loops(funcdef, 50)
+		interleave(funcdef)
+		lower_time(funcdef, getattr(self.runtime_env, "initial_time", 0))
+		fold_constants(funcdef)
 
-		binary = get_runtime_binary(self.runtime_env, stmts)
+		binary = get_runtime_binary(self.runtime_env, funcdef)
 		self.core_com.run(binary)
 		self.core_com.serve(rpc_map)

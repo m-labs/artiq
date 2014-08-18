@@ -57,4 +57,5 @@ class _ConstantFolder(ast.NodeTransformer):
 			return node
 		return ast.copy_location(result, node)
 
-fold_constants = make_stmt_transformer(_ConstantFolder)
+def fold_constants(node):
+	_ConstantFolder().visit(node)

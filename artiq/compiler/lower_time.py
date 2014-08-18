@@ -34,10 +34,8 @@ class _TimeLowerer(ast.NodeTransformer):
 		else:
 			return node
 
-def lower_time(stmts, ref_period, initial_time):
-	transformer = _TimeLowerer(ref_period)
-	new_stmts = [transformer.visit(stmt) for stmt in stmts]
-	new_stmts.insert(0, ast.copy_location(
+def lower_time(funcdef, initial_time):
+	_TimeLowerer().visit(funcdef)
+	funcdef.body.insert(0, ast.copy_location(
 		ast.Assign(targets=[ast.Name("now", ast.Store())], value=value_to_ast(initial_time)),
-		stmts[0]))
-	stmts[:] = new_stmts
+		funcdef))

@@ -1,6 +1,6 @@
 import ast
 
-from artiq.compiler.tools import eval_ast, make_stmt_transformer, value_to_ast
+from artiq.compiler.tools import eval_ast, value_to_ast
 
 def _count_stmts(node):
 	if isinstance(node, (ast.For, ast.While, ast.If)):
@@ -43,4 +43,5 @@ class _LoopUnroller(ast.NodeTransformer):
 		else:
 			return node.orelse
 
-unroll_loops = make_stmt_transformer(_LoopUnroller)
+def unroll_loops(node, limit):
+	_LoopUnroller(limit).visit(node)

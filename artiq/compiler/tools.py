@@ -59,10 +59,3 @@ def eval_constant(node):
 			return units.Quantity(amount, unit)
 	else:
 		raise NotConstant
-
-def make_stmt_transformer(transformer_class):
-	def stmt_transformer(stmts, *args, **kwargs):
-		transformer = transformer_class(*args, **kwargs)
-		new_stmts = [transformer.visit(stmt) for stmt in stmts]
-		stmts[:] = new_stmts
-	return stmt_transformer

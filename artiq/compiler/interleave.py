@@ -84,21 +84,21 @@ def _interleave_timelines(timelines):
 
 	return r
 
-def interleave(stmts):
+def _interleave_stmts(stmts):
 	replacements = []
 	for stmt_i, stmt in enumerate(stmts):
 		if isinstance(stmt, (ast.For, ast.While, ast.If)):
-			interleave(stmt.body)
-			interleave(stmt.orelse)
+			_interleave_stmts(stmt.body)
+			_interleave_stmts(stmt.orelse)
 		elif isinstance(stmt, ast.With):
 			btype = stmt.items[0].context_expr.id
 			if btype == "sequential":
-				interleave(stmt.body)
+				_interleave_stmts(stmt.body)
 				replacements.append((stmt_i, stmt.body))
 			elif btype == "parallel":
 				timelines = [[s] for s in stmt.body]
 				for timeline in timelines:
-					interleave(timeline)
+					_interleave_stmts(timeline)
 				merged = _interleave_timelines(timelines)
 				if merged is not None:
 					replacements.append((stmt_i, merged))
@@ -108,3 +108,6 @@ def interleave(stmts):
 	for location, new_stmts in replacements:
 		stmts[offset+location:offset+location+1] = new_stmts
 		offset += len(new_stmts) - 1
+
+def interleave(funcdef):
+	_interleave_stmts(funcdef.body)
