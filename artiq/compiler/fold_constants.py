@@ -61,12 +61,18 @@ class _ConstantFolder(ast.NodeTransformer):
 	def visit_Call(self, node):
 		self.generic_visit(node)
 		fn = node.func.id
-		if fn in ("int", "int64", "round", "round64"):
+		constant_ops = {
+			"int":    int,
+			"int64":  int64,
+			"round":  round,
+			"round64": round64
+		}
+		if fn in constant_ops:
 			try:
 				arg = eval_constant(node.args[0])
 			except NotConstant:
 				return node
-			result = value_to_ast(globals()[fn](arg))
+			result = value_to_ast(constant_ops[fn](arg))
 			return ast.copy_location(result, node)
 		else:
 			return node
