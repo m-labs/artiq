@@ -21,10 +21,10 @@ class CompilerTest(AutoContext):
 			while d*d <= x:
 				if x % d == 0:
 					prime = False
-				d = d + 1
+				d += 1
 			if prime:
 				self.output(x)
-			x = x + 1
+			x += 1
 		self.led.set(0)
 
 if __name__ == "__main__":
