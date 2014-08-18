@@ -57,5 +57,7 @@ def eval_constant(node):
 			except:
 				raise NotConstant
 			return units.Quantity(amount, unit)
+		else:
+			raise NotConstant
 	else:
 		raise NotConstant
