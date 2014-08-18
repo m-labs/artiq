@@ -120,3 +120,6 @@ def _register_unit(name, prefixes):
 
 _register_unit("s", "pnum_")
 _register_unit("Hz", "_kMG")
+
+microcycle_unit = Unit("microcycle")
+microcycle = Quantity(1, microcycle_unit)
