@@ -12,7 +12,12 @@ def eval_ast(expr, symdict=dict()):
 	return eval(code, symdict)
 
 def value_to_ast(value):
-	if isinstance(value, int):
+	if isinstance(value, core_language.int64): # must be before int
+		return ast.Call(
+			func=ast.Name("int64", ast.Load()),
+			args=[ast.Num(int(value))],
+			keywords=[], starargs=None, kwargs=None)
+	elif isinstance(value, int):
 		return ast.Num(value)
 	elif isinstance(value, Fraction):
 		return ast.Call(func=ast.Name("Fraction", ast.Load()),
