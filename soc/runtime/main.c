@@ -140,7 +140,7 @@ static void gpio_set(int channel, int value)
 	leds_out_write(csr_value);
 }
 
-static void rtio_set(int timestamp, int channel, int value)
+static void rtio_set(long long int timestamp, int channel, int value)
 {
 	rtio_chan_sel_write(channel);
 	rtio_o_timestamp_write(timestamp);
