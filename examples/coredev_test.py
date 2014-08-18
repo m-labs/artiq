@@ -17,12 +17,12 @@ class CompilerTest(AutoContext):
 		m = self.get_max()
 		while x < m:
 			d = 2
-			prime = 1
+			prime = True
 			while d*d <= x:
 				if x % d == 0:
-					prime = 0
+					prime = False
 				d = d + 1
-			if prime == 1:
+			if prime:
 				self.output(x)
 			x = x + 1
 		self.led.set(0)
