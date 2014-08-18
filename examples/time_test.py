@@ -13,9 +13,9 @@ class DummyPulse(AutoContext):
 
 	@kernel
 	def pulse(self, f, duration):
-		self.print_on(now(), f)
+		self.print_on(int(now()), f)
 		delay(duration)
-		self.print_off(now())
+		self.print_off(int(now()))
 
 class TimeTest(AutoContext):
 	parameters = "a b c d"
