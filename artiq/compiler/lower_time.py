@@ -1,5 +1,13 @@
 import ast
+
 from artiq.compiler.tools import value_to_ast
+from artiq.language.core import int64
+
+def _insert_int64(node):
+	return ast.copy_location(
+		ast.Call(func=ast.Name("int64", ast.Load()),
+		args=[node],
+		keywords=[], starargs=[], kwargs=[]), node)
 
 class _TimeLowerer(ast.NodeTransformer):
 	def __init__(self, ref_period):
@@ -23,11 +31,13 @@ class _TimeLowerer(ast.NodeTransformer):
 			funcname = node.value.func.id
 			if funcname == "delay":
 				return ast.copy_location(
-					ast.AugAssign(target=ast.Name("now", ast.Store()), op=ast.Add(), value=node.value.args[0]),
+					ast.AugAssign(target=ast.Name("now", ast.Store()), op=ast.Add(),
+						value=_insert_int64(node.value.args[0])),
 					node)
 			elif funcname == "at":
 				return ast.copy_location(
-					ast.Assign(targets=[ast.Name("now", ast.Store())], value=node.value.args[0]),
+					ast.Assign(targets=[ast.Name("now", ast.Store())],
+						value=_insert_int64(node.value.args[0])),
 					node)
 			else:
 				return node
@@ -37,5 +47,5 @@ class _TimeLowerer(ast.NodeTransformer):
 def lower_time(funcdef, initial_time):
 	_TimeLowerer().visit(funcdef)
 	funcdef.body.insert(0, ast.copy_location(
-		ast.Assign(targets=[ast.Name("now", ast.Store())], value=value_to_ast(initial_time)),
+		ast.Assign(targets=[ast.Name("now", ast.Store())], value=value_to_ast(int64(initial_time))),
 		funcdef))
