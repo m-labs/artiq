@@ -1,12 +1,11 @@
 import ast, types
 
-from artiq.language import units
 from artiq.compiler.tools import *
 
 # -1 statement duration could not be pre-determined
 #  0 statement has no effect on timeline
 # >0 statement is a static delay that advances the timeline
-#     by the given amount (in seconds)
+#     by the given amount (in microcycles)
 def _get_duration(stmt):
 	if isinstance(stmt, (ast.Expr, ast.Assign)):
 		return _get_duration(stmt.value)
@@ -21,10 +20,8 @@ def _get_duration(stmt):
 			try:
 				da = eval_constant(stmt.args[0])
 			except NotConstant:
-				return -1
-			if da.unit != units.s_unit:
-				raise units.DimensionError("Delay not expressed in seconds")
-			return da.amount
+				da = -1
+			return da
 		else:
 			return 0
 	else:
@@ -54,14 +51,9 @@ def _interleave_timelines(timelines):
 				stmt.delay -= dt
 				if stmt.delay == 0:
 					ref_stmt = stmt.stmt
-			da_expr = ast.copy_location(
-					ast.Call(func=ast.Name("Quantity", ast.Load()),
-					args=[value_to_ast(dt), ast.Name("s_unit", ast.Load())],
-					keywords=[], starargs=[], kwargs=[]),
-				ref_stmt)
 			delay_stmt = ast.copy_location(
 				ast.Expr(ast.Call(func=ast.Name("delay", ast.Load()),
-					args=[da_expr],
+					args=[value_to_ast(dt)],
 					keywords=[], starargs=[], kwargs=[])),
 				ref_stmt)
 			r.append(delay_stmt)

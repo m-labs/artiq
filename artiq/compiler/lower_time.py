@@ -10,16 +10,8 @@ def _insert_int64(node):
 		keywords=[], starargs=[], kwargs=[]), node)
 
 class _TimeLowerer(ast.NodeTransformer):
-	def __init__(self, ref_period):
-		self.ref_period = ref_period
-
 	def visit_Call(self, node):
-		if isinstance(node.func, ast.Name) \
-		  and node.func.id == "Quantity" and node.args[1].id == "s_unit":
-			return ast.copy_location(
-				ast.BinOp(left=node.args[0], op=ast.Div(), right=value_to_ast(self.ref_period.amount)),
-				node)
-		elif isinstance(node.func, ast.Name) and node.func.id == "now":
+		if isinstance(node.func, ast.Name) and node.func.id == "now":
 			return ast.copy_location(ast.Name("now", ast.Load()), node)
 		else:
 			self.generic_visit(node)

@@ -1,4 +1,5 @@
 from artiq.compiler.inline import inline
+from artiq.compiler.lower_units import lower_units
 from artiq.compiler.fold_constants import fold_constants
 from artiq.compiler.unroll_loops import unroll_loops
 from artiq.compiler.interleave import interleave
@@ -14,6 +15,7 @@ class Core:
 
 	def run(self, k_function, k_args, k_kwargs):
 		funcdef, rpc_map = inline(self, k_function, k_args, k_kwargs)
+		lower_units(funcdef, self.runtime_env.ref_period)
 		fold_constants(funcdef)
 		unroll_loops(funcdef, 50)
 		interleave(funcdef)
