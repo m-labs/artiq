@@ -107,7 +107,7 @@ def _make_vint_cmp_method(icmp_val):
 			if builder is None:
 				return VBool()
 			else:
-				return VBool(llvm_value=builder.icmp(icmp_val, self, other))
+				return VBool(llvm_value=builder.icmp(icmp_val, self.llvm_value, other.llvm_value))
 		else:
 			return NotImplemented
 	return cmp_method

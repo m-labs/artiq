@@ -97,7 +97,7 @@ class Visitor:
 		old_comparator = self.visit_expression(node.left)
 		for op, comparator_a in zip(node.ops, node.comparators):
 			comparator = self.visit_expression(comparator_a)
-			comparison = ast_cmps[type(op)](old_comparator, comparator)
+			comparison = ast_cmps[type(op)](old_comparator, comparator, self.builder)
 			comparisons.append(comparison)
 			old_comparator = comparator
 		r = comparisons[0]
@@ -136,14 +136,14 @@ class Visitor:
 		val = self.visit_expression(node.value)
 		for target in node.targets:
 			if isinstance(target, ast.Name):
-				self.builder.store(val, self.ns[target.id])
+				self.builder.store(val.llvm_value, self.ns[target.id].llvm_value)
 			else:
 				raise NotImplementedError
 
 	def _visit_stmt_AugAssign(self, node):
 		val = self.visit_expression(ast.BinOp(op=node.op, left=node.target, right=node.value))
 		if isinstance(node.target, ast.Name):
-			self.builder.store(val, self.ns[node.target.id])
+			self.builder.store(val.llvm_value, self.ns[node.target.id].llvm_value)
 		else:
 			raise NotImplementedError
 
@@ -175,8 +175,8 @@ class Visitor:
 		else_block = function.append_basic_block("w_else")
 		merge_block = function.append_basic_block("w_merge")
 
-		condition = self.visit_expression(node.test)
-		self.builder.cbranch(condition, body_block, else_block)
+		condition = ir_values.operators.bool(self.visit_expression(node.test), self.builder)
+		self.builder.cbranch(condition.llvm_value, body_block, else_block)
 
 		self.builder.position_at_end(body_block)
 		self.visit_statements(node.body)
