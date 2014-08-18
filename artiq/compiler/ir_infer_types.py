@@ -5,8 +5,8 @@ from copy import deepcopy
 from artiq.compiler.ir_ast_body import Visitor
 
 class _TypeScanner(ast.NodeVisitor):
-	def __init__(self, ns):
-		self.exprv = Visitor(ns)
+	def __init__(self, env, ns):
+		self.exprv = Visitor(env, ns)
 
 	def visit_Assign(self, node):
 		val = self.exprv.visit_expression(node.value)
@@ -32,11 +32,11 @@ class _TypeScanner(ast.NodeVisitor):
 		else:
 			raise NotImplementedError
 
-def infer_types(node):
+def infer_types(env, node):
 	ns = dict()
 	while True:
 		prev_ns = deepcopy(ns)
-		ts = _TypeScanner(ns)
+		ts = _TypeScanner(env, ns)
 		ts.visit(node)
 		if prev_ns and all(v.same_type(prev_ns[k]) for k, v in ns.items()):
 			# no more promotions - completed
@@ -53,6 +53,6 @@ a += x         # promotes a to int64
 foo = True
 bar = None
 """
-	ns = infer_types(ast.parse(testcode))
+	ns = infer_types(None, ast.parse(testcode))
 	for k, v in sorted(ns.items(), key=itemgetter(0)):
 		print("{:10}-->   {}".format(k, str(v)))

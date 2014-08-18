@@ -6,7 +6,8 @@ from llvm import core as lc
 from artiq.compiler import ir_values
 
 class Visitor:
-	def __init__(self, ns, builder=None):
+	def __init__(self, env, ns, builder=None):
+		self.env = env
 		self.ns = ns
 		self.builder = builder
 
@@ -112,7 +113,15 @@ class Visitor:
 			"round": ir_values.operators.round,
 			"round64": ir_values.operators.round64,
 		}
-		return ast_unfuns[node.func.id](self.visit_expression(node.args[0]), self.builder)
+		fn = node.func.id
+		if fn in ast_unfuns:
+			return ast_unfuns[fn](self.visit_expression(node.args[0]), self.builder)
+		elif fn == "syscall":
+			return self.env.syscall(node.args[0].s,
+				[self.visit_expression(expr) for expr in node.args[1:]],
+				self.builder)
+		else:
+			raise NameError("Function '{}' is not defined".format(fn))
 
 	def visit_statements(self, stmts):
 		for node in stmts:
