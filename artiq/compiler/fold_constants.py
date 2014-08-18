@@ -1,6 +1,7 @@
 import ast, operator
 
 from artiq.compiler.tools import *
+from artiq.language.core import int64, round64
 
 _ast_unops = {
 	ast.Invert: operator.inv,
@@ -56,6 +57,19 @@ class _ConstantFolder(ast.NodeTransformer):
 		except:
 			return node
 		return ast.copy_location(result, node)
+
+	def visit_Call(self, node):
+		self.generic_visit(node)
+		fn = node.func.id
+		if fn in ("int", "int64", "round", "round64"):
+			try:
+				arg = eval_constant(node.args[0])
+			except NotConstant:
+				return node
+			result = value_to_ast(globals()[fn](arg))
+			return ast.copy_location(result, node)
+		else:
+			return node
 
 def fold_constants(node):
 	_ConstantFolder().visit(node)
