@@ -20,7 +20,7 @@ def get_runtime_binary(env, funcdef):
 	module = lc.Module.new("main")
 	env.set_module(module)
 
-	compile_function(module, funcdef)
+	compile_function(module, env, funcdef)
 
 	pass_manager = lp.PassManager.new()
 	pass_manager.add(lp.PASS_MEM2REG)
