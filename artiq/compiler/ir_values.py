@@ -57,24 +57,23 @@ class VInt:
 			zero = lc.Constant.int(lc.Type.int(self.nbits), 0)
 			return VBool(llvm_value=builder.icmp(lc.ICMP_NE, self.llvm_value, zero))
 
-	def o_int(self, builder):
+	def _o_intx(self, target_bits, builder):
 		if builder is None:
-			return VInt()
+			return VInt(target_bits)
 		else:
-			if self.nbits == 32:
+			if self.nbits == target_bits:
 				return self
-			else:
-				raise NotImplementedError
+			if self.nbits > target_bits:
+				return VInt(target_bits, llvm_value=builder.trunc(self.llvm_value, lc.Type.int(target_bits)))
+			if self.nbits < target_bits:
+				return VInt(target_bits, llvm_value=builder.sext(self.llvm_value, lc.Type.int(target_bits)))
+
+	def o_int(self, builder):
+		return self._o_intx(32, builder)
 	o_round = o_int
 
 	def o_int64(self, builder):
-		if builder is None:
-			return VInt(64)
-		else:
-			if self.nbits == 64:
-				return self
-			else:
-				raise NotImplementedError
+		return self._o_intx(64, builder)
 	o_round64 = o_int64
 
 def _make_vint_binop_method(builder_name):
