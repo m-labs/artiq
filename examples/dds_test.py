@@ -9,7 +9,7 @@ class DDSTest(AutoContext):
 	def run(self):
 		i = 0
 		while i < 10000:
-			if i & 0x200 != 0:
+			if i & 0x200:
 				self.led.set(1)
 			else:
 				self.led.set(0)
