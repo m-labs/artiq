@@ -107,6 +107,13 @@ class Visitor:
 		fn = node.func.id
 		if fn in ast_unfuns:
 			return ast_unfuns[fn](self.visit_expression(node.args[0]), self.builder)
+		elif fn == "Fraction":
+			r = ir_values.VFraction()
+			if self.builder is not None:
+				numerator = self.visit_expression(node.args[0])
+				denominator = self.visit_expression(node.args[1])
+				r.set_value_nd(self.builder, numerator, denominator)
+			return r
 		elif fn == "syscall":
 			return self.env.syscall(node.args[0].s,
 				[self.visit_expression(expr) for expr in node.args[1:]],
