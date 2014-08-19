@@ -11,7 +11,7 @@ def compile_function(module, env, funcdef):
 
 	ns = ir_infer_types.infer_types(env, funcdef)
 	for k, v in ns.items():
-		v.create_alloca(builder, k)
+		v.alloca(builder, k)
 	visitor = ir_ast_body.Visitor(env, ns, builder)
 	visitor.visit_statements(funcdef.body)
 	builder.ret_void()

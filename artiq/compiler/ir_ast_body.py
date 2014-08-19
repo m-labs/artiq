@@ -1,7 +1,4 @@
 import ast
-from copy import copy
-
-from llvm import core as lc
 
 from artiq.compiler import ir_values
 
@@ -25,12 +22,6 @@ class Visitor:
 			r = self.ns[node.id]
 		except KeyError:
 			raise NameError("Name '{}' is not defined".format(node.id))
-		r = copy(r)
-		if self.builder is None:
-			r.llvm_value = None
-		else:
-			if isinstance(r.llvm_value, lc.AllocaInstruction):
-				r.llvm_value = self.builder.load(r.llvm_value)
 		return r
 
 	def _visit_expr_NameConstant(self, node):
@@ -42,7 +33,7 @@ class Visitor:
 		else:
 			raise NotImplementedError
 		if self.builder is not None:
-			r.create_constant(v)
+			r.set_const_value(self.builder, v)
 		return r
 
 	def _visit_expr_Num(self, node):
@@ -55,7 +46,7 @@ class Visitor:
 		else:
 			raise NotImplementedError
 		if self.builder is not None:
-			r.create_constant(n)
+			r.set_const_value(self.builder, n)
 		return r
 
 	def _visit_expr_UnaryOp(self, node):
@@ -136,14 +127,14 @@ class Visitor:
 		val = self.visit_expression(node.value)
 		for target in node.targets:
 			if isinstance(target, ast.Name):
-				self.builder.store(val.llvm_value, self.ns[target.id].llvm_value)
+				self.ns[target.id].set_value(self.builder, val)
 			else:
 				raise NotImplementedError
 
 	def _visit_stmt_AugAssign(self, node):
 		val = self.visit_expression(ast.BinOp(op=node.op, left=node.target, right=node.value))
 		if isinstance(node.target, ast.Name):
-			self.builder.store(val.llvm_value, self.ns[node.target.id].llvm_value)
+			self.ns[node.target.id].set_value(self.builder, val)
 		else:
 			raise NotImplementedError
 
@@ -157,7 +148,7 @@ class Visitor:
 		merge_block = function.append_basic_block("i_merge")
 
 		condition = ir_values.operators.bool(self.visit_expression(node.test), self.builder)
-		self.builder.cbranch(condition.llvm_value, then_block, else_block)
+		self.builder.cbranch(condition.get_ssa_value(self.builder), then_block, else_block)
 
 		self.builder.position_at_end(then_block)
 		self.visit_statements(node.body)
@@ -176,12 +167,12 @@ class Visitor:
 		merge_block = function.append_basic_block("w_merge")
 
 		condition = ir_values.operators.bool(self.visit_expression(node.test), self.builder)
-		self.builder.cbranch(condition.llvm_value, body_block, else_block)
+		self.builder.cbranch(condition.get_ssa_value(self.builder), body_block, else_block)
 
 		self.builder.position_at_end(body_block)
 		self.visit_statements(node.body)
 		condition = ir_values.operators.bool(self.visit_expression(node.test), self.builder)
-		self.builder.cbranch(condition.llvm_value, body_block, merge_block)
+		self.builder.cbranch(condition.get_ssa_value(self.builder), body_block, merge_block)
 
 		self.builder.position_at_end(else_block)
 		self.visit_statements(node.orelse)

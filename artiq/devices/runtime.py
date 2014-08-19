@@ -52,14 +52,14 @@ class LinkInterface:
 	def syscall(self, syscall_name, args, builder):
 		r = _chr_to_value[_syscalls[syscall_name][-1]]()
 		if builder is not None:
-			args = [arg.llvm_value for arg in args]
+			args = [arg.get_ssa_value(builder) for arg in args]
 			if syscall_name in self.var_arg_fixcount:
 				fixcount = self.var_arg_fixcount[syscall_name]
 				args = args[:fixcount] \
 					+ [lc.Constant.int(lc.Type.int(), len(args) - fixcount)] \
 					+ args[fixcount:]
 			llvm_function = self.module.get_function_named("__syscall_"+syscall_name)
-			r.llvm_value = builder.call(llvm_function, args)
+			r.set_ssa_value(builder, builder.call(llvm_function, args))
 		return r
 
 class Environment(LinkInterface):
