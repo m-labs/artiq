@@ -299,11 +299,11 @@ def _make_binary_operator(op_name):
 			result = opf(r, builder)
 		if result is NotImplemented:
 			try:
-				ropf = getattr(l, "or_"+op_name)
+				ropf = getattr(r, "or_"+op_name)
 			except AttributeError:
 				result = NotImplemented
 			else:
-				result = ropf(r, builder)
+				result = ropf(l, builder)
 			if result is NotImplemented:
 				raise TypeError("Unsupported operand types for {}: {} and {}".format(
 					op_name, type(l).__name__, type(r).__name__))
