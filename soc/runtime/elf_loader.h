@@ -6,6 +6,9 @@ struct symbol {
 	void *target;
 };
 
-int load_elf(const struct symbol *symbols, void *elf_data, int elf_length, void *dest, int dest_length);
+void *find_symbol(const struct symbol *symbols, const char *name);
+
+typedef void * (*symbol_resolver)(const char *name);
+int load_elf(symbol_resolver resolver, void *elf_data, int elf_length, void *dest, int dest_length);
 
 #endif /* __ELF_LOADER_H */

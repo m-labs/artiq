@@ -89,7 +89,7 @@ struct elf32_sym {
 	SANITIZE_OFFSET_SIZE(offset, sizeof(target_type)); \
 	target = (target_type *)((char *)elf_data + offset)
 
-static void *find_symbol(const struct symbol *symbols, const char *name)
+void *find_symbol(const struct symbol *symbols, const char *name)
 {
 	int i;
 
@@ -117,7 +117,7 @@ static int fixup(void *dest, int dest_length, struct elf32_rela *rela, void *tar
 	return 1;
 }
 
-int load_elf(const struct symbol *symbols, void *elf_data, int elf_length, void *dest, int dest_length)
+int load_elf(symbol_resolver resolver, void *elf_data, int elf_length, void *dest, int dest_length)
 {
 	struct elf32_ehdr *ehdr;
 	struct elf32_shdr *strtable;
@@ -199,7 +199,7 @@ int load_elf(const struct symbol *symbols, void *elf_data, int elf_length, void 
 			void *target;
 
 			name = (char *)elf_data + strtaboff + sym->name;
-			target = find_symbol(symbols, name);
+			target = resolver(name);
 			if(target == NULL) {
 				printf("Undefined symbol: %s\n", name);
 				return 0;
