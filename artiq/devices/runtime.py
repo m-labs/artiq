@@ -40,7 +40,7 @@ def _str_to_functype(s):
 	return var_arg_fixcount, lc.Type.function(type_ret, type_args, var_arg=var_arg_fixcount is not None)
 
 class LinkInterface:
-	def set_module(self, module):
+	def init_module(self, module):
 		self.module = module
 		self.var_arg_fixcount = dict()
 		for func_name, func_type_str in _syscalls.items():

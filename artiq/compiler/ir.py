@@ -1,7 +1,7 @@
 from llvm import core as lc
 from llvm import passes as lp
 
-from artiq.compiler import ir_infer_types, ir_ast_body
+from artiq.compiler import ir_infer_types, ir_ast_body, ir_values
 
 def compile_function(module, env, funcdef):
 	function_type = lc.Type.function(lc.Type.void(), [])
@@ -18,7 +18,8 @@ def compile_function(module, env, funcdef):
 
 def get_runtime_binary(env, funcdef):
 	module = lc.Module.new("main")
-	env.set_module(module)
+	env.init_module(module)
+	ir_values.init_module(module)
 
 	compile_function(module, env, funcdef)
 
