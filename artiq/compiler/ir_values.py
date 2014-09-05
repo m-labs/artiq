@@ -208,12 +208,12 @@ class VBool(VInt):
 # Fraction type
 
 def _gcd64(builder, a, b):
-    gcd_f = builder.module.get_function_named("__gcd64")
+    gcd_f = builder.basic_block.function.module.get_function_named("__gcd64")
     return builder.call(gcd_f, [a, b])
 
 
 def _frac_normalize(builder, numerator, denominator):
-    gcd = _gcd64(numerator, denominator)
+    gcd = _gcd64(builder, numerator, denominator)
     numerator = builder.sdiv(numerator, gcd)
     denominator = builder.sdiv(denominator, gcd)
     return numerator, denominator
