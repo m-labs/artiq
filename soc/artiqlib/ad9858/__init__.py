@@ -12,7 +12,7 @@ class AD9858(Module):
     Data is zero-padded.
 
     Write to address 64 to pulse the FUD signal.
-    Address 65 is a GPIO register that controls    the sel, p and reset signals.
+    Address 65 is a GPIO register that controls the sel, p and reset signals.
     sel is mapped to the lower bits, followed by p and reset.
 
     Write timing:
@@ -55,9 +55,9 @@ class AD9858(Module):
         gpio_load = Signal()
         self.sync += If(gpio_load, gpio.eq(bus.dat_w))
         self.comb += [
-                Cat(pads.sel, pads.p).eq(gpio),
-                pads.rst_n.eq(~gpio[-1]),
-                ]
+            Cat(pads.sel, pads.p).eq(gpio),
+            pads.rst_n.eq(~gpio[-1]),
+        ]
 
         bus_r_gpio = Signal()
         self.comb += If(bus_r_gpio,
@@ -193,7 +193,8 @@ class _TB(Module):
         pads = _TestPads()
         self.submodules.dut = AD9858(pads)
         self.submodules.initiator = wishbone.Initiator(_test_gen())
-        self.submodules.interconnect = wishbone.InterconnectPointToPoint(self.initiator.bus, self.dut.bus)
+        self.submodules.interconnect = wishbone.InterconnectPointToPoint(
+            self.initiator.bus, self.dut.bus)
 
 
 if __name__ == "__main__":

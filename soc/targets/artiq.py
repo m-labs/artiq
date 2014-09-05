@@ -6,6 +6,7 @@ from targets.ppro import BaseSoC
 
 from artiqlib import rtio, ad9858
 
+
 _tester_io = [
     ("user_led", 1, Pins("B:7"), IOStandard("LVTTL")),
     ("ttl", 0, Pins("C:13"), IOStandard("LVTTL")),
@@ -25,6 +26,7 @@ _tester_io = [
         IOStandard("LVTTL")),
 ]
 
+
 class ARTIQMiniSoC(BaseSoC):
     csr_map = {
         "rtio":            10
@@ -35,12 +37,14 @@ class ARTIQMiniSoC(BaseSoC):
         BaseSoC.__init__(self, platform, cpu_type=cpu_type, **kwargs)
         platform.add_extension(_tester_io)
 
-        self.submodules.leds = gpio.GPIOOut(Cat(platform.request("user_led", 0),
+        self.submodules.leds = gpio.GPIOOut(Cat(
+            platform.request("user_led", 0),
             platform.request("user_led", 1)))
 
         self.comb += platform.request("ttl_tx_en").eq(1)
         rtio_pads = [platform.request("ttl", i) for i in range(4)]
-        self.submodules.rtiophy = rtio.phy.SimplePHY(rtio_pads,
+        self.submodules.rtiophy = rtio.phy.SimplePHY(
+            rtio_pads,
             {rtio_pads[1], rtio_pads[2], rtio_pads[3]})
         self.submodules.rtio = rtio.RTIO(self.rtiophy)
 

@@ -1,13 +1,13 @@
 from migen.fhdl.std import *
 from migen.bank.description import *
 from migen.genlib.fifo import SyncFIFOBuffered
-from migen.genlib.cdc import MultiReg
 
 from artiqlib.rtio.rbus import get_fine_ts_width
 
 
 class _RTIOBankO(Module):
-    def __init__(self, rbus, counter_width, fine_ts_width, fifo_depth, counter_init):
+    def __init__(self, rbus, counter_width, fine_ts_width,
+                 fifo_depth, counter_init):
         self.sel = Signal(max=len(rbus))
         self.timestamp = Signal(counter_width+fine_ts_width)
         self.value = Signal(2)
@@ -22,7 +22,8 @@ class _RTIOBankO(Module):
         self.sync += [
             counter.eq(counter + 1),
             If(self.we & self.writable,
-                If(self.timestamp[fine_ts_width:] < counter + 2, self.underflow.eq(1))
+                If(self.timestamp[fine_ts_width:] < counter + 2,
+                    self.underflow.eq(1))
             )
         ]
 
@@ -49,10 +50,14 @@ class _RTIOBankO(Module):
                 fifo.re.eq(chif.o_stb)
             ]
             if fine_ts_width:
-                self.comb += chif.o_fine_ts.eq(fifo.dout.timestamp[:fine_ts_width])
+                self.comb += chif.o_fine_ts.eq(
+                    fifo.dout.timestamp[:fine_ts_width])
 
         selfifo = Array(fifos)[self.sel]
-        self.comb += self.writable.eq(selfifo.writable), self.level.eq(selfifo.level)
+        self.comb += [
+            self.writable.eq(selfifo.writable),
+            self.level.eq(selfifo.level)
+        ]
 
 
 class _RTIOBankI(Module):
@@ -83,7 +88,7 @@ class _RTIOBankI(Module):
                     ("timestamp", counter_width+fine_ts_width), ("value", 1)],
                     fifo_depth)
                 self.submodules += fifo
-                
+
                 # FIFO write
                 if fine_ts_width:
                     full_ts = Cat(chif.i_fine_ts, counter)
@@ -92,8 +97,10 @@ class _RTIOBankI(Module):
                 self.comb += [
                     fifo.din.timestamp.eq(full_ts),
                     fifo.din.value.eq(chif.i_value),
-                    fifo.we.eq(~chif.oe & chif.i_stb &
-                        ((chif.i_value & sensitivity[0]) | (~chif.i_value & sensitivity[1])))
+                    fifo.we.eq(
+                        ~chif.oe & chif.i_stb &
+                        ((chif.i_value & sensitivity[0])
+                            | (~chif.i_value & sensitivity[1])))
                 ]
 
                 # FIFO read
@@ -101,7 +108,7 @@ class _RTIOBankI(Module):
                 values.append(fifo.dout.value)
                 readables.append(fifo.readable)
                 self.comb += fifo.re.eq(self.re & (self.sel == n))
-                
+
                 overflow = Signal()
                 self.sync += If(fifo.we & ~fifo.writable, overflow.eq(1))
                 overflows.append(overflow)
@@ -124,16 +131,18 @@ class RTIO(Module, AutoCSR):
         fine_ts_width = get_fine_ts_width(phy.rbus)
 
         # Submodules
-        self.submodules.bank_o = InsertReset(_RTIOBankO(phy.rbus,
+        self.submodules.bank_o = InsertReset(_RTIOBankO(
+            phy.rbus,
             counter_width, fine_ts_width, ofifo_depth,
             phy.loopback_latency))
-        self.submodules.bank_i = InsertReset(_RTIOBankI(phy.rbus,
+        self.submodules.bank_i = InsertReset(_RTIOBankI(
+            phy.rbus,
             counter_width, fine_ts_width, ofifo_depth))
 
         # CSRs
         self._r_reset = CSRStorage(reset=1)
         self._r_chan_sel = CSRStorage(flen(self.bank_o.sel))
-        
+
         self._r_oe = CSR()
 
         self._r_o_timestamp = CSRStorage(counter_width+fine_ts_width)

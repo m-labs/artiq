@@ -1,6 +1,7 @@
 from migen.fhdl.std import *
 from migen.genlib.record import Record
 
+
 def create_rbus(fine_ts_bits, pads, output_only_pads):
     rbus = []
     for pad in pads:
@@ -20,6 +21,7 @@ def create_rbus(fine_ts_bits, pads, output_only_pads):
                 layout.append(("i_fine_ts", fine_ts_bits))
         rbus.append(Record(layout))
     return rbus
+
 
 def get_fine_ts_width(rbus):
     if hasattr(rbus[0], "o_fine_ts"):
