@@ -1,7 +1,7 @@
 import ast
 import types
 
-from artiq.compiler.tools import *
+from artiq.transforms.tools import *
 
 
 # -1 statement duration could not be pre-determined

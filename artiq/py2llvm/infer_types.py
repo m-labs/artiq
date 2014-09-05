@@ -2,7 +2,7 @@ import ast
 from operator import itemgetter
 from copy import deepcopy
 
-from artiq.compiler.ir_ast_body import Visitor
+from artiq.py2llvm.ast_body import Visitor
 
 
 class _TypeScanner(ast.NodeVisitor):

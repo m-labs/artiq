@@ -1,19 +1,19 @@
 from llvm import core as lc
 from llvm import passes as lp
 
-from artiq.compiler import ir_infer_types, ir_ast_body, ir_values
+from artiq.py2llvm import infer_types, ast_body, values
 
 
-def compile_function(module, env, funcdef):
+def _compile_function(module, env, funcdef):
     function_type = lc.Type.function(lc.Type.void(), [])
     function = module.add_function(function_type, funcdef.name)
     bb = function.append_basic_block("entry")
     builder = lc.Builder.new(bb)
 
-    ns = ir_infer_types.infer_types(env, funcdef)
+    ns = infer_types.infer_types(env, funcdef)
     for k, v in ns.items():
         v.alloca(builder, k)
-    visitor = ir_ast_body.Visitor(env, ns, builder)
+    visitor = ast_body.Visitor(env, ns, builder)
     visitor.visit_statements(funcdef.body)
     builder.ret_void()
 
@@ -21,9 +21,9 @@ def compile_function(module, env, funcdef):
 def get_runtime_binary(env, funcdef):
     module = lc.Module.new("main")
     env.init_module(module)
-    ir_values.init_module(module)
+    values.init_module(module)
 
-    compile_function(module, env, funcdef)
+    _compile_function(module, env, funcdef)
 
     pass_manager = lp.PassManager.new()
     pass_manager.add(lp.PASS_MEM2REG)

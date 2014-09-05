@@ -1,6 +1,6 @@
 import ast
 
-from artiq.compiler import ir_values
+from artiq.py2llvm import values
 
 
 class Visitor:
@@ -29,9 +29,9 @@ class Visitor:
     def _visit_expr_NameConstant(self, node):
         v = node.value
         if v is None:
-            r = ir_values.VNone()
+            r = values.VNone()
         elif isinstance(v, bool):
-            r = ir_values.VBool()
+            r = values.VBool()
         else:
             raise NotImplementedError
         if self.builder is not None:
@@ -42,9 +42,9 @@ class Visitor:
         n = node.n
         if isinstance(n, int):
             if abs(n) < 2**31:
-                r = ir_values.VInt()
+                r = values.VInt()
             else:
-                r = ir_values.VInt(64)
+                r = values.VInt(64)
         else:
             raise NotImplementedError
         if self.builder is not None:
@@ -53,28 +53,28 @@ class Visitor:
 
     def _visit_expr_UnaryOp(self, node):
         ast_unops = {
-            ast.Invert: ir_values.operators.inv,
-            ast.Not: ir_values.operators.not_,
-            ast.UAdd: ir_values.operators.pos,
-            ast.USub: ir_values.operators.neg
+            ast.Invert: values.operators.inv,
+            ast.Not: values.operators.not_,
+            ast.UAdd: values.operators.pos,
+            ast.USub: values.operators.neg
         }
         return ast_unops[type(node.op)](self.visit_expression(node.operand),
                                         self.builder)
 
     def _visit_expr_BinOp(self, node):
         ast_binops = {
-            ast.Add: ir_values.operators.add,
-            ast.Sub: ir_values.operators.sub,
-            ast.Mult: ir_values.operators.mul,
-            ast.Div: ir_values.operators.truediv,
-            ast.FloorDiv: ir_values.operators.floordiv,
-            ast.Mod: ir_values.operators.mod,
-            ast.Pow: ir_values.operators.pow,
-            ast.LShift: ir_values.operators.lshift,
-            ast.RShift: ir_values.operators.rshift,
-            ast.BitOr: ir_values.operators.or_,
-            ast.BitXor: ir_values.operators.xor,
-            ast.BitAnd: ir_values.operators.and_
+            ast.Add: values.operators.add,
+            ast.Sub: values.operators.sub,
+            ast.Mult: values.operators.mul,
+            ast.Div: values.operators.truediv,
+            ast.FloorDiv: values.operators.floordiv,
+            ast.Mod: values.operators.mod,
+            ast.Pow: values.operators.pow,
+            ast.LShift: values.operators.lshift,
+            ast.RShift: values.operators.rshift,
+            ast.BitOr: values.operators.or_,
+            ast.BitXor: values.operators.xor,
+            ast.BitAnd: values.operators.and_
         }
         return ast_binops[type(node.op)](self.visit_expression(node.left),
                                          self.visit_expression(node.right),
@@ -82,12 +82,12 @@ class Visitor:
 
     def _visit_expr_Compare(self, node):
         ast_cmps = {
-            ast.Eq: ir_values.operators.eq,
-            ast.NotEq: ir_values.operators.ne,
-            ast.Lt: ir_values.operators.lt,
-            ast.LtE: ir_values.operators.le,
-            ast.Gt: ir_values.operators.gt,
-            ast.GtE: ir_values.operators.ge
+            ast.Eq: values.operators.eq,
+            ast.NotEq: values.operators.ne,
+            ast.Lt: values.operators.lt,
+            ast.LtE: values.operators.le,
+            ast.Gt: values.operators.gt,
+            ast.GtE: values.operators.ge
         }
         comparisons = []
         old_comparator = self.visit_expression(node.left)
@@ -99,23 +99,23 @@ class Visitor:
             old_comparator = comparator
         r = comparisons[0]
         for comparison in comparisons[1:]:
-            r = ir_values.operators.and_(r, comparison)
+            r = values.operators.and_(r, comparison)
         return r
 
     def _visit_expr_Call(self, node):
         ast_unfuns = {
-            "bool": ir_values.operators.bool,
-            "int": ir_values.operators.int,
-            "int64": ir_values.operators.int64,
-            "round": ir_values.operators.round,
-            "round64": ir_values.operators.round64,
+            "bool": values.operators.bool,
+            "int": values.operators.int,
+            "int64": values.operators.int64,
+            "round": values.operators.round,
+            "round64": values.operators.round64,
         }
         fn = node.func.id
         if fn in ast_unfuns:
             return ast_unfuns[fn](self.visit_expression(node.args[0]),
                                   self.builder)
         elif fn == "Fraction":
-            r = ir_values.VFraction()
+            r = values.VFraction()
             if self.builder is not None:
                 numerator = self.visit_expression(node.args[0])
                 denominator = self.visit_expression(node.args[1])
@@ -164,7 +164,7 @@ class Visitor:
         else_block = function.append_basic_block("i_else")
         merge_block = function.append_basic_block("i_merge")
 
-        condition = ir_values.operators.bool(self.visit_expression(node.test),
+        condition = values.operators.bool(self.visit_expression(node.test),
                                              self.builder)
         self.builder.cbranch(condition.get_ssa_value(self.builder),
                              then_block, else_block)
@@ -185,14 +185,14 @@ class Visitor:
         else_block = function.append_basic_block("w_else")
         merge_block = function.append_basic_block("w_merge")
 
-        condition = ir_values.operators.bool(
+        condition = values.operators.bool(
             self.visit_expression(node.test), self.builder)
         self.builder.cbranch(
             condition.get_ssa_value(self.builder), body_block, else_block)
 
         self.builder.position_at_end(body_block)
         self.visit_statements(node.body)
-        condition = ir_values.operators.bool(
+        condition = values.operators.bool(
             self.visit_expression(node.test), self.builder)
         self.builder.cbranch(
             condition.get_ssa_value(self.builder), body_block, merge_block)

@@ -4,7 +4,7 @@ import inspect
 import textwrap
 import ast
 
-from artiq.compiler.tools import eval_ast, value_to_ast
+from artiq.transforms.tools import eval_ast, value_to_ast
 from artiq.language import core as core_language
 from artiq.language import units
 

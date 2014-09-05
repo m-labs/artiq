@@ -1,6 +1,6 @@
 import ast
 
-from artiq.compiler.tools import value_to_ast
+from artiq.transforms.tools import value_to_ast
 from artiq.language.core import int64
 
 

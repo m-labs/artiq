@@ -1,7 +1,7 @@
 import ast
 import operator
 
-from artiq.compiler.tools import *
+from artiq.transforms.tools import *
 from artiq.language.core import int64, round64
 
 

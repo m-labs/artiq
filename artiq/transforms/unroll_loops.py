@@ -1,6 +1,6 @@
 import ast
 
-from artiq.compiler.tools import eval_ast, value_to_ast
+from artiq.transforms.tools import eval_ast, value_to_ast
 
 
 def _count_stmts(node):

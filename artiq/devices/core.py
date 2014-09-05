@@ -1,10 +1,10 @@
-from artiq.compiler.inline import inline
-from artiq.compiler.lower_units import lower_units
-from artiq.compiler.fold_constants import fold_constants
-from artiq.compiler.unroll_loops import unroll_loops
-from artiq.compiler.interleave import interleave
-from artiq.compiler.lower_time import lower_time
-from artiq.compiler.ir import get_runtime_binary
+from artiq.transforms.inline import inline
+from artiq.transforms.lower_units import lower_units
+from artiq.transforms.fold_constants import fold_constants
+from artiq.transforms.unroll_loops import unroll_loops
+from artiq.transforms.interleave import interleave
+from artiq.transforms.lower_time import lower_time
+from artiq.py2llvm import get_runtime_binary
 
 
 class Core:
