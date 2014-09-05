@@ -4,46 +4,49 @@ from copy import deepcopy
 
 from artiq.compiler.ir_ast_body import Visitor
 
+
 class _TypeScanner(ast.NodeVisitor):
-	def __init__(self, env, ns):
-		self.exprv = Visitor(env, ns)
+    def __init__(self, env, ns):
+        self.exprv = Visitor(env, ns)
 
-	def visit_Assign(self, node):
-		val = self.exprv.visit_expression(node.value)
-		ns = self.exprv.ns
-		for target in node.targets:
-			if isinstance(target, ast.Name):
-				if target.id in ns:
-					ns[target.id].merge(val)
-				else:
-					ns[target.id] = val
-			else:
-				raise NotImplementedError
+    def visit_Assign(self, node):
+        val = self.exprv.visit_expression(node.value)
+        ns = self.exprv.ns
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                if target.id in ns:
+                    ns[target.id].merge(val)
+                else:
+                    ns[target.id] = val
+            else:
+                raise NotImplementedError
 
-	def visit_AugAssign(self, node):
-		val = self.exprv.visit_expression(ast.BinOp(op=node.op, left=node.target, right=node.value))
-		ns = self.exprv.ns
-		target = node.target
-		if isinstance(target, ast.Name):
-			if target.id in ns:
-				ns[target.id].merge(val)
-			else:
-				ns[target.id] = val
-		else:
-			raise NotImplementedError
+    def visit_AugAssign(self, node):
+        val = self.exprv.visit_expression(ast.BinOp(
+            op=node.op, left=node.target, right=node.value))
+        ns = self.exprv.ns
+        target = node.target
+        if isinstance(target, ast.Name):
+            if target.id in ns:
+                ns[target.id].merge(val)
+            else:
+                ns[target.id] = val
+        else:
+            raise NotImplementedError
+
 
 def infer_types(env, node):
-	ns = dict()
-	while True:
-		prev_ns = deepcopy(ns)
-		ts = _TypeScanner(env, ns)
-		ts.visit(node)
-		if prev_ns and all(v.same_type(prev_ns[k]) for k, v in ns.items()):
-			# no more promotions - completed
-			return ns
+    ns = dict()
+    while True:
+        prev_ns = deepcopy(ns)
+        ts = _TypeScanner(env, ns)
+        ts.visit(node)
+        if prev_ns and all(v.same_type(prev_ns[k]) for k, v in ns.items()):
+            # no more promotions - completed
+            return ns
 
 if __name__ == "__main__":
-	testcode = """
+    testcode = """
 a = 2          # promoted later to int64
 b = a + 1      # initially int32, becomes int64 after a is promoted
 c = b//2       # initially int32, becomes int64 after b is promoted
@@ -53,6 +56,6 @@ a += x         # promotes a to int64
 foo = True
 bar = None
 """
-	ns = infer_types(None, ast.parse(testcode))
-	for k, v in sorted(ns.items(), key=itemgetter(0)):
-		print("{:10}-->   {}".format(k, str(v)))
+    ns = infer_types(None, ast.parse(testcode))
+    for k, v in sorted(ns.items(), key=itemgetter(0)):
+        print("{:10}-->   {}".format(k, str(v)))

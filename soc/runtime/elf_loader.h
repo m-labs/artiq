@@ -2,8 +2,8 @@
 #define __ELF_LOADER_H
 
 struct symbol {
-	char *name;
-	void *target;
+    char *name;
+    void *target;
 };
 
 void *find_symbol(const struct symbol *symbols, const char *name);

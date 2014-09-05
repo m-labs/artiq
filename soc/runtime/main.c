@@ -13,29 +13,29 @@ typedef void (*kernel_function)(void);
 
 int main(void)
 {
-	unsigned char kbuf[256*1024];
-	unsigned char kcode[256*1024];
-	kernel_function k = (kernel_function)kcode;
-	int length;
+    unsigned char kbuf[256*1024];
+    unsigned char kcode[256*1024];
+    kernel_function k = (kernel_function)kcode;
+    int length;
 
-	irq_setmask(0);
-	irq_setie(1);
-	uart_init();
-	
-	puts("ARTIQ runtime built "__DATE__" "__TIME__"\n");
+    irq_setmask(0);
+    irq_setie(1);
+    uart_init();
+    
+    puts("ARTIQ runtime built "__DATE__" "__TIME__"\n");
 
-	while(1) {
-		length = ident_and_download_kernel(kbuf, sizeof(kbuf));
-		if(length > 0) {
-			if(load_elf(resolve_symbol, kbuf, length, kcode, sizeof(kcode))) {
-				rtio_init();
-				dds_init();
-				flush_cpu_icache();
-				k();
-				kernel_finished();
-			}
-		}
-	}
+    while(1) {
+        length = ident_and_download_kernel(kbuf, sizeof(kbuf));
+        if(length > 0) {
+            if(load_elf(resolve_symbol, kbuf, length, kcode, sizeof(kcode))) {
+                rtio_init();
+                dds_init();
+                flush_cpu_icache();
+                k();
+                kernel_finished();
+            }
+        }
+    }
 
-	return 0;
+    return 0;
 }
