@@ -7,11 +7,11 @@ from artiq.compiler import ir_values
 lt.initialize_all()
 
 _syscalls = {
-    "rpc":            "i+:i",
-    "gpio_set":        "ii:n",
-    "rtio_set":        "Iii:n",
-    "rtio_sync":    "i:n",
-    "dds_program":    "ii:n",
+    "rpc": "i+:i",
+    "gpio_set": "ii:n",
+    "rtio_set": "Iii:n",
+    "rtio_sync": "i:n",
+    "dds_program": "ii:n",
 }
 
 _chr_to_type = {
@@ -76,4 +76,5 @@ class Environment(LinkInterface):
 
     def emit_object(self):
         tm = lt.TargetMachine.new(triple="or1k", cpu="generic")
-        return tm.emit_object(self.module)
+        obj = tm.emit_object(self.module)
+        return obj
