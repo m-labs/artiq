@@ -432,7 +432,7 @@ def _make_operators():
     for op_name in ("bool", "int", "int64", "round", "round64",
                     "inv", "pos", "neg"):
         d[op_name] = _make_unary_operator(op_name)
-    d["not_"] = _make_binary_operator("not")
+    d["not_"] = _make_unary_operator("not")
     for op_name in ("add", "sub", "mul",
                     "truediv", "floordiv", "mod",
                     "pow", "lshift", "rshift", "xor",
