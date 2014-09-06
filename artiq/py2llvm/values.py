@@ -96,15 +96,18 @@ class VInt(_Value):
     def set_const_value(self, builder, n):
         self.set_ssa_value(builder, lc.Constant.int(self.get_llvm_type(), n))
 
-    def o_bool(self, builder):
+    def o_bool(self, builder, inv=False):
         r = VBool()
         if builder is not None:
             r.set_ssa_value(
                 builder, builder.icmp(
-                    lc.ICMP_NE,
+                    lc.ICMP_EQ if inv else lc.ICMP_NE,
                     self.get_ssa_value(builder),
                     lc.Constant.int(self.get_llvm_type(), 0)))
         return r
+
+    def o_not(self, builder):
+        return self.o_bool(builder, True)
 
     def o_intx(self, target_bits, builder):
         r = VInt(target_bits)
