@@ -24,7 +24,7 @@ class _Value:
 
     def alloca(self, builder, name):
         if self._llvm_value is not None:
-            raise RuntimeError("Attempted to alloca existing LLVM value")
+            raise RuntimeError("Attempted to alloca existing LLVM value "+name)
         self._llvm_value = builder.alloca(self.get_llvm_type(), name=name)
 
     def o_int(self, builder):

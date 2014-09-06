@@ -1,6 +1,7 @@
 import ast
 
 from artiq.py2llvm import values
+from artiq.py2llvm.tools import is_terminated
 
 
 class Visitor:
@@ -131,13 +132,16 @@ class Visitor:
 
     def visit_statements(self, stmts):
         for node in stmts:
-            method = "_visit_stmt_" + node.__class__.__name__
+            node_type = node.__class__.__name__
+            method = "_visit_stmt_" + node_type
             try:
                 visitor = getattr(self, method)
             except AttributeError:
                 raise NotImplementedError("Unsupported node '{}' in statement"
-                                          .format(node.__class__.__name__))
+                                          .format(node_type))
             visitor(node)
+            if node_type == "Return":
+                break
 
     def _visit_stmt_Assign(self, node):
         val = self.visit_expression(node.value)
@@ -165,17 +169,19 @@ class Visitor:
         merge_block = function.append_basic_block("i_merge")
 
         condition = values.operators.bool(self.visit_expression(node.test),
-                                             self.builder)
+                                          self.builder)
         self.builder.cbranch(condition.get_ssa_value(self.builder),
                              then_block, else_block)
 
         self.builder.position_at_end(then_block)
         self.visit_statements(node.body)
-        self.builder.branch(merge_block)
+        if not is_terminated(self.builder.basic_block):
+            self.builder.branch(merge_block)
 
         self.builder.position_at_end(else_block)
         self.visit_statements(node.orelse)
-        self.builder.branch(merge_block)
+        if not is_terminated(self.builder.basic_block):
+            self.builder.branch(merge_block)
 
         self.builder.position_at_end(merge_block)
 
@@ -192,13 +198,25 @@ class Visitor:
 
         self.builder.position_at_end(body_block)
         self.visit_statements(node.body)
-        condition = values.operators.bool(
-            self.visit_expression(node.test), self.builder)
-        self.builder.cbranch(
-            condition.get_ssa_value(self.builder), body_block, merge_block)
+        if not is_terminated(self.builder.basic_block):
+            condition = values.operators.bool(
+                self.visit_expression(node.test), self.builder)
+            self.builder.cbranch(
+                condition.get_ssa_value(self.builder), body_block, merge_block)
 
         self.builder.position_at_end(else_block)
         self.visit_statements(node.orelse)
-        self.builder.branch(merge_block)
+        if not is_terminated(self.builder.basic_block):
+            self.builder.branch(merge_block)
 
         self.builder.position_at_end(merge_block)
+
+    def _visit_stmt_Return(self, node):
+        if node.value is None:
+            val = values.VNone()
+        else:
+            val = self.visit_expression(node.value)
+        if isinstance(val, values.VNone):
+            self.builder.ret_void()
+        else:
+            self.builder.ret(val.get_ssa_value(self.builder))
