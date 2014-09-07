@@ -76,6 +76,20 @@ class VFraction(VGeneric):
             raise TypeError
         self.set_ssa_value(builder, n.get_ssa_value(builder))
 
+    def o_getattr(self, attr, builder):
+        if attr == "numerator":
+            idx = 0
+        elif attr == "denominator":
+            idx = 1
+        else:
+            raise AttributeError
+        r = VInt(64)
+        if builder is not None:
+            elt = builder.extract_element(
+                self.get_ssa_value(builder), lc.Constant.int(lc.Type.int(), idx))
+            r.set_ssa_value(builder, elt)
+        return r
+
     def o_bool(self, builder):
         r = VBool()
         if builder is not None:

@@ -1,6 +1,7 @@
 import unittest
 import ast
 import inspect
+from fractions import Fraction
 
 from llvm import ee as le
 
@@ -79,8 +80,19 @@ def is_prime(x):
         d += 1
     return True
 
+def simplify_encode(n, d):
+    f = Fraction(n, d)
+    return f.numerator*1000 + f.denominator
+
 class CodeGenCase(unittest.TestCase):
     def test_is_prime(self):
-        is_prime_c = CompiledFunction(is_prime, {"x": base_types.VInt(32)})
+        is_prime_c = CompiledFunction(is_prime, {"x": base_types.VInt()})
         for i in range(200):
             self.assertEqual(is_prime_c(i), is_prime(i))
+
+    def test_frac_simplify(self):
+        simplify_encode_c = CompiledFunction(
+            simplify_encode, {"n": base_types.VInt(), "d": base_types.VInt()})
+        for n in range(5, 20):
+            for d in range(5, 20):
+                self.assertEqual(simplify_encode_c(n, d), simplify_encode(n, d))
