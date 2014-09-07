@@ -123,6 +123,10 @@ class Visitor:
         else:
             raise NameError("Function '{}' is not defined".format(fn))
 
+    def _visit_expr_Attribute(self, node):
+        value = self.visit_expression(node.value)
+        return value.o_getattr(node.attr, self.builder)
+
     def visit_statements(self, stmts):
         for node in stmts:
             node_type = node.__class__.__name__
