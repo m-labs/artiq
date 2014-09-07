@@ -26,6 +26,12 @@ class VNone(VGeneric):
             r.set_const_value(builder, False)
         return r
 
+    def o_not(self, builder):
+        r = VBool()
+        if builder is not None:
+            r.set_const_value(builder, True)
+        return r
+
 
 class VInt(VGeneric):
     def __init__(self, nbits=32):
