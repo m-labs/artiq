@@ -74,15 +74,23 @@ struct elf32_sym {
     unsigned short shndx;  /* Section index of symbol. */
 } __attribute__((packed));
 
+#define STT_NOTYPE      0
+#define STT_OBJECT      1
+#define STT_FUNC        2
+#define STT_SECTION     3
+#define STT_FILE        4
+
+#define ELF32_ST_TYPE(info) ((info) & 0x0f)
+
 
 #define SANITIZE_OFFSET_SIZE(offset, size) \
     if(offset > 0x10000000) { \
         printf("Incorrect offset in ELF data"); \
-        return 0; \
+        return NULL; \
     } \
     if((offset + size) > elf_length) { \
         printf("Attempted to access past the end of ELF data"); \
-        return 0; \
+        return NULL; \
     }
 
 #define GET_POINTER_SAFE(target, target_type, offset) \
@@ -117,7 +125,7 @@ static int fixup(void *dest, int dest_length, struct elf32_rela *rela, void *tar
     return 1;
 }
 
-int load_elf(symbol_resolver resolver, void *elf_data, int elf_length, void *dest, int dest_length)
+void *load_elf(symbol_resolver resolver, const char *entry_name, void *elf_data, int elf_length, void *dest, int dest_length)
 {
     struct elf32_ehdr *ehdr;
     struct elf32_shdr *strtable;
@@ -129,20 +137,22 @@ int load_elf(symbol_resolver resolver, void *elf_data, int elf_length, void *des
     unsigned int symtaboff, symtabsize;
     unsigned int strtaboff, strtabsize;
 
+    void *entry_point;
+
 
     /* validate ELF */
     GET_POINTER_SAFE(ehdr, struct elf32_ehdr, 0);
     if(memcmp(ehdr->ident, elf_magic_header, sizeof(elf_magic_header)) != 0) {
         printf("Incorrect ELF header\n");
-        return 0;
+        return NULL;
     }
     if(ehdr->type != ET_REL) {
         printf("ELF is not relocatable\n");
-        return 0;
+        return NULL;
     }
     if(ehdr->machine != EM_OR1K) {
         printf("ELF is for a different machine\n");
-        return 0;
+        return NULL;
     }
 
     /* extract section info */
@@ -183,7 +193,7 @@ int load_elf(symbol_resolver resolver, void *elf_data, int elf_length, void *des
     /* load .text section */
     if(textsize > dest_length) {
         printf(".text section is too large\n");
-        return 0;
+        return NULL;
     }
     memcpy(dest, (char *)elf_data + textoff, textsize);
 
@@ -191,26 +201,45 @@ int load_elf(symbol_resolver resolver, void *elf_data, int elf_length, void *des
     for(i=0;i<textrelasize;i+=sizeof(struct elf32_rela)) {
         struct elf32_rela *rela;
         struct elf32_sym *sym;
-        char *name;
 
         GET_POINTER_SAFE(rela, struct elf32_rela, textrelaoff + i);
         GET_POINTER_SAFE(sym, struct elf32_sym, symtaboff + sizeof(struct elf32_sym)*ELF32_R_SYM(rela->info));
         if(sym->name != 0) {
+            char *name;
             void *target;
 
             name = (char *)elf_data + strtaboff + sym->name;
             target = resolver(name);
             if(target == NULL) {
                 printf("Undefined symbol: %s\n", name);
-                return 0;
+                return NULL;
             }
             if(!fixup(dest, dest_length, rela, target))
-                return 0;
+                return NULL;
         } else {
             printf("Unsupported relocation\n");
-            return 0;
+            return NULL;
         }
     }
 
-    return 1;
+    /* find entry point */
+    entry_point = NULL;
+    for(i=0;i<symtabsize;i+=sizeof(struct elf32_sym)) {
+        struct elf32_sym *sym;
+
+        GET_POINTER_SAFE(sym, struct elf32_sym, symtaboff + i);
+        if((ELF32_ST_TYPE(sym->info) == STT_FUNC) && (sym->name != 0)) {
+            char *name;
+
+            name = (char *)elf_data + strtaboff + sym->name;
+            if(strcmp(name, entry_name) == 0) {
+                entry_point = (char *)dest + sym->value;
+                break;
+            }
+        }
+    }
+    if(entry_point == NULL)
+        printf("Failed to find entry point\n");
+
+    return entry_point;
 }

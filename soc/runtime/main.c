@@ -15,7 +15,7 @@ int main(void)
 {
     unsigned char kbuf[256*1024];
     unsigned char kcode[256*1024];
-    kernel_function k = (kernel_function)kcode;
+    kernel_function k;
     int length;
 
     irq_setmask(0);
@@ -27,7 +27,8 @@ int main(void)
     while(1) {
         length = ident_and_download_kernel(kbuf, sizeof(kbuf));
         if(length > 0) {
-            if(load_elf(resolve_symbol, kbuf, length, kcode, sizeof(kcode))) {
+            k = load_elf(resolve_symbol, "run", kbuf, length, kcode, sizeof(kcode));
+            if(k != NULL) {
                 rtio_init();
                 dds_init();
                 flush_cpu_icache();
