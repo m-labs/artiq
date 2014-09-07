@@ -40,18 +40,6 @@ class VGeneric:
         return self.o_roundx(64, builder)
 
 
-def _make_unary_operator(op_name):
-    def op(x, builder):
-        try:
-            opf = getattr(x, "o_"+op_name)
-        except AttributeError:
-            raise TypeError(
-                "Unsupported operand type for {}: {}"
-                .format(op_name, type(x).__name__))
-        return opf(builder)
-    return op
-
-
 def _make_binary_operator(op_name):
     def op(l, r, builder):
         try:
@@ -77,10 +65,6 @@ def _make_binary_operator(op_name):
 
 def _make_operators():
     d = dict()
-    for op_name in ("bool", "int", "int64", "round", "round64",
-                    "inv", "pos", "neg"):
-        d[op_name] = _make_unary_operator(op_name)
-    d["not_"] = _make_unary_operator("not")
     for op_name in ("add", "sub", "mul",
                     "truediv", "floordiv", "mod",
                     "pow", "lshift", "rshift", "xor",

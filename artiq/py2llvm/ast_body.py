@@ -54,13 +54,13 @@ class Visitor:
 
     def _visit_expr_UnaryOp(self, node):
         ast_unops = {
-            ast.Invert: values.operators.inv,
-            ast.Not: values.operators.not_,
-            ast.UAdd: values.operators.pos,
-            ast.USub: values.operators.neg
+            ast.Invert: "o_inv",
+            ast.Not: "o_not",
+            ast.UAdd: "o_pos",
+            ast.USub: "o_neg"
         }
-        return ast_unops[type(node.op)](self.visit_expression(node.operand),
-                                        self.builder)
+        value = self.visit_expression(node.operand)
+        return getattr(value, ast_unops[type(node.op)])(self.builder)
 
     def _visit_expr_BinOp(self, node):
         ast_binops = {
@@ -104,17 +104,10 @@ class Visitor:
         return r
 
     def _visit_expr_Call(self, node):
-        ast_unfuns = {
-            "bool": values.operators.bool,
-            "int": values.operators.int,
-            "int64": values.operators.int64,
-            "round": values.operators.round,
-            "round64": values.operators.round64,
-        }
         fn = node.func.id
-        if fn in ast_unfuns:
-            return ast_unfuns[fn](self.visit_expression(node.args[0]),
-                                  self.builder)
+        if fn in {"bool", "int", "int64", "round", "round64"}:
+            value = self.visit_expression(node.args[0])
+            return getattr(value, "o_"+fn)(self.builder)
         elif fn == "Fraction":
             r = fractions.VFraction()
             if self.builder is not None:
@@ -168,8 +161,7 @@ class Visitor:
         else_block = function.append_basic_block("i_else")
         merge_block = function.append_basic_block("i_merge")
 
-        condition = values.operators.bool(self.visit_expression(node.test),
-                                          self.builder)
+        condition = self.visit_expression(node.test).o_bool(self.builder)
         self.builder.cbranch(condition.get_ssa_value(self.builder),
                              then_block, else_block)
 
@@ -191,16 +183,14 @@ class Visitor:
         else_block = function.append_basic_block("w_else")
         merge_block = function.append_basic_block("w_merge")
 
-        condition = values.operators.bool(
-            self.visit_expression(node.test), self.builder)
+        condition = self.visit_expression(node.test).o_bool(self.builder)
         self.builder.cbranch(
             condition.get_ssa_value(self.builder), body_block, else_block)
 
         self.builder.position_at_end(body_block)
         self.visit_statements(node.body)
         if not is_terminated(self.builder.basic_block):
-            condition = values.operators.bool(
-                self.visit_expression(node.test), self.builder)
+            condition = self.visit_expression(node.test).o_bool(self.builder)
             self.builder.cbranch(
                 condition.get_ssa_value(self.builder), body_block, merge_block)
 
