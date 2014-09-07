@@ -2,7 +2,7 @@ import ast
 from copy import deepcopy
 
 from artiq.py2llvm.ast_body import Visitor
-from artiq.py2llvm import values
+from artiq.py2llvm import base_types
 
 
 class _TypeScanner(ast.NodeVisitor):
@@ -31,7 +31,7 @@ class _TypeScanner(ast.NodeVisitor):
 
     def visit_Return(self, node):
         if node.value is None:
-            val = values.VNone()
+            val = base_types.VNone()
         else:
             val = self.exprv.visit_expression(node.value)
         ns = self.exprv.ns
@@ -51,5 +51,5 @@ def infer_function_types(env, node, param_types):
         if all(v.same_type(prev_ns[k]) for k, v in ns.items()):
             # no more promotions - completed
             if "return" not in ns:
-                ns["return"] = values.VNone()
+                ns["return"] = base_types.VNone()
             return ns

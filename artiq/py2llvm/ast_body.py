@@ -1,6 +1,6 @@
 import ast
 
-from artiq.py2llvm import values
+from artiq.py2llvm import values, base_types, fractions
 from artiq.py2llvm.tools import is_terminated
 
 
@@ -30,9 +30,9 @@ class Visitor:
     def _visit_expr_NameConstant(self, node):
         v = node.value
         if v is None:
-            r = values.VNone()
+            r = base_types.VNone()
         elif isinstance(v, bool):
-            r = values.VBool()
+            r = base_types.VBool()
         else:
             raise NotImplementedError
         if self.builder is not None:
@@ -43,9 +43,9 @@ class Visitor:
         n = node.n
         if isinstance(n, int):
             if abs(n) < 2**31:
-                r = values.VInt()
+                r = base_types.VInt()
             else:
-                r = values.VInt(64)
+                r = base_types.VInt(64)
         else:
             raise NotImplementedError
         if self.builder is not None:
@@ -116,7 +116,7 @@ class Visitor:
             return ast_unfuns[fn](self.visit_expression(node.args[0]),
                                   self.builder)
         elif fn == "Fraction":
-            r = values.VFraction()
+            r = fractions.VFraction()
             if self.builder is not None:
                 numerator = self.visit_expression(node.args[0])
                 denominator = self.visit_expression(node.args[1])
@@ -213,10 +213,10 @@ class Visitor:
 
     def _visit_stmt_Return(self, node):
         if node.value is None:
-            val = values.VNone()
+            val = base_types.VNone()
         else:
             val = self.visit_expression(node.value)
-        if isinstance(val, values.VNone):
+        if isinstance(val, base_types.VNone):
             self.builder.ret_void()
         else:
             self.builder.ret(val.get_ssa_value(self.builder))

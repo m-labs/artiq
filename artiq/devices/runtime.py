@@ -1,7 +1,7 @@
 from llvm import core as lc
 from llvm import target as lt
 
-from artiq.py2llvm import values
+from artiq.py2llvm import base_types
 
 
 lt.initialize_all()
@@ -21,9 +21,9 @@ _chr_to_type = {
 }
 
 _chr_to_value = {
-    "n": lambda: values.VNone(),
-    "i": lambda: values.VInt(),
-    "I": lambda: values.VInt(64)
+    "n": lambda: base_types.VNone(),
+    "i": lambda: base_types.VInt(),
+    "I": lambda: base_types.VInt(64)
 }
 
 
