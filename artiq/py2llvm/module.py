@@ -24,6 +24,7 @@ class Module:
         pass_manager.run(self.llvm_module)
 
     def get_ee(self):
+        self.finalize()
         return le.ExecutionEngine.new(self.llvm_module)
 
     def emit_object(self):
