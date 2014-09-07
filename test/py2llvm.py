@@ -6,6 +6,7 @@ from llvm import core as lc
 from llvm import passes as lp
 from llvm import ee as le
 
+from artiq.language.core import int64
 from artiq.py2llvm.infer_types import infer_function_types
 from artiq.py2llvm import values
 from artiq.py2llvm import compile_function
@@ -22,10 +23,10 @@ def test_types(choice):
     foo = True
     bar = None
 
-    if choice:
-        return 3
+    if choice and foo and not bar:
+        return d
     else:
-        return x
+        return x + c
 
 class FunctionTypesCase(unittest.TestCase):
     def setUp(self):
