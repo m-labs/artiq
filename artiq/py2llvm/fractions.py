@@ -1,21 +1,29 @@
+import inspect
+import ast
+
 from llvm import core as lc
 
 from artiq.py2llvm.values import VGeneric
 from artiq.py2llvm.base_types import VBool, VInt
 
 
-def _gcd64(builder, a, b):
-    gcd_f = builder.basic_block.function.module.get_function_named("__gcd64")
-    return builder.call(gcd_f, [a, b])
+def _gcd(a, b):
+    while a:
+        c = a
+        a = b % a
+        b = c
+    return b
 
 def init_module(module):
-    func_type = lc.Type.function(
-        lc.Type.int(64), [lc.Type.int(64), lc.Type.int(64)])
-    module.add_function(func_type, "__gcd64")
+    funcdef = ast.parse(inspect.getsource(_gcd)).body[0]
+    module.compile_function(funcdef, {"a": VInt(64), "b": VInt(64)})
 
+def _call_gcd(builder, a, b):
+    gcd_f = builder.basic_block.function.module.get_function_named("_gcd")
+    return builder.call(gcd_f, [a, b])
 
 def _frac_normalize(builder, numerator, denominator):
-    gcd = _gcd64(builder, numerator, denominator)
+    gcd = _call_gcd(builder, numerator, denominator)
     numerator = builder.sdiv(numerator, gcd)
     denominator = builder.sdiv(denominator, gcd)
     return numerator, denominator
@@ -135,12 +143,12 @@ class VFraction(VGeneric):
                 numerator, denominator = self._nd(builder, invert)
                 i = other.get_ssa_value(builder)
                 if div:
-                    gcd = _gcd64(i, numerator)
+                    gcd = _call_gcd(builder, i, numerator)
                     i = builder.sdiv(i, gcd)
                     numerator = builder.sdiv(numerator, gcd)
                     denominator = builder.mul(denominator, i)
                 else:
-                    gcd = _gcd64(i, denominator)
+                    gcd = _call_gcd(builder, i, denominator)
                     i = builder.sdiv(i, gcd)
                     denominator = builder.sdiv(denominator, gcd)
                     numerator = builder.mul(numerator, i)

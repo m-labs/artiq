@@ -9,7 +9,7 @@ class _RuntimeEnvironment(LinkInterface):
         self.ref_period = ref_period
 
     def emit_object(self):
-        return str(self.module)
+        return str(self.llvm_module)
 
 
 class CoreCom:

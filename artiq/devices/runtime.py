@@ -46,13 +46,13 @@ def _str_to_functype(s):
 
 class LinkInterface:
     def init_module(self, module):
-        self.module = module
+        self.llvm_module = module.llvm_module
         self.var_arg_fixcount = dict()
         for func_name, func_type_str in _syscalls.items():
             var_arg_fixcount, func_type = _str_to_functype(func_type_str)
             if var_arg_fixcount is not None:
                 self.var_arg_fixcount[func_name] = var_arg_fixcount
-            self.module.add_function(func_type, "__syscall_"+func_name)
+            self.llvm_module.add_function(func_type, "__syscall_"+func_name)
 
     def syscall(self, syscall_name, args, builder):
         r = _chr_to_value[_syscalls[syscall_name][-1]]()
@@ -63,7 +63,7 @@ class LinkInterface:
                 args = args[:fixcount] \
                     + [lc.Constant.int(lc.Type.int(), len(args) - fixcount)] \
                     + args[fixcount:]
-            llvm_function = self.module.get_function_named(
+            llvm_function = self.llvm_module.get_function_named(
                 "__syscall_" + syscall_name)
             r.set_ssa_value(builder, builder.call(llvm_function, args))
         return r
@@ -76,5 +76,5 @@ class Environment(LinkInterface):
 
     def emit_object(self):
         tm = lt.TargetMachine.new(triple="or1k", cpu="generic")
-        obj = tm.emit_object(self.module)
+        obj = tm.emit_object(self.llvm_module)
         return obj

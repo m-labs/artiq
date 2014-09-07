@@ -11,8 +11,8 @@ class Module:
         self.env = env
 
         if self.env is not None:
-            self.env.init_module(self.llvm_module)
-        fractions.init_module(self.llvm_module)
+            self.env.init_module(self)
+        fractions.init_module(self)
 
     def finalize(self):
         pass_manager = lp.PassManager.new()
