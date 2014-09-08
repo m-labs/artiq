@@ -26,6 +26,7 @@ def test_types(choice):
     else:
         return x + c
 
+
 class FunctionTypesCase(unittest.TestCase):
     def setUp(self):
         self.ns = infer_function_types(
@@ -39,7 +40,7 @@ class FunctionTypesCase(unittest.TestCase):
         self.assertEqual(self.ns["d"].nbits, 32)
         self.assertIsInstance(self.ns["x"], base_types.VInt)
         self.assertEqual(self.ns["x"].nbits, 64)
-        
+
     def test_promotion(self):
         for v in "abc":
             self.assertIsInstance(self.ns[v], base_types.VInt)
@@ -80,19 +81,62 @@ def is_prime(x):
         d += 1
     return True
 
-def simplify_encode(n, d):
-    f = Fraction(n, d)
+
+def simplify_encode(a, b):
+    f = Fraction(a, b)
     return f.numerator*1000 + f.denominator
+
+
+def arith_encode(op, a, b, c, d):
+    if op == 1:
+        f = Fraction(a, b) - Fraction(c, d)
+    elif op == 2:
+        f = Fraction(a, b) + Fraction(c, d)
+    elif op == 3:
+        f = Fraction(a, b) * Fraction(c, d)
+    else:
+        f = Fraction(a, b) / Fraction(c, d)
+    return f.numerator*1000 + f.denominator
+
+
+is_prime_c = CompiledFunction(is_prime, {"x": base_types.VInt()})
+simplify_encode_c = CompiledFunction(
+    simplify_encode, {"a": base_types.VInt(), "b": base_types.VInt()})
+arith_encode_c = CompiledFunction(
+    arith_encode, {
+        "op": base_types.VInt(),
+        "a": base_types.VInt(), "b": base_types.VInt(),
+        "c": base_types.VInt(), "d": base_types.VInt()})
+
 
 class CodeGenCase(unittest.TestCase):
     def test_is_prime(self):
-        is_prime_c = CompiledFunction(is_prime, {"x": base_types.VInt()})
         for i in range(200):
             self.assertEqual(is_prime_c(i), is_prime(i))
 
     def test_frac_simplify(self):
-        simplify_encode_c = CompiledFunction(
-            simplify_encode, {"n": base_types.VInt(), "d": base_types.VInt()})
-        for n in range(5, 20):
-            for d in range(5, 20):
-                self.assertEqual(simplify_encode_c(n, d), simplify_encode(n, d))
+        for a in range(5, 20):
+            for b in range(5, 20):
+                self.assertEqual(
+                    simplify_encode_c(a, b), simplify_encode(a, b))
+
+    def _test_frac_arith(self, op):
+        for a in range(5, 10):
+            for b in range(5, 10):
+                for c in range(5, 10):
+                    for d in range(5, 10):
+                        self.assertEqual(
+                            arith_encode_c(op, a, b, c, d),
+                            arith_encode(op, a, b, c, d))
+
+    def test_frac_add(self):
+        self._test_frac_arith(0)
+
+    def test_frac_sub(self):
+        self._test_frac_arith(1)
+
+    def test_frac_mul(self):
+        self._test_frac_arith(2)
+
+    def test_frac_div(self):
+        self._test_frac_arith(3)
