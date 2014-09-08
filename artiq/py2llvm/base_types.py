@@ -74,6 +74,15 @@ class VInt(VGeneric):
     def o_not(self, builder):
         return self.o_bool(builder, True)
 
+    def o_neg(self, builder):
+        r = VInt(self.nbits)
+        if builder is not None:
+            r.set_ssa_value(
+                builder, builder.mul(
+                    self.get_ssa_value(builder),
+                    lc.Constant.int(self.get_llvm_type(), -1)))
+        return r
+
     def o_intx(self, target_bits, builder):
         r = VInt(target_bits)
         if builder is not None:
