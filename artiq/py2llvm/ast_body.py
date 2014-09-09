@@ -1,7 +1,39 @@
 import ast
 
-from artiq.py2llvm import values, base_types, fractions
+from artiq.py2llvm import values, base_types, fractions, arrays
 from artiq.py2llvm.tools import is_terminated
+
+
+_ast_unops = {
+    ast.Invert: "o_inv",
+    ast.Not: "o_not",
+    ast.UAdd: "o_pos",
+    ast.USub: "o_neg"
+}
+
+_ast_binops = {
+    ast.Add: values.operators.add,
+    ast.Sub: values.operators.sub,
+    ast.Mult: values.operators.mul,
+    ast.Div: values.operators.truediv,
+    ast.FloorDiv: values.operators.floordiv,
+    ast.Mod: values.operators.mod,
+    ast.Pow: values.operators.pow,
+    ast.LShift: values.operators.lshift,
+    ast.RShift: values.operators.rshift,
+    ast.BitOr: values.operators.or_,
+    ast.BitXor: values.operators.xor,
+    ast.BitAnd: values.operators.and_
+}
+
+_ast_cmps = {
+    ast.Eq: values.operators.eq,
+    ast.NotEq: values.operators.ne,
+    ast.Lt: values.operators.lt,
+    ast.LtE: values.operators.le,
+    ast.Gt: values.operators.gt,
+    ast.GtE: values.operators.ge
+}
 
 
 class Visitor:
@@ -53,48 +85,20 @@ class Visitor:
         return r
 
     def _visit_expr_UnaryOp(self, node):
-        ast_unops = {
-            ast.Invert: "o_inv",
-            ast.Not: "o_not",
-            ast.UAdd: "o_pos",
-            ast.USub: "o_neg"
-        }
         value = self.visit_expression(node.operand)
-        return getattr(value, ast_unops[type(node.op)])(self.builder)
+        return getattr(value, _ast_unops[type(node.op)])(self.builder)
 
     def _visit_expr_BinOp(self, node):
-        ast_binops = {
-            ast.Add: values.operators.add,
-            ast.Sub: values.operators.sub,
-            ast.Mult: values.operators.mul,
-            ast.Div: values.operators.truediv,
-            ast.FloorDiv: values.operators.floordiv,
-            ast.Mod: values.operators.mod,
-            ast.Pow: values.operators.pow,
-            ast.LShift: values.operators.lshift,
-            ast.RShift: values.operators.rshift,
-            ast.BitOr: values.operators.or_,
-            ast.BitXor: values.operators.xor,
-            ast.BitAnd: values.operators.and_
-        }
-        return ast_binops[type(node.op)](self.visit_expression(node.left),
-                                         self.visit_expression(node.right),
-                                         self.builder)
+        return _ast_binops[type(node.op)](self.visit_expression(node.left),
+                                          self.visit_expression(node.right),
+                                          self.builder)
 
     def _visit_expr_Compare(self, node):
-        ast_cmps = {
-            ast.Eq: values.operators.eq,
-            ast.NotEq: values.operators.ne,
-            ast.Lt: values.operators.lt,
-            ast.LtE: values.operators.le,
-            ast.Gt: values.operators.gt,
-            ast.GtE: values.operators.ge
-        }
         comparisons = []
         old_comparator = self.visit_expression(node.left)
         for op, comparator_a in zip(node.ops, node.comparators):
             comparator = self.visit_expression(comparator_a)
-            comparison = ast_cmps[type(op)](old_comparator, comparator,
+            comparison = _ast_cmps[type(op)](old_comparator, comparator,
                                             self.builder)
             comparisons.append(comparison)
             old_comparator = comparator
@@ -115,6 +119,14 @@ class Visitor:
                 denominator = self.visit_expression(node.args[1])
                 r.set_value_nd(self.builder, numerator, denominator)
             return r
+        elif fn == "array":
+            element = self.visit_expression(node.args[0])
+            if (isinstance(node.args[1], ast.Num)
+                    and isinstance(node.args[1].n, int)):
+                count = node.args[1].n
+            else:
+                raise ValueError("Array size must be integer and constant")
+            return arrays.VArray(element, count)
         elif fn == "syscall":
             return self.env.syscall(
                 node.args[0].s,
@@ -126,6 +138,14 @@ class Visitor:
     def _visit_expr_Attribute(self, node):
         value = self.visit_expression(node.value)
         return value.o_getattr(node.attr, self.builder)
+
+    def _visit_expr_Subscript(self, node):
+        value = self.visit_expression(node.value)
+        if isinstance(node.slice, ast.Index):
+            index = self.visit_expression(node.slice.value)
+        else:
+            raise NotImplementedError
+        return value.o_subscript(index, self.builder)
 
     def visit_statements(self, stmts):
         for node in stmts:
@@ -143,18 +163,14 @@ class Visitor:
     def _visit_stmt_Assign(self, node):
         val = self.visit_expression(node.value)
         for target in node.targets:
-            if isinstance(target, ast.Name):
-                self.ns[target.id].set_value(self.builder, val)
-            else:
-                raise NotImplementedError
+            target = self.visit_expression(target)
+            target.set_value(self.builder, val)
 
     def _visit_stmt_AugAssign(self, node):
-        val = self.visit_expression(ast.BinOp(op=node.op, left=node.target,
-                                              right=node.value))
-        if isinstance(node.target, ast.Name):
-            self.ns[node.target.id].set_value(self.builder, val)
-        else:
-            raise NotImplementedError
+        target = self.visit_expression(node.target)
+        right = self.visit_expression(node.value)
+        val = _ast_binops[type(node.op)](target, right, self.builder)
+        target.set_value(self.builder, val)
 
     def _visit_stmt_Expr(self, node):
         self.visit_expression(node.value)
@@ -166,7 +182,7 @@ class Visitor:
         merge_block = function.append_basic_block("i_merge")
 
         condition = self.visit_expression(node.test).o_bool(self.builder)
-        self.builder.cbranch(condition.get_ssa_value(self.builder),
+        self.builder.cbranch(condition.auto_load(self.builder),
                              then_block, else_block)
 
         self.builder.position_at_end(then_block)
@@ -189,14 +205,14 @@ class Visitor:
 
         condition = self.visit_expression(node.test).o_bool(self.builder)
         self.builder.cbranch(
-            condition.get_ssa_value(self.builder), body_block, else_block)
+            condition.auto_load(self.builder), body_block, else_block)
 
         self.builder.position_at_end(body_block)
         self.visit_statements(node.body)
         if not is_terminated(self.builder.basic_block):
             condition = self.visit_expression(node.test).o_bool(self.builder)
             self.builder.cbranch(
-                condition.get_ssa_value(self.builder), body_block, merge_block)
+                condition.auto_load(self.builder), body_block, merge_block)
 
         self.builder.position_at_end(else_block)
         self.visit_statements(node.orelse)
@@ -213,4 +229,4 @@ class Visitor:
         if isinstance(val, base_types.VNone):
             self.builder.ret_void()
         else:
-            self.builder.ret(val.get_ssa_value(self.builder))
+            self.builder.ret(val.auto_load(self.builder))

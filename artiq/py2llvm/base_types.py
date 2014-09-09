@@ -46,19 +46,19 @@ class VInt(VGeneric):
                             .format(repr(self), repr(other)))
 
     def set_value(self, builder, n):
-        self.set_ssa_value(
-            builder, n.o_intx(self.nbits, builder).get_ssa_value(builder))
+        self.auto_store(
+            builder, n.o_intx(self.nbits, builder).auto_load(builder))
 
     def set_const_value(self, builder, n):
-        self.set_ssa_value(builder, lc.Constant.int(self.get_llvm_type(), n))
+        self.auto_store(builder, lc.Constant.int(self.get_llvm_type(), n))
 
     def o_bool(self, builder, inv=False):
         r = VBool()
         if builder is not None:
-            r.set_ssa_value(
+            r.auto_store(
                 builder, builder.icmp(
                     lc.ICMP_EQ if inv else lc.ICMP_NE,
-                    self.get_ssa_value(builder),
+                    self.auto_load(builder),
                     lc.Constant.int(self.get_llvm_type(), 0)))
         return r
 
@@ -68,9 +68,9 @@ class VInt(VGeneric):
     def o_neg(self, builder):
         r = VInt(self.nbits)
         if builder is not None:
-            r.set_ssa_value(
+            r.auto_store(
                 builder, builder.mul(
-                    self.get_ssa_value(builder),
+                    self.auto_load(builder),
                     lc.Constant.int(self.get_llvm_type(), -1)))
         return r
 
@@ -78,15 +78,15 @@ class VInt(VGeneric):
         r = VInt(target_bits)
         if builder is not None:
             if self.nbits == target_bits:
-                r.set_ssa_value(
-                    builder, self.get_ssa_value(builder))
+                r.auto_store(
+                    builder, self.auto_load(builder))
             if self.nbits > target_bits:
-                r.set_ssa_value(
-                    builder, builder.trunc(self.get_ssa_value(builder),
+                r.auto_store(
+                    builder, builder.trunc(self.auto_load(builder),
                                            r.get_llvm_type()))
             if self.nbits < target_bits:
-                r.set_ssa_value(
-                    builder, builder.sext(self.get_ssa_value(builder),
+                r.auto_store(
+                    builder, builder.sext(self.auto_load(builder),
                                           r.get_llvm_type()))
         return r
     o_roundx = o_intx
@@ -101,9 +101,9 @@ def _make_vint_binop_method(builder_name):
                     left = self.o_intx(target_bits, builder)
                     right = other.o_intx(target_bits, builder)
                     bf = getattr(builder, builder_name)
-                    r.set_ssa_value(
-                        builder, bf(left.get_ssa_value(builder),
-                                    right.get_ssa_value(builder)))
+                    r.auto_store(
+                        builder, bf(left.auto_load(builder),
+                                    right.auto_load(builder)))
                 return r
             else:
                 return NotImplemented
@@ -128,11 +128,11 @@ def _make_vint_cmp_method(icmp_val):
                 target_bits = max(self.nbits, other.nbits)
                 left = self.o_intx(target_bits, builder)
                 right = other.o_intx(target_bits, builder)
-                r.set_ssa_value(
+                r.auto_store(
                     builder,
                     builder.icmp(
-                        icmp_val, left.get_ssa_value(builder),
-                        right.get_ssa_value(builder)))
+                        icmp_val, left.auto_load(builder),
+                        right.auto_load(builder)))
             return r
         else:
             return NotImplemented
@@ -161,5 +161,5 @@ class VBool(VInt):
     def o_bool(self, builder):
         r = VBool()
         if builder is not None:
-            r.set_ssa_value(builder, self.get_ssa_value(builder))
+            r.auto_store(builder, self.auto_load(builder))
         return r

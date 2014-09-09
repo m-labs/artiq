@@ -71,7 +71,7 @@ class VFraction(VGeneric):
         return lc.Type.vector(lc.Type.int(64), 2)
 
     def _nd(self, builder):
-        ssa_value = self.get_ssa_value(builder)
+        ssa_value = self.auto_load(builder)
         a = builder.extract_element(
             ssa_value, lc.Constant.int(lc.Type.int(), 0))
         b = builder.extract_element(
@@ -79,16 +79,16 @@ class VFraction(VGeneric):
         return a, b
 
     def set_value_nd(self, builder, a, b):
-        a = a.o_int64(builder).get_ssa_value(builder)
-        b = b.o_int64(builder).get_ssa_value(builder)
+        a = a.o_int64(builder).auto_load(builder)
+        b = b.o_int64(builder).auto_load(builder)
         a, b = _reduce(builder, a, b)
         a, b = _signnum(builder, a, b)
-        self.set_ssa_value(builder, _make_ssa(builder, a, b))
+        self.auto_store(builder, _make_ssa(builder, a, b))
 
     def set_value(self, builder, v):
         if not isinstance(v, VFraction):
             raise TypeError
-        self.set_ssa_value(builder, v.get_ssa_value(builder))
+        self.auto_store(builder, v.auto_load(builder))
 
     def o_getattr(self, attr, builder):
         if attr == "numerator":
@@ -100,9 +100,9 @@ class VFraction(VGeneric):
         r = VInt(64)
         if builder is not None:
             elt = builder.extract_element(
-                self.get_ssa_value(builder),
+                self.auto_load(builder),
                 lc.Constant.int(lc.Type.int(), idx))
-            r.set_ssa_value(builder, elt)
+            r.auto_store(builder, elt)
         return r
 
     def o_bool(self, builder):
@@ -110,8 +110,8 @@ class VFraction(VGeneric):
         if builder is not None:
             zero = lc.Constant.int(lc.Type.int(64), 0)
             a = builder.extract_element(
-                self.get_ssa_value(builder), lc.Constant.int(lc.Type.int(), 0))
-            r.set_ssa_value(builder, builder.icmp(lc.ICMP_NE, a, zero))
+                self.auto_load(builder), lc.Constant.int(lc.Type.int(), 0))
+            r.auto_store(builder, builder.icmp(lc.ICMP_NE, a, zero))
         return r
 
     def o_intx(self, target_bits, builder):
@@ -120,7 +120,7 @@ class VFraction(VGeneric):
         else:
             r = VInt(64)
             a, b = self._nd(builder)
-            r.set_ssa_value(builder, builder.sdiv(a, b))
+            r.auto_store(builder, builder.sdiv(a, b))
             return r.o_intx(target_bits, builder)
 
     def o_roundx(self, target_bits, builder):
@@ -131,7 +131,7 @@ class VFraction(VGeneric):
             a, b = self._nd(builder)
             h_b = builder.ashr(b, lc.Constant.int(lc.Type.int(), 1))
             a = builder.add(a, h_b)
-            r.set_ssa_value(builder, builder.sdiv(a, b))
+            r.auto_store(builder, builder.sdiv(a, b))
             return r.o_intx(target_bits, builder)
 
     def _o_eq_inv(self, other, builder, ne):
@@ -144,7 +144,7 @@ class VFraction(VGeneric):
                 a, b = self._nd(builder)
                 ssa_r = builder.and_(
                     builder.icmp(lc.ICMP_EQ, a,
-                                 other.get_ssa_value()),
+                                 other.auto_load()),
                     builder.icmp(lc.ICMP_EQ, b,
                                  lc.Constant.int(lc.Type.int(64), 1)))
             else:
@@ -156,7 +156,7 @@ class VFraction(VGeneric):
             if ne:
                 ssa_r = builder.xor(ssa_r,
                                     lc.Constant.int(lc.Type.int(1), 1))
-            r.set_ssa_value(builder, ssa_r)
+            r.auto_store(builder, ssa_r)
         return r
 
     def o_eq(self, other, builder):
@@ -171,7 +171,7 @@ class VFraction(VGeneric):
         r = VFraction()
         if builder is not None:
             if isinstance(other, VInt):
-                i = other.o_int64(builder).get_ssa_value()
+                i = other.o_int64(builder).auto_load()
                 x, rd = self._nd(builder)
                 y = builder.mul(rd, i)
             else:
@@ -188,7 +188,7 @@ class VFraction(VGeneric):
             else:
                 rn = builder.add(x, y)
             rn, rd = _reduce(builder, rn, rd)  # rd is already > 0
-            r.set_ssa_value(builder, _make_ssa(builder, rn, rd))
+            r.auto_store(builder, _make_ssa(builder, rn, rd))
         return r
 
     def o_add(self, other, builder):
@@ -212,7 +212,7 @@ class VFraction(VGeneric):
             if invert:
                 a, b = b, a
             if isinstance(other, VInt):
-                i = other.o_int64(builder).get_ssa_value(builder)
+                i = other.o_int64(builder).auto_load(builder)
                 if div:
                     b = builder.mul(b, i)
                 else:
@@ -228,7 +228,7 @@ class VFraction(VGeneric):
             if div or invert:
                 a, b = _signnum(builder, a, b)
             a, b = _reduce(builder, a, b)
-            r.set_ssa_value(builder, _make_ssa(builder, a, b))
+            r.auto_store(builder, _make_ssa(builder, a, b))
         return r
 
     def o_mul(self, other, builder):

@@ -1,11 +1,17 @@
 from types import SimpleNamespace
+from copy import copy
 
 from llvm import core as lc
 
 
 class VGeneric:
     def __init__(self):
-        self._llvm_value = None
+        self.llvm_value = None
+
+    def new(self):
+        r = copy(self)
+        r.llvm_value = None
+        return r
 
     def __repr__(self):
         return "<" + self.__class__.__name__ + ">"
@@ -18,25 +24,25 @@ class VGeneric:
             raise TypeError("Incompatible types: {} and {}"
                             .format(repr(self), repr(other)))
 
-    def get_ssa_value(self, builder):
-        if isinstance(self._llvm_value, lc.AllocaInstruction):
-            return builder.load(self._llvm_value)
+    def auto_load(self, builder):
+        if isinstance(self.llvm_value.type, lc.PointerType):
+            return builder.load(self.llvm_value)
         else:
-            return self._llvm_value
+            return self.llvm_value
 
-    def set_ssa_value(self, builder, value):
-        if self._llvm_value is None:
-            self._llvm_value = value
-        elif isinstance(self._llvm_value, lc.AllocaInstruction):
-            builder.store(value, self._llvm_value)
+    def auto_store(self, builder, llvm_value):
+        if self.llvm_value is None:
+            self.llvm_value = llvm_value
+        elif isinstance(self.llvm_value.type, lc.PointerType):
+            builder.store(llvm_value, self.llvm_value)
         else:
             raise RuntimeError(
                 "Attempted to set LLVM SSA value multiple times")
 
     def alloca(self, builder, name):
-        if self._llvm_value is not None:
+        if self.llvm_value is not None:
             raise RuntimeError("Attempted to alloca existing LLVM value "+name)
-        self._llvm_value = builder.alloca(self.get_llvm_type(), name=name)
+        self.llvm_value = builder.alloca(self.get_llvm_type(), name=name)
 
     def o_int(self, builder):
         return self.o_intx(32, builder)

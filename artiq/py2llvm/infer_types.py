@@ -16,6 +16,19 @@ class _TypeScanner(ast.NodeVisitor):
                 ns[target.id].merge(val)
             else:
                 ns[target.id] = deepcopy(val)
+        elif isinstance(target, ast.Subscript):
+            target = target.value
+            levels = 0
+            while isinstance(target, ast.Subscript):
+                target = target.value
+                levels += 1
+            if isinstance(target, ast.Name):
+                target_value = ns[target.id]
+                for i in range(levels):
+                    target_value = target_value.o_subscript(None, None)
+                target_value.merge_subscript(val)
+            else:
+                raise NotImplementedError
         else:
             raise NotImplementedError
 
@@ -39,6 +52,7 @@ class _TypeScanner(ast.NodeVisitor):
             ns["return"].merge(val)
         else:
             ns["return"] = deepcopy(val)
+
 
 def infer_function_types(env, node, param_types):
     ns = deepcopy(param_types)

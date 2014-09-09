@@ -46,7 +46,7 @@ class Module:
         for k, v in ns.items():
             v.alloca(builder, k)
         for arg_ast, arg_llvm in zip(funcdef.args.args, function.args):
-            ns[arg_ast.arg].set_ssa_value(builder, arg_llvm)
+            ns[arg_ast.arg].auto_store(builder, arg_llvm)
 
         visitor = ast_body.Visitor(self.env, ns, builder)
         visitor.visit_statements(funcdef.body)
@@ -55,6 +55,6 @@ class Module:
             if isinstance(retval, base_types.VNone):
                 builder.ret_void()
             else:
-                builder.ret(retval.get_ssa_value(builder))
+                builder.ret(retval.auto_load(builder))
 
         return function, retval

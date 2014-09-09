@@ -5,13 +5,13 @@ from fractions import Fraction
 
 from llvm import ee as le
 
-from artiq.language.core import int64
+from artiq.language.core import int64, array
 from artiq.py2llvm.infer_types import infer_function_types
-from artiq.py2llvm import base_types
+from artiq.py2llvm import base_types, arrays
 from artiq.py2llvm.module import Module
 
 
-def test_types(choice):
+def test_base_types(choice):
     a = 2          # promoted later to int64
     b = a + 1      # initially int32, becomes int64 after a is promoted
     c = b//2       # initially int32, becomes int64 after b is promoted
@@ -27,13 +27,17 @@ def test_types(choice):
         return x + c
 
 
-class FunctionTypesCase(unittest.TestCase):
-    def setUp(self):
-        self.ns = infer_function_types(
-            None, ast.parse(inspect.getsource(test_types)),
-            dict())
+def _build_function_types(f):
+    return infer_function_types(
+        None, ast.parse(inspect.getsource(f)),
+        dict())
 
-    def test_base_types(self):
+
+class FunctionBaseTypesCase(unittest.TestCase):
+    def setUp(self):
+        self.ns = _build_function_types(test_base_types)
+
+    def test_simple_types(self):
         self.assertIsInstance(self.ns["foo"], base_types.VBool)
         self.assertIsInstance(self.ns["bar"], base_types.VNone)
         self.assertIsInstance(self.ns["d"], base_types.VInt)
@@ -49,6 +53,23 @@ class FunctionTypesCase(unittest.TestCase):
     def test_return(self):
         self.assertIsInstance(self.ns["return"], base_types.VInt)
         self.assertEqual(self.ns["return"].nbits, 64)
+
+
+def test_array_types():
+    a = array(0, 5)
+    a[3] = int64(8)
+    return a
+
+
+class FunctionArrayTypesCase(unittest.TestCase):
+    def setUp(self):
+        self.ns = _build_function_types(test_array_types)
+
+    def test_array_types(self):
+        self.assertIsInstance(self.ns["a"], arrays.VArray)
+        self.assertIsInstance(self.ns["a"].el_init, base_types.VInt)
+        self.assertEqual(self.ns["a"].el_init.nbits, 64)
+        self.assertEqual(self.ns["a"].count, 5)
 
 
 class CompiledFunction:
@@ -99,6 +120,23 @@ def arith_encode(op, a, b, c, d):
     return f.numerator*1000 + f.denominator
 
 
+def array_test():
+    a = array(array(2, 5), 5)
+    a[3][2] = 11
+    a[4][1] = 42
+    a[0][0] += 6
+
+    acc = 0
+    i = 0
+    while i < 5:
+        j = 0
+        while j < 5:
+            acc += a[i][j]
+            j += 1
+        i += 1
+    return acc
+
+
 class CodeGenCase(unittest.TestCase):
     def test_is_prime(self):
         is_prime_c = CompiledFunction(is_prime, {"x": base_types.VInt()})
@@ -138,3 +176,7 @@ class CodeGenCase(unittest.TestCase):
 
     def test_frac_div(self):
         self._test_frac_arith(3)
+
+    def test_array(self):
+        array_test_c = CompiledFunction(array_test, dict())
+        self.assertEqual(array_test_c(), array_test())
