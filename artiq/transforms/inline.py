@@ -164,7 +164,12 @@ class _ReferenceReplacer(ast.NodeTransformer):
             args = [func.__self__] + new_args
             inlined, _ = inline(self.core, func.k_function_info.k_function,
                                 args, dict(), self.rm)
-            return inlined.body
+            r = ast.With(
+                items=[ast.withitem(context_expr=ast.Name(id="sequential",
+                                                          ctx=ast.Load()),
+                                    optional_vars=None)],
+                body=inlined.body)
+            return ast.copy_location(r, node)
         else:
             args = [ast.Str("rpc"), value_to_ast(self.rm.rpc_map[func])]
             args += new_args
@@ -176,7 +181,7 @@ class _ReferenceReplacer(ast.NodeTransformer):
     def visit_Expr(self, node):
         if isinstance(node.value, ast.Call):
             r = self.visit_Call(node.value)
-            if isinstance(r, list):
+            if isinstance(r, ast.With):
                 return r
             else:
                 node.value = r
