@@ -14,18 +14,32 @@ class _RTIOBankO(Module):
         self.writable = Signal()
         self.we = Signal()
         self.underflow = Signal()
+        self.pileup = Signal()
         self.level = Signal(bits_for(fifo_depth))
 
         # # #
 
+        # counter
         counter = Signal(counter_width, reset=counter_init)
-        self.sync += [
-            counter.eq(counter + 1),
-            If(self.we & self.writable,
-                If(self.timestamp[fine_ts_width:] < counter + 2,
-                    self.underflow.eq(1))
+        self.sync += counter.eq(counter + 1)
+
+        # ignore series of writes with the same value
+        we_filtered = Signal()
+        prev_value = Signal(2)
+        self.comb += we_filtered.eq(self.we & (self.value != prev_value))
+        self.sync += If(self.we & self.writable, prev_value.eq(self.value))
+
+        # detect underflows and pileups
+        prev_ts_coarse = Signal(counter_width)
+        ts_coarse = self.timestamp[fine_ts_width:]
+        self.sync += \
+            If(we_filtered & self.writable,
+                If(ts_coarse < counter + 2,
+                    self.underflow.eq(1)),
+                If(ts_coarse == prev_ts_coarse,
+                    self.pileup.eq(1)),
+                prev_ts_coarse.eq(ts_coarse)
             )
-        ]
 
         fifos = []
         for n, chif in enumerate(rbus):
@@ -39,7 +53,7 @@ class _RTIOBankO(Module):
             self.comb += [
                 fifo.din.timestamp.eq(self.timestamp),
                 fifo.din.value.eq(self.value),
-                fifo.we.eq(self.we & (self.sel == n))
+                fifo.we.eq(we_filtered & (self.sel == n))
             ]
 
             # FIFO read
@@ -68,6 +82,7 @@ class _RTIOBankI(Module):
         self.readable = Signal()
         self.re = Signal()
         self.overflow = Signal()
+        self.pileup = Signal()
 
         ###
 
@@ -78,6 +93,7 @@ class _RTIOBankI(Module):
         values = []
         readables = []
         overflows = []
+        pileups = []
         for n, chif in enumerate(rbus):
             if hasattr(chif, "oe"):
                 sensitivity = Signal(2)
@@ -112,17 +128,23 @@ class _RTIOBankI(Module):
                 overflow = Signal()
                 self.sync += If(fifo.we & ~fifo.writable, overflow.eq(1))
                 overflows.append(overflow)
+
+                pileup = Signal()
+                self.sync += If(chif.i_pileup, pileup.eq(1))
+                pileups.append(pileup)
             else:
                 timestamps.append(0)
                 values.append(0)
                 readables.append(0)
                 overflows.append(0)
+                pileups.append(0)
 
         self.comb += [
             self.timestamp.eq(Array(timestamps)[self.sel]),
             self.value.eq(Array(values)[self.sel]),
             self.readable.eq(Array(readables)[self.sel]),
-            self.overflow.eq(Array(overflows)[self.sel])
+            self.overflow.eq(Array(overflows)[self.sel]),
+            self.pileup.eq(Array(pileups)[self.sel])
         ]
 
 
@@ -149,14 +171,14 @@ class RTIO(Module, AutoCSR):
         self._r_o_value = CSRStorage(2)
         self._r_o_writable = CSRStatus()
         self._r_o_we = CSR()
-        self._r_o_underflow = CSRStatus()
+        self._r_o_error = CSRStatus(2)
         self._r_o_level = CSRStatus(bits_for(ofifo_depth))
 
         self._r_i_timestamp = CSRStatus(counter_width+fine_ts_width)
         self._r_i_value = CSRStatus()
         self._r_i_readable = CSRStatus()
         self._r_i_re = CSR()
-        self._r_i_overflow = CSRStatus()
+        self._r_i_error = CSRStatus(2)
 
         # OE
         oes = []
@@ -179,7 +201,8 @@ class RTIO(Module, AutoCSR):
             self.bank_o.value.eq(self._r_o_value.storage),
             self._r_o_writable.status.eq(self.bank_o.writable),
             self.bank_o.we.eq(self._r_o_we.re),
-            self._r_o_underflow.status.eq(self.bank_o.underflow),
+            self._r_o_error.status.eq(
+                Cat(self.bank_o.underflow, self.bank_o.pileup)),
             self._r_o_level.status.eq(self.bank_o.level)
         ]
 
@@ -191,5 +214,6 @@ class RTIO(Module, AutoCSR):
             self._r_i_value.status.eq(self.bank_i.value),
             self._r_i_readable.status.eq(self.bank_i.readable),
             self.bank_i.re.eq(self._r_i_re.re),
-            self._r_i_overflow.status.eq(self.bank_i.overflow)
+            self._r_i_error.status.eq(
+                Cat(self.bank_i.overflow, self.bank_i.pileup))
         ]

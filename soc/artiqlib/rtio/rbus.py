@@ -15,7 +15,8 @@ def create_rbus(fine_ts_bits, pads, output_only_pads):
             layout += [
                 ("oe", 1),
                 ("i_stb", 1),
-                ("i_value", 1)
+                ("i_value", 1),
+                ("i_pileup", 1)
             ]
             if fine_ts_bits:
                 layout.append(("i_fine_ts", fine_ts_bits))
