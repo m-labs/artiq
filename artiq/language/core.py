@@ -1,5 +1,6 @@
 from collections import namedtuple
 from fractions import Fraction
+from copy import copy
 
 from artiq.language import units
 
@@ -33,6 +34,10 @@ for _op_name in ("add", "sub", "mul", "floordiv", "mod",
 
 def round64(x):
     return int64(round(x))
+
+
+def array(element, count):
+    return [copy(element) for i in range(count)]
 
 
 def _make_kernel_ro(value):
