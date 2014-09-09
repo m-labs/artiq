@@ -70,16 +70,6 @@ class VFraction(VGeneric):
     def get_llvm_type(self):
         return lc.Type.vector(lc.Type.int(64), 2)
 
-    def __repr__(self):
-        return "<VFraction>"
-
-    def same_type(self, other):
-        return isinstance(other, VFraction)
-
-    def merge(self, other):
-        if not isinstance(other, VFraction):
-            raise TypeError
-
     def _nd(self, builder):
         ssa_value = self.get_ssa_value(builder)
         a = builder.extract_element(

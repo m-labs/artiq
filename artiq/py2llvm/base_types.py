@@ -4,18 +4,8 @@ from artiq.py2llvm.values import VGeneric
 
 
 class VNone(VGeneric):
-    def __repr__(self):
-        return "<VNone>"
-
     def get_llvm_type(self):
         return lc.Type.void()
-
-    def same_type(self, other):
-        return isinstance(other, VNone)
-
-    def merge(self, other):
-        if not isinstance(other, VNone):
-            raise TypeError
 
     def alloca(self, builder, name):
         pass
@@ -52,7 +42,8 @@ class VInt(VGeneric):
             if other.nbits > self.nbits:
                 self.nbits = other.nbits
         else:
-            raise TypeError
+            raise TypeError("Incompatible types: {} and {}"
+                            .format(repr(self), repr(other)))
 
     def set_value(self, builder, n):
         self.set_ssa_value(
@@ -160,15 +151,9 @@ class VBool(VInt):
     def __init__(self):
         VInt.__init__(self, 1)
 
-    def __repr__(self):
-        return "<VBool>"
-
-    def same_type(self, other):
-        return isinstance(other, VBool)
-
-    def merge(self, other):
-        if not isinstance(other, VBool):
-            raise TypeError
+    __repr__ = VGeneric.__repr__
+    same_type = VGeneric.same_type
+    merge = VGeneric.merge
 
     def set_const_value(self, builder, b):
         VInt.set_const_value(self, builder, int(b))

@@ -7,6 +7,17 @@ class VGeneric:
     def __init__(self):
         self._llvm_value = None
 
+    def __repr__(self):
+        return "<" + self.__class__.__name__ + ">"
+
+    def same_type(self, other):
+        return isinstance(other, self.__class__)
+
+    def merge(self, other):
+        if not self.same_type(other):
+            raise TypeError("Incompatible types: {} and {}"
+                            .format(repr(self), repr(other)))
+
     def get_ssa_value(self, builder):
         if isinstance(self._llvm_value, lc.AllocaInstruction):
             return builder.load(self._llvm_value)
