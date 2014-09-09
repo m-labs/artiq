@@ -96,7 +96,7 @@ class _ReferenceManager:
             evd.update(inspect.getmodule(obj).__dict__)
             return eval_ast(ref, evd)
         else:
-            raise KeyError
+            raise KeyError(ast.dump(ref))
 
     def set(self, obj, funcname, name, value):
         self.to_inlined[(id(obj), funcname, name)] = value
@@ -147,7 +147,6 @@ class _ReferenceReplacer(ast.NodeTransformer):
 
     visit_Name = visit_ref
     visit_Attribute = visit_ref
-    visit_Subscript = visit_ref
 
     def visit_Call(self, node):
         func = self.rm.get(self.obj, self.funcname, node.func)
