@@ -99,28 +99,26 @@ def arith_encode(op, a, b, c, d):
     return f.numerator*1000 + f.denominator
 
 
-is_prime_c = CompiledFunction(is_prime, {"x": base_types.VInt()})
-simplify_encode_c = CompiledFunction(
-    simplify_encode, {"a": base_types.VInt(), "b": base_types.VInt()})
-arith_encode_c = CompiledFunction(
-    arith_encode, {
-        "op": base_types.VInt(),
-        "a": base_types.VInt(), "b": base_types.VInt(),
-        "c": base_types.VInt(), "d": base_types.VInt()})
-
-
 class CodeGenCase(unittest.TestCase):
     def test_is_prime(self):
+        is_prime_c = CompiledFunction(is_prime, {"x": base_types.VInt()})
         for i in range(200):
             self.assertEqual(is_prime_c(i), is_prime(i))
 
     def test_frac_simplify(self):
+        simplify_encode_c = CompiledFunction(
+            simplify_encode, {"a": base_types.VInt(), "b": base_types.VInt()})
         for a in range(5, 20):
             for b in range(5, 20):
                 self.assertEqual(
                     simplify_encode_c(a, b), simplify_encode(a, b))
 
     def _test_frac_arith(self, op):
+        arith_encode_c = CompiledFunction(
+            arith_encode, {
+                "op": base_types.VInt(),
+                "a": base_types.VInt(), "b": base_types.VInt(),
+                "c": base_types.VInt(), "d": base_types.VInt()})
         for a in range(5, 10):
             for b in range(5, 10):
                 for c in range(5, 10):
