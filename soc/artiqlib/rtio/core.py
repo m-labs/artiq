@@ -14,7 +14,6 @@ class _RTIOBankO(Module):
         self.writable = Signal()
         self.we = Signal()
         self.underflow = Signal()
-        self.pileup = Signal()
         self.level = Signal(bits_for(fifo_depth))
 
         # # #
@@ -29,16 +28,19 @@ class _RTIOBankO(Module):
         self.comb += we_filtered.eq(self.we & (self.value != prev_value))
         self.sync += If(self.we & self.writable, prev_value.eq(self.value))
 
-        # detect underflows and pileups
+        # collapse zero-length intervals
+        replace = Signal()
         prev_ts_coarse = Signal(counter_width)
-        ts_coarse = self.timestamp[fine_ts_width:]
+        self.sync += If(we_filtered & self.writable,
+            prev_ts_coarse.eq(self.timestamp[fine_ts_width:]))
+        self.comb += replace.eq(
+            self.timestamp[fine_ts_width:] == prev_ts_coarse)
+
+        # detect underflows
         self.sync += \
             If(we_filtered & self.writable,
-                If(ts_coarse < counter + 2,
-                    self.underflow.eq(1)),
-                If(ts_coarse == prev_ts_coarse,
-                    self.pileup.eq(1)),
-                prev_ts_coarse.eq(ts_coarse)
+                If(self.timestamp[fine_ts_width:] < counter + 2,
+                    self.underflow.eq(1))
             )
 
         fifos = []
@@ -53,7 +55,8 @@ class _RTIOBankO(Module):
             self.comb += [
                 fifo.din.timestamp.eq(self.timestamp),
                 fifo.din.value.eq(self.value),
-                fifo.we.eq(we_filtered & (self.sel == n))
+                fifo.we.eq(we_filtered & (self.sel == n)),
+                fifo.replace.eq(replace)
             ]
 
             # FIFO read
@@ -201,8 +204,7 @@ class RTIO(Module, AutoCSR):
             self.bank_o.value.eq(self._r_o_value.storage),
             self._r_o_writable.status.eq(self.bank_o.writable),
             self.bank_o.we.eq(self._r_o_we.re),
-            self._r_o_error.status.eq(
-                Cat(self.bank_o.underflow, self.bank_o.pileup)),
+            self._r_o_error.status.eq(self.bank_o.underflow),
             self._r_o_level.status.eq(self.bank_o.level)
         ]
 
