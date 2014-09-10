@@ -41,6 +41,7 @@ class Visitor:
         self.env = env
         self.ns = ns
         self.builder = builder
+        self._break_stack = []
 
     # builder can be None for visit_expression
     def visit_expression(self, node):
@@ -206,6 +207,7 @@ class Visitor:
         body_block = function.append_basic_block("w_body")
         else_block = function.append_basic_block("w_else")
         merge_block = function.append_basic_block("w_merge")
+        self._break_stack.append(merge_block)
 
         condition = self.visit_expression(node.test).o_bool(self.builder)
         self.builder.cbranch(
@@ -224,12 +226,14 @@ class Visitor:
             self.builder.branch(merge_block)
 
         self.builder.position_at_end(merge_block)
+        self._break_stack.pop()
 
     def _visit_stmt_For(self, node):
         function = self.builder.basic_block.function
         body_block = function.append_basic_block("f_body")
         else_block = function.append_basic_block("f_else")
         merge_block = function.append_basic_block("f_merge")
+        self._break_stack.append(merge_block)
 
         it = self.visit_expression(node.iter)
         target = self.visit_expression(node.target)
@@ -253,6 +257,10 @@ class Visitor:
             self.builder.branch(merge_block)
 
         self.builder.position_at_end(merge_block)
+        self._break_stack.pop()
+
+    def _visit_stmt_Break(self, node):
+        self.builder.branch(self._break_stack[-1])
 
     def _visit_stmt_Return(self, node):
         if node.value is None:

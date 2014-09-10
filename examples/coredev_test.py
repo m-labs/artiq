@@ -21,6 +21,7 @@ class CompilerTest(AutoContext):
             while d*d <= x:
                 if x % d == 0:
                     prime = False
+                    break
                 d += 1
             if prime:
                 self.output(x)
