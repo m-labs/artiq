@@ -14,9 +14,8 @@ class CompilerTest(AutoContext):
     @kernel
     def run(self):
         self.led.set(1)
-        x = 1
         m = self.get_max()
-        while x < m:
+        for x in range(1, m):
             d = 2
             prime = True
             while d*d <= x:
@@ -25,7 +24,6 @@ class CompilerTest(AutoContext):
                 d += 1
             if prime:
                 self.output(x)
-            x += 1
         self.led.set(0)
 
 

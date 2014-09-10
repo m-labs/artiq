@@ -1,6 +1,6 @@
 import ast
 
-from artiq.py2llvm import values, base_types, fractions, arrays
+from artiq.py2llvm import values, base_types, fractions, arrays, iterators
 from artiq.py2llvm.tools import is_terminated
 
 
@@ -127,6 +127,10 @@ class Visitor:
             else:
                 raise ValueError("Array size must be integer and constant")
             return arrays.VArray(element, count)
+        elif fn == "range":
+            return iterators.IRange(
+                self.builder,
+                [self.visit_expression(arg) for arg in node.args])
         elif fn == "syscall":
             return self.env.syscall(
                 node.args[0].s,
@@ -213,6 +217,35 @@ class Visitor:
             condition = self.visit_expression(node.test).o_bool(self.builder)
             self.builder.cbranch(
                 condition.auto_load(self.builder), body_block, merge_block)
+
+        self.builder.position_at_end(else_block)
+        self.visit_statements(node.orelse)
+        if not is_terminated(self.builder.basic_block):
+            self.builder.branch(merge_block)
+
+        self.builder.position_at_end(merge_block)
+
+    def _visit_stmt_For(self, node):
+        function = self.builder.basic_block.function
+        body_block = function.append_basic_block("f_body")
+        else_block = function.append_basic_block("f_else")
+        merge_block = function.append_basic_block("f_merge")
+
+        it = self.visit_expression(node.iter)
+        target = self.visit_expression(node.target)
+        itval = it.get_value_ptr()
+
+        cont = it.o_next(self.builder)
+        self.builder.cbranch(
+            cont.auto_load(self.builder), body_block, else_block)
+
+        self.builder.position_at_end(body_block)
+        target.set_value(self.builder, itval)
+        self.visit_statements(node.body)
+        if not is_terminated(self.builder.basic_block):
+            cont = it.o_next(self.builder)
+            self.builder.cbranch(
+                cont.auto_load(self.builder), body_block, merge_block)
 
         self.builder.position_at_end(else_block)
         self.visit_statements(node.orelse)

@@ -42,6 +42,11 @@ class _TypeScanner(ast.NodeVisitor):
             op=node.op, left=node.target, right=node.value))
         self._update_target(node.target, val)
 
+    def visit_For(self, node):
+        it = self.exprv.visit_expression(node.iter)
+        self._update_target(node.target, it.get_value_ptr())
+        self.generic_visit(node)
+
     def visit_Return(self, node):
         if node.value is None:
             val = base_types.VNone()

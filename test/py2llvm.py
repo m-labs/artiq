@@ -57,7 +57,8 @@ class FunctionBaseTypesCase(unittest.TestCase):
 
 def test_array_types():
     a = array(0, 5)
-    a[3] = int64(8)
+    for i in range(2):
+        a[i] = int64(8)
     return a
 
 
@@ -70,6 +71,8 @@ class FunctionArrayTypesCase(unittest.TestCase):
         self.assertIsInstance(self.ns["a"].el_init, base_types.VInt)
         self.assertEqual(self.ns["a"].el_init.nbits, 64)
         self.assertEqual(self.ns["a"].count, 5)
+        self.assertIsInstance(self.ns["i"], base_types.VInt)
+        self.assertEqual(self.ns["i"].nbits, 32)
 
 
 class CompiledFunction:
@@ -127,13 +130,9 @@ def array_test():
     a[0][0] += 6
 
     acc = 0
-    i = 0
-    while i < 5:
-        j = 0
-        while j < 5:
+    for i in range(5):
+        for j in range(5):
             acc += a[i][j]
-            j += 1
-        i += 1
     return acc
 
 

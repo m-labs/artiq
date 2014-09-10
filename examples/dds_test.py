@@ -8,8 +8,7 @@ class DDSTest(AutoContext):
 
     @kernel
     def run(self):
-        i = 0
-        while i < 10000:
+        for i in range(10000):
             if i & 0x200:
                 self.led.set(1)
             else:
@@ -21,7 +20,6 @@ class DDSTest(AutoContext):
                 with sequential:
                     self.c.pulse(200*MHz, 100*us)
                     self.d.pulse(250*MHz, 200*us)
-            i += 1
         self.led.set(0)
 
 
