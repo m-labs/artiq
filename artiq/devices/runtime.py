@@ -10,6 +10,7 @@ _syscalls = {
     "rpc": "i+:i",
     "gpio_set": "ii:n",
     "rtio_set": "Iii:n",
+    "rtio_replace": "Iii:n",
     "rtio_sync": "i:n",
     "dds_program": "ii:n",
 }

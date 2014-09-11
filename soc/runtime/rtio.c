@@ -17,6 +17,14 @@ void rtio_set(long long int timestamp, int channel, int value)
     rtio_o_we_write(1);
 }
 
+void rtio_replace(long long int timestamp, int channel, int value)
+{
+    rtio_chan_sel_write(channel);
+    rtio_o_timestamp_write(timestamp);
+    rtio_o_value_write(value);
+    rtio_o_replace_write(1);
+}
+
 void rtio_sync(int channel)
 {
     rtio_chan_sel_write(channel);
