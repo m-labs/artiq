@@ -33,7 +33,7 @@ class AD9858(Module):
     Round-trip addr A setup (> RX, RD, D to Z), RD prop, D valid (< D
     valid), D prop is ~15 + 10 + 20 + 10 = 55ns
     """
-    def __init__(self, pads, bus=None):
+    def __init__(self, pads, drive_fud=False, bus=None):
         if bus is None:
             bus = wishbone.Interface()
         self.bus = bus
@@ -66,8 +66,9 @@ class AD9858(Module):
                 bus.dat_r.eq(dr)
             )
 
-        fud = Signal()
-        self.sync += pads.fud_n.eq(~fud)
+        if drive_fud:
+            fud = Signal()
+            self.sync += pads.fud_n.eq(~fud)
 
         pads.wr_n.reset = 1
         pads.rd_n.reset = 1
@@ -84,7 +85,7 @@ class AD9858(Module):
                     If(bus.adr[0],
                         NextState("GPIO")
                     ).Else(
-                        NextState("FUD")
+                        NextState("FUD") if drive_fud else None
                     )
                 ).Else(
                     If(bus.we,
@@ -144,17 +145,18 @@ class AD9858(Module):
             bus.ack.eq(1),
             NextState("IDLE")
         )
+        if drive_fud:
+            fsm.act("FUD",
+                # 4ns FUD setup to SYNCLK
+                # 0ns FUD hold to SYNCLK
+                fud.eq(1),
+                bus.ack.eq(1),
+                NextState("IDLE")
+            )
         fsm.act("GPIO",
             bus.ack.eq(1),
             bus_r_gpio.eq(1),
             If(bus.we, gpio_load.eq(1)),
-            NextState("IDLE")
-        )
-        fsm.act("FUD",
-            # 4ns FUD setup to SYNCLK
-            # 0ns FUD hold to SYNCLK
-            fud.eq(1),
-            bus.ack.eq(1),
             NextState("IDLE")
         )
 
@@ -191,7 +193,7 @@ class _TestPads:
 class _TB(Module):
     def __init__(self):
         pads = _TestPads()
-        self.submodules.dut = AD9858(pads)
+        self.submodules.dut = AD9858(pads, drive_fud=True)
         self.submodules.initiator = wishbone.Initiator(_test_gen())
         self.submodules.interconnect = wishbone.InterconnectPointToPoint(
             self.initiator.bus, self.dut.bus)
