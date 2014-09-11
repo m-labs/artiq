@@ -171,7 +171,7 @@ class VFraction(VGeneric):
         r = VFraction()
         if builder is not None:
             if isinstance(other, VInt):
-                i = other.o_int64(builder).auto_load()
+                i = other.o_int64(builder).auto_load(builder)
                 x, rd = self._nd(builder)
                 y = builder.mul(rd, i)
             else:
