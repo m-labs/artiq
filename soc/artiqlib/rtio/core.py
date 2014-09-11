@@ -34,7 +34,7 @@ class _RTIOBankO(Module):
         for n, chif in enumerate(rbus):
             fifo = SyncFIFOBuffered([
                 ("timestamp", counter_width+fine_ts_width), ("value", 2)],
-                fifo_depth)
+                2 if chif.mini else fifo_depth)
             self.submodules += fifo
             fifos.append(fifo)
 

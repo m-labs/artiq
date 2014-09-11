@@ -5,8 +5,8 @@ from artiqlib.rtio.rbus import create_rbus
 
 
 class SimplePHY(Module):
-    def __init__(self, pads, output_only_pads=set()):
-        self.rbus = create_rbus(0, pads, output_only_pads)
+    def __init__(self, pads, output_only_pads=set(), mini_pads=set()):
+        self.rbus = create_rbus(0, pads, output_only_pads, mini_pads)
         self.loopback_latency = 3
 
         # # #
@@ -14,9 +14,7 @@ class SimplePHY(Module):
         for pad, chif in zip(pads, self.rbus):
             o_pad = Signal()
             self.sync += If(chif.o_stb, o_pad.eq(chif.o_value))
-            if pad in output_only_pads:
-                self.comb += pad.eq(o_pad)
-            else:
+            if hasattr(chif, "oe"):
                 ts = TSTriple()
                 i_pad = Signal()
                 self.sync += ts.oe.eq(chif.oe)
@@ -28,3 +26,5 @@ class SimplePHY(Module):
                 self.sync += i_pad_d.eq(i_pad)
                 self.comb += chif.i_stb.eq(i_pad ^ i_pad_d), \
                     chif.i_value.eq(i_pad)
+            else:
+                self.comb += pad.eq(o_pad)
