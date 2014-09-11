@@ -13,6 +13,7 @@ class _RTIOBankO(Module):
         self.value = Signal(2)
         self.writable = Signal()
         self.we = Signal()
+        self.replace = Signal()
         self.underflow = Signal()
         self.level = Signal(bits_for(fifo_depth))
 
@@ -22,23 +23,9 @@ class _RTIOBankO(Module):
         counter = Signal(counter_width, reset=counter_init)
         self.sync += counter.eq(counter + 1)
 
-        # ignore series of writes with the same value
-        we_filtered = Signal()
-        prev_value = Signal(2)
-        self.comb += we_filtered.eq(self.we & (self.value != prev_value))
-        self.sync += If(self.we & self.writable, prev_value.eq(self.value))
-
-        # collapse zero-length intervals
-        replace = Signal()
-        prev_ts_coarse = Signal(counter_width)
-        self.sync += If(we_filtered & self.writable,
-            prev_ts_coarse.eq(self.timestamp[fine_ts_width:]))
-        self.comb += replace.eq(
-            self.timestamp[fine_ts_width:] == prev_ts_coarse)
-
         # detect underflows
         self.sync += \
-            If(we_filtered & self.writable,
+            If((self.we & self.writable) | self.replace,
                 If(self.timestamp[fine_ts_width:] < counter + 2,
                     self.underflow.eq(1))
             )
@@ -51,12 +38,12 @@ class _RTIOBankO(Module):
             self.submodules += fifo
             fifos.append(fifo)
 
-            # FIFO write
+            # FIFO replace/write
             self.comb += [
                 fifo.din.timestamp.eq(self.timestamp),
                 fifo.din.value.eq(self.value),
-                fifo.we.eq(we_filtered & (self.sel == n)),
-                fifo.replace.eq(replace)
+                fifo.we.eq((self.we | self.replace) & (self.sel == n)),
+                fifo.replace.eq(self.replace)
             ]
 
             # FIFO read
@@ -174,6 +161,7 @@ class RTIO(Module, AutoCSR):
         self._r_o_value = CSRStorage(2)
         self._r_o_writable = CSRStatus()
         self._r_o_we = CSR()
+        self._r_o_replace = CSR()
         self._r_o_error = CSRStatus(2)
         self._r_o_level = CSRStatus(bits_for(ofifo_depth))
 
@@ -204,6 +192,7 @@ class RTIO(Module, AutoCSR):
             self.bank_o.value.eq(self._r_o_value.storage),
             self._r_o_writable.status.eq(self.bank_o.writable),
             self.bank_o.we.eq(self._r_o_we.re),
+            self.bank_o.replace.eq(self._r_o_replace.re),
             self._r_o_error.status.eq(self.bank_o.underflow),
             self._r_o_level.status.eq(self.bank_o.level)
         ]
