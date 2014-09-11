@@ -43,12 +43,17 @@ class ARTIQMiniSoC(BaseSoC):
 
         self.comb += platform.request("ttl_tx_en").eq(1)
         rtio_pads = [platform.request("ttl", i) for i in range(4)]
+        fud = Signal()
+        rtio_pads.append(fud)
         self.submodules.rtiophy = rtio.phy.SimplePHY(
             rtio_pads,
-            {rtio_pads[1], rtio_pads[2], rtio_pads[3]})
+            output_only_pads={rtio_pads[1], rtio_pads[2], rtio_pads[3]},
+            mini_pads={fud})
         self.submodules.rtio = rtio.RTIO(self.rtiophy)
 
-        self.submodules.dds = ad9858.AD9858(platform.request("dds"))
+        dds_pads = platform.request("dds")
+        self.submodules.dds = ad9858.AD9858(dds_pads)
         self.add_wb_slave(lambda a: a[26:29] == 3, self.dds.bus)
+        self.comb += dds_pads.fud_n.eq(~fud)
 
 default_subtarget = ARTIQMiniSoC
