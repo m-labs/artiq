@@ -18,9 +18,19 @@
 
 #define RTIO_FUD_CHANNEL 4
 
+static void fud_sync(void)
+{
+    rtio_chan_sel_write(RTIO_FUD_CHANNEL);
+    while(rtio_o_level_read() != 0);
+}
+
 static void fud(long long int fud_time)
 {
+    int r;
+
+    r = rtio_reset_read();
     rtio_reset_write(0);
+
     rtio_chan_sel_write(RTIO_FUD_CHANNEL);
     if(fud_time < 0) {
         rtio_counter_update_write(1);
@@ -32,12 +42,11 @@ static void fud(long long int fud_time)
     rtio_o_timestamp_write(fud_time+3*8);
     rtio_o_value_write(0);
     rtio_o_we_write(1);
-}
 
-static void fud_sync(void)
-{
-    rtio_chan_sel_write(RTIO_FUD_CHANNEL);
-    while(rtio_o_level_read() != 0);
+    if(r) {
+        fud_sync();
+        rtio_reset_write(1);
+    }
 }
 
 void dds_init(void)
