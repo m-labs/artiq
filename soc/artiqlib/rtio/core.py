@@ -172,7 +172,6 @@ class RTIO(Module, AutoCSR):
 
         self._r_counter = CSRStatus(counter_width+fine_ts_width)
         self._r_counter_update = CSR()
-        self._r_ise_workaround = CSRStatus(32) # FIXME: remove this
 
         # Counter
         self.sync += \
