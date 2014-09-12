@@ -29,8 +29,8 @@ int main(void)
         if(length > 0) {
             k = load_elf(resolve_symbol, "run", kbuf, length, kcode, sizeof(kcode));
             if(k != NULL) {
-                rtio_init();
                 dds_init();
+                rtio_init();
                 flush_cpu_icache();
                 k();
                 kernel_finished();

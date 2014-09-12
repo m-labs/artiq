@@ -12,7 +12,7 @@ _syscalls = {
     "rtio_set": "Iii:n",
     "rtio_replace": "Iii:n",
     "rtio_sync": "i:n",
-    "dds_program": "ii:n",
+    "dds_program": "iiI:n",
 }
 
 _chr_to_type = {
