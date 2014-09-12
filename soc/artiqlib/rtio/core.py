@@ -16,17 +16,16 @@ class _RTIOBankO(Module):
         self.replace = Signal()
         self.underflow = Signal()
         self.level = Signal(bits_for(fifo_depth))
+        self.counter = Signal(counter_width, reset=counter_init)
 
         # # #
 
-        # counter
-        counter = Signal(counter_width, reset=counter_init)
-        self.sync += counter.eq(counter + 1)
+        self.sync += self.counter.eq(self.counter + 1)
 
         # detect underflows
         self.sync += \
             If((self.we & self.writable) | self.replace,
-                If(self.timestamp[fine_ts_width:] < counter + 2,
+                If(self.timestamp[fine_ts_width:] < self.counter + 2,
                     self.underflow.eq(1))
             )
 
@@ -49,7 +48,7 @@ class _RTIOBankO(Module):
             # FIFO read
             self.comb += [
                 chif.o_stb.eq(fifo.readable &
-                    (fifo.dout.timestamp[fine_ts_width:] == counter)),
+                    (fifo.dout.timestamp[fine_ts_width:] == self.counter)),
                 chif.o_value.eq(fifo.dout.value),
                 fifo.re.eq(chif.o_stb)
             ]
@@ -170,6 +169,17 @@ class RTIO(Module, AutoCSR):
         self._r_i_readable = CSRStatus()
         self._r_i_re = CSR()
         self._r_i_error = CSRStatus(2)
+
+        self._r_counter = CSRStatus(counter_width+fine_ts_width)
+        self._r_counter_update = CSR()
+        self._r_ise_workaround = CSRStatus(32) # FIXME: remove this
+
+        # Counter
+        self.sync += \
+           If(self._r_counter_update.re,
+               self._r_counter.status.eq(Cat(Replicate(0, fine_ts_width),
+                                             self.bank_o.counter))
+           )
 
         # OE
         oes = []
