@@ -40,8 +40,8 @@ class _UnitsLowerer(ast.NodeTransformer):
         return node
 
 
-def lower_units(funcdef, ref_period):
+def lower_units(func_def, ref_period):
     if (not isinstance(ref_period, units.Quantity)
             or ref_period.unit is not units.s_unit):
         raise units.DimensionError("Reference period not expressed in seconds")
-    _UnitsLowerer(ref_period.amount).visit(funcdef)
+    _UnitsLowerer(ref_period.amount).visit(func_def)

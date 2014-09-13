@@ -31,25 +31,25 @@ class Module:
         self.finalize()
         return self.env.emit_object()
 
-    def compile_function(self, funcdef, param_types):
-        ns = infer_types.infer_function_types(self.env, funcdef, param_types)
+    def compile_function(self, func_def, param_types):
+        ns = infer_types.infer_function_types(self.env, func_def, param_types)
         retval = ns["return"]
 
         function_type = lc.Type.function(retval.get_llvm_type(),
-            [ns[arg.arg].get_llvm_type() for arg in funcdef.args.args])
-        function = self.llvm_module.add_function(function_type, funcdef.name)
+            [ns[arg.arg].get_llvm_type() for arg in func_def.args.args])
+        function = self.llvm_module.add_function(function_type, func_def.name)
         bb = function.append_basic_block("entry")
         builder = lc.Builder.new(bb)
 
-        for arg_ast, arg_llvm in zip(funcdef.args.args, function.args):
+        for arg_ast, arg_llvm in zip(func_def.args.args, function.args):
             arg_llvm.name = arg_ast.arg
         for k, v in ns.items():
             v.alloca(builder, k)
-        for arg_ast, arg_llvm in zip(funcdef.args.args, function.args):
+        for arg_ast, arg_llvm in zip(func_def.args.args, function.args):
             ns[arg_ast.arg].auto_store(builder, arg_llvm)
 
         visitor = ast_body.Visitor(self.env, ns, builder)
-        visitor.visit_statements(funcdef.body)
+        visitor.visit_statements(func_def.body)
 
         if not tools.is_terminated(builder.basic_block):
             if isinstance(retval, base_types.VNone):

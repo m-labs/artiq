@@ -78,10 +78,10 @@ class FunctionArrayTypesCase(unittest.TestCase):
 class CompiledFunction:
     def __init__(self, function, param_types):
         module = Module()
-        funcdef = ast.parse(inspect.getsource(function)).body[0]
+        func_def = ast.parse(inspect.getsource(function)).body[0]
         self.function, self.retval = module.compile_function(
-            funcdef, param_types)
-        self.argval = [param_types[arg.arg] for arg in funcdef.args.args]
+            func_def, param_types)
+        self.argval = [param_types[arg.arg] for arg in func_def.args.args]
         self.ee = module.get_ee()
 
     def __call__(self, *args):

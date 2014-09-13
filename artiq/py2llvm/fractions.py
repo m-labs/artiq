@@ -18,8 +18,8 @@ def _gcd(a, b):
 
 
 def init_module(module):
-    funcdef = ast.parse(inspect.getsource(_gcd)).body[0]
-    module.compile_function(funcdef, {"a": VInt(64), "b": VInt(64)})
+    func_def = ast.parse(inspect.getsource(_gcd)).body[0]
+    module.compile_function(func_def, {"a": VInt(64), "b": VInt(64)})
 
 
 def _reduce(builder, a, b):

@@ -42,9 +42,9 @@ class _TimeLowerer(ast.NodeTransformer):
             return node
 
 
-def lower_time(funcdef, initial_time):
-    _TimeLowerer().visit(funcdef)
-    funcdef.body.insert(0, ast.copy_location(
+def lower_time(func_def, initial_time):
+    _TimeLowerer().visit(func_def)
+    func_def.body.insert(0, ast.copy_location(
         ast.Assign(targets=[ast.Name("now", ast.Store())],
                    value=value_to_ast(int64(initial_time))),
-        funcdef))
+        func_def))

@@ -109,5 +109,5 @@ def _interleave_stmts(stmts):
         offset += len(new_stmts) - 1
 
 
-def interleave(funcdef):
-    _interleave_stmts(funcdef.body)
+def interleave(func_def):
+    _interleave_stmts(func_def.body)

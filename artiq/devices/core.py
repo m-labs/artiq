@@ -15,14 +15,14 @@ class Core:
         self.core_com = core_com
 
     def run(self, k_function, k_args, k_kwargs):
-        funcdef, rpc_map = inline(self, k_function, k_args, k_kwargs)
-        lower_units(funcdef, self.runtime_env.ref_period)
-        fold_constants(funcdef)
-        unroll_loops(funcdef, 50)
-        interleave(funcdef)
-        lower_time(funcdef, getattr(self.runtime_env, "initial_time", 0))
-        fold_constants(funcdef)
+        func_def, rpc_map = inline(self, k_function, k_args, k_kwargs)
+        lower_units(func_def, self.runtime_env.ref_period)
+        fold_constants(func_def)
+        unroll_loops(func_def, 50)
+        interleave(func_def)
+        lower_time(func_def, getattr(self.runtime_env, "initial_time", 0))
+        fold_constants(func_def)
 
-        binary = get_runtime_binary(self.runtime_env, funcdef)
+        binary = get_runtime_binary(self.runtime_env, func_def)
         self.core_com.run(binary)
         self.core_com.serve(rpc_map)
