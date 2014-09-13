@@ -3,6 +3,7 @@ from fractions import Fraction
 import inspect
 import textwrap
 import ast
+import builtins
 
 from artiq.transforms.tools import eval_ast, value_to_ast
 from artiq.language import core as core_language
@@ -20,9 +21,8 @@ def _is_in_attr_list(obj, attr, al):
 
 class _ReferenceManager:
     def __init__(self):
-        # (id(obj), funcname, local)
+        # (id(obj), func_name, local_name) or (id(obj), kernel_attr_name)
         #     -> _UserVariable(name) / ast / constant_object
-        # local is None for kernel attributes
         self.to_inlined = dict()
         # inlined_name -> use_count
         self.use_count = dict()
@@ -48,66 +48,44 @@ class _ReferenceManager:
             self.use_count[base_name] = 1
             return base_name
 
-    def get(self, obj, funcname, ref):
-        store = isinstance(ref.ctx, ast.Store)
-
+    def get(self, obj, func_name, ref):
         if isinstance(ref, ast.Name):
-            key = (id(obj), funcname, ref.id)
+            key = (id(obj), func_name, ref.id)
             try:
                 return self.to_inlined[key]
             except KeyError:
-                if store:
+                if isinstance(ref.ctx, ast.Store):
                     ival = _UserVariable(self.new_name(ref.id))
                     self.to_inlined[key] = ival
                     return ival
-
-        if isinstance(ref, ast.Attribute) and isinstance(ref.value, ast.Name):
-            try:
-                value = self.to_inlined[(id(obj), funcname, ref.value.id)]
-            except KeyError:
-                pass
-            else:
-                if _is_in_attr_list(value, ref.attr, "kernel_attr_ro"):
-                    if store:
-                        raise TypeError(
-                            "Attempted to assign to read-only"
-                            " kernel attribute")
-                    return getattr(value, ref.attr)
-                if _is_in_attr_list(value, ref.attr, "kernel_attr"):
-                    key = (id(value), ref.attr, None)
+                else:
                     try:
-                        ival = self.to_inlined[key]
-                        assert(isinstance(ival, _UserVariable))
+                        return inspect.getmodule(obj).__dict__[ref.id]
                     except KeyError:
-                        iname = self.new_name(ref.attr)
-                        ival = _UserVariable(iname)
-                        self.to_inlined[key] = ival
-                        a = value_to_ast(getattr(value, ref.attr))
-                        if a is None:
-                            raise NotImplementedError(
-                                "Cannot represent initial value"
-                                " of kernel attribute")
-                        self.kernel_attr_init.append(ast.Assign(
-                            [ast.Name(iname, ast.Store())], a))
-                    return ival
-
-        if not store:
-            evd = self.get_constants(obj, funcname)
-            evd.update(inspect.getmodule(obj).__dict__)
-            return eval_ast(ref, evd)
+                        return getattr(builtins, ref.id)
+        elif isinstance(ref, ast.Attribute):
+            target = self.get(obj, func_name, ref.value)
+            if _is_in_attr_list(target, ref.attr, "kernel_attr"):
+                key = (id(target), ref.attr)
+                try:
+                    ival = self.to_inlined[key]
+                    assert(isinstance(ival, _UserVariable))
+                except KeyError:
+                    iname = self.new_name(ref.attr)
+                    ival = _UserVariable(iname)
+                    self.to_inlined[key] = ival
+                    a = value_to_ast(getattr(target, ref.attr))
+                    if a is None:
+                        raise NotImplementedError(
+                            "Cannot represent initial value"
+                            " of kernel attribute")
+                    self.kernel_attr_init.append(ast.Assign(
+                        [ast.Name(iname, ast.Store())], a))
+                return ival
+            else:
+                return getattr(target, ref.attr)
         else:
-            raise KeyError(ast.dump(ref))
-
-    def set(self, obj, funcname, name, value):
-        self.to_inlined[(id(obj), funcname, name)] = value
-
-    def get_constants(self, r_obj, r_funcname):
-        return {
-            local: v for (objid, funcname, local), v
-            in self.to_inlined.items()
-            if objid == id(r_obj)
-            and funcname == r_funcname
-            and not isinstance(v, (_UserVariable, ast.AST))}
+            raise NotImplementedError
 
 
 _embeddable_calls = {
@@ -266,7 +244,7 @@ def _initialize_function_params(func_def, k_args, k_kwargs, rm):
     for arg_ast, arg_value in zip(func_def.args.args, k_args):
         arg_name = arg_ast.arg
         if arg_name in rop:
-            rm.set(obj, func_name, arg_name, arg_value)
+            rm.to_inlined[(id(obj), func_name, arg_name)] = arg_value
         else:
             target = rm.get(obj, func_name, ast.Name(arg_name, ast.Store()))
             value = value_to_ast(arg_value)
