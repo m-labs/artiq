@@ -40,23 +40,14 @@ def array(element, count):
     return [copy(element) for i in range(count)]
 
 
-def _make_kernel_ro(value):
-    return isinstance(
-        value, (bool, int, int64, float, Fraction, units.Quantity))
-
-
 class AutoContext:
     parameters = ""
     implicit_core = True
 
     def __init__(self, mvs=None, **kwargs):
-        kernel_attr_ro = []
-
         self.mvs = mvs
         for k, v in kwargs.items():
             setattr(self, k, v)
-            if _make_kernel_ro(v):
-                kernel_attr_ro.append(k)
 
         parameters = self.parameters.split()
         if self.implicit_core:
@@ -67,10 +58,6 @@ class AutoContext:
             except AttributeError:
                 value = self.mvs.get_missing_value(parameter)
                 setattr(self, parameter, value)
-            if _make_kernel_ro(value):
-                kernel_attr_ro.append(parameter)
-
-        self.kernel_attr_ro = " ".join(kernel_attr_ro)
 
         self.build()
 
