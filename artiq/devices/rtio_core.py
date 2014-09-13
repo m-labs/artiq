@@ -37,3 +37,15 @@ class RTIOOut(AutoContext):
         self.on()
         delay(duration)
         self.off()
+
+
+class RTIOCounter(AutoContext):
+    parameters = "channel"
+
+    @kernel
+    def count_rising(self, duration):
+        pass
+
+    @kernel
+    def sync(self):
+        return 42
