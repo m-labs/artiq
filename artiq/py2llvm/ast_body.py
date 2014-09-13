@@ -271,3 +271,6 @@ class Visitor:
             self.builder.ret_void()
         else:
             self.builder.ret(val.auto_load(self.builder))
+
+    def _visit_stmt_Pass(self, node):
+        pass
