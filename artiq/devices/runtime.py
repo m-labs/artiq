@@ -9,9 +9,11 @@ lt.initialize_all()
 _syscalls = {
     "rpc": "i+:i",
     "gpio_set": "ii:n",
+    "rtio_oe": "ii:n",
     "rtio_set": "Iii:n",
     "rtio_replace": "Iii:n",
     "rtio_sync": "i:n",
+    "rtio_get": "i:I",
     "dds_program": "iiI:n",
 }
 
