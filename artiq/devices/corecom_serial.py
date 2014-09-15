@@ -12,11 +12,23 @@ class UnsupportedDevice(Exception):
     pass
 
 
-class _MsgType(Enum):
-    REQUEST_IDENT = 0x01
-    LOAD_KERNEL = 0x02
-    KERNEL_FINISHED = 0x03
-    RPC_REQUEST = 0x04
+class _H2DMsgType(Enum):
+    REQUEST_IDENT = 1
+    LOAD_OBJECT = 2
+    RUN_KERNEL = 3
+
+
+class _D2HMsgType(Enum):
+    LOG = 1
+    MESSAGE_UNRECOGNIZED = 2
+    IDENT = 3
+    OBJECT_LOADED = 4
+    INCORRECT_LENGTH = 5
+    CRC_FAILED = 6
+    OBJECT_UNRECOGNIZED = 7
+    KERNEL_FINISHED = 8
+    KERNEL_STARTUP_FAILED = 9
+    RPC_REQUEST = 10
 
 
 def _write_exactly(f, data):
@@ -63,22 +75,39 @@ class CoreCom:
     def __exit__(self, type, value, traceback):
         self.close()
 
+    def _get_device_msg(self):
+        while True:
+            # FIXME: when loading immediately after a board reset,
+            # we erroneously get some zeros back.
+            # Ignore them with a warning for now.
+            spurious_zero_count = 0
+            while True:
+                (reply, ) = struct.unpack("b", _read_exactly(self.port, 1))
+                if reply == 0:
+                    spurious_zero_count += 1
+                else:
+                    break
+            if spurious_zero_count:
+                print("Warning: received {} spurious zeros"
+                      .format(spurious_zero_count))
+            msg = _D2HMsgType(reply)
+            if msg == _D2HMsgType.LOG:
+                (length, ) = struct.unpack(">h", _read_exactly(self.port, 2))
+                log_message = ""
+                for i in range(length):
+                    (c, ) = struct.unpack("b", _read_exactly(self.port, 1))
+                    log_message += chr(c)
+                print("DEVICE LOG: " + log_message)
+            else:
+                return msg
+
     def get_runtime_env(self):
         _write_exactly(self.port, struct.pack(
-            ">lb", 0x5a5a5a5a, _MsgType.REQUEST_IDENT.value))
-        # FIXME: when loading immediately after a board reset,
-        # we erroneously get some zeros back.
-        # Ignore them with a warning for now.
-        spurious_zero_count = 0
-        while True:
-            (reply, ) = struct.unpack("b", _read_exactly(self.port, 1))
-            if reply == 0:
-                spurious_zero_count += 1
-            else:
-                break
-        if spurious_zero_count:
-            print("Warning: received {} spurious zeros"
-                  .format(spurious_zero_count))
+            ">lb", 0x5a5a5a5a, _H2DMsgType.REQUEST_IDENT.value))
+        msg = self._get_device_msg()
+        if msg != _D2HMsgType.IDENT:
+            raise IOError("Incorrect reply from device: "+str(msg))
+        (reply, ) = struct.unpack("b", _read_exactly(self.port, 1))
         runtime_id = chr(reply)
         for i in range(3):
             (reply, ) = struct.unpack("b", _read_exactly(self.port, 1))
@@ -88,32 +117,28 @@ class CoreCom:
         (ref_period, ) = struct.unpack(">l", _read_exactly(self.port, 4))
         return Environment(ref_period*units.ps)
 
-    def run(self, kcode):
+    def load(self, kcode):
         _write_exactly(self.port, struct.pack(
             ">lblL",
-            0x5a5a5a5a, _MsgType.LOAD_KERNEL.value,
+            0x5a5a5a5a, _H2DMsgType.LOAD_OBJECT.value,
             len(kcode), zlib.crc32(kcode)))
         _write_exactly(self.port, kcode)
-        (reply, ) = struct.unpack("b", _read_exactly(self.port, 1))
-        if reply != 0x4f:
-            raise IOError("Incorrect reply from device: "+hex(reply))
+        msg = self._get_device_msg()
+        if msg != _D2HMsgType.OBJECT_LOADED:
+            raise IOError("Incorrect reply from device: "+str(msg))
 
-    def _wait_sync(self):
-        recognized = 0
-        while recognized < 4:
-            (c, ) = struct.unpack("b", _read_exactly(self.port, 1))
-            if c == 0x5a:
-                recognized += 1
-            else:
-                recognized = 0
+    def run(self, kname):
+        _write_exactly(self.port, struct.pack(
+            ">lbl", 0x5a5a5a5a, _H2DMsgType.RUN_KERNEL.value, len(kname)))
+        for c in kname:
+            _write_exactly(self.port, struct.pack("b", ord(c)))
 
     def serve(self, rpc_map):
         while True:
-            self._wait_sync()
-            msg = _MsgType(*struct.unpack("b", _read_exactly(self.port, 1)))
-            if msg == _MsgType.KERNEL_FINISHED:
+            msg = self._get_device_msg()
+            if msg == _D2HMsgType.KERNEL_FINISHED:
                 return
-            elif msg == _MsgType.RPC_REQUEST:
+            elif msg == _D2HMsgType.RPC_REQUEST:
                 rpc_num, n_args = struct.unpack(">hb",
                                                 _read_exactly(self.port, 3))
                 args = []
@@ -124,3 +149,5 @@ class CoreCom:
                 if r is None:
                     r = 0
                 _write_exactly(self.port, struct.pack(">l", r))
+            else:
+                raise IOError("Incorrect request from device: "+str(msg))

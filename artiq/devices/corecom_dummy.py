@@ -16,11 +16,14 @@ class CoreCom:
     def get_runtime_env(self):
         return _RuntimeEnvironment(10*ns)
 
-    def run(self, kcode):
+    def load(self, kcode):
         print("================")
         print(" LLVM IR")
         print("================")
         print(kcode)
+
+    def run(self, kname):
+        print("RUN: "+kname)
 
     def serve(self, rpc_map):
         print("================")

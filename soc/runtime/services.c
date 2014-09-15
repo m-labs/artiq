@@ -5,10 +5,10 @@
 #include "gpio.h"
 #include "rtio.h"
 #include "dds.h"
-#include "symbols.h"
+#include "services.h"
 
 static const struct symbol syscalls[] = {
-    {"rpc", rpc},
+    {"rpc", corecom_rpc},
     {"gpio_set", gpio_set},
     {"rtio_oe", rtio_oe},
     {"rtio_set", rtio_set},
@@ -34,7 +34,7 @@ static const struct symbol compiler_rt[] = {
     {"modsi3", &__modsi3},
     {"ledf2", &__ledf2},
     {"gedf2", &__gedf2},
-    {"unorddf2", &__gedf2},
+    {"unorddf2", &__unorddf2},
     {"negsf2", &__negsf2},
     {"negdf2", &__negdf2},
     {"addsf3", &__addsf3},
@@ -68,7 +68,7 @@ static const struct symbol compiler_rt[] = {
     {NULL, NULL}
 };
 
-void *resolve_symbol(const char *name)
+void *resolve_service_symbol(const char *name)
 {
     if(strncmp(name, "__", 2) != 0)
         return NULL;

@@ -1,6 +1,6 @@
-#include <stdio.h>
 #include <string.h>
 
+#include "corecom.h"
 #include "elf_loader.h"
 
 #define EI_NIDENT 16
@@ -85,12 +85,12 @@ struct elf32_sym {
 
 #define SANITIZE_OFFSET_SIZE(offset, size) \
     if(offset > 0x10000000) { \
-        printf("Incorrect offset in ELF data"); \
-        return NULL; \
+        corecom_log("Incorrect offset in ELF data"); \
+        return 0; \
     } \
     if((offset + size) > elf_length) { \
-        printf("Attempted to access past the end of ELF data"); \
-        return NULL; \
+        corecom_log("Attempted to access past the end of ELF data"); \
+        return 0; \
     }
 
 #define GET_POINTER_SAFE(target, target_type, offset) \
@@ -121,11 +121,11 @@ static int fixup(void *dest, int dest_length, struct elf32_rela *rela, void *tar
         val = _target - (_dest + offset);
         _dest[offset] = (_dest[offset] & 0xfc000000) | (val & 0x03ffffff);
     } else
-        printf("Unsupported relocation type: %d\n", type);
+        corecom_log("Unsupported relocation type: %d", type);
     return 1;
 }
 
-void *load_elf(symbol_resolver resolver, const char *entry_name, void *elf_data, int elf_length, void *dest, int dest_length)
+int load_elf(symbol_resolver resolver, symbol_callback callback, void *elf_data, int elf_length, void *dest, int dest_length)
 {
     struct elf32_ehdr *ehdr;
     struct elf32_shdr *strtable;
@@ -137,22 +137,20 @@ void *load_elf(symbol_resolver resolver, const char *entry_name, void *elf_data,
     unsigned int symtaboff, symtabsize;
     unsigned int strtaboff, strtabsize;
 
-    void *entry_point;
-
 
     /* validate ELF */
     GET_POINTER_SAFE(ehdr, struct elf32_ehdr, 0);
     if(memcmp(ehdr->ident, elf_magic_header, sizeof(elf_magic_header)) != 0) {
-        printf("Incorrect ELF header\n");
-        return NULL;
+        corecom_log("Incorrect ELF header");
+        return 0;
     }
     if(ehdr->type != ET_REL) {
-        printf("ELF is not relocatable\n");
-        return NULL;
+        corecom_log("ELF is not relocatable");
+        return 0;
     }
     if(ehdr->machine != EM_OR1K) {
-        printf("ELF is for a different machine\n");
-        return NULL;
+        corecom_log("ELF is for a different machine");
+        return 0;
     }
 
     /* extract section info */
@@ -192,8 +190,8 @@ void *load_elf(symbol_resolver resolver, const char *entry_name, void *elf_data,
 
     /* load .text section */
     if(textsize > dest_length) {
-        printf(".text section is too large\n");
-        return NULL;
+        corecom_log(".text section is too large");
+        return 0;
     }
     memcpy(dest, (char *)elf_data + textoff, textsize);
 
@@ -211,35 +209,32 @@ void *load_elf(symbol_resolver resolver, const char *entry_name, void *elf_data,
             name = (char *)elf_data + strtaboff + sym->name;
             target = resolver(name);
             if(target == NULL) {
-                printf("Undefined symbol: %s\n", name);
-                return NULL;
+                corecom_log("Undefined symbol: %s", name);
+                return 0;
             }
             if(!fixup(dest, dest_length, rela, target))
-                return NULL;
+                return 0;
         } else {
-            printf("Unsupported relocation\n");
-            return NULL;
+            corecom_log("Unsupported relocation");
+            return 0;
         }
     }
 
-    /* find entry point */
-    entry_point = NULL;
+    /* list provided functions via callback */
     for(i=0;i<symtabsize;i+=sizeof(struct elf32_sym)) {
         struct elf32_sym *sym;
 
         GET_POINTER_SAFE(sym, struct elf32_sym, symtaboff + i);
         if((ELF32_ST_TYPE(sym->info) == STT_FUNC) && (sym->name != 0)) {
             char *name;
+            void *target;
 
             name = (char *)elf_data + strtaboff + sym->name;
-            if(strcmp(name, entry_name) == 0) {
-                entry_point = (char *)dest + sym->value;
-                break;
-            }
+            target = (char *)dest + sym->value;
+            if(!callback(name, target))
+                return 0;
         }
     }
-    if(entry_point == NULL)
-        printf("Failed to find entry point\n");
 
-    return entry_point;
+    return 1;
 }

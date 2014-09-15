@@ -1,8 +1,11 @@
 #ifndef __CORECOM_H
 #define __CORECOM_H
 
-int ident_and_download_kernel(void *buffer, int maxlength);
-int rpc(int rpc_num, int n_args, ...);
-void kernel_finished(void);
+typedef int (*object_loader)(void *, int);
+typedef int (*kernel_runner)(const char *);
+
+void corecom_serve(object_loader load_object, kernel_runner run_kernel);
+int corecom_rpc(int rpc_num, int n_args, ...);
+void corecom_log(const char *fmt, ...);
 
 #endif /* __CORECOM_H */

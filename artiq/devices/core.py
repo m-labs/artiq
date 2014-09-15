@@ -24,5 +24,6 @@ class Core:
         fold_constants(func_def)
 
         binary = get_runtime_binary(self.runtime_env, func_def)
-        self.core_com.run(binary)
+        self.core_com.load(binary)
+        self.core_com.run(func_def.name)
         self.core_com.serve(rpc_map)
