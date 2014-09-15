@@ -3,6 +3,8 @@
 #include <irq.h>
 #include <uart.h>
 #include <system.h>
+#include <time.h>
+#include <generated/csr.h>
 
 #include "corecom.h"
 #include "elf_loader.h"
@@ -77,6 +79,20 @@ static int run_kernel(const char *kernel_name)
     return 1;
 }
 
+static void blink_led(void)
+{
+    int i, ev, p;
+
+    p = identifier_frequency_read()/10;
+    time_init();
+    for(i=0;i<3;i++) {
+        leds_out_write(1);
+        while(!elapsed(&ev, p));
+        leds_out_write(0);
+        while(!elapsed(&ev, p));
+    }
+}
+
 int main(void)
 {
     irq_setmask(0);
@@ -85,6 +101,7 @@ int main(void)
     
     puts("ARTIQ runtime built "__DATE__" "__TIME__"\n");
     dds_init();
+    blink_led();
     corecom_serve(load_object, run_kernel);
     return 0;
 }
