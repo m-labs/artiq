@@ -79,6 +79,8 @@ class Visitor:
                 r = base_types.VInt()
             else:
                 r = base_types.VInt(64)
+        elif isinstance(n, float):
+            r = base_types.VFloat()
         else:
             raise NotImplementedError
         if self.builder is not None:
@@ -110,7 +112,7 @@ class Visitor:
 
     def _visit_expr_Call(self, node):
         fn = node.func.id
-        if fn in {"bool", "int", "int64", "round", "round64"}:
+        if fn in {"bool", "int", "int64", "round", "round64", "float"}:
             value = self.visit_expression(node.args[0])
             return getattr(value, "o_"+fn)(self.builder)
         elif fn == "Fraction":

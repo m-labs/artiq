@@ -62,6 +62,13 @@ class VInt(VGeneric):
                     lc.Constant.int(self.get_llvm_type(), 0)))
         return r
 
+    def o_float(self, builder):
+        r = VFloat()
+        if builder is not None:
+            r.auto_store(builder, builder.sitofp(self.auto_load(builder),
+                                                 r.get_llvm_type()))
+        return r
+
     def o_not(self, builder):
         return self.o_bool(builder, True)
 
@@ -91,22 +98,30 @@ class VInt(VGeneric):
         return r
     o_roundx = o_intx
 
+    def o_truediv(self, other, builder):
+        if isinstance(other, VInt):
+            left = self.o_float(builder)
+            right = other.o_float(builder)
+            return left.o_truediv(right, builder)
+        else:
+            return NotImplemented
+
 
 def _make_vint_binop_method(builder_name):
     def binop_method(self, other, builder):
-            if isinstance(other, VInt):
-                target_bits = max(self.nbits, other.nbits)
-                r = VInt(target_bits)
-                if builder is not None:
-                    left = self.o_intx(target_bits, builder)
-                    right = other.o_intx(target_bits, builder)
-                    bf = getattr(builder, builder_name)
-                    r.auto_store(
-                        builder, bf(left.auto_load(builder),
-                                    right.auto_load(builder)))
-                return r
-            else:
-                return NotImplemented
+        if isinstance(other, VInt):
+            target_bits = max(self.nbits, other.nbits)
+            r = VInt(target_bits)
+            if builder is not None:
+                left = self.o_intx(target_bits, builder)
+                right = other.o_intx(target_bits, builder)
+                bf = getattr(builder, builder_name)
+                r.auto_store(
+                    builder, bf(left.auto_load(builder),
+                                right.auto_load(builder)))
+            return r
+        else:
+            return NotImplemented
     return binop_method
 
 for _method_name, _builder_name in (("o_add", "add"),
@@ -163,3 +178,73 @@ class VBool(VInt):
         if builder is not None:
             r.auto_store(builder, self.auto_load(builder))
         return r
+
+
+class VFloat(VGeneric):
+    def get_llvm_type(self):
+        return lc.Type.double()
+
+    def set_value(self, builder, v):
+        if not isinstance(v, VFloat):
+            raise TypeError
+        self.auto_store(builder, v.auto_load(builder))
+
+    def set_const_value(self, builder, n):
+        self.auto_store(builder, lc.Constant.real(self.get_llvm_type(), n))
+
+    def o_float(self, builder):
+        r = VFloat()
+        if builder is not None:
+            r.auto_store(builder, self.auto_load(builder))
+        return r
+
+def _make_vfloat_binop_method(builder_name, reverse):
+    def binop_method(self, other, builder):
+        if not hasattr(other, "o_float"):
+            return NotImplemented
+        r = VFloat()
+        if builder is not None:
+            left = self.o_float(builder)
+            right = other.o_float(builder)
+            if reverse:
+                left, right = right, left
+            bf = getattr(builder, builder_name)
+            r.auto_store(
+                builder, bf(left.auto_load(builder),
+                            right.auto_load(builder)))
+        return r
+    return binop_method
+
+for _method_name, _builder_name in (("add", "fadd"),
+                                    ("sub", "fsub"),
+                                    ("mul", "fmul"),
+                                    ("truediv", "fdiv")):
+    setattr(VFloat, "o_" + _method_name,
+            _make_vfloat_binop_method(_builder_name, False))
+    setattr(VFloat, "or_" + _method_name,
+            _make_vfloat_binop_method(_builder_name, True))
+
+
+def _make_vfloat_cmp_method(fcmp_val):
+    def cmp_method(self, other, builder):
+        if not hasattr(other, "o_float"):
+            return NotImplemented
+        r = VBool()
+        if builder is not None:
+            left = self.o_float(builder)
+            right = other.o_float(builder)
+            r.auto_store(
+                builder,
+                builder.fcmp(
+                    fcmp_val, left.auto_load(builder),
+                    right.auto_load(builder)))
+        return r
+    return cmp_method
+
+for _method_name, _fcmp_val in (("o_eq", lc.FCMP_OEQ),
+                                ("o_ne", lc.FCMP_ONE),
+                                ("o_lt", lc.FCMP_OLT),
+                                ("o_le", lc.FCMP_OLE),
+                                ("o_gt", lc.FCMP_OGT),
+                                ("o_ge", lc.FCMP_OGE)):
+    setattr(VFloat, _method_name, _make_vfloat_cmp_method(_fcmp_val))
