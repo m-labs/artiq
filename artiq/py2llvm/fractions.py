@@ -201,7 +201,7 @@ class VFraction(VGeneric):
         return self._o_addsub(other, builder, False)
 
     def or_sub(self, other, builder):
-        return self._o_addsub(other, builder, False, True)
+        return self._o_addsub(other, builder, True, True)
 
     def _o_muldiv(self, other, builder, div, invert=False):
         if not isinstance(other, (VFraction, VInt)):
