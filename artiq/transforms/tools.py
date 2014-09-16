@@ -19,7 +19,7 @@ def value_to_ast(value):
             func=ast.Name("int64", ast.Load()),
             args=[ast.Num(int(value))],
             keywords=[], starargs=None, kwargs=None)
-    elif isinstance(value, int):
+    elif isinstance(value, (int, float)):
         return ast.Num(value)
     elif isinstance(value, Fraction):
         return ast.Call(
