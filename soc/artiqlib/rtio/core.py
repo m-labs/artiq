@@ -1,6 +1,6 @@
 from migen.fhdl.std import *
 from migen.bank.description import *
-from migen.genlib.fifo import SyncFIFOBuffered
+from migen.genlib.fifo import SyncFIFO
 
 from artiqlib.rtio.rbus import get_fine_ts_width
 
@@ -31,7 +31,7 @@ class _RTIOBankO(Module):
 
         fifos = []
         for n, chif in enumerate(rbus):
-            fifo = SyncFIFOBuffered([
+            fifo = SyncFIFO([
                 ("timestamp", counter_width+fine_ts_width), ("value", 2)],
                 2 if chif.mini else fifo_depth)
             self.submodules += fifo
@@ -89,7 +89,7 @@ class _RTIOBankI(Module):
                 self.sync += If(~chif.oe & chif.o_stb,
                     sensitivity.eq(chif.o_value))
 
-                fifo = SyncFIFOBuffered([
+                fifo = SyncFIFO([
                     ("timestamp", counter_width+fine_ts_width), ("value", 1)],
                     fifo_depth)
                 self.submodules += fifo
