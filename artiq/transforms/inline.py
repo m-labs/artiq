@@ -32,7 +32,7 @@ class _ReferenceManager:
         # reserved names
         for kg in core_language.kernel_globals:
             self.use_count[kg] = 1
-        for name in ("int", "round", "int64", "round64", "array",
+        for name in ("int", "round", "int64", "round64", "float", "array",
                      "range", "Fraction", "Quantity",
                      "s_unit", "Hz_unit", "microcycle_unit"):
             self.use_count[name] = 1
@@ -91,7 +91,7 @@ class _ReferenceManager:
 _embeddable_calls = {
     core_language.delay, core_language.at, core_language.now,
     core_language.syscall,
-    range, int, round,
+    range, int, float, round,
     core_language.int64, core_language.round64, core_language.array,
     Fraction, units.Quantity
 }
