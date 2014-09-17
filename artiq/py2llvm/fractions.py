@@ -129,8 +129,28 @@ class VFraction(VGeneric):
         else:
             r = VInt(64)
             a, b = self._nd(builder)
-            h_b = builder.ashr(b, lc.Constant.int(lc.Type.int(), 1))
-            a = builder.add(a, h_b)
+            h_b = builder.ashr(b, lc.Constant.int(lc.Type.int(64), 1))
+
+            function = builder.basic_block.function
+            add_block = function.append_basic_block("fr_add")
+            sub_block = function.append_basic_block("fr_sub")
+            merge_block = function.append_basic_block("fr_merge")
+
+            condition = builder.icmp(
+                lc.ICMP_SLT, a, lc.Constant.int(lc.Type.int(64), 0))
+            builder.cbranch(condition, sub_block, add_block)
+
+            builder.position_at_end(add_block)
+            a_add = builder.add(a, h_b)
+            builder.branch(merge_block)
+            builder.position_at_end(sub_block)
+            a_sub = builder.sub(a, h_b)
+            builder.branch(merge_block)
+
+            builder.position_at_end(merge_block)
+            a = builder.phi(lc.Type.int(64))
+            a.add_incoming(a_add, add_block)
+            a.add_incoming(a_sub, sub_block)
             r.auto_store(builder, builder.sdiv(a, b))
             return r.o_intx(target_bits, builder)
 
