@@ -1,3 +1,5 @@
+import os
+
 from llvm import core as lc
 from llvm import target as lt
 
@@ -72,6 +74,25 @@ class LinkInterface:
         return r
 
 
+def _debug_dump_obj(obj):
+    try:
+        env = os.environ["ARTIQ_DUMP_OBJECT"]
+    except KeyError:
+        return
+
+    for i in range(1000):
+        filename = "{}_{:03d}.elf".format(env, i)
+        try:
+            f = open(filename, "xb")
+        except FileExistsError:
+            pass
+        else:
+            f.write(obj)
+            f.close()
+            return
+    raise IOError
+
+
 class Environment(LinkInterface):
     def __init__(self, ref_period):
         self.ref_period = ref_period
@@ -80,4 +101,5 @@ class Environment(LinkInterface):
     def emit_object(self):
         tm = lt.TargetMachine.new(triple="or1k", cpu="generic")
         obj = tm.emit_object(self.llvm_module)
+        _debug_dump_obj(obj)
         return obj
