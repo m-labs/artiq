@@ -13,6 +13,7 @@ _tester_io = [
     ("ttl", 1, Pins("C:11"), IOStandard("LVTTL")),
     ("ttl", 2, Pins("C:10"), IOStandard("LVTTL")),
     ("ttl", 3, Pins("C:9"), IOStandard("LVTTL")),
+    ("ttl", 4, Pins("C:8"), IOStandard("LVTTL")),
     ("ttl_tx_en", 0, Pins("A:9"), IOStandard("LVTTL")),
     ("dds", 0,
         Subsignal("a", Pins("A:5 B:10 A:6 B:9 A:7 B:8")),
@@ -27,13 +28,24 @@ _tester_io = [
 ]
 
 
+class _TestGen(Module):
+    def __init__(self, pad):
+        divc = Signal(15)
+        ce = Signal()
+        self.sync += Cat(divc, ce).eq(divc + 1)
+
+        sr = Signal(8, reset=0b10101000)
+        self.sync += If(ce, sr.eq(Cat(sr[1:], sr[0])))
+        self.comb += pad.eq(sr[0])
+
+
 class ARTIQMiniSoC(BaseSoC):
     csr_map = {
         "rtio":            10
     }
     csr_map.update(BaseSoC.csr_map)
 
-    def __init__(self, platform, cpu_type="or1k", **kwargs):
+    def __init__(self, platform, cpu_type="or1k", with_test_gen=False, **kwargs):
         BaseSoC.__init__(self, platform, cpu_type=cpu_type, **kwargs)
         platform.add_extension(_tester_io)
 
@@ -50,6 +62,9 @@ class ARTIQMiniSoC(BaseSoC):
             output_only_pads={rtio_pads[1], rtio_pads[2], rtio_pads[3]},
             mini_pads={fud})
         self.submodules.rtio = rtio.RTIO(self.rtiophy)
+
+        if with_test_gen:
+            self.submodules.test_gen = _TestGen(platform.request("ttl", 4))
 
         dds_pads = platform.request("dds")
         self.submodules.dds = ad9858.AD9858(dds_pads)
