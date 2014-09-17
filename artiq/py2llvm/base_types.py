@@ -65,8 +65,12 @@ class VInt(VGeneric):
     def o_float(self, builder):
         r = VFloat()
         if builder is not None:
-            r.auto_store(builder, builder.sitofp(self.auto_load(builder),
-                                                 r.get_llvm_type()))
+            if isinstance(self, VBool):
+                cf = builder.uitofp
+            else:
+                cf = builder.sitofp
+            r.auto_store(builder, cf(self.auto_load(builder),
+                                     r.get_llvm_type()))
         return r
 
     def o_not(self, builder):
@@ -92,8 +96,12 @@ class VInt(VGeneric):
                     builder, builder.trunc(self.auto_load(builder),
                                            r.get_llvm_type()))
             if self.nbits < target_bits:
+                if isinstance(self, VBool):
+                    ef = builder.zext
+                else:
+                    ef = builder.sext
                 r.auto_store(
-                    builder, builder.sext(self.auto_load(builder),
+                    builder, ef(self.auto_load(builder),
                                           r.get_llvm_type()))
         return r
     o_roundx = o_intx
@@ -106,12 +114,16 @@ class VInt(VGeneric):
         else:
             return NotImplemented
 
-
-def _make_vint_binop_method(builder_name):
+def _make_vint_binop_method(builder_name, bool_op):
     def binop_method(self, other, builder):
         if isinstance(other, VInt):
             target_bits = max(self.nbits, other.nbits)
-            r = VInt(target_bits)
+            if not bool_op and target_bits == 1:
+                target_bits = 32
+            if bool_op and target_bits == 1:
+                r = VBool()
+            else:
+                r = VInt(target_bits)
             if builder is not None:
                 left = self.o_intx(target_bits, builder)
                 right = other.o_intx(target_bits, builder)
@@ -124,15 +136,15 @@ def _make_vint_binop_method(builder_name):
             return NotImplemented
     return binop_method
 
-for _method_name, _builder_name in (("o_add", "add"),
-                                    ("o_sub", "sub"),
-                                    ("o_mul", "mul"),
-                                    ("o_floordiv", "sdiv"),
-                                    ("o_mod", "srem"),
-                                    ("o_and", "and_"),
-                                    ("o_xor", "xor"),
-                                    ("o_or", "or_")):
-    setattr(VInt, _method_name, _make_vint_binop_method(_builder_name))
+for _method_name, _builder_name, _bool_op in (("o_add", "add", False),
+                                              ("o_sub", "sub", False),
+                                              ("o_mul", "mul", False),
+                                              ("o_floordiv", "sdiv", False),
+                                              ("o_mod", "srem", False),
+                                              ("o_and", "and_", True),
+                                              ("o_xor", "xor", True),
+                                              ("o_or", "or_", True)):
+    setattr(VInt, _method_name, _make_vint_binop_method(_builder_name, _bool_op))
 
 
 def _make_vint_cmp_method(icmp_val):
