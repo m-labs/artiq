@@ -210,6 +210,64 @@ class VFloat(VGeneric):
             r.auto_store(builder, self.auto_load(builder))
         return r
 
+    def o_bool(self, builder, inv=False):
+        r = VBool()
+        if builder is not None:
+            r.auto_store(
+                builder, builder.fcmp(
+                    lc.FCMP_UEQ if inv else lc.FCMP_UNE,
+                    self.auto_load(builder),
+                    lc.Constant.real(self.get_llvm_type(), 0.0)))
+        return r
+
+    def o_not(self, builder):
+        return self.o_bool(builder, True)
+
+    def o_neg(self, builder):
+        r = VFloat()
+        if builder is not None:
+            r.auto_store(
+                builder, builder.fmul(
+                    self.auto_load(builder),
+                    lc.Constant.real(self.get_llvm_type(), -1.0)))
+        return r
+
+    def o_intx(self, target_bits, builder):
+        r = VInt(target_bits)
+        if builder is not None:
+            r.auto_store(builder, builder.fptosi(self.auto_load(builder),
+                                                 r.get_llvm_type()))
+        return r
+
+    def o_roundx(self, target_bits, builder):
+        r = VInt(target_bits)
+        if builder is not None:
+            function = builder.basic_block.function
+            neg_block = function.append_basic_block("fr_neg")
+            merge_block = function.append_basic_block("fr_merge")
+
+            half = VFloat()
+            half.alloca(builder, "half")
+            half.set_const_value(builder, 0.5)
+
+            condition = builder.icmp(
+                lc.FCMP_OLT,
+                self.auto_load(builder),
+                lc.Constant.real(self.get_llvm_type(), 0.0))
+            builder.cbranch(condition, neg_block, merge_block)
+
+            builder.position_at_end(neg_block)
+            half.set_const_value(builder, -0.5)
+            builder.branch(merge_block)
+
+            builder.position_at_end(merge_block)
+            s = builder.fadd(self.auto_load(builder), half.auto_load(builder))
+            r.auto_store(builder, builder.fptosi(s, r.get_llvm_type()))
+        return r
+
+    def o_floordiv(self, other, builder):
+        return self.o_truediv(other, builder).o_int64(builder).o_float(builder)
+
 def _make_vfloat_binop_method(builder_name, reverse):
     def binop_method(self, other, builder):
         if not hasattr(other, "o_float"):
