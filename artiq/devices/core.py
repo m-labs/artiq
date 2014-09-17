@@ -53,7 +53,7 @@ class Core:
         fold_constants(func_def)
         _debug_unparse("fold_constants_1", func_def)
 
-        unroll_loops(func_def, 50)
+        unroll_loops(func_def, 500)
         _debug_unparse("unroll_loops", func_def)
 
         interleave(func_def)
