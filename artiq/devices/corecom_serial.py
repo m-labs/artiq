@@ -3,9 +3,13 @@ import termios
 import struct
 import zlib
 from enum import Enum
+import logging
 
 from artiq.language import units
 from artiq.devices.runtime import Environment
+
+
+logger = logging.getLogger(__name__)
 
 
 class UnsupportedDevice(Exception):
@@ -65,6 +69,7 @@ class CoreCom:
         termios.tcdrain(self._fd)
         termios.tcflush(self._fd, termios.TCOFLUSH)
         termios.tcflush(self._fd, termios.TCIFLUSH)
+        logger.debug("connected to {} at {} baud".format(dev, baud))
 
     def close(self):
         self.port.close()
@@ -88,8 +93,8 @@ class CoreCom:
                 else:
                     break
             if spurious_zero_count:
-                print("Warning: received {} spurious zeros"
-                      .format(spurious_zero_count))
+                logger.warn("received {} spurious zeros".format(
+                    spurious_zero_count))
             msg = _D2HMsgType(reply)
             if msg == _D2HMsgType.LOG:
                 (length, ) = struct.unpack(">h", _read_exactly(self.port, 2))
@@ -97,8 +102,9 @@ class CoreCom:
                 for i in range(length):
                     (c, ) = struct.unpack("b", _read_exactly(self.port, 1))
                     log_message += chr(c)
-                print("DEVICE LOG: " + log_message)
+                logger.info("DEVICE LOG: " + log_message)
             else:
+                logger.debug("message received: {!r}".format(msg))
                 return msg
 
     def get_runtime_env(self):
@@ -115,6 +121,7 @@ class CoreCom:
         if runtime_id != "AROR":
             raise UnsupportedDevice("Unsupported runtime ID: "+runtime_id)
         (ref_period, ) = struct.unpack(">l", _read_exactly(self.port, 4))
+        logger.debug("Environment ref_period: {}".format(ref_period))
         return Environment(ref_period*units.ps)
 
     def load(self, kcode):
@@ -132,6 +139,7 @@ class CoreCom:
             ">lbl", 0x5a5a5a5a, _H2DMsgType.RUN_KERNEL.value, len(kname)))
         for c in kname:
             _write_exactly(self.port, struct.pack("b", ord(c)))
+        logger.debug("running kernel: {}".format(kname))
 
     def serve(self, rpc_map):
         while True:
@@ -145,9 +153,12 @@ class CoreCom:
                 for i in range(n_args):
                     args.append(*struct.unpack(">l",
                                                _read_exactly(self.port, 4)))
+                logger.debug("rpc service: {} ({})".format(rpc_num, args))
                 r = rpc_map[rpc_num](*args)
                 if r is None:
                     r = 0
                 _write_exactly(self.port, struct.pack(">l", r))
+                logger.debug("rpc service: {} ({}) == {}".format(
+                    rpc_num, args, r))
             else:
                 raise IOError("Incorrect request from device: "+str(msg))
