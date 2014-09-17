@@ -18,14 +18,14 @@ def test_base_types(choice):
     d = 4          # stays int32
     x = int64(7)
     a += x         # promotes a to int64
-    foo = True
+    foo = True | True
     bar = None
     myf = 4.5
     myf2 = myf + x
 
     if choice and foo and not bar:
         return d
-    elif myf:
+    elif myf2:
         return x + c
     else:
         return int64(8)
@@ -185,6 +185,17 @@ def array_test():
     return acc
 
 
+def corner_cases():
+    two = True + True - False
+    three = two + True//True - False*True
+    two_float = three - True/True
+    one_float = two_float - (1.0 == bool(0.1))
+    zero = int(one_float) + round(-0.6)
+    eleven_float = zero + 5.5//0.5
+    ten_float = eleven_float + round(Fraction(2, -3))
+    return ten_float
+
+
 def _test_range():
     for i in range(5, 10):
         yield i
@@ -283,3 +294,7 @@ class CodeGenCase(unittest.TestCase):
     def test_array(self):
         array_test_c = CompiledFunction(array_test, dict())
         self.assertEqual(array_test_c(), array_test())
+
+    def test_corner_cases(self):
+        corner_cases_c = CompiledFunction(corner_cases, dict())
+        self.assertEqual(corner_cases_c(), corner_cases())
