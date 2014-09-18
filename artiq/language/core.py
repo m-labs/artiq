@@ -72,7 +72,7 @@ class AutoContext:
         pass
 
 
-KernelFunctionInfo = namedtuple("KernelFunctionInfo", "core_name k_function")
+_KernelFunctionInfo = namedtuple("_KernelFunctionInfo", "core_name k_function")
 
 
 def kernel(arg):
@@ -80,14 +80,14 @@ def kernel(arg):
         def real_decorator(k_function):
             def run_on_core(exp, *k_args, **k_kwargs):
                 getattr(exp, arg).run(k_function, ((exp,) + k_args), k_kwargs)
-            run_on_core.k_function_info = KernelFunctionInfo(
+            run_on_core.k_function_info = _KernelFunctionInfo(
                 core_name=arg, k_function=k_function)
             return run_on_core
         return real_decorator
     else:
         def run_on_core(exp, *k_args, **k_kwargs):
             exp.core.run(arg, ((exp,) + k_args), k_kwargs)
-        run_on_core.k_function_info = KernelFunctionInfo(
+        run_on_core.k_function_info = _KernelFunctionInfo(
             core_name="core", k_function=arg)
         return run_on_core
 
