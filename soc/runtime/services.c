@@ -21,12 +21,13 @@ static const struct symbol syscalls[] = {
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wimplicit-int"
-extern __divsi3, __modsi3, __ledf2, __gedf2, __unorddf2, __negsf2, __negdf2,
-    __addsf3, __subsf3, __mulsf3, __divsf3, __lshrdi3, __muldi3, __divdi3,
-    __ashldi3, __ashrdi3, __udivmoddi4, __floatsisf, __floatunsisf, __fixsfsi,
-    __fixunssfsi, __adddf3, __subdf3, __muldf3, __divdf3, __floatsidf,
-    __floatunsidf, __floatdidf, __fixdfsi, __fixunsdfsi, __clzsi2, __ctzsi2,
-    __udivdi3, __umoddi3, __moddi3;
+extern __divsi3, __modsi3, __ledf2, __gedf2, __unorddf2, __eqdf2, __ltdf2,
+    __nedf2, __gtdf2, __negsf2, __negdf2, __addsf3, __subsf3, __mulsf3,
+    __divsf3, __lshrdi3, __muldi3, __divdi3, __ashldi3, __ashrdi3,
+    __udivmoddi4, __floatsisf, __floatunsisf, __fixsfsi, __fixunssfsi,
+    __adddf3, __subdf3, __muldf3, __divdf3, __floatsidf, __floatunsidf,
+    __floatdidf, __fixdfsi, __fixunsdfsi, __clzsi2, __ctzsi2, __udivdi3,
+    __umoddi3, __moddi3;
 #pragma GCC diagnostic pop
 
 static const struct symbol compiler_rt[] = {
@@ -35,6 +36,10 @@ static const struct symbol compiler_rt[] = {
     {"ledf2", &__ledf2},
     {"gedf2", &__gedf2},
     {"unorddf2", &__unorddf2},
+    {"eqdf2", &__eqdf2},
+    {"ltdf2", &__ltdf2},
+    {"nedf2", &__nedf2},
+    {"gtdf2", &__gtdf2},
     {"negsf2", &__negsf2},
     {"negdf2", &__negdf2},
     {"addsf3", &__addsf3},
