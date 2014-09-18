@@ -4,3 +4,4 @@ __pycache__
 *.bin
 *.elf
 *.fbi
+doc/manual/_build
