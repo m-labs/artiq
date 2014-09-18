@@ -21,15 +21,15 @@ for _op_name in ("neg", "pos", "abs", "invert", "round",
                  "lshift", "rlshift", "rshift", "rrshift",
                  "and", "rand", "xor", "rxor", "or", "ror",
                  "floordiv", "rfloordiv", "mod", "rmod"):
-    method_name = "__" + _op_name + "__"
-    orig_method = getattr(int, method_name)
-    setattr(int64, method_name, _make_int64_op_method(orig_method))
+    _method_name = "__" + _op_name + "__"
+    _orig_method = getattr(int, _method_name)
+    setattr(int64, _method_name, _make_int64_op_method(_orig_method))
 
 for _op_name in ("add", "sub", "mul", "floordiv", "mod",
                  "pow", "lshift", "rshift", "lshift",
                  "and", "xor", "or"):
-    op_method = getattr(int, "__" + _op_name + "__")
-    setattr(int64, "__i" + _op_name + "__", _make_int64_op_method(op_method))
+    _op_method = getattr(int, "__" + _op_name + "__")
+    setattr(int64, "__i" + _op_name + "__", _make_int64_op_method(_op_method))
 
 
 def round64(x):
