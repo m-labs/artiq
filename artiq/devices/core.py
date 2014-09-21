@@ -44,7 +44,8 @@ class Core:
         # transform/simplify AST
         _debug_unparse = _make_debug_unparse("fold_constants_2")
 
-        func_def, rpc_map = inline(self, k_function, k_args, k_kwargs)
+        func_def, rpc_map, exception_map = inline(
+            self, k_function, k_args, k_kwargs)
         _debug_unparse("inline", func_def)
 
         lower_units(func_def, self.runtime_env.ref_period)
