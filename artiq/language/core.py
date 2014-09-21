@@ -329,3 +329,20 @@ def syscall(*args):
 
     """
     return _syscall_manager.do(*args)
+
+
+_encoded_exceptions = dict()
+
+def EncodedException(eid):
+    """Represents exceptions on the core device, which are identified
+    by a single number.
+
+    """
+    try:
+        return _encoded_exceptions[eid]
+    except KeyError:
+        class EncodedException(Exception):
+            def __init__(self):
+                Exception.__init__(self, eid)
+        _encoded_exceptions[eid] = EncodedException
+        return EncodedException
