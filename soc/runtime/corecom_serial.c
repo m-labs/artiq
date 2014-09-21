@@ -25,6 +25,7 @@ enum {
     MSGTYPE_OBJECT_UNRECOGNIZED,
 
     MSGTYPE_KERNEL_FINISHED,
+    MSGTYPE_KERNEL_EXCEPTION,
     MSGTYPE_KERNEL_STARTUP_FAILED,
 
     MSGTYPE_RPC_REQUEST,
@@ -114,7 +115,7 @@ static void receive_and_run_kernel(kernel_runner run_kernel)
     int length;
     int i;
     char kernel_name[256];
-    int r;
+    int r, eid;
 
     length = receive_int();
     if(length > (sizeof(kernel_name)-1)) {
@@ -125,8 +126,22 @@ static void receive_and_run_kernel(kernel_runner run_kernel)
         kernel_name[i] = receive_char();
     kernel_name[length] = 0;
 
-    r = run_kernel(kernel_name);
-    send_char(r ? MSGTYPE_KERNEL_FINISHED : MSGTYPE_KERNEL_STARTUP_FAILED);
+    r = run_kernel(kernel_name, &eid);
+    switch(r) {
+        case KERNEL_RUN_FINISHED:
+            send_char(MSGTYPE_KERNEL_FINISHED);
+            break;
+        case KERNEL_RUN_EXCEPTION:
+            send_char(MSGTYPE_KERNEL_EXCEPTION);
+            send_int(eid);
+            break;
+        case KERNEL_RUN_STARTUP_FAILED:
+            send_char(MSGTYPE_KERNEL_STARTUP_FAILED);
+            break;
+        default:
+            corecom_log("BUG: run_kernel returned unexpected value '%d'", r);
+            break;
+    }
 }
 
 void corecom_serve(object_loader load_object, kernel_runner run_kernel)

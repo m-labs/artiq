@@ -8,6 +8,7 @@
 
 #include "corecom.h"
 #include "elf_loader.h"
+#include "exceptions.h"
 #include "services.h"
 #include "rtio.h"
 #include "dds.h"
@@ -64,19 +65,28 @@ static int load_object(void *buffer, int length)
 
 typedef void (*kernel_function)(void);
 
-static int run_kernel(const char *kernel_name)
+static int run_kernel(const char *kernel_name, int *eid)
 {
     kernel_function k;
+    struct exception_env ee;
+    int exception_occured;
 
     k = find_symbol(symtab, kernel_name);
     if(k == NULL) {
         corecom_log("Failed to find kernel entry point '%s' in object", kernel_name);
-        return 0;
+        return KERNEL_RUN_STARTUP_FAILED;
     }
-    rtio_init();
-    flush_cpu_icache();
-    k();
-    return 1;
+
+    exception_occured = exception_catch(&ee, eid);
+    if(exception_occured)
+        return KERNEL_RUN_EXCEPTION;
+    else {
+        rtio_init();
+        flush_cpu_icache();
+        k();
+        exception_pop();
+        return KERNEL_RUN_FINISHED;
+    }
 }
 
 static void blink_led(void)

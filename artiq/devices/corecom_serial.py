@@ -31,8 +31,9 @@ class _D2HMsgType(Enum):
     CRC_FAILED = 6
     OBJECT_UNRECOGNIZED = 7
     KERNEL_FINISHED = 8
-    KERNEL_STARTUP_FAILED = 9
-    RPC_REQUEST = 10
+    KERNEL_EXCEPTION = 9
+    KERNEL_STARTUP_FAILED = 10
+    RPC_REQUEST = 11
 
 
 def _write_exactly(f, data):
@@ -141,12 +142,10 @@ class CoreCom:
             _write_exactly(self.port, struct.pack("b", ord(c)))
         logger.debug("running kernel: {}".format(kname))
 
-    def serve(self, rpc_map):
+    def serve(self, rpc_map, exception_map):
         while True:
             msg = self._get_device_msg()
-            if msg == _D2HMsgType.KERNEL_FINISHED:
-                return
-            elif msg == _D2HMsgType.RPC_REQUEST:
+            if msg == _D2HMsgType.RPC_REQUEST:
                 rpc_num, n_args = struct.unpack(">hb",
                                                 _read_exactly(self.port, 3))
                 args = []
@@ -160,5 +159,11 @@ class CoreCom:
                 _write_exactly(self.port, struct.pack(">l", r))
                 logger.debug("rpc service: {} ({}) == {}".format(
                     rpc_num, args, r))
+            elif msg == _D2HMsgType.KERNEL_EXCEPTION:
+                (exception_num, ) = struct.unpack(">l",
+                                                  _read_exactly(self.port, 4))
+                raise exception_map[exception_num]
+            elif msg == _D2HMsgType.KERNEL_FINISHED:
+                return
             else:
                 raise IOError("Incorrect request from device: "+str(msg))
