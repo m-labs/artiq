@@ -1,10 +1,7 @@
 """Core ARTIQ extensions to the Python language."""
 
 from collections import namedtuple
-from fractions import Fraction
 from copy import copy
-
-from artiq.language import units
 
 
 class int64(int):
@@ -107,8 +104,8 @@ class AutoContext:
     At the top-level, it is possible to have a MVS that issues requests to a
     database and hardware management system.
 
-    :param parameters: A string containing the parameters that the object must have.
-        It must be a space-separated list of valid Python identifiers.
+    :param parameters: A string containing the parameters that the object must
+        have. It must be a space-separated list of valid Python identifiers.
         Default: empty.
     :param implicit_core: Automatically adds ``core`` to the parameter list.
         Default: True.
@@ -332,6 +329,7 @@ def syscall(*args):
 
 
 _encoded_exceptions = dict()
+
 
 def EncodedException(eid):
     """Represents exceptions on the core device, which are identified
