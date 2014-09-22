@@ -135,7 +135,7 @@ class Visitor:
                 self.builder,
                 [self.visit_expression(arg) for arg in node.args])
         elif fn == "syscall":
-            return self.env.syscall(
+            return self.env.build_syscall(
                 node.args[0].s,
                 [self.visit_expression(expr) for expr in node.args[1:]],
                 self.builder)

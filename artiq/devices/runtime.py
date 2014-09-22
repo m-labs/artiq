@@ -65,7 +65,7 @@ class LinkInterface:
         func_type = lc.Type.function(lc.Type.void(), [lc.Type.int()])
         self.llvm_module.add_function(func_type, "__eh_raise")
 
-    def syscall(self, syscall_name, args, builder):
+    def build_syscall(self, syscall_name, args, builder):
         r = _chr_to_value[_syscalls[syscall_name][-1]]()
         if builder is not None:
             args = [arg.auto_load(builder) for arg in args]
