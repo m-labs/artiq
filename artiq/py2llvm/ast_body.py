@@ -276,3 +276,7 @@ class Visitor:
 
     def _visit_stmt_Pass(self, node):
         pass
+
+    def _visit_stmt_Raise(self, node):
+        eid = node.exc.args[0].n
+        self.env.build_raise(eid, self.builder)
