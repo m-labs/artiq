@@ -5,6 +5,7 @@
 #include "gpio.h"
 #include "rtio.h"
 #include "dds.h"
+#include "exceptions.h"
 #include "services.h"
 
 static const struct symbol syscalls[] = {
@@ -16,6 +17,14 @@ static const struct symbol syscalls[] = {
     {"rtio_sync", rtio_sync},
     {"rtio_get", rtio_get},
     {"dds_program", dds_program},
+    {NULL, NULL}
+};
+
+static const struct symbol eh[] = {
+    {"push", exception_push},
+    {"pop", exception_pop},
+    {"getid", exception_getid},
+    {"raise", exception_raise},
     {NULL, NULL}
 };
 
@@ -80,5 +89,7 @@ void *resolve_service_symbol(const char *name)
     name += 2;
     if(strncmp(name, "syscall_", 8) == 0)
         return find_symbol(syscalls, name + 8);
+    if(strncmp(name, "eh_", 3) == 0)
+        return find_symbol(eh, name + 3);
     return find_symbol(compiler_rt, name);
 }
