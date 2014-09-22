@@ -88,7 +88,7 @@ class CoreCom:
             # Ignore them with a warning for now.
             spurious_zero_count = 0
             while True:
-                (reply, ) = struct.unpack("b", _read_exactly(self.port, 1))
+                (reply, ) = struct.unpack("B", _read_exactly(self.port, 1))
                 if reply == 0:
                     spurious_zero_count += 1
                 else:
@@ -101,7 +101,7 @@ class CoreCom:
                 (length, ) = struct.unpack(">h", _read_exactly(self.port, 2))
                 log_message = ""
                 for i in range(length):
-                    (c, ) = struct.unpack("b", _read_exactly(self.port, 1))
+                    (c, ) = struct.unpack("B", _read_exactly(self.port, 1))
                     log_message += chr(c)
                 logger.info("DEVICE LOG: " + log_message)
             else:
@@ -114,10 +114,10 @@ class CoreCom:
         msg = self._get_device_msg()
         if msg != _D2HMsgType.IDENT:
             raise IOError("Incorrect reply from device: "+str(msg))
-        (reply, ) = struct.unpack("b", _read_exactly(self.port, 1))
+        (reply, ) = struct.unpack("B", _read_exactly(self.port, 1))
         runtime_id = chr(reply)
         for i in range(3):
-            (reply, ) = struct.unpack("b", _read_exactly(self.port, 1))
+            (reply, ) = struct.unpack("B", _read_exactly(self.port, 1))
             runtime_id += chr(reply)
         if runtime_id != "AROR":
             raise UnsupportedDevice("Unsupported runtime ID: "+runtime_id)
@@ -139,14 +139,14 @@ class CoreCom:
         _write_exactly(self.port, struct.pack(
             ">lbl", 0x5a5a5a5a, _H2DMsgType.RUN_KERNEL.value, len(kname)))
         for c in kname:
-            _write_exactly(self.port, struct.pack("b", ord(c)))
+            _write_exactly(self.port, struct.pack("B", ord(c)))
         logger.debug("running kernel: {}".format(kname))
 
     def serve(self, rpc_map, exception_map):
         while True:
             msg = self._get_device_msg()
             if msg == _D2HMsgType.RPC_REQUEST:
-                rpc_num, n_args = struct.unpack(">hb",
+                rpc_num, n_args = struct.unpack(">hB",
                                                 _read_exactly(self.port, 3))
                 args = []
                 for i in range(n_args):
