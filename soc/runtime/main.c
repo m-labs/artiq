@@ -68,8 +68,7 @@ typedef void (*kernel_function)(void);
 static int run_kernel(const char *kernel_name, int *eid)
 {
     kernel_function k;
-    struct exception_env ee;
-    int exception_occured;
+    void *jb;
 
     k = find_symbol(symtab, kernel_name);
     if(k == NULL) {
@@ -77,10 +76,11 @@ static int run_kernel(const char *kernel_name, int *eid)
         return KERNEL_RUN_STARTUP_FAILED;
     }
 
-    exception_occured = exception_catch(&ee, eid);
-    if(exception_occured)
+    jb = exception_push();
+    if(__builtin_setjmp(jb)) {
+        *eid = exception_getid();
         return KERNEL_RUN_EXCEPTION;
-    else {
+    } else {
         rtio_init();
         flush_cpu_icache();
         k();
@@ -108,7 +108,7 @@ int main(void)
     irq_setmask(0);
     irq_setie(1);
     uart_init();
-    
+
     puts("ARTIQ runtime built "__DATE__" "__TIME__"\n");
     dds_init();
     blink_led();

@@ -1,32 +1,33 @@
-#include <setjmp.h>
-
 #include "exceptions.h"
 
-static struct exception_env *env_top;
+#define MAX_EXCEPTION_CONTEXTS 64
+
+struct exception_context {
+    void *jb[5];
+};
+
+static struct exception_context exception_contexts[MAX_EXCEPTION_CONTEXTS];
+static int ec_top;
 static int stored_id;
 
-int exception_catch(struct exception_env *ee, int *id)
+void *exception_push(void)
 {
-	ee->prev = env_top;
-	env_top = ee;
-	if(setjmp(env_top->jb)) {
-		*id = stored_id;
-		return 1;
-	} else
-		return 0;
+    if(ec_top >= MAX_EXCEPTION_CONTEXTS)
+        exception_raise(EID_NOMEM);
+    return exception_contexts[ec_top++].jb;
 }
 
 void exception_pop(void)
 {
-	env_top = env_top->prev;
+    ec_top--;
+}
+
+int exception_getid(void)
+{
+    return stored_id;
 }
 
 void exception_raise(int id)
 {
-	struct exception_env *ee;
-
-	ee = env_top;
-	env_top = env_top->prev;
-	stored_id = id; /* __builtin_longjmp needs its second argument set to 1 */
-	longjmp(ee->jb, 1);
+    __builtin_longjmp(exception_contexts[--ec_top].jb, 1);
 }
