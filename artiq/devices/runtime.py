@@ -61,9 +61,19 @@ class LinkInterface:
                 self.var_arg_fixcount[func_name] = var_arg_fixcount
             self.llvm_module.add_function(func_type, "__syscall_"+func_name)
 
-        # eh
+        # exception handling
+        func_type = lc.Type.function(lc.Type.pointer(lc.Type.int(8)), [])
+        self.llvm_module.add_function(func_type, "__eh_push")
+
         func_type = lc.Type.function(lc.Type.void(), [lc.Type.int()])
-        self.llvm_module.add_function(func_type, "__eh_raise")
+        self.llvm_module.add_function(func_type, "__eh_pop")
+
+        func_type = lc.Type.function(lc.Type.int(), [])
+        self.llvm_module.add_function(func_type, "__eh_getid")
+
+        func_type = lc.Type.function(lc.Type.void(), [lc.Type.int()])
+        function = self.llvm_module.add_function(func_type, "__eh_raise")
+        function.add_attribute(lc.ATTR_NO_RETURN)
 
     def build_syscall(self, syscall_name, args, builder):
         r = _chr_to_value[_syscalls[syscall_name][-1]]()
@@ -79,11 +89,27 @@ class LinkInterface:
             r.auto_store(builder, builder.call(llvm_function, args))
         return r
 
-    def build_raise(self, eid, builder):
-        if builder is not None:
-            llvm_function = self.llvm_module.get_function_named(
-                "__eh_raise")
-            builder.call(llvm_function, [lc.Constant.int(lc.Type.int(), eid)])
+    def build_catch(self, builder):
+        eh_push = self.llvm_module.get_function_named("__eh_push")
+        setjmp = lc.Function.intrinsic(self.llvm_module,
+                                       lc.INTR_EH_SJLJ_SETJMP, [])
+        jmpbuf = builder.call(eh_push, [])
+        exception_occured = builder.call(setjmp, [jmpbuf])
+        return builder.icmp(lc.ICMP_NE,
+                            exception_occured,
+                            lc.Constant.int(lc.Type.int(), 0))
+
+    def build_pop(self, builder, levels):
+        eh_pop = self.llvm_module.get_function_named("__eh_pop")
+        builder.call(eh_pop, [lc.Constant.int(lc.Type.int(), levels)])
+
+    def build_getid(self, builder):
+        eh_getid = self.llvm_module.get_function_named("__eh_getid")
+        return builder.call(eh_getid, [])
+
+    def build_raise(self, builder, eid):
+        eh_raise = self.llvm_module.get_function_named("__eh_raise")
+        builder.call(eh_raise, [eid])
 
 
 def _debug_dump_obj(obj):
