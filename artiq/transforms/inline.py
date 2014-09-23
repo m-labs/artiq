@@ -232,15 +232,16 @@ class _ReferenceReplacer(ast.NodeVisitor):
     def visit_ExceptHandler(self, node):
         if node.name is not None:
             raise NotImplementedError("'as target' is not supported")
-        exception_class = self.rm.get(self.obj, self.func_name, node.type)
-        if not inspect.isclass(exception_class):
-            raise NotImplementedError("Exception type must be a class")
-        exception_id = self.rm.exception_map[exception_class]
-        node.type = ast.copy_location(
-                ast.Call(func=ast.Name("EncodedException", ast.Load()),
-                         args=[value_to_ast(exception_id)],
-                         keywords=[], starargs=None, kwargs=None),
-                node.type)
+        if node.type is not None:
+            exception_class = self.rm.get(self.obj, self.func_name, node.type)
+            if not inspect.isclass(exception_class):
+                raise NotImplementedError("Exception type must be a class")
+            exception_id = self.rm.exception_map[exception_class]
+            node.type = ast.copy_location(
+                    ast.Call(func=ast.Name("EncodedException", ast.Load()),
+                             args=[value_to_ast(exception_id)],
+                             keywords=[], starargs=None, kwargs=None),
+                    node.type)
         self.generic_visit(node)
         return node
 
