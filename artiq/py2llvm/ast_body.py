@@ -299,14 +299,19 @@ class Visitor:
             else:
                 if isinstance(handler.type, ast.Tuple):
                     match = self.builder.icmp(
-                        lc.ICMP_EQ, eid, handler.type.elts[0].args[0].n)
+                        lc.ICMP_EQ, eid,
+                        lc.Constant.int(lc.Type.int(),
+                                        handler.type.elts[0].args[0].n))
                     for elt in handler.type.elts[1:]:
                         match = self.builder.or_(
                             match,
-                            self.builder.icmp(lc.ICMP_EQ, eid, elt.args[0].n))
+                            self.builder.icmp(
+                                lc.ICMP_EQ, eid,
+                                lc.Constant.int(lc.Type.int(), elt.args[0].n)))
                 else:
                     match = self.builder.icmp(
-                        lc.ICMP_EQ, eid, handler.type.args[0].n)
+                        lc.ICMP_EQ, eid,
+                        lc.Constant.int(lc.Type.int(), handler.type.args[0].n))
                 self.builder.cbranch(match, handled_exc_block, cont_exc_block)
             self.builder.position_at_end(handled_exc_block)
             self.builder.store(lc.Constant.int(lc.Type.int(1), 0), propagate)
