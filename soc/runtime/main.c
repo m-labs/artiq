@@ -77,7 +77,7 @@ static int run_kernel(const char *kernel_name, int *eid)
     }
 
     jb = exception_push();
-    if(__builtin_setjmp(jb)) {
+    if(exception_setjmp(jb)) {
         *eid = exception_getid();
         return KERNEL_RUN_EXCEPTION;
     } else {

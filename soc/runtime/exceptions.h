@@ -5,6 +5,9 @@ enum {
 	EID_NOMEM = 0
 };
 
+int exception_setjmp(void *jb) __attribute__((returns_twice));
+void exception_longjmp(void *jb, int val) __attribute__((noreturn));
+
 void *exception_push(void);
 void exception_pop(int levels);
 int exception_getid(void);

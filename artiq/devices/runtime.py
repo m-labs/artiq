@@ -62,6 +62,10 @@ class LinkInterface:
             self.llvm_module.add_function(func_type, "__syscall_"+func_name)
 
         # exception handling
+        func_type = lc.Type.function(lc.Type.int(), [lc.Type.pointer(lc.Type.int(8))])
+        function = self.llvm_module.add_function(func_type, "__eh_setjmp")
+        function.add_attribute(lc.ATTR_NO_UNWIND)
+
         func_type = lc.Type.function(lc.Type.pointer(lc.Type.int(8)), [])
         self.llvm_module.add_function(func_type, "__eh_push")
 
@@ -90,11 +94,10 @@ class LinkInterface:
         return r
 
     def build_catch(self, builder):
+        eh_setjmp = self.llvm_module.get_function_named("__eh_setjmp")
         eh_push = self.llvm_module.get_function_named("__eh_push")
-        setjmp = lc.Function.intrinsic(self.llvm_module,
-                                       lc.INTR_EH_SJLJ_SETJMP, [])
         jmpbuf = builder.call(eh_push, [])
-        exception_occured = builder.call(setjmp, [jmpbuf])
+        exception_occured = builder.call(eh_setjmp, [jmpbuf])
         return builder.icmp(lc.ICMP_NE,
                             exception_occured,
                             lc.Constant.int(lc.Type.int(), 0))

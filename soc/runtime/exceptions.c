@@ -1,9 +1,10 @@
 #include "exceptions.h"
+#include "corecom.h"
 
 #define MAX_EXCEPTION_CONTEXTS 64
 
 struct exception_context {
-    void *jb[5];
+    void *jb[13];
 };
 
 static struct exception_context exception_contexts[MAX_EXCEPTION_CONTEXTS];
@@ -29,5 +30,5 @@ int exception_getid(void)
 
 void exception_raise(int id)
 {
-    __builtin_longjmp(exception_contexts[--ec_top].jb, 1);
+    exception_longjmp(exception_contexts[--ec_top].jb, 1);
 }

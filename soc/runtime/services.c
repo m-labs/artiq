@@ -21,6 +21,7 @@ static const struct symbol syscalls[] = {
 };
 
 static const struct symbol eh[] = {
+    {"setjmp", exception_setjmp},
     {"push", exception_push},
     {"pop", exception_pop},
     {"getid", exception_getid},
