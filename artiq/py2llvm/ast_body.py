@@ -1,4 +1,5 @@
 import ast
+from llvm import core as lc
 
 from artiq.py2llvm import values, base_types, fractions, arrays, iterators
 from artiq.py2llvm.tools import is_terminated
@@ -42,6 +43,7 @@ class Visitor:
         self.ns = ns
         self.builder = builder
         self._break_stack = []
+        self._eid_stack = []
 
     # builder can be None for visit_expression
     def visit_expression(self, node):
@@ -278,5 +280,76 @@ class Visitor:
         pass
 
     def _visit_stmt_Raise(self, node):
-        eid = node.exc.args[0].n
-        self.env.build_raise(eid, self.builder)
+        if node.exc is None:
+            eid = self._eid_stack[-1]
+        else:
+            eid = lc.Constant.int(lc.Type.int(), node.exc.args[0].n)
+        self.env.build_raise(self.builder, eid)
+
+    def _handle_exception(self, function, finally_block, propagate, handlers):
+        eid = self.env.build_getid(self.builder)
+        self._eid_stack.append(eid)
+        self.builder.store(lc.Constant.int(lc.Type.int(1), 1), propagate)
+
+        for handler in handlers:
+            handled_exc_block = function.append_basic_block("try_exc_h")
+            cont_exc_block = function.append_basic_block("try_exc_c")
+            if handler.type is None:
+                self.builder.branch(handled_exc_block)
+            else:
+                if isinstance(handler.type, ast.Tuple):
+                    match = self.builder.icmp(
+                        lc.ICMP_EQ, eid, handler.type.elts[0].args[0].n)
+                    for elt in handler.type.elts[1:]:
+                        match = self.builder.or_(
+                            match,
+                            self.builder.icmp(lc.ICMP_EQ, eid, elt.args[0].n))
+                else:
+                    match = self.builder.icmp(
+                        lc.ICMP_EQ, eid, handler.type.args[0].n)
+                self.builder.cbranch(match, handled_exc_block, cont_exc_block)
+            self.builder.position_at_end(handled_exc_block)
+            self.builder.store(lc.Constant.int(lc.Type.int(1), 0), propagate)
+            self.visit_statements(handler.body)
+            if not is_terminated(self.builder.basic_block):
+                self.builder.branch(finally_block)
+            self.builder.position_at_end(cont_exc_block)
+        self.builder.branch(finally_block)
+
+        self._eid_stack.pop()
+        return eid
+
+    def _visit_stmt_Try(self, node):
+        function = self.builder.basic_block.function
+        noexc_block = function.append_basic_block("try_noexc")
+        exc_block = function.append_basic_block("try_exc")
+        finally_block = function.append_basic_block("try_finally")
+
+        propagate = self.builder.alloca(lc.Type.int(1), name="propagate")
+        self.builder.store(lc.Constant.int(lc.Type.int(1), 0), propagate)
+        exception_occured = self.env.build_catch(self.builder)
+        self.builder.cbranch(exception_occured, exc_block, noexc_block)
+
+        self.builder.position_at_end(noexc_block)
+        self.visit_statements(node.body)
+        if not is_terminated(self.builder.basic_block):
+            self.env.build_pop(self.builder, 1)
+            self.visit_statements(node.orelse)
+            if not is_terminated(self.builder.basic_block):
+                self.builder.branch(finally_block)
+        self.builder.position_at_end(exc_block)
+        eid = self._handle_exception(function, finally_block, propagate,
+                                     node.handlers)
+
+        propagate_block = function.append_basic_block("try_propagate")
+        merge_block = function.append_basic_block("try_merge")
+        self.builder.position_at_end(finally_block)
+        self.visit_statements(node.finalbody)
+        if not is_terminated(self.builder.basic_block):
+            self.builder.cbranch(
+                self.builder.load(propagate),
+                propagate_block, merge_block)
+        self.builder.position_at_end(propagate_block)
+        self.env.build_raise(self.builder, eid)
+        self.builder.branch(merge_block)
+        self.builder.position_at_end(merge_block)
