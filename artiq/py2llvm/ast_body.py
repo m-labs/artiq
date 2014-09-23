@@ -164,7 +164,7 @@ class Visitor:
                 raise NotImplementedError("Unsupported node '{}' in statement"
                                           .format(node_type))
             visitor(node)
-            if node_type == "Return":
+            if node_type in ("Return", "Break", "Continue"):
                 break
 
     def _visit_stmt_Assign(self, node):
