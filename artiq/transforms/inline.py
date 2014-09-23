@@ -218,30 +218,37 @@ class _ReferenceReplacer(ast.NodeVisitor):
     def visit_Raise(self, node):
         if node.cause is not None:
             raise NotImplementedError("Exception causes are not supported")
-        exception_class = self.rm.get(self.obj, self.func_name, node.exc)
-        if not inspect.isclass(exception_class):
-            raise NotImplementedError("Exception must be a class")
-        exception_id = self.rm.exception_map[exception_class]
-        node.exc = ast.copy_location(
-                ast.Call(func=ast.Name("EncodedException", ast.Load()),
-                         args=[value_to_ast(exception_id)],
-                         keywords=[], starargs=None, kwargs=None),
-                node.exc)
+        if node.exc is not None:
+            exception_class = self.rm.get(self.obj, self.func_name, node.exc)
+            if not inspect.isclass(exception_class):
+                raise NotImplementedError("Exception must be a class")
+            exception_id = self.rm.exception_map[exception_class]
+            node.exc = ast.copy_location(
+                    ast.Call(func=ast.Name("EncodedException", ast.Load()),
+                             args=[value_to_ast(exception_id)],
+                             keywords=[], starargs=None, kwargs=None),
+                    node.exc)
         return node
+
+    def _encode_exception(self, e):
+        exception_class = self.rm.get(self.obj, self.func_name, e)
+        if not inspect.isclass(exception_class):
+            raise NotImplementedError("Exception type must be a class")
+        exception_id = self.rm.exception_map[exception_class]
+        return ast.copy_location(
+            ast.Call(func=ast.Name("EncodedException", ast.Load()),
+                     args=[value_to_ast(exception_id)],
+                     keywords=[], starargs=None, kwargs=None),
+            e)
 
     def visit_ExceptHandler(self, node):
         if node.name is not None:
             raise NotImplementedError("'as target' is not supported")
         if node.type is not None:
-            exception_class = self.rm.get(self.obj, self.func_name, node.type)
-            if not inspect.isclass(exception_class):
-                raise NotImplementedError("Exception type must be a class")
-            exception_id = self.rm.exception_map[exception_class]
-            node.type = ast.copy_location(
-                    ast.Call(func=ast.Name("EncodedException", ast.Load()),
-                             args=[value_to_ast(exception_id)],
-                             keywords=[], starargs=None, kwargs=None),
-                    node.type)
+            if isinstance(node.type, ast.Tuple):
+                node.type.elts = [self._encode_exception(e) for e in node.type.elts]
+            else:
+                node.type = self._encode_exception(node.type)
         self.generic_visit(node)
         return node
 
