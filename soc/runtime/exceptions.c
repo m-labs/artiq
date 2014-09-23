@@ -17,9 +17,9 @@ void *exception_push(void)
     return exception_contexts[ec_top++].jb;
 }
 
-void exception_pop(void)
+void exception_pop(int levels)
 {
-    ec_top--;
+    ec_top -= levels;
 }
 
 int exception_getid(void)

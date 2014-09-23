@@ -6,7 +6,7 @@ enum {
 };
 
 void *exception_push(void);
-void exception_pop(void);
+void exception_pop(int levels);
 int exception_getid(void);
 void exception_raise(int id) __attribute__((noreturn));
 

@@ -84,7 +84,7 @@ static int run_kernel(const char *kernel_name, int *eid)
         rtio_init();
         flush_cpu_icache();
         k();
-        exception_pop();
+        exception_pop(1);
         return KERNEL_RUN_FINISHED;
     }
 }
