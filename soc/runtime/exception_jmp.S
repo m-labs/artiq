@@ -1,5 +1,5 @@
 .global exception_setjmp
-.type exception_setjmp,@function
+.type exception_setjmp, @function
 exception_setjmp:
     l.sw    0(r3), r1
     l.sw    4(r3), r2
@@ -15,16 +15,12 @@ exception_setjmp:
     l.sw    44(r3), r28
     l.sw    48(r3), r30
     l.jr    r9
-    l.ori   r11,r0,0
+    l.ori   r11, r0, 0
 
 .global exception_longjmp
-.type   exception_longjmp,@function
+.type exception_longjmp, @function
 exception_longjmp:
-    l.sfeqi r4, 0
-    l.bnf   1f
-    l.addi  r11, r4, 0
-    l.ori   r11, r0, 1
-1:  l.lwz   r1, 0(r3)
+    l.lwz   r1, 0(r3)
     l.lwz   r2, 4(r3)
     l.lwz   r9, 8(r3)
     l.lwz   r10, 12(r3)
@@ -38,4 +34,4 @@ exception_longjmp:
     l.lwz   r28, 44(r3)
     l.lwz   r30, 48(r3)
     l.jr    r9
-    l.nop
+    l.ori   r11, r0, 1

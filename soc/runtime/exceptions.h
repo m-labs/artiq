@@ -6,7 +6,7 @@ enum {
 };
 
 int exception_setjmp(void *jb) __attribute__((returns_twice));
-void exception_longjmp(void *jb, int val) __attribute__((noreturn));
+void exception_longjmp(void *jb) __attribute__((noreturn));
 
 void *exception_push(void);
 void exception_pop(int levels);
