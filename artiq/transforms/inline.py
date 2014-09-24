@@ -13,12 +13,6 @@ from artiq.language import units
 _UserVariable = namedtuple("_UserVariable", "name")
 
 
-def _is_in_attr_list(obj, attr, al):
-    if not hasattr(obj, al):
-        return False
-    return attr in getattr(obj, al).split()
-
-
 class _ReferenceManager:
     def __init__(self):
         # (id(obj), func_name, local_name) or (id(obj), kernel_attr_name)
@@ -66,7 +60,7 @@ class _ReferenceManager:
                         return getattr(builtins, ref.id)
         elif isinstance(ref, ast.Attribute):
             target = self.get(obj, func_name, ref.value)
-            if _is_in_attr_list(target, ref.attr, "kernel_attr"):
+            if hasattr(target, "kernel_attr") and ref.attr in target.kernel_attr.split():
                 key = (id(target), ref.attr)
                 try:
                     ival = self.to_inlined[key]
