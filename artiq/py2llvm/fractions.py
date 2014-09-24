@@ -19,7 +19,9 @@ def _gcd(a, b):
 
 def init_module(module):
     func_def = ast.parse(inspect.getsource(_gcd)).body[0]
-    module.compile_function(func_def, {"a": VInt(64), "b": VInt(64)})
+    function, _ = module.compile_function(func_def,
+                                          {"a": VInt(64), "b": VInt(64)})
+    function.linkage = lc.LINKAGE_INTERNAL
 
 
 def _reduce(builder, a, b):
