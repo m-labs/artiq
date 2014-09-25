@@ -161,7 +161,7 @@ class RTIO(Module, AutoCSR):
         self._r_o_writable = CSRStatus()
         self._r_o_we = CSR()
         self._r_o_replace = CSR()
-        self._r_o_error = CSRStatus(2)
+        self._r_o_error = CSRStatus()
         self._r_o_level = CSRStatus(bits_for(ofifo_depth))
 
         self._r_i_timestamp = CSRStatus(counter_width+fine_ts_width)
