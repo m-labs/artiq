@@ -96,7 +96,7 @@ class CoreCom:
                 else:
                     break
             if spurious_zero_count:
-                logger.warn("received {} spurious zeros".format(
+                logger.warning("received {} spurious zeros".format(
                     spurious_zero_count))
             msg = _D2HMsgType(reply)
             if msg == _D2HMsgType.LOG:
