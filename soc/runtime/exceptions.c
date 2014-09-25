@@ -30,5 +30,6 @@ int exception_getid(void)
 
 void exception_raise(int id)
 {
+    stored_id = id;
     exception_longjmp(exception_contexts[--ec_top].jb);
 }
