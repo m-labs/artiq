@@ -2,7 +2,7 @@ import unittest
 
 from artiq.language.core import *
 from artiq.language.units import *
-from artiq.devices import corecom_serial, core, rtio_core
+from artiq.devices import corecom_serial, core, runtime_exceptions, rtio_core
 from artiq.sim import devices as sim_devices
 
 
@@ -100,16 +100,36 @@ class _RTIOLoopback(AutoContext):
         self.report(self.i.sync())
 
 
+class _RTIOUnderflow(AutoContext):
+    parameters = "o"
+
+    @kernel
+    def run(self):
+        for i in range(10000):
+            delay(25*ns)
+            self.o.pulse(25*ns)
+
+
 class RTIOCase(unittest.TestCase):
     def test_loopback(self):
         npulses = 4
         with corecom_serial.CoreCom() as com:
             coredev = core.Core(com)
-            lb = _RTIOLoopback(
+            uut = _RTIOLoopback(
                 core=coredev,
                 i=rtio_core.RTIOCounter(core=coredev, channel=0),
                 o=rtio_core.RTIOOut(core=coredev, channel=1),
                 npulses=npulses
             )
-            lb.run()
-            self.assertEqual(lb.result, npulses)
+            uut.run()
+            self.assertEqual(uut.result, npulses)
+
+    def test_underflow(self):
+        with corecom_serial.CoreCom() as com:
+            coredev = core.Core(com)
+            uut = _RTIOUnderflow(
+                core=coredev,
+                o=rtio_core.RTIOOut(core=coredev, channel=1)
+            )
+            with self.assertRaises(runtime_exceptions.RTIOUnderflow):
+                uut.run()
