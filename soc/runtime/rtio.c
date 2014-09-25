@@ -1,5 +1,6 @@
 #include <generated/csr.h>
 
+#include "exceptions.h"
 #include "rtio.h"
 
 void rtio_init(void)
@@ -21,6 +22,8 @@ void rtio_set(long long int timestamp, int channel, int value)
     rtio_o_value_write(value);
     while(!rtio_o_writable_read());
     rtio_o_we_write(1);
+    if(rtio_o_error_read())
+        exception_raise(EID_RTIO_UNDERFLOW);
 }
 
 void rtio_replace(long long int timestamp, int channel, int value)

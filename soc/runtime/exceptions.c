@@ -14,7 +14,7 @@ static int stored_id;
 void *exception_push(void)
 {
     if(ec_top >= MAX_EXCEPTION_CONTEXTS)
-        exception_raise(EID_NOMEM);
+        exception_raise(EID_OUT_OF_MEMORY);
     return exception_contexts[ec_top++].jb;
 }
 

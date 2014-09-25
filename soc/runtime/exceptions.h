@@ -2,7 +2,8 @@
 #define __EXCEPTIONS_H
 
 enum {
-	EID_NOMEM = 0
+	EID_OUT_OF_MEMORY = 0,
+	EID_RTIO_UNDERFLOW = 1
 };
 
 int exception_setjmp(void *jb) __attribute__((returns_twice));
