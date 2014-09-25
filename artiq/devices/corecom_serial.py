@@ -6,7 +6,9 @@ from enum import Enum
 import logging
 
 from artiq.language import units
+from artiq.language import core as core_language
 from artiq.devices.runtime import Environment
+from artiq.devices import runtime_exceptions
 
 
 logger = logging.getLogger(__name__)
@@ -142,7 +144,7 @@ class CoreCom:
             _write_exactly(self.port, struct.pack("B", ord(c)))
         logger.debug("running kernel: {}".format(kname))
 
-    def serve(self, rpc_map, exception_map):
+    def serve(self, rpc_map, user_exception_map):
         while True:
             msg = self._get_device_msg()
             if msg == _D2HMsgType.RPC_REQUEST:
@@ -160,9 +162,12 @@ class CoreCom:
                 logger.debug("rpc service: {} ({}) == {}".format(
                     rpc_num, args, r))
             elif msg == _D2HMsgType.KERNEL_EXCEPTION:
-                (exception_num, ) = struct.unpack(">l",
-                                                  _read_exactly(self.port, 4))
-                raise exception_map[exception_num]
+                (eid, ) = struct.unpack(">l", _read_exactly(self.port, 4))
+                if eid < core_language.first_user_eid:
+                    exception = runtime_exceptions.exception_map[eid]
+                else:
+                    exception = user_exception_map[eid]
+                raise exception
             elif msg == _D2HMsgType.KERNEL_FINISHED:
                 return
             else:

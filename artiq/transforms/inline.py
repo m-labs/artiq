@@ -41,8 +41,7 @@ class _ReferenceManager:
         # inlined_name -> use_count
         self.use_count = dict()
         self.rpc_mapper = _HostObjectMapper()
-        # exceptions 0-1023 are for runtime
-        self.exception_mapper = _HostObjectMapper(1024)
+        self.exception_mapper = _HostObjectMapper(core_language.first_user_eid)
         self.kernel_attr_init = []
 
         # reserved names
