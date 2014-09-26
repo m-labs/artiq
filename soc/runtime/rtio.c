@@ -32,6 +32,8 @@ void rtio_replace(long long int timestamp, int channel, int value)
     rtio_o_timestamp_write(timestamp);
     rtio_o_value_write(value);
     rtio_o_replace_write(1);
+    if(rtio_o_error_read())
+        exception_raise(EID_RTIO_UNDERFLOW);
 }
 
 void rtio_sync(int channel)

@@ -2,6 +2,7 @@
 #include <hw/common.h>
 #include <stdio.h>
 
+#include "exceptions.h"
 #include "dds.h"
 
 #define DDS_FTW0  0x0a
@@ -42,6 +43,8 @@ static void fud(long long int fud_time)
     rtio_o_timestamp_write(fud_time+3*8);
     rtio_o_value_write(0);
     rtio_o_we_write(1);
+    if(rtio_o_error_read())
+        exception_raise(EID_RTIO_UNDERFLOW);
 
     if(r) {
         fud_sync();
