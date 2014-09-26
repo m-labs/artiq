@@ -44,6 +44,7 @@ class Visitor:
         self.builder = builder
         self._break_stack = []
         self._eid_stack = []
+        self._exception_level_stack = [0]
 
     # builder can be None for visit_expression
     def visit_expression(self, node):
@@ -206,6 +207,13 @@ class Visitor:
 
         self.builder.position_at_end(merge_block)
 
+    def _enter_loop_body(self, break_block):
+        self._break_stack.append(break_block)
+        self._exception_level_stack.append(0)
+
+    def _leave_loop_body(self):
+        self._exception_level_stack.pop()
+
     def _visit_stmt_While(self, node):
         function = self.builder.basic_block.function
         body_block = function.append_basic_block("w_body")
@@ -217,9 +225,9 @@ class Visitor:
             condition.auto_load(self.builder), body_block, else_block)
 
         self.builder.position_at_end(body_block)
-        self._break_stack.append(merge_block)
+        self._enter_loop_body(merge_block)
         self.visit_statements(node.body)
-        self._break_stack.pop()
+        self._leave_loop_body()
         if not is_terminated(self.builder.basic_block):
             condition = self.visit_expression(node.test).o_bool(self.builder)
             self.builder.cbranch(
@@ -248,9 +256,9 @@ class Visitor:
 
         self.builder.position_at_end(body_block)
         target.set_value(self.builder, itval)
-        self._break_stack.append(merge_block)
+        self._enter_loop_body(merge_block)
         self.visit_statements(node.body)
-        self._break_stack.pop()
+        self._leave_loop_body()
         if not is_terminated(self.builder.basic_block):
             cont = it.o_next(self.builder)
             self.builder.cbranch(
@@ -264,6 +272,9 @@ class Visitor:
         self.builder.position_at_end(merge_block)
 
     def _visit_stmt_Break(self, node):
+        exception_levels = self._exception_level_stack[-1]
+        if exception_levels:
+            self.env.build_pop(self.builder, exception_levels)
         self.builder.branch(self._break_stack[-1])
 
     def _visit_stmt_Return(self, node):
@@ -271,6 +282,9 @@ class Visitor:
             val = base_types.VNone()
         else:
             val = self.visit_expression(node.value)
+        exception_levels = sum(self._exception_level_stack)
+        if exception_levels:
+            self.env.build_pop(self.builder, exception_levels)
         if isinstance(val, base_types.VNone):
             self.builder.ret_void()
         else:
@@ -336,7 +350,9 @@ class Visitor:
         self.builder.cbranch(exception_occured, exc_block, noexc_block)
 
         self.builder.position_at_end(noexc_block)
+        self._exception_level_stack[-1] += 1
         self.visit_statements(node.body)
+        self._exception_level_stack[-1] -= 1
         if not is_terminated(self.builder.basic_block):
             self.env.build_pop(self.builder, 1)
             self.visit_statements(node.orelse)
