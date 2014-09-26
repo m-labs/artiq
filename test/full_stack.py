@@ -52,7 +52,7 @@ class _PulseLogger(AutoContext):
         self.print_off(int(now()))
 
 
-class _PulseTest(AutoContext):
+class _Pulses(AutoContext):
     def build(self):
         for name in "a", "b", "c", "d":
             pl = _PulseLogger(self, name=name)
@@ -70,6 +70,52 @@ class _PulseTest(AutoContext):
                     self.d.pulse(400+i, 20*us)
 
 
+class _MyException(Exception):
+    pass
+
+
+class _Exceptions(AutoContext):
+    parameters = "trace"
+
+    @kernel
+    def run(self):
+        for i in range(10):
+            self.trace.append(i)
+            if i == 4:
+                try:
+                    self.trace.append(10)
+                    try:
+                        self.trace.append(11)
+                        break
+                    except:
+                        pass
+                    else:
+                        self.trace.append(12)
+                    try:
+                        self.trace.append(13)
+                    except:
+                        pass
+                except _MyException:
+                    self.trace.append(14)
+
+        for i in range(4):
+            try:
+                self.trace.append(100)
+                if i == 1:
+                    raise _MyException
+                elif i == 2:
+                    raise IndexError
+            except (TypeError, IndexError):
+                self.trace.append(101)
+                raise
+            except:
+                self.trace.append(102)
+            else:
+                self.trace.append(103)
+            finally:
+                self.trace.append(104)
+
+
 class SimCompareCase(unittest.TestCase):
     def test_primes(self):
         l_device, l_host = [], []
@@ -80,7 +126,15 @@ class SimCompareCase(unittest.TestCase):
     def test_pulses(self):
         # TODO: compare results on host and device
         # (this requires better unit management in the compiler)
-        _run_on_device(_PulseTest)
+        _run_on_device(_Pulses)
+
+    def test_exceptions(self):
+        t_device, t_host = [], []
+        with self.assertRaises(IndexError):
+            _run_on_device(_Exceptions, trace=t_device)
+        with self.assertRaises(IndexError):
+            _run_on_host(_Exceptions, trace=t_host)
+        self.assertEqual(t_device, t_host)
 
 
 class _RTIOLoopback(AutoContext):
