@@ -211,14 +211,15 @@ class Visitor:
         body_block = function.append_basic_block("w_body")
         else_block = function.append_basic_block("w_else")
         merge_block = function.append_basic_block("w_merge")
-        self._break_stack.append(merge_block)
 
         condition = self.visit_expression(node.test).o_bool(self.builder)
         self.builder.cbranch(
             condition.auto_load(self.builder), body_block, else_block)
 
         self.builder.position_at_end(body_block)
+        self._break_stack.append(merge_block)
         self.visit_statements(node.body)
+        self._break_stack.pop()
         if not is_terminated(self.builder.basic_block):
             condition = self.visit_expression(node.test).o_bool(self.builder)
             self.builder.cbranch(
@@ -230,14 +231,12 @@ class Visitor:
             self.builder.branch(merge_block)
 
         self.builder.position_at_end(merge_block)
-        self._break_stack.pop()
 
     def _visit_stmt_For(self, node):
         function = self.builder.basic_block.function
         body_block = function.append_basic_block("f_body")
         else_block = function.append_basic_block("f_else")
         merge_block = function.append_basic_block("f_merge")
-        self._break_stack.append(merge_block)
 
         it = self.visit_expression(node.iter)
         target = self.visit_expression(node.target)
@@ -249,7 +248,9 @@ class Visitor:
 
         self.builder.position_at_end(body_block)
         target.set_value(self.builder, itval)
+        self._break_stack.append(merge_block)
         self.visit_statements(node.body)
+        self._break_stack.pop()
         if not is_terminated(self.builder.basic_block):
             cont = it.o_next(self.builder)
             self.builder.cbranch(
@@ -261,7 +262,6 @@ class Visitor:
             self.builder.branch(merge_block)
 
         self.builder.position_at_end(merge_block)
-        self._break_stack.pop()
 
     def _visit_stmt_Break(self, node):
         self.builder.branch(self._break_stack[-1])
