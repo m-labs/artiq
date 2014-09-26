@@ -205,8 +205,8 @@ def _test_range():
 class CodeGenCase(unittest.TestCase):
     def _test_float_arith(self, op):
         arith_c = CompiledFunction(arith, {
-                "op": base_types.VInt(),
-                "a": base_types.VFloat(), "b": base_types.VFloat()})
+            "op": base_types.VInt(),
+            "a": base_types.VFloat(), "b": base_types.VFloat()})
         for a in _test_range():
             for b in _test_range():
                 self.assertEqual(arith_c(op, a/2, b/2), arith(op, a/2, b/2))

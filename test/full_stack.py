@@ -105,7 +105,7 @@ class _RTIOUnderflow(AutoContext):
 
     @kernel
     def run(self):
-        for i in range(10000):
+        while True:
             delay(25*ns)
             self.o.pulse(25*ns)
 

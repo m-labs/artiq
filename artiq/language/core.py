@@ -330,8 +330,6 @@ def syscall(*args):
 
 _encoded_exceptions = dict()
 
-first_user_eid = 1024
-
 
 def EncodedException(eid):
     """Represents exceptions on the core device, which are identified
@@ -346,3 +344,6 @@ def EncodedException(eid):
                 Exception.__init__(self, eid)
         _encoded_exceptions[eid] = EncodedException
         return EncodedException
+
+
+first_user_eid = 1024

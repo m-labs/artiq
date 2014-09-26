@@ -1,7 +1,6 @@
 import ast
 
 from artiq.transforms.tools import value_to_ast
-from artiq.language import units
 
 
 # TODO:
@@ -41,7 +40,4 @@ class _UnitsLowerer(ast.NodeTransformer):
 
 
 def lower_units(func_def, ref_period):
-    if (not isinstance(ref_period, units.Quantity)
-            or ref_period.unit is not units.s_unit):
-        raise units.DimensionError("Reference period not expressed in seconds")
     _UnitsLowerer(ref_period.amount).visit(func_def)
