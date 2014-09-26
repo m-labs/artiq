@@ -181,6 +181,8 @@ def array_test():
     acc = 0
     for i in range(5):
         for j in range(5):
+            if i + j == 2:
+                continue
             acc += a[i][j]
     return acc
 
