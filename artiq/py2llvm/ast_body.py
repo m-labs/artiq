@@ -43,7 +43,7 @@ class Visitor:
         self.ns = ns
         self.builder = builder
         self._break_stack = []
-        self._eid_stack = []
+        self._active_exception_stack = []
         self._exception_level_stack = [0]
 
     # builder can be None for visit_expression
@@ -294,15 +294,21 @@ class Visitor:
         pass
 
     def _visit_stmt_Raise(self, node):
-        if node.exc is None:
-            eid = self._eid_stack[-1]
+        if self._active_exception_stack:
+            finally_block, propagate, propagate_eid = self._active_exception_stack[-1]
+            self.builder.store(lc.Constant.int(lc.Type.int(1), 1), propagate)
+            if node.exc is not None:
+                eid = lc.Constant.int(lc.Type.int(), node.exc.args[0].n)
+                self.builder.store(eid, propagate_eid)
+            self.builder.branch(finally_block)
         else:
             eid = lc.Constant.int(lc.Type.int(), node.exc.args[0].n)
-        self.env.build_raise(self.builder, eid)
+            self.env.build_raise(self.builder, eid)
 
     def _handle_exception(self, function, finally_block, propagate, propagate_eid, handlers):
         eid = self.env.build_getid(self.builder)
-        self._eid_stack.append(eid)
+        self._active_exception_stack.append(
+            (finally_block, propagate, propagate_eid))
         self.builder.store(lc.Constant.int(lc.Type.int(1), 1), propagate)
         self.builder.store(eid, propagate_eid)
 
@@ -336,7 +342,7 @@ class Visitor:
             self.builder.position_at_end(cont_exc_block)
         self.builder.branch(finally_block)
 
-        self._eid_stack.pop()
+        self._active_exception_stack.pop()
 
     def _visit_stmt_Try(self, node):
         function = self.builder.basic_block.function
