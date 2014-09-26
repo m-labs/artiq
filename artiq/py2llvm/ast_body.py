@@ -170,6 +170,9 @@ class Visitor:
             if node_type in ("Return", "Break", "Continue"):
                 break
 
+    def _bb_terminated(self):
+        return is_terminated(self.builder.basic_block)
+
     def _visit_stmt_Assign(self, node):
         val = self.visit_expression(node.value)
         for target in node.targets:
@@ -197,12 +200,12 @@ class Visitor:
 
         self.builder.position_at_end(then_block)
         self.visit_statements(node.body)
-        if not is_terminated(self.builder.basic_block):
+        if not self._bb_terminated():
             self.builder.branch(merge_block)
 
         self.builder.position_at_end(else_block)
         self.visit_statements(node.orelse)
-        if not is_terminated(self.builder.basic_block):
+        if not self._bb_terminated():
             self.builder.branch(merge_block)
 
         self.builder.position_at_end(merge_block)
@@ -228,14 +231,14 @@ class Visitor:
         self._enter_loop_body(merge_block)
         self.visit_statements(node.body)
         self._leave_loop_body()
-        if not is_terminated(self.builder.basic_block):
+        if not self._bb_terminated():
             condition = self.visit_expression(node.test).o_bool(self.builder)
             self.builder.cbranch(
                 condition.auto_load(self.builder), body_block, merge_block)
 
         self.builder.position_at_end(else_block)
         self.visit_statements(node.orelse)
-        if not is_terminated(self.builder.basic_block):
+        if not self._bb_terminated():
             self.builder.branch(merge_block)
 
         self.builder.position_at_end(merge_block)
@@ -259,14 +262,14 @@ class Visitor:
         self._enter_loop_body(merge_block)
         self.visit_statements(node.body)
         self._leave_loop_body()
-        if not is_terminated(self.builder.basic_block):
+        if not self._bb_terminated():
             cont = it.o_next(self.builder)
             self.builder.cbranch(
                 cont.auto_load(self.builder), body_block, merge_block)
 
         self.builder.position_at_end(else_block)
         self.visit_statements(node.orelse)
-        if not is_terminated(self.builder.basic_block):
+        if not self._bb_terminated():
             self.builder.branch(merge_block)
 
         self.builder.position_at_end(merge_block)
@@ -337,7 +340,7 @@ class Visitor:
             self.builder.position_at_end(handled_exc_block)
             self.builder.store(lc.Constant.int(lc.Type.int(1), 0), propagate)
             self.visit_statements(handler.body)
-            if not is_terminated(self.builder.basic_block):
+            if not self._bb_terminated():
                 self.builder.branch(finally_block)
             self.builder.position_at_end(cont_exc_block)
         self.builder.branch(finally_block)
@@ -360,10 +363,10 @@ class Visitor:
         self._exception_level_stack[-1] += 1
         self.visit_statements(node.body)
         self._exception_level_stack[-1] -= 1
-        if not is_terminated(self.builder.basic_block):
+        if not self._bb_terminated():
             self.env.build_pop(self.builder, 1)
             self.visit_statements(node.orelse)
-            if not is_terminated(self.builder.basic_block):
+            if not self._bb_terminated():
                 self.builder.branch(finally_block)
         self.builder.position_at_end(exc_block)
         self._handle_exception(function, finally_block,
@@ -373,7 +376,7 @@ class Visitor:
         merge_block = function.append_basic_block("try_merge")
         self.builder.position_at_end(finally_block)
         self.visit_statements(node.finalbody)
-        if not is_terminated(self.builder.basic_block):
+        if not self._bb_terminated():
             self.builder.cbranch(
                 self.builder.load(propagate),
                 propagate_block, merge_block)
