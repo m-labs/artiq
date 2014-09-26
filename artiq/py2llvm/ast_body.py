@@ -300,10 +300,11 @@ class Visitor:
             eid = lc.Constant.int(lc.Type.int(), node.exc.args[0].n)
         self.env.build_raise(self.builder, eid)
 
-    def _handle_exception(self, function, finally_block, propagate, handlers):
+    def _handle_exception(self, function, finally_block, propagate, propagate_eid, handlers):
         eid = self.env.build_getid(self.builder)
         self._eid_stack.append(eid)
         self.builder.store(lc.Constant.int(lc.Type.int(1), 1), propagate)
+        self.builder.store(eid, propagate_eid)
 
         for handler in handlers:
             handled_exc_block = function.append_basic_block("try_exc_h")
@@ -336,7 +337,6 @@ class Visitor:
         self.builder.branch(finally_block)
 
         self._eid_stack.pop()
-        return eid
 
     def _visit_stmt_Try(self, node):
         function = self.builder.basic_block.function
@@ -346,6 +346,7 @@ class Visitor:
 
         propagate = self.builder.alloca(lc.Type.int(1), name="propagate")
         self.builder.store(lc.Constant.int(lc.Type.int(1), 0), propagate)
+        propagate_eid = self.builder.alloca(lc.Type.int(), name="propagate_eid")
         exception_occured = self.env.build_catch(self.builder)
         self.builder.cbranch(exception_occured, exc_block, noexc_block)
 
@@ -359,8 +360,8 @@ class Visitor:
             if not is_terminated(self.builder.basic_block):
                 self.builder.branch(finally_block)
         self.builder.position_at_end(exc_block)
-        eid = self._handle_exception(function, finally_block, propagate,
-                                     node.handlers)
+        self._handle_exception(function, finally_block,
+                               propagate, propagate_eid, node.handlers)
 
         propagate_block = function.append_basic_block("try_propagate")
         merge_block = function.append_basic_block("try_merge")
@@ -371,6 +372,6 @@ class Visitor:
                 self.builder.load(propagate),
                 propagate_block, merge_block)
         self.builder.position_at_end(propagate_block)
-        self.env.build_raise(self.builder, eid)
+        self.env.build_raise(self.builder, self.builder.load(propagate_eid))
         self.builder.branch(merge_block)
         self.builder.position_at_end(merge_block)
