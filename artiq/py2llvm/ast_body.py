@@ -43,6 +43,7 @@ class Visitor:
         self.ns = ns
         self.builder = builder
         self._break_stack = []
+        self._continue_stack = []
         self._active_exception_stack = []
         self._exception_level_stack = [0]
 
@@ -210,31 +211,38 @@ class Visitor:
 
         self.builder.position_at_end(merge_block)
 
-    def _enter_loop_body(self, break_block):
+    def _enter_loop_body(self, break_block, continue_block):
         self._break_stack.append(break_block)
+        self._continue_stack.append(continue_block)
         self._exception_level_stack.append(0)
 
     def _leave_loop_body(self):
         self._exception_level_stack.pop()
+        self._continue_stack.pop()
+        self._break_stack.pop()
 
     def _visit_stmt_While(self, node):
         function = self.builder.basic_block.function
+
         body_block = function.append_basic_block("w_body")
         else_block = function.append_basic_block("w_else")
-        merge_block = function.append_basic_block("w_merge")
-
         condition = self.visit_expression(node.test).o_bool(self.builder)
         self.builder.cbranch(
             condition.auto_load(self.builder), body_block, else_block)
 
+        continue_block = function.append_basic_block("w_continue")
+        merge_block = function.append_basic_block("w_merge")
         self.builder.position_at_end(body_block)
-        self._enter_loop_body(merge_block)
+        self._enter_loop_body(merge_block, continue_block)
         self.visit_statements(node.body)
         self._leave_loop_body()
         if not self._bb_terminated():
-            condition = self.visit_expression(node.test).o_bool(self.builder)
-            self.builder.cbranch(
-                condition.auto_load(self.builder), body_block, merge_block)
+            self.builder.branch(continue_block)
+
+        self.builder.position_at_end(continue_block)
+        condition = self.visit_expression(node.test).o_bool(self.builder)
+        self.builder.cbranch(
+            condition.auto_load(self.builder), body_block, merge_block)
 
         self.builder.position_at_end(else_block)
         self.visit_statements(node.orelse)
@@ -245,27 +253,31 @@ class Visitor:
 
     def _visit_stmt_For(self, node):
         function = self.builder.basic_block.function
-        body_block = function.append_basic_block("f_body")
-        else_block = function.append_basic_block("f_else")
-        merge_block = function.append_basic_block("f_merge")
 
         it = self.visit_expression(node.iter)
         target = self.visit_expression(node.target)
         itval = it.get_value_ptr()
 
+        body_block = function.append_basic_block("f_body")
+        else_block = function.append_basic_block("f_else")
         cont = it.o_next(self.builder)
         self.builder.cbranch(
             cont.auto_load(self.builder), body_block, else_block)
 
+        continue_block = function.append_basic_block("f_continue")
+        merge_block = function.append_basic_block("f_merge")
         self.builder.position_at_end(body_block)
         target.set_value(self.builder, itval)
-        self._enter_loop_body(merge_block)
+        self._enter_loop_body(merge_block, continue_block)
         self.visit_statements(node.body)
         self._leave_loop_body()
         if not self._bb_terminated():
-            cont = it.o_next(self.builder)
-            self.builder.cbranch(
-                cont.auto_load(self.builder), body_block, merge_block)
+            self.builder.branch(continue_block)
+
+        self.builder.position_at_end(continue_block)
+        cont = it.o_next(self.builder)
+        self.builder.cbranch(
+            cont.auto_load(self.builder), body_block, merge_block)
 
         self.builder.position_at_end(else_block)
         self.visit_statements(node.orelse)
@@ -274,11 +286,17 @@ class Visitor:
 
         self.builder.position_at_end(merge_block)
 
-    def _visit_stmt_Break(self, node):
+    def _break_loop_body(self, target_block):
         exception_levels = self._exception_level_stack[-1]
         if exception_levels:
             self.env.build_pop(self.builder, exception_levels)
-        self.builder.branch(self._break_stack[-1])
+        self.builder.branch(target_block)
+
+    def _visit_stmt_Break(self, node):
+        self._break_loop_body(self._break_stack[-1])
+
+    def _visit_stmt_Continue(self, node):
+        self._break_loop_body(self._continue_stack[-1])
 
     def _visit_stmt_Return(self, node):
         if node.value is None:
