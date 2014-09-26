@@ -40,4 +40,4 @@ class _UnitsLowerer(ast.NodeTransformer):
 
 
 def lower_units(func_def, ref_period):
-    _UnitsLowerer(ref_period.amount).visit(func_def)
+    _UnitsLowerer(ref_period).visit(func_def)

@@ -61,7 +61,7 @@ class ARTIQMiniSoC(BaseSoC):
             rtio_pads,
             output_only_pads={rtio_pads[1], rtio_pads[2], rtio_pads[3]},
             mini_pads={fud})
-        self.submodules.rtio = rtio.RTIO(self.rtiophy)
+        self.submodules.rtio = rtio.RTIO(self.rtiophy, self.clk_freq)
 
         if with_test_gen:
             self.submodules.test_gen = _TestGen(platform.request("ttl", 4))

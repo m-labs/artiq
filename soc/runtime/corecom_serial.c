@@ -154,7 +154,9 @@ void corecom_serve(object_loader load_object, kernel_runner run_kernel)
         if(msgtype == MSGTYPE_REQUEST_IDENT) {
             send_char(MSGTYPE_IDENT);
             send_int(0x41524f52); /* "AROR" - ARTIQ runtime on OpenRISC */
-            send_int(1000000000000LL/identifier_frequency_read()); /* RTIO clock period in picoseconds */
+            send_int(rtio_frequency_i_read());
+            send_char(rtio_frequency_fn_read());
+            send_char(rtio_frequency_fd_read());
         } else if(msgtype == MSGTYPE_LOAD_OBJECT)
             receive_and_load_object(load_object);
         else if(msgtype == MSGTYPE_RUN_KERNEL)

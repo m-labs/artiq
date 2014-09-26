@@ -1,3 +1,5 @@
+from fractions import Fraction
+
 from migen.fhdl.std import *
 from migen.bank.description import *
 from migen.genlib.fifo import SyncFIFO
@@ -138,7 +140,7 @@ class _RTIOBankI(Module):
 
 
 class RTIO(Module, AutoCSR):
-    def __init__(self, phy, counter_width=32, ofifo_depth=64, ififo_depth=64):
+    def __init__(self, phy, clk_freq, counter_width=32, ofifo_depth=64, ififo_depth=64):
         fine_ts_width = get_fine_ts_width(phy.rbus)
 
         # Submodules
@@ -173,12 +175,9 @@ class RTIO(Module, AutoCSR):
         self._r_counter = CSRStatus(counter_width+fine_ts_width)
         self._r_counter_update = CSR()
 
-        # Counter
-        self.sync += \
-           If(self._r_counter_update.re,
-               self._r_counter.status.eq(Cat(Replicate(0, fine_ts_width),
-                                             self.bank_o.counter))
-           )
+        self._r_frequency_i = CSRStatus(32)
+        self._r_frequency_fn = CSRStatus(8)
+        self._r_frequency_fd = CSRStatus(8)
 
         # OE
         oes = []
@@ -216,4 +215,21 @@ class RTIO(Module, AutoCSR):
             self.bank_i.re.eq(self._r_i_re.re),
             self._r_i_error.status.eq(
                 Cat(self.bank_i.overflow, self.bank_i.pileup))
+        ]
+
+        # Counter
+        self.sync += \
+           If(self._r_counter_update.re,
+               self._r_counter.status.eq(Cat(Replicate(0, fine_ts_width),
+                                             self.bank_o.counter))
+           )
+
+        # Frequency
+        clk_freq = Fraction(clk_freq).limit_denominator(255)
+        clk_freq_i = int(clk_freq)
+        clk_freq_f = clk_freq - clk_freq_i
+        self.comb += [
+            self._r_frequency_i.status.eq(clk_freq_i),
+            self._r_frequency_fn.status.eq(clk_freq_f.numerator),
+            self._r_frequency_fd.status.eq(clk_freq_f.denominator)
         ]

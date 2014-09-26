@@ -3,9 +3,9 @@ import termios
 import struct
 import zlib
 from enum import Enum
+from fractions import Fraction
 import logging
 
-from artiq.language import units
 from artiq.language import core as core_language
 from artiq.devices.runtime import Environment
 from artiq.devices import runtime_exceptions
@@ -123,9 +123,11 @@ class CoreCom:
             runtime_id += chr(reply)
         if runtime_id != "AROR":
             raise UnsupportedDevice("Unsupported runtime ID: "+runtime_id)
-        (ref_period, ) = struct.unpack(">l", _read_exactly(self.port, 4))
-        logger.debug("Environment ref_period: {}".format(ref_period))
-        return Environment(ref_period*units.ps)
+        (ref_freq_i, ref_freq_fn, ref_freq_fd) = struct.unpack(
+            ">lBB", _read_exactly(self.port, 6))
+        ref_period = 1/(ref_freq_i + Fraction(ref_freq_fn, ref_freq_fd))
+        logger.debug("environment ref_period: {}".format(ref_period))
+        return Environment(ref_period)
 
     def load(self, kcode):
         _write_exactly(self.port, struct.pack(
