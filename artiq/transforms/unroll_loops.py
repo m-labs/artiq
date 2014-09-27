@@ -4,12 +4,19 @@ from artiq.transforms.tools import eval_ast, value_to_ast
 
 
 def _count_stmts(node):
-    if isinstance(node, (ast.For, ast.While, ast.If)):
-        return 1 + _count_stmts(node.body) + _count_stmts(node.orelse)
+    if isinstance(node, list):
+        return sum(map(_count_stmts, node))
     elif isinstance(node, ast.With):
         return 1 + _count_stmts(node.body)
-    elif isinstance(node, list):
-        return sum(map(_count_stmts, node))
+    elif isinstance(node, (ast.For, ast.While, ast.If)):
+        return 1 + _count_stmts(node.body) + _count_stmts(node.orelse)
+    elif isinstance(node, ast.Try):
+        r = 1 + _count_stmts(node.body) \
+            + _count_stmts(node.orelse) \
+            + _count_stmts(node.finalbody)
+        for handler in node.handlers:
+            r += 1 + _count_stmts(handler.body)
+        return r
     else:
         return 1
 
