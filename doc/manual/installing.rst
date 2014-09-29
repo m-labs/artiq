@@ -38,7 +38,7 @@ Installing the host-side software
 
 The main dependency of ARTIQ is LLVM and its Python bindings (http://llvmpy.org). Currently, this installation is tedious because of the OpenRISC support not being merged upstream LLVM and because of incompatibilities between the versions of LLVM that support OpenRISC and the versions of LLVM that support the Python bindings. ::
 
-  git clone checkout https://github.com/openrisc/llvm-or1k
+  git clone https://github.com/openrisc/llvm-or1k
   cd llvm-or1k
   git checkout b3a48efb2c05ed6cedc5395ae726c6a6573ef3ba
   patch -p1 < /path_to/ARTIQ/patches/llvm/*
@@ -63,7 +63,7 @@ The main dependency of ARTIQ is LLVM and its Python bindings (http://llvmpy.org)
   patch -p1 < /path_to/ARTIQ/patches/llvmpy/*
   LLVM_CONFIG_PATH=/usr/local/llvm-or1k/bin/llvm-config sudo -E python setup.py install
 
-You may want to use ``checkinstall`` instead of ``make install`` (which registers the installation with your package manager) and ``pip3 install --user .`` instead of ``sudo -E python setup.py install``.
+You may want to use ``checkinstall`` instead of ``make install`` (to register the installation with your package manager) and ``pip3 install --user .`` instead of ``sudo -E python setup.py install``.
 
 You can then install ARTIQ itself: ::
 
