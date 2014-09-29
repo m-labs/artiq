@@ -17,6 +17,15 @@ def _get_duration(stmt):
             return 0
         else:
             return -1
+    elif isinstance(stmt, ast.Try):
+        if (all(_get_duration(s) == 0 for s in stmt.body)
+                and all(_get_duration(s) == 0 for s in stmt.orelse)
+                and all(_get_duration(s) == 0 for s in stmt.finalbody)
+                and all(_get_duration(s) == 0 for s in handler.body
+                    for handler in stmt.handlers)):
+            return 0
+        else:
+            return -1
     elif isinstance(stmt, ast.Call) and isinstance(stmt.func, ast.Name):
         name = stmt.func.id
         if name == "delay":
@@ -89,6 +98,12 @@ def _interleave_stmts(stmts):
         if isinstance(stmt, (ast.For, ast.While, ast.If)):
             _interleave_stmts(stmt.body)
             _interleave_stmts(stmt.orelse)
+        elif isinstance(stmt, ast.Try):
+            _interleave_stmts(stmt.body)
+            _interleave_stmts(stmt.orelse)
+            _interleave_stmts(stmt.finalbody)
+            for handler in stmt.handlers:
+                _interleave_stmts(handler.body)
         elif isinstance(stmt, ast.With):
             btype = stmt.items[0].context_expr.id
             if btype == "sequential":
