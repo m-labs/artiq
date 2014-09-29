@@ -218,6 +218,10 @@ class _ReferenceReplacer(ast.NodeVisitor):
             node)
 
     def visit_Expr(self, node):
+        if isinstance(node.value, ast.Str):
+            # Strip docstrings. This also removes strings appearing in the
+            # middle of the code, but they are nops.
+            return None
         self.generic_visit(node)
         if isinstance(node.value, ast.Name):
             # Remove Expr nodes that contain only a name, likely due to
