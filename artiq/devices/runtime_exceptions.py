@@ -1,6 +1,7 @@
-class RuntimeException(Exception):
-    pass
+from artiq.language.core import RuntimeException
 
+
+# Must be kept in sync with soc/runtime/exceptions.h
 
 class OutOfMemory(RuntimeException):
     eid = 0

@@ -346,4 +346,12 @@ def EncodedException(eid):
         return EncodedException
 
 
+class RuntimeException(Exception):
+    """Base class for all exceptions used by the device runtime.
+    Those exceptions are defined in ``artiq.devices.runtime_exceptions``.
+
+    """
+    pass
+
+
 first_user_eid = 1024
