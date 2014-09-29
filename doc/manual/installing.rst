@@ -2,14 +2,14 @@ Installing ARTIQ
 ================
 
 Preparing the core device FPGA board
-************************************
+------------------------------------
 
 You may skip those steps if the board is already flashed.
 
 You will need:
   * FPGA vendor tools (e.g. Xilinx ISE or Vivado)
   * OpenRISC GCC/binutils toolchain (or1k-elf-...)
-  * Python 3.3+ (note: in this document, the ``python`` command refers to Python 3)
+  * Python 3.3+
   * Migen and MiSoC (http://m-labs.hk/gateware.html)
 
 After these components are installed, build and flash the bitstream and BIOS by running `from the MiSoC top-level directory`: ::
@@ -34,7 +34,7 @@ Check that the board boots by running a serial terminal program (you may need to
 The communication parameters are 115200 8-N-1.
 
 Installing the host-side software
-*********************************
+---------------------------------
 
 The main dependency of ARTIQ is LLVM and its Python bindings (http://llvmpy.org). Currently, this installation is tedious because of the OpenRISC support not being merged upstream LLVM and because of incompatibilities between the versions of LLVM that support OpenRISC and the versions of LLVM that support the Python bindings. ::
 
@@ -62,6 +62,9 @@ The main dependency of ARTIQ is LLVM and its Python bindings (http://llvmpy.org)
   git checkout 7af2f7140391d4f708adf2721e84f23c1b89e97a
   patch -p1 < /path_to/ARTIQ/patches/llvmpy/*
   LLVM_CONFIG_PATH=/usr/local/llvm-or1k/bin/llvm-config sudo -E python setup.py install
+
+.. note::
+  ``python`` refers to Python 3. You may need to use the ``python3`` command instead of ``python`` on some distributions.
 
 You may want to use ``checkinstall`` instead of ``make install`` (to register the installation with your package manager) and ``pip3 install --user .`` instead of ``sudo -E python setup.py install``.
 
