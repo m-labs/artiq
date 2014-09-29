@@ -1,7 +1,7 @@
 """Core ARTIQ extensions to the Python language."""
 
-from collections import namedtuple
-from copy import copy
+from collections import namedtuple as _namedtuple
+from copy import copy as _copy
 
 
 class int64(int):
@@ -77,7 +77,7 @@ def array(element, count):
     Arrays of arrays are supported.
 
     """
-    return [copy(element) for i in range(count)]
+    return [_copy(element) for i in range(count)]
 
 
 class AutoContext:
@@ -179,7 +179,7 @@ class AutoContext:
         pass
 
 
-_KernelFunctionInfo = namedtuple("_KernelFunctionInfo", "core_name k_function")
+_KernelFunctionInfo = _namedtuple("_KernelFunctionInfo", "core_name k_function")
 
 
 def kernel(arg):
