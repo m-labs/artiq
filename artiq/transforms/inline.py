@@ -235,31 +235,26 @@ class _ReferenceReplacer(ast.NodeVisitor):
         self.generic_visit(node)
         return node
 
-    def visit_Raise(self, node):
-        if node.cause is not None:
-            raise NotImplementedError("Exception causes are not supported")
-        if node.exc is not None:
-            exception_class = self.rm.get(self.obj, self.func_name, node.exc)
-            if not inspect.isclass(exception_class):
-                raise NotImplementedError("Exception must be a class")
-            exception_id = self.rm.exception_mapper.encode(exception_class)
-            node.exc = ast.copy_location(
-                    ast.Call(func=ast.Name("EncodedException", ast.Load()),
-                             args=[value_to_ast(exception_id)],
-                             keywords=[], starargs=None, kwargs=None),
-                    node.exc)
-        return node
-
     def _encode_exception(self, e):
         exception_class = self.rm.get(self.obj, self.func_name, e)
         if not inspect.isclass(exception_class):
             raise NotImplementedError("Exception type must be a class")
-        exception_id = self.rm.exception_mapper.encode(exception_class)
+        if issubclass(exception_class, core_language.RuntimeException):
+            exception_id = exception_class.eid
+        else:
+            exception_id = self.rm.exception_mapper.encode(exception_class)
         return ast.copy_location(
             ast.Call(func=ast.Name("EncodedException", ast.Load()),
                      args=[value_to_ast(exception_id)],
                      keywords=[], starargs=None, kwargs=None),
             e)
+
+    def visit_Raise(self, node):
+        if node.cause is not None:
+            raise NotImplementedError("Exception causes are not supported")
+        if node.exc is not None:
+            node.exc = self._encode_exception(node.exc)
+        return node
 
     def visit_ExceptHandler(self, node):
         if node.name is not None:
