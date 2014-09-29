@@ -1,3 +1,5 @@
+import inspect
+
 from artiq.language.core import RuntimeException
 
 
@@ -12,5 +14,6 @@ class RTIOUnderflow(RuntimeException):
 
 
 exception_map = {e.eid: e for e in globals().values()
-                 if isinstance(e, RuntimeException.__class__)
+                 if inspect.isclass(e)
+                 and issubclass(e, RuntimeException)
                  and hasattr(e, "eid")}
