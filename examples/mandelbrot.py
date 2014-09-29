@@ -1,6 +1,6 @@
 import sys
 
-from artiq.language.core import *
+from artiq.language.std import *
 from artiq.devices import corecom_serial, core
 
 class Mandelbrot(AutoContext):

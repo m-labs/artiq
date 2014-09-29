@@ -1,5 +1,4 @@
-from artiq.language.units import *
-from artiq.language.core import *
+from artiq.language.std import *
 
 
 class SimpleSimulation(AutoContext):
