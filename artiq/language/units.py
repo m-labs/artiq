@@ -1,25 +1,45 @@
-from collections import namedtuple
-from fractions import Fraction
+from fractions import Fraction as _Fraction
 
 
 _prefixes_str = "pnum_kMG"
-_smallest_prefix = Fraction(1, 10**12)
+_smallest_prefix = _Fraction(1, 10**12)
 
-Unit = namedtuple("Unit", "name")
+
+class Unit:
+    """Represents a fundamental unit (second, hertz, ...).
+
+    """
+    def __init__(self, name):
+        self.name = name
+
+    def __eq__(self, other):
+        return isinstance(other, Unit) and self.name == other.name
 
 
 class DimensionError(Exception):
+    """Exception raised when attempting operations on incompatible units
+    (e.g. adding seconds and hertz).
+
+    """
     pass
 
 
 class Quantity:
+    """Represents an amount in a given fundamental unit (:class:`Unit`).
+
+    The amount can be of any Python numerical type (integer, float,
+    Fraction, ...).
+    Arithmetic operations and comparisons are directly delegated to the
+    underlying numerical types.
+
+    """
     def __init__(self, amount, unit):
         self.amount = amount
         self.unit = unit
 
     def __repr__(self):
         r_amount = self.amount
-        if isinstance(r_amount, int) or isinstance(r_amount, Fraction):
+        if isinstance(r_amount, int) or isinstance(r_amount, _Fraction):
             r_prefix = 0
             r_amount = r_amount/_smallest_prefix
             if r_amount:
