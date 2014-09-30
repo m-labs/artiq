@@ -1,7 +1,8 @@
 import sys
 
-from artiq.language.std import *
+from artiq import *
 from artiq.devices import corecom_serial, core
+
 
 class Mandelbrot(AutoContext):
     def col(self, i):
@@ -35,6 +36,7 @@ class Mandelbrot(AutoContext):
                     z_r = new_z_r
                 self.col(i)
             self.row()
+
 
 if __name__ == "__main__":
     with corecom_serial.CoreCom() as com:

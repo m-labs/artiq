@@ -1,7 +1,6 @@
 import unittest
 
-from artiq.language.core import *
-from artiq.language.units import *
+from artiq import *
 from artiq.devices import corecom_serial, core, runtime_exceptions, rtio_core
 from artiq.sim import devices as sim_devices
 

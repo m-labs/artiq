@@ -1,4 +1,4 @@
-from artiq.language.std import *
+from artiq import *
 
 
 my_range = range

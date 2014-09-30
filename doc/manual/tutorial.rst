@@ -6,7 +6,7 @@ Connecting to the core device
 
 As a very first step, we will turn on a LED on the core device. Create a file ``led.py`` containing the following: ::
 
-  from artiq.language.std import *
+  from artiq import *
   from artiq.devices import corecom_serial, core, gpio_core
 
   class LED(AutoContext):
@@ -81,7 +81,7 @@ The point of running code on the core device is the ability to meet demanding re
 
 Create a new file ``rtio.py`` containing the following: ::
 
-  from artiq.language.std import *
+  from artiq import *
   from artiq.devices import corecom_serial, core, rtio_core
 
   class Tutorial(AutoContext):

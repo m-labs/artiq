@@ -1,4 +1,4 @@
-from artiq.language.std import *
+from artiq import *
 from artiq.devices import corecom_serial, core, dds_core, gpio_core
 
 
