@@ -16,10 +16,10 @@ class PhotonHistogram(AutoContext):
         self.bd.pulse(210*MHz, 100*us)
         with parallel:
             self.bd.pulse(220*MHz, 100*us)
-            self.pmt.count_rising(100*us)
+            self.pmt.gate_rising(100*us)
         self.bd.on(200*MHz)
         self.bdd.on(300*MHz)
-        return self.pmt.sync()
+        return self.pmt.count()
 
     @kernel
     def run(self):
@@ -44,7 +44,7 @@ if __name__ == "__main__":
                             reg_channel=0, rtio_channel=1),
             bdd=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
                              reg_channel=1, rtio_channel=2),
-            pmt=rtio_core.RTIOCounter(core=coredev, channel=0),
+            pmt=rtio_core.RTIOIn(core=coredev, channel=0),
             repeats=100,
             nbins=100
         )

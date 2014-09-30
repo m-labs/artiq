@@ -150,8 +150,8 @@ class _RTIOLoopback(AutoContext):
                 for i in range(self.npulses):
                     delay(25*ns)
                     self.o.pulse(25*ns)
-            self.i.count_rising(10*us)
-        self.report(self.i.sync())
+            self.i.gate_rising(10*us)
+        self.report(self.i.count())
 
 
 class _RTIOUnderflow(AutoContext):
@@ -171,7 +171,7 @@ class RTIOCase(unittest.TestCase):
             coredev = core.Core(com)
             uut = _RTIOLoopback(
                 core=coredev,
-                i=rtio_core.RTIOCounter(core=coredev, channel=0),
+                i=rtio_core.RTIOIn(core=coredev, channel=0),
                 o=rtio_core.RTIOOut(core=coredev, channel=1),
                 npulses=npulses
             )

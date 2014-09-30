@@ -9,3 +9,4 @@ Contents:
    installing
    tutorial
    core_reference
+   drivers_reference
