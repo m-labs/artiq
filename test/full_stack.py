@@ -163,6 +163,17 @@ class _RTIOUnderflow(AutoContext):
             self.o.pulse(25*ns)
 
 
+class _RTIOSequenceError(AutoContext):
+    parameters = "o"
+
+    @kernel
+    def run(self):
+        t = now()
+        self.o.pulse(25*us)
+        at(t)
+        self.o.pulse(25*us)
+
+
 class RTIOCase(unittest.TestCase):
     def test_loopback(self):
         npulses = 4
@@ -185,4 +196,14 @@ class RTIOCase(unittest.TestCase):
                 o=rtio_core.RTIOOut(core=coredev, channel=1)
             )
             with self.assertRaises(runtime_exceptions.RTIOUnderflow):
+                uut.run()
+
+    def test_sequence_error(self):
+        with corecom_serial.CoreCom() as com:
+            coredev = core.Core(com)
+            uut = _RTIOSequenceError(
+                core=coredev,
+                o=rtio_core.RTIOOut(core=coredev, channel=1)
+            )
+            with self.assertRaises(runtime_exceptions.RTIOSequenceError):
                 uut.run()

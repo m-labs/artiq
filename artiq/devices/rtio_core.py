@@ -1,4 +1,5 @@
 from artiq.language.core import *
+from artiq.devices.runtime_exceptions import RTIOSequenceError
 
 
 class _RTIOBase(AutoContext):
@@ -16,6 +17,8 @@ class _RTIOBase(AutoContext):
 
     @kernel
     def _set_value(self, value):
+        if now() < self.previous_timestamp:
+            raise RTIOSequenceError
         if self.previous_value != value:
             if self.previous_timestamp == now():
                 syscall("rtio_replace", now(), self.channel, value)
