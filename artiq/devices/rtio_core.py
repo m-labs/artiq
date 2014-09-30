@@ -28,8 +28,8 @@ class _RTIOBase(AutoContext):
 class RTIOOut(_RTIOBase):
     """RTIO output driver.
 
-    This driver configures the corresponding RTIO channel as output on the core
-    device and provides functions to set its level.
+    Configures the corresponding RTIO channel as output on the core device and
+    provides functions to set its level.
 
     This driver supports zero-length transition suppression. For example, if
     two pulses are emitted back-to-back with no delay between them, they will
@@ -82,9 +82,9 @@ class RTIOOut(_RTIOBase):
 class RTIOIn(_RTIOBase):
     """RTIO input driver.
 
-    This driver configures the corresponding RTIO channel as input on the core
-    device and provides functions to analyze the incoming signal, with
-    real-time gating to prevent overflows.
+    Configures the corresponding RTIO channel as input on the core device and
+    provides functions to analyze the incoming signal, with real-time gating
+    to prevent overflows.
 
     :param core: core device
     :param channel: channel number

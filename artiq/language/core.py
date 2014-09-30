@@ -127,7 +127,7 @@ class AutoContext:
     ...         self.exp2 = SubExperiment(self, bar=self.bar2)
     ...         self.exp3 = SubExperiment(self, bar=self.bar2 + self.offset)
     ...
-    >>>     def run():
+    ...     def run():
     ...         self.exp1.run()
     ...         self.exp2.run()
     ...         self.exp3.run()

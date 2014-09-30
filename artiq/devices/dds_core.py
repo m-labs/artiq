@@ -6,10 +6,9 @@ from artiq.devices import rtio_core
 class DDS(AutoContext):
     """Core device Direct Digital Synthesis (DDS) driver.
 
-    This driver controls DDS devices managed directly by the core device's
-    runtime. It also uses a RTIO channel (through
-    :class:`artiq.devices.rtio_core.RTIOOut`) to control a RF switch that
-    gates the output of the DDS device.
+    Controls DDS devices managed directly by the core device's runtime. It also
+    uses a RTIO channel (through :class:`artiq.devices.rtio_core.RTIOOut`) to
+    control a RF switch that gates the output of the DDS device.
 
     :param dds_sysclk: DDS system frequency, used for computing the frequency
         tuning words.

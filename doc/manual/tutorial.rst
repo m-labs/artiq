@@ -6,33 +6,33 @@ Connecting to the core device
 
 As a very first step, we will turn on a LED on the core device. Create a file ``led.py`` containing the following: ::
 
-  from artiq import *
-  from artiq.devices import corecom_serial, core, gpio_core
+    from artiq import *
+    from artiq.devices import corecom_serial, core, gpio_core
 
-  class LED(AutoContext):
-      parameters = "led"
+    class LED(AutoContext):
+        parameters = "led"
 
-      @kernel
-      def run(self):
-          self.led.set(1)
+        @kernel
+        def run(self):
+            self.led.set(1)
 
-  if __name__ == "__main__":
-      with corecom_serial.CoreCom() as com:
-          core_driver = core.Core(com)
-          led_driver = gpio_core.GPIOOut(core=core_driver, channel=0)
-          exp = LED(core=core_driver, led=led_driver)
-          exp.run()
+    if __name__ == "__main__":
+        with corecom_serial.CoreCom() as com:
+            core_driver = core.Core(com)
+            led_driver = gpio_core.GPIOOut(core=core_driver, channel=0)
+            exp = LED(core=core_driver, led=led_driver)
+            exp.run()
 
 The central part of our code is our ``LED`` class, that derives from :class:`artiq.language.core.AutoContext`. ``AutoContext`` is part of the mechanism that attaches device drivers and retrieves parameters according to a database. We are not using the database yet; instead, we import and create the device drivers and establish communication with the core device manually. The ``parameters`` string gives the list of devices (and parameters) that our class needs in order to operate. ``AutoContext`` sets them as object attributes, so our ``led`` parameter becomes accessible as ``self.led``. Finally, the ``@kernel`` decorator tells the system that the ``run`` method must be executed on the core device (instead of the host).
 
 Run this example with: ::
 
-  python led.py
+    python led.py
 
 The LED of the device should turn on. Congratulations! You have a basic ARTIQ system up and running.
 
 .. note::
-  ARTIQ requires Python 3, and you may need to use the ``python3`` command instead of ``python`` on some distributions.
+    ARTIQ requires Python 3, and you may need to use the ``python3`` command instead of ``python`` on some distributions.
 
 Host/core device interaction
 ----------------------------
@@ -41,22 +41,22 @@ A method or function running on the core device (which we call a "kernel") may c
 
 Modify the code as follows: ::
 
-  def input_led_state():
-      return int(input("Enter desired LED state: "))
+    def input_led_state():
+        return int(input("Enter desired LED state: "))
 
-  class LED(AutoContext):
-      parameters = "led"
+    class LED(AutoContext):
+        parameters = "led"
 
-      @kernel
-      def run(self):
-          self.led.set(input_led_state())
+        @kernel
+        def run(self):
+            self.led.set(input_led_state())
 
 You can then turn the LED off and on by entering 0 or 1 at the prompt that appears: ::
 
-  $ python led.py 
-  Enter desired LED state: 1
-  $ python led.py 
-  Enter desired LED state: 0
+    $ python led.py
+    Enter desired LED state: 1
+    $ python led.py
+    Enter desired LED state: 0
 
 What happens is the ARTIQ compiler notices that the ``input_led_state`` function does not have a ``@kernel`` decorator and thus must be executed on the host. When the core device calls it, it sends a request to the host to execute it. The host displays the prompt, collects user input, and sends the result back to the core device, which sets the LED state accordingly.
 
@@ -81,24 +81,24 @@ The point of running code on the core device is the ability to meet demanding re
 
 Create a new file ``rtio.py`` containing the following: ::
 
-  from artiq import *
-  from artiq.devices import corecom_serial, core, rtio_core
+    from artiq import *
+    from artiq.devices import corecom_serial, core, rtio_core
 
-  class Tutorial(AutoContext):
-      parameters = "o"
+    class Tutorial(AutoContext):
+        parameters = "o"
 
-      @kernel
-      def run(self):
-          for i in range(1000000):
-              self.o.pulse(2*us)
-              delay(2*us)
+        @kernel
+        def run(self):
+            for i in range(1000000):
+                self.o.pulse(2*us)
+                delay(2*us)
 
-  if __name__ == "__main__":
-      with corecom_serial.CoreCom() as com:
-          core_driver = core.Core(com)
-          out_driver = rtio_core.RTIOOut(core=core_driver, channel=1)
-          exp = Tutorial(core=core_driver, o=out_driver)
-          exp.run()
+    if __name__ == "__main__":
+        with corecom_serial.CoreCom() as com:
+            core_driver = core.Core(com)
+            out_driver = rtio_core.RTIOOut(core=core_driver, channel=1)
+            exp = Tutorial(core=core_driver, o=out_driver)
+            exp.run()
 
 Connect an oscilloscope or logic analyzer to the RTIO channel 1 (pin C11 on the Papilio Pro) and run ``python rtio.py``. Notice that the generated signal's period is precisely 4 microseconds, and that it has a duty cycle of precisely 50%. This is not what you would expect if the delay and the pulse were implemented with CPU-controlled GPIO: overhead from the loop management, function calls, etc. would increase the signal's period, and asymmetry in the overhead would cause duty cycle distortion.
 
@@ -106,23 +106,23 @@ Instead, inside the core device, output timing is generated by the gateware and 
 
 Try reducing the period of the generated waveform until the CPU cannot keep up with the generation of switching events and the underflow exception is raised. Then try catching it: ::
 
-  from artiq.devices.runtime_exceptions import RTIOUnderflow
+    from artiq.devices.runtime_exceptions import RTIOUnderflow
 
-  def print_underflow():
-      print("RTIO underflow occured")
+    def print_underflow():
+        print("RTIO underflow occured")
 
-  class Tutorial(AutoContext):
-      parameters = "led o"
+    class Tutorial(AutoContext):
+        parameters = "led o"
 
-      def run(self):
-          self.led.set(0)
-          try:
-              for i in range(1000000):
-                  self.o.pulse(...)
-                  delay(...)
-          except RTIOUnderflow:
-              self.led.set(1)
-              print_underflow()
+        def run(self):
+            self.led.set(0)
+            try:
+                for i in range(1000000):
+                    self.o.pulse(...)
+                    delay(...)
+            except RTIOUnderflow:
+                self.led.set(1)
+                print_underflow()
 
 Parallel and sequential blocks
 ------------------------------
@@ -131,24 +131,24 @@ It is often necessary that several pulses overlap one another. This can be expre
 
 Try the following code and observe the generated pulses on a 2-channel oscilloscope or logic analyzer: ::
 
-  for i in range(1000000):
-      with parallel:
-          self.o1.pulse(2*us)
-          self.o2.pulse(4*us)
-      delay(4*us)
+    for i in range(1000000):
+        with parallel:
+            self.o1.pulse(2*us)
+            self.o2.pulse(4*us)
+        delay(4*us)
 
 If you assign ``o2`` to the RTIO channel 2, the signal will be generated on the pin C10 of the Papilio Pro.
 
 Within a parallel block, some statements can be made sequential again using a ``with sequential`` construct. Observe the pulses generated by this code: ::
 
-  for i in range(1000000):
-      with parallel:
-          with sequential:
-              self.o1.pulse(2*us)
-              delay(1*us)
-              self.o1.pulse(1*us)
-          self.o2.pulse(4*us)
-      delay(4*us)
+    for i in range(1000000):
+        with parallel:
+            with sequential:
+                self.o1.pulse(2*us)
+                delay(1*us)
+                self.o1.pulse(1*us)
+            self.o2.pulse(4*us)
+        delay(4*us)
 
 .. warning::
-  In its current implementation, ARTIQ only supports those pulse sequences that can be interleaved at compile time into a sequential series of on/off events. Combinations of ``parallel``/``sequential`` blocks that require multithreading (due to the parallel execution of long loops, complex algorithms, or algorithms that depend on external input) will cause the compiler to return an error.
+    In its current implementation, ARTIQ only supports those pulse sequences that can be interleaved at compile time into a sequential series of on/off events. Combinations of ``parallel``/``sequential`` blocks that require multithreading (due to the parallel execution of long loops, complex algorithms, or algorithms that depend on external input) will cause the compiler to return an error.
