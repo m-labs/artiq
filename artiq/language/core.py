@@ -2,6 +2,7 @@
 
 from collections import namedtuple as _namedtuple
 from copy import copy as _copy
+from functools import wraps as _wraps
 
 
 class int64(int):
@@ -204,6 +205,7 @@ def kernel(arg):
     """
     if isinstance(arg, str):
         def real_decorator(k_function):
+            @_wraps(k_function)
             def run_on_core(exp, *k_args, **k_kwargs):
                 getattr(exp, arg).run(k_function, ((exp,) + k_args), k_kwargs)
             run_on_core.k_function_info = _KernelFunctionInfo(
@@ -211,6 +213,7 @@ def kernel(arg):
             return run_on_core
         return real_decorator
     else:
+        @_wraps(arg)
         def run_on_core(exp, *k_args, **k_kwargs):
             exp.core.run(arg, ((exp,) + k_args), k_kwargs)
         run_on_core.k_function_info = _KernelFunctionInfo(
