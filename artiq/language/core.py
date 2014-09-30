@@ -105,10 +105,10 @@ class AutoContext:
     At the top-level, it is possible to have a MVS that issues requests to a
     database and hardware management system.
 
-    :param parameters: A string containing the parameters that the object must
+    :var parameters: A string containing the parameters that the object must
         have. It must be a space-separated list of valid Python identifiers.
         Default: empty.
-    :param implicit_core: Automatically adds ``core`` to the parameter list.
+    :var implicit_core: Automatically adds ``core`` to the parameter list.
         Default: True.
 
     Example:
