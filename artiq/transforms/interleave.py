@@ -7,7 +7,7 @@ from artiq.transforms.tools import *
 # -1 statement duration could not be pre-determined
 #  0 statement has no effect on timeline
 # >0 statement is a static delay that advances the timeline
-#     by the given amount (in microcycles)
+#     by the given amount
 def _get_duration(stmt):
     if isinstance(stmt, (ast.Expr, ast.Assign)):
         return _get_duration(stmt.value)

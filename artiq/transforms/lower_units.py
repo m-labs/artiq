@@ -24,14 +24,11 @@ class _UnitsLowerer(ast.NodeTransformer):
             self.in_core_time = old_in_core_time
         elif fn == "Quantity":
             if self.in_core_time:
-                if node.args[1].id == "microcycle_units":
-                    node = node.args[0]
-                else:
-                    node = ast.copy_location(
-                        ast.BinOp(left=node.args[0],
-                                  op=ast.Div(),
-                                  right=value_to_ast(self.ref_period)),
-                        node)
+                node = ast.copy_location(
+                    ast.BinOp(left=node.args[0],
+                              op=ast.Div(),
+                              right=value_to_ast(self.ref_period)),
+                    node)
             else:
                 node = node.args[0]
         else:

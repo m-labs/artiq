@@ -49,7 +49,7 @@ class _ReferenceManager:
             self.use_count[kg] = 1
         for name in ("int", "round", "int64", "round64", "float", "array",
                      "range", "Fraction", "Quantity", "EncodedException",
-                     "s_unit", "Hz_unit", "microcycle_unit"):
+                     "s_unit", "Hz_unit"):
             self.use_count[name] = 1
 
     def new_name(self, base_name):

@@ -306,7 +306,7 @@ def delay(duration):
 
 
 def now():
-    """Retrieves the current RTIO time, in microcycles.
+    """Retrieves the current RTIO time, in seconds.
 
     """
     return _time_manager.get_time()
