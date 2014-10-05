@@ -22,7 +22,7 @@ class DDSTest(AutoContext):
         self.led.set(0)
 
 
-if __name__ == "__main__":
+def main():
     with corecom_serial.CoreCom() as com:
         coredev = core.Core(com)
         exp = DDSTest(
@@ -38,3 +38,6 @@ if __name__ == "__main__":
             led=gpio_core.GPIOOut(core=coredev, channel=1)
         )
         exp.run()
+
+if __name__ == "__main__":
+    main()

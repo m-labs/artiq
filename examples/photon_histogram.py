@@ -35,7 +35,7 @@ class PhotonHistogram(AutoContext):
             self.report(i, hist[i])
 
 
-if __name__ == "__main__":
+def main():
     with corecom_serial.CoreCom() as com:
         coredev = core.Core(com)
         exp = PhotonHistogram(
@@ -49,3 +49,6 @@ if __name__ == "__main__":
             nbins=100
         )
         exp.run()
+
+if __name__ == "__main__":
+    main()

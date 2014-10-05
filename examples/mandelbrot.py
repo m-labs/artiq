@@ -38,7 +38,10 @@ class Mandelbrot(AutoContext):
             self.row()
 
 
-if __name__ == "__main__":
+def main():
     with corecom_serial.CoreCom() as com:
         exp = Mandelbrot(core=core.Core(com))
         exp.run()
+
+if __name__ == "__main__":
+    main()

@@ -15,7 +15,7 @@ class SimpleSimulation(AutoContext):
                 self.d.pulse(400*MHz, 20*us)
 
 
-if __name__ == "__main__":
+def main():
     from artiq.sim import devices as sd
     from artiq.sim import time
 
@@ -28,3 +28,6 @@ if __name__ == "__main__":
     )
     exp.run()
     print(time.manager.format_timeline())
+
+if __name__ == "__main__":
+    main()

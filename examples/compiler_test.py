@@ -29,7 +29,7 @@ class CompilerTest(AutoContext):
         self.print_done()
 
 
-if __name__ == "__main__":
+def main():
     from artiq.devices import corecom_dummy, core, dds_core
 
     coredev = core.Core(corecom_dummy.CoreCom())
@@ -45,3 +45,6 @@ if __name__ == "__main__":
                        reg_channel=3, rtio_channel=3)
     )
     exp.run(3, 100*us)
+
+if __name__ == "__main__":
+    main()
