@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+
+import argparse
+import socket
+import json
+
+
+def _get_args():
+    parser = argparse.ArgumentParser(description="ARTIQ client")
+    parser.add_argument(
+        "-o", "--run-once", default=[], nargs=3,
+        action="append",
+        help="run experiment once. arguments: <path> <name> <timeout>")
+    parser.add_argument(
+        "-q", "--quit-master", default=False,
+        action="store_true",
+        help="causes the master to quit")
+    return parser.parse_args()
+
+
+def _send_obj(sock, obj):
+    line = json.dumps(obj) + "\n"
+    sock.sendall(line.encode())
+
+
+def main():
+    args = _get_args()
+
+    with socket.create_connection(("::1", 8888)) as sock:
+        for path, name, timeout in args.run_once:
+            obj = {
+                "action": "run_once",
+                "run_params": {
+                    "path": path,
+                    "name": name
+                },
+                "timeout": timeout
+            }
+            _send_obj(sock, obj)
+        if args.quit_master:
+            obj = {"action": "quit"}
+            _send_obj(sock, obj)
+
+if __name__ == "__main__":
+    main()

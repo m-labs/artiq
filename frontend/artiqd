@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+
+import asyncio
+import json
+
+from artiq.management.scheduler import Scheduler
+
+
+class Server:
+    def __init__(self, loop, scheduler):
+        self.scheduler = scheduler
+        self.terminate_notify = asyncio.Semaphore(0)
+        loop.run_until_complete(
+            asyncio.start_server(self.handle_connection, "::1", 8888))
+
+    @asyncio.coroutine
+    def handle_connection(self, reader, writer):
+        while True:
+            line = yield from reader.readline()
+            if not line:
+                writer.close()
+                return
+            obj = json.loads(line.decode())
+            action = obj["action"]
+            if action == "run_once":
+                yield from self.scheduler.add_run_once(obj["run_params"],
+                                                       float(obj["timeout"]))
+            elif action == "quit":
+                self.terminate_notify.release()
+            else:
+                print("warning: unknown action " + action)
+
+    @asyncio.coroutine
+    def task(self, scheduler_task):
+        yield from self.terminate_notify.acquire()
+        scheduler_task.cancel()
+
+
+def main():
+    loop = asyncio.get_event_loop()
+    try:
+        with Scheduler(loop) as scheduler:
+            server = Server(loop, scheduler)
+            scheduler_task = asyncio.Task(scheduler.task())
+            server_task = asyncio.Task(server.task(scheduler_task))
+            loop.run_until_complete(asyncio.wait([
+                scheduler_task,
+                server_task
+            ]))
+    finally:
+        loop.close()
+
+if __name__ == "__main__":
+    main()
