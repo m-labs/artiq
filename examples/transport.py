@@ -24,7 +24,8 @@ class Transport(AutoContext):
         self.transport.append(t, u, trigger=True)
         # append the reverse transport (from stop to 0)
         # both durations are the same in this case
-        self.transport.append(t[-1] - t[::-1], u[::-1], trigger=True)
+        self.transport.append(t[-1] - t[::-1], u[::-1], trigger=True,
+                name="from_stop")
         # closes the frame with a wait line before jumping back into the jump table
         # so that frame signal can be set before the jump
         # also mark the frame as closed and prevent further append()ing
@@ -57,7 +58,9 @@ class Transport(AutoContext):
         # leaves the ion in the dark at the transport endpoint
         delay(self.wait_at_stop)
         # transport back (again: trigger, delay())
-        self.transport.advance()
+        # can explicitly reference segment name
+        # yet segments can only be advance()ed in order
+        self.transport.advance(name="from_stop")
         # ensures all segments have been advanced() through, must leave pdq
         # in a state where the next frame can begin()
         self.transport.finish()
@@ -77,9 +80,6 @@ class Transport(AutoContext):
         self.transport()
         return self.detect()
 
-    def report(self, i, n):
-        self.histograms[i] = n
- 
     @kernel
     def repeat(self):
         hist = array(0, self.nbins)
@@ -91,28 +91,27 @@ class Transport(AutoContext):
             hist[n] += 1
 
         for i in range(self.nbins):
-            self.report(i, hist[i])
+            self.histogram.append(hist[i])
 
     def scan(self, stops):
-        self.histograms = [0] * self.nbins
+        self.histogram = []
         for s in stops:
             # non-kernel, calculate waveforms, build frames
             # could also be rpc'ed from repeat()
             self.prepare(s)
             # kernel part
             self.repeat()
-            # live update 2d plot with current self.histograms
-            # self.broadcast(self.histograms)
+            # live update 2d plot with current self.histogram
+            # broadcast(s, self.histogram)
 
 
 if __name__ == "__main__":
+    # data is usually precomputed offline
     data = dict(
             t=np.linspace(0, 10, 101), # waveform time
             u=np.random.randn(101, 4*3*3), # waveform data,
             # 4 devices, 3 board each, 3 dacs each
     )
-    # we would usually do
-    # np.savez("transport.npz")
 
     with corecom_serial.CoreCom() as com:
         coredev = core.Core(com)
@@ -121,16 +120,17 @@ if __name__ == "__main__":
             bd=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
                             reg_channel=0, rtio_channel=1),
             pmt=rtio_core.RTIOIn(core=coredev, channel=0),
-            # a compound pdq device that wraps multiple usb devices into one
+            # a compound pdq device that wraps multiple usb devices (looked up
+            # by usb "serial number"/id) into one
             electrodes=pdq2.CompoundPDQ2(core=coredev,
                 ids=["qc_q1_{}".format(i) for i in range(4)],
                 rtio_trigger=3, rtio_frame=(4, 5, 6)),
-            transport_data=data, # or: np.load("transport.npz")
+            transport_data=data, # or: json.load
             wait_at_stop=100*us,
             speed=1.5,
             repeats=100,
             nbins=100
         )
         # scan transport endpoint
-        stop = range(exp.transport_data["t"].shape[0], 10)
+        stop = range(0, len(exp.transport_data["t"]), 10)
         exp.scan(stop)
