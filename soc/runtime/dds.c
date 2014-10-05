@@ -28,25 +28,28 @@ static void fud_sync(void)
 static void fud(long long int fud_time)
 {
     int r;
-    static int previous_fud_time;
+    long long int fud_end_time;
+    static long long int previous_fud_end_time;
 
     r = rtio_reset_read();
     if(r)
-        previous_fud_time = 0;
+        previous_fud_end_time = 0;
     rtio_reset_write(0);
 
     rtio_chan_sel_write(RTIO_FUD_CHANNEL);
     if(fud_time < 0) {
         rtio_counter_update_write(1);
-        fud_time = rtio_counter_read() + 3000;
+        fud_time = rtio_counter_read() + 4000;
     }
-    if(fud_time < previous_fud_time)
+    fud_end_time = fud_time + 3*8;
+    if(fud_time < previous_fud_end_time)
         exception_raise(EID_RTIO_SEQUENCE_ERROR);
+    previous_fud_end_time = fud_end_time;
 
     rtio_o_timestamp_write(fud_time);
     rtio_o_value_write(1);
     rtio_o_we_write(1);
-    rtio_o_timestamp_write(fud_time+3*8);
+    rtio_o_timestamp_write(fud_end_time);
     rtio_o_value_write(0);
     rtio_o_we_write(1);
     if(rtio_o_error_read())
