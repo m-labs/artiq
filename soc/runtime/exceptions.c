@@ -30,6 +30,9 @@ int exception_getid(void)
 
 void exception_raise(int id)
 {
-    stored_id = id;
-    exception_longjmp(exception_contexts[--ec_top].jb);
+    if(ec_top > 0) {
+        stored_id = id;
+        exception_longjmp(exception_contexts[--ec_top].jb);
+    } else
+        corecom_log("WARNING: uncaught exception, ID=%d\n", id);
 }
