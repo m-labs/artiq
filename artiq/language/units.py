@@ -41,9 +41,9 @@ class Quantity:
             prefix_str = _prefixes_str[r_prefix]
             if prefix_str == "_":
                 prefix_str = ""
-            return str(r_amount) + " " + prefix_str + self.unit.name
+            return str(r_amount) + " " + prefix_str + self.unit
         else:
-            return str(r_amount) + " " + self.unit.name
+            return str(r_amount) + " " + self.unit
 
     # mul/div
     def __mul__(self, other):
