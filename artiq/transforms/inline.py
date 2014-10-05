@@ -48,8 +48,7 @@ class _ReferenceManager:
         for kg in core_language.kernel_globals:
             self.use_count[kg] = 1
         for name in ("int", "round", "int64", "round64", "float", "array",
-                     "range", "Fraction", "Quantity", "EncodedException",
-                     "s_unit", "Hz_unit"):
+                     "range", "Fraction", "Quantity", "EncodedException"):
             self.use_count[name] = 1
 
     def new_name(self, base_name):

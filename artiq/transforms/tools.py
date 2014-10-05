@@ -35,8 +35,7 @@ def value_to_ast(value):
         if isinstance(value, units.Quantity):
             return ast.Call(
                 func=ast.Name("Quantity", ast.Load()),
-                args=[value_to_ast(value.amount),
-                      ast.Name(value.unit.name+"_unit", ast.Load())],
+                args=[value_to_ast(value.amount), ast.Str(value.unit)],
                 keywords=[], starargs=None, kwargs=None)
         return None
 

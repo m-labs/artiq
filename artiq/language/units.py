@@ -5,17 +5,6 @@ _prefixes_str = "pnum_kMG"
 _smallest_prefix = _Fraction(1, 10**12)
 
 
-class Unit:
-    """Represents a fundamental unit (second, hertz, ...).
-
-    """
-    def __init__(self, name):
-        self.name = name
-
-    def __eq__(self, other):
-        return isinstance(other, Unit) and self.name == other.name
-
-
 class DimensionError(Exception):
     """Exception raised when attempting operations on incompatible units
     (e.g. adding seconds and hertz).
@@ -25,7 +14,8 @@ class DimensionError(Exception):
 
 
 class Quantity:
-    """Represents an amount in a given fundamental unit (:class:`Unit`).
+    """Represents an amount in a given fundamental unit (identified by a
+    string).
 
     The amount can be of any Python numerical type (integer, float,
     Fraction, ...).
@@ -144,14 +134,12 @@ class Quantity:
         return self.amount >= other.amount
 
 
-def _register_unit(name, prefixes):
-    unit = Unit(name)
-    globals()[name+"_unit"] = unit
+def _register_unit(unit, prefixes):
     amount = _smallest_prefix
     for prefix in _prefixes_str:
         if prefix in prefixes:
             quantity = Quantity(amount, unit)
-            full_name = prefix + name if prefix != "_" else name
+            full_name = prefix + unit if prefix != "_" else unit
             globals()[full_name] = quantity
         amount *= 1000
 
