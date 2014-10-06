@@ -34,12 +34,12 @@ class DDS(AutoContext):
 
         """
         if self.previous_frequency != frequency:
-            if self.sw.previous_timestamp != now():
+            if self.sw.previous_timestamp != time_to_cycles(now()):
                 self.sw.sync()
             if self.sw.previous_value:
                 # Channel is already on.
                 # Precise timing of frequency change is required.
-                fud_time = now()
+                fud_time = time_to_cycles(now())
             else:
                 # Channel is off.
                 # Use soft timing on FUD to prevent conflicts when

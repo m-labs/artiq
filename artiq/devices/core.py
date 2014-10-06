@@ -48,7 +48,7 @@ class Core:
             self, k_function, k_args, k_kwargs)
         _debug_unparse("inline", func_def)
 
-        lower_units(func_def, self.runtime_env.ref_period)
+        lower_units(func_def, rpc_map)
         _debug_unparse("lower_units", func_def)
 
         fold_constants(func_def)
@@ -60,7 +60,9 @@ class Core:
         interleave(func_def)
         _debug_unparse("interleave", func_def)
 
-        lower_time(func_def, getattr(self.runtime_env, "initial_time", 0))
+        lower_time(func_def,
+                   getattr(self.runtime_env, "initial_time", 0),
+                   self.runtime_env.ref_period)
         _debug_unparse("lower_time", func_def)
 
         fold_constants(func_def)

@@ -6,7 +6,7 @@ class _RTIOBase(AutoContext):
     parameters = "channel"
 
     def build(self):
-        self.previous_timestamp = int64(0)
+        self.previous_timestamp = int64(0)  # in RTIO cycles
         self.previous_value = 0
 
     kernel_attr = "previous_timestamp previous_value"
@@ -17,14 +17,16 @@ class _RTIOBase(AutoContext):
 
     @kernel
     def _set_value(self, value):
-        if now() < self.previous_timestamp:
+        if time_to_cycles(now()) < self.previous_timestamp:
             raise RTIOSequenceError
         if self.previous_value != value:
-            if self.previous_timestamp == now():
-                syscall("rtio_replace", now(), self.channel, value)
+            if self.previous_timestamp == time_to_cycles(now()):
+                syscall("rtio_replace", time_to_cycles(now()),
+                        self.channel, value)
             else:
-                syscall("rtio_set", now(), self.channel, value)
-            self.previous_timestamp = now()
+                syscall("rtio_set", time_to_cycles(now()),
+                        self.channel, value)
+            self.previous_timestamp = time_to_cycles(now())
             self.previous_value = value
 
 

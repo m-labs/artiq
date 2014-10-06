@@ -4,21 +4,52 @@ from artiq.transforms.tools import value_to_ast
 from artiq.language.core import int64
 
 
-def _insert_int64(node):
+def _time_to_cycles(ref_period, node):
+    divided = ast.copy_location(
+        ast.BinOp(left=node,
+                  op=ast.Div(),
+                  right=value_to_ast(ref_period)),
+        node)
     return ast.copy_location(
         ast.Call(func=ast.Name("int64", ast.Load()),
-                 args=[node],
+                 args=[divided],
                  keywords=[], starargs=[], kwargs=[]),
+        divided)
+
+
+def _cycles_to_time(ref_period, node):
+    return ast.copy_location(
+        ast.BinOp(left=node,
+                  op=ast.Mult(),
+                  right=value_to_ast(ref_period)),
         node)
 
 
 class _TimeLowerer(ast.NodeTransformer):
+    def __init__(self, ref_period):
+        self.ref_period = ref_period
+
     def visit_Call(self, node):
-        if isinstance(node.func, ast.Name) and node.func.id == "now":
+        # optimize time_to_cycles(now()) -> now
+        if (isinstance(node.func, ast.Name)
+                and node.func.id == "time_to_cycles"
+                and isinstance(node.args[0], ast.Call)
+                and isinstance(node.args[0].func, ast.Name)
+                and node.args[0].func.id == "now"):
             return ast.copy_location(ast.Name("now", ast.Load()), node)
-        else:
-            self.generic_visit(node)
-            return node
+
+        self.generic_visit(node)
+        if isinstance(node.func, ast.Name):
+            funcname = node.func.id
+            if funcname == "now":
+                return _cycles_to_time(
+                    self.ref_period, 
+                    ast.copy_location(ast.Name("now", ast.Load()), node))
+            elif funcname == "time_to_cycles":
+                return _time_to_cycles(self.ref_period, node)
+            elif funcname == "cycles_to_time":
+                return _cycles_to_time(self.ref_period, node)
+        return node
 
     def visit_Expr(self, node):
         self.generic_visit(node)
@@ -29,12 +60,14 @@ class _TimeLowerer(ast.NodeTransformer):
                 return ast.copy_location(
                     ast.AugAssign(target=ast.Name("now", ast.Store()),
                                   op=ast.Add(),
-                                  value=_insert_int64(node.value.args[0])),
+                                  value=_time_to_cycles(self.ref_period,
+                                                        node.value.args[0])),
                     node)
             elif funcname == "at":
                 return ast.copy_location(
                     ast.Assign(targets=[ast.Name("now", ast.Store())],
-                               value=_insert_int64(node.value.args[0])),
+                               value=_time_to_cycles(self.ref_period,
+                                                     node.value.args[0])),
                     node)
             else:
                 return node
@@ -42,8 +75,8 @@ class _TimeLowerer(ast.NodeTransformer):
             return node
 
 
-def lower_time(func_def, initial_time):
-    _TimeLowerer().visit(func_def)
+def lower_time(func_def, initial_time, ref_period):
+    _TimeLowerer(ref_period).visit(func_def)
     func_def.body.insert(0, ast.copy_location(
         ast.Assign(targets=[ast.Name("now", ast.Store())],
                    value=value_to_ast(int64(initial_time))),
