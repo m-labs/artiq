@@ -23,7 +23,7 @@ class DDS(AutoContext):
         self.previous_frequency = 0*MHz
         self.sw = rtio_core.RTIOOut(self, channel=self.rtio_channel)
 
-    kernel_attr = "previous_frequency previous_timestamp"
+    kernel_attr = "previous_frequency"
 
     @kernel
     def on(self, frequency):
