@@ -187,6 +187,32 @@ class VFraction(VGeneric):
     def o_ne(self, other, builder):
         return self._o_eq_inv(other, builder, True)
 
+    def _o_cmp(self, other, icmp, builder):
+        diff = self.o_sub(other, builder)
+        if diff is NotImplemented:
+            return NotImplemented
+        r = VBool()
+        if builder is not None:
+            diff = diff.auto_load(builder)
+            a = builder.extract_element(
+                diff, lc.Constant.int(lc.Type.int(), 0))
+            zero = lc.Constant.int(lc.Type.int(64), 0)
+            ssa_r = builder.icmp(icmp, a, zero)
+            r.auto_store(builder, ssa_r)
+        return r
+
+    def o_lt(self, other, builder):
+        return self._o_cmp(other, lc.ICMP_SLT, builder)
+
+    def o_le(self, other, builder):
+        return self._o_cmp(other, lc.ICMP_SLE, builder)
+
+    def o_gt(self, other, builder):
+        return self._o_cmp(other, lc.ICMP_SGT, builder)
+
+    def o_ge(self, other, builder):
+        return self._o_cmp(other, lc.ICMP_SGE, builder)
+
     def _o_addsub(self, other, builder, sub, invert=False):
         if not isinstance(other, (VInt, VFraction)):
             return NotImplemented
