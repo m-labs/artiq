@@ -131,6 +131,12 @@ class Quantity:
     def __rsub__(self, other):
         return self._binop(other, "__rsub__", addsub_dimension)
 
+    def __mod__(self, other):
+        return self._binop(other, "__mod__", addsub_dimension)
+
+    def __rmod__(self, other):
+        return self._binop(other, "__rmod__", addsub_dimension)
+
     # comparisons
     def _cmp(self, other, opf_name):
         if isinstance(other, Quantity):
