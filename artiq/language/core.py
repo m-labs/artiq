@@ -232,6 +232,8 @@ class _DummyTimeManager:
     take_time = _not_implemented
     get_time = _not_implemented
     set_time = _not_implemented
+    time_to_cycles = _not_implemented
+    cycles_to_time = _not_implemented
 
 _time_manager = _DummyTimeManager()
 
@@ -265,7 +267,9 @@ def set_syscall_manager(syscall_manager):
 
 # global namespace for kernels
 
-kernel_globals = "sequential", "parallel", "delay", "now", "at", "syscall"
+kernel_globals = ("sequential", "parallel",
+    "delay", "now", "at", "time_to_cycles", "cycles_to_time",
+    "syscall")
 
 
 class _Sequential:
@@ -317,6 +321,20 @@ def at(time):
 
     """
     _time_manager.set_time(time)
+
+
+def time_to_cycles(time):
+    """Converts time to the corresponding number of RTIO cycles.
+
+    """
+    return _time_manager.time_to_cycles(time)
+
+
+def cycles_to_time(cycles):
+    """Converts RTIO cycles to the corresponding time.
+
+    """
+    return _time_manager.cycles_to_time(cycles)
 
 
 def syscall(*args):

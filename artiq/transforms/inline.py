@@ -104,6 +104,7 @@ class _ReferenceManager:
 
 _embeddable_calls = (
     core_language.delay, core_language.at, core_language.now,
+    core_language.time_to_cycles, core_language.cycles_to_time,
     core_language.syscall,
     range, int, float, round,
     core_language.int64, core_language.round64, core_language.array,
