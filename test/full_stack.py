@@ -1,4 +1,5 @@
 import unittest
+from operator import itemgetter
 
 from artiq import *
 from artiq.devices import corecom_serial, core, runtime_exceptions, rtio_core
@@ -36,22 +37,29 @@ class _Primes(AutoContext):
 
 
 class _PulseLogger(AutoContext):
-    parameters = "name"
+    parameters = "output_list name"
 
-    def print_on(self, t, f):
-        print("{} ON:{:4} @{}".format(self.name, f, t))
+    def _append(self, t, l, f):
+        if not hasattr(self, "first_timestamp"):
+            self.first_timestamp = t
+        self.output_list.append((self.name, t-self.first_timestamp, l, f))
 
-    def print_off(self, t):
-        print("{}   OFF   @{}".format(self.name, t))
+    def on(self, t, f):
+        self._append(t, True, f)
+
+    def off(self, t):
+        self._append(t, False, 0)
 
     @kernel
     def pulse(self, f, duration):
-        self.print_on(int(now()), f)
+        self.on(int(now().amount*1000000000), f)
         delay(duration)
-        self.print_off(int(now()))
+        self.off(int(now().amount*1000000000))
 
 
 class _Pulses(AutoContext):
+    parameters = "output_list"
+
     def build(self):
         for name in "a", "b", "c", "d":
             pl = _PulseLogger(self, name=name)
@@ -123,9 +131,14 @@ class SimCompareCase(unittest.TestCase):
         self.assertEqual(l_device, l_host)
 
     def test_pulses(self):
-        # TODO: compare results on host and device
-        # (this requires better unit management in the compiler)
-        _run_on_device(_Pulses)
+        l_device, l_host = [], []
+        _run_on_device(_Pulses, output_list=l_device)
+        _run_on_host(_Pulses, output_list=l_host)
+        l_host = sorted(l_host, key=itemgetter(1))
+        for channel in "a", "b", "c", "d":
+            c_device = [x for x in l_device if x[0] == channel]
+            c_host = [x for x in l_host if x[0] == channel]
+            self.assertEqual(c_device, c_host)
 
     def test_exceptions(self):
         t_device, t_host = [], []
