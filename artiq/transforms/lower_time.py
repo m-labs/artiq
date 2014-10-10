@@ -46,9 +46,9 @@ class _TimeLowerer(ast.NodeTransformer):
                     self.ref_period, 
                     ast.copy_location(ast.Name("now", ast.Load()), node))
             elif funcname == "time_to_cycles":
-                return _time_to_cycles(self.ref_period, node)
+                return _time_to_cycles(self.ref_period, node.args[0])
             elif funcname == "cycles_to_time":
-                return _cycles_to_time(self.ref_period, node)
+                return _cycles_to_time(self.ref_period, node.args[0])
         return node
 
     def visit_Expr(self, node):
