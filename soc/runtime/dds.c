@@ -31,10 +31,10 @@ static void fud(long long int fud_time)
     long long int fud_end_time;
     static long long int previous_fud_end_time;
 
-    r = rtio_reset_read();
+    r = rtio_reset_counter_read();
     if(r)
         previous_fud_end_time = 0;
-    rtio_reset_write(0);
+    rtio_reset_counter_write(0);
 
     rtio_chan_sel_write(RTIO_FUD_CHANNEL);
     if(fud_time < 0) {
@@ -52,12 +52,15 @@ static void fud(long long int fud_time)
     rtio_o_timestamp_write(fud_end_time);
     rtio_o_value_write(0);
     rtio_o_we_write(1);
-    if(rtio_o_error_read())
+    if(rtio_o_error_read()) {
+        rtio_reset_logic_write(1);
+        rtio_reset_logic_write(0);
         exception_raise(EID_RTIO_UNDERFLOW);
+    }
 
     if(r) {
         fud_sync();
-        rtio_reset_write(1);
+        rtio_reset_counter_write(1);
     }
 }
 

@@ -8,8 +8,8 @@ from artiqlib.rtio.rbus import get_fine_ts_width
 
 
 class _RTIOBankO(Module):
-    def __init__(self, rbus, counter_width, fine_ts_width,
-                 fifo_depth, counter_init):
+    def __init__(self, rbus, counter, fine_ts_width, fifo_depth):
+        counter_width = flen(counter)
         self.sel = Signal(max=len(rbus))
         self.timestamp = Signal(counter_width+fine_ts_width)
         self.value = Signal(2)
@@ -18,16 +18,13 @@ class _RTIOBankO(Module):
         self.replace = Signal()
         self.underflow = Signal()
         self.level = Signal(bits_for(fifo_depth))
-        self.counter = Signal(counter_width, reset=counter_init)
 
         # # #
-
-        self.sync += self.counter.eq(self.counter + 1)
 
         # detect underflows
         self.sync += \
             If((self.we & self.writable) | self.replace,
-                If(self.timestamp[fine_ts_width:] < self.counter + 2,
+                If(self.timestamp[fine_ts_width:] < counter + 2,
                     self.underflow.eq(1))
             )
 
@@ -50,7 +47,7 @@ class _RTIOBankO(Module):
             # FIFO read
             self.comb += [
                 chif.o_stb.eq(fifo.readable &
-                    (fifo.dout.timestamp[fine_ts_width:] == self.counter)),
+                    (fifo.dout.timestamp[fine_ts_width:] == counter)),
                 chif.o_value.eq(fifo.dout.value),
                 fifo.re.eq(chif.o_stb)
             ]
@@ -66,7 +63,8 @@ class _RTIOBankO(Module):
 
 
 class _RTIOBankI(Module):
-    def __init__(self, rbus, counter_width, fine_ts_width, fifo_depth):
+    def __init__(self, rbus, counter, fine_ts_width, fifo_depth):
+        counter_width = flen(counter)
         self.sel = Signal(max=len(rbus))
         self.timestamp = Signal(counter_width+fine_ts_width)
         self.value = Signal()
@@ -75,10 +73,7 @@ class _RTIOBankI(Module):
         self.overflow = Signal()
         self.pileup = Signal()
 
-        ###
-
-        counter = Signal(counter_width)
-        self.sync += counter.eq(counter + 1)
+        # # #
 
         timestamps = []
         values = []
@@ -143,17 +138,30 @@ class RTIO(Module, AutoCSR):
     def __init__(self, phy, clk_freq, counter_width=32, ofifo_depth=64, ififo_depth=64):
         fine_ts_width = get_fine_ts_width(phy.rbus)
 
+        # Counters
+        reset_counter = Signal()
+        o_counter = Signal(counter_width, reset=phy.loopback_latency)
+        i_counter = Signal(counter_width)
+        self.sync += \
+            If(reset_counter,
+                o_counter.eq(o_counter.reset),
+                i_counter.eq(i_counter.reset)
+            ).Else(
+                o_counter.eq(o_counter + 1),
+                i_counter.eq(i_counter + 1)
+            )
+
         # Submodules
         self.submodules.bank_o = InsertReset(_RTIOBankO(
             phy.rbus,
-            counter_width, fine_ts_width, ofifo_depth,
-            phy.loopback_latency))
+            o_counter, fine_ts_width, ofifo_depth))
         self.submodules.bank_i = InsertReset(_RTIOBankI(
             phy.rbus,
-            counter_width, fine_ts_width, ofifo_depth))
+            i_counter, fine_ts_width, ofifo_depth))
 
         # CSRs
-        self._r_reset = CSRStorage(reset=1)
+        self._r_reset_logic = CSRStorage(reset=1)
+        self._r_reset_counter = CSRStorage(reset=1)
         self._r_chan_sel = CSRStorage(flen(self.bank_o.sel))
 
         self._r_oe = CSR()
@@ -194,7 +202,7 @@ class RTIO(Module, AutoCSR):
 
         # Output/Gate
         self.comb += [
-            self.bank_o.reset.eq(self._r_reset.storage),
+            self.bank_o.reset.eq(self._r_reset_logic.storage),
             self.bank_o.sel.eq(self._r_chan_sel.storage),
             self.bank_o.timestamp.eq(self._r_o_timestamp.storage),
             self.bank_o.value.eq(self._r_o_value.storage),
@@ -207,7 +215,7 @@ class RTIO(Module, AutoCSR):
 
         # Input
         self.comb += [
-            self.bank_i.reset.eq(self._r_reset.storage),
+            self.bank_i.reset.eq(self._r_reset_logic.storage),
             self.bank_i.sel.eq(self._r_chan_sel.storage),
             self._r_i_timestamp.status.eq(self.bank_i.timestamp),
             self._r_i_value.status.eq(self.bank_i.value),
@@ -217,11 +225,12 @@ class RTIO(Module, AutoCSR):
                 Cat(self.bank_i.overflow, self.bank_i.pileup))
         ]
 
-        # Counter
+        # Counter access
+        self.comb += reset_counter.eq(self._r_reset_counter.storage)
         self.sync += \
            If(self._r_counter_update.re,
                self._r_counter.status.eq(Cat(Replicate(0, fine_ts_width),
-                                             self.bank_o.counter))
+                                             o_counter))
            )
 
         # Frequency

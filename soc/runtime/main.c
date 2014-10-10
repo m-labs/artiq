@@ -110,6 +110,7 @@ int main(void)
     uart_init();
 
     puts("ARTIQ runtime built "__DATE__" "__TIME__"\n");
+    rtio_init();
     dds_init();
     blink_led();
     corecom_serve(load_object, run_kernel);

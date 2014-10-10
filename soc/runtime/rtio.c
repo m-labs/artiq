@@ -5,7 +5,9 @@
 
 void rtio_init(void)
 {
-    rtio_reset_write(1);
+    rtio_reset_counter_write(1);
+    rtio_reset_logic_write(1);
+    rtio_reset_logic_write(0);
 }
 
 void rtio_oe(int channel, int oe)
@@ -16,14 +18,17 @@ void rtio_oe(int channel, int oe)
 
 void rtio_set(long long int timestamp, int channel, int value)
 {
-    rtio_reset_write(0);
+    rtio_reset_counter_write(0);
     rtio_chan_sel_write(channel);
     rtio_o_timestamp_write(timestamp);
     rtio_o_value_write(value);
     while(!rtio_o_writable_read());
     rtio_o_we_write(1);
-    if(rtio_o_error_read())
+    if(rtio_o_error_read()) {
+        rtio_reset_logic_write(1);
+        rtio_reset_logic_write(0);
         exception_raise(EID_RTIO_UNDERFLOW);
+    }
 }
 
 void rtio_replace(long long int timestamp, int channel, int value)
@@ -32,8 +37,11 @@ void rtio_replace(long long int timestamp, int channel, int value)
     rtio_o_timestamp_write(timestamp);
     rtio_o_value_write(value);
     rtio_o_replace_write(1);
-    if(rtio_o_error_read())
+    if(rtio_o_error_read()) {
+        rtio_reset_logic_write(1);
+        rtio_reset_logic_write(0);
         exception_raise(EID_RTIO_UNDERFLOW);
+    }
 }
 
 void rtio_sync(int channel)
