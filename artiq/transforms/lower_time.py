@@ -17,6 +17,15 @@ def _time_to_cycles(ref_period, node):
         divided)
 
 
+def _time_to_cycles_opt(ref_period, node):
+    if (isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "cycles_to_time"):
+        return node.args[0]
+    else:
+        return _time_to_cycles(ref_period, node)
+
+
 def _cycles_to_time(ref_period, node):
     return ast.copy_location(
         ast.BinOp(left=node,
@@ -52,27 +61,27 @@ class _TimeLowerer(ast.NodeTransformer):
         return node
 
     def visit_Expr(self, node):
-        self.generic_visit(node)
+        r = node
         if (isinstance(node.value, ast.Call)
                 and isinstance(node.value.func, ast.Name)):
             funcname = node.value.func.id
             if funcname == "delay":
-                return ast.copy_location(
+                r = ast.copy_location(
                     ast.AugAssign(target=ast.Name("now", ast.Store()),
                                   op=ast.Add(),
-                                  value=_time_to_cycles(self.ref_period,
-                                                        node.value.args[0])),
+                                  value=_time_to_cycles_opt(
+                                    self.ref_period,
+                                    node.value.args[0])),
                     node)
             elif funcname == "at":
-                return ast.copy_location(
+                r = ast.copy_location(
                     ast.Assign(targets=[ast.Name("now", ast.Store())],
-                               value=_time_to_cycles(self.ref_period,
-                                                     node.value.args[0])),
+                               value=_time_to_cycles_opt(
+                                    self.ref_period,
+                                    node.value.args[0])),
                     node)
-            else:
-                return node
-        else:
-            return node
+        self.generic_visit(r)
+        return r
 
 
 def lower_time(func_def, initial_time, ref_period):
