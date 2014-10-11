@@ -1,0 +1,12 @@
+diff --git a/llvm/core.py b/llvm/core.py
+index 20ad062..245ac65 100644
+--- a/llvm/core.py
++++ b/llvm/core.py
+@@ -379,6 +379,7 @@ class AttrEnum(Enum):
+     ATTR_NAKED              = AttrVal.Naked
+     ATTR_INLINE_HINT        = AttrVal.InlineHint
+     ATTR_STACK_ALIGNMENT    = AttrVal.StackAlignment
++    ATTR_RETURNS_TWICE      = AttrVal.ReturnsTwice
+ 
+ AttrEnum.declare()
+ 

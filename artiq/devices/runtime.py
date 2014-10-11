@@ -65,6 +65,7 @@ class LinkInterface:
         func_type = lc.Type.function(lc.Type.int(), [lc.Type.pointer(lc.Type.int(8))])
         function = self.llvm_module.add_function(func_type, "__eh_setjmp")
         function.add_attribute(lc.ATTR_NO_UNWIND)
+        function.add_attribute(lc.ATTR_RETURNS_TWICE)
 
         func_type = lc.Type.function(lc.Type.pointer(lc.Type.int(8)), [])
         self.llvm_module.add_function(func_type, "__eh_push")
