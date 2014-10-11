@@ -8,7 +8,7 @@ Core language reference
     :members:
 
 :mod:`artiq.language.units` module
----------------------------------
+----------------------------------
 
 .. automodule:: artiq.language.units
     :members:

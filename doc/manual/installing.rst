@@ -72,13 +72,13 @@ The main dependency of ARTIQ is LLVM and its Python bindings (http://llvmpy.org)
     $ git clone https://github.com/openrisc/llvm-or1k
     $ cd llvm-or1k
     $ git checkout b3a48efb2c05ed6cedc5395ae726c6a6573ef3ba
-    $ patch -p1 < /path_to/ARTIQ/patches/llvm/*
+    $ cat /path_to/artiq/patches/llvm/* | patch -p1
 
     $ cd tools
     $ git clone https://github.com/openrisc/clang-or1k clang
     $ cd clang
     $ git checkout 02d831c7e7dc1517abed9cc96abdfb937af954eb
-    $ patch -p1 < /path_to/ARTIQ/patches/clang/*
+    $ cat /path_to/artiq/patches/clang/* | patch -p1
 
     $ cd ../..
     $ mkdir build && cd build
@@ -90,7 +90,7 @@ The main dependency of ARTIQ is LLVM and its Python bindings (http://llvmpy.org)
     $ git clone https://github.com/llvmpy/llvmpy
     $ cd llvmpy
     $ git checkout 7af2f7140391d4f708adf2721e84f23c1b89e97a
-    $ patch -p1 < /path_to/ARTIQ/patches/llvmpy/*
+    $ cat /path_to/artiq/patches/llvmpy/* | patch -p1
     $ LLVM_CONFIG_PATH=/usr/local/llvm-or1k/bin/llvm-config sudo -E python setup.py install
 
 .. note::
