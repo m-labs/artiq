@@ -4,6 +4,8 @@ from collections import namedtuple as _namedtuple
 from copy import copy as _copy
 from functools import wraps as _wraps
 
+from artiq.language import units as _units
+
 
 class int64(int):
     """64-bit integers for static compilation.
@@ -232,8 +234,6 @@ class _DummyTimeManager:
     take_time = _not_implemented
     get_time = _not_implemented
     set_time = _not_implemented
-    time_to_cycles = _not_implemented
-    cycles_to_time = _not_implemented
 
 _time_manager = _DummyTimeManager()
 
@@ -323,18 +323,30 @@ def at(time):
     _time_manager.set_time(time)
 
 
-def time_to_cycles(time):
+def time_to_cycles(time, core=None):
     """Converts time to the corresponding number of RTIO cycles.
 
+    :param time: Time (in seconds) to convert.
+    :param core: Core device for which to perform the conversion. Specify only
+        when running in the interpreter (not in kernel).
+
     """
-    return _time_manager.time_to_cycles(time)
+    if core is None:
+        raise ValueError("Core device must be specified for time conversion")
+    return int64(time.amount//core.runtime_env.ref_period)
 
 
-def cycles_to_time(cycles):
+def cycles_to_time(cycles, core=None):
     """Converts RTIO cycles to the corresponding time.
 
+    :param time: Cycle count to convert.
+    :param core: Core device for which to perform the conversion. Specify only
+        when running in the interpreter (not in kernel).
+
     """
-    return _time_manager.cycles_to_time(cycles)
+    if core is None:
+        raise ValueError("Core device must be specified for time conversion")
+    return cycles*core.runtime_env.ref_period*_units.s
 
 
 def syscall(*args):
