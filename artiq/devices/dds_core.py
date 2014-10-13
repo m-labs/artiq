@@ -50,9 +50,10 @@ class DDS(AutoContext):
 
         """
         if self.previous_frequency != frequency:
-            if self.sw.previous_timestamp != time_to_cycles(now()):
+            merge = self.sw.previous_timestamp == time_to_cycles(now())
+            if not merge:
                 self.sw.sync()
-            if self.sw.previous_value:
+            if merge or bool(self.sw.previous_value):
                 # Channel is already on.
                 # Precise timing of frequency change is required.
                 fud_time = time_to_cycles(now())
