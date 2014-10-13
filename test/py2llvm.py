@@ -15,10 +15,10 @@ def test_base_types(choice):
     a = 2          # promoted later to int64
     b = a + 1      # initially int32, becomes int64 after a is promoted
     c = b//2       # initially int32, becomes int64 after b is promoted
-    d = 4          # stays int32
+    d = 4 and 5    # stays int32
     x = int64(7)
     a += x         # promotes a to int64
-    foo = True | True
+    foo = True | True or False
     bar = None
     myf = 4.5
     myf2 = myf + x
@@ -181,8 +181,10 @@ def array_test():
     acc = 0
     for i in range(5):
         for j in range(5):
-            if i + j == 2:
+            if i + j == 2 or i + j == 1:
                 continue
+            if i and j and a[i][j]:
+                acc += 1
             acc += a[i][j]
     return acc
 

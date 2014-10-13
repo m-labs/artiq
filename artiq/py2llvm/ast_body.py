@@ -100,6 +100,57 @@ class Visitor:
                                           self.visit_expression(node.right),
                                           self.builder)
 
+    def _visit_expr_BoolOp(self, node):
+        if self.builder is not None:
+            initial_block = self.builder.basic_block
+            function = initial_block.function
+            merge_block = function.append_basic_block("b_merge")
+
+        test_blocks = []
+        test_values = []
+        for i, value in enumerate(node.values):
+            if self.builder is not None:
+                test_block = function.append_basic_block("b_{}_test".format(i))
+                test_blocks.append(test_block)
+                self.builder.position_at_end(test_block)
+            test_values.append(self.visit_expression(value))
+
+        result = test_values[0].new()
+        for value in test_values[1:]:
+            result.merge(value)
+
+        if self.builder is not None:
+            self.builder.position_at_end(initial_block)
+            result.alloca(self.builder, "b_result")
+            self.builder.branch(test_blocks[0])
+
+            next_test_blocks = test_blocks[1:]
+            next_test_blocks.append(None)
+            for block, next_block, value in zip(test_blocks,
+                                                next_test_blocks,
+                                                test_values):
+                self.builder.position_at_end(block)
+                bval = value.o_bool(self.builder)
+                result.auto_store(self.builder,
+                                  value.auto_load(self.builder))
+                if next_block is None:
+                    self.builder.branch(merge_block)
+                else:
+                    if isinstance(node.op, ast.Or):
+                        self.builder.cbranch(bval.auto_load(self.builder),
+                                             merge_block,
+                                             next_block)
+                    elif isinstance(node.op, ast.And):
+                        self.builder.cbranch(bval.auto_load(self.builder),
+                                             next_block,
+                                             merge_block)
+                    else:
+                        raise NotImplementedError
+            self.builder.position_at_end(merge_block)
+
+        return result
+
+
     def _visit_expr_Compare(self, node):
         comparisons = []
         old_comparator = self.visit_expression(node.left)
