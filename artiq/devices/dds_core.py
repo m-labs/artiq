@@ -25,6 +25,22 @@ class DDS(AutoContext):
 
     kernel_attr = "previous_frequency"
 
+    @portable
+    def frequency_to_ftw(self, frequency):
+        """Returns the frequency tuning word corresponding to the given
+        frequency.
+
+        """
+        return int(2**32*frequency/self.dds_sysclk)
+
+    @portable
+    def ftw_to_frequency(self, ftw):
+        """Returns the frequency corresponding to the given frequency tuning
+        word.
+
+        """
+        return ftw*self.dds_sysclk/2**32
+
     @kernel
     def on(self, frequency):
         """Sets the DDS channel to the specified frequency and turns it on.
@@ -47,7 +63,7 @@ class DDS(AutoContext):
                 # the same time.
                 fud_time = -1
             syscall("dds_program", self.reg_channel,
-                    int(2**32*frequency/self.dds_sysclk),
+                    self.frequency_to_ftw(frequency),
                     fud_time)
             self.previous_frequency = frequency
         self.sw.on()
