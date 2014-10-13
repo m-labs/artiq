@@ -150,14 +150,13 @@ class Visitor:
 
         return result
 
-
     def _visit_expr_Compare(self, node):
         comparisons = []
         old_comparator = self.visit_expression(node.left)
         for op, comparator_a in zip(node.ops, node.comparators):
             comparator = self.visit_expression(comparator_a)
             comparison = _ast_cmps[type(op)](old_comparator, comparator,
-                                            self.builder)
+                                             self.builder)
             comparisons.append(comparison)
             old_comparator = comparator
         r = comparisons[0]
@@ -367,7 +366,8 @@ class Visitor:
 
     def _visit_stmt_Raise(self, node):
         if self._active_exception_stack:
-            finally_block, propagate, propagate_eid = self._active_exception_stack[-1]
+            finally_block, propagate, propagate_eid = (
+                self._active_exception_stack[-1])
             self.builder.store(lc.Constant.int(lc.Type.int(1), 1), propagate)
             if node.exc is not None:
                 eid = lc.Constant.int(lc.Type.int(), node.exc.args[0].n)
@@ -377,7 +377,8 @@ class Visitor:
             eid = lc.Constant.int(lc.Type.int(), node.exc.args[0].n)
             self.env.build_raise(self.builder, eid)
 
-    def _handle_exception(self, function, finally_block, propagate, propagate_eid, handlers):
+    def _handle_exception(self, function, finally_block,
+                          propagate, propagate_eid, handlers):
         eid = self.env.build_getid(self.builder)
         self._active_exception_stack.append(
             (finally_block, propagate, propagate_eid))
@@ -422,9 +423,11 @@ class Visitor:
         exc_block = function.append_basic_block("try_exc")
         finally_block = function.append_basic_block("try_finally")
 
-        propagate = self.builder.alloca(lc.Type.int(1), name="propagate")
+        propagate = self.builder.alloca(lc.Type.int(1),
+                                        name="propagate")
         self.builder.store(lc.Constant.int(lc.Type.int(1), 0), propagate)
-        propagate_eid = self.builder.alloca(lc.Type.int(), name="propagate_eid")
+        propagate_eid = self.builder.alloca(lc.Type.int(),
+                                            name="propagate_eid")
         exception_occured = self.env.build_catch(self.builder)
         self.builder.cbranch(exception_occured, exc_block, noexc_block)
 
