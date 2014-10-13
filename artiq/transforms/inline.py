@@ -51,8 +51,9 @@ class _ReferenceManager:
         # reserved names
         for kg in core_language.kernel_globals:
             self._use_count[kg] = 1
-        for name in ("int", "round", "int64", "round64", "float", "array",
-                     "range", "Fraction", "Quantity", "EncodedException"):
+        for name in ("bool", "int", "round", "int64", "round64", "float",
+                     "Fraction", "array", "Quantity", "EncodedException",
+                     "range"):
             self._use_count[name] = 1
 
     # node_or_value can be a AST node, used to inline function parameter values
@@ -126,7 +127,7 @@ _embeddable_funcs = (
     core_language.delay, core_language.at, core_language.now,
     core_language.time_to_cycles, core_language.cycles_to_time,
     core_language.syscall,
-    range, int, float, round,
+    range, bool, int, float, round,
     core_language.int64, core_language.round64, core_language.array,
     Fraction, units.Quantity, core_language.EncodedException
 )
