@@ -11,7 +11,7 @@ def _time_to_cycles(ref_period, node):
                   right=value_to_ast(ref_period)),
         node)
     return ast.copy_location(
-        ast.Call(func=ast.Name("int64", ast.Load()),
+        ast.Call(func=ast.Name("round64", ast.Load()),
                  args=[divided],
                  keywords=[], starargs=[], kwargs=[]),
         divided)
