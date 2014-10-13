@@ -223,6 +223,20 @@ def kernel(arg):
         return run_on_core
 
 
+def portable(f):
+    """This decorator marks a function for execution on the same device as its
+    caller.
+
+    In other words, a decorated function called from the interpreter on the
+    host will be executed on the host (no compilation and execution on the
+    core device). A decorated function called from a kernel will be executed
+    on the core device (no RPC).
+
+    """
+    f.k_function_info = _KernelFunctionInfo(core_name="", k_function=f)
+    return f
+
+
 class _DummyTimeManager:
     def _not_implemented(self, *args, **kwargs):
         raise NotImplementedError(
