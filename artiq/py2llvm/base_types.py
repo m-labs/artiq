@@ -74,7 +74,7 @@ class VInt(VGeneric):
         return r
 
     def o_not(self, builder):
-        return self.o_bool(builder, True)
+        return self.o_bool(builder, inv=True)
 
     def o_neg(self, builder):
         r = VInt(self.nbits)
@@ -184,12 +184,6 @@ class VBool(VInt):
 
     def set_const_value(self, builder, b):
         VInt.set_const_value(self, builder, int(b))
-
-    def o_bool(self, builder):
-        r = VBool()
-        if builder is not None:
-            r.auto_store(builder, self.auto_load(builder))
-        return r
 
 
 class VFloat(VGeneric):

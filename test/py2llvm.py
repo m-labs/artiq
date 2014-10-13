@@ -188,7 +188,7 @@ def array_test():
 
 
 def corner_cases():
-    two = True + True - False
+    two = True + True - (not True)
     three = two + True//True - False*True
     two_float = three - True/True
     one_float = two_float - (1.0 == bool(0.1))
