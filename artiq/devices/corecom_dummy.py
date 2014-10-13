@@ -1,7 +1,7 @@
 from operator import itemgetter
+from fractions import Fraction
 
 from artiq.devices.runtime import LinkInterface
-from artiq.language.units import ns
 
 
 class _RuntimeEnvironment(LinkInterface):
@@ -14,7 +14,7 @@ class _RuntimeEnvironment(LinkInterface):
 
 class CoreCom:
     def get_runtime_env(self):
-        return _RuntimeEnvironment(10*ns)
+        return _RuntimeEnvironment(Fraction(1, 1000000000))
 
     def load(self, kcode):
         print("================")
