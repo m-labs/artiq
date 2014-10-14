@@ -24,7 +24,7 @@ try:
             written = self.dev.write(data)
             if written < 0:
                 raise pylibftdi.FtdiError(written,
-                        self.dev.get_error_string())
+                                          self.dev.get_error_string())
             return written
 
         def close(self):
@@ -82,31 +82,31 @@ class Pdq2:
     """
     PDQ DAC (a.k.a. QC_Waveform)
     """
-    max_val = 1<<15 # signed 16 bit DAC
+    max_val = 1 << 15  # signed 16 bit DAC
     max_out = 10.
-    freq = 50e6 # samples/s
-    max_time = 1<<16 # unsigned 16 bit timer
+    freq = 50e6  # samples/s
+    max_time = 1 << 16  # unsigned 16 bit timer
     num_dacs = 3
     num_frames = 8
     num_channels = 9
-    max_data = 4*(1<<10) # 8kx16 8kx16 4kx16
+    max_data = 4*(1 << 10)  # 8kx16 8kx16 4kx16
     escape_char = b"\xa5"
     cordic_gain = 1.
     for i in range(16):
         cordic_gain *= np.sqrt(1 + 2**(-2*i))
 
     commands = {
-            "RESET_EN":    b"\x00",
-            "RESET_DIS":   b"\x01",
-            "TRIGGER_EN":  b"\x02",
-            "TRIGGER_DIS": b"\x03",
-            "ARM_EN":      b"\x04",
-            "ARM_DIS":     b"\x05",
-            "DCM_EN":      b"\x06",
-            "DCM_DIS":     b"\x07",
-            "START_EN":    b"\x08",
-            "START_DIS":   b"\x09",
-            }
+        "RESET_EN":    b"\x00",
+        "RESET_DIS":   b"\x01",
+        "TRIGGER_EN":  b"\x02",
+        "TRIGGER_DIS": b"\x03",
+        "ARM_EN":      b"\x04",
+        "ARM_DIS":     b"\x05",
+        "DCM_EN":      b"\x06",
+        "DCM_DIS":     b"\x07",
+        "START_EN":    b"\x08",
+        "START_DIS":   b"\x09",
+    }
 
     def __init__(self, serial=None):
         self.serial = serial
@@ -123,8 +123,8 @@ class Pdq2:
         return self.write(self.cmd(cmd))
 
     def escape(self, data):
-        return data.replace(self.escape_char, self.escape_char +
-                self.escape_char)
+        return data.replace(self.escape_char,
+                            self.escape_char + self.escape_char)
 
     def write(self, *segments):
         """
@@ -158,13 +158,13 @@ class Pdq2:
         if tr is None:
             tr = t
         dv = [interpolate.splev(tr[:-1], spline, der=i)
-                for i in range(order + 1)]
+              for i in range(order + 1)]
         # correct for adder chain latency
         correction_map = [
-                (1, -1/2., 2),
-                (1, -1/6., 3),
-                (2,   -1., 3),
-                ]
+            (1, -1/2., 2),
+            (1, -1/6., 3),
+            (2,   -1., 3),
+        ]
         for i, c, j in correction_map:
             if j >= len(dv):
                 break
@@ -180,14 +180,14 @@ class Pdq2:
                 frame.append((part >> 32).astype("<i2"))
             else:
                 frame.append(part.astype("<" + dtype))
-        frame = np.rec.fromarrays(frame) # interleave
+        frame = np.rec.fromarrays(frame)  # interleave
         logger.debug("frame %s dtype %s shape %s length %s",
-                frame, frame.dtype, frame.shape, len(bytes(frame.data)))
+                     frame, frame.dtype, frame.shape, len(bytes(frame.data)))
         return bytes(frame.data)
 
     def frame(self, t, v, p=None, f=None,
-            order=3, aux=None, shift=0, trigger=True, end=True,
-            silence=False, stop=True, clear=True, wait=False):
+              order=3, aux=None, shift=0, trigger=True, end=True,
+              silence=False, stop=True, clear=True, wait=False):
         """
         serialize frame data
         voltages in volts, times in seconds
@@ -204,17 +204,17 @@ class Pdq2:
         parts = []
 
         head = np.zeros(len(t) - 1, "<u2")
-        head[:] |= length # 4
+        head[:] |= length  # 4
         if p is not None:
-            head[:] |= 1<<4 # typ # 2
-        head[0] |= trigger<<6 # 1
-        head[-1] |= (not stop and silence)<<7 # 1
+            head[:] |= 1 << 4  # typ # 2
+        head[0] |= trigger << 6  # 1
+        head[-1] |= (not stop and silence) << 7  # 1
         if aux is not None:
-            head[:] |= aux[:len(head)]<<8 # 1
-        head[:] |= shift<<9 # 4
-        head[-1] |= (not stop and end)<<13 # 1
-        head[0] |= clear<<14 # 1
-        head[-1] |= (not stop and wait)<<15 # 1
+            head[:] |= aux[:len(head)] << 8  # 1
+        head[:] |= shift << 9  # 4
+        head[-1] |= (not stop and end) << 13  # 1
+        head[0] |= clear << 14  # 1
+        head[-1] |= (not stop and wait) << 15  # 1
         parts.append((head, "u2"))
 
         t, tr, dt = self.line_times(t, shift)
@@ -243,19 +243,21 @@ class Pdq2:
 
         if stop:
             if p is not None:
-                frame += struct.pack("<HH hiihih H ii", (15<<0) | (1<<4) |
-                        (silence<<7) | (end<<13) | (wait<<15),
-                        1, int(v[-1]*2**15), 0, 0, 0, 0, 0,
-                        int(p[-1]*2**16), int(f[-1]*2**31), 0)
+                frame += struct.pack("<HH hiihih H ii", (15 << 0) | (1 << 4) |
+                                                        (silence << 7) |
+                                                        (end << 13) |
+                                                        (wait << 15),
+                                     1, int(v[-1]*2**15), 0, 0, 0, 0, 0,
+                                     int(p[-1]*2**16), int(f[-1]*2**31), 0)
             else:
-                frame += struct.pack("<HH h", (2<<0) |
-                        (silence<<7) | (end<<13) | (wait << 15),
-                        1, int(v[-1]*2**15))
+                frame += struct.pack("<HH h", (2 << 0) | (silence << 7) |
+                                              (end << 13) | (wait << 15),
+                                     1, int(v[-1]*2**15))
         return frame
 
     def line(self, dt, v=(), a=(), p=(), f=(), typ=0,
-            silence=False, end=False, trigger=False, aux=False,
-            clear=False):
+             silence=False, end=False, trigger=False, aux=False,
+             clear=False):
         raise NotImplementedError
         fmt = "<HH"
         parts = [0, int(round(dt*self.freq))]
@@ -292,7 +294,7 @@ class Pdq2:
     def add_mem_header(self, board, dac, data, adr=0):
         assert dac in range(self.num_dacs)
         head = struct.pack("<HHH", (board << 4) | dac,
-                adr, adr + len(data)//2 - 1)
+                           adr, adr + len(data)//2 - 1)
         return head + data
 
     def multi_frame(self, times_voltages, channel, map=None, **kwargs):
