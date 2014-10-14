@@ -19,6 +19,10 @@ def value_to_ast(value):
             func=ast.Name("int64", ast.Load()),
             args=[ast.Num(int(value))],
             keywords=[], starargs=None, kwargs=None)
+    elif isinstance(value, bool) or value is None:
+        # must also be before int
+        # isinstance(True/False, int) == True
+        return ast.NameConstant(value)
     elif isinstance(value, (int, float)):
         return ast.Num(value)
     elif isinstance(value, Fraction):
@@ -49,6 +53,8 @@ def eval_constant(node):
         return node.n
     elif isinstance(node, ast.Str):
         return node.s
+    elif isinstance(node, ast.NameConstant):
+        return node.value
     elif isinstance(node, ast.Call):
         funcname = node.func.id
         if funcname == "Fraction":
