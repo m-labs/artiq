@@ -29,6 +29,12 @@ _ast_binops = {
 }
 
 
+_ast_boolops = {
+    ast.Or: lambda x, y: x or y,
+    ast.And: lambda x, y: x and y
+}
+
+
 class _ConstantFolder(ast.NodeTransformer):
     def visit_UnaryOp(self, node):
         self.generic_visit(node)
@@ -62,13 +68,35 @@ class _ConstantFolder(ast.NodeTransformer):
             return node
         return ast.copy_location(result, node)
 
+    def visit_BoolOp(self, node):
+        self.generic_visit(node)
+        new_values = []
+        for value in node.values:
+            try:
+                value_c = eval_constant(value)
+            except NotConstant:
+                new_values.append(value)
+            else:
+                if new_values and not isinstance(new_values[-1], ast.AST):
+                    op = _ast_boolops[type(node.op)]
+                    new_values[-1] = op(new_values[-1], value_c)
+                else:
+                    new_values.append(value_c)
+        new_values = [v if isinstance(v, ast.AST) else value_to_ast(v)
+                      for v in new_values]
+        if len(new_values) > 1:
+            node.values = new_values
+            return node
+        else:
+            return new_values[0]
+
     def visit_Call(self, node):
         self.generic_visit(node)
         fn = node.func.id
         constant_ops = {
-            "int":    int,
-            "int64":  int64,
-            "round":  round,
+            "int": int,
+            "int64": int64,
+            "round": round,
             "round64": round64
         }
         if fn in constant_ops:
