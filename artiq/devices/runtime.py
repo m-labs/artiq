@@ -1,4 +1,5 @@
 import os
+from fractions import Fraction
 
 from llvm import core as lc
 from llvm import target as lt
@@ -138,7 +139,8 @@ def _debug_dump_obj(obj):
 class Environment(LinkInterface):
     def __init__(self, ref_period):
         self.ref_period = ref_period
-        self.initial_time = 4000
+        # allow 1ms for all initial DDS programming
+        self.initial_time = int(Fraction(1, 1000)/self.ref_period)
 
     def emit_object(self):
         tm = lt.TargetMachine.new(triple="or1k", cpu="generic")
