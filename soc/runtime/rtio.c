@@ -60,7 +60,7 @@ long long int rtio_get(int channel)
     rtio_chan_sel_write(channel);
     while(rtio_i_readable_read() || (rtio_o_level_read() != 0)) {
         if(rtio_i_readable_read()) {
-            r = rtio_i_value_read();
+            r = rtio_i_timestamp_read();
             rtio_i_re_write(1);
             return r;
         }

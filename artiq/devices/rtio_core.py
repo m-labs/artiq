@@ -137,3 +137,13 @@ class RTIOIn(_RTIOBase):
         while syscall("rtio_get", self.channel) >= 0:
             count += 1
         return count
+
+    @kernel
+    def timestamp(self):
+        """Poll the RTIO input and returns an event timestamp, according to
+        the gating.
+
+        If the gate is permanently closed, returns a negative value.
+
+        """
+        return cycles_to_time(syscall("rtio_get", self.channel))
