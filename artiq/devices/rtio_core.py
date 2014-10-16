@@ -2,6 +2,59 @@ from artiq.language.core import *
 from artiq.devices.runtime_exceptions import RTIOSequenceError
 
 
+class LLRTIOOut(AutoContext):
+    """Low-level RTIO output driver.
+
+    Allows setting RTIO outputs at arbitrary times, without time unit
+    conversion and without zero-length transition suppression.
+
+    This is meant to be used mostly in drivers; consider using
+    ``RTIOOut`` instead.
+
+    """
+    parameters = "channel"
+
+    def build(self):
+        self.previous_timestamp = int64(0)  # in RTIO cycles
+        self._set_oe()
+
+    kernel_attr = "previous_timestamp"
+
+    @kernel
+    def _set_oe(self):
+        syscall("rtio_oe", self.channel, 1)
+
+    @kernel
+    def set_value(self, t, value):
+        """Sets the value of the RTIO channel.
+
+        :param t: timestamp in RTIO cycles (64-bit integer).
+        :param value: value to set at the output.
+
+        """
+        if t <= self.previous_timestamp:
+            raise RTIOSequenceError
+        syscall("rtio_set", t, self.channel, value)
+        self.previous_timestamp = t
+
+    @kernel
+    def on(self, t):
+        """Turns the RTIO channel on.
+
+        :param t: timestamp in RTIO cycles (64-bit integer).
+
+        """
+        self.set_value(t, 1)
+
+    @kernel
+    def off(self, t):
+        """Turns the RTIO channel off.
+
+        :param t: timestamp in RTIO cycles (64-bit integer).
+
+        """
+        self.set_value(t, 0)
+
 class _RTIOBase(AutoContext):
     parameters = "channel"
 
