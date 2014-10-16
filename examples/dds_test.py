@@ -28,14 +28,14 @@ def main():
         exp = DDSTest(
             core=coredev,
             a=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                           reg_channel=0, rtio_channel=0),
+                           reg_channel=0, rtio_switch=0),
             b=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                           reg_channel=1, rtio_channel=1),
+                           reg_channel=1, rtio_switch=1),
             c=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                           reg_channel=2, rtio_channel=2),
+                           reg_channel=2, rtio_switch=2),
             d=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                           reg_channel=3, rtio_channel=3),
-            led=gpio_core.GPIOOut(core=coredev, channel=1)
+                           reg_channel=3, rtio_switch=3),
+            led=gpio_core.GPIOOut(core=coredev, channel=0)
         )
         exp.run()
 

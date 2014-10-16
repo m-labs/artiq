@@ -13,15 +13,15 @@ class DDS(AutoContext):
     :param dds_sysclk: DDS system frequency, used for computing the frequency
         tuning words.
     :param reg_channel: channel number of the DDS device to control.
-    :param rtio_channel: RTIO channel number of the RF switch associated with
+    :param rtio_switch: RTIO channel number of the RF switch associated with
         the DDS device.
 
     """
-    parameters = "dds_sysclk reg_channel rtio_channel"
+    parameters = "dds_sysclk reg_channel rtio_switch"
 
     def build(self):
         self.previous_frequency = 0*MHz
-        self.sw = rtio_core.RTIOOut(self, channel=self.rtio_channel)
+        self.sw = rtio_core.RTIOOut(self, channel=self.rtio_switch)
 
     kernel_attr = "previous_frequency"
 

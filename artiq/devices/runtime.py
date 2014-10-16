@@ -5,6 +5,7 @@ from llvm import core as lc
 from llvm import target as lt
 
 from artiq.py2llvm import base_types
+from artiq.language import units
 
 
 lt.initialize_all()
@@ -138,12 +139,17 @@ def _debug_dump_obj(obj):
 
 class Environment(LinkInterface):
     def __init__(self, ref_period):
+        self.cpu_type = "or1k"
         self.ref_period = ref_period
         # allow 1ms for all initial DDS programming
         self.initial_time = int(Fraction(1, 1000)/self.ref_period)
 
     def emit_object(self):
-        tm = lt.TargetMachine.new(triple="or1k", cpu="generic")
+        tm = lt.TargetMachine.new(triple=self.cpu_type, cpu="generic")
         obj = tm.emit_object(self.llvm_module)
         _debug_dump_obj(obj)
         return obj
+
+    def __repr__(self):
+        return "<Environment {} {}>".format(self.cpu_type,
+                                            str(units.Hz/self.ref_period))
