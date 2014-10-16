@@ -5,35 +5,37 @@ from artiq.devices import corecom_serial, core, dds_core, rtio_core, pdq2
 
 
 class Transport(AutoContext):
-    parameters = ("bd pmt repeats nbins "
-            "electrodes transport_data wait_at_stop speed"
+    parameters = (
+        "bd pmt repeats nbins "
+        "electrodes transport_data wait_at_stop speed"
     )
  
     def prepare(self, stop):
-        t = self.data["t"][:stop]*self.speed
-        u = self.data["u"][:stop]
-        # start a new frame, selects possible frame id based on rtio_frame
-        # assignments from coredev
-        self.transport = self.electrodes.open_frame()
+        t = self.transport_data["t"][:stop]*self.speed
+        u = self.transport_data["u"][:stop]
+        # start a new frame
+        self.tf = self.electrodes.create_frame()
         # interpolates t and u and appends the (t, u) segment to the frame
         # adds wait-for-trigger to the first line/spline knot
         # will also apply offset and gain calibration data
         # stores duration and the fact that this segment needs to be triggered
         # both (duration and segment triggering flag) to be retrieved during
         # kernel compilation, see transport()
-        self.transport.append(t, u, trigger=True)
+        self.tf.append("to_stop",
+                              t, u, trigger=True)
         # append the reverse transport (from stop to 0)
         # both durations are the same in this case
-        self.transport.append(t[-1] - t[::-1], u[::-1], trigger=True,
-                name="from_stop")
-        # closes the frame with a wait line before jumping back into the jump table
-        # so that frame signal can be set before the jump
+        self.tf.append("from_stop",
+                              t[-1] - t[::-1], u[::-1], trigger=True)
+        # closes the frame with a wait line before jumping back into
+        # the jump table so that frame signal can be set before the jump
         # also mark the frame as closed and prevent further append()ing
-        self.transport.close()
-        # packs all in-use frames, distributes them to the sub-devices in
-        # CompoundPDQ2 and uploads them
+        self.tf.close()
+        # user must pass all frames that are going to be used next
+        # selects possible frame id based on rtio_frame assignments from coredev
+        # distributes frames to the sub-devices in CompoundPDQ2 and uploads them
         # uploading is ARM_DIS, writing, ARM_EN
-        self.electrodes.prepare()
+        self.electrodes.prepare(self.tf)
 
     @kernel
     def cool(self):
@@ -50,20 +52,19 @@ class Transport(AutoContext):
         # (it would be nice if this could be made zero-duration/not advancing the
         # timeline by smart scheduling of this frame-select + trigger + minimum wait
         # sequence)
-        self.transport.begin()
+        self.tf.begin()
         # triggers pdqs to start transport frame segment
         # plays the transport waveform from 0 to stop
         # delay()s the core by the duration of the waveform segment
-        self.transport.advance()
+        self.tf.to_stop.advance()
         # leaves the ion in the dark at the transport endpoint
         delay(self.wait_at_stop)
         # transport back (again: trigger, delay())
-        # can explicitly reference segment name
-        # yet segments can only be advance()ed in order
-        self.transport.advance(name="from_stop")
+        # segments can only be advance()ed in order
+        self.tf.from_stop.advance()
         # ensures all segments have been advanced() through, must leave pdq
         # in a state where the next frame can begin()
-        self.transport.finish()
+        self.tf.finish()
 
     @kernel
     def detect(self):
@@ -94,8 +95,8 @@ class Transport(AutoContext):
             self.histogram.append(hist[i])
 
     def scan(self, stops):
-        self.histogram = []
         for s in stops:
+            self.histogram = []
             # non-kernel, calculate waveforms, build frames
             # could also be rpc'ed from repeat()
             self.prepare(s)
@@ -115,10 +116,12 @@ if __name__ == "__main__":
 
     with corecom_serial.CoreCom() as com:
         coredev = core.Core(com)
-        exp = PhotonHistogram(
+        exp = Transport(
             core=coredev,
             bd=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                            reg_channel=0, rtio_channel=1),
+                            reg_channel=0, rtio_switch=1),
+            bdd=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
+                             reg_channel=1, rtio_switch=2),
             pmt=rtio_core.RTIOIn(core=coredev, channel=0),
             # a compound pdq device that wraps multiple usb devices (looked up
             # by usb "serial number"/id) into one
@@ -132,5 +135,5 @@ if __name__ == "__main__":
             nbins=100
         )
         # scan transport endpoint
-        stop = range(0, len(exp.transport_data["t"]), 10)
+        stop = range(10, len(exp.transport_data["t"]), 10)
         exp.scan(stop)
