@@ -41,9 +41,9 @@ def main():
         exp = PhotonHistogram(
             core=coredev,
             bd=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                            reg_channel=0, rtio_channel=1),
+                            reg_channel=0, rtio_switch=1),
             bdd=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                             reg_channel=1, rtio_channel=2),
+                             reg_channel=1, rtio_switch=2),
             pmt=rtio_core.RTIOIn(core=coredev, channel=0),
             repeats=100,
             nbins=100
