@@ -9,7 +9,7 @@ class Transport(AutoContext):
         "bd pmt repeats nbins "
         "electrodes transport_data wait_at_stop speed"
     )
- 
+
     def prepare(self, stop):
         t = self.transport_data["t"][:stop]*self.speed
         u = self.transport_data["u"][:stop]
@@ -22,18 +22,20 @@ class Transport(AutoContext):
         # both (duration and segment triggering flag) to be retrieved during
         # kernel compilation, see transport()
         self.tf.append("to_stop",
-                              t, u, trigger=True)
+                       t, u, trigger=True)
         # append the reverse transport (from stop to 0)
         # both durations are the same in this case
         self.tf.append("from_stop",
-                              t[-1] - t[::-1], u[::-1], trigger=True)
+                       t[-1] - t[::-1], u[::-1], trigger=True)
         # closes the frame with a wait line before jumping back into
         # the jump table so that frame signal can be set before the jump
         # also mark the frame as closed and prevent further append()ing
         self.tf.close()
         # user must pass all frames that are going to be used next
-        # selects possible frame id based on rtio_frame assignments from coredev
-        # distributes frames to the sub-devices in CompoundPDQ2 and uploads them
+        # selects possible frame id based on rtio_frame assignments
+        # from core device
+        # distributes frames to the sub-devices in CompoundPDQ2
+        # and uploads them
         # uploading is ARM_DIS, writing, ARM_EN
         self.electrodes.prepare(self.tf)
 
@@ -49,9 +51,7 @@ class Transport(AutoContext):
         # ensures no frame is currently being actively played
         # set rtio frame select signal to frame id
         # rtio trigger jump into transport frame
-        # (it would be nice if this could be made zero-duration/not advancing the
-        # timeline by smart scheduling of this frame-select + trigger + minimum wait
-        # sequence)
+        # (does not advance the timeline)
         self.tf.begin()
         # triggers pdqs to start transport frame segment
         # plays the transport waveform from 0 to stop
@@ -109,9 +109,9 @@ class Transport(AutoContext):
 if __name__ == "__main__":
     # data is usually precomputed offline
     data = dict(
-            t=np.linspace(0, 10, 101), # waveform time
-            u=np.random.randn(101, 4*3*3), # waveform data,
-            # 4 devices, 3 board each, 3 dacs each
+        t=np.linspace(0, 10, 101),  # waveform time
+        u=np.random.randn(101, 4*3*3),  # waveform data,
+        # 4 devices, 3 board each, 3 dacs each
     )
 
     with corecom_serial.CoreCom() as com:
@@ -125,10 +125,11 @@ if __name__ == "__main__":
             pmt=rtio_core.RTIOIn(core=coredev, channel=0),
             # a compound pdq device that wraps multiple usb devices (looked up
             # by usb "serial number"/id) into one
-            electrodes=pdq2.CompoundPDQ2(core=coredev,
+            electrodes=pdq2.CompoundPDQ2(
+                core=coredev,
                 ids=["qc_q1_{}".format(i) for i in range(4)],
                 rtio_trigger=3, rtio_frame=(4, 5, 6)),
-            transport_data=data, # or: json.load
+            transport_data=data,  # or: json.load
             wait_at_stop=100*us,
             speed=1.5,
             repeats=100,
