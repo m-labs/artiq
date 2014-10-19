@@ -3,7 +3,7 @@
 #include <uart.h>
 #include <generated/csr.h>
 
-#include "corecom.h"
+#include "comm.h"
 
 /* host to device */
 enum {
@@ -139,12 +139,12 @@ static void receive_and_run_kernel(kernel_runner run_kernel)
             send_char(MSGTYPE_KERNEL_STARTUP_FAILED);
             break;
         default:
-            corecom_log("BUG: run_kernel returned unexpected value '%d'", r);
+            comm_log("BUG: run_kernel returned unexpected value '%d'", r);
             break;
     }
 }
 
-void corecom_serve(object_loader load_object, kernel_runner run_kernel)
+void comm_serve(object_loader load_object, kernel_runner run_kernel)
 {
     char msgtype;
 
@@ -166,7 +166,7 @@ void corecom_serve(object_loader load_object, kernel_runner run_kernel)
     }
 }
 
-int corecom_rpc(int rpc_num, int n_args, ...)
+int comm_rpc(int rpc_num, int n_args, ...)
 {
     send_char(MSGTYPE_RPC_REQUEST);
     send_sint(rpc_num);
@@ -181,7 +181,7 @@ int corecom_rpc(int rpc_num, int n_args, ...)
     return receive_int();
 }
 
-void corecom_log(const char *fmt, ...)
+void comm_log(const char *fmt, ...)
 {
     va_list args;
     int len;

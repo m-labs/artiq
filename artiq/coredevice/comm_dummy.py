@@ -1,7 +1,7 @@
 from operator import itemgetter
 from fractions import Fraction
 
-from artiq.devices.runtime import LinkInterface
+from artiq.coredevice.runtime import LinkInterface
 
 
 class _RuntimeEnvironment(LinkInterface):
@@ -12,7 +12,7 @@ class _RuntimeEnvironment(LinkInterface):
         return str(self.llvm_module)
 
 
-class CoreCom:
+class Comm:
     def get_runtime_env(self):
         return _RuntimeEnvironment(Fraction(1, 1000000000))
 

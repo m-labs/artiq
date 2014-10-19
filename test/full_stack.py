@@ -2,13 +2,13 @@ import unittest
 from operator import itemgetter
 
 from artiq import *
-from artiq.devices import corecom_serial, core, runtime_exceptions, rtio_core
+from artiq.coredevice import comm_serial, core, runtime_exceptions, rtio
 from artiq.sim import devices as sim_devices
 
 
 def _run_on_device(k_class, **parameters):
-    with corecom_serial.CoreCom() as com:
-        coredev = core.Core(com)
+    with comm_serial.Comm() as comm:
+        coredev = core.Core(comm)
         k_inst = k_class(core=coredev, **parameters)
         k_inst.run()
 
@@ -190,33 +190,33 @@ class _RTIOSequenceError(AutoContext):
 class RTIOCase(unittest.TestCase):
     def test_loopback(self):
         npulses = 4
-        with corecom_serial.CoreCom() as com:
-            coredev = core.Core(com)
+        with comm_serial.Comm() as comm:
+            coredev = core.Core(comm)
             uut = _RTIOLoopback(
                 core=coredev,
-                i=rtio_core.RTIOIn(core=coredev, channel=0),
-                o=rtio_core.RTIOOut(core=coredev, channel=1),
+                i=rtio.RTIOIn(core=coredev, channel=0),
+                o=rtio.RTIOOut(core=coredev, channel=1),
                 npulses=npulses
             )
             uut.run()
             self.assertEqual(uut.result, npulses)
 
     def test_underflow(self):
-        with corecom_serial.CoreCom() as com:
-            coredev = core.Core(com)
+        with comm_serial.Comm() as comm:
+            coredev = core.Core(comm)
             uut = _RTIOUnderflow(
                 core=coredev,
-                o=rtio_core.RTIOOut(core=coredev, channel=1)
+                o=rtio.RTIOOut(core=coredev, channel=1)
             )
             with self.assertRaises(runtime_exceptions.RTIOUnderflow):
                 uut.run()
 
     def test_sequence_error(self):
-        with corecom_serial.CoreCom() as com:
-            coredev = core.Core(com)
+        with comm_serial.Comm() as comm:
+            coredev = core.Core(comm)
             uut = _RTIOSequenceError(
                 core=coredev,
-                o=rtio_core.RTIOOut(core=coredev, channel=1)
+                o=rtio.RTIOOut(core=coredev, channel=1)
             )
             with self.assertRaises(runtime_exceptions.RTIOSequenceError):
                 uut.run()

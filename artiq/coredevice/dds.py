@@ -1,13 +1,13 @@
 from artiq.language.core import *
 from artiq.language.units import *
-from artiq.devices import rtio_core
+from artiq.coredevice import rtio
 
 
 class DDS(AutoContext):
     """Core device Direct Digital Synthesis (DDS) driver.
 
     Controls DDS devices managed directly by the core device's runtime. It also
-    uses a RTIO channel (through :class:`artiq.devices.rtio_core.RTIOOut`) to
+    uses a RTIO channel (through :class:`artiq.coredevice.rtio.RTIOOut`) to
     control a RF switch that gates the output of the DDS device.
 
     :param dds_sysclk: DDS system frequency, used for computing the frequency
@@ -21,7 +21,7 @@ class DDS(AutoContext):
 
     def build(self):
         self.previous_frequency = 0*MHz
-        self.sw = rtio_core.RTIOOut(self, channel=self.rtio_switch)
+        self.sw = rtio.RTIOOut(self, channel=self.rtio_switch)
 
     kernel_attr = "previous_frequency"
 

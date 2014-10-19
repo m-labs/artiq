@@ -1,20 +1,20 @@
 Drivers reference
 =================
 
-:mod:`artiq.devices.rtio_core` module
--------------------------------------
+:mod:`artiq.coredevice.rtio` module
+-----------------------------------
 
-.. automodule:: artiq.devices.rtio_core
+.. automodule:: artiq.coredevice.rtio
     :members:
 
-:mod:`artiq.devices.dds_core` module
--------------------------------------
+:mod:`artiq.coredevice.dds` module
+----------------------------------
 
-.. automodule:: artiq.devices.dds_core
+.. automodule:: artiq.coredevice.dds
     :members:
 
-:mod:`artiq.devices.runtime_exceptions` module
-----------------------------------------------
+:mod:`artiq.coredevice.runtime_exceptions` module
+-------------------------------------------------
 
-.. automodule:: artiq.devices.runtime_exceptions
+.. automodule:: artiq.coredevice.runtime_exceptions
     :members:

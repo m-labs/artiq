@@ -1,5 +1,5 @@
 from artiq import *
-from artiq.devices import corecom_serial, core, dds_core, rtio_core
+from artiq.coredevice import comm_serial, core, dds, rtio
 
 
 class PhotonHistogram(AutoContext):
@@ -36,15 +36,15 @@ class PhotonHistogram(AutoContext):
 
 
 def main():
-    with corecom_serial.CoreCom() as com:
-        coredev = core.Core(com)
+    with comm_serial.Comm() as comm:
+        coredev = core.Core(comm)
         exp = PhotonHistogram(
             core=coredev,
-            bd=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                            reg_channel=0, rtio_switch=1),
-            bdd=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                             reg_channel=1, rtio_switch=2),
-            pmt=rtio_core.RTIOIn(core=coredev, channel=0),
+            bd=dds.DDS(core=coredev, dds_sysclk=1*GHz,
+                       reg_channel=0, rtio_switch=1),
+            bdd=dds.DDS(core=coredev, dds_sysclk=1*GHz,
+                        reg_channel=1, rtio_switch=2),
+            pmt=rtio.RTIOIn(core=coredev, channel=0),
             repeats=100,
             nbins=100
         )

@@ -1,7 +1,8 @@
 import numpy as np
 
 from artiq import *
-from artiq.devices import corecom_serial, core, dds_core, rtio_core, pdq2
+from artiq.coredevice import comm_serial, core, dds, rtio
+from artiq.devices import pdq2
 
 
 class Transport(AutoContext):
@@ -114,15 +115,15 @@ if __name__ == "__main__":
         # 4 devices, 3 board each, 3 dacs each
     )
 
-    with corecom_serial.CoreCom() as com:
-        coredev = core.Core(com)
+    with comm_serial.Comm() as comm:
+        coredev = core.Core(comm)
         exp = Transport(
             core=coredev,
-            bd=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                            reg_channel=0, rtio_switch=1),
-            bdd=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                             reg_channel=1, rtio_switch=2),
-            pmt=rtio_core.RTIOIn(core=coredev, channel=0),
+            bd=dds.DDS(core=coredev, dds_sysclk=1*GHz,
+                       reg_channel=0, rtio_switch=1),
+            bdd=dds.DDS(core=coredev, dds_sysclk=1*GHz,
+                        reg_channel=1, rtio_switch=2),
+            pmt=rtio.RTIOIn(core=coredev, channel=0),
             # a compound pdq device that wraps multiple usb devices (looked up
             # by usb "serial number"/id) into one
             electrodes=pdq2.CompoundPDQ2(

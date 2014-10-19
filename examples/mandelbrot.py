@@ -1,7 +1,7 @@
 import sys
 
 from artiq import *
-from artiq.devices import corecom_serial, core
+from artiq.coredevice import comm_serial, core
 
 
 class Mandelbrot(AutoContext):
@@ -39,8 +39,8 @@ class Mandelbrot(AutoContext):
 
 
 def main():
-    with corecom_serial.CoreCom() as com:
-        exp = Mandelbrot(core=core.Core(com))
+    with comm_serial.Comm() as comm:
+        exp = Mandelbrot(core=core.Core(comm))
         exp.run()
 
 if __name__ == "__main__":

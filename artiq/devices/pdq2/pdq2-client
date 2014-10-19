@@ -9,7 +9,7 @@ import logging
 from scipy import interpolate
 import numpy as np
 
-from artiq.devices.pdq2com import Pdq2
+from pdq2com import Pdq2
 
 
 def _main():

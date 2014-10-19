@@ -1,6 +1,6 @@
 from artiq import *
-from artiq.devices import corecom_serial, core, rtio_core
-from artiq.devices.runtime_exceptions import RTIOUnderflow
+from artiq.coredevice import comm_serial, core, rtio
+from artiq.coredevice.runtime_exceptions import RTIOUnderflow
 
 
 def print_min_period(p):
@@ -27,8 +27,8 @@ class PulsePerformance(AutoContext):
 
 
 if __name__ == "__main__":
-    with corecom_serial.CoreCom() as com:
-        coredev = core.Core(com)
+    with comm_serial.Comm() as comm:
+        coredev = core.Core(comm)
         exp = PulsePerformance(core=coredev,
-                               o=rtio_core.RTIOOut(core=coredev, channel=1))
+                               o=rtio.RTIOOut(core=coredev, channel=1))
         exp.run()

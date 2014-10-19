@@ -1,6 +1,6 @@
 from artiq.language.core import *
 from artiq.language.units import *
-from artiq.devices import rtio_core
+from artiq.coredevice import rtio
 
 
 # FIXME: check those numbers
@@ -104,10 +104,10 @@ class CompoundPDQ2(AutoContext):
     parameters = "ids rtio_trigger rtio_frame"
 
     def build(self):
-        self.trigger = rtio_core.LLRTIOOut(self, channel=self.rtio_trigger)
-        self.frame0 = rtio_core.LLRTIOOut(self, channel=self.rtio_frame[0])
-        self.frame1 = rtio_core.LLRTIOOut(self, channel=self.rtio_frame[1])
-        self.frame2 = rtio_core.LLRTIOOut(self, channel=self.rtio_frame[2])
+        self.trigger = rtio.LLRTIOOut(self, channel=self.rtio_trigger)
+        self.frame0 = rtio.LLRTIOOut(self, channel=self.rtio_frame[0])
+        self.frame1 = rtio.LLRTIOOut(self, channel=self.rtio_frame[1])
+        self.frame2 = rtio.LLRTIOOut(self, channel=self.rtio_frame[2])
 
         self.frames = []
         self.current_frame = -1

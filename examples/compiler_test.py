@@ -30,19 +30,19 @@ class CompilerTest(AutoContext):
 
 
 def main():
-    from artiq.devices import corecom_dummy, core, dds_core
+    from artiq.coredevice import comm_dummy, core, dds
 
-    coredev = core.Core(corecom_dummy.CoreCom())
+    coredev = core.Core(comm_dummy.Comm())
     exp = CompilerTest(
         core=coredev,
-        a=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                       reg_channel=0, rtio_switch=0),
-        b=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                       reg_channel=1, rtio_switch=1),
-        A=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                       reg_channel=2, rtio_switch=2),
-        B=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                       reg_channel=3, rtio_switch=3)
+        a=dds.DDS(core=coredev, dds_sysclk=1*GHz,
+                  reg_channel=0, rtio_switch=0),
+        b=dds.DDS(core=coredev, dds_sysclk=1*GHz,
+                  reg_channel=1, rtio_switch=1),
+        A=dds.DDS(core=coredev, dds_sysclk=1*GHz,
+                  reg_channel=2, rtio_switch=2),
+        B=dds.DDS(core=coredev, dds_sysclk=1*GHz,
+                  reg_channel=3, rtio_switch=3)
     )
     exp.run(3, 100*us)
 

@@ -1,7 +1,7 @@
 #include <string.h>
 
 #include "elf_loader.h"
-#include "corecom.h"
+#include "comm.h"
 #include "gpio.h"
 #include "rtio.h"
 #include "dds.h"
@@ -9,7 +9,7 @@
 #include "services.h"
 
 static const struct symbol syscalls[] = {
-    {"rpc", corecom_rpc},
+    {"rpc", comm_rpc},
     {"gpio_set", gpio_set},
     {"rtio_oe", rtio_oe},
     {"rtio_set", rtio_set},

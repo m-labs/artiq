@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
-from artiq.devices import corecom_serial
+from artiq.coredevice import comm_serial
 
 
 def main():
@@ -16,13 +16,13 @@ def main():
 
     with open(args.file, "rb") as f:
         binary = f.read()
-    with corecom_serial.CoreCom() as com:
-        runtime_env = com.get_runtime_env()
+    with comm_serial.CoreCom() as comm:
+        runtime_env = comm.get_runtime_env()
         if args.e:
             print(runtime_env)
-        com.load(binary)
-        com.run(args.f)
-        com.serve(dict(), dict())
+        comm.load(binary)
+        comm.run(args.f)
+        comm.serve(dict(), dict())
 
 if __name__ == "__main__":
     main()

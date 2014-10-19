@@ -7,8 +7,8 @@ from fractions import Fraction
 import logging
 
 from artiq.language import core as core_language
-from artiq.devices.runtime import Environment
-from artiq.devices import runtime_exceptions
+from artiq.coredevice.runtime import Environment
+from artiq.coredevice import runtime_exceptions
 
 
 logger = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ def _read_exactly(f, n):
     return r
 
 
-class CoreCom:
+class Comm:
     def __init__(self, dev="/dev/ttyUSB1", baud=115200):
         self._fd = os.open(dev, os.O_RDWR | os.O_NOCTTY)
         self.port = os.fdopen(self._fd, "r+b", buffering=0)

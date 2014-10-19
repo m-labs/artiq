@@ -1,5 +1,5 @@
 from artiq import *
-from artiq.devices import corecom_serial, core, dds_core, gpio_core
+from artiq.coredevice import comm_serial, core, dds, gpio
 
 
 class DDSTest(AutoContext):
@@ -23,19 +23,19 @@ class DDSTest(AutoContext):
 
 
 def main():
-    with corecom_serial.CoreCom() as com:
-        coredev = core.Core(com)
+    with comm_serial.Comm() as comm:
+        coredev = core.Core(comm)
         exp = DDSTest(
             core=coredev,
-            a=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                           reg_channel=0, rtio_switch=0),
-            b=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                           reg_channel=1, rtio_switch=1),
-            c=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                           reg_channel=2, rtio_switch=2),
-            d=dds_core.DDS(core=coredev, dds_sysclk=1*GHz,
-                           reg_channel=3, rtio_switch=3),
-            led=gpio_core.GPIOOut(core=coredev, channel=0)
+            a=dds.DDS(core=coredev, dds_sysclk=1*GHz,
+                      reg_channel=0, rtio_switch=0),
+            b=dds.DDS(core=coredev, dds_sysclk=1*GHz,
+                      reg_channel=1, rtio_switch=1),
+            c=dds.DDS(core=coredev, dds_sysclk=1*GHz,
+                      reg_channel=2, rtio_switch=2),
+            d=dds.DDS(core=coredev, dds_sysclk=1*GHz,
+                      reg_channel=3, rtio_switch=3),
+            led=gpio.GPIOOut(core=coredev, channel=0)
         )
         exp.run()
 

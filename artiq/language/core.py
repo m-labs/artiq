@@ -395,7 +395,7 @@ def EncodedException(eid):
 
 class RuntimeException(Exception):
     """Base class for all exceptions used by the device runtime.
-    Those exceptions are defined in ``artiq.devices.runtime_exceptions``.
+    Those exceptions are defined in ``artiq.coredevice.runtime_exceptions``.
 
     """
     pass

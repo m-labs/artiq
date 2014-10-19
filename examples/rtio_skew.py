@@ -1,5 +1,5 @@
 from artiq import *
-from artiq.devices import corecom_serial, core, rtio_core
+from artiq.coredevice import comm_serial, core, rtio
 
 
 def print_skew(p):
@@ -28,9 +28,9 @@ class RTIOSkew(AutoContext):
             print_skew(int((out_t - in_t)/(1*ns)))
 
 if __name__ == "__main__":
-    with corecom_serial.CoreCom() as com:
-        coredev = core.Core(com)
+    with comm_serial.Comm() as comm:
+        coredev = core.Core(comm)
         exp = RTIOSkew(core=coredev,
-                       i=rtio_core.RTIOIn(core=coredev, channel=0),
-                       o=rtio_core.RTIOOut(core=coredev, channel=1))
+                       i=rtio.RTIOIn(core=coredev, channel=0),
+                       o=rtio.RTIOOut(core=coredev, channel=1))
         exp.run()

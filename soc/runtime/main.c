@@ -6,7 +6,7 @@
 #include <time.h>
 #include <generated/csr.h>
 
-#include "corecom.h"
+#include "comm.h"
 #include "elf_loader.h"
 #include "exceptions.h"
 #include "services.h"
@@ -31,7 +31,7 @@ static void symtab_init(void)
 static int symtab_add(const char *name, void *target)
 {
     if(_symtab_count >= sizeof(symtab)/sizeof(symtab[0])) {
-        corecom_log("Too many provided symbols in object");
+        comm_log("Too many provided symbols in object");
         symtab_init();
         return 0;
     }
@@ -41,7 +41,7 @@ static int symtab_add(const char *name, void *target)
 
     while(1) {
         if(_symtab_strptr >= &_symtab_strings[sizeof(_symtab_strings)]) {
-            corecom_log("Provided symbol string table overflow");
+            comm_log("Provided symbol string table overflow");
             symtab_init();
             return 0;
         }
@@ -72,7 +72,7 @@ static int run_kernel(const char *kernel_name, int *eid)
 
     k = find_symbol(symtab, kernel_name);
     if(k == NULL) {
-        corecom_log("Failed to find kernel entry point '%s' in object", kernel_name);
+        comm_log("Failed to find kernel entry point '%s' in object", kernel_name);
         return KERNEL_RUN_STARTUP_FAILED;
     }
 
@@ -113,6 +113,6 @@ int main(void)
     rtio_init();
     dds_init();
     blink_led();
-    corecom_serve(load_object, run_kernel);
+    comm_serve(load_object, run_kernel);
     return 0;
 }

@@ -1,5 +1,5 @@
 from artiq.language.core import *
-from artiq.devices.runtime_exceptions import RTIOSequenceError
+from artiq.coredevice.runtime_exceptions import RTIOSequenceError
 
 
 class LLRTIOOut(AutoContext):
