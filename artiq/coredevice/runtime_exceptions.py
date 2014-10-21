@@ -13,7 +13,8 @@ class OutOfMemory(RuntimeException):
 
 
 class RTIOUnderflow(RuntimeException):
-    """Raised when the CPU fails to submit a RTIO event early enough (with respect to the event's timestamp).
+    """Raised when the CPU fails to submit a RTIO event early enough
+    (with respect to the event's timestamp).
 
     """
     eid = 1
@@ -26,6 +27,14 @@ class RTIOSequenceError(RuntimeException):
 
     """
     eid = 2
+
+
+class RTIOOverflow(RuntimeException):
+    """Raised when at least one event could not be registered into the RTIO
+    input FIFO because it was full (CPU not reading fast enough).
+
+    """
+    eid = 3
 
 
 exception_map = {e.eid: e for e in globals().values()

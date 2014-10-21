@@ -4,7 +4,8 @@
 enum {
 	EID_OUT_OF_MEMORY = 0,
 	EID_RTIO_UNDERFLOW = 1,
-	EID_RTIO_SEQUENCE_ERROR = 2
+	EID_RTIO_SEQUENCE_ERROR = 2,
+	EID_RTIO_OVERFLOW = 3,
 };
 
 int exception_setjmp(void *jb) __attribute__((returns_twice));
