@@ -25,7 +25,8 @@ class RTIOUnderflow(RuntimeException):
 # Raised by RTIO driver for regular RTIO.
 # Raised by runtime for DDS FUD.
 class RTIOSequenceError(RuntimeException):
-    """Raised when an event was not submitted with an increasing timestamp.
+    """Raised when an event is submitted on a given channel with a timestamp
+    not larger than the previous one.
 
     The offending event is discarded and RTIO operation is not affected
     further.
