@@ -16,6 +16,8 @@ class RTIOUnderflow(RuntimeException):
     """Raised when the CPU fails to submit a RTIO event early enough
     (with respect to the event's timestamp).
 
+    Causes a reset of the RTIO core, except its time counter.
+
     """
     eid = 1
 
@@ -25,6 +27,9 @@ class RTIOUnderflow(RuntimeException):
 class RTIOSequenceError(RuntimeException):
     """Raised when an event was not submitted with an increasing timestamp.
 
+    The offending event is discarded and RTIO operation is not affected
+    further.
+
     """
     eid = 2
 
@@ -32,6 +37,8 @@ class RTIOSequenceError(RuntimeException):
 class RTIOOverflow(RuntimeException):
     """Raised when at least one event could not be registered into the RTIO
     input FIFO because it was full (CPU not reading fast enough).
+
+    Causes a reset of the RTIO core, except its time counter.
 
     """
     eid = 3
