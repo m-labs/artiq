@@ -27,7 +27,7 @@ void rtio_set(long long int timestamp, int channel, int value)
     rtio_o_value_write(value);
     while(!rtio_o_writable_read());
     rtio_o_we_write(1);
-    if(rtio_o_error_read()) {
+    if(rtio_o_underflow_read()) {
         rtio_reset_logic_write(1);
         rtio_reset_logic_write(0);
         exception_raise(EID_RTIO_UNDERFLOW);
@@ -40,7 +40,7 @@ void rtio_replace(long long int timestamp, int channel, int value)
     rtio_o_timestamp_write(timestamp);
     rtio_o_value_write(value);
     rtio_o_replace_write(1);
-    if(rtio_o_error_read()) {
+    if(rtio_o_underflow_read()) {
         rtio_reset_logic_write(1);
         rtio_reset_logic_write(0);
         exception_raise(EID_RTIO_UNDERFLOW);
@@ -66,6 +66,16 @@ long long int rtio_get(int channel)
         }
     }
     return -1;
+}
+
+int rtio_pileup_count(int channel)
+{
+    int r;
+
+    rtio_chan_sel_write(channel);
+    r = rtio_i_pileup_count_read();
+    rtio_i_pileup_reset_write(1);
+    return r;
 }
 
 #define RTIO_FUD_CHANNEL 4
@@ -96,7 +106,7 @@ void rtio_fud(long long int fud_time)
     rtio_o_timestamp_write(fud_end_time);
     rtio_o_value_write(0);
     rtio_o_we_write(1);
-    if(rtio_o_error_read()) {
+    if(rtio_o_underflow_read()) {
         rtio_reset_logic_write(1);
         rtio_reset_logic_write(0);
         exception_raise(EID_RTIO_UNDERFLOW);

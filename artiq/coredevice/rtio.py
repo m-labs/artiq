@@ -181,6 +181,15 @@ class RTIOIn(_RTIOBase):
         self._set_value(0)
 
     @kernel
+    def pileup_count(self):
+        """Returns the number of pileup events (a system clock cycle with too
+        many input transitions) since the last call to this function for this
+        channel (or since the last RTIO reset).
+
+        """
+        return syscall("rtio_pileup_count", self.channel)
+
+    @kernel
     def count(self):
         """Poll the RTIO input during all the previously programmed gate
         openings, and returns the number of registered events.

@@ -7,6 +7,7 @@ void rtio_set(long long int timestamp, int channel, int value);
 void rtio_replace(long long int timestamp, int channel, int value);
 void rtio_sync(int channel);
 long long int rtio_get(int channel);
+int rtio_pileup_count(int channel);
 
 void rtio_fud_sync(void);
 void rtio_fud(long long int fud_time);

@@ -71,7 +71,8 @@ class _RTIOBankI(Module):
         self.readable = Signal()
         self.re = Signal()
         self.overflow = Signal()
-        self.pileup = Signal()
+        self.pileup_count = Signal(16)
+        self.pileup_reset = Signal()
 
         # # #
 
@@ -79,7 +80,7 @@ class _RTIOBankI(Module):
         values = []
         readables = []
         overflows = []
-        pileups = []
+        pileup_counts = []
         for n, chif in enumerate(rbus):
             if hasattr(chif, "oe"):
                 sensitivity = Signal(2)
@@ -115,22 +116,29 @@ class _RTIOBankI(Module):
                 self.sync += If(fifo.we & ~fifo.writable, overflow.eq(1))
                 overflows.append(overflow)
 
-                pileup = Signal()
-                self.sync += If(chif.i_pileup, pileup.eq(1))
-                pileups.append(pileup)
+                pileup_count = Signal(16)
+                self.sync += \
+                    If(self.pileup_reset & (self.sel == n),
+                        pileup_count.eq(0)
+                    ).Elif(chif.i_pileup,
+                        If(pileup_count != 2**16 - 1,  # saturate
+                            pileup_count.eq(pileup_count + 1)
+                        )
+                    )
+                pileup_counts.append(pileup_count)
             else:
                 timestamps.append(0)
                 values.append(0)
                 readables.append(0)
                 overflows.append(0)
-                pileups.append(0)
+                pileup_counts.append(0)
 
         self.comb += [
             self.timestamp.eq(Array(timestamps)[self.sel]),
             self.value.eq(Array(values)[self.sel]),
             self.readable.eq(Array(readables)[self.sel]),
             self.overflow.eq(Array(overflows)[self.sel]),
-            self.pileup.eq(Array(pileups)[self.sel])
+            self.pileup_count.eq(Array(pileup_counts)[self.sel])
         ]
 
 
@@ -171,14 +179,16 @@ class RTIO(Module, AutoCSR):
         self._r_o_writable = CSRStatus()
         self._r_o_we = CSR()
         self._r_o_replace = CSR()
-        self._r_o_error = CSRStatus()
+        self._r_o_underflow = CSRStatus()
         self._r_o_level = CSRStatus(bits_for(ofifo_depth))
 
         self._r_i_timestamp = CSRStatus(counter_width+fine_ts_width)
         self._r_i_value = CSRStatus()
         self._r_i_readable = CSRStatus()
         self._r_i_re = CSR()
-        self._r_i_error = CSRStatus(2)
+        self._r_i_overflow = CSRStatus()
+        self._r_i_pileup_count = CSRStatus(16)
+        self._r_i_pileup_reset = CSR()
 
         self._r_counter = CSRStatus(counter_width+fine_ts_width)
         self._r_counter_update = CSR()
@@ -209,7 +219,7 @@ class RTIO(Module, AutoCSR):
             self._r_o_writable.status.eq(self.bank_o.writable),
             self.bank_o.we.eq(self._r_o_we.re),
             self.bank_o.replace.eq(self._r_o_replace.re),
-            self._r_o_error.status.eq(self.bank_o.underflow),
+            self._r_o_underflow.status.eq(self.bank_o.underflow),
             self._r_o_level.status.eq(self.bank_o.level)
         ]
 
@@ -221,8 +231,9 @@ class RTIO(Module, AutoCSR):
             self._r_i_value.status.eq(self.bank_i.value),
             self._r_i_readable.status.eq(self.bank_i.readable),
             self.bank_i.re.eq(self._r_i_re.re),
-            self._r_i_error.status.eq(
-                Cat(self.bank_i.overflow, self.bank_i.pileup))
+            self._r_i_overflow.status.eq(self.bank_i.overflow),
+            self._r_i_pileup_count.status.eq(self.bank_i.pileup_count),
+            self.bank_i.pileup_reset.eq(self._r_i_pileup_reset.re)
         ]
 
         # Counter access

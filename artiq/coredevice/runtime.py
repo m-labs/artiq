@@ -18,6 +18,7 @@ _syscalls = {
     "rtio_replace": "Iii:n",
     "rtio_sync": "i:n",
     "rtio_get": "i:I",
+    "rtio_pileup_count": "i:i",
     "dds_program": "iiI:n",
 }
 
