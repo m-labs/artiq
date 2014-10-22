@@ -22,12 +22,12 @@ class Transport(AutoContext):
         # stores duration and the fact that this segment needs to be triggered
         # both (duration and segment triggering flag) to be retrieved during
         # kernel compilation, see transport()
-        self.tf.append("to_stop",
-                       t, u, trigger=True)
+        self.tf.append(t, u, trigger=True,
+                       name="to_stop")
         # append the reverse transport (from stop to 0)
         # both durations are the same in this case
-        self.tf.append("from_stop",
-                       t[-1] - t[::-1], u[::-1], trigger=True)
+        self.tf.append(t[-1] - t[::-1], u[::-1], trigger=True,
+                       name="from_stop")
         # closes the frame with a wait line before jumping back into
         # the jump table so that frame signal can be set before the jump
         # also mark the frame as closed and prevent further append()ing

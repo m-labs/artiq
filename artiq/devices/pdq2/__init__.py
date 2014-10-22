@@ -3,11 +3,10 @@ from artiq.language.units import *
 from artiq.coredevice import rtio
 
 
-# FIXME: check those numbers
 frame_setup = 20*ns
-trigger_duration = 100*ns
-frame_wait = 100*ns
-sample_period = 10*us
+trigger_duration = 50*ns
+frame_wait = 20*ns
+sample_period = 10*us  # FIXME: check this
 
 
 class SegmentSequenceError(Exception):
@@ -50,13 +49,19 @@ class _Frame:
         self.segment_count = 0
         self.closed = False
 
-    def append(self, name, t, u, trigger=False):
+    def append(self, t, u, trigger=False, name=None):
         if self.closed:
             raise FrameCloseError
         sn = self.segment_count
         duration = (t[-1] - t[0])*sample_period
         segment = _Segment(self, sn, duration, (t, u, trigger))
-        setattr(self, name, segment)
+        if name is None:
+            # TODO
+            raise NotImplementedError("Anonymous segments are not supported yet")
+        else:
+            if hasattr(self, name):
+                raise NameError("Segment name already exists")
+            setattr(self, name, segment)
         self.segment_count += 1
 
     def close(self):
@@ -79,6 +84,11 @@ class _Frame:
         t += time_to_cycles(frame_setup)
         self.pdq.trigger.on(t)
         self.pdq.trigger.off(t + time_to_cycles(trigger_duration))
+
+    @kernel
+    def advance(self):
+        # TODO
+        raise NotImplementedError
 
     @kernel
     def finish(self):
