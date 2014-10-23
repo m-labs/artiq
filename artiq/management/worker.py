@@ -10,12 +10,11 @@ class WorkerFailed(Exception):
 
 
 class Worker:
-    def __init__(self, loop, send_timeout=0.5, start_reply_timeout=1.0,
+    def __init__(self, send_timeout=0.5, start_reply_timeout=1.0,
                  term_timeout=1.0):
         self.send_timeout = send_timeout
         self.start_reply_timeout = start_reply_timeout
         self.term_timeout = term_timeout
-        loop.run_until_complete(self.create_process())
 
     @asyncio.coroutine
     def create_process(self):
@@ -30,7 +29,7 @@ class Worker:
         self.process.stdin.write("\n".encode())
         try:
             fut = self.process.stdin.drain()
-            if fut is not (): # FIXME: why does Python return this?
+            if fut is not ():  # FIXME: why does Python return this?
                 yield from asyncio.wait_for(fut, timeout=timeout)
         except asyncio.TimeoutError:
             raise WorkerFailed("Timeout sending data from worker")

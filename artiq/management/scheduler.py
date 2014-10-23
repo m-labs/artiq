@@ -4,23 +4,28 @@ from artiq.management.worker import Worker
 
 
 class Scheduler:
-    def __init__(self, loop):
-        self.loop = loop
+    def __init__(self):
+        self.worker = Worker()
         self.queue = asyncio.Queue()
 
-    def __enter__(self):
-        self.worker = Worker(self.loop)
-        return self
+    @asyncio.coroutine
+    def start(self):
+        self.task = asyncio.Task(self._schedule())
+        yield from self.worker.create_process()
 
-    def __exit__(self, type, value, traceback):
-        self.loop.run_until_complete(self.worker.end_process())
-        del self.worker
+    @asyncio.coroutine
+    def stop(self):
+        self.task.cancel()
+        yield from asyncio.wait([self.task])
+        del self.task
+        yield from self.worker.end_process()
 
-    def add_run_once(self, item, timeout):
-        yield from self.queue.put((item, timeout))
+    def run_once(self, run_params, timeout):
+        self.queue.put_nowait((run_params, timeout))
 
-    def task(self):
+    @asyncio.coroutine
+    def _schedule(self):
         while True:
-            item, timeout = yield from self.queue.get()
-            result = yield from self.worker.run(item, timeout)
+            run_params, timeout = yield from self.queue.get()
+            result = yield from self.worker.run(run_params, timeout)
             print(result)

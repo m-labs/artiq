@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse
-import socket
-import json
+
+from artiq.management.pc_rpc import Client
 
 
 def _get_args():
@@ -18,28 +18,20 @@ def _get_args():
     return parser.parse_args()
 
 
-def _send_obj(sock, obj):
-    line = json.dumps(obj) + "\n"
-    sock.sendall(line.encode())
-
-
 def main():
     args = _get_args()
-
-    with socket.create_connection(("::1", 8888)) as sock:
+    remote = Client("::1", 8888)
+    try:
         for path, name, timeout in args.run_once:
-            obj = {
-                "action": "run_once",
-                "run_params": {
+            remote.run_once(
+                {
                     "path": path,
                     "name": name
-                },
-                "timeout": timeout
-            }
-            _send_obj(sock, obj)
+                }, int(timeout))
         if args.quit_master:
-            obj = {"action": "quit"}
-            _send_obj(sock, obj)
+            remote.quit()
+    finally:
+        remote.close()
 
 if __name__ == "__main__":
     main()
