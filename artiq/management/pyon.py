@@ -7,6 +7,13 @@ def _encode_none(x):
     return "None"
 
 
+def _encode_bool(x):
+    if x:
+        return "True"
+    else:
+        return "False"
+
+
 def _encode_number(x):
     return str(x)
 
@@ -50,6 +57,7 @@ def _encode_nparray(x):
 
 _encode_map = {
     type(None): _encode_none,
+    bool: _encode_bool,
     int: _encode_number,
     float: _encode_number,
     str: _encode_str,
