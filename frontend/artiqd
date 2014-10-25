@@ -2,21 +2,14 @@
 
 import asyncio
 
-from artiq.management.pc_rpc import Server
+from artiq.management.pc_rpc import Server, WaitQuit
 from artiq.management.scheduler import Scheduler
 
 
-class Master:
+class Master(WaitQuit):
     def __init__(self, scheduler):
+        WaitQuit.__init__(self)
         self.scheduler = scheduler
-        self.terminate_notify = asyncio.Semaphore(0)
-
-    @asyncio.coroutine
-    def wait_quit(self):
-        yield from self.terminate_notify.acquire()
-
-    def quit(self):
-        self.terminate_notify.release()
 
     def run_once(self, run_params, timeout):
         self.scheduler.run_once(run_params, timeout)

@@ -88,3 +88,15 @@ class Server:
                     writer.write(line.encode())
         finally:
             writer.close()
+
+
+class WaitQuit:
+    def __init__(self):
+        self.terminate_notify = asyncio.Semaphore(0)
+
+    @asyncio.coroutine
+    def wait_quit(self):
+        yield from self.terminate_notify.acquire()
+
+    def quit(self):
+        self.terminate_notify.release()
