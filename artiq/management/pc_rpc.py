@@ -77,8 +77,8 @@ class Server:
                 obj = pyon.decode(line.decode())
                 action = obj["action"]
                 if action == "call":
-                    method = getattr(self.target, obj["name"])
                     try:
+                        method = getattr(self.target, obj["name"])
                         ret = method(*obj["args"], **obj["kwargs"])
                         obj = {"result": "ok", "ret": ret}
                     except Exception as e:
