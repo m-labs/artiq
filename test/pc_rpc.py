@@ -21,7 +21,7 @@ class RPCCase(unittest.TestCase):
             try:
                 test_object = [5, 2.1, None, True, False,
                                {"a": 5, 2: np.linspace(0, 10, 1)},
-                               (4, 5), (10,)]
+                               (4, 5), (10,), "ab\nx\"'"]
                 time.sleep(.5)  # wait for the server to start
                 remote = pc_rpc.Client(test_address, test_port)
                 try:
