@@ -1,23 +1,27 @@
 #!/usr/bin/env python3
 
-# Robert Jordens <jordens@gmail.com>, 2012
+# Based on code by Robert Jordens <jordens@gmail.com>, 2012
 
 import argparse
 import time
-import logging
 
 from scipy import interpolate
 import numpy as np
 
-from pdq2com import Pdq2
+from artiq.management.pc_rpc import Client
 
 
-def _main():
-    parser = argparse.ArgumentParser(description="""PDQ2 frontend.
-            Evaluates times and voltages, interpolates and uploads
-            them.""")
-    parser.add_argument("-s", "--serial", default=None,
-                        help="device (FT245R) serial string [first]")
+def _get_args():
+    parser = argparse.ArgumentParser(description="""PDQ2 client.
+        Evaluates times and voltages, interpolates and uploads
+        them to the controller.""")
+    parser.add_argument("-s", "--server", default="::1",
+                        help="hostname or IP of the master to connect to")
+    parser.add_argument("--port", default=8889, type=int,
+                        help="TCP port to use to connect to the master")
+    parser.add_argument("-q", "--quit-controller", default=False,
+                        action="store_true",
+                        help="causes the controller to quit")
     parser.add_argument("-c", "--channel", default=0, type=int,
                         help="channel: 3*board_num+dac_num [%(default)s]")
     parser.add_argument("-f", "--frame", default=0, type=int,
@@ -44,42 +48,44 @@ def _main():
                         help="demo mode: pulse and chirp,"
                              " 1V*ch+0.1V*frame [%(default)s]")
     parser.add_argument("-p", "--plot", help="plot to file [%(default)s]")
-    parser.add_argument("-d", "--debug", default=False,
-                        action="store_true", help="debug communications")
     parser.add_argument("-r", "--reset", default=False,
                         action="store_true", help="do reset before")
     parser.add_argument("-b", "--bit", default=False,
                         action="store_true", help="do bit test")
+    return parser.parse_args()
 
-    args = parser.parse_args()
 
-    if args.debug:
-        logging.basicConfig(level=logging.DEBUG)
-    else:
-        logging.basicConfig(level=logging.WARNING)
-
-    times = eval(args.times, globals(), {})
-    voltages = eval(args.voltages, globals(), dict(t=times))
-
-    dev = Pdq2(serial=args.serial)
+def _main():
+    args = _get_args()
+    dev = Client(args.server, args.port)
+    if args.quit_controller:
+        dev.quit()
+        return
+    dev.init()
 
     if args.reset:
-        dev.write(b"\x00")  # flush any escape
+        dev.flush_escape()
         dev.write_cmd("RESET_EN")
         time.sleep(.1)
     if args.dcm:
         dev.write_cmd("DCM_EN")
-        dev.freq = 100e6
+        dev.set_freq(100e6)
     elif args.dcm == 0:
         dev.write_cmd("DCM_DIS")
-        dev.freq = 50e6
+        dev.set_freq(50e6)
     dev.write_cmd("START_DIS")
 
+    num_channels = dev.get_num_channels()
+    num_frames = dev.get_num_frames()
+    times = eval(args.times, globals(), {})
+    voltages = eval(args.voltages, globals(), dict(t=times))
+
     if args.demo:
-        channels = [args.channel] if args.channel < dev.num_channels \
-            else range(dev.num_channels)
-        frames = [args.frame] if args.frame < dev.num_frames \
-            else range(dev.num_frames)
+        # FIXME
+        channels = [args.channel] if args.channel < num_channels \
+            else range(num_channels)
+        frames = [args.frame] if args.frame < num_frames \
+            else range(num_frames)
         for channel in channels:
             f = []
             for frame in frames:
@@ -95,32 +101,29 @@ def _main():
             board, dac = divmod(channel, dev.num_dacs)
             dev.write_data(dev.add_mem_header(board, dac, dev.map_frames(f)))
     elif args.bit:
-        map = [0] * dev.num_frames
+        map = [0] * num_frames
         t = np.arange(2*16) * 1.
         v = [-1, 0, -1]
         for i in range(15):
             vi = 1 << i
             v.extend([vi - 1, vi])
-        v = np.array(v)*dev.max_out/(1 << 15)
+        v = np.array(v)*dev.get_max_out()/(1 << 15)
         t, v = t[:3], v[:3]
         # print(t, v)
-        for channel in range(dev.num_channels):
-            dev.write_data(dev.multi_frame([(t, v)], channel=channel,
-                           order=0, map=map, shift=15,
-                           stop=False, trigger=False))
+        for channel in range(num_channels):
+            dev.multi_frame([(t, v)], channel=channel, order=0, map=map,
+                            shift=15, stop=False, trigger=False)
     else:
         tv = [(times, voltages)]
-        map = [None] * dev.num_frames
+        map = [None] * num_frames
         map[args.frame] = 0
-        dev.write_data(dev.multi_frame(tv, channel=args.channel,
-                                       order=args.order, map=map))
+        dev.multi_frame(tv, channel=args.channel, order=args.order, map=map)
 
     dev.write_cmd("START_EN")
     if not args.disarm:
         dev.write_cmd("ARM_EN")
     if args.free:
         dev.write_cmd("TRIGGER_EN")
-    dev.close()
 
     if args.plot:
         from matplotlib import pyplot as plt
@@ -128,7 +131,7 @@ def _main():
         ax0.plot(times, voltages, "xk", label="points")
         if args.order:
             spline = interpolate.splrep(times, voltages, k=args.order)
-            ttimes = np.arange(0, times[-1], 1/dev.freq)
+            ttimes = np.arange(0, times[-1], 1/dev.get_freq())
             vvoltages = interpolate.splev(ttimes, spline)
             ax0.plot(ttimes, vvoltages, ",b", label="interpolation")
         fig.savefig(args.plot)

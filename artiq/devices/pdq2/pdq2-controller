@@ -1,11 +1,16 @@
-# Robert Jordens <jordens@gmail.com>, 2012
+#!/usr/bin/env python3
+
+# Based on code by Robert Jordens <jordens@gmail.com>, 2012
 
 import logging
 import struct
-import warnings
+import argparse
+import asyncio
 
 from scipy import interpolate
 import numpy as np
+
+from artiq.management.pc_rpc import Server, WaitQuit
 
 
 logger = logging.getLogger("Pdq2")
@@ -74,26 +79,14 @@ if Ftdi is None:
             self.fil.close()
             del self.fil
 
-    warnings.warn("no ftdi library found. writing to files")
+    logger.warning("no ftdi library found. writing to files")
     Ftdi = FileFtdi
 
 
-class Pdq2:
+class Pdq2(WaitQuit):
     """
     PDQ DAC (a.k.a. QC_Waveform)
     """
-    max_val = 1 << 15  # signed 16 bit DAC
-    max_out = 10.
-    freq = 50e6  # samples/s
-    max_time = 1 << 16  # unsigned 16 bit timer
-    num_dacs = 3
-    num_frames = 8
-    num_channels = 9
-    max_data = 4*(1 << 10)  # 8kx16 8kx16 4kx16
-    escape_char = b"\xa5"
-    cordic_gain = 1.
-    for i in range(16):
-        cordic_gain *= np.sqrt(1 + 2**(-2*i))
 
     commands = {
         "RESET_EN":    b"\x00",
@@ -109,24 +102,51 @@ class Pdq2:
     }
 
     def __init__(self, serial=None):
+        WaitQuit.__init__(self)
         self.serial = serial
         self.dev = Ftdi(serial)
+
+    def init(self):
+        self.max_val = 1 << 15  # signed 16 bit DAC
+        self.max_out = 10.
+        self.freq = 50e6  # samples/s
+        self.max_time = 1 << 16  # unsigned 16 bit timer
+        self.num_dacs = 3
+        self.num_frames = 8
+        self.num_channels = 9
+        self.max_data = 4*(1 << 10)  # 8kx16 8kx16 4kx16
+        self.escape_char = b"\xa5"
+        self.cordic_gain = 1.
+        for i in range(16):
+            self.cordic_gain *= np.sqrt(1 + 2**(-2*i))
 
     def close(self):
         self.dev.close()
         del self.dev
 
-    def cmd(self, cmd):
+    def set_freq(self, f):
+        self.freq = f
+
+    def get_freq(self):
+        return self.freq
+
+    def get_num_channels(self):
+        return self.num_channels
+
+    def get_num_frames(self):
+        return self.num_frames
+
+    def get_max_out(self):
+        return self.max_out
+
+    def _cmd(self, cmd):
         return self.escape_char + self.commands[cmd]
 
-    def write_cmd(self, cmd):
-        return self.write(self.cmd(cmd))
-
-    def escape(self, data):
+    def _escape(self, data):
         return data.replace(self.escape_char,
                             self.escape_char + self.escape_char)
 
-    def write(self, *segments):
+    def _write(self, *segments):
         """
         writes data segments to device
         """
@@ -135,17 +155,23 @@ class Pdq2:
             if written != len(segment):
                 raise IOError("wrote %i of %i" % (written, len(segment)))
 
-    def write_data(self, *segments):
-        return self.write(*(self.escape(seg) for seg in segments))
+    def flush_escape(self):
+        self._write(b"\x00")
 
-    def line_times(self, t, shift=0):
+    def write_cmd(self, cmd):
+        return self._write(self._cmd(cmd))
+
+    def _write_data(self, *segments):
+        return self._write(*(self._escape(seg) for seg in segments))
+
+    def _line_times(self, t, shift=0):
         scale = self.freq/2**shift
         t = t*scale
         tr = np.rint(t)
         dt = np.diff(tr)
         return t, tr, dt
 
-    def interpolate(self, t, v, order, shift=0, tr=None):
+    def _interpolate(self, t, v, order, shift=0, tr=None):
         """
         calculate spline interpolation derivatives for data
         according to interpolation order
@@ -171,7 +197,7 @@ class Pdq2:
             dv[i] -= c*dv[j]
         return dv
 
-    def pack_frame(self, *parts_dtypes):
+    def _pack_frame(self, *parts_dtypes):
         frame = []
         for part, dtype in parts_dtypes:
             if dtype == "i6":
@@ -185,9 +211,9 @@ class Pdq2:
                      frame, frame.dtype, frame.shape, len(bytes(frame.data)))
         return bytes(frame.data)
 
-    def frame(self, t, v, p=None, f=None,
-              order=3, aux=None, shift=0, trigger=True, end=True,
-              silence=False, stop=True, clear=True, wait=False):
+    def _frame(self, t, v, p=None, f=None,
+               order=3, aux=None, shift=0, trigger=True, end=True,
+               silence=False, stop=True, clear=True, wait=False):
         """
         serialize frame data
         voltages in volts, times in seconds
@@ -217,7 +243,7 @@ class Pdq2:
         head[-1] |= (not stop and wait) << 15  # 1
         parts.append((head, "u2"))
 
-        t, tr, dt = self.line_times(t, shift)
+        t, tr, dt = self._line_times(t, shift)
         assert np.all(dt*2**shift > 1 + length), (dt, length)
         assert np.all(dt < self.max_time), dt
 
@@ -226,20 +252,20 @@ class Pdq2:
         v = np.clip(v/self.max_out, -1, 1)
         if p is not None:
             v /= self.cordic_gain
-        for dv, w in zip(self.interpolate(t, v, order, shift, tr), words):
+        for dv, w in zip(self._interpolate(t, v, order, shift, tr), words):
             parts.append((np.rint(dv*(2**(16*w - 1))), "i%i" % (2*w)))
 
         if p is not None:
             p = p/(2*np.pi)
-            for dv, w in zip(self.interpolate(t, p, 0, shift, tr), [1]):
+            for dv, w in zip(self._interpolate(t, p, 0, shift, tr), [1]):
                 parts.append((np.rint(dv*(2**(16*w))), "u%i" % (2*w)))
 
         if f is not None:
             f = f/self.freq
-            for dv, w in zip(self.interpolate(t, f, 1, shift, tr), [2, 2]):
+            for dv, w in zip(self._interpolate(t, f, 1, shift, tr), [2, 2]):
                 parts.append((np.rint(dv*(2**(16*w))), "i%i" % (2*w)))
 
-        frame = self.pack_frame(*parts)
+        frame = self._pack_frame(*parts)
 
         if stop:
             if p is not None:
@@ -255,9 +281,9 @@ class Pdq2:
                                      1, int(v[-1]*2**15))
         return frame
 
-    def line(self, dt, v=(), a=(), p=(), f=(), typ=0,
-             silence=False, end=False, trigger=False, aux=False,
-             clear=False):
+    def _line(self, dt, v=(), a=(), p=(), f=(), typ=0,
+              silence=False, end=False, trigger=False, aux=False,
+              clear=False):
         raise NotImplementedError
         fmt = "<HH"
         parts = [0, int(round(dt*self.freq))]
@@ -272,7 +298,7 @@ class Pdq2:
         if p is not None:
             typ = 1
 
-    def map_frames(self, frames, map=None):
+    def _map_frames(self, frames, map=None):
         table = []
         adr = self.num_frames
         for frame in frames:
@@ -291,15 +317,59 @@ class Pdq2:
         t = struct.pack("<" + "H"*self.num_frames, *t)
         return t + b"".join(frames)
 
-    def add_mem_header(self, board, dac, data, adr=0):
+    def _add_mem_header(self, board, dac, data, adr=0):
         assert dac in range(self.num_dacs)
         head = struct.pack("<HHH", (board << 4) | dac,
                            adr, adr + len(data)//2 - 1)
         return head + data
 
     def multi_frame(self, times_voltages, channel, map=None, **kwargs):
-        frames = [self.frame(t, v, **kwargs) for t, v in times_voltages]
-        data = self.map_frames(frames, map)
+        frames = [self._frame(t, v, **kwargs) for t, v in times_voltages]
+        data = self._map_frames(frames, map)
         board, dac = divmod(channel, self.num_dacs)
-        data = self.add_mem_header(board, dac, data)
-        return data
+        data = self._add_mem_header(board, dac, data)
+        self._write_data(data)
+
+
+def _get_args():
+    parser = argparse.ArgumentParser(description="PDQ2 controller")
+    parser.add_argument(
+        "--bind", default="::1",
+        help="hostname or IP address to bind to")
+    parser.add_argument(
+        "--port", default=8889, type=int,
+        help="TCP port to listen to")
+    parser.add_argument(
+        "-s", "--serial", default=None,
+        help="device (FT245R) serial string [first]")
+    parser.add_argument(
+        "-d", "--debug", default=False, action="store_true",
+        help="debug communications")
+    return parser.parse_args()
+
+
+def main():
+    args = _get_args()
+
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.WARNING)
+
+    dev = Pdq2(serial=args.serial)
+    try:
+        loop = asyncio.get_event_loop()
+        try:
+            server = Server(dev)
+            loop.run_until_complete(server.start(args.bind, args.port))
+            try:
+                loop.run_until_complete(dev.wait_quit())
+            finally:
+                    loop.run_until_complete(server.stop())
+        finally:
+            loop.close()
+    finally:
+        dev.close()
+
+if __name__ == "__main__":
+    main()
