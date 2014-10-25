@@ -1,6 +1,7 @@
 import socket
 import json
 import asyncio
+import traceback
 
 
 class RemoteError(Exception):
@@ -29,7 +30,7 @@ class Client:
         if obj["result"] == "ok":
             return obj["ret"]
         elif obj["result"] == "error":
-            raise RemoteError(obj["message"])
+            raise RemoteError(obj["message"] + "\n" + obj["traceback"])
         else:
             raise ValueError
 
@@ -81,8 +82,9 @@ class Server:
                         obj = {"result": "ok", "ret": ret}
                     except Exception as e:
                         obj = {"result": "error",
-                               "message": type(e).__name__ + ": " + str(e)}
-                    line = json.dumps(obj) + "\n"
+                               "message": type(e).__name__ + ": " + str(e),
+                               "traceback": traceback.format_exc()}
+                    line = pyon.encode(obj) + "\n"
                     writer.write(line.encode())
         finally:
             writer.close()
