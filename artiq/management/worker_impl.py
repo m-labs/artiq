@@ -1,6 +1,7 @@
-import json
 import sys
 import importlib
+
+from artiq.management import pyon
 
 
 def import_in_folder(path, name):
@@ -20,7 +21,7 @@ def run(path, name):
 
 
 def put_object(obj):
-    ds = json.dumps(obj)
+    ds = pyon.encode(obj)
     sys.__stdout__.write(ds)
     sys.__stdout__.write("\n")
     sys.__stdout__.flush()
@@ -31,7 +32,7 @@ def main():
 
     while True:
         line = sys.__stdin__.readline()
-        obj = json.loads(line)
+        obj = pyon.decode(line)
         put_object("ack")
 
         try:

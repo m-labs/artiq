@@ -2,7 +2,8 @@ import sys
 import asyncio
 import subprocess
 import signal
-import json
+
+from artiq.management import pyon
 
 
 class WorkerFailed(Exception):
@@ -24,7 +25,7 @@ class Worker:
 
     @asyncio.coroutine
     def _send(self, obj, timeout):
-        line = json.dumps(obj)
+        line = pyon.encode(obj)
         self.process.stdin.write(line.encode())
         self.process.stdin.write("\n".encode())
         try:
@@ -47,9 +48,9 @@ class Worker:
             raise WorkerFailed(
                 "Worker ended unexpectedly while trying to receive data")
         try:
-            obj = json.loads(line.decode())
+            obj = pyon.decode(line.decode())
         except:
-            raise WorkerFailed("Worker sent invalid JSON data")
+            raise WorkerFailed("Worker sent invalid PYON data")
         return obj
 
     @asyncio.coroutine
