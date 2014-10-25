@@ -12,7 +12,7 @@ class Client:
     def __init__(self, host, port):
         self.socket = socket.create_connection((host, port))
 
-    def close(self):
+    def close_rpc(self):
         self.socket.close()
 
     def do_rpc(self, name, args, kwargs):
