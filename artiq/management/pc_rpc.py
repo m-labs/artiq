@@ -1,7 +1,8 @@
 import socket
-import json
 import asyncio
 import traceback
+
+from artiq.management import pyon
 
 
 class RemoteError(Exception):
@@ -17,7 +18,7 @@ class Client:
 
     def do_rpc(self, name, args, kwargs):
         obj = {"action": "call", "name": name, "args": args, "kwargs": kwargs}
-        line = json.dumps(obj) + "\n"
+        line = pyon.encode(obj) + "\n"
         self.socket.sendall(line.encode())
 
         buf = self.socket.recv(4096).decode()
@@ -26,7 +27,7 @@ class Client:
             if not more:
                 break
             buf += more.decode()
-        obj = json.loads(buf)
+        obj = pyon.decode(buf)
         if obj["result"] == "ok":
             return obj["ret"]
         elif obj["result"] == "error":
@@ -73,7 +74,7 @@ class Server:
                 line = yield from reader.readline()
                 if not line:
                     break
-                obj = json.loads(line.decode())
+                obj = pyon.decode(line.decode())
                 action = obj["action"]
                 if action == "call":
                     method = getattr(self.target, obj["name"])
