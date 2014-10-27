@@ -7,7 +7,7 @@ Contents:
     :maxdepth: 2
 
     installing
-    tutorial
+    getting_started
     core_reference
     drivers_reference
     management_reference

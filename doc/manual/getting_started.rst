@@ -1,5 +1,5 @@
-Tutorial
-========
+Getting started
+===============
 
 Connecting to the core device
 -----------------------------
