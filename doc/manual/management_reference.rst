@@ -6,3 +6,9 @@ Management reference
 
 .. automodule:: artiq.management.pyon
     :members:
+
+:mod:`artiq.management.pc_rpc` module
+-------------------------------------
+
+.. automodule:: artiq.management.pc_rpc
+    :members:
