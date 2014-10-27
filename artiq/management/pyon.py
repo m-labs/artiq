@@ -1,3 +1,23 @@
+"""
+This module provide serialization and deserialization functions for Python
+objects. Its main features are:
+
+* Human-readable format compatible with the Python syntax.
+* Each object is serialized on a single line, with only ASCII characters.
+* Supports all basic Python data structures: None, booleans, integers,
+  floats, strings, tuples, lists, dictionaries.
+* Those data types are accurately reconstructed (unlike JSON where e.g. tuples
+  become lists, and dictionary keys are turned into strings).
+* Supports Numpy arrays.
+
+The main rationale for this new custom serializer (instead of using JSON) is
+that JSON does not support Numpy and more generally cannot be extended with
+other data types while keeping a concise syntax. Here we can use the Python
+function call syntax to mark special data types.
+
+"""
+
+
 import base64
 
 import numpy
@@ -69,6 +89,10 @@ _encode_map = {
 
 
 def encode(x):
+    """Serializes a Python object and returns the corresponding string in
+    Python syntax.
+
+    """
     return _encode_map[type(x)](x)
 
 
@@ -78,4 +102,8 @@ def _nparray(shape, dtype, data):
 
 
 def decode(s):
+    """Parses a string in the Python syntax, reconstructs the corresponding
+    object, and returns it.
+
+    """
     return eval(s, {"__builtins__": None, "nparray": _nparray}, {})

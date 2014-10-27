@@ -10,3 +10,4 @@ Contents:
     tutorial
     core_reference
     drivers_reference
+    management_reference
