@@ -16,9 +16,9 @@ def _get_args():
         Evaluates times and voltages, interpolates and uploads
         them to the controller.""")
     parser.add_argument("-s", "--server", default="::1",
-                        help="hostname or IP of the master to connect to")
+                        help="hostname or IP of the controller to connect to")
     parser.add_argument("--port", default=8889, type=int,
-                        help="TCP port to use to connect to the master")
+                        help="TCP port to use to connect to the controller")
     parser.add_argument("-c", "--channel", default=0, type=int,
                         help="channel: 3*board_num+dac_num [%(default)s]")
     parser.add_argument("-f", "--frame", default=0, type=int,
