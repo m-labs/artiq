@@ -10,7 +10,7 @@ import asyncio
 from scipy import interpolate
 import numpy as np
 
-from artiq.management.pc_rpc import Server
+from artiq.management.pc_rpc import simple_server_loop
 
 
 logger = logging.getLogger("Pdq2")
@@ -355,16 +355,7 @@ def main():
 
     dev = Pdq2(serial=args.serial)
     try:
-        loop = asyncio.get_event_loop()
-        try:
-            server = Server(dev)
-            loop.run_until_complete(server.start(args.bind, args.port))
-            try:
-                loop.run_forever()
-            finally:
-                loop.run_until_complete(server.stop())
-        finally:
-            loop.close()
+        simple_server_loop(dev, args.bind, args.port)
     finally:
         dev.close()
 

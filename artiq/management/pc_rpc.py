@@ -158,3 +158,24 @@ class Server:
                     writer.write(line.encode())
         finally:
             writer.close()
+
+
+def simple_server_loop(target, host, port):
+    """Runs a server until an exception is raised (e.g. the user hits Ctrl-C).
+
+    :param target: Object providing the RPC methods to be exposed to the
+        client.
+    :param host: Bind address of the server.
+    :param port: TCP port to bind to.
+
+    """
+    loop = asyncio.get_event_loop()
+    try:
+        server = Server(target)
+        loop.run_until_complete(server.start(host, port))
+        try:
+            loop.run_forever()
+        finally:
+            loop.run_until_complete(server.stop())
+    finally:
+        loop.close()
