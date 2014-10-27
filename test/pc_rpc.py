@@ -46,9 +46,16 @@ class RPCCase(unittest.TestCase):
             self.assertEqual(test_object, test_object_back)
 
 
-class Echo(pc_rpc.WaitQuit):
+class Echo:
     def __init__(self):
-        pc_rpc.WaitQuit.__init__(self)
+        self.terminate_notify = asyncio.Semaphore(0)
+
+    @asyncio.coroutine
+    def wait_quit(self):
+        yield from self.terminate_notify.acquire()
+
+    def quit(self):
+        self.terminate_notify.release()
 
     def echo(self, x):
         return x

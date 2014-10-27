@@ -158,31 +158,3 @@ class Server:
                     writer.write(line.encode())
         finally:
             writer.close()
-
-
-class WaitQuit:
-    """Provides facilities to handle the termination of servers.
-
-    Server targets typically inherit from this class, with the method ``quit``
-    called via RPC.
-
-    """
-    def __init__(self):
-        self.terminate_notify = asyncio.Semaphore(0)
-
-    @asyncio.coroutine
-    def wait_quit(self):
-        """Waits until the `quit` method is called. This is typically used to
-        keep the `asyncio` loop running until the server is requested to
-        terminate.
-
-        This method is a `coroutine`.
-
-        """
-        yield from self.terminate_notify.acquire()
-
-    def quit(self):
-        """Quits the server.
-
-        """
-        self.terminate_notify.release()

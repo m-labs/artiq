@@ -19,9 +19,6 @@ def _get_args():
                         help="hostname or IP of the master to connect to")
     parser.add_argument("--port", default=8889, type=int,
                         help="TCP port to use to connect to the master")
-    parser.add_argument("-q", "--quit-controller", default=False,
-                        action="store_true",
-                        help="causes the controller to quit")
     parser.add_argument("-c", "--channel", default=0, type=int,
                         help="channel: 3*board_num+dac_num [%(default)s]")
     parser.add_argument("-f", "--frame", default=0, type=int,
@@ -58,9 +55,6 @@ def _get_args():
 def _main():
     args = _get_args()
     dev = Client(args.server, args.port)
-    if args.quit_controller:
-        dev.quit()
-        return
     dev.init()
 
     if args.reset:

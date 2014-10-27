@@ -3,17 +3,8 @@
 import asyncio
 import argparse
 
-from artiq.management.pc_rpc import Server, WaitQuit
+from artiq.management.pc_rpc import Server
 from artiq.management.scheduler import Scheduler
-
-
-class Master(WaitQuit):
-    def __init__(self, scheduler):
-        WaitQuit.__init__(self)
-        self.scheduler = scheduler
-
-    def run_once(self, run_params, timeout):
-        self.scheduler.run_once(run_params, timeout)
 
 
 def _get_args():
@@ -34,11 +25,10 @@ def main():
         scheduler = Scheduler()
         loop.run_until_complete(scheduler.start())
         try:
-            master = Master(scheduler)
-            server = Server(master)
+            server = Server(scheduler)
             loop.run_until_complete(server.start(args.bind, args.port))
             try:
-                loop.run_until_complete(master.wait_quit())
+                loop.run_forever()
             finally:
                 loop.run_until_complete(server.stop())
         finally:

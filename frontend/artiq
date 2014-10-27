@@ -17,10 +17,6 @@ def _get_args():
         "-o", "--run-once", default=[], nargs=3,
         action="append",
         help="run experiment once. arguments: <path> <name> <timeout>")
-    parser.add_argument(
-        "-q", "--quit-master", default=False,
-        action="store_true",
-        help="causes the master to quit")
     return parser.parse_args()
 
 
@@ -34,8 +30,6 @@ def main():
                     "path": path,
                     "name": name
                 }, int(timeout))
-        if args.quit_master:
-            remote.quit()
     finally:
         remote.close_rpc()
 

@@ -10,7 +10,7 @@ import asyncio
 from scipy import interpolate
 import numpy as np
 
-from artiq.management.pc_rpc import Server, WaitQuit
+from artiq.management.pc_rpc import Server
 
 
 logger = logging.getLogger("Pdq2")
@@ -83,7 +83,7 @@ if Ftdi is None:
     Ftdi = FileFtdi
 
 
-class Pdq2(WaitQuit):
+class Pdq2:
     """
     PDQ DAC (a.k.a. QC_Waveform)
     """
@@ -102,7 +102,6 @@ class Pdq2(WaitQuit):
     }
 
     def __init__(self, serial=None):
-        WaitQuit.__init__(self)
         self.serial = serial
         self.dev = Ftdi(serial)
 
@@ -363,9 +362,9 @@ def main():
             server = Server(dev)
             loop.run_until_complete(server.start(args.bind, args.port))
             try:
-                loop.run_until_complete(dev.wait_quit())
+                loop.run_forever()
             finally:
-                    loop.run_until_complete(server.stop())
+                loop.run_until_complete(server.stop())
         finally:
             loop.close()
     finally:
