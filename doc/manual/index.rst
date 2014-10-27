@@ -8,6 +8,7 @@ Contents:
 
     installing
     getting_started
-    core_reference
-    drivers_reference
+    core_language_reference
+    core_drivers_reference
     management_reference
+    drivers_reference

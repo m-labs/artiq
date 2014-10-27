@@ -1,20 +1,18 @@
 Drivers reference
 =================
 
-:mod:`artiq.coredevice.rtio` module
------------------------------------
+These drivers are for "slow" devices that are directly controlled by a PC, typically over a non-realtime channel such as USB.
 
-.. automodule:: artiq.coredevice.rtio
-    :members:
+Certain devices (such as the PDQ2) may still perform real-time operations by having certain controls physically connected to the core device (for example, the trigger and frame selection signals on the PDQ2). For handling such cases, parts of the drivers may be kernels executed on the core device.
 
-:mod:`artiq.coredevice.dds` module
+Each driver is run in a separate "controller" that exposes a RPC interface (based on :class:`artiq.management.pc_rpc`) to its functions. The master never does direct I/O to the devices, but issues RPCs to the controllers when needed. As opposed to running everything on the master, this architecture has those main advantages:
+
+* Each driver can be run on a different machine, which alleviates cabling issues and OS compatibility problems.
+* Reduces the impact of driver crashes.
+* Reduces the impact of driver memory leaks.
+
+:mod:`artiq.devices.pdq2` module
 ----------------------------------
 
-.. automodule:: artiq.coredevice.dds
-    :members:
-
-:mod:`artiq.coredevice.runtime_exceptions` module
--------------------------------------------------
-
-.. automodule:: artiq.coredevice.runtime_exceptions
+.. automodule:: artiq.devices.pdq2
     :members:
