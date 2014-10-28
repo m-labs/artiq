@@ -54,7 +54,7 @@ def _get_args():
 
 def _main():
     args = _get_args()
-    dev = Client(args.server, args.port)
+    dev = Client(args.server, args.port, "pdq2")
     dev.init()
 
     if args.reset:

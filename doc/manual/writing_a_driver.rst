@@ -23,7 +23,7 @@ To turn it into a server, we use :class:`artiq.management.pc_rpc`. Import the fu
 and add a ``main`` function that is run when the program is executed: ::
 
     def main():
-        simple_server_loop(Hello(), "::1", 7777)
+        simple_server_loop(Hello(), "hello", "::1", 7777)
 
     if __name__ == "__main__":
         main()
@@ -49,6 +49,11 @@ and verify that you can connect to the TCP port: ::
 
 :tip: Use the key combination Ctrl-AltGr-9 to get the ``telnet>`` prompt, and enter ``close`` to quit Telnet. Quit the controller with Ctrl-C.
 
+Also verify that you can get the type of the server (the "hello" string passed to ``simple_server_loop``) using the ``identify-controller`` program from the ARTIQ front-end tools: ::
+
+    ./identify-controller ::1 7777
+    Type:       hello
+
 The client
 ----------
 
@@ -62,7 +67,7 @@ Create a ``hello-client`` file with the following contents: ::
 
 
     def main():
-        remote = Client("::1", 7777)
+        remote = Client("::1", 7777, "hello")
         try:
             remote.message("Hello World!")
         finally:

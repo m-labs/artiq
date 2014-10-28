@@ -22,7 +22,7 @@ def _get_args():
 
 def main():
     args = _get_args()
-    remote = Client(args.server, args.port)
+    remote = Client(args.server, args.port, "master")
     try:
         for path, name, timeout in args.run_once:
             remote.run_once(

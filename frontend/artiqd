@@ -25,7 +25,7 @@ def main():
         scheduler = Scheduler()
         loop.run_until_complete(scheduler.start())
         try:
-            server = Server(scheduler)
+            server = Server(scheduler, "master")
             loop.run_until_complete(server.start(args.bind, args.port))
             try:
                 loop.run_forever()

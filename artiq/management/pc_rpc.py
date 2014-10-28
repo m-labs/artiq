@@ -14,8 +14,16 @@ from artiq.management import pyon
 
 
 class RemoteError(Exception):
-    """Exception raised when a RPC failed or raised an exception on the
-    remote (server) side.
+    """Raised when a RPC failed or raised an exception on the remote (server)
+    side.
+
+    """
+    pass
+
+
+class IncompatibleServer(Exception):
+    """Raised by the client when attempting to connect to a server that does
+    not have the expected type.
 
     """
     pass
@@ -44,10 +52,21 @@ class Client:
         hostname or a IPv4 or IPv6 address (see
         ``socket.create_connection`` in the Python standard library).
     :param port: TCP port to use.
+    :param expected_id_type: Server type to expect. ``IncompatibleServer`` is
+        raised when the types do not match. Use ``None`` to accept any server
+        type.
 
     """
-    def __init__(self, host, port):
+    def __init__(self, host, port, expected_id_type):
         self.socket = socket.create_connection((host, port))
+        self._identify(expected_id_type)
+
+    def get_rpc_id(self):
+        """Returns a dictionary containing the identification information of
+        the server.
+
+        """
+        return self._server_identification
 
     def close_rpc(self):
         """Closes the connection to the RPC server.
@@ -57,8 +76,7 @@ class Client:
         """
         self.socket.close()
 
-    def _do_rpc(self, name, args, kwargs):
-        obj = {"action": "call", "name": name, "args": args, "kwargs": kwargs}
+    def _send_recv(self, obj):
         line = pyon.encode(obj) + "\n"
         self.socket.sendall(line.encode())
 
@@ -69,6 +87,19 @@ class Client:
                 break
             buf += more.decode()
         obj = pyon.decode(buf)
+
+        return obj
+
+    def _identify(self, expected_id_type):
+        obj = {"action": "identify"}
+        self._server_identification = self._send_recv(obj)
+        if (expected_id_type is not None
+                and self._server_identification["type"] != expected_id_type):
+            raise IncompatibleServer
+
+    def _do_rpc(self, name, args, kwargs):
+        obj = {"action": "call", "name": name, "args": args, "kwargs": kwargs}
+        obj = self._send_recv(obj)
         if obj["result"] == "ok":
             return obj["ret"]
         elif obj["result"] == "error":
@@ -94,10 +125,16 @@ class Server:
 
     :param target: Object providing the RPC methods to be exposed to the
         client.
+    :param id_type: A string identifying the server type. Clients use it to
+        verify that they are connected to the proper server.
+    :param id_parameters: An optional human-readable string giving more
+        information about the parameters of the server.
 
     """
-    def __init__(self, target):
+    def __init__(self, target, id_type, id_parameters=None):
         self.target = target
+        self.id_type = id_type
+        self.id_parameters = id_parameters
         self._client_tasks = set()
 
     @asyncio.coroutine
@@ -156,22 +193,25 @@ class Server:
                                "traceback": traceback.format_exc()}
                     line = pyon.encode(obj) + "\n"
                     writer.write(line.encode())
+                elif action == "identify":
+                    obj = {"type": self.id_type}
+                    if self.id_parameters is not None:
+                        obj["parameters"] = self.id_parameters
+                    line = pyon.encode(obj) + "\n"
+                    writer.write(line.encode())
         finally:
             writer.close()
 
 
-def simple_server_loop(target, host, port):
+def simple_server_loop(target, id_type, host, port, id_parameters=None):
     """Runs a server until an exception is raised (e.g. the user hits Ctrl-C).
 
-    :param target: Object providing the RPC methods to be exposed to the
-        client.
-    :param host: Bind address of the server.
-    :param port: TCP port to bind to.
+    See ``Server`` for a description of the parameters.
 
     """
     loop = asyncio.get_event_loop()
     try:
-        server = Server(target)
+        server = Server(target, id_type, id_parameters)
         loop.run_until_complete(server.start(host, port))
         try:
             loop.run_forever()

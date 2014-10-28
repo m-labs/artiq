@@ -25,7 +25,8 @@ class RPCCase(unittest.TestCase):
                 for attempt in range(100):
                     time.sleep(.2)
                     try:
-                        remote = pc_rpc.Client(test_address, test_port)
+                        remote = pc_rpc.Client(test_address, test_port,
+                                               "test")
                     except ConnectionRefusedError:
                         pass
                     else:
@@ -65,7 +66,7 @@ def run_server():
     loop = asyncio.get_event_loop()
     try:
         echo = Echo()
-        server = pc_rpc.Server(echo)
+        server = pc_rpc.Server(echo, "test")
         loop.run_until_complete(server.start(test_address, test_port))
         try:
             loop.run_until_complete(echo.wait_quit())
