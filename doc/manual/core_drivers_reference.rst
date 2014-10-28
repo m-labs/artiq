@@ -1,8 +1,7 @@
 Core drivers reference
 ======================
 
-These drivers are for peripherals closely integrated into the core device, which do not
-follow the controller paradigm.
+These drivers are for peripherals closely integrated into the core device, which do not use the controller mechanism.
 
 :mod:`artiq.coredevice.rtio` module
 -----------------------------------

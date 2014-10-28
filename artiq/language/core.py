@@ -84,7 +84,7 @@ def array(element, count):
 
 
 class AutoContext:
-    """Base class to automate device and parameter management.
+    """Base class to automate device and parameter discovery.
 
     Drivers and experiments should in most cases overload this class to
     obtain the parameters and devices (including the core device) that they
