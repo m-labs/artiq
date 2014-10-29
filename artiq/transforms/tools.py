@@ -57,7 +57,9 @@ def eval_constant(node):
         return node.value
     elif isinstance(node, ast.Call):
         funcname = node.func.id
-        if funcname == "Fraction":
+        if funcname == "int64":
+            return core_language.int64(eval_constant(node.args[0]))
+        elif funcname == "Fraction":
             numerator = eval_constant(node.args[0])
             denominator = eval_constant(node.args[1])
             return Fraction(numerator, denominator)
