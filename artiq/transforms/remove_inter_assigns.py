@@ -1,24 +1,7 @@
 import ast
 from copy import copy, deepcopy
 
-
-_replaceable_funcs = {
-    "bool", "int", "float", "round",
-    "int64", "round64", "Fraction",
-}
-
-
-def _is_replaceable(value):
-    if isinstance(value, (ast.NameConstant, ast.Num, ast.Str)):
-        return True
-    elif isinstance(value, ast.BinOp):
-        return _is_replaceable(value.left) and _is_replaceable(value.right)
-    elif isinstance(value, ast.BoolOp):
-        return all(_is_replaceable(v) for v in value.values)
-    elif isinstance(value, ast.Call) and isinstance(value.func, ast.Name):
-        return value.func.id in _replaceable_funcs
-    else:
-        return False
+from artiq.transforms.tools import is_replaceable
 
 
 class _TargetLister(ast.NodeVisitor):
@@ -47,7 +30,7 @@ class _InterAssignRemover(ast.NodeTransformer):
 
     def visit_Assign(self, node):
         self.generic_visit(node)
-        if _is_replaceable(node.value):
+        if is_replaceable(node.value):
             for target in node.targets:
                 if isinstance(target, ast.Name):
                     self.replacements[target.id] = node.value

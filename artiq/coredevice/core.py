@@ -4,6 +4,7 @@ from artiq.transforms.inline import inline
 from artiq.transforms.lower_units import lower_units
 from artiq.transforms.remove_inter_assigns import remove_inter_assigns
 from artiq.transforms.fold_constants import fold_constants
+from artiq.transforms.remove_dead_code import remove_dead_code
 from artiq.transforms.unroll_loops import unroll_loops
 from artiq.transforms.interleave import interleave
 from artiq.transforms.lower_time import lower_time
@@ -43,7 +44,7 @@ class Core:
 
     def run(self, k_function, k_args, k_kwargs):
         # transform/simplify AST
-        _debug_unparse = _make_debug_unparse("fold_constants_2")
+        _debug_unparse = _make_debug_unparse("remove_dead_code")
 
         func_def, rpc_map, exception_map = inline(
             self, k_function, k_args, k_kwargs)
@@ -74,6 +75,9 @@ class Core:
 
         fold_constants(func_def)
         _debug_unparse("fold_constants_2", func_def)
+
+        remove_dead_code(func_def)
+        _debug_unparse("remove_dead_code", func_def)
 
         # compile to machine code and run
         binary = get_runtime_binary(self.runtime_env, func_def)
