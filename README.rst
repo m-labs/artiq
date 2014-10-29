@@ -2,7 +2,7 @@
 ARTIQ
 =====
 
-.. image:: doc/logo/artiq.svg
+.. image:: doc/logo/artiq.png
 
 
 ARTIQ (Advanced Real-Time Infrastructure for Quantum physics) is an open source
