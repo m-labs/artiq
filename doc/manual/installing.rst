@@ -12,7 +12,7 @@ You will need:
 
     * Get them from http://www.xilinx.com/support/download/index.htm
 
-* Python 3.3+
+* Python 3.4+
 
 * OpenRISC GCC/binutils toolchain (or1k-elf-...)
 
