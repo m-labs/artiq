@@ -36,10 +36,11 @@ class _InterAssignRemover(ast.NodeTransformer):
                     self.replacements[target.id] = node.value
         else:
             for target in node.targets:
-                try:
-                    del self.replacements[target.id]
-                except KeyError:
-                    pass
+                if isinstance(target, ast.Name):
+                    try:
+                        del self.replacements[target.id]
+                    except KeyError:
+                        pass
         return node
 
     def visit_AugAssign(self, node):
