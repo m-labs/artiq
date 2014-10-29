@@ -1,5 +1,4 @@
 .. image:: doc/logo/artiq.png
-    :align: center
 
 ARTIQ (Advanced Real-Time Infrastructure for Quantum physics) is an open source
 control system for laser-cooled trapped ion experiments. It is being developed for
