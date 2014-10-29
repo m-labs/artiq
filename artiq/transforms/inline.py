@@ -227,7 +227,7 @@ class _ReferenceReplacer(ast.NodeVisitor):
         if isinstance(ival, ast.AST):
             return ival
         elif isinstance(ival, _UserVariable):
-            return ast.copy_location(ast.Name(ival.name, ast.Load()), node)
+            return ast.copy_location(ast.Name(ival.name, node.ctx), node)
         else:
             return value_to_ast(ival)
 
