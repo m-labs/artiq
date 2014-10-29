@@ -1,4 +1,5 @@
 import ast
+from copy import deepcopy
 
 from artiq.transforms.tools import eval_ast, value_to_ast
 
@@ -66,7 +67,7 @@ class _LoopUnroller(ast.NodeTransformer):
                         ast.Assign(targets=[node.target],
                                    value=value_to_ast(i)),
                         node))
-                    replacement += node.body
+                    replacement += deepcopy(node.body)
                 if replacement is not None:
                     return replacement
                 else:

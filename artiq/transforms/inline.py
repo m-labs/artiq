@@ -4,6 +4,7 @@ import inspect
 import textwrap
 import ast
 import builtins
+from copy import deepcopy
 
 from artiq.transforms.tools import eval_ast, value_to_ast
 from artiq.language import core as core_language
@@ -193,7 +194,7 @@ class _ReferenceReplacer(ast.NodeVisitor):
             newnode = ast.Name(ival.name, node.ctx)
         elif isinstance(ival, ast.AST):
             assert(not store)
-            newnode = ival
+            newnode = deepcopy(ival)
         else:
             if store:
                 raise NotImplementedError(
@@ -209,7 +210,7 @@ class _ReferenceReplacer(ast.NodeVisitor):
         if isinstance(node, ast.Name):
             ival = self.rm.resolve_name(self.obj, self.func_name, node.id, False)
             if isinstance(ival, _UserVariable):
-                return ast.copy_location(ast.Name(ival.name, ast.Load()), node)
+                return ast.Name(ival.name, ast.Load())
             else:
                 return ival
         elif isinstance(node, ast.Attribute):
@@ -225,11 +226,12 @@ class _ReferenceReplacer(ast.NodeVisitor):
     def visit_Attribute(self, node):
         ival = self._resolve_attribute(node)
         if isinstance(ival, ast.AST):
-            return ival
+            newnode = deepcopy(ival)
         elif isinstance(ival, _UserVariable):
-            return ast.copy_location(ast.Name(ival.name, node.ctx), node)
+            newnode = ast.Name(ival.name, node.ctx)
         else:
-            return value_to_ast(ival)
+            newnode = value_to_ast(ival)
+        return ast.copy_location(newnode, node)
 
     def visit_Call(self, node):
         func = self.rm.resolve_constant(self.obj, self.func_name, node.func)
