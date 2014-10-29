@@ -2,6 +2,9 @@
 ARTIQ
 =====
 
+.. image:: doc/logo/artiq.svg
+
+
 ARTIQ (Advanced Real-Time Infrastructure for Quantum physics) is an open source
 control system for laser-cooled trapped ion experiments. It is being developed for
 the Ion Storage Group at NIST its applicability reaches beyond ion trapping.
