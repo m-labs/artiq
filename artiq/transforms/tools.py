@@ -13,6 +13,10 @@ def eval_ast(expr, symdict=dict()):
     return eval(code, symdict)
 
 
+class NotASTRepresentable(Exception):
+    pass
+
+
 def value_to_ast(value):
     if isinstance(value, core_language.int64):  # must be before int
         return ast.Call(
@@ -41,7 +45,7 @@ def value_to_ast(value):
                 func=ast.Name("Quantity", ast.Load()),
                 args=[value_to_ast(value.amount), ast.Str(value.unit)],
                 keywords=[], starargs=None, kwargs=None)
-        return None
+        raise NotASTRepresentable(str(value))
 
 
 class NotConstant(Exception):
