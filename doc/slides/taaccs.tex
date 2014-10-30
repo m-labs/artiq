@@ -57,11 +57,19 @@ inner sep=.3mm] at (current page.south east) {%
 \end{frame}
 
 \begin{frame}
-  \includegraphics[width=\columnwidth]{lab}
-\end{frame}
-
-\begin{frame}
-  \includegraphics[width=\columnwidth]{lab_hardware}
+  \begin{tikzpicture}[box/.style={rectangle,fill=white}]
+    \node[inner sep=0] {\includegraphics[width=\columnwidth]{lab}};\pause
+    %\draw[help lines,white] (-4, -3) grid (4, 3);
+    \node[box] at (-4, -2) {FPGA};
+    \node[box] at (3.5, 0) {ion trap};
+    \node[box] at (-3, 3) {$\sim$10 attenuators};
+    \node[box] at (2, 2) {$\sim$50 DAC};
+    \node[box] at (-4, 0) {$\sim$20 DDS};
+    \node[box] at (-2, 1) {$\sim$50 GPIO};
+    \node[box] at (.5, 0) {$\sim$10 motors};
+    \node[box] at (2, -2) {$\sim$10 power supplies};
+    \node[box] at (4, -3) {$\sim$10 lasers};
+  \end{tikzpicture}
 \end{frame}
 
 \begin{frame}
