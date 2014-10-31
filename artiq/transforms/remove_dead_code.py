@@ -19,8 +19,8 @@ class _DeadCodeRemover(ast.NodeTransformer):
     def visit_Assign(self, node):
         new_targets = []
         for target in node.targets:
-            if not (isinstance(target, ast.Name)
-                    and target.id not in self.kept_targets):
+            if (not isinstance(target, ast.Name)
+                    or target.id in self.kept_targets):
                 new_targets.append(target)
         if not new_targets and is_replaceable(node.value):
             return None
@@ -36,6 +36,7 @@ class _DeadCodeRemover(ast.NodeTransformer):
             return node
 
     def visit_If(self, node):
+        self.generic_visit(node)
         if isinstance(node.test, ast.NameConstant):
             if node.test.value:
                 return node.body
@@ -45,6 +46,7 @@ class _DeadCodeRemover(ast.NodeTransformer):
             return node
 
     def visit_While(self, node):
+        self.generic_visit(node)
         if isinstance(node.test, ast.NameConstant) and not node.test.value:
             return node.orelse
         else:
