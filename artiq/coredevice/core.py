@@ -44,7 +44,7 @@ class Core:
 
     def run(self, k_function, k_args, k_kwargs):
         # transform/simplify AST
-        _debug_unparse = _make_debug_unparse("remove_dead_code")
+        _debug_unparse = _make_debug_unparse("remove_dead_code_2")
 
         func_def, rpc_map, exception_map = inline(
             self, k_function, k_args, k_kwargs)
@@ -77,7 +77,16 @@ class Core:
         _debug_unparse("fold_constants_2", func_def)
 
         remove_dead_code(func_def)
-        _debug_unparse("remove_dead_code", func_def)
+        _debug_unparse("remove_dead_code_1", func_def)
+
+        remove_inter_assigns(func_def)
+        _debug_unparse("remove_inter_assigns_3", func_def)
+
+        fold_constants(func_def)
+        _debug_unparse("fold_constants_3", func_def)
+
+        remove_dead_code(func_def)
+        _debug_unparse("remove_dead_code_2", func_def)
 
         # compile to machine code and run
         binary = get_runtime_binary(self.runtime_env, func_def)
