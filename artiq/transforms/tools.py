@@ -84,18 +84,34 @@ def eval_constant(node):
 _replaceable_funcs = {
     "bool", "int", "float", "round",
     "int64", "round64", "Fraction",
+    "time_to_cycles", "cycles_to_time",
     "Quantity"
 }
 
 
-def is_replaceable(expr):
+def _is_ref_transparent(dependencies, expr):
     if isinstance(expr, (ast.NameConstant, ast.Num, ast.Str)):
         return True
+    elif isinstance(expr, ast.Name):
+        dependencies.add(expr.id)
+        return True
+    elif isinstance(expr, ast.UnaryOp):
+        return _is_ref_transparent(dependencies, expr.operand)
     elif isinstance(expr, ast.BinOp):
-        return is_replaceable(expr.left) and is_replaceable(expr.right)
+        return (_is_ref_transparent(dependencies, expr.left)
+            and _is_ref_transparent(dependencies, expr.right))
     elif isinstance(expr, ast.BoolOp):
-        return all(is_replaceable(v) for v in expr.values)
+        return all(_is_ref_transparent(dependencies, v) for v in expr.values)
     elif isinstance(expr, ast.Call) and isinstance(expr.func, ast.Name):
-        return expr.func.id in _replaceable_funcs
+        return (expr.func.id in _replaceable_funcs and
+            all(_is_ref_transparent(dependencies, arg) for arg in expr.args))
     else:
         return False
+
+
+def is_ref_transparent(expr):
+    dependencies = set()
+    if _is_ref_transparent(dependencies, expr):
+        return True, dependencies
+    else:
+        return False, None

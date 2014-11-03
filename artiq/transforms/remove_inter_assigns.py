@@ -1,7 +1,8 @@
 import ast
 from copy import copy, deepcopy
+from collections import defaultdict
 
-from artiq.transforms.tools import is_replaceable
+from artiq.transforms.tools import is_ref_transparent
 
 
 class _TargetLister(ast.NodeVisitor):
@@ -17,30 +18,42 @@ class _InterAssignRemover(ast.NodeTransformer):
     def __init__(self):
         self.replacements = dict()
         self.modified_names = set()
+        # name -> set of names that depend on it
+        # i.e. when x is modified, dependencies[x] is the set of names that
+        # cannot be replaced anymore
+        self.dependencies = defaultdict(set)
+
+    def invalidate(self, name):
+        try:
+            del self.replacements[name]
+        except KeyError:
+            pass
+        for d in self.dependencies[name]:
+            self.invalidate(d)
+        del self.dependencies[name]
 
     def visit_Name(self, node):
         if isinstance(node.ctx, ast.Load):
             try:
-                return self.replacements[node.id]
+                return deepcopy(self.replacements[node.id])
             except KeyError:
                 return node
         else:
             self.modified_names.add(node.id)
+            self.invalidate(node.id)
             return node
 
     def visit_Assign(self, node):
-        self.generic_visit(node)
-        if is_replaceable(node.value):
+        node.value = self.visit(node.value)
+        node.targets = [self.visit(target) for target in node.targets]
+        rt, depends_on = is_ref_transparent(node.value)
+        if rt:
             for target in node.targets:
                 if isinstance(target, ast.Name):
-                    self.replacements[target.id] = node.value
-        else:
-            for target in node.targets:
-                if isinstance(target, ast.Name):
-                    try:
-                        del self.replacements[target.id]
-                    except KeyError:
-                        pass
+                    if target.id not in depends_on:
+                        self.replacements[target.id] = node.value
+                        for d in depends_on:
+                            self.dependencies[d].add(target.id)
         return node
 
     def visit_AugAssign(self, node):
@@ -62,10 +75,7 @@ class _InterAssignRemover(ast.NodeTransformer):
 
     def modified_names_pop(self, prev_modified_names):
         for name in self.modified_names:
-            try:
-                del self.replacements[name]
-            except KeyError:
-                pass
+            self.invalidate(name)
         self.modified_names |= prev_modified_names
 
     def visit_Try(self, node):
@@ -99,10 +109,7 @@ class _InterAssignRemover(ast.NodeTransformer):
         for n in node.body:
             tl.visit(n)
         for name in tl.targets:
-            try:
-                del self.replacements[name]
-            except KeyError:
-                pass
+            self.invalidate(name)
         node.body = [self.visit(n) for n in node.body]
 
         self.replacements = copy(prev_replacements)

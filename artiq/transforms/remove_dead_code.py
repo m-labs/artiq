@@ -1,6 +1,6 @@
 import ast
 
-from artiq.transforms.tools import is_replaceable
+from artiq.transforms.tools import is_ref_transparent
 
 
 class _SourceLister(ast.NodeVisitor):
@@ -22,7 +22,7 @@ class _DeadCodeRemover(ast.NodeTransformer):
             if (not isinstance(target, ast.Name)
                     or target.id in self.kept_targets):
                 new_targets.append(target)
-        if not new_targets and is_replaceable(node.value):
+        if not new_targets and is_ref_transparent(node.value)[0]:
             return None
         else:
             return node
@@ -30,7 +30,7 @@ class _DeadCodeRemover(ast.NodeTransformer):
     def visit_AugAssign(self, node):
         if (isinstance(node.target, ast.Name)
                 and node.target.id not in self.kept_targets
-                and is_replaceable(node.value)):
+                and is_ref_transparent(node.value)[0]):
             return None
         else:
             return node
