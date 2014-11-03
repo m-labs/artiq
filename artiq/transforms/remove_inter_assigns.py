@@ -79,7 +79,20 @@ class _InterAssignRemover(ast.NodeTransformer):
 
     def visit_Try(self, node):
         prev_modified_names = self.modified_names_push()
-        self.generic_visit(node)
+        node.body = [self.visit(stmt) for stmt in node.body]
+        self.modified_names_pop(prev_modified_names)
+
+        prev_modified_names = self.modified_names_push()
+        prev_replacements = self.replacements
+        for handler in node.handlers:
+            self.replacements = copy(prev_replacements)
+            handler.body = [self.visit(stmt) for stmt in handler.body]
+        self.replacements = copy(prev_replacements)
+        node.orelse = [self.visit(stmt) for stmt in node.orelse]
+        self.modified_names_pop(prev_modified_names)
+
+        prev_modified_names = self.modified_names_push()
+        node.finalbody = [self.visit(stmt) for stmt in node.finalbody]
         self.modified_names_pop(prev_modified_names)
         return node
 
