@@ -2,8 +2,7 @@ import ast
 from copy import copy, deepcopy
 from collections import defaultdict
 
-from artiq.transforms.tools import is_ref_transparent
-
+from artiq.transforms.tools import is_ref_transparent, count_all_nodes
 
 class _TargetLister(ast.NodeVisitor):
     def __init__(self):
@@ -47,7 +46,7 @@ class _InterAssignRemover(ast.NodeTransformer):
         node.value = self.visit(node.value)
         node.targets = [self.visit(target) for target in node.targets]
         rt, depends_on = is_ref_transparent(node.value)
-        if rt:
+        if rt and count_all_nodes(node.value) < 100:
             for target in node.targets:
                 if isinstance(target, ast.Name):
                     if target.id not in depends_on:

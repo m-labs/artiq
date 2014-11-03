@@ -115,3 +115,18 @@ def is_ref_transparent(expr):
         return True, dependencies
     else:
         return False, None
+
+
+class _NodeCounter(ast.NodeVisitor):
+    def __init__(self):
+        self.count = 0
+
+    def generic_visit(self, node):
+        self.count += 1
+        ast.NodeVisitor.generic_visit(self, node)
+
+
+def count_all_nodes(node):
+    nc = _NodeCounter()
+    nc.visit(node)
+    return nc.count
