@@ -8,13 +8,13 @@ from artiq.transforms.remove_dead_code import remove_dead_code
 from artiq.transforms.unroll_loops import unroll_loops
 from artiq.transforms.interleave import interleave
 from artiq.transforms.lower_time import lower_time
-from artiq.transforms.unparse import Unparser
+from artiq.transforms.unparse import unparse
 from artiq.py2llvm import get_runtime_binary
 
 
-def _unparse(label, node):
+def _announce_unparse(label, node):
     print("*** Unparsing: "+label)
-    Unparser(node)
+    print(unparse(node))
 
 
 def _make_debug_unparse(final):
@@ -24,14 +24,14 @@ def _make_debug_unparse(final):
         env = ""
     selected_labels = set(env.split())
     if "all" in selected_labels:
-        return _unparse
+        return _announce_unparse
     else:
         if "final" in selected_labels:
             selected_labels.add(final)
 
         def _filtered_unparse(label, node):
             if label in selected_labels:
-                _unparse(label, node)
+                _announce_unparse(label, node)
         return _filtered_unparse
 
 

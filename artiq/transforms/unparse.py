@@ -7,7 +7,7 @@ import ast
 INFSTR = "1e" + repr(sys.float_info.max_10_exp + 1)
 
 
-def interleave(inter, f, seq):
+def _interleave(inter, f, seq):
     """Call f on each item in seq, calling inter() in between.
     """
     seq = iter(seq)
@@ -21,27 +21,25 @@ def interleave(inter, f, seq):
             f(x)
 
 
-class Unparser:
+class _Unparser:
     """Methods in this class recursively traverse an AST and
     output source code for the abstract syntax; original formatting
     is disregarded. """
 
-    def __init__(self, tree, file=sys.stdout):
-        """Unparser(tree, file=sys.stdout) -> None.
-         Print the source for tree to file."""
-        self.f = file
+    def __init__(self, tree):
+        """Print the source for tree to the "result" string."""
+        self.result = ""
         self._indent = 0
         self.dispatch(tree)
-        print("", file=self.f)
-        self.f.flush()
+        self.result += "\n"
 
     def fill(self, text=""):
         "Indent a piece of text, according to the current indentation level"
-        self.f.write("\n"+"    "*self._indent + text)
+        self.result += "\n"+"    "*self._indent + text
 
     def write(self, text):
         "Append a piece of text to the current line."
-        self.f.write(text)
+        self.result += text
 
     def enter(self):
         "Print ':', and increase the indentation."
@@ -79,7 +77,7 @@ class Unparser:
 
     def _Import(self, t):
         self.fill("import ")
-        interleave(lambda: self.write(", "), self.dispatch, t.names)
+        _interleave(lambda: self.write(", "), self.dispatch, t.names)
 
     def _ImportFrom(self, t):
         self.fill("from ")
@@ -87,7 +85,7 @@ class Unparser:
         if t.module:
             self.write(t.module)
         self.write(" import ")
-        interleave(lambda: self.write(", "), self.dispatch, t.names)
+        _interleave(lambda: self.write(", "), self.dispatch, t.names)
 
     def _Assign(self, t):
         self.fill()
@@ -119,7 +117,7 @@ class Unparser:
 
     def _Delete(self, t):
         self.fill("del ")
-        interleave(lambda: self.write(", "), self.dispatch, t.targets)
+        _interleave(lambda: self.write(", "), self.dispatch, t.targets)
 
     def _Assert(self, t):
         self.fill("assert ")
@@ -130,11 +128,11 @@ class Unparser:
 
     def _Global(self, t):
         self.fill("global ")
-        interleave(lambda: self.write(", "), self.write, t.names)
+        _interleave(lambda: self.write(", "), self.write, t.names)
 
     def _Nonlocal(self, t):
         self.fill("nonlocal ")
-        interleave(lambda: self.write(", "), self.write, t.names)
+        _interleave(lambda: self.write(", "), self.write, t.names)
 
     def _Yield(self, t):
         self.write("(")
@@ -298,7 +296,7 @@ class Unparser:
 
     def _With(self, t):
         self.fill("with ")
-        interleave(lambda: self.write(", "), self.dispatch, t.items)
+        _interleave(lambda: self.write(", "), self.dispatch, t.items)
         self.enter()
         self.dispatch(t.body)
         self.leave()
@@ -322,7 +320,7 @@ class Unparser:
 
     def _List(self, t):
         self.write("[")
-        interleave(lambda: self.write(", "), self.dispatch, t.elts)
+        _interleave(lambda: self.write(", "), self.dispatch, t.elts)
         self.write("]")
 
     def _ListComp(self, t):
@@ -376,7 +374,7 @@ class Unparser:
     def _Set(self, t):
         assert(t.elts)  # should be at least one element
         self.write("{")
-        interleave(lambda: self.write(", "), self.dispatch, t.elts)
+        _interleave(lambda: self.write(", "), self.dispatch, t.elts)
         self.write("}")
 
     def _Dict(self, t):
@@ -387,7 +385,7 @@ class Unparser:
             self.dispatch(k)
             self.write(": ")
             self.dispatch(v)
-        interleave(lambda: self.write(", "), write_pair, zip(t.keys, t.values))
+        _interleave(lambda: self.write(", "), write_pair, zip(t.keys, t.values))
         self.write("}")
 
     def _Tuple(self, t):
@@ -397,7 +395,7 @@ class Unparser:
             self.dispatch(elt)
             self.write(",")
         else:
-            interleave(lambda: self.write(", "), self.dispatch, t.elts)
+            _interleave(lambda: self.write(", "), self.dispatch, t.elts)
         self.write(")")
 
     unop = {"Invert": "~", "Not": "not", "UAdd": "+", "USub": "-"}
@@ -438,7 +436,7 @@ class Unparser:
     def _BoolOp(self, t):
         self.write("(")
         s = " %s " % self.boolops[t.op.__class__]
-        interleave(lambda: self.write(s), self.dispatch, t.values)
+        _interleave(lambda: self.write(s), self.dispatch, t.values)
         self.write(")")
 
     def _Attribute(self, t):
@@ -511,7 +509,7 @@ class Unparser:
             self.dispatch(t.step)
 
     def _ExtSlice(self, t):
-        interleave(lambda: self.write(', '), self.dispatch, t.dims)
+        _interleave(lambda: self.write(', '), self.dispatch, t.dims)
 
     # argument
     def _arg(self, t):
@@ -594,3 +592,8 @@ class Unparser:
         if t.optional_vars:
             self.write(" as ")
             self.dispatch(t.optional_vars)
+
+
+def unparse(tree):
+    unparser = _Unparser(tree)
+    return unparser.result
