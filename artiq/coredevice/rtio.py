@@ -18,8 +18,6 @@ class LLRTIOOut(AutoContext):
         self.previous_timestamp = int64(0)  # in RTIO cycles
         self._set_oe()
 
-    kernel_attr = "previous_timestamp"
-
     @kernel
     def _set_oe(self):
         syscall("rtio_oe", self.channel, 1)
@@ -61,8 +59,6 @@ class _RTIOBase(AutoContext):
     def build(self):
         self.previous_timestamp = int64(0)  # in RTIO cycles
         self.previous_value = 0
-
-    kernel_attr = "previous_timestamp previous_value"
 
     @kernel
     def _set_oe(self, oe):

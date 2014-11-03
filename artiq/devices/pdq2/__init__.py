@@ -123,8 +123,6 @@ class CompoundPDQ2(AutoContext):
         self.current_frame = -1
         self.next_sn = -1
 
-    kernel_attr = "current_frame next_sn"
-
     def create_frame(self):
         return _Frame(self.core)
 

@@ -23,8 +23,6 @@ class DDS(AutoContext):
         self.previous_frequency = 0*MHz
         self.sw = rtio.RTIOOut(self, channel=self.rtio_switch)
 
-    kernel_attr = "previous_frequency"
-
     @portable
     def frequency_to_ftw(self, frequency):
         """Returns the frequency tuning word corresponding to the given
