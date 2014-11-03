@@ -35,6 +35,10 @@ def _make_debug_unparse(final):
         return _filtered_unparse
 
 
+def _no_debug_unparse(label, node):
+    pass
+
+
 class Core:
     def __init__(self, core_com, runtime_env=None):
         if runtime_env is None:
@@ -42,51 +46,55 @@ class Core:
         self.runtime_env = runtime_env
         self.core_com = core_com
 
-    def run(self, k_function, k_args, k_kwargs):
-        # transform/simplify AST
-        _debug_unparse = _make_debug_unparse("remove_dead_code_2")
-
-        func_def, rpc_map, exception_map = inline(
-            self, k_function, k_args, k_kwargs)
-        _debug_unparse("inline", func_def)
-
+    def transform_stack(self, func_def, rpc_map, exception_map,
+                        debug_unparse=_no_debug_unparse):
         lower_units(func_def, rpc_map)
-        _debug_unparse("lower_units", func_def)
+        debug_unparse("lower_units", func_def)
 
         remove_inter_assigns(func_def)
-        _debug_unparse("remove_inter_assigns_1", func_def)
+        debug_unparse("remove_inter_assigns_1", func_def)
 
         fold_constants(func_def)
-        _debug_unparse("fold_constants_1", func_def)
+        debug_unparse("fold_constants_1", func_def)
 
         unroll_loops(func_def, 500)
-        _debug_unparse("unroll_loops", func_def)
+        debug_unparse("unroll_loops", func_def)
 
         interleave(func_def)
-        _debug_unparse("interleave", func_def)
+        debug_unparse("interleave", func_def)
 
         lower_time(func_def,
                    getattr(self.runtime_env, "initial_time", 0),
                    self.runtime_env.ref_period)
-        _debug_unparse("lower_time", func_def)
+        debug_unparse("lower_time", func_def)
 
         remove_inter_assigns(func_def)
-        _debug_unparse("remove_inter_assigns_2", func_def)
+        debug_unparse("remove_inter_assigns_2", func_def)
 
         fold_constants(func_def)
-        _debug_unparse("fold_constants_2", func_def)
+        debug_unparse("fold_constants_2", func_def)
 
         remove_dead_code(func_def)
-        _debug_unparse("remove_dead_code_1", func_def)
+        debug_unparse("remove_dead_code_1", func_def)
 
         remove_inter_assigns(func_def)
-        _debug_unparse("remove_inter_assigns_3", func_def)
+        debug_unparse("remove_inter_assigns_3", func_def)
 
         fold_constants(func_def)
-        _debug_unparse("fold_constants_3", func_def)
+        debug_unparse("fold_constants_3", func_def)
 
         remove_dead_code(func_def)
-        _debug_unparse("remove_dead_code_2", func_def)
+        debug_unparse("remove_dead_code_2", func_def)
+
+    def run(self, k_function, k_args, k_kwargs):
+        # transform/simplify AST
+        debug_unparse = _make_debug_unparse("remove_dead_code_2")
+
+        func_def, rpc_map, exception_map = inline(
+            self, k_function, k_args, k_kwargs)
+        debug_unparse("inline", func_def)
+
+        self.transform_stack(func_def, rpc_map, exception_map, debug_unparse)
 
         # compile to machine code and run
         binary = get_runtime_binary(self.runtime_env, func_def)
