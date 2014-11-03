@@ -36,6 +36,15 @@ class _Primes(AutoContext):
                 self.output_list.append(x)
 
 
+class _Attributes(AutoContext):
+    def build(self):
+        self.input = 84
+
+    @kernel
+    def run(self):
+        self.result = self.input//2
+
+
 class _PulseLogger(AutoContext):
     parameters = "output_list name"
 
@@ -123,12 +132,19 @@ class _Exceptions(AutoContext):
                 self.trace.append(104)
 
 
-class SimCompareCase(unittest.TestCase):
+class ExecutionCase(unittest.TestCase):
     def test_primes(self):
         l_device, l_host = [], []
         _run_on_device(_Primes, max=100, output_list=l_device)
         _run_on_host(_Primes, max=100, output_list=l_host)
         self.assertEqual(l_device, l_host)
+
+    def test_attributes(self):
+        with comm_serial.Comm() as comm:
+            coredev = core.Core(comm)
+            uut = _Attributes(core=coredev)
+            uut.run()
+            self.assertEqual(uut.result, 42)
 
     def test_pulses(self):
         l_device, l_host = [], []
