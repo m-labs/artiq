@@ -11,7 +11,7 @@ from artiq.py2llvm import base_types, arrays
 from artiq.py2llvm.module import Module
 
 
-def test_base_types(choice):
+def _base_types(choice):
     a = 2          # promoted later to int64
     b = a + 1      # initially int32, becomes int64 after a is promoted
     c = b//2       # initially int32, becomes int64 after b is promoted
@@ -39,7 +39,7 @@ def _build_function_types(f):
 
 class FunctionBaseTypesCase(unittest.TestCase):
     def setUp(self):
-        self.ns = _build_function_types(test_base_types)
+        self.ns = _build_function_types(_base_types)
 
     def test_simple_types(self):
         self.assertIsInstance(self.ns["foo"], base_types.VBool)
