@@ -1,9 +1,13 @@
 import unittest
 from operator import itemgetter
+import os
 
 from artiq import *
 from artiq.coredevice import comm_serial, core, runtime_exceptions, rtio
 from artiq.sim import devices as sim_devices
+
+
+NO_HARDWARE = bool(os.getenv("ARTIQ_NO_HARDWARE"))
 
 
 def _run_on_device(k_class, **parameters):
@@ -132,6 +136,7 @@ class _Exceptions(AutoContext):
                 self.trace.append(104)
 
 
+@unittest.skipIf(NO_HARDWARE, "no hardware")
 class ExecutionCase(unittest.TestCase):
     def test_primes(self):
         l_device, l_host = [], []
@@ -203,6 +208,7 @@ class _RTIOSequenceError(AutoContext):
         self.o.pulse(25*us)
 
 
+@unittest.skipIf(NO_HARDWARE, "no hardware")
 class RTIOCase(unittest.TestCase):
     def test_loopback(self):
         npulses = 4
