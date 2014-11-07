@@ -53,7 +53,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
         $ cd ~/artiq-dev
         $ svn co https://xc3sprog.svn.sourceforge.net/svnroot/xc3sprog/trunk xc3sprog
-        $ cd xc3sprog
+        $ cd ~/artiq-dev/xc3sprog
         $ cmake . && make
         $ sudo make install
 
@@ -68,8 +68,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
         ::
 
-            $ mkdir ~/artiq-dev/bitstreams/papiliopro
-            $ cd ~/artiq-dev/bitstreams/papiliopro
+            $ cd ~/artiq-dev
             $ git clone https://github.com/GadgetFactory/Papilio-Loader
 
         Then copy ``bscan_spi_lx9_papilio.bit`` to ``~/.migen``, ``/usr/local/share/migen`` or ``/usr/share/migen``.
@@ -78,8 +77,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
         ::
 
-            $ mkdir ~/artiq-dev/bitstreams/kc705
-            $ cd ~/artiq-dev/bitstreams/kc705
+            $ cd ~/artiq-dev
             $ git clone https://github.com/m-labs/bscan_spi_kc705
 
         Build the bitstream and copy it to one of the folders above.
@@ -88,26 +86,29 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
         $ cd ~/artiq-dev
         $ svn co http://llvm.org/svn/llvm-project/compiler-rt/trunk compiler-rt
-        $ export CRTDIR=/home/rabi/artiq-dev/compiler-rt
+        $ export CRTDIR=~/artiq-dev/compiler-rt
 
 * Download MiSoC: ::
 
         $ cd ~/artiq-dev
         $ git clone --recursive https://github.com/m-labs/misoc
+        $ export MSCDIR=~/artiq-dev/misoc
 
 * Build and flash the bitstream and BIOS by running `from the MiSoC top-level directory` ::
 
-        $ cd ~/misoc
+        $ cd ~/artiq-dev/misoc
         $ ./make.py -X ~/artiq/soc -t artiq all
 
 * Then, build and flash the ARTIQ runtime: ::
 
-        $ cd ~/artiq/soc/runtime
+        $ cd ~/artiq-dev
+        $ git clone https://github.com/m-labs/artiq
+        $ cd ~/artiq-dev/artiq/soc/runtime
         $ make flash
 
     Check that the board boots by running a serial terminal program (you may need to press its FPGA reconfiguration button or power-cycle it to load the bitstream that was newly written into the flash): ::
 
-        $ flterm --port /dev/ttyUSB1
+        $ ~/artiq-dev/misoc/tools/flterm --port /dev/ttyUSB1
         MiSoC BIOS   http://m-labs.hk
         [...]
         Booting from flash...
@@ -126,25 +127,26 @@ Installing the host-side software
 
         $ cd ~/artiq-dev/openrisc
         $ git clone https://github.com/openrisc/llvm-or1k
-        $ cd llvm-or1k
+        $ cd ~/artiq-dev/llvm-or1k
         $ git checkout b3a48efb2c05ed6cedc5395ae726c6a6573ef3ba
         $ cat ~/artiq-dev/artiq/patches/llvm/* | patch -p1
 
-        $ cd tools
+        $ cd ~/artiq-dev/llvm-or1k/tools
         $ git clone https://github.com/openrisc/clang-or1k clang
-        $ cd clang
+        $ cd ~/artiq-dev/llvm-or1k/tools/clang
         $ git checkout 02d831c7e7dc1517abed9cc96abdfb937af954eb
         $ cat ~/artiq-dev/artiq/patches/clang/* | patch -p1
 
-        $ cd ../..
-        $ mkdir build && cd build
+        $ cd ~/artiq-dev/llvm-or1k
+        $ mkdir build
+        $ cd ~/artiq-dev/llvm-or1k/build
         $ ../configure --prefix=/usr/local/llvm-or1k
         $ make ENABLE_OPTIMIZED=1 REQUIRES_RTTI=1
         $ sudo -E make install ENABLE_OPTIMIZED=1 REQUIRES_RTTI=1
 
-        $ cd ../..
+        $ cd ~/artiq-dev
         $ git clone https://github.com/llvmpy/llvmpy
-        $ cd llvmpy
+        $ cd ~/artiq-dev/llvmpy
         $ git checkout 7af2f7140391d4f708adf2721e84f23c1b89e97a
         $ cat /path_to/artiq/patches/llvmpy/* | patch -p1
         $ LLVM_CONFIG_PATH=/usr/local/llvm-or1k/bin/llvm-config sudo -E python setup.py install
@@ -155,7 +157,7 @@ Installing the host-side software
 * Install ARTIQ: ::
 
         $ cd ~/artiq-dev
-        $ git clone https://github.com/jboulder/artiq /home/rabi/artiq-dev/artiq
+        $ git clone https://github.com/m-labs/artiq # if not already done
         $ python3 setup.py develop --user
 
 * Build the documentation: ::
