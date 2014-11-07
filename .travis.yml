@@ -1,0 +1,41 @@
+language: python
+python:
+  - '3.4'
+env:
+  global:
+    - MSCDIR=$TRAVIS_BUILD_DIR/misoc
+    - PATH=$HOME/miniconda/bin:/usr/local/llvm-or1k/bin:$PATH
+    - CC=gcc-4.7
+    - CXX=g++-4.7
+    - ARTIQ_NO_HARDWARE=1
+    - secure: DgApzqX7Hidh+CVYVGDvXXc/a/SsF22t18YDx0KNqRKNQMBdeMEfAWMI1kXnPPxazItV4nljvrwOWaPaTY6wlJvV2r1W90zJsN8UVP8cMt2CudUiKBVRGvmr4Z6zhkifaEfzX9pLoCmHhLVyUjGlXPd0dC8GJVROp11FZm1l+rM=
+before_install:
+  - ./.travis/get-toolchain.sh
+  - ./.travis/get-xilinx.sh
+  - ./.travis/get-anaconda.sh pip coverage numpy scipy sphinx
+  - source $HOME/miniconda/bin/activate py34
+  - sudo apt-get install --force-yes -y iverilog
+  - pip install --src . -e 'git+https://github.com/m-labs/migen.git@master#egg=migen'
+  - mkdir vpi
+  - iverilog-vpi --name=vpi/migensim migen/vpi/main.c migen/vpi/ipc.c
+  - git clone --recursive https://github.com/m-labs/misoc
+  - pip install --src . -e 'git+https://github.com/nist-ionstorage/llvmlite.git@artiq#egg=llvmlite'
+  - pip install coveralls
+install:
+  - pip install -e .
+script:
+  - coverage run --source=artiq setup.py test
+  - make -C doc/manual html || true
+  - cd misoc; python make.py -X ../soc -t artiq build-headers build-bios; cd ..
+  - make -C soc/runtime
+  - cd misoc; python make.py -X ../soc -t artiq build-bitstream; cd ..
+after_success:
+  coveralls
+notifications:
+  email: false
+  irc:
+    channels:
+      - chat.freenode.net#nist-ionstorage
+  webhooks:
+    urls:
+      - https://webhooks.gitter.im/e/d26782523952bfa53814
