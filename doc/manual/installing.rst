@@ -82,12 +82,6 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
         Build the bitstream and copy it to one of the folders above.
 
-* Download compiler-rt: ::
-
-        $ cd ~/artiq-dev
-        $ svn co http://llvm.org/svn/llvm-project/compiler-rt/trunk compiler-rt
-        $ export CRTDIR=~/artiq-dev/compiler-rt
-
 * Download MiSoC: ::
 
         $ cd ~/artiq-dev
