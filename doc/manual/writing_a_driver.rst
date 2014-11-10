@@ -103,3 +103,11 @@ The controller's code would contain something similar to this: ::
     def main():
         args = _get_args()
         simple_server_loop(Hello(), args.bind, args.port)
+
+General guidelines
+------------------
+
+* Format your source code according to PEP8. We suggest using ``flake8`` to check for compliance.
+* The device identification (e.g. serial number) to attach to must be passed as a command-line parameter to the controller.
+* Controllers must be able to operate in "simulation" mode, where they behave properly even if the associated hardware is not connected. For example, they can print the data to the console instead of sending it to the device, or dump it into a file.
+* Keep command line parameters consistent across clients/controllers. When adding new command line options, look for a client/controller that does a similar thing and follow its use of ``argparse``. If the original client/controller could use ``argparse`` in a better way, improve it.
