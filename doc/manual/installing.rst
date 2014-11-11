@@ -1,6 +1,15 @@
 Installing ARTIQ
 ================
 
+Xubuntu 14.04 dependencies
+--------------------------
+
+These instructions assume an Xubuntu 14.04 base system. There are several package dependencies: ::
+
+    $ sudo apt-get install build-essential autoconf  automake autotools-dev dh-make devscripts fakeroot file git lintian patch patchutils perl xutils-devs git-buildpackage svn-buildpackage python3-pip texinfo flex bison libmpc-dev python3-setuptools python3-numpy python3-scipy python3-sphinx python3-nose python3-dev subversion cmake libusb-dev libftdi-dev pkg-config
+
+Note that ARTIQ requires Python 3.4 or above.
+
 Preparing the core device FPGA board
 ------------------------------------
 
@@ -60,6 +69,19 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
     .. note::
         It is safe to ignore the message "Could NOT find LIBFTD2XX" (libftd2xx is different from libftdi, and is not required).
 
+* Install Xilinx ISE WebPACK
+
+    The Xilinx Synthesis Tool (xst) is required to build bitstreams. The tool comes with Xilinx ISE (but not Viviado).
+    Download ISE from this URL: http://www.xilinx.com/products/design-tools/ise-design-suite/ise-webpack.html
+    to ~/Downloads.
+    
+        ::
+            $ cd ~/Downloads
+            $ tar -xvf Xilinx_ISE_DS_Lin_14.7_1015_1.tar
+            $ cd ~/Downloads/Xilinx_ISE_DS_Lin_14.7_1015_1
+            $ sudo ./xsetup
+            (tick Cable Drivers, install to /opt/Xilinx)
+
 * Install the required flash proxy bitstreams:
 
     The purpose of the flash proxy bitstream is to give programming software fast JTAG access to the flash connected to the FPGA.
@@ -70,6 +92,8 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
             $ cd ~/artiq-dev
             $ git clone https://github.com/GadgetFactory/Papilio-Loader
+            $ mkdir ~/.migen
+            $ cp ~/artiq-dev/Papilio-Loader/xc3sprog/trunk/bscan_spi/bscan_spi_lx9_papilio.bit ~/.migen/
 
         Then copy ``bscan_spi_lx9_papilio.bit`` to ``~/.migen``, ``/usr/local/share/migen`` or ``/usr/share/migen``.
 
@@ -86,7 +110,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
         $ cd ~/artiq-dev
         $ git clone --recursive https://github.com/m-labs/misoc
-        $ export MSCDIR=~/artiq-dev/misoc
+        $ export MSCDIR=~/artiq-dev/misoc and append to ~/.bashrc
 
 * Build and flash the bitstream and BIOS by running `from the MiSoC top-level directory` ::
 
@@ -159,11 +183,4 @@ Installing the host-side software
         $ cd ~/artiq-dev/artiq/doc/manual
         $ make html
 
-Xubuntu 14.04 dependencies
---------------------------
 
-This command installs all the required packages: ::
-
-    $ sudo apt-get install build-essential autoconf  automake autotools-dev dh-make devscripts fakeroot file git lintian patch patchutils perl xutils-devs git-buildpackage svn-buildpackage python3-pip texinfo flex bison libmpc-dev python3-setuptools python3-numpy python3-scipy python3-sphinx python3-nose python3-dev subversion cmake libusb-dev libftdi-dev pkg-config
-
-Note that ARTIQ requires Python 3.4 or above.
