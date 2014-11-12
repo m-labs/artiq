@@ -88,6 +88,27 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
         $ git clone --recursive https://github.com/m-labs/misoc
         $ export MSCDIR=~/artiq-dev/misoc
 
+* Configure serial ports: 
+		Edit ``/etc/udev/rules.d/30-usb-papilio-pro.rules`` so it reads as follows. ::	
+
+            ``$ cat /etc/udev/rules.d/30-usb-papilio-pro.rules``
+
+            ``# papilio pro spartan6 lx9 jtag interface flyswatter style``
+
+            ``SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6010", GROUP="plugdev"``
+
+	.. note ::
+		The permissions should be as follows. ::
+
+		-rw-r--r-- 1 root root  144 Nov 11 09:10 30-usb-papilio-pro.rules
+
+	::
+		$ sudo invoke-rc.d udev reload
+		$ sudo adduser rabi dialout
+
+	.. note ::
+		Log out and log in again for new group permissions to take effect. 
+
 * Build and flash the bitstream and BIOS by running `from the MiSoC top-level directory` ::
 
         $ cd ~/artiq-dev/misoc
@@ -121,21 +142,21 @@ Installing the host-side software
 
         $ cd ~/artiq-dev/openrisc
         $ git clone https://github.com/openrisc/llvm-or1k
-        $ cd ~/artiq-dev/llvm-or1k
+        $ cd ~/artiq-dev/openrisc/llvm-or1k
         $ git checkout b3a48efb2c05ed6cedc5395ae726c6a6573ef3ba
         $ cat ~/artiq-dev/artiq/patches/llvm/* | patch -p1
 
-        $ cd ~/artiq-dev/llvm-or1k/tools
+        $ cd ~/artiq-dev/openrisc/llvm-or1k/tools
         $ git clone https://github.com/openrisc/clang-or1k clang
-        $ cd ~/artiq-dev/llvm-or1k/tools/clang
+        $ cd ~/artiq-dev/openrisc/llvm-or1k/tools/clang
         $ git checkout 02d831c7e7dc1517abed9cc96abdfb937af954eb
         $ cat ~/artiq-dev/artiq/patches/clang/* | patch -p1
 
-        $ cd ~/artiq-dev/llvm-or1k
+        $ cd ~/artiq-dev/openrisc/llvm-or1k
         $ mkdir build
-        $ cd ~/artiq-dev/llvm-or1k/build
+        $ cd ~/artiq-dev/openrisc/llvm-or1k/build
         $ ../configure --prefix=/usr/local/llvm-or1k
-        $ make ENABLE_OPTIMIZED=1 REQUIRES_RTTI=1
+        $ make ENABLE_OPTIMIZED=1 REQUIRES_RTTI=1 -j8
         $ sudo -E make install ENABLE_OPTIMIZED=1 REQUIRES_RTTI=1
 
         $ cd ~/artiq-dev
