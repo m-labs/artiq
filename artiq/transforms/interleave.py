@@ -34,6 +34,8 @@ def _get_duration(stmt):
             except NotConstant:
                 da = -1
             return da
+        elif name == "at":
+            return -1
         else:
             return 0
     else:
