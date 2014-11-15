@@ -2,6 +2,7 @@ import os
 
 from artiq.transforms.inline import inline
 from artiq.transforms.lower_units import lower_units
+from artiq.transforms.quantize_time import quantize_time
 from artiq.transforms.remove_inter_assigns import remove_inter_assigns
 from artiq.transforms.fold_constants import fold_constants
 from artiq.transforms.remove_dead_code import remove_dead_code
@@ -54,6 +55,9 @@ class Core:
         remove_inter_assigns(func_def)
         debug_unparse("remove_inter_assigns_1", func_def)
 
+        quantize_time(func_def, self.runtime_env.ref_period)
+        debug_unparse("quantize_time", func_def)
+
         fold_constants(func_def)
         debug_unparse("fold_constants_1", func_def)
 
@@ -63,9 +67,7 @@ class Core:
         interleave(func_def)
         debug_unparse("interleave", func_def)
 
-        lower_time(func_def,
-                   getattr(self.runtime_env, "initial_time", 0),
-                   self.runtime_env.ref_period)
+        lower_time(func_def, getattr(self.runtime_env, "initial_time", 0))
         debug_unparse("lower_time", func_def)
 
         remove_inter_assigns(func_def)
