@@ -22,6 +22,7 @@ void dds_init(void)
     int i;
 
     for(i=0;i<8;i++) {
+        DDS_WRITE(DDS_GPIO, i);
         DDS_WRITE(DDS_GPIO, i | (1 << 7));
         DDS_WRITE(DDS_GPIO, i);
         DDS_WRITE(0x00, 0x78);
