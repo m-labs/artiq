@@ -26,7 +26,7 @@ def _get_duration(stmt):
             return 0
         else:
             return -1
-    elif isinstance(stmt, ast.Call) and isinstance(stmt.func, ast.Name):
+    elif isinstance(stmt, ast.Call):
         name = stmt.func.id
         if name == "delay":
             try:

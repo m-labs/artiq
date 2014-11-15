@@ -19,7 +19,7 @@ from artiq.language.core import int64
 
 class _TimeLowerer(ast.NodeTransformer):
     def visit_Call(self, node):
-        if isinstance(node.func, ast.Name) and node.func.id == "now":
+        if node.func.id == "now":
             return ast.copy_location(ast.Name("now", ast.Load()), node)
         else:
             self.generic_visit(node)
@@ -27,8 +27,7 @@ class _TimeLowerer(ast.NodeTransformer):
 
     def visit_Expr(self, node):
         r = node
-        if (isinstance(node.value, ast.Call)
-                and isinstance(node.value.func, ast.Name)):
+        if isinstance(node.value, ast.Call):
             funcname = node.value.func.id
             if funcname == "delay":
                 r = ast.copy_location(

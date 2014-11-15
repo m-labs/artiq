@@ -102,7 +102,7 @@ def _is_ref_transparent(dependencies, expr):
             and _is_ref_transparent(dependencies, expr.right))
     elif isinstance(expr, ast.BoolOp):
         return all(_is_ref_transparent(dependencies, v) for v in expr.values)
-    elif isinstance(expr, ast.Call) and isinstance(expr.func, ast.Name):
+    elif isinstance(expr, ast.Call):
         return (expr.func.id in _replaceable_funcs and
             all(_is_ref_transparent(dependencies, arg) for arg in expr.args))
     else:
