@@ -172,12 +172,12 @@ This command installs all the required packages: ::
 
 Note that ARTIQ requires Python 3.4 or above.
 
-To set user permissions on the JTAG port of the Papilio Pro, create a ``/etc/udev/rules.d/30-usb-papilio-pro.rules`` file containing the following: ::
+To set user permissions on the JTAG and serial ports of the Papilio Pro, create a ``/etc/udev/rules.d/30-usb-papilio-pro.rules`` file containing the following: ::
 
-    SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6010", GROUP="plugdev"
+    SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6010", GROUP="dialout"
 
-Then reload ``udev``, add your user to the ``plugdev`` group, and log out and log in again: ::
+Then reload ``udev``, add your user to the ``dialout`` group, and log out and log in again: ::
 
     $ sudo invoke-rc.d udev reload
-    $ sudo adduser <your username> plugdev
+    $ sudo adduser <your username> dialout
     $ logout
