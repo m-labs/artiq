@@ -26,11 +26,11 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
 * Install OpenRISC GCC/binutils toolchain (or1k-elf-...): ::
 
-        $ mkdir ~/artiq-dev/openrisc
-        $ cd ~/artiq-dev/openrisc
+        $ mkdir ~/artiq-dev
+        $ cd ~/artiq-dev
         $ git clone https://github.com/openrisc/or1k-src
-        $ mkdir ~/artiq-dev/openrisc/or1k-src/build
-        $ cd ~/artiq-dev/openrisc/or1k-src/build
+        $ mkdir ~/artiq-dev/or1k-src/build
+        $ cd ~/artiq-dev/or1k-src/build
         $ ../configure --target=or1k-elf --enable-shared --disable-itcl \
                        --disable-tk --disable-tcl --disable-winsup \
                        --disable-gdbtk --disable-libgui --disable-rda \
@@ -40,8 +40,8 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
         $ sudo make install
 
         $ git clone https://github.com/openrisc/or1k-gcc
-        $ mkdir ~/artiq-dev/openrisc/or1k-gcc/build
-        $ cd ~/artiq-dev/openrisc/or1k-gcc/build
+        $ mkdir ~/artiq-dev/or1k-gcc/build
+        $ cd ~/artiq-dev/or1k-gcc/build
         $ ../configure --target=or1k-elf --enable-languages=c \
                        --disable-shared --disable-libssp
         $ make -j4
@@ -119,7 +119,7 @@ Installing the host-side software
 
     The main dependency of ARTIQ is LLVM and its Python bindings (http://llvmpy.org). Currently, this installation is tedious because of the OpenRISC support not being merged upstream LLVM and because of incompatibilities between the versions of LLVM that support OpenRISC and the versions of LLVM that support the Python bindings. ::
 
-        $ cd ~/artiq-dev/openrisc
+        $ cd ~/artiq-dev
         $ git clone https://github.com/openrisc/llvm-or1k
         $ cd ~/artiq-dev/llvm-or1k
         $ git checkout b3a48efb2c05ed6cedc5395ae726c6a6573ef3ba
@@ -135,7 +135,7 @@ Installing the host-side software
         $ mkdir build
         $ cd ~/artiq-dev/llvm-or1k/build
         $ ../configure --prefix=/usr/local/llvm-or1k
-        $ make ENABLE_OPTIMIZED=1 REQUIRES_RTTI=1
+        $ make ENABLE_OPTIMIZED=1 REQUIRES_RTTI=1 -j4
         $ sudo -E make install ENABLE_OPTIMIZED=1 REQUIRES_RTTI=1
 
         $ cd ~/artiq-dev
