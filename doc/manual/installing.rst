@@ -164,7 +164,7 @@ Xubuntu 14.04 specific instructions
 
 This command installs all the required packages: ::
 
-    $ sudo apt-get install build-essential autoconf automake autotools-dev dh-make devscripts fakeroot file git lintian patch patchutils perl xutils-devs git-buildpackage svn-buildpackage python3-pip texinfo flex bison libmpc-dev python3-setuptools python3-numpy python3-scipy python3-sphinx python3-nose python3-dev python-dev subversion cmake libusb-dev libftdi-dev pkg-config
+    $ sudo apt-get install build-essential autotools-dev file git patch perl xutils-devs python3-pip texinfo flex bison libmpc-dev python3-setuptools python3-numpy python3-scipy python3-sphinx python3-nose python3-dev python-dev subversion cmake libusb-dev libftdi-dev pkg-config
 
 Note that ARTIQ requires Python 3.4 or above.
 
