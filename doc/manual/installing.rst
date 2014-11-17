@@ -10,6 +10,10 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
     Get Xilinx tools from http://www.xilinx.com/support/download/index.htm. ISE can build bitstreams both for boards using the Spartan-6 (Papilio Pro) and 7-series devices (KC705), while Vivado supports only boards using 7-series devices.
 
+    The Papilio Pro is supported by Webpack, the KC705 is not.
+
+    During the Xilinx toolchain installation, uncheck ``Install cable drivers`` (they are not required as we use better and open source alternatives).
+
 * Create a development directory: ::
 
         $ mkdir ~/artiq-dev
@@ -71,7 +75,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
             $ cd ~/artiq-dev
             $ git clone https://github.com/GadgetFactory/Papilio-Loader
 
-        Then copy ``bscan_spi_lx9_papilio.bit`` to ``~/.migen``, ``/usr/local/share/migen`` or ``/usr/share/migen``.
+        Then copy ``~/artiq-dev/Papilio-Loader/xc3sprog/trunk/bscan_spi/bscan_spi_lx9_papilio.bit`` to ``~/.migen``, ``/usr/local/share/migen`` or ``/usr/share/migen``.
 
     * KC705:
 
@@ -86,7 +90,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
         $ cd ~/artiq-dev
         $ git clone --recursive https://github.com/m-labs/misoc
-        $ export MSCDIR=~/artiq-dev/misoc
+        $ export MSCDIR=~/artiq-dev/misoc # append this line to .bashrc
 
 * Build and flash the bitstream and BIOS by running `from the MiSoC top-level directory` ::
 
