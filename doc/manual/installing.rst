@@ -143,6 +143,7 @@ Installing the host-side software
         $ cd ~/artiq-dev/llvmpy
         $ git checkout 7af2f7140391d4f708adf2721e84f23c1b89e97a
         $ cat /path_to/artiq/patches/llvmpy/* | patch -p1
+        $ sudo apt-get install python-dev
         $ LLVM_CONFIG_PATH=/usr/local/llvm-or1k/bin/llvm-config sudo -E python setup.py install
 
 .. note::
