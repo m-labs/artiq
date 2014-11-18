@@ -29,7 +29,7 @@ class DDS(AutoContext):
         frequency.
 
         """
-        return int(2**32*frequency/self.dds_sysclk)
+        return round(2**32*frequency/self.dds_sysclk)
 
     @portable
     def ftw_to_frequency(self, ftw):
