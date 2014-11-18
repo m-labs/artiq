@@ -32,13 +32,13 @@ The parameters ``::1`` and 7777 are respectively the address to bind the server 
 
     #!/usr/bin/env python3
 
-at the beginning of the file, save it to ``hello-controller`` and set its execution permissions: ::
+at the beginning of the file, save it to ``hello-controller.py`` and set its execution permissions: ::
 
-    $ chmod 755 hello-controller
+    $ chmod 755 hello-controller.py
 
 Run it as: ::
 
-    $ ./hello-controller
+    $ ./hello-controller.py
 
 and verify that you can connect to the TCP port: ::
 
@@ -49,9 +49,9 @@ and verify that you can connect to the TCP port: ::
 
 :tip: Use the key combination Ctrl-AltGr-9 to get the ``telnet>`` prompt, and enter ``close`` to quit Telnet. Quit the controller with Ctrl-C.
 
-Also verify that you can get the type of the server (the "hello" string passed to ``simple_server_loop``) using the ``identify-controller`` program from the ARTIQ front-end tools: ::
+Also verify that you can get the type of the server (the "hello" string passed to ``simple_server_loop``) using the ``identify-controller.py`` program from the ARTIQ front-end tools: ::
 
-    $ identify-controller ::1 7777
+    $ identify-controller.py ::1 7777
     Type:       hello
 
 The client
@@ -59,7 +59,7 @@ The client
 
 Controller clients are small command-line utilities that expose certain functionalities of the drivers. They are optional, and not used very often - typically for debugging and testing.
 
-Create a ``hello-client`` file with the following contents: ::
+Create a ``hello-client.py`` file with the following contents: ::
 
     #!/usr/bin/env python3
 
@@ -78,7 +78,7 @@ Create a ``hello-client`` file with the following contents: ::
 
 Run it as before, while the controller is running. You should see the message appearing on the controller's terminal: ::
 
-    $ ./hello-controller
+    $ ./hello-controller.py
     message: Hello World!
 
 When using the driver in an experiment, for simple cases the ``Client`` instance can be returned by the :class:`artiq.language.core.AutoContext` mechanism and used normally as a device.
