@@ -9,9 +9,9 @@ class DDSTest(AutoContext):
     def run(self):
         for i in range(10000):
             if i & 0x200:
-                self.led.set(1)
+                self.led.on()
             else:
-                self.led.set(0)
+                self.led.off()
             with parallel:
                 with sequential:
                     self.a.pulse(100*MHz + 4*i*kHz, 500*us)
@@ -19,7 +19,7 @@ class DDSTest(AutoContext):
                 with sequential:
                     self.c.pulse(200*MHz, 100*us)
                     self.d.pulse(250*MHz, 200*us)
-        self.led.set(0)
+        self.led.off()
 
 
 def main():

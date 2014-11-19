@@ -5,5 +5,9 @@ class GPIOOut(AutoContext):
     parameters = "channel"
 
     @kernel
-    def set(self, level):
-        syscall("gpio_set", self.channel, level)
+    def on(self):
+        syscall("gpio_set", self.channel, 1)
+
+    @kernel
+    def off(self):
+        syscall("gpio_set", self.channel, 0)

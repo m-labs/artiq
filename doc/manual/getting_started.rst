@@ -14,7 +14,7 @@ As a very first step, we will turn on a LED on the core device. Create a file ``
 
         @kernel
         def run(self):
-            self.led.set(1)
+            self.led.on()
 
     if __name__ == "__main__":
         with comm_serial.Comm() as comm:
@@ -46,7 +46,10 @@ Modify the code as follows: ::
 
         @kernel
         def run(self):
-            self.led.set(input_led_state())
+            if input_led_state():
+                self.led.on()
+            else:
+                self.led.off()
 
 You can then turn the LED off and on by entering 0 or 1 at the prompt that appears: ::
 
@@ -113,13 +116,13 @@ Try reducing the period of the generated waveform until the CPU cannot keep up w
 
         @kernel
         def run(self):
-            self.led.set(0)
+            self.led.off()
             try:
                 for i in range(1000000):
                     self.o.pulse(...)
                     delay(...)
             except RTIOUnderflow:
-                self.led.set(1)
+                self.led.on()
                 print_underflow()
 
 Parallel and sequential blocks
