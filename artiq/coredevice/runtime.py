@@ -19,17 +19,20 @@ _syscalls = {
     "rtio_sync": "i:n",
     "rtio_get": "i:I",
     "rtio_pileup_count": "i:i",
-    "dds_program": "iiI:n",
+    "dds_phase_clear_en": "ib:n",
+    "dds_program": "IiiiIbb:n",
 }
 
 _chr_to_type = {
     "n": lambda: lc.Type.void(),
+    "b": lambda: lc.Type.int(1),
     "i": lambda: lc.Type.int(32),
     "I": lambda: lc.Type.int(64)
 }
 
 _chr_to_value = {
     "n": lambda: base_types.VNone(),
+    "b": lambda: base_types.VBool(),
     "i": lambda: base_types.VInt(),
     "I": lambda: base_types.VInt(64)
 }

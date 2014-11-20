@@ -10,6 +10,7 @@ void rtio_init(void)
     previous_fud_end_time = 0;
     rtio_reset_counter_write(1);
     rtio_reset_logic_write(1);
+    rtio_reset_counter_write(0);
     rtio_reset_logic_write(0);
 }
 
@@ -21,7 +22,6 @@ void rtio_oe(int channel, int oe)
 
 void rtio_set(long long int timestamp, int channel, int value)
 {
-    rtio_reset_counter_write(0);
     rtio_chan_sel_write(channel);
     rtio_o_timestamp_write(timestamp);
     rtio_o_value_write(value);
@@ -51,6 +51,12 @@ void rtio_sync(int channel)
 {
     rtio_chan_sel_write(channel);
     while(rtio_o_level_read() != 0);
+}
+
+long long int rtio_get_counter(void)
+{
+    rtio_counter_update_write(1);
+    return rtio_counter_read();
 }
 
 long long int rtio_get(int channel)
@@ -94,12 +100,7 @@ void rtio_fud(long long int fud_time)
 {
     long long int fud_end_time;
 
-    rtio_reset_counter_write(0);
     rtio_chan_sel_write(RTIO_FUD_CHANNEL);
-    if(fud_time < 0) {
-        rtio_counter_update_write(1);
-        fud_time = rtio_counter_read() + 4000;
-    }
     fud_end_time = fud_time + 3*8;
     if(fud_time < previous_fud_end_time)
         exception_raise(EID_RTIO_SEQUENCE_ERROR);

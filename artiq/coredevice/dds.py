@@ -3,6 +3,12 @@ from artiq.language.units import *
 from artiq.coredevice import rtio
 
 
+PHASE_MODE_DEFAULT = -1
+PHASE_MODE_CONTINUOUS = 0
+PHASE_MODE_ABSOLUTE = 1
+PHASE_MODE_TRACKING = 2
+
+
 class DDS(AutoContext):
     """Core device Direct Digital Synthesis (DDS) driver.
 
@@ -21,6 +27,7 @@ class DDS(AutoContext):
 
     def build(self):
         self.previous_frequency = 0*MHz
+        self.set_phase_mode(PHASE_MODE_CONTINUOUS)
         self.sw = rtio.RTIOOut(self, channel=self.rtio_switch)
 
     @portable
@@ -40,32 +47,70 @@ class DDS(AutoContext):
         return ftw*self.dds_sysclk/2**32
 
     @kernel
-    def on(self, frequency):
-        """Sets the DDS channel to the specified frequency and turns it on.
+    def set_phase_mode(self, phase_mode):
+        """Sets the phase mode of the DDS channel. Supported phase modes are:
 
-        If the DDS channel was already on, a real-time frequency update is
-        performed.
+        * ``PHASE_MODE_CONTINUOUS``: the phase accumulator is unchanged when
+          switching frequencies. The DDS phase is the sum of the phase
+          accumulator and the phase offset. The only discrete jumps in the
+          DDS output phase come from changes to the phase offset.
+
+        * ``PHASE_MODE_ABSOLUTE``: the phase accumulator is reset when
+          switching frequencies. Thus, the phase of the DDS at the time of
+          the frequency change is equal to the phase offset.
+
+        * ``PHASE_MODE_TRACKING``: when switching frequencies, the phase
+          accumulator is set to the value it would have if the DDS had been
+          running at the specified frequency since the start of the
+          experiment.
 
         """
+        self.phase_mode = phase_mode
+        syscall("dds_phase_clear_en", self.reg_channel,
+                self.phase_mode != PHASE_MODE_CONTINUOUS)
+
+    @kernel
+    def on(self, frequency, phase_mode=PHASE_MODE_DEFAULT, phase_offset=0):
+        """Sets the DDS channel to the specified frequency and turns it on.
+
+        If the DDS channel was already on, a real-time frequency and phase
+        update is performed.
+
+        :param frequency: frequency to generate.
+        :param phase_mode: if specified, overrides the default phase mode set
+            by ``set_phase_mode`` for this call.
+        :param phase_offset: adds an offset, in turns, to the phase.
+
+        """
+        if phase_mode != PHASE_MODE_DEFAULT:
+            old_phase_mode = self.phase_mode
+            self.set_phase_mode(phase_mode)
+
         if self.previous_frequency != frequency:
             merge = self.sw.previous_timestamp == time_to_cycles(now())
             if not merge:
                 self.sw.sync()
-            if merge or bool(self.sw.previous_value):
-                # Channel is already on.
-                # Precise timing of frequency change is required.
-                fud_time = time_to_cycles(now())
+            # Channel is already on:
+            # Precise timing of frequency change is required.
+            # Channel is off:
+            # Use soft timing on FUD to prevent conflicts when reprogramming
+            # several channels that need to be turned on at the same time.
+            rt_fud = merge or bool(self.sw.previous_value)
+            ftw = self.frequency_to_ftw(frequency)
+            if self.phase_mode != PHASE_MODE_CONTINUOUS:
+                phase_per_microcycle = ftw*int64(
+                    self.dds_sysclk.amount*self.core.runtime_env.ref_period)
             else:
-                # Channel is off.
-                # Use soft timing on FUD to prevent conflicts when
-                # reprogramming several channels that need to be turned on at
-                # the same time.
-                fud_time = -1
-            syscall("dds_program", self.reg_channel,
-                    self.frequency_to_ftw(frequency),
-                    fud_time)
+                phase_per_microcycle = int64(0)
+            syscall("dds_program", time_to_cycles(now()), self.reg_channel,
+               ftw, int(phase_offset*2**14),
+               phase_per_microcycle,
+               rt_fud, self.phase_mode == PHASE_MODE_TRACKING)
             self.previous_frequency = frequency
         self.sw.on()
+
+        if phase_mode != PHASE_MODE_DEFAULT:
+            self.set_phase_mode(old_phase_mode)
 
     @kernel
     def off(self):
@@ -75,13 +120,16 @@ class DDS(AutoContext):
         self.sw.off()
 
     @kernel
-    def pulse(self, frequency, duration):
+    def pulse(self, frequency, duration,
+              phase_mode=PHASE_MODE_DEFAULT, phase_offset=0):
         """Pulses the DDS channel for the specified duration at the specified
         frequency.
+
+        See ``on`` for a description of the parameters.
 
         Equivalent to a ``on``, ``delay``, ``off`` sequence.
 
         """
-        self.on(frequency)
+        self.on(frequency, phase_mode, phase_offset)
         delay(duration)
         self.off()
