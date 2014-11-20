@@ -41,11 +41,11 @@ def _no_debug_unparse(label, node):
 
 
 class Core:
-    def __init__(self, core_com, runtime_env=None):
+    def __init__(self, comm, runtime_env=None):
         if runtime_env is None:
-            runtime_env = core_com.get_runtime_env()
+            runtime_env = comm.get_runtime_env()
         self.runtime_env = runtime_env
-        self.core_com = core_com
+        self.comm = comm
 
     def transform_stack(self, func_def, rpc_map, exception_map,
                         debug_unparse=_no_debug_unparse):
@@ -100,6 +100,6 @@ class Core:
 
         # compile to machine code and run
         binary = get_runtime_binary(self.runtime_env, func_def)
-        self.core_com.load(binary)
-        self.core_com.run(func_def.name)
-        self.core_com.serve(rpc_map, exception_map)
+        self.comm.load(binary)
+        self.comm.run(func_def.name)
+        self.comm.serve(rpc_map, exception_map)
