@@ -17,6 +17,7 @@ _syscalls = {
     "rtio_set": "Iii:n",
     "rtio_replace": "Iii:n",
     "rtio_sync": "i:n",
+    "rtio_get_counter": "n:I",
     "rtio_get": "i:I",
     "rtio_pileup_count": "i:i",
     "dds_phase_clear_en": "ib:n",
@@ -48,7 +49,7 @@ def _str_to_functype(s):
         if c == "+":
             type_args.append(lc.Type.int())
             var_arg_fixcount = n
-        else:
+        elif c != "n":
             type_args.append(_chr_to_type[c]())
     return (var_arg_fixcount,
             lc.Type.function(type_ret, type_args,

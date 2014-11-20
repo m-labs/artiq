@@ -7,6 +7,7 @@ from artiq.coredevice.runtime import LinkInterface
 class _RuntimeEnvironment(LinkInterface):
     def __init__(self, ref_period):
         self.ref_period = ref_period
+        self.initial_time = 0
 
     def emit_object(self):
         return str(self.llvm_module)

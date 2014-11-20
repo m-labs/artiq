@@ -20,7 +20,7 @@ class PulsePerformance(AutoContext):
                     delay(cycles_to_time(T))
             except RTIOUnderflow:
                 T += 1
-                delay(1*ms)
+                self.core.recover_underflow()
             else:
                 print_min_period(int(cycles_to_time(2*T)/(1*ns)))
                 break

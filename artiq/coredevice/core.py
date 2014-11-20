@@ -11,6 +11,7 @@ from artiq.transforms.interleave import interleave
 from artiq.transforms.lower_time import lower_time
 from artiq.transforms.unparse import unparse
 from artiq.py2llvm import get_runtime_binary
+from artiq.language.core import *
 
 
 def _announce_unparse(label, node):
@@ -46,6 +47,7 @@ class Core:
             runtime_env = comm.get_runtime_env()
         self.runtime_env = runtime_env
         self.comm = comm
+        self.core = self
 
     def transform_stack(self, func_def, rpc_map, exception_map,
                         debug_unparse=_no_debug_unparse):
@@ -67,7 +69,7 @@ class Core:
         interleave(func_def)
         debug_unparse("interleave", func_def)
 
-        lower_time(func_def, getattr(self.runtime_env, "initial_time", 0))
+        lower_time(func_def, self.runtime_env.initial_time)
         debug_unparse("lower_time", func_def)
 
         remove_inter_assigns(func_def)
@@ -103,3 +105,8 @@ class Core:
         self.comm.load(binary)
         self.comm.run(func_def.name)
         self.comm.serve(rpc_map, exception_map)
+
+    @kernel
+    def recover_underflow(self):
+        t = syscall("rtio_get_counter") + self.runtime_env.initial_time
+        at(cycles_to_time(t))

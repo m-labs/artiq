@@ -15,6 +15,7 @@ static const struct symbol syscalls[] = {
     {"rtio_set", rtio_set},
     {"rtio_replace", rtio_replace},
     {"rtio_sync", rtio_sync},
+    {"rtio_get_counter", rtio_get_counter},
     {"rtio_get", rtio_get},
     {"rtio_pileup_count", rtio_pileup_count},
     {"dds_phase_clear_en", dds_phase_clear_en},
