@@ -29,6 +29,9 @@ class IncompatibleServer(Exception):
     pass
 
 
+_init_string = b"ARTIQ pc_rpc\n"
+
+
 class Client:
     """This class proxies the methods available on the server so that they
     can be used as if they were local methods.
@@ -59,6 +62,7 @@ class Client:
     """
     def __init__(self, host, port, expected_id_type):
         self.socket = socket.create_connection((host, port))
+        self.socket.sendall(_init_string)
         self._identify(expected_id_type)
 
     def get_rpc_id(self):
@@ -176,6 +180,9 @@ class Server:
     @asyncio.coroutine
     def _handle_connection_task(self, reader, writer):
         try:
+            line = yield from reader.readline()
+            if line != _init_string:
+                return
             while True:
                 line = yield from reader.readline()
                 if not line:
