@@ -111,7 +111,7 @@ def get_function_args(func_args, func_tr, args, kwargs):
 
     # Replace any UndefinedArg positional arguments with the default value,
     # when provided.
-    for arg, default in zip(func_args.args[len(func_args.defaults):],
+    for arg, default in zip(func_args.args[-len(func_args.defaults):],
                             func_args.defaults):
         if r[arg.arg] is UndefinedArg:
             r[arg.arg] = func_tr.code_visit(default)
