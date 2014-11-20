@@ -20,7 +20,7 @@ class LLRTIOOut(AutoContext):
 
     @kernel
     def _set_oe(self):
-        syscall("rtio_oe", self.channel, 1)
+        syscall("rtio_oe", self.channel, True)
 
     @kernel
     def set_value(self, t, value):
@@ -96,7 +96,7 @@ class RTIOOut(_RTIOBase):
     """
     def build(self):
         _RTIOBase.build(self)
-        self._set_oe(1)
+        self._set_oe(True)
 
     @kernel
     def sync(self):
@@ -146,7 +146,7 @@ class RTIOIn(_RTIOBase):
     """
     def build(self):
         _RTIOBase.build(self)
-        self._set_oe(0)
+        self._set_oe(False)
 
     @kernel
     def gate_rising(self, duration):

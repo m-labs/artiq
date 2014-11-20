@@ -12,8 +12,8 @@ lt.initialize_all()
 
 _syscalls = {
     "rpc": "i+:i",
-    "gpio_set": "ii:n",
-    "rtio_oe": "ii:n",
+    "gpio_set": "ib:n",
+    "rtio_oe": "ib:n",
     "rtio_set": "Iii:n",
     "rtio_replace": "Iii:n",
     "rtio_sync": "i:n",
