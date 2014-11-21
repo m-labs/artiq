@@ -1,6 +1,7 @@
 import unittest
 from operator import itemgetter
 import os
+from fractions import Fraction
 
 from artiq import *
 from artiq.coredevice import comm_serial, core, runtime_exceptions, rtio
@@ -40,13 +41,16 @@ class _Primes(AutoContext):
                 self.output_list.append(x)
 
 
-class _Attributes(AutoContext):
+class _Misc(AutoContext):
     def build(self):
         self.input = 84
 
     @kernel
     def run(self):
-        self.result = self.input//2
+        self.half_input = self.input//2
+        decimal_fraction = Fraction("1.2")
+        self.decimal_fraction_n = int(decimal_fraction.numerator)
+        self.decimal_fraction_d = int(decimal_fraction.denominator)
 
 
 class _PulseLogger(AutoContext):
@@ -144,12 +148,15 @@ class ExecutionCase(unittest.TestCase):
         _run_on_host(_Primes, max=100, output_list=l_host)
         self.assertEqual(l_device, l_host)
 
-    def test_attributes(self):
+    def test_misc(self):
         with comm_serial.Comm() as comm:
             coredev = core.Core(comm)
-            uut = _Attributes(core=coredev)
+            uut = _Misc(core=coredev)
             uut.run()
-            self.assertEqual(uut.result, 42)
+            self.assertEqual(uut.half_input, 42)
+            self.assertEqual(Fraction(uut.decimal_fraction_n,
+                                      uut.decimal_fraction_d),
+                             Fraction("1.2"))
 
     def test_pulses(self):
         l_device, l_host = [], []

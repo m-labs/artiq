@@ -1,5 +1,6 @@
 import ast
 import operator
+from fractions import Fraction
 
 from artiq.transforms.tools import *
 from artiq.language.core import int64, round64
@@ -135,14 +136,17 @@ class _ConstantFolder(ast.NodeTransformer):
             "int": int,
             "int64": int64,
             "round": round,
-            "round64": round64
+            "round64": round64,
+            "Fraction": Fraction
         }
         if fn in constant_ops:
-            try:
-                arg = eval_constant(node.args[0])
-            except NotConstant:
-                return node
-            result = value_to_ast(constant_ops[fn](arg))
+            args = []
+            for arg in node.args:
+                try:
+                    args.append(eval_constant(arg))
+                except NotConstant:
+                    return node
+            result = value_to_ast(constant_ops[fn](*args))
             return ast.copy_location(result, node)
         else:
             return node
