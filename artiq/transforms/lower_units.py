@@ -6,7 +6,7 @@ from artiq.language import units
 def _add_units(f, unit_list):
     def wrapper(*args):
         new_args = [arg if unit is None else units.Quantity(arg, unit)
-            for arg, unit in zip(args, unit_list)]
+                    for arg, unit in zip(args, unit_list)]
         return f(*new_args)
     return wrapper
 

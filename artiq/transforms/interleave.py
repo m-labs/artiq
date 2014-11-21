@@ -22,7 +22,7 @@ def _get_duration(stmt):
                 and all(_get_duration(s) == 0 for s in stmt.orelse)
                 and all(_get_duration(s) == 0 for s in stmt.finalbody)
                 and all(_get_duration(s) == 0 for s in handler.body
-                    for handler in stmt.handlers)):
+                        for handler in stmt.handlers)):
             return 0
         else:
             return -1

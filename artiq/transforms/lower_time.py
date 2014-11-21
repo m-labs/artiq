@@ -1,4 +1,5 @@
-"""This transform implements time management functions (delay/now/at)
+"""
+This transform implements time management functions (delay/now/at)
 using an accumulator 'now' and simple replacement rules:
 
     delay(t) ->  now += t

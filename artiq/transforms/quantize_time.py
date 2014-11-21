@@ -1,4 +1,5 @@
-"""This transform turns calls to delay/now/at that use non-integer time
+"""
+This transform turns calls to delay/now/at that use non-integer time
 expressed in seconds into calls that use int64 time expressed in multiples of
 ref_period.
 

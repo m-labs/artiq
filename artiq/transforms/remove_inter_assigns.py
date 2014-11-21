@@ -4,6 +4,7 @@ from collections import defaultdict
 
 from artiq.transforms.tools import is_ref_transparent, count_all_nodes
 
+
 class _TargetLister(ast.NodeVisitor):
     def __init__(self):
         self.targets = set()

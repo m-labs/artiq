@@ -385,7 +385,8 @@ class _Unparser:
             self.dispatch(k)
             self.write(": ")
             self.dispatch(v)
-        _interleave(lambda: self.write(", "), write_pair, zip(t.keys, t.values))
+        _interleave(lambda: self.write(", "), write_pair,
+                    zip(t.keys, t.values))
         self.write("}")
 
     def _Tuple(self, t):
