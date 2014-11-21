@@ -19,6 +19,7 @@ function call syntax to mark special data types.
 
 
 import base64
+from fractions import Fraction
 
 import numpy
 
@@ -66,6 +67,10 @@ def _encode_dict(x):
     return r
 
 
+def _encode_fraction(x):
+    return "Fraction({}, {})".format(encode(x.numerator),
+                                     encode(x.denominator))
+
 def _encode_nparray(x):
     r = "nparray("
     r += encode(x.shape) + ", "
@@ -84,6 +89,7 @@ _encode_map = {
     tuple: _encode_tuple,
     list: _encode_list,
     dict: _encode_dict,
+    Fraction: _encode_fraction,
     numpy.ndarray: _encode_nparray
 }
 
@@ -101,9 +107,15 @@ def _nparray(shape, dtype, data):
     return a.reshape(shape)
 
 
+_eval_dict = {
+    "__builtins__": None,
+    "Fraction": Fraction,
+    "nparray": _nparray
+}
+
 def decode(s):
     """Parses a string in the Python syntax, reconstructs the corresponding
     object, and returns it.
 
     """
-    return eval(s, {"__builtins__": None, "nparray": _nparray}, {})
+    return eval(s, _eval_dict, {})
