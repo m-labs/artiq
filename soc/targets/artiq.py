@@ -41,7 +41,7 @@ class _TestGen(Module):
 
 class ARTIQMiniSoC(BaseSoC):
     csr_map = {
-        "rtio":            12
+        "rtio":            13
     }
     csr_map.update(BaseSoC.csr_map)
 
