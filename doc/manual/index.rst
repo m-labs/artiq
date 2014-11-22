@@ -13,3 +13,4 @@ Contents:
     core_drivers_reference
     management_reference
     drivers_reference
+    fpga_board_ports
