@@ -1,4 +1,6 @@
 import ast
+from collections import defaultdict
+from copy import copy
 
 from artiq.language import units
 
@@ -14,6 +16,7 @@ def _add_units(f, unit_list):
 class _UnitsLowerer(ast.NodeTransformer):
     def __init__(self, rpc_map):
         self.rpc_map = rpc_map
+        self.rpc_remap = defaultdict(lambda: len(self.rpc_remap))
         self.variable_units = dict()
 
     def visit_Name(self, node):
@@ -66,9 +69,9 @@ class _UnitsLowerer(ast.NodeTransformer):
         elif node.func.id == "now":
             node.unit = "s"
         elif node.func.id == "syscall" and node.args[0].s == "rpc":
-            unit_list = [getattr(arg, "unit", None) for arg in node.args]
+            unit_list = tuple(getattr(arg, "unit", None) for arg in node.args[2:])
             rpc_n = node.args[1].n
-            self.rpc_map[rpc_n] = _add_units(self.rpc_map[rpc_n], unit_list)
+            node.args[1].n = self.rpc_remap[(rpc_n, (unit_list))]
         return node
 
     def _update_target(self, target, unit):
@@ -105,4 +108,8 @@ class _UnitsLowerer(ast.NodeTransformer):
 
 
 def lower_units(func_def, rpc_map):
-    _UnitsLowerer(rpc_map).visit(func_def)
+    ul = _UnitsLowerer(rpc_map)
+    ul.visit(func_def)
+    original_map = copy(rpc_map)
+    for (original_rpcn, unit_list), new_rpcn in ul.rpc_remap.items():
+        rpc_map[new_rpcn] = _add_units(original_map[original_rpcn], unit_list)
