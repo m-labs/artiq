@@ -1,17 +1,36 @@
+"""
+Definition and management of physical units.
+
+"""
+
 from fractions import Fraction as _Fraction
 
 
-_prefixes_str = "pnum_kMG"
-_smallest_prefix = _Fraction(1, 10**12)
+class DimensionError(Exception):
+    """Raised when attempting an operation with incompatible units.
+
+    When targeting the core device, all units are statically managed at
+    compilation time. Thus, when raised by functions in this module, this
+    exception cannot be caught in the kernel as it is raised by the compiler
+    instead.
+
+    """
+    pass
 
 
 def mul_dimension(l, r):
+    """Returns the unit obtained by multiplying unit ``l`` with unit ``r``.
+
+    Raises ``DimensionError`` if the resulting unit is not implemented.
+
+    """
     if l is None:
         return r
     if r is None:
         return l
     if {l, r} == {"Hz", "s"}:
         return None
+    raise DimensionError
 
 
 def _rmul_dimension(l, r):
@@ -19,6 +38,11 @@ def _rmul_dimension(l, r):
 
 
 def div_dimension(l, r):
+    """Returns the unit obtained by dividing unit ``l`` with unit ``r``.
+
+    Raises ``DimensionError`` if the resulting unit is not implemented.
+
+    """
     if l == r:
         return None
     if r is None:
@@ -28,6 +52,7 @@ def div_dimension(l, r):
             return "Hz"
         if r == "Hz":
             return "s"
+    raise DimensionError
 
 
 def _rdiv_dimension(l, r):
@@ -35,10 +60,20 @@ def _rdiv_dimension(l, r):
 
 
 def addsub_dimension(x, y):
+    """Returns the unit obtained by adding or subtracting unit ``l`` with
+    unit ``r``.
+
+    Raises ``DimensionError`` if ``l`` and ``r`` are different.
+
+    """
     if x == y:
         return x
     else:
-        return None
+        raise DimensionError
+
+
+_prefixes_str = "pnum_kMG"
+_smallest_prefix = _Fraction(1, 10**12)
 
 
 def _format(amount, unit):
@@ -139,9 +174,9 @@ class Quantity:
 
     # comparisons
     def _cmp(self, other, opf_name):
-        if isinstance(other, Quantity):
-            other = other.amount
-        return getattr(self.amount, opf_name)(other)
+        if not isinstance(other, Quantity) or other.unit != self.unit:
+            raise DimensionError
+        return getattr(self.amount, opf_name)(other.amount)
 
     def __lt__(self, other):
         return self._cmp(other, "__lt__")
@@ -173,3 +208,26 @@ def _register_unit(unit, prefixes):
 
 _register_unit("s", "pnum_")
 _register_unit("Hz", "_kMG")
+
+
+def check_unit(value, unit):
+    """Checks that the value has the specified unit. Unit specification is
+    a string representing the unit without any prefix (e.g. ``s``, ``Hz``).
+    Checking for a dimensionless value (not a ``Quantity`` instance) is done
+    by setting ``unit`` to ``None``.
+
+    If the units do not match, ``DimensionError`` is raised.
+
+    This function can be used in kernels and is executed at compilation time.
+
+    There is already unit checking built into the arithmetic, so you typically
+    need to use this function only when using the ``amount`` property of
+    ``Quantity``.
+
+    """
+    if unit is None:
+        if isinstance(value, Quantity):
+            raise DimensionError
+    else:
+        if not isinstance(value, Quantity) or value.unit != unit:
+            raise DimensionError

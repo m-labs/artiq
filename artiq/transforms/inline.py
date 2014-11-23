@@ -3,6 +3,7 @@ import textwrap
 import ast
 import types
 import builtins
+from copy import copy
 from fractions import Fraction
 from collections import OrderedDict
 from functools import partial
@@ -10,7 +11,7 @@ from itertools import zip_longest, chain
 
 from artiq.language import core as core_language
 from artiq.language import units
-from artiq.transforms.tools import value_to_ast, NotASTRepresentable
+from artiq.transforms.tools import *
 
 
 def new_mangled_name(in_use_names, name):
@@ -33,23 +34,6 @@ class AttributeInfo:
         self.obj = obj
         self.mangled_name = mangled_name
         self.read_write = read_write
-
-
-embeddable_funcs = (
-    core_language.delay, core_language.at, core_language.now,
-    core_language.time_to_cycles, core_language.cycles_to_time,
-    core_language.syscall,
-    range, bool, int, float, round,
-    core_language.int64, core_language.round64, core_language.array,
-    Fraction, units.Quantity, core_language.EncodedException
-)
-
-
-def is_embeddable(func):
-    for ef in embeddable_funcs:
-        if func is ef:
-            return True
-    return False
 
 
 def is_inlinable(core, func):
@@ -493,7 +477,7 @@ def get_attr_writeback(attribute_namespace, rpc_mapper, loc_node):
 def inline(core, k_function, k_args, k_kwargs):
     # OrderedDict prevents non-determinism in attribute init
     attribute_namespace = OrderedDict()
-    in_use_names = {func.__name__ for func in embeddable_funcs}
+    in_use_names = copy(embeddable_func_names)
     mappers = types.SimpleNamespace(
         rpc=HostObjectMapper(),
         exception=HostObjectMapper(core_language.first_user_eid)

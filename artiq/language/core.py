@@ -1,4 +1,7 @@
-"""Core ARTIQ extensions to the Python language."""
+"""
+Core ARTIQ extensions to the Python language.
+
+"""
 
 from collections import namedtuple as _namedtuple
 from copy import copy as _copy

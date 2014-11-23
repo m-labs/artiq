@@ -4,7 +4,7 @@ import os
 from fractions import Fraction
 
 from artiq import *
-from artiq.language.units import Quantity
+from artiq.language.units import *
 from artiq.coredevice import comm_serial, core, runtime_exceptions, rtio
 from artiq.sim import devices as sim_devices
 
@@ -55,6 +55,22 @@ class _Misc(AutoContext):
         self.decimal_fraction_d = int(decimal_fraction.denominator)
         self.inhomogeneous_units.append(Quantity(1000, "Hz"))
         self.inhomogeneous_units.append(Quantity(10, "s"))
+
+    @kernel
+    def dimension_error1(self):
+        print(1*Hz + 1*s)
+
+    @kernel
+    def dimension_error2(self):
+        print(1*Hz < 1*s)
+
+    @kernel
+    def dimension_error3(self):
+        check_unit(1*Hz, "s")
+
+    @kernel
+    def dimension_error4(self):
+        delay(10*Hz)
 
 
 class _PulseLogger(AutoContext):
@@ -163,6 +179,14 @@ class ExecutionCase(unittest.TestCase):
                              Fraction("1.2"))
             self.assertEqual(uut.inhomogeneous_units, [
                 Quantity(1000, "Hz"), Quantity(10, "s")])
+            with self.assertRaises(DimensionError):
+                uut.dimension_error1()
+            with self.assertRaises(DimensionError):
+                uut.dimension_error2()
+            with self.assertRaises(DimensionError):
+                uut.dimension_error3()
+            with self.assertRaises(DimensionError):
+                uut.dimension_error4()
 
     def test_pulses(self):
         l_device, l_host = [], []

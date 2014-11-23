@@ -5,6 +5,24 @@ from artiq.language import core as core_language
 from artiq.language import units
 
 
+embeddable_funcs = (
+    core_language.delay, core_language.at, core_language.now,
+    core_language.time_to_cycles, core_language.cycles_to_time,
+    core_language.syscall,
+    range, bool, int, float, round,
+    core_language.int64, core_language.round64, core_language.array,
+    Fraction, units.Quantity, units.check_unit, core_language.EncodedException
+)
+embeddable_func_names = {func.__name__ for func in embeddable_funcs}
+
+
+def is_embeddable(func):
+    for ef in embeddable_funcs:
+        if func is ef:
+            return True
+    return False
+
+
 def eval_ast(expr, symdict=dict()):
     if not isinstance(expr, ast.Expression):
         expr = ast.copy_location(ast.Expression(expr), expr)

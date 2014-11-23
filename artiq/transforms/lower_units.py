@@ -3,6 +3,7 @@ from collections import defaultdict
 from copy import copy
 
 from artiq.language import units
+from artiq.transforms.tools import embeddable_func_names
 
 
 def _add_units(f, unit_list):
@@ -16,6 +17,7 @@ def _add_units(f, unit_list):
 class _UnitsLowerer(ast.NodeTransformer):
     def __init__(self, rpc_map):
         self.rpc_map = rpc_map
+        # (original rpc number, (unit list)) -> new rpc number
         self.rpc_remap = defaultdict(lambda: len(self.rpc_remap))
         self.variable_units = dict()
 
@@ -27,6 +29,22 @@ class _UnitsLowerer(ast.NodeTransformer):
         else:
             if unit is not None:
                 node.unit = unit
+        return node
+
+    def visit_BoolOp(self, node):
+        self.generic_visit(node)
+        us = [getattr(value, "unit", None) for value in node.values]
+        if not all(u == us[0] for u in us[1:]):
+            raise units.DimensionError
+        return node
+
+    def visit_Compare(self, node):
+        self.generic_visit(node)
+        u0 = getattr(node.left, "unit", None)
+        us = [getattr(comparator, "unit", None)
+              for comparator in node.comparators]
+        if not all(u == u0 for u in us):
+            raise units.DimensionError
         return node
 
     def visit_UnaryOp(self, node):
@@ -47,6 +65,8 @@ class _UnitsLowerer(ast.NodeTransformer):
         elif op in (ast.Div, ast.FloorDiv):
             unit = units.div_dimension(left_unit, right_unit)
         else:
+            if left_unit is not None or right_unit is not None:
+                raise units.DimensionError
             unit = None
         if unit is not None:
             node.unit = unit
@@ -66,13 +86,46 @@ class _UnitsLowerer(ast.NodeTransformer):
             amount, unit = node.args
             amount.unit = unit.s
             return amount
-        elif node.func.id == "now":
+        elif node.func.id in ("now", "cycles_to_time"):
             node.unit = "s"
-        elif node.func.id == "syscall" and node.args[0].s == "rpc":
-            unit_list = tuple(getattr(arg, "unit", None) for arg in node.args[2:])
-            rpc_n = node.args[1].n
-            node.args[1].n = self.rpc_remap[(rpc_n, (unit_list))]
+        elif node.func.id == "syscall":
+            # only RPCs can have units
+            if node.args[0].s == "rpc":
+                unit_list = tuple(getattr(arg, "unit", None)
+                                  for arg in node.args[2:])
+                rpc_n = node.args[1].n
+                node.args[1].n = self.rpc_remap[(rpc_n, (unit_list))]
+            else:
+                if any(hasattr(arg, "unit") for arg in node.args):
+                    raise units.DimensionError
+        elif node.func.id in ("delay", "at", "time_to_cycles"):
+            if getattr(node.args[0], "unit", None) != "s":
+                raise units.DimensionError
+        elif node.func.id == "check_unit":
+            self.generic_visit(node)
+        elif node.func.id in embeddable_func_names:
+            # must be last (some embeddable funcs may have units)
+            if any(hasattr(arg, "unit") for arg in node.args):
+                raise units.DimensionError
         return node
+
+    def visit_Expr(self, node):
+        self.generic_visit(node)
+        if (isinstance(node.value, ast.Call)
+                and node.value.func.id == "check_unit"):
+            call = node.value
+            if (isinstance(call.args[1], ast.NameConstant)
+                    and call.args[1].value is None):
+                if hasattr(call.value.args[0], "unit"):
+                    raise units.DimensionError
+            elif isinstance(call.args[1], ast.Str):
+                if getattr(call.args[0], "unit", None) != call.args[1].s:
+                    raise units.DimensionError
+            else:
+                raise NotImplementedError
+            return None
+        else:
+            return node
 
     def _update_target(self, target, unit):
         if isinstance(target, ast.Name):
