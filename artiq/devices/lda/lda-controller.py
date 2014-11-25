@@ -137,8 +137,6 @@ class Lda:
 
     def set_attenuation(self, attenuation):
         if self.product != "sim":
-            print("[{}] setting attenuation to {}".format(self.product,
-                                                          attenuation))
             self.set(0x8d, bytes(chr(int(round(attenuation*4))), 'ascii'))
         else:
             attenuation = round(attenuation*4)/4.
