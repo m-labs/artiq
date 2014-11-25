@@ -111,3 +111,4 @@ General guidelines
 * The device identification (e.g. serial number) to attach to must be passed as a command-line parameter to the controller.
 * Controllers must be able to operate in "simulation" mode, where they behave properly even if the associated hardware is not connected. For example, they can print the data to the console instead of sending it to the device, or dump it into a file.
 * Keep command line parameters consistent across clients/controllers. When adding new command line options, look for a client/controller that does a similar thing and follow its use of ``argparse``. If the original client/controller could use ``argparse`` in a better way, improve it.
+* Choose a free default TCP port and add it to the default port list in this manual.

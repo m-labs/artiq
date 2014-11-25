@@ -16,3 +16,19 @@ Each driver is run in a separate "controller" that exposes a RPC interface (base
 
 .. automodule:: artiq.devices.pdq2
     :members:
+
+
+Default TCP port list
+---------------------
+
+When writing a new driver, choose a free TCP port and add it to this list.
+
++-----------+--------------+
+| Component | Default port |
++===========+==============+
+| Master    | 8888         |
++-----------+--------------+
+| PDQ2      | 8889         |
++-----------+--------------+
+| LDA       | 8890         |
++-----------+--------------+
