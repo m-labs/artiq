@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
+import argparse
 import os
 import logging
 import atexit
 import ctypes
 import ctypes.util
 import struct
+
+from artiq.management.pc_rpc import simple_server_loop
+
 
 logger = logging.getLogger(__name__)
 
@@ -141,12 +145,18 @@ class Lda:
             print("[LDA-sim] setting attenuation to {}".format(attenuation))
             self._attenuation = attenuation
 
+
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    logger.info(list(Lda.enumerate("LDA-102")))
-    l = Lda()
-    logger.info(l.get_attenuation())
-    l.set_attenuation(50)
-    logger.info(l.get_attenuation())
-    l.set_attenuation(60)
-    logger.info(l.get_attenuation())
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d', '--device', default="LDA-102",
+                        choices=["LDA-102", "LDA-602", "sim"])
+    parser.add_argument('--bind', default="::1",
+                        help="hostname or IP address to bind to")
+    parser.add_argument('-p', '--port', default=8890, type=int,
+                        help="TCP port to listen to")
+    parser.add_argument('-s', '--serial', default=None,
+                        help="USB serial number of the device")
+    args = parser.parse_args()
+
+    simple_server_loop(Lda(args.serial, args.device), "lda",
+                       args.bind, args.port)
