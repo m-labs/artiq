@@ -112,11 +112,11 @@ class CompiledFunction:
 
 
 def arith(op, a, b):
-    if op == 1:
+    if op == 0:
         return a + b
-    elif op == 2:
+    elif op == 1:
         return a - b
-    elif op == 3:
+    elif op == 2:
         return a * b
     else:
         return a / b
@@ -137,11 +137,11 @@ def simplify_encode(a, b):
 
 
 def frac_arith_encode(op, a, b, c, d):
-    if op == 1:
+    if op == 0:
         f = Fraction(a, b) - Fraction(c, d)
-    elif op == 2:
+    elif op == 1:
         f = Fraction(a, b) + Fraction(c, d)
-    elif op == 3:
+    elif op == 2:
         f = Fraction(a, b) * Fraction(c, d)
     else:
         f = Fraction(a, b) / Fraction(c, d)
@@ -149,11 +149,11 @@ def frac_arith_encode(op, a, b, c, d):
 
 
 def frac_arith_encode_int(op, a, b, x):
-    if op == 1:
+    if op == 0:
         f = Fraction(a, b) - x
-    elif op == 2:
+    elif op == 1:
         f = Fraction(a, b) + x
-    elif op == 3:
+    elif op == 2:
         f = Fraction(a, b) * x
     else:
         f = Fraction(a, b) / x
@@ -161,15 +161,37 @@ def frac_arith_encode_int(op, a, b, x):
 
 
 def frac_arith_encode_int_rev(op, a, b, x):
-    if op == 1:
+    if op == 0:
         f = x - Fraction(a, b)
-    elif op == 2:
+    elif op == 1:
         f = x + Fraction(a, b)
-    elif op == 3:
+    elif op == 2:
         f = x * Fraction(a, b)
     else:
         f = x / Fraction(a, b)
     return f.numerator*1000 + f.denominator
+
+
+def frac_arith_float(op, a, b, x):
+    if op == 0:
+       return Fraction(a, b) - x
+    elif op == 1:
+       return Fraction(a, b) + x
+    elif op == 2:
+       return Fraction(a, b) * x
+    else:
+       return Fraction(a, b) / x
+
+
+def frac_arith_float_rev(op, a, b, x):
+    if op == 0:
+       return x - Fraction(a, b)
+    elif op == 1:
+       return x + Fraction(a, b)
+    elif op == 2:
+       return x * Fraction(a, b)
+    else:
+       return x / Fraction(a, b)
 
 
 def array_test():
@@ -266,7 +288,7 @@ class CodeGenCase(unittest.TestCase):
     def test_frac_div(self):
         self._test_frac_arith(3)
 
-    def _test_frac_frac_arith_int(self, op, rev):
+    def _test_frac_arith_int(self, op, rev):
         f = frac_arith_encode_int_rev if rev else frac_arith_encode_int
         f_c = CompiledFunction(f, {
             "op": base_types.VInt(),
@@ -280,20 +302,49 @@ class CodeGenCase(unittest.TestCase):
                         f(op, a, b, x))
 
     def test_frac_add_int(self):
-        self._test_frac_frac_arith_int(0, False)
-        self._test_frac_frac_arith_int(0, True)
+        self._test_frac_arith_int(0, False)
+        self._test_frac_arith_int(0, True)
 
     def test_frac_sub_int(self):
-        self._test_frac_frac_arith_int(1, False)
-        self._test_frac_frac_arith_int(1, True)
+        self._test_frac_arith_int(1, False)
+        self._test_frac_arith_int(1, True)
 
     def test_frac_mul_int(self):
-        self._test_frac_frac_arith_int(2, False)
-        self._test_frac_frac_arith_int(2, True)
+        self._test_frac_arith_int(2, False)
+        self._test_frac_arith_int(2, True)
 
     def test_frac_div_int(self):
-        self._test_frac_frac_arith_int(3, False)
-        self._test_frac_frac_arith_int(3, True)
+        self._test_frac_arith_int(3, False)
+        self._test_frac_arith_int(3, True)
+
+    def _test_frac_arith_float(self, op, rev):
+        f = frac_arith_float_rev if rev else frac_arith_float
+        f_c = CompiledFunction(f, {
+            "op": base_types.VInt(),
+            "a": base_types.VInt(), "b": base_types.VInt(),
+            "x": base_types.VFloat()})
+        for a in _test_range():
+            for b in _test_range():
+                for x in _test_range():
+                    self.assertAlmostEqual(
+                        f_c(op, a, b, x/2),
+                        f(op, a, b, x/2))
+
+    def test_frac_add_float(self):
+        self._test_frac_arith_float(0, False)
+        self._test_frac_arith_float(0, True)
+
+    def test_frac_sub_float(self):
+        self._test_frac_arith_float(1, False)
+        self._test_frac_arith_float(1, True)
+
+    def test_frac_mul_float(self):
+        self._test_frac_arith_float(2, False)
+        self._test_frac_arith_float(2, True)
+
+    def test_frac_div_float(self):
+        self._test_frac_arith_float(3, False)
+        self._test_frac_arith_float(3, True)
 
     def test_array(self):
         array_test_c = CompiledFunction(array_test, dict())

@@ -3,8 +3,8 @@ import ast
 
 from llvm import core as lc
 
-from artiq.py2llvm.values import VGeneric
-from artiq.py2llvm.base_types import VBool, VInt
+from artiq.py2llvm.values import VGeneric, operators
+from artiq.py2llvm.base_types import VBool, VInt, VFloat
 
 
 def _gcd(a, b):
@@ -214,30 +214,62 @@ class VFraction(VGeneric):
         return self._o_cmp(other, lc.ICMP_SGE, builder)
 
     def _o_addsub(self, other, builder, sub, invert=False):
-        if not isinstance(other, (VInt, VFraction)):
-            return NotImplemented
-        r = VFraction()
-        if builder is not None:
-            if isinstance(other, VInt):
-                i = other.o_int64(builder).auto_load(builder)
-                x, rd = self._nd(builder)
-                y = builder.mul(rd, i)
-            else:
-                a, b = self._nd(builder)
-                c, d = other._nd(builder)
-                rd = builder.mul(b, d)
-                x = builder.mul(a, d)
-                y = builder.mul(c, b)
+        if isinstance(other, VFloat):
+            a = self.o_getattr("numerator", builder)
+            b = self.o_getattr("denominator", builder)
             if sub:
                 if invert:
-                    rn = builder.sub(y, x)
+                    return operators.truediv(
+                        operators.sub(operators.mul(other,
+                                                    b,
+                                                    builder),
+                                      a,
+                                      builder),
+                        b,
+                        builder)
                 else:
-                    rn = builder.sub(x, y)
+                    return operators.truediv(
+                        operators.sub(a,
+                                      operators.mul(other,
+                                                    b,
+                                                    builder),
+                                      builder),
+                        b,
+                        builder)
             else:
-                rn = builder.add(x, y)
-            rn, rd = _reduce(builder, rn, rd)  # rd is already > 0
-            r.auto_store(builder, _make_ssa(builder, rn, rd))
-        return r
+                return operators.truediv(
+                    operators.add(operators.mul(other,
+                                                b,
+                                                builder),
+                                  a,
+                                  builder),
+                    b,
+                    builder)
+        else:
+            if not isinstance(other, (VFraction, VInt)):
+                return NotImplemented
+            r = VFraction()
+            if builder is not None:
+                if isinstance(other, VInt):
+                    i = other.o_int64(builder).auto_load(builder)
+                    x, rd = self._nd(builder)
+                    y = builder.mul(rd, i)
+                else:
+                    a, b = self._nd(builder)
+                    c, d = other._nd(builder)
+                    rd = builder.mul(b, d)
+                    x = builder.mul(a, d)
+                    y = builder.mul(c, b)
+                if sub:
+                    if invert:
+                        rn = builder.sub(y, x)
+                    else:
+                        rn = builder.sub(x, y)
+                else:
+                    rn = builder.add(x, y)
+                rn, rd = _reduce(builder, rn, rd)  # rd is already > 0
+                r.auto_store(builder, _make_ssa(builder, rn, rd))
+            return r
 
     def o_add(self, other, builder):
         return self._o_addsub(other, builder, False)
@@ -252,32 +284,46 @@ class VFraction(VGeneric):
         return self._o_addsub(other, builder, True, True)
 
     def _o_muldiv(self, other, builder, div, invert=False):
-        if not isinstance(other, (VFraction, VInt)):
-            return NotImplemented
-        r = VFraction()
-        if builder is not None:
-            a, b = self._nd(builder)
+        if isinstance(other, VFloat):
+            a = self.o_getattr("numerator", builder)
+            b = self.o_getattr("denominator", builder)
             if invert:
                 a, b = b, a
-            if isinstance(other, VInt):
-                i = other.o_int64(builder).auto_load(builder)
-                if div:
-                    b = builder.mul(b, i)
-                else:
-                    a = builder.mul(a, i)
+            if div:
+                return operators.truediv(a,
+                                         operators.mul(b, other, builder),
+                                         builder)
             else:
-                c, d = other._nd(builder)
-                if div:
-                    a = builder.mul(a, d)
-                    b = builder.mul(b, c)
+                return operators.truediv(operators.mul(a, other, builder),
+                                         b,
+                                         builder)
+        else:
+            if not isinstance(other, (VFraction, VInt)):
+                return NotImplemented
+            r = VFraction()
+            if builder is not None:
+                a, b = self._nd(builder)
+                if invert:
+                    a, b = b, a
+                if isinstance(other, VInt):
+                    i = other.o_int64(builder).auto_load(builder)
+                    if div:
+                        b = builder.mul(b, i)
+                    else:
+                        a = builder.mul(a, i)
                 else:
-                    a = builder.mul(a, c)
-                    b = builder.mul(b, d)
-            if div or invert:
-                a, b = _signnum(builder, a, b)
-            a, b = _reduce(builder, a, b)
-            r.auto_store(builder, _make_ssa(builder, a, b))
-        return r
+                    c, d = other._nd(builder)
+                    if div:
+                        a = builder.mul(a, d)
+                        b = builder.mul(b, c)
+                    else:
+                        a = builder.mul(a, c)
+                        b = builder.mul(b, d)
+                if div or invert:
+                    a, b = _signnum(builder, a, b)
+                a, b = _reduce(builder, a, b)
+                r.auto_store(builder, _make_ssa(builder, a, b))
+            return r
 
     def o_mul(self, other, builder):
         return self._o_muldiv(other, builder, False)
@@ -289,6 +335,7 @@ class VFraction(VGeneric):
         return self._o_muldiv(other, builder, False)
 
     def or_truediv(self, other, builder):
+        # multiply by the inverse
         return self._o_muldiv(other, builder, False, True)
 
     def o_floordiv(self, other, builder):
