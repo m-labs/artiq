@@ -43,6 +43,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
         $ make -j4
         $ sudo make install
 
+        $ cd ~/artiq-dev
         $ git clone https://github.com/openrisc/or1k-gcc
         $ mkdir ~/artiq-dev/or1k-gcc/build
         $ cd ~/artiq-dev/or1k-gcc/build
