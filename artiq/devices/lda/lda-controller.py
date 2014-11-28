@@ -71,6 +71,19 @@ class HidError(Exception):
 
 
 class Lda:
+    """Lab Brick Digital Attenuator controller.
+
+    This controller depends on the hidapi library.
+
+    On Linux you should install hidapi-libusb shared library in a directory
+    listed in your LD_LIBRARY_PATH or in the conventional places (/usr/lib,
+    /lib, /usr/local/lib). This can be done either from hidapi sources
+    or by installing the libhidapi-libusb0 binary package on Debian-like OS.
+
+    On Windows you should put hidapi.dll shared library in the same directory
+    as the controller.
+
+    """
     _vendor_id = 0x041f
     _product_ids = {
         "LDA-102": 0x1207,
@@ -78,6 +91,12 @@ class Lda:
     }
 
     def __init__(self, serial=None, product="LDA-102"):
+        """
+        :param serial: The serial number.
+        :param product: The product identifier string: LDA-102, LDA-602 or sim.
+
+        """
+
         self.product = product
         if serial is None and product != "sim":
             serial = next(self.enumerate(product))
@@ -105,12 +124,25 @@ class Lda:
         return ret
 
     def write(self, command, length, data=bytes()):
+        """Writes a command to the Lab Brick device.
+
+        :param command: command ID.
+        :param length: number of meaningful bytes in the data array.
+        :param data: a byte array containing the payload of the command.
+
+        """
         # 0 is report id/padding
         buf = struct.pack("BBB6s", 0, command, length, data)
         res = self._check_error(hidapi.hid_write(self._dev, buf, len(buf)))
         assert res == len(buf), res
 
     def set(self, command, data):
+        """Sends a SET command to the Lab Brick device.
+
+        :param command: command ID, must have most significant bit set.
+        :param data: payload of the command.
+
+        """
         assert command & 0x80
         assert data
         self.write(command, len(data), data)
@@ -118,6 +150,15 @@ class Lda:
     def get(self, command, length, timeout=1000):
         # FIXME: this can collide with the status reports that the
         # device sends out by itself
+        """Sends a GET command to read back some value of the Lab Brick device.
+
+        :param int command: Command ID, most significant bit must be cleared.
+        :param int length: Length of the command, "count" in the datasheet.
+        :param int timeout: Timeout of the HID read in ms.
+        :return: Returns the value read from the device.
+        :rtype: bytes
+
+        """
         assert not command & 0x80
         self.write(command, length)
         buf = ctypes.create_string_buffer(8)
@@ -130,12 +171,24 @@ class Lda:
         return data
 
     def get_attenuation(self):
+        """Reads attenuation value from Lab Brick device.
+
+        :return: Returns the attenuation value in dB.
+        :rtype: float
+
+        """
         if self.product != "sim":
             return ord(self.get(0x0d, 1))/4.
         else:
             return self._attenuation
 
     def set_attenuation(self, attenuation):
+        """Sets attenuation value of the Lab Brick device.
+
+        :param attenuation: Attenuation value in dB.
+        :type attenuation: int, float or Fraction
+
+        """
         if self.product != "sim":
             self.set(0x8d, bytes(chr(int(round(attenuation*4))), 'ascii'))
         else:
