@@ -70,6 +70,35 @@ class HidError(Exception):
     pass
 
 
+class Ldasim:
+    """Lab Brick Digital Attenuator simulation controller.
+    """
+
+    def __init__(self):
+        self._attenuation = None
+
+    def get_attenuation(self):
+        """Reads last attenuation value set to the simulated device.
+
+        :return: Returns the attenuation value in dB, or None if it was
+                 never set.
+        :rtype: float
+
+        """
+        return self._attenuation
+
+    def set_attenuation(self, attenuation):
+        """Stores the new attenuation value and prints it to console.
+
+        :param attenuation: The attenuation value in dB.
+        :type attenuation: int, float or Fraction
+
+        """
+        attenuation = round(attenuation*4)/4.
+        print("[LDA-sim] setting attenuation to {}".format(attenuation))
+        self._attenuation = attenuation
+
+
 class Lda:
     """Lab Brick Digital Attenuator controller.
 
@@ -98,13 +127,11 @@ class Lda:
         """
 
         self.product = product
-        if serial is None and product != "sim":
+        if serial is None:
             serial = next(self.enumerate(product))
-            self._dev = hidapi.hid_open(self._vendor_id,
-                                        self._product_ids[product], serial)
-            assert self._dev
-        else:
-            self._attenuation = None
+        self._dev = hidapi.hid_open(self._vendor_id,
+                                    self._product_ids[product], serial)
+        assert self._dev
 
     @classmethod
     def enumerate(cls, product):
@@ -177,10 +204,7 @@ class Lda:
         :rtype: float
 
         """
-        if self.product != "sim":
-            return ord(self.get(0x0d, 1))/4.
-        else:
-            return self._attenuation
+        return ord(self.get(0x0d, 1))/4.
 
     def set_attenuation(self, attenuation):
         """Sets attenuation value of the Lab Brick device.
@@ -189,12 +213,7 @@ class Lda:
         :type attenuation: int, float or Fraction
 
         """
-        if self.product != "sim":
-            self.set(0x8d, bytes(chr(int(round(attenuation*4))), 'ascii'))
-        else:
-            attenuation = round(attenuation*4)/4.
-            print("[LDA-sim] setting attenuation to {}".format(attenuation))
-            self._attenuation = attenuation
+        self.set(0x8d, bytes(chr(int(round(attenuation*4))), 'ascii'))
 
 
 if __name__ == "__main__":
@@ -209,5 +228,10 @@ if __name__ == "__main__":
                         help="USB serial number of the device")
     args = parser.parse_args()
 
-    simple_server_loop(Lda(args.serial, args.device), "lda",
+    if args.device == "sim":
+        lda = Ldasim()
+    else:
+        lda = Lda(args.serial, args.device)
+
+    simple_server_loop(lda, "lda",
                        args.bind, args.port)
