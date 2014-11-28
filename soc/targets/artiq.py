@@ -45,8 +45,11 @@ class ARTIQMiniSoC(BaseSoC):
     }
     csr_map.update(BaseSoC.csr_map)
 
-    def __init__(self, platform, cpu_type="or1k", with_test_gen=False, **kwargs):
-        BaseSoC.__init__(self, platform, cpu_type=cpu_type, **kwargs)
+    def __init__(self, platform, cpu_type="or1k", ramcon_type="minicon",
+                 with_test_gen=False, **kwargs):
+        BaseSoC.__init__(self, platform,
+                         cpu_type=cpu_type, ramcon_type=ramcon_type,
+                         **kwargs)
         platform.add_extension(_tester_io)
 
         self.submodules.leds = gpio.GPIOOut(Cat(
