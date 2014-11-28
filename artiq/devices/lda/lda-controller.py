@@ -175,8 +175,6 @@ class Lda:
         self.write(command, len(data), data)
 
     def get(self, command, length, timeout=1000):
-        # FIXME: this can collide with the status reports that the
-        # device sends out by itself
         """Sends a GET command to read back some value of the Lab Brick device.
 
         :param int command: Command ID, most significant bit must be cleared.
@@ -187,13 +185,15 @@ class Lda:
 
         """
         assert not command & 0x80
+        status = None
         self.write(command, length)
         buf = ctypes.create_string_buffer(8)
-        res = self._check_error(hidapi.hid_read_timeout(self._dev,
-                                buf, len(buf), timeout))
-        assert res == len(buf), res
-        command, length, data = struct.unpack("BB6s", buf.raw)
-        data = data[:length]
+        while status != command:
+            res = self._check_error(hidapi.hid_read_timeout(self._dev,
+                                    buf, len(buf), timeout))
+            assert res == len(buf), res
+            status, length, data = struct.unpack("BB6s", buf.raw)
+            data = data[:length]
         logger.info("%s %s %r", command, length, data)
         return data
 
