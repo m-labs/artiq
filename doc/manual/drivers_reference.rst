@@ -18,6 +18,13 @@ Each driver is run in a separate "controller" that exposes a RPC interface (base
     :members:
 
 
+:mod:`artiq.devices.lda` module
+---------------------------------
+
+.. automodule:: artiq.devices.lda.lda_controller
+    :members:
+
+
 Default TCP port list
 ---------------------
 
