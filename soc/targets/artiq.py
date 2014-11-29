@@ -39,6 +39,24 @@ class _TestGen(Module):
         self.comb += pad.eq(sr[0])
 
 
+class _RTIOMiniCRG(Module):
+    def __init__(self, platform):
+        self.clock_domains.cd_rtio = ClockDomain()
+        # 80MHz -> 125MHz
+        self.specials += Instance("DCM_CLKGEN",
+            p_CLKFXDV_DIVIDE=2, p_CLKFX_DIVIDE=16, p_CLKFX_MD_MAX=1.6, p_CLKFX_MULTIPLY=25,
+            p_CLKIN_PERIOD=12.5, p_SPREAD_SPECTRUM="NONE", p_STARTUP_WAIT="FALSE",
+
+            i_CLKIN=ClockSignal(), o_CLKFX=self.cd_rtio.clk,
+            i_FREEZEDCM=0, i_RST=ResetSignal())
+        platform.add_platform_command("""
+NET "{rtio_clk}" TNM_NET = "GRPrtio_clk";
+NET "sys_clk" TNM_NET = "GRPsys_clk";
+TIMESPEC "TSfix_ise1" = FROM "GRPrtio_clk" TO "GRPsys_clk" TIG;
+TIMESPEC "TSfix_ise2" = FROM "GRPsys_clk" TO "GRPrtio_clk" TIG;
+""", rtio_clk=self.cd_rtio.clk)
+
+
 class ARTIQMiniSoC(BaseSoC):
     csr_map = {
         "rtio":            13
@@ -60,12 +78,11 @@ class ARTIQMiniSoC(BaseSoC):
         rtio_pads = [platform.request("ttl", i) for i in range(4)]
         fud = Signal()
         rtio_pads.append(fud)
+        self.submodules.rtiocrg = _RTIOMiniCRG(platform)
         self.submodules.rtiophy = rtio.phy.SimplePHY(
             rtio_pads,
             output_only_pads={rtio_pads[1], rtio_pads[2], rtio_pads[3], fud})
-        self.submodules.rtio = rtio.RTIO(self.rtiophy, self.clk_freq)
-        self.clock_domains.cd_rtio = ClockDomain()
-        self.comb += self.cd_rtio.clk.eq(ClockSignal())
+        self.submodules.rtio = rtio.RTIO(self.rtiophy, 125000000)
 
         if with_test_gen:
             self.submodules.test_gen = _TestGen(platform.request("ttl", 4))
