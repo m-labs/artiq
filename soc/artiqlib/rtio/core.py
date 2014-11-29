@@ -61,10 +61,9 @@ class _RTIOCounter(Module):
 #
 # The buffer must be transferred to the FIFO soon enough to account for:
 #    * transfer of counter to sys domain: Tio + 2*Tsys + Tsys
-#    * guard time detection latency: Tsys
 #    * FIFO latency: Tsys + 2*Tio
 # Therefore we must choose:
-#    guard_io_cycles > (3*Tio + 5*Tsys)/Tio
+#    guard_io_cycles > (3*Tio + 4*Tsys)/Tio
 #
 # We are writing to the FIFO from the buffer when the guard time has been 
 # reached without checking the FIFO's writable status. If the FIFO is full,
