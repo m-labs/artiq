@@ -8,10 +8,8 @@ long long int previous_fud_end_time;
 void rtio_init(void)
 {
     previous_fud_end_time = 0;
-    rtio_reset_counter_write(1);
-    rtio_reset_logic_write(1);
-    rtio_reset_counter_write(0);
-    rtio_reset_logic_write(0);
+    rtio_reset_write(1);
+    rtio_reset_write(0);
 }
 
 void rtio_oe(int channel, int oe)
@@ -28,8 +26,7 @@ void rtio_set(long long int timestamp, int channel, int value)
     while(!rtio_o_writable_read());
     rtio_o_we_write(1);
     if(rtio_o_underflow_read()) {
-        rtio_reset_logic_write(1);
-        rtio_reset_logic_write(0);
+        rtio_o_underflow_reset_write(1);
         exception_raise(EID_RTIO_UNDERFLOW);
     }
 }
@@ -41,16 +38,9 @@ void rtio_replace(long long int timestamp, int channel, int value)
     rtio_o_value_write(value);
     rtio_o_replace_write(1);
     if(rtio_o_underflow_read()) {
-        rtio_reset_logic_write(1);
-        rtio_reset_logic_write(0);
+        rtio_o_underflow_reset_write(1);
         exception_raise(EID_RTIO_UNDERFLOW);
     }
-}
-
-void rtio_sync(int channel)
-{
-    rtio_chan_sel_write(channel);
-    while(rtio_o_level_read() != 0);
 }
 
 long long int rtio_get_counter(void)
@@ -59,15 +49,14 @@ long long int rtio_get_counter(void)
     return rtio_counter_read();
 }
 
-long long int rtio_get(int channel)
+long long int rtio_get(int channel, long long int time_limit)
 {
     long long int r;
 
     rtio_chan_sel_write(channel);
-    while(rtio_i_readable_read() || (rtio_o_level_read() != 0)) {
+    while(rtio_i_readable_read() || (rtio_get_counter() < time_limit)) {
         if(rtio_i_overflow_read()) {
-            rtio_reset_logic_write(1);
-            rtio_reset_logic_write(0);
+            rtio_i_overflow_reset_write(1);
             exception_raise(EID_RTIO_OVERFLOW);
         }
         if(rtio_i_readable_read()) {
@@ -93,7 +82,7 @@ int rtio_pileup_count(int channel)
 
 void rtio_fud_sync(void)
 {
-    rtio_sync(RTIO_FUD_CHANNEL);
+    while(rtio_get_counter() < previous_fud_end_time);
 }
 
 void rtio_fud(long long int fud_time)
@@ -113,8 +102,7 @@ void rtio_fud(long long int fud_time)
     rtio_o_value_write(0);
     rtio_o_we_write(1);
     if(rtio_o_underflow_read()) {
-        rtio_reset_logic_write(1);
-        rtio_reset_logic_write(0);
+        rtio_o_underflow_reset_write(1);
         exception_raise(EID_RTIO_UNDERFLOW);
     }
 }

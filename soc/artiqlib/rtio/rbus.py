@@ -2,7 +2,7 @@ from migen.fhdl.std import *
 from migen.genlib.record import Record
 
 
-def create_rbus(fine_ts_bits, pads, output_only_pads, mini_pads):
+def create_rbus(fine_ts_bits, pads, output_only_pads):
     rbus = []
     for pad in pads:
         layout = [
@@ -11,7 +11,7 @@ def create_rbus(fine_ts_bits, pads, output_only_pads, mini_pads):
         ]
         if fine_ts_bits:
             layout.append(("o_fine_ts", fine_ts_bits))
-        if pad not in output_only_pads and pad not in mini_pads:
+        if pad not in output_only_pads:
             layout += [
                 ("oe", 1),
                 ("i_stb", 1),
@@ -20,9 +20,7 @@ def create_rbus(fine_ts_bits, pads, output_only_pads, mini_pads):
             ]
             if fine_ts_bits:
                 layout.append(("i_fine_ts", fine_ts_bits))
-        chif = Record(layout)
-        chif.mini = pad in mini_pads
-        rbus.append(chif)
+        rbus.append(Record(layout))
     return rbus
 
 

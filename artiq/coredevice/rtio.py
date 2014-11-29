@@ -107,7 +107,8 @@ class RTIOOut(_RTIOBase):
         the output of the DDS).
 
         """
-        syscall("rtio_sync", self.channel)
+        while syscall("rtio_get_counter") < self.previous_timestamp:
+            pass
 
     @kernel
     def on(self):
@@ -192,7 +193,7 @@ class RTIOIn(_RTIOBase):
 
         """
         count = 0
-        while syscall("rtio_get", self.channel) >= 0:
+        while syscall("rtio_get", self.channel, self.previous_timestamp) >= 0:
             count += 1
         return count
 
@@ -204,4 +205,5 @@ class RTIOIn(_RTIOBase):
         If the gate is permanently closed, returns a negative value.
 
         """
-        return cycles_to_time(syscall("rtio_get", self.channel))
+        return cycles_to_time(syscall("rtio_get", self.channel,
+                                      self.previous_timestamp))
