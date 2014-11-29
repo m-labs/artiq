@@ -2,6 +2,7 @@ from fractions import Fraction
 
 from migen.fhdl.std import *
 from migen.bank.description import *
+from migen.genlib.record import Record
 from migen.genlib.cdc import *
 from migen.genlib.fifo import AsyncFIFO
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -98,29 +99,25 @@ class _RTIOBankO(Module):
 
         signal_underflow = Signal()
         fifos = []
-        fifo_layout = [("timestamp", counter.width + fine_ts_width),
-                       ("value", 2)]
+        ev_layout = [("timestamp", counter.width + fine_ts_width),
+                     ("value", 2)]
         for n, chif in enumerate(rbus):
             # FIFO
-            fifo = RenameClockDomains(AsyncFIFO(fifo_layout, fifo_depth),
+            fifo = RenameClockDomains(AsyncFIFO(ev_layout, fifo_depth),
                                       {"write": "rsys", "read": "rio"})
             self.submodules += fifo
             fifos.append(fifo)
 
             # Buffer
             buf_valid = Signal()
-            buf_timestamp = Signal(counter.width + fine_ts_width)
-            buf_value = Signal(2)
+            buf = Record(ev_layout)
             buf_just_written = Signal()
 
             # Buffer read and FIFO write
-            self.comb += [
-                fifo.din.timestamp.eq(buf_timestamp),
-                fifo.din.value.eq(buf_value)
-            ]
+            self.comb += fifo.din.eq(buf)
             in_guard_time = Signal()
             self.comb += in_guard_time.eq(
-                buf_timestamp[fine_ts_width:] < counter.o_value_sys + guard_io_cycles)
+                buf.timestamp[fine_ts_width:] < counter.o_value_sys + guard_io_cycles)
             self.sync.rsys += If(in_guard_time, buf_valid.eq(0))
             self.comb += \
                 If(buf_valid,
@@ -143,8 +140,8 @@ class _RTIOBankO(Module):
                     # on underflows, which will be correctly reported.
                     buf_just_written.eq(1),
                     buf_valid.eq(1),
-                    buf_timestamp.eq(self.timestamp),
-                    buf_value.eq(self.value)
+                    buf.timestamp.eq(self.timestamp),
+                    buf.value.eq(self.value)
                 )
             ]
 
@@ -186,15 +183,15 @@ class _RTIOBankI(Module):
         readables = []
         overflows = []
         pileup_counts = []
-        fifo_layout = [("timestamp", counter.width+fine_ts_width),
-                       ("value", 1)]
+        ev_layout = [("timestamp", counter.width+fine_ts_width),
+                     ("value", 1)]
         for n, chif in enumerate(rbus):
             if hasattr(chif, "oe"):
                 sensitivity = Signal(2)
                 self.sync.rio += If(~chif.oe & chif.o_stb,
                                     sensitivity.eq(chif.o_value))
 
-                fifo = RenameClockDomains(AsyncFIFO(fifo_layout, fifo_depth),
+                fifo = RenameClockDomains(AsyncFIFO(ev_layout, fifo_depth),
                                           {"read": "rsys", "write": "rio"})
                 self.submodules += fifo
 
