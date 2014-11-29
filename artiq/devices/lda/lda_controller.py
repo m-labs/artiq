@@ -138,12 +138,13 @@ class Lda:
     def enumerate(cls, product):
         devs = hidapi.hid_enumerate(cls._vendor_id,
                                     cls._product_ids[product])
-        dev = devs
-        while dev:
-            yield dev[0].serial
-            dev = dev[0].next
-        yield None
-        hidapi.hid_free_enumeration(devs)
+        try:
+            dev = devs
+            while dev:
+                yield dev[0].serial
+                dev = dev[0].next
+        finally:
+            hidapi.hid_free_enumeration(devs)
 
     def _check_error(self, ret):
         if ret < 0:
