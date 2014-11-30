@@ -62,8 +62,9 @@ class _RTIOCounter(Module):
 # The buffer must be transferred to the FIFO soon enough to account for:
 #    * transfer of counter to sys domain: Tio + 2*Tsys + Tsys
 #    * FIFO latency: Tsys + 2*Tio
+#    * FIFO buffer latency: Tio
 # Therefore we must choose:
-#    guard_io_cycles > (3*Tio + 4*Tsys)/Tio
+#    guard_io_cycles > (4*Tio + 4*Tsys)/Tio
 #
 # We are writing to the FIFO from the buffer when the guard time has been 
 # reached without checking the FIFO's writable status. If the FIFO is full,
@@ -144,16 +145,29 @@ class _RTIOBankO(Module):
                 )
             ]
 
-            # FIFO read
+            # Buffer output of FIFO to improve timing
+            dout_stb = Signal()
+            dout_ack = Signal()
+            dout = Record(ev_layout)
+            self.sync.rio += \
+                If(fifo.re,
+                    dout_stb.eq(1),
+                    dout.eq(fifo.dout)
+                ).Elif(dout_ack,
+                    dout_stb.eq(0)
+                )
+            self.comb += fifo.re.eq(fifo.readable & (~dout_stb | dout_ack))
+
+            # FIFO read through buffer
             self.comb += [
-                chif.o_stb.eq(fifo.readable &
-                    (fifo.dout.timestamp[fine_ts_width:] == counter.o_value_rio)),
-                chif.o_value.eq(fifo.dout.value),
-                fifo.re.eq(chif.o_stb)
+                dout_ack.eq(
+                    dout.timestamp[fine_ts_width:] == counter.o_value_rio),
+                chif.o_stb.eq(dout_stb & dout_ack),
+                chif.o_value.eq(dout.value)
             ]
             if fine_ts_width:
                 self.comb += chif.o_fine_ts.eq(
-                    fifo.dout.timestamp[:fine_ts_width])
+                    dout.timestamp[:fine_ts_width])
 
         self.comb += \
             self.writable.eq(Array(fifo.writable for fifo in fifos)[self.sel])
