@@ -1,4 +1,5 @@
 from migen.fhdl.std import *
+from migen.bank import wbgen
 from mibuild.generic_platform import *
 
 from misoclib import gpio
@@ -70,7 +71,7 @@ TIMESPEC "TSfix_ise2" = FROM "GRPsys_clk" TO "GRPrtio_clk" TIG;
 
 class ARTIQMiniSoC(BaseSoC):
     csr_map = {
-        "rtio":            13
+        "rtio": None  # mapped on Wishbone instead
     }
     csr_map.update(BaseSoC.csr_map)
 
@@ -100,6 +101,11 @@ class ARTIQMiniSoC(BaseSoC):
         self.submodules.rtio = rtio.RTIO(self.rtiophy,
                                          clk_freq=125000000,
                                          ififo_depth=512)
+
+        rtio_csrs = self.rtio.get_csrs()
+        self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
+        self.add_wb_slave(lambda a: a[26:29] == 2, self.rtiowb.bus)
+        self.add_cpu_csr_region("rtio", 0xa0000000, 32, rtio_csrs)
 
         if with_test_gen:
             self.submodules.test_gen = _TestGen(platform.request("ttl", 8))
