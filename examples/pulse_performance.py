@@ -30,5 +30,5 @@ if __name__ == "__main__":
     with comm_serial.Comm() as comm:
         coredev = core.Core(comm)
         exp = PulsePerformance(core=coredev,
-                               o=rtio.RTIOOut(core=coredev, channel=1))
+                               o=rtio.RTIOOut(core=coredev, channel=2))
         exp.run()

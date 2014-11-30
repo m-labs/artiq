@@ -120,16 +120,16 @@ if __name__ == "__main__":
         exp = Transport(
             core=coredev,
             bd=dds.DDS(core=coredev, dds_sysclk=1*GHz,
-                       reg_channel=0, rtio_switch=1),
+                       reg_channel=0, rtio_switch=2),
             bdd=dds.DDS(core=coredev, dds_sysclk=1*GHz,
-                        reg_channel=1, rtio_switch=2),
+                        reg_channel=1, rtio_switch=3),
             pmt=rtio.RTIOIn(core=coredev, channel=0),
             # a compound pdq device that wraps multiple usb devices (looked up
             # by usb "serial number"/id) into one
             electrodes=pdq2.CompoundPDQ2(
                 core=coredev,
                 ids=["qc_q1_{}".format(i) for i in range(4)],
-                rtio_trigger=3, rtio_frame=(4, 5, 6)),
+                rtio_trigger=4, rtio_frame=(5, 6, 7)),
             transport_data=data,  # or: json.load
             wait_at_stop=100*us,
             speed=1.5,

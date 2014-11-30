@@ -256,7 +256,7 @@ class RTIOCase(unittest.TestCase):
             uut = _RTIOLoopback(
                 core=coredev,
                 i=rtio.RTIOIn(core=coredev, channel=0),
-                o=rtio.RTIOOut(core=coredev, channel=1),
+                o=rtio.RTIOOut(core=coredev, channel=2),
                 npulses=npulses
             )
             uut.run()
@@ -267,7 +267,7 @@ class RTIOCase(unittest.TestCase):
             coredev = core.Core(comm)
             uut = _RTIOUnderflow(
                 core=coredev,
-                o=rtio.RTIOOut(core=coredev, channel=1)
+                o=rtio.RTIOOut(core=coredev, channel=2)
             )
             with self.assertRaises(runtime_exceptions.RTIOUnderflow):
                 uut.run()
@@ -277,7 +277,7 @@ class RTIOCase(unittest.TestCase):
             coredev = core.Core(comm)
             uut = _RTIOSequenceError(
                 core=coredev,
-                o=rtio.RTIOOut(core=coredev, channel=1)
+                o=rtio.RTIOOut(core=coredev, channel=2)
             )
             with self.assertRaises(runtime_exceptions.RTIOSequenceError):
                 uut.run()

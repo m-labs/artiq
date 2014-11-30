@@ -32,5 +32,5 @@ if __name__ == "__main__":
         coredev = core.Core(comm)
         exp = RTIOSkew(core=coredev,
                        i=rtio.RTIOIn(core=coredev, channel=0),
-                       o=rtio.RTIOOut(core=coredev, channel=1))
+                       o=rtio.RTIOOut(core=coredev, channel=2))
         exp.run()

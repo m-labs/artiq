@@ -9,12 +9,23 @@ from artiqlib import rtio, ad9858
 
 _tester_io = [
     ("user_led", 1, Pins("B:7"), IOStandard("LVTTL")),
-    ("ttl", 0, Pins("C:13"), IOStandard("LVTTL")),
-    ("ttl", 1, Pins("C:11"), IOStandard("LVTTL")),
-    ("ttl", 2, Pins("C:10"), IOStandard("LVTTL")),
-    ("ttl", 3, Pins("C:9"), IOStandard("LVTTL")),
-    ("ttl", 4, Pins("C:8"), IOStandard("LVTTL")),
-    ("ttl_tx_en", 0, Pins("A:9"), IOStandard("LVTTL")),
+
+    ("pmt", 0, Pins("C:13"), IOStandard("LVTTL")),
+    ("pmt", 1, Pins("C:14"), IOStandard("LVTTL")),
+
+    ("ttl", 0, Pins("C:11"), IOStandard("LVTTL")),
+    ("ttl", 1, Pins("C:10"), IOStandard("LVTTL")),
+    ("ttl", 2, Pins("C:9"), IOStandard("LVTTL")),
+    ("ttl", 3, Pins("C:8"), IOStandard("LVTTL")),
+    ("ttl", 4, Pins("C:7"), IOStandard("LVTTL")),
+    ("ttl", 5, Pins("C:6"), IOStandard("LVTTL")),
+    ("ttl", 6, Pins("C:5"), IOStandard("LVTTL")),
+    ("ttl", 7, Pins("C:4"), IOStandard("LVTTL")),
+    ("ttl_l_tx_en", 0, Pins("A:9"), IOStandard("LVTTL")),
+
+    ("ttl", 8, Pins("C:3"), IOStandard("LVTTL")),
+    ("ttl_h_tx_en", 0, Pins("B:6"), IOStandard("LVTTL")),
+
     ("dds", 0,
         Subsignal("a", Pins("A:5 B:10 A:6 B:9 A:7 B:8")),
         Subsignal("d", Pins("A:12 B:3 A:13 B:2 A:14 B:1 A:15 B:0")),
@@ -74,18 +85,24 @@ class ARTIQMiniSoC(BaseSoC):
             platform.request("user_led", 0),
             platform.request("user_led", 1)))
 
-        self.comb += platform.request("ttl_tx_en").eq(1)
-        rtio_pads = [platform.request("ttl", i) for i in range(4)]
         fud = Signal()
-        rtio_pads.append(fud)
+        self.comb += [
+            platform.request("ttl_l_tx_en").eq(1),
+            platform.request("ttl_h_tx_en").eq(1)
+        ]
+        rtio_ins = [platform.request("pmt") for i in range(2)]
+        rtio_outs = [platform.request("ttl", i) for i in range(8)] + [fud]
+
         self.submodules.rtiocrg = _RTIOMiniCRG(platform)
         self.submodules.rtiophy = rtio.phy.SimplePHY(
-            rtio_pads,
-            output_only_pads={rtio_pads[1], rtio_pads[2], rtio_pads[3], fud})
-        self.submodules.rtio = rtio.RTIO(self.rtiophy, 125000000)
+            rtio_ins + rtio_outs,
+            output_only_pads=set(rtio_outs))
+        self.submodules.rtio = rtio.RTIO(self.rtiophy,
+                                         clk_freq=125000000,
+                                         ififo_depth=512)
 
         if with_test_gen:
-            self.submodules.test_gen = _TestGen(platform.request("ttl", 4))
+            self.submodules.test_gen = _TestGen(platform.request("ttl", 8))
 
         dds_pads = platform.request("dds")
         self.submodules.dds = ad9858.AD9858(dds_pads)
