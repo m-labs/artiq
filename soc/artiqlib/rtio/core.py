@@ -286,7 +286,7 @@ class RTIO(Module, AutoCSR):
         self.submodules.bank_o = _RTIOBankO(
             phy.rbus, self.counter, fine_ts_width, ofifo_depth, guard_io_cycles)
         self.submodules.bank_i = _RTIOBankI(
-            phy.rbus, self.counter, fine_ts_width, ofifo_depth)
+            phy.rbus, self.counter, fine_ts_width, ififo_depth)
 
         # CSRs
         self._r_reset = CSRStorage(reset=1)
