@@ -19,7 +19,7 @@ class SimplePHY(Module):
                 i_pad = Signal()
                 self.sync.rio += ts.oe.eq(chif.oe)
                 self.comb += ts.o.eq(o_pad)
-                self.specials += MultiReg(ts.i, i_pad), \
+                self.specials += MultiReg(ts.i, i_pad, "rio"), \
                     ts.get_tristate(pad)
 
                 i_pad_d = Signal()
