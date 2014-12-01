@@ -26,6 +26,7 @@ class DDS(AutoContext):
     parameters = "dds_sysclk reg_channel rtio_switch"
 
     def build(self):
+        self.previous_on = False
         self.previous_frequency = 0*MHz
         self.set_phase_mode(PHASE_MODE_CONTINUOUS)
         self.sw = rtio.RTIOOut(self, channel=self.rtio_switch)
@@ -95,7 +96,7 @@ class DDS(AutoContext):
             # Channel is off:
             # Use soft timing on FUD to prevent conflicts when reprogramming
             # several channels that need to be turned on at the same time.
-            rt_fud = merge or bool(self.sw.previous_value)
+            rt_fud = merge or self.previous_on
             ftw = self.frequency_to_ftw(frequency)
             if self.phase_mode != PHASE_MODE_CONTINUOUS:
                 phase_per_microcycle = ftw*int64(
@@ -108,6 +109,7 @@ class DDS(AutoContext):
                rt_fud, self.phase_mode == PHASE_MODE_TRACKING)
             self.previous_frequency = frequency
         self.sw.on()
+        self.previous_on = True
 
         if phase_mode != PHASE_MODE_DEFAULT:
             self.set_phase_mode(old_phase_mode)
@@ -118,6 +120,7 @@ class DDS(AutoContext):
 
         """
         self.sw.off()
+        self.previous_on = False
 
     @kernel
     def pulse(self, frequency, duration,

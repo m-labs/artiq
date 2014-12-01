@@ -14,7 +14,6 @@ class LLRTIOOut(AutoContext):
     parameters = "channel"
 
     def build(self):
-        self.previous_timestamp = int64(0)  # in RTIO cycles
         self._set_oe()
 
     @kernel
@@ -30,7 +29,6 @@ class LLRTIOOut(AutoContext):
 
         """
         syscall("rtio_set", t, self.channel, value)
-        self.previous_timestamp = t
 
     @kernel
     def on(self, t):
@@ -56,7 +54,6 @@ class _RTIOBase(AutoContext):
 
     def build(self):
         self.previous_timestamp = int64(0)  # in RTIO cycles
-        self.previous_value = 0
 
     @kernel
     def _set_oe(self, oe):
@@ -66,7 +63,6 @@ class _RTIOBase(AutoContext):
     def _set_value(self, value):
         syscall("rtio_set", time_to_cycles(now()), self.channel, value)
         self.previous_timestamp = time_to_cycles(now())
-        self.previous_value = value
 
 
 class RTIOOut(_RTIOBase):
