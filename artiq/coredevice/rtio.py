@@ -1,12 +1,11 @@
 from artiq.language.core import *
-from artiq.coredevice.runtime_exceptions import RTIOSequenceError
 
 
 class LLRTIOOut(AutoContext):
     """Low-level RTIO output driver.
 
     Allows setting RTIO outputs at arbitrary times, without time unit
-    conversion and without zero-length transition suppression.
+    conversion.
 
     This is meant to be used mostly in drivers; consider using
     ``RTIOOut`` instead.
@@ -30,8 +29,6 @@ class LLRTIOOut(AutoContext):
         :param value: value to set at the output.
 
         """
-        if t <= self.previous_timestamp:
-            raise RTIOSequenceError
         syscall("rtio_set", t, self.channel, value)
         self.previous_timestamp = t
 
@@ -53,6 +50,7 @@ class LLRTIOOut(AutoContext):
         """
         self.set_value(t, 0)
 
+
 class _RTIOBase(AutoContext):
     parameters = "channel"
 
@@ -66,17 +64,9 @@ class _RTIOBase(AutoContext):
 
     @kernel
     def _set_value(self, value):
-        if time_to_cycles(now()) < self.previous_timestamp:
-            raise RTIOSequenceError
-        if self.previous_value != value:
-            if self.previous_timestamp == time_to_cycles(now()):
-                syscall("rtio_replace", time_to_cycles(now()),
-                        self.channel, value)
-            else:
-                syscall("rtio_set", time_to_cycles(now()),
-                        self.channel, value)
-            self.previous_timestamp = time_to_cycles(now())
-            self.previous_value = value
+        syscall("rtio_set", time_to_cycles(now()), self.channel, value)
+        self.previous_timestamp = time_to_cycles(now())
+        self.previous_value = value
 
 
 class RTIOOut(_RTIOBase):

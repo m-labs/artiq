@@ -13,7 +13,6 @@ static const struct symbol syscalls[] = {
     {"gpio_set", gpio_set},
     {"rtio_oe", rtio_oe},
     {"rtio_set", rtio_set},
-    {"rtio_replace", rtio_replace},
     {"rtio_get_counter", rtio_get_counter},
     {"rtio_get", rtio_get},
     {"rtio_pileup_count", rtio_pileup_count},

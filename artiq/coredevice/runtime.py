@@ -15,7 +15,6 @@ _syscalls = {
     "gpio_set": "ib:n",
     "rtio_oe": "ib:n",
     "rtio_set": "Iii:n",
-    "rtio_replace": "Iii:n",
     "rtio_get_counter": "n:I",
     "rtio_get": "iI:I",
     "rtio_pileup_count": "i:i",

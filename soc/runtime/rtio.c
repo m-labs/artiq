@@ -5,6 +5,7 @@
 
 #define RTIO_O_STATUS_FULL 1
 #define RTIO_O_STATUS_UNDERFLOW 2
+#define RTIO_O_STATUS_SEQUENCE_ERROR 4
 #define RTIO_I_STATUS_EMPTY 1
 #define RTIO_I_STATUS_OVERFLOW 2
 
@@ -39,18 +40,10 @@ void rtio_set(long long int timestamp, int channel, int value)
             rtio_o_underflow_reset_write(1);
             exception_raise(EID_RTIO_UNDERFLOW);
         }
-    }
-}
-
-void rtio_replace(long long int timestamp, int channel, int value)
-{
-    rtio_chan_sel_write(channel);
-    rtio_o_timestamp_write(timestamp);
-    rtio_o_value_write(value);
-    rtio_o_replace_write(1);
-    if(rtio_o_status_read() & RTIO_O_STATUS_UNDERFLOW) {
-        rtio_o_underflow_reset_write(1);
-        exception_raise(EID_RTIO_UNDERFLOW);
+        if(status & RTIO_O_STATUS_SEQUENCE_ERROR) {
+            rtio_o_sequence_error_reset_write(1);
+            exception_raise(EID_RTIO_SEQUENCE_ERROR);
+        }
     }
 }
 
@@ -66,7 +59,7 @@ long long int rtio_get(int channel, long long int time_limit)
     int status;
 
     rtio_chan_sel_write(channel);
-    while(status = rtio_i_status_read()) {
+    while((status = rtio_i_status_read())) {
         if(rtio_i_status_read() & RTIO_I_STATUS_OVERFLOW) {
             rtio_i_overflow_reset_write(1);
             exception_raise(EID_RTIO_OVERFLOW);
@@ -105,11 +98,10 @@ void rtio_fud_sync(void)
 void rtio_fud(long long int fud_time)
 {
     long long int fud_end_time;
+    int status;
 
     rtio_chan_sel_write(RTIO_FUD_CHANNEL);
     fud_end_time = fud_time + 3*8;
-    if(fud_time < previous_fud_end_time)
-        exception_raise(EID_RTIO_SEQUENCE_ERROR);
     previous_fud_end_time = fud_end_time;
 
     rtio_o_timestamp_write(fud_time);
@@ -118,8 +110,15 @@ void rtio_fud(long long int fud_time)
     rtio_o_timestamp_write(fud_end_time);
     rtio_o_value_write(0);
     rtio_o_we_write(1);
-    if(rtio_o_status_read() & RTIO_O_STATUS_UNDERFLOW) {
-        rtio_o_underflow_reset_write(1);
-        exception_raise(EID_RTIO_UNDERFLOW);
+    status = rtio_o_status_read();
+    if(status) {
+        if(status & RTIO_O_STATUS_UNDERFLOW) {
+            rtio_o_underflow_reset_write(1);
+            exception_raise(EID_RTIO_UNDERFLOW);
+        }
+        if(status & RTIO_O_STATUS_SEQUENCE_ERROR) {
+            rtio_o_sequence_error_reset_write(1);
+            exception_raise(EID_RTIO_SEQUENCE_ERROR);
+        }
     }
 }

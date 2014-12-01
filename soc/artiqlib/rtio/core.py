@@ -88,17 +88,20 @@ class _RTIOCounter(Module):
 class _RTIOBankO(Module):
     def __init__(self, rbus, counter, fine_ts_width, fifo_depth, guard_io_cycles):
         self.sel = Signal(max=len(rbus))
+        # timestamp and value must be valid 1 cycle before we
         self.timestamp = Signal(counter.width + fine_ts_width)
         self.value = Signal(2)
         self.writable = Signal()
         self.we = Signal()  # maximum throughput 1/2
-        self.replace = Signal()
-        self.underflow = Signal()  # valid 2 cycles after we/replace
+        self.underflow = Signal()  # valid 2 cycles after we
         self.underflow_reset = Signal()
+        self.sequence_error = Signal()
+        self.sequence_error_reset = Signal()
 
         # # #
 
         signal_underflow = Signal()
+        signal_sequence_error = Signal()
         fifos = []
         ev_layout = [("timestamp", counter.width + fine_ts_width),
                      ("value", 2)]
@@ -110,18 +113,30 @@ class _RTIOBankO(Module):
             fifos.append(fifo)
 
             # Buffer
-            buf_valid = Signal()
+            buf_pending = Signal()
             buf = Record(ev_layout)
             buf_just_written = Signal()
+
+            # Special cases
+            replace = Signal()
+            sequence_error = Signal()
+            nop = Signal()
+            self.sync.rsys += [
+                replace.eq(self.timestamp == buf.timestamp[fine_ts_width:]),
+                sequence_error.eq(self.timestamp < buf.timestamp[fine_ts_width:]),
+                nop.eq(self.value == buf.value)
+            ]
+            self.comb += If(self.we & (self.sel == n) & sequence_error,
+                signal_sequence_error.eq(1))
 
             # Buffer read and FIFO write
             self.comb += fifo.din.eq(buf)
             in_guard_time = Signal()
             self.comb += in_guard_time.eq(
                 buf.timestamp[fine_ts_width:] < counter.o_value_sys + guard_io_cycles)
-            self.sync.rsys += If(in_guard_time, buf_valid.eq(0))
+            self.sync.rsys += If(in_guard_time, buf_pending.eq(0))
             self.comb += \
-                If(buf_valid,
+                If(buf_pending,
                     If(in_guard_time,
                         If(buf_just_written,
                             signal_underflow.eq(1)
@@ -129,18 +144,19 @@ class _RTIOBankO(Module):
                             fifo.we.eq(1)
                         )
                     ),
-                    If(self.we & (self.sel == n), fifo.we.eq(1))
+                    If((self.we & (self.sel == n)
+                            & ~replace & ~nop & ~sequence_error),
+                       fifo.we.eq(1)
+                    )
                 )
 
             # Buffer write
             # Must come after read to handle concurrent read+write properly
             self.sync.rsys += [
                 buf_just_written.eq(0),
-                If((self.we | self.replace) & (self.sel == n),
-                    # Replace operations on empty buffers may happen
-                    # on underflows, which will be correctly reported.
+                If(self.we & (self.sel == n) & ~nop & ~sequence_error,
                     buf_just_written.eq(1),
-                    buf_valid.eq(1),
+                    buf_pending.eq(1),
                     buf.timestamp.eq(self.timestamp),
                     buf.value.eq(self.value)
                 )
@@ -174,7 +190,9 @@ class _RTIOBankO(Module):
             self.writable.eq(Array(fifo.writable for fifo in fifos)[self.sel])
         self.sync.rsys += [
             If(self.underflow_reset, self.underflow.eq(0)),
-            If(signal_underflow, self.underflow.eq(1))
+            If(self.sequence_error_reset, self.sequence_error.eq(0)),
+            If(signal_underflow, self.underflow.eq(1)),
+            If(signal_sequence_error, self.sequence_error.eq(1))
         ]
 
 
@@ -298,9 +316,9 @@ class RTIO(Module, AutoCSR):
         self._r_o_timestamp = CSRStorage(counter_width + fine_ts_width)
         self._r_o_value = CSRStorage(2)
         self._r_o_we = CSR()
-        self._r_o_replace = CSR()
-        self._r_o_status = CSRStatus(2)
+        self._r_o_status = CSRStatus(3)
         self._r_o_underflow_reset = CSR()
+        self._r_o_sequence_error_reset = CSR()
 
         self._r_i_timestamp = CSRStatus(counter_width + fine_ts_width)
         self._r_i_value = CSRStatus()
@@ -350,9 +368,11 @@ class RTIO(Module, AutoCSR):
             self.bank_o.timestamp.eq(self._r_o_timestamp.storage),
             self.bank_o.value.eq(self._r_o_value.storage),
             self.bank_o.we.eq(self._r_o_we.re),
-            self.bank_o.replace.eq(self._r_o_replace.re),
-            self._r_o_status.status.eq(Cat(~self.bank_o.writable, self.bank_o.underflow)),
-            self.bank_o.underflow_reset.eq(self._r_o_underflow_reset.re)
+            self._r_o_status.status.eq(Cat(~self.bank_o.writable,
+                                           self.bank_o.underflow,
+                                           self.bank_o.sequence_error)),
+            self.bank_o.underflow_reset.eq(self._r_o_underflow_reset.re),
+            self.bank_o.sequence_error_reset.eq(self._r_o_sequence_error_reset.re)
         ]
 
         # Input
