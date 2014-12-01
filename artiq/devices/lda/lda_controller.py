@@ -1,70 +1,14 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
 import logging
-import atexit
 import ctypes
-import ctypes.util
 import struct
 
 from artiq.management.pc_rpc import simple_server_loop
 
 
 logger = logging.getLogger(__name__)
-
-if "." not in os.environ["PATH"].split(";"):
-    os.environ["PATH"] += ";."
-dir = os.path.split(__file__)[0]
-if dir not in os.environ["PATH"].split(";"):
-    os.environ["PATH"] += ";%s" % dir
-
-for n in "hidapi-libusb hidapi-hidraw hidapi".split():
-    path = ctypes.util.find_library(n)
-    if path:
-        break
-if not path:
-    raise ImportError("no hidapi library found")
-hidapi = ctypes.CDLL(path)
-
-
-class HidDeviceInfo(ctypes.Structure):
-    pass
-
-
-HidDeviceInfo._fields_ = [
-    ("path", ctypes.c_char_p),
-    ("vendor_id", ctypes.c_ushort),
-    ("product_id", ctypes.c_ushort),
-    ("serial", ctypes.c_wchar_p),
-    ("release", ctypes.c_ushort),
-    ("manufacturer", ctypes.c_wchar_p),
-    ("product", ctypes.c_wchar_p),
-    ("usage_page", ctypes.c_ushort),
-    ("usage", ctypes.c_ushort),
-    ("interface", ctypes.c_int),
-    ("next", ctypes.POINTER(HidDeviceInfo)),
-]
-
-
-hidapi.hid_enumerate.argtypes = [ctypes.c_ushort, ctypes.c_ushort]
-hidapi.hid_enumerate.restype = ctypes.POINTER(HidDeviceInfo)
-hidapi.hid_free_enumeration.argtypes = [ctypes.POINTER(HidDeviceInfo)]
-hidapi.hid_open.argtypes = [ctypes.c_ushort, ctypes.c_ushort,
-                            ctypes.c_wchar_p]
-hidapi.hid_open.restype = ctypes.c_void_p
-hidapi.hid_read_timeout.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
-                                    ctypes.c_size_t, ctypes.c_int]
-hidapi.hid_read.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_size_t]
-hidapi.hid_write.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_size_t]
-hidapi.hid_send_feature_report.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
-                                           ctypes.c_size_t]
-hidapi.hid_get_feature_report.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
-                                          ctypes.c_size_t]
-hidapi.hid_error.argtypes = [ctypes.c_void_p]
-hidapi.hid_error.restype = ctypes.c_wchar_p
-
-atexit.register(hidapi.hid_exit)
 
 
 class HidError(Exception):
@@ -127,15 +71,18 @@ class Lda:
 
         """
 
+        from artiq.devices.lda.hidapi import hidapi
+        self.hidapi = hidapi
         self.product = product
         if serial is None:
             serial = next(self.enumerate(product))
-        self._dev = hidapi.hid_open(self._vendor_id,
-                                    self._product_ids[product], serial)
+        self._dev = self.hidapi.hid_open(self._vendor_id,
+                                         self._product_ids[product], serial)
         assert self._dev
 
     @classmethod
     def enumerate(cls, product):
+        from artiq.devices.lda.hidapi import hidapi
         devs = hidapi.hid_enumerate(cls._vendor_id,
                                     cls._product_ids[product])
         try:
@@ -148,8 +95,8 @@ class Lda:
 
     def _check_error(self, ret):
         if ret < 0:
-            err = hidapi.hid_error(self._dev)
-            raise HidError("%s: %s" % (ret, err))
+            err = self.hidapi.hid_error(self._dev)
+            raise HidError("{}: {}".format(ret, err))
         return ret
 
     def write(self, command, length, data=bytes()):
@@ -162,7 +109,8 @@ class Lda:
         """
         # 0 is report id/padding
         buf = struct.pack("BBB6s", 0, command, length, data)
-        res = self._check_error(hidapi.hid_write(self._dev, buf, len(buf)))
+        res = self._check_error(self.hidapi.hid_write(self._dev, buf,
+                                                      len(buf)))
         assert res == len(buf), res
 
     def set(self, command, data):
@@ -191,7 +139,7 @@ class Lda:
         self.write(command, length)
         buf = ctypes.create_string_buffer(8)
         while status != command:
-            res = self._check_error(hidapi.hid_read_timeout(self._dev,
+            res = self._check_error(self.hidapi.hid_read_timeout(self._dev,
                                     buf, len(buf), timeout))
             assert res == len(buf), res
             status, length, data = struct.unpack("BB6s", buf.raw)
