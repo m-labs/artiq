@@ -1,4 +1,5 @@
 from migen.fhdl.std import *
+from migen.bank.description import *
 from migen.bank import wbgen
 from mibuild.generic_platform import *
 
@@ -13,6 +14,7 @@ _tester_io = [
 
     ("pmt", 0, Pins("C:13"), IOStandard("LVTTL")),
     ("pmt", 1, Pins("C:14"), IOStandard("LVTTL")),
+    ("xtrig", 0, Pins("C:12"), IOStandard("LVTTL")),  # used for DDS clock
 
     ("ttl", 0, Pins("C:11"), IOStandard("LVTTL")),
     ("ttl", 1, Pins("C:10"), IOStandard("LVTTL")),
@@ -51,27 +53,42 @@ class _TestGen(Module):
         self.comb += pad.eq(sr[0])
 
 
-class _RTIOMiniCRG(Module):
+class _RTIOMiniCRG(Module, AutoCSR):
     def __init__(self, platform):
+        self._r_clock_sel = CSRStorage()
         self.clock_domains.cd_rtio = ClockDomain()
-        # 80MHz -> 125MHz
-        self.specials += Instance("DCM_CLKGEN",
-            p_CLKFXDV_DIVIDE=2, p_CLKFX_DIVIDE=16, p_CLKFX_MD_MAX=1.6, p_CLKFX_MULTIPLY=25,
-            p_CLKIN_PERIOD=12.5, p_SPREAD_SPECTRUM="NONE", p_STARTUP_WAIT="FALSE",
 
-            i_CLKIN=ClockSignal(), o_CLKFX=self.cd_rtio.clk,
+        # 80MHz -> 125MHz
+        rtio_internal_clk = Signal()
+        self.specials += Instance("DCM_CLKGEN",
+            p_CLKFXDV_DIVIDE=2,
+            p_CLKFX_DIVIDE=16, p_CLKFX_MD_MAX=1.6, p_CLKFX_MULTIPLY=25,
+            p_CLKIN_PERIOD=12.5, p_SPREAD_SPECTRUM="NONE",
+            p_STARTUP_WAIT="FALSE",
+
+            i_CLKIN=ClockSignal(), o_CLKFX=rtio_internal_clk,
             i_FREEZEDCM=0, i_RST=ResetSignal())
+
+        rtio_external_clk = platform.request("xtrig")
+        platform.add_period_constraint(rtio_external_clk, 8.0)
+        self.specials += Instance("BUFGMUX",
+                                  i_I0=rtio_internal_clk,
+                                  i_I1=rtio_external_clk,
+                                  i_S=self._r_clock_sel.storage,
+                                  o_O=self.cd_rtio.clk)
+
         platform.add_platform_command("""
 NET "{rtio_clk}" TNM_NET = "GRPrtio_clk";
 NET "sys_clk" TNM_NET = "GRPsys_clk";
 TIMESPEC "TSfix_ise1" = FROM "GRPrtio_clk" TO "GRPsys_clk" TIG;
 TIMESPEC "TSfix_ise2" = FROM "GRPsys_clk" TO "GRPrtio_clk" TIG;
-""", rtio_clk=self.cd_rtio.clk)
+""", rtio_clk=rtio_internal_clk)
 
 
 class ARTIQMiniSoC(BaseSoC):
     csr_map = {
-        "rtio": None  # mapped on Wishbone instead
+        "rtio": None,  # mapped on Wishbone instead
+        "rtiocrg": 13
     }
     csr_map.update(BaseSoC.csr_map)
 

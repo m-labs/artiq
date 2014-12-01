@@ -36,3 +36,5 @@ When plugged to a QC-DAQ LVDS adapter, the AD9858 DDS hardware can be used in ad
 +--------------+----------+-----------------+
 
 The input only limitation on channels 0 and 1 comes from the QC-DAQ adapter. When the adapter is not used (and physically unplugged from the Papilio Pro board), the corresponding pins on the Papilio Pro can be used as outputs. Do not configure these channels as outputs when the adapter is plugged, as this would cause electrical contention.
+
+The board can accept an external RTIO clock connected to XTRIG.
