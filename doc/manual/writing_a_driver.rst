@@ -51,7 +51,7 @@ and verify that you can connect to the TCP port: ::
 
 Also verify that you can get the type of the server (the "hello" string passed to ``simple_server_loop``) using the ``identify-controller.py`` program from the ARTIQ front-end tools: ::
 
-    $ identify-controller.py ::1 7777
+    $ identify_controller.py ::1 7777
     Type:       hello
 
 The client
