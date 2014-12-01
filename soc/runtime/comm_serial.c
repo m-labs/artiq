@@ -10,6 +10,7 @@ enum {
     MSGTYPE_REQUEST_IDENT = 1,
     MSGTYPE_LOAD_OBJECT,
     MSGTYPE_RUN_KERNEL,
+    MSGTYPE_UART_SETBDRATE,
 };
 
 /* device to host */
@@ -161,7 +162,12 @@ void comm_serve(object_loader load_object, kernel_runner run_kernel)
             receive_and_load_object(load_object);
         else if(msgtype == MSGTYPE_RUN_KERNEL)
             receive_and_run_kernel(run_kernel);
-        else
+        else if(msgtype == MSGTYPE_UART_SETBDRATE) {
+            unsigned int ftw = receive_int();
+            send_int(0x5a5a5a5a);
+            uart_sync();
+            uart_tuning_word_write(ftw);
+        } else
             send_char(MSGTYPE_MESSAGE_UNRECOGNIZED);
     }
 }
