@@ -67,22 +67,23 @@ class _RTIOCounter(Module):
 #    guard_io_cycles > (4*Tio + 4*Tsys)/Tio
 #
 # We are writing to the FIFO from the buffer when the guard time has been 
-# reached without checking the FIFO's writable status. If the FIFO is full,
-# this will produce an overflow and the event will be incorrectly discarded.
+# reached. This can fill the FIFO and deassert the writable flag. A race
+# condition occurs that causes problems if the deassertion happens between
+# the CPU checking the writable flag (and reading 1) and writing a new event.
 #
-# When the FIFO is full, it contains fifo_depth events of strictly increasing
-# timestamps.
+# When the FIFO is about to be full, it contains fifo_depth-1 events of
+# strictly increasing timestamps.
 #
-# Thus the overflow-causing event's timestamp must satisfy:
-#    timestamp*Tio > fifo_depth*Tio + time
+# Thus the FIFO-filling event's timestamp must satisfy:
+#    timestamp*Tio > (fifo_depth-1)*Tio + time
 # We also have (guard time reached):
 #    timestamp*Tio < time + guard_io_cycles*Tio
 # [NB: time > counter.o_value_sys*Tio]
 # Thus we must have:
-#    guard_io_cycles > fifo_depth
+#    guard_io_cycles > fifo_depth-1
 #
 # We can prevent overflows by choosing instead:
-#    guard_io_cycles < fifo_depth
+#    guard_io_cycles < fifo_depth-1
 
 class _RTIOBankO(Module):
     def __init__(self, rbus, counter, fine_ts_width, fifo_depth, guard_io_cycles):
