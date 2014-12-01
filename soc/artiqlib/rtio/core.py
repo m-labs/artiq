@@ -297,17 +297,15 @@ class RTIO(Module, AutoCSR):
 
         self._r_o_timestamp = CSRStorage(counter_width + fine_ts_width)
         self._r_o_value = CSRStorage(2)
-        self._r_o_writable = CSRStatus()
         self._r_o_we = CSR()
         self._r_o_replace = CSR()
-        self._r_o_underflow = CSRStatus()
+        self._r_o_status = CSRStatus(2)
         self._r_o_underflow_reset = CSR()
 
         self._r_i_timestamp = CSRStatus(counter_width + fine_ts_width)
         self._r_i_value = CSRStatus()
-        self._r_i_readable = CSRStatus()
         self._r_i_re = CSR()
-        self._r_i_overflow = CSRStatus()
+        self._r_i_status = CSRStatus(2)
         self._r_i_overflow_reset = CSR()
         self._r_i_pileup_count = CSRStatus(16)
         self._r_i_pileup_reset = CSR()
@@ -351,10 +349,9 @@ class RTIO(Module, AutoCSR):
             self.bank_o.sel.eq(self._r_chan_sel.storage),
             self.bank_o.timestamp.eq(self._r_o_timestamp.storage),
             self.bank_o.value.eq(self._r_o_value.storage),
-            self._r_o_writable.status.eq(self.bank_o.writable),
             self.bank_o.we.eq(self._r_o_we.re),
             self.bank_o.replace.eq(self._r_o_replace.re),
-            self._r_o_underflow.status.eq(self.bank_o.underflow),
+            self._r_o_status.status.eq(Cat(~self.bank_o.writable, self.bank_o.underflow)),
             self.bank_o.underflow_reset.eq(self._r_o_underflow_reset.re)
         ]
 
@@ -363,9 +360,8 @@ class RTIO(Module, AutoCSR):
             self.bank_i.sel.eq(self._r_chan_sel.storage),
             self._r_i_timestamp.status.eq(self.bank_i.timestamp),
             self._r_i_value.status.eq(self.bank_i.value),
-            self._r_i_readable.status.eq(self.bank_i.readable),
             self.bank_i.re.eq(self._r_i_re.re),
-            self._r_i_overflow.status.eq(self.bank_i.overflow),
+            self._r_i_status.status.eq(Cat(~self.bank_i.readable, self.bank_i.overflow)),
             self.bank_i.overflow_reset.eq(self._r_i_overflow_reset.re),
             self._r_i_pileup_count.status.eq(self.bank_i.pileup_count),
             self.bank_i.pileup_reset.eq(self._r_i_pileup_reset.re)
