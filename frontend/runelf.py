@@ -16,7 +16,7 @@ def main():
 
     with open(args.file, "rb") as f:
         binary = f.read()
-    with comm_serial.CoreCom() as comm:
+    with comm_serial.Comm() as comm:
         runtime_env = comm.get_runtime_env()
         if args.e:
             print(runtime_env)
