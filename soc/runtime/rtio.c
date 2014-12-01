@@ -95,7 +95,7 @@ int rtio_pileup_count(int channel)
     return r;
 }
 
-#define RTIO_FUD_CHANNEL 10
+#define RTIO_FUD_CHANNEL 8
 
 void rtio_fud_sync(void)
 {

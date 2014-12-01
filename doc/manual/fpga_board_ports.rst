@@ -32,11 +32,7 @@ When plugged to a QC-DAQ LVDS adapter, the AD9858 DDS hardware can be used in ad
 +--------------+----------+-----------------+
 | 7            | TTL5     | Output only     |
 +--------------+----------+-----------------+
-| 8            | TTL6     | Output only     |
-+--------------+----------+-----------------+
-| 9            | TTL7     | Output only     |
-+--------------+----------+-----------------+
-| 10           | FUD      | DDS driver only |
+| 8            | FUD      | DDS driver only |
 +--------------+----------+-----------------+
 
 The input only limitation on channels 0 and 1 comes from the QC-DAQ adapter. When the adapter is not used (and physically unplugged from the Papilio Pro board), the corresponding pins on the Papilio Pro can be used as outputs. Do not configure these channels as outputs when the adapter is plugged, as this would cause electrical contention.
