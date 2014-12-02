@@ -55,6 +55,7 @@ class Core:
         else:
             self.ref_period = external_clock
             self.comm.switch_clock(True)
+        self.initial_time = int64(self.runtime_env.warmup_time/self.ref_period)
 
     def transform_stack(self, func_def, rpc_map, exception_map,
                         debug_unparse=_no_debug_unparse):
@@ -76,7 +77,7 @@ class Core:
         interleave(func_def)
         debug_unparse("interleave", func_def)
 
-        lower_time(func_def, self.runtime_env.warmup_time/self.ref_period)
+        lower_time(func_def, self.initial_time)
         debug_unparse("lower_time", func_def)
 
         remove_inter_assigns(func_def)
@@ -115,5 +116,5 @@ class Core:
 
     @kernel
     def recover_underflow(self):
-        t = syscall("rtio_get_counter") + self.runtime_env.initial_time
+        t = syscall("rtio_get_counter") + self.initial_time
         at(cycles_to_time(t))
