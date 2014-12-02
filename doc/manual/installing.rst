@@ -8,11 +8,11 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
 * Install the FPGA vendor tools (e.g. Xilinx ISE and/or Vivado):
 
-    Get Xilinx tools from http://www.xilinx.com/support/download/index.htm. ISE can build bitstreams both for boards using the Spartan-6 (Papilio Pro) and 7-series devices (KC705), while Vivado supports only boards using 7-series devices.
+    * Get Xilinx tools from http://www.xilinx.com/support/download/index.htm. ISE can build bitstreams both for boards using the Spartan-6 (Papilio Pro) and 7-series devices (KC705), while Vivado supports only boards using 7-series devices.
 
-    The Papilio Pro is supported by Webpack, the KC705 is not.
+    * The Papilio Pro is supported by Webpack, the KC705 is not.
 
-    During the Xilinx toolchain installation, uncheck ``Install cable drivers`` (they are not required as we use better and open source alternatives).
+    * During the Xilinx toolchain installation, uncheck ``Install cable drivers`` (they are not required as we use better and open source alternatives).
 
 * Create a development directory: ::
 

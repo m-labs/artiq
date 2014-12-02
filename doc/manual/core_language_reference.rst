@@ -1,6 +1,8 @@
 Core language reference
 =======================
 
+The most commonly used features from those modules can be imported with ``from artiq import *``.
+
 :mod:`artiq.language.core` module
 ---------------------------------
 
@@ -8,7 +10,7 @@ Core language reference
     :members:
 
 :mod:`artiq.language.context` module
----------------------------------
+------------------------------------
 
 .. automodule:: artiq.language.context
     :members:
