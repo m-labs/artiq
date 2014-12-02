@@ -453,7 +453,8 @@ def get_attr_writeback(attribute_namespace, rpc_mapper, loc_node):
             if hasattr(attr_info.obj, attr):
                 val = getattr(attr_info.obj, attr)
                 if (not isinstance(val, int)
-                        or isinstance(val, core_language.int64)):
+                        or isinstance(val, core_language.int64)
+                        or isinstance(val, bool)):
                     continue
             #
 
