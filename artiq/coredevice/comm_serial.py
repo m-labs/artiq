@@ -7,6 +7,7 @@ from fractions import Fraction
 import logging
 
 from artiq.language import core as core_language
+from artiq.language import units
 from artiq.coredevice.runtime import Environment
 from artiq.coredevice import runtime_exceptions
 
@@ -23,6 +24,7 @@ class _H2DMsgType(Enum):
     LOAD_OBJECT = 2
     RUN_KERNEL = 3
     SET_BAUD_RATE = 4
+    SWITCH_CLOCK = 5
 
 
 class _D2HMsgType(Enum):
@@ -37,6 +39,8 @@ class _D2HMsgType(Enum):
     KERNEL_EXCEPTION = 9
     KERNEL_STARTUP_FAILED = 10
     RPC_REQUEST = 11
+    CLOCK_SWITCH_COMPLETED = 12
+    CLOCK_SWITCH_FAILED = 13
 
 
 def _write_exactly(f, data):
@@ -135,11 +139,20 @@ class Comm:
             runtime_id += chr(reply)
         if runtime_id != "AROR":
             raise UnsupportedDevice("Unsupported runtime ID: "+runtime_id)
-        (ref_freq_i, ref_freq_fn, ref_freq_fd) = struct.unpack(
+        ref_freq_i, ref_freq_fn, ref_freq_fd = struct.unpack(
             ">lBB", _read_exactly(self.port, 6))
-        ref_period = 1/(ref_freq_i + Fraction(ref_freq_fn, ref_freq_fd))
+        ref_freq = (ref_freq_i + Fraction(ref_freq_fn, ref_freq_fd))*units.Hz
+        ref_period = 1/ref_freq
         logger.debug("environment ref_period: {}".format(ref_period))
         return Environment(ref_period)
+
+    def switch_clock(self, external):
+        _write_exactly(self.port, struct.pack(
+            ">lbb", 0x5a5a5a5a, _H2DMsgType.SWITCH_CLOCK.value,
+            int(external)))
+        msg = self._get_device_msg()
+        if msg != _D2HMsgType.CLOCK_SWITCH_COMPLETED:
+            raise IOError("Incorrect reply from device: "+str(msg))
 
     def load(self, kcode):
         _write_exactly(self.port, struct.pack(

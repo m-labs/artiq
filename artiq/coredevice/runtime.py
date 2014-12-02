@@ -141,11 +141,11 @@ def _debug_dump_obj(obj):
 
 
 class Environment(LinkInterface):
-    def __init__(self, ref_period):
+    def __init__(self, internal_ref_period):
         self.cpu_type = "or1k"
-        self.ref_period = ref_period
+        self.internal_ref_period = internal_ref_period
         # allow 1ms for all initial DDS programming
-        self.initial_time = int(Fraction(1, 1000)/self.ref_period)
+        self.warmup_time = 1*units.ms
 
     def emit_object(self):
         tm = lt.TargetMachine.new(triple=self.cpu_type, cpu="generic")
@@ -155,4 +155,4 @@ class Environment(LinkInterface):
 
     def __repr__(self):
         return "<Environment {} {}>".format(self.cpu_type,
-                                            str(units.Hz/self.ref_period))
+                                            str(1/self.ref_period))

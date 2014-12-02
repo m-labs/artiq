@@ -42,12 +42,19 @@ def _no_debug_unparse(label, node):
 
 
 class Core:
-    def __init__(self, comm, runtime_env=None):
+    def __init__(self, comm, external_clock=None, runtime_env=None):
         if runtime_env is None:
             runtime_env = comm.get_runtime_env()
         self.runtime_env = runtime_env
         self.comm = comm
         self.core = self
+
+        if external_clock is None:
+            self.ref_period = self.runtime_env.internal_ref_period
+            self.comm.switch_clock(False)
+        else:
+            self.ref_period = external_clock
+            self.comm.switch_clock(True)
 
     def transform_stack(self, func_def, rpc_map, exception_map,
                         debug_unparse=_no_debug_unparse):
@@ -57,7 +64,7 @@ class Core:
         remove_inter_assigns(func_def)
         debug_unparse("remove_inter_assigns_1", func_def)
 
-        quantize_time(func_def, self.runtime_env.ref_period)
+        quantize_time(func_def, self.ref_period.amount)
         debug_unparse("quantize_time", func_def)
 
         fold_constants(func_def)
@@ -69,7 +76,7 @@ class Core:
         interleave(func_def)
         debug_unparse("interleave", func_def)
 
-        lower_time(func_def, self.runtime_env.initial_time)
+        lower_time(func_def, self.runtime_env.warmup_time/self.ref_period)
         debug_unparse("lower_time", func_def)
 
         remove_inter_assigns(func_def)

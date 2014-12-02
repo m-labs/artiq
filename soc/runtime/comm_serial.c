@@ -11,6 +11,7 @@ enum {
     MSGTYPE_LOAD_OBJECT,
     MSGTYPE_RUN_KERNEL,
     MSGTYPE_SET_BAUD_RATE,
+    MSGTYPE_SWITCH_CLOCK,
 };
 
 /* device to host */
@@ -30,6 +31,9 @@ enum {
     MSGTYPE_KERNEL_STARTUP_FAILED,
 
     MSGTYPE_RPC_REQUEST,
+
+    MSGTYPE_CLOCK_SWITCH_COMPLETED,
+    MSGTYPE_CLOCK_SWITCH_FAILED,
 };
 
 static int receive_int(void)
@@ -169,6 +173,9 @@ void comm_serve(object_loader load_object, kernel_runner run_kernel)
             send_int(0x5a5a5a5a);
             uart_sync();
             uart_tuning_word_write(ftw);
+        } else if(msgtype == MSGTYPE_SWITCH_CLOCK) {
+            rtiocrg_clock_sel_write(receive_char());
+            send_char(MSGTYPE_CLOCK_SWITCH_COMPLETED);
         } else
             send_char(MSGTYPE_MESSAGE_UNRECOGNIZED);
     }
