@@ -22,7 +22,7 @@ class _H2DMsgType(Enum):
     REQUEST_IDENT = 1
     LOAD_OBJECT = 2
     RUN_KERNEL = 3
-    UART_SET_BDRATE = 4
+    SET_BAUD_RATE = 4
 
 
 class _D2HMsgType(Enum):
@@ -59,32 +59,9 @@ class Comm:
     def __init__(self, dev="/dev/ttyUSB1", baud=115200):
         self._fd = os.open(dev, os.O_RDWR | os.O_NOCTTY)
         self.port = os.fdopen(self._fd, "r+b", buffering=0)
-        self.dev = dev
-        real_baud = baud
-        baud = 115200
+        self.set_baud(115200)
+        self.set_remote_baud(baud)
         self.set_baud(baud)
-        if real_baud != baud:
-            baud = real_baud
-            self.set_remote_baud(baud)
-            self.set_baud(baud)
-        self.current_baud = baud
-
-    def set_remote_baud(self, baud):
-            clk_freq = 80000000
-            _write_exactly(self.port, struct.pack(
-                ">lbl", 0x5a5a5a5a, _H2DMsgType.UART_SET_BDRATE.value,
-                int((baud/clk_freq)*2**32)))
-            handshake = 0
-            while handshake < 4:
-                recv = struct.unpack(
-                    "B", _read_exactly(self.port, 1))
-                if recv[0] == 0x5a:
-                    handshake += 1
-                else:
-                    logger.debug("SYNC ERR {:02x}\n".format(int(recv[0])))
-                    handshake = 0
-            self.set_baud(baud)
-            logger.debug("Synchronized")
 
     def set_baud(self, baud):
         iflag, oflag, cflag, lflag, ispeed, ospeed, cc = \
@@ -101,12 +78,27 @@ class Comm:
         termios.tcdrain(self._fd)
         termios.tcflush(self._fd, termios.TCOFLUSH)
         termios.tcflush(self._fd, termios.TCIFLUSH)
-        logger.debug("connected to {} at {} baud".format(self.dev, baud))
+        logger.debug("baud rate set to".format(baud))
+
+    def set_remote_baud(self, baud):
+        _write_exactly(self.port, struct.pack(
+            ">lbl", 0x5a5a5a5a, _H2DMsgType.SET_BAUD_RATE.value, baud))
+        handshake = 0
+        while handshake < 4:
+            recv = struct.unpack(
+                "B", _read_exactly(self.port, 1))
+            if recv[0] == 0x5a:
+                handshake += 1
+            else:
+                # FIXME: when loading immediately after a board reset,
+                # we erroneously get some zeros back.
+                logger.warning("unexpected sync character: {:02x}".format(int(recv[0])))
+                handshake = 0
+        self.set_baud(baud)
+        logger.debug("synchronized")
 
     def close(self):
-        if self.current_baud != 115200:
-            self.set_remote_baud(115200)
-            self.set_baud(115200)
+        self.set_remote_baud(115200)
         self.port.close()
 
     def __enter__(self):
@@ -117,19 +109,7 @@ class Comm:
 
     def _get_device_msg(self):
         while True:
-            # FIXME: when loading immediately after a board reset,
-            # we erroneously get some zeros back.
-            # Ignore them with a warning for now.
-            spurious_zero_count = 0
-            while True:
-                (reply, ) = struct.unpack("B", _read_exactly(self.port, 1))
-                if reply == 0:
-                    spurious_zero_count += 1
-                else:
-                    break
-            if spurious_zero_count:
-                logger.warning("received {} spurious zeros".format(
-                    spurious_zero_count))
+            (reply, ) = struct.unpack("B", _read_exactly(self.port, 1))
             msg = _D2HMsgType(reply)
             if msg == _D2HMsgType.LOG:
                 (length, ) = struct.unpack(">h", _read_exactly(self.port, 2))
