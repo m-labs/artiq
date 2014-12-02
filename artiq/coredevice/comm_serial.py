@@ -88,16 +88,20 @@ class Comm:
         _write_exactly(self.port, struct.pack(
             ">lbl", 0x5a5a5a5a, _H2DMsgType.SET_BAUD_RATE.value, baud))
         handshake = 0
+        fails = 0
         while handshake < 4:
-            recv = struct.unpack(
-                "B", _read_exactly(self.port, 1))
-            if recv[0] == 0x5a:
+            (recv, ) = struct.unpack("B", _read_exactly(self.port, 1))
+            if recv == 0x5a:
                 handshake += 1
             else:
                 # FIXME: when loading immediately after a board reset,
                 # we erroneously get some zeros back.
-                logger.warning("unexpected sync character: {:02x}".format(int(recv[0])))
+                logger.warning("unexpected sync character: {:02x}".format(int(recv)))
                 handshake = 0
+                if recv != 0:
+                    fails += 1
+                    if fails > 3:
+                        raise IOError("Baudrate ack failed")
         self.set_baud(baud)
         logger.debug("synchronized")
 
