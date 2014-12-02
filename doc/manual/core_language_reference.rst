@@ -7,6 +7,12 @@ Core language reference
 .. automodule:: artiq.language.core
     :members:
 
+:mod:`artiq.language.context` module
+---------------------------------
+
+.. automodule:: artiq.language.context
+    :members:
+
 :mod:`artiq.language.units` module
 ----------------------------------
 

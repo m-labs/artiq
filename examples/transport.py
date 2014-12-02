@@ -6,10 +6,14 @@ from artiq.devices import pdq2
 
 
 class Transport(AutoContext):
-    parameters = (
-        "bd pmt repeats nbins "
-        "electrodes transport_data wait_at_stop speed"
-    )
+    bd = Device("dds")
+    pmt = Device("ttl_in")
+    repeats = Parameter()
+    nbins = Parameter()
+    electrodes = Device("pdq")
+    transport_data = Parameter()
+    wait_at_stop = Parameter()
+    speed = Parameter()
 
     def prepare(self, stop):
         t = self.transport_data["t"][:stop]*self.speed

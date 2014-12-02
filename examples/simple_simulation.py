@@ -2,7 +2,10 @@ from artiq import *
 
 
 class SimpleSimulation(AutoContext):
-    parameters = "a b c d"
+    a = Device("dds")
+    b = Device("dds")
+    c = Device("dds")
+    d = Device("dds")
 
     @kernel
     def run(self):

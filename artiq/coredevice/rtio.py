@@ -1,4 +1,5 @@
 from artiq.language.core import *
+from artiq.language.context import *
 
 
 class LLRTIOOut(AutoContext):
@@ -11,7 +12,7 @@ class LLRTIOOut(AutoContext):
     ``RTIOOut`` instead.
 
     """
-    parameters = "channel"
+    channel = Parameter()
 
     def build(self):
         self._set_oe()
@@ -50,7 +51,7 @@ class LLRTIOOut(AutoContext):
 
 
 class _RTIOBase(AutoContext):
-    parameters = "channel"
+    channel = Parameter()
 
     def build(self):
         self.previous_timestamp = int64(0)  # in RTIO cycles

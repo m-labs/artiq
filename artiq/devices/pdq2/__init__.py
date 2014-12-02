@@ -1,4 +1,5 @@
 from artiq.language.core import *
+from artiq.language.context import *
 from artiq.language.units import *
 from artiq.coredevice import rtio
 
@@ -111,7 +112,9 @@ class _Frame:
 
 
 class CompoundPDQ2(AutoContext):
-    parameters = "ids rtio_trigger rtio_frame"
+    ids = Parameter()
+    rtio_trigger = Parameter()
+    rtio_frame = Parameter()
 
     def build(self):
         self.trigger = rtio.LLRTIOOut(self, channel=self.rtio_trigger)

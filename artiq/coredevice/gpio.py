@@ -1,8 +1,9 @@
 from artiq.language.core import *
+from artiq.language.context import *
 
 
 class GPIOOut(AutoContext):
-    parameters = "channel"
+    channel = Parameter()
 
     @kernel
     def on(self):

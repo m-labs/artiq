@@ -2,8 +2,15 @@ from artiq import *
 
 
 class AluminumSpectroscopy(AutoContext):
-    parameters = "mains_sync laser_cooling spectroscopy spectroscopy_b state_detection pmt \
-        spectroscopy_freq photon_limit_low photon_limit_high"
+    mains_sync = Device("ttl_in")
+    laser_cooling = Device("dds")
+    spectroscopy = Device("dds")
+    spectroscopy_b = Device("dac")
+    state_detection = Device("dds")
+    pmt = Device("ttl_in")
+    spectroscopy_freq = Parameter()
+    photon_limit_low = Parameter()
+    photon_limit_high = Parameter()
 
     @kernel
     def run(self):

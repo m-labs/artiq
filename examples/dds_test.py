@@ -3,7 +3,11 @@ from artiq.coredevice import comm_serial, core, dds, gpio
 
 
 class DDSTest(AutoContext):
-    parameters = "a b c d led"
+    a = Device("dds")
+    b = Device("dds")
+    c = Device("dds")
+    d = Device("dds")
+    led = Device("gpio_out")
 
     @kernel
     def run(self):

@@ -1,6 +1,7 @@
 from random import Random
 
-from artiq.language.core import AutoContext, delay
+from artiq.language.core import delay
+from artiq.language.context import AutoContext, Parameter
 from artiq.language import units
 from artiq.sim import time
 
@@ -11,7 +12,7 @@ class Core:
 
 
 class Input(AutoContext):
-    parameters = "name"
+    name = Parameter()
     implicit_core = False
 
     def build(self):
@@ -30,7 +31,7 @@ class Input(AutoContext):
 
 
 class WaveOutput(AutoContext):
-    parameters = "name"
+    name = Parameter()
     implicit_core = False
 
     def pulse(self, frequency, duration):
@@ -39,7 +40,7 @@ class WaveOutput(AutoContext):
 
 
 class VoltageOutput(AutoContext):
-    parameters = "name"
+    name = Parameter()
     implicit_core = False
 
     def set(self, value):

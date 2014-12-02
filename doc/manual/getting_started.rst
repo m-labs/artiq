@@ -10,7 +10,7 @@ As a very first step, we will turn on a LED on the core device. Create a file ``
     from artiq.coredevice import comm_serial, core, gpio
 
     class LED(AutoContext):
-        parameters = "led"
+        led = Device("gpio_out")
 
         @kernel
         def run(self):
@@ -23,7 +23,7 @@ As a very first step, we will turn on a LED on the core device. Create a file ``
             exp = LED(core=core_driver, led=led_driver)
             exp.run()
 
-The central part of our code is our ``LED`` class, that derives from :class:`artiq.language.core.AutoContext`. ``AutoContext`` is part of the mechanism that attaches device drivers and retrieves parameters according to a database. We are not using the database yet; instead, we import and create the device drivers and establish communication with the core device manually. The ``parameters`` string gives the list of devices (and parameters) that our class needs in order to operate. ``AutoContext`` sets them as object attributes, so our ``led`` parameter becomes accessible as ``self.led``. Finally, the ``@kernel`` decorator tells the system that the ``run`` method must be executed on the core device (instead of the host).
+The central part of our code is our ``LED`` class, that derives from :class:`artiq.language.core.AutoContext`. ``AutoContext`` is part of the mechanism that attaches device drivers and retrieves parameters according to a database. We are not using the database yet; instead, we import and create the device drivers and establish communication with the core device manually. Abstract attributes such as ``Device("gpio_out")`` list the devices (and parameters) that our class needs in order to operate. ``AutoContext`` replaces them with the actual device drivers (and parameter values).. Finally, the ``@kernel`` decorator tells the system that the ``run`` method must be executed on the core device (instead of the host).
 
 Run this example with: ::
 
@@ -42,7 +42,7 @@ Modify the code as follows: ::
         return int(input("Enter desired LED state: "))
 
     class LED(AutoContext):
-        parameters = "led"
+        led = Device("gpio_out")
 
         @kernel
         def run(self):
@@ -85,7 +85,7 @@ Create a new file ``rtio.py`` containing the following: ::
     from artiq.coredevice import comm_serial, core, rtio
 
     class Tutorial(AutoContext):
-        parameters = "o"
+        o = Device("ttl_out")
 
         @kernel
         def run(self):
@@ -112,7 +112,8 @@ Try reducing the period of the generated waveform until the CPU cannot keep up w
         print("RTIO underflow occured")
 
     class Tutorial(AutoContext):
-        parameters = "led o"
+        led = Device("gpio_out")
+        o = Device("ttl_out")
 
         @kernel
         def run(self):

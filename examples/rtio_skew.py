@@ -11,7 +11,8 @@ def print_failed():
 
 
 class RTIOSkew(AutoContext):
-    parameters = "i o"
+    i = Device("ttl_in")
+    o = Device("ttl_out")
 
     @kernel
     def run(self):

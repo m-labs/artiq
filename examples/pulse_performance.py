@@ -8,7 +8,7 @@ def print_min_period(p):
 
 
 class PulsePerformance(AutoContext):
-    parameters = "o"
+    o = Device("ttl_out")
 
     @kernel
     def run(self):

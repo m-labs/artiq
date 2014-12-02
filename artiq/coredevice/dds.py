@@ -1,4 +1,5 @@
 from artiq.language.core import *
+from artiq.language.context import *
 from artiq.language.units import *
 from artiq.coredevice import rtio
 
@@ -23,7 +24,9 @@ class DDS(AutoContext):
         the DDS device.
 
     """
-    parameters = "dds_sysclk reg_channel rtio_switch"
+    dds_sysclk = Parameter()
+    reg_channel = Parameter()
+    rtio_switch = Parameter()
 
     def build(self):
         self.previous_on = False

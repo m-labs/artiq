@@ -26,11 +26,12 @@ def _run_on_host(k_class, **parameters):
 
 
 class _Primes(AutoContext):
-    parameters = "output_list max"
+    output_list = Parameter()
+    maximum = Parameter()
 
     @kernel
     def run(self):
-        for x in range(1, self.max):
+        for x in range(1, self.maximum):
             d = 2
             prime = True
             while d*d <= x:
@@ -74,7 +75,8 @@ class _Misc(AutoContext):
 
 
 class _PulseLogger(AutoContext):
-    parameters = "output_list name"
+    output_list = Parameter()
+    name = Parameter()
 
     def _append(self, t, l, f):
         if not hasattr(self, "first_timestamp"):
@@ -95,7 +97,7 @@ class _PulseLogger(AutoContext):
 
 
 class _Pulses(AutoContext):
-    parameters = "output_list"
+    output_list = Parameter()
 
     def build(self):
         for name in "a", "b", "c", "d":
@@ -119,7 +121,7 @@ class _MyException(Exception):
 
 
 class _Exceptions(AutoContext):
-    parameters = "trace"
+    trace = Parameter()
 
     @kernel
     def run(self):
@@ -164,8 +166,8 @@ class _Exceptions(AutoContext):
 class ExecutionCase(unittest.TestCase):
     def test_primes(self):
         l_device, l_host = [], []
-        _run_on_device(_Primes, max=100, output_list=l_device)
-        _run_on_host(_Primes, max=100, output_list=l_host)
+        _run_on_device(_Primes, maximum=100, output_list=l_device)
+        _run_on_host(_Primes, maximum=100, output_list=l_host)
         self.assertEqual(l_device, l_host)
 
     def test_misc(self):
@@ -208,7 +210,9 @@ class ExecutionCase(unittest.TestCase):
 
 
 class _RTIOLoopback(AutoContext):
-    parameters = "i o npulses"
+    i = Device("ttl_in")
+    o = Device("ttl_out")
+    npulses = Parameter()
 
     def report(self, n):
         self.result = n
@@ -225,7 +229,7 @@ class _RTIOLoopback(AutoContext):
 
 
 class _RTIOUnderflow(AutoContext):
-    parameters = "o"
+    o = Device("ttl_out")
 
     @kernel
     def run(self):
@@ -235,7 +239,7 @@ class _RTIOUnderflow(AutoContext):
 
 
 class _RTIOSequenceError(AutoContext):
-    parameters = "o"
+    o = Device("ttl_out")
 
     @kernel
     def run(self):

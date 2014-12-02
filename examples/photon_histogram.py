@@ -3,7 +3,11 @@ from artiq.coredevice import comm_serial, core, dds, rtio
 
 
 class PhotonHistogram(AutoContext):
-    parameters = "bd bdd pmt repeats nbins"
+    bd = Device("dds")
+    bdd = Device("dds")
+    pmt = Device("ttl_in")
+    repeats = Parameter()
+    nbins = Parameter()
 
     def report(self, i, n):
         print(i, n)
