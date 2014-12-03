@@ -1,13 +1,13 @@
 from operator import itemgetter
-from fractions import Fraction
 
+from artiq.language.units import ms, ns
 from artiq.coredevice.runtime import LinkInterface
 
 
 class _RuntimeEnvironment(LinkInterface):
     def __init__(self, ref_period):
-        self.ref_period = ref_period
-        self.initial_time = 0
+        self.internal_ref_period = ref_period
+        self.warmup_time = 1*ms
 
     def emit_object(self):
         return str(self.llvm_module)
@@ -15,7 +15,10 @@ class _RuntimeEnvironment(LinkInterface):
 
 class Comm:
     def get_runtime_env(self):
-        return _RuntimeEnvironment(Fraction(1, 1000000000))
+        return _RuntimeEnvironment(1*ns)
+
+    def switch_clock(self, external):
+        pass
 
     def load(self, kcode):
         print("================")
