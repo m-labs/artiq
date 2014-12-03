@@ -24,82 +24,94 @@ from fractions import Fraction
 import numpy
 
 
-def _encode_none(x):
-    return "None"
+_encode_map = {
+    type(None): "none",
+    bool: "bool",
+    int: "number",
+    float: "number",
+    str: "str",
+    tuple: "tuple",
+    list: "list",
+    dict: "dict",
+    Fraction: "fraction",
+    numpy.ndarray: "nparray"
+}
 
+class _Encoder:
+    def __init__(self, pretty):
+        self.pretty = pretty
+        self.indent_level = 0
 
-def _encode_bool(x):
-    if x:
-        return "True"
-    else:
-        return "False"
+    def indent(self):
+        return "    "*self.indent_level
 
+    def encode_none(self, x):
+        return "None"
 
-def _encode_number(x):
-    return str(x)
+    def encode_bool(self, x):
+        if x:
+            return "True"
+        else:
+            return "False"
 
+    def encode_number(self, x):
+        return str(x)
 
-def _encode_str(x):
-    return repr(x)
+    def encode_str(self, x):
+        return repr(x)
 
+    def encode_tuple(self, x):
+        if len(x) == 1:
+            return "(" + self.encode(x[0]) + ", )"
+        else:
+            r = "("
+            r += ", ".join([self.encode(item) for item in x])
+            r += ")"
+            return r
 
-def _encode_tuple(x):
-    if len(x) == 1:
-        return "(" + encode(x[0]) + ", )"
-    else:
-        r = "("
-        r += ", ".join([encode(item) for item in x])
+    def encode_list(self, x):
+        r = "["
+        r += ", ".join([self.encode(item) for item in x])
+        r += "]"
+        return r
+
+    def encode_dict(self, x):
+        r = "{"
+        if not self.pretty or len(x) < 2:
+            r += ", ".join([self.encode(k) + ": " + self.encode(v)
+                           for k, v in x.items()])
+        else:
+            self.indent_level += 1
+            r += "\n"
+            for k, v in x.items():
+                r += self.indent() + self.encode(k) + ": " + self.encode(v) + ",\n"
+            self.indent_level -= 1
+            r += self.indent()
+        r += "}"
+        return r
+
+    def encode_fraction(self, x):
+        return "Fraction({}, {})".format(encode(x.numerator),
+                                         encode(x.denominator))
+
+    def encode_nparray(self, x):
+        r = "nparray("
+        r += encode(x.shape) + ", "
+        r += encode(str(x.dtype)) + ", "
+        r += encode(base64.b64encode(x).decode())
         r += ")"
         return r
 
-
-def _encode_list(x):
-    r = "["
-    r += ", ".join([encode(item) for item in x])
-    r += "]"
-    return r
+    def encode(self, x):
+        return getattr(self, "encode_" + _encode_map[type(x)])(x)
 
 
-def _encode_dict(x):
-    r = "{"
-    r += ", ".join([encode(k) + ": " + encode(v) for k, v in x.items()])
-    r += "}"
-    return r
-
-
-def _encode_fraction(x):
-    return "Fraction({}, {})".format(encode(x.numerator),
-                                     encode(x.denominator))
-
-def _encode_nparray(x):
-    r = "nparray("
-    r += encode(x.shape) + ", "
-    r += encode(str(x.dtype)) + ", "
-    r += encode(base64.b64encode(x).decode())
-    r += ")"
-    return r
-
-
-_encode_map = {
-    type(None): _encode_none,
-    bool: _encode_bool,
-    int: _encode_number,
-    float: _encode_number,
-    str: _encode_str,
-    tuple: _encode_tuple,
-    list: _encode_list,
-    dict: _encode_dict,
-    Fraction: _encode_fraction,
-    numpy.ndarray: _encode_nparray
-}
-
-
-def encode(x):
+def encode(x, pretty=False):
     """Serializes a Python object and returns the corresponding string in
     Python syntax.
 
     """
-    return _encode_map[type(x)](x)
+    return _Encoder(pretty).encode(x)
 
 
 def _nparray(shape, dtype, data):
@@ -126,7 +138,7 @@ def store_file(filename, x):
 
     """
     with open(filename, "w") as f:
-        f.write(encode(x))
+        f.write(encode(x, True))
 
 
 def load_file(filename):
