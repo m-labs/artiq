@@ -1,23 +1,29 @@
 import numpy as np
 
 from artiq import *
-from artiq.coredevice import comm_serial, core, dds, rtio
-from artiq.devices import pdq2
 
+
+# data is usually precomputed offline
+transport_data = dict(
+    t=np.linspace(0, 10, 101),  # waveform time
+    u=np.random.randn(101, 4*3*3),  # waveform data,
+    # 4 devices, 3 board each, 3 dacs each
+)
 
 class Transport(AutoContext):
     bd = Device("dds")
+    bdd = Device("dds")
     pmt = Device("ttl_in")
-    repeats = Parameter()
-    nbins = Parameter()
     electrodes = Device("pdq")
-    transport_data = Parameter()
-    wait_at_stop = Parameter()
-    speed = Parameter()
+
+    repeats = Parameter(100)
+    nbins = Parameter(100)
+    wait_at_stop = Parameter(100*us)
+    speed = Parameter(1.5)
 
     def prepare(self, stop):
-        t = self.transport_data["t"][:stop]*self.speed
-        u = self.transport_data["u"][:stop]
+        t = transport_data["t"][:stop]*self.speed
+        u = transport_data["u"][:stop]
         # start a new frame
         self.tf = self.electrodes.create_frame()
         # interpolates t and u and appends the (t, u) segment to the frame
@@ -110,36 +116,7 @@ class Transport(AutoContext):
             # live update 2d plot with current self.histogram
             # broadcast(s, self.histogram)
 
-
-if __name__ == "__main__":
-    # data is usually precomputed offline
-    data = dict(
-        t=np.linspace(0, 10, 101),  # waveform time
-        u=np.random.randn(101, 4*3*3),  # waveform data,
-        # 4 devices, 3 board each, 3 dacs each
-    )
-
-    with comm_serial.Comm() as comm:
-        coredev = core.Core(comm)
-        exp = Transport(
-            core=coredev,
-            bd=dds.DDS(core=coredev, dds_sysclk=1*GHz,
-                       reg_channel=0, rtio_switch=2),
-            bdd=dds.DDS(core=coredev, dds_sysclk=1*GHz,
-                        reg_channel=1, rtio_switch=3),
-            pmt=rtio.RTIOIn(core=coredev, channel=0),
-            # a compound pdq device that wraps multiple usb devices (looked up
-            # by usb "serial number"/id) into one
-            electrodes=pdq2.CompoundPDQ2(
-                core=coredev,
-                ids=["qc_q1_{}".format(i) for i in range(4)],
-                rtio_trigger=4, rtio_frame=(5, 6, 7)),
-            transport_data=data,  # or: json.load
-            wait_at_stop=100*us,
-            speed=1.5,
-            repeats=100,
-            nbins=100
-        )
+    def run(self):
         # scan transport endpoint
-        stop = range(10, len(exp.transport_data["t"]), 10)
-        exp.scan(stop)
+        stops = range(10, len(transport_data["t"]), 10)
+        self.scan(stops)

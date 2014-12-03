@@ -1,5 +1,4 @@
 from artiq import *
-from artiq.coredevice import comm_serial, core, rtio
 from artiq.coredevice.runtime_exceptions import RTIOUnderflow
 
 
@@ -8,7 +7,7 @@ def print_min_period(p):
 
 
 class PulsePerformance(AutoContext):
-    o = Device("ttl_out")
+    ttl0 = Device("ttl_out")
 
     @kernel
     def run(self):
@@ -16,7 +15,7 @@ class PulsePerformance(AutoContext):
         while True:
             try:
                 for i in range(1000):
-                    self.o.pulse(cycles_to_time(T))
+                    self.ttl0.pulse(cycles_to_time(T))
                     delay(cycles_to_time(T))
             except RTIOUnderflow:
                 T += 1
@@ -25,10 +24,3 @@ class PulsePerformance(AutoContext):
                 print_min_period(int(cycles_to_time(2*T)/(1*ns)))
                 break
 
-
-if __name__ == "__main__":
-    with comm_serial.Comm() as comm:
-        coredev = core.Core(comm)
-        exp = PulsePerformance(core=coredev,
-                               o=rtio.RTIOOut(core=coredev, channel=2))
-        exp.run()

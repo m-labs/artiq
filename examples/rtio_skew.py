@@ -1,5 +1,4 @@
 from artiq import *
-from artiq.coredevice import comm_serial, core, rtio
 
 
 def print_skew(p):
@@ -11,27 +10,19 @@ def print_failed():
 
 
 class RTIOSkew(AutoContext):
-    i = Device("ttl_in")
-    o = Device("ttl_out")
+    pmt0 = Device("ttl_in")
+    ttl0 = Device("ttl_out")
 
     @kernel
     def run(self):
         with parallel:
-            self.i.gate_rising(10*us)
+            self.pmt0.gate_rising(10*us)
             with sequential:
                 delay(5*us)
                 out_t = now()
-                self.o.pulse(5*us)
-        in_t = self.i.timestamp()
+                self.ttl0.pulse(5*us)
+        in_t = self.pmt0.timestamp()
         if in_t < 0*s:
             print_failed()
         else:
             print_skew(int((out_t - in_t)/(1*ns)))
-
-if __name__ == "__main__":
-    with comm_serial.Comm() as comm:
-        coredev = core.Core(comm)
-        exp = RTIOSkew(core=coredev,
-                       i=rtio.RTIOIn(core=coredev, channel=0),
-                       o=rtio.RTIOOut(core=coredev, channel=2))
-        exp.run()

@@ -24,7 +24,7 @@ class DDS(AutoContext):
         the DDS device.
 
     """
-    dds_sysclk = Parameter()
+    dds_sysclk = Parameter(1*GHz)
     reg_channel = Parameter()
     rtio_switch = Parameter()
 

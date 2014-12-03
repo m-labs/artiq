@@ -8,6 +8,7 @@ import logging
 
 from artiq.language import core as core_language
 from artiq.language import units
+from artiq.language.context import *
 from artiq.coredevice.runtime import Environment
 from artiq.coredevice import runtime_exceptions
 
@@ -59,13 +60,17 @@ def _read_exactly(f, n):
     return r
 
 
-class Comm:
-    def __init__(self, dev="/dev/ttyUSB1", baud=115200):
-        self._fd = os.open(dev, os.O_RDWR | os.O_NOCTTY)
+class Comm(AutoContext):
+    serial_dev = Parameter("/dev/ttyUSB1")
+    baud_rate = Parameter(115200)
+    implicit_core = False
+
+    def build(self):
+        self._fd = os.open(self.serial_dev, os.O_RDWR | os.O_NOCTTY)
         self.port = os.fdopen(self._fd, "r+b", buffering=0)
         self.set_baud(115200)
-        self.set_remote_baud(baud)
-        self.set_baud(baud)
+        self.set_remote_baud(self.baud_rate)
+        self.set_baud(self.baud_rate)
 
     def set_baud(self, baud):
         iflag, oflag, cflag, lflag, ispeed, ospeed, cc = \
@@ -108,12 +113,6 @@ class Comm:
     def close(self):
         self.set_remote_baud(115200)
         self.port.close()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self.close()
 
     def _get_device_msg(self):
         while True:

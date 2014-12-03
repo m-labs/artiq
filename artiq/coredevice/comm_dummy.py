@@ -1,5 +1,6 @@
 from operator import itemgetter
 
+from artiq.language.context import AutoContext
 from artiq.language.units import ms, ns
 from artiq.coredevice.runtime import LinkInterface
 
@@ -13,7 +14,9 @@ class _RuntimeEnvironment(LinkInterface):
         return str(self.llvm_module)
 
 
-class Comm:
+class Comm(AutoContext):
+    implicit_core = False
+
     def get_runtime_env(self):
         return _RuntimeEnvironment(1*ns)
 

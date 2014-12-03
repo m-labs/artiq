@@ -110,13 +110,21 @@ class AutoContext:
         for k in dir(self):
             v = getattr(self, k)
             if isinstance(v, _AttributeKind):
-                value = self.mvs.get_missing_value(k, v)
+                if self.mvs is None:
+                    if (isinstance(v, Parameter)
+                            and v.default is not NoDefault):
+                        value = v.default
+                    else:
+                        raise AttributeError("Attribute '{}' not specified"
+                                             " and no MVS present".format(k))
+                else:
+                    value = self.mvs.get_missing_value(k, v, self)
                 setattr(self, k, value)
 
         self.build()
 
-    def get_missing_value(self, name, kind):
-        """Attempts to retrieve ``parameter`` from the object's attributes.
+    def get_missing_value(self, name, kind, requester):
+        """Attempts to retrieve ``name`` from the object's attributes.
         If not present, forwards the request to the parent MVS.
 
         The presence of this method makes ``AutoContext`` act as a MVS.
@@ -125,7 +133,7 @@ class AutoContext:
         try:
             return getattr(self, name)
         except AttributeError:
-            return self.mvs.get_missing_value(name, kind)
+            return self.mvs.get_missing_value(name, kind, requester)
 
     def build(self):
         """This is called by ``__init__`` after the parameter initialization

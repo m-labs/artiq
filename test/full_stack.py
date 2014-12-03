@@ -13,10 +13,13 @@ no_hardware = bool(os.getenv("ARTIQ_NO_HARDWARE"))
 
 
 def _run_on_device(k_class, **parameters):
-    with comm_serial.Comm() as comm:
-        coredev = core.Core(comm)
+    comm = comm_serial.Comm()
+    try:
+        coredev = core.Core(comm=comm)
         k_inst = k_class(core=coredev, **parameters)
         k_inst.run()
+    finally:
+        comm.close()
 
 
 def _run_on_host(k_class, **parameters):
@@ -171,8 +174,9 @@ class ExecutionCase(unittest.TestCase):
         self.assertEqual(l_device, l_host)
 
     def test_misc(self):
-        with comm_serial.Comm() as comm:
-            coredev = core.Core(comm)
+        comm = comm_serial.Comm()
+        try:
+            coredev = core.Core(comm=comm)
             uut = _Misc(core=coredev)
             uut.run()
             self.assertEqual(uut.half_input, 42)
@@ -189,6 +193,8 @@ class ExecutionCase(unittest.TestCase):
                 uut.dimension_error3()
             with self.assertRaises(DimensionError):
                 uut.dimension_error4()
+        finally:
+            comm.close()
 
     def test_pulses(self):
         l_device, l_host = [], []
@@ -255,8 +261,9 @@ class RTIOCase(unittest.TestCase):
     # (C11 and C13 on Papilio Pro)
     def test_loopback(self):
         npulses = 4
-        with comm_serial.Comm() as comm:
-            coredev = core.Core(comm)
+        comm = comm_serial.Comm()
+        try:
+            coredev = core.Core(comm=comm)
             uut = _RTIOLoopback(
                 core=coredev,
                 i=rtio.RTIOIn(core=coredev, channel=0),
@@ -265,23 +272,31 @@ class RTIOCase(unittest.TestCase):
             )
             uut.run()
             self.assertEqual(uut.result, npulses)
+        finally:
+            comm.close()
 
     def test_underflow(self):
-        with comm_serial.Comm() as comm:
-            coredev = core.Core(comm)
+        comm = comm_serial.Comm()
+        try:
+            coredev = core.Core(comm=comm)
             uut = _RTIOUnderflow(
                 core=coredev,
                 o=rtio.RTIOOut(core=coredev, channel=2)
             )
             with self.assertRaises(runtime_exceptions.RTIOUnderflow):
                 uut.run()
+        finally:
+            comm.close()
 
     def test_sequence_error(self):
-        with comm_serial.Comm() as comm:
-            coredev = core.Core(comm)
+        comm = comm_serial.Comm()
+        try:
+            coredev = core.Core(comm=comm)
             uut = _RTIOSequenceError(
                 core=coredev,
                 o=rtio.RTIOOut(core=coredev, channel=2)
             )
             with self.assertRaises(runtime_exceptions.RTIOSequenceError):
                 uut.run()
+        finally:
+            comm.close()

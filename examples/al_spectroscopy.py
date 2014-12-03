@@ -8,9 +8,9 @@ class AluminumSpectroscopy(AutoContext):
     spectroscopy_b = Device("dac")
     state_detection = Device("dds")
     pmt = Device("ttl_in")
-    spectroscopy_freq = Parameter()
-    photon_limit_low = Parameter()
-    photon_limit_high = Parameter()
+    spectroscopy_freq = Parameter(432*MHz)
+    photon_limit_low = Parameter(10)
+    photon_limit_high = Parameter(15)
 
     @kernel
     def run(self):
@@ -37,27 +37,3 @@ class AluminumSpectroscopy(AutoContext):
             if photon_count < self.photon_limit_low:
                 state_0_count += 1
         return state_0_count
-
-
-def main():
-    from artiq.sim import devices as sd
-    from artiq.sim import time
-
-    exp = AluminumSpectroscopy(
-        core=sd.Core(),
-        mains_sync=sd.Input(name="mains_sync"),
-        laser_cooling=sd.WaveOutput(name="laser_cooling"),
-        spectroscopy=sd.WaveOutput(name="spectroscopy"),
-        spectroscopy_b=sd.VoltageOutput(name="spectroscopy_b"),
-        state_detection=sd.WaveOutput(name="state_detection"),
-        pmt=sd.Input(name="pmt"),
-
-        spectroscopy_freq=432*MHz,
-        photon_limit_low=10,
-        photon_limit_high=15
-    )
-    exp.run()
-    print(time.manager.format_timeline())
-
-if __name__ == "__main__":
-    main()

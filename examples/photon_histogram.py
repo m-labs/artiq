@@ -1,16 +1,12 @@
 from artiq import *
-from artiq.coredevice import comm_serial, core, dds, rtio
 
 
 class PhotonHistogram(AutoContext):
     bd = Device("dds")
     bdd = Device("dds")
     pmt = Device("ttl_in")
-    repeats = Parameter()
-    nbins = Parameter()
-
-    def report(self, i, n):
-        print(i, n)
+    repeats = Parameter(100)
+    nbins = Parameter(100)
 
     @kernel
     def cool_detect(self):
@@ -36,23 +32,4 @@ class PhotonHistogram(AutoContext):
             hist[n] += 1
 
         for i in range(self.nbins):
-            self.report(i, hist[i])
-
-
-def main():
-    with comm_serial.Comm() as comm:
-        coredev = core.Core(comm)
-        exp = PhotonHistogram(
-            core=coredev,
-            bd=dds.DDS(core=coredev, dds_sysclk=1*GHz,
-                       reg_channel=0, rtio_switch=2),
-            bdd=dds.DDS(core=coredev, dds_sysclk=1*GHz,
-                        reg_channel=1, rtio_switch=3),
-            pmt=rtio.RTIOIn(core=coredev, channel=0),
-            repeats=100,
-            nbins=100
-        )
-        exp.run()
-
-if __name__ == "__main__":
-    main()
+            print(i, hist[i])

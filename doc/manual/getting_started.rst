@@ -7,7 +7,7 @@ Connecting to the core device
 As a very first step, we will turn on a LED on the core device. Create a file ``led.py`` containing the following: ::
 
     from artiq import *
-    from artiq.coredevice import comm_serial, core, gpio
+
 
     class LED(AutoContext):
         led = Device("gpio_out")
@@ -16,18 +16,14 @@ As a very first step, we will turn on a LED on the core device. Create a file ``
         def run(self):
             self.led.on()
 
-    if __name__ == "__main__":
-        with comm_serial.Comm() as comm:
-            core_driver = core.Core(comm)
-            led_driver = gpio.GPIOOut(core=core_driver, channel=0)
-            exp = LED(core=core_driver, led=led_driver)
-            exp.run()
 
-The central part of our code is our ``LED`` class, that derives from :class:`artiq.language.core.AutoContext`. ``AutoContext`` is part of the mechanism that attaches device drivers and retrieves parameters according to a database. We are not using the database yet; instead, we import and create the device drivers and establish communication with the core device manually. Abstract attributes such as ``Device("gpio_out")`` list the devices (and parameters) that our class needs in order to operate. ``AutoContext`` replaces them with the actual device drivers (and parameter values).. Finally, the ``@kernel`` decorator tells the system that the ``run`` method must be executed on the core device (instead of the host).
+The central part of our code is our ``LED`` class, that derives from :class:`artiq.language.core.AutoContext`. ``AutoContext`` is part of the mechanism that attaches device drivers and retrieves parameters according to a database. Abstract attributes such as ``Device("gpio_out")`` list the devices (and parameters) that our class needs in order to operate, and the names of the attributes (e.g. ``led``) are used to search the database. ``AutoContext`` replaces them with the actual device drivers (and parameter values). Finally, the ``@kernel`` decorator tells the system that the ``run`` method must be executed on the core device (instead of the host).
 
-Run this example with: ::
+Copy the files ``ddb.pyon`` and ``pdb.pyon`` (containing the device and parameter databases) from the ``examples`` folder of ARTIQ into the same directory as ``led.py`` (alternatively, you can use the ``-d`` and ``-p`` options of ``artiq_run.py``). You can open the database files using a text editor - their contents are in a human-readable format.
 
-    python3 led.py
+Run your code using ``artiq_run.py``, which is part of the ARTIQ front-end tools: ::
+
+    $ artiq_run.py led
 
 The LED of the device should turn on. Congratulations! You have a basic ARTIQ system up and running.
 
@@ -53,9 +49,9 @@ Modify the code as follows: ::
 
 You can then turn the LED off and on by entering 0 or 1 at the prompt that appears: ::
 
-    $ python3 led.py
+    $ artiq_run.py led
     Enter desired LED state: 1
-    $ python3 led.py
+    $ artiq_run.py led
     Enter desired LED state: 0
 
 What happens is the ARTIQ compiler notices that the ``input_led_state`` function does not have a ``@kernel`` decorator and thus must be executed on the host. When the core device calls it, it sends a request to the host to execute it. The host displays the prompt, collects user input, and sends the result back to the core device, which sets the LED state accordingly.
@@ -82,25 +78,18 @@ The point of running code on the core device is the ability to meet demanding re
 Create a new file ``rtio.py`` containing the following: ::
 
     from artiq import *
-    from artiq.coredevice import comm_serial, core, rtio
 
     class Tutorial(AutoContext):
-        o = Device("ttl_out")
+        ttl0 = Device("ttl_out")
 
         @kernel
         def run(self):
             for i in range(1000000):
-                self.o.pulse(2*us)
+                self.ttl0.pulse(2*us)
                 delay(2*us)
 
-    if __name__ == "__main__":
-        with comm_serial.Comm() as comm:
-            core_driver = core.Core(comm)
-            out_driver = rtio.RTIOOut(core=core_driver, channel=2)
-            exp = Tutorial(core=core_driver, o=out_driver)
-            exp.run()
 
-Connect an oscilloscope or logic analyzer to the RTIO channel 2 (pin C11 on the Papilio Pro, TTL0) and run ``python3 rtio.py``. Notice that the generated signal's period is precisely 4 microseconds, and that it has a duty cycle of precisely 50%. This is not what you would expect if the delay and the pulse were implemented with CPU-controlled GPIO: overhead from the loop management, function calls, etc. would increase the signal's period, and asymmetry in the overhead would cause duty cycle distortion.
+Connect an oscilloscope or logic analyzer to TTL0 (pin C11 on the Papilio Pro) and run ``artiq_run.py led``. Notice that the generated signal's period is precisely 4 microseconds, and that it has a duty cycle of precisely 50%. This is not what you would expect if the delay and the pulse were implemented with CPU-controlled GPIO: overhead from the loop management, function calls, etc. would increase the signal's period, and asymmetry in the overhead would cause duty cycle distortion.
 
 Instead, inside the core device, output timing is generated by the gateware and the CPU only programs switching commands with certain timestamps that the CPU computes. This guarantees precise timing as long as the CPU can keep generating timestamps that are increasing fast enough. In case it fails to do that (and attempts to program an event with a timestamp in the past), the :class:`artiq.coredevice.runtime_exceptions.RTIOUnderflow` exception is raised. The kernel causing it may catch it (using a regular ``try... except...`` construct), or it will be propagated to the host.
 
@@ -113,14 +102,14 @@ Try reducing the period of the generated waveform until the CPU cannot keep up w
 
     class Tutorial(AutoContext):
         led = Device("gpio_out")
-        o = Device("ttl_out")
+        ttl0 = Device("ttl_out")
 
         @kernel
         def run(self):
             self.led.off()
             try:
                 for i in range(1000000):
-                    self.o.pulse(...)
+                    self.ttl0.pulse(...)
                     delay(...)
             except RTIOUnderflow:
                 self.led.on()
@@ -135,21 +124,21 @@ Try the following code and observe the generated pulses on a 2-channel oscillosc
 
     for i in range(1000000):
         with parallel:
-            self.o1.pulse(2*us)
-            self.o2.pulse(4*us)
+            self.ttl0.pulse(2*us)
+            self.ttl1.pulse(4*us)
         delay(4*us)
 
-If you assign ``o2`` to the RTIO channel 3, the signal will be generated on the pin C10 (TTL1) of the Papilio Pro.
+TTL1 is assigned to the pin C10 of the Papilio Pro. The name of the attributes (``ttl0`` and ``ttl1``) is used to look up hardware in the device database.
 
 Within a parallel block, some statements can be made sequential again using a ``with sequential`` construct. Observe the pulses generated by this code: ::
 
     for i in range(1000000):
         with parallel:
             with sequential:
-                self.o1.pulse(2*us)
+                self.ttl0.pulse(2*us)
                 delay(1*us)
-                self.o1.pulse(1*us)
-            self.o2.pulse(4*us)
+                self.ttl0.pulse(1*us)
+            self.ttl1.pulse(4*us)
         delay(4*us)
 
 .. warning::

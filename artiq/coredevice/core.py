@@ -1,5 +1,8 @@
 import os
 
+from artiq.language.core import *
+from artiq.language.context import *
+
 from artiq.transforms.inline import inline
 from artiq.transforms.lower_units import lower_units
 from artiq.transforms.quantize_time import quantize_time
@@ -10,8 +13,8 @@ from artiq.transforms.unroll_loops import unroll_loops
 from artiq.transforms.interleave import interleave
 from artiq.transforms.lower_time import lower_time
 from artiq.transforms.unparse import unparse
+
 from artiq.py2llvm import get_runtime_binary
-from artiq.language.core import *
 
 
 def _announce_unparse(label, node):
@@ -41,19 +44,20 @@ def _no_debug_unparse(label, node):
     pass
 
 
-class Core:
-    def __init__(self, comm, external_clock=None, runtime_env=None):
-        if runtime_env is None:
-            runtime_env = comm.get_runtime_env()
-        self.runtime_env = runtime_env
-        self.comm = comm
+class Core(AutoContext):
+    comm = Device("comm")
+    external_clock = Parameter(None)
+    implicit_core = False
+
+    def build(self):
+        self.runtime_env = self.comm.get_runtime_env()
         self.core = self
 
-        if external_clock is None:
+        if self.external_clock is None:
             self.ref_period = self.runtime_env.internal_ref_period
             self.comm.switch_clock(False)
         else:
-            self.ref_period = external_clock
+            self.ref_period = self.external_clock
             self.comm.switch_clock(True)
         self.initial_time = int64(self.runtime_env.warmup_time/self.ref_period)
 
