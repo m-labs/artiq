@@ -46,19 +46,20 @@ class _Encoder:
         return "    "*self.indent_level
 
     def encode_none(self, x):
-        return "None"
+        return "null"
 
     def encode_bool(self, x):
         if x:
-            return "True"
+            return "true"
         else:
-            return "False"
+            return "false"
 
     def encode_number(self, x):
         return str(x)
 
     def encode_str(self, x):
-        return repr(x)
+        tt = {ord("\""): "\\\"", ord("\\"): "\\\\", ord("\n"): "\\n"}
+        return "\"" + x.translate(tt) + "\""
 
     def encode_tuple(self, x):
         if len(x) == 1:
@@ -83,8 +84,13 @@ class _Encoder:
         else:
             self.indent_level += 1
             r += "\n"
+            first = True
             for k, v in x.items():
-                r += self.indent() + self.encode(k) + ": " + self.encode(v) + ",\n"
+                if not first:
+                    r += ",\n"
+                first = False
+                r += self.indent() + self.encode(k) + ": " + self.encode(v)
+            r += "\n"  # no ','
             self.indent_level -= 1
             r += self.indent()
         r += "}"
@@ -121,6 +127,11 @@ def _nparray(shape, dtype, data):
 
 _eval_dict = {
     "__builtins__": None,
+
+    "null": None,
+    "false": False,
+    "true": True,
+
     "Fraction": Fraction,
     "nparray": _nparray
 }
