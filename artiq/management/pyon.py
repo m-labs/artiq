@@ -119,3 +119,19 @@ def decode(s):
 
     """
     return eval(s, _eval_dict, {})
+
+
+def store_file(filename, x):
+    """Encodes a Python object and writes it to the specified file.
+
+    """
+    with open(filename, "w") as f:
+        f.write(encode(x))
+
+
+def load_file(filename):
+    """Parses the specified file and returns the decoded Python object.
+
+    """
+    with open(filename, "r") as f:
+        return decode(f.read())
