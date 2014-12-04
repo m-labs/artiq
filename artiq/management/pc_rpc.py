@@ -4,6 +4,12 @@ between conventional computers (PCs) running Python. It strives to be
 transparent and uses ``artiq.management.pyon`` internally so that e.g. Numpy
 arrays can be easily used.
 
+Note that the server operates on copies of objects provided by the client,
+and modifications to mutable types are not written back. For example, if the
+client passes a list as a parameter of an RPC method, and that method
+``append()s`` an element to the list, the element is not appended to the
+client's list.
+
 """
 
 import socket
