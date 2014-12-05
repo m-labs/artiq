@@ -8,11 +8,9 @@ The system features a high-level programming language that helps describing
 complex experiments, which is compiled and executed on dedicated hardware with
 nanosecond timing resolution and sub-microsecond latency.
 
-Technologies employed include Python, Migen, MiSoC/mor1kx, LLVM and llvmpy.
+Technologies employed include Python, Migen, MiSoC/mor1kx, LLVM and llvmlite.
 
+ARTIQ is licensed under 3-clause BSD.
 
-https://github.com/m-labs/artiq
-
-https://ssl.serverraum.org/lists/listinfo/artiq
-
-http://irclog.whitequark.org/m-labs
+Website:
+http://m-labs.hk/artiq
