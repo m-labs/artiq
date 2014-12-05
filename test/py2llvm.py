@@ -2,13 +2,19 @@ import unittest
 import ast
 import inspect
 from fractions import Fraction
+from ctypes import CFUNCTYPE, c_int, c_int32, c_int64, c_double
 
-from llvm import ee as le
+import llvmlite.binding as llvm
 
 from artiq.language.core import int64, array
 from artiq.py2llvm.infer_types import infer_function_types
 from artiq.py2llvm import base_types, arrays
 from artiq.py2llvm.module import Module
+
+
+llvm.initialize()
+llvm.initialize_native_target()
+llvm.initialize_native_asmprinter()
 
 
 def _base_types(choice):
@@ -81,34 +87,42 @@ class FunctionArrayTypesCase(unittest.TestCase):
         self.assertEqual(self.ns["i"].nbits, 32)
 
 
+def _value_to_ctype(v):
+    if isinstance(v, base_types.VBool):
+        return c_int
+    elif isinstance(v, base_types.VInt):
+        if v.nbits == 32:
+            return c_int32
+        elif v.nbits == 64:
+            return c_int64
+        else:
+            raise NotImplementedError(str(v))
+    elif isinstance(v, base_types.VFloat):
+        return c_double
+    else:
+        raise NotImplementedError(str(v))
+
+
 class CompiledFunction:
     def __init__(self, function, param_types):
         module = Module()
+
         func_def = ast.parse(inspect.getsource(function)).body[0]
-        self.function, self.retval = module.compile_function(
-            func_def, param_types)
-        self.argval = [param_types[arg.arg] for arg in func_def.args.args]
-        self.ee = module.get_ee()
+        function, retval = module.compile_function(func_def, param_types)
+        argvals = [param_types[arg.arg] for arg in func_def.args.args]
+
+        ee = module.get_ee()
+        cfptr = ee.get_pointer_to_global(
+            module.llvm_module.get_function(function.name))
+        retval_ctype = _value_to_ctype(retval)
+        argval_ctypes = [_value_to_ctype(argval) for argval in argvals]
+        self.cfunc = CFUNCTYPE(retval_ctype, *argval_ctypes)(cfptr)
+
+        # HACK: prevent garbage collection of self.cfunc internals
+        self.ee = ee
 
     def __call__(self, *args):
-        args_llvm = []
-        for av, a in zip(self.argval, args):
-            if isinstance(av, base_types.VInt):
-                al = le.GenericValue.int(av.get_llvm_type(), a)
-            elif isinstance(av, base_types.VFloat):
-                al = le.GenericValue.real(av.get_llvm_type(), a)
-            else:
-                raise NotImplementedError
-            args_llvm.append(al)
-        result = self.ee.run_function(self.function, args_llvm)
-        if isinstance(self.retval, base_types.VBool):
-            return bool(result.as_int())
-        elif isinstance(self.retval, base_types.VInt):
-            return result.as_int_signed()
-        elif isinstance(self.retval, base_types.VFloat):
-            return result.as_real(self.retval.get_llvm_type())
-        else:
-            raise NotImplementedError
+        return self.cfunc(*args)
 
 
 def arith(op, a, b):

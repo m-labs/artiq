@@ -1,5 +1,6 @@
 import ast
-from llvm import core as lc
+
+import llvmlite.ir as ll
 
 from artiq.py2llvm import values, base_types, fractions, arrays, iterators
 from artiq.py2llvm.tools import is_terminated
@@ -368,13 +369,13 @@ class Visitor:
         if self._active_exception_stack:
             finally_block, propagate, propagate_eid = (
                 self._active_exception_stack[-1])
-            self.builder.store(lc.Constant.int(lc.Type.int(1), 1), propagate)
+            self.builder.store(ll.Constant(ll.IntType(1), 1), propagate)
             if node.exc is not None:
-                eid = lc.Constant.int(lc.Type.int(), node.exc.args[0].n)
+                eid = ll.Constant(ll.IntType(32), node.exc.args[0].n)
                 self.builder.store(eid, propagate_eid)
             self.builder.branch(finally_block)
         else:
-            eid = lc.Constant.int(lc.Type.int(), node.exc.args[0].n)
+            eid = ll.Constant(ll.IntType(32), node.exc.args[0].n)
             self.env.build_raise(self.builder, eid)
 
     def _handle_exception(self, function, finally_block,
@@ -382,7 +383,7 @@ class Visitor:
         eid = self.env.build_getid(self.builder)
         self._active_exception_stack.append(
             (finally_block, propagate, propagate_eid))
-        self.builder.store(lc.Constant.int(lc.Type.int(1), 1), propagate)
+        self.builder.store(ll.Constant(ll.IntType(1), 1), propagate)
         self.builder.store(eid, propagate_eid)
 
         for handler in handlers:
@@ -392,23 +393,23 @@ class Visitor:
                 self.builder.branch(handled_exc_block)
             else:
                 if isinstance(handler.type, ast.Tuple):
-                    match = self.builder.icmp(
-                        lc.ICMP_EQ, eid,
-                        lc.Constant.int(lc.Type.int(),
-                                        handler.type.elts[0].args[0].n))
+                    match = self.builder.icmp_signed(
+                        "==", eid,
+                        ll.Constant(ll.IntType(32),
+                                    handler.type.elts[0].args[0].n))
                     for elt in handler.type.elts[1:]:
                         match = self.builder.or_(
                             match,
-                            self.builder.icmp(
-                                lc.ICMP_EQ, eid,
-                                lc.Constant.int(lc.Type.int(), elt.args[0].n)))
+                            self.builder.icmp_signed(
+                                "==", eid,
+                                ll.Constant(ll.IntType(32), elt.args[0].n)))
                 else:
-                    match = self.builder.icmp(
-                        lc.ICMP_EQ, eid,
-                        lc.Constant.int(lc.Type.int(), handler.type.args[0].n))
+                    match = self.builder.icmp_signed(
+                        "==", eid,
+                        ll.Constant(ll.IntType(32), handler.type.args[0].n))
                 self.builder.cbranch(match, handled_exc_block, cont_exc_block)
             self.builder.position_at_end(handled_exc_block)
-            self.builder.store(lc.Constant.int(lc.Type.int(1), 0), propagate)
+            self.builder.store(ll.Constant(ll.IntType(1), 0), propagate)
             self.visit_statements(handler.body)
             if not self._bb_terminated():
                 self.builder.branch(finally_block)
@@ -423,10 +424,10 @@ class Visitor:
         exc_block = function.append_basic_block("try_exc")
         finally_block = function.append_basic_block("try_finally")
 
-        propagate = self.builder.alloca(lc.Type.int(1),
+        propagate = self.builder.alloca(ll.IntType(1),
                                         name="propagate")
-        self.builder.store(lc.Constant.int(lc.Type.int(1), 0), propagate)
-        propagate_eid = self.builder.alloca(lc.Type.int(),
+        self.builder.store(ll.Constant(ll.IntType(1), 0), propagate)
+        propagate_eid = self.builder.alloca(ll.IntType(32),
                                             name="propagate_eid")
         exception_occured = self.env.build_catch(self.builder)
         self.builder.cbranch(exception_occured, exc_block, noexc_block)

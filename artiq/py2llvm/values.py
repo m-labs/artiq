@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 from copy import copy
 
-from llvm import core as lc
+import llvmlite.ir as ll
 
 
 class VGeneric:
@@ -25,7 +25,7 @@ class VGeneric:
                             .format(repr(self), repr(other)))
 
     def auto_load(self, builder):
-        if isinstance(self.llvm_value.type, lc.PointerType):
+        if isinstance(self.llvm_value.type, ll.PointerType):
             return builder.load(self.llvm_value)
         else:
             return self.llvm_value
@@ -33,7 +33,7 @@ class VGeneric:
     def auto_store(self, builder, llvm_value):
         if self.llvm_value is None:
             self.llvm_value = llvm_value
-        elif isinstance(self.llvm_value.type, lc.PointerType):
+        elif isinstance(self.llvm_value.type, ll.PointerType):
             builder.store(llvm_value, self.llvm_value)
         else:
             raise RuntimeError(
@@ -60,14 +60,14 @@ class VGeneric:
 def _make_binary_operator(op_name):
     def op(l, r, builder):
         try:
-            opf = getattr(l, "o_"+op_name)
+            opf = getattr(l, "o_" + op_name)
         except AttributeError:
             result = NotImplemented
         else:
             result = opf(r, builder)
         if result is NotImplemented:
             try:
-                ropf = getattr(r, "or_"+op_name)
+                ropf = getattr(r, "or_" + op_name)
             except AttributeError:
                 result = NotImplemented
             else:

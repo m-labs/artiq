@@ -1,4 +1,4 @@
-from llvm import core as lc
+import llvmlite.ir as ll
 
 from artiq.py2llvm.values import VGeneric
 from artiq.py2llvm.base_types import VInt
@@ -13,7 +13,7 @@ class VArray(VGeneric):
             raise TypeError("Arrays must have at least one element")
 
     def get_llvm_type(self):
-        return lc.Type.array(self.el_init.get_llvm_type(), self.count)
+        return ll.ArrayType(self.el_init.get_llvm_type(), self.count)
 
     def __repr__(self):
         return "<VArray:{} x{}>".format(repr(self.el_init), self.count)
@@ -42,7 +42,7 @@ class VArray(VGeneric):
 
         i = VInt()
         i.alloca(builder, "ai_i")
-        i.auto_store(builder, lc.Constant.int(lc.Type.int(), 0))
+        i.auto_store(builder, ll.Constant(ll.IntType(32), 0))
 
         function = builder.basic_block.function
         copy_block = function.append_basic_block("ai_copy")
@@ -52,10 +52,10 @@ class VArray(VGeneric):
         builder.position_at_end(copy_block)
         self.o_subscript(i, builder).set_value(builder, v.el_init)
         i.auto_store(builder, builder.add(
-            i.auto_load(builder), lc.Constant.int(lc.Type.int(), 1)))
-        cont = builder.icmp(
-            lc.ICMP_SLT, i.auto_load(builder),
-            lc.Constant.int(lc.Type.int(), self.count))
+            i.auto_load(builder), ll.Constant(ll.IntType(32), 1)))
+        cont = builder.icmp_signed(
+            "<", i.auto_load(builder),
+            ll.Constant(ll.IntType(32), self.count))
         builder.cbranch(cont, copy_block, end_block)
 
         builder.position_at_end(end_block)
@@ -65,6 +65,6 @@ class VArray(VGeneric):
         if builder is not None:
             index = index.o_int(builder).auto_load(builder)
             ssa_r = builder.gep(self.llvm_value, [
-                lc.Constant.int(lc.Type.int(), 0), index])
+                ll.Constant(ll.IntType(32), 0), index])
             r.auto_store(builder, ssa_r)
         return r

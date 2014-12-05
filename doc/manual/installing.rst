@@ -98,7 +98,9 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
         $ cd ~/artiq-dev/misoc
         $ ./make.py -X ~/artiq/soc -t artiq all
 
-* Then, build and flash the ARTIQ runtime: ::
+* Then, build and flash the ARTIQ runtime:
+    
+    ::
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/m-labs/artiq
@@ -120,35 +122,29 @@ The communication parameters are 115200 8-N-1.
 Installing the host-side software
 ---------------------------------
 
-* Install LLVM and its Python bindings:
-
-    The main dependency of ARTIQ is LLVM and its Python bindings (http://llvmpy.org). Currently, this installation is tedious because of the OpenRISC support not being merged upstream LLVM and because of incompatibilities between the versions of LLVM that support OpenRISC and the versions of LLVM that support the Python bindings. ::
+* Install LLVM and the llvmlite Python bindings: ::
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/openrisc/llvm-or1k
-        $ cd ~/artiq-dev/llvm-or1k
-        $ git checkout b3a48efb2c05ed6cedc5395ae726c6a6573ef3ba
-        $ cat ~/artiq-dev/artiq/patches/llvm/* | patch -p1
-
         $ cd ~/artiq-dev/llvm-or1k/tools
         $ git clone https://github.com/openrisc/clang-or1k clang
         $ cd ~/artiq-dev/llvm-or1k/tools/clang
-        $ git checkout 02d831c7e7dc1517abed9cc96abdfb937af954eb
-        $ cat ~/artiq-dev/artiq/patches/clang/* | patch -p1
 
         $ cd ~/artiq-dev/llvm-or1k
         $ mkdir build
         $ cd ~/artiq-dev/llvm-or1k/build
         $ ../configure --prefix=/usr/local/llvm-or1k
-        $ make ENABLE_OPTIMIZED=1 REQUIRES_RTTI=1 -j4
-        $ sudo -E make install ENABLE_OPTIMIZED=1 REQUIRES_RTTI=1
+        $ make ENABLE_OPTIMIZED=1 -j4
+        $ sudo -E make install ENABLE_OPTIMIZED=1
 
         $ cd ~/artiq-dev
-        $ git clone https://github.com/llvmpy/llvmpy
-        $ cd ~/artiq-dev/llvmpy
-        $ git checkout 7af2f7140391d4f708adf2721e84f23c1b89e97a
-        $ cat /path_to/artiq/patches/llvmpy/* | patch -p1
+        $ git clone https://github.com/numba/llvmlite
+        $ cd ~/artiq-dev/llvmlite
+        $ cat /path_to/artiq/patches/llvmlite/* | patch -p1
         $ LLVM_CONFIG_PATH=/usr/local/llvm-or1k/bin/llvm-config sudo -E python setup.py install
+
+.. note::
+    llvmlite is in development and its API is not stable yet. Commit ID ``11a8303d02e3d6dd2d1e0e9065701795cd8a979f`` is known to work.
 
 .. note::
     Compilation of LLVM can take more than 30 min on some machines.

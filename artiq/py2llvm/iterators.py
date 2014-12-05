@@ -1,7 +1,5 @@
-from llvm import core as lc
-
 from artiq.py2llvm.values import operators
-from artiq.py2llvm.base_types import VBool, VInt
+from artiq.py2llvm.base_types import VInt
 
 class IRange:
     def __init__(self, builder, args):

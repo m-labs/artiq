@@ -1,11 +1,11 @@
-from llvm import core as lc
+import llvmlite.ir as ll
 
 from artiq.py2llvm.values import VGeneric
 
 
 class VNone(VGeneric):
     def get_llvm_type(self):
-        return lc.Type.void()
+        return ll.VoidType()
 
     def alloca(self, builder, name):
         pass
@@ -29,7 +29,7 @@ class VInt(VGeneric):
         self.nbits = nbits
 
     def get_llvm_type(self):
-        return lc.Type.int(self.nbits)
+        return ll.IntType(self.nbits)
 
     def __repr__(self):
         return "<VInt:{}>".format(self.nbits)
@@ -50,16 +50,16 @@ class VInt(VGeneric):
             builder, n.o_intx(self.nbits, builder).auto_load(builder))
 
     def set_const_value(self, builder, n):
-        self.auto_store(builder, lc.Constant.int(self.get_llvm_type(), n))
+        self.auto_store(builder, ll.Constant(self.get_llvm_type(), n))
 
     def o_bool(self, builder, inv=False):
         r = VBool()
         if builder is not None:
             r.auto_store(
-                builder, builder.icmp(
-                    lc.ICMP_EQ if inv else lc.ICMP_NE,
+                builder, builder.icmp_signed(
+                    "==" if inv else "!=",
                     self.auto_load(builder),
-                    lc.Constant.int(self.get_llvm_type(), 0)))
+                    ll.Constant(self.get_llvm_type(), 0)))
         return r
 
     def o_float(self, builder):
@@ -82,7 +82,7 @@ class VInt(VGeneric):
             r.auto_store(
                 builder, builder.mul(
                     self.auto_load(builder),
-                    lc.Constant.int(self.get_llvm_type(), -1)))
+                    ll.Constant(self.get_llvm_type(), -1)))
         return r
 
     def o_intx(self, target_bits, builder):
@@ -102,7 +102,7 @@ class VInt(VGeneric):
                     ef = builder.sext
                 r.auto_store(
                     builder, ef(self.auto_load(builder),
-                                          r.get_llvm_type()))
+                                r.get_llvm_type()))
         return r
     o_roundx = o_intx
 
@@ -157,7 +157,7 @@ def _make_vint_cmp_method(icmp_val):
                 right = other.o_intx(target_bits, builder)
                 r.auto_store(
                     builder,
-                    builder.icmp(
+                    builder.icmp_signed(
                         icmp_val, left.auto_load(builder),
                         right.auto_load(builder)))
             return r
@@ -165,12 +165,12 @@ def _make_vint_cmp_method(icmp_val):
             return NotImplemented
     return cmp_method
 
-for _method_name, _icmp_val in (("o_eq", lc.ICMP_EQ),
-                                ("o_ne", lc.ICMP_NE),
-                                ("o_lt", lc.ICMP_SLT),
-                                ("o_le", lc.ICMP_SLE),
-                                ("o_gt", lc.ICMP_SGT),
-                                ("o_ge", lc.ICMP_SGE)):
+for _method_name, _icmp_val in (("o_eq", "=="),
+                                ("o_ne", "!="),
+                                ("o_lt", "<"),
+                                ("o_le", "<="),
+                                ("o_gt", ">"),
+                                ("o_ge", ">=")):
     setattr(VInt, _method_name, _make_vint_cmp_method(_icmp_val))
 
 
@@ -188,7 +188,7 @@ class VBool(VInt):
 
 class VFloat(VGeneric):
     def get_llvm_type(self):
-        return lc.Type.double()
+        return ll.DoubleType()
 
     def set_value(self, builder, v):
         if not isinstance(v, VFloat):
@@ -196,7 +196,7 @@ class VFloat(VGeneric):
         self.auto_store(builder, v.auto_load(builder))
 
     def set_const_value(self, builder, n):
-        self.auto_store(builder, lc.Constant.real(self.get_llvm_type(), n))
+        self.auto_store(builder, ll.Constant(self.get_llvm_type(), n))
 
     def o_float(self, builder):
         r = VFloat()
@@ -208,10 +208,10 @@ class VFloat(VGeneric):
         r = VBool()
         if builder is not None:
             r.auto_store(
-                builder, builder.fcmp(
-                    lc.FCMP_UEQ if inv else lc.FCMP_UNE,
+                builder, builder.fcmp_ordered(
+                    "==" if inv else "!=",
                     self.auto_load(builder),
-                    lc.Constant.real(self.get_llvm_type(), 0.0)))
+                    ll.Constant(self.get_llvm_type(), 0.0)))
         return r
 
     def o_not(self, builder):
@@ -223,7 +223,7 @@ class VFloat(VGeneric):
             r.auto_store(
                 builder, builder.fmul(
                     self.auto_load(builder),
-                    lc.Constant.real(self.get_llvm_type(), -1.0)))
+                    ll.Constant(self.get_llvm_type(), -1.0)))
         return r
 
     def o_intx(self, target_bits, builder):
@@ -244,10 +244,10 @@ class VFloat(VGeneric):
             half.alloca(builder, "half")
             half.set_const_value(builder, 0.5)
 
-            condition = builder.icmp(
-                lc.FCMP_OLT,
+            condition = builder.fcmp_ordered(
+                "<",
                 self.auto_load(builder),
-                lc.Constant.real(self.get_llvm_type(), 0.0))
+                ll.Constant(self.get_llvm_type(), 0.0))
             builder.cbranch(condition, neg_block, merge_block)
 
             builder.position_at_end(neg_block)
@@ -299,16 +299,16 @@ def _make_vfloat_cmp_method(fcmp_val):
             right = other.o_float(builder)
             r.auto_store(
                 builder,
-                builder.fcmp(
+                builder.fcmp_ordered(
                     fcmp_val, left.auto_load(builder),
                     right.auto_load(builder)))
         return r
     return cmp_method
 
-for _method_name, _fcmp_val in (("o_eq", lc.FCMP_OEQ),
-                                ("o_ne", lc.FCMP_ONE),
-                                ("o_lt", lc.FCMP_OLT),
-                                ("o_le", lc.FCMP_OLE),
-                                ("o_gt", lc.FCMP_OGT),
-                                ("o_ge", lc.FCMP_OGE)):
+for _method_name, _fcmp_val in (("o_eq", "=="),
+                                ("o_ne", "!="),
+                                ("o_lt", "<"),
+                                ("o_le", "<="),
+                                ("o_gt", ">"),
+                                ("o_ge", ">=")):
     setattr(VFloat, _method_name, _make_vfloat_cmp_method(_fcmp_val))

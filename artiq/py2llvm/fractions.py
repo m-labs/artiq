@@ -1,7 +1,7 @@
 import inspect
 import ast
 
-from llvm import core as lc
+import llvmlite.ir as ll
 
 from artiq.py2llvm.values import VGeneric, operators
 from artiq.py2llvm.base_types import VBool, VInt, VFloat
@@ -21,11 +21,15 @@ def init_module(module):
     func_def = ast.parse(inspect.getsource(_gcd)).body[0]
     function, _ = module.compile_function(func_def,
                                           {"a": VInt(64), "b": VInt(64)})
-    function.linkage = lc.LINKAGE_INTERNAL
+    function.linkage = "internal"
 
 
 def _reduce(builder, a, b):
-    gcd_f = builder.basic_block.function.module.get_function_named("_gcd")
+    module = builder.basic_block.function.module
+    for f in module.functions:
+        if f.name == "_gcd":
+            gcd_f = f
+            break
     gcd = builder.call(gcd_f, [a, b])
     a = builder.sdiv(a, gcd)
     b = builder.sdiv(b, gcd)
@@ -38,21 +42,21 @@ def _signnum(builder, a, b):
     swap_block = function.append_basic_block("sn_swap")
     merge_block = function.append_basic_block("sn_merge")
 
-    condition = builder.icmp(
-        lc.ICMP_SLT, b, lc.Constant.int(lc.Type.int(64), 0))
+    condition = builder.icmp_signed(
+        "<", b, ll.Constant(ll.IntType(64), 0))
     builder.cbranch(condition, swap_block, merge_block)
 
     builder.position_at_end(swap_block)
-    minusone = lc.Constant.int(lc.Type.int(64), -1)
+    minusone = ll.Constant(ll.IntType(64), -1)
     a_swp = builder.mul(minusone, a)
     b_swp = builder.mul(minusone, b)
     builder.branch(merge_block)
 
     builder.position_at_end(merge_block)
-    a_phi = builder.phi(lc.Type.int(64))
+    a_phi = builder.phi(ll.IntType(64))
     a_phi.add_incoming(a, orig_block)
     a_phi.add_incoming(a_swp, swap_block)
-    b_phi = builder.phi(lc.Type.int(64))
+    b_phi = builder.phi(ll.IntType(64))
     b_phi.add_incoming(b, orig_block)
     b_phi.add_incoming(b_swp, swap_block)
 
@@ -60,24 +64,20 @@ def _signnum(builder, a, b):
 
 
 def _make_ssa(builder, n, d):
-    value = lc.Constant.undef(lc.Type.vector(lc.Type.int(64), 2))
-    value = builder.insert_element(
-        value, n, lc.Constant.int(lc.Type.int(), 0))
-    value = builder.insert_element(
-        value, d, lc.Constant.int(lc.Type.int(), 1))
+    value = ll.Constant(ll.ArrayType(ll.IntType(64), 2), ll.Undefined)
+    value = builder.insert_value(value, n, 0)
+    value = builder.insert_value(value, d, 1)
     return value
 
 
 class VFraction(VGeneric):
     def get_llvm_type(self):
-        return lc.Type.vector(lc.Type.int(64), 2)
+        return ll.ArrayType(ll.IntType(64), 2)
 
     def _nd(self, builder):
         ssa_value = self.auto_load(builder)
-        a = builder.extract_element(
-            ssa_value, lc.Constant.int(lc.Type.int(), 0))
-        b = builder.extract_element(
-            ssa_value, lc.Constant.int(lc.Type.int(), 1))
+        a = builder.extract_value(ssa_value, 0)
+        b = builder.extract_value(ssa_value, 1)
         return a, b
 
     def set_value_nd(self, builder, a, b):
@@ -101,19 +101,16 @@ class VFraction(VGeneric):
             raise AttributeError
         r = VInt(64)
         if builder is not None:
-            elt = builder.extract_element(
-                self.auto_load(builder),
-                lc.Constant.int(lc.Type.int(), idx))
+            elt = builder.extract_value(self.auto_load(builder), idx)
             r.auto_store(builder, elt)
         return r
 
     def o_bool(self, builder):
         r = VBool()
         if builder is not None:
-            zero = lc.Constant.int(lc.Type.int(64), 0)
-            a = builder.extract_element(
-                self.auto_load(builder), lc.Constant.int(lc.Type.int(), 0))
-            r.auto_store(builder, builder.icmp(lc.ICMP_NE, a, zero))
+            zero = ll.Constant(ll.IntType(64), 0)
+            a = builder.extract_element(self.auto_load(builder), 0)
+            r.auto_store(builder, builder.icmp_signed("!=", a, zero))
         return r
 
     def o_intx(self, target_bits, builder):
@@ -131,15 +128,15 @@ class VFraction(VGeneric):
         else:
             r = VInt(64)
             a, b = self._nd(builder)
-            h_b = builder.ashr(b, lc.Constant.int(lc.Type.int(64), 1))
+            h_b = builder.ashr(b, ll.Constant(ll.IntType(64), 1))
 
             function = builder.basic_block.function
             add_block = function.append_basic_block("fr_add")
             sub_block = function.append_basic_block("fr_sub")
             merge_block = function.append_basic_block("fr_merge")
 
-            condition = builder.icmp(
-                lc.ICMP_SLT, a, lc.Constant.int(lc.Type.int(64), 0))
+            condition = builder.icmp_signed(
+                "<", a, ll.Constant(ll.IntType(64), 0))
             builder.cbranch(condition, sub_block, add_block)
 
             builder.position_at_end(add_block)
@@ -150,7 +147,7 @@ class VFraction(VGeneric):
             builder.branch(merge_block)
 
             builder.position_at_end(merge_block)
-            a = builder.phi(lc.Type.int(64))
+            a = builder.phi(ll.IntType(64))
             a.add_incoming(a_add, add_block)
             a.add_incoming(a_sub, sub_block)
             r.auto_store(builder, builder.sdiv(a, b))
@@ -165,19 +162,19 @@ class VFraction(VGeneric):
                 other = other.o_int64(builder)
                 a, b = self._nd(builder)
                 ssa_r = builder.and_(
-                    builder.icmp(lc.ICMP_EQ, a,
-                                 other.auto_load()),
-                    builder.icmp(lc.ICMP_EQ, b,
-                                 lc.Constant.int(lc.Type.int(64), 1)))
+                    builder.icmp_signed("==", a,
+                                        other.auto_load()),
+                    builder.icmp_signed("==", b,
+                                        ll.Constant(ll.IntType(64), 1)))
             else:
                 a, b = self._nd(builder)
                 c, d = other._nd(builder)
                 ssa_r = builder.and_(
-                    builder.icmp(lc.ICMP_EQ, a, c),
-                    builder.icmp(lc.ICMP_EQ, b, d))
+                    builder.icmp_signed("==", a, c),
+                    builder.icmp_signed("==", b, d))
             if ne:
                 ssa_r = builder.xor(ssa_r,
-                                    lc.Constant.int(lc.Type.int(1), 1))
+                                    ll.Constant(ll.IntType(1), 1))
             r.auto_store(builder, ssa_r)
         return r
 
@@ -194,24 +191,23 @@ class VFraction(VGeneric):
         r = VBool()
         if builder is not None:
             diff = diff.auto_load(builder)
-            a = builder.extract_element(
-                diff, lc.Constant.int(lc.Type.int(), 0))
-            zero = lc.Constant.int(lc.Type.int(64), 0)
+            a = builder.extract_value(diff, 0)
+            zero = ll.Constant(ll.IntType(64), 0)
             ssa_r = builder.icmp(icmp, a, zero)
             r.auto_store(builder, ssa_r)
         return r
 
     def o_lt(self, other, builder):
-        return self._o_cmp(other, lc.ICMP_SLT, builder)
+        return self._o_cmp(other, "<", builder)
 
     def o_le(self, other, builder):
-        return self._o_cmp(other, lc.ICMP_SLE, builder)
+        return self._o_cmp(other, "<=", builder)
 
     def o_gt(self, other, builder):
-        return self._o_cmp(other, lc.ICMP_SGT, builder)
+        return self._o_cmp(other, ">", builder)
 
     def o_ge(self, other, builder):
-        return self._o_cmp(other, lc.ICMP_SGE, builder)
+        return self._o_cmp(other, ">=", builder)
 
     def _o_addsub(self, other, builder, sub, invert=False):
         if isinstance(other, VFloat):

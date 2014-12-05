@@ -1,14 +1,15 @@
 import os
-from fractions import Fraction
 
-from llvm import core as lc
-from llvm import target as lt
+import llvmlite.ir as ll
+import llvmlite.binding as llvm
 
 from artiq.py2llvm import base_types
 from artiq.language import units
 
 
-lt.initialize_all()
+llvm.initialize()
+llvm.initialize_all_targets()
+llvm.initialize_all_asmprinters()
 
 _syscalls = {
     "rpc": "i+:i",
@@ -23,10 +24,10 @@ _syscalls = {
 }
 
 _chr_to_type = {
-    "n": lambda: lc.Type.void(),
-    "b": lambda: lc.Type.int(1),
-    "i": lambda: lc.Type.int(32),
-    "I": lambda: lc.Type.int(64)
+    "n": lambda: ll.VoidType(),
+    "b": lambda: ll.IntType(1),
+    "i": lambda: ll.IntType(32),
+    "I": lambda: ll.IntType(64)
 }
 
 _chr_to_value = {
@@ -45,45 +46,50 @@ def _str_to_functype(s):
     type_args = []
     for n, c in enumerate(s[:-2]):
         if c == "+":
-            type_args.append(lc.Type.int())
+            type_args.append(ll.IntType(32))
             var_arg_fixcount = n
         elif c != "n":
             type_args.append(_chr_to_type[c]())
     return (var_arg_fixcount,
-            lc.Type.function(type_ret, type_args,
-                             var_arg=var_arg_fixcount is not None))
+            ll.FunctionType(type_ret, type_args,
+                            var_arg=var_arg_fixcount is not None))
 
 
 class LinkInterface:
     def init_module(self, module):
-        self.llvm_module = module.llvm_module
+        self.module = module
+        llvm_module = self.module.llvm_module
 
         # syscalls
+        self.syscalls = dict()
         self.var_arg_fixcount = dict()
         for func_name, func_type_str in _syscalls.items():
             var_arg_fixcount, func_type = _str_to_functype(func_type_str)
             if var_arg_fixcount is not None:
                 self.var_arg_fixcount[func_name] = var_arg_fixcount
-            self.llvm_module.add_function(func_type, "__syscall_"+func_name)
+            self.syscalls[func_name] = ll.Function(
+                llvm_module, func_type, "__syscall_" + func_name)
 
         # exception handling
-        func_type = lc.Type.function(lc.Type.int(), [lc.Type.pointer(lc.Type.int(8))])
-        function = self.llvm_module.add_function(func_type, "__eh_setjmp")
-        function.add_attribute(lc.ATTR_NO_UNWIND)
-        function.add_attribute(lc.ATTR_RETURNS_TWICE)
+        func_type = ll.FunctionType(ll.IntType(32),
+                                    [ll.PointerType(ll.IntType(8))])
+        self.eh_setjmp = ll.Function(llvm_module, func_type,
+                                     "__eh_setjmp")
+        self.eh_setjmp.attributes.add("nounwind")
+        self.eh_setjmp.attributes.add("returns_twice")
 
-        func_type = lc.Type.function(lc.Type.pointer(lc.Type.int(8)), [])
-        self.llvm_module.add_function(func_type, "__eh_push")
+        func_type = ll.FunctionType(ll.PointerType(ll.IntType(8)), [])
+        self.eh_push = ll.Function(llvm_module, func_type, "__eh_push")
 
-        func_type = lc.Type.function(lc.Type.void(), [lc.Type.int()])
-        self.llvm_module.add_function(func_type, "__eh_pop")
+        func_type = ll.FunctionType(ll.VoidType(), [ll.IntType(32)])
+        self.eh_pop = ll.Function(llvm_module, func_type, "__eh_pop")
 
-        func_type = lc.Type.function(lc.Type.int(), [])
-        self.llvm_module.add_function(func_type, "__eh_getid")
+        func_type = ll.FunctionType(ll.IntType(32), [])
+        self.eh_getid = ll.Function(llvm_module, func_type, "__eh_getid")
 
-        func_type = lc.Type.function(lc.Type.void(), [lc.Type.int()])
-        function = self.llvm_module.add_function(func_type, "__eh_raise")
-        function.add_attribute(lc.ATTR_NO_RETURN)
+        func_type = ll.FunctionType(ll.VoidType(), [ll.IntType(32)])
+        self.eh_raise = ll.Function(llvm_module, func_type, "__eh_raise")
+        self.eh_raise.attributes.add("noreturn")
 
     def build_syscall(self, syscall_name, args, builder):
         r = _chr_to_value[_syscalls[syscall_name][-1]]()
@@ -92,33 +98,27 @@ class LinkInterface:
             if syscall_name in self.var_arg_fixcount:
                 fixcount = self.var_arg_fixcount[syscall_name]
                 args = args[:fixcount] \
-                    + [lc.Constant.int(lc.Type.int(), len(args) - fixcount)] \
+                    + [ll.Constant(ll.IntType(32), len(args) - fixcount)] \
                     + args[fixcount:]
-            llvm_function = self.llvm_module.get_function_named(
-                "__syscall_" + syscall_name)
-            r.auto_store(builder, builder.call(llvm_function, args))
+            r.auto_store(builder, builder.call(self.syscalls[syscall_name],
+                                               args))
         return r
 
     def build_catch(self, builder):
-        eh_setjmp = self.llvm_module.get_function_named("__eh_setjmp")
-        eh_push = self.llvm_module.get_function_named("__eh_push")
-        jmpbuf = builder.call(eh_push, [])
-        exception_occured = builder.call(eh_setjmp, [jmpbuf])
-        return builder.icmp(lc.ICMP_NE,
-                            exception_occured,
-                            lc.Constant.int(lc.Type.int(), 0))
+        jmpbuf = builder.call(self.eh_push, [])
+        exception_occured = builder.call(self.eh_setjmp, [jmpbuf])
+        return builder.icmp_signed("!=",
+                                   exception_occured,
+                                   ll.Constant(ll.IntType(32), 0))
 
     def build_pop(self, builder, levels):
-        eh_pop = self.llvm_module.get_function_named("__eh_pop")
-        builder.call(eh_pop, [lc.Constant.int(lc.Type.int(), levels)])
+        builder.call(self.eh_pop, [ll.Constant(ll.IntType(32), levels)])
 
     def build_getid(self, builder):
-        eh_getid = self.llvm_module.get_function_named("__eh_getid")
-        return builder.call(eh_getid, [])
+        return builder.call(self.eh_getid, [])
 
     def build_raise(self, builder, eid):
-        eh_raise = self.llvm_module.get_function_named("__eh_raise")
-        builder.call(eh_raise, [eid])
+        builder.call(self.eh_raise, [eid])
 
 
 def _debug_dump_obj(obj):
@@ -148,8 +148,8 @@ class Environment(LinkInterface):
         self.warmup_time = 1*units.ms
 
     def emit_object(self):
-        tm = lt.TargetMachine.new(triple=self.cpu_type, cpu="generic")
-        obj = tm.emit_object(self.llvm_module)
+        tm = llvm.Target.from_triple(self.cpu_type).create_target_machine()
+        obj = tm.emit_object(self.module.llvm_module)
         _debug_dump_obj(obj)
         return obj
 

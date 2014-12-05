@@ -1,13 +1,12 @@
-from llvm import core as lc
-from llvm import passes as lp
-from llvm import ee as le
+import llvmlite.ir as ll
+import llvmlite.binding as llvm
 
 from artiq.py2llvm import infer_types, ast_body, base_types, fractions, tools
 
 
 class Module:
     def __init__(self, env=None):
-        self.llvm_module = lc.Module.new("main")
+        self.llvm_module = ll.Module("main")
         self.env = env
 
         if self.env is not None:
@@ -15,17 +14,19 @@ class Module:
         fractions.init_module(self)
 
     def finalize(self):
-        pass_manager = lp.PassManager.new()
-        pass_manager.add(lp.PASS_MEM2REG)
-        pass_manager.add(lp.PASS_INSTCOMBINE)
-        pass_manager.add(lp.PASS_REASSOCIATE)
-        pass_manager.add(lp.PASS_GVN)
-        pass_manager.add(lp.PASS_SIMPLIFYCFG)
-        pass_manager.run(self.llvm_module)
+        self.llvm_module = llvm.parse_assembly(str(self.llvm_module))  # FIXME
+        pmb = llvm.create_pass_manager_builder()
+        pmb.opt_level = 2
+        pm = llvm.create_module_pass_manager()
+        pmb.populate(pm)
+        pm.run(self.llvm_module)
 
     def get_ee(self):
         self.finalize()
-        return le.ExecutionEngine.new(self.llvm_module)
+        tm = llvm.Target.from_default_triple().create_target_machine()
+        ee = llvm.create_mcjit_compiler(self.llvm_module, tm)
+        ee.finalize_object()
+        return ee
 
     def emit_object(self):
         self.finalize()
@@ -35,11 +36,12 @@ class Module:
         ns = infer_types.infer_function_types(self.env, func_def, param_types)
         retval = ns["return"]
 
-        function_type = lc.Type.function(retval.get_llvm_type(),
+        function_type = ll.FunctionType(retval.get_llvm_type(),
             [ns[arg.arg].get_llvm_type() for arg in func_def.args.args])
-        function = self.llvm_module.add_function(function_type, func_def.name)
+        function = ll.Function(self.llvm_module, function_type, func_def.name)
         bb = function.append_basic_block("entry")
-        builder = lc.Builder.new(bb)
+        builder = ll.IRBuilder()
+        builder.position_at_end(bb)
 
         for arg_ast, arg_llvm in zip(func_def.args.args, function.args):
             arg_llvm.name = arg_ast.arg
