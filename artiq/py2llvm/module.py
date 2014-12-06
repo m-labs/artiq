@@ -14,17 +14,17 @@ class Module:
         fractions.init_module(self)
 
     def finalize(self):
-        self.llvm_module = llvm.parse_assembly(str(self.llvm_module))  # FIXME
+        self.llvm_module_ref = llvm.parse_assembly(str(self.llvm_module))
         pmb = llvm.create_pass_manager_builder()
         pmb.opt_level = 2
         pm = llvm.create_module_pass_manager()
         pmb.populate(pm)
-        pm.run(self.llvm_module)
+        pm.run(self.llvm_module_ref)
 
     def get_ee(self):
         self.finalize()
         tm = llvm.Target.from_default_triple().create_target_machine()
-        ee = llvm.create_mcjit_compiler(self.llvm_module, tm)
+        ee = llvm.create_mcjit_compiler(self.llvm_module_ref, tm)
         ee.finalize_object()
         return ee
 

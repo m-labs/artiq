@@ -149,7 +149,7 @@ class Environment(LinkInterface):
 
     def emit_object(self):
         tm = llvm.Target.from_triple(self.cpu_type).create_target_machine()
-        obj = tm.emit_object(self.module.llvm_module)
+        obj = tm.emit_object(self.module.llvm_module_ref)
         _debug_dump_obj(obj)
         return obj
 

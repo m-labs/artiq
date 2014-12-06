@@ -117,7 +117,7 @@ class CompiledFunction:
 
         ee = module.get_ee()
         cfptr = ee.get_pointer_to_global(
-            module.llvm_module.get_function(function.name))
+            module.llvm_module_ref.get_function(function.name))
         retval_ctype = _value_to_ctype(retval)
         argval_ctypes = [_value_to_ctype(argval) for argval in argvals]
         self.cfunc = CFUNCTYPE(retval_ctype, *argval_ctypes)(cfptr)
