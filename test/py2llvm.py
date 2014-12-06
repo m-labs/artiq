@@ -3,6 +3,7 @@ import ast
 import inspect
 from fractions import Fraction
 from ctypes import CFUNCTYPE, c_int, c_int32, c_int64, c_double
+import struct
 
 import llvmlite.binding as llvm
 
@@ -15,6 +16,9 @@ from artiq.py2llvm.module import Module
 llvm.initialize()
 llvm.initialize_native_target()
 llvm.initialize_native_asmprinter()
+if struct.calcsize("P") < 8:
+    from ctypes import _dlopen, RTLD_GLOBAL
+    _dlopen("libgcc_s.so", RTLD_GLOBAL)
 
 
 def _base_types(choice):
