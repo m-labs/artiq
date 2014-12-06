@@ -192,24 +192,24 @@ def frac_arith_encode_int_rev(op, a, b, x):
 
 def frac_arith_float(op, a, b, x):
     if op == 0:
-       return Fraction(a, b) - x
+        return Fraction(a, b) - x
     elif op == 1:
-       return Fraction(a, b) + x
+        return Fraction(a, b) + x
     elif op == 2:
-       return Fraction(a, b) * x
+        return Fraction(a, b) * x
     else:
-       return Fraction(a, b) / x
+        return Fraction(a, b) / x
 
 
 def frac_arith_float_rev(op, a, b, x):
     if op == 0:
-       return x - Fraction(a, b)
+        return x - Fraction(a, b)
     elif op == 1:
-       return x + Fraction(a, b)
+        return x + Fraction(a, b)
     elif op == 2:
-       return x * Fraction(a, b)
+        return x * Fraction(a, b)
     else:
-       return x / Fraction(a, b)
+        return x / Fraction(a, b)
 
 
 def array_test():
