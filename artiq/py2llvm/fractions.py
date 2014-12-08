@@ -193,7 +193,7 @@ class VFraction(VGeneric):
             diff = diff.auto_load(builder)
             a = builder.extract_value(diff, 0)
             zero = ll.Constant(ll.IntType(64), 0)
-            ssa_r = builder.icmp(icmp, a, zero)
+            ssa_r = builder.icmp_signed(icmp, a, zero)
             r.auto_store(builder, ssa_r)
         return r
 
