@@ -4,8 +4,8 @@ from artiq.management.worker import Worker
 
 
 class Scheduler:
-    def __init__(self):
-        self.worker = Worker()
+    def __init__(self, *args, **kwargs):
+        self.worker = Worker(*args, **kwargs)
         self.queue = asyncio.Queue()
 
     @asyncio.coroutine

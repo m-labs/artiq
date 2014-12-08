@@ -11,8 +11,10 @@ class WorkerFailed(Exception):
 
 
 class Worker:
-    def __init__(self, send_timeout=0.5, start_reply_timeout=1.0,
-                 term_timeout=1.0):
+    def __init__(self, ddb, pdb,
+                 send_timeout=0.5, start_reply_timeout=1.0, term_timeout=1.0):
+        self.ddb = ddb
+        self.pdb = pdb
         self.send_timeout = send_timeout
         self.start_reply_timeout = start_reply_timeout
         self.term_timeout = term_timeout
@@ -21,6 +23,7 @@ class Worker:
     def create_process(self):
         self.process = yield from asyncio.create_subprocess_exec(
             sys.executable, "-m", "artiq.management.worker_impl",
+            self.ddb, self.pdb,
             stdout=subprocess.PIPE, stdin=subprocess.PIPE)
 
     @asyncio.coroutine

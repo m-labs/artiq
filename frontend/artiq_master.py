@@ -8,7 +8,7 @@ from artiq.management.scheduler import Scheduler
 
 
 def _get_args():
-    parser = argparse.ArgumentParser(description="PDQ2 controller")
+    parser = argparse.ArgumentParser(description="ARTIQ master")
     parser.add_argument(
         "--bind", default="::1",
         help="hostname or IP address to bind to")
@@ -22,7 +22,7 @@ def main():
     args = _get_args()
     loop = asyncio.get_event_loop()
     try:
-        scheduler = Scheduler()
+        scheduler = Scheduler("ddb.pyon", "pdb.pyon")
         loop.run_until_complete(scheduler.start())
         try:
             server = Server(scheduler, "master")

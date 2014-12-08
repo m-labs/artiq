@@ -13,10 +13,22 @@ def _get_args():
     parser.add_argument(
         "--port", default=8888, type=int,
         help="TCP port to use to connect to the master")
-    parser.add_argument(
-        "-o", "--run-once", default=[], nargs=3,
-        action="append",
-        help="run experiment once. arguments: <path> <name> <timeout>")
+
+    subparsers = parser.add_subparsers(dest="action")
+
+    parser_add = subparsers.add_parser("add", help="add an experiment")
+    parser_add.add_argument(
+        "-p", "--periodic", default=None, type=float,
+        help="run the experiment periodically every given number of seconds")
+    parser_add.add_argument(
+        "-t", "--timeout", default=None, type=float,
+        help="specify a timeout for the experiment to complete")
+    parser_add.add_argument("-f", "--function", default="run",
+                            help="function to run")
+    parser_add.add_argument("-u", "--unit", default=None,
+                            help="unit to run")
+    parser_add.add_argument("file", help="file containing the unit to run")
+
     return parser.parse_args()
 
 
@@ -24,12 +36,16 @@ def main():
     args = _get_args()
     remote = Client(args.server, args.port, "master")
     try:
-        for path, name, timeout in args.run_once:
-            remote.run_once(
-                {
-                    "path": path,
-                    "name": name
-                }, int(timeout))
+        if args.action == "add":
+            if args.periodic is None:
+                remote.run_once(
+                    {
+                        "file": args.file,
+                        "unit": args.unit,
+                        "function": args.function
+                    }, args.timeout)
+            else:
+                raise NotImplementedError
     finally:
         remote.close_rpc()
 

@@ -57,7 +57,10 @@ def main():
             module = file_import(args.file)
             if args.unit is None:
                 units = [(k, v) for k, v in module.__dict__.items()
-                         if k[0] != "_" and isclass(v) and issubclass(v, AutoContext) and v is not AutoContext]
+                         if k[0] != "_"
+                            and isclass(v)
+                            and issubclass(v, AutoContext)
+                            and v is not AutoContext]
                 l = len(units)
                 if l == 0:
                     print("No units found in module")
