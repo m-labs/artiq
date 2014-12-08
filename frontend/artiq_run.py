@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 import argparse
-import importlib
 import sys
 from inspect import isclass
 from operator import itemgetter
 
+from artiq.management.file_import import file_import
 from artiq.language.context import *
 from artiq.management import pyon
 from artiq.management.dpdb import DeviceParamDB
@@ -37,8 +37,8 @@ def _get_args():
                         help="function to run")
     parser.add_argument("-u", "--unit", default=None,
                         help="unit to run")
-    parser.add_argument("module",
-                        help="module containing the unit to run")
+    parser.add_argument("file",
+                        help="file containing the unit to run")
 
     return parser.parse_args()
 
@@ -54,8 +54,7 @@ def main():
             unit_inst = ELFRunner(dpdb)
             unit_inst.run(args.file, args.function)
         else:
-            sys.path.append(".")
-            module = importlib.import_module(args.module)
+            module = file_import(args.file)
             if args.unit is None:
                 units = [(k, v) for k, v in module.__dict__.items()
                          if k[0] != "_" and isclass(v) and issubclass(v, AutoContext) and v is not AutoContext]
