@@ -41,22 +41,22 @@ void dds_phase_clear_en(int channel, int phase_clear_en)
 
 /*
  * DDS phase modes:
- * - continuous: Set phase_per_microcycle=0 to disable POW alteration.
+ * - continuous: Set sysclk_per_microcycle=0 to disable POW alteration.
  *               phase_tracking is ignored, set to 0.
  *               Disable phase accumulator clearing prior to programming.
- * - absolute:   Set phase_per_microcycle to its nominal value
+ * - absolute:   Set sysclk_per_microcycle to its nominal value
  *               and phase_tracking=0.
  *               Enable phase accumulator clearing prior to programming.
- * - tracking:   Set phase_per_microcycle to its nominal value
+ * - tracking:   Set sysclk_per_microcycle to its nominal value
  *               and phase_tracking=1.
 *                Enable phase accumulator clearing prior to programming.
  */
 void dds_program(long long int timestamp, int channel,
-    int ftw, int pow, long long int phase_per_microcycle,
+    unsigned int ftw, unsigned int pow, unsigned int sysclk_per_microcycle,
     int rt_fud, int phase_tracking)
 {
     long long int fud_time;
-    long long int phase_time_offset;
+    unsigned int phase_time_offset;
 
     rtio_fud_sync();
     DDS_WRITE(DDS_GPIO, channel);
@@ -71,9 +71,10 @@ void dds_program(long long int timestamp, int channel,
         fud_time = timestamp;
     else {
         fud_time = rtio_get_counter() + 8000;
+        /* POW is mod 2**14, so wraparound on negative values is OK */
         phase_time_offset -= timestamp - fud_time;
     }
-    pow += phase_time_offset*phase_per_microcycle;
+    pow += phase_time_offset*ftw*sysclk_per_microcycle >> 18;
     DDS_WRITE(DDS_POW0, pow & 0xff);
     DDS_WRITE(DDS_POW1, (pow >> 8) & 0x3f);
 

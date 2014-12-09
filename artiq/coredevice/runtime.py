@@ -20,7 +20,7 @@ _syscalls = {
     "rtio_get": "iI:I",
     "rtio_pileup_count": "i:i",
     "dds_phase_clear_en": "ib:n",
-    "dds_program": "IiiiIbb:n",
+    "dds_program": "Iiiiibb:n",
 }
 
 _chr_to_type = {

@@ -100,15 +100,14 @@ class DDS(AutoContext):
             # Use soft timing on FUD to prevent conflicts when reprogramming
             # several channels that need to be turned on at the same time.
             rt_fud = merge or self.previous_on
-            ftw = self.frequency_to_ftw(frequency)
             if self.phase_mode != PHASE_MODE_CONTINUOUS:
-                phase_per_microcycle = ftw*int64(
-                    self.dds_sysclk.amount*self.core.runtime_env.ref_period)
+                sysclk_per_microcycle = int(self.dds_sysclk*
+                                            self.core.ref_period)
             else:
-                phase_per_microcycle = int64(0)
+                sysclk_per_microcycle = 0
             syscall("dds_program", time_to_cycles(now()), self.reg_channel,
-               ftw, int(phase_offset*2**14),
-               phase_per_microcycle,
+               self.frequency_to_ftw(frequency), int(phase_offset*2**14),
+               sysclk_per_microcycle,
                rt_fud, self.phase_mode == PHASE_MODE_TRACKING)
             self.previous_frequency = frequency
         self.sw.on()
