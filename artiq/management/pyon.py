@@ -23,6 +23,8 @@ from fractions import Fraction
 
 import numpy
 
+from artiq.language.units import Quantity
+
 
 _encode_map = {
     type(None): "none",
@@ -34,6 +36,7 @@ _encode_map = {
     list: "list",
     dict: "dict",
     Fraction: "fraction",
+    Quantity: "quantity",
     numpy.ndarray: "nparray"
 }
 
@@ -100,6 +103,10 @@ class _Encoder:
         return "Fraction({}, {})".format(encode(x.numerator),
                                          encode(x.denominator))
 
+    def encode_quantity(self, x):
+        return "Quantity({}, {})".format(encode(x.amount),
+                                         encode(x.unit))
+
     def encode_nparray(self, x):
         r = "nparray("
         r += encode(x.shape) + ", "
@@ -133,6 +140,7 @@ _eval_dict = {
     "true": True,
 
     "Fraction": Fraction,
+    "Quantity": Quantity,
     "nparray": _nparray
 }
 
