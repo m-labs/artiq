@@ -6,7 +6,8 @@ from artiq.management.worker import Worker
 class Scheduler:
     def __init__(self, *args, **kwargs):
         self.worker = Worker(*args, **kwargs)
-        self.queue = asyncio.Queue()
+        self.queued = []
+        self.queue_count = asyncio.Semaphore(0)
 
     @asyncio.coroutine
     def start(self):
@@ -21,11 +22,13 @@ class Scheduler:
         yield from self.worker.end_process()
 
     def run_once(self, run_params, timeout):
-        self.queue.put_nowait((run_params, timeout))
+        self.queued.append((run_params, timeout))
+        self.queue_count.release()
 
     @asyncio.coroutine
     def _schedule(self):
         while True:
-            run_params, timeout = yield from self.queue.get()
+            yield from self.queue_count.acquire()
+            run_params, timeout = self.queued.pop(0)
             result = yield from self.worker.run(run_params, timeout)
             print(result)
