@@ -57,7 +57,7 @@ class Core(AutoContext):
             self.ref_period = self.runtime_env.internal_ref_period
             self.comm.switch_clock(False)
         else:
-            self.ref_period = self.external_clock
+            self.ref_period = 1/self.external_clock
             self.comm.switch_clock(True)
         self.initial_time = int64(self.runtime_env.warmup_time/self.ref_period)
 
