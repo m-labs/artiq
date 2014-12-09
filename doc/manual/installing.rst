@@ -128,7 +128,6 @@ Installing the host-side software
         $ git clone https://github.com/openrisc/llvm-or1k
         $ cd ~/artiq-dev/llvm-or1k/tools
         $ git clone https://github.com/openrisc/clang-or1k clang
-        $ cd ~/artiq-dev/llvm-or1k/tools/clang
 
         $ cd ~/artiq-dev/llvm-or1k
         $ mkdir build
