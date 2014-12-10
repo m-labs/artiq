@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import time
 
 from prettytable import PrettyTable
 
@@ -70,10 +71,8 @@ def _action_cancel(remote, args):
 
 
 def _action_show(remote, args):
-    ce, queue = remote.get_schedule()
-    if ce is None and not queue:
-        print("Queue is empty")
-    else:
+    ce, queue, periodic = remote.get_schedule()
+    if ce is not None or queue:
         table = PrettyTable(["RID", "File", "Unit", "Function", "Timeout"])
         if ce is not None:
             rid, run_params, timeout, t = ce
@@ -89,6 +88,23 @@ def _action_show(remote, args):
             table.add_row(row)
         print("Run queue:")
         print(table)
+    else:
+        print("Queue is empty")
+    if periodic:
+        table = PrettyTable(["Next run", "PRID", "File", "Unit", "Function",
+                             "Timeout", "Period"])
+        print("Periodic schedule:")
+        sp = sorted(periodic.items(), key=lambda x: x[1][0])
+        for prid, (next_run, run_params, timeout, period) in sp:
+            row = [time.strftime("%m/%d %H:%M:%S", time.localtime(next_run)),
+                   prid, run_params["file"]]
+            for x in run_params["unit"], run_params["function"], timeout:
+                row.append("-" if x is None else x)
+            row.append(period)
+            table.add_row(row)
+        print(table)
+    else:
+        print("No periodic schedule")
 
 
 def main():
