@@ -5,8 +5,7 @@ import argparse
 from artiq.management.pc_rpc import Client
 
 
-if __name__ == "__main__":
-
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--server', default="::1",
                         help="The IP address or hostname of the controller")
@@ -25,3 +24,6 @@ if __name__ == "__main__":
             remote.set_attenuation(args.attenuation)
     finally:
         remote.close_rpc()
+
+if __name__ == "__main__":
+    main()

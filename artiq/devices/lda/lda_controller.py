@@ -165,8 +165,7 @@ class Lda:
         """
         self.set(0x8d, bytes(chr(int(round(attenuation*4))), 'ascii'))
 
-
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--device', default="LDA-102",
                         choices=["LDA-102", "LDA-602", "sim"])
@@ -185,3 +184,6 @@ if __name__ == "__main__":
 
     simple_server_loop(lda, "lda",
                        args.bind, args.port)
+
+if __name__ == "__main__":
+    main()
