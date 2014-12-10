@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf8 -*-
 
 from setuptools import setup, find_packages
 from glob import glob
@@ -16,7 +15,7 @@ setup(
     long_description = open("README.rst").read(),
     license = "BSD",
     install_requires = [
-        "sphinx", "numpy", "scipy"
+        "sphinx", "numpy", "scipy", "prettytable"
     ],
     extras_require = {},
     dependency_links = [],
