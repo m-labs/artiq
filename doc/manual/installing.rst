@@ -140,7 +140,7 @@ Installing the host-side software
         $ git clone https://github.com/numba/llvmlite
         $ cd ~/artiq-dev/llvmlite
         $ cat ~/artiq-dev/artiq/patches/llvmlite/* | patch -p1
-        $ LLVM_CONFIG_PATH=/usr/local/llvm-or1k/bin/llvm-config sudo -E python setup.py install
+        $ PATH=/usr/local/llvm-or1k/bin:$PATH sudo -E python setup.py install
 
 .. note::
     llvmlite is in development and its API is not stable yet. Commit ID ``11a8303d02e3d6dd2d1e0e9065701795cd8a979f`` is known to work.
