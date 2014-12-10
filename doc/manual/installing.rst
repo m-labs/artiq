@@ -96,7 +96,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 * Build and flash the bitstream and BIOS by running `from the MiSoC top-level directory` ::
 
         $ cd ~/artiq-dev/misoc
-        $ ./make.py -X ~/artiq/soc -t artiq all
+        $ ./make.py -X ~/artiq-dev/artiq/soc -t artiq all
 
 * Then, build and flash the ARTIQ runtime:
     
@@ -139,7 +139,7 @@ Installing the host-side software
         $ cd ~/artiq-dev
         $ git clone https://github.com/numba/llvmlite
         $ cd ~/artiq-dev/llvmlite
-        $ cat /path_to/artiq/patches/llvmlite/* | patch -p1
+        $ cat ~/artiq-dev/artiq/patches/llvmlite/* | patch -p1
         $ LLVM_CONFIG_PATH=/usr/local/llvm-or1k/bin/llvm-config sudo -E python setup.py install
 
 .. note::
