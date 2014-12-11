@@ -98,8 +98,8 @@ class Scheduler:
 
     @asyncio.coroutine
     def _schedule(self):
-        next_periodic = yield from self._run_periodic()
         while True:
+            next_periodic = yield from self._run_periodic()
             ev_queue = asyncio.Task(self.queue_count.acquire())
             ev_periodic = asyncio.Task(self.periodic_modified.wait())
             done, pend = yield from asyncio.wait(
@@ -109,7 +109,7 @@ class Scheduler:
             for t in pend:
                 t.cancel()
 
-            next_periodic = yield from self._run_periodic()
+            yield from self._run_periodic()
             if ev_queue in done:
                 rid, run_params, timeout = self.queued.pop(0)
                 result = yield from self._run(rid, run_params, timeout)
