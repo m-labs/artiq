@@ -8,11 +8,11 @@ from artiq.management.pc_rpc import Client
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--server', default="::1",
-                        help="The IP address or hostname of the controller")
+                        help="hostname or IP of the controller to connect to")
     parser.add_argument('-p', '--port', default=8890, type=int,
-                        help="The TCP port the controller listens to")
+                        help="TCP port to use to connect to the controller")
     parser.add_argument('-a', '--attenuation', type=float,
-                        help="The attenuation value you want to set")
+                        help="attenuation value to set")
     args = parser.parse_args()
 
     remote = Client(args.server, args.port, "lda")
