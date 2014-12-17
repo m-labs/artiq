@@ -50,6 +50,7 @@ class _Misc(AutoContext):
     def build(self):
         self.input = 84
         self.inhomogeneous_units = []
+        self.al = [1, 2, 3, 4, 5]
 
     @kernel
     def run(self):
@@ -59,6 +60,9 @@ class _Misc(AutoContext):
         self.decimal_fraction_d = int(decimal_fraction.denominator)
         self.inhomogeneous_units.append(Quantity(1000, "Hz"))
         self.inhomogeneous_units.append(Quantity(10, "s"))
+        self.acc = 0
+        for i in range(5):
+            self.acc += self.al[i]
 
     @kernel
     def dimension_error1(self):
@@ -185,6 +189,7 @@ class ExecutionCase(unittest.TestCase):
                              Fraction("1.2"))
             self.assertEqual(uut.inhomogeneous_units, [
                 Quantity(1000, "Hz"), Quantity(10, "s")])
+            self.assertEqual(uut.acc, sum(uut.al))
             with self.assertRaises(DimensionError):
                 uut.dimension_error1()
             with self.assertRaises(DimensionError):

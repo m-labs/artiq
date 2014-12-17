@@ -54,6 +54,9 @@ def value_to_ast(value):
             keywords=[], starargs=None, kwargs=None)
     elif isinstance(value, str):
         return ast.Str(value)
+    elif isinstance(value, list):
+        elts = [value_to_ast(elt) for elt in value]
+        return ast.List(elts, ast.Load())
     else:
         for kg in core_language.kernel_globals:
             if value is getattr(core_language, kg):
