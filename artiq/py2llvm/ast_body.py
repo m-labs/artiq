@@ -2,7 +2,7 @@ import ast
 
 import llvmlite.ir as ll
 
-from artiq.py2llvm import values, base_types, fractions, arrays, iterators
+from artiq.py2llvm import values, base_types, fractions, lists, iterators
 from artiq.py2llvm.tools import is_terminated
 
 
@@ -177,14 +177,6 @@ class Visitor:
                 denominator = self.visit_expression(node.args[1])
                 r.set_value_nd(self.builder, numerator, denominator)
             return r
-        elif fn == "array":
-            element = self.visit_expression(node.args[0])
-            if (isinstance(node.args[1], ast.Num)
-                    and isinstance(node.args[1].n, int)):
-                count = node.args[1].n
-            else:
-                raise ValueError("Array size must be integer and constant")
-            return arrays.VArray(element, count)
         elif fn == "range":
             return iterators.IRange(
                 self.builder,
@@ -200,6 +192,56 @@ class Visitor:
     def _visit_expr_Attribute(self, node):
         value = self.visit_expression(node.value)
         return value.o_getattr(node.attr, self.builder)
+
+    def _visit_expr_List(self, node):
+        elts = [self.visit_expression(elt) for elt in node.elts]
+        if elts:
+            el_type = elts[0].new()
+            for elt in elts[1:]:
+                el_type.merge(elt)
+        else:
+            el_type = VNone()
+        count = len(elts)
+        r = lists.VList(el_type, count)
+        r.elts = elts
+        return r
+
+    def _visit_expr_ListComp(self, node):
+        if len(node.generators) != 1:
+            raise NotImplementedError
+        generator = node.generators[0]
+        if not isinstance(generator, ast.comprehension):
+            raise NotImplementedError
+        if not isinstance(generator.target, ast.Name):
+            raise NotImplementedError
+        target = generator.target.id
+        if not isinstance(generator.iter, ast.Call):
+            raise NotImplementedError
+        if not isinstance(generator.iter.func, ast.Name):
+            raise NotImplementedError
+        if generator.iter.func.id != "range":
+            raise NotImplementedError
+        if len(generator.iter.args) != 1:
+            raise NotImplementedError
+        if not isinstance(generator.iter.args[0], ast.Num):
+            raise NotImplementedError
+        count = generator.iter.args[0].n
+
+        # Prevent incorrect use of the generator target, if it is defined in
+        # the local function namespace.
+        if target in self.ns:
+            old_target_val = self.ns[target]
+            del self.ns[target]
+        else:
+            old_target_val = None
+        elt = self.visit_expression(node.elt)
+        if old_target_val is not None:
+            self.ns[target] = old_target_val
+
+        el_type = elt.new()
+        r = lists.VList(el_type, count)
+        r.elt = elt
+        return r
 
     def _visit_expr_Subscript(self, node):
         value = self.visit_expression(node.value)
@@ -227,9 +269,47 @@ class Visitor:
 
     def _visit_stmt_Assign(self, node):
         val = self.visit_expression(node.value)
-        for target in node.targets:
-            target = self.visit_expression(target)
-            target.set_value(self.builder, val)
+        if isinstance(node.value, ast.List):
+            if len(node.targets) > 1:
+                raise NotImplementedError
+            target = self.visit_expression(node.targets[0])
+            target.set_count(self.builder, val.alloc_count)
+            for i, elt in enumerate(val.elts):
+                idx = base_types.VInt()
+                idx.set_const_value(self.builder, i)
+                target.o_subscript(idx, self.builder).set_value(self.builder,
+                                                                elt)
+        elif isinstance(node.value, ast.ListComp):
+            if len(node.targets) > 1:
+                raise NotImplementedError
+            target = self.visit_expression(node.targets[0])
+            target.set_count(self.builder, val.alloc_count)
+
+            i = base_types.VInt()
+            i.alloca(self.builder)
+            i.auto_store(self.builder, ll.Constant(ll.IntType(32), 0))
+
+            function = self.builder.basic_block.function
+            copy_block = function.append_basic_block("ai_copy")
+            end_block = function.append_basic_block("ai_end")
+            self.builder.branch(copy_block)
+
+            self.builder.position_at_end(copy_block)
+            target.o_subscript(i, self.builder).set_value(self.builder,
+                                                          val.elt)
+            i.auto_store(self.builder, self.builder.add(
+                i.auto_load(self.builder),
+                ll.Constant(ll.IntType(32), 1)))
+            cont = self.builder.icmp_signed(
+                "<", i.auto_load(self.builder),
+                ll.Constant(ll.IntType(32), val.alloc_count))
+            self.builder.cbranch(cont, copy_block, end_block)
+
+            self.builder.position_at_end(end_block)
+        else:
+            for target in node.targets:
+                target = self.visit_expression(target)
+                target.set_value(self.builder, val)
 
     def _visit_stmt_AugAssign(self, node):
         target = self.visit_expression(node.target)

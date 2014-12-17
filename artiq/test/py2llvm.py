@@ -7,9 +7,9 @@ import struct
 
 import llvmlite.binding as llvm
 
-from artiq.language.core import int64, array
+from artiq.language.core import int64
 from artiq.py2llvm.infer_types import infer_function_types
-from artiq.py2llvm import base_types, arrays
+from artiq.py2llvm import base_types, lists
 from artiq.py2llvm.module import Module
 
 
@@ -71,22 +71,22 @@ class FunctionBaseTypesCase(unittest.TestCase):
         self.assertEqual(self.ns["return"].nbits, 64)
 
 
-def test_array_types():
-    a = array(0, 5)
+def test_list_types():
+    a = [0, 0, 0, 0, 0]
     for i in range(2):
         a[i] = int64(8)
     return a
 
 
-class FunctionArrayTypesCase(unittest.TestCase):
+class FunctionListTypesCase(unittest.TestCase):
     def setUp(self):
-        self.ns = _build_function_types(test_array_types)
+        self.ns = _build_function_types(test_list_types)
 
-    def test_array_types(self):
-        self.assertIsInstance(self.ns["a"], arrays.VArray)
-        self.assertIsInstance(self.ns["a"].el_init, base_types.VInt)
-        self.assertEqual(self.ns["a"].el_init.nbits, 64)
-        self.assertEqual(self.ns["a"].count, 5)
+    def test_list_types(self):
+        self.assertIsInstance(self.ns["a"], lists.VList)
+        self.assertIsInstance(self.ns["a"].el_type, base_types.VInt)
+        self.assertEqual(self.ns["a"].el_type.nbits, 64)
+        self.assertEqual(self.ns["a"].alloc_count, 5)
         self.assertIsInstance(self.ns["i"], base_types.VInt)
         self.assertEqual(self.ns["i"].nbits, 32)
 
@@ -212,20 +212,19 @@ def frac_arith_float_rev(op, a, b, x):
         return x / Fraction(a, b)
 
 
-def array_test():
-    a = array(array(2, 5), 5)
-    a[3][2] = 11
-    a[4][1] = 42
-    a[0][0] += 6
+def list_test():
+    x = 80
+    a = [3 for x in range(7)]
+    b = [1, 2, 4, 5, 4, 0, 5]
+    a[3] = x
+    a[0] += 6
+    a[1] = b[1] + b[2]
 
     acc = 0
-    for i in range(5):
-        for j in range(5):
-            if i + j == 2 or i + j == 1:
-                continue
-            if i and j and a[i][j]:
-                acc += 1
-            acc += a[i][j]
+    for i in range(7):
+        if i and a[i]:
+            acc += 1
+        acc += a[i]
     return acc
 
 
@@ -364,9 +363,9 @@ class CodeGenCase(unittest.TestCase):
         self._test_frac_arith_float(3, False)
         self._test_frac_arith_float(3, True)
 
-    def test_array(self):
-        array_test_c = CompiledFunction(array_test, dict())
-        self.assertEqual(array_test_c(), array_test())
+    def test_list(self):
+        list_test_c = CompiledFunction(list_test, dict())
+        self.assertEqual(list_test_c(), list_test())
 
     def test_corner_cases(self):
         corner_cases_c = CompiledFunction(corner_cases, dict())

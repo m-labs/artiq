@@ -94,7 +94,7 @@ class Transport(AutoContext):
 
     @kernel
     def repeat(self):
-        hist = array(0, self.nbins)
+        hist = [0 for _ in range(self.nbins)]
 
         for i in range(self.repeats):
             n = self.one()

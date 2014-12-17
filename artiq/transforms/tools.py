@@ -10,7 +10,7 @@ embeddable_funcs = (
     core_language.time_to_cycles, core_language.cycles_to_time,
     core_language.syscall,
     range, bool, int, float, round,
-    core_language.int64, core_language.round64, core_language.array,
+    core_language.int64, core_language.round64,
     Fraction, units.Quantity, units.check_unit, core_language.EncodedException
 )
 embeddable_func_names = {func.__name__ for func in embeddable_funcs}

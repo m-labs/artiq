@@ -4,7 +4,6 @@ Core ARTIQ extensions to the Python language.
 """
 
 from collections import namedtuple as _namedtuple
-from copy import copy as _copy
 from functools import wraps as _wraps
 
 from artiq.language import units as _units
@@ -69,21 +68,6 @@ def round64(x):
 
     """
     return int64(round(x))
-
-
-def array(element, count):
-    """Creates an array.
-
-    The array is initialized with the value of ``element`` repeated ``count``
-    times. Elements can be read and written using the regular Python index
-    syntax.
-
-    For static compilation, ``count`` must be a fixed integer.
-
-    Arrays of arrays are supported.
-
-    """
-    return [_copy(element) for i in range(count)]
 
 
 _KernelFunctionInfo = _namedtuple("_KernelFunctionInfo", "core_name k_function")

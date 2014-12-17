@@ -66,7 +66,7 @@ A number of Python algorithmic features can be used inside a kernel for compilat
 * 64-bit signed integers (:class:`artiq.language.core.int64`)
 * Signed rational numbers with 64-bit numerator and 64-bit denominator
 * Double-precision floating point numbers
-* Arrays of the above types and arrays of arrays, at an arbitrary depth (:class:`artiq.language.core.array`)
+* Lists of the above types. Lists of lists are not supported.
 
 For a demonstration of some of these features, see the ``mandelbrot.py`` example.
 

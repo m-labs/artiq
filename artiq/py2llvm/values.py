@@ -39,7 +39,7 @@ class VGeneric:
             raise RuntimeError(
                 "Attempted to set LLVM SSA value multiple times")
 
-    def alloca(self, builder, name):
+    def alloca(self, builder, name=""):
         if self.llvm_value is not None:
             raise RuntimeError("Attempted to alloca existing LLVM value "+name)
         self.llvm_value = builder.alloca(self.get_llvm_type(), name=name)
