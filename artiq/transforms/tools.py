@@ -9,7 +9,7 @@ embeddable_funcs = (
     core_language.delay, core_language.at, core_language.now,
     core_language.time_to_cycles, core_language.cycles_to_time,
     core_language.syscall,
-    range, bool, int, float, round,
+    range, bool, int, float, round, len,
     core_language.int64, core_language.round64,
     Fraction, units.Quantity, units.check_unit, core_language.EncodedException
 )

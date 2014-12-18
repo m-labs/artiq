@@ -1,6 +1,7 @@
 import llvmlite.ir as ll
 
 from artiq.py2llvm.values import VGeneric
+from artiq.py2llvm.base_types import VInt
 
 
 class VList(VGeneric):
@@ -39,6 +40,15 @@ class VList(VGeneric):
             ll.Constant(ll.IntType(32), 0),
             ll.Constant(ll.IntType(32), 0)])
         builder.store(ll.Constant(ll.IntType(32), count), count_ptr)
+
+    def o_len(self, builder):
+        r = VInt()
+        if builder is not None:
+            count_ptr = builder.gep(self.llvm_value, [
+                ll.Constant(ll.IntType(32), 0),
+                ll.Constant(ll.IntType(32), 0)])
+            r.auto_store(builder, builder.load(count_ptr))
+        return r
 
     def o_subscript(self, index, builder):
         r = self.el_type.new()

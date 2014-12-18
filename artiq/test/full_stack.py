@@ -61,7 +61,7 @@ class _Misc(AutoContext):
         self.inhomogeneous_units.append(Quantity(1000, "Hz"))
         self.inhomogeneous_units.append(Quantity(10, "s"))
         self.acc = 0
-        for i in range(5):
+        for i in range(len(self.al)):
             self.acc += self.al[i]
 
     @kernel

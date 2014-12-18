@@ -167,9 +167,9 @@ class Visitor:
 
     def _visit_expr_Call(self, node):
         fn = node.func.id
-        if fn in {"bool", "int", "int64", "round", "round64", "float"}:
+        if fn in {"bool", "int", "int64", "round", "round64", "float", "len"}:
             value = self.visit_expression(node.args[0])
-            return getattr(value, "o_"+fn)(self.builder)
+            return getattr(value, "o_" + fn)(self.builder)
         elif fn == "Fraction":
             r = fractions.VFraction()
             if self.builder is not None:
