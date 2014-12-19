@@ -30,7 +30,14 @@ class VList(VGeneric):
 
     def merge(self, other):
         if isinstance(other, VList):
-            self.el_type.merge(other.el_type)
+            if self.alloc_count:
+                if other.alloc_count:
+                    self.el_type.merge(other.el_type)
+                    if self.alloc_count < other.alloc_count:
+                        self.alloc_count = other.alloc_count
+            else:
+                self.el_type = other.el_type.new()
+                self.alloc_count = other.alloc_count
         else:
             raise TypeError("Incompatible types: {} and {}"
                             .format(repr(self), repr(other)))

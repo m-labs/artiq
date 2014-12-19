@@ -200,7 +200,7 @@ class Visitor:
             for elt in elts[1:]:
                 el_type.merge(elt)
         else:
-            el_type = VNone()
+            el_type = base_types.VNone()
         count = len(elts)
         r = lists.VList(el_type, count)
         r.elts = elts
