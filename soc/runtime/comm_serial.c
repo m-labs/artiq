@@ -181,17 +181,59 @@ void comm_serve(object_loader load_object, kernel_runner run_kernel)
     }
 }
 
-int comm_rpc(int rpc_num, int n_args, ...)
+static int send_value(int type_tag, void *value)
 {
+    char base_type;
+    int i, p;
+    int len;
+
+    base_type = type_tag;
+    send_char(base_type);
+    switch(base_type) {
+        case 'n':
+            return 0;
+        case 'b':
+            if(*(char *)value)
+                send_char(1);
+            else
+                send_char(0);
+            return 1;
+        case 'i':
+            send_int(*(int *)value);
+            return 4;
+        case 'I':
+        case 'f':
+            send_int(*(int *)value);
+            send_int(*((int *)value + 1));
+            return 8;
+        case 'F':
+            for(i=0;i<4;i++)
+                send_int(*((int *)value + i));
+            return 16;
+        case 'l':
+            len = *(int *)value;
+            p = 4;
+            for(i=0;i<len;i++)
+                p += send_value(type_tag >> 8, (char *)value + p);
+            send_char(0);
+            return p;
+    }
+    return 0;
+}
+
+int comm_rpc(int rpc_num, ...)
+{
+    int type_tag;
+
     send_char(MSGTYPE_RPC_REQUEST);
     send_sint(rpc_num);
-    send_char(n_args);
 
     va_list args;
-    va_start(args, n_args);
-    while(n_args--)
-        send_int(va_arg(args, int));
+    va_start(args, rpc_num);
+    while((type_tag = va_arg(args, int)))
+        send_value(type_tag, type_tag == 'n' ? NULL : va_arg(args, void *));
     va_end(args);
+    send_char(0);
 
     return receive_int();
 }

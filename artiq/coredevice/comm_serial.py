@@ -171,33 +171,58 @@ class Comm(AutoContext):
         _write_exactly(self.port, struct.pack(
             ">lbl", 0x5a5a5a5a, _H2DMsgType.RUN_KERNEL.value, len(kname)))
         for c in kname:
-            _write_exactly(self.port, struct.pack("B", ord(c)))
+            _write_exactly(self.port, struct.pack(">B", ord(c)))
         logger.debug("running kernel: {}".format(kname))
+
+    def _receive_rpc_values(self):
+        r = []
+        while True:
+            type_tag = chr(struct.unpack(">B", _read_exactly(self.port, 1))[0])
+            if type_tag == "\x00":
+                return r
+            if type_tag == "n":
+                r.append(None)
+            if type_tag == "b":
+                r.append(bool(struct.unpack(">B",
+                                            _read_exactly(self.port, 1))[0]))
+            if type_tag == "i":
+                r.append(struct.unpack(">l", _read_exactly(self.port, 4))[0])
+            if type_tag == "I":
+                r.append(struct.unpack(">q", _read_exactly(self.port, 8))[0])
+            if type_tag == "f":
+                r.append(struct.unpack(">d", _read_exactly(self.port, 8))[0])
+            if type_tag == "F":
+                n, d = struct.unpack(">qq", _read_exactly(self.port, 16))
+                r.append(Fraction(n, d))
+            if type_tag == "l":
+                r.append(self._receive_rpc_values())
+
+    def _serve_rpc(self, rpc_map):
+        (rpc_num, ) = struct.unpack(">h", _read_exactly(self.port, 2))
+        args = self._receive_rpc_values()
+        logger.debug("rpc service: {} ({})".format(rpc_num, args))
+        r = rpc_map[rpc_num](*args)
+        if r is None:
+            r = 0
+        _write_exactly(self.port, struct.pack(">l", r))
+        logger.debug("rpc service: {} ({}) == {}".format(
+            rpc_num, args, r))
+
+    def _serve_exception(self, user_exception_map):
+        (eid, ) = struct.unpack(">l", _read_exactly(self.port, 4))
+        if eid < core_language.first_user_eid:
+            exception = runtime_exceptions.exception_map[eid]
+        else:
+            exception = user_exception_map[eid]
+        raise exception
 
     def serve(self, rpc_map, user_exception_map):
         while True:
             msg = self._get_device_msg()
             if msg == _D2HMsgType.RPC_REQUEST:
-                rpc_num, n_args = struct.unpack(">hB",
-                                                _read_exactly(self.port, 3))
-                args = []
-                for i in range(n_args):
-                    args.append(*struct.unpack(">l",
-                                               _read_exactly(self.port, 4)))
-                logger.debug("rpc service: {} ({})".format(rpc_num, args))
-                r = rpc_map[rpc_num](*args)
-                if r is None:
-                    r = 0
-                _write_exactly(self.port, struct.pack(">l", r))
-                logger.debug("rpc service: {} ({}) == {}".format(
-                    rpc_num, args, r))
+                self._serve_rpc(rpc_map)
             elif msg == _D2HMsgType.KERNEL_EXCEPTION:
-                (eid, ) = struct.unpack(">l", _read_exactly(self.port, 4))
-                if eid < core_language.first_user_eid:
-                    exception = runtime_exceptions.exception_map[eid]
-                else:
-                    exception = user_exception_map[eid]
-                raise exception
+                self._serve_exception(user_exception_map)
             elif msg == _D2HMsgType.KERNEL_FINISHED:
                 return
             else:

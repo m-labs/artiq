@@ -447,17 +447,6 @@ def get_attr_writeback(attribute_namespace, rpc_mapper, loc_node):
     attr_writeback = []
     for (_, attr), attr_info in attribute_namespace.items():
         if attr_info.read_write:
-            # HACK/FIXME: since RPC of non-int is not supported yet, skip
-            # writeback of other types for now.
-            # This code breaks if an int is promoted to int64
-            if hasattr(attr_info.obj, attr):
-                val = getattr(attr_info.obj, attr)
-                if (not isinstance(val, int)
-                        or isinstance(val, core_language.int64)
-                        or isinstance(val, bool)):
-                    continue
-            #
-
             setter = partial(setattr, attr_info.obj, attr)
             func = ast.copy_location(
                 ast.Name("syscall", ast.Load()), loc_node)
