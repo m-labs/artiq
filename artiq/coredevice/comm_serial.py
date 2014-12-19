@@ -1,5 +1,4 @@
-import os
-import termios
+import serial
 import struct
 import zlib
 from enum import Enum
@@ -66,27 +65,14 @@ class Comm(AutoContext):
     implicit_core = False
 
     def build(self):
-        self._fd = os.open(self.serial_dev, os.O_RDWR | os.O_NOCTTY)
-        self.port = os.fdopen(self._fd, "r+b", buffering=0)
-        self.set_baud(115200)
+        self.port = serial.Serial(self.serial_dev, baudrate=115200)
+        self.port.flush()
         self.set_remote_baud(self.baud_rate)
         self.set_baud(self.baud_rate)
 
     def set_baud(self, baud):
-        iflag, oflag, cflag, lflag, ispeed, ospeed, cc = \
-            termios.tcgetattr(self._fd)
-        iflag = termios.IGNBRK | termios.IGNPAR
-        oflag = 0
-        cflag |= termios.CLOCAL | termios.CREAD | termios.CS8
-        lflag = 0
-        ispeed = ospeed = getattr(termios, "B"+str(baud))
-        cc[termios.VMIN] = 1
-        cc[termios.VTIME] = 0
-        termios.tcsetattr(self._fd, termios.TCSANOW, [
-            iflag, oflag, cflag, lflag, ispeed, ospeed, cc])
-        termios.tcdrain(self._fd)
-        termios.tcflush(self._fd, termios.TCOFLUSH)
-        termios.tcflush(self._fd, termios.TCIFLUSH)
+        self.port.baudrate = baud
+        self.port.flush()
         logger.debug("baud rate set to".format(baud))
 
     def set_remote_baud(self, baud):
