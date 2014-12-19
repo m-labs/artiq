@@ -94,16 +94,13 @@ class Transport(AutoContext):
 
     @kernel
     def repeat(self):
-        hist = [0 for _ in range(self.nbins)]
+        self.histogram = [0 for _ in range(self.nbins)]
 
         for i in range(self.repeats):
             n = self.one()
             if n >= self.nbins:
                 n = self.nbins-1
-            hist[n] += 1
-
-        for i in range(self.nbins):
-            self.histogram.append(hist[i])
+            self.histogram[n] += 1
 
     def scan(self, stops):
         for s in stops:

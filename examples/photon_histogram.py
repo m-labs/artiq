@@ -31,5 +31,4 @@ class PhotonHistogram(AutoContext):
                 n = self.nbins-1
             hist[n] += 1
 
-        for i in range(self.nbins):
-            print(i, hist[i])
+        print(hist)
