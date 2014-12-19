@@ -4,7 +4,7 @@ import os
 from fractions import Fraction
 
 from artiq import *
-from artiq.language.units import *
+from artiq.language.units import DimensionError
 from artiq.coredevice import comm_serial, core, runtime_exceptions, rtio
 from artiq.sim import devices as sim_devices
 
@@ -51,18 +51,19 @@ class _Misc(AutoContext):
         self.input = 84
         self.inhomogeneous_units = []
         self.al = [1, 2, 3, 4, 5]
+        self.list_copy_in = [2*Hz, 10*MHz]
 
     @kernel
     def run(self):
         self.half_input = self.input//2
-        decimal_fraction = Fraction("1.2")
-        self.decimal_fraction_n = int(decimal_fraction.numerator)
-        self.decimal_fraction_d = int(decimal_fraction.denominator)
-        self.inhomogeneous_units.append(Quantity(1000, "Hz"))
-        self.inhomogeneous_units.append(Quantity(10, "s"))
+        self.decimal_fraction = Fraction("1.2")
+        self.inhomogeneous_units.append(1000*Hz)
+        self.inhomogeneous_units.append(10*s)
         self.acc = 0
         for i in range(len(self.al)):
             self.acc += self.al[i]
+        self.list_copy_out = self.list_copy_in
+        self.unit_comp = [1*MHz for _ in range(3)]
 
     @kernel
     def dimension_error1(self):
@@ -184,12 +185,11 @@ class ExecutionCase(unittest.TestCase):
             uut = _Misc(core=coredev)
             uut.run()
             self.assertEqual(uut.half_input, 42)
-            self.assertEqual(Fraction(uut.decimal_fraction_n,
-                                      uut.decimal_fraction_d),
-                             Fraction("1.2"))
-            self.assertEqual(uut.inhomogeneous_units, [
-                Quantity(1000, "Hz"), Quantity(10, "s")])
+            self.assertEqual(uut.decimal_fraction, Fraction("1.2"))
+            self.assertEqual(uut.inhomogeneous_units, [1000*Hz, 10*s])
             self.assertEqual(uut.acc, sum(uut.al))
+            self.assertEqual(uut.list_copy_in, uut.list_copy_out)
+            self.assertEqual(uut.unit_comp, [1*MHz for _ in range(3)])
             with self.assertRaises(DimensionError):
                 uut.dimension_error1()
             with self.assertRaises(DimensionError):

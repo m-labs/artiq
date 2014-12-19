@@ -8,8 +8,15 @@ from artiq.transforms.tools import embeddable_func_names
 
 def _add_units(f, unit_list):
     def wrapper(*args):
-        new_args = [arg if unit is None else units.Quantity(arg, unit)
-                    for arg, unit in zip(args, unit_list)]
+        new_args = []
+        for arg, unit in zip(args, unit_list):
+            if unit is None:
+                new_args.append(arg)
+            else:
+                if isinstance(arg, list):
+                    new_args.append([units.Quantity(x, unit) for x in arg])
+                else:
+                    new_args.append(units.Quantity(arg, unit))
         return f(*new_args)
     return wrapper
 
@@ -79,6 +86,20 @@ class _UnitsLowerer(ast.NodeTransformer):
             return node.value
         else:
             return node
+
+    def visit_List(self, node):
+        self.generic_visit(node)
+        us = [getattr(elt, "unit", None) for elt in node.elts]
+        if not all(u == us[0] for u in us[1:]):
+            raise units.DimensionError
+        node.unit = us[0]
+        return node
+
+    def visit_ListComp(self, node):
+        self.generic_visit(node)
+        if hasattr(node.elt, "unit"):
+            node.unit = node.elt.unit
+        return node
 
     def visit_Call(self, node):
         self.generic_visit(node)
