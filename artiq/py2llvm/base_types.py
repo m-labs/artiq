@@ -10,6 +10,13 @@ class VNone(VGeneric):
     def alloca(self, builder, name):
         pass
 
+    def set_const_value(self, builder, v):
+        assert v is None
+
+    def set_value(self, builder, other):
+        if not isinstance(other, VNone):
+            raise TypeError
+
     def o_bool(self, builder):
         r = VBool()
         if builder is not None:

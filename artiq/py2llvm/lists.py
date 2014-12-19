@@ -1,7 +1,7 @@
 import llvmlite.ir as ll
 
 from artiq.py2llvm.values import VGeneric
-from artiq.py2llvm.base_types import VInt
+from artiq.py2llvm.base_types import VInt, VNone
 
 
 class VList(VGeneric):
@@ -12,9 +12,12 @@ class VList(VGeneric):
 
     def get_llvm_type(self):
         count = 0 if self.alloc_count is None else self.alloc_count
-        return ll.LiteralStructType([ll.IntType(32),
-                                     ll.ArrayType(self.el_type.get_llvm_type(),
-                                                  count)])
+        if isinstance(self.el_type, VNone):
+            return ll.LiteralStructType([ll.IntType(32)])
+        else:
+            return ll.LiteralStructType([
+                ll.IntType(32), ll.ArrayType(self.el_type.get_llvm_type(),
+                                             count)])
 
     def __repr__(self):
         return "<VList:{} x{}>".format(
@@ -52,7 +55,7 @@ class VList(VGeneric):
 
     def o_subscript(self, index, builder):
         r = self.el_type.new()
-        if builder is not None:
+        if builder is not None and not isinstance(r, VNone):
             index = index.o_int(builder).auto_load(builder)
             ssa_r = builder.gep(self.llvm_value, [
                 ll.Constant(ll.IntType(32), 0),
