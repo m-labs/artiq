@@ -89,10 +89,11 @@ class _UnitsLowerer(ast.NodeTransformer):
 
     def visit_List(self, node):
         self.generic_visit(node)
-        us = [getattr(elt, "unit", None) for elt in node.elts]
-        if not all(u == us[0] for u in us[1:]):
-            raise units.DimensionError
-        node.unit = us[0]
+        if node.elts:
+            us = [getattr(elt, "unit", None) for elt in node.elts]
+            if not all(u == us[0] for u in us[1:]):
+                raise units.DimensionError
+            node.unit = us[0]
         return node
 
     def visit_ListComp(self, node):
