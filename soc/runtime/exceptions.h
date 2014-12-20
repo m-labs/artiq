@@ -2,10 +2,12 @@
 #define __EXCEPTIONS_H
 
 enum {
-	EID_OUT_OF_MEMORY = 0,
-	EID_RTIO_UNDERFLOW = 1,
-	EID_RTIO_SEQUENCE_ERROR = 2,
-	EID_RTIO_OVERFLOW = 3,
+    EID_NONE = 0,
+    EID_OUT_OF_MEMORY = 1,
+    EID_RPC_EXCEPTION = 2,
+    EID_RTIO_UNDERFLOW = 3,
+    EID_RTIO_SEQUENCE_ERROR = 4,
+    EID_RTIO_OVERFLOW = 5,
 };
 
 int exception_setjmp(void *jb) __attribute__((returns_twice));

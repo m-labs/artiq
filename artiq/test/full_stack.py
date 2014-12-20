@@ -170,6 +170,25 @@ class _Exceptions(AutoContext):
                 self.trace.append(104)
 
 
+class _RPCExceptions(AutoContext):
+    def build(self):
+        self.success = False
+
+    def exception_raiser(self):
+        raise _MyException
+
+    @kernel
+    def do_not_catch(self):
+        self.exception_raiser()
+
+    @kernel
+    def catch(self):
+        try:
+            self.exception_raiser()
+        except _MyException:
+            self.success = True
+
+
 @unittest.skipIf(no_hardware, "no hardware")
 class ExecutionCase(unittest.TestCase):
     def test_primes(self):
@@ -218,6 +237,17 @@ class ExecutionCase(unittest.TestCase):
         with self.assertRaises(IndexError):
             _run_on_host(_Exceptions, trace=t_host)
         self.assertEqual(t_device, t_host)
+
+    def test_rpc_exceptions(self):
+        comm = comm_serial.Comm()
+        try:
+            uut = _RPCExceptions(core=core.Core(comm=comm))
+            with self.assertRaises(_MyException):
+                uut.do_not_catch()
+            uut.catch()
+            self.assertTrue(uut.success)
+        finally:
+            comm.close()
 
 
 class _RTIOLoopback(AutoContext):

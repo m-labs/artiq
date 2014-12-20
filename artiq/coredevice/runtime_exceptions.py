@@ -9,7 +9,11 @@ class OutOfMemory(RuntimeException):
     """Raised when the runtime fails to allocate memory.
 
     """
-    eid = 0
+    eid = 1
+
+
+class _RPCException(RuntimeException):
+    eid = 2
 
 
 class RTIOUnderflow(RuntimeException):
@@ -19,11 +23,9 @@ class RTIOUnderflow(RuntimeException):
     The offending event is discarded and the RTIO core keeps operating.
 
     """
-    eid = 1
+    eid = 3
 
 
-# Raised by RTIO driver for regular RTIO.
-# Raised by runtime for DDS FUD.
 class RTIOSequenceError(RuntimeException):
     """Raised when an event is submitted on a given channel with a timestamp
     not larger than the previous one.
@@ -31,7 +33,7 @@ class RTIOSequenceError(RuntimeException):
     The offending event is discarded and the RTIO core keeps operating.
 
     """
-    eid = 2
+    eid = 4
 
 
 class RTIOOverflow(RuntimeException):
@@ -43,7 +45,7 @@ class RTIOOverflow(RuntimeException):
     the exception is caught, and events will be partially retrieved.
 
     """
-    eid = 3
+    eid = 5
 
 
 exception_map = {e.eid: e for e in globals().values()

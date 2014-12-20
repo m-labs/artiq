@@ -4,6 +4,7 @@
 #include <generated/csr.h>
 
 #include "comm.h"
+#include "exceptions.h"
 
 /* host to device */
 enum {
@@ -224,6 +225,8 @@ static int send_value(int type_tag, void *value)
 int comm_rpc(int rpc_num, ...)
 {
     int type_tag;
+    int eid;
+    int retval;
 
     send_char(MSGTYPE_RPC_REQUEST);
     send_sint(rpc_num);
@@ -235,7 +238,13 @@ int comm_rpc(int rpc_num, ...)
     va_end(args);
     send_char(0);
 
-    return receive_int();
+    eid = receive_int();
+    retval = receive_int();
+
+    if(eid != EID_NONE)
+        exception_raise(eid);
+
+    return retval;
 }
 
 void comm_log(const char *fmt, ...)

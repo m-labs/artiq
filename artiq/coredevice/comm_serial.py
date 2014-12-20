@@ -10,6 +10,7 @@ from artiq.language import units
 from artiq.language.context import *
 from artiq.coredevice.runtime import Environment
 from artiq.coredevice import runtime_exceptions
+from artiq.coredevice.rpc_wrapper import RPCWrapper
 
 
 logger = logging.getLogger(__name__)
@@ -69,6 +70,7 @@ class Comm(AutoContext):
         self.port.flush()
         self.set_remote_baud(self.baud_rate)
         self.set_baud(self.baud_rate)
+        self.rpc_wrapper = RPCWrapper()
 
     def set_baud(self, baud):
         self.port.baudrate = baud
@@ -183,19 +185,18 @@ class Comm(AutoContext):
             if type_tag == "l":
                 r.append(self._receive_rpc_values())
 
-    def _serve_rpc(self, rpc_map):
-        (rpc_num, ) = struct.unpack(">h", _read_exactly(self.port, 2))
+    def _serve_rpc(self, rpc_map, user_exception_map):
+        rpc_num = struct.unpack(">h", _read_exactly(self.port, 2))[0]
         args = self._receive_rpc_values()
         logger.debug("rpc service: {} ({})".format(rpc_num, args))
-        r = rpc_map[rpc_num](*args)
-        if r is None:
-            r = 0
-        _write_exactly(self.port, struct.pack(">l", r))
+        eid, r = self.rpc_wrapper.run_rpc(user_exception_map, rpc_map[rpc_num], args)
+        _write_exactly(self.port, struct.pack(">ll", eid, r))
         logger.debug("rpc service: {} ({}) == {}".format(
             rpc_num, args, r))
 
     def _serve_exception(self, user_exception_map):
-        (eid, ) = struct.unpack(">l", _read_exactly(self.port, 4))
+        eid = struct.unpack(">l", _read_exactly(self.port, 4))[0]
+        self.rpc_wrapper.filter_rpc_exception(eid)
         if eid < core_language.first_user_eid:
             exception = runtime_exceptions.exception_map[eid]
         else:
@@ -206,7 +207,7 @@ class Comm(AutoContext):
         while True:
             msg = self._get_device_msg()
             if msg == _D2HMsgType.RPC_REQUEST:
-                self._serve_rpc(rpc_map)
+                self._serve_rpc(rpc_map, user_exception_map)
             elif msg == _D2HMsgType.KERNEL_EXCEPTION:
                 self._serve_exception(user_exception_map)
             elif msg == _D2HMsgType.KERNEL_FINISHED:
