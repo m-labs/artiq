@@ -4,6 +4,7 @@ import asyncio
 import argparse
 
 from artiq.management.pc_rpc import Server
+from artiq.management.sync_struct import Publisher
 from artiq.management.scheduler import Scheduler
 
 
@@ -13,8 +14,11 @@ def _get_args():
         "--bind", default="::1",
         help="hostname or IP address to bind to")
     parser.add_argument(
-        "--port", default=8888, type=int,
-        help="TCP port to listen to")
+        "--port-schedule-control", default=8888, type=int,
+        help="TCP port to listen to for schedule control")
+    parser.add_argument(
+        "--port-schedule-notify", default=8887, type=int,
+        help="TCP port to listen to for schedule notifications")
     return parser.parse_args()
 
 
@@ -25,12 +29,19 @@ def main():
         scheduler = Scheduler("ddb.pyon", "pdb.pyon")
         loop.run_until_complete(scheduler.start())
         try:
-            server = Server(scheduler, "master")
-            loop.run_until_complete(server.start(args.bind, args.port))
+            schedule_control = Server(scheduler, "schedule_control")
+            loop.run_until_complete(schedule_control.start(
+                args.bind, args.port_schedule_control))
             try:
-                loop.run_forever()
+                schedule_notify = Publisher(scheduler.queued)
+                loop.run_until_complete(schedule_notify.start(
+                        args.bind, args.port_schedule_notify))
+                try:
+                    loop.run_forever()
+                finally:
+                    loop.run_until_complete(schedule_notify.stop())
             finally:
-                loop.run_until_complete(server.stop())
+                loop.run_until_complete(schedule_control.stop())
         finally:
             loop.run_until_complete(scheduler.stop())
     finally:

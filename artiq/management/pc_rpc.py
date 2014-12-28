@@ -17,7 +17,7 @@ import asyncio
 import traceback
 
 from artiq.management import pyon
-from artiq.management.network import AsyncioServer
+from artiq.management.tools import AsyncioServer
 
 
 class RemoteError(Exception):

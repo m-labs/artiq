@@ -1,5 +1,10 @@
 import asyncio
+import sys
 from copy import copy
+
+
+def clear_screen():
+    sys.stdout.write("\x1b[2J\x1b[H")
 
 
 class AsyncioServer:

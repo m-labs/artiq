@@ -1,6 +1,7 @@
 import asyncio
 from time import time
 
+from artiq.management.sync_struct import Notifier
 from artiq.management.worker import Worker
 
 
@@ -8,8 +9,7 @@ class Scheduler:
     def __init__(self, *args, **kwargs):
         self.worker = Worker(*args, **kwargs)
         self.next_rid = 0
-        self.currently_executing = None
-        self.queued = []
+        self.queued = Notifier([])
         self.queue_count = asyncio.Semaphore(0)
         self.periodic = dict()
         self.periodic_modified = asyncio.Event()
@@ -47,14 +47,6 @@ class Scheduler:
                    if qrid == rid)
         del self.queued[idx]
 
-    def get_schedule(self):
-        if self.currently_executing is None:
-            ce = None
-        else:
-            rid, run_params, timeout, t = self.currently_executing
-            ce = rid, run_params, timeout, time() - t
-        return ce, self.queued, self.periodic
-
     def run_periodic(self, run_params, timeout, period):
         prid = self.new_prid()
         self.periodic[prid] = 0, run_params, timeout, period
@@ -63,13 +55,6 @@ class Scheduler:
 
     def cancel_periodic(self, prid):
         del self.periodic[prid]
-
-    @asyncio.coroutine
-    def _run(self, rid, run_params, timeout):
-        self.currently_executing = rid, run_params, timeout, time()
-        result = yield from self.worker.run(run_params, timeout)
-        self.currently_executing = None
-        return result
 
     @asyncio.coroutine
     def _run_periodic(self):
@@ -93,8 +78,10 @@ class Scheduler:
             self.periodic[min_prid] = now + period, run_params, timeout, period
 
             rid = self.new_rid()
-            result = yield from self._run(rid, run_params, timeout)
+            self.queued.insert(0, (rid, run_params, timeout))
+            result = yield from self.worker.run(run_params, timeout)
             print(prid, rid, result)
+            del self.queued[0]
 
     @asyncio.coroutine
     def _schedule(self):
@@ -111,6 +98,7 @@ class Scheduler:
 
             yield from self._run_periodic()
             if ev_queue in done:
-                rid, run_params, timeout = self.queued.pop(0)
-                result = yield from self._run(rid, run_params, timeout)
+                rid, run_params, timeout = self.queued.backing_struct[0]
+                result = yield from self.worker.run(run_params, timeout)
                 print(rid, result)
+                del self.queued[0]

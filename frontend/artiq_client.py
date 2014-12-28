@@ -2,10 +2,14 @@
 
 import argparse
 import time
+import sys
+import asyncio
 
 from prettytable import PrettyTable
 
 from artiq.management.pc_rpc import Client
+from artiq.management.sync_struct import Subscriber
+from artiq.management.tools import clear_screen
 
 
 def _get_args():
@@ -14,7 +18,7 @@ def _get_args():
         "-s", "--server", default="::1",
         help="hostname or IP of the master to connect to")
     parser.add_argument(
-        "--port", default=8888, type=int,
+        "--port", default=None, type=int,
         help="TCP port to use to connect to the master")
 
     subparsers = parser.add_subparsers(dest="action")
@@ -42,8 +46,8 @@ def _get_args():
     parser_cancel.add_argument("rid", type=int,
                                help="run identifier (RID/PRID)")
 
-    parser_show = subparsers.add_parser("show",
-                                        help="show the experiment schedule")
+    parser_show = subparsers.add_parser("show-queue",
+                                        help="show the experiment queue")
 
     return parser.parse_args()
 
@@ -70,30 +74,25 @@ def _action_cancel(remote, args):
         remote.cancel_once(args.rid)
 
 
-def _action_show(remote, args):
-    ce, queue, periodic = remote.get_schedule()
-    if ce is not None or queue:
+def _show_queue(queue):
+    clear_screen()
+    if queue:
         table = PrettyTable(["RID", "File", "Unit", "Function", "Timeout"])
-        if ce is not None:
-            rid, run_params, timeout, t = ce
-            print("Currently executing RID {} for {:.1f}s".format(rid, t))
-            row = [rid, run_params["file"]]
-            for x in run_params["unit"], run_params["function"], timeout:
-                row.append("-" if x is None else x)
-            table.add_row(row)
         for rid, run_params, timeout in queue:
             row = [rid, run_params["file"]]
             for x in run_params["unit"], run_params["function"], timeout:
                 row.append("-" if x is None else x)
             table.add_row(row)
-        print("Run queue:")
         print(table)
     else:
         print("Queue is empty")
+
+
+def _show_periodic(periodic):
+    clear_screen()
     if periodic:
         table = PrettyTable(["Next run", "PRID", "File", "Unit", "Function",
                              "Timeout", "Period"])
-        print("Periodic schedule:")
         sp = sorted(periodic.items(), key=lambda x: x[1][0])
         for prid, (next_run, run_params, timeout, period) in sp:
             row = [time.strftime("%m/%d %H:%M:%S", time.localtime(next_run)),
@@ -107,13 +106,37 @@ def _action_show(remote, args):
         print("No periodic schedule")
 
 
+def _run_subscriber(host, port, subscriber):
+    loop = asyncio.get_event_loop()
+    try:
+        loop.run_until_complete(subscriber.connect(host, port))
+        try:
+            loop.run_until_complete(asyncio.wait_for(subscriber.receive_task,
+                                                     None))
+            print("Connection to master lost")
+        finally:
+            loop.run_until_complete(subscriber.close())
+    finally:
+        loop.close()
+
+
 def main():
     args = _get_args()
-    remote = Client(args.server, args.port, "master")
-    try:
-        globals()["_action_" + args.action](remote, args)
-    finally:
-        remote.close_rpc()
+    if args.action == "show-queue":
+        queue = []
+        def init_queue(x):
+            queue[:] = x
+            return queue
+        subscriber = Subscriber(init_queue, lambda: _show_queue(queue))
+        port = 8887 if args.port is None else args.port
+        _run_subscriber(args.server, port, subscriber)
+    else:
+        port = 8888 if args.port is None else args.port
+        remote = Client(args.server, port, "schedule_control")
+        try:
+            globals()["_action_" + args.action](remote, args)
+        finally:
+            remote.close_rpc()
 
 if __name__ == "__main__":
     main()
