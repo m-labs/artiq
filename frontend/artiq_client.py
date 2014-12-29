@@ -13,7 +13,7 @@ from artiq.management.tools import clear_screen
 
 
 def _get_args():
-    parser = argparse.ArgumentParser(description="ARTIQ client")
+    parser = argparse.ArgumentParser(description="ARTIQ CLI client")
     parser.add_argument(
         "-s", "--server", default="::1",
         help="hostname or IP of the master to connect to")
