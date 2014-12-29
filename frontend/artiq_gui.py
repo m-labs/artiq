@@ -66,11 +66,14 @@ class PeriodicStoreSyncer:
         else:
             del self.periodic_store[i]
             del self.order[i]
+        ord_el = (x[0], prid)
+        j = len(self.order)
         for i, o in enumerate(self.order):
-            if o > (x[0], prid):
+            if o > ord_el:
+                j = i
                 break
-        self.periodic_store.insert(i, self._convert(prid, x))
-        self.order.insert(i, (x[0], prid))
+        self.periodic_store.insert(j, self._convert(prid, x))
+        self.order.insert(j, ord_el)
 
     def __delitem__(self, key):
         i = self._find_index(key)
