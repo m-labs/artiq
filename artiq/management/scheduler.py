@@ -93,6 +93,7 @@ class Scheduler:
                 [ev_queue, ev_periodic],
                 timeout=next_periodic,
                 return_when=asyncio.FIRST_COMPLETED)
+            self.periodic_modified.clear()
             for t in pend:
                 t.cancel()
 
