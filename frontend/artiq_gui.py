@@ -84,11 +84,11 @@ class PeriodicStoreSyncer:
 class SchedulerWindow(Gtk.Window):
     def __init__(self):
         Gtk.Window.__init__(self, title="Scheduler")
-        self.set_border_width(10)
-        self.set_default_size(730, 520)
+        self.set_border_width(6)
+        self.set_default_size(720, 570)
 
         vpane = Gtk.VPaned()
-        vpane.set_position(220)
+        vpane.set_position(270)
         self.add(vpane)
 
         self.queue_store = Gtk.ListStore(int, str, str, str, str)
@@ -100,7 +100,23 @@ class SchedulerWindow(Gtk.Window):
             tree.append_column(column)
         scroll = Gtk.ScrolledWindow()
         scroll.add(tree)
-        vpane.add1(scroll)
+        vbox = Gtk.VBox(spacing=6)
+        label = Gtk.Label("Queue")
+        vbox.pack_start(label, False, False, 0)
+        vbox.pack_start(scroll, True, True, 0)
+
+        hbox = Gtk.HBox(spacing=6)
+        button = Gtk.Button("Find")
+        hbox.pack_start(button, True, True, 0)
+        button = Gtk.Button("Move up")
+        hbox.pack_start(button, True, True, 0)
+        button = Gtk.Button("Move down")
+        hbox.pack_start(button, True, True, 0)
+        button = Gtk.Button("Remove")
+        hbox.pack_start(button, True, True, 0)
+        vbox.pack_start(hbox, False, False, 0)
+        vbox.set_border_width(6)
+        vpane.add1(vbox)
 
         self.periodic_store = Gtk.ListStore(str, int, str, str, str, str, str)
         tree = Gtk.TreeView(self.periodic_store)
@@ -111,7 +127,12 @@ class SchedulerWindow(Gtk.Window):
             tree.append_column(column)
         scroll = Gtk.ScrolledWindow()
         scroll.add(tree)
-        vpane.add2(scroll)
+        vbox = Gtk.VBox(spacing=6)
+        label = Gtk.Label("Periodic schedule")
+        vbox.pack_start(label, False, False, 0)
+        vbox.pack_start(scroll, True, True, 0)
+        vbox.set_border_width(6)
+        vpane.add2(vbox)
 
     @asyncio.coroutine
     def sub_connect(self, host, port):
