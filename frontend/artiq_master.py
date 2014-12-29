@@ -33,9 +33,12 @@ def main():
             loop.run_until_complete(schedule_control.start(
                 args.bind, args.port_schedule_control))
             try:
-                schedule_notify = Publisher(scheduler.queued)
+                schedule_notify = Publisher({
+                    "queue": scheduler.queue,
+                    "periodic": scheduler.periodic
+                })
                 loop.run_until_complete(schedule_notify.start(
-                        args.bind, args.port_schedule_notify))
+                    args.bind, args.port_schedule_notify))
                 try:
                     loop.run_forever()
                 finally:

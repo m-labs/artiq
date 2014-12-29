@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import time
 
 import gbulb
 from gi.repository import Gtk
@@ -19,8 +20,8 @@ class QueueStoreSyncer:
     def _convert(self, x):
         rid, run_params, timeout = x
         row = [rid, run_params["file"]]
-        for x in run_params["unit"], run_params["function"], timeout:
-            row.append("-" if x is None else str(x))
+        for e in run_params["unit"], run_params["function"], timeout:
+            row.append("-" if e is None else str(e))
         return row
 
     def append(self, x):
@@ -33,9 +34,57 @@ class QueueStoreSyncer:
         del self.queue_store[key]
 
 
+class PeriodicStoreSyncer:
+    def __init__(self, periodic_store, init):
+        self.periodic_store = periodic_store
+        self.periodic_store.clear()
+        self.order = []
+        for prid, x in sorted(init.items(), key=lambda e: (e[1][0], e[0])):
+            self.periodic_store.append(self._convert(prid, x))
+            self.order.append((x[0], prid))
+
+    def _convert(self, prid, x):
+        next_run, run_params, timeout, period = x
+        row = [time.strftime("%m/%d %H:%M:%S", time.localtime(next_run)),
+               prid, run_params["file"]]
+        for e in run_params["unit"], run_params["function"], timeout:
+            row.append("-" if e is None else str(e))
+        row.append(str(period))
+        return row
+
+    def _find_index(self, prid):
+        for i, e in enumerate(self.periodic_store):
+            if e[1] == prid:
+                return i
+        raise KeyError
+
+    def __setitem__(self, prid, x):
+        try:
+            i = self._find_index(prid)
+        except KeyError:
+            pass
+        else:
+            del self.periodic_store[i]
+            del self.order[i]
+        for i, o in enumerate(self.order):
+            if o > (x[0], prid):
+                break
+        self.periodic_store.insert(i, self._convert(prid, x))
+        self.order.insert(i, (x[0], prid))
+
+    def __delitem__(self, key):
+        i = self._find_index(key)
+        del self.periodic_store[i]
+        del self.order[i]
+
+
 class SchedulerWindow(Gtk.Window):
     def __init__(self):
         Gtk.Window.__init__(self, title="Scheduler")
+        self.set_border_width(10)
+
+        vpane = Gtk.VPaned()
+        self.add(vpane)
 
         self.queue_store = Gtk.ListStore(int, str, str, str, str)
         tree = Gtk.TreeView(self.queue_store)
@@ -44,19 +93,43 @@ class SchedulerWindow(Gtk.Window):
             renderer = Gtk.CellRendererText()
             column = Gtk.TreeViewColumn(title, renderer, text=i)
             tree.append_column(column)
-        self.add(tree)
+        scroll = Gtk.ScrolledWindow()
+        scroll.add(tree)
+        vpane.add1(scroll)
+
+        self.periodic_store = Gtk.ListStore(str, int, str, str, str, str, str)
+        tree = Gtk.TreeView(self.periodic_store)
+        for i, title in enumerate(["Next run", "PRID", "File", "Unit",
+                                   "Function", "Timeout", "Period"]):
+            renderer = Gtk.CellRendererText()
+            column = Gtk.TreeViewColumn(title, renderer, text=i)
+            tree.append_column(column)
+        scroll = Gtk.ScrolledWindow()
+        scroll.add(tree)
+        vpane.add2(scroll)
 
     @asyncio.coroutine
     def sub_connect(self, host, port):
-        self.subscriber = Subscriber(self.init_queue_store)
-        yield from self.subscriber.connect(host, port)
+        self.queue_subscriber = Subscriber("queue", self.init_queue_store)
+        yield from self.queue_subscriber.connect(host, port)
+        try:
+            self.periodic_subscriber = Subscriber(
+                "periodic", self.init_periodic_store)
+            yield from self.periodic_subscriber.connect(host, port)
+        except:
+            yield from self.queue_subscriber.close()
+            raise
 
     @asyncio.coroutine
     def sub_close(self):
-        yield from self.subscriber.close()
+        yield from self.periodic_subscriber.close()
+        yield from self.queue_subscriber.close()
 
     def init_queue_store(self, init):
         return QueueStoreSyncer(self.queue_store, init)
+
+    def init_periodic_store(self, init):
+        return PeriodicStoreSyncer(self.periodic_store, init)
 
 
 def _get_args():

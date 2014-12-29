@@ -9,9 +9,9 @@ class Scheduler:
     def __init__(self, *args, **kwargs):
         self.worker = Worker(*args, **kwargs)
         self.next_rid = 0
-        self.queued = Notifier([])
+        self.queue = Notifier([])
         self.queue_count = asyncio.Semaphore(0)
-        self.periodic = dict()
+        self.periodic = Notifier(dict())
         self.periodic_modified = asyncio.Event()
 
     def new_rid(self):
@@ -20,8 +20,8 @@ class Scheduler:
         return r
 
     def new_prid(self):
-        prids = set(range(len(self.periodic) + 1))
-        prids -= set(self.periodic.keys())
+        prids = set(range(len(self.periodic.backing_struct) + 1))
+        prids -= set(self.periodic.backing_struct.keys())
         return next(iter(prids))
 
     @asyncio.coroutine
@@ -38,14 +38,14 @@ class Scheduler:
 
     def run_once(self, run_params, timeout):
         rid = self.new_rid()
-        self.queued.append((rid, run_params, timeout))
+        self.queue.append((rid, run_params, timeout))
         self.queue_count.release()
         return rid
 
     def cancel_once(self, rid):
-        idx = next(idx for idx, (qrid, _, _) in enumerate(self.queued)
+        idx = next(idx for idx, (qrid, _, _) in enumerate(self.queue)
                    if qrid == rid)
-        del self.queued[idx]
+        del self.queue[idx]
 
     def run_periodic(self, run_params, timeout, period):
         prid = self.new_prid()
@@ -61,7 +61,7 @@ class Scheduler:
         while True:
             min_next_run = None
             min_prid = None
-            for prid, params in self.periodic.items():
+            for prid, params in self.periodic.backing_struct.items():
                 if min_next_run is None or params[0] < min_next_run:
                     min_next_run = params[0]
                     min_prid = prid
@@ -74,14 +74,15 @@ class Scheduler:
             if min_next_run > 0:
                 return min_next_run
 
-            next_run, run_params, timeout, period = self.periodic[min_prid]
+            next_run, run_params, timeout, period = \
+                self.periodic.backing_struct[min_prid]
             self.periodic[min_prid] = now + period, run_params, timeout, period
 
             rid = self.new_rid()
-            self.queued.insert(0, (rid, run_params, timeout))
+            self.queue.insert(0, (rid, run_params, timeout))
             result = yield from self.worker.run(run_params, timeout)
             print(prid, rid, result)
-            del self.queued[0]
+            del self.queue[0]
 
     @asyncio.coroutine
     def _schedule(self):
@@ -99,7 +100,7 @@ class Scheduler:
 
             yield from self._run_periodic()
             if ev_queue in done:
-                rid, run_params, timeout = self.queued.backing_struct[0]
+                rid, run_params, timeout = self.queue.backing_struct[0]
                 result = yield from self.worker.run(run_params, timeout)
                 print(rid, result)
-                del self.queued[0]
+                del self.queue[0]

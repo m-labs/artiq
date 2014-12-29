@@ -37,7 +37,6 @@ def _get_args():
                             help="unit to run")
     parser_add.add_argument("file", help="file containing the unit to run")
 
-
     parser_cancel = subparsers.add_parser("cancel",
                                           help="cancel an experiment")
     parser_cancel.add_argument("-p", "--periodic", default=False,
@@ -46,8 +45,11 @@ def _get_args():
     parser_cancel.add_argument("rid", type=int,
                                help="run identifier (RID/PRID)")
 
-    parser_show = subparsers.add_parser("show-queue",
-                                        help="show the experiment queue")
+    parser_show_queue = subparsers.add_parser(
+        "show-queue", help="show the experiment queue")
+
+    parser_show_periodic = subparsers.add_parser(
+        "show-periodic", help="show the periodic experiment table")
 
     return parser.parse_args()
 
@@ -93,7 +95,7 @@ def _show_periodic(periodic):
     if periodic:
         table = PrettyTable(["Next run", "PRID", "File", "Unit", "Function",
                              "Timeout", "Period"])
-        sp = sorted(periodic.items(), key=lambda x: x[1][0])
+        sp = sorted(periodic.items(), key=lambda x: (x[1][0], x[0]))
         for prid, (next_run, run_params, timeout, period) in sp:
             row = [time.strftime("%m/%d %H:%M:%S", time.localtime(next_run)),
                    prid, run_params["file"]]
@@ -107,6 +109,8 @@ def _show_periodic(periodic):
 
 
 def _run_subscriber(host, port, subscriber):
+    if port is None:
+        port = 8887
     loop = asyncio.get_event_loop()
     try:
         loop.run_until_complete(subscriber.connect(host, port))
@@ -127,9 +131,18 @@ def main():
         def init_queue(x):
             queue[:] = x
             return queue
-        subscriber = Subscriber(init_queue, lambda: _show_queue(queue))
-        port = 8887 if args.port is None else args.port
-        _run_subscriber(args.server, port, subscriber)
+        subscriber = Subscriber("queue", init_queue,
+                                lambda: _show_queue(queue))
+        _run_subscriber(args.server, args.port, subscriber)
+    elif args.action == "show-periodic":
+        periodic = dict()
+        def init_periodic(x):
+            periodic.clear()
+            periodic.update(x)
+            return periodic
+        subscriber = Subscriber("periodic", init_periodic,
+                                lambda: _show_periodic(periodic))
+        _run_subscriber(args.server, args.port, subscriber)
     else:
         port = 8888 if args.port is None else args.port
         remote = Client(args.server, port, "schedule_control")

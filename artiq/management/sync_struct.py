@@ -8,7 +8,8 @@ _init_string = b"ARTIQ sync_struct\n"
 
 
 class Subscriber:
-    def __init__(self, target_builder, notify_cb=None):
+    def __init__(self, notifier_name, target_builder, notify_cb=None):
+        self.notifier_name = notifier_name
         self.target_builder = target_builder
         self.notify_cb = notify_cb
 
@@ -18,6 +19,7 @@ class Subscriber:
             yield from asyncio.open_connection(host, port)
         try:
             self._writer.write(_init_string)
+            self._writer.write((self.notifier_name + "\n").encode())
             self.receive_task = asyncio.Task(self._receive_cr())
         except:
             self._writer.close()
@@ -56,8 +58,11 @@ class Subscriber:
                 target.insert(obj["i"], obj["x"])
             elif action == "pop":
                 target.pop(obj["i"])
+            elif action == "setitem":
+                target.__setitem__(obj["key"], obj["value"])
             elif action == "delitem":
                 target.__delitem__(obj["key"])
+
             if self.notify_cb is not None:
                 self.notify_cb()
 
@@ -73,32 +78,41 @@ class Notifier:
     def append(self, x):
         self.backing_struct.append(x)
         if self.publisher is not None:
-            self.publisher.publish({"action": "append", "x": x})
+            self.publisher.publish(self, {"action": "append", "x": x})
 
     def insert(self, i, x):
         self.backing_struct.insert(i, x)
         if self.publisher is not None:
-            self.publisher.publish({"action": "insert", "i": i, "x": x})
+            self.publisher.publish(self, {"action": "insert", "i": i, "x": x})
 
     def pop(self, i=-1):
         r = self.backing_struct.pop(i)
         if self.publisher is not None:
-            self.publisher.publish({"action": "pop", "i": i})
+            self.publisher.publish(self, {"action": "pop", "i": i})
         return r
+
+    def __setitem__(self, key, value):
+        self.backing_struct.__setitem__(key, value)
+        if self.publisher is not None:
+            self.publisher.publish(self, {"action": "setitem",
+                                          "key": key,
+                                          "value": value})
 
     def __delitem__(self, key):
         self.backing_struct.__delitem__(key)
         if self.publisher is not None:
-            self.publisher.publish({"action": "delitem", "key": key})
+            self.publisher.publish(self, {"action": "delitem", "key": key})
 
 
 class Publisher(AsyncioServer):
-    def __init__(self, notifier):
+    def __init__(self, notifiers):
         AsyncioServer.__init__(self)
-        self.notifier = notifier
-        self._recipients = set()
+        self.notifiers = notifiers
+        self._recipients = {k: set() for k in notifiers.keys()}
+        self._notifier_names = {id(v): k for k, v in notifiers.items()}
 
-        self.notifier.publisher = self
+        for notifier in notifiers.values():
+            notifier.publisher = self
 
     @asyncio.coroutine
     def _handle_connection_cr(self, reader, writer):
@@ -107,12 +121,22 @@ class Publisher(AsyncioServer):
             if line != _init_string:
                 return
 
-            obj = {"action": "init", "struct": self.notifier.backing_struct}
+            line = yield from reader.readline()
+            if not line:
+                return
+            notifier_name = line.decode()[:-1]
+
+            try:
+                notifier = self.notifiers[notifier_name]
+            except KeyError:
+                return
+
+            obj = {"action": "init", "struct": notifier.backing_struct}
             line = pyon.encode(obj) + "\n"
             writer.write(line.encode())
 
             queue = asyncio.Queue()
-            self._recipients.add(queue)
+            self._recipients[notifier_name].add(queue)
             try:
                 while True:
                     line = yield from queue.get()
@@ -120,15 +144,16 @@ class Publisher(AsyncioServer):
                     # raise exception on connection error
                     yield from writer.drain()
             finally:
-                self._recipients.remove(queue)
+                self._recipients[notifier_name].remove(queue)
         except ConnectionResetError:
             # subscribers disconnecting are a normal occurence
             pass
         finally:
             writer.close()
 
-    def publish(self, obj):
+    def publish(self, notifier, obj):
         line = pyon.encode(obj) + "\n"
         line = line.encode()
-        for recipient in self._recipients:
+        notifier_name = self._notifier_names[id(notifier)]
+        for recipient in self._recipients[notifier_name]:
             recipient.put_nowait(line)
