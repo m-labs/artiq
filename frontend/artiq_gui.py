@@ -85,8 +85,10 @@ class SchedulerWindow(Gtk.Window):
     def __init__(self):
         Gtk.Window.__init__(self, title="Scheduler")
         self.set_border_width(10)
+        self.set_default_size(730, 520)
 
         vpane = Gtk.VPaned()
+        vpane.set_position(220)
         self.add(vpane)
 
         self.queue_store = Gtk.ListStore(int, str, str, str, str)
