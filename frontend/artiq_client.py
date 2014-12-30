@@ -2,7 +2,6 @@
 
 import argparse
 import time
-import sys
 import asyncio
 
 from prettytable import PrettyTable
