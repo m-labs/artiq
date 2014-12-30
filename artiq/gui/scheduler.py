@@ -3,6 +3,7 @@ import asyncio
 
 from gi.repository import Gtk
 
+from artiq.gui.tools import Window
 from artiq.management.sync_struct import Subscriber
 
 
@@ -77,10 +78,9 @@ class _PeriodicStoreSyncer:
         del self.order[i]
 
 
-class SchedulerWindow(Gtk.Window):
+class SchedulerWindow(Window):
     def __init__(self):
-        Gtk.Window.__init__(self, title="Scheduler")
-        self.set_border_width(6)
+        Window.__init__(self, title="Scheduler")
         self.set_default_size(720, 570)
 
         vpane = Gtk.VPaned()
