@@ -83,9 +83,19 @@ class SchedulerWindow(Window):
         Window.__init__(self, title="Scheduler")
         self.set_default_size(720, 570)
 
-        vpane = Gtk.VPaned()
-        vpane.set_position(270)
-        self.add(vpane)
+        topvbox = Gtk.VBox(spacing=6)
+        self.add(topvbox)
+
+        hbox = Gtk.HBox(spacing=6)
+        enable = Gtk.Switch(active=True)
+        label = Gtk.Label("Run experiments")
+        label.set_justify(Gtk.Justification.RIGHT)
+        hbox.pack_start(label, False, False, 0)
+        hbox.pack_start(enable, False, False, 0)
+        topvbox.pack_start(hbox, False, False, 0)
+
+        notebook = Gtk.Notebook()
+        topvbox.pack_start(notebook, True, True, 0)
 
         self.queue_store = Gtk.ListStore(int, str, str, str, str)
         tree = Gtk.TreeView(self.queue_store)
@@ -97,10 +107,7 @@ class SchedulerWindow(Window):
         scroll = Gtk.ScrolledWindow()
         scroll.add(tree)
         vbox = Gtk.VBox(spacing=6)
-        label = Gtk.Label("Queue")
-        vbox.pack_start(label, False, False, 0)
         vbox.pack_start(scroll, True, True, 0)
-
         hbox = Gtk.HBox(spacing=6)
         button = Gtk.Button("Find")
         hbox.pack_start(button, True, True, 0)
@@ -112,7 +119,7 @@ class SchedulerWindow(Window):
         hbox.pack_start(button, True, True, 0)
         vbox.pack_start(hbox, False, False, 0)
         vbox.set_border_width(6)
-        vpane.add1(vbox)
+        notebook.insert_page(vbox, Gtk.Label("Queue"), -1)
 
         self.periodic_store = Gtk.ListStore(str, int, str, str, str, str, str)
         tree = Gtk.TreeView(self.periodic_store)
@@ -124,11 +131,15 @@ class SchedulerWindow(Window):
         scroll = Gtk.ScrolledWindow()
         scroll.add(tree)
         vbox = Gtk.VBox(spacing=6)
-        label = Gtk.Label("Periodic schedule")
-        vbox.pack_start(label, False, False, 0)
         vbox.pack_start(scroll, True, True, 0)
+        hbox = Gtk.HBox(spacing=6)
+        button = Gtk.Button("Change period")
+        hbox.pack_start(button, True, True, 0)
+        button = Gtk.Button("Remove")
+        hbox.pack_start(button, True, True, 0)
+        vbox.pack_start(hbox, False, False, 0)
         vbox.set_border_width(6)
-        vpane.add2(vbox)
+        notebook.insert_page(vbox, Gtk.Label("Periodic schedule"), -1)
 
     @asyncio.coroutine
     def sub_connect(self, host, port):
