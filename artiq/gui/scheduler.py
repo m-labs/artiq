@@ -89,7 +89,6 @@ class SchedulerWindow(Window):
         hbox = Gtk.HBox(spacing=6)
         enable = Gtk.Switch(active=True)
         label = Gtk.Label("Run experiments")
-        label.set_justify(Gtk.Justification.RIGHT)
         hbox.pack_start(label, False, False, 0)
         hbox.pack_start(enable, False, False, 0)
         topvbox.pack_start(hbox, False, False, 0)
