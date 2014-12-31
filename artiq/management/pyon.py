@@ -156,8 +156,9 @@ def store_file(filename, x):
     """Encodes a Python object and writes it to the specified file.
 
     """
+    contents = encode(x, True)
     with open(filename, "w") as f:
-        f.write(encode(x, True))
+        f.write(contents)
 
 
 def load_file(filename):
