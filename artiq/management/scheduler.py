@@ -6,8 +6,8 @@ from artiq.management.worker import Worker
 
 
 class Scheduler:
-    def __init__(self, *args, **kwargs):
-        self.worker = Worker(*args, **kwargs)
+    def __init__(self, worker_handlers):
+        self.worker = Worker(worker_handlers)
         self.next_rid = 0
         self.queue = Notifier([])
         self.queue_count = asyncio.Semaphore(0)
@@ -57,6 +57,16 @@ class Scheduler:
         del self.periodic[prid]
 
     @asyncio.coroutine
+    def _run(self, rid, run_params, timeout):
+        try:
+            yield from self.worker.run(run_params, timeout)
+        except Exception as e:
+            print("RID {} failed:".format(rid))
+            print(e)
+        else:
+            print("RID {} completed successfully".format(rid))
+
+    @asyncio.coroutine
     def _run_periodic(self):
         while True:
             min_next_run = None
@@ -80,8 +90,7 @@ class Scheduler:
 
             rid = self.new_rid()
             self.queue.insert(0, (rid, run_params, timeout))
-            result = yield from self.worker.run(run_params, timeout)
-            print(prid, rid, result)
+            yield from self._run(rid, run_params, timeout)
             del self.queue[0]
 
     @asyncio.coroutine
@@ -101,6 +110,5 @@ class Scheduler:
             yield from self._run_periodic()
             if ev_queue in done:
                 rid, run_params, timeout = self.queue.backing_struct[0]
-                result = yield from self.worker.run(run_params, timeout)
-                print(rid, result)
+                yield from self._run(rid, run_params, timeout)
                 del self.queue[0]

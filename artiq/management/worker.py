@@ -10,11 +10,14 @@ class WorkerFailed(Exception):
     pass
 
 
+class RunFailed(Exception):
+    pass
+
+
 class Worker:
-    def __init__(self, ddb, pdb,
+    def __init__(self, handlers,
                  send_timeout=0.5, start_reply_timeout=1.0, term_timeout=1.0):
-        self.ddb = ddb
-        self.pdb = pdb
+        self.handlers = handlers
         self.send_timeout = send_timeout
         self.start_reply_timeout = start_reply_timeout
         self.term_timeout = term_timeout
@@ -23,7 +26,6 @@ class Worker:
     def create_process(self):
         self.process = yield from asyncio.create_subprocess_exec(
             sys.executable, "-m", "artiq.management.worker_impl",
-            self.ddb, self.pdb,
             stdout=subprocess.PIPE, stdin=subprocess.PIPE)
 
     @asyncio.coroutine
@@ -62,8 +64,22 @@ class Worker:
         obj = yield from self._recv(self.start_reply_timeout)
         if obj != "ack":
             raise WorkerFailed("Incorrect acknowledgement")
-        result = yield from self._recv(result_timeout)
-        return result
+        while True:
+            obj = yield from self._recv(result_timeout)
+            action = obj["action"]
+            if action == "report_completed":
+                if obj["status"] != "ok":
+                    raise RunFailed(obj["message"])
+                else:
+                    return
+            else:
+                del obj["action"]
+                try:
+                    data = self.handlers[action](**obj)
+                    reply = {"status": "ok", "data": data}
+                except:
+                    reply = {"status": "failed"}
+                yield from self._send(reply, self.send_timeout)
 
     @asyncio.coroutine
     def end_process(self):
