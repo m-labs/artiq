@@ -30,7 +30,7 @@ class RemoteError(Exception):
 
 class IncompatibleServer(Exception):
     """Raised by the client when attempting to connect to a server that does
-    not have the expected type.
+    not have the expected target.
 
     """
     pass
@@ -62,22 +62,38 @@ class Client:
         hostname or a IPv4 or IPv6 address (see
         ``socket.create_connection`` in the Python standard library).
     :param port: TCP port to use.
-    :param expected_id_type: Server type to expect. ``IncompatibleServer`` is
-        raised when the types do not match. Use ``None`` to accept any server
-        type.
+    :param target_name: Target name to select. ``IncompatibleServer`` is
+        raised if the target does not exist.
+        Use ``None`` to skip selecting a target. The list of targets can then
+        be retrieved using ``get_rpc_id`` and then one can be selected later
+        using ``select_rpc_target``.
 
     """
-    def __init__(self, host, port, expected_id_type):
-        self.socket = socket.create_connection((host, port))
-        self.socket.sendall(_init_string)
-        self._identify(expected_id_type)
+    def __init__(self, host, port, target_name):
+        self._socket = socket.create_connection((host, port))
+        self._socket.sendall(_init_string)
 
-    def get_rpc_id(self):
-        """Returns a dictionary containing the identification information of
-        the server.
+        server_identification = self._recv()
+        self._target_names = server_identification["targets"]
+        self._id_parameters = server_identification["parameters"]
+        if target_name is not None:
+            self.select_rpc_target(target_name)
+
+    def select_rpc_target(self, target_name):
+        """Selects a RPC target by name. This function should be called
+        exactly once if the object was created with ``target_name=None``.
 
         """
-        return self._server_identification
+        if target_name not in self._target_names:
+            raise IncompatibleServer
+        self._socket.sendall((target_name + "\n").encode())
+
+    def get_rpc_id(self):
+        """Returns a tuple (target_names, id_parameters) containing the
+        identification information of the server.
+
+        """
+        return (self._target_names, self._id_parameters)
 
     def close_rpc(self):
         """Closes the connection to the RPC server.
@@ -85,15 +101,16 @@ class Client:
         No further method calls should be done after this method is called.
 
         """
-        self.socket.close()
+        self._socket.close()
 
-    def _send_recv(self, obj):
+    def _send(self, obj):
         line = pyon.encode(obj) + "\n"
-        self.socket.sendall(line.encode())
+        self._socket.sendall(line.encode())
 
-        buf = self.socket.recv(4096).decode()
+    def _recv(self):
+        buf = self._socket.recv(4096).decode()
         while "\n" not in buf:
-            more = self.socket.recv(4096)
+            more = self._socket.recv(4096)
             if not more:
                 break
             buf += more.decode()
@@ -101,20 +118,15 @@ class Client:
 
         return obj
 
-    def _identify(self, expected_id_type):
-        obj = {"action": "identify"}
-        self._server_identification = self._send_recv(obj)
-        if (expected_id_type is not None
-                and self._server_identification["type"] != expected_id_type):
-            raise IncompatibleServer
-
     def _do_rpc(self, name, args, kwargs):
         obj = {"action": "call", "name": name, "args": args, "kwargs": kwargs}
-        obj = self._send_recv(obj)
-        if obj["result"] == "ok":
+        self._send(obj)
+
+        obj = self._recv()
+        if obj["status"] == "ok":
             return obj["ret"]
-        elif obj["result"] == "error":
-            raise RemoteError(obj["message"] + "\n" + obj["traceback"])
+        elif obj["status"] == "failed":
+            raise RemoteError(obj["message"])
         else:
             raise ValueError
 
@@ -134,18 +146,16 @@ class Server(AsyncioServer):
     simple cases: it allows new connections to be be accepted even when the
     previous client failed to properly shut down its connection.
 
-    :param target: Object providing the RPC methods to be exposed to the
-        client.
-    :param id_type: A string identifying the server type. Clients use it to
-        verify that they are connected to the proper server.
+    :param targets: A dictionary of objects providing the RPC methods to be
+        exposed to the client. Keys are names identifying each object.
+        Clients select one of these objects using its name upon connection.
     :param id_parameters: An optional human-readable string giving more
         information about the parameters of the server.
 
     """
-    def __init__(self, target, id_type, id_parameters=None):
+    def __init__(self, targets, id_parameters=None):
         AsyncioServer.__init__(self)
-        self.target = target
-        self.id_type = id_type
+        self.targets = targets
         self.id_parameters = id_parameters
 
     @asyncio.coroutine
@@ -154,34 +164,41 @@ class Server(AsyncioServer):
             line = yield from reader.readline()
             if line != _init_string:
                 return
+
+            obj = {
+                "targets": sorted(self.targets.keys()),
+                "parameters": self.id_parameters
+            }
+            line = pyon.encode(obj) + "\n"
+            writer.write(line.encode())
+            line = yield from reader.readline()
+            if not line:
+                return
+            target_name = line.decode()[:-1]
+            try:
+                target = self.targets[target_name]
+            except KeyError:
+                return
+
             while True:
                 line = yield from reader.readline()
                 if not line:
                     break
                 obj = pyon.decode(line.decode())
-                action = obj["action"]
-                if action == "call":
-                    try:
-                        method = getattr(self.target, obj["name"])
-                        ret = method(*obj["args"], **obj["kwargs"])
-                        obj = {"result": "ok", "ret": ret}
-                    except Exception as e:
-                        obj = {"result": "error",
-                               "message": type(e).__name__ + ": " + str(e),
-                               "traceback": traceback.format_exc()}
-                    line = pyon.encode(obj) + "\n"
-                    writer.write(line.encode())
-                elif action == "identify":
-                    obj = {"type": self.id_type}
-                    if self.id_parameters is not None:
-                        obj["parameters"] = self.id_parameters
-                    line = pyon.encode(obj) + "\n"
-                    writer.write(line.encode())
+                try:
+                    method = getattr(target, obj["name"])
+                    ret = method(*obj["args"], **obj["kwargs"])
+                    obj = {"status": "ok", "ret": ret}
+                except Exception:
+                    obj = {"status": "failed",
+                           "message": traceback.format_exc()}
+                line = pyon.encode(obj) + "\n"
+                writer.write(line.encode())
         finally:
             writer.close()
 
 
-def simple_server_loop(target, id_type, host, port, id_parameters=None):
+def simple_server_loop(targets, host, port, id_parameters=None):
     """Runs a server until an exception is raised (e.g. the user hits Ctrl-C).
 
     See ``Server`` for a description of the parameters.
@@ -189,7 +206,7 @@ def simple_server_loop(target, id_type, host, port, id_parameters=None):
     """
     loop = asyncio.get_event_loop()
     try:
-        server = Server(target, id_type, id_parameters)
+        server = Server(targets, id_parameters)
         loop.run_until_complete(server.start(host, port))
         try:
             loop.run_forever()

@@ -16,11 +16,11 @@ def _get_args():
         "-s", "--server", default="::1",
         help="hostname or IP of the master to connect to")
     parser.add_argument(
-        "--port-schedule-control", default=8888, type=int,
-        help="TCP port to connect to for schedule control")
+        "--port-notify", default=8887, type=int,
+        help="TCP port to connect to for notifications")
     parser.add_argument(
-        "--port-schedule-notify", default=8887, type=int,
-        help="TCP port to connect to for schedule notifications")
+        "--port-control", default=8888, type=int,
+        help="TCP port to connect to for control")
     return parser.parse_args()
 
 
@@ -39,7 +39,7 @@ def main():
         parameters_win.show_all()
 
         loop.run_until_complete(scheduler_win.sub_connect(
-            args.server, args.port_schedule_notify))
+            args.server, args.port_notify))
         try:
             loop.run_forever()
         finally:

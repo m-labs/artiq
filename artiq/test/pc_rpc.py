@@ -66,7 +66,7 @@ def run_server():
     loop = asyncio.get_event_loop()
     try:
         echo = Echo()
-        server = pc_rpc.Server(echo, "test")
+        server = pc_rpc.Server({"test": echo})
         loop.run_until_complete(server.start(test_address, test_port))
         try:
             loop.run_until_complete(echo.wait_quit())

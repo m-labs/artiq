@@ -23,7 +23,7 @@ def main():
     else:
         lda = Lda(args.serial, args.device)
 
-    simple_server_loop(lda, "lda",
+    simple_server_loop({"lda": lda},
                        args.bind, args.port)
 
 if __name__ == "__main__":

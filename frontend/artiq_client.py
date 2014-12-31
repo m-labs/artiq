@@ -144,7 +144,7 @@ def main():
         _run_subscriber(args.server, args.port, subscriber)
     else:
         port = 8888 if args.port is None else args.port
-        remote = Client(args.server, port, "schedule_control")
+        remote = Client(args.server, port, "master_schedule")
         try:
             globals()["_action_" + args.action](remote, args)
         finally:

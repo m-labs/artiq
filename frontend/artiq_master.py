@@ -16,11 +16,11 @@ def _get_args():
         "--bind", default="::1",
         help="hostname or IP address to bind to")
     parser.add_argument(
-        "--port-schedule-control", default=8888, type=int,
-        help="TCP port to listen to for schedule control")
+        "--port-notify", default=8887, type=int,
+        help="TCP port to listen to for notifications")
     parser.add_argument(
-        "--port-schedule-notify", default=8887, type=int,
-        help="TCP port to listen to for schedule notifications")
+        "--port-control", default=8888, type=int,
+        help="TCP port to listen to for control")
     return parser.parse_args()
 
 
@@ -38,18 +38,20 @@ def main():
     loop.run_until_complete(scheduler.start())
     atexit.register(lambda: loop.run_until_complete(scheduler.stop()))
 
-    schedule_control = Server(scheduler, "schedule_control")
-    loop.run_until_complete(schedule_control.start(
-        args.bind, args.port_schedule_control))
-    atexit.register(lambda: loop.run_until_complete(schedule_control.stop()))
+    server_control = Server({
+        "master_schedule": scheduler
+    })
+    loop.run_until_complete(server_control.start(
+        args.bind, args.port_control))
+    atexit.register(lambda: loop.run_until_complete(server_control.stop()))
 
-    schedule_notify = Publisher({
+    server_notify = Publisher({
         "queue": scheduler.queue,
         "periodic": scheduler.periodic
     })
-    loop.run_until_complete(schedule_notify.start(
-        args.bind, args.port_schedule_notify))
-    atexit.register(lambda: loop.run_until_complete(schedule_notify.stop()))
+    loop.run_until_complete(server_notify.start(
+        args.bind, args.port_notify))
+    atexit.register(lambda: loop.run_until_complete(server_notify.stop()))
 
     loop.run_forever()
 

@@ -19,12 +19,12 @@ def main():
     args = _get_args()
     remote = Client(args.server, args.port, None)
     try:
-        ident = remote.get_rpc_id()
+        target_names, id_parameters = remote.get_rpc_id()
     finally:
         remote.close_rpc()
-    print("Type:       " + ident["type"])
-    if "parameters" in ident:
-        print("Parameters: " + ident["parameters"])
+    print("Target(s):   " + ", ".join(target_names))
+    if id_parameters is not None:
+        print("Parameters:  " + id_parameters)
 
 if __name__ == "__main__":
     main()

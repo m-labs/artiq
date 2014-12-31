@@ -32,8 +32,8 @@ def main():
 
     dev = Pdq2(serial=args.serial)
     try:
-        simple_server_loop(dev, "pdq2", args.bind, args.port,
-                           id_parameters="serial="+str(args.serial))
+        simple_server_loop({"pdq2": dev}, args.bind, args.port,
+                           id_parameters="serial=" + str(args.serial))
     finally:
         dev.close()
 
