@@ -3,7 +3,7 @@ import asyncio
 
 from gi.repository import Gtk
 
-from artiq.gui.tools import Window, ListSyncer
+from artiq.gui.tools import Window, ListSyncer, DictSyncer
 from artiq.management.sync_struct import Subscriber
 
 
@@ -16,16 +16,12 @@ class _QueueStoreSyncer(ListSyncer):
         return row
 
 
-class _PeriodicStoreSyncer:
-    def __init__(self, periodic_store, init):
-        self.periodic_store = periodic_store
-        self.periodic_store.clear()
-        self.order = []
-        for prid, x in sorted(init.items(), key=lambda e: (e[1][0], e[0])):
-            self.periodic_store.append(self._convert(prid, x))
-            self.order.append((x[0], prid))
+class _PeriodicStoreSyncer(DictSyncer):
+    def order_key(self, kv_pair):
+        # order by next run time, and then by PRID
+        return (kv_pair[1][0], kv_pair[0])
 
-    def _convert(self, prid, x):
+    def convert(self, prid, x):
         next_run, run_params, timeout, period = x
         row = [time.strftime("%m/%d %H:%M:%S", time.localtime(next_run)),
                prid, run_params["file"]]
@@ -33,34 +29,6 @@ class _PeriodicStoreSyncer:
             row.append("-" if e is None else str(e))
         row.append(str(period))
         return row
-
-    def _find_index(self, prid):
-        for i, e in enumerate(self.periodic_store):
-            if e[1] == prid:
-                return i
-        raise KeyError
-
-    def __setitem__(self, prid, x):
-        try:
-            i = self._find_index(prid)
-        except KeyError:
-            pass
-        else:
-            del self.periodic_store[i]
-            del self.order[i]
-        ord_el = (x[0], prid)
-        j = len(self.order)
-        for i, o in enumerate(self.order):
-            if o > ord_el:
-                j = i
-                break
-        self.periodic_store.insert(j, self._convert(prid, x))
-        self.order.insert(j, ord_el)
-
-    def __delitem__(self, key):
-        i = self._find_index(key)
-        del self.periodic_store[i]
-        del self.order[i]
 
 
 class SchedulerWindow(Window):

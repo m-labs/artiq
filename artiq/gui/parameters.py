@@ -4,42 +4,16 @@ import time
 
 from gi.repository import Gtk
 
-from artiq.gui.tools import Window, ListSyncer
+from artiq.gui.tools import Window, ListSyncer, DictSyncer
 from artiq.management.sync_struct import Subscriber
 
 
-class _ParameterStoreSyncer:
-    def __init__(self, parameters_store, init):
-        self.parameters_store = parameters_store
-        self.parameters_store.clear()
-        for name, value in sorted(init.items(), key=itemgetter(0)):
-            self.parameters_store.append(self._convert(name, value))
+class _ParameterStoreSyncer(DictSyncer):
+    def order_key(self, kv_pair):
+        return kv_pair[0]
 
-    def _convert(self, name, value):
+    def convert(self, name, value):
         return [name, str(value)]
-
-    def _find_index(self, name):
-        for i, e in enumerate(self.parameters_store):
-            if e[0] == name:
-                return i
-        raise KeyError
-
-    def __setitem__(self, name, value):
-        try:
-            i = self._find_index(name)
-        except KeyError:
-            pass
-        else:
-            del self.parameters_store[i]
-        j = len(self.parameters_store)
-        for i, e in enumerate(self.parameters_store):
-            if e[0] > name:
-                j = i
-                break
-        self.parameters_store.insert(j, self._convert(name, value))
-
-    def __delitem__(self, key):
-        del self.parameters_store[self._find_index(key)]
 
 
 class _LastChangesStoreSyncer(ListSyncer):
