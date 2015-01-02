@@ -3,32 +3,17 @@ import asyncio
 
 from gi.repository import Gtk
 
-from artiq.gui.tools import Window
+from artiq.gui.tools import Window, ListSyncer
 from artiq.management.sync_struct import Subscriber
 
 
-class _QueueStoreSyncer:
-    def __init__(self, queue_store, init):
-        self.queue_store = queue_store
-        self.queue_store.clear()
-        for x in init:
-            self.append(x)
-
-    def _convert(self, x):
+class _QueueStoreSyncer(ListSyncer):
+    def convert(self, x):
         rid, run_params, timeout = x
         row = [rid, run_params["file"]]
         for e in run_params["unit"], run_params["function"], timeout:
             row.append("-" if e is None else str(e))
         return row
-
-    def append(self, x):
-        self.queue_store.append(self._convert(x))
-
-    def insert(self, i, x):
-        self.queue_store.insert(i, self._convert(x))
-
-    def __delitem__(self, key):
-        del self.queue_store[key]
 
 
 class _PeriodicStoreSyncer:

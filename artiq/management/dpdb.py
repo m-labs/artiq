@@ -1,5 +1,6 @@
 from collections import OrderedDict
 import importlib
+from time import time
 
 from artiq.language.context import *
 from artiq.management import pyon
@@ -68,6 +69,7 @@ class DeviceParamDB:
         self.pdb_file = pdb_file
         self.ddb = Notifier(pyon.load_file(self.ddb_file))
         self.pdb = Notifier(pyon.load_file(self.pdb_file))
+        self.parameter_hooks = []
 
     def save_ddb(self):
         pyon.store_file(self.ddb_file, self.ddb.backing_struct)
@@ -92,7 +94,29 @@ class DeviceParamDB:
     def set_parameter(self, name, value):
         self.pdb[name] = value
         self.save_pdb()
+        timestamp = time()
+        for hook in self.parameter_hooks:
+            hook.set_parameter(timestamp, name, value)
 
     def del_parameter(self, name):
         del self.pdb[name]
         self.save_pdb()
+        timestamp = time()
+        for hook in self.parameter_hooks:
+            hook.del_parameter(timestamp, name)
+
+
+class SimpleParameterHistory:
+    def __init__(self, depth):
+        self.depth = depth
+        self.history = Notifier([])
+
+    def set_parameter(self, timestamp, name, value):
+        if len(self.history.backing_struct) >= self.depth:
+            del self.history[0]
+        self.history.append((timestamp, name, value))
+
+    def del_parameter(self, timestamp, name):
+        if len(self.history.backing_struct) >= self.depth:
+            del self.history[0]
+        self.history.append((timestamp, name))
