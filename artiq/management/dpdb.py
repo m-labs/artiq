@@ -70,10 +70,10 @@ class DeviceParamDB:
         self.pdb = Notifier(pyon.load_file(self.pdb_file))
 
     def save_ddb(self):
-        pyon.store_file(self.ddb_file, self.ddb)
+        pyon.store_file(self.ddb_file, self.ddb.backing_struct)
 
     def save_pdb(self):
-        pyon.store_file(self.pdb_file, self.pdb)
+        pyon.store_file(self.pdb_file, self.pdb.backing_struct)
 
     def req_device(self, name):
         return self.ddb.backing_struct[name]
