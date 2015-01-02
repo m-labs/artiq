@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import atexit
 
 import gbulb
 from gi.repository import Gtk
@@ -29,23 +30,27 @@ def main():
 
     asyncio.set_event_loop_policy(gbulb.GtkEventLoopPolicy())
     loop = asyncio.get_event_loop()
-    try:
-        scheduler_win = SchedulerWindow()
-        scheduler_win.connect("delete-event", Gtk.main_quit)
-        scheduler_win.show_all()
+    atexit.register(lambda: loop.close())
 
-        parameters_win = ParametersWindow()
-        parameters_win.connect("delete-event", Gtk.main_quit)
-        parameters_win.show_all()
+    scheduler_win = SchedulerWindow()
+    scheduler_win.connect("delete-event", Gtk.main_quit)
+    scheduler_win.show_all()
 
-        loop.run_until_complete(scheduler_win.sub_connect(
-            args.server, args.port_notify))
-        try:
-            loop.run_forever()
-        finally:
-            loop.run_until_complete(scheduler_win.sub_close())
-    finally:
-        loop.close()
+    parameters_win = ParametersWindow()
+    parameters_win.connect("delete-event", Gtk.main_quit)
+    parameters_win.show_all()
+
+    loop.run_until_complete(scheduler_win.sub_connect(
+        args.server, args.port_notify))
+    atexit.register(
+        lambda: loop.run_until_complete(scheduler_win.sub_close()))
+
+    loop.run_until_complete(parameters_win.sub_connect(
+        args.server, args.port_notify))
+    atexit.register(
+        lambda: loop.run_until_complete(parameters_win.sub_close()))
+
+    loop.run_forever()
 
 if __name__ == "__main__":
     main()
