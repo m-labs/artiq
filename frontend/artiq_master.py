@@ -39,7 +39,8 @@ def main():
     atexit.register(lambda: loop.run_until_complete(scheduler.stop()))
 
     server_control = Server({
-        "master_schedule": scheduler
+        "master_schedule": scheduler,
+        "master_dpdb": dpdb
     })
     loop.run_until_complete(server_control.start(
         args.bind, args.port_control))
@@ -47,7 +48,9 @@ def main():
 
     server_notify = Publisher({
         "queue": scheduler.queue,
-        "periodic": scheduler.periodic
+        "periodic": scheduler.periodic,
+        "devices": dpdb.ddb,
+        "parameters": dpdb.pdb
     })
     loop.run_until_complete(server_notify.start(
         args.bind, args.port_notify))

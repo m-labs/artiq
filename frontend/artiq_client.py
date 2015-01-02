@@ -3,12 +3,15 @@
 import argparse
 import time
 import asyncio
+import sys
+from operator import itemgetter
 
 from prettytable import PrettyTable
 
 from artiq.management.pc_rpc import Client
 from artiq.management.sync_struct import Subscriber
 from artiq.management.tools import clear_screen
+from artiq.management import pyon
 
 
 def _get_args():
@@ -44,11 +47,31 @@ def _get_args():
     parser_cancel.add_argument("rid", type=int,
                                help="run identifier (RID/PRID)")
 
-    parser_show_queue = subparsers.add_parser(
-        "show-queue", help="show the experiment queue")
+    parser_set_device = subparsers.add_parser(
+        "set-device", help="add or modify a device")
+    parser_set_device.add_argument("name", help="name of the device")
+    parser_set_device.add_argument("description",
+                                   help="description in PYON format")
 
-    parser_show_periodic = subparsers.add_parser(
-        "show-periodic", help="show the periodic experiment table")
+    parser_del_device = subparsers.add_parser(
+        "del-device", help="delete a device")
+    parser_del_device.add_argument("name", help="name of the device")
+
+    parser_set_parameter = subparsers.add_parser(
+        "set-parameter", help="add or modify a parameter")
+    parser_set_parameter.add_argument("name", help="name of the parameter")
+    parser_set_parameter.add_argument("value",
+                                      help="value in PYON format")
+
+    parser_del_parameter = subparsers.add_parser(
+        "del-parameter", help="delete a parameter")
+    parser_del_parameter.add_argument("name", help="name of the parameter")
+
+    parser_show = subparsers.add_parser(
+        "show", help="show schedule, devices or parameters")
+    parser_show.add_argument(
+        "what",
+        help="select object to show: queue/periodic/devices/parameters")
 
     return parser.parse_args()
 
@@ -73,6 +96,22 @@ def _action_cancel(remote, args):
         remote.cancel_periodic(args.rid)
     else:
         remote.cancel_once(args.rid)
+
+
+def _action_set_device(remote, args):
+    remote.set_device(args.name, pyon.decode(args.description))
+
+
+def _action_del_device(remote, args):
+    remote.del_device(args.name)
+
+
+def _action_set_parameter(remote, args):
+    remote.set_parameter(args.name, pyon.decode(args.value))
+
+
+def _action_del_parameter(remote, args):
+    remote.del_parameter(args.name)
 
 
 def _show_queue(queue):
@@ -107,6 +146,23 @@ def _show_periodic(periodic):
         print("No periodic schedule")
 
 
+def _show_devices(devices):
+    clear_screen()
+    table = PrettyTable(["Name", "Description"])
+    table.align["Description"] = "l"
+    for k, v in sorted(devices.items(), key=itemgetter(0)):
+        table.add_row([k, pyon.encode(v, True)])
+    print(table)
+
+
+def _show_parameters(parameters):
+    clear_screen()
+    table = PrettyTable(["Parameter", "Value"])
+    for k, v in sorted(parameters.items(), key=itemgetter(0)):
+        table.add_row([k, str(v)])
+    print(table)
+
+
 def _run_subscriber(host, port, subscriber):
     if port is None:
         port = 8887
@@ -123,30 +179,51 @@ def _run_subscriber(host, port, subscriber):
         loop.close()
 
 
+def _show_list(args, notifier_name, display_fun):
+    l = []
+    def init_l(x):
+        l[:] = x
+        return l
+    subscriber = Subscriber(notifier_name, init_l,
+                            lambda: display_fun(l))
+    _run_subscriber(args.server, args.port, subscriber)
+
+
+def _show_dict(args, notifier_name, display_fun):
+    d = dict()
+    def init_d(x):
+        d.clear()
+        d.update(x)
+        return d
+    subscriber = Subscriber(notifier_name, init_d,
+                            lambda: display_fun(d))
+    _run_subscriber(args.server, args.port, subscriber)
+
+
 def main():
     args = _get_args()
-    if args.action == "show-queue":
-        queue = []
-        def init_queue(x):
-            queue[:] = x
-            return queue
-        subscriber = Subscriber("queue", init_queue,
-                                lambda: _show_queue(queue))
-        _run_subscriber(args.server, args.port, subscriber)
-    elif args.action == "show-periodic":
-        periodic = dict()
-        def init_periodic(x):
-            periodic.clear()
-            periodic.update(x)
-            return periodic
-        subscriber = Subscriber("periodic", init_periodic,
-                                lambda: _show_periodic(periodic))
-        _run_subscriber(args.server, args.port, subscriber)
+    action = args.action.replace("-", "_")
+    if action == "show":
+        if args.what == "queue":
+            _show_list(args, "queue", _show_queue)
+        elif args.what == "periodic":
+            _show_dict(args, "periodic", _show_periodic)
+        elif args.what == "devices":
+            _show_dict(args, "devices", _show_devices)
+        elif args.what == "parameters":
+            _show_dict(args, "parameters", _show_parameters)
+        else:
+            print("Unknown object to show, use -h to list valid names.")
+            sys.exit(1)
     else:
         port = 8888 if args.port is None else args.port
-        remote = Client(args.server, port, "master_schedule")
+        if action in ("submit", "cancel"):
+            target_name = "master_schedule"
+        else:
+            target_name = "master_dpdb"
+        remote = Client(args.server, port, target_name)
         try:
-            globals()["_action_" + args.action](remote, args)
+            globals()["_action_" + action](remote, args)
         finally:
             remote.close_rpc()
 
