@@ -11,7 +11,7 @@ class _QueueStoreSyncer(ListSyncer):
     def convert(self, x):
         rid, run_params, timeout = x
         row = [rid, run_params["file"]]
-        for e in run_params["unit"], run_params["function"], timeout:
+        for e in run_params["unit"], timeout:
             row.append("-" if e is None else str(e))
         return row
 
@@ -29,7 +29,7 @@ class _PeriodicStoreSyncer:
         next_run, run_params, timeout, period = x
         row = [time.strftime("%m/%d %H:%M:%S", time.localtime(next_run)),
                prid, run_params["file"]]
-        for e in run_params["unit"], run_params["function"], timeout:
+        for e in run_params["unit"], timeout:
             row.append("-" if e is None else str(e))
         row.append(str(period))
         return row
@@ -81,10 +81,9 @@ class SchedulerWindow(Window):
         notebook = Gtk.Notebook()
         topvbox.pack_start(notebook, True, True, 0)
 
-        self.queue_store = Gtk.ListStore(int, str, str, str, str)
+        self.queue_store = Gtk.ListStore(int, str, str, str)
         tree = Gtk.TreeView(self.queue_store)
-        for i, title in enumerate(["RID", "File", "Unit",
-                                   "Function", "Timeout"]):
+        for i, title in enumerate(["RID", "File", "Unit", "Timeout"]):
             renderer = Gtk.CellRendererText()
             column = Gtk.TreeViewColumn(title, renderer, text=i)
             tree.append_column(column)
@@ -105,10 +104,10 @@ class SchedulerWindow(Window):
         vbox.set_border_width(6)
         notebook.insert_page(vbox, Gtk.Label("Queue"), -1)
 
-        self.periodic_store = Gtk.ListStore(str, int, str, str, str, str, str)
+        self.periodic_store = Gtk.ListStore(str, int, str, str, str, str)
         tree = Gtk.TreeView(self.periodic_store)
         for i, title in enumerate(["Next run", "PRID", "File", "Unit",
-                                   "Function", "Timeout", "Period"]):
+                                   "Timeout", "Period"]):
             renderer = Gtk.CellRendererText()
             column = Gtk.TreeViewColumn(title, renderer, text=i)
             tree.append_column(column)

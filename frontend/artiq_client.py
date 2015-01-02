@@ -33,8 +33,6 @@ def _get_args():
     parser_add.add_argument(
         "-t", "--timeout", default=None, type=float,
         help="specify a timeout for the experiment to complete")
-    parser_add.add_argument("-f", "--function", default="run",
-                            help="function to run")
     parser_add.add_argument("-u", "--unit", default=None,
                             help="unit to run")
     parser_add.add_argument("file", help="file containing the unit to run")
@@ -79,8 +77,7 @@ def _get_args():
 def _action_submit(remote, args):
     run_params = {
         "file": args.file,
-        "unit": args.unit,
-        "function": args.function
+        "unit": args.unit
     }
     if args.periodic is None:
         rid = remote.run_once(run_params, args.timeout)
@@ -117,10 +114,10 @@ def _action_del_parameter(remote, args):
 def _show_queue(queue):
     clear_screen()
     if queue:
-        table = PrettyTable(["RID", "File", "Unit", "Function", "Timeout"])
+        table = PrettyTable(["RID", "File", "Unit", "Timeout"])
         for rid, run_params, timeout in queue:
             row = [rid, run_params["file"]]
-            for x in run_params["unit"], run_params["function"], timeout:
+            for x in run_params["unit"], timeout:
                 row.append("-" if x is None else x)
             table.add_row(row)
         print(table)
@@ -131,13 +128,13 @@ def _show_queue(queue):
 def _show_periodic(periodic):
     clear_screen()
     if periodic:
-        table = PrettyTable(["Next run", "PRID", "File", "Unit", "Function",
+        table = PrettyTable(["Next run", "PRID", "File", "Unit",
                              "Timeout", "Period"])
         sp = sorted(periodic.items(), key=lambda x: (x[1][0], x[0]))
         for prid, (next_run, run_params, timeout, period) in sp:
             row = [time.strftime("%m/%d %H:%M:%S", time.localtime(next_run)),
                    prid, run_params["file"]]
-            for x in run_params["unit"], run_params["function"], timeout:
+            for x in run_params["unit"], timeout:
                 row.append("-" if x is None else x)
             row.append(period)
             table.add_row(row)
