@@ -7,6 +7,7 @@ import atexit
 import gbulb
 from gi.repository import Gtk
 
+from artiq.management.pc_rpc import AsyncioClient
 from artiq.gui.scheduler import SchedulerWindow
 from artiq.gui.parameters import ParametersWindow
 
@@ -32,19 +33,22 @@ def main():
     loop = asyncio.get_event_loop()
     atexit.register(lambda: loop.close())
 
-    scheduler_win = SchedulerWindow()
+    # share the schedule control connection
+    schedule_ctl = AsyncioClient()
+    loop.run_until_complete(schedule_ctl.connect_rpc(
+        args.server, args.port_control, "master_schedule"))
+
+    scheduler_win = SchedulerWindow(schedule_ctl)
     scheduler_win.connect("delete-event", Gtk.main_quit)
     scheduler_win.show_all()
-
-    parameters_win = ParametersWindow()
-    parameters_win.connect("delete-event", Gtk.main_quit)
-    parameters_win.show_all()
-
     loop.run_until_complete(scheduler_win.sub_connect(
         args.server, args.port_notify))
     atexit.register(
         lambda: loop.run_until_complete(scheduler_win.sub_close()))
 
+    parameters_win = ParametersWindow()
+    parameters_win.connect("delete-event", Gtk.main_quit)
+    parameters_win.show_all()
     loop.run_until_complete(parameters_win.sub_connect(
         args.server, args.port_notify))
     atexit.register(

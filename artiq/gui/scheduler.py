@@ -32,7 +32,9 @@ class _PeriodicStoreSyncer(DictSyncer):
 
 
 class SchedulerWindow(Window):
-    def __init__(self):
+    def __init__(self, schedule_ctl):
+        self.schedule_ctl = schedule_ctl
+
         Window.__init__(self, title="Scheduler")
         self.set_default_size(720, 570)
 
@@ -50,13 +52,13 @@ class SchedulerWindow(Window):
         topvbox.pack_start(notebook, True, True, 0)
 
         self.queue_store = Gtk.ListStore(int, str, str, str)
-        tree = Gtk.TreeView(self.queue_store)
+        self.queue_tree = Gtk.TreeView(self.queue_store)
         for i, title in enumerate(["RID", "File", "Unit", "Timeout"]):
             renderer = Gtk.CellRendererText()
             column = Gtk.TreeViewColumn(title, renderer, text=i)
-            tree.append_column(column)
+            self.queue_tree.append_column(column)
         scroll = Gtk.ScrolledWindow()
-        scroll.add(tree)
+        scroll.add(self.queue_tree)
         vbox = Gtk.VBox(spacing=6)
         vbox.pack_start(scroll, True, True, 0)
         hbox = Gtk.HBox(spacing=6)
@@ -67,30 +69,44 @@ class SchedulerWindow(Window):
         button = Gtk.Button("Move down")
         hbox.pack_start(button, True, True, 0)
         button = Gtk.Button("Remove")
+        button.connect("clicked", self.remove_queue)
         hbox.pack_start(button, True, True, 0)
         vbox.pack_start(hbox, False, False, 0)
         vbox.set_border_width(6)
         notebook.insert_page(vbox, Gtk.Label("Queue"), -1)
 
         self.periodic_store = Gtk.ListStore(str, int, str, str, str, str)
-        tree = Gtk.TreeView(self.periodic_store)
+        self.periodic_tree = Gtk.TreeView(self.periodic_store)
         for i, title in enumerate(["Next run", "PRID", "File", "Unit",
                                    "Timeout", "Period"]):
             renderer = Gtk.CellRendererText()
             column = Gtk.TreeViewColumn(title, renderer, text=i)
-            tree.append_column(column)
+            self.periodic_tree.append_column(column)
         scroll = Gtk.ScrolledWindow()
-        scroll.add(tree)
+        scroll.add(self.periodic_tree)
         vbox = Gtk.VBox(spacing=6)
         vbox.pack_start(scroll, True, True, 0)
         hbox = Gtk.HBox(spacing=6)
         button = Gtk.Button("Change period")
         hbox.pack_start(button, True, True, 0)
         button = Gtk.Button("Remove")
+        button.connect("clicked", self.remove_periodic)
         hbox.pack_start(button, True, True, 0)
         vbox.pack_start(hbox, False, False, 0)
         vbox.set_border_width(6)
         notebook.insert_page(vbox, Gtk.Label("Periodic schedule"), -1)
+
+    def remove_queue(self, widget):
+        store, selected = self.queue_tree.get_selection().get_selected()
+        if selected is not None:
+            rid = store[selected][0]
+            asyncio.Task(self.schedule_ctl.cancel_once(rid))
+
+    def remove_periodic(self, widget):
+        store, selected = self.periodic_tree.get_selection().get_selected()
+        if selected is not None:
+            prid = store[selected][1]
+            asyncio.Task(self.schedule_ctl.cancel_periodic(prid))
 
     @asyncio.coroutine
     def sub_connect(self, host, port):
