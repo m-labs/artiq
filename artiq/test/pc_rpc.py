@@ -11,40 +11,76 @@ from artiq.management import pc_rpc
 
 test_address = "::1"
 test_port = 7777
+test_object = [5, 2.1, None, True, False,
+               {"a": 5, 2: np.linspace(0, 10, 1)},
+               (4, 5), (10,), "ab\nx\"'"]
 
 
 class RPCCase(unittest.TestCase):
-    def test_echo(self):
+    def _run_server_and_test(self, test):
         # running this file outside of unittest starts the echo server
         with subprocess.Popen([sys.executable,
                                sys.modules[__name__].__file__]) as proc:
             try:
-                test_object = [5, 2.1, None, True, False,
-                               {"a": 5, 2: np.linspace(0, 10, 1)},
-                               (4, 5), (10,), "ab\nx\"'"]
-                for attempt in range(100):
-                    time.sleep(.2)
-                    try:
-                        remote = pc_rpc.Client(test_address, test_port,
-                                               "test")
-                    except ConnectionRefusedError:
-                        pass
-                    else:
-                        break
-                try:
-                    test_object_back = remote.echo(test_object)
-                    with self.assertRaises(pc_rpc.RemoteError):
-                        remote.non_existing_method()
-                    remote.quit()
-                finally:
-                    remote.close_rpc()
+                test()
             finally:
                 try:
                     proc.wait(timeout=1)
                 except subprocess.TimeoutExpired:
                     proc.kill()
                     raise
+
+    def _blocking_echo(self):
+        for attempt in range(100):
+            time.sleep(.2)
+            try:
+                remote = pc_rpc.Client(test_address, test_port,
+                                       "test")
+            except ConnectionRefusedError:
+                pass
+            else:
+                break
+        try:
+            test_object_back = remote.echo(test_object)
             self.assertEqual(test_object, test_object_back)
+            with self.assertRaises(pc_rpc.RemoteError):
+                remote.non_existing_method()
+            remote.quit()
+        finally:
+            remote.close_rpc()
+
+    def test_blocking_echo(self):
+        self._run_server_and_test(self._blocking_echo)
+
+    @asyncio.coroutine
+    def _asyncio_echo(self):
+        remote = pc_rpc.AsyncioClient()
+        for attempt in range(100):
+            yield from asyncio.sleep(.2)
+            try:
+                yield from remote.connect_rpc(test_address, test_port, "test")
+            except ConnectionRefusedError:
+                pass
+            else:
+                break
+        try:
+            test_object_back = yield from remote.echo(test_object)
+            self.assertEqual(test_object, test_object_back)
+            with self.assertRaises(pc_rpc.RemoteError):
+                yield from remote.non_existing_method()
+            yield from remote.quit()
+        finally:
+            remote.close_rpc()
+
+    def _loop_asyncio_echo(self):
+        loop = asyncio.get_event_loop()
+        try:
+            loop.run_until_complete(self._asyncio_echo())
+        finally:
+            loop.close()
+
+    def test_asyncio_echo(self):
+        self._run_server_and_test(self._loop_asyncio_echo)
 
 
 class Echo:
