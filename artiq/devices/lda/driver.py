@@ -57,6 +57,7 @@ class Lda:
     _product_ids = {
         "LDA-102": 0x1207,
         "LDA-602": 0x1208,
+        "LDA-302P-1": 0x120E,
     }
 
     def __init__(self, serial=None, product="LDA-102"):
@@ -158,4 +159,4 @@ class Lda:
         :type attenuation: int, float or Fraction
 
         """
-        self.set(0x8d, bytes(chr(int(round(attenuation*4))), "ascii"))
+        self.set(0x8d, bytes(chr(int(round(attenuation*4))), "latin_1"))
