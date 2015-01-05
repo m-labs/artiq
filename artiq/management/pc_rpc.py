@@ -17,7 +17,7 @@ import asyncio
 import traceback
 
 from artiq.management import pyon
-from artiq.management.tools import AsyncioServer
+from artiq.management.tools import AsyncioServer as _AsyncioServer
 
 
 class RemoteError(Exception):
@@ -70,30 +70,35 @@ class Client:
 
     """
     def __init__(self, host, port, target_name):
-        self._socket = socket.create_connection((host, port))
-        self._socket.sendall(_init_string)
+        self.__socket = socket.create_connection((host, port))
 
-        server_identification = self._recv()
-        self._target_names = server_identification["targets"]
-        self._id_parameters = server_identification["parameters"]
-        if target_name is not None:
-            self.select_rpc_target(target_name)
+        try:
+            self.__socket.sendall(_init_string)
+
+            server_identification = self.__recv()
+            self.__target_names = server_identification["targets"]
+            self.__id_parameters = server_identification["parameters"]
+            if target_name is not None:
+                self.select_rpc_target(target_name)
+        except:
+            self.__socket.close()
+            raise
 
     def select_rpc_target(self, target_name):
         """Selects a RPC target by name. This function should be called
         exactly once if the object was created with ``target_name=None``.
 
         """
-        if target_name not in self._target_names:
+        if target_name not in self.__target_names:
             raise IncompatibleServer
-        self._socket.sendall((target_name + "\n").encode())
+        self.__socket.sendall((target_name + "\n").encode())
 
     def get_rpc_id(self):
         """Returns a tuple (target_names, id_parameters) containing the
         identification information of the server.
 
         """
-        return (self._target_names, self._id_parameters)
+        return (self.__target_names, self.__id_parameters)
 
     def close_rpc(self):
         """Closes the connection to the RPC server.
@@ -101,28 +106,26 @@ class Client:
         No further method calls should be done after this method is called.
 
         """
-        self._socket.close()
+        self.__socket.close()
 
-    def _send(self, obj):
+    def __send(self, obj):
         line = pyon.encode(obj) + "\n"
-        self._socket.sendall(line.encode())
+        self.__socket.sendall(line.encode())
 
-    def _recv(self):
-        buf = self._socket.recv(4096).decode()
+    def __recv(self):
+        buf = self.__socket.recv(4096).decode()
         while "\n" not in buf:
-            more = self._socket.recv(4096)
+            more = self.__socket.recv(4096)
             if not more:
                 break
             buf += more.decode()
-        obj = pyon.decode(buf)
+        return pyon.decode(buf)
 
-        return obj
-
-    def _do_rpc(self, name, args, kwargs):
+    def __do_rpc(self, name, args, kwargs):
         obj = {"action": "call", "name": name, "args": args, "kwargs": kwargs}
-        self._send(obj)
+        self.__send(obj)
 
-        obj = self._recv()
+        obj = self.__recv()
         if obj["status"] == "ok":
             return obj["ret"]
         elif obj["status"] == "failed":
@@ -132,7 +135,7 @@ class Client:
 
     def __getattr__(self, name):
         def proxy(*args, **kwargs):
-            return self._do_rpc(name, args, kwargs)
+            return self.__do_rpc(name, args, kwargs)
         return proxy
 
 
@@ -232,7 +235,7 @@ class AsyncioClient:
         return proxy
 
 
-class Server(AsyncioServer):
+class Server(_AsyncioServer):
     """This class creates a TCP server that handles requests coming from
     ``Client`` objects.
 
@@ -250,7 +253,7 @@ class Server(AsyncioServer):
 
     """
     def __init__(self, targets, id_parameters=None):
-        AsyncioServer.__init__(self)
+        _AsyncioServer.__init__(self)
         self.targets = targets
         self.id_parameters = id_parameters
 
