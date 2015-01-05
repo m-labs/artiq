@@ -2,15 +2,15 @@ Management reference
 ====================
 
 :mod:`artiq.management.pyon` module
-------------------------------------
+-----------------------------------
 
 .. automodule:: artiq.management.pyon
     :members:
 
-:mod:`artiq.management.network` module
--------------------------------------
+:mod:`artiq.management.tools` module
+------------------------------------
 
-.. automodule:: artiq.management.network
+.. automodule:: artiq.management.tools
     :members:
 
 
@@ -21,7 +21,7 @@ Management reference
     :members:
 
 :mod:`artiq.management.sync_struct` module
--------------------------------------
+------------------------------------------
 
 .. automodule:: artiq.management.sync_struct
     :members:
