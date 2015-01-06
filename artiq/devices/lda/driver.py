@@ -159,4 +159,4 @@ class Lda:
         :type attenuation: int, float or Fraction
 
         """
-        self.set(0x8d, bytes(chr(int(round(attenuation*4))), "latin_1"))
+        self.set(0x8d, bytes([int(round(attenuation*4))]))
