@@ -37,6 +37,7 @@ def main():
     schedule_ctl = AsyncioClient()
     loop.run_until_complete(schedule_ctl.connect_rpc(
         args.server, args.port_control, "master_schedule"))
+    atexit.register(lambda: schedule_ctl.close_rpc())
 
     scheduler_win = SchedulerWindow(schedule_ctl)
     scheduler_win.connect("delete-event", Gtk.main_quit)
