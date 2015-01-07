@@ -16,8 +16,6 @@ class Transport(AutoContext):
     pmt = Device("ttl_in")
     electrodes = Device("pdq")
 
-    repeats = Parameter(100)
-    nbins = Parameter(100)
     wait_at_stop = Parameter(100*us)
     speed = Parameter(1.5)
 
@@ -93,27 +91,27 @@ class Transport(AutoContext):
         return self.detect()
 
     @kernel
-    def repeat(self):
-        self.histogram = [0 for _ in range(self.nbins)]
+    def repeat(self, repeats, nbins):
+        self.histogram = [0 for _ in range(nbins)]
 
-        for i in range(self.repeats):
+        for i in range(repeats):
             n = self.one()
-            if n >= self.nbins:
-                n = self.nbins-1
+            if n >= nbins:
+                n = nbins - 1
             self.histogram[n] += 1
 
-    def scan(self, stops):
+    def scan(self, repeats, nbins, stops):
         for s in stops:
             self.histogram = []
             # non-kernel, calculate waveforms, build frames
             # could also be rpc'ed from repeat()
             self.prepare(s)
             # kernel part
-            self.repeat()
+            self.repeat(repeats, nbins)
             # live update 2d plot with current self.histogram
             # broadcast(s, self.histogram)
 
-    def run(self):
+    def run(self, repeats=100, nbins=100):
         # scan transport endpoint
         stops = range(10, len(transport_data["t"]), 10)
-        self.scan(stops)
+        self.scan(repeats, nbins, stops)
