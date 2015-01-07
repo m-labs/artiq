@@ -29,11 +29,14 @@ class Parameter(_AttributeKind):
     """Represents a parameter for ``AutoContext`` to process.
 
     :param default: Default value of the parameter to be used if not found
-        in database.
+        in the database.
+    :param write_db: Writes any modification of the parameter back to the
+        database.
 
     """
-    def __init__(self, default=NoDefault):
+    def __init__(self, default=NoDefault, write_db=False):
         self.default = default
+        self.write_db = write_db
 
 
 class AutoContext:
@@ -105,6 +108,10 @@ class AutoContext:
 
         self.mvs = mvs
         for k, v in kwargs.items():
+            if hasattr(self, k):
+                p = getattr(self, k)
+                if isinstance(p, Parameter) and p.write_db:
+                    self.mvs.register_parameter_wb(self, k)
             setattr(self, k, v)
 
         for k in dir(self):
@@ -119,6 +126,8 @@ class AutoContext:
                                              " and no MVS present".format(k))
                 else:
                     value = self.mvs.get_missing_value(k, v, self)
+                    if isinstance(v, Parameter) and v.write_db:
+                        self.mvs.register_parameter_wb(self, k)
                 setattr(self, k, value)
 
         self.build()

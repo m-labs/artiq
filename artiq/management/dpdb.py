@@ -21,6 +21,8 @@ class DeviceParamSupplier:
         self.req_device = req_device
         self.req_parameter = req_parameter
         self.active_devices = OrderedDict()
+        # list of (requester, name)
+        self.parameter_wb = []
 
     def get_missing_value(self, name, kind, requester):
         if isinstance(kind, Device):
@@ -56,11 +58,20 @@ class DeviceParamSupplier:
         else:
             raise NotImplementedError
 
+    def register_parameter_wb(self, requester, name):
+        self.parameter_wb.append((requester, name))
+
     def close(self):
+        """Closes all active devices, in the opposite order as they were
+        requested.
+
+        Do not use the same ``DeviceParamSupplier`` again after calling
+        this function.
+
+        """
         for dev in reversed(list(self.active_devices.values())):
             if hasattr(dev, "close"):
                 dev.close()
-        self.active_devices = OrderedDict()
 
 
 class DeviceParamDB:

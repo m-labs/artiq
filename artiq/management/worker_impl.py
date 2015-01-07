@@ -37,36 +37,43 @@ def put_object(obj):
     sys.__stdout__.flush()
 
 
-def req_device(name):
-    put_object({"action": "req_device", "name": name})
-    obj = get_object()
-    if obj["status"] == "ok":
-        return obj["data"]
-    else:
-        raise KeyError
+class ParentActionError(Exception):
+    pass
 
 
-def req_parameter(name):
-    put_object({"action": "req_parameter", "name": name})
-    obj = get_object()
-    if obj["status"] == "ok":
-        return obj["data"]
-    else:
-        raise KeyError
+def make_parent_action(action, argnames, exception=ParentActionError):
+    argnames = argnames.split()
+    def parent_action(*args):
+        request = {"action": action}
+        for argname, arg in zip(argnames, args):
+            request[argname] = arg
+        put_object(request)
+        reply = get_object()
+        if reply["status"] == "ok":
+            return reply["data"]
+        else:
+            raise exception
+    return parent_action
+
+
+req_device = make_parent_action("req_device", "name", KeyError)
+req_parameter = make_parent_action("req_parameter", "name", KeyError)
+set_parameter = make_parent_action("set_parameter", "name value")
 
 
 def main():
     sys.stdout = sys.stderr
 
-    dps = DeviceParamSupplier(req_device, req_parameter)
-
     while True:
         obj = get_object()
         put_object("ack")
 
+        dps = DeviceParamSupplier(req_device, req_parameter)
         try:
             try:
                 run(dps, **obj)
+                for requester, name in dps.parameter_wb:
+                    set_parameter(name, getattr(requester, name))
             except Exception:
                 put_object({"action": "report_completed",
                             "status": "failed",

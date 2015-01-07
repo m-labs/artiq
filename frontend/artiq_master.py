@@ -36,7 +36,8 @@ def main():
 
     scheduler = Scheduler({
         "req_device": dpdb.req_device,
-        "req_parameter": dpdb.req_parameter
+        "req_parameter": dpdb.req_parameter,
+        "set_parameter": dpdb.set_parameter
     })
     loop.run_until_complete(scheduler.start())
     atexit.register(lambda: loop.run_until_complete(scheduler.stop()))
