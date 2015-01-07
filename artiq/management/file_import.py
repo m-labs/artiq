@@ -1,7 +1,10 @@
 import importlib.machinery
+import linecache
 
 
 def file_import(filename):
+    linecache.checkcache(filename)
+
     modname = filename
     i = modname.rfind("/")
     if i > 0:
