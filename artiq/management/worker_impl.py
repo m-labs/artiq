@@ -8,7 +8,7 @@ from artiq.language.context import AutoContext
 from artiq.management.dpdb import DeviceParamSupplier
 
 
-def run(dps, file, unit):
+def run(dps, file, unit, arguments):
     module = file_import(file)
     if unit is None:
         units = [v for k, v in module.__dict__.items()
@@ -22,7 +22,7 @@ def run(dps, file, unit):
     else:
         unit = getattr(module, unit)
     unit_inst = unit(dps)
-    unit_inst.run()
+    unit_inst.run(**arguments)
 
 
 def get_object():

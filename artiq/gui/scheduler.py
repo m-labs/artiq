@@ -5,6 +5,7 @@ from gi.repository import Gtk
 
 from artiq.gui.tools import Window, ListSyncer, DictSyncer
 from artiq.management.sync_struct import Subscriber
+from artiq.management.tools import format_run_arguments
 
 
 class _QueueStoreSyncer(ListSyncer):
@@ -13,6 +14,7 @@ class _QueueStoreSyncer(ListSyncer):
         row = [rid, run_params["file"]]
         for e in run_params["unit"], timeout:
             row.append("-" if e is None else str(e))
+        row.append(format_run_arguments(run_params["arguments"]))
         return row
 
 
@@ -28,6 +30,7 @@ class _PeriodicStoreSyncer(DictSyncer):
         for e in run_params["unit"], timeout:
             row.append("-" if e is None else str(e))
         row.append(str(period))
+        row.append(format_run_arguments(run_params["arguments"]))
         return row
 
 
@@ -51,9 +54,9 @@ class SchedulerWindow(Window):
         notebook = Gtk.Notebook()
         topvbox.pack_start(notebook, True, True, 0)
 
-        self.queue_store = Gtk.ListStore(int, str, str, str)
+        self.queue_store = Gtk.ListStore(int, str, str, str, str)
         self.queue_tree = Gtk.TreeView(self.queue_store)
-        for i, title in enumerate(["RID", "File", "Unit", "Timeout"]):
+        for i, title in enumerate(["RID", "File", "Unit", "Timeout", "Arguments"]):
             renderer = Gtk.CellRendererText()
             column = Gtk.TreeViewColumn(title, renderer, text=i)
             self.queue_tree.append_column(column)
@@ -75,10 +78,10 @@ class SchedulerWindow(Window):
         vbox.set_border_width(6)
         notebook.insert_page(vbox, Gtk.Label("Queue"), -1)
 
-        self.periodic_store = Gtk.ListStore(str, int, str, str, str, str)
+        self.periodic_store = Gtk.ListStore(str, int, str, str, str, str, str)
         self.periodic_tree = Gtk.TreeView(self.periodic_store)
         for i, title in enumerate(["Next run", "PRID", "File", "Unit",
-                                   "Timeout", "Period"]):
+                                   "Timeout", "Period", "Arguments"]):
             renderer = Gtk.CellRendererText()
             column = Gtk.TreeViewColumn(title, renderer, text=i)
             self.periodic_tree.append_column(column)

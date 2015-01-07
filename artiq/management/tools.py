@@ -1,10 +1,21 @@
 import asyncio
 import sys
 from copy import copy
+from operator import itemgetter
 
 
 def clear_screen():
     sys.stdout.write("\x1b[2J\x1b[H")
+
+
+def format_run_arguments(arguments):
+    fmtargs = []
+    for k, v in sorted(arguments.items(), key=itemgetter(0)):
+        fmtargs.append(k + "=" + str(v))
+    if fmtargs:
+        return " ".join(fmtargs)
+    else:
+        return "-"
 
 
 class AsyncioServer:

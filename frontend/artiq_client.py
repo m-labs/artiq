@@ -10,7 +10,7 @@ from prettytable import PrettyTable
 
 from artiq.management.pc_rpc import Client
 from artiq.management.sync_struct import Subscriber
-from artiq.management.tools import clear_screen
+from artiq.management.tools import clear_screen, format_run_arguments
 from artiq.management import pyon
 
 
@@ -36,6 +36,8 @@ def _get_args():
     parser_add.add_argument("-u", "--unit", default=None,
                             help="unit to run")
     parser_add.add_argument("file", help="file containing the unit to run")
+    parser_add.add_argument("arguments", nargs="*",
+                            help="run arguments")
 
     parser_cancel = subparsers.add_parser("cancel",
                                           help="cancel an experiment")
@@ -74,10 +76,25 @@ def _get_args():
     return parser.parse_args()
 
 
+def _parse_arguments(arguments):
+    d = {}
+    for argument in arguments:
+        name, value = argument.split("=")
+        d[name] = pyon.decode(value)
+    return d
+
+
 def _action_submit(remote, args):
+    try:
+        arguments = _parse_arguments(args.arguments)
+    except:
+        print("Failed to parse run arguments")
+        sys.exit(1)
+
     run_params = {
         "file": args.file,
-        "unit": args.unit
+        "unit": args.unit,
+        "arguments": arguments
     }
     if args.periodic is None:
         rid = remote.run_once(run_params, args.timeout)
@@ -114,11 +131,12 @@ def _action_del_parameter(remote, args):
 def _show_queue(queue):
     clear_screen()
     if queue:
-        table = PrettyTable(["RID", "File", "Unit", "Timeout"])
+        table = PrettyTable(["RID", "File", "Unit", "Timeout", "Arguments"])
         for rid, run_params, timeout in queue:
             row = [rid, run_params["file"]]
             for x in run_params["unit"], timeout:
                 row.append("-" if x is None else x)
+            row.append(format_run_arguments(run_params["arguments"]))
             table.add_row(row)
         print(table)
     else:
@@ -129,7 +147,7 @@ def _show_periodic(periodic):
     clear_screen()
     if periodic:
         table = PrettyTable(["Next run", "PRID", "File", "Unit",
-                             "Timeout", "Period"])
+                             "Timeout", "Period", "Arguments"])
         sp = sorted(periodic.items(), key=lambda x: (x[1][0], x[0]))
         for prid, (next_run, run_params, timeout, period) in sp:
             row = [time.strftime("%m/%d %H:%M:%S", time.localtime(next_run)),
@@ -137,6 +155,7 @@ def _show_periodic(periodic):
             for x in run_params["unit"], timeout:
                 row.append("-" if x is None else x)
             row.append(period)
+            row.append(format_run_arguments(run_params["arguments"]))
             table.add_row(row)
         print(table)
     else:
