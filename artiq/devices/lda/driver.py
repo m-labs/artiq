@@ -23,8 +23,8 @@ class Ldasim:
         :return: Returns the attenuation value in dB, or None if it was
                  never set.
         :rtype: float
-
         """
+
         return self._attenuation
 
     def set_attenuation(self, attenuation):
@@ -32,8 +32,8 @@ class Ldasim:
 
         :param attenuation: The attenuation value in dB.
         :type attenuation: int, float or Fraction
-
         """
+
         attenuation = round(attenuation*4)/4.
         print("[LDA-sim] setting attenuation to {}".format(attenuation))
         self._attenuation = attenuation
@@ -63,8 +63,7 @@ class Lda:
     def __init__(self, serial=None, product="LDA-102"):
         """
         :param serial: The serial number.
-        :param product: The product identifier string: LDA-102, LDA-602 or sim.
-
+        :param product: The product identifier string: LDA-102, LDA-602.
         """
 
         from artiq.devices.lda.hidapi import hidapi
@@ -101,8 +100,8 @@ class Lda:
         :param command: command ID.
         :param length: number of meaningful bytes in the data array.
         :param data: a byte array containing the payload of the command.
-
         """
+
         # 0 is report id/padding
         buf = struct.pack("BBB6s", 0, command, length, data)
         res = self._check_error(self.hidapi.hid_write(self._dev, buf,
@@ -114,8 +113,8 @@ class Lda:
 
         :param command: command ID, must have most significant bit set.
         :param data: payload of the command.
-
         """
+
         assert command & 0x80
         assert data
         self.write(command, len(data), data)
@@ -128,8 +127,8 @@ class Lda:
         :param int timeout: Timeout of the HID read in ms.
         :return: Returns the value read from the device.
         :rtype: bytes
-
         """
+
         assert not command & 0x80
         status = None
         self.write(command, length)
@@ -148,8 +147,8 @@ class Lda:
 
         :return: Returns the attenuation value in dB.
         :rtype: float
-
         """
+
         return ord(self.get(0x0d, 1))/4.
 
     def set_attenuation(self, attenuation):
@@ -157,6 +156,6 @@ class Lda:
 
         :param attenuation: Attenuation value in dB.
         :type attenuation: int, float or Fraction
-
         """
+
         self.set(0x8d, bytes([int(round(attenuation*4))]))
