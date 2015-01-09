@@ -208,6 +208,7 @@ def _register_unit(unit, prefixes):
 
 _register_unit("s", "pnum_")
 _register_unit("Hz", "_kMG")
+_register_unit("dB", "_")
 
 
 def check_unit(value, unit):

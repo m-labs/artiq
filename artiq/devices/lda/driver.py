@@ -1,7 +1,7 @@
 import logging
 import ctypes
 import struct
-
+from artiq.language.units import dB, check_unit, Quantity
 
 logger = logging.getLogger("lda")
 
@@ -16,6 +16,8 @@ class Ldasim:
 
     def __init__(self):
         self._attenuation = None
+        self._att_max = 63*dB
+        self._att_step_size = 0.25*dB
 
     def get_attenuation(self):
         """Reads last attenuation value set to the simulated device.
@@ -34,9 +36,23 @@ class Ldasim:
         :type attenuation: int, float or Fraction
         """
 
-        attenuation = round(attenuation*4)/4.
-        print("[LDA-sim] setting attenuation to {}".format(attenuation))
-        self._attenuation = attenuation
+        if isinstance(attenuation, Quantity):
+            check_unit(attenuation, 'dB')
+        else:
+            att = attenuation*dB
+
+        if att > self._att_max:
+            raise ValueError('Cannot set attenuation {} > {}'
+                             .format(att, self._att_max))
+        elif att < 0*dB:
+            raise ValueError('Cannot set attenuation {} < 0'.format(att))
+        elif att % self._att_step_size != 0*dB:
+            raise ValueError('Cannot set attenuation {} with step size {}'
+                             .format(att, self._att_step_size))
+        else:
+            att = round(att.amount*4)/4. * dB
+            print("[LDA-sim] setting attenuation to {}".format(att))
+            self._attenuation = att
 
 
 class Lda:
@@ -58,6 +74,16 @@ class Lda:
         "LDA-102": 0x1207,
         "LDA-602": 0x1208,
         "LDA-302P-1": 0x120E,
+    }
+    _max_att = {
+        "LDA-102": 63*dB,
+        "LDA-602": 63*dB,
+        "LDA-302P-1": 63*dB
+    }
+    _att_step_size = {
+        "LDA-102": 0.5*dB,
+        "LDA-602": 0.5*dB,
+        "LDA-302P-1": 1.0*dB
     }
 
     def __init__(self, serial=None, product="LDA-102"):
@@ -149,7 +175,7 @@ class Lda:
         :rtype: float
         """
 
-        return ord(self.get(0x0d, 1))/4.
+        return (ord(self.get(0x0d, 1))/4.) * dB
 
     def set_attenuation(self, attenuation):
         """Sets attenuation value of the Lab Brick device.
@@ -158,4 +184,18 @@ class Lda:
         :type attenuation: int, float or Fraction
         """
 
-        self.set(0x8d, bytes([int(round(attenuation*4))]))
+        if isinstance(attenuation, Quantity):
+            check_unit(attenuation, 'dB')
+        else:
+            att = attenuation*dB
+
+        if att > self._max_att[self.product]:
+            raise ValueError('Cannot set attenuation {} > {}'
+                             .format(att, self._max_att[self.product]))
+        elif att < 0:
+            raise ValueError('Cannot set attenuation {} < 0'.format(att))
+        elif att % self._att_step_size[self.product] != 0:
+            raise ValueError('Cannot set attenuation {} with {} step size'
+                             .format(att, self._att_step_size[self.product]))
+        else:
+            self.set(0x8d, bytes([int(round(att.amount*4))]))
