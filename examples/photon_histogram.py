@@ -6,6 +6,9 @@ class PhotonHistogram(AutoContext):
     bdd = Device("dds")
     pmt = Device("ttl_in")
 
+    nbins = Argument(100)
+    repeats = Argument(100)
+
     @kernel
     def cool_detect(self):
         with parallel:
@@ -20,13 +23,13 @@ class PhotonHistogram(AutoContext):
         return self.pmt.count()
 
     @kernel
-    def run(self, nbins=100, repeats=100):
-        hist = [0 for _ in range (nbins)]
+    def run(self):
+        hist = [0 for _ in range(self.nbins)]
 
-        for i in range(repeats):
+        for i in range(self.repeats):
             n = self.cool_detect()
-            if n >= nbins:
-                n = nbins - 1
+            if n >= self.nbins:
+                n = self.nbins - 1
             hist[n] += 1
 
         print(hist)

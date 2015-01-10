@@ -21,8 +21,8 @@ def run(dps, file, unit, arguments):
         unit = units[0]
     else:
         unit = getattr(module, unit)
-    unit_inst = unit(dps)
-    unit_inst.run(**arguments)
+    unit_inst = unit(dps, **arguments)
+    unit_inst.run()
 
 
 def get_object():

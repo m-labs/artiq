@@ -92,8 +92,8 @@ def main():
                 print("Failed to parse run arguments")
                 sys.exit(1)
 
-            unit_inst = unit(dps)
-            unit_inst.run(**arguments)
+            unit_inst = unit(dps, **arguments)
+            unit_inst.run()
 
             if dps.parameter_wb:
                 print("Modified parameters:")

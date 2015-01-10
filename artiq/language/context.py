@@ -26,7 +26,8 @@ class NoDefault:
 
 
 class Parameter(_AttributeKind):
-    """Represents a parameter for ``AutoContext`` to process.
+    """Represents a parameter (from the database) for ``AutoContext``
+    to process.
 
     :param default: Default value of the parameter to be used if not found
         in the database.
@@ -37,6 +38,18 @@ class Parameter(_AttributeKind):
     def __init__(self, default=NoDefault, write_db=False):
         self.default = default
         self.write_db = write_db
+
+
+class Argument(_AttributeKind):
+    """Represents an argument (specifiable at instance creation) for
+    ``AutoContext`` to process.
+
+    :param default: Default value of the argument to be used if not specified
+        at instance creation.
+
+    """
+    def __init__(self, default=NoDefault, write_db=False):
+        self.default = default
 
 
 class AutoContext:
@@ -112,22 +125,33 @@ class AutoContext:
                 p = getattr(self, k)
                 if isinstance(p, Parameter) and p.write_db:
                     self.mvs.register_parameter_wb(self, k)
+            if (not hasattr(self, k)
+                    or not isinstance(getattr(self, k), _AttributeKind)):
+                raise ValueError(
+                    "Got unexpected keyword argument: '{}'".format(k))
             setattr(self, k, v)
 
         for k in dir(self):
             v = getattr(self, k)
             if isinstance(v, _AttributeKind):
-                if self.mvs is None:
-                    if (isinstance(v, Parameter)
-                            and v.default is not NoDefault):
-                        value = v.default
-                    else:
-                        raise AttributeError("Attribute '{}' not specified"
-                                             " and no MVS present".format(k))
+                if isinstance(v, Argument):
+                    # never goes through MVS
+                    if v.default is NoDefault:
+                        raise AttributeError(
+                            "No value specified for argument '{}'".format(k))
+                    value = v.default
                 else:
-                    value = self.mvs.get_missing_value(k, v, self)
-                    if isinstance(v, Parameter) and v.write_db:
-                        self.mvs.register_parameter_wb(self, k)
+                    if self.mvs is None:
+                        if (isinstance(v, Parameter)
+                                and v.default is not NoDefault):
+                            value = v.default
+                        else:
+                            raise AttributeError("Attribute '{}' not specified"
+                                                 " and no MVS present".format(k))
+                    else:
+                        value = self.mvs.get_missing_value(k, v, self)
+                        if isinstance(v, Parameter) and v.write_db:
+                            self.mvs.register_parameter_wb(self, k)
                 setattr(self, k, value)
 
         self.build()

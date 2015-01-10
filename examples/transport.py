@@ -19,6 +19,9 @@ class Transport(AutoContext):
     wait_at_stop = Parameter(100*us)
     speed = Parameter(1.5)
 
+    repeats = Argument(100)
+    nbins = Argument(100)
+
     def prepare(self, stop):
         t = transport_data["t"][:stop]*self.speed
         u = transport_data["u"][:stop]
@@ -91,27 +94,27 @@ class Transport(AutoContext):
         return self.detect()
 
     @kernel
-    def repeat(self, repeats, nbins):
-        self.histogram = [0 for _ in range(nbins)]
+    def repeat(self):
+        self.histogram = [0 for _ in range(self.nbins)]
 
-        for i in range(repeats):
+        for i in range(self.repeats):
             n = self.one()
-            if n >= nbins:
-                n = nbins - 1
+            if n >= self.nbins:
+                n = self.nbins - 1
             self.histogram[n] += 1
 
-    def scan(self, repeats, nbins, stops):
+    def scan(self, stops):
         for s in stops:
             self.histogram = []
             # non-kernel, calculate waveforms, build frames
             # could also be rpc'ed from repeat()
             self.prepare(s)
             # kernel part
-            self.repeat(repeats, nbins)
+            self.repeat()
             # live update 2d plot with current self.histogram
             # broadcast(s, self.histogram)
 
-    def run(self, repeats=100, nbins=100):
+    def run(self):
         # scan transport endpoint
         stops = range(10, len(transport_data["t"]), 10)
-        self.scan(repeats, nbins, stops)
+        self.scan(stops)
