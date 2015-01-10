@@ -48,7 +48,7 @@ class Argument(_AttributeKind):
         at instance creation.
 
     """
-    def __init__(self, default=NoDefault, write_db=False):
+    def __init__(self, default=NoDefault):
         self.default = default
 
 
