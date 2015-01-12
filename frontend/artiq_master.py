@@ -16,10 +16,10 @@ def _get_args():
         "--bind", default="::1",
         help="hostname or IP address to bind to")
     parser.add_argument(
-        "--port-notify", default=8887, type=int,
+        "--port-notify", default=3250, type=int,
         help="TCP port to listen to for notifications")
     parser.add_argument(
-        "--port-control", default=8888, type=int,
+        "--port-control", default=3251, type=int,
         help="TCP port to listen to for control")
     return parser.parse_args()
 

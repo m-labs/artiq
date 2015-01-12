@@ -181,7 +181,7 @@ def _show_parameters(parameters):
 
 def _run_subscriber(host, port, subscriber):
     if port is None:
-        port = 8887
+        port = 3250
     loop = asyncio.get_event_loop()
     try:
         loop.run_until_complete(subscriber.connect(host, port))
@@ -232,7 +232,7 @@ def main():
             print("Unknown object to show, use -h to list valid names.")
             sys.exit(1)
     else:
-        port = 8888 if args.port is None else args.port
+        port = 3251 if args.port is None else args.port
         target_name = {
             "submit": "master_schedule",
             "cancel": "master_schedule",

@@ -17,7 +17,7 @@ def _get_args():
         them to the controller.""")
     parser.add_argument("-s", "--server", default="::1",
                         help="hostname or IP of the controller to connect to")
-    parser.add_argument("--port", default=8889, type=int,
+    parser.add_argument("--port", default=3252, type=int,
                         help="TCP port to use to connect to the controller")
     parser.add_argument("-c", "--channel", default=0, type=int,
                         help="channel: 3*board_num+dac_num [%(default)s]")

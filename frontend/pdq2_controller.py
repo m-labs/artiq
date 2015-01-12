@@ -11,7 +11,7 @@ def _get_args():
     parser = argparse.ArgumentParser(description="PDQ2 controller")
     parser.add_argument("--bind", default="::1",
                         help="hostname or IP address to bind to")
-    parser.add_argument("-p", "--port", default=8889, type=int,
+    parser.add_argument("-p", "--port", default=3252, type=int,
                         help="TCP port to listen to")
     parser.add_argument(
         "-s", "--serial", default=None,

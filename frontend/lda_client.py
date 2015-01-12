@@ -9,7 +9,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--server', default="::1",
                         help="hostname or IP of the controller to connect to")
-    parser.add_argument('-p', '--port', default=8890, type=int,
+    parser.add_argument('-p', '--port', default=3253, type=int,
                         help="TCP port to use to connect to the controller")
     parser.add_argument('-a', '--attenuation', type=float,
                         help="attenuation value to set")

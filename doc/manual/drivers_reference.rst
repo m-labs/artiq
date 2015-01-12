@@ -33,11 +33,11 @@ When writing a new driver, choose a free TCP port and add it to this list.
 +--------------------------+--------------+
 | Component                | Default port |
 +==========================+==============+
-| Master (notifications)   | 8887         |
+| Master (notifications)   | 3250         |
 +--------------------------+--------------+
-| Master (control)         | 8888         |
+| Master (control)         | 3251         |
 +--------------------------+--------------+
-| PDQ2                     | 8889         |
+| PDQ2                     | 3252         |
 +--------------------------+--------------+
-| LDA                      | 8890         |
+| LDA                      | 3253         |
 +--------------------------+--------------+

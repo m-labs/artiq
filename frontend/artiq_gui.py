@@ -18,10 +18,10 @@ def _get_args():
         "-s", "--server", default="::1",
         help="hostname or IP of the master to connect to")
     parser.add_argument(
-        "--port-notify", default=8887, type=int,
+        "--port-notify", default=3250, type=int,
         help="TCP port to connect to for notifications")
     parser.add_argument(
-        "--port-control", default=8888, type=int,
+        "--port-control", default=3251, type=int,
         help="TCP port to connect to for control")
     return parser.parse_args()
 
