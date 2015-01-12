@@ -7,7 +7,7 @@ import logging
 
 from artiq.language import core as core_language
 from artiq.language import units
-from artiq.language.context import *
+from artiq.language.db import *
 from artiq.coredevice.runtime import Environment
 from artiq.coredevice import runtime_exceptions
 from artiq.coredevice.rpc_wrapper import RPCWrapper
@@ -60,10 +60,11 @@ def _read_exactly(f, n):
     return r
 
 
-class Comm(AutoContext):
-    serial_dev = Parameter("/dev/ttyUSB1")
-    baud_rate = Parameter(115200)
-    implicit_core = False
+class Comm(AutoDB):
+    class DBKeys:
+        serial_dev = Parameter("/dev/ttyUSB1")
+        baud_rate = Parameter(115200)
+        implicit_core = False
 
     def build(self):
         self.port = serial.Serial(self.serial_dev, baudrate=115200)

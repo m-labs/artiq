@@ -6,8 +6,9 @@ def print_min_period(p):
     print("Minimum square wave output period: {} ns".format(p))
 
 
-class PulsePerformance(AutoContext):
-    ttl0 = Device("ttl_out")
+class PulsePerformance(AutoDB):
+    class DBKeys:
+        ttl0 = Device()
 
     @kernel
     def run(self):

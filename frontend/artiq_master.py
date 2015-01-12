@@ -6,7 +6,7 @@ import atexit
 
 from artiq.management.pc_rpc import Server
 from artiq.management.sync_struct import Publisher
-from artiq.management.dpdb import DeviceParamDB, SimpleParameterHistory
+from artiq.management.db import FlatFileDB, SimpleHistory
 from artiq.management.scheduler import Scheduler
 
 
@@ -27,24 +27,26 @@ def _get_args():
 def main():
     args = _get_args()
 
-    dpdb = DeviceParamDB("ddb.pyon", "pdb.pyon")
-    simplephist = SimpleParameterHistory(30)
-    dpdb.parameter_hooks.append(simplephist)
+    ddb = FlatFileDB("ddb.pyon")
+    pdb = FlatFileDB("pdb.pyon")
+    simplephist = SimpleHistory(30)
+    pdb.hooks.append(simplephist)
 
     loop = asyncio.get_event_loop()
     atexit.register(lambda: loop.close())
 
     scheduler = Scheduler({
-        "req_device": dpdb.req_device,
-        "req_parameter": dpdb.req_parameter,
-        "set_parameter": dpdb.set_parameter
+        "req_device": ddb.request,
+        "req_parameter": pdb.request,
+        "set_parameter": pdb.set
     })
     loop.run_until_complete(scheduler.start())
     atexit.register(lambda: loop.run_until_complete(scheduler.stop()))
 
     server_control = Server({
         "master_schedule": scheduler,
-        "master_dpdb": dpdb
+        "master_ddb": ddb,
+        "master_pdb": pdb
     })
     loop.run_until_complete(server_control.start(
         args.bind, args.port_control))
@@ -53,8 +55,8 @@ def main():
     server_notify = Publisher({
         "queue": scheduler.queue,
         "periodic": scheduler.periodic,
-        "devices": dpdb.ddb,
-        "parameters": dpdb.pdb,
+        "devices": ddb.data,
+        "parameters": pdb.data,
         "parameters_simplehist": simplephist.history
     })
     loop.run_until_complete(server_notify.start(

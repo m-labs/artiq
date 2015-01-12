@@ -113,19 +113,19 @@ def _action_cancel(remote, args):
 
 
 def _action_set_device(remote, args):
-    remote.set_device(args.name, pyon.decode(args.description))
+    remote.set(args.name, pyon.decode(args.description))
 
 
 def _action_del_device(remote, args):
-    remote.del_device(args.name)
+    remote.delete(args.name)
 
 
 def _action_set_parameter(remote, args):
-    remote.set_parameter(args.name, pyon.decode(args.value))
+    remote.set(args.name, pyon.decode(args.value))
 
 
 def _action_del_parameter(remote, args):
-    remote.del_parameter(args.name)
+    remote.delete(args.name)
 
 
 def _show_queue(queue):
@@ -233,10 +233,14 @@ def main():
             sys.exit(1)
     else:
         port = 8888 if args.port is None else args.port
-        if action in ("submit", "cancel"):
-            target_name = "master_schedule"
-        else:
-            target_name = "master_dpdb"
+        target_name = {
+            "submit": "master_schedule",
+            "cancel": "master_schedule",
+            "set_device": "master_ddb",
+            "del_device": "master_ddb",
+            "set_parameter": "master_pdb",
+            "del_parameter": "master_pdb",
+        }[action]
         remote = Client(args.server, port, target_name)
         try:
             globals()["_action_" + action](remote, args)

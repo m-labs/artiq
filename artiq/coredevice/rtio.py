@@ -1,8 +1,8 @@
 from artiq.language.core import *
-from artiq.language.context import *
+from artiq.language.db import *
 
 
-class LLRTIOOut(AutoContext):
+class LLRTIOOut(AutoDB):
     """Low-level RTIO output driver.
 
     Allows setting RTIO outputs at arbitrary times, without time unit
@@ -12,7 +12,8 @@ class LLRTIOOut(AutoContext):
     ``RTIOOut`` instead.
 
     """
-    channel = Parameter()
+    class DBKeys:
+        channel = Argument()
 
     def build(self):
         self._set_oe()
@@ -50,8 +51,9 @@ class LLRTIOOut(AutoContext):
         self.set_value(t, 0)
 
 
-class _RTIOBase(AutoContext):
-    channel = Parameter()
+class _RTIOBase(AutoDB):
+    class DBKeys:
+        channel = Argument()
 
     def build(self):
         self.previous_timestamp = int64(0)  # in RTIO cycles

@@ -10,17 +10,18 @@ transport_data = dict(
     # 4 devices, 3 board each, 3 dacs each
 )
 
-class Transport(AutoContext):
-    bd = Device("dds")
-    bdd = Device("dds")
-    pmt = Device("ttl_in")
-    electrodes = Device("pdq")
+class Transport(AutoDB):
+    class DBKeys:
+        bd = Device()
+        bdd = Device()
+        pmt = Device()
+        electrodes = Device()
 
-    wait_at_stop = Parameter(100*us)
-    speed = Parameter(1.5)
+        wait_at_stop = Parameter(100*us)
+        speed = Parameter(1.5)
 
-    repeats = Argument(100)
-    nbins = Argument(100)
+        repeats = Argument(100)
+        nbins = Argument(100)
 
     def prepare(self, stop):
         t = transport_data["t"][:stop]*self.speed

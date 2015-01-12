@@ -1,9 +1,10 @@
 from artiq.language.core import *
-from artiq.language.context import *
+from artiq.language.db import *
 
 
-class GPIOOut(AutoContext):
-    channel = Parameter()
+class GPIOOut(AutoDB):
+    class DBKeys:
+        channel = Argument()
 
     @kernel
     def on(self):

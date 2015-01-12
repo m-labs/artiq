@@ -2,67 +2,67 @@
     "comm": {
         "module": "artiq.coredevice.comm_serial",
         "class": "Comm",
-        "parameters": {}
+        "arguments": {}
     },
     "core": {
         "module": "artiq.coredevice.core",
         "class": "Core",
-        "parameters": {}
+        "arguments": {}
     },
 
     "led": {
         "module": "artiq.coredevice.gpio",
         "class": "GPIOOut",
-        "parameters": {"channel": 0}
+        "arguments": {"channel": 0}
     },
 
     "pmt0": {
         "module": "artiq.coredevice.rtio",
         "class": "RTIOIn",
-        "parameters": {"channel": 0}
+        "arguments": {"channel": 0}
     },
     "pmt1": {
         "module": "artiq.coredevice.rtio",
         "class": "RTIOIn",
-        "parameters": {"channel": 1}
+        "arguments": {"channel": 1}
     },
 
     "ttl0": {
         "module": "artiq.coredevice.rtio",
         "class": "RTIOOut",
-        "parameters": {"channel": 2}
+        "arguments": {"channel": 2}
     },
     "ttl1": {
         "module": "artiq.coredevice.rtio",
         "class": "RTIOOut",
-        "parameters": {"channel": 3}
+        "arguments": {"channel": 3}
     },
     "ttl2": {
         "module": "artiq.coredevice.rtio",
         "class": "RTIOOut",
-        "parameters": {"channel": 4}
+        "arguments": {"channel": 4}
     },
 
     "dds0": {
         "module": "artiq.coredevice.dds",
         "class": "DDS",
-        "parameters": {"reg_channel": 0, "rtio_switch": 5}
+        "arguments": {"reg_channel": 0, "rtio_switch": 5}
     },
     "dds1": {
         "module": "artiq.coredevice.dds",
         "class": "DDS",
-        "parameters": {"reg_channel": 1, "rtio_switch": 6}
+        "arguments": {"reg_channel": 1, "rtio_switch": 6}
     },
     "dds2": {
         "module": "artiq.coredevice.dds",
         "class": "DDS",
-        "parameters": {"reg_channel": 2, "rtio_switch": 7}
+        "arguments": {"reg_channel": 2, "rtio_switch": 7}
     },
 
     "electrodes": {
         "module": "artiq.devices.pdq2",
         "class": "CompoundPDQ2",
-        "parameters": {
+        "arguments": {
             "ids": ["qc_q1_0", "qc_q1_1", "qc_q1_2", "qc_q1_3"],
             "rtio_trigger": 7,
             "rtio_frame": (2, 3, 4)

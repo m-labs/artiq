@@ -1,13 +1,14 @@
 from random import Random
 
 from artiq.language.core import delay, kernel
-from artiq.language.context import AutoContext, Parameter
+from artiq.language.db import AutoDB, Argument
 from artiq.language import units
 from artiq.sim import time
 
 
-class Core(AutoContext):
-    implicit_core = False
+class Core(AutoDB):
+    class DBKeys:
+        implicit_core = False
 
     _level = 0
 
@@ -20,8 +21,9 @@ class Core(AutoContext):
         return r
 
 
-class Input(AutoContext):
-    name = Parameter()
+class Input(AutoDB):
+    class DBKeys:
+        name = Argument()
 
     def build(self):
         self.prng = Random()
@@ -40,8 +42,9 @@ class Input(AutoContext):
         return result
 
 
-class WaveOutput(AutoContext):
-    name = Parameter()
+class WaveOutput(AutoDB):
+    class DBKeys:
+        name = Argument()
 
     @kernel
     def pulse(self, frequency, duration):
@@ -49,8 +52,9 @@ class WaveOutput(AutoContext):
         delay(duration)
 
 
-class VoltageOutput(AutoContext):
-    name = Parameter()
+class VoltageOutput(AutoDB):
+    class DBKeys:
+        name = Argument()
 
     @kernel
     def set(self, value):

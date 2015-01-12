@@ -1,7 +1,7 @@
 import os
 
 from artiq.language.core import *
-from artiq.language.context import *
+from artiq.language.db import *
 
 from artiq.transforms.inline import inline
 from artiq.transforms.lower_units import lower_units
@@ -44,10 +44,11 @@ def _no_debug_unparse(label, node):
     pass
 
 
-class Core(AutoContext):
-    comm = Device("comm")
-    external_clock = Parameter(None)
-    implicit_core = False
+class Core(AutoDB):
+    class DBKeys:
+        comm = Device()
+        external_clock = Parameter(None)
+        implicit_core = False
 
     def build(self):
         self.runtime_env = self.comm.get_runtime_env()

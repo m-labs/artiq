@@ -28,9 +28,10 @@ def _run_on_host(k_class, **parameters):
     k_inst.run()
 
 
-class _Primes(AutoContext):
-    output_list = Parameter()
-    maximum = Parameter()
+class _Primes(AutoDB):
+    class DBKeys:
+        output_list = Argument()
+        maximum = Argument()
 
     @kernel
     def run(self):
@@ -46,7 +47,7 @@ class _Primes(AutoContext):
                 self.output_list.append(x)
 
 
-class _Misc(AutoContext):
+class _Misc(AutoDB):
     def build(self):
         self.input = 84
         self.inhomogeneous_units = []
@@ -82,9 +83,10 @@ class _Misc(AutoContext):
         delay(10*Hz)
 
 
-class _PulseLogger(AutoContext):
-    output_list = Parameter()
-    name = Parameter()
+class _PulseLogger(AutoDB):
+    class DBKeys:
+        output_list = Argument()
+        name = Argument()
 
     def _append(self, t, l, f):
         if not hasattr(self, "first_timestamp"):
@@ -104,12 +106,15 @@ class _PulseLogger(AutoContext):
         self.off(int(now().amount*1000000000))
 
 
-class _Pulses(AutoContext):
-    output_list = Parameter()
+class _Pulses(AutoDB):
+    class DBKeys:
+        output_list = Argument()
 
     def build(self):
         for name in "a", "b", "c", "d":
-            pl = _PulseLogger(self, name=name)
+            pl = _PulseLogger(core=self.core,
+                              output_list=self.output_list,
+                              name=name)
             setattr(self, name, pl)
 
     @kernel
@@ -128,8 +133,9 @@ class _MyException(Exception):
     pass
 
 
-class _Exceptions(AutoContext):
-    trace = Parameter()
+class _Exceptions(AutoDB):
+    class DBKeys:
+        trace = Argument()
 
     @kernel
     def run(self):
@@ -170,7 +176,7 @@ class _Exceptions(AutoContext):
                 self.trace.append(104)
 
 
-class _RPCExceptions(AutoContext):
+class _RPCExceptions(AutoDB):
     def build(self):
         self.success = False
 
@@ -250,10 +256,11 @@ class ExecutionCase(unittest.TestCase):
             comm.close()
 
 
-class _RTIOLoopback(AutoContext):
-    i = Device("ttl_in")
-    o = Device("ttl_out")
-    npulses = Parameter()
+class _RTIOLoopback(AutoDB):
+    class DBKeys:
+        i = Device()
+        o = Device()
+        npulses = Argument()
 
     def report(self, n):
         self.result = n
@@ -269,8 +276,9 @@ class _RTIOLoopback(AutoContext):
         self.report(self.i.count())
 
 
-class _RTIOUnderflow(AutoContext):
-    o = Device("ttl_out")
+class _RTIOUnderflow(AutoDB):
+    class DBKeys:
+        o = Device()
 
     @kernel
     def run(self):
@@ -279,8 +287,9 @@ class _RTIOUnderflow(AutoContext):
             self.o.pulse(25*ns)
 
 
-class _RTIOSequenceError(AutoContext):
-    o = Device("ttl_out")
+class _RTIOSequenceError(AutoDB):
+    class DBKeys:
+        o = Device()
 
     @kernel
     def run(self):

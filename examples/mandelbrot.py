@@ -3,7 +3,7 @@ import sys
 from artiq import *
 
 
-class Mandelbrot(AutoContext):
+class Mandelbrot(AutoDB):
     def col(self, i):
         sys.stdout.write(" .,-:;i+hHM$*#@ "[i])
 

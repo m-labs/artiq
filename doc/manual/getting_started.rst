@@ -9,15 +9,16 @@ As a very first step, we will turn on a LED on the core device. Create a file ``
     from artiq import *
 
 
-    class LED(AutoContext):
-        led = Device("gpio_out")
+    class LED(AutoDB):
+        class DBKeys:
+            led = Device()
 
         @kernel
         def run(self):
             self.led.on()
 
 
-The central part of our code is our ``LED`` class, that derives from :class:`artiq.language.core.AutoContext`. ``AutoContext`` is part of the mechanism that attaches device drivers and retrieves parameters according to a database. Abstract attributes such as ``Device("gpio_out")`` list the devices (and parameters) that our class needs in order to operate, and the names of the attributes (e.g. ``led``) are used to search the database. ``AutoContext`` replaces them with the actual device drivers (and parameter values). Finally, the ``@kernel`` decorator tells the system that the ``run`` method must be executed on the core device (instead of the host).
+The central part of our code is our ``LED`` class, that derives from :class:`artiq.language.db.AutoDB`. ``AutoDB`` is part of the mechanism that attaches device drivers and retrieves parameters according to a database. Our ``DBKeys`` class lists the devices (and parameters) that ``LED`` needs in order to operate, and the names of the attributes (e.g. ``led``) are used to search the database. ``AutoDB`` replaces them with the actual device drivers (and parameter values). Finally, the ``@kernel`` decorator tells the system that the ``run`` method must be executed on the core device (instead of the host).
 
 Copy the files ``ddb.pyon`` and ``pdb.pyon`` (containing the device and parameter databases) from the ``examples`` folder of ARTIQ into the same directory as ``led.py`` (alternatively, you can use the ``-d`` and ``-p`` options of ``artiq_run.py``). You can open the database files using a text editor - their contents are in a human-readable format.
 
@@ -37,8 +38,9 @@ Modify the code as follows: ::
     def input_led_state():
         return int(input("Enter desired LED state: "))
 
-    class LED(AutoContext):
-        led = Device("gpio_out")
+    class LED(AutoDB):
+        class DBKeys:
+            led = Device()
 
         @kernel
         def run(self):
@@ -79,8 +81,9 @@ Create a new file ``rtio.py`` containing the following: ::
 
     from artiq import *
 
-    class Tutorial(AutoContext):
-        ttl0 = Device("ttl_out")
+    class Tutorial(AutoDB):
+        class DBKeys:
+            ttl0 = Device()
 
         @kernel
         def run(self):
@@ -100,9 +103,10 @@ Try reducing the period of the generated waveform until the CPU cannot keep up w
     def print_underflow():
         print("RTIO underflow occured")
 
-    class Tutorial(AutoContext):
-        led = Device("gpio_out")
-        ttl0 = Device("ttl_out")
+    class Tutorial(AutoDB):
+        class DBKeys:
+            led = Device()
+            ttl0 = Device()
 
         @kernel
         def run(self):

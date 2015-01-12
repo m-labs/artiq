@@ -1,11 +1,12 @@
 from artiq import *
 
 
-class SimpleSimulation(AutoContext):
-    a = Device("dds")
-    b = Device("dds")
-    c = Device("dds")
-    d = Device("dds")
+class SimpleSimulation(AutoDB):
+    class DBKeys:
+        a = Device()
+        b = Device()
+        c = Device()
+        d = Device()
 
     @kernel
     def run(self):
@@ -20,17 +21,16 @@ class SimpleSimulation(AutoContext):
 
 def main():
     from artiq.sim import devices as sd
-    from artiq.sim import time
 
+    core = sd.Core()
     exp = SimpleSimulation(
-        core=sd.Core(),
-        a=sd.WaveOutput(name="a"),
-        b=sd.WaveOutput(name="b"),
-        c=sd.WaveOutput(name="c"),
-        d=sd.WaveOutput(name="d"),
+        core=core,
+        a=sd.WaveOutput(core=core, name="a"),
+        b=sd.WaveOutput(core=core, name="b"),
+        c=sd.WaveOutput(core=core, name="c"),
+        d=sd.WaveOutput(core=core, name="d"),
     )
     exp.run()
-    print(time.manager.format_timeline())
 
 if __name__ == "__main__":
     main()

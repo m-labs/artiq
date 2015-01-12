@@ -6,14 +6,15 @@ from inspect import isclass
 from operator import itemgetter
 
 from artiq.management.file_import import file_import
-from artiq.language.context import *
+from artiq.language.db import *
 from artiq.management import pyon
-from artiq.management.dpdb import DeviceParamDB, DeviceParamSupplier
+from artiq.management.db import *
 
 
-class ELFRunner(AutoContext):
-    comm = Device("comm")
-    implicit_core = False
+class ELFRunner(AutoDB):
+    class DBKeys:
+        comm = Device()
+        implicit_core = False
 
     def run(self, filename):
         with open(filename, "rb") as f:
@@ -23,8 +24,14 @@ class ELFRunner(AutoContext):
         comm.serve(dict(), dict())
 
 
+class SimpleParamLogger:
+    def set(self, timestamp, name, value):
+        print("Parameter change: {} -> {}".format(name, value))
+
+
 def _get_args():
-    parser = argparse.ArgumentParser(description="Local running tool")
+    parser = argparse.ArgumentParser(
+        description="Local experiment running tool")
 
     parser.add_argument("-d", "--ddb", default="ddb.pyon",
                         help="device database file")
@@ -54,8 +61,11 @@ def _parse_arguments(arguments):
 def main():
     args = _get_args()
 
-    dpdb = DeviceParamDB(args.ddb, args.pdb)
-    dps = DeviceParamSupplier(dpdb.req_device, dpdb.req_parameter)
+    ddb = FlatFileDB(args.ddb)
+    pdb = FlatFileDB(args.pdb)
+    pdb.hooks.append(SimpleParamLogger())
+    rdb = ResultDB()
+    dbh = DBHub(ddb, pdb, rdb)
     try:
         if args.elf:
             if args.arguments:
@@ -69,8 +79,8 @@ def main():
                 units = [(k, v) for k, v in module.__dict__.items()
                          if k[0] != "_"
                             and isclass(v)
-                            and issubclass(v, AutoContext)
-                            and v is not AutoContext]
+                            and issubclass(v, AutoDB)
+                            and v is not AutoDB]
                 l = len(units)
                 if l == 0:
                     print("No units found in module")
@@ -92,15 +102,15 @@ def main():
                 print("Failed to parse run arguments")
                 sys.exit(1)
 
-            unit_inst = unit(dps, **arguments)
+            unit_inst = unit(dbh, **arguments)
             unit_inst.run()
 
-            if dps.parameter_wb:
-                print("Modified parameters:")
-                for requester, name in dps.parameter_wb:
-                    print("{}: {}".format(name, getattr(requester, name)))
+            if rdb.data:
+                print("Results:")
+                for k, v in rdb.data.items():
+                    print("{}: {}".format(k, v))
     finally:
-        dps.close()
+        dbh.close()
 
 if __name__ == "__main__":
     main()

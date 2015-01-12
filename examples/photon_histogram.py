@@ -1,13 +1,14 @@
 from artiq import *
 
 
-class PhotonHistogram(AutoContext):
-    bd = Device("dds")
-    bdd = Device("dds")
-    pmt = Device("ttl_in")
+class PhotonHistogram(AutoDB):
+    class DBKeys:
+        bd = Device()
+        bdd = Device()
+        pmt = Device()
 
-    nbins = Argument(100)
-    repeats = Argument(100)
+        nbins = Argument(100)
+        repeats = Argument(100)
 
     @kernel
     def cool_detect(self):

@@ -1,5 +1,5 @@
 from artiq.language.core import *
-from artiq.language.context import *
+from artiq.language.db import *
 from artiq.language.units import *
 from artiq.coredevice import rtio
 
@@ -111,16 +111,17 @@ class _Frame:
         del self.fn
 
 
-class CompoundPDQ2(AutoContext):
-    ids = Parameter()
-    rtio_trigger = Parameter()
-    rtio_frame = Parameter()
+class CompoundPDQ2(AutoDB):
+    class DBKeys:
+        ids = Argument()
+        rtio_trigger = Argument()
+        rtio_frame = Argument()
 
     def build(self):
-        self.trigger = rtio.LLRTIOOut(self, channel=self.rtio_trigger)
-        self.frame0 = rtio.LLRTIOOut(self, channel=self.rtio_frame[0])
-        self.frame1 = rtio.LLRTIOOut(self, channel=self.rtio_frame[1])
-        self.frame2 = rtio.LLRTIOOut(self, channel=self.rtio_frame[2])
+        self.trigger = rtio.LLRTIOOut(core=self.core, channel=self.rtio_trigger)
+        self.frame0 = rtio.LLRTIOOut(core=self.core, channel=self.rtio_frame[0])
+        self.frame1 = rtio.LLRTIOOut(core=self.core, channel=self.rtio_frame[1])
+        self.frame2 = rtio.LLRTIOOut(core=self.core, channel=self.rtio_frame[2])
 
         self.frames = []
         self.current_frame = -1

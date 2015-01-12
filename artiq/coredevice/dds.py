@@ -1,5 +1,5 @@
 from artiq.language.core import *
-from artiq.language.context import *
+from artiq.language.db import *
 from artiq.language.units import *
 from artiq.coredevice import rtio
 
@@ -10,7 +10,7 @@ PHASE_MODE_ABSOLUTE = 1
 PHASE_MODE_TRACKING = 2
 
 
-class DDS(AutoContext):
+class DDS(AutoDB):
     """Core device Direct Digital Synthesis (DDS) driver.
 
     Controls DDS devices managed directly by the core device's runtime. It also
@@ -24,15 +24,16 @@ class DDS(AutoContext):
         the DDS device.
 
     """
-    dds_sysclk = Parameter(1*GHz)
-    reg_channel = Parameter()
-    rtio_switch = Parameter()
+    class DBKeys:
+        dds_sysclk = Parameter(1*GHz)
+        reg_channel = Argument()
+        rtio_switch = Argument()
 
     def build(self):
         self.previous_on = False
         self.previous_frequency = 0*MHz
         self.set_phase_mode(PHASE_MODE_CONTINUOUS)
-        self.sw = rtio.RTIOOut(self, channel=self.rtio_switch)
+        self.sw = rtio.RTIOOut(core=self.core, channel=self.rtio_switch)
 
     @portable
     def frequency_to_ftw(self, frequency):

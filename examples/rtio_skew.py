@@ -9,9 +9,10 @@ def print_failed():
     print("Pulse was not received back")
 
 
-class RTIOSkew(AutoContext):
-    pmt0 = Device("ttl_in")
-    ttl0 = Device("ttl_out")
+class RTIOSkew(AutoDB):
+    class DBKeys:
+        pmt0 = Device()
+        ttl0 = Device()
 
     @kernel
     def run(self):

@@ -1,16 +1,17 @@
 from artiq import *
 
 
-class AluminumSpectroscopy(AutoContext):
-    mains_sync = Device("ttl_in")
-    laser_cooling = Device("dds")
-    spectroscopy = Device("dds")
-    spectroscopy_b = Device("dac")
-    state_detection = Device("dds")
-    pmt = Device("ttl_in")
-    spectroscopy_freq = Parameter(432*MHz)
-    photon_limit_low = Parameter(10)
-    photon_limit_high = Parameter(15)
+class AluminumSpectroscopy(AutoDB):
+    class DBKeys:
+        mains_sync = Device()
+        laser_cooling = Device()
+        spectroscopy = Device()
+        spectroscopy_b = Device()
+        state_detection = Device()
+        pmt = Device()
+        spectroscopy_freq = Parameter(432*MHz)
+        photon_limit_low = Argument(10)
+        photon_limit_high = Argument(15)
 
     @kernel
     def run(self):

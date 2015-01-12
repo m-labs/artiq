@@ -1,11 +1,12 @@
 from artiq import *
 
 
-class DDSTest(AutoContext):
-    dds0 = Device("dds")
-    dds1 = Device("dds")
-    dds2 = Device("dds")
-    led = Device("gpio_out")
+class DDSTest(AutoDB):
+    class DBKeys:
+        dds0 = Device()
+        dds1 = Device()
+        dds2 = Device()
+        led = Device()
 
     @kernel
     def run(self):

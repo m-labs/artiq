@@ -2,36 +2,36 @@
     "core": {
         "module": "artiq.sim.devices",
         "class": "Core",
-        "parameters": {}
+        "arguments": {}
     },
     "mains_sync": {
         "module": "artiq.sim.devices",
         "class": "Input",
-        "parameters": {"name": "mains_sync"}
+        "arguments": {"name": "mains_sync"}
     },
     "pmt": {
         "module": "artiq.sim.devices",
         "class": "Input",
-        "parameters": {"name": "pmt"}
+        "arguments": {"name": "pmt"}
     },
     "laser_cooling": {
         "module": "artiq.sim.devices",
         "class": "WaveOutput",
-        "parameters": {"name": "laser_cooling"}
+        "arguments": {"name": "laser_cooling"}
     },
     "spectroscopy": {
         "module": "artiq.sim.devices",
         "class": "WaveOutput",
-        "parameters": {"name": "spectroscopy"}
+        "arguments": {"name": "spectroscopy"}
     },
     "spectroscopy_b": {
         "module": "artiq.sim.devices",
         "class": "VoltageOutput",
-        "parameters": {"name": "spectroscopy_b"}
+        "arguments": {"name": "spectroscopy_b"}
     },
     "state_detection": {
         "module": "artiq.sim.devices",
         "class": "WaveOutput",
-        "parameters": {"name": "state_detection"}
+        "arguments": {"name": "state_detection"}
     },
 }
