@@ -72,9 +72,9 @@ class Subscriber:
 
 
 class Notifier:
-    def __init__(self, backing_struct, publisher=None, path=[]):
+    def __init__(self, backing_struct, publish=None, path=[]):
         self.read = backing_struct
-        self.publisher = publisher
+        self.publish = publish
         self._backing_struct = backing_struct
         self._path = path
 
@@ -83,44 +83,44 @@ class Notifier:
 
     def append(self, x):
         self._backing_struct.append(x)
-        if self.publisher is not None:
-            self.publisher.publish(self, {"action": "append",
-                                          "path": self._path,
-                                          "x": x})
+        if self.publish is not None:
+            self.publish(self, {"action": "append",
+                                "path": self._path,
+                                "x": x})
 
     def insert(self, i, x):
         self._backing_struct.insert(i, x)
-        if self.publisher is not None:
-            self.publisher.publish(self, {"action": "insert",
-                                          "path": self._path,
-                                          "i": i, "x": x})
+        if self.publish is not None:
+            self.publish(self, {"action": "insert",
+                                "path": self._path,
+                                "i": i, "x": x})
 
     def pop(self, i=-1):
         r = self._backing_struct.pop(i)
-        if self.publisher is not None:
-            self.publisher.publish(self, {"action": "pop",
-                                          "path": self._path,
-                                          "i": i})
+        if self.publish is not None:
+            self.publish(self, {"action": "pop",
+                                "path": self._path,
+                                "i": i})
         return r
 
     def __setitem__(self, key, value):
         self._backing_struct.__setitem__(key, value)
-        if self.publisher is not None:
-            self.publisher.publish(self, {"action": "setitem",
-                                          "path": self._path,
-                                          "key": key,
-                                          "value": value})
+        if self.publish is not None:
+            self.publish(self, {"action": "setitem",
+                                "path": self._path,
+                                "key": key,
+                                "value": value})
 
     def __delitem__(self, key):
         self._backing_struct.__delitem__(key)
-        if self.publisher is not None:
-            self.publisher.publish(self, {"action": "delitem",
-                                          "path": self._path,
-                                          "key": key})
+        if self.publish is not None:
+            self.publish(self, {"action": "delitem",
+                                "path": self._path,
+                                "key": key})
 
     def __getitem__(self, key):
         item = getitem(self._backing_struct, key)
-        return Notifier(item, self.publisher, self._path + [key])
+        return Notifier(item, self.publish, self._path + [key])
 
 
 class Publisher(AsyncioServer):
@@ -131,7 +131,7 @@ class Publisher(AsyncioServer):
         self._notifier_names = {id(v): k for k, v in notifiers.items()}
 
         for notifier in notifiers.values():
-            notifier.publisher = self
+            notifier.publish = self.publish
 
     @asyncio.coroutine
     def _handle_connection_cr(self, reader, writer):
