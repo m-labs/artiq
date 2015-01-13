@@ -134,6 +134,10 @@ class AutoDB:
             else:
                 raise ValueError
 
+    @classmethod
+    def get_realtime_results():
+        return dict()
+
     def build(self):
         """This is called by ``__init__`` after the parameter initialization
         is done.

@@ -4,6 +4,7 @@ import argparse
 import sys
 from inspect import isclass
 from operator import itemgetter
+from itertools import chain
 
 from artiq.management.file_import import file_import
 from artiq.language.db import *
@@ -64,7 +65,7 @@ def main():
     ddb = FlatFileDB(args.ddb)
     pdb = FlatFileDB(args.pdb)
     pdb.hooks.append(SimpleParamLogger())
-    rdb = ResultDB()
+    rdb = ResultDB(set())
     dbh = DBHub(ddb, pdb, rdb)
     try:
         if args.elf:
@@ -105,9 +106,10 @@ def main():
             unit_inst = unit(dbh, **arguments)
             unit_inst.run()
 
-            if rdb.data:
+            if rdb.data.read or rdb.realtime_data.read:
                 print("Results:")
-                for k, v in rdb.data.items():
+                for k, v in chain(rdb.realtime_data.read.items(),
+                                  rdb.data.read.items()):
                     print("{}: {}".format(k, v))
     finally:
         dbh.close()

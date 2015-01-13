@@ -24,6 +24,14 @@ def _get_args():
     return parser.parse_args()
 
 
+def init_rt_results(data):
+    print("init realtime results: " + str(data))
+
+
+def update_rt_results(data):
+    print("update realtime results: " + str(data))
+
+
 def main():
     args = _get_args()
 
@@ -38,7 +46,9 @@ def main():
     scheduler = Scheduler({
         "req_device": ddb.request,
         "req_parameter": pdb.request,
-        "set_parameter": pdb.set
+        "set_parameter": pdb.set,
+        "init_rt_results": init_rt_results,
+        "update_rt_results": update_rt_results
     })
     loop.run_until_complete(scheduler.start())
     atexit.register(lambda: loop.run_until_complete(scheduler.stop()))

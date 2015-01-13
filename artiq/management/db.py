@@ -1,4 +1,4 @@
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 import importlib
 from time import time
 
@@ -51,14 +51,25 @@ class SimpleHistory:
 
 
 class ResultDB:
-    def __init__(self):
-        self.data = defaultdict(list)
+    def __init__(self, realtime_results):
+        self.realtime_data = Notifier({x: [] for x in realtime_results})
+        self.data = Notifier(dict())
 
     def request(self, name):
-        return self.data[name]
+        try:
+            return self.realtime_data[name]
+        except KeyError:
+            try:
+                return self.data[name]
+            except KeyError:
+                self.data[name] = []
+                return self.data[name]
 
     def set(self, name, value):
-        self.data[name] = value
+        if name in self.realtime_data:
+            self.realtime_data[name] = value
+        else:
+            self.data[name] = value
 
 
 def _create_device(desc, dbh):
