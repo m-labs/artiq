@@ -52,7 +52,7 @@ def make_parent_action(action, argnames, exception=ParentActionError):
         if reply["status"] == "ok":
             return reply["data"]
         else:
-            raise exception
+            raise exception(reply["message"])
     return parent_action
 
 

@@ -2,6 +2,7 @@ import sys
 import asyncio
 import subprocess
 import signal
+import traceback
 
 from artiq.management import pyon
 
@@ -78,7 +79,8 @@ class Worker:
                     data = self.handlers[action](**obj)
                     reply = {"status": "ok", "data": data}
                 except:
-                    reply = {"status": "failed"}
+                    reply = {"status": "failed",
+                             "message": traceback.format_exc()}
                 yield from self._send(reply, self.send_timeout)
 
     @asyncio.coroutine
