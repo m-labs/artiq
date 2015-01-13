@@ -20,8 +20,8 @@ class Scheduler:
         return r
 
     def new_prid(self):
-        prids = set(range(len(self.periodic.backing_struct) + 1))
-        prids -= set(self.periodic.backing_struct.keys())
+        prids = set(range(len(self.periodic.read) + 1))
+        prids -= set(self.periodic.read.keys())
         return next(iter(prids))
 
     @asyncio.coroutine
@@ -44,7 +44,7 @@ class Scheduler:
 
     def cancel_once(self, rid):
         idx = next(idx for idx, (qrid, _, _)
-                   in enumerate(self.queue.backing_struct)
+                   in enumerate(self.queue.read)
                    if qrid == rid)
         if idx == 0:
             # Cannot cancel when already running
@@ -75,7 +75,7 @@ class Scheduler:
         while True:
             min_next_run = None
             min_prid = None
-            for prid, params in self.periodic.backing_struct.items():
+            for prid, params in self.periodic.read.items():
                 if min_next_run is None or params[0] < min_next_run:
                     min_next_run = params[0]
                     min_prid = prid
@@ -89,7 +89,7 @@ class Scheduler:
                 return min_next_run
 
             next_run, run_params, timeout, period = \
-                self.periodic.backing_struct[min_prid]
+                self.periodic.read[min_prid]
             self.periodic[min_prid] = now + period, run_params, timeout, period
 
             rid = self.new_rid()
@@ -101,8 +101,8 @@ class Scheduler:
     def _schedule(self):
         while True:
             next_periodic = yield from self._run_periodic()
-            if self.queue.backing_struct:
-                rid, run_params, timeout = self.queue.backing_struct[0]
+            if self.queue.read:
+                rid, run_params, timeout = self.queue.read[0]
                 yield from self._run(rid, run_params, timeout)
                 del self.queue[0]
             else:

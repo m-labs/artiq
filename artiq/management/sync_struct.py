@@ -1,4 +1,5 @@
 import asyncio
+from operator import getitem
 
 from artiq.management import pyon
 from artiq.management.tools import AsyncioServer
@@ -52,56 +53,74 @@ class Subscriber:
 
             if action == "init":
                 target = self.target_builder(obj["struct"])
-            elif action == "append":
-                target.append(obj["x"])
-            elif action == "insert":
-                target.insert(obj["i"], obj["x"])
-            elif action == "pop":
-                target.pop(obj["i"])
-            elif action == "setitem":
-                target.__setitem__(obj["key"], obj["value"])
-            elif action == "delitem":
-                target.__delitem__(obj["key"])
+            else:
+                for key in obj["path"]:
+                    target = getitem(target, key)
+                if action == "append":
+                    target.append(obj["x"])
+                elif action == "insert":
+                    target.insert(obj["i"], obj["x"])
+                elif action == "pop":
+                    target.pop(obj["i"])
+                elif action == "setitem":
+                    target.__setitem__(obj["key"], obj["value"])
+                elif action == "delitem":
+                    target.__delitem__(obj["key"])
 
             if self.notify_cb is not None:
                 self.notify_cb()
 
 
 class Notifier:
-    def __init__(self, backing_struct):
-        self.backing_struct = backing_struct
-        self.publisher = None
+    def __init__(self, backing_struct, publisher=None, path=[]):
+        self.read = backing_struct
+        self.publisher = publisher
+        self._backing_struct = backing_struct
+        self._path = path
 
     # Backing struct modification methods.
     # All modifications must go through them!
 
     def append(self, x):
-        self.backing_struct.append(x)
+        self._backing_struct.append(x)
         if self.publisher is not None:
-            self.publisher.publish(self, {"action": "append", "x": x})
+            self.publisher.publish(self, {"action": "append",
+                                          "path": self._path,
+                                          "x": x})
 
     def insert(self, i, x):
-        self.backing_struct.insert(i, x)
+        self._backing_struct.insert(i, x)
         if self.publisher is not None:
-            self.publisher.publish(self, {"action": "insert", "i": i, "x": x})
+            self.publisher.publish(self, {"action": "insert",
+                                          "path": self._path,
+                                          "i": i, "x": x})
 
     def pop(self, i=-1):
-        r = self.backing_struct.pop(i)
+        r = self._backing_struct.pop(i)
         if self.publisher is not None:
-            self.publisher.publish(self, {"action": "pop", "i": i})
+            self.publisher.publish(self, {"action": "pop",
+                                          "path": self._path,
+                                          "i": i})
         return r
 
     def __setitem__(self, key, value):
-        self.backing_struct.__setitem__(key, value)
+        self._backing_struct.__setitem__(key, value)
         if self.publisher is not None:
             self.publisher.publish(self, {"action": "setitem",
+                                          "path": self._path,
                                           "key": key,
                                           "value": value})
 
     def __delitem__(self, key):
-        self.backing_struct.__delitem__(key)
+        self._backing_struct.__delitem__(key)
         if self.publisher is not None:
-            self.publisher.publish(self, {"action": "delitem", "key": key})
+            self.publisher.publish(self, {"action": "delitem",
+                                          "path": self._path,
+                                          "key": key})
+
+    def __getitem__(self, key):
+        item = getitem(self._backing_struct, key)
+        return Notifier(item, self.publisher, self._path + [key])
 
 
 class Publisher(AsyncioServer):
@@ -131,7 +150,7 @@ class Publisher(AsyncioServer):
             except KeyError:
                 return
 
-            obj = {"action": "init", "struct": notifier.backing_struct}
+            obj = {"action": "init", "struct": notifier.read}
             line = pyon.encode(obj) + "\n"
             writer.write(line.encode())
 
