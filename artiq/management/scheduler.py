@@ -115,3 +115,5 @@ class Scheduler:
                     ],
                     timeout=next_periodic,
                     return_when=asyncio.FIRST_COMPLETED)
+                for t in pend:
+                    t.cancel()
