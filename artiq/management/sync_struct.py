@@ -66,15 +66,15 @@ class Subscriber:
             line = yield from self._reader.readline()
             if not line:
                 return
-            obj = pyon.decode(line.decode())
+            mod = pyon.decode(line.decode())
 
-            if obj["action"] == "init":
-                target = self.target_builder(obj["struct"])
+            if mod["action"] == "init":
+                target = self.target_builder(mod["struct"])
             else:
-                process_mod(target, obj)
+                process_mod(target, mod)
 
             if self.notify_cb is not None:
-                self.notify_cb()
+                self.notify_cb(mod)
 
 
 class Notifier:

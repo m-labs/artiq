@@ -201,7 +201,7 @@ def _show_list(args, notifier_name, display_fun):
         l[:] = x
         return l
     subscriber = Subscriber(notifier_name, init_l,
-                            lambda: display_fun(l))
+                            lambda mod: display_fun(l))
     _run_subscriber(args.server, args.port, subscriber)
 
 
@@ -212,7 +212,7 @@ def _show_dict(args, notifier_name, display_fun):
         d.update(x)
         return d
     subscriber = Subscriber(notifier_name, init_d,
-                            lambda: display_fun(d))
+                            lambda mod: display_fun(d))
     _run_subscriber(args.server, args.port, subscriber)
 
 
