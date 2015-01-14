@@ -8,6 +8,7 @@ from artiq.management.pc_rpc import Server
 from artiq.management.sync_struct import Publisher
 from artiq.management.db import FlatFileDB, SimpleHistory
 from artiq.management.scheduler import Scheduler
+from artiq.management.rt_results import RTResults
 
 
 def _get_args():
@@ -24,14 +25,6 @@ def _get_args():
     return parser.parse_args()
 
 
-def init_rt_results(data):
-    print("init realtime results: " + str(data))
-
-
-def update_rt_results(data):
-    print("update realtime results: " + str(data))
-
-
 def main():
     args = _get_args()
 
@@ -39,6 +32,7 @@ def main():
     pdb = FlatFileDB("pdb.pyon")
     simplephist = SimpleHistory(30)
     pdb.hooks.append(simplephist)
+    rtr = RTResults()
 
     loop = asyncio.get_event_loop()
     atexit.register(lambda: loop.close())
@@ -47,8 +41,8 @@ def main():
         "req_device": ddb.request,
         "req_parameter": pdb.request,
         "set_parameter": pdb.set,
-        "init_rt_results": init_rt_results,
-        "update_rt_results": update_rt_results
+        "init_rt_results": rtr.init,
+        "update_rt_results": rtr.update
     })
     loop.run_until_complete(scheduler.start())
     atexit.register(lambda: loop.run_until_complete(scheduler.stop()))
@@ -67,7 +61,8 @@ def main():
         "periodic": scheduler.periodic,
         "devices": ddb.data,
         "parameters": pdb.data,
-        "parameters_simplehist": simplephist.history
+        "parameters_simplehist": simplephist.history,
+        "rt_results": rtr.sets
     })
     loop.run_until_complete(server_notify.start(
         args.bind, args.port_notify))

@@ -48,8 +48,8 @@ class ParentPDB:
     set = make_parent_action("set_parameter", "name value")
 
 
-init_rt_results = make_parent_action("init_rt_results", "data")
-update_rt_results = make_parent_action("update_rt_results", "data")
+init_rt_results = make_parent_action("init_rt_results", "description")
+update_rt_results = make_parent_action("update_rt_results", "mod")
 
 
 def publish_rt_results(notifier, data):
