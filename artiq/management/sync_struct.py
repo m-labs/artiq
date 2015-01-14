@@ -8,6 +8,24 @@ from artiq.management.tools import AsyncioServer
 _init_string = b"ARTIQ sync_struct\n"
 
 
+def process_mod(target, mod):
+    for key in mod["path"]:
+        target = getitem(target, key)
+    action = mod["action"]
+    if action == "append":
+        target.append(mod["x"])
+    elif action == "insert":
+        target.insert(mod["i"], mod["x"])
+    elif action == "pop":
+        target.pop(mod["i"])
+    elif action == "setitem":
+        target.__setitem__(mod["key"], mod["value"])
+    elif action == "delitem":
+        target.__delitem__(mod["key"])
+    else:
+        raise ValueError
+
+
 class Subscriber:
     def __init__(self, notifier_name, target_builder, notify_cb=None):
         self.notifier_name = notifier_name
@@ -49,23 +67,11 @@ class Subscriber:
             if not line:
                 return
             obj = pyon.decode(line.decode())
-            action = obj["action"]
 
-            if action == "init":
+            if obj["action"] == "init":
                 target = self.target_builder(obj["struct"])
             else:
-                for key in obj["path"]:
-                    target = getitem(target, key)
-                if action == "append":
-                    target.append(obj["x"])
-                elif action == "insert":
-                    target.insert(obj["i"], obj["x"])
-                elif action == "pop":
-                    target.pop(obj["i"])
-                elif action == "setitem":
-                    target.__setitem__(obj["key"], obj["value"])
-                elif action == "delitem":
-                    target.__delitem__(obj["key"])
+                process_mod(target, obj)
 
             if self.notify_cb is not None:
                 self.notify_cb()
