@@ -3,8 +3,8 @@ from artiq.management.sync_struct import Notifier, process_mod
 
 class RTResults:
     def __init__(self):
-        self.sets = Notifier(dict())
-        self.current_set = "default"
+        self.groups = Notifier(dict())
+        self.current_group = "default"
 
     def init(self, description):
         data = dict()
@@ -14,11 +14,11 @@ class RTResults:
                     data[e] = []
             else:
                 data[rtr] = []
-        self.sets[self.current_set] = {
+        self.groups[self.current_group] = {
             "description": description,
             "data": data
         }
 
     def update(self, mod):
-        target = self.sets[self.current_set]["data"]
+        target = self.groups[self.current_group]["data"]
         process_mod(target, mod)

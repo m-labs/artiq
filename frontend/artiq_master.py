@@ -62,7 +62,7 @@ def main():
         "devices": ddb.data,
         "parameters": pdb.data,
         "parameters_simplehist": simplephist.history,
-        "rt_results": rtr.sets
+        "rt_results": rtr.groups
     })
     loop.run_until_complete(server_notify.start(
         args.bind, args.port_notify))

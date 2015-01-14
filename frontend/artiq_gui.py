@@ -10,6 +10,7 @@ from gi.repository import Gtk
 from artiq.management.pc_rpc import AsyncioClient
 from artiq.gui.scheduler import SchedulerWindow
 from artiq.gui.parameters import ParametersWindow
+from artiq.gui.rt_results import RTResults
 
 
 def _get_args():
@@ -54,6 +55,13 @@ def main():
         args.server, args.port_notify))
     atexit.register(
         lambda: loop.run_until_complete(parameters_win.sub_close()))
+
+    rtr = RTResults()
+    loop.run_until_complete(rtr.sub_connect(
+        args.server, args.port_notify))
+    atexit.register(
+        lambda: loop.run_until_complete(rtr.sub_close()))
+
 
     loop.run_forever()
 
