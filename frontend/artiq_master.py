@@ -7,8 +7,8 @@ import atexit
 from artiq.management.pc_rpc import Server
 from artiq.management.sync_struct import Publisher
 from artiq.management.db import FlatFileDB, SimpleHistory
-from artiq.management.scheduler import Scheduler
-from artiq.management.rt_results import RTResults
+from artiq.master.scheduler import Scheduler
+from artiq.master.rt_results import RTResults
 
 
 def _get_args():

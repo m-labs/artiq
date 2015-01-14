@@ -2,7 +2,7 @@ import asyncio
 from time import time
 
 from artiq.management.sync_struct import Notifier
-from artiq.management.worker import Worker
+from artiq.master.worker import Worker
 
 
 class Scheduler:

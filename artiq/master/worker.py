@@ -26,7 +26,7 @@ class Worker:
     @asyncio.coroutine
     def create_process(self):
         self.process = yield from asyncio.create_subprocess_exec(
-            sys.executable, "-m", "artiq.management.worker_impl",
+            sys.executable, "-m", "artiq.master.worker_impl",
             stdout=subprocess.PIPE, stdin=subprocess.PIPE)
 
     @asyncio.coroutine
