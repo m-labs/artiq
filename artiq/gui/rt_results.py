@@ -28,11 +28,14 @@ class _PlotWindow(Window):
 class XYWindow(_PlotWindow):
     def on_draw(self, widget, ctx):
         if self.data is not None:
+            data = self.filter_data()
             cairoplot.scatter_plot(
                 ctx,
-                data=self.filter_data(),
+                data=data,
                 width=widget.get_allocated_width(),
                 height=widget.get_allocated_height(),
+                x_bounds=(min(data[0])*0.98, max(data[0])*1.02),
+                y_bounds=(min(data[1])*0.98, max(data[1])*1.02),
                 border=20, axis=True, grid=True,
                 dots=1, discrete=True,
                 series_colors=[(0.0, 0.0, 0.0)],
