@@ -108,12 +108,16 @@ class Scheduler:
             else:
                 self.queue_modified.clear()
                 self.periodic_modified.clear()
-                done, pend = yield from asyncio.wait(
-                    [
-                        self.queue_modified.wait(),
-                        self.periodic_modified.wait()
-                    ],
-                    timeout=next_periodic,
-                    return_when=asyncio.FIRST_COMPLETED)
+                t1 = asyncio.Task(self.queue_modified.wait())
+                t2 = asyncio.Task(self.periodic_modified.wait())
+                try:
+                    done, pend = yield from asyncio.wait(
+                        [t1, t2],
+                        timeout=next_periodic,
+                        return_when=asyncio.FIRST_COMPLETED)
+                except:
+                    t1.cancel()
+                    t2.cancel()
+                    raise
                 for t in pend:
                     t.cancel()
