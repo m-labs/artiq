@@ -28,11 +28,11 @@ setup(
     ext_modules=[],
     entry_points={
         "console_scripts": [
-            "artiq_client=artiq.frontend.client:main",
-            "artiq_ctlid=artiq.frontend.ctlid:main",
-            "artiq_gui=artiq.frontend.gui:main",
-            "artiq_master=artiq.frontend.master:main",
-            "artiq_run=artiq.frontend.run:main",
+            "artiq_client=artiq.frontend.artiq_client:main",
+            "artiq_ctlid=artiq.frontend.artiq_ctlid:main",
+            "artiq_gui=artiq.frontend.artiq_gui:main",
+            "artiq_master=artiq.frontend.artiq_master:main",
+            "artiq_run=artiq.frontend.artiq_run:main",
             "lda_client=artiq.frontend.lda_client:main",
             "lda_controller=artiq.frontend.lda_controller:main",
             "pdq2_client=artiq.frontend.pdq2_client:main",
