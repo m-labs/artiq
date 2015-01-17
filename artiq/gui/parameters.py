@@ -5,7 +5,7 @@ import time
 from gi.repository import Gtk
 
 from artiq.gui.tools import Window, ListSyncer, DictSyncer
-from artiq.management.sync_struct import Subscriber
+from artiq.protocols.sync_struct import Subscriber
 
 
 class _ParameterStoreSyncer(DictSyncer):

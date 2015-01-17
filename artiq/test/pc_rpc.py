@@ -6,7 +6,7 @@ import time
 
 import numpy as np
 
-from artiq.management import pc_rpc
+from artiq.protocols import pc_rpc
 
 
 test_address = "::1"

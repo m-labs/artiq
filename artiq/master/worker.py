@@ -4,7 +4,7 @@ import subprocess
 import signal
 import traceback
 
-from artiq.management import pyon
+from artiq.protocols import pyon
 
 
 class WorkerFailed(Exception):

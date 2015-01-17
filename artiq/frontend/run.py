@@ -6,10 +6,11 @@ from inspect import isclass
 from operator import itemgetter
 from itertools import chain
 
-from artiq.management.file_import import file_import
 from artiq.language.db import *
-from artiq.management import pyon
-from artiq.management.db import *
+from artiq.protocols import pyon
+from artiq.protocols.file_db import FlatFileDB
+from artiq.master.db import DBHub, ResultDB
+from artiq.tools import file_import
 
 
 class ELFRunner(AutoDB):

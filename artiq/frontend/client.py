@@ -8,10 +8,14 @@ from operator import itemgetter
 
 from prettytable import PrettyTable
 
-from artiq.management.pc_rpc import Client
-from artiq.management.sync_struct import Subscriber
-from artiq.management.tools import clear_screen, format_run_arguments
-from artiq.management import pyon
+from artiq.protocols.pc_rpc import Client
+from artiq.protocols.sync_struct import Subscriber
+from artiq.protocols import pyon
+from artiq.tools import format_run_arguments
+
+
+def clear_screen():
+    sys.stdout.write("\x1b[2J\x1b[H")
 
 
 def _get_args():

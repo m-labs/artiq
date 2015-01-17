@@ -4,7 +4,7 @@ import argparse
 import logging
 
 from artiq.devices.pdq2.driver import Pdq2
-from artiq.management.pc_rpc import simple_server_loop
+from artiq.protocols.pc_rpc import simple_server_loop
 
 
 def _get_args():

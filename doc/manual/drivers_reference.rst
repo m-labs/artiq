@@ -5,7 +5,7 @@ These drivers are for "slow" devices that are directly controlled by a PC, typic
 
 Certain devices (such as the PDQ2) may still perform real-time operations by having certain controls physically connected to the core device (for example, the trigger and frame selection signals on the PDQ2). For handling such cases, parts of the drivers may be kernels executed on the core device.
 
-Each driver is run in a separate "controller" that exposes a RPC interface (based on :class:`artiq.management.pc_rpc`) to its functions. The master never does direct I/O to the devices, but issues RPCs to the controllers when needed. As opposed to running everything on the master, this architecture has those main advantages:
+Each driver is run in a separate "controller" that exposes a RPC interface (based on :class:`artiq.protocols.pc_rpc`) to its functions. The master never does direct I/O to the devices, but issues RPCs to the controllers when needed. As opposed to running everything on the master, this architecture has those main advantages:
 
 * Each driver can be run on a different machine, which alleviates cabling issues and OS compatibility problems.
 * Reduces the impact of driver crashes.

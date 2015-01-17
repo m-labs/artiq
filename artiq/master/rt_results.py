@@ -1,4 +1,4 @@
-from artiq.management.sync_struct import Notifier, process_mod
+from artiq.protocols.sync_struct import Notifier, process_mod
 
 
 class RTResults:

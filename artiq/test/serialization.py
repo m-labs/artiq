@@ -5,7 +5,7 @@ from fractions import Fraction
 import numpy as np
 
 from artiq.language.units import *
-from artiq.management import pyon
+from artiq.protocols import pyon
 
 
 _pyon_test_object = {

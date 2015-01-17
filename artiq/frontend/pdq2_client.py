@@ -8,7 +8,7 @@ import time
 from scipy import interpolate
 import numpy as np
 
-from artiq.management.pc_rpc import Client
+from artiq.protocols.pc_rpc import Client
 
 
 def _get_args():

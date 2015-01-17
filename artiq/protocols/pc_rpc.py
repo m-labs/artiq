@@ -1,7 +1,7 @@
 """
 This module provides a remote procedure call (RPC) mechanism over sockets
 between conventional computers (PCs) running Python. It strives to be
-transparent and uses ``artiq.management.pyon`` internally so that e.g. Numpy
+transparent and uses ``artiq.protocols.pyon`` internally so that e.g. Numpy
 arrays can be easily used.
 
 Note that the server operates on copies of objects provided by the client,
@@ -16,8 +16,8 @@ import socket
 import asyncio
 import traceback
 
-from artiq.management import pyon
-from artiq.management.tools import AsyncioServer as _AsyncioServer
+from artiq.protocols import pyon
+from artiq.protocols.asyncio_server import AsyncioServer as _AsyncioServer
 
 
 class RemoteError(Exception):
@@ -140,7 +140,7 @@ class Client:
 
 
 class AsyncioClient:
-    """This class is similar to :class:`artiq.management.pc_rpc.Client`, but
+    """This class is similar to :class:`artiq.protocols.pc_rpc.Client`, but
     uses ``asyncio`` instead of blocking calls.
 
     All RPC methods are coroutines.

@@ -1,8 +1,8 @@
 import asyncio
 from operator import getitem
 
-from artiq.management import pyon
-from artiq.management.tools import AsyncioServer
+from artiq.protocols import pyon
+from artiq.protocols.asyncio_server import AsyncioServer
 
 
 _init_string = b"ARTIQ sync_struct\n"

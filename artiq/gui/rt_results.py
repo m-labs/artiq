@@ -4,7 +4,7 @@ from collections import defaultdict
 from gi.repository import Gtk
 import cairoplot
 
-from artiq.management.sync_struct import Subscriber
+from artiq.protocols.sync_struct import Subscriber
 from artiq.gui.tools import Window
 
 

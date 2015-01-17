@@ -6,7 +6,7 @@ These instructions cover writing a simple driver for a "slow" device, that uses 
 The controller
 --------------
 
-A controller is a piece of software that receives commands from a client over the network (or the ``localhost`` interface), drives a device, and returns information about the device to the client. The mechanism used is remote procedure calls (RPCs) using :class:`artiq.management.pc_rpc`, which makes the network layers transparent for the driver's user.
+A controller is a piece of software that receives commands from a client over the network (or the ``localhost`` interface), drives a device, and returns information about the device to the client. The mechanism used is remote procedure calls (RPCs) using :class:`artiq.protocols.pc_rpc`, which makes the network layers transparent for the driver's user.
 
 The controller we will develop is for a "device" that is very easy to work with: the console from which the controller is run. The operation that the driver will implement is writing a message to that console.
 
@@ -16,9 +16,9 @@ For using RPC, the functions that a driver provides must be the methods of a sin
         def message(self, msg):
             print("message: " + msg)
 
-To turn it into a server, we use :class:`artiq.management.pc_rpc`. Import the function we will use: ::
+To turn it into a server, we use :class:`artiq.protocols.pc_rpc`. Import the function we will use: ::
 
-    from artiq.management.pc_rpc import simple_server_loop
+    from artiq.protocols.pc_rpc import simple_server_loop
 
 and add a ``main`` function that is run when the program is executed: ::
 
@@ -63,7 +63,7 @@ Create a ``hello_client.py`` file with the following contents: ::
 
     #!/usr/bin/env python3
 
-    from artiq.management.pc_rpc import Client
+    from artiq.protocols.pc_rpc import Client
 
 
     def main():

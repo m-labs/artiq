@@ -4,9 +4,9 @@ import asyncio
 import argparse
 import atexit
 
-from artiq.management.pc_rpc import Server
-from artiq.management.sync_struct import Publisher
-from artiq.management.db import FlatFileDB, SimpleHistory
+from artiq.protocols.pc_rpc import Server
+from artiq.protocols.sync_struct import Publisher
+from artiq.protocols.file_db import FlatFileDB, SimpleHistory
 from artiq.master.scheduler import Scheduler
 from artiq.master.rt_results import RTResults
 

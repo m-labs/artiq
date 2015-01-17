@@ -3,7 +3,7 @@
 import argparse
 
 from artiq.devices.lda.driver import Lda, Ldasim
-from artiq.management.pc_rpc import simple_server_loop
+from artiq.protocols.pc_rpc import simple_server_loop
 
 
 def main():

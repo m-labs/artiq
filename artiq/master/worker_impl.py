@@ -2,10 +2,10 @@ import sys
 from inspect import isclass
 import traceback
 
-from artiq.management import pyon
-from artiq.management.file_import import file_import
+from artiq.protocols import pyon
+from artiq.tools import file_import
 from artiq.language.db import AutoDB
-from artiq.management.db import DBHub, ResultDB
+from artiq.master.db import DBHub, ResultDB
 
 
 def get_object():

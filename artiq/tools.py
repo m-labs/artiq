@@ -1,5 +1,16 @@
+from operator import itemgetter
 import importlib.machinery
 import linecache
+
+
+def format_run_arguments(arguments):
+    fmtargs = []
+    for k, v in sorted(arguments.items(), key=itemgetter(0)):
+        fmtargs.append(k + "=" + str(v))
+    if fmtargs:
+        return " ".join(fmtargs)
+    else:
+        return "-"
 
 
 def file_import(filename):
