@@ -26,5 +26,17 @@ setup(
         (os.path.join("artiq", "gui"),
          [os.path.join("artiq", "gui", "icon.png")])],
     ext_modules=[],
-    scripts=glob(os.path.join("frontend", "*.py"))
+    entry_points={
+        "console_scripts": [
+            "artiq_client=artiq.frontend.client:main",
+            "artiq_ctlid=artiq.frontend.ctlid:main",
+            "artiq_gui=artiq.frontend.gui:main",
+            "artiq_master=artiq.frontend.master:main",
+            "artiq_run=artiq.frontend.run:main",
+            "lda_client=artiq.frontend.lda_client:main",
+            "lda_controller=artiq.frontend.lda_controller:main",
+            "pdq2_client=artiq.frontend.pdq2_client:main",
+            "pdq2_controller=artiq.frontend.pdq2_controller:main",
+        ],
+    }
 )
