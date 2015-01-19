@@ -1,16 +1,17 @@
 Management reference
 ====================
 
+:mod:`artiq.protocols.asyncio_server` module
+--------------------------------------------
+
+.. automodule:: artiq.protocols.asyncio_server
+    :members:
+
+
 :mod:`artiq.protocols.pyon` module
 ----------------------------------
 
 .. automodule:: artiq.protocols.pyon
-    :members:
-
-:mod:`artiq.protocols.tools` module
------------------------------------
-
-.. automodule:: artiq.protocols.tools
     :members:
 
 

@@ -1,3 +1,16 @@
+"""This module helps synchronizing a mutable Python structure owned and
+modified by one process (the *publisher*) with copies of it (the
+*subscribers*) in different processes and possibly different machines.
+
+Synchronization is achieved by sending a full copy of the structure to each
+subscriber upon connection (*initialization*), followed by dictionaries
+describing each modification made to the structure (*mods*).
+
+Structures must be PYON serializable and contain only lists, dicts, and
+immutable types. Lists and dicts can be nested arbitrarily.
+
+"""
+
 import asyncio
 from operator import getitem
 
@@ -9,6 +22,9 @@ _init_string = b"ARTIQ sync_struct\n"
 
 
 def process_mod(target, mod):
+    """Apply a *mod* to the target, mutating it.
+
+    """
     for key in mod["path"]:
         target = getitem(target, key)
     action = mod["action"]
@@ -27,6 +43,16 @@ def process_mod(target, mod):
 
 
 class Subscriber:
+    """An asyncio-based client to connect to a ``Publisher``.
+
+    :param notifier_name: Name of the notifier to subscribe to.
+    :param target_builder: A function called during initialization that takes
+        the object received from the publisher and returns the corresponding
+        local structure to use. Can be identity.
+    :param notify_cb: An optional function called every time a mod is received
+        from the publisher. The mod is passed as parameter.
+
+    """
     def __init__(self, notifier_name, target_builder, notify_cb=None):
         self.notifier_name = notifier_name
         self.target_builder = target_builder
@@ -78,6 +104,29 @@ class Subscriber:
 
 
 class Notifier:
+    """Encapsulates a structure whose changes need to be published.
+
+    All mutations to the structure must be made through the ``Notifier``. The
+    original structure must only be accessed for reads.
+
+    In addition to the list methods below, the ``Notifier`` supports the index
+    syntax for modification and deletion of elements. Modification of nested
+    structures can be also done using the index syntax, for example:
+
+    >>> n = Notifier([])
+    >>> n.append([])
+    >>> n[0].append(42)
+    >>> n.read
+    [[42]]
+
+    This class does not perform any network I/O and is meant to be used with
+    e.g. the ``Publisher`` for this purpose. Only one publisher at most can be
+    associated with a ``Notifier``.
+
+    :param backing_struct: Structure to encapsulate. For convenience, it
+        also becomes available as the ``read`` property of the ``Notifier``.
+
+    """
     def __init__(self, backing_struct, root=None, path=[]):
         self.read = backing_struct
         if root is None:
@@ -92,6 +141,9 @@ class Notifier:
     # All modifications must go through them!
 
     def append(self, x):
+        """Append to a list.
+
+        """
         self._backing_struct.append(x)
         if self.root.publish is not None:
             self.root.publish(self.root, {"action": "append",
@@ -99,6 +151,9 @@ class Notifier:
                                           "x": x})
 
     def insert(self, i, x):
+        """Insert an element into a list.
+
+        """
         self._backing_struct.insert(i, x)
         if self.root.publish is not None:
             self.root.publish(self.root, {"action": "insert",
@@ -106,6 +161,11 @@ class Notifier:
                                           "i": i, "x": x})
 
     def pop(self, i=-1):
+        """Pop an element from a list. The returned element is not
+        encapsulated in a ``Notifier`` and its mutations are no longer
+        tracked.
+
+        """
         r = self._backing_struct.pop(i)
         if self.root.publish is not None:
             self.root.publish(self.root, {"action": "pop",
@@ -134,6 +194,14 @@ class Notifier:
 
 
 class Publisher(AsyncioServer):
+    """A network server that publish changes to structures encapsulated in
+    ``Notifiers``.
+
+    :param notifiers: A dictionary containing the notifiers to associate with
+        the ``Publisher``. The keys of the dictionary are the names of the
+        notifiers to be used with ``Subscriber``.
+
+    """
     def __init__(self, notifiers):
         AsyncioServer.__init__(self)
         self.notifiers = notifiers
