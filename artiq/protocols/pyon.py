@@ -159,6 +159,7 @@ def store_file(filename, x):
     contents = encode(x, True)
     with open(filename, "w") as f:
         f.write(contents)
+        f.write("\n")
 
 
 def load_file(filename):
