@@ -109,6 +109,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
     Check that the board boots by running a serial terminal program (you may need to press its FPGA reconfiguration button or power-cycle it to load the bitstream that was newly written into the flash): ::
 
+        $ make -C ~/artiq-dev/misoc/tools # do only once
         $ ~/artiq-dev/misoc/tools/flterm --port /dev/ttyUSB1
         MiSoC BIOS   http://m-labs.hk
         [...]
