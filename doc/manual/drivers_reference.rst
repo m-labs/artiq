@@ -52,7 +52,7 @@ When writing a new driver, choose a free TCP port and add it to this list.
 +--------------------------+--------------+
 | Master (control)         | 3251         |
 +--------------------------+--------------+
-| Novatech 409B (4 channel DDS) | 3254    |
+| Novatech 409B            | 3254         |
 +--------------------------+--------------+
 | PDQ2                     | 3252         |
 +--------------------------+--------------+
