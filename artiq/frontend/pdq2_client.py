@@ -52,7 +52,7 @@ def _get_args():
     return parser.parse_args()
 
 
-def _main():
+def main():
     args = _get_args()
     dev = Client(args.server, args.port, "pdq2")
     dev.init()
@@ -131,4 +131,4 @@ def _main():
         fig.savefig(args.plot)
 
 if __name__ == "__main__":
-    _main()
+    main()
