@@ -11,7 +11,7 @@ from artiq.master.scheduler import Scheduler
 from artiq.master.rt_results import RTResults
 
 
-def _get_args():
+def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ master")
     parser.add_argument(
         "--bind", default="::1",
@@ -22,11 +22,11 @@ def _get_args():
     parser.add_argument(
         "--port-control", default=3251, type=int,
         help="TCP port to listen to for control")
-    return parser.parse_args()
+    return parser
 
 
 def main():
-    args = _get_args()
+    args = get_argparser().parse_args()
 
     ddb = FlatFileDB("ddb.pyon")
     pdb = FlatFileDB("pdb.pyon")

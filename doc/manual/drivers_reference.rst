@@ -17,6 +17,13 @@ Each driver is run in a separate "controller" that exposes a RPC interface (base
 .. automodule:: artiq.devices.pdq2
     :members:
 
+.. argparse::
+   :ref: artiq.frontend.pdq2_controller.get_argparser
+   :prog: pdq2_controller
+
+.. argparse::
+   :ref: artiq.frontend.pdq2_client.get_argparser
+   :prog: pdq2_client
 
 :mod:`artiq.devices.lda` module
 ---------------------------------
@@ -24,6 +31,14 @@ Each driver is run in a separate "controller" that exposes a RPC interface (base
 .. automodule:: artiq.devices.lda.driver
     :members:
 
+.. argparse::
+   :ref: artiq.frontend.lda_controller.get_argparser
+   :prog: lda_controller
+
+
+.. argparse::
+   :ref: artiq.frontend.lda_client.get_argparser
+   :prog: lda_client
 
 Default TCP port list
 ---------------------

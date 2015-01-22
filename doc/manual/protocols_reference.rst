@@ -1,5 +1,5 @@
-Management reference
-====================
+Protocols reference
+===================
 
 :mod:`artiq.protocols.asyncio_server` module
 --------------------------------------------

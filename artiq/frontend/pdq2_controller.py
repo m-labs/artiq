@@ -7,7 +7,7 @@ from artiq.devices.pdq2.driver import Pdq2
 from artiq.protocols.pc_rpc import simple_server_loop
 
 
-def _get_args():
+def get_argparser():
     parser = argparse.ArgumentParser(description="PDQ2 controller")
     parser.add_argument("--bind", default="::1",
                         help="hostname or IP address to bind to")
@@ -19,11 +19,11 @@ def _get_args():
     parser.add_argument(
         "-d", "--debug", default=False, action="store_true",
         help="debug communications")
-    return parser.parse_args()
+    return parser
 
 
 def main():
-    args = _get_args()
+    args = get_argparser().parse_args()
 
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)

@@ -5,18 +5,20 @@ import argparse
 from artiq.protocols.pc_rpc import Client
 
 
-def main():
+def get_argparser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--server', default="::1",
+    parser.add_argument("-s", "--server", default="::1",
                         help="hostname or IP of the controller to connect to")
-    parser.add_argument('-p', '--port', default=3253, type=int,
+    parser.add_argument("-p", "--port", default=3253, type=int,
                         help="TCP port to use to connect to the controller")
-    parser.add_argument('-a', '--attenuation', type=float,
+    parser.add_argument("-a", "--attenuation", type=float,
                         help="attenuation value to set")
-    args = parser.parse_args()
+    return parser
 
+
+def main():
+    args = get_argparser().parse_args()
     remote = Client(args.server, args.port, "lda")
-
     try:
         if args.attenuation is None:
             print("Current attenuation: {}".format(remote.get_attenuation()))

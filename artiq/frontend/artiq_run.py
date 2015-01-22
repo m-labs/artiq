@@ -31,7 +31,7 @@ class SimpleParamLogger:
         print("Parameter change: {} -> {}".format(name, value))
 
 
-def _get_args():
+def get_argparser():
     parser = argparse.ArgumentParser(
         description="Local experiment running tool")
 
@@ -49,7 +49,7 @@ def _get_args():
     parser.add_argument("arguments", nargs="*",
                         help="run arguments")
 
-    return parser.parse_args()
+    return parser
 
 
 def _parse_arguments(arguments):
@@ -61,7 +61,7 @@ def _parse_arguments(arguments):
 
 
 def main():
-    args = _get_args()
+    args = get_argparser().parse_args()
 
     ddb = FlatFileDB(args.ddb)
     pdb = FlatFileDB(args.pdb)

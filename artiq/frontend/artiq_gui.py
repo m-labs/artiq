@@ -13,7 +13,7 @@ from artiq.gui.parameters import ParametersWindow
 from artiq.gui.rt_results import RTResults
 
 
-def _get_args():
+def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ GUI client")
     parser.add_argument(
         "-s", "--server", default="::1",
@@ -24,11 +24,11 @@ def _get_args():
     parser.add_argument(
         "--port-control", default=3251, type=int,
         help="TCP port to connect to for control")
-    return parser.parse_args()
+    return parser
 
 
 def main():
-    args = _get_args()
+    args = get_argparser().parse_args()
 
     asyncio.set_event_loop_policy(gbulb.GtkEventLoopPolicy())
     loop = asyncio.get_event_loop()

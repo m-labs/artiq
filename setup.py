@@ -15,7 +15,7 @@ setup(
     long_description=open("README.rst").read(),
     license="BSD",
     install_requires=[
-        "sphinx", "pyserial", "numpy", "scipy", "prettytable"
+        "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy", "prettytable"
     ],
     extras_require={},
     dependency_links=[],

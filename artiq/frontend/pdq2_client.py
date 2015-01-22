@@ -11,7 +11,7 @@ import numpy as np
 from artiq.protocols.pc_rpc import Client
 
 
-def _get_args():
+def get_argparser():
     parser = argparse.ArgumentParser(description="""PDQ2 client.
         Evaluates times and voltages, interpolates and uploads
         them to the controller.""")
@@ -49,11 +49,11 @@ def _get_args():
                         action="store_true", help="do reset before")
     parser.add_argument("-b", "--bit", default=False,
                         action="store_true", help="do bit test")
-    return parser.parse_args()
+    return parser
 
 
 def main():
-    args = _get_args()
+    args = get_argparser().parse_args()
     dev = Client(args.server, args.port, "pdq2")
     dev.init()
 

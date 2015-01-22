@@ -19,7 +19,7 @@ def clear_screen():
     sys.stdout.write("\x1b[2J\x1b[H")
 
 
-def _get_args():
+def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ CLI client")
     parser.add_argument(
         "-s", "--server", default="::1",
@@ -80,7 +80,7 @@ def _get_args():
         "what",
         help="select object to show: queue/timed/devices/parameters")
 
-    return parser.parse_args()
+    return parser
 
 
 def _parse_arguments(arguments):
@@ -226,7 +226,7 @@ def _show_dict(args, notifier_name, display_fun):
 
 
 def main():
-    args = _get_args()
+    args = get_argparser().parse_args()
     action = args.action.replace("-", "_")
     if action == "show":
         if args.what == "queue":
