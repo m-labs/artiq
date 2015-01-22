@@ -58,7 +58,7 @@ def main():
 
     server_notify = Publisher({
         "queue": scheduler.queue,
-        "periodic": scheduler.periodic,
+        "timed": scheduler.timed,
         "devices": ddb.data,
         "parameters": pdb.data,
         "parameters_simplehist": simplephist.history,

@@ -11,18 +11,18 @@ class Scheduler:
         self.next_rid = 0
         self.queue = Notifier([])
         self.queue_modified = asyncio.Event()
-        self.periodic = Notifier(dict())
-        self.periodic_modified = asyncio.Event()
+        self.timed = Notifier(dict())
+        self.timed_modified = asyncio.Event()
 
     def new_rid(self):
         r = self.next_rid
         self.next_rid += 1
         return r
 
-    def new_prid(self):
-        prids = set(range(len(self.periodic.read) + 1))
-        prids -= set(self.periodic.read.keys())
-        return next(iter(prids))
+    def new_trid(self):
+        trids = set(range(len(self.timed.read) + 1))
+        trids -= set(self.timed.read.keys())
+        return next(iter(trids))
 
     @asyncio.coroutine
     def start(self):
@@ -36,13 +36,13 @@ class Scheduler:
         del self.task
         yield from self.worker.end_process()
 
-    def run_once(self, run_params, timeout):
+    def run_queued(self, run_params, timeout):
         rid = self.new_rid()
         self.queue.append((rid, run_params, timeout))
         self.queue_modified.set()
         return rid
 
-    def cancel_once(self, rid):
+    def cancel_queued(self, rid):
         idx = next(idx for idx, (qrid, _, _)
                    in enumerate(self.queue.read)
                    if qrid == rid)
@@ -51,14 +51,16 @@ class Scheduler:
             raise NotImplementedError
         del self.queue[idx]
 
-    def run_periodic(self, run_params, timeout, period):
-        prid = self.new_prid()
-        self.periodic[prid] = 0, run_params, timeout, period
-        self.periodic_modified.set()
-        return prid
+    def run_timed(self, run_params, timeout, next_run):
+        if next_run is None:
+            next_run = time()
+        trid = self.new_trid()
+        self.timed[trid] = next_run, run_params, timeout
+        self.timed_modified.set()
+        return trid
 
-    def cancel_periodic(self, prid):
-        del self.periodic[prid]
+    def cancel_timed(self, trid):
+        del self.timed[trid]
 
     @asyncio.coroutine
     def _run(self, rid, run_params, timeout):
@@ -71,14 +73,14 @@ class Scheduler:
             print("RID {} completed successfully".format(rid))
 
     @asyncio.coroutine
-    def _run_periodic(self):
+    def _run_timed(self):
         while True:
             min_next_run = None
-            min_prid = None
-            for prid, params in self.periodic.read.items():
+            min_trid = None
+            for trid, params in self.timed.read.items():
                 if min_next_run is None or params[0] < min_next_run:
                     min_next_run = params[0]
-                    min_prid = prid
+                    min_trid = trid
 
             now = time()
 
@@ -88,9 +90,8 @@ class Scheduler:
             if min_next_run > 0:
                 return min_next_run
 
-            next_run, run_params, timeout, period = \
-                self.periodic.read[min_prid]
-            self.periodic[min_prid] = now + period, run_params, timeout, period
+            next_run, run_params, timeout = self.timed.read[min_trid]
+            del self.timed[min_trid]
 
             rid = self.new_rid()
             self.queue.insert(0, (rid, run_params, timeout))
@@ -100,20 +101,20 @@ class Scheduler:
     @asyncio.coroutine
     def _schedule(self):
         while True:
-            next_periodic = yield from self._run_periodic()
+            next_timed = yield from self._run_timed()
             if self.queue.read:
                 rid, run_params, timeout = self.queue.read[0]
                 yield from self._run(rid, run_params, timeout)
                 del self.queue[0]
             else:
                 self.queue_modified.clear()
-                self.periodic_modified.clear()
+                self.timed_modified.clear()
                 t1 = asyncio.Task(self.queue_modified.wait())
-                t2 = asyncio.Task(self.periodic_modified.wait())
+                t2 = asyncio.Task(self.timed_modified.wait())
                 try:
                     done, pend = yield from asyncio.wait(
                         [t1, t2],
-                        timeout=next_periodic,
+                        timeout=next_timed,
                         return_when=asyncio.FIRST_COMPLETED)
                 except:
                     t1.cancel()

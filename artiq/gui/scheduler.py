@@ -18,18 +18,17 @@ class _QueueStoreSyncer(ListSyncer):
         return row
 
 
-class _PeriodicStoreSyncer(DictSyncer):
+class _TimedStoreSyncer(DictSyncer):
     def order_key(self, kv_pair):
-        # order by next run time, and then by PRID
+        # order by next run time, and then by TRID
         return (kv_pair[1][0], kv_pair[0])
 
-    def convert(self, prid, x):
-        next_run, run_params, timeout, period = x
+    def convert(self, trid, x):
+        next_run, run_params, timeout = x
         row = [time.strftime("%m/%d %H:%M:%S", time.localtime(next_run)),
-               prid, run_params["file"]]
+               trid, run_params["file"]]
         for e in run_params["unit"], timeout:
             row.append("-" if e is None else str(e))
-        row.append(str(period))
         row.append(format_run_arguments(run_params["arguments"]))
         return row
 
@@ -72,64 +71,59 @@ class SchedulerWindow(Window):
         button = Gtk.Button("Move down")
         hbox.pack_start(button, True, True, 0)
         button = Gtk.Button("Remove")
-        button.connect("clicked", self.remove_queue)
+        button.connect("clicked", self.remove_queued)
         hbox.pack_start(button, True, True, 0)
         vbox.pack_start(hbox, False, False, 0)
         vbox.set_border_width(6)
         notebook.insert_page(vbox, Gtk.Label("Queue"), -1)
 
-        self.periodic_store = Gtk.ListStore(str, int, str, str, str, str, str)
-        self.periodic_tree = Gtk.TreeView(self.periodic_store)
-        for i, title in enumerate(["Next run", "PRID", "File", "Unit",
-                                   "Timeout", "Period", "Arguments"]):
+        self.timed_store = Gtk.ListStore(str, int, str, str, str, str)
+        self.timed_tree = Gtk.TreeView(self.timed_store)
+        for i, title in enumerate(["Next run", "TRID", "File", "Unit",
+                                   "Timeout", "Arguments"]):
             renderer = Gtk.CellRendererText()
             column = Gtk.TreeViewColumn(title, renderer, text=i)
-            self.periodic_tree.append_column(column)
+            self.timed_tree.append_column(column)
         scroll = Gtk.ScrolledWindow()
-        scroll.add(self.periodic_tree)
+        scroll.add(self.timed_tree)
         vbox = Gtk.VBox(spacing=6)
         vbox.pack_start(scroll, True, True, 0)
-        hbox = Gtk.HBox(spacing=6)
-        button = Gtk.Button("Change period")
-        hbox.pack_start(button, True, True, 0)
         button = Gtk.Button("Remove")
-        button.connect("clicked", self.remove_periodic)
-        hbox.pack_start(button, True, True, 0)
-        vbox.pack_start(hbox, False, False, 0)
+        button.connect("clicked", self.remove_timed)
+        vbox.pack_start(button, False, False, 0)
         vbox.set_border_width(6)
-        notebook.insert_page(vbox, Gtk.Label("Periodic schedule"), -1)
+        notebook.insert_page(vbox, Gtk.Label("Timed schedule"), -1)
 
-    def remove_queue(self, widget):
+    def remove_queued(self, widget):
         store, selected = self.queue_tree.get_selection().get_selected()
         if selected is not None:
             rid = store[selected][0]
-            asyncio.Task(self.schedule_ctl.cancel_once(rid))
+            asyncio.Task(self.schedule_ctl.cancel_queued(rid))
 
-    def remove_periodic(self, widget):
-        store, selected = self.periodic_tree.get_selection().get_selected()
+    def remove_timed(self, widget):
+        store, selected = self.timed_tree.get_selection().get_selected()
         if selected is not None:
-            prid = store[selected][1]
-            asyncio.Task(self.schedule_ctl.cancel_periodic(prid))
+            trid = store[selected][1]
+            asyncio.Task(self.schedule_ctl.cancel_timed(trid))
 
     @asyncio.coroutine
     def sub_connect(self, host, port):
         self.queue_subscriber = Subscriber("queue", self.init_queue_store)
         yield from self.queue_subscriber.connect(host, port)
         try:
-            self.periodic_subscriber = Subscriber(
-                "periodic", self.init_periodic_store)
-            yield from self.periodic_subscriber.connect(host, port)
+            self.timed_subscriber = Subscriber("timed", self.init_timed_store)
+            yield from self.timed_subscriber.connect(host, port)
         except:
             yield from self.queue_subscriber.close()
             raise
 
     @asyncio.coroutine
     def sub_close(self):
-        yield from self.periodic_subscriber.close()
+        yield from self.timed_subscriber.close()
         yield from self.queue_subscriber.close()
 
     def init_queue_store(self, init):
         return _QueueStoreSyncer(self.queue_store, init)
 
-    def init_periodic_store(self, init):
-        return _PeriodicStoreSyncer(self.periodic_store, init)
+    def init_timed_store(self, init):
+        return _TimedStoreSyncer(self.timed_store, init)

@@ -5,6 +5,7 @@ import time
 import asyncio
 import sys
 from operator import itemgetter
+from dateutil.parser import parse as parse_date
 
 from prettytable import PrettyTable
 
@@ -32,8 +33,10 @@ def _get_args():
 
     parser_add = subparsers.add_parser("submit", help="submit an experiment")
     parser_add.add_argument(
-        "-p", "--periodic", default=None, type=float,
-        help="run the experiment periodically every given number of seconds")
+        "-T", "--timed", default=None, type=str,
+        help="run the experiment in timed mode. "
+             "argument specifies the time of the first run, "
+             "use 'now' to run immediately")
     parser_add.add_argument(
         "-t", "--timeout", default=None, type=float,
         help="specify a timeout for the experiment to complete")
@@ -45,11 +48,11 @@ def _get_args():
 
     parser_cancel = subparsers.add_parser("cancel",
                                           help="cancel an experiment")
-    parser_cancel.add_argument("-p", "--periodic", default=False,
+    parser_cancel.add_argument("-T", "--timed", default=False,
                                action="store_true",
-                               help="cancel a periodic experiment")
+                               help="cancel a timed experiment")
     parser_cancel.add_argument("rid", type=int,
-                               help="run identifier (RID/PRID)")
+                               help="run identifier (RID/TRID)")
 
     parser_set_device = subparsers.add_parser(
         "set-device", help="add or modify a device")
@@ -75,7 +78,7 @@ def _get_args():
         "show", help="show schedule, devices or parameters")
     parser_show.add_argument(
         "what",
-        help="select object to show: queue/periodic/devices/parameters")
+        help="select object to show: queue/timed/devices/parameters")
 
     return parser.parse_args()
 
@@ -100,20 +103,23 @@ def _action_submit(remote, args):
         "unit": args.unit,
         "arguments": arguments
     }
-    if args.periodic is None:
-        rid = remote.run_once(run_params, args.timeout)
+    if args.timed is None:
+        rid = remote.run_queued(run_params, args.timeout)
         print("RID: {}".format(rid))
     else:
-        prid = remote.run_periodic(run_params, args.timeout,
-                                   args.periodic)
-        print("PRID: {}".format(prid))
+        if args.timed == "now":
+            next_time = None
+        else:
+            next_time = time.mktime(parse_date(args.timed).timetuple())
+        trid = remote.run_timed(run_params, args.timeout, next_time)
+        print("TRID: {}".format(trid))
 
 
 def _action_cancel(remote, args):
-    if args.periodic:
-        remote.cancel_periodic(args.rid)
+    if args.timed:
+        remote.cancel_timed(args.rid)
     else:
-        remote.cancel_once(args.rid)
+        remote.cancel_queued(args.rid)
 
 
 def _action_set_device(remote, args):
@@ -147,23 +153,22 @@ def _show_queue(queue):
         print("Queue is empty")
 
 
-def _show_periodic(periodic):
+def _show_timed(timed):
     clear_screen()
-    if periodic:
-        table = PrettyTable(["Next run", "PRID", "File", "Unit",
-                             "Timeout", "Period", "Arguments"])
-        sp = sorted(periodic.items(), key=lambda x: (x[1][0], x[0]))
-        for prid, (next_run, run_params, timeout, period) in sp:
+    if timed:
+        table = PrettyTable(["Next run", "TRID", "File", "Unit",
+                             "Timeout", "Arguments"])
+        sp = sorted(timed.items(), key=lambda x: (x[1][0], x[0]))
+        for trid, (next_run, run_params, timeout) in sp:
             row = [time.strftime("%m/%d %H:%M:%S", time.localtime(next_run)),
-                   prid, run_params["file"]]
+                   trid, run_params["file"]]
             for x in run_params["unit"], timeout:
                 row.append("-" if x is None else x)
-            row.append(period)
             row.append(format_run_arguments(run_params["arguments"]))
             table.add_row(row)
         print(table)
     else:
-        print("No periodic schedule")
+        print("No timed schedule")
 
 
 def _show_devices(devices):
@@ -226,8 +231,8 @@ def main():
     if action == "show":
         if args.what == "queue":
             _show_list(args, "queue", _show_queue)
-        elif args.what == "periodic":
-            _show_dict(args, "periodic", _show_periodic)
+        elif args.what == "timed":
+            _show_dict(args, "timed", _show_timed)
         elif args.what == "devices":
             _show_dict(args, "devices", _show_devices)
         elif args.what == "parameters":
