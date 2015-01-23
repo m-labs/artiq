@@ -28,9 +28,11 @@ class _LastChangesStoreSyncer(ListSyncer):
 
 
 class ParametersWindow(Window):
-    def __init__(self):
-        Window.__init__(self, title="Parameters")
-        self.set_default_size(500, 500)
+    def __init__(self, **kwargs):
+        Window.__init__(self,
+                        title="Parameters",
+                        default_size=(500, 500),
+                        **kwargs)
 
         notebook = Gtk.Notebook()
         self.add(notebook)

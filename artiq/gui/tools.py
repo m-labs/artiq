@@ -7,11 +7,51 @@ data_dir = os.path.abspath(os.path.dirname(__file__))
 
 
 class Window(Gtk.Window):
-    def __init__(self, *args, **kwargs):
-        Gtk.Window.__init__(self, *args, **kwargs)
+    def __init__(self, title, default_size, layout_dict=dict()):
+        Gtk.Window.__init__(self, title=title)
+
         self.set_wmclass("ARTIQ", "ARTIQ")
         self.set_icon_from_file(os.path.join(data_dir, "icon.png"))
         self.set_border_width(6)
+
+        try:
+            size = layout_dict["size"]
+        except KeyError:
+            size = default_size
+        self.set_default_size(size[0], size[1])
+        try:
+            position = layout_dict["position"]
+        except KeyError:
+            pass
+        else:
+            self.move(position[0], position[1])
+
+    def get_layout_dict(self):
+        return {
+            "size": self.get_size(),
+            "position": self.get_position()
+        }
+
+
+class LayoutManager:
+    def __init__(self, db):
+        self.db = db
+        self.windows = dict()
+
+    def create_window(self, cls, name, *args, **kwargs):
+        try:
+            win_layouts = self.db.request("win_layouts")
+            layout_dict = win_layouts[name]
+        except KeyError:
+            layout_dict = dict()
+        win = cls(*args, layout_dict=layout_dict, **kwargs)
+        self.windows[name] = win
+        return win
+
+    def save(self):
+        win_layouts = {name: window.get_layout_dict()
+                       for name, window in self.windows.items()}
+        self.db.set("win_layouts", win_layouts)
 
 
 class ListSyncer:

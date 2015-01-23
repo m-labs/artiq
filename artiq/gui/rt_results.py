@@ -13,8 +13,8 @@ class _PlotWindow(Window):
         self.set_names = set_names
         self.data = None
 
-        Window.__init__(self, title="/".join(set_names))
-        self.set_default_size(700, 500)
+        Window.__init__(self, title="/".join(set_names),
+                        default_size=(700, 500))
 
         self.darea = Gtk.DrawingArea()
         self.darea.set_size_request(100, 100)

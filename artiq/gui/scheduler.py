@@ -34,11 +34,13 @@ class _TimedStoreSyncer(DictSyncer):
 
 
 class SchedulerWindow(Window):
-    def __init__(self, schedule_ctl):
+    def __init__(self, schedule_ctl, **kwargs):
         self.schedule_ctl = schedule_ctl
 
-        Window.__init__(self, title="Scheduler")
-        self.set_default_size(720, 570)
+        Window.__init__(self,
+                        title="Scheduler",
+                        default_size=(720, 570),
+                        **kwargs)
 
         topvbox = Gtk.VBox(spacing=6)
         self.add(topvbox)
