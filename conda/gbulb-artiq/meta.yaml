@@ -1,0 +1,28 @@
+package:
+    name: gbulb-artiq
+    version: "0.1"
+
+source:
+    git_url: https://github.com/m-labs/gbulb
+    git_tag: master
+
+build:
+    number: 0
+    script: $PYTHON setup.py install
+
+requirements:
+    build:
+        - python
+        - setuptools
+    run:
+        - python
+        - pygobject
+
+test:
+    imports:
+        - gbulb
+
+about:
+    home: https://github.com/m-labs/gbulb
+    license: Apache 2.0
+    summary: 'GLib event loop for tulip (PEP 3156)'

@@ -1,0 +1,16 @@
+# This conda recipe comes from https://github.com/sandialabs/pixman-conda-recipe
+
+package:
+  name: pixman
+  version: "0.32.6"
+
+source:
+  fn: pixman-0.32.6.tar.gz
+  url: http://cairographics.org/releases/pixman-0.32.6.tar.gz
+
+build:
+  number: 0
+
+about:
+  home: http://cairographics.org
+  license: GNU Lesser General Public License (LGPL) version 2.1 or the Mozilla Public License (MPL) version 1.1 at your option.

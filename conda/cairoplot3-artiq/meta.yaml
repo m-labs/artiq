@@ -1,0 +1,29 @@
+package:
+    name: cairoplot3-artiq
+    version: "3.1.2"
+
+source:
+    git_url: https://github.com/m-labs/cairoplot3
+    git_tag: master
+
+build:
+    number: 0
+    script: $PYTHON setup.py install
+
+requirements:
+    build:
+        - python
+        - setuptools
+    run:
+        - python
+        - pycairo
+
+test:
+    imports:
+        - cairoplot
+        - series
+
+about:
+    home: https://github.com/m-labs/cairoplot3
+    license: LGPL
+    summary: 'Module to easily plot beautiful graphics using PyCairo'

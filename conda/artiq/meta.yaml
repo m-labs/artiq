@@ -1,0 +1,47 @@
+package:
+    name: artiq
+    version: "0.0"
+
+source:
+    git_url: https://github.com/m-labs/artiq
+    git_tag: master
+
+build:
+    number: 4
+    string: dev
+    entry_points:
+        - artiq_client = artiq.frontend.artiq_client:main
+        - artiq_ctlid = artiq.frontend.artiq_ctlid:main
+        - artiq_gui = artiq.frontend.artiq_gui:main
+        - artiq_master = artiq.frontend.artiq_master:main
+        - artiq_run = artiq.frontend.artiq_run:main
+        - lda_client = artiq.frontend.lda_client:main
+        - lda_controller = artiq.frontend.lda_controller:main
+        - pdq2_client = artiq.frontend.pdq2_client:main
+        - pdq2_controller = artiq.frontend.pdq2_controller:main
+
+requirements:
+    build:
+        - python
+        - setuptools
+        - numpy
+    run:
+        - python
+        - llvmlite-or1k
+        - scipy
+        - numpy
+        - prettytable
+        - pyserial
+        - sphinx
+        - gbulb-artiq # [not win]
+        - cairoplot3-artiq # [not win]
+
+test:
+    imports:
+        - artiq
+
+
+about:
+    home: http://m-labs.hk/artiq
+    license: 3-clause BSD
+    summary: 'ARTIQ (Advanced Real-Time Infrastructure for Quantum physics) is a next-generation control system for quantum information experiments. It is being developed in partnership with the Ion Storage Group at NIST, and its applicability reaches beyond ion trapping.'

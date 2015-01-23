@@ -22,9 +22,7 @@ setup(
     packages=find_packages(),
     namespace_packages=[],
     test_suite="artiq.test",
-    data_files=[
-        (os.path.join("artiq", "gui"),
-         [os.path.join("artiq", "gui", "icon.png")])],
+    package_data={"artiq": [os.path.join("gui", "icon.png")]},
     ext_modules=[],
     entry_points={
         "console_scripts": [
