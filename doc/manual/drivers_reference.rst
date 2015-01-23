@@ -43,7 +43,7 @@ Each driver is run in a separate "controller" that exposes a RPC interface (base
 :mod:`artiq.devices.novatech409B` module
 ---------------------------------
 
-.. automodule:: artiq.devices.novatech409B
+.. automodule:: artiq.devices.novatech409B.novatech409B
     :members:
 
 Default TCP port list
