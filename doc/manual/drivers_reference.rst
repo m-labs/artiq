@@ -40,6 +40,12 @@ Each driver is run in a separate "controller" that exposes a RPC interface (base
    :ref: artiq.frontend.lda_client.get_argparser
    :prog: lda_client
 
+:mod:`artiq.devices.novatech409B` module
+---------------------------------
+
+.. automodule:: artiq.devices.novatech409B
+    :members:
+
 Default TCP port list
 ---------------------
 
