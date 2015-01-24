@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2015 Joe Britton (NIST)
-# 11/16/2014 :: JWB port to python3, add logging
-# 11/16/2014 :: JWB add wrapper to behave like artiq Controller
-# 1/21/2015 :: JWB PEP8 fixes
+# Copyright (c) 2015 Joe Britton
 
 import serial
 import sys
@@ -23,35 +20,35 @@ class Novatech409B:
     :param int comport: COM port number on Windows
     :param int debug: debug level
     """
-    #NOTE: the in-line documentation is in Sphinx format
-    #http://sphinx-doc.org/domains.html
+    # NOTE: the in-line documentation is in Sphinx format
+    # http://sphinx-doc.org/domains.html
     def __init__(self, comport=1, debug=1, simulate_hw=False):
-        #some private members
+        # some private members
         self.__comport = comport
         self.__debug = debug
         self.__className = "Novatech409B"
         self.simulate_hw = simulate_hw  # true if disconnected from hw
-        self.serialRwDelay = 0.001  # is time between reads and writes
+        self.serial_rw_delay = 0.001  # is time between reads and writes
 
-        #setup logging
+        # setup logging
         FORMAT = "%(asctime)-15s %(message)s"
         logging.basicConfig(format=FORMAT)
         self.logger = logging.getLogger("artiq.driver.novatech409B")
         self.logger.setLevel(logging.DEBUG)
-        self.debugMessage("__init__", "", level=3)
+        self.debug_message("__init__", "", level=3)
 
-        #establish serial connection --- platform dependent
-        if self.simulate_hw is False:
+        # establish serial connection --- platform dependent
+        if not self.simulate_hw:
             self.__platform = platform.system()
             if self.__platform == "Windows":
-                #note that pySerial starts counting serial ports at 0
+                # note that pySerial starts counting serial ports at 0
                 serial_port_id = int(self.__comport)-1
             elif self.__platform is "Linux":
-                #just use the device string as
-                #passed (e.g. "/dev/ttyUSB0")
+                # just use the device string as
+                # passed (e.g. "/dev/ttyUSB0")
                 serial_port_id = "/dev/ttyUSB0"
             else:
-                self.debugMessage("__init__", "unknown platform", level=0)
+                self.debug_message("__init__", "unknown platform", level=0)
                 sys.exit()
             self.__ser = serial.Serial(
                 serial_port_id,
@@ -64,19 +61,19 @@ class Novatech409B:
         self.setup()
 
     def __del__(self):
-        if self.simulate_hw is False:
+        if not self.simulate_hw:
             self.__ser.close()
             time.sleep(1)
 
     def echo(self, s):
         ss = "novatech409B.echo() :: " + s
-        self.debugMessage("echo", ss)
+        self.debug_message("echo", ss)
         return ss
 
-    def debugMessage(self, funcName, msg, level=2):
+    def debug_message(self, func_name, msg, level=2):
         """generate debug message
 
-        :param str funcName: the calling function"s name
+        :param str func_name: the calling function"s name
         :param str msg: is a message
         :param int level: is the debug level
             ** 2 information helpful in typical use scenario
@@ -85,62 +82,62 @@ class Novatech409B:
         """
         if 1:  # (level <= self.__debug) :
             # try a trick to automatically infer caller name
-            inferredFuncName = inspect.stack()[2][3]
-            s = inferredFuncName + "() :: " + msg
-            #here"s what a typical warnning message looks like:
-            #WARNING:artiq.driver.novatech409B:
-            #      setPhaseContinuous() :: M n
+            inferred_func_name = inspect.stack()[2][3]
+            s = inferred_func_name + "() :: " + msg
+            # here"s what a typical warnning message looks like:
+            # WARNING:ARTIQ.driver.novatech409B:
+            #      set_phase_continuous() :: M n
             self.logger.warning(s)
 
-    def serSend(self, myStr, ignoreUnusualResponse=False):
+    def ser_send(self, myStr, ignore_unusual_response=False):
         """send a string to the serial port
 
         Routine for sending serial commands to device. It sends strings
         and listens for a response terminated by a carriage return.
 
         example:
-        serSend("F0 1.0") #sets the freq of channel 0 to 1.0 MHz
+        ser_send("F0 1.0") #sets the freq of channel 0 to 1.0 MHz
 
         :param str myStr: a character string to send to device
         :returns: None
         """
-        self.debugMessage("serSend", myStr, level=3)
+        self.debug_message("ser_send", myStr, level=3)
         s = myStr + "\r\n"
-        expectedResponse = b"OK\r\n"
+        expected_response = b"OK\r\n"
         result = b""
         if self.simulate_hw is False:
             try:
                 self.__ser.flush()
-                #after convert to python3 needed to cast between
-                #Python3x string and the expected bytes type
+                # after convert to python3 needed to cast between
+                # Python3x string and the expected bytes type
                 self.__ser.write(bytes(s, "UTF-8"))
-                time.sleep(self.serialRwDelay)
+                time.sleep(self.serial_rw_delay)
                 result = self.__ser.read(1028)
             except serial.SerialException as e:
-                self.debugMessage("serSend", e, level=0)
+                self.debug_message("ser_send", e, level=0)
 
             # check for error from device
             # expected response (no error) is myStr\r\nOK\r\n
             # after convert to python3 need to specify type of return
             # to be bytes
-            if(ignoreUnusualResponse is False):
-                if(result is not expectedResponse):
-                    print("ERROR :: novatech409B.serSend() "
+            if ~ignore_unusual_response:
+                if result != expected_response:
+                    print("ERROR :: novatech409B.ser_send() "
                         "response was {}".format(result))
-                    return (result, expectedResponse)
+                    return (result, expected_response)
                     sys.exit()
-            return (result, expectedResponse)
+            return (result, expected_response)
         else:
-            #in simulation mode
-            return (expectedResponse, expectedResponse)
+            # in simulation mode
+            return (expected_response, expected_response)
 
     def reset(self):
         """command hardware reset of 409B
 
         returns: None
         """
-        self.debugMessage("reset", "", level=3)
-        self.serSend("R", ignoreUnusualResponse=True)
+        self.debug_message("reset", "", level=3)
+        self.ser_send("R", ignore_unusual_response=True)
         time.sleep(1)
         self.setup()
 
@@ -153,21 +150,21 @@ class Novatech409B:
 
         :returns: None
         """
-        self.debugMessage("setup", "", level=2)
+        self.debug_message("setup", "", level=2)
         #disable command echo
-        self.serSend("E d", ignoreUnusualResponse=True)
-        self.setPhaseContinuous(True)
-        self.setSimultaneousUpdate(False)
+        self.ser_send("E d", ignore_unusual_response=True)
+        self.set_phase_continuous(True)
+        self.set_simultaneous_update(False)
 
-    def saveStateToEEPROM(self):
+    def save_state_to_eeprom(self):
         """save current state to EEPROM
 
         Saves current state into EEPROM and sets valid flag.
         State used as default upon next power up or reset. """
-        self.debugMessage("saveStateToEEPROM", "", level=2)
-        self.serSend("S")
+        self.debug_message("save_state_to_eeprom", "", level=2)
+        self.ser_send("S")
 
-    def setPhaseContinuous(self, isContinuous):
+    def set_phase_continuous(self, is_continuous):
         """toggle phase continuous mode
 
         Sends the “M n” command. This turns off the automatic
@@ -176,69 +173,69 @@ class Novatech409B:
         Use this mode if you want frequency changes to remain
         phase synchronous, with no phase discontinuities.
 
-        :param bool myBool: True or False
+        :param bool is_continuous: True or False
         """
 
-        self.debugMessage("setPhaseContinuous", "", level=2)
-        if isContinuous is True:
-            self.serSend("M n")
+        self.debug_message("set_phase_continuous", "", level=2)
+        if is_continuous:
+            self.ser_send("M n")
         else:
-            self.serSend("M a")
+            self.ser_send("M a")
 
-    def setSimultaneousUpdate(self, myBool):
+    def set_simultaneous_update(self, my_bool):
         """
-        :param bool myBool: True or False
+        :param bool my_bool: True or False
 
         Sends the “I m” command. In this mode an update
         pulse will not be sent to the DDS chip until
         an “I p” command is sent. This is useful when it is
         important to change all the outputs to new values
         simultaneously."""
-        self.debugMessage("setSimultaneousUpdate", "", level=2)
-        if myBool is True:
-            self.serSend("I m")
+        self.debug_message("set_simultaneous_update", "", level=2)
+        if my_bool:
+            self.ser_send("I m")
         else:
-            self.serSend("I a")
+            self.ser_send("I a")
 
-    def setFreq(self, chNo, freq):
-        """setFreq(chNo,freq):
-        Set chNo to frequency freq MHz"""
-        self.debugMessage("setFreq", str(chNo)+","+str(freq), level=3)
-        if chNo < 0 or chNo > 3:
-            print("ERROR :: novatech409B.setFreq() chNo Error")
+    def set_freq(self, ch_no, freq):
+        """set_freq(ch_no,freq):
+        Set ch_no to frequency freq MHz"""
+        self.debug_message("set_freq", str(ch_no)+","+str(freq), level=3)
+        if ch_no < 0 or ch_no > 3:
+            print("ERROR :: novatech409B.set_freq() ch_no Error")
             sys.exit()
         if freq < 0.0 or freq > 171.1276031:
-            print("ERROR :: novatech409B.setFreq() freq Error")
+            print("ERROR :: novatech409B.set_freq() freq Error")
             sys.exit()
-        #do this immediately, disable SimultaneousUpdate mode
-        self.setSimultaneousUpdate(False)
-        cmd = "F{:d} {:f}".format(chNo, freq)
-        self.serSend(cmd)
+        # do this immediately, disable SimultaneousUpdate mode
+        self.set_simultaneous_update(False)
+        cmd = "F{:d} {:f}".format(ch_no, freq)
+        self.ser_send(cmd)
 
-    def setPhase(self, chNo, phase):
+    def set_phase(self, channel_num, phase):
         """set DDS phase
 
-        :param int chNo: 0 to 3
+        :param int channel_num: 0 to 3
         :param float phase: phase angle in cycles [0,1]
         :returns: None
         """
-        self.debugMessage("setPhase",
-                          str(chNo) + "," + str(phase),
+        self.debug_message("set_phase",
+                          str(channel_num) + "," + str(phase),
                           level=3)
-        if chNo < 0 or chNo > 3:
-            print("ERROR :: novatech409B.setPhase() chNo Error")
+        if channel_num < 0 or channel_num > 3:
+            print("ERROR :: novatech409B.set_phase() channel_num Error")
         if phase < 0 or phase > 360:
-            print("ERROR :: novatech409B.setPhase() phase Error")
-        #do this immediately, disable SimultaneousUpdate mode
-        self.setSimultaneousUpdate(False)
-        #phase word is required by device
-        #N is an integer from 0 to 16383. Phase is set to
-        #N*360/16384 deg; in artiq represent phase in cycles [0,1]
-        phaseWord = int(math.floor(phase*16384))
-        cmd = "P{0:d} {0:d}".format(chNo, phaseWord)
-        self.serSend(cmd)
+            print("ERROR :: novatech409B.set_phase() phase Error")
+        # do this immediately, disable SimultaneousUpdate mode
+        self.set_simultaneous_update(False)
+        # phase word is required by device
+        # N is an integer from 0 to 16383. Phase is set to
+        # N*360/16384 deg; in ARTIQ represent phase in cycles [0,1]
+        phase_word = int(math.floor(phase*16384))
+        cmd = "P{0:d} {0:d}".format(channel_num, phase_word)
+        self.ser_send(cmd)
 
-    def setFreqAllPhaseContinuous(self, freq):
+    def set_freq_all_phase_continuous(self, freq):
         """set frequency of all channels simultaneously
 
         Set frequency of all channels simultaneously.
@@ -249,35 +246,35 @@ class Novatech409B:
         :param float freq: frequency in MHz
         :returns: None
         """
-        self.debugMessage("setFreqAllPhaseContinuous",
+        self.debug_message("set_freq_all_phase_continuous",
                           str(freq), level=2)
-        self.setSimultaneousUpdate(True)
-        self.setPhaseContinuous(True)
-        for chNo in range(4):
-            self.setFreq(chNo, freq)
-        #send command necessary to update all channels at the same time
-        self.serSend("I p")
+        self.set_simultaneous_update(True)
+        self.set_phase_continuous(True)
+        for channel_num in range(4):
+            self.set_freq(channel_num, freq)
+        # send command necessary to update all channels at the same time
+        self.ser_send("I p")
 
-    def setPhaseAll(self, phase):
+    def set_phase_all(self, phase):
         """set phase of all DDS channels simultaneously
 
         Set phase of all DDS channels at the same time. For example,::
-            setPhaseAll([0,.25,0.5,0.75])
+            set_phase_all([0,.25,0.5,0.75])
 
         :param float phase: vector of four  phases (in cycles [0,1])
         :returns: None
         """
-        self.debugMessage("setPhaseAll", str(phase), level=2)
-        self.setSimultaneousUpdate(True)
-        #Note that this only works if the continuous
-        #phase switching is turned off.
-        self.setPhaseContinuous(False)
-        for chNo in range(4):
-            self.setPhase(chNo, phase[chNo])
-        #send command necessary to update all channels at the same time
-        self.serSend("I p")
+        self.debug_message("set_phase_all", str(phase), level=2)
+        self.set_simultaneous_update(True)
+        # Note that this only works if the continuous
+        # phase switching is turned off.
+        self.set_phase_continuous(False)
+        for ch_no in range(4):
+            self.set_phase(ch_no, phase[ch_no])
+        # send command necessary to update all channels at the same time
+        self.ser_send("I p")
 
-    def freqSweepAllPhaseContinuous(self, f0, f1, t):
+    def freq_sweep_all_phase_continuous(self, f0, f1, t):
         """ sweep phase of all DDSs, phase continuous
 
         Sweep frequency in a phase continuous fashion.
@@ -288,78 +285,78 @@ class Novatech409B:
         :returns: None
         """
         s = str(f0) + "," + str(f1) + "," + str(t)
-        self.debugMessage("freqSweepAllPhaseContinuous", s, level=2)
+        self.debug_message("freq_sweep_all_phase_continuous", s, level=2)
         if f0 == f1:
             return
-        #get sign of sweep
+        # get sign of sweep
         if f1 > f0:
-            dfSign = 1
+            df_sign = 1
         else:
-            dfSign = -1
+            df_sign = -1
 
-        self.setPhaseContinuous(True)
-        self.setSimultaneousUpdate(True)
+        self.set_phase_continuous(True)
+        self.set_simultaneous_update(True)
         # calculate delay
-        # note that a single call to self.setFreqAllPhaseContinuous()
-        # takes time tForOneFreqSet; fix duration empirically
-        tForOneFreqSet = 0.264
-        dt = tForOneFreqSet
-        nSteps = int(math.ceil(t/dt))
-        df = abs(f0-f1)/nSteps
-        for n in range(nSteps):
-            fnow = f0+n*dfSign*df
-            self.setFreqAllPhaseContinuous(fnow)
+        # note that a single call to self.set_freq_all_phase_continuous()
+        # takes time t_for_one_freq_set; fix duration empirically
+        t_for_one_freq_set = 0.264
+        dt = t_for_one_freq_set
+        n_steps = int(math.ceil(t/dt))
+        df = abs(f0-f1)/n_steps
+        for n in range(n_steps):
+            fnow = f0+n*df_sign*df
+            self.set_freq_all_phase_continuous(fnow)
             if self.__debug > 0:
                 print(".", end=" ")
-        self.setFreqAllPhaseContinuous(f1)
+        self.set_freq_all_phase_continuous(f1)
 
-    def outputScale(self, chNo, frac):
+    def output_scale(self, ch_no, frac):
         """changes amplitude of a DDS
 
-        :param int chNo: DDS channel 0, 1, 2 or 3
+        :param int ch_no: DDS channel 0, 1, 2 or 3
         :param float frac: 0 to 1 (full attenuation to no attenuation)
         :returns: None
         """
-        self.setSimultaneousUpdate(False)
-        dacChNo = int(math.floor(frac*1024))
-        s = "V{:d} {:d}".format(chNo, dacChNo)
-        self.debugMessage("scaleOutput", s, level=3)
-        self.serSend(s)
+        self.set_simultaneous_update(False)
+        dac_ch_no = int(math.floor(frac*1024))
+        s = "V{:d} {:d}".format(ch_no, dac_ch_no)
+        self.debug_message("scaleOutput", s, level=3)
+        self.ser_send(s)
 
-    def outputScaleAll(self, frac):
+    def output_scale_all(self, frac):
         """changes amplitude of all DDSs
 
         :param float frac: 0 to 1 (full attenuation to no attenuation)
         """
-        self.debugMessage("scaleOutput", str(frac), level=2)
-        for chNo in range(4):
-            self.outputScale(chNo, frac)
-        #send command necessary to update all channels at the same time
-        self.serSend("I p")
+        self.debug_message("scaleOutput", str(frac), level=2)
+        for ch_no in range(4):
+            self.output_scale(ch_no, frac)
+        # send command necessary to update all channels at the same time
+        self.ser_send("I p")
 
-    def outputOnOff(self, chNo, myBool):
+    def output_on_off(self, ch_no, my_bool):
         """turns on or off the DDS
 
-        :param int chNo:DDS channel 0, 1, 2 or 3
-        :param bool myBool: True (if on) or False (if off)
+        :param int ch_no:DDS channel 0, 1, 2 or 3
+        :param bool my_bool: True (if on) or False (if off)
         """
-        self.debugMessage("outputOnOff", "", level=3)
-        if myBool is True:
+        self.debug_message("output_on_off", "", level=3)
+        if my_bool:
             #turn on output
-            self.outputScale(chNo, 1.0)
+            self.output_scale(ch_no, 1.0)
         else:
             #turn off output
-            self.outputScale(chNo, 0.0)
+            self.output_scale(ch_no, 0.0)
 
-    def outputOnOffAll(self, myBool):
-        """:param bool myBool: is True (on) or False (off)
+    def output_on_off_all(self, my_bool):
+        """:param bool my_bool: is True (on) or False (off)
 
         turns on or off the all the DDSs
         """
-        self.debugMessage("outputOnOffAll", "", level=2)
-        if myBool is True:
+        self.debug_message("output_on_off_all", "", level=2)
+        if my_bool:
             #turn on output
-            self.outputScaleAll(1.0)
+            self.output_scale_all(1.0)
         else:
             #turn off output
-            self.outputScaleAll(0.0)
+            self.output_scale_all(0.0)

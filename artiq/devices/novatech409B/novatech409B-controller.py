@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2014 Joe Britton (NIST), Sebastien Bourdeauducq (m-labs)
-#11/16/2014 :: JWB port to python3, add logging
-#11/16/2014 :: JWB add wrapper to behave like artiq Controller
+# Copyright (c) 2014 Joe Britton, Sebastien Bourdeauducq
 
 import argparse
 from artiq.protocols.pc_rpc import simple_server_loop
 import novatech409B
 
 
-# This is main loop for use as an Artiq driver.
+# This is main loop for use as an ARTIQ driver.
 def define_parser():
     parser = argparse.ArgumentParser(
             description="novatech409B-controller",
-            epilog="This is a m-labs.com artiq "
+            epilog="This is a m-labs.com ARTIQ "
             "controller for a Novatech model 409B 4-channel DDS box. "
             "The hardware interface is a serial port. ")
     parser.add_argument("--bind", default="::1",
@@ -23,7 +21,7 @@ def define_parser():
                         help="TCP port to listen to;"
                         "Novatech default is 3254")
     parser.add_argument("--simulate_hw", action="store_true",
-                        help="simulate hardware so artiq can be used"
+                        help="simulate hardware so ARTIQ can be used"
                         "outside the lab")
     parser.add_argument(
         "--serial_port",

@@ -1,8 +1,7 @@
 #!/usr/bin/python3
 
-# Copyright (c) 2014 Joe Britton (NIST), Sebastien Bourdeauducq (m-labs)
-#11/16/2014 :: JWB port to python3, add logging
-#11/16/2014 :: JWB add wrapper to behave like artiq Controller
+# Copyright (c) 2014 Joe Britton, Sebastien Bourdeauducq
+
 
 import argparse
 from functools import partial
@@ -20,7 +19,7 @@ def restricted_float(val_min, val_max, x):
 def define_parser():
     parser = argparse.ArgumentParser(
         description="novatech409B-client",
-        epilog="This is a m-labs.com artiq "
+        epilog="This is a m-labs.com ARTIQ "
         "client for a Novatech model 409B 4-channel DDS box. == "
         "The hardware interface is a serial port. == "
         "Some positional arguments take --channel as optional"
@@ -107,24 +106,24 @@ def main():
             print(r)
         elif args.subparser_name:
             if args.subparser_name == "phase":
-                remote.setPhaseAll(args.p)
+                remote.set_phase_all(args.p)
             elif args.subparser_name == "freq":
                 if args.channel == -1:
-                    remote.setFreqAllPhaseContinuous(args.f)
+                    remote.set_freq_all_phase_continuous(args.f)
                 else:
-                    remote.setFreq(args.channel, args.f)
+                    remote.set_freq(args.channel, args.f)
             elif args.subparser_name == "sweep-freq":
-                remote.freqSweepAllPhaseContinuous(
+                remote.freq_sweep_all_phase_continuous(
                     args.f0, args.f1, args.t)
             elif args.subparser_name == "gain":
                 if args.channel == -1:
-                    remote.outputScaleAll(args.g)
+                    remote.output_scale_all(args.g)
                 else:
-                    remote.outputScale(args.channel, args.g)
+                    remote.output_scale(args.channel, args.g)
             elif args.subparser_name == "reset":
                 remote.reset()
             elif args.args.subparser_eeprom == "save-to-eeprom":
-                remote.saveStateToEEPROM()
+                remote.save_state_to_eeprom()
     finally:
         remote.close_rpc()
 
