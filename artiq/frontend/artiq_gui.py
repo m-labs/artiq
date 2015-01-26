@@ -13,6 +13,7 @@ from artiq.gui.tools import LayoutManager
 from artiq.gui.scheduler import SchedulerWindow
 from artiq.gui.parameters import ParametersWindow
 from artiq.gui.rt_results import RTResults
+from artiq.gui.explorer import ExplorerWindow
 
 
 def get_argparser():
@@ -51,21 +52,28 @@ def main():
     scheduler_win = lmgr.create_window(SchedulerWindow,
                                        "scheduler",
                                        schedule_ctl)
-    scheduler_win.connect("delete-event", Gtk.main_quit)
-    scheduler_win.show_all()
     loop.run_until_complete(scheduler_win.sub_connect(
         args.server, args.port_notify))
     atexit.register(
         lambda: loop.run_until_complete(scheduler_win.sub_close()))
 
-    parameters_win = lmgr.create_window(ParametersWindow,
-                                        "parameters")
-    parameters_win.connect("delete-event", Gtk.main_quit)
-    parameters_win.show_all()
+    parameters_win = lmgr.create_window(ParametersWindow, "parameters")
     loop.run_until_complete(parameters_win.sub_connect(
         args.server, args.port_notify))
     atexit.register(
         lambda: loop.run_until_complete(parameters_win.sub_close()))
+
+    explorer_win = lmgr.create_window(ExplorerWindow,
+                                      "explorer",
+                                      schedule_ctl)
+    scheduler_win.show_all()
+    parameters_win.show_all()
+    explorer_win.show_all()
+
+    def exit(*args):
+        lmgr.save()
+        Gtk.main_quit(*args)
+    explorer_win.connect("delete-event", exit)
 
     rtr = RTResults()
     loop.run_until_complete(rtr.sub_connect(
@@ -74,8 +82,6 @@ def main():
         lambda: loop.run_until_complete(rtr.sub_close()))
 
     loop.run_forever()
-
-    lmgr.save()
 
 if __name__ == "__main__":
     main()

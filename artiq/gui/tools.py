@@ -6,18 +6,22 @@ from gi.repository import Gtk
 data_dir = os.path.abspath(os.path.dirname(__file__))
 
 
+def getitem(d, item, default):
+    try:
+        return d[item]
+    except KeyError:
+        return default
+
+
 class Window(Gtk.Window):
     def __init__(self, title, default_size, layout_dict=dict()):
-        Gtk.Window.__init__(self, title=title)
+        Gtk.Window.__init__(self, title=title + " - ARTIQ")
 
         self.set_wmclass("ARTIQ", "ARTIQ")
         self.set_icon_from_file(os.path.join(data_dir, "icon.png"))
         self.set_border_width(6)
 
-        try:
-            size = layout_dict["size"]
-        except KeyError:
-            size = default_size
+        size = getitem(layout_dict, "size", default_size)
         self.set_default_size(size[0], size[1])
         try:
             position = layout_dict["position"]
