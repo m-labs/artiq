@@ -9,6 +9,7 @@ from artiq.protocols.sync_struct import Publisher
 from artiq.protocols.file_db import FlatFileDB, SimpleHistory
 from artiq.master.scheduler import Scheduler
 from artiq.master.rt_results import RTResults
+from artiq.master.repository import Repository
 
 
 def get_argparser():
@@ -33,6 +34,7 @@ def main():
     simplephist = SimpleHistory(30)
     pdb.hooks.append(simplephist)
     rtr = RTResults()
+    repository = Repository()
 
     loop = asyncio.get_event_loop()
     atexit.register(lambda: loop.close())
@@ -48,9 +50,10 @@ def main():
     atexit.register(lambda: loop.run_until_complete(scheduler.stop()))
 
     server_control = Server({
-        "master_schedule": scheduler,
         "master_ddb": ddb,
-        "master_pdb": pdb
+        "master_pdb": pdb,
+        "master_schedule": scheduler,
+        "master_repository": repository
     })
     loop.run_until_complete(server_control.start(
         args.bind, args.port_control))

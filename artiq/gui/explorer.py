@@ -5,68 +5,10 @@ from gi.repository import Gtk
 from artiq.gui.tools import Window, getitem
 
 
-_test_description = """
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.18.3 -->
-<interface>
-  <requires lib="gtk+" version="3.12"/>
-  <object class="GtkAdjustment" id="adjustment1">
-    <property name="lower">1000</property>
-    <property name="upper">2000</property>
-    <property name="value">1500</property>
-    <property name="step_increment">1</property>
-    <property name="page_increment">10</property>
-  </object>
-  <object class="GtkBox" id="top">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <child>
-      <object class="GtkLabel" id="label1">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="label" translatable="yes">Simulated flopping frequency</property>
-      </object>
-      <packing>
-        <property name="expand">False</property>
-        <property name="fill">True</property>
-        <property name="position">0</property>
-      </packing>
-    </child>
-    <child>
-      <object class="GtkSpinButton" id="spinbutton1">
-        <property name="visible">True</property>
-        <property name="can_focus">True</property>
-        <property name="input_purpose">number</property>
-        <property name="adjustment">adjustment1</property>
-      </object>
-      <packing>
-        <property name="expand">False</property>
-        <property name="fill">True</property>
-        <property name="position">1</property>
-      </packing>
-    </child>
-  </object>
-</interface>
-"""
-
-
-class _ExperimentControls:
-    def __init__(self):
-        self.builder = Gtk.Builder()
-        self.builder.add_from_string(_test_description)
-
-    def get_top_widget(self):
-        return self.builder.get_object("top")
-
-    def get_arguments(self):
-        return {
-            "F0": self.builder.get_object("adjustment1").get_value()
-        }
-
-
 class ExplorerWindow(Window):
-    def __init__(self, schedule_ctl, layout_dict=dict()):
+    def __init__(self, schedule_ctl, repository, layout_dict=dict()):
         self.schedule_ctl = schedule_ctl
+        self.repository = repository
 
         Window.__init__(self,
                         title="Explorer",
@@ -106,13 +48,20 @@ class ExplorerWindow(Window):
         button.connect("clicked", self.run)
         listvbox.pack_start(button, False, False, 0)
 
-        self.controls = _ExperimentControls()
-        self.pane.pack2(self.controls.get_top_widget())
-
     def get_layout_dict(self):
         r = Window.get_layout_dict(self)
         r["pane_position"] = self.pane.get_position()
         return r
+
+    @asyncio.coroutine
+    def load_controls(self):
+        gui_mod_data = yield from self.repository.get_data(
+            "flopping_f_simulation_gui.py")
+        gui_mod = dict()
+        exec(gui_mod_data, gui_mod)
+        self.controls = gui_mod["Controls"]()
+        yield from self.controls.build(self.repository.get_data)
+        self.pane.pack2(self.controls.get_top_widget())
 
     def run(self, widget):
         run_params = {

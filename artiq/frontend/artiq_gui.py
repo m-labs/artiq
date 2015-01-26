@@ -43,11 +43,15 @@ def main():
     loop = asyncio.get_event_loop()
     atexit.register(lambda: loop.close())
 
-    # share the schedule control connection
+    # share the schedule control and repository connections
     schedule_ctl = AsyncioClient()
     loop.run_until_complete(schedule_ctl.connect_rpc(
         args.server, args.port_control, "master_schedule"))
     atexit.register(lambda: schedule_ctl.close_rpc())
+    repository = AsyncioClient()
+    loop.run_until_complete(repository.connect_rpc(
+        args.server, args.port_control, "master_repository"))
+    atexit.register(lambda: repository.close_rpc())
 
     scheduler_win = lmgr.create_window(SchedulerWindow,
                                        "scheduler",
@@ -65,7 +69,9 @@ def main():
 
     explorer_win = lmgr.create_window(ExplorerWindow,
                                       "explorer",
-                                      schedule_ctl)
+                                      schedule_ctl,
+                                      repository)
+    loop.run_until_complete(explorer_win.load_controls())
     scheduler_win.show_all()
     parameters_win.show_all()
     explorer_win.show_all()
