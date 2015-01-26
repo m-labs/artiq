@@ -23,12 +23,14 @@ To turn it into a server, we use :class:`artiq.protocols.pc_rpc`. Import the fun
 and add a ``main`` function that is run when the program is executed: ::
 
     def main():
-        simple_server_loop({"hello": Hello()}, "::1", 7777)
+        simple_server_loop({"hello": Hello()}, "::1", 3249)
 
     if __name__ == "__main__":
         main()
 
-The parameters ``::1`` and 7777 are respectively the address to bind the server to (IPv6 localhost) and the TCP port to use. Then add a line: ::
+:tip: Defining the ``main`` function instead of putting its code directly in the ``if __name__ == "__main__"`` body enables the controller to be used as well as a setuptools entry point.
+
+The parameters ``::1`` and 3249 are respectively the address to bind the server to (IPv6 localhost) and the TCP port to use. Then add a line: ::
 
     #!/usr/bin/env python3
 
@@ -42,7 +44,7 @@ Run it as: ::
 
 and verify that you can connect to the TCP port: ::
 
-    $ telnet ::1 7777
+    $ telnet ::1 3249
     Trying ::1...
     Connected to ::1.
     Escape character is '^]'.
@@ -51,7 +53,7 @@ and verify that you can connect to the TCP port: ::
 
 Also verify that a target (service) named "hello" (as passed in the first argument to ``simple_server_loop``) exists using the ``artiq_ctlid.py`` program from the ARTIQ front-end tools: ::
 
-    $ artiq_ctlid.py ::1 7777
+    $ artiq_ctlid.py ::1 3249
     Target(s):   hello
 
 The client
@@ -67,7 +69,7 @@ Create a ``hello_client.py`` file with the following contents: ::
 
 
     def main():
-        remote = Client("::1", 7777, "hello")
+        remote = Client("::1", 3249, "hello")
         try:
             remote.message("Hello World!")
         finally:
@@ -94,23 +96,27 @@ We suggest naming the controller parameters ``--bind`` and ``--port`` so that th
 
 The controller's code would contain something similar to this: ::
 
-    def _get_args():
+    def get_argparser():
         parser = argparse.ArgumentParser(description="Hello world controller")
         parser.add_argument("--bind", default="::1",
                             help="hostname or IP address to bind to")
-        parser.add_argument("--port", default=7777, type=int,
+        parser.add_argument("--port", default=3249, type=int,
                             help="TCP port to listen to")
-        return parser.parse_args()
+        return parser
 
     def main():
-        args = _get_args()
+        args = get_argparser().parse_args()
         simple_server_loop(Hello(), args.bind, args.port)
+
+We suggest that you define a function ``get_argparser`` that returns the argument parser, so that it can be used to document the command line parameters using sphinx-argparse.
 
 General guidelines
 ------------------
 
 * Format your source code according to PEP8. We suggest using ``flake8`` to check for compliance.
-* The device identification (e.g. serial number) to attach to must be passed as a command-line parameter to the controller.
+* Use new-style formatting (``str.format``) except for logging where it is not well supported, and double quotes for strings.
+* The device identification (e.g. serial number) to attach to must be passed as a command-line parameter to the controller. We suggest using ``-s`` and ``--serial`` as parameter name.
 * Controllers must be able to operate in "simulation" mode, where they behave properly even if the associated hardware is not connected. For example, they can print the data to the console instead of sending it to the device, or dump it into a file.
+* We suggest that the simulation mode is entered by using "sim" in place of the serial number.
 * Keep command line parameters consistent across clients/controllers. When adding new command line options, look for a client/controller that does a similar thing and follow its use of ``argparse``. If the original client/controller could use ``argparse`` in a better way, improve it.
 * Choose a free default TCP port and add it to the default port list in this manual.
