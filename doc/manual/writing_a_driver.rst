@@ -30,7 +30,7 @@ and add a ``main`` function that is run when the program is executed: ::
 
 :tip: Defining the ``main`` function instead of putting its code directly in the ``if __name__ == "__main__"`` body enables the controller to be used as well as a setuptools entry point.
 
-The parameters ``::1`` and 3249 are respectively the address to bind the server to (IPv6 localhost) and the TCP port to use. Then add a line: ::
+The parameters ``::1`` and ``3249`` are respectively the address to bind the server to (IPv6 localhost) and the TCP port to use. Then add a line: ::
 
     #!/usr/bin/env python3
 
@@ -109,6 +109,42 @@ The controller's code would contain something similar to this: ::
         simple_server_loop(Hello(), args.bind, args.port)
 
 We suggest that you define a function ``get_argparser`` that returns the argument parser, so that it can be used to document the command line parameters using sphinx-argparse.
+
+Logging and error handling in controllers
+-----------------------------------------
+
+Unrecoverable errors (such as the hardware being unplugged) should cause timely termination of the controller, in order to notify the controller manager which may try to restart the controller later according to its policy. Throwing an exception and letting it propagate is the preferred way of reporting an unrecoverable error.
+
+For the debug, information and warning messages, use the ``logging`` Python module and print the log on the standard error output (the default setting). The logging level should be configurable with a command line option called ``--log`` that takes a string (debug, info, ...) representing the logging level.
+
+The program below exemplifies how to use logging: ::
+
+    import argparse
+    import logging
+
+
+    def get_argparser():
+        parser = argparse.ArgumentParser(description="Logging example")
+        parser.add_argument("--log", type=str, default="WARNING",
+                            help="set log level")
+        return parser
+
+
+    def main():
+        args = get_argparser().parse_args()
+
+        numeric_level = getattr(logging, args.log.upper(), None)
+        if not isinstance(numeric_level, int):
+            raise ValueError("Invalid log level: " + args.log)
+        logging.basicConfig(level=numeric_level)
+
+        logging.debug("this is a debug message")
+        logging.info("this is an info message")
+        logging.warning("this is a warning message")
+
+    if __name__ == "__main__":
+        main()
+
 
 General guidelines
 ------------------
