@@ -34,13 +34,13 @@ The parameters ``::1`` and ``3249`` are respectively the address to bind the ser
 
     #!/usr/bin/env python3
 
-at the beginning of the file, save it to ``hello_controller.py`` and set its execution permissions: ::
+at the beginning of the file, save it to ``controller.py`` and set its execution permissions: ::
 
-    $ chmod 755 hello_controller.py
+    $ chmod 755 controller.py
 
 Run it as: ::
 
-    $ ./hello_controller.py
+    $ ./controller.py
 
 and verify that you can connect to the TCP port: ::
 
@@ -56,12 +56,15 @@ Also verify that a target (service) named "hello" (as passed in the first argume
     $ artiq_ctlid.py ::1 3249
     Target(s):   hello
 
+To be properly integrated with the ARTIQ ecosystem drivers must be located in ~/artiq-dev/artiq/artiq/devices/driver_name/
+where here driver_name is hello. The driver's controller should be named controller.py.
+
 The client
 ----------
 
 Controller clients are small command-line utilities that expose certain functionalities of the drivers. They are optional, and not used very often - typically for debugging and testing.
 
-Create a ``hello_client.py`` file with the following contents: ::
+Create a ``client.py`` file with the following contents: ::
 
     #!/usr/bin/env python3
 
@@ -80,19 +83,23 @@ Create a ``hello_client.py`` file with the following contents: ::
 
 Run it as before, while the controller is running. You should see the message appearing on the controller's terminal: ::
 
-    $ ./hello_controller.py
+    $ ./controller.py
     message: Hello World!
 
 When using the driver in an experiment, for simple cases the ``Client`` instance can be returned by the :class:`artiq.language.db.AutoDB` mechanism and used normally as a device.
 
 :warning: RPC servers operate on copies of objects provided by the client, and modifications to mutable types are not written back. For example, if the client passes a list as a parameter of an RPC method, and that method ``append()s`` an element to the list, the element is not appended to the client's list.
 
+The driver's controller should be saved in ~/artiq-dev/artiq/artiq/devices/driver_name/client.py.
+
 Command-line arguments
 ----------------------
 
-Use the Python ``argparse`` module to make the bind address and port configurable on the controller, and the server address, port and message configurable on the client.
+Use the Python ``argparse`` module to make the bind address and port configurable on the controller, and the server
+address, port and message configurable on the client.
 
-We suggest naming the controller parameters ``--bind`` and ``--port`` so that those parameters stay consistent across controller, and use ``-s/--server`` and ``--port`` on the client.
+We suggest naming the controller parameters ``--bind`` and ``--port`` so that those parameters stay consistent across
+controller, and use ``-s/--server`` and ``--port`` on the client.
 
 The controller's code would contain something similar to this: ::
 
@@ -146,6 +153,12 @@ The program below exemplifies how to use logging: ::
     if __name__ == "__main__":
         main()
 
+The driver's server should be saved in ~/artiq-dev/artiq/artiq/devices/driver_name/server.py.
+
+__init__.py
+-----------
+This file must exist for porper integration with ARTIQ. It can be empty.
+~/artiq-dev/artiq/artiq/devices/driver_name/__init__.py
 
 General guidelines
 ------------------
