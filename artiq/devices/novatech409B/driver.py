@@ -29,6 +29,7 @@ class Novatech409B:
         self.__className = "Novatech409B"
         self.simulate_hw = simulate_hw  # true if disconnected from hw
         self.serial_rw_delay = 0.001  # is time between reads and writes
+        self.__ser_is_configured = False
 
         # setup logging
         FORMAT = "%(asctime)-15s %(message)s"
@@ -43,7 +44,7 @@ class Novatech409B:
             if self.__platform == "Windows":
                 # note that pySerial starts counting serial ports at 0
                 serial_port_id = int(self.__comport)-1
-            elif self.__platform is "Linux":
+            elif self.__platform == "Linux":
                 # just use the device string as
                 # passed (e.g. "/dev/ttyUSB0")
                 serial_port_id = "/dev/ttyUSB0"
@@ -58,10 +59,11 @@ class Novatech409B:
                 stopbits=1,
                 xonxoff=0,
                 timeout=0.05)
+            self.__ser_is_configured = True
         self.setup()
 
     def __del__(self):
-        if not self.simulate_hw:
+        if ((not self.simulate_hw) and self.__ser_is_configured):
             self.__ser.close()
             time.sleep(1)
 
@@ -360,3 +362,5 @@ class Novatech409B:
         else:
             #turn off output
             self.output_scale_all(0.0)
+
+
