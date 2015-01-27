@@ -6,7 +6,7 @@ from artiq.gui.tools import Window, getitem
 
 
 class ExplorerWindow(Window):
-    def __init__(self, schedule_ctl, repository, layout_dict=dict()):
+    def __init__(self, exit_fn, schedule_ctl, repository, layout_dict=dict()):
         self.schedule_ctl = schedule_ctl
         self.repository = repository
 
@@ -14,6 +14,7 @@ class ExplorerWindow(Window):
                         title="Explorer",
                         default_size=(800, 570),
                         layout_dict=layout_dict)
+        self.connect("delete-event", exit_fn)
 
         topvbox = Gtk.VBox(spacing=6)
         self.add(topvbox)
@@ -23,13 +24,14 @@ class ExplorerWindow(Window):
 
         windows = Gtk.MenuItem("Windows")
         windows_menu = Gtk.Menu()
-        scheduler = Gtk.MenuItem("Scheduler")
-        parameters = Gtk.MenuItem("Parameters")
-        quit = Gtk.MenuItem("Quit")
-        windows_menu.append(scheduler)
-        windows_menu.append(parameters)
+        menuitem = Gtk.MenuItem("Scheduler")
+        windows_menu.append(menuitem)
+        menuitem = Gtk.MenuItem("Parameters")
+        windows_menu.append(menuitem)
         windows_menu.append(Gtk.SeparatorMenuItem())
-        windows_menu.append(quit)
+        menuitem = Gtk.MenuItem("Quit")
+        menuitem.connect("activate", exit_fn)
+        windows_menu.append(menuitem)
         windows.set_submenu(windows_menu)
         menubar.append(windows)
 

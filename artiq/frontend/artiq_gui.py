@@ -67,19 +67,18 @@ def main():
     atexit.register(
         lambda: loop.run_until_complete(parameters_win.sub_close()))
 
+    def exit(*args):
+        lmgr.save()
+        Gtk.main_quit(*args)
     explorer_win = lmgr.create_window(ExplorerWindow,
                                       "explorer",
+                                      exit,
                                       schedule_ctl,
                                       repository)
     loop.run_until_complete(explorer_win.load_controls())
     scheduler_win.show_all()
     parameters_win.show_all()
     explorer_win.show_all()
-
-    def exit(*args):
-        lmgr.save()
-        Gtk.main_quit(*args)
-    explorer_win.connect("delete-event", exit)
 
     rtr = RTResults()
     loop.run_until_complete(rtr.sub_connect(
