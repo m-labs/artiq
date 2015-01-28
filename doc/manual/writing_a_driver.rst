@@ -160,6 +160,27 @@ __init__.py
 This file must exist for porper integration with ARTIQ. It can be empty.
 ~/artiq-dev/artiq/artiq/devices/driver_name/__init__.py
 
+Device Manager Udev Rules
+-------------------------
+On Linux systems udev is the device manager. It manages device nodes in /dev. ARTIQ drivers
+often interface with instruments that have USB-Serial interfaces. Normally these devices
+are assigned device nodes on an ad hock basis by the kernel (e.g. /dev/ttyUSB3); the
+assignment is not deterministic. It is convenient
+for device node names to be consistent for each device (e.g. /dev/artiq_ppro). This can be accomplished
+by creating a udev rule (https://wiki.archlinux.org/index.php/udev).
+
+ *list device attributes: $udevadm info -a  /dev/ttyUSB2
+ *create a udev rule ::
+
+    $ sudo vim /etc/udev/rules.d/30-usb-papilio-pro.rules
+    SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6010", ATTRS{manufacturer}=="FTDI",
+    ATTRS{manufacturer}=="FTDI", GROUP="plugdev", SYMLINK+="artiq_ppro"
+
+ *force reloading of udev
+    $ sudo udevadm control --reload; udevadm trigger
+
+
+
 General guidelines
 ------------------
 
