@@ -1,12 +1,12 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 
 # Copyright (c) 2014 Joe Britton, Sebastien Bourdeauducq
 
 import argparse
 from artiq.protocols.pc_rpc import simple_server_loop
+import importlib
 import novatech409B
-import imp
-imp.reload(novatech409B)
+importlib.reload(novatech409B)
 
 
 # This is main loop for use as an ARTIQ driver.
@@ -29,7 +29,7 @@ def define_parser():
         "--serial_port",
         default="/dev/ttyUSB0", type=str,
         help="serial port: on Windows an integer (e.g. 1),"
-        "on Linux a device path (e.g. /dev/ttyUSB0)")
+        "on Linux a device path (e.g. \"/dev/ttyUSB0\")")
     parser.add_argument("--verbosity", type=int, default=1)
     return parser
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 
 # Copyright (c) 2015 Joe Britton
 
@@ -16,17 +16,18 @@ class Novatech409B:
 
     This class is an interface with the Novatech Model 409B 4-
     channel DDS box. The interface is a serial interface.
-
-    :param int comport: COM port number on Windows
-    :param int debug: debug level
     """
-    # NOTE: the in-line documentation is in Sphinx format
-    # http://sphinx-doc.org/domains.html
+
     def __init__(self, comport=1, debug=1, simulate_hw=False):
+        """
+        :param int comport: COM port number on Windows
+        :param int debug: debug level
+        :param bool simulate_hw: if true operate without hardware connected
+        """
         # some private members
         self.__comport = comport
         self.__debug = debug
-        self.__className = "Novatech409B"
+        self.__className = self.__class__.__name__
         self.simulate_hw = simulate_hw  # true if disconnected from hw
         self.serial_rw_delay = 0.001  # is time between reads and writes
         self.__ser_is_configured = False
@@ -47,7 +48,7 @@ class Novatech409B:
             elif self.__platform == "Linux":
                 # just use the device string as
                 # passed (e.g. "/dev/ttyUSB0")
-                serial_port_id = "/dev/ttyUSB0"
+                serial_port_id = self.__comport
             else:
                 self.debug_message("__init__", "unknown platform", level=0)
                 sys.exit()
@@ -65,7 +66,6 @@ class Novatech409B:
     def __del__(self):
         if ((not self.simulate_hw) and self.__ser_is_configured):
             self.__ser.close()
-            time.sleep(1)
 
     def echo(self, s):
         ss = "novatech409B.echo() :: " + s
@@ -122,7 +122,7 @@ class Novatech409B:
             # expected response (no error) is myStr\r\nOK\r\n
             # after convert to python3 need to specify type of return
             # to be bytes
-            if ~ignore_unusual_response:
+            if not ignore_unusual_response:
                 if result != expected_response:
                     print("ERROR :: novatech409B.ser_send() "
                         "response was {}".format(result))
