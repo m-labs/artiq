@@ -10,6 +10,7 @@ from artiq.protocols.file_db import FlatFileDB, SimpleHistory
 from artiq.master.scheduler import Scheduler
 from artiq.master.rt_results import RTResults
 from artiq.master.repository import Repository
+from artiq.tools import verbosity_args, init_logger
 
 
 def get_argparser():
@@ -23,12 +24,14 @@ def get_argparser():
     parser.add_argument(
         "--port-control", default=3251, type=int,
         help="TCP port to listen to for control")
+    verbosity_args(parser)
     return parser
 
 
 def main():
     args = get_argparser().parse_args()
 
+    init_logger(args)
     ddb = FlatFileDB("ddb.pyon")
     pdb = FlatFileDB("pdb.pyon")
     simplephist = SimpleHistory(30)

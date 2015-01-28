@@ -4,6 +4,7 @@ import argparse
 
 from artiq.devices.lda.driver import Lda, Ldasim
 from artiq.protocols.pc_rpc import simple_server_loop
+from artiq.tools import verbosity_args, init_logger
 
 
 def get_argparser():
@@ -16,11 +17,13 @@ def get_argparser():
                         help="TCP port to listen to")
     parser.add_argument('-s', '--serial', default=None,
                         help="USB serial number of the device")
+    verbosity_args(parser)
     return parser
 
 
 def main():
     args = get_argparser().parse_args()
+    init_logger(args)
     if args.device == "sim":
         lda = Ldasim()
     else:

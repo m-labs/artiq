@@ -9,6 +9,7 @@ from scipy import interpolate
 import numpy as np
 
 from artiq.protocols.pc_rpc import Client
+from artiq.tools import verbosity_args, init_logger
 
 
 def get_argparser():
@@ -49,11 +50,13 @@ def get_argparser():
                         action="store_true", help="do reset before")
     parser.add_argument("-b", "--bit", default=False,
                         action="store_true", help="do bit test")
+    verbosity_args(parser)
     return parser
 
 
 def main():
     args = get_argparser().parse_args()
+    init_logger(args)
     dev = Client(args.server, args.port, "pdq2")
     dev.init()
 

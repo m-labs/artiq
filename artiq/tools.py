@@ -1,6 +1,7 @@
 from operator import itemgetter
 import importlib.machinery
 import linecache
+import logging
 
 
 def format_run_arguments(arguments):
@@ -27,3 +28,13 @@ def file_import(filename):
 
     loader = importlib.machinery.SourceFileLoader(modname, filename)
     return loader.load_module()
+
+
+def verbosity_args(parser):
+    group = parser.add_argument_group("verbosity")
+    group.add_argument("-v", "--verbose", default=0, action="count")
+    group.add_argument("-q", "--quiet", default=0, action="count")
+
+
+def init_logger(args):
+    logging.basicConfig(logging.INFO + args.quiet*10 - args.verbose*10)

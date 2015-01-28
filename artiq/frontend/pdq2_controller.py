@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
 
 from artiq.devices.pdq2.driver import Pdq2
 from artiq.protocols.pc_rpc import simple_server_loop
+from artiq.tools import verbosity_args, init_logger
 
 
 def get_argparser():
@@ -19,16 +19,14 @@ def get_argparser():
     parser.add_argument(
         "-d", "--debug", default=False, action="store_true",
         help="debug communications")
+    verbosity_args(parser)
     return parser
 
 
 def main():
     args = get_argparser().parse_args()
 
-    if args.debug:
-        logging.basicConfig(level=logging.DEBUG)
-    else:
-        logging.basicConfig(level=logging.WARNING)
+    init_logger(args)
 
     dev = Pdq2(serial=args.serial)
     try:
