@@ -50,6 +50,8 @@ class XYWindow(_PlotWindow):
 
     def set_data(self, data):
         self.data = data
+        if not self.data:
+            return
         # The two axes are not updated simultaneously.
         # Redraw only after receiving a new point for each.
         x, y = self.filter_data()
