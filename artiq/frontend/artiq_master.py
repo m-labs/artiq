@@ -38,6 +38,7 @@ def main():
     pdb.hooks.append(simplephist)
     rtr = RTResults()
     repository = Repository()
+    explist = FlatFileDB("explist.pyon")
 
     loop = asyncio.get_event_loop()
     atexit.register(lambda: loop.close())
@@ -56,7 +57,8 @@ def main():
         "master_ddb": ddb,
         "master_pdb": pdb,
         "master_schedule": scheduler,
-        "master_repository": repository
+        "master_repository": repository,
+        "master_explist": explist
     })
     loop.run_until_complete(server_control.start(
         args.bind, args.port_control))
@@ -68,7 +70,8 @@ def main():
         "devices": ddb.data,
         "parameters": pdb.data,
         "parameters_simplehist": simplephist.history,
-        "rt_results": rtr.groups
+        "rt_results": rtr.groups,
+        "explist": explist.data
     })
     loop.run_until_complete(server_notify.start(
         args.bind, args.port_notify))
