@@ -20,7 +20,7 @@ class ResultDB:
                 return self.data[name]
 
     def set(self, name, value):
-        if name in self.realtime_data:
+        if name in self.realtime_data.read:
             self.realtime_data[name] = value
         else:
             self.data[name] = value
