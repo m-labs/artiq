@@ -68,6 +68,10 @@ class AutoDB:
     class DBKeys:
         pass
 
+    @staticmethod
+    def realtime_results():
+        return dict()
+
     def __init__(self, dbh=None, **kwargs):
         self.dbh = dbh
 
