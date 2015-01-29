@@ -37,4 +37,4 @@ def verbosity_args(parser):
 
 
 def init_logger(args):
-    logging.basicConfig(logging.INFO + args.quiet*10 - args.verbose*10)
+    logging.basicConfig(level=logging.INFO + args.quiet*10 - args.verbose*10)
