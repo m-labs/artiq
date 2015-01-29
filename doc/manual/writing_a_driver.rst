@@ -169,22 +169,28 @@ assignment is not deterministic. It is convenient
 for device node names to be consistent for each device (e.g. /dev/artiq_ppro). This can be accomplished
 by creating a udev rule (https://wiki.archlinux.org/index.php/udev).
 
- *list device attributes: $udevadm info -a  /dev/ttyUSB2
- *create a udev rule ::
+ * Get a list of device attributes. ::
 
-    $ sudo vim /etc/udev/rules.d/30-usb-papilio-pro.rules
-    SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6010", ATTRS{manufacturer}=="FTDI",
-    ATTRS{manufacturer}=="FTDI", GROUP="plugdev", SYMLINK+="artiq_ppro"
+        $udevadm info -a  /dev/ttyUSB2
 
- *force reloading of udev
-    $ sudo udevadm control --reload; udevadm trigger
+ * Based on a subset of the device attributes create a udev rule. Include enough device specific
+    information to uniquely identify the device. ::
+
+        $ sudo vim /etc/udev/rules.d/30-usb-papilio-pro.rules
+        SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6010", ATTRS{manufacturer}=="FTDI",
+        ATTRS{manufacturer}=="FTDI", GROUP="plugdev", SYMLINK+="artiq_ppro"
+
+ * To confirm that everything is wroking, force reloading of udev. Then disconnect and reconnect
+    the serial device. ::
+
+        $ sudo udevadm control --reload; udevadm trigger
 
 
 
 General guidelines
 ------------------
 
-* Format your source code according to PEP8. We suggest using ``flake8`` to check for compliance.
+* Format your source code according to PEP8. We suggest using ``flake8`` to check for compliance. Integrated tools that include PEP8 include pycharm and spyder.
 * Use new-style formatting (``str.format``) except for logging where it is not well supported, and double quotes for strings.
 * The device identification (e.g. serial number) to attach to must be passed as a command-line parameter to the controller. We suggest using ``-s`` and ``--serial`` as parameter name.
 * Controllers must be able to operate in "simulation" mode, where they behave properly even if the associated hardware is not connected. For example, they can print the data to the console instead of sending it to the device, or dump it into a file.

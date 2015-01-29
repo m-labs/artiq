@@ -1,19 +1,19 @@
 #!/usr/bin/python3
-
 # Copyright (c) 2014 Joe Britton, Sebastien Bourdeauducq
 
 import argparse
 from artiq.protocols.pc_rpc import simple_server_loop
 import importlib
+import logging
 import novatech409B
 importlib.reload(novatech409B)
 
 
 # This is main loop for use as an ARTIQ driver.
-def define_parser():
+def get_argparser():
     parser = argparse.ArgumentParser(
             description="novatech409B-controller",
-            epilog="This is a m-labs.com ARTIQ "
+            epilog="This is a m-labs.hk ARTIQ "
             "controller for a Novatech model 409B 4-channel DDS box. "
             "The hardware interface is a serial port. ")
     parser.add_argument("--bind", default="::1",
@@ -31,16 +31,19 @@ def define_parser():
         help="serial port: on Windows an integer (e.g. 1),"
         "on Linux a device path (e.g. \"/dev/ttyUSB0\")")
     parser.add_argument("--verbosity", type=int, default=1)
+    parser.add_argument("--log", type=str, default="WARNING",
+                        help="set log level; by verbosity: DEBUG > INFO > WARNING > ERROR > CRITICAL")
+
     return parser
 
-
-def _get_args():
-    p = define_parser()
-    return p.parse_args()
-
-
 def main():
-    args = _get_args()
+    args = get_argparser().parse_args()
+
+    numeric_level = getattr(logging, args.log.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError("Invalid log level: " + args.log)
+    logging.basicConfig(level=numeric_level)
+
     simple_server_loop(
         {"novatech409B":
         novatech409B.Novatech409B(comport=args.serial_port,
@@ -48,6 +51,9 @@ def main():
             host=args.bind,
             port=args.port)
 
+    logging.debug("this is a debug message")
+    logging.info("this is an info message")
+    logging.warning("this is a warning message")
 
 if __name__ == "__main__":
     main()

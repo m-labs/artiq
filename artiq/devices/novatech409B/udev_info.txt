@@ -1,0 +1,262 @@
+Here's what's reported to dmesg when Novatech409B is connected to a USB port.
+
+[58354.944376] usb 2-2: new full-speed USB device number 5 using ohci-pci
+[58355.416883] usb 2-2: New USB device found, idVendor=067b, idProduct=2303
+[58355.416887] usb 2-2: New USB device strings: Mfr=1, Product=2, SerialNumber=0
+[58355.416924] usb 2-2: Product: USB-Serial Controller D
+[58355.416931] usb 2-2: Manufacturer: Prolific Technology Inc.
+[58355.422165] pl2303 2-2:1.0: pl2303 converter detected
+[58355.466117] usb 2-2: pl2303 converter now attached to ttyUSB4
+
+
+Here's the same for the pipalio pro
+#####################################################
+rabi@vboxartiq:~/artiq-dev/misoc/tools$ cat usb0.txt
+#####################################################
+Udevadm info starts with the device specified by the devpath and then
+walks up the chain of parent devices. It prints for every device
+found, all possible attributes in the udev rules key format.
+A rule to match, can be composed by the attributes of the device
+and the attributes from one single parent device.
+
+  looking at device '/devices/pci0000:00/0000:00:06.0/usb2/2-1/2-1:1.0/ttyUSB0/tty/ttyUSB0':
+    KERNEL=="ttyUSB0"
+    SUBSYSTEM=="tty"
+    DRIVER==""
+
+  looking at parent device '/devices/pci0000:00/0000:00:06.0/usb2/2-1/2-1:1.0/ttyUSB0':
+    KERNELS=="ttyUSB0"
+    SUBSYSTEMS=="usb-serial"
+    DRIVERS=="ftdi_sio"
+    ATTRS{port_number}=="0"
+    ATTRS{latency_timer}=="1"
+
+  looking at parent device '/devices/pci0000:00/0000:00:06.0/usb2/2-1/2-1:1.0':
+    KERNELS=="2-1:1.0"
+    SUBSYSTEMS=="usb"
+    DRIVERS=="ftdi_sio"
+    ATTRS{bInterfaceClass}=="ff"
+    ATTRS{bInterfaceSubClass}=="ff"
+    ATTRS{bInterfaceProtocol}=="ff"
+    ATTRS{bNumEndpoints}=="02"
+    ATTRS{supports_autosuspend}=="1"
+    ATTRS{bAlternateSetting}==" 0"
+    ATTRS{bInterfaceNumber}=="00"
+    ATTRS{interface}=="Dual RS232"
+
+  looking at parent device '/devices/pci0000:00/0000:00:06.0/usb2/2-1':
+    KERNELS=="2-1"
+    SUBSYSTEMS=="usb"
+    DRIVERS=="usb"
+    ATTRS{bDeviceSubClass}=="00"
+    ATTRS{bDeviceProtocol}=="00"
+    ATTRS{devpath}=="1"
+    ATTRS{idVendor}=="0403"
+    ATTRS{speed}=="12"
+    ATTRS{bNumInterfaces}==" 2"
+    ATTRS{bConfigurationValue}=="1"
+    ATTRS{bMaxPacketSize0}=="8"
+    ATTRS{busnum}=="2"
+    ATTRS{devnum}=="4"
+    ATTRS{configuration}==""
+    ATTRS{bMaxPower}=="90mA"
+    ATTRS{authorized}=="1"
+    ATTRS{bmAttributes}=="80"
+    ATTRS{bNumConfigurations}=="1"
+    ATTRS{maxchild}=="0"
+    ATTRS{bcdDevice}=="0500"
+    ATTRS{avoid_reset_quirk}=="0"
+    ATTRS{quirks}=="0x0"
+    ATTRS{version}==" 2.00"
+    ATTRS{urbnum}=="20782"
+    ATTRS{ltm_capable}=="no"
+    ATTRS{manufacturer}=="FTDI"
+    ATTRS{removable}=="unknown"
+    ATTRS{idProduct}=="6010"
+    ATTRS{bDeviceClass}=="00"
+    ATTRS{product}=="Dual RS232"
+
+  looking at parent device '/devices/pci0000:00/0000:00:06.0/usb2':
+    KERNELS=="usb2"
+    SUBSYSTEMS=="usb"
+    DRIVERS=="usb"
+    ATTRS{bDeviceSubClass}=="00"
+    ATTRS{bDeviceProtocol}=="00"
+    ATTRS{devpath}=="0"
+    ATTRS{idVendor}=="1d6b"
+    ATTRS{speed}=="12"
+    ATTRS{bNumInterfaces}==" 1"
+    ATTRS{bConfigurationValue}=="1"
+    ATTRS{bMaxPacketSize0}=="64"
+    ATTRS{authorized_default}=="1"
+    ATTRS{busnum}=="2"
+    ATTRS{devnum}=="1"
+    ATTRS{configuration}==""
+    ATTRS{bMaxPower}=="0mA"
+    ATTRS{authorized}=="1"
+    ATTRS{bmAttributes}=="e0"
+    ATTRS{bNumConfigurations}=="1"
+    ATTRS{maxchild}=="8"
+    ATTRS{bcdDevice}=="0313"
+    ATTRS{avoid_reset_quirk}=="0"
+    ATTRS{quirks}=="0x0"
+    ATTRS{serial}=="0000:00:06.0"
+    ATTRS{version}==" 1.10"
+    ATTRS{urbnum}=="91"
+    ATTRS{ltm_capable}=="no"
+    ATTRS{manufacturer}=="Linux 3.13.0-44-generic ohci_hcd"
+    ATTRS{removable}=="unknown"
+    ATTRS{idProduct}=="0001"
+    ATTRS{bDeviceClass}=="09"
+    ATTRS{product}=="OHCI PCI host controller"
+
+  looking at parent device '/devices/pci0000:00/0000:00:06.0':
+    KERNELS=="0000:00:06.0"
+    SUBSYSTEMS=="pci"
+    DRIVERS=="ohci-pci"
+    ATTRS{irq}=="22"
+    ATTRS{subsystem_vendor}=="0x0000"
+    ATTRS{broken_parity_status}=="0"
+    ATTRS{class}=="0x0c0310"
+    ATTRS{consistent_dma_mask_bits}=="32"
+    ATTRS{dma_mask_bits}=="32"
+    ATTRS{local_cpus}=="00000000,00000000,00000000,00000000,00000000,00000000,00000000,0000000f"
+    ATTRS{device}=="0x003f"
+    ATTRS{enable}=="1"
+    ATTRS{msi_bus}==""
+    ATTRS{local_cpulist}=="0-3"
+    ATTRS{vendor}=="0x106b"
+    ATTRS{subsystem_device}=="0x0000"
+    ATTRS{numa_node}=="-1"
+    ATTRS{d3cold_allowed}=="0"
+
+  looking at parent device '/devices/pci0000:00':
+    KERNELS=="pci0000:00"
+    SUBSYSTEMS==""
+    DRIVERS==""
+
+########################################################
+rabi@vboxartiq:~/artiq-dev/misoc/tools$ cat usb1.txt
+########################################################
+
+Udevadm info starts with the device specified by the devpath and then
+walks up the chain of parent devices. It prints for every device
+found, all possible attributes in the udev rules key format.
+A rule to match, can be composed by the attributes of the device
+and the attributes from one single parent device.
+
+  looking at device '/devices/pci0000:00/0000:00:06.0/usb2/2-1/2-1:1.1/ttyUSB1/tty/ttyUSB1':
+    KERNEL=="ttyUSB1"
+    SUBSYSTEM=="tty"
+    DRIVER==""
+
+  looking at parent device '/devices/pci0000:00/0000:00:06.0/usb2/2-1/2-1:1.1/ttyUSB1':
+    KERNELS=="ttyUSB1"
+    SUBSYSTEMS=="usb-serial"
+    DRIVERS=="ftdi_sio"
+    ATTRS{port_number}=="0"
+    ATTRS{latency_timer}=="1"
+
+  looking at parent device '/devices/pci0000:00/0000:00:06.0/usb2/2-1/2-1:1.1':
+    KERNELS=="2-1:1.1"
+    SUBSYSTEMS=="usb"
+    DRIVERS=="ftdi_sio"
+    ATTRS{bInterfaceClass}=="ff"
+    ATTRS{bInterfaceSubClass}=="ff"
+    ATTRS{bInterfaceProtocol}=="ff"
+    ATTRS{bNumEndpoints}=="02"
+    ATTRS{supports_autosuspend}=="1"
+    ATTRS{bAlternateSetting}==" 0"
+    ATTRS{bInterfaceNumber}=="01"
+    ATTRS{interface}=="Dual RS232"
+
+  looking at parent device '/devices/pci0000:00/0000:00:06.0/usb2/2-1':
+    KERNELS=="2-1"
+    SUBSYSTEMS=="usb"
+    DRIVERS=="usb"
+    ATTRS{bDeviceSubClass}=="00"
+    ATTRS{bDeviceProtocol}=="00"
+    ATTRS{devpath}=="1"
+    ATTRS{idVendor}=="0403"
+    ATTRS{speed}=="12"
+    ATTRS{bNumInterfaces}==" 2"
+    ATTRS{bConfigurationValue}=="1"
+    ATTRS{bMaxPacketSize0}=="8"
+    ATTRS{busnum}=="2"
+    ATTRS{devnum}=="4"
+    ATTRS{configuration}==""
+    ATTRS{bMaxPower}=="90mA"
+    ATTRS{authorized}=="1"
+    ATTRS{bmAttributes}=="80"
+    ATTRS{bNumConfigurations}=="1"
+    ATTRS{maxchild}=="0"
+    ATTRS{bcdDevice}=="0500"
+    ATTRS{avoid_reset_quirk}=="0"
+    ATTRS{quirks}=="0x0"
+    ATTRS{version}==" 2.00"
+    ATTRS{urbnum}=="20782"
+    ATTRS{ltm_capable}=="no"
+    ATTRS{manufacturer}=="FTDI"
+    ATTRS{removable}=="unknown"
+    ATTRS{idProduct}=="6010"
+    ATTRS{bDeviceClass}=="00"
+    ATTRS{product}=="Dual RS232"
+
+  looking at parent device '/devices/pci0000:00/0000:00:06.0/usb2':
+    KERNELS=="usb2"
+    SUBSYSTEMS=="usb"
+    DRIVERS=="usb"
+    ATTRS{bDeviceSubClass}=="00"
+    ATTRS{bDeviceProtocol}=="00"
+    ATTRS{devpath}=="0"
+    ATTRS{idVendor}=="1d6b"
+    ATTRS{speed}=="12"
+    ATTRS{bNumInterfaces}==" 1"
+    ATTRS{bConfigurationValue}=="1"
+    ATTRS{bMaxPacketSize0}=="64"
+    ATTRS{authorized_default}=="1"
+    ATTRS{busnum}=="2"
+    ATTRS{devnum}=="1"
+    ATTRS{configuration}==""
+    ATTRS{bMaxPower}=="0mA"
+    ATTRS{authorized}=="1"
+    ATTRS{bmAttributes}=="e0"
+    ATTRS{bNumConfigurations}=="1"
+    ATTRS{maxchild}=="8"
+    ATTRS{bcdDevice}=="0313"
+    ATTRS{avoid_reset_quirk}=="0"
+    ATTRS{quirks}=="0x0"
+    ATTRS{serial}=="0000:00:06.0"
+    ATTRS{version}==" 1.10"
+    ATTRS{urbnum}=="91"
+    ATTRS{ltm_capable}=="no"
+    ATTRS{manufacturer}=="Linux 3.13.0-44-generic ohci_hcd"
+    ATTRS{removable}=="unknown"
+    ATTRS{idProduct}=="0001"
+    ATTRS{bDeviceClass}=="09"
+    ATTRS{product}=="OHCI PCI host controller"
+
+  looking at parent device '/devices/pci0000:00/0000:00:06.0':
+    KERNELS=="0000:00:06.0"
+    SUBSYSTEMS=="pci"
+    DRIVERS=="ohci-pci"
+    ATTRS{irq}=="22"
+    ATTRS{subsystem_vendor}=="0x0000"
+    ATTRS{broken_parity_status}=="0"
+    ATTRS{class}=="0x0c0310"
+    ATTRS{consistent_dma_mask_bits}=="32"
+    ATTRS{dma_mask_bits}=="32"
+    ATTRS{local_cpus}=="00000000,00000000,00000000,00000000,00000000,00000000,00000000,0000000f"
+    ATTRS{device}=="0x003f"
+    ATTRS{enable}=="1"
+    ATTRS{msi_bus}==""
+    ATTRS{local_cpulist}=="0-3"
+    ATTRS{vendor}=="0x106b"
+    ATTRS{subsystem_device}=="0x0000"
+    ATTRS{numa_node}=="-1"
+    ATTRS{d3cold_allowed}=="0"
+
+  looking at parent device '/devices/pci0000:00':
+    KERNELS=="pci0000:00"
+    SUBSYSTEMS==""
+    DRIVERS==""

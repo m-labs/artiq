@@ -9,6 +9,7 @@ import math
 import platform
 import logging
 import inspect
+import argparse
 
 
 class Novatech409B:
@@ -204,10 +205,10 @@ class Novatech409B:
         Set ch_no to frequency freq MHz"""
         self.debug_message("set_freq", str(ch_no)+","+str(freq), level=3)
         if ch_no < 0 or ch_no > 3:
-            print("ERROR :: novatech409B.set_freq() ch_no Error")
+            self.debug_message("set_freq","ch_no Error")
             sys.exit()
         if freq < 0.0 or freq > 171.1276031:
-            print("ERROR :: novatech409B.set_freq() freq Error")
+            self.debug_message("set_freq", "freq Error")
             sys.exit()
         # do this immediately, disable SimultaneousUpdate mode
         self.set_simultaneous_update(False)
@@ -225,9 +226,9 @@ class Novatech409B:
                           str(channel_num) + "," + str(phase),
                           level=3)
         if channel_num < 0 or channel_num > 3:
-            print("ERROR :: novatech409B.set_phase() channel_num Error")
+            self.debug_message("set_phase", "channel_num Error")
         if phase < 0 or phase > 360:
-            print("ERROR :: novatech409B.set_phase() phase Error")
+            self.debug_message("set_phase", "phase Error")
         # do this immediately, disable SimultaneousUpdate mode
         self.set_simultaneous_update(False)
         # phase word is required by device
@@ -308,8 +309,7 @@ class Novatech409B:
         for n in range(n_steps):
             fnow = f0+n*df_sign*df
             self.set_freq_all_phase_continuous(fnow)
-            if self.__debug > 0:
-                print(".", end=" ")
+            self.debug_message("freq_sweep_all_phase_continuous",str(fnow))
         self.set_freq_all_phase_continuous(f1)
 
     def output_scale(self, ch_no, frac):
