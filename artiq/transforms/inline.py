@@ -433,6 +433,9 @@ def get_attr_init(attribute_namespace, loc_node):
     for (_, attr), attr_info in attribute_namespace.items():
         if hasattr(attr_info.obj, attr):
             value = getattr(attr_info.obj, attr)
+            if (hasattr(value, "kernel_attr_init")
+                    and not value.kernel_attr_init):
+                continue
             value = ast.copy_location(value_to_ast(value), loc_node)
             target = ast.copy_location(ast.Name(attr_info.mangled_name,
                                                 ast.Store()),
