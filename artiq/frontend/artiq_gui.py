@@ -75,7 +75,10 @@ def main():
                                       exit,
                                       schedule_ctl,
                                       repository)
-    loop.run_until_complete(explorer_win.load_controls())
+    loop.run_until_complete(explorer_win.sub_connect(
+        args.server, args.port_notify))
+    atexit.register(
+        lambda: loop.run_until_complete(explorer_win.sub_close()))
     scheduler_win.show_all()
     parameters_win.show_all()
     explorer_win.show_all()

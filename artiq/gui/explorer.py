@@ -2,7 +2,16 @@ import asyncio
 
 from gi.repository import Gtk
 
-from artiq.gui.tools import Window, getitem
+from artiq.gui.tools import Window, getitem, DictSyncer
+from artiq.protocols.sync_struct import Subscriber
+
+
+class _ExplistStoreSyncer(DictSyncer):
+    def order_key(self, kv_pair):
+        return kv_pair[0]
+
+    def convert(self, name, value):
+        return [name]
 
 
 class ExplorerWindow(Window):
@@ -22,33 +31,54 @@ class ExplorerWindow(Window):
         menubar = Gtk.MenuBar()
         topvbox.pack_start(menubar, False, False, 0)
 
-        windows = Gtk.MenuItem("Windows")
-        windows_menu = Gtk.Menu()
+        top_menuitem = Gtk.MenuItem("Windows")
+        menu = Gtk.Menu()
         menuitem = Gtk.MenuItem("Scheduler")
-        windows_menu.append(menuitem)
+        menu.append(menuitem)
         menuitem = Gtk.MenuItem("Parameters")
-        windows_menu.append(menuitem)
-        windows_menu.append(Gtk.SeparatorMenuItem())
+        menu.append(menuitem)
+        menu.append(Gtk.SeparatorMenuItem())
         menuitem = Gtk.MenuItem("Quit")
         menuitem.connect("activate", exit_fn)
-        windows_menu.append(menuitem)
-        windows.set_submenu(windows_menu)
-        menubar.append(windows)
+        menu.append(menuitem)
+        top_menuitem.set_submenu(menu)
+        menubar.append(top_menuitem)
+
+        top_menuitem = Gtk.MenuItem("Registry")
+        menu = Gtk.Menu()
+        menuitem = Gtk.MenuItem("Run selected")
+        menuitem.connect("activate", self.run)
+        menu.append(menuitem)
+        menu.append(Gtk.SeparatorMenuItem())
+        menuitem = Gtk.MenuItem("Add experiment")
+        menu.append(menuitem)
+        menuitem = Gtk.MenuItem("Remove experiment")
+        menu.append(menuitem)
+        top_menuitem.set_submenu(menu)
+        menubar.append(top_menuitem)
 
         self.pane = Gtk.HPaned(
             position=getitem(layout_dict, "pane_position", 180))
         topvbox.pack_start(self.pane, True, True, 0)
 
-        listvbox = Gtk.VBox(spacing=6)
-        self.pane.pack1(listvbox)
-        self.list_store = Gtk.ListStore(str)
-        self.list_tree = Gtk.TreeView(self.list_store)
+        explistvbox = Gtk.VBox(spacing=6)
+        self.pane.pack1(explistvbox)
+        self.explist_store = Gtk.ListStore(str)
+        self.explist_tree = Gtk.TreeView(self.explist_store)
+        renderer = Gtk.CellRendererText()
+        column = Gtk.TreeViewColumn("Registered experiments", renderer, text=0)
+        self.explist_tree.append_column(column)
+        self.explist_tree.connect("row-activated", self.explist_row_activated)
+        self.explist_tree.set_activate_on_single_click(True)
         scroll = Gtk.ScrolledWindow()
-        scroll.add(self.list_tree)
-        listvbox.pack_start(scroll, True, True, 0)
+        scroll.add(self.explist_tree)
+        explistvbox.pack_start(scroll, True, True, 0)
         button = Gtk.Button("Run")
         button.connect("clicked", self.run)
-        listvbox.pack_start(button, False, False, 0)
+        explistvbox.pack_start(button, False, False, 0)
+
+        self.pane_contents = Gtk.Label("")
+        self.pane.pack2(self.pane_contents)
 
     def get_layout_dict(self):
         r = Window.get_layout_dict(self)
@@ -56,19 +86,56 @@ class ExplorerWindow(Window):
         return r
 
     @asyncio.coroutine
-    def load_controls(self):
-        gui_mod_data = yield from self.repository.get_data(
-            "flopping_f_simulation_gui.py")
+    def sub_connect(self, host, port):
+        self.explist_subscriber = Subscriber("explist",
+                                             self.init_explist_store)
+        yield from self.explist_subscriber.connect(host, port)
+
+    @asyncio.coroutine
+    def sub_close(self):
+        yield from self.explist_subscriber.close()
+
+    def set_pane_contents(self, widget):
+        self.pane_contents.destroy()
+        self.pane_contents = widget
+        self.pane.pack2(self.pane_contents)
+        self.pane_contents.show_all()
+
+    def init_explist_store(self, init):
+        self.explist_syncer = _ExplistStoreSyncer(self.explist_store, init,
+                                                  keep_data=True)
+        return self.explist_syncer
+
+    def explist_row_activated(self, widget, index, column):
+        self.controls = None
+        name = self.explist_store[index][0]
+        gui_file = self.explist_syncer.data[name]["gui_file"]
+        if gui_file is None:
+            self.set_pane_contents(Gtk.Label("No GUI controls"))
+        else:
+            asyncio.Task(self.load_gui_file(gui_file))
+
+    @asyncio.coroutine
+    def load_gui_file(self, gui_file):
+        gui_mod_data = yield from self.repository.get_data(gui_file)
         gui_mod = dict()
         exec(gui_mod_data, gui_mod)
         self.controls = gui_mod["Controls"]()
         yield from self.controls.build(self.repository.get_data)
-        self.pane.pack2(self.controls.get_top_widget())
+        self.set_pane_contents(self.controls.get_top_widget())
 
     def run(self, widget):
-        run_params = {
-            "file": "flopping_f_simulation.py",
-            "unit": None,
-            "arguments": self.controls.get_arguments()
-        }
-        asyncio.Task(self.schedule_ctl.run_queued(run_params, None))
+        store, selected = self.explist_tree.get_selection().get_selected()
+        if selected is not None:
+            name = store[selected][0]
+            data = self.explist_syncer.data[name]
+            if self.controls is None:
+                arguments = {}
+            else:
+                arguments = self.controls.get_arguments()
+            run_params = {
+                "file": data["file"],
+                "unit": data["unit"],
+                "arguments": arguments
+            }
+            asyncio.Task(self.schedule_ctl.run_queued(run_params, None))
