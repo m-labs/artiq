@@ -9,7 +9,7 @@ class ResultDB:
         self.realtime_data = Notifier({x: [] for x in realtime_results})
         self.data = Notifier(dict())
 
-    def request(self, name):
+    def _request(self, name):
         try:
             return self.realtime_data[name]
         except KeyError:
@@ -18,6 +18,11 @@ class ResultDB:
             except KeyError:
                 self.data[name] = []
                 return self.data[name]
+
+    def request(self, name):
+        r = self._request(name)
+        r.kernel_attr_init = False
+        return r
 
     def set(self, name, value):
         if name in self.realtime_data.read:
