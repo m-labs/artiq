@@ -33,7 +33,7 @@ def get_argparser():
     parser.add_argument("-t", "--times",
                         default="np.arange(5)*1e-6",
                         help="sample times (s) [%(default)s]")
-    parser.add_argument("-v", "--voltages",
+    parser.add_argument("-u", "--voltages",
                         default="(1-np.cos(t/t[-1]*2*np.pi))/2",
                         help="sample voltages (V) [%(default)s]")
     parser.add_argument("-o", "--order", default=3, type=int,

@@ -115,32 +115,33 @@ Logging and error handling in controllers
 
 Unrecoverable errors (such as the hardware being unplugged) should cause timely termination of the controller, in order to notify the controller manager which may try to restart the controller later according to its policy. Throwing an exception and letting it propagate is the preferred way of reporting an unrecoverable error.
 
-For the debug, information and warning messages, use the ``logging`` Python module and print the log on the standard error output (the default setting). The logging level should be configurable with a command line option called ``--log`` that takes a string (debug, info, ...) representing the logging level.
+For the debug, information and warning messages, use the ``logging`` Python module and print the log on the standard error output (the default setting). The logging level is by default "WARNING", meaning that only warning messages and more critical messages will get printed (and no debug nor information messages). By calling the ``verbosity_args()`` with the parser as argument, you add support for the ``--verbose`` (``-v``) and ``--quiet`` (``-q``) arguments in the parser. Each occurence of ``-v`` (resp. ``-q``) in the arguments will increase (resp. decrease) the log level of the logging module. For instance, if only one ``-v`` is present in the arguments, then more messages (info, warning and above) will get printed. If only one ``-q`` is present in the arguments, then only errors and critical messages will get printed. If ``-qq`` is present in the arguments, then only critical messages will get printed, but no debug/info/warning/error.
 
 The program below exemplifies how to use logging: ::
 
     import argparse
     import logging
+    from artiq.tools import verbosity_args, init_logger
 
 
     def get_argparser():
         parser = argparse.ArgumentParser(description="Logging example")
-        parser.add_argument("--log", type=str, default="WARNING",
-                            help="set log level")
+        parser.add_argument("--someargument",
+                            help="some argument")
+        # [...]
+        verbosity_args(parser) # This adds the -q and -v handling
         return parser
 
 
     def main():
         args = get_argparser().parse_args()
-
-        numeric_level = getattr(logging, args.log.upper(), None)
-        if not isinstance(numeric_level, int):
-            raise ValueError("Invalid log level: " + args.log)
-        logging.basicConfig(level=numeric_level)
+        init_logger(args) # This initializes logging system log level according to -v/-q args
 
         logging.debug("this is a debug message")
         logging.info("this is an info message")
         logging.warning("this is a warning message")
+        logging.error("this is an error message")
+        logging.critical("this is a critical message")
 
     if __name__ == "__main__":
         main()
