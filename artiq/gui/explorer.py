@@ -136,6 +136,7 @@ class ExplorerWindow(Window):
             run_params = {
                 "file": data["file"],
                 "unit": data["unit"],
-                "arguments": arguments
+                "arguments": arguments,
+                "rtr_group": data["file"]
             }
             asyncio.Task(self.schedule_ctl.run_queued(run_params, None))

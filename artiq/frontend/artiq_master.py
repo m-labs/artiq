@@ -43,13 +43,15 @@ def main():
     loop = asyncio.get_event_loop()
     atexit.register(lambda: loop.close())
 
+    def run_cb(rid, run_params):
+        rtr.current_group = run_params["rtr_group"]
     scheduler = Scheduler({
         "req_device": ddb.request,
         "req_parameter": pdb.request,
         "set_parameter": pdb.set,
         "init_rt_results": rtr.init,
         "update_rt_results": rtr.update
-    })
+    }, run_cb)
     loop.run_until_complete(scheduler.start())
     atexit.register(lambda: loop.run_until_complete(scheduler.stop()))
 

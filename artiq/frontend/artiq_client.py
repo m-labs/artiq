@@ -42,6 +42,9 @@ def get_argparser():
         help="specify a timeout for the experiment to complete")
     parser_add.add_argument("-u", "--unit", default=None,
                             help="unit to run")
+    parser_add.add_argument("--rtr-group", default=None, type=str,
+                            help="real-time result group "
+                                 "(defaults to filename)")
     parser_add.add_argument("file", help="file containing the unit to run")
     parser_add.add_argument("arguments", nargs="*",
                             help="run arguments")
@@ -101,7 +104,9 @@ def _action_submit(remote, args):
     run_params = {
         "file": args.file,
         "unit": args.unit,
-        "arguments": arguments
+        "arguments": arguments,
+        "rtr_group": args.rtr_group if args.rtr_group is not None \
+                        else args.file
     }
     if args.timed is None:
         rid = remote.run_queued(run_params, args.timeout)

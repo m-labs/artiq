@@ -6,7 +6,8 @@ from artiq.master.worker import Worker
 
 
 class Scheduler:
-    def __init__(self, worker_handlers):
+    def __init__(self, worker_handlers, run_cb):
+        self.run_cb = run_cb
         self.worker = Worker(worker_handlers)
         self.next_rid = 0
         self.queue = Notifier([])
@@ -64,6 +65,7 @@ class Scheduler:
 
     @asyncio.coroutine
     def _run(self, rid, run_params, timeout):
+        self.run_cb(rid, run_params)
         try:
             yield from self.worker.run(run_params, timeout)
         except Exception as e:
