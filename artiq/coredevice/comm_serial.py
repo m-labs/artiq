@@ -67,7 +67,7 @@ class Comm(AutoDB):
         implicit_core = False
 
     def build(self):
-        self.port = serial.Serial(self.serial_dev, baudrate=115200)
+        self.port = serial.serial_for_url(self.serial_dev, baudrate=115200)
         self.port.flush()
         self.set_remote_baud(self.baud_rate)
         self.set_baud(self.baud_rate)
