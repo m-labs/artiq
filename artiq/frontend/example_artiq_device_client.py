@@ -1,9 +1,19 @@
 #!/usr/bin/env python3
 
 import argparse
-
+from functools import partial
 from artiq.protocols.pc_rpc import Client
 
+# Question: shouldn't this restricted_float() be part of the Quantity class?
+# Question: Shouldn't all the parameters passed to drivers be of the Quantity class?
+def restricted_float(val_min, val_max, x):
+    """do range checking on a variable
+    """
+    x = float(x)
+    if x < val_min or x > val_max:
+        raise argparse.ArgumentTypeError(
+            "{:f} not in range [{:f}, {:f}]".format(x, val_min, val_max))
+    return x
 
 def define_parser():
     parser = argparse.ArgumentParser(
@@ -20,71 +30,29 @@ def define_parser():
     parser.add_argument("--verbose", action="store_true",
         help="increase output verbosity")
 
-    # following are for interacting with a specific device
-    # roughly, each member function of Example_ARTIQ_Device has its own entry below
+    # Following are command line options for interacting with a specific device.
+    # Roughly, each member function of the driver Class, here Example_ARTIQ_Device
+    # has its own entry below.
     subparsers = parser.add_subparsers(dest="subparser_name")
 
-    restricted_float_freq = partial(restricted_float, 0.0, 171.1276031)
-    parser_setfreq = subparsers.add_parser("freq",
-                                           help="set frequency")
-    parser_setfreq.add_argument("f", type=restricted_float_freq,
-                                help="frequency in MHz"
-                                "[0.0,171.1276031]")
-    parser_setfreq.add_argument("--channel", default=-1, type=int,
+    # Here, a python feature called a partial is used to check the parameter range
+    # of some passed arguments.
+    # https://docs.python.org/2/library/argparse.html#partial-parsing
+    restricted_myvar = partial(restricted_float, 0.0, 1.0)
+    parser_demo_exception_handling = subparsers.add_parser("demo_exception_handling",
+                                           help="demonstration of exception handling")
+    parser_demo_exception_handling.add_argument("myvar", type=restricted_myvar,
+                                help="a number in the range"
+                                "[0.0,1.0]")
+    parser_demo_exception_handling.add_argument("--optional_argument", default=-1, type=int,
                         choices=range(0, 4),
-                        help="which channel to set; default is ALL")
+                        help="an optional argument to pass to demo_exception_handling")
 
-    parser_setphase = subparsers.add_parser("phase",
-                                            help="set phase")
-    parser_setphase.add_argument(
-        "p",type=partial(restricted_float, 0.0, 1.0),
-        nargs=4,
-        help="p0 p1 p2 p3 are phases for all four "
-        "channels in cycles (1=360 deg)")
+    # All the other member functions in Example_ARTIQ_Device would be parameterized
+    # in a similar fashion.
 
-    parser_gain=subparsers.add_parser("gain", help="set output gain")
-    parser_gain.add_argument("g",
-                type=partial(restricted_float, 0.0, 1.0),
-                help="waveform amplitude [0.0, 1.0]")
-    parser_gain.add_argument("--channel",
-                        default=-1, type = int,
-                        choices=range(0, 4),
-                        help="which channel to set; default is ALL")
-
-    parser_sweep_freq = subparsers.add_parser("sweep-freq",
-                                              help="sweep frequency")
-    parser_sweep_freq.add_argument("p0", type=restricted_float_freq,
-                                    help="starting freq in MHz")
-    parser_sweep_freq.add_argument("p1", type=restricted_float_freq,
-                                    help="ending freq in MHz")
-    parser_sweep_freq.add_argument("t", type=float,
-                                    help="sweep time in sec")
-    parser_sweep_freq.add_argument("--channel",
-                        default=-1, type=int,
-                        choices=range(0, 4),
-                        help="which channel to set; default is ALL")
-
-    parser_reset = subparsers.add_parser("reset", help="reset device")
-    parser_reset.add_argument("reset",
-                help="reset device", action="store_true")
-    parser_eeprom = subparsers.add_parser("save-to-eeprom",
-                                          help="save to EEPROM")
-    parser_eeprom.add_argument("save-to-eeprom",
-                        action="store_true",
-                        help="saves current state into EEPROM "
-                        "and sets valid flag; state used as default"
-                        " upon next power up or reset")
     return parser
 
-
-def restricted_float(val_min, val_max, x):
-    """do range checking on a variable
-    """
-    x = float(x)
-    if x < val_min or x > val_max:
-        raise argparse.ArgumentTypeError(
-            "{:f} not in range [{:f}, {:f}]".format(x, val_min, val_max))
-    return x
 
 def _get_args():
     p = define_parser()
