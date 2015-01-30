@@ -1,66 +1,17 @@
 import asyncio
 from collections import defaultdict
 
-from gi.repository import Gtk
-import cairoplot
-
 from artiq.protocols.sync_struct import Subscriber
-from artiq.gui.tools import Window
-
-
-class _PlotWindow(Window):
-    def __init__(self, set_names):
-        self.set_names = set_names
-        self.data = None
-
-        Window.__init__(self, title="/".join(set_names),
-                        default_size=(700, 500))
-
-        self.darea = Gtk.DrawingArea()
-        self.darea.set_size_request(100, 100)
-        self.darea.connect("draw", self.on_draw)
-        self.add(self.darea)
-
-    def delete(self):
-        self.close()
-
-
-class XYWindow(_PlotWindow):
-    def on_draw(self, widget, ctx):
-        if self.data is not None:
-            data = self.filter_data()
-            cairoplot.scatter_plot(
-                ctx,
-                data=data,
-                width=widget.get_allocated_width(),
-                height=widget.get_allocated_height(),
-                x_bounds=(min(data[0])*0.98, max(data[0])*1.02),
-                y_bounds=(min(data[1])*0.98, max(data[1])*1.02),
-                border=20, axis=True, grid=True,
-                dots=1, discrete=True,
-                series_colors=[(0.0, 0.0, 0.0)],
-                background="white"
-            )
-
-    def filter_data(self):
-        return [
-            self.data[self.set_names[0]],
-            self.data[self.set_names[1]],
-        ]
-
-    def set_data(self, data):
-        self.data = data
-        if not self.data:
-            return
-        # The two axes are not updated simultaneously.
-        # Redraw only after receiving a new point for each.
-        x, y = self.filter_data()
-        if len(x) == len(y):
-            self.darea.queue_draw()
+from artiq.gui.rt_result_views import RawWindow, XYWindow
 
 
 def _create_view(set_names, view_description):
-    r = XYWindow(set_names)
+    if view_description == "raw":
+        r = RawWindow(set_names)
+    elif view_description == "xy":
+        r = XYWindow(set_names)
+    else:
+        raise ValueError("Unknown view description: " + view_description)
     r.show_all()
     return r
 
@@ -158,8 +109,11 @@ class RTResults:
         return self.current_groups
 
     def on_mod(self, mod):
-        if mod["action"] != "init" and len(mod["path"]) >= 3:
+        if mod["action"] != "init" and len(mod["path"]) >= 2:
             path = mod["path"]
             group = self.current_groups[path[0]]
             if path[1] == "data":
-                group.on_data_modified(path[2])
+                if len(mod["path"]) >= 3:
+                    group.on_data_modified(path[2])
+                else:
+                    group.on_data_modified(mod["key"])
