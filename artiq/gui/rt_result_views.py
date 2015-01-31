@@ -5,10 +5,10 @@ from artiq.gui.tools import Window
 
 
 class RawWindow(Window):
-    def __init__(self, set_names):
+    def __init__(self, group_name, set_names):
         self.labels = dict()
 
-        Window.__init__(self, title="Raw values",
+        Window.__init__(self, title=group_name + ": Raw values",
                         default_size=(200, 150))
 
         grid = Gtk.Grid(row_spacing=6, column_spacing=6)
@@ -29,11 +29,11 @@ class RawWindow(Window):
 
 
 class PlotWindow(Window):
-    def __init__(self, set_names):
+    def __init__(self, group_name, set_names):
         self.set_names = set_names
         self.data = None
 
-        Window.__init__(self, title="/".join(set_names),
+        Window.__init__(self, title=group_name + ": " + "/".join(set_names),
                         default_size=(700, 500))
 
         self.darea = Gtk.DrawingArea()

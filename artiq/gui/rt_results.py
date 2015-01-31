@@ -5,11 +5,11 @@ from artiq.protocols.sync_struct import Subscriber
 from artiq.gui.rt_result_views import RawWindow, XYWindow
 
 
-def _create_view(set_names, view_description):
+def _create_view(group_name, set_names, view_description):
     if view_description == "raw":
-        r = RawWindow(set_names)
+        r = RawWindow(group_name, set_names)
     elif view_description == "xy":
-        r = XYWindow(set_names)
+        r = XYWindow(group_name, set_names)
     else:
         raise ValueError("Unknown view description: " + view_description)
     r.show_all()
@@ -17,7 +17,8 @@ def _create_view(set_names, view_description):
 
 
 class _Group:
-    def __init__(self, init):
+    def __init__(self, name, init):
+        self.name = name
         # data key -> list of views using it
         self.views = defaultdict(list)
         # original data
@@ -49,7 +50,7 @@ class _Group:
             for set_names, view_description in value.items():
                 if not isinstance(set_names, tuple):
                     set_names = (set_names, )
-                view = _create_view(set_names, view_description)
+                view = _create_view(self.name, set_names, view_description)
                 view.set_data(self.data)
                 for set_name in set_names:
                     self.views[set_name].append(view)
@@ -81,7 +82,7 @@ class _Groups:
     def __setitem__(self, key, value):
         if key in self.groups:
             self.groups[key].delete()
-        self.groups[key] = _Group(value)
+        self.groups[key] = _Group(key, value)
 
     def __delitem__(self, key):
         self.groups[key].delete()
