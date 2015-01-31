@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.18.3 -->
+<!-- Generated with glade 3.16.1 -->
 <interface>
-  <requires lib="gtk+" version="3.12"/>
+  <requires lib="gtk+" version="3.10"/>
   <object class="GtkAdjustment" id="F0">
     <property name="lower">1000</property>
     <property name="upper">2000</property>
@@ -30,6 +30,7 @@
         <property name="can_focus">True</property>
         <property name="input_purpose">number</property>
         <property name="adjustment">F0</property>
+        <property name="value">1500</property>
       </object>
       <packing>
         <property name="expand">False</property>
