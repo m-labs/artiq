@@ -15,7 +15,7 @@ setup(
     license="BSD",
     install_requires=[
         "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
-        "dateutil", "prettytable"
+        "python-dateutil", "prettytable"
     ],
     extras_require={},
     dependency_links=[],
