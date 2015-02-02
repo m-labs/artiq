@@ -19,19 +19,15 @@ class Novatech409B:
     channel DDS box. The interface is a serial interface.
     """
 
-    def __init__(self, comport=1, debug=1, simulate_hw=False):
+    def __init__(self, comport="/dev/ttyUSB2", simulate_hw=False):
         """
-        :param int comport: COM port number on Windows
-        :param int debug: debug level
-        :param bool simulate_hw: if true operate without hardware connected
         """
-        # some private members
-        self.__comport = comport
-        self.__debug = debug
+        self.__debug = 3
         self.__className = self.__class__.__name__
-        self.simulate_hw = simulate_hw  # true if disconnected from hw
-        self.serial_rw_delay = 0.001  # is time between reads and writes
         self.__ser_is_configured = False
+
+        # maximum frequency of Novatech 409B when using PLL and external reference
+        self.__novatech409b_max_freq_with_pll = 171.1276031
 
         # setup logging
         FORMAT = "%(asctime)-15s %(message)s"
@@ -39,8 +35,27 @@ class Novatech409B:
         self.logger = logging.getLogger("artiq.driver.novatech409b")
         self.logger.setLevel(logging.DEBUG)
         self.debug_message("__init__", "", level=3)
+        print("novatech409b.init()")
+        self.serial_setup(comport, simulate_hw)
 
-        # establish serial connection --- platform dependent
+    def __del__(self):
+        if ((not self.simulate_hw) and self.__ser_is_configured):
+            self.__ser.close()
+
+    def serial_setup(self, comport=1, simulate_hw=False):
+        """
+        Do whatever is needed to setup serial communication with the device.
+
+        :param int comport: COM port number on Windows
+        :param bool simulate_hw: if true operate without hardware connected
+        """
+
+        # some private members
+        self.__comport = comport
+        self.simulate_hw = simulate_hw  # true if disconnected from hw
+        self.serial_rw_delay = 0.001  # is time between reads and writes
+
+                # establish serial connection --- platform dependent
         if not self.simulate_hw:
             self.__platform = platform.system()
             if self.__platform == "Windows":
@@ -61,12 +76,8 @@ class Novatech409B:
                 stopbits=1,
                 xonxoff=0,
                 timeout=0.05)
+            self.setup()
             self.__ser_is_configured = True
-        self.setup()
-
-    def __del__(self):
-        if ((not self.simulate_hw) and self.__ser_is_configured):
-            self.__ser.close()
 
     def echo(self, s):
         ss = "novatech409b.echo() :: " + s
@@ -200,6 +211,9 @@ class Novatech409B:
         else:
             self.ser_send("I a")
 
+        # TODO : per Robert's suggestion force users of this driver to call the routine themselves
+        # don't make it a hidden feature
+
     def set_freq(self, ch_no, freq):
         """set_freq(ch_no,freq):
         Set ch_no to frequency freq MHz"""
@@ -207,7 +221,7 @@ class Novatech409B:
         if ch_no < 0 or ch_no > 3:
             self.debug_message("set_freq","ch_no Error")
             sys.exit()
-        if freq < 0.0 or freq > 171.1276031:
+        if freq < 0.0 or freq > self.__novatech409b_max_freq_with_pll:
             self.debug_message("set_freq", "freq Error")
             sys.exit()
         # do this immediately, disable SimultaneousUpdate mode

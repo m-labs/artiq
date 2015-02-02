@@ -5,14 +5,14 @@ import argparse
 from artiq.protocols.pc_rpc import simple_server_loop
 import importlib
 import logging
-import artiq.devices.novatech409b
-importlib.reload(artiq.devices.novatech409b)
+import artiq.devices.novatech409b as novatech409b
+importlib.reload(novatech409b)
 
 
 # This is main loop for use as an ARTIQ driver.
 def get_argparser():
     parser = argparse.ArgumentParser(
-            description="novatech409b-controller",
+            description="novatech409b_controller",
             epilog="This is a m-labs.hk ARTIQ "
             "controller for a Novatech model 409B 4-channel DDS box. "
             "The hardware interface is a serial port. ")
@@ -46,8 +46,8 @@ def main():
 
     simple_server_loop(
         {"novatech409b":
-        novatech409B.Novatech409B(comport=args.serial_port,
-            debug=args.verbosity, simulate_hw=args.simulate_hw)},
+        novatech409b.Novatech409B(comport=args.serial_port,
+            simulate_hw=args.simulate_hw)},
             host=args.bind,
             port=args.port)
 
