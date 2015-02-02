@@ -47,7 +47,7 @@ class Example_ARTIQ_Device:
         self.logger.setLevel(logging_level)
 
         #Question: how do we handle the case where there's more than one instance of a device?
-        #For example, we use several novatech409B in the Penning lab. Do we want each to have its own
+        #For example, we use several novatech409b in the Penning lab. Do we want each to have its own
         #log?
         #Question: Why was logger a global variable in the lda code?
         #Question: Should there be a default class from which devices inherit? Such a class could include
@@ -118,7 +118,7 @@ class Example_ARTIQ_Device:
         # show how to raise an exception if the wrong Quantity is passed or a variable that is not of type
         # Quantity
 
-    def handle_exceptions(self, myvar):
+    def demo_exception_handling(self, myvar):
         """Example code that tells the device to do something specific. And throw an exception if it goes bad.
 
         :param int myvar: variable that modifies device behavior
@@ -126,12 +126,14 @@ class Example_ARTIQ_Device:
         """
         try:
             my_random_num = numpy.random.rand(1)[0]
-            if my_random_num > myvar:
+            if myvar < 0:
+                self.logger.error("argument must be greater than zero")
+            elif my_random_num > myvar:
                 # alert GUI that this has happened
                 # raise an ARTIQ specific exception here
                 self.logger.error("you're unlucky")
             else:
-                r = 1/0
+                r = myvar/0
         except ZeroDivisionError:
             #caught a divide by zero error; if it can be handled locally do that
             #if it can't be handeled locally throw it for another
