@@ -4,7 +4,7 @@ import struct
 import numpy.random
 from artiq.language.units import dB, check_unit, Quantity
 
-class Example_ARTIQ_Device:
+class ExampleARTIQDevice:
     """Example code demonstrating how to write an device controller for ARTIQ.
 
     What the class ought demonstrate was discussed

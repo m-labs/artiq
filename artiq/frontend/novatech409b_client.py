@@ -18,7 +18,7 @@ def restricted_float(val_min, val_max, x):
 
 def define_parser():
     parser = argparse.ArgumentParser(
-        description="novatech409b-client",
+        description="novatech409b_client",
         epilog="This is a m-labs.com ARTIQ "
         "client for a Novatech model 409B 4-channel DDS box. == "
         "The hardware interface is a serial port. == "

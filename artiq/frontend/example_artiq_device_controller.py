@@ -5,22 +5,20 @@ import argparse
 from artiq.protocols.pc_rpc import simple_server_loop
 import importlib
 import logging
-import novatech409B
-#importlib.reload(novatech409b)
+import artiq.devices.ExampleARTIQDevice
+importlib.reload(artiq.devices.ExampleARTIQDevice)
 
 
 def get_argparser():
     parser = argparse.ArgumentParser(
-            description="novatech409b-controller",
-            epilog="This is a m-labs.hk ARTIQ "
-            "controller for a Novatech model 409B 4-channel DDS box. "
-            "The hardware interface is a serial port. ")
+            description="example_artiq_device_controller",
+            epilog="This is a sample m-labs.hk ARTIQ "
+            "device controller.")
     parser.add_argument("--bind", default="::1",
                         help="hostname or IP address to bind to;"
                         "::1 is localhost")
     parser.add_argument("--port", default=3254, type=int,
-                        help="TCP port to listen to;"
-                        "Novatech default is 3254")
+                        help="TCP port to listen to")
     parser.add_argument("--simulate_hw", action="store_true",
                         help="simulate hardware so ARTIQ can be used"
                         "outside the lab")
@@ -52,7 +50,7 @@ def main():
     # start event loop
     simple_server_loop(
         {"example_artiq_device":
-        artiq.devices.example_artiq_device.Example_ARTIQ_Device(
+        artiq.devices.example_artiq_device.ExampleARTIQDevice(
             logging_level=args.verbosity,
             simulate_hw=args.simulate_hw,
             serial_port=args.port)},

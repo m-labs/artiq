@@ -1,1 +1,1 @@
-from .driver import Example_ARTIQ_Device
+from .driver import ExampleARTIQDevice
