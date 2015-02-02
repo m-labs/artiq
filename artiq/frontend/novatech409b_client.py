@@ -18,7 +18,7 @@ def restricted_float(val_min, val_max, x):
 
 def define_parser():
     parser = argparse.ArgumentParser(
-        description="novatech409B-client",
+        description="novatech409b-client",
         epilog="This is a m-labs.com ARTIQ "
         "client for a Novatech model 409B 4-channel DDS box. == "
         "The hardware interface is a serial port. == "
@@ -97,7 +97,7 @@ def _get_args():
 
 def main():
     args = _get_args()
-    remote = Client(args.bind, args.port, "novatech409B")
+    remote = Client(args.bind, args.port, "novatech409b")
     try:
         if args.verbose:
             print(args)

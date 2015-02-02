@@ -61,7 +61,7 @@ def _get_args():
 
 def main():
     args = _get_args()
-    remote = Client(args.bind, args.port, "novatech409B")
+    remote = Client(args.bind, args.port, "novatech409b")
     try:
         if args.verbose:
             print(args)

@@ -36,7 +36,7 @@ class Novatech409B:
         # setup logging
         FORMAT = "%(asctime)-15s %(message)s"
         logging.basicConfig(format=FORMAT)
-        self.logger = logging.getLogger("artiq.driver.novatech409B")
+        self.logger = logging.getLogger("artiq.driver.novatech409b")
         self.logger.setLevel(logging.DEBUG)
         self.debug_message("__init__", "", level=3)
 
@@ -69,7 +69,7 @@ class Novatech409B:
             self.__ser.close()
 
     def echo(self, s):
-        ss = "novatech409B.echo() :: " + s
+        ss = "novatech409b.echo() :: " + s
         self.debug_message("echo", ss)
         return ss
 
@@ -88,7 +88,7 @@ class Novatech409B:
             inferred_func_name = inspect.stack()[2][3]
             s = inferred_func_name + "() :: " + msg
             # here"s what a typical warnning message looks like:
-            # WARNING:ARTIQ.driver.novatech409B:
+            # WARNING:ARTIQ.driver.novatech409b:
             #      set_phase_continuous() :: M n
             self.logger.warning(s)
 
@@ -125,7 +125,7 @@ class Novatech409B:
             # to be bytes
             if not ignore_unusual_response:
                 if result != expected_response:
-                    print("ERROR :: novatech409B.ser_send() "
+                    print("ERROR :: novatech409b.ser_send() "
                         "response was {}".format(result))
                     return (result, expected_response)
                     sys.exit()

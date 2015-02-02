@@ -6,12 +6,12 @@ from artiq.protocols.pc_rpc import simple_server_loop
 import importlib
 import logging
 import novatech409B
-#importlib.reload(novatech409B)
+#importlib.reload(novatech409b)
 
 
 def get_argparser():
     parser = argparse.ArgumentParser(
-            description="novatech409B-controller",
+            description="novatech409b-controller",
             epilog="This is a m-labs.hk ARTIQ "
             "controller for a Novatech model 409B 4-channel DDS box. "
             "The hardware interface is a serial port. ")
