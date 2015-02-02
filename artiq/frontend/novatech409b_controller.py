@@ -5,8 +5,8 @@ import argparse
 from artiq.protocols.pc_rpc import simple_server_loop
 import importlib
 import logging
-import novatech409b
-importlib.reload(novatech409B)
+import artiq.devices.novatech409b
+importlib.reload(artiq.devices.novatech409b)
 
 
 # This is main loop for use as an ARTIQ driver.
