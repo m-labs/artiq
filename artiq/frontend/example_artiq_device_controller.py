@@ -5,6 +5,9 @@ import argparse
 from artiq.protocols.pc_rpc import simple_server_loop
 import importlib
 import logging
+
+from artiq.tools import verbosity_args, init_logger
+
 import artiq.devices.ExampleARTIQDevice
 importlib.reload(artiq.devices.ExampleARTIQDevice)
 
@@ -27,14 +30,11 @@ def get_argparser():
         default="/dev/ttyUSB0", type=str,
         help="serial port: on Windows an integer (e.g. 1),"
         "on Linux a device path (e.g. \"/dev/ttyUSB0\")")
-    parser.add_argument("--verbosity", type=int, default=1)
-    parser.add_argument("--log", type=int, default=30,
-                        help="set log level by verbosity: 50 is CRITICAL, 40 is ERROR, 30 is WARNING, 20 is INFO, 10 is DEBUG")
 
     # add additional commandline arguments here that might be needed to configure the device
     parser.add_argument("--myvar", type=int, default=0,
                        help="example user-defined parameter")
-
+    verbosity_args(parser)
     return parser
 
 def main():
@@ -46,12 +46,13 @@ def main():
 
     # get command line arguments using the standard python argparser library
     args = get_argparser().parse_args()
+    log_fmt = "%(asctime)-15s [%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
+    init_logger(args, format=log_fmt)
 
     # start event loop
     simple_server_loop(
         {"example_artiq_device":
         artiq.devices.example_artiq_device.ExampleARTIQDevice(
-            logging_level=args.verbosity,
             simulate_hw=args.simulate_hw,
             serial_port=args.port)},
             host=args.bind,

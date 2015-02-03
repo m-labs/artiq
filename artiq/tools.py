@@ -36,5 +36,5 @@ def verbosity_args(parser):
     group.add_argument("-q", "--quiet", default=0, action="count")
 
 
-def init_logger(args):
-    logging.basicConfig(level=logging.WARNING + args.quiet*10 - args.verbose*10)
+def init_logger(args, **kwargs):
+    logging.basicConfig(level=logging.WARNING + args.quiet*10 - args.verbose*10, **kwargs)
