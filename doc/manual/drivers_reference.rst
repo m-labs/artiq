@@ -40,6 +40,12 @@ Each driver is run in a separate "controller" that exposes a RPC interface (base
    :ref: artiq.frontend.lda_client.get_argparser
    :prog: lda_client
 
+:mod:`artiq.devices.novatech409B` module
+---------------------------------
+
+.. automodule:: artiq.devices.novatech409B.novatech409B
+    :members:
+
 Default TCP port list
 ---------------------
 
@@ -51,6 +57,8 @@ When writing a new driver, choose a free TCP port and add it to this list.
 | Master (notifications)   | 3250         |
 +--------------------------+--------------+
 | Master (control)         | 3251         |
++--------------------------+--------------+
+| Novatech 409B            | 3254         |
 +--------------------------+--------------+
 | PDQ2                     | 3252         |
 +--------------------------+--------------+

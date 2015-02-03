@@ -37,6 +37,8 @@ setup(
             "lda_controller=artiq.frontend.lda_controller:main",
             "pdq2_client=artiq.frontend.pdq2_client:main",
             "pdq2_controller=artiq.frontend.pdq2_controller:main",
+            "novatech409B_client=artiq.frontend.novatech409B_client:main",
+            "novatech409B_controller=artiq.frontend.novatech409B_controller:main",
         ],
     }
 )
