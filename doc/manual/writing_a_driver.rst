@@ -121,7 +121,12 @@ The program below exemplifies how to use logging: ::
 
     import argparse
     import logging
+
     from artiq.tools import verbosity_args, init_logger
+
+
+    # get a logger that prints the module name
+    logger = logging.getLogger(__name__)
 
 
     def get_argparser():
@@ -137,11 +142,11 @@ The program below exemplifies how to use logging: ::
         args = get_argparser().parse_args()
         init_logger(args) # This initializes logging system log level according to -v/-q args
 
-        logging.debug("this is a debug message")
-        logging.info("this is an info message")
-        logging.warning("this is a warning message")
-        logging.error("this is an error message")
-        logging.critical("this is a critical message")
+        logger.debug("this is a debug message")
+        logger.info("this is an info message")
+        logger.warning("this is a warning message")
+        logger.error("this is an error message")
+        logger.critical("this is a critical message")
 
     if __name__ == "__main__":
         main()
