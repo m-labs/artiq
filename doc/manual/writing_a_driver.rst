@@ -1,16 +1,52 @@
-Writing a driver
-================
+Writing an ARTIQ Device Driver
+==============================
 
-These instructions cover writing a simple driver for a "slow" device, that uses the controller mechanism.
+These instructions cover writing a simple driver for a "slow" peripheral device.
+A device driver consists primarily of three parts.
 
-The controller
---------------
+1. driver.py :: This file is where the low-level implementation details of the driver go. Things like
+opening a serial connection to a device and passing it arguments.  Choose a name for
+your driver with alphanumeric characters and underscore. For example,
+widget_233A.
 
-A controller is a piece of software that receives commands from a client over the network (or the ``localhost`` interface), drives a device, and returns information about the device to the client. The mechanism used is remote procedure calls (RPCs) using :class:`artiq.protocols.pc_rpc`, which makes the network layers transparent for the driver's user.
+2. widget_233A_client.py :: This file provides a command line interface to the device. Its
+an easy way to interact with the device without using the ARTIQ GUI.
 
-The controller we will develop is for a "device" that is very easy to work with: the console from which the controller is run. The operation that the driver will implement is writing a message to that console.
+3. widget_233A_controller.py :: The controller is a piece of software that receives
+commands destined for driver.py from a client. The client could be my_driver_client.py
+or it could be the ARTIQ GUI on another machine. The controller runs continuously in the
+background waiting for requests from clients.
 
-For using RPC, the functions that a driver provides must be the methods of a single object. We will thus define a class that provides our message-printing method: ::
+driver.py
+---------
+
+The low-level implementation of the driver goes here. To create a driver.py for your device
+perform the following steps. By convention the name of this file is driver.py (and nothing
+else).
+
+1. Copy everything in artiq/devices/example_artiq_device to a new directory:
+artiq/devices/widget_233A/.
+
+3. Following the template in artiq/devices/widget_233A/driver.py fill out the details of your driver. Note that the
+driver functionality is encapsulated in a class, e.g. Widget233A.
+
+4. Edit artiq/devices/widget_233A/__init__.py to reflect the path to your class.
+
+Controller Overview
+-------------------
+
+A controller is a piece of software that receives commands from a client over the network
+(or the ``localhost`` interface), drives a device, and returns information about the device
+to the client. The mechanism used is remote procedure calls (RPCs)
+using :class:`artiq.protocols.pc_rpc`, which makes the network layers transparent
+for the driver's user.
+
+The controller we will develop is for a "device" that is very easy to work with: the
+console from which the controller is run. The operation that the driver will implement
+is writing a message to that console.
+
+For using RPC, the functions that a driver provides must be the methods of a single
+object. We will thus define a class that provides our message-printing method: ::
 
     class Hello:
         def message(self, msg):
@@ -34,13 +70,13 @@ The parameters ``::1`` and ``3249`` are respectively the address to bind the ser
 
     #!/usr/bin/env python3
 
-at the beginning of the file, save it to ``hello_controller.py`` and set its execution permissions: ::
+at the beginning of the file, save it to ``controller.py`` and set its execution permissions: ::
 
-    $ chmod 755 hello_controller.py
+    $ chmod 755 controller.py
 
 Run it as: ::
 
-    $ ./hello_controller.py
+    $ ./controller.py
 
 and verify that you can connect to the TCP port: ::
 
@@ -56,12 +92,23 @@ Also verify that a target (service) named "hello" (as passed in the first argume
     $ artiq_ctlid.py ::1 3249
     Target(s):   hello
 
-The client
-----------
 
-Controller clients are small command-line utilities that expose certain functionalities of the drivers. They are optional, and not used very often - typically for debugging and testing.
+widget_233A_controller.py
+-------------------------
+Use the following steps to create a controller that works with the ARTIQ ecosystem.
+1. Copy artiq/frontend/example_artiq_device_controller.py to
+artiq/frontend/widget_233A_controller.py.
+2. With the Controller Overview in mind follow the instructions in the example code
+to flesh out the behavior of a controller for your device.
 
-Create a ``hello_client.py`` file with the following contents: ::
+Client Overview
+---------------
+
+Controller clients are small command-line utilities that expose certain
+functionalities of the drivers.  It's an easy way to interact with the device
+without using the ARTIQ GUI.
+
+Create a ``client.py`` file with the following contents: ::
 
     #!/usr/bin/env python3
 
@@ -78,21 +125,30 @@ Create a ``hello_client.py`` file with the following contents: ::
     if __name__ == "__main__":
         main()
 
-Run it as before, while the controller is running. You should see the message appearing on the controller's terminal: ::
+Run it as before, while the controller is running. You should see the message appearing
+on the controller's terminal: ::
 
-    $ ./hello_controller.py
+    $ ./controller.py
     message: Hello World!
 
-When using the driver in an experiment, for simple cases the ``Client`` instance can be returned by the :class:`artiq.language.db.AutoDB` mechanism and used normally as a device.
+When using the driver in an experiment, for simple cases the ``Client`` instance can
+be returned by the :class:`artiq.language.db.AutoDB` mechanism and used normally as
+a device.
 
-:warning: RPC servers operate on copies of objects provided by the client, and modifications to mutable types are not written back. For example, if the client passes a list as a parameter of an RPC method, and that method ``append()s`` an element to the list, the element is not appended to the client's list.
+:warning: RPC servers operate on copies of objects provided by the client, and
+    modifications to mutable types are not written back. For example, if the
+    client passes a list as a parameter of an RPC method, and that method
+    ``append()s`` an element to the list, the element is not appended to the
+    client's list.
 
-Command-line arguments
-----------------------
+The driver's controller should be saved in
+~/artiq-dev/artiq/artiq/devices/driver_name/client.py.
 
-Use the Python ``argparse`` module to make the bind address and port configurable on the controller, and the server address, port and message configurable on the client.
+Use the Python ``argparse`` module to make the bind address and port configurable on the controller, and the server
+address, port and message configurable on the client.
 
-We suggest naming the controller parameters ``--bind`` and ``--port`` so that those parameters stay consistent across controller, and use ``-s/--server`` and ``--port`` on the client.
+We suggest naming the controller parameters ``--bind`` and ``--port`` so that those parameters stay consistent across
+controller, and use ``-s/--server`` and ``--port`` on the client.
 
 The controller's code would contain something similar to this: ::
 
@@ -146,6 +202,45 @@ The program below exemplifies how to use logging: ::
     if __name__ == "__main__":
         main()
 
+The driver's server should be saved in ~/artiq-dev/artiq/artiq/devices/driver_name/server.py.
+
+widget_233A_client.py
+---------------------
+Use the following steps to create a client that works with the ARTIQ ecosystem.
+1. Copy artiq/frontend/example_artiq_device_client.py to
+artiq/frontend/widget_233A_client.py.
+2. With the Client Overview in mind follow the instructions in the example code
+to flesh out the behavior of a client for your device.
+
+setup.py
+--------
+Edit the entry_points section of setup.py to point to your client and controller following
+the model set by example_artiq_device_client and example_artiq_device_controller.
+
+Device Manager Udev Rules
+-------------------------
+On Linux systems udev is the device manager. It manages device nodes in /dev. ARTIQ drivers
+often interface with instruments that have USB-Serial interfaces. Normally these devices
+are assigned device nodes on an ad hock basis by the kernel (e.g. /dev/ttyUSB3); the
+assignment is not deterministic. It is convenient
+for device node names to be consistent for each device (e.g. /dev/artiq_ppro). This can be accomplished
+by creating a udev rule (https://wiki.archlinux.org/index.php/udev).
+
+ * Get a list of device attributes. ::
+
+        $udevadm info -a  /dev/ttyUSB2
+
+ *force reloading of udev
+    $ sudo udevadm control --reload; udevadm trigger
+
+        $ sudo vim /etc/udev/rules.d/30-usb-papilio-pro.rules
+        SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6010", ATTRS{manufacturer}=="FTDI",
+        ATTRS{manufacturer}=="FTDI", GROUP="plugdev", SYMLINK+="artiq_ppro"
+
+ * To confirm that everything is wroking, force reloading of udev. Then disconnect and reconnect
+    the serial device. ::
+
+        $ sudo udevadm control --reload; udevadm trigger
 
 General guidelines
 ------------------
