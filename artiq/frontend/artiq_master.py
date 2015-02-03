@@ -3,6 +3,7 @@
 import asyncio
 import argparse
 import atexit
+import os
 
 from artiq.protocols.pc_rpc import Server
 from artiq.protocols.sync_struct import Publisher
@@ -40,7 +41,11 @@ def main():
     repository = Repository()
     explist = FlatFileDB("explist.pyon")
 
-    loop = asyncio.get_event_loop()
+    if os.name == 'nt':
+        loop = asyncio.ProactorEventLoop()
+        asyncio.set_event_loop(loop)
+    else:
+        loop = asyncio.get_event_loop()
     atexit.register(lambda: loop.close())
 
     def run_cb(rid, run_params):
