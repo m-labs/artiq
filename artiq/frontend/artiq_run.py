@@ -12,7 +12,7 @@ from artiq.language.db import *
 from artiq.protocols import pyon
 from artiq.protocols.file_db import FlatFileDB
 from artiq.master.db import DBHub, ResultDB
-from artiq.tools import file_import
+from artiq.tools import file_import, verbosity_args, init_logger
 
 
 class ELFRunner(AutoDB):
@@ -37,6 +37,7 @@ def get_argparser():
     parser = argparse.ArgumentParser(
         description="Local experiment running tool")
 
+    verbosity_args(parser)
     parser.add_argument("-d", "--ddb", default="ddb.pyon",
                         help="device database file")
     parser.add_argument("-p", "--pdb", default="pdb.pyon",
@@ -67,6 +68,7 @@ def _parse_arguments(arguments):
 
 def main():
     args = get_argparser().parse_args()
+    init_logger(args)
 
     ddb = FlatFileDB(args.ddb)
     pdb = FlatFileDB(args.pdb)
