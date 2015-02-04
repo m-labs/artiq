@@ -59,21 +59,13 @@ class ParametersWindow(Window):
 
     @asyncio.coroutine
     def sub_connect(self, host, port):
-        self.parameters_subscriber = Subscriber("parameters",
-                                                self.init_parameters_store)
-        yield from self.parameters_subscriber.connect(host, port)
-        try:
-            self.lastchanges_subscriber = Subscriber(
-                "parameters_simplehist", self.init_lastchanges_store)
-            yield from self.lastchanges_subscriber.connect(host, port)
-        except:
-            yield from self.parameters_subscriber.close()
-            raise
+        self.lastchanges_subscriber = Subscriber(
+            "parameters_simplehist", self.init_lastchanges_store)
+        yield from self.lastchanges_subscriber.connect(host, port)
 
     @asyncio.coroutine
     def sub_close(self):
         yield from self.lastchanges_subscriber.close()
-        yield from self.parameters_subscriber.close()
 
     def init_parameters_store(self, init):
         return _ParameterStoreSyncer(self.parameters_store, init)

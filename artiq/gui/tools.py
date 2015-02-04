@@ -79,9 +79,7 @@ class ListSyncer:
 
 
 class DictSyncer:
-    def __init__(self, store, init, keep_data=False):
-        if keep_data:
-            self.data = init
+    def __init__(self, store, init):
         self.store = store
         self.store.clear()
         self.order = []
@@ -115,8 +113,6 @@ class DictSyncer:
         self.order.insert(j, (key, ord_el))
 
     def __delitem__(self, key):
-        if hasattr(self, "data"):
-            del self.data[key]
         i = self._find_index(key)
         del self.store[i]
         del self.order[i]

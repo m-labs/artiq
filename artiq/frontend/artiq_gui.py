@@ -9,6 +9,7 @@ from gi.repository import Gtk
 
 from artiq.protocols.file_db import FlatFileDB
 from artiq.protocols.pc_rpc import AsyncioClient
+from artiq.protocols.sync_struct import Subscriber
 from artiq.gui.tools import LayoutManager
 from artiq.gui.scheduler import SchedulerWindow
 from artiq.gui.parameters import ParametersWindow
@@ -66,6 +67,13 @@ def main():
         args.server, args.port_notify))
     atexit.register(
         lambda: loop.run_until_complete(parameters_win.sub_close()))
+
+    parameters_sub = Subscriber("parameters",
+                                parameters_win.init_parameters_store)
+    loop.run_until_complete(
+        parameters_sub.connect(args.server, args.port_notify))
+    atexit.register(
+        lambda: loop.run_until_complete(parameters_sub.close()))
 
     def exit(*args):
         lmgr.save()

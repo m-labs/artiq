@@ -88,7 +88,8 @@ class ExplorerWindow(Window):
     @asyncio.coroutine
     def sub_connect(self, host, port):
         self.explist_subscriber = Subscriber("explist",
-                                             self.init_explist_store)
+                                             [self.init_explist_store,
+                                              self.init_explist_data])
         yield from self.explist_subscriber.connect(host, port)
 
     @asyncio.coroutine
@@ -102,14 +103,16 @@ class ExplorerWindow(Window):
         self.pane_contents.show_all()
 
     def init_explist_store(self, init):
-        self.explist_syncer = _ExplistStoreSyncer(self.explist_store, init,
-                                                  keep_data=True)
-        return self.explist_syncer
+        return _ExplistStoreSyncer(self.explist_store, init)
+
+    def init_explist_data(self, init):
+        self.explist_data = init
+        return init
 
     def explist_row_activated(self, widget, index, column):
         self.controls = None
         name = self.explist_store[index][0]
-        gui_file = self.explist_syncer.data[name]["gui_file"]
+        gui_file = self.explist_data[name]["gui_file"]
         if gui_file is None:
             self.set_pane_contents(Gtk.Label("No GUI controls"))
         else:
@@ -128,7 +131,7 @@ class ExplorerWindow(Window):
         store, selected = self.explist_tree.get_selection().get_selected()
         if selected is not None:
             name = store[selected][0]
-            data = self.explist_syncer.data[name]
+            data = self.explist_data[name]
             if self.controls is None:
                 arguments = {}
             else:
