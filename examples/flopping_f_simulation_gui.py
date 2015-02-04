@@ -1,17 +1,18 @@
-import asyncio
-
-from gi.repository import Gtk
+from artiq.gui.explib import GladeControls
 
 
-class Controls:
-    @asyncio.coroutine
-    def build(self, get_data):
-        self.builder = Gtk.Builder()
-        data = yield from get_data("flopping_f_simulation_gui.glade")
-        self.builder.add_from_string(data)
+class Controls(GladeControls):
+    def __init__(self, facilities):
+        GladeControls.__init__(self, facilities,
+                               "flopping_f_simulation_gui.glade")
 
-    def get_top_widget(self):
-        return self.builder.get_object("top")
+    def finalize(self):
+        getparam = self.builder.get_object("getparam")
+        getparam.connect("clicked", self.getparam)
+
+    def getparam(self, widget):
+        F0 = self.facilities.get_parameter("flopping_freq")
+        self.builder.get_object("F0").set_value(F0)
 
     def get_arguments(self):
         return {

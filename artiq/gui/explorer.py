@@ -1,4 +1,5 @@
 import asyncio
+import types
 
 from gi.repository import Gtk
 
@@ -96,6 +97,10 @@ class ExplorerWindow(Window):
     def sub_close(self):
         yield from self.explist_subscriber.close()
 
+    def init_parameters_dict(self, init):
+        self.parameters = init
+        return init
+
     def set_pane_contents(self, widget):
         self.pane_contents.destroy()
         self.pane_contents = widget
@@ -123,8 +128,11 @@ class ExplorerWindow(Window):
         gui_mod_data = yield from self.repository.get_data(gui_file)
         gui_mod = dict()
         exec(gui_mod_data, gui_mod)
-        self.controls = gui_mod["Controls"]()
-        yield from self.controls.build(self.repository.get_data)
+        facilities = types.SimpleNamespace(
+            get_data=self.repository.get_data,
+            get_parameter=lambda p: self.parameters[p])
+        self.controls = gui_mod["Controls"](facilities)
+        yield from self.controls.build()
         self.set_pane_contents(self.controls.get_top_widget())
 
     def run(self, widget):

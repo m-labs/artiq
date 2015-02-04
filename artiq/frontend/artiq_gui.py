@@ -68,13 +68,6 @@ def main():
     atexit.register(
         lambda: loop.run_until_complete(parameters_win.sub_close()))
 
-    parameters_sub = Subscriber("parameters",
-                                parameters_win.init_parameters_store)
-    loop.run_until_complete(
-        parameters_sub.connect(args.server, args.port_notify))
-    atexit.register(
-        lambda: loop.run_until_complete(parameters_sub.close()))
-
     def exit(*args):
         lmgr.save()
         Gtk.main_quit(*args)
@@ -87,6 +80,15 @@ def main():
         args.server, args.port_notify))
     atexit.register(
         lambda: loop.run_until_complete(explorer_win.sub_close()))
+
+    parameters_sub = Subscriber("parameters",
+                                [parameters_win.init_parameters_store,
+                                 explorer_win.init_parameters_dict])
+    loop.run_until_complete(
+        parameters_sub.connect(args.server, args.port_notify))
+    atexit.register(
+        lambda: loop.run_until_complete(parameters_sub.close()))
+
     scheduler_win.show_all()
     parameters_win.show_all()
     explorer_win.show_all()
