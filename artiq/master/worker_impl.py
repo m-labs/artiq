@@ -2,6 +2,8 @@ import sys
 from inspect import isclass
 import traceback
 
+import h5py
+
 from artiq.protocols import pyon
 from artiq.tools import file_import
 from artiq.language.db import AutoDB
@@ -101,6 +103,13 @@ def run(obj):
                         "status": "ok"})
     finally:
         dbh.close()
+
+    filename = obj["file"] + ".h5"
+    f = h5py.File(filename, "w")
+    try:
+        rdb.write_hdf5(f)
+    finally:
+        f.close()
 
 
 def main():
