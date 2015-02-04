@@ -32,8 +32,10 @@ def file_import(filename):
 
 def verbosity_args(parser):
     group = parser.add_argument_group("verbosity")
-    group.add_argument("-v", "--verbose", default=0, action="count")
-    group.add_argument("-q", "--quiet", default=0, action="count")
+    group.add_argument("-v", "--verbose", default=0, action="count",
+                       help="increase logging level")
+    group.add_argument("-q", "--quiet", default=0, action="count",
+                       help="decrease logging level")
 
 
 def init_logger(args):
