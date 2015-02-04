@@ -41,7 +41,7 @@ def main():
     repository = Repository()
     explist = FlatFileDB("explist.pyon")
 
-    if os.name == 'nt':
+    if os.name == "nt":
         loop = asyncio.ProactorEventLoop()
         asyncio.set_event_loop(loop)
     else:
