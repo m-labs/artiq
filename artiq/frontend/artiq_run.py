@@ -6,6 +6,8 @@ from inspect import isclass
 from operator import itemgetter
 from itertools import chain
 
+import h5py
+
 from artiq.language.db import *
 from artiq.protocols import pyon
 from artiq.protocols.file_db import FlatFileDB
@@ -44,6 +46,9 @@ def get_argparser():
                         help="run ELF binary")
     parser.add_argument("-u", "--unit", default=None,
                         help="unit to run")
+    parser.add_argument("-o", "--hdf5", default=None,
+                        help="write results to specified HDF5 file"
+                             " (default: print them)")
     parser.add_argument("file",
                         help="file containing the unit to run")
     parser.add_argument("arguments", nargs="*",
@@ -107,11 +112,18 @@ def main():
             unit_inst = unit(dbh, **arguments)
             unit_inst.run()
 
-            if rdb.data.read or rdb.realtime_data.read:
-                print("Results:")
-                for k, v in chain(rdb.realtime_data.read.items(),
-                                  rdb.data.read.items()):
-                    print("{}: {}".format(k, v))
+            if args.hdf5 is not None:
+                f = h5py.File(args.hdf5, "w")
+                try:
+                    rdb.write_hdf5(f)
+                finally:
+                    f.close()
+            else:
+                if rdb.data.read or rdb.realtime_data.read:
+                    print("Results:")
+                    for k, v in chain(rdb.realtime_data.read.items(),
+                                      rdb.data.read.items()):
+                        print("{}: {}".format(k, v))
     finally:
         dbh.close()
 
