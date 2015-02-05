@@ -8,7 +8,7 @@ env:
     - CC=gcc-4.7
     - CXX=g++-4.7
     - ARTIQ_NO_HARDWARE=1
-    - secure: DgApzqX7Hidh+CVYVGDvXXc/a/SsF22t18YDx0KNqRKNQMBdeMEfAWMI1kXnPPxazItV4nljvrwOWaPaTY6wlJvV2r1W90zJsN8UVP8cMt2CudUiKBVRGvmr4Z6zhkifaEfzX9pLoCmHhLVyUjGlXPd0dC8GJVROp11FZm1l+rM=
+    - secure: "DUk/Ihg8KbbzEgPF0qrHqlxU8e8eET9i/BtzNvFddIGX4HP/P2qz0nk3cVkmjuWhqJXSbC22RdKME9qqPzw6fJwJ6dpJ3OR6dDmSd7rewavq+niwxu52PVa+yK8mL4yf1terM7QQ5tIRf+yUL9qGKrZ2xyvEuRit6d4cFep43Ws="
 before_install:
   - ./.travis/get-toolchain.sh
   - ./.travis/get-xilinx.sh
