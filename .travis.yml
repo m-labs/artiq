@@ -35,7 +35,7 @@ notifications:
   email: false
   irc:
     channels:
-      - chat.freenode.net#nist-ionstorage
+      - chat.freenode.net#m-labs
   webhooks:
     urls:
       - https://webhooks.gitter.im/e/d26782523952bfa53814
