@@ -1,13 +1,11 @@
-import asyncio
-
-from gi.repository import Gtk
+import asyncio as _aio
 
 
 class BaseControls:
     def __init__(self, facilities):
         self.facilities = facilities
 
-    @asyncio.coroutine
+    @_aio.coroutine
     def build(self):
         self.finalize()
 
@@ -21,8 +19,13 @@ class GladeControls(BaseControls):
         self.glade_file = glade_file
         self.top_widget_name = top_widget_name
 
-    @asyncio.coroutine
+    @_aio.coroutine
     def build(self):
+        # lazy import GTK so that the artiq top-level
+        # (which imports from us) can be imported on systems
+        # without GTK installed
+        from gi.repository import Gtk
+
         self.builder = Gtk.Builder()
         data = yield from self.facilities.get_data(self.glade_file)
         self.builder.add_from_string(data)

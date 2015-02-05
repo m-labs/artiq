@@ -1,4 +1,4 @@
-from artiq.gui.explib import GladeControls
+from artiq import GladeControls
 
 
 class Controls(GladeControls):
