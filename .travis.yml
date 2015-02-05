@@ -12,7 +12,7 @@ env:
 before_install:
   - ./.travis/get-toolchain.sh
   - ./.travis/get-xilinx.sh
-  - ./.travis/get-anaconda.sh pip coverage numpy scipy sphinx
+  - ./.travis/get-anaconda.sh pip coverage numpy scipy sphinx h5py pyserial dateutil
   - source $HOME/miniconda/bin/activate py34
   - sudo apt-get install --force-yes -y iverilog
   - pip install --src . -e 'git+https://github.com/m-labs/migen.git@master#egg=migen'
