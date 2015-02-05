@@ -25,7 +25,7 @@ install:
   - pip install -e .
 script:
   - coverage run --source=artiq setup.py test
-  - make -C doc/manual html || true
+  - make -C doc/manual html
   - cd misoc; python make.py -X ../soc -t artiq build-headers build-bios; cd ..
   - make -C soc/runtime
   - cd misoc; python make.py -X ../soc -t artiq build-bitstream; cd ..
