@@ -16,6 +16,21 @@
 import sys
 import os
 
+from unittest.mock import MagicMock
+
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+            return Mock()
+
+
+mock_modules = ["gbulb", "gi", "gi.repository", "cairoplot", "matplotlib"]
+
+for module in mock_modules:
+    sys.modules[module] = Mock()
+
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
