@@ -8,17 +8,16 @@ env:
     - CC=gcc-4.7
     - CXX=g++-4.7
     - ARTIQ_NO_HARDWARE=1
+    - BUILD_SOC=0
     - secure: "DUk/Ihg8KbbzEgPF0qrHqlxU8e8eET9i/BtzNvFddIGX4HP/P2qz0nk3cVkmjuWhqJXSbC22RdKME9qqPzw6fJwJ6dpJ3OR6dDmSd7rewavq+niwxu52PVa+yK8mL4yf1terM7QQ5tIRf+yUL9qGKrZ2xyvEuRit6d4cFep43Ws="
 before_install:
+  - if echo "$TRAVIS_COMMIT_MSG" | grep -q "\[soc\]"; then BUILD_SOC=1; fi
+  - if [ $TRAVIS_PULL_REQUEST != false ]; then BUILD_SOC=0; fi
   - ./.travis/get-toolchain.sh
-  - ./.travis/get-xilinx.sh
+  - if [ $BUILD_SOC -ne 0 ]; then ./.travis/get-xilinx.sh; fi
   - ./.travis/get-anaconda.sh pip coverage numpy scipy sphinx h5py pyserial dateutil
   - source $HOME/miniconda/bin/activate py34
-  - sudo apt-get install --force-yes -y iverilog
-  - pip install --src . -e 'git+https://github.com/m-labs/migen.git@master#egg=migen'
-  - mkdir vpi
-  - iverilog-vpi --name=vpi/migensim migen/vpi/main.c migen/vpi/ipc.c
-  - git clone --recursive https://github.com/m-labs/misoc
+  - ./.travis/get-misoc.sh
   - pip install --src . -e 'git+https://github.com/nist-ionstorage/llvmlite.git@artiq#egg=llvmlite'
   - pip install coveralls
 install:
@@ -28,7 +27,7 @@ script:
   - make -C doc/manual html
   - cd misoc; python make.py -X ../soc -t artiq build-headers build-bios; cd ..
   - make -C soc/runtime
-  - cd misoc; python make.py -X ../soc -t artiq build-bitstream; cd ..
+  - if [ $BUILD_SOC -ne 0 ]; then cd misoc; python make.py -X ../soc -t artiq build-bitstream; cd ..; fi
 after_success:
   coveralls
 notifications:
@@ -36,6 +35,9 @@ notifications:
   irc:
     channels:
       - chat.freenode.net#m-labs
+    template:
+      - "%{repository}#%{build_number} (%{branch} - %{commit} : %{author}): %{message}"
+      - "Build details : %{build_url}"
   webhooks:
     urls:
       - https://webhooks.gitter.im/e/d26782523952bfa53814
