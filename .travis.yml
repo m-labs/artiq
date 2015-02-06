@@ -15,11 +15,7 @@ before_install:
   - ./.travis/get-xilinx.sh
   - ./.travis/get-anaconda.sh pip coverage numpy scipy sphinx h5py pyserial dateutil
   - source $HOME/miniconda/bin/activate py34
-  - sudo apt-get install --force-yes -y iverilog
-  - pip install --src . -e 'git+https://github.com/m-labs/migen.git@master#egg=migen'
-  - mkdir vpi
-  - iverilog-vpi --name=vpi/migensim migen/vpi/main.c migen/vpi/ipc.c
-  - git clone --recursive https://github.com/m-labs/misoc
+  - ./.travis/get-misoc.sh
   - pip install --src . -e 'git+https://github.com/nist-ionstorage/llvmlite.git@artiq#egg=llvmlite'
   - pip install coveralls
 install:
