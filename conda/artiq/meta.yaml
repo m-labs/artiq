@@ -33,6 +33,8 @@ requirements:
         - prettytable
         - pyserial
         - sphinx
+        - h5py
+        - dateutil
         - gbulb-artiq # [not win]
         - cairoplot3-artiq # [not win]
 
