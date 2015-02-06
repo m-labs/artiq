@@ -28,8 +28,15 @@ def get_argparser():
 
 
 class Controllers:
+    def __init__(self):
+        self.host_filter = None
+
     def __setitem__(self, k, v):
-        print("set {} {}".format(k, v))
+        if (isinstance(v, dict) and v["type"] == "controller"
+                and v["host"] == self.host_filter):
+            command = v["command"].format(bind=self.host_filter,
+                                          port=v["port"])
+            print("start controller {}: {}".format(k, command))
 
     def __delitem__(self, k):
         print("del {}".format(k))
@@ -64,8 +71,13 @@ def main():
         subscriber = Subscriber("devices", controller_db.sync_struct_init)
         while True:
             try:
+                def set_host_filter():
+                    s = subscriber.writer.get_extra_info("socket")
+                    localhost = s.getsockname()[0]
+                    controller_db.current_controllers.host_filter = localhost
                 loop.run_until_complete(
-                    subscriber.connect(args.server, args.port))
+                    subscriber.connect(args.server, args.port,
+                                       set_host_filter))
                 try:
                     loop.run_until_complete(subscriber.receive_task)
                 finally:
