@@ -4,6 +4,14 @@ from setuptools import setup, find_packages
 import os
 
 
+requirements = [
+                "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
+                "python-dateutil", "prettytable", "h5py"
+               ]
+if os.name != 'nt':
+    requirements += ["pygobject", "gbulb", "cairoplot"]
+
+
 setup(
     name="artiq",
     version="0.0+dev",
@@ -13,12 +21,12 @@ setup(
     description="A control system for trapped-ion experiments",
     long_description=open("README.rst").read(),
     license="BSD",
-    install_requires=[
-        "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
-        "python-dateutil", "prettytable", "h5py"
-    ],
+    install_requires=requirements,
     extras_require={},
-    dependency_links=[],
+    dependency_links=[
+        "git+https://github.com/m-labs/gbulb.git#egg=gbulb",
+        "git+https://github.com/m-labs/cairoplot3.git#egg=cairoplot"
+    ],
     packages=find_packages(),
     namespace_packages=[],
     test_suite="artiq.test",
