@@ -8,8 +8,23 @@ requirements = [
                 "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
                 "python-dateutil", "prettytable", "h5py"
                ]
-if os.name != 'nt':
+scripts = [
+           "artiq_client=artiq.frontend.artiq_client:main",
+           "artiq_ctlid=artiq.frontend.artiq_ctlid:main",
+           "artiq_ctlmgr=artiq.frontend.artiq_ctlmgr:main",
+           "artiq_master=artiq.frontend.artiq_master:main",
+           "artiq_run=artiq.frontend.artiq_run:main",
+           "lda_client=artiq.frontend.lda_client:main",
+           "lda_controller=artiq.frontend.lda_controller:main",
+           "pdq2_client=artiq.frontend.pdq2_client:main",
+           "pdq2_controller=artiq.frontend.pdq2_controller:main",
+          ]
+
+if os.getenv("ARTIQ_GUI") == "1":
     requirements += ["pygobject", "gbulb", "cairoplot"]
+    scripts += [
+                "artiq_gui=artiq.frontend.artiq_gui:main"
+               ]
 
 
 setup(
@@ -33,17 +48,6 @@ setup(
     package_data={"artiq": [os.path.join("gui", "icon.png")]},
     ext_modules=[],
     entry_points={
-        "console_scripts": [
-            "artiq_client=artiq.frontend.artiq_client:main",
-            "artiq_ctlid=artiq.frontend.artiq_ctlid:main",
-            "artiq_ctlmgr=artiq.frontend.artiq_ctlmgr:main",
-            "artiq_gui=artiq.frontend.artiq_gui:main",
-            "artiq_master=artiq.frontend.artiq_master:main",
-            "artiq_run=artiq.frontend.artiq_run:main",
-            "lda_client=artiq.frontend.lda_client:main",
-            "lda_controller=artiq.frontend.lda_controller:main",
-            "pdq2_client=artiq.frontend.pdq2_client:main",
-            "pdq2_controller=artiq.frontend.pdq2_controller:main",
-        ],
+        "console_scripts": scripts,
     }
 )
