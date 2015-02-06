@@ -10,6 +10,7 @@ env:
     - ARTIQ_NO_HARDWARE=1
     - secure: "DUk/Ihg8KbbzEgPF0qrHqlxU8e8eET9i/BtzNvFddIGX4HP/P2qz0nk3cVkmjuWhqJXSbC22RdKME9qqPzw6fJwJ6dpJ3OR6dDmSd7rewavq+niwxu52PVa+yK8mL4yf1terM7QQ5tIRf+yUL9qGKrZ2xyvEuRit6d4cFep43Ws="
 before_install:
+  - echo "$TRAVIS_COMMIT_MSG" | grep -vq "\[soc\]"; export SOC=$?; true
   - ./.travis/get-toolchain.sh
   - ./.travis/get-xilinx.sh
   - ./.travis/get-anaconda.sh pip coverage numpy scipy sphinx h5py pyserial dateutil
@@ -28,7 +29,7 @@ script:
   - make -C doc/manual html
   - cd misoc; python make.py -X ../soc -t artiq build-headers build-bios; cd ..
   - make -C soc/runtime
-  - cd misoc; python make.py -X ../soc -t artiq build-bitstream; cd ..
+  - if [ $SOC -ne 0 ]; then cd misoc python make.py -X ../soc -t artiq build-bitstream; cd ..; fi
 after_success:
   coveralls
 notifications:
