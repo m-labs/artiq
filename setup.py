@@ -28,6 +28,7 @@ setup(
         "console_scripts": [
             "artiq_client=artiq.frontend.artiq_client:main",
             "artiq_ctlid=artiq.frontend.artiq_ctlid:main",
+            "artiq_ctlmgr=artiq.frontend.artiq_ctlmgr:main",
             "artiq_gui=artiq.frontend.artiq_gui:main",
             "artiq_master=artiq.frontend.artiq_master:main",
             "artiq_run=artiq.frontend.artiq_run:main",

@@ -21,3 +21,10 @@ GUI client
 .. argparse::
    :ref: artiq.frontend.artiq_gui.get_argparser
    :prog: artiq_gui
+
+Controller manager
+------------------
+
+.. argparse::
+   :ref: artiq.frontend.artiq_ctlmgr.get_argparser
+   :prog: artiq_ctlmgr
