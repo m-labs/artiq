@@ -38,5 +38,5 @@ def verbosity_args(parser):
                        help="decrease logging level")
 
 
-def init_logger(args):
-    logging.basicConfig(level=logging.WARNING + args.quiet*10 - args.verbose*10)
+def init_logger(args, **kwargs):
+    logging.basicConfig(level=logging.WARNING + args.quiet*10 - args.verbose*10, **kwargs)

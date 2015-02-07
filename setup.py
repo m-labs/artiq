@@ -44,6 +44,8 @@ setup(
             "lda_controller=artiq.frontend.lda_controller:main",
             "pdq2_client=artiq.frontend.pdq2_client:main",
             "pdq2_controller=artiq.frontend.pdq2_controller:main",
+            "example_artiq_device_client=artiq.frontend.example_artiq_device_client:main",
+            "example_artiq_device_controller=example_artiq_device_controller:main"
         ],
     }
 )
