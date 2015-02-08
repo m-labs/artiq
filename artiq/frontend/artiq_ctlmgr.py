@@ -113,6 +113,12 @@ class Controllers:
         for name in set(self.active_or_queued):
             del self[name]
 
+    @asyncio.coroutine
+    def shutdown(self):
+        self.process_task.cancel()
+        for c in self.active.values():
+            yield from c.end()
+
 
 class ControllerDB:
     def __init__(self, retry_command):
@@ -153,21 +159,31 @@ def ctlmgr(server, port, retry_master, retry_command):
                 logger.warning("Connection to master lost")
             logger.warning("Retrying in %.1f seconds", retry_master)
             yield from asyncio.sleep(retry_master)
+    except asyncio.CancelledError:
+        pass
     finally:
-        controller_db.current_controllers.delete_all()
+        yield from controller_db.current_controllers.shutdown()
 
 
 def main():
     args = get_argparser().parse_args()
     init_logger(args)
+
     if os.name == "nt":
         loop = asyncio.ProactorEventLoop()
         asyncio.set_event_loop(loop)
     else:
         loop = asyncio.get_event_loop()
+
     try:
-        loop.run_until_complete(ctlmgr(args.server, args.port,
-                                       args.retry_master, args.retry_command))
+        task = asyncio.Task(ctlmgr(
+            args.server, args.port, args.retry_master, args.retry_command))
+        try:
+            loop.run_forever()
+        finally:
+            task.cancel()
+            loop.run_until_complete(asyncio.wait_for(task, None))
+
     finally:
         loop.close()
 
