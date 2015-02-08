@@ -47,9 +47,13 @@ class Controller:
             while True:
                 logger.info("Starting controller %s with command: %s",
                             name, command)
-                process = yield from asyncio.create_subprocess_exec(*command.split())
-                yield from asyncio.shield(process.wait())
-                logger.warning("Controller %s exited", name)
+                try:
+                    process = yield from asyncio.create_subprocess_exec(*command.split())
+                    yield from asyncio.shield(process.wait())
+                except FileNotFoundError:
+                    logger.warning("Controller %s failed to start", name)
+                else:
+                    logger.warning("Controller %s exited", name)
                 logger.warning("Restarting in %.1f seconds", retry)
                 yield from asyncio.sleep(retry)
         except asyncio.CancelledError:
