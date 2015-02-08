@@ -5,6 +5,7 @@ import argparse
 import os
 import logging
 import signal
+import shlex
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.tools import verbosity_args, init_logger
@@ -48,7 +49,8 @@ class Controller:
                 logger.info("Starting controller %s with command: %s",
                             name, command)
                 try:
-                    process = yield from asyncio.create_subprocess_exec(*command.split())
+                    process = yield from asyncio.create_subprocess_exec(
+                        *shlex.split(command))
                     yield from asyncio.shield(process.wait())
                 except FileNotFoundError:
                     logger.warning("Controller %s failed to start", name)
