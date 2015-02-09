@@ -149,11 +149,30 @@ Installing the host-side software
 .. note::
     Compilation of LLVM can take more than 30 min on some machines.
 
-* Install ARTIQ: ::
+* Install ARTIQ (without the GUI): ::
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/m-labs/artiq # if not already done
+        $ cd artiq
         $ python3 setup.py develop --user
+
+* Install ARTIQ (with the GUI): ::
+
+        $ cd ~/artiq-dev
+        $ git clone https://github.com/m-labs/cairoplot3
+        $ cd cairoplot3
+        $ python3 setup.py install --user
+        $ cd -
+        $ git clone https://github.com/m-labs/gbulb
+        $ cd gbulb
+        $ python3 setup.py install --user
+        $ cd -
+        $ git clone https://github.com/m-labs/artiq # if not already done
+        $ cd artiq
+        $ ARTIQ_GUI=1 python3 setup.py develop --user
+
+.. note::
+    Use ARTIQ_GUI=1 to install GUI dependencies which are only supported on Linux for now, to install ARTIQ on Windows do not set ARTIQ_GUI.
 
 * Build the documentation: ::
 
@@ -165,7 +184,7 @@ Xubuntu 14.04 specific instructions
 
 This command installs all the required packages: ::
 
-    $ sudo apt-get install build-essential autotools-dev file git patch perl xutils-devs python3-pip texinfo flex bison libmpc-dev python3-serial python3-dateutil python3-prettytable python3-setuptools python3-numpy python3-scipy python3-sphinx python3-h5py python3-dev python-dev subversion cmake libusb-dev libftdi-dev pkg-config
+    $ sudo apt-get install build-essential autotools-dev file git patch perl xutils-devs python3-pip texinfo flex bison libmpc-dev python3-serial python3-dateutil python3-prettytable python3-setuptools python3-numpy python3-scipy python3-sphinx python3-h5py python3-gi python3-dev python-dev subversion cmake libusb-dev libftdi-dev pkg-config
 
 Note that ARTIQ requires Python 3.4 or above.
 
