@@ -6,6 +6,7 @@ import os
 import logging
 import signal
 import shlex
+import socket
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.tools import verbosity_args, init_logger
@@ -71,6 +72,14 @@ class Controller:
                     process.send_signal(signal.SIGKILL)
 
 
+def get_ip_addresses(host):
+    try:
+        addrinfo = socket.getaddrinfo(host, None)
+    except:
+        return set()
+    return {info[4][0] for info in addrinfo}
+
+
 class Controllers:
     def __init__(self, retry_command):
         self.retry_command = retry_command
@@ -97,7 +106,7 @@ class Controllers:
 
     def __setitem__(self, k, v):
         if (isinstance(v, dict) and v["type"] == "controller"
-                and v["host"] == self.host_filter):
+                and self.host_filter in get_ip_addresses(v["host"])):
             command = v["command"].format(name=k,
                                           bind=self.host_filter,
                                           port=v["port"])
