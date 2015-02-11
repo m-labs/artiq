@@ -51,9 +51,9 @@ and verify that you can connect to the TCP port: ::
 
 :tip: Use the key combination Ctrl-AltGr-9 to get the ``telnet>`` prompt, and enter ``close`` to quit Telnet. Quit the controller with Ctrl-C.
 
-Also verify that a target (service) named "hello" (as passed in the first argument to ``simple_server_loop``) exists using the ``artiq_ctlid.py`` program from the ARTIQ front-end tools: ::
+Also verify that a target (service) named "hello" (as passed in the first argument to ``simple_server_loop``) exists using the ``artiq_rpctool.py`` program from the ARTIQ front-end tools: ::
 
-    $ artiq_ctlid.py ::1 3249
+    $ artiq_rpctool.py ::1 3249 list-targets
     Target(s):   hello
 
 The client

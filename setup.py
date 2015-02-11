@@ -10,7 +10,7 @@ requirements = [
                ]
 scripts = [
            "artiq_client=artiq.frontend.artiq_client:main",
-           "artiq_ctlid=artiq.frontend.artiq_ctlid:main",
+           "artiq_rpctool=artiq.frontend.artiq_rpctool:main",
            "artiq_ctlmgr=artiq.frontend.artiq_ctlmgr:main",
            "artiq_master=artiq.frontend.artiq_master:main",
            "artiq_run=artiq.frontend.artiq_run:main",

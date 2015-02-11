@@ -18,6 +18,7 @@ import traceback
 import threading
 import time
 import logging
+import inspect
 
 from artiq.protocols import pyon
 from artiq.protocols.asyncio_server import AsyncioServer as _AsyncioServer
@@ -127,9 +128,8 @@ class Client:
             buf += more.decode()
         return pyon.decode(buf)
 
-    def __do_rpc(self, name, args, kwargs):
-        obj = {"action": "call", "name": name, "args": args, "kwargs": kwargs}
-        self.__send(obj)
+    def __do_action(self, action):
+        self.__send(action)
 
         obj = self.__recv()
         if obj["status"] == "ok":
@@ -138,6 +138,14 @@ class Client:
             raise RemoteError(obj["message"])
         else:
             raise ValueError
+
+    def __do_rpc(self, name, args, kwargs):
+        obj = {"action": "call", "name": name, "args": args, "kwargs": kwargs}
+        return self.__do_action(obj)
+
+    def get_rpc_method_list(self):
+        obj = {"action": "get_rpc_method_list"}
+        return self.__do_action(obj)
 
     def __getattr__(self, name):
         def proxy(*args, **kwargs):
@@ -397,9 +405,24 @@ class Server(_AsyncioServer):
                     break
                 obj = pyon.decode(line.decode())
                 try:
-                    method = getattr(target, obj["name"])
-                    ret = method(*obj["args"], **obj["kwargs"])
-                    obj = {"status": "ok", "ret": ret}
+                    if obj["action"] == "get_rpc_method_list":
+                        members = inspect.getmembers(target, inspect.ismethod)
+                        methods = {}
+                        for name, method in members:
+                            if name.startswith("_"):
+                                continue
+                            method = getattr(target, name)
+                            argspec = inspect.getfullargspec(method)
+                            methods[name] = (dict(argspec.__dict__),
+                                             inspect.getdoc(method))
+                        obj = {"status": "ok", "ret": methods}
+                    elif obj["action"] == "call":
+                        method = getattr(target, obj["name"])
+                        ret = method(*obj["args"], **obj["kwargs"])
+                        obj = {"status": "ok", "ret": ret}
+                    else:
+                        raise ValueError("Unknown action: {}"
+                                         .format(obj["action"]))
                 except Exception:
                     obj = {"status": "failed",
                            "message": traceback.format_exc()}
