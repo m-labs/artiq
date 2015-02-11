@@ -17,9 +17,13 @@ import asyncio
 import traceback
 import threading
 import time
+import logging
 
 from artiq.protocols import pyon
 from artiq.protocols.asyncio_server import AsyncioServer as _AsyncioServer
+
+
+logger = logging.getLogger(__name__)
 
 
 class RemoteError(Exception):
@@ -250,6 +254,9 @@ class BestEffortClient:
         try:
             self.__coninit(firstcon_timeout)
         except:
+            logger.warning("first connection attempt to %s:%d[%s] failed, "
+                           "retrying in the background",
+                           self.__host, self.__port, self.__target_name)
             self.__start_conretry()
         else:
             self.__conretry_thread = None
@@ -281,6 +288,10 @@ class BestEffortClient:
                 time.sleep(self.__retry)
             else:
                 break
+        if not self.__conretry_terminate:
+            logger.warning("connection to %s:%d[%s] established in "
+                           "the background",
+                           self.__host, self.__port, self.__target_name)
         if self.__conretry_terminate and self.__socket is not None:
             self.__socket.close()
         # must be after __socket.close() to avoid race condition
@@ -317,6 +328,10 @@ class BestEffortClient:
             self.__send(obj)
             obj = self.__recv()
         except:
+            logger.warning("connection failed while attempting "
+                           "RPC to %s:%d[%s], re-establishing connection "
+                           "in the background",
+                           self.__host, self.__port, self.__target_name)
             self.__start_conretry()
         else:
             if obj["status"] == "ok":
