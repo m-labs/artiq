@@ -250,6 +250,18 @@ class AsyncioClient:
 
 
 class BestEffortClient:
+    """This class is similar to :class:`artiq.protocols.pc_rpc.Client`, but
+    network errors are suppressed and connections are retried in the
+    background.
+
+    RPC calls that failed because of network errors return ``None``.
+
+    :param firstcon_timeout: Timeout to use during the first (blocking)
+        connection attempt at object initialization.
+    :param retry: Amount of time to wait between retries when reconnecting
+        in the background.
+
+    """
     def __init__(self, host, port, target_name,
                  firstcon_timeout=0.5, retry=5.0):
         self.__host = host
@@ -306,6 +318,11 @@ class BestEffortClient:
         self.__conretry_thread = None
 
     def close_rpc(self):
+        """Closes the connection to the RPC server.
+
+        No further method calls should be done after this method is called.
+
+        """
         if self.__conretry_thread is None:
             if self.__socket is not None:
                 self.__socket.close()
@@ -341,6 +358,7 @@ class BestEffortClient:
                            "in the background",
                            self.__host, self.__port, self.__target_name)
             self.__start_conretry()
+            return None
         else:
             if obj["status"] == "ok":
                 return obj["ret"]
