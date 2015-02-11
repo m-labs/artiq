@@ -5,7 +5,7 @@ import numpy
 import h5py
 
 from artiq.protocols.sync_struct import Notifier
-from artiq.protocols.pc_rpc import Client
+from artiq.protocols.pc_rpc import Client, BestEffortClient
 
 
 _type_to_hdf5 = {
@@ -79,7 +79,11 @@ def _create_device(desc, dbh):
         device_class = getattr(module, desc["class"])
         return device_class(dbh, **desc["arguments"])
     elif ty == "controller":
-        return Client(desc["host"], desc["port"], desc["target_name"])
+        if desc["best_effort"]:
+            cl = BestEffortClient
+        else:
+            cl = Client
+        return cl(desc["host"], desc["port"], desc["target_name"])
     else:
         raise ValueError("Unsupported type in device DB: " + ty)
 
@@ -119,7 +123,7 @@ class DBHub:
 
         """
         for dev in reversed(list(self.active_devices.values())):
-            if isinstance(dev, Client):
+            if isinstance(dev, (Client, BestEffortClient)):
                 dev.close_rpc()
             elif hasattr(dev, "close"):
                 dev.close()

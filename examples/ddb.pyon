@@ -84,6 +84,7 @@
 
     "lda": {
         "type": "controller",
+        "best_effort": true,
         "host": "::1",
         "port": 3253,
         "target_name": "lda",
