@@ -56,20 +56,15 @@ in order to call remote functions of an ARTIQ controller.
             $ artiq_rpctool.py ::1 3253 call -t lda set_attenuation 5
 
         In general, to call a function named ``f`` with N arguments named
-        respectively ``x1, x2, ..., xN``.
+        respectively ``x1, x2, ..., xN`` you can do::
 
-        You must pass them as a Python iterable object::
-
-            $ artiq_rpctool.py hostname port call -t target f '(x1, x2, ..., xN)'
+            $ artiq_rpctool.py hostname port call -t target f x1 x2 ... xN
 
         You can use Python syntax to compute arguments as they will be passed
-        to the ``eval()`` primitive::
+        to the ``eval()`` primitive. But beware to use quotes to separate
+        arguments which use spaces::
 
-            $ artiq_rpctool.py hostname port call -t target f '(x*3+5 for x in range(8))'
-            $ artiq_rpctool.py hostname port call -t target f 'range(5)'
-
-        If you only need one argument, you don't need to pass an iterable, a
-        single value is accepted.
+            $ artiq_rpctool.py hostname port call -t target f '3 * 4 + 2' True '[1, 2]'
 
         If the called function has a return value, it will get printed to
         the standard output if the value is not None like in the standard

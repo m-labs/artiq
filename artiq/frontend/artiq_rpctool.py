@@ -71,18 +71,7 @@ def list_methods(remote):
 
 def call_method(remote, method_name, args):
     method = getattr(remote, method_name)
-    if args != []:
-        args = eval(" ".join(args))
-        try:
-            iter(args)
-        except TypeError:
-            # not iterable
-            ret = method(args)
-        else:
-            # iterable
-            ret = method(*args)
-    else:
-        ret = method()
+    ret = method(*[eval(arg) for arg in args])
     if ret is not None:
         print("{}".format(ret))
 
