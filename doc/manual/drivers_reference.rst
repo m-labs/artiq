@@ -35,11 +35,6 @@ Each driver is run in a separate "controller" that exposes a RPC interface (base
    :ref: artiq.frontend.lda_controller.get_argparser
    :prog: lda_controller
 
-
-.. argparse::
-   :ref: artiq.frontend.lda_client.get_argparser
-   :prog: lda_client
-
 Default TCP port list
 ---------------------
 

@@ -10,11 +10,10 @@ requirements = [
                ]
 scripts = [
            "artiq_client=artiq.frontend.artiq_client:main",
-           "artiq_rpctool=artiq.frontend.artiq_rpctool:main",
            "artiq_ctlmgr=artiq.frontend.artiq_ctlmgr:main",
            "artiq_master=artiq.frontend.artiq_master:main",
+           "artiq_rpctool=artiq.frontend.artiq_rpctool:main",
            "artiq_run=artiq.frontend.artiq_run:main",
-           "lda_client=artiq.frontend.lda_client:main",
            "lda_controller=artiq.frontend.lda_controller:main",
            "pdq2_client=artiq.frontend.pdq2_client:main",
            "pdq2_controller=artiq.frontend.pdq2_controller:main",
