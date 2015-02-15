@@ -43,7 +43,8 @@ def simple_network_args(parser, default_port):
     group.add_argument("--bind", default="::1",
                        help="hostname or IP address to bind to")
     group.add_argument("-p", "--port", default=default_port, type=int,
-                       help="TCP port to listen to")
+                       help="TCP port to listen to (default: {})"
+                       .format(default_port))
 
 
 def init_logger(args):
