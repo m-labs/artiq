@@ -16,13 +16,14 @@ from artiq.tools import verbosity_args, init_logger
 
 def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ master")
-    parser.add_argument(
+    group = parser.add_argument_group("network")
+    group.add_argument(
         "--bind", default="::1",
         help="hostname or IP address to bind to")
-    parser.add_argument(
+    group.add_argument(
         "--port-notify", default=3250, type=int,
         help="TCP port to listen to for notifications")
-    parser.add_argument(
+    group.add_argument(
         "--port-control", default=3251, type=int,
         help="TCP port to listen to for control")
     verbosity_args(parser)

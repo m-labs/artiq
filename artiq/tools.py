@@ -38,5 +38,13 @@ def verbosity_args(parser):
                        help="decrease logging level")
 
 
+def simple_network_args(parser, default_port):
+    group = parser.add_argument_group("network")
+    group.add_argument("--bind", default="::1",
+                       help="hostname or IP address to bind to")
+    group.add_argument("-p", "--port", default=default_port, type=int,
+                       help="TCP port to listen to")
+
+
 def init_logger(args):
     logging.basicConfig(level=logging.WARNING + args.quiet*10 - args.verbose*10)
