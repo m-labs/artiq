@@ -5,25 +5,27 @@ import os
 
 
 requirements = [
-                "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
-                "python-dateutil", "prettytable", "h5py"
-               ]
+    "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
+    "python-dateutil", "prettytable", "h5py"
+]
+
 scripts = [
-           "artiq_client=artiq.frontend.artiq_client:main",
-           "artiq_ctlmgr=artiq.frontend.artiq_ctlmgr:main",
-           "artiq_master=artiq.frontend.artiq_master:main",
-           "artiq_rpctool=artiq.frontend.artiq_rpctool:main",
-           "artiq_run=artiq.frontend.artiq_run:main",
-           "lda_controller=artiq.frontend.lda_controller:main",
-           "pdq2_client=artiq.frontend.pdq2_client:main",
-           "pdq2_controller=artiq.frontend.pdq2_controller:main",
-          ]
+    "artiq_client=artiq.frontend.artiq_client:main",
+    "artiq_ctlmgr=artiq.frontend.artiq_ctlmgr:main",
+    "artiq_master=artiq.frontend.artiq_master:main",
+    "artiq_rpctool=artiq.frontend.artiq_rpctool:main",
+    "artiq_run=artiq.frontend.artiq_run:main",
+    "lda_controller=artiq.frontend.lda_controller:main",
+    "novatech409b_controller=artiq.frontend.novatech409b_controller:main",
+    "pdq2_client=artiq.frontend.pdq2_client:main",
+    "pdq2_controller=artiq.frontend.pdq2_controller:main",
+]
 
 if os.getenv("ARTIQ_GUI") == "1":
     requirements += ["pygobject", "gbulb", "cairoplot"]
     scripts += [
-                "artiq_gui=artiq.frontend.artiq_gui:main"
-               ]
+        "artiq_gui=artiq.frontend.artiq_gui:main"
+    ]
 
 
 setup(
