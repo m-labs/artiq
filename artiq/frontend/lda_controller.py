@@ -8,7 +8,8 @@ from artiq.tools import verbosity_args, simple_network_args, init_logger
 
 
 def get_argparser():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="ARTIQ controller for the Lab Brick Digital Attenuator")
     parser.add_argument("-d", "--device", default="LDA-102",
                         choices=["LDA-102", "LDA-602", "sim"])
     simple_network_args(parser, 3253)
