@@ -51,7 +51,7 @@ class Novatech409B:
         example:
         ser_send("F0 1.0") # sets the freq of channel 0 to 1.0 MHz
 
-        :param str cmd: a character string to send to device
+        :param cmd: a character string to send to device
         :returns: None
         """
         if self.simulation:
@@ -103,7 +103,7 @@ class Novatech409B:
         Use this mode if you want frequency changes to remain
         phase synchronous, with no phase discontinuities.
 
-        :param bool is_continuous: True or False
+        :param is_continuous: True or False
         """
         if is_continuous:
             self._ser_send("M n")
@@ -136,8 +136,8 @@ class Novatech409B:
     def set_phase(self, ch_no, phase):
         """set DDS phase
 
-        :param int ch_no: 0 to 3
-        :param float phase: phase angle in cycles [0,1]
+        :param ch_no: 0 to 3
+        :param phase: phase angle in cycles [0, 1]
         :returns: None
         """
         if ch_no < 0 or ch_no > 3:
@@ -148,7 +148,7 @@ class Novatech409B:
         self.set_simultaneous_update(False)
         # phase word is required by device
         # N is an integer from 0 to 16383. Phase is set to
-        # N*360/16384 deg; in ARTIQ represent phase in cycles [0,1]
+        # N*360/16384 deg; in ARTIQ represent phase in cycles [0, 1]
         phase_word = round(phase*16384)
         if phase_word >= 16384:
             phase_word -= 16384
@@ -163,7 +163,7 @@ class Novatech409B:
         2) all DDSs are simultaneously set to new frequency
         Together 1 and 2 ensure phase continuous frequency switching.
 
-        :param float freq: frequency in MHz
+        :param freq: frequency in MHz
         :returns: None
         """
         self.set_simultaneous_update(True)
@@ -179,7 +179,7 @@ class Novatech409B:
         Set phase of all DDS channels at the same time. For example,::
             set_phase_all([0, .25, 0.5, 0.75])
 
-        :param float phase: vector of four  phases (in cycles [0,1])
+        :param phase: vector of four phases (in cycles [0, 1])
         :returns: None
         """
         self.set_simultaneous_update(True)
@@ -196,9 +196,9 @@ class Novatech409B:
 
         Sweep frequency in a phase continuous fashion.
 
-        :param float f0: starting frequency (MHz)
-        :param float f1: ending frequency (MHz)
-        :param float t: sweep duration (seconds)
+        :param f0: starting frequency (MHz)
+        :param f1: ending frequency (MHz)
+        :param t: sweep duration (seconds)
         :returns: None
         """
         # TODO: consider using artiq.language.units
@@ -227,8 +227,8 @@ class Novatech409B:
     def output_scale(self, ch_no, frac):
         """changes amplitude of a DDS
 
-        :param int ch_no: DDS channel 0, 1, 2 or 3
-        :param float frac: 0 to 1 (full attenuation to no attenuation)
+        :param ch_no: DDS channel 0, 1, 2 or 3
+        :param frac: 0 to 1 (full attenuation to no attenuation)
         :returns: None
         """
         self.set_simultaneous_update(False)
@@ -239,7 +239,7 @@ class Novatech409B:
     def output_scale_all(self, frac):
         """changes amplitude of all DDSs
 
-        :param float frac: 0 to 1 (full attenuation to no attenuation)
+        :param frac: 0 to 1 (full attenuation to no attenuation)
         """
         for ch_no in range(4):
             self.output_scale(ch_no, frac)
@@ -247,7 +247,7 @@ class Novatech409B:
     def output_on_off(self, ch_no, on):
         """turns on or off the DDS
 
-        :param int ch_no: DDS channel 0, 1, 2 or 3
+        :param ch_no: DDS channel 0, 1, 2 or 3
         """
         if on:
             self.output_scale(ch_no, 1.0)
