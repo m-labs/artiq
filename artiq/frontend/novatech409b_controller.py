@@ -23,7 +23,8 @@ def get_argparser():
         "-s", "--serial-dev",
         default="/dev/ttyUSB0", type=str,
         help="serial port: on Windows \"COMx\","
-        " on Linux a device path (e.g. \"/dev/ttyUSB0\")")
+        " on Linux a device path (e.g. \"/dev/ttyUSB0\")."
+        " Use \"sim\" for simulation mode.")
     verbosity_args(parser)
     return parser
 
