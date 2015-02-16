@@ -117,6 +117,9 @@ class Quantity:
         else:
             return str(r_amount) + " " + self.unit
 
+    def __float__(self):
+        return float(self.amount)
+
     # mul/div
     def _binop(self, other, opf_name, dim_function):
         opf = getattr(self.amount, opf_name)
