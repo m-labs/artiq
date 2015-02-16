@@ -8,11 +8,11 @@ Contents:
 
     installing
     getting_started
-    writing_a_driver
+    developing_a_ndsp
     management_system
     core_language_reference
     core_drivers_reference
     protocols_reference
-    drivers_reference
+    ndsp_reference
     utilities
     fpga_board_ports

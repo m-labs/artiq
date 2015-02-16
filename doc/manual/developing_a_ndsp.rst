@@ -1,10 +1,25 @@
-Writing a driver
-================
+Developing a network device support package
+===========================================
 
-These instructions cover writing a simple driver for a "slow" device, that uses the controller mechanism.
+Most ARTIQ devices are interfaced through "controllers" that expose RPC interfaces to the network (based on :class:`artiq.protocols.pc_rpc`). The master never does direct I/O to the devices, but issues RPCs to the controllers when needed. As opposed to running everything on the master, this architecture has those main advantages:
 
-The controller
---------------
+* Each driver can be run on a different machine, which alleviates cabling issues and OS compatibility problems.
+* Reduces the impact of driver crashes.
+* Reduces the impact of driver memory leaks.
+
+This mechanism is for "slow" devices that are directly controlled by a PC, typically over a non-realtime channel such as USB.
+
+Certain devices (such as the PDQ2) may still perform real-time operations by having certain controls physically connected to the core device (for example, the trigger and frame selection signals on the PDQ2). For handling such cases, parts of the NDSPs may be kernels executed on the core device.
+
+A network device support package (NDSP) is composed of several parts:
+
+1. The `driver`, which contains the Python API functions to be called over the network, and performs the I/O to the device. The top-level module of the driver is called ``artiq.devices.XXX.driver``.
+2. The `controller`, which instantiates, initializes and terminates the driver, and sets up the RPC server. The controller is a front-end command-line tool to the user and is called ``artiq.frontend.XXX_controller``. A ``setup.py`` entry must also be created to install it.
+3. An optional `client`, which connects to the controller and exposes the functions of the driver as a command-line interface. Clients are front-end tools (called ``artiq.frontend.XXX_client``) that have ``setup.py`` entries. In most cases, a custom client is not needed and the generic ``artiq_rpctool`` utility can be used instead. Custom clients are only required when large amounts of data must be transferred over the network API, that would be unwieldy to pass as ``artiq_rpctool`` command-line parameters.
+4. An optional `mediator`, which is code executed on the client that supplements the network API. A mediator may contain kernels that control real-time signals such as TTL lines connected to the device. Simple devices use the network API directly and do not have a mediator. Mediator modules are called ``artiq.devices.XXX.mediator`` and their public classes are exported at the ``artiq.devices.XXX`` level (via ``__init__.py``) for direct import and use by the experiments.
+
+The driver and controller
+-------------------------
 
 A controller is a piece of software that receives commands from a client over the network (or the ``localhost`` interface), drives a device, and returns information about the device to the client. The mechanism used is remote procedure calls (RPCs) using :class:`artiq.protocols.pc_rpc`, which makes the network layers transparent for the driver's user.
 
@@ -15,6 +30,8 @@ For using RPC, the functions that a driver provides must be the methods of a sin
     class Hello:
         def message(self, msg):
             print("message: " + msg)
+
+For a more complex driver, you would put this class definition into a separate Python module called ``driver``.
 
 To turn it into a server, we use :class:`artiq.protocols.pc_rpc`. Import the function we will use: ::
 
@@ -51,17 +68,20 @@ and verify that you can connect to the TCP port: ::
 
 :tip: Use the key combination Ctrl-AltGr-9 to get the ``telnet>`` prompt, and enter ``close`` to quit Telnet. Quit the controller with Ctrl-C.
 
-Also verify that a target (service) named "hello" (as passed in the first argument to ``simple_server_loop``) exists using the ``artiq_rpctool.py`` program from the ARTIQ front-end tools: ::
+Also verify that a target (service) named "hello" (as passed in the first argument to ``simple_server_loop``) exists using the ``artiq_rpctool`` program from the ARTIQ front-end tools: ::
 
-    $ artiq_rpctool.py ::1 3249 list-targets
+    $ artiq_rpctool ::1 3249 list-targets
     Target(s):   hello
 
 The client
 ----------
 
-Controller clients are small command-line utilities that expose certain functionalities of the drivers. They are optional, and not used very often - typically for debugging and testing.
+Clients are small command-line utilities that expose certain functionalities of the drivers. The ``artiq_rpctool`` utility contains a generic client that can be used in most cases, and developing a custom client is not required. Try these commands ::
 
-Create a ``hello_client.py`` file with the following contents: ::
+    $ artiq_rpctool ::1 3249 list-methods    
+    $ artiq_rpctool ::1 3249 call message test
+
+In case you are developing a NDSP that is complex enough to need a custom client, we will see how to develop one. Create a ``hello_client.py`` file with the following contents: ::
 
     #!/usr/bin/env python3
 
@@ -92,16 +112,15 @@ Command-line arguments
 
 Use the Python ``argparse`` module to make the bind address and port configurable on the controller, and the server address, port and message configurable on the client.
 
-We suggest naming the controller parameters ``--bind`` and ``--port`` so that those parameters stay consistent across controller, and use ``-s/--server`` and ``--port`` on the client.
+We suggest naming the controller parameters ``--bind`` and ``--port`` so that those parameters stay consistent across controller, and use ``-s/--server`` and ``--port`` on the client. The ``artiq.tools.simple_network_args`` library function adds such arguments for the controller.
 
 The controller's code would contain something similar to this: ::
 
+    from artiq.tools import simple_network_args
+
     def get_argparser():
         parser = argparse.ArgumentParser(description="Hello world controller")
-        parser.add_argument("--bind", default="::1",
-                            help="hostname or IP address to bind to")
-        parser.add_argument("--port", default=3249, type=int,
-                            help="TCP port to listen to")
+        simple_network_args(parser, 3249)  # 3249 is the default TCP port
         return parser
 
     def main():
@@ -110,10 +129,8 @@ The controller's code would contain something similar to this: ::
 
 We suggest that you define a function ``get_argparser`` that returns the argument parser, so that it can be used to document the command line parameters using sphinx-argparse.
 
-Logging and error handling in controllers
------------------------------------------
-
-Unrecoverable errors (such as the hardware being unplugged) should cause timely termination of the controller, in order to notify the controller manager which may try to restart the controller later according to its policy. Throwing an exception and letting it propagate is the preferred way of reporting an unrecoverable error.
+Logging
+-------
 
 For the debug, information and warning messages, use the ``logging`` Python module and print the log on the standard error output (the default setting). The logging level is by default "WARNING", meaning that only warning messages and more critical messages will get printed (and no debug nor information messages). By calling the ``verbosity_args()`` with the parser as argument, you add support for the ``--verbose`` (``-v``) and ``--quiet`` (``-q``) arguments in the parser. Each occurence of ``-v`` (resp. ``-q``) in the arguments will increase (resp. decrease) the log level of the logging module. For instance, if only one ``-v`` is present in the arguments, then more messages (info, warning and above) will get printed. If only one ``-q`` is present in the arguments, then only errors and critical messages will get printed. If ``-qq`` is present in the arguments, then only critical messages will get printed, but no debug/info/warning/error.
 
@@ -159,6 +176,7 @@ General guidelines
 * Use new-style formatting (``str.format``) except for logging where it is not well supported, and double quotes for strings.
 * The device identification (e.g. serial number) to attach to must be passed as a command-line parameter to the controller. We suggest using ``-s`` and ``--serial`` as parameter name.
 * Controllers must be able to operate in "simulation" mode, where they behave properly even if the associated hardware is not connected. For example, they can print the data to the console instead of sending it to the device, or dump it into a file.
-* We suggest that the simulation mode is entered by using "sim" in place of the serial number.
+* We suggest that the simulation mode is entered by using "sim" in place of the serial number or device name.
 * Keep command line parameters consistent across clients/controllers. When adding new command line options, look for a client/controller that does a similar thing and follow its use of ``argparse``. If the original client/controller could use ``argparse`` in a better way, improve it.
+* Use docstrings for all public methods of the driver (note that those will be retrieved by ``artiq_rpctool``).
 * Choose a free default TCP port and add it to the default port list in this manual.

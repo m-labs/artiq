@@ -11,7 +11,7 @@ class HidError(Exception):
 
 
 class Ldasim:
-    """Lab Brick Digital Attenuator simulation controller.
+    """Lab Brick Digital Attenuator simulation driver.
     """
 
     def __init__(self):
@@ -56,9 +56,9 @@ class Ldasim:
 
 
 class Lda:
-    """Lab Brick Digital Attenuator controller.
+    """Lab Brick Digital Attenuator driver.
 
-    This controller depends on the hidapi library.
+    This driver depends on the hidapi library.
 
     On Linux you should install hidapi-libusb shared library in a directory
     listed in your LD_LIBRARY_PATH or in the conventional places (/usr/lib,
