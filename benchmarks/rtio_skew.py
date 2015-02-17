@@ -9,13 +9,7 @@ class RTIOSkew(AutoDB):
     class DBKeys:
         pmt0 = Device()
         ttl0 = Device()
-        io_skew = Result()
-
-    @staticmethod
-    def realtime_results():
-        return {
-            "io_skew": "raw"
-        }
+        rtio_skew = Result()
 
     @kernel
     def run(self):
@@ -28,4 +22,4 @@ class RTIOSkew(AutoDB):
         in_t = self.pmt0.timestamp()
         if in_t < 0*s:
             raise PulseNotReceived
-        self.io_skew = out_t - in_t
+        self.rtio_skew = out_t - in_t

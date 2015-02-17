@@ -2,13 +2,10 @@ from artiq import *
 from artiq.coredevice.runtime_exceptions import RTIOUnderflow
 
 
-def print_min_period(p):
-    print("Minimum square wave output period: {} ns".format(p))
-
-
-class PulsePerformance(AutoDB):
+class PulseRate(AutoDB):
     class DBKeys:
         ttl0 = Device()
+        pulse_rate = Result()
 
     @kernel
     def run(self):
@@ -22,6 +19,5 @@ class PulsePerformance(AutoDB):
                 T += 1
                 self.core.recover_underflow()
             else:
-                print_min_period(int(cycles_to_time(2*T)/(1*ns)))
+                self.pulse_rate = cycles_to_time(2*T)
                 break
-
