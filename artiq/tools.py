@@ -1,4 +1,5 @@
 from operator import itemgetter
+import sys
 import importlib.machinery
 import linecache
 import logging
@@ -27,7 +28,9 @@ def file_import(filename):
     modname = "file_import_" + modname
 
     loader = importlib.machinery.SourceFileLoader(modname, filename)
-    return loader.load_module()
+    module = type(sys)(modname)
+    loader.exec_module(module)
+    return module
 
 
 def verbosity_args(parser):
