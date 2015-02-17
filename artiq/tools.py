@@ -3,6 +3,7 @@ import sys
 import importlib.machinery
 import linecache
 import logging
+import os.path
 
 
 def format_run_arguments(arguments):
@@ -27,9 +28,15 @@ def file_import(filename):
         modname = modname[:i]
     modname = "file_import_" + modname
 
+    path = os.path.dirname(os.path.realpath(filename))
+    sys.path.insert(0, path)
+
     loader = importlib.machinery.SourceFileLoader(modname, filename)
     module = type(sys)(modname)
     loader.exec_module(module)
+
+    sys.path.remove(path)
+
     return module
 
 
