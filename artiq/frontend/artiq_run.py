@@ -123,8 +123,9 @@ def main():
             else:
                 if rdb.data.read or rdb.realtime_data.read:
                     print("Results:")
-                    for k, v in chain(rdb.realtime_data.read.items(),
-                                      rdb.data.read.items()):
+                    for k, v in sorted(chain(rdb.realtime_data.read.items(),
+                                             rdb.data.read.items()),
+                                       key=itemgetter(0)):
                         print("{}: {}".format(k, v))
     finally:
         dbh.close()
