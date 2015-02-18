@@ -43,6 +43,7 @@ hidapi.hid_free_enumeration.argtypes = [ctypes.POINTER(HidDeviceInfo)]
 hidapi.hid_open.argtypes = [ctypes.c_ushort, ctypes.c_ushort,
                             ctypes.c_wchar_p]
 hidapi.hid_open.restype = ctypes.c_void_p
+hidapi.hid_close.argtypes = [ctypes.c_void_p]
 hidapi.hid_read_timeout.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
                                     ctypes.c_size_t, ctypes.c_int]
 hidapi.hid_read.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_size_t]

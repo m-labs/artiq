@@ -1,7 +1,9 @@
 import logging
 import ctypes
 import struct
+
 from artiq.language.units import dB, check_unit, Quantity
+
 
 logger = logging.getLogger("lda")
 
@@ -18,6 +20,12 @@ class Ldasim:
         self._attenuation = None
         self._att_max = 63*dB
         self._att_step_size = 0.25*dB
+
+    def get_att_max(self):
+        return self._att_max
+
+    def get_att_step_size(self):
+        return self._att_step_size
 
     def get_attenuation(self):
         """Reads last attenuation value set to the simulated device.
@@ -36,19 +44,21 @@ class Ldasim:
         :type attenuation: int, float or Fraction
         """
 
+        step = self.get_att_step_size()
+
         if isinstance(attenuation, Quantity):
             check_unit(attenuation, 'dB')
+            att = attenuation
         else:
             att = attenuation*dB
 
-        if att > self._att_max:
+        att = round(att/step)*step
+
+        if att > self.get_att_max():
             raise ValueError('Cannot set attenuation {} > {}'
-                             .format(att, self._att_max))
+                             .format(att, self.get_att_max()))
         elif att < 0*dB:
             raise ValueError('Cannot set attenuation {} < 0'.format(att))
-        elif att % self._att_step_size != 0*dB:
-            raise ValueError('Cannot set attenuation {} with step size {}'
-                             .format(att, self._att_step_size))
         else:
             att = round(att.amount*4)/4. * dB
             print("[LDA-sim] setting attenuation to {}".format(att))
@@ -65,8 +75,8 @@ class Lda:
     /lib, /usr/local/lib). This can be done either from hidapi sources
     or by installing the libhidapi-libusb0 binary package on Debian-like OS.
 
-    On Windows you should put hidapi.dll shared library in the same directory
-    as the controller.
+    On Windows you should put hidapi.dll shared library in the
+    artiq\devices\lda folder.
 
     """
     _vendor_id = 0x041f
@@ -75,7 +85,7 @@ class Lda:
         "LDA-602": 0x1208,
         "LDA-302P-1": 0x120E,
     }
-    _max_att = {
+    _att_max = {
         "LDA-102": 63*dB,
         "LDA-602": 63*dB,
         "LDA-302P-1": 63*dB
@@ -95,11 +105,27 @@ class Lda:
         from artiq.devices.lda.hidapi import hidapi
         self.hidapi = hidapi
         self.product = product
-        if serial is None:
-            serial = next(self.enumerate(product))
+        self.serial = serial
+
+        if self.serial is None:
+            self.serial = next(self.enumerate(self.product))
         self._dev = self.hidapi.hid_open(self._vendor_id,
-                                         self._product_ids[product], serial)
-        assert self._dev
+                                         self._product_ids[self.product],
+                                         self.serial)
+        if not self._dev:
+            raise IOError
+
+    def close(self):
+        """Close the device.
+        """
+
+        self.hidapi.hid_close(self._dev)
+
+    def get_att_step_size(self):
+        return self._att_step_size[self.product]
+
+    def get_att_max(self):
+        return self._att_max[self.product]
 
     @classmethod
     def enumerate(cls, product):
@@ -184,18 +210,20 @@ class Lda:
         :type attenuation: int, float or Fraction
         """
 
+        step = self.get_att_step_size()
+
         if isinstance(attenuation, Quantity):
             check_unit(attenuation, 'dB')
+            att = attenuation
         else:
             att = attenuation*dB
 
-        if att > self._max_att[self.product]:
+        att = round(att/step)*step
+
+        if att > self.get_att_max():
             raise ValueError('Cannot set attenuation {} > {}'
-                             .format(att, self._max_att[self.product]))
-        elif att < 0:
+                             .format(att, self.get_att_max()))
+        elif att < 0*dB:
             raise ValueError('Cannot set attenuation {} < 0'.format(att))
-        elif att % self._att_step_size[self.product] != 0:
-            raise ValueError('Cannot set attenuation {} with {} step size'
-                             .format(att, self._att_step_size[self.product]))
         else:
             self.set(0x8d, bytes([int(round(att.amount*4))]))
