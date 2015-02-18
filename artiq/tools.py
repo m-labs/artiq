@@ -1,5 +1,4 @@
 from operator import itemgetter
-import sys
 import importlib.machinery
 import linecache
 import logging
@@ -32,8 +31,7 @@ def file_import(filename):
     sys.path.insert(0, path)
 
     loader = importlib.machinery.SourceFileLoader(modname, filename)
-    module = type(sys)(modname)
-    loader.exec_module(module)
+    module = loader.load_module()
 
     sys.path.remove(path)
 
