@@ -1,9 +1,9 @@
 from artiq import *
 
-import pulse_rate, rtio_skew
+import pulse_rate, rtio_skew, rpc_timing
 
 
-_units = [pulse_rate.PulseRate, rtio_skew.RTIOSkew]
+_units = [pulse_rate.PulseRate, rtio_skew.RTIOSkew, rpc_timing.RPCTiming]
 
 class AllBenchmarks(AutoDB):
     def build(self):
