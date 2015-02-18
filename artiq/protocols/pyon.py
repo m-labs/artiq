@@ -32,6 +32,7 @@ _encode_map = {
     int: "number",
     float: "number",
     str: "str",
+    bytes: "bytes",
     tuple: "tuple",
     list: "list",
     dict: "dict",
@@ -61,8 +62,12 @@ class _Encoder:
         return str(x)
 
     def encode_str(self, x):
+        # Do not use repr() for JSON compatibility.
         tt = {ord("\""): "\\\"", ord("\\"): "\\\\", ord("\n"): "\\n"}
         return "\"" + x.translate(tt) + "\""
+
+    def encode_bytes(self, x):
+        return repr(x)
 
     def encode_tuple(self, x):
         if len(x) == 1:
