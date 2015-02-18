@@ -153,6 +153,15 @@ class VFraction(VGeneric):
             r.auto_store(builder, builder.sdiv(a, b))
             return r.o_intx(target_bits, builder)
 
+    def o_float(self, builder):
+        r = VFloat()
+        if builder is not None:
+            a, b = self._nd(builder)
+            af = builder.sitofp(a, r.get_llvm_type())
+            bf = builder.sitofp(b, r.get_llvm_type())
+            r.auto_store(builder, builder.fdiv(af, bf))
+        return r
+
     def _o_eq_inv(self, other, builder, ne):
         if not isinstance(other, (VInt, VFraction)):
             return NotImplemented
