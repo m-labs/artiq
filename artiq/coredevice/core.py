@@ -120,6 +120,10 @@ class Core(AutoDB):
         self.comm.serve(rpc_map, exception_map)
 
     @kernel
+    def get_rtio_time(self):
+        return cycles_to_time(syscall("rtio_get_counter"))
+
+    @kernel
     def recover_underflow(self):
         t = syscall("rtio_get_counter") + self.initial_time
         at(cycles_to_time(t))
