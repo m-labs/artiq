@@ -78,7 +78,7 @@ The client
 
 Clients are small command-line utilities that expose certain functionalities of the drivers. The ``artiq_rpctool`` utility contains a generic client that can be used in most cases, and developing a custom client is not required. Try these commands ::
 
-    $ artiq_rpctool ::1 3249 list-methods    
+    $ artiq_rpctool ::1 3249 list-methods
     $ artiq_rpctool ::1 3249 call message test
 
 In case you are developing a NDSP that is complex enough to need a custom client, we will see how to develop one. Create a ``hello_client.py`` file with the following contents: ::

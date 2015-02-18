@@ -1,5 +1,6 @@
 import unittest
 import os
+
 from artiq.devices.lda.driver import Lda, Ldasim
 from artiq.language.units import dB
 
