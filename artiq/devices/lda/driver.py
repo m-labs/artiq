@@ -41,13 +41,12 @@ class Ldasim:
         """Stores the new attenuation value and prints it to console.
 
         :param attenuation: The attenuation value in dB.
-        :type attenuation: int, float or Fraction
         """
 
         step = self.get_att_step_size()
 
         if isinstance(attenuation, Quantity):
-            check_unit(attenuation, 'dB')
+            check_unit(attenuation, "dB")
             att = attenuation
         else:
             att = attenuation*dB
@@ -55,13 +54,13 @@ class Ldasim:
         att = round(att/step)*step
 
         if att > self.get_att_max():
-            raise ValueError('Cannot set attenuation {} > {}'
+            raise ValueError("Cannot set attenuation {} > {}"
                              .format(att, self.get_att_max()))
         elif att < 0*dB:
-            raise ValueError('Cannot set attenuation {} < 0'.format(att))
+            raise ValueError("Cannot set attenuation {} < 0".format(att))
         else:
             att = round(att.amount*4)/4. * dB
-            print("[LDA-sim] setting attenuation to {}".format(att))
+            print("setting attenuation to {}".format(att))
             self._attenuation = att
 
 
@@ -118,7 +117,6 @@ class Lda:
     def close(self):
         """Close the device.
         """
-
         self.hidapi.hid_close(self._dev)
 
     def get_att_step_size(self):
@@ -174,9 +172,9 @@ class Lda:
     def get(self, command, length, timeout=1000):
         """Sends a GET command to read back some value of the Lab Brick device.
 
-        :param int command: Command ID, most significant bit must be cleared.
-        :param int length: Length of the command, "count" in the datasheet.
-        :param int timeout: Timeout of the HID read in ms.
+        :param command: Command ID, most significant bit must be cleared.
+        :param length: Length of the command, "count" in the datasheet.
+        :param timeout: Timeout of the HID read in ms.
         :return: Returns the value read from the device.
         :rtype: bytes
         """
@@ -207,13 +205,12 @@ class Lda:
         """Sets attenuation value of the Lab Brick device.
 
         :param attenuation: Attenuation value in dB.
-        :type attenuation: int, float or Fraction
         """
 
         step = self.get_att_step_size()
 
         if isinstance(attenuation, Quantity):
-            check_unit(attenuation, 'dB')
+            check_unit(attenuation, "dB")
             att = attenuation
         else:
             att = attenuation*dB
@@ -221,9 +218,9 @@ class Lda:
         att = round(att/step)*step
 
         if att > self.get_att_max():
-            raise ValueError('Cannot set attenuation {} > {}'
+            raise ValueError("Cannot set attenuation {} > {}"
                              .format(att, self.get_att_max()))
         elif att < 0*dB:
-            raise ValueError('Cannot set attenuation {} < 0'.format(att))
+            raise ValueError("Cannot set attenuation {} < 0".format(att))
         else:
             self.set(0x8d, bytes([int(round(att.amount*4))]))
