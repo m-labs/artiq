@@ -16,9 +16,9 @@ class RunFailed(Exception):
 
 
 class Worker:
-    def __init__(self, handlers,
+    def __init__(self,
                  send_timeout=0.5, start_reply_timeout=1.0, term_timeout=1.0):
-        self.handlers = handlers
+        self.handlers = dict()
         self.send_timeout = send_timeout
         self.start_reply_timeout = start_reply_timeout
         self.term_timeout = term_timeout

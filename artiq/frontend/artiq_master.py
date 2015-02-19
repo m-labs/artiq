@@ -51,13 +51,18 @@ def main():
 
     def run_cb(rid, run_params):
         rtr.current_group = run_params["rtr_group"]
-    scheduler = Scheduler({
+    scheduler = Scheduler(run_cb)
+    scheduler.worker.handlers = {
         "req_device": ddb.request,
         "req_parameter": pdb.request,
         "set_parameter": pdb.set,
         "init_rt_results": rtr.init,
-        "update_rt_results": rtr.update
-    }, run_cb)
+        "update_rt_results": rtr.update,
+        "scheduler_run_queued": scheduler.run_queued,
+        "scheduler_cancel_queued": scheduler.cancel_queued,
+        "scheduler_run_timed": scheduler.run_timed,
+        "scheduler_cancel_timed": scheduler.cancel_timed,
+    }
     loop.run_until_complete(scheduler.start())
     atexit.register(lambda: loop.run_until_complete(scheduler.stop()))
 

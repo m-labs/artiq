@@ -58,6 +58,15 @@ def publish_rt_results(notifier, data):
     update_rt_results(data)
 
 
+class Scheduler:
+    run_queued = make_parent_action("scheduler_run_queued",
+                                    "run_params timeout")
+    cancel_queued = make_parent_action("scheduler_cancel_queued", "rid")
+    run_timed = make_parent_action("scheduler_run_timed",
+                                   "run_params timeout next_run")
+    cancel_timed = make_parent_action("scheduler_cancel_timed", "trid")
+
+
 def get_unit(file, unit):
     module = file_import(file)
     if unit is None:
@@ -92,7 +101,7 @@ def run(obj):
     dbh = DBHub(ParentDDB, ParentPDB, rdb)
     try:
         try:
-            unit_inst = unit(dbh, **obj["arguments"])
+            unit_inst = unit(dbh, scheduler=Scheduler, **obj["arguments"])
             unit_inst.run()
             if hasattr(unit_inst, "analyze"):
                 unit_inst.analyze()
