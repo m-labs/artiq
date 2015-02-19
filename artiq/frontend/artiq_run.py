@@ -113,6 +113,8 @@ def main():
 
             unit_inst = unit(dbh, **arguments)
             unit_inst.run()
+            if hasattr(unit_inst, "analyze"):
+                unit_inst.analyze()
 
             if args.hdf5 is not None:
                 f = h5py.File(args.hdf5, "w")

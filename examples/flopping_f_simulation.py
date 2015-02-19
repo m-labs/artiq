@@ -52,7 +52,6 @@ class FloppingF(AutoDB):
             self.frequency.append(frequency)
             self.brightness.append(brightness)
             time.sleep(0.1)
-        self.analyze()
 
     def analyze(self):
         popt, pcov = curve_fit(model_numpy,

@@ -94,6 +94,8 @@ def run(obj):
         try:
             unit_inst = unit(dbh, **obj["arguments"])
             unit_inst.run()
+            if hasattr(unit_inst, "analyze"):
+                unit_inst.analyze()
         except Exception:
             put_object({"action": "report_completed",
                         "status": "failed",
