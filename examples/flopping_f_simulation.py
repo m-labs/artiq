@@ -53,6 +53,14 @@ class FloppingF(AutoDB):
             self.brightness.append(brightness)
             time.sleep(0.1)
 
+        run_params = {
+            "file": "flopping_f_simulation.py",
+            "unit": None,
+            "arguments": dict(),
+            "rtr_group": "flopping_f_simulation.py"
+        }
+        self.scheduler.run_timed(run_params, None, time.time() + 20)
+
     def analyze(self):
         popt, pcov = curve_fit(model_numpy,
                                self.frequency.read, self.brightness.read,
