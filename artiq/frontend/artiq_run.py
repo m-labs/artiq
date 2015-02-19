@@ -2,6 +2,7 @@
 
 import argparse
 import sys
+import time
 from inspect import isclass
 from operator import itemgetter
 from itertools import chain
@@ -31,6 +32,31 @@ class ELFRunner(AutoDB):
 class SimpleParamLogger:
     def set(self, timestamp, name, value):
         print("Parameter change: {} -> {}".format(name, value))
+
+
+class DummyScheduler:
+    def __init__(self):
+        self.next_rid = 0
+        self.next_trid = 0
+
+    def run_queued(self, run_params, timeout):
+        rid = self.next_rid
+        self.next_rid += 1
+        print("Queuing: {}, RID={}".format(run_params, rid))
+        return rid
+
+    def cancel_queued(self, rid):
+        print("Cancelling RID {}".format(rid))
+
+    def run_timed(self, run_params, timeout, next_run):
+        trid = self.next_trid
+        self.next_trid += 1
+        next_run_s = time.strftime("%m/%d %H:%M:%S", time.localtime(next_run))
+        print("Timing: {} at {}, TRID={}".format(run_params, next_run_s, trid))
+        return trid
+
+    def cancel_timed(self, trid):
+        print("Cancelling TRID {}".format(trid))
 
 
 def get_argparser():
@@ -111,7 +137,7 @@ def main():
                 print("Failed to parse run arguments")
                 sys.exit(1)
 
-            unit_inst = unit(dbh, **arguments)
+            unit_inst = unit(dbh, scheduler=DummyScheduler(), **arguments)
             unit_inst.run()
             if hasattr(unit_inst, "analyze"):
                 unit_inst.analyze()
