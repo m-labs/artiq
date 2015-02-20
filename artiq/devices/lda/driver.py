@@ -156,7 +156,8 @@ class Lda:
         buf = struct.pack("BBB6s", 0, command, length, data)
         res = self._check_error(self.hidapi.hid_write(self._dev, buf,
                                                       len(buf)))
-        assert res == len(buf), res
+        if res != len(buf):
+            raise IOError
 
     def set(self, command, data):
         """Sends a SET command to the Lab Brick device.
@@ -165,8 +166,10 @@ class Lda:
         :param data: payload of the command.
         """
 
-        assert command & 0x80
-        assert data
+        if not data:
+            raise ValueError("Data is empty")
+        if not (command & 0x80):
+            raise ValueError("Set commands must have most significant bit set")
         self.write(command, len(data), data)
 
     def get(self, command, length, timeout=1000):
@@ -179,14 +182,17 @@ class Lda:
         :rtype: bytes
         """
 
-        assert not command & 0x80
+        if command & 0x80:
+            raise ValueError("Get commands must not have most significant bit"
+                             " set")
         status = None
         self.write(command, length)
         buf = ctypes.create_string_buffer(8)
         while status != command:
             res = self._check_error(self.hidapi.hid_read_timeout(self._dev,
                                     buf, len(buf), timeout))
-            assert res == len(buf), res
+            if res != len(buf):
+                raise IOError
             status, length, data = struct.unpack("BB6s", buf.raw)
             data = data[:length]
         logger.info("%s %s %r", command, length, data)
