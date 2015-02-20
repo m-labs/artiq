@@ -156,6 +156,9 @@ class Quantity:
     def __pos__(self):
         return Quantity(self.amount.__pos__(), self.unit)
 
+    def __abs__(self):
+        return Quantity(abs(self.amount), self.unit)
+
     # add/sub
     def __add__(self, other):
         return self._binop(other, "__add__", addsub_dimension)
