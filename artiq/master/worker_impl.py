@@ -79,7 +79,7 @@ def get_unit(file, unit):
         return getattr(module, unit)
 
 
-def run(run_params):
+def run(rid, run_params):
     unit = get_unit(run_params["file"], run_params["unit"])
 
     realtime_results = unit.realtime_results()
@@ -115,7 +115,7 @@ def run(run_params):
     finally:
         dbh.close()
 
-    filename = run_params["file"] + ".h5"
+    filename = "{:05}-{}.h5".format(rid, unit.__name__)
     f = h5py.File(filename, "w")
     try:
         rdb.write_hdf5(f)
@@ -129,7 +129,7 @@ def main():
     while True:
         obj = get_object()
         put_object("ack")
-        run(obj)
+        run(obj["rid"], obj["run_params"])
 
 if __name__ == "__main__":
     main()
