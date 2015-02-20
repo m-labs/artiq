@@ -137,7 +137,16 @@ def main():
                 print("Failed to parse run arguments")
                 sys.exit(1)
 
-            unit_inst = unit(dbh, scheduler=DummyScheduler(), **arguments)
+            run_params = {
+                "file": args.file,
+                "unit": args.unit,
+                "timeout": None,
+                "arguments": arguments
+            }
+            unit_inst = unit(dbh,
+                             scheduler=DummyScheduler(),
+                             run_params=run_params,
+                             **run_params["arguments"])
             unit_inst.run()
             if hasattr(unit_inst, "analyze"):
                 unit_inst.analyze()

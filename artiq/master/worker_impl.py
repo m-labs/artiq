@@ -81,8 +81,8 @@ def get_unit(file, unit):
         return getattr(module, unit)
 
 
-def run(obj):
-    unit = get_unit(obj["file"], obj["unit"])
+def run(run_params):
+    unit = get_unit(run_params["file"], run_params["unit"])
 
     realtime_results = unit.realtime_results()
     init_rt_results(realtime_results)
@@ -100,7 +100,10 @@ def run(obj):
     dbh = DBHub(ParentDDB, ParentPDB, rdb)
     try:
         try:
-            unit_inst = unit(dbh, scheduler=Scheduler, **obj["arguments"])
+            unit_inst = unit(dbh,
+                             scheduler=Scheduler,
+                             run_params=run_params,
+                             **run_params["arguments"])
             unit_inst.run()
             if hasattr(unit_inst, "analyze"):
                 unit_inst.analyze()
@@ -114,7 +117,7 @@ def run(obj):
     finally:
         dbh.close()
 
-    filename = obj["file"] + ".h5"
+    filename = run_params["file"] + ".h5"
     f = h5py.File(filename, "w")
     try:
         rdb.write_hdf5(f)
