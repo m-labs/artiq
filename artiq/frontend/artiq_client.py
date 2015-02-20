@@ -104,19 +104,20 @@ def _action_submit(remote, args):
     run_params = {
         "file": args.file,
         "unit": args.unit,
+        "timeout": args.timeout,
         "arguments": arguments,
         "rtr_group": args.rtr_group if args.rtr_group is not None \
                         else args.file
     }
     if args.timed is None:
-        rid = remote.run_queued(run_params, args.timeout)
+        rid = remote.run_queued(run_params)
         print("RID: {}".format(rid))
     else:
         if args.timed == "now":
             next_time = None
         else:
             next_time = time.mktime(parse_date(args.timed).timetuple())
-        trid = remote.run_timed(run_params, args.timeout, next_time)
+        trid = remote.run_timed(run_params, next_time)
         print("TRID: {}".format(trid))
 
 
@@ -147,9 +148,9 @@ def _show_queue(queue):
     clear_screen()
     if queue:
         table = PrettyTable(["RID", "File", "Unit", "Timeout", "Arguments"])
-        for rid, run_params, timeout in queue:
+        for rid, run_params in queue:
             row = [rid, run_params["file"]]
-            for x in run_params["unit"], timeout:
+            for x in run_params["unit"], run_params["timeout"]:
                 row.append("-" if x is None else x)
             row.append(format_run_arguments(run_params["arguments"]))
             table.add_row(row)
@@ -164,10 +165,10 @@ def _show_timed(timed):
         table = PrettyTable(["Next run", "TRID", "File", "Unit",
                              "Timeout", "Arguments"])
         sp = sorted(timed.items(), key=lambda x: (x[1][0], x[0]))
-        for trid, (next_run, run_params, timeout) in sp:
+        for trid, (next_run, run_params) in sp:
             row = [time.strftime("%m/%d %H:%M:%S", time.localtime(next_run)),
                    trid, run_params["file"]]
-            for x in run_params["unit"], timeout:
+            for x in run_params["unit"], run_params["timeout"]:
                 row.append("-" if x is None else x)
             row.append(format_run_arguments(run_params["arguments"]))
             table.add_row(row)

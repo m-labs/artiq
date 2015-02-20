@@ -10,9 +10,9 @@ from artiq.tools import format_run_arguments
 
 class _QueueStoreSyncer(ListSyncer):
     def convert(self, x):
-        rid, run_params, timeout = x
+        rid, run_params = x
         row = [rid, run_params["file"]]
-        for e in run_params["unit"], timeout:
+        for e in run_params["unit"], run_params["timeout"]:
             row.append("-" if e is None else str(e))
         row.append(format_run_arguments(run_params["arguments"]))
         return row
@@ -24,10 +24,10 @@ class _TimedStoreSyncer(DictSyncer):
         return (kv_pair[1][0], kv_pair[0])
 
     def convert(self, trid, x):
-        next_run, run_params, timeout = x
+        next_run, run_params = x
         row = [time.strftime("%m/%d %H:%M:%S", time.localtime(next_run)),
                trid, run_params["file"]]
-        for e in run_params["unit"], timeout:
+        for e in run_params["unit"], run_params["timeout"]:
             row.append("-" if e is None else str(e))
         row.append(format_run_arguments(run_params["arguments"]))
         return row

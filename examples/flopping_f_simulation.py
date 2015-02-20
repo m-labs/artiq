@@ -56,10 +56,11 @@ class FloppingF(AutoDB):
         run_params = {
             "file": "flopping_f_simulation.py",
             "unit": None,
+            "timeout": None,
             "arguments": dict(),
             "rtr_group": "flopping_f_simulation.py"
         }
-        self.scheduler.run_timed(run_params, None, time.time() + 20)
+        self.scheduler.run_timed(run_params, time.time() + 20)
 
     def analyze(self):
         popt, pcov = curve_fit(model_numpy,

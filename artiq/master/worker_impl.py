@@ -59,11 +59,10 @@ def publish_rt_results(notifier, data):
 
 
 class Scheduler:
-    run_queued = make_parent_action("scheduler_run_queued",
-                                    "run_params timeout")
+    run_queued = make_parent_action("scheduler_run_queued", "run_params")
     cancel_queued = make_parent_action("scheduler_cancel_queued", "rid")
     run_timed = make_parent_action("scheduler_run_timed",
-                                   "run_params timeout next_run")
+                                   "run_params next_run")
     cancel_timed = make_parent_action("scheduler_cancel_timed", "trid")
 
 

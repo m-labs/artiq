@@ -39,7 +39,7 @@ class DummyScheduler:
         self.next_rid = 0
         self.next_trid = 0
 
-    def run_queued(self, run_params, timeout):
+    def run_queued(self, run_params):
         rid = self.next_rid
         self.next_rid += 1
         print("Queuing: {}, RID={}".format(run_params, rid))
@@ -48,7 +48,7 @@ class DummyScheduler:
     def cancel_queued(self, rid):
         print("Cancelling RID {}".format(rid))
 
-    def run_timed(self, run_params, timeout, next_run):
+    def run_timed(self, run_params, next_run):
         trid = self.next_trid
         self.next_trid += 1
         next_run_s = time.strftime("%m/%d %H:%M:%S", time.localtime(next_run))

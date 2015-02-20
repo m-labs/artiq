@@ -37,14 +37,14 @@ class Scheduler:
         del self.task
         yield from self.worker.end_process()
 
-    def run_queued(self, run_params, timeout):
+    def run_queued(self, run_params):
         rid = self.new_rid()
-        self.queue.append((rid, run_params, timeout))
+        self.queue.append((rid, run_params))
         self.queue_modified.set()
         return rid
 
     def cancel_queued(self, rid):
-        idx = next(idx for idx, (qrid, _, _)
+        idx = next(idx for idx, (qrid, _)
                    in enumerate(self.queue.read)
                    if qrid == rid)
         if idx == 0:
@@ -52,11 +52,11 @@ class Scheduler:
             raise NotImplementedError
         del self.queue[idx]
 
-    def run_timed(self, run_params, timeout, next_run):
+    def run_timed(self, run_params, next_run):
         if next_run is None:
             next_run = time()
         trid = self.new_trid()
-        self.timed[trid] = next_run, run_params, timeout
+        self.timed[trid] = next_run, run_params
         self.timed_modified.set()
         return trid
 
@@ -64,10 +64,10 @@ class Scheduler:
         del self.timed[trid]
 
     @asyncio.coroutine
-    def _run(self, rid, run_params, timeout):
+    def _run(self, rid, run_params):
         self.run_cb(rid, run_params)
         try:
-            yield from self.worker.run(run_params, timeout)
+            yield from self.worker.run(run_params)
         except Exception as e:
             print("RID {} failed:".format(rid))
             print(e)
@@ -92,12 +92,12 @@ class Scheduler:
             if min_next_run > 0:
                 return min_next_run
 
-            next_run, run_params, timeout = self.timed.read[min_trid]
+            next_run, run_params = self.timed.read[min_trid]
             del self.timed[min_trid]
 
             rid = self.new_rid()
-            self.queue.insert(0, (rid, run_params, timeout))
-            yield from self._run(rid, run_params, timeout)
+            self.queue.insert(0, (rid, run_params))
+            yield from self._run(rid, run_params)
             del self.queue[0]
 
     @asyncio.coroutine
@@ -105,8 +105,8 @@ class Scheduler:
         while True:
             next_timed = yield from self._run_timed()
             if self.queue.read:
-                rid, run_params, timeout = self.queue.read[0]
-                yield from self._run(rid, run_params, timeout)
+                rid, run_params = self.queue.read[0]
+                yield from self._run(rid, run_params)
                 del self.queue[0]
             else:
                 self.queue_modified.clear()

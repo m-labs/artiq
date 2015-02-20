@@ -60,13 +60,13 @@ class Worker:
         return obj
 
     @asyncio.coroutine
-    def run(self, run_params, result_timeout):
+    def run(self, run_params):
         yield from self._send(run_params, self.send_timeout)
         obj = yield from self._recv(self.start_reply_timeout)
         if obj != "ack":
             raise WorkerFailed("Incorrect acknowledgement")
         while True:
-            obj = yield from self._recv(result_timeout)
+            obj = yield from self._recv(run_params["timeout"])
             action = obj["action"]
             if action == "report_completed":
                 if obj["status"] != "ok":
