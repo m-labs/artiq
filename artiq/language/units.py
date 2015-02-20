@@ -215,6 +215,7 @@ def _register_unit(unit, prefixes):
 _register_unit("s", "pnum_")
 _register_unit("Hz", "_kMG")
 _register_unit("dB", "_")
+_register_unit("V", "um_k")
 
 
 def check_unit(value, unit):
