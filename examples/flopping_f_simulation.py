@@ -24,6 +24,8 @@ def model_numpy(xdata, F0):
 
 
 class FloppingF(AutoDB):
+    __artiq_unit__ = "Flopping F simulation"
+
     class DBKeys:
         implicit_core = False
 

@@ -2,6 +2,8 @@ from artiq import *
 
 
 class SimpleSimulation(AutoDB):
+    __artiq_unit__ = "Simple simulation"
+
     class DBKeys:
         a = Device()
         b = Device()

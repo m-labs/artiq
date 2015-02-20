@@ -2,6 +2,8 @@ from artiq import *
 
 
 class PhotonHistogram(AutoDB):
+    __artiq_unit__ = "Photon histogram"
+
     class DBKeys:
         bd = Device()
         bdd = Device()

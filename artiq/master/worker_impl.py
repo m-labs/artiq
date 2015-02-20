@@ -6,7 +6,6 @@ import h5py
 
 from artiq.protocols import pyon
 from artiq.tools import file_import
-from artiq.language.db import AutoDB
 from artiq.master.db import DBHub, ResultDB
 
 
@@ -72,8 +71,7 @@ def get_unit(file, unit):
         units = [v for k, v in module.__dict__.items()
                  if k[0] != "_"
                     and isclass(v)
-                    and issubclass(v, AutoDB)
-                    and v is not AutoDB]
+                    and hasattr(v, "__artiq_unit__")]
         if len(units) != 1:
             raise ValueError("Found {} units in module".format(len(units)))
         return units[0]

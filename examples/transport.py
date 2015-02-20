@@ -11,6 +11,8 @@ transport_data = dict(
 )
 
 class Transport(AutoDB):
+    __artiq_unit__ = "Transport"
+
     class DBKeys:
         bd = Device()
         bdd = Device()

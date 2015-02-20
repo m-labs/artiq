@@ -114,8 +114,7 @@ def main():
                 units = [(k, v) for k, v in module.__dict__.items()
                          if k[0] != "_"
                             and isclass(v)
-                            and issubclass(v, AutoDB)
-                            and v is not AutoDB]
+                            and hasattr(v, "__artiq_unit__")]
                 l = len(units)
                 if l == 0:
                     print("No units found in module")
@@ -123,7 +122,7 @@ def main():
                 elif l > 1:
                     print("More than one unit found in module:")
                     for k, v in sorted(units, key=itemgetter(0)):
-                        print("    " + k)
+                        print("    {} ({})".format(k, v.__artiq_unit__))
                     print("Use -u to specify which unit to use.")
                     sys.exit(1)
                 else:

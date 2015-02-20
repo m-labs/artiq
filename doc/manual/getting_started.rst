@@ -10,6 +10,8 @@ As a very first step, we will turn on a LED on the core device. Create a file ``
 
 
     class LED(AutoDB):
+        __artiq_unit__ = "ARTIQ tutorial"
+
         class DBKeys:
             led = Device()
 
@@ -19,6 +21,8 @@ As a very first step, we will turn on a LED on the core device. Create a file ``
 
 
 The central part of our code is our ``LED`` class, that derives from :class:`artiq.language.db.AutoDB`. ``AutoDB`` is part of the mechanism that attaches device drivers and retrieves parameters according to a database. Our ``DBKeys`` class lists the devices (and parameters) that ``LED`` needs in order to operate, and the names of the attributes (e.g. ``led``) are used to search the database. ``AutoDB`` replaces them with the actual device drivers (and parameter values). Finally, the ``@kernel`` decorator tells the system that the ``run`` method must be executed on the core device (instead of the host).
+
+The ``__artiq_unit__`` attribute tells the ARTIQ tools that our class is a "unit" (an entry point for an experiment) and gives it a name. The name can be any string, and its purpose is to name the experiment in user interfaces.
 
 Copy the files ``ddb.pyon`` and ``pdb.pyon`` (containing the device and parameter databases) from the ``examples`` folder of ARTIQ into the same directory as ``led.py`` (alternatively, you can use the ``-d`` and ``-p`` options of ``artiq_run.py``). You can open the database files using a text editor - their contents are in a human-readable format.
 
@@ -39,6 +43,8 @@ Modify the code as follows: ::
         return int(input("Enter desired LED state: "))
 
     class LED(AutoDB):
+        __artiq_unit__ = "ARTIQ tutorial"
+
         class DBKeys:
             led = Device()
 
@@ -82,6 +88,8 @@ Create a new file ``rtio.py`` containing the following: ::
     from artiq import *
 
     class Tutorial(AutoDB):
+        __artiq_unit__ = "ARTIQ tutorial"
+
         class DBKeys:
             ttl0 = Device()
 
@@ -104,6 +112,8 @@ Try reducing the period of the generated waveform until the CPU cannot keep up w
         print("RTIO underflow occured")
 
     class Tutorial(AutoDB):
+        __artiq_unit__ = "ARTIQ tutorial"
+
         class DBKeys:
             led = Device()
             ttl0 = Device()

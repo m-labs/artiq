@@ -6,6 +6,8 @@ class PulseNotReceived(Exception):
 
 
 class RTIOSkew(AutoDB):
+    __artiq_unit__ = "RTIO skew"
+
     class DBKeys:
         pmt0 = Device()
         ttl0 = Device()

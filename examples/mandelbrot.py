@@ -4,6 +4,8 @@ from artiq import *
 
 
 class Mandelbrot(AutoDB):
+    __artiq_unit__ = "Mandelbrot set demo"
+
     def col(self, i):
         sys.stdout.write(" .,-:;i+hHM$*#@ "[i])
 

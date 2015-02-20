@@ -2,6 +2,8 @@ from artiq import *
 
 
 class DDSTest(AutoDB):
+    __artiq_unit__ = "DDS test"
+
     class DBKeys:
         dds0 = Device()
         dds1 = Device()

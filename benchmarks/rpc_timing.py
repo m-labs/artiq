@@ -4,6 +4,8 @@ from artiq import *
 
 
 class RPCTiming(AutoDB):
+    __artiq_unit__ = "RPC timing"
+
     class DBKeys:
         repeats = Argument(100)
         rpc_time_mean = Result()
