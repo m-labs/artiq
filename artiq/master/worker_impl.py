@@ -1,4 +1,6 @@
 import sys
+import os
+import time
 from inspect import isclass
 import traceback
 
@@ -80,6 +82,7 @@ def get_unit(file, unit):
 
 
 def run(rid, run_params):
+    start_time = time.localtime()
     unit = get_unit(run_params["file"], run_params["unit"])
 
     realtime_results = unit.realtime_results()
@@ -115,8 +118,12 @@ def run(rid, run_params):
     finally:
         dbh.close()
 
-    filename = "{:05}-{}.h5".format(rid, unit.__name__)
-    f = h5py.File(filename, "w")
+    dirname = os.path.join("results",
+                           time.strftime("%y-%m-%d", start_time),
+                           time.strftime("%H-%M", start_time))
+    filename = "{:09}-{}.h5".format(rid, unit.__name__)
+    os.makedirs(dirname, exist_ok=True)
+    f = h5py.File(os.path.join(dirname, filename), "w")
     try:
         rdb.write_hdf5(f)
     finally:
