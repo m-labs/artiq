@@ -9,7 +9,7 @@ from artiq.protocols.pc_rpc import Server
 from artiq.protocols.sync_struct import Publisher
 from artiq.protocols.file_db import FlatFileDB, SimpleHistory
 from artiq.master.scheduler import Scheduler
-from artiq.master.rt_results import RTResults
+from artiq.master.results import RTResults
 from artiq.master.repository import Repository
 from artiq.tools import verbosity_args, init_logger
 

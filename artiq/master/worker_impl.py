@@ -1,14 +1,12 @@
 import sys
-import os
 import time
 from inspect import isclass
 import traceback
 
-import h5py
-
 from artiq.protocols import pyon
 from artiq.tools import file_import
-from artiq.master.db import DBHub, ResultDB
+from artiq.master.worker_db import DBHub, ResultDB
+from artiq.master.results import get_hdf5_output
 
 
 def get_object():
@@ -118,12 +116,7 @@ def run(rid, run_params):
     finally:
         dbh.close()
 
-    dirname = os.path.join("results",
-                           time.strftime("%y-%m-%d", start_time),
-                           time.strftime("%H-%M", start_time))
-    filename = "{:09}-{}.h5".format(rid, unit.__name__)
-    os.makedirs(dirname, exist_ok=True)
-    f = h5py.File(os.path.join(dirname, filename), "w")
+    f = get_hdf5_output(start_time, rid, unit.__name__)
     try:
         rdb.write_hdf5(f)
     finally:

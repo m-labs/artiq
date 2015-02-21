@@ -1,44 +1,9 @@
 from collections import OrderedDict
 import importlib
 
-import numpy
-import h5py
-
 from artiq.protocols.sync_struct import Notifier
 from artiq.protocols.pc_rpc import Client, BestEffortClient
-
-
-_type_to_hdf5 = {
-    int: h5py.h5t.STD_I64BE,
-    float: h5py.h5t.IEEE_F64BE
-}
-
-def _result_dict_to_hdf5(f, rd):
-    for name, data in rd.items():
-        if isinstance(data, list):
-            el_ty = type(data[0])
-            for d in data:
-                if type(d) != el_ty:
-                    raise TypeError("All list elements must have the same"
-                                    " type for HDF5 output")
-            try:
-                el_ty_h5 = _type_to_hdf5[el_ty]
-            except KeyError:
-                raise TypeError("List element type {} is not supported for"
-                                " HDF5 output".format(el_ty))
-            dataset = f.create_dataset(name, (len(data), ), el_ty_h5)
-            dataset[:] = data
-        elif isinstance(data, numpy.ndarray):
-            f.create_dataset(name, data=data)
-        else:
-            ty = type(data)
-            try:
-                ty_h5 = _type_to_hdf5[ty]
-            except KeyError:
-                raise TypeError("Type {} is not supported for HDF5 output"
-                                .format(ty))
-            dataset = f.create_dataset(name, (), ty_h5)
-            dataset[()] = data
+from artiq.master.results import result_dict_to_hdf5
 
 
 class ResultDB:
@@ -68,8 +33,8 @@ class ResultDB:
             self.data[name] = value
 
     def write_hdf5(self, f):
-        _result_dict_to_hdf5(f, self.realtime_data.read)
-        _result_dict_to_hdf5(f, self.data.read)
+        result_dict_to_hdf5(f, self.realtime_data.read)
+        result_dict_to_hdf5(f, self.data.read)
 
 
 def _create_device(desc, dbh):
