@@ -9,7 +9,7 @@ from artiq.protocols.sync_struct import Notifier, process_mod
 
 def get_hdf5_output(start_time, rid, name):
     dirname = os.path.join("results",
-                           time.strftime("%y-%m-%d", start_time),
+                           time.strftime("%Y-%m-%d", start_time),
                            time.strftime("%H-%M", start_time))
     filename = "{:09}-{}.h5".format(rid, name)
     os.makedirs(dirname, exist_ok=True)
