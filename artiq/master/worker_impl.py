@@ -69,9 +69,7 @@ def get_unit(file, unit):
     module = file_import(file)
     if unit is None:
         units = [v for k, v in module.__dict__.items()
-                 if k[0] != "_"
-                    and isclass(v)
-                    and hasattr(v, "__artiq_unit__")]
+                 if isclass(v) and hasattr(v, "__artiq_unit__")]
         if len(units) != 1:
             raise ValueError("Found {} units in module".format(len(units)))
         return units[0]
