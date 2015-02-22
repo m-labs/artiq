@@ -1,5 +1,6 @@
 import os
 import time
+import re
 
 import numpy
 import h5py
@@ -14,6 +15,36 @@ def get_hdf5_output(start_time, rid, name):
     filename = "{:09}-{}.h5".format(rid, name)
     os.makedirs(dirname, exist_ok=True)
     return h5py.File(os.path.join(dirname, filename), "w")
+
+
+def get_last_rid():
+    r = -1
+    try:
+        day_folders = os.listdir("results")
+    except:
+        return r
+    day_folders = filter(lambda x: re.fullmatch('\d\d\d\d-\d\d-\d\d', x),
+                         day_folders)
+    for df in day_folders:
+        day_path = os.path.join("results", df)
+        try:
+            minute_folders = os.listdir(day_path)
+        except:
+            continue
+        minute_folders = filter(lambda x: re.fullmatch('\d\d-\d\d', x),
+                                          minute_folders)
+        for mf in minute_folders:
+            minute_path = os.path.join(day_path, mf)
+            try:
+                h5files = os.listdir(minute_path)
+            except:
+                continue
+            for x in h5files:
+                m = re.fullmatch('(\d\d\d\d\d\d\d\d\d)-.*\.h5', x)
+                rid = int(m.group(1))
+                if rid > r:
+                    r = rid
+    return r
 
 
 _type_to_hdf5 = {

@@ -9,7 +9,7 @@ from artiq.protocols.pc_rpc import Server
 from artiq.protocols.sync_struct import Publisher
 from artiq.protocols.file_db import FlatFileDB, SimpleHistory
 from artiq.master.scheduler import Scheduler
-from artiq.master.results import RTResults
+from artiq.master.results import RTResults, get_last_rid
 from artiq.master.repository import Repository
 from artiq.tools import verbosity_args, init_logger
 
@@ -51,7 +51,7 @@ def main():
 
     def run_cb(rid, run_params):
         rtr.current_group = run_params["rtr_group"]
-    scheduler = Scheduler(run_cb)
+    scheduler = Scheduler(run_cb, get_last_rid() + 1)
     scheduler.worker.handlers = {
         "req_device": ddb.request,
         "req_parameter": pdb.request,

@@ -6,10 +6,10 @@ from artiq.master.worker import Worker
 
 
 class Scheduler:
-    def __init__(self, run_cb):
+    def __init__(self, run_cb, first_rid):
         self.run_cb = run_cb
         self.worker = Worker()
-        self.next_rid = 0
+        self.next_rid = first_rid
         self.queue = Notifier([])
         self.queue_modified = asyncio.Event()
         self.timed = Notifier(dict())
