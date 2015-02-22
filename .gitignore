@@ -9,4 +9,4 @@ doc/manual/_build
 /dist
 /*.egg-info
 /.coverage
-examples/results
+examples/master/results

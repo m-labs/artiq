@@ -40,7 +40,6 @@ def main():
     pdb.hooks.append(simplephist)
     rtr = RTResults()
     repository = Repository()
-    explist = FlatFileDB("explist.pyon")
 
     if os.name == "nt":
         loop = asyncio.ProactorEventLoop()
@@ -71,7 +70,6 @@ def main():
         "master_pdb": pdb,
         "master_schedule": scheduler,
         "master_repository": repository,
-        "master_explist": explist
     })
     loop.run_until_complete(server_control.start(
         args.bind, args.port_control))
@@ -84,7 +82,7 @@ def main():
         "parameters": pdb.data,
         "parameters_simplehist": simplephist.history,
         "rt_results": rtr.groups,
-        "explist": explist.data
+        "explist": repository.explist
     })
     loop.run_until_complete(server_notify.start(
         args.bind, args.port_notify))

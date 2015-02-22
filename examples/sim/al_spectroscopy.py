@@ -2,6 +2,8 @@ from artiq import *
 
 
 class AluminumSpectroscopy(AutoDB):
+    __artiq_unit__ = "Aluminum spectroscopy (simulation)"
+
     class DBKeys:
         mains_sync = Device()
         laser_cooling = Device()
