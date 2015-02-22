@@ -12,7 +12,7 @@ import h5py
 from artiq.language.db import *
 from artiq.protocols import pyon
 from artiq.protocols.file_db import FlatFileDB
-from artiq.master.db import DBHub, ResultDB
+from artiq.master.worker_db import DBHub, ResultDB
 from artiq.tools import file_import, verbosity_args, init_logger
 
 
