@@ -63,6 +63,9 @@ class Ldasim:
             print("setting attenuation to {}".format(att))
             self._attenuation = att
 
+    def ping(self):
+        return True
+
 
 class Lda:
     """Lab Brick Digital Attenuator driver.
@@ -230,3 +233,10 @@ class Lda:
             raise ValueError("Cannot set attenuation {} < 0".format(att))
         else:
             self.set(0x8d, bytes([int(round(att.amount*4))]))
+
+    def ping(self):
+        try:
+            self.get_attenuation()
+        except:
+            return False
+        return True
