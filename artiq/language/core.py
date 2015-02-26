@@ -6,8 +6,6 @@ Core ARTIQ extensions to the Python language.
 from collections import namedtuple as _namedtuple
 from functools import wraps as _wraps
 
-from artiq.language import units as _units
-
 
 class int64(int):
     """64-bit integers for static compilation.
@@ -236,7 +234,7 @@ def time_to_cycles(time, core=None):
     """
     if core is None:
         raise ValueError("Core device must be specified for time conversion")
-    return round64(time.amount//core.runtime_env.ref_period)
+    return round64(time.amount//core.ref_period)
 
 
 def cycles_to_time(cycles, core=None):
@@ -249,7 +247,7 @@ def cycles_to_time(cycles, core=None):
     """
     if core is None:
         raise ValueError("Core device must be specified for time conversion")
-    return cycles*core.runtime_env.ref_period*_units.s
+    return cycles*core.ref_period
 
 
 def syscall(*args):
