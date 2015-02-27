@@ -122,7 +122,7 @@ class ARTIQMiniSoC(BaseSoC):
         rtio_csrs = self.rtio.get_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
         self.add_wb_slave(lambda a: a[26:29] == 2, self.rtiowb.bus)
-        self.add_cpu_csr_region("rtio", 0xa0000000, 32, rtio_csrs)
+        self.add_csr_region("rtio", 0xa0000000, 32, rtio_csrs)
 
         if with_test_gen:
             self.submodules.test_gen = _TestGen(platform.request("ttl", 8))
