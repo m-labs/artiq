@@ -12,7 +12,7 @@ from prettytable import PrettyTable
 from artiq.protocols.pc_rpc import Client
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols import pyon
-from artiq.tools import format_run_arguments
+from artiq.tools import format_arguments
 
 
 def clear_screen():
@@ -151,8 +151,8 @@ def _show_queue(queue):
         for rid, run_params in queue:
             row = [rid, run_params["file"]]
             for x in run_params["unit"], run_params["timeout"]:
-                row.append("-" if x is None else x)
-            row.append(format_run_arguments(run_params["arguments"]))
+                row.append("" if x is None else x)
+            row.append(format_arguments(run_params["arguments"]))
             table.add_row(row)
         print(table)
     else:
@@ -169,8 +169,8 @@ def _show_timed(timed):
             row = [time.strftime("%m/%d %H:%M:%S", time.localtime(next_run)),
                    trid, run_params["file"]]
             for x in run_params["unit"], run_params["timeout"]:
-                row.append("-" if x is None else x)
-            row.append(format_run_arguments(run_params["arguments"]))
+                row.append("" if x is None else x)
+            row.append(format_arguments(run_params["arguments"]))
             table.add_row(row)
         print(table)
     else:

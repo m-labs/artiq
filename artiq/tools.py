@@ -6,14 +6,14 @@ import sys
 import os.path
 
 
-def format_run_arguments(arguments):
+def format_arguments(arguments):
     fmtargs = []
     for k, v in sorted(arguments.items(), key=itemgetter(0)):
-        fmtargs.append(k + "=" + str(v))
+        fmtargs.append(k + "=" + repr(v))
     if fmtargs:
-        return " ".join(fmtargs)
+        return ", ".join(fmtargs)
     else:
-        return "-"
+        return ""
 
 
 def file_import(filename):

@@ -22,6 +22,7 @@ import inspect
 
 from artiq.protocols import pyon
 from artiq.protocols.asyncio_server import AsyncioServer as _AsyncioServer
+from artiq.tools import format_arguments
 
 
 logger = logging.getLogger(__name__)
@@ -373,6 +374,22 @@ class BestEffortClient:
         return proxy
 
 
+class _PrettyPrintCall:
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __str__(self):
+        r = self.obj["name"] + "("
+        args = ", ".join([repr(a) for a in self.obj["args"]])
+        r += args
+        kwargs = format_arguments(self.obj["kwargs"])
+        if args and kwargs:
+            r += ", "
+        r += kwargs
+        r += ")"
+        return r
+
+
 class Server(_AsyncioServer):
     """This class creates a TCP server that handles requests coming from
     ``Client`` objects.
@@ -435,6 +452,7 @@ class Server(_AsyncioServer):
                                              inspect.getdoc(method))
                         obj = {"status": "ok", "ret": methods}
                     elif obj["action"] == "call":
+                        logger.debug("calling %s", _PrettyPrintCall(obj))
                         method = getattr(target, obj["name"])
                         ret = method(*obj["args"], **obj["kwargs"])
                         obj = {"status": "ok", "ret": ret}

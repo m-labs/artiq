@@ -5,7 +5,7 @@ from gi.repository import Gtk
 
 from artiq.gui.tools import Window, ListSyncer, DictSyncer
 from artiq.protocols.sync_struct import Subscriber
-from artiq.tools import format_run_arguments
+from artiq.tools import format_arguments
 
 
 class _QueueStoreSyncer(ListSyncer):
@@ -13,8 +13,8 @@ class _QueueStoreSyncer(ListSyncer):
         rid, run_params = x
         row = [rid, run_params["file"]]
         for e in run_params["unit"], run_params["timeout"]:
-            row.append("-" if e is None else str(e))
-        row.append(format_run_arguments(run_params["arguments"]))
+            row.append("" if e is None else str(e))
+        row.append(format_arguments(run_params["arguments"]))
         return row
 
 
@@ -28,8 +28,8 @@ class _TimedStoreSyncer(DictSyncer):
         row = [time.strftime("%m/%d %H:%M:%S", time.localtime(next_run)),
                trid, run_params["file"]]
         for e in run_params["unit"], run_params["timeout"]:
-            row.append("-" if e is None else str(e))
-        row.append(format_run_arguments(run_params["arguments"]))
+            row.append("" if e is None else str(e))
+        row.append(format_arguments(run_params["arguments"]))
         return row
 
 
