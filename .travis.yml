@@ -25,9 +25,9 @@ install:
 script:
   - coverage run --source=artiq setup.py test
   - make -C doc/manual html
-  - cd misoc; python make.py -X ../soc -t artiq build-headers build-bios; cd ..
+  - cd misoc; python make.py -X ../soc -t artiq_ppro build-headers build-bios; cd ..
   - make -C soc/runtime
-  - if [ $BUILD_SOC -ne 0 ]; then cd misoc; python make.py -X ../soc -t artiq build-bitstream; cd ..; fi
+  - if [ $BUILD_SOC -ne 0 ]; then cd misoc; python make.py -X ../soc -t artiq_ppro build-bitstream; cd ..; fi
 after_success:
   coveralls
 notifications:

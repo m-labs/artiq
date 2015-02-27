@@ -96,7 +96,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 * Build and flash the bitstream and BIOS by running `from the MiSoC top-level directory` ::
 
         $ cd ~/artiq-dev/misoc
-        $ ./make.py -X ~/artiq-dev/artiq/soc -t artiq all
+        $ ./make.py -X ~/artiq-dev/artiq/soc -t artiq_ppro all
 
 * Then, build and flash the ARTIQ runtime:
     
