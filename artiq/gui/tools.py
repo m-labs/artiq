@@ -94,8 +94,6 @@ class DictSyncer:
         raise KeyError
 
     def __setitem__(self, key, value):
-        if hasattr(self, "data"):
-            data[key] = value
         try:
             i = self._find_index(key)
         except KeyError:
