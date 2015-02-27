@@ -38,7 +38,7 @@ class Ldasim:
         return self._attenuation
 
     def set_attenuation(self, attenuation):
-        """Stores the new attenuation value and prints it to console.
+        """Stores the new attenuation value.
 
         :param attenuation: The attenuation value in dB.
         """
@@ -60,7 +60,6 @@ class Ldasim:
             raise ValueError("Cannot set attenuation {} < 0".format(att))
         else:
             att = round(att.amount*4)/4. * dB
-            print("setting attenuation to {}".format(att))
             self._attenuation = att
 
     def ping(self):
