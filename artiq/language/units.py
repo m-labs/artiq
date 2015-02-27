@@ -239,3 +239,26 @@ def check_unit(value, unit):
     else:
         if not isinstance(value, Quantity) or value.unit != unit:
             raise DimensionError
+
+def strip_unit(value, unit):
+    """Check that the value has the specified unit and returns its amount.
+    Raises ``DimensionError`` if the units does not match.
+
+    If the passed value is not a ``Quantity``, it is assumed to be in the
+    specified unit and is returned unchanged.
+
+    If ``unit`` is ``None``, passing a ``Quantity`` as value raises
+    ``DimensionError``.
+
+    """
+    if unit is None:
+        if isinstance(value, Quantity):
+            raise DimensionError
+        else:
+            return value
+    else:
+        if isinstance(value, Quantity):
+            if value.unit != unit:
+                raise DimensionError
+            else:
+                return value.amount
