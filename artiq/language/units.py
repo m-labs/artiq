@@ -262,3 +262,5 @@ def strip_unit(value, unit):
                 raise DimensionError
             else:
                 return value.amount
+        else:
+            return value
