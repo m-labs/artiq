@@ -3,7 +3,7 @@ from migen.bank.description import *
 from migen.bank import wbgen
 from mibuild.generic_platform import *
 
-from misoclib import gpio
+from misoclib.cpu.peripherals import gpio
 from targets.ppro import BaseSoC
 
 from artiqlib import rtio, ad9858
@@ -96,6 +96,7 @@ class ARTIQMiniSoC(BaseSoC):
                  with_test_gen=False, **kwargs):
         BaseSoC.__init__(self, platform,
                          cpu_type=cpu_type, ramcon_type=ramcon_type,
+                         with_l2=with_l2,
                          **kwargs)
         platform.add_extension(_tester_io)
 

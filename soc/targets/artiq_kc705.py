@@ -3,7 +3,7 @@ from migen.bank.description import *
 from migen.bank import wbgen
 from mibuild.generic_platform import *
 
-from misoclib import gpio
+from misoclib.cpu.peripherals import gpio
 from targets.kc705 import BaseSoC
 
 from artiqlib import rtio, ad9858
