@@ -103,7 +103,7 @@ class ARTIQSoC(BaseSoC):
         rtio_csrs = self.rtio.get_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
         self.add_wb_slave(lambda a: a[26:29] == 2, self.rtiowb.bus)
-        self.add_cpu_csr_region("rtio", 0xa0000000, 32, rtio_csrs)
+        self.add_csr_region("rtio", 0xa0000000, 32, rtio_csrs)
 
         dds_pads = platform.request("dds")
         self.submodules.dds = ad9858.AD9858(dds_pads)
