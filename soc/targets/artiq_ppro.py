@@ -92,7 +92,8 @@ class ARTIQMiniSoC(BaseSoC):
     }
     csr_map.update(BaseSoC.csr_map)
 
-    def __init__(self, platform, cpu_type="or1k", ramcon_type="minicon",
+    def __init__(self, platform, cpu_type="or1k",
+                 ramcon_type="minicon", with_l2=False,
                  with_test_gen=False, **kwargs):
         BaseSoC.__init__(self, platform,
                          cpu_type=cpu_type, ramcon_type=ramcon_type,
