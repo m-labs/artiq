@@ -173,7 +173,7 @@ void comm_serve(object_loader load_object, kernel_runner run_kernel)
             ftw = ((long long)receive_int() << 32LL)/(long long)identifier_frequency_read();
             send_int(0x5a5a5a5a);
             uart_sync();
-            uart_tuning_word_write(ftw);
+            uart_phy_tuning_word_write(ftw);
         } else if(msgtype == MSGTYPE_SWITCH_CLOCK) {
             rtiocrg_clock_sel_write(receive_char());
             send_char(MSGTYPE_CLOCK_SWITCH_COMPLETED);
