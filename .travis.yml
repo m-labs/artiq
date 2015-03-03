@@ -8,28 +8,27 @@ env:
     - CC=gcc-4.7
     - CXX=g++-4.7
     - ARTIQ_NO_HARDWARE=1
-    - BUILD_SOC=0
+    - BUILD_SOC=1
     - secure: "DUk/Ihg8KbbzEgPF0qrHqlxU8e8eET9i/BtzNvFddIGX4HP/P2qz0nk3cVkmjuWhqJXSbC22RdKME9qqPzw6fJwJ6dpJ3OR6dDmSd7rewavq+niwxu52PVa+yK8mL4yf1terM7QQ5tIRf+yUL9qGKrZ2xyvEuRit6d4cFep43Ws="
 before_install:
-  - if echo "$TRAVIS_COMMIT_MSG" | grep -q "\[soc\]"; then BUILD_SOC=1; fi
   - if [ $TRAVIS_PULL_REQUEST != false ]; then BUILD_SOC=0; fi
   - ./.travis/get-toolchain.sh
   - if [ $BUILD_SOC -ne 0 ]; then ./.travis/get-xilinx.sh; fi
-  - ./.travis/get-anaconda.sh pip coverage numpy scipy sphinx h5py pyserial dateutil
+  - ./.travis/get-anaconda.sh pip coverage binstar
   - source $HOME/miniconda/bin/activate py34
-  - ./.travis/get-misoc.sh
-  - pip install --src . -e 'git+https://github.com/nist-ionstorage/llvmlite.git@artiq#egg=llvmlite'
+  - sudo apt-get install --force-yes -y iverilog
   - pip install coveralls
+  - conda install migen
 install:
-  - pip install -e .
+  - conda build conda/artiq
+  - conda install $HOME/miniconda/conda-bld/linux-64/artiq-*.tar.bz2
 script:
   - coverage run --source=artiq setup.py test
   - make -C doc/manual html
-  - cd misoc; python make.py -X ../soc -t artiq_ppro build-headers build-bios; cd ..
-  - make -C soc/runtime
-  - if [ $BUILD_SOC -ne 0 ]; then cd misoc; python make.py -X ../soc -t artiq_ppro build-bitstream; cd ..; fi
 after_success:
-  coveralls
+  - binstar login --hostname $(hostname) --username $binstar_login --password $binstar_password
+  - binstar upload --user $binstar_login --channel dev --force $HOME/miniconda/conda-bld/linux-64/artiq-*.tar.bz2
+  - coveralls
 notifications:
   email: false
   irc:

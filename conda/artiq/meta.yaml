@@ -1,14 +1,13 @@
 package:
     name: artiq
-    version: "0.0"
+    version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}
 
 source:
     git_url: https://github.com/m-labs/artiq
     git_tag: master
 
 build:
-    number: 4
-    string: dev
+    number: {{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}
     entry_points:
         - artiq_client = artiq.frontend.artiq_client:main
         - artiq_gui = artiq.frontend.artiq_gui:main # [not win]
@@ -24,6 +23,7 @@ requirements:
         - python
         - setuptools
         - numpy
+        - migen
     run:
         - python
         - llvmlite-or1k
@@ -32,6 +32,7 @@ requirements:
         - prettytable
         - pyserial
         - sphinx
+        - sphinx-argparse
         - h5py
         - dateutil
         - gbulb-artiq # [not win]
