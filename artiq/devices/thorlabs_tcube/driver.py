@@ -298,7 +298,7 @@ class Tcube:
 class Tpz(Tcube):
     def __init__(self, serial_dev):
         Tcube.__init__(self, serial_dev)
-        self.voltage_limit = self.get_tpz_iosettings()[0].amount
+        self.voltage_limit = self.get_tpz_io_settings()[0].amount
 
     def handle_message(self, msg):
         msg_id = msg.id
@@ -1325,7 +1325,7 @@ class TpzSim:
     def get_position_control_mode(self):
         return self.control_mode
 
-    def set_outputvolts(self, voltage):
+    def set_output_volts(self, voltage):
         self.voltage = voltage
 
     def get_output_volts(self):
