@@ -1536,10 +1536,10 @@ class TdcSim:
         pass
 
     def get_dc_status_update(self):
-        return None  # FIXME: not implemented yet for simulation
+        return 0, 0, 0x80000400  # FIXME: not implemented yet for simulation
 
     def get_status_bits(self):
-        return None  # FIXME: not implemented yet for simulation
+        return 0x80000400  # FIXME: not implemented yet for simulation
 
     def suspend_end_of_move_messages(self):
         pass
