@@ -1150,7 +1150,7 @@ class Tdc(Tcube):
                               MGMSG.MOT_MOVE_STOPPED, 1, stop_mode)
 
     def set_dc_pid_parameters(self, proportional, integral, differential,
-                        integral_limit, filter_control=0x0F):
+                              integral_limit, filter_control=0x0F):
         """Set the position control loop parameters.
 
         :param proportional: The proportional gain, values in range [0; 32767].
