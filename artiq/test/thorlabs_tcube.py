@@ -5,10 +5,11 @@ import time
 from artiq.devices.thorlabs_tcube.driver import Tdc, Tpz, TdcSim, TpzSim
 from artiq.language.units import V
 
+
 no_hardware = bool(os.getenv("ARTIQ_NO_HARDWARE"))
 
 
-class GenericTdcTest(unittest.TestCase):
+class GenericTdcTest:
     def test_pot_parameters(self):
         test_vector = 1, 2, 3, 4, 5, 6, 7, 8
         self.cont.set_pot_parameters(*test_vector)
@@ -82,14 +83,13 @@ class GenericTdcTest(unittest.TestCase):
         self.assertEqual(test_vector, self.cont.get_button_parameters())
 
 
-class GenericTpzTest(unittest.TestCase):
+class GenericTpzTest:
     def test_position_control_mode(self):
         test_vector = 1
         self.cont.set_position_control_mode(test_vector)
         self.assertEqual(test_vector, self.cont.get_position_control_mode())
 
     def test_ouput_volts(self):
-
         for voltage in 5*V, 10*V, 15*V, \
                 round(self.cont.get_tpz_io_settings()[0].amount)*V:
             with self.subTest(voltage=voltage):
@@ -135,7 +135,7 @@ class GenericTpzTest(unittest.TestCase):
 
 
 @unittest.skipIf(no_hardware, "no hardware")
-class TestTdc(GenericTdcTest):
+class TestTdc(unittest.TestCase, GenericTdcTest):
     def setUp(self):
         serial = os.getenv("ARTIQ_TDC001_SERIAL")
         args = dict()
@@ -144,13 +144,13 @@ class TestTdc(GenericTdcTest):
         self.cont = Tdc(**args)
 
 
-class TestTdcSim(GenericTdcTest):
+class TestTdcSim(unittest.TestCase, GenericTdcTest):
     def setUp(self):
         self.cont = TdcSim()
 
 
 @unittest.skipIf(no_hardware, "no hardware")
-class TestTpz(GenericTpzTest):
+class TestTpz(unittest.TestCase, GenericTpzTest):
     def setUp(self):
         serial = os.getenv("ARTIQ_TPZ001_SERIAL")
         args = dict()
@@ -159,6 +159,6 @@ class TestTpz(GenericTpzTest):
         self.cont = Tpz(**args)
 
 
-class TestTpzSim(GenericTpzTest):
+class TestTpzSim(unittest.TestCase, GenericTpzTest):
     def setUp(self):
         self.cont = TpzSim()
