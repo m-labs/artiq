@@ -98,7 +98,7 @@ def main():
     ddb = FlatFileDB(args.ddb)
     pdb = FlatFileDB(args.pdb)
     pdb.hooks.append(SimpleParamLogger())
-    rdb = ResultDB(set())
+    rdb = ResultDB(lambda description: None, lambda mod: None)
     dbh = DBHub(ddb, pdb, rdb)
     try:
         if args.elf:

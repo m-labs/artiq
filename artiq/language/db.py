@@ -1,6 +1,5 @@
 """
 Connection to device, parameter and result database.
-
 """
 
 class _AttributeKind:
@@ -8,16 +7,13 @@ class _AttributeKind:
 
 
 class Device(_AttributeKind):
-    """Represents a device for ``AutoDB`` to process.
-
-    """
+    """Represents a device for ``AutoDB`` to process."""
     pass
 
 
 class NoDefault:
     """Represents the absence of a default value for ``Parameter``
     and ``Argument``.
-
     """
     pass
 
@@ -28,7 +24,6 @@ class Parameter(_AttributeKind):
 
     :param default: Default value of the parameter to be used if not found
         in the database.
-
     """
     def __init__(self, default=NoDefault):
         self.default = default
@@ -40,16 +35,13 @@ class Argument(_AttributeKind):
 
     :param default: Default value of the argument to be used if not specified
         at instance creation.
-
     """
     def __init__(self, default=NoDefault):
         self.default = default
 
 
 class Result(_AttributeKind):
-    """Represents a result for ``AutoDB`` to process.
-
-    """
+    """Represents a result for ``AutoDB`` to process."""
     pass
 
 
@@ -63,14 +55,11 @@ class AutoDB:
     :param dbh: database hub to use. If ``None``, all devices and parameters
         must be supplied as keyword arguments, and reporting results and
         modifying parameters is not supported.
-
     """
     class DBKeys:
         pass
 
-    @staticmethod
-    def realtime_results():
-        return dict()
+    realtime_results = dict()
 
     def __init__(self, dbh=None, **kwargs):
         self.dbh = dbh
@@ -92,8 +81,9 @@ class AutoDB:
                     except KeyError:
                         raise KeyError("Device '{}' not found".format(k))
                     object.__setattr__(self, k, dev)
-
         self.build()
+        if self.dbh is not None:
+            self.dbh.init_results(self.realtime_results)
 
     def __getattr__(self, name):
         ak = getattr(self.DBKeys, name)
@@ -130,16 +120,11 @@ class AutoDB:
             else:
                 raise ValueError
 
-    @classmethod
-    def get_realtime_results():
-        return dict()
-
     def build(self):
         """This is called by ``__init__`` after the parameter initialization
         is done.
 
         The user may overload this method to complete the object's
         initialization with all parameters available.
-
         """
         pass

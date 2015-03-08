@@ -52,10 +52,6 @@ init_rt_results = make_parent_action("init_rt_results", "description")
 update_rt_results = make_parent_action("update_rt_results", "mod")
 
 
-def publish_rt_results(notifier, data):
-    update_rt_results(data)
-
-
 class Scheduler:
     run_queued = make_parent_action("scheduler_run_queued", "run_params")
     cancel_queued = make_parent_action("scheduler_cancel_queued", "rid")
@@ -81,19 +77,7 @@ def run(rid, run_params):
     start_time = time.localtime()
     exp = get_exp(run_params["file"], run_params["experiment"])
 
-    realtime_results = exp.realtime_results()
-    init_rt_results(realtime_results)
-
-    realtime_results_set = set()
-    for rr in realtime_results.keys():
-        if isinstance(rr, tuple):
-            for e in rr:
-                realtime_results_set.add(e)
-        else:
-            realtime_results_set.add(rr)
-    rdb = ResultDB(realtime_results_set)
-    rdb.realtime_data.publish = publish_rt_results
-
+    rdb = ResultDB(init_rt_results, update_rt_results)
     dbh = DBHub(ParentDDB, ParentPDB, rdb)
     try:
         try:

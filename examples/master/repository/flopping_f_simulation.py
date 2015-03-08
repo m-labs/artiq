@@ -40,11 +40,9 @@ class FloppingF(Experiment, AutoDB):
 
         flopping_freq = Parameter()
 
-    @staticmethod
-    def realtime_results():
-        return {
-            ("frequency", "brightness"): "xy"
-        }
+    realtime_results = {
+        ("frequency", "brightness"): "xy"
+    }
 
     def run(self):
         for i in range(self.npoints):

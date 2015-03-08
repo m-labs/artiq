@@ -7,9 +7,28 @@ from artiq.master.results import result_dict_to_hdf5
 
 
 class ResultDB:
-    def __init__(self, realtime_results):
-        self.realtime_data = Notifier({x: [] for x in realtime_results})
+    def __init__(self, init_rt_results, update_rt_results):
+        self.init_rt_results = init_rt_results
+        self.update_rt_results = update_rt_results
+
+    def init(self, rtr_description):
+        assert not hasattr(self, "realtime_data")
+        assert not hasattr(self, "data")
+
+        realtime_results_set = set()
+        for rtr in rtr_description.keys():
+            if isinstance(rtr, tuple):
+                for e in rtr:
+                    realtime_results_set.add(e)
+            else:
+                realtime_results_set.add(rtr)
+
+        self.realtime_data = Notifier({x: [] for x in realtime_results_set})
         self.data = Notifier(dict())
+
+        self.init_rt_results(rtr_description)
+        self.realtime_data.publish = lambda notifier, data: \
+            self.update_rt_results(data)
 
     def _request(self, name):
         try:
@@ -64,6 +83,7 @@ class DBHub:
 
         self.get_parameter = pdb.request
         self.set_parameter = pdb.set
+        self.init_results = rdb.init
         self.get_result = rdb.request
         self.set_result = rdb.set
 
