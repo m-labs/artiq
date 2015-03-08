@@ -75,20 +75,12 @@ class AutoDB:
     def __init__(self, dbh=None, **kwargs):
         self.dbh = dbh
 
-        dbkeys = self.DBKeys()
-        if getattr(dbkeys, "implicit_core", True):
-            if hasattr(dbkeys, "core"):
-                raise ValueError(
-                    "Set implicit_core to False when"
-                    " core is explicitly specified")
-            dbkeys.core = Device()
-
         for k, v in kwargs.items():
             object.__setattr__(self, k, v)
 
-        for k in dir(dbkeys):
+        for k in dir(self.DBKeys):
             if k not in self.__dict__:
-                ak = getattr(dbkeys, k)
+                ak = getattr(self.DBKeys, k)
                 if isinstance(ak, Argument):
                     if ak.default is NoDefault:
                         raise AttributeError(

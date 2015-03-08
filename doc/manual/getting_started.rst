@@ -13,6 +13,7 @@ As a very first step, we will turn on a LED on the core device. Create a file ``
         __artiq_unit__ = "ARTIQ tutorial"
 
         class DBKeys:
+            core = Device()
             led = Device()
 
         @kernel
@@ -46,6 +47,7 @@ Modify the code as follows: ::
         __artiq_unit__ = "ARTIQ tutorial"
 
         class DBKeys:
+            core = Device()
             led = Device()
 
         @kernel
@@ -91,6 +93,7 @@ Create a new file ``rtio.py`` containing the following: ::
         __artiq_unit__ = "ARTIQ tutorial"
 
         class DBKeys:
+            core = Device()
             ttl0 = Device()
 
         @kernel
@@ -115,6 +118,7 @@ Try reducing the period of the generated waveform until the CPU cannot keep up w
         __artiq_unit__ = "ARTIQ tutorial"
 
         class DBKeys:
+            core = Device()
             led = Device()
             ttl0 = Device()
 

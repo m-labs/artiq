@@ -28,8 +28,6 @@ class FloppingF(AutoDB):
     __artiq_gui_file__ = "flopping_f_simulation_gui.py"
 
     class DBKeys:
-        implicit_core = False
-
         npoints = Argument(100)
         min_freq = Argument(1000)
         max_freq = Argument(2000)

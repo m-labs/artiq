@@ -9,6 +9,7 @@ class RTIOSkew(AutoDB):
     __artiq_unit__ = "RTIO skew"
 
     class DBKeys:
+        core = Device()
         pmt0 = Device()
         ttl0 = Device()
         rtio_skew = Result()

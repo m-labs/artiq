@@ -14,6 +14,7 @@ class Transport(AutoDB):
     __artiq_unit__ = "Transport"
 
     class DBKeys:
+        core = Device()
         bd = Device()
         bdd = Device()
         pmt = Device()

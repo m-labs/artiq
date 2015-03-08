@@ -1,15 +1,12 @@
 from random import Random
 
 from artiq.language.core import delay, kernel
-from artiq.language.db import AutoDB, Argument
+from artiq.language.db import *
 from artiq.language import units
 from artiq.sim import time
 
 
 class Core(AutoDB):
-    class DBKeys:
-        implicit_core = False
-
     _level = 0
 
     def run(self, k_function, k_args, k_kwargs):
@@ -23,6 +20,7 @@ class Core(AutoDB):
 
 class Input(AutoDB):
     class DBKeys:
+        core = Device()
         name = Argument()
 
     def build(self):
@@ -44,6 +42,7 @@ class Input(AutoDB):
 
 class WaveOutput(AutoDB):
     class DBKeys:
+        core = Device()
         name = Argument()
 
     @kernel
@@ -54,6 +53,7 @@ class WaveOutput(AutoDB):
 
 class VoltageOutput(AutoDB):
     class DBKeys:
+        core = Device()
         name = Argument()
 
     @kernel

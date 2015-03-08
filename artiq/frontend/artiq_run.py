@@ -19,7 +19,6 @@ from artiq.tools import file_import, verbosity_args, init_logger
 class ELFRunner(AutoDB):
     class DBKeys:
         comm = Device()
-        implicit_core = False
 
     def run(self, filename):
         with open(filename, "rb") as f:

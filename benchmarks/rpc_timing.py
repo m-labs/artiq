@@ -7,6 +7,7 @@ class RPCTiming(AutoDB):
     __artiq_unit__ = "RPC timing"
 
     class DBKeys:
+        core = Device()
         repeats = Argument(100)
         rpc_time_mean = Result()
         rpc_time_stddev = Result()

@@ -48,7 +48,6 @@ class Core(AutoDB):
     class DBKeys:
         comm = Device()
         external_clock = Parameter(None)
-        implicit_core = False
 
     def build(self):
         self.runtime_env = self.comm.get_runtime_env()

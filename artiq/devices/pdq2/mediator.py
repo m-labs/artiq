@@ -113,6 +113,7 @@ class _Frame:
 
 class CompoundPDQ2(AutoDB):
     class DBKeys:
+        core = Device()
         ids = Argument()
         rtio_trigger = Argument()
         rtio_frame = Argument()

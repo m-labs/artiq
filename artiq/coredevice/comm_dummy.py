@@ -15,9 +15,6 @@ class _RuntimeEnvironment(LinkInterface):
 
 
 class Comm(AutoDB):
-    class DBKeys:
-        implicit_core = False
-
     def get_runtime_env(self):
         return _RuntimeEnvironment(1*ns)
 

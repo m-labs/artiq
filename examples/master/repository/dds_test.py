@@ -5,6 +5,7 @@ class DDSTest(AutoDB):
     __artiq_unit__ = "DDS test"
 
     class DBKeys:
+        core = Device()
         dds0 = Device()
         dds1 = Device()
         dds2 = Device()

@@ -25,6 +25,7 @@ class DDS(AutoDB):
 
     """
     class DBKeys:
+        core = Device()
         dds_sysclk = Parameter(1*GHz)
         reg_channel = Argument()
         rtio_switch = Argument()

@@ -5,6 +5,7 @@ class SimpleSimulation(AutoDB):
     __artiq_unit__ = "Simple simulation"
 
     class DBKeys:
+        core = Device()
         a = Device()
         b = Device()
         c = Device()

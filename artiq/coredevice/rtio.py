@@ -13,6 +13,7 @@ class LLRTIOOut(AutoDB):
 
     """
     class DBKeys:
+        core = Device()
         channel = Argument()
 
     def build(self):
@@ -53,6 +54,7 @@ class LLRTIOOut(AutoDB):
 
 class _RTIOBase(AutoDB):
     class DBKeys:
+        core = Device()
         channel = Argument()
 
     def build(self):

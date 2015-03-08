@@ -5,6 +5,7 @@ class AluminumSpectroscopy(AutoDB):
     __artiq_unit__ = "Aluminum spectroscopy (simulation)"
 
     class DBKeys:
+        core = Device()
         mains_sync = Device()
         laser_cooling = Device()
         spectroscopy = Device()

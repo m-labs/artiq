@@ -64,7 +64,6 @@ class Comm(AutoDB):
     class DBKeys:
         serial_dev = Parameter("/dev/ttyUSB1")
         baud_rate = Parameter(115200)
-        implicit_core = False
 
     def build(self):
         self.port = serial.serial_for_url(self.serial_dev, baudrate=115200)

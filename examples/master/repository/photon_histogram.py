@@ -5,6 +5,7 @@ class PhotonHistogram(AutoDB):
     __artiq_unit__ = "Photon histogram"
 
     class DBKeys:
+        core = Device()
         bd = Device()
         bdd = Device()
         pmt = Device()

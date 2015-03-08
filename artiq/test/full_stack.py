@@ -30,6 +30,7 @@ def _run_on_host(k_class, **parameters):
 
 class _Primes(AutoDB):
     class DBKeys:
+        core = Device()
         output_list = Argument()
         maximum = Argument()
 
@@ -85,6 +86,7 @@ class _Misc(AutoDB):
 
 class _PulseLogger(AutoDB):
     class DBKeys:
+        core = Device()
         output_list = Argument()
         name = Argument()
 
@@ -108,6 +110,7 @@ class _PulseLogger(AutoDB):
 
 class _Pulses(AutoDB):
     class DBKeys:
+        core = Device()
         output_list = Argument()
 
     def build(self):
@@ -135,6 +138,7 @@ class _MyException(Exception):
 
 class _Exceptions(AutoDB):
     class DBKeys:
+        core = Device()
         trace = Argument()
 
     @kernel
@@ -258,6 +262,7 @@ class ExecutionCase(unittest.TestCase):
 
 class _RTIOLoopback(AutoDB):
     class DBKeys:
+        core = Device()
         i = Device()
         o = Device()
         npulses = Argument()
@@ -278,6 +283,7 @@ class _RTIOLoopback(AutoDB):
 
 class _RTIOUnderflow(AutoDB):
     class DBKeys:
+        core = Device()
         o = Device()
 
     @kernel
@@ -289,6 +295,7 @@ class _RTIOUnderflow(AutoDB):
 
 class _RTIOSequenceError(AutoDB):
     class DBKeys:
+        core = Device()
         o = Device()
 
     @kernel

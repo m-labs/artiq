@@ -6,6 +6,7 @@ class PulseRate(AutoDB):
     __artiq_unit__ = "Pulse rate"
 
     class DBKeys:
+        core = Device()
         ttl0 = Device()
         pulse_rate = Result()
 
