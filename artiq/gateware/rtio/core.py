@@ -7,7 +7,7 @@ from migen.genlib.cdc import *
 from migen.genlib.fifo import AsyncFIFO
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from artiqlib.rtio.rbus import get_fine_ts_width
+from artiq.gateware.rtio.rbus import get_fine_ts_width
 
 
 class _GrayCodeTransfer(Module):

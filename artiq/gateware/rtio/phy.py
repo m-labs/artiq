@@ -1,7 +1,7 @@
 from migen.fhdl.std import *
 from migen.genlib.cdc import MultiReg
 
-from artiqlib.rtio.rbus import create_rbus
+from artiq.gateware.rtio.rbus import create_rbus
 
 
 class SimplePHY(Module):

@@ -6,7 +6,7 @@ from mibuild.generic_platform import *
 from misoclib.cpu.peripherals import gpio
 from targets.ppro import BaseSoC
 
-from artiqlib import rtio, ad9858
+from artiq.gateware import rtio, ad9858
 
 
 _tester_io = [
