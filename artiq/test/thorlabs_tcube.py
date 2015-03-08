@@ -137,11 +137,8 @@ class GenericTpzTest:
 @unittest.skipIf(no_hardware, "no hardware")
 class TestTdc(unittest.TestCase, GenericTdcTest):
     def setUp(self):
-        serial = os.getenv("ARTIQ_TDC001_SERIAL")
-        args = dict()
-        if serial is not None:
-            args["serial_dev"] = serial
-        self.cont = Tdc(**args)
+        serial_dev = os.getenv("ARTIQ_TDC001_SERIAL", "/dev/ttyUSB0")
+        self.cont = Tdc(serial_dev=serial_dev)
 
 
 class TestTdcSim(unittest.TestCase, GenericTdcTest):
@@ -152,11 +149,8 @@ class TestTdcSim(unittest.TestCase, GenericTdcTest):
 @unittest.skipIf(no_hardware, "no hardware")
 class TestTpz(unittest.TestCase, GenericTpzTest):
     def setUp(self):
-        serial = os.getenv("ARTIQ_TPZ001_SERIAL")
-        args = dict()
-        if serial is not None:
-            args["serial_dev"] = serial
-        self.cont = Tpz(**args)
+        serial_dev = os.getenv("ARTIQ_TPZ001_SERIAL", "/dev/ttyUSB0")
+        self.cont = Tpz(serial_dev=serial_dev)
 
 
 class TestTpzSim(unittest.TestCase, GenericTpzTest):
