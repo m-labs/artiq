@@ -5,7 +5,8 @@ from artiq.devices.lda.driver import Lda, Ldasim
 from artiq.language.units import dB
 
 
-no_hardware = bool(os.getenv("ARTIQ_NO_HARDWARE"))
+no_hardware = bool(os.getenv("ARTIQ_NO_HARDWARE")) \
+    or bool(os.getenv("ARTIQ_NO_PERIPHERALS"))
 
 
 class GenericLdaTest:

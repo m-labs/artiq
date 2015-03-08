@@ -6,7 +6,8 @@ from artiq.devices.thorlabs_tcube.driver import Tdc, Tpz, TdcSim, TpzSim
 from artiq.language.units import V
 
 
-no_hardware = bool(os.getenv("ARTIQ_NO_HARDWARE"))
+no_hardware = bool(os.getenv("ARTIQ_NO_HARDWARE")) \
+    or bool(os.getenv("ARTIQ_NO_PERIPHERALS"))
 
 
 class GenericTdcTest:
