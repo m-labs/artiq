@@ -1,6 +1,5 @@
 import sys
 import time
-from inspect import isclass
 import traceback
 
 from artiq.protocols import pyon
@@ -65,23 +64,24 @@ class Scheduler:
     cancel_timed = make_parent_action("scheduler_cancel_timed", "trid")
 
 
-def get_unit(file, unit):
+def get_exp(file, exp):
     module = file_import(file)
-    if unit is None:
-        units = [v for k, v in module.__dict__.items()
-                 if isclass(v) and hasattr(v, "__artiq_unit__")]
-        if len(units) != 1:
-            raise ValueError("Found {} units in module".format(len(units)))
-        return units[0]
+    if exp is None:
+        exps = [v for k, v in module.__dict__.items()
+                if is_experiment(v)]
+        if len(exps) != 1:
+            raise ValueError("Found {} experiments in module"
+                             .format(len(exps)))
+        return exps[0]
     else:
-        return getattr(module, unit)
+        return getattr(module, exp)
 
 
 def run(rid, run_params):
     start_time = time.localtime()
-    unit = get_unit(run_params["file"], run_params["unit"])
+    exp = get_exp(run_params["file"], run_params["experiment"])
 
-    realtime_results = unit.realtime_results()
+    realtime_results = exp.realtime_results()
     init_rt_results(realtime_results)
 
     realtime_results_set = set()
@@ -97,13 +97,12 @@ def run(rid, run_params):
     dbh = DBHub(ParentDDB, ParentPDB, rdb)
     try:
         try:
-            unit_inst = unit(dbh,
-                             scheduler=Scheduler,
-                             run_params=run_params,
-                             **run_params["arguments"])
-            unit_inst.run()
-            if hasattr(unit_inst, "analyze"):
-                unit_inst.analyze()
+            exp_inst = exp(dbh,
+                           scheduler=Scheduler,
+                           run_params=run_params,
+                           **run_params["arguments"])
+            exp_inst.run()
+            exp_inst.analyze()
         except Exception:
             put_object({"action": "report_completed",
                         "status": "failed",
@@ -114,7 +113,7 @@ def run(rid, run_params):
     finally:
         dbh.close()
 
-    f = get_hdf5_output(start_time, rid, unit.__name__)
+    f = get_hdf5_output(start_time, rid, exp.__name__)
     try:
         rdb.write_hdf5(f)
     finally:

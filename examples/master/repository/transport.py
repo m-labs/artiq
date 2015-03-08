@@ -10,8 +10,8 @@ transport_data = dict(
     # 4 devices, 3 board each, 3 dacs each
 )
 
-class Transport(AutoDB):
-    __artiq_unit__ = "Transport"
+class Transport(Experiment, AutoDB):
+    """Transport"""
 
     class DBKeys:
         core = Device()

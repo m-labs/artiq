@@ -1,8 +1,8 @@
 from artiq import *
 
 
-class DDSTest(AutoDB):
-    __artiq_unit__ = "DDS test"
+class DDSTest(Experiment, AutoDB):
+    """DDS test"""
 
     class DBKeys:
         core = Device()

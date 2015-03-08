@@ -3,8 +3,8 @@ import sys
 from artiq import *
 
 
-class Mandelbrot(AutoDB):
-    __artiq_unit__ = "Mandelbrot set demo"
+class Mandelbrot(Experiment, AutoDB):
+    """Mandelbrot set demo"""
 
     class DBKeys:
         core = Device()

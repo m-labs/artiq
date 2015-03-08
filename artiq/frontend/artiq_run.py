@@ -3,13 +3,13 @@
 import argparse
 import sys
 import time
-from inspect import isclass
 from operator import itemgetter
 from itertools import chain
 
 import h5py
 
 from artiq.language.db import *
+from artiq.language.experiment import is_experiment
 from artiq.protocols import pyon
 from artiq.protocols.file_db import FlatFileDB
 from artiq.master.worker_db import DBHub, ResultDB
@@ -68,15 +68,15 @@ def get_argparser():
     parser.add_argument("-p", "--pdb", default="pdb.pyon",
                         help="parameter database file")
 
-    parser.add_argument("-e", "--elf", default=False, action="store_true",
+    parser.add_argument("-E", "--elf", default=False, action="store_true",
                         help="run ELF binary")
-    parser.add_argument("-u", "--unit", default=None,
-                        help="unit to run")
+    parser.add_argument("-e", "--experiment", default=None,
+                        help="experiment to run")
     parser.add_argument("-o", "--hdf5", default=None,
                         help="write results to specified HDF5 file"
                              " (default: print them)")
     parser.add_argument("file",
-                        help="file containing the unit to run")
+                        help="file containing the experiment to run")
     parser.add_argument("arguments", nargs="*",
                         help="run arguments")
 
@@ -105,27 +105,31 @@ def main():
             if args.arguments:
                 print("Run arguments are not supported in ELF mode")
                 sys.exit(1)
-            unit_inst = ELFRunner(dps)
-            unit_inst.run(args.file)
+            exp_inst = ELFRunner(dps)
+            exp_inst.run(args.file)
         else:
             module = file_import(args.file)
-            if args.unit is None:
-                units = [(k, v) for k, v in module.__dict__.items()
-                         if isclass(v) and hasattr(v, "__artiq_unit__")]
-                l = len(units)
+            if args.experiment is None:
+                exps = [(k, v) for k, v in module.__dict__.items()
+                        if is_experiment(v)]
+                l = len(exps)
                 if l == 0:
-                    print("No units found in module")
+                    print("No experiments found in module")
                     sys.exit(1)
                 elif l > 1:
-                    print("More than one unit found in module:")
-                    for k, v in sorted(units, key=itemgetter(0)):
-                        print("    {} ({})".format(k, v.__artiq_unit__))
-                    print("Use -u to specify which unit to use.")
+                    print("More than one experiment found in module:")
+                    for k, v in sorted(experiments, key=itemgetter(0)):
+                        if v.__doc__ is None:
+                            print("    {}".format(k))
+                        else:
+                            print("    {} ({})".format(
+                                k, v.__doc__.splitlines()[0].strip()))
+                    print("Use -u to specify which experiment to use.")
                     sys.exit(1)
                 else:
-                    unit = units[0][1]
+                    exp = exps[0][1]
             else:
-                unit = getattr(module, args.unit)
+                exp = getattr(module, args.experiment)
 
             try:
                 arguments = _parse_arguments(args.arguments)
@@ -135,17 +139,16 @@ def main():
 
             run_params = {
                 "file": args.file,
-                "unit": args.unit,
+                "experiment": args.experiment,
                 "timeout": None,
                 "arguments": arguments
             }
-            unit_inst = unit(dbh,
-                             scheduler=DummyScheduler(),
-                             run_params=run_params,
-                             **run_params["arguments"])
-            unit_inst.run()
-            if hasattr(unit_inst, "analyze"):
-                unit_inst.analyze()
+            exp_inst = exp(dbh,
+                           scheduler=DummyScheduler(),
+                           run_params=run_params,
+                           **run_params["arguments"])
+            exp_inst.run()
+            exp_inst.analyze()
 
             if args.hdf5 is not None:
                 f = h5py.File(args.hdf5, "w")

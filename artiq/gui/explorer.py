@@ -146,7 +146,7 @@ class ExplorerWindow(Window):
                 arguments = self.controls.get_arguments()
             run_params = {
                 "file": data["file"],
-                "unit": data["unit"],
+                "experiment": data["experiment"],
                 "timeout": None,
                 "arguments": arguments,
                 "rtr_group": data["file"]

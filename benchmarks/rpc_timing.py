@@ -3,8 +3,8 @@ from math import sqrt
 from artiq import *
 
 
-class RPCTiming(AutoDB):
-    __artiq_unit__ = "RPC timing"
+class RPCTiming(Experiment, AutoDB):
+    """RPC timing"""
 
     class DBKeys:
         core = Device()

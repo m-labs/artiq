@@ -40,12 +40,13 @@ def get_argparser():
     parser_add.add_argument(
         "-t", "--timeout", default=None, type=float,
         help="specify a timeout for the experiment to complete")
-    parser_add.add_argument("-u", "--unit", default=None,
-                            help="unit to run")
+    parser_add.add_argument("-e", "--experiment", default=None,
+                            help="experiment to run")
     parser_add.add_argument("--rtr-group", default=None, type=str,
                             help="real-time result group "
                                  "(defaults to filename)")
-    parser_add.add_argument("file", help="file containing the unit to run")
+    parser_add.add_argument("file",
+                            help="file containing the experiment to run")
     parser_add.add_argument("arguments", nargs="*",
                             help="run arguments")
 
@@ -103,7 +104,7 @@ def _action_submit(remote, args):
 
     run_params = {
         "file": args.file,
-        "unit": args.unit,
+        "experiment": args.experiment,
         "timeout": args.timeout,
         "arguments": arguments,
         "rtr_group": args.rtr_group if args.rtr_group is not None \
@@ -147,10 +148,11 @@ def _action_del_parameter(remote, args):
 def _show_queue(queue):
     clear_screen()
     if queue:
-        table = PrettyTable(["RID", "File", "Unit", "Timeout", "Arguments"])
+        table = PrettyTable(["RID", "File", "Experiment", "Timeout",
+                             "Arguments"])
         for rid, run_params in queue:
             row = [rid, run_params["file"]]
-            for x in run_params["unit"], run_params["timeout"]:
+            for x in run_params["experiment"], run_params["timeout"]:
                 row.append("" if x is None else x)
             row.append(format_arguments(run_params["arguments"]))
             table.add_row(row)
@@ -162,13 +164,13 @@ def _show_queue(queue):
 def _show_timed(timed):
     clear_screen()
     if timed:
-        table = PrettyTable(["Next run", "TRID", "File", "Unit",
+        table = PrettyTable(["Next run", "TRID", "File", "Experiment",
                              "Timeout", "Arguments"])
         sp = sorted(timed.items(), key=lambda x: (x[1][0], x[0]))
         for trid, (next_run, run_params) in sp:
             row = [time.strftime("%m/%d %H:%M:%S", time.localtime(next_run)),
                    trid, run_params["file"]]
-            for x in run_params["unit"], run_params["timeout"]:
+            for x in run_params["experiment"], run_params["timeout"]:
                 row.append("" if x is None else x)
             row.append(format_arguments(run_params["arguments"]))
             table.add_row(row)

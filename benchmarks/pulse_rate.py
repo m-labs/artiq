@@ -2,8 +2,8 @@ from artiq import *
 from artiq.coredevice.runtime_exceptions import RTIOUnderflow
 
 
-class PulseRate(AutoDB):
-    __artiq_unit__ = "Pulse rate"
+class PulseRate(Experiment, AutoDB):
+    """Sustained pulse rate"""
 
     class DBKeys:
         core = Device()

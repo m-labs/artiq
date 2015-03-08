@@ -1,8 +1,8 @@
 from artiq import *
 
 
-class PhotonHistogram(AutoDB):
-    __artiq_unit__ = "Photon histogram"
+class PhotonHistogram(Experiment, AutoDB):
+    """Photon histogram"""
 
     class DBKeys:
         core = Device()

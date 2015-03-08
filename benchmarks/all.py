@@ -2,15 +2,16 @@ from artiq import *
 
 import pulse_rate, rtio_skew, rpc_timing
 
-_units = [pulse_rate.PulseRate, rtio_skew.RTIOSkew, rpc_timing.RPCTiming]
 
-class AllBenchmarks(AutoDB):
-    __artiq_unit__ = "All benchmarks"
+_exps = [pulse_rate.PulseRate, rtio_skew.RTIOSkew, rpc_timing.RPCTiming]
+
+class AllBenchmarks(Experiment, AutoDB):
+    """All benchmarks"""
 
     def build(self):
         self.se = []
-        for unit in _units:
-            self.se.append(unit(self.dbh))
+        for exp in _exps:
+            self.se.append(exp(self.dbh))
 
     def run(self):
         for se in self.se:

@@ -1,8 +1,8 @@
 import os
-from inspect import isclass
 
 from artiq.protocols.sync_struct import Notifier
 from artiq.tools import file_import
+from artiq.language.experiment import is_experiment
 
 
 def scan_experiments():
@@ -14,13 +14,19 @@ def scan_experiments():
             except:
                 continue
             for k, v in m.__dict__.items():
-                if isclass(v) and hasattr(v, "__artiq_unit__"):
+                if is_experiment(v):
+                    if v.__doc__ is None:
+                        name = k
+                    else:
+                        name = v.__doc__.splitlines()[0].strip()
+                        if name[-1] == ".":
+                            name = name[:-1]
                     entry = {
                         "file": os.path.join("repository", f),
-                        "unit": k,
+                        "experiment": k,
                         "gui_file": getattr(v, "__artiq_gui_file__", None)
                     }
-                    r[v.__artiq_unit__] = entry
+                    r[name] = entry
     return r
 
 

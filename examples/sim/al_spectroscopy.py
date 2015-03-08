@@ -1,8 +1,8 @@
 from artiq import *
 
 
-class AluminumSpectroscopy(AutoDB):
-    __artiq_unit__ = "Aluminum spectroscopy (simulation)"
+class AluminumSpectroscopy(Experiment, AutoDB):
+    """Aluminum spectroscopy (simulation)"""
 
     class DBKeys:
         core = Device()
