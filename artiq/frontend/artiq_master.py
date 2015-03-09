@@ -62,7 +62,7 @@ def main():
         "scheduler_run_timed": scheduler.run_timed,
         "scheduler_cancel_timed": scheduler.cancel_timed,
     }
-    loop.run_until_complete(scheduler.start())
+    scheduler.start()
     atexit.register(lambda: loop.run_until_complete(scheduler.stop()))
 
     server_control = Server({

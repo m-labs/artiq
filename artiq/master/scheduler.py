@@ -25,17 +25,14 @@ class Scheduler:
         trids -= set(self.timed.read.keys())
         return next(iter(trids))
 
-    @asyncio.coroutine
     def start(self):
         self.task = asyncio.Task(self._schedule())
-        yield from self.worker.create_process()
 
     @asyncio.coroutine
     def stop(self):
         self.task.cancel()
         yield from asyncio.wait([self.task])
         del self.task
-        yield from self.worker.end_process()
 
     def run_queued(self, run_params):
         rid = self.new_rid()

@@ -7,11 +7,7 @@ import traceback
 from artiq.protocols import pyon
 
 
-class WorkerFailed(Exception):
-    pass
-
-
-class RunFailed(Exception):
+class WorkerError(Exception):
     pass
 
 
@@ -24,10 +20,21 @@ class Worker:
         self.term_timeout = term_timeout
 
     @asyncio.coroutine
-    def create_process(self):
+    def _create_process(self):
         self.process = yield from asyncio.create_subprocess_exec(
             sys.executable, "-m", "artiq.master.worker_impl",
             stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+
+    @asyncio.coroutine
+    def _end_process(self):
+        if self.process.returncode is not None:
+            return
+        self.process.send_signal(signal.SIGTERM)
+        try:
+            yield from asyncio.wait_for(
+                self.process.wait(), timeout=self.term_timeout)
+        except asyncio.TimeoutError:
+            self.process.send_signal(signal.SIGKILL)
 
     @asyncio.coroutine
     def _send(self, obj, timeout):
@@ -39,9 +46,9 @@ class Worker:
             if fut is not ():  # FIXME: why does Python return this?
                 yield from asyncio.wait_for(fut, timeout=timeout)
         except asyncio.TimeoutError:
-            raise WorkerFailed("Timeout sending data from worker")
+            raise WorkerError("Timeout sending data from worker")
         except:
-            raise WorkerFailed("Failed to send data to worker")
+            raise WorkerError("Failed to send data to worker")
 
     @asyncio.coroutine
     def _recv(self, timeout):
@@ -49,32 +56,33 @@ class Worker:
             line = yield from asyncio.wait_for(
                 self.process.stdout.readline(), timeout=timeout)
         except asyncio.TimeoutError:
-            raise WorkerFailed("Timeout receiving data from worker")
+            raise WorkerError("Timeout receiving data from worker")
         if not line:
-            raise WorkerFailed(
-                "Worker ended unexpectedly while trying to receive data")
+            return None
         try:
             obj = pyon.decode(line.decode())
         except:
-            raise WorkerFailed("Worker sent invalid PYON data")
+            raise WorkerError("Worker sent invalid PYON data")
         return obj
 
     @asyncio.coroutine
     def run(self, rid, run_params):
-        obj = {"rid": rid, "run_params": run_params}
-        yield from self._send(obj, self.send_timeout)
-        obj = yield from self._recv(self.start_reply_timeout)
-        if obj != "ack":
-            raise WorkerFailed("Incorrect acknowledgement")
-        while True:
-            obj = yield from self._recv(None)
-            action = obj["action"]
-            if action == "report_completed":
-                if obj["status"] != "ok":
-                    raise RunFailed(obj["message"])
-                else:
-                    return
-            else:
+        yield from self._create_process()
+
+        try:
+            obj = {"rid": rid, "run_params": run_params}
+            yield from self._send(obj, self.send_timeout)
+            obj = yield from self._recv(self.start_reply_timeout)
+            if obj != "ack":
+                raise WorkerError("Incorrect acknowledgement")
+            while True:
+                obj = yield from self._recv(None)
+                if obj is None:
+                    if self.process.returncode != 0:
+                        raise WorkerError("Worker finished with status code {}"
+                                          .format(self.process.returncode))
+                    break
+                action = obj["action"]
                 del obj["action"]
                 try:
                     data = self.handlers[action](**obj)
@@ -83,14 +91,5 @@ class Worker:
                     reply = {"status": "failed",
                              "message": traceback.format_exc()}
                 yield from self._send(reply, self.send_timeout)
-
-    @asyncio.coroutine
-    def end_process(self):
-        if self.process.returncode is not None:
-            return
-        self.process.send_signal(signal.SIGTERM)
-        try:
-            yield from asyncio.wait_for(
-                self.process.wait(), timeout=self.term_timeout)
-        except asyncio.TimeoutError:
-            self.process.send_signal(signal.SIGKILL)
+        finally:
+            yield from self._end_process()

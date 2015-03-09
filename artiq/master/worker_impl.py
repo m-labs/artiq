@@ -1,6 +1,5 @@
 import sys
 import time
-import traceback
 
 from artiq.protocols import pyon
 from artiq.tools import file_import
@@ -80,20 +79,12 @@ def run(rid, run_params):
     rdb = ResultDB(init_rt_results, update_rt_results)
     dbh = DBHub(ParentDDB, ParentPDB, rdb)
     try:
-        try:
-            exp_inst = exp(dbh,
-                           scheduler=Scheduler,
-                           run_params=run_params,
-                           **run_params["arguments"])
-            exp_inst.run()
-            exp_inst.analyze()
-        except Exception:
-            put_object({"action": "report_completed",
-                        "status": "failed",
-                        "message": traceback.format_exc()})
-        else:
-            put_object({"action": "report_completed",
-                        "status": "ok"})
+        exp_inst = exp(dbh,
+                       scheduler=Scheduler,
+                       run_params=run_params,
+                       **run_params["arguments"])
+        exp_inst.run()
+        exp_inst.analyze()
     finally:
         dbh.close()
 
@@ -107,10 +98,10 @@ def run(rid, run_params):
 def main():
     sys.stdout = sys.stderr
 
-    while True:
-        obj = get_object()
-        put_object("ack")
-        run(obj["rid"], obj["run_params"])
+    obj = get_object()
+    put_object("ack")
+    run(obj["rid"], obj["run_params"])
+    put_object({"action": "report_completed"})
 
 if __name__ == "__main__":
     main()
