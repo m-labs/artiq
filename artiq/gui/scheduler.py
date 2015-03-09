@@ -12,8 +12,10 @@ class _QueueStoreSyncer(ListSyncer):
     def convert(self, x):
         rid, run_params = x
         row = [rid, run_params["file"]]
-        for e in run_params["experiment"], run_params["timeout"]:
-            row.append("" if e is None else str(e))
+        if run_params["experiment"] is None:
+            row.append("")
+        else:
+            row.append(run_params["experiment"])
         row.append(format_arguments(run_params["arguments"]))
         return row
 
@@ -27,8 +29,10 @@ class _TimedStoreSyncer(DictSyncer):
         next_run, run_params = x
         row = [time.strftime("%m/%d %H:%M:%S", time.localtime(next_run)),
                trid, run_params["file"]]
-        for e in run_params["experiment"], run_params["timeout"]:
-            row.append("" if e is None else str(e))
+        if run_params["experiment"] is None:
+            row.append("")
+        else:
+            row.append(run_params["experiment"])
         row.append(format_arguments(run_params["arguments"]))
         return row
 
@@ -55,9 +59,9 @@ class SchedulerWindow(Window):
         notebook = Gtk.Notebook()
         topvbox.pack_start(notebook, True, True, 0)
 
-        self.queue_store = Gtk.ListStore(int, str, str, str, str)
+        self.queue_store = Gtk.ListStore(int, str, str, str)
         self.queue_tree = Gtk.TreeView(self.queue_store)
-        for i, title in enumerate(["RID", "File", "Experiment", "Timeout", "Arguments"]):
+        for i, title in enumerate(["RID", "File", "Experiment", "Arguments"]):
             renderer = Gtk.CellRendererText()
             column = Gtk.TreeViewColumn(title, renderer, text=i)
             self.queue_tree.append_column(column)
@@ -79,10 +83,10 @@ class SchedulerWindow(Window):
         vbox.set_border_width(6)
         notebook.insert_page(vbox, Gtk.Label("Queue"), -1)
 
-        self.timed_store = Gtk.ListStore(str, int, str, str, str, str)
+        self.timed_store = Gtk.ListStore(str, int, str, str, str)
         self.timed_tree = Gtk.TreeView(self.timed_store)
         for i, title in enumerate(["Next run", "TRID", "File", "Experiment",
-                                   "Timeout", "Arguments"]):
+                                   "Arguments"]):
             renderer = Gtk.CellRendererText()
             column = Gtk.TreeViewColumn(title, renderer, text=i)
             self.timed_tree.append_column(column)

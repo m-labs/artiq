@@ -147,7 +147,6 @@ class ExplorerWindow(Window):
             run_params = {
                 "file": data["file"],
                 "experiment": data["experiment"],
-                "timeout": None,
                 "arguments": arguments,
                 "rtr_group": data["file"]
             }

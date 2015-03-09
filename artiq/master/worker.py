@@ -67,7 +67,7 @@ class Worker:
         if obj != "ack":
             raise WorkerFailed("Incorrect acknowledgement")
         while True:
-            obj = yield from self._recv(run_params["timeout"])
+            obj = yield from self._recv(None)
             action = obj["action"]
             if action == "report_completed":
                 if obj["status"] != "ok":

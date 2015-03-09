@@ -140,7 +140,6 @@ def main():
             run_params = {
                 "file": args.file,
                 "experiment": args.experiment,
-                "timeout": None,
                 "arguments": arguments
             }
             exp_inst = exp(dbh,

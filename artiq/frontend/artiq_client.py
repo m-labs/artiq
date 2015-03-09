@@ -37,9 +37,6 @@ def get_argparser():
         help="run the experiment in timed mode. "
              "argument specifies the time of the first run, "
              "use 'now' to run immediately")
-    parser_add.add_argument(
-        "-t", "--timeout", default=None, type=float,
-        help="specify a timeout for the experiment to complete")
     parser_add.add_argument("-e", "--experiment", default=None,
                             help="experiment to run")
     parser_add.add_argument("--rtr-group", default=None, type=str,
@@ -105,7 +102,6 @@ def _action_submit(remote, args):
     run_params = {
         "file": args.file,
         "experiment": args.experiment,
-        "timeout": args.timeout,
         "arguments": arguments,
         "rtr_group": args.rtr_group if args.rtr_group is not None \
                         else args.file
@@ -148,12 +144,13 @@ def _action_del_parameter(remote, args):
 def _show_queue(queue):
     clear_screen()
     if queue:
-        table = PrettyTable(["RID", "File", "Experiment", "Timeout",
-                             "Arguments"])
+        table = PrettyTable(["RID", "File", "Experiment", "Arguments"])
         for rid, run_params in queue:
             row = [rid, run_params["file"]]
-            for x in run_params["experiment"], run_params["timeout"]:
-                row.append("" if x is None else x)
+            if run_params["experiment"] is None:
+                row.append("")
+            else:
+                row.append(run_params["experiment"])
             row.append(format_arguments(run_params["arguments"]))
             table.add_row(row)
         print(table)
@@ -165,13 +162,15 @@ def _show_timed(timed):
     clear_screen()
     if timed:
         table = PrettyTable(["Next run", "TRID", "File", "Experiment",
-                             "Timeout", "Arguments"])
+                             "Arguments"])
         sp = sorted(timed.items(), key=lambda x: (x[1][0], x[0]))
         for trid, (next_run, run_params) in sp:
             row = [time.strftime("%m/%d %H:%M:%S", time.localtime(next_run)),
                    trid, run_params["file"]]
-            for x in run_params["experiment"], run_params["timeout"]:
-                row.append("" if x is None else x)
+            if run_params["experiment"] is None:
+                row.append("")
+            else:
+                row.append(run_params["experiment"])
             row.append(format_arguments(run_params["arguments"]))
             table.add_row(row)
         print(table)
