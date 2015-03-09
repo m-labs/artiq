@@ -1,8 +1,8 @@
 import sys
 import asyncio
 import subprocess
-import signal
 import traceback
+import time
 
 from artiq.protocols import pyon
 
@@ -13,10 +13,10 @@ class WorkerError(Exception):
 
 class Worker:
     def __init__(self,
-                 send_timeout=0.5, start_reply_timeout=1.0, term_timeout=1.0):
+                 send_timeout=0.5, prepare_timeout=15.0, term_timeout=1.0):
         self.handlers = dict()
         self.send_timeout = send_timeout
-        self.start_reply_timeout = start_reply_timeout
+        self.prepare_timeout = prepare_timeout
         self.term_timeout = term_timeout
 
     @asyncio.coroutine
@@ -26,15 +26,23 @@ class Worker:
             stdout=subprocess.PIPE, stdin=subprocess.PIPE)
 
     @asyncio.coroutine
-    def _end_process(self):
+    def close(self):
         if self.process.returncode is not None:
+            if process.returncode != 0:
+                raise WorkerError("Worker finished with status code {}"
+                                  .format(process.returncode))
             return
-        self.process.send_signal(signal.SIGTERM)
+        obj = {"action": "terminate"}
+        try:
+            yield from self._send(obj, self.send_timeout)
+        except:
+            self.process.kill()
+            return
         try:
             yield from asyncio.wait_for(
                 self.process.wait(), timeout=self.term_timeout)
         except asyncio.TimeoutError:
-            self.process.send_signal(signal.SIGKILL)
+            self.process.kill()
 
     @asyncio.coroutine
     def _send(self, obj, timeout):
@@ -58,7 +66,7 @@ class Worker:
         except asyncio.TimeoutError:
             raise WorkerError("Timeout receiving data from worker")
         if not line:
-            return None
+            raise WorkerError("Worker ended while attempting to receive data")
         try:
             obj = pyon.decode(line.decode())
         except:
@@ -66,30 +74,45 @@ class Worker:
         return obj
 
     @asyncio.coroutine
-    def run(self, rid, run_params):
-        yield from self._create_process()
+    def _handle_worker_requests(self, timeout):
+        if timeout is None:
+            end_time = None
+        else:
+            end_time = time.monotonic() + timeout
+        while True:
+            obj = yield from self._recv(None if end_time is None
+                else end_time - time.monotonic())
+            action = obj["action"]
+            if action == "completed":
+                return
+            del obj["action"]
+            try:
+                data = self.handlers[action](**obj)
+                reply = {"status": "ok", "data": data}
+            except:
+                reply = {"status": "failed",
+                         "message": traceback.format_exc()}
+            yield from self._send(reply, self.send_timeout)
 
+    @asyncio.coroutine
+    def prepare(self, rid, run_params):
+        yield from self._create_process()
         try:
-            obj = {"rid": rid, "run_params": run_params}
+            obj = {"action": "prepare", "rid": rid, "run_params": run_params}
             yield from self._send(obj, self.send_timeout)
-            obj = yield from self._recv(self.start_reply_timeout)
-            if obj != "ack":
-                raise WorkerError("Incorrect acknowledgement")
-            while True:
-                obj = yield from self._recv(None)
-                if obj is None:
-                    if self.process.returncode != 0:
-                        raise WorkerError("Worker finished with status code {}"
-                                          .format(self.process.returncode))
-                    break
-                action = obj["action"]
-                del obj["action"]
-                try:
-                    data = self.handlers[action](**obj)
-                    reply = {"status": "ok", "data": data}
-                except:
-                    reply = {"status": "failed",
-                             "message": traceback.format_exc()}
-                yield from self._send(reply, self.send_timeout)
-        finally:
-            yield from self._end_process()
+            yield from self._handle_worker_requests(self.prepare_timeout)
+        except:
+            yield from self.close()
+            raise
+
+    @asyncio.coroutine
+    def run(self):
+        obj = {"action": "run"}
+        yield from self._send(obj, self.send_timeout)
+        yield from self._handle_worker_requests(None)
+
+    @asyncio.coroutine
+    def analyze(self):
+        obj = {"action": "analyze"}
+        yield from self._send(obj, self.send_timeout)
+        yield from self._handle_worker_requests(None)

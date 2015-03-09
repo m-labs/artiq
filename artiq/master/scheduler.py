@@ -64,7 +64,12 @@ class Scheduler:
     def _run(self, rid, run_params):
         self.run_cb(rid, run_params)
         try:
-            yield from self.worker.run(rid, run_params)
+            yield from self.worker.prepare(rid, run_params)
+            try:
+                yield from self.worker.run()
+                yield from self.worker.analyze()
+            finally:
+                yield from self.worker.close()
         except Exception as e:
             print("RID {} failed:".format(rid))
             print(e)
