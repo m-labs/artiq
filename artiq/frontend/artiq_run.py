@@ -33,6 +33,17 @@ class SimpleParamLogger:
         print("Parameter change: {} -> {}".format(name, value))
 
 
+class DummyWatchdog:
+    def __init__(self, t):
+        pass
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, type, value, traceback):
+        pass
+
+
 class DummyScheduler:
     def __init__(self):
         self.next_rid = 0
@@ -56,6 +67,8 @@ class DummyScheduler:
 
     def cancel_timed(self, trid):
         print("Cancelling TRID {}".format(trid))
+
+    watchdog = DummyWatchdog
 
 
 def get_argparser():

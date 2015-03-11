@@ -51,7 +51,7 @@ def main():
     def run_cb(rid, run_params):
         rtr.current_group = run_params["rtr_group"]
     scheduler = Scheduler(run_cb, get_last_rid() + 1)
-    scheduler.worker.handlers = {
+    scheduler.worker_handlers = {
         "req_device": ddb.request,
         "req_parameter": pdb.request,
         "set_parameter": pdb.set,

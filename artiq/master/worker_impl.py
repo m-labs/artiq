@@ -51,12 +51,27 @@ init_rt_results = make_parent_action("init_rt_results", "description")
 update_rt_results = make_parent_action("update_rt_results", "mod")
 
 
+class Watchdog:
+    _create = make_parent_action("create_watchdog", "t")
+    _delete = make_parent_action("delete_watchdog", "wid")
+
+    def __init__(self, t):
+        self.t = t
+
+    def __enter__(self):
+        self.wid = Watchdog._create(self.t)
+
+    def __exit__(self, type, value, traceback):
+        Watchdog._delete(self.wid)
+
+
 class Scheduler:
     run_queued = make_parent_action("scheduler_run_queued", "run_params")
     cancel_queued = make_parent_action("scheduler_cancel_queued", "rid")
     run_timed = make_parent_action("scheduler_run_timed",
                                    "run_params next_run")
     cancel_timed = make_parent_action("scheduler_cancel_timed", "trid")
+    watchdog = Watchdog
 
 
 def get_exp(file, exp):

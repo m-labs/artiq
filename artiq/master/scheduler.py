@@ -7,8 +7,8 @@ from artiq.master.worker import Worker
 
 class Scheduler:
     def __init__(self, run_cb, first_rid):
+        self.worker_handlers = dict()
         self.run_cb = run_cb
-        self.worker = Worker()
         self.next_rid = first_rid
         self.queue = Notifier([])
         self.queue_modified = asyncio.Event()
@@ -63,16 +63,17 @@ class Scheduler:
     @asyncio.coroutine
     def _run(self, rid, run_params):
         self.run_cb(rid, run_params)
+        worker = Worker(self.worker_handlers)
         try:
-            yield from self.worker.prepare(rid, run_params)
+            yield from worker.prepare(rid, run_params)
             try:
-                yield from self.worker.run()
-                yield from self.worker.analyze()
+                yield from worker.run()
+                yield from worker.analyze()
             finally:
-                yield from self.worker.close()
+                yield from worker.close()
         except Exception as e:
             print("RID {} failed:".format(rid))
-            print(e)
+            print("{}: {}".format(e.__class__.__name__, e))
         else:
             print("RID {} completed successfully".format(rid))
 

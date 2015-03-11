@@ -5,6 +5,16 @@ import traceback
 import time
 
 from artiq.protocols import pyon
+from artiq.language.units import strip_unit
+from artiq.tools import asyncio_process_wait_timeout
+
+
+class WorkerTimeout(Exception):
+    pass
+
+
+class WorkerWatchdogTimeout(Exception):
+    pass
 
 
 class WorkerError(Exception):
@@ -12,12 +22,29 @@ class WorkerError(Exception):
 
 
 class Worker:
-    def __init__(self,
+    def __init__(self, handlers,
                  send_timeout=0.5, prepare_timeout=15.0, term_timeout=1.0):
-        self.handlers = dict()
+        self.handlers = handlers
         self.send_timeout = send_timeout
         self.prepare_timeout = prepare_timeout
         self.term_timeout = term_timeout
+        self.watchdogs = dict()  # wid -> expiration (using time.monotonic)
+
+    def create_watchdog(self, t):
+        avail = set(range(len(self.watchdogs) + 1)) \
+            - set(self.watchdogs.keys())
+        wid = next(iter(avail))
+        self.watchdogs[wid] = time.monotonic() + strip_unit(t, "s")
+        return wid
+
+    def delete_watchdog(self, wid):
+        del self.watchdogs[wid]
+
+    def watchdog_time(self):
+        if self.watchdogs:
+            return min(self.watchdogs.values()) - time.monotonic()
+        else:
+            return None
 
     @asyncio.coroutine
     def _create_process(self):
@@ -39,8 +66,8 @@ class Worker:
             self.process.kill()
             return
         try:
-            yield from asyncio.wait_for(
-                self.process.wait(), timeout=self.term_timeout)
+            yield from asyncio_process_wait_timeout(self.process,
+                                                    self.term_timeout)
         except asyncio.TimeoutError:
             self.process.kill()
 
@@ -54,7 +81,7 @@ class Worker:
             if fut is not ():  # FIXME: why does Python return this?
                 yield from asyncio.wait_for(fut, timeout=timeout)
         except asyncio.TimeoutError:
-            raise WorkerError("Timeout sending data from worker")
+            raise WorkerTimeout("Timeout sending data from worker")
         except:
             raise WorkerError("Failed to send data to worker")
 
@@ -64,7 +91,7 @@ class Worker:
             line = yield from asyncio.wait_for(
                 self.process.stdout.readline(), timeout=timeout)
         except asyncio.TimeoutError:
-            raise WorkerError("Timeout receiving data from worker")
+            raise WorkerTimeout("Timeout receiving data from worker")
         if not line:
             raise WorkerError("Worker ended while attempting to receive data")
         try:
@@ -74,20 +101,21 @@ class Worker:
         return obj
 
     @asyncio.coroutine
-    def _handle_worker_requests(self, timeout):
-        if timeout is None:
-            end_time = None
-        else:
-            end_time = time.monotonic() + timeout
+    def _handle_worker_requests(self, timeout_func):
         while True:
-            obj = yield from self._recv(None if end_time is None
-                else end_time - time.monotonic())
+            obj = yield from self._recv(timeout_func())
             action = obj["action"]
             if action == "completed":
                 return
             del obj["action"]
+            if action == "create_watchdog":
+                func = self.create_watchdog
+            elif action == "delete_watchdog":
+                func = self.delete_watchdog
+            else:
+                func = self.handlers[action]
             try:
-                data = self.handlers[action](**obj)
+                data = func(**obj)
                 reply = {"status": "ok", "data": data}
             except:
                 reply = {"status": "failed",
@@ -100,19 +128,26 @@ class Worker:
         try:
             obj = {"action": "prepare", "rid": rid, "run_params": run_params}
             yield from self._send(obj, self.send_timeout)
-            yield from self._handle_worker_requests(self.prepare_timeout)
+            end_time = time.monotonic() + self.prepare_timeout
+            yield from self._handle_worker_requests(
+                lambda: end_time - time.monotonic())
         except:
             yield from self.close()
             raise
 
     @asyncio.coroutine
-    def run(self):
-        obj = {"action": "run"}
+    def _run_analyze(self, action):
+        obj = {"action": action}
         yield from self._send(obj, self.send_timeout)
-        yield from self._handle_worker_requests(None)
+        try:
+            yield from self._handle_worker_requests(self.watchdog_time)
+        except WorkerTimeout:
+            raise WorkerWatchdogTimeout
+
+    @asyncio.coroutine
+    def run(self):
+        yield from self._run_analyze("run")
 
     @asyncio.coroutine
     def analyze(self):
-        obj = {"action": "analyze"}
-        yield from self._send(obj, self.send_timeout)
-        yield from self._handle_worker_requests(None)
+        yield from self._run_analyze("analyze")

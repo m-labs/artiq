@@ -3,6 +3,8 @@ import importlib.machinery
 import linecache
 import logging
 import sys
+import asyncio
+import time
 import os.path
 
 
@@ -58,3 +60,17 @@ def simple_network_args(parser, default_port):
 
 def init_logger(args):
     logging.basicConfig(level=logging.WARNING + args.quiet*10 - args.verbose*10)
+
+
+@asyncio.coroutine
+def asyncio_process_wait_timeout(process, timeout):
+    # In Python < 3.5, asyncio.wait_for(process.wait(), ...
+    # causes a futures.InvalidStateError inside asyncio if and when the
+    # process terminates after the timeout.
+    # Work around this problem.
+    end_time = time.monotonic() + timeout
+    r = True
+    while r:
+        r = yield from asyncio.wait_for(
+                process.stdout.read(1024),
+                timeout=end_time - time.monotonic())
