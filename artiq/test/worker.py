@@ -41,12 +41,8 @@ def _run_experiment(experiment):
     }
 
     worker = Worker(handlers)
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        loop.run_until_complete(_call_worker(worker, run_params))
-    finally:
-        loop.close()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(_call_worker(worker, run_params))
 
 
 class WatchdogCase(unittest.TestCase):
