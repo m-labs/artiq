@@ -69,6 +69,7 @@ class Scheduler:
             try:
                 yield from worker.run()
                 yield from worker.analyze()
+                yield from worker.write_results()
             finally:
                 yield from worker.close()
         except Exception as e:

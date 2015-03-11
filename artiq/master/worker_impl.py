@@ -118,6 +118,8 @@ def main():
                 put_object({"action": "completed"})
             elif action == "analyze":
                 exp_inst.analyze()
+                put_object({"action": "completed"})
+            elif action == "write_results":
                 f = get_hdf5_output(start_time, rid, exp.__name__)
                 try:
                     rdb.write_hdf5(f)
