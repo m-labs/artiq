@@ -2,10 +2,12 @@
 #include <string.h>
 #include <irq.h>
 #include <uart.h>
+#include <console.h>
 #include <system.h>
 #include <time.h>
 #include <generated/csr.h>
 
+#include "test_mode.h"
 #include "comm.h"
 #include "elf_loader.h"
 #include "exceptions.h"
@@ -103,6 +105,26 @@ static void blink_led(void)
     }
 }
 
+static int check_test_mode(void)
+{
+    char c;
+
+    timer0_en_write(0);
+    timer0_reload_write(0);
+    timer0_load_write(identifier_frequency_read() >> 2);
+    timer0_en_write(1);
+    timer0_update_value_write(1);
+    while(timer0_value_read()) {
+        if(readchar_nonblock()) {
+            c = readchar();
+            if((c == 't')||(c == 'T'))
+                return 1;
+        }
+        timer0_update_value_write(1);
+    }
+    return 0;
+}
+
 int main(void)
 {
     irq_setmask(0);
@@ -110,8 +132,15 @@ int main(void)
     uart_init();
 
     puts("ARTIQ runtime built "__DATE__" "__TIME__"\n");
-    dds_init();
     blink_led();
-    comm_serve(load_object, run_kernel);
+
+    if(check_test_mode()) {
+        puts("Entering test mode.");
+        test_main();
+    } else {
+        puts("Entering regular mode.");
+        dds_init();
+        comm_serve(load_object, run_kernel);
+    }
     return 0;
 }
