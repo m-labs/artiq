@@ -4,7 +4,7 @@ import sys
 from time import sleep
 
 from artiq import *
-from artiq.master.worker import * 
+from artiq.master.worker import *
 
 
 class WatchdogNoTimeout(Experiment, AutoDB):
@@ -18,6 +18,15 @@ class WatchdogTimeout(Experiment, AutoDB):
     def run(self):
         with self.scheduler.watchdog(0.1*s):
             sleep(100.0)
+
+
+class WatchdogTimeoutInBuild(Experiment, AutoDB):
+    def build(self):
+        with self.scheduler.watchdog(0.1*s):
+            sleep(100.0)
+
+    def run(self):
+        pass
 
 
 @asyncio.coroutine
@@ -52,3 +61,7 @@ class WatchdogCase(unittest.TestCase):
     def test_watchdog_timeout(self):
         with self.assertRaises(WorkerWatchdogTimeout):
             _run_experiment("WatchdogTimeout")
+
+    def test_watchdog_timeout_in_build(self):
+        with self.assertRaises(WorkerWatchdogTimeout):
+            _run_experiment("WatchdogTimeoutInBuild")
