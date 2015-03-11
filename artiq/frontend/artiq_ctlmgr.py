@@ -10,6 +10,7 @@ import socket
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.tools import verbosity_args, init_logger
+from artiq.tools import asyncio_process_wait_timeout
 
 
 logger = logging.getLogger(__name__)
@@ -65,7 +66,7 @@ class Controller:
                 process.send_signal(signal.SIGTERM)
                 logger.debug("Signal sent")
                 try:
-                    yield from asyncio.wait_for(process.wait(), timeout=5.0)
+                    yield from asyncio_process_wait_timeout(process, 5.0)
                 except asyncio.TimeoutError:
                     logger.warning("Controller %s did not respond to SIGTERM",
                                    name)
