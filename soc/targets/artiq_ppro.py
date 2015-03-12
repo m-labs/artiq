@@ -119,6 +119,7 @@ class ARTIQMiniSoC(BaseSoC):
             output_only_pads=set(rtio_outs))
         self.submodules.rtio = rtio.RTIO(self.rtiophy,
                                          clk_freq=125000000,
+                                         counter_width=32,
                                          ififo_depth=512)
 
         rtio_csrs = self.rtio.get_csrs()

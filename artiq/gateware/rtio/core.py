@@ -294,7 +294,7 @@ class _RTIOBankI(Module):
 
 
 class RTIO(Module, AutoCSR):
-    def __init__(self, phy, clk_freq, counter_width=32,
+    def __init__(self, phy, clk_freq, counter_width=63,
                  ofifo_depth=64, ififo_depth=64,
                  guard_io_cycles=20):
         fine_ts_width = get_fine_ts_width(phy.rbus)
