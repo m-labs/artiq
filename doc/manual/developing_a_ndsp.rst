@@ -172,6 +172,7 @@ The program below exemplifies how to use logging: ::
 General guidelines
 ------------------
 
+* Do not use ``__del__`` to implement the cleanup code of your driver. Instead, define a ``close`` method, and call it using a ``try...finally...`` block in the controller.
 * Format your source code according to PEP8. We suggest using ``flake8`` to check for compliance.
 * Use new-style formatting (``str.format``) except for logging where it is not well supported, and double quotes for strings.
 * The device identification (e.g. serial number) to attach to must be passed as a command-line parameter to the controller. We suggest using ``-s`` and ``--serial`` as parameter name.
