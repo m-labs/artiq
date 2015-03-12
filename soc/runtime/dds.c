@@ -1,23 +1,8 @@
 #include <generated/csr.h>
-#include <hw/common.h>
 #include <stdio.h>
 
 #include "rtio.h"
 #include "dds.h"
-
-#define DDS_FTW0  0x0a
-#define DDS_FTW1  0x0b
-#define DDS_FTW2  0x0c
-#define DDS_FTW3  0x0d
-#define DDS_POW0  0x0e
-#define DDS_POW1  0x0f
-#define DDS_GPIO  0x41
-
-#define DDS_READ(addr) \
-    MMPTR(0xb0000000 + (addr)*4)
-
-#define DDS_WRITE(addr, data) \
-    MMPTR(0xb0000000 + (addr)*4) = data
 
 void dds_init(void)
 {
