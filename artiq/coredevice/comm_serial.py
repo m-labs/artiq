@@ -195,13 +195,15 @@ class Comm(AutoDB):
             rpc_num, args, r))
 
     def _serve_exception(self, user_exception_map):
-        eid = struct.unpack(">l", _read_exactly(self.port, 4))[0]
+        eid, p0, p1, p2 = struct.unpack(">lqqq",
+                                        _read_exactly(self.port, 4+3*8))
         self.rpc_wrapper.filter_rpc_exception(eid)
         if eid < core_language.first_user_eid:
             exception = runtime_exceptions.exception_map[eid]
+            raise exception(self.core, p0, p1, p2)
         else:
             exception = user_exception_map[eid]
-        raise exception
+            raise exception
 
     def serve(self, rpc_map, user_exception_map):
         while True:

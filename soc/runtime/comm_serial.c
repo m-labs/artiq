@@ -55,6 +55,16 @@ static char receive_char(void)
     return uart_read();
 }
 
+static void send_llint(long long int x)
+{
+    int i;
+
+    for(i=0;i<8;i++) {
+        uart_write((x & 0xff00000000000000LL) >> 56);
+        x <<= 8;
+    }
+}
+
 static void send_int(int x)
 {
     int i;
@@ -140,6 +150,8 @@ static void receive_and_run_kernel(kernel_runner run_kernel)
         case KERNEL_RUN_EXCEPTION:
             send_char(MSGTYPE_KERNEL_EXCEPTION);
             send_int(eid);
+            for(i=0;i<3;i++)
+                send_llint(exception_params[i]);
             break;
         case KERNEL_RUN_STARTUP_FAILED:
             send_char(MSGTYPE_KERNEL_STARTUP_FAILED);

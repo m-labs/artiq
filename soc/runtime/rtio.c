@@ -38,11 +38,13 @@ void rtio_set(long long int timestamp, int channel, int value)
             while(rtio_o_status_read() & RTIO_O_STATUS_FULL);
         if(status & RTIO_O_STATUS_UNDERFLOW) {
             rtio_o_underflow_reset_write(1);
-            exception_raise(EID_RTIO_UNDERFLOW);
+            exception_raise_params(EID_RTIO_UNDERFLOW,
+                timestamp, channel, rtio_get_counter());
         }
         if(status & RTIO_O_STATUS_SEQUENCE_ERROR) {
             rtio_o_sequence_error_reset_write(1);
-            exception_raise(EID_RTIO_SEQUENCE_ERROR);
+            exception_raise_params(EID_RTIO_SEQUENCE_ERROR,
+                timestamp, channel, 0);
         }
     }
 }
@@ -62,7 +64,8 @@ long long int rtio_get(int channel, long long int time_limit)
     while((status = rtio_i_status_read())) {
         if(rtio_i_status_read() & RTIO_I_STATUS_OVERFLOW) {
             rtio_i_overflow_reset_write(1);
-            exception_raise(EID_RTIO_OVERFLOW);
+            exception_raise_params(EID_RTIO_OVERFLOW,
+                channel, 0, 0);
         }
         if(rtio_get_counter() >= time_limit) {
             /* check empty flag again to prevent race condition.
@@ -114,11 +117,13 @@ void rtio_fud(long long int fud_time)
     if(status) {
         if(status & RTIO_O_STATUS_UNDERFLOW) {
             rtio_o_underflow_reset_write(1);
-            exception_raise(EID_RTIO_UNDERFLOW);
+            exception_raise_params(EID_RTIO_UNDERFLOW,
+                fud_time, RTIO_FUD_CHANNEL, rtio_get_counter());
         }
         if(status & RTIO_O_STATUS_SEQUENCE_ERROR) {
             rtio_o_sequence_error_reset_write(1);
-            exception_raise(EID_RTIO_SEQUENCE_ERROR);
+            exception_raise_params(EID_RTIO_SEQUENCE_ERROR,
+                fud_time, RTIO_FUD_CHANNEL, 0);
         }
     }
 }

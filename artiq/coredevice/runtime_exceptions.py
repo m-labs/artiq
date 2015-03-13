@@ -25,6 +25,12 @@ class RTIOUnderflow(RuntimeException):
     """
     eid = 3
 
+    def __str__(self):
+        return "at {} on channel {}, violation {}".format(
+            self.p0*self.core.ref_period,
+            self.p1,
+            (self.p2 - self.p0)*self.core.ref_period)
+
 
 class RTIOSequenceError(RuntimeException):
     """Raised when an event is submitted on a given channel with a timestamp
@@ -34,6 +40,10 @@ class RTIOSequenceError(RuntimeException):
 
     """
     eid = 4
+
+    def __str__(self):
+        return "at {} on channel {}".format(self.p0*self.core.ref_period,
+                                            self.p1)
 
 
 class RTIOOverflow(RuntimeException):
@@ -46,6 +56,9 @@ class RTIOOverflow(RuntimeException):
 
     """
     eid = 5
+
+    def __str__(self):
+        return "on channel {}".format(self.p0)
 
 
 exception_map = {e.eid: e for e in globals().values()

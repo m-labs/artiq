@@ -52,6 +52,7 @@ class Core(AutoDB):
     def build(self):
         self.runtime_env = self.comm.get_runtime_env()
         self.core = self
+        self.comm.core = self
 
         if self.external_clock is None:
             self.ref_period = self.runtime_env.internal_ref_period
