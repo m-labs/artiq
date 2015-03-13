@@ -4,7 +4,7 @@ from artiq.language.db import *
 
 class GPIOOut(AutoDB):
     class DBKeys:
-    	core = Device()
+        core = Device()
         channel = Argument()
 
     @kernel
