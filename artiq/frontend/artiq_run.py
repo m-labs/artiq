@@ -118,7 +118,8 @@ def main():
             if args.arguments:
                 print("Run arguments are not supported in ELF mode")
                 sys.exit(1)
-            exp_inst = ELFRunner(dps)
+            exp_inst = ELFRunner(dbh)
+            rdb.build()
             exp_inst.run(args.file)
         else:
             module = file_import(args.file)
@@ -159,6 +160,7 @@ def main():
                            scheduler=DummyScheduler(),
                            run_params=run_params,
                            **run_params["arguments"])
+            rdb.build()
             exp_inst.run()
             exp_inst.analyze()
 

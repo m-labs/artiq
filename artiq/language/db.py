@@ -83,7 +83,7 @@ class AutoDB:
                     object.__setattr__(self, k, dev)
         self.build()
         if self.dbh is not None:
-            self.dbh.init_results(self.realtime_results)
+            self.dbh.add_rt_results(self.realtime_results)
 
     def __getattr__(self, name):
         ak = getattr(self.DBKeys, name)

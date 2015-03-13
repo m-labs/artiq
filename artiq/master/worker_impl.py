@@ -112,6 +112,7 @@ def main():
                                scheduler=Scheduler,
                                run_params=run_params,
                                **run_params["arguments"])
+                rdb.build()
                 put_object({"action": "completed"})
             elif action == "run":
                 exp_inst.run()

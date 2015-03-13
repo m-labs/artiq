@@ -10,13 +10,18 @@ class ResultDB:
     def __init__(self, init_rt_results, update_rt_results):
         self.init_rt_results = init_rt_results
         self.update_rt_results = update_rt_results
+        self.rtr_description = dict()
 
-    def init(self, rtr_description):
-        assert not hasattr(self, "realtime_data")
-        assert not hasattr(self, "data")
+    def add_rt_results(self, rtr_description):
+        intr = set(self.rtr_description.keys()).intersection(
+            set(rtr_description.keys()))
+        if intr:
+            raise ValueError("Duplicate realtime results: " + ", ".join(intr))
+        self.rtr_description.update(rtr_description)
 
+    def build(self):
         realtime_results_set = set()
-        for rtr in rtr_description.keys():
+        for rtr in self.rtr_description.keys():
             if isinstance(rtr, tuple):
                 for e in rtr:
                     realtime_results_set.add(e)
@@ -26,7 +31,7 @@ class ResultDB:
         self.realtime_data = Notifier({x: [] for x in realtime_results_set})
         self.data = Notifier(dict())
 
-        self.init_rt_results(rtr_description)
+        self.init_rt_results(self.rtr_description)
         self.realtime_data.publish = lambda notifier, data: \
             self.update_rt_results(data)
 
@@ -83,7 +88,7 @@ class DBHub:
 
         self.get_parameter = pdb.request
         self.set_parameter = pdb.set
-        self.init_results = rdb.init
+        self.add_rt_results = rdb.add_rt_results
         self.get_result = rdb.request
         self.set_result = rdb.set
 
