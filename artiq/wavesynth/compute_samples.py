@@ -112,7 +112,7 @@ def main():
         [
             # segment 0
             {
-                # line 0
+                # segment 0, line 0
                 "dac_divider": 1,
                 "duration": 100,
                 "channel_data": [
@@ -127,7 +127,7 @@ def main():
                 "jump": False
             },
             {
-                # line 1
+                # segment 1, line 1
                 "dac_divider": 1,
                 "duration": 100,
                 "channel_data": [
@@ -145,7 +145,7 @@ def main():
         [
             # segment 1
             {
-                # line 2
+                # segment 1, line 0
                 "dac_divider": 1,
                 "duration": 100,
                 "channel_data": [
@@ -160,15 +160,48 @@ def main():
                 "jump": False
             },
             {
-                # line 3
+                # segment 1, line 1
                 "dac_divider": 1,
                 "duration": 100,
                 "channel_data": [
                     {
                         # channel 0
                         "dds": {"amplitude": [50.5, -1.0, 0.01],
-                                "phase": [0.0, 100.05, -0.0005],
+                                "phase": [0.0, 0.05, -0.0005],
                                 "clear": False}
+                    }
+                ],
+                "wait_trigger": False,
+                "jump": True
+            }
+        ],
+        [
+            # segment 2
+            {
+                # segment 2, line 0
+                "dac_divider": 1,
+                "duration": 84,
+                "channel_data": [
+                    {
+                        # channel 0
+                        "dds": {"amplitude": [100.0],
+                                "phase": [0.0, 0.05],
+                                "clear": False}
+                    }
+                ],
+                "wait_trigger": True,
+                "jump": False
+            },
+            {
+                # segment 2, line 1
+                "dac_divider": 1,
+                "duration": 116,
+                "channel_data": [
+                    {
+                        # channel 0
+                        "dds": {"amplitude": [100.0],
+                                "phase": [0.0, 0.05],
+                                "clear": True}
                     }
                 ],
                 "wait_trigger": False,
@@ -177,11 +210,15 @@ def main():
         ]
     ]
 
-    x = list(range(400))
+    x = list(range(600))
     s = Synthesizer(1, program)
 
     r = s.trigger(0)
     y = r[0]
+    r = s.trigger(2)
+    y += r[0]
+    r = s.trigger()
+    y += r[0]
     r = s.trigger(1)
     y += r[0]
     cairoplot.scatter_plot("plot.png", [x, y])
