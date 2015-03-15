@@ -33,7 +33,7 @@ class SplinePhase:
     def next(self):
         r = self.c[0] + self.c0
         for i in range(len(self.c)-1):
-            self.c[i] += self.c[i+1] % 1.0
+            self.c[i] = (self.c[i] + self.c[i+1]) % 1.0
         return r
 
 
