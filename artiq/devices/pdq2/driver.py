@@ -1,324 +1,264 @@
-# Based on code by Robert Jordens <jordens@gmail.com>, 2012
+# Robert Jordens <jordens@gmail.com>, 2012-2015
 
 import logging
 import struct
+import warnings
 
-from scipy import interpolate
 import numpy as np
+from scipy import interpolate
+import serial
+
+logger = logging.getLogger(__name__)
 
 
-logger = logging.getLogger("pdq2")
+class Segment:
+    def __init__(self):
+        self.data = b""
 
-Ftdi = None
+    def line(self, typ, dt, data, trigger=False, silence=False,
+             aux=False, shift=0, end=False, clear=False, wait=False):
+        assert len(data) % 2 == 0, data
+        assert len(data)//2 <= 14
+        #assert dt*(1 << shift) > 1 + len(data)//2
+        head = (
+            1 + len(data)//2 | (typ << 4) | (trigger << 6) | (silence << 7) |
+            (aux << 8) | (shift << 9) | (end << 13) | (clear << 14) |
+            (wait << 15)
+        )
+        self.data += struct.pack("<HH", head, dt) + data
+
+    @staticmethod
+    def pack(widths, values):
+        fmt = "<"
+        ud = []
+        for width, value in zip(widths, values):
+            if width == 3:
+                ud.append(value & 0xffff)
+                fmt += "H"
+                value >>= 16
+                width -= 1
+            ud.append(value)
+            fmt += " hi"[width]
+        try:
+            return struct.pack(fmt, *ud)
+        except struct.error as e:
+            logger.error("%s as %s: %s", ud, fmt, e)
+            raise e
+
+    def lines(self, typ, dt, widths, v, first={}, mid={}, last={}, shift=0):
+        n = len(dt) - 1
+        dt = dt.astype(np.uint16)
+        v = v.astype(np.int64)
+        for i, (dti, vi) in enumerate(zip(dt, v)):
+            opts = mid
+            if i == 0:
+                opts = first
+            elif i == n:
+                opts = last
+            data = self.pack(widths, vi)
+            self.line(typ, dti, data, shift=shift, **opts)
+
+    @staticmethod
+    def interpolate(t, v, order, t_eval, widths=None):
+        """Spline interpolating derivatives for t,v.
+        The returned spline coefficients are one shorter than t
+        """
+        if order == 0:
+            return np.rint(v[:, None])
+        # FIXME: does not ensure that interpolates do not clip
+        s = interpolate.splrep(t, v, k=order)
+        # FIXME: needs k knots outside t_eval
+        # dv = np.array(interpolate.spalde(t_eval, s))
+        dv = np.array([interpolate.splev(t_eval, s, der=i, ext=0)
+                       for i in range(order + 1)]).T
+        # correct for adder chain latency
+        if order > 1:
+            dv[:, 1] += dv[:, 2]/2
+        if order > 2:
+            dv[:, 1] += dv[:, 3]/6
+            dv[:, 2] += dv[:, 3]
+        if widths is not None:
+            dv *= 1 << 16*widths
+        return np.rint(dv)
+
+    def line_times(self, t, tr=None):
+        if tr is None:
+            tr = np.rint(t)
+        if len(tr) == 1:
+            return None, np.array([1])
+        dt = np.diff(tr)
+        assert np.all(dt >= 0)
+        assert np.all(dt < (1 << 16))
+        return tr[:-1], dt
+
+    def dac(self, t, v, first={}, mid={}, last={},
+            shift=0, tr=None, order=3, stop=True):
+        widths = np.array([1, 2, 3, 3])
+        tr, dt = self.line_times(t, tr)
+        dv = self.interpolate(t, v, order, tr, widths[:order + 1] - 1)
+        self.lines(0, dt, widths, dv, first, mid, mid if stop else last, shift)
+        if stop:
+            self.line(0, 2, self.pack([1], [int(round(v[-1]))]), **last)
+
+    def dds(self, t, v, p=None, f=None, first={}, mid={}, last={},
+            shift=0, tr=None, order=3, stop=True):
+        widths = np.array([1, 2, 3, 3, 1, 2, 2])
+        tr, dt = self.line_times(t, tr)
+        dv = self.interpolate(t, v, order, tr, widths[:order + 1] - 1)
+        if p is not None:
+            assert order == 3
+            dp = self.interpolate(t, p, 1, tr)[:, :1]
+            dv = np.concatenate((dv, dp), axis=1)
+            if f is not None:
+                df = self.interpolate(t, f, 1, tr, widths[-2:] - 1)
+                dv = np.concatenate((dv, df), axis=1)
+        self.lines(1, dt, widths, dv, first, mid, mid if stop else last, shift)
+        if stop:
+            dv = [int(round(v[-1])), 0, 0, 0]
+            if p is not None:
+                dv.append(int(round(p[-1])))
+                if f is not None:
+                    dv.append(int(round(f[-1])))
+            self.line(1, 2, self.pack(widths, dv), **last)
 
 
-try:
-    import pylibftdi
+class Channel:
+    max_data = 4*(1 << 10)  # 8kx16 8kx16 4kx16
+    num_frames = 8
+    max_val = 1 << 15  # int16 bit DAC
+    max_time = 1 << 16  # uint16 bit timer
+    cordic_gain = 1.
+    for i in range(16):
+        cordic_gain *= np.sqrt(1 + 2**(-2*i))
+    max_out = 10.
+    freq = 50e6  # samples/s
 
-    class PyFtdi:
-        def __init__(self, serial=None):
-            self.dev = pylibftdi.Device(device_id=serial)
+    def __init__(self):
+        self.segments = []
 
-        def write(self, data):
-            written = self.dev.write(data)
-            if written < 0:
-                raise pylibftdi.FtdiError(written,
-                                          self.dev.get_error_string())
-            return written
+    def clear(self):
+        del self.segments[:]
 
-        def close(self):
-            self.dev.close()
-            del self.dev
+    def new_segment(self):
+        # assert len(self.segments) < self.num_frames
+        segment = Segment()
+        self.segments.append(segment)
+        return segment
 
-    Ftdi = PyFtdi
-except ImportError:
-    pass
+    def segment(self, t, v, p=None, f=None,
+                order=3, aux=False, shift=0, trigger=True, end=True,
+                silence=False, stop=True, clear=True, wait=False):
+        segment = self.new_segment()
+        t = t*(self.freq/2**shift)
+        v = np.clip(v/self.max_out, -1, 1)
+        order = min(order, len(t) - 1)
+        first = dict(trigger=trigger, clear=clear, aux=aux)
+        mid = dict(aux=aux)
+        last = dict(silence=silence, end=end, wait=wait, aux=aux)
+        if p is None:
+            v = v*self.max_val
+            segment.dac(t, v, first, mid, last, shift=shift, order=order,
+                        stop=stop)
+        else:
+            v = v*(self.max_val/self.cordic_gain)
+            p = p*(self.max_val/np.pi)
+            if f is not None:
+                f = f*(self.max_val/self.freq)
+            segment.dds(t, v, p, f, first, mid, last, shift=shift,
+                        order=order, stop=stop)
+        return segment
 
+    def place(self):
+        addr = self.num_frames
+        for segment in self.segments:
+            segment.addr = addr
+            addr += len(segment.data)//2
+        assert addr <= self.max_data, addr
+        return addr
 
-try:
-    import ftd2xx
+    def table(self, entry=None):
+        table = [0] * self.num_frames
+        if entry is None:
+            entry = self.segments
+        for i, frame in enumerate(entry):
+            if frame is not None:
+                table[i] = frame.addr
+        return struct.pack("<" + "H"*self.num_frames, *table)
 
-    class D2xxFtdi:
-        def __init__(self, serial=None):
-            if serial is not None:
-                self.dev = ftd2xx.openEx(serial)
-            else:
-                self.dev = ftd2xx.open()
-            self.dev.setTimeouts(read=5000, write=5000)
-
-        def write(self, data):
-            written = self.dev.write(str(data))
-            return written
-
-        def close(self):
-            self.dev.close()
-            del self.dev
-
-    Ftdi = D2xxFtdi
-except ImportError:
-    pass
-
-
-if Ftdi is None:
-
-    class FileFtdi:
-        def __init__(self, serial="unknown"):
-            self.fil = open("pdq_%s_ftdi.bin" % serial, "wb")
-
-        def write(self, data):
-            self.fil.write(data)
-            return len(data)
-
-        def close(self):
-            self.fil.close()
-            del self.fil
-
-    logger.warning("no ftdi library found. writing to files")
-    Ftdi = FileFtdi
+    def serialize(self, entry=None):
+        self.place()
+        data = b"".join([segment.data for segment in self.segments])
+        return self.table(entry) + data
 
 
 class Pdq2:
     """
     PDQ DAC (a.k.a. QC_Waveform)
     """
+    num_dacs = 3
+    num_boards = 3
+    num_channels = num_dacs*num_boards
 
-    commands = {
-        "RESET_EN":    b"\x00",
-        "RESET_DIS":   b"\x01",
-        "TRIGGER_EN":  b"\x02",
-        "TRIGGER_DIS": b"\x03",
-        "ARM_EN":      b"\x04",
-        "ARM_DIS":     b"\x05",
-        "DCM_EN":      b"\x06",
-        "DCM_DIS":     b"\x07",
-        "START_EN":    b"\x08",
-        "START_DIS":   b"\x09",
-    }
+    _escape = b"\xa5"
+    _commands = "RESET TRIGGER ARM DCM START".split()
 
-    def __init__(self, serial=None):
-        self.serial = serial
-        self.dev = Ftdi(serial)
+    def __init__(self, url=None, dev=None):
+        if dev is None:
+            dev = serial.serial_for_url(url)
+        self.dev = dev
+        self.channels = [Channel() for i in range(self.num_channels)]
+        self.set_freq()
 
-    def init(self):
-        self.max_val = 1 << 15  # signed 16 bit DAC
-        self.max_out = 10.
-        self.freq = 50e6  # samples/s
-        self.max_time = 1 << 16  # unsigned 16 bit timer
-        self.num_dacs = 3
-        self.num_frames = 8
-        self.num_channels = 9
-        self.max_data = 4*(1 << 10)  # 8kx16 8kx16 4kx16
-        self.escape_char = b"\xa5"
-        self.cordic_gain = 1.
-        for i in range(16):
-            self.cordic_gain *= np.sqrt(1 + 2**(-2*i))
+    def set_freq(self, f=50e6):
+        for c in self.channels:
+            c.freq = f
 
     def close(self):
         self.dev.close()
         del self.dev
 
-    def set_freq(self, f):
-        self.freq = f
+    def write(self, data):
+        logger.debug("> %r", data)
+        written = self.dev.write(data)
+        if isinstance(written, int):
+            assert written == len(data)
 
-    def get_freq(self):
-        return self.freq
+    def cmd(self, cmd, enable):
+        cmd = self._commands.index(cmd) << 1
+        if not enable:
+            cmd |= 1
+        self.write(struct.pack("cb", self._escape, cmd))
 
-    def get_num_channels(self):
-        return self.num_channels
-
-    def get_num_frames(self):
-        return self.num_frames
-
-    def get_max_out(self):
-        return self.max_out
-
-    def _cmd(self, cmd):
-        return self.escape_char + self.commands[cmd]
-
-    def _escape(self, data):
-        return data.replace(self.escape_char,
-                            self.escape_char + self.escape_char)
-
-    def _write(self, *segments):
-        """
-        writes data segments to device
-        """
-        for segment in segments:
-            written = self.dev.write(segment)
-            if written != len(segment):
-                raise IOError("wrote %i of %i" % (written, len(segment)))
-
-    def flush_escape(self):
-        self._write(b"\x00")
-
-    def write_cmd(self, cmd):
-        return self._write(self._cmd(cmd))
-
-    def _write_data(self, *segments):
-        return self._write(*(self._escape(seg) for seg in segments))
-
-    def _line_times(self, t, shift=0):
-        scale = self.freq/2**shift
-        t = t*scale
-        tr = np.rint(t)
-        dt = np.diff(tr)
-        return t, tr, dt
-
-    def _interpolate(self, t, v, order, shift=0, tr=None):
-        """
-        calculate spline interpolation derivatives for data
-        according to interpolation order
-        also differentiates times (implicitly shifts to 0) and removes
-        the last value (irrelevant since the frame ends here)
-        """
-        if order == 0:
-            return [v[:-1]]
-        spline = interpolate.splrep(t, v, k=order)
-        if tr is None:
-            tr = t
-        dv = [interpolate.splev(tr[:-1], spline, der=i)
-              for i in range(order + 1)]
-        # correct for adder chain latency
-        correction_map = [
-            (1, -1/2., 2),
-            (1, -1/6., 3),
-            (2,   -1., 3),
-        ]
-        for i, c, j in correction_map:
-            if j >= len(dv):
-                break
-            dv[i] -= c*dv[j]
-        return dv
-
-    def _pack_frame(self, *parts_dtypes):
-        frame = []
-        for part, dtype in parts_dtypes:
-            if dtype == "i6":
-                part = part.astype("<i8")
-                frame.append(part.astype("<i4"))
-                frame.append((part >> 32).astype("<i2"))
-            else:
-                frame.append(part.astype("<" + dtype))
-        frame = np.rec.fromarrays(frame)  # interleave
-        logger.debug("frame %s dtype %s shape %s length %s",
-                     frame, frame.dtype, frame.shape, len(bytes(frame.data)))
-        return bytes(frame.data)
-
-    def _frame(self, t, v, p=None, f=None,
-               order=3, aux=None, shift=0, trigger=True, end=True,
-               silence=False, stop=True, clear=True, wait=False):
-        """
-        serialize frame data
-        voltages in volts, times in seconds
-        """
-        words = [1, 2, 3, 3, 1, 2, 2]
-        n = order + 1
-        if f is not None:
-            n += 2
-            if p is None:
-                p = np.zeros_like(f)
-        if p is not None:
-            n += 1
-        length = 1 + sum(words[:n])
-        parts = []
-
-        head = np.zeros(len(t) - 1, "<u2")
-        head[:] |= length  # 4
-        if p is not None:
-            head[:] |= 1 << 4  # typ # 2
-        head[0] |= trigger << 6  # 1
-        head[-1] |= (not stop and silence) << 7  # 1
-        if aux is not None:
-            head[:] |= aux[:len(head)] << 8  # 1
-        head[:] |= shift << 9  # 4
-        head[-1] |= (not stop and end) << 13  # 1
-        head[0] |= clear << 14  # 1
-        head[-1] |= (not stop and wait) << 15  # 1
-        parts.append((head, "u2"))
-
-        t, tr, dt = self._line_times(t, shift)
-        assert np.all(dt*2**shift > 1 + length), (dt, length)
-        assert np.all(dt < self.max_time), dt
-
-        parts.append((dt, "u2"))
-
-        v = np.clip(v/self.max_out, -1, 1)
-        if p is not None:
-            v /= self.cordic_gain
-        for dv, w in zip(self._interpolate(t, v, order, shift, tr), words):
-            parts.append((np.rint(dv*(2**(16*w - 1))), "i%i" % (2*w)))
-
-        if p is not None:
-            p = p/(2*np.pi)
-            for dv, w in zip(self._interpolate(t, p, 0, shift, tr), [1]):
-                parts.append((np.rint(dv*(2**(16*w))), "u%i" % (2*w)))
-
-        if f is not None:
-            f = f/self.freq
-            for dv, w in zip(self._interpolate(t, f, 1, shift, tr), [2, 2]):
-                parts.append((np.rint(dv*(2**(16*w))), "i%i" % (2*w)))
-
-        frame = self._pack_frame(*parts)
-
-        if stop:
-            if p is not None:
-                frame += struct.pack("<HH hiihih H ii", (15 << 0) | (1 << 4) |
-                                                        (silence << 7) |
-                                                        (end << 13) |
-                                                        (wait << 15),
-                                     1, int(v[-1]*2**15), 0, 0, 0, 0, 0,
-                                     int(p[-1]*2**16), int(f[-1]*2**31), 0)
-            else:
-                frame += struct.pack("<HH h", (2 << 0) | (silence << 7) |
-                                              (end << 13) | (wait << 15),
-                                     1, int(v[-1]*2**15))
-        return frame
-
-    def _line(self, dt, v=(), a=(), p=(), f=(), typ=0,
-              silence=False, end=False, trigger=False, aux=False,
-              clear=False):
-        raise NotImplementedError
-        fmt = "<HH"
-        parts = [0, int(round(dt*self.freq))]
-        for vi, wi in zip(v, [1, 2, 3, 3]):
-            vi = int(round(vi*(2**(16*wi - 1))))
-            if wi == 3:
-                fmt += "Ih"
-                parts += [vi & 0xffffffff, vi >> 32]
-            else:
-                fmt += "bih"[wi]
-                parts += [vi]
-        if p is not None:
-            typ = 1
-
-    def _map_frames(self, frames, map=None):
-        table = []
-        adr = self.num_frames
-        for frame in frames:
-            table.append(adr)
-            adr += len(frame)//2
-        assert adr <= self.max_data, adr
-        t = []
-        for i in range(self.num_frames):
-            if map is not None and len(map) > i:
-                i = map[i]
-            if i is not None and len(table) > i:
-                i = table[i]
-            else:
-                i = 0
-            t.append(i)
-        t = struct.pack("<" + "H"*self.num_frames, *t)
-        return t + b"".join(frames)
-
-    def _add_mem_header(self, board, dac, data, adr=0):
-        assert dac in range(self.num_dacs)
-        head = struct.pack("<HHH", (board << 4) | dac,
-                           adr, adr + len(data)//2 - 1)
-        return head + data
-
-    def multi_frame(self, times_voltages, channel, map=None, **kwargs):
-        frames = [self._frame(t, v, **kwargs) for t, v in times_voltages]
-        data = self._map_frames(frames, map)
+    def write_mem(self, channel, data, start_addr=0):
         board, dac = divmod(channel, self.num_dacs)
-        data = self._add_mem_header(board, dac, data)
-        self._write_data(data)
+        data = struct.pack("<HHH", (board << 4) | dac, start_addr,
+                           start_addr + len(data)//2 - 1) + data
+        data = data.replace(self._escape, self._escape + self._escape)
+        self.write(data)
+
+    def write_channel(self, channel, entry=None):
+        self.write_mem(self.channels.index(channel),
+                       channel.serialize(entry))
+
+    def write_all(self):
+        for channel in self.channels:
+            self.write_mem(self.channels.index(channel),
+                           channel.serialize())
+
+    def write_table(self, channel, segments=None):
+        # no segment placement
+        # no segment writing
+        self.write_mem(channel, self.channels[channel].table(segments))
+
+    def write_segment(self, channel, segment):
+        # no collision check
+        s = self.channels[channel].segments[segment]
+        self.write_mem(channel, s.data, s.adr)
+
+    def multi_segment(self, times_voltages, channel, map=None, **kwargs):
+        warnings.warn("deprecated", DeprecationWarning)
+        c = self.channels[channel]
+        del c.segments[:]
+        for t, v in times_voltages:
+            c.segment(t, v, **kwargs)
+        return c.serialize(map)
