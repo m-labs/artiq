@@ -178,7 +178,7 @@ def main():
                                        key=itemgetter(0)):
                         print("{}: {}".format(k, v))
     finally:
-        dbh.close()
+        dbh.close_devices()
 
 if __name__ == "__main__":
     main()

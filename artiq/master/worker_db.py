@@ -104,16 +104,12 @@ class DBHub:
             self.active_devices[name] = dev
             return dev
 
-    def close(self):
+    def close_devices(self):
         """Closes all active devices, in the opposite order as they were
-        requested.
-
-        Do not use the same ``DBHub`` again after calling
-        this function.
-
-        """
+        requested."""
         for dev in reversed(list(self.active_devices.values())):
             if isinstance(dev, (Client, BestEffortClient)):
                 dev.close_rpc()
             elif hasattr(dev, "close"):
                 dev.close()
+        self.active_devices = OrderedDict()

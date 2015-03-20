@@ -116,6 +116,7 @@ def main():
                 put_object({"action": "completed"})
             elif action == "run":
                 exp_inst.run()
+                dbh.close_devices()
                 put_object({"action": "completed"})
             elif action == "analyze":
                 exp_inst.analyze()
@@ -130,7 +131,7 @@ def main():
             elif action == "terminate":
                 break
     finally:
-        dbh.close()
+        dbh.close_devices()
 
 if __name__ == "__main__":
     main()
