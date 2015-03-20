@@ -11,11 +11,11 @@ def get_argparser():
     parser = argparse.ArgumentParser(description="PDQ2 controller")
     simple_network_args(parser, 3252)
     parser.add_argument(
-        "-s", "--serial", default=None,
-        help="device (FT245R) serial string [first]")
+        "-u", "--url", default="hwgrep://",
+        help="device url [%(default)s]")
     parser.add_argument(
-        "-d", "--debug", default=False, action="store_true",
-        help="debug communications")
+        "-d", "--dump", default=None,
+        help="file to dump pdq2 data into, for later simulation")
     verbosity_args(parser)
     return parser
 
@@ -23,13 +23,16 @@ def get_argparser():
 def main():
     args = get_argparser().parse_args()
     init_logger(args)
-
-    dev = Pdq2(serial=args.serial)
+    port = None
+    if args.dump:
+        port = open(args.dump, "wb")
+    dev = Pdq2(url=args.url, dev=port)
     try:
         simple_server_loop({"pdq2": dev}, args.bind, args.port,
-                           id_parameters="serial=" + str(args.serial))
+                           id_parameters="url=" + str(args.url))
     finally:
         dev.close()
+
 
 if __name__ == "__main__":
     main()
