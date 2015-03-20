@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
-
-# Based on code by Robert Jordens <jordens@gmail.com>, 2012
+#!/usr/bin/python
+# Robert Jordens <jordens@gmail.com>, 2012-2015
 
 import argparse
 import time
@@ -24,30 +23,29 @@ def get_argparser():
                         help="channel: 3*board_num+dac_num [%(default)s]")
     parser.add_argument("-f", "--frame", default=0, type=int,
                         help="frame [%(default)s]")
-    parser.add_argument("-e", "--free", default=False,
-                        action="store_true",
-                        help="software trigger [%(default)s]")
-    parser.add_argument("-n", "--disarm", default=False,
-                        action="store_true",
-                        help="disarm group [%(default)s]")
-    parser.add_argument("-t", "--times",
-                        default="np.arange(5)*1e-6",
+    parser.add_argument("-t", "--times", default="np.arange(5)*1e-6",
                         help="sample times (s) [%(default)s]")
-    parser.add_argument("-u", "--voltages",
+    parser.add_argument("-v", "--voltages",
                         default="(1-np.cos(t/t[-1]*2*np.pi))/2",
                         help="sample voltages (V) [%(default)s]")
+    parser.add_argument("-a", "--aux", default=False, action="store_true",
+                        help="axiliary digital output [%(default)%s]")
     parser.add_argument("-o", "--order", default=3, type=int,
-                        help="interpolation"
-                             " (0: const, 1: lin, 2: quad, 3: cubic)"
-                             " [%(default)s]")
-    parser.add_argument("-m", "--dcm", default=None, type=int,
-                        help="choose fast 100MHz clock [%(default)s]")
-    parser.add_argument("-x", "--demo", default=False, action="store_true",
-                        help="demo mode: pulse and chirp,"
-                             " 1V*ch+0.1V*frame [%(default)s]")
+                        help="interpolation (0: const, 1: lin, 2: quad,"
+                        " 3: cubic) [%(default)s]")
     parser.add_argument("-p", "--plot", help="plot to file [%(default)s]")
+    parser.add_argument("-u", "--dump", help="dump to file [%(default)s]")
     parser.add_argument("-r", "--reset", default=False,
                         action="store_true", help="do reset before")
+    parser.add_argument("-m", "--dcm", default=False, action="store_true",
+                        help="100MHz clock [%(default)s]")
+    parser.add_argument("-n", "--disarm", default=False, action="store_true",
+                        help="disarm group [%(default)s]")
+    parser.add_argument("-e", "--free", default=False, action="store_true",
+                        help="software trigger [%(default)s]")
+    parser.add_argument("-x", "--demo", default=False, action="store_true",
+                        help="demo mode: pulse and chirp, 1V*ch+0.1V*frame"
+                        " [%(default)s]")
     parser.add_argument("-b", "--bit", default=False,
                         action="store_true", help="do bit test")
     verbosity_args(parser)
@@ -61,77 +59,63 @@ def main():
     dev.init()
 
     if args.reset:
-        dev.flush_escape()
-        dev.write_cmd("RESET_EN")
+        dev.write(b"\x00\x00")  # flush any escape
+        dev.cmd("RESET", True)
         time.sleep(.1)
-    if args.dcm:
-        dev.write_cmd("DCM_EN")
-        dev.set_freq(100e6)
-    elif args.dcm == 0:
-        dev.write_cmd("DCM_DIS")
-        dev.set_freq(50e6)
-    dev.write_cmd("START_DIS")
-
+    dev.cmd("START", False)
+    dev.cmd("ARM", False)
+    dev.cmd("DCM", args.dcm)
+    freq = 100e6 if args.dcm else 50e6
+    dev.set_freq(freq)
     num_channels = dev.get_num_channels()
     num_frames = dev.get_num_frames()
     times = eval(args.times, globals(), {})
     voltages = eval(args.voltages, globals(), dict(t=times))
 
     if args.demo:
-        # FIXME
-        channels = [args.channel] if args.channel < num_channels \
-            else range(num_channels)
-        frames = [args.frame] if args.frame < num_frames \
-            else range(num_frames)
-        for channel in channels:
-            f = []
-            for frame in frames:
-                vi = .1*frame + channel + voltages
-                pi = 2*np.pi*(.01*frame + .1*channel + 0*voltages)
+        for ch, channel in enumerate(dev.channels):
+            entry = []
+            for fr in range(dev.channels[0].num_frames):
+                vi = .1*fr + ch + voltages
+                entry.append(channel.segment(times, vi, order=args.order,
+                                             end=False, aux=args.aux))
+                pi = 2*np.pi*(-.5 + .01*fr + .1*ch + 0*voltages)
                 fi = 10e6*times/times[-1]
-                f.append(b"".join([
-                    dev.frame(times, vi, order=args.order, end=False),
-                    dev.frame(2*times, voltages, pi, fi, trigger=False),
-                    # dev.frame(2*times, 0*vi+.1, 0*pi, 0*fi+1e6),
-                    # dev.frame(times, 0*vi, order=args.order, silence=True),
-                ]))
-            board, dac = divmod(channel, dev.num_dacs)
-            dev.write_data(dev.add_mem_header(board, dac, dev.map_frames(f)))
+                channel.segment(2*times, voltages, pi, fi, trigger=False,
+                                silence=True, aux=args.aux)
+            dev.write_channel(channel, entry)
     elif args.bit:
-        map = [0] * num_frames
-        t = np.arange(2*16) * 1.
         v = [-1, 0, -1]
-        for i in range(15):
-            vi = 1 << i
-            v.extend([vi - 1, vi])
-        v = np.array(v)*dev.get_max_out()/(1 << 15)
-        t, v = t[:3], v[:3]
-        # print(t, v)
-        for channel in range(num_channels):
-            dev.multi_frame([(t, v)], channel=channel, order=0, map=map,
-                            shift=15, stop=False, trigger=False)
+        # for i in range(15):
+        #     v.extend([(1 << i) - 1, 1 << i])
+        v = np.array(v)*dev.channels[0].max_out/dev.channels[0].max_val
+        t = np.arange(len(v))
+        for channel in dev.channels:
+            s = channel.segment(t, v, order=0, shift=15, stop=False,
+                                trigger=False)
+            dev.write_channel(channel, [s for i in range(channel.num_frames)])
     else:
-        tv = [(times, voltages)]
-        map = [None] * num_frames
-        map[args.frame] = 0
-        dev.multi_frame(tv, channel=args.channel, order=args.order, map=map)
+        c = dev.channels[args.channel]
+        map = [None] * c.num_frames
+        map[args.frame] = c.segment(times, voltages, order=args.order,
+                                    aux=args.aux)
+        dev.write_channel(c, map)
 
-    dev.write_cmd("START_EN")
-    if not args.disarm:
-        dev.write_cmd("ARM_EN")
-    if args.free:
-        dev.write_cmd("TRIGGER_EN")
+    dev.cmd("START", True)
+    dev.cmd("ARM", not args.disarm)
+    dev.cmd("TRIGGER", args.free)
 
     if args.plot:
         from matplotlib import pyplot as plt
-        fig, ax0 = plt.subplots()
-        ax0.plot(times, voltages, "xk", label="points")
-        if args.order:
+        fig, ax = plt.subplots()
+        ax.plot(times, voltages, "xk", label="points")
+        if args.order > 0:
             spline = interpolate.splrep(times, voltages, k=args.order)
-            ttimes = np.arange(0, times[-1], 1/dev.get_freq())
+            ttimes = np.arange(0, times[-1], 1/freq)
             vvoltages = interpolate.splev(ttimes, spline)
-            ax0.plot(ttimes, vvoltages, ",b", label="interpolation")
+            ax.plot(ttimes, vvoltages, ",b", label="interpolation")
         fig.savefig(args.plot)
+
 
 if __name__ == "__main__":
     main()
