@@ -25,7 +25,7 @@ def get_argparser():
                         help="frame [%(default)s]")
     parser.add_argument("-t", "--times", default="np.arange(5)*1e-6",
                         help="sample times (s) [%(default)s]")
-    parser.add_argument("-v", "--voltages",
+    parser.add_argument("-u", "--voltages",
                         default="(1-np.cos(t/t[-1]*2*np.pi))/2",
                         help="sample voltages (V) [%(default)s]")
     parser.add_argument("-a", "--aux", default=False, action="store_true",
@@ -34,7 +34,6 @@ def get_argparser():
                         help="interpolation (0: const, 1: lin, 2: quad,"
                         " 3: cubic) [%(default)s]")
     parser.add_argument("-p", "--plot", help="plot to file [%(default)s]")
-    parser.add_argument("-u", "--dump", help="dump to file [%(default)s]")
     parser.add_argument("-r", "--reset", default=False,
                         action="store_true", help="do reset before")
     parser.add_argument("-m", "--dcm", default=False, action="store_true",
