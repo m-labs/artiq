@@ -11,10 +11,9 @@ def get_argparser():
     parser = argparse.ArgumentParser(description="PDQ2 controller")
     simple_network_args(parser, 3252)
     parser.add_argument(
-        "-u", "--url", default="hwgrep://",
-        help="device url [%(default)s]")
+        "-d", "--device", required=True, help="device url/path/name")
     parser.add_argument(
-        "-d", "--dump", default=None,
+        "-u", "--dump", default=None,
         help="file to dump pdq2 data into, for later simulation")
     verbosity_args(parser)
     return parser
@@ -26,10 +25,10 @@ def main():
     port = None
     if args.dump:
         port = open(args.dump, "wb")
-    dev = Pdq2(url=args.url, dev=port)
+    dev = Pdq2(url=args.device, dev=port)
     try:
         simple_server_loop({"pdq2": dev}, args.bind, args.port,
-                           id_parameters="url=" + str(args.url))
+                           id_parameters="device=" + str(args.device))
     finally:
         dev.close()
 
