@@ -4,6 +4,7 @@ from migen.bank import wbgen
 from mibuild.generic_platform import *
 
 from misoclib.cpu.peripherals import gpio
+from misoclib.mem.sdram.core.minicon import MiniconSettings
 from targets.ppro import BaseSoC
 
 from artiq.gateware import rtio, ad9858
@@ -93,11 +94,10 @@ class ARTIQMiniSoC(BaseSoC):
     csr_map.update(BaseSoC.csr_map)
 
     def __init__(self, platform, cpu_type="or1k",
-                 ramcon_type="minicon", with_l2=False,
                  with_test_gen=False, **kwargs):
         BaseSoC.__init__(self, platform,
-                         cpu_type=cpu_type, ramcon_type=ramcon_type,
-                         with_l2=with_l2,
+                         cpu_type=cpu_type,
+                         sdram_controller_settings=MiniconSettings(),
                          **kwargs)
         platform.add_extension(_tester_io)
 
