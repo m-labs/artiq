@@ -70,12 +70,44 @@
         "arguments": {"reg_channel": 2, "rtio_switch": 7}
     },
 
+    "qc_q1_0": {
+        "type": "controller",
+        "best_effort": false,
+        "host": "::1",
+        "port": 4000,
+        "target_name": "pdq2",
+        "command": "pdq2_controller -p {port} --bind {bind} --dump qc_q1_0.bin"
+    },
+    "qc_q1_1": {
+        "type": "controller",
+        "best_effort": false,
+        "host": "::1",
+        "port": 4001,
+        "target_name": "pdq2",
+        "command": "pdq2_controller -p {port} --bind {bind} --dump qc_q1_1.bin"
+    },
+    "qc_q1_2": {
+        "type": "controller",
+        "best_effort": false,
+        "host": "::1",
+        "port": 4002,
+        "target_name": "pdq2",
+        "command": "pdq2_controller -p {port} --bind {bind} --dump qc_q1_2.bin"
+    },
+    "qc_q1_3": {
+        "type": "controller",
+        "best_effort": false,
+        "host": "::1",
+        "port": 4003,
+        "target_name": "pdq2",
+        "command": "pdq2_controller -p {port} --bind {bind} --dump qc_q1_3.bin"
+    },
     "electrodes": {
         "type": "local",
         "module": "artiq.devices.pdq2",
         "class": "CompoundPDQ2",
         "arguments": {
-            "ids": ["qc_q1_0", "qc_q1_1", "qc_q1_2", "qc_q1_3"],
+            "pdq2_devices": ["qc_q1_0", "qc_q1_1", "qc_q1_2", "qc_q1_3"],
             "rtio_trigger": 7,
             "rtio_frame": (2, 3, 4)
         },
