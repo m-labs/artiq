@@ -13,8 +13,7 @@ class HidError(Exception):
 
 
 class Ldasim:
-    """Lab Brick Digital Attenuator simulation driver.
-    """
+    """Lab Brick Digital Attenuator simulation driver."""
 
     def __init__(self):
         self._attenuation = None
@@ -117,8 +116,7 @@ class Lda:
             raise IOError
 
     def close(self):
-        """Close the device.
-        """
+        """Close the device."""
         self.hidapi.hid_close(self._dev)
 
     def get_att_step_size(self):

@@ -22,8 +22,8 @@ class Novatech409B:
     # maximum frequency of Novatech 409B when using PLL and external reference
     max_freq_with_pll = 171.1276031
 
-    def __init__(self, serial_dev="/dev/ttyUSB0"):
-        if serial_dev == "sim":
+    def __init__(self, serial_dev):
+        if serial_dev is None:
             self.simulation = True
         else:
             self.simulation = False

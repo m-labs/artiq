@@ -10,11 +10,12 @@ from artiq.tools import verbosity_args, simple_network_args, init_logger
 def get_argparser():
     parser = argparse.ArgumentParser(
         description="ARTIQ controller for the Lab Brick Digital Attenuator")
-    parser.add_argument("-d", "--device", default="LDA-102",
-                        choices=["LDA-102", "LDA-602", "sim"])
+    parser.add_argument("-P", "--product", default="LDA-102",
+                        choices=["LDA-102", "LDA-602"])
     simple_network_args(parser, 3253)
-    parser.add_argument("-s", "--serial", default=None,
-                        help="USB serial number of the device")
+    parser.add_argument("-d", "--device", default=None,
+                        help="USB serial number of the device."
+                             " Omit for simulation mode.")
     verbosity_args(parser)
     return parser
 
@@ -22,10 +23,10 @@ def get_argparser():
 def main():
     args = get_argparser().parse_args()
     init_logger(args)
-    if args.device == "sim":
+    if args.device is None:
         lda = Ldasim()
     else:
-        lda = Lda(args.serial, args.device)
+        lda = Lda(args.serial, args.product)
     simple_server_loop({"lda": lda},
                        args.bind, args.port)
 

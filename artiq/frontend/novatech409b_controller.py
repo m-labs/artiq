@@ -20,11 +20,8 @@ def get_argparser():
         " 409B 4-channel DDS box")
     simple_network_args(parser, 3254)
     parser.add_argument(
-        "-s", "--serial-dev",
-        default="/dev/ttyUSB0", type=str,
-        help="serial port: on Windows \"COMx\","
-        " on Linux a device path (e.g. \"/dev/ttyUSB0\")."
-        " Use \"sim\" for simulation mode.")
+        "-d", "--device", default=None,
+        help="serial port. Omit for simulation mode.")
     verbosity_args(parser)
     return parser
 
@@ -32,7 +29,7 @@ def main():
     args = get_argparser().parse_args()
     init_logger(args)
 
-    dev = Novatech409B(args.serial_dev)
+    dev = Novatech409B(args.device)
     try:
         simple_server_loop(
             {"novatech409b": dev}, args.bind, args.port)

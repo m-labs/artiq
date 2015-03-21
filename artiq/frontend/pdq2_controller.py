@@ -11,9 +11,10 @@ def get_argparser():
     parser = argparse.ArgumentParser(description="PDQ2 controller")
     simple_network_args(parser, 3252)
     parser.add_argument(
-        "-d", "--device", required=True, help="device url/path/name")
+        "-d", "--device", default=None,
+        help="serial port. Omit for simulation mode.")
     parser.add_argument(
-        "-u", "--dump", default=None,
+        "--dump", default="pdq2_dump.bin",
         help="file to dump pdq2 data into, for later simulation")
     verbosity_args(parser)
     return parser
@@ -23,7 +24,7 @@ def main():
     args = get_argparser().parse_args()
     init_logger(args)
     port = None
-    if args.dump:
+    if args.device is None:
         port = open(args.dump, "wb")
     dev = Pdq2(url=args.device, dev=port)
     try:

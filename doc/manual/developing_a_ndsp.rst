@@ -175,9 +175,9 @@ General guidelines
 * Do not use ``__del__`` to implement the cleanup code of your driver. Instead, define a ``close`` method, and call it using a ``try...finally...`` block in the controller.
 * Format your source code according to PEP8. We suggest using ``flake8`` to check for compliance.
 * Use new-style formatting (``str.format``) except for logging where it is not well supported, and double quotes for strings.
-* The device identification (e.g. serial number) to attach to must be passed as a command-line parameter to the controller. We suggest using ``-s`` and ``--serial`` as parameter name.
+* The device identification (e.g. serial number, or entry in ``/dev``) to attach to must be passed as a command-line parameter to the controller. We suggest using ``-d`` and ``--device`` as parameter name.
 * Controllers must be able to operate in "simulation" mode, where they behave properly even if the associated hardware is not connected. For example, they can print the data to the console instead of sending it to the device, or dump it into a file.
-* We suggest that the simulation mode is entered by using "sim" in place of the serial number or device name.
+* We suggest that the simulation mode is entered whenever the ``-d/--device`` option is omitted.
 * Keep command line parameters consistent across clients/controllers. When adding new command line options, look for a client/controller that does a similar thing and follow its use of ``argparse``. If the original client/controller could use ``argparse`` in a better way, improve it.
 * Use docstrings for all public methods of the driver (note that those will be retrieved by ``artiq_rpctool``).
 * Choose a free default TCP port and add it to the default port list in this manual.

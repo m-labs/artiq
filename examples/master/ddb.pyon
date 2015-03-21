@@ -120,7 +120,7 @@
         "host": "::1",
         "port": 3253,
         "target_name": "lda",
-        "command": "lda_controller -p {port} --bind {bind} -d sim"
+        "command": "lda_controller -p {port} --bind {bind}"
     },
 
     "pmt": "pmt0",
