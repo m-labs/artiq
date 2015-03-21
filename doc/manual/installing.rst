@@ -93,17 +93,19 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
         $ git clone --recursive https://github.com/m-labs/misoc
         $ export MSCDIR=~/artiq-dev/misoc # append this line to .bashrc
 
-* Build and flash the bitstream and BIOS by running `from the MiSoC top-level directory` ::
+* Download and install ARTIQ: ::
+
+        $ cd ~/artiq-dev
+        $ git clone https://github.com/m-labs/artiq
+        $ python3 setup.py develop --user
+
+* Build and flash the bitstream and BIOS by running `from the MiSoC top-level directory`: ::
 
         $ cd ~/artiq-dev/misoc
         $ ./make.py -X ~/artiq-dev/artiq/soc -t artiq_ppro all
 
-* Then, build and flash the ARTIQ runtime:
-    
-    ::
+* Then, build and flash the ARTIQ runtime: ::
 
-        $ cd ~/artiq-dev
-        $ git clone https://github.com/m-labs/artiq
         $ cd ~/artiq-dev/artiq/soc/runtime
         $ make flash
 
@@ -133,15 +135,15 @@ Installing the host-side software
         $ cd ~/artiq-dev/llvm-or1k
         $ mkdir build
         $ cd ~/artiq-dev/llvm-or1k/build
-        $ ../configure --prefix=/usr/local/llvm-or1k
-        $ make ENABLE_OPTIMIZED=1 -j4
-        $ sudo -E make install ENABLE_OPTIMIZED=1
+        $ cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local/llvm-or1k -DLLVM_TARGETS_TO_BUILD=OR1K -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=ON
+        $ make -j4
+        $ sudo make install
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/numba/llvmlite
         $ cd ~/artiq-dev/llvmlite
         $ cat ~/artiq-dev/artiq/patches/llvmlite/* | patch -p1
-        $ PATH=/usr/local/llvm-or1k/bin:$PATH sudo -E python setup.py install
+        $ PATH=/usr/local/llvm-or1k/bin:$PATH sudo -E python3 setup.py install
 
 .. note::
     llvmlite is in development and its API is not stable yet. Commit ID ``11a8303d02e3d6dd2d1e0e9065701795cd8a979f`` is known to work.
@@ -179,8 +181,8 @@ Installing the host-side software
         $ cd ~/artiq-dev/artiq/doc/manual
         $ make html
 
-Xubuntu 14.04 specific instructions
------------------------------------
+Ubuntu 14.04 specific instructions
+----------------------------------
 
 This command installs all the required packages: ::
 
