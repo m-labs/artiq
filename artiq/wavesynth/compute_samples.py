@@ -110,9 +110,9 @@ class Synthesizer:
 def main():
     program = [
         [
-            # segment 0
+            # frame 0
             {
-                # segment 0, line 0
+                # frame 0, segment 0, line 0
                 "dac_divider": 1,
                 "duration": 100,
                 "channel_data": [
@@ -127,7 +127,7 @@ def main():
                 "jump": False
             },
             {
-                # segment 1, line 1
+                # frame 0, segment 0, line 1
                 "dac_divider": 1,
                 "duration": 100,
                 "channel_data": [
@@ -143,9 +143,9 @@ def main():
             },
         ],
         [
-            # segment 1
+            # frame 1
             {
-                # segment 1, line 0
+                # frame 1, segment 0, line 0
                 "dac_divider": 1,
                 "duration": 100,
                 "channel_data": [
@@ -160,7 +160,7 @@ def main():
                 "jump": False
             },
             {
-                # segment 1, line 1
+                # frame 1, segment 0, line 1
                 "dac_divider": 1,
                 "duration": 100,
                 "channel_data": [
@@ -176,9 +176,9 @@ def main():
             }
         ],
         [
-            # segment 2
+            # frame 2
             {
-                # segment 2, line 0
+                # frame 2, segment 0, line 0
                 "dac_divider": 1,
                 "duration": 84,
                 "channel_data": [
@@ -193,7 +193,7 @@ def main():
                 "jump": False
             },
             {
-                # segment 2, line 1
+                # frame 2, segment 1, line 0
                 "dac_divider": 1,
                 "duration": 116,
                 "channel_data": [
