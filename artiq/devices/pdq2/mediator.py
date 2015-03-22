@@ -6,109 +6,155 @@ from artiq.coredevice import rtio
 
 frame_setup = 20*ns
 trigger_duration = 50*ns
-frame_wait = 20*ns
-sample_period = 10*us  # FIXME: check this
-
-
-class SegmentSequenceError(Exception):
-    pass
+sample_period = 10*ns
+delay_margin_factor = 1.0001
+channels_per_pdq2 = 9
 
 
 class FrameActiveError(Exception):
+    """Raised when a frame is active and playback of a segment from another
+    frame is attempted."""
     pass
 
 
-class FrameCloseError(Exception):
+class SegmentSequenceError(Exception):
+    """Raised when attempting to play back a named segment which is not the
+    next in the sequence."""
+    pass
+
+
+class InvalidatedError(Exception):
+    """Raised when attemting to use a frame or segment that has been
+    invalidated (due to disarming the PDQ)."""
+    pass
+
+
+class ArmError(Exception):
+    """Raised when attempting to arm an already armed PDQ, to modify the
+    program of an armed PDQ, or to play a segment on a disarmed PDQ."""
     pass
 
 
 class _Segment:
-    def __init__(self, frame, sn, duration, host_data):
-        self.core = frame.core
+    def __init__(self, frame, segment_number):
         self.frame = frame
-        self.sn = sn
-        self.duration = duration
-        self.host_data = host_data
+        self.segment_number = segment_number
+
+        self.lines = []
+
+        # for @kernel
+        self.core = frame.pdq.core
+
+    def add_line(self, duration, channel_data, dac_divider=1):
+        if self.frame.invalidated:
+            raise InvalidatedError
+        if self.frame.pdq.armed:
+            raise ArmError
+        self.lines.append((dac_divider, duration, channel_data))
+
+    def get_duration(self):
+        r = 0*s
+        for dac_divider, duration, _ in self.lines:
+            r += duration*sample_period/dac_divider
+        return r
 
     @kernel
     def advance(self):
-        if self.frame.pdq.current_frame != self.frame.fn:
-            raise FrameActiveError
-        if self.frame.pdq.next_sn != self.sn:
+        if self.frame.invalidated:
+            raise InvalidatedError
+        if not self.frame.pdq.armed:
+            raise ArmError
+        # If a frame is currently being played, check that we are next.
+        if (self.frame.pdq.current_frame >= 0
+                and self.frame.pdq.next_segment != self.segment_number):
             raise SegmentSequenceError
-        self.frame.pdq.next_sn += 1
-
-        t = time_to_cycles(now())
-        self.frame.pdq.trigger.on(t)
-        self.frame.pdq.trigger.off(t + time_to_cycles(trigger_duration))
-        delay(self.duration)
+        self.frame.advance()
 
 
 class _Frame:
-    def __init__(self, core):
-        self.core = core
+    def __init__(self, pdq, frame_number):
+        self.pdq = pdq
+        self.frame_number = frame_number
+        self.segments = []
         self.segment_count = 0
-        self.closed = False
 
-    def append(self, t, u, trigger=False, name=None):
-        if self.closed:
-            raise FrameCloseError
-        sn = self.segment_count
-        duration = (t[-1] - t[0])*sample_period
-        segment = _Segment(self, sn, duration, (t, u, trigger))
-        if name is None:
-            # TODO
-            raise NotImplementedError("Anonymous segments are not supported yet")
-        else:
+        self.invalidated = False
+
+        # for @kernel
+        self.core = self.pdq.core
+
+    def create_segment(self, name=None):
+        if self.invalidated:
+            raise InvalidatedError
+        if self.pdq.armed:
+            raise ArmError
+        segment = _Segment(self, self.segment_count)
+        if name is not None:
             if hasattr(self, name):
                 raise NameError("Segment name already exists")
             setattr(self, name, segment)
+        self.segments.append(segment)
         self.segment_count += 1
+        return segment
 
-    def close(self):
-        if self.closed:
-            raise FrameCloseError
-        self.closed = True
+    def _arm(self):
+        self.segment_delays = [
+            time_to_cycles(s.get_duration()*delay_margin_factor, self.core)
+            for s in self.segments]
 
-    @kernel
-    def begin(self):
-        if self.pdq.current_frame >= 0:
-            raise FrameActiveError
-        self.pdq.current_frame = self.fn
-        self.pdq.next_sn = 0
+    def _invalidate(self):
+        self.invalidated = True
 
-        t = (time_to_cycles(now())
-            - time_to_cycles(frame_setup + trigger_duration + frame_wait))
-        self.pdq.frame0.set_value(t, self.fn & 1)
-        self.pdq.frame1.set_value(t, (self.fn & 2) >> 1)
-        self.pdq.frame2.set_value(t, (self.fn & 4) >> 2)
-        t += time_to_cycles(frame_setup)
-        self.pdq.trigger.on(t)
-        self.pdq.trigger.off(t + time_to_cycles(trigger_duration))
+    def _get_program(self):
+        r = []
+        for segment in self.segments:
+            segment_program = [
+                {
+                    "dac_divider": dac_divider,
+                    "duration": duration,
+                    "channel_data": channel_data,
+                    "wait_trigger": False,
+                    "jump": False
+                } for dac_divider, duration, channel_data in segment.lines]
+            segment_program[-1]["wait_trigger"] = True
+            r += segment_program
+        r[-1]["wait_trigger"] = False
+        r[-1]["jump"] = True
+        return r
 
     @kernel
     def advance(self):
-        # TODO
-        raise NotImplementedError
+        if self.invalidated:
+            raise InvalidatedError
+        if not self.pdq.armed:
+            raise ArmError
 
-    @kernel
-    def finish(self):
-        if self.pdq.current_frame != self.fn:
-            raise FrameActiveError
-        if self.pdq.next_sn != self.segment_count:
-            raise FrameActiveError
-        self.pdq.current_frame = -1
-        self.pdq.next_sn = -1
+        t = time_to_cycles(now()) - time_to_cycles(trigger_duration/2)
 
-    def _prepare(self, pdq, fn):
-        if not self.closed:
-            raise FrameCloseError
-        self.pdq = pdq
-        self.fn = fn
+        if self.pdq.current_frame >= 0:
+            # PDQ is in the middle of a frame. Check it is us.
+            if self.frame.pdq.current_frame != self.frame_number:
+                raise FrameActiveError
+        else:
+            # PDQ is in the jump table - set the selection signals
+            # to play our first segment.
+            self.pdq.current_frame = self.frame_number
+            self.pdq.next_segment = 0
+            t2 = t - time_to_cycles(frame_setup)
+            self.pdq.frame0.set_value(t2, self.frame_number & 1)
+            self.pdq.frame1.set_value(t2, (self.frame_number & 2) >> 1)
+            self.pdq.frame2.set_value(t2, (self.frame_number & 4) >> 2)
 
-    def _invalidate(self):
-        del self.pdq
-        del self.fn
+        self.pdq.trigger.on(t)
+        self.pdq.trigger.off(t + time_to_cycles(trigger_duration))
+
+        delay(cycles_to_time(self.segment_delays[self.pdq.next_segment]))
+        self.pdq.next_segment += 1
+
+        # test for end of frame
+        if self.pdq.next_segment == self.segment_count:
+            self.pdq.current_frame = -1
+            self.pdq.next_segment = -1
 
 
 class CompoundPDQ2(AutoDB):
@@ -131,19 +177,42 @@ class CompoundPDQ2(AutoDB):
 
         self.frames = []
         self.current_frame = -1
-        self.next_sn = -1
+        self.next_segment = -1
+        self.armed = False
 
-    def create_frame(self):
-        return _Frame(self.core)
-
-    def prepare(self, *frames):
-        # prevent previous frames and their segments from
-        # being (incorrectly) used again
+    def disarm(self):
         for frame in self.frames:
             frame._invalidate()
+        self.frames = []
+        self.armed = False
 
-        self.frames = list(frames)
-        for fn, frame in enumerate(frames):
-            frame._prepare(self, fn)
+    def arm(self):
+        if self.armed:
+            raise ArmError
+        for frame in self.frames:
+            frame._arm()
 
-        # TODO: upload to PDQ2 devices
+        full_program = [f._get_program() for f in self.frames]
+        for n, pdq2 in enumerate(self.pdq2s):
+            program = []
+            for full_frame_program in full_program:
+                frame_program = []
+                for full_line in full_frame_program:
+                    line = {
+                        "dac_divider": full_line["dac_divider"],
+                        "duration": full_line["duration"],
+                        "channel_data": full_line["channel_data"]
+                        [n*channels_per_pdq2:(n+1)*channels_per_pdq2],
+                        "wait_trigger": full_line["wait_trigger"],
+                        "jump": full_line["jump"]
+                    }
+                    frame_program.append(line)
+                program.append(frame_program)
+            pdq2.program(program)
+
+    def create_frame(self):
+        if self.armed:
+            raise ArmError
+        r = _Frame(self, len(self.frames))
+        self.frames.append(r)
+        return r
