@@ -29,31 +29,16 @@ class Transport(Experiment, AutoDB):
     def prepare(self, stop):
         t = transport_data["t"][:stop]*self.speed
         u = transport_data["u"][:stop]
-        # start a new frame
+
+        self.electrodes.disarm()
         self.tf = self.electrodes.create_frame()
-        # interpolates t and u and appends the (t, u) segment to the frame
-        # adds wait-for-trigger to the first line/spline knot
-        # will also apply offset and gain calibration data
-        # stores duration and the fact that this segment needs to be triggered
-        # both (duration and segment triggering flag) to be retrieved during
-        # kernel compilation, see transport()
-        self.tf.append(t, u, trigger=True,
-                       name="to_stop")
+        self.tf.create_segment(t, u, name="to_stop")
         # append the reverse transport (from stop to 0)
         # both durations are the same in this case
-        self.tf.append(t[-1] - t[::-1], u[::-1], trigger=True,
-                       name="from_stop")
-        # closes the frame with a wait line before jumping back into
-        # the jump table so that frame signal can be set before the jump
-        # also mark the frame as closed and prevent further append()ing
-        self.tf.close()
-        # user must pass all frames that are going to be used next
-        # selects possible frame id based on rtio_frame assignments
-        # from core device
+        self.tf.create_segment(t[-1] - t[::-1], u[::-1], name="from_stop")
         # distributes frames to the sub-devices in CompoundPDQ2
         # and uploads them
-        # uploading is ARM_DIS, writing, ARM_EN
-        self.electrodes.prepare(self.tf)
+        self.electrodes.arm()
 
     @kernel
     def cool(self):
@@ -64,11 +49,7 @@ class Transport(Experiment, AutoDB):
 
     @kernel
     def transport(self):
-        # ensures no frame is currently being actively played
-        # set rtio frame select signal to frame id
-        # rtio trigger jump into transport frame
-        # (does not advance the timeline)
-        self.tf.begin()
+        # selects transport frame
         # triggers pdqs to start transport frame segment
         # plays the transport waveform from 0 to stop
         # delay()s the core by the duration of the waveform segment
@@ -77,10 +58,8 @@ class Transport(Experiment, AutoDB):
         delay(self.wait_at_stop)
         # transport back (again: trigger, delay())
         # segments can only be advance()ed in order
+        # since this is the last segment, pdq will go back to jump table
         self.tf.from_stop.advance()
-        # ensures all segments have been advanced() through, must leave pdq
-        # in a state where the next frame can begin()
-        self.tf.finish()
 
     @kernel
     def detect(self):
