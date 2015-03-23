@@ -11,6 +11,7 @@ def get_argparser():
     parser = argparse.ArgumentParser(
         description="ARTIQ controller for the Lab Brick Digital Attenuator")
     parser.add_argument("-P", "--product", default="LDA-102",
+                        help="product type (default: %(default)s)",
                         choices=["LDA-102", "LDA-602"])
     simple_network_args(parser, 3253)
     parser.add_argument("-d", "--device", default=None,
