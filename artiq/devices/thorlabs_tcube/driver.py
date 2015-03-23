@@ -284,7 +284,7 @@ class Tcube:
 
         self.send(Message(MGMSG.HW_STOP_UPDATEMSGS))
 
-    def hardware_request_informations(self):
+    def hardware_request_information(self):
         return self.send_request(MGMSG.HW_REQ_INFO,
                                  MGMSG.HW_GET_INFO)
 
@@ -293,7 +293,7 @@ class Tcube:
 
     def ping(self):
         try:
-            self.hw_req_info()
+            self.hardware_request_information()
         except:
             return False
         return True
