@@ -26,7 +26,7 @@ def main():
     if args.device is None:
         lda = Ldasim()
     else:
-        lda = Lda(args.serial, args.product)
+        lda = Lda(args.device, args.product)
     try:
         simple_server_loop({"lda": lda},
                            args.bind, args.port)
