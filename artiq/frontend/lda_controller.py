@@ -27,8 +27,11 @@ def main():
         lda = Ldasim()
     else:
         lda = Lda(args.serial, args.product)
-    simple_server_loop({"lda": lda},
-                       args.bind, args.port)
+    try:
+        simple_server_loop({"lda": lda},
+                           args.bind, args.port)
+    finally:
+        lda.close()
 
 if __name__ == "__main__":
     main()

@@ -211,6 +211,10 @@ class Tcube:
         self.port.flush()
         logger.debug("baud rate set to 115200")
 
+    def close(self):
+        """Close the device."""
+        self.port.close()
+
     def send(self, msg):
         msg.send(self.port)
 

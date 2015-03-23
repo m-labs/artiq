@@ -26,6 +26,10 @@ class Ldasim:
     def get_att_step_size(self):
         return self._att_step_size
 
+    def close(self):
+        """Close the device."""
+        pass
+
     def get_attenuation(self):
         """Reads last attenuation value set to the simulated device.
 

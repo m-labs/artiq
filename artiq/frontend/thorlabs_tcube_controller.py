@@ -37,7 +37,10 @@ def main():
         elif args.product == "TPZ001":
             dev = Tpz(args.device)
 
-    simple_server_loop({args.product.lower(): dev}, args.bind, args.port)
+    try:
+        simple_server_loop({args.product.lower(): dev}, args.bind, args.port)
+    finally:
+        dev.close()
 
 if __name__ == "__main__":
     main()
