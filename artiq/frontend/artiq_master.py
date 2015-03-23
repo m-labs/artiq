@@ -22,10 +22,10 @@ def get_argparser():
         help="hostname or IP address to bind to")
     group.add_argument(
         "--port-notify", default=3250, type=int,
-        help="TCP port to listen to for notifications (default: 3250)")
+        help="TCP port to listen to for notifications (default: %(default)d)")
     group.add_argument(
         "--port-control", default=3251, type=int,
-        help="TCP port to listen to for control (default: 3251)")
+        help="TCP port to listen to for control (default: %(default)d)")
     verbosity_args(parser)
     return parser
 
