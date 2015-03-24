@@ -16,3 +16,4 @@ Contents:
     ndsp_reference
     utilities
     fpga_board_ports
+    faq
