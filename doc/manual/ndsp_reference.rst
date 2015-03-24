@@ -66,6 +66,47 @@ Controller
 Thorlabs T-Cube
 ---------------
 
+TDC001 controller usage example
++++++++++++++++++++++++++++++++
+
+First, run the TDC001 controller::
+
+    $ thorlabs_tcube_controller -P TDC001 -d /dev/ttyUSBx
+
+.. note::
+    On Windows the serial port (the ``-d`` argument) will be of the form ``COMx``.
+
+Then, send commands to it via the ``artiq_rpctool`` utility::
+
+    $ artiq_rpctool ::1 3255 list-targets
+    Target(s):   tdc001
+    $ artiq_rpctool ::1 3255 call move_relative 10000 # will move forward
+    $ artiq_rpctool ::1 3255 call move_relative -10000 # will move backward
+    $ artiq_rpctool ::1 3255 call move_absolute 20000 # absolute move to 20000
+    $ artiq_rpctool ::1 3255 call move_home # will go back to home position
+    $ artiq_rpctool ::1 3255 call close # close the device
+
+TPZ001 controller usage example
++++++++++++++++++++++++++++++++
+
+First, run the TPZ001 controller::
+
+    $ thorlabs_tcube_controller -P TPZ001 -d /dev/ttyUSBx
+
+.. note::
+    On Windows the serial port (the ``-d`` argument) will be of the form ``COMx``.
+
+Then, send commands to it via the ``artiq_rpctool`` utility::
+
+    $ artiq_rpctool ::1 3255 list-targets
+    Target(s):   tpz001
+    $ artiq_rpctool ::1 3255 call set_output_volts 15 # set output voltage to 15 V
+    $ artiq_rpctool ::1 3255 call get_output_volts # read back output voltage
+    15
+    $ artiq_rpctool ::1 3255 call set_tpz_io_settings 150 1 # set maximum output voltage to 150 V
+    $ artiq_rpctool ::1 3255 call set_output_volts 150 # set output voltage to 150 V
+    $ artiq_rpctool ::1 3255 call close # close the device
+
 TDC001 Driver
 +++++++++++++
 
