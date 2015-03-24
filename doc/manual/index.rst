@@ -6,6 +6,7 @@ Contents:
 .. toctree::
     :maxdepth: 2
 
+    introduction
     installing
     getting_started
     developing_a_ndsp
