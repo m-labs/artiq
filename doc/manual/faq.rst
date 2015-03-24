@@ -4,8 +4,8 @@ FAQ
 How do I ...
 ============
 
-override the sysclk frequency of just one dds?
-----------------------------------------------
+override the `sysclk` frequency of just one dds?
+------------------------------------------------
 
 Override the parameter using an argument in the ddb.
 
@@ -18,12 +18,13 @@ Names need to be unique.
 enforce functional dependencies between parameters?
 ---------------------------------------------------
 
-Use wrapper experiments, overriding parameters of arguments.
+If you want to slave a parameter `b` in the pdb to be `b = 2*a`,
+use wrapper experiments, overriding parameters of arguments.
 
-get rid of `DbKeys`?
+get rid of `DBKeys`?
 --------------------
 
-`DbKeys` enforces valid parameter/argument names, references
+`DBKeys` enforces valid parameter/argument names, references
 keys in pdb and hints at metadata on how values can be retrieved.
 
 write a generator feeding a kernel feeding an analyze function?
@@ -61,8 +62,10 @@ Use `threading.Thread`: portable, fast, simple for one-shot calls
 write part of my experiment as a coroutine/Task/generator?
 ----------------------------------------------------------
 
-You want to write experiment preparation (`__init__()` or `build()`)
-or analysis (`analyze()`)
-
-No. That would make reusing your own code in sub-experiments difficult and
-fragile.
+You can not change the API that your experiment exposes: `__init__()`,
+`build()`, and `analyze()` need to be regular functions, not generators,
+coroutines. or `asyncio.Tasks`. That would make reusing your own code in
+sub-experiments difficult and fragile. You can however always use the
+scheduler API to achieve the same (`scheduler.suspend(duration=0)`)
+or wrap your own generators/coroutines/Tasks in regular functions that
+you then expose as part of the API.
