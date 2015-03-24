@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 # Written by Joe Britton, 2015
 
 import time
