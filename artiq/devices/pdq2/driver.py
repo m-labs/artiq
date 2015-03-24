@@ -66,11 +66,22 @@ class Segment:
         return coef
 
     def bias(self, amplitude=[], **kwargs):
+        """Append a bias line to this segment.
+
+        Amplitude in volts
+        """
         coef = self.compensate([self.out_scale*a for a in amplitude])
         data = self.pack([0, 1, 2, 2], coef)
         self.line(typ=0, data=data, **kwargs)
 
     def dds(self, amplitude=[], phase=[], **kwargs):
+        """Append a dds line to this segment.
+
+        Amplitude in volts,
+        phase[0] in turns,
+        phase[1] in turns*sample_rate,
+        phase[2] in turns*(sample_rate/2**shift)**2
+        """
         scale = self.out_scale/self.cordic_gain
         coef = self.compensate([scale*a for a in amplitude])
         if phase:
