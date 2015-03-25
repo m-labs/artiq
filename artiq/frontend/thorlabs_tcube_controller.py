@@ -4,7 +4,7 @@ import argparse
 
 from artiq.devices.thorlabs_tcube.driver import Tdc, Tpz, TdcSim, TpzSim
 from artiq.protocols.pc_rpc import simple_server_loop
-from artiq.tools import verbosity_args, init_logger
+from artiq.tools import verbosity_args, simple_network_args, init_logger
 
 
 def get_argparser():
@@ -12,12 +12,9 @@ def get_argparser():
     parser.add_argument("-P", "--product", required=True,
                         help="type of the Thorlabs T-Cube device to control",
                         choices=["TDC001", "TPZ001"])
-    parser.add_argument("--bind", default="::1",
-                        help="hostname or IP address to bind to")
-    parser.add_argument("-p", "--port", default=3255, type=int,
-                        help="TCP port to listen to")
     parser.add_argument("-d", "--device", default=None,
                         help="serial port. Omit for simulation mode.")
+    simple_network_args(parser, 3255)
     verbosity_args(parser)
     return parser
 
