@@ -7,7 +7,7 @@ How do I ...
 override the `sysclk` frequency of just one dds?
 ------------------------------------------------
 
-Override the parameter using an argument in the ddb.
+Override the parameter using an argument in the DDB.
 
 organize parameters in folders?
 -------------------------------
@@ -18,14 +18,15 @@ Names need to be unique.
 enforce functional dependencies between parameters?
 ---------------------------------------------------
 
-If you want to slave a parameter `b` in the pdb to be `b = 2*a`,
-use wrapper experiments, overriding parameters of arguments.
+If you want to override a parameter `b` in the PDB to be `b = 2*a`,
+use wrapper experiments, overriding parameters by passing them to the
+experiment's constructor.
 
 get rid of `DBKeys`?
 --------------------
 
 `DBKeys` enforces valid parameter/argument names, references
-keys in pdb and hints at metadata on how values can be retrieved.
+keys in PDB and hints at metadata on how values can be retrieved.
 
 write a generator feeding a kernel feeding an analyze function?
 ---------------------------------------------------------------
@@ -54,18 +55,18 @@ create and use variable lengths arrays?
 Don't. Preallocate everything. Or chunk it and e.g. read 100 events per
 function call, push them upstream and retry until the gate time closes.
 
-execute multiple slow controller RPCs in parallel without loosing time? 
------------------------------------------------------------------------
+execute multiple slow controller RPCs in parallel without losing time? 
+----------------------------------------------------------------------
 
-Use `threading.Thread`: portable, fast, simple for one-shot calls
+Use `threading.Thread`: portable, fast, simple for one-shot calls.
 
-write part of my experiment as a coroutine/Task/generator?
-----------------------------------------------------------
+write part of my experiment as a coroutine/asyncio task/generator?
+------------------------------------------------------------------
 
 You can not change the API that your experiment exposes: `__init__()`,
-`build()`, and `analyze()` need to be regular functions, not generators,
-coroutines. or `asyncio.Tasks`. That would make reusing your own code in
+`build()`, `run()` and `analyze()` need to be regular functions, not
+generators or asyncio coroutines. That would make reusing your own code in
 sub-experiments difficult and fragile. You can however always use the
-scheduler API to achieve the same (`scheduler.suspend(duration=0)`)
-or wrap your own generators/coroutines/Tasks in regular functions that
+scheduler API to achieve the same (`scheduler.yield(duration=0)`)
+or wrap your own generators/coroutines/tasks in regular functions that
 you then expose as part of the API.
