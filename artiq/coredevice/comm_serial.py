@@ -75,7 +75,7 @@ class Comm(AutoDB):
     def set_baud(self, baud):
         self.port.baudrate = baud
         self.port.flush()
-        logger.debug("baud rate set to".format(baud))
+        logger.debug("baud rate set to {}".format(baud))
 
     def set_remote_baud(self, baud):
         _write_exactly(self.port, struct.pack(
