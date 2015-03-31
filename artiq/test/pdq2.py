@@ -5,10 +5,7 @@ import io
 from artiq.devices.pdq2.driver import Pdq2
 
 
-no_hardware = bool(os.getenv("ARTIQ_NO_HARDWARE")) \
-    or bool(os.getenv("ARTIQ_NO_PERIPHERALS"))
-
-pdq2_source = os.getenv("ARTIQ_PDQ2_SOURCE")
+pdq3_source = os.getenv("ARTIQ_PDQ2_SOURCE")
 
 
 class TestPdq2(unittest.TestCase):
@@ -21,6 +18,7 @@ class TestPdq2(unittest.TestCase):
         self.assertEqual(buf, b"\xa5\x00")
 
     def test_program(self):
+        # about 0.14 ms
         self.dev.program(_test_program)
 
     @unittest.skipUnless(pdq2_source, "no pdq2 source and gateware")
@@ -40,9 +38,9 @@ class TestPdq2(unittest.TestCase):
         import numpy as np
         tb = Pdq2Sim(buf)
         tb.ctrl_pads.trigger.reset = 0
-        run_simulation(tb, vcd_name="pdq2.vcd", ncycles=700)
+        run_simulation(tb, vcd_name="pdq2.vcd", ncycles=len(buf) + 250)
         out = np.array(tb.outputs, np.uint16).view(np.int16)
-        for outi in out[len(buf):].T:
+        for outi in out[len(buf) + 100:].T:
             plt.step(np.arange(len(outi)), outi)
         plt.show()
 
