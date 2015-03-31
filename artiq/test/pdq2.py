@@ -5,7 +5,7 @@ import io
 from artiq.devices.pdq2.driver import Pdq2
 
 
-pdq3_source = os.getenv("ARTIQ_PDQ2_SOURCE")
+pdq2_source = os.getenv("ARTIQ_PDQ2_SOURCE")
 
 
 class TestPdq2(unittest.TestCase):
