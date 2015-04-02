@@ -4,9 +4,10 @@ from migen.bank import wbgen
 from mibuild.generic_platform import *
 
 from misoclib.cpu.peripherals import gpio
+from misoclib.soc import mem_decoder
 from targets.kc705 import BaseSoC
 
-from artiq.gateware import rtio, ad9858
+from artiq.gateware import amp, rtio, ad9858
 
 
 _tester_io = [
@@ -67,15 +68,14 @@ class _RTIOCRG(Module, AutoCSR):
                                   o_O=self.cd_rtio.clk)
 
 
-class ARTIQSoC(BaseSoC):
+class _ARTIQSoCPeripherals(BaseSoC):
     csr_map = {
         "rtio": None,  # mapped on Wishbone instead
         "rtiocrg": 13
     }
     csr_map.update(BaseSoC.csr_map)
 
-    def __init__(self, platform, cpu_type="or1k", with_test_gen=False,
-                 **kwargs):
+    def __init__(self, platform, cpu_type="or1k", **kwargs):
         BaseSoC.__init__(self, platform,
                          cpu_type=cpu_type, **kwargs)
         platform.add_extension(_tester_io)
@@ -100,14 +100,44 @@ class ARTIQSoC(BaseSoC):
                                          clk_freq=125000000,
                                          ififo_depth=512)
 
-        rtio_csrs = self.rtio.get_csrs()
-        self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
-        self.add_wb_slave(lambda a: a[26:29] == 2, self.rtiowb.bus)
-        self.add_csr_region("rtio", 0xa0000000, 32, rtio_csrs)
-
         dds_pads = platform.request("dds")
         self.submodules.dds = ad9858.AD9858(dds_pads)
-        self.add_wb_slave(lambda a: a[26:29] == 3, self.dds.bus)
         self.comb += dds_pads.fud_n.eq(~fud)
 
-default_subtarget = ARTIQSoC
+
+class ARTIQSoCBasic(_ARTIQSoCPeripherals):
+    def __init__(self, *args, **kwargs):
+        _ARTIQSoCPeripherals.__init__(self, *args, **kwargs)
+
+        rtio_csrs = self.rtio.get_csrs()
+        self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
+        self.add_wb_slave(mem_decoder(0xa0000000), self.rtiowb.bus)
+        self.add_csr_region("rtio", 0xa0000000, 32, rtio_csrs)
+
+        self.add_wb_slave(mem_decoder(0xb0000000), self.dds.bus)
+
+
+class ARTIQSoC(_ARTIQSoCPeripherals):
+    csr_map = {
+        "kernel_cpu": 14
+    }
+    csr_map.update(_ARTIQSoCPeripherals.csr_map)
+
+    def __init__(self, platform, *args, **kwargs):
+        _ARTIQSoCPeripherals.__init__(self, platform, *args, **kwargs)
+
+        self.submodules.kernel_cpu = amp.KernelCPU(
+            platform, self.sdram.crossbar.get_master())
+        self.submodules.mailbox = amp.Mailbox()
+        self.add_wb_slave(mem_decoder(0xd0000000), self.mailbox.i1)
+        self.kernel_cpu.add_wb_slave(mem_decoder(0xd0000000), self.mailbox.i2)
+
+        rtio_csrs = self.rtio.get_csrs()
+        self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
+        self.kernel_cpu.add_wb_slave(mem_decoder(0xa0000000), self.rtiowb.bus)
+        self.add_csr_region("rtio", 0xa0000000, 32, rtio_csrs)
+
+        self.kernel_cpu.add_wb_slave(mem_decoder(0xb0000000), self.dds.bus)
+
+
+default_subtarget = ARTIQSoCBasic
