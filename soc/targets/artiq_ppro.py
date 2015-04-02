@@ -56,7 +56,7 @@ class _TestGen(Module):
 
 class _RTIOMiniCRG(Module, AutoCSR):
     def __init__(self, platform):
-        self._r_clock_sel = CSRStorage()
+        self._clock_sel = CSRStorage()
         self.clock_domains.cd_rtio = ClockDomain()
 
         # 80MHz -> 125MHz
@@ -75,7 +75,7 @@ class _RTIOMiniCRG(Module, AutoCSR):
         self.specials += Instance("BUFGMUX",
                                   i_I0=rtio_internal_clk,
                                   i_I1=rtio_external_clk,
-                                  i_S=self._r_clock_sel.storage,
+                                  i_S=self._clock_sel.storage,
                                   o_O=self.cd_rtio.clk)
 
         platform.add_platform_command("""

@@ -52,7 +52,7 @@ _tester_io = [
 
 class _RTIOCRG(Module, AutoCSR):
     def __init__(self, platform, rtio_internal_clk):
-        self._r_clock_sel = CSRStorage()
+        self._clock_sel = CSRStorage()
         self.clock_domains.cd_rtio = ClockDomain()
 
         rtio_external_clk = Signal()
@@ -64,7 +64,7 @@ class _RTIOCRG(Module, AutoCSR):
         self.specials += Instance("BUFGMUX",
                                   i_I0=rtio_internal_clk,
                                   i_I1=rtio_external_clk,
-                                  i_S=self._r_clock_sel.storage,
+                                  i_S=self._clock_sel.storage,
                                   o_O=self.cd_rtio.clk)
 
 

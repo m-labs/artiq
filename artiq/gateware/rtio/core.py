@@ -66,7 +66,7 @@ class _RTIOCounter(Module):
 # Therefore we must choose:
 #    guard_io_cycles > (4*Tio + 4*Tsys)/Tio
 #
-# We are writing to the FIFO from the buffer when the guard time has been 
+# We are writing to the FIFO from the buffer when the guard time has been
 # reached. This can fill the FIFO and deassert the writable flag. A race
 # condition occurs that causes problems if the deassertion happens between
 # the CPU checking the writable flag (and reading 1) and writing a new event.
@@ -308,32 +308,32 @@ class RTIO(Module, AutoCSR):
             phy.rbus, self.counter, fine_ts_width, ififo_depth)
 
         # CSRs
-        self._r_reset = CSRStorage(reset=1)
-        self._r_chan_sel = CSRStorage(flen(self.bank_o.sel))
+        self._reset = CSRStorage(reset=1)
+        self._chan_sel = CSRStorage(flen(self.bank_o.sel))
 
-        self._r_oe = CSR()
+        self._oe = CSR()
 
-        self._r_o_timestamp = CSRStorage(counter_width + fine_ts_width)
-        self._r_o_value = CSRStorage(2)
-        self._r_o_we = CSR()
-        self._r_o_status = CSRStatus(3)
-        self._r_o_underflow_reset = CSR()
-        self._r_o_sequence_error_reset = CSR()
+        self._o_timestamp = CSRStorage(counter_width + fine_ts_width)
+        self._o_value = CSRStorage(2)
+        self._o_we = CSR()
+        self._o_status = CSRStatus(3)
+        self._o_underflow_reset = CSR()
+        self._o_sequence_error_reset = CSR()
 
-        self._r_i_timestamp = CSRStatus(counter_width + fine_ts_width)
-        self._r_i_value = CSRStatus()
-        self._r_i_re = CSR()
-        self._r_i_status = CSRStatus(2)
-        self._r_i_overflow_reset = CSR()
-        self._r_i_pileup_count = CSRStatus(16)
-        self._r_i_pileup_reset = CSR()
+        self._i_timestamp = CSRStatus(counter_width + fine_ts_width)
+        self._i_value = CSRStatus()
+        self._i_re = CSR()
+        self._i_status = CSRStatus(2)
+        self._i_overflow_reset = CSR()
+        self._i_pileup_count = CSRStatus(16)
+        self._i_pileup_reset = CSR()
 
-        self._r_counter = CSRStatus(counter_width + fine_ts_width)
-        self._r_counter_update = CSR()
+        self._counter = CSRStatus(counter_width + fine_ts_width)
+        self._counter_update = CSR()
 
-        self._r_frequency_i = CSRStatus(32)
-        self._r_frequency_fn = CSRStatus(8)
-        self._r_frequency_fd = CSRStatus(8)
+        self._frequency_i = CSRStatus(32)
+        self._frequency_fn = CSRStatus(8)
+        self._frequency_fd = CSRStatus(8)
 
 
         # Clocking/Reset
@@ -343,54 +343,54 @@ class RTIO(Module, AutoCSR):
         self.clock_domains.cd_rio = ClockDomain()
         self.comb += [
             self.cd_rsys.clk.eq(ClockSignal()),
-            self.cd_rsys.rst.eq(self._r_reset.storage)
+            self.cd_rsys.rst.eq(self._reset.storage)
         ]
         self.comb += self.cd_rio.clk.eq(ClockSignal("rtio"))
         self.specials += AsyncResetSynchronizer(
-            self.cd_rio, self._r_reset.storage)
+            self.cd_rio, self._reset.storage)
 
         # OE
         oes = []
         for n, chif in enumerate(phy.rbus):
             if hasattr(chif, "oe"):
                 self.sync += \
-                    If(self._r_oe.re & (self._r_chan_sel.storage == n),
-                        chif.oe.eq(self._r_oe.r)
+                    If(self._oe.re & (self._chan_sel.storage == n),
+                        chif.oe.eq(self._oe.r)
                     )
                 oes.append(chif.oe)
             else:
                 oes.append(1)
-        self.comb += self._r_oe.w.eq(Array(oes)[self._r_chan_sel.storage])
+        self.comb += self._oe.w.eq(Array(oes)[self._chan_sel.storage])
 
         # Output/Gate
         self.comb += [
-            self.bank_o.sel.eq(self._r_chan_sel.storage),
-            self.bank_o.timestamp.eq(self._r_o_timestamp.storage),
-            self.bank_o.value.eq(self._r_o_value.storage),
-            self.bank_o.we.eq(self._r_o_we.re),
-            self._r_o_status.status.eq(Cat(~self.bank_o.writable,
+            self.bank_o.sel.eq(self._chan_sel.storage),
+            self.bank_o.timestamp.eq(self._o_timestamp.storage),
+            self.bank_o.value.eq(self._o_value.storage),
+            self.bank_o.we.eq(self._o_we.re),
+            self._o_status.status.eq(Cat(~self.bank_o.writable,
                                            self.bank_o.underflow,
                                            self.bank_o.sequence_error)),
-            self.bank_o.underflow_reset.eq(self._r_o_underflow_reset.re),
-            self.bank_o.sequence_error_reset.eq(self._r_o_sequence_error_reset.re)
+            self.bank_o.underflow_reset.eq(self._o_underflow_reset.re),
+            self.bank_o.sequence_error_reset.eq(self._o_sequence_error_reset.re)
         ]
 
         # Input
         self.comb += [
-            self.bank_i.sel.eq(self._r_chan_sel.storage),
-            self._r_i_timestamp.status.eq(self.bank_i.timestamp),
-            self._r_i_value.status.eq(self.bank_i.value),
-            self.bank_i.re.eq(self._r_i_re.re),
-            self._r_i_status.status.eq(Cat(~self.bank_i.readable, self.bank_i.overflow)),
-            self.bank_i.overflow_reset.eq(self._r_i_overflow_reset.re),
-            self._r_i_pileup_count.status.eq(self.bank_i.pileup_count),
-            self.bank_i.pileup_reset.eq(self._r_i_pileup_reset.re)
+            self.bank_i.sel.eq(self._chan_sel.storage),
+            self._i_timestamp.status.eq(self.bank_i.timestamp),
+            self._i_value.status.eq(self.bank_i.value),
+            self.bank_i.re.eq(self._i_re.re),
+            self._i_status.status.eq(Cat(~self.bank_i.readable, self.bank_i.overflow)),
+            self.bank_i.overflow_reset.eq(self._i_overflow_reset.re),
+            self._i_pileup_count.status.eq(self.bank_i.pileup_count),
+            self.bank_i.pileup_reset.eq(self._i_pileup_reset.re)
         ]
 
         # Counter access
         self.sync += \
-           If(self._r_counter_update.re,
-               self._r_counter.status.eq(Cat(Replicate(0, fine_ts_width),
+           If(self._counter_update.re,
+               self._counter.status.eq(Cat(Replicate(0, fine_ts_width),
                                              self.counter.o_value_sys))
            )
 
@@ -399,7 +399,7 @@ class RTIO(Module, AutoCSR):
         clk_freq_i = int(clk_freq)
         clk_freq_f = clk_freq - clk_freq_i
         self.comb += [
-            self._r_frequency_i.status.eq(clk_freq_i),
-            self._r_frequency_fn.status.eq(clk_freq_f.numerator),
-            self._r_frequency_fd.status.eq(clk_freq_f.denominator)
+            self._frequency_i.status.eq(clk_freq_i),
+            self._frequency_fn.status.eq(clk_freq_f.numerator),
+            self._frequency_fd.status.eq(clk_freq_f.denominator)
         ]
