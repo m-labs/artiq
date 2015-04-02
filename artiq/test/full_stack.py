@@ -9,11 +9,11 @@ from artiq.coredevice import comm_serial, core, runtime_exceptions, rtio
 from artiq.sim import devices as sim_devices
 
 
-no_hardware = bool(os.getenv("ARTIQ_NO_HARDWARE"))
+core_device = os.getenv("ARTIQ_CORE_DEVICE")
 
 
 def _run_on_device(k_class, **parameters):
-    comm = comm_serial.Comm()
+    comm = comm_serial.Comm(serial_dev=core_device)
     try:
         coredev = core.Core(comm=comm)
         k_inst = k_class(core=coredev, **parameters)
@@ -199,7 +199,7 @@ class _RPCExceptions(AutoDB):
             self.success = True
 
 
-@unittest.skipIf(no_hardware, "no hardware")
+@unittest.skipUnless(core_device, "no hardware")
 class ExecutionCase(unittest.TestCase):
     def test_primes(self):
         l_device, l_host = [], []
@@ -208,7 +208,7 @@ class ExecutionCase(unittest.TestCase):
         self.assertEqual(l_device, l_host)
 
     def test_misc(self):
-        comm = comm_serial.Comm()
+        comm = comm_serial.Comm(serial_dev=core_device)
         try:
             coredev = core.Core(comm=comm)
             uut = _Misc(core=coredev)
@@ -249,7 +249,7 @@ class ExecutionCase(unittest.TestCase):
         self.assertEqual(t_device, t_host)
 
     def test_rpc_exceptions(self):
-        comm = comm_serial.Comm()
+        comm = comm_serial.Comm(serial_dev=core_device)
         try:
             uut = _RPCExceptions(core=core.Core(comm=comm))
             with self.assertRaises(_MyException):
@@ -306,13 +306,13 @@ class _RTIOSequenceError(AutoDB):
         self.o.pulse(25*us)
 
 
-@unittest.skipIf(no_hardware, "no hardware")
+@unittest.skipUnless(core_device, "no hardware")
 class RTIOCase(unittest.TestCase):
     # Connect channels 0 and 1 together for this test
     # (C11 and C13 on Papilio Pro)
     def test_loopback(self):
         npulses = 4
-        comm = comm_serial.Comm()
+        comm = comm_serial.Comm(serial_dev=core_device)
         try:
             coredev = core.Core(comm=comm)
             uut = _RTIOLoopback(
@@ -327,7 +327,7 @@ class RTIOCase(unittest.TestCase):
             comm.close()
 
     def test_underflow(self):
-        comm = comm_serial.Comm()
+        comm = comm_serial.Comm(serial_dev=core_device)
         try:
             coredev = core.Core(comm=comm)
             uut = _RTIOUnderflow(
@@ -340,7 +340,7 @@ class RTIOCase(unittest.TestCase):
             comm.close()
 
     def test_sequence_error(self):
-        comm = comm_serial.Comm()
+        comm = comm_serial.Comm(serial_dev=core_device)
         try:
             coredev = core.Core(comm=comm)
             uut = _RTIOSequenceError(

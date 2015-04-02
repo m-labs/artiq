@@ -5,8 +5,7 @@ from artiq.devices.lda.driver import Lda, Ldasim
 from artiq.language.units import dB
 
 
-no_hardware = bool(os.getenv("ARTIQ_NO_HARDWARE")) \
-    or bool(os.getenv("ARTIQ_NO_PERIPHERALS"))
+lda_serial = os.getenv("ARTIQ_LDA_SERIAL")
 
 
 class GenericLdaTest:
@@ -20,18 +19,11 @@ class GenericLdaTest:
                 self.assertEqual(i, self.cont.get_attenuation())
 
 
-@unittest.skipIf(no_hardware, "no hardware")
+@unittest.skipUnless(lda_serial, "no hardware")
 class TestLda(GenericLdaTest, unittest.TestCase):
     def setUp(self):
-        device = os.getenv("ARTIQ_LDA_DEVICE")
-        serial = os.getenv("ARTIQ_LDA_SERIAL")
-        args = dict()
-        if device is not None:
-            args["product"] = device
-        if serial is not None:
-            args["serial"] = serial
-
-        self.cont = Lda(**args)
+        product = os.getenv("ARTIQ_LDA_PRODUCT")
+        self.cont = Lda(serial=lda_serial, product=product)
 
 
 class TestLdaSim(GenericLdaTest, unittest.TestCase):

@@ -6,10 +6,6 @@ from artiq.devices.thorlabs_tcube.driver import Tdc, Tpz, TdcSim, TpzSim
 from artiq.language.units import V
 
 
-no_hardware = bool(os.getenv("ARTIQ_NO_HARDWARE")) \
-    or bool(os.getenv("ARTIQ_NO_PERIPHERALS"))
-
-
 class GenericTdcTest:
     def test_pot_parameters(self):
         test_vector = 1, 2, 3, 4, 5, 6, 7, 8
@@ -135,11 +131,13 @@ class GenericTpzTest:
                 self.assertEqual(test_vector, self.cont.get_tpz_io_settings())
 
 
-@unittest.skipIf(no_hardware, "no hardware")
+tdc_serial = os.getenv("ARTIQ_TDC_SERIAL")
+
+
+@unittest.skipUnless(tdc_serial, "no hardware")
 class TestTdc(unittest.TestCase, GenericTdcTest):
     def setUp(self):
-        serial_dev = os.getenv("ARTIQ_TDC001_SERIAL", "/dev/ttyUSB0")
-        self.cont = Tdc(serial_dev=serial_dev)
+        self.cont = Tdc(serial_dev=tdc_serial)
 
 
 class TestTdcSim(unittest.TestCase, GenericTdcTest):
@@ -147,11 +145,13 @@ class TestTdcSim(unittest.TestCase, GenericTdcTest):
         self.cont = TdcSim()
 
 
-@unittest.skipIf(no_hardware, "no hardware")
+tpz_serial = os.getenv("ARTIQ_TPZ_SERIAL")
+
+
+@unittest.skipUnless(tpz_serial, "no hardware")
 class TestTpz(unittest.TestCase, GenericTpzTest):
     def setUp(self):
-        serial_dev = os.getenv("ARTIQ_TPZ001_SERIAL", "/dev/ttyUSB0")
-        self.cont = Tpz(serial_dev=serial_dev)
+        self.cont = Tpz(serial_dev=tpz_serial)
 
 
 class TestTpzSim(unittest.TestCase, GenericTpzTest):
