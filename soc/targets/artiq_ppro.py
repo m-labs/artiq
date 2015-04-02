@@ -3,7 +3,7 @@ from migen.bank.description import *
 from migen.bank import wbgen
 from mibuild.generic_platform import *
 
-from misoclib.cpu.peripherals import gpio
+from misoclib.com import gpio
 from misoclib.mem.sdram.core.minicon import MiniconSettings
 from targets.ppro import BaseSoC
 

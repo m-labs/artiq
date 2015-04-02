@@ -3,7 +3,7 @@ from migen.bank.description import *
 from migen.bank import wbgen
 from mibuild.generic_platform import *
 
-from misoclib.cpu.peripherals import gpio
+from misoclib.com import gpio
 from misoclib.soc import mem_decoder
 from targets.kc705 import BaseSoC
 
