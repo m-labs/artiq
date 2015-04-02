@@ -1,4 +1,4 @@
 #!/bin/bash
 
-patch -p1 < ${RECIPE_DIR}/../../patches/llvmlite/0001-add-all-targets.patch
+patch -p1 < ${RECIPE_DIR}/../../misc/llvmlite-add-all-targets.patch
 PATH=/usr/local/llvm-or1k/bin:$PATH $PYTHON setup.py install
