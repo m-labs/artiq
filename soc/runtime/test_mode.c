@@ -305,30 +305,6 @@ static char *get_token(char **str)
     return d;
 }
 
-#ifdef CSR_KERNEL_CPU_BASE
-static const unsigned int test_program[] = {
-    0x1860dead, //     l.movhi r3,0xdead
-    0x1880d000, //     l.movhi r4,0xd000
-    0xa863beef, //     l.ori r3,r3,0xbeef
-    0xd4041800, //     l.sw 0(r4),r3
-    0x00000000, //     l.j +0
-    0x15000000, //     l.nop
-};
-
-static void cputest(void)
-{
-    int i;
-
-    kernel_cpu_reset_write(1);
-    MMPTR(0xd0000000) = 0;
-    memcpy((void *)0x41000000, test_program, sizeof(test_program));
-    flush_l2_cache();
-    kernel_cpu_reset_write(0);
-    for(i=0;i<10;i++)
-        printf("%08x\n", MMPTR(0xd0000000));
-}
-#endif
-
 static void do_command(char *c)
 {
     char *token;
@@ -350,10 +326,6 @@ static void do_command(char *c)
     else if(strcmp(token, "ddsfud") == 0) ddsfud();
     else if(strcmp(token, "ddsftw") == 0) ddsftw(get_token(&c), get_token(&c));
     else if(strcmp(token, "ddstest") == 0) ddstest(get_token(&c));
-
-#ifdef CSR_KERNEL_CPU_BASE
-    else if(strcmp(token, "cputest") == 0) cputest();
-#endif
 
     else if(strcmp(token, "") != 0)
         printf("Command not found\n");

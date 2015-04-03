@@ -3,7 +3,7 @@ include $(MSCDIR)/software/common.mak
 BOARD=papilio_pro
 SERIAL=/dev/ttyUSB1
 
-OBJECTS=isr.o elf_loader.o exception_jmp.o exceptions.o services.o comm_serial.o gpio.o rtio.o dds.o test_mode.o main.o
+OBJECTS=isr.o elf_loader.o kernelcpu.o exception_jmp.o exceptions.o services.o comm_serial.o gpio.o rtio.o dds.o ksupport_data.o test_mode.o main.o
 
 all: runtime.bin
 
@@ -12,7 +12,7 @@ all: runtime.bin
 
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
-	chmod -x $@
+	@chmod -x $@
 
 %.fbi: %.bin
 	$(MSCDIR)/mkmscimg.py -f -o $@ $<
@@ -28,7 +28,18 @@ runtime.elf: $(OBJECTS) libs
 		-L$(MSCDIR)/software/libbase \
 		-L$(MSCDIR)/software/libcompiler-rt \
 		-lbase -lcompiler-rt
-	chmod -x $@
+	@chmod -x $@
+
+ksupport.elf: ksupport.o
+	$(LD) $(LDFLAGS) \
+		-T ksupport.ld \
+		-N -o $@ \
+		$(MSCDIR)/software/libbase/crt0-$(CPU).o \
+		ksupport.o
+	@chmod -x $@
+
+ksupport_data.o: ksupport.bin
+	$(LD) -r -b binary -o $@ $<
 
 main.o: main.c
 	$(compile-dep)
@@ -52,5 +63,6 @@ flash: runtime.fbi
 
 clean:
 	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) runtime.elf runtime.bin runtime.fbi .*~ *~
+	$(RM) ksupport.d ksupport.o ksupport.elf ksupport.bin
 
 .PHONY: all main.o clean libs load

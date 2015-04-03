@@ -10,17 +10,16 @@
 #include "test_mode.h"
 #include "comm.h"
 #include "elf_loader.h"
+#include "kernelcpu.h"
 #include "exceptions.h"
 #include "services.h"
 #include "rtio.h"
 #include "dds.h"
 
-
 static struct symbol symtab[128];
 static int _symtab_count;
 static char _symtab_strings[128*16];
 static char *_symtab_strptr;
-
 
 static void symtab_init(void)
 {
@@ -132,7 +131,11 @@ int main(void)
     irq_setie(1);
     uart_init();
 
-    puts("ARTIQ runtime built "__DATE__" "__TIME__"\n");
+#ifdef CSR_KERNEL_CPU_BASE
+    puts("ARTIQ runtime built "__DATE__" "__TIME__" for biprocessor systems\n");
+#else
+    puts("ARTIQ runtime built "__DATE__" "__TIME__" for uniprocessor systems\n");
+#endif
     blink_led();
 
     if(check_test_mode()) {
