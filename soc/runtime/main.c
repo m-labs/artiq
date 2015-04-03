@@ -15,7 +15,6 @@
 #include "rtio.h"
 #include "dds.h"
 
-static unsigned char kcode[256*1024];
 
 static struct symbol symtab[128];
 static int _symtab_count;
@@ -57,12 +56,14 @@ static int symtab_add(const char *name, void *target)
     return 1;
 }
 
+extern int _kmem;
+
 static int load_object(void *buffer, int length)
 {
     symtab_init();
     return load_elf(
         resolve_service_symbol, symtab_add,
-        buffer, length, kcode, sizeof(kcode));
+        buffer, length, &_kmem, 2*1024*1024);
 }
 
 typedef void (*kernel_function)(void);

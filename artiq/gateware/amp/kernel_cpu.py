@@ -9,7 +9,7 @@ from misoclib.soc import mem_decoder
 
 class KernelCPU(Module):
     def __init__(self, platform, lasmim,
-                 exec_address=0x41000000,
+                 exec_address=0x40020000,
                  main_mem_origin=0x40000000,
                  l2_size=8192):
         self._reset = CSRStorage(reset=1)

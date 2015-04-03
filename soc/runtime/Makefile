@@ -21,7 +21,7 @@ runtime.elf: $(OBJECTS) libs
 
 %.elf:
 	$(LD) $(LDFLAGS) \
-		-T $(MSCDIR)/software/libbase/linker-sdram.ld \
+		-T linker.ld \
 		-N -o $@ \
 		$(MSCDIR)/software/libbase/crt0-$(CPU).o \
 		$(OBJECTS) \
