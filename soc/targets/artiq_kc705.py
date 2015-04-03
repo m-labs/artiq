@@ -90,7 +90,7 @@ class _ARTIQSoCPeripherals(BaseSoC):
             platform.request("ttl_h_tx_en").eq(1)
         ]
         rtio_ins = [platform.request("pmt") for i in range(2)]
-        rtio_outs = [platform.request("ttl", i) for i in range(6)] + [fud]
+        rtio_outs = [platform.request("ttl", i) for i in range(16)] + [fud]
 
         self.submodules.rtiocrg = _RTIOCRG(platform, self.crg.pll_sys)
         self.submodules.rtiophy = rtio.phy.SimplePHY(
