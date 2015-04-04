@@ -4,14 +4,11 @@ ENTRY(_start)
 INCLUDE generated/regions.ld
 
 /* First 128K of main memory are reserved for runtime code/data
- * then comes kernel memory. First 8K of kernel memory are for support code.
+ * then comes kernel memory. First 16K of kernel memory are for support code.
  */
 MEMORY {
-    ksupport : ORIGIN = 0x40020000, LENGTH = 0x2000
+    ksupport : ORIGIN = 0x40020000, LENGTH = 0x4000
 }
-
-/* Then comes the payload. */
-PROVIDE(kmain = ORIGIN(ksupport) + LENGTH(ksupport));
 
 /* On biprocessor systems, kernel stack is at the end of main RAM,
  * before the runtime stack. Leave 1M for runtime stack.

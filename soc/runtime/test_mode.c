@@ -11,6 +11,17 @@
 #include "rtio.h"
 #include "dds.h"
 
+#ifdef ARTIQ_BIPROCESSOR
+
+#warning TODO
+
+void test_main(void)
+{
+    printf("Not implemented yet for biprocessor systems\n");
+}
+
+#else
+
 static void leds(char *value)
 {
     char *c;
@@ -341,3 +352,5 @@ void test_main(void)
         do_command(buffer);
     }
 }
+
+#endif /* ARTIQ_BIPROCESSOR */

@@ -1,9 +1,21 @@
 include $(MSCDIR)/software/common.mak
 
-BOARD=papilio_pro
-SERIAL=/dev/ttyUSB1
+OBJECTS_SERVICES=exception_jmp.o exceptions.o rtio.o dds.o
+OBJECTS=isr.o elf_loader.o services.o comm_serial.o test_mode.o main.o
 
-OBJECTS=isr.o elf_loader.o kernelcpu.o exception_jmp.o exceptions.o services.o comm_serial.o gpio.o rtio.o dds.o ksupport_data.o test_mode.o main.o
+UNIPROCESSOR := $(shell echo -e "\#include <generated/csr.h>\nCSR_KERNEL_CPU_BASE" | $(CC_normal) $(CFLAGS) -E - | tail -n 1 | grep -c CSR_KERNEL_CPU_BASE)
+
+ifeq ($(UNIPROCESSOR),0)
+OBJECTS += kernelcpu.o ksupport_data.o
+CFLAGS += -DARTIQ_BIPROCESSOR
+SERVICE_TABLE_INPUT = ksupport.elf
+else
+ifeq ($(UNIPROCESSOR),1)
+OBJECTS += $(OBJECTS_SERVICES)
+else
+$(error failed to determine uniprocessor/biprocessor build)
+endif
+endif
 
 all: runtime.bin
 
@@ -30,16 +42,21 @@ runtime.elf: $(OBJECTS) libs
 		-lbase -lcompiler-rt
 	@chmod -x $@
 
-ksupport.elf: ksupport.o
+ksupport.elf: $(OBJECTS_SERVICES) ksupport.o
 	$(LD) $(LDFLAGS) \
 		-T ksupport.ld \
 		-N -o $@ \
 		$(MSCDIR)/software/libbase/crt0-$(CPU).o \
-		ksupport.o
+		$^
 	@chmod -x $@
 
 ksupport_data.o: ksupport.bin
 	$(LD) -r -b binary -o $@ $<
+
+service_table.h: $(SERVICE_TABLE_INPUT)
+	@echo " GEN     " $@ && ./gen_service_table.py $(SERVICE_TABLE_INPUT) > $@
+
+services.c: service_table.h
 
 main.o: main.c
 	$(compile-dep)
@@ -54,15 +71,9 @@ libs:
 	$(MAKE) -C $(MSCDIR)/software/libcompiler-rt
 	$(MAKE) -C $(MSCDIR)/software/libbase
 
-load: runtime.bin
-	$(MAKE) -C $(MSCDIR)/tools
-	$(MSCDIR)/tools/flterm --port $(SERIAL) --kernel runtime.bin
-
-flash: runtime.fbi
-	$(MSCDIR)/flash_extra.py $(BOARD) runtime.fbi 0x70000
-
 clean:
-	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) runtime.elf runtime.bin runtime.fbi .*~ *~
-	$(RM) ksupport.d ksupport.o ksupport.elf ksupport.bin
+	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) $(OBJECTS_SERVICES) $(OBJECTS_SERVICES:.o=.d)
+	$(RM) runtime.elf runtime.bin runtime.fbi .*~ *~
+	$(RM) service_table.h ksupport.d ksupport.o ksupport.elf ksupport.bin
 
 .PHONY: all main.o clean libs load

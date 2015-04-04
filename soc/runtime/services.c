@@ -2,33 +2,12 @@
 
 #include "elf_loader.h"
 #include "comm.h"
-#include "gpio.h"
 #include "rtio.h"
 #include "dds.h"
 #include "exceptions.h"
 #include "services.h"
 
-static const struct symbol syscalls[] = {
-    {"rpc", comm_rpc},
-    {"gpio_set", gpio_set},
-    {"rtio_oe", rtio_oe},
-    {"rtio_set", rtio_set},
-    {"rtio_get_counter", rtio_get_counter},
-    {"rtio_get", rtio_get},
-    {"rtio_pileup_count", rtio_pileup_count},
-    {"dds_phase_clear_en", dds_phase_clear_en},
-    {"dds_program", dds_program},
-    {NULL, NULL}
-};
-
-static const struct symbol eh[] = {
-    {"setjmp", exception_setjmp},
-    {"push", exception_push},
-    {"pop", exception_pop},
-    {"getid", exception_getid},
-    {"raise", exception_raise},
-    {NULL, NULL}
-};
+#include "service_table.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wimplicit-int"

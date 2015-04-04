@@ -1,5 +1,9 @@
+#include <generated/csr.h>
+
 #include "exceptions.h"
+#ifndef ARTIQ_BIPROCESSOR
 #include "comm.h"
+#endif
 
 #define MAX_EXCEPTION_CONTEXTS 64
 
@@ -45,7 +49,11 @@ void exception_raise_params(int id,
         exception_params[2] = p2;
         exception_longjmp(exception_contexts[--ec_top].jb);
     } else {
+#ifdef ARTIQ_BIPROCESSOR
+#warning TODO
+#else
         comm_log("ERROR: uncaught exception, ID=%d\n", id);
+#endif
         while(1);
     }
 }

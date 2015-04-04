@@ -151,7 +151,12 @@ static void receive_and_run_kernel(kernel_runner run_kernel)
             send_char(MSGTYPE_KERNEL_EXCEPTION);
             send_int(eid);
             for(i=0;i<3;i++)
+#ifdef ARTIQ_BIPROCESSOR
+#warning TODO
+                send_llint(0LL);
+#else
                 send_llint(exception_params[i]);
+#endif
             break;
         case KERNEL_RUN_STARTUP_FAILED:
             send_char(MSGTYPE_KERNEL_STARTUP_FAILED);
@@ -172,9 +177,16 @@ void comm_serve(object_loader load_object, kernel_runner run_kernel)
         if(msgtype == MSGTYPE_REQUEST_IDENT) {
             send_char(MSGTYPE_IDENT);
             send_int(0x41524f52); /* "AROR" - ARTIQ runtime on OpenRISC */
+#ifdef ARTIQ_BIPROCESSOR
+#warning TODO
+            send_int(125*1000*1000);
+            send_char(0);
+            send_char(1);
+#else
             send_int(rtio_frequency_i_read());
             send_char(rtio_frequency_fn_read());
             send_char(rtio_frequency_fd_read());
+#endif
         } else if(msgtype == MSGTYPE_LOAD_OBJECT)
             receive_and_load_object(load_object);
         else if(msgtype == MSGTYPE_RUN_KERNEL)
@@ -253,8 +265,12 @@ int comm_rpc(int rpc_num, ...)
     eid = receive_int();
     retval = receive_int();
 
+#ifdef ARTIQ_BIPROCESSOR
+#warning TODO
+#else
     if(eid != EID_NONE)
         exception_raise(eid);
+#endif
 
     return retval;
 }

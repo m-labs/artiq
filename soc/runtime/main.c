@@ -55,14 +55,12 @@ static int symtab_add(const char *name, void *target)
     return 1;
 }
 
-extern int _kmem;
-
 static int load_object(void *buffer, int length)
 {
     symtab_init();
     return load_elf(
         resolve_service_symbol, symtab_add,
-        buffer, length, &_kmem, 2*1024*1024);
+        buffer, length, (void *)KERNELCPU_PAYLOAD_ADDRESS, 4*1024*1024);
 }
 
 typedef void (*kernel_function)(void);
@@ -70,7 +68,9 @@ typedef void (*kernel_function)(void);
 static int run_kernel(const char *kernel_name, int *eid)
 {
     kernel_function k;
+#ifndef ARTIQ_BIPROCESSOR
     void *jb;
+#endif
 
     k = find_symbol(symtab, kernel_name);
     if(k == NULL) {
@@ -78,17 +78,32 @@ static int run_kernel(const char *kernel_name, int *eid)
         return KERNEL_RUN_STARTUP_FAILED;
     }
 
+#ifdef ARTIQ_BIPROCESSOR
+    kernelcpu_start(k);
+    *eid = 0;
+    while(1) {
+        unsigned int r;
+
+        r = KERNELCPU_MAILBOX;
+        if(r < 0x40000000) {
+            kernelcpu_stop();
+            return r;
+        }
+    }
+#else
     jb = exception_push();
     if(exception_setjmp(jb)) {
         *eid = exception_getid();
         return KERNEL_RUN_EXCEPTION;
     } else {
+        dds_init();
         rtio_init();
         flush_cpu_icache();
         k();
         exception_pop(1);
         return KERNEL_RUN_FINISHED;
     }
+#endif
 }
 
 static void blink_led(void)
@@ -131,7 +146,7 @@ int main(void)
     irq_setie(1);
     uart_init();
 
-#ifdef CSR_KERNEL_CPU_BASE
+#ifdef ARTIQ_BIPROCESSOR
     puts("ARTIQ runtime built "__DATE__" "__TIME__" for biprocessor systems\n");
 #else
     puts("ARTIQ runtime built "__DATE__" "__TIME__" for uniprocessor systems\n");
@@ -143,7 +158,6 @@ int main(void)
         test_main();
     } else {
         puts("Entering regular mode.");
-        dds_init();
         comm_serve(load_object, run_kernel);
     }
     return 0;
