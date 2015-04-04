@@ -87,7 +87,7 @@ TIMESPEC "TSfix_ise2" = FROM "GRPsys_clk" TO "GRPrtio_clk" TIG;
 """, rtio_clk=rtio_internal_clk)
 
 
-class ARTIQMidiSoC(BaseSoC):
+class _QcAdapterBase(BaseSoC):
     csr_map = {
         "rtio": None,  # mapped on Wishbone instead
         "rtiocrg": 13
@@ -123,15 +123,21 @@ class ARTIQMidiSoC(BaseSoC):
                                          clk_freq=125000000,
                                          ififo_depth=512)
 
+        dds_pads = platform.request("dds")
+        self.submodules.dds = ad9858.AD9858(dds_pads)
+        self.comb += dds_pads.fud_n.eq(~fud)
+
+
+class Single(_QcAdapterBase):
+    def __init__(self, platform, **kwargs):
+        _QcAdapterBase.__init__(self, platform, **kwargs)
+
         rtio_csrs = self.rtio.get_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
         self.add_wb_slave(mem_decoder(0xa0000000), self.rtiowb.bus)
         self.add_csr_region("rtio", 0xa0000000, 32, rtio_csrs)
 
-        dds_pads = platform.request("dds")
-        self.submodules.dds = ad9858.AD9858(dds_pads)
         self.add_wb_slave(mem_decoder(0xb0000000), self.dds.bus)
-        self.comb += dds_pads.fud_n.eq(~fud)
 
 
-default_subtarget = ARTIQMidiSoC
+default_subtarget = Single
