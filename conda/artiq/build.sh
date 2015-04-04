@@ -1,19 +1,43 @@
 #!/bin/bash
 
+BUILD_SETTINGS_FILE=$HOME/.mlabs/build_settings.sh
+
+if [ -f $BUILD_SETTINGS_FILE ]
+then
+	source $BUILD_SETTINGS_FILE
+fi
+
 ARTIQ_GUI=1 $PYTHON setup.py install --single-version-externally-managed --record=record.txt
 git clone --recursive https://github.com/m-labs/misoc
-git clone https://github.com/GadgetFactory/Papilio-Loader
 export MSCDIR=$SRC_DIR/misoc
-cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_ppro build-headers build-bios; cd -
-make -C soc/runtime runtime.fbi
-cd $SRC_DIR/misoc; python make.py -X $SRC_DIR/soc -t  artiq_ppro build-bitstream; cd -
+
 ARTIQ_PREFIX=$PREFIX/lib/python3.4/site-packages/artiq
 BIN_PREFIX=$ARTIQ_PREFIX/binaries/
 mkdir -p $ARTIQ_PREFIX/misc
-cp misc/99-ppro.rules $ARTIQ_PREFIX/misc/
-mkdir -p $BIN_PREFIX/ppro $BIN_PREFIX/kc705
-cp $SRC_DIR/misoc/build/artiq_ppro-up-papilio_pro.bin $BIN_PREFIX/ppro
-cp $SRC_DIR/misoc/software/bios/bios.bin $BIN_PREFIX/ppro
-cp soc/runtime/runtime.fbi $BIN_PREFIX/ppro
+mkdir -p $BIN_PREFIX/kc705 $BIN_PREFIX/pipistrello
+
+# build for KC705
+
+cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_kc705 build-headers build-bios; cd -
+make -C soc/runtime clean runtime.fbi
+cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_kc705 $MISOC_EXTRA_VIVADO_CMDLINE build-bitstream; cd -
+
+# build for Pipistrello
+
+cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_pipistrello build-headers build-bios; cd -
+make -C soc/runtime clean runtime.fbi
+cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_pipistrello $MISOC_EXTRA_ISE_CMDLINE build-bitstream; cd -
+
+# install KC705 binaries
+
+cp soc/runtime/runtime.fbi $BIN_PREFIX/kc705/
+cp $SRC_DIR/misoc/software/bios/bios.bin $BIN_PREFIX/kc705/
+cp $SRC_DIR/misoc/build/artiq_kc705-nist_qc1-kc705.bin $BIN_PREFIX/kc705/
+
+# install Pipistrello binaries
+
+cp soc/runtime/runtime.fbi $BIN_PREFIX/pipistrello/
+cp $SRC_DIR/misoc/software/bios/bios.bin $BIN_PREFIX/pipistrello/
+cp $SRC_DIR/misoc/build/artiq_pipistrello-nist_qc1-pipistrello.bin $BIN_PREFIX/pipistrello/
+
 cp artiq/frontend/artiq_flash.sh $PREFIX/bin
-cp Papilio-Loader/xc3sprog/trunk/bscan_spi/bscan_spi_lx9_papilio.bit $BIN_PREFIX/ppro

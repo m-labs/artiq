@@ -6,7 +6,7 @@ import os
 
 requirements = [
     "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
-    "python-dateutil", "prettytable", "h5py", "pydaqmx"
+    "python-dateutil", "prettytable", "h5py", "pydaqmx", "pyelftools"
 ]
 
 scripts = [

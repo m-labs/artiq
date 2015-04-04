@@ -1,21 +1,20 @@
 language: python
 python:
   - '3.4'
+sudo: false
 env:
   global:
     - MSCDIR=$TRAVIS_BUILD_DIR/misoc
     - PATH=$HOME/miniconda/bin:/usr/local/llvm-or1k/bin:$PATH
-    - CC=gcc-4.7
-    - CXX=g++-4.7
     - BUILD_SOC=1
     - secure: "DUk/Ihg8KbbzEgPF0qrHqlxU8e8eET9i/BtzNvFddIGX4HP/P2qz0nk3cVkmjuWhqJXSbC22RdKME9qqPzw6fJwJ6dpJ3OR6dDmSd7rewavq+niwxu52PVa+yK8mL4yf1terM7QQ5tIRf+yUL9qGKrZ2xyvEuRit6d4cFep43Ws="
 before_install:
+  - mkdir -p $HOME/.mlabs
   - if [ $TRAVIS_PULL_REQUEST != false ]; then BUILD_SOC=0; fi
-  - ./.travis/get-toolchain.sh
+  - . ./.travis/get-toolchain.sh
   - if [ $BUILD_SOC -ne 0 ]; then ./.travis/get-xilinx.sh; fi
   - ./.travis/get-anaconda.sh
   - source $HOME/miniconda/bin/activate py34
-  - sudo apt-get install --force-yes -y iverilog
   - conda install pip coverage binstar migen cython
   - pip install coveralls
 install:

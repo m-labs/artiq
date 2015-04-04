@@ -29,6 +29,7 @@ requirements:
         - setuptools
         - numpy
         - migen
+        - pyelftools
     run:
         - python
         - llvmlite-or1k
@@ -41,6 +42,7 @@ requirements:
         - h5py
         - dateutil
         - pydaqmx
+        - pyelftools
         - gbulb-artiq # [not win]
         - cairoplot3-artiq # [not win]
 
