@@ -12,13 +12,6 @@
         "arguments": {}
     },
 
-    "led": {
-        "type": "local",
-        "module": "artiq.coredevice.gpio",
-        "class": "GPIOOut",
-        "arguments": {"channel": 0}
-    },
-
     "pmt0": {
         "type": "local",
         "module": "artiq.coredevice.rtio",

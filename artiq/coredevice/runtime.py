@@ -12,7 +12,6 @@ llvm.initialize_all_targets()
 llvm.initialize_all_asmprinters()
 
 _syscalls = {
-    "gpio_set": "ib:n",
     "rtio_oe": "ib:n",
     "rtio_set": "Iii:n",
     "rtio_get_counter": "n:I",
