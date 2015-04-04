@@ -50,19 +50,19 @@ _tester_io = [
 ]
 
 
-class _RTIOMiniCRG(Module, AutoCSR):
+class _RTIOCRG(Module, AutoCSR):
     def __init__(self, platform):
         self._clock_sel = CSRStorage()
         self.clock_domains.cd_rtio = ClockDomain()
 
-        # 80MHz -> 125MHz
+        # 75MHz -> 125MHz
         rtio_internal_clk = Signal()
         self.specials += Instance("DCM_CLKGEN",
                                   p_CLKFXDV_DIVIDE=2,
-                                  p_CLKFX_DIVIDE=16,
+                                  p_CLKFX_DIVIDE=3,
                                   p_CLKFX_MD_MAX=1.6,
-                                  p_CLKFX_MULTIPLY=25,
-                                  p_CLKIN_PERIOD=12.5,
+                                  p_CLKFX_MULTIPLY=5,
+                                  p_CLKIN_PERIOD=1e3/75,
                                   p_SPREAD_SPECTRUM="NONE",
                                   p_STARTUP_WAIT="FALSE",
                                   i_CLKIN=ClockSignal(),
@@ -100,10 +100,6 @@ class ARTIQMidiSoC(BaseSoC):
         self.submodules.leds = gpio.GPIOOut(Cat(
             platform.request("user_led", 0),
             platform.request("user_led", 1),
-            platform.request("user_led", 2),
-            platform.request("user_led", 3),
-            platform.request("user_led", 4),
-            platform.request("ext_led", 0),
         ))
 
         fud = Signal()
@@ -115,8 +111,10 @@ class ARTIQMidiSoC(BaseSoC):
         rtio_ins += [platform.request("xtrig", 0)]
         rtio_outs = [platform.request("ttl", i) for i in range(16)]
         rtio_outs += [fud]
+        rtio_outs += [platform.request("ext_led", 0)]
+        rtio_outs += [platform.request("user_led", i) for i in range(2, 5)]
 
-        self.submodules.rtiocrg = _RTIOMiniCRG(platform)
+        self.submodules.rtiocrg = _RTIOCRG(platform)
         self.submodules.rtiophy = rtio.phy.SimplePHY(
             rtio_ins + rtio_outs,
             output_only_pads=set(rtio_outs))
