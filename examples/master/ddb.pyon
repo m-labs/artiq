@@ -43,6 +43,12 @@
         "class": "RTIOOut",
         "arguments": {"channel": 4}
     },
+    "led": {
+        "type": "local",
+        "module": "artiq.coredevice.rtio",
+        "class": "RTIOOut",
+        "arguments": {"channel": 18}
+    },
 
     "dds0": {
         "type": "local",
