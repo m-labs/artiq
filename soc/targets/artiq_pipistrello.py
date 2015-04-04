@@ -7,7 +7,7 @@ from misoclib.com import gpio
 from misoclib.soc import mem_decoder
 from targets.pipistrello import BaseSoC
 
-from artiq.gateware import rtio, ad9858
+from artiq.gateware import amp, rtio, ad9858
 
 
 _tester_io = [
@@ -138,6 +138,29 @@ class Single(_QcAdapterBase):
         self.add_csr_region("rtio", 0xa0000000, 32, rtio_csrs)
 
         self.add_wb_slave(mem_decoder(0xb0000000), self.dds.bus)
+
+
+class Double(_QcAdapterBase):
+    csr_map = {
+        "kernel_cpu": 14
+    }
+    csr_map.update(_QcAdapterBase.csr_map)
+
+    def __init__(self, platform, *args, **kwargs):
+        _QcAdapterBase.__init__(self, platform, **kwargs)
+
+        self.submodules.kernel_cpu = amp.KernelCPU(
+            platform, self.sdram.crossbar.get_master())
+        self.submodules.mailbox = amp.Mailbox()
+        self.add_wb_slave(mem_decoder(0xd0000000), self.mailbox.i1)
+        self.kernel_cpu.add_wb_slave(mem_decoder(0xd0000000), self.mailbox.i2)
+
+        rtio_csrs = self.rtio.get_csrs()
+        self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
+        self.kernel_cpu.add_wb_slave(mem_decoder(0xa0000000), self.rtiowb.bus)
+        self.add_csr_region("rtio", 0xa0000000, 32, rtio_csrs)
+
+        self.kernel_cpu.add_wb_slave(mem_decoder(0xb0000000), self.dds.bus)
 
 
 default_subtarget = Single
