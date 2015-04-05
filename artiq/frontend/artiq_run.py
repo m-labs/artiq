@@ -75,7 +75,7 @@ class DummyScheduler:
     watchdog = DummyWatchdog
 
 
-def get_argparser(with_file):
+def get_argparser(with_file=True):
     parser = argparse.ArgumentParser(
         description="Local experiment running tool")
 
