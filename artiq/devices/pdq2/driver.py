@@ -22,14 +22,14 @@ class Segment:
         self.data = b""
 
     def line(self, typ, duration, data, trigger=False, silence=False,
-             aux=False, shift=0, jump=False, clear=False, wait_trigger=False):
+             aux=False, shift=0, jump=False, clear=False, wait=False):
         assert len(data) % 2 == 0, data
         assert len(data)//2 <= 14
         #assert dt*(1 << shift) > 1 + len(data)//2
         header = (
             1 + len(data)//2 | (typ << 4) | (trigger << 6) | (silence << 7) |
             (aux << 8) | (shift << 9) | (jump << 13) | (clear << 14) |
-            (wait_trigger << 15)
+            (wait << 15)
         )
         self.data += struct.pack("<HH", header, duration) + data
 
@@ -86,7 +86,7 @@ class Segment:
         coef = self.compensate([scale*a for a in amplitude])
         if phase:
             assert len(amplitude) == 4
-        coef += [p*self.max_val for p in phase]
+        coef += [p*self.max_val*2 for p in phase]
         data = self.pack([0, 1, 2, 2, 0, 1, 1], coef)
         self.line(typ=1, data=data, **kwargs)
 
@@ -195,20 +195,23 @@ class Pdq2:
 
     def program(self, program):
         self.clear_all()
-        for segment_data in program:
+        for frame_data in program:
             segments = [c.new_segment() for c in self.channels]
-            for line in segment_data:
+            for i, line in enumerate(frame_data):  # segments are concatenated
                 dac_divider = line.get("dac_divider", 1)
                 shift = int(log2(dac_divider))
                 assert 2**shift == dac_divider
                 duration = line["duration"]
-                jump = line.get("jump", False)
-                wait_trigger = line.get("wait_trigger", False)
+                trigger = line.get("trigger", False)
+                if i == 0:
+                    assert trigger
+                    trigger = False  # use wait on the last line
+                eof = i == len(frame_data) - 1
                 for segment, data in zip(segments, line.get("channel_data")):
                     assert len(data) == 1
                     for target, target_data in data.items():
                         getattr(segment, target)(
                             shift=shift, duration=duration,
-                            wait_trigger=wait_trigger, jump=jump,
+                            trigger=trigger, wait=eof, jump=eof,
                             **target_data)
         self.write_all()
