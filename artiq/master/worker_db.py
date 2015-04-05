@@ -112,4 +112,11 @@ class DBHub:
                 dev.close_rpc()
             elif hasattr(dev, "close"):
                 dev.close()
-        self.active_devices = OrderedDict()
+        self.active_devices.clear()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close_devices()
+        return False  # do not suppress exceptions within context
