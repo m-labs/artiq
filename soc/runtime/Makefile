@@ -1,19 +1,20 @@
 include $(MSCDIR)/software/common.mak
 
-OBJECTS_SERVICES=exception_jmp.o exceptions.o rtio.o dds.o
-OBJECTS=isr.o elf_loader.o services.o comm_serial.o test_mode.o main.o
+OBJECTS := isr.o elf_loader.o services.o comm_serial.o test_mode.o main.o
+OBJECTS_KSUPPORT := exception_jmp.o exceptions.o rtio.o dds.o
 
 # NOTE: this does not handle dependencies well. Run "make clean"
 # when switching between UP and AMP.
 UNIPROCESSOR := $(shell echo -e "\#include <generated/csr.h>\nCSR_KERNEL_CPU_BASE" | $(CC_normal) $(CFLAGS) -E - | tail -n 1 | grep -c CSR_KERNEL_CPU_BASE)
 
 ifeq ($(UNIPROCESSOR),0)
-OBJECTS += kernelcpu.o ksupport_data.o
+OBJECTS += mailbox.o kernelcpu.o ksupport_data.o
+OBJECTS_KSUPPORT += mailbox.o ksupport.o
 CFLAGS += -DARTIQ_AMP
 SERVICE_TABLE_INPUT = ksupport.elf
 else
 ifeq ($(UNIPROCESSOR),1)
-OBJECTS += $(OBJECTS_SERVICES)
+OBJECTS += $(OBJECTS_KSUPPORT)
 else
 $(error failed to determine UP/AMP build)
 endif
@@ -32,8 +33,6 @@ all: runtime.bin
 	$(MSCDIR)/mkmscimg.py -f -o $@ $<
 
 runtime.elf: $(OBJECTS) libs
-
-%.elf:
 	$(LD) $(LDFLAGS) \
 		-T linker.ld \
 		-N -o $@ \
@@ -44,7 +43,7 @@ runtime.elf: $(OBJECTS) libs
 		-lbase -lcompiler-rt
 	@chmod -x $@
 
-ksupport.elf: $(OBJECTS_SERVICES) ksupport.o
+ksupport.elf: $(OBJECTS_KSUPPORT)
 	$(LD) $(LDFLAGS) \
 		-T ksupport.ld \
 		-N -o $@ \
@@ -74,8 +73,8 @@ libs:
 	$(MAKE) -C $(MSCDIR)/software/libbase
 
 clean:
-	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) $(OBJECTS_SERVICES) $(OBJECTS_SERVICES:.o=.d)
+	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) $(OBJECTS_KSUPPORT) $(OBJECTS_KSUPPORT:.o=.d)
 	$(RM) runtime.elf runtime.bin runtime.fbi .*~ *~
-	$(RM) service_table.h ksupport.d ksupport.o ksupport.elf ksupport.bin
+	$(RM) service_table.h ksupport.elf ksupport.bin
 
 .PHONY: all main.o clean libs load

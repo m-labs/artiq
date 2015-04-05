@@ -5,8 +5,8 @@ from artiq.language.core import RuntimeException
 
 # Must be kept in sync with soc/runtime/exceptions.h
 
-class OutOfMemory(RuntimeException):
-    """Raised when the runtime fails to allocate memory.
+class InternalError(RuntimeException):
+    """Raised when the runtime encounters an internal error condition.
 
     """
     eid = 1

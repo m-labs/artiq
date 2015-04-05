@@ -132,6 +132,7 @@ static void receive_and_run_kernel(kernel_runner run_kernel)
     int i;
     char kernel_name[256];
     int r, eid;
+    long long int eparams[3];
 
     length = receive_int();
     if(length > (sizeof(kernel_name)-1)) {
@@ -142,7 +143,7 @@ static void receive_and_run_kernel(kernel_runner run_kernel)
         kernel_name[i] = receive_char();
     kernel_name[length] = 0;
 
-    r = run_kernel(kernel_name, &eid);
+    r = run_kernel(kernel_name, &eid, eparams);
     switch(r) {
         case KERNEL_RUN_FINISHED:
             send_char(MSGTYPE_KERNEL_FINISHED);
@@ -151,12 +152,7 @@ static void receive_and_run_kernel(kernel_runner run_kernel)
             send_char(MSGTYPE_KERNEL_EXCEPTION);
             send_int(eid);
             for(i=0;i<3;i++)
-#ifdef ARTIQ_AMP
-#warning TODO
-                send_llint(0LL);
-#else
-                send_llint(exception_params[i]);
-#endif
+                send_llint(eparams[i]);
             break;
         case KERNEL_RUN_STARTUP_FAILED:
             send_char(MSGTYPE_KERNEL_STARTUP_FAILED);

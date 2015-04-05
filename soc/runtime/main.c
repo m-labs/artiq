@@ -10,11 +10,16 @@
 #include "test_mode.h"
 #include "comm.h"
 #include "elf_loader.h"
-#include "kernelcpu.h"
 #include "exceptions.h"
 #include "services.h"
 #include "rtio.h"
 #include "dds.h"
+
+#ifdef ARTIQ_AMP
+#include "kernelcpu.h"
+#include "mailbox.h"
+#include "messages.h"
+#endif
 
 static struct symbol symtab[128];
 static int _symtab_count;
@@ -63,14 +68,43 @@ static int load_object(void *buffer, int length)
         buffer, length, (void *)KERNELCPU_PAYLOAD_ADDRESS, 4*1024*1024);
 }
 
+
+#ifdef ARTIQ_AMP
+static int process_msg(struct msg_unknown *umsg, int *eid, long long int *eparams)
+{
+    int i;
+
+    switch(umsg->type) {
+        case MESSAGE_TYPE_FINISHED:
+            return KERNEL_RUN_FINISHED;
+        case MESSAGE_TYPE_EXCEPTION: {
+            struct msg_exception *msg = (struct msg_exception *)umsg;
+
+            *eid = msg->eid;
+            for(i=0;i<3;i++)
+                eparams[i] = msg->eparams[i];
+            return KERNEL_RUN_EXCEPTION;
+        }
+        default:
+            *eid = EID_INTERNAL_ERROR;
+            for(i=0;i<3;i++)
+                eparams[i] = 0;
+            return KERNEL_RUN_EXCEPTION;
+    }
+}
+#endif
+
 typedef void (*kernel_function)(void);
 
-static int run_kernel(const char *kernel_name, int *eid)
+static int run_kernel(const char *kernel_name, int *eid, long long int *eparams)
 {
     kernel_function k;
-#ifndef ARTIQ_AMP
+#ifdef ARTIQ_AMP
+    int r;
+#else
     void *jb;
 #endif
+
 
     k = find_symbol(symtab, kernel_name);
     if(k == NULL) {
@@ -80,20 +114,22 @@ static int run_kernel(const char *kernel_name, int *eid)
 
 #ifdef ARTIQ_AMP
     kernelcpu_start(k);
-    *eid = 0;
     while(1) {
-        unsigned int r;
+        struct msg_unknown *umsg;
 
-        r = KERNELCPU_MAILBOX;
-        if(r < 0x40000000) {
-            kernelcpu_stop();
-            return r;
-        }
+        umsg = mailbox_receive();
+        r = KERNEL_RUN_INVALID_STATUS;
+        if(umsg)
+            r = process_msg(umsg, eid, eparams);
+        if(r != KERNEL_RUN_INVALID_STATUS)
+            break;
     }
+    kernelcpu_stop();
+    return r;
 #else
     jb = exception_push();
     if(exception_setjmp(jb)) {
-        *eid = exception_getid();
+        *eid = exception_getid(eparams);
         return KERNEL_RUN_EXCEPTION;
     } else {
         dds_init();

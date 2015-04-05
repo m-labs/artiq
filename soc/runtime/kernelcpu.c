@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <string.h>
-#include <system.h>
 
 #include <generated/csr.h>
 
+#include "mailbox.h"
 #include "kernelcpu.h"
 
 extern char _binary_ksupport_bin_start;
@@ -13,8 +13,8 @@ void kernelcpu_start(void *addr)
 {
     memcpy((void *)KERNELCPU_EXEC_ADDRESS, &_binary_ksupport_bin_start,
         &_binary_ksupport_bin_end - &_binary_ksupport_bin_start);
-    KERNELCPU_MAILBOX = (unsigned int)addr;
-    flush_l2_cache();
+    mailbox_acknowledge();
+    mailbox_send(addr);
     kernel_cpu_reset_write(0);
 }
 
