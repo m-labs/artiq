@@ -13,9 +13,9 @@ class PhotonHistogram(Experiment, AutoDB):
         nbins = Argument(100)
         repeats = Argument(100)
 
-        cool_f = Parameter(230)
-        detect_f = Parameter(220)
-        detect_t = Parameter(100)
+        cool_f = Parameter(230*MHz)
+        detect_f = Parameter(220*MHz)
+        detect_t = Parameter(100*us)
 
         ion_present = Parameter(True)
 
@@ -27,10 +27,10 @@ class PhotonHistogram(Experiment, AutoDB):
         with parallel:
             self.bd.pulse(200*MHz, 1*ms)
             self.bdd.pulse(300*MHz, 1*ms)
-        self.bd.pulse(self.cool_f*MHz, 100*us)
+        self.bd.pulse(self.cool_f, 100*us)
         with parallel:
-            self.bd.pulse(self.detect_f*MHz, self.detect_t*us)
-            self.pmt.gate_rising(self.detect_t*us)
+            self.bd.pulse(self.detect_f, self.detect_t)
+            self.pmt.gate_rising(self.detect_t)
         self.bd.on(200*MHz)
         self.bdd.on(300*MHz)
         return self.pmt.count()
