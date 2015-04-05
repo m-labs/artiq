@@ -7,7 +7,7 @@ from artiq.protocols.pc_rpc import Client, BestEffortClient
 from artiq.master.results import result_dict_to_hdf5
 
 
-logger = logging.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class ResultDB:
