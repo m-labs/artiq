@@ -5,6 +5,7 @@ from artiq.protocols import pyon
 from artiq.tools import file_import
 from artiq.master.worker_db import DBHub, ResultDB
 from artiq.master.results import get_hdf5_output
+from artiq.language.experiment import is_experiment
 
 
 def get_object():
