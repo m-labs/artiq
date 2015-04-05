@@ -9,6 +9,7 @@
 
 #include "test_mode.h"
 #include "comm.h"
+#include "kernelcpu.h"
 #include "elf_loader.h"
 #include "exceptions.h"
 #include "services.h"
@@ -16,7 +17,6 @@
 #include "dds.h"
 
 #ifdef ARTIQ_AMP
-#include "kernelcpu.h"
 #include "mailbox.h"
 #include "messages.h"
 #endif
