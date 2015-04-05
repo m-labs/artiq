@@ -97,9 +97,8 @@ def main():
     exp_inst = None
 
     rdb = ResultDB(init_rt_results, update_rt_results)
-    dbh = DBHub(ParentDDB, ParentPDB, rdb)
 
-    try:
+    with DBHub(ParentDDB, ParentPDB, rdb) as dbh:
         while True:
             obj = get_object()
             action = obj["action"]
@@ -130,8 +129,6 @@ def main():
                 put_object({"action": "completed"})
             elif action == "terminate":
                 break
-    finally:
-        dbh.close_devices()
 
 if __name__ == "__main__":
     main()
