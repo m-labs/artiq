@@ -23,7 +23,15 @@ def _interpolate(time, data, sample_times, order=3):
     return coeffs
 
 
-def _zip_program(times, channels, target=):
+def discrete_compensate(c):
+    if len(c) > 2:
+        c[1] += c[2]/2
+    if len(c) > 3:
+        c[1] += c[3]/6
+        c[2] += c[3]
+
+
+def _zip_program(times, channels, target):
     for tc in zip(times, *channels):
         yield {
             "duration": tc[0],

@@ -1,13 +1,7 @@
 from copy import copy
 from math import cos, pi
 
-
-def discrete_compensate(c):
-    if len(c) > 2:
-        c[1] += c[2]/2
-    if len(c) > 3:
-        c[1] += c[3]/6
-        c[2] += c[3]
+from artiq.wavesynth.interpolate import discrete_compensate
 
 
 class Spline:

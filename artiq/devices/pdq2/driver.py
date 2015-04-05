@@ -6,13 +6,16 @@ import struct
 
 import serial
 
+from artiq.wavesynth.interpolate import discrete_compensate
+
+
 logger = logging.getLogger(__name__)
 
 
 class Segment:
     max_time = 1 << 16  # uint16 timer
     max_val = 1 << 15  # int16 DAC
-    max_out = 10. # Volt
+    max_out = 10.  # Volt
     out_scale = max_val/max_out
     cordic_gain = 1.
     for i in range(16):
@@ -53,24 +56,13 @@ class Segment:
                          values, widths, ud, fmt, e)
             raise e
 
-    @staticmethod
-    def compensate(coef):
-        """compensates higher order spline coefficients for integrator chain
-        latency"""
-        order = len(coef)
-        if order > 2:
-            coef[1] += coef[2]/2.
-        if order > 3:
-            coef[1] += coef[3]/6.
-            coef[2] += coef[3]
-        return coef
-
     def bias(self, amplitude=[], **kwargs):
         """Append a bias line to this segment.
 
         Amplitude in volts
         """
-        coef = self.compensate([self.out_scale*a for a in amplitude])
+        coef = [self.out_scale*a for a in amplitude]
+        discrete_compensate(coef)
         data = self.pack([0, 1, 2, 2], coef)
         self.line(typ=0, data=data, **kwargs)
 
@@ -83,7 +75,8 @@ class Segment:
         phase[2] in turns*(sample_rate/2**shift)**2
         """
         scale = self.out_scale/self.cordic_gain
-        coef = self.compensate([scale*a for a in amplitude])
+        coef = [scale*a for a in amplitude]
+        discrete_compensate(coef)
         if phase:
             assert len(amplitude) == 4
         coef += [p*self.max_val*2 for p in phase]
