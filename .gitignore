@@ -4,6 +4,7 @@ __pycache__
 *.bin
 *.elf
 *.fbi
+soc/runtime/service_table.h
 doc/manual/_build
 /build
 /dist
