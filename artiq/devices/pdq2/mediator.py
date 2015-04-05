@@ -113,13 +113,9 @@ class _Frame:
                     "dac_divider": dac_divider,
                     "duration": duration,
                     "channel_data": channel_data,
-                    "wait_trigger": False,
-                    "jump": False
                 } for dac_divider, duration, channel_data in segment.lines]
-            segment_program[-1]["wait_trigger"] = True
+            segment_program[0]["trigger"] = True
             r += segment_program
-        r[-1]["wait_trigger"] = False
-        r[-1]["jump"] = True
         return r
 
     @kernel
@@ -203,8 +199,7 @@ class CompoundPDQ2(AutoDB):
                         "duration": full_line["duration"],
                         "channel_data": full_line["channel_data"]
                         [n*channels_per_pdq2:(n+1)*channels_per_pdq2],
-                        "wait_trigger": full_line["wait_trigger"],
-                        "jump": full_line["jump"]
+                        "trigger": full_line["trigger"],
                     }
                     frame_program.append(line)
                 program.append(frame_program)

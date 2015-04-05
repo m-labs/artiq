@@ -2,12 +2,21 @@ from copy import copy
 from math import cos, pi
 
 
+def discrete_compensate(c):
+    if len(c) > 2:
+        c[1] += c[2]/2
+    if len(c) > 3:
+        c[1] += c[3]/6
+        c[2] += c[3]
+    return c
+
+
 class Spline:
     def __init__(self):
         self.c = [0.0]
 
     def set_coefficients(self, c):
-        self.c = copy(c)
+        self.c = discrete_compensate(copy(c))
 
     def next(self):
         r = self.c[0]
@@ -22,17 +31,18 @@ class SplinePhase:
         self.c0 = 0.0
 
     def set_coefficients(self, c):
-        self.c = self.c[0:1] + c[1:]
         self.c0 = c[0]
+        self.c[1:] = discrete_compensate(c[1:])
 
     def clear(self):
         self.c[0] = 0.0
 
     def next(self):
-        r = self.c[0] + self.c0
+        r = self.c[0]
         for i in range(len(self.c) - 1):
-            self.c[i] = (self.c[i] + self.c[i + 1]) % 1.0
-        return r
+            self.c[i] += self.c[i + 1]
+            self.c[i] %= 1.0
+        return r + self.c0
 
 
 class DDS:
@@ -48,14 +58,17 @@ class Wave:
     def __init__(self):
         self.bias = Spline()
         self.dds = DDS()
-        self.last = 0.
+        self.v = 0.
         self.silence = False
 
     def next(self):
         v = self.bias.next() + self.dds.next()
         if not self.silence:
-            self.last = v
-        return self.last
+            self.v = v
+        return self.v
+
+    def set_silence(self, s):
+        self.silence = s
 
 
 class TriggerError(Exception):
@@ -67,29 +80,30 @@ class Synthesizer:
         self.channels = [Wave() for _ in range(nchannels)]
         self.program = program
         # line_iter is None: "wait for segment selection" state
-        # otherwise: iterator on the current position in the segment
+        # otherwise: iterator on the current position in the frame
         self.line_iter = None
 
-    def trigger(self, selection=None):
-        if selection is None:
-            if self.line_iter is None:
-                raise TriggerError
-        else:
-            if self.line_iter is not None:
-                raise TriggerError
-            self.line_iter = iter(self.program[selection])
+    def select(self, selection):
+        if self.line_iter is not None:
+            raise TriggerError
+        self.line_iter = iter(self.program[selection])
+        self.line = next(self.line_iter)
+
+    def trigger(self):
+        if self.line_iter is None:
+            raise TriggerError
+
+        line = self.line
+        if not line.get("trigger", False):
+            raise TriggerError
 
         r = [[] for _ in self.channels]
         while True:
-            line = next(self.line_iter)
-
-            if line.get("dac_divider", 1) != 1:
-                raise NotImplementedError
-
             for channel, channel_data in zip(self.channels,
                                              line["channel_data"]):
                 if "bias" in channel_data:
-                    channel.bias.set_coefficients(channel_data["bias"]["amplitude"])
+                    channel.bias.set_coefficients(
+                        channel_data["bias"]["amplitude"])
                 if "dds" in channel_data:
                     channel.dds.amplitude.set_coefficients(
                         channel_data["dds"]["amplitude"])
@@ -98,22 +112,20 @@ class Synthesizer:
                             channel_data["dds"]["phase"])
                     if channel_data["dds"].get("clear", False):
                         channel.dds.phase.clear()
-                channel.silence = channel_data.get("silence", False)
+                    channel.set_silence(channel_data.get("silence", False))
+
+            if line.get("dac_divider", 1) != 1:
+                raise NotImplementedError
 
             for channel, rc in zip(self.channels, r):
                 for i in range(line["duration"]):
                     rc.append(channel.next())
 
-            if line.get("wait_trigger", False):
-                return r
-            if line.get("jump", False):
-                if not line.get("wait_trigger", False):
-                    raise ValueError("Jumps should be with wait_trigger")
-                try:
-                    next(self.line_iter)
-                    raise ValueError("Jump in the middle of a frame")
-                except StopIteration:
-                    pass
+            try:
+                self.line = line = next(self.line_iter)
+                if line.get("trigger", False):
+                    return r
+            except StopIteration:
                 self.line_iter = None
                 return r
 

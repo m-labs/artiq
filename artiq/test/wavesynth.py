@@ -19,8 +19,7 @@ class TestSynthesizer(unittest.TestCase):
                                 "clear": False}
                     }
                 ],
-                "wait_trigger": False,
-                "jump": False
+                "trigger": True
             },
             {
                 # frame 0, segment 0, line 1
@@ -34,8 +33,7 @@ class TestSynthesizer(unittest.TestCase):
                                 "clear": False}
                     }
                 ],
-                "wait_trigger": False,
-                "jump": True
+                "trigger": False
             },
         ],
         [
@@ -52,8 +50,7 @@ class TestSynthesizer(unittest.TestCase):
                                 "clear": False}
                     }
                 ],
-                "wait_trigger": False,
-                "jump": False
+                "trigger": True
             },
             {
                 # frame 1, segment 0, line 1
@@ -67,8 +64,7 @@ class TestSynthesizer(unittest.TestCase):
                                 "clear": False}
                     }
                 ],
-                "wait_trigger": False,
-                "jump": True
+                "trigger": False
             }
         ],
         [
@@ -85,8 +81,7 @@ class TestSynthesizer(unittest.TestCase):
                                 "clear": False}
                     }
                 ],
-                "wait_trigger": True,
-                "jump": False
+                "trigger": True
             },
             {
                 # frame 2, segment 1, line 0
@@ -100,8 +95,7 @@ class TestSynthesizer(unittest.TestCase):
                                 "clear": True}
                     }
                 ],
-                "wait_trigger": False,
-                "jump": True
+                "trigger": True
             }
         ]
     ]
@@ -112,14 +106,11 @@ class TestSynthesizer(unittest.TestCase):
 
     def drive(self):
         s = self.dev
-        r = s.trigger(0)
-        y = r[0]
-        r = s.trigger(2)
-        y += r[0]
-        r = s.trigger()
-        y += r[0]
-        r = s.trigger(1)
-        y += r[0]
+        y = []
+        for f in 0, 2, None, 1:
+            if f is not None:
+                s.select(f)
+            y += s.trigger()[0]
         x = list(range(600))
         return x, y
 
