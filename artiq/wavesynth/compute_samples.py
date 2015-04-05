@@ -1,8 +1,6 @@
 from copy import copy
 from math import cos, pi
 
-import cairoplot
-
 
 class Spline:
     def __init__(self):
@@ -108,119 +106,12 @@ class Synthesizer:
                 return r
 
 def main():
-    program = [
-        [
-            # frame 0
-            {
-                # frame 0, segment 0, line 0
-                "dac_divider": 1,
-                "duration": 100,
-                "channel_data": [
-                    {
-                        # channel 0
-                        "dds": {"amplitude": [0.0, 0.0, 0.01],
-                                "phase": [0.0, 0.0, 0.0005],
-                                "clear": False}
-                    }
-                ],
-                "wait_trigger": False,
-                "jump": False
-            },
-            {
-                # frame 0, segment 0, line 1
-                "dac_divider": 1,
-                "duration": 100,
-                "channel_data": [
-                    {
-                        # channel 0
-                        "dds": {"amplitude": [49.5, 1.0, -0.01],
-                                "phase": [0.0, 0.05, 0.0005],
-                                "clear": False}
-                    }
-                ],
-                "wait_trigger": False,
-                "jump": True
-            },
-        ],
-        [
-            # frame 1
-            {
-                # frame 1, segment 0, line 0
-                "dac_divider": 1,
-                "duration": 100,
-                "channel_data": [
-                    {
-                        # channel 0
-                        "dds": {"amplitude": [100.0, 0.0, -0.01],
-                                "phase": [0.0, 0.1, -0.0005],
-                                "clear": False}
-                    }
-                ],
-                "wait_trigger": False,
-                "jump": False
-            },
-            {
-                # frame 1, segment 0, line 1
-                "dac_divider": 1,
-                "duration": 100,
-                "channel_data": [
-                    {
-                        # channel 0
-                        "dds": {"amplitude": [50.5, -1.0, 0.01],
-                                "phase": [0.0, 0.05, -0.0005],
-                                "clear": False}
-                    }
-                ],
-                "wait_trigger": False,
-                "jump": True
-            }
-        ],
-        [
-            # frame 2
-            {
-                # frame 2, segment 0, line 0
-                "dac_divider": 1,
-                "duration": 84,
-                "channel_data": [
-                    {
-                        # channel 0
-                        "dds": {"amplitude": [100.0],
-                                "phase": [0.0, 0.05],
-                                "clear": False}
-                    }
-                ],
-                "wait_trigger": True,
-                "jump": False
-            },
-            {
-                # frame 2, segment 1, line 0
-                "dac_divider": 1,
-                "duration": 116,
-                "channel_data": [
-                    {
-                        # channel 0
-                        "dds": {"amplitude": [100.0],
-                                "phase": [0.0, 0.05],
-                                "clear": True}
-                    }
-                ],
-                "wait_trigger": False,
-                "jump": True
-            }
-        ]
-    ]
+    from artiq.test.wavesynth import TestSynthesizer
+    import cairoplot
 
-    x = list(range(600))
-    s = Synthesizer(1, program)
-
-    r = s.trigger(0)
-    y = r[0]
-    r = s.trigger(2)
-    y += r[0]
-    r = s.trigger()
-    y += r[0]
-    r = s.trigger(1)
-    y += r[0]
+    t = TestSynthesizer()
+    t.setUp()
+    x, y = t.drive()
     cairoplot.scatter_plot("plot.png", [x, y])
 
 if __name__ == "__main__":
