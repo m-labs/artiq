@@ -1,9 +1,13 @@
 from collections import OrderedDict
 import importlib
+import logging
 
 from artiq.protocols.sync_struct import Notifier
 from artiq.protocols.pc_rpc import Client, BestEffortClient
 from artiq.master.results import result_dict_to_hdf5
+
+
+logger = logging.get_logger(__name__)
 
 
 class ResultDB:
@@ -108,15 +112,11 @@ class DBHub:
         """Closes all active devices, in the opposite order as they were
         requested."""
         for dev in reversed(list(self.active_devices.values())):
-            if isinstance(dev, (Client, BestEffortClient)):
-                dev.close_rpc()
-            elif hasattr(dev, "close"):
-                dev.close()
+            try:
+                if isinstance(dev, (Client, BestEffortClient)):
+                    dev.close_rpc()
+                elif hasattr(dev, "close"):
+                    dev.close()
+            except Exception as e:
+                logger.warning("Exception %r when closing device %r", e, dev)
         self.active_devices.clear()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close_devices()
-        return False  # do not suppress exceptions within context

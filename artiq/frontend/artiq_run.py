@@ -154,12 +154,15 @@ def run(with_file=False):
     pdb = FlatFileDB(args.pdb)
     pdb.hooks.append(SimpleParamLogger())
     rdb = ResultDB(lambda description: None, lambda mod: None)
+    dbh = DBHub(ddb, pdb, rdb)
 
-    with DBHub(ddb, pdb, rdb) as dbh:
+    try:
         exp_inst = _build_experiment(dbh, args)
         rdb.build()
         exp_inst.run()
         exp_inst.analyze()
+    finally:
+        dbh.close_devices()
 
     if args.hdf5 is not None:
         with h5py.File(args.hdf5, "w") as f:
