@@ -26,8 +26,9 @@ class SplinePhase:
 
     def set_coefficients(self, c):
         self.c0 = c[0]
-        self.c[1:] = c[1:]
-        discrete_compensate(self.c[1:])
+        c1p = c[1:]
+        discrete_compensate(c1p)
+        self.c[1:] = c1p
 
     def clear(self):
         self.c[0] = 0.0
