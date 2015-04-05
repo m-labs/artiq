@@ -8,7 +8,6 @@ def discrete_compensate(c):
     if len(c) > 3:
         c[1] += c[3]/6
         c[2] += c[3]
-    return c
 
 
 class Spline:
@@ -16,7 +15,8 @@ class Spline:
         self.c = [0.0]
 
     def set_coefficients(self, c):
-        self.c = discrete_compensate(copy(c))
+        self.c = copy(c)
+        discrete_compensate(self.c)
 
     def next(self):
         r = self.c[0]
@@ -32,7 +32,8 @@ class SplinePhase:
 
     def set_coefficients(self, c):
         self.c0 = c[0]
-        self.c[1:] = discrete_compensate(c[1:])
+        self.c[1:] = c[1:]
+        discrete_compensate(self.c[1:])
 
     def clear(self):
         self.c[0] = 0.0
@@ -128,17 +129,3 @@ class Synthesizer:
             except StopIteration:
                 self.line_iter = None
                 return r
-
-
-def main():
-    from artiq.test.wavesynth import TestSynthesizer
-    import cairoplot
-
-    t = TestSynthesizer()
-    t.setUp()
-    x, y = t.drive()
-    cairoplot.scatter_plot("plot.png", [x, y])
-
-
-if __name__ == "__main__":
-    main()
