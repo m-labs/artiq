@@ -24,11 +24,14 @@ def _interpolate(time, data, sample_times, order=3):
 
 
 def discrete_compensate(c):
-    if len(c) > 2:
-        c[1] += c[2]/2
-    if len(c) > 3:
-        c[1] += c[3]/6
+    l = len(c)
+    if l > 2:
+        c[1] += c[2]/2.
+    if l > 3:
+        c[1] += c[3]/6.
         c[2] += c[3]
+    if l > 4:
+        raise ValueError("only third-order splines supported")
 
 
 def _zip_program(times, channels, target):

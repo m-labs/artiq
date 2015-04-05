@@ -1,7 +1,7 @@
 from copy import copy
 from math import cos, pi
 
-from artiq.wavesynth.interpolate import discrete_compensate
+from artiq.wavesynth.coefficients import discrete_compensate
 
 
 class Spline:

@@ -6,7 +6,7 @@ import struct
 
 import serial
 
-from artiq.wavesynth.interpolate import discrete_compensate
+from artiq.wavesynth.coefficients import discrete_compensate
 
 
 logger = logging.getLogger(__name__)
