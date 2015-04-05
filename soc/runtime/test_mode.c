@@ -11,13 +11,13 @@
 #include "rtio.h"
 #include "dds.h"
 
-#ifdef ARTIQ_BIPROCESSOR
+#ifdef ARTIQ_AMP
 
 #warning TODO
 
 void test_main(void)
 {
-    printf("Not implemented yet for biprocessor systems\n");
+    printf("Not implemented yet for AMP systems\n");
 }
 
 #else
@@ -353,4 +353,4 @@ void test_main(void)
     }
 }
 
-#endif /* ARTIQ_BIPROCESSOR */
+#endif /* ARTIQ_AMP */

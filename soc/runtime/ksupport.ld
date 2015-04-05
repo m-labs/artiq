@@ -10,7 +10,7 @@ MEMORY {
     ksupport : ORIGIN = 0x40020000, LENGTH = 0x4000
 }
 
-/* On biprocessor systems, kernel stack is at the end of main RAM,
+/* On AMP systems, kernel stack is at the end of main RAM,
  * before the runtime stack. Leave 1M for runtime stack.
  */
 PROVIDE(_fstack = 0x40000000 + LENGTH(main_ram) - 1024*1024 - 4);

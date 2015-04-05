@@ -68,7 +68,7 @@ typedef void (*kernel_function)(void);
 static int run_kernel(const char *kernel_name, int *eid)
 {
     kernel_function k;
-#ifndef ARTIQ_BIPROCESSOR
+#ifndef ARTIQ_AMP
     void *jb;
 #endif
 
@@ -78,7 +78,7 @@ static int run_kernel(const char *kernel_name, int *eid)
         return KERNEL_RUN_STARTUP_FAILED;
     }
 
-#ifdef ARTIQ_BIPROCESSOR
+#ifdef ARTIQ_AMP
     kernelcpu_start(k);
     *eid = 0;
     while(1) {
@@ -146,10 +146,10 @@ int main(void)
     irq_setie(1);
     uart_init();
 
-#ifdef ARTIQ_BIPROCESSOR
-    puts("ARTIQ runtime built "__DATE__" "__TIME__" for biprocessor systems\n");
+#ifdef ARTIQ_AMP
+    puts("ARTIQ runtime built "__DATE__" "__TIME__" for AMP systems\n");
 #else
-    puts("ARTIQ runtime built "__DATE__" "__TIME__" for uniprocessor systems\n");
+    puts("ARTIQ runtime built "__DATE__" "__TIME__" for UP systems\n");
 #endif
     blink_led();
 

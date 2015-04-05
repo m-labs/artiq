@@ -3,17 +3,19 @@ include $(MSCDIR)/software/common.mak
 OBJECTS_SERVICES=exception_jmp.o exceptions.o rtio.o dds.o
 OBJECTS=isr.o elf_loader.o services.o comm_serial.o test_mode.o main.o
 
+# NOTE: this does not handle dependencies well. Run "make clean"
+# when switching between UP and AMP.
 UNIPROCESSOR := $(shell echo -e "\#include <generated/csr.h>\nCSR_KERNEL_CPU_BASE" | $(CC_normal) $(CFLAGS) -E - | tail -n 1 | grep -c CSR_KERNEL_CPU_BASE)
 
 ifeq ($(UNIPROCESSOR),0)
 OBJECTS += kernelcpu.o ksupport_data.o
-CFLAGS += -DARTIQ_BIPROCESSOR
+CFLAGS += -DARTIQ_AMP
 SERVICE_TABLE_INPUT = ksupport.elf
 else
 ifeq ($(UNIPROCESSOR),1)
 OBJECTS += $(OBJECTS_SERVICES)
 else
-$(error failed to determine uniprocessor/biprocessor build)
+$(error failed to determine UP/AMP build)
 endif
 endif
 

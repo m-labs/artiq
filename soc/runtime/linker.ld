@@ -13,7 +13,7 @@ MEMORY {
 /* Kernel memory space start right after the runtime,
  * and ends before the runtime stack.
  * Runtime stack is always at the end of main_ram.
- * This stack is shared with the kernel on uniprocessor systems.
+ * This stack is shared with the kernel on UP systems.
  */
 PROVIDE(_fstack = 0x40000000 + LENGTH(main_ram) - 4);
 

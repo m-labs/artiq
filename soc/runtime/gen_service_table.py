@@ -24,7 +24,7 @@ services = [
 ]
 
 
-def print_uniprocessor():
+def print_up():
     for name, contents in services:
         print("static const struct symbol {}[] = {{".format(name))
         for name, value in contents:
@@ -33,7 +33,7 @@ def print_uniprocessor():
         print("};")
 
 
-def print_biprocessor(ksupport_elf_filename):
+def print_amp(ksupport_elf_filename):
     from elftools.elf.elffile import ELFFile
     with open(ksupport_elf_filename, "rb") as f:
         elf = ELFFile(f)
@@ -51,9 +51,9 @@ def print_biprocessor(ksupport_elf_filename):
 
 def main():
     if len(sys.argv) == 1:
-        print_uniprocessor()
+        print_up()
     elif len(sys.argv) == 2:
-        print_biprocessor(sys.argv[1])
+        print_amp(sys.argv[1])
     else:
         print("Incorrect number of command line arguments")
         sys.exit(1)
