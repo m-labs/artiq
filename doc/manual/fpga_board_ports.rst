@@ -11,7 +11,7 @@ Papilio Pro
 
 The low-cost Papilio Pro FPGA board can be used with some limitations.
 
-When plugged to a QC-DAQ LVDS adapter, the AD9858 DDS hardware can be used in addition to a limited number of TTL channels. The TTL lines are mapped to RTIO channels as follows:
+When plugged to an adapter, the NIST QC1 hardware can be used with a limited number of TTL channels. The TTL lines are mapped to RTIO channels as follows:
 
 +--------------+----------+-----------------+
 | RTIO channel | TTL line | Capability      |
@@ -30,9 +30,7 @@ When plugged to a QC-DAQ LVDS adapter, the AD9858 DDS hardware can be used in ad
 +--------------+----------+-----------------+
 | 6            | TTL4     | Output only     |
 +--------------+----------+-----------------+
-| 7            | TTL5     | Output only     |
-+--------------+----------+-----------------+
-| 8            | FUD      | DDS driver only |
+| 7            | FUD      | DDS driver only |
 +--------------+----------+-----------------+
 
 The input only limitation on channels 0 and 1 comes from the QC-DAQ adapter. When the adapter is not used (and physically unplugged from the Papilio Pro board), the corresponding pins on the Papilio Pro can be used as outputs. Do not configure these channels as outputs when the adapter is plugged, as this would cause electrical contention.
