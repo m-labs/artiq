@@ -1,13 +1,7 @@
 #include <generated/csr.h>
 
-#include "exceptions.h"
-
-#ifdef ARTIQ_AMP
-#include "mailbox.h"
-#include "messages.h"
-#else
 #include "comm.h"
-#endif
+#include "exceptions.h"
 
 #define MAX_EXCEPTION_CONTEXTS 64
 
@@ -58,18 +52,7 @@ void exception_raise_params(int id,
         stored_params[2] = p2;
         exception_longjmp(exception_contexts[--ec_top].jb);
     } else {
-#ifdef ARTIQ_AMP
-    struct msg_exception msg;
-    int i;
-
-    msg.type = MESSAGE_TYPE_EXCEPTION;
-    msg.eid = EID_INTERNAL_ERROR;
-    for(i=0;i<3;i++)
-        msg.eparams[i] = 0;
-    mailbox_send_and_wait(&msg);
-#else
         comm_log("ERROR: uncaught exception, ID=%d\n", id);
-#endif
         while(1);
     }
 }

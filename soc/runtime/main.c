@@ -85,6 +85,21 @@ static int process_msg(struct msg_unknown *umsg, int *eid, long long int *eparam
                 eparams[i] = msg->eparams[i];
             return KERNEL_RUN_EXCEPTION;
         }
+        case MESSAGE_TYPE_RPC_REQUEST: {
+            struct msg_rpc_request *msg = (struct msg_rpc_request *)umsg;
+            struct msg_rpc_reply reply;
+
+            reply.type = MESSAGE_TYPE_RPC_REPLY;
+            reply.ret_val = comm_rpc_va(msg->rpc_num, msg->args);
+            mailbox_send_and_wait(&reply);
+            return KERNEL_RUN_INVALID_STATUS;
+        }
+        case MESSAGE_TYPE_LOG: {
+            struct msg_log *msg = (struct msg_log *)umsg;
+
+            comm_log(msg->fmt, msg->args);
+            return KERNEL_RUN_INVALID_STATUS;
+        }
         default:
             *eid = EID_INTERNAL_ERROR;
             for(i=0;i<3;i++)
@@ -104,7 +119,6 @@ static int run_kernel(const char *kernel_name, int *eid, long long int *eparams)
 #else
     void *jb;
 #endif
-
 
     k = find_symbol(symtab, kernel_name);
     if(k == NULL) {

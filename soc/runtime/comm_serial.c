@@ -242,7 +242,7 @@ static int send_value(int type_tag, void *value)
     return 0;
 }
 
-int comm_rpc(int rpc_num, ...)
+int comm_rpc_va(int rpc_num, va_list args)
 {
     int type_tag;
     int eid;
@@ -251,11 +251,8 @@ int comm_rpc(int rpc_num, ...)
     send_char(MSGTYPE_RPC_REQUEST);
     send_sint(rpc_num);
 
-    va_list args;
-    va_start(args, rpc_num);
     while((type_tag = va_arg(args, int)))
         send_value(type_tag, type_tag == 'n' ? NULL : va_arg(args, void *));
-    va_end(args);
     send_char(0);
 
     eid = receive_int();
@@ -271,19 +268,36 @@ int comm_rpc(int rpc_num, ...)
     return retval;
 }
 
-void comm_log(const char *fmt, ...)
+int comm_rpc(int rpc_num, ...)
 {
     va_list args;
+    int r;
+
+    va_start(args, rpc_num);
+    r = comm_rpc_va(rpc_num, args);
+    va_end(args);
+    return r;
+}
+
+void comm_log_va(const char *fmt, va_list args)
+{
     int len;
     char outbuf[256];
     int i;
 
-    va_start(args, fmt);
     len = vscnprintf(outbuf, sizeof(outbuf), fmt, args);
-    va_end(args);
 
     send_char(MSGTYPE_LOG);
     send_sint(len);
     for(i=0;i<len;i++)
         send_char(outbuf[i]);
+}
+
+void comm_log(const char *fmt, ...)
+{
+    va_list args;
+
+    va_start(args, fmt);
+    comm_log_va(fmt, args);
+    va_end(args);
 }

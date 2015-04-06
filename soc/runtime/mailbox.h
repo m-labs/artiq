@@ -6,6 +6,7 @@ int mailbox_acknowledged(void);
 void mailbox_send_and_wait(void *ptr);
 
 void *mailbox_receive(void);
+void *mailbox_wait_and_receive(void);
 void mailbox_acknowledge(void);
 
 #endif /* __MAILBOX_H */

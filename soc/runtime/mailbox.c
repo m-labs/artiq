@@ -75,6 +75,14 @@ void *mailbox_receive(void)
     }
 }
 
+void *mailbox_wait_and_receive(void)
+{
+    void *r;
+
+    while(!(r = mailbox_receive()));
+    return r;
+}
+
 void mailbox_acknowledge(void)
 {
     KERNELCPU_MAILBOX = 0;
