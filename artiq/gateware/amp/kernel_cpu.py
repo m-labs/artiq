@@ -33,7 +33,7 @@ class KernelCPU(Module):
         from mibuild.xilinx.vivado import XilinxVivadoToolchain
         if isinstance(platform.toolchain, XilinxVivadoToolchain):
             from migen.fhdl.simplify import FullMemoryWE
-            self.submodules.wishbone2lasmi = FullMemoryWE(
+            self.submodules.wishbone2lasmi = FullMemoryWE()(
                 WB2LASMI(l2_size//4, lasmim))
         else:
             self.submodules.wishbone2lasmi = WB2LASMI(l2_size//4, lasmim)
