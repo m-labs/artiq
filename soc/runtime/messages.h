@@ -33,7 +33,8 @@ struct msg_rpc_request {
 
 struct msg_rpc_reply {
     int type;
-    int ret_val;
+    int eid;
+    int retval;
 };
 
 struct msg_log {

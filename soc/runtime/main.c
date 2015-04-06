@@ -90,7 +90,7 @@ static int process_msg(struct msg_unknown *umsg, int *eid, long long int *eparam
             struct msg_rpc_reply reply;
 
             reply.type = MESSAGE_TYPE_RPC_REPLY;
-            reply.ret_val = comm_rpc_va(msg->rpc_num, msg->args);
+            comm_rpc_va(msg->rpc_num, msg->args, &reply.eid, &reply.retval);
             mailbox_send_and_wait(&reply);
             return KERNEL_RUN_INVALID_STATUS;
         }

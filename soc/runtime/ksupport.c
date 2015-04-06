@@ -59,7 +59,7 @@ int comm_rpc(int rpc_num, ...)
 {
     struct msg_rpc_request request;
     struct msg_rpc_reply *reply;
-    int r;
+    int eid, retval;
 
     request.type = MESSAGE_TYPE_RPC_REQUEST;
     request.rpc_num = rpc_num;
@@ -70,9 +70,13 @@ int comm_rpc(int rpc_num, ...)
     reply = mailbox_wait_and_receive();
     if(reply->type != MESSAGE_TYPE_RPC_REPLY)
         exception_raise(EID_INTERNAL_ERROR);
-    r = reply->ret_val;
+    eid = reply->eid;
+    retval = reply->retval;
     mailbox_acknowledge();
-    return r;
+
+    if(eid != EID_NONE)
+        exception_raise(eid);
+    return retval;
 }
 
 void comm_log(const char *fmt, ...)

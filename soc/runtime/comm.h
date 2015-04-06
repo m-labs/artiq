@@ -15,7 +15,7 @@ typedef int (*object_loader)(void *, int);
 typedef int (*kernel_runner)(const char *, int *, long long int *);
 
 void comm_serve(object_loader load_object, kernel_runner run_kernel);
-int comm_rpc_va(int rpc_num, va_list args);
+void comm_rpc_va(int rpc_num, va_list args, int *eid, int *retval);
 int comm_rpc(int rpc_num, ...);
 void comm_log_va(const char *fmt, va_list args);
 void comm_log(const char *fmt, ...);

@@ -4,7 +4,11 @@
 #include <generated/csr.h>
 
 #include "comm.h"
+
+#ifndef ARTIQ_AMP
 #include "exceptions.h"
+#endif
+
 
 /* host to device */
 enum {
@@ -242,11 +246,9 @@ static int send_value(int type_tag, void *value)
     return 0;
 }
 
-int comm_rpc_va(int rpc_num, va_list args)
+void comm_rpc_va(int rpc_num, va_list args, int *eid, int *retval)
 {
     int type_tag;
-    int eid;
-    int retval;
 
     send_char(MSGTYPE_RPC_REQUEST);
     send_sint(rpc_num);
@@ -255,29 +257,25 @@ int comm_rpc_va(int rpc_num, va_list args)
         send_value(type_tag, type_tag == 'n' ? NULL : va_arg(args, void *));
     send_char(0);
 
-    eid = receive_int();
-    retval = receive_int();
-
-#ifdef ARTIQ_AMP
-#warning TODO
-#else
-    if(eid != EID_NONE)
-        exception_raise(eid);
-#endif
-
-    return retval;
+    *eid = receive_int();
+    *retval = receive_int();
 }
 
+#ifndef ARTIQ_AMP
 int comm_rpc(int rpc_num, ...)
 {
     va_list args;
-    int r;
+    int eid, retval;
 
     va_start(args, rpc_num);
-    r = comm_rpc_va(rpc_num, args);
+    comm_rpc_va(rpc_num, args, &eid, &retval);
     va_end(args);
-    return r;
+
+    if(eid != EID_NONE)
+        exception_raise(eid);
+    return retval;
 }
+#endif
 
 void comm_log_va(const char *fmt, va_list args)
 {
