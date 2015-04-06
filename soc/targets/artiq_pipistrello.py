@@ -1,54 +1,12 @@
 from migen.fhdl.std import *
 from migen.bank.description import *
 from migen.bank import wbgen
-from mibuild.generic_platform import *
 
 from misoclib.com import gpio
 from misoclib.soc import mem_decoder
 from targets.pipistrello import BaseSoC
 
-from artiq.gateware import amp, rtio, ad9858
-
-
-_tester_io = [
-    ("ext_led", 0, Pins("B:7"), IOStandard("LVTTL")),
-
-    ("pmt", 0, Pins("C:13"), IOStandard("LVTTL")),
-    ("pmt", 1, Pins("C:14"), IOStandard("LVTTL")),
-    ("xtrig", 0, Pins("C:12"), IOStandard("LVTTL")),
-    ("dds_clock", 0, Pins("C:15"), IOStandard("LVTTL")),
-
-    ("ttl", 0, Pins("C:11"), IOStandard("LVTTL")),
-    ("ttl", 1, Pins("C:10"), IOStandard("LVTTL")),
-    ("ttl", 2, Pins("C:9"), IOStandard("LVTTL")),
-    ("ttl", 3, Pins("C:8"), IOStandard("LVTTL")),
-    ("ttl", 4, Pins("C:7"), IOStandard("LVTTL")),
-    ("ttl", 5, Pins("C:6"), IOStandard("LVTTL")),
-    ("ttl", 6, Pins("C:5"), IOStandard("LVTTL")),
-    ("ttl", 7, Pins("C:4"), IOStandard("LVTTL")),
-    ("ttl_l_tx_en", 0, Pins("A:9"), IOStandard("LVTTL")),
-
-    ("ttl", 8, Pins("C:3"), IOStandard("LVTTL")),
-    ("ttl", 9, Pins("C:2"), IOStandard("LVTTL")),
-    ("ttl", 10, Pins("C:1"), IOStandard("LVTTL")),
-    ("ttl", 11, Pins("C:0"), IOStandard("LVTTL")),
-    ("ttl", 12, Pins("B:4"), IOStandard("LVTTL")),
-    ("ttl", 13, Pins("A:11"), IOStandard("LVTTL")),
-    ("ttl", 14, Pins("B:5"), IOStandard("LVTTL")),
-    ("ttl", 15, Pins("A:10"), IOStandard("LVTTL")),
-    ("ttl_h_tx_en", 0, Pins("B:6"), IOStandard("LVTTL")),
-
-    ("dds", 0,
-        Subsignal("a", Pins("A:5 B:10 A:6 B:9 A:7 B:8")),
-        Subsignal("d", Pins("A:12 B:3 A:13 B:2 A:14 B:1 A:15 B:0")),
-        Subsignal("sel", Pins("A:2 B:14 A:1 B:15 A:0")),
-        Subsignal("p", Pins("A:8 B:12")),
-        Subsignal("fud_n", Pins("B:11")),
-        Subsignal("wr_n", Pins("A:4")),
-        Subsignal("rd_n", Pins("B:13")),
-        Subsignal("rst_n", Pins("A:3")),
-        IOStandard("LVTTL")),
-]
+from artiq.gateware import amp, rtio, ad9858, nist_qc1
 
 
 class _RTIOCRG(Module, AutoCSR):
@@ -87,7 +45,7 @@ TIMESPEC "TSfix_ise2" = FROM "GRPsys_clk" TO "GRPrtio_clk" TIG;
 """, rtio_clk=rtio_internal_clk)
 
 
-class _QcAdapterBase(BaseSoC):
+class _Peripherals(BaseSoC):
     csr_map = {
         "rtio": None,  # mapped on Wishbone instead
         "rtiocrg": 13
@@ -96,7 +54,7 @@ class _QcAdapterBase(BaseSoC):
 
     def __init__(self, platform, cpu_type="or1k", **kwargs):
         BaseSoC.__init__(self, platform, cpu_type=cpu_type, **kwargs)
-        platform.add_extension(_tester_io)
+        platform.add_extension(nist_qc1.papilio_adapter_io)
 
         self.submodules.leds = gpio.GPIOOut(Cat(
             platform.request("user_led", 0),
@@ -128,9 +86,9 @@ class _QcAdapterBase(BaseSoC):
         self.comb += dds_pads.fud_n.eq(~fud)
 
 
-class Single(_QcAdapterBase):
+class UP(_Peripherals):
     def __init__(self, platform, **kwargs):
-        _QcAdapterBase.__init__(self, platform, **kwargs)
+        _Peripherals.__init__(self, platform, **kwargs)
 
         rtio_csrs = self.rtio.get_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
@@ -140,14 +98,14 @@ class Single(_QcAdapterBase):
         self.add_wb_slave(mem_decoder(0xb0000000), self.dds.bus)
 
 
-class Double(_QcAdapterBase):
+class AMP(_Peripherals):
     csr_map = {
         "kernel_cpu": 14
     }
-    csr_map.update(_QcAdapterBase.csr_map)
+    csr_map.update(_Peripherals.csr_map)
 
     def __init__(self, platform, *args, **kwargs):
-        _QcAdapterBase.__init__(self, platform, **kwargs)
+        _Peripherals.__init__(self, platform, **kwargs)
 
         self.submodules.kernel_cpu = amp.KernelCPU(
             platform, self.sdram.crossbar.get_master())
@@ -163,4 +121,4 @@ class Double(_QcAdapterBase):
         self.kernel_cpu.add_wb_slave(mem_decoder(0xb0000000), self.dds.bus)
 
 
-default_subtarget = Single
+default_subtarget = UP

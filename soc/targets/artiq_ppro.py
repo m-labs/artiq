@@ -7,40 +7,7 @@ from misoclib.com import gpio
 from misoclib.mem.sdram.core.minicon import MiniconSettings
 from targets.ppro import BaseSoC
 
-from artiq.gateware import rtio, ad9858
-
-
-_tester_io = [
-    ("user_led", 1, Pins("B:7"), IOStandard("LVTTL")),
-
-    ("pmt", 0, Pins("C:13"), IOStandard("LVTTL")),
-    ("pmt", 1, Pins("C:14"), IOStandard("LVTTL")),
-    ("xtrig", 0, Pins("C:12"), IOStandard("LVTTL")),  # used for DDS clock
-
-    ("ttl", 0, Pins("C:11"), IOStandard("LVTTL")),
-    ("ttl", 1, Pins("C:10"), IOStandard("LVTTL")),
-    ("ttl", 2, Pins("C:9"), IOStandard("LVTTL")),
-    ("ttl", 3, Pins("C:8"), IOStandard("LVTTL")),
-    ("ttl", 4, Pins("C:7"), IOStandard("LVTTL")),
-    ("ttl", 5, Pins("C:6"), IOStandard("LVTTL")),
-    ("ttl", 6, Pins("C:5"), IOStandard("LVTTL")),
-    ("ttl", 7, Pins("C:4"), IOStandard("LVTTL")),
-    ("ttl_l_tx_en", 0, Pins("A:9"), IOStandard("LVTTL")),
-
-    ("ttl", 8, Pins("C:3"), IOStandard("LVTTL")),
-    ("ttl_h_tx_en", 0, Pins("B:6"), IOStandard("LVTTL")),
-
-    ("dds", 0,
-        Subsignal("a", Pins("A:5 B:10 A:6 B:9 A:7 B:8")),
-        Subsignal("d", Pins("A:12 B:3 A:13 B:2 A:14 B:1 A:15 B:0")),
-        Subsignal("sel", Pins("A:2 B:14 A:1 B:15 A:0")),
-        Subsignal("p", Pins("A:8 B:12")),
-        Subsignal("fud_n", Pins("B:11")),
-        Subsignal("wr_n", Pins("A:4")),
-        Subsignal("rd_n", Pins("B:13")),
-        Subsignal("rst_n", Pins("A:3")),
-        IOStandard("LVTTL")),
-]
+from artiq.gateware import rtio, ad9858, nist_qc1
 
 
 class _TestGen(Module):
@@ -86,7 +53,7 @@ TIMESPEC "TSfix_ise2" = FROM "GRPsys_clk" TO "GRPrtio_clk" TIG;
 """, rtio_clk=rtio_internal_clk)
 
 
-class ARTIQMiniSoC(BaseSoC):
+class UP(BaseSoC):
     csr_map = {
         "rtio": None,  # mapped on Wishbone instead
         "rtiocrg": 13
@@ -99,11 +66,11 @@ class ARTIQMiniSoC(BaseSoC):
                          cpu_type=cpu_type,
                          sdram_controller_settings=MiniconSettings(),
                          **kwargs)
-        platform.add_extension(_tester_io)
+        platform.add_extension(nist_qc1.papilio_adapter_io)
 
         self.submodules.leds = gpio.GPIOOut(Cat(
             platform.request("user_led", 0),
-            platform.request("user_led", 1)))
+            platform.request("ext_led", 0)))
 
         fud = Signal()
         self.comb += [
@@ -135,4 +102,5 @@ class ARTIQMiniSoC(BaseSoC):
         self.add_wb_slave(lambda a: a[26:29] == 3, self.dds.bus)
         self.comb += dds_pads.fud_n.eq(~fud)
 
-default_subtarget = ARTIQMiniSoC
+
+default_subtarget = UP

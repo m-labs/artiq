@@ -7,47 +7,7 @@ from misoclib.com import gpio
 from misoclib.soc import mem_decoder
 from targets.kc705 import BaseSoC
 
-from artiq.gateware import amp, rtio, ad9858
-
-
-_tester_io = [
-    ("pmt", 0, Pins("LPC:LA20_N"), IOStandard("LVTTL")),
-    ("pmt", 1, Pins("LPC:LA24_P"), IOStandard("LVTTL")),
-
-    ("ttl", 0, Pins("LPC:LA21_P"), IOStandard("LVTTL")),
-    ("ttl", 1, Pins("LPC:LA25_P"), IOStandard("LVTTL")),
-    ("ttl", 2, Pins("LPC:LA21_N"), IOStandard("LVTTL")),
-    ("ttl", 3, Pins("LPC:LA25_N"), IOStandard("LVTTL")),
-    ("ttl", 4, Pins("LPC:LA22_P"), IOStandard("LVTTL")),
-    ("ttl", 5, Pins("LPC:LA26_P"), IOStandard("LVTTL")),
-    ("ttl", 6, Pins("LPC:LA22_N"), IOStandard("LVTTL")),
-    ("ttl", 7, Pins("LPC:LA26_N"), IOStandard("LVTTL")),
-    ("ttl", 8, Pins("LPC:LA23_P"), IOStandard("LVTTL")),
-    ("ttl", 9, Pins("LPC:LA27_P"), IOStandard("LVTTL")),
-    ("ttl", 10, Pins("LPC:LA23_N"), IOStandard("LVTTL")),
-    ("ttl", 11, Pins("LPC:LA27_N"), IOStandard("LVTTL")),
-    ("ttl", 12, Pins("LPC:LA00_CC_P"), IOStandard("LVTTL")),
-    ("ttl", 13, Pins("LPC:LA10_P"), IOStandard("LVTTL")),
-    ("ttl", 14, Pins("LPC:LA00_CC_N"), IOStandard("LVTTL")),
-    ("ttl", 15, Pins("LPC:LA10_N"), IOStandard("LVTTL")),
-    ("ttl_l_tx_en", 0, Pins("LPC:LA11_P"), IOStandard("LVTTL")),
-    ("ttl_h_tx_en", 0, Pins("LPC:LA01_CC_P"), IOStandard("LVTTL")),
-
-    ("dds", 0,
-        Subsignal("a", Pins("LPC:LA04_N LPC:LA14_N LPC:LA05_P LPC:LA15_P "
-                            "LPC:LA05_N LPC:LA15_N")),
-        Subsignal("d", Pins("LPC:LA06_P LPC:LA16_P LPC:LA06_N LPC:LA16_N "
-                            "LPC:LA07_P LPC:LA17_CC_P LPC:LA07_N "
-                            "LPC:LA17_CC_N")),
-        Subsignal("sel", Pins("LPC:LA12_N LPC:LA03_P LPC:LA13_P LPC:LA03_N "
-                              "LPC:LA13_N")),
-        Subsignal("p", Pins("LPC:LA11_N LPC:LA02_P")),
-        Subsignal("fud_n", Pins("LPC:LA14_P")),
-        Subsignal("wr_n", Pins("LPC:LA04_P")),
-        Subsignal("rd_n", Pins("LPC:LA02_N")),
-        Subsignal("rst_n", Pins("LPC:LA12_P")),
-        IOStandard("LVTTL")),
-]
+from artiq.gateware import amp, rtio, ad9858, nist_qc1
 
 
 class _RTIOCRG(Module, AutoCSR):
@@ -68,7 +28,7 @@ class _RTIOCRG(Module, AutoCSR):
                                   o_O=self.cd_rtio.clk)
 
 
-class _ARTIQSoCPeripherals(BaseSoC):
+class _Peripherals(BaseSoC):
     csr_map = {
         "rtio": None,  # mapped on Wishbone instead
         "rtiocrg": 13
@@ -78,7 +38,7 @@ class _ARTIQSoCPeripherals(BaseSoC):
     def __init__(self, platform, cpu_type="or1k", **kwargs):
         BaseSoC.__init__(self, platform,
                          cpu_type=cpu_type, **kwargs)
-        platform.add_extension(_tester_io)
+        platform.add_extension(nist_qc1.fmc_adapter_io)
 
         self.submodules.leds = gpio.GPIOOut(Cat(
             platform.request("user_led", 0),
@@ -107,9 +67,9 @@ class _ARTIQSoCPeripherals(BaseSoC):
         self.comb += dds_pads.fud_n.eq(~fud)
 
 
-class ARTIQSoCBasic(_ARTIQSoCPeripherals):
+class UP(_Peripherals):
     def __init__(self, *args, **kwargs):
-        _ARTIQSoCPeripherals.__init__(self, *args, **kwargs)
+        _Peripherals.__init__(self, *args, **kwargs)
 
         rtio_csrs = self.rtio.get_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
@@ -119,14 +79,14 @@ class ARTIQSoCBasic(_ARTIQSoCPeripherals):
         self.add_wb_slave(mem_decoder(0xb0000000), self.dds.bus)
 
 
-class ARTIQSoC(_ARTIQSoCPeripherals):
+class AMP(_Peripherals):
     csr_map = {
         "kernel_cpu": 14
     }
-    csr_map.update(_ARTIQSoCPeripherals.csr_map)
+    csr_map.update(_Peripherals.csr_map)
 
     def __init__(self, platform, *args, **kwargs):
-        _ARTIQSoCPeripherals.__init__(self, platform, *args, **kwargs)
+        _Peripherals.__init__(self, platform, *args, **kwargs)
 
         self.submodules.kernel_cpu = amp.KernelCPU(
             platform, self.sdram.crossbar.get_master())
@@ -142,4 +102,4 @@ class ARTIQSoC(_ARTIQSoCPeripherals):
         self.kernel_cpu.add_wb_slave(mem_decoder(0xb0000000), self.dds.bus)
 
 
-default_subtarget = ARTIQSoCBasic
+default_subtarget = UP
