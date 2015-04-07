@@ -82,7 +82,7 @@ class AutoDB:
                         raise KeyError("Device '{}' not found".format(k))
                     object.__setattr__(self, k, dev)
         self.build()
-        if self.dbh is not None:
+        if self.dbh is not None and self.realtime_results:
             self.dbh.add_rt_results(self.realtime_results)
 
     def __getattr__(self, name):

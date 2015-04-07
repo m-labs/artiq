@@ -84,17 +84,18 @@ def _create_device(desc, dbh):
 class DBHub:
     """Connects device, parameter and result databases to experiment.
     Handle device driver creation and destruction.
-
     """
-    def __init__(self, ddb, pdb, rdb):
+    def __init__(self, ddb, pdb, rdb, read_only=False):
         self.ddb = ddb
         self.active_devices = OrderedDict()
 
         self.get_parameter = pdb.request
-        self.set_parameter = pdb.set
-        self.add_rt_results = rdb.add_rt_results
-        self.get_result = rdb.request
-        self.set_result = rdb.set
+
+        if not read_only:
+            self.set_parameter = pdb.set
+            self.add_rt_results = rdb.add_rt_results
+            self.get_result = rdb.request
+            self.set_result = rdb.set
 
     def get_device(self, name):
         if name in self.active_devices:
