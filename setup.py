@@ -11,6 +11,7 @@ requirements = [
 
 scripts = [
     "artiq_client=artiq.frontend.artiq_client:main",
+    "artiq_compile=artiq.frontend.artiq_compile:main",
     "artiq_ctlmgr=artiq.frontend.artiq_ctlmgr:main",
     "artiq_master=artiq.frontend.artiq_master:main",
     "artiq_rpctool=artiq.frontend.artiq_rpctool:main",

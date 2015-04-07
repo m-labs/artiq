@@ -9,7 +9,7 @@ Local running tool
    :prog: artiq_run
 
 Remote Procedure Call tool
-------------------------------
+--------------------------
 
 .. argparse::
    :ref: artiq.frontend.artiq_rpctool.get_argparser
@@ -72,3 +72,13 @@ in order to call remote functions of an ARTIQ controller.
 
             $ artiq_rpctool.py ::1 3253 call get_attenuation
             5.0 dB
+
+Static compiler
+---------------
+
+This tool compiles an experiment into a ELF file. It is primarily used to prepare binaries for the default experiment loaded in non-volatile storage of the core device.
+Experiments compiled with this tool are not allowed to use RPCs, and their ``run`` entry point must be a kernel.
+
+.. argparse::
+   :ref: artiq.frontend.artiq_compile.get_argparser
+   :prog: artiq_compile
