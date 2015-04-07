@@ -12,7 +12,7 @@ BIN_PREFIX=$ARTIQ_PREFIX/binaries
 mkdir -p $ARTIQ_PREFIX/misc
 cp misc/99-ppro.rules $ARTIQ_PREFIX/misc/
 mkdir -p $BIN_PREFIX
-cp $SRC_DIR/misoc/build/artiqminisoc-papilio_pro.bin $BIN_PREFIX/
+cp $SRC_DIR/misoc/build/artiq_ppro-up-papilio_pro.bin $BIN_PREFIX/
 cp $SRC_DIR/misoc/software/bios/bios.bin $BIN_PREFIX/
 cp soc/runtime/runtime.fbi $BIN_PREFIX/
 cp artiq/frontend/artiq_flash.sh $PREFIX/bin
