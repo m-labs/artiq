@@ -103,20 +103,23 @@ class Core(AutoDB):
         remove_dead_code(func_def)
         debug_unparse("remove_dead_code_2", func_def)
 
-    def run(self, k_function, k_args, k_kwargs):
-        # transform/simplify AST
+    def compile(self, k_function, k_args, k_kwargs, with_attr_writeback=True):
         debug_unparse = _make_debug_unparse("remove_dead_code_2")
 
         func_def, rpc_map, exception_map = inline(
-            self, k_function, k_args, k_kwargs)
+            self, k_function, k_args, k_kwargs, with_attr_writeback)
         debug_unparse("inline", func_def)
-
         self.transform_stack(func_def, rpc_map, exception_map, debug_unparse)
 
-        # compile to machine code and run
         binary = get_runtime_binary(self.runtime_env, func_def)
+
+        return binary, rpc_map, exception_map
+
+    def run(self, k_function, k_args, k_kwargs):
+        binary, rpc_map, exception_map = self.compile(
+            k_function, k_args, k_kwargs)
         self.comm.load(binary)
-        self.comm.run(func_def.name)
+        self.comm.run(k_function.__name__)
         self.comm.serve(rpc_map, exception_map)
 
     @kernel

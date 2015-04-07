@@ -467,7 +467,7 @@ def get_attr_writeback(attribute_namespace, rpc_mapper, loc_node):
     return attr_writeback
 
 
-def inline(core, k_function, k_args, k_kwargs):
+def inline(core, k_function, k_args, k_kwargs, with_attr_writeback):
     # OrderedDict prevents non-determinism in attribute init
     attribute_namespace = OrderedDict()
     in_use_names = copy(embeddable_func_names)
@@ -486,7 +486,8 @@ def inline(core, k_function, k_args, k_kwargs):
         kwargs=k_kwargs)
 
     func_def.body[0:0] = get_attr_init(attribute_namespace, func_def)
-    func_def.body += get_attr_writeback(attribute_namespace, mappers.rpc,
-                                        func_def)
+    if with_attr_writeback:
+        func_def.body += get_attr_writeback(attribute_namespace, mappers.rpc,
+                                            func_def)
 
     return func_def, mappers.rpc.get_map(), mappers.exception.get_map()
