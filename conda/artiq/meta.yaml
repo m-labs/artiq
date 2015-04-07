@@ -10,13 +10,16 @@ build:
     number: {{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}
     entry_points:
         - artiq_client = artiq.frontend.artiq_client:main
-        - artiq_gui = artiq.frontend.artiq_gui:main # [not win]
+        - artiq_ctlmgr = artiq.frontend.artiq_ctlmgr:main
         - artiq_master = artiq.frontend.artiq_master:main
         - artiq_rpctool = artiq.frontend.artiq_rpctool:main
         - artiq_run = artiq.frontend.artiq_run:main
         - lda_controller = artiq.frontend.lda_controller:main
+        - novatech409b_controller = artiq.frontend.novatech409b_controller:main
         - pdq2_client = artiq.frontend.pdq2_client:main
         - pdq2_controller = artiq.frontend.pdq2_controller:main
+        - thorlabs_tcube_controller = artiq.frontend.thorlabs_tcube_controller:main
+        - artiq_gui = artiq.frontend.artiq_gui:main # [not win]
 
 requirements:
     build:
