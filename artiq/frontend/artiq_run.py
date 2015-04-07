@@ -10,11 +10,10 @@ import logging
 import h5py
 
 from artiq.language.db import *
-from artiq.language.experiment import is_experiment, Experiment
-from artiq.protocols import pyon
+from artiq.language.experiment import Experiment
 from artiq.protocols.file_db import FlatFileDB
 from artiq.master.worker_db import DBHub, ResultDB
-from artiq.tools import file_import, verbosity_args, init_logger
+from artiq.tools import *
 
 
 logger = logging.getLogger(__name__)
@@ -99,28 +98,6 @@ def get_argparser(with_file=True):
     return parser
 
 
-def _parse_arguments(arguments):
-    d = {}
-    for argument in arguments:
-        name, eq, value = argument.partition("=")
-        d[name] = pyon.decode(value)
-    return d
-
-
-def _get_experiment(module, experiment=None):
-    if experiment:
-        return getattr(module, experiment)
-
-    exps = [(k, v) for k, v in module.__dict__.items()
-            if is_experiment(v)]
-    if not exps:
-        logger.error("No experiments in module")
-    if len(exps) > 1:
-        logger.warning("Multiple experiments (%s), using first",
-                       ", ".join(k for (k, v) in exps))
-    return exps[0][1]
-
-
 def _build_experiment(dbh, args):
     if hasattr(args, "file"):
         if args.file.endswith(".elf"):
@@ -136,8 +113,8 @@ def _build_experiment(dbh, args):
     else:
         module = sys.modules["__main__"]
         file = getattr(module, "__file__")
-    exp = _get_experiment(module, args.experiment)
-    arguments = _parse_arguments(args.arguments)
+    exp = get_experiment(module, args.experiment)
+    arguments = parse_arguments(args.arguments)
     return exp(dbh,
                scheduler=DummyScheduler(),
                run_params=dict(file=file,

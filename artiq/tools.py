@@ -7,6 +7,16 @@ import asyncio
 import time
 import os.path
 
+from artiq.language.experiment import is_experiment
+from artiq.protocols import pyon
+
+
+def parse_arguments(arguments):
+    d = {}
+    for argument in arguments:
+        name, eq, value = argument.partition("=")
+        d[name] = pyon.decode(value)
+    return d
 
 def format_arguments(arguments):
     fmtargs = []
@@ -39,6 +49,19 @@ def file_import(filename):
     sys.path.remove(path)
 
     return module
+
+
+def get_experiment(module, experiment=None):
+    if experiment:
+        return getattr(module, experiment)
+
+    exps = [(k, v) for k, v in module.__dict__.items()
+            if is_experiment(v)]
+    if not exps:
+        raise ValueError("No experiments in module")
+    if len(exps) > 1:
+        raise ValueError("More than one experiment found in module")
+    return exps[0][1]
 
 
 def verbosity_args(parser):
