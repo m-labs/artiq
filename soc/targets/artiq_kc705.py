@@ -52,6 +52,7 @@ class _Peripherals(BaseSoC):
         rtio_ins = [platform.request("pmt") for i in range(2)]
         rtio_outs = [platform.request("ttl", i) for i in range(16)]
         rtio_outs.append(platform.request("user_led", 2))
+        self.add_constant("RTIO_FUD_CHANNEL", len(rtio_ins) + len(rtio_outs))
         rtio_outs.append(fud)
 
         self.submodules.rtiocrg = _RTIOCRG(platform, self.crg.pll_sys)
