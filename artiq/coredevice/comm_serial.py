@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 class Comm(CommGeneric, AutoDB):
     class DBKeys:
-        serial_dev = Parameter()
-        baud_rate = Parameter(115200)
+        serial_dev = Argument()
+        baud_rate = Argument(115200)
 
     def open(self):
         if hasattr(self, "port"):
@@ -31,7 +31,7 @@ class Comm(CommGeneric, AutoDB):
 
     def read(self, length):
         r = bytes()
-        while(len(r) < length):
+        while len(r) < length:
             r += self.port.read(length - len(r))
         return r
 
