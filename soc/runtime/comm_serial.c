@@ -12,33 +12,34 @@
 
 /* host to device */
 enum {
-    MSGTYPE_REQUEST_IDENT = 1,
+    MSGTYPE_SET_BAUD_RATE = 1,
+
+    MSGTYPE_REQUEST_IDENT,
+    MSGTYPE_SWITCH_CLOCK,
+    
     MSGTYPE_LOAD_OBJECT,
     MSGTYPE_RUN_KERNEL,
-    MSGTYPE_SET_BAUD_RATE,
-    MSGTYPE_SWITCH_CLOCK,
 };
 
 /* device to host */
 enum {
-    MSGTYPE_LOG = 1,
-    MSGTYPE_MESSAGE_UNRECOGNIZED,
+    MSGTYPE_MESSAGE_UNRECOGNIZED = 1,
+    MSGTYPE_LOG,
 
     MSGTYPE_IDENT,
+    MSGTYPE_CLOCK_SWITCH_COMPLETED,
+    MSGTYPE_CLOCK_SWITCH_FAILED,
 
     MSGTYPE_OBJECT_LOADED,
-    MSGTYPE_INCORRECT_LENGTH,
-    MSGTYPE_CRC_FAILED,
+    MSGTYPE_OBJECT_INCORRECT_LENGTH,
+    MSGTYPE_OBJECT_CRC_FAILED,
     MSGTYPE_OBJECT_UNRECOGNIZED,
 
     MSGTYPE_KERNEL_FINISHED,
-    MSGTYPE_KERNEL_EXCEPTION,
     MSGTYPE_KERNEL_STARTUP_FAILED,
+    MSGTYPE_KERNEL_EXCEPTION,
 
     MSGTYPE_RPC_REQUEST,
-
-    MSGTYPE_CLOCK_SWITCH_COMPLETED,
-    MSGTYPE_CLOCK_SWITCH_FAILED,
 };
 
 static int receive_int(void)
@@ -114,14 +115,14 @@ static void receive_and_load_object(object_loader load_object)
 
     length = receive_int();
     if(length > sizeof(buffer)) {
-        send_char(MSGTYPE_INCORRECT_LENGTH);
+        send_char(MSGTYPE_OBJECT_INCORRECT_LENGTH);
         return;
     }
     crc = receive_int();
     for(i=0;i<length;i++)
         buffer[i] = receive_char();
     if(crc32(buffer, length) != crc) {
-        send_char(MSGTYPE_CRC_FAILED);
+        send_char(MSGTYPE_OBJECT_CRC_FAILED);
         return;
     }
     if(load_object(buffer, length))
@@ -140,7 +141,7 @@ static void receive_and_run_kernel(kernel_runner run_kernel)
 
     length = receive_int();
     if(length > (sizeof(kernel_name)-1)) {
-        send_char(MSGTYPE_INCORRECT_LENGTH);
+        send_char(MSGTYPE_OBJECT_INCORRECT_LENGTH);
         return;
     }
     for(i=0;i<length;i++)
