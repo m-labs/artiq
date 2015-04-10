@@ -5,7 +5,7 @@ from mibuild.generic_platform import *
 
 from misoclib.com import gpio
 from misoclib.soc import mem_decoder
-from targets.kc705 import BaseSoC
+from targets.kc705 import MiniSoC
 
 from artiq.gateware import amp, rtio, ad9858, nist_qc1
 
@@ -28,15 +28,15 @@ class _RTIOCRG(Module, AutoCSR):
                                   o_O=self.cd_rtio.clk)
 
 
-class _Peripherals(BaseSoC):
+class _Peripherals(MiniSoC):
     csr_map = {
         "rtio": None,  # mapped on Wishbone instead
         "rtiocrg": 13
     }
-    csr_map.update(BaseSoC.csr_map)
+    csr_map.update(MiniSoC.csr_map)
 
     def __init__(self, platform, cpu_type="or1k", **kwargs):
-        BaseSoC.__init__(self, platform,
+        MiniSoC.__init__(self, platform,
                          cpu_type=cpu_type, **kwargs)
         platform.add_extension(nist_qc1.fmc_adapter_io)
 
