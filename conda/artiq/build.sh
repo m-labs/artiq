@@ -8,12 +8,12 @@ cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_ppro build-headers build-bi
 make -C soc/runtime runtime.fbi
 cd $SRC_DIR/misoc; python make.py -X $SRC_DIR/soc -t  artiq_ppro build-bitstream; cd -
 ARTIQ_PREFIX=$PREFIX/lib/python3.4/site-packages/artiq
-BIN_PREFIX=$ARTIQ_PREFIX/binaries
+BIN_PREFIX=$ARTIQ_PREFIX/binaries/
 mkdir -p $ARTIQ_PREFIX/misc
 cp misc/99-ppro.rules $ARTIQ_PREFIX/misc/
-mkdir -p $BIN_PREFIX
-cp $SRC_DIR/misoc/build/artiq_ppro-up-papilio_pro.bin $BIN_PREFIX/
-cp $SRC_DIR/misoc/software/bios/bios.bin $BIN_PREFIX/
-cp soc/runtime/runtime.fbi $BIN_PREFIX/
+mkdir -p $BIN_PREFIX/ppro $BIN_PREFIX/kc705
+cp $SRC_DIR/misoc/build/artiq_ppro-up-papilio_pro.bin $BIN_PREFIX/ppro
+cp $SRC_DIR/misoc/software/bios/bios.bin $BIN_PREFIX/ppro
+cp soc/runtime/runtime.fbi $BIN_PREFIX/ppro
 cp artiq/frontend/artiq_flash.sh $PREFIX/bin
-cp Papilio-Loader/xc3sprog/trunk/bscan_spi/bscan_spi_lx9_papilio.bit $BIN_PREFIX/
+cp Papilio-Loader/xc3sprog/trunk/bscan_spi/bscan_spi_lx9_papilio.bit $BIN_PREFIX/ppro
