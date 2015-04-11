@@ -75,11 +75,11 @@ class _Peripherals(MiniSoC):
 
         if isinstance(platform.toolchain, XilinxVivadoToolchain):
             platform.add_platform_command("""
-create_clock -name rsys_clk -period 8.0 [get_nets rsys_clk]
-create_clock -name rio_clk -period 8.0 [get_nets rio_clk]
+create_clock -name rsys_clk -period 8.0 [get_nets {rsys_clk}]
+create_clock -name rio_clk -period 8.0 [get_nets {rio_clk}]
 set_false_path -from [get_clocks rsys_clk] -to [get_clocks rio_clk]
 set_false_path -from [get_clocks rio_clk] -to [get_clocks rsys_clk]
-""")
+""", rsys_clk=self.rtio.cd_rsys.clk, rio_clk=self.rtio.cd_rio.clk)
 
 class UP(_Peripherals):
     def __init__(self, *args, **kwargs):
