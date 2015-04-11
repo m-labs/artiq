@@ -4,6 +4,7 @@ from migen.bank import wbgen
 from mibuild.generic_platform import *
 
 from misoclib.com import gpio
+from misoclib.soc import mem_decoder
 from misoclib.mem.sdram.core.minicon import MiniconSettings
 from targets.ppro import BaseSoC
 
@@ -59,6 +60,11 @@ class UP(BaseSoC):
         "rtiocrg": 13
     }
     csr_map.update(BaseSoC.csr_map)
+    mem_map = {
+        "rtio":     0x20000000, # (shadow @0xa0000000)
+        "dds":      0x50000000, # (shadow @0xd0000000)
+    }
+    mem_map.update(MiniSoC.mem_map)
 
     def __init__(self, platform, cpu_type="or1k",
                  with_test_gen=False, **kwargs):
@@ -93,15 +99,16 @@ class UP(BaseSoC):
 
         rtio_csrs = self.rtio.get_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
-        self.add_wb_slave(lambda a: a[26:29] == 2, self.rtiowb.bus)
-        self.add_csr_region("rtio", 0xa0000000, 32, rtio_csrs)
+        self.add_wb_slave(mem_decoder(self.mem_map["rtio"]), self.rtiowb.bus)
+        self.add_csr_region("rtio", self.mem_map["rtio"] + 0x80000000, 32, rtio_csrs)
 
         if with_test_gen:
             self.submodules.test_gen = _TestGen(platform.request("ttl", 8))
 
         dds_pads = platform.request("dds")
         self.submodules.dds = ad9858.AD9858(dds_pads)
-        self.add_wb_slave(lambda a: a[26:29] == 3, self.dds.bus)
+        self.add_wb_slave(mem_decoder(self.mem_map["dds"]), self.dds.bus)
+        self.add_memory_region("dds", self.mem_map["dds"] + 0x80000000, 64*4)
         self.comb += dds_pads.fud_n.eq(~fud)
 
 

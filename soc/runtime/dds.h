@@ -2,12 +2,13 @@
 #define __DDS_H
 
 #include <hw/common.h>
+#include <generated/mem.h>
 
 #define DDS_READ(addr) \
-    MMPTR(0xb0000000 + (addr)*4)
+    MMPTR(DDS_BASE + (addr)*4)
 
 #define DDS_WRITE(addr, data) \
-    MMPTR(0xb0000000 + (addr)*4) = data
+    MMPTR(DDS_BASE + (addr)*4) = data
 
 #define DDS_FTW0  0x0a
 #define DDS_FTW1  0x0b

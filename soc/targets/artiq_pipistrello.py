@@ -51,6 +51,11 @@ class _Peripherals(BaseSoC):
         "rtiocrg": 13
     }
     csr_map.update(BaseSoC.csr_map)
+    mem_map = {
+        "rtio":     0x20000000, # (shadow @0xa0000000)
+        "dds":      0x50000000, # (shadow @0xd0000000)
+    }
+    mem_map.update(MiniSoC.mem_map)
 
     def __init__(self, platform, cpu_type="or1k", **kwargs):
         BaseSoC.__init__(self, platform, cpu_type=cpu_type, **kwargs)
@@ -93,17 +98,21 @@ class UP(_Peripherals):
 
         rtio_csrs = self.rtio.get_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
-        self.add_wb_slave(mem_decoder(0xa0000000), self.rtiowb.bus)
-        self.add_csr_region("rtio", 0xa0000000, 32, rtio_csrs)
+        self.add_wb_slave(mem_decoder(self.mem_map["rtio"]), self.rtiowb.bus)
+        self.add_csr_region("rtio", self.mem_map["rtio"] + 0x80000000, 32, rtio_csrs)
 
-        self.add_wb_slave(mem_decoder(0xb0000000), self.dds.bus)
-
+        self.add_wb_slave(mem_decoder(self.mem_map["dds"]), self.dds.bus)
+        self.add_memory_region("dds", self.mem_map["dds"] + 0x80000000, 64*4)
 
 class AMP(_Peripherals):
     csr_map = {
         "kernel_cpu": 14
     }
     csr_map.update(_Peripherals.csr_map)
+    mem_map = {
+        "mailbox":  0x70000000 # (shadow @0xf0000000)
+    }
+    mem_map.update(_Peripherals.mem_map)
 
     def __init__(self, platform, *args, **kwargs):
         _Peripherals.__init__(self, platform, **kwargs)
@@ -111,15 +120,16 @@ class AMP(_Peripherals):
         self.submodules.kernel_cpu = amp.KernelCPU(
             platform, self.sdram.crossbar.get_master())
         self.submodules.mailbox = amp.Mailbox()
-        self.add_wb_slave(mem_decoder(0xd0000000), self.mailbox.i1)
-        self.kernel_cpu.add_wb_slave(mem_decoder(0xd0000000), self.mailbox.i2)
+        self.add_wb_slave(mem_decoder(self.mem_map["mailbox"]), self.mailbox.i1)
+        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["mailbox"]), self.mailbox.i2)
 
         rtio_csrs = self.rtio.get_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
-        self.kernel_cpu.add_wb_slave(mem_decoder(0xa0000000), self.rtiowb.bus)
-        self.add_csr_region("rtio", 0xa0000000, 32, rtio_csrs)
+        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["rtio"]), self.rtiowb.bus)
+        self.add_csr_region("rtio", self.mem_map["rtio"] + 0x80000000, 32, rtio_csrs)
 
-        self.kernel_cpu.add_wb_slave(mem_decoder(0xb0000000), self.dds.bus)
+        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["dds"]), self.dds.bus)
+        self.kernel_cpu.add_memory_region("dds", self.mem_map["dds"] + 0x80000000, 64*4)
 
 
 default_subtarget = UP
