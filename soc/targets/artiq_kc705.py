@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.bank.description import *
 from migen.bank import wbgen
 from mibuild.generic_platform import *
+from mibuild.xilinx.vivado import XilinxVivadoToolchain
 
 from misoclib.com import gpio
 from misoclib.soc import mem_decoder
@@ -72,6 +73,13 @@ class _Peripherals(MiniSoC):
         self.submodules.dds = ad9858.AD9858(dds_pads)
         self.comb += dds_pads.fud_n.eq(~fud)
 
+        if isinstance(platform.toolchain, XilinxVivadoToolchain):
+            platform.add_platform_command("""
+create_clock -name rsys_clk -period 8.0 [get_nets rsys_clk]
+create_clock -name rio_clk -period 8.0 [get_nets rio_clk]
+set_false_path -from [get_clocks rsys_clk] -to [get_clocks rio_clk]
+set_false_path -from [get_clocks rio_clk] -to [get_clocks rsys_clk]
+""")
 
 class UP(_Peripherals):
     def __init__(self, *args, **kwargs):
