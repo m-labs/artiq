@@ -109,7 +109,7 @@ check_return() {
 	exit
 }
 
-xc3sprog -c $CABLE -R 2&>1 > /dev/null
+xc3sprog -c $CABLE -R > /dev/null 2>&1
 if [ "$?" != "0" ]
 then
 		echo "Flashing failed. Maybe you do not have permission to access the USB device?"
@@ -139,4 +139,4 @@ then
 	xc3sprog -v -c $CABLE -I$PROXY_PATH/$PROXY $BIN_PREFIX/runtime.fbi:w:$RUNTIME_ADDR:BIN
 fi
 echo "Done."
-xc3sprog -v -c $CABLE -R 2&>1 > /dev/null
+xc3sprog -v -c $CABLE -R > /dev/null 2>&1
