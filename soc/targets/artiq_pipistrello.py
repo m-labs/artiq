@@ -53,6 +53,9 @@ class _Peripherals(BaseSoC):
 
     def __init__(self, platform, cpu_type="or1k", **kwargs):
         BaseSoC.__init__(self, platform, cpu_type=cpu_type, **kwargs)
+        platform.toolchain.ise_commands += """
+trce -v 12 -fastpaths -o {build_name}.twr {build_name}.ncd {build_name}.pcf
+"""
         platform.add_extension(nist_qc1.papilio_adapter_io)
 
         self.submodules.leds = gpio.GPIOOut(Cat(
