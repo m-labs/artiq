@@ -112,7 +112,7 @@ check_return() {
 xc3sprog -c $CABLE -R 2&>1 > /dev/null
 if [ "$?" != "0" ]
 then
-		echo "Flashing failed because it seems you do not have permission to access the USB device."
+		echo "Flashing failed. Maybe you do not have permission to access the USB device?"
 		echo "To fix this you might want to add a udev rule by doing:"
 		echo "$ sudo cp $ARTIQ_PREFIX/misc/$UDEV_RULES /etc/udev/rules.d"
 		echo "Then unplug/replug your device and try flashing again"
