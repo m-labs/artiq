@@ -30,20 +30,13 @@ class _RTIOCRG(Module, AutoCSR):
                                   i_FREEZEDCM=0,
                                   i_RST=ResetSignal())
 
-        rtio_external_clk = platform.request("dds_clock")
-        platform.add_period_constraint(rtio_external_clk, 8.0)
+        self.rtio_external_clk = platform.request("dds_clock")
+        platform.add_period_constraint(self.rtio_external_clk, 8.0)
         self.specials += Instance("BUFGMUX",
                                   i_I0=rtio_internal_clk,
-                                  i_I1=rtio_external_clk,
+                                  i_I1=self.rtio_external_clk,
                                   i_S=self._clock_sel.storage,
                                   o_O=self.cd_rtio.clk)
-
-        platform.add_platform_command("""
-NET "{rtio_clk}" TNM_NET = "GRPrtio_clk";
-NET "sys_clk" TNM_NET = "GRPsys_clk";
-TIMESPEC "TSfix_ise1" = FROM "GRPrtio_clk" TO "GRPsys_clk" TIG;
-TIMESPEC "TSfix_ise2" = FROM "GRPsys_clk" TO "GRPrtio_clk" TIG;
-""", rtio_clk=rtio_internal_clk)
 
 
 class _Peripherals(BaseSoC):
@@ -53,8 +46,8 @@ class _Peripherals(BaseSoC):
     }
     csr_map.update(BaseSoC.csr_map)
     mem_map = {
-        "rtio":     0x20000000, # (shadow @0xa0000000)
-        "dds":      0x50000000, # (shadow @0xd0000000)
+        "rtio":     0x20000000,  # (shadow @0xa0000000)
+        "dds":      0x50000000,  # (shadow @0xd0000000)
     }
     mem_map.update(BaseSoC.mem_map)
 
@@ -107,6 +100,12 @@ class _Peripherals(BaseSoC):
         self.submodules.rtiocrg = _RTIOCRG(platform)
         self.submodules.rtio = rtio.RTIO(rtio_channels,
                                          clk_freq=125000000)
+        platform.add_platform_command("""
+NET "{rtio_ext_clk}" TNM_NET = "GRPrtio_ext_clk";
+NET "{sys_clk}" TNM_NET = "GRPsys_clk";
+TIMESPEC "TSfix_ise1" = FROM "GRPrtio_ext_clk" TO "GRPsys_clk" TIG;
+TIMESPEC "TSfix_ise2" = FROM "GRPsys_clk" TO "GRPrtio_ext_clk" TIG;
+""", rtio_ext_clk=self.rtiocrg.rtio_external_clk, sys_clk=self.crg.cd_sys.clk)
 
         dds_pads = platform.request("dds")
         self.submodules.dds = ad9858.AD9858(dds_pads)
@@ -120,10 +119,12 @@ class UP(_Peripherals):
         rtio_csrs = self.rtio.get_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
         self.add_wb_slave(mem_decoder(self.mem_map["rtio"]), self.rtiowb.bus)
-        self.add_csr_region("rtio", self.mem_map["rtio"] + 0x80000000, 32, rtio_csrs)
+        self.add_csr_region("rtio", self.mem_map["rtio"] + 0x80000000, 32,
+                            rtio_csrs)
 
         self.add_wb_slave(mem_decoder(self.mem_map["dds"]), self.dds.bus)
         self.add_memory_region("dds", self.mem_map["dds"] + 0x80000000, 64*4)
+
 
 class AMP(_Peripherals):
     csr_map = {
@@ -131,7 +132,7 @@ class AMP(_Peripherals):
     }
     csr_map.update(_Peripherals.csr_map)
     mem_map = {
-        "mailbox":  0x70000000 # (shadow @0xf0000000)
+        "mailbox":  0x70000000  # (shadow @0xf0000000)
     }
     mem_map.update(_Peripherals.mem_map)
 
@@ -141,16 +142,21 @@ class AMP(_Peripherals):
         self.submodules.kernel_cpu = amp.KernelCPU(
             platform, self.sdram.crossbar.get_master())
         self.submodules.mailbox = amp.Mailbox()
-        self.add_wb_slave(mem_decoder(self.mem_map["mailbox"]), self.mailbox.i1)
-        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["mailbox"]), self.mailbox.i2)
+        self.add_wb_slave(mem_decoder(self.mem_map["mailbox"]),
+                          self.mailbox.i1)
+        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["mailbox"]),
+                                     self.mailbox.i2)
 
         rtio_csrs = self.rtio.get_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
-        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["rtio"]), self.rtiowb.bus)
-        self.add_csr_region("rtio", self.mem_map["rtio"] + 0x80000000, 32, rtio_csrs)
+        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["rtio"]),
+                                     self.rtiowb.bus)
+        self.add_csr_region("rtio", self.mem_map["rtio"] + 0x80000000, 32,
+                            rtio_csrs)
 
-        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["dds"]), self.dds.bus)
-        self.kernel_cpu.add_memory_region("dds", self.mem_map["dds"] + 0x80000000, 64*4)
+        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["dds"]),
+                                     self.dds.bus)
+        self.add_memory_region("dds", self.mem_map["dds"] + 0x80000000, 64*4)
 
 
 default_subtarget = UP
