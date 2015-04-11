@@ -47,7 +47,7 @@ class TestPdq2(unittest.TestCase):
         buf = self.test_cmd_program()
         tb = Pdq2Sim(buf)
         tb.ctrl_pads.trigger.reset = 0
-        run_simulation(tb, vcd_name="pdq2.vcd", ncycles=len(buf) + 250)
+        run_simulation(tb, ncycles=len(buf) + 250)
         delays = 7, 10, 30
         y = list(zip(*tb.outputs[len(buf) + 130:]))
         y = list(zip(*(yi[di:] for yi, di in zip(y, delays))))
