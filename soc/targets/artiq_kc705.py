@@ -103,4 +103,4 @@ class AMP(_Peripherals):
         self.kernel_cpu.add_wb_slave(mem_decoder(0xb0000000), self.dds.bus)
 
 
-default_subtarget = UP
+default_subtarget = AMP
