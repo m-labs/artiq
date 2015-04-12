@@ -46,7 +46,7 @@ class TestPdq2(unittest.TestCase):
 
         buf = self.test_cmd_program()
         tb = Pdq2Sim(buf)
-        tb.ctrl_pads.trigger.reset = 0
+        tb.ctrl_pads.trigger.reset = 1
         run_simulation(tb, ncycles=len(buf) + 250)
         delays = 7, 10, 30
         y = list(zip(*tb.outputs[len(buf) + 130:]))
@@ -65,8 +65,8 @@ class TestPdq2(unittest.TestCase):
                 yij = yij*20./2**16
                 if yij > 10:
                     yij -= 20
-                self.assertAlmostEqual(yij, yij_ref, 2,
-                                       "foo t={}, c={}".format(i, j))
+                self.assertAlmostEqual(yij, yij_ref, 2, "disagreement at "
+                                       "t={}, c={}".format(i, j))
 
     @unittest.skipUnless(pdq2_gateware, "no pdq2 gateware")
     @unittest.skip("manual/visual test")

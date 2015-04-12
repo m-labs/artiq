@@ -1,6 +1,6 @@
 # Robert Jordens <jordens@gmail.com>, 2012-2015
 
-from math import log2, sqrt
+from math import log, sqrt
 import logging
 import struct
 
@@ -95,7 +95,6 @@ class Channel:
         del self.segments[:]
 
     def new_segment(self):
-        # assert len(self.segments) < self.num_frames
         segment = Segment()
         self.segments.append(segment)
         return segment
@@ -186,25 +185,31 @@ class Pdq2:
         s = self.channels[channel].segments[segment]
         self.write_mem(channel, s.data, s.adr)
 
+    def program_frame(self, frame_data):
+        segments = [c.new_segment() for c in self.channels]
+        for i, line in enumerate(frame_data):  # segments are concatenated
+            dac_divider = line.get("dac_divider", 1)
+            shift = int(log(dac_divider, 2))
+            if 2**shift != dac_divider:
+                raise ValueError("only power-of-two dac_dividers supported")
+            duration = line["duration"]
+            trigger = line.get("trigger", False)
+            for segment, data in zip(segments, line["channel_data"]):
+                if len(data) != 1:
+                    raise ValueError("only one target per channel and line "
+                                     "supported")
+                for target, target_data in data.items():
+                    getattr(segment, target)(
+                        shift=shift, duration=duration, trigger=trigger,
+                        **target_data)
+        # append an empty line to stall the memory reader before jumping
+        # through the frame table
+        for segment in segments:
+            segment.line(typ=3, data=b"", trigger=True, duration=10)
+        return segments
+
     def program(self, program):
         self.clear_all()
         for frame_data in program:
-            segments = [c.new_segment() for c in self.channels]
-            for i, line in enumerate(frame_data):  # segments are concatenated
-                dac_divider = line.get("dac_divider", 1)
-                shift = int(log2(dac_divider))
-                assert 2**shift == dac_divider
-                duration = line["duration"]
-                trigger = line.get("trigger", False)
-                if i == 0:
-                    assert trigger
-                    trigger = False  # use wait on the last line
-                eof = i == len(frame_data) - 1
-                for segment, data in zip(segments, line.get("channel_data")):
-                    assert len(data) == 1
-                    for target, target_data in data.items():
-                        getattr(segment, target)(
-                            shift=shift, duration=duration,
-                            trigger=trigger, wait=eof, jump=eof,
-                            **target_data)
+            self.program_frame(frame_data)
         self.write_all()
