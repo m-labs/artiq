@@ -55,7 +55,7 @@ class _Peripherals(BaseSoC):
         "rtio":     0x20000000, # (shadow @0xa0000000)
         "dds":      0x50000000, # (shadow @0xd0000000)
     }
-    mem_map.update(MiniSoC.mem_map)
+    mem_map.update(BaseSoC.mem_map)
 
     def __init__(self, platform, cpu_type="or1k", **kwargs):
         BaseSoC.__init__(self, platform, cpu_type=cpu_type, **kwargs)
