@@ -7,6 +7,7 @@ from misoclib.soc import mem_decoder
 from targets.pipistrello import BaseSoC
 
 from artiq.gateware import amp, rtio, ad9858, nist_qc1
+from artiq.gateware.rtio.phy import ttl_simple
 
 
 class _RTIOCRG(Module, AutoCSR):
@@ -66,26 +67,46 @@ class _Peripherals(BaseSoC):
             platform.request("user_led", 1),
         ))
 
-        fud = Signal()
         self.comb += [
             platform.request("ttl_l_tx_en").eq(1),
             platform.request("ttl_h_tx_en").eq(1)
         ]
-        rtio_ins = [platform.request("pmt", i) for i in range(2)]
-        rtio_ins += [platform.request("xtrig", 0)]
-        rtio_outs = [platform.request("ttl", i) for i in range(16)]
-        rtio_outs += [platform.request("ext_led", 0)]
-        rtio_outs += [platform.request("user_led", i) for i in range(2, 5)]
-        self.add_constant("RTIO_FUD_CHANNEL", len(rtio_ins) + len(rtio_outs))
-        rtio_outs.append(fud)
 
+        # RTIO channels
+        rtio_channels = []
+        for i in range(2):
+            phy = ttl_simple.Inout(platform.request("pmt", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel(phy.rtlink, ififo_depth=512))
+
+        phy = ttl_simple.Inout(platform.request("xtrig", 0))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel(phy.rtlink))
+
+        for i in range(16):
+            phy = ttl_simple.Output(platform.request("ttl", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel(phy.rtlink))
+
+        phy = ttl_simple.Output(platform.request("ext_led", 0))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel(phy.rtlink))
+
+        for i in range(2, 5):
+            phy = ttl_simple.Output(platform.request("user_led", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel(phy.rtlink))
+
+        fud = Signal()
+        self.add_constant("RTIO_FUD_CHANNEL", len(rtio_channels))
+        phy = ttl_simple.Output(fud)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel(phy.rtlink))
+
+        # RTIO core
         self.submodules.rtiocrg = _RTIOCRG(platform)
-        self.submodules.rtiophy = rtio.phy.SimplePHY(
-            rtio_ins + rtio_outs,
-            output_only_pads=set(rtio_outs))
-        self.submodules.rtio = rtio.RTIO(self.rtiophy,
-                                         clk_freq=125000000,
-                                         ififo_depth=512)
+        self.submodules.rtio = rtio.RTIO(rtio_channels,
+                                         clk_freq=125000000)
 
         dds_pads = platform.request("dds")
         self.submodules.dds = ad9858.AD9858(dds_pads)

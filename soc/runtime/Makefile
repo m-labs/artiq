@@ -54,7 +54,7 @@ ksupport.elf: $(OBJECTS_KSUPPORT)
 ksupport_data.o: ksupport.bin
 	$(LD) -r -b binary -o $@ $<
 
-service_table.h: $(SERVICE_TABLE_INPUT)
+service_table.h: $(SERVICE_TABLE_INPUT) gen_service_table.py
 	@echo " GEN     " $@ && ./gen_service_table.py $(SERVICE_TABLE_INPUT) > $@
 
 services.c: service_table.h

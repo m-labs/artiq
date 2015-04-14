@@ -9,6 +9,7 @@ from misoclib.soc import mem_decoder
 from targets.kc705 import MiniSoC
 
 from artiq.gateware import amp, rtio, ad9858, nist_qc1
+from artiq.gateware.rtio.phy import ttl_simple
 
 
 class _RTIOCRG(Module, AutoCSR):
@@ -50,24 +51,36 @@ class _Peripherals(MiniSoC):
             platform.request("user_led", 0),
             platform.request("user_led", 1)))
 
-        fud = Signal()
         self.comb += [
             platform.request("ttl_l_tx_en").eq(1),
             platform.request("ttl_h_tx_en").eq(1)
         ]
-        rtio_ins = [platform.request("pmt") for i in range(2)]
-        rtio_outs = [platform.request("ttl", i) for i in range(16)]
-        rtio_outs.append(platform.request("user_led", 2))
-        self.add_constant("RTIO_FUD_CHANNEL", len(rtio_ins) + len(rtio_outs))
-        rtio_outs.append(fud)
 
+        # RTIO channels
+        rtio_channels = []
+        for i in range(2):
+            phy = ttl_simple.Inout(platform.request("pmt", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel(phy.rtlink, ififo_depth=512))
+        for i in range(16):
+            phy = ttl_simple.Output(platform.request("ttl", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel(phy.rtlink))
+
+        phy = ttl_simple.Output(platform.request("user_led", 2))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel(phy.rtlink))
+
+        fud = Signal()
+        self.add_constant("RTIO_FUD_CHANNEL", len(rtio_channels))
+        phy = ttl_simple.Output(fud)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel(phy.rtlink))
+
+        # RTIO core
         self.submodules.rtiocrg = _RTIOCRG(platform, self.crg.pll_sys)
-        self.submodules.rtiophy = rtio.phy.SimplePHY(
-            rtio_ins + rtio_outs,
-            output_only_pads=set(rtio_outs))
-        self.submodules.rtio = rtio.RTIO(self.rtiophy,
-                                         clk_freq=125000000,
-                                         ififo_depth=512)
+        self.submodules.rtio = rtio.RTIO(rtio_channels,
+                                         clk_freq=125000000)
 
         dds_pads = platform.request("dds")
         self.submodules.dds = ad9858.AD9858(dds_pads)
@@ -85,13 +98,14 @@ class UP(_Peripherals):
     def __init__(self, *args, **kwargs):
         _Peripherals.__init__(self, *args, **kwargs)
 
-        rtio_csrs = self.rtio.get_csrs()
+        rtio_csrs = self.rtio.get_csrs() + self.rtio.get_kernel_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
         self.add_wb_slave(mem_decoder(self.mem_map["rtio"]), self.rtiowb.bus)
         self.add_csr_region("rtio", self.mem_map["rtio"] + 0x80000000, 32, rtio_csrs)
 
         self.add_wb_slave(mem_decoder(self.mem_map["dds"]), self.dds.bus)
         self.add_memory_region("dds", self.mem_map["dds"] + 0x80000000, 64*4)
+
 
 class AMP(_Peripherals):
     csr_map = {
@@ -112,12 +126,13 @@ class AMP(_Peripherals):
         self.add_wb_slave(mem_decoder(self.mem_map["mailbox"]), self.mailbox.i1)
         self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["mailbox"]), self.mailbox.i2)
 
-        rtio_csrs = self.rtio.get_csrs()
+        rtio_csrs = self.rtio.get_kernel_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
         self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["rtio"]), self.rtiowb.bus)
         self.add_csr_region("rtio", self.mem_map["rtio"] + 0x80000000, 32, rtio_csrs)
 
         self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["dds"]), self.dds.bus)
         self.add_memory_region("dds", self.mem_map["dds"] + 0x80000000, 64*4)
+
 
 default_subtarget = AMP

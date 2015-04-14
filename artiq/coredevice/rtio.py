@@ -21,17 +21,17 @@ class LLRTIOOut(AutoDB):
 
     @kernel
     def _set_oe(self):
-        syscall("rtio_oe", self.channel, True)
+        syscall("rtio_set_oe", time_to_cycles(now()), self.channel, True)
 
     @kernel
-    def set_value(self, t, value):
-        """Sets the value of the RTIO channel.
+    def set_o(self, t, value):
+        """Sets the output value of the RTIO channel.
 
         :param t: timestamp in RTIO cycles (64-bit integer).
         :param value: value to set at the output.
 
         """
-        syscall("rtio_set", t, self.channel, value)
+        syscall("rtio_set_o", t, self.channel, value)
 
     @kernel
     def on(self, t):
@@ -40,7 +40,7 @@ class LLRTIOOut(AutoDB):
         :param t: timestamp in RTIO cycles (64-bit integer).
 
         """
-        self.set_value(t, 1)
+        self.set_o(t, 1)
 
     @kernel
     def off(self, t):
@@ -49,28 +49,10 @@ class LLRTIOOut(AutoDB):
         :param t: timestamp in RTIO cycles (64-bit integer).
 
         """
-        self.set_value(t, 0)
+        self.set_o(t, 0)
 
 
-class _RTIOBase(AutoDB):
-    class DBKeys:
-        core = Device()
-        channel = Argument()
-
-    def build(self):
-        self.previous_timestamp = int64(0)  # in RTIO cycles
-
-    @kernel
-    def _set_oe(self, oe):
-        syscall("rtio_oe", self.channel, oe)
-
-    @kernel
-    def _set_value(self, value):
-        syscall("rtio_set", time_to_cycles(now()), self.channel, value)
-        self.previous_timestamp = time_to_cycles(now())
-
-
-class RTIOOut(_RTIOBase):
+class RTIOOut(AutoDB):
     """RTIO output driver.
 
     Configures the corresponding RTIO channel as output on the core device and
@@ -85,9 +67,22 @@ class RTIOOut(_RTIOBase):
     :param channel: channel number
 
     """
+    class DBKeys:
+        core = Device()
+        channel = Argument()
+
     def build(self):
-        _RTIOBase.build(self)
-        self._set_oe(True)
+        self.previous_timestamp = int64(0)  # in RTIO cycles
+        self._set_oe()
+
+    @kernel
+    def _set_oe(self):
+        syscall("rtio_set_oe", time_to_cycles(now()), self.channel, True)
+
+    @kernel
+    def _set_o(self, value):
+        syscall("rtio_set_o", time_to_cycles(now()), self.channel, value)
+        self.previous_timestamp = time_to_cycles(now())
 
     @kernel
     def sync(self):
@@ -96,24 +91,19 @@ class RTIOOut(_RTIOBase):
         This function is useful to synchronize CPU-controlled devices (such as
         the AD9858 DDS bus) with related RTIO controls (such as RF switches at
         the output of the DDS).
-
         """
         while syscall("rtio_get_counter") < self.previous_timestamp:
             pass
 
     @kernel
     def on(self):
-        """Sets the output to a logic high state.
-
-        """
-        self._set_value(1)
+        """Sets the output to a logic high state."""
+        self._set_o(1)
 
     @kernel
     def off(self):
-        """Sets the output to a logic low state.
-
-        """
-        self._set_value(0)
+        """Sets the output to a logic low state."""
+        self._set_o(0)
 
     @kernel
     def pulse(self, duration):
@@ -125,7 +115,7 @@ class RTIOOut(_RTIOBase):
         self.off()
 
 
-class RTIOIn(_RTIOBase):
+class RTIOIn(AutoDB):
     """RTIO input driver.
 
     Configures the corresponding RTIO channel as input on the core device and
@@ -134,29 +124,41 @@ class RTIOIn(_RTIOBase):
 
     :param core: core device
     :param channel: channel number
-
     """
+    class DBKeys:
+        core = Device()
+        channel = Argument()
+
     def build(self):
-        _RTIOBase.build(self)
-        self._set_oe(False)
+        self.previous_timestamp = int64(0)  # in RTIO cycles
+        self._set_oe()
+
+    @kernel
+    def _set_oe(self):
+        syscall("rtio_set_oe", time_to_cycles(now()), self.channel, False)
+
+    @kernel
+    def _set_sensitivity(self, value):
+        syscall("rtio_set_sensitivity", time_to_cycles(now()), self.channel, value)
+        self.previous_timestamp = time_to_cycles(now())
 
     @kernel
     def gate_rising(self, duration):
         """Register rising edge events for the specified duration.
 
         """
-        self._set_value(1)
+        self._set_sensitivity(1)
         delay(duration)
-        self._set_value(0)
+        self._set_sensitivity(0)
 
     @kernel
     def gate_falling(self, duration):
         """Register falling edge events for the specified duration.
 
         """
-        self._set_value(2)
+        self._set_sensitivity(2)
         delay(duration)
-        self._set_value(0)
+        self._set_sensitivity(0)
 
     @kernel
     def gate_both(self, duration):
@@ -164,18 +166,9 @@ class RTIOIn(_RTIOBase):
         duration.
 
         """
-        self._set_value(3)
+        self._set_sensitivity(3)
         delay(duration)
-        self._set_value(0)
-
-    @kernel
-    def pileup_count(self):
-        """Returns the number of pileup events (a system clock cycle with too
-        many input transitions) since the last call to this function for this
-        channel (or since the last RTIO reset).
-
-        """
-        return syscall("rtio_pileup_count", self.channel)
+        self._set_sensitivity(0)
 
     @kernel
     def count(self):

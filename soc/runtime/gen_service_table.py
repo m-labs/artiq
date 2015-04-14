@@ -6,11 +6,11 @@ import sys
 services = [
     ("syscalls", [
         ("rpc", "comm_rpc"),
-        ("rtio_oe", "rtio_oe"),
-        ("rtio_set", "rtio_set"),
+        ("rtio_set_o", "rtio_set_o"),
+        ("rtio_set_oe", "rtio_set_oe"),
+        ("rtio_set_sensitivity", "rtio_set_sensitivity"),
         ("rtio_get_counter", "rtio_get_counter"),
         ("rtio_get", "rtio_get"),
-        ("rtio_pileup_count", "rtio_pileup_count"),
         ("dds_phase_clear_en", "dds_phase_clear_en"),
         ("dds_program", "dds_program"),
     ]),

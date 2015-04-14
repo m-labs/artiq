@@ -82,8 +82,8 @@ static void ttlout(char *n, char *value)
     }
 
     rtio_init();
-    rtio_oe(n2, 1);
-    rtio_set(rtio_get_counter() + 8000, n2, value2);
+    rtio_set_oe(rtio_get_counter() + 8000, n2, 1);
+    rtio_set_o(rtio_get_counter() + 8000, n2, value2);
 }
 
 static void ddssel(char *n)

@@ -9,6 +9,7 @@ from misoclib.mem.sdram.core.minicon import MiniconSettings
 from targets.ppro import BaseSoC
 
 from artiq.gateware import rtio, ad9858, nist_qc1
+from artiq.gateware.rtio.phy import ttl_simple
 
 
 class _TestGen(Module):
@@ -78,29 +79,39 @@ class UP(BaseSoC):
             platform.request("user_led", 0),
             platform.request("ext_led", 0)))
 
-        fud = Signal()
         self.comb += [
             platform.request("ttl_l_tx_en").eq(1),
             platform.request("ttl_h_tx_en").eq(1)
         ]
-        rtio_ins = [platform.request("pmt") for i in range(2)]
-        rtio_outs = [platform.request("ttl", i) for i in range(5)]
-        self.add_constant("RTIO_FUD_CHANNEL", len(rtio_ins) + len(rtio_outs))
-        rtio_outs.append(fud)
 
+        # RTIO channels
+        rtio_channels = []
+        for i in range(2):
+            phy = ttl_simple.Inout(platform.request("pmt", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel(phy.rtlink))
+        for i in range(5):
+            phy = ttl_simple.Output(platform.request("ttl", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel(phy.rtlink))
+
+        fud = Signal()
+        self.add_constant("RTIO_FUD_CHANNEL", len(rtio_channels))
+        phy = ttl_simple.Output(fud)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel(phy.rtlink))
+
+        # RTIO core
         self.submodules.rtiocrg = _RTIOMiniCRG(platform)
-        self.submodules.rtiophy = rtio.phy.SimplePHY(
-            rtio_ins + rtio_outs,
-            output_only_pads=set(rtio_outs))
-        self.submodules.rtio = rtio.RTIO(self.rtiophy,
+        self.submodules.rtio = rtio.RTIO(rtio_channels,
                                          clk_freq=125000000,
-                                         counter_width=32,
-                                         ififo_depth=512)
+                                         counter_width=32)
 
-        rtio_csrs = self.rtio.get_csrs()
+        rtio_csrs = self.rtio.get_csrs() + self.rtio.get_kernel_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
         self.add_wb_slave(mem_decoder(self.mem_map["rtio"]), self.rtiowb.bus)
-        self.add_csr_region("rtio", self.mem_map["rtio"] + 0x80000000, 32, rtio_csrs)
+        self.add_csr_region("rtio", self.mem_map["rtio"] + 0x80000000,
+                            32, rtio_csrs)
 
         if with_test_gen:
             self.submodules.test_gen = _TestGen(platform.request("ttl", 8))

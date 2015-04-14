@@ -12,11 +12,11 @@ llvm.initialize_all_targets()
 llvm.initialize_all_asmprinters()
 
 _syscalls = {
-    "rtio_oe": "ib:n",
-    "rtio_set": "Iii:n",
+    "rtio_set_o": "Iii:n",
+    "rtio_set_oe": "Iib:n",
+    "rtio_set_sensitivity": "Iii:n",
     "rtio_get_counter": "n:I",
     "rtio_get": "iI:I",
-    "rtio_pileup_count": "i:i",
     "dds_phase_clear_en": "ib:n",
     "dds_program": "Iiiiibb:n",
 }
