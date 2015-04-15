@@ -3,7 +3,7 @@
         "type": "local",
         "module": "artiq.coredevice.comm_serial",
         "class": "Comm",
-        "arguments": {}
+        "arguments": {"serial_dev": "/dev/ttyUSB1"}
     },
     "core": {
         "type": "local",
