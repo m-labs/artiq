@@ -30,13 +30,25 @@ class _RTIOCRG(Module, AutoCSR):
                                   i_FREEZEDCM=0,
                                   i_RST=ResetSignal())
 
-        self.rtio_external_clk = platform.request("dds_clock")
-        platform.add_period_constraint(self.rtio_external_clk, 8.0)
+        rtio_external_clk = platform.request("dds_clock")
+        platform.add_period_constraint(rtio_external_clk, 8.0)
         self.specials += Instance("BUFGMUX",
                                   i_I0=rtio_internal_clk,
-                                  i_I1=self.rtio_external_clk,
+                                  i_I1=rtio_external_clk,
                                   i_S=self._clock_sel.storage,
                                   o_O=self.cd_rtio.clk)
+
+        platform.add_platform_command("""
+NET "{int_clk}" TNM_NET = "GRPint_clk";
+NET "{ext_clk}" TNM_NET = "GRPext_clk";
+NET "sys_clk" TNM_NET = "GRPsys_clk";
+TIMESPEC "TSfix_ise1" = FROM "GRPint_clk" TO "GRPsys_clk" TIG;
+TIMESPEC "TSfix_ise2" = FROM "GRPsys_clk" TO "GRPint_clk" TIG;
+TIMESPEC "TSfix_ise3" = FROM "GRPext_clk" TO "GRPsys_clk" TIG;
+TIMESPEC "TSfix_ise4" = FROM "GRPsys_clk" TO "GRPext_clk" TIG;
+TIMESPEC "TSfix_ise5" = FROM "GRPext_clk" TO "GRPint_clk" TIG;
+TIMESPEC "TSfix_ise6" = FROM "GRPint_clk" TO "GRPext_clk" TIG;
+""", int_clk=rtio_internal_clk, ext_clk=rtio_external_clk)
 
 
 class _Peripherals(BaseSoC):
@@ -54,7 +66,7 @@ class _Peripherals(BaseSoC):
     def __init__(self, platform, cpu_type="or1k", **kwargs):
         BaseSoC.__init__(self, platform, cpu_type=cpu_type, **kwargs)
         platform.toolchain.ise_commands += """
-trce -v 12 -fastpaths -o {build_name}.twr {build_name}.ncd {build_name}.pcf
+trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd {build_name}.pcf
 """
         platform.add_extension(nist_qc1.papilio_adapter_io)
 
@@ -103,12 +115,6 @@ trce -v 12 -fastpaths -o {build_name}.twr {build_name}.ncd {build_name}.pcf
         self.submodules.rtiocrg = _RTIOCRG(platform)
         self.submodules.rtio = rtio.RTIO(rtio_channels,
                                          clk_freq=125000000)
-        platform.add_platform_command("""
-NET "{rtio_ext_clk}" TNM_NET = "GRPrtio_ext_clk";
-NET "{sys_clk}" TNM_NET = "GRPsys_clk";
-TIMESPEC "TSfix_ise1" = FROM "GRPrtio_ext_clk" TO "GRPsys_clk" TIG;
-TIMESPEC "TSfix_ise2" = FROM "GRPsys_clk" TO "GRPrtio_ext_clk" TIG;
-""", rtio_ext_clk=self.rtiocrg.rtio_external_clk, sys_clk=self.crg.cd_sys.clk)
 
         dds_pads = platform.request("dds")
         self.submodules.dds = ad9858.AD9858(dds_pads)
