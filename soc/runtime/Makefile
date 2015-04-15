@@ -5,7 +5,7 @@ OBJECTS_KSUPPORT := exception_jmp.o exceptions.o rtio.o dds.o
 
 # NOTE: this does not handle dependencies well. Run "make clean"
 # when switching between UP and AMP.
-UNIPROCESSOR := $(shell echo -e "\#include <generated/csr.h>\nCSR_KERNEL_CPU_BASE" | $(CC_normal) $(CFLAGS) -E - | tail -n 1 | grep -c CSR_KERNEL_CPU_BASE)
+UNIPROCESSOR := $(shell /bin/echo -e "\#include <generated/csr.h>\nCSR_KERNEL_CPU_BASE" | $(CC_normal) $(CFLAGS) -E - | tail -n 1 | grep -c CSR_KERNEL_CPU_BASE)
 
 ifeq ($(UNIPROCESSOR),0)
 OBJECTS += mailbox.o kernelcpu.o ksupport_data.o
