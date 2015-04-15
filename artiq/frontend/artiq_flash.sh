@@ -24,8 +24,12 @@ do
 			elif [ "$OPTARG" == "ppro" ]
 			then
 				BOARD=ppro
+			elif [ "$OPTARG" == "pipistrello" ]
+			then
+				BOARD=pipistrello
 			else
-				echo "Supported targets (-t option) are: kc705 and ppro"
+				echo "Supported targets (-t option) are:"
+				echo "kc705, ppro, or pipistrello"
 				exit 1
 			fi
 			;;
@@ -43,12 +47,12 @@ do
 			echo ""
 			echo "To flash everything, do not use any of the -b|-B|-r option."
 			echo ""
-			echo "usage: $0 [-b] [-B] [-r] [-h] [-t kc705|ppro] [-d path]"
+			echo "usage: $0 [-b] [-B] [-r] [-h] [-t kc705|ppro|pipistrello] [-d path]"
 			echo "-b  Flash bitstream"
 			echo "-B  Flash BIOS"
 			echo "-r  Flash ARTIQ runtime"
 			echo "-h  Show this help message"
-			echo "-t  Target (kc705 or ppro, default is: ppro)"
+			echo "-t  Target (kc705, pipistrello, ppro, default is: ppro)"
 			echo "-d  Directory containing the binaries to be flashed"
 			exit 1
 			;;
@@ -70,6 +74,16 @@ then
 	PROXY_PATH=$BIN_PREFIX
 	BIOS_ADDR=0x60000
 	RUNTIME_ADDR=0x70000
+elif [ "$BOARD" == "pipistrello" ]
+then
+	UDEV_RULES=99-ppro.rules
+	BITSTREAM=artiq_pipistrello-amp-pipistrello.bin
+	CABLE=papilio
+	PROXY=bscan_spi_lx9_csg324.bit
+	BIN_PREFIX=$ARTIQ_PREFIX/binaries/pipistrello
+	PROXY_PATH=$BIN_PREFIX
+	BIOS_ADDR=0x170000
+	RUNTIME_ADDR=0x180000
 elif [ "$BOARD" == "kc705" ]
 then
 	UDEV_RULES=99-kc705.rules
