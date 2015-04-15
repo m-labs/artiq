@@ -1,5 +1,16 @@
 import numpy as np
-from scipy.interpolate import splrep, splev
+from scipy.interpolate import splrep, splev, spalde
+
+
+class CoefficientSource:
+    def get_times(self, t, speed, clock):
+        pass
+
+    def get_coefficients(self, t, speed):
+        pass
+
+    def get_program(self, dt, u):
+        pass
 
 
 def _round_times(times, sample_times=None):
@@ -23,16 +34,6 @@ def _interpolate(time, data, sample_times, order=3):
     return coeffs
 
 
-def discrete_compensate(c):
-    l = len(c)
-    if l > 2:
-        c[1] += c[2]/2.
-    if l > 3:
-        c[1] += c[3]/6.
-        c[2] += c[3]
-    if l > 4:
-        raise ValueError("only third-order splines supported")
-
 
 def _zip_program(times, channels, target):
     for tc in zip(times, *channels):
@@ -54,3 +55,23 @@ def interpolate_channels(times, data, sample_times=None, **kwargs):
     channel_coeff = [_interpolate(sample_times, i, **kwargs) for i in data.T]
     return _zip_program(duration, np.array(channel_coeff))
     # v = np.clip(v/self.max_out, -1, 1)
+    #
+    #
+
+def discrete_compensate(c):
+    """Compensate spline coefficients for discrete accumulators
+
+    Given continuous time b-spline coefficients, this function
+    compensates for the effect of discrete time steps in the
+    target devices.
+
+    The compensation is performed in-place.
+    """
+    l = len(c)
+    if l > 2:
+        c[1] += c[2]/2.
+    if l > 3:
+        c[1] += c[3]/6.
+        c[2] += c[3]
+    if l > 4:
+        raise ValueError("only third-order splines supported")
