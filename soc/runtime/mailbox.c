@@ -2,10 +2,11 @@
 #include <system.h>
 #include <spr-defs.h>
 #include <hw/common.h>
+#include <generated/mem.h>
 
 #include "mailbox.h"
 
-#define KERNELCPU_MAILBOX MMPTR(0xf0000000)
+#define KERNELCPU_MAILBOX MMPTR(MAILBOX_BASE)
 
 static unsigned int last_transmission;
 
