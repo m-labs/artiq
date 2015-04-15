@@ -20,7 +20,7 @@ $(error failed to determine UP/AMP build)
 endif
 endif
 
-all: runtime.bin
+all: runtime.fbi
 
 # pull in dependency info for *existing* .o files
 -include $(OBJECTS:.o=.d)
