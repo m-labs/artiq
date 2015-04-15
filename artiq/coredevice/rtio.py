@@ -10,7 +10,6 @@ class LLRTIOOut(AutoDB):
 
     This is meant to be used mostly in drivers; consider using
     ``RTIOOut`` instead.
-
     """
     class DBKeys:
         core = Device()
@@ -29,7 +28,6 @@ class LLRTIOOut(AutoDB):
 
         :param t: timestamp in RTIO cycles (64-bit integer).
         :param value: value to set at the output.
-
         """
         syscall("rtio_set_o", t, self.channel, value)
 
@@ -38,7 +36,6 @@ class LLRTIOOut(AutoDB):
         """Turns the RTIO channel on.
 
         :param t: timestamp in RTIO cycles (64-bit integer).
-
         """
         self.set_o(t, 1)
 
@@ -47,7 +44,6 @@ class LLRTIOOut(AutoDB):
         """Turns the RTIO channel off.
 
         :param t: timestamp in RTIO cycles (64-bit integer).
-
         """
         self.set_o(t, 0)
 
@@ -65,7 +61,6 @@ class RTIOOut(AutoDB):
 
     :param core: core device
     :param channel: channel number
-
     """
     class DBKeys:
         core = Device()
@@ -107,9 +102,7 @@ class RTIOOut(AutoDB):
 
     @kernel
     def pulse(self, duration):
-        """Pulses the output high for the specified duration.
-
-        """
+        """Pulses the output high for the specified duration."""
         self.on()
         delay(duration)
         self.off()
@@ -144,18 +137,14 @@ class RTIOIn(AutoDB):
 
     @kernel
     def gate_rising(self, duration):
-        """Register rising edge events for the specified duration.
-
-        """
+        """Register rising edge events for the specified duration."""
         self._set_sensitivity(1)
         delay(duration)
         self._set_sensitivity(0)
 
     @kernel
     def gate_falling(self, duration):
-        """Register falling edge events for the specified duration.
-
-        """
+        """Register falling edge events for the specified duration."""
         self._set_sensitivity(2)
         delay(duration)
         self._set_sensitivity(0)
@@ -163,9 +152,7 @@ class RTIOIn(AutoDB):
     @kernel
     def gate_both(self, duration):
         """Register both rising and falling edge events for the specified
-        duration.
-
-        """
+        duration."""
         self._set_sensitivity(3)
         delay(duration)
         self._set_sensitivity(0)
@@ -173,9 +160,7 @@ class RTIOIn(AutoDB):
     @kernel
     def count(self):
         """Poll the RTIO input during all the previously programmed gate
-        openings, and returns the number of registered events.
-
-        """
+        openings, and returns the number of registered events."""
         count = 0
         while syscall("rtio_get", self.channel, self.previous_timestamp) >= 0:
             count += 1
@@ -187,7 +172,6 @@ class RTIOIn(AutoDB):
         the gating.
 
         If the gate is permanently closed, returns a negative value.
-
         """
         return cycles_to_time(syscall("rtio_get", self.channel,
                                       self.previous_timestamp))
