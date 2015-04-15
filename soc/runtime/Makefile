@@ -20,7 +20,7 @@ $(error failed to determine UP/AMP build)
 endif
 endif
 
-all: runtime.fbi
+all: runtime.bin runtime.fbi
 
 # pull in dependency info for *existing* .o files
 -include $(OBJECTS:.o=.d)
@@ -30,7 +30,7 @@ all: runtime.fbi
 	@chmod -x $@
 
 %.fbi: %.bin
-	$(MSCDIR)/mkmscimg.py -f -o $@ $<
+	@echo " MSCIMG  " $@ && $(MSCDIR)/mkmscimg.py -f -o $@ $<
 
 runtime.elf: $(OBJECTS) libs
 	$(LD) $(LDFLAGS) \
