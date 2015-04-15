@@ -155,6 +155,8 @@ class AMP(_Peripherals):
                           self.mailbox.i1)
         self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["mailbox"]),
                                      self.mailbox.i2)
+        self.add_memory_region("mailbox",
+                               self.mem_map["mailbox"] + 0x80000000, 4)
 
         rtio_csrs = self.rtio.get_kernel_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
