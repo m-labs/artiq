@@ -5,7 +5,7 @@
 
 #include "mailbox.h"
 
-#define KERNELCPU_MAILBOX MMPTR(0xd0000000)
+#define KERNELCPU_MAILBOX MMPTR(0xf0000000)
 
 static unsigned int last_transmission;
 
