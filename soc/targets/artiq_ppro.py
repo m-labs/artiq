@@ -48,11 +48,16 @@ class _RTIOMiniCRG(Module, AutoCSR):
                                   o_O=self.cd_rtio.clk)
 
         platform.add_platform_command("""
-NET "{rtio_clk}" TNM_NET = "GRPrtio_clk";
+NET "{int_clk}" TNM_NET = "GRPint_clk";
+NET "{ext_clk}" TNM_NET = "GRPext_clk";
 NET "sys_clk" TNM_NET = "GRPsys_clk";
-TIMESPEC "TSfix_ise1" = FROM "GRPrtio_clk" TO "GRPsys_clk" TIG;
-TIMESPEC "TSfix_ise2" = FROM "GRPsys_clk" TO "GRPrtio_clk" TIG;
-""", rtio_clk=rtio_internal_clk)
+TIMESPEC "TSfix_ise1" = FROM "GRPint_clk" TO "GRPsys_clk" TIG;
+TIMESPEC "TSfix_ise2" = FROM "GRPsys_clk" TO "GRPint_clk" TIG;
+TIMESPEC "TSfix_ise3" = FROM "GRPext_clk" TO "GRPsys_clk" TIG;
+TIMESPEC "TSfix_ise4" = FROM "GRPsys_clk" TO "GRPext_clk" TIG;
+TIMESPEC "TSfix_ise5" = FROM "GRPext_clk" TO "GRPint_clk" TIG;
+TIMESPEC "TSfix_ise6" = FROM "GRPint_clk" TO "GRPext_clk" TIG;
+""", int_clk=rtio_internal_clk, ext_clk=rtio_external_clk)
 
 
 class UP(BaseSoC):
