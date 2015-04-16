@@ -268,15 +268,18 @@ class _KernelCSRs(AutoCSR):
         self.reset = CSRStorage(reset=1)
         self.chan_sel = CSRStorage(chan_sel_width)
 
-        self.o_data = CSRStorage(data_width)
-        self.o_address = CSRStorage(address_width)
+        if data_width:
+            self.o_data = CSRStorage(data_width)
+        if address_width:
+            self.o_address = CSRStorage(address_width)
         self.o_timestamp = CSRStorage(full_ts_width)
         self.o_we = CSR()
         self.o_status = CSRStatus(3)
         self.o_underflow_reset = CSR()
         self.o_sequence_error_reset = CSR()
 
-        self.i_data = CSRStatus(data_width)        
+        if data_width:
+            self.i_data = CSRStatus(data_width)
         self.i_timestamp = CSRStatus(full_ts_width)
         self.i_re = CSR()
         self.i_status = CSRStatus(2)
@@ -299,8 +302,7 @@ class RTIO(Module):
         # CSRs
         self.csrs = _CSRs()
         self.kcsrs = _KernelCSRs(bits_for(len(channels)-1),
-                                 max(data_width, 1),
-                                 max(address_width, 1),
+                                 data_width, address_width,
                                  counter_width + fine_ts_width)
 
         # Clocking/Reset
@@ -391,8 +393,9 @@ class RTIO(Module):
                 i_datas.append(0)
                 i_timestamps.append(0)
                 i_statuses.append(0)
+        if data_width:
+            self.comb += self.kcsrs.i_data.status.eq(Array(i_datas)[sel])
         self.comb += [
-            self.kcsrs.i_data.status.eq(Array(i_datas)[sel]),
             self.kcsrs.i_timestamp.status.eq(Array(i_timestamps)[sel]),
             self.kcsrs.o_status.status.eq(Array(o_statuses)[sel]),
             self.kcsrs.i_status.status.eq(Array(i_statuses)[sel])
