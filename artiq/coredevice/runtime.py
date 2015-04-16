@@ -190,9 +190,8 @@ def _debug_dump_obj(obj):
 
 
 class Environment(LinkInterface):
-    def __init__(self, internal_ref_period):
+    def __init__(self):
         self.cpu_type = "or1k"
-        self.internal_ref_period = internal_ref_period
         # allow 1ms for all initial DDS programming
         self.warmup_time = 1*units.ms
 
@@ -203,5 +202,4 @@ class Environment(LinkInterface):
         return obj
 
     def __repr__(self):
-        return "<Environment {} {}>".format(self.cpu_type,
-                                            str(1/self.ref_period))
+        return "<Environment {}>".format(self.cpu_type)

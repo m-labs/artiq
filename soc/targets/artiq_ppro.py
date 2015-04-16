@@ -112,7 +112,7 @@ class UP(BaseSoC):
                                          clk_freq=125000000,
                                          counter_width=32)
 
-        rtio_csrs = self.rtio.get_csrs() + self.rtio.get_kernel_csrs()
+        rtio_csrs = self.rtio.get_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
         self.add_wb_slave(mem_decoder(self.mem_map["rtio"]), self.rtiowb.bus)
         self.add_csr_region("rtio", self.mem_map["rtio"] + 0x80000000,

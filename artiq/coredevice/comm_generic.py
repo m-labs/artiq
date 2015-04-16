@@ -108,12 +108,7 @@ class CommGeneric:
         if runtime_id != "AROR":
             raise UnsupportedDevice("Unsupported runtime ID: {}"
                                     .format(runtime_id))
-        ref_freq_i, ref_freq_fn, ref_freq_fd = struct.unpack(
-            ">lBB", self._read(6))
-        ref_freq = (ref_freq_i + Fraction(ref_freq_fn, ref_freq_fd))*units.Hz
-        ref_period = 1/ref_freq
-        logger.debug("environment ref_period: %s", ref_period)
-        return Environment(ref_period)
+        return Environment()
 
     def switch_clock(self, external):
         self._write(struct.pack(
@@ -139,8 +134,6 @@ class CommGeneric:
         for c in kname:
             self._write(struct.pack(">B", ord(c)))
         logger.debug("running kernel: %s", kname)
-
-
 
     def _receive_rpc_values(self):
         r = []

@@ -1,5 +1,3 @@
-from fractions import Fraction
-
 from migen.fhdl.std import *
 from migen.bank.description import *
 from migen.genlib.misc import optree
@@ -255,13 +253,6 @@ class Channel:
         self.ififo_depth = ififo_depth
 
 
-class _CSRs(AutoCSR):
-    def __init__(self):
-        self.frequency_i = CSRStatus(32)
-        self.frequency_fn = CSRStatus(8)
-        self.frequency_fd = CSRStatus(8)
-
-
 class _KernelCSRs(AutoCSR):
     def __init__(self, chan_sel_width,
                  data_width, address_width, full_ts_width):
@@ -300,7 +291,6 @@ class RTIO(Module):
                             for c in channels)
 
         # CSRs
-        self.csrs = _CSRs()
         self.kcsrs = _KernelCSRs(bits_for(len(channels)-1),
                                  data_width, address_width,
                                  counter_width + fine_ts_width)
@@ -405,18 +395,5 @@ class RTIO(Module):
                                                 << fine_ts_width)
            )
 
-        # Frequency CSRs
-        clk_freq = Fraction(clk_freq).limit_denominator(255)
-        clk_freq_i = int(clk_freq)
-        clk_freq_f = clk_freq - clk_freq_i
-        self.comb += [
-            self.csrs.frequency_i.status.eq(clk_freq_i),
-            self.csrs.frequency_fn.status.eq(clk_freq_f.numerator),
-            self.csrs.frequency_fd.status.eq(clk_freq_f.denominator)
-        ]
-
     def get_csrs(self):
-        return self.csrs.get_csrs()
-
-    def get_kernel_csrs(self):
         return self.kcsrs.get_csrs()

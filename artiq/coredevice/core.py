@@ -47,19 +47,15 @@ def _no_debug_unparse(label, node):
 class Core(AutoDB):
     class DBKeys:
         comm = Device()
-        external_clock = Parameter(None)
+        ref_period = Argument()
+        external_clock = Argument(False)
 
     def build(self):
         self.runtime_env = self.comm.get_runtime_env()
         self.core = self
         self.comm.core = self
-
-        if self.external_clock is None:
-            self.ref_period = self.runtime_env.internal_ref_period
-            self.comm.switch_clock(False)
-        else:
-            self.ref_period = 1/self.external_clock
-            self.comm.switch_clock(True)
+        
+        self.comm.switch_clock(self.external_clock)
         self.initial_time = int64(self.runtime_env.warmup_time/self.ref_period)
 
     def transform_stack(self, func_def, rpc_map, exception_map,

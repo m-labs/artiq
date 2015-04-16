@@ -98,7 +98,7 @@ class UP(_Peripherals):
     def __init__(self, *args, **kwargs):
         _Peripherals.__init__(self, *args, **kwargs)
 
-        rtio_csrs = self.rtio.get_csrs() + self.rtio.get_kernel_csrs()
+        rtio_csrs = self.rtio.get_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
         self.add_wb_slave(mem_decoder(self.mem_map["rtio"]), self.rtiowb.bus)
         self.add_csr_region("rtio", self.mem_map["rtio"] + 0x80000000, 32, rtio_csrs)
@@ -127,7 +127,7 @@ class AMP(_Peripherals):
         self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["mailbox"]), self.mailbox.i2)
         self.add_memory_region("mailbox", self.mem_map["mailbox"] + 0x80000000, 4)
 
-        rtio_csrs = self.rtio.get_kernel_csrs()
+        rtio_csrs = self.rtio.get_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
         self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["rtio"]), self.rtiowb.bus)
         self.add_csr_region("rtio", self.mem_map["rtio"] + 0x80000000, 32, rtio_csrs)

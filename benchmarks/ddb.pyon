@@ -9,7 +9,7 @@
         "type": "local",
         "module": "artiq.coredevice.core",
         "class": "Core",
-        "arguments": {}
+        "arguments": {"ref_period": Quantity(Fraction(8, 1000000000), "s")}
     },
 
     "pmt0": {

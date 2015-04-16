@@ -178,16 +178,6 @@ void comm_serve(object_loader load_object, kernel_runner run_kernel)
         if(msgtype == MSGTYPE_REQUEST_IDENT) {
             send_char(MSGTYPE_IDENT);
             send_int(0x41524f52); /* "AROR" - ARTIQ runtime on OpenRISC */
-#ifdef ARTIQ_AMP
-#warning TODO
-            send_int(125*1000*1000);
-            send_char(0);
-            send_char(1);
-#else
-            send_int(rtio_frequency_i_read());
-            send_char(rtio_frequency_fn_read());
-            send_char(rtio_frequency_fd_read());
-#endif
         } else if(msgtype == MSGTYPE_LOAD_OBJECT)
             receive_and_load_object(load_object);
         else if(msgtype == MSGTYPE_RUN_KERNEL)
