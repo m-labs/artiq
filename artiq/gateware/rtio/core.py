@@ -318,9 +318,6 @@ class RTIO(Module):
         self.specials += AsyncResetSynchronizer(self.cd_rio,
                                                 self.kcsrs.reset.storage)
 
-        # Latency compensation
-        # TODO
-
         # Managers
         self.submodules.counter = _RTIOCounter(counter_width)
 

@@ -3,7 +3,7 @@ from migen.fhdl.std import *
 
 class OInterface:
     def __init__(self, data_width, address_width=0,
-                 fine_ts_width=0, latency=1, suppress_nop=True):
+                 fine_ts_width=0, suppress_nop=True):
         self.stb = Signal()
         self.busy = Signal()
 
@@ -14,7 +14,6 @@ class OInterface:
         if fine_ts_width:
             self.fine_ts = Signal(fine_ts_width)
 
-        self.latency = latency
         self.suppress_nop = suppress_nop
 
     @classmethod
@@ -22,12 +21,12 @@ class OInterface:
         return cls(get_data_width(other),
                    get_address_width(other),
                    get_fine_ts_width(other),
-                   other.latency, other.suppress_nop)
+                   other.suppress_nop)
 
 
 class IInterface:
     def __init__(self, data_width,
-                 timestamped=True, fine_ts_width=0, latency=2):
+                 timestamped=True, fine_ts_width=0):
         self.stb = Signal()
 
         if data_width:
@@ -35,7 +34,6 @@ class IInterface:
         if fine_ts_width:
             self.fine_ts = Signal(fine_ts_width)
 
-        self.latency = latency
         self.timestamped = timestamped
         assert(not fine_ts_width or timestamped)
 
@@ -43,8 +41,7 @@ class IInterface:
     def like(cls, other):
         return cls(get_data_width(other),
                    other.timestamped,
-                   get_fine_ts_width(other),
-                   other.latency)
+                   get_fine_ts_width(other))
 
 
 class Interface:

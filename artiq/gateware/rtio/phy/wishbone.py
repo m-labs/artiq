@@ -4,17 +4,15 @@ from artiq.gateware.rtio import rtlink
 
 
 class RT2WB(Module):
-    def __init__(self, wb, address_width, o_latency=0, i_latency=0):
+    def __init__(self, wb, address_width):
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(
                 flen(wb.dat_w),
                 address_width + 1,
-                latency=o_latency,
                 suppress_nop=False),
             rtlink.IInterface(
                 flen(wb.dat_r),
-                timestamped=False,
-                latency=i_latency)
+                timestamped=False)
             )
 
         # # #
