@@ -17,6 +17,13 @@ class OInterface:
         self.latency = latency
         self.suppress_nop = suppress_nop
 
+    @classmethod
+    def like(cls, other):
+        return cls(get_data_width(other),
+                   get_address_width(other),
+                   get_fine_ts_width(other),
+                   other.latency, other.suppress_nop)
+
 
 class IInterface:
     def __init__(self, data_width,
@@ -32,11 +39,26 @@ class IInterface:
         self.timestamped = timestamped
         assert(not fine_ts_width or timestamped)
 
+    @classmethod
+    def like(cls, other):
+        return cls(get_data_width(other),
+                   other.timestamped,
+                   get_fine_ts_width(other),
+                   other.latency)
+
 
 class Interface:
     def __init__(self, o, i=None):
         self.o = o
         self.i = i
+
+    @classmethod
+    def like(cls, other):
+        if self.i is None:
+            return cls(OInterface.like(self.o))
+        else:
+            return cls(OInterface.like(self.o),
+                       IInterface.like(self.i))
 
 
 def _get_or_zero(interface, attr):
