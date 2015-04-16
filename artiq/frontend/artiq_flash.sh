@@ -59,6 +59,30 @@ do
 	esac
 done
 
+function search_for_proxy()
+{
+	PROXY=$1 # The proxy name
+	if [ -f $HOME/.migen/$PROXY ]
+	then
+		PROXY_PATH=$HOME/.migen/
+	elif [ -f /usr/local/share/migen/$PROXY ]
+	then
+		PROXY_PATH=/usr/local/share/migen/
+	elif [ -f /usr/share/migen/$PROXY ]
+	then
+		PROXY_PATH=/usr/share/migen/
+	elif [ -f $BIN_PREFIX/$PROXY ]
+	then
+		PROXY_PATH=$BIN_PREFIX
+	else
+		echo "$BOARD flash proxy ($PROXY) not found."
+		echo "Please put it in ~/.migen or /usr/local/share/migen or /usr/share/migen"
+		echo "To get the flash proxy, follow the \"Install the required flash proxy bitstreams:\""
+		echo "bullet point from http://m-labs.hk/artiq/manual/installing.html#preparing-the-core-device-fpga-board"
+		exit 1
+	fi
+}
+
 if ! [ -z "$BIN_PATH" ]
 then
 	BIN_PREFIX=$BIN_PATH
@@ -70,44 +94,30 @@ then
 	BITSTREAM=artiq_ppro-up-papilio_pro.bin
 	CABLE=papilio
 	PROXY=bscan_spi_lx9_papilio.bit
-	BIN_PREFIX=$ARTIQ_PREFIX/binaries/ppro
-	PROXY_PATH=$BIN_PREFIX
 	BIOS_ADDR=0x60000
 	RUNTIME_ADDR=0x70000
+	if [ -z "$BIN_PREFIX" ]; then BIN_PREFIX=$ARTIQ_PREFIX/binaries/ppro; fi
+	search_for_proxy $PROXY
 elif [ "$BOARD" == "pipistrello" ]
 then
 	UDEV_RULES=99-ppro.rules
 	BITSTREAM=artiq_pipistrello-amp-pipistrello.bin
 	CABLE=papilio
 	PROXY=bscan_spi_lx9_csg324.bit
-	BIN_PREFIX=$ARTIQ_PREFIX/binaries/pipistrello
-	PROXY_PATH=$BIN_PREFIX
 	BIOS_ADDR=0x170000
 	RUNTIME_ADDR=0x180000
+	if [ -z "$BIN_PREFIX" ]; then BIN_PREFIX=$ARTIQ_PREFIX/binaries/pipistrello; fi
+	search_for_proxy $PROXY
 elif [ "$BOARD" == "kc705" ]
 then
 	UDEV_RULES=99-kc705.rules
 	BITSTREAM=artiq_kc705-artiqsocbasic-kc705.bit
 	CABLE=jtaghs1_fast
 	PROXY=bscan_spi_kc705.bit
-	BIN_PREFIX=$ARTIQ_PREFIX/binaries/kc705
 	BIOS_ADDR=0xaf0000
 	RUNTIME_ADDR=0xb00000
-	if [ -f $HOME/.migen/$PROXY ]
-	then
-		PROXY_PATH=$HOME/.migen/
-	elif [ -f /usr/local/share/migen/$PROXY ]
-	then
-		PROXY_PATH=/usr/local/share/migen/
-	elif [ -f /usr/share/migen/$PROXY ]
-	then
-		PROXY_PATH=/usr/share/migen/
-	else
-		echo "KC705 flash proxy ($PROXY) not found."
-		echo "Please build it from https://github.com/m-labs/bscan_spi_kc705"
-		echo "and put it in ~/.migen or /usr/local/share/migen or /usr/share/migen"
-		exit 1
-	fi
+	if [ -z "$BIN_PREFIX" ]; then BIN_PREFIX=$ARTIQ_PREFIX/binaries/kc705; fi
+	search_for_proxy $PROXY
 fi
 
 # Check if neither of -b|-B|-r have been used
