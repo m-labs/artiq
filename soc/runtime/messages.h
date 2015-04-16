@@ -8,16 +8,23 @@ enum {
     MESSAGE_TYPE_EXCEPTION,
     MESSAGE_TYPE_RPC_REQUEST,
     MESSAGE_TYPE_RPC_REPLY,
-    MESSAGE_TYPE_LOG
+    MESSAGE_TYPE_LOG,
+
+    MESSAGE_TYPE_BRG_READY,
+    MESSAGE_TYPE_BRG_TTL_OUT,
+    MESSAGE_TYPE_BRG_DDS_SEL,
+    MESSAGE_TYPE_BRG_DDS_RESET,
+    MESSAGE_TYPE_BRG_DDS_READ_REQUEST,
+    MESSAGE_TYPE_BRG_DDS_READ_REPLY,
+    MESSAGE_TYPE_BRG_DDS_WRITE,
+    MESSAGE_TYPE_BRG_DDS_FUD,
 };
 
-struct msg_unknown {
+struct msg_base {
     int type;
 };
 
-struct msg_finished {
-    int type;
-};
+/* kernel messages */
 
 struct msg_exception {
     int type;
@@ -41,6 +48,35 @@ struct msg_log {
     int type;
     const char *fmt;
     va_list args;
+};
+
+/* bridge messages */
+
+struct msg_brg_ttl_out {
+    int type;
+    int channel;
+    int value;
+};
+
+struct msg_brg_dds_sel {
+    int type;
+    int channel;
+};
+
+struct msg_brg_dds_read_request {
+    int type;
+    unsigned int address;
+};
+
+struct msg_brg_dds_read_reply {
+    int type;
+    unsigned int data;
+};
+
+struct msg_brg_dds_write {
+    int type;
+    unsigned int address;
+    unsigned int data;
 };
 
 #endif /* __MESSAGES_H */

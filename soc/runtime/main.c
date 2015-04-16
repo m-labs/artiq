@@ -70,7 +70,7 @@ static int load_object(void *buffer, int length)
 
 
 #ifdef ARTIQ_AMP
-static int process_msg(struct msg_unknown *umsg, int *eid, long long int *eparams)
+static int process_msg(struct msg_base *umsg, int *eid, long long int *eparams)
 {
     int i;
 
@@ -129,7 +129,7 @@ static int run_kernel(const char *kernel_name, int *eid, long long int *eparams)
 #ifdef ARTIQ_AMP
     kernelcpu_start(k);
     while(1) {
-        struct msg_unknown *umsg;
+        struct msg_base *umsg;
 
         umsg = mailbox_receive();
         r = KERNEL_RUN_INVALID_STATUS;

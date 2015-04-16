@@ -1,6 +1,7 @@
 #include <stdarg.h>
 
 #include "exceptions.h"
+#include "bridge.h"
 #include "mailbox.h"
 #include "messages.h"
 #include "rtio.h"
@@ -31,26 +32,29 @@ int main(void)
     kernel_function k;
     void *jb;
 
-    jb = exception_push();
-    if(exception_setjmp(jb)) {
-        struct msg_exception msg;
+    k = mailbox_receive();
 
-        msg.type = MESSAGE_TYPE_EXCEPTION;
-        msg.eid = exception_getid(msg.eparams);
-        mailbox_send_and_wait(&msg);
-    } else {
-        struct msg_finished msg;
+    if(k == NULL)
+        bridge_main();
+    else {
+        jb = exception_push();
+        if(exception_setjmp(jb)) {
+            struct msg_exception msg;
 
-        k = mailbox_receive();
-        if(!k)
-            exception_raise(EID_INTERNAL_ERROR);
-        dds_init();
-        rtio_init();
-        k();
-        exception_pop(1);
+            msg.type = MESSAGE_TYPE_EXCEPTION;
+            msg.eid = exception_getid(msg.eparams);
+            mailbox_send_and_wait(&msg);
+        } else {
+            struct msg_base msg;
 
-        msg.type = MESSAGE_TYPE_FINISHED;
-        mailbox_send_and_wait(&msg);
+            dds_init();
+            rtio_init();
+            k();
+            exception_pop(1);
+
+            msg.type = MESSAGE_TYPE_FINISHED;
+            mailbox_send_and_wait(&msg);
+        }
     }
     while(1);
 }

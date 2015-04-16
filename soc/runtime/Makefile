@@ -9,7 +9,7 @@ UNIPROCESSOR := $(shell printf "\#include <generated/csr.h>\nCSR_KERNEL_CPU_BASE
 
 ifeq ($(UNIPROCESSOR),0)
 OBJECTS += mailbox.o kernelcpu.o ksupport_data.o
-OBJECTS_KSUPPORT += mailbox.o ksupport.o
+OBJECTS_KSUPPORT += mailbox.o bridge.o ksupport.o
 CFLAGS += -DARTIQ_AMP
 SERVICE_TABLE_INPUT = ksupport.elf
 else
