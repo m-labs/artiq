@@ -1,6 +1,7 @@
 __pycache__
 *.o
 *.d
+*.a
 *.bin
 *.elf
 *.fbi
