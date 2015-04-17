@@ -106,10 +106,12 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
 * Then, build and flash the ARTIQ runtime: ::
 
-        $ cd ~/artiq-dev/artiq/soc/runtime
-        $ make flash
+        $ cd ~/artiq-dev/artiq/soc/runtime && make runtime.fbi
+        $ ~/artiq-dev/artiq/artiq/frontend/artiq_flash.sh -t ppro -d $PWD -r
 
-    Check that the board boots by running a serial terminal program (you may need to press its FPGA reconfiguration button or power-cycle it to load the bitstream that was newly written into the flash): ::
+.. note:: The `-t` option specifies the board your are targeting. Available options are `ppro` for Papilio Pro, `kc705` for KC705 and `pipistrello` for Pipistrello.
+
+* Check that the board boots by running a serial terminal program (you may need to press its FPGA reconfiguration button or power-cycle it to load the bitstream that was newly written into the flash): ::
 
         $ make -C ~/artiq-dev/misoc/tools # do only once
         $ ~/artiq-dev/misoc/tools/flterm --port /dev/ttyUSB1
