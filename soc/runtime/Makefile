@@ -40,7 +40,8 @@ runtime.elf: $(OBJECTS) libs
 		$(OBJECTS) \
 		-L$(MSCDIR)/software/libbase \
 		-L$(MSCDIR)/software/libcompiler-rt \
-		-lbase -lcompiler-rt
+		-Lliblwip \
+		-lbase -lcompiler-rt -llwip
 	@chmod -x $@
 
 ksupport.elf: $(OBJECTS_KSUPPORT)
@@ -71,8 +72,10 @@ main.o: main.c
 libs:
 	$(MAKE) -C $(MSCDIR)/software/libcompiler-rt
 	$(MAKE) -C $(MSCDIR)/software/libbase
+	$(MAKE) -C liblwip
 
 clean:
+	$(MAKE) -C liblwip clean
 	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) $(OBJECTS_KSUPPORT) $(OBJECTS_KSUPPORT:.o=.d)
 	$(RM) runtime.elf runtime.bin runtime.fbi .*~ *~
 	$(RM) service_table.h ksupport.elf ksupport.bin

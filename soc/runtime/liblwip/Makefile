@@ -32,7 +32,7 @@ CORE4OBJS=$(LWIPDIR)/core/ipv4/icmp.o \
 NETIFOBJS=$(LWIPDIR)/netif/etharp.o  \
 	netif/liteethif.o
 
-# NETIFOBJS: All the above.
+# LWIPOBJS: All the above.
 LWIPOBJS=$(COREOBJS) $(CORE4OBJS) $(NETIFOBJS)
 OBJS_LIB+=$(LWIPOBJS)
 
