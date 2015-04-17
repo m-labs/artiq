@@ -46,10 +46,13 @@ Modify the code as follows: ::
 
         @kernel
         def run(self):
-            if input_led_state():
+            s = input_led_state()
+            self.core.recover_underflow()
+            if s:
                 self.led.on()
             else:
                 self.led.off()
+
 
 You can then turn the LED off and on by entering 0 or 1 at the prompt that appears: ::
 
@@ -59,6 +62,8 @@ You can then turn the LED off and on by entering 0 or 1 at the prompt that appea
     Enter desired LED state: 0
 
 What happens is the ARTIQ compiler notices that the ``input_led_state`` function does not have a ``@kernel`` decorator and thus must be executed on the host. When the core device calls it, it sends a request to the host to execute it. The host displays the prompt, collects user input, and sends the result back to the core device, which sets the LED state accordingly.
+
+The ``recover_underflow`` call is necessary to waive the real-time requirements of the LED state change (as the ``input_led_state`` function can take an arbitrarily long time). This will become clearer later as we explain timing control.
 
 Algorithmic features
 --------------------
@@ -109,18 +114,15 @@ Try reducing the period of the generated waveform until the CPU cannot keep up w
     class Tutorial(Experiment, AutoDB):
         class DBKeys:
             core = Device()
-            led = Device()
             ttl0 = Device()
 
         @kernel
         def run(self):
-            self.led.off()
             try:
                 for i in range(1000000):
                     self.ttl0.pulse(...)
                     delay(...)
             except RTIOUnderflow:
-                self.led.on()
                 print_underflow()
 
 Parallel and sequential blocks
