@@ -127,6 +127,54 @@ Controller
     :prog: thorlabs_controller
 
 
+NI PXI6733
+----------
+
+PXI6733 controller usage example
+++++++++++++++++++++++++++++++++
+
+This controller has only been tested on Windows so far.
+
+To use this controller you need first to install the NI-DAQmx driver
+from http://www.ni.com/downloads/ni-drivers/f/.
+
+Then you also need to install PyDAQmx python module::
+
+    $ git clone https://github.com/clade/PyDAQmx
+    $ cd PyDAQmx
+    $ C:\Python34\Tools\Scripts\2to3.py -w .
+    $ python setup.py build
+    $ python setup.py install
+
+Then, you can run the PXI6733 controller::
+
+    $ pxi6733_controller -d Dev1
+
+Then, send a load_sample_values command to it via the ``artiq_rpctool`` utility::
+
+    $ artiq_rpctool ::1 3256 list-targets
+    Target(s):   pxi6733
+    $ artiq_rpctool ::1 3256 call load_sample_values 'np.array([1.0, 2.0, 3.0, 4.0], dtype=float)'
+
+This loads 4 voltage values as a numpy float array: 1.0 V, 2.0 V, 3.0 V, 4.0 V
+
+Then the device is set up to output those samples at each rising edge of the clock.
+
+Driver
+++++++
+
+.. automodule:: artiq.devices.pxi6733.driver
+    :members:
+
+Controller
+++++++++++
+
+Usage example
+
+.. argparse::
+   :ref: artiq.frontend.pxi6733_controller.get_argparser
+   :prog: pxi6733_controller
+
 Default TCP port list
 ---------------------
 
@@ -146,4 +194,6 @@ When writing a new NDSP, choose a free TCP port and add it to this list.
 | Novatech 409B            | 3254         |
 +--------------------------+--------------+
 | Thorlabs T-Cube          | 3255         |
++--------------------------+--------------+
+| NI PXI6733               | 3256         |
 +--------------------------+--------------+
