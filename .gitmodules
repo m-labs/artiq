@@ -1,0 +1,3 @@
+[submodule "soc/runtime/lwip"]
+	path = soc/runtime/lwip
+	url = git://git.savannah.nongnu.org/lwip.git
