@@ -19,3 +19,8 @@ ARTIQ is licensed under 3-clause BSD.
 
 Website:
 http://m-labs.hk/artiq
+
+
+.. image:: https://badges.gitter.im/Join%20Chat.svg
+   :alt: Join the chat at https://gitter.im/m-labs/artiq
+   :target: https://gitter.im/m-labs/artiq?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
