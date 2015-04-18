@@ -7,9 +7,8 @@
 #include <generated/csr.h>
 #include <console.h>
 
-#include "test_mode.h"
-#include "rtio.h"
 #include "dds.h"
+#include "test_mode.h"
 
 #ifdef ARTIQ_AMP
 
@@ -105,16 +104,18 @@ static void p_ddsfud(void)
 
 #else /* ARTIQ_AMP */
 
+#include "rtio.h"
+
 static void p_ttlout(int n, int value)
 {
     rtio_init();
-    rtio_set_oe(rtio_get_counter() + 8000, n2, 1);
-    rtio_set_o(rtio_get_counter() + 8000, n2, value2);
+    rtio_set_oe(rtio_get_counter() + 8000, n, 1);
+    rtio_set_o(rtio_get_counter() + 8000, n, value);
 }
 
 static void p_ddssel(int channel)
 {
-    DDS_WRITE(DDS_GPIO, n2);
+    DDS_WRITE(DDS_GPIO, channel);
 }
 
 static void p_ddsreset(void)
