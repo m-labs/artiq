@@ -2,13 +2,16 @@
 // LiteETH lwIP port for ARTIQ
 // License: BSD
 
+#include <generated/csr.h>
+
+#ifdef CSR_ETHMAC_BASE
+
 #include <lwip/opt.h>
 #include <lwip/mem.h>
 
 #include <netif/etharp.h>
 #include "netif/liteethif.h"
 
-#include <generated/csr.h>
 #include <hw/flags.h>
 #include <hw/ethmac_mem.h>
 
@@ -132,3 +135,5 @@ err_t liteeth_init(struct netif *netif)
 
     return ERR_OK;
 }
+
+#endif /* CSR_ETHMAC_BASE */
