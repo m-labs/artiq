@@ -81,17 +81,17 @@ class Synthesizer:
 
     def select(self, selection):
         if self.line_iter is not None:
-            raise TriggerError
+            raise TriggerError("a frame is already selected")
         self.line_iter = iter(self.program[selection])
         self.line = next(self.line_iter)
 
     def trigger(self):
         if self.line_iter is None:
-            raise TriggerError
+            raise TriggerError("no frame selected")
 
         line = self.line
         if not line.get("trigger", False):
-            raise TriggerError
+            raise TriggerError("segment is not triggered")
 
         r = [[] for _ in self.channels]
         while True:
