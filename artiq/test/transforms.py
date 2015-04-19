@@ -1,6 +1,7 @@
 import unittest
 import ast
 
+from artiq import ns
 from artiq.coredevice import comm_dummy, core
 from artiq.transforms.unparse import unparse
 
@@ -39,7 +40,7 @@ def run():
 
 class OptimizeCase(unittest.TestCase):
     def test_optimize(self):
-        coredev = core.Core(comm=comm_dummy.Comm())
+        coredev = core.Core(comm=comm_dummy.Comm(), ref_period=1*ns)
         func_def = ast.parse(optimize_in).body[0]
         coredev.transform_stack(func_def, dict(), dict())
         self.assertEqual(unparse(func_def), optimize_out)

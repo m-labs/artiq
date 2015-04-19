@@ -6,8 +6,7 @@ from artiq.coredevice.runtime import LinkInterface
 
 
 class _RuntimeEnvironment(LinkInterface):
-    def __init__(self, ref_period):
-        self.internal_ref_period = ref_period
+    def __init__(self):
         self.warmup_time = 1*ms
 
     def emit_object(self):
@@ -16,7 +15,7 @@ class _RuntimeEnvironment(LinkInterface):
 
 class Comm(AutoDB):
     def get_runtime_env(self):
-        return _RuntimeEnvironment(1*ns)
+        return _RuntimeEnvironment()
 
     def switch_clock(self, external):
         pass
