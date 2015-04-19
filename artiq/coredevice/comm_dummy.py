@@ -1,7 +1,7 @@
 from operator import itemgetter
 
 from artiq.language.db import AutoDB
-from artiq.language.units import ms, ns
+from artiq.language.units import ms
 from artiq.coredevice.runtime import LinkInterface
 
 
