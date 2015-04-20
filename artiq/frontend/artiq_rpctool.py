@@ -3,7 +3,7 @@
 import argparse
 import textwrap
 import sys
-import numpy as np
+import numpy as np  # Needed to use numpy in RPC call arguments on cmd line
 
 from artiq.protocols.pc_rpc import Client
 

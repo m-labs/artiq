@@ -61,10 +61,11 @@ in order to call remote functions of an ARTIQ controller.
             $ artiq_rpctool.py hostname port call -t target f x1 x2 ... xN
 
         You can use Python syntax to compute arguments as they will be passed
-        to the ``eval()`` primitive. But beware to use quotes to separate
-        arguments which use spaces::
+        to the ``eval()`` primitive. The numpy package is available in the namespace
+        as ``np``. Beware to use quotes to separate arguments which use spaces::
 
             $ artiq_rpctool.py hostname port call -t target f '3 * 4 + 2' True '[1, 2]'
+            $ artiq_rpctool.py ::1 3256 call load_sample_values 'np.array([1.0, 2.0], dtype=float)'
 
         If the called function has a return value, it will get printed to
         the standard output if the value is not None like in the standard
