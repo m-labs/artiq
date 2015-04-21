@@ -2,6 +2,7 @@ import os
 
 from artiq.language.core import *
 from artiq.language.db import *
+from artiq.language.units import ns
 
 from artiq.transforms.inline import inline
 from artiq.transforms.lower_units import lower_units
@@ -47,7 +48,7 @@ def _no_debug_unparse(label, node):
 class Core(AutoDB):
     class DBKeys:
         comm = Device()
-        ref_period = Argument()
+        ref_period = Argument(8*ns)
         external_clock = Argument(False)
 
     def build(self):
