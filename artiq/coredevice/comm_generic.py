@@ -1,10 +1,8 @@
 import struct
-import zlib
 import logging
 from enum import Enum
 from fractions import Fraction
 
-from artiq.language import units
 from artiq.coredevice.runtime import Environment
 from artiq.coredevice import runtime_exceptions
 from artiq.language import core as core_language
@@ -15,33 +13,30 @@ logger = logging.getLogger(__name__)
 
 
 class _H2DMsgType(Enum):
-    LINK_MESSAGE = 1
-
-    REQUEST_IDENT = 2
+    LOG_REQUEST = 1
+    IDENT_REQUEST = 2
     SWITCH_CLOCK = 3
 
     LOAD_OBJECT = 4
     RUN_KERNEL = 5
+
+    RPC_REPLY = 6
     
 
 class _D2HMsgType(Enum):
-    MESSAGE_UNRECOGNIZED = 1
-    LOG = 2
+    LOG_REPLY = 1
+    IDENT_REPLY = 2
+    CLOCK_SWITCH_COMPLETED = 3
+    CLOCK_SWITCH_FAILED = 4
 
-    IDENT = 3
-    CLOCK_SWITCH_COMPLETED = 4
-    CLOCK_SWITCH_FAILED = 5
+    LOAD_COMPLETED = 5
+    LOAD_FAILED = 6
 
-    OBJECT_LOADED = 6
-    OBJECT_INCORRECT_LENGTH = 7
-    OBJECT_CRC_FAILED = 8
-    OBJECT_UNRECOGNIZED = 9
+    KERNEL_FINISHED = 7
+    KERNEL_STARTUP_FAILED = 8
+    KERNEL_EXCEPTION = 9
 
-    KERNEL_FINISHED = 10
-    KERNEL_STARTUP_FAILED = 11
-    KERNEL_EXCEPTION = 12
-
-    RPC_REQUEST = 13
+    RPC_REQUEST = 10
 
 
 class UnsupportedDevice(Exception):
@@ -71,39 +66,35 @@ class CommGeneric:
         raise NotImplementedError
     #
 
-    def _read(self, length):
+    def _read_header(self):
         self.open()
-        return self.read(length)
 
-    def _write(self, data):
-        self.open()
-        self.write(data)
-
-    def _get_device_msg(self):
-        while True:
-            (reply, ) = struct.unpack("B", self._read(1))
-            msg = _D2HMsgType(reply)
-            if msg == _D2HMsgType.LOG:
-                (length, ) = struct.unpack(">h", self._read(2))
-                log_message = ""
-                for i in range(length):
-                    (c, ) = struct.unpack("B", self._read(1))
-                    log_message += chr(c)
-                logger.info("DEVICE LOG: %s", log_message)
+        sync_count = 0
+        while sync_count < 4:
+            (c, ) = struct.unpack("B", self.read(1))
+            if c == 0x5a:
+                sync_count += 1
             else:
-                logger.debug("message received: %r", msg)
-                return msg
+                sync_count = 0
+        length, tyv = struct.unpack(">lB", self.read(5))
+        ty = _D2HMsgType(tyv)
+        logger.debug("receiving message: type=%r length=%d", ty, length)
+        return length, ty
+
+    def _write_header(self, length, ty):
+        self.open()
+        logger.debug("sending message: type=%r length=%d", ty, length)
+        self.write(struct.pack(">llB", 0x5a5a5a5a, length, ty.value))
 
     def get_runtime_env(self):
-        self._write(struct.pack(">lb", 0x5a5a5a5a,
-                                _H2DMsgType.REQUEST_IDENT.value))
-        msg = self._get_device_msg()
-        if msg != _D2HMsgType.IDENT:
-            raise IOError("Incorrect reply from device: {}".format(msg))
-        (reply, ) = struct.unpack("B", self._read(1))
+        self._write_header(9, _H2DMsgType.IDENT_REQUEST)
+        _, ty = self._read_header()
+        if ty != _D2HMsgType.IDENT_REPLY:
+            raise IOError("Incorrect reply from device: {}".format(ty))
+        (reply, ) = struct.unpack("B", self.read(1))
         runtime_id = chr(reply)
         for i in range(3):
-            (reply, ) = struct.unpack("B", self._read(1))
+            (reply, ) = struct.unpack("B", self.read(1))
             runtime_id += chr(reply)
         if runtime_id != "AROR":
             raise UnsupportedDevice("Unsupported runtime ID: {}"
@@ -111,63 +102,59 @@ class CommGeneric:
         return Environment()
 
     def switch_clock(self, external):
-        self._write(struct.pack(
-            ">lbb", 0x5a5a5a5a, _H2DMsgType.SWITCH_CLOCK.value,
-            int(external)))
-        msg = self._get_device_msg()
-        if msg != _D2HMsgType.CLOCK_SWITCH_COMPLETED:
-            raise IOError("Incorrect reply from device: {}".format(msg))
+        self._write_header(10, _H2DMsgType.SWITCH_CLOCK)
+        self.write(struct.pack("B", int(external)))
+        _, ty = self._read_header()
+        if ty != _D2HMsgType.CLOCK_SWITCH_COMPLETED:
+            raise IOError("Incorrect reply from device: {}".format(ty))
 
     def load(self, kcode):
-        self._write(struct.pack(
-            ">lblL",
-            0x5a5a5a5a, _H2DMsgType.LOAD_OBJECT.value,
-            len(kcode), zlib.crc32(kcode)))
-        self._write(kcode)
-        msg = self._get_device_msg()
-        if msg != _D2HMsgType.OBJECT_LOADED:
-            raise IOError("Incorrect reply from device: "+str(msg))
+        self._write_header(len(kcode) + 9, _H2DMsgType.LOAD_OBJECT)
+        self.write(kcode)
+        _, ty = self._read_header()
+        if ty != _D2HMsgType.LOAD_COMPLETED:
+            raise IOError("Incorrect reply from device: "+str(ty))
 
     def run(self, kname):
-        self._write(struct.pack(
-            ">lbl", 0x5a5a5a5a, _H2DMsgType.RUN_KERNEL.value, len(kname)))
-        for c in kname:
-            self._write(struct.pack(">B", ord(c)))
+        self._write_header(len(kname) + 9, _H2DMsgType.RUN_KERNEL)
+        self.write(bytes(kname, "ascii"))
         logger.debug("running kernel: %s", kname)
 
     def _receive_rpc_values(self):
         r = []
         while True:
-            type_tag = chr(struct.unpack(">B", self._read(1))[0])
+            type_tag = chr(struct.unpack("B", self.read(1))[0])
             if type_tag == "\x00":
                 return r
             if type_tag == "n":
                 r.append(None)
             if type_tag == "b":
-                r.append(bool(struct.unpack(">B", self._read(1))[0]))
+                r.append(bool(struct.unpack("B", self.read(1))[0]))
             if type_tag == "i":
-                r.append(struct.unpack(">l", self._read(4))[0])
+                r.append(struct.unpack(">l", self.read(4))[0])
             if type_tag == "I":
-                r.append(struct.unpack(">q", self._read(8))[0])
+                r.append(struct.unpack(">q", self.read(8))[0])
             if type_tag == "f":
-                r.append(struct.unpack(">d", self._read(8))[0])
+                r.append(struct.unpack(">d", self.read(8))[0])
             if type_tag == "F":
-                n, d = struct.unpack(">qq", self._read(16))
+                n, d = struct.unpack(">qq", self.read(16))
                 r.append(Fraction(n, d))
             if type_tag == "l":
                 r.append(self._receive_rpc_values())
 
     def _serve_rpc(self, rpc_wrapper, rpc_map, user_exception_map):
-        rpc_num = struct.unpack(">h", self._read(2))[0]
+        rpc_num = struct.unpack(">l", self.read(4))[0]
         args = self._receive_rpc_values()
         logger.debug("rpc service: %d %r", rpc_num, args)
         eid, r = rpc_wrapper.run_rpc(
             user_exception_map, rpc_map[rpc_num], args)
-        self._write(struct.pack(">ll", eid, r))
-        logger.debug("rpc service: %d %r == %r", rpc_num, args, r)
+        self._write_header(9+2*4, _H2DMsgType.RPC_REPLY)
+        self.write(struct.pack(">ll", eid, r))
+        logger.debug("rpc service: %d %r == %r (eid %d)", rpc_num, args,
+                     r, eid)
 
     def _serve_exception(self, rpc_wrapper, user_exception_map):
-        eid, p0, p1, p2 = struct.unpack(">lqqq", self._read(4+3*8))
+        eid, p0, p1, p2 = struct.unpack(">lqqq", self.read(4+3*8))
         rpc_wrapper.filter_rpc_exception(eid)
         if eid < core_language.first_user_eid:
             exception = runtime_exceptions.exception_map[eid]
@@ -179,17 +166,24 @@ class CommGeneric:
     def serve(self, rpc_map, user_exception_map):
         rpc_wrapper = RPCWrapper()
         while True:
-            msg = self._get_device_msg()
-            if msg == _D2HMsgType.RPC_REQUEST:
+            _, ty = self._read_header()
+            if ty == _D2HMsgType.RPC_REQUEST:
                 self._serve_rpc(rpc_wrapper, rpc_map, user_exception_map)
-            elif msg == _D2HMsgType.KERNEL_EXCEPTION:
+            elif ty == _D2HMsgType.KERNEL_EXCEPTION:
                 self._serve_exception(rpc_wrapper, user_exception_map)
-            elif msg == _D2HMsgType.KERNEL_FINISHED:
+            elif ty == _D2HMsgType.KERNEL_FINISHED:
                 return
             else:
-                raise IOError("Incorrect request from device: "+str(msg))
+                raise IOError("Incorrect request from device: "+str(ty))
 
-    def send_link_message(self, data):
-        self._write(struct.pack(
-            ">lb", 0x5a5a5a5a, _H2DMsgType.LINK_MESSAGE.value))
-        self._write(data)
+    def get_log(self):
+        self._write_header(9, _H2DMsgType.LOG_REQUEST)
+        length, ty = self._read_header()
+        if ty != _D2HMsgType.LOG_REPLY:
+            raise IOError("Incorrect request from device: "+str(ty))
+        r = ""
+        for i in range(length - 9):
+            c = struct.unpack("B", self.read(1))[0]
+            if c:
+                r += chr(c)
+        return r

@@ -7,8 +7,10 @@
 #include "rtio.h"
 #include "dds.h"
 
-/* for the prototypes for comm_rpc and comm_log */
-#include "comm.h"
+/* for the prototype for rpc() */
+#include "session.h"
+/* for the prototype for log() */
+#include "log.h"
 
 void exception_handler(unsigned long vect, unsigned long *sp);
 void exception_handler(unsigned long vect, unsigned long *sp)
@@ -59,7 +61,7 @@ int main(void)
     while(1);
 }
 
-int comm_rpc(int rpc_num, ...)
+int rpc(int rpc_num, ...)
 {
     struct msg_rpc_request request;
     struct msg_rpc_reply *reply;
@@ -83,7 +85,7 @@ int comm_rpc(int rpc_num, ...)
     return retval;
 }
 
-void comm_log(const char *fmt, ...)
+void log(const char *fmt, ...)
 {
     struct msg_log request;
 

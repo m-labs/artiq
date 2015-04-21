@@ -1,6 +1,6 @@
 #include <string.h>
 
-#include "comm.h"
+#include "log.h"
 #include "elf_loader.h"
 
 #define EI_NIDENT 16
@@ -85,11 +85,11 @@ struct elf32_sym {
 
 #define SANITIZE_OFFSET_SIZE(offset, size) \
     if(offset > 0x10000000) { \
-        comm_log("Incorrect offset in ELF data"); \
+        log("Incorrect offset in ELF data"); \
         return 0; \
     } \
     if((offset + size) > elf_length) { \
-        comm_log("Attempted to access past the end of ELF data"); \
+        log("Attempted to access past the end of ELF data"); \
         return 0; \
     }
 
@@ -121,7 +121,7 @@ static int fixup(void *dest, int dest_length, struct elf32_rela *rela, void *tar
         val = _target - (_dest + offset);
         _dest[offset] = (_dest[offset] & 0xfc000000) | (val & 0x03ffffff);
     } else
-        comm_log("Unsupported relocation type: %d", type);
+        log("Unsupported relocation type: %d", type);
     return 1;
 }
 
@@ -141,15 +141,15 @@ int load_elf(symbol_resolver resolver, symbol_callback callback, void *elf_data,
     /* validate ELF */
     GET_POINTER_SAFE(ehdr, struct elf32_ehdr, 0);
     if(memcmp(ehdr->ident, elf_magic_header, sizeof(elf_magic_header)) != 0) {
-        comm_log("Incorrect ELF header");
+        log("Incorrect ELF header");
         return 0;
     }
     if(ehdr->type != ET_REL) {
-        comm_log("ELF is not relocatable");
+        log("ELF is not relocatable");
         return 0;
     }
     if(ehdr->machine != EM_OR1K) {
-        comm_log("ELF is for a different machine");
+        log("ELF is for a different machine");
         return 0;
     }
 
@@ -190,7 +190,7 @@ int load_elf(symbol_resolver resolver, symbol_callback callback, void *elf_data,
 
     /* load .text section */
     if(textsize > dest_length) {
-        comm_log(".text section is too large");
+        log(".text section is too large");
         return 0;
     }
     memcpy(dest, (char *)elf_data + textoff, textsize);
@@ -209,13 +209,13 @@ int load_elf(symbol_resolver resolver, symbol_callback callback, void *elf_data,
             name = (char *)elf_data + strtaboff + sym->name;
             target = resolver(name);
             if(target == NULL) {
-                comm_log("Undefined symbol: %s", name);
+                log("Undefined symbol: %s", name);
                 return 0;
             }
             if(!fixup(dest, dest_length, rela, target))
                 return 0;
         } else {
-            comm_log("Unsupported relocation");
+            log("Unsupported relocation");
             return 0;
         }
     }

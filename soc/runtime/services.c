@@ -1,7 +1,7 @@
 #include <string.h>
 
 #include "elf_loader.h"
-#include "comm.h"
+#include "session.h"
 #include "rtio.h"
 #include "dds.h"
 #include "exceptions.h"

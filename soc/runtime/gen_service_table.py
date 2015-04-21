@@ -5,7 +5,7 @@ import sys
 
 services = [
     ("syscalls", [
-        ("rpc", "comm_rpc"),
+        ("rpc", "rpc"),
         ("rtio_set_o", "rtio_set_o"),
         ("rtio_set_oe", "rtio_set_oe"),
         ("rtio_set_sensitivity", "rtio_set_sensitivity"),

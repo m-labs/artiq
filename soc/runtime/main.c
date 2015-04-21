@@ -8,153 +8,41 @@
 #include <generated/csr.h>
 
 #include "test_mode.h"
-#include "comm.h"
-#include "kernelcpu.h"
-#include "elf_loader.h"
-#include "exceptions.h"
-#include "services.h"
-#include "rtio.h"
-#include "dds.h"
+#include "session.h"
 
-#ifdef ARTIQ_AMP
-#include "mailbox.h"
-#include "messages.h"
-#endif
-
-static struct symbol symtab[128];
-static int _symtab_count;
-static char _symtab_strings[128*16];
-static char *_symtab_strptr;
-
-static void symtab_init(void)
+void comm_service(void)
 {
-    memset(symtab, 0, sizeof(symtab));
-    _symtab_count = 0;
-    _symtab_strptr = _symtab_strings;
+    char *txdata;
+    int txlen;
+    static char rxdata;
+    static int rxpending;
+    int r, i;
+
+    if(!rxpending && uart_read_nonblock()) {
+        rxdata = uart_read();
+        rxpending = 1;
+    }
+    if(rxpending) {
+        r = session_input(&rxdata, 1);
+        if(r > 0)
+            rxpending = 0;
+    }
+
+    session_poll((void **)&txdata, &txlen);
+    if(txlen > 0) {
+        for(i=0;i<txlen;i++)
+            uart_write(txdata[i]);
+        session_ack(txlen);
+    }
 }
 
-static int symtab_add(const char *name, void *target)
+static void regular_main(void)
 {
-    if(_symtab_count >= sizeof(symtab)/sizeof(symtab[0])) {
-        comm_log("Too many provided symbols in object");
-        symtab_init();
-        return 0;
-    }
-    symtab[_symtab_count].name = _symtab_strptr;
-    symtab[_symtab_count].target = target;
-    _symtab_count++;
-
-    while(1) {
-        if(_symtab_strptr >= &_symtab_strings[sizeof(_symtab_strings)]) {
-            comm_log("Provided symbol string table overflow");
-            symtab_init();
-            return 0;
-        }
-        *_symtab_strptr = *name;
-        _symtab_strptr++;
-        if(*name == 0)
-            break;
-        name++;
-    }
-
-    return 1;
+    session_start();
+    while(1)
+        comm_service();
 }
 
-static int load_object(void *buffer, int length)
-{
-    symtab_init();
-    return load_elf(
-        resolve_service_symbol, symtab_add,
-        buffer, length, (void *)KERNELCPU_PAYLOAD_ADDRESS, 4*1024*1024);
-}
-
-
-#ifdef ARTIQ_AMP
-static int process_msg(struct msg_base *umsg, int *eid, long long int *eparams)
-{
-    int i;
-
-    switch(umsg->type) {
-        case MESSAGE_TYPE_FINISHED:
-            return KERNEL_RUN_FINISHED;
-        case MESSAGE_TYPE_EXCEPTION: {
-            struct msg_exception *msg = (struct msg_exception *)umsg;
-
-            *eid = msg->eid;
-            for(i=0;i<3;i++)
-                eparams[i] = msg->eparams[i];
-            return KERNEL_RUN_EXCEPTION;
-        }
-        case MESSAGE_TYPE_RPC_REQUEST: {
-            struct msg_rpc_request *msg = (struct msg_rpc_request *)umsg;
-            struct msg_rpc_reply reply;
-
-            reply.type = MESSAGE_TYPE_RPC_REPLY;
-            comm_rpc_va(msg->rpc_num, msg->args, &reply.eid, &reply.retval);
-            mailbox_send_and_wait(&reply);
-            return KERNEL_RUN_INVALID_STATUS;
-        }
-        case MESSAGE_TYPE_LOG: {
-            struct msg_log *msg = (struct msg_log *)umsg;
-
-            comm_log(msg->fmt, msg->args);
-            return KERNEL_RUN_INVALID_STATUS;
-        }
-        default:
-            *eid = EID_INTERNAL_ERROR;
-            for(i=0;i<3;i++)
-                eparams[i] = 0;
-            return KERNEL_RUN_EXCEPTION;
-    }
-}
-#endif
-
-typedef void (*kernel_function)(void);
-
-static int run_kernel(const char *kernel_name, int *eid, long long int *eparams)
-{
-    kernel_function k;
-#ifdef ARTIQ_AMP
-    int r;
-#else
-    void *jb;
-#endif
-
-    k = find_symbol(symtab, kernel_name);
-    if(k == NULL) {
-        comm_log("Failed to find kernel entry point '%s' in object", kernel_name);
-        return KERNEL_RUN_STARTUP_FAILED;
-    }
-
-#ifdef ARTIQ_AMP
-    kernelcpu_start(k);
-    while(1) {
-        struct msg_base *umsg;
-
-        umsg = mailbox_receive();
-        r = KERNEL_RUN_INVALID_STATUS;
-        if(umsg)
-            r = process_msg(umsg, eid, eparams);
-        if(r != KERNEL_RUN_INVALID_STATUS)
-            break;
-    }
-    kernelcpu_stop();
-    return r;
-#else
-    jb = exception_push();
-    if(exception_setjmp(jb)) {
-        *eid = exception_getid(eparams);
-        return KERNEL_RUN_EXCEPTION;
-    } else {
-        dds_init();
-        rtio_init();
-        flush_cpu_icache();
-        k();
-        exception_pop(1);
-        return KERNEL_RUN_FINISHED;
-    }
-#endif
-}
 
 static void blink_led(void)
 {
@@ -208,7 +96,7 @@ int main(void)
         test_main();
     } else {
         puts("Entering regular mode.");
-        comm_serve(load_object, run_kernel);
+        regular_main();
     }
     return 0;
 }

@@ -12,7 +12,7 @@
 
 #ifdef ARTIQ_AMP
 
-#include "kernelcpu.h"
+#include "kloader.h"
 #include "mailbox.h"
 #include "messages.h"
 
@@ -20,7 +20,7 @@ static void amp_bridge_init(void)
 {
     struct msg_base *umsg;
 
-    kernelcpu_start(NULL);
+    kloader_start_bridge();
 
     while(1) {
         umsg = mailbox_wait_and_receive();

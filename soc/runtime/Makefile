@@ -1,6 +1,6 @@
 include $(MSCDIR)/software/common.mak
 
-OBJECTS := isr.o elf_loader.o services.o comm_serial.o test_mode.o main.o
+OBJECTS := isr.o elf_loader.o services.o session.o log.o test_mode.o kloader.o main.o
 OBJECTS_KSUPPORT := exception_jmp.o exceptions.o rtio.o dds.o
 
 # NOTE: this does not handle dependencies well. Run "make clean"
@@ -8,7 +8,7 @@ OBJECTS_KSUPPORT := exception_jmp.o exceptions.o rtio.o dds.o
 UNIPROCESSOR := $(shell printf "\#include <generated/csr.h>\nCSR_KERNEL_CPU_BASE" | $(CC_normal) $(CFLAGS) -E - | tail -n 1 | grep -c CSR_KERNEL_CPU_BASE)
 
 ifeq ($(UNIPROCESSOR),0)
-OBJECTS += mailbox.o kernelcpu.o ksupport_data.o
+OBJECTS += mailbox.o ksupport_data.o
 OBJECTS_KSUPPORT += mailbox.o bridge.o ksupport.o
 CFLAGS += -DARTIQ_AMP
 SERVICE_TABLE_INPUT = ksupport.elf
