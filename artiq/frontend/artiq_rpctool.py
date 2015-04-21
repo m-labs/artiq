@@ -3,6 +3,7 @@
 import argparse
 import textwrap
 import sys
+import numpy as np
 
 from artiq.protocols.pc_rpc import Client
 
