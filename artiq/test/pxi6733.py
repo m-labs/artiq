@@ -14,17 +14,14 @@ class GenericPXI6733Test:
     def test_load_sample_values(self):
         test_vector = np.array([1.0, 2.0, 3.0, 4.0], dtype=float)
         self.cont.load_sample_values(test_vector)
-        self.assertTrue(True)
 
     def test_close_1(self):
         self.cont.close()
-        self.assertTrue(True)
 
     def test_close_2(self):
         test_vector = np.array([1.0, 2.0, 3.0, 4.0], dtype=float)
         self.cont.load_sample_values(test_vector)
         self.cont.close()
-        self.assertTrue(True)
 
 
 @unittest.skipUnless(pxi6733_device, "no hardware")
