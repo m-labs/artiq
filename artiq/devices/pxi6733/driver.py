@@ -35,7 +35,7 @@ class DAQmx:
         configures a task to output those samples at each clock rising
         edge.
 
-        A callback is registered to clear the task (unallocate resources)
+        A callback is registered to clear the task (deallocate resources)
         when the task has completed.
 
         :param values: A numpy array of sample values to load in the device.
@@ -52,10 +52,10 @@ class DAQmx:
                                self.daq.DAQmx_Val_GroupByChannel, values,
                                byref(num_samps_written), None)
         if num_samps_written.value != len(values):
-            raise Exception("Error: only {} sample values were written"
-                            .format(num_samps_written.value))
+            raise IOError("Error: only {} sample values were written"
+                          .format(num_samps_written.value))
         if ret:
-            raise Exception("Error while writing samples to channel's buffer")
+            raise IOError("Error while writing samples to the channel buffer")
 
         done_callback = self.daq.DAQmxDoneEventCallbackPtr(done_callback_py)
         self.tasks.append(t.taskHandle)
