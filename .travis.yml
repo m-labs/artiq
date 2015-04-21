@@ -17,7 +17,7 @@ before_install:
   - source $HOME/miniconda/bin/activate py34
   - sudo apt-get install --force-yes -y iverilog
   - pip install coveralls
-  - conda install migen
+  - conda install migen cython
 install:
   - conda build conda/artiq
   - conda install $HOME/miniconda/conda-bld/linux-64/artiq-*.tar.bz2
