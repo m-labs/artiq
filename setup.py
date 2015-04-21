@@ -6,7 +6,7 @@ import os
 
 requirements = [
     "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
-    "python-dateutil", "prettytable", "h5py"
+    "python-dateutil", "prettytable", "h5py", "pydaqmx"
 ]
 
 scripts = [
@@ -21,6 +21,7 @@ scripts = [
     "pdq2_client=artiq.frontend.pdq2_client:main",
     "pdq2_controller=artiq.frontend.pdq2_controller:main",
     "thorlabs_tcube_controller=artiq.frontend.thorlabs_tcube_controller:main",
+    "pxi6733_controller=artiq.frontend.pxi6733_controller:main"
 ]
 
 if os.getenv("ARTIQ_GUI") == "1":

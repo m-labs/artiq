@@ -20,6 +20,7 @@ build:
         - pdq2_client = artiq.frontend.pdq2_client:main
         - pdq2_controller = artiq.frontend.pdq2_controller:main
         - thorlabs_tcube_controller = artiq.frontend.thorlabs_tcube_controller:main
+        - pxi6733_controller = artiq.frontend.pxi6733_controller:main
         - artiq_gui = artiq.frontend.artiq_gui:main # [not win]
 
 requirements:
@@ -39,6 +40,7 @@ requirements:
         - sphinx-argparse
         - h5py
         - dateutil
+        - pydaqmx
         - gbulb-artiq # [not win]
         - cairoplot3-artiq # [not win]
 
