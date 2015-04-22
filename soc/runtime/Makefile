@@ -20,6 +20,8 @@ $(error failed to determine UP/AMP build)
 endif
 endif
 
+CFLAGS += -Ilwip/src/include -Iliblwip
+
 all: runtime.bin runtime.fbi
 
 # pull in dependency info for *existing* .o files

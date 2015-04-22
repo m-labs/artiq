@@ -7,7 +7,7 @@ INCLUDE generated/regions.ld
  * ld does not allow this expression here.
  */
 MEMORY {
-	runtime : ORIGIN = 0x40000000, LENGTH = 0x20000 /* 128K */
+	runtime : ORIGIN = 0x40000000, LENGTH = 0x400000 /* 4M */
 }
 
 /* Kernel memory space start right after the runtime,

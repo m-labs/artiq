@@ -3,11 +3,11 @@ ENTRY(_start)
 
 INCLUDE generated/regions.ld
 
-/* First 128K of main memory are reserved for runtime code/data
+/* First 4M of main memory are reserved for runtime code/data
  * then comes kernel memory. First 16K of kernel memory are for support code.
  */
 MEMORY {
-    ksupport : ORIGIN = 0x40020000, LENGTH = 0x4000
+    ksupport : ORIGIN = 0x40400000, LENGTH = 0x4000
 }
 
 /* On AMP systems, kernel stack is at the end of main RAM,
