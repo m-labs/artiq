@@ -18,8 +18,8 @@
 #include "exceptions.h"
 #include "session.h"
 
-#define BUFFER_IN_SIZE (32*1024)
-#define BUFFER_OUT_SIZE (32*1024)
+#define BUFFER_IN_SIZE (1024*1024)
+#define BUFFER_OUT_SIZE (1024*1024)
 
 static int buffer_in_index;
 /* The 9th byte (right after the header) of buffer_in must be aligned 
