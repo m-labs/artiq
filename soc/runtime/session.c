@@ -320,10 +320,12 @@ static int process_input(void)
 
 #ifdef ARTIQ_AMP
             kloader_start_user_kernel(k);
-#else
-            run_kernel_up(k);
-#endif
             user_kernel_state = USER_KERNEL_RUNNING;
+#else
+            user_kernel_state = USER_KERNEL_RUNNING;
+            run_kernel_up(k);
+            user_kernel_state = USER_KERNEL_LOADED;
+#endif
             break;
         }
         case REMOTEMSG_TYPE_RPC_REPLY: {
