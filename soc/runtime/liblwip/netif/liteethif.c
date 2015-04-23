@@ -93,7 +93,7 @@ static struct pbuf *liteeth_low_level_input(struct netif *netif)
     if(rxslot)
         rxbuffer = rxbuffer1;
     else
-      rxbuffer = rxbuffer0;
+        rxbuffer = rxbuffer0;
 
     p = pbuf_alloc(PBUF_RAW, rxlen, PBUF_POOL);
     q = p;

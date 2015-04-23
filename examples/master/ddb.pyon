@@ -1,9 +1,9 @@
 {
     "comm": {
         "type": "local",
-        "module": "artiq.coredevice.comm_serial",
+        "module": "artiq.coredevice.comm_tcp",
         "class": "Comm",
-        "arguments": {"serial_dev": "/dev/ttyUSB1"}
+        "arguments": {"host": "192.168.0.42"}
     },
     "core": {
         "type": "local",

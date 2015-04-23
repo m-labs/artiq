@@ -18,6 +18,7 @@ class Comm(CommGeneric, AutoDB):
             return
         self.socket = socket.create_connection((self.host, self.port))
         logger.debug("connected to host %s on port %d", self.host, self.port)
+        self.write(b"ARTIQ coredev\n")
 
     def close(self):
         if not hasattr(self, "socket"):

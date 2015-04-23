@@ -1,6 +1,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#include <generated/csr.h>
+
 #include "log.h"
 
 static int buffer_index;
@@ -18,6 +20,12 @@ void log_va(const char *fmt, va_list args)
     }
     buffer[buffer_index] = '\n';
     buffer_index = (buffer_index + 1) % LOG_BUFFER_SIZE;
+
+#ifdef CSR_ETHMAC_BASE
+    /* Since main comms are over ethernet, the serial port
+     * is free for us to use. */
+    puts(outbuf);
+#endif
 }
 
 void log(const char *fmt, ...)

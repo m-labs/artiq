@@ -30,7 +30,8 @@ static struct {
     char data[BUFFER_IN_SIZE];
 } __attribute__((packed)) _buffer_in __attribute__((aligned(4)));
 #define buffer_in _buffer_in.data
-static int buffer_out_index;
+static int buffer_out_index_data;
+static int buffer_out_index_mem;
 static char buffer_out[BUFFER_OUT_SIZE];
 
 static int get_in_packet_len(void)
@@ -53,7 +54,8 @@ static void submit_output(int len)
 {
     memset(&buffer_out[0], 0x5a, 4);
     memcpy(&buffer_out[4], &len, 4);
-    buffer_out_index = 0;
+    buffer_out_index_data = 0;
+    buffer_out_index_mem = 0;
 }
 
 static int user_kernel_state;
@@ -68,7 +70,8 @@ enum {
 void session_start(void)
 {
     buffer_in_index = 0;
-    buffer_out_index = 0;
+    buffer_out_index_data = 0;
+    buffer_out_index_mem = 0;
     memset(&buffer_out[4], 0, 4);
 #ifdef ARTIQ_AMP
     kloader_stop_kernel();
@@ -214,8 +217,8 @@ int rpc(int rpc_num, ...)
     va_end(args);
 
     user_kernel_state = USER_KERNEL_WAIT_RPC;
-    while(user_kernel_state == USER_KERNEL_WAIT_RPC)
-        comm_service();
+    /*while(user_kernel_state == USER_KERNEL_WAIT_RPC)
+        comm_service();*/
 
     if(rpc_reply_eid != EID_NONE)
         exception_raise(rpc_reply_eid);
@@ -491,15 +494,20 @@ void session_poll(void **data, int *len)
     }
 #endif
 
-    *len = l - buffer_out_index;
-    *data = &buffer_out[buffer_out_index];
+    *len = l - buffer_out_index_data;
+    *data = &buffer_out[buffer_out_index_data];
 }
 
-void session_ack(int len)
+void session_ack_data(int len)
 {
-    buffer_out_index += len;
-    if(buffer_out_index >= get_out_packet_len()) {
+    buffer_out_index_data += len;
+}
+
+void session_ack_mem(int len)
+{
+    buffer_out_index_mem += len;
+    if(buffer_out_index_mem >= get_out_packet_len()) {
         memset(&buffer_out[4], 0, 4);
-        buffer_out_index = 0;
+        buffer_out_index_mem = 0;
     }
 }
