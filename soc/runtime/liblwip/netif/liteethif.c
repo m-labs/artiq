@@ -15,20 +15,16 @@
 #include <hw/flags.h>
 #include <hw/ethmac_mem.h>
 
-typedef union {
-    unsigned char raw[1514];
-} ethernet_buffer;
-
 static unsigned int rxslot;
 static unsigned int rxlen;
-static ethernet_buffer *rxbuffer;
-static ethernet_buffer *rxbuffer0;
-static ethernet_buffer *rxbuffer1;
+static char *rxbuffer;
+static char *rxbuffer0;
+static char *rxbuffer1;
 static unsigned int txslot;
 static unsigned int txlen;
-static ethernet_buffer *txbuffer;
-static ethernet_buffer *txbuffer0;
-static ethernet_buffer *txbuffer1;
+static char *txbuffer;
+static char *txbuffer0;
+static char *txbuffer1;
 
 #define IFNAME0 'e'
 #define IFNAME1 't'
@@ -46,10 +42,10 @@ static void liteeth_low_level_init(struct netif *netif)
     ethmac_sram_reader_ev_pending_write(ETHMAC_EV_SRAM_READER);
     ethmac_sram_writer_ev_pending_write(ETHMAC_EV_SRAM_WRITER);
 
-    rxbuffer0 = (ethernet_buffer *)ETHMAC_RX0_BASE;
-    rxbuffer1 = (ethernet_buffer *)ETHMAC_RX1_BASE;
-    txbuffer0 = (ethernet_buffer *)ETHMAC_TX0_BASE;
-    txbuffer1 = (ethernet_buffer *)ETHMAC_TX1_BASE;
+    rxbuffer0 = (char *)ETHMAC_RX0_BASE;
+    rxbuffer1 = (char *)ETHMAC_RX1_BASE;
+    txbuffer0 = (char *)ETHMAC_TX0_BASE;
+    txbuffer1 = (char *)ETHMAC_TX1_BASE;
 
     rxslot = 0;
     txslot = 0;
@@ -64,7 +60,7 @@ static err_t liteeth_low_level_output(struct netif *netif, struct pbuf *p)
 
     txlen = 0;
     for(q = p; q != NULL; q = q->next) {
-        memcpy(txbuffer->raw, q->payload, q->len);
+        memcpy(txbuffer, q->payload, q->len);
         txbuffer += q->len;
         txlen += q->len;
     }
@@ -97,7 +93,7 @@ static struct pbuf *liteeth_low_level_input(struct netif *netif)
     p = pbuf_alloc(PBUF_RAW, rxlen, PBUF_POOL);
     if(p != NULL) {
         for(q = p; q != NULL; q = q->next) {
-           memcpy(q->payload, rxbuffer->raw, q->len);
+           memcpy(q->payload, rxbuffer, q->len);
            rxbuffer += q->len;
         }
     }
