@@ -59,10 +59,15 @@ static err_t liteeth_low_level_output(struct netif *netif, struct pbuf *p)
     struct pbuf *q;
 
     txlen = 0;
-    for(q = p; q != NULL; q = q->next) {
+    q = p;
+    while(q) {
         memcpy(txbuffer, q->payload, q->len);
         txbuffer += q->len;
         txlen += q->len;
+        if(q->tot_len != q->len)
+            q = q->next;
+        else
+            q = NULL;
     }
 
     ethmac_sram_reader_slot_write(txslot);
@@ -91,11 +96,14 @@ static struct pbuf *liteeth_low_level_input(struct netif *netif)
       rxbuffer = rxbuffer0;
 
     p = pbuf_alloc(PBUF_RAW, rxlen, PBUF_POOL);
-    if(p != NULL) {
-        for(q = p; q != NULL; q = q->next) {
-           memcpy(q->payload, rxbuffer, q->len);
-           rxbuffer += q->len;
-        }
+    q = p;
+    while(q) {
+        memcpy(q->payload, rxbuffer, q->len);
+        rxbuffer += q->len;
+        if(q->tot_len != q->len)
+            q = q->next;
+        else
+            q = NULL;
     }
 
     return p;
