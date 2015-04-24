@@ -27,21 +27,19 @@
 #ifdef CSR_ETHMAC_BASE
 unsigned char macadr[6] = {0x10, 0xe2, 0xd5, 0x00, 0x00, 0x00};
 
-u32_t clock_ms;
+static int clkdiv;
 
 u32_t sys_now(void)
 {
-    unsigned int freq;
-    unsigned int prescaler;
+    static unsigned long long int clock_sys;
+    u32_t clock_ms;
 
-    freq = identifier_frequency_read();
-    prescaler = freq/1000; /* sys_now expects time in ms */
     timer0_update_value_write(1);
-    clock_ms += (0xffffffff - timer0_value_read())/prescaler;
-    /* Reset timer to avoid rollover, this will increase clock_ms
-       drift but we don't need precision */
+    clock_sys += 0xffffffff - timer0_value_read();
     timer0_en_write(0);
     timer0_en_write(1);
+
+    clock_ms = clock_sys/clkdiv;
     return clock_ms;
 }
 
@@ -66,7 +64,7 @@ static void network_init(void)
     timer0_load_write(0xffffffff);
     timer0_reload_write(0xffffffff);
     timer0_en_write(1);
-    clock_ms = 0;
+    clkdiv = identifier_frequency_read()/1000;
 
     IP4_ADDR(&local_ip, 192, 168, 0, 42);
     IP4_ADDR(&netmask, 255, 255, 255, 0);
