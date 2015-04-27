@@ -269,6 +269,8 @@ static void kserver_service(void)
             tcp_write(active_pcb, data, len, 0);
             session_ack_data(len);
         }
+        if(len < 0)
+            kserver_close(active_cs, active_pcb);
     }
 }
 
@@ -284,6 +286,19 @@ static void regular_main(void)
 }
 
 #else /* CSR_ETHMAC_BASE */
+
+static void reset_serial_session(void)
+{
+    int i;
+
+    session_end();
+    /* Signal end-of-session inband with zero length packet. */
+    for(i=0;i<4;i++)
+        uart_write(0x5a);
+    for(i=0;i<4;i++)
+        uart_write(0x00);
+    session_start();
+}
 
 static void serial_service(void)
 {
@@ -301,10 +316,8 @@ static void serial_service(void)
         r = session_input(&rxdata, 1);
         if(r > 0)
             rxpending = 0;
-        if(r < 0) {
-            session_end();
-            session_start();
-        }
+        if(r < 0)
+            reset_serial_session();
     }
 
     session_poll((void **)&txdata, &txlen);
@@ -313,7 +326,8 @@ static void serial_service(void)
             uart_write(txdata[i]);
         session_ack_data(txlen);
         session_ack_mem(txlen);
-    }
+    } else if(txlen < 0)
+        reset_serial_session();
 }
 
 static void regular_main(void)

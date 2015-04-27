@@ -362,11 +362,11 @@ int session_input(void *data, int len)
 }
 
 /* assumes output buffer is empty when called */
-static void process_kmsg(struct msg_base *umsg)
+static int process_kmsg(struct msg_base *umsg)
 {
     if(user_kernel_state != USER_KERNEL_RUNNING) {
         log("Received message from kernel CPU while not in running state");
-        return;
+        return 0;
     }
 
     switch(umsg->type) {
@@ -392,7 +392,8 @@ static void process_kmsg(struct msg_base *umsg)
         case MESSAGE_TYPE_RPC_REQUEST: {
             struct msg_rpc_request *msg = (struct msg_rpc_request *)umsg;
 
-            send_rpc_request(msg->rpc_num, msg->args);
+            if(!send_rpc_request(msg->rpc_num, msg->args))
+                return 0;
             user_kernel_state = USER_KERNEL_WAIT_RPC;
             break;
         }
@@ -403,23 +404,16 @@ static void process_kmsg(struct msg_base *umsg)
             break;
         }
         default: {
-            int eid;
-
             log("Received invalid message type from kernel CPU");
-
-            buffer_out[8] = REMOTEMSG_TYPE_KERNEL_EXCEPTION;
-            eid = EID_INTERNAL_ERROR;
-            memcpy(&buffer_out[9], &eid, 4);
-            memset(&buffer_out[13], 0, 3*8);
-            submit_output(9+4+3*8);
-
-            kloader_stop_kernel();
-            user_kernel_state = USER_KERNEL_LOADED;
-            break;
+            return 0;
         }
     }
+    return 1;
 }
 
+/* len is set to -1 in case of irrecoverable error
+ * (the session must be dropped and session_end called)
+ */
 void session_poll(void **data, int *len)
 {
     int l;
@@ -434,7 +428,10 @@ void session_poll(void **data, int *len)
 
         umsg = mailbox_receive();
         if(umsg) {
-            process_kmsg(umsg);
+            if(!process_kmsg(umsg)) {
+                *len = -1;
+                return;
+            }
             mailbox_acknowledge();
         }
         l = get_out_packet_len();
@@ -454,6 +451,7 @@ void session_ack_mem(int len)
     buffer_out_index_mem += len;
     if(buffer_out_index_mem >= get_out_packet_len()) {
         memset(&buffer_out[4], 0, 4);
+        buffer_out_index_data = 0;
         buffer_out_index_mem = 0;
     }
 }

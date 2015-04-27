@@ -76,7 +76,10 @@ class CommGeneric:
                 sync_count += 1
             else:
                 sync_count = 0
-        length, tyv = struct.unpack(">lB", self.read(5))
+        length = struct.unpack(">l", self.read(4))[0]
+        if not length:  # inband connection close
+            raise OSError("Connection closed")
+        tyv = struct.unpack("B", self.read(1))[0]
         ty = _D2HMsgType(tyv)
         logger.debug("receiving message: type=%r length=%d", ty, length)
         return length, ty
