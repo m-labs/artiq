@@ -7,14 +7,13 @@
 #include <generated/csr.h>
 #include <console.h>
 
-#include "dds.h"
-#include "test_mode.h"
-
-#ifdef ARTIQ_AMP
-
 #include "kloader.h"
 #include "mailbox.h"
 #include "messages.h"
+#include "dds.h"
+#include "test_mode.h"
+
+/* bridge access functions */
 
 static void amp_bridge_init(void)
 {
@@ -102,48 +101,7 @@ static void p_ddsfud(void)
     mailbox_send_and_wait(&msg);
 }
 
-#else /* ARTIQ_AMP */
-
-#include "rtio.h"
-
-static void p_ttlout(int n, int value)
-{
-    rtio_init();
-    rtio_set_oe(rtio_get_counter() + 8000, n, 1);
-    rtio_set_o(rtio_get_counter() + 8000, n, value);
-}
-
-static void p_ddssel(int channel)
-{
-    DDS_WRITE(DDS_GPIO, channel);
-}
-
-static void p_ddsreset(void)
-{
-    unsigned int g;
-
-    g = DDS_READ(DDS_GPIO);
-    DDS_WRITE(DDS_GPIO, g | (1 << 7));
-    DDS_WRITE(DDS_GPIO, g);
-}
-
-static unsigned int p_ddsread(unsigned int address)
-{
-    return DDS_READ(address);
-}
-
-static void p_ddswrite(unsigned int address, unsigned int data)
-{
-    DDS_WRITE(address, data);
-}
-
-static void p_ddsfud(void)
-{
-    rtio_init();
-    rtio_fud(rtio_get_counter() + 8000);
-}
-
-#endif /* ARTIQ_AMP */
+/* */
 
 static void leds(char *value)
 {
@@ -462,9 +420,7 @@ void test_main(void)
 {
     char buffer[64];
 
-#ifdef ARTIQ_AMP
     amp_bridge_init();
-#endif
 
     while(1) {
         putsnonl("\e[1mtest>\e[0m ");

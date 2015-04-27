@@ -2,6 +2,8 @@
 
 import sys
 
+from elftools.elf.elffile import ELFFile
+
 
 services = [
     ("syscalls", [
@@ -24,17 +26,7 @@ services = [
 ]
 
 
-def print_up():
-    for name, contents in services:
-        print("static const struct symbol {}[] = {{".format(name))
-        for name, value in contents:
-            print("    {{\"{}\", {}}},".format(name, value))
-        print("    {NULL, NULL}")
-        print("};")
-
-
-def print_amp(ksupport_elf_filename):
-    from elftools.elf.elffile import ELFFile
+def print_service_table(ksupport_elf_filename):
     with open(ksupport_elf_filename, "rb") as f:
         elf = ELFFile(f)
         symtab = elf.get_section_by_name(b".symtab")
@@ -50,10 +42,8 @@ def print_amp(ksupport_elf_filename):
 
 
 def main():
-    if len(sys.argv) == 1:
-        print_up()
-    elif len(sys.argv) == 2:
-        print_amp(sys.argv[1])
+    if len(sys.argv) == 2:
+        print_service_table(sys.argv[1])
     else:
         print("Incorrect number of command line arguments")
         sys.exit(1)

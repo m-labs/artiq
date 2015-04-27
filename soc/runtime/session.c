@@ -3,15 +3,8 @@
 
 #include <generated/csr.h>
 
-#ifdef ARTIQ_AMP
 #include "mailbox.h"
 #include "messages.h"
-#else
-#include <system.h>
-#include "exceptions.h"
-#include "rtio.h"
-#include "dds.h"
-#endif
 
 #include "log.h"
 #include "kloader.h"
@@ -73,18 +66,14 @@ void session_start(void)
     buffer_out_index_data = 0;
     buffer_out_index_mem = 0;
     memset(&buffer_out[4], 0, 4);
-#ifdef ARTIQ_AMP
     kloader_stop_kernel();
-#endif
     user_kernel_state = USER_KERNEL_NONE;
 }
 
 void session_end(void)
 {
-#ifdef ARTIQ_AMP
     kloader_stop_kernel();
     kloader_start_idle_kernel();
-#endif
 }
 
 /* host to device */
@@ -204,53 +193,6 @@ static int send_rpc_request(int rpc_num, va_list args)
     return 1;
 }
 
-#ifndef ARTIQ_AMP
-static int rpc_reply_eid;
-static int rpc_reply_retval;
-
-int rpc(int rpc_num, ...)
-{
-    va_list args;
-
-    va_start(args, rpc_num);
-    send_rpc_request(rpc_num, args);
-    va_end(args);
-
-    user_kernel_state = USER_KERNEL_WAIT_RPC;
-    /*while(user_kernel_state == USER_KERNEL_WAIT_RPC)
-        comm_service();*/
-
-    if(rpc_reply_eid != EID_NONE)
-        exception_raise(rpc_reply_eid);
-    return rpc_reply_retval;
-}
-
-/* assumes output buffer is empty when called */
-static void run_kernel_up(kernel_function k)
-{
-    void *jb;
-    int eid;
-    long long eparams[3];
-
-    jb = exception_push();
-    if(exception_setjmp(jb)) {
-        eid = exception_getid(eparams);
-        buffer_out[8] = REMOTEMSG_TYPE_KERNEL_EXCEPTION;
-        memcpy(&buffer_out[9], &eid, 4);
-        memcpy(&buffer_out[13], eparams, 3*8);
-        submit_output(9+4+3*8);
-    } else {
-        dds_init();
-        rtio_init();
-        flush_cpu_icache();
-        k();
-        exception_pop(1);
-        buffer_out[8] = REMOTEMSG_TYPE_KERNEL_FINISHED;
-        submit_output(9);
-    }
-}
-#endif /* !ARTIQ_AMP */
-
 static int process_input(void)
 {
     switch(buffer_in[8]) {
@@ -321,35 +263,22 @@ static int process_input(void)
                 break;
             }
 
-#ifdef ARTIQ_AMP
             kloader_start_user_kernel(k);
             user_kernel_state = USER_KERNEL_RUNNING;
-#else
-            user_kernel_state = USER_KERNEL_RUNNING;
-            run_kernel_up(k);
-            user_kernel_state = USER_KERNEL_LOADED;
-#endif
             break;
         }
         case REMOTEMSG_TYPE_RPC_REPLY: {
-#ifdef ARTIQ_AMP
             struct msg_rpc_reply reply;
-#endif
 
             if(user_kernel_state != USER_KERNEL_WAIT_RPC) {
                 log("Unsolicited RPC reply");
                 return 0;
             }
 
-#ifdef ARTIQ_AMP
             reply.type = MESSAGE_TYPE_RPC_REPLY;
             memcpy(&reply.eid, &buffer_in[9], 4);
             memcpy(&reply.retval, &buffer_in[13], 4);
             mailbox_send_and_wait(&reply);
-#else
-            memcpy(&rpc_reply_eid, &buffer_in[9], 4);
-            memcpy(&rpc_reply_retval, &buffer_in[13], 4);
-#endif
             user_kernel_state = USER_KERNEL_RUNNING;
             break;
         }
@@ -411,7 +340,6 @@ int session_input(void *data, int len)
     return consumed;
 }
 
-#ifdef ARTIQ_AMP
 /* assumes output buffer is empty when called */
 static void process_kmsg(struct msg_base *umsg)
 {
@@ -470,7 +398,6 @@ static void process_kmsg(struct msg_base *umsg)
         }
     }
 }
-#endif /* ARTIQ_AMP */
 
 void session_poll(void **data, int *len)
 {
@@ -478,7 +405,6 @@ void session_poll(void **data, int *len)
 
     l = get_out_packet_len();
 
-#ifdef ARTIQ_AMP
     /* If the output buffer is available, 
      * check if the kernel CPU has something to transmit.
      */
@@ -492,7 +418,6 @@ void session_poll(void **data, int *len)
         }
         l = get_out_packet_len();
     }
-#endif
 
     *len = l - buffer_out_index_data;
     *data = &buffer_out[buffer_out_index_data];

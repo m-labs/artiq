@@ -49,12 +49,10 @@ static int symtab_add(const char *name, void *target)
 
 int kloader_load(void *buffer, int length)
 {
-#ifdef ARTIQ_AMP
     if(!kernel_cpu_reset_read()) {
         log("BUG: attempted to load while kernel CPU running");
         return 0;
     }
-#endif
     symtab_init();
     return load_elf(
         resolve_service_symbol, symtab_add,
@@ -65,8 +63,6 @@ kernel_function kloader_find(const char *name)
 {
     return find_symbol(symtab, name);
 }
-
-#ifdef ARTIQ_AMP
 
 extern char _binary_ksupport_bin_start;
 extern char _binary_ksupport_bin_end;
@@ -107,5 +103,3 @@ void kloader_stop_kernel(void)
 {
     kernel_cpu_reset_write(1);
 }
-
-#endif

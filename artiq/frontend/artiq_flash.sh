@@ -1,9 +1,11 @@
 #!/bin/bash
 
+set -e
+
 ARTIQ_PREFIX=$(python3 -c "import artiq; print(artiq.__path__[0])")
 
-# Default is ppro
-BOARD=ppro
+# Default is kc705
+BOARD=kc705
 
 while getopts "bBrht:d:" opt
 do
@@ -21,15 +23,12 @@ do
 			if [ "$OPTARG" == "kc705" ]
 			then
 				BOARD=kc705
-			elif [ "$OPTARG" == "ppro" ]
-			then
-				BOARD=ppro
 			elif [ "$OPTARG" == "pipistrello" ]
 			then
 				BOARD=pipistrello
 			else
 				echo "Supported targets (-t option) are:"
-				echo "kc705, ppro, or pipistrello"
+				echo "kc705 or pipistrello"
 				exit 1
 			fi
 			;;
@@ -47,12 +46,12 @@ do
 			echo ""
 			echo "To flash everything, do not use any of the -b|-B|-r option."
 			echo ""
-			echo "usage: $0 [-b] [-B] [-r] [-h] [-t kc705|ppro|pipistrello] [-d path]"
+			echo "usage: $0 [-b] [-B] [-r] [-h] [-t kc705|pipistrello] [-d path]"
 			echo "-b  Flash bitstream"
 			echo "-B  Flash BIOS"
 			echo "-r  Flash ARTIQ runtime"
 			echo "-h  Show this help message"
-			echo "-t  Target (kc705, pipistrello, ppro, default is: ppro)"
+			echo "-t  Target (kc705, pipistrello, default is: kc705)"
 			echo "-d  Directory containing the binaries to be flashed"
 			exit 1
 			;;
@@ -88,27 +87,7 @@ then
 	BIN_PREFIX=$BIN_PATH
 fi
 
-if [ "$BOARD" == "ppro" ]
-then
-	UDEV_RULES=99-ppro.rules
-	BITSTREAM=artiq_ppro-up-papilio_pro.bin
-	CABLE=papilio
-	PROXY=bscan_spi_lx9_papilio.bit
-	BIOS_ADDR=0x60000
-	RUNTIME_ADDR=0x70000
-	if [ -z "$BIN_PREFIX" ]; then BIN_PREFIX=$ARTIQ_PREFIX/binaries/ppro; fi
-	search_for_proxy $PROXY
-elif [ "$BOARD" == "pipistrello" ]
-then
-	UDEV_RULES=99-ppro.rules
-	BITSTREAM=artiq_pipistrello-amp-pipistrello.bin
-	CABLE=papilio
-	PROXY=bscan_spi_lx9_csg324.bit
-	BIOS_ADDR=0x170000
-	RUNTIME_ADDR=0x180000
-	if [ -z "$BIN_PREFIX" ]; then BIN_PREFIX=$ARTIQ_PREFIX/binaries/pipistrello; fi
-	search_for_proxy $PROXY
-elif [ "$BOARD" == "kc705" ]
+if [ "$BOARD" == "kc705" ]
 then
 	UDEV_RULES=99-kc705.rules
 	BITSTREAM=artiq_kc705-artiqsocbasic-kc705.bit
@@ -117,6 +96,16 @@ then
 	BIOS_ADDR=0xaf0000
 	RUNTIME_ADDR=0xb00000
 	if [ -z "$BIN_PREFIX" ]; then BIN_PREFIX=$ARTIQ_PREFIX/binaries/kc705; fi
+	search_for_proxy $PROXY
+elif [ "$BOARD" == "pipistrello" ]
+then
+	UDEV_RULES=99-papilio.rules
+	BITSTREAM=artiq_pipistrello-amp-pipistrello.bin
+	CABLE=papilio
+	PROXY=bscan_spi_lx9_csg324.bit
+	BIOS_ADDR=0x170000
+	RUNTIME_ADDR=0x180000
+	if [ -z "$BIN_PREFIX" ]; then BIN_PREFIX=$ARTIQ_PREFIX/binaries/pipistrello; fi
 	search_for_proxy $PROXY
 fi
 

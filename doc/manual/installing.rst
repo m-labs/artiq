@@ -8,9 +8,9 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
 * Install the FPGA vendor tools (e.g. Xilinx ISE and/or Vivado):
 
-    * Get Xilinx tools from http://www.xilinx.com/support/download/index.htm. ISE can build bitstreams both for boards using the Spartan-6 (Papilio Pro) and 7-series devices (KC705), while Vivado supports only boards using 7-series devices.
+    * Get Xilinx tools from http://www.xilinx.com/support/download/index.htm. ISE can build bitstreams both for boards using the Spartan-6 (Pipistrello) and 7-series devices (KC705), while Vivado supports only boards using 7-series devices.
 
-    * The Papilio Pro is supported by Webpack, the KC705 is not.
+    * The Pipistrello is supported by Webpack, the KC705 is not.
 
     * During the Xilinx toolchain installation, uncheck ``Install cable drivers`` (they are not required as we use better and open source alternatives).
 
@@ -52,7 +52,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
         $ make -j4
         $ sudo make install
 
-* Install JTAG tools needed to program Papilio Pro and KC705:
+* Install JTAG tools needed to program the Pipistrello and KC705:
 
     ::
 
@@ -69,14 +69,14 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
     The purpose of the flash proxy bitstream is to give programming software fast JTAG access to the flash connected to the FPGA.
 
-    * Papilio Pro:
+    * Pipistrello:
 
         ::
 
             $ cd ~/artiq-dev
-            $ git clone https://github.com/GadgetFactory/Papilio-Loader
+            $ wget http://www.phys.ethz.ch/~robertjo/bscan_spi_lx45_csg324.bit
 
-        Then copy ``~/artiq-dev/Papilio-Loader/xc3sprog/trunk/bscan_spi/bscan_spi_lx9_papilio.bit`` to ``~/.migen``, ``/usr/local/share/migen`` or ``/usr/share/migen``.
+        Then copy ``~/artiq-dev/bscan_spi_lx45_csg324.bit`` to ``~/.migen``, ``/usr/local/share/migen`` or ``/usr/share/migen``.
 
     * KC705:
 
@@ -107,9 +107,9 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 * Then, build and flash the ARTIQ runtime: ::
 
         $ cd ~/artiq-dev/artiq/soc/runtime && make runtime.fbi
-        $ ~/artiq-dev/artiq/artiq/frontend/artiq_flash.sh -t ppro -d $PWD -r
+        $ ~/artiq-dev/artiq/artiq/frontend/artiq_flash.sh -t pipistrello -d $PWD -r
 
-.. note:: The `-t` option specifies the board your are targeting. Available options are `ppro` for Papilio Pro, `kc705` for KC705 and `pipistrello` for Pipistrello.
+.. note:: The `-t` option specifies the board your are targeting. Available options are ``kc705`` and ``pipistrello``.
 
 * Check that the board boots by running a serial terminal program (you may need to press its FPGA reconfiguration button or power-cycle it to load the bitstream that was newly written into the flash): ::
 
@@ -192,7 +192,7 @@ This command installs all the required packages: ::
 
 Note that ARTIQ requires Python 3.4 or above.
 
-To set user permissions on the JTAG and serial ports of the Papilio Pro, create a ``/etc/udev/rules.d/30-usb-papilio-pro.rules`` file containing the following: ::
+To set user permissions on the JTAG and serial ports of the Pipistrello, create a ``/etc/udev/rules.d/30-usb-papilio.rules`` file containing the following: ::
 
     SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6010", GROUP="dialout"
 

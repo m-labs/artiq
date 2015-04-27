@@ -94,18 +94,6 @@ set_false_path -from [get_clocks rsys_clk] -to [get_clocks rio_clk]
 set_false_path -from [get_clocks rio_clk] -to [get_clocks rsys_clk]
 """, rsys_clk=self.rtio.cd_rsys.clk, rio_clk=self.rtio.cd_rio.clk)
 
-class UP(_Peripherals):
-    def __init__(self, *args, **kwargs):
-        _Peripherals.__init__(self, *args, **kwargs)
-
-        rtio_csrs = self.rtio.get_csrs()
-        self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
-        self.add_wb_slave(mem_decoder(self.mem_map["rtio"]), self.rtiowb.bus)
-        self.add_csr_region("rtio", self.mem_map["rtio"] + 0x80000000, 32, rtio_csrs)
-
-        self.add_wb_slave(mem_decoder(self.mem_map["dds"]), self.dds.bus)
-        self.add_memory_region("dds", self.mem_map["dds"] + 0x80000000, 64*4)
-
 
 class AMP(_Peripherals):
     csr_map = {
