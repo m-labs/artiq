@@ -281,7 +281,7 @@ class _KernelCSRs(AutoCSR):
 
 
 class RTIO(Module):
-    def __init__(self, channels, clk_freq, counter_width=63,
+    def __init__(self, channels, clk_freq, full_ts_width=63,
                  guard_io_cycles=20):
         data_width = max(rtlink.get_data_width(c.interface)
                          for c in channels)
@@ -293,7 +293,7 @@ class RTIO(Module):
         # CSRs
         self.kcsrs = _KernelCSRs(bits_for(len(channels)-1),
                                  data_width, address_width,
-                                 counter_width + fine_ts_width)
+                                 full_ts_width)
 
         # Clocking/Reset
         # Create rsys and rio domains based on sys and rio
@@ -309,7 +309,7 @@ class RTIO(Module):
                                                 self.kcsrs.reset.storage)
 
         # Managers
-        self.submodules.counter = _RTIOCounter(counter_width)
+        self.submodules.counter = _RTIOCounter(full_ts_width - fine_ts_width)
 
         i_datas, i_timestamps = [], []
         o_statuses, i_statuses = [], []
