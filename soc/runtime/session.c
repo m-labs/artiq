@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdio.h>
 #include <stdarg.h>
 
 #include <generated/csr.h>
@@ -105,12 +106,44 @@ enum {
     REMOTEMSG_TYPE_RPC_REQUEST,
 };
 
+static int add_base_rpc_value(char base_type, void *value, char *buffer_out, int available_space)
+{
+    switch(base_type) {
+        case 'n':
+            return 0;
+        case 'b':
+            if(available_space < 1)
+                return -1;
+            if(*(char *)value)
+                buffer_out[0] = 1;
+            else
+                buffer_out[0] = 0;
+            return 1;
+        case 'i':
+            if(available_space < 4)
+                return -1;
+            memcpy(buffer_out, value, 4);
+            return 4;
+        case 'I':
+        case 'f':
+            if(available_space < 8)
+                return -1;
+            memcpy(buffer_out, value, 8);
+            return 8;
+        case 'F':
+            if(available_space < 16)
+                return -1;
+            memcpy(buffer_out, value, 16);
+            return 16;
+        default:
+            return -1;
+    }
+}
+
 static int add_rpc_value(int bi, int type_tag, void *value)
 {
     char base_type;
     int obi, r;
-    int i, p;
-    int len;
 
     obi = bi;
     base_type = type_tag;
@@ -119,52 +152,40 @@ static int add_rpc_value(int bi, int type_tag, void *value)
         return -1;
     buffer_out[bi++] = base_type;
 
-    switch(base_type) {
-        case 'n':
-            return bi - obi;
-        case 'b':
-            if((bi + 1) > BUFFER_OUT_SIZE)
-                return -1;
-            if(*(char *)value)
-                buffer_out[bi++] = 1;
-            else
-                buffer_out[bi++] = 0;
-            return bi - obi;
-        case 'i':
-            if((bi + 4) > BUFFER_OUT_SIZE)
-                return -1;
-            memcpy(&buffer_out[bi], value, 4);
-            bi += 4;
-            return bi - obi;
-        case 'I':
-        case 'f':
-            if((bi + 8) > BUFFER_OUT_SIZE)
-                return -1;
-            memcpy(&buffer_out[bi], value, 8);
-            bi += 8;
-            return bi - obi;
-        case 'F':
-            if((bi + 16) > BUFFER_OUT_SIZE)
-                return -1;
-            memcpy(&buffer_out[bi], value, 16);
-            bi += 16;
-            return bi - obi;
-        case 'l':
-            len = *(int *)value;
-            p = 4;
-            for(i=0;i<len;i++) {
-                r = add_rpc_value(bi, type_tag >> 8, (char *)value + p);
-                if(r < 0)
-                    return r;
-                bi += r;
-                p += r;
-            }
-            if((bi + 1) > BUFFER_OUT_SIZE)
-                return -1;
-            buffer_out[bi++] = 0;
-            return bi - obi;
+    if(base_type == 'l') {
+        char elt_type;
+        int len;
+        int i, p;
+
+        elt_type = type_tag >> 8;
+        if((bi + 1) > BUFFER_OUT_SIZE)
+            return -1;
+        buffer_out[bi++] = elt_type;
+
+        len = *(int *)value;
+        if((bi + 4) > BUFFER_OUT_SIZE)
+            return -1;
+        memcpy(&buffer_out[bi], &len, 4);
+        bi += 4;
+
+        p = 4;
+        for(i=0;i<len;i++) {
+            r = add_base_rpc_value(elt_type, (char *)value + p,
+                                   &buffer_out[bi], BUFFER_OUT_SIZE - bi);
+            if(r < 0)
+                return r;
+            bi += r;
+            p += r;
+        }
+    } else {
+        r = add_base_rpc_value(base_type, value,
+                               &buffer_out[bi], BUFFER_OUT_SIZE - bi);
+        if(r < 0)
+            return r;
+        bi += r;
     }
-    return -1;
+
+    return bi - obi;
 }
 
 static int send_rpc_request(int rpc_num, va_list args)
@@ -181,7 +202,7 @@ static int send_rpc_request(int rpc_num, va_list args)
     while((type_tag = va_arg(args, int))) {
         r = add_rpc_value(bi, type_tag,
             type_tag == 'n' ? NULL : va_arg(args, void *));
-        if(bi < 0)
+        if(r < 0)
             return 0;
         bi += r;
     }

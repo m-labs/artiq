@@ -120,27 +120,34 @@ class CommGeneric:
         self.write(bytes(kname, "ascii"))
         logger.debug("running kernel: %s", kname)
 
+    def _receive_rpc_value(self, type_tag):
+        if type_tag == "n":
+            return None
+        if type_tag == "b":
+            return bool(struct.unpack("B", self.read(1))[0])
+        if type_tag == "i":
+            return struct.unpack(">l", self.read(4))[0]
+        if type_tag == "I":
+            return struct.unpack(">q", self.read(8))[0]
+        if type_tag == "f":
+            return struct.unpack(">d", self.read(8))[0]
+        if type_tag == "F":
+            n, d = struct.unpack(">qq", self.read(16))
+            return Fraction(n, d)
+
     def _receive_rpc_values(self):
         r = []
         while True:
             type_tag = chr(struct.unpack("B", self.read(1))[0])
             if type_tag == "\x00":
                 return r
-            if type_tag == "n":
-                r.append(None)
-            if type_tag == "b":
-                r.append(bool(struct.unpack("B", self.read(1))[0]))
-            if type_tag == "i":
-                r.append(struct.unpack(">l", self.read(4))[0])
-            if type_tag == "I":
-                r.append(struct.unpack(">q", self.read(8))[0])
-            if type_tag == "f":
-                r.append(struct.unpack(">d", self.read(8))[0])
-            if type_tag == "F":
-                n, d = struct.unpack(">qq", self.read(16))
-                r.append(Fraction(n, d))
-            if type_tag == "l":
-                r.append(self._receive_rpc_values())
+            elif type_tag == "l":
+                elt_type_tag = chr(struct.unpack("B", self.read(1))[0])
+                length = struct.unpack(">l", self.read(4))[0]
+                r.append([self._receive_rpc_value(elt_type_tag)
+                          for i in range(length)])
+            else:
+                r.append(self._receive_rpc_value(type_tag))
 
     def _serve_rpc(self, rpc_wrapper, rpc_map, user_exception_map):
         rpc_num = struct.unpack(">l", self.read(4))[0]
