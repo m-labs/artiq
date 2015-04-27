@@ -28,5 +28,5 @@ class RPCTiming(Experiment, AutoDB):
         self.bench()
         mean = sum(self.ts)/self.repeats
         self.rpc_time_stddev = sqrt(
-            sum([(t - mean)**2 for t in self.ts]))/self.repeats*s
+            sum([(t - mean)**2 for t in self.ts])/self.repeats)*s
         self.rpc_time_mean = mean*s
