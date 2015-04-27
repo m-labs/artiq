@@ -1,6 +1,6 @@
 include $(MSCDIR)/software/common.mak
 
-OBJECTS := isr.o elf_loader.o services.o session.o log.o test_mode.o kloader.o main.o
+OBJECTS := isr.o flash_storage.o elf_loader.o services.o session.o log.o test_mode.o kloader.o main.o
 OBJECTS_KSUPPORT := exception_jmp.o exceptions.o rtio.o dds.o
 
 # NOTE: this does not handle dependencies well. Run "make clean"

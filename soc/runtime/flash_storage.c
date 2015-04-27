@@ -2,21 +2,24 @@
  * Yann Sionneau <ys@m-labs.hk>, 2015
  */
 
-#include <spiflash.h>
 #include <string.h>
-#include <generated/flash_geometry.h>
-#include <generated/mem.h>
 #include <system.h>
+#include <spiflash.h>
+#include <generated/mem.h>
+#include <generated/csr.h>
+
 #include "flash_storage.h"
 
-#define STORAGE_ADDRESS ((char *)(FLASH_BOOT_ADDRESS + 128*1024))
-#define STORAGE_SIZE    SECTOR_SIZE
+#if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
+
+#define STORAGE_ADDRESS ((char *)(FLASH_BOOT_ADDRESS + 256*1024))
+#define STORAGE_SIZE    SPIFLASH_SECTOR_SIZE
 #define END_MARKER      (0xFFFFFFFF)
 
 #define min(a, b) (a>b?b:a)
 #define max(a, b) (a>b?a:b)
 
-#define goto_next_record(buff,addr) do { \
+#define goto_next_record(buff, addr) do { \
         unsigned int key_size = strlen(&buff[addr])+1; \
         if (key_size % 4) \
             key_size += 4 - (key_size % 4); \
@@ -25,14 +28,12 @@
         if (buflen % 4) \
             buflen += 4 - (buflen % 4); \
         addr += key_size + sizeof(int) + buflen; \
-    } while (0);
+    } while (0)
 
 union seek {
     unsigned int integer;
     char bytes[4];
 };
-
-char sector_buff[STORAGE_SIZE];
 
 static void write_at_offset(char *key, void *buffer, int buflen, unsigned int sector_offset);
 static char key_exists(char *buff, char *key, char *end);
@@ -43,7 +44,8 @@ static char key_exists(char *buff, char *key, char *end)
 {
     unsigned int addr;
 
-    for(addr = 0; &buff[addr] < end && *(unsigned int*)&buff[addr] != END_MARKER;) {
+    addr = 0;
+    while(&buff[addr] < end && *(unsigned int*)&buff[addr] != END_MARKER) {
         if(strcmp(&buff[addr], key) == 0)
             return 1;
         goto_next_record(buff, addr);
@@ -56,7 +58,8 @@ static char check_for_duplicates(char *buff)
     unsigned int addr;
     char *key_name;
 
-    for(addr = 0; addr < STORAGE_SIZE && *(unsigned int *)&buff[addr] != END_MARKER;) {
+    addr = 0;
+    while(addr < STORAGE_SIZE && *(unsigned int *)&buff[addr] != END_MARKER) {
         key_name = &buff[addr];
         goto_next_record(buff, addr);
         if(key_exists(&buff[addr], key_name, &buff[STORAGE_SIZE]))
@@ -70,12 +73,12 @@ static unsigned int try_to_flush_duplicates(void)
 {
     unsigned int addr, i, key_size, buflen;
     char *key_name, *last_duplicate;
+    char sector_buff[STORAGE_SIZE];
     union seek *seeker = (union seek *)sector_buff;
 
     memcpy(sector_buff, STORAGE_ADDRESS, STORAGE_SIZE);
     if(check_for_duplicates(sector_buff)) {
-        erase_flash_sector((unsigned int)STORAGE_ADDRESS);
-        flush_cpu_dcache();
+        fs_erase();
         for(addr = 0; addr < STORAGE_SIZE && seeker[addr >> 2].integer != END_MARKER;) {
             key_name = &sector_buff[addr];
             key_size = strlen(key_name)+1;
@@ -89,7 +92,7 @@ static unsigned int try_to_flush_duplicates(void)
                         last_duplicate = &sector_buff[i];
                 }
                 buflen = *(unsigned int *)&last_duplicate[key_size];
-                write(key_name, &last_duplicate[key_size+sizeof(int)], buflen);
+                fs_write(key_name, &last_duplicate[key_size+sizeof(int)], buflen);
             }
             goto_next_record(sector_buff, addr);
         }
@@ -115,10 +118,11 @@ static void write_at_offset(char *key, void *buffer, int buflen, unsigned int se
     write_to_flash(sector_offset+key_len+key_len_alignment, (unsigned char *)&buflen, sizeof(buflen));
     write_to_flash(sector_offset+key_len+key_len_alignment+sizeof(buflen), buffer, buflen);
     write_to_flash(sector_offset+key_len+key_len_alignment+sizeof(buflen)+buflen, padding, buflen_alignment);
+    flush_cpu_dcache();
 }
 
 
-void write(char *key, void *buffer, unsigned int buflen)
+void fs_write(char *key, void *buffer, unsigned int buflen)
 {
     char *addr;
     unsigned int key_size = strlen(key)+1;
@@ -127,7 +131,6 @@ void write(char *key, void *buffer, unsigned int buflen)
     for(addr = STORAGE_ADDRESS; addr < STORAGE_ADDRESS + STORAGE_SIZE - record_size; addr += 4) {
         if(*(unsigned int *)addr == END_MARKER) {
             write_at_offset(key, buffer, buflen, (unsigned int)addr);
-            flush_cpu_dcache();
             break;
         }
     }
@@ -139,21 +142,28 @@ void write(char *key, void *buffer, unsigned int buflen)
         for(addr = STORAGE_ADDRESS; addr < STORAGE_ADDRESS + STORAGE_SIZE - record_size; addr += 4) {
             if(*(unsigned int *)addr == END_MARKER) {
                 write_at_offset(key, buffer, buflen, (unsigned int)addr);
-                flush_cpu_dcache();
                 break;
             }
         }
     }
 }
 
-unsigned int read(char *key, void *buffer, unsigned int buflen, unsigned int *remain)
+void fs_erase(void)
+{
+    erase_flash_sector((unsigned int)STORAGE_ADDRESS);
+    flush_cpu_dcache();
+}
+
+unsigned int fs_read(char *key, void *buffer, unsigned int buflen, unsigned int *remain)
 {
     unsigned int read_length = 0;
     char *addr;
 
-    for(addr = STORAGE_ADDRESS; addr < (STORAGE_ADDRESS + STORAGE_SIZE) && (*addr != END_MARKER);) {
+    addr = STORAGE_ADDRESS;
+    while(addr < (STORAGE_ADDRESS + STORAGE_SIZE) && (*addr != END_MARKER)) {
         unsigned int key_len, value_len;
         char *key_addr = addr;
+
         key_len = strlen(addr) + 1;
         if(key_len % 4)
             key_len += 4 - (key_len % 4);
@@ -163,7 +173,8 @@ unsigned int read(char *key, void *buffer, unsigned int buflen, unsigned int *re
         if(strcmp(key_addr, key) == 0) {
             memcpy(buffer, addr, min(value_len, buflen));
             read_length = min(value_len, buflen);
-            *remain = max(0, (int)value_len - (int)buflen);
+            if(remain)
+                *remain = max(0, (int)value_len - (int)buflen);
         }
         addr += value_len;
         if((int)addr % 4)
@@ -171,3 +182,5 @@ unsigned int read(char *key, void *buffer, unsigned int buflen, unsigned int *re
     }
     return read_length;
 }
+
+#endif /* CSR_SPIFLASH_BASE && SPIFLASH_PAGE_SIZE */
