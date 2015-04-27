@@ -30,15 +30,17 @@ class _RTIOCRG(Module, AutoCSR):
                                   o_O=self.cd_rtio.clk)
 
 
-class _Peripherals(MiniSoC):
+class Top(MiniSoC):
     csr_map = {
         "rtio": None,  # mapped on Wishbone instead
-        "rtiocrg": 13
+        "rtiocrg": 13,
+        "kernel_cpu": 14
     }
     csr_map.update(MiniSoC.csr_map)
     mem_map = {
         "rtio":     0x20000000, # (shadow @0xa0000000)
         "dds":      0x50000000, # (shadow @0xd0000000)
+        "mailbox":  0x70000000  # (shadow @0xf0000000)
     }
     mem_map.update(MiniSoC.mem_map)
 
@@ -94,34 +96,27 @@ set_false_path -from [get_clocks rsys_clk] -to [get_clocks rio_clk]
 set_false_path -from [get_clocks rio_clk] -to [get_clocks rsys_clk]
 """, rsys_clk=self.rtio.cd_rsys.clk, rio_clk=self.rtio.cd_rio.clk)
 
-
-class AMP(_Peripherals):
-    csr_map = {
-        "kernel_cpu": 14
-    }
-    csr_map.update(_Peripherals.csr_map)
-    mem_map = {
-        "mailbox":  0x70000000 # (shadow @0xf0000000)
-    }
-    mem_map.update(_Peripherals.mem_map)
-
-    def __init__(self, platform, *args, **kwargs):
-        _Peripherals.__init__(self, platform, *args, **kwargs)
-
+        # Kernel CPU
         self.submodules.kernel_cpu = amp.KernelCPU(
             platform, self.sdram.crossbar.get_master())
         self.submodules.mailbox = amp.Mailbox()
-        self.add_wb_slave(mem_decoder(self.mem_map["mailbox"]), self.mailbox.i1)
-        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["mailbox"]), self.mailbox.i2)
-        self.add_memory_region("mailbox", self.mem_map["mailbox"] + 0x80000000, 4)
+        self.add_wb_slave(mem_decoder(self.mem_map["mailbox"]),
+                          self.mailbox.i1)
+        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["mailbox"]),
+                                     self.mailbox.i2)
+        self.add_memory_region("mailbox",
+                               self.mem_map["mailbox"] + 0x80000000, 4)
 
         rtio_csrs = self.rtio.get_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
-        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["rtio"]), self.rtiowb.bus)
-        self.add_csr_region("rtio", self.mem_map["rtio"] + 0x80000000, 32, rtio_csrs)
+        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["rtio"]),
+                                     self.rtiowb.bus)
+        self.add_csr_region("rtio", self.mem_map["rtio"] + 0x80000000, 32,
+                            rtio_csrs)
 
-        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["dds"]), self.dds.bus)
+        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["dds"]),
+                                     self.dds.bus)
         self.add_memory_region("dds", self.mem_map["dds"] + 0x80000000, 64*4)
 
 
-default_subtarget = AMP
+default_subtarget = Top

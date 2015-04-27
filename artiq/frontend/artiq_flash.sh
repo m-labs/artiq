@@ -90,7 +90,7 @@ fi
 if [ "$BOARD" == "kc705" ]
 then
 	UDEV_RULES=99-kc705.rules
-	BITSTREAM=artiq_kc705-artiqsocbasic-kc705.bit
+	BITSTREAM=artiq_kc705-top-kc705.bit
 	CABLE=jtaghs1_fast
 	PROXY=bscan_spi_kc705.bit
 	BIOS_ADDR=0xaf0000
@@ -100,7 +100,7 @@ then
 elif [ "$BOARD" == "pipistrello" ]
 then
 	UDEV_RULES=99-papilio.rules
-	BITSTREAM=artiq_pipistrello-amp-pipistrello.bin
+	BITSTREAM=artiq_pipistrello-top-pipistrello.bin
 	CABLE=papilio
 	PROXY=bscan_spi_lx9_csg324.bit
 	BIOS_ADDR=0x170000

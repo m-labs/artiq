@@ -366,16 +366,14 @@ int main(void)
     irq_setie(1);
     uart_init();
 
-#ifdef ARTIQ_AMP
-    puts("ARTIQ runtime built "__DATE__" "__TIME__" for AMP systems\n");
-#else
-    puts("ARTIQ runtime built "__DATE__" "__TIME__" for UP systems\n");
-#endif
+    puts("ARTIQ runtime built "__DATE__" "__TIME__"\n");
+
 #ifdef CSR_ETHMAC_BASE
     puts("Accepting sessions on Ethernet");
 #else
     puts("Accepting sessions on serial link");
 #endif
+
     puts("Press 't' to enter test mode...");
     blink_led();
 

@@ -51,15 +51,17 @@ TIMESPEC "TSfix_ise6" = FROM "GRPint_clk" TO "GRPext_clk" TIG;
 """, int_clk=rtio_internal_clk, ext_clk=rtio_external_clk)
 
 
-class _Peripherals(BaseSoC):
+class Top(BaseSoC):
     csr_map = {
         "rtio": None,  # mapped on Wishbone instead
-        "rtiocrg": 13
+        "rtiocrg": 13,
+        "kernel_cpu": 14
     }
     csr_map.update(BaseSoC.csr_map)
     mem_map = {
         "rtio":     0x20000000,  # (shadow @0xa0000000)
         "dds":      0x50000000,  # (shadow @0xd0000000)
+        "mailbox":  0x70000000   # (shadow @0xf0000000)
     }
     mem_map.update(BaseSoC.mem_map)
 
@@ -120,20 +122,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         self.submodules.dds = ad9858.AD9858(dds_pads)
         self.comb += dds_pads.fud_n.eq(~fud)
 
-
-class AMP(_Peripherals):
-    csr_map = {
-        "kernel_cpu": 14
-    }
-    csr_map.update(_Peripherals.csr_map)
-    mem_map = {
-        "mailbox":  0x70000000  # (shadow @0xf0000000)
-    }
-    mem_map.update(_Peripherals.mem_map)
-
-    def __init__(self, platform, *args, **kwargs):
-        _Peripherals.__init__(self, platform, **kwargs)
-
+        # Kernel CPU
         self.submodules.kernel_cpu = amp.KernelCPU(
             platform, self.sdram.crossbar.get_master())
         self.submodules.mailbox = amp.Mailbox()
@@ -156,4 +145,4 @@ class AMP(_Peripherals):
         self.add_memory_region("dds", self.mem_map["dds"] + 0x80000000, 64*4)
 
 
-default_subtarget = AMP
+default_subtarget = Top
