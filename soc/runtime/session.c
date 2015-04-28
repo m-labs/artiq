@@ -64,8 +64,6 @@ enum {
 void session_start(void)
 {
     buffer_in_index = 0;
-    buffer_out_index_data = 0;
-    buffer_out_index_mem = 0;
     memset(&buffer_out[4], 0, 4);
     kloader_stop_kernel();
     user_kernel_state = USER_KERNEL_NONE;
@@ -437,8 +435,11 @@ void session_poll(void **data, int *len)
         l = get_out_packet_len();
     }
 
-    *len = l - buffer_out_index_data;
-    *data = &buffer_out[buffer_out_index_data];
+    if(l > 0) {
+        *len = l - buffer_out_index_data;
+        *data = &buffer_out[buffer_out_index_data];
+    } else
+        *len = 0;
 }
 
 void session_ack_data(int len)
@@ -449,9 +450,6 @@ void session_ack_data(int len)
 void session_ack_mem(int len)
 {
     buffer_out_index_mem += len;
-    if(buffer_out_index_mem >= get_out_packet_len()) {
+    if(buffer_out_index_mem >= get_out_packet_len())
         memset(&buffer_out[4], 0, 4);
-        buffer_out_index_data = 0;
-        buffer_out_index_mem = 0;
-    }
 }
