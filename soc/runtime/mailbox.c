@@ -51,7 +51,10 @@ void mailbox_send(void *ptr)
 
 int mailbox_acknowledged(void)
 {
-    return KERNELCPU_MAILBOX != last_transmission;
+    unsigned int m;
+
+    m = KERNELCPU_MAILBOX;
+    return !m || (m != last_transmission);
 }
 
 void mailbox_send_and_wait(void *ptr)
