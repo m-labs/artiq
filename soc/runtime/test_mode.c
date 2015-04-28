@@ -11,6 +11,7 @@
 #include "mailbox.h"
 #include "messages.h"
 #include "dds.h"
+#include "flash_storage.h"
 #include "test_mode.h"
 
 /* bridge access functions */
@@ -323,22 +324,38 @@ static void ddstest(char *n)
     }
 }
 
+#if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
+static void fsread(char *key)
+{
+    char buf[256];
+    int r;
+
+    r = fs_read(key, buf, sizeof(buf)-1, NULL);
+    buf[r] = 0;
+    puts(buf);
+}
+#endif
+
 static void help(void)
 {
-    puts("ARTIQ DDS/TTL Tester");
     puts("Available commands:");
-    puts("help           - this message");
-    puts("clksrc <n>     - select RTIO clock source");
-    puts("ttlout <n> <v> - output TTL");
-    puts("ddssel <n>     - select a DDS");
-    puts("ddsinit        - reset, config, FUD DDS");
-    puts("ddsreset       - reset DDS");
-    puts("ddsw <a> <d>   - write to DDS register");
-    puts("ddsr <a>       - read DDS register");
-    puts("ddsfud         - pulse FUD");
-    puts("ddsftw <n> <d> - write FTW");
-    puts("ddstest <n>    - perform test sequence on DDS");
-    puts("leds <n>       - set LEDs");
+    puts("help            - this message");
+    puts("clksrc <n>      - select RTIO clock source");
+    puts("ttlout <n> <v>  - output TTL");
+    puts("ddssel <n>      - select a DDS");
+    puts("ddsinit         - reset, config, FUD DDS");
+    puts("ddsreset        - reset DDS");
+    puts("ddsw <a> <d>    - write to DDS register");
+    puts("ddsr <a>        - read DDS register");
+    puts("ddsfud          - pulse FUD");
+    puts("ddsftw <n> <d>  - write FTW");
+    puts("ddstest <n>     - perform test sequence on DDS");
+    puts("leds <n>        - set LEDs");
+#if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
+    puts("fserase         - erase flash storage");
+    puts("fswrite <k> <v> - write to flash storage");
+    puts("fsread <k>      - read flash storage");
+#endif
 }
 
 static void readstr(char *s, int size)
@@ -411,6 +428,12 @@ static void do_command(char *c)
     else if(strcmp(token, "ddsfud") == 0) ddsfud();
     else if(strcmp(token, "ddsftw") == 0) ddsftw(get_token(&c), get_token(&c));
     else if(strcmp(token, "ddstest") == 0) ddstest(get_token(&c));
+
+#if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
+    else if(strcmp(token, "fserase") == 0) fs_erase();
+    else if(strcmp(token, "fswrite") == 0) fs_write(get_token(&c), c, strlen(c));
+    else if(strcmp(token, "fsread") == 0) fsread(get_token(&c));
+#endif
 
     else if(strcmp(token, "") != 0)
         printf("Command not found\n");
