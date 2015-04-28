@@ -298,6 +298,11 @@ static int process_input(void)
             memcpy(&reply.eid, &buffer_in[9], 4);
             memcpy(&reply.retval, &buffer_in[13], 4);
             mailbox_send_and_wait(&reply);
+            /* HACK/FIXME: workaround for intermittent crashes that happen when running rpc_timing with comm_tcp */
+            int i;
+            for(i=0;i<100000;i++)
+                __asm__ volatile("l.nop");
+            /* */
             user_kernel_state = USER_KERNEL_RUNNING;
             break;
         }
