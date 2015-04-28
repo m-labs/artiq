@@ -1,6 +1,5 @@
 """
 Core ARTIQ extensions to the Python language.
-
 """
 
 from collections import namedtuple as _namedtuple
@@ -170,14 +169,12 @@ def set_syscall_manager(syscall_manager):
 
 kernel_globals = ("sequential", "parallel",
     "delay", "now", "at", "time_to_cycles", "cycles_to_time",
-    "syscall")
+    "syscall", "watchdog")
 
 
 class _Sequential:
     """In a sequential block, statements are executed one after another, with
-    the time increasing as one moves down the statement list.
-
-    """
+    the time increasing as one moves down the statement list."""
     def __enter__(self):
         _time_manager.enter_sequential()
 
@@ -243,7 +240,6 @@ def cycles_to_time(cycles, core=None):
     :param time: Cycle count to convert.
     :param core: Core device for which to perform the conversion. Specify only
         when running in the interpreter (not in kernel).
-
     """
     if core is None:
         raise ValueError("Core device must be specified for time conversion")
@@ -257,9 +253,32 @@ def syscall(*args):
     events, make RPCs, etc.
 
     Only drivers should normally use ``syscall``.
-
     """
     return _syscall_manager.do(*args)
+
+
+class _DummyWatchdog:
+    def __init__(self, timeout):
+        pass
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, type, value, traceback):
+        pass
+
+
+# Watchdogs are simply not enforced by default.
+_watchdog_factory = _DummyWatchdog
+
+
+def set_watchdog_factory(f):
+    global _watchdog_factory
+    _watchdog_factory = f
+
+
+def watchdog(timeout):
+    return _watchdog_factory(timeout)
 
 
 _encoded_exceptions = dict()
@@ -267,9 +286,7 @@ _encoded_exceptions = dict()
 
 def EncodedException(eid):
     """Represents exceptions on the core device, which are identified
-    by a single number.
-
-    """
+    by a single number."""
     try:
         return _encoded_exceptions[eid]
     except KeyError:

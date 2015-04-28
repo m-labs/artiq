@@ -6,6 +6,7 @@ from artiq.tools import file_import
 from artiq.master.worker_db import DBHub, ResultDB
 from artiq.master.results import get_hdf5_output
 from artiq.language.experiment import is_experiment
+from artiq.language.core import set_watchdog_factory
 
 
 def get_object():
@@ -66,13 +67,15 @@ class Watchdog:
         Watchdog._delete(self.wid)
 
 
+set_watchdog_factory(Watchdog)
+
+
 class Scheduler:
     run_queued = make_parent_action("scheduler_run_queued", "run_params")
     cancel_queued = make_parent_action("scheduler_cancel_queued", "rid")
     run_timed = make_parent_action("scheduler_run_timed",
                                    "run_params next_run")
     cancel_timed = make_parent_action("scheduler_cancel_timed", "trid")
-    watchdog = Watchdog
 
 
 def get_exp(file, exp):

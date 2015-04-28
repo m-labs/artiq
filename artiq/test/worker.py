@@ -10,19 +10,19 @@ from artiq.master.worker import *
 class WatchdogNoTimeout(Experiment, AutoDB):
     def run(self):
         for i in range(10):
-            with self.scheduler.watchdog(0.5*s):
+            with watchdog(0.5*s):
                 sleep(0.1)
 
 
 class WatchdogTimeout(Experiment, AutoDB):
     def run(self):
-        with self.scheduler.watchdog(0.1*s):
+        with watchdog(0.1*s):
             sleep(100.0)
 
 
 class WatchdogTimeoutInBuild(Experiment, AutoDB):
     def build(self):
-        with self.scheduler.watchdog(0.1*s):
+        with watchdog(0.1*s):
             sleep(100.0)
 
     def run(self):
