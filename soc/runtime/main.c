@@ -21,26 +21,16 @@
 #include <lwip/timers.h>
 #endif
 
+#include "clock.h"
 #include "test_mode.h"
 #include "session.h"
 
 #ifdef CSR_ETHMAC_BASE
 unsigned char macadr[6] = {0x10, 0xe2, 0xd5, 0x00, 0x00, 0x00};
 
-static int clkdiv;
-
 u32_t sys_now(void)
 {
-    static unsigned long long int clock_sys;
-    u32_t clock_ms;
-
-    timer0_update_value_write(1);
-    clock_sys += 0xffffffff - timer0_value_read();
-    timer0_en_write(0);
-    timer0_en_write(1);
-
-    clock_ms = clock_sys/clkdiv;
-    return clock_ms;
+    return clock_get_ms();
 }
 
 static struct netif netif;
@@ -59,12 +49,6 @@ static void network_init(void)
     struct ip4_addr local_ip;
     struct ip4_addr netmask;
     struct ip4_addr gateway_ip;
-
-    timer0_en_write(0);
-    timer0_load_write(0xffffffff);
-    timer0_reload_write(0xffffffff);
-    timer0_en_write(1);
-    clkdiv = identifier_frequency_read()/1000;
 
     IP4_ADDR(&local_ip, 192, 168, 0, 42);
     IP4_ADDR(&netmask, 255, 255, 255, 0);
@@ -276,6 +260,7 @@ static void kserver_service(void)
 
 static void regular_main(void)
 {
+    clock_init();
     network_init();
     kserver_init();
 
@@ -332,6 +317,8 @@ static void serial_service(void)
 
 static void regular_main(void)
 {
+    clock_init();
+
     /* Open the session for the serial control. */
     session_start();
     while(1)

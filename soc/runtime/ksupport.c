@@ -7,6 +7,8 @@
 #include "rtio.h"
 #include "dds.h"
 
+/* for the prototypes for watchdog_set() and watchdog_clear() */
+#include "clock.h"
 /* for the prototype for rpc() */
 #include "session.h"
 /* for the prototype for log() */
@@ -59,6 +61,34 @@ int main(void)
         }
     }
     while(1);
+}
+
+int watchdog_set(int ms)
+{
+    struct msg_watchdog_set_request request;
+    struct msg_watchdog_set_reply *reply;
+    int id;
+
+    request.type = MESSAGE_TYPE_WATCHDOG_SET_REQUEST;
+    request.ms = ms;
+    mailbox_send_and_wait(&request);
+
+    reply = mailbox_wait_and_receive();
+    if(reply->type != MESSAGE_TYPE_WATCHDOG_SET_REPLY)
+        exception_raise(EID_INTERNAL_ERROR);
+    id = reply->id;
+    mailbox_acknowledge();
+
+    return id;
+}
+
+void watchdog_clear(int id)
+{
+    struct msg_watchdog_clear request;
+
+    request.type = MESSAGE_TYPE_WATCHDOG_CLEAR;
+    request.id = id;
+    mailbox_send_and_wait(&request);
 }
 
 int rpc(int rpc_num, ...)

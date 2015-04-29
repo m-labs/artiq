@@ -6,6 +6,7 @@ from mibuild.xilinx.vivado import XilinxVivadoToolchain
 
 from misoclib.com import gpio
 from misoclib.soc import mem_decoder
+from misoclib.cpu.peripherals import timer
 from targets.kc705 import MiniSoC
 
 from artiq.gateware import amp, rtio, ad9858, nist_qc1
@@ -46,7 +47,8 @@ class Top(MiniSoC):
 
     def __init__(self, platform, cpu_type="or1k", **kwargs):
         MiniSoC.__init__(self, platform,
-                         cpu_type=cpu_type, **kwargs)
+                         cpu_type=cpu_type, with_timer=False, **kwargs)
+        self.submodules.timer0 = timer.Timer(width=64)
         platform.add_extension(nist_qc1.fmc_adapter_io)
 
         self.submodules.leds = gpio.GPIOOut(Cat(

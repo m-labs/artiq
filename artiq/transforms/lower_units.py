@@ -120,7 +120,7 @@ class _UnitsLowerer(ast.NodeTransformer):
             else:
                 if any(hasattr(arg, "unit") for arg in node.args):
                     raise units.DimensionError
-        elif node.func.id in ("delay", "at", "time_to_cycles"):
+        elif node.func.id in ("delay", "at", "time_to_cycles", "watchdog"):
             if getattr(node.args[0], "unit", None) != "s":
                 raise units.DimensionError
         elif node.func.id == "check_unit":

@@ -8,6 +8,8 @@ from elftools.elf.elffile import ELFFile
 services = [
     ("syscalls", [
         ("rpc", "rpc"),
+        ("watchdog_set", "watchdog_set"),
+        ("watchdog_clear", "watchdog_clear"),
         ("rtio_set_o", "rtio_set_o"),
         ("rtio_set_oe", "rtio_set_oe"),
         ("rtio_set_sensitivity", "rtio_set_sensitivity"),

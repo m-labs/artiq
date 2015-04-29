@@ -4,6 +4,7 @@ from migen.bank import wbgen
 
 from misoclib.com import gpio
 from misoclib.soc import mem_decoder
+from misoclib.cpu.peripherals import timer
 from targets.pipistrello import BaseSoC
 
 from artiq.gateware import amp, rtio, ad9858, nist_qc1
@@ -66,7 +67,9 @@ class Top(BaseSoC):
     mem_map.update(BaseSoC.mem_map)
 
     def __init__(self, platform, cpu_type="or1k", **kwargs):
-        BaseSoC.__init__(self, platform, cpu_type=cpu_type, **kwargs)
+        BaseSoC.__init__(self, platform,
+                         cpu_type=cpu_type, with_timer=False, **kwargs)
+        self.submodules.timer0 = timer.Timer(width=64)
         platform.toolchain.ise_commands += """
 trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd {build_name}.pcf
 """

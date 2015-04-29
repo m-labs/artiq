@@ -7,6 +7,7 @@
 #include "mailbox.h"
 #include "messages.h"
 
+#include "clock.h"
 #include "log.h"
 #include "kloader.h"
 #include "exceptions.h"
@@ -282,6 +283,7 @@ static int process_input(void)
                 break;
             }
 
+            watchdog_init();
             kloader_start_user_kernel(k);
             user_kernel_state = USER_KERNEL_RUNNING;
             break;
@@ -364,6 +366,9 @@ int session_input(void *data, int len)
     return consumed;
 }
 
+#include <generated/mem.h>
+#define KERNELCPU_MAILBOX MMPTR(MAILBOX_BASE)
+
 /* assumes output buffer is empty when called */
 static int process_kmsg(struct msg_base *umsg)
 {
@@ -379,6 +384,7 @@ static int process_kmsg(struct msg_base *umsg)
 
             kloader_stop_kernel();
             user_kernel_state = USER_KERNEL_LOADED;
+            mailbox_acknowledge();
             break;
         case MESSAGE_TYPE_EXCEPTION: {
             struct msg_exception *msg = (struct msg_exception *)umsg;
@@ -390,6 +396,23 @@ static int process_kmsg(struct msg_base *umsg)
 
             kloader_stop_kernel();
             user_kernel_state = USER_KERNEL_LOADED;
+            mailbox_acknowledge();
+            break;
+        }
+        case MESSAGE_TYPE_WATCHDOG_SET_REQUEST: {
+            struct msg_watchdog_set_request *msg = (struct msg_watchdog_set_request *)umsg;
+            struct msg_watchdog_set_reply reply;
+
+            reply.type = MESSAGE_TYPE_WATCHDOG_SET_REPLY;
+            reply.id = watchdog_set(msg->ms);
+            mailbox_send_and_wait(&reply);
+            break;
+        }
+        case MESSAGE_TYPE_WATCHDOG_CLEAR: {
+            struct msg_watchdog_clear *msg = (struct msg_watchdog_clear *)umsg;
+
+            watchdog_clear(msg->id);
+            mailbox_acknowledge();
             break;
         }
         case MESSAGE_TYPE_RPC_REQUEST: {
@@ -398,12 +421,14 @@ static int process_kmsg(struct msg_base *umsg)
             if(!send_rpc_request(msg->rpc_num, msg->args))
                 return 0;
             user_kernel_state = USER_KERNEL_WAIT_RPC;
+            mailbox_acknowledge();
             break;
         }
         case MESSAGE_TYPE_LOG: {
             struct msg_log *msg = (struct msg_log *)umsg;
 
             log(msg->fmt, msg->args);
+            mailbox_acknowledge();
             break;
         }
         default: {
@@ -421,6 +446,12 @@ void session_poll(void **data, int *len)
 {
     int l;
 
+    if((user_kernel_state == USER_KERNEL_RUNNING) && watchdog_expired()) {
+        log("Watchdog expired");
+        *len = -1;
+        return;
+    }
+
     l = get_out_packet_len();
 
     /* If the output buffer is available, 
@@ -435,7 +466,6 @@ void session_poll(void **data, int *len)
                 *len = -1;
                 return;
             }
-            mailbox_acknowledge();
         }
         l = get_out_packet_len();
     }

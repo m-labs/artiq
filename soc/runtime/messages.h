@@ -6,6 +6,9 @@
 enum {
     MESSAGE_TYPE_FINISHED,
     MESSAGE_TYPE_EXCEPTION,
+    MESSAGE_TYPE_WATCHDOG_SET_REQUEST,
+    MESSAGE_TYPE_WATCHDOG_SET_REPLY,
+    MESSAGE_TYPE_WATCHDOG_CLEAR,
     MESSAGE_TYPE_RPC_REQUEST,
     MESSAGE_TYPE_RPC_REPLY,
     MESSAGE_TYPE_LOG,
@@ -30,6 +33,21 @@ struct msg_exception {
     int type;
     int eid;
     long long int eparams[3];
+};
+
+struct msg_watchdog_set_request {
+    int type;
+    int ms;
+};
+
+struct msg_watchdog_set_reply {
+    int type;
+    int id;
+};
+
+struct msg_watchdog_clear {
+    int type;
+    int id;
 };
 
 struct msg_rpc_request {
