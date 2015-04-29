@@ -12,12 +12,10 @@ class Mailbox(Module):
         value = Signal(32)
         for i in self.i1, self.i2:
             self.sync += [
-                i.ack.eq(0),
-                If(i.cyc & i.stb & ~i.ack, i.ack.eq(1)),
-
                 i.dat_r.eq(value),
-                If(i.cyc & i.stb & i.we,
-                   [If(i.sel[j], value[j*8:j*8+8].eq(i.dat_w[j*8:j*8+8]))
-                    for j in range(4)]
+                i.ack.eq(0),
+                If(i.cyc & i.stb & ~i.ack,
+                    i.ack.eq(1),
+                    If(i.we, value.eq(i.dat_w))
                 )
             ]
