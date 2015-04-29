@@ -30,7 +30,10 @@ class Comm(CommGeneric, AutoDB):
     def read(self, length):
         r = bytes()
         while len(r) < length:
-            r += self.socket.recv(min(8192, length - len(r)))
+            rn = self.socket.recv(min(8192, length - len(r)))
+            if not rn:
+                raise IOError("Connection closed")
+            r += rn
         return r
 
     def write(self, data):
