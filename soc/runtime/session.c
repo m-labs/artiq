@@ -105,114 +105,6 @@ enum {
     REMOTEMSG_TYPE_RPC_REQUEST,
 };
 
-static int add_base_rpc_value(char base_type, void *value, char *buffer_out, int available_space)
-{
-    switch(base_type) {
-        case 'n':
-            return 0;
-        case 'b':
-            if(available_space < 1)
-                return -1;
-            if(*(char *)value)
-                buffer_out[0] = 1;
-            else
-                buffer_out[0] = 0;
-            return 1;
-        case 'i':
-            if(available_space < 4)
-                return -1;
-            memcpy(buffer_out, value, 4);
-            return 4;
-        case 'I':
-        case 'f':
-            if(available_space < 8)
-                return -1;
-            memcpy(buffer_out, value, 8);
-            return 8;
-        case 'F':
-            if(available_space < 16)
-                return -1;
-            memcpy(buffer_out, value, 16);
-            return 16;
-        default:
-            return -1;
-    }
-}
-
-static int add_rpc_value(int bi, int type_tag, void *value)
-{
-    char base_type;
-    int obi, r;
-
-    obi = bi;
-    base_type = type_tag;
-
-    if((bi + 1) > BUFFER_OUT_SIZE)
-        return -1;
-    buffer_out[bi++] = base_type;
-
-    if(base_type == 'l') {
-        char elt_type;
-        int len;
-        int i, p;
-
-        elt_type = type_tag >> 8;
-        if((bi + 1) > BUFFER_OUT_SIZE)
-            return -1;
-        buffer_out[bi++] = elt_type;
-
-        len = *(int *)value;
-        if((bi + 4) > BUFFER_OUT_SIZE)
-            return -1;
-        memcpy(&buffer_out[bi], &len, 4);
-        bi += 4;
-
-        p = 4;
-        for(i=0;i<len;i++) {
-            r = add_base_rpc_value(elt_type, (char *)value + p,
-                                   &buffer_out[bi], BUFFER_OUT_SIZE - bi);
-            if(r < 0)
-                return r;
-            bi += r;
-            p += r;
-        }
-    } else {
-        r = add_base_rpc_value(base_type, value,
-                               &buffer_out[bi], BUFFER_OUT_SIZE - bi);
-        if(r < 0)
-            return r;
-        bi += r;
-    }
-
-    return bi - obi;
-}
-
-static int send_rpc_request(int rpc_num, va_list args)
-{
-    int r;
-    int bi = 8;
-    int type_tag;
-    
-    buffer_out[bi++] = REMOTEMSG_TYPE_RPC_REQUEST;
-    
-    memcpy(&buffer_out[bi], &rpc_num, 4);
-    bi += 4;
-
-    while((type_tag = va_arg(args, int))) {
-        r = add_rpc_value(bi, type_tag,
-            type_tag == 'n' ? NULL : va_arg(args, void *));
-        if(r < 0)
-            return 0;
-        bi += r;
-    }
-    if((bi + 1) > BUFFER_OUT_SIZE)
-        return 0;
-    buffer_out[bi++] = 0;
-
-    submit_output(bi);
-    return 1;
-}
-
 static int process_input(void)
 {
     switch(buffer_in[8]) {
@@ -366,8 +258,130 @@ int session_input(void *data, int len)
     return consumed;
 }
 
-#include <generated/mem.h>
-#define KERNELCPU_MAILBOX MMPTR(MAILBOX_BASE)
+static int add_base_rpc_value(char base_type, void *value, char *buffer_out, int available_space)
+{
+    switch(base_type) {
+        case 'n':
+            return 0;
+        case 'b':
+            if(available_space < 1)
+                return -1;
+            if(*(char *)value)
+                buffer_out[0] = 1;
+            else
+                buffer_out[0] = 0;
+            return 1;
+        case 'i':
+            if(available_space < 4)
+                return -1;
+            memcpy(buffer_out, value, 4);
+            return 4;
+        case 'I':
+        case 'f':
+            if(available_space < 8)
+                return -1;
+            memcpy(buffer_out, value, 8);
+            return 8;
+        case 'F':
+            if(available_space < 16)
+                return -1;
+            memcpy(buffer_out, value, 16);
+            return 16;
+        default:
+            return -1;
+    }
+}
+
+static int add_rpc_value(int bi, int type_tag, void *value)
+{
+    char base_type;
+    int obi, r;
+
+    obi = bi;
+    base_type = type_tag;
+
+    if((bi + 1) > BUFFER_OUT_SIZE)
+        return -1;
+    buffer_out[bi++] = base_type;
+
+    if(base_type == 'l') {
+        char elt_type;
+        int len;
+        int i, p;
+
+        elt_type = type_tag >> 8;
+        if((bi + 1) > BUFFER_OUT_SIZE)
+            return -1;
+        buffer_out[bi++] = elt_type;
+
+        len = *(int *)value;
+        if((bi + 4) > BUFFER_OUT_SIZE)
+            return -1;
+        memcpy(&buffer_out[bi], &len, 4);
+        bi += 4;
+
+        p = 4;
+        for(i=0;i<len;i++) {
+            r = add_base_rpc_value(elt_type, (char *)value + p,
+                                   &buffer_out[bi], BUFFER_OUT_SIZE - bi);
+            if(r < 0)
+                return r;
+            bi += r;
+            p += r;
+        }
+    } else {
+        r = add_base_rpc_value(base_type, value,
+                               &buffer_out[bi], BUFFER_OUT_SIZE - bi);
+        if(r < 0)
+            return r;
+        bi += r;
+    }
+
+    return bi - obi;
+}
+
+static int validate_kpointer(void *p)
+{
+    unsigned int v = (unsigned int)p;
+    if((v < 0x40400000) || (v > (0x4fffffff - 1024*1024))) {
+        log("Received invalid pointer from kernel CPU: 0x%08x", v);
+        return 0;
+    }
+    return 1;
+}
+
+static int send_rpc_request(int rpc_num, va_list args)
+{
+    int r;
+    int bi = 8;
+    int type_tag;
+    void *v;
+
+    buffer_out[bi++] = REMOTEMSG_TYPE_RPC_REQUEST;
+
+    memcpy(&buffer_out[bi], &rpc_num, 4);
+    bi += 4;
+
+    while((type_tag = va_arg(args, int))) {
+        if(type_tag == 'n')
+            v = NULL;
+        else {
+            v = va_arg(args, void *);
+            if(!validate_kpointer(v))
+                return 0;
+        }
+        r = add_rpc_value(bi, type_tag, v);
+        if(r < 0)
+            return 0;
+        bi += r;
+    }
+    if((bi + 1) > BUFFER_OUT_SIZE)
+        return 0;
+    buffer_out[bi++] = 0;
+
+    submit_output(bi);
+    return 1;
+}
 
 /* assumes output buffer is empty when called */
 static int process_kmsg(struct msg_base *umsg)
@@ -376,6 +390,8 @@ static int process_kmsg(struct msg_base *umsg)
         log("Received message from kernel CPU while not in running state");
         return 0;
     }
+    if(!validate_kpointer(umsg))
+        return 0;
 
     switch(umsg->type) {
         case MESSAGE_TYPE_FINISHED:
