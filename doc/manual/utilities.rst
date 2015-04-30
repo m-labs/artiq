@@ -83,3 +83,12 @@ Experiments compiled with this tool are not allowed to use RPCs, and their ``run
 .. argparse::
    :ref: artiq.frontend.artiq_compile.get_argparser
    :prog: artiq_compile
+
+Flash storage image generator
+-----------------------------
+
+This tool compiles key/value pairs into a binary image suitable for flashing into the flash storage space of the core device.
+
+.. argparse::
+   :ref: artiq.frontend.artiq_mkfs.get_argparser
+   :prog: artiq_mkfs

@@ -14,6 +14,7 @@ scripts = [
     "artiq_compile=artiq.frontend.artiq_compile:main",
     "artiq_ctlmgr=artiq.frontend.artiq_ctlmgr:main",
     "artiq_master=artiq.frontend.artiq_master:main",
+    "artiq_mkfs=artiq.frontend.artiq_mkfs:main",
     "artiq_rpctool=artiq.frontend.artiq_rpctool:main",
     "artiq_run=artiq.frontend.artiq_run:main",
     "lda_controller=artiq.frontend.lda_controller:main",
