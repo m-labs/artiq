@@ -102,7 +102,7 @@ then
 	UDEV_RULES=99-papilio.rules
 	BITSTREAM=artiq_pipistrello-top-pipistrello.bin
 	CABLE=papilio
-	PROXY=bscan_spi_lx9_csg324.bit
+	PROXY=bscan_spi_lx45_csg324.bit
 	BIOS_ADDR=0x170000
 	RUNTIME_ADDR=0x180000
 	if [ -z "$BIN_PREFIX" ]; then BIN_PREFIX=$ARTIQ_PREFIX/binaries/pipistrello; fi
