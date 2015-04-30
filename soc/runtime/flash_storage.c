@@ -21,11 +21,11 @@
 
 #define goto_next_record(buff, addr) do { \
         unsigned int key_size = strlen(&buff[addr])+1; \
-        if (key_size % 4) \
+        if(key_size % 4) \
             key_size += 4 - (key_size % 4); \
         unsigned int *buflen_p = (unsigned int *)&buff[addr + key_size]; \
         unsigned int buflen = *buflen_p; \
-        if (buflen % 4) \
+        if(buflen % 4) \
             buflen += 4 - (buflen % 4); \
         addr += key_size + sizeof(int) + buflen; \
     } while (0)
