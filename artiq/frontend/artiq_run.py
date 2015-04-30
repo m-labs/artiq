@@ -21,14 +21,14 @@ logger = logging.getLogger(__name__)
 
 class ELFRunner(Experiment, AutoDB):
     class DBKeys:
-        comm = Device()
+        core = Device()
         file = Argument()
 
     def run(self):
         with open(self.file, "rb") as f:
-            self.comm.load(f.read())
-        self.comm.run("run")
-        self.comm.serve(dict(), dict())
+            self.core.comm.load(f.read())
+        self.core.comm.run("run")
+        self.core.comm.serve(dict(), dict())
 
 
 class SimpleParamLogger:
