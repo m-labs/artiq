@@ -9,7 +9,8 @@ from misoclib.soc import mem_decoder
 from misoclib.cpu.peripherals import timer
 from targets.kc705 import MiniSoC
 
-from artiq.gateware import amp, rtio, ad9858, nist_qc1
+from artiq.gateware.soc import AMPSoC
+from artiq.gateware import rtio, ad9858, nist_qc1
 from artiq.gateware.rtio.phy import ttl_simple
 
 
@@ -31,7 +32,7 @@ class _RTIOCRG(Module, AutoCSR):
                                   o_O=self.cd_rtio.clk)
 
 
-class Top(MiniSoC):
+class NIST_QC1(MiniSoC, AMPSoC):
     csr_map = {
         "rtio": None,  # mapped on Wishbone instead
         "rtiocrg": 13,
@@ -48,7 +49,7 @@ class Top(MiniSoC):
     def __init__(self, platform, cpu_type="or1k", **kwargs):
         MiniSoC.__init__(self, platform,
                          cpu_type=cpu_type, with_timer=False, **kwargs)
-        self.submodules.timer0 = timer.Timer(width=64)
+        AMPSoC.__init__(self)
         platform.add_extension(nist_qc1.fmc_adapter_io)
 
         self.submodules.leds = gpio.GPIOOut(Cat(
@@ -98,27 +99,17 @@ set_false_path -from [get_clocks rsys_clk] -to [get_clocks rio_clk]
 set_false_path -from [get_clocks rio_clk] -to [get_clocks rsys_clk]
 """, rsys_clk=self.rtio.cd_rsys.clk, rio_clk=self.rtio.cd_rio.clk)
 
-        # Kernel CPU
-        self.submodules.kernel_cpu = amp.KernelCPU(
-            platform, self.sdram.crossbar.get_master())
-        self.submodules.mailbox = amp.Mailbox()
-        self.add_wb_slave(mem_decoder(self.mem_map["mailbox"]),
-                          self.mailbox.i1)
-        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["mailbox"]),
-                                     self.mailbox.i2)
-        self.add_memory_region("mailbox",
-                               self.mem_map["mailbox"] + 0x80000000, 4)
-
+        # CPU connections
         rtio_csrs = self.rtio.get_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
         self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["rtio"]),
                                      self.rtiowb.bus)
-        self.add_csr_region("rtio", self.mem_map["rtio"] + 0x80000000, 32,
+        self.add_csr_region("rtio", self.mem_map["rtio"] | 0x80000000, 32,
                             rtio_csrs)
 
         self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["dds"]),
                                      self.dds.bus)
-        self.add_memory_region("dds", self.mem_map["dds"] + 0x80000000, 64*4)
+        self.add_memory_region("dds", self.mem_map["dds"] | 0x80000000, 64*4)
 
 
-default_subtarget = Top
+default_subtarget = NIST_QC1
