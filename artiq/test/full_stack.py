@@ -181,6 +181,9 @@ class _Exceptions(AutoDB):
 
 
 class _RPCExceptions(AutoDB):
+    class DBKeys:
+        core = Device()
+
     def build(self):
         self.success = False
 
@@ -197,6 +200,17 @@ class _RPCExceptions(AutoDB):
             self.exception_raiser()
         except _MyException:
             self.success = True
+
+
+class _Watchdog(AutoDB):
+    class DBKeys:
+        core = Device()
+
+    @kernel
+    def run(self):
+        with watchdog(50*ms):
+            while True:
+                pass
 
 
 @unittest.skipUnless(core_device, "no hardware")
@@ -258,6 +272,10 @@ class ExecutionCase(unittest.TestCase):
             self.assertTrue(uut.success)
         finally:
             comm.close()
+
+    def test_watchdog(self):
+        with self.assertRaises(IOError):
+            _run_on_device(_Watchdog)
 
 
 class _RTIOLoopback(AutoDB):
