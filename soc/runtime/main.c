@@ -119,11 +119,12 @@ static void network_init(void)
 
 static void regular_main(void)
 {
-    puts("Accepting sessions on Ethernet");
+    puts("Accepting sessions on Ethernet.");
     clock_init();
     network_init();
     kserver_init();
 
+    session_end();
     while(1) {
         lwip_service();
         kserver_service();
@@ -177,7 +178,7 @@ static void serial_service(void)
 
 static void regular_main(void)
 {
-    puts("Accepting sessions on serial link");
+    puts("Accepting sessions on serial link.");
     clock_init();
 
     /* Open the session for the serial control. */

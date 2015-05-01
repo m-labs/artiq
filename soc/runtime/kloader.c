@@ -2,11 +2,11 @@
 #include <generated/csr.h>
 
 #include "log.h"
+#include "flash_storage.h"
 #include "mailbox.h"
 #include "elf_loader.h"
 #include "services.h"
 #include "kloader.h"
-
 
 static struct symbol symtab[128];
 static int _symtab_count;
@@ -92,11 +92,27 @@ void kloader_start_user_kernel(kernel_function k)
 
 void kloader_start_idle_kernel(void)
 {
+    char buffer[32*1024];
+    int len;
+    kernel_function k;
+
     if(!kernel_cpu_reset_read()) {
         log("BUG: attempted to start kernel CPU while already running (idle kernel)");
         return;
     }
-    /* TODO */
+    len = fs_read("idle_kernel", buffer, sizeof(buffer), NULL);
+    if(len <= 0)
+        return;
+    if(!kloader_load(buffer, len)) {
+        log("Failed to load ELF binary for idle kernel");
+        return;
+    }
+    k = kloader_find("run");
+    if(!k) {
+        log("Failed to find entry point for ELF kernel");
+        return;
+    }
+    start_kernel_cpu((void *)k);
 }
 
 void kloader_stop_kernel(void)
