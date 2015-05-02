@@ -100,6 +100,7 @@ void kloader_start_idle_kernel(void)
         log("BUG: attempted to start kernel CPU while already running (idle kernel)");
         return;
     }
+#if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
     len = fs_read("idle_kernel", buffer, sizeof(buffer), NULL);
     if(len <= 0)
         return;
@@ -113,6 +114,7 @@ void kloader_start_idle_kernel(void)
         return;
     }
     start_kernel_cpu((void *)k);
+#endif
 }
 
 void kloader_stop_kernel(void)

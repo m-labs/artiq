@@ -61,11 +61,14 @@ static int hex2nib(int c)
 static void init_macadr(void)
 {
     static const unsigned char default_macadr[6] = {0x10, 0xe2, 0xd5, 0x32, 0x50, 0x00};
+#if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
     char b[32];
     char fs_macadr[6];
     int i, r, s;
+#endif
 
     memcpy(macadr, default_macadr, 6);
+#if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
     r = fs_read("mac", b, sizeof(b) - 1, NULL);
     if(r <= 0)
         return;
@@ -81,21 +84,25 @@ static void init_macadr(void)
         if(b[3*i + 2] != ':')
             return;
     memcpy(macadr, fs_macadr, 6);
+#endif
 }
 
 static void fsip_or_default(struct ip4_addr *d, char *key, int i1, int i2, int i3, int i4)
 {
     int r;
+#if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
     char cp[32];
+#endif
 
     IP4_ADDR(d, i1, i2, i3, i4);
-
+#if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
     r = fs_read(key, cp, sizeof(cp) - 1, NULL);
     if(r <= 0)
         return;
     cp[r] = 0;
     if(!ip4addr_aton(cp, d))
         return;
+#endif
 }
 
 static void network_init(void)
