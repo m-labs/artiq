@@ -1,7 +1,7 @@
 from artiq.language.core import *
 from artiq.language.db import *
 from artiq.language.units import *
-from artiq.coredevice import rtio
+from artiq.coredevice import ttl
 
 
 frame_setup = 20*ns
@@ -162,13 +162,13 @@ class CompoundPDQ2(AutoDB):
 
     def build(self):
         self.pdq2s = [self.dbh.get_device(d) for d in self.pdq2_devices]
-        self.trigger = rtio.LLRTIOOut(
+        self.trigger = ttl.LLTTLOut(
             core=self.core, channel=self.rtio_trigger)
-        self.frame0 = rtio.LLRTIOOut(
+        self.frame0 = ttl.LLTTLOut(
             core=self.core, channel=self.rtio_frame[0])
-        self.frame1 = rtio.LLRTIOOut(
+        self.frame1 = ttl.LLTTLOut(
             core=self.core, channel=self.rtio_frame[1])
-        self.frame2 = rtio.LLRTIOOut(
+        self.frame2 = ttl.LLTTLOut(
             core=self.core, channel=self.rtio_frame[2])
 
         self.frames = []

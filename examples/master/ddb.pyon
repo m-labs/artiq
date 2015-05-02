@@ -14,39 +14,39 @@
 
     "pmt0": {
         "type": "local",
-        "module": "artiq.coredevice.rtio",
-        "class": "RTIOIn",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLInOut",
         "arguments": {"channel": 0}
     },
     "pmt1": {
         "type": "local",
-        "module": "artiq.coredevice.rtio",
-        "class": "RTIOIn",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLInOut",
         "arguments": {"channel": 1}
     },
 
     "ttl0": {
         "type": "local",
-        "module": "artiq.coredevice.rtio",
-        "class": "RTIOOut",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
         "arguments": {"channel": 2}
     },
     "ttl1": {
         "type": "local",
-        "module": "artiq.coredevice.rtio",
-        "class": "RTIOOut",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
         "arguments": {"channel": 3}
     },
     "ttl2": {
         "type": "local",
-        "module": "artiq.coredevice.rtio",
-        "class": "RTIOOut",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
         "arguments": {"channel": 4}
     },
     "led": {
         "type": "local",
-        "module": "artiq.coredevice.rtio",
-        "class": "RTIOOut",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
         "arguments": {"channel": 18}
     },
 

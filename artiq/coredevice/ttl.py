@@ -2,25 +2,20 @@ from artiq.language.core import *
 from artiq.language.db import *
 
 
-class LLRTIOOut(AutoDB):
-    """Low-level RTIO output driver.
+class LLTTLOut(AutoDB):
+    """Low-level RTIO TTL output driver.
 
-    Allows setting RTIO outputs at arbitrary times, without time unit
-    conversion.
+    Allows setting RTIO TTL outputs at arbitrary times, without time
+    unit conversion.
 
     This is meant to be used mostly in drivers; consider using
-    ``RTIOOut`` instead.
+    ``TTLOut`` instead.
+
+    This should be used with output-only channels.
     """
     class DBKeys:
         core = Device()
         channel = Argument()
-
-    def build(self):
-        self._set_oe()
-
-    @kernel
-    def _set_oe(self):
-        syscall("rtio_set_oe", time_to_cycles(now()), self.channel, True)
 
     @kernel
     def set_o(self, t, value):
@@ -37,7 +32,7 @@ class LLRTIOOut(AutoDB):
 
         :param t: timestamp in RTIO cycles (64-bit integer).
         """
-        self.set_o(t, 1)
+        self.set_o(t, True)
 
     @kernel
     def off(self, t):
@@ -45,19 +40,13 @@ class LLRTIOOut(AutoDB):
 
         :param t: timestamp in RTIO cycles (64-bit integer).
         """
-        self.set_o(t, 0)
+        self.set_o(t, False)
 
 
-class RTIOOut(AutoDB):
-    """RTIO output driver.
+class TTLOut(AutoDB):
+    """RTIO TTL output driver.
 
-    Configures the corresponding RTIO channel as output on the core device and
-    provides functions to set its level.
-
-    This driver supports zero-length transition suppression. For example, if
-    two pulses are emitted back-to-back with no delay between them, they will
-    be merged into a single pulse with a duration equal to the sum of the
-    durations of the original pulses.
+    This should be used with output-only channels.
 
     :param core: core device
     :param channel: channel number
@@ -66,39 +55,31 @@ class RTIOOut(AutoDB):
         core = Device()
         channel = Argument()
 
+
     def build(self):
-        self.previous_timestamp = int64(0)  # in RTIO cycles
-        self._set_oe()
+        # in RTIO cycles
+        self.o_previous_timestamp = int64(0)
 
     @kernel
-    def _set_oe(self):
-        syscall("rtio_set_oe", time_to_cycles(now()), self.channel, True)
-
-    @kernel
-    def _set_o(self, value):
-        syscall("rtio_set_o", time_to_cycles(now()), self.channel, value)
-        self.previous_timestamp = time_to_cycles(now())
+    def _set_o(self, o):
+        syscall("rtio_set_o", time_to_cycles(now()), self.channel, o)
+        self.o_previous_timestamp = time_to_cycles(now())
 
     @kernel
     def sync(self):
-        """Busy-waits until all programmed level switches have been effected.
-
-        This function is useful to synchronize CPU-controlled devices (such as
-        the AD9858 DDS bus) with related RTIO controls (such as RF switches at
-        the output of the DDS).
-        """
-        while syscall("rtio_get_counter") < self.previous_timestamp:
+        """Busy-waits until all programmed level switches have been effected."""
+        while syscall("rtio_get_counter") < self.o_previous_timestamp:
             pass
 
     @kernel
     def on(self):
         """Sets the output to a logic high state."""
-        self._set_o(1)
+        self._set_o(True)
 
     @kernel
     def off(self):
         """Sets the output to a logic low state."""
-        self._set_o(0)
+        self._set_o(False)
 
     @kernel
     def pulse(self, duration):
@@ -108,12 +89,20 @@ class RTIOOut(AutoDB):
         self.off()
 
 
-class RTIOIn(AutoDB):
-    """RTIO input driver.
+class TTLInOut(AutoDB):
+    """RTIO TTL input/output driver.
 
-    Configures the corresponding RTIO channel as input on the core device and
-    provides functions to analyze the incoming signal, with real-time gating
-    to prevent overflows.
+    In output mode, provides functions to set the logic level on the signal.
+
+    In input mode, provides functions to analyze the incoming signal, with
+    real-time gating to prevent overflows.
+
+    RTIO TTLs supports zero-length transition suppression. For example, if
+    two pulses are emitted back-to-back with no delay between them, they will
+    be merged into a single pulse with a duration equal to the sum of the
+    durations of the original pulses.
+
+    This should be used with bidirectional channels.
 
     :param core: core device
     :param channel: channel number
@@ -123,17 +112,54 @@ class RTIOIn(AutoDB):
         channel = Argument()
 
     def build(self):
-        self.previous_timestamp = int64(0)  # in RTIO cycles
-        self._set_oe()
+        # in RTIO cycles
+        self.o_previous_timestamp = int64(0)
+        self.i_previous_timestamp = int64(0)
 
     @kernel
-    def _set_oe(self):
-        syscall("rtio_set_oe", time_to_cycles(now()), self.channel, False)
+    def _set_oe(self, oe):
+        syscall("rtio_set_oe", time_to_cycles(now()), self.channel, oe)
+
+    @kernel
+    def output(self):
+        self._set_oe(True)
+
+    @kernel
+    def input(self):
+        self._set_oe(False)
+
+    @kernel
+    def _set_o(self, o):
+        syscall("rtio_set_o", time_to_cycles(now()), self.channel, o)
+        self.o_previous_timestamp = time_to_cycles(now())
+
+    @kernel
+    def sync(self):
+        """Busy-waits until all programmed level switches have been effected."""
+        while syscall("rtio_get_counter") < self.o_previous_timestamp:
+            pass
+
+    @kernel
+    def on(self):
+        """Sets the output to a logic high state."""
+        self._set_o(True)
+
+    @kernel
+    def off(self):
+        """Sets the output to a logic low state."""
+        self._set_o(False)
+
+    @kernel
+    def pulse(self, duration):
+        """Pulses the output high for the specified duration."""
+        self.on()
+        delay(duration)
+        self.off()
 
     @kernel
     def _set_sensitivity(self, value):
         syscall("rtio_set_sensitivity", time_to_cycles(now()), self.channel, value)
-        self.previous_timestamp = time_to_cycles(now())
+        self.i_previous_timestamp = time_to_cycles(now())
 
     @kernel
     def gate_rising(self, duration):
@@ -162,7 +188,8 @@ class RTIOIn(AutoDB):
         """Poll the RTIO input during all the previously programmed gate
         openings, and returns the number of registered events."""
         count = 0
-        while syscall("rtio_get", self.channel, self.previous_timestamp) >= 0:
+        while syscall("rtio_get", self.channel,
+                      self.i_previous_timestamp) >= 0:
             count += 1
         return count
 
@@ -174,4 +201,4 @@ class RTIOIn(AutoDB):
         If the gate is permanently closed, returns a negative value.
         """
         return cycles_to_time(syscall("rtio_get", self.channel,
-                                      self.previous_timestamp))
+                                      self.i_previous_timestamp))

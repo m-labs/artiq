@@ -1,7 +1,7 @@
 from artiq.language.core import *
 from artiq.language.db import *
 from artiq.language.units import *
-from artiq.coredevice import rtio
+from artiq.coredevice import ttl
 
 
 PHASE_MODE_DEFAULT = -1
@@ -14,7 +14,7 @@ class DDS(AutoDB):
     """Core device Direct Digital Synthesis (DDS) driver.
 
     Controls DDS devices managed directly by the core device's runtime. It also
-    uses a RTIO channel (through :class:`artiq.coredevice.rtio.RTIOOut`) to
+    uses a RTIO TTL channel (through :class:`artiq.coredevice.ttl.TTLOut`) to
     control a RF switch that gates the output of the DDS device.
 
     :param dds_sysclk: DDS system frequency, used for computing the frequency
@@ -34,7 +34,7 @@ class DDS(AutoDB):
         self.previous_on = False
         self.previous_frequency = 0*MHz
         self.set_phase_mode(PHASE_MODE_CONTINUOUS)
-        self.sw = rtio.RTIOOut(core=self.core, channel=self.rtio_switch)
+        self.sw = ttl.TTLOut(core=self.core, channel=self.rtio_switch)
 
     @portable
     def frequency_to_ftw(self, frequency):
@@ -93,7 +93,7 @@ class DDS(AutoDB):
             self.set_phase_mode(phase_mode)
 
         if self.previous_frequency != frequency:
-            merge = self.sw.previous_timestamp == time_to_cycles(now())
+            merge = self.sw.o_previous_timestamp == time_to_cycles(now())
             if not merge:
                 self.sw.sync()
             # Channel is already on:

@@ -14,7 +14,7 @@ llvm.initialize_all_asmprinters()
 _syscalls = {
     "watchdog_set": "i:i",
     "watchdog_clear": "i:n",
-    "rtio_set_o": "Iii:n",
+    "rtio_set_o": "Iib:n",
     "rtio_set_oe": "Iib:n",
     "rtio_set_sensitivity": "Iii:n",
     "rtio_get_counter": "n:I",

@@ -5,7 +5,7 @@ from fractions import Fraction
 
 from artiq import *
 from artiq.language.units import DimensionError
-from artiq.coredevice import comm_tcp, core, runtime_exceptions, rtio
+from artiq.coredevice import comm_tcp, core, runtime_exceptions, ttl
 from artiq.sim import devices as sim_devices
 
 
@@ -281,8 +281,7 @@ class ExecutionCase(unittest.TestCase):
 class _RTIOLoopback(AutoDB):
     class DBKeys:
         core = Device()
-        i = Device()
-        o = Device()
+        io = Device()
         npulses = Argument()
 
     def report(self, n):
@@ -290,13 +289,15 @@ class _RTIOLoopback(AutoDB):
 
     @kernel
     def run(self):
+        self.io.output()
+        delay(1*us)
         with parallel:
+            self.io.gate_rising(10*us)
             with sequential:
                 for i in range(self.npulses):
                     delay(25*ns)
-                    self.o.pulse(25*ns)
-            self.i.gate_rising(10*us)
-        self.report(self.i.count())
+                    self.io.pulse(25*ns)
+        self.report(self.io.count())
 
 
 class _RTIOUnderflow(AutoDB):
@@ -335,8 +336,7 @@ class RTIOCase(unittest.TestCase):
             coredev = core.Core(comm=comm)
             uut = _RTIOLoopback(
                 core=coredev,
-                i=rtio.RTIOIn(core=coredev, channel=0),
-                o=rtio.RTIOOut(core=coredev, channel=2),
+                io=ttl.TTLInOut(core=coredev, channel=0),
                 npulses=npulses
             )
             uut.run()
@@ -350,7 +350,7 @@ class RTIOCase(unittest.TestCase):
             coredev = core.Core(comm=comm)
             uut = _RTIOUnderflow(
                 core=coredev,
-                o=rtio.RTIOOut(core=coredev, channel=2)
+                o=ttl.TTLOut(core=coredev, channel=2)
             )
             with self.assertRaises(runtime_exceptions.RTIOUnderflow):
                 uut.run()
@@ -363,7 +363,7 @@ class RTIOCase(unittest.TestCase):
             coredev = core.Core(comm=comm)
             uut = _RTIOSequenceError(
                 core=coredev,
-                o=rtio.RTIOOut(core=coredev, channel=2)
+                o=ttl.TTLOut(core=coredev, channel=2)
             )
             with self.assertRaises(runtime_exceptions.RTIOSequenceError):
                 uut.run()
