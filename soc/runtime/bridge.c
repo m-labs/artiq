@@ -16,6 +16,7 @@ void bridge_main(void)
 {
     struct msg_base *umsg;
 
+    rtio_init();
     send_ready();
     while(1) {
         umsg = mailbox_wait_and_receive();
@@ -24,7 +25,6 @@ void bridge_main(void)
                 struct msg_brg_ttl_out *msg;
 
                 msg = (struct msg_brg_ttl_out *)umsg;
-                rtio_init();
                 rtio_set_oe(rtio_get_counter() + 8000, msg->channel, msg->value);
                 mailbox_acknowledge();
                 break;
@@ -33,7 +33,6 @@ void bridge_main(void)
                 struct msg_brg_ttl_out *msg;
 
                 msg = (struct msg_brg_ttl_out *)umsg;
-                rtio_init();
                 rtio_set_o(rtio_get_counter() + 8000, msg->channel, msg->value);
                 mailbox_acknowledge();
                 break;
@@ -75,7 +74,6 @@ void bridge_main(void)
                 break;
             }
             case MESSAGE_TYPE_BRG_DDS_FUD:
-                rtio_init();
                 rtio_fud(rtio_get_counter() + 8000);
                 mailbox_acknowledge();
                 break;
