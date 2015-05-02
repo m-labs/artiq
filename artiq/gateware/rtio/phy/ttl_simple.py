@@ -26,12 +26,11 @@ class Inout(Module):
         sensitivity = Signal(2)
 
         self.sync.rio_phy += If(self.rtlink.o.stb,
-            Case(self.rtlink.o.address, {
-                0: ts.o.eq(self.rtlink.o.data[0]),
-                1: ts.oe.eq(self.rtlink.o.data[0]),
-                2: sensitivity.eq(self.rtlink.o.data)
-            }).makedefault()
-        )
+                If(self.rtlink.o.address == 0, ts.o.eq(self.rtlink.o.data[0])),
+                If(self.rtlink.o.address == 1, ts.oe.eq(self.rtlink.o.data[0])),
+            )
+        self.sync.rio += If(self.rtlink.o.stb & (self.rtlink.o.address == 2),
+            sensitivity.eq(self.rtlink.o.data))
         
         i = Signal()
         i_d = Signal()
