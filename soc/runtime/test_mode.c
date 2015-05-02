@@ -35,11 +35,21 @@ static void amp_bridge_init(void)
     }
 }
 
-static void p_ttlout(int n, int value)
+static void p_ttloe(int n, int value)
 {
     struct msg_brg_ttl_out msg;
 
-    msg.type = MESSAGE_TYPE_BRG_TTL_OUT;
+    msg.type = MESSAGE_TYPE_BRG_TTL_OE;
+    msg.channel = n;
+    msg.value = value;
+    mailbox_send_and_wait(&msg);
+}
+
+static void p_ttlo(int n, int value)
+{
+    struct msg_brg_ttl_out msg;
+
+    msg.type = MESSAGE_TYPE_BRG_TTL_O;
     msg.channel = n;
     msg.value = value;
     mailbox_send_and_wait(&msg);
@@ -142,13 +152,13 @@ static void clksrc(char *value)
     rtiocrg_clock_sel_write(value2);
 }
 
-static void ttlout(char *n, char *value)
+static void ttloe(char *n, char *value)
 {
     char *c;
     unsigned int n2, value2;
 
     if((*n == 0)||(*value == 0)) {
-        printf("ttlout <n> <value>\n");
+        printf("ttloe <n> <value>\n");
         return;
     }
 
@@ -163,7 +173,31 @@ static void ttlout(char *n, char *value)
         return;
     }
 
-    p_ttlout(n2, value2);
+    p_ttloe(n2, value2);
+}
+
+static void ttlo(char *n, char *value)
+{
+    char *c;
+    unsigned int n2, value2;
+
+    if((*n == 0)||(*value == 0)) {
+        printf("ttlo <n> <value>\n");
+        return;
+    }
+
+    n2 = strtoul(n, &c, 0);
+    if(*c != 0) {
+        printf("incorrect channel\n");
+        return;
+    }
+    value2 = strtoul(value, &c, 0);
+    if(*c != 0) {
+        printf("incorrect value\n");
+        return;
+    }
+
+    p_ttlo(n2, value2);
 }
 
 static void ddssel(char *n)
@@ -341,7 +375,8 @@ static void help(void)
     puts("Available commands:");
     puts("help            - this message");
     puts("clksrc <n>      - select RTIO clock source");
-    puts("ttlout <n> <v>  - output TTL");
+    puts("ttloe <n> <v>   - set TTL output enable");
+    puts("ttlo <n> <v>    - set TTL output value");
     puts("ddssel <n>      - select a DDS");
     puts("ddsinit         - reset, config, FUD DDS");
     puts("ddsreset        - reset DDS");
@@ -418,7 +453,8 @@ static void do_command(char *c)
 
     else if(strcmp(token, "clksrc") == 0) clksrc(get_token(&c));
 
-    else if(strcmp(token, "ttlout") == 0) ttlout(get_token(&c), get_token(&c));
+    else if(strcmp(token, "ttloe") == 0) ttloe(get_token(&c), get_token(&c));
+    else if(strcmp(token, "ttlo") == 0) ttlo(get_token(&c), get_token(&c));
 
     else if(strcmp(token, "ddssel") == 0) ddssel(get_token(&c));
     else if(strcmp(token, "ddsw") == 0) ddsw(get_token(&c), get_token(&c));

@@ -20,12 +20,20 @@ void bridge_main(void)
     while(1) {
         umsg = mailbox_wait_and_receive();
         switch(umsg->type) {
-            case MESSAGE_TYPE_BRG_TTL_OUT: {
+            case MESSAGE_TYPE_BRG_TTL_OE: {
                 struct msg_brg_ttl_out *msg;
 
                 msg = (struct msg_brg_ttl_out *)umsg;
                 rtio_init();
-                rtio_set_oe(rtio_get_counter() + 8000, msg->channel, 1);
+                rtio_set_oe(rtio_get_counter() + 8000, msg->channel, msg->value);
+                mailbox_acknowledge();
+                break;
+            }
+            case MESSAGE_TYPE_BRG_TTL_O: {
+                struct msg_brg_ttl_out *msg;
+
+                msg = (struct msg_brg_ttl_out *)umsg;
+                rtio_init();
                 rtio_set_o(rtio_get_counter() + 8000, msg->channel, msg->value);
                 mailbox_acknowledge();
                 break;

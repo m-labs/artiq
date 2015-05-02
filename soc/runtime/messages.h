@@ -14,7 +14,8 @@ enum {
     MESSAGE_TYPE_LOG,
 
     MESSAGE_TYPE_BRG_READY,
-    MESSAGE_TYPE_BRG_TTL_OUT,
+    MESSAGE_TYPE_BRG_TTL_O,
+    MESSAGE_TYPE_BRG_TTL_OE,
     MESSAGE_TYPE_BRG_DDS_SEL,
     MESSAGE_TYPE_BRG_DDS_RESET,
     MESSAGE_TYPE_BRG_DDS_READ_REQUEST,
@@ -71,6 +72,7 @@ struct msg_log {
 /* bridge messages */
 
 struct msg_brg_ttl_out {
+    /* used for OE and O */
     int type;
     int channel;
     int value;
