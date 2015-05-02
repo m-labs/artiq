@@ -54,6 +54,7 @@ static void submit_output(int len)
 }
 
 static int user_kernel_state;
+static long long int now;
 
 enum {
     USER_KERNEL_NONE = 0,
@@ -167,7 +168,10 @@ static int process_input(void)
             }
             buffer_in[buffer_in_index] = 0;
 
-            k = kloader_find((char *)&buffer_in[9]);
+            if(buffer_in[9])
+                now = -1;
+
+            k = kloader_find((char *)&buffer_in[10]);
             if(k == NULL) {
                 log("Failed to find kernel entry point '%s' in object", &buffer_in[9]);
                 buffer_out[8] = REMOTEMSG_TYPE_KERNEL_STARTUP_FAILED;
@@ -394,6 +398,21 @@ static int process_kmsg(struct msg_base *umsg)
         return 0;
 
     switch(umsg->type) {
+        case MESSAGE_TYPE_NOW_INIT_REQUEST: {
+            struct msg_now_init_reply reply;
+
+            reply.type = MESSAGE_TYPE_NOW_INIT_REPLY;
+            reply.now = now;
+            mailbox_send_and_wait(&reply);
+            break;
+        }
+        case MESSAGE_TYPE_NOW_SAVE: {
+            struct msg_now_save *msg = (struct msg_now_save *)umsg;
+
+            now = msg->now;
+            mailbox_acknowledge();
+            break;
+        }
         case MESSAGE_TYPE_FINISHED:
             buffer_out[8] = REMOTEMSG_TYPE_KERNEL_FINISHED;
             submit_output(9);

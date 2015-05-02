@@ -3,7 +3,6 @@ import logging
 from enum import Enum
 from fractions import Fraction
 
-from artiq.coredevice.runtime import Environment
 from artiq.coredevice import runtime_exceptions
 from artiq.language import core as core_language
 from artiq.coredevice.rpc_wrapper import RPCWrapper
@@ -89,7 +88,7 @@ class CommGeneric:
         logger.debug("sending message: type=%r length=%d", ty, length)
         self.write(struct.pack(">llB", 0x5a5a5a5a, length, ty.value))
 
-    def get_runtime_env(self):
+    def check_ident(self):
         self._write_header(9, _H2DMsgType.IDENT_REQUEST)
         _, ty = self._read_header()
         if ty != _D2HMsgType.IDENT_REPLY:
@@ -102,7 +101,6 @@ class CommGeneric:
         if runtime_id != "AROR":
             raise UnsupportedDevice("Unsupported runtime ID: {}"
                                     .format(runtime_id))
-        return Environment()
 
     def switch_clock(self, external):
         self._write_header(10, _H2DMsgType.SWITCH_CLOCK)
@@ -118,8 +116,9 @@ class CommGeneric:
         if ty != _D2HMsgType.LOAD_COMPLETED:
             raise IOError("Incorrect reply from device: "+str(ty))
 
-    def run(self, kname):
-        self._write_header(len(kname) + 9, _H2DMsgType.RUN_KERNEL)
+    def run(self, kname, reset_now):
+        self._write_header(len(kname) + 10, _H2DMsgType.RUN_KERNEL)
+        self.write(struct.pack("B", reset_now))
         self.write(bytes(kname, "ascii"))
         logger.debug("running kernel: %s", kname)
 

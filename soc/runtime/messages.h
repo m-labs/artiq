@@ -4,6 +4,9 @@
 #include <stdarg.h>
 
 enum {
+    MESSAGE_TYPE_NOW_INIT_REQUEST,
+    MESSAGE_TYPE_NOW_INIT_REPLY,
+    MESSAGE_TYPE_NOW_SAVE,
     MESSAGE_TYPE_FINISHED,
     MESSAGE_TYPE_EXCEPTION,
     MESSAGE_TYPE_WATCHDOG_SET_REQUEST,
@@ -29,6 +32,16 @@ struct msg_base {
 };
 
 /* kernel messages */
+
+struct msg_now_init_reply {
+    int type;
+    long long int now;
+};
+
+struct msg_now_save {
+    int type;
+    long long int now;
+};
 
 struct msg_exception {
     int type;

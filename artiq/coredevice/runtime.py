@@ -12,6 +12,8 @@ llvm.initialize_all_targets()
 llvm.initialize_all_asmprinters()
 
 _syscalls = {
+    "now_init": "n:I",
+    "now_save": "I:n",
     "watchdog_set": "i:i",
     "watchdog_clear": "i:n",
     "rtio_set_o": "Iib:n",

@@ -14,9 +14,6 @@ output function.
 
 import ast
 
-from artiq.transforms.tools import value_to_ast
-from artiq.language.core import int64
-
 
 class _TimeLowerer(ast.NodeTransformer):
     def visit_Call(self, node):
@@ -45,9 +42,23 @@ class _TimeLowerer(ast.NodeTransformer):
         return r
 
 
-def lower_time(func_def, initial_time):
+def lower_time(func_def):
     _TimeLowerer().visit(func_def)
-    func_def.body.insert(0, ast.copy_location(
-        ast.Assign(targets=[ast.Name("now", ast.Store())],
-                   value=value_to_ast(int64(initial_time))),
-        func_def))
+    call_init = ast.Call(
+        func=ast.Name("syscall", ast.Load()),
+        args=[ast.Str("now_init")],
+        keywords=[], starargs=None, kwargs=None)
+    stmt_init = ast.Assign(targets=[ast.Name("now", ast.Store())],
+        value=call_init)
+    call_save = ast.Call(
+        func=ast.Name("syscall", ast.Load()),
+        args=[ast.Str("now_save"), ast.Name("now", ast.Load())],
+        keywords=[], starargs=None, kwargs=None)
+    stmt_save = ast.Expr(call_save)
+    func_def.body = [
+        stmt_init,
+        ast.Try(body=func_def.body,
+                handlers=[],
+                orelse=[],
+                finalbody=[stmt_save])
+    ]

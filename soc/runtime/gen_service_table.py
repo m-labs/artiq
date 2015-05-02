@@ -7,6 +7,8 @@ from elftools.elf.elffile import ELFFile
 
 services = [
     ("syscalls", [
+        ("now_init", "now_init"),
+        ("now_save", "now_save"),
         ("rpc", "rpc"),
         ("watchdog_set", "watchdog_set"),
         ("watchdog_clear", "watchdog_clear"),

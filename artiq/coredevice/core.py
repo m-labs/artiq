@@ -15,6 +15,8 @@ from artiq.transforms.interleave import interleave
 from artiq.transforms.lower_time import lower_time
 from artiq.transforms.unparse import unparse
 
+from artiq.coredevice.runtime import Environment
+
 from artiq.py2llvm import get_runtime_binary
 
 
@@ -52,12 +54,10 @@ class Core(AutoDB):
         external_clock = Argument(False)
 
     def build(self):
-        self.runtime_env = self.comm.get_runtime_env()
+        self.first_run = True
         self.core = self
         self.comm.core = self
-        
-        self.comm.switch_clock(self.external_clock)
-        self.initial_time = int64(self.runtime_env.warmup_time/self.ref_period)
+        self.runtime_env = Environment()
 
     def transform_stack(self, func_def, rpc_map, exception_map,
                         debug_unparse=_no_debug_unparse):
@@ -79,7 +79,7 @@ class Core(AutoDB):
         interleave(func_def)
         debug_unparse("interleave", func_def)
 
-        lower_time(func_def, self.initial_time)
+        lower_time(func_def)
         debug_unparse("lower_time", func_def)
 
         remove_inter_assigns(func_def)
@@ -113,11 +113,16 @@ class Core(AutoDB):
         return binary, rpc_map, exception_map
 
     def run(self, k_function, k_args, k_kwargs):
+        if self.first_run:
+            self.comm.check_ident()
+            self.comm.switch_clock(self.external_clock)
+
         binary, rpc_map, exception_map = self.compile(
             k_function, k_args, k_kwargs)
         self.comm.load(binary)
-        self.comm.run(k_function.__name__)
+        self.comm.run(k_function.__name__, self.first_run)
         self.comm.serve(rpc_map, exception_map)
+        self.first_run = False
 
     @kernel
     def get_rtio_time(self):
@@ -125,5 +130,5 @@ class Core(AutoDB):
 
     @kernel
     def recover_underflow(self):
-        t = syscall("rtio_get_counter") + self.initial_time
+        t = syscall("rtio_get_counter") + 125000
         at(cycles_to_time(t))

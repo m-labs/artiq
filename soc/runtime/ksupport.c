@@ -18,12 +18,12 @@ void exception_handler(unsigned long vect, unsigned long *sp);
 void exception_handler(unsigned long vect, unsigned long *sp)
 {
     struct msg_exception msg;
-    int i;
 
     msg.type = MESSAGE_TYPE_EXCEPTION;
     msg.eid = EID_INTERNAL_ERROR;
-    for(i=0;i<3;i++)
-        msg.eparams[i] = 0;
+    msg.eparams[0] = 256;
+    msg.eparams[1] = 256;
+    msg.eparams[2] = 256;
     mailbox_send_and_wait(&msg);
     while(1);
 }
@@ -51,8 +51,6 @@ int main(void)
         } else {
             struct msg_base msg;
 
-            dds_init();
-            rtio_init();
             k();
             exception_pop(1);
 
@@ -61,6 +59,41 @@ int main(void)
         }
     }
     while(1);
+}
+
+long long int now_init(void);
+long long int now_init(void)
+{
+    struct msg_base request;
+    struct msg_now_init_reply *reply;
+    long long int now;
+
+    request.type = MESSAGE_TYPE_NOW_INIT_REQUEST;
+    mailbox_send_and_wait(&request);
+
+    reply = mailbox_wait_and_receive();
+    if(reply->type != MESSAGE_TYPE_NOW_INIT_REPLY)
+        exception_raise_params(EID_INTERNAL_ERROR, 1, 0, 0);
+    now = reply->now;
+    mailbox_acknowledge();
+
+    if(now < 0) {
+        dds_init();
+        rtio_init();
+        now = 125000;
+    }
+
+    return now;
+}
+
+void now_save(long long int now);
+void now_save(long long int now)
+{
+    struct msg_now_save request;
+
+    request.type = MESSAGE_TYPE_NOW_SAVE;
+    request.now = now;
+    mailbox_send_and_wait(&request);
 }
 
 int watchdog_set(int ms)
@@ -75,7 +108,7 @@ int watchdog_set(int ms)
 
     reply = mailbox_wait_and_receive();
     if(reply->type != MESSAGE_TYPE_WATCHDOG_SET_REPLY)
-        exception_raise(EID_INTERNAL_ERROR);
+        exception_raise_params(EID_INTERNAL_ERROR, 2, 0, 0);
     id = reply->id;
     mailbox_acknowledge();
 
@@ -105,7 +138,7 @@ int rpc(int rpc_num, ...)
 
     reply = mailbox_wait_and_receive();
     if(reply->type != MESSAGE_TYPE_RPC_REPLY)
-        exception_raise(EID_INTERNAL_ERROR);
+        exception_raise_params(EID_INTERNAL_ERROR, 3, 0, 0);
     eid = reply->eid;
     retval = reply->retval;
     mailbox_acknowledge();
