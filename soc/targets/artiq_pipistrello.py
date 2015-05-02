@@ -14,7 +14,7 @@ from artiq.gateware.rtio.phy import ttl_simple
 class _RTIOCRG(Module, AutoCSR):
     def __init__(self, platform):
         self._clock_sel = CSRStorage()
-        self.clock_domains.cd_rtio = ClockDomain()
+        self.clock_domains.cd_rtio = ClockDomain(reset_less=True)
 
         # 75MHz -> 125MHz
         rtio_internal_clk = Signal()

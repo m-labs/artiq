@@ -257,6 +257,7 @@ class _KernelCSRs(AutoCSR):
     def __init__(self, chan_sel_width,
                  data_width, address_width, full_ts_width):
         self.reset = CSRStorage(reset=1)
+        self.reset_phy = CSRStorage(reset=1)
         self.chan_sel = CSRStorage(chan_sel_width)
 
         if data_width:
@@ -296,10 +297,11 @@ class RTIO(Module):
                                  full_ts_width)
 
         # Clocking/Reset
-        # Create rsys and rio domains based on sys and rio
+        # Create rsys, rio and rio_phy domains based on sys and rtio
         # with reset controlled by CSR.
         self.clock_domains.cd_rsys = ClockDomain()
         self.clock_domains.cd_rio = ClockDomain()
+        self.clock_domains.cd_rio_phy = ClockDomain()
         self.comb += [
             self.cd_rsys.clk.eq(ClockSignal()),
             self.cd_rsys.rst.eq(self.kcsrs.reset.storage)
@@ -307,6 +309,9 @@ class RTIO(Module):
         self.comb += self.cd_rio.clk.eq(ClockSignal("rtio"))
         self.specials += AsyncResetSynchronizer(self.cd_rio,
                                                 self.kcsrs.reset.storage)
+        self.comb += self.cd_rio_phy.clk.eq(ClockSignal("rtio"))
+        self.specials += AsyncResetSynchronizer(self.cd_rio_phy,
+                                                self.kcsrs.reset_phy.storage)
 
         # Managers
         self.submodules.counter = _RTIOCounter(full_ts_width - fine_ts_width)

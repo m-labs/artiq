@@ -10,7 +10,7 @@ class Output(Module):
 
         # # #
 
-        self.sync.rio += If(self.rtlink.o.stb, pad.eq(self.rtlink.o.data))
+        self.sync.rio_phy += If(self.rtlink.o.stb, pad.eq(self.rtlink.o.data))
 
 
 class Inout(Module):
@@ -25,7 +25,7 @@ class Inout(Module):
         self.specials += ts.get_tristate(pad)
         sensitivity = Signal(2)
 
-        self.sync.rio += If(self.rtlink.o.stb,
+        self.sync.rio_phy += If(self.rtlink.o.stb,
             Case(self.rtlink.o.address, {
                 0: ts.o.eq(self.rtlink.o.data[0]),
                 1: ts.oe.eq(self.rtlink.o.data[0]),
@@ -35,8 +35,8 @@ class Inout(Module):
         
         i = Signal()
         i_d = Signal()
-        self.specials += MultiReg(ts.i, i, "rio")
-        self.sync.rio += i_d.eq(i)
+        self.specials += MultiReg(ts.i, i, "rio_phy")
+        self.sync.rio_phy += i_d.eq(i)
         self.comb += [
             self.rtlink.i.stb.eq(
                 (sensitivity[0] & ( i & ~i_d)) |

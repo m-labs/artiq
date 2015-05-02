@@ -18,7 +18,7 @@ class RT2WB(Module):
         # # #
 
         active = Signal()
-        self.sync.rio += [
+        self.sync.rio_phy += [
             If(self.rtlink.o.stb,
                 active.eq(1),
                 wb.adr.eq(self.rtlink.o.address[:address_width]),

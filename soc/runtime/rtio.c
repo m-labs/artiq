@@ -16,6 +16,7 @@ void rtio_init(void)
     previous_fud_end_time = 0;
     rtio_reset_write(1);
     rtio_reset_write(0);
+    rtio_reset_phy_write(0);
 }
 
 static void write_and_process_status(long long int timestamp, int channel)

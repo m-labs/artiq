@@ -17,7 +17,7 @@ from artiq.gateware.rtio.phy import ttl_simple
 class _RTIOCRG(Module, AutoCSR):
     def __init__(self, platform, rtio_internal_clk):
         self._clock_sel = CSRStorage()
-        self.clock_domains.cd_rtio = ClockDomain()
+        self.clock_domains.cd_rtio = ClockDomain(reset_less=True)
 
         rtio_external_clk = Signal()
         user_sma_clock = platform.request("user_sma_clock")
