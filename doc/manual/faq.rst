@@ -4,6 +4,11 @@ FAQ
 How do I ...
 ============
 
+prevent my first RTIO command from causing an underflow?
+--------------------------------------------------------
+
+The RTIO timestamp counter starts counting at zero at the beginning of the first kernel run on the core device. The first RTIO event is programmed with a small timestamp above zero. If the kernel needs more time than this timestamp to produce the event, an underflow will occur. You can prevent it by calling ``break_realtime`` just before programming the first event.
+
 override the `sysclk` frequency of just one DDS?
 ------------------------------------------------
 
@@ -12,7 +17,7 @@ Override the parameter using an argument in the DDB.
 organize parameters in folders?
 -------------------------------
 
-Use gui auto-completion and filtering.
+Use GUI auto-completion and filtering.
 Names need to be unique.
 
 enforce functional dependencies between parameters?

@@ -129,6 +129,6 @@ class Core(AutoDB):
         return cycles_to_time(syscall("rtio_get_counter"))
 
     @kernel
-    def recover_underflow(self):
+    def break_realtime(self):
         t = syscall("rtio_get_counter") + 125000
         at(cycles_to_time(t))

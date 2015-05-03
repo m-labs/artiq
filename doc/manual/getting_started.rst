@@ -47,7 +47,7 @@ Modify the code as follows: ::
         @kernel
         def run(self):
             s = input_led_state()
-            self.core.recover_underflow()
+            self.core.break_realtime()
             if s:
                 self.led.on()
             else:
@@ -63,7 +63,7 @@ You can then turn the LED off and on by entering 0 or 1 at the prompt that appea
 
 What happens is the ARTIQ compiler notices that the ``input_led_state`` function does not have a ``@kernel`` decorator and thus must be executed on the host. When the core device calls it, it sends a request to the host to execute it. The host displays the prompt, collects user input, and sends the result back to the core device, which sets the LED state accordingly.
 
-The ``recover_underflow`` call is necessary to waive the real-time requirements of the LED state change (as the ``input_led_state`` function can take an arbitrarily long time). This will become clearer later as we explain timing control.
+The ``break_realtime`` call is necessary to waive the real-time requirements of the LED state change (as the ``input_led_state`` function can take an arbitrarily long time). This will become clearer later as we explain timing control.
 
 Algorithmic features
 --------------------

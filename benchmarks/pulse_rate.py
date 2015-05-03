@@ -20,7 +20,7 @@ class PulseRate(Experiment, AutoDB):
                     delay(cycles_to_time(T))
             except RTIOUnderflow:
                 T += 1
-                self.core.recover_underflow()
+                self.core.break_realtime()
             else:
                 self.pulse_rate = cycles_to_time(2*T)
                 break
