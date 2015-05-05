@@ -5,6 +5,21 @@ from migen.bus.transactions import *
 from migen.sim.generic import run_simulation
 
 
+class WaitTimer(Module):
+    def __init__(self, t):
+        self.wait = Signal()
+        self.done = Signal()
+
+        # # #
+
+        count = Signal(bits_for(t), reset=t)
+        self.comb += self.done.eq(count == 0)
+        self.sync += \
+            If(self.wait,
+                If(~self.done, count.eq(count - 1))
+            ).Else(count.eq(count.reset))
+
+
 class AD9858(Module):
     """Wishbone interface to the AD9858 DDS chip.
 
@@ -33,7 +48,9 @@ class AD9858(Module):
     Round-trip addr A setup (> RX, RD, D to Z), RD prop, D valid (< D
     valid), D prop is ~15 + 10 + 20 + 10 = 55ns
     """
-    def __init__(self, pads, drive_fud=False, bus=None):
+    def __init__(self, pads, drive_fud=False,
+                 read_wait_cycles=10, hiz_wait_cycles=3,
+                 bus=None):
         if bus is None:
             bus = wishbone.Interface()
         self.bus = bus
@@ -42,10 +59,11 @@ class AD9858(Module):
 
         dts = TSTriple(8)
         self.specials += dts.get_tristate(pads.d)
+        hold_address = Signal()
         dr = Signal(8)
         rx = Signal()
         self.sync += [
-            pads.a.eq(bus.adr),
+            If(~hold_address, pads.a.eq(bus.adr)),
             dts.o.eq(bus.dat_w),
             dr.eq(dts.i),
             dts.oe.eq(~rx)
@@ -75,6 +93,9 @@ class AD9858(Module):
         wr = Signal()
         rd = Signal()
         self.sync += pads.wr_n.eq(~wr), pads.rd_n.eq(~rd)
+
+        self.submodules.read_timer = WaitTimer(read_wait_cycles)
+        self.submodules.hiz_timer = WaitTimer(hiz_wait_cycles)
 
         fsm = FSM("IDLE")
         self.submodules += fsm
@@ -112,38 +133,18 @@ class AD9858(Module):
             # 15ns D valid to RD active
             rx.eq(1),
             rd.eq(1),
-            NextState("READ0")
+            self.read_timer.wait.eq(1),
+            If(self.read_timer.done,
+               bus.ack.eq(1),
+               NextState("WAIT_HIZ")
+            )
         )
-        fsm.act("READ0",
+        fsm.act("WAIT_HIZ",
             rx.eq(1),
-            rd.eq(1),
-            NextState("READ1")
-        )
-        fsm.act("READ1",
-            rx.eq(1),
-            rd.eq(1),
-            NextState("READ2")
-        )
-        fsm.act("READ2",
-            rx.eq(1),
-            rd.eq(1),
-            NextState("READ3")
-        )
-        fsm.act("READ3",
-            rx.eq(1),
-            rd.eq(1),
-            NextState("READ4")
-        )
-        fsm.act("READ4",
-            rx.eq(1),
-            NextState("READ5")
-        )
-        fsm.act("READ5",
-            # 5ns D three-state to RD inactive
-            # 10ns A hold to RD inactive
-            rx.eq(1),
-            bus.ack.eq(1),
-            NextState("IDLE")
+            # For some reason, AD9858 has a address hold time to RD inactive.
+            hold_address.eq(1),
+            self.hiz_timer.wait.eq(1),
+            If(self.hiz_timer.done, NextState("IDLE"))
         )
         if drive_fud:
             fsm.act("FUD",
