@@ -6,7 +6,6 @@ from mibuild.xilinx.vivado import XilinxVivadoToolchain
 
 from misoclib.com import gpio
 from misoclib.soc import mem_decoder
-from misoclib.cpu.peripherals import timer
 from targets.kc705 import MiniSoC
 
 from artiq.gateware.soc import AMPSoC

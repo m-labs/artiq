@@ -1,5 +1,5 @@
 from misoclib.soc import mem_decoder
-from misoclib.cpu.peripherals import timer
+from misoclib.cpu import timer
 
 from artiq.gateware import amp
 
