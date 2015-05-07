@@ -65,7 +65,7 @@ class ResultDB:
         result_dict_to_hdf5(f, self.data.read)
 
 
-def _create_device(desc, dbh):
+def create_device(desc, dbh):
     ty = desc["type"]
     if ty == "local":
         module = importlib.import_module(desc["module"])
@@ -105,7 +105,7 @@ class DBHub:
             while isinstance(desc, str):
                 # alias
                 desc = self.ddb.request(desc)
-            dev = _create_device(desc, self)
+            dev = create_device(desc, self)
             self.active_devices[name] = dev
             return dev
 

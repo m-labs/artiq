@@ -124,6 +124,50 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
 The communication parameters are 115200 8-N-1.
 
+* Set the MAC and IP address in the :ref:`core device configuration flash storage <core-device-flash-storage>`:
+
+    * You can either set it by generating a flash storage image and then flash it: ::
+
+        $ ~/artiq-dev/artiq/frontend/artiq_mkfs.py flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
+        $ ~/artiq-dev/artiq/frontend/artiq_flash.sh -f flash_storage.img
+
+    * Or you can set it via the runtime test mode command line
+
+        * Boot the board.
+
+        * Quickly run flterm (in ``path/to/misoc/tools``) to access the serial console.
+
+        * If you weren't quick enough to see anything in the serial console, press the reset button.
+
+        * Wait for "Press 't' to enter test mode..." to appear and hit the ``t`` key.
+
+        * Enter the following commands (which will erase the flash storage content).
+
+            ::
+
+                test> fserase
+                test> fswrite ip xx.xx.xx.xx
+                test> fswrite mac xx:xx:xx:xx:xx:xx
+
+        * Then reboot.
+
+        You should see something like this in the serial console: ::
+
+            ~/dev/misoc$ ./tools/flterm --port /dev/ttyUSB1
+            [FLTERM] Starting...
+
+            MiSoC BIOS   http://m-labs.hk
+            (c) Copyright 2007-2014 Sebastien Bourdeauducq
+            [...]
+            Press 't' to enter test mode...
+            Entering test mode.
+            test> fserase
+            test> fswrite ip 192.168.10.2
+            test> fswrite mac 11:22:33:44:55:66
+
+.. note:: The reset button of the KC705 board is the "CPU_RST" labeled button.
+.. warning:: Both those instructions will result in the flash storage being wiped out. However you can use the test mode to change the IP/MAC without erasing everything if you skip the "fserase" command.
+
 Installing the host-side software
 ---------------------------------
 

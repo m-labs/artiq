@@ -12,6 +12,7 @@
 #include "kloader.h"
 #include "exceptions.h"
 #include "session.h"
+#include "flash_storage.h"
 
 #define BUFFER_IN_SIZE (1024*1024)
 #define BUFFER_OUT_SIZE (1024*1024)
@@ -86,7 +87,12 @@ enum {
     REMOTEMSG_TYPE_LOAD_OBJECT,
     REMOTEMSG_TYPE_RUN_KERNEL,
 
-    REMOTEMSG_TYPE_RPC_REPLY
+    REMOTEMSG_TYPE_RPC_REPLY,
+
+    REMOTEMSG_TYPE_FLASH_READ_REQUEST,
+    REMOTEMSG_TYPE_FLASH_WRITE_REQUEST,
+    REMOTEMSG_TYPE_FLASH_ERASE_REQUEST,
+    REMOTEMSG_TYPE_FLASH_REMOVE_REQUEST
 };
 
 /* device to host */
@@ -104,7 +110,23 @@ enum {
     REMOTEMSG_TYPE_KERNEL_EXCEPTION,
 
     REMOTEMSG_TYPE_RPC_REQUEST,
+
+    REMOTEMSG_TYPE_FLASH_READ_REPLY,
+    REMOTEMSG_TYPE_FLASH_WRITE_REPLY,
+    REMOTEMSG_TYPE_FLASH_OK_REPLY,
+    REMOTEMSG_TYPE_FLASH_ERROR_REPLY
 };
+
+static int check_flash_storage_key_len(char *key, unsigned int key_len)
+{
+    if(key_len == get_in_packet_len() - 8) {
+        log("Invalid key: not a null-terminated string");
+        buffer_out[8] = REMOTEMSG_TYPE_FLASH_ERROR_REPLY;
+        submit_output(9);
+        return 0;
+    }
+    return 1;
+}
 
 static int process_input(void)
 {
@@ -202,6 +224,63 @@ static int process_input(void)
                 __asm__ volatile("l.nop");
             /* */
             user_kernel_state = USER_KERNEL_RUNNING;
+            break;
+        }
+        case REMOTEMSG_TYPE_FLASH_READ_REQUEST: {
+#if SPIFLASH_SECTOR_SIZE - 4 > BUFFER_OUT_SIZE - 9
+#error Output buffer cannot hold the flash storage data
+#elif SPIFLASH_SECTOR_SIZE - 4 > BUFFER_IN_SIZE - 9
+#error Input buffer cannot hold the flash storage data
+#endif
+            unsigned int ret, in_packet_len;
+            char *key;
+
+            in_packet_len = get_in_packet_len();
+            key = &buffer_in[9];
+            buffer_in[in_packet_len] = '\0';
+
+            buffer_out[8] = REMOTEMSG_TYPE_FLASH_READ_REPLY;
+            ret = fs_read(key, &buffer_out[9], sizeof(buffer_out) - 9, NULL);
+            submit_output(9 + ret);
+            break;
+        }
+        case REMOTEMSG_TYPE_FLASH_WRITE_REQUEST: {
+            char *key, *value;
+            unsigned int key_len, value_len, in_packet_len;
+            int ret;
+
+            in_packet_len = get_in_packet_len();
+            key = &buffer_in[9];
+            key_len = strnlen(key, in_packet_len - 9) + 1;
+            if(!check_flash_storage_key_len(key, key_len))
+                break;
+
+            value_len = in_packet_len - key_len - 9;
+            value = key + key_len;
+            ret = fs_write(key, value, value_len);
+
+            buffer_out[8] = REMOTEMSG_TYPE_FLASH_WRITE_REPLY;
+            buffer_out[9] = ret;
+            submit_output(10);
+            break;
+        }
+        case REMOTEMSG_TYPE_FLASH_ERASE_REQUEST: {
+            fs_erase();
+            buffer_out[8] = REMOTEMSG_TYPE_FLASH_OK_REPLY;
+            submit_output(9);
+            break;
+        }
+        case REMOTEMSG_TYPE_FLASH_REMOVE_REQUEST: {
+            char *key;
+            unsigned int in_packet_len;
+
+            in_packet_len = get_in_packet_len();
+            key = &buffer_in[9];
+            buffer_in[in_packet_len] = '\0';
+
+            fs_remove(key);
+            buffer_out[8] = REMOTEMSG_TYPE_FLASH_OK_REPLY;
+            submit_output(9);
             break;
         }
         default:

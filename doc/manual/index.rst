@@ -15,6 +15,7 @@ Contents:
     core_drivers_reference
     protocols_reference
     ndsp_reference
+    core_device_flash_storage
     utilities
     fpga_board_ports
     default_network_ports
