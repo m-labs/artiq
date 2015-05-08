@@ -1,6 +1,7 @@
 #include <generated/csr.h>
 #include <stdio.h>
 
+#include "exceptions.h"
 #include "rtio.h"
 #include "dds.h"
 
@@ -57,13 +58,62 @@ static void dds_set_one(long long int now, long long int timestamp, int channel,
     DDS_WRITE(DDS_POW1, (pow >> 8) & 0x3f);
 }
 
+struct dds_set_params {
+    int channel;
+    unsigned int ftw;
+    unsigned int pow;
+    int phase_mode;
+};
+
+static int batch_mode;
+static int batch_count;
+static long long int batch_fud_time;
+static struct dds_set_params batch[DDS_MAX_BATCH];
+
+void dds_batch_enter(long long int timestamp)
+{
+    if(batch_mode)
+        exception_raise(EID_DDS_BATCH_ERROR);
+    batch_mode = 1;
+    batch_count = 0;
+    batch_fud_time = timestamp;
+}
+
+void dds_batch_exit(void)
+{
+    long long int now;
+    int i;
+
+    if(!batch_mode)
+        exception_raise(EID_DDS_BATCH_ERROR);
+    now = batch_fud_time - batch_count*DURATION_PROGRAM;
+    for(i=0;i<batch_count;i++) {
+        dds_set_one(now, batch_fud_time,
+            batch[i].channel, batch[i].ftw, batch[i].pow, batch[i].phase_mode);
+        now += DURATION_PROGRAM;
+    }
+    DDS_WRITE(DDS_FUD, 0);
+    batch_mode = 0;
+}
+
 void dds_set(long long int timestamp, int channel,
     unsigned int ftw, unsigned int pow, int phase_mode)
 {
-    long long int now;
+    if(batch_mode) {
+        if(batch_count >= DDS_MAX_BATCH)
+            exception_raise(EID_DDS_BATCH_ERROR);
+        /* timestamp parameter ignored (determined by batch) */
+        batch[batch_count].channel = channel;
+        batch[batch_count].ftw = ftw;
+        batch[batch_count].pow = pow;
+        batch[batch_count].phase_mode = phase_mode;
+        batch_count++;
+    } else {
+        long long int now;
 
-    rtio_chan_sel_write(RTIO_DDS_CHANNEL);
-    dds_set_one(timestamp - DURATION_PROGRAM, timestamp, channel, ftw, pow, phase_mode);
-    now = timestamp;
-    DDS_WRITE(DDS_FUD, 0);
+        rtio_chan_sel_write(RTIO_DDS_CHANNEL);
+        dds_set_one(timestamp - DURATION_PROGRAM, timestamp, channel, ftw, pow, phase_mode);
+        now = timestamp;
+        DDS_WRITE(DDS_FUD, 0);
+    }
 }

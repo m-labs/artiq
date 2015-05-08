@@ -6,9 +6,7 @@ from artiq.language.core import RuntimeException
 # Must be kept in sync with soc/runtime/exceptions.h
 
 class InternalError(RuntimeException):
-    """Raised when the runtime encounters an internal error condition.
-
-    """
+    """Raised when the runtime encounters an internal error condition."""
     eid = 1
 
 
@@ -21,7 +19,6 @@ class RTIOUnderflow(RuntimeException):
     (with respect to the event's timestamp).
 
     The offending event is discarded and the RTIO core keeps operating.
-
     """
     eid = 3
 
@@ -37,7 +34,6 @@ class RTIOSequenceError(RuntimeException):
     not larger than the previous one.
 
     The offending event is discarded and the RTIO core keeps operating.
-
     """
     eid = 4
 
@@ -53,12 +49,18 @@ class RTIOOverflow(RuntimeException):
     This does not interrupt operations further than cancelling the current
     read attempt and discarding some events. Reading can be reattempted after
     the exception is caught, and events will be partially retrieved.
-
     """
     eid = 5
 
     def __str__(self):
         return "on channel {}".format(self.p0)
+
+
+class DDSBatchError(RuntimeException):
+    """Raised when attempting to start a DDS batch while already in a batch,
+    or when too many commands are batched.
+    """
+    eid = 6
 
 
 exception_map = {e.eid: e for e in globals().values()

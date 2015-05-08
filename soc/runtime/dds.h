@@ -4,6 +4,10 @@
 #include <hw/common.h>
 #include <generated/mem.h>
 
+/* Maximum number of commands in a batch */
+#define DDS_MAX_BATCH 16
+
+/* DDS core registers */
 #define DDS_FTW0  0x0a
 #define DDS_FTW1  0x0b
 #define DDS_FTW2  0x0c
@@ -20,6 +24,8 @@ enum {
 };
 
 void dds_init(long long int timestamp, int channel);
+void dds_batch_enter(long long int timestamp);
+void dds_batch_exit(void);
 void dds_set(long long int timestamp, int channel,
     unsigned int ftw, unsigned int pow, int phase_mode);
 

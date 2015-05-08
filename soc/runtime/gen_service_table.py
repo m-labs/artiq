@@ -23,6 +23,8 @@ services = [
         ("ttl_get", "ttl_get"),
 
         ("dds_init", "dds_init"),
+        ("dds_batch_enter", "dds_batch_enter"),
+        ("dds_batch_exit", "dds_batch_exit"),
         ("dds_set", "dds_set"),
     ]),
 
