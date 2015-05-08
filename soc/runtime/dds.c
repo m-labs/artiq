@@ -86,6 +86,7 @@ void dds_batch_exit(void)
 
     if(!batch_mode)
         exception_raise(EID_DDS_BATCH_ERROR);
+    rtio_chan_sel_write(RTIO_DDS_CHANNEL);
     now = batch_fud_time - batch_count*DURATION_PROGRAM;
     for(i=0;i<batch_count;i++) {
         dds_set_one(now, batch_fud_time,
