@@ -17,8 +17,8 @@ services = [
         ("rtio_set_sensitivity", "rtio_set_sensitivity"),
         ("rtio_get_counter", "rtio_get_counter"),
         ("rtio_get", "rtio_get"),
-        ("dds_phase_clear_en", "dds_phase_clear_en"),
-        ("dds_program", "dds_program"),
+        ("dds_init", "dds_init"),
+        ("dds_set", "dds_set"),
     ]),
     ("eh", [
         ("setjmp", "exception_setjmp"),

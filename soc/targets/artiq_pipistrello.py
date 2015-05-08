@@ -9,6 +9,7 @@ from targets.pipistrello import BaseSoC
 from artiq.gateware.soc import AMPSoC
 from artiq.gateware import rtio, ad9858, nist_qc1
 from artiq.gateware.rtio.phy import ttl_simple
+from artiq.gateware.rtio.phy.wishbone import RT2WB
 
 
 class _RTIOCRG(Module, AutoCSR):
@@ -61,7 +62,6 @@ class NIST_QC1(BaseSoC, AMPSoC):
     csr_map.update(BaseSoC.csr_map)
     mem_map = {
         "rtio":     0x20000000,  # (shadow @0xa0000000)
-        "dds":      0x50000000,  # (shadow @0xd0000000)
         "mailbox":  0x70000000   # (shadow @0xf0000000)
     }
     mem_map.update(BaseSoC.mem_map)
@@ -110,20 +110,19 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
             self.submodules += phy
             rtio_channels.append(rtio.Channel(phy.rtlink))
 
-        fud = Signal()
-        self.add_constant("RTIO_FUD_CHANNEL", len(rtio_channels))
-        phy = ttl_simple.Output(fud)
+        self.add_constant("RTIO_DDS_CHANNEL", len(rtio_channels))
+        self.submodules.dds = RenameClockDomains(
+            ad9858.AD9858(platform.request("dds")),
+            "rio")
+        phy = RT2WB(7, self.dds.bus)
         self.submodules += phy
-        rtio_channels.append(rtio.Channel(phy.rtlink))
+        rtio_channels.append(rtio.Channel(phy.rtlink, ififo_depth=4))
 
         # RTIO core
         self.submodules.rtiocrg = _RTIOCRG(platform)
         self.submodules.rtio = rtio.RTIO(rtio_channels,
                                          clk_freq=125000000)
-
-        dds_pads = platform.request("dds")
-        self.submodules.dds = ad9858.AD9858(dds_pads)
-        self.comb += dds_pads.fud_n.eq(~fud)
+        self.add_constant("RTIO_FINE_TS_WIDTH", self.rtio.fine_ts_width)
 
         # CPU connections
         rtio_csrs = self.rtio.get_csrs()
@@ -132,10 +131,6 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
                                      self.rtiowb.bus)
         self.add_csr_region("rtio", self.mem_map["rtio"] | 0x80000000, 32,
                             rtio_csrs)
-
-        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["dds"]),
-                                     self.dds.bus)
-        self.add_memory_region("dds", self.mem_map["dds"] | 0x80000000, 64*4)
 
 
 default_subtarget = NIST_QC1

@@ -36,8 +36,8 @@ class AD9858(Module):
 
     Read timing:
     Address is set one cycle before assertion of rd_n.
-    rd_n is asserted for 3 cycles.
-    Data is sampled 2 cycles into the assertion of rd_n.
+    rd_n is asserted for read_wait_cycles, data is sampled at the end.
+    rd_n is deasserted and data bus is not driven again before hiz_wait_cycles.
 
     Design:
     All IO pads are registered.
@@ -48,7 +48,7 @@ class AD9858(Module):
     Round-trip addr A setup (> RX, RD, D to Z), RD prop, D valid (< D
     valid), D prop is ~15 + 10 + 20 + 10 = 55ns
     """
-    def __init__(self, pads, drive_fud=False,
+    def __init__(self, pads,
                  read_wait_cycles=10, hiz_wait_cycles=3,
                  bus=None):
         if bus is None:
@@ -84,9 +84,8 @@ class AD9858(Module):
                 bus.dat_r.eq(dr)
             )
 
-        if drive_fud:
-            fud = Signal()
-            self.sync += pads.fud_n.eq(~fud)
+        fud = Signal()
+        self.sync += pads.fud_n.eq(~fud)
 
         pads.wr_n.reset = 1
         pads.rd_n.reset = 1
@@ -106,7 +105,7 @@ class AD9858(Module):
                     If(bus.adr[0],
                         NextState("GPIO")
                     ).Else(
-                        NextState("FUD") if drive_fud else None
+                        NextState("FUD")
                     )
                 ).Else(
                     If(bus.we,
@@ -141,19 +140,18 @@ class AD9858(Module):
         )
         fsm.act("WAIT_HIZ",
             rx.eq(1),
-            # For some reason, AD9858 has a address hold time to RD inactive.
+            # For some reason, AD9858 has an address hold time to RD inactive.
             hold_address.eq(1),
             self.hiz_timer.wait.eq(1),
             If(self.hiz_timer.done, NextState("IDLE"))
         )
-        if drive_fud:
-            fsm.act("FUD",
-                # 4ns FUD setup to SYNCLK
-                # 0ns FUD hold to SYNCLK
-                fud.eq(1),
-                bus.ack.eq(1),
-                NextState("IDLE")
-            )
+        fsm.act("FUD",
+            # 4ns FUD setup to SYNCLK
+            # 0ns FUD hold to SYNCLK
+            fud.eq(1),
+            bus.ack.eq(1),
+            NextState("IDLE")
+        )
         fsm.act("GPIO",
             bus.ack.eq(1),
             bus_r_gpio.eq(1),

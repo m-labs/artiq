@@ -54,19 +54,19 @@
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "DDS",
-        "arguments": {"reg_channel": 0, "rtio_switch": 5}
+        "arguments": {"channel": 0}
     },
     "dds1": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "DDS",
-        "arguments": {"reg_channel": 1, "rtio_switch": 6}
+        "arguments": {"channel": 1}
     },
     "dds2": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "DDS",
-        "arguments": {"reg_channel": 2, "rtio_switch": 7}
+        "arguments": {"channel": 2}
     },
 
     "qc_q1_0": {

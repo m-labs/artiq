@@ -21,8 +21,8 @@ _syscalls = {
     "rtio_set_sensitivity": "Iii:n",
     "rtio_get_counter": "n:I",
     "rtio_get": "iI:I",
-    "dds_phase_clear_en": "ib:n",
-    "dds_program": "Iiiiibb:n",
+    "dds_init": "Ii:n",
+    "dds_set": "Iiiii:n",
 }
 
 

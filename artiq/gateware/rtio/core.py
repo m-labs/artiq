@@ -291,6 +291,10 @@ class RTIO(Module):
         fine_ts_width = max(rtlink.get_fine_ts_width(c.interface)
                             for c in channels)
 
+        self.data_width = data_width
+        self.address_width = address_width
+        self.fine_ts_width = fine_ts_width
+
         # CSRs
         self.kcsrs = _KernelCSRs(bits_for(len(channels)-1),
                                  data_width, address_width,

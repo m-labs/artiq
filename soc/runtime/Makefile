@@ -34,7 +34,9 @@ ksupport.elf: $(OBJECTS_KSUPPORT)
 		-T ksupport.ld \
 		-N -o $@ \
 		$(MSCDIR)/software/libbase/crt0-$(CPU).o \
-		$^
+		$^ \
+		-L$(MSCDIR)/software/libcompiler-rt \
+		-lcompiler-rt
 	@chmod -x $@
 
 ksupport_data.o: ksupport.bin

@@ -78,7 +78,6 @@ long long int now_init(void)
     mailbox_acknowledge();
 
     if(now < 0) {
-        dds_init();
         rtio_init();
         now = 125000;
     }

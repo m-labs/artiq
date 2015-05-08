@@ -4,6 +4,26 @@
 #include "dds.h"
 #include "bridge.h"
 
+static void dds_write(int addr, int data)
+{
+    rtio_chan_sel_write(RTIO_DDS_CHANNEL);
+    rtio_o_address_write(addr);
+    rtio_o_data_write(data);
+    rtio_o_timestamp_write(rtio_get_counter() + 8000);
+    rtio_o_we_write(1);
+}
+
+static int dds_read(int addr)
+{
+    int r;
+
+    dds_write(addr | 128, 0);
+    while(rtio_i_status_read() & RTIO_I_STATUS_EMPTY);
+    r = rtio_i_data_read();
+    rtio_i_re_write(1);
+    return r;
+}
+
 static void send_ready(void)
 {
     struct msg_base msg;
@@ -41,16 +61,16 @@ void bridge_main(void)
                 struct msg_brg_dds_sel *msg;
 
                 msg = (struct msg_brg_dds_sel *)umsg;
-                DDS_WRITE(DDS_GPIO, msg->channel);
+                dds_write(DDS_GPIO, msg->channel);
                 mailbox_acknowledge();
                 break;
             }
             case MESSAGE_TYPE_BRG_DDS_RESET: {
                 unsigned int g;
 
-                g = DDS_READ(DDS_GPIO);
-                DDS_WRITE(DDS_GPIO, g | (1 << 7));
-                DDS_WRITE(DDS_GPIO, g);
+                g = dds_read(DDS_GPIO);
+                dds_write(DDS_GPIO, g | (1 << 7));
+                dds_write(DDS_GPIO, g);
 
                 mailbox_acknowledge();
                 break;
@@ -61,7 +81,7 @@ void bridge_main(void)
 
                 msg = (struct msg_brg_dds_read_request *)umsg;
                 rmsg.type = MESSAGE_TYPE_BRG_DDS_READ_REPLY;
-                rmsg.data = DDS_READ(msg->address);
+                rmsg.data = dds_read(msg->address);
                 mailbox_send_and_wait(&rmsg);
                 break;
             }
@@ -69,12 +89,12 @@ void bridge_main(void)
                 struct msg_brg_dds_write *msg;
 
                 msg = (struct msg_brg_dds_write *)umsg;
-                DDS_WRITE(msg->address, msg->data);
+                dds_write(msg->address, msg->data);
                 mailbox_acknowledge();
                 break;
             }
             case MESSAGE_TYPE_BRG_DDS_FUD:
-                rtio_fud(rtio_get_counter() + 8000);
+                dds_write(DDS_FUD, 0);
                 mailbox_acknowledge();
                 break;
             default:
