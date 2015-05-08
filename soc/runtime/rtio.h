@@ -35,9 +35,4 @@ static inline void rtio_write_and_process_status(long long int timestamp, int ch
     }
 }
 
-void rtio_set_o(long long int timestamp, int channel, int value);
-void rtio_set_oe(long long int timestamp, int channel, int oe);
-void rtio_set_sensitivity(long long int timestamp, int channel, int sensitivity);
-long long int rtio_get(int channel, long long int time_limit);
-
 #endif /* __RTIO_H */

@@ -1,6 +1,7 @@
 #include "mailbox.h"
 #include "messages.h"
 #include "rtio.h"
+#include "ttl.h"
 #include "dds.h"
 #include "bridge.h"
 
@@ -45,7 +46,7 @@ void bridge_main(void)
                 struct msg_brg_ttl_out *msg;
 
                 msg = (struct msg_brg_ttl_out *)umsg;
-                rtio_set_oe(rtio_get_counter() + 8000, msg->channel, msg->value);
+                ttl_set_oe(rtio_get_counter() + 8000, msg->channel, msg->value);
                 mailbox_acknowledge();
                 break;
             }
@@ -53,7 +54,7 @@ void bridge_main(void)
                 struct msg_brg_ttl_out *msg;
 
                 msg = (struct msg_brg_ttl_out *)umsg;
-                rtio_set_o(rtio_get_counter() + 8000, msg->channel, msg->value);
+                ttl_set_o(rtio_get_counter() + 8000, msg->channel, msg->value);
                 mailbox_acknowledge();
                 break;
             }

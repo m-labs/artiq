@@ -1,7 +1,7 @@
 include $(MSCDIR)/software/common.mak
 
 OBJECTS := isr.o flash_storage.o clock.o elf_loader.o services.o session.o log.o test_mode.o kloader.o mailbox.o ksupport_data.o kserver.o main.o
-OBJECTS_KSUPPORT := ksupport.o exception_jmp.o exceptions.o mailbox.o bridge.o rtio.o dds.o
+OBJECTS_KSUPPORT := ksupport.o exception_jmp.o exceptions.o mailbox.o bridge.o rtio.o ttl.o dds.o
 
 CFLAGS += -Ilwip/src/include -Iliblwip
 

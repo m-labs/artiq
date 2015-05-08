@@ -24,7 +24,7 @@ class LLTTLOut(AutoDB):
         :param t: timestamp in RTIO cycles (64-bit integer).
         :param value: value to set at the output.
         """
-        syscall("rtio_set_o", t, self.channel, value)
+        syscall("ttl_set_o", t, self.channel, value)
 
     @kernel
     def on(self, t):
@@ -62,7 +62,7 @@ class TTLOut(AutoDB):
 
     @kernel
     def _set_o(self, o):
-        syscall("rtio_set_o", time_to_cycles(now()), self.channel, o)
+        syscall("ttl_set_o", time_to_cycles(now()), self.channel, o)
         self.o_previous_timestamp = time_to_cycles(now())
 
     @kernel
@@ -118,7 +118,7 @@ class TTLInOut(AutoDB):
 
     @kernel
     def _set_oe(self, oe):
-        syscall("rtio_set_oe", time_to_cycles(now()), self.channel, oe)
+        syscall("ttl_set_oe", time_to_cycles(now()), self.channel, oe)
 
     @kernel
     def output(self):
@@ -130,7 +130,7 @@ class TTLInOut(AutoDB):
 
     @kernel
     def _set_o(self, o):
-        syscall("rtio_set_o", time_to_cycles(now()), self.channel, o)
+        syscall("ttl_set_o", time_to_cycles(now()), self.channel, o)
         self.o_previous_timestamp = time_to_cycles(now())
 
     @kernel
@@ -158,7 +158,7 @@ class TTLInOut(AutoDB):
 
     @kernel
     def _set_sensitivity(self, value):
-        syscall("rtio_set_sensitivity", time_to_cycles(now()), self.channel, value)
+        syscall("ttl_set_sensitivity", time_to_cycles(now()), self.channel, value)
         self.i_previous_timestamp = time_to_cycles(now())
 
     @kernel
@@ -188,7 +188,7 @@ class TTLInOut(AutoDB):
         """Poll the RTIO input during all the previously programmed gate
         openings, and returns the number of registered events."""
         count = 0
-        while syscall("rtio_get", self.channel,
+        while syscall("ttl_get", self.channel,
                       self.i_previous_timestamp) >= 0:
             count += 1
         return count
@@ -200,5 +200,5 @@ class TTLInOut(AutoDB):
 
         If the gate is permanently closed, returns a negative value.
         """
-        return cycles_to_time(syscall("rtio_get", self.channel,
+        return cycles_to_time(syscall("ttl_get", self.channel,
                                       self.i_previous_timestamp))

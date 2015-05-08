@@ -9,17 +9,23 @@ services = [
     ("syscalls", [
         ("now_init", "now_init"),
         ("now_save", "now_save"),
-        ("rpc", "rpc"),
+
         ("watchdog_set", "watchdog_set"),
         ("watchdog_clear", "watchdog_clear"),
-        ("rtio_set_o", "rtio_set_o"),
-        ("rtio_set_oe", "rtio_set_oe"),
-        ("rtio_set_sensitivity", "rtio_set_sensitivity"),
+
+        ("rpc", "rpc"),
+
         ("rtio_get_counter", "rtio_get_counter"),
-        ("rtio_get", "rtio_get"),
+
+        ("ttl_set_o", "ttl_set_o"),
+        ("ttl_set_oe", "ttl_set_oe"),
+        ("ttl_set_sensitivity", "ttl_set_sensitivity"),
+        ("ttl_get", "ttl_get"),
+
         ("dds_init", "dds_init"),
         ("dds_set", "dds_set"),
     ]),
+
     ("eh", [
         ("setjmp", "exception_setjmp"),
         ("push", "exception_push"),
