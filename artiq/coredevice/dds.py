@@ -10,10 +10,30 @@ PHASE_MODE_ABSOLUTE = 1
 PHASE_MODE_TRACKING = 2
 
 
+class DDSBus(AutoDB):
+    """Core device Direct Digital Synthesis (DDS) bus batching driver.
+
+    Manages batching of DDS commands on a DDS shared bus."""
+    class DBKeys:
+        core = Device()
+
+    @kernel
+    def batch_enter(self):
+        """Starts a DDS command batch. All DDS commands are buffered
+        after this call, until ``batch_exit`` is called."""
+        syscall("dds_batch_enter", time_to_cycles(now()))
+
+    @kernel
+    def batch_exit(self):
+        """Ends a DDS command batch. All buffered DDS commands are issued
+        on the bus, and FUD is pulsed at the time the batch started."""
+        syscall("dds_batch_exit")
+
+
 class DDS(AutoDB):
     """Core device Direct Digital Synthesis (DDS) driver.
 
-    Controls DDS devices managed directly by the core device's runtime.
+    Controls one DDS channel managed directly by the core device's runtime.
 
     :param dds_sysclk: DDS system frequency, used for computing the frequency
         tuning words.
@@ -43,7 +63,7 @@ class DDS(AutoDB):
 
     @kernel
     def init(self):
-        """Resets and initializes the DDS."""
+        """Resets and initializes the DDS channel."""
         syscall("dds_init", time_to_cycles(now()), self.channel)
 
     @kernel

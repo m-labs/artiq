@@ -6,8 +6,11 @@ class PhotonHistogram(Experiment, AutoDB):
 
     class DBKeys:
         core = Device()
-        bd = Device()
-        bdd = Device()
+        dds_bus = Device()
+        bd_dds = Device()
+        bd_sw = Device()
+        bdd_dds = Device()
+        bdd_sw = Device()
         pmt = Device()
 
         nbins = Argument(100)
@@ -23,20 +26,36 @@ class PhotonHistogram(Experiment, AutoDB):
         total = Result()
 
     @kernel
+    def program_cooling(self):
+        self.dds_bus.batch_enter()
+        self.bd_dds.set(200*MHz)
+        self.bdd_dds.set(300*MHz)
+        self.dds_bus.batch_exit()
+
+    @kernel
     def cool_detect(self):
         with parallel:
-            self.bd.pulse(200*MHz, 1*ms)
-            self.bdd.pulse(300*MHz, 1*ms)
-        self.bd.pulse(self.cool_f, 100*us)
+            self.bd_sw.pulse(1*ms)
+            self.bdd_sw.pulse(1*ms)
+
+        self.bd_dds.set(self.cool_f)
+        self.bd_sw.pulse(100*us)
+
+        self.bd_dds.set(self.detect_f)
         with parallel:
-            self.bd.pulse(self.detect_f, self.detect_t)
+            self.bd_sw.pulse(self.detect_t)
             self.pmt.gate_rising(self.detect_t)
-        self.bd.on(200*MHz)
-        self.bdd.on(300*MHz)
+
+        self.program_cooling()
+        self.bd_sw.on()
+        self.bdd_sw.on()
+
         return self.pmt.count()
 
     @kernel
     def run(self):
+        self.program_cooling()
+
         hist = [0 for _ in range(self.nbins)]
         total = 0
 

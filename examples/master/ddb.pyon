@@ -50,6 +50,12 @@
         "arguments": {"channel": 18}
     },
 
+    "dds_bus": {
+        "type": "local",
+        "module": "artiq.coredevice.dds",
+        "class": "DDSBus",
+        "arguments": {}
+    },
     "dds0": {
         "type": "local",
         "module": "artiq.coredevice.dds",
@@ -123,6 +129,8 @@
     },
 
     "pmt": "pmt0",
-    "bd": "dds0",
-    "bdd": "dds1"
+    "bd_dds": "dds0",
+    "bd_sw": "ttl0",
+    "bdd_dds": "dds1",
+    "bdd_sw": "ttl1"
 }

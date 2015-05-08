@@ -6,6 +6,7 @@ class DDSTest(Experiment, AutoDB):
 
     class DBKeys:
         core = Device()
+        dds_bus = Device()
         dds0 = Device()
         dds1 = Device()
         dds2 = Device()
@@ -16,9 +17,10 @@ class DDSTest(Experiment, AutoDB):
 
     @kernel
     def run(self):
-        # with dds_batch:
-        #     self.dds1.set(120*MHz)
-        #     self.dds2.set(200*MHz)
+        self.dds_bus.batch_enter()
+        self.dds1.set(120*MHz)
+        self.dds2.set(200*MHz)
+        self.dds_bus.batch_exit()
 
         for i in range(10000):
             if i & 0x200:
