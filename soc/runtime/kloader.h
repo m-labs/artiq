@@ -12,6 +12,6 @@ kernel_function kloader_find(const char *name);
 void kloader_start_bridge(void);
 void kloader_start_idle_kernel(void);
 void kloader_start_user_kernel(kernel_function k);
-void kloader_stop_kernel(void);
+void kloader_stop(void);
 
 #endif /* __KLOADER_H */

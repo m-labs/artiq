@@ -21,11 +21,21 @@
 #include <lwip/timers.h>
 #endif
 
+#include "bridge_ctl.h"
+#include "kloader.h"
 #include "flash_storage.h"
 #include "clock.h"
 #include "test_mode.h"
 #include "kserver.h"
 #include "session.h"
+
+static void common_init(void)
+{
+    clock_init();
+    brg_start();
+    brg_ddsinitall();
+    kloader_stop();
+}
 
 #ifdef CSR_ETHMAC_BASE
 
@@ -127,7 +137,6 @@ static void network_init(void)
 static void regular_main(void)
 {
     puts("Accepting sessions on Ethernet.");
-    clock_init();
     network_init();
     kserver_init();
 
@@ -186,7 +195,6 @@ static void serial_service(void)
 static void regular_main(void)
 {
     puts("Accepting sessions on serial link.");
-    clock_init();
 
     /* Open the session for the serial control. */
     session_start();
@@ -246,6 +254,7 @@ int main(void)
         test_main();
     } else {
         puts("Entering regular mode.");
+        common_init();
         regular_main();
     }
     return 0;

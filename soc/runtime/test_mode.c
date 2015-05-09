@@ -7,112 +7,10 @@
 #include <generated/csr.h>
 #include <console.h>
 
-#include "kloader.h"
-#include "mailbox.h"
-#include "messages.h"
 #include "dds.h"
 #include "flash_storage.h"
+#include "bridge_ctl.h"
 #include "test_mode.h"
-
-/* bridge access functions */
-
-static void amp_bridge_init(void)
-{
-    struct msg_base *umsg;
-
-    kloader_start_bridge();
-
-    while(1) {
-        umsg = mailbox_wait_and_receive();
-        if(umsg->type == MESSAGE_TYPE_BRG_READY) {
-            printf("AMP bridge ready\n");
-            mailbox_acknowledge();
-            break;
-        } else {
-            printf("Warning: unexpected message %d from AMP bridge\n", umsg->type);
-            mailbox_acknowledge();
-        }
-    }
-}
-
-static void p_ttloe(int n, int value)
-{
-    struct msg_brg_ttl_out msg;
-
-    msg.type = MESSAGE_TYPE_BRG_TTL_OE;
-    msg.channel = n;
-    msg.value = value;
-    mailbox_send_and_wait(&msg);
-}
-
-static void p_ttlo(int n, int value)
-{
-    struct msg_brg_ttl_out msg;
-
-    msg.type = MESSAGE_TYPE_BRG_TTL_O;
-    msg.channel = n;
-    msg.value = value;
-    mailbox_send_and_wait(&msg);
-}
-
-static void p_ddssel(int channel)
-{
-    struct msg_brg_dds_sel msg;
-
-    msg.type = MESSAGE_TYPE_BRG_DDS_SEL;
-    msg.channel = channel;
-    mailbox_send_and_wait(&msg);
-}
-
-static void p_ddsreset(void)
-{
-    struct msg_base msg;
-
-    msg.type = MESSAGE_TYPE_BRG_DDS_RESET;
-    mailbox_send_and_wait(&msg);
-}
-
-static unsigned int p_ddsread(unsigned int address)
-{
-    struct msg_brg_dds_read_request msg;
-    struct msg_brg_dds_read_reply *rmsg;
-    unsigned int r;
-
-    msg.type = MESSAGE_TYPE_BRG_DDS_READ_REQUEST;
-    msg.address = address;
-    mailbox_send(&msg);
-    while(1) {
-        rmsg = mailbox_wait_and_receive();
-        if(rmsg->type == MESSAGE_TYPE_BRG_DDS_READ_REPLY) {
-            r = rmsg->data;
-            mailbox_acknowledge();
-            return r;
-        } else {
-            printf("Warning: unexpected message %d from AMP bridge\n", rmsg->type);
-            mailbox_acknowledge();
-        }
-    }
-}
-
-static void p_ddswrite(unsigned int address, unsigned int data)
-{
-    struct msg_brg_dds_write msg;
-
-    msg.type = MESSAGE_TYPE_BRG_DDS_WRITE;
-    msg.address = address;
-    msg.data = data;
-    mailbox_send_and_wait(&msg);
-}
-
-static void p_ddsfud(void)
-{
-    struct msg_base msg;
-
-    msg.type = MESSAGE_TYPE_BRG_DDS_FUD;
-    mailbox_send_and_wait(&msg);
-}
-
-/* */
 
 static void leds(char *value)
 {
@@ -173,7 +71,7 @@ static void ttloe(char *n, char *value)
         return;
     }
 
-    p_ttloe(n2, value2);
+    brg_ttloe(n2, value2);
 }
 
 static void ttlo(char *n, char *value)
@@ -197,7 +95,7 @@ static void ttlo(char *n, char *value)
         return;
     }
 
-    p_ttlo(n2, value2);
+    brg_ttlo(n2, value2);
 }
 
 static void ddssel(char *n)
@@ -216,7 +114,7 @@ static void ddssel(char *n)
         return;
     }
 
-    p_ddssel(n2);
+    brg_ddssel(n2);
 }
 
 static void ddsw(char *addr, char *value)
@@ -240,7 +138,7 @@ static void ddsw(char *addr, char *value)
         return;
     }
 
-    p_ddswrite(addr2, value2);
+    brg_ddswrite(addr2, value2);
 }
 
 static void ddsr(char *addr)
@@ -259,12 +157,12 @@ static void ddsr(char *addr)
         return;
     }
 
-    printf("0x%02x\n", p_ddsread(addr2));
+    printf("0x%02x\n", brg_ddsread(addr2));
 }
 
 static void ddsfud(void)
 {
-    p_ddsfud();
+    brg_ddsfud();
 }
 
 static void ddsftw(char *n, char *ftw)
@@ -288,27 +186,27 @@ static void ddsftw(char *n, char *ftw)
         return;
     }
 
-    p_ddssel(n2);
-    p_ddswrite(DDS_FTW0, ftw2 & 0xff);
-    p_ddswrite(DDS_FTW1, (ftw2 >> 8) & 0xff);
-    p_ddswrite(DDS_FTW2, (ftw2 >> 16) & 0xff);
-    p_ddswrite(DDS_FTW3, (ftw2 >> 24) & 0xff);
-    p_ddsfud();
+    brg_ddssel(n2);
+    brg_ddswrite(DDS_FTW0, ftw2 & 0xff);
+    brg_ddswrite(DDS_FTW1, (ftw2 >> 8) & 0xff);
+    brg_ddswrite(DDS_FTW2, (ftw2 >> 16) & 0xff);
+    brg_ddswrite(DDS_FTW3, (ftw2 >> 24) & 0xff);
+    brg_ddsfud();
 }
 
 static void ddsreset(void)
 {
-    p_ddsreset();
+    brg_ddsreset();
 }
 
 static void ddsinit(void)
 {
-    p_ddsreset();
-    p_ddswrite(0x00, 0x78);
-    p_ddswrite(0x01, 0x00);
-    p_ddswrite(0x02, 0x00);
-    p_ddswrite(0x03, 0x00);
-    p_ddsfud();
+    brg_ddsreset();
+    brg_ddswrite(0x00, 0x78);
+    brg_ddswrite(0x01, 0x00);
+    brg_ddswrite(0x02, 0x00);
+    brg_ddswrite(0x03, 0x00);
+    brg_ddsfud();
 }
 
 static void ddstest_one(unsigned int i)
@@ -320,20 +218,20 @@ static void ddstest_one(unsigned int i)
     };
     unsigned int f, g, j;
 
-    p_ddssel(i);
+    brg_ddssel(i);
     ddsinit();
 
     for(j=0; j<12; j++) {
         f = v[j];
-        p_ddswrite(0x0a, f & 0xff);
-        p_ddswrite(0x0b, (f >> 8) & 0xff);
-        p_ddswrite(0x0c, (f >> 16) & 0xff);
-        p_ddswrite(0x0d, (f >> 24) & 0xff);
-        p_ddsfud();
-        g = p_ddsread(0x0a);
-        g |= p_ddsread(0x0b) << 8;
-        g |= p_ddsread(0x0c) << 16;
-        g |= p_ddsread(0x0d) << 24;
+        brg_ddswrite(0x0a, f & 0xff);
+        brg_ddswrite(0x0b, (f >> 8) & 0xff);
+        brg_ddswrite(0x0c, (f >> 16) & 0xff);
+        brg_ddswrite(0x0d, (f >> 24) & 0xff);
+        brg_ddsfud();
+        g = brg_ddsread(0x0a);
+        g |= brg_ddsread(0x0b) << 8;
+        g |= brg_ddsread(0x0c) << 16;
+        g |= brg_ddsread(0x0d) << 24;
         if(g != f)
             printf("readback fail on DDS %d, 0x%08x != 0x%08x\n", i, g, f);
     }
@@ -479,7 +377,7 @@ void test_main(void)
 {
     char buffer[64];
 
-    amp_bridge_init();
+    brg_start();
 
     while(1) {
         putsnonl("\e[1mtest>\e[0m ");

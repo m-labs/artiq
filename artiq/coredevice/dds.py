@@ -79,7 +79,9 @@ class DDS(AutoDB):
 
     @kernel
     def init(self):
-        """Resets and initializes the DDS channel."""
+        """Resets and initializes the DDS channel.
+
+        The runtime does this for all channels upon core device startup."""
         syscall("dds_init", time_to_cycles(now()), self.channel)
 
     @kernel

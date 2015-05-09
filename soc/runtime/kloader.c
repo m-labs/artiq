@@ -117,7 +117,7 @@ void kloader_start_idle_kernel(void)
 #endif
 }
 
-void kloader_stop_kernel(void)
+void kloader_stop(void)
 {
     kernel_cpu_reset_write(1);
     mailbox_acknowledge();

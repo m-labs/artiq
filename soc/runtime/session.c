@@ -67,13 +67,13 @@ void session_start(void)
 {
     buffer_in_index = 0;
     memset(&buffer_out[4], 0, 4);
-    kloader_stop_kernel();
+    kloader_stop();
     user_kernel_state = USER_KERNEL_NONE;
 }
 
 void session_end(void)
 {
-    kloader_stop_kernel();
+    kloader_stop();
     kloader_start_idle_kernel();
 }
 
@@ -417,7 +417,7 @@ static int process_kmsg(struct msg_base *umsg)
             buffer_out[8] = REMOTEMSG_TYPE_KERNEL_FINISHED;
             submit_output(9);
 
-            kloader_stop_kernel();
+            kloader_stop();
             user_kernel_state = USER_KERNEL_LOADED;
             mailbox_acknowledge();
             break;
@@ -429,7 +429,7 @@ static int process_kmsg(struct msg_base *umsg)
             memcpy(&buffer_out[13], msg->eparams, 3*8);
             submit_output(9+4+3*8);
 
-            kloader_stop_kernel();
+            kloader_stop();
             user_kernel_state = USER_KERNEL_LOADED;
             mailbox_acknowledge();
             break;

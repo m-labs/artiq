@@ -6,6 +6,7 @@
 #include "dds.h"
 
 #define DURATION_WRITE 5
+#define DURATION_INIT (8*DURATION_WRITE)
 #define DURATION_PROGRAM (8*DURATION_WRITE)
 
 #define DDS_WRITE(addr, data) do { \
@@ -16,13 +17,26 @@
         now += DURATION_WRITE; \
     } while(0)
 
+void dds_init_all(void)
+{
+    int i;
+    long long int now;
+
+    now = rtio_get_counter() + 10000;
+    for(i=0;i<DDS_CHANNEL_COUNT;i++) {
+        dds_init(now, i);
+        now += DURATION_INIT;
+    }
+    while(rtio_get_counter() < now);
+}
+
 void dds_init(long long int timestamp, int channel)
 {
     long long int now;
 
     rtio_chan_sel_write(RTIO_DDS_CHANNEL);
 
-    now = timestamp - 7*DURATION_WRITE;
+    now = timestamp - DURATION_INIT;
 
     DDS_WRITE(DDS_GPIO, channel);
     DDS_WRITE(DDS_GPIO, channel | (1 << 7));
@@ -32,6 +46,8 @@ void dds_init(long long int timestamp, int channel)
     DDS_WRITE(0x01, 0x00);
     DDS_WRITE(0x02, 0x00);
     DDS_WRITE(0x03, 0x00);
+
+    DDS_WRITE(DDS_FUD, 0);
 }
 
 static void dds_set_one(long long int now, long long int timestamp, int channel,

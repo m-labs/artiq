@@ -4,6 +4,9 @@
 #include <hw/common.h>
 #include <generated/mem.h>
 
+/* Number of DDS channels to initialize */
+#define DDS_CHANNEL_COUNT 8
+
 /* Maximum number of commands in a batch */
 #define DDS_MAX_BATCH 16
 
@@ -23,6 +26,7 @@ enum {
     PHASE_MODE_TRACKING = 2
 };
 
+void dds_init_all(void);
 void dds_init(long long int timestamp, int channel);
 void dds_batch_enter(long long int timestamp);
 void dds_batch_exit(void);
