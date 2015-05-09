@@ -17,10 +17,10 @@ class DDSTest(Experiment, AutoDB):
 
     @kernel
     def run(self):
-        self.dds_bus.batch_enter()
-        self.dds1.set(120*MHz)
-        self.dds2.set(200*MHz)
-        self.dds_bus.batch_exit()
+        with self.dds_bus.batch:
+            self.dds1.set(120*MHz)
+            self.dds2.set(200*MHz)
+        delay(1*us)
 
         for i in range(10000):
             if i & 0x200:

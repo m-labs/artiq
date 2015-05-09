@@ -10,12 +10,28 @@ PHASE_MODE_ABSOLUTE = 1
 PHASE_MODE_TRACKING = 2
 
 
+class _BatchContextManager:
+    def __init__(self, dds_bus):
+        self.dds_bus = dds_bus
+
+    @kernel
+    def __enter__(self):
+        self.dds_bus.batch_enter()
+
+    @kernel
+    def __exit__(self, type, value, traceback):
+        self.dds_bus.batch_exit()
+
+
 class DDSBus(AutoDB):
     """Core device Direct Digital Synthesis (DDS) bus batching driver.
 
     Manages batching of DDS commands on a DDS shared bus."""
     class DBKeys:
         core = Device()
+
+    def build(self):
+        self.batch = _BatchContextManager(self)
 
     @kernel
     def batch_enter(self):

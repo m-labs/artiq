@@ -27,10 +27,9 @@ class PhotonHistogram(Experiment, AutoDB):
 
     @kernel
     def program_cooling(self):
-        self.dds_bus.batch_enter()
-        self.bd_dds.set(200*MHz)
-        self.bdd_dds.set(300*MHz)
-        self.dds_bus.batch_exit()
+        with self.dds_bus.batch:
+            self.bd_dds.set(200*MHz)
+            self.bdd_dds.set(300*MHz)
 
     @kernel
     def cool_detect(self):
