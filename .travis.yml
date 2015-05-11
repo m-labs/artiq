@@ -13,11 +13,11 @@ before_install:
   - if [ $TRAVIS_PULL_REQUEST != false ]; then BUILD_SOC=0; fi
   - ./.travis/get-toolchain.sh
   - if [ $BUILD_SOC -ne 0 ]; then ./.travis/get-xilinx.sh; fi
-  - ./.travis/get-anaconda.sh pip coverage binstar
+  - ./.travis/get-anaconda.sh
   - source $HOME/miniconda/bin/activate py34
   - sudo apt-get install --force-yes -y iverilog
+  - conda install pip coverage binstar migen cython conda-build jinja2
   - pip install coveralls
-  - conda install migen cython
 install:
   - conda build conda/artiq
   - conda install $HOME/miniconda/conda-bld/linux-64/artiq-*.tar.bz2
