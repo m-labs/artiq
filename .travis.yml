@@ -16,7 +16,7 @@ before_install:
   - ./.travis/get-anaconda.sh
   - source $HOME/miniconda/bin/activate py34
   - sudo apt-get install --force-yes -y iverilog
-  - conda install pip coverage binstar migen cython conda-build jinja2
+  - conda install pip coverage binstar migen cython
   - pip install coveralls
 install:
   - conda build conda/artiq
