@@ -34,7 +34,11 @@ def run():
 optimize_out = """
 
 def run():
-    do_something(344)
+    now = syscall('now_init')
+    try:
+        do_something(344)
+    finally:
+        syscall('now_save', now)
 """
 
 
