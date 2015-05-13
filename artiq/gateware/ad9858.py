@@ -1,23 +1,9 @@
 from migen.fhdl.std import *
 from migen.genlib.fsm import *
+from migen.genlib.misc import WaitTimer
 from migen.bus import wishbone
 from migen.bus.transactions import *
 from migen.sim.generic import run_simulation
-
-
-class WaitTimer(Module):
-    def __init__(self, t):
-        self.wait = Signal()
-        self.done = Signal()
-
-        # # #
-
-        count = Signal(bits_for(t), reset=t)
-        self.comb += self.done.eq(count == 0)
-        self.sync += \
-            If(self.wait,
-                If(~self.done, count.eq(count - 1))
-            ).Else(count.eq(count.reset))
 
 
 class AD9858(Module):
