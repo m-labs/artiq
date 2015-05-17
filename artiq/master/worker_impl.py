@@ -33,6 +33,11 @@ def make_parent_action(action, argnames, exception=ParentActionError):
             request[argname] = arg
         put_object(request)
         reply = get_object()
+        if "action" in reply:
+            if reply["action"] == "terminate":
+                sys.exit()
+            else:
+                raise ValueError
         if reply["status"] == "ok":
             return reply["data"]
         else:
@@ -71,11 +76,15 @@ set_watchdog_factory(Watchdog)
 
 
 class Scheduler:
-    run_queued = make_parent_action("scheduler_run_queued", "run_params")
-    cancel_queued = make_parent_action("scheduler_cancel_queued", "rid")
-    run_timed = make_parent_action("scheduler_run_timed",
-                                   "run_params next_run")
-    cancel_timed = make_parent_action("scheduler_cancel_timed", "trid")
+    pause = staticmethod(make_parent_action("pause", ""))
+
+    submit = staticmethod(make_parent_action("scheduler_submit",
+                                             "pipeline_name expid due_date"))
+    cancel = staticmethod(make_parent_action("scheduler_cancel", "rid"))
+
+    def __init__(self, pipeline_name, expid):
+        self.pipeline_name = pipeline_name
+        self.expid = expid
 
 
 def get_exp(file, exp):
@@ -96,7 +105,7 @@ def main():
 
     start_time = None
     rid = None
-    run_params = None
+    expid = None
     exp = None
     exp_inst = None
 
@@ -110,12 +119,12 @@ def main():
             if action == "prepare":
                 start_time = time.localtime()
                 rid = obj["rid"]
-                run_params = obj["run_params"]
-                exp = get_exp(run_params["file"], run_params["experiment"])
+                pipeline_name = obj["pipeline_name"]
+                expid = obj["expid"]
+                exp = get_exp(expid["file"], expid["experiment"])
                 exp_inst = exp(dbh,
-                               scheduler=Scheduler,
-                               run_params=run_params,
-                               **run_params["arguments"])
+                               scheduler=Scheduler(pipeline_name, expid),
+                               **expid["arguments"])
                 rdb.build()
                 put_object({"action": "completed"})
             elif action == "run":

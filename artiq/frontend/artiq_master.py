@@ -48,20 +48,15 @@ def main():
         loop = asyncio.get_event_loop()
     atexit.register(lambda: loop.close())
 
-    def run_cb(rid, run_params):
-        rtr.current_group = run_params["rtr_group"]
-    scheduler = Scheduler(run_cb, get_last_rid() + 1)
-    scheduler.worker_handlers = {
+    worker_handlers = {
         "req_device": ddb.request,
         "req_parameter": pdb.request,
         "set_parameter": pdb.set,
         "init_rt_results": rtr.init,
         "update_rt_results": rtr.update,
-        "scheduler_run_queued": scheduler.run_queued,
-        "scheduler_cancel_queued": scheduler.cancel_queued,
-        "scheduler_run_timed": scheduler.run_timed,
-        "scheduler_cancel_timed": scheduler.cancel_timed,
     }
+    scheduler = Scheduler(get_last_rid() + 1, worker_handlers)
+    worker_handlers["scheduler_submit"] = scheduler.submit
     scheduler.start()
     atexit.register(lambda: loop.run_until_complete(scheduler.stop()))
 
@@ -76,8 +71,7 @@ def main():
     atexit.register(lambda: loop.run_until_complete(server_control.stop()))
 
     server_notify = Publisher({
-        "queue": scheduler.queue,
-        "timed": scheduler.timed,
+        "schedule": scheduler.notifier,
         "devices": ddb.data,
         "parameters": pdb.data,
         "parameters_simplehist": simplephist.history,

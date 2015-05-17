@@ -144,10 +144,9 @@ class ExplorerWindow(Window):
                 arguments = {}
             else:
                 arguments = self.controls.get_arguments()
-            run_params = {
+            expid = {
                 "file": data["file"],
                 "experiment": data["experiment"],
-                "arguments": arguments,
-                "rtr_group": data["file"]
+                "arguments": arguments
             }
-            asyncio.Task(self.schedule_ctl.run_queued(run_params))
+            asyncio.async(self.schedule_ctl.submit("main", expid, None))

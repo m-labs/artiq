@@ -78,6 +78,19 @@ class ListSyncer:
         raise NotImplementedError
 
 
+class _DictSyncerSubstruct:
+    def __init__(self, update_cb, ref):
+        self.update_cb = update_cb
+        self.ref = ref
+
+    def __getitem__(self, key):
+        return _DictSyncerSubstruct(self.update_cb, self.ref[key])
+
+    def __setitem__(self, key, value):
+        self.ref[key] = value
+        self.update_cb()
+
+
 class DictSyncer:
     def __init__(self, store, init):
         self.store = store
@@ -86,6 +99,7 @@ class DictSyncer:
         for k, v in sorted(init.items(), key=self.order_key):
             self.store.append(self.convert(k, v))
             self.order.append((k, self.order_key((k, v))))
+        self.local_copy = init
 
     def _find_index(self, key):
         for i, e in enumerate(self.order):
@@ -109,11 +123,18 @@ class DictSyncer:
                 break
         self.store.insert(j, self.convert(key, value))
         self.order.insert(j, (key, ord_el))
+        self.local_copy[key] = value
 
     def __delitem__(self, key):
         i = self._find_index(key)
         del self.store[i]
         del self.order[i]
+        del self.local_copy[key]
+
+    def __getitem__(self, key):
+        def update():
+            self[key] = self.local_copy[key]
+        return _DictSyncerSubstruct(update, self.local_copy[key])
 
     def order_key(self, kv_pair):
         raise NotImplementedError

@@ -96,3 +96,25 @@ def asyncio_process_wait_timeout(process, timeout):
         r = yield from asyncio.wait_for(
                 process.stdout.read(1024),
                 timeout=end_time - time.monotonic())
+
+
+@asyncio.coroutine
+def asyncio_wait_or_cancel(fs, **kwargs):
+    fs = [asyncio.async(f) for f in fs]
+    try:
+        d, p = yield from asyncio.wait(fs, **kwargs)
+    except:
+        for f in fs:
+            f.cancel()
+        raise
+    for f in p:
+        f.cancel()
+    return fs
+
+
+def asyncio_queue_peek(q):
+    """Like q.get_nowait(), but does not remove the item from the queue."""
+    if q._queue:
+        return q._queue[0]
+    else:
+        raise asyncio.QueueEmpty
