@@ -117,11 +117,7 @@ then
 	FLASH_BITSTREAM=1
 fi
 
-check_return() {
-	echo "Flashing failed, you may want to re-run the flashing tool."
-	exit
-}
-
+set +e
 xc3sprog -c $CABLE -R > /dev/null 2>&1
 if [ "$?" != "0" ]
 then
@@ -129,10 +125,12 @@ then
 		echo "To fix this you might want to add a udev rule by doing:"
 		echo "$ sudo cp $ARTIQ_PREFIX/misc/$UDEV_RULES /etc/udev/rules.d"
 		echo "Then unplug/replug your device and try flashing again"
+		echo
+		echo "Other reason could be that you chosed the wrong target"
+		echo "Please make sure you used the correct -t option (currently: $BOARD)"
 		exit
 fi
-
-trap check_return ERR
+set -e
 
 if [ "${FLASH_BITSTREAM}" == "1" ]
 then
