@@ -30,8 +30,8 @@ class WatchdogTimeoutInBuild(Experiment, AutoDB):
 
 
 @asyncio.coroutine
-def _call_worker(worker, run_params):
-    yield from worker.prepare(0, run_params)
+def _call_worker(worker, expid):
+    yield from worker.prepare(0, "main", expid)
     try:
         yield from worker.run()
         yield from worker.analyze()
@@ -40,7 +40,7 @@ def _call_worker(worker, run_params):
 
 
 def _run_experiment(experiment):
-    run_params = {
+    expid = {
         "file": sys.modules[__name__].__file__,
         "experiment": experiment,
         "arguments": dict()
@@ -51,7 +51,7 @@ def _run_experiment(experiment):
 
     worker = Worker(handlers)
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(_call_worker(worker, run_params))
+    loop.run_until_complete(_call_worker(worker, expid))
 
 
 class WatchdogCase(unittest.TestCase):
