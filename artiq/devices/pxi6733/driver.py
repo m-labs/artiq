@@ -1,6 +1,7 @@
 # Yann Sionneau <ys@m-labs.hk>, 2015
 
 from ctypes import byref
+import numpy as np
 
 
 class DAQmxSim:
@@ -48,6 +49,8 @@ class DAQmx:
         t.CfgSampClkTiming(self.clock, 1000.0, self.daq.DAQmx_Val_Rising,
                            self.daq.DAQmx_Val_FiniteSamps, len(values))
         num_samps_written = self.daq.int32()
+        values = np.require(values, dtype=float,
+                            requirements=["C_CONTIGUOUS", "WRITEABLE"])
         ret = t.WriteAnalogF64(len(values), False, 0,
                                self.daq.DAQmx_Val_GroupByChannel, values,
                                byref(num_samps_written), None)
