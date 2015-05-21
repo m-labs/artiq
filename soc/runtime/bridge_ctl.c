@@ -3,6 +3,7 @@
 #include "kloader.h"
 #include "mailbox.h"
 #include "messages.h"
+#include "bridge_ctl.h"
 
 void brg_start(void)
 {
