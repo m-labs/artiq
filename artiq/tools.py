@@ -109,6 +109,7 @@ def asyncio_wait_or_cancel(fs, **kwargs):
         raise
     for f in p:
         f.cancel()
+        yield from asyncio.wait([f])
     return fs
 
 
