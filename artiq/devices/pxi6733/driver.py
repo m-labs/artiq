@@ -12,11 +12,6 @@ class DAQmxSim:
         pass
 
 
-def done_callback_py(taskhandle, status, callback_data):
-    callback_data.daq.DAQmxClearTask(taskhandle)
-    callback_data.tasks.remove(taskhandle)
-
-
 class DAQmx:
     """NI PXI6733 DAQ interface."""
 
@@ -28,6 +23,10 @@ class DAQmx:
         self.clock = clock
         self.tasks = []
         self.daq = daq
+
+    def done_callback_py(self, taskhandle, status, callback_data):
+        self.daq.DAQmxClearTask(taskhandle)
+        self.tasks.remove(taskhandle)
 
     def load_sample_values(self, values):
         """Load sample values into PXI 6733 device.
@@ -60,9 +59,9 @@ class DAQmx:
         if ret:
             raise IOError("Error while writing samples to the channel buffer")
 
-        done_callback = self.daq.DAQmxDoneEventCallbackPtr(done_callback_py)
+        done_cb = self.daq.DAQmxDoneEventCallbackPtr(self.done_callback_py)
         self.tasks.append(t.taskHandle)
-        self.daq.DAQmxRegisterDoneEvent(t.taskHandle, 0, done_callback, self)
+        self.daq.DAQmxRegisterDoneEvent(t.taskHandle, 0, done_cb, None)
         t.StartTask()
 
     def close(self):
