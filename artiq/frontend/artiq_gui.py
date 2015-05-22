@@ -46,6 +46,9 @@ def main():
     win = QtGui.QMainWindow()
     area = dockarea.DockArea()
     win.setCentralWidget(area)
+    status_bar = QtGui.QStatusBar()
+    status_bar.showMessage("Connected to {}".format(args.server))
+    win.setStatusBar(status_bar)
     win.resize(1400, 800)
     win.setWindowTitle("ARTIQ")
 
