@@ -1,0 +1,29 @@
+package:
+    name: quamash
+    version: 0.5.1
+
+source:
+    fn: Quamash-0.5.1.tar.gz
+    url: https://pypi.python.org/packages/source/Q/Quamash/Quamash-0.5.1.tar.gz#md5=c5fa317f615eafd492560771bc2caeca
+    md5: c5fa317f615eafd492560771bc2caeca
+
+build:
+    number: 0
+
+requirements:
+    build:
+        - python
+        - setuptools
+        - pyqt 4.*
+    run:
+        - python
+        - pyqt 4.*
+
+test:
+    imports:
+        - quamash
+
+about:
+    home: https://github.com/harvimt/quamash
+    license: BSD
+    summary: 'Implementation of the PEP 3156 Event-Loop with Qt'
