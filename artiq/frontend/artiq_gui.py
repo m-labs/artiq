@@ -7,11 +7,13 @@ import atexit
 # Quamash must be imported first so that pyqtgraph picks up the Qt binding
 # it has chosen.
 from quamash import QEventLoop, QtGui
-from pyqtgraph.dockarea import DockArea
+from pyqtgraph import dockarea
 
 from artiq.protocols.file_db import FlatFileDB
-from artiq.gui.schedule import ScheduleDock
+from artiq.gui.explorer import ExplorerDock
 from artiq.gui.parameters import ParametersDock
+from artiq.gui.console import ConsoleDock
+from artiq.gui.schedule import ScheduleDock
 
 
 def get_argparser():
@@ -42,19 +44,25 @@ def main():
     atexit.register(lambda: loop.close())
 
     win = QtGui.QMainWindow()
-    area = DockArea()
+    area = dockarea.DockArea()
     win.setCentralWidget(area)
-    win.resize(1000, 500)
+    win.resize(1400, 800)
     win.setWindowTitle("ARTIQ")
 
-    d_params = ParametersDock(area)
-    area.addDock(d_params, "left")
+    d_explorer = ExplorerDock()
+    area.addDock(d_explorer, "top")
+
+    d_params = ParametersDock()
+    area.addDock(d_params, "right", d_explorer)
     loop.run_until_complete(d_params.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_params.sub_close()))
 
-    d_schedule = ScheduleDock(area)
-    area.addDock(d_schedule, "top", d_params)
+    d_console = ConsoleDock()
+    area.addDock(d_console, "bottom")
+
+    d_schedule = ScheduleDock()
+    area.addDock(d_schedule, "above", d_console)
     loop.run_until_complete(d_schedule.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_schedule.sub_close()))

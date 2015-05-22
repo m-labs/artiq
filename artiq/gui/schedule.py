@@ -2,7 +2,7 @@ import asyncio
 import time
 
 from quamash import QtGui
-from pyqtgraph.dockarea import Dock
+from pyqtgraph import dockarea
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.gui.tools import DictSyncModel
@@ -46,9 +46,9 @@ class _ScheduleModel(DictSyncModel):
             raise ValueError
 
 
-class ScheduleDock(Dock):
-    def __init__(self, parent):
-        Dock.__init__(self, "Schedule", size=(1000, 300))
+class ScheduleDock(dockarea.Dock):
+    def __init__(self):
+        dockarea.Dock.__init__(self, "Schedule", size=(1000, 300))
 
         self.table = QtGui.QTableView()
         self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)

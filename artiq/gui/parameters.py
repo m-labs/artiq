@@ -1,7 +1,7 @@
 import asyncio
 
 from quamash import QtGui
-from pyqtgraph.dockarea import Dock
+from pyqtgraph import dockarea
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.gui.tools import DictSyncModel
@@ -24,9 +24,9 @@ class ParametersModel(DictSyncModel):
            raise ValueError
 
 
-class ParametersDock(Dock):
-    def __init__(self, parent):
-        Dock.__init__(self, "Parameters", size=(500, 300))
+class ParametersDock(dockarea.Dock):
+    def __init__(self):
+        dockarea.Dock.__init__(self, "Parameters", size=(500, 300))
 
         self.table = QtGui.QTableView()
         self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
