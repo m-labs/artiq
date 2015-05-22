@@ -25,7 +25,7 @@ class Mock(MagicMock):
             return Mock()
 
 
-mock_modules = ["gbulb", "gi", "gi.repository", "cairoplot", "matplotlib"]
+mock_modules = ["quamash", "pyqtgraph", "matplotlib"]
 
 for module in mock_modules:
     sys.modules[module] = Mock()
