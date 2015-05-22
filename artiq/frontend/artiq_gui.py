@@ -4,17 +4,14 @@ import argparse
 import asyncio
 import atexit
 
-import gbulb
-from gi.repository import Gtk
+# Quamash must be imported first so that pyqtgraph picks up the Qt binding
+# it has chosen.
+from quamash import QEventLoop, QtGui
+from pyqtgraph.dockarea import DockArea
 
 from artiq.protocols.file_db import FlatFileDB
-from artiq.protocols.pc_rpc import AsyncioClient
-from artiq.protocols.sync_struct import Subscriber
-from artiq.gui.tools import LayoutManager
-from artiq.gui.scheduler import SchedulerWindow
-from artiq.gui.parameters import ParametersWindow
-from artiq.gui.rt_results import RTResults
-from artiq.gui.explorer import ExplorerWindow
+from artiq.gui.schedule import ScheduleDock
+from artiq.gui.parameters import ParametersDock
 
 
 def get_argparser():
@@ -38,67 +35,31 @@ def main():
     args = get_argparser().parse_args()
 
     db = FlatFileDB(args.db_file, default_data=dict())
-    lmgr = LayoutManager(db)
 
-    asyncio.set_event_loop_policy(gbulb.GtkEventLoopPolicy())
-    loop = asyncio.get_event_loop()
+    app = QtGui.QApplication([])
+    loop = QEventLoop(app)
+    asyncio.set_event_loop(loop)
     atexit.register(lambda: loop.close())
 
-    # share the schedule control and repository connections
-    schedule_ctl = AsyncioClient()
-    loop.run_until_complete(schedule_ctl.connect_rpc(
-        args.server, args.port_control, "master_schedule"))
-    atexit.register(lambda: schedule_ctl.close_rpc())
-    repository = AsyncioClient()
-    loop.run_until_complete(repository.connect_rpc(
-        args.server, args.port_control, "master_repository"))
-    atexit.register(lambda: repository.close_rpc())
+    win = QtGui.QMainWindow()
+    area = DockArea()
+    win.setCentralWidget(area)
+    win.resize(1000, 500)
+    win.setWindowTitle("ARTIQ")
 
-    scheduler_win = lmgr.create_window(SchedulerWindow,
-                                       "scheduler",
-                                       schedule_ctl)
-    loop.run_until_complete(scheduler_win.sub_connect(
+    d_params = ParametersDock(area)
+    area.addDock(d_params, "left")
+    loop.run_until_complete(d_params.sub_connect(
         args.server, args.port_notify))
-    atexit.register(
-        lambda: loop.run_until_complete(scheduler_win.sub_close()))
+    atexit.register(lambda: loop.run_until_complete(d_params.sub_close()))
 
-    parameters_win = lmgr.create_window(ParametersWindow, "parameters")
-    loop.run_until_complete(parameters_win.sub_connect(
+    d_schedule = ScheduleDock(area)
+    area.addDock(d_schedule, "top", d_params)
+    loop.run_until_complete(d_schedule.sub_connect(
         args.server, args.port_notify))
-    atexit.register(
-        lambda: loop.run_until_complete(parameters_win.sub_close()))
+    atexit.register(lambda: loop.run_until_complete(d_schedule.sub_close()))
 
-    def exit(*args):
-        lmgr.save()
-        Gtk.main_quit(*args)
-    explorer_win = lmgr.create_window(ExplorerWindow,
-                                      "explorer",
-                                      exit,
-                                      schedule_ctl,
-                                      repository)
-    loop.run_until_complete(explorer_win.sub_connect(
-        args.server, args.port_notify))
-    atexit.register(
-        lambda: loop.run_until_complete(explorer_win.sub_close()))
-
-    parameters_sub = Subscriber("parameters",
-                                [parameters_win.init_parameters_store,
-                                 explorer_win.init_parameters_dict])
-    loop.run_until_complete(
-        parameters_sub.connect(args.server, args.port_notify))
-    atexit.register(
-        lambda: loop.run_until_complete(parameters_sub.close()))
-
-    scheduler_win.show_all()
-    parameters_win.show_all()
-    explorer_win.show_all()
-
-    rtr = RTResults()
-    loop.run_until_complete(rtr.sub_connect(
-        args.server, args.port_notify))
-    atexit.register(
-        lambda: loop.run_until_complete(rtr.sub_close()))
-
+    win.show()
     loop.run_forever()
 
 if __name__ == "__main__":

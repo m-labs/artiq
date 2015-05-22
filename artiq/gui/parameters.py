@@ -1,74 +1,47 @@
 import asyncio
-from operator import itemgetter
-import time
 
-from gi.repository import Gtk
+from quamash import QtGui
+from pyqtgraph.dockarea import Dock
 
-from artiq.gui.tools import Window, ListSyncer, DictSyncer
 from artiq.protocols.sync_struct import Subscriber
+from artiq.gui.tools import DictSyncModel
 
 
-class _ParameterStoreSyncer(DictSyncer):
-    def order_key(self, kv_pair):
-        return kv_pair[0]
+class ParametersModel(DictSyncModel):
+    def __init__(self, parent, init):
+        DictSyncModel.__init__(self, ["Parameter", "Value"],
+                               parent, init)
 
-    def convert(self, name, value):
-        return [name, str(value)]
+    def sort_key(self, k, v):
+        return k
 
-
-class _LastChangesStoreSyncer(ListSyncer):
-    def convert(self, x):
-        if len(x) == 3:
-            timestamp, name, value = x
+    def convert(self, k, v, column):
+        if column == 0:
+            return k
+        elif column == 1:
+            return str(v)
         else:
-            timestamp, name = x
-            value = "<deleted>"
-        return [time.strftime("%m/%d %H:%M:%S", time.localtime(timestamp)),
-                name, str(value)]
+           raise ValueError
 
 
-class ParametersWindow(Window):
-    def __init__(self, **kwargs):
-        Window.__init__(self,
-                        title="Parameters",
-                        default_size=(500, 500),
-                        **kwargs)
+class ParametersDock(Dock):
+    def __init__(self, parent):
+        Dock.__init__(self, "Parameters", size=(500, 300))
 
-        notebook = Gtk.Notebook()
-        self.add(notebook)
-
-        self.parameters_store = Gtk.ListStore(str, str)
-        tree = Gtk.TreeView(self.parameters_store)
-        for i, title in enumerate(["Parameter", "Value"]):
-            renderer = Gtk.CellRendererText()
-            column = Gtk.TreeViewColumn(title, renderer, text=i)
-            tree.append_column(column)
-        scroll = Gtk.ScrolledWindow()
-        scroll.add(tree)
-        notebook.insert_page(scroll, Gtk.Label("Current values"), -1)
-
-        self.lastchanges_store = Gtk.ListStore(str, str, str)
-        tree = Gtk.TreeView(self.lastchanges_store)
-        for i, title in enumerate(["Time", "Parameter", "Value"]):
-            renderer = Gtk.CellRendererText()
-            column = Gtk.TreeViewColumn(title, renderer, text=i)
-            tree.append_column(column)
-        scroll = Gtk.ScrolledWindow()
-        scroll.add(tree)
-        notebook.insert_page(scroll, Gtk.Label("Last changes"), -1)
+        self.table = QtGui.QTableView()
+        self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.addWidget(self.table)
 
     @asyncio.coroutine
     def sub_connect(self, host, port):
-        self.lastchanges_subscriber = Subscriber(
-            "parameters_simplehist", self.init_lastchanges_store)
-        yield from self.lastchanges_subscriber.connect(host, port)
+        self.subscriber = Subscriber("parameters", self.init_parameters_model)
+        yield from self.subscriber.connect(host, port)
 
     @asyncio.coroutine
     def sub_close(self):
-        yield from self.lastchanges_subscriber.close()
+        yield from self.subscriber.close()
 
-    def init_parameters_store(self, init):
-        return _ParameterStoreSyncer(self.parameters_store, init)
-
-    def init_lastchanges_store(self, init):
-        return _LastChangesStoreSyncer(self.lastchanges_store, init)
+    def init_parameters_model(self, init):
+        table_model = ParametersModel(self.table, init)
+        self.table.setModel(table_model)
+        return table_model

@@ -25,7 +25,6 @@ def model_numpy(xdata, F0):
 
 class FloppingF(Experiment, AutoDB):
     """Flopping F simulation"""
-    __artiq_gui_file__ = "flopping_f_simulation_gui.py"
 
     class DBKeys:
         npoints = Argument(100)

@@ -1,143 +1,96 @@
-import os
-
-from gi.repository import Gtk
+from quamash import QtCore
 
 
-data_dir = os.path.abspath(os.path.dirname(__file__))
-
-
-def getitem(d, item, default):
-    try:
-        return d[item]
-    except KeyError:
-        return default
-
-
-class Window(Gtk.Window):
-    def __init__(self, title, default_size, layout_dict=dict()):
-        Gtk.Window.__init__(self, title=title + " - ARTIQ")
-
-        self.set_wmclass("ARTIQ", "ARTIQ")
-        self.set_icon_from_file(os.path.join(data_dir, "icon.png"))
-        self.set_border_width(6)
-
-        size = getitem(layout_dict, "size", default_size)
-        self.set_default_size(size[0], size[1])
-        try:
-            position = layout_dict["position"]
-        except KeyError:
-            pass
-        else:
-            self.move(position[0], position[1])
-
-    def get_layout_dict(self):
-        return {
-            "size": self.get_size(),
-            "position": self.get_position()
-        }
-
-
-class LayoutManager:
-    def __init__(self, db):
-        self.db = db
-        self.windows = dict()
-
-    def create_window(self, cls, name, *args, **kwargs):
-        try:
-            win_layouts = self.db.request("win_layouts")
-            layout_dict = win_layouts[name]
-        except KeyError:
-            layout_dict = dict()
-        win = cls(*args, layout_dict=layout_dict, **kwargs)
-        self.windows[name] = win
-        return win
-
-    def save(self):
-        win_layouts = {name: window.get_layout_dict()
-                       for name, window in self.windows.items()}
-        self.db.set("win_layouts", win_layouts)
-
-
-class ListSyncer:
-    def __init__(self, store, init):
-        self.store = store
-        self.store.clear()
-        for x in init:
-            self.append(x)
-
-    def append(self, x):
-        self.store.append(self.convert(x))
-
-    def insert(self, i, x):
-        self.store.insert(i, self.convert(x))
-
-    def __delitem__(self, key):
-        del self.store[key]
-
-    def convert(self, x):
-        raise NotImplementedError
-
-
-class _DictSyncerSubstruct:
+class _DictSyncSubstruct:
     def __init__(self, update_cb, ref):
         self.update_cb = update_cb
         self.ref = ref
 
     def __getitem__(self, key):
-        return _DictSyncerSubstruct(self.update_cb, self.ref[key])
+        return _DictSyncSubstruct(self.update_cb, self.ref[key])
 
     def __setitem__(self, key, value):
         self.ref[key] = value
         self.update_cb()
 
 
-class DictSyncer:
-    def __init__(self, store, init):
-        self.store = store
-        self.store.clear()
-        self.order = []
-        for k, v in sorted(init.items(), key=self.order_key):
-            self.store.append(self.convert(k, v))
-            self.order.append((k, self.order_key((k, v))))
-        self.local_copy = init
+class DictSyncModel(QtCore.QAbstractTableModel):
+    def __init__(self, headers, parent, init):
+        self.headers = headers
+        self.data = init
+        self.row_to_key = sorted(self.data.keys(),
+                                 key=lambda k: self.sort_key(k, self.data[k]))
+        QtCore.QAbstractTableModel.__init__(self, parent)
 
-    def _find_index(self, key):
-        for i, e in enumerate(self.order):
-            if e[0] == key:
-                return i
-        raise KeyError
+    def rowCount(self, parent):
+        return len(self.data)
 
-    def __setitem__(self, key, value):
-        try:
-            i = self._find_index(key)
-        except KeyError:
-            pass
+    def columnCount(self, parent):
+        return len(self.headers)
+
+    def data(self, index, role):
+        if not index.isValid():
+            return None
+        elif role != QtCore.Qt.DisplayRole:
+            return None
+        k = self.row_to_key[index.row()]
+        return self.convert(k, self.data[k], index.column())
+
+    def headerData(self, col, orientation, role):
+        if (orientation == QtCore.Qt.Horizontal
+                and role == QtCore.Qt.DisplayRole):
+            return self.headers[col]
+        return None
+
+    def _find_row(self, k, v):
+        lo = 0
+        hi = len(self.row_to_key)
+        while lo < hi:
+            mid = (lo + hi)//2
+            if (self.sort_key(self.row_to_key[mid],
+                              self.data[self.row_to_key[mid]])
+                    < self.sort_key(k, v)):
+                lo = mid + 1
+            else:
+                hi = mid
+        return lo
+
+    def __setitem__(self, k, v):
+        if k in self.data:
+            old_row = self.row_to_key.index(k)
+            new_row = self._find_row(k, v)
+            if old_row == new_row:
+                self.dataChanged.emit(self.index(old_row, 0),
+                                      self.index(old_row, len(self.headers)))
+            else:
+                self.beginMoveRows(QtCore.QModelIndex(), old_row, old_row,
+                                   QtCore.QModelIndex(), new_row)
+            self.data[k] = v
+            self.row_to_key[old_row], self.row_to_key[new_row] = \
+                self.row_to_key[new_row], self.row_to_key[old_row]
+            if old_row != new_row:
+                self.endMoveRows()
         else:
-            del self.store[i]
-            del self.order[i]
-        ord_el = self.order_key((key, value))
-        j = len(self.order)
-        for i, (k, o) in enumerate(self.order):
-            if o > ord_el:
-                j = i
-                break
-        self.store.insert(j, self.convert(key, value))
-        self.order.insert(j, (key, ord_el))
-        self.local_copy[key] = value
+            row = self._find_row(k, v)
+            self.beginInsertRows(QtCore.QModelIndex(), row, row)
+            self.data[k] = v
+            self.row_to_key.insert(row, k)
+            self.endInsertRows()
 
-    def __delitem__(self, key):
-        i = self._find_index(key)
-        del self.store[i]
-        del self.order[i]
-        del self.local_copy[key]
+    def __delitem__(self, k):
+        row = self.row_to_key.index(k)
+        self.beginRemoveRows(QtCore.QModelIndex(), row, row)
+        del self.row_to_key[row]
+        del self.data[k]
+        self.endRemoveRows()
 
     def __getitem__(self, key):
         def update():
-            self[key] = self.local_copy[key]
-        return _DictSyncerSubstruct(update, self.local_copy[key])
+            self[key] = self.data[key]
+        return _DictSyncSubstruct(update, self.data[key])
 
-    def order_key(self, kv_pair):
+    def sort_key(self, k, v):
         raise NotImplementedError
 
-    def convert(self, key, value):
+    def convert(self, k, v, column):
         raise NotImplementedError
