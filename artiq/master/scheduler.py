@@ -45,12 +45,13 @@ def _mk_worker_method(name):
 
 class Run:
     def __init__(self, rid, pipeline_name,
-                 expid, due_date,
+                 expid, priority, due_date,
                  worker_handlers, notifier):
         # called through pool
         self.rid = rid
         self.pipeline_name = pipeline_name
         self.expid = expid
+        self.priority = priority
         self.due_date = due_date
 
         self._status = RunStatus.pending
@@ -61,6 +62,7 @@ class Run:
         self._notifier[self.rid] = {
             "pipeline": self.pipeline_name,
             "expid": self.expid,
+            "priority": self.priority,
             "due_date": self.due_date,
             "status": self._status.name
         }
@@ -83,7 +85,7 @@ class Run:
         else:
             overdue = int(now > self.due_date)
             due_date_k = -self.due_date
-        return (overdue, due_date_k, -self.rid)
+        return (overdue, self.priority, due_date_k, -self.rid)
 
     @asyncio.coroutine
     def close(self):
@@ -123,10 +125,10 @@ class RunPool:
         self._worker_handlers = worker_handlers
         self._notifier = notifier
 
-    def submit(self, expid, due_date, pipeline_name):
+    def submit(self, expid, priority, due_date, pipeline_name):
         # called through scheduler
         rid = self._ridc.get()
-        run = Run(rid, pipeline_name, expid, due_date,
+        run = Run(rid, pipeline_name, expid, priority, due_date,
                   self._worker_handlers, self._notifier)
         self.runs[rid] = run
         if self.submitted_callback is not None:
@@ -349,7 +351,7 @@ class Scheduler:
         if self._pipelines:
             logger.warning("some pipelines were not garbage-collected")
 
-    def submit(self, pipeline_name, expid, due_date):
+    def submit(self, pipeline_name, expid, priority, due_date):
         if self._terminated:
             return
         try:
@@ -360,7 +362,7 @@ class Scheduler:
                                 self._worker_handlers, self.notifier)
             self._pipelines[pipeline_name] = pipeline
             pipeline.start()
-        return pipeline.pool.submit(expid, due_date, pipeline_name)
+        return pipeline.pool.submit(expid, priority, due_date, pipeline_name)
 
     def delete(self, rid):
         self._deleter.delete(rid)

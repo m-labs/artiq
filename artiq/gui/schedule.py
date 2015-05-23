@@ -12,13 +12,13 @@ from artiq.tools import format_arguments
 class _ScheduleModel(DictSyncModel):
     def __init__(self, parent, init):
         DictSyncModel.__init__(self,
-            ["RID", "Pipeline", "Status", "Due date",
+            ["RID", "Pipeline", "Status", "Prio", "Due date",
              "File", "Experiment", "Arguments"],
             parent, init)
 
     def sort_key(self, k, v):
-        # order by due date, and then by RID
-        return (v["due_date"] or 0, k)
+        # order by due date, and then by priority and RID
+        return (v["due_date"] or 0, -v["priority"], k)
 
     def convert(self, k, v, column):
         if column == 0:
@@ -28,19 +28,21 @@ class _ScheduleModel(DictSyncModel):
         elif column == 2:
             return v["status"]
         elif column == 3:
+            return str(v["priority"])
+        elif column == 4:
             if v["due_date"] is None:
                 return ""
             else:
                 return time.strftime("%m/%d %H:%M:%S",
                                      time.localtime(v["due_date"]))
-        elif column == 4:
-            return v["expid"]["file"]
         elif column == 5:
+            return v["expid"]["file"]
+        elif column == 6:
             if v["expid"]["experiment"] is None:
                 return ""
             else:
                 return v["expid"]["experiment"]
-        elif column == 6:
+        elif column == 7:
             return format_arguments(v["expid"]["arguments"])
         else:
             raise ValueError
