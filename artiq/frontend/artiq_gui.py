@@ -12,7 +12,7 @@ from pyqtgraph import dockarea
 from artiq.protocols.file_db import FlatFileDB
 from artiq.gui.explorer import ExplorerDock
 from artiq.gui.parameters import ParametersDock
-from artiq.gui.console import ConsoleDock
+from artiq.gui.log import LogDock
 from artiq.gui.schedule import ScheduleDock
 
 
@@ -61,11 +61,11 @@ def main():
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_params.sub_close()))
 
-    d_console = ConsoleDock()
-    area.addDock(d_console, "bottom")
+    d_log = LogDock()
+    area.addDock(d_log, "bottom")
 
     d_schedule = ScheduleDock()
-    area.addDock(d_schedule, "above", d_console)
+    area.addDock(d_schedule, "above", d_log)
     loop.run_until_complete(d_schedule.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_schedule.sub_close()))
