@@ -79,12 +79,13 @@ class Scheduler:
     pause = staticmethod(make_parent_action("pause", ""))
 
     submit = staticmethod(make_parent_action("scheduler_submit",
-                                             "pipeline_name expid due_date"))
+        "pipeline_name expid priority due_date"))
     cancel = staticmethod(make_parent_action("scheduler_cancel", "rid"))
 
-    def __init__(self, pipeline_name, expid):
+    def __init__(self, pipeline_name, expid, priority):
         self.pipeline_name = pipeline_name
         self.expid = expid
+        self.priority = priority
 
 
 def get_exp(file, exp):
@@ -121,9 +122,12 @@ def main():
                 rid = obj["rid"]
                 pipeline_name = obj["pipeline_name"]
                 expid = obj["expid"]
+                priority = obj["priority"]
                 exp = get_exp(expid["file"], expid["experiment"])
                 exp_inst = exp(dbh,
-                               scheduler=Scheduler(pipeline_name, expid),
+                               scheduler=Scheduler(pipeline_name,
+                                                   expid,
+                                                   priority),
                                **expid["arguments"])
                 rdb.build()
                 put_object({"action": "completed"})

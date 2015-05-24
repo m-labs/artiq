@@ -202,14 +202,15 @@ class Worker:
         return completed
 
     @asyncio.coroutine
-    def prepare(self, rid, pipeline_name, expid):
+    def prepare(self, rid, pipeline_name, expid, priority):
         self.rid = rid
         yield from self._create_process()
         yield from self._worker_action(
             {"action": "prepare",
              "rid": rid,
              "pipeline_name": pipeline_name,
-             "expid": expid},
+             "expid": expid,
+             "priority": priority},
             self.prepare_timeout)
 
     @asyncio.coroutine

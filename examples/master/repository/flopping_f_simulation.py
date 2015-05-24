@@ -51,7 +51,7 @@ class FloppingF(Experiment, AutoDB):
             self.brightness.append(brightness)
             time.sleep(0.1)
         self.scheduler.submit(self.scheduler.pipeline_name, self.scheduler.expid,
-                              time.time() + 20)
+                              self.scheduler.priority, time.time() + 20)
 
     def analyze(self):
         popt, pcov = curve_fit(model_numpy,

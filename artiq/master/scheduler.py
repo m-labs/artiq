@@ -98,7 +98,8 @@ class Run:
 
     @asyncio.coroutine
     def prepare(self):
-        yield from self._prepare(self.rid, self.pipeline_name, self.expid)
+        yield from self._prepare(self.rid, self.pipeline_name, self.expid,
+                                 self.priority)
 
     run = _mk_worker_method("run")
     resume = _mk_worker_method("resume")
