@@ -10,6 +10,7 @@ from quamash import QEventLoop, QtGui
 from pyqtgraph import dockarea
 
 from artiq.protocols.file_db import FlatFileDB
+from artiq.protocols.pc_rpc import AsyncioClient
 from artiq.gui.explorer import ExplorerDock
 from artiq.gui.parameters import ParametersDock
 from artiq.gui.log import LogDock
@@ -43,6 +44,11 @@ def main():
     asyncio.set_event_loop(loop)
     atexit.register(lambda: loop.close())
 
+    schedule_ctl = AsyncioClient()
+    loop.run_until_complete(schedule_ctl.connect_rpc(
+        args.server, args.port_control, "master_schedule"))
+    atexit.register(lambda: schedule_ctl.close_rpc())
+
     win = QtGui.QMainWindow()
     area = dockarea.DockArea()
     win.setCentralWidget(area)
@@ -52,8 +58,11 @@ def main():
     win.resize(1400, 800)
     win.setWindowTitle("ARTIQ")
 
-    d_explorer = ExplorerDock()
+    d_explorer = ExplorerDock(status_bar, schedule_ctl)
     area.addDock(d_explorer, "top")
+    loop.run_until_complete(d_explorer.sub_connect(
+        args.server, args.port_notify))
+    atexit.register(lambda: loop.run_until_complete(d_explorer.sub_close()))
 
     d_params = ParametersDock()
     area.addDock(d_params, "right", d_explorer)
