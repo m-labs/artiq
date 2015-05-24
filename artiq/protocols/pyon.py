@@ -20,6 +20,8 @@ function call syntax to mark special data types.
 
 import base64
 from fractions import Fraction
+import os
+import tempfile
 
 import numpy
 
@@ -158,18 +160,17 @@ def decode(s):
 
 
 def store_file(filename, x):
-    """Encodes a Python object and writes it to the specified file.
-
-    """
+    """Encodes a Python object and writes it to the specified file."""
     contents = encode(x, True)
-    with open(filename, "w") as f:
+    directory = os.path.abspath(os.path.dirname(filename))
+    with tempfile.NamedTemporaryFile("w", dir=directory, delete=False) as f:
         f.write(contents)
         f.write("\n")
+        tmpname = f.name
+    os.replace(tmpname, filename)
 
 
 def load_file(filename):
-    """Parses the specified file and returns the decoded Python object.
-
-    """
+    """Parses the specified file and returns the decoded Python object."""
     with open(filename, "r") as f:
         return decode(f.read())
