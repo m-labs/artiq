@@ -31,7 +31,7 @@ class WatchdogTimeoutInBuild(Experiment, AutoDB):
 
 @asyncio.coroutine
 def _call_worker(worker, expid):
-    yield from worker.prepare(0, "main", expid)
+    yield from worker.prepare(0, "main", expid, 0)
     try:
         yield from worker.run()
         yield from worker.analyze()
