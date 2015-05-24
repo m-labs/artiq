@@ -1,7 +1,7 @@
 import asyncio
 import time
 
-from quamash import QtGui
+from quamash import QtGui, QtCore
 from pyqtgraph import dockarea
 
 from artiq.protocols.sync_struct import Subscriber
@@ -49,12 +49,19 @@ class _ScheduleModel(DictSyncModel):
 
 
 class ScheduleDock(dockarea.Dock):
-    def __init__(self):
+    def __init__(self, schedule_ctl):
         dockarea.Dock.__init__(self, "Schedule", size=(1000, 300))
+
+        self.schedule_ctl = schedule_ctl
 
         self.table = QtGui.QTableView()
         self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.addWidget(self.table)
+
+        self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        delete_action = QtGui.QAction("Delete", self.table)
+        delete_action.triggered.connect(self.delete_clicked)
+        self.table.addAction(delete_action)
 
     @asyncio.coroutine
     def sub_connect(self, host, port):
@@ -66,6 +73,17 @@ class ScheduleDock(dockarea.Dock):
         yield from self.subscriber.close()
 
     def init_schedule_model(self, init):
-        table_model = _ScheduleModel(self.table, init)
-        self.table.setModel(table_model)
-        return table_model
+        self.table_model = _ScheduleModel(self.table, init)
+        self.table.setModel(self.table_model)
+        return self.table_model
+
+    @asyncio.coroutine
+    def delete(self, rid):
+        yield from self.schedule_ctl.delete(rid)
+
+    def delete_clicked(self):
+        idx = self.table.selectedIndexes()
+        if idx:
+            row = idx[0].row()
+            rid = self.table_model.row_to_key[row]
+            asyncio.async(self.delete(rid))

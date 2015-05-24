@@ -73,7 +73,7 @@ def main():
     d_log = LogDock()
     area.addDock(d_log, "bottom")
 
-    d_schedule = ScheduleDock()
+    d_schedule = ScheduleDock(schedule_ctl)
     area.addDock(d_schedule, "above", d_log)
     loop.run_until_complete(d_schedule.sub_connect(
         args.server, args.port_notify))
