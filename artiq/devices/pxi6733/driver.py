@@ -1,6 +1,6 @@
 # Yann Sionneau <ys@m-labs.hk>, 2015
 
-from ctypes import byref
+from ctypes import byref, c_ulong
 import numpy as np
 
 
@@ -10,6 +10,9 @@ class DAQmxSim:
 
     def close(self):
         pass
+
+    def ping(self):
+        return True
 
 
 class DAQmx:
@@ -27,6 +30,14 @@ class DAQmx:
     def done_callback_py(self, taskhandle, status, callback_data):
         self.daq.DAQmxClearTask(taskhandle)
         self.tasks.remove(taskhandle)
+
+    def ping(self):
+        try:
+            data = (c_ulong*1)()
+            self.daq.DAQmxGetDevSerialNum(self.device, data)
+        except:
+            return False
+        return True
 
     def load_sample_values(self, values):
         """Load sample values into PXI 6733 device.
