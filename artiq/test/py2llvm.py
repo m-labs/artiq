@@ -1,5 +1,5 @@
 import unittest
-import ast
+from pythonparser import parse, ast
 import inspect
 from fractions import Fraction
 from ctypes import CFUNCTYPE, c_int, c_int32, c_int64, c_double
@@ -43,7 +43,7 @@ def _base_types(choice):
 
 def _build_function_types(f):
     return infer_function_types(
-        None, ast.parse(inspect.getsource(f)),
+        None, parse(inspect.getsource(f)),
         dict())
 
 
@@ -111,7 +111,7 @@ class CompiledFunction:
     def __init__(self, function, param_types):
         module = Module()
 
-        func_def = ast.parse(inspect.getsource(function)).body[0]
+        func_def = parse(inspect.getsource(function)).body[0]
         function, retval = module.compile_function(func_def, param_types)
         argvals = [param_types[arg.arg] for arg in func_def.args.args]
 

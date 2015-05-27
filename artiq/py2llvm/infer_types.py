@@ -1,11 +1,12 @@
-import ast
+import pythonparser.algorithm
+from pythonparser import ast
 from copy import deepcopy
 
 from artiq.py2llvm.ast_body import Visitor
 from artiq.py2llvm import base_types
 
 
-class _TypeScanner(ast.NodeVisitor):
+class _TypeScanner(pythonparser.algorithm.Visitor):
     def __init__(self, env, ns):
         self.exprv = Visitor(env, ns)
 

@@ -1,4 +1,4 @@
-import ast
+from pythonparser import ast
 
 import llvmlite.ir as ll
 

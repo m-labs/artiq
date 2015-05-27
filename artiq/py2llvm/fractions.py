@@ -1,5 +1,5 @@
 import inspect
-import ast
+from pythonparser import parse, ast
 
 import llvmlite.ir as ll
 
@@ -18,7 +18,7 @@ def _gcd(a, b):
 
 
 def init_module(module):
-    func_def = ast.parse(inspect.getsource(_gcd)).body[0]
+    func_def = parse(inspect.getsource(_gcd)).body[0]
     function, _ = module.compile_function(func_def,
                                           {"a": VInt(64), "b": VInt(64)})
     function.linkage = "internal"
