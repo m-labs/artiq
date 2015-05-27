@@ -61,6 +61,13 @@ static int record_iter_next(struct iter_state *is, struct record *record, int *f
     if(record->size == END_MARKER)
         return 0;
 
+    if(record->size < 6) {
+        printf("flash_storage might be corrupted: record size is %u (<6) at address %08x\n", record->size, record->raw_record);
+        if(fatal)
+            *fatal = 1;
+        return 0;
+    }
+
     if(is->seek > is->buf_len - sizeof(record->size) - 2) { /* 2 is the minimum key length */
         printf("flash_storage might be corrupted: END_MARKER missing at the end of the storage sector\n");
         if(fatal)
