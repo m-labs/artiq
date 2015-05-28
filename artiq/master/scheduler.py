@@ -26,7 +26,7 @@ class RunStatus(Enum):
 def _mk_worker_method(name):
     @asyncio.coroutine
     def worker_method(self, *args, **kwargs):
-        if self._terminated:
+        if self._worker.closed.is_set():
             return True
         m = getattr(self._worker, name)
         try:
@@ -34,7 +34,7 @@ def _mk_worker_method(name):
         except Exception as e:
             if isinstance(e, asyncio.CancelledError):
                 raise
-            if self._terminated:
+            if self._worker.closed.is_set():
                 logger.debug("suppressing worker exception of terminated run",
                              exc_info=True)
                 # Return completion on termination
@@ -57,7 +57,6 @@ class Run:
         self.flush = flush
 
         self._status = RunStatus.pending
-        self._terminated = False
         self._worker = Worker(worker_handlers)
 
         self._notifier = notifier
@@ -77,7 +76,7 @@ class Run:
     @status.setter
     def status(self, value):
         self._status = value
-        if not self._terminated:
+        if not self._worker.closed.is_set():
             self._notifier[self.rid]["status"] = self._status.name
 
     # The run with the largest priority_key is to be scheduled first
@@ -93,7 +92,6 @@ class Run:
     @asyncio.coroutine
     def close(self):
         # called through pool
-        self._terminated = True
         yield from self._worker.close()
         del self._notifier[self.rid]
 
