@@ -48,28 +48,21 @@ class DummyWatchdog:
 
 
 class DummyScheduler:
-    def __init__(self):
+    def __init__(self, expid):
         self.next_rid = 0
         self.next_trid = 0
+        self.pipeline_name = "main"
+        self.priority = 0
+        self.expid = expid
 
-    def run_queued(self, run_params):
+    def submit(self, pipeline_name, expid, priority, due_date, flush):
         rid = self.next_rid
         self.next_rid += 1
-        logger.info("Queuing: %s, RID=%s", run_params, rid)
+        logger.info("Submitting: %s, RID=%s", expid, rid)
         return rid
 
-    def cancel_queued(self, rid):
-        logger.info("Cancelling RID %s", rid)
-
-    def run_timed(self, run_params, next_run):
-        trid = self.next_trid
-        self.next_trid += 1
-        next_run_s = time.strftime("%m/%d %H:%M:%S", time.localtime(next_run))
-        logger.info("Timing: %s at %s, TRID=%s", run_params, next_run_s, trid)
-        return trid
-
-    def cancel_timed(self, trid):
-        logger.info("Cancelling TRID %s", trid)
+    def delete(self, rid):
+        logger.info("Deleting RID %s", rid)
 
     watchdog = DummyWatchdog
 
@@ -115,11 +108,13 @@ def _build_experiment(dbh, args):
         file = getattr(module, "__file__")
     exp = get_experiment(module, args.experiment)
     arguments = parse_arguments(args.arguments)
+    expid = {
+        "file": file,
+        "experiment": args.experiment,
+        "arguments": arguments
+    }
     return exp(dbh,
-               scheduler=DummyScheduler(),
-               run_params=dict(file=file,
-                               experiment=args.experiment,
-                               arguments=arguments),
+               scheduler=DummyScheduler(expid),
                **arguments)
 
 
