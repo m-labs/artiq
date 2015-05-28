@@ -138,8 +138,8 @@ def _show_schedule(schedule):
     clear_screen()
     if schedule:
         l = sorted(schedule.items(),
-                   key=lambda x: (x[1]["due_date"] or 0,
-                                  -x[1]["priority"],
+                   key=lambda x: (-x[1]["priority"],
+                                  x[1]["due_date"] or 0,
                                   x[0]))
         table = PrettyTable(["RID", "Pipeline", "    Status    ", "Prio",
                              "Due date", "File", "Experiment", "Arguments"])

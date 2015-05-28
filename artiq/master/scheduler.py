@@ -81,14 +81,16 @@ class Run:
             self._notifier[self.rid]["status"] = self._status.name
 
     # The run with the largest priority_key is to be scheduled first
-    def priority_key(self, now):
+    def priority_key(self, now=None):
         if self.due_date is None:
-            overdue = 0
             due_date_k = 0
         else:
-            overdue = int(now > self.due_date)
             due_date_k = -self.due_date
-        return (overdue, self.priority, due_date_k, -self.rid)
+        if now is not None and self.due_date is not None:
+            runnable = int(now > self.due_date)
+        else:
+            runnable = 1
+        return (runnable, self.priority, due_date_k, -self.rid)
 
     @asyncio.coroutine
     def close(self):
@@ -240,10 +242,9 @@ class RunStage(TaskObject):
                 next_irun = asyncio_queue_peek(self.inq)
             except asyncio.QueueEmpty:
                 next_irun = None
-            now = time()
             if not stack or (
                     next_irun is not None and
-                    next_irun.priority_key(now) > stack[-1].priority_key(now)):
+                    next_irun.priority_key() > stack[-1].priority_key()):
                 stack.append((yield from self.inq.get()))
 
             run = stack.pop()

@@ -17,8 +17,8 @@ class _ScheduleModel(DictSyncModel):
             parent, init)
 
     def sort_key(self, k, v):
-        # order by due date, and then by priority and RID
-        return (v["due_date"] or 0, -v["priority"], k)
+        # order by priority, and then by due date and RID
+        return (-v["priority"], v["due_date"] or 0, k)
 
     def convert(self, k, v, column):
         if column == 0:
