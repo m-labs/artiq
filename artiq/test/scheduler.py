@@ -31,7 +31,8 @@ def _get_basic_steps(rid, expid):
     return [
         {"action": "setitem", "key": rid, "value": 
             {"pipeline": "main", "status": "pending", "priority": 0,
-            "expid": expid, "due_date": None}, "path": []},
+             "expid": expid, "due_date": None, "flush": False},
+            "path": []},
         {"action": "setitem", "key": "status", "value": "preparing",
             "path": [rid]},
         {"action": "setitem", "key": "status", "value": "prepare_done",
@@ -71,7 +72,7 @@ class SchedulerCase(unittest.TestCase):
 
         loop = asyncio.get_event_loop()
         scheduler.start()
-        scheduler.submit("main", expid, 0, None)
+        scheduler.submit("main", expid, 0, None, False)
         loop.run_until_complete(done.wait())
         loop.run_until_complete(scheduler.stop())
 
@@ -100,8 +101,8 @@ class SchedulerCase(unittest.TestCase):
 
         loop = asyncio.get_event_loop()
         scheduler.start()
-        scheduler.submit("main", expid_bg, -99, None)
+        scheduler.submit("main", expid_bg, -99, None, False)
         loop.run_until_complete(background_running.wait())
-        scheduler.submit("main", expid, 0, None)
+        scheduler.submit("main", expid, 0, None, False)
         loop.run_until_complete(done.wait())
         loop.run_until_complete(scheduler.stop())

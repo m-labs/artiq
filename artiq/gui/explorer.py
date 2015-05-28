@@ -41,19 +41,22 @@ class ExplorerDock(dockarea.Dock):
         self.datetime.setDisplayFormat("MMM d yyyy hh:mm:ss")
         self.datetime.setCalendarPopup(True)
         self.datetime.setDate(QtCore.QDate.currentDate())
-        self.datetime_en = QtGui.QCheckBox("Set due date:")
+        self.datetime_en = QtGui.QCheckBox("Due date:")
         grid.addWidget(self.datetime_en, 1, 0)
-        grid.addWidget(self.datetime, 1, 1, colspan=3)
+        grid.addWidget(self.datetime, 1, 1)
+
+        self.priority = QtGui.QSpinBox()
+        self.priority.setRange(-99, 99)
+        grid.addLabel("Priority:", 1, 2)
+        grid.addWidget(self.priority, 1, 3)
 
         self.pipeline = QtGui.QLineEdit()
         self.pipeline.insert("main")
         grid.addLabel("Pipeline:", 2, 0)
         grid.addWidget(self.pipeline, 2, 1)
 
-        self.priority = QtGui.QSpinBox()
-        self.priority.setRange(-99, 99)
-        grid.addLabel("Priority:", 2, 2)
-        grid.addWidget(self.priority, 2, 3)
+        self.flush = QtGui.QCheckBox("Flush")
+        grid.addWidget(self.flush, 2, 2, colspan=2)
 
         submit = QtGui.QPushButton("Submit")
         grid.addWidget(submit, 3, 0, colspan=4)
@@ -79,14 +82,14 @@ class ExplorerDock(dockarea.Dock):
 
     @asyncio.coroutine
     def submit(self, pipeline_name, file, experiment, arguments,
-               priority, due_date):
+               priority, due_date, flush):
         expid = {
             "file": file,
             "experiment": experiment,
             "arguments": arguments,
         }
         rid = yield from self.schedule_ctl.submit(pipeline_name, expid,
-                                                  priority, due_date)
+                                                  priority, due_date, flush)
         self.status_bar.showMessage("Submitted RID {}".format(rid))
 
     def submit_clicked(self):
@@ -101,4 +104,5 @@ class ExplorerDock(dockarea.Dock):
                 due_date = None
             asyncio.async(self.submit(self.pipeline.text(),
                                       expinfo["file"], expinfo["experiment"],
-                                      dict(), self.priority.value(), due_date))
+                                      dict(), self.priority.value(), due_date,
+                                      self.flush.isChecked()))

@@ -119,3 +119,27 @@ def asyncio_queue_peek(q):
         return q._queue[0]
     else:
         raise asyncio.QueueEmpty
+
+
+class WaitSet:
+    def __init__(self):
+        self._s = set()
+        self._ev = asyncio.Event()
+
+    def _update_ev(self):
+        if self._s:
+            self._ev.clear()
+        else:
+            self._ev.set()
+
+    def add(self, e):
+        self._s.add(e)
+        self._update_ev()
+
+    def discard(self, e):
+        self._s.discard(e)
+        self._update_ev()
+
+    @asyncio.coroutine
+    def wait_empty(self):
+        yield from self._ev.wait()

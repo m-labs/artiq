@@ -79,7 +79,7 @@ class Scheduler:
     pause = staticmethod(make_parent_action("pause", ""))
 
     submit = staticmethod(make_parent_action("scheduler_submit",
-        "pipeline_name expid priority due_date"))
+        "pipeline_name expid priority due_date flush"))
     cancel = staticmethod(make_parent_action("scheduler_cancel", "rid"))
 
     def __init__(self, pipeline_name, expid, priority):

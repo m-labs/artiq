@@ -32,14 +32,17 @@ def get_argparser():
     subparsers.required = True
 
     parser_add = subparsers.add_parser("submit", help="submit an experiment")
-    parser_add.add_argument("-t", "--timed", default=None, type=str,
-                            help="set a due date for the experiment")
     parser_add.add_argument("-p", "--pipeline", default="main", type=str,
                             help="pipeline to run the experiment in "
                                  "(default: %(default)s)")
     parser_add.add_argument("-P", "--priority", default=0, type=int,
                             help="priority (higher value means sooner "
                                  "scheduling, default: %(default)s)")
+    parser_add.add_argument("-t", "--timed", default=None, type=str,
+                            help="set a due date for the experiment")
+    parser_add.add_argument("-f", "--flush", default=False, action="store_true",
+                            help="flush the pipeline before preparing "
+                            "the experiment")
     parser_add.add_argument("-e", "--experiment", default=None,
                             help="experiment to run")
     parser_add.add_argument("file",
@@ -106,7 +109,8 @@ def _action_submit(remote, args):
         due_date = None
     else:
         due_date = time.mktime(parse_date(args.timed).timetuple())
-    rid = remote.submit(args.pipeline, expid, args.priority, due_date)
+    rid = remote.submit(args.pipeline, expid,
+                        args.priority, due_date, args.flush)
     print("RID: {}".format(rid))
 
 
