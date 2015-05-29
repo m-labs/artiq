@@ -128,7 +128,7 @@ The communication parameters are 115200 8-N-1.
 
     * You can either set it by generating a flash storage image and then flash it: ::
 
-        $ ~/artiq-dev/artiq/frontend/artiq_mkfs.py flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
+        $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
         $ ~/artiq-dev/artiq/frontend/artiq_flash.sh -f flash_storage.img
 
     * Or you can set it via the runtime test mode command line
