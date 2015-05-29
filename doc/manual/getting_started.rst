@@ -1,6 +1,8 @@
 Getting started
 ===============
 
+.. _connecting-to-the-core-device:
+
 Connecting to the core device
 -----------------------------
 

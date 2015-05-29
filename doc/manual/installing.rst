@@ -168,6 +168,26 @@ The communication parameters are 115200 8-N-1.
 .. note:: The reset button of the KC705 board is the "CPU_RST" labeled button.
 .. warning:: Both those instructions will result in the flash storage being wiped out. However you can use the test mode to change the IP/MAC without erasing everything if you skip the "fserase" command.
 
+* (optional) Flash the ``idle`` kernel
+
+The ``idle`` kernel is the kernel (some piece of code running on the core device) which the core device runs whenever it is not connected to a PC via ethernet.
+This kernel is therefore stored in the :ref:`core device configuration flash storage <core-device-flash-storage>`.
+To flash the ``idle`` kernel:
+
+        * Compile the ``idle`` experiment:
+                The ``idle`` experiment's ``run()`` method must be a kernel: it must be decorated with the ``@kernel`` decorator (see :ref:`next topic <connecting-to-the-core-device>` for more information about kernels).
+
+                Moreover, since the core device is not connected to the PC: RPC are forbidden in this ``idle`` experiment.
+                ::
+
+                $ artiq_compile idle.py
+
+        * Write it into the core device configuration flash storage: ::
+
+                $ artiq_coreconfig -f idle_kernel idle.elf
+
+.. note:: You can find more information about how to use the ``artiq_coreconfig`` tool on the :ref:`Utilities <core-device-configuration-tool>` page.
+
 Installing the host-side software
 ---------------------------------
 
