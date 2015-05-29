@@ -217,30 +217,12 @@ Installing the host-side software
 .. note::
     Compilation of LLVM can take more than 30 min on some machines.
 
-* Install ARTIQ (without the GUI): ::
+* Install ARTIQ: ::
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/m-labs/artiq # if not already done
         $ cd artiq
         $ python3 setup.py develop --user
-
-* Install ARTIQ (with the GUI): ::
-
-        $ cd ~/artiq-dev
-        $ git clone https://github.com/m-labs/cairoplot3
-        $ cd cairoplot3
-        $ python3 setup.py install --user
-        $ cd -
-        $ git clone https://github.com/m-labs/gbulb
-        $ cd gbulb
-        $ python3 setup.py install --user
-        $ cd -
-        $ git clone https://github.com/m-labs/artiq # if not already done
-        $ cd artiq
-        $ ARTIQ_GUI=1 python3 setup.py develop --user
-
-.. note::
-    Use ARTIQ_GUI=1 to install GUI dependencies which are only supported on Linux for now, to install ARTIQ on Windows do not set ARTIQ_GUI.
 
 * Build the documentation: ::
 
