@@ -5,6 +5,7 @@ __pycache__
 *.bin
 *.elf
 *.fbi
+*.pyc
 soc/runtime/service_table.h
 doc/manual/_build
 /build
