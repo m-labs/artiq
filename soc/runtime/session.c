@@ -112,7 +112,6 @@ enum {
     REMOTEMSG_TYPE_RPC_REQUEST,
 
     REMOTEMSG_TYPE_FLASH_READ_REPLY,
-    REMOTEMSG_TYPE_FLASH_WRITE_REPLY,
     REMOTEMSG_TYPE_FLASH_OK_REPLY,
     REMOTEMSG_TYPE_FLASH_ERROR_REPLY
 };
@@ -259,9 +258,11 @@ static int process_input(void)
             value = key + key_len;
             ret = fs_write(key, value, value_len);
 
-            buffer_out[8] = REMOTEMSG_TYPE_FLASH_WRITE_REPLY;
-            buffer_out[9] = ret;
-            submit_output(10);
+            if(ret)
+                buffer_out[8] = REMOTEMSG_TYPE_FLASH_OK_REPLY;
+            else
+                buffer_out[8] = REMOTEMSG_TYPE_FLASH_ERROR_REPLY;
+            submit_output(9);
             break;
         }
         case REMOTEMSG_TYPE_FLASH_ERASE_REQUEST: {
