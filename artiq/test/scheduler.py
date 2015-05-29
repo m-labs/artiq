@@ -1,7 +1,7 @@
 import unittest
 import asyncio
 import sys
-from time import sleep
+from time import time, sleep
 
 from artiq import *
 from artiq.master.scheduler import Scheduler
@@ -59,7 +59,7 @@ class SchedulerCase(unittest.TestCase):
         scheduler = Scheduler(0, _handlers)
         expid = _get_expid("EmptyExperiment")
 
-        expect = _get_basic_steps(0, expid)
+        expect = _get_basic_steps(1, expid)
         done = asyncio.Event()
         expect_idx = 0
         def notify(notifier, mod):
@@ -72,8 +72,22 @@ class SchedulerCase(unittest.TestCase):
 
         loop = asyncio.get_event_loop()
         scheduler.start()
+
+        # Verify that a timed experiment far in the future does not
+        # get run, even if it has high priority.
+        late = time() + 100000
+        expect.insert(0,
+            {"action": "setitem", "key": 0, "value":
+                {"pipeline": "main", "status": "pending", "priority": 99,
+                 "expid": expid, "due_date": late, "flush": False},
+             "path": []})
+        scheduler.submit("main", expid, 99, late, False)
+
+        # This one (RID 1) gets run instead.
         scheduler.submit("main", expid, 0, None, False)
+
         loop.run_until_complete(done.wait())
+        scheduler.notifier.publish = None
         loop.run_until_complete(scheduler.stop())
 
     def test_pause(self):
