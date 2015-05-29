@@ -129,13 +129,20 @@ class Inferencer(algorithm.Transformer):
                 "expression of type {typeb}",
                 {"typeb": types.TypePrinter().name(typeb)},
                 locb)
-            diag = diagnostic.Diagnostic('fatal',
-                "cannot unify {typea} with {typeb}: {fraga} is incompatible with {fragb}",
-                {"typea": types.TypePrinter().name(typea),
-                 "typeb": types.TypePrinter().name(typeb),
-                 "fraga": types.TypePrinter().name(e.typea),
-                 "fragb": types.TypePrinter().name(e.typeb),},
-                loca, [locb], notes=[note1, note2])
+            if e.typea.find() == typea.find() and e.typeb.find() == typeb.find():
+                diag = diagnostic.Diagnostic('fatal',
+                    "cannot unify {typea} with {typeb}",
+                    {"typea": types.TypePrinter().name(typea),
+                     "typeb": types.TypePrinter().name(typeb)},
+                    loca, [locb], notes=[note1, note2])
+            else: # give more detail
+                diag = diagnostic.Diagnostic('fatal',
+                    "cannot unify {typea} with {typeb}: {fraga} is incompatible with {fragb}",
+                    {"typea": types.TypePrinter().name(typea),
+                     "typeb": types.TypePrinter().name(typeb),
+                     "fraga": types.TypePrinter().name(e.typea),
+                     "fragb": types.TypePrinter().name(e.typeb),},
+                    loca, [locb], notes=[note1, note2])
             self.engine.process(diag)
 
     def visit_FunctionDef(self, node):
