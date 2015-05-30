@@ -4,8 +4,9 @@ from . import asttyped, types
 # This visitor will be called for every node with a scope,
 # i.e.: class, function, comprehension, lambda
 class LocalExtractor(algorithm.Visitor):
-    def __init__(self, engine):
+    def __init__(self, env_stack, engine):
         super().__init__()
+        self.env_stack  = env_stack
         self.engine     = engine
 
         self.in_root    = False
@@ -103,6 +104,19 @@ class LocalExtractor(algorithm.Visitor):
         for name, loc in zip(node.names, node.name_locs):
             self._check_not_in(name, self.global_, 'global', 'nonlocal', loc)
             self._check_not_in(name, self.params, 'a parameter', 'nonlocal', loc)
+
+            found = False
+            for outer_env in reversed(self.env_stack):
+                if name in outer_env:
+                    found = True
+                    break
+            if not found:
+                diag = diagnostic.Diagnostic('fatal',
+                    "can't declare name '{name}' as nonlocal: it is not bound in any outer scope",
+                    {"name": name},
+                    loc, [node.keyword_loc])
+                self.engine.process(diag)
+
             self.nonlocal_.add(name)
 
     def visit_ExceptHandler(self, node):
@@ -146,7 +160,7 @@ class Inferencer(algorithm.Transformer):
             self.engine.process(diag)
 
     def visit_FunctionDef(self, node):
-        extractor = LocalExtractor(engine=self.engine)
+        extractor = LocalExtractor(env_stack=self.env_stack, engine=self.engine)
         extractor.visit(node)
 
         self.env_stack.append(extractor.typing_env)
