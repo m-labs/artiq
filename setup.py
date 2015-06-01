@@ -2,6 +2,7 @@
 
 from setuptools import setup, find_packages
 import sys
+import os
 
 if sys.version_info[:3] < (3, 4, 3):
     raise Exception("You need at least Python 3.4.3 to run ARTIQ")
@@ -44,6 +45,7 @@ setup(
     packages=find_packages(),
     namespace_packages=[],
     test_suite="artiq.test",
+    package_data={"artiq": [os.path.join("gui", "icon.png")]},
     ext_modules=[],
     entry_points={
         "console_scripts": scripts,

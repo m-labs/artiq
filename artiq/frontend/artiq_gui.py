@@ -8,6 +8,7 @@ import atexit
 # it has chosen.
 from quamash import QEventLoop, QtGui
 from pyqtgraph import dockarea
+import os
 
 from artiq.protocols.file_db import FlatFileDB
 from artiq.protocols.pc_rpc import AsyncioClient
@@ -17,6 +18,8 @@ from artiq.gui.parameters import ParametersDock
 from artiq.gui.schedule import ScheduleDock
 from artiq.gui.log import LogDock
 
+data_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                        "..", "gui")
 
 def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ GUI client")
@@ -51,6 +54,7 @@ def main():
     atexit.register(lambda: schedule_ctl.close_rpc())
 
     win = QtGui.QMainWindow()
+    win.setWindowIcon(QtGui.QIcon(os.path.join(data_dir, "icon.png")))
     area = dockarea.DockArea()
     win.setCentralWidget(area)
     status_bar = QtGui.QStatusBar()
