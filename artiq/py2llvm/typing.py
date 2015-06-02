@@ -216,6 +216,12 @@ class Inferencer(algorithm.Transformer):
                         node.targets[0].loc, node.value.loc)
         return node
 
+    def visit_AugAssign(self, node):
+        node = self.generic_visit(node)
+        self._unify(node.target.type, node.value.type,
+                    node.target.loc, node.value.loc)
+        return node
+
 class Printer(algorithm.Visitor):
     def __init__(self, buf):
         self.rewriter = source.Rewriter(buf)
