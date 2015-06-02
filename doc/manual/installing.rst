@@ -128,7 +128,7 @@ The communication parameters are 115200 8-N-1.
 
     * You can either set it by generating a flash storage image and then flash it: ::
 
-        $ ~/artiq-dev/artiq/frontend/artiq_mkfs.py flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
+        $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
         $ ~/artiq-dev/artiq/frontend/artiq_flash.sh -f flash_storage.img
 
     * Or you can set it via the runtime test mode command line
@@ -168,6 +168,26 @@ The communication parameters are 115200 8-N-1.
 .. note:: The reset button of the KC705 board is the "CPU_RST" labeled button.
 .. warning:: Both those instructions will result in the flash storage being wiped out. However you can use the test mode to change the IP/MAC without erasing everything if you skip the "fserase" command.
 
+* (optional) Flash the ``idle`` kernel
+
+The ``idle`` kernel is the kernel (some piece of code running on the core device) which the core device runs whenever it is not connected to a PC via ethernet.
+This kernel is therefore stored in the :ref:`core device configuration flash storage <core-device-flash-storage>`.
+To flash the ``idle`` kernel:
+
+        * Compile the ``idle`` experiment:
+                The ``idle`` experiment's ``run()`` method must be a kernel: it must be decorated with the ``@kernel`` decorator (see :ref:`next topic <connecting-to-the-core-device>` for more information about kernels).
+
+                Moreover, since the core device is not connected to the PC: RPC are forbidden in this ``idle`` experiment.
+                ::
+
+                $ artiq_compile idle.py
+
+        * Write it into the core device configuration flash storage: ::
+
+                $ artiq_coreconfig -f idle_kernel idle.elf
+
+.. note:: You can find more information about how to use the ``artiq_coreconfig`` tool on the :ref:`Utilities <core-device-configuration-tool>` page.
+
 Installing the host-side software
 ---------------------------------
 
@@ -197,30 +217,12 @@ Installing the host-side software
 .. note::
     Compilation of LLVM can take more than 30 min on some machines.
 
-* Install ARTIQ (without the GUI): ::
+* Install ARTIQ: ::
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/m-labs/artiq # if not already done
         $ cd artiq
         $ python3 setup.py develop --user
-
-* Install ARTIQ (with the GUI): ::
-
-        $ cd ~/artiq-dev
-        $ git clone https://github.com/m-labs/cairoplot3
-        $ cd cairoplot3
-        $ python3 setup.py install --user
-        $ cd -
-        $ git clone https://github.com/m-labs/gbulb
-        $ cd gbulb
-        $ python3 setup.py install --user
-        $ cd -
-        $ git clone https://github.com/m-labs/artiq # if not already done
-        $ cd artiq
-        $ ARTIQ_GUI=1 python3 setup.py develop --user
-
-.. note::
-    Use ARTIQ_GUI=1 to install GUI dependencies which are only supported on Linux for now, to install ARTIQ on Windows do not set ARTIQ_GUI.
 
 * Build the documentation: ::
 

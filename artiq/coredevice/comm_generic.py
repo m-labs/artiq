@@ -43,9 +43,8 @@ class _D2HMsgType(Enum):
     RPC_REQUEST = 10
 
     FLASH_READ_REPLY = 11
-    FLASH_WRITE_REPLY = 12
-    FLASH_OK_REPLY = 13
-    FLASH_ERROR_REPLY = 14
+    FLASH_OK_REPLY = 12
+    FLASH_ERROR_REPLY = 13
 
 
 class UnsupportedDevice(Exception):
@@ -148,14 +147,11 @@ class CommGeneric:
         self.write(b"\x00")
         self.write(value)
         _, ty = self._read_header()
-        if ty != _D2HMsgType.FLASH_WRITE_REPLY:
+        if ty != _D2HMsgType.FLASH_OK_REPLY:
             if ty == _D2HMsgType.FLASH_ERROR_REPLY:
-                raise IOError("Invalid key: not a null-terminated string")
+                raise IOError("Flash storage is full")
             else:
                 raise IOError("Incorrect reply from device: {}".format(ty))
-        ret = self.read(1)
-        if ret != b"\x01":
-            raise IOError("Flash storage is full")
 
     def flash_storage_erase(self):
         self._write_header(9, _H2DMsgType.FLASH_ERASE_REQUEST)

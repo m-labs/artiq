@@ -117,12 +117,11 @@ To write the value ``test_value`` in the key ``my_key``::
     $ artiq_coreconfig -r my_key
     b'test_value'
 
-You can also write entire files in a record using the ``-f`` parameter::
+You can also write entire files in a record using the ``-f`` parameter. This is useful for instance to write the ``idle`` kernel in the flash storage::
 
-    $ echo "this_is_a_test" > my_filename
-    $ artiq_coreconfig -f my_key my_filename
-    $ artiq_coreconfig -r my_key
-    b'this_is_a_test\n'
+    $ artiq_coreconfig -f idle_kernel idle.elf
+    $ artiq_coreconfig -r idle_kernel | head -c9
+    b'\x7fELF
 
 You can write several records at once::
 

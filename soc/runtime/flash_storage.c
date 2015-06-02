@@ -284,7 +284,7 @@ unsigned int fs_read(char *key, void *buffer, unsigned int buf_len, unsigned int
             memcpy(buffer, record.value, min(record.value_len, buf_len));
             read_length = min(record.value_len, buf_len);
             if(remain)
-                *remain = max(0, (int)(record.value_len) - (int)buf_len);
+                *remain = max(0, (int)record.value_len - (int)buf_len);
         }
     }
 
