@@ -39,7 +39,7 @@ class DAQmx:
             return False
         return True
 
-    def load_sample_values(self, values):
+    def load_sample_values(self, sampling_freq, values):
         """Load sample values into PXI 6733 device.
 
         This loads sample values into the PXI 6733 device and then
@@ -49,6 +49,7 @@ class DAQmx:
         A callback is registered to clear the task (deallocate resources)
         when the task has completed.
 
+        :param sampling_freq: The sampling frequency in samples per second.
         :param values: A numpy array of sample values to load in the device.
         """
 
@@ -56,7 +57,8 @@ class DAQmx:
         t.CreateAOVoltageChan(self.device+b"/"+self.analog_output, b"",
                               min(values), max(values),
                               self.daq.DAQmx_Val_Volts, None)
-        t.CfgSampClkTiming(self.clock, 1000.0, self.daq.DAQmx_Val_Rising,
+        t.CfgSampClkTiming(self.clock, sampling_freq,
+                           self.daq.DAQmx_Val_Rising,
                            self.daq.DAQmx_Val_FiniteSamps, len(values))
         num_samps_written = self.daq.int32()
         values = np.require(values, dtype=float,
