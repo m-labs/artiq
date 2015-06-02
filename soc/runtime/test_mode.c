@@ -47,7 +47,7 @@ static void clksrc(char *value)
         return;
     }
 
-    rtiocrg_clock_sel_write(value2);
+    rtio_crg_clock_sel_write(value2);
 }
 
 static void ttloe(char *n, char *value)

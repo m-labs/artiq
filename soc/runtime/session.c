@@ -154,7 +154,7 @@ static int process_input(void)
                 submit_output(9);
                 break;    
             }
-            rtiocrg_clock_sel_write(buffer_in[9]);
+            rtio_crg_clock_sel_write(buffer_in[9]);
             buffer_out[8] = REMOTEMSG_TYPE_CLOCK_SWITCH_COMPLETED;
             submit_output(9);
             break;

@@ -7,6 +7,7 @@ from artiq.gateware.rtio import rtlink
 class Output(Module):
     def __init__(self, pad):
         self.rtlink = rtlink.Interface(rtlink.OInterface(1))
+        self.probes = [pad]
 
         # # #
 
@@ -18,6 +19,7 @@ class Inout(Module):
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(2, 2),
             rtlink.IInterface(1))
+        self.probes = []
 
         # # #
         
@@ -43,3 +45,5 @@ class Inout(Module):
             ),
             self.rtlink.i.data.eq(i)
         ]
+
+        self.probes += [i, ts.oe]

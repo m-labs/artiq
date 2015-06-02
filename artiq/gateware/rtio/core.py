@@ -247,8 +247,9 @@ class _InputManager(Module):
 
 
 class Channel:
-    def __init__(self, interface, ofifo_depth=64, ififo_depth=64):
+    def __init__(self, interface, probes=[], ofifo_depth=64, ififo_depth=64):
         self.interface = interface
+        self.probes = probes
         self.ofifo_depth = ofifo_depth
         self.ififo_depth = ififo_depth
 

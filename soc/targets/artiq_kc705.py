@@ -35,8 +35,9 @@ class _RTIOCRG(Module, AutoCSR):
 class NIST_QC1(MiniSoC, AMPSoC):
     csr_map = {
         "rtio": None,  # mapped on Wishbone instead
-        "rtiocrg": 13,
-        "kernel_cpu": 14
+        "rtio_crg": 13,
+        "kernel_cpu": 14,
+        "rtio_mon": 15
     }
     csr_map.update(MiniSoC.csr_map)
     mem_map = {
@@ -65,15 +66,16 @@ class NIST_QC1(MiniSoC, AMPSoC):
         for i in range(2):
             phy = ttl_simple.Inout(platform.request("pmt", i))
             self.submodules += phy
-            rtio_channels.append(rtio.Channel(phy.rtlink, ififo_depth=512))
+            rtio_channels.append(rtio.Channel(phy.rtlink, phy.probes,
+                                              ififo_depth=512))
         for i in range(16):
             phy = ttl_simple.Output(platform.request("ttl", i))
             self.submodules += phy
-            rtio_channels.append(rtio.Channel(phy.rtlink))
+            rtio_channels.append(rtio.Channel(phy.rtlink, phy.probes))
 
         phy = ttl_simple.Output(platform.request("user_led", 2))
         self.submodules += phy
-        rtio_channels.append(rtio.Channel(phy.rtlink))
+        rtio_channels.append(rtio.Channel(phy.rtlink, phy.probes))
 
         self.add_constant("RTIO_DDS_CHANNEL", len(rtio_channels))
         self.submodules.dds = RenameClockDomains(
@@ -84,11 +86,11 @@ class NIST_QC1(MiniSoC, AMPSoC):
         rtio_channels.append(rtio.Channel(phy.rtlink, ififo_depth=4))
 
         # RTIO core
-        self.submodules.rtiocrg = _RTIOCRG(platform, self.crg.pll_sys)
+        self.submodules.rtio_crg = _RTIOCRG(platform, self.crg.pll_sys)
         self.submodules.rtio = rtio.RTIO(rtio_channels,
                                          clk_freq=125000000)
         self.add_constant("RTIO_FINE_TS_WIDTH", self.rtio.fine_ts_width)
-
+        self.submodules.rtio_mon = rtio.Monitor(rtio_channels)
 
         if isinstance(platform.toolchain, XilinxVivadoToolchain):
             platform.add_platform_command("""
