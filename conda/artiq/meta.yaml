@@ -27,13 +27,13 @@ build:
 
 requirements:
     build:
-        - python
+        - python >=3.4.3
         - setuptools
         - numpy
         - migen
         - pyelftools
     run:
-        - python
+        - python >=3.4.3
         - llvmlite-or1k
         - scipy
         - numpy
