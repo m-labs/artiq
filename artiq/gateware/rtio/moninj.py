@@ -2,6 +2,7 @@ from migen.fhdl.std import *
 from migen.bank.description import *
 from migen.genlib.cdc import BusSynchronizer
 
+
 class Monitor(Module, AutoCSR):
     def __init__(self, channels):
         chan_probes = [c.probes for c in channels]

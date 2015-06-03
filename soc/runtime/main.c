@@ -28,6 +28,7 @@
 #include "test_mode.h"
 #include "kserver.h"
 #include "session.h"
+#include "moninj.h"
 
 static void common_init(void)
 {
@@ -139,6 +140,7 @@ static void regular_main(void)
     puts("Accepting sessions on Ethernet.");
     network_init();
     kserver_init();
+    moninj_init();
 
     session_end();
     while(1) {

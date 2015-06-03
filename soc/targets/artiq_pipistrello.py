@@ -111,6 +111,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
             phy = ttl_simple.Output(platform.request("user_led", i))
             self.submodules += phy
             rtio_channels.append(rtio.Channel(phy.rtlink, phy.probes))
+        self.add_constant("RTIO_TTL_COUNT", len(rtio_channels))
 
         self.add_constant("RTIO_DDS_CHANNEL", len(rtio_channels))
         self.submodules.dds = RenameClockDomains(
