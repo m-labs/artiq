@@ -1,5 +1,6 @@
 import unittest
 import asyncio
+import numpy as np
 
 from artiq.protocols import sync_struct
 
@@ -9,8 +10,14 @@ test_port = 7777
 
 @asyncio.coroutine
 def write_test_data(test_dict):
+    test_values = [5, 2.1, None, True, False,
+                   {"a": 5, 2: np.linspace(0, 10, 1)},
+                   (4, 5), (10,), "ab\nx\"'"]
     for i in range(10):
         test_dict[str(i)] = i
+    for key, value in enumerate(test_values):
+        test_dict[key] = value
+    test_dict[1.5] = 1.5
     test_dict["Finished"] = True
 
 
@@ -30,9 +37,8 @@ class SyncStructCase(unittest.TestCase):
         return init
 
     def notify(self, mod):
-        print("mod: {}".format(mod))
         if (mod["action"] == "init" and "Finished" in mod["struct"])\
-            or (mod["action"] == "setitem" and mod["key"] == "Finished"):
+           or (mod["action"] == "setitem" and mod["key"] == "Finished"):
             self.receiving_done.set()
 
     def setUp(self):
