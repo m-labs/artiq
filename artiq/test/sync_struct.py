@@ -24,7 +24,7 @@ def start_server(publisher_future, test_dict_future):
     test_dict_future.set_result(test_dict)
 
 
-class RPCCase(unittest.TestCase):
+class SyncStructCase(unittest.TestCase):
     def init_test_dict(self, init):
         self.test_dict = init
         return init
