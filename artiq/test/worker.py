@@ -40,6 +40,8 @@ def _call_worker(worker, expid):
 
 
 def _run_experiment(experiment):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     expid = {
         "file": sys.modules[__name__].__file__,
         "experiment": experiment,
@@ -50,8 +52,8 @@ def _run_experiment(experiment):
     }
 
     worker = Worker(handlers)
-    loop = asyncio.get_event_loop()
     loop.run_until_complete(_call_worker(worker, expid))
+    loop.close()
 
 
 class WatchdogCase(unittest.TestCase):

@@ -35,9 +35,12 @@ class SyncStructCase(unittest.TestCase):
                 or "Finished" not in self.test_dict.keys():
             yield from asyncio.sleep(0.5)
 
+    def setUp(self):
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+
     def test_recv(self):
-        self.loop = loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        loop = self.loop
         publisher = asyncio.Future()
         test_dict = asyncio.Future()
         asyncio.async(start_server(publisher, test_dict))
@@ -55,8 +58,8 @@ class SyncStructCase(unittest.TestCase):
                                                         test_port))
         loop.run_until_complete(self.do_recv())
         self.assertEqual(self.test_dict, test_vector)
-
-    def tearDown(self):
         self.loop.run_until_complete(self.subscriber.close())
         self.loop.run_until_complete(self.publisher.stop())
+
+    def tearDown(self):
         self.loop.close()

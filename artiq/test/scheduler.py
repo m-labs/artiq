@@ -55,7 +55,12 @@ _handlers = {
 
 
 class SchedulerCase(unittest.TestCase):
+    def setUp(self):
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+
     def test_steps(self):
+        loop = self.loop
         scheduler = Scheduler(0, _handlers)
         expid = _get_expid("EmptyExperiment")
 
@@ -70,7 +75,6 @@ class SchedulerCase(unittest.TestCase):
                 done.set()
         scheduler.notifier.publish = notify
 
-        loop = asyncio.get_event_loop()
         scheduler.start()
 
         # Verify that a timed experiment far in the future does not
@@ -91,6 +95,7 @@ class SchedulerCase(unittest.TestCase):
         loop.run_until_complete(scheduler.stop())
 
     def test_pause(self):
+        loop = self.loop
         scheduler = Scheduler(0, _handlers)
         expid_bg = _get_expid("BackgroundExperiment")
         expid = _get_expid("EmptyExperiment")
@@ -113,7 +118,6 @@ class SchedulerCase(unittest.TestCase):
                     done.set()
         scheduler.notifier.publish = notify
 
-        loop = asyncio.get_event_loop()
         scheduler.start()
         scheduler.submit("main", expid_bg, -99, None, False)
         loop.run_until_complete(background_running.wait())
@@ -122,6 +126,7 @@ class SchedulerCase(unittest.TestCase):
         loop.run_until_complete(scheduler.stop())
 
     def test_flush(self):
+        loop = self.loop
         scheduler = Scheduler(0, _handlers)
         expid = _get_expid("EmptyExperiment")
 
@@ -147,10 +152,12 @@ class SchedulerCase(unittest.TestCase):
                     done.set()
         scheduler.notifier.publish = notify
 
-        loop = asyncio.get_event_loop()
         scheduler.start()
         scheduler.submit("main", expid, 0, None, False)
         loop.run_until_complete(first_preparing.wait())
         scheduler.submit("main", expid, 1, None, True)
         loop.run_until_complete(done.wait())
         loop.run_until_complete(scheduler.stop())
+
+    def tearDown(self):
+        self.loop.close()
