@@ -29,11 +29,11 @@ class SyncStructCase(unittest.TestCase):
         self.test_dict = init
         return init
 
-    @asyncio.coroutine
-    def do_recv(self):
-        while not hasattr(self, "test_dict")\
-                or "Finished" not in self.test_dict.keys():
-            yield from asyncio.sleep(0.5)
+    def notify(self, mod):
+        print("mod: {}".format(mod))
+        if (mod["action"] == "init" and "Finished" in mod["struct"])\
+            or (mod["action"] == "setitem" and mod["key"] == "Finished"):
+            self.receiving_done.set()
 
     def setUp(self):
         self.loop = asyncio.new_event_loop()
@@ -41,6 +41,7 @@ class SyncStructCase(unittest.TestCase):
 
     def test_recv(self):
         loop = self.loop
+        self.receiving_done = asyncio.Event()
         publisher = asyncio.Future()
         test_dict = asyncio.Future()
         asyncio.async(start_server(publisher, test_dict))
@@ -53,10 +54,11 @@ class SyncStructCase(unittest.TestCase):
         loop.run_until_complete(write_test_data(test_vector))
 
         asyncio.async(write_test_data(test_dict))
-        self.subscriber = sync_struct.Subscriber("test", self.init_test_dict)
+        self.subscriber = sync_struct.Subscriber("test", self.init_test_dict,
+                                                 self.notify)
         loop.run_until_complete(self.subscriber.connect(test_address,
                                                         test_port))
-        loop.run_until_complete(self.do_recv())
+        loop.run_until_complete(self.receiving_done.wait())
         self.assertEqual(self.test_dict, test_vector)
         self.loop.run_until_complete(self.subscriber.close())
         self.loop.run_until_complete(self.publisher.stop())
