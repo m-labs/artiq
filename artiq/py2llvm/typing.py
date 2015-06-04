@@ -131,18 +131,26 @@ class Inferencer(algorithm.Transformer):
         self.engine = engine
         self.env_stack = [{}]
 
-    def _unify(self, typea, typeb, loca, locb):
+    def _unify(self, typea, typeb, loca, locb, kind):
         try:
             typea.unify(typeb)
         except types.UnificationError as e:
-            note1 = diagnostic.Diagnostic('note',
-                "expression of type {typea}",
-                {"typea": types.TypePrinter().name(typea)},
-                loca)
+            if kind == 'generic':
+                note1 = diagnostic.Diagnostic('note',
+                    "expression of type {typea}",
+                    {"typea": types.TypePrinter().name(typea)},
+                    loca)
+            elif kind == 'expects':
+                note1 = diagnostic.Diagnostic('note',
+                    "expression expecting an operand of type {typea}",
+                    {"typea": types.TypePrinter().name(typea)},
+                    loca)
+
             note2 = diagnostic.Diagnostic('note',
                 "expression of type {typeb}",
                 {"typeb": types.TypePrinter().name(typeb)},
                 locb)
+
             if e.typea.find() == typea.find() and e.typeb.find() == typeb.find():
                 diag = diagnostic.Diagnostic('fatal',
                     "cannot unify {typea} with {typeb}",
@@ -198,7 +206,7 @@ class Inferencer(algorithm.Transformer):
             typ = types.TFloat()
         else:
             diag = diagnostic.Diagnostic('fatal',
-                "numeric type {type} is not supported", node.n.__class__.__name__,
+                "numeric type {type} is not supported", {"type": node.n.__class__.__name__},
                 node.loc)
             self.engine.process(diag)
         return asttyped.NumT(type=typ,
@@ -219,7 +227,7 @@ class Inferencer(algorithm.Transformer):
                               elts=node.elts, ctx=node.ctx, loc=node.loc)
         for elt in node.elts:
             self._unify(node.type['elt'], elt.type,
-                        node.loc, elt.loc)
+                        node.loc, elt.loc, kind='expects')
         return node
 
     # Visitors that just unify types
@@ -257,7 +265,8 @@ class Printer(algorithm.Visitor):
 
     def generic_visit(self, node):
         if hasattr(node, 'type'):
-            self.rewriter.insert_after(node.loc, ":%s" % self.type_printer.name(node.type))
+            self.rewriter.insert_after(node.loc,
+                                       ":%s" % self.type_printer.name(node.type))
 
         super().generic_visit(node)
 
