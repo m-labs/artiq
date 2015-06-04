@@ -40,21 +40,18 @@ def _call_worker(worker, expid):
 
 
 def _run_experiment(experiment):
-    try:
-        expid = {
-            "file": sys.modules[__name__].__file__,
-            "experiment": experiment,
-            "arguments": dict()
-        }
-        handlers = {
-            "init_rt_results": lambda description: None
-        }
+    expid = {
+        "file": sys.modules[__name__].__file__,
+        "experiment": experiment,
+        "arguments": dict()
+    }
+    handlers = {
+        "init_rt_results": lambda description: None
+    }
 
-        loop = asyncio.get_event_loop()
-        worker = Worker(handlers)
-        loop.run_until_complete(_call_worker(worker, expid))
-    finally:
-        loop.close()
+    loop = asyncio.get_event_loop()
+    worker = Worker(handlers)
+    loop.run_until_complete(_call_worker(worker, expid))
 
 
 class WatchdogCase(unittest.TestCase):
