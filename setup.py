@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
 from setuptools import setup, find_packages
+import sys
 
+if sys.version_info[:3] < (3, 4, 3):
+    raise Exception("You need at least Python 3.4.3 to run ARTIQ")
 
 requirements = [
     "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
