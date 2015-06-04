@@ -18,7 +18,7 @@ def write_test_data(test_dict):
     for key, value in enumerate(test_values):
         test_dict[key] = value
     test_dict[1.5] = 1.5
-    test_dict["Finished"] = True
+    test_dict["finished"] = True
 
 
 @asyncio.coroutine
@@ -37,8 +37,8 @@ class SyncStructCase(unittest.TestCase):
         return init
 
     def notify(self, mod):
-        if (mod["action"] == "init" and "Finished" in mod["struct"])\
-           or (mod["action"] == "setitem" and mod["key"] == "Finished"):
+        if (mod["action"] == "init" and "finished" in mod["struct"])\
+           or (mod["action"] == "setitem" and mod["key"] == "finished"):
             self.receiving_done.set()
 
     def setUp(self):

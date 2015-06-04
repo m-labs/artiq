@@ -177,7 +177,7 @@ To flash the ``idle`` kernel:
         * Compile the ``idle`` experiment:
                 The ``idle`` experiment's ``run()`` method must be a kernel: it must be decorated with the ``@kernel`` decorator (see :ref:`next topic <connecting-to-the-core-device>` for more information about kernels).
 
-                Moreover, since the core device is not connected to the PC: RPC are forbidden in this ``idle`` experiment.
+                Since the core device is not connected to the PC, RPCs (calling Python code running on the PC from the kernel) are forbidden in the ``idle`` experiment.
                 ::
 
                 $ artiq_compile idle.py
