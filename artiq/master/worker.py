@@ -7,7 +7,8 @@ import time
 
 from artiq.protocols import pyon
 from artiq.language.units import strip_unit
-from artiq.tools import asyncio_process_wait_timeout, asyncio_wait_or_cancel
+from artiq.tools import (asyncio_process_wait_timeout, asyncio_process_wait,
+                         asyncio_wait_or_cancel)
 
 
 logger = logging.getLogger(__name__)
@@ -101,6 +102,7 @@ class Worker:
                 logger.warning("failed to send terminate command to worker"
                                " (RID %d), killing", self.rid, exc_info=True)
                 self.process.kill()
+                yield from asyncio_process_wait(self.process)
                 return
             try:
                 yield from asyncio_process_wait_timeout(self.process,
@@ -108,6 +110,7 @@ class Worker:
             except asyncio.TimeoutError:
                 logger.warning("worker did not exit (RID %d), killing", self.rid)
                 self.process.kill()
+                yield from asyncio_process_wait(self.process)
             else:
                 logger.debug("worker exited gracefully (RID %d)", self.rid)
         finally:

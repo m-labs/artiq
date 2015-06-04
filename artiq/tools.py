@@ -18,6 +18,7 @@ def parse_arguments(arguments):
         d[name] = pyon.decode(value)
     return d
 
+
 def format_arguments(arguments):
     fmtargs = []
     for k, v in sorted(arguments.items(), key=itemgetter(0)):
@@ -96,6 +97,14 @@ def asyncio_process_wait_timeout(process, timeout):
         r = yield from asyncio.wait_for(
                 process.stdout.read(1024),
                 timeout=end_time - time.monotonic())
+
+
+@asyncio.coroutine
+def asyncio_process_wait(process):
+    r = True
+    while r:
+        f, p = yield from asyncio.wait([process.stdout.read(1024)])
+        r = f.pop().result()
 
 
 @asyncio.coroutine
