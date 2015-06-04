@@ -255,6 +255,34 @@ class Inferencer(algorithm.Transformer):
                     node.target.loc, node.iter.loc)
         return node
 
+    # Unsupported visitors
+    #
+    def visit_unsupported(self, node):
+        diag = diagnostic.Diagnostic('fatal',
+            "this syntax is not supported", {},
+            node.loc)
+        self.engine.process(diag)
+
+    visit_Attribute = visit_unsupported
+    visit_BinOp = visit_unsupported
+    visit_BoolOp = visit_unsupported
+    visit_Call = visit_unsupported
+    visit_Compare = visit_unsupported
+    visit_Dict = visit_unsupported
+    visit_DictComp = visit_unsupported
+    visit_Ellipsis = visit_unsupported
+    visit_GeneratorExp = visit_unsupported
+    visit_IfExp = visit_unsupported
+    visit_Lambda = visit_unsupported
+    visit_ListComp = visit_unsupported
+    visit_Set = visit_unsupported
+    visit_SetComp = visit_unsupported
+    visit_Str = visit_unsupported
+    visit_Starred = visit_unsupported
+    visit_UnaryOp = visit_unsupported
+    visit_Yield = visit_unsupported
+    visit_YieldFrom = visit_unsupported
+
 class Printer(algorithm.Visitor):
     def __init__(self, buf):
         self.rewriter = source.Rewriter(buf)
