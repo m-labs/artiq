@@ -75,6 +75,11 @@ class Worker:
 
     @asyncio.coroutine
     def close(self):
+        """Interrupts any I/O with the worker process and terminates the
+        worker process.
+
+        This method should always be called by the user to clean up, even if
+        prepare() raises an exception."""
         self.closed.set()
         yield from self.io_lock.acquire()
         try:
