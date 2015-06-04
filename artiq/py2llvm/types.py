@@ -86,6 +86,9 @@ class TMono(Type):
     def __repr__(self):
         return "TMono(%s, %s)" % (repr(self.name), repr(self.params))
 
+    def __getitem__(self, param):
+        return self.params[param]
+
     def __eq__(self, other):
         return isinstance(other, TMono) and \
                 self.name == other.name and \
@@ -150,13 +153,21 @@ def TBool():
     """A boolean type."""
     return TMono("bool")
 
-def TInt(width=TVar()):
+def TInt(width=None):
     """A generic integer type."""
+    if width is None:
+        width = TVar()
     return TMono("int", {"width": width})
 
 def TFloat():
     """A double-precision floating point type."""
     return TMono("float")
+
+def TList(elt=None):
+    """A generic list type."""
+    if elt is None:
+        elt = TVar()
+    return TMono("list", {"elt": elt})
 
 
 class TypePrinter(object):

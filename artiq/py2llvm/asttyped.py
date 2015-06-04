@@ -22,32 +22,61 @@ class scoped(object):
         list of variables resolved as globals
     """
 
-class ClassDefT(ast.ClassDef, scoped):
-    pass
-
-class FunctionDefT(ast.FunctionDef, scoped):
-    pass
-
-class LambdaT(ast.Lambda, scoped):
-    pass
-
-class DictCompT(ast.DictComp, scoped):
-    pass
-
-class ListCompT(ast.ListComp, scoped):
-    pass
-
-class SetCompT(ast.SetComp, scoped):
-    pass
-
 class argT(ast.arg, commontyped):
     pass
 
-class NumT(ast.Num, commontyped):
+class ClassDefT(ast.ClassDef, scoped):
+    pass
+class FunctionDefT(ast.FunctionDef, scoped):
     pass
 
+class AttributeT(ast.Attribute, commontyped):
+    pass
+class BinOpT(ast.BinOp, commontyped):
+    pass
+class BoolOpT(ast.BoolOp, commontyped):
+    pass
+class CallT(ast.Call, commontyped):
+    pass
+class CompareT(ast.Compare, commontyped):
+    pass
+class DictT(ast.Dict, commontyped):
+    pass
+class DictCompT(ast.DictComp, commontyped, scoped):
+    pass
+class EllipsisT(ast.Ellipsis, commontyped):
+    pass
+class GeneratorExpT(ast.GeneratorExp, commontyped, scoped):
+    pass
+class IfExpT(ast.IfExp, commontyped):
+    pass
+class LambdaT(ast.Lambda, commontyped, scoped):
+    pass
+class ListT(ast.List, commontyped):
+    pass
+class ListCompT(ast.ListComp, commontyped, scoped):
+    pass
 class NameT(ast.Name, commontyped):
     pass
-
 class NameConstantT(ast.NameConstant, commontyped):
+    pass
+class NumT(ast.Num, commontyped):
+    pass
+class SetT(ast.Set, commontyped):
+    pass
+class SetCompT(ast.SetComp, commontyped, scoped):
+    pass
+class StrT(ast.Str, commontyped):
+    pass
+class StarredT(ast.Starred, commontyped):
+    pass
+class SubscriptT(ast.Subscript, commontyped):
+    pass
+class TupleT(ast.Tuple, commontyped):
+    pass
+class UnaryOpT(ast.UnaryOp, commontyped):
+    pass
+class YieldT(ast.Yield, commontyped):
+    pass
+class YieldFromT(ast.YieldFrom, commontyped):
     pass

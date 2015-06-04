@@ -184,6 +184,8 @@ class Inferencer(algorithm.Transformer):
             "name '{name}' is not bound to anything", {"name":name}, loc)
         self.engine.process(diag)
 
+    # Visitors that replace node with a typed node
+    #
     def visit_arg(self, node):
         return asttyped.argT(type=self._find_name(node.arg, node.loc),
                              arg=node.arg, annotation=self.visit(node.annotation),
@@ -206,6 +208,22 @@ class Inferencer(algorithm.Transformer):
         return asttyped.NameT(type=self._find_name(node.id, node.loc),
                               id=node.id, ctx=node.ctx, loc=node.loc)
 
+    def visit_Tuple(self, node):
+        node = self.generic_visit(node)
+        return asttyped.TupleT(type=types.TTuple([x.type for x in node.elts]),
+                               elts=node.elts, ctx=node.ctx, loc=node.loc)
+
+    def visit_List(self, node):
+        node = self.generic_visit(node)
+        node = asttyped.ListT(type=types.TList(),
+                              elts=node.elts, ctx=node.ctx, loc=node.loc)
+        for elt in node.elts:
+            self._unify(node.type['elt'], elt.type,
+                        node.loc, elt.loc)
+        return node
+
+    # Visitors that just unify types
+    #
     def visit_Assign(self, node):
         node = self.generic_visit(node)
         if len(node.targets) > 1:
@@ -222,6 +240,13 @@ class Inferencer(algorithm.Transformer):
                     node.target.loc, node.value.loc)
         return node
 
+    def visit_For(self, node):
+        node = self.generic_visit(node)
+        # TODO: support more than just lists
+        self._unify(TList(node.target.type), node.iter.type,
+                    node.target.loc, node.iter.loc)
+        return node
+
 class Printer(algorithm.Visitor):
     def __init__(self, buf):
         self.rewriter = source.Rewriter(buf)
@@ -232,7 +257,7 @@ class Printer(algorithm.Visitor):
 
     def generic_visit(self, node):
         if hasattr(node, 'type'):
-            self.rewriter.insert_after(node.loc, " : %s" % self.type_printer.name(node.type))
+            self.rewriter.insert_after(node.loc, ":%s" % self.type_printer.name(node.type))
 
         super().generic_visit(node)
 
