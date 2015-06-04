@@ -303,7 +303,7 @@ class Printer(algorithm.Visitor):
     def generic_visit(self, node):
         if hasattr(node, 'type'):
             self.rewriter.insert_after(node.loc,
-                                       ":%s" % self.type_printer.name(node.type))
+                                       ":%s".format(self.type_printer.name(node.type)))
 
         super().generic_visit(node)
 
