@@ -80,6 +80,8 @@ class TMono(Type):
             assert self.params.keys() == other.params.keys()
             for param in self.params:
                 self.params[param].unify(other.params[param])
+        elif isinstance(other, TVar):
+            other.unify(self)
         else:
             raise UnificationError(self, other)
 
@@ -110,6 +112,8 @@ class TTuple(Type):
         if isinstance(other, TTuple) and len(self.elts) == len(other.elts):
             for selfelt, otherelt in zip(self.elts, other.elts):
                 selfelt.unify(otherelt)
+        elif isinstance(other, TVar):
+            other.unify(self)
         else:
             raise UnificationError(self, other)
 
@@ -136,7 +140,9 @@ class TValue(Type):
         return self
 
     def unify(self, other):
-        if self != other:
+        if isinstance(other, TVar):
+            other.unify(self)
+        elif self != other:
             raise UnificationError(self, other)
 
     def __repr__(self):
