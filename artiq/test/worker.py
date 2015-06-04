@@ -31,8 +31,8 @@ class WatchdogTimeoutInBuild(Experiment, AutoDB):
 
 @asyncio.coroutine
 def _call_worker(worker, expid):
-    yield from worker.prepare(0, "main", expid, 0)
     try:
+        yield from worker.prepare(0, "main", expid, 0)
         yield from worker.run()
         yield from worker.analyze()
     finally:
@@ -58,7 +58,7 @@ def _run_experiment(experiment):
 
 class WatchdogCase(unittest.TestCase):
     def test_watchdog_no_timeout(self):
-       _run_experiment("WatchdogNoTimeout")
+        _run_experiment("WatchdogNoTimeout")
 
     def test_watchdog_timeout(self):
         with self.assertRaises(WorkerWatchdogTimeout):
