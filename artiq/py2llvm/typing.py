@@ -135,35 +135,34 @@ class Inferencer(algorithm.Transformer):
         try:
             typea.unify(typeb)
         except types.UnificationError as e:
+            printer = types.TypePrinter()
+
             if kind == 'generic':
                 note1 = diagnostic.Diagnostic('note',
                     "expression of type {typea}",
-                    {"typea": types.TypePrinter().name(typea)},
+                    {"typea": printer.name(typea)},
                     loca)
             elif kind == 'expects':
                 note1 = diagnostic.Diagnostic('note',
                     "expression expecting an operand of type {typea}",
-                    {"typea": types.TypePrinter().name(typea)},
+                    {"typea": printer.name(typea)},
                     loca)
 
             note2 = diagnostic.Diagnostic('note',
                 "expression of type {typeb}",
-                {"typeb": types.TypePrinter().name(typeb)},
+                {"typeb": printer.name(typeb)},
                 locb)
 
             if e.typea.find() == typea.find() and e.typeb.find() == typeb.find():
                 diag = diagnostic.Diagnostic('fatal',
                     "cannot unify {typea} with {typeb}",
-                    {"typea": types.TypePrinter().name(typea),
-                     "typeb": types.TypePrinter().name(typeb)},
+                    {"typea": printer.name(typea), "typeb": printer.name(typeb)},
                     loca, [locb], notes=[note1, note2])
             else: # give more detail
                 diag = diagnostic.Diagnostic('fatal',
                     "cannot unify {typea} with {typeb}: {fraga} is incompatible with {fragb}",
-                    {"typea": types.TypePrinter().name(typea),
-                     "typeb": types.TypePrinter().name(typeb),
-                     "fraga": types.TypePrinter().name(e.typea),
-                     "fragb": types.TypePrinter().name(e.typeb),},
+                    {"typea": printer.name(typea),   "typeb": printer.name(typeb),
+                     "fraga": printer.name(e.typea), "fragb": printer.name(e.typeb)},
                     loca, [locb], notes=[note1, note2])
             self.engine.process(diag)
 
@@ -228,6 +227,16 @@ class Inferencer(algorithm.Transformer):
         for elt in node.elts:
             self._unify(node.type['elt'], elt.type,
                         node.loc, elt.loc, kind='expects')
+        return node
+
+    def visit_Subscript(self, node):
+        node = self.generic_visit(node)
+        node = asttyped.SubscriptT(type=types.TVar(),
+                                   value=node.value, slice=node.slice, ctx=node.ctx,
+                                   loc=node.loc)
+        # TODO: support more than just lists
+        self._unify(types.TList(node.type), node.value.type,
+                    node.loc, node.value.loc, kind='expects')
         return node
 
     # Visitors that just unify types
