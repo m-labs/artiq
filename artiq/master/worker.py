@@ -101,8 +101,6 @@ class Worker:
                 logger.warning("failed to send terminate command to worker"
                                " (RID %d), killing", self.rid, exc_info=True)
                 self.process.kill()
-                # Wait for process to terminate
-                yield from self.process.communicate()
                 return
             try:
                 yield from asyncio_process_wait_timeout(self.process,
@@ -110,8 +108,6 @@ class Worker:
             except asyncio.TimeoutError:
                 logger.warning("worker did not exit (RID %d), killing", self.rid)
                 self.process.kill()
-                # Wait for process to terminate
-                yield from self.process.communicate()
             else:
                 logger.debug("worker exited gracefully (RID %d)", self.rid)
         finally:
