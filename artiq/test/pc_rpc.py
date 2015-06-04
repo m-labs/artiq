@@ -75,8 +75,10 @@ class RPCCase(unittest.TestCase):
     def _loop_asyncio_echo(self):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(self._asyncio_echo())
-        loop.close()
+        try:
+            loop.run_until_complete(self._asyncio_echo())
+        finally:
+            loop.close()
 
     def test_asyncio_echo(self):
         self._run_server_and_test(self._loop_asyncio_echo)

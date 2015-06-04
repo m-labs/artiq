@@ -40,23 +40,29 @@ def _call_worker(worker, expid):
 
 
 def _run_experiment(experiment):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    expid = {
-        "file": sys.modules[__name__].__file__,
-        "experiment": experiment,
-        "arguments": dict()
-    }
-    handlers = {
-        "init_rt_results": lambda description: None
-    }
+    try:
+        expid = {
+            "file": sys.modules[__name__].__file__,
+            "experiment": experiment,
+            "arguments": dict()
+        }
+        handlers = {
+            "init_rt_results": lambda description: None
+        }
 
-    worker = Worker(handlers)
-    loop.run_until_complete(_call_worker(worker, expid))
-    loop.close()
+        loop = asyncio.get_event_loop()
+        worker = Worker(handlers)
+        loop.run_until_complete(_call_worker(worker, expid))
+    finally:
+        loop.close()
 
 
 class WatchdogCase(unittest.TestCase):
+
+    def setUp(self):
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+
     def test_watchdog_no_timeout(self):
         _run_experiment("WatchdogNoTimeout")
 
@@ -67,3 +73,6 @@ class WatchdogCase(unittest.TestCase):
     def test_watchdog_timeout_in_build(self):
         with self.assertRaises(WorkerWatchdogTimeout):
             _run_experiment("WatchdogTimeoutInBuild")
+
+    def tearDown(self):
+        self.loop.close()
