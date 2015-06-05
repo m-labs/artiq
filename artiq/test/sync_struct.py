@@ -37,8 +37,8 @@ class SyncStructCase(unittest.TestCase):
         return init
 
     def notify(self, mod):
-        if (mod["action"] == "init" and "finished" in mod["struct"])\
-           or (mod["action"] == "setitem" and mod["key"] == "finished"):
+        if ((mod["action"] == "init" and "finished" in mod["struct"])
+                or (mod["action"] == "setitem" and mod["key"] == "finished")):
             self.receiving_done.set()
 
     def setUp(self):
