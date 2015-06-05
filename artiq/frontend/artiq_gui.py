@@ -11,10 +11,12 @@ from pyqtgraph import dockarea
 
 from artiq.protocols.file_db import FlatFileDB
 from artiq.protocols.pc_rpc import AsyncioClient
+from artiq.protocols.sync_struct import Subscriber
 from artiq.gui.explorer import ExplorerDock
+from artiq.gui.moninj import MonInjTTLDock, MonInjDDSDock
 from artiq.gui.parameters import ParametersDock
-from artiq.gui.log import LogDock
 from artiq.gui.schedule import ScheduleDock
+from artiq.gui.log import LogDock
 
 
 def get_argparser():
@@ -59,10 +61,24 @@ def main():
     win.setWindowTitle("ARTIQ")
 
     d_explorer = ExplorerDock(status_bar, schedule_ctl)
-    area.addDock(d_explorer, "top")
     loop.run_until_complete(d_explorer.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_explorer.sub_close()))
+
+    d_ttl = MonInjTTLDock()
+    loop.run_until_complete(d_ttl.start())
+    atexit.register(lambda: loop.run_until_complete(d_ttl.stop()))
+    d_dds = MonInjDDSDock()
+    devices_sub = Subscriber("devices",
+                             [d_ttl.init_devices, d_dds.init_devices])
+    loop.run_until_complete(
+        devices_sub.connect(args.server, args.port_notify))
+    atexit.register(
+        lambda: loop.run_until_complete(devices_sub.close()))
+
+    area.addDock(d_dds, "top")
+    area.addDock(d_ttl, "above", d_dds)
+    area.addDock(d_explorer, "above", d_ttl)
 
     d_params = ParametersDock()
     area.addDock(d_params, "right", d_explorer)
@@ -70,14 +86,15 @@ def main():
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_params.sub_close()))
 
-    d_log = LogDock()
-    area.addDock(d_log, "bottom")
-
     d_schedule = ScheduleDock(schedule_ctl)
-    area.addDock(d_schedule, "above", d_log)
     loop.run_until_complete(d_schedule.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_schedule.sub_close()))
+
+    d_log = LogDock()
+
+    area.addDock(d_log, "bottom")
+    area.addDock(d_schedule, "above", d_log)
 
     win.show()
     loop.run_forever()

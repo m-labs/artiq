@@ -130,6 +130,21 @@ def asyncio_queue_peek(q):
         raise asyncio.QueueEmpty
 
 
+class TaskObject:
+    def start(self):
+        self.task = asyncio.async(self._do())
+
+    @asyncio.coroutine
+    def stop(self):
+        self.task.cancel()
+        yield from asyncio.wait([self.task])
+        del self.task
+
+    @asyncio.coroutine
+    def _do(self):
+        raise NotImplementedError
+
+
 class WaitSet:
     def __init__(self):
         self._s = set()

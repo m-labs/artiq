@@ -23,7 +23,7 @@ class _ExplistModel(DictSyncModel):
 
 class ExplorerDock(dockarea.Dock):
     def __init__(self, status_bar, schedule_ctl):
-        dockarea.Dock.__init__(self, "Explorer", size=(1100, 400))
+        dockarea.Dock.__init__(self, "Explorer", size=(1500, 500))
 
         self.status_bar = status_bar
         self.schedule_ctl = schedule_ctl

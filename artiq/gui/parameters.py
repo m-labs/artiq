@@ -26,7 +26,7 @@ class ParametersModel(DictSyncModel):
 
 class ParametersDock(dockarea.Dock):
     def __init__(self):
-        dockarea.Dock.__init__(self, "Parameters", size=(500, 300))
+        dockarea.Dock.__init__(self, "Parameters", size=(400, 300))
 
         self.table = QtGui.QTableView()
         self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)

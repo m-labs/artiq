@@ -4,7 +4,8 @@ from enum import Enum
 from time import time
 
 from artiq.master.worker import Worker
-from artiq.tools import asyncio_wait_or_cancel, asyncio_queue_peek, WaitSet
+from artiq.tools import (asyncio_wait_or_cancel, asyncio_queue_peek,
+                         TaskObject, WaitSet)
 from artiq.protocols.sync_struct import Notifier
 
 
@@ -147,21 +148,6 @@ class RunPool:
             return
         yield from self.runs[rid].close()
         del self.runs[rid]
-
-
-class TaskObject:
-    def start(self):
-        self.task = asyncio.async(self._do())
-
-    @asyncio.coroutine
-    def stop(self):
-        self.task.cancel()
-        yield from asyncio.wait([self.task])
-        del self.task
-
-    @asyncio.coroutine
-    def _do(self):
-        raise NotImplementedError
 
 
 class PrepareStage(TaskObject):
