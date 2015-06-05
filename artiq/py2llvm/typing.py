@@ -89,21 +89,21 @@ class LocalExtractor(algorithm.Visitor):
 
     def _check_not_in(self, name, names, curkind, newkind, loc):
         if name in names:
-            diag = diagnostic.Diagnostic('fatal',
+            diag = diagnostic.Diagnostic("fatal",
                 "name '{name}' cannot be {curkind} and {newkind} simultaneously",
                 {"name": name, "curkind": curkind, "newkind": newkind}, loc)
             self.engine.process(diag)
 
     def visit_Global(self, node):
         for name, loc in zip(node.names, node.name_locs):
-            self._check_not_in(name, self.nonlocal_, 'nonlocal', 'global', loc)
-            self._check_not_in(name, self.params, 'a parameter', 'global', loc)
+            self._check_not_in(name, self.nonlocal_, "nonlocal", "global", loc)
+            self._check_not_in(name, self.params, "a parameter", "global", loc)
             self.global_.add(name)
 
     def visit_Nonlocal(self, node):
         for name, loc in zip(node.names, node.name_locs):
-            self._check_not_in(name, self.global_, 'global', 'nonlocal', loc)
-            self._check_not_in(name, self.params, 'a parameter', 'nonlocal', loc)
+            self._check_not_in(name, self.global_, "global", "nonlocal", loc)
+            self._check_not_in(name, self.params, "a parameter", "nonlocal", loc)
 
             found = False
             for outer_env in reversed(self.env_stack):
@@ -111,7 +111,7 @@ class LocalExtractor(algorithm.Visitor):
                     found = True
                     break
             if not found:
-                diag = diagnostic.Diagnostic('fatal',
+                diag = diagnostic.Diagnostic("fatal",
                     "can't declare name '{name}' as nonlocal: it is not bound in any outer scope",
                     {"name": name},
                     loc, [node.keyword_loc])
@@ -137,29 +137,29 @@ class Inferencer(algorithm.Transformer):
         except types.UnificationError as e:
             printer = types.TypePrinter()
 
-            if kind == 'generic':
-                note1 = diagnostic.Diagnostic('note',
+            if kind == "generic":
+                note1 = diagnostic.Diagnostic("note",
                     "expression of type {typea}",
                     {"typea": printer.name(typea)},
                     loca)
-            elif kind == 'expects':
-                note1 = diagnostic.Diagnostic('note',
+            elif kind == "expects":
+                note1 = diagnostic.Diagnostic("note",
                     "expression expecting an operand of type {typea}",
                     {"typea": printer.name(typea)},
                     loca)
 
-            note2 = diagnostic.Diagnostic('note',
+            note2 = diagnostic.Diagnostic("note",
                 "expression of type {typeb}",
                 {"typeb": printer.name(typeb)},
                 locb)
 
             if e.typea.find() == typea.find() and e.typeb.find() == typeb.find():
-                diag = diagnostic.Diagnostic('fatal',
+                diag = diagnostic.Diagnostic("fatal",
                     "cannot unify {typea} with {typeb}",
                     {"typea": printer.name(typea), "typeb": printer.name(typeb)},
                     loca, [locb], notes=[note1, note2])
             else: # give more detail
-                diag = diagnostic.Diagnostic('fatal',
+                diag = diagnostic.Diagnostic("fatal",
                     "cannot unify {typea} with {typeb}: {fraga} is incompatible with {fragb}",
                     {"typea": printer.name(typea),   "typeb": printer.name(typeb),
                      "fraga": printer.name(e.typea), "fragb": printer.name(e.typeb)},
@@ -187,7 +187,7 @@ class Inferencer(algorithm.Transformer):
         for typing_env in reversed(self.env_stack):
             if name in typing_env:
                 return typing_env[name]
-        diag = diagnostic.Diagnostic('fatal',
+        diag = diagnostic.Diagnostic("fatal",
             "name '{name}' is not bound to anything", {"name":name}, loc)
         self.engine.process(diag)
 
@@ -204,7 +204,7 @@ class Inferencer(algorithm.Transformer):
         elif isinstance(node.n, float):
             typ = types.TFloat()
         else:
-            diag = diagnostic.Diagnostic('fatal',
+            diag = diagnostic.Diagnostic("fatal",
                 "numeric type {type} is not supported", {"type": node.n.__class__.__name__},
                 node.loc)
             self.engine.process(diag)
@@ -225,8 +225,8 @@ class Inferencer(algorithm.Transformer):
         node = asttyped.ListT(type=types.TList(),
                               elts=node.elts, ctx=node.ctx, loc=node.loc)
         for elt in node.elts:
-            self._unify(node.type['elt'], elt.type,
-                        node.loc, elt.loc, kind='expects')
+            self._unify(node.type["elt"], elt.type,
+                        node.loc, elt.loc, kind="expects")
         return node
 
     def visit_Subscript(self, node):
@@ -236,7 +236,7 @@ class Inferencer(algorithm.Transformer):
                                    loc=node.loc)
         # TODO: support more than just lists
         self._unify(types.TList(node.type), node.value.type,
-                    node.loc, node.value.loc, kind='expects')
+                    node.loc, node.value.loc, kind="expects")
         return node
 
     # Visitors that just unify types
@@ -267,7 +267,7 @@ class Inferencer(algorithm.Transformer):
     # Unsupported visitors
     #
     def visit_unsupported(self, node):
-        diag = diagnostic.Diagnostic('fatal',
+        diag = diagnostic.Diagnostic("fatal",
             "this syntax is not supported", {},
             node.loc)
         self.engine.process(diag)
@@ -301,7 +301,7 @@ class Printer(algorithm.Visitor):
         return self.rewriter.rewrite()
 
     def generic_visit(self, node):
-        if hasattr(node, 'type'):
+        if hasattr(node, "type"):
             self.rewriter.insert_after(node.loc,
                                        ":%s".format(self.type_printer.name(node.type)))
 

@@ -9,7 +9,7 @@ from pythonparser.algorithm import Visitor as ASTVisitor
 class commontyped(ast.commonloc):
     """A mixin for typed AST nodes."""
 
-    _types = ('type',)
+    _types = ("type",)
 
     def _reprfields(self):
         return self._fields + self._locs + self._types
