@@ -13,8 +13,18 @@ from artiq.tools import TaskObject
 logger = logging.getLogger(__name__)
 
 
+_mode_enc = {
+    "exp": 0,
+    "1": 1,
+    "0": 2,
+    "in": 3
+}
+
+
 class _TTLWidget(QtGui.QFrame):
-    def __init__(self, force_out, name):
+    def __init__(self, send_to_device, channel, force_out, name):
+        self.send_to_device = send_to_device
+        self.channel = channel
         self.force_out = force_out
 
         QtGui.QFrame.__init__(self)
@@ -29,29 +39,72 @@ class _TTLWidget(QtGui.QFrame):
         grid.addWidget(label, 1, 1)
 
         self._direction = QtGui.QLabel()
-        self._value = QtGui.QLabel()
         self._direction.setAlignment(QtCore.Qt.AlignCenter)
-        self._value.setAlignment(QtCore.Qt.AlignCenter)
-        self.set_value(0, False, False)
         grid.addWidget(self._direction, 2, 1)
+        self._value = QtGui.QLabel()
+        self._value.setAlignment(QtCore.Qt.AlignCenter)
         grid.addWidget(self._value, 3, 1, 6, 1)
 
+        self._value.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        menu = QtGui.QActionGroup(self._value)
+        menu.setExclusive(True)
+        self._expctl_action = QtGui.QAction("Experiment controlled", self._value)
+        self._expctl_action.setCheckable(True)
+        menu.addAction(self._expctl_action)
+        self._value.addAction(self._expctl_action)
+        self._expctl_action.triggered.connect(lambda: self.set_force("exp"))
+        self._force1_action = QtGui.QAction("Force 1", self._value)
+        self._force1_action.setCheckable(True)
+        menu.addAction(self._force1_action)
+        self._value.addAction(self._force1_action)
+        self._force1_action.triggered.connect(lambda: self.set_force("1"))
+        self._force0_action = QtGui.QAction("Force 0", self._value)
+        self._force0_action.setCheckable(True)
+        menu.addAction(self._force0_action)
+        self._value.addAction(self._force0_action)
+        self._force0_action.triggered.connect(lambda: self.set_force("0"))
+        self._forcein_action = QtGui.QAction("Force input", self._value)
+        self._forcein_action.setCheckable(True)
+        self._forcein_action.setEnabled(not force_out)
+        menu.addAction(self._forcein_action)
+        self._value.addAction(self._forcein_action)
+        self._forcein_action.triggered.connect(lambda: self.set_force("in"))
+
+        self.set_value(0, False, False)
+
+    def set_force(self, mode):
+        data = struct.pack("bbb",
+                           2,  # MONINJ_REQ_TTLSET
+                           self.channel, _mode_enc[mode])
+        self.send_to_device(data)
+
     def set_value(self, value, oe, override):
-        value = "1" if value else "0"
+        value_s = "1" if value else "0"
         if override:
-            value = "<b>" + value + "</b>"
+            value_s = "<b>" + value_s + "</b>"
             color = " color=\"red\""
         else:
             color = ""
         self._value.setText("<font size=\"9\"{}>{}</font>".format(
-                            color, value))
+                            color, value_s))
         oe = oe or self.force_out
         direction = "OUT" if oe else "IN"
         self._direction.setText("<font size=\"1\">" + direction + "</font>")
+        if override:
+            if oe:
+                if value:
+                    self._force1_action.setChecked(True)
+                else:
+                    self._force0_action.setChecked(True)
+            else:
+                self._forcein_action.setChecked(True)
+        else:
+            self._expctl_action.setChecked(True)
 
 
 class _DeviceManager:
-    def __init__(self, init):
+    def __init__(self, send_to_device, init):
+        self.send_to_device = send_to_device
         self.ddb = dict()
         self.ttl_cb = lambda: None
         self.ttl_widgets = dict()
@@ -68,7 +121,8 @@ class _DeviceManager:
             if v["type"] == "local" and v["module"] == "artiq.coredevice.ttl":
                 channel = v["arguments"]["channel"]
                 force_out = v["class"] == "TTLOut"
-                self.ttl_widgets[channel] = _TTLWidget(force_out, k)
+                self.ttl_widgets[channel] = _TTLWidget(
+                    self.send_to_device, channel, force_out, k)
                 self.ttl_cb()
         except KeyError:
             pass
@@ -92,7 +146,7 @@ class _DeviceManager:
 class MonInjTTLDock(dockarea.Dock, TaskObject):
     def __init__(self):
         dockarea.Dock.__init__(self, "TTL", size=(1500, 500))
-        self.dm = _DeviceManager(dict())
+        self.dm = _DeviceManager(self.send_to_device, dict())
         self.transport = None
 
         self.grid = QtGui.QGridLayout()
@@ -118,11 +172,11 @@ class MonInjTTLDock(dockarea.Dock, TaskObject):
         self.transport = transport
 
     def datagram_received(self, data, addr):
-        ttl_levels, ttl_oes = struct.unpack(">QQ", data)
+        ttl_levels, ttl_oes, ttl_overrides = struct.unpack(">QQQ", data)
         for channel, w in self.dm.ttl_widgets.items():
             w.set_value(ttl_levels & (1 << channel),
                         ttl_oes & (1 << channel),
-                        False)
+                        ttl_overrides & (1 << channel))
 
     def error_received(self, exc):
         logger.warning("datagram endpoint error")
@@ -130,18 +184,21 @@ class MonInjTTLDock(dockarea.Dock, TaskObject):
     def connection_lost(self, exc):
         self.transport = None
 
+    def send_to_device(self, data):
+        ca = self.dm.get_core_addr()
+        if ca is None:
+            logger.warning("could not find core device address")
+        elif self.transport is None:
+            logger.warning("datagram endpoint not available")
+        else:
+            self.transport.sendto(data, (ca, 3250))
+
     @asyncio.coroutine
     def _do(self):
         while True:
             yield from asyncio.sleep(0.2)
-            ca = self.dm.get_core_addr()
-            if ca is None:
-                logger.warning("could not find core device address")
-            elif self.transport is None:
-                logger.warning("datagram endpoint not available")
-            else:
-                # MONINJ_REQ_MONITOR
-                self.transport.sendto(b"\x01", (ca, 3250))
+            # MONINJ_REQ_MONITOR
+            self.send_to_device(b"\x01")
 
     def layout_ttl_widgets(self):
         w = self.grid.itemAt(0)
@@ -149,11 +206,11 @@ class MonInjTTLDock(dockarea.Dock, TaskObject):
             self.grid.removeItem(w)
             w = self.grid.itemAt(0)
         for i, (_, w) in enumerate(sorted(self.dm.ttl_widgets.items(),
-                                   key=itemgetter(0))):
+                                          key=itemgetter(0))):
             self.grid.addWidget(w, i // 4, i % 4)
 
     def init_devices(self, d):
-        self.dm = _DeviceManager(d)
+        self.dm = _DeviceManager(self.send_to_device, d)
         self.dm.ttl_cb = self.layout_ttl_widgets
         self.layout_ttl_widgets()
         return self.dm

@@ -16,7 +16,8 @@
 #include "moninj.h"
 
 enum {
-    MONINJ_REQ_MONITOR = 1
+    MONINJ_REQ_MONITOR = 1,
+    MONINJ_REQ_TTLSET = 2
 };
 
 static struct udp_pcb *listen_pcb;
@@ -24,7 +25,10 @@ static struct udp_pcb *listen_pcb;
 struct monitor_reply {
     long long int ttl_levels;
     long long int ttl_oes;
+    long long int ttl_overrides;
 };
+
+static long long int ttl_overrides;
 
 static void moninj_monitor(const ip_addr_t *addr, u16_t port)
 {
@@ -43,6 +47,7 @@ static void moninj_monitor(const ip_addr_t *addr, u16_t port)
         if(rtio_mon_probe_value_read())
             reply.ttl_oes |= 1LL << i;
     }
+    reply.ttl_overrides = ttl_overrides;
 
     reply_p = pbuf_alloc(PBUF_TRANSPORT, sizeof(struct monitor_reply), PBUF_RAM);
     if(!reply_p) {
@@ -54,13 +59,28 @@ static void moninj_monitor(const ip_addr_t *addr, u16_t port)
     pbuf_free(reply_p);
 }
 
+static void moninj_ttlset(int channel, int mode)
+{
+    if(mode)
+        ttl_overrides |= (1LL << channel);
+    else
+        ttl_overrides &= ~(1LL << channel);
+}
+
 static void moninj_recv(void *arg, struct udp_pcb *upcb, struct pbuf *req,
                         const ip_addr_t *addr, u16_t port)
 {
+    char *p = (char *)req->payload;
+
     if(req->len >= 1) {
-        switch(*(char *)req->payload) {
+        switch(p[0]) {
             case MONINJ_REQ_MONITOR:
                 moninj_monitor(addr, port);
+                break;
+            case MONINJ_REQ_TTLSET:
+                if(req->len < 3)
+                    break;
+                moninj_ttlset(p[1], p[2]);
                 break;
             default:
                 break;
