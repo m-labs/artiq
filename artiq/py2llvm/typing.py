@@ -35,11 +35,6 @@ class LocalExtractor(algorithm.Visitor):
             self.visit_in_assign(target)
         self.visit(node.value)
 
-    def visit_AugAssign(self, node):
-        self.visit_in_assign(node.target)
-        self.visit(node.op)
-        self.visit(node.value)
-
     def visit_For(self, node):
         self.visit_in_assign(node.target)
         self.visit(node.iter)
