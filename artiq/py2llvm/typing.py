@@ -358,7 +358,11 @@ class Printer(algorithm.Visitor):
 def main():
     import sys, fileinput, os
 
-    inference_mode = True
+    if sys.argv[1] == '+diag':
+        del sys.argv[1]
+        inference_mode = False
+    else:
+        inference_mode = True
 
     engine = diagnostic.Engine(all_errors_are_fatal=True)
     try:
@@ -375,6 +379,8 @@ def main():
         if inference_mode:
             print("\n".join(e.diagnostic.render()), file=sys.stderr)
             exit(1)
+        else:
+            print("\n".join(e.diagnostic.render(only_line=True)))
 
 if __name__ == "__main__":
     main()

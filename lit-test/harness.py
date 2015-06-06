@@ -12,8 +12,10 @@ emulate the same behavior when invoked under lit.
 import sys, os, argparse, importlib
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('-m', metavar='mod', type=str, help='run library module as a script')
-parser.add_argument('args', type=str, nargs='+', help='arguments passed to program in sys.argv[1:]')
+parser.add_argument('-m', metavar='mod', type=str, required=True,
+                    help='run library module as a script')
+parser.add_argument('args', type=str, nargs='+',
+                    help='arguments passed to program in sys.argv[1:]')
 args = parser.parse_args(sys.argv[1:])
 
 artiq_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
