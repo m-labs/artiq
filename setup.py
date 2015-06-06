@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 requirements = [
     "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
     "python-dateutil", "prettytable", "h5py", "pydaqmx", "pyelftools",
-    "quamash", "pyqtgraph", "pythonparser"
+    "quamash", "pyqtgraph", "pythonparser", "lit", "OutputCheck"
 ]
 
 scripts = [

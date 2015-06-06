@@ -13,3 +13,4 @@ doc/manual/_build
 /*.egg-info
 /.coverage
 examples/master/results
+Output/

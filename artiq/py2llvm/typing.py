@@ -129,10 +129,10 @@ class LocalExtractor(algorithm.Visitor):
 class Inferencer(algorithm.Transformer):
     def __init__(self, engine):
         self.engine = engine
-        self.env_stack = [{}]
+        self.env_stack = []
         self.function  = None # currently visited function
 
-    def _unify(self, typea, typeb, loca, locb, kind):
+    def _unify(self, typea, typeb, loca, locb, kind='generic'):
         try:
             typea.unify(typeb)
         except types.UnificationError as e:
@@ -185,6 +185,13 @@ class Inferencer(algorithm.Transformer):
         diag = diagnostic.Diagnostic("fatal",
             "name '{name}' is not bound to anything", {"name":name}, loc)
         self.engine.process(diag)
+
+    def visit_root(self, node):
+        extractor = LocalExtractor(env_stack=self.env_stack, engine=self.engine)
+        extractor.visit(node)
+        self.env_stack.append(extractor.typing_env)
+
+        return self.visit(node)
 
     # Visitors that replace node with a typed node
     #
@@ -349,17 +356,25 @@ class Printer(algorithm.Visitor):
         super().generic_visit(node)
 
 def main():
-    import sys, fileinput
+    import sys, fileinput, os
+
+    inference_mode = True
+
     engine = diagnostic.Engine(all_errors_are_fatal=True)
     try:
-        buf = source.Buffer("".join(fileinput.input()), fileinput.filename())
-        parsed = parse_buffer(buf, engine=engine)
-        typed = Inferencer(engine=engine).visit(parsed)
+        buf = source.Buffer("".join(fileinput.input()), os.path.basename(fileinput.filename()))
+        parsed, comments = parse_buffer(buf, engine=engine)
+        typed = Inferencer(engine=engine).visit_root(parsed)
         printer = Printer(buf)
         printer.visit(typed)
+        for comment in comments:
+            if comment.text.find("CHECK") >= 0:
+                printer.rewriter.remove(comment.loc)
         print(printer.rewrite().source)
     except diagnostic.Error as e:
-        print("\n".join(e.diagnostic.render()), file=sys.stderr)
+        if inference_mode:
+            print("\n".join(e.diagnostic.render()), file=sys.stderr)
+            exit(1)
 
 if __name__ == "__main__":
     main()
