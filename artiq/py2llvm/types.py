@@ -155,6 +155,10 @@ class TValue(Type):
     def __ne__(self, other):
         return not (self == other)
 
+def TNone():
+    """The type of None."""
+    return TMono("NoneType")
+
 def TBool():
     """A boolean type."""
     return TMono("bool")
@@ -193,8 +197,11 @@ class TypePrinter(object):
                 self.map[typ] = "'%s" % next(self.gen)
             return self.map[typ]
         elif isinstance(typ, TMono):
-            return "%s(%s)" % (typ.name, ", ".join(
-                ["%s=%s" % (k, self.name(typ.params[k])) for k in typ.params]))
+            if typ.params == {}:
+                return typ.name
+            else:
+                return "%s(%s)" % (typ.name, ", ".join(
+                    ["%s=%s" % (k, self.name(typ.params[k])) for k in typ.params]))
         elif isinstance(typ, TTuple):
             if len(typ.elts) == 1:
                 return "(%s,)" % self.name(typ.elts[0])

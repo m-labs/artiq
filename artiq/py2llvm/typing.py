@@ -215,6 +215,13 @@ class Inferencer(algorithm.Transformer):
         return asttyped.NameT(type=self._find_name(node.id, node.loc),
                               id=node.id, ctx=node.ctx, loc=node.loc)
 
+    def visit_NameConstant(self, node):
+        if node.value is True or node.value is False:
+            typ = types.TBool()
+        elif node.value is None:
+            typ = types.TNone()
+        return asttyped.NameConstantT(type=typ, value=node.value, loc=node.loc)
+
     def visit_Tuple(self, node):
         node = self.generic_visit(node)
         return asttyped.TupleT(type=types.TTuple([x.type for x in node.elts]),
@@ -303,7 +310,7 @@ class Printer(algorithm.Visitor):
     def generic_visit(self, node):
         if hasattr(node, "type"):
             self.rewriter.insert_after(node.loc,
-                                       ":%s".format(self.type_printer.name(node.type)))
+                                       ":{}".format(self.type_printer.name(node.type)))
 
         super().generic_visit(node)
 
