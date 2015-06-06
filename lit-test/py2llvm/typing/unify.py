@@ -24,3 +24,11 @@ g = []
 
 h = [1]
 # CHECK-L: h:list(elt=int(width='c))
+
+i = []
+i[0] = 1
+# CHECK-L: i:list(elt=int(width='d))
+
+j = []
+j += [1.0]
+# CHECK-L: j:list(elt=float)

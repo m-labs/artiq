@@ -84,21 +84,25 @@ class LocalExtractor(algorithm.Visitor):
 
     def _check_not_in(self, name, names, curkind, newkind, loc):
         if name in names:
-            diag = diagnostic.Diagnostic("fatal",
+            diag = diagnostic.Diagnostic("error",
                 "name '{name}' cannot be {curkind} and {newkind} simultaneously",
                 {"name": name, "curkind": curkind, "newkind": newkind}, loc)
             self.engine.process(diag)
+            return True
+        return False
 
     def visit_Global(self, node):
         for name, loc in zip(node.names, node.name_locs):
-            self._check_not_in(name, self.nonlocal_, "nonlocal", "global", loc)
-            self._check_not_in(name, self.params, "a parameter", "global", loc)
+            if self._check_not_in(name, self.nonlocal_, "nonlocal", "global", loc) or \
+                    self._check_not_in(name, self.params, "a parameter", "global", loc):
+               continue
             self.global_.add(name)
 
     def visit_Nonlocal(self, node):
         for name, loc in zip(node.names, node.name_locs):
-            self._check_not_in(name, self.global_, "global", "nonlocal", loc)
-            self._check_not_in(name, self.params, "a parameter", "nonlocal", loc)
+            if self._check_not_in(name, self.global_, "global", "nonlocal", loc) or \
+                    self._check_not_in(name, self.params, "a parameter", "nonlocal", loc):
+                continue
 
             found = False
             for outer_env in reversed(self.env_stack):
@@ -106,11 +110,12 @@ class LocalExtractor(algorithm.Visitor):
                     found = True
                     break
             if not found:
-                diag = diagnostic.Diagnostic("fatal",
+                diag = diagnostic.Diagnostic("error",
                     "can't declare name '{name}' as nonlocal: it is not bound in any outer scope",
                     {"name": name},
                     loc, [node.keyword_loc])
                 self.engine.process(diag)
+                continue
 
             self.nonlocal_.add(name)
 
@@ -355,27 +360,29 @@ def main():
 
     if sys.argv[1] == '+diag':
         del sys.argv[1]
-        inference_mode = False
+        def process_diagnostic(diag):
+            print("\n".join(diag.render(only_line=True)))
+            if diag.level == 'fatal':
+                exit()
     else:
-        inference_mode = True
+        def process_diagnostic(diag):
+            print("\n".join(diag.render()))
+            if diag.level == 'fatal':
+                exit(1)
 
-    engine = diagnostic.Engine(all_errors_are_fatal=True)
-    try:
-        buf = source.Buffer("".join(fileinput.input()), os.path.basename(fileinput.filename()))
-        parsed, comments = parse_buffer(buf, engine=engine)
-        typed = Inferencer(engine=engine).visit_root(parsed)
-        printer = Printer(buf)
-        printer.visit(typed)
-        for comment in comments:
-            if comment.text.find("CHECK") >= 0:
-                printer.rewriter.remove(comment.loc)
-        print(printer.rewrite().source)
-    except diagnostic.Error as e:
-        if inference_mode:
-            print("\n".join(e.diagnostic.render()), file=sys.stderr)
-            exit(1)
-        else:
-            print("\n".join(e.diagnostic.render(only_line=True)))
+    engine = diagnostic.Engine()
+    engine.process = process_diagnostic
+
+    buf = source.Buffer("".join(fileinput.input()), os.path.basename(fileinput.filename()))
+    parsed, comments = parse_buffer(buf, engine=engine)
+    typed = Inferencer(engine=engine).visit_root(parsed)
+    printer = Printer(buf)
+    printer.visit(typed)
+    for comment in comments:
+        if comment.text.find("CHECK") >= 0:
+            printer.rewriter.remove(comment.loc)
+    print(printer.rewrite().source)
+
 
 if __name__ == "__main__":
     main()
