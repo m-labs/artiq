@@ -2,6 +2,9 @@
 
 from ctypes import byref, c_ulong
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class DAQmxSim:
@@ -14,12 +17,6 @@ class DAQmxSim:
     def ping(self):
         return True
 
-def string_to_bytes(string, name):
-    if isinstance(string, str):
-        string = bytes(string, encoding="ascii")
-    elif not isinstance(string, bytes):
-        raise ValueError("{} must be of either str or bytes type".format(name))
-    return string
 
 class DAQmx:
     """NI PXI6733 DAQ interface."""
@@ -38,13 +35,15 @@ class DAQmx:
 
         import PyDAQmx as daq
 
-        self.channels = string_to_bytes(channels, "channels")
-        self.clock = string_to_bytes(clock, "clock")
+        self.channels = channels.encode()
+        self.clock = clock.encode()
         self.task = None
         self.daq = daq
 
     def done_callback_py(self, taskhandle, status, callback_data):
-        if taskhandle == self.task:
+        if taskhandle != self.task:
+            logger.warning("done callback called with unexpected task")
+        else:
             self.clear_pending_task()
 
     def ping(self):
@@ -60,7 +59,7 @@ class DAQmx:
 
         This loads sample values into the PXI 6733 device.
         The device will output samples at each clock rising edge.
-        The first sample is output at the first clock rising edge.
+        The device waits for a clock rising edge to output the first sample.
 
         When using several channels simultaneously, you must concatenate the
         values for the different channels in the ``values`` array.
@@ -92,7 +91,7 @@ class DAQmx:
         channel_number = self.daq.int32()
         t.GetTaskNumChans(byref(channel_number))
         nb_values = len(values)
-        if nb_values % channel_number.value > 0:
+        if nb_values % channel_number.value:
             self.daq.DAQmxClearTask(t.taskHandle)
             raise ValueError("The size of the values array must be a multiple "
                              "of the number of channels ({})"
