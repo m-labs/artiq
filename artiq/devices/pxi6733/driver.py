@@ -88,15 +88,15 @@ class DAQmx:
                               min(values), max(values),
                               self.daq.DAQmx_Val_Volts, None)
 
-        channel_number = self.daq.int32()
-        t.GetTaskNumChans(byref(channel_number))
+        channel_number = (c_ulong*1)()
+        t.GetTaskNumChans(channel_number)
         nb_values = len(values)
-        if nb_values % channel_number.value:
+        if nb_values % channel_number[0]:
             self.daq.DAQmxClearTask(t.taskHandle)
             raise ValueError("The size of the values array must be a multiple "
                              "of the number of channels ({})"
-                             .format(channel_number.value))
-        samps_per_channel = nb_values // channel_number
+                             .format(channel_number[0]))
+        samps_per_channel = nb_values // channel_number[0]
 
         t.CfgSampClkTiming(self.clock, sampling_freq,
                            self.daq.DAQmx_Val_Rising,
