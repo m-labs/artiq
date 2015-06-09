@@ -18,6 +18,15 @@ def write_test_data(test_dict):
     for key, value in enumerate(test_values):
         test_dict[key] = value
     test_dict[1.5] = 1.5
+    test_dict["array"] = []
+    test_dict["array"].append(42)
+    test_dict["array"].insert(1, 1)
+    test_dict[100] = 0
+    test_dict[100] = 1
+    test_dict[101] = 1
+    test_dict.pop(101)
+    test_dict[102] = 1
+    del test_dict[102]
     test_dict["finished"] = True
 
 
