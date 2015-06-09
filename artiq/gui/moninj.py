@@ -41,9 +41,12 @@ class _TTLWidget(QtGui.QFrame):
         self._direction = QtGui.QLabel()
         self._direction.setAlignment(QtCore.Qt.AlignCenter)
         grid.addWidget(self._direction, 2, 1)
+        self._override = QtGui.QLabel()
+        self._override.setAlignment(QtCore.Qt.AlignCenter)
+        grid.addWidget(self._override, 3, 1)
         self._value = QtGui.QLabel()
         self._value.setAlignment(QtCore.Qt.AlignCenter)
-        grid.addWidget(self._value, 3, 1, 6, 1)
+        grid.addWidget(self._value, 4, 1, 6, 1)
 
         self._value.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         menu = QtGui.QActionGroup(self._value)
@@ -83,8 +86,10 @@ class _TTLWidget(QtGui.QFrame):
         if override:
             value_s = "<b>" + value_s + "</b>"
             color = " color=\"red\""
+            self._override.setText("<font size=\"1\" color=\"red\">OVERRIDE</font>")
         else:
             color = ""
+            self._override.setText("")
         self._value.setText("<font size=\"9\"{}>{}</font>".format(
                             color, value_s))
         oe = oe or self.force_out
