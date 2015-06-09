@@ -20,6 +20,19 @@ enum {
     MONINJ_REQ_TTLSET = 2
 };
 
+enum {
+    MONINJ_TTL_MODE_EXP = 0,
+    MONINJ_TTL_MODE_1 = 1,
+    MONINJ_TTL_MODE_0 = 2,
+    MONINJ_TTL_MODE_IN = 3
+};
+
+enum {
+    MONINJ_TTL_OVERRIDE_ENABLE = 0,
+    MONINJ_TTL_OVERRIDE_O = 1,
+    MONINJ_TTL_OVERRIDE_OE = 2
+};
+
 static struct udp_pcb *listen_pcb;
 
 struct monitor_reply {
@@ -27,8 +40,6 @@ struct monitor_reply {
     long long int ttl_oes;
     long long int ttl_overrides;
 };
-
-static long long int ttl_overrides;
 
 static void moninj_monitor(const ip_addr_t *addr, u16_t port)
 {
@@ -38,16 +49,20 @@ static void moninj_monitor(const ip_addr_t *addr, u16_t port)
 
     reply.ttl_levels = 0;
     reply.ttl_oes = 0;
+    reply.ttl_overrides = 0;
     for(i=0;i<RTIO_TTL_COUNT;i++) {
-        rtio_mon_chan_sel_write(i);
-        rtio_mon_probe_sel_write(0);
-        if(rtio_mon_probe_value_read())
+        rtio_moninj_mon_chan_sel_write(i);
+        rtio_moninj_mon_probe_sel_write(0);
+        if(rtio_moninj_mon_value_read())
             reply.ttl_levels |= 1LL << i;
-        rtio_mon_probe_sel_write(1);
-        if(rtio_mon_probe_value_read())
+        rtio_moninj_mon_probe_sel_write(1);
+        if(rtio_moninj_mon_value_read())
             reply.ttl_oes |= 1LL << i;
+        rtio_moninj_inj_chan_sel_write(i);
+        rtio_moninj_inj_override_sel_write(MONINJ_TTL_OVERRIDE_ENABLE);
+        if(rtio_moninj_inj_value_read())
+            reply.ttl_overrides |= 1LL << i;
     }
-    reply.ttl_overrides = ttl_overrides;
 
     reply_p = pbuf_alloc(PBUF_TRANSPORT, sizeof(struct monitor_reply), PBUF_RAM);
     if(!reply_p) {
@@ -61,10 +76,38 @@ static void moninj_monitor(const ip_addr_t *addr, u16_t port)
 
 static void moninj_ttlset(int channel, int mode)
 {
-    if(mode)
-        ttl_overrides |= (1LL << channel);
-    else
-        ttl_overrides &= ~(1LL << channel);
+    rtio_moninj_inj_chan_sel_write(channel);
+    switch(mode) {
+        case MONINJ_TTL_MODE_EXP:
+            rtio_moninj_inj_override_sel_write(MONINJ_TTL_OVERRIDE_ENABLE);
+            rtio_moninj_inj_value_write(0);
+            break;
+        case MONINJ_TTL_MODE_1:
+            rtio_moninj_inj_override_sel_write(MONINJ_TTL_OVERRIDE_O);
+            rtio_moninj_inj_value_write(1);
+            rtio_moninj_inj_override_sel_write(MONINJ_TTL_OVERRIDE_OE);
+            rtio_moninj_inj_value_write(1);
+            rtio_moninj_inj_override_sel_write(MONINJ_TTL_OVERRIDE_ENABLE);
+            rtio_moninj_inj_value_write(1);
+            break;
+        case MONINJ_TTL_MODE_0:
+            rtio_moninj_inj_override_sel_write(MONINJ_TTL_OVERRIDE_O);
+            rtio_moninj_inj_value_write(0);
+            rtio_moninj_inj_override_sel_write(MONINJ_TTL_OVERRIDE_OE);
+            rtio_moninj_inj_value_write(1);
+            rtio_moninj_inj_override_sel_write(MONINJ_TTL_OVERRIDE_ENABLE);
+            rtio_moninj_inj_value_write(1);
+            break;
+        case MONINJ_TTL_MODE_IN:
+            rtio_moninj_inj_override_sel_write(MONINJ_TTL_OVERRIDE_OE);
+            rtio_moninj_inj_value_write(0);
+            rtio_moninj_inj_override_sel_write(MONINJ_TTL_OVERRIDE_ENABLE);
+            rtio_moninj_inj_value_write(1);
+            break;
+        default:
+            log("unknown TTL mode %d", mode);
+            break;
+    }
 }
 
 static void moninj_recv(void *arg, struct udp_pcb *upcb, struct pbuf *req,

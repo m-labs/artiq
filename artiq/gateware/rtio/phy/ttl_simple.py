@@ -8,10 +8,23 @@ class Output(Module):
     def __init__(self, pad):
         self.rtlink = rtlink.Interface(rtlink.OInterface(1))
         self.probes = [pad]
+        override_en = Signal()
+        override_o = Signal()
+        self.overrides = [override_en, override_o]
 
         # # #
 
-        self.sync.rio_phy += If(self.rtlink.o.stb, pad.eq(self.rtlink.o.data))
+        pad_k = Signal()
+        self.sync.rio_phy += [
+            If(self.rtlink.o.stb,
+                pad_k.eq(self.rtlink.o.data)
+            ),
+            If(override_en,
+                pad.eq(override_o)
+            ).Else(
+                pad.eq(pad_k)
+            )
+        ]
 
 
 class Inout(Module):
@@ -19,6 +32,10 @@ class Inout(Module):
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(2, 2),
             rtlink.IInterface(1))
+        override_en = Signal()
+        override_o = Signal()
+        override_oe = Signal()
+        self.overrides = [override_en, override_o, override_oe]
         self.probes = []
 
         # # #
@@ -27,10 +44,21 @@ class Inout(Module):
         self.specials += ts.get_tristate(pad)
         sensitivity = Signal(2)
 
-        self.sync.rio_phy += If(self.rtlink.o.stb,
-                If(self.rtlink.o.address == 0, ts.o.eq(self.rtlink.o.data[0])),
-                If(self.rtlink.o.address == 1, ts.oe.eq(self.rtlink.o.data[0])),
+        o_k = Signal()
+        oe_k = Signal()
+        self.sync.rio_phy += [
+            If(self.rtlink.o.stb,
+                If(self.rtlink.o.address == 0, o_k.eq(self.rtlink.o.data[0])),
+                If(self.rtlink.o.address == 1, oe_k.eq(self.rtlink.o.data[0])),
+            ),
+            If(override_en,
+                ts.o.eq(override_o),
+                ts.oe.eq(override_oe)
+            ).Else(
+                ts.o.eq(o_k),
+                ts.oe.eq(oe_k)
             )
+        ]
         self.sync.rio += If(self.rtlink.o.stb & (self.rtlink.o.address == 2),
             sensitivity.eq(self.rtlink.o.data))
         

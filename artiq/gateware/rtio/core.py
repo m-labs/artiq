@@ -247,11 +247,19 @@ class _InputManager(Module):
 
 
 class Channel:
-    def __init__(self, interface, probes=[], ofifo_depth=64, ififo_depth=64):
+    def __init__(self, interface, probes=[], overrides=[],
+                 ofifo_depth=64, ififo_depth=64):
         self.interface = interface
         self.probes = probes
+        self.overrides = overrides
         self.ofifo_depth = ofifo_depth
         self.ififo_depth = ififo_depth
+
+    @classmethod
+    def from_phy(cls, phy, **kwargs):
+        probes = getattr(phy, "probes", [])
+        overrides = getattr(phy, "overrides", [])
+        return cls(phy.rtlink, probes, overrides, **kwargs)
 
 
 class _KernelCSRs(AutoCSR):
