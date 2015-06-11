@@ -165,17 +165,18 @@ class Inferencer(algorithm.Transformer):
                     {"typeb": printer.name(typeb)},
                     locb)
 
+            highlights = [locb] if locb else []
             if e.typea.find() == typea.find() and e.typeb.find() == typeb.find():
                 diag = diagnostic.Diagnostic("fatal",
                     "cannot unify {typea} with {typeb}",
                     {"typea": printer.name(typea), "typeb": printer.name(typeb)},
-                    loca, [locb], notes=[note1, note2])
+                    loca, highlights, notes=[note1, note2])
             else: # give more detail
                 diag = diagnostic.Diagnostic("fatal",
                     "cannot unify {typea} with {typeb}: {fraga} is incompatible with {fragb}",
                     {"typea": printer.name(typea),   "typeb": printer.name(typeb),
                      "fraga": printer.name(e.typea), "fragb": printer.name(e.typeb)},
-                    loca, [locb], notes=[note1, note2])
+                    loca, highlights, notes=[note1, note2])
             self.engine.process(diag)
 
     def _find_name(self, name, loc):
@@ -281,6 +282,29 @@ class Inferencer(algorithm.Transformer):
                     node.loc, node.value.loc, kind="expects")
         return node
 
+    def visit_IfExp(self, node):
+        node = self.generic_visit(node)
+        self._unify(node.body.type, node.orelse.type,
+                    node.body.loc, node.orelse.loc)
+        return asttyped.IfExpT(type=node.body.type,
+                               test=node.test, body=node.body, orelse=node.orelse,
+                               if_loc=node.if_loc, else_loc=node.else_loc, loc=node.loc)
+
+    def visit_BoolOp(self, node):
+        node = self.generic_visit(node)
+        for value, op_loc in zip(node.values, node.op_locs):
+            def makenotes(printer, typea, typeb, loca, locb):
+                return [
+                    diagnostic.Diagnostic("note",
+                        "py2llvm requires boolean operations to have boolean operands", {},
+                        op_loc)
+                ]
+            self._unify(value.type, types.TBool(),
+                        value.loc, None, makenotes)
+        return asttyped.BoolOpT(type=types.TBool(),
+                                op=node.op, values=node.values,
+                                op_locs=node.op_locs, loc=node.loc)
+
     # Visitors that just unify types
     #
     def visit_Assign(self, node):
@@ -316,14 +340,12 @@ class Inferencer(algorithm.Transformer):
 
     visit_Attribute = visit_unsupported
     visit_BinOp = visit_unsupported
-    visit_BoolOp = visit_unsupported
     visit_Call = visit_unsupported
     visit_Compare = visit_unsupported
     visit_Dict = visit_unsupported
     visit_DictComp = visit_unsupported
     visit_Ellipsis = visit_unsupported
     visit_GeneratorExp = visit_unsupported
-    visit_IfExp = visit_unsupported
     visit_Lambda = visit_unsupported
     visit_ListComp = visit_unsupported
     visit_Set = visit_unsupported
@@ -343,17 +365,17 @@ class Printer(algorithm.Visitor):
         return self.rewriter.rewrite()
 
     def visit_FunctionDefT(self, node):
+        super().generic_visit(node)
+
         self.rewriter.insert_before(node.colon_loc,
                                     "->{}".format(self.type_printer.name(node.return_type)))
 
+    def generic_visit(self, node):
         super().generic_visit(node)
 
-    def generic_visit(self, node):
         if hasattr(node, "type"):
             self.rewriter.insert_after(node.loc,
                                        ":{}".format(self.type_printer.name(node.type)))
-
-        super().generic_visit(node)
 
 def main():
     import sys, fileinput, os
