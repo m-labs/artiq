@@ -38,3 +38,6 @@ j += [1.0]
 
 True and False
 # CHECK-L: True:bool and False:bool:bool
+
+1 and 0
+# CHECK-L: 1:int(width='g) and 0:int(width='g):int(width='g)

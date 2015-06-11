@@ -301,18 +301,24 @@ class Inferencer(algorithm.Transformer):
 
     def visit_BoolOp(self, node):
         node = self.generic_visit(node)
-        for value, op_loc in zip(node.values, node.op_locs):
-            def makenotes(printer, typea, typeb, loca, locb):
-                return [
-                    diagnostic.Diagnostic("note",
-                        "py2llvm requires boolean operations to have boolean operands", {},
-                        op_loc)
-                ]
-            self._unify(value.type, types.TBool(),
-                        value.loc, None, makenotes)
-        return asttyped.BoolOpT(type=types.TBool(),
+        node = asttyped.BoolOpT(type=types.TVar(),
                                 op=node.op, values=node.values,
                                 op_locs=node.op_locs, loc=node.loc)
+        def makenotes(printer, typea, typeb, loca, locb):
+            return [
+                diagnostic.Diagnostic("note",
+                    "an operand of type {typea}",
+                    {"typea": printer.name(node.values[0].type)},
+                    node.values[0].loc),
+                diagnostic.Diagnostic("note",
+                    "an operand of type {typeb}",
+                    {"typeb": printer.name(typeb)},
+                    locb)
+            ]
+        for value in node.values:
+            self._unify(node.type, value.type,
+                        node.loc, value.loc, makenotes)
+        return node
 
     # Visitors that just unify types
     #
