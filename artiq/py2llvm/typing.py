@@ -268,9 +268,9 @@ class Inferencer(algorithm.Transformer):
         def makenotes(printer, typea, typeb, loca, locb):
             return [
                 diagnostic.Diagnostic("note",
-                    "a list of type {typea}",
-                    {"typea": printer.name(node.type)},
-                    loca),
+                    "a list element of type {typea}",
+                    {"typea": printer.name(node.elts[0].type)},
+                    node.elts[0].loc),
                 diagnostic.Diagnostic("note",
                     "a list element of type {typeb}",
                     {"typeb": printer.name(typeb)},

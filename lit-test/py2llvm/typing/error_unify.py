@@ -9,7 +9,7 @@ a = b
 
 # CHECK-L: ${LINE:+1}: error: cannot unify int(width='a) with list(elt='b)
 [1, []]
-# CHECK-L: note: a list of type list(elt=int(width='a))
+# CHECK-L: note: a list element of type int(width='a)
 # CHECK-L: note: a list element of type list(elt='b)
 
 # CHECK-L: ${LINE:+1}: error: cannot unify int(width='a) with bool
