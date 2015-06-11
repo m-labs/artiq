@@ -166,6 +166,22 @@ class Inferencer(algorithm.Transformer):
                     loca, highlights, notes)
             self.engine.process(diag)
 
+    # makenotes for the case where types of multiple elements are unified
+    # with the type of parent expression
+    def _makenotes_elts(self, elts, kind):
+        def makenotes(printer, typea, typeb, loca, locb):
+            return [
+                diagnostic.Diagnostic("note",
+                    "{kind} of type {typea}",
+                    {"kind": kind, "typea": printer.name(elts[0].type)},
+                    elts[0].loc),
+                diagnostic.Diagnostic("note",
+                    "{kind} of type {typeb}",
+                    {"kind": kind, "typeb": printer.name(typeb)},
+                    locb)
+            ]
+        return makenotes
+
     def _find_name(self, name, loc):
         for typing_env in reversed(self.env_stack):
             if name in typing_env:
@@ -212,26 +228,6 @@ class Inferencer(algorithm.Transformer):
 
         return node
 
-    def visit_Return(self, node):
-        node = self.generic_visit(node)
-        def makenotes(printer, typea, typeb, loca, locb):
-            return [
-                diagnostic.Diagnostic("note",
-                    "function with return type {typea}",
-                    {"typea": printer.name(typea)},
-                    self.function.name_loc),
-                diagnostic.Diagnostic("note",
-                    "a statement returning {typeb}",
-                    {"typeb": printer.name(typeb)},
-                    node.loc)
-            ]
-        if node.value is None:
-            self._unify(self.function.return_type, types.TNone(),
-                        self.function.name_loc, node.loc, makenotes)
-        else:
-            self._unify(self.function.return_type, node.value.type,
-                        self.function.name_loc, node.value.loc, makenotes)
-
     def visit_Num(self, node):
         if isinstance(node.n, int):
             typ = types.TInt()
@@ -265,63 +261,55 @@ class Inferencer(algorithm.Transformer):
         node = self.generic_visit(node)
         node = asttyped.ListT(type=types.TList(),
                               elts=node.elts, ctx=node.ctx, loc=node.loc)
-        def makenotes(printer, typea, typeb, loca, locb):
-            return [
-                diagnostic.Diagnostic("note",
-                    "a list element of type {typea}",
-                    {"typea": printer.name(node.elts[0].type)},
-                    node.elts[0].loc),
-                diagnostic.Diagnostic("note",
-                    "a list element of type {typeb}",
-                    {"typeb": printer.name(typeb)},
-                    locb)
-            ]
-        for elt in node.elts:
-            self._unify(node.type["elt"], elt.type,
-                        node.loc, elt.loc, makenotes)
-        return node
+        return self.visit(node)
 
     def visit_Subscript(self, node):
         node = self.generic_visit(node)
         node = asttyped.SubscriptT(type=types.TVar(),
                                    value=node.value, slice=node.slice, ctx=node.ctx,
                                    loc=node.loc)
-        # TODO: support more than just lists
-        self._unify(types.TList(node.type), node.value.type,
-                    node.loc, node.value.loc)
-        return node
+        return self.visit(node)
 
     def visit_IfExp(self, node):
         node = self.generic_visit(node)
-        self._unify(node.body.type, node.orelse.type,
-                    node.body.loc, node.orelse.loc)
-        return asttyped.IfExpT(type=node.body.type,
+        node = asttyped.IfExpT(type=types.TVar(),
                                test=node.test, body=node.body, orelse=node.orelse,
                                if_loc=node.if_loc, else_loc=node.else_loc, loc=node.loc)
+        return self.visit(node)
 
     def visit_BoolOp(self, node):
         node = self.generic_visit(node)
         node = asttyped.BoolOpT(type=types.TVar(),
                                 op=node.op, values=node.values,
                                 op_locs=node.op_locs, loc=node.loc)
-        def makenotes(printer, typea, typeb, loca, locb):
-            return [
-                diagnostic.Diagnostic("note",
-                    "an operand of type {typea}",
-                    {"typea": printer.name(node.values[0].type)},
-                    node.values[0].loc),
-                diagnostic.Diagnostic("note",
-                    "an operand of type {typeb}",
-                    {"typeb": printer.name(typeb)},
-                    locb)
-            ]
-        for value in node.values:
-            self._unify(node.type, value.type,
-                        node.loc, value.loc, makenotes)
-        return node
+        return self.visit(node)
 
     # Visitors that just unify types
     #
+    def visit_ListT(self, node):
+        for elt in node.elts:
+            self._unify(node.type["elt"], elt.type,
+                        node.loc, elt.loc, self._makenotes_elts(node.elts, "a list element"))
+        return node
+
+    def visit_SubscriptT(self, node):
+        # TODO: support more than just lists
+        self._unify(types.TList(node.type), node.value.type,
+                    node.loc, node.value.loc)
+        return node
+
+    def visit_IfExpT(self, node):
+        self._unify(node.body.type, node.orelse.type,
+                    node.body.loc, node.orelse.loc)
+        node.type = node.body.type
+        return node
+
+    def visit_BoolOpT(self, node):
+        for value in node.values:
+            self._unify(node.type, value.type,
+                        node.loc, value.loc, self._makenotes_elts(node.values, "an operand"))
+        return node
+
     def visit_Assign(self, node):
         node = self.generic_visit(node)
         if len(node.targets) > 1:
@@ -344,6 +332,26 @@ class Inferencer(algorithm.Transformer):
         self._unify(TList(node.target.type), node.iter.type,
                     node.target.loc, node.iter.loc)
         return node
+
+    def visit_Return(self, node):
+        node = self.generic_visit(node)
+        def makenotes(printer, typea, typeb, loca, locb):
+            return [
+                diagnostic.Diagnostic("note",
+                    "function with return type {typea}",
+                    {"typea": printer.name(typea)},
+                    self.function.name_loc),
+                diagnostic.Diagnostic("note",
+                    "a statement returning {typeb}",
+                    {"typeb": printer.name(typeb)},
+                    node.loc)
+            ]
+        if node.value is None:
+            self._unify(self.function.return_type, types.TNone(),
+                        self.function.name_loc, node.loc, makenotes)
+        else:
+            self._unify(self.function.return_type, node.value.type,
+                        self.function.name_loc, node.value.loc, makenotes)
 
     # Unsupported visitors
     #
