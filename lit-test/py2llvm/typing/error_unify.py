@@ -4,5 +4,10 @@
 a = 1
 b = []
 
-# CHECK-L: ${LINE:+1}: fatal: cannot unify int(width='a) with list(elt='b)
+# CHECK-L: ${LINE:+1}: error: cannot unify int(width='a) with list(elt='b)
 a = b
+
+# CHECK-L: ${LINE:+1}: error: cannot unify int(width='a) with list(elt='b)
+[1, []]
+# CHECK-L: note: a list of type list(elt=int(width='a))
+# CHECK-L: note: a list element of type list(elt='b)

@@ -111,7 +111,7 @@ class LocalExtractor(algorithm.Visitor):
                     break
             if not found:
                 diag = diagnostic.Diagnostic("error",
-                    "can't declare name '{name}' as nonlocal: it is not bound in any outer scope",
+                    "cannot declare name '{name}' as nonlocal: it is not bound in any outer scope",
                     {"name": name},
                     loc, [node.keyword_loc])
                 self.engine.process(diag)
@@ -132,51 +132,38 @@ class Inferencer(algorithm.Transformer):
         self.env_stack = []
         self.function  = None # currently visited function
 
-    def _unify(self, typea, typeb, loca, locb, kind='generic'):
+    def _unify(self, typea, typeb, loca, locb, makenotes=None):
         try:
             typea.unify(typeb)
         except types.UnificationError as e:
             printer = types.TypePrinter()
 
-            if kind == "expects":
-                note1 = diagnostic.Diagnostic("note",
-                    "expression expecting an operand of type {typea}",
-                    {"typea": printer.name(typea)},
-                    loca)
-            elif kind == "return_type" or kind == "return_type_none":
-                note1 = diagnostic.Diagnostic("note",
-                    "function with return type {typea}",
-                    {"typea": printer.name(typea)},
-                    loca)
+            if makenotes:
+                notes = makenotes(printer, typea, typeb, loca, locb)
             else:
-                note1 = diagnostic.Diagnostic("note",
-                    "expression of type {typea}",
-                    {"typea": printer.name(typea)},
-                    loca)
-
-            if kind == "return_type_none":
-                note2 = diagnostic.Diagnostic("note",
-                    "implied expression of type {typeb}",
-                    {"typeb": printer.name(typeb)},
-                    locb)
-            else:
-                note2 = diagnostic.Diagnostic("note",
-                    "expression of type {typeb}",
-                    {"typeb": printer.name(typeb)},
-                    locb)
+                notes = [
+                    diagnostic.Diagnostic("note",
+                        "expression of type {typea}",
+                        {"typea": printer.name(typea)},
+                        loca),
+                    diagnostic.Diagnostic("note",
+                        "expression of type {typeb}",
+                        {"typeb": printer.name(typeb)},
+                        locb)
+                ]
 
             highlights = [locb] if locb else []
             if e.typea.find() == typea.find() and e.typeb.find() == typeb.find():
-                diag = diagnostic.Diagnostic("fatal",
+                diag = diagnostic.Diagnostic("error",
                     "cannot unify {typea} with {typeb}",
                     {"typea": printer.name(typea), "typeb": printer.name(typeb)},
-                    loca, highlights, notes=[note1, note2])
+                    loca, highlights, notes)
             else: # give more detail
-                diag = diagnostic.Diagnostic("fatal",
+                diag = diagnostic.Diagnostic("error",
                     "cannot unify {typea} with {typeb}: {fraga} is incompatible with {fragb}",
                     {"typea": printer.name(typea),   "typeb": printer.name(typeb),
                      "fraga": printer.name(e.typea), "fragb": printer.name(e.typeb)},
-                    loca, highlights, notes=[note1, note2])
+                    loca, highlights, notes)
             self.engine.process(diag)
 
     def _find_name(self, name, loc):
@@ -227,12 +214,23 @@ class Inferencer(algorithm.Transformer):
 
     def visit_Return(self, node):
         node = self.generic_visit(node)
+        def makenotes(printer, typea, typeb, loca, locb):
+            return [
+                diagnostic.Diagnostic("note",
+                    "function with return type {typea}",
+                    {"typea": printer.name(typea)},
+                    self.function.name_loc),
+                diagnostic.Diagnostic("note",
+                    "a statement returning {typeb}",
+                    {"typeb": printer.name(typeb)},
+                    node.loc)
+            ]
         if node.value is None:
             self._unify(self.function.return_type, types.TNone(),
-                        self.function.name_loc, node.value.loc, kind="return_type_none")
+                        self.function.name_loc, node.loc, makenotes)
         else:
             self._unify(self.function.return_type, node.value.type,
-                        self.function.name_loc, node.value.loc, kind="return_type")
+                        self.function.name_loc, node.value.loc, makenotes)
 
     def visit_Num(self, node):
         if isinstance(node.n, int):
@@ -267,9 +265,20 @@ class Inferencer(algorithm.Transformer):
         node = self.generic_visit(node)
         node = asttyped.ListT(type=types.TList(),
                               elts=node.elts, ctx=node.ctx, loc=node.loc)
+        def makenotes(printer, typea, typeb, loca, locb):
+            return [
+                diagnostic.Diagnostic("note",
+                    "a list of type {typea}",
+                    {"typea": printer.name(node.type)},
+                    loca),
+                diagnostic.Diagnostic("note",
+                    "a list element of type {typeb}",
+                    {"typeb": printer.name(typeb)},
+                    locb)
+            ]
         for elt in node.elts:
             self._unify(node.type["elt"], elt.type,
-                        node.loc, elt.loc, kind="expects")
+                        node.loc, elt.loc, makenotes)
         return node
 
     def visit_Subscript(self, node):
@@ -279,7 +288,7 @@ class Inferencer(algorithm.Transformer):
                                    loc=node.loc)
         # TODO: support more than just lists
         self._unify(types.TList(node.type), node.value.type,
-                    node.loc, node.value.loc, kind="expects")
+                    node.loc, node.value.loc)
         return node
 
     def visit_IfExp(self, node):
@@ -380,7 +389,7 @@ class Printer(algorithm.Visitor):
 def main():
     import sys, fileinput, os
 
-    if sys.argv[1] == '+diag':
+    if len(sys.argv) > 1 and sys.argv[1] == '+diag':
         del sys.argv[1]
         def process_diagnostic(diag):
             print("\n".join(diag.render(only_line=True)))

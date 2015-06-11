@@ -2,7 +2,7 @@
 # RUN: OutputCheck %s --file-to-check=%t
 
 def a():
-    # CHECK-L: ${LINE:+1}: error: can't declare name 'x' as nonlocal: it is not bound in any outer scope
+    # CHECK-L: ${LINE:+1}: error: cannot declare name 'x' as nonlocal: it is not bound in any outer scope
     nonlocal x
 
 x = 1
