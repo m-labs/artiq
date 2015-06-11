@@ -47,12 +47,12 @@ class ExplorerDock(dockarea.Dock):
 
         self.priority = QtGui.QSpinBox()
         self.priority.setRange(-99, 99)
-        grid.addLabel("Priority:", 1, 2)
+        grid.addWidget(QtGui.QLabel("Priority:"), 1, 2)
         grid.addWidget(self.priority, 1, 3)
 
         self.pipeline = QtGui.QLineEdit()
         self.pipeline.insert("main")
-        grid.addLabel("Pipeline:", 2, 0)
+        grid.addWidget(QtGui.QLabel("Pipeline:"), 2, 0)
         grid.addWidget(self.pipeline, 2, 1)
 
         self.flush = QtGui.QCheckBox("Flush")
