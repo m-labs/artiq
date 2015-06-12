@@ -284,6 +284,27 @@ class Inferencer(algorithm.Transformer):
                                 op_locs=node.op_locs, loc=node.loc)
         return self.visit(node)
 
+    def visit_UnaryOp(self, node):
+        node = self.generic_visit(node)
+        node = asttyped.UnaryOpT(type=types.TVar(),
+                                 op=node.op, operand=node.operand,
+                                 loc=node.loc)
+        return self.visit(node)
+
+    def visit_BinOp(self, node):
+        node = self.generic_visit(node)
+        node = asttyped.BinOpT(type=types.TVar(),
+                               left=node.left, op=node.op, right=node.right,
+                               loc=node.loc)
+        return self.visit(node)
+
+    def visit_Compare(self, node):
+        node = self.generic_visit(node)
+        node = asttyped.CompareT(type=types.TVar(),
+                                 left=node.left, ops=node.ops, comparators=node.comparators,
+                                 loc=node.loc)
+        return self.visit(node)
+
     # Visitors that just unify types
     #
     def visit_ListT(self, node):
@@ -308,6 +329,21 @@ class Inferencer(algorithm.Transformer):
         for value in node.values:
             self._unify(node.type, value.type,
                         node.loc, value.loc, self._makenotes_elts(node.values, "an operand"))
+        return node
+
+    def visit_UnaryOpT(self, node):
+        if isinstance(node.op, ast.Not):
+            node.type = types.TBool()
+        else:
+            operand_type = node.operand.type.find()
+            if types.is_numeric(operand_type):
+                node.type = operand_type
+            elif not types.is_var(operand_type):
+                diag = diagnostic.Diagnostic("error",
+                    "expected operand to be of numeric type, not {type}",
+                    {"type": types.TypePrinter().name(operand_type)},
+                    node.operand.loc)
+                self.engine.process(diag)
         return node
 
     def visit_Assign(self, node):
@@ -375,7 +411,6 @@ class Inferencer(algorithm.Transformer):
     visit_SetComp = visit_unsupported
     visit_Str = visit_unsupported
     visit_Starred = visit_unsupported
-    visit_UnaryOp = visit_unsupported
     visit_Yield = visit_unsupported
     visit_YieldFrom = visit_unsupported
 

@@ -180,6 +180,18 @@ def TList(elt=None):
     return TMono("list", {"elt": elt})
 
 
+def is_var(typ):
+    return isinstance(typ, TVar)
+
+def is_mono(typ, name, **params):
+    return isinstance(typ, TMono) and \
+        typ.name == name and typ.params == params
+
+def is_numeric(typ):
+    return isinstance(typ, TMono) and \
+        typ.name in ('int', 'float')
+
+
 class TypePrinter(object):
     """
     A class that prints types using Python-like syntax and gives

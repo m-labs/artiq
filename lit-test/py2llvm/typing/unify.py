@@ -41,3 +41,9 @@ True and False
 
 1 and 0
 # CHECK-L: 1:int(width='g) and 0:int(width='g):int(width='g)
+
+~1
+# CHECK-L: 1:int(width='h):int(width='h)
+
+not 1
+# CHECK-L: 1:int(width='i):bool
