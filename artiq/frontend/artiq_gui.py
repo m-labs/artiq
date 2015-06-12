@@ -11,9 +11,8 @@ from pyqtgraph import dockarea
 
 from artiq.protocols.file_db import FlatFileDB
 from artiq.protocols.pc_rpc import AsyncioClient
-from artiq.protocols.sync_struct import Subscriber
 from artiq.gui.explorer import ExplorerDock
-from artiq.gui.moninj import MonInjTTLDock, MonInjDDSDock
+from artiq.gui.moninj import MonInj
 from artiq.gui.parameters import ParametersDock
 from artiq.gui.schedule import ScheduleDock
 from artiq.gui.log import LogDock
@@ -65,20 +64,12 @@ def main():
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_explorer.sub_close()))
 
-    d_ttl = MonInjTTLDock()
-    loop.run_until_complete(d_ttl.start())
-    atexit.register(lambda: loop.run_until_complete(d_ttl.stop()))
-    d_dds = MonInjDDSDock()
-    devices_sub = Subscriber("devices",
-                             [d_ttl.init_devices, d_dds.init_devices])
-    loop.run_until_complete(
-        devices_sub.connect(args.server, args.port_notify))
-    atexit.register(
-        lambda: loop.run_until_complete(devices_sub.close()))
-
-    area.addDock(d_dds, "top")
-    area.addDock(d_ttl, "above", d_dds)
-    area.addDock(d_explorer, "above", d_ttl)
+    d_ttl_dds = MonInj()
+    loop.run_until_complete(d_ttl_dds.start(args.server, args.port_notify))
+    atexit.register(lambda: loop.run_until_complete(d_ttl_dds.stop()))
+    area.addDock(d_ttl_dds.dds_dock, "top")
+    area.addDock(d_ttl_dds.ttl_dock, "above", d_ttl_dds.dds_dock)
+    area.addDock(d_explorer, "above", d_ttl_dds.ttl_dock)
 
     d_params = ParametersDock()
     area.addDock(d_params, "right", d_explorer)
