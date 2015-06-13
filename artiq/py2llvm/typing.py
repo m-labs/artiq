@@ -58,12 +58,13 @@ class LocalExtractor(algorithm.Visitor):
         self.in_root = True
         self.generic_visit(node)
 
-    visit_ClassDef    = visit_root # don't look at inner scopes
-    visit_FunctionDef = visit_root
-    visit_Lambda      = visit_root
-    visit_DictComp    = visit_root
-    visit_ListComp    = visit_root
-    visit_SetComp     = visit_root
+    visit_ClassDef     = visit_root # don't look at inner scopes
+    visit_FunctionDef  = visit_root
+    visit_Lambda       = visit_root
+    visit_DictComp     = visit_root
+    visit_ListComp     = visit_root
+    visit_SetComp      = visit_root
+    visit_GeneratorExp = visit_root
 
     def _assignable(self, name):
         if name not in self.typing_env and name not in self.nonlocal_:
