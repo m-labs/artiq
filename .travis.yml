@@ -1,6 +1,9 @@
 language: python
 python:
   - '3.4'
+branches:
+  only:
+    - master
 sudo: false
 env:
   global:
