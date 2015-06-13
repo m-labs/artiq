@@ -282,6 +282,19 @@ class ASTTypedRewriter(algorithm.Transformer):
     visit_Yield = visit_unsupported
     visit_YieldFrom = visit_unsupported
 
+    # stmt
+    visit_Assert = visit_unsupported
+    visit_Break = visit_unsupported
+    visit_ClassDef = visit_unsupported
+    visit_Continue = visit_unsupported
+    visit_Delete = visit_unsupported
+    visit_Import = visit_unsupported
+    visit_ImportFrom = visit_unsupported
+    visit_Raise = visit_unsupported
+    visit_Try = visit_unsupported
+    visit_With = visit_unsupported
+
+
 class Inferencer(algorithm.Visitor):
     def __init__(self, engine):
         self.engine = engine
