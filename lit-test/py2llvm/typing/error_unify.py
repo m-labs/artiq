@@ -17,5 +17,8 @@ a = b
 # CHECK-L: note: an operand of type int(width='a)
 # CHECK-L: note: an operand of type bool
 
-# CHECK-L: ${LINE:+1}: error: expected operand to be of numeric type, not list(elt='a)
-~[]
+# CHECK-L: ${LINE:+1}: error: expected unary + operand to be of numeric type, not list(elt='a)
++[]
+
+# CHECK-L: ${LINE:+1}: error: expected ~ operand to be of integer type, not float
+~1.0

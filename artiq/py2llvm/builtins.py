@@ -58,6 +58,12 @@ class TList(types.TMono):
         super().__init__("list", {"elt": elt})
 
 
+def is_int(typ, width=None):
+    if width:
+        return types.is_mono(typ, "int", {"width": width})
+    else:
+        return types.is_mono(typ, "int")
+
 def is_numeric(typ):
     return isinstance(typ, types.TMono) and \
         typ.name in ('int', 'float')

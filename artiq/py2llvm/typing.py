@@ -389,16 +389,26 @@ class Inferencer(algorithm.Visitor):
                         node.loc, value.loc, self._makenotes_elts(node.values, "an operand"))
 
     def visit_UnaryOpT(self, node):
+        operand_type = node.operand.type.find()
         if isinstance(node.op, ast.Not):
             node.type = builtins.TBool()
-        else:
-            operand_type = node.operand.type.find()
+        elif isinstance(node.op, ast.Invert):
+            if builtins.is_int(operand_type):
+                node.type = operand_type
+            elif not types.is_var(operand_type):
+                diag = diagnostic.Diagnostic("error",
+                    "expected ~ operand to be of integer type, not {type}",
+                    {"type": types.TypePrinter().name(operand_type)},
+                    node.operand.loc)
+                self.engine.process(diag)
+        else: # UAdd, USub
             if builtins.is_numeric(operand_type):
                 node.type = operand_type
             elif not types.is_var(operand_type):
                 diag = diagnostic.Diagnostic("error",
-                    "expected operand to be of numeric type, not {type}",
-                    {"type": types.TypePrinter().name(operand_type)},
+                    "expected unary {op} operand to be of numeric type, not {type}",
+                    {"op": node.op.loc.source(),
+                     "type": types.TypePrinter().name(operand_type)},
                     node.operand.loc)
                 self.engine.process(diag)
 
