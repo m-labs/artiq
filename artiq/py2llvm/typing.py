@@ -284,9 +284,7 @@ class ASTTypedRewriter(algorithm.Transformer):
 
     # stmt
     visit_Assert = visit_unsupported
-    visit_Break = visit_unsupported
     visit_ClassDef = visit_unsupported
-    visit_Continue = visit_unsupported
     visit_Delete = visit_unsupported
     visit_Import = visit_unsupported
     visit_ImportFrom = visit_unsupported
@@ -298,8 +296,8 @@ class ASTTypedRewriter(algorithm.Transformer):
 class Inferencer(algorithm.Visitor):
     def __init__(self, engine):
         self.engine = engine
-        # currently visited function, for Return inference
-        self.function = None
+        self.function = None # currently visited function, for Return inference
+        self.in_loop = False
 
     def _unify(self, typea, typeb, loca, locb, makenotes=None):
         try:
@@ -385,11 +383,6 @@ class Inferencer(algorithm.Visitor):
                     node.operand.loc)
                 self.engine.process(diag)
 
-    def visit_FunctionDefT(self, node):
-        old_function, self.function = self.function, node
-        node = self.generic_visit(node)
-        self.function = old_function
-
     def visit_Assign(self, node):
         self.generic_visit(node)
         if len(node.targets) > 1:
@@ -405,12 +398,47 @@ class Inferencer(algorithm.Visitor):
                     node.target.loc, node.value.loc)
 
     def visit_For(self, node):
+        old_in_loop, self.in_loop = self.in_loop, True
         self.generic_visit(node)
+        self.in_loop = old_in_loop
         # TODO: support more than just lists
         self._unify(builtins.TList(node.target.type), node.iter.type,
                     node.target.loc, node.iter.loc)
 
+    def visit_While(self, node):
+        old_in_loop, self.in_loop = self.in_loop, True
+        self.generic_visit(node)
+        self.in_loop = old_in_loop
+
+    def visit_Break(self, node):
+        if not self.in_loop:
+            diag = diagnostic.Diagnostic("error",
+                "break statement outside of a loop", {},
+                node.keyword_loc)
+            self.engine.process(diag)
+
+    def visit_Continue(self, node):
+        if not self.in_loop:
+            diag = diagnostic.Diagnostic("error",
+                "continue statement outside of a loop", {},
+                node.keyword_loc)
+            self.engine.process(diag)
+
+    def visit_FunctionDefT(self, node):
+        old_function, self.function = self.function, node
+        old_in_loop, self.in_loop = self.in_loop, False
+        self.generic_visit(node)
+        self.function = old_function
+        self.in_loop = old_in_loop
+
     def visit_Return(self, node):
+        if not self.function:
+            diag = diagnostic.Diagnostic("error",
+                "return statement outside of a function", {},
+                node.keyword_loc)
+            self.engine.process(diag)
+            return
+
         self.generic_visit(node)
         def makenotes(printer, typea, typeb, loca, locb):
             return [
