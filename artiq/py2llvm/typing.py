@@ -128,6 +128,15 @@ class LocalExtractor(algorithm.Visitor):
 
 
 class ASTTypedRewriter(algorithm.Transformer):
+    """
+    :class:`ASTTypedRewriter` converts an untyped AST to a typed AST
+    where all type fields of non-literals are filled with fresh type variables,
+    and type fields of literals are filled with corresponding types.
+
+    :class:`ASTTypedRewriter` also discovers the scope of variable bindings
+    via :class:`LocalExtractor`.
+    """
+
     def __init__(self, engine):
         self.engine = engine
         self.env_stack = []
@@ -295,6 +304,15 @@ class ASTTypedRewriter(algorithm.Transformer):
 
 
 class Inferencer(algorithm.Visitor):
+    """
+    :class:`Inferencer` infers types by recursively applying the unification
+    algorithm. It does not treat inability to infer a concrete type as an error;
+    the result can still contain type variables.
+
+    :class:`Inferencer` is idempotent, but does not guarantee that it will
+    perform all possible inference in a single pass.
+    """
+
     def __init__(self, engine):
         self.engine = engine
         self.function = None # currently visited function, for Return inference
@@ -460,6 +478,16 @@ class Inferencer(algorithm.Visitor):
                         self.function.name_loc, node.value.loc, makenotes)
 
 class Printer(algorithm.Visitor):
+    """
+    :class:`Printer` prints ``:`` and the node type after every typed node,
+    and ``->`` and the node type before the colon in a function definition.
+
+    In almost all cases (except function definition) this does not result
+    in valid Python syntax.
+
+    :ivar rewriter: (:class:`pythonparser.source.Rewriter`) rewriter instance
+    """
+
     def __init__(self, buf):
         self.rewriter = source.Rewriter(buf)
         self.type_printer = types.TypePrinter()
