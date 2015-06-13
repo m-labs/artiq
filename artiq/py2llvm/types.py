@@ -184,8 +184,11 @@ def is_var(typ):
     return isinstance(typ, TVar)
 
 def is_mono(typ, name, **params):
+    params_match = True
+    for param in params:
+        params_match = params_match and typ.params[param] == params[param]
     return isinstance(typ, TMono) and \
-        typ.name == name and typ.params == params
+        typ.name == name and params_match
 
 def is_numeric(typ):
     return isinstance(typ, TMono) and \

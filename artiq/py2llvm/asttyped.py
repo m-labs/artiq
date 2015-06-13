@@ -29,6 +29,8 @@ class ClassDefT(ast.ClassDef, scoped):
     pass
 class FunctionDefT(ast.FunctionDef, scoped):
     pass
+class ModuleT(ast.Module, scoped):
+    pass
 
 class AttributeT(ast.Attribute, commontyped):
     pass
