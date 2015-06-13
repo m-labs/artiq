@@ -224,18 +224,18 @@ class ASTTypedRewriter(algorithm.Transformer):
                               elts=node.elts, ctx=node.ctx, loc=node.loc)
         return self.visit(node)
 
+    def visit_Attribute(self, node):
+        node = self.generic_visit(node)
+        node = asttyped.AttributeT(type=types.TVar(),
+                                   value=node.value, attr=node.attr, ctx=node.ctx,
+                                   dot_loc=node.dot_loc, attr_loc=node.attr_loc, loc=node.loc)
+        return self.visit(node)
+
     def visit_Subscript(self, node):
         node = self.generic_visit(node)
         node = asttyped.SubscriptT(type=types.TVar(),
                                    value=node.value, slice=node.slice, ctx=node.ctx,
                                    loc=node.loc)
-        return self.visit(node)
-
-    def visit_IfExp(self, node):
-        node = self.generic_visit(node)
-        node = asttyped.IfExpT(type=types.TVar(),
-                               test=node.test, body=node.body, orelse=node.orelse,
-                               if_loc=node.if_loc, else_loc=node.else_loc, loc=node.loc)
         return self.visit(node)
 
     def visit_BoolOp(self, node):
@@ -266,6 +266,13 @@ class ASTTypedRewriter(algorithm.Transformer):
                                  loc=node.loc)
         return self.visit(node)
 
+    def visit_IfExp(self, node):
+        node = self.generic_visit(node)
+        node = asttyped.IfExpT(type=types.TVar(),
+                               test=node.test, body=node.body, orelse=node.orelse,
+                               if_loc=node.if_loc, else_loc=node.else_loc, loc=node.loc)
+        return self.visit(node)
+
     # Unsupported visitors
     #
     def visit_unsupported(self, node):
@@ -275,7 +282,6 @@ class ASTTypedRewriter(algorithm.Transformer):
         self.engine.process(diag)
 
     # expr
-    visit_Attribute = visit_unsupported
     visit_BinOp = visit_unsupported
     visit_Call = visit_unsupported
     visit_Compare = visit_unsupported
@@ -372,6 +378,19 @@ class Inferencer(algorithm.Visitor):
         for elt in node.elts:
             self._unify(node.type["elt"], elt.type,
                         node.loc, elt.loc, self._makenotes_elts(node.elts, "a list element"))
+
+    def visit_AttributeT(self, node):
+        object_type = node.value.type.find()
+        if not types.is_var(object_type):
+            if node.attr in object_type.attributes:
+                # assumes no free type variables in .attributes
+                node.type = object_type.attributes[node.attr]
+            else:
+                diag = diagnostic.Diagnostic("error",
+                    "type {type} does not have an attribute '{attr}'",
+                    {"type": types.TypePrinter().name(object_type), "attr": node.attr},
+                    node.attr_loc, [node.value.loc])
+                self.engine.process(diag)
 
     def visit_SubscriptT(self, node):
         # TODO: support more than just lists

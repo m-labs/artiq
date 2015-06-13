@@ -37,8 +37,6 @@ class TVar(Type):
     folded into this class.
     """
 
-    attributes = ()
-
     def __init__(self):
         self.parent = self
 
@@ -70,6 +68,8 @@ class TVar(Type):
 
 class TMono(Type):
     """A monomorphic type, possibly parametric."""
+
+    attributes = {}
 
     def __init__(self, name, params={}):
         self.name, self.params = name, params

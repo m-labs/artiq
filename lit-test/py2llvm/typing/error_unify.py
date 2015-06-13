@@ -22,3 +22,6 @@ a = b
 
 # CHECK-L: ${LINE:+1}: error: expected ~ operand to be of integer type, not float
 ~1.0
+
+# CHECK-L: ${LINE:+1}: error: type int(width='a) does not have an attribute 'x'
+(1).x

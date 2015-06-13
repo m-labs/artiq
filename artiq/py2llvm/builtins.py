@@ -26,6 +26,8 @@ class TFloat(types.TMono):
 class TTuple(types.Type):
     """A tuple type."""
 
+    attributes = {}
+
     def __init__(self, elts=[]):
         self.elts = elts
 
