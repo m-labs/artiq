@@ -1,5 +1,5 @@
 from pythonparser import source, ast, algorithm, diagnostic, parse_buffer
-from . import asttyped, types
+from . import asttyped, types, builtins
 
 # This visitor will be called for every node with a scope,
 # i.e.: class, function, comprehension, lambda
@@ -222,9 +222,9 @@ class Inferencer(algorithm.Transformer):
 
     def visit_Num(self, node):
         if isinstance(node.n, int):
-            typ = types.TInt()
+            typ = builtins.TInt()
         elif isinstance(node.n, float):
-            typ = types.TFloat()
+            typ = builtins.TFloat()
         else:
             diag = diagnostic.Diagnostic("fatal",
                 "numeric type {type} is not supported", {"type": node.n.__class__.__name__},
@@ -239,19 +239,19 @@ class Inferencer(algorithm.Transformer):
 
     def visit_NameConstant(self, node):
         if node.value is True or node.value is False:
-            typ = types.TBool()
+            typ = builtins.TBool()
         elif node.value is None:
-            typ = types.TNone()
+            typ = builtins.TNone()
         return asttyped.NameConstantT(type=typ, value=node.value, loc=node.loc)
 
     def visit_Tuple(self, node):
         node = self.generic_visit(node)
-        return asttyped.TupleT(type=types.TTuple([x.type for x in node.elts]),
+        return asttyped.TupleT(type=builtins.TTuple([x.type for x in node.elts]),
                                elts=node.elts, ctx=node.ctx, loc=node.loc)
 
     def visit_List(self, node):
         node = self.generic_visit(node)
-        node = asttyped.ListT(type=types.TList(),
+        node = asttyped.ListT(type=builtins.TList(),
                               elts=node.elts, ctx=node.ctx, loc=node.loc)
         return self.visit(node)
 
@@ -307,7 +307,7 @@ class Inferencer(algorithm.Transformer):
 
     def visit_SubscriptT(self, node):
         # TODO: support more than just lists
-        self._unify(types.TList(node.type), node.value.type,
+        self._unify(builtins.TList(node.type), node.value.type,
                     node.loc, node.value.loc)
         return node
 
@@ -325,10 +325,10 @@ class Inferencer(algorithm.Transformer):
 
     def visit_UnaryOpT(self, node):
         if isinstance(node.op, ast.Not):
-            node.type = types.TBool()
+            node.type = builtins.TBool()
         else:
             operand_type = node.operand.type.find()
-            if types.is_numeric(operand_type):
+            if builtins.is_numeric(operand_type):
                 node.type = operand_type
             elif not types.is_var(operand_type):
                 diag = diagnostic.Diagnostic("error",
@@ -361,7 +361,7 @@ class Inferencer(algorithm.Transformer):
     def visit_Assign(self, node):
         node = self.generic_visit(node)
         if len(node.targets) > 1:
-            self._unify(types.TTuple([x.type for x in node.targets]), node.value.type,
+            self._unify(builtins.TTuple([x.type for x in node.targets]), node.value.type,
                         node.targets[0].loc.join(node.targets[-1].loc), node.value.loc)
         else:
             self._unify(node.targets[0].type, node.value.type,
@@ -377,7 +377,7 @@ class Inferencer(algorithm.Transformer):
     def visit_For(self, node):
         node = self.generic_visit(node)
         # TODO: support more than just lists
-        self._unify(TList(node.target.type), node.iter.type,
+        self._unify(builtins.TList(node.target.type), node.iter.type,
                     node.target.loc, node.iter.loc)
         return node
 
@@ -395,7 +395,7 @@ class Inferencer(algorithm.Transformer):
                     node.loc)
             ]
         if node.value is None:
-            self._unify(self.function.return_type, types.TNone(),
+            self._unify(self.function.return_type, builtins.TNone(),
                         self.function.name_loc, node.loc, makenotes)
         else:
             self._unify(self.function.return_type, node.value.type,

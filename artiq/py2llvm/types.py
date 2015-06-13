@@ -37,6 +37,8 @@ class TVar(Type):
     folded into this class.
     """
 
+    attributes = ()
+
     def __init__(self):
         self.parent = self
 
@@ -99,34 +101,6 @@ class TMono(Type):
     def __ne__(self, other):
         return not (self == other)
 
-class TTuple(Type):
-    """A tuple type."""
-
-    def __init__(self, elts=[]):
-        self.elts = elts
-
-    def find(self):
-        return self
-
-    def unify(self, other):
-        if isinstance(other, TTuple) and len(self.elts) == len(other.elts):
-            for selfelt, otherelt in zip(self.elts, other.elts):
-                selfelt.unify(otherelt)
-        elif isinstance(other, TVar):
-            other.unify(self)
-        else:
-            raise UnificationError(self, other)
-
-    def __repr__(self):
-        return "TTuple(%s)" % (", ".join(map(repr, self.elts)))
-
-    def __eq__(self, other):
-        return isinstance(other, TTuple) and \
-                self.elts == other.elts
-
-    def __ne__(self, other):
-        return not (self == other)
-
 class TValue(Type):
     """
     A type-level value (such as the integer denoting width of
@@ -155,30 +129,6 @@ class TValue(Type):
     def __ne__(self, other):
         return not (self == other)
 
-def TNone():
-    """The type of None."""
-    return TMono("NoneType")
-
-def TBool():
-    """A boolean type."""
-    return TMono("bool")
-
-def TInt(width=None):
-    """A generic integer type."""
-    if width is None:
-        width = TVar()
-    return TMono("int", {"width": width})
-
-def TFloat():
-    """A double-precision floating point type."""
-    return TMono("float")
-
-def TList(elt=None):
-    """A generic list type."""
-    if elt is None:
-        elt = TVar()
-    return TMono("list", {"elt": elt})
-
 
 def is_var(typ):
     return isinstance(typ, TVar)
@@ -189,10 +139,6 @@ def is_mono(typ, name, **params):
         params_match = params_match and typ.params[param] == params[param]
     return isinstance(typ, TMono) and \
         typ.name == name and params_match
-
-def is_numeric(typ):
-    return isinstance(typ, TMono) and \
-        typ.name in ('int', 'float')
 
 
 class TypePrinter(object):
