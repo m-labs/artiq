@@ -1,8 +1,81 @@
 Installing ARTIQ
 ================
 
+The preferred way of installing ARTIQ is through the use of the conda package manager.
+The conda package contains pre-built binaries that you can directly flash to your board.
+But you can also :ref:`install from sources <install-from-sources>`.
+
+.. note:: Only the linux-64 conda package contains the FPGA/BIOS/runtime pre-built binaries.
+
+Installing using conda
+----------------------
+
+Installing Anaconda or Miniconda
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* You can either install Anaconda (chose Python 3.4) from https://store.continuum.io/cshop/anaconda/
+
+* Or install the more minimalistic Miniconda (chose Python3.4) from http://conda.pydata.org/miniconda.html
+
+After installing either Anaconda or Miniconda, open a new terminal and make sure the following command works::
+
+    $ conda
+
+If it prints the help of the ``conda`` command, your install is OK.
+If not, then make sure your ``$PATH`` environment variable contains the path to anaconda3/bin (or miniconda3/bin)::
+
+    $ echo $PATH
+    /home/fallen/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games
+
+If your ``$PATH`` misses reference the miniconda3/bin or anaconda3/bin you can fix this by typing::
+
+    $ export PATH=$HOME/miniconda3:$PATH
+
+Installing the host side software
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For this, you need to add our binstar repositories to your conda configuration::
+
+    $ conda config --add channels fallen
+    $ conda config --add channels http://conda.binstar.org/fallen/channel/dev
+
+Then you can install the ARTIQ package, it will pull all the necessary dependencies::
+
+    $ conda install artiq
+
 Preparing the core device FPGA board
-------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You now need to flash 3 things on the FPGA board:
+
+* The FPGA bitstream
+* The BIOS
+* The ARTIQ runtime
+
+To do that:
+
+* On Pipistrello board::
+
+    $ artiq_flash.sh -t pipistrello
+
+* On KC705 board::
+
+    $ artiq_flash.sh
+
+Next step (for KC705) is to flash MAC and IP addresses to the board:
+
+* Get the :ref:`Flash proxy <install-flash-proxy>` for your board.
+* See :ref:`those instructions <flash-mac-ip-addr>` to flash MAC and IP addresses.
+
+.. _install-from-sources:
+
+Installing from source
+----------------------
+
+You can skip this if you already installed from conda.
+
+Preparing the core device FPGA board
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 These steps are required to generate bitstream (``.bit``) files, build the MiSoC BIOS and ARTIQ runtime, and flash FPGA boards. If the board is already flashed, you may skip those steps and go directly to `Installing the host-side software`.
 
@@ -65,6 +138,8 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
     .. note::
         It is safe to ignore the message "Could NOT find LIBFTD2XX" (libftd2xx is different from libftdi, and is not required).
 
+.. _install-flash-proxy:
+
 * Install the required flash proxy bitstreams:
 
     The purpose of the flash proxy bitstream is to give programming software fast JTAG access to the flash connected to the FPGA.
@@ -123,6 +198,8 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
         ARTIQ runtime built <date/time>
 
 The communication parameters are 115200 8-N-1.
+
+.. _flash-mac-ip-addr:
 
 * Set the MAC and IP address in the :ref:`core device configuration flash storage <core-device-flash-storage>`:
 
@@ -189,7 +266,7 @@ To flash the ``idle`` kernel:
 .. note:: You can find more information about how to use the ``artiq_coreconfig`` tool on the :ref:`Utilities <core-device-configuration-tool>` page.
 
 Installing the host-side software
----------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * Install LLVM and the llvmlite Python bindings: ::
 
@@ -234,7 +311,7 @@ Ubuntu 14.04 specific instructions
 
 This command installs all the required packages: ::
 
-    $ sudo apt-get install build-essential autotools-dev file git patch perl xutils-devs python3-pip texinfo flex bison libmpc-dev python3-serial python3-dateutil python3-prettytable python3-setuptools python3-numpy python3-scipy python3-sphinx python3-h5py python3-gi python3-dev python-dev subversion cmake libusb-dev libftdi-dev pkg-config
+    $ sudo apt-get install build-essential autotools-dev file git patch perl xutils-devs python3-pip texinfo flex bison libmpc-dev python3-serial python3-dateutil python3-prettytable python3-setuptools python3-numpy python3-scipy python3-sphinx python3-h5py python3-dev python-dev subversion cmake libusb-dev libftdi-dev pkg-config
 
 Note that ARTIQ requires Python 3.4 or above.
 
