@@ -25,13 +25,7 @@
 # CHECK-L: ${LINE:+1}: note: operand of type list(elt='b), which is not a valid repetition amount
 [1] * []
 
-# CHECK-L: ${LINE:+3}: error: cannot coerce list(elt='a) and NoneType to a common numeric type
-# CHECK-L: ${LINE:+2}: note: expression of type list(elt='a)
-# CHECK-L: ${LINE:+1}: note: expression of type NoneType
-[] - None
-
-# CHECK-L: ${LINE:+2}: error: cannot coerce list(elt='a) to float
-# CHECK-L: ${LINE:+1}: note: expression that required coercion to float
+# CHECK-L: ${LINE:+1}: error: cannot coerce list(elt='a) to a numeric type
 [] - 1.0
 
 # CHECK-L: ${LINE:+2}: error: expression of type int(width='a) has to be coerced to float, which makes assignment invalid

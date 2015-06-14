@@ -163,13 +163,14 @@ class TValue(Type):
 def is_var(typ):
     return isinstance(typ.find(), TVar)
 
-def is_mono(typ, name, **params):
+def is_mono(typ, name=None, **params):
     typ = typ.find()
     params_match = True
     for param in params:
-        params_match = params_match and typ.params[param] == params[param]
+        params_match = params_match and \
+            typ.params[param].find() == params[param].find()
     return isinstance(typ, TMono) and \
-        typ.name == name and params_match
+        (name is None or (typ.name == name and params_match))
 
 def is_tuple(typ, elts=None):
     typ = typ.find()

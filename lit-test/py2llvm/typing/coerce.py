@@ -27,3 +27,15 @@
 
 a = []; a += [1]
 # CHECK-L: a:list(elt=int(width='r)) = []:list(elt=int(width='r)); a:list(elt=int(width='r)) += [1:int(width='r)]:list(elt=int(width='r))
+
+[] is [1]
+# CHECK-L: []:list(elt=int(width='s)) is [1:int(width='s)]:list(elt=int(width='s)):bool
+
+1 in [1]
+# CHECK-L: 1:int(width='t) in [1:int(width='t)]:list(elt=int(width='t)):bool
+
+[] < [1]
+# CHECK-L: []:list(elt=int(width='u)) < [1:int(width='u)]:list(elt=int(width='u)):bool
+
+1.0 < 1
+# CHECK-L: 1.0:float < 1:int(width='v):float:bool
