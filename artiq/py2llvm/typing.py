@@ -312,7 +312,6 @@ class ASTTypedRewriter(algorithm.Transformer):
     visit_Import = visit_unsupported
     visit_ImportFrom = visit_unsupported
     visit_Try = visit_unsupported
-    visit_With = visit_unsupported
 
 
 class Inferencer(algorithm.Visitor):
@@ -723,6 +722,15 @@ class Inferencer(algorithm.Visitor):
             diag = diagnostic.Diagnostic("error",
                 "continue statement outside of a loop", {},
                 node.keyword_loc)
+            self.engine.process(diag)
+
+    def visit_withitem(self, node):
+        self.generic_visit(node)
+        if True: # none are supported yet
+            diag = diagnostic.Diagnostic("error",
+                "value of type {type} cannot act as a context manager",
+                {"type": types.TypePrinter().name(node.context_expr.type)},
+                node.context_expr.loc)
             self.engine.process(diag)
 
     def visit_FunctionDefT(self, node):
