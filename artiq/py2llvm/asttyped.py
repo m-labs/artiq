@@ -22,6 +22,7 @@ class scoped(object):
         list of variables resolved as globals
     """
 
+# Typed versions of untyped nodes
 class argT(ast.arg, commontyped):
     pass
 
@@ -82,3 +83,7 @@ class YieldT(ast.Yield, commontyped):
     pass
 class YieldFromT(ast.YieldFrom, commontyped):
     pass
+
+# Novel typed nodes
+class CoerceT(ast.expr, commontyped):
+    _fields = ('expr',) # other_expr deliberately not in _fields

@@ -101,6 +101,36 @@ class TMono(Type):
     def __ne__(self, other):
         return not (self == other)
 
+class TTuple(Type):
+    """A tuple type."""
+
+    attributes = {}
+
+    def __init__(self, elts=[]):
+        self.elts = elts
+
+    def find(self):
+        return self
+
+    def unify(self, other):
+        if isinstance(other, TTuple) and len(self.elts) == len(other.elts):
+            for selfelt, otherelt in zip(self.elts, other.elts):
+                selfelt.unify(otherelt)
+        elif isinstance(other, TVar):
+            other.unify(self)
+        else:
+            raise UnificationError(self, other)
+
+    def __repr__(self):
+        return "TTuple(%s)" % (", ".join(map(repr, self.elts)))
+
+    def __eq__(self, other):
+        return isinstance(other, TTuple) and \
+                self.elts == other.elts
+
+    def __ne__(self, other):
+        return not (self == other)
+
 class TValue(Type):
     """
     A type-level value (such as the integer denoting width of
@@ -131,15 +161,32 @@ class TValue(Type):
 
 
 def is_var(typ):
-    return isinstance(typ, TVar)
+    return isinstance(typ.find(), TVar)
 
 def is_mono(typ, name, **params):
+    typ = typ.find()
     params_match = True
     for param in params:
         params_match = params_match and typ.params[param] == params[param]
     return isinstance(typ, TMono) and \
         typ.name == name and params_match
 
+def is_tuple(typ, elts=None):
+    typ = typ.find()
+    if elts:
+        return isinstance(typ, TTuple) and \
+            elts == typ.elts
+    else:
+        return isinstance(typ, TTuple)
+
+def get_value(typ):
+    typ = typ.find()
+    if isinstance(typ, TVar):
+        return None
+    elif isinstance(typ, TValue):
+        return typ.value
+    else:
+        assert False
 
 class TypePrinter(object):
     """

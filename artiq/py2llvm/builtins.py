@@ -23,36 +23,6 @@ class TFloat(types.TMono):
     def __init__(self):
         super().__init__("float")
 
-class TTuple(types.Type):
-    """A tuple type."""
-
-    attributes = {}
-
-    def __init__(self, elts=[]):
-        self.elts = elts
-
-    def find(self):
-        return self
-
-    def unify(self, other):
-        if isinstance(other, TTuple) and len(self.elts) == len(other.elts):
-            for selfelt, otherelt in zip(self.elts, other.elts):
-                selfelt.unify(otherelt)
-        elif isinstance(other, TVar):
-            other.unify(self)
-        else:
-            raise UnificationError(self, other)
-
-    def __repr__(self):
-        return "TTuple(%s)" % (", ".join(map(repr, self.elts)))
-
-    def __eq__(self, other):
-        return isinstance(other, TTuple) and \
-                self.elts == other.elts
-
-    def __ne__(self, other):
-        return not (self == other)
-
 class TList(types.TMono):
     def __init__(self, elt=None):
         if elt is None:
@@ -60,12 +30,37 @@ class TList(types.TMono):
         super().__init__("list", {"elt": elt})
 
 
+def is_none(typ):
+    return types.is_mono(typ, "NoneType")
+
+def is_bool(typ):
+    return types.is_mono(typ, "bool")
+
 def is_int(typ, width=None):
     if width:
         return types.is_mono(typ, "int", {"width": width})
     else:
         return types.is_mono(typ, "int")
 
+def get_int_width(typ):
+    if is_int(typ):
+        return types.get_value(typ["width"])
+
+def is_float(typ):
+    return types.is_mono(typ, "float")
+
 def is_numeric(typ):
+    typ = typ.find()
     return isinstance(typ, types.TMono) and \
         typ.name in ('int', 'float')
+
+def is_list(typ, elt=None):
+    if elt:
+        return types.is_mono(typ, "list", {"elt": elt})
+    else:
+        return types.is_mono(typ, "list")
+
+def is_collection(typ):
+    typ = typ.find()
+    return isinstance(typ, types.TTuple) or \
+        types.is_mono(typ, "list")
