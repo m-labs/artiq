@@ -24,3 +24,6 @@
 
 1 + 1.0
 # CHECK-L: 1:int(width='q):float + 1.0:float:float
+
+a = []; a += [1]
+# CHECK-L: a:list(elt=int(width='r)) = []:list(elt=int(width='r)); a:list(elt=int(width='r)) += [1:int(width='r)]:list(elt=int(width='r))

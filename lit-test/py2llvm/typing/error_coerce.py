@@ -33,3 +33,11 @@
 # CHECK-L: ${LINE:+2}: error: cannot coerce list(elt='a) to float
 # CHECK-L: ${LINE:+1}: note: expression that required coercion to float
 [] - 1.0
+
+# CHECK-L: ${LINE:+2}: error: expression of type int(width='a) has to be coerced to float, which makes assignment invalid
+# CHECK-L: ${LINE:+1}: note: expression of type float
+a = 1; a += 1.0
+
+# CHECK-L: ${LINE:+2}: error: the result of this operation has type (int(width='a), float), which makes assignment to a slot of type (int(width='a),) invalid
+# CHECK-L: ${LINE:+1}: note: expression of type (float,)
+b = (1,); b += (1.0,)
