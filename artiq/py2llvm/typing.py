@@ -273,6 +273,15 @@ class ASTTypedRewriter(algorithm.Transformer):
                                if_loc=node.if_loc, else_loc=node.else_loc, loc=node.loc)
         return self.visit(node)
 
+    def visit_Raise(self, node):
+        node = self.generic_visit(node)
+        if node.cause:
+            diag = diagnostic.Diagnostic("error",
+                "'raise from' syntax is not supported", {},
+                node.from_loc)
+            self.engine.process(diag)
+        return node
+
     # Unsupported visitors
     #
     def visit_unsupported(self, node):
@@ -302,7 +311,6 @@ class ASTTypedRewriter(algorithm.Transformer):
     visit_Delete = visit_unsupported
     visit_Import = visit_unsupported
     visit_ImportFrom = visit_unsupported
-    visit_Raise = visit_unsupported
     visit_Try = visit_unsupported
     visit_With = visit_unsupported
 
