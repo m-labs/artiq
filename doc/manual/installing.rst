@@ -5,7 +5,7 @@ The preferred way of installing ARTIQ is through the use of the conda package ma
 The conda package contains pre-built binaries that you can directly flash to your board.
 But you can also :ref:`install from sources <install-from-sources>`.
 
-.. note:: Only the linux-64 conda package contains the FPGA/BIOS/runtime pre-built binaries.
+.. note:: Only the linux-64 and linux-32 conda packages contain the FPGA/BIOS/runtime pre-built binaries.
 
 Installing using conda
 ----------------------
@@ -34,9 +34,8 @@ If your ``$PATH`` misses reference the miniconda3/bin or anaconda3/bin you can f
 Installing the host side software
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For this, you need to add our binstar repositories to your conda configuration::
+For this, you need to add our binstar repository to your conda configuration::
 
-    $ conda config --add channels fallen
     $ conda config --add channels http://conda.binstar.org/fallen/channel/dev
 
 Then you can install the ARTIQ package, it will pull all the necessary dependencies::
