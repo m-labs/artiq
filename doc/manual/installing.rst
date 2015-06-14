@@ -48,23 +48,22 @@ Preparing the core device FPGA board
 
 You now need to flash 3 things on the FPGA board:
 
-* The FPGA bitstream
-* The BIOS
-* The ARTIQ runtime
+1. The FPGA bitstream
+2. The BIOS
+3. The ARTIQ runtime
 
-To do that:
+* First, install the :ref:`Flash proxy <install-flash-proxy>` for your board.
 
-* On Pipistrello board::
+* Then, on Pipistrello board::
 
     $ artiq_flash.sh -t pipistrello
 
-* On KC705 board::
+* or on KC705 board::
 
     $ artiq_flash.sh
 
 Next step (for KC705) is to flash MAC and IP addresses to the board:
 
-* Get the :ref:`Flash proxy <install-flash-proxy>` for your board.
 * See :ref:`those instructions <flash-mac-ip-addr>` to flash MAC and IP addresses.
 
 .. _install-from-sources:
