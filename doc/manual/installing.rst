@@ -174,10 +174,18 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
         $ git clone https://github.com/m-labs/artiq
         $ python3 setup.py develop --user
 
-* Build and flash the bitstream and BIOS by running `from the MiSoC top-level directory`: ::
+* Build and flash the bitstream and BIOS by running `from the MiSoC top-level directory`:
+    ::
 
         $ cd ~/artiq-dev/misoc
-        $ ./make.py -X ~/artiq-dev/artiq/soc -t artiq_ppro all
+
+    * For Pipistrello::
+
+        $ ./make.py -X ~/artiq-dev/artiq/soc -t artiq_pipistrello all
+
+    * For KC705::
+
+        $ ./make.py -X ~/artiq-dev/artiq/soc -t artiq_kc705 all
 
 * Then, build and flash the ARTIQ runtime: ::
 
