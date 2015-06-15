@@ -44,7 +44,7 @@ def is_int(typ, width=None):
 
 def get_int_width(typ):
     if is_int(typ):
-        return types.get_value(typ["width"])
+        return types.get_value(typ.find()["width"])
 
 def is_float(typ):
     return types.is_mono(typ, "float")

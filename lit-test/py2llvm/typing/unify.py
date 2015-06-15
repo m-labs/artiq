@@ -47,3 +47,6 @@ True and False
 
 not 1
 # CHECK-L: 1:int(width='i):bool
+
+[x for x in [1]]
+# CHECK-L: [x:int(width='j) for x:int(width='j) in [1:int(width='j)]:list(elt=int(width='j))]:list(elt=int(width='j))
