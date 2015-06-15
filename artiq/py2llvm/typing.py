@@ -788,6 +788,9 @@ class Inferencer(algorithm.Visitor):
                 self.engine.process(diag)
                 return
 
+        self._unify(node.type, typ.ret,
+                    node.loc, None)
+
     def visit_LambdaT(self, node):
         self.generic_visit(node)
         signature_type = self._type_from_arguments(node.args, node.body.type)
