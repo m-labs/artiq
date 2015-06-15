@@ -111,7 +111,7 @@ then
 elif [ "$BOARD" == "pipistrello" ]
 then
 	UDEV_RULES=99-papilio.rules
-	BITSTREAM=artiq_pipistrello-nist_qc1-pipistrello.bin
+	BITSTREAM=artiq_pipistrello-nist_qc1-pipistrello.bit
 	CABLE=papilio
 	PROXY=bscan_spi_lx45_csg324.bit
 	BIOS_ADDR=0x170000
@@ -153,7 +153,7 @@ fi
 if [ "${FLASH_BITSTREAM}" == "1" ]
 then
 	echo "Flashing FPGA bitstream..."
-	xc3sprog -v -c $CABLE -I$PROXY_PATH/$PROXY $BIN_PREFIX/$BITSTREAM:w:0x0:BIN
+	xc3sprog -v -c $CABLE -I$PROXY_PATH/$PROXY $BIN_PREFIX/$BITSTREAM:w:0x0:BIT
 fi
 
 if [ "${FLASH_BIOS}" == "1" ]
