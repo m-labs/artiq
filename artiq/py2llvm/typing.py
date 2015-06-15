@@ -916,13 +916,14 @@ def main():
     else:
         def process_diagnostic(diag):
             print("\n".join(diag.render()))
-            if diag.level == 'fatal':
+            if diag.level in ('fatal', 'error'):
                 exit(1)
 
     engine = diagnostic.Engine()
     engine.process = process_diagnostic
 
-    buf = source.Buffer("".join(fileinput.input()), os.path.basename(fileinput.filename()))
+    buf = source.Buffer("".join(fileinput.input()).expandtabs(),
+                        os.path.basename(fileinput.filename()))
     parsed, comments = parse_buffer(buf, engine=engine)
     typed = ASTTypedRewriter(engine=engine).visit(parsed)
     Inferencer(engine=engine).visit(typed)
