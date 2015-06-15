@@ -20,6 +20,10 @@ def d(x):
     # CHECK-L: ${LINE:+1}: error: name 'x' cannot be a parameter and global simultaneously
     global x
 
-def d(x):
+def e(x):
     # CHECK-L: ${LINE:+1}: error: name 'x' cannot be a parameter and nonlocal simultaneously
     nonlocal x
+
+# CHECK-L: ${LINE:+1}: error: duplicate parameter 'x'
+def f(x, x):
+    pass

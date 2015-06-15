@@ -71,6 +71,12 @@ class LocalExtractor(algorithm.Visitor):
             self.typing_env[name] = types.TVar()
 
     def visit_arg(self, node):
+        if node.arg in self.params:
+            diag = diagnostic.Diagnostic("error",
+                "duplicate parameter '{name}'", {"name": node.arg},
+                node.loc)
+            self.engine.process(diag)
+            return
         self._assignable(node.arg)
         self.params.add(node.arg)
 
