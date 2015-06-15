@@ -47,6 +47,7 @@ requirements:
         - pyelftools
         - quamash
         - pyqtgraph
+        - flterm # [linux]
 
 test:
     imports:
