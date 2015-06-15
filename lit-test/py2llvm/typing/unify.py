@@ -52,5 +52,5 @@ not 1
 # CHECK-L: [x:int(width='j) for x:int(width='j) in [1:int(width='j)]:list(elt=int(width='j))]:list(elt=int(width='j))
 
 lambda x, y=1: x
-# CHECK-L: lambda x:'a, y:int(width='b)=1:int(width='b): x:'a:(x:'a, ?y:int(width='b))->'a
+# CHECK-L: lambda x:'k, y:int(width='l)=1:int(width='l): x:'k:(x:'k, ?y:int(width='l))->'k
 
