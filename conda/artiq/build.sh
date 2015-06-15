@@ -33,11 +33,15 @@ cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_pipistrello $MISOC_EXTRA_IS
 cp soc/runtime/runtime.fbi $BIN_PREFIX/kc705/
 cp $SRC_DIR/misoc/software/bios/bios.bin $BIN_PREFIX/kc705/
 cp $SRC_DIR/misoc/build/artiq_kc705-nist_qc1-kc705.bit $BIN_PREFIX/kc705/
+wget http://sionneau.net/artiq/binaries/kc705/flash_proxy/bscan_spi_kc705.bit
+mv bscan_spi_kc705.bit $BIN_PREFIX/kc705/
 
 # install Pipistrello binaries
 
 cp soc/runtime/runtime.fbi $BIN_PREFIX/pipistrello/
 cp $SRC_DIR/misoc/software/bios/bios.bin $BIN_PREFIX/pipistrello/
 cp $SRC_DIR/misoc/build/artiq_pipistrello-nist_qc1-pipistrello.bit $BIN_PREFIX/pipistrello/
+wget http://www.phys.ethz.ch/~robertjo/bscan_spi_lx45_csg324.bit
+mv bscan_spi_lx45_csg324.bit $BIN_PREFIX/pipistrello/
 
 cp artiq/frontend/artiq_flash.sh $PREFIX/bin
