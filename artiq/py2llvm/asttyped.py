@@ -29,7 +29,7 @@ class argT(ast.arg, commontyped):
 class ClassDefT(ast.ClassDef, scoped):
     pass
 class FunctionDefT(ast.FunctionDef, scoped):
-    pass
+    _types = ("signature_type",)
 class ModuleT(ast.Module, scoped):
     pass
 

@@ -58,7 +58,7 @@ class TVar(Type):
 
     def __repr__(self):
         if self.parent is self:
-            return "TVar(%d)" % id(self)
+            return "<py2llvm.types.TVar %d>" % id(self)
         else:
             return repr(self.find())
 
@@ -88,7 +88,7 @@ class TMono(Type):
             raise UnificationError(self, other)
 
     def __repr__(self):
-        return "TMono(%s, %s)" % (repr(self.name), repr(self.params))
+        return "py2llvm.types.TMono(%s, %s)" % (repr(self.name), repr(self.params))
 
     def __getitem__(self, param):
         return self.params[param]
@@ -102,7 +102,11 @@ class TMono(Type):
         return not (self == other)
 
 class TTuple(Type):
-    """A tuple type."""
+    """
+    A tuple type.
+
+    :ivar elts: (list of :class:`Type`) elements
+    """
 
     attributes = {}
 
@@ -122,11 +126,56 @@ class TTuple(Type):
             raise UnificationError(self, other)
 
     def __repr__(self):
-        return "TTuple(%s)" % (", ".join(map(repr, self.elts)))
+        return "py2llvm.types.TTuple(%s)" % repr(self.elts)
 
     def __eq__(self, other):
         return isinstance(other, TTuple) and \
                 self.elts == other.elts
+
+    def __ne__(self, other):
+        return not (self == other)
+
+class TFunction(Type):
+    """
+    A function type.
+
+    :ivar args: (:class:`collections.OrderedDict` of string to :class:`Type`)
+        mandatory arguments
+    :ivar optargs: (:class:`collections.OrderedDict` of string to :class:`Type`)
+        optional arguments
+    :ivar ret: (:class:`Type`)
+        return type
+    """
+
+    attributes = {}
+
+    def __init__(self, args, optargs, ret):
+        self.args, self.optargs, self.ret = args, optargs, ret
+
+    def find(self):
+        return self
+
+    def unify(self, other):
+        if isinstance(other, TFunction) and \
+                self.args.keys() == other.args.keys() and \
+                self.optargs.keys() == other.optargs.keys():
+            for selfarg, otherarg in zip(self.args.values() + self.optargs.values(),
+                                         other.args.values() + other.optargs.values()):
+                selfarg.unify(otherarg)
+            self.ret.unify(other.ret)
+        elif isinstance(other, TVar):
+            other.unify(self)
+        else:
+            raise UnificationError(self, other)
+
+    def __repr__(self):
+        return "py2llvm.types.TFunction(%s, %s, %s)" % \
+            (repr(self.args), repr(self.optargs), repr(self.ret))
+
+    def __eq__(self, other):
+        return isinstance(other, TFunction) and \
+                self.args == other.args and \
+                self.optargs == other.optargs
 
     def __ne__(self, other):
         return not (self == other)
@@ -150,7 +199,7 @@ class TValue(Type):
             raise UnificationError(self, other)
 
     def __repr__(self):
-        return "TValue(%s)" % repr(self.value)
+        return "py2llvm.types.TValue(%s)" % repr(self.value)
 
     def __eq__(self, other):
         return isinstance(other, TValue) and \
@@ -216,6 +265,11 @@ class TypePrinter(object):
                 return "(%s,)" % self.name(typ.elts[0])
             else:
                 return "(%s)" % ", ".join(list(map(self.name, typ.elts)))
+        elif isinstance(typ, TFunction):
+            args = []
+            args += [ "%s:%s" % (arg, self.name(typ.args[arg]))    for arg in typ.args]
+            args += ["?%s:%s" % (arg, self.name(typ.optargs[arg])) for arg in typ.optargs]
+            return "(%s)->%s" % (", ".join(args), self.name(typ.ret))
         elif isinstance(typ, TValue):
             return repr(typ.value)
         else:
