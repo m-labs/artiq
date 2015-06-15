@@ -152,6 +152,9 @@ class TFunction(Type):
     def __init__(self, args, optargs, ret):
         self.args, self.optargs, self.ret = args, optargs, ret
 
+    def arity(self):
+        return len(self.args) + len(self.optargs)
+
     def find(self):
         return self
 
@@ -228,6 +231,9 @@ def is_tuple(typ, elts=None):
             elts == typ.elts
     else:
         return isinstance(typ, TTuple)
+
+def is_function(typ):
+    return isinstance(typ.find(), TFunction)
 
 def get_value(typ):
     typ = typ.find()
