@@ -51,13 +51,11 @@ You now need to flash 3 things on the FPGA board:
 2. The BIOS
 3. The ARTIQ runtime
 
-* First, install the :ref:`Flash proxy <install-flash-proxy>` for your board.
-
-* Then, on Pipistrello board::
+* For the Pipistrello board::
 
     $ artiq_flash.sh -t pipistrello
 
-* or on KC705 board::
+* For the KC705 board::
 
     $ artiq_flash.sh
 
