@@ -22,19 +22,18 @@ cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_kc705 build-headers build-b
 make -C soc/runtime clean runtime.fbi
 cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_kc705 $MISOC_EXTRA_VIVADO_CMDLINE build-bitstream; cd -
 
+# install KC705 binaries
+
+cp $SRC_DIR/misoc/software/bios/bios.bin $BIN_PREFIX/kc705/
+cp $SRC_DIR/misoc/build/artiq_kc705-nist_qc1-kc705.bit $BIN_PREFIX/kc705/
+wget http://sionneau.net/artiq/binaries/kc705/flash_proxy/bscan_spi_kc705.bit
+mv bscan_spi_kc705.bit $BIN_PREFIX/kc705/
+
 # build for Pipistrello
 
 cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_pipistrello build-headers build-bios; cd -
 make -C soc/runtime clean runtime.fbi
 cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_pipistrello $MISOC_EXTRA_ISE_CMDLINE build-bitstream; cd -
-
-# install KC705 binaries
-
-cp soc/runtime/runtime.fbi $BIN_PREFIX/kc705/
-cp $SRC_DIR/misoc/software/bios/bios.bin $BIN_PREFIX/kc705/
-cp $SRC_DIR/misoc/build/artiq_kc705-nist_qc1-kc705.bit $BIN_PREFIX/kc705/
-wget http://sionneau.net/artiq/binaries/kc705/flash_proxy/bscan_spi_kc705.bit
-mv bscan_spi_kc705.bit $BIN_PREFIX/kc705/
 
 # install Pipistrello binaries
 
