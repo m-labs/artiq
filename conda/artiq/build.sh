@@ -24,6 +24,7 @@ cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_kc705 $MISOC_EXTRA_VIVADO_C
 
 # install KC705 binaries
 
+cp soc/runtime/runtime.fbi $BIN_PREFIX/kc705/
 cp $SRC_DIR/misoc/software/bios/bios.bin $BIN_PREFIX/kc705/
 cp $SRC_DIR/misoc/build/artiq_kc705-nist_qc1-kc705.bit $BIN_PREFIX/kc705/
 wget http://sionneau.net/artiq/binaries/kc705/flash_proxy/bscan_spi_kc705.bit
