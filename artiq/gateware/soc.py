@@ -19,8 +19,9 @@ class AMPSoC:
 
         self.submodules.timer0 = timer.Timer(width=64)
 
-        self.submodules.kernel_cpu = amp.KernelCPU(
-            self.platform, self.sdram.crossbar.get_master())
+        self.submodules.kernel_cpu = amp.KernelCPU(self.platform)
+        self.add_wb_sdram_if(self.kernel_cpu.wb_sdram)
+
         self.submodules.mailbox = amp.Mailbox()
         self.add_wb_slave(mem_decoder(self.mem_map["mailbox"]),
                           self.mailbox.i1)

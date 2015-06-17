@@ -4,6 +4,7 @@ from migen.bank import wbgen
 
 from misoclib.com import gpio
 from misoclib.soc import mem_decoder
+from misoclib.mem.sdram.core.minicon import MiniconSettings
 from targets.pipistrello import BaseSoC
 
 from artiq.gateware.soc import AMPSoC
@@ -69,7 +70,9 @@ class NIST_QC1(BaseSoC, AMPSoC):
 
     def __init__(self, platform, cpu_type="or1k", **kwargs):
         BaseSoC.__init__(self, platform,
-                         cpu_type=cpu_type, with_timer=False, **kwargs)
+                         cpu_type=cpu_type,
+                         sdram_controller_settings=MiniconSettings(l2_size=128*1024),
+                         with_timer=False, **kwargs)
         AMPSoC.__init__(self)
         platform.toolchain.ise_commands += """
 trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd {build_name}.pcf
