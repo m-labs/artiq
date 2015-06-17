@@ -13,20 +13,30 @@ def to_bytes(string):
 def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ core device config "
                                                  "remote access")
-    parser.add_argument("-r", "--read", type=to_bytes,
-                        help="read key from core device config")
-    parser.add_argument("-w", "--write", nargs=2, action="append", default=[],
-                        metavar=("KEY", "STRING"), type=to_bytes,
-                        help="write key-value records to core device config")
-    parser.add_argument("-f", "--write-file", nargs=2, action="append",
-                        type=to_bytes, default=[], metavar=("KEY", "FILENAME"),
-                        help="write the content of a file into core device "
-                             "config")
-    parser.add_argument("-e", "--erase", action="store_true",
-                        help="erase core device config")
-    parser.add_argument("-d", "--delete", action="append", default=[],
-                        type=to_bytes,
-                        help="delete key from core device config")
+    subparsers = parser.add_subparsers(dest="action")
+    subparsers.required = True
+    p_read = subparsers.add_parser("read",
+                                   help="read key from core device config")
+    p_read.add_argument("-k", "--key", type=to_bytes, required=True,
+                        help="key to be read from core device config")
+    p_write = subparsers.add_parser("write",
+                                    help="write key-value records to core "
+                                         "device config")
+    p_write.add_argument("-s", "--string", nargs=2, action="append",
+                         default=[], metavar=("KEY", "STRING"), type=to_bytes,
+                         help="key-value records to be written to core device "
+                              "config")
+    p_write.add_argument("-f", "--file", nargs=2, action="append",
+                         type=to_bytes, default=[],
+                         metavar=("KEY", "FILENAME"),
+                         help="key and file whose content to be written to "
+                              "core device config")
+    subparsers.add_parser("erase", help="erase core device config")
+    p_delete = subparsers.add_parser("delete",
+                                     help="delete key from core device config")
+    p_delete.add_argument("-k", "--key", action="append", default=[],
+                          type=to_bytes, required=True,
+                          help="key to be deleted from core device config")
     parser.add_argument("--ddb", default="ddb.pyon",
                         help="device database file")
     return parser
@@ -37,25 +47,23 @@ def main():
     ddb = FlatFileDB(args.ddb)
     comm = create_device(ddb.request("comm"), None)
 
-    if args.read:
-        value = comm.flash_storage_read(args.read)
+    if args.action == "read":
+        value = comm.flash_storage_read(args.key)
         if not value:
-            print("Key {} does not exist".format(args.read))
+            print("Key {} does not exist".format(args.key))
         else:
             print(value)
-    elif args.erase:
+    elif args.action == "erase":
             comm.flash_storage_erase()
-    elif args.delete:
-        for key in args.delete:
+    elif args.action == "delete":
+        for key in args.key:
             comm.flash_storage_remove(key)
-    else:
-        if args.write:
-            for key, value in args.write:
-                comm.flash_storage_write(key, value)
-        if args.write_file:
-            for key, filename in args.write_file:
-                with open(filename, "rb") as fi:
-                    comm.flash_storage_write(key, fi.read())
+    elif args.action == "write":
+        for key, value in args.string:
+            comm.flash_storage_write(key, value)
+        for key, filename in args.file:
+            with open(filename, "rb") as fi:
+                comm.flash_storage_write(key, fi.read())
 
 if __name__ == "__main__":
     main()
