@@ -109,38 +109,38 @@ When not specified, the artiq_coreconfig tool will assume that there is a file n
 
 To read the record whose key is ``mac``::
 
-    $ artiq_coreconfig -r mac
+    $ artiq_coreconfig read -k mac
 
 To write the value ``test_value`` in the key ``my_key``::
 
-    $ artiq_coreconfig -w my_key test_value
-    $ artiq_coreconfig -r my_key
+    $ artiq_coreconfig write -s my_key test_value
+    $ artiq_coreconfig read -k my_key
     b'test_value'
 
 You can also write entire files in a record using the ``-f`` parameter. This is useful for instance to write the ``idle`` kernel in the flash storage::
 
-    $ artiq_coreconfig -f idle_kernel idle.elf
-    $ artiq_coreconfig -r idle_kernel | head -c9
+    $ artiq_coreconfig write -f idle_kernel idle.elf
+    $ artiq_coreconfig read -k idle_kernel | head -c9
     b'\x7fELF
 
 You can write several records at once::
 
-    $ artiq_coreconfig -w key1 value1 -f key2 filename -w key3 value3
+    $ artiq_coreconfig write -s key1 value1 -f key2 filename -s key3 value3
 
 To remove the previously written key ``my_key``::
 
-    $ artiq_coreconfig -d my_key
+    $ artiq_coreconfig delete -k my_key
 
 To erase the entire flash storage area::
 
-    $ artiq_coreconfig -e
+    $ artiq_coreconfig erase
 
 You don't need to remove a record in order to change its value, just overwrite
 it::
 
-    $ artiq_coreconfig -w my_key some_value
-    $ artiq_coreconfig -w my_key some_other_value
-    $ artiq_coreconfig -r my_key
+    $ artiq_coreconfig write -s my_key some_value
+    $ artiq_coreconfig write -s my_key some_other_value
+    $ artiq_coreconfig read -k my_key
     b'some_other_value'
 
 .. argparse::
