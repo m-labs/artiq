@@ -17,13 +17,13 @@ class _DictSyncSubstruct:
 class DictSyncModel(QtCore.QAbstractTableModel):
     def __init__(self, headers, parent, init):
         self.headers = headers
-        self.data = init
-        self.row_to_key = sorted(self.data.keys(),
-                                 key=lambda k: self.sort_key(k, self.data[k]))
+        self.backing_store = init
+        self.row_to_key = sorted(self.backing_store.keys(),
+                                 key=lambda k: self.sort_key(k, self.backing_store[k]))
         QtCore.QAbstractTableModel.__init__(self, parent)
 
     def rowCount(self, parent):
-        return len(self.data)
+        return len(self.backing_store)
 
     def columnCount(self, parent):
         return len(self.headers)
@@ -34,7 +34,7 @@ class DictSyncModel(QtCore.QAbstractTableModel):
         elif role != QtCore.Qt.DisplayRole:
             return None
         k = self.row_to_key[index.row()]
-        return self.convert(k, self.data[k], index.column())
+        return self.convert(k, self.backing_store[k], index.column())
 
     def headerData(self, col, orientation, role):
         if (orientation == QtCore.Qt.Horizontal
@@ -48,7 +48,7 @@ class DictSyncModel(QtCore.QAbstractTableModel):
         while lo < hi:
             mid = (lo + hi)//2
             if (self.sort_key(self.row_to_key[mid],
-                              self.data[self.row_to_key[mid]])
+                              self.backing_store[self.row_to_key[mid]])
                     < self.sort_key(k, v)):
                 lo = mid + 1
             else:
@@ -56,7 +56,7 @@ class DictSyncModel(QtCore.QAbstractTableModel):
         return lo
 
     def __setitem__(self, k, v):
-        if k in self.data:
+        if k in self.backing_store:
             old_row = self.row_to_key.index(k)
             new_row = self._find_row(k, v)
             if old_row == new_row:
@@ -65,7 +65,7 @@ class DictSyncModel(QtCore.QAbstractTableModel):
             else:
                 self.beginMoveRows(QtCore.QModelIndex(), old_row, old_row,
                                    QtCore.QModelIndex(), new_row)
-            self.data[k] = v
+            self.backing_store[k] = v
             self.row_to_key[old_row], self.row_to_key[new_row] = \
                 self.row_to_key[new_row], self.row_to_key[old_row]
             if old_row != new_row:
@@ -73,7 +73,7 @@ class DictSyncModel(QtCore.QAbstractTableModel):
         else:
             row = self._find_row(k, v)
             self.beginInsertRows(QtCore.QModelIndex(), row, row)
-            self.data[k] = v
+            self.backing_store[k] = v
             self.row_to_key.insert(row, k)
             self.endInsertRows()
 
@@ -81,13 +81,13 @@ class DictSyncModel(QtCore.QAbstractTableModel):
         row = self.row_to_key.index(k)
         self.beginRemoveRows(QtCore.QModelIndex(), row, row)
         del self.row_to_key[row]
-        del self.data[k]
+        del self.backing_store[k]
         self.endRemoveRows()
 
     def __getitem__(self, key):
         def update():
-            self[key] = self.data[key]
-        return _DictSyncSubstruct(update, self.data[key])
+            self[key] = self.backing_store[key]
+        return _DictSyncSubstruct(update, self.backing_store[key])
 
     def sort_key(self, k, v):
         raise NotImplementedError

@@ -1,7 +1,8 @@
 import asyncio
 
-from quamash import QtGui
+from quamash import QtGui, QtCore
 from pyqtgraph import dockarea
+from pyqtgraph import LayoutWidget
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.gui.tools import DictSyncModel
@@ -28,9 +29,32 @@ class ParametersDock(dockarea.Dock):
     def __init__(self):
         dockarea.Dock.__init__(self, "Parameters", size=(400, 300))
 
+        splitter = QtGui.QSplitter(QtCore.Qt.Horizontal)
+        self.addWidget(splitter)
+        grid = LayoutWidget()
+        splitter.addWidget(grid)
+
+        self.search = QtGui.QLineEdit()
+        self.search.setPlaceholderText("search...")
+        self.search.editingFinished.connect(self.search_parameters)
+        grid.addWidget(self.search, 0, 0)
+
         self.table = QtGui.QTableView()
         self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
-        self.addWidget(self.table)
+        grid.addWidget(self.table, 1, 0)
+
+    def search_parameters(self):
+        model = self.table.model()
+        parentIndex = model.index(0, 0)
+        numRows = model.rowCount(parentIndex)
+
+        for row in range(numRows):
+            index = model.index(row, 0)
+            parameter = model.data(index, QtCore.Qt.DisplayRole)
+            if parameter.startswith(self.search.displayText()):
+                self.table.showRow(row)
+            else:
+                self.table.hideRow(row)
 
     @asyncio.coroutine
     def sub_connect(self, host, port):
