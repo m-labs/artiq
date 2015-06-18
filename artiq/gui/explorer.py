@@ -101,7 +101,7 @@ class ExplorerDock(dockarea.Dock):
         if idx:
             row = idx[0].row()
             key = self.explist_model.row_to_key[row]
-            expinfo = self.explist_model.data[key]
+            expinfo = self.explist_model.backing_store[key]
             if self.datetime_en.isChecked():
                 due_date = self.datetime.dateTime().toMSecsSinceEpoch()/1000
             else:
