@@ -17,7 +17,7 @@ def get_argparser():
     subparsers.required = True
     p_read = subparsers.add_parser("read",
                                    help="read key from core device config")
-    p_read.add_argument("-k", "--key", type=to_bytes, required=True,
+    p_read.add_argument("key", type=to_bytes,
                         help="key to be read from core device config")
     p_write = subparsers.add_parser("write",
                                     help="write key-value records to core "
@@ -34,8 +34,8 @@ def get_argparser():
     subparsers.add_parser("erase", help="erase core device config")
     p_delete = subparsers.add_parser("delete",
                                      help="delete key from core device config")
-    p_delete.add_argument("-k", "--key", action="append", default=[],
-                          type=to_bytes, required=True,
+    p_delete.add_argument("key", nargs=argparse.REMAINDER,
+                          default=[], type=to_bytes,
                           help="key to be deleted from core device config")
     parser.add_argument("--ddb", default="ddb.pyon",
                         help="device database file")
