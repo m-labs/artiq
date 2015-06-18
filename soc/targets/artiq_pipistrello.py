@@ -71,7 +71,7 @@ class NIST_QC1(BaseSoC, AMPSoC):
     def __init__(self, platform, cpu_type="or1k", **kwargs):
         BaseSoC.__init__(self, platform,
                          cpu_type=cpu_type,
-                         sdram_controller_settings=MiniconSettings(l2_size=128*1024),
+                         sdram_controller_settings=MiniconSettings(l2_size=64*1024),
                          with_timer=False, **kwargs)
         AMPSoC.__init__(self)
         platform.toolchain.ise_commands += """
