@@ -41,6 +41,7 @@ class ExplorerDock(dockarea.Dock):
         self.datetime.setDisplayFormat("MMM d yyyy hh:mm:ss")
         self.datetime.setCalendarPopup(True)
         self.datetime.setDate(QtCore.QDate.currentDate())
+        self.datetime.dateTimeChanged.connect(self.enable_duedate)
         self.datetime_en = QtGui.QCheckBox("Due date:")
         grid.addWidget(self.datetime_en, 1, 0)
         grid.addWidget(self.datetime, 1, 1)
@@ -64,6 +65,9 @@ class ExplorerDock(dockarea.Dock):
 
         placeholder = QtGui.QWidget()
         splitter.addWidget(placeholder)
+
+    def enable_duedate(self):
+        self.datetime_en.setChecked(True)
 
     @asyncio.coroutine
     def sub_connect(self, host, port):
