@@ -21,8 +21,8 @@ class AD9858(Module):
 
         # keep track of frequency tuning words, before they are FUDed
         ftws = [Signal(32) for i in range(nchannels)]
-        for i in range(4):
-            for c, ftw in enumerate(ftws):
+        for c, ftw in enumerate(ftws):
+            for i in range(4):
                 self.sync.rio += \
                     If(self.rtlink.o.stb & \
                         (self.rtlink.o.address == 0x0a+i) & \
@@ -31,6 +31,6 @@ class AD9858(Module):
                     )
 
         # FTW to probe on FUD
-        for c, (probe, ftw) in enumerate(zip(self.probes, ftw)):
+        for c, (probe, ftw) in enumerate(zip(self.probes, ftws)):
             fud = self.rtlink.o.stb & (self.rtlink.o.address == 64)
             self.sync.rio += If(fud & (current_channel == c), probe.eq(ftw))
