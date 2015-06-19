@@ -15,7 +15,11 @@ def get_argparser():
                         choices=["LDA-102", "LDA-602"])
     simple_network_args(parser, 3253)
     parser.add_argument("-d", "--device", default=None,
-                        help="USB serial number of the device."
+                        help="USB serial number of the device. "
+                             "The serial number is written on a sticker under "
+                             "the device, you should write for example "
+                             "-d \"SN:03461\". You must prepend enough 0 for it "
+                             "to be 5 digits."
                              " Omit for simulation mode.")
     verbosity_args(parser)
     return parser
