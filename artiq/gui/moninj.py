@@ -9,6 +9,7 @@ from pyqtgraph import dockarea
 
 from artiq.tools import TaskObject
 from artiq.protocols.sync_struct import Subscriber
+from artiq.language.units import strip_unit
 
 
 logger = logging.getLogger(__name__)
@@ -112,9 +113,10 @@ class _TTLWidget(QtGui.QFrame):
 
 
 class _DDSWidget(QtGui.QFrame):
-    def __init__(self, send_to_device, channel, name):
+    def __init__(self, send_to_device, channel, sysclk, name):
         self.send_to_device = send_to_device
         self.channel = channel
+        self.sysclk = sysclk
         self.name = name
 
         QtGui.QFrame.__init__(self)
@@ -128,48 +130,16 @@ class _DDSWidget(QtGui.QFrame):
         label.setAlignment(QtCore.Qt.AlignCenter)
         grid.addWidget(label, 1, 1)
 
-        self._override = QtGui.QLabel()
-        self._override.setAlignment(QtCore.Qt.AlignCenter)
-        grid.addWidget(self._override, 2, 1)
-
         self._value = QtGui.QLabel()
         self._value.setAlignment(QtCore.Qt.AlignCenter)
-        grid.addWidget(self._value, 3, 1, 6, 1)
+        grid.addWidget(self._value, 2, 1, 6, 1)
 
-        self._value.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        self._override_action = QtGui.QAction("Override", self._value)
-        self._override_action.setCheckable(True)
-        self._value.addAction(self._override_action)
-        self._override_action.triggered.connect(self._override_clicked)
+        self.set_value(0)
 
-        self.set_value(0.0, False)
-
-    def _override_clicked(self):
-        override_en = self._override_action.isChecked()
-        if override_en:
-            frequency, ok = QtGui.QInputDialog.getDouble(
-                None, "DDS override",
-                "Frequency in MHz for {}:".format(self.name),
-                value=self._frequency, min=0, decimals=3)
-            self._override_action.setChecked(ok)
-            if ok:
-                print("override set to", frequency)
-        else:
-            print("override disabled")
-
-    def set_value(self, frequency, override):
-        self._frequency = frequency
-        self._override_action.setChecked(override)
-        value_s = "{:.3f} MHz".format(frequency)
-        if override:
-            value_s = "<b>" + value_s + "</b>"
-            color = " color=\"red\""
-            self._override.setText("<font size=\"1\" color=\"red\">OVERRIDE</font>")
-        else:
-            color = ""
-            self._override.setText("")
-        self._value.setText("<font size=\"9\"{}>{}</font>"
-                            .format(color, value_s))
+    def set_value(self, ftw):
+        frequency = ftw*self.sysclk/2**32
+        self._value.setText("<font size=\"9\">{:.3f} MHz</font>"
+                            .format(float(frequency)))
 
 
 class _DeviceManager:
@@ -200,8 +170,9 @@ class _DeviceManager:
                 if (v["module"] == "artiq.coredevice.dds"
                         and v["class"] == "DDS"):
                     channel = v["arguments"]["channel"]
+                    sysclk = strip_unit(v["arguments"]["sysclk"], "Hz")
                     self.dds_widgets[channel] = _DDSWidget(
-                        self.send_to_device, channel, k)
+                        self.send_to_device, channel, sysclk, k)
                     self.dds_cb()
         except KeyError:
             pass
@@ -277,11 +248,25 @@ class MonInj(TaskObject):
         self.transport = transport
 
     def datagram_received(self, data, addr):
-        ttl_levels, ttl_oes, ttl_overrides = struct.unpack(">QQQ", data)
-        for channel, w in self.dm.ttl_widgets.items():
-            w.set_value(ttl_levels & (1 << channel),
-                        ttl_oes & (1 << channel),
-                        ttl_overrides & (1 << channel))
+        try:
+            ttl_levels, ttl_oes, ttl_overrides = \
+                struct.unpack(">QQQ", data[:8*3])
+            for channel, w in self.dm.ttl_widgets.items():
+                w.set_value(ttl_levels & (1 << channel),
+                            ttl_oes & (1 << channel),
+                            ttl_overrides & (1 << channel))
+            dds_data = data[8*3:]
+            ndds = len(dds_data)//4
+            ftws = struct.unpack(">" + "I"*ndds, dds_data)
+            for channel, w in self.dm.dds_widgets.items():
+                try:
+                    ftw = ftws[channel]
+                except KeyError:
+                    pass
+                else:
+                    w.set_value(ftw)
+        except:
+            logger.warning("failed to process datagram", exc_info=True)
 
     def error_received(self, exc):
         logger.warning("datagram endpoint error")

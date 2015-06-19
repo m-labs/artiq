@@ -39,6 +39,7 @@ struct monitor_reply {
     long long int ttl_levels;
     long long int ttl_oes;
     long long int ttl_overrides;
+    unsigned int dds_ftws[DDS_CHANNEL_COUNT];
 };
 
 static void moninj_monitor(const ip_addr_t *addr, u16_t port)
@@ -53,15 +54,24 @@ static void moninj_monitor(const ip_addr_t *addr, u16_t port)
     for(i=0;i<RTIO_TTL_COUNT;i++) {
         rtio_moninj_mon_chan_sel_write(i);
         rtio_moninj_mon_probe_sel_write(0);
+        rtio_moninj_mon_value_update_write(1);
         if(rtio_moninj_mon_value_read())
             reply.ttl_levels |= 1LL << i;
         rtio_moninj_mon_probe_sel_write(1);
+        rtio_moninj_mon_value_update_write(1);
         if(rtio_moninj_mon_value_read())
             reply.ttl_oes |= 1LL << i;
         rtio_moninj_inj_chan_sel_write(i);
         rtio_moninj_inj_override_sel_write(MONINJ_TTL_OVERRIDE_ENABLE);
         if(rtio_moninj_inj_value_read())
             reply.ttl_overrides |= 1LL << i;
+    }
+
+    rtio_moninj_mon_chan_sel_write(RTIO_DDS_CHANNEL);
+    for(i=0;i<DDS_CHANNEL_COUNT;i++) {
+        rtio_moninj_mon_probe_sel_write(i);
+        rtio_moninj_mon_value_update_write(1);
+        reply.dds_ftws[i] = rtio_moninj_mon_value_read();
     }
 
     reply_p = pbuf_alloc(PBUF_TRANSPORT, sizeof(struct monitor_reply), PBUF_RAM);

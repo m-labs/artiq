@@ -11,6 +11,7 @@ class Monitor(Module, AutoCSR):
         max_probe_len = max(flen(p) for cp in chan_probes for p in cp)
         self.chan_sel = CSRStorage(bits_for(len(chan_probes)-1))
         self.probe_sel = CSRStorage(bits_for(max_chan_probes-1))
+        self.value_update = CSR()
         self.value = CSRStatus(max_probe_len)
 
         # # #
@@ -25,8 +26,9 @@ class Monitor(Module, AutoCSR):
                 cp_sys.append(vs.o)
             cp_sys += [0]*(max_chan_probes-len(cp))
             chan_probes_sys.append(Array(cp_sys)[self.probe_sel.storage])
-        self.comb += self.value.status.eq(
-            Array(chan_probes_sys)[self.chan_sel.storage])
+        self.sync += If(self.value_update.re,
+            self.value.status.eq(
+                Array(chan_probes_sys)[self.chan_sel.storage]))
 
 
 class Injector(Module, AutoCSR):

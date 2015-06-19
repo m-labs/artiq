@@ -4,9 +4,6 @@
 #include <hw/common.h>
 #include <generated/mem.h>
 
-/* Number of DDS channels to initialize */
-#define DDS_CHANNEL_COUNT 8
-
 /* Maximum number of commands in a batch */
 #define DDS_MAX_BATCH 16
 

@@ -51,13 +51,12 @@ class DDS(AutoDB):
 
     Controls one DDS channel managed directly by the core device's runtime.
 
-    :param dds_sysclk: DDS system frequency, used for computing the frequency
-        tuning words.
+    :param sysclk: DDS system frequency.
     :param channel: channel number of the DDS device to control.
     """
     class DBKeys:
         core = Device()
-        dds_sysclk = Argument(1*GHz)
+        sysclk = Argument()
         channel = Argument()
 
     def build(self):
@@ -68,14 +67,14 @@ class DDS(AutoDB):
         """Returns the frequency tuning word corresponding to the given
         frequency.
         """
-        return round(2**32*frequency/self.dds_sysclk)
+        return round(2**32*frequency/self.sysclk)
 
     @portable
     def ftw_to_frequency(self, ftw):
         """Returns the frequency corresponding to the given frequency tuning
         word.
         """
-        return ftw*self.dds_sysclk/2**32
+        return ftw*self.sysclk/2**32
 
     @kernel
     def init(self):

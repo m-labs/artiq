@@ -60,19 +60,22 @@
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "DDS",
-        "arguments": {"channel": 0}
+        "arguments": {"sysclk": Quantity(Fraction(1000000000, 1), "Hz"),
+                      "channel": 0}
     },
     "dds1": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "DDS",
-        "arguments": {"channel": 1}
+        "arguments": {"sysclk": Quantity(Fraction(1000000000, 1), "Hz"),
+                      "channel": 1}
     },
     "dds2": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "DDS",
-        "arguments": {"channel": 2}
+        "arguments": {"sysclk": Quantity(Fraction(1000000000, 1), "Hz"),
+                      "channel": 2}
     },
 
     "qc_q1_0": {

@@ -10,9 +10,8 @@ from misoclib.mem.sdram.core.minicon import MiniconSettings
 from targets.kc705 import MiniSoC
 
 from artiq.gateware.soc import AMPSoC
-from artiq.gateware import rtio, ad9858, nist_qc1
-from artiq.gateware.rtio.phy import ttl_simple
-from artiq.gateware.rtio.phy.wishbone import RT2WB
+from artiq.gateware import rtio, nist_qc1
+from artiq.gateware.rtio.phy import ttl_simple, dds
 
 
 class _RTIOCRG(Module, AutoCSR):
@@ -81,10 +80,8 @@ class NIST_QC1(MiniSoC, AMPSoC):
         self.add_constant("RTIO_TTL_COUNT", len(rtio_channels))
 
         self.add_constant("RTIO_DDS_CHANNEL", len(rtio_channels))
-        self.submodules.dds = RenameClockDomains(
-            ad9858.AD9858(platform.request("dds")),
-            "rio")
-        phy = RT2WB(7, self.dds.bus)
+        self.add_constant("DDS_CHANNEL_COUNT", 8)
+        phy = dds.AD9858(platform.request("dds"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
 

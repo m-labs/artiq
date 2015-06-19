@@ -61,7 +61,7 @@ static void dds_set_one(long long int now, long long int ref_time, int channel,
     DDS_WRITE(DDS_FTW3, (ftw >> 24) & 0xff);
 
     /* We need the RTIO fine timestamp clock to be phase-locked
-     * to DDS SYNCLK, and divided by an integer DDS_RTIO_CLK_RATIO.
+     * to DDS SYSCLK, and divided by an integer DDS_RTIO_CLK_RATIO.
      */
     if(phase_mode == PHASE_MODE_CONTINUOUS) {
         /* Do not clear phase accumulator on FUD */
