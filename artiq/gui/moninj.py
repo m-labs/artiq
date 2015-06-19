@@ -138,7 +138,7 @@ class _DDSWidget(QtGui.QFrame):
 
     def set_value(self, ftw):
         frequency = ftw*self.sysclk/2**32
-        self._value.setText("<font size=\"9\">{:.3f} MHz</font>"
+        self._value.setText("<font size=\"6\">{:.7f} MHz</font>"
                             .format(float(frequency)/1e6))
 
 
