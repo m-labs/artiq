@@ -91,7 +91,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/m-labs/migen
-        $ cd ~/artiq-dev/migen
+        $ cd migen
         $ python3 setup.py develop --user
 
 .. note::
@@ -99,11 +99,11 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
 * Install OpenRISC GCC/binutils toolchain (or1k-elf-...): ::
 
-        $ mkdir ~/artiq-dev
         $ cd ~/artiq-dev
         $ git clone https://github.com/openrisc/or1k-src
-        $ mkdir ~/artiq-dev/or1k-src/build
-        $ cd ~/artiq-dev/or1k-src/build
+        $ cd or1k-src
+        $ mkdir build
+        $ cd build
         $ ../configure --target=or1k-elf --enable-shared --disable-itcl \
                        --disable-tk --disable-tcl --disable-winsup \
                        --disable-gdbtk --disable-libgui --disable-rda \
@@ -114,8 +114,9 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/openrisc/or1k-gcc
-        $ mkdir ~/artiq-dev/or1k-gcc/build
-        $ cd ~/artiq-dev/or1k-gcc/build
+        $ cd or1k-gcc
+        $ mkdir build
+        $ cd build
         $ ../configure --target=or1k-elf --enable-languages=c \
                        --disable-shared --disable-libssp
         $ make -j4
@@ -127,7 +128,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
         $ cd ~/artiq-dev
         $ svn co https://xc3sprog.svn.sourceforge.net/svnroot/xc3sprog/trunk xc3sprog
-        $ cd ~/artiq-dev/xc3sprog
+        $ cd xc3sprog
         $ cmake . && make
         $ sudo make install
 
@@ -155,8 +156,10 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
             $ cd ~/artiq-dev
             $ git clone https://github.com/m-labs/bscan_spi_kc705
+            $ cd bscan_spi_kc705
+            $ make
 
-        Build the bitstream and copy it to one of the folders above.
+        Then copy the generated ``bscan_spi_kc705.bit`` to ``~/.migen``, ``/usr/local/share/migen`` or ``/usr/share/migen``.
 
 * Download MiSoC: ::
 
@@ -276,19 +279,19 @@ Installing the host-side software
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/openrisc/llvm-or1k
-        $ cd ~/artiq-dev/llvm-or1k/tools
+        $ cd llvm-or1k/tools
         $ git clone https://github.com/openrisc/clang-or1k clang
 
-        $ cd ~/artiq-dev/llvm-or1k
+        $ cd ..
         $ mkdir build
-        $ cd ~/artiq-dev/llvm-or1k/build
+        $ cd build
         $ cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local/llvm-or1k -DLLVM_TARGETS_TO_BUILD=OR1K -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=ON
         $ make -j4
         $ sudo make install
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/numba/llvmlite
-        $ cd ~/artiq-dev/llvmlite
+        $ cd llvmlite
         $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-add-all-targets.patch
         $ PATH=/usr/local/llvm-or1k/bin:$PATH sudo -E python3 setup.py install
 
