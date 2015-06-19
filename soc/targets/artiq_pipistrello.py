@@ -128,6 +128,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         self.submodules.rtio = rtio.RTIO(rtio_channels,
                                          clk_freq=125000000)
         self.add_constant("RTIO_FINE_TS_WIDTH", self.rtio.fine_ts_width)
+        self.add_constant("DDS_RTIO_CLK_RATIO", 8 >> self.rtio.fine_ts_width)
         self.submodules.rtio_mon = rtio.MonInj(rtio_channels)
 
         # CPU connections

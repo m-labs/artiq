@@ -55,26 +55,26 @@ static void dds_set_one(long long int now, long long int ref_time, int channel,
 {
     DDS_WRITE(DDS_GPIO, channel);
 
-    if(phase_mode == PHASE_MODE_CONTINUOUS)
-        /* Do not clear phase accumulator on FUD */
-        DDS_WRITE(0x02, 0x00);
-    else
-        /* Clear phase accumulator on FUD */
-        DDS_WRITE(0x02, 0x40);
-
     DDS_WRITE(DDS_FTW0, ftw & 0xff);
     DDS_WRITE(DDS_FTW1, (ftw >> 8) & 0xff);
     DDS_WRITE(DDS_FTW2, (ftw >> 16) & 0xff);
     DDS_WRITE(DDS_FTW3, (ftw >> 24) & 0xff);
 
-    /* We assume that the RTIO clock is DDS SYNCLK */
-    if(phase_mode == PHASE_MODE_TRACKING)
-        pow += (ref_time >> RTIO_FINE_TS_WIDTH)*ftw >> 18;
-    if(phase_mode != PHASE_MODE_CONTINUOUS) {
+    /* We need the RTIO fine timestamp clock to be phase-locked
+     * to DDS SYNCLK, and divided by an integer DDS_RTIO_CLK_RATIO.
+     */
+    if(phase_mode == PHASE_MODE_CONTINUOUS) {
+        /* Do not clear phase accumulator on FUD */
+        DDS_WRITE(0x02, 0x00);
+    } else {
         long long int fud_time;
 
+        /* Clear phase accumulator on FUD */
+        DDS_WRITE(0x02, 0x40);
         fud_time = now + 2*DURATION_WRITE;
-        pow -= ((ref_time - fud_time) >> RTIO_FINE_TS_WIDTH)*ftw >> 18;
+        pow -= (ref_time - fud_time)*DDS_RTIO_CLK_RATIO*ftw >> 18;
+        if(phase_mode == PHASE_MODE_TRACKING)
+            pow += ref_time*DDS_RTIO_CLK_RATIO*ftw >> 18;
     }
 
     DDS_WRITE(DDS_POW0, pow & 0xff);
