@@ -1323,6 +1323,9 @@ class TpzSim:
         self.voltage_limit = 150
         self.hub_analog_input = 1
 
+    def close(self):
+        pass
+
     def module_identify(self):
         pass
 
@@ -1406,6 +1409,9 @@ class TpzSim:
 
 
 class TdcSim:
+    def close(self):
+        pass
+
     def module_identify(self):
         pass
 
