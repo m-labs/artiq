@@ -88,6 +88,8 @@ Controller
 Thorlabs T-Cube
 ---------------
 
+.. _tdc001-controller-usage-example:
+
 TDC001 controller usage example
 +++++++++++++++++++++++++++++++
 
@@ -97,6 +99,15 @@ First, run the TDC001 controller::
 
 .. note::
     On Windows the serial port (the ``-d`` argument) will be of the form ``COMx``.
+
+.. note::
+    Anything compatible `with serial_for_url <http://pyserial.sourceforge.net/pyserial_api.html#serial.serial_for_url>`_
+    can be given as a device in ``-d`` argument.
+
+    For instance, if you want to specify the Vendor/Product ID and the USB Serial Number, you can do:
+
+    ``-d hwgrep://<VID>:<PID> SNR=<serial_number>``.
+    The hwgrep URL works on both Linux and Windows.
 
 Then, send commands to it via the ``artiq_rpctool`` utility::
 
@@ -117,6 +128,11 @@ First, run the TPZ001 controller::
 
 .. note::
     On Windows the serial port (the ``-d`` argument) will be of the form ``COMx``.
+
+.. note::
+    See the :ref:`TDC001 documentation <tdc001-controller-usage-example>` for
+    how to specify the USB Serial Number of the device instead of the
+    /dev/ttyUSBx (or the COMx name).
 
 Then, send commands to it via the ``artiq_rpctool`` utility::
 

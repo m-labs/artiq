@@ -13,7 +13,9 @@ def get_argparser():
                         help="type of the Thorlabs T-Cube device to control",
                         choices=["TDC001", "TPZ001"])
     parser.add_argument("-d", "--device", default=None,
-                        help="serial port. Omit for simulation mode.")
+                        help="serial device. See documentation for how to "
+                             "specify a USB Serial Number. Omit for simulation "
+                             "mode.")
     simple_network_args(parser, 3255)
     verbosity_args(parser)
     return parser
