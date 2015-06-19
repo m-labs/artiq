@@ -106,7 +106,7 @@ First, run the TDC001 controller::
 
     For instance, if you want to specify the Vendor/Product ID and the USB Serial Number, you can do:
 
-    ``-d hwgrep://<VID>:<PID> SNR=<serial_number>``.
+    ``-d "hwgrep://<VID>:<PID> SNR=<serial_number>"``.
     The hwgrep URL works on both Linux and Windows.
 
 Then, send commands to it via the ``artiq_rpctool`` utility::
