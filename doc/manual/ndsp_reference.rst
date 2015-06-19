@@ -101,7 +101,7 @@ First, run the TDC001 controller::
     On Windows the serial port (the ``-d`` argument) will be of the form ``COMx``.
 
 .. note::
-    Anything compatible `with serial_for_url <http://pyserial.sourceforge.net/pyserial_api.html#serial.serial_for_url>`_
+    Anything compatible with `serial_for_url <http://pyserial.sourceforge.net/pyserial_api.html#serial.serial_for_url>`_
     can be given as a device in ``-d`` argument.
 
     For instance, if you want to specify the Vendor/Product ID and the USB Serial Number, you can do:
