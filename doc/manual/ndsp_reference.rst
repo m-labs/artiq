@@ -36,8 +36,8 @@ Lab Brick Digital Attenuator (LDA)
 
 On Linux, you need to give your user access to the usb device.
 
-You can do that by creating a file under /etc/udev/rules.d/ named 99-lda.rules
-with the following content::
+You can do that by creating a file under ``/etc/udev/rules.d/`` named
+``99-lda.rules`` with the following content::
 
     SUBSYSTEM=="usb", ATTR{idVendor}=="041f", MODE="0666"
 
@@ -52,9 +52,9 @@ Then, to run the Lab Brick Digital Attenuator (LDA) controller::
     $ lda_controller -d SN:xxxxx
 
 The serial number must contain 5 digits, prepend any number of 0 necessary.
-Also, the "SN:" prefix is mandatory.
+Also, the ``SN:`` prefix is mandatory.
 
-You can chose the exact LDA model with the -P parameter. The default being LDA-102.
+You can chose the exact LDA model with the ``-P`` parameter. The default being LDA-102.
 
 Driver
 ++++++
