@@ -101,12 +101,16 @@ First, run the TDC001 controller::
     On Windows the serial port (the ``-d`` argument) will be of the form ``COMx``.
 
 .. note::
-    Anything compatible `with serial_for_url <http://pyserial.sourceforge.net/pyserial_api.html#serial.serial_for_url>`_
+    Anything compatible with `serial_for_url <http://pyserial.sourceforge.net/pyserial_api.html#serial.serial_for_url>`_
     can be given as a device in ``-d`` argument.
 
     For instance, if you want to specify the Vendor/Product ID and the USB Serial Number, you can do:
 
-    ``-d hwgrep://<VID>:<PID> SNR=<serial_number>``.
+    ``-d "hwgrep://<VID>:<PID> SNR=<serial_number>"``.
+    for instance:
+
+    ``-d "hwgrep://0403:faf0 SNR=83852734"``
+
     The hwgrep URL works on both Linux and Windows.
 
 Then, send commands to it via the ``artiq_rpctool`` utility::
