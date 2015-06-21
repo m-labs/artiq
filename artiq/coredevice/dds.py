@@ -117,4 +117,4 @@ class DDS(AutoDB):
 
         syscall("dds_set", time_to_cycles(now()), self.channel,
            self.frequency_to_ftw(frequency), round(phase_offset*2**14),
-           self.phase_mode)
+           phase_mode)

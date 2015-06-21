@@ -3,9 +3,10 @@
 
 #include "exceptions.h"
 #include "rtio.h"
+#include "log.h"
 #include "dds.h"
 
-#define DURATION_WRITE 5
+#define DURATION_WRITE (5 << RTIO_FINE_TS_WIDTH)
 #define DURATION_INIT (7*DURATION_WRITE) /* not counting FUD */
 #define DURATION_PROGRAM (8*DURATION_WRITE) /* not counting FUD */
 
@@ -50,9 +51,17 @@ void dds_init(long long int timestamp, int channel)
     DDS_WRITE(DDS_FUD, 0);
 }
 
-static void dds_set_one(long long int now, long long int ref_time, int channel,
+/* Compensation to keep phase continuity when switching from absolute or tracking
+ * to continuous phase mode. */
+static unsigned int continuous_phase_comp[DDS_CHANNEL_COUNT];
+
+static void dds_set_one(long long int now, long long int ref_time, unsigned int channel,
     unsigned int ftw, unsigned int pow, int phase_mode)
 {
+	if(channel >= DDS_CHANNEL_COUNT) {
+		log("Attempted to set invalid DDS channel");
+		return;
+	}
     DDS_WRITE(DDS_GPIO, channel);
 
     DDS_WRITE(DDS_FTW0, ftw & 0xff);
@@ -66,6 +75,7 @@ static void dds_set_one(long long int now, long long int ref_time, int channel,
     if(phase_mode == PHASE_MODE_CONTINUOUS) {
         /* Do not clear phase accumulator on FUD */
         DDS_WRITE(0x02, 0x00);
+        pow += continuous_phase_comp[channel];
     } else {
         long long int fud_time;
 
@@ -75,6 +85,7 @@ static void dds_set_one(long long int now, long long int ref_time, int channel,
         pow -= (ref_time - fud_time)*DDS_RTIO_CLK_RATIO*ftw >> 18;
         if(phase_mode == PHASE_MODE_TRACKING)
             pow += ref_time*DDS_RTIO_CLK_RATIO*ftw >> 18;
+        continuous_phase_comp[channel] = pow;
     }
 
     DDS_WRITE(DDS_POW0, pow & 0xff);
