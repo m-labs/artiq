@@ -119,7 +119,7 @@
             "rtio_trigger": 7,
             "rtio_frame": [2, 3, 4]
         },
-        "comment": "Conflicts with dds2 and ttl0-2"
+        "comment": "Uses ttl 0, 1, 2 and 5"
     },
 
     "lda": {
