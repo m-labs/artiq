@@ -83,7 +83,9 @@ class NIST_QC1(MiniSoC, AMPSoC):
         self.add_constant("DDS_CHANNEL_COUNT", 8)
         phy = dds.AD9858(platform.request("dds"))
         self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+        rtio_channels.append(rtio.Channel.from_phy(phy,
+                                                   ofifo_depth=512,
+                                                   ififo_depth=4))
 
         # RTIO core
         self.submodules.rtio_crg = _RTIOCRG(platform, self.crg.pll_sys)
