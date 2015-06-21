@@ -38,7 +38,7 @@ class AD9858(Module):
                  read_wait_cycles=10, hiz_wait_cycles=3,
                  bus=None):
         if bus is None:
-            bus = wishbone.Interface()
+            bus = wishbone.Interface(data_width=8)
         self.bus = bus
 
         # # #

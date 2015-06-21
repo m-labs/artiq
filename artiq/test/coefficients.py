@@ -12,7 +12,7 @@ class TestSplineCoef(unittest.TestCase):
         self.s = coefficients.SplineSource(self.x, self.y, order=4)
 
     def test_get_segment(self):
-        return list(self.s.get_segment_data(1.5, 3.2, 1/100.))
+        return list(self.s.get_segment_data(start=1.5, stop=3.2, scale=.01))
 
     def test_synth(self):
         d = self.test_get_segment()
@@ -32,7 +32,7 @@ class TestSplineCoef(unittest.TestCase):
 
     @unittest.skip("manual/visual test")
     def test_plot(self):
-        import cairoplot
+        import matplotlib.pyplot as plt
         y = self.test_run()
-        x = list(range(len(y)))
-        cairoplot.scatter_plot("plot.png", [x, y])
+        plt.step(np.arange(len(y)), y)
+        plt.show()

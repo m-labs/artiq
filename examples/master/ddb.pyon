@@ -117,7 +117,7 @@
         "arguments": {
             "pdq2_devices": ["qc_q1_0", "qc_q1_1", "qc_q1_2", "qc_q1_3"],
             "rtio_trigger": 7,
-            "rtio_frame": (2, 3, 4)
+            "rtio_frame": [2, 3, 4]
         },
         "comment": "Conflicts with dds2 and ttl0-2"
     },
