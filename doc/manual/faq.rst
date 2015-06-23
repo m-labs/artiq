@@ -74,3 +74,19 @@ sub-experiments difficult and fragile. You can however always use the
 scheduler API to achieve the same (``scheduler.yield(duration=0)``)
 or wrap your own generators/coroutines/tasks in regular functions that
 you then expose as part of the API.
+
+list the serial devices attached to my Linux/Windows system?
+------------------------------------------------------------
+
+You can do it by running::
+
+    $ python3 -m serial.tools.list_ports -v
+
+It will give you the ``/dev/ttyUSBxx`` (or the ``COMxx`` for Windows) device
+names.
+The ``hwid:`` field gives you the string you can pass via the ``hwgrep://``
+feature of pyserial
+`serial_for_url() <http://pyserial.sourceforge.net/pyserial_api.html#serial.serial_for_url>`_
+in order to open a serial device.
+
+See the :ref:`TDC001 documentation <tdc001-controller-usage-example>` for an example of ``hwgrep://`` usage.
