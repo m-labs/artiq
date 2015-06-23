@@ -1,3 +1,5 @@
+from fractions import Fraction
+
 from migen.fhdl.std import *
 from migen.bank.description import *
 from migen.bank import wbgen
@@ -13,18 +15,18 @@ from artiq.gateware.rtio.phy import ttl_simple, dds
 
 
 class _RTIOCRG(Module, AutoCSR):
-    def __init__(self, platform):
+    def __init__(self, platform, clk_freq):
         self._clock_sel = CSRStorage()
         self.clock_domains.cd_rtio = ClockDomain(reset_less=True)
 
-        # 75MHz -> 125MHz
+        f = Fraction(125*1000*1000, clk_freq)
         rtio_internal_clk = Signal()
         self.specials += Instance("DCM_CLKGEN",
                                   p_CLKFXDV_DIVIDE=2,
-                                  p_CLKFX_DIVIDE=3,
+                                  p_CLKFX_DIVIDE=f.denominator,
                                   p_CLKFX_MD_MAX=1.6,
-                                  p_CLKFX_MULTIPLY=5,
-                                  p_CLKIN_PERIOD=1e3/75,
+                                  p_CLKFX_MULTIPLY=f.numerator,
+                                  p_CLKIN_PERIOD=1e9/clk_freq,
                                   p_SPREAD_SPECTRUM="NONE",
                                   p_STARTUP_WAIT="FALSE",
                                   i_CLKIN=ClockSignal(),
@@ -123,7 +125,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
                                                    ififo_depth=4))
 
         # RTIO core
-        self.submodules.rtio_crg = _RTIOCRG(platform)
+        self.submodules.rtio_crg = _RTIOCRG(platform, self.clk_freq)
         self.submodules.rtio = rtio.RTIO(rtio_channels,
                                          clk_freq=125000000)
         self.add_constant("RTIO_FINE_TS_WIDTH", self.rtio.fine_ts_width)
