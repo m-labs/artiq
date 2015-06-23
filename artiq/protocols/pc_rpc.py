@@ -442,15 +442,18 @@ class Server(_AsyncioServer):
                 try:
                     if obj["action"] == "get_rpc_method_list":
                         members = inspect.getmembers(target, inspect.ismethod)
-                        methods = {}
+                        doc = {
+                            "docstring": target.__doc__,
+                            "methods": {}
+                        }
                         for name, method in members:
                             if name.startswith("_"):
                                 continue
                             method = getattr(target, name)
                             argspec = inspect.getfullargspec(method)
-                            methods[name] = (dict(argspec.__dict__),
-                                             inspect.getdoc(method))
-                        obj = {"status": "ok", "ret": methods}
+                            doc["methods"][name] = (dict(argspec.__dict__),
+                                                    inspect.getdoc(method))
+                        obj = {"status": "ok", "ret": doc}
                     elif obj["action"] == "call":
                         logger.debug("calling %s", _PrettyPrintCall(obj))
                         method = getattr(target, obj["name"])

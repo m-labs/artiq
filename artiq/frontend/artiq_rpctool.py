@@ -36,8 +36,10 @@ def list_targets(target_names, id_parameters):
 
 
 def list_methods(remote):
-    methods = remote.get_rpc_method_list()
-    for name, (argspec, docstring) in sorted(methods.items()):
+    doc = remote.get_rpc_method_list()
+    if doc["docstring"] is not None:
+        print(doc["docstring"])
+    for name, (argspec, docstring) in sorted(doc["methods"].items()):
         args = ""
         for arg in argspec["args"]:
             args += arg
