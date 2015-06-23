@@ -443,7 +443,7 @@ class Server(_AsyncioServer):
                     if obj["action"] == "get_rpc_method_list":
                         members = inspect.getmembers(target, inspect.ismethod)
                         doc = {
-                            "docstring": target.__doc__,
+                            "docstring": inspect.getdoc(target),
                             "methods": {}
                         }
                         for name, method in members:

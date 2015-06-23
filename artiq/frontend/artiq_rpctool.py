@@ -39,6 +39,7 @@ def list_methods(remote):
     doc = remote.get_rpc_method_list()
     if doc["docstring"] is not None:
         print(doc["docstring"])
+        print()
     for name, (argspec, docstring) in sorted(doc["methods"].items()):
         args = ""
         for arg in argspec["args"]:
