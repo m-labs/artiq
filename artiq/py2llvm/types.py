@@ -183,6 +183,33 @@ class TFunction(Type):
     def __ne__(self, other):
         return not (self == other)
 
+class TBuiltin(Type):
+    """
+    An instance of builtin type. Every instance of a builtin
+    type is treated specially according to its name.
+    """
+
+    def __init__(self, name):
+        self.name = name
+
+    def find(self):
+        return self
+
+    def unify(self, other):
+        if self != other:
+            raise UnificationError(self, other)
+
+    def __repr__(self):
+        return "py2llvm.types.TBuiltin(%s)" % repr(self.name)
+
+    def __eq__(self, other):
+        return isinstance(other, TBuiltin) and \
+                self.name == other.name
+
+    def __ne__(self, other):
+        return not (self == other)
+
+
 class TValue(Type):
     """
     A type-level value (such as the integer denoting width of
@@ -276,6 +303,8 @@ class TypePrinter(object):
             args += [ "%s:%s" % (arg, self.name(typ.args[arg]))    for arg in typ.args]
             args += ["?%s:%s" % (arg, self.name(typ.optargs[arg])) for arg in typ.optargs]
             return "(%s)->%s" % (", ".join(args), self.name(typ.ret))
+        elif isinstance(typ, TBuiltin):
+            return "<built-in %s>" % typ.name
         elif isinstance(typ, TValue):
             return repr(typ.value)
         else:
