@@ -24,7 +24,7 @@ class LocalExtractor(algorithm.Visitor):
         # parameters can't be declared as global or nonlocal
         self.params     = set()
 
-        if len(self.env_stack) == 0:
+        if len(self.env_stack) == 1:
             self.env_stack.append(self.typing_env)
 
     def visit_in_assign(self, node):
@@ -115,7 +115,7 @@ class LocalExtractor(algorithm.Visitor):
 
             self.global_.add(name)
             self._assignable(name)
-            self.env_stack[0][name] = self.typing_env[name]
+            self.env_stack[1][name] = self.typing_env[name]
 
     def visit_Nonlocal(self, node):
         for name, loc in zip(node.names, node.name_locs):
@@ -123,9 +123,9 @@ class LocalExtractor(algorithm.Visitor):
                     self._check_not_in(name, self.params, "a parameter", "nonlocal", loc):
                 continue
 
-            # nonlocal does not search global scope
+            # nonlocal does not search prelude and global scopes
             found = False
-            for outer_env in reversed(self.env_stack[1:]):
+            for outer_env in reversed(self.env_stack[2:]):
                 if name in outer_env:
                     found = True
                     break
@@ -156,9 +156,9 @@ class ASTTypedRewriter(algorithm.Transformer):
     via :class:`LocalExtractor`.
     """
 
-    def __init__(self, engine):
+    def __init__(self, engine, globals={}):
         self.engine = engine
-        self.env_stack = []
+        self.env_stack = [globals]
 
     def _find_name(self, name, loc):
         for typing_env in reversed(self.env_stack):
@@ -990,6 +990,7 @@ class Printer(algorithm.Visitor):
 
 def main():
     import sys, fileinput, os
+    from . import prelude
 
     if len(sys.argv) > 1 and sys.argv[1] == '+diag':
         del sys.argv[1]
@@ -1009,7 +1010,7 @@ def main():
     buf = source.Buffer("".join(fileinput.input()).expandtabs(),
                         os.path.basename(fileinput.filename()))
     parsed, comments = parse_buffer(buf, engine=engine)
-    typed = ASTTypedRewriter(engine=engine).visit(parsed)
+    typed = ASTTypedRewriter(globals=prelude.globals(), engine=engine).visit(parsed)
     Inferencer(engine=engine).visit(typed)
 
     printer = Printer(buf)

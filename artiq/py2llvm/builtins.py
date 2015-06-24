@@ -1,6 +1,6 @@
 """
-The :mod:`builtins` module contains the builtin Python and ARTIQ
-types, such as int or float.
+The :mod:`builtins` module contains the builtin Python
+and ARTIQ types, such as int or float.
 """
 
 from . import types
@@ -32,16 +32,16 @@ class TList(types.TMono):
         super().__init__("list", {"elt": elt})
 
 def fn_len():
-    return types.TBuiltin("len")
+    return types.TBuiltin("function len")
 
 def fn_round():
-    return types.TBuiltin("round")
+    return types.TBuiltin("function round")
 
 def fn_range():
-    return types.TBuiltin("range")
+    return types.TBuiltin("function range")
 
 def fn_syscall():
-    return types.TBuiltin("syscall")
+    return types.TBuiltin("function syscall")
 
 # Accessors
 
@@ -79,3 +79,8 @@ def is_collection(typ):
     typ = typ.find()
     return isinstance(typ, types.TTuple) or \
         types.is_mono(typ, "list")
+
+def is_function(typ, name):
+    typ = typ.find()
+    return isinstance(typ, types.TBuiltin) and \
+        typ.name == "function " + name
