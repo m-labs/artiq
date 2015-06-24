@@ -5,6 +5,8 @@ types, such as int or float.
 
 from . import types
 
+# Types
+
 class TNone(types.TMono):
     def __init__(self):
         super().__init__("NoneType")
@@ -29,6 +31,19 @@ class TList(types.TMono):
             elt = types.TVar()
         super().__init__("list", {"elt": elt})
 
+def fn_len():
+    return types.TBuiltin("len")
+
+def fn_round():
+    return types.TBuiltin("round")
+
+def fn_range():
+    return types.TBuiltin("range")
+
+def fn_syscall():
+    return types.TBuiltin("syscall")
+
+# Accessors
 
 def is_none(typ):
     return types.is_mono(typ, "NoneType")
