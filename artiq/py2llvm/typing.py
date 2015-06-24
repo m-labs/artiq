@@ -715,6 +715,66 @@ class Inferencer(algorithm.Visitor):
         self.generic_visit(node)
         self._unify_collection(element=node.target, collection=node.iter)
 
+    def visit_builtin_call(self, node):
+        if types.is_mono(node.func.type):
+            func_name = "function " + node.func.type.find().name
+        elif builtins.is_function(node.func.type):
+            func_name = node.func.type.find().name
+
+        def valid_form(signature):
+            return diagnostic.Diagnostic("note",
+                "{func} can be invoked as: {signature}",
+                {"func": func_name},
+                node.func.loc)
+
+        def diagnose(valid_forms):
+            diag = diagnostic.Diagnostic("error",
+                "{func} cannot be invoked with these arguments",
+                {"func": func_name},
+                node.func.loc, notes=valid_forms)
+
+        if builtins.is_bool(node.type):
+            valid_forms = lambda: [
+                valid_form("bool() -> bool"),
+                valid_form("bool(x:'a) -> bool where 'a is numeric")
+            ]
+        elif builtins.is_int(node.type):
+            valid_forms = lambda: [
+                valid_form("int() -> int(width='a)"),
+                valid_form("int(x:'a) -> int(width='b) where 'a is numeric"),
+                valid_form("int(x:'a, width='b <int literal>) -> int(width='b) where 'a is numeric")
+            ]
+        elif builtins.is_float(node.type):
+            valid_forms = lambda: [
+                valid_form("float() -> float"),
+                valid_form("float(x:'a) -> float where 'a is numeric")
+            ]
+        elif builtins.is_list(node.type):
+            valid_forms = lambda: [
+                valid_form("list() -> list(elt='a)"),
+                # TODO: add this form when adding iterators
+                # valid_form("list(x) -> list(elt='a)")
+            ]
+        elif builtins.is_function(node.type, "len"):
+            valid_forms = lambda: [
+                valid_form("len(x:list(elt='a)) -> int(width='b)"),
+            ]
+        elif builtins.is_function(node.type, "round"):
+            valid_forms = lambda: [
+                valid_form("round(x:float) -> int(width='a)"),
+            ]
+        # TODO: add when there are range types
+        # elif builtins.is_function(node.type, "range"):
+        #     valid_forms = lambda: [
+        #         valid_form("range(max:'a) -> range(elt='a)"),
+        #         valid_form("range(min:'a, max:'a) -> range(elt='a)"),
+        #         valid_form("range(min:'a, max:'a, step:'a) -> range(elt='a)"),
+        #     ]
+        # TODO: add when it is clear what interface syscall() has
+        # elif builtins.is_function(node.type, "syscall"):
+        #     valid_Forms = lambda: [
+        #     ]
+
     def visit_CallT(self, node):
         self.generic_visit(node)
 
@@ -729,6 +789,8 @@ class Inferencer(algorithm.Visitor):
 
         if types.is_var(node.func.type):
             return # not enough info yet
+        elif types.is_mono(node.func.type) or types.is_builtin(node.func.type):
+            return self.visit_builtin_call(self, node)
         elif not types.is_function(node.func.type):
             diag = diagnostic.Diagnostic("error",
                 "cannot call this expression of type {type}",

@@ -10,8 +10,8 @@ def globals():
         "bool":    builtins.TBool(),
         "int":     builtins.TInt(),
         "float":   builtins.TFloat(),
-        "round":   builtins.fn_round(),
         "len":     builtins.fn_len(),
+        "round":   builtins.fn_round(),
         "range":   builtins.fn_range(),
         "syscall": builtins.fn_syscall(),
     }

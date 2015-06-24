@@ -262,6 +262,9 @@ def is_tuple(typ, elts=None):
 def is_function(typ):
     return isinstance(typ.find(), TFunction)
 
+def is_builtin(typ):
+    return isinstance(typ.find(), TBuiltin)
+
 def get_value(typ):
     typ = typ.find()
     if isinstance(typ, TVar):
