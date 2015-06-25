@@ -9,7 +9,7 @@ env:
 before_install:
   - mkdir -p $HOME/.mlabs
   - if [ $TRAVIS_PULL_REQUEST != false ]; then BUILD_SOC=0; fi
-  - if [ $BUILD_SOC -ne 0 ]; then . ./.travis/get-xilinx.sh; fi
+  - if [ $BUILD_SOC -ne 0 ]; then ./.travis/get-xilinx.sh; fi
   - . ./.travis/get-toolchain.sh
   - . ./.travis/get-anaconda.sh
   - source $HOME/miniconda/bin/activate py34

@@ -31,6 +31,6 @@ make -C impersonate_macaddress
 cat > $HOME/.mlabs/build_settings.sh << EOF
 MISOC_EXTRA_VIVADO_CMDLINE="-Ob vivado_path $HOME/Xilinx/Vivado"
 MISOC_EXTRA_ISE_CMDLINE="-Ob ise_path $HOME/opt/Xilinx/"
-MACADDR=$macaddress
+export MACADDR=$macaddress
 export LD_PRELOAD=$PWD/impersonate_macaddress/impersonate_macaddress.so
 EOF
