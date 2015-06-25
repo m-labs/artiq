@@ -24,12 +24,13 @@ echo "$secret" | gpg --passphrase-fd 0 Xilinx.lic.gpg
 mkdir -p ~/.Xilinx
 mv Xilinx.lic ~/.Xilinx/Xilinx.lic
 
-# Tell mibuild where Vivado is installed
-echo "MISOC_EXTRA_VIVADO_CMDLINE=\"-Ob vivado_path $HOME/Xilinx/Vivado\"" >> $HOME/.mlabs/build_settings.sh
-echo "MISOC_EXTRA_ISE_CMDLINE=\"-Ob ise_path $HOME/opt/Xilinx/\"" >> $HOME/.mlabs/build_settings.sh
-
-# Lie to Vivado by hooking the ioctl used to retrieve mac address for license verification
 git clone https://github.com/fallen/impersonate_macaddress
 make -C impersonate_macaddress
-echo "export MACADDR=$macaddress" >> $HOME/.mlabs/build_settings.sh
-echo "export LD_PRELOAD=$PWD/impersonate_macaddress/impersonate_macaddress.so" >> $HOME/.mlabs/build_settings.sh
+# Tell mibuild where Xilinx toolchains are installed
+# and feed it the mac address corresponding to the license
+cat > $HOME/.mlabs/build_settings.sh << EOF
+MISOC_EXTRA_VIVADO_CMDLINE="-Ob vivado_path $HOME/Xilinx/Vivado"
+MISOC_EXTRA_ISE_CMDLINE="-Ob ise_path $HOME/opt/Xilinx/"
+MACADDR=$macaddress
+export LD_PRELOAD=$PWD/impersonate_macaddress/impersonate_macaddress.so
+EOF
