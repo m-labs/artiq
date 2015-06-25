@@ -1,6 +1,9 @@
 #!/bin/bash
 
+# exit on error
 set -e
+# print commands
+set -v
 
 ARTIQ_PREFIX=$(python3 -c "import artiq; print(artiq.__path__[0])")
 
