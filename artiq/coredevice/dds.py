@@ -3,7 +3,7 @@ from artiq.language.db import *
 from artiq.language.units import *
 
 
-PHASE_MODE_DEFAULT = -1
+_PHASE_MODE_DEFAULT = -1
 # keep in sync with dds.h
 PHASE_MODE_CONTINUOUS = 0
 PHASE_MODE_ABSOLUTE = 1
@@ -104,17 +104,17 @@ class DDS(AutoDB):
         self.phase_mode = phase_mode
 
     @kernel
-    def set(self, frequency, phase_mode=PHASE_MODE_DEFAULT, phase_offset=0):
+    def set(self, frequency, phase=0, phase_mode=_PHASE_MODE_DEFAULT):
         """Sets the DDS channel to the specified frequency and phase.
 
         :param frequency: frequency to generate.
+        :param phase: adds an offset, in turns, to the phase.
         :param phase_mode: if specified, overrides the default phase mode set
             by ``set_phase_mode`` for this call.
-        :param phase_offset: adds an offset, in turns, to the phase.
         """
-        if phase_mode == PHASE_MODE_DEFAULT:
+        if phase_mode == _PHASE_MODE_DEFAULT:
             phase_mode = self.phase_mode
 
         syscall("dds_set", time_to_cycles(now()), self.channel,
-           self.frequency_to_ftw(frequency), round(phase_offset*2**14),
+           self.frequency_to_ftw(frequency), round(phase*2**14),
            phase_mode)
