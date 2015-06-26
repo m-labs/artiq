@@ -11,8 +11,8 @@ def globals():
         "int":     builtins.fn_int(),
         "float":   builtins.fn_float(),
         "list":    builtins.fn_list(),
+        "range":   builtins.fn_range(),
         "len":     builtins.fn_len(),
         "round":   builtins.fn_round(),
-        "range":   builtins.fn_range(),
         "syscall": builtins.fn_syscall(),
     }

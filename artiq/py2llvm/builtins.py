@@ -31,6 +31,12 @@ class TList(types.TMono):
             elt = types.TVar()
         super().__init__("list", {"elt": elt})
 
+class TRange(types.TMono):
+    def __init__(self, elt=None):
+        if elt is None:
+            elt = types.TVar()
+        super().__init__("range", {"elt": elt})
+
 def fn_bool():
     return types.TBuiltin("class bool")
 
@@ -43,14 +49,14 @@ def fn_float():
 def fn_list():
     return types.TBuiltin("class list")
 
+def fn_range():
+    return types.TBuiltin("function range")
+
 def fn_len():
     return types.TBuiltin("function len")
 
 def fn_round():
     return types.TBuiltin("function round")
-
-def fn_range():
-    return types.TBuiltin("function range")
 
 def fn_syscall():
     return types.TBuiltin("function syscall")
@@ -86,6 +92,21 @@ def is_list(typ, elt=None):
         return types.is_mono(typ, "list", {"elt": elt})
     else:
         return types.is_mono(typ, "list")
+
+def is_range(typ, elt=None):
+    if elt:
+        return types.is_mono(typ, "range", {"elt": elt})
+    else:
+        return types.is_mono(typ, "range")
+
+def is_iterable(typ):
+    typ = typ.find()
+    return isinstance(typ, types.TMono) and \
+        typ.name in ('list', 'range')
+
+def get_iterable_elt(typ):
+    if is_iterable(typ):
+        return typ.find()["elt"]
 
 def is_collection(typ):
     typ = typ.find()
