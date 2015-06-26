@@ -804,8 +804,7 @@ class Inferencer(algorithm.Visitor):
         elif builtins.is_builtin(typ, "class list"):
             valid_forms = lambda: [
                 valid_form("list() -> list(elt='a)"),
-                # TODO: add this form when adding iterators
-                # valid_form("list(x) -> list(elt='a)")
+                valid_form("list(x:'a) -> list(elt='b) where 'a is iterable")
             ]
 
             self._unify(node.type, builtins.TList(),
@@ -813,6 +812,20 @@ class Inferencer(algorithm.Visitor):
 
             if len(node.args) == 0 and len(node.keywords) == 0:
                 pass # []
+            elif len(node.args) == 1 and len(node.keywords) == 0:
+                arg, = node.args
+
+                if builtins.is_iterable(arg.type):
+                    pass
+                else:
+                    note = diagnostic.Diagnostic("note",
+                        "this expression has type {type}",
+                        {"type": types.TypePrinter().name(arg.type)},
+                        arg.loc)
+                    diag = diagnostic.Diagnostic("error",
+                        "the argument of list() must be of an iterable type", {},
+                        node.func.loc, notes=[note])
+                    self.engine.process(diag)
             else:
                 diagnose(valid_forms())
         elif builtins.is_builtin(typ, "function range"):
@@ -854,7 +867,7 @@ class Inferencer(algorithm.Visitor):
             if len(node.args) == 1 and len(node.keywords) == 0:
                 arg, = node.args
 
-                if builtins.is_list(arg.type) or builtins.is_range(arg.type):
+                if builtins.is_iterable(arg.type):
                     pass
                 else:
                     note = diagnostic.Diagnostic("note",
