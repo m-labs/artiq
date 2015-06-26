@@ -22,7 +22,7 @@ class RPCTiming(Experiment, AutoDB):
             t1 = self.core.get_rtio_time()
             self.nop(10)
             t2 = self.core.get_rtio_time()
-            self.ts[i] = float(t2.amount - t1.amount)
+            self.ts[i] = t2 - t1
 
     def run(self):
         self.bench()

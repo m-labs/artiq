@@ -11,7 +11,7 @@ embeddable_funcs = (
     core_language.syscall, core_language.watchdog,
     range, bool, int, float, round, len,
     core_language.int64, core_language.round64,
-    Fraction, units.Quantity, units.check_unit, core_language.EncodedException
+    Fraction, core_language.EncodedException
 )
 embeddable_func_names = {func.__name__ for func in embeddable_funcs}
 
@@ -61,11 +61,6 @@ def value_to_ast(value):
         for kg in core_language.kernel_globals:
             if value is getattr(core_language, kg):
                 return ast.Name(kg, ast.Load())
-        if isinstance(value, units.Quantity):
-            return ast.Call(
-                func=ast.Name("Quantity", ast.Load()),
-                args=[value_to_ast(value.amount), ast.Str(value.unit)],
-                keywords=[], starargs=None, kwargs=None)
         raise NotASTRepresentable(str(value))
 
 
@@ -88,14 +83,6 @@ def eval_constant(node):
             numerator = eval_constant(node.args[0])
             denominator = eval_constant(node.args[1])
             return Fraction(numerator, denominator)
-        elif funcname == "Quantity":
-            amount, unit = node.args
-            amount = eval_constant(amount)
-            try:
-                unit = getattr(units, unit.id)
-            except:
-                raise NotConstant
-            return units.Quantity(amount, unit)
         else:
             raise NotConstant
     else:
@@ -105,8 +92,7 @@ def eval_constant(node):
 _replaceable_funcs = {
     "bool", "int", "float", "round",
     "int64", "round64", "Fraction",
-    "time_to_cycles", "cycles_to_time",
-    "Quantity"
+    "time_to_cycles", "cycles_to_time"
 }
 
 

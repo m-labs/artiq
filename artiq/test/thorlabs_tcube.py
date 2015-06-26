@@ -88,7 +88,7 @@ class GenericTpzTest:
 
     def test_ouput_volts(self):
         for voltage in 5*V, 10*V, 15*V, \
-                round(self.cont.get_tpz_io_settings()[0].amount)*V:
+                round(self.cont.get_tpz_io_settings()[0])*V:
             with self.subTest(voltage=voltage):
                 test_vector = voltage
                 self.cont.set_output_volts(test_vector)

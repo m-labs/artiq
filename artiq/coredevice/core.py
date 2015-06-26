@@ -5,7 +5,6 @@ from artiq.language.db import *
 from artiq.language.units import ns
 
 from artiq.transforms.inline import inline
-from artiq.transforms.lower_units import lower_units
 from artiq.transforms.quantize_time import quantize_time
 from artiq.transforms.remove_inter_assigns import remove_inter_assigns
 from artiq.transforms.fold_constants import fold_constants
@@ -61,13 +60,10 @@ class Core(AutoDB):
 
     def transform_stack(self, func_def, rpc_map, exception_map,
                         debug_unparse=_no_debug_unparse):
-        lower_units(func_def, rpc_map)
-        debug_unparse("lower_units", func_def)
-
         remove_inter_assigns(func_def)
         debug_unparse("remove_inter_assigns_1", func_def)
 
-        quantize_time(func_def, self.ref_period.amount)
+        quantize_time(func_def, self.ref_period)
         debug_unparse("quantize_time", func_def)
 
         fold_constants(func_def)

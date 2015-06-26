@@ -6,7 +6,6 @@ import traceback
 import time
 
 from artiq.protocols import pyon
-from artiq.language.units import strip_unit
 from artiq.tools import (asyncio_process_wait_timeout, asyncio_process_wait,
                          asyncio_wait_or_cancel)
 
@@ -50,7 +49,7 @@ class Worker:
         avail = set(range(n_user_watchdogs + 1)) \
             - set(self.watchdogs.keys())
         wid = next(iter(avail))
-        self.watchdogs[wid] = time.monotonic() + strip_unit(t, "s")
+        self.watchdogs[wid] = time.monotonic() + t
         return wid
 
     def delete_watchdog(self, wid):

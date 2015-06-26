@@ -4,7 +4,6 @@ import os
 from fractions import Fraction
 
 from artiq import *
-from artiq.language.units import DimensionError
 from artiq.coredevice import comm_tcp, core, runtime_exceptions, ttl
 from artiq.sim import devices as sim_devices
 
@@ -51,7 +50,6 @@ class _Primes(AutoDB):
 class _Misc(AutoDB):
     def build(self):
         self.input = 84
-        self.inhomogeneous_units = []
         self.al = [1, 2, 3, 4, 5]
         self.list_copy_in = [2*Hz, 10*MHz]
 
@@ -59,29 +57,10 @@ class _Misc(AutoDB):
     def run(self):
         self.half_input = self.input//2
         self.decimal_fraction = Fraction("1.2")
-        self.inhomogeneous_units.append(1000*Hz)
-        self.inhomogeneous_units.append(10*s)
         self.acc = 0
         for i in range(len(self.al)):
             self.acc += self.al[i]
         self.list_copy_out = self.list_copy_in
-        self.unit_comp = [1*MHz for _ in range(3)]
-
-    @kernel
-    def dimension_error1(self):
-        print(1*Hz + 1*s)
-
-    @kernel
-    def dimension_error2(self):
-        print(1*Hz < 1*s)
-
-    @kernel
-    def dimension_error3(self):
-        check_unit(1*Hz, "s")
-
-    @kernel
-    def dimension_error4(self):
-        delay(10*Hz)
 
 
 class _PulseLogger(AutoDB):
@@ -103,9 +82,9 @@ class _PulseLogger(AutoDB):
 
     @kernel
     def pulse(self, f, duration):
-        self.on(int(now().amount*1000000000), f)
+        self.on(int(now()*1000000000), f)
         delay(duration)
-        self.off(int(now().amount*1000000000))
+        self.off(int(now()*1000000000))
 
 
 class _Pulses(AutoDB):
@@ -229,18 +208,8 @@ class ExecutionCase(unittest.TestCase):
             uut.run()
             self.assertEqual(uut.half_input, 42)
             self.assertEqual(uut.decimal_fraction, Fraction("1.2"))
-            self.assertEqual(uut.inhomogeneous_units, [1000*Hz, 10*s])
             self.assertEqual(uut.acc, sum(uut.al))
             self.assertEqual(uut.list_copy_in, uut.list_copy_out)
-            self.assertEqual(uut.unit_comp, [1*MHz for _ in range(3)])
-            with self.assertRaises(DimensionError):
-                uut.dimension_error1()
-            with self.assertRaises(DimensionError):
-                uut.dimension_error2()
-            with self.assertRaises(DimensionError):
-                uut.dimension_error3()
-            with self.assertRaises(DimensionError):
-                uut.dimension_error4()
         finally:
             comm.close()
 

@@ -14,7 +14,6 @@ The main rationale for this new custom serializer (instead of using JSON) is
 that JSON does not support Numpy and more generally cannot be extended with
 other data types while keeping a concise syntax. Here we can use the Python
 function call syntax to mark special data types.
-
 """
 
 
@@ -24,8 +23,6 @@ import os
 import tempfile
 
 import numpy
-
-from artiq.language.units import Quantity
 
 
 _encode_map = {
@@ -39,7 +36,6 @@ _encode_map = {
     list: "list",
     dict: "dict",
     Fraction: "fraction",
-    Quantity: "quantity",
     numpy.ndarray: "nparray"
 }
 
@@ -110,10 +106,6 @@ class _Encoder:
         return "Fraction({}, {})".format(encode(x.numerator),
                                          encode(x.denominator))
 
-    def encode_quantity(self, x):
-        return "Quantity({}, {})".format(encode(x.amount),
-                                         encode(x.unit))
-
     def encode_nparray(self, x):
         r = "nparray("
         r += encode(x.shape) + ", "
@@ -147,7 +139,6 @@ _eval_dict = {
     "true": True,
 
     "Fraction": Fraction,
-    "Quantity": Quantity,
     "nparray": _nparray
 }
 

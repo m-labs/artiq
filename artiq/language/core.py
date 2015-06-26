@@ -231,7 +231,7 @@ def time_to_cycles(time, core=None):
     """
     if core is None:
         raise ValueError("Core device must be specified for time conversion")
-    return round64(time.amount//core.ref_period)
+    return round64(time//core.ref_period)
 
 
 def cycles_to_time(cycles, core=None):

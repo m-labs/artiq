@@ -10,9 +10,9 @@ lda_serial = os.getenv("ARTIQ_LDA_SERIAL")
 
 class GenericLdaTest:
     def test_attenuation(self):
-        step = self.cont.get_att_step_size().amount
-        max = self.cont.get_att_max().amount
-        test_vector = [i*step*dB for i in range(0, int(max*int(1/step)+1))]
+        step = self.cont.get_att_step_size()
+        attmax = self.cont.get_att_max()
+        test_vector = [i*step*dB for i in range(0, int(attmax*int(1/step)+1))]
         for i in test_vector:
             with self.subTest(i=i):
                 self.cont.set_attenuation(i)

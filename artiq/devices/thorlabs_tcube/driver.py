@@ -4,7 +4,7 @@ import struct as st
 
 import serial
 
-from artiq.language.units import V, strip_unit
+from artiq.language.units import V
 
 
 logger = logging.getLogger(__name__)
@@ -302,7 +302,7 @@ class Tcube:
 class Tpz(Tcube):
     def __init__(self, serial_dev):
         Tcube.__init__(self, serial_dev)
-        self.voltage_limit = self.get_tpz_io_settings()[0].amount
+        self.voltage_limit = self.get_tpz_io_settings()[0]
 
     def handle_message(self, msg):
         msg_id = msg.id
@@ -372,8 +372,6 @@ class Tpz(Tcube):
             between the three values 75 V, 100 V and 150 V.
         """
 
-        voltage = strip_unit(voltage, "V")
-
         if voltage < 0 or voltage > self.voltage_limit:
             raise ValueError("Voltage must be in range [0;{}]"
                              .format(self.voltage_limit))
@@ -390,7 +388,7 @@ class Tpz(Tcube):
 
         get_msg = self.send_request(MGMSG.PZ_REQ_OUTPUTVOLTS,
                                     [MGMSG.PZ_GET_OUTPUTVOLTS], 1)
-        return st.unpack("<H", get_msg.data[2:])[0]*self.voltage_limit*V/32767
+        return st.unpack("<H", get_msg.data[2:])[0]*self.voltage_limit/32767
 
     def set_output_position(self, position_sw):
         """Set output position of the piezo actuator.
@@ -532,7 +530,6 @@ class Tpz(Tcube):
             <artiq.devices.thorlabs.driver.Tpz.set_tpz_io_settings>` method.
         """
 
-        output = strip_unit(output, "V")
         volt = round(output*32767/self.voltage_limit)
         payload = st.pack("<HHH", 1, lut_index, volt)
         self.send(Message(MGMSG.PZ_SET_OUTPUTLUT, data=payload))
@@ -548,7 +545,7 @@ class Tpz(Tcube):
         get_msg = self.send_request(MGMSG.PZ_REQ_OUTPUTLUT,
                                     [MGMSG.PZ_GET_OUTPUTLUT], 1)
         (index, output) = st.unpack("<Hh", get_msg.data[2:])
-        return index, output*self.voltage_limit*V/32767
+        return index, output*self.voltage_limit/32767
 
     def set_output_lut_parameters(self, mode, cycle_length, num_cycles,
                                   delay_time, precycle_rest, postcycle_rest):
@@ -684,9 +681,6 @@ class Tpz(Tcube):
             100 V limit.
 
             150 V limit.
-
-            You can either provide this parameter as an integer or as a
-            :class:`artiq.language.units` Volt quantity (e.g. 75*V).
         :param hub_analog_input: When the T-Cube piezo driver unit is used in
             conjunction with the T-Cube Strain Gauge Reader (TSG001) on the
             T-Cube Controller Hub (TCH001), a feedback signal can be passed
@@ -706,7 +700,7 @@ class Tpz(Tcube):
             connectors.
         """
 
-        self.voltage_limit = strip_unit(voltage_limit, "V")
+        self.voltage_limit = voltage_limit
 
         if self.voltage_limit == 75:
             voltage_limit = 1
@@ -727,21 +721,21 @@ class Tpz(Tcube):
             Hub analog input. Refer to :py:meth:`set_tpz_io_settings()
             <artiq.devices.thorlabs.driver.Tpz.set_tpz_io_settings>` for the
             meaning of those parameters.
-        :rtype: a 2 elements tuple (Quantity, int)
+        :rtype: a 2 elements tuple (int, int)
         """
 
         get_msg = self.send_request(MGMSG.PZ_REQ_TPZ_IOSETTINGS,
                                     [MGMSG.PZ_GET_TPZ_IOSETTINGS], 1)
         voltage_limit, hub_analog_input = st.unpack("<HH", get_msg.data[2:6])
         if voltage_limit == 1:
-            voltage_limit = 75*V
+            voltage_limit = 75
         elif voltage_limit == 2:
-            voltage_limit = 100*V
+            voltage_limit = 100
         elif voltage_limit == 3:
-            voltage_limit = 150*V
+            voltage_limit = 150
         else:
             raise ValueError("Voltage limit should be in range [1; 3]")
-        self.voltage_limit = voltage_limit.amount
+        self.voltage_limit = voltage_limit
         return voltage_limit, hub_analog_input
 
 
@@ -1398,14 +1392,13 @@ class TpzSim:
         return self.intensity
 
     def set_tpz_io_settings(self, voltage_limit, hub_analog_input):
-        self.voltage_limit = strip_unit(voltage_limit, "V")
-
-        if self.voltage_limit not in [75, 100, 150]:
+        if voltage_limit not in [75, 100, 150]:
             raise ValueError("voltage_limit must be 75 V, 100 V or 150 V")
+        self.voltage_limit = voltage_limit
         self.hub_analog_input = hub_analog_input
 
     def get_tpz_io_settings(self):
-        return self.voltage_limit*V, self.hub_analog_input
+        return self.voltage_limit, self.hub_analog_input
 
 
 class TdcSim:

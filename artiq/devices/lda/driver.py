@@ -2,7 +2,7 @@ import logging
 import ctypes
 import struct
 
-from artiq.language.units import dB, check_unit, Quantity
+from artiq.language.units import dB
 
 
 logger = logging.getLogger("lda")
@@ -47,14 +47,7 @@ class Ldasim:
         """
 
         step = self.get_att_step_size()
-
-        if isinstance(attenuation, Quantity):
-            check_unit(attenuation, "dB")
-            att = attenuation
-        else:
-            att = attenuation*dB
-
-        att = round(att/step)*step
+        att = round(attenuation/step)*step
 
         if att > self.get_att_max():
             raise ValueError("Cannot set attenuation {} > {}"
@@ -62,7 +55,7 @@ class Ldasim:
         elif att < 0*dB:
             raise ValueError("Cannot set attenuation {} < 0".format(att))
         else:
-            att = round(att.amount*4)/4. * dB
+            att = round(att*4)/4. * dB
             self._attenuation = att
 
     def ping(self):
@@ -218,14 +211,7 @@ class Lda:
         """
 
         step = self.get_att_step_size()
-
-        if isinstance(attenuation, Quantity):
-            check_unit(attenuation, "dB")
-            att = attenuation
-        else:
-            att = attenuation*dB
-
-        att = round(att/step)*step
+        att = round(attenuation/step)*step
 
         if att > self.get_att_max():
             raise ValueError("Cannot set attenuation {} > {}"
@@ -233,7 +219,7 @@ class Lda:
         elif att < 0*dB:
             raise ValueError("Cannot set attenuation {} < 0".format(att))
         else:
-            self.set(0x8d, bytes([int(round(att.amount*4))]))
+            self.set(0x8d, bytes([int(round(att*4))]))
 
     def ping(self):
         try:

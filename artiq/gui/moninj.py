@@ -9,7 +9,6 @@ from pyqtgraph import dockarea
 
 from artiq.tools import TaskObject
 from artiq.protocols.sync_struct import Subscriber
-from artiq.language.units import strip_unit
 
 
 logger = logging.getLogger(__name__)
@@ -170,7 +169,7 @@ class _DeviceManager:
                 if (v["module"] == "artiq.coredevice.dds"
                         and v["class"] == "DDS"):
                     channel = v["arguments"]["channel"]
-                    sysclk = strip_unit(v["arguments"]["sysclk"], "Hz")
+                    sysclk = v["arguments"]["sysclk"]
                     self.dds_widgets[channel] = _DDSWidget(
                         self.send_to_device, channel, sysclk, k)
                     self.dds_cb()
