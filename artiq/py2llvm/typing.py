@@ -716,62 +716,135 @@ class Inferencer(algorithm.Visitor):
         self._unify_collection(element=node.target, collection=node.iter)
 
     def visit_builtin_call(self, node):
-        if types.is_mono(node.func.type):
-            func_name = "function " + node.func.type.find().name
-        elif builtins.is_function(node.func.type):
-            func_name = node.func.type.find().name
+        typ = node.func.type.find()
 
         def valid_form(signature):
             return diagnostic.Diagnostic("note",
                 "{func} can be invoked as: {signature}",
-                {"func": func_name},
+                {"func": typ.name, "signature": signature},
                 node.func.loc)
 
         def diagnose(valid_forms):
             diag = diagnostic.Diagnostic("error",
                 "{func} cannot be invoked with these arguments",
-                {"func": func_name},
+                {"func": typ.name},
                 node.func.loc, notes=valid_forms)
+            self.engine.process(diag)
 
-        if builtins.is_bool(node.type):
+        if builtins.is_builtin(typ, "class bool"):
             valid_forms = lambda: [
                 valid_form("bool() -> bool"),
-                valid_form("bool(x:'a) -> bool where 'a is numeric")
+                valid_form("bool(x:'a) -> bool")
             ]
-        elif builtins.is_int(node.type):
+
+            if len(node.args) == 0 and len(node.keywords) == 0:
+                pass # False
+            elif len(node.args) == 1 and len(node.keywords) == 0:
+                arg, = node.args
+                pass # anything goes
+            else:
+                diagnose(valid_forms())
+
+            self._unify(node.type, builtins.TBool(),
+                        node.loc, None)
+        elif builtins.is_builtin(typ, "class int"):
             valid_forms = lambda: [
                 valid_form("int() -> int(width='a)"),
                 valid_form("int(x:'a) -> int(width='b) where 'a is numeric"),
-                valid_form("int(x:'a, width='b <int literal>) -> int(width='b) where 'a is numeric")
+                valid_form("int(x:'a, width='b:<int literal>) -> int(width='b) where 'a is numeric")
             ]
-        elif builtins.is_float(node.type):
+
+            self._unify(node.type, builtins.TInt(),
+                        node.loc, None)
+
+            if len(node.args) == 0 and len(node.keywords) == 0:
+                pass # 0
+            elif len(node.args) == 1 and len(node.keywords) == 0 and \
+                    builtins.is_numeric(node.args[0].type):
+                pass
+            elif len(node.args) == 1 and len(node.keywords) == 1 and \
+                    builtins.is_numeric(node.args[0].type) and \
+                    node.keywords[0].arg == 'width':
+                width = node.keywords[0].value
+                if not (isinstance(width, asttyped.NumT) and isinstance(width.n, int)):
+                    diag = diagnostic.Diagnostic("error",
+                        "the width argument of int() must be an integer literal", {},
+                        node.keywords[0].loc)
+
+                self._unify(node.type, builtins.TInt(types.TValue(width.n)),
+                            node.loc, None)
+            else:
+                diagnose(valid_forms())
+        elif builtins.is_builtin(typ, "class float"):
             valid_forms = lambda: [
                 valid_form("float() -> float"),
                 valid_form("float(x:'a) -> float where 'a is numeric")
             ]
-        elif builtins.is_list(node.type):
+
+            self._unify(node.type, builtins.TFloat(),
+                        node.loc, None)
+
+            if len(node.args) == 0 and len(node.keywords) == 0:
+                pass # 0.0
+            elif len(node.args) == 1 and len(node.keywords) == 0 and \
+                    builtins.is_numeric(node.args[0].type):
+                pass
+            else:
+                diagnose(valid_forms())
+        elif builtins.is_builtin(typ, "class list"):
             valid_forms = lambda: [
                 valid_form("list() -> list(elt='a)"),
                 # TODO: add this form when adding iterators
                 # valid_form("list(x) -> list(elt='a)")
             ]
-        elif builtins.is_function(node.type, "len"):
+
+            self._unify(node.type, builtins.TList(),
+                        node.loc, None)
+
+            if len(node.args) == 0 and len(node.keywords) == 0:
+                pass # []
+            else:
+                diagnose(valid_forms())
+        elif builtins.is_builtin(typ, "function len"):
             valid_forms = lambda: [
                 valid_form("len(x:list(elt='a)) -> int(width='b)"),
             ]
-        elif builtins.is_function(node.type, "round"):
+
+            # TODO: should be ssize_t-sized
+            self._unify(node.type, builtins.TInt(types.TValue(32)),
+                        node.loc, None)
+
+            if len(node.args) == 1 and len(node.keywords) == 0:
+                arg, = node.args
+
+                self._unify(arg.type, builtins.TList(),
+                            arg.loc, None)
+            else:
+                diagnose(valid_forms())
+        elif builtins.is_builtin(typ, "function round"):
             valid_forms = lambda: [
                 valid_form("round(x:float) -> int(width='a)"),
             ]
+
+            self._unify(node.type, builtins.TInt(),
+                        node.loc, None)
+
+            if len(node.args) == 1 and len(node.keywords) == 0:
+                arg, = node.args
+
+                self._unify(arg.type, builtins.TFloat(),
+                            arg.loc, None)
+            else:
+                diagnose(valid_forms())
         # TODO: add when there are range types
-        # elif builtins.is_function(node.type, "range"):
+        # elif builtins.is_builtin(typ, "function range"):
         #     valid_forms = lambda: [
         #         valid_form("range(max:'a) -> range(elt='a)"),
         #         valid_form("range(min:'a, max:'a) -> range(elt='a)"),
         #         valid_form("range(min:'a, max:'a, step:'a) -> range(elt='a)"),
         #     ]
         # TODO: add when it is clear what interface syscall() has
-        # elif builtins.is_function(node.type, "syscall"):
+        # elif builtins.is_builtin(typ, "function syscall"):
         #     valid_Forms = lambda: [
         #     ]
 
@@ -790,7 +863,7 @@ class Inferencer(algorithm.Visitor):
         if types.is_var(node.func.type):
             return # not enough info yet
         elif types.is_mono(node.func.type) or types.is_builtin(node.func.type):
-            return self.visit_builtin_call(self, node)
+            return self.visit_builtin_call(node)
         elif not types.is_function(node.func.type):
             diag = diagnostic.Diagnostic("error",
                 "cannot call this expression of type {type}",

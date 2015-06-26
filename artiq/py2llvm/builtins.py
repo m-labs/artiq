@@ -31,6 +31,18 @@ class TList(types.TMono):
             elt = types.TVar()
         super().__init__("list", {"elt": elt})
 
+def fn_bool():
+    return types.TBuiltin("class bool")
+
+def fn_int():
+    return types.TBuiltin("class int")
+
+def fn_float():
+    return types.TBuiltin("class float")
+
+def fn_list():
+    return types.TBuiltin("class list")
+
 def fn_len():
     return types.TBuiltin("function len")
 
@@ -80,7 +92,7 @@ def is_collection(typ):
     return isinstance(typ, types.TTuple) or \
         types.is_mono(typ, "list")
 
-def is_function(typ, name):
+def is_builtin(typ, name):
     typ = typ.find()
     return isinstance(typ, types.TBuiltin) and \
-        typ.name == "function " + name
+        typ.name == name

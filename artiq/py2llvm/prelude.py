@@ -7,9 +7,10 @@ from . import builtins
 
 def globals():
     return {
-        "bool":    builtins.TBool(),
-        "int":     builtins.TInt(),
-        "float":   builtins.TFloat(),
+        "bool":    builtins.fn_bool(),
+        "int":     builtins.fn_int(),
+        "float":   builtins.fn_float(),
+        "list":    builtins.fn_list(),
         "len":     builtins.fn_len(),
         "round":   builtins.fn_round(),
         "range":   builtins.fn_range(),
