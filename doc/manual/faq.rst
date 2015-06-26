@@ -75,10 +75,11 @@ scheduler API to achieve the same (``scheduler.yield(duration=0)``)
 or wrap your own generators/coroutines/tasks in regular functions that
 you then expose as part of the API.
 
-list the serial devices attached to my Linux/Windows system?
-------------------------------------------------------------
+determine the pyserial URL to attach to a device by its serial number?
+----------------------------------------------------------------------
 
-You can do it by running::
+You can list your system's serial devices and print their vendor/product
+id and serial number by running::
 
     $ python3 -m serial.tools.list_ports -v
 
