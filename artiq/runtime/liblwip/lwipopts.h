@@ -181,4 +181,10 @@ a lot of data that needs to be copied, this should be set high. */
 #define SYS_STATS
 #endif /* STATS */
 
+/* ---------- PPP ---------- */
+
+#define PPP_SUPPORT 1
+#define PPPOS_SUPPORT 1
+#define PPP_IPV4_SUPPORT 1
+
 #endif /* __LWIPOPTS_H__ */

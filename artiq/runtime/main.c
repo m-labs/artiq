@@ -8,7 +8,6 @@
 #include <generated/csr.h>
 #include <hw/flags.h>
 
-#ifdef CSR_ETHMAC_BASE
 #include <lwip/init.h>
 #include <lwip/memp.h>
 #include <lwip/ip4_addr.h>
@@ -17,8 +16,13 @@
 #include <lwip/sys.h>
 #include <lwip/tcp.h>
 #include <lwip/timers.h>
+#ifdef CSR_ETHMAC_BASE
 #include <netif/etharp.h>
 #include <liteethif.h>
+#else
+#include <netif/ppp/ppp.h>
+#include <netif/ppp/pppos.h>
+#include <lwip/sio.h>
 #endif
 
 #include "bridge_ctl.h"
@@ -32,24 +36,40 @@
 #include "analyzer.h"
 #include "moninj.h"
 
-#ifdef CSR_ETHMAC_BASE
-
 u32_t sys_now(void)
+{
+    return clock_get_ms();
+}
+
+u32_t sys_jiffies(void)
 {
     return clock_get_ms();
 }
 
 static struct netif netif;
 
+#ifndef CSR_ETHMAC_BASE
+static ppp_pcb *ppp;
+#endif
+
 static void lwip_service(void)
 {
     sys_check_timeouts();
+#ifdef CSR_ETHMAC_BASE
     if(ethmac_sram_writer_ev_pending_read() & ETHMAC_EV_SRAM_WRITER) {
         liteeth_input(&netif);
         ethmac_sram_writer_ev_pending_write(ETHMAC_EV_SRAM_WRITER);
     }
+#else
+    if(uart_read_nonblock()) {
+        u8_t c;
+        c = uart_read();
+        pppos_input(ppp, &c, 1);
+    }
+#endif
 }
 
+#ifdef CSR_ETHMAC_BASE
 unsigned char macadr[6];
 
 static int hex2nib(int c)
@@ -128,6 +148,31 @@ static void network_init(void)
     netif_set_up(&netif);
     netif_set_link_up(&netif);
 }
+#else /* CSR_ETHMAC_BASE */
+
+static void ppp_status_cb(ppp_pcb *pcb, int err_code, void *ctx)
+{
+}
+
+u32_t sio_write(sio_fd_t fd, u8_t *data, u32_t len)
+{
+    int i;
+
+    for(i=0;i<len;i++)
+        uart_write(data[i]);
+    return len;
+}
+
+static void network_init(void)
+{
+    ppp = pppos_create(&netif, NULL, ppp_status_cb, NULL);
+    ppp_set_auth(ppp, PPPAUTHTYPE_NONE, "", "");
+    ppp_set_default(ppp);
+    ppp_connect(ppp, 0);
+}
+
+#endif /* CSR_ETHMAC_BASE */
+
 
 static struct net_server_instance session_inst = {
     .port = 1381,
@@ -153,7 +198,7 @@ static struct net_server_instance analyzer_inst = {
 
 static void regular_main(void)
 {
-    puts("Accepting sessions on Ethernet.");
+    puts("Accepting sessions on Network.");
     network_init();
     net_server_init(&session_inst);
 #ifdef CSR_RTIO_ANALYZER_BASE
@@ -169,69 +214,6 @@ static void regular_main(void)
         net_server_service();
     }
 }
-
-#else /* CSR_ETHMAC_BASE */
-
-static void reset_serial_session(int signal)
-{
-    int i;
-
-    session_end();
-    if(signal) {
-        /* Signal end-of-session inband with zero length packet. */
-        for(i=0;i<4;i++)
-            uart_write(0x5a);
-        for(i=0;i<4;i++)
-            uart_write(0x00);
-    }
-    session_start();
-}
-
-static void serial_service(void)
-{
-    char *txdata;
-    int txlen;
-    static char rxdata;
-    static int rxpending;
-    int r, i;
-
-    if(!rxpending && uart_read_nonblock()) {
-        rxdata = uart_read();
-        rxpending = 1;
-    }
-    if(rxpending) {
-        r = session_input(&rxdata, 1);
-        if(r > 0)
-            rxpending = 0;
-        if(r < 0)
-            /* do not signal if reset was requested by host */
-            reset_serial_session(r != -2);
-    }
-
-    session_poll((void **)&txdata, &txlen);
-    if(txlen > 0) {
-        for(i = 0; i < txlen; i++)
-            uart_write(txdata[i]);
-        session_ack_consumed(txlen);
-        session_ack_sent(txlen);
-    } else if(txlen < 0) {
-        reset_serial_session(1);
-    }
-}
-
-static void regular_main(void)
-{
-    puts("Accepting sessions on serial link.");
-
-    /* Open the session for the serial control. */
-    session_start();
-    while(1) {
-        kloader_service_essential_kmsg();
-        serial_service();
-    }
-}
-
-#endif
 
 static void blink_led(void)
 {
