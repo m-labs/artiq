@@ -82,9 +82,9 @@ class _PulseLogger(AutoDB):
 
     @kernel
     def pulse(self, f, duration):
-        self.on(int(now()*1000000000), f)
+        self.on(round(now()*1000000000), f)
         delay(duration)
-        self.off(int(now()*1000000000))
+        self.off(round(now()*1000000000))
 
 
 class _Pulses(AutoDB):
