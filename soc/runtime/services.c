@@ -17,8 +17,8 @@ extern __divsi3, __modsi3, __ledf2, __gedf2, __unorddf2, __eqdf2, __ltdf2,
     __divsf3, __lshrdi3, __muldi3, __divdi3, __ashldi3, __ashrdi3,
     __udivmoddi4, __floatsisf, __floatunsisf, __fixsfsi, __fixunssfsi,
     __adddf3, __subdf3, __muldf3, __divdf3, __floatsidf, __floatunsidf,
-    __floatdidf, __fixdfsi, __fixunsdfsi, __clzsi2, __ctzsi2, __udivdi3,
-    __umoddi3, __moddi3;
+    __floatdidf, __fixdfsi, __fixdfdi, __fixunsdfsi, __clzsi2, __ctzsi2,
+    __udivdi3, __umoddi3, __moddi3;
 #pragma GCC diagnostic pop
 
 static const struct symbol compiler_rt[] = {
@@ -55,6 +55,7 @@ static const struct symbol compiler_rt[] = {
     {"floatunsidf", &__floatunsidf},
     {"floatdidf", &__floatdidf},
     {"fixdfsi", &__fixdfsi},
+    {"fixdfdi", &__fixdfdi},
     {"fixunsdfsi", &__fixunsdfsi},
     {"clzsi2", &__clzsi2},
     {"ctzsi2", &__ctzsi2},
