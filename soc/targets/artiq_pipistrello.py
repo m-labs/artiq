@@ -60,7 +60,7 @@ class NIST_QC1(BaseSoC, AMPSoC):
         "rtio": None,  # mapped on Wishbone instead
         "rtio_crg": 13,
         "kernel_cpu": 14,
-        "rtio_mon": 15
+        "rtio_moninj": 15
     }
     csr_map.update(BaseSoC.csr_map)
     mem_map = {
@@ -130,7 +130,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
                                          clk_freq=125000000)
         self.add_constant("RTIO_FINE_TS_WIDTH", self.rtio.fine_ts_width)
         self.add_constant("DDS_RTIO_CLK_RATIO", 8 >> self.rtio.fine_ts_width)
-        self.submodules.rtio_mon = rtio.MonInj(rtio_channels)
+        self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
 
         # CPU connections
         rtio_csrs = self.rtio.get_csrs()
