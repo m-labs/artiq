@@ -328,6 +328,15 @@ class ASTTypedRewriter(algorithm.Transformer):
         finally:
             self.env_stack.pop()
 
+    def visit_ExceptHandler(self, node):
+        node = self.generic_visit(node)
+        node = asttyped.ExceptHandlerT(
+            name_type=self._find_name(node.name, node.name_loc),
+            filter=node.type, name=node.name, body=node.body,
+            except_loc=node.except_loc, as_loc=node.as_loc, name_loc=node.name_loc,
+            colon_loc=node.colon_loc, loc=node.loc)
+        return node
+
     def visit_Raise(self, node):
         node = self.generic_visit(node)
         if node.cause:
@@ -363,7 +372,6 @@ class ASTTypedRewriter(algorithm.Transformer):
     visit_Delete = visit_unsupported
     visit_Import = visit_unsupported
     visit_ImportFrom = visit_unsupported
-    visit_Try = visit_unsupported
 
 
 class Inferencer(algorithm.Visitor):
@@ -1070,6 +1078,30 @@ class Inferencer(algorithm.Visitor):
                 node.context_expr.loc)
             self.engine.process(diag)
 
+    def visit_ExceptHandlerT(self, node):
+        self.generic_visit(node)
+
+        if not builtins.is_exn_constructor(node.filter.type):
+            diag = diagnostic.Diagnostic("error",
+                "this expression must refer to an exception constructor",
+                {"type": types.TypePrinter().name(node.filter.type)},
+                node.filter.loc)
+            self.engine.process(diag)
+        else:
+            def makenotes(printer, typea, typeb, loca, locb):
+                return [
+                    diagnostic.Diagnostic("note",
+                        "expression of type {typea}",
+                        {"typea": printer.name(typea)},
+                        loca),
+                    diagnostic.Diagnostic("note",
+                        "constructor of an exception of type {typeb}",
+                        {"typeb": printer.name(typeb)},
+                        locb)
+                ]
+            self._unify(node.name_type, node.filter.type.to_exception_type(),
+                        node.name_loc, node.filter.loc, makenotes)
+
     def _type_from_arguments(self, node, ret):
         self.generic_visit(node)
 
@@ -1165,6 +1197,13 @@ class Printer(algorithm.Visitor):
 
         self.rewriter.insert_before(node.colon_loc,
                                     "->{}".format(self.type_printer.name(node.return_type)))
+
+    def visit_ExceptHandlerT(self, node):
+        super().generic_visit(node)
+
+        if node.name_loc:
+            self.rewriter.insert_after(node.name_loc,
+                                        ":{}".format(self.type_printer.name(node.name_type)))
 
     def generic_visit(self, node):
         super().generic_visit(node)

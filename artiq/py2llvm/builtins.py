@@ -125,7 +125,7 @@ def is_builtin(typ, name):
     return isinstance(typ, types.TBuiltin) and \
         typ.name == name
 
-def is_exception(typ, name=None):
+def is_exn_constructor(typ, name=None):
     typ = typ.find()
     if name is not None:
         return isinstance(typ, types.TExceptionConstructor) and \
