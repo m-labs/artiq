@@ -6,15 +6,14 @@ from migen.bus.transactions import *
 from migen.sim.generic import run_simulation
 
 
-class AD9858(Module):
-    """Wishbone interface to the AD9858 DDS chip.
+class AD9xxx(Module):
+    """Wishbone interface to the AD9858 and AD9914 DDS chips.
 
-    Addresses 0-63 map the AD9858 registers.
-    Data is zero-padded.
+    Addresses 0-2**flen(pads.a)-1 map the AD9xxx registers.
 
-    Write to address 64 to pulse the FUD signal.
-    Address 65 is a GPIO register that controls the sel, p and reset signals.
-    sel is mapped to the lower bits, followed by p and reset.
+    Write to address 2**flen(pads.a) to pulse the FUD signal.
+    Address 2**flen(pads.a)+1 is a GPIO register that controls the
+    sel and reset signals. sel is mapped to the lower bits, followed by reset.
 
     Write timing:
     Address is set one cycle before assertion of we_n.
@@ -28,6 +27,7 @@ class AD9858(Module):
     Design:
     All IO pads are registered.
 
+    With QC1 adapter:
     LVDS driver/receiver propagation delays are 3.6+4.5 ns max
     LVDS state transition delays are 20, 15 ns max
     Schmitt trigger delays are 6.4ns max
@@ -38,15 +38,15 @@ class AD9858(Module):
                  read_wait_cycles=10, hiz_wait_cycles=3,
                  bus=None):
         if bus is None:
-            bus = wishbone.Interface(data_width=8)
+            bus = wishbone.Interface(data_width=flen(pads.d))
         self.bus = bus
 
         # # #
 
-        dts = TSTriple(8)
+        dts = TSTriple(flen(pads.d))
         self.specials += dts.get_tristate(pads.d)
         hold_address = Signal()
-        dr = Signal(8)
+        dr = Signal(flen(pads.d))
         rx = Signal()
         self.sync += [
             If(~hold_address, pads.a.eq(bus.adr)),
@@ -55,13 +55,14 @@ class AD9858(Module):
             dts.oe.eq(~rx)
         ]
 
-        gpio = Signal(flen(pads.sel) + flen(pads.p) + 1)
+        gpio = Signal(flen(pads.sel) + 1)
         gpio_load = Signal()
         self.sync += If(gpio_load, gpio.eq(bus.dat_w))
-        self.comb += [
-            Cat(pads.sel, pads.p).eq(gpio),
-            pads.rst_n.eq(~gpio[-1]),
-        ]
+        self.comb += pads.sel.eq(gpio),
+        if hasattr(pads, "rst"):
+            self.comb += pads.rst.eq(gpio[-1])
+        else:
+            self.comb += pads.rst_n.eq(~gpio[-1])
 
         bus_r_gpio = Signal()
         self.comb += If(bus_r_gpio,
@@ -71,7 +72,10 @@ class AD9858(Module):
             )
 
         fud = Signal()
-        self.sync += pads.fud_n.eq(~fud)
+        if hasattr(pads, "fud"):
+            self.sync += pads.fud.eq(fud)
+        else:
+            self.sync += pads.fud_n.eq(~fud)
 
         pads.wr_n.reset = 1
         pads.rd_n.reset = 1
@@ -87,7 +91,7 @@ class AD9858(Module):
 
         fsm.act("IDLE",
             If(bus.cyc & bus.stb,
-                If(bus.adr[6],
+                If(bus.adr[flen(pads.a)],
                     If(bus.adr[0],
                         NextState("GPIO")
                     ).Else(
@@ -168,7 +172,6 @@ class _TestPads:
         self.a = Signal(6)
         self.d = Signal(8)
         self.sel = Signal(5)
-        self.p = Signal(2)
         self.fud_n = Signal()
         self.wr_n = Signal()
         self.rd_n = Signal()
@@ -178,11 +181,11 @@ class _TestPads:
 class _TB(Module):
     def __init__(self):
         pads = _TestPads()
-        self.submodules.dut = AD9858(pads, drive_fud=True)
+        self.submodules.dut = AD9xxx(pads, drive_fud=True)
         self.submodules.initiator = wishbone.Initiator(_test_gen())
         self.submodules.interconnect = wishbone.InterconnectPointToPoint(
             self.initiator.bus, self.dut.bus)
 
 
 if __name__ == "__main__":
-    run_simulation(_TB(), vcd_name="ad9858.vcd")
+    run_simulation(_TB(), vcd_name="ad9xxx.vcd")

@@ -40,7 +40,7 @@ void dds_init(long long int timestamp, int channel)
     now = timestamp - DURATION_INIT;
 
     DDS_WRITE(DDS_GPIO, channel);
-    DDS_WRITE(DDS_GPIO, channel | (1 << 7));
+    DDS_WRITE(DDS_GPIO, channel | (1 << 5));
     DDS_WRITE(DDS_GPIO, channel);
 
     DDS_WRITE(0x00, 0x78);

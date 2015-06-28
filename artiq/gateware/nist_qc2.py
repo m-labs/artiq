@@ -1,5 +1,6 @@
 from mibuild.generic_platform import *
 
+
 fmc_adapter_io = [
     ("ttl", 0, Pins("LPC:LA00_CC_P"), IOStandard("LVTTL")),
     ("ttl", 1, Pins("LPC:LA02_P"), IOStandard("LVTTL")),
@@ -28,10 +29,10 @@ fmc_adapter_io = [
         Subsignal("sel", Pins("LPC:LA24_N LPC:LA29_P LPC:LA28_P LPC:LA29_N "
                               "LPC:LA28_N LPC:LA31_P LPC:LA30_P LPC:LA31_N "
                               "LPC:LA30_N LPC:LA33_P LPC:LA33_N")),
-        Subsignal("fud_n", Pins("LPC:LA21_N")),
+        Subsignal("fud", Pins("LPC:LA21_N")),
         Subsignal("wr_n", Pins("LPC:LA24_P")),
         Subsignal("rd_n", Pins("LPC:LA25_N")),
-        Subsignal("rst_in", Pins("LPC:LA25_P")),
+        Subsignal("rst", Pins("LPC:LA25_P")),
         IOStandard("LVTTL")),
 
     ("i2c", 0,

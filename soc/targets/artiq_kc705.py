@@ -10,7 +10,7 @@ from misoclib.mem.sdram.core.minicon import MiniconSettings
 from targets.kc705 import MiniSoC
 
 from artiq.gateware.soc import AMPSoC
-from artiq.gateware import rtio, nist_qc1
+from artiq.gateware import rtio, nist_qc1, nist_qc2
 from artiq.gateware.rtio.phy import ttl_simple, dds
 
 
@@ -32,7 +32,7 @@ class _RTIOCRG(Module, AutoCSR):
                                   o_O=self.cd_rtio.clk)
 
 
-class NIST_QC1(MiniSoC, AMPSoC):
+class _NIST_QCx(MiniSoC, AMPSoC):
     csr_map = {
         "rtio": None,  # mapped on Wishbone instead
         "rtio_crg": 13,
@@ -52,18 +52,44 @@ class NIST_QC1(MiniSoC, AMPSoC):
                          sdram_controller_settings=MiniconSettings(l2_size=128*1024),
                          with_timer=False, **kwargs)
         AMPSoC.__init__(self)
-        platform.add_extension(nist_qc1.fmc_adapter_io)
-
         self.submodules.leds = gpio.GPIOOut(Cat(
             platform.request("user_led", 0),
             platform.request("user_led", 1)))
+
+    def add_rtio(self, rtio_channels):
+        self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.pll_sys)
+        self.submodules.rtio = rtio.RTIO(rtio_channels,
+                                         clk_freq=125000000)
+        self.add_constant("RTIO_FINE_TS_WIDTH", self.rtio.fine_ts_width)
+        self.add_constant("DDS_RTIO_CLK_RATIO", 8 >> self.rtio.fine_ts_width)
+        self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
+
+        if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
+            self.platform.add_platform_command("""
+create_clock -name rsys_clk -period 8.0 [get_nets {rsys_clk}]
+create_clock -name rio_clk -period 8.0 [get_nets {rio_clk}]
+set_false_path -from [get_clocks rsys_clk] -to [get_clocks rio_clk]
+set_false_path -from [get_clocks rio_clk] -to [get_clocks rsys_clk]
+""", rsys_clk=self.rtio.cd_rsys.clk, rio_clk=self.rtio.cd_rio.clk)
+
+        rtio_csrs = self.rtio.get_csrs()
+        self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
+        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["rtio"]),
+                                     self.rtiowb.bus)
+        self.add_csr_region("rtio", self.mem_map["rtio"] | 0x80000000, 32,
+                            rtio_csrs)
+
+
+class NIST_QC1(_NIST_QCx):
+    def __init__(self, platform, cpu_type="or1k", **kwargs):
+        _NIST_QCx.__init__(self, platform, cpu_type, **kwargs)
+        platform.add_extension(nist_qc1.fmc_adapter_io)
 
         self.comb += [
             platform.request("ttl_l_tx_en").eq(1),
             platform.request("ttl_h_tx_en").eq(1)
         ]
 
-        # RTIO channels
         rtio_channels = []
         for i in range(2):
             phy = ttl_simple.Inout(platform.request("pmt", i))
@@ -81,35 +107,46 @@ class NIST_QC1(MiniSoC, AMPSoC):
 
         self.add_constant("RTIO_DDS_CHANNEL", len(rtio_channels))
         self.add_constant("DDS_CHANNEL_COUNT", 8)
-        phy = dds.AD9858(platform.request("dds"))
+        self.add_constant("DDS_AD9858")
+        phy = dds.AD9858(platform.request("dds"), 8)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,
                                                    ofifo_depth=512,
                                                    ififo_depth=4))
+        self.add_rtio(rtio_channels)
 
-        # RTIO core
-        self.submodules.rtio_crg = _RTIOCRG(platform, self.crg.pll_sys)
-        self.submodules.rtio = rtio.RTIO(rtio_channels,
-                                         clk_freq=125000000)
-        self.add_constant("RTIO_FINE_TS_WIDTH", self.rtio.fine_ts_width)
-        self.add_constant("DDS_RTIO_CLK_RATIO", 8 >> self.rtio.fine_ts_width)
-        self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
 
-        if isinstance(platform.toolchain, XilinxVivadoToolchain):
-            platform.add_platform_command("""
-create_clock -name rsys_clk -period 8.0 [get_nets {rsys_clk}]
-create_clock -name rio_clk -period 8.0 [get_nets {rio_clk}]
-set_false_path -from [get_clocks rsys_clk] -to [get_clocks rio_clk]
-set_false_path -from [get_clocks rio_clk] -to [get_clocks rsys_clk]
-""", rsys_clk=self.rtio.cd_rsys.clk, rio_clk=self.rtio.cd_rio.clk)
+class NIST_QC2(_NIST_QCx):
+    def __init__(self, platform, cpu_type="or1k", **kwargs):
+        _NIST_QCx.__init__(self, platform, cpu_type, **kwargs)
+        platform.add_extension(nist_qc2.fmc_adapter_io)
 
-        # CPU connections
-        rtio_csrs = self.rtio.get_csrs()
-        self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
-        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["rtio"]),
-                                     self.rtiowb.bus)
-        self.add_csr_region("rtio", self.mem_map["rtio"] | 0x80000000, 32,
-                            rtio_csrs)
+        rtio_channels = []
+        for i in range(16):
+            if i % 4 == 3:
+                phy = ttl_simple.Inout(platform.request("ttl", i))
+                self.submodules += phy
+                rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
+            else:
+                phy = ttl_simple.Output(platform.request("ttl", i))
+                self.submodules += phy
+                rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        phy = ttl_simple.Output(platform.request("user_led", 2))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+        self.add_constant("RTIO_TTL_COUNT", len(rtio_channels))
+
+        self.add_constant("RTIO_DDS_CHANNEL", len(rtio_channels))
+        self.add_constant("DDS_CHANNEL_COUNT", 11)
+        self.add_constant("DDS_AD9914")
+        self.add_constant("DDS_ONEHOT_SEL")
+        phy = dds.AD9914(platform.request("dds"), 11)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy,
+                                                   ofifo_depth=512,
+                                                   ififo_depth=4))
+        self.add_rtio(rtio_channels)
 
 
 default_subtarget = NIST_QC1
