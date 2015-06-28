@@ -209,6 +209,24 @@ class TBuiltin(Type):
     def __ne__(self, other):
         return not (self == other)
 
+class TBuiltinFunction(TBuiltin):
+    """
+    A type of a builtin function.
+    """
+
+class TConstructor(TBuiltin):
+    """
+    A type of a constructor of a builtin class, e.g. ``list``.
+    Note that this is not the same as the type of an instance of
+    the class, which is ``TMono("list", ...)``.
+    """
+
+class TExceptionConstructor(TBuiltin):
+    """
+    A type of a constructor of a builtin exception, e.g. ``Exception``.
+    Note that this is not the same as the type of an instance of
+    the class, which is ``TMono("Exception", ...)``.
+    """
 
 class TValue(Type):
     """
@@ -306,8 +324,10 @@ class TypePrinter(object):
             args += [ "%s:%s" % (arg, self.name(typ.args[arg]))    for arg in typ.args]
             args += ["?%s:%s" % (arg, self.name(typ.optargs[arg])) for arg in typ.optargs]
             return "(%s)->%s" % (", ".join(args), self.name(typ.ret))
-        elif isinstance(typ, TBuiltin):
-            return "<built-in %s>" % typ.name
+        elif isinstance(typ, TBuiltinFunction):
+            return "<function %s>" % typ.name
+        elif isinstance(typ, (TConstructor, TExceptionConstructor)):
+            return "<constructor %s>" % typ.name
         elif isinstance(typ, TValue):
             return repr(typ.value)
         else:

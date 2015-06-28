@@ -38,28 +38,28 @@ class TRange(types.TMono):
         super().__init__("range", {"elt": elt})
 
 def fn_bool():
-    return types.TBuiltin("class bool")
+    return types.TConstructor("bool")
 
 def fn_int():
-    return types.TBuiltin("class int")
+    return types.TConstructor("int")
 
 def fn_float():
-    return types.TBuiltin("class float")
+    return types.TConstructor("float")
 
 def fn_list():
-    return types.TBuiltin("class list")
+    return types.TConstructor("list")
 
 def fn_range():
-    return types.TBuiltin("function range")
+    return types.TBuiltinFunction("range")
 
 def fn_len():
-    return types.TBuiltin("function len")
+    return types.TBuiltinFunction("len")
 
 def fn_round():
-    return types.TBuiltin("function round")
+    return types.TBuiltinFunction("round")
 
 def fn_syscall():
-    return types.TBuiltin("function syscall")
+    return types.TBuiltinFunction("syscall")
 
 # Accessors
 
