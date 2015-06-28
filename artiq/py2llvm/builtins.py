@@ -37,6 +37,10 @@ class TRange(types.TMono):
             elt = types.TVar()
         super().__init__("range", {"elt": elt})
 
+class TException(types.TMono):
+    def __init__(self):
+        super().__init__("Exception")
+
 def fn_bool():
     return types.TConstructor("bool")
 
@@ -48,6 +52,9 @@ def fn_float():
 
 def fn_list():
     return types.TConstructor("list")
+
+def fn_Exception():
+    return types.TExceptionConstructor("Exception")
 
 def fn_range():
     return types.TBuiltinFunction("range")
@@ -70,7 +77,7 @@ def is_bool(typ):
     return types.is_mono(typ, "bool")
 
 def is_int(typ, width=None):
-    if width:
+    if width is not None:
         return types.is_mono(typ, "int", {"width": width})
     else:
         return types.is_mono(typ, "int")
@@ -88,13 +95,13 @@ def is_numeric(typ):
         typ.name in ('int', 'float')
 
 def is_list(typ, elt=None):
-    if elt:
+    if elt is not None:
         return types.is_mono(typ, "list", {"elt": elt})
     else:
         return types.is_mono(typ, "list")
 
 def is_range(typ, elt=None):
-    if elt:
+    if elt is not None:
         return types.is_mono(typ, "range", {"elt": elt})
     else:
         return types.is_mono(typ, "range")
@@ -117,3 +124,11 @@ def is_builtin(typ, name):
     typ = typ.find()
     return isinstance(typ, types.TBuiltin) and \
         typ.name == name
+
+def is_exception(typ, name=None):
+    typ = typ.find()
+    if name is not None:
+        return isinstance(typ, types.TExceptionConstructor) and \
+            typ.name == name
+    else:
+        return isinstance(typ, types.TExceptionConstructor)
