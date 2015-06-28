@@ -542,7 +542,7 @@ static int process_kmsg(struct msg_base *umsg)
         case MESSAGE_TYPE_LOG: {
             struct msg_log *msg = (struct msg_log *)umsg;
 
-            log(msg->fmt, msg->args);
+            log_va(msg->fmt, msg->args);
             mailbox_acknowledge();
             break;
         }
