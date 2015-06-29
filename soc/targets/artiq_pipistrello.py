@@ -98,11 +98,6 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
             rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512,
                                                        ofifo_depth=4))
 
-        phy = ttl_simple.Inout(platform.request("xtrig"))
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4,
-                                                   ofifo_depth=4))
-
         for i in range(16):
             phy = ttl_simple.Output(platform.request("ttl", i))
             self.submodules += phy
