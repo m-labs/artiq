@@ -1,5 +1,7 @@
 from inspect import isclass
 
+__all__ = ["Experiment", "has_analyze", "is_experiment"]
+
 
 class Experiment:
     """Base class for experiments.

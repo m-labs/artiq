@@ -2,8 +2,20 @@
 Core ARTIQ extensions to the Python language.
 """
 
-from collections import namedtuple as _namedtuple
-from functools import wraps as _wraps
+from collections import namedtuple
+from functools import wraps
+
+
+__all__ = ["int64", "round64", "kernel", "portable",
+           "set_time_manager", "set_syscall_manager", "set_watchdog_factory",
+           "RuntimeException"]
+
+# global namespace for kernels
+kernel_globals = ("sequential", "parallel",
+    "delay_mu", "now_mu", "at_mu", "delay",
+    "seconds_to_mu", "mu_to_seconds",
+    "syscall", "watchdog")
+__all__.extend(kernel_globals)
 
 
 class int64(int):
@@ -65,7 +77,7 @@ def round64(x):
     return int64(round(x))
 
 
-_KernelFunctionInfo = _namedtuple("_KernelFunctionInfo", "core_name k_function")
+_KernelFunctionInfo = namedtuple("_KernelFunctionInfo", "core_name k_function")
 
 
 def kernel(arg):
@@ -89,16 +101,16 @@ def kernel(arg):
     """
     if isinstance(arg, str):
         def real_decorator(k_function):
-            @_wraps(k_function)
+            @wraps(k_function)
             def run_on_core(exp, *k_args, **k_kwargs):
-                return getattr(exp, arg).run(k_function, 
+                return getattr(exp, arg).run(k_function,
                                              ((exp,) + k_args), k_kwargs)
             run_on_core.k_function_info = _KernelFunctionInfo(
                 core_name=arg, k_function=k_function)
             return run_on_core
         return real_decorator
     else:
-        @_wraps(arg)
+        @wraps(arg)
         def run_on_core(exp, *k_args, **k_kwargs):
             return exp.core.run(arg, ((exp,) + k_args), k_kwargs)
         run_on_core.k_function_info = _KernelFunctionInfo(
@@ -159,13 +171,6 @@ def set_syscall_manager(syscall_manager):
     """
     global _syscall_manager
     _syscall_manager = syscall_manager
-
-# global namespace for kernels
-
-kernel_globals = ("sequential", "parallel",
-    "delay_mu", "now_mu", "at_mu", "delay",
-    "seconds_to_mu", "mu_to_seconds",
-    "syscall", "watchdog")
 
 
 class _Sequential:

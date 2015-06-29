@@ -1,3 +1,5 @@
+__all__ = []
+
 _prefixes_str = "pnum_kMG"
 _smallest_prefix_exp = -12
 
@@ -8,6 +10,7 @@ def _register_unit(unit, prefixes):
         if prefix in prefixes:
             full_name = prefix + unit if prefix != "_" else unit
             globals()[full_name] = 10.**exponent
+            __all__.append(full_name)
         exponent += 3
 
 
