@@ -83,6 +83,8 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         self.submodules.leds = gpio.GPIOOut(Cat(
             platform.request("user_led", 0),
             platform.request("user_led", 1),
+            platform.request("user_led", 2),
+            platform.request("user_led", 3),
         ))
 
         self.comb += [
@@ -107,7 +109,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
 
-        phy = ttl_simple.Output(platform.request("user_led", 2))
+        phy = ttl_simple.Output(platform.request("user_led", 4))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
 
