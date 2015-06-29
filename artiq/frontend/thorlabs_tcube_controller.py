@@ -26,6 +26,11 @@ def main():
     args = get_argparser().parse_args()
     init_logger(args)
 
+    if not args.simulation and args.device is None:
+        raise ValueError("You need to specify either --simulation or "
+                         "-d/--device argument. Use --help for more "
+                         "information.")
+
     if args.simulation:
         if args.product == "TDC001":
             dev = TdcSim()

@@ -31,6 +31,11 @@ def main():
     args = get_argparser().parse_args()
     init_logger(args)
 
+    if not args.simulation and args.device is None:
+        raise ValueError("You need to specify either --simulation or "
+                         "-d/--device argument. Use --help for more "
+                         "information.")
+
     dev = Novatech409B(args.device if not args.simulation else None)
     try:
         simple_server_loop(
