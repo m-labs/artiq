@@ -34,7 +34,7 @@ class _RTIOCRG(Module, AutoCSR):
                                   i_FREEZEDCM=0,
                                   i_RST=ResetSignal())
 
-        rtio_external_clk = platform.request("dds_clock")
+        rtio_external_clk = platform.request("pmt", 2)
         platform.add_period_constraint(rtio_external_clk, 8.0)
         self.specials += Instance("BUFGMUX",
                                   i_I0=rtio_internal_clk,
@@ -95,11 +95,13 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         for i in range(2):
             phy = ttl_simple.Inout(platform.request("pmt", i))
             self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
+            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512,
+                                                       ofifo_depth=4))
 
-        phy = ttl_simple.Inout(platform.request("xtrig", 0))
+        phy = ttl_simple.Inout(platform.request("xtrig"))
         self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4,
+                                                   ofifo_depth=4))
 
         for i in range(16):
             phy = ttl_simple.Output(platform.request("ttl", i))
