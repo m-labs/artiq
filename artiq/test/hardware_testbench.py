@@ -3,7 +3,7 @@ import sys
 import unittest
 import logging
 
-from artiq import *
+from artiq.language import *
 from artiq.protocols.file_db import FlatFileDB
 from artiq.master.worker_db import DBHub, ResultDB
 from artiq.frontend.artiq_run import (
@@ -33,6 +33,7 @@ class ExperimentCase(unittest.TestCase):
             try:
                 exp = cls(self.dbh, scheduler=sched, **kwargs)
             except KeyError as e:
+                # skip if ddb does not match requirements
                 raise unittest.SkipTest(*e.args)
             self.rdb.build()
             exp.run()
