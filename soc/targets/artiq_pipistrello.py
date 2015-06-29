@@ -105,12 +105,8 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
 
         phy = ttl_simple.Output(platform.request("ext_led", 0))
         self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
+        rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=256))
 
-        for i in range(2, 5):
-            phy = ttl_simple.Output(platform.request("user_led", i))
-            self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
         self.add_constant("RTIO_TTL_COUNT", len(rtio_channels))
 
         self.add_constant("RTIO_DDS_CHANNEL", len(rtio_channels))
