@@ -19,7 +19,10 @@ def get_argparser():
     simple_network_args(parser, 3254)
     parser.add_argument(
         "-d", "--device", default=None,
-        help="serial port. Omit for simulation mode.")
+        help="serial port.")
+    parser.add_argument(
+        "--simulation", action="store_true",
+        help="Put the driver in simulation mode.")
     verbosity_args(parser)
     return parser
 
@@ -28,7 +31,7 @@ def main():
     args = get_argparser().parse_args()
     init_logger(args)
 
-    dev = Novatech409B(args.device)
+    dev = Novatech409B(args.device if not args.simulation else None)
     try:
         simple_server_loop(
             {"novatech409b": dev}, args.bind, args.port)

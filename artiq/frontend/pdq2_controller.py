@@ -12,7 +12,10 @@ def get_argparser():
     simple_network_args(parser, 3252)
     parser.add_argument(
         "-d", "--device", default=None,
-        help="serial port. Omit for simulation mode.")
+        help="serial port.")
+    parser.add_argument(
+        "--simulation", action="store_true",
+        help="Put the driver in simulation mode.")
     parser.add_argument(
         "--dump", default="pdq2_dump.bin",
         help="file to dump pdq2 data into, for later simulation")
@@ -24,7 +27,7 @@ def main():
     args = get_argparser().parse_args()
     init_logger(args)
     port = None
-    if args.device is None:
+    if args.simulation:
         port = open(args.dump, "wb")
     dev = Pdq2(url=args.device, dev=port)
     try:

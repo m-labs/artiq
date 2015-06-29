@@ -12,10 +12,11 @@ def get_argparser():
     parser = argparse.ArgumentParser(description="NI PXI 6733 controller")
     simple_network_args(parser, 3256)
     parser.add_argument("-C", "--channels", default=None,
-                        help="List of channels (e.g. Dev1/ao0, Dev1/ao1:3)."
-                        " Omit for simulation mode.")
+                        help="List of channels (e.g. Dev1/ao0, Dev1/ao1:3).")
     parser.add_argument("-c", "--clock", default="PFI5",
                         help="Input clock pin name (default: PFI5)")
+    parser.add_argument("--simulation", action='store_true',
+                        help="Put the driver in simulation mode.")
     verbosity_args(parser)
     return parser
 
@@ -24,7 +25,7 @@ def main():
     args = get_argparser().parse_args()
     init_logger(args)
 
-    if args.channels is None:
+    if args.simulation:
         daq = DAQmxSim()
     else:
         daq = DAQmx(args.channels,

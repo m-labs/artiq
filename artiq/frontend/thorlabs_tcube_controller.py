@@ -14,8 +14,9 @@ def get_argparser():
                         choices=["TDC001", "TPZ001"])
     parser.add_argument("-d", "--device", default=None,
                         help="serial device. See documentation for how to "
-                             "specify a USB Serial Number. Omit for simulation "
-                             "mode.")
+                             "specify a USB Serial Number.")
+    parser.add_argument("--simulation", action="store_true",
+                        help="Put the driver in simulation mode.")
     simple_network_args(parser, 3255)
     verbosity_args(parser)
     return parser
@@ -25,7 +26,7 @@ def main():
     args = get_argparser().parse_args()
     init_logger(args)
 
-    if args.device is None:
+    if args.simulation:
         if args.product == "TDC001":
             dev = TdcSim()
         elif args.product == "TPZ001":

@@ -19,8 +19,9 @@ def get_argparser():
                              "The serial number is written on a sticker under "
                              "the device, you should write for example "
                              "-d \"SN:03461\". You must prepend enough 0 for it "
-                             "to be 5 digits."
-                             " Omit for simulation mode.")
+                             "to be 5 digits.")
+    parser.add_argument("--simulation", action="store_true",
+                        help="Put the driver in simulation mode.")
     verbosity_args(parser)
     return parser
 
@@ -28,7 +29,7 @@ def get_argparser():
 def main():
     args = get_argparser().parse_args()
     init_logger(args)
-    if args.device is None:
+    if args.simulation:
         lda = Ldasim()
     else:
         lda = Lda(args.device, args.product)
