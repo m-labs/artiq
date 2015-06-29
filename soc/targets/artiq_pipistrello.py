@@ -24,7 +24,7 @@ class _RTIOCRG(Module, AutoCSR):
         self.specials += Instance("DCM_CLKGEN",
                                   p_CLKFXDV_DIVIDE=2,
                                   p_CLKFX_DIVIDE=f.denominator,
-                                  p_CLKFX_MD_MAX=1.6,
+                                  p_CLKFX_MD_MAX=float(f),
                                   p_CLKFX_MULTIPLY=f.numerator,
                                   p_CLKIN_PERIOD=1e9/clk_freq,
                                   p_SPREAD_SPECTRUM="NONE",
