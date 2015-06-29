@@ -1,4 +1,4 @@
-# RUN: %python -m artiq.py2llvm.typing +diag %s >%t
+# RUN: %python -m artiq.compiler.typing +diag %s >%t
 # RUN: OutputCheck %s --file-to-check=%t
 
 # CHECK-L: ${LINE:+1}: error: expected '<<' operand to be of integer type, not float
@@ -17,7 +17,7 @@
 # CHECK-L: ${LINE:+1}: note: int(width='b), which cannot be added to a tuple
 (1,) + 2
 
-# CHECK-L: ${LINE:+1}: error: py2llvm does not support passing tuples to '*'
+# CHECK-L: ${LINE:+1}: error: passing tuples to '*' is not supported
 (1,) * 2
 
 # CHECK-L: ${LINE:+3}: error: expected '*' operands to be a list and an integer in this context

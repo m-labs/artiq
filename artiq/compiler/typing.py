@@ -639,7 +639,7 @@ class Inferencer(algorithm.Visitor):
             if types.is_tuple(left.type) or types.is_tuple(right.type):
                 tuple_, other = self._order_by_pred(types.is_tuple, left, right)
                 diag = diagnostic.Diagnostic("error",
-                    "py2llvm does not support passing tuples to '*'", {},
+                    "passing tuples to '*' is not supported", {},
                     op.loc, [tuple_.loc])
                 self.engine.process(diag)
                 return
