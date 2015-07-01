@@ -2,6 +2,7 @@
 # Yann Sionneau <ys@m-labs.hk>, 2015
 
 import argparse
+import sys
 
 from artiq.protocols.pc_rpc import simple_server_loop
 from artiq.devices.pxi6733.driver import DAQmx, DAQmxSim
@@ -16,7 +17,8 @@ def get_argparser():
     parser.add_argument("-c", "--clock", default="PFI5",
                         help="Input clock pin name (default: PFI5)")
     parser.add_argument("--simulation", action='store_true',
-                        help="Put the driver in simulation mode.")
+                        help="Put the driver in simulation mode, even if "
+                             "--channels is used.")
     verbosity_args(parser)
     return parser
 
@@ -26,9 +28,9 @@ def main():
     init_logger(args)
 
     if not args.simulation and args.channels is None:
-        raise ValueError("You need to specify either --simulation or "
-                         "-C/--channels argument. Use --help for more "
-                         "information.")
+        print("You need to specify either --simulation or -C/--channels "
+              "argument. Use --help for more information.")
+        sys.exit(1)
 
     if args.simulation:
         daq = DAQmxSim()

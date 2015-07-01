@@ -4,6 +4,7 @@
 
 import argparse
 import logging
+import sys
 
 from artiq.devices.novatech409b.driver import Novatech409B
 from artiq.protocols.pc_rpc import simple_server_loop
@@ -22,7 +23,7 @@ def get_argparser():
         help="serial port.")
     parser.add_argument(
         "--simulation", action="store_true",
-        help="Put the driver in simulation mode.")
+        help="Put the driver in simulation mode, even if --device is used.")
     verbosity_args(parser)
     return parser
 
@@ -32,9 +33,9 @@ def main():
     init_logger(args)
 
     if not args.simulation and args.device is None:
-        raise ValueError("You need to specify either --simulation or "
-                         "-d/--device argument. Use --help for more "
-                         "information.")
+        print("You need to specify either --simulation or -d/--device "
+              "argument. Use --help for more information.")
+        sys.exit(1)
 
     dev = Novatech409B(args.device if not args.simulation else None)
     try:

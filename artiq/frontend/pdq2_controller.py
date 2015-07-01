@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import sys
 
 from artiq.devices.pdq2.driver import Pdq2
 from artiq.protocols.pc_rpc import simple_server_loop
@@ -15,7 +16,7 @@ def get_argparser():
         help="serial port.")
     parser.add_argument(
         "--simulation", action="store_true",
-        help="Put the driver in simulation mode.")
+        help="Put the driver in simulation mode, even if --device is used.")
     parser.add_argument(
         "--dump", default="pdq2_dump.bin",
         help="file to dump pdq2 data into, for later simulation")
@@ -29,9 +30,9 @@ def main():
     port = None
 
     if not args.simulation and args.device is None:
-        raise ValueError("You need to specify either --simulation or "
-                         "-d/--device argument. Use --help for more "
-                         "information.")
+        print("You need to specify either --simulation or -d/--device "
+              "argument. Use --help for more information.")
+        sys.exit(1)
 
     if args.simulation:
         port = open(args.dump, "wb")
