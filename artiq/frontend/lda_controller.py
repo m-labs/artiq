@@ -18,7 +18,7 @@ def get_argparser():
                         help="USB serial number of the device. "
                              "The serial number is written on a sticker under "
                              "the device, you should write for example "
-                             "-d \"SN:03461\". You must prepend enough 0 for "
+                             "-d \"SN:03461\". You must prepend enough 0s for "
                              "it to be 5 digits. If omitted, the first "
                              "available device will be used.")
     parser.add_argument("--simulation", action="store_true",
