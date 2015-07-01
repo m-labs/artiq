@@ -17,7 +17,7 @@ before_install:
   - pip install coveralls
 install:
   - conda build conda/artiq
-  - conda install $HOME/miniconda/conda-bld/linux-64/artiq-*.tar.bz2
+  - conda install artiq --use-local
 script:
   - coverage run --source=artiq setup.py test
   - make -C doc/manual html

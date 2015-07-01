@@ -24,7 +24,7 @@ class _RTIOCRG(Module, AutoCSR):
         self.specials += Instance("DCM_CLKGEN",
                                   p_CLKFXDV_DIVIDE=2,
                                   p_CLKFX_DIVIDE=f.denominator,
-                                  p_CLKFX_MD_MAX=1.6,
+                                  p_CLKFX_MD_MAX=float(f),
                                   p_CLKFX_MULTIPLY=f.numerator,
                                   p_CLKIN_PERIOD=1e9/clk_freq,
                                   p_SPREAD_SPECTRUM="NONE",
@@ -34,7 +34,7 @@ class _RTIOCRG(Module, AutoCSR):
                                   i_FREEZEDCM=0,
                                   i_RST=ResetSignal())
 
-        rtio_external_clk = platform.request("dds_clock")
+        rtio_external_clk = platform.request("pmt", 2)
         platform.add_period_constraint(rtio_external_clk, 8.0)
         self.specials += Instance("BUFGMUX",
                                   i_I0=rtio_internal_clk,
@@ -83,6 +83,8 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         self.submodules.leds = gpio.GPIOOut(Cat(
             platform.request("user_led", 0),
             platform.request("user_led", 1),
+            platform.request("user_led", 2),
+            platform.request("user_led", 3),
         ))
 
         self.comb += [
@@ -95,11 +97,8 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         for i in range(2):
             phy = ttl_simple.Inout(platform.request("pmt", i))
             self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
-
-        phy = ttl_simple.Inout(platform.request("xtrig", 0))
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512,
+                                                       ofifo_depth=4))
 
         for i in range(16):
             phy = ttl_simple.Output(platform.request("ttl", i))
@@ -110,10 +109,10 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
 
-        for i in range(2, 5):
-            phy = ttl_simple.Output(platform.request("user_led", i))
-            self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
+        phy = ttl_simple.Output(platform.request("user_led", 4))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
+
         self.add_constant("RTIO_TTL_COUNT", len(rtio_channels))
 
         self.add_constant("RTIO_DDS_CHANNEL", len(rtio_channels))

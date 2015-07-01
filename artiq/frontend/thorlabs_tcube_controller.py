@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import sys
 
 from artiq.devices.thorlabs_tcube.driver import Tdc, Tpz, TdcSim, TpzSim
 from artiq.protocols.pc_rpc import simple_server_loop
@@ -14,8 +15,10 @@ def get_argparser():
                         choices=["TDC001", "TPZ001"])
     parser.add_argument("-d", "--device", default=None,
                         help="serial device. See documentation for how to "
-                             "specify a USB Serial Number. Omit for simulation "
-                             "mode.")
+                             "specify a USB Serial Number.")
+    parser.add_argument("--simulation", action="store_true",
+                        help="Put the driver in simulation mode, even if "
+                             "--device is used.")
     simple_network_args(parser, 3255)
     verbosity_args(parser)
     return parser
@@ -25,7 +28,12 @@ def main():
     args = get_argparser().parse_args()
     init_logger(args)
 
-    if args.device is None:
+    if not args.simulation and args.device is None:
+        print("You need to specify either --simulation or -d/--device "
+              "argument. Use --help for more information.")
+        sys.exit(1)
+
+    if args.simulation:
         if args.product == "TDC001":
             dev = TdcSim()
         elif args.product == "TPZ001":
