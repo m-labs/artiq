@@ -91,18 +91,19 @@ inner sep=.3mm] at (current page.south east) {%
 
   \begin{minted}[frame=leftline]{python}
 trigger.sync()                # wait for trigger input
-start = now()                 # capture trigger time
+start = now_mu()              # capture trigger time
 for i in range(3):
     delay(5*us)
     dds.pulse(900*MHz, 7*us)  # first pulse 5 µs after trigger
-at(start + 1*ms)              # re-reference time-line
+# re-reference time-line
+at(start + seconds_to_mu(1*ms))
 dds.pulse(200*MHz, 11*us)     # exactly 1 ms after trigger
   \end{minted}
 
   \begin{itemize}
     \item Written in a subset of Python
     \item Executed on a CPU embedded on a FPGA (the \emph{core device})
-    \item \verb!now(), at(), delay()! describe time-line of an experiment
+    \item \verb!now_mu(), at_mu(), delay_mu(), delay()! describe time-line of an experiment
     \item Exact time is kept in an internal variable
     \item That variable only loosely tracks the execution time of CPU instructions
     \item The value of that variable is exchanged with the RTIO fabric that
@@ -148,11 +149,12 @@ dds.on(f, phase=0)              # must round to integer tuning word
 for i in range(n):
     delay(dt)                   # must round to native cycles
 
-dt_raw = time_to_cycles(dt)     # integer number of cycles
+dt_raw = seconds_to_mu(dt)      # integer number of cycles
 f_raw = dds.frequency_to_ftw(f) # integer frequency tuning word
 
-# determine correct phase despite accumulation of rounding errors
-phi = n*cycles_to_time(dt_raw)*dds.ftw_to_frequency(f_raw)
+# determine correct (to FP precision) phase
+# despite accumulation of rounding errors
+phi = mu_to_seconds(n*dt_raw)*dds.ftw_to_frequency(f_raw)
   \end{minted}
 
   \begin{itemize}
