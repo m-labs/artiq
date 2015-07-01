@@ -19,9 +19,9 @@ class RTT(Experiment, AutoDB):
             self.ttl_inout.gate_rising(2*us)
             with sequential:
                 delay(1*us)
-                t0 = now()
+                t0 = now_mu()
                 self.ttl_inout.pulse(1*us)
-        self.rtt = self.ttl_inout.timestamp() - t0
+        self.rtt = mu_to_seconds(self.ttl_inout.timestamp() - t0)
 
 
 class Loopback(Experiment, AutoDB):
@@ -37,9 +37,9 @@ class Loopback(Experiment, AutoDB):
             self.loop_in.gate_rising(2*us)
             with sequential:
                 delay(1*us)
-                t0 = now()
+                t0 = now_mu()
                 self.loop_out.pulse(1*us)
-        self.rtt = self.loop_in.timestamp() - t0
+        self.rtt = mu_to_seconds(self.loop_in.timestamp() - t0)
 
 
 class PulseRate(Experiment, AutoDB):
@@ -50,17 +50,17 @@ class PulseRate(Experiment, AutoDB):
 
     @kernel
     def run(self):
-        dt = time_to_cycles(1000*ns)
+        dt = seconds_to_mu(1000*ns)
         while True:
             try:
                 for i in range(1000):
-                    self.loop_out.pulse(cycles_to_time(dt))
-                    delay(cycles_to_time(dt))
+                    self.loop_out.pulse_mu(dt)
+                    delay_mu(dt)
             except RTIOUnderflow:
                 dt += 1
                 self.core.break_realtime()
             else:
-                self.pulse_rate = cycles_to_time(2*dt)
+                self.pulse_rate = mu_to_seconds(2*dt)
                 break
 
 
@@ -98,10 +98,10 @@ class RPCTiming(Experiment, AutoDB):
     def bench(self):
         self.ts = [0. for _ in range(self.repeats)]
         for i in range(self.repeats):
-            t1 = self.core.get_rtio_time()
+            t1 = self.core.get_rtio_counter_mu()
             self.nop(1)
-            t2 = self.core.get_rtio_time()
-            self.ts[i] = t2 - t1
+            t2 = self.core.get_rtio_counter_mu()
+            self.ts[i] = mu_to_seconds(t2 - t1)
 
     def run(self):
         self.bench()
@@ -116,5 +116,5 @@ class RPCTest(ExperimentCase):
         res = self.execute(RPCTiming)
         print(res)
         self.assertGreater(res["rpc_time_mean"], 100*ns)
-        self.assertLess(res["rpc_time_mean"], 10*ms)
+        self.assertLess(res["rpc_time_mean"], 15*ms)
         self.assertLess(res["rpc_time_stddev"], 1*ms)
