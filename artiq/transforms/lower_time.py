@@ -1,15 +1,15 @@
 """
-This transform implements time management functions (delay/now/at)
+This transform implements time management functions (delay_mu/now_mu/at_mu)
 using an accumulator 'now' and simple replacement rules:
 
-    delay(t) ->  now += t
-    now()    ->  now
-    at(t)    ->  now = t
+    delay_mu(t) ->  now += t
+    now_mu()    ->  now
+    at_mu(t)    ->  now = t
 
-Time parameters must be quantized to integers before running this transform.
+The function delay(), that uses seconds, must be lowered to delay_mu() before
+invoking this transform.
 The accumulator is initialized to an int64 value at the beginning of the
 output function.
-
 """
 
 import ast
@@ -17,7 +17,7 @@ import ast
 
 class _TimeLowerer(ast.NodeTransformer):
     def visit_Call(self, node):
-        if node.func.id == "now":
+        if node.func.id == "now_mu":
             return ast.copy_location(ast.Name("now", ast.Load()), node)
         else:
             self.generic_visit(node)
@@ -27,13 +27,13 @@ class _TimeLowerer(ast.NodeTransformer):
         r = node
         if isinstance(node.value, ast.Call):
             funcname = node.value.func.id
-            if funcname == "delay":
+            if funcname == "delay_mu":
                 r = ast.copy_location(
                     ast.AugAssign(target=ast.Name("now", ast.Store()),
                                   op=ast.Add(),
                                   value=node.value.args[0]),
                     node)
-            elif funcname == "at":
+            elif funcname == "at_mu":
                 r = ast.copy_location(
                     ast.Assign(targets=[ast.Name("now", ast.Store())],
                                value=node.value.args[0]),

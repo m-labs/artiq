@@ -1,12 +1,12 @@
 """
-This transform turns calls to delay/now/at that use non-integer time
-expressed in seconds into calls that use int64 time expressed in multiples of
-ref_period.
+This transform turns calls to delay() that use non-integer time
+expressed in seconds into calls to delay_mu() that use int64 time
+expressed in multiples of ref_period.
 
 It does so by inserting multiplication/division/rounding operations around
 those calls.
 
-The time_to_cycles and cycles_to_time core language functions are also
+The seconds_to_mu and mu_to_seconds core language functions are also
 implemented here, as well as watchdog to syscall conversion.
 """
 
@@ -15,14 +15,7 @@ import ast
 from artiq.transforms.tools import value_to_ast
 
 
-def _call_now(node):
-    return ast.copy_location(
-        ast.Call(func=ast.Name("now", ast.Load()),
-                 args=[], keywords=[], starargs=[], kwargs=[]),
-        node)
-
-
-def _time_to_cycles(ref_period, node):
+def _seconds_to_mu(ref_period, node):
     divided = ast.copy_location(
         ast.BinOp(left=node,
                   op=ast.Div(),
@@ -35,7 +28,7 @@ def _time_to_cycles(ref_period, node):
         divided)
 
 
-def _cycles_to_time(ref_period, node):
+def _mu_to_seconds(ref_period, node):
     return ast.copy_location(
         ast.BinOp(left=node,
                   op=ast.Mult(),
@@ -50,29 +43,22 @@ class _TimeQuantizer(ast.NodeTransformer):
 
     def visit_Call(self, node):
         funcname = node.func.id
-        if funcname == "now":
-            return _cycles_to_time(self.ref_period, _call_now(node))
-        elif funcname == "delay" or funcname == "at":
+        if funcname == "delay":
+            node.func.id = "delay_mu"
             if (isinstance(node.args[0], ast.Call)
-                    and node.args[0].func.id == "cycles_to_time"):
+                    and node.args[0].func.id == "mu_to_seconds"):
                 # optimize:
-                # delay/at(cycles_to_time(x)) -> delay/at(x)
+                # delay(mu_to_seconds(x)) -> delay_mu(x)
                 node.args[0] = self.visit(node.args[0].args[0])
             else:
-                node.args[0] = _time_to_cycles(self.ref_period,
-                                               self.visit(node.args[0]))
+                node.args[0] = _seconds_to_mu(self.ref_period,
+                                              self.visit(node.args[0]))
             return node
-        elif funcname == "time_to_cycles":
-            if (isinstance(node.args[0], ast.Call)
-                    and node.args[0].func.id == "now"):
-                # optimize:
-                # time_to_cycles(now()) -> now()
-                return _call_now(node)
-            else:
-                return _time_to_cycles(self.ref_period,
+        elif funcname == "seconds_to_mu":
+                return _seconds_to_mu(self.ref_period,
                                        self.visit(node.args[0]))
-        elif funcname == "cycles_to_time":
-            return _cycles_to_time(self.ref_period,
+        elif funcname == "mu_to_seconds":
+            return _mu_to_seconds(self.ref_period,
                                    self.visit(node.args[0]))
         else:
             self.generic_visit(node)
@@ -121,7 +107,6 @@ class _TimeQuantizer(ast.NodeTransformer):
                         finalbody=[stmt_clear])
             ]
         return node
-
 
 
 def quantize_time(func_def, ref_period):

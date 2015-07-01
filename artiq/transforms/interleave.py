@@ -28,13 +28,14 @@ def _get_duration(stmt):
             return -1
     elif isinstance(stmt, ast.Call):
         name = stmt.func.id
-        if name == "delay":
+        assert(name != "delay")
+        if name == "delay_mu":
             try:
                 da = eval_constant(stmt.args[0])
             except NotConstant:
                 da = -1
             return da
-        elif name == "at":
+        elif name == "at_mu":
             return -1
         else:
             return 0
@@ -69,7 +70,7 @@ def _interleave_timelines(timelines):
                     ref_stmt = stmt.stmt
             delay_stmt = ast.copy_location(
                 ast.Expr(ast.Call(
-                    func=ast.Name("delay", ast.Load()),
+                    func=ast.Name("delay_mu", ast.Load()),
                     args=[value_to_ast(dt)],
                     keywords=[], starargs=[], kwargs=[])),
                 ref_stmt)

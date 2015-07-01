@@ -7,13 +7,15 @@ from artiq.sim import time
 
 
 class Core(AutoDB):
-    _level = 0
+    def build(self):
+        self.ref_period = 1
+        self._level = 0
 
     def run(self, k_function, k_args, k_kwargs):
-        Core._level += 1
+        self._level += 1
         r = k_function(*k_args, **k_kwargs)
-        Core._level -= 1
-        if Core._level == 0:
+        self._level -= 1
+        if self._level == 0:
             print(time.manager.format_timeline())
         return r
 

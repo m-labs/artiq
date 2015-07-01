@@ -37,7 +37,7 @@ class DDSBus(AutoDB):
     def batch_enter(self):
         """Starts a DDS command batch. All DDS commands are buffered
         after this call, until ``batch_exit`` is called."""
-        syscall("dds_batch_enter", time_to_cycles(now()))
+        syscall("dds_batch_enter", now_mu())
 
     @kernel
     def batch_exit(self):
@@ -76,12 +76,24 @@ class DDS(AutoDB):
         """
         return ftw*self.sysclk/2**32
 
+    @portable
+    def turns_to_pow(self, turns):
+        """Returns the phase offset word corresponding to the given phase
+        in turns."""
+        return round(turns*2**14)
+
+    @portable
+    def pow_to_turns(self, pow):
+        """Returns the phase in turns corresponding to the given phase offset
+        word."""
+        return pow/2**14
+
     @kernel
     def init(self):
         """Resets and initializes the DDS channel.
 
         The runtime does this for all channels upon core device startup."""
-        syscall("dds_init", time_to_cycles(now()), self.channel)
+        syscall("dds_init", now_mu(), self.channel)
 
     @kernel
     def set_phase_mode(self, phase_mode):
@@ -104,8 +116,10 @@ class DDS(AutoDB):
         self.phase_mode = phase_mode
 
     @kernel
-    def set(self, frequency, phase=0, phase_mode=_PHASE_MODE_DEFAULT):
+    def set_mu(self, frequency, phase=0, phase_mode=_PHASE_MODE_DEFAULT):
         """Sets the DDS channel to the specified frequency and phase.
+
+        This uses machine units (FTW and POW).
 
         :param frequency: frequency to generate.
         :param phase: adds an offset, in turns, to the phase.
@@ -114,7 +128,11 @@ class DDS(AutoDB):
         """
         if phase_mode == _PHASE_MODE_DEFAULT:
             phase_mode = self.phase_mode
+        syscall("dds_set", now_mu(), self.channel,
+           frequency, round(phase*2**14), phase_mode)
 
-        syscall("dds_set", time_to_cycles(now()), self.channel,
-           self.frequency_to_ftw(frequency), round(phase*2**14),
-           phase_mode)
+    @kernel
+    def set(self, frequency, phase=0, phase_mode=_PHASE_MODE_DEFAULT):
+        """Like ``set_mu``, but uses Hz and turns."""
+        self.set_mu(self.frequency_to_ftw(frequency),
+                    self.turns_to_pow(phase), phase_mode)

@@ -10,7 +10,7 @@ optimize_in = """
 
 def run():
     dds_sysclk = Fraction(1000000000, 1)
-    n = time_to_cycles((1.2345 * Fraction(1, 1000000000)))
+    n = seconds_to_mu((1.2345 * Fraction(1, 1000000000)))
     with sequential:
         frequency = 345 * Fraction(1000000, 1)
         frequency_to_ftw_return = int((((2 ** 32) * frequency) / dds_sysclk))
@@ -19,7 +19,7 @@ def run():
         ftw2 = ftw
         ftw_to_frequency_return = ((ftw2 * dds_sysclk) / (2 ** 32))
     f = ftw_to_frequency_return
-    phi = ((1000 * cycles_to_time(n)) * f)
+    phi = ((1000 * mu_to_seconds(n)) * f)
     do_something(int(phi))
 """
 

@@ -121,10 +121,9 @@ class Core(AutoDB):
         self.first_run = False
 
     @kernel
-    def get_rtio_time(self):
-        return cycles_to_time(syscall("rtio_get_counter"))
+    def get_rtio_counter_mu(self):
+        return syscall("rtio_get_counter")
 
     @kernel
     def break_realtime(self):
-        t = syscall("rtio_get_counter") + 125000
-        at(cycles_to_time(t))
+        at_mu(syscall("rtio_get_counter") + 125000)

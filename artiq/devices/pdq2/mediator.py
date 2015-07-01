@@ -99,7 +99,7 @@ class _Frame:
 
     def _arm(self):
         self.segment_delays = [
-            time_to_cycles(s.get_duration()*delay_margin_factor, self.core)
+            seconds_to_mu(s.get_duration()*delay_margin_factor, self.core)
             for s in self.segments]
 
     def _invalidate(self):
@@ -125,7 +125,8 @@ class _Frame:
         if not self.pdq.armed:
             raise ArmError
 
-        t = time_to_cycles(now()) - time_to_cycles(trigger_duration/2)
+        call_t = now_mu()
+        trigger_start_t = call_t - seconds_to_mu(trigger_duration/2)
 
         if self.pdq.current_frame >= 0:
             # PDQ is in the middle of a frame. Check it is us.
@@ -136,15 +137,16 @@ class _Frame:
             # to play our first segment.
             self.pdq.current_frame = self.frame_number
             self.pdq.next_segment = 0
-            t2 = t - time_to_cycles(frame_setup)
-            self.pdq.frame0.set_value(t2, self.frame_number & 1)
-            self.pdq.frame1.set_value(t2, (self.frame_number & 2) >> 1)
-            self.pdq.frame2.set_value(t2, (self.frame_number & 4) >> 2)
+            at_mu(trigger_start_t - seconds_to_mu(frame_setup))
+            self.pdq.frame0.set_o(bool(self.frame_number & 1))
+            self.pdq.frame1.set_o(bool((self.frame_number & 2) >> 1))
+            self.pdq.frame2.set_o(bool((self.frame_number & 4) >> 2))
 
-        self.pdq.trigger.on(t)
-        self.pdq.trigger.off(t + time_to_cycles(trigger_duration))
+        at_mu(trigger_start_t)
+        self.pdq.trigger.pulse(trigger_duration)
 
-        delay(cycles_to_time(self.segment_delays[self.pdq.next_segment]))
+        at_mu(call_t)
+        delay_mu(self.segment_delays[self.pdq.next_segment])
         self.pdq.next_segment += 1
 
         # test for end of frame
@@ -157,19 +159,15 @@ class CompoundPDQ2(AutoDB):
     class DBKeys:
         core = Device()
         pdq2_devices = Argument()
-        rtio_trigger = Argument()
-        rtio_frame = Argument()
+        trigger_device = Argument()
+        frame_devices = Argument()
 
     def build(self):
         self.pdq2s = [self.dbh.get_device(d) for d in self.pdq2_devices]
-        self.trigger = ttl.LLTTLOut(
-            core=self.core, channel=self.rtio_trigger)
-        self.frame0 = ttl.LLTTLOut(
-            core=self.core, channel=self.rtio_frame[0])
-        self.frame1 = ttl.LLTTLOut(
-            core=self.core, channel=self.rtio_frame[1])
-        self.frame2 = ttl.LLTTLOut(
-            core=self.core, channel=self.rtio_frame[2])
+        self.trigger = self.dbh.get_device(self.trigger_device)
+        self.frame0 = self.dbh.get_device(self.frame_devices[0])
+        self.frame1 = self.dbh.get_device(self.frame_devices[1])
+        self.frame2 = self.dbh.get_device(self.frame_devices[2])
 
         self.frames = []
         self.current_frame = -1

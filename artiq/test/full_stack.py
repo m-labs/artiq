@@ -74,17 +74,20 @@ class _PulseLogger(AutoDB):
             self.first_timestamp = t
         self.output_list.append((self.name, t-self.first_timestamp, l, f))
 
+    def int_usec(self, mu):
+        return round(mu_to_seconds(mu, self.core)*1000000)
+
     def on(self, t, f):
-        self._append(t, True, f)
+        self._append(self.int_usec(t), True, f)
 
     def off(self, t):
-        self._append(t, False, 0)
+        self._append(self.int_usec(t), False, 0)
 
     @kernel
     def pulse(self, f, duration):
-        self.on(round(now()*1000000000), f)
+        self.on(now_mu(), f)
         delay(duration)
-        self.off(round(now()*1000000000))
+        self.off(now_mu())
 
 
 class _Pulses(AutoDB):
@@ -288,9 +291,9 @@ class _RTIOSequenceError(AutoDB):
 
     @kernel
     def run(self):
-        t = now()
+        t = now_mu()
         self.o.pulse(25*us)
-        at(t)
+        at_mu(t)
         self.o.pulse(25*us)
 
 
