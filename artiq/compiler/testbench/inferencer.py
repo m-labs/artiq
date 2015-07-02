@@ -60,7 +60,7 @@ def main():
     buf = source.Buffer("".join(fileinput.input()).expandtabs(),
                         os.path.basename(fileinput.filename()))
     parsed, comments = parse_buffer(buf, engine=engine)
-    typed = ASTTypedRewriter(globals=prelude.globals(), engine=engine).visit(parsed)
+    typed = ASTTypedRewriter(engine=engine).visit(parsed)
     Inferencer(engine=engine).visit(typed)
 
     printer = Printer(buf)
