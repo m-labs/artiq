@@ -374,9 +374,13 @@ class Inferencer(algorithm.Visitor):
                 node.func.loc)
 
         def diagnose(valid_forms):
+            printer = types.TypePrinter()
+            args  = [printer.name(arg.type) for arg in node.args]
+            args += ["%s=%s" % (kw.arg, printer.name(kw.value.type)) for kw in node.keywords]
+
             diag = diagnostic.Diagnostic("error",
-                "{func} cannot be invoked with these arguments",
-                {"func": typ.name},
+                "{func} cannot be invoked with the arguments ({args})",
+                {"func": typ.name, "args": ", ".join(args)},
                 node.func.loc, notes=valid_forms)
             self.engine.process(diag)
 
