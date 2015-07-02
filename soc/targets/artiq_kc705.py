@@ -129,7 +129,7 @@ class NIST_QC2(_NIST_QCx):
         for i in range(16):
             if i == 14:
                 # TTL14 is for the clock generator
-                break
+                continue
             if i % 4 == 3:
                 phy = ttl_simple.Inout(platform.request("ttl", i))
                 self.submodules += phy
