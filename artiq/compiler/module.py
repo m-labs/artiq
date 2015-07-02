@@ -27,13 +27,13 @@ class Module:
         self.globals = asttyped_rewriter.globals
 
     @classmethod
-    def from_string(klass, source_string, name="input.py", first_line=1, engine=None):
-        return klass(source.Buffer(source_string + "\n", name, first_line), engine=engine)
+    def from_string(cls, source_string, name="input.py", first_line=1, engine=None):
+        return cls(source.Buffer(source_string + "\n", name, first_line), engine=engine)
 
     @classmethod
-    def from_filename(klass, filename, engine=None):
+    def from_filename(cls, filename, engine=None):
         with open(filename) as f:
-            return klass(source.Buffer(f.read(), filename, 1), engine=engine)
+            return cls(source.Buffer(f.read(), filename, 1), engine=engine)
 
     def __repr__(self):
         printer = types.TypePrinter()

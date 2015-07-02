@@ -42,16 +42,16 @@ class Printer(algorithm.Visitor):
                                        ":{}".format(self.type_printer.name(node.type)))
 
 def main():
-    if len(sys.argv) > 1 and sys.argv[1] == '+diag':
+    if len(sys.argv) > 1 and sys.argv[1] == "+diag":
         del sys.argv[1]
         def process_diagnostic(diag):
             print("\n".join(diag.render(only_line=True)))
-            if diag.level == 'fatal':
+            if diag.level == "fatal":
                 exit()
     else:
         def process_diagnostic(diag):
             print("\n".join(diag.render()))
-            if diag.level in ('fatal', 'error'):
+            if diag.level in ("fatal", "error"):
                 exit(1)
 
     engine = diagnostic.Engine()
