@@ -1,12 +1,12 @@
 """
-:class:`MonomorphismChecker` verifies that all type variables have been
+:class:`MonomorphismValidator` verifies that all type variables have been
 elided, which is necessary for code generation.
 """
 
 from pythonparser import algorithm, diagnostic
 from .. import asttyped, types, builtins
 
-class MonomorphismChecker(algorithm.Visitor):
+class MonomorphismValidator(algorithm.Visitor):
     def __init__(self, engine):
         self.engine = engine
 

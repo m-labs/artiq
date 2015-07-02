@@ -4,7 +4,7 @@ The :class:`Module` class encapsulates a single Python
 
 import os
 from pythonparser import source, diagnostic, parse_buffer
-from . import prelude, types, transforms
+from . import prelude, types, transforms, validators
 
 class Module:
     def __init__(self, source_buffer, engine=None):
@@ -14,14 +14,14 @@ class Module:
         asttyped_rewriter = transforms.ASTTypedRewriter(engine=engine)
         inferencer = transforms.Inferencer(engine=engine)
         int_monomorphizer = transforms.IntMonomorphizer(engine=engine)
-        monomorphism_checker = transforms.MonomorphismChecker(engine=engine)
+        monomorphism_validator = validators.MonomorphismValidator(engine=engine)
 
         parsetree, comments = parse_buffer(source_buffer, engine=engine)
         typedtree = asttyped_rewriter.visit(parsetree)
         inferencer.visit(typedtree)
         int_monomorphizer.visit(typedtree)
         inferencer.visit(typedtree)
-        monomorphism_checker.visit(typedtree)
+        monomorphism_validator.visit(typedtree)
 
         self.name = os.path.basename(source_buffer.name)
         self.globals = asttyped_rewriter.globals
