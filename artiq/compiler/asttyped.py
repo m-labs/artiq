@@ -33,7 +33,7 @@ class FunctionDefT(ast.FunctionDef, scoped):
 class ModuleT(ast.Module, scoped):
     pass
 
-class ExceptHandlerT(ast.ExceptHandler, commontyped):
+class ExceptHandlerT(ast.ExceptHandler):
     _fields = ("filter", "name", "body") # rename ast.ExceptHandler.type
     _types = ("name_type",)
 

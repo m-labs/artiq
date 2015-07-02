@@ -70,6 +70,5 @@ def main():
             printer.rewriter.remove(comment.loc)
     print(printer.rewrite().source)
 
-
 if __name__ == "__main__":
     main()

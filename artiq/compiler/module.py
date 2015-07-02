@@ -7,28 +7,33 @@ from pythonparser import source, diagnostic, parse_buffer
 from . import prelude, types, transforms
 
 class Module:
-    def __init__(self, source_buffer, engine=diagnostic.Engine(all_errors_are_fatal=True)):
+    def __init__(self, source_buffer, engine=None):
+        if engine is None:
+            engine = diagnostic.Engine(all_errors_are_fatal=True)
+
         asttyped_rewriter = transforms.ASTTypedRewriter(engine=engine)
         inferencer = transforms.Inferencer(engine=engine)
         int_monomorphizer = transforms.IntMonomorphizer(engine=engine)
+        monomorphism_checker = transforms.MonomorphismChecker(engine=engine)
 
         parsetree, comments = parse_buffer(source_buffer, engine=engine)
         typedtree = asttyped_rewriter.visit(parsetree)
         inferencer.visit(typedtree)
         int_monomorphizer.visit(typedtree)
         inferencer.visit(typedtree)
+        monomorphism_checker.visit(typedtree)
 
         self.name = os.path.basename(source_buffer.name)
         self.globals = asttyped_rewriter.globals
 
     @classmethod
-    def from_string(klass, source_string, name="input.py", first_line=1):
-        return klass(source.Buffer(source_string + "\n", name, first_line))
+    def from_string(klass, source_string, name="input.py", first_line=1, engine=None):
+        return klass(source.Buffer(source_string + "\n", name, first_line), engine=engine)
 
     @classmethod
-    def from_filename(klass, filename):
+    def from_filename(klass, filename, engine=None):
         with open(filename) as f:
-            return klass(source.Buffer(f.read(), filename, 1))
+            return klass(source.Buffer(f.read(), filename, 1), engine=engine)
 
     def __repr__(self):
         printer = types.TypePrinter()

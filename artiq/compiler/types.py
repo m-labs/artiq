@@ -56,6 +56,12 @@ class TVar(Type):
         else:
             self.find().unify(other)
 
+    def fold(self, accum, fn):
+        if self.parent is self:
+            return fn(accum, self)
+        else:
+            return self.find().fold(accum, fn)
+
     def __repr__(self):
         if self.parent is self:
             return "<py2llvm.types.TVar %d>" % id(self)
@@ -91,6 +97,11 @@ class TMono(Type):
             other.unify(self)
         else:
             raise UnificationError(self, other)
+
+    def fold(self, accum, fn):
+        for param in self.params:
+            accum = self.params[param].fold(accum, fn)
+        return fn(accum, self)
 
     def __repr__(self):
         return "py2llvm.types.TMono(%s, %s)" % (repr(self.name), repr(self.params))
@@ -130,6 +141,11 @@ class TTuple(Type):
             other.unify(self)
         else:
             raise UnificationError(self, other)
+
+    def fold(self, accum, fn):
+        for elt in self.elts:
+            accum = elt.fold(accum, fn)
+        return fn(accum, self)
 
     def __repr__(self):
         return "py2llvm.types.TTuple(%s)" % repr(self.elts)
@@ -177,6 +193,14 @@ class TFunction(Type):
         else:
             raise UnificationError(self, other)
 
+    def fold(self, accum, fn):
+        for arg in self.args:
+            accum = arg.fold(accum, fn)
+        for optarg in self.optargs:
+            accum = self.optargs[optarg].fold(accum, fn)
+        accum = self.ret.fold(accum, fn)
+        return fn(accum, self)
+
     def __repr__(self):
         return "py2llvm.types.TFunction(%s, %s, %s)" % \
             (repr(self.args), repr(self.optargs), repr(self.ret))
@@ -207,6 +231,9 @@ class TBuiltin(Type):
     def unify(self, other):
         if self != other:
             raise UnificationError(self, other)
+
+    def fold(self, accum, fn):
+        return fn(accum, self)
 
     def __repr__(self):
         return "py2llvm.types.TBuiltin(%s)" % repr(self.name)
@@ -258,6 +285,9 @@ class TValue(Type):
         elif self != other:
             raise UnificationError(self, other)
 
+    def fold(self, accum, fn):
+        return fn(accum, self)
+
     def __repr__(self):
         return "py2llvm.types.TValue(%s)" % repr(self.value)
 
@@ -280,6 +310,9 @@ def is_mono(typ, name=None, **params):
             typ.params[param].find() == params[param].find()
     return isinstance(typ, TMono) and \
         (name is None or (typ.name == name and params_match))
+
+def is_polymorphic(typ):
+    return typ.fold(False, lambda accum, typ: accum or is_var(typ))
 
 def is_tuple(typ, elts=None):
     typ = typ.find()
