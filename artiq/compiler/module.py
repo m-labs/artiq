@@ -15,6 +15,7 @@ class Module:
         inferencer = transforms.Inferencer(engine=engine)
         int_monomorphizer = transforms.IntMonomorphizer(engine=engine)
         monomorphism_validator = validators.MonomorphismValidator(engine=engine)
+        escape_validator = validators.EscapeValidator(engine=engine)
 
         parsetree, comments = parse_buffer(source_buffer, engine=engine)
         typedtree = asttyped_rewriter.visit(parsetree)
@@ -22,6 +23,7 @@ class Module:
         int_monomorphizer.visit(typedtree)
         inferencer.visit(typedtree)
         monomorphism_validator.visit(typedtree)
+        escape_validator.visit(typedtree)
 
         self.name = os.path.basename(source_buffer.name)
         self.globals = asttyped_rewriter.globals
