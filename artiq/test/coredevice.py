@@ -16,7 +16,9 @@ class RTT(Experiment, AutoDB):
         self.ttl_inout.output()
         delay(1*us)
         with parallel:
-            self.ttl_inout.gate_rising(2*us)
+            # make sure not to send two commands into the same RTIO
+            # channel with the same timestamp
+            self.ttl_inout.gate_rising(5*us)
             with sequential:
                 delay(1*us)
                 t0 = now_mu()
