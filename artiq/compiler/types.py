@@ -67,12 +67,17 @@ class TVar(Type):
     # any lookups or comparisons.
 
 class TMono(Type):
-    """A monomorphic type, possibly parametric."""
+    """
+    A monomorphic type, possibly parametric.
+
+    :class:`TMono` is supposed to be subclassed by builtin types,
+    unlike all other :class:`Type` descendants.
+    """
 
     attributes = {}
 
-    def __init__(self, name, params={}):
-        self.name, self.params = name, params
+    def __init__(self, name, params={}, region=None):
+        self.name, self.params, self.region = name, params, region
 
     def find(self):
         return self
@@ -109,6 +114,7 @@ class TTuple(Type):
     """
 
     attributes = {}
+    region = None
 
     def __init__(self, elts=[]):
         self.elts = elts
@@ -149,8 +155,8 @@ class TFunction(Type):
 
     attributes = {}
 
-    def __init__(self, args, optargs, ret):
-        self.args, self.optargs, self.ret = args, optargs, ret
+    def __init__(self, args, optargs, ret, region=None):
+        self.args, self.optargs, self.ret, self.region = args, optargs, ret, region
 
     def arity(self):
         return len(self.args) + len(self.optargs)
@@ -188,6 +194,8 @@ class TBuiltin(Type):
     An instance of builtin type. Every instance of a builtin
     type is treated specially according to its name.
     """
+
+    region = None
 
     def __init__(self, name):
         self.name = name
