@@ -75,3 +75,21 @@ class Inout(Module):
         ]
 
         self.probes += [i, ts.oe]
+
+
+class ClockGen(Module):
+    def __init__(self, pad, ftw_width=16):
+        self.rtlink = rtlink.Interface(
+            rtlink.OInterface(ftw_width, suppress_nop=False))
+
+        # # #
+
+        ftw = Signal(ftw_width)
+        acc = Signal(ftw_width)
+        self.sync.rio += If(self.rtlink.o.stb, ftw.eq(self.rtlink.o.data))
+        self.sync.rio_phy += [
+            acc.eq(acc + ftw),
+            # known phase on write: at rising edge
+            If(self.rtlink.o.stb, acc.eq(2**(ftw_width - 1))),
+            pad.eq(acc[-1])
+        ]

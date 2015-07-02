@@ -100,7 +100,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
             rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512,
                                                        ofifo_depth=4))
 
-        for i in range(16):
+        for i in range(15):
             phy = ttl_simple.Output(platform.request("ttl", i))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=256))
@@ -114,6 +114,10 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
 
         self.add_constant("RTIO_TTL_COUNT", len(rtio_channels))
+
+        phy = ttl_simple.ClockGen(platform.request("ttl", 15))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.add_constant("RTIO_DDS_CHANNEL", len(rtio_channels))
         self.add_constant("DDS_CHANNEL_COUNT", 8)

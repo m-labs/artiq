@@ -95,7 +95,7 @@ class NIST_QC1(_NIST_QCx):
             phy = ttl_simple.Inout(platform.request("pmt", i))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
-        for i in range(16):
+        for i in range(15):
             phy = ttl_simple.Output(platform.request("ttl", i))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
@@ -104,6 +104,10 @@ class NIST_QC1(_NIST_QCx):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
         self.add_constant("RTIO_TTL_COUNT", len(rtio_channels))
+
+        phy = ttl_simple.ClockGen(platform.request("ttl", 15))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.add_constant("RTIO_DDS_CHANNEL", len(rtio_channels))
         self.add_constant("DDS_CHANNEL_COUNT", 8)
@@ -123,6 +127,9 @@ class NIST_QC2(_NIST_QCx):
 
         rtio_channels = []
         for i in range(16):
+            if i == 14:
+                # TTL14 is for the clock generator
+                break
             if i % 4 == 3:
                 phy = ttl_simple.Inout(platform.request("ttl", i))
                 self.submodules += phy
@@ -136,6 +143,10 @@ class NIST_QC2(_NIST_QCx):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
         self.add_constant("RTIO_TTL_COUNT", len(rtio_channels))
+
+        phy = ttl_simple.ClockGen(platform.request("ttl", 14))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.add_constant("RTIO_DDS_CHANNEL", len(rtio_channels))
         self.add_constant("DDS_CHANNEL_COUNT", 11)
