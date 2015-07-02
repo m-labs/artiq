@@ -191,6 +191,7 @@ class TBuiltin(Type):
 
     def __init__(self, name):
         self.name = name
+        self.attributes = {}
 
     def find(self):
         return self
