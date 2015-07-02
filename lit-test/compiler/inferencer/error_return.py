@@ -1,4 +1,4 @@
-# RUN: %python -m artiq.compiler.typing +diag %s >%t
+# RUN: %python -m artiq.compiler.testbench.inferencer +diag %s >%t
 # RUN: OutputCheck %s --file-to-check=%t
 
 # CHECK-L: ${LINE:+2}: error: cannot unify int(width='a) with NoneType

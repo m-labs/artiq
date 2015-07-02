@@ -1,4 +1,4 @@
-# RUN: %python -m artiq.compiler.typing %s >%t
+# RUN: %python -m artiq.compiler.testbench.inferencer %s >%t
 
 def _gcd(a, b):
     if a < 0:

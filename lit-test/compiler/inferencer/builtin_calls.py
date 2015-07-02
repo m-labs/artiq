@@ -1,4 +1,4 @@
-# RUN: %python -m artiq.compiler.typing %s >%t
+# RUN: %python -m artiq.compiler.testbench.inferencer %s >%t
 # RUN: OutputCheck %s --file-to-check=%t
 
 # CHECK-L: bool:<constructor bool>():bool
