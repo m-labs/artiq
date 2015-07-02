@@ -1,3 +1,8 @@
+"""
+:class:`ASTTypedRewriter` rewrites a parsetree (:mod:`pythonparser.ast`)
+to a typedtree (:mod:`..asttyped`).
+"""
+
 from pythonparser import algorithm, diagnostic
 from .. import asttyped, types, builtins, prelude
 

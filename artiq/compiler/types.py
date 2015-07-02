@@ -168,8 +168,8 @@ class TFunction(Type):
         if isinstance(other, TFunction) and \
                 self.args.keys() == other.args.keys() and \
                 self.optargs.keys() == other.optargs.keys():
-            for selfarg, otherarg in zip(self.args.values() + self.optargs.values(),
-                                         other.args.values() + other.optargs.values()):
+            for selfarg, otherarg in zip(list(self.args.values()) + list(self.optargs.values()),
+                                         list(other.args.values()) + list(other.optargs.values())):
                 selfarg.unify(otherarg)
             self.ret.unify(other.ret)
         elif isinstance(other, TVar):

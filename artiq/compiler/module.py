@@ -8,15 +8,18 @@ from . import prelude, types, transforms
 
 class Module:
     def __init__(self, source_buffer, engine=diagnostic.Engine(all_errors_are_fatal=True)):
-        parsetree, comments = parse_buffer(source_buffer, engine=engine)
-        self.name = os.path.basename(source_buffer.name)
-
         asttyped_rewriter = transforms.ASTTypedRewriter(engine=engine)
-        typedtree = asttyped_rewriter.visit(parsetree)
-        self.globals = asttyped_rewriter.globals
-
         inferencer = transforms.Inferencer(engine=engine)
+        int_monomorphizer = transforms.IntMonomorphizer(engine=engine)
+
+        parsetree, comments = parse_buffer(source_buffer, engine=engine)
+        typedtree = asttyped_rewriter.visit(parsetree)
         inferencer.visit(typedtree)
+        int_monomorphizer.visit(typedtree)
+        inferencer.visit(typedtree)
+
+        self.name = os.path.basename(source_buffer.name)
+        self.globals = asttyped_rewriter.globals
 
     @classmethod
     def from_string(klass, source_string, name="input.py", first_line=1):

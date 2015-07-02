@@ -1,3 +1,7 @@
+"""
+:class:`Inferencer` performs unification-based inference on a typedtree.
+"""
+
 from collections import OrderedDict
 from pythonparser import algorithm, diagnostic, ast
 from .. import asttyped, types, builtins
@@ -168,6 +172,7 @@ class Inferencer(algorithm.Visitor):
         if coerced_node.type.find() == typ.find():
             return coerced_node
         elif isinstance(coerced_node, asttyped.CoerceT):
+            node = coerced_node
             node.type, node.other_expr = typ, other_node
         else:
             node = asttyped.CoerceT(type=typ, expr=coerced_node, other_expr=other_node,
@@ -191,7 +196,7 @@ class Inferencer(algorithm.Visitor):
         elif any(map(builtins.is_float, node_types)):
             typ = builtins.TFloat()
         elif any(map(builtins.is_int, node_types)):
-            widths = map(builtins.get_int_width, node_types)
+            widths = list(map(builtins.get_int_width, node_types))
             if all(widths):
                 typ = builtins.TInt(types.TValue(max(widths)))
             else:
