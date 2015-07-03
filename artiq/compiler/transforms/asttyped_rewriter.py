@@ -243,7 +243,8 @@ class ASTTypedRewriter(algorithm.Transformer):
     def visit_List(self, node):
         node = self.generic_visit(node)
         node = asttyped.ListT(type=builtins.TList(),
-                              elts=node.elts, ctx=node.ctx, loc=node.loc)
+                              elts=node.elts, ctx=node.ctx,
+                              begin_loc=node.begin_loc, end_loc=node.end_loc, loc=node.loc)
         return self.visit(node)
 
     def visit_Attribute(self, node):
