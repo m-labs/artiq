@@ -20,6 +20,7 @@ class Inferencer(algorithm.Visitor):
         self.engine = engine
         self.function = None # currently visited function, for Return inference
         self.in_loop = False
+        self.has_return = False
 
     def _unify(self, typea, typeb, loca, locb, makenotes=None):
         try:
@@ -768,9 +769,11 @@ class Inferencer(algorithm.Visitor):
     def visit_FunctionDefT(self, node):
         old_function, self.function = self.function, node
         old_in_loop, self.in_loop = self.in_loop, False
+        old_has_return, self.has_return = self.has_return, False
         self.generic_visit(node)
         self.function = old_function
         self.in_loop = old_in_loop
+        self.has_return = old_has_return
 
         if any(node.decorator_list):
             diag = diagnostic.Diagnostic("error",
@@ -778,6 +781,14 @@ class Inferencer(algorithm.Visitor):
                 node.at_locs[0], [node.decorator_list[0].loc])
             self.engine.process(diag)
             return
+
+        # Lack of return statements is not the only case where the return
+        # type cannot be inferred. The other one is infinite (possibly mutual)
+        # recursion. Since Python functions don't have to return a value,
+        # we ignore that one.
+        if not self.has_return:
+            self._unify(node.return_type, builtins.TNone(),
+                        node.name_loc, None)
 
         signature_type = self._type_from_arguments(node.args, node.return_type)
         if signature_type:
@@ -791,6 +802,8 @@ class Inferencer(algorithm.Visitor):
                 node.keyword_loc)
             self.engine.process(diag)
             return
+
+        self.has_return = True
 
         self.generic_visit(node)
         def makenotes(printer, typea, typeb, loca, locb):
