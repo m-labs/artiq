@@ -35,6 +35,8 @@ class Loopback(Experiment, AutoDB):
 
     @kernel
     def run(self):
+        self.loop_in.input()
+        delay(1*us)
         with parallel:
             self.loop_in.gate_rising(2*us)
             with sequential:
@@ -77,7 +79,7 @@ class CoredeviceTest(ExperimentCase):
         rtt = self.execute(Loopback)["rtt"]
         print(rtt)
         self.assertGreater(rtt, 0*ns)
-        self.assertLess(rtt, 40*ns)
+        self.assertLess(rtt, 50*ns)
 
     def test_pulse_rate(self):
         rate = self.execute(PulseRate)["pulse_rate"]
