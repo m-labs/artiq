@@ -1,7 +1,6 @@
 from artiq.language.core import *
 from artiq.language.db import *
 from artiq.language.units import *
-from artiq.coredevice import ttl
 
 
 frame_setup = 20*ns
