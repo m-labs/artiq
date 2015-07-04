@@ -194,15 +194,15 @@ class TFunction(Type):
 
     def fold(self, accum, fn):
         for arg in self.args:
-            accum = arg.fold(accum, fn)
+            accum = self.args[arg].fold(accum, fn)
         for optarg in self.optargs:
             accum = self.optargs[optarg].fold(accum, fn)
         accum = self.ret.fold(accum, fn)
         return fn(accum, self)
 
     def __repr__(self):
-        return "py2llvm.types.TFunction(%s, %s, %s)" % \
-            (repr(self.args), repr(self.optargs), repr(self.ret))
+        return "py2llvm.types.TFunction({}, {}, {})".format(
+            repr(self.args), repr(self.optargs), repr(self.ret))
 
     def __eq__(self, other):
         return isinstance(other, TFunction) and \
