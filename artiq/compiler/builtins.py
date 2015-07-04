@@ -132,3 +132,7 @@ def is_exn_constructor(typ, name=None):
             typ.name == name
     else:
         return isinstance(typ, types.TExceptionConstructor)
+
+def is_mutable(typ):
+    return typ.fold(False, lambda accum, typ:
+        is_list(typ) or types.is_function(typ))

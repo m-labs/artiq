@@ -28,32 +28,32 @@ class LocalExtractor(algorithm.Visitor):
         # parameters can't be declared as global or nonlocal
         self.params     = set()
 
-    def visit_in_assign(self, node):
+    def visit_in_assign(self, node, in_assign):
         try:
-            self.in_assign = True
+            old_in_assign, self.in_assign = self.in_assign, in_assign
             return self.visit(node)
         finally:
-            self.in_assign = False
+            self.in_assign = old_in_assign
 
     def visit_Assign(self, node):
         self.visit(node.value)
         for target in node.targets:
-            self.visit_in_assign(target)
+            self.visit_in_assign(target, in_assign=True)
 
     def visit_For(self, node):
         self.visit(node.iter)
-        self.visit_in_assign(node.target)
+        self.visit_in_assign(node.target, in_assign=True)
         self.visit(node.body)
         self.visit(node.orelse)
 
     def visit_withitem(self, node):
         self.visit(node.context_expr)
         if node.optional_vars is not None:
-            self.visit_in_assign(node.optional_vars)
+            self.visit_in_assign(node.optional_vars, in_assign=True)
 
     def visit_comprehension(self, node):
         self.visit(node.iter)
-        self.visit_in_assign(node.target)
+        self.visit_in_assign(node.target, in_assign=True)
         for if_ in node.ifs:
             self.visit(node.ifs)
 
@@ -98,6 +98,13 @@ class LocalExtractor(algorithm.Visitor):
             #   x = 1
             # creates a new binding for x in f's scope
             self._assignable(node.id)
+
+    def visit_Attribute(self, node):
+        self.visit_in_assign(node.value, in_assign=False)
+
+    def visit_Subscript(self, node):
+        self.visit_in_assign(node.value, in_assign=False)
+        self.visit_in_assign(node.slice, in_assign=False)
 
     def _check_not_in(self, name, names, curkind, newkind, loc):
         if name in names:

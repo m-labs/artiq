@@ -350,7 +350,6 @@ class Inferencer(algorithm.Visitor):
                             return types.is_mono(opreand.type) and \
                                 opreand.type.find().name == typ.find().name
                         other_node = next(filter(wide_enough, operands))
-                    print(typ, other_node)
                     node.left, *node.comparators = \
                         [self._coerce_one(typ, operand, other_node) for operand in operands]
         self._unify(node.type, builtins.TBool(),
