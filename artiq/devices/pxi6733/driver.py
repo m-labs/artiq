@@ -1,8 +1,10 @@
 # Yann Sionneau <ys@m-labs.hk>, 2015
 
 from ctypes import byref, c_ulong
-import numpy as np
 import logging
+
+import numpy as np
+
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +42,7 @@ class DAQmx:
         self.task = None
         self.daq = daq
 
-    def done_callback_py(self, taskhandle, status, callback_data):
+    def _done_callback(self, taskhandle, status, callback_data):
         if taskhandle != self.task:
             logger.warning("done callback called with unexpected task")
         else:
@@ -113,7 +115,7 @@ class DAQmx:
         if ret:
             raise IOError("Error while writing samples to the channel buffer")
 
-        done_cb = self.daq.DAQmxDoneEventCallbackPtr(self.done_callback_py)
+        done_cb = self.daq.DAQmxDoneEventCallbackPtr(self._done_callback)
         self.task = t.taskHandle
         self.daq.DAQmxRegisterDoneEvent(t.taskHandle, 0, done_cb, None)
         t.StartTask()
