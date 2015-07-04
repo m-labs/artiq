@@ -51,6 +51,8 @@ You now need to flash 3 things on the FPGA board:
 2. The BIOS
 3. The ARTIQ runtime
 
+First you need to :ref:`install xc3sprog <install-xc3sprog>`. Then, you can flash the board:
+
 * For the Pipistrello board::
 
     $ artiq_flash.sh -t pipistrello
@@ -121,6 +123,8 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
                        --disable-shared --disable-libssp
         $ make -j4
         $ sudo make install
+
+.. _install-xc3sprog:
 
 * Install JTAG tools needed to program the Pipistrello and KC705:
 
