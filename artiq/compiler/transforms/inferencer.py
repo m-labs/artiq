@@ -413,8 +413,12 @@ class Inferencer(algorithm.Visitor):
             if len(node.args) == 0 and len(node.keywords) == 0:
                 pass # 0
             elif len(node.args) == 1 and len(node.keywords) == 0 and \
+                    types.is_var(node.args[0].type):
+                pass # undetermined yet
+            elif len(node.args) == 1 and len(node.keywords) == 0 and \
                     builtins.is_numeric(node.args[0].type):
-                pass
+                self._unify(node.type, builtins.TInt(),
+                            node.loc, None)
             elif len(node.args) == 1 and len(node.keywords) == 1 and \
                     builtins.is_numeric(node.args[0].type) and \
                     node.keywords[0].arg == 'width':
@@ -442,6 +446,9 @@ class Inferencer(algorithm.Visitor):
             if len(node.args) == 0 and len(node.keywords) == 0:
                 pass # 0.0
             elif len(node.args) == 1 and len(node.keywords) == 0 and \
+                    types.is_var(node.args[0].type):
+                pass # undetermined yet
+            elif len(node.args) == 1 and len(node.keywords) == 0 and \
                     builtins.is_numeric(node.args[0].type):
                 pass
             else:
@@ -462,6 +469,8 @@ class Inferencer(algorithm.Visitor):
 
                 if builtins.is_iterable(arg.type):
                     pass
+                elif types.is_var(arg.type):
+                    pass # undetermined yet
                 else:
                     note = diagnostic.Diagnostic("note",
                         "this expression has type {type}",
@@ -489,7 +498,11 @@ class Inferencer(algorithm.Visitor):
                     self._unify(arg.type, range_tvar,
                                 arg.loc, None)
 
-                    if not builtins.is_numeric(arg.type):
+                    if builtins.is_numeric(arg.type):
+                        pass
+                    elif types.is_var(arg.type):
+                        pass # undetermined yet
+                    else:
                         note = diagnostic.Diagnostic("note",
                             "this expression has type {type}",
                             {"type": types.TypePrinter().name(arg.type)},
@@ -514,6 +527,8 @@ class Inferencer(algorithm.Visitor):
 
                 if builtins.is_iterable(arg.type):
                     pass
+                elif types.is_var(arg.type):
+                    pass # undetermined yet
                 else:
                     note = diagnostic.Diagnostic("note",
                         "this expression has type {type}",
