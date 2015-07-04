@@ -45,3 +45,7 @@ wget http://www.phys.ethz.ch/~robertjo/bscan_spi_lx45_csg324.bit
 mv bscan_spi_lx45_csg324.bit $BIN_PREFIX/pipistrello/
 
 cp artiq/frontend/artiq_flash.sh $PREFIX/bin
+
+# misc
+cp misc/99-papilio.rules $ARTIQ_PREFIX/misc/
+cp misc/99-kc705.rules $ARTIQ_PREFIX/misc/
