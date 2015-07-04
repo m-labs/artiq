@@ -51,7 +51,7 @@ static void moninj_monitor(const ip_addr_t *addr, u16_t port)
     reply.ttl_levels = 0;
     reply.ttl_oes = 0;
     reply.ttl_overrides = 0;
-    for(i=0;i<RTIO_TTL_COUNT;i++) {
+    for(i=0;i<RTIO_REGULAR_TTL_COUNT;i++) {
         rtio_moninj_mon_chan_sel_write(i);
         rtio_moninj_mon_probe_sel_write(0);
         rtio_moninj_mon_value_update_write(1);

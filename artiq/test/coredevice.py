@@ -46,6 +46,26 @@ class Loopback(Experiment, AutoDB):
         self.rtt = mu_to_seconds(self.loop_in.timestamp() - t0)
 
 
+class ClockGeneratorLoopback(Experiment, AutoDB):
+    class DBKeys:
+        core = Device()
+        loop_clock_in = Device()
+        loop_clock_out = Device()
+        count = Result()
+
+    @kernel
+    def run(self):
+        self.loop_clock_in.input()
+        self.loop_clock_out.stop()
+        delay(1*us)
+        with parallel:
+            self.loop_clock_in.gate_rising(10*us)
+            with sequential:
+                delay(200*ns)
+                self.loop_clock_out.set(1*MHz)
+        self.count = self.loop_clock_in.count()
+
+
 class PulseRate(Experiment, AutoDB):
     class DBKeys:
         core = Device()
@@ -80,6 +100,10 @@ class CoredeviceTest(ExperimentCase):
         print(rtt)
         self.assertGreater(rtt, 0*ns)
         self.assertLess(rtt, 50*ns)
+
+    def test_clock_generator_loopback(self):
+        count = self.execute(ClockGeneratorLoopback)["count"]
+        self.assertEqual(count, 10)
 
     def test_pulse_rate(self):
         rate = self.execute(PulseRate)["pulse_rate"]

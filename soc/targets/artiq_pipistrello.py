@@ -113,7 +113,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
 
-        self.add_constant("RTIO_TTL_COUNT", len(rtio_channels))
+        self.add_constant("RTIO_REGULAR_TTL_COUNT", len(rtio_channels))
 
         phy = ttl_simple.ClockGen(platform.request("ttl", 15))
         self.submodules += phy

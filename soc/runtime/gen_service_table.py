@@ -21,6 +21,7 @@ services = [
         ("ttl_set_oe", "ttl_set_oe"),
         ("ttl_set_sensitivity", "ttl_set_sensitivity"),
         ("ttl_get", "ttl_get"),
+        ("ttl_clock_set", "ttl_clock_set"),
 
         ("dds_init", "dds_init"),
         ("dds_batch_enter", "dds_batch_enter"),

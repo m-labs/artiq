@@ -103,7 +103,7 @@ class NIST_QC1(_NIST_QCx):
         phy = ttl_simple.Output(platform.request("user_led", 2))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
-        self.add_constant("RTIO_TTL_COUNT", len(rtio_channels))
+        self.add_constant("RTIO_REGULAR_TTL_COUNT", len(rtio_channels))
 
         phy = ttl_simple.ClockGen(platform.request("ttl", 15))
         self.submodules += phy
@@ -142,7 +142,7 @@ class NIST_QC2(_NIST_QCx):
         phy = ttl_simple.Output(platform.request("user_led", 2))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
-        self.add_constant("RTIO_TTL_COUNT", len(rtio_channels))
+        self.add_constant("RTIO_REGULAR_TTL_COUNT", len(rtio_channels))
 
         phy = ttl_simple.ClockGen(platform.request("ttl", 14))
         self.submodules += phy

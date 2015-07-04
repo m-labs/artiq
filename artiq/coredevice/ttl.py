@@ -26,7 +26,8 @@ class TTLOut(AutoDB):
 
     @kernel
     def sync(self):
-        """Busy-waits until all programmed level switches have been effected."""
+        """Busy-wait until all programmed level switches have been
+        effected."""
         while syscall("rtio_get_counter") < self.o_previous_timestamp:
             pass
 
@@ -37,12 +38,12 @@ class TTLOut(AutoDB):
 
     @kernel
     def off(self):
-        """Sets the output to a logic low state."""
+        """Set the output to a logic low state."""
         self.set_o(False)
 
     @kernel
     def pulse_mu(self, duration):
-        """Pulses the output high for the specified duration
+        """Pulse the output high for the specified duration
         (in machine units)."""
         self.on()
         delay_mu(duration)
@@ -50,7 +51,7 @@ class TTLOut(AutoDB):
 
     @kernel
     def pulse(self, duration):
-        """Pulses the output high for the specified duration
+        """Pulse the output high for the specified duration
         (in seconds)."""
         self.on()
         delay(duration)
@@ -103,18 +104,19 @@ class TTLInOut(AutoDB):
 
     @kernel
     def sync(self):
-        """Busy-waits until all programmed level switches have been effected."""
+        """Busy-wait until all programmed level switches have been
+        effected."""
         while syscall("rtio_get_counter") < self.o_previous_timestamp:
             pass
 
     @kernel
     def on(self):
-        """Sets the output to a logic high state."""
+        """Set the output to a logic high state."""
         self.set_o(True)
 
     @kernel
     def off(self):
-        """Sets the output to a logic low state."""
+        """Set the output to a logic low state."""
         self.set_o(False)
 
     @kernel
@@ -204,3 +206,69 @@ class TTLInOut(AutoDB):
         If the gate is permanently closed, returns a negative value.
         """
         return syscall("ttl_get", self.channel, self.i_previous_timestamp)
+
+
+class TTLClockGen(AutoDB):
+    """RTIO TTL clock generator driver.
+
+    This should be used with TTL channels that have a clock generator
+    built into the gateware (not compatible with regular TTL channels).
+
+    :param core: core device
+    :param channel: channel number
+    """
+    class DBKeys:
+        core = Device()
+        channel = Argument()
+
+    def build(self):
+        # in RTIO cycles
+        self.previous_timestamp = int64(0)
+
+    @portable
+    def frequency_to_ftw(self, frequency):
+        """Returns the frequency tuning word corresponding to the given
+        frequency.
+        """
+        return round(2**24*frequency*self.core.ref_period)
+
+    @portable
+    def ftw_to_frequency(self, ftw):
+        """Returns the frequency corresponding to the given frequency tuning
+        word.
+        """
+        return ftw/self.core.ref_period/2**24
+
+    @kernel
+    def set_mu(self, frequency):
+        """Set the frequency of the clock, in machine units.
+
+        This also sets the phase, as the time of the first generated rising
+        edge corresponds to the time of the call.
+
+        The clock generator contains a 24-bit phase accumulator operating on
+        the RTIO clock. At each RTIO clock tick, the frequency tuning word is
+        added to the phase accumulator. The most significant bit of the phase
+        accumulator is connected to the TTL line. Setting the frequency tuning
+        word has the additional effect of setting the phase accumulator to
+        0x800000.
+        """
+        syscall("ttl_clock_set", now_mu(), self.channel, frequency)
+        self.previous_timestamp = now_mu()
+
+    @kernel
+    def set(self, frequency):
+        """Like ``set_mu``, but using Hz."""
+        self.set_mu(self.frequency_to_ftw(frequency))
+
+    @kernel
+    def stop(self):
+        """Stop the toggling of the clock and set the output level to 0."""
+        self.set_mu(0)
+
+    @kernel
+    def sync(self):
+        """Busy-wait until all programmed frequency switches and stops have
+        been effected."""
+        while syscall("rtio_get_counter") < self.o_previous_timestamp:
+            pass

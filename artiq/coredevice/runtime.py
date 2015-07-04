@@ -21,6 +21,7 @@ _syscalls = {
     "ttl_set_oe": "Iib:n",
     "ttl_set_sensitivity": "Iii:n",
     "ttl_get": "iI:I",
+    "ttl_clock_set": "Iii:n",
     "dds_init": "Ii:n",
     "dds_batch_enter": "I:n",
     "dds_batch_exit": "n:n",
