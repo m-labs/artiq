@@ -224,20 +224,21 @@ class TTLClockGen(AutoDB):
     def build(self):
         # in RTIO cycles
         self.previous_timestamp = int64(0)
+        self.acc_width = 24
 
     @portable
     def frequency_to_ftw(self, frequency):
         """Returns the frequency tuning word corresponding to the given
         frequency.
         """
-        return round(2**24*frequency*self.core.ref_period)
+        return round(2**self.acc_width*frequency*self.core.ref_period)
 
     @portable
     def ftw_to_frequency(self, ftw):
         """Returns the frequency corresponding to the given frequency tuning
         word.
         """
-        return ftw/self.core.ref_period/2**24
+        return ftw/self.core.ref_period/2**self.acc_width
 
     @kernel
     def set_mu(self, frequency):
