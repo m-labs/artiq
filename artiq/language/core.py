@@ -8,7 +8,7 @@ from functools import wraps
 
 __all__ = ["int64", "round64", "kernel", "portable",
            "set_time_manager", "set_syscall_manager", "set_watchdog_factory",
-           "RuntimeException"]
+           "RuntimeException", "EncodedException"]
 
 # global namespace for kernels
 kernel_globals = ("sequential", "parallel",
