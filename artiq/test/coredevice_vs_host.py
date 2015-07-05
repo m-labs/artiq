@@ -1,33 +1,19 @@
-import unittest
 from operator import itemgetter
-import os
 from fractions import Fraction
 
 from artiq import *
-from artiq.coredevice import comm_tcp, core, runtime_exceptions, ttl
 from artiq.sim import devices as sim_devices
-
-
-core_device = os.getenv("ARTIQ_CORE_DEVICE")
-
-
-def _run_on_device(k_class, **parameters):
-    comm = comm_tcp.Comm(host=core_device)
-    try:
-        coredev = core.Core(comm=comm)
-        k_inst = k_class(core=coredev, **parameters)
-        k_inst.run()
-    finally:
-        comm.close()
+from artiq.test.hardware_testbench import ExperimentCase
 
 
 def _run_on_host(k_class, **parameters):
     coredev = sim_devices.Core()
     k_inst = k_class(core=coredev, **parameters)
     k_inst.run()
+    return k_inst
 
 
-class _Primes(AutoDB):
+class _Primes(Experiment, AutoDB):
     class DBKeys:
         core = Device()
         output_list = Argument()
@@ -47,7 +33,10 @@ class _Primes(AutoDB):
                 self.output_list.append(x)
 
 
-class _Misc(AutoDB):
+class _Misc(Experiment, AutoDB):
+    class DBKeys:
+        core = Device()
+
     def build(self):
         self.input = 84
         self.al = [1, 2, 3, 4, 5]
@@ -63,7 +52,7 @@ class _Misc(AutoDB):
         self.list_copy_out = self.list_copy_in
 
 
-class _PulseLogger(AutoDB):
+class _PulseLogger(Experiment, AutoDB):
     class DBKeys:
         core = Device()
         output_list = Argument()
@@ -90,7 +79,7 @@ class _PulseLogger(AutoDB):
         self.off(now_mu())
 
 
-class _Pulses(AutoDB):
+class _Pulses(Experiment, AutoDB):
     class DBKeys:
         core = Device()
         output_list = Argument()
@@ -118,7 +107,7 @@ class _MyException(Exception):
     pass
 
 
-class _Exceptions(AutoDB):
+class _Exceptions(Experiment, AutoDB):
     class DBKeys:
         core = Device()
         trace = Argument()
@@ -162,9 +151,10 @@ class _Exceptions(AutoDB):
                 self.trace.append(104)
 
 
-class _RPCExceptions(AutoDB):
+class _RPCExceptions(Experiment, AutoDB):
     class DBKeys:
         core = Device()
+        catch = Argument(False)
 
     def build(self):
         self.success = False
@@ -173,52 +163,42 @@ class _RPCExceptions(AutoDB):
         raise _MyException
 
     @kernel
+    def run(self):
+        if self.catch:
+            self.do_catch()
+        else:
+            self.do_not_catch()
+
+    @kernel
     def do_not_catch(self):
         self.exception_raiser()
 
     @kernel
-    def catch(self):
+    def do_catch(self):
         try:
             self.exception_raiser()
         except _MyException:
             self.success = True
 
 
-class _Watchdog(AutoDB):
-    class DBKeys:
-        core = Device()
-
-    @kernel
-    def run(self):
-        with watchdog(50*ms):
-            while True:
-                pass
-
-
-@unittest.skipUnless(core_device, "no hardware")
-class ExecutionCase(unittest.TestCase):
+class HostVsDeviceCase(ExperimentCase):
     def test_primes(self):
         l_device, l_host = [], []
-        _run_on_device(_Primes, maximum=100, output_list=l_device)
+        self.execute(_Primes, maximum=100, output_list=l_device)
         _run_on_host(_Primes, maximum=100, output_list=l_host)
         self.assertEqual(l_device, l_host)
 
     def test_misc(self):
-        comm = comm_tcp.Comm(host=core_device)
-        try:
-            coredev = core.Core(comm=comm)
-            uut = _Misc(core=coredev)
-            uut.run()
+        for f in self.execute, _run_on_host:
+            uut = f(_Misc)
             self.assertEqual(uut.half_input, 42)
             self.assertEqual(uut.decimal_fraction, Fraction("1.2"))
             self.assertEqual(uut.acc, sum(uut.al))
             self.assertEqual(uut.list_copy_in, uut.list_copy_out)
-        finally:
-            comm.close()
 
     def test_pulses(self):
         l_device, l_host = [], []
-        _run_on_device(_Pulses, output_list=l_device)
+        self.execute(_Pulses, output_list=l_device)
         _run_on_host(_Pulses, output_list=l_host)
         l_host = sorted(l_host, key=itemgetter(1))
         for channel in "a", "b", "c", "d":
@@ -229,115 +209,14 @@ class ExecutionCase(unittest.TestCase):
     def test_exceptions(self):
         t_device, t_host = [], []
         with self.assertRaises(IndexError):
-            _run_on_device(_Exceptions, trace=t_device)
+            self.execute(_Exceptions, trace=t_device)
         with self.assertRaises(IndexError):
             _run_on_host(_Exceptions, trace=t_host)
         self.assertEqual(t_device, t_host)
 
     def test_rpc_exceptions(self):
-        comm = comm_tcp.Comm(host=core_device)
-        try:
-            uut = _RPCExceptions(core=core.Core(comm=comm))
+        for f in self.execute, _run_on_host:
             with self.assertRaises(_MyException):
-                uut.do_not_catch()
-            uut.catch()
+                f(_RPCExceptions, catch=False)
+            uut = self.execute(_RPCExceptions, catch=True)
             self.assertTrue(uut.success)
-        finally:
-            comm.close()
-
-    def test_watchdog(self):
-        with self.assertRaises(IOError):
-            _run_on_device(_Watchdog)
-
-
-class _RTIOLoopback(AutoDB):
-    class DBKeys:
-        core = Device()
-        io = Device()
-        npulses = Argument()
-
-    def report(self, n):
-        self.result = n
-
-    @kernel
-    def run(self):
-        self.io.output()
-        delay(1*us)
-        with parallel:
-            self.io.gate_rising(10*us)
-            with sequential:
-                for i in range(self.npulses):
-                    delay(25*ns)
-                    self.io.pulse(25*ns)
-        self.report(self.io.count())
-
-
-class _RTIOUnderflow(AutoDB):
-    class DBKeys:
-        core = Device()
-        o = Device()
-
-    @kernel
-    def run(self):
-        while True:
-            delay(25*ns)
-            self.o.pulse(25*ns)
-
-
-class _RTIOSequenceError(AutoDB):
-    class DBKeys:
-        core = Device()
-        o = Device()
-
-    @kernel
-    def run(self):
-        t = now_mu()
-        self.o.pulse(25*us)
-        at_mu(t)
-        self.o.pulse(25*us)
-
-
-@unittest.skipUnless(core_device, "no hardware")
-class RTIOCase(unittest.TestCase):
-    # Connect channels 0 and 1 together for this test
-    # (C11 and C13 on Papilio Pro)
-    def test_loopback(self):
-        npulses = 4
-        comm = comm_tcp.Comm(host=core_device)
-        try:
-            coredev = core.Core(comm=comm)
-            uut = _RTIOLoopback(
-                core=coredev,
-                io=ttl.TTLInOut(core=coredev, channel=0),
-                npulses=npulses
-            )
-            uut.run()
-            self.assertEqual(uut.result, npulses)
-        finally:
-            comm.close()
-
-    def test_underflow(self):
-        comm = comm_tcp.Comm(host=core_device)
-        try:
-            coredev = core.Core(comm=comm)
-            uut = _RTIOUnderflow(
-                core=coredev,
-                o=ttl.TTLOut(core=coredev, channel=2)
-            )
-            with self.assertRaises(runtime_exceptions.RTIOUnderflow):
-                uut.run()
-        finally:
-            comm.close()
-
-    def test_sequence_error(self):
-        comm = comm_tcp.Comm(host=core_device)
-        try:
-            coredev = core.Core(comm=comm)
-            uut = _RTIOSequenceError(
-                core=coredev,
-                o=ttl.TTLOut(core=coredev, channel=2)
-            )
-            with self.assertRaises(runtime_exceptions.RTIOSequenceError):
-                uut.run()
-        finally:
-            comm.close()

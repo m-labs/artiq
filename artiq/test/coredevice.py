@@ -3,6 +3,7 @@ from math import sqrt
 from artiq.language import *
 from artiq.test.hardware_testbench import ExperimentCase
 from artiq.coredevice.runtime_exceptions import RTIOUnderflow
+from artiq.coredevice import runtime_exceptions
 
 
 class RTT(Experiment, AutoDB):
@@ -88,6 +89,64 @@ class PulseRate(Experiment, AutoDB):
                 break
 
 
+class Watchdog(Experiment, AutoDB):
+    class DBKeys:
+        core = Device()
+
+    @kernel
+    def run(self):
+        with watchdog(50*ms):
+            while True:
+                pass
+
+
+class LoopbackCount(Experiment, AutoDB):
+    class DBKeys:
+        core = Device()
+        ttl_inout = Device()
+        npulses = Argument()
+
+    def report(self, n):
+        self.result = n
+
+    @kernel
+    def run(self):
+        self.ttl_inout.output()
+        delay(1*us)
+        with parallel:
+            self.ttl_inout.gate_rising(10*us)
+            with sequential:
+                for i in range(self.npulses):
+                    delay(25*ns)
+                    self.ttl_inout.pulse(25*ns)
+        self.report(self.ttl_inout.count())
+
+
+class Underflow(Experiment, AutoDB):
+    class DBKeys:
+        core = Device()
+        ttl_out = Device()
+
+    @kernel
+    def run(self):
+        while True:
+            delay(25*ns)
+            self.ttl_out.pulse(25*ns)
+
+
+class SequenceError(Experiment, AutoDB):
+    class DBKeys:
+        core = Device()
+        ttl_out = Device()
+
+    @kernel
+    def run(self):
+        t = now_mu()
+        self.ttl_out.pulse(25*us)
+        at_mu(t)
+        self.ttl_out.pulse(25*us)
+
+
 class CoredeviceTest(ExperimentCase):
     def test_rtt(self):
         self.execute(RTT)
@@ -114,6 +173,24 @@ class CoredeviceTest(ExperimentCase):
         print(rate)
         self.assertGreater(rate, 100*ns)
         self.assertLess(rate, 2500*ns)
+
+    def test_loopback_count(self):
+        npulses = 2
+        r = self.execute(LoopbackCount, npulses=npulses)
+        self.assertEqual(r.result, npulses)
+
+    def test_underflow(self):
+        with self.assertRaises(runtime_exceptions.RTIOUnderflow):
+            self.execute(Underflow)
+
+    def test_sequence_error(self):
+        with self.assertRaises(runtime_exceptions.RTIOSequenceError):
+            self.execute(SequenceError)
+
+    def test_watchdog(self):
+        # watchdog only works on the device
+        with self.assertRaises(IOError):
+            self.execute(Watchdog)
 
 
 class RPCTiming(Experiment, AutoDB):
