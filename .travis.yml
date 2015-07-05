@@ -37,6 +37,3 @@ notifications:
     template:
       - "%{repository}#%{build_number} (%{branch} - %{commit} : %{author}): %{message}"
       - "Build details : %{build_url}"
-  webhooks:
-    urls:
-      - https://webhooks.gitter.im/e/d26782523952bfa53814
