@@ -13,17 +13,17 @@ before_install:
   - . ./.travis/get-toolchain.sh
   - . ./.travis/get-anaconda.sh
   - source $HOME/miniconda/bin/activate py34
-  - conda install pip coverage binstar migen cython
+  - conda install -q pip coverage binstar migen cython
   - pip install coveralls
 install:
   - conda build conda/artiq
-  - conda install artiq --use-local
+  - conda install -q artiq --use-local
 script:
   - coverage run --source=artiq setup.py test
   - make -C doc/manual html
 after_success:
-  - binstar login --hostname $(hostname) --username $binstar_login --password $binstar_password
-  - binstar upload --user $binstar_login --channel dev --force $HOME/miniconda/conda-bld/linux-64/artiq-*.tar.bz2
+  - binstar login -q --hostname $(hostname) --username $binstar_login --password $binstar_password
+  - binstar upload -q --user $binstar_login --channel dev --force $HOME/miniconda/conda-bld/linux-64/artiq-*.tar.bz2
   - coveralls
 notifications:
   email:
