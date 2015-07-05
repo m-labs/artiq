@@ -75,7 +75,7 @@ class _Frame:
         self.pdq = pdq
         self.frame_number = frame_number
         self.segments = []
-        self.segment_count = 0
+        self.segment_count = 0  # == len(self.segments), used in kernel
 
         self.invalidated = False
 
@@ -184,6 +184,7 @@ class CompoundPDQ2(AutoDB):
             raise ArmError
         for frame in self.frames:
             frame._arm()
+        self.armed = True
 
         full_program = [f._get_program() for f in self.frames]
         for n, pdq2 in enumerate(self.pdq2s):
