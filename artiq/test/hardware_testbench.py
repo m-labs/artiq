@@ -20,7 +20,7 @@ def get_from_ddb(*path, default="skip"):
     v = FlatFileDB(os.path.join(artiq_root, "ddb.pyon")).data
     try:
         for p in path:
-            v = v.read[v]
+            v = v[p]
         return v.read
     except KeyError:
         if default == "skip":
