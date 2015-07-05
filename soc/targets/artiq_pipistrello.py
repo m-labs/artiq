@@ -35,7 +35,10 @@ class _RTIOCRG(Module, AutoCSR):
                                   i_RST=ResetSignal())
 
         rtio_external_clk = platform.request("pmt", 2)
-        platform.add_period_constraint(rtio_external_clk, 8.0)
+        # ISE infers constraints for the internal clock
+        # and propagates them through the BUFGMUX. Adding this:
+        # platform.add_period_constraint(rtio_external_clk, 8.0)
+        # seems to confuse it
         self.specials += Instance("BUFGMUX",
                                   i_I0=rtio_internal_clk,
                                   i_I1=rtio_external_clk,
@@ -44,14 +47,9 @@ class _RTIOCRG(Module, AutoCSR):
 
         platform.add_platform_command("""
 NET "{int_clk}" TNM_NET = "GRPint_clk";
-NET "{ext_clk}" TNM_NET = "GRPext_clk";
 NET "sys_clk" TNM_NET = "GRPsys_clk";
 TIMESPEC "TSfix_ise1" = FROM "GRPint_clk" TO "GRPsys_clk" TIG;
 TIMESPEC "TSfix_ise2" = FROM "GRPsys_clk" TO "GRPint_clk" TIG;
-TIMESPEC "TSfix_ise3" = FROM "GRPext_clk" TO "GRPsys_clk" TIG;
-TIMESPEC "TSfix_ise4" = FROM "GRPsys_clk" TO "GRPext_clk" TIG;
-TIMESPEC "TSfix_ise5" = FROM "GRPext_clk" TO "GRPint_clk" TIG;
-TIMESPEC "TSfix_ise6" = FROM "GRPint_clk" TO "GRPext_clk" TIG;
 """, int_clk=rtio_internal_clk, ext_clk=rtio_external_clk)
 
 
