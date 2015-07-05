@@ -24,6 +24,7 @@ script:
 after_success:
   - binstar login -q --hostname $(hostname) --username $binstar_login --password $binstar_password
   - binstar upload -q --user $binstar_login --channel dev --force $HOME/miniconda/conda-bld/linux-64/artiq-*.tar.bz2
+  - binstar logout -q
   - coveralls
 notifications:
   email:
