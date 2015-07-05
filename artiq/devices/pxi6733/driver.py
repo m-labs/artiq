@@ -25,11 +25,11 @@ class DAQmx:
 
     def __init__(self, channels, clock):
         """
-        :param channels: List of channels as a string or bytes(), following
+        :param channels: List of channels as a string, following
             the physical channels lists and ranges NI-DAQmx syntax.
 
             Example: Dev1/ao0, Dev1/ao1:ao3
-        :param clock: Clock source terminal as a string or bytes(), following
+        :param clock: Clock source terminal as a string, following
             NI-DAQmx terminal names syntax.
 
             Example: PFI5
@@ -80,7 +80,8 @@ class DAQmx:
         not yet completed.
 
         :param sampling_freq: The sampling frequency in samples per second.
-        :param values: A numpy array of sample values to load in the device.
+        :param values: A numpy array of sample values (in volts) to load in
+            the device.
         """
 
         self.clear_pending_task()
