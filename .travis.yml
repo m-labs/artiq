@@ -26,7 +26,11 @@ after_success:
   - binstar upload --user $binstar_login --channel dev --force $HOME/miniconda/conda-bld/linux-64/artiq-*.tar.bz2
   - coveralls
 notifications:
-  email: false
+  email:
+    recipients:
+      - rjordens@nist.gov
+    on_success: always
+    on_failure: never
   irc:
     channels:
       - chat.freenode.net#m-labs
