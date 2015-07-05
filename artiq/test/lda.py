@@ -1,11 +1,8 @@
 import unittest
-import os
 
 from artiq.devices.lda.driver import Lda, Ldasim
 from artiq.language.units import dB
-
-
-lda_serial = os.getenv("ARTIQ_LDA_SERIAL")
+from artiq.test.hardware_testbench import get_from_ddb
 
 
 class GenericLdaTest:
@@ -19,16 +16,13 @@ class GenericLdaTest:
                 self.assertEqual(i, self.cont.get_attenuation())
 
 
-@unittest.skipUnless(lda_serial, "no hardware")
 class TestLda(GenericLdaTest, unittest.TestCase):
     def setUp(self):
-        product = os.getenv("ARTIQ_LDA_PRODUCT")
-        self.cont = Lda(serial=lda_serial, product=product)
+        lda_serial = get_from_ddb("lda", "device")
+        lda_product = get_from_ddb("lda", "product")
+        self.cont = Lda(serial=lda_serial, product=lda_product)
 
 
 class TestLdaSim(GenericLdaTest, unittest.TestCase):
     def setUp(self):
         self.cont = Ldasim()
-
-if __name__ == "__main__":
-    unittest.main()

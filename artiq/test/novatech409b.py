@@ -1,10 +1,7 @@
 import unittest
-import os
 
 from artiq.devices.novatech409b.driver import Novatech409B
-
-
-novatech409b_device = os.getenv("NOVATECH409B_DEVICE")
+from artiq.test.hardware_testbench import get_from_ddb
 
 
 class GenericNovatech409BTest:
@@ -23,9 +20,9 @@ class GenericNovatech409BTest:
             self.assertEqual(r[0:23], "00989680 2000 01F5 0000")
 
 
-@unittest.skipUnless(novatech409b_device, "no hardware")
 class TestNovatech409B(GenericNovatech409BTest, unittest.TestCase):
     def setUp(self):
+        novatech409b_device = get_from_ddb("novatech409b", "device")
         self.driver = Novatech409B(novatech409b_device)
 
 

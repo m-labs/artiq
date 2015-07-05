@@ -14,6 +14,21 @@ artiq_root = os.getenv("ARTIQ_ROOT")
 logger = logging.getLogger(__name__)
 
 
+def get_from_ddb(*path, default="skip"):
+    if not artiq_root:
+        raise unittest.SkipTest("no ARTIQ_ROOT")
+    v = FlatFileDB(os.path.join(artiq_root, "ddb.pyon")).data
+    try:
+        for p in path:
+            v = v.read[v]
+        return v.read
+    except KeyError:
+        if default == "skip":
+            raise unittest.SkipTest("ddb path {} not found".format(path))
+        else:
+            return default
+
+
 @unittest.skipUnless(artiq_root, "no ARTIQ_ROOT")
 class ExperimentCase(unittest.TestCase):
     def setUp(self):
