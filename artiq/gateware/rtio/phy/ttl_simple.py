@@ -89,6 +89,7 @@ class ClockGen(Module):
         self.sync.rio += If(self.rtlink.o.stb, ftw.eq(self.rtlink.o.data))
         self.sync.rio_phy += [
             acc.eq(acc + ftw),
+            # rtlink takes precedence over regular acc increments
             If(self.rtlink.o.stb,
                 If(self.rtlink.o.data != 0,
                     # known phase on frequency write: at rising edge

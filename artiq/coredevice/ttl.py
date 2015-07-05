@@ -253,6 +253,10 @@ class TTLClockGen(AutoDB):
         accumulator is connected to the TTL line. Setting the frequency tuning
         word has the additional effect of setting the phase accumulator to
         0x800000.
+
+        Due to the way the clock generator operates, frequency tuning words
+        that are not powers of two cause jitter of one RTIO clock cycle at the
+        output.
         """
         syscall("ttl_clock_set", now_mu(), self.channel, frequency)
         self.previous_timestamp = now_mu()
