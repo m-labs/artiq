@@ -90,23 +90,27 @@ class PulseRate(Experiment, AutoDB):
 
 class CoredeviceTest(ExperimentCase):
     def test_rtt(self):
-        rtt = self.execute(RTT)["rtt"]
+        self.execute(RTT)
+        rtt = self.dbh.get_result("rtt").read
         print(rtt)
         self.assertGreater(rtt, 0*ns)
         self.assertLess(rtt, 100*ns)
 
     def test_loopback(self):
-        rtt = self.execute(Loopback)["rtt"]
+        self.execute(Loopback)
+        rtt = self.dbh.get_result("rtt").read
         print(rtt)
         self.assertGreater(rtt, 0*ns)
         self.assertLess(rtt, 50*ns)
 
     def test_clock_generator_loopback(self):
-        count = self.execute(ClockGeneratorLoopback)["count"]
+        self.execute(ClockGeneratorLoopback)
+        count = self.dbh.get_result("count").read
         self.assertEqual(count, 10)
 
     def test_pulse_rate(self):
-        rate = self.execute(PulseRate)["pulse_rate"]
+        self.execute(PulseRate)
+        rate = self.dbh.get_result("pulse_rate").read
         print(rate)
         self.assertGreater(rate, 100*ns)
         self.assertLess(rate, 2500*ns)
@@ -141,8 +145,7 @@ class RPCTiming(Experiment, AutoDB):
 
 class RPCTest(ExperimentCase):
     def test_rpc_timing(self):
-        res = self.execute(RPCTiming)
-        print(res)
-        self.assertGreater(res["rpc_time_mean"], 100*ns)
-        self.assertLess(res["rpc_time_mean"], 15*ms)
-        self.assertLess(res["rpc_time_stddev"], 1*ms)
+        self.execute(RPCTiming)
+        self.assertGreater(self.dbh.get_result("rpc_time_mean").read, 100*ns)
+        self.assertLess(self.dbh.get_result("rpc_time_mean").read, 15*ms)
+        self.assertLess(self.dbh.get_result("rpc_time_stddev").read, 1*ms)

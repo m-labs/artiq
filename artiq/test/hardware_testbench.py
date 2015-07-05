@@ -38,6 +38,6 @@ class ExperimentCase(unittest.TestCase):
             self.rdb.build()
             exp.run()
             exp.analyze()
-            return self.rdb.data.read
+            return exp
         finally:
             self.dbh.close_devices()
