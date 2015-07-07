@@ -222,12 +222,12 @@ class CoredeviceTest(ExperimentCase):
     def test_time_keeps_running(self):
         self.execute(TimeKeepsRunning)
         t1 = self.dbh.get_result("time_at_start").read
-        self.dbh.close_devices()  # a fortiori the core device connection
         self.execute(TimeKeepsRunning)
         t2 = self.dbh.get_result("time_at_start").read
-        self.assertGreater(mu_to_seconds(t2 - t1,
-                                         self.dbh.get_device("core")),
-                           1*ms)
+        dead_time = mu_to_seconds(t2 - t1, self.dbh.get_device("core"))
+        print(dead_time)
+        self.assertGreater(dead_time, 1*ms)
+        self.assertLess(dead_time, 200*ms)
 
     def test_handover(self):
         self.execute(Handover)
