@@ -91,13 +91,14 @@ def asyncio_process_wait_timeout(process, timeout):
     # causes a futures.InvalidStateError inside asyncio if and when the
     # process terminates after the timeout.
     # Work around this problem.
-    end_time = time.monotonic() + timeout
-    r = True
-    while r:
-        r = yield from asyncio.wait_for(
-                process.stdout.read(1024),
-                timeout=end_time - time.monotonic())
-
+    @asyncio.coroutine
+    def process_wait_returncode_timeout():
+        while True:
+            if process.returncode is not None:
+                break
+            yield from asyncio.sleep(0.1)
+    yield from asyncio.wait_for(process_wait_returncode_timeout(),
+                                timeout=timeout)
 
 @asyncio.coroutine
 def asyncio_process_wait(process):
