@@ -110,7 +110,7 @@ class Lda:
                                          self._product_ids[self.product],
                                          self.serial)
         if not self._dev:
-            raise IOError
+            raise IOError("Device not found")
 
     def close(self):
         """Close the device."""
