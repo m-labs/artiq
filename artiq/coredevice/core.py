@@ -116,7 +116,7 @@ class Core(AutoDB):
         binary, rpc_map, exception_map = self.compile(
             k_function, k_args, k_kwargs)
         self.comm.load(binary)
-        self.comm.run(k_function.__name__, self.first_run)
+        self.comm.run(k_function.__name__)
         self.comm.serve(rpc_map, exception_map)
         self.first_run = False
 

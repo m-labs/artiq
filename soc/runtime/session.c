@@ -70,11 +70,13 @@ void session_start(void)
     memset(&buffer_out[4], 0, 4);
     kloader_stop();
     user_kernel_state = USER_KERNEL_NONE;
+    now = -1;
 }
 
 void session_end(void)
 {
     kloader_stop();
+    now = -1;
     kloader_start_idle_kernel();
 }
 
@@ -189,10 +191,7 @@ static int process_input(void)
             }
             buffer_in[buffer_in_index] = 0;
 
-            if(buffer_in[9])
-                now = -1;
-
-            k = kloader_find((char *)&buffer_in[10]);
+            k = kloader_find((char *)&buffer_in[9]);
             if(k == NULL) {
                 log("Failed to find kernel entry point '%s' in object", &buffer_in[9]);
                 buffer_out[8] = REMOTEMSG_TYPE_KERNEL_STARTUP_FAILED;
@@ -311,6 +310,9 @@ int session_input(void *data, int len)
             /* receiving length */
             buffer_in[buffer_in_index++] = _data[consumed];
             consumed++; len--;
+            if((buffer_in_index == 8) && (get_in_packet_len() == 0))
+                /* zero-length packet = session reset */
+                return -2;
         } else {
             /* receiving payload */
             int packet_len;
@@ -465,12 +467,14 @@ static int send_rpc_request(int rpc_num, va_list args)
 /* assumes output buffer is empty when called */
 static int process_kmsg(struct msg_base *umsg)
 {
-    if(user_kernel_state != USER_KERNEL_RUNNING) {
-        log("Received message from kernel CPU while not in running state");
-        return 0;
-    }
     if(!validate_kpointer(umsg))
         return 0;
+    if((user_kernel_state != USER_KERNEL_RUNNING)
+      && (umsg->type != MESSAGE_TYPE_NOW_INIT_REQUEST)
+      && (umsg->type != MESSAGE_TYPE_NOW_SAVE)) {
+        log("Received unexpected message from kernel CPU while not in running state");
+        return 0;
+    }
 
     switch(umsg->type) {
         case MESSAGE_TYPE_NOW_INIT_REQUEST: {

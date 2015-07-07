@@ -19,6 +19,7 @@ class Comm(CommGeneric, AutoDB):
             return
         self.port = serial.serial_for_url(self.serial_dev,
                                           baudrate=self.baud_rate)
+        self.reset_session()
 
     def close(self):
         if not hasattr(self, "port"):

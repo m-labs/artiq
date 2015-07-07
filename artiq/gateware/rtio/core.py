@@ -44,7 +44,8 @@ class _RTIOCounter(Module):
 
         # # #
 
-        self.sync.rio += self.value_rio.eq(self.value_rio + 1),
+        # note: counter is in rtio domain and never affected by the reset CSRs
+        self.sync.rtio += self.value_rio.eq(self.value_rio + 1)
         gt = _GrayCodeTransfer(width)
         self.submodules += gt
         self.comb += gt.i.eq(self.value_rio), self.value_sys.eq(gt.o)

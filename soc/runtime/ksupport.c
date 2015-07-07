@@ -79,7 +79,7 @@ long long int now_init(void)
 
     if(now < 0) {
         rtio_init();
-        now = 125000;
+        now = rtio_get_counter() + 125000;
     }
 
     return now;

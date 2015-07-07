@@ -147,6 +147,33 @@ class SequenceError(Experiment, AutoDB):
         self.ttl_out.pulse(25*us)
 
 
+class TimeKeepsRunning(Experiment, AutoDB):
+    class DBKeys:
+        core = Device()
+        time_at_start = Result()
+
+    @kernel
+    def run(self):
+        self.time_at_start = now_mu()
+
+
+class Handover(Experiment, AutoDB):
+    class DBKeys:
+        core = Device()
+        t1 = Result()
+        t2 = Result()
+
+    @kernel
+    def get_now(self):
+        self.time_at_start = now_mu()
+
+    def run(self):
+        self.get_now()
+        self.t1 = self.time_at_start
+        self.get_now()
+        self.t2 = self.time_at_start
+
+
 class CoredeviceTest(ExperimentCase):
     def test_rtt(self):
         self.execute(RTT)
@@ -191,6 +218,21 @@ class CoredeviceTest(ExperimentCase):
         # watchdog only works on the device
         with self.assertRaises(IOError):
             self.execute(Watchdog)
+
+    def test_time_keeps_running(self):
+        self.execute(TimeKeepsRunning)
+        t1 = self.dbh.get_result("time_at_start").read
+        self.dbh.close_devices()  # a fortiori the core device connection
+        self.execute(TimeKeepsRunning)
+        t2 = self.dbh.get_result("time_at_start").read
+        self.assertGreater(mu_to_seconds(t2 - t1,
+                                         self.dbh.get_device("core")),
+                           1*ms)
+
+    def test_handover(self):
+        self.execute(Handover)
+        self.assertEqual(self.dbh.get_result("t1").read,
+                         self.dbh.get_result("t2").read)
 
 
 class RPCTiming(Experiment, AutoDB):

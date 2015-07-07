@@ -95,7 +95,12 @@ class CommGeneric:
     def _write_header(self, length, ty):
         self.open()
         logger.debug("sending message: type=%r length=%d", ty, length)
-        self.write(struct.pack(">llB", 0x5a5a5a5a, length, ty.value))
+        self.write(struct.pack(">ll", 0x5a5a5a5a, length))
+        if ty is not None:
+            self.write(struct.pack("B", ty.value))
+
+    def reset_session(self):
+        self._write_header(0, None)
 
     def check_ident(self):
         self._write_header(9, _H2DMsgType.IDENT_REQUEST)
@@ -125,9 +130,8 @@ class CommGeneric:
         if ty != _D2HMsgType.LOAD_COMPLETED:
             raise IOError("Incorrect reply from device: "+str(ty))
 
-    def run(self, kname, reset_now):
-        self._write_header(len(kname) + 10, _H2DMsgType.RUN_KERNEL)
-        self.write(struct.pack("B", reset_now))
+    def run(self, kname):
+        self._write_header(len(kname) + 9, _H2DMsgType.RUN_KERNEL)
         self.write(bytes(kname, "ascii"))
         logger.debug("running kernel: %s", kname)
 

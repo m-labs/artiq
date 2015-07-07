@@ -151,16 +151,18 @@ static void regular_main(void)
 
 #else /* CSR_ETHMAC_BASE */
 
-static void reset_serial_session(void)
+static void reset_serial_session(int signal)
 {
     int i;
 
     session_end();
-    /* Signal end-of-session inband with zero length packet. */
-    for(i=0;i<4;i++)
-        uart_write(0x5a);
-    for(i=0;i<4;i++)
-        uart_write(0x00);
+    if(signal) {
+        /* Signal end-of-session inband with zero length packet. */
+        for(i=0;i<4;i++)
+            uart_write(0x5a);
+        for(i=0;i<4;i++)
+            uart_write(0x00);
+    }
     session_start();
 }
 
@@ -181,7 +183,8 @@ static void serial_service(void)
         if(r > 0)
             rxpending = 0;
         if(r < 0)
-            reset_serial_session();
+            /* do not signal if reset was requested by host */
+            reset_serial_session(r != -2);
     }
 
     session_poll((void **)&txdata, &txlen);
@@ -191,7 +194,7 @@ static void serial_service(void)
         session_ack_data(txlen);
         session_ack_mem(txlen);
     } else if(txlen < 0)
-        reset_serial_session();
+        reset_serial_session(1);
 }
 
 static void regular_main(void)

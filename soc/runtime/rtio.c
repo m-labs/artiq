@@ -14,4 +14,3 @@ long long int rtio_get_counter(void)
     rtio_counter_update_write(1);
     return rtio_counter_read();
 }
-
