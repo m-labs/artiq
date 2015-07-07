@@ -63,9 +63,9 @@ class DAQmx:
         The device will output samples at each clock rising edge.
         The device waits for a clock rising edge to output the first sample.
 
-        When using several channels simultaneously, you must concatenate the
-        values for the different channels in the ``values`` array.
-        The sample values for the same channel must be grouped together.
+        When using several channels simultaneously, you can either concatenate
+        the values for the different channels in a 1-dimensional ``values``
+        numpy ndarray.
 
         Example:
 
@@ -76,16 +76,21 @@ class DAQmx:
         channel and the two following samples will be output via the second
         channel.
 
+        Or you can use a 2-dimensional numpy ndarray like this:
+
+        >>> values = np.array([[ch0_samp0, ch0_samp1],[ch1_samp0, ch1_samp1]],
+                              dtype=float)
+
         Any call to this method will cancel any previous task even if it has
         not yet completed.
 
         :param sampling_freq: The sampling frequency in samples per second.
-        :param values: A numpy array of sample values (in volts) to load in
+        :param values: A numpy ndarray of sample values (in volts) to load in
             the device.
         """
 
         self.clear_pending_task()
-
+        values = values.flatten()
         t = self.daq.Task()
         t.CreateAOVoltageChan(self.channels, b"",
                               min(values), max(values),
