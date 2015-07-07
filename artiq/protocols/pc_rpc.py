@@ -246,7 +246,8 @@ class AsyncioClient:
     def __getattr__(self, name):
         @asyncio.coroutine
         def proxy(*args, **kwargs):
-            return self.__do_rpc(name, args, kwargs)
+            res = yield from self.__do_rpc(name, args, kwargs)
+            return res
         return proxy
 
 
