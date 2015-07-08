@@ -46,10 +46,13 @@ class DDSBus(AutoDB):
         syscall("dds_batch_exit")
 
 
-class DDS(AutoDB):
+class _DDSGeneric(AutoDB):
     """Core device Direct Digital Synthesis (DDS) driver.
 
     Controls one DDS channel managed directly by the core device's runtime.
+
+    This class should not be used directly, instead, use the chip-specific
+    drivers such as ``AD9858`` and ``AD9914``.
 
     :param sysclk: DDS system frequency.
     :param channel: channel number of the DDS device to control.
@@ -80,13 +83,13 @@ class DDS(AutoDB):
     def turns_to_pow(self, turns):
         """Returns the phase offset word corresponding to the given phase
         in turns."""
-        return round(turns*2**14)
+        return round(turns*2**self.pow_width)
 
     @portable
     def pow_to_turns(self, pow):
         """Returns the phase in turns corresponding to the given phase offset
         word."""
-        return pow/2**14
+        return pow/2**self.pow_width
 
     @kernel
     def init(self):
@@ -119,7 +122,9 @@ class DDS(AutoDB):
     def set_mu(self, frequency, phase=0, phase_mode=_PHASE_MODE_DEFAULT):
         """Sets the DDS channel to the specified frequency and phase.
 
-        This uses machine units (FTW and POW).
+        This uses machine units (FTW and POW). The frequency tuning word width
+        is 32, whereas the phase offset word width depends on the type of DDS
+        chip and can be retrieved via the ``pow_width`` attribute.
 
         :param frequency: frequency to generate.
         :param phase: adds an offset, in turns, to the phase.
@@ -129,10 +134,22 @@ class DDS(AutoDB):
         if phase_mode == _PHASE_MODE_DEFAULT:
             phase_mode = self.phase_mode
         syscall("dds_set", now_mu(), self.channel,
-           frequency, round(phase*2**14), phase_mode)
+           frequency, round(phase*2**self.pow_width), phase_mode)
 
     @kernel
     def set(self, frequency, phase=0, phase_mode=_PHASE_MODE_DEFAULT):
         """Like ``set_mu``, but uses Hz and turns."""
         self.set_mu(self.frequency_to_ftw(frequency),
                     self.turns_to_pow(phase), phase_mode)
+
+
+class AD9858(_DDSGeneric):
+    """Driver for AD9858 DDS chips. See ``_DDSGeneric`` for a description
+    of the functionality."""
+    pow_width = 14
+
+
+class AD9914(_DDSGeneric):
+    """Driver for AD9914 DDS chips. See ``_DDSGeneric`` for a description
+    of the functionality."""
+    pow_width = 16

@@ -10,6 +10,7 @@
 #include "dds.h"
 #include "flash_storage.h"
 #include "bridge_ctl.h"
+#include "clock.h"
 #include "test_mode.h"
 
 static void leds(char *value)
@@ -114,6 +115,9 @@ static void ddssel(char *n)
         return;
     }
 
+#ifdef DDS_ONEHOT_SEL
+    n2 = 1 << n2;
+#endif
     brg_ddssel(n2);
 }
 
@@ -157,7 +161,12 @@ static void ddsr(char *addr)
         return;
     }
 
+#ifdef DDS_AD9858
     printf("0x%02x\n", brg_ddsread(addr2));
+#endif
+#ifdef DDS_AD9914
+    printf("0x%04x\n", brg_ddsread(addr2));
+#endif
 }
 
 static void ddsfud(void)
@@ -186,11 +195,22 @@ static void ddsftw(char *n, char *ftw)
         return;
     }
 
+#ifdef DDS_ONEHOT_SEL
+    n2 = 1 << n2;
+#endif
     brg_ddssel(n2);
+
+#ifdef DDS_AD9858
     brg_ddswrite(DDS_FTW0, ftw2 & 0xff);
     brg_ddswrite(DDS_FTW1, (ftw2 >> 8) & 0xff);
     brg_ddswrite(DDS_FTW2, (ftw2 >> 16) & 0xff);
     brg_ddswrite(DDS_FTW3, (ftw2 >> 24) & 0xff);
+#endif
+#ifdef DDS_AD9914
+    brg_ddswrite(DDS_FTWL, ftw2 & 0xffff);
+    brg_ddswrite(DDS_FTWH, (ftw2 >> 16) & 0xffff);
+#endif
+
     brg_ddsfud();
 }
 
@@ -199,15 +219,34 @@ static void ddsreset(void)
     brg_ddsreset();
 }
 
+#ifdef DDS_AD9858
 static void ddsinit(void)
 {
     brg_ddsreset();
-    brg_ddswrite(0x00, 0x78);
-    brg_ddswrite(0x01, 0x00);
-    brg_ddswrite(0x02, 0x00);
-    brg_ddswrite(0x03, 0x00);
+    brg_ddswrite(DDS_CFR0, 0x78);
+    brg_ddswrite(DDS_CFR1, 0x00);
+    brg_ddswrite(DDS_CFR2, 0x00);
+    brg_ddswrite(DDS_CFR3, 0x00);
     brg_ddsfud();
 }
+#endif
+
+#ifdef DDS_AD9914
+static void ddsinit(void)
+{
+    long long int t;
+
+    brg_ddsreset();
+    brg_ddswrite(DDS_CFR1L, 0x0008);
+    brg_ddswrite(DDS_CFR1H, 0x0000);
+    brg_ddswrite(DDS_CFR4H, 0x0105);
+    brg_ddswrite(DDS_FUD, 0);
+    t = clock_get_ms();
+    while(clock_get_ms() < t + 2);
+    brg_ddswrite(DDS_CFR4H, 0x0005);
+    brg_ddsfud();
+}
+#endif
 
 static void ddstest_one(unsigned int i)
 {
@@ -223,15 +262,27 @@ static void ddstest_one(unsigned int i)
 
     for(j=0; j<12; j++) {
         f = v[j];
-        brg_ddswrite(0x0a, f & 0xff);
-        brg_ddswrite(0x0b, (f >> 8) & 0xff);
-        brg_ddswrite(0x0c, (f >> 16) & 0xff);
-        brg_ddswrite(0x0d, (f >> 24) & 0xff);
+#ifdef DDS_AD9858
+        brg_ddswrite(DDS_FTW0, f & 0xff);
+        brg_ddswrite(DDS_FTW1, (f >> 8) & 0xff);
+        brg_ddswrite(DDS_FTW2, (f >> 16) & 0xff);
+        brg_ddswrite(DDS_FTW3, (f >> 24) & 0xff);
+#endif
+#ifdef DDS_AD9914
+        brg_ddswrite(DDS_FTWL, f & 0xffff);
+        brg_ddswrite(DDS_FTWH, (f >> 16) & 0xffff);
+#endif
         brg_ddsfud();
-        g = brg_ddsread(0x0a);
-        g |= brg_ddsread(0x0b) << 8;
-        g |= brg_ddsread(0x0c) << 16;
-        g |= brg_ddsread(0x0d) << 24;
+#ifdef DDS_AD9858
+        g = brg_ddsread(DDS_FTW0);
+        g |= brg_ddsread(DDS_FTW1) << 8;
+        g |= brg_ddsread(DDS_FTW2) << 16;
+        g |= brg_ddsread(DDS_FTW3) << 24;
+#endif
+#ifdef DDS_AD9914
+        g = brg_ddsread(DDS_FTWL);
+        g |= brg_ddsread(DDS_FTWH) << 16;
+#endif
         if(g != f)
             printf("readback fail on DDS %d, 0x%08x != 0x%08x\n", i, g, f);
     }

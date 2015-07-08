@@ -13,7 +13,7 @@ class AD9xxx(Module):
 
     Write to address 2**flen(pads.a) to pulse the FUD signal.
     Address 2**flen(pads.a)+1 is a GPIO register that controls the
-    sel and reset signals. sel is mapped to the lower bits, followed by reset.
+    sel and reset signals. rst is mapped to bit 0, followed by sel.
 
     Write timing:
     Address is set one cycle before assertion of we_n.
@@ -58,11 +58,11 @@ class AD9xxx(Module):
         gpio = Signal(flen(pads.sel) + 1)
         gpio_load = Signal()
         self.sync += If(gpio_load, gpio.eq(bus.dat_w))
-        self.comb += pads.sel.eq(gpio),
         if hasattr(pads, "rst"):
-            self.comb += pads.rst.eq(gpio[-1])
+            self.comb += pads.rst.eq(gpio[0])
         else:
-            self.comb += pads.rst_n.eq(~gpio[-1])
+            self.comb += pads.rst_n.eq(~gpio[0])
+        self.comb += pads.sel.eq(gpio[1:])
 
         bus_r_gpio = Signal()
         self.comb += If(bus_r_gpio,

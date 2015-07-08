@@ -65,19 +65,19 @@
     "dds0": {
         "type": "local",
         "module": "artiq.coredevice.dds",
-        "class": "DDS",
+        "class": "AD9858",
         "arguments": {"sysclk": 1e9, "channel": 0}
     },
     "dds1": {
         "type": "local",
         "module": "artiq.coredevice.dds",
-        "class": "DDS",
+        "class": "AD9858",
         "arguments": {"sysclk": 1e9, "channel": 1}
     },
     "dds2": {
         "type": "local",
         "module": "artiq.coredevice.dds",
-        "class": "DDS",
+        "class": "AD9858",
         "arguments": {"sysclk": 1e9, "channel": 2}
     },
 

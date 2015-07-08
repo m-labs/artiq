@@ -4,7 +4,6 @@
 #include <uart.h>
 #include <console.h>
 #include <system.h>
-#include <time.h>
 #include <generated/csr.h>
 #include <hw/flags.h>
 
@@ -32,7 +31,6 @@
 
 static void common_init(void)
 {
-    clock_init();
     brg_start();
     brg_ddsinitall();
     kloader_stop();
@@ -211,34 +209,31 @@ static void regular_main(void)
 
 static void blink_led(void)
 {
-    int i, ev, p;
+    int i;
+    long long int t;
 
-    p = identifier_frequency_read()/10;
-    time_init();
     for(i=0;i<3;i++) {
         leds_out_write(1);
-        while(!elapsed(&ev, p));
+        t = clock_get_ms();
+        while(clock_get_ms() < t + 250);
         leds_out_write(0);
-        while(!elapsed(&ev, p));
+        t = clock_get_ms();
+        while(clock_get_ms() < t + 250);
     }
 }
 
 static int check_test_mode(void)
 {
     char c;
+    long long int t;
 
-    timer0_en_write(0);
-    timer0_reload_write(0);
-    timer0_load_write(identifier_frequency_read() >> 2);
-    timer0_en_write(1);
-    timer0_update_value_write(1);
-    while(timer0_value_read()) {
+    t = clock_get_ms();
+    while(clock_get_ms() < t + 1000) {
         if(readchar_nonblock()) {
             c = readchar();
             if((c == 't')||(c == 'T'))
                 return 1;
         }
-        timer0_update_value_write(1);
     }
     return 0;
 }
@@ -251,6 +246,7 @@ int main(void)
 
     puts("ARTIQ runtime built "__DATE__" "__TIME__"\n");
 
+    clock_init();
     puts("Press 't' to enter test mode...");
     blink_led();
 

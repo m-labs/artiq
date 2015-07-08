@@ -66,7 +66,7 @@ void bridge_main(void)
                 struct msg_brg_dds_sel *msg;
 
                 msg = (struct msg_brg_dds_sel *)umsg;
-                dds_write(DDS_GPIO, msg->channel);
+                dds_write(DDS_GPIO, msg->channel << 1);
                 mailbox_acknowledge();
                 break;
             }
@@ -74,7 +74,7 @@ void bridge_main(void)
                 unsigned int g;
 
                 g = dds_read(DDS_GPIO);
-                dds_write(DDS_GPIO, g | (1 << 7));
+                dds_write(DDS_GPIO, g | 1);
                 dds_write(DDS_GPIO, g);
 
                 mailbox_acknowledge();
