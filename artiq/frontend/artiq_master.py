@@ -7,7 +7,7 @@ import os
 
 from artiq.protocols.pc_rpc import Server
 from artiq.protocols.sync_struct import Publisher
-from artiq.protocols.file_db import FlatFileDB, SimpleHistory
+from artiq.protocols.file_db import FlatFileDB
 from artiq.master.scheduler import Scheduler
 from artiq.master.results import RTResults, get_last_rid
 from artiq.master.repository import Repository
@@ -36,8 +36,6 @@ def main():
     init_logger(args)
     ddb = FlatFileDB("ddb.pyon")
     pdb = FlatFileDB("pdb.pyon")
-    simplephist = SimpleHistory(30)
-    pdb.hooks.append(simplephist)
     rtr = RTResults()
     repository = Repository()
 
@@ -74,7 +72,6 @@ def main():
         "schedule": scheduler.notifier,
         "devices": ddb.data,
         "parameters": pdb.data,
-        "parameters_simplehist": simplephist.history,
         "rt_results": rtr.groups,
         "explist": repository.explist
     })
