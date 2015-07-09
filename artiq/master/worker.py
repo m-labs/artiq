@@ -28,11 +28,11 @@ class WorkerError(Exception):
 class Worker:
     def __init__(self, handlers,
                  send_timeout=0.5, term_timeout=1.0,
-                 prepare_timeout=15.0, results_timeout=15.0):
+                 build_timeout=15.0, results_timeout=15.0):
         self.handlers = handlers
         self.send_timeout = send_timeout
         self.term_timeout = term_timeout
-        self.prepare_timeout = prepare_timeout
+        self.build_timeout = build_timeout
         self.results_timeout = results_timeout
 
         self.rid = None
@@ -142,7 +142,7 @@ class Worker:
             [self.process.stdout.readline(), self.closed.wait()],
             timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
         if all(f.cancelled() for f in fs):
-            raise WorkerTimeout("Timeout sending data to worker")
+            raise WorkerTimeout("Timeout receiving data from worker")
         if self.closed.is_set():
             raise WorkerError("Data transmission to worker cancelled")
         line = fs[0].result()
@@ -209,16 +209,20 @@ class Worker:
         return completed
 
     @asyncio.coroutine
-    def prepare(self, rid, pipeline_name, expid, priority):
+    def build(self, rid, pipeline_name, expid, priority):
         self.rid = rid
         yield from self._create_process()
         yield from self._worker_action(
-            {"action": "prepare",
+            {"action": "build",
              "rid": rid,
              "pipeline_name": pipeline_name,
              "expid": expid,
              "priority": priority},
-            self.prepare_timeout)
+            self.build_timeout)
+
+    @asyncio.coroutine
+    def prepare(self):
+        yield from self._worker_action({"action": "prepare"})
 
     @asyncio.coroutine
     def run(self):

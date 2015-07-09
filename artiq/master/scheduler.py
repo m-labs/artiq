@@ -99,13 +99,14 @@ class Run:
         yield from self.worker.close()
         del self._notifier[self.rid]
 
-    _prepare = _mk_worker_method("prepare")
+    _build = _mk_worker_method("build")
 
     @asyncio.coroutine
-    def prepare(self):
-        yield from self._prepare(self.rid, self.pipeline_name, self.expid,
-                                 self.priority)
+    def build(self):
+        yield from self._build(self.rid, self.pipeline_name, self.expid,
+                               self.priority)
 
+    prepare = _mk_worker_method("prepare")
     run = _mk_worker_method("run")
     resume = _mk_worker_method("resume")
     analyze = _mk_worker_method("analyze")
@@ -188,6 +189,7 @@ class PrepareStage(TaskObject):
                 run.status = RunStatus.preparing
                 self.flush_tracker.add(run.rid)
                 try:
+                    yield from run.build()
                     yield from run.prepare()
                 except:
                     logger.warning("got worker exception in prepare stage, "

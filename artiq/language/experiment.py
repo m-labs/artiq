@@ -1,6 +1,6 @@
 from inspect import isclass
 
-__all__ = ["Experiment", "has_analyze", "is_experiment"]
+__all__ = ["Experiment", "is_experiment"]
 
 
 class Experiment:
@@ -9,11 +9,28 @@ class Experiment:
     Deriving from this class enables automatic experiment discovery in
     Python modules.
     """
+    def prepare(self):
+        """Entry point for pre-computing data necessary for running the
+        experiment.
+
+        Doing such computations outside of ``run`` enables more efficient
+        scheduling of multiple experiments that need to access the shared
+        hardware during part of their execution.
+
+        This method must not interact with the hardware.
+        """
+        pass
+
     def run(self):
         """The main entry point of the experiment.
 
         This method must be overloaded by the user to implement the main
         control flow of the experiment.
+
+        This method may interact with the hardware.
+
+        The experiment may call the scheduler's ``pause`` method while in
+        ``run``.
         """
         raise NotImplementedError
 
@@ -30,11 +47,6 @@ class Experiment:
         This method must not interact with the hardware.
         """
         pass
-
-
-def has_analyze(experiment):
-    """Checks if an experiment instance overloaded its ``analyze`` method."""
-    return experiment.analyze.__func__ is not Experiment.analyze
 
 
 def is_experiment(o):

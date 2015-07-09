@@ -117,7 +117,7 @@ def main():
         while True:
             obj = get_object()
             action = obj["action"]
-            if action == "prepare":
+            if action == "build":
                 start_time = time.localtime()
                 rid = obj["rid"]
                 pipeline_name = obj["pipeline_name"]
@@ -130,6 +130,9 @@ def main():
                                                    priority),
                                **expid["arguments"])
                 rdb.build()
+                put_object({"action": "completed"})
+            elif action == "prepare":
+                exp_inst.prepare()
                 put_object({"action": "completed"})
             elif action == "run":
                 exp_inst.run()
