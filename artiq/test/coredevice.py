@@ -227,7 +227,7 @@ class CoredeviceTest(ExperimentCase):
         dead_time = mu_to_seconds(t2 - t1, self.dbh.get_device("core"))
         print(dead_time)
         self.assertGreater(dead_time, 1*ms)
-        self.assertLess(dead_time, 200*ms)
+        self.assertLess(dead_time, 300*ms)
 
     def test_handover(self):
         self.execute(Handover)
