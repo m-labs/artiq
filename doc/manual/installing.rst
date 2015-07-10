@@ -36,7 +36,7 @@ Installing the host side software
 
 For this, you need to add our binstar repository to your conda configuration::
 
-    $ conda config --add channels http://conda.binstar.org/fallen/channel/dev
+    $ conda config --add channels http://conda.anaconda.org/fallen/channel/dev
 
 Then you can install the ARTIQ package, it will pull all the necessary dependencies::
 
