@@ -36,17 +36,6 @@ class SimpleParamLogger:
         logger.info("Parameter change: {} = {}".format(name, value))
 
 
-class DummyWatchdog:
-    def __init__(self, t):
-        pass
-
-    def __enter__(self):
-        pass
-
-    def __exit__(self, type, value, traceback):
-        pass
-
-
 class DummyScheduler:
     def __init__(self, expid):
         self.next_rid = 0
@@ -63,8 +52,6 @@ class DummyScheduler:
 
     def delete(self, rid):
         logger.info("Deleting RID %s", rid)
-
-    watchdog = DummyWatchdog
 
 
 def get_argparser(with_file=True):
