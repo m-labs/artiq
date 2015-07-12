@@ -13,6 +13,7 @@ immutable types. Lists and dicts can be nested arbitrarily.
 
 import asyncio
 from operator import getitem
+from functools import partial
 
 from artiq.protocols import pyon
 from artiq.protocols.asyncio_server import AsyncioServer
@@ -154,9 +155,9 @@ class Notifier:
         """
         self._backing_struct.append(x)
         if self.root.publish is not None:
-            self.root.publish(self.root, {"action": "append",
-                                          "path": self._path,
-                                          "x": x})
+            self.root.publish({"action": "append",
+                               "path": self._path,
+                               "x": x})
 
     def insert(self, i, x):
         """Insert an element into a list.
@@ -164,9 +165,9 @@ class Notifier:
         """
         self._backing_struct.insert(i, x)
         if self.root.publish is not None:
-            self.root.publish(self.root, {"action": "insert",
-                                          "path": self._path,
-                                          "i": i, "x": x})
+            self.root.publish({"action": "insert",
+                               "path": self._path,
+                               "i": i, "x": x})
 
     def pop(self, i=-1):
         """Pop an element from a list. The returned element is not
@@ -176,25 +177,25 @@ class Notifier:
         """
         r = self._backing_struct.pop(i)
         if self.root.publish is not None:
-            self.root.publish(self.root, {"action": "pop",
-                                          "path": self._path,
-                                          "i": i})
+            self.root.publish({"action": "pop",
+                               "path": self._path,
+                               "i": i})
         return r
 
     def __setitem__(self, key, value):
         self._backing_struct.__setitem__(key, value)
         if self.root.publish is not None:
-            self.root.publish(self.root, {"action": "setitem",
-                                "path": self._path,
-                                "key": key,
-                                "value": value})
+            self.root.publish({"action": "setitem",
+                               "path": self._path,
+                               "key": key,
+                               "value": value})
 
     def __delitem__(self, key):
         self._backing_struct.__delitem__(key)
         if self.root.publish is not None:
-            self.root.publish(self.root, {"action": "delitem",
-                                          "path": self._path,
-                                          "key": key})
+            self.root.publish({"action": "delitem",
+                               "path": self._path,
+                               "key": key})
 
     def __getitem__(self, key):
         item = getitem(self._backing_struct, key)
@@ -217,7 +218,7 @@ class Publisher(AsyncioServer):
         self._notifier_names = {id(v): k for k, v in notifiers.items()}
 
         for notifier in notifiers.values():
-            notifier.publish = self.publish
+            notifier.publish = partial(self.publish, notifier)
 
     @asyncio.coroutine
     def _handle_connection_cr(self, reader, writer):
@@ -256,8 +257,8 @@ class Publisher(AsyncioServer):
         finally:
             writer.close()
 
-    def publish(self, notifier, obj):
-        line = pyon.encode(obj) + "\n"
+    def publish(self, notifier, mod):
+        line = pyon.encode(mod) + "\n"
         line = line.encode()
         notifier_name = self._notifier_names[id(notifier)]
         for recipient in self._recipients[notifier_name]:

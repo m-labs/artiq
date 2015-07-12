@@ -67,7 +67,7 @@ class SchedulerCase(unittest.TestCase):
         expect = _get_basic_steps(1, expid)
         done = asyncio.Event()
         expect_idx = 0
-        def notify(notifier, mod):
+        def notify(mod):
             nonlocal expect_idx
             self.assertEqual(mod, expect[expect_idx])
             expect_idx += 1
@@ -104,7 +104,7 @@ class SchedulerCase(unittest.TestCase):
         background_running = asyncio.Event()
         done = asyncio.Event()
         expect_idx = 0
-        def notify(notifier, mod):
+        def notify(mod):
             nonlocal expect_idx
             if mod == {"path": [0],
                        "value": "running",
@@ -138,7 +138,7 @@ class SchedulerCase(unittest.TestCase):
         first_preparing = asyncio.Event()
         done = asyncio.Event()
         expect_idx = 0
-        def notify(notifier, mod):
+        def notify(mod):
             nonlocal expect_idx
             if mod == {"path": [0],
                        "value": "preparing",
