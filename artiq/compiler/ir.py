@@ -325,7 +325,7 @@ class Function(Value):
         self.basic_block.remove(basic_block)
 
     def predecessors_of(self, successor):
-        set(block for block in self.basic_blocks if successor in block.successors())
+        return set(block for block in self.basic_blocks if successor in block.successors())
 
     def as_operand(self):
         return "{} @{}".format(types.TypePrinter().name(self.type),
