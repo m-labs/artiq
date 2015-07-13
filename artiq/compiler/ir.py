@@ -29,7 +29,7 @@ class Value:
     :ivar uses: (list of :class:`Value`) values that use this value
     """
 
-    def __init__(self, typ=builtins.TNone()):
+    def __init__(self, typ):
         self.uses, self.type = set(), typ
 
     def replace_all_uses_with(self, value):
@@ -44,7 +44,7 @@ class NamedValue(Value):
     :ivar function: (:class:`Function`) function containing this value
     """
 
-    def __init__(self, typ=builtins.TNone(), name=""):
+    def __init__(self, typ, name):
         super().__init__(typ)
         self.name, self.function = name, None
 
@@ -77,10 +77,11 @@ class User(NamedValue):
     :ivar operands: (list of :class:`Value`) operands of this value
     """
 
-    def __init__(self, typ=builtins.TNone(), name="", operands=[]):
+    def __init__(self, operands, typ, name):
         super().__init__(typ, name)
         self.operands = []
-        self.set_operands(operands)
+        if operands is not None:
+            self.set_operands(operands)
 
     def set_operands(self, new_operands):
         for operand in self.operands:
@@ -107,8 +108,8 @@ class Instruction(User):
     An SSA instruction.
     """
 
-    def __init__(self, typ=builtins.TNone(), name="", operands=[]):
-        super().__init__(typ, name, operands)
+    def __init__(self, operands, typ, name=""):
+        super().__init__(operands, typ, name)
         self.basic_block = None
 
     def set_basic_block(self, new_basic_block):
@@ -157,7 +158,13 @@ class Instruction(User):
 class Phi(Instruction):
     """
     An SSA instruction that joins data flow.
+
+    Use :meth:`incoming` and :meth:`add_incoming` instead of
+    directly reading :attr:`operands` or calling :meth:`set_operands`.
     """
+
+    def __init__(self, typ, name=""):
+        super().__init__(typ, name)
 
     def opcode(self):
         return "phi"
@@ -202,19 +209,26 @@ class Terminator(Instruction):
     """
 
     def successors(self):
-        [operand for operand in self.operands if isinstance(operand, BasicBlock)]
+        return [operand for operand in self.operands if isinstance(operand, BasicBlock)]
 
 class BasicBlock(NamedValue):
     """
     A block of instructions with no control flow inside it.
 
-    :ivar instructions: (list of :)
+    :ivar instructions: (list of :class:`Instruction`)
     """
 
-    def __init__(self, name="", instructions=[]):
+    def __init__(self, instructions, name=""):
         super().__init__(TSSABasicBlock(), name)
         self.instructions = []
         self.set_instructions(instructions)
+
+    def set_instructions(self, new_insns):
+        for insn in self.instructions:
+            insn.detach()
+        self.instructions = new_insns
+        for insn in self.instructions:
+            insn.set_basic_block(self)
 
     def remove_from_parent(self):
         if self.function is not None:
@@ -274,10 +288,11 @@ class Function(Value):
     """
 
     def __init__(self, typ, name, arguments):
-        self.type, self.name, self.arguments = typ, name, []
-        self.set_arguments(arguments)
+        self.type, self.name = typ, name
+        self.arguments = []
         self.basic_blocks = set()
         self.names = set()
+        self.set_arguments(arguments)
 
     def _remove_name(self, name):
         self.names.remove(name)
