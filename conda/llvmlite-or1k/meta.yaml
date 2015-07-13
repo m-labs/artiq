@@ -9,7 +9,6 @@ source:
 requirements:
     build:
         - python
-        - llvmdev-or1k
         - setuptools
     run:
         - python
@@ -19,8 +18,8 @@ build:
 
 test:
     imports:
-        - llvmlite
-        - llvmlite.llvmpy
+        - llvmlite_or1k
+        - llvmlite_or1k.llvmpy
 
 about:
     home: https://pypi.python.org/pypi/llvmlite/

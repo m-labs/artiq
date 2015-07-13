@@ -1,4 +1,4 @@
-import llvmlite.ir as ll
+import llvmlite_or1k.ir as ll
 
 from artiq.py2llvm.values import VGeneric
 

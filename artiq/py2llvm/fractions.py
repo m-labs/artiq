@@ -1,7 +1,7 @@
 import inspect
 import ast
 
-import llvmlite.ir as ll
+import llvmlite_or1k.ir as ll
 
 from artiq.py2llvm.values import VGeneric, operators
 from artiq.py2llvm.base_types import VBool, VInt, VFloat

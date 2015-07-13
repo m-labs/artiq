@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 from copy import copy
 
-import llvmlite.ir as ll
+import llvmlite_or1k.ir as ll
 
 
 class VGeneric:
