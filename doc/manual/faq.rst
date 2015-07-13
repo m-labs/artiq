@@ -7,30 +7,19 @@ How do I ...
 prevent my first RTIO command from causing an underflow?
 --------------------------------------------------------
 
-The RTIO timestamp counter starts counting at zero at the beginning of the first kernel run on the core device. The first RTIO event is programmed with a small timestamp above zero. If the kernel needs more time than this timestamp to produce the event, an underflow will occur. You can prevent it by calling ``break_realtime`` just before programming the first event.
-
-override the `sysclk` frequency of just one DDS?
-------------------------------------------------
-
-Override the parameter using an argument in the DDB.
+The first RTIO event is programmed with a small timestamp above the value of the timecounter at the start of the experiment. If the kernel needs more time than this timestamp to produce the event, an underflow will occur. You can prevent it by calling ``break_realtime`` just before programming the first event, or by adding a sufficient delay.
 
 organize parameters in folders?
 -------------------------------
 
-Use GUI auto-completion and filtering.
-Names need to be unique.
+Folders are not supported yet, use GUI filtering for now. Names need to be unique.
 
 enforce functional dependencies between parameters?
 ---------------------------------------------------
 
 If you want to override a parameter ``b`` in the PDB to be ``b = 2*a``,
 use wrapper experiments, overriding parameters by passing them to the
-experiment's constructor.
-
-get rid of ``DBKeys``?
-----------------------
-
-``DBKeys`` references keys in PDB, DDB and RDB.
+experiment's constructor (``param_override`` argument).
 
 write a generator feeding a kernel feeding an analyze function?
 ---------------------------------------------------------------

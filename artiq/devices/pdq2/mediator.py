@@ -1,5 +1,4 @@
 from artiq.language.core import *
-from artiq.language.db import *
 from artiq.language.units import *
 
 
@@ -154,19 +153,14 @@ class _Frame:
             self.pdq.next_segment = -1
 
 
-class CompoundPDQ2(AutoDB):
-    class DBKeys:
-        core = Device()
-        pdq2_devices = Argument()
-        trigger_device = Argument()
-        frame_devices = Argument()
-
-    def build(self):
-        self.pdq2s = [self.dbh.get_device(d) for d in self.pdq2_devices]
-        self.trigger = self.dbh.get_device(self.trigger_device)
-        self.frame0 = self.dbh.get_device(self.frame_devices[0])
-        self.frame1 = self.dbh.get_device(self.frame_devices[1])
-        self.frame2 = self.dbh.get_device(self.frame_devices[2])
+class CompoundPDQ2:
+    def __init__(self, dmgr, pdq2_devices, trigger_device, frame_devices):
+        self.core = dmgr.get("core")
+        self.pdq2s = [dmgr.get(d) for d in self.pdq2_devices]
+        self.trigger = dmgr.get(trigger_device)
+        self.frame0 = dmgr.get(frame_devices[0])
+        self.frame1 = dmgr.get(frame_devices[1])
+        self.frame2 = dmgr.get(frame_devices[2])
 
         self.frames = []
         self.current_frame = -1

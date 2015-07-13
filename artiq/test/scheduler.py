@@ -7,12 +7,18 @@ from artiq import *
 from artiq.master.scheduler import Scheduler
 
 
-class EmptyExperiment(Experiment, AutoDB):
+class EmptyExperiment(EnvExperiment):
+    def build(self):
+        pass
+
     def run(self):
         pass
 
 
-class BackgroundExperiment(Experiment, AutoDB):
+class BackgroundExperiment(EnvExperiment):
+    def build(self):
+        self.attr_device("scheduler")
+
     def run(self):
         while True:
             self.scheduler.pause()

@@ -5,9 +5,8 @@ import logging
 
 from artiq.language import *
 from artiq.protocols.file_db import FlatFileDB
-from artiq.master.worker_db import DBHub, ResultDB
-from artiq.frontend.artiq_run import (
-    DummyScheduler, DummyWatchdog, SimpleParamLogger)
+from artiq.master.worker_db import DeviceManager, ResultDB
+from artiq.frontend.artiq_run import DummyScheduler
 
 
 artiq_root = os.getenv("ARTIQ_ROOT")
@@ -33,9 +32,10 @@ def get_from_ddb(*path, default="skip"):
 class ExperimentCase(unittest.TestCase):
     def setUp(self):
         self.ddb = FlatFileDB(os.path.join(artiq_root, "ddb.pyon"))
+        self.dmgr = DeviceManager(self.ddb,
+            virtual_devices={"scheduler": DummyScheduler()})
         self.pdb = FlatFileDB(os.path.join(artiq_root, "pdb.pyon"))
-        self.rdb = ResultDB(lambda description: None, lambda mod: None)
-        self.dbh = DBHub(self.ddb, self.pdb, self.rdb)
+        self.rdb = ResultDB()
 
     def execute(self, cls, **kwargs):
         expid = {
@@ -43,16 +43,16 @@ class ExperimentCase(unittest.TestCase):
             "experiment": cls.__name__,
             "arguments": kwargs
         }
-        sched = DummyScheduler(expid)
+        self.dmgr.virtual_devices["scheduler"].expid = expid
         try:
             try:
-                exp = cls(self.dbh, scheduler=sched, **kwargs)
+                exp = cls(self.dmgr, self.pdb, self.rdb, **kwargs)
             except KeyError as e:
                 # skip if ddb does not match requirements
                 raise unittest.SkipTest(*e.args)
-            self.rdb.build()
+            exp.prepare()
             exp.run()
             exp.analyze()
             return exp
         finally:
-            self.dbh.close_devices()
+            self.dmgr.close_devices()

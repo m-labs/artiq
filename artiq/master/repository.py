@@ -2,7 +2,7 @@ import os
 
 from artiq.protocols.sync_struct import Notifier
 from artiq.tools import file_import
-from artiq.language.experiment import is_experiment
+from artiq.language.environment import is_experiment
 
 
 def scan_experiments():
@@ -23,8 +23,7 @@ def scan_experiments():
                             name = name[:-1]
                     entry = {
                         "file": os.path.join("repository", f),
-                        "experiment": k,
-                        "gui_file": getattr(v, "__artiq_gui_file__", None)
+                        "experiment": k
                     }
                     r[name] = entry
     return r

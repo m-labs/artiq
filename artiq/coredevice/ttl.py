@@ -1,8 +1,7 @@
 from artiq.language.core import *
-from artiq.language.db import *
 
 
-class TTLOut(AutoDB):
+class TTLOut:
     """RTIO TTL output driver.
 
     This should be used with output-only channels.
@@ -10,12 +9,10 @@ class TTLOut(AutoDB):
     :param core: core device
     :param channel: channel number
     """
-    class DBKeys:
-        core = Device()
-        channel = Argument()
+    def __init__(self, dmgr, channel):
+        self.core = dmgr.get("core")
+        self.channel = channel
 
-
-    def build(self):
         # in RTIO cycles
         self.o_previous_timestamp = int64(0)
 
@@ -58,7 +55,7 @@ class TTLOut(AutoDB):
         self.off()
 
 
-class TTLInOut(AutoDB):
+class TTLInOut:
     """RTIO TTL input/output driver.
 
     In output mode, provides functions to set the logic level on the signal.
@@ -76,11 +73,10 @@ class TTLInOut(AutoDB):
     :param core: core device
     :param channel: channel number
     """
-    class DBKeys:
-        core = Device()
-        channel = Argument()
+    def __init__(self, dmgr, channel):
+        self.core = dmgr.get("core")
+        self.channel = channel
 
-    def build(self):
         # in RTIO cycles
         self.o_previous_timestamp = int64(0)
         self.i_previous_timestamp = int64(0)
@@ -208,7 +204,7 @@ class TTLInOut(AutoDB):
         return syscall("ttl_get", self.channel, self.i_previous_timestamp)
 
 
-class TTLClockGen(AutoDB):
+class TTLClockGen:
     """RTIO TTL clock generator driver.
 
     This should be used with TTL channels that have a clock generator
@@ -217,9 +213,9 @@ class TTLClockGen(AutoDB):
     :param core: core device
     :param channel: channel number
     """
-    class DBKeys:
-        core = Device()
-        channel = Argument()
+    def __init__(self, dmgr, channel):
+        self.core = dmgr.get("core")
+        self.channel = channel
 
     def build(self):
         # in RTIO cycles

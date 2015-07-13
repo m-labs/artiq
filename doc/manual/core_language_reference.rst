@@ -9,10 +9,10 @@ The most commonly used features from those modules can be imported with ``from a
 .. automodule:: artiq.language.core
     :members:
 
-:mod:`artiq.language.db` module
--------------------------------
+:mod:`artiq.language.environment` module
+----------------------------------------
 
-.. automodule:: artiq.language.db
+.. automodule:: artiq.language.environment
     :members:
 
 :mod:`artiq.language.units` module

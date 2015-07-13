@@ -6,11 +6,10 @@ from artiq.coredevice.runtime_exceptions import RTIOUnderflow
 from artiq.coredevice import runtime_exceptions
 
 
-class RTT(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
-        ttl_inout = Device()
-        rtt = Result()
+class RTT(EnvExperiment):
+    def build(self):
+        self.attr_device("core")
+        self.attr_device("ttl_inout")
 
     @kernel
     def run(self):
@@ -24,15 +23,15 @@ class RTT(Experiment, AutoDB):
                 delay(1*us)
                 t0 = now_mu()
                 self.ttl_inout.pulse(1*us)
-        self.rtt = mu_to_seconds(self.ttl_inout.timestamp() - t0)
+        self.set_result("rtt",
+                        mu_to_seconds(self.ttl_inout.timestamp() - t0))
 
 
-class Loopback(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
-        loop_in = Device()
-        loop_out = Device()
-        rtt = Result()
+class Loopback(EnvExperiment):
+    def build(self):
+        self.attr_device("core")
+        self.attr_device("loop_in")
+        self.attr_device("loop_out")
 
     @kernel
     def run(self):
@@ -44,15 +43,15 @@ class Loopback(Experiment, AutoDB):
                 delay(1*us)
                 t0 = now_mu()
                 self.loop_out.pulse(1*us)
-        self.rtt = mu_to_seconds(self.loop_in.timestamp() - t0)
+        self.set_result("rtt",
+                        mu_to_seconds(self.loop_in.timestamp() - t0))
 
 
-class ClockGeneratorLoopback(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
-        loop_clock_in = Device()
-        loop_clock_out = Device()
-        count = Result()
+class ClockGeneratorLoopback(EnvExperiment):
+    def build(self):
+        self.attr_device("core")
+        self.attr_device("loop_clock_in")
+        self.attr_device("loop_clock_out")
 
     @kernel
     def run(self):
@@ -64,14 +63,14 @@ class ClockGeneratorLoopback(Experiment, AutoDB):
             with sequential:
                 delay(200*ns)
                 self.loop_clock_out.set(1*MHz)
-        self.count = self.loop_clock_in.count()
+        self.set_result("count",
+                        self.loop_clock_in.count())
 
 
-class PulseRate(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
-        loop_out = Device()
-        pulse_rate = Result()
+class PulseRate(EnvExperiment):
+    def build(self):
+        self.attr_device("core")
+        self.attr_device("loop_out")
 
     @kernel
     def run(self):
@@ -85,13 +84,14 @@ class PulseRate(Experiment, AutoDB):
                 dt += 1
                 self.core.break_realtime()
             else:
-                self.pulse_rate = mu_to_seconds(2*dt)
+                self.set_result("pulse_rate",
+                                mu_to_seconds(2*dt))
                 break
 
 
-class Watchdog(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
+class Watchdog(EnvExperiment):
+    def build(self):
+        self.attr_device("core")
 
     @kernel
     def run(self):
@@ -100,14 +100,11 @@ class Watchdog(Experiment, AutoDB):
                 pass
 
 
-class LoopbackCount(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
-        ttl_inout = Device()
-        npulses = Argument()
-
-    def report(self, n):
-        self.result = n
+class LoopbackCount(EnvExperiment):
+    def build(self):
+        self.attr_device("core")
+        self.attr_device("ttl_inout")
+        self.attr_argument("npulses")
 
     @kernel
     def run(self):
@@ -119,13 +116,14 @@ class LoopbackCount(Experiment, AutoDB):
                 for i in range(self.npulses):
                     delay(25*ns)
                     self.ttl_inout.pulse(25*ns)
-        self.report(self.ttl_inout.count())
+        self.set_result("count",
+                        self.ttl_inout.count())
 
 
-class Underflow(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
-        ttl_out = Device()
+class Underflow(EnvExperiment):
+    def build(self):
+        self.attr_device("core")
+        self.attr_device("ttl_out")
 
     @kernel
     def run(self):
@@ -134,10 +132,10 @@ class Underflow(Experiment, AutoDB):
             self.ttl_out.pulse(25*ns)
 
 
-class SequenceError(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
-        ttl_out = Device()
+class SequenceError(EnvExperiment):
+    def build(self):
+        self.attr_device("core")
+        self.attr_device("ttl_out")
 
     @kernel
     def run(self):
@@ -147,21 +145,18 @@ class SequenceError(Experiment, AutoDB):
         self.ttl_out.pulse(25*us)
 
 
-class TimeKeepsRunning(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
-        time_at_start = Result()
+class TimeKeepsRunning(EnvExperiment):
+    def build(self):
+        self.attr_device("core")
 
     @kernel
     def run(self):
-        self.time_at_start = now_mu()
+        self.set_result("time_at_start", now_mu())
 
 
-class Handover(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
-        t1 = Result()
-        t2 = Result()
+class Handover(EnvExperiment):
+    def build(self):
+        self.attr_device("core")
 
     @kernel
     def get_now(self):
@@ -169,34 +164,34 @@ class Handover(Experiment, AutoDB):
 
     def run(self):
         self.get_now()
-        self.t1 = self.time_at_start
+        self.set_result("t1", self.time_at_start)
         self.get_now()
-        self.t2 = self.time_at_start
+        self.set_result("t2", self.time_at_start)
 
 
 class CoredeviceTest(ExperimentCase):
     def test_rtt(self):
         self.execute(RTT)
-        rtt = self.dbh.get_result("rtt").read
+        rtt = self.rdb.get("rtt")
         print(rtt)
         self.assertGreater(rtt, 0*ns)
         self.assertLess(rtt, 100*ns)
 
     def test_loopback(self):
         self.execute(Loopback)
-        rtt = self.dbh.get_result("rtt").read
+        rtt = self.rdb.get("rtt")
         print(rtt)
         self.assertGreater(rtt, 0*ns)
         self.assertLess(rtt, 50*ns)
 
     def test_clock_generator_loopback(self):
         self.execute(ClockGeneratorLoopback)
-        count = self.dbh.get_result("count").read
+        count = self.rdb.get("count")
         self.assertEqual(count, 10)
 
     def test_pulse_rate(self):
         self.execute(PulseRate)
-        rate = self.dbh.get_result("pulse_rate").read
+        rate = self.rdb.get("pulse_rate")
         print(rate)
         self.assertGreater(rate, 100*ns)
         self.assertLess(rate, 2500*ns)
@@ -204,7 +199,8 @@ class CoredeviceTest(ExperimentCase):
     def test_loopback_count(self):
         npulses = 2
         r = self.execute(LoopbackCount, npulses=npulses)
-        self.assertEqual(r.result, npulses)
+        count = self.rdb.get("count")
+        self.assertEqual(count, npulses)
 
     def test_underflow(self):
         with self.assertRaises(runtime_exceptions.RTIOUnderflow):
@@ -221,26 +217,23 @@ class CoredeviceTest(ExperimentCase):
 
     def test_time_keeps_running(self):
         self.execute(TimeKeepsRunning)
-        t1 = self.dbh.get_result("time_at_start").read
+        t1 = self.rdb.get("time_at_start")
         self.execute(TimeKeepsRunning)
-        t2 = self.dbh.get_result("time_at_start").read
-        dead_time = mu_to_seconds(t2 - t1, self.dbh.get_device("core"))
+        t2 = self.rdb.get("time_at_start")
+        dead_time = mu_to_seconds(t2 - t1, self.dmgr.get("core"))
         print(dead_time)
         self.assertGreater(dead_time, 1*ms)
         self.assertLess(dead_time, 300*ms)
 
     def test_handover(self):
         self.execute(Handover)
-        self.assertEqual(self.dbh.get_result("t1").read,
-                         self.dbh.get_result("t2").read)
+        self.assertEqual(self.rdb.get("t1"), self.rdb.get("t2"))
 
 
-class RPCTiming(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
-        repeats = Argument(100)
-        rpc_time_mean = Result()
-        rpc_time_stddev = Result()
+class RPCTiming(EnvExperiment):
+    def build(self):
+        self.attr_device("core")
+        self.attr_argument("repeats", FreeValue(100))
 
     def nop(self, x):
         pass
@@ -257,14 +250,14 @@ class RPCTiming(Experiment, AutoDB):
     def run(self):
         self.bench()
         mean = sum(self.ts)/self.repeats
-        self.rpc_time_stddev = sqrt(
-            sum([(t - mean)**2 for t in self.ts])/self.repeats)*s
-        self.rpc_time_mean = mean*s
+        self.set_result("rpc_time_stddev", sqrt(
+            sum([(t - mean)**2 for t in self.ts])/self.repeats))
+        self.set_result("rpc_time_mean", mean)
 
 
 class RPCTest(ExperimentCase):
     def test_rpc_timing(self):
         self.execute(RPCTiming)
-        self.assertGreater(self.dbh.get_result("rpc_time_mean").read, 100*ns)
-        self.assertLess(self.dbh.get_result("rpc_time_mean").read, 15*ms)
-        self.assertLess(self.dbh.get_result("rpc_time_stddev").read, 1*ms)
+        self.assertGreater(self.rdb.get("rpc_time_mean"), 100*ns)
+        self.assertLess(self.rdb.get("rpc_time_mean"), 15*ms)
+        self.assertLess(self.rdb.get("rpc_time_stddev"), 1*ms)

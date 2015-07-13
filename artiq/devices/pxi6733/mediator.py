@@ -1,7 +1,6 @@
 import numpy as np
 
 from artiq.language.core import *
-from artiq.language.db import *
 from artiq.language.units import *
 from artiq.wavesynth.compute_samples import Synthesizer
 
@@ -139,20 +138,16 @@ class _Frame:
             self.daqmx.next_segment = -1
 
 
-class CompoundDAQmx(AutoDB):
-    class DBKeys:
-        core = Device()
-        daqmx_device = Argument()
-        clock_device = Argument()
-        channel_count = Argument()
-        sample_rate = Argument()
-        sample_rate_in_mu = Argument(False)
-
-    def build(self):
-        self.daqmx = self.dbh.get_device(self.daqmx_device)
-        self.clock = self.dbh.get_device(self.clock_device)
-
-        if not self.sample_rate_in_mu:
+class CompoundDAQmx:
+    def __init__(self, dmgr, daqmx_device, clock_device, channel_count,
+                 sample_rate, sample_rate_in_mu=False):
+        self.core = dmgr.get("core")
+        self.daqmx = dmgr.get(daqmx_device)
+        self.clock = dmgr.get(clock_device)
+        self.channel_count = channel_count
+        if self.sample_rate_in_mu:
+            self.sample_rate = sample_rate
+        else:
             self.sample_rate = self.clock.frequency_to_ftw(sample_rate)
 
         self.frame = None

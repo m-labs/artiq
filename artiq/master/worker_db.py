@@ -1,76 +1,114 @@
 from collections import OrderedDict
 import importlib
 import logging
+import os
+import time
+import re
+
+import numpy
+import h5py
 
 from artiq.protocols.sync_struct import Notifier
 from artiq.protocols.pc_rpc import Client, BestEffortClient
-from artiq.master.results import result_dict_to_hdf5
 
 
 logger = logging.getLogger(__name__)
 
 
-class ResultDB:
-    def __init__(self, init_rt_results, update_rt_results):
-        self.init_rt_results = init_rt_results
-        self.update_rt_results = update_rt_results
-        self.rtr_description = dict()
+def get_hdf5_output(start_time, rid, name):
+    dirname = os.path.join("results",
+                           time.strftime("%Y-%m-%d", start_time),
+                           time.strftime("%H-%M", start_time))
+    filename = "{:09}-{}.h5".format(rid, name)
+    os.makedirs(dirname, exist_ok=True)
+    return h5py.File(os.path.join(dirname, filename), "w")
 
-    def add_rt_results(self, rtr_description):
-        intr = set(self.rtr_description.keys()).intersection(
-            set(rtr_description.keys()))
-        if intr:
-            raise ValueError("Duplicate realtime results: " + ", ".join(intr))
-        self.rtr_description.update(rtr_description)
 
-    def build(self):
-        realtime_results_set = set()
-        for rtr in self.rtr_description.keys():
-            if isinstance(rtr, tuple):
-                for e in rtr:
-                    realtime_results_set.add(e)
-            else:
-                realtime_results_set.add(rtr)
-
-        self.realtime_data = Notifier({x: [] for x in realtime_results_set})
-        self.data = Notifier(dict())
-
-        self.init_rt_results(self.rtr_description)
-        self.realtime_data.publish = lambda notifier, data: \
-            self.update_rt_results(data)
-
-    def _request(self, name):
-        try:
-            return self.realtime_data[name]
-        except KeyError:
-            try:
-                return self.data[name]
-            except KeyError:
-                self.data[name] = []
-                return self.data[name]
-
-    def request(self, name):
-        r = self._request(name)
-        r.kernel_attr_init = False
+def get_last_rid():
+    r = -1
+    try:
+        day_folders = os.listdir("results")
+    except:
         return r
+    day_folders = filter(lambda x: re.fullmatch('\d\d\d\d-\d\d-\d\d', x),
+                         day_folders)
+    for df in day_folders:
+        day_path = os.path.join("results", df)
+        try:
+            minute_folders = os.listdir(day_path)
+        except:
+            continue
+        minute_folders = filter(lambda x: re.fullmatch('\d\d-\d\d', x),
+                                          minute_folders)
+        for mf in minute_folders:
+            minute_path = os.path.join(day_path, mf)
+            try:
+                h5files = os.listdir(minute_path)
+            except:
+                continue
+            for x in h5files:
+                m = re.fullmatch('(\d\d\d\d\d\d\d\d\d)-.*\.h5', x)
+                rid = int(m.group(1))
+                if rid > r:
+                    r = rid
+    return r
 
-    def set(self, name, value):
-        if name in self.realtime_data.read:
-            self.realtime_data[name] = value
+
+_type_to_hdf5 = {
+    int: h5py.h5t.STD_I64BE,
+    float: h5py.h5t.IEEE_F64BE
+}
+
+def result_dict_to_hdf5(f, rd):
+    for name, data in rd.items():
+        if isinstance(data, list):
+            el_ty = type(data[0])
+            for d in data:
+                if type(d) != el_ty:
+                    raise TypeError("All list elements must have the same"
+                                    " type for HDF5 output")
+            try:
+                el_ty_h5 = _type_to_hdf5[el_ty]
+            except KeyError:
+                raise TypeError("List element type {} is not supported for"
+                                " HDF5 output".format(el_ty))
+            dataset = f.create_dataset(name, (len(data), ), el_ty_h5)
+            dataset[:] = data
+        elif isinstance(data, numpy.ndarray):
+            f.create_dataset(name, data=data)
         else:
-            self.data[name] = value
+            ty = type(data)
+            try:
+                ty_h5 = _type_to_hdf5[ty]
+            except KeyError:
+                raise TypeError("Type {} is not supported for HDF5 output"
+                                .format(ty))
+            dataset = f.create_dataset(name, (), ty_h5)
+            dataset[()] = data
+
+
+class ResultDB:
+    def __init__(self):
+        self.rt = Notifier(dict())
+        self.nrt = dict()
+
+    def get(self, key):
+        try:
+            return self.nrt[key]
+        except KeyError:
+            return self.rt[key].read
 
     def write_hdf5(self, f):
-        result_dict_to_hdf5(f, self.realtime_data.read)
-        result_dict_to_hdf5(f, self.data.read)
+        result_dict_to_hdf5(f, self.rt.read)
+        result_dict_to_hdf5(f, self.nrt)
 
 
-def create_device(desc, dbh):
+def create_device(desc, dmgr):
     ty = desc["type"]
     if ty == "local":
         module = importlib.import_module(desc["module"])
         device_class = getattr(module, desc["class"])
-        return device_class(dbh, **desc["arguments"])
+        return device_class(dmgr, **desc["arguments"])
     elif ty == "controller":
         if desc["best_effort"]:
             cl = BestEffortClient
@@ -81,30 +119,26 @@ def create_device(desc, dbh):
         raise ValueError("Unsupported type in device DB: " + ty)
 
 
-class DBHub:
-    """Connects device, parameter and result databases to experiment.
-    Handle device driver creation and destruction.
-    """
-    def __init__(self, ddb, pdb, rdb, read_only=False):
+class DeviceManager:
+    """Handles creation and destruction of local device drivers and controller
+    RPC clients."""
+    def __init__(self, ddb, virtual_devices=dict()):
         self.ddb = ddb
+        self.virtual_devices = virtual_devices
         self.active_devices = OrderedDict()
 
-        self.get_parameter = pdb.request
-
-        if not read_only:
-            self.set_parameter = pdb.set
-            self.add_rt_results = rdb.add_rt_results
-            self.get_result = rdb.request
-            self.set_result = rdb.set
-
-    def get_device(self, name):
+    def get(self, name):
+        """Get the device driver or controller client corresponding to a
+        device database entry."""
+        if name in self.virtual_devices:
+            return self.virtual_devices[name]
         if name in self.active_devices:
             return self.active_devices[name]
         else:
-            desc = self.ddb.request(name)
+            desc = self.ddb.get(name)
             while isinstance(desc, str):
                 # alias
-                desc = self.ddb.request(desc)
+                desc = self.ddb.get(desc)
             dev = create_device(desc, self)
             self.active_devices[name] = dev
             return dev

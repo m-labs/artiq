@@ -1,19 +1,19 @@
 from artiq import *
 
 
-class DDSTest(Experiment, AutoDB):
+class DDSTest(EnvExperiment):
     """DDS test"""
 
-    class DBKeys:
-        core = Device()
-        dds_bus = Device()
-        dds0 = Device()
-        dds1 = Device()
-        dds2 = Device()
-        ttl0 = Device()
-        ttl1 = Device()
-        ttl2 = Device()
-        led = Device()
+    def build(self):
+        self.attr_device("core")
+        self.attr_device("dds_bus")
+        self.attr_device("dds0")
+        self.attr_device("dds1")
+        self.attr_device("dds2")
+        self.attr_device("ttl0")
+        self.attr_device("ttl1")
+        self.attr_device("ttl2")
+        self.attr_device("led")
 
     @kernel
     def run(self):

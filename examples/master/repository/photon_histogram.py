@@ -1,29 +1,24 @@
 from artiq import *
 
 
-class PhotonHistogram(Experiment, AutoDB):
+class PhotonHistogram(EnvExperiment):
     """Photon histogram"""
 
-    class DBKeys:
-        core = Device()
-        dds_bus = Device()
-        bd_dds = Device()
-        bd_sw = Device()
-        bdd_dds = Device()
-        bdd_sw = Device()
-        pmt = Device()
+    def build(self):
+        self.attr_device("core")
+        self.attr_device("dds_bus")
+        self.attr_device("bd_dds")
+        self.attr_device("bd_sw")
+        self.attr_device("bdd_dds")
+        self.attr_device("bdd_sw")
+        self.attr_device("pmt")
 
-        nbins = Argument(100)
-        repeats = Argument(100)
+        self.attr_argument("nbins", FreeValue(100))
+        self.attr_argument("repeats", FreeValue(100))
 
-        cool_f = Parameter(230*MHz)
-        detect_f = Parameter(220*MHz)
-        detect_t = Parameter(100*us)
-
-        ion_present = Parameter(True)
-
-        hist = Result()
-        total = Result()
+        self.attr_parameter("cool_f", 230*MHz)
+        self.attr_parameter("detect_f", 220*MHz)
+        self.attr_parameter("detect_t", 100*us)
 
     @kernel
     def program_cooling(self):
@@ -65,9 +60,8 @@ class PhotonHistogram(Experiment, AutoDB):
             hist[n] += 1
             total += n
 
-        self.hist = hist
-        self.total = total
-        self.ion_present = total > 5*self.repeats
+        self.set_result("cooling_photon_histogram", hist)
+        self.set_parameter("ion_present", total > 5*self.repeats)
 
 
 if __name__ == "__main__":

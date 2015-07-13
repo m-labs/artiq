@@ -18,8 +18,10 @@ from artiq.gui.parameters import ParametersDock
 from artiq.gui.schedule import ScheduleDock
 from artiq.gui.log import LogDock
 
+
 data_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)),
                         "..", "gui")
+
 
 def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ GUI client")

@@ -6,18 +6,19 @@ from artiq.sim import devices as sim_devices
 from artiq.test.hardware_testbench import ExperimentCase
 
 
-def _run_on_host(k_class, **parameters):
-    coredev = sim_devices.Core()
-    k_inst = k_class(core=coredev, **parameters)
+def _run_on_host(k_class, **arguments):
+    dmgr = dict()
+    dmgr["core"] = sim_devices.Core(dmgr)
+    k_inst = k_class(dmgr, **arguments)
     k_inst.run()
     return k_inst
 
 
-class _Primes(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
-        output_list = Argument()
-        maximum = Argument()
+class _Primes(EnvExperiment):
+    def build(self):
+        self.attr_device("core")
+        self.attr_argument("output_list")
+        self.attr_argument("maximum")
 
     @kernel
     def run(self):
@@ -33,11 +34,10 @@ class _Primes(Experiment, AutoDB):
                 self.output_list.append(x)
 
 
-class _Misc(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
-
+class _Misc(EnvExperiment):
     def build(self):
+        self.attr_device("core")
+
         self.input = 84
         self.al = [1, 2, 3, 4, 5]
         self.list_copy_in = [2*Hz, 10*MHz]
@@ -52,11 +52,11 @@ class _Misc(Experiment, AutoDB):
         self.list_copy_out = self.list_copy_in
 
 
-class _PulseLogger(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
-        output_list = Argument()
-        name = Argument()
+class _PulseLogger(EnvExperiment):
+    def build(self):
+        self.attr_device("core")
+        self.attr_argument("output_list")
+        self.attr_argument("name")
 
     def _append(self, t, l, f):
         if not hasattr(self, "first_timestamp"):
@@ -79,14 +79,13 @@ class _PulseLogger(Experiment, AutoDB):
         self.off(now_mu())
 
 
-class _Pulses(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
-        output_list = Argument()
-
+class _Pulses(EnvExperiment):
     def build(self):
+        self.attr_device("core")
+        self.attr_argument("output_list")
+
         for name in "a", "b", "c", "d":
-            pl = _PulseLogger(core=self.core,
+            pl = _PulseLogger(*self.dbs(),
                               output_list=self.output_list,
                               name=name)
             setattr(self, name, pl)
@@ -107,10 +106,10 @@ class _MyException(Exception):
     pass
 
 
-class _Exceptions(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
-        trace = Argument()
+class _Exceptions(EnvExperiment):
+    def build(self):
+        self.attr_device("core")
+        self.attr_argument("trace")
 
     @kernel
     def run(self):
@@ -151,12 +150,11 @@ class _Exceptions(Experiment, AutoDB):
                 self.trace.append(104)
 
 
-class _RPCExceptions(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
-        catch = Argument(False)
-
+class _RPCExceptions(EnvExperiment):
     def build(self):
+        self.attr_device("core")
+        self.attr_argument("catch", FreeValue(False))
+
         self.success = False
 
     def exception_raiser(self):

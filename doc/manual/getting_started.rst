@@ -11,23 +11,23 @@ As a very first step, we will turn on a LED on the core device. Create a file ``
     from artiq import *
 
 
-    class LED(Experiment, AutoDB):
-        class DBKeys:
-            core = Device()
-            led = Device()
+    class LED(EnvExperiment):
+        def build(self):
+            self.attr_device("core")
+            self.attr_device("led")
 
         @kernel
         def run(self):
             self.led.on()
 
 
-The central part of our code is our ``LED`` class, that derives from :class:`artiq.language.db.AutoDB`. ``AutoDB`` is part of the mechanism that attaches device drivers and retrieves parameters according to a database. Our ``DBKeys`` class lists the devices (and parameters) that ``LED`` needs in order to operate, and the names of the attributes (e.g. ``led``) are used to search the database. ``AutoDB`` replaces them with the actual device drivers (and parameter values). Finally, the ``@kernel`` decorator tells the system that the ``run`` method must be executed on the core device (instead of the host).
+The central part of our code is our ``LED`` class, that derives from :class:`artiq.language.environment.EnvExperiment`. Among other features, ``EnvExperiment`` calls our ``build`` method and provides the ``attr_device`` method that interfaces to the device database to create the appropriate device drivers and make those drivers accessible as ``self.core`` and ``self.led``. The ``@kernel`` decorator tells the system that the ``run`` method must be executed on the core device (instead of the host). The decorator uses ``self.core`` internally, which is why we request the core device using ``attr_device`` like any other.
 
 Copy the files ``ddb.pyon`` and ``pdb.pyon`` (containing the device and parameter databases) from the ``examples`` folder of ARTIQ into the same directory as ``led.py`` (alternatively, you can use the ``-d`` and ``-p`` options of ``artiq_run.py``). You can open the database files using a text editor - their contents are in a human-readable format.
 
-Run your code using ``artiq_run.py``, which is part of the ARTIQ front-end tools: ::
+Run your code using ``artiq_run``, which is part of the ARTIQ front-end tools: ::
 
-    $ artiq_run.py led.py
+    $ artiq_run led.py
 
 The LED of the device should turn on. Congratulations! You have a basic ARTIQ system up and running.
 
@@ -41,10 +41,10 @@ Modify the code as follows: ::
     def input_led_state():
         return int(input("Enter desired LED state: "))
 
-    class LED(Experiment, AutoDB):
-        class DBKeys:
-            core = Device()
-            led = Device()
+    class LED(EnvExperiment):
+        def build(self):
+            self.attr_device("core")
+            self.attr_device("led")
 
         @kernel
         def run(self):
@@ -58,9 +58,9 @@ Modify the code as follows: ::
 
 You can then turn the LED off and on by entering 0 or 1 at the prompt that appears: ::
 
-    $ artiq_run.py led.py
+    $ artiq_run led.py
     Enter desired LED state: 1
-    $ artiq_run.py led.py
+    $ artiq_run led.py
     Enter desired LED state: 0
 
 What happens is the ARTIQ compiler notices that the ``input_led_state`` function does not have a ``@kernel`` decorator and thus must be executed on the host. When the core device calls it, it sends a request to the host to execute it. The host displays the prompt, collects user input, and sends the result back to the core device, which sets the LED state accordingly.
@@ -90,10 +90,10 @@ Create a new file ``rtio.py`` containing the following: ::
 
     from artiq import *
 
-    class Tutorial(Experiment, AutoDB):
-        class DBKeys:
-            core = Device()
-            ttl0 = Device()
+    class Tutorial(EnvExperiment):
+        def build(self):
+            self.attr_device("core")
+            self.attr_device("ttl0")
 
         @kernel
         def run(self):
@@ -113,10 +113,10 @@ Try reducing the period of the generated waveform until the CPU cannot keep up w
     def print_underflow():
         print("RTIO underflow occured")
 
-    class Tutorial(Experiment, AutoDB):
-        class DBKeys:
-            core = Device()
-            ttl0 = Device()
+    class Tutorial(EnvExperiment):
+        def build(self):
+            self.attr_device("core")
+            self.attr_device("ttl0")
 
         @kernel
         def run(self):

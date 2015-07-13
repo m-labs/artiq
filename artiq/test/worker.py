@@ -7,20 +7,26 @@ from artiq import *
 from artiq.master.worker import *
 
 
-class WatchdogNoTimeout(Experiment, AutoDB):
+class WatchdogNoTimeout(EnvExperiment):
+    def build(self):
+        pass
+
     def run(self):
         for i in range(10):
             with watchdog(0.5*s):
                 sleep(0.1)
 
 
-class WatchdogTimeout(Experiment, AutoDB):
+class WatchdogTimeout(EnvExperiment):
+    def build(self):
+        pass
+
     def run(self):
         with watchdog(0.1*s):
             sleep(100.0)
 
 
-class WatchdogTimeoutInBuild(Experiment, AutoDB):
+class WatchdogTimeoutInBuild(EnvExperiment):
     def build(self):
         with watchdog(0.1*s):
             sleep(100.0)

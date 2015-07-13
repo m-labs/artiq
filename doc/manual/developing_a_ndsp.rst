@@ -103,7 +103,7 @@ Run it as before, while the controller is running. You should see the message ap
     $ ./hello_controller.py
     message: Hello World!
 
-When using the driver in an experiment, for simple cases the ``Client`` instance can be returned by the :class:`artiq.language.db.AutoDB` mechanism and used normally as a device.
+When using the driver in an experiment, the ``Client`` instance can be returned by the environment mechanism (via the ``get_device`` and ``attr_device`` methods of :class:`artiq.language.environment.HasEnvironment`) and used normally as a device.
 
 :warning: RPC servers operate on copies of objects provided by the client, and modifications to mutable types are not written back. For example, if the client passes a list as a parameter of an RPC method, and that method ``append()s`` an element to the list, the element is not appended to the client's list.
 

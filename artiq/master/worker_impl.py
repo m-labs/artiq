@@ -3,9 +3,8 @@ import time
 
 from artiq.protocols import pyon
 from artiq.tools import file_import
-from artiq.master.worker_db import DBHub, ResultDB
-from artiq.master.results import get_hdf5_output
-from artiq.language.experiment import is_experiment
+from artiq.master.worker_db import DeviceManager, ResultDB, get_hdf5_output
+from artiq.language.environment import is_experiment
 from artiq.language.core import set_watchdog_factory
 
 
@@ -46,15 +45,14 @@ def make_parent_action(action, argnames, exception=ParentActionError):
 
 
 class ParentDDB:
-    request = make_parent_action("req_device", "name", KeyError)
+    get = make_parent_action("get_device", "name", KeyError)
 
 
 class ParentPDB:
-    request = make_parent_action("req_parameter", "name", KeyError)
+    get = make_parent_action("get_parameter", "name", KeyError)
     set = make_parent_action("set_parameter", "name value")
 
 
-init_rt_results = make_parent_action("init_rt_results", "description")
 update_rt_results = make_parent_action("update_rt_results", "mod")
 
 
@@ -82,7 +80,7 @@ class Scheduler:
         "pipeline_name expid priority due_date flush"))
     cancel = staticmethod(make_parent_action("scheduler_cancel", "rid"))
 
-    def __init__(self, pipeline_name, expid, priority):
+    def set_run_info(self, pipeline_name, expid, priority):
         self.pipeline_name = pipeline_name
         self.expid = expid
         self.priority = priority
@@ -110,8 +108,10 @@ def main():
     exp = None
     exp_inst = None
 
-    rdb = ResultDB(init_rt_results, update_rt_results)
-    dbh = DBHub(ParentDDB, ParentPDB, rdb)
+    dmgr = DeviceManager(ParentDDB,
+                         virtual_devices={"scheduler": Scheduler()})
+    rdb = ResultDB()
+    rdb.rt.publish = update_rt_results
 
     try:
         while True:
@@ -120,16 +120,12 @@ def main():
             if action == "build":
                 start_time = time.localtime()
                 rid = obj["rid"]
-                pipeline_name = obj["pipeline_name"]
                 expid = obj["expid"]
-                priority = obj["priority"]
                 exp = get_exp(expid["file"], expid["experiment"])
-                exp_inst = exp(dbh,
-                               scheduler=Scheduler(pipeline_name,
-                                                   expid,
-                                                   priority),
-                               **expid["arguments"])
-                rdb.build()
+                dmgr.virtual_devices["scheduler"].set_run_info(
+                    obj["pipeline_name"], expid, obj["priority"])
+                exp_inst = exp(dmgr, ParentPDB, rdb,
+                    **expid["arguments"])
                 put_object({"action": "completed"})
             elif action == "prepare":
                 exp_inst.prepare()
@@ -150,7 +146,7 @@ def main():
             elif action == "terminate":
                 break
     finally:
-        dbh.close_devices()
+        dmgr.close_devices()
 
 if __name__ == "__main__":
     main()

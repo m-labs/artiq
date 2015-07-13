@@ -1,5 +1,4 @@
 from artiq.language.core import *
-from artiq.language.db import *
 from artiq.language.units import *
 
 
@@ -23,14 +22,12 @@ class _BatchContextManager:
         self.dds_bus.batch_exit()
 
 
-class DDSBus(AutoDB):
+class DDSBus:
     """Core device Direct Digital Synthesis (DDS) bus batching driver.
 
     Manages batching of DDS commands on a DDS shared bus."""
-    class DBKeys:
-        core = Device()
-
-    def build(self):
+    def __init__(self, dmgr):
+        self.core = dmgr.get("core")
         self.batch = _BatchContextManager(self)
 
     @kernel
@@ -46,7 +43,7 @@ class DDSBus(AutoDB):
         syscall("dds_batch_exit")
 
 
-class _DDSGeneric(AutoDB):
+class _DDSGeneric:
     """Core device Direct Digital Synthesis (DDS) driver.
 
     Controls one DDS channel managed directly by the core device's runtime.
@@ -57,12 +54,10 @@ class _DDSGeneric(AutoDB):
     :param sysclk: DDS system frequency.
     :param channel: channel number of the DDS device to control.
     """
-    class DBKeys:
-        core = Device()
-        sysclk = Argument()
-        channel = Argument()
-
-    def build(self):
+    def __init__(self, dmgr, sysclk, channel):
+        self.core = dmgr.get("core")
+        self.sysclk = sysclk
+        self.channel = channel
         self.phase_mode = PHASE_MODE_CONTINUOUS
 
     @portable

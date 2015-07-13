@@ -3,16 +3,15 @@ import serial
 import struct
 
 from artiq.coredevice.comm_generic import CommGeneric
-from artiq.language.db import *
 
 
 logger = logging.getLogger(__name__)
 
 
-class Comm(CommGeneric, AutoDB):
-    class DBKeys:
-        serial_dev = Argument()
-        baud_rate = Argument(115200)
+class Comm(CommGeneric):
+    def __init__(self, dmgr, serial_dev, baud_rate=115200):
+        self.serial_dev = serial_dev
+        self.baud_rate = baud_rate
 
     def open(self):
         if hasattr(self, "port"):

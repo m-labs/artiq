@@ -1,15 +1,13 @@
 from artiq import *
 
 
-class SimpleSimulation(Experiment, AutoDB):
+class SimpleSimulation(EnvExperiment):
     """Simple simulation"""
 
-    class DBKeys:
-        core = Device()
-        a = Device()
-        b = Device()
-        c = Device()
-        d = Device()
+    def build(self):
+        self.attr_device("core")
+        for wo in "abcd":
+            self.attr_device(wo)
 
     @kernel
     def run(self):
@@ -23,16 +21,13 @@ class SimpleSimulation(Experiment, AutoDB):
 
 
 def main():
-    from artiq.sim import devices as sd
+    from artiq.sim import devices
 
-    core = sd.Core()
-    exp = SimpleSimulation(
-        core=core,
-        a=sd.WaveOutput(core=core, name="a"),
-        b=sd.WaveOutput(core=core, name="b"),
-        c=sd.WaveOutput(core=core, name="c"),
-        d=sd.WaveOutput(core=core, name="d"),
-    )
+    dmgr = dict()
+    dmgr["core"] = devices.Core(dmgr)
+    for wo in "abcd":
+        dmgr[wo] = devices.WaveOutput(dmgr, wo)
+    exp = SimpleSimulation(dmgr)
     exp.run()
 
 if __name__ == "__main__":

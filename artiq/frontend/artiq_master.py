@@ -6,10 +6,10 @@ import atexit
 import os
 
 from artiq.protocols.pc_rpc import Server
-from artiq.protocols.sync_struct import Publisher
+from artiq.protocols.sync_struct import Notifier, Publisher, process_mod
 from artiq.protocols.file_db import FlatFileDB
 from artiq.master.scheduler import Scheduler
-from artiq.master.results import RTResults, get_last_rid
+from artiq.master.worker_db import get_last_rid
 from artiq.master.repository import Repository
 from artiq.tools import verbosity_args, init_logger
 
@@ -36,7 +36,7 @@ def main():
     init_logger(args)
     ddb = FlatFileDB("ddb.pyon")
     pdb = FlatFileDB("pdb.pyon")
-    rtr = RTResults()
+    rtr = Notifier(dict())
     repository = Repository()
 
     if os.name == "nt":
@@ -47,11 +47,10 @@ def main():
     atexit.register(lambda: loop.close())
 
     worker_handlers = {
-        "req_device": ddb.request,
-        "req_parameter": pdb.request,
+        "get_device": ddb.get,
+        "get_parameter": pdb.get,
         "set_parameter": pdb.set,
-        "init_rt_results": rtr.init,
-        "update_rt_results": rtr.update,
+        "update_rt_results": lambda mod: process_mod(rtr, mod),
     }
     scheduler = Scheduler(get_last_rid() + 1, worker_handlers)
     worker_handlers["scheduler_submit"] = scheduler.submit
@@ -72,7 +71,7 @@ def main():
         "schedule": scheduler.notifier,
         "devices": ddb.data,
         "parameters": pdb.data,
-        "rt_results": rtr.groups,
+        "rt_results": rtr,
         "explist": repository.explist
     })
     loop.run_until_complete(server_notify.start(

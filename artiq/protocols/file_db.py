@@ -20,7 +20,7 @@ class FlatFileDB:
     def save(self):
         pyon.store_file(self.filename, self.data.read)
 
-    def request(self, name):
+    def get(self, name):
         return self.data.read[name]
 
     def set(self, name, value):

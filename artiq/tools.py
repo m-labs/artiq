@@ -7,7 +7,7 @@ import asyncio
 import time
 import os.path
 
-from artiq.language.experiment import is_experiment
+from artiq.language.environment import is_experiment
 from artiq.protocols import pyon
 
 

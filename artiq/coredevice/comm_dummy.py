@@ -1,6 +1,5 @@
 from operator import itemgetter
 
-from artiq.language.db import AutoDB
 from artiq.language.units import ms
 from artiq.coredevice.runtime import LinkInterface
 
@@ -13,7 +12,10 @@ class _RuntimeEnvironment(LinkInterface):
         return str(self.llvm_module)
 
 
-class Comm(AutoDB):
+class Comm:
+    def __init__(self, dmgr):
+        pass
+
     def get_runtime_env(self):
         return _RuntimeEnvironment()
 

@@ -2,16 +2,15 @@ import logging
 import socket
 
 from artiq.coredevice.comm_generic import CommGeneric
-from artiq.language.db import *
 
 
 logger = logging.getLogger(__name__)
 
 
-class Comm(CommGeneric, AutoDB):
-    class DBKeys:
-        host = Argument()
-        port = Argument(1381)
+class Comm(CommGeneric):
+    def __init__(self, dmgr, host, port=1381):
+        self.host = host
+        self.port = port
 
     def open(self):
         if hasattr(self, "socket"):
