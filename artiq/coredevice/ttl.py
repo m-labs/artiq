@@ -195,7 +195,7 @@ class TTLInOut:
         return count
 
     @kernel
-    def timestamp(self):
+    def timestamp_mu(self):
         """Poll the RTIO input and returns an event timestamp, according to
         the gating.
 

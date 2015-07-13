@@ -26,7 +26,7 @@ class RTT(EnvExperiment):
                 delay(1*us)
                 t0 = now_mu()
                 self.ttl_inout.pulse(1*us)
-        self.set_rtt(mu_to_seconds(self.ttl_inout.timestamp() - t0))
+        self.set_rtt(mu_to_seconds(self.ttl_inout.timestamp_mu() - t0))
 
 
 class Loopback(EnvExperiment):
@@ -48,7 +48,7 @@ class Loopback(EnvExperiment):
                 delay(1*us)
                 t0 = now_mu()
                 self.loop_out.pulse(1*us)
-        self.set_rtt(mu_to_seconds(self.loop_in.timestamp() - t0))
+        self.set_rtt(mu_to_seconds(self.loop_in.timestamp_mu() - t0))
 
 
 class ClockGeneratorLoopback(EnvExperiment):
