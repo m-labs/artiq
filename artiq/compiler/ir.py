@@ -331,4 +331,16 @@ class Function(Value):
         return "{} @{}".format(types.TypePrinter().name(self.type),
                                escape_name(self.name))
 
+    def __str__(self):
+        printer = types.TypePrinter()
+        lines = []
+        lines.append("{} {}({}) {{ ; type: {}".format(
+                        printer.name(self.type.ret), self.name,
+                        ", ".join([arg.as_operand() for arg in self.arguments]),
+                        printer.name(self.type)))
+        for block in self.basic_blocks:
+            lines.append(str(block))
+        lines.append("}")
+        return "\n".join(lines)
+
 # Python-specific SSA IR classes
