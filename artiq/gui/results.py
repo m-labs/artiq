@@ -41,7 +41,7 @@ class ResultsDock(dockarea.Dock):
         self.addWidget(grid)
 
         self.table = QtGui.QTableView()
-        self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
         grid.addWidget(self.table, 0, 0)
 
         add_display_box = QtGui.QGroupBox("Add display")
