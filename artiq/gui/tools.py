@@ -6,12 +6,28 @@ class _DictSyncSubstruct:
         self.update_cb = update_cb
         self.ref = ref
 
-    def __getitem__(self, key):
-        return _DictSyncSubstruct(self.update_cb, self.ref[key])
+    def append(self, x):
+        self.ref.append(x)
+        self.update_cb()
+
+    def insert(self, i, x):
+        self.ref.insert(i, x)
+        self.update_cb()
+
+    def pop(self, i=-1):
+        self.ref.pop(i)
+        self.update_cb()
 
     def __setitem__(self, key, value):
         self.ref[key] = value
         self.update_cb()
+
+    def __delitem__(self, key):
+        self.ref.__delitem__(key)
+        self.update_cb()
+
+    def __getitem__(self, key):
+        return _DictSyncSubstruct(self.update_cb, self.ref[key])
 
 
 class DictSyncModel(QtCore.QAbstractTableModel):
