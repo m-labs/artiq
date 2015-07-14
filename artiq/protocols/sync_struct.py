@@ -150,9 +150,7 @@ class Notifier:
     # All modifications must go through them!
 
     def append(self, x):
-        """Append to a list.
-
-        """
+        """Append to a list."""
         self._backing_struct.append(x)
         if self.root.publish is not None:
             self.root.publish({"action": "append",
@@ -160,9 +158,7 @@ class Notifier:
                                "x": x})
 
     def insert(self, i, x):
-        """Insert an element into a list.
-
-        """
+        """Insert an element into a list."""
         self._backing_struct.insert(i, x)
         if self.root.publish is not None:
             self.root.publish({"action": "insert",
@@ -172,9 +168,7 @@ class Notifier:
     def pop(self, i=-1):
         """Pop an element from a list. The returned element is not
         encapsulated in a ``Notifier`` and its mutations are no longer
-        tracked.
-
-        """
+        tracked."""
         r = self._backing_struct.pop(i)
         if self.root.publish is not None:
             self.root.publish({"action": "pop",
