@@ -383,6 +383,9 @@ class Branch(Terminator):
     def opcode(self):
         return "branch"
 
+    def target(self):
+        return self.operands[0]
+
 class BranchIf(Terminator):
     """
     A conditional branch instruction.
@@ -399,6 +402,15 @@ class BranchIf(Terminator):
     def opcode(self):
         return "branch_if"
 
+    def condition(self):
+        return self.operands[0]
+
+    def if_true(self):
+        return self.operands[1]
+
+    def if_false(self):
+        return self.operands[2]
+
 class Return(Terminator):
     """
     A return instruction.
@@ -412,6 +424,9 @@ class Return(Terminator):
 
     def opcode(self):
         return "return"
+
+    def value(self):
+        return self.operands[0]
 
 class Eval(Instruction):
     """
