@@ -14,6 +14,7 @@ from artiq.protocols.file_db import FlatFileDB
 from artiq.protocols.pc_rpc import AsyncioClient
 from artiq.gui.explorer import ExplorerDock
 from artiq.gui.moninj import MonInj
+from artiq.gui.results import ResultsDock
 from artiq.gui.parameters import ParametersDock
 from artiq.gui.schedule import ScheduleDock
 from artiq.gui.log import LogDock
@@ -70,12 +71,18 @@ def main():
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_explorer.sub_close()))
 
+    d_results = ResultsDock()
+    loop.run_until_complete(d_results.sub_connect(
+        args.server, args.port_notify))
+    atexit.register(lambda: loop.run_until_complete(d_results.sub_close()))
+
     d_ttl_dds = MonInj()
     loop.run_until_complete(d_ttl_dds.start(args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_ttl_dds.stop()))
     area.addDock(d_ttl_dds.dds_dock, "top")
     area.addDock(d_ttl_dds.ttl_dock, "above", d_ttl_dds.dds_dock)
-    area.addDock(d_explorer, "above", d_ttl_dds.ttl_dock)
+    area.addDock(d_results, "above", d_ttl_dds.ttl_dock)
+    area.addDock(d_explorer, "above", d_results)
 
     d_params = ParametersDock()
     area.addDock(d_params, "right", d_explorer)
