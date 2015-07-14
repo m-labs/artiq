@@ -183,7 +183,12 @@ class Inferencer(algorithm.Visitor):
 
     def _coerce_numeric(self, nodes, map_return=lambda typ: typ):
         # See https://docs.python.org/3/library/stdtypes.html#numeric-types-int-float-complex.
-        node_types = [node.type for node in nodes]
+        node_types = []
+        for node in nodes:
+            if isinstance(node, asttyped.CoerceT):
+                node_types.append(node.expr.type)
+            else:
+                node_types.append(node.type)
         if any(map(types.is_var, node_types)): # not enough info yet
             return
         elif not all(map(builtins.is_numeric, node_types)):

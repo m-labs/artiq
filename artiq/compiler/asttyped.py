@@ -4,7 +4,6 @@ typing information.
 """
 
 from pythonparser import ast
-from pythonparser.algorithm import Visitor as ASTVisitor
 
 class commontyped(ast.commonloc):
     """A mixin for typed AST nodes."""
