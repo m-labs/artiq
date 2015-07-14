@@ -167,7 +167,7 @@ class _DeviceManager:
                         self.send_to_device, channel, force_out, k)
                     self.ttl_cb()
                 if (v["module"] == "artiq.coredevice.dds"
-                        and v["class"] == "DDS"):
+                        and v["class"] in {"AD9858", "AD9914"}):
                     channel = v["arguments"]["channel"]
                     sysclk = v["arguments"]["sysclk"]
                     self.dds_widgets[channel] = _DDSWidget(
