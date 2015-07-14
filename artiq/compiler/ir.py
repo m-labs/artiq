@@ -8,7 +8,7 @@ from . import types, builtins
 # Generic SSA IR classes
 
 def escape_name(name):
-    if all([isalnum(x) or x == "." for x in name]):
+    if all([str.isalnum(x) or x == "." for x in name]):
         return name
     else:
         return "\"{}\"".format(name.replace("\"", "\\\""))
@@ -35,6 +35,24 @@ class Value:
     def replace_all_uses_with(self, value):
         for user in self.uses:
             user.replace_uses_of(self, value)
+
+class Constant(Value):
+    """
+    A constant value.
+
+    :ivar value: (None, True or False) value
+    """
+
+    def __init__(self, value, typ):
+        super().__init__(typ)
+        self.value = value
+
+    def as_operand(self):
+        return str(self)
+
+    def __str__(self):
+        return "{} {}".format(types.TypePrinter().name(self.type),
+                              repr(self.value))
 
 class NamedValue(Value):
     """
@@ -150,10 +168,10 @@ class Instruction(User):
                                         types.TypePrinter().name(self.type))
 
         if any(self.operands):
-            return "{} {} {}".format(prefix, self.opcode(),
+            return "{}{} {}".format(prefix, self.opcode(),
                 ", ".join([operand.as_operand() for operand in self.operands]))
         else:
-            return "{} {}".format(prefix, self.opcode())
+            return "{}{}".format(prefix, self.opcode())
 
 class Phi(Instruction):
     """
@@ -201,7 +219,7 @@ class Phi(Instruction):
         if any(self.operands):
             operand_list = ["%{} => %{}".format(escape_name(block.name), escape_name(value.name))
                             for operand in self.operands]
-            return "{} {} [{}]".format(prefix, self.opcode(), ", ".join(operand_list))
+            return "{}{} [{}]".format(prefix, self.opcode(), ", ".join(operand_list))
 
 class Terminator(Instruction):
     """
@@ -241,6 +259,7 @@ class BasicBlock(NamedValue):
     def append(self, insn):
         insn.set_basic_block(self)
         self.instructions.append(insn)
+        return insn
 
     def index(self, insn):
         return self.instructions.index(insn)
@@ -248,17 +267,22 @@ class BasicBlock(NamedValue):
     def insert(self, before, insn):
         insn.set_basic_block(self)
         self.instructions.insert(self.index(before), insn)
+        return insn
 
     def remove(self, insn):
         insn._detach()
         self.instructions.remove(insn)
+        return insn
 
     def replace(self, insn, replacement):
         self.insert(insn, replacement)
         self.remove(insn)
 
+    def is_terminated(self):
+        return any(self.instructions) and isinstance(self.instructions[-1], Terminator)
+
     def terminator(self):
-        assert isinstance(self.instructions[-1], Terminator)
+        assert self.is_terminated()
         return self.instructions[-1]
 
     def successors(self):
@@ -271,7 +295,7 @@ class BasicBlock(NamedValue):
     def __str__(self):
         lines = ["{}:".format(escape_name(self.name))]
         for insn in self.instructions:
-            lines.append(str(insn))
+            lines.append("  " + str(insn))
         return "\n".join(lines)
 
 class Argument(NamedValue):
@@ -290,7 +314,7 @@ class Function(Value):
     def __init__(self, typ, name, arguments):
         self.type, self.name = typ, name
         self.arguments = []
-        self.basic_blocks = set()
+        self.basic_blocks = []
         self.names = set()
         self.set_arguments(arguments)
 
@@ -318,14 +342,14 @@ class Function(Value):
 
     def add(self, basic_block):
         basic_block._set_function(self)
-        self.basic_blocks.add(basic_blocks)
+        self.basic_blocks.append(basic_block)
 
     def remove(self, basic_block):
         basic_block._detach()
         self.basic_block.remove(basic_block)
 
     def predecessors_of(self, successor):
-        return set(block for block in self.basic_blocks if successor in block.successors())
+        return [block for block in self.basic_blocks if successor in block.successors()]
 
     def as_operand(self):
         return "{} @{}".format(types.TypePrinter().name(self.type),
@@ -344,3 +368,65 @@ class Function(Value):
         return "\n".join(lines)
 
 # Python-specific SSA IR classes
+
+class Branch(Terminator):
+    """
+    An unconditional branch instruction.
+    """
+
+    """
+    :param target: (:class:`BasicBlock`) branch target
+    """
+    def __init__(self, target, name=""):
+        super().__init__([target], builtins.TNone(), name)
+
+    def opcode(self):
+        return "branch"
+
+class BranchIf(Terminator):
+    """
+    A conditional branch instruction.
+    """
+
+    """
+    :param cond: (:class:`Value`) branch condition
+    :param if_true: (:class:`BasicBlock`) branch target if expression is truthful
+    :param if_false: (:class:`BasicBlock`) branch target if expression is falseful
+    """
+    def __init__(self, cond, if_true, if_false, name=""):
+        super().__init__([cond, if_true, if_false], builtins.TNone(), name)
+
+    def opcode(self):
+        return "branch_if"
+
+class Return(Terminator):
+    """
+    A return instruction.
+    """
+
+    """
+    :param value: (:class:`Value`) return value
+    """
+    def __init__(self, value, name=""):
+        super().__init__([value], builtins.TNone(), name)
+
+    def opcode(self):
+        return "return"
+
+class Eval(Instruction):
+    """
+    An instruction that evaluates an AST fragment.
+    """
+
+    """
+    :param ast: (:class:`.asttyped.AST`) return value
+    """
+    def __init__(self, ast, name=""):
+        super().__init__([], ast.type, name)
+        self.ast = ast
+
+    def opcode(self):
+        return "eval"
+
+    def __str__(self):
+        return super().__str__() + " `{}`".format(self.ast.loc.source())
