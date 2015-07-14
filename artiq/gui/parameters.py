@@ -29,10 +29,8 @@ class ParametersDock(dockarea.Dock):
     def __init__(self):
         dockarea.Dock.__init__(self, "Parameters", size=(400, 300))
 
-        splitter = QtGui.QSplitter(QtCore.Qt.Horizontal)
-        self.addWidget(splitter)
         grid = LayoutWidget()
-        splitter.addWidget(grid)
+        self.addWidget(grid)
 
         self.search = QtGui.QLineEdit()
         self.search.setPlaceholderText("search...")
