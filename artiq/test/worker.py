@@ -46,10 +46,10 @@ def _call_worker(worker, expid):
         yield from worker.close()
 
 
-def _run_experiment(experiment):
+def _run_experiment(class_name):
     expid = {
         "file": sys.modules[__name__].__file__,
-        "experiment": experiment,
+        "class_name": class_name,
         "arguments": dict()
     }
     loop = asyncio.get_event_loop()

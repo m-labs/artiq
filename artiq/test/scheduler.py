@@ -28,7 +28,7 @@ class BackgroundExperiment(EnvExperiment):
 def _get_expid(name):
     return {
         "file": sys.modules[__name__].__file__,
-        "experiment": name,
+        "class_name": name,
         "arguments": dict()
     }
 

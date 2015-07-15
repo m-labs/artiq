@@ -13,7 +13,7 @@ class _ScheduleModel(DictSyncModel):
     def __init__(self, parent, init):
         DictSyncModel.__init__(self,
             ["RID", "Pipeline", "Status", "Prio", "Due date",
-             "File", "Experiment", "Arguments"],
+             "File", "Class name", "Arguments"],
             parent, init)
 
     def sort_key(self, k, v):
@@ -38,10 +38,10 @@ class _ScheduleModel(DictSyncModel):
         elif column == 5:
             return v["expid"]["file"]
         elif column == 6:
-            if v["expid"]["experiment"] is None:
+            if v["expid"]["class_name"] is None:
                 return ""
             else:
-                return v["expid"]["experiment"]
+                return v["expid"]["class_name"]
         elif column == 7:
             return format_arguments(v["expid"]["arguments"])
         else:

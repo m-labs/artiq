@@ -86,9 +86,9 @@ class Scheduler:
         self.priority = priority
 
 
-def get_exp(file, exp):
+def get_exp(file, class_name):
     module = file_import(file)
-    if exp is None:
+    if class_name is None:
         exps = [v for k, v in module.__dict__.items()
                 if is_experiment(v)]
         if len(exps) != 1:
@@ -96,7 +96,7 @@ def get_exp(file, exp):
                              .format(len(exps)))
         return exps[0]
     else:
-        return getattr(module, exp)
+        return getattr(module, class_name)
 
 
 register_experiment = make_parent_action("register_experiment",
@@ -154,7 +154,7 @@ def main():
                 start_time = time.localtime()
                 rid = obj["rid"]
                 expid = obj["expid"]
-                exp = get_exp(expid["file"], expid["experiment"])
+                exp = get_exp(expid["file"], expid["class_name"])
                 dmgr.virtual_devices["scheduler"].set_run_info(
                     obj["pipeline_name"], expid, obj["priority"])
                 exp_inst = exp(dmgr, ParentPDB, rdb,

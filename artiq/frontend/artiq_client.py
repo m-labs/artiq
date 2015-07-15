@@ -43,8 +43,8 @@ def get_argparser():
     parser_add.add_argument("-f", "--flush", default=False, action="store_true",
                             help="flush the pipeline before preparing "
                             "the experiment")
-    parser_add.add_argument("-e", "--experiment", default=None,
-                            help="experiment to run")
+    parser_add.add_argument("-c", "--class-name", default=None,
+                            help="name of the class to run")
     parser_add.add_argument("file",
                             help="file containing the experiment to run")
     parser_add.add_argument("arguments", nargs="*",
@@ -102,7 +102,7 @@ def _action_submit(remote, args):
 
     expid = {
         "file": args.file,
-        "experiment": args.experiment,
+        "class_name": args.class_name,
         "arguments": arguments,
     }
     if args.timed is None:
@@ -142,7 +142,7 @@ def _show_schedule(schedule):
                                   x[1]["due_date"] or 0,
                                   x[0]))
         table = PrettyTable(["RID", "Pipeline", "    Status    ", "Prio",
-                             "Due date", "File", "Experiment", "Arguments"])
+                             "Due date", "File", "Class name", "Arguments"])
         for rid, v in l:
             row = [rid, v["pipeline"], v["status"], v["priority"]]
             if v["due_date"] is None:
@@ -151,10 +151,10 @@ def _show_schedule(schedule):
                 row.append(time.strftime("%m/%d %H:%M:%S",
                            time.localtime(v["due_date"])))
             row.append(v["expid"]["file"])
-            if v["expid"]["experiment"] is None:
+            if v["expid"]["class_name"] is None:
                 row.append("")
             else:
-                row.append(v["expid"]["experiment"])
+                row.append(v["expid"]["class_name"])
             row.append(format_arguments(v["expid"]["arguments"]))
             table.add_row(row)
         print(table)

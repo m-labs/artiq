@@ -40,7 +40,7 @@ class ExperimentCase(unittest.TestCase):
     def execute(self, cls, **kwargs):
         expid = {
             "file": sys.modules[cls.__module__].__file__,
-            "experiment": cls.__name__,
+            "class_name": cls.__name__,
             "arguments": kwargs
         }
         self.dmgr.virtual_devices["scheduler"].expid = expid

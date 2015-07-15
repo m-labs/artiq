@@ -85,11 +85,11 @@ class ExplorerDock(dockarea.Dock):
         return self.explist_model
 
     @asyncio.coroutine
-    def submit(self, pipeline_name, file, experiment, arguments,
+    def submit(self, pipeline_name, file, class_name, arguments,
                priority, due_date, flush):
         expid = {
             "file": file,
-            "experiment": experiment,
+            "class_name": class_name,
             "arguments": arguments,
         }
         rid = yield from self.schedule_ctl.submit(pipeline_name, expid,
@@ -107,6 +107,6 @@ class ExplorerDock(dockarea.Dock):
             else:
                 due_date = None
             asyncio.async(self.submit(self.pipeline.text(),
-                                      expinfo["file"], expinfo["experiment"],
+                                      expinfo["file"], expinfo["class_name"],
                                       dict(), self.priority.value(), due_date,
                                       self.flush.isChecked()))
