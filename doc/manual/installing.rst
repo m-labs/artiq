@@ -289,7 +289,7 @@ Installing the host-side software
         $ cd ..
         $ mkdir build
         $ cd build
-        $ cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local/llvm-or1k -DLLVM_TARGETS_TO_BUILD=OR1K -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=ON
+        $ cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local/llvm-or1k -DLLVM_TARGETS_TO_BUILD="OR1K;X86" -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=ON
         $ make -j4
         $ sudo make install
 
