@@ -196,7 +196,7 @@ def _debug_dump_obj(obj):
     raise IOError
 
 
-class Environment(LinkInterface):
+class Runtime(LinkInterface):
     def __init__(self):
         self.cpu_type = "or1k"
         # allow 1ms for all initial DDS programming
@@ -209,4 +209,4 @@ class Environment(LinkInterface):
         return obj
 
     def __repr__(self):
-        return "<Environment {}>".format(self.cpu_type)
+        return "<Runtime {}>".format(self.cpu_type)

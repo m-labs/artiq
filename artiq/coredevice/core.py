@@ -13,7 +13,7 @@ from artiq.transforms.interleave import interleave
 from artiq.transforms.lower_time import lower_time
 from artiq.transforms.unparse import unparse
 
-from artiq.coredevice.runtime import Environment
+from artiq.coredevice.runtime import Runtime
 
 from artiq.py2llvm import get_runtime_binary
 
@@ -54,7 +54,7 @@ class Core:
         self.first_run = True
         self.core = self
         self.comm.core = self
-        self.runtime_env = Environment()
+        self.runtime = Runtime()
 
     def transform_stack(self, func_def, rpc_map, exception_map,
                         debug_unparse=_no_debug_unparse):
@@ -102,7 +102,7 @@ class Core:
         debug_unparse("inline", func_def)
         self.transform_stack(func_def, rpc_map, exception_map, debug_unparse)
 
-        binary = get_runtime_binary(self.runtime_env, func_def)
+        binary = get_runtime_binary(self.runtime, func_def)
 
         return binary, rpc_map, exception_map
 
