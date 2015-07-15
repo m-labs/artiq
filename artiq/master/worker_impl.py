@@ -99,6 +99,39 @@ def get_exp(file, exp):
         return getattr(module, exp)
 
 
+register_experiment = make_parent_action("register_experiment",
+                                         "class_name name arguments")
+
+
+class DummyDMGR:
+    def get(self, name):
+        return None
+
+
+class DummyPDB:
+    def get(self, name):
+        return None
+
+    def set(self, name, value):
+        pass
+
+
+def examine(dmgr, pdb, rdb, file):
+    module = file_import(file)
+    for class_name, exp_class in module.__dict__.items():
+        if is_experiment(exp_class):
+            if exp_class.__doc__ is None:
+                name = class_name
+            else:
+                name = exp_class.__doc__.splitlines()[0].strip()
+                if name[-1] == ".":
+                    name = name[:-1]
+            exp_inst = exp_class(dmgr, pdb, rdb)
+            arguments = {k: v.describe()
+                         for k, v in exp_inst.requested_args.items()}
+            register_experiment(class_name, name, arguments)
+
+
 def main():
     sys.stdout = sys.stderr
 
@@ -142,6 +175,9 @@ def main():
                     rdb.write_hdf5(f)
                 finally:
                     f.close()
+                put_object({"action": "completed"})
+            elif action == "examine":
+                examine(DummyDMGR(), DummyPDB(), ResultDB(), obj["file"])
                 put_object({"action": "completed"})
             elif action == "terminate":
                 break

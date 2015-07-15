@@ -26,7 +26,7 @@ class WorkerError(Exception):
 
 
 class Worker:
-    def __init__(self, handlers, send_timeout=0.5):
+    def __init__(self, handlers=dict(), send_timeout=0.5):
         self.handlers = handlers
         self.send_timeout = send_timeout
 
@@ -74,7 +74,7 @@ class Worker:
         worker process.
 
         This method should always be called by the user to clean up, even if
-        prepare() raises an exception."""
+        build() or examine() raises an exception."""
         self.closed.set()
         yield from self.io_lock.acquire()
         try:
@@ -83,10 +83,10 @@ class Worker:
                 logger.debug("worker was not created (RID %s)", self.rid)
                 return
             if self.process.returncode is not None:
-                logger.debug("worker already terminated (RID %d)", self.rid)
+                logger.debug("worker already terminated (RID %s)", self.rid)
                 if self.process.returncode != 0:
                     logger.warning("worker finished with status code %d"
-                                   " (RID %d)", self.process.returncode,
+                                   " (RID %s)", self.process.returncode,
                                    self.rid)
                 return
             obj = {"action": "terminate"}
@@ -94,7 +94,7 @@ class Worker:
                 yield from self._send(obj, cancellable=False)
             except:
                 logger.warning("failed to send terminate command to worker"
-                               " (RID %d), killing", self.rid, exc_info=True)
+                               " (RID %s), killing", self.rid, exc_info=True)
                 self.process.kill()
                 yield from asyncio_process_wait(self.process)
                 return
@@ -102,11 +102,11 @@ class Worker:
                 yield from asyncio_process_wait_timeout(self.process,
                                                         term_timeout)
             except asyncio.TimeoutError:
-                logger.warning("worker did not exit (RID %d), killing", self.rid)
+                logger.warning("worker did not exit (RID %s), killing", self.rid)
                 self.process.kill()
                 yield from asyncio_process_wait(self.process)
             else:
-                logger.debug("worker exited gracefully (RID %d)", self.rid)
+                logger.debug("worker exited gracefully (RID %s)", self.rid)
         finally:
             self.io_lock.release()
 
@@ -170,6 +170,8 @@ class Worker:
                 func = self.create_watchdog
             elif action == "delete_watchdog":
                 func = self.delete_watchdog
+            elif action == "register_experiment":
+                func = self.register_experiment
             else:
                 func = self.handlers[action]
             try:
@@ -245,3 +247,15 @@ class Worker:
     def write_results(self, timeout=15.0):
         yield from self._worker_action({"action": "write_results"},
                                        timeout)
+
+    @asyncio.coroutine
+    def examine(self, file, timeout=20.0):
+        yield from self._create_process()
+        r = dict()
+        def register(class_name, name, arguments):
+            r[class_name] = {"name": name, "arguments": arguments}
+        self.register_experiment = register
+        yield from self._worker_action({"action": "examine",
+                                        "file": file}, timeout)
+        del self.register_experiment
+        return r

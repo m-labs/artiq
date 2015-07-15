@@ -37,7 +37,6 @@ def main():
     ddb = FlatFileDB("ddb.pyon")
     pdb = FlatFileDB("pdb.pyon")
     rtr = Notifier(dict())
-    repository = Repository()
 
     if os.name == "nt":
         loop = asyncio.ProactorEventLoop()
@@ -61,11 +60,13 @@ def main():
         "master_ddb": ddb,
         "master_pdb": pdb,
         "master_schedule": scheduler,
-        "master_repository": repository,
     })
     loop.run_until_complete(server_control.start(
         args.bind, args.port_control))
     atexit.register(lambda: loop.run_until_complete(server_control.stop()))
+
+    repository = Repository()
+    loop.run_until_complete(repository.scan())
 
     server_notify = Publisher({
         "schedule": scheduler.notifier,
