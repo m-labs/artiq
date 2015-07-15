@@ -122,12 +122,20 @@ class _OutputManager(Module):
             sequence_error.eq(self.ev.timestamp < buf.timestamp[fine_ts_width:])
         ]
         if interface.suppress_nop:
-            self.sync.rsys += nop.eq(
-                optree("&", 
-                       [getattr(self.ev, a) == getattr(buf, a)
-                        for a in ("data", "address")
-                        if hasattr(self.ev, a)],
-                       default=0))
+            # disable NOP at reset: do not suppress a first write with all 0s
+            nop_en = Signal(reset=0)
+            self.sync.rsys += [
+                nop.eq(nop_en &
+                    optree("&",
+                           [getattr(self.ev, a) == getattr(buf, a)
+                            for a in ("data", "address")
+                            if hasattr(self.ev, a)],
+                           default=0)),
+                # buf now contains valid data. enable NOP.
+                If(self.we & ~sequence_error, nop_en.eq(1)),
+                # underflows cancel the write. allow it to be retried.
+                If(self.underflow, nop_en.eq(0))
+            ]
         self.comb += self.sequence_error.eq(self.we & sequence_error)
 
         # Buffer read and FIFO write
