@@ -652,12 +652,9 @@ class Inferencer(algorithm.Visitor):
 
     def visit_Assign(self, node):
         self.generic_visit(node)
-        if len(node.targets) > 1:
-            self._unify(types.TTuple([x.type for x in node.targets]), node.value.type,
-                        node.targets[0].loc.join(node.targets[-1].loc), node.value.loc)
-        else:
-            self._unify(node.targets[0].type, node.value.type,
-                        node.targets[0].loc, node.value.loc)
+        for target in node.targets:
+            self._unify(target.type, node.value.type,
+                        target.loc, node.value.loc)
 
     def visit_AugAssign(self, node):
         self.generic_visit(node)
