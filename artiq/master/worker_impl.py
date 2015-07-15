@@ -126,7 +126,7 @@ def examine(dmgr, pdb, rdb, file):
                 name = exp_class.__doc__.splitlines()[0].strip()
                 if name[-1] == ".":
                     name = name[:-1]
-            exp_inst = exp_class(dmgr, pdb, rdb)
+            exp_inst = exp_class(dmgr, pdb, rdb, default_arg_none=True)
             arguments = {k: v.describe()
                          for k, v in exp_inst.requested_args.items()}
             register_experiment(class_name, name, arguments)

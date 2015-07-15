@@ -10,12 +10,20 @@ class NoDefault:
     pass
 
 
+class DefaultMissing(Exception):
+    """Raised by the ``default`` method of argument processors when no default
+    value is available."""
+    pass
+
+
 class FreeValue:
     def __init__(self, default=NoDefault):
         if default is not NoDefault:
             self.default_value = default
 
     def default(self):
+        if not hasattr(self, "default_value"):
+            raise DefaultMissing
         return self.default_value
 
     def process(self, x):
@@ -32,13 +40,14 @@ class HasEnvironment:
     """Provides methods to manage the environment of an experiment (devices,
     parameters, results, arguments)."""
     def __init__(self, dmgr=None, pdb=None, rdb=None, *,
-                 param_override=dict(), **kwargs):
+                 param_override=dict(), default_arg_none=False, **kwargs):
         self.requested_args = dict()
 
         self.__dmgr = dmgr
         self.__pdb = pdb
         self.__rdb = rdb
         self.__param_override = param_override
+        self.__default_arg_none = default_arg_none
 
         self.__kwargs = kwargs
         self.__in_build = True
@@ -65,7 +74,13 @@ class HasEnvironment:
         try:
             argval = self.__kwargs[key]
         except KeyError:
-            return processor.default()
+            try:
+                return processor.default()
+            except DefaultMissing:
+                if self.__default_arg_none:
+                    return None
+                else:
+                    raise
         return processor.process(argval)
 
     def attr_argument(self, key, processor=None):
