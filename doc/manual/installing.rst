@@ -297,6 +297,8 @@ Installing the host-side software
         $ git clone https://github.com/numba/llvmlite
         $ cd llvmlite
         $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-add-all-targets.patch
+        $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-rename.patch
+        $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-build-as-debug-on-windows.patch
         $ PATH=/usr/local/llvm-or1k/bin:$PATH sudo -E python3 setup.py install
 
 .. note::
