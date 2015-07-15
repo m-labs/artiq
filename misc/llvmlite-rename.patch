@@ -1,0 +1,65 @@
+diff --git a/setup.py b/setup.py
+index 6d28265..f4edd29 100644
+--- a/setup.py
++++ b/setup.py
+@@ -15,10 +15,10 @@ from llvmlite.utils import get_library_files
+ import versioneer
+ 
+ versioneer.VCS = 'git'
+-versioneer.versionfile_source = 'llvmlite/_version.py'
+-versioneer.versionfile_build = 'llvmlite/_version.py'
++versioneer.versionfile_source = 'llvmlite_or1k/_version.py'
++versioneer.versionfile_build = 'llvmlite_or1k/_version.py'
+ versioneer.tag_prefix = 'v' # tags are like v1.2.0
+-versioneer.parentdir_prefix = 'llvmlite-' # dirname like 'myproject-1.2.0'
++versioneer.parentdir_prefix = 'llvmlite_or1k-' # dirname like 'myproject-1.2.0'
+ 
+ 
+ here_dir = os.path.dirname(__file__)
+@@ -54,7 +54,7 @@ class LlvmliteBuildExt(build_ext):
+         # HACK: this makes sure the library file (which is large) is only
+         # included in binary builds, not source builds.
+         self.distribution.package_data = {
+-            "llvmlite.binding": get_library_files(),
++            "llvmlite_or1k.binding": get_library_files(),
+         }
+ 
+ 
+@@ -63,7 +63,7 @@ class LlvmliteInstall(install):
+     # This seems to only be necessary on OSX.
+     def run(self):
+         self.distribution.package_data = {
+-            "llvmlite.binding": get_library_files(),
++            "llvmlite_or1k.binding": get_library_files(),
+         }
+         install.run(self)
+ 
+@@ -74,14 +74,14 @@ cmdclass.update({'build': LlvmliteBuild,
+                  })
+ 
+ 
+-packages = ['llvmlite',
+-            'llvmlite.binding',
+-            'llvmlite.ir',
+-            'llvmlite.llvmpy',
+-            'llvmlite.tests',
++packages = ['llvmlite_or1k',
++            'llvmlite_or1k.binding',
++            'llvmlite_or1k.ir',
++            'llvmlite_or1k.llvmpy',
++            'llvmlite_or1k.tests',
+             ]
+ 
+-setup(name='llvmlite',
++setup(name='llvmlite_or1k',
+       description="lightweight wrapper around basic LLVM functionality",
+       version=versioneer.get_version(),
+       classifiers=[
+@@ -96,6 +96,7 @@ setup(name='llvmlite',
+         "Topic :: Software Development :: Code Generators",
+         "Topic :: Software Development :: Compilers",
+       ],
++      package_dir={"llvmlite_or1k" : "llvmlite"},
+       # Include the separately-compiled shared library
+       author="Continuum Analytics, Inc.",
+       author_email="numba-users@continuum.io",
