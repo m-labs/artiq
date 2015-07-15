@@ -52,12 +52,8 @@ def _run_experiment(experiment):
         "experiment": experiment,
         "arguments": dict()
     }
-    handlers = {
-        "init_rt_results": lambda description: None
-    }
-
     loop = asyncio.get_event_loop()
-    worker = Worker(handlers)
+    worker = Worker()
     loop.run_until_complete(_call_worker(worker, expid))
 
 
