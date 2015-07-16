@@ -534,7 +534,20 @@ class Inferencer(algorithm.Visitor):
                 arg, = node.args
 
                 if builtins.is_iterable(arg.type):
-                    pass
+                    def makenotes(printer, typea, typeb, loca, locb):
+                        return [
+                            diagnostic.Diagnostic("note",
+                                "iterator returning elements of type {typea}",
+                                {"typea": printer.name(typea)},
+                                loca),
+                            diagnostic.Diagnostic("note",
+                                "iterator returning elements of type {typeb}",
+                                {"typeb": printer.name(typeb)},
+                                locb)
+                        ]
+                    self._unify(node.type.find().params["elt"],
+                                arg.type.find().params["elt"],
+                                node.loc, arg.loc, makenotes=makenotes)
                 elif types.is_var(arg.type):
                     pass # undetermined yet
                 else:
