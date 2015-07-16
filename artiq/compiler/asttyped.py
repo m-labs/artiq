@@ -36,6 +36,9 @@ class ExceptHandlerT(ast.ExceptHandler):
     _fields = ("filter", "name", "body") # rename ast.ExceptHandler.type
     _types = ("name_type",)
 
+class SliceT(ast.Slice, commontyped):
+    pass
+
 class AttributeT(ast.Attribute, commontyped):
     pass
 class BinOpT(ast.BinOp, commontyped):

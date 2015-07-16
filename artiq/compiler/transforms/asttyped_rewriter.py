@@ -276,6 +276,15 @@ class ASTTypedRewriter(algorithm.Transformer):
                                    dot_loc=node.dot_loc, attr_loc=node.attr_loc, loc=node.loc)
         return self.visit(node)
 
+    def visit_Slice(self, node):
+        node = self.generic_visit(node)
+        node = asttyped.SliceT(type=types.TVar(),
+                               lower=node.lower, upper=node.upper, step=node.step,
+                               bound_colon_loc=node.bound_colon_loc,
+                               step_colon_loc=node.step_colon_loc,
+                               loc=node.loc)
+        return self.visit(node)
+
     def visit_Subscript(self, node):
         node = self.generic_visit(node)
         node = asttyped.SubscriptT(type=types.TVar(),

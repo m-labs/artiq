@@ -119,10 +119,12 @@ class Inferencer(algorithm.Visitor):
             self._unify(value.type, builtins.TInt(),
                         value.loc, None)
 
-    def visit_Slice(self, node):
+    def visit_SliceT(self, node):
+        self._unify(node.type, builtins.TInt(),
+                    node.loc, None)
         for operand in (node.lower, node.upper, node.step):
             if operand is not None:
-                self._unify(operand.type, builtins.TInt(),
+                self._unify(operand.type, node.type,
                             operand.loc, None)
 
     def visit_ExtSlice(self, node):
