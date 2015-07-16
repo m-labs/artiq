@@ -432,7 +432,25 @@ class Inferencer(algorithm.Visitor):
                 node.func.loc, notes=valid_forms)
             self.engine.process(diag)
 
-        if types.is_builtin(typ, "bool"):
+        if types.is_exn_constructor(typ):
+            exns = {
+                "IndexError": builtins.TIndexError,
+                "ValueError": builtins.TValueError,
+            }
+            for exn in exns:
+                if types.is_exn_constructor(typ, exn):
+                    valid_forms = lambda: [
+                        valid_form("{exn}() -> {exn}".format(exn=exn))
+                    ]
+
+                    if len(node.args) == 0 and len(node.keywords) == 0:
+                        pass # False
+                    else:
+                        diagnose(valid_forms())
+
+                    self._unify(node.type, exns[exn](),
+                                node.loc, None)
+        elif types.is_builtin(typ, "bool"):
             valid_forms = lambda: [
                 valid_form("bool() -> bool"),
                 valid_form("bool(x:'a) -> bool")

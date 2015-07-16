@@ -43,8 +43,16 @@ class TRange(types.TMono):
         ])
 
 class TException(types.TMono):
+    def __init__(self, name="Exception"):
+        super().__init__(name)
+
+class TIndexError(types.TMono):
     def __init__(self):
-        super().__init__("Exception")
+        super().__init__("IndexError")
+
+class TValueError(types.TMono):
+    def __init__(self):
+        super().__init__("ValueError")
 
 def fn_bool():
     return types.TConstructor("bool")
@@ -60,6 +68,12 @@ def fn_list():
 
 def fn_Exception():
     return types.TExceptionConstructor("Exception")
+
+def fn_IndexError():
+    return types.TExceptionConstructor("IndexError")
+
+def fn_ValueError():
+    return types.TExceptionConstructor("ValueError")
 
 def fn_range():
     return types.TBuiltinFunction("range")

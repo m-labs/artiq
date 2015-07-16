@@ -13,6 +13,8 @@ def globals():
         "list":         builtins.fn_list(),
         "range":        builtins.fn_range(),
         "Exception":    builtins.fn_Exception(),
+        "IndexError":   builtins.fn_IndexError(),
+        "ValueError":   builtins.fn_ValueError(),
         "len":          builtins.fn_len(),
         "round":        builtins.fn_round(),
         "syscall":      builtins.fn_syscall(),
