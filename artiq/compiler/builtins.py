@@ -3,6 +3,7 @@ The :mod:`builtins` module contains the builtin Python
 and ARTIQ types, such as int or float.
 """
 
+from collections import OrderedDict
 from . import types
 
 # Types
@@ -15,15 +16,39 @@ class TBool(types.TMono):
     def __init__(self):
         super().__init__("bool")
 
+    @staticmethod
+    def zero():
+        return False
+
+    @staticmethod
+    def one():
+        return True
+
 class TInt(types.TMono):
     def __init__(self, width=None):
         if width is None:
             width = types.TVar()
         super().__init__("int", {"width": width})
 
+    @staticmethod
+    def zero():
+        return 0
+
+    @staticmethod
+    def one():
+        return 1
+
 class TFloat(types.TMono):
     def __init__(self):
         super().__init__("float")
+
+    @staticmethod
+    def zero():
+        return 0.0
+
+    @staticmethod
+    def one():
+        return 1.0
 
 class TList(types.TMono):
     def __init__(self, elt=None):
