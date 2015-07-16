@@ -42,6 +42,9 @@ setup(
     license="BSD",
     install_requires=requirements,
     extras_require={},
+    dependency_links=[
+        "git+https://github.com/pyqtgraph/pyqtgraph.git@a6d5e28#egg=pyqtgraph"
+    ],
     packages=find_packages(),
     namespace_packages=[],
     test_suite="artiq.test",
