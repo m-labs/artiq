@@ -186,17 +186,17 @@ class Inferencer(algorithm.Visitor):
 
     def visit_CoerceT(self, node):
         self.generic_visit(node)
-        if builtins.is_numeric(node.type) and builtins.is_numeric(node.expr.type):
+        if builtins.is_numeric(node.type) and builtins.is_numeric(node.value.type):
             pass
         else:
             printer = types.TypePrinter()
             note = diagnostic.Diagnostic("note",
                 "expression that required coercion to {typeb}",
                 {"typeb": printer.name(node.type)},
-                node.other_expr.loc)
+                node.other_value.loc)
             diag = diagnostic.Diagnostic("error",
                 "cannot coerce {typea} to {typeb}",
-                {"typea": printer.name(node.expr.type), "typeb": printer.name(node.type)},
+                {"typea": printer.name(node.value.type), "typeb": printer.name(node.type)},
                 node.loc, notes=[note])
             self.engine.process(diag)
 
@@ -205,9 +205,9 @@ class Inferencer(algorithm.Visitor):
             return coerced_node
         elif isinstance(coerced_node, asttyped.CoerceT):
             node = coerced_node
-            node.type, node.other_expr = typ, other_node
+            node.type, node.other_value = typ, other_node
         else:
-            node = asttyped.CoerceT(type=typ, expr=coerced_node, other_expr=other_node,
+            node = asttyped.CoerceT(type=typ, value=coerced_node, other_value=other_node,
                                     loc=coerced_node.loc)
         self.visit(node)
         return node
@@ -217,7 +217,7 @@ class Inferencer(algorithm.Visitor):
         node_types = []
         for node in nodes:
             if isinstance(node, asttyped.CoerceT):
-                node_types.append(node.expr.type)
+                node_types.append(node.value.type)
             else:
                 node_types.append(node.type)
         if any(map(types.is_var, node_types)): # not enough info yet

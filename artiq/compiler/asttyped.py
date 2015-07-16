@@ -92,4 +92,4 @@ class YieldFromT(ast.YieldFrom, commontyped):
 
 # Novel typed nodes
 class CoerceT(ast.expr, commontyped):
-    _fields = ('expr',) # other_expr deliberately not in _fields
+    _fields = ('value',) # other_value deliberately not in _fields
