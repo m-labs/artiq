@@ -120,19 +120,6 @@ def is_collection(typ):
     return isinstance(typ, types.TTuple) or \
         types.is_mono(typ, "list")
 
-def is_builtin(typ, name):
-    typ = typ.find()
-    return isinstance(typ, types.TBuiltin) and \
-        typ.name == name
-
-def is_exn_constructor(typ, name=None):
-    typ = typ.find()
-    if name is not None:
-        return isinstance(typ, types.TExceptionConstructor) and \
-            typ.name == name
-    else:
-        return isinstance(typ, types.TExceptionConstructor)
-
 def is_mutable(typ):
     return typ.fold(False, lambda accum, typ:
         is_list(typ) or types.is_function(typ))

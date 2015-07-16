@@ -322,8 +322,21 @@ def is_tuple(typ, elts=None):
 def is_function(typ):
     return isinstance(typ.find(), TFunction)
 
-def is_builtin(typ):
-    return isinstance(typ.find(), TBuiltin)
+def is_builtin(typ, name=None):
+    typ = typ.find()
+    if name is None:
+        return isinstance(typ, TBuiltin)
+    else:
+        return isinstance(typ, TBuiltin) and \
+            typ.name == name
+
+def is_exn_constructor(typ, name=None):
+    typ = typ.find()
+    if name is not None:
+        return isinstance(typ, TExceptionConstructor) and \
+            typ.name == name
+    else:
+        return isinstance(typ, TExceptionConstructor)
 
 def get_value(typ):
     typ = typ.find()

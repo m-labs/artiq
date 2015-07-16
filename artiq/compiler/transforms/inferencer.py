@@ -432,7 +432,7 @@ class Inferencer(algorithm.Visitor):
                 node.func.loc, notes=valid_forms)
             self.engine.process(diag)
 
-        if builtins.is_builtin(typ, "bool"):
+        if types.is_builtin(typ, "bool"):
             valid_forms = lambda: [
                 valid_form("bool() -> bool"),
                 valid_form("bool(x:'a) -> bool")
@@ -448,7 +448,7 @@ class Inferencer(algorithm.Visitor):
 
             self._unify(node.type, builtins.TBool(),
                         node.loc, None)
-        elif builtins.is_builtin(typ, "int"):
+        elif types.is_builtin(typ, "int"):
             valid_forms = lambda: [
                 valid_form("int() -> int(width='a)"),
                 valid_form("int(x:'a) -> int(width='b) where 'a is numeric"),
@@ -482,7 +482,7 @@ class Inferencer(algorithm.Visitor):
                             node.loc, None)
             else:
                 diagnose(valid_forms())
-        elif builtins.is_builtin(typ, "float"):
+        elif types.is_builtin(typ, "float"):
             valid_forms = lambda: [
                 valid_form("float() -> float"),
                 valid_form("float(x:'a) -> float where 'a is numeric")
@@ -501,7 +501,7 @@ class Inferencer(algorithm.Visitor):
                 pass
             else:
                 diagnose(valid_forms())
-        elif builtins.is_builtin(typ, "list"):
+        elif types.is_builtin(typ, "list"):
             valid_forms = lambda: [
                 valid_form("list() -> list(elt='a)"),
                 valid_form("list(x:'a) -> list(elt='b) where 'a is iterable")
@@ -530,7 +530,7 @@ class Inferencer(algorithm.Visitor):
                     self.engine.process(diag)
             else:
                 diagnose(valid_forms())
-        elif builtins.is_builtin(typ, "range"):
+        elif types.is_builtin(typ, "range"):
             valid_forms = lambda: [
                 valid_form("range(max:'a) -> range(elt='a)"),
                 valid_form("range(min:'a, max:'a) -> range(elt='a)"),
@@ -561,7 +561,7 @@ class Inferencer(algorithm.Visitor):
                         self.engine.process(diag)
             else:
                 diagnose(valid_forms())
-        elif builtins.is_builtin(typ, "len"):
+        elif types.is_builtin(typ, "len"):
             valid_forms = lambda: [
                 valid_form("len(x:'a) -> int(width='b) where 'a is iterable"),
             ]
@@ -588,7 +588,7 @@ class Inferencer(algorithm.Visitor):
                     self.engine.process(diag)
             else:
                 diagnose(valid_forms())
-        elif builtins.is_builtin(typ, "round"):
+        elif types.is_builtin(typ, "round"):
             valid_forms = lambda: [
                 valid_form("round(x:float) -> int(width='a)"),
             ]
@@ -604,7 +604,7 @@ class Inferencer(algorithm.Visitor):
             else:
                 diagnose(valid_forms())
         # TODO: add when it is clear what interface syscall() has
-        # elif builtins.is_builtin(typ, "syscall"):
+        # elif types.is_builtin(typ, "syscall"):
         #     valid_Forms = lambda: [
         #     ]
 
@@ -778,7 +778,7 @@ class Inferencer(algorithm.Visitor):
     def visit_ExceptHandlerT(self, node):
         self.generic_visit(node)
 
-        if not builtins.is_exn_constructor(node.filter.type):
+        if not types.is_exn_constructor(node.filter.type):
             diag = diagnostic.Diagnostic("error",
                 "this expression must refer to an exception constructor",
                 {"type": types.TypePrinter().name(node.filter.type)},
