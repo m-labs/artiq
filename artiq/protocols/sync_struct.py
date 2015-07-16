@@ -53,8 +53,8 @@ class Subscriber:
         Multiple functions can be specified in a list for the ``Subscriber``
         to update several local objects simultaneously.
     :param notify_cb: An optional function called every time a mod is received
-        from the publisher. The mod is passed as parameter.
-
+        from the publisher. The mod is passed as parameter. The function is
+        called after the mod has been processed.
     """
     def __init__(self, notifier_name, target_builder, notify_cb=None):
         self.notifier_name = notifier_name
