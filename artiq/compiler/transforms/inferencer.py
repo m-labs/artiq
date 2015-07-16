@@ -390,11 +390,23 @@ class Inferencer(algorithm.Visitor):
                     node.loc, None)
 
     def visit_ListCompT(self, node):
+        if len(node.generators) > 1:
+            diag = diagnostic.Diagnostic("error",
+                "multiple for clauses in comprehensions are not supported", {},
+                node.generators[1].for_loc)
+            self.engine.process(diag)
+
         self.generic_visit(node)
         self._unify(node.type, builtins.TList(node.elt.type),
                     node.loc, None)
 
     def visit_comprehension(self, node):
+        if any(node.ifs):
+            diag = diagnostic.Diagnostic("error",
+                "if clauses in comprehensions are not supported", {},
+                node.if_locs[0])
+            self.engine.process(diag)
+
         self.generic_visit(node)
         self._unify_iterable(element=node.target, collection=node.iter)
 

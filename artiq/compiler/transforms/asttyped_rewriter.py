@@ -57,6 +57,25 @@ class LocalExtractor(algorithm.Visitor):
         for if_ in node.ifs:
             self.visit(node.ifs)
 
+    def visit_generator(self, node):
+        if self.in_root:
+            return
+        self.in_root = True
+        self.visit(list(reversed(node.generators)))
+        self.visit(node.elt)
+
+    visit_ListComp     = visit_generator
+    visit_SetComp      = visit_generator
+    visit_GeneratorExp = visit_generator
+
+    def visit_DictComp(self, node):
+        if self.in_root:
+            return
+        self.in_root = True
+        self.visit(list(reversed(node.generators)))
+        self.visit(node.key)
+        self.visit(node.value)
+
     def visit_root(self, node):
         if self.in_root:
             return
@@ -66,10 +85,6 @@ class LocalExtractor(algorithm.Visitor):
     visit_Module       = visit_root # don't look at inner scopes
     visit_ClassDef     = visit_root
     visit_Lambda       = visit_root
-    visit_DictComp     = visit_root
-    visit_ListComp     = visit_root
-    visit_SetComp      = visit_root
-    visit_GeneratorExp = visit_root
 
     def visit_FunctionDef(self, node):
         if self.in_root:
