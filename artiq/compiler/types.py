@@ -4,6 +4,7 @@ in :mod:`asttyped`.
 """
 
 import string
+from collections import OrderedDict
 
 def genalnum():
     ident = ["a"]
@@ -80,7 +81,7 @@ class TMono(Type):
     unlike all other :class:`Type` descendants.
     """
 
-    attributes = {}
+    attributes = OrderedDict()
 
     def __init__(self, name, params={}):
         self.name, self.params = name, params
@@ -124,7 +125,7 @@ class TTuple(Type):
     :ivar elts: (list of :class:`Type`) elements
     """
 
-    attributes = {}
+    attributes = OrderedDict()
 
     def __init__(self, elts=[]):
         self.elts = elts
@@ -168,7 +169,7 @@ class TFunction(Type):
         return type
     """
 
-    attributes = {}
+    attributes = OrderedDict()
 
     def __init__(self, args, optargs, ret):
         self.args, self.optargs, self.ret = args, optargs, ret
@@ -220,7 +221,7 @@ class TBuiltin(Type):
 
     def __init__(self, name):
         self.name = name
-        self.attributes = {}
+        self.attributes = OrderedDict()
 
     def find(self):
         return self

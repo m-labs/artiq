@@ -36,6 +36,11 @@ class TRange(types.TMono):
         if elt is None:
             elt = types.TVar()
         super().__init__("range", {"elt": elt})
+        self.attributes = OrderedDict([
+            ("start", elt),
+            ("stop",  elt),
+            ("step",  elt),
+        ])
 
 class TException(types.TMono):
     def __init__(self):
