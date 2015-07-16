@@ -3,12 +3,12 @@
 import argparse
 import asyncio
 import atexit
+import os
 
 # Quamash must be imported first so that pyqtgraph picks up the Qt binding
 # it has chosen.
 from quamash import QEventLoop, QtGui
 from pyqtgraph import dockarea
-import os
 
 from artiq.protocols.file_db import FlatFileDB
 from artiq.protocols.pc_rpc import AsyncioClient
@@ -71,7 +71,7 @@ def main():
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_explorer.sub_close()))
 
-    d_results = ResultsDock()
+    d_results = ResultsDock(win, area)
     loop.run_until_complete(d_results.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_results.sub_close()))
