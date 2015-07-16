@@ -108,9 +108,38 @@ class Inferencer(algorithm.Visitor):
                 collection.loc, [])
             self.engine.process(diag)
 
+    def visit_Index(self, node):
+        value = node.value
+        if types.is_tuple(value.type):
+            diag = diagnostic.Diagnostic("error",
+                "multi-dimensional slices are not supported", {},
+                node.loc, [])
+            self.engine.process(diag)
+        else:
+            self._unify(value.type, builtins.TInt(),
+                        value.loc, None)
+
+    def visit_Slice(self, node):
+        for operand in (node.lower, node.upper, node.step):
+            if operand is not None:
+                self._unify(operand.type, builtins.TInt(),
+                            operand.loc, None)
+
+    def visit_ExtSlice(self, node):
+        diag = diagnostic.Diagnostic("error",
+            "multi-dimensional slices are not supported", {},
+            node.loc, [])
+        self.engine.process(diag)
+
     def visit_SubscriptT(self, node):
         self.generic_visit(node)
-        self._unify_iterable(element=node, collection=node.value)
+        if isinstance(node.slice, ast.Index):
+            self._unify_iterable(element=node, collection=node.value)
+        elif isinstance(node.slice, ast.Slice):
+            self._unify(node.type, node.value.type,
+                        node.loc, node.value.loc)
+        else: # ExtSlice
+            pass # error emitted above
 
     def visit_IfExpT(self, node):
         self.generic_visit(node)
