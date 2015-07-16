@@ -852,7 +852,7 @@ class Inferencer(algorithm.Visitor):
 
     def visit_arguments(self, node):
         self.generic_visit(node)
-        for arg, default in zip(node.args[len(node.defaults):], node.defaults):
+        for arg, default in zip(node.args[len(node.args) - len(node.defaults):], node.defaults):
             self._unify(arg.type, default.type,
                         arg.loc, default.loc)
 
