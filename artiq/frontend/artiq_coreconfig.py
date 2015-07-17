@@ -2,7 +2,7 @@
 
 import argparse
 
-from artiq.master.worker_db import create_device
+from artiq.master.worker_db import DeviceManager
 from artiq.protocols.file_db import FlatFileDB
 
 
@@ -44,26 +44,29 @@ def get_argparser():
 
 def main():
     args = get_argparser().parse_args()
-    ddb = FlatFileDB(args.ddb)
-    comm = create_device(ddb.request("comm"), None)
+    dmgr = DeviceManager(FlatFileDB(args.ddb))
+    try:
+        comm = dmgr.get("comm")
 
-    if args.action == "read":
-        value = comm.flash_storage_read(args.key)
-        if not value:
-            print("Key {} does not exist".format(args.key))
-        else:
-            print(value)
-    elif args.action == "erase":
-            comm.flash_storage_erase()
-    elif args.action == "delete":
-        for key in args.key:
-            comm.flash_storage_remove(key)
-    elif args.action == "write":
-        for key, value in args.string:
-            comm.flash_storage_write(key, value)
-        for key, filename in args.file:
-            with open(filename, "rb") as fi:
-                comm.flash_storage_write(key, fi.read())
+        if args.action == "read":
+            value = comm.flash_storage_read(args.key)
+            if not value:
+                print("Key {} does not exist".format(args.key))
+            else:
+                print(value)
+        elif args.action == "erase":
+                comm.flash_storage_erase()
+        elif args.action == "delete":
+            for key in args.key:
+                comm.flash_storage_remove(key)
+        elif args.action == "write":
+            for key, value in args.string:
+                comm.flash_storage_write(key, value)
+            for key, filename in args.file:
+                with open(filename, "rb") as fi:
+                    comm.flash_storage_write(key, fi.read())
+    finally:
+        dmgr.close_devices()
 
 if __name__ == "__main__":
     main()

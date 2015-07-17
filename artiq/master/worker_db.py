@@ -103,7 +103,7 @@ class ResultDB:
         result_dict_to_hdf5(f, self.nrt)
 
 
-def create_device(desc, dmgr):
+def _create_device(desc, dmgr):
     ty = desc["type"]
     if ty == "local":
         module = importlib.import_module(desc["module"])
@@ -139,7 +139,7 @@ class DeviceManager:
             while isinstance(desc, str):
                 # alias
                 desc = self.ddb.get(desc)
-            dev = create_device(desc, self)
+            dev = _create_device(desc, self)
             self.active_devices[name] = dev
             return dev
 
