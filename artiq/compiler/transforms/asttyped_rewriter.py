@@ -92,6 +92,7 @@ class LocalExtractor(algorithm.Visitor):
         self.visit_root(node)
 
     def _assignable(self, name):
+        assert name is not None
         if name not in self.typing_env and name not in self.nonlocal_:
             self.typing_env[name] = types.TVar()
 
@@ -177,7 +178,8 @@ class LocalExtractor(algorithm.Visitor):
 
     def visit_ExceptHandler(self, node):
         self.visit(node.type)
-        self._assignable(node.name)
+        if node.name is not None:
+            self._assignable(node.name)
         for stmt in node.body:
             self.visit(stmt)
 
@@ -383,8 +385,12 @@ class ASTTypedRewriter(algorithm.Transformer):
 
     def visit_ExceptHandler(self, node):
         node = self.generic_visit(node)
+        if node.name is not None:
+            name_type = self._find_name(node.name, node.name_loc)
+        else:
+            name_type = types.TVar()
         node = asttyped.ExceptHandlerT(
-            name_type=self._find_name(node.name, node.name_loc),
+            name_type=name_type,
             filter=node.type, name=node.name, body=node.body,
             except_loc=node.except_loc, as_loc=node.as_loc, name_loc=node.name_loc,
             colon_loc=node.colon_loc, loc=node.loc)
