@@ -66,7 +66,7 @@ def main():
     win.resize(1400, 800)
     win.setWindowTitle("ARTIQ")
 
-    d_explorer = ExplorerDock(status_bar, schedule_ctl)
+    d_explorer = ExplorerDock(win, status_bar, schedule_ctl)
     loop.run_until_complete(d_explorer.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_explorer.sub_close()))
