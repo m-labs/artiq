@@ -82,6 +82,9 @@ def get_argparser():
         "what",
         help="select object to show: schedule/devices/parameters")
 
+    parser_scan_repository = subparsers.add_parser(
+        "scan-repository", help="rescan repository")
+
     return parser
 
 
@@ -132,6 +135,10 @@ def _action_set_parameter(remote, args):
 
 def _action_del_parameter(remote, args):
     remote.delete(args.name)
+
+
+def _action_scan_repository(remote, args):
+    remote.scan_async()
 
 
 def _show_schedule(schedule):
@@ -228,6 +235,7 @@ def main():
             "del_device": "master_ddb",
             "set_parameter": "master_pdb",
             "del_parameter": "master_pdb",
+            "scan_repository": "master_repository"
         }[action]
         remote = Client(args.server, port, target_name)
         try:

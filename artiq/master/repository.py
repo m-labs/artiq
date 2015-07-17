@@ -54,8 +54,16 @@ def _sync_explist(target, source):
 class Repository:
     def __init__(self):
         self.explist = Notifier(dict())
+        self._scanning = False
 
     @asyncio.coroutine
     def scan(self):
+        if self._scanning:
+            return
+        self._scanning = True
         new_explist = yield from _scan_experiments()
         _sync_explist(self.explist, new_explist)
+        self._scanning = False
+
+    def scan_async(self):
+        asyncio.async(self.scan())

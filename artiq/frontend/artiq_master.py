@@ -56,17 +56,18 @@ def main():
     scheduler.start()
     atexit.register(lambda: loop.run_until_complete(scheduler.stop()))
 
+    repository = Repository()
+    repository.scan_async()
+
     server_control = Server({
         "master_ddb": ddb,
         "master_pdb": pdb,
         "master_schedule": scheduler,
+        "master_repository": repository
     })
     loop.run_until_complete(server_control.start(
         args.bind, args.port_control))
     atexit.register(lambda: loop.run_until_complete(server_control.stop()))
-
-    repository = Repository()
-    loop.run_until_complete(repository.scan())
 
     server_notify = Publisher({
         "schedule": scheduler.notifier,
