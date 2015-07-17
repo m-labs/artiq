@@ -268,9 +268,6 @@ class TExceptionConstructor(TBuiltin):
     Note that this is not the same as the type of an instance of
     the class, which is ``TMono("Exception", ...)``.
     """
-    def to_exception_type(self):
-        # Exceptions currently can't have type parameters
-        return TMono(self.name, {})
 
 class TValue(Type):
     """

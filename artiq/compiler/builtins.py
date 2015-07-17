@@ -71,11 +71,11 @@ class TException(types.TMono):
     def __init__(self, name="Exception"):
         super().__init__(name)
 
-class TIndexError(types.TMono):
+class TIndexError(TException):
     def __init__(self):
         super().__init__("IndexError")
 
-class TValueError(types.TMono):
+class TValueError(TException):
     def __init__(self):
         super().__init__("ValueError")
 
@@ -150,6 +150,9 @@ def is_range(typ, elt=None):
     else:
         return types.is_mono(typ, "range")
 
+def is_exception(typ):
+    return isinstance(typ.find(), TException)
+
 def is_iterable(typ):
     typ = typ.find()
     return isinstance(typ, types.TMono) and \
@@ -157,7 +160,7 @@ def is_iterable(typ):
 
 def get_iterable_elt(typ):
     if is_iterable(typ):
-        return typ.find()["elt"]
+        return typ.find()["elt"].find()
 
 def is_collection(typ):
     typ = typ.find()
