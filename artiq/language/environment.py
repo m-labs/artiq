@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from inspect import isclass
 
 
@@ -41,7 +42,7 @@ class HasEnvironment:
     parameters, results, arguments)."""
     def __init__(self, dmgr=None, pdb=None, rdb=None, *,
                  param_override=dict(), default_arg_none=False, **kwargs):
-        self.requested_args = dict()
+        self.requested_args = OrderedDict()
 
         self.__dmgr = dmgr
         self.__pdb = pdb
