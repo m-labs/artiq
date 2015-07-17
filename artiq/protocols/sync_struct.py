@@ -8,7 +8,6 @@ describing each modification made to the structure (*mods*).
 
 Structures must be PYON serializable and contain only lists, dicts, and
 immutable types. Lists and dicts can be nested arbitrarily.
-
 """
 
 import asyncio
@@ -23,9 +22,7 @@ _init_string = b"ARTIQ sync_struct\n"
 
 
 def process_mod(target, mod):
-    """Apply a *mod* to the target, mutating it.
-
-    """
+    """Apply a *mod* to the target, mutating it."""
     for key in mod["path"]:
         target = getitem(target, key)
     action = mod["action"]
@@ -134,7 +131,6 @@ class Notifier:
 
     :param backing_struct: Structure to encapsulate. For convenience, it
         also becomes available as the ``read`` property of the ``Notifier``.
-
     """
     def __init__(self, backing_struct, root=None, path=[]):
         self.read = backing_struct
@@ -203,7 +199,6 @@ class Publisher(AsyncioServer):
     :param notifiers: A dictionary containing the notifiers to associate with
         the ``Publisher``. The keys of the dictionary are the names of the
         notifiers to be used with ``Subscriber``.
-
     """
     def __init__(self, notifiers):
         AsyncioServer.__init__(self)
