@@ -60,12 +60,25 @@ class HasEnvironment:
         del self.__kwargs
 
     def build(self):
+        """Must be implemented by the user to request arguments.
+
+        Other initialization steps such as requesting devices and parameters
+        or initializing real-time results may also be performed here.
+
+        When the repository is scanned, any requested devices and parameters
+        are set to ``None``."""
         raise NotImplementedError
 
     def dbs(self):
         return self.__dmgr, self.__pdb, self.__rdb
 
     def get_argument(self, key, processor=None):
+        """Retrieves and returns the value of an argument.
+
+        :param key: Name of the argument.
+        :param processor: A description of how to process the argument, such
+            as instances of ``BooleanValue`` and ``NumberValue``.
+        """
         if not self.__in_build:
             raise TypeError("get_argument() should only "
                             "be called from build()")
@@ -85,17 +98,23 @@ class HasEnvironment:
         return processor.process(argval)
 
     def attr_argument(self, key, processor=None):
+        """Sets an argument as attribute. The names of the argument and of the
+        attribute are the same."""
         setattr(self, key, self.get_argument(key, processor))
 
     def get_device(self, key):
+        """Creates and returns a device driver."""
         if self.__dmgr is None:
             raise ValueError("Device manager not present")
         return self.__dmgr.get(key)
 
     def attr_device(self, key):
+        """Sets a device driver as attribute. The names of the device driver
+         and of the attribute are the same."""
         setattr(self, key, self.get_device(key))
 
     def get_parameter(self, key, default=NoDefault):
+        """Retrieves and returns a parameter."""
         if self.__pdb is None:
             raise ValueError("Parameter database not present")
         if key in self.__param_override:
@@ -109,14 +128,24 @@ class HasEnvironment:
                 raise
 
     def attr_parameter(self, key, default=NoDefault):
+        """Sets a parameter as attribute. The names of the argument and of the
+        parameter are the same."""
         setattr(self, key, self.get_parameter(key, default))
 
     def set_parameter(self, key, value):
+        """Writes the value of a parameter into the parameter database."""
         if self.__pdb is None:
             raise ValueError("Parameter database not present")
         self.__pdb.set(key, value)
 
     def set_result(self, key, value, realtime=False):
+        """Writes the value of a result.
+
+        :param realtime: Marks the result as real-time, making it immediately
+            available to clients such as the user interface. Returns a
+            ``Notifier`` instance that can be used to modify mutable results
+            (such as lists) and synchronize the modifications with the clients.
+        """
         if self.__rdb is None:
             raise ValueError("Result database not present")
         if realtime:
@@ -132,9 +161,17 @@ class HasEnvironment:
             self.__rdb.nrt[key] = value
 
     def attr_rtresult(self, key, init_value):
+        """Writes the value of a real-time result and sets the corresponding
+        ``Notifier`` as attribute. The names of the result and of the
+        attribute are the same."""
         setattr(self, key, set_result(key, init_value, True))
 
     def get_result(self, key):
+        """Retrieves the value of a result.
+
+        There is no difference between real-time and non-real-time results
+        (this function does not return ``Notifier`` instances).
+        """
         if self.__rdb is None:
             raise ValueError("Result database not present")
         return self.__rdb.get(key)
