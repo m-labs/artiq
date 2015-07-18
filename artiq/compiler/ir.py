@@ -426,6 +426,12 @@ class TEnvironment(types.TMono):
         else:
             assert False
 
+    def outermost(self):
+        if ".outer" in self.params:
+            return self.params[".outer"].outermost()
+        else:
+            return self
+
     """
     Add a new binding, ensuring hygiene.
 
@@ -487,7 +493,7 @@ class GetLocal(Instruction):
     :param var_name: (string) local variable name
     """
     def __init__(self, env, var_name, name=""):
-        assert isinstance(env, Alloc)
+        assert isinstance(env, Value)
         assert isinstance(env.type, TEnvironment)
         assert isinstance(var_name, str)
         super().__init__([env], env.type.type_of(var_name), name)
@@ -513,7 +519,7 @@ class SetLocal(Instruction):
     :param value: (:class:`Value`) value to assign
     """
     def __init__(self, env, var_name, value, name=""):
-        assert isinstance(env, Alloc)
+        assert isinstance(env, Value)
         assert isinstance(env.type, TEnvironment)
         assert isinstance(var_name, str)
         assert env.type.type_of(var_name) == value.type

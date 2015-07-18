@@ -151,7 +151,11 @@ class LocalExtractor(algorithm.Visitor):
                continue
 
             self.global_.add(name)
-            if name in self.env_stack[1]:
+            if len(self.env_stack) == 1:
+                self._assignable(name) # already in global scope
+            else:
+                if name not in self.env_stack[1]:
+                    self.env_stack[1][name] = types.TVar()
                 self.typing_env[name] = self.env_stack[1][name]
 
     def visit_Nonlocal(self, node):

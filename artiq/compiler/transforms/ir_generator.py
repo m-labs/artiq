@@ -35,6 +35,8 @@ class IRGenerator(algorithm.Visitor):
         source range of the node being currently visited
     :ivar current_function: (:class:`ir.Function` or None)
         module, def or lambda currently being translated
+    :ivar current_globals: (set of string)
+        set of variables that will be resolved in global scope
     :ivar current_block: (:class:`ir.BasicBlock`)
         basic block to which any new instruction will be appended
     :ivar current_env: (:class:`ir.Environment`)
@@ -65,6 +67,7 @@ class IRGenerator(algorithm.Visitor):
         self.name = [module_name]
         self.current_loc = None
         self.current_function = None
+        self.current_globals = set()
         self.current_block = None
         self.current_env = None
         self.current_private_env = None
@@ -179,7 +182,13 @@ class IRGenerator(algorithm.Visitor):
             entry = self.add_block()
             old_block, self.current_block = self.current_block, entry
 
-            env_type = ir.TEnvironment(node.typing_env, self.current_env.type)
+            old_globals, self.current_globals = self.current_globals, node.globals_in_scope
+
+            env_without_globals = \
+                {var: node.typing_env[var]
+                 for var in node.typing_env
+                  if var not in node.globals_in_scope}
+            env_type = ir.TEnvironment(env_without_globals, self.current_env.type)
             env = self.append(ir.Alloc([], env_type, name="env"))
             old_env, self.current_env = self.current_env, env
 
@@ -201,22 +210,25 @@ class IRGenerator(algorithm.Visitor):
             if is_lambda:
                 self.terminate(ir.Return(result))
             elif builtins.is_none(typ.ret):
-                self.terminate(ir.Return(ir.Constant(None, builtins.TNone())))
+                if not self.current_block.is_terminated():
+                    self.current_block.append(ir.Return(ir.Constant(None, builtins.TNone())))
             else:
-                self.terminate(ir.Unreachable())
+                if not self.current_block.is_terminated():
+                    self.current_block.append(ir.Unreachable())
 
             return func
         finally:
             self.name = old_name
             self.current_function = old_func
             self.current_block = old_block
+            self.current_globals = old_globals
             self.current_env = old_env
             if not is_lambda:
                 self.current_private_env = old_priv_env
 
     def visit_FunctionDefT(self, node):
         func = self.visit_function(node, is_lambda=False)
-        self.append(ir.SetLocal(self.current_env, node.name, func))
+        self._set_local(node.name, func)
 
     def visit_Return(self, node):
         if node.value is None:
@@ -465,7 +477,7 @@ class IRGenerator(algorithm.Visitor):
 
             if handler_node.name is not None:
                 exn = self.append(ir.Builtin("exncast", [landingpad], handler_node.name_type))
-                self.append(ir.SetLocal(self.current_env, handler_node.name, exn))
+                self._set_local(handler_node.name, exn)
             self.visit(handler_node.body)
 
         if any(node.finalbody):
@@ -545,12 +557,24 @@ class IRGenerator(algorithm.Visitor):
     def visit_NameConstantT(self, node):
         return ir.Constant(node.value, node.type)
 
+    def _env_for(self, name):
+        if name in self.current_globals:
+            return self.append(ir.Builtin("globalenv", [self.current_env],
+                                          self.current_env.type.outermost()))
+        else:
+            return self.current_env
+
+    def _get_local(self, name):
+        return self.append(ir.GetLocal(self._env_for(name), name, name="local." + name))
+
+    def _set_local(self, name, value):
+        self.append(ir.SetLocal(self._env_for(name), name, value))
+
     def visit_NameT(self, node):
         if self.current_assign is None:
-            return self.append(ir.GetLocal(self.current_env, node.id,
-                                           name="{}.{}".format(self.current_env.name, node.id)))
+            return self._get_local(node.id)
         else:
-            self.append(ir.SetLocal(self.current_env, node.id, self.current_assign))
+            return self._set_local(node.id, self.current_assign)
 
     def visit_AttributeT(self, node):
         try:
