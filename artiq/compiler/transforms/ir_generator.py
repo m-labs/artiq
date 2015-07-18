@@ -368,7 +368,7 @@ class IRGenerator(algorithm.Visitor):
             elt = self._iterable_get(iterable, phi)
             try:
                 self.current_assign = elt
-                self.visit(node.iter)
+                self.visit(node.target)
             finally:
                 self.current_assign = None
             self.visit(node.body)
