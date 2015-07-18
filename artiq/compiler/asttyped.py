@@ -18,7 +18,7 @@ class scoped(object):
     :ivar typing_env: (dict with string keys and :class:`.types.Type` values)
         map of variable names to variable types
     :ivar globals_in_scope: (set of string keys)
-        list of variables resolved as globals
+        set of variables resolved as globals
     """
 
 # Typed versions of untyped nodes

@@ -151,8 +151,8 @@ class LocalExtractor(algorithm.Visitor):
                continue
 
             self.global_.add(name)
-            self._assignable(name)
-            self.env_stack[1][name] = self.typing_env[name]
+            if name in self.env_stack[1]:
+                self.typing_env[name] = self.env_stack[1][name]
 
     def visit_Nonlocal(self, node):
         for name, loc in zip(node.names, node.name_locs):
