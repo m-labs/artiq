@@ -238,17 +238,22 @@ class IRGenerator(algorithm.Visitor):
         self.current_block = if_true
         self.visit(node.body)
 
-        if_false = self.add_block()
-        self.current_block = if_false
-        self.visit(node.orelse)
+        if any(node.orelse):
+            if_false = self.add_block()
+            self.current_block = if_false
+            self.visit(node.orelse)
 
         tail = self.add_block()
         self.current_block = tail
         if not if_true.is_terminated():
             if_true.append(ir.Branch(tail))
-        if not if_false.is_terminated():
-            if_false.append(ir.Branch(tail))
-        head.append(ir.BranchIf(cond, if_true, if_false))
+
+        if any(node.orelse):
+            if not if_false.is_terminated():
+                if_false.append(ir.Branch(tail))
+            head.append(ir.BranchIf(cond, if_true, if_false))
+        else:
+            head.append(ir.BranchIf(cond, if_true, tail))
 
     def visit_While(self, node):
         try:
