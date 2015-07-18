@@ -64,7 +64,7 @@ class NumberDisplay(dockarea.Dock):
         try:
             n = float(data[result])
         except:
-            n = 0.0
+            n = "---"
         self.number.display(n)
 
 
