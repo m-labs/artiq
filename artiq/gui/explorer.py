@@ -33,8 +33,67 @@ class _FreeValueEntry(QtGui.QLineEdit):
         return pyon.decode(self.text())
 
 
+class _BooleanEntry(QtGui.QCheckBox):
+    def __init__(self, procdesc):
+        QtGui.QCheckBox.__init__(self)
+        if "default" in procdesc:
+            self.setChecked(procdesc["default"])
+
+    def get_argument_value(self):
+        return self.isChecked()
+
+
+class _EnumerationEntry(QtGui.QComboBox):
+    def __init__(self, procdesc):
+        QtGui.QComboBox.__init__(self)
+        self.choices = procdesc["choices"]
+        self.addItems(self.choices)
+        if "default" in procdesc:
+            try:
+                idx = self.choices.index(procdesc["default"])
+            except:
+                pass
+            else:
+                self.setCurrentIndex(idx)
+
+    def get_argument_value(self):
+        return self.choices[self.currentIndex()]
+
+
+class _NumberEntry(QtGui.QDoubleSpinBox):
+    def __init__(self, procdesc):
+        QtGui.QDoubleSpinBox.__init__(self)
+        if procdesc["step"] is not None:
+            self.setSingleStep(procdesc["step"])
+        if procdesc["min"] is not None:
+            self.setMinimum(procdesc["min"])
+        if procdesc["max"] is not None:
+            self.setMinimum(procdesc["max"])
+        if procdesc["unit"]:
+            self.setSuffix(" " + procdesc["unit"])
+        if "default" in procdesc:
+            self.setValue(procdesc["default"])
+
+    def get_argument_value(self):
+        return self.value()
+
+
+class _StringEntry(QtGui.QLineEdit):
+    def __init__(self, procdesc):
+        QtGui.QLineEdit.__init__(self)
+        if "default" in procdesc:
+            self.insert(procdesc["default"])
+
+    def get_argument_value(self):
+        return self.text()
+
+
 _procty_to_entry = {
-    "FreeValue": _FreeValueEntry
+    "FreeValue": _FreeValueEntry,
+    "BooleanValue": _BooleanEntry,
+    "EnumerationValue": _EnumerationEntry,
+    "NumberValue": _NumberEntry,
+    "StringValue": _StringEntry
 }
 
 

@@ -2,7 +2,10 @@ from collections import OrderedDict
 from inspect import isclass
 
 
-__all__ = ["NoDefault", "FreeValue", "HasEnvironment",
+__all__ = ["NoDefault",
+           "FreeValue", "BooleanValue", "EnumerationValue",
+           "NumberValue", "StringValue",
+           "HasEnvironment",
            "Experiment", "EnvExperiment", "is_experiment"]
 
 
@@ -17,7 +20,7 @@ class DefaultMissing(Exception):
     pass
 
 
-class FreeValue:
+class _SimpleArgProcessor:
     def __init__(self, default=NoDefault):
         if default is not NoDefault:
             self.default_value = default
@@ -31,10 +34,70 @@ class FreeValue:
         return x
 
     def describe(self):
-        d = {"ty": "FreeValue"}
+        d = {"ty": self.__class__.__name__}
         if hasattr(self, "default_value"):
             d["default"] = self.default_value
         return d
+
+
+class FreeValue(_SimpleArgProcessor):
+    """An argument that can be an arbitrary Python value."""
+    pass
+
+
+class BooleanValue(_SimpleArgProcessor):
+    """A boolean argument."""
+    pass
+
+
+class EnumerationValue(_SimpleArgProcessor):
+    """An argument that can take a string value among a predefined set of
+    values.
+
+    :param choices: A list of string representing the possible values of the
+        argument.
+    """
+    def __init__(self, choices, default=NoDefault):
+        _SimpleArgProcessor.__init__(self, default)
+        assert default is NoDefault or default in choices
+        self.choices = choices
+
+    def describe(self):
+        d = _SimpleArgProcessor.describe(self)
+        d["choices"] = self.choices
+        return d
+
+
+class NumberValue(_SimpleArgProcessor):
+    """An argument that can take a numerical value (typically floating point).
+
+    :param unit: A string representing the unit of the value, for user
+        interface (UI) purposes.
+    :param step: The step with with the value should be modified by up/down
+        buttons in a UI.
+    :param min: The minimum value of the argument.
+    :param max: The maximum value of the argument.
+    """
+    def __init__(self, default=NoDefault, unit="", step=None,
+                 min=None, max=None):
+        _SimpleArgProcessor.__init__(self, default)
+        self.unit = unit
+        self.step = step
+        self.min = min
+        self.max = max
+
+    def describe(self):
+        d = _SimpleArgProcessor.describe(self)
+        d["unit"] = self.unit
+        d["step"] = self.step
+        d["min"] = self.min
+        d["max"] = self.max
+        return d
+
+
+class StringValue(_SimpleArgProcessor):
+    """A string argument."""
+    pass
 
 
 class HasEnvironment:
