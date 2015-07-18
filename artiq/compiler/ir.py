@@ -335,6 +335,9 @@ class BasicBlock(NamedValue):
 
         return "\n".join(lines)
 
+    def __repr__(self):
+        return "<BasicBlock '{}'>".format(self.name)
+
 class Argument(NamedValue):
     """
     A function argument.
@@ -383,6 +386,13 @@ class Function:
         basic_block._detach()
         self.basic_blocks.remove(basic_block)
 
+    def get_entry(self):
+        assert any(self.basic_blocks)
+        return self.basic_blocks[0]
+
+    def instructions(self):
+        for basic_block in self.basic_blocks:
+            yield from iter(basic_block.instructions)
 
     def __str__(self):
         printer = types.TypePrinter()
