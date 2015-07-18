@@ -303,8 +303,7 @@ class BasicBlock(NamedValue):
         return self.terminator().successors()
 
     def predecessors(self):
-        assert self.function is not None
-        return self.function.predecessors_of(self)
+        return [use.basic_block for use in self.uses if isinstance(use, Terminator)]
 
     def __str__(self):
         # Header
@@ -384,9 +383,6 @@ class Function:
         basic_block._detach()
         self.basic_blocks.remove(basic_block)
 
-    def predecessors_of(self, successor):
-        return [block for block in self.basic_blocks
-                       if block.is_terminated() and successor in block.successors()]
 
     def __str__(self):
         printer = types.TypePrinter()
