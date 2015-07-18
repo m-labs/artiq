@@ -131,7 +131,8 @@ class IRGenerator(algorithm.Visitor):
             env = self.append(ir.Alloc([], ir.TEnvironment(node.typing_env), name="env"))
             old_env, self.current_env = self.current_env, env
 
-            priv_env = self.append(ir.Alloc([], ir.TEnvironment({ ".return": typ.ret })))
+            priv_env = self.append(ir.Alloc([], ir.TEnvironment({ ".return": typ.ret }),
+                                            name="privenv"))
             old_priv_env, self.current_private_env = self.current_private_env, priv_env
 
             self.generic_visit(node)
@@ -193,7 +194,8 @@ class IRGenerator(algorithm.Visitor):
             old_env, self.current_env = self.current_env, env
 
             if not is_lambda:
-                priv_env = self.append(ir.Alloc([], ir.TEnvironment({ ".return": typ.ret })))
+                priv_env = self.append(ir.Alloc([], ir.TEnvironment({ ".return": typ.ret }),
+                                                name="privenv"))
                 old_priv_env, self.current_private_env = self.current_private_env, priv_env
 
             self.append(ir.SetLocal(env, ".outer", env_arg))
@@ -215,8 +217,6 @@ class IRGenerator(algorithm.Visitor):
             else:
                 if not self.current_block.is_terminated():
                     self.current_block.append(ir.Unreachable())
-
-            return func
         finally:
             self.name = old_name
             self.current_function = old_func
@@ -225,6 +225,8 @@ class IRGenerator(algorithm.Visitor):
             self.current_env = old_env
             if not is_lambda:
                 self.current_private_env = old_priv_env
+
+        return self.append(ir.Closure(func, self.current_env))
 
     def visit_FunctionDefT(self, node):
         func = self.visit_function(node, is_lambda=False)

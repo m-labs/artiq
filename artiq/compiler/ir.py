@@ -344,14 +344,13 @@ class Argument(NamedValue):
     def __str__(self):
         return self.as_operand()
 
-class Function(Value):
+class Function:
     """
     A function containing SSA IR.
     """
 
     def __init__(self, typ, name, arguments):
-        super().__init__(typ)
-        self.name = name
+        self.type, self.name = typ, name
         self.names, self.arguments, self.basic_blocks = set(), [], []
         self.set_arguments(arguments)
 
@@ -388,10 +387,6 @@ class Function(Value):
     def predecessors_of(self, successor):
         return [block for block in self.basic_blocks
                        if block.is_terminated() and successor in block.successors()]
-
-    def as_operand(self):
-        return "{} @{}".format(types.TypePrinter().name(self.type),
-                               escape_name(self.name))
 
     def __str__(self):
         printer = types.TypePrinter()
@@ -766,6 +761,30 @@ class Builtin(Instruction):
     def opcode(self):
         return "builtin({})".format(self.op)
 
+class Closure(Instruction):
+    """
+    A closure creation operation.
+
+    :ivar target_function: (:class:`Function`) function to invoke
+    """
+
+    """
+    :param func: (:class:`Function`) function
+    :param env: (:class:`Value`) outer environment
+    """
+    def __init__(self, func, env, name=""):
+        assert isinstance(func, Function)
+        assert isinstance(env, Value)
+        assert is_environment(env.type)
+        super().__init__([env], func.type, name)
+        self.target_function = func
+
+    def opcode(self):
+        return "closure({})".format(self.target_function.name)
+
+    def get_environment(self):
+        return self.operands[0]
+
 class Call(Instruction):
     """
     A function call operation.
@@ -776,7 +795,6 @@ class Call(Instruction):
     :param args: (list of :class:`Value`) function arguments
     """
     def __init__(self, func, args, name=""):
-        print(func)
         assert isinstance(func, Value)
         for arg in args: assert isinstance(arg, Value)
         super().__init__([func] + args, func.type.ret, name)
