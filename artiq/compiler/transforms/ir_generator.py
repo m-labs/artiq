@@ -16,6 +16,12 @@ def _readable_name(insn):
     else:
         return insn.name
 
+def _extract_loc(node):
+    if "keyword_loc" in node._locs:
+        return node.keyword_loc
+    else:
+        return node.loc
+
 # We put some effort in keeping generated IR readable,
 # i.e. with a more or less linear correspondence to the source.
 # This is why basic blocks sometimes seem to be produced in an odd order.
@@ -25,8 +31,10 @@ class IRGenerator(algorithm.Visitor):
     which is effectively maintained in a stack--with push/pop
     pairs around any state updates. It is comprised of following:
 
+    :ivar current_loc: (:class:`pythonparser.source.Range`)
+        source range of the node being currently visited
     :ivar current_function: (:class:`ir.Function` or None)
-        def or lambda currently being translated
+        module, def or lambda currently being translated
     :ivar current_block: (:class:`ir.BasicBlock`)
         basic block to which any new instruction will be appended
     :ivar current_env: (:class:`ir.Environment`)
@@ -55,6 +63,7 @@ class IRGenerator(algorithm.Visitor):
         self.engine = engine
         self.functions = []
         self.name = [module_name]
+        self.current_loc = None
         self.current_function = None
         self.current_block = None
         self.current_env = None
@@ -70,8 +79,15 @@ class IRGenerator(algorithm.Visitor):
         self.current_function.add(block)
         return block
 
-    def append(self, insn):
-        return self.current_block.append(insn)
+    def append(self, insn, block=None, loc=None):
+        if loc is None:
+            loc = self.current_loc
+        if block is None:
+            block = self.current_block
+
+        if insn.loc is None:
+            insn.loc = self.current_loc
+        return block.append(insn)
 
     def terminate(self, insn):
         if not self.current_block.is_terminated():
@@ -88,11 +104,18 @@ class IRGenerator(algorithm.Visitor):
                 if self.current_block.is_terminated():
                     break
         elif isinstance(obj, ast.AST):
-            return self._visit_one(obj)
+            try:
+                old_loc, self.current_loc = self.current_loc, _extract_loc(obj)
+                return self._visit_one(obj)
+            finally:
+                self.current_loc = old_loc
 
     # Module visitor
 
     def visit_ModuleT(self, node):
+        # Treat start of module as synthesized
+        self.current_loc = None
+
         try:
             typ = types.TFunction(OrderedDict(), OrderedDict(), builtins.TNone())
             func = ir.Function(typ, ".".join(self.name + ['__modinit__']), [])

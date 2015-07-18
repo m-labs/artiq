@@ -133,6 +133,7 @@ class Instruction(User):
         assert isinstance(typ, types.Type)
         super().__init__(operands, typ, name)
         self.basic_block = None
+        self.loc = None
 
     def set_basic_block(self, new_basic_block):
         self.basic_block = new_basic_block
@@ -306,12 +307,33 @@ class BasicBlock(NamedValue):
         return self.function.predecessors_of(self)
 
     def __str__(self):
+        # Header
         lines = ["{}:".format(escape_name(self.name))]
         if self.function is not None:
             lines[0] += " ; predecessors: {}".format(
                 ", ".join([escape_name(pred.name) for pred in self.predecessors()]))
+
+        # Annotated instructions
+        loc = None
         for insn in self.instructions:
+            if loc != insn.loc:
+                loc = insn.loc
+
+                if loc is None:
+                    lines.append("; <synthesized>")
+                else:
+                    source_lines = loc.source_lines()
+                    beg_col, end_col = loc.column(), loc.end().column()
+                    source_lines[-1] = \
+                        source_lines[-1][:end_col] + "`" + source_lines[-1][end_col:]
+                    source_lines[0] = \
+                        source_lines[0][:beg_col] + "`" + source_lines[0][beg_col:]
+
+                    line_desc = "{}:{}".format(loc.source_buffer.name, loc.line())
+                    lines += ["; {} {}".format(line_desc, line.rstrip("\n"))
+                              for line in source_lines]
             lines.append("  " + str(insn))
+
         return "\n".join(lines)
 
 class Argument(NamedValue):
