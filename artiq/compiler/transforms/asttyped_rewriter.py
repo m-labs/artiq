@@ -108,25 +108,12 @@ class LocalExtractor(algorithm.Visitor):
 
     def visit_Name(self, node):
         if self.in_assign:
-            # Code like:
+            # code like:
             # x = 1
             # def f():
             #   x = 1
             # creates a new binding for x in f's scope
             self._assignable(node.id)
-        else:
-            # This is duplicated here as well as below so that
-            # code like:
-            # x, y = y, x
-            # where y and x were not defined earlier would be invalid.
-            if node.id in self.typing_env:
-                return
-            for outer_env in reversed(self.env_stack):
-                if node.id in outer_env:
-                    return
-            diag = diagnostic.Diagnostic("fatal",
-                "name '{name}' is not bound to anything", {"name":node.id}, node.loc)
-            self.engine.process(diag)
 
     def visit_Attribute(self, node):
         self.visit_in_assign(node.value, in_assign=False)
