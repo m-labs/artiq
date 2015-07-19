@@ -138,7 +138,7 @@ class IRGenerator(algorithm.Visitor):
             self.generic_visit(node)
             self.terminate(ir.Return(ir.Constant(None, builtins.TNone())))
 
-            return func
+            return self.functions
         finally:
             self.current_function = old_func
             self.current_block = old_block
@@ -245,8 +245,18 @@ class IRGenerator(algorithm.Visitor):
             self.append(ir.Branch(self.return_target))
 
     def visit_Expr(self, node):
-        # ignore the value, do it for side effects
-        self.visit(node.value)
+        # Ignore the value, do it for side effects.
+        result = self.visit(node.value)
+
+        # See comment in visit_Pass.
+        if isinstance(result, ir.Constant):
+            self.visit_Pass(node)
+
+    def visit_Pass(self, node):
+        # Insert a dummy instruction so that analyses which extract
+        # locations from CFG have something to use.
+        self.append(ir.BinaryOp(ast.Add(loc=None),
+                                ir.Constant(0, self._size_type), ir.Constant(0, self._size_type)))
 
     def visit_Assign(self, node):
         try:
@@ -288,9 +298,9 @@ class IRGenerator(algorithm.Visitor):
         if any(node.orelse):
             if not if_false.is_terminated():
                 if_false.append(ir.Branch(tail))
-            head.append(ir.BranchIf(cond, if_true, if_false))
+            self.append(ir.BranchIf(cond, if_true, if_false), block=head)
         else:
-            head.append(ir.BranchIf(cond, if_true, tail))
+            self.append(ir.BranchIf(cond, if_true, tail), block=head)
 
     def visit_While(self, node):
         try:

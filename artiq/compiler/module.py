@@ -11,27 +11,28 @@ class Module:
         if engine is None:
             engine = diagnostic.Engine(all_errors_are_fatal=True)
 
-        module_name, _ = os.path.splitext(os.path.basename(source_buffer.name))
+        self.name, _ = os.path.splitext(os.path.basename(source_buffer.name))
 
         asttyped_rewriter = transforms.ASTTypedRewriter(engine=engine)
         inferencer = transforms.Inferencer(engine=engine)
         int_monomorphizer = transforms.IntMonomorphizer(engine=engine)
         monomorphism_validator = validators.MonomorphismValidator(engine=engine)
         escape_validator = validators.EscapeValidator(engine=engine)
-        ir_generator = transforms.IRGenerator(engine=engine, module_name=module_name)
+        ir_generator = transforms.IRGenerator(engine=engine, module_name=self.name)
+        dead_code_eliminator = transforms.DeadCodeEliminator(engine=engine)
+        local_access_validator = validators.LocalAccessValidator(engine=engine)
 
-        parsetree, comments = parse_buffer(source_buffer, engine=engine)
-        typedtree = asttyped_rewriter.visit(parsetree)
-        inferencer.visit(typedtree)
-        int_monomorphizer.visit(typedtree)
-        inferencer.visit(typedtree)
-        monomorphism_validator.visit(typedtree)
-        escape_validator.visit(typedtree)
-        ir_generator.visit(typedtree)
-
-        self.name = module_name
+        self.parsetree, self.comments = parse_buffer(source_buffer, engine=engine)
+        self.typedtree = asttyped_rewriter.visit(self.parsetree)
         self.globals = asttyped_rewriter.globals
-        self.ir = ir_generator.functions
+        inferencer.visit(self.typedtree)
+        int_monomorphizer.visit(self.typedtree)
+        inferencer.visit(self.typedtree)
+        monomorphism_validator.visit(self.typedtree)
+        escape_validator.visit(self.typedtree)
+        self.ir = ir_generator.visit(self.typedtree)
+        dead_code_eliminator.process(self.ir)
+        local_access_validator.process(self.ir)
 
     @classmethod
     def from_string(cls, source_string, name="input.py", first_line=1, engine=None):

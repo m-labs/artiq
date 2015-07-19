@@ -395,6 +395,9 @@ class Function:
         assert any(self.basic_blocks)
         return self.basic_blocks[0]
 
+    def exits(self):
+        return [block for block in self.basic_blocks if not any(block.successors())]
+
     def instructions(self):
         for basic_block in self.basic_blocks:
             yield from iter(basic_block.instructions)
@@ -508,7 +511,7 @@ class GetLocal(Instruction):
     def opcode(self):
         return "getlocal({})".format(self.var_name)
 
-    def get_env(self):
+    def environment(self):
         return self.operands[0]
 
 class SetLocal(Instruction):
@@ -536,10 +539,10 @@ class SetLocal(Instruction):
     def opcode(self):
         return "setlocal({})".format(self.var_name)
 
-    def get_env(self):
+    def environment(self):
         return self.operands[0]
 
-    def get_value(self):
+    def value(self):
         return self.operands[1]
 
 class GetAttr(Instruction):
@@ -568,7 +571,7 @@ class GetAttr(Instruction):
     def opcode(self):
         return "getattr({})".format(repr(self.attr))
 
-    def get_env(self):
+    def env(self):
         return self.operands[0]
 
 class SetAttr(Instruction):
@@ -597,10 +600,10 @@ class SetAttr(Instruction):
     def opcode(self):
         return "setattr({})".format(repr(self.attr))
 
-    def get_env(self):
+    def env(self):
         return self.operands[0]
 
-    def get_value(self):
+    def value(self):
         return self.operands[1]
 
 class GetElem(Instruction):
@@ -620,10 +623,10 @@ class GetElem(Instruction):
     def opcode(self):
         return "getelem"
 
-    def get_list(self):
+    def list(self):
         return self.operands[0]
 
-    def get_index(self):
+    def index(self):
         return self.operands[1]
 
 class SetElem(Instruction):
@@ -646,13 +649,13 @@ class SetElem(Instruction):
     def opcode(self):
         return "setelem"
 
-    def get_list(self):
+    def list(self):
         return self.operands[0]
 
-    def get_index(self):
+    def index(self):
         return self.operands[1]
 
-    def get_value(self):
+    def value(self):
         return self.operands[2]
 
 class UnaryOp(Instruction):
@@ -675,7 +678,7 @@ class UnaryOp(Instruction):
     def opcode(self):
         return "unaryop({})".format(type(self.op).__name__)
 
-    def get_operand(self):
+    def operand(self):
         return self.operands[0]
 
 class Coerce(Instruction):
@@ -691,7 +694,7 @@ class Coerce(Instruction):
     def opcode(self):
         return "coerce"
 
-    def get_value(self):
+    def value(self):
         return self.operands[0]
 
 class BinaryOp(Instruction):
@@ -717,10 +720,10 @@ class BinaryOp(Instruction):
     def opcode(self):
         return "binaryop({})".format(type(self.op).__name__)
 
-    def get_lhs(self):
+    def lhs(self):
         return self.operands[0]
 
-    def get_rhs(self):
+    def rhs(self):
         return self.operands[1]
 
 class Compare(Instruction):
@@ -746,10 +749,10 @@ class Compare(Instruction):
     def opcode(self):
         return "compare({})".format(type(self.op).__name__)
 
-    def get_lhs(self):
+    def lhs(self):
         return self.operands[0]
 
-    def get_rhs(self):
+    def rhs(self):
         return self.operands[1]
 
 class Builtin(Instruction):
@@ -793,7 +796,7 @@ class Closure(Instruction):
     def opcode(self):
         return "closure({})".format(self.target_function.name)
 
-    def get_environment(self):
+    def environment(self):
         return self.operands[0]
 
 class Call(Instruction):
@@ -813,10 +816,10 @@ class Call(Instruction):
     def opcode(self):
         return "call"
 
-    def get_function(self):
+    def function(self):
         return self.operands[0]
 
-    def get_arguments(self):
+    def arguments(self):
         return self.operands[1:]
 
 class Select(Instruction):
@@ -839,13 +842,13 @@ class Select(Instruction):
     def opcode(self):
         return "select"
 
-    def get_condition(self):
+    def condition(self):
         return self.operands[0]
 
-    def get_if_true(self):
+    def if_true(self):
         return self.operands[1]
 
-    def get_if_false(self):
+    def if_false(self):
         return self.operands[2]
 
 class Branch(Terminator):
@@ -863,7 +866,7 @@ class Branch(Terminator):
     def opcode(self):
         return "branch"
 
-    def get_target(self):
+    def target(self):
         return self.operands[0]
 
 class BranchIf(Terminator):
@@ -885,13 +888,13 @@ class BranchIf(Terminator):
     def opcode(self):
         return "branchif"
 
-    def get_condition(self):
+    def condition(self):
         return self.operands[0]
 
-    def get_if_true(self):
+    def if_true(self):
         return self.operands[1]
 
-    def get_if_false(self):
+    def if_false(self):
         return self.operands[2]
 
 class IndirectBranch(Terminator):
@@ -911,10 +914,10 @@ class IndirectBranch(Terminator):
     def opcode(self):
         return "indirectbranch"
 
-    def get_target(self):
+    def target(self):
         return self.operands[0]
 
-    def get_destinations(self):
+    def destinations(self):
         return self.operands[1:]
 
     def add_destination(self, destination):
@@ -939,7 +942,7 @@ class Return(Terminator):
     def opcode(self):
         return "return"
 
-    def get_value(self):
+    def value(self):
         return self.operands[0]
 
 class Unreachable(Terminator):
@@ -971,7 +974,7 @@ class Raise(Terminator):
     def opcode(self):
         return "raise"
 
-    def get_value(self):
+    def value(self):
         return self.operands[0]
 
 class Invoke(Terminator):
@@ -995,16 +998,16 @@ class Invoke(Terminator):
     def opcode(self):
         return "invoke"
 
-    def get_function(self):
+    def function(self):
         return self.operands[0]
 
-    def get_arguments(self):
+    def arguments(self):
         return self.operands[1:-2]
 
-    def get_normal_target(self):
+    def normal_target(self):
         return self.operands[-2]
 
-    def get_exception_target(self):
+    def exception_target(self):
         return self.operands[-1]
 
     def _operands_as_string(self):
