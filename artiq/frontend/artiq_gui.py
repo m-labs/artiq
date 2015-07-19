@@ -41,6 +41,17 @@ def get_argparser():
     return parser
 
 
+class _MainWindow(QtGui.QMainWindow):
+    def __init__(self, app):
+        QtGui.QMainWindow.__init__(self)
+        self.setWindowIcon(QtGui.QIcon(os.path.join(data_dir, "icon.png")))
+        self.resize(1400, 800)
+        self.setWindowTitle("ARTIQ")
+        self.exit_request = asyncio.Event()
+
+    def closeEvent(self, *args):
+        self.exit_request.set()
+
 def main():
     args = get_argparser().parse_args()
 
@@ -56,15 +67,12 @@ def main():
         args.server, args.port_control, "master_schedule"))
     atexit.register(lambda: schedule_ctl.close_rpc())
 
-    win = QtGui.QMainWindow()
-    win.setWindowIcon(QtGui.QIcon(os.path.join(data_dir, "icon.png")))
+    win = _MainWindow(app)
     area = dockarea.DockArea()
     win.setCentralWidget(area)
     status_bar = QtGui.QStatusBar()
     status_bar.showMessage("Connected to {}".format(args.server))
     win.setStatusBar(status_bar)
-    win.resize(1400, 800)
-    win.setWindowTitle("ARTIQ")
 
     d_explorer = ExplorerDock(win, status_bar, schedule_ctl)
     loop.run_until_complete(d_explorer.sub_connect(
@@ -101,7 +109,7 @@ def main():
     area.addDock(d_schedule, "above", d_log)
 
     win.show()
-    loop.run_forever()
+    loop.run_until_complete(win.exit_request.wait())
 
 if __name__ == "__main__":
     main()
