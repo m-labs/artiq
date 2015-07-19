@@ -658,29 +658,6 @@ class SetElem(Instruction):
     def value(self):
         return self.operands[2]
 
-class UnaryOp(Instruction):
-    """
-    An unary operation on numbers.
-
-    :ivar op: (:class:`pythonparser.ast.unaryop`) operation
-    """
-
-    """
-    :param op: (:class:`pythonparser.ast.unaryop`) operation
-    :param operand: (:class:`Value`) operand
-    """
-    def __init__(self, op, operand, name=""):
-        assert isinstance(op, ast.unaryop)
-        assert isinstance(operand, Value)
-        super().__init__([operand], operand.type, name)
-        self.op = op
-
-    def opcode(self):
-        return "unaryop({})".format(type(self.op).__name__)
-
-    def operand(self):
-        return self.operands[0]
-
 class Coerce(Instruction):
     """
     A coercion operation for numbers.
@@ -697,11 +674,11 @@ class Coerce(Instruction):
     def value(self):
         return self.operands[0]
 
-class BinaryOp(Instruction):
+class Arith(Instruction):
     """
-    A binary operation on numbers.
+    An arithmetic operation on numbers.
 
-    :ivar op: (:class:`pythonparser.ast.unaryop`) operation
+    :ivar op: (:class:`pythonparser.ast.operator`) operation
     """
 
     """
@@ -718,7 +695,7 @@ class BinaryOp(Instruction):
         self.op = op
 
     def opcode(self):
-        return "binaryop({})".format(type(self.op).__name__)
+        return "arith({})".format(type(self.op).__name__)
 
     def lhs(self):
         return self.operands[0]

@@ -255,8 +255,8 @@ class IRGenerator(algorithm.Visitor):
     def visit_Pass(self, node):
         # Insert a dummy instruction so that analyses which extract
         # locations from CFG have something to use.
-        self.append(ir.BinaryOp(ast.Add(loc=None),
-                                ir.Constant(0, self._size_type), ir.Constant(0, self._size_type)))
+        self.append(ir.Arith(ast.Add(loc=None),
+                             ir.Constant(0, self._size_type), ir.Constant(0, self._size_type)))
 
     def visit_Assign(self, node):
         try:
@@ -270,7 +270,7 @@ class IRGenerator(algorithm.Visitor):
     def visit_AugAssign(self, node):
         lhs = self.visit(target)
         rhs = self.visit(node.value)
-        value = self.append(ir.BinaryOp(node.op, lhs, rhs))
+        value = self.append(ir.Arith(node.op, lhs, rhs))
         try:
             self.current_assign = value
             self.visit(node.target)
@@ -346,8 +346,8 @@ class IRGenerator(algorithm.Visitor):
             start  = self.append(ir.GetAttr(value, "start"))
             stop   = self.append(ir.GetAttr(value, "stop"))
             step   = self.append(ir.GetAttr(value, "step"))
-            spread = self.append(ir.BinaryOp(ast.Sub(loc=None), stop, start))
-            return self.append(ir.BinaryOp(ast.FloorDiv(loc=None), spread, step))
+            spread = self.append(ir.Arith(ast.Sub(loc=None), stop, start))
+            return self.append(ir.Arith(ast.FloorDiv(loc=None), spread, step))
         else:
             assert False
 
@@ -358,8 +358,8 @@ class IRGenerator(algorithm.Visitor):
         elif builtins.is_range(value.type):
             start  = self.append(ir.GetAttr(value, "start"))
             step   = self.append(ir.GetAttr(value, "step"))
-            offset = self.append(ir.BinaryOp(ast.Mult(loc=None), step, index))
-            return self.append(ir.BinaryOp(ast.Add(loc=None), start, offset))
+            offset = self.append(ir.Arith(ast.Mult(loc=None), step, index))
+            return self.append(ir.Arith(ast.Add(loc=None), start, offset))
         else:
             assert False
 
@@ -382,8 +382,7 @@ class IRGenerator(algorithm.Visitor):
             old_continue, self.continue_target = self.continue_target, continue_block
             self.current_block = continue_block
 
-            updated_index = self.append(ir.BinaryOp(ast.Add(loc=None), phi,
-                                                    ir.Constant(1, phi.type)))
+            updated_index = self.append(ir.Arith(ast.Add(loc=None), phi, ir.Constant(1, phi.type)))
             phi.add_incoming(updated_index, continue_block)
             self.append(ir.Branch(head))
 
@@ -604,7 +603,7 @@ class IRGenerator(algorithm.Visitor):
     def _map_index(self, length, index):
         lt_0          = self.append(ir.Compare(ast.Lt(loc=None),
                                                index, ir.Constant(0, index.type)))
-        from_end      = self.append(ir.BinaryOp(ast.Add(loc=None), length, index))
+        from_end      = self.append(ir.Arith(ast.Add(loc=None), length, index))
         mapped_index  = self.append(ir.Select(lt_0, from_end, index))
         mapped_ge_0   = self.append(ir.Compare(ast.GtE(loc=None),
                                                mapped_index, ir.Constant(0, mapped_index.type)))
@@ -696,9 +695,9 @@ class IRGenerator(algorithm.Visitor):
             else:
                 step = ir.Constant(1, node.slice.type)
 
-            unstepped_size = self.append(ir.BinaryOp(ast.Sub(loc=None),
-                                                     mapped_max_index, mapped_min_index))
-            slice_size = self.append(ir.BinaryOp(ast.FloorDiv(loc=None), unstepped_size, step))
+            unstepped_size = self.append(ir.Arith(ast.Sub(loc=None),
+                                                  mapped_max_index, mapped_min_index))
+            slice_size = self.append(ir.Arith(ast.FloorDiv(loc=None), unstepped_size, step))
 
             self._make_check(self.append(ir.Compare(ast.Eq(loc=None), slice_size, length)),
                              lambda: self.append(ir.Alloc([], builtins.TValueError())))
@@ -709,8 +708,8 @@ class IRGenerator(algorithm.Visitor):
                 other_value = self.current_assign
 
             def body_gen(other_index):
-                offset = self.append(ir.BinaryOp(ast.Mult(loc=None), step, other_index))
-                index = self.append(ir.BinaryOp(ast.Add(loc=None), min_index, offset))
+                offset = self.append(ir.Arith(ast.Mult(loc=None), step, other_index))
+                index = self.append(ir.Arith(ast.Add(loc=None), min_index, offset))
 
                 if self.current_assign is None:
                     elem = self._iterable_get(value, index)
@@ -719,8 +718,8 @@ class IRGenerator(algorithm.Visitor):
                     elem = self.append(ir.GetElem(self.current_assign, other_index))
                     self.append(ir.SetElem(value, index, elem))
 
-                return self.append(ir.BinaryOp(ast.Add(loc=None), other_index,
-                                               ir.Constant(1, node.slice.type)))
+                return self.append(ir.Arith(ast.Add(loc=None), other_index,
+                                            ir.Constant(1, node.slice.type)))
             self._make_loop(ir.Constant(0, node.slice.type),
                 lambda index: self.append(ir.Compare(ast.Lt(loc=None), index, slice_size)),
                 body_gen)
@@ -790,8 +789,8 @@ class IRGenerator(algorithm.Visitor):
 
                 mapped_elt = self.visit(node.elt)
                 self.append(ir.SetElem(result, index, mapped_elt))
-                return self.append(ir.BinaryOp(ast.Add(loc=None), index,
-                                               ir.Constant(1, length.type)))
+                return self.append(ir.Arith(ast.Add(loc=None), index,
+                                            ir.Constant(1, length.type)))
             self._make_loop(ir.Constant(0, length.type),
                 lambda index: self.append(ir.Compare(ast.Lt(loc=None), index, length)),
                 body_gen)
@@ -822,8 +821,15 @@ class IRGenerator(algorithm.Visitor):
             return self.append(ir.Select(node.operand,
                         ir.Constant(False, builtins.TBool()),
                         ir.Constant(True,  builtins.TBool())))
-        else: # Numeric operators
-            return self.append(ir.UnaryOp(node.op, self.visit(node.operand)))
+        elif isinstance(node.op, ast.USub):
+            operand = self.visit(node.operand)
+            return self.append(ir.Arith(ast.Sub(loc=None),
+                                        ir.Constant(0, operand.type), operand))
+        elif isinstance(node.op, ast.UAdd):
+            # No-op.
+            return self.visit(node.operand)
+        else:
+            assert False
 
     def visit_CoerceT(self, node):
         value = self.visit(node.value)
@@ -836,9 +842,7 @@ class IRGenerator(algorithm.Visitor):
 
     def visit_BinOpT(self, node):
         if builtins.is_numeric(node.type):
-            return self.append(ir.BinaryOp(node.op,
-                        self.visit(node.left),
-                        self.visit(node.right)))
+            return self.append(ir.Arith(node.op, self.visit(node.left), self.visit(node.right)))
         elif isinstance(node.op, ast.Add): # list + list, tuple + tuple
             lhs, rhs = self.visit(node.left), self.visit(node.right)
             if types.is_tuple(node.left.type) and builtins.is_tuple(node.right.type):
@@ -852,15 +856,15 @@ class IRGenerator(algorithm.Visitor):
                 lhs_length = self.append(ir.Builtin("len", [lhs], self._size_type))
                 rhs_length = self.append(ir.Builtin("len", [rhs], self._size_type))
 
-                result_length = self.append(ir.BinaryOp(ast.Add(loc=None), lhs_length, rhs_length))
+                result_length = self.append(ir.Arith(ast.Add(loc=None), lhs_length, rhs_length))
                 result = self.append(ir.Alloc([result_length], node.type))
 
                 # Copy lhs
                 def body_gen(index):
                     elt = self.append(ir.GetElem(lhs, index))
                     self.append(ir.SetElem(result, index, elt))
-                    return self.append(ir.BinaryOp(ast.Add(loc=None), index,
-                                                   ir.Constant(1, self._size_type)))
+                    return self.append(ir.Arith(ast.Add(loc=None), index,
+                                                ir.Constant(1, self._size_type)))
                 self._make_loop(ir.Constant(0, self._size_type),
                     lambda index: self.append(ir.Compare(ast.Lt(loc=None), index, lhs_length)),
                     body_gen)
@@ -868,10 +872,10 @@ class IRGenerator(algorithm.Visitor):
                 # Copy rhs
                 def body_gen(index):
                     elt = self.append(ir.GetElem(rhs, index))
-                    result_index = self.append(ir.BinaryOp(ast.Add(loc=None), index, lhs_length))
+                    result_index = self.append(ir.Arith(ast.Add(loc=None), index, lhs_length))
                     self.append(ir.SetElem(result, result_index, elt))
-                    return self.append(ir.BinaryOp(ast.Add(loc=None), index,
-                                                   ir.Constant(1, self._size_type)))
+                    return self.append(ir.Arith(ast.Add(loc=None), index,
+                                                ir.Constant(1, self._size_type)))
                 self._make_loop(ir.Constant(0, self._size_type),
                     lambda index: self.append(ir.Compare(ast.Lt(loc=None), index, rhs_length)),
                     body_gen)
@@ -890,7 +894,7 @@ class IRGenerator(algorithm.Visitor):
 
             lst_length = self.append(ir.Builtin("len", [lst], self._size_type))
 
-            result_length = self.append(ir.BinaryOp(ast.Mult(loc=None), lst_length, num))
+            result_length = self.append(ir.Arith(ast.Mult(loc=None), lst_length, num))
             result = self.append(ir.Alloc([result_length], node.type))
 
             # num times...
@@ -898,19 +902,19 @@ class IRGenerator(algorithm.Visitor):
                 # ... copy the list
                 def body_gen(lst_index):
                     elt = self.append(ir.GetElem(lst, lst_index))
-                    base_index = self.append(ir.BinaryOp(ast.Mult(loc=None),
-                                                         num_index, lst_length))
-                    result_index = self.append(ir.BinaryOp(ast.Add(loc=None),
-                                                           base_index, lst_index))
+                    base_index = self.append(ir.Arith(ast.Mult(loc=None),
+                                                      num_index, lst_length))
+                    result_index = self.append(ir.Arith(ast.Add(loc=None),
+                                                        base_index, lst_index))
                     self.append(ir.SetElem(result, base_index, elt))
-                    return self.append(ir.BinaryOp(ast.Add(loc=None), lst_index,
-                                                   ir.Constant(1, self._size_type)))
+                    return self.append(ir.Arith(ast.Add(loc=None), lst_index,
+                                                ir.Constant(1, self._size_type)))
                 self._make_loop(ir.Constant(0, self._size_type),
                     lambda index: self.append(ir.Compare(ast.Lt(loc=None), index, lst_length)),
                     body_gen)
 
-                return self.append(ir.BinaryOp(ast.Add(loc=None), lst_length,
-                                               ir.Constant(1, self._size_type)))
+                return self.append(ir.Arith(ast.Add(loc=None), lst_length,
+                                            ir.Constant(1, self._size_type)))
             self._make_loop(ir.Constant(0, self._size_type),
                 lambda index: self.append(ir.Compare(ast.Lt(loc=None), index, num)),
                 body_gen)
@@ -955,8 +959,8 @@ class IRGenerator(algorithm.Visitor):
 
             loop_body2 = self.add_block()
             self.current_block = loop_body2
-            index_next = self.append(ir.BinaryOp(ast.Add(loc=None), index_phi,
-                                                 ir.Constant(1, self._size_type)))
+            index_next = self.append(ir.Arith(ast.Add(loc=None), index_phi,
+                                              ir.Constant(1, self._size_type)))
             self.append(ir.Branch(loop_head))
             index_phi.add_incoming(index_next, loop_body2)
 
@@ -988,8 +992,8 @@ class IRGenerator(algorithm.Visitor):
             step        = self.append(ir.GetAttr(haystack, "step"))
             after_start = self.append(ir.Compare(ast.GtE(loc=None), needle, start))
             after_stop  = self.append(ir.Compare(ast.Lt(loc=None), needle, stop))
-            from_start  = self.append(ir.BinaryOp(ast.Sub(loc=None), needle, start))
-            mod_step    = self.append(ir.BinaryOp(ast.Mod(loc=None), from_start, step))
+            from_start  = self.append(ir.Arith(ast.Sub(loc=None), needle, start))
+            mod_step    = self.append(ir.Arith(ast.Mod(loc=None), from_start, step))
             on_step     = self.append(ir.Compare(ast.Eq(loc=None), mod_step,
                                                  ir.Constant(0, mod_step.type)))
             result      = self.append(ir.Select(after_start, after_stop,
@@ -1008,8 +1012,8 @@ class IRGenerator(algorithm.Visitor):
 
                 loop_body2 = self.add_block()
                 self.current_block = loop_body2
-                return self.append(ir.BinaryOp(ast.Add(loc=None), index,
-                                               ir.Constant(1, length.type)))
+                return self.append(ir.Arith(ast.Add(loc=None), index,
+                                            ir.Constant(1, length.type)))
             loop_head, loop_body, loop_tail = \
                 self._make_loop(ir.Constant(0, length.type),
                     lambda index: self.append(ir.Compare(ast.Lt(loc=None), index, length)),
@@ -1117,8 +1121,8 @@ class IRGenerator(algorithm.Visitor):
                 def body_gen(index):
                     elt = self._iterable_get(arg, index)
                     self.append(ir.SetElem(result, index, elt))
-                    return self.append(ir.BinaryOp(ast.Add(loc=None), index,
-                                                   ir.Constant(1, length.type)))
+                    return self.append(ir.Arith(ast.Add(loc=None), index,
+                                                ir.Constant(1, length.type)))
                 self._make_loop(ir.Constant(0, length.type),
                     lambda index: self.append(ir.Compare(ast.Lt(loc=None), index, length)),
                     body_gen)
