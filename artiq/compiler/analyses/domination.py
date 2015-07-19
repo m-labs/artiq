@@ -13,7 +13,7 @@ from functools import reduce, cmp_to_key
 #   also dominates node n
 class DominatorTree:
     def __init__(self, func):
-        entry = func.get_entry()
+        entry = func.entry()
 
         self.dominated_by = { entry: {entry} }
         for block in func.basic_blocks:
@@ -28,10 +28,6 @@ class DominatorTree:
                 if block == entry:
                     continue
 
-                if not any(predecessors[block]):
-                    # Unreachable blocks are dominated by everything
-                    continue
-
                 new_dominated_by = {block}.union(
                     reduce(lambda a, b: a.intersection(b),
                            (self.dominated_by[pred] for pred in predecessors[block])))
@@ -41,8 +37,3 @@ class DominatorTree:
 
             if not changed:
                 break
-
-    def in_domination_order(self):
-        blocks = list(self.dominated_by.keys())
-        blocks.sort(key=cmp_to_key(lambda a, b: a in self.dominated_by[b]))
-        return blocks

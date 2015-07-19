@@ -261,6 +261,11 @@ class BasicBlock(NamedValue):
         if self.function is not None:
             self.function.remove(self)
 
+    def erase(self):
+        for insn in self.instructions:
+            insn.erase()
+        self.remove_from_parent()
+
     def prepend(self, insn):
         assert isinstance(insn, Instruction)
         insn.set_basic_block(self)
@@ -386,7 +391,7 @@ class Function:
         basic_block._detach()
         self.basic_blocks.remove(basic_block)
 
-    def get_entry(self):
+    def entry(self):
         assert any(self.basic_blocks)
         return self.basic_blocks[0]
 
