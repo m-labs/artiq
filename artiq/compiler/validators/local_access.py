@@ -73,27 +73,38 @@ class LocalAccessValidator:
             # Update the state based on block contents, while validating
             # that no access to uninitialized variables will be done.
             for insn in block.instructions:
+                def pred_at_fault(env, var_name):
+                    # Find out where the uninitialized state comes from.
+                    for pred, pred_state in zip(forward_edge_preds, pred_states):
+                        if not pred_state[env][var_name]:
+                            return pred
+
+                    # It's the entry block and it was never initialized.
+                    return None
+
                 if isinstance(insn, (ir.SetLocal, ir.GetLocal)) and \
                         "." not in insn.var_name:
                     env, var_name = insn.environment(), insn.var_name
-                    assert env in block_state
-                    assert var_name in block_state[env]
 
-                    if isinstance(insn, ir.SetLocal):
-                        # We've just initialized it.
-                        block_state[env][var_name] = True
-                    else: # isinstance(insn, ir.GetLocal)
+                    # Make sure that the variable is defined in the scope of this function.
+                    if env in block_state and var_name in block_state[env]:
+                        if isinstance(insn, ir.SetLocal):
+                            # We've just initialized it.
+                            block_state[env][var_name] = True
+                        else: # isinstance(insn, ir.GetLocal)
+                            if not block_state[env][var_name]:
+                                # Oops, accessing it uninitialized.
+                                self._uninitialized_access(insn, var_name,
+                                                           pred_at_fault(env, var_name))
+
+                if isinstance(insn, ir.Closure):
+                    env = insn.environment()
+                    for var_name in block_state[env]:
                         if not block_state[env][var_name]:
-                            # Oops, accessing it uninitialized. Find out where
-                            # the uninitialized state comes from.
-                            pred_at_fault = None
-                            for pred, pred_state in zip(forward_edge_preds, pred_states):
-                                if not pred_state[env][var_name]:
-                                    pred_at_fault = pred
-                            assert pred_at_fault is not None
-
-                            # Report the error.
-                            self._uninitialized_access(insn, pred_at_fault)
+                            # A closure would capture this variable while it is not always
+                            # initialized. Note that this check is transitive.
+                            self._uninitialized_access(insn, var_name,
+                                                       pred_at_fault(env, var_name))
 
             # Save the state.
             state[block] = block_state
@@ -103,19 +114,35 @@ class LocalAccessValidator:
         for block in func.basic_blocks:
             traverse(block)
 
-    def _uninitialized_access(self, insn, pred_at_fault):
-        uninitialized_loc = None
-        for pred_insn in reversed(pred_at_fault.instructions):
-            if pred_insn.loc is not None:
-                uninitialized_loc = pred_insn.loc.begin()
-                break
-        assert uninitialized_loc is not None
+    def _uninitialized_access(self, insn, var_name, pred_at_fault):
+        if pred_at_fault is not None:
+            uninitialized_loc = None
+            for pred_insn in reversed(pred_at_fault.instructions):
+                if pred_insn.loc is not None:
+                    uninitialized_loc = pred_insn.loc.begin()
+                    break
+            assert uninitialized_loc is not None
 
-        note = diagnostic.Diagnostic("note",
-            "variable is not initialized when control flows from this point", {},
-            uninitialized_loc)
-        diag = diagnostic.Diagnostic("error",
-            "variable '{name}' is not always initialized at this point",
-            {"name": insn.var_name},
-            insn.loc, notes=[note])
+            note = diagnostic.Diagnostic("note",
+                "variable is not initialized when control flows from this point", {},
+                uninitialized_loc)
+        else:
+            note = None
+
+        if note is not None:
+            notes = [note]
+        else:
+            notes = []
+
+        if isinstance(insn, ir.Closure):
+            diag = diagnostic.Diagnostic("error",
+                "variable '{name}' can be captured in a closure uninitialized here",
+                {"name": var_name},
+                insn.loc, notes=notes)
+        else:
+            diag = diagnostic.Diagnostic("error",
+                "variable '{name}' is not always initialized here",
+                {"name": var_name},
+                insn.loc, notes=notes)
+
         self.engine.process(diag)
