@@ -89,7 +89,7 @@ class IRGenerator(algorithm.Visitor):
             block = self.current_block
 
         if insn.loc is None:
-            insn.loc = self.current_loc
+            insn.loc = loc
         return block.append(insn)
 
     def terminate(self, insn):
