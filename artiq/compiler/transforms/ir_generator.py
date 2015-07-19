@@ -721,22 +721,22 @@ class IRGenerator(algorithm.Visitor):
         else:
             try:
                 old_assign = self.current_assign
-                for index, elt in enumerate(node.elts):
+                for index, elt_node in enumerate(node.elts):
                     self.current_assign = \
                         self.append(ir.GetAttr(old_assign, index,
-                                               name="{}.{}".format(old_assign.name,
-                                                                   _readable_name(index))))
-                    self.visit(elt)
+                                               name="{}.{}".format(old_assign.name, index)),
+                                    loc=elt_node.loc)
+                    self.visit(elt_node)
             finally:
                 self.current_assign = old_assign
 
     def visit_ListT(self, node):
         if self.current_assign is None:
-            elts = [self.visit(elt) for elt in node.elts]
+            elts = [self.visit(elt_node) for elt_node in node.elts]
             lst = self.append(ir.Alloc([ir.Constant(len(node.elts), self._size_type)],
                                        node.type))
-            for index, elt in enumerate(elts):
-                self.append(ir.SetElem(lst, ir.Constant(index, self._size_type), elt))
+            for index, elt_node in enumerate(elts):
+                self.append(ir.SetElem(lst, ir.Constant(index, self._size_type), elt_node))
             return lst
         else:
             length = self.append(ir.Builtin("len", [self.current_assign], self._size_type))
