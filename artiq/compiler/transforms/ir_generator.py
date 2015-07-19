@@ -424,30 +424,30 @@ class IRGenerator(algorithm.Visitor):
 
         if any(node.finalbody):
             # k for continuation
-            final_state = self.append(ir.Alloc([], ir.TEnvironment({ "k": ir.TBasicBlock() })))
+            final_state = self.append(ir.Alloc([], ir.TEnvironment({ ".k": ir.TBasicBlock() })))
             final_targets = []
 
             if self.break_target is not None:
                 break_proxy = self.add_block("try.break")
                 old_break, self.break_target = self.break_target, break_proxy
-                break_proxy.append(ir.SetLocal(final_state, "k", old_break))
+                break_proxy.append(ir.SetLocal(final_state, ".k", old_break))
                 final_targets.append(old_break)
             if self.continue_target is not None:
                 continue_proxy = self.add_block("try.continue")
                 old_continue, self.continue_target = self.continue_target, continue_proxy
-                continue_proxy.append(ir.SetLocal(final_state, "k", old_continue))
+                continue_proxy.append(ir.SetLocal(final_state, ".k", old_continue))
                 final_targets.append(old_continue)
 
             return_proxy = self.add_block("try.return")
             old_return, self.return_target = self.return_target, return_proxy
             if old_return is not None:
-                return_proxy.append(ir.SetLocal(final_state, "k", old_return))
+                return_proxy.append(ir.SetLocal(final_state, ".k", old_return))
                 final_targets.append(old_return)
             else:
                 return_action = self.add_block("try.doreturn")
                 value = return_action.append(ir.GetLocal(self.current_private_env, ".return"))
                 return_action.append(ir.Return(value))
-                return_proxy.append(ir.SetLocal(final_state, "k", return_action))
+                return_proxy.append(ir.SetLocal(final_state, ".k", return_action))
                 final_targets.append(return_action)
 
         body = self.add_block("try.body")
@@ -489,7 +489,7 @@ class IRGenerator(algorithm.Visitor):
             self.visit(node.finalbody)
 
             if not self.current_block.is_terminated():
-                dest = self.append(ir.GetLocal(final_state, "k"))
+                dest = self.append(ir.GetLocal(final_state, ".k"))
                 self.append(ir.IndirectBranch(dest, final_targets))
 
         tail = self.add_block("try.tail")
@@ -501,11 +501,11 @@ class IRGenerator(algorithm.Visitor):
             return_proxy.append(ir.Branch(finalizer))
         if not body.is_terminated():
             if any(node.finalbody):
-                body.append(ir.SetLocal(final_state, "k", tail))
+                body.append(ir.SetLocal(final_state, ".k", tail))
                 body.append(ir.Branch(finalizer))
                 for handler in handlers:
                     if not handler.is_terminated():
-                        handler.append(ir.SetLocal(final_state, "k", tail))
+                        handler.append(ir.SetLocal(final_state, ".k", tail))
                         handler.append(ir.Branch(tail))
             else:
                 body.append(ir.Branch(tail))
