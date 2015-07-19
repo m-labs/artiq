@@ -341,7 +341,7 @@ class BasicBlock(NamedValue):
         return "\n".join(lines)
 
     def __repr__(self):
-        return "<BasicBlock '{}'>".format(self.name)
+        return "<artiq.compiler.ir.BasicBlock {}>".format(repr(self.name))
 
 class Argument(NamedValue):
     """
