@@ -95,7 +95,9 @@ class LLVMIRGenerator:
         if llfun is not None:
             return llfun
 
-        if name in ("llvm.abort", "llvm.donothing"):
+        if name in "llvm.donothing":
+            llty = ll.FunctionType(ll.VoidType(), [])
+        elif name in "llvm.trap":
             llty = ll.FunctionType(ll.VoidType(), [])
         elif name == "llvm.round.f64":
             llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType()])
@@ -181,6 +183,18 @@ class LLVMIRGenerator:
         if ir.is_environment(insn.type):
             return self.llbuilder.alloca(self.llty_of_type(insn.type, bare=True),
                                          name=insn.name)
+        elif ir.is_option(insn.type):
+            if len(insn.operands) == 0: # empty
+                llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
+                return self.llbuilder.insert_value(llvalue, ll.Constant(ll.IntType(1), False), 0,
+                                                   name=insn.name)
+            elif len(insn.operands) == 1: # full
+                llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
+                llvalue = self.llbuilder.insert_value(llvalue, ll.Constant(ll.IntType(1), True), 0)
+                return self.llbuilder.insert_value(llvalue, self.map(insn.operands[0]), 1,
+                                                   name=insn.name)
+            else:
+                assert False
         elif builtins.is_list(insn.type):
             llsize = self.map(insn.operands[0])
             llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
@@ -382,7 +396,17 @@ class LLVMIRGenerator:
     def process_Builtin(self, insn):
         if insn.op == "nop":
             return self.llbuilder.call(self.llbuiltin("llvm.donothing"), [])
+        if insn.op == "abort":
+            return self.llbuilder.call(self.llbuiltin("llvm.trap"), [])
+        elif insn.op == "is_some":
+            optarg = self.map(insn.operands[0])
+            return self.llbuilder.extract_value(optarg, 0,
+                                                name=insn.name)
         elif insn.op == "unwrap":
+            optarg = self.map(insn.operands[0])
+            return self.llbuilder.extract_value(optarg, 1,
+                                                name=insn.name)
+        elif insn.op == "unwrap_or":
             optarg, default = map(self.map, insn.operands)
             has_arg = self.llbuilder.extract_value(optarg, 0)
             arg = self.llbuilder.extract_value(optarg, 1)
@@ -455,7 +479,7 @@ class LLVMIRGenerator:
 
     def process_Raise(self, insn):
         # TODO: hack before EH is working
-        llinsn = self.llbuilder.call(self.llbuiltin("llvm.abort"), [],
+        llinsn = self.llbuilder.call(self.llbuiltin("llvm.trap"), [],
                                      name=insn.name)
         self.llbuilder.unreachable()
         return llinsn

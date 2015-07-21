@@ -421,7 +421,6 @@ class ASTTypedRewriter(algorithm.Transformer):
     visit_YieldFrom = visit_unsupported
 
     # stmt
-    visit_Assert = visit_unsupported
     visit_ClassDef = visit_unsupported
     visit_Delete = visit_unsupported
     visit_Import = visit_unsupported

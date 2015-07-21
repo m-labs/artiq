@@ -947,3 +947,14 @@ class Inferencer(algorithm.Visitor):
         else:
             self._unify(self.function.return_type, node.value.type,
                         self.function.name_loc, node.value.loc, makenotes)
+
+    def visit_Assert(self, node):
+        self.generic_visit(node)
+        self._unify(node.test.type, builtins.TBool(),
+                    node.test.loc, None)
+        if node.msg is not None:
+            if not isinstance(node.msg, asttyped.StrT):
+                diag = diagnostic.Diagnostic("error",
+                    "assertion message must be a string literal", {},
+                    node.msg.loc)
+                self.engine.process(diag)

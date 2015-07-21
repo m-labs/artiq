@@ -106,14 +106,13 @@ class User(NamedValue):
     def __init__(self, operands, typ, name):
         super().__init__(typ, name)
         self.operands = []
-        if operands is not None:
-            self.set_operands(operands)
+        self.set_operands(operands)
 
     def set_operands(self, new_operands):
-        for operand in self.operands:
+        for operand in set(self.operands):
             operand.uses.remove(self)
         self.operands = new_operands
-        for operand in self.operands:
+        for operand in set(self.operands):
             operand.uses.add(self)
 
     def drop_references(self):
@@ -162,6 +161,9 @@ class Instruction(User):
     def erase(self):
         self.remove_from_parent()
         self.drop_references()
+        # Check this after drop_references in case this
+        # is a self-referencing phi.
+        assert not any(self.uses)
 
     def replace_with(self, value):
         self.replace_all_uses_with(value)
@@ -220,7 +222,21 @@ class Phi(Instruction):
     def add_incoming(self, value, block):
         assert value.type == self.type
         self.operands.append(value)
+        value.uses.add(self)
         self.operands.append(block)
+        block.uses.add(self)
+
+    def remove_incoming_value(self, value):
+        index = self.operands.index(value)
+        self.operands[index].uses.remove(self)
+        self.operands[index + 1].uses.remove(self)
+        del self.operands[index:index + 2]
+
+    def remove_incoming_block(self, block):
+        index = self.operands.index(block)
+        self.operands[index - 1].uses.remove(self)
+        self.operands[index].uses.remove(self)
+        del self.operands[index - 1:index + 1]
 
     def __str__(self):
         if builtins.is_none(self.type):
@@ -268,9 +284,13 @@ class BasicBlock(NamedValue):
             self.function.remove(self)
 
     def erase(self):
-        for insn in self.instructions:
+        # self.instructions is updated while iterating
+        for insn in list(self.instructions):
             insn.erase()
         self.remove_from_parent()
+        # Check this after erasing instructions in case the block
+        # loops into itself.
+        assert not any(self.uses)
 
     def prepend(self, insn):
         assert isinstance(insn, Instruction)
@@ -817,6 +837,7 @@ class Select(Instruction):
     """
     def __init__(self, cond, if_true, if_false, name=""):
         assert isinstance(cond, Value)
+        assert builtins.is_bool(cond.type)
         assert isinstance(if_true, Value)
         assert isinstance(if_false, Value)
         assert if_true.type == if_false.type
@@ -864,8 +885,10 @@ class BranchIf(Terminator):
     """
     def __init__(self, cond, if_true, if_false, name=""):
         assert isinstance(cond, Value)
+        assert builtins.is_bool(cond.type)
         assert isinstance(if_true, BasicBlock)
         assert isinstance(if_false, BasicBlock)
+        assert if_true != if_false # use Branch instead
         super().__init__([cond, if_true, if_false], builtins.TNone(), name)
 
     def opcode(self):

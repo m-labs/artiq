@@ -39,16 +39,22 @@ class ARTIQIRGenerator(algorithm.Visitor):
         set of variables that will be resolved in global scope
     :ivar current_block: (:class:`ir.BasicBlock`)
         basic block to which any new instruction will be appended
-    :ivar current_env: (:class:`ir.Environment`)
+    :ivar current_env: (:class:`ir.Alloc` of type :class:`ir.TEnvironment`)
         the chained function environment, containing variables that
         can become upvalues
-    :ivar current_private_env: (:class:`ir.Environment`)
+    :ivar current_private_env: (:class:`ir.Alloc` of type :class:`ir.TEnvironment`)
         the private function environment, containing internal state
     :ivar current_assign: (:class:`ir.Value` or None)
         the right-hand side of current assignment statement, or
         a component of a composite right-hand side when visiting
         a composite left-hand side, such as, in ``x, y = z``,
         the 2nd tuple element when visting ``y``
+    :ivar current_assert_env: (:class:`ir.Alloc` of type :class:`ir.TEnvironment`)
+        the environment where the individual components of current assert
+        statement are stored until display
+    :ivar current_assert_subexprs: (list of (:class:`ast.AST`, string))
+        the mapping from components of current assert statement to the names
+        their values have in :ivar:`current_assert_env`
     :ivar break_target: (:class:`ir.BasicBlock` or None)
         the basic block to which ``break`` will transfer control
     :ivar continue_target: (:class:`ir.BasicBlock` or None)
@@ -72,6 +78,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.current_env = None
         self.current_private_env = None
         self.current_assign = None
+        self.current_assert_env = None
+        self.current_assert_subexprs = None
         self.break_target = None
         self.continue_target = None
         self.return_target = None
@@ -203,7 +211,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.append(ir.SetLocal(env, arg_name, args[index]))
             for index, (arg_name, env_default_name) in enumerate(zip(typ.optargs, defaults)):
                 default = self.append(ir.GetLocal(self.current_env, env_default_name))
-                value = self.append(ir.Builtin("unwrap", [optargs[index], default],
+                value = self.append(ir.Builtin("unwrap_or", [optargs[index], default],
                                                typ.optargs[arg_name]))
                 self.append(ir.SetLocal(env, arg_name, value))
 
@@ -736,7 +744,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 for index, elt_node in enumerate(node.elts):
                     self.current_assign = \
                         self.append(ir.GetAttr(old_assign, index,
-                                               name="{}.{}".format(old_assign.name, index)),
+                                               name="{}.e{}".format(old_assign.name, index)),
                                     loc=elt_node.loc)
                     self.visit(elt_node)
             finally:
@@ -805,18 +813,26 @@ class ARTIQIRGenerator(algorithm.Visitor):
     def visit_BoolOpT(self, node):
         blocks = []
         for value_node in node.values:
+            value_head = self.current_block
             value = self.visit(value_node)
-            blocks.append((value, self.current_block))
+            self.instrument_assert(value_node, value)
+            value_tail = self.current_block
+
+            blocks.append((value, value_head, value_tail))
             self.current_block = self.add_block()
 
         tail = self.current_block
         phi = self.append(ir.Phi(node.type))
-        for ((value, block), next_block) in zip(blocks, [b for (v,b) in blocks[1:]] + [tail]):
-            phi.add_incoming(value, block)
-            if isinstance(node.op, ast.And):
-                block.append(ir.BranchIf(value, next_block, tail))
+        for ((value, value_head, value_tail), (next_value_head, next_value_tail)) in \
+                    zip(blocks, [(h,t) for (v,h,t) in blocks[1:]] + [(tail, tail)]):
+            phi.add_incoming(value, value_tail)
+            if next_value_head != tail:
+                if isinstance(node.op, ast.And):
+                    value_tail.append(ir.BranchIf(value, next_value_head, tail))
+                else:
+                    value_tail.append(ir.BranchIf(value, tail, next_value_head))
             else:
-                block.append(ir.BranchIf(value, tail, next_block))
+                value_tail.append(ir.Branch(tail))
         return phi
 
     def visit_UnaryOpT(self, node):
@@ -1005,7 +1021,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                                                 ir.Constant(False, builtins.TBool())))
             result      = self.append(ir.Select(result, on_step,
                                                 ir.Constant(False, builtins.TBool())))
-        elif builtins.isiterable(haystack.type):
+        elif builtins.is_iterable(haystack.type):
             length = self.iterable_len(haystack)
 
             cmp_result = loop_body2 = None
@@ -1068,8 +1084,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
         # of comparisons.
         blocks = []
         lhs = self.visit(node.left)
+        self.instrument_assert(node.left, lhs)
         for op, rhs_node in zip(node.ops, node.comparators):
             rhs = self.visit(rhs_node)
+            self.instrument_assert(rhs_node, rhs)
             result = self.polymorphic_compare_pair(op, lhs, rhs)
             blocks.append((result, self.current_block))
             self.current_block = self.add_block()
@@ -1079,7 +1097,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
         phi = self.append(ir.Phi(node.type))
         for ((value, block), next_block) in zip(blocks, [b for (v,b) in blocks[1:]] + [tail]):
             phi.add_incoming(value, block)
-            block.append(ir.BranchIf(value, next_block, tail))
+            if next_block != tail:
+                block.append(ir.BranchIf(value, next_block, tail))
+            else:
+                block.append(ir.Branch(tail))
         return phi
 
     def visit_builtin_call(self, node):
@@ -1210,6 +1231,79 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 invoke = self.append(ir.Invoke(func, args, after_invoke, self.unwind_target))
                 self.current_block = after_invoke
                 return invoke
+
+    def instrument_assert(self, node, value):
+        if self.current_assert_env is not None:
+            if isinstance(value, ir.Constant):
+                return # don't display the values of constants
+
+            if any([algorithm.compare(node, subexpr)
+                    for (subexpr, name) in self.current_assert_subexprs]):
+                return # don't display the same subexpression twice
+
+            name = self.current_assert_env.type.add("subexpr", ir.TOption(node.type))
+            value_opt = self.append(ir.Alloc([value], ir.TOption(node.type)),
+                                    loc=node.loc)
+            self.append(ir.SetLocal(self.current_assert_env, name, value_opt),
+                        loc=node.loc)
+            self.current_assert_subexprs.append((node, name))
+
+    def visit_Assert(self, node):
+        try:
+            assert_env = self.current_assert_env = \
+                self.append(ir.Alloc([], ir.TEnvironment({}), name="assertenv"))
+            assert_subexprs = self.current_assert_subexprs = []
+            init = self.current_block
+
+            prehead = self.current_block = self.add_block()
+            cond = self.visit(node.test)
+            head = self.current_block
+        finally:
+            self.current_assert_env = None
+            self.current_assert_subexprs = None
+
+        for subexpr_node, subexpr_name in assert_subexprs:
+            empty = init.append(ir.Alloc([], ir.TOption(subexpr_node.type)))
+            init.append(ir.SetLocal(assert_env, subexpr_name, empty))
+        init.append(ir.Branch(prehead))
+
+        if_failed = self.current_block = self.add_block()
+
+        if node.msg:
+            explanation = node.msg.s
+        else:
+            explanation = node.loc.source()
+        self.append(ir.Builtin("printf", [
+                ir.Constant("assertion failed at %s: %s\n", builtins.TStr()),
+                ir.Constant(str(node.loc.begin()), builtins.TStr()),
+                ir.Constant(str(explanation), builtins.TStr()),
+            ], builtins.TNone()))
+
+        for subexpr_node, subexpr_name in assert_subexprs:
+            subexpr_head = self.current_block
+            subexpr_value_opt = self.append(ir.GetLocal(assert_env, subexpr_name))
+            subexpr_cond = self.append(ir.Builtin("is_some", [subexpr_value_opt],
+                                                  builtins.TBool()))
+
+            subexpr_body = self.current_block = self.add_block()
+            self.append(ir.Builtin("printf", [
+                    ir.Constant("  (%s) = ", builtins.TStr()),
+                    ir.Constant(subexpr_node.loc.source(), builtins.TStr())
+                ], builtins.TNone()))
+            subexpr_value = self.append(ir.Builtin("unwrap", [subexpr_value_opt],
+                                                   subexpr_node.type))
+            self.polymorphic_print([subexpr_value], separator="", suffix="\n")
+            subexpr_postbody = self.current_block
+
+            subexpr_tail = self.current_block = self.add_block()
+            self.append(ir.Branch(subexpr_tail), block=subexpr_postbody)
+            self.append(ir.BranchIf(subexpr_cond, subexpr_body, subexpr_tail), block=subexpr_head)
+
+        self.append(ir.Builtin("abort", [], builtins.TNone()))
+        self.append(ir.Unreachable())
+
+        tail = self.current_block = self.add_block()
+        self.append(ir.BranchIf(cond, tail, if_failed), block=head)
 
     def polymorphic_print(self, values, separator, suffix=""):
         format_string = ""
