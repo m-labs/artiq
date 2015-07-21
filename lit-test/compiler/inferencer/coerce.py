@@ -19,8 +19,8 @@
 [1] * 2
 # CHECK-L: [1:int(width='l)]:list(elt=int(width='l)) * 2:int(width='m):list(elt=int(width='l))
 
-1 / 2
-# CHECK-L: 1:int(width='n):int(width='o) / 2:int(width='p):int(width='o):int(width='o)
+1 // 2
+# CHECK-L: 1:int(width='n):int(width='o) // 2:int(width='p):int(width='o):int(width='o)
 
 1 + 1.0
 # CHECK-L: 1:int(width='q):float + 1.0:float:float
