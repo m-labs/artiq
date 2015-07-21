@@ -116,6 +116,9 @@ def fn_len():
 def fn_round():
     return types.TBuiltinFunction("round")
 
+def fn_print():
+    return types.TBuiltinFunction("print")
+
 def fn_syscall():
     return types.TBuiltinFunction("syscall")
 

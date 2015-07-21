@@ -17,5 +17,6 @@ def globals():
         "ValueError":   builtins.fn_ValueError(),
         "len":          builtins.fn_len(),
         "round":        builtins.fn_round(),
+        "print":        builtins.fn_print(),
         "syscall":      builtins.fn_syscall(),
     }

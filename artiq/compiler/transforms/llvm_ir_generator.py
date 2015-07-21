@@ -90,6 +90,25 @@ class LLVMIRGenerator:
         else:
             assert False
 
+    def llbuiltin(self, name):
+        llfun = self.llmodule.get_global(name)
+        if llfun is not None:
+            return llfun
+
+        if name in ("llvm.abort", "llvm.donothing"):
+            llty = ll.FunctionType(ll.VoidType(), [])
+        elif name == "llvm.round.f64":
+            llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType()])
+        elif name == "llvm.pow.f64":
+            llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType(), ll.DoubleType()])
+        elif name == "llvm.powi.f64":
+            llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType(), ll.IntType(32)])
+        elif name == "printf":
+            llty = ll.FunctionType(ll.VoidType(), [ll.IntType(8).as_pointer()], var_arg=True)
+        else:
+            assert False
+        return ll.Function(self.llmodule, llty, name)
+
     def map(self, value):
         if isinstance(value, (ir.Argument, ir.Instruction, ir.BasicBlock)):
             return self.llmap[value]
@@ -214,7 +233,7 @@ class LLVMIRGenerator:
 
     def process_GetAttr(self, insn):
         if types.is_tuple(insn.object().type):
-            return self.llbuilder.extract_value(self.map(insn.object()), self.attr_index(insn),
+            return self.llbuilder.extract_value(self.map(insn.object()), insn.attr,
                                                 name=insn.name)
         elif not builtins.is_allocated(insn.object().type):
             return self.llbuilder.extract_value(self.map(insn.object()), self.attr_index(insn),
@@ -296,9 +315,7 @@ class LLVMIRGenerator:
         elif isinstance(insn.op, ast.FloorDiv):
             if builtins.is_float(insn.type):
                 llvalue = self.llbuilder.fdiv(self.map(insn.lhs()), self.map(insn.rhs()))
-                llfnty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType()])
-                llfn = ll.Function(self.llmodule, llfnty, "llvm.round.f64")
-                return self.llbuilder.call(llfn, [llvalue],
+                return self.llbuilder.call(self.llbuiltin("llvm.round.f64"), [llvalue],
                                            name=insn.name)
             else:
                 return self.llbuilder.sdiv(self.map(insn.lhs()), self.map(insn.rhs()),
@@ -312,15 +329,13 @@ class LLVMIRGenerator:
                                            name=insn.name)
         elif isinstance(insn.op, ast.Pow):
             if builtins.is_float(insn.type):
-                llfnty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType(), ll.DoubleType()])
-                llfn = ll.Function(self.llmodule, llfnty, "llvm.pow.f64")
-                return self.llbuilder.call(llfn, [self.map(insn.lhs()), self.map(insn.rhs())],
+                return self.llbuilder.call(self.llbuiltin("llvm.pow.f64"),
+                                           [self.map(insn.lhs()), self.map(insn.rhs())],
                                            name=insn.name)
             else:
                 llrhs = self.llbuilder.trunc(self.map(insn.rhs()), ll.IntType(32))
-                llfnty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType(), ll.IntType(32)])
-                llfn = ll.Function(self.llmodule, llfnty, "llvm.powi.f64")
-                llvalue = self.llbuilder.call(llfn, [self.map(insn.lhs()), llrhs])
+                llvalue = self.llbuilder.call(self.llbuiltin("llvm.powi.f64"),
+                                              [self.map(insn.lhs()), llrhs])
                 return self.llbuilder.fptosi(llvalue, self.llty_of_type(insn.type),
                                              name=insn.name)
         elif isinstance(insn.op, ast.LShift):
@@ -366,8 +381,7 @@ class LLVMIRGenerator:
 
     def process_Builtin(self, insn):
         if insn.op == "nop":
-            fn = ll.Function(self.llmodule, ll.FunctionType(ll.VoidType(), []), "llvm.donothing")
-            return self.llbuilder.call(fn, [])
+            return self.llbuilder.call(self.llbuiltin("llvm.donothing"), [])
         elif insn.op == "unwrap":
             optarg, default = map(self.map, insn.operands)
             has_arg = self.llbuilder.extract_value(optarg, 0)
@@ -375,9 +389,7 @@ class LLVMIRGenerator:
             return self.llbuilder.select(has_arg, arg, default,
                                          name=insn.name)
         elif insn.op == "round":
-            llfnty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType()])
-            llfn = ll.Function(self.llmodule, llfnty, "llvm.round.f64")
-            return self.llbuilder.call(llfn, [llvalue],
+            return self.llbuilder.call(self.llbuiltin("llvm.round.f64"), [llvalue],
                                        name=insn.name)
         elif insn.op == "globalenv":
             def get_outer(llenv, env_ty):
@@ -394,6 +406,11 @@ class LLVMIRGenerator:
         elif insn.op == "len":
             lst, = insn.operands
             return self.llbuilder.extract_value(self.map(lst), 0)
+        elif insn.op == "printf":
+            # We only get integers, floats, pointers and strings here.
+            llargs = map(self.map, insn.operands)
+            return self.llbuilder.call(self.llbuiltin("printf"), llargs,
+                                       name=insn.name)
         # elif insn.op == "exncast":
         else:
             assert False
@@ -414,8 +431,8 @@ class LLVMIRGenerator:
                                    name=insn.name)
 
     def process_Select(self, insn):
-        return self.llbuilder.select(self.map(insn.cond()),
-                                     self.map(insn.lhs()), self.map(insn.rhs()))
+        return self.llbuilder.select(self.map(insn.condition()),
+                                     self.map(insn.if_true()), self.map(insn.if_false()))
 
     def process_Branch(self, insn):
         return self.llbuilder.branch(self.map(insn.target()))
@@ -438,9 +455,7 @@ class LLVMIRGenerator:
 
     def process_Raise(self, insn):
         # TODO: hack before EH is working
-        llfnty = ll.FunctionType(ll.VoidType(), [])
-        llfn = ll.Function(self.llmodule, llfnty, "llvm.abort")
-        llinsn = self.llbuilder.call(llfn, [],
+        llinsn = self.llbuilder.call(self.llbuiltin("llvm.abort"), [],
                                      name=insn.name)
         self.llbuilder.unreachable()
         return llinsn

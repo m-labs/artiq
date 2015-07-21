@@ -637,6 +637,19 @@ class Inferencer(algorithm.Visitor):
                             arg.loc, None)
             else:
                 diagnose(valid_forms())
+        elif types.is_builtin(typ, "print"):
+            valid_forms = lambda: [
+                valid_form("print(args...) -> None"),
+            ]
+
+            self._unify(node.type, builtins.TNone(),
+                        node.loc, None)
+
+            if len(node.keywords) == 0:
+                # We can print any arguments.
+                pass
+            else:
+                diagnose(valid_forms())
         # TODO: add when it is clear what interface syscall() has
         # elif types.is_builtin(typ, "syscall"):
         #     valid_Forms = lambda: [
