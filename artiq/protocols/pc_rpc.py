@@ -22,7 +22,6 @@ import inspect
 
 from artiq.protocols import pyon
 from artiq.protocols.asyncio_server import AsyncioServer as _AsyncioServer
-from artiq.tools import format_arguments
 
 
 logger = logging.getLogger(__name__)
@@ -375,6 +374,16 @@ class BestEffortClient:
         return proxy
 
 
+def _format_arguments(arguments):
+    fmtargs = []
+    for k, v in sorted(arguments.items(), key=itemgetter(0)):
+        fmtargs.append(k + "=" + repr(v))
+    if fmtargs:
+        return ", ".join(fmtargs)
+    else:
+        return ""
+
+
 class _PrettyPrintCall:
     def __init__(self, obj):
         self.obj = obj
@@ -383,7 +392,7 @@ class _PrettyPrintCall:
         r = self.obj["name"] + "("
         args = ", ".join([repr(a) for a in self.obj["args"]])
         r += args
-        kwargs = format_arguments(self.obj["kwargs"])
+        kwargs = _format_arguments(self.obj["kwargs"])
         if args and kwargs:
             r += ", "
         r += kwargs

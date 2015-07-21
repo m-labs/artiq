@@ -19,16 +19,6 @@ def parse_arguments(arguments):
     return d
 
 
-def format_arguments(arguments):
-    fmtargs = []
-    for k, v in sorted(arguments.items(), key=itemgetter(0)):
-        fmtargs.append(k + "=" + repr(v))
-    if fmtargs:
-        return ", ".join(fmtargs)
-    else:
-        return ""
-
-
 def file_import(filename):
     linecache.checkcache(filename)
 

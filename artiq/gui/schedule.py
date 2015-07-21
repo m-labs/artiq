@@ -6,14 +6,13 @@ from pyqtgraph import dockarea
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.gui.tools import DictSyncModel
-from artiq.tools import format_arguments
 
 
 class _ScheduleModel(DictSyncModel):
     def __init__(self, parent, init):
         DictSyncModel.__init__(self,
             ["RID", "Pipeline", "Status", "Prio", "Due date",
-             "File", "Class name", "Arguments"],
+             "File", "Class name"],
             parent, init)
 
     def sort_key(self, k, v):
@@ -42,8 +41,6 @@ class _ScheduleModel(DictSyncModel):
                 return ""
             else:
                 return v["expid"]["class_name"]
-        elif column == 7:
-            return format_arguments(v["expid"]["arguments"])
         else:
             raise ValueError
 

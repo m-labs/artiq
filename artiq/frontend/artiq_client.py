@@ -12,7 +12,6 @@ from prettytable import PrettyTable
 from artiq.protocols.pc_rpc import Client
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols import pyon
-from artiq.tools import format_arguments
 
 
 def clear_screen():
@@ -149,7 +148,7 @@ def _show_schedule(schedule):
                                   x[1]["due_date"] or 0,
                                   x[0]))
         table = PrettyTable(["RID", "Pipeline", "    Status    ", "Prio",
-                             "Due date", "File", "Class name", "Arguments"])
+                             "Due date", "File", "Class name"])
         for rid, v in l:
             row = [rid, v["pipeline"], v["status"], v["priority"]]
             if v["due_date"] is None:
@@ -162,7 +161,6 @@ def _show_schedule(schedule):
                 row.append("")
             else:
                 row.append(v["expid"]["class_name"])
-            row.append(format_arguments(v["expid"]["arguments"]))
             table.add_row(row)
         print(table)
     else:
