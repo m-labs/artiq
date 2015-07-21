@@ -84,6 +84,7 @@ class LLVMIRGenerator:
                                         name=self.llmodule.get_unique_name("str"))
             llconst.global_constant = True
             llconst.unnamed_addr = True
+            llconst.linkage = 'internal'
             llconst.initializer = ll.Constant(llstrty, bytearray(as_bytes))
             return llconst.bitcast(ll.IntType(8).as_pointer())
         else:
@@ -118,6 +119,7 @@ class LLVMIRGenerator:
                 llfunty = ll.FunctionType(args=llargtys,
                                           return_type=self.llty_of_type(func.type.ret, for_return=True))
                 self.llfunction = ll.Function(self.llmodule, llfunty, func.name)
+                self.llfunction.linkage = 'internal'
 
             self.llmap = {}
             self.llbuilder = ll.IRBuilder()
