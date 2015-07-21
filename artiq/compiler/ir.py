@@ -467,7 +467,7 @@ class TEnvironment(types.TMono):
 def is_environment(typ):
     return isinstance(typ, TEnvironment)
 
-class EnvironmentArgument(NamedValue):
+class EnvironmentArgument(Argument):
     """
     A function argument specifying an outer environment.
     """
@@ -799,7 +799,7 @@ class Call(Instruction):
     def opcode(self):
         return "call"
 
-    def function(self):
+    def target_function(self):
         return self.operands[0]
 
     def arguments(self):

@@ -174,7 +174,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             optargs = []
             for arg_name in typ.optargs:
-                optargs.append(ir.Argument(ir.TSSAOption(typ.optargs[arg_name]), "arg." + arg_name))
+                optargs.append(ir.Argument(ir.TOption(typ.optargs[arg_name]), "arg." + arg_name))
 
             func = ir.Function(typ, ".".join(self.name), [env_arg] + args + optargs)
             self.functions.append(func)
@@ -1189,11 +1189,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     optarg_typ = ir.TOption(typ.optargs[optarg_name])
                     for keyword in node.keywords:
                         if keyword.arg == optarg_name:
-                            value = self.append(ir.Alloc(optarg_typ, [self.visit(keyword.value)]))
+                            value = self.append(ir.Alloc([self.visit(keyword.value)], optarg_typ))
                             args.append(value)
                             break
                     else:
-                        value = self.append(ir.Alloc(optarg_typ, []))
+                        value = self.append(ir.Alloc([], optarg_typ))
                         args.append(value)
 
             if self.unwind_target is None:

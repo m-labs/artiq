@@ -16,18 +16,21 @@ class LLVMIRGenerator:
         self.llmap = {}
         self.fixups = []
 
-    def llty_of_type(self, typ, for_alloc=False, for_return=False):
+    def llty_of_type(self, typ, bare=False, for_return=False):
         if types.is_tuple(typ):
             return ll.LiteralStructType([self.llty_of_type(eltty) for eltty in typ.elts])
         elif types.is_function(typ):
-            envarg = ll.IntType(8).as_pointer
+            envarg = ll.IntType(8).as_pointer()
             llty = ll.FunctionType(args=[envarg] +
                                         [self.llty_of_type(typ.args[arg])
                                          for arg in typ.args] +
                                         [self.llty_of_type(ir.TOption(typ.optargs[arg]))
                                          for arg in typ.optargs],
                                    return_type=self.llty_of_type(typ.ret, for_return=True))
-            return llty.as_pointer()
+            if bare:
+                return llty
+            else:
+                return ll.LiteralStructType([envarg, llty.as_pointer()])
         elif builtins.is_none(typ):
             if for_return:
                 return ll.VoidType()
@@ -55,7 +58,7 @@ class LLVMIRGenerator:
         elif ir.is_environment(typ):
             llty = ll.LiteralStructType([self.llty_of_type(typ.params[name])
                                          for name in typ.params])
-            if for_alloc:
+            if bare:
                 return llty
             else:
                 return llty.as_pointer()
@@ -76,10 +79,17 @@ class LLVMIRGenerator:
             assert False
 
     def map(self, value):
-        if isinstance(value, (ir.Instruction, ir.BasicBlock)):
+        if isinstance(value, (ir.Argument, ir.Instruction, ir.BasicBlock)):
             return self.llmap[value]
         elif isinstance(value, ir.Constant):
             return self.llconst_of_const(value)
+        elif isinstance(value, ir.Function):
+            llfun = self.llmodule.get_global(value.name)
+            if llfun is None:
+                return ll.Function(self.llmodule, self.llty_of_type(value.type, bare=True),
+                                   value.name)
+            else:
+                return llfun
         else:
             assert False
 
@@ -88,24 +98,30 @@ class LLVMIRGenerator:
             self.process_function(func)
 
     def process_function(self, func):
-        llargtys = []
-        for arg in func.arguments:
-            llargtys.append(self.llty_of_type(arg.type))
-        llfunty = ll.FunctionType(args=llargtys,
-                                  return_type=self.llty_of_type(func.type.ret, for_return=True))
-
         try:
-            self.llfunction = ll.Function(self.llmodule, llfunty, func.name)
+            self.llfunction = self.llmodule.get_global(func.name)
+            if self.llfunction is None:
+                llargtys = []
+                for arg in func.arguments:
+                    llargtys.append(self.llty_of_type(arg.type))
+                llfunty = ll.FunctionType(args=llargtys,
+                                          return_type=self.llty_of_type(func.type.ret, for_return=True))
+                self.llfunction = ll.Function(self.llmodule, llfunty, func.name)
+
             self.llmap = {}
             self.llbuilder = ll.IRBuilder()
             self.fixups = []
 
-            # First, create all basic blocks.
+            # First, map arguments.
+            for arg, llarg in zip(func.arguments, self.llfunction.args):
+                self.llmap[arg] = llarg
+
+            # Second, create all basic blocks.
             for block in func.basic_blocks:
                 llblock = self.llfunction.append_basic_block(block.name)
                 self.llmap[block] = llblock
 
-            # Second, translate all instructions.
+            # Third, translate all instructions.
             for block in func.basic_blocks:
                 self.llbuilder.position_at_end(self.llmap[block])
                 for insn in block.instructions:
@@ -113,7 +129,7 @@ class LLVMIRGenerator:
                     assert llinsn is not None
                     self.llmap[insn] = llinsn
 
-            # Third, fixup phis.
+            # Fourth, fixup phis.
             for fixup in self.fixups:
                 fixup()
         finally:
@@ -131,7 +147,7 @@ class LLVMIRGenerator:
 
     def process_Alloc(self, insn):
         if ir.is_environment(insn.type):
-            return self.llbuilder.alloca(self.llty_of_type(insn.type, for_alloc=True),
+            return self.llbuilder.alloca(self.llty_of_type(insn.type, bare=True),
                                          name=insn.name)
         elif builtins.is_list(insn.type):
             llsize = self.map(insn.operands[0])
@@ -171,7 +187,14 @@ class LLVMIRGenerator:
     def process_SetLocal(self, insn):
         env = insn.environment()
         llptr = self.llptr_to_var(self.map(env), env.type, insn.var_name)
-        return self.llbuilder.store(self.map(insn.value()), llptr)
+        llvalue = self.map(insn.value())
+        if llptr.type.pointee != llvalue.type:
+            # The environment argument is an i8*, so that all closures can
+            # unify with each other regardless of environment type or size.
+            # We fixup the type on assignment into the ".outer" slot.
+            assert isinstance(insn.value(), ir.EnvironmentArgument)
+            llvalue = self.llbuilder.bitcast(llvalue, llptr.type.pointee)
+        return self.llbuilder.store(llvalue, llptr)
 
     def attr_index(self, insn):
         return list(insn.object().type.attributes.keys()).index(insn.attr)
@@ -362,11 +385,20 @@ class LLVMIRGenerator:
         else:
             assert False
 
-    # def process_Closure(self, insn):
-    #     pass
+    def process_Closure(self, insn):
+        llvalue = ll.Constant(self.llty_of_type(insn.target_function.type), ll.Undefined)
+        llenv = self.llbuilder.bitcast(self.map(insn.environment()), ll.IntType(8).as_pointer())
+        llvalue = self.llbuilder.insert_value(llvalue, llenv, 0)
+        llvalue = self.llbuilder.insert_value(llvalue, self.map(insn.target_function), 1,
+                                              name=insn.name)
+        return llvalue
 
-    # def process_Call(self, insn):
-    #     pass
+    def process_Call(self, insn):
+        llclosure, llargs = self.map(insn.target_function()), map(self.map, insn.arguments())
+        llenv = self.llbuilder.extract_value(llclosure, 0)
+        llfun = self.llbuilder.extract_value(llclosure, 1)
+        return self.llbuilder.call(llfun, [llenv] + list(llargs),
+                                   name=insn.name)
 
     def process_Select(self, insn):
         return self.llbuilder.select(self.map(insn.cond()),
@@ -383,7 +415,7 @@ class LLVMIRGenerator:
     #     pass
 
     def process_Return(self, insn):
-        if builtins.is_none(insn.type):
+        if builtins.is_none(insn.value().type):
             return self.llbuilder.ret_void()
         else:
             return self.llbuilder.ret(self.llmap[insn.value()])
