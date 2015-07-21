@@ -155,8 +155,8 @@ class Inferencer(algorithm.Visitor):
     def visit_BoolOpT(self, node):
         self.generic_visit(node)
         for value in node.values:
-            self._unify(node.type, value.type,
-                        node.loc, value.loc, self._makenotes_elts(node.values, "an operand"))
+            self._unify(value.type, builtins.TBool(),
+                        value.loc, None)
 
     def visit_UnaryOpT(self, node):
         self.generic_visit(node)
