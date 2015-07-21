@@ -1,7 +1,7 @@
 from quamash import QtCore
 
 
-class _DictSyncSubstruct:
+class _SyncSubstruct:
     def __init__(self, update_cb, ref):
         self.update_cb = update_cb
         self.ref = ref
@@ -27,7 +27,7 @@ class _DictSyncSubstruct:
         self.update_cb()
 
     def __getitem__(self, key):
-        return _DictSyncSubstruct(self.update_cb, self.ref[key])
+        return _SyncSubstruct(self.update_cb, self.ref[key])
 
 
 class DictSyncModel(QtCore.QAbstractTableModel):
@@ -100,13 +100,63 @@ class DictSyncModel(QtCore.QAbstractTableModel):
         del self.backing_store[k]
         self.endRemoveRows()
 
-    def __getitem__(self, key):
+    def __getitem__(self, k):
         def update():
-            self[key] = self.backing_store[key]
-        return _DictSyncSubstruct(update, self.backing_store[key])
+            self[k] = self.backing_store[k]
+        return _SyncSubstruct(update, self.backing_store[k])
 
     def sort_key(self, k, v):
         raise NotImplementedError
 
     def convert(self, k, v, column):
+        raise NotImplementedError
+
+
+class ListSyncModel(QtCore.QAbstractTableModel):
+    def __init__(self, headers, parent, init):
+        self.headers = headers
+        self.backing_store = init
+        QtCore.QAbstractTableModel.__init__(self, parent)
+
+    def rowCount(self, parent):
+        return len(self.backing_store)
+
+    def columnCount(self, parent):
+        return len(self.headers)
+
+    def data(self, index, role):
+        if not index.isValid():
+            return None
+        elif role != QtCore.Qt.DisplayRole:
+            return None
+        return self.convert(self.backing_store[index.row()], index.column())
+
+    def headerData(self, col, orientation, role):
+        if (orientation == QtCore.Qt.Horizontal
+                and role == QtCore.Qt.DisplayRole):
+            return self.headers[col]
+        return None
+
+    def __setitem__(self, k, v):
+        self.dataChanged.emit(self.index(k, 0),
+                              self.index(k, len(self.headers)))
+        self.backing_store[k] = v
+
+    def __delitem__(self, k):
+        self.beginRemoveRows(QtCore.QModelIndex(), k, k)
+        del self.backing_store[k]
+        self.endRemoveRows()
+
+    def __getitem__(self, k):
+        def update():
+            self[k] = self.backing_store[k]
+        return _SyncSubstruct(update, self.backing_store[k])
+
+    def append(self, v):
+        row = len(self.backing_store)
+        self.beginInsertRows(QtCore.QModelIndex(), row, row)
+        self.backing_store.append(v)
+        self.endInsertRows()
+
+    def convert(self, v, column):
         raise NotImplementedError
