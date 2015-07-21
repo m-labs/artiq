@@ -83,6 +83,7 @@ class LLVMIRGenerator:
             llconst = ll.GlobalVariable(self.llmodule, llstrty,
                                         name=self.llmodule.get_unique_name("str"))
             llconst.global_constant = True
+            llconst.unnamed_addr = True
             llconst.initializer = ll.Constant(llstrty, bytearray(as_bytes))
             return llconst.bitcast(ll.IntType(8).as_pointer())
         else:
