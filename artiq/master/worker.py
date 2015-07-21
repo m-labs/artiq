@@ -4,6 +4,7 @@ import logging
 import subprocess
 import traceback
 import time
+from functools import partial
 
 from artiq.protocols import pyon
 from artiq.tools import (asyncio_process_wait_timeout, asyncio_process_wait,
@@ -174,6 +175,8 @@ class Worker:
                 func = self.register_experiment
             else:
                 func = self.handlers[action]
+            if getattr(func, "worker_pass_rid", False):
+                func = partial(func, self.rid)
             try:
                 data = func(**obj)
                 reply = {"status": "ok", "data": data}

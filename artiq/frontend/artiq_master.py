@@ -30,14 +30,21 @@ def get_argparser():
     return parser
 
 
+class Log:
+    def __init__(self, depth):
+        self.depth = depth
+        self.data = Notifier([])
+
+    def log(self, rid, message):
+        if len(self.data.read) >= self.depth:
+            del self.data[0]
+        self.data.append((rid, message))
+    log.worker_pass_rid = True
+
+
 def main():
     args = get_argparser().parse_args()
-
     init_logger(args)
-    ddb = FlatFileDB("ddb.pyon")
-    pdb = FlatFileDB("pdb.pyon")
-    rtr = Notifier(dict())
-
     if os.name == "nt":
         loop = asyncio.ProactorEventLoop()
         asyncio.set_event_loop(loop)
@@ -45,11 +52,17 @@ def main():
         loop = asyncio.get_event_loop()
     atexit.register(lambda: loop.close())
 
+    ddb = FlatFileDB("ddb.pyon")
+    pdb = FlatFileDB("pdb.pyon")
+    rtr = Notifier(dict())
+    log = Log(1000)
+
     worker_handlers = {
         "get_device": ddb.get,
         "get_parameter": pdb.get,
         "set_parameter": pdb.set,
         "update_rt_results": lambda mod: process_mod(rtr, mod),
+        "log": log.log
     }
     scheduler = Scheduler(get_last_rid() + 1, worker_handlers)
     worker_handlers["scheduler_submit"] = scheduler.submit
@@ -74,7 +87,8 @@ def main():
         "devices": ddb.data,
         "parameters": pdb.data,
         "rt_results": rtr,
-        "explist": repository.explist
+        "explist": repository.explist,
+        "log": log.data
     })
     loop.run_until_complete(server_notify.start(
         args.bind, args.port_notify))

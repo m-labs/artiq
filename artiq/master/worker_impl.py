@@ -44,6 +44,25 @@ def make_parent_action(action, argnames, exception=ParentActionError):
     return parent_action
 
 
+
+
+class LogForwarder:
+    def __init__(self):
+        self.buffer = ""
+
+    to_parent = staticmethod(make_parent_action("log", "message"))
+
+    def write(self, data):
+        self.buffer += data
+        while "\n" in self.buffer:
+            i = self.buffer.index("\n")
+            self.to_parent(self.buffer[:i])
+            self.buffer = self.buffer[i+1:]
+
+    def flush(self):
+        pass
+
+
 class ParentDDB:
     get = make_parent_action("get_device", "name", KeyError)
 
@@ -133,7 +152,7 @@ def examine(dmgr, pdb, rdb, file):
 
 
 def main():
-    sys.stdout = sys.stderr
+    sys.stdout = sys.stderr = LogForwarder()
 
     start_time = None
     rid = None
