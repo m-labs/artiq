@@ -1,5 +1,5 @@
 """
-:class:`IRGenerator` transforms typed AST into ARTIQ intermediate
+:class:`ARTIQIRGenerator` transforms typed AST into ARTIQ intermediate
 representation. ARTIQ IR is designed to be low-level enough that
 its operations are elementary--contain no internal branching--
 but without too much detail, such as exposing the reference/value
@@ -25,9 +25,9 @@ def _extract_loc(node):
 # We put some effort in keeping generated IR readable,
 # i.e. with a more or less linear correspondence to the source.
 # This is why basic blocks sometimes seem to be produced in an odd order.
-class IRGenerator(algorithm.Visitor):
+class ARTIQIRGenerator(algorithm.Visitor):
     """
-    :class:`IRGenerator` contains a lot of internal state,
+    :class:`ARTIQIRGenerator` contains a lot of internal state,
     which is effectively maintained in a stack--with push/pop
     pairs around any state updates. It is comprised of following:
 
@@ -255,8 +255,7 @@ class IRGenerator(algorithm.Visitor):
     def visit_Pass(self, node):
         # Insert a dummy instruction so that analyses which extract
         # locations from CFG have something to use.
-        self.append(ir.Arith(ast.Add(loc=None),
-                             ir.Constant(0, self._size_type), ir.Constant(0, self._size_type)))
+        self.append(ir.Builtin("nop", [], builtins.TNone()))
 
     def visit_Assign(self, node):
         try:
@@ -367,12 +366,13 @@ class IRGenerator(algorithm.Visitor):
         try:
             iterable = self.visit(node.iter)
             length = self._iterable_len(iterable)
+            prehead = self.current_block
 
             head = self.add_block("for.head")
             self.append(ir.Branch(head))
             self.current_block = head
             phi = self.append(ir.Phi(length.type))
-            phi.add_incoming(ir.Constant(0, phi.type), head)
+            phi.add_incoming(ir.Constant(0, phi.type), prehead)
             cond = self.append(ir.Compare(ast.Lt(loc=None), phi, length))
 
             break_block = self.add_block("for.break")
@@ -842,6 +842,8 @@ class IRGenerator(algorithm.Visitor):
 
     def visit_BinOpT(self, node):
         if builtins.is_numeric(node.type):
+            # TODO: check for division by zero
+            # TODO: check for shift by too many bits
             return self.append(ir.Arith(node.op, self.visit(node.left), self.visit(node.right)))
         elif isinstance(node.op, ast.Add): # list + list, tuple + tuple
             lhs, rhs = self.visit(node.left), self.visit(node.right)

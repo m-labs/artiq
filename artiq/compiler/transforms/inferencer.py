@@ -335,9 +335,12 @@ class Inferencer(algorithm.Visitor):
                 return list_.type, left.type, right.type
             else:
                 return self._coerce_numeric((left, right), lambda typ: (typ, typ, typ))
-        elif isinstance(op, (ast.Div, ast.FloorDiv, ast.Mod, ast.Pow, ast.Sub)):
+        elif isinstance(op, (ast.FloorDiv, ast.Mod, ast.Pow, ast.Sub)):
             # numeric operators work on any kind of number
             return self._coerce_numeric((left, right), lambda typ: (typ, typ, typ))
+        elif isinstance(op, ast.Div):
+            # division always returns a float
+            return self._coerce_numeric((left, right), lambda typ: (builtins.TFloat(), typ, typ))
         else: # MatMult
             diag = diagnostic.Diagnostic("error",
                 "operator '{op}' is not supported", {"op": op.loc.source()},

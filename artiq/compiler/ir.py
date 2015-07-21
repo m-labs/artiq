@@ -19,9 +19,15 @@ class TBasicBlock(types.TMono):
     def __init__(self):
         super().__init__("label")
 
+def is_basic_block(typ):
+    return isinstance(typ, TBasicBlock)
+
 class TOption(types.TMono):
     def __init__(self, inner):
         super().__init__("option", {"inner": inner})
+
+def is_option(typ):
+    return isinstance(typ, TOption)
 
 class Value:
     """
@@ -571,7 +577,7 @@ class GetAttr(Instruction):
     def opcode(self):
         return "getattr({})".format(repr(self.attr))
 
-    def env(self):
+    def object(self):
         return self.operands[0]
 
 class SetAttr(Instruction):
@@ -600,7 +606,7 @@ class SetAttr(Instruction):
     def opcode(self):
         return "setattr({})".format(repr(self.attr))
 
-    def env(self):
+    def object(self):
         return self.operands[0]
 
     def value(self):

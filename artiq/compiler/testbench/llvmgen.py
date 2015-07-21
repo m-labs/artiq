@@ -12,8 +12,7 @@ def main():
     engine.process = process_diagnostic
 
     mod = Module.from_string("".join(fileinput.input()).expandtabs(), engine=engine)
-    for fn in mod.artiq_ir:
-        print(fn)
+    print(mod.llvm_ir)
 
 if __name__ == "__main__":
     main()

@@ -18,9 +18,10 @@ class Module:
         int_monomorphizer = transforms.IntMonomorphizer(engine=engine)
         monomorphism_validator = validators.MonomorphismValidator(engine=engine)
         escape_validator = validators.EscapeValidator(engine=engine)
-        ir_generator = transforms.IRGenerator(engine=engine, module_name=self.name)
+        artiq_ir_generator = transforms.ARTIQIRGenerator(engine=engine, module_name=self.name)
         dead_code_eliminator = transforms.DeadCodeEliminator(engine=engine)
         local_access_validator = validators.LocalAccessValidator(engine=engine)
+        llvm_ir_generator = transforms.LLVMIRGenerator(engine=engine, module_name=self.name)
 
         self.parsetree, self.comments = parse_buffer(source_buffer, engine=engine)
         self.typedtree = asttyped_rewriter.visit(self.parsetree)
@@ -30,9 +31,11 @@ class Module:
         inferencer.visit(self.typedtree)
         monomorphism_validator.visit(self.typedtree)
         escape_validator.visit(self.typedtree)
-        self.ir = ir_generator.visit(self.typedtree)
-        dead_code_eliminator.process(self.ir)
-        local_access_validator.process(self.ir)
+        self.artiq_ir = artiq_ir_generator.visit(self.typedtree)
+        dead_code_eliminator.process(self.artiq_ir)
+        local_access_validator.process(self.artiq_ir)
+        llvm_ir_generator.process(self.artiq_ir)
+        self.llvm_ir = llvm_ir_generator.llmodule
 
     @classmethod
     def from_string(cls, source_string, name="input.py", first_line=1, engine=None):
