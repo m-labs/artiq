@@ -60,7 +60,6 @@ class RandomScan:
                 "min": self.min, "max": self.max, "npoints": self.npoints}
 
 
-
 class ExplicitScan:
     def __init__(self, sequence):
         self.sequence = sequence
@@ -109,7 +108,7 @@ class Scannable:
         d["global_min"] = self.global_min
         d["global_max"] = self.global_max
         d["global_step"] = self.global_step
-        d["unit"]= self.unit
+        d["unit"] = self.unit
         if hasattr(self, "default_value"):
             d["default"] = self.default_value.describe()
         return d

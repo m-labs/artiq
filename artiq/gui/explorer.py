@@ -8,6 +8,7 @@ from pyqtgraph import LayoutWidget
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols import pyon
 from artiq.gui.tools import DictSyncModel
+from artiq.gui.scan import ScanController
 
 
 class _ExplistModel(DictSyncModel):
@@ -93,7 +94,8 @@ _procty_to_entry = {
     "BooleanValue": _BooleanEntry,
     "EnumerationValue": _EnumerationEntry,
     "NumberValue": _NumberEntry,
-    "StringValue": _StringEntry
+    "StringValue": _StringEntry,
+    "Scannable": ScanController
 }
 
 

@@ -9,6 +9,7 @@ class ArgumentsDemo(EnvExperiment):
             ["foo", "bar", "quux"], "foo"))
         self.attr_argument("number", NumberValue(42, unit="s", step=0.1))
         self.attr_argument("string", StringValue("Hello World"))
+        self.attr_argument("scan", Scannable(global_max=400, default=NoScan(325)))
 
     def run(self):
         print(self.free_value)
@@ -16,3 +17,5 @@ class ArgumentsDemo(EnvExperiment):
         print(self.enum)
         print(self.number)
         print(self.string)
+        for i in self.scan:
+            print(i)

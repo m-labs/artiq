@@ -87,16 +87,17 @@ def main():
     d_ttl_dds = MonInj()
     loop.run_until_complete(d_ttl_dds.start(args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_ttl_dds.stop()))
-    area.addDock(d_ttl_dds.dds_dock, "top")
-    area.addDock(d_ttl_dds.ttl_dock, "above", d_ttl_dds.dds_dock)
-    area.addDock(d_results, "above", d_ttl_dds.ttl_dock)
-    area.addDock(d_explorer, "above", d_results)
 
     d_params = ParametersDock()
-    area.addDock(d_params, "right", d_explorer)
     loop.run_until_complete(d_params.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_params.sub_close()))
+
+    area.addDock(d_ttl_dds.dds_dock, "top")
+    area.addDock(d_ttl_dds.ttl_dock, "above", d_ttl_dds.dds_dock)
+    area.addDock(d_results, "above", d_ttl_dds.ttl_dock)
+    area.addDock(d_params, "above", d_results)
+    area.addDock(d_explorer, "above", d_params)
 
     d_schedule = ScheduleDock(schedule_ctl)
     loop.run_until_complete(d_schedule.sub_connect(
