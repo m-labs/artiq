@@ -1,6 +1,17 @@
 from quamash import QtCore
 
 
+def short_format(v):
+    t = type(v)
+    if t is int or t is float:
+        return str(v)
+    else:
+        r = t.__name__
+        if t is list or t is dict or t is set:
+            r += " ({})".format(len(v))
+        return r
+
+
 class _SyncSubstruct:
     def __init__(self, update_cb, ref):
         self.update_cb = update_cb

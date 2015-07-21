@@ -5,7 +5,7 @@ from pyqtgraph import dockarea
 from pyqtgraph import LayoutWidget
 
 from artiq.protocols.sync_struct import Subscriber
-from artiq.gui.tools import DictSyncModel
+from artiq.gui.tools import DictSyncModel, short_format
 
 
 class ParametersModel(DictSyncModel):
@@ -20,7 +20,7 @@ class ParametersModel(DictSyncModel):
         if column == 0:
             return k
         elif column == 1:
-            return str(v)
+            return short_format(v)
         else:
            raise ValueError
 

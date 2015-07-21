@@ -7,21 +7,13 @@ from pyqtgraph import dockarea
 from pyqtgraph import LayoutWidget
 
 from artiq.protocols.sync_struct import Subscriber
-from artiq.gui.tools import DictSyncModel
+from artiq.gui.tools import DictSyncModel, short_format
 from artiq.gui.displays import *
-
-
-def _fmt_type(v):
-    t = type(v)
-    r = t.__name__
-    if t is list or t is dict or t is set:
-        r += " ({})".format(len(v))
-    return r
 
 
 class ResultsModel(DictSyncModel):
     def __init__(self, parent, init):
-        DictSyncModel.__init__(self, ["Result", "Type"],
+        DictSyncModel.__init__(self, ["Result", "Value"],
                                parent, init)
 
     def sort_key(self, k, v):
@@ -31,7 +23,7 @@ class ResultsModel(DictSyncModel):
         if column == 0:
             return k
         elif column == 1:
-            return _fmt_type(v)
+            return short_format(v)
         else:
            raise ValueError
 
