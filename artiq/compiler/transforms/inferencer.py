@@ -145,6 +145,8 @@ class Inferencer(algorithm.Visitor):
 
     def visit_IfExpT(self, node):
         self.generic_visit(node)
+        self._unify(node.test.type, builtins.TBool(),
+                    node.test.loc, None)
         self._unify(node.body.type, node.orelse.type,
                     node.body.loc, node.orelse.loc)
         self._unify(node.type, node.body.type,
@@ -788,6 +790,11 @@ class Inferencer(algorithm.Visitor):
 
             node.value = self._coerce_one(value_type, node.value, other_node=node.target)
 
+    def visit_If(self, node):
+        self.generic_visit(node)
+        self._unify(node.test.type, builtins.TBool(),
+                    node.test.loc, None)
+
     def visit_For(self, node):
         old_in_loop, self.in_loop = self.in_loop, True
         self.generic_visit(node)
@@ -798,6 +805,8 @@ class Inferencer(algorithm.Visitor):
         old_in_loop, self.in_loop = self.in_loop, True
         self.generic_visit(node)
         self.in_loop = old_in_loop
+        self._unify(node.test.type, builtins.TBool(),
+                    node.test.loc, None)
 
     def visit_Break(self, node):
         if not self.in_loop:

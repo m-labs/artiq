@@ -3,7 +3,7 @@
 def _gcd(a, b):
     if a < 0:
         a = -a
-    while a:
+    while a > 0:
         c = a
         a = b % a
         b = c

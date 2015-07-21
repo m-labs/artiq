@@ -33,8 +33,8 @@ j = []
 j += [1.0]
 # CHECK-L: j:list(elt=float)
 
-1 if a else 2
-# CHECK-L: 1:int(width='f) if a:int(width='a) else 2:int(width='f):int(width='f)
+1 if c else 2
+# CHECK-L: 1:int(width='f) if c:bool else 2:int(width='f):int(width='f)
 
 True and False
 # CHECK-L: True:bool and False:bool:bool
