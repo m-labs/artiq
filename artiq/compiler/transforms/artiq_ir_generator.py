@@ -565,6 +565,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
     def visit_NumT(self, node):
         return ir.Constant(node.n, node.type)
 
+    def visit_StrT(self, node):
+        return ir.Constant(node.s, node.type)
+
     def visit_NameConstantT(self, node):
         return ir.Constant(node.value, node.type)
 
@@ -1038,7 +1041,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         return result
 
     def _compare_pair_identity(self, op, lhs, rhs):
-        if builtins.is_mutable(lhs) and builtins.is_mutable(rhs):
+        if builtins.is_allocated(lhs) and builtins.is_allocated(rhs):
             # These are actually pointers, compare directly.
             return self.append(ir.Compare(op, lhs, rhs))
         else:

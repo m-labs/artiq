@@ -78,7 +78,7 @@ class RegionOf(algorithm.Visitor):
     # Value lives as long as the current scope, if it's mutable,
     # or else forever
     def visit_BinOpT(self, node):
-        if builtins.is_mutable(node.type):
+        if builtins.is_allocated(node.type):
             return self.youngest_region
         else:
             return None
@@ -86,7 +86,7 @@ class RegionOf(algorithm.Visitor):
     # Value lives as long as the object/container, if it's mutable,
     # or else forever
     def visit_accessor(self, node):
-        if builtins.is_mutable(node.type):
+        if builtins.is_allocated(node.type):
             return self.visit(node.value)
         else:
             return None
@@ -125,19 +125,22 @@ class RegionOf(algorithm.Visitor):
     visit_ListCompT = visit_allocating
     visit_SetT = visit_allocating
     visit_SetCompT = visit_allocating
-    visit_StrT = visit_allocating
 
     # Value lives forever
     def visit_immutable(self, node):
-        assert not builtins.is_mutable(node.type)
+        assert not builtins.is_allocated(node.type)
         return None
 
-    visit_CompareT = visit_immutable
-    visit_EllipsisT = visit_immutable
     visit_NameConstantT = visit_immutable
     visit_NumT = visit_immutable
+    visit_EllipsisT = visit_immutable
     visit_UnaryOpT = visit_immutable
+    visit_CompareT = visit_immutable
     visit_CallT = visit_immutable
+
+    # Value is mutable, but still lives forever
+    def visit_StrT(self, node):
+        return None
 
     # Not implemented
     def visit_unimplemented(self, node):
@@ -212,7 +215,7 @@ class EscapeValidator(algorithm.Visitor):
             self.youngest_env = {}
 
             for name in node.typing_env:
-                if builtins.is_mutable(node.typing_env[name]):
+                if builtins.is_allocated(node.typing_env[name]):
                     self.youngest_env[name] = Region(None) # not yet known
                 else:
                     self.youngest_env[name] = None # lives forever
@@ -277,7 +280,7 @@ class EscapeValidator(algorithm.Visitor):
             self.visit_assignment(target, node.value)
 
     def visit_AugAssign(self, node):
-        if builtins.is_mutable(node.target.type):
+        if builtins.is_allocated(node.target.type):
             # If the target is mutable, op-assignment will allocate
             # in the youngest region.
             self.visit_assignment(node.target, node.value, is_aug_assign=True)
@@ -295,7 +298,7 @@ class EscapeValidator(algorithm.Visitor):
             self.engine.process(diag)
 
     def visit_Raise(self, node):
-        if builtins.is_mutable(node.exc.type):
+        if builtins.is_allocated(node.exc.type):
             note = diagnostic.Diagnostic("note",
                 "this expression has type {type}",
                 {"type": types.TypePrinter().name(node.exc.type)},

@@ -50,6 +50,10 @@ class TFloat(types.TMono):
     def one():
         return 1.0
 
+class TStr(types.TMono):
+    def __init__(self):
+        super().__init__("str")
+
 class TList(types.TMono):
     def __init__(self, elt=None):
         if elt is None:
@@ -87,6 +91,9 @@ def fn_int():
 
 def fn_float():
     return types.TConstructor("float")
+
+def fn_str():
+    return types.TConstructor("str")
 
 def fn_list():
     return types.TConstructor("list")
@@ -133,6 +140,9 @@ def get_int_width(typ):
 def is_float(typ):
     return types.is_mono(typ, "float")
 
+def is_str(typ):
+    return types.is_mono(typ, "str")
+
 def is_numeric(typ):
     typ = typ.find()
     return isinstance(typ, types.TMono) and \
@@ -167,6 +177,6 @@ def is_collection(typ):
     return isinstance(typ, types.TTuple) or \
         types.is_mono(typ, "list")
 
-def is_mutable(typ):
+def is_allocated(typ):
     return typ.fold(False, lambda accum, typ:
-        is_list(typ) or types.is_function(typ))
+        is_list(typ) or is_str(typ) or types.is_function(typ))

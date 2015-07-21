@@ -54,3 +54,5 @@ not 1
 lambda x, y=1: x
 # CHECK-L: lambda x:'k, y:int(width='l)=1:int(width='l): x:'k:(x:'k, ?y:int(width='l))->'k
 
+k = "x"
+# CHECK-L: k:str

@@ -18,7 +18,7 @@ class LLVMIRGenerator:
 
     def llty_of_type(self, typ, bare=False, for_return=False):
         if types.is_tuple(typ):
-            return ll.LiteralStructType([self.llty_of_type(eltty) for eltty in typ.elts])
+            return ll.LiteralStructType([self.llty_of_type(eltty) for eltty in typ.find().elts])
         elif types.is_function(typ):
             envarg = ll.IntType(8).as_pointer()
             llty = ll.FunctionType(args=[envarg] +
@@ -42,6 +42,8 @@ class LLVMIRGenerator:
             return ll.IntType(builtins.get_int_width(typ))
         elif builtins.is_float(typ):
             return ll.DoubleType()
+        elif builtins.is_str(typ):
+            return ll.IntType(8).as_pointer()
         elif builtins.is_list(typ):
             lleltty = self.llty_of_type(builtins.get_iterable_elt(typ))
             return ll.LiteralStructType([ll.IntType(32), lleltty.as_pointer()])
@@ -75,6 +77,14 @@ class LLVMIRGenerator:
             return ll.Constant(llty, False)
         elif isinstance(const.value, (int, float)):
             return ll.Constant(llty, const.value)
+        elif isinstance(const.value, str):
+            as_bytes = const.value.encode('utf-8')
+            llstrty = ll.ArrayType(ll.IntType(8), len(as_bytes))
+            llconst = ll.GlobalVariable(self.llmodule, llstrty,
+                                        name=self.llmodule.get_unique_name("str"))
+            llconst.global_constant = True
+            llconst.initializer = ll.Constant(llstrty, bytearray(as_bytes))
+            return llconst.bitcast(ll.IntType(8).as_pointer())
         else:
             assert False
 
@@ -157,7 +167,7 @@ class LLVMIRGenerator:
                                             size=llsize)
             llvalue = self.llbuilder.insert_value(llvalue, llalloc, 1, name=insn.name)
             return llvalue
-        elif builtins.is_mutable(insn.type):
+        elif builtins.is_allocated(insn.type):
             assert False
         else: # immutable
             llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
@@ -203,7 +213,7 @@ class LLVMIRGenerator:
         if types.is_tuple(insn.object().type):
             return self.llbuilder.extract_value(self.map(insn.object()), self.attr_index(insn),
                                                 name=insn.name)
-        elif not builtins.is_mutable(insn.object().type):
+        elif not builtins.is_allocated(insn.object().type):
             return self.llbuilder.extract_value(self.map(insn.object()), self.attr_index(insn),
                                                 name=insn.name)
         else:
@@ -213,7 +223,7 @@ class LLVMIRGenerator:
             return self.llbuilder.load(llptr)
 
     def process_SetAttr(self, insn):
-        assert builtins.is_mutable(insns.object().type)
+        assert builtins.is_allocated(insns.object().type)
         llptr = self.llbuilder.gep(self.map(insn.object()),
                                    [self.llindex(0), self.llindex(self.attr_index(insn))],
                                    name=insn.name)

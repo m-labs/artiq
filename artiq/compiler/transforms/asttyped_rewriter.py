@@ -252,6 +252,11 @@ class ASTTypedRewriter(algorithm.Transformer):
         return asttyped.NumT(type=typ,
                              n=node.n, loc=node.loc)
 
+    def visit_Str(self, node):
+        return asttyped.StrT(type=builtins.TStr(),
+                             s=node.s,
+                             begin_loc=node.begin_loc, end_loc=node.end_loc, loc=node.loc)
+
     def visit_Name(self, node):
         return asttyped.NameT(type=self._find_name(node.id, node.loc),
                               id=node.id, ctx=node.ctx, loc=node.loc)
@@ -411,7 +416,6 @@ class ASTTypedRewriter(algorithm.Transformer):
     visit_GeneratorExp = visit_unsupported
     visit_Set = visit_unsupported
     visit_SetComp = visit_unsupported
-    visit_Str = visit_unsupported
     visit_Starred = visit_unsupported
     visit_Yield = visit_unsupported
     visit_YieldFrom = visit_unsupported
