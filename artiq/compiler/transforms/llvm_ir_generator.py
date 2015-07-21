@@ -78,7 +78,7 @@ class LLVMIRGenerator:
         elif isinstance(const.value, (int, float)):
             return ll.Constant(llty, const.value)
         elif isinstance(const.value, str):
-            as_bytes = const.value.encode('utf-8')
+            as_bytes = (const.value + '\0').encode('utf-8')
             llstrty = ll.ArrayType(ll.IntType(8), len(as_bytes))
             llconst = ll.GlobalVariable(self.llmodule, llstrty,
                                         name=self.llmodule.get_unique_name("str"))
