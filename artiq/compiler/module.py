@@ -34,8 +34,7 @@ class Module:
         self.artiq_ir = artiq_ir_generator.visit(self.typedtree)
         dead_code_eliminator.process(self.artiq_ir)
         local_access_validator.process(self.artiq_ir)
-        llvm_ir_generator.process(self.artiq_ir)
-        self.llvm_ir = llvm_ir_generator.llmodule
+        self.llvm_ir = llvm_ir_generator.process(self.artiq_ir)
 
     @classmethod
     def from_string(cls, source_string, name="input.py", first_line=1, engine=None):

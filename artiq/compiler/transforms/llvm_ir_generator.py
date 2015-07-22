@@ -130,6 +130,8 @@ class LLVMIRGenerator:
         for func in functions:
             self.process_function(func)
 
+        return self.llmodule
+
     def process_function(self, func):
         try:
             self.llfunction = self.llmodule.get_global(func.name)
