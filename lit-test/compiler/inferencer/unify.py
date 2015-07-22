@@ -39,17 +39,20 @@ j += [1.0]
 True and False
 # CHECK-L: True:bool and False:bool:bool
 
-~1
-# CHECK-L: ~1:int(width='g):int(width='g)
+1 and 0
+# CHECK-L: 1:int(width='g) and 0:int(width='g):int(width='g)
 
-not True
-# CHECK-L: not True:bool:bool
+~1
+# CHECK-L: 1:int(width='h):int(width='h)
+
+not 1
+# CHECK-L: 1:int(width='i):bool
 
 [x for x in [1]]
-# CHECK-L: [x:int(width='h) for x:int(width='h) in [1:int(width='h)]:list(elt=int(width='h))]:list(elt=int(width='h))
+# CHECK-L: [x:int(width='j) for x:int(width='j) in [1:int(width='j)]:list(elt=int(width='j))]:list(elt=int(width='j))
 
 lambda x, y=1: x
-# CHECK-L: lambda x:'i, y:int(width='j)=1:int(width='j): x:'i:(x:'i, ?y:int(width='j))->'i
+# CHECK-L: lambda x:'k, y:int(width='l)=1:int(width='l): x:'k:(x:'k, ?y:int(width='l))->'k
 
 k = "x"
 # CHECK-L: k:str

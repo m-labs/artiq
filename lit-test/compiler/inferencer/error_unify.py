@@ -14,6 +14,8 @@ a = b
 
 # CHECK-L: ${LINE:+1}: error: cannot unify int(width='a) with bool
 1 and False
+# CHECK-L: note: an operand of type int(width='a)
+# CHECK-L: note: an operand of type bool
 
 # CHECK-L: ${LINE:+1}: error: expected unary '+' operand to be of numeric type, not list(elt='a)
 +[]

@@ -305,7 +305,7 @@ class ASTTypedRewriter(algorithm.Transformer):
 
     def visit_BoolOp(self, node):
         node = self.generic_visit(node)
-        node = asttyped.BoolOpT(type=builtins.TBool(),
+        node = asttyped.BoolOpT(type=types.TVar(),
                                 op=node.op, values=node.values,
                                 op_locs=node.op_locs, loc=node.loc)
         return self.visit(node)
