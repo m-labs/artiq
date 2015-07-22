@@ -23,12 +23,3 @@ a = b
 
 # CHECK-L: ${LINE:+1}: error: type int(width='a) does not have an attribute 'x'
 (1).x
-
-# CHECK-L: ${LINE:+1}: error: cannot unify int(width='a) with bool
-1 if 1 else 1
-
-# CHECK-L: ${LINE:+1}: error: cannot unify int(width='a) with bool
-if 1: pass
-
-# CHECK-L: ${LINE:+1}: error: cannot unify int(width='a) with bool
-while 1: pass
