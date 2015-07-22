@@ -55,8 +55,8 @@ class LocalAccessValidator:
                     # in order to be initialized in this block.
                     def merge_state(a, b):
                         return {var: a[var] and b[var] for var in a}
-                    block_state[env] = reduce(lambda a, b: merge_state(a[env], b[env]),
-                                              pred_states)
+                    block_state[env] = reduce(merge_state,
+                                              [state[env] for state in pred_states])
             elif len(pred_states) == 1:
                 # The state is the same as at the terminator of predecessor.
                 # We'll mutate it, so copy.

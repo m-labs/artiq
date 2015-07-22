@@ -13,14 +13,14 @@ def genalnum():
         pos = len(ident) - 1
         while pos >= 0:
             cur_n = string.ascii_lowercase.index(ident[pos])
-            if cur_n < 26:
+            if cur_n < 25:
                 ident[pos] = string.ascii_lowercase[cur_n + 1]
                 break
             else:
                 ident[pos] = "a"
                 pos -= 1
         if pos < 0:
-            ident = "a" + ident
+            ident = ["a"] + ident
 
 class UnificationError(Exception):
     def __init__(self, typea, typeb):

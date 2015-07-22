@@ -1,7 +1,7 @@
 import sys, fileinput, os
 from pythonparser import source, diagnostic, algorithm, parse_buffer
 from .. import prelude, types
-from ..transforms import ASTTypedRewriter, Inferencer
+from ..transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer
 
 class Printer(algorithm.Visitor):
     """
@@ -42,6 +42,12 @@ class Printer(algorithm.Visitor):
                                        ":{}".format(self.type_printer.name(node.type)))
 
 def main():
+    if sys.argv[1] == "+mono":
+        del sys.argv[1]
+        monomorphize = True
+    else:
+        monomorphize = False
+
     if len(sys.argv) > 1 and sys.argv[1] == "+diag":
         del sys.argv[1]
         def process_diagnostic(diag):
@@ -62,6 +68,9 @@ def main():
     parsed, comments = parse_buffer(buf, engine=engine)
     typed = ASTTypedRewriter(engine=engine).visit(parsed)
     Inferencer(engine=engine).visit(typed)
+    if monomorphize:
+        IntMonomorphizer(engine=engine).visit(typed)
+        Inferencer(engine=engine).visit(typed)
 
     printer = Printer(buf)
     printer.visit(typed)

@@ -77,11 +77,14 @@ class RegionOf(algorithm.Visitor):
 
     # Value lives as long as the current scope, if it's mutable,
     # or else forever
-    def visit_BinOpT(self, node):
+    def visit_sometimes_allocating(self, node):
         if builtins.is_allocated(node.type):
             return self.youngest_region
         else:
             return None
+
+    visit_BinOpT = visit_sometimes_allocating
+    visit_CallT = visit_sometimes_allocating
 
     # Value lives as long as the object/container, if it's mutable,
     # or else forever
@@ -136,7 +139,6 @@ class RegionOf(algorithm.Visitor):
     visit_EllipsisT = visit_immutable
     visit_UnaryOpT = visit_immutable
     visit_CompareT = visit_immutable
-    visit_CallT = visit_immutable
 
     # Value is mutable, but still lives forever
     def visit_StrT(self, node):

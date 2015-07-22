@@ -109,6 +109,7 @@ class Inferencer(algorithm.Visitor):
             self.engine.process(diag)
 
     def visit_Index(self, node):
+        self.generic_visit(node)
         value = node.value
         if types.is_tuple(value.type):
             diag = diagnostic.Diagnostic("error",
@@ -342,7 +343,8 @@ class Inferencer(algorithm.Visitor):
             return self._coerce_numeric((left, right), lambda typ: (typ, typ, typ))
         elif isinstance(op, ast.Div):
             # division always returns a float
-            return self._coerce_numeric((left, right), lambda typ: (builtins.TFloat(), typ, typ))
+            return self._coerce_numeric((left, right),
+                        lambda typ: (builtins.TFloat(), builtins.TFloat(), builtins.TFloat()))
         else: # MatMult
             diag = diagnostic.Diagnostic("error",
                 "operator '{op}' is not supported", {"op": op.loc.source()},
@@ -377,7 +379,7 @@ class Inferencer(algorithm.Visitor):
                 for left, right in pairs:
                     self._unify(left.type, right.type,
                                 left.loc, right.loc)
-            else:
+            elif any(map(builtins.is_numeric, operand_types)):
                 typ = self._coerce_numeric(operands)
                 if typ:
                     try:
@@ -393,6 +395,8 @@ class Inferencer(algorithm.Visitor):
                         other_node = next(filter(wide_enough, operands))
                     node.left, *node.comparators = \
                         [self._coerce_one(typ, operand, other_node) for operand in operands]
+            else:
+                pass # No coercion required.
         self._unify(node.type, builtins.TBool(),
                     node.loc, None)
 

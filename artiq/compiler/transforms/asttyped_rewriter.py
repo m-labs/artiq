@@ -300,7 +300,7 @@ class ASTTypedRewriter(algorithm.Transformer):
         node = self.generic_visit(node)
         node = asttyped.SubscriptT(type=types.TVar(),
                                    value=node.value, slice=node.slice, ctx=node.ctx,
-                                   loc=node.loc)
+                                   begin_loc=node.begin_loc, end_loc=node.end_loc, loc=node.loc)
         return self.visit(node)
 
     def visit_BoolOp(self, node):

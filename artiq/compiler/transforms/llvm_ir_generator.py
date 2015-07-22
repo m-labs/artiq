@@ -99,12 +99,16 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(ll.VoidType(), [])
         elif name in "llvm.trap":
             llty = ll.FunctionType(ll.VoidType(), [])
+        elif name == "llvm.floor.f64":
+            llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType()])
         elif name == "llvm.round.f64":
             llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType()])
         elif name == "llvm.pow.f64":
             llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType(), ll.DoubleType()])
         elif name == "llvm.powi.f64":
             llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType(), ll.IntType(32)])
+        elif name == "llvm.copysign.f64":
+            llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType(), ll.DoubleType()])
         elif name == "printf":
             llty = ll.FunctionType(ll.VoidType(), [ll.IntType(8).as_pointer()], var_arg=True)
         else:
@@ -331,27 +335,36 @@ class LLVMIRGenerator:
         elif isinstance(insn.op, ast.FloorDiv):
             if builtins.is_float(insn.type):
                 llvalue = self.llbuilder.fdiv(self.map(insn.lhs()), self.map(insn.rhs()))
-                return self.llbuilder.call(self.llbuiltin("llvm.round.f64"), [llvalue],
+                return self.llbuilder.call(self.llbuiltin("llvm.floor.f64"), [llvalue],
                                            name=insn.name)
             else:
                 return self.llbuilder.sdiv(self.map(insn.lhs()), self.map(insn.rhs()),
                                            name=insn.name)
         elif isinstance(insn.op, ast.Mod):
+            # Python only has the modulo operator, LLVM only has the remainder
             if builtins.is_float(insn.type):
-                return self.llbuilder.frem(self.map(insn.lhs()), self.map(insn.rhs()),
+                llvalue = self.llbuilder.frem(self.map(insn.lhs()), self.map(insn.rhs()))
+                return self.llbuilder.call(self.llbuiltin("llvm.copysign.f64"),
+                                           [llvalue, self.map(insn.rhs())],
                                            name=insn.name)
             else:
-                return self.llbuilder.srem(self.map(insn.lhs()), self.map(insn.rhs()),
-                                           name=insn.name)
+                lllhs, llrhs = map(self.map, (insn.lhs(), insn.rhs()))
+                llxorsign = self.llbuilder.and_(self.llbuilder.xor(lllhs, llrhs),
+                                                ll.Constant(lllhs.type, 1 << lllhs.type.width - 1))
+                llnegate = self.llbuilder.icmp_unsigned('!=',
+                                                        llxorsign, ll.Constant(llxorsign.type, 0))
+                llvalue = self.llbuilder.srem(lllhs, llrhs)
+                llnegvalue = self.llbuilder.sub(ll.Constant(llvalue.type, 0), llvalue)
+                return self.llbuilder.select(llnegate, llnegvalue, llvalue)
         elif isinstance(insn.op, ast.Pow):
             if builtins.is_float(insn.type):
                 return self.llbuilder.call(self.llbuiltin("llvm.pow.f64"),
                                            [self.map(insn.lhs()), self.map(insn.rhs())],
                                            name=insn.name)
             else:
+                lllhs = self.llbuilder.sitofp(self.map(insn.lhs()), ll.DoubleType())
                 llrhs = self.llbuilder.trunc(self.map(insn.rhs()), ll.IntType(32))
-                llvalue = self.llbuilder.call(self.llbuiltin("llvm.powi.f64"),
-                                              [self.map(insn.lhs()), llrhs])
+                llvalue = self.llbuilder.call(self.llbuiltin("llvm.powi.f64"), [lllhs, llrhs])
                 return self.llbuilder.fptosi(llvalue, self.llty_of_type(insn.type),
                                              name=insn.name)
         elif isinstance(insn.op, ast.LShift):
@@ -373,9 +386,9 @@ class LLVMIRGenerator:
             assert False
 
     def process_Compare(self, insn):
-        if isinstance(insn.op, ast.Eq):
+        if isinstance(insn.op, (ast.Eq, ast.Is)):
             op = '=='
-        elif isinstance(insn.op, ast.NotEq):
+        elif isinstance(insn.op, (ast.NotEq, ast.IsNot)):
             op = '!='
         elif isinstance(insn.op, ast.Gt):
             op = '>'
@@ -388,12 +401,32 @@ class LLVMIRGenerator:
         else:
             assert False
 
-        if builtins.is_float(insn.lhs().type):
-            return self.llbuilder.fcmp_ordered(op, self.map(insn.lhs()), self.map(insn.rhs()),
+        lllhs, llrhs = map(self.map, (insn.lhs(), insn.rhs()))
+        assert lllhs.type == llrhs.type
+
+        if isinstance(lllhs.type, ll.IntType):
+            return self.llbuilder.icmp_signed(op, lllhs, llrhs,
+                                                name=insn.name)
+        elif isinstance(lllhs.type, ll.PointerType):
+            return self.llbuilder.icmp_unsigned(op, lllhs, llrhs,
+                                                name=insn.name)
+        elif isinstance(lllhs.type, (ll.FloatType, ll.DoubleType)):
+            return self.llbuilder.fcmp_ordered(op, lllhs, llrhs,
                                                name=insn.name)
+        elif isinstance(lllhs.type, ll.LiteralStructType):
+            # Compare aggregates (such as lists or ranges) element-by-element.
+            llvalue = ll.Constant(ll.IntType(1), True)
+            for index in range(len(lllhs.type.elements)):
+                lllhselt = self.llbuilder.extract_value(lllhs, index)
+                llrhselt = self.llbuilder.extract_value(llrhs, index)
+                llresult = self.llbuilder.icmp_unsigned('==', lllhselt, llrhselt)
+                llvalue  = self.llbuilder.select(llresult, llvalue,
+                                                 ll.Constant(ll.IntType(1), False))
+            return self.llbuilder.icmp_unsigned(op, llvalue, ll.Constant(ll.IntType(1), True),
+                                                name=insn.name)
         else:
-            return self.llbuilder.icmp_signed(op, self.map(insn.lhs()), self.map(insn.rhs()),
-                                              name=insn.name)
+            print(lllhs, llrhs)
+            assert False
 
     def process_Builtin(self, insn):
         if insn.op == "nop":
@@ -401,22 +434,24 @@ class LLVMIRGenerator:
         if insn.op == "abort":
             return self.llbuilder.call(self.llbuiltin("llvm.trap"), [])
         elif insn.op == "is_some":
-            optarg = self.map(insn.operands[0])
-            return self.llbuilder.extract_value(optarg, 0,
+            lloptarg = self.map(insn.operands[0])
+            return self.llbuilder.extract_value(lloptarg, 0,
                                                 name=insn.name)
         elif insn.op == "unwrap":
-            optarg = self.map(insn.operands[0])
-            return self.llbuilder.extract_value(optarg, 1,
+            lloptarg = self.map(insn.operands[0])
+            return self.llbuilder.extract_value(lloptarg, 1,
                                                 name=insn.name)
         elif insn.op == "unwrap_or":
-            optarg, default = map(self.map, insn.operands)
-            has_arg = self.llbuilder.extract_value(optarg, 0)
-            arg = self.llbuilder.extract_value(optarg, 1)
-            return self.llbuilder.select(has_arg, arg, default,
+            lloptarg, lldefault = map(self.map, insn.operands)
+            llhas_arg = self.llbuilder.extract_value(lloptarg, 0)
+            llarg = self.llbuilder.extract_value(lloptarg, 1)
+            return self.llbuilder.select(llhas_arg, llarg, lldefault,
                                          name=insn.name)
         elif insn.op == "round":
-            return self.llbuilder.call(self.llbuiltin("llvm.round.f64"), [llvalue],
-                                       name=insn.name)
+            llarg = self.map(insn.operands[0])
+            llvalue = self.llbuilder.call(self.llbuiltin("llvm.round.f64"), [llarg])
+            return self.llbuilder.fptosi(llvalue, self.llty_of_type(insn.type),
+                                         name=insn.name)
         elif insn.op == "globalenv":
             def get_outer(llenv, env_ty):
                 if ".outer" in env_ty.params:
