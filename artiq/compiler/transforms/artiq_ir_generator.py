@@ -1339,7 +1339,13 @@ class ARTIQIRGenerator(algorithm.Visitor):
                                                   ir.Constant("True", builtins.TStr()),
                                                   ir.Constant("False", builtins.TStr()))))
             elif builtins.is_int(value.type):
-                format_string += "%d"
+                width = builtins.get_int_width(value.type)
+                if width <= 32:
+                    format_string += "%ld"
+                elif width <= 64:
+                    format_string += "%lld"
+                else:
+                    assert False
                 args.append(value)
             elif builtins.is_float(value.type):
                 format_string += "%g"
