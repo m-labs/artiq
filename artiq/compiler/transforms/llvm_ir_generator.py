@@ -368,11 +368,21 @@ class LLVMIRGenerator:
                 return self.llbuilder.fptosi(llvalue, self.llty_of_type(insn.type),
                                              name=insn.name)
         elif isinstance(insn.op, ast.LShift):
-            return self.llbuilder.shl(self.map(insn.lhs()), self.map(insn.rhs()),
-                                      name=insn.name)
+            lllhs, llrhs = map(self.map, (insn.lhs(), insn.rhs()))
+            llrhs_max = ll.Constant(llrhs.type, builtins.get_int_width(insn.lhs().type))
+            llrhs_overflow = self.llbuilder.icmp_signed('>=', llrhs, llrhs_max)
+            llvalue_zero = ll.Constant(lllhs.type, 0)
+            llvalue = self.llbuilder.shl(lllhs, llrhs)
+            return self.llbuilder.select(llrhs_overflow, llvalue_zero, llvalue,
+                                         name=insn.name)
         elif isinstance(insn.op, ast.RShift):
-            return self.llbuilder.ashr(self.map(insn.lhs()), self.map(insn.rhs()),
-                                       name=insn.name)
+            lllhs, llrhs = map(self.map, (insn.lhs(), insn.rhs()))
+            llrhs_max = ll.Constant(llrhs.type, builtins.get_int_width(insn.lhs().type) - 1)
+            llrhs_overflow = self.llbuilder.icmp_signed('>', llrhs, llrhs_max)
+            llvalue = self.llbuilder.ashr(lllhs, llrhs)
+            llvalue_max = self.llbuilder.ashr(lllhs, llrhs_max) # preserve sign bit
+            return self.llbuilder.select(llrhs_overflow, llvalue_max, llvalue,
+                                         name=insn.name)
         elif isinstance(insn.op, ast.BitAnd):
             return self.llbuilder.and_(self.map(insn.lhs()), self.map(insn.rhs()),
                                        name=insn.name)

@@ -900,8 +900,14 @@ class ARTIQIRGenerator(algorithm.Visitor):
     def visit_BinOpT(self, node):
         if builtins.is_numeric(node.type):
             # TODO: check for division by zero
-            # TODO: check for shift by too many bits
-            return self.append(ir.Arith(node.op, self.visit(node.left), self.visit(node.right)))
+            rhs = self.visit(node.right)
+            if isinstance(node.op, (ast.LShift, ast.RShift)):
+                # Check for negative shift amount.
+                self._make_check(self.append(ir.Compare(ast.GtE(loc=None), rhs,
+                                                        ir.Constant(0, rhs.type))),
+                                 lambda: self.append(ir.Alloc([], builtins.TValueError())))
+
+            return self.append(ir.Arith(node.op, self.visit(node.left), rhs))
         elif isinstance(node.op, ast.Add): # list + list, tuple + tuple
             lhs, rhs = self.visit(node.left), self.visit(node.right)
             if types.is_tuple(node.left.type) and types.is_tuple(node.right.type):
