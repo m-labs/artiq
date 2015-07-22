@@ -83,6 +83,10 @@ class TValueError(TException):
     def __init__(self):
         super().__init__("ValueError")
 
+class TZeroDivisionError(TException):
+    def __init__(self):
+        super().__init__("ZeroDivisionError")
+
 def fn_bool():
     return types.TConstructor("bool")
 
@@ -106,6 +110,9 @@ def fn_IndexError():
 
 def fn_ValueError():
     return types.TExceptionConstructor("ValueError")
+
+def fn_ZeroDivisionError():
+    return types.TExceptionConstructor("ZeroDivisionError")
 
 def fn_range():
     return types.TBuiltinFunction("range")
