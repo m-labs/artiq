@@ -1,7 +1,5 @@
 # RUN: %python -m artiq.compiler.testbench.jit %s
 
-assert (not True) == False
-assert (not False) == True
 assert -(-1) == 1
 assert -(-1.0) == 1.0
 assert +1 == 1

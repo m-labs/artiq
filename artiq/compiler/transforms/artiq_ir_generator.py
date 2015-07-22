@@ -284,8 +284,33 @@ class ARTIQIRGenerator(algorithm.Visitor):
         finally:
             self.current_assign = None
 
+    def coerce_to_bool(self, insn, block=None):
+        if builtins.is_bool(insn.type):
+            return insn
+        elif builtins.is_int(insn.type):
+            return self.append(ir.Compare(ast.NotEq(loc=None), insn, ir.Constant(0, insn.type)),
+                               block=block)
+        elif builtins.is_float(insn.type):
+            return self.append(ir.Compare(ast.NotEq(loc=None), insn, ir.Constant(0, insn.type)),
+                               block=block)
+        elif builtins.is_iterable(insn.type):
+            length = self.iterable_len(insn)
+            return self.append(ir.Compare(ast.NotEq(loc=None), length, ir.Constant(0, length.type)),
+                               block=block)
+        else:
+            note = diagnostic.Diagnostic("note",
+                "this expression has type {type}",
+                {"type": types.TypePrinter().name(insn.type)},
+                insn.loc)
+            diag = diagnostic.Diagnostic("warning",
+                "this expression, which is always truthful, is coerced to bool", {},
+                insn.loc, notes=[note])
+            self.engine.process(diag)
+            return ir.Constant(True, builtins.TBool())
+
     def visit_If(self, node):
         cond = self.visit(node.test)
+        cond = self.coerce_to_bool(cond)
         head = self.current_block
 
         if_true = self.add_block()
@@ -838,17 +863,19 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     zip(blocks, [(h,t) for (v,h,t) in blocks[1:]] + [(tail, tail)]):
             phi.add_incoming(value, value_tail)
             if next_value_head != tail:
+                cond = self.coerce_to_bool(value, block=value_tail)
                 if isinstance(node.op, ast.And):
-                    value_tail.append(ir.BranchIf(value, next_value_head, tail))
+                    value_tail.append(ir.BranchIf(cond, next_value_head, tail))
                 else:
-                    value_tail.append(ir.BranchIf(value, tail, next_value_head))
+                    value_tail.append(ir.BranchIf(cond, tail, next_value_head))
             else:
                 value_tail.append(ir.Branch(tail))
         return phi
 
     def visit_UnaryOpT(self, node):
         if isinstance(node.op, ast.Not):
-            return self.append(ir.Select(self.visit(node.operand),
+            cond = self.coerce_to_bool(self.visit(node.operand))
+            return self.append(ir.Select(cond,
                         ir.Constant(False, builtins.TBool()),
                         ir.Constant(True,  builtins.TBool())))
         elif isinstance(node.op, ast.USub):
@@ -1116,9 +1143,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 return ir.Constant(False, builtins.TBool())
             elif len(node.args) == 1 and len(node.keywords) == 0:
                 arg = self.visit(node.args[0])
-                return self.append(ir.Select(arg,
-                    ir.Constant(True,  builtins.TBool()),
-                    ir.Constant(False, builtins.TBool())))
+                return self.coerce_to_bool(arg)
             else:
                 assert False
         elif types.is_builtin(typ, "int"):

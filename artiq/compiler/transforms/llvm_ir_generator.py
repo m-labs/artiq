@@ -295,7 +295,7 @@ class LLVMIRGenerator:
             if builtins.get_int_width(typ) > builtins.get_int_width(value_typ):
                 return self.llbuilder.sext(self.map(insn.value()), self.llty_of_type(typ),
                                            name=insn.name)
-            else: # builtins.get_int_width(typ) < builtins.get_int_width(value_typ):
+            else: # builtins.get_int_width(typ) <= builtins.get_int_width(value_typ):
                 return self.llbuilder.trunc(self.map(insn.value()), self.llty_of_type(typ),
                                             name=insn.name)
         else:
