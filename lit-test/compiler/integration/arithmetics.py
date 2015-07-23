@@ -1,4 +1,5 @@
 # RUN: %python -m artiq.compiler.testbench.jit %s
+# RUN: %python %s
 
 assert -(-1) == 1
 assert -(-1.0) == 1.0
@@ -28,7 +29,7 @@ assert 9.0 ** 0.5 == 3.0
 assert 1 << 1 == 2
 assert 2 >> 1 == 1
 assert -2 >> 1 == -1
-assert 1 << 32 == 0
+#ARTIQ#assert 1 << 32 == 0
 assert -1 >> 32 == -1
 assert 0x18 & 0x0f == 0x08
 assert 0x18 | 0x0f == 0x1f

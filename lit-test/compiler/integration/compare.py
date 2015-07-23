@@ -1,4 +1,5 @@
 # RUN: %python -m artiq.compiler.testbench.jit %s
+# RUN: %python %s
 
 assert 1 < 2 and not (2 < 1)
 assert 2 > 1 and not (1 > 2)
@@ -11,7 +12,7 @@ assert 1 is not 2 and not (1 is not 1)
 
 x, y = [1], [1]
 assert x is x and x is not y
-assert range(10) is range(10) and range(10) is not range(11)
+#ARTIQ#assert range(10) is range(10) and range(10) is not range(11)
 
 lst = [1, 2, 3]
 assert 1 in lst and 0 not in lst

@@ -18,7 +18,9 @@ def main():
     engine = diagnostic.Engine()
     engine.process = process_diagnostic
 
-    llmod = Module.from_string("".join(fileinput.input()).expandtabs(), engine=engine).llvm_ir
+    source = "".join(fileinput.input())
+    source = source.replace("#ARTIQ#", "")
+    llmod = Module.from_string(source.expandtabs(), engine=engine).llvm_ir
 
     lltarget = llvm.Target.from_default_triple()
     llmachine = lltarget.create_target_machine()

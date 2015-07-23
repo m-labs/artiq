@@ -1,4 +1,5 @@
 # RUN: %python -m artiq.compiler.testbench.jit %s
+# RUN: %python %s
 
 cond, count = True, 0
 while cond:

@@ -1,4 +1,5 @@
 # RUN: %python -m artiq.compiler.testbench.jit %s
+# RUN: %python %s
 
 count = 0
 for x in range(10):

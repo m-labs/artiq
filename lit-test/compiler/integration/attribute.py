@@ -1,4 +1,5 @@
 # RUN: %python -m artiq.compiler.testbench.jit %s
+# RUN: %python %s
 
 r = range(10)
 assert r.start == 0

@@ -1,4 +1,5 @@
 # RUN: %python -m artiq.compiler.testbench.jit %s
+# RUN: %python %s
 
 assert (lambda: 1)() == 1
 assert (lambda x: x)(1) == 1
