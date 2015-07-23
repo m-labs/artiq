@@ -1,9 +1,8 @@
 from artiq.language.core import *
-from artiq.language.db import *
 from artiq.language.units import *
 
 
-PHASE_MODE_DEFAULT = -1
+_PHASE_MODE_DEFAULT = -1
 # keep in sync with dds.h
 PHASE_MODE_CONTINUOUS = 0
 PHASE_MODE_ABSOLUTE = 1
@@ -23,21 +22,19 @@ class _BatchContextManager:
         self.dds_bus.batch_exit()
 
 
-class DDSBus(AutoDB):
+class DDSBus:
     """Core device Direct Digital Synthesis (DDS) bus batching driver.
 
     Manages batching of DDS commands on a DDS shared bus."""
-    class DBKeys:
-        core = Device()
-
-    def build(self):
+    def __init__(self, dmgr):
+        self.core = dmgr.get("core")
         self.batch = _BatchContextManager(self)
 
     @kernel
     def batch_enter(self):
         """Starts a DDS command batch. All DDS commands are buffered
         after this call, until ``batch_exit`` is called."""
-        syscall("dds_batch_enter", time_to_cycles(now()))
+        syscall("dds_batch_enter", now_mu())
 
     @kernel
     def batch_exit(self):
@@ -46,21 +43,21 @@ class DDSBus(AutoDB):
         syscall("dds_batch_exit")
 
 
-class DDS(AutoDB):
+class _DDSGeneric:
     """Core device Direct Digital Synthesis (DDS) driver.
 
     Controls one DDS channel managed directly by the core device's runtime.
 
-    :param dds_sysclk: DDS system frequency, used for computing the frequency
-        tuning words.
+    This class should not be used directly, instead, use the chip-specific
+    drivers such as ``AD9858`` and ``AD9914``.
+
+    :param sysclk: DDS system frequency.
     :param channel: channel number of the DDS device to control.
     """
-    class DBKeys:
-        core = Device()
-        dds_sysclk = Argument(1*GHz)
-        channel = Argument()
-
-    def build(self):
+    def __init__(self, dmgr, sysclk, channel):
+        self.core = dmgr.get("core")
+        self.sysclk = sysclk
+        self.channel = channel
         self.phase_mode = PHASE_MODE_CONTINUOUS
 
     @portable
@@ -68,21 +65,33 @@ class DDS(AutoDB):
         """Returns the frequency tuning word corresponding to the given
         frequency.
         """
-        return round(2**32*frequency/self.dds_sysclk)
+        return round(2**32*frequency/self.sysclk)
 
     @portable
     def ftw_to_frequency(self, ftw):
         """Returns the frequency corresponding to the given frequency tuning
         word.
         """
-        return ftw*self.dds_sysclk/2**32
+        return ftw*self.sysclk/2**32
+
+    @portable
+    def turns_to_pow(self, turns):
+        """Returns the phase offset word corresponding to the given phase
+        in turns."""
+        return round(turns*2**self.pow_width)
+
+    @portable
+    def pow_to_turns(self, pow):
+        """Returns the phase in turns corresponding to the given phase offset
+        word."""
+        return pow/2**self.pow_width
 
     @kernel
     def init(self):
         """Resets and initializes the DDS channel.
 
         The runtime does this for all channels upon core device startup."""
-        syscall("dds_init", time_to_cycles(now()), self.channel)
+        syscall("dds_init", now_mu(), self.channel)
 
     @kernel
     def set_phase_mode(self, phase_mode):
@@ -105,17 +114,37 @@ class DDS(AutoDB):
         self.phase_mode = phase_mode
 
     @kernel
-    def set(self, frequency, phase_mode=PHASE_MODE_DEFAULT, phase_offset=0):
+    def set_mu(self, frequency, phase=0, phase_mode=_PHASE_MODE_DEFAULT):
         """Sets the DDS channel to the specified frequency and phase.
 
+        This uses machine units (FTW and POW). The frequency tuning word width
+        is 32, whereas the phase offset word width depends on the type of DDS
+        chip and can be retrieved via the ``pow_width`` attribute.
+
         :param frequency: frequency to generate.
+        :param phase: adds an offset, in turns, to the phase.
         :param phase_mode: if specified, overrides the default phase mode set
             by ``set_phase_mode`` for this call.
-        :param phase_offset: adds an offset, in turns, to the phase.
         """
-        if phase_mode == PHASE_MODE_DEFAULT:
+        if phase_mode == _PHASE_MODE_DEFAULT:
             phase_mode = self.phase_mode
+        syscall("dds_set", now_mu(), self.channel,
+           frequency, round(phase*2**self.pow_width), phase_mode)
 
-        syscall("dds_set", time_to_cycles(now()), self.channel,
-           self.frequency_to_ftw(frequency), round(phase_offset*2**14),
-           self.phase_mode)
+    @kernel
+    def set(self, frequency, phase=0, phase_mode=_PHASE_MODE_DEFAULT):
+        """Like ``set_mu``, but uses Hz and turns."""
+        self.set_mu(self.frequency_to_ftw(frequency),
+                    self.turns_to_pow(phase), phase_mode)
+
+
+class AD9858(_DDSGeneric):
+    """Driver for AD9858 DDS chips. See ``_DDSGeneric`` for a description
+    of the functionality."""
+    pow_width = 14
+
+
+class AD9914(_DDSGeneric):
+    """Driver for AD9914 DDS chips. See ``_DDSGeneric`` for a description
+    of the functionality."""
+    pow_width = 16

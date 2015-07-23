@@ -6,19 +6,18 @@ from pyqtgraph import dockarea
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.gui.tools import DictSyncModel
-from artiq.tools import format_arguments
 
 
 class _ScheduleModel(DictSyncModel):
     def __init__(self, parent, init):
         DictSyncModel.__init__(self,
             ["RID", "Pipeline", "Status", "Prio", "Due date",
-             "File", "Experiment", "Arguments"],
+             "File", "Class name"],
             parent, init)
 
     def sort_key(self, k, v):
-        # order by due date, and then by priority and RID
-        return (v["due_date"] or 0, -v["priority"], k)
+        # order by priority, and then by due date and RID
+        return (-v["priority"], v["due_date"] or 0, k)
 
     def convert(self, k, v, column):
         if column == 0:
@@ -38,12 +37,10 @@ class _ScheduleModel(DictSyncModel):
         elif column == 5:
             return v["expid"]["file"]
         elif column == 6:
-            if v["expid"]["experiment"] is None:
+            if v["expid"]["class_name"] is None:
                 return ""
             else:
-                return v["expid"]["experiment"]
-        elif column == 7:
-            return format_arguments(v["expid"]["arguments"])
+                return v["expid"]["class_name"]
         else:
             raise ValueError
 
@@ -56,6 +53,9 @@ class ScheduleDock(dockarea.Dock):
 
         self.table = QtGui.QTableView()
         self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
+        self.table.horizontalHeader().setResizeMode(
+            QtGui.QHeaderView.ResizeToContents)
         self.addWidget(self.table)
 
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)

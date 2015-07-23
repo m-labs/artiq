@@ -4,7 +4,7 @@ import struct as st
 
 import serial
 
-from artiq.language.units import V, strip_unit
+from artiq.language.units import V
 
 
 logger = logging.getLogger(__name__)
@@ -221,10 +221,10 @@ class Tcube:
     def handle_message(self, msg):
         pass
 
-    def send_request(self, msgreq_id, msgget_id, param1=0, param2=0):
-        Message(msgreq_id, param1, param2).send(self.port)
+    def send_request(self, msgreq_id, wait_for_msgs, param1=0, param2=0, data=None):
+        Message(msgreq_id, param1, param2, data=data).send(self.port)
         msg = msg_id = None
-        while msg is None or msg_id != msgget_id:
+        while msg is None or msg_id not in wait_for_msgs:
             msg = Message.recv(self.port)
             self.handle_message(msg)
             msg_id = msg.id
@@ -247,7 +247,7 @@ class Tcube:
 
     def get_channel_enable_state(self):
         get_msg = self.send_request(MGMSG.MOD_REQ_CHANENABLESTATE,
-                                    MGMSG.MOD_GET_CHANENABLESTATE, 1)
+                                    [MGMSG.MOD_GET_CHANENABLESTATE], 1)
         self.chan_enabled = get_msg.param2
         if self.chan_enabled == 1:
             self.chan_enabled = True
@@ -286,7 +286,7 @@ class Tcube:
 
     def hardware_request_information(self):
         return self.send_request(MGMSG.HW_REQ_INFO,
-                                 MGMSG.HW_GET_INFO)
+                                 [MGMSG.HW_GET_INFO])
 
     def is_channel_enabled(self):
         return self.chan_enabled
@@ -302,7 +302,7 @@ class Tcube:
 class Tpz(Tcube):
     def __init__(self, serial_dev):
         Tcube.__init__(self, serial_dev)
-        self.voltage_limit = self.get_tpz_io_settings()[0].amount
+        self.voltage_limit = self.get_tpz_io_settings()[0]
 
     def handle_message(self, msg):
         msg_id = msg.id
@@ -355,7 +355,7 @@ class Tpz(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.PZ_REQ_POSCONTROLMODE,
-                                    MGMSG.PZ_GET_POSCONTROLMODE, 1)
+                                    [MGMSG.PZ_GET_POSCONTROLMODE], 1)
         return get_msg.param2
 
     def set_output_volts(self, voltage):
@@ -372,8 +372,6 @@ class Tpz(Tcube):
             between the three values 75 V, 100 V and 150 V.
         """
 
-        voltage = strip_unit(voltage, "V")
-
         if voltage < 0 or voltage > self.voltage_limit:
             raise ValueError("Voltage must be in range [0;{}]"
                              .format(self.voltage_limit))
@@ -389,8 +387,8 @@ class Tpz(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.PZ_REQ_OUTPUTVOLTS,
-                                    MGMSG.PZ_GET_OUTPUTVOLTS, 1)
-        return st.unpack("<H", get_msg.data[2:])[0]*self.voltage_limit*V/32767
+                                    [MGMSG.PZ_GET_OUTPUTVOLTS], 1)
+        return st.unpack("<H", get_msg.data[2:])[0]*self.voltage_limit/32767
 
     def set_output_position(self, position_sw):
         """Set output position of the piezo actuator.
@@ -417,7 +415,7 @@ class Tpz(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.PZ_REQ_OUTPUTPOS,
-                                    MGMSG.PZ_GET_OUTPUTPOS, 1)
+                                    [MGMSG.PZ_GET_OUTPUTPOS], 1)
         return st.unpack("<H", get_msg.data[2:])[0]
 
     def set_input_volts_source(self, volt_src):
@@ -459,7 +457,7 @@ class Tpz(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.PZ_REQ_INPUTVOLTSSRC,
-                                    MGMSG.PZ_GET_INPUTVOLTSSRC, 1)
+                                    [MGMSG.PZ_GET_INPUTVOLTSSRC], 1)
         return st.unpack("<H", get_msg.data[2:])[0]
 
     def set_pi_constants(self, prop_const, int_const):
@@ -488,7 +486,7 @@ class Tpz(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.PZ_REQ_PICONSTS,
-                                    MGMSG.PZ_GET_PICONSTS, 1)
+                                    [MGMSG.PZ_GET_PICONSTS], 1)
         return st.unpack("<HH", get_msg.data[2:])
 
     def set_output_lut(self, lut_index, output):
@@ -532,7 +530,6 @@ class Tpz(Tcube):
             <artiq.devices.thorlabs.driver.Tpz.set_tpz_io_settings>` method.
         """
 
-        output = strip_unit(output, "V")
         volt = round(output*32767/self.voltage_limit)
         payload = st.pack("<HHH", 1, lut_index, volt)
         self.send(Message(MGMSG.PZ_SET_OUTPUTLUT, data=payload))
@@ -546,9 +543,9 @@ class Tpz(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.PZ_REQ_OUTPUTLUT,
-                                    MGMSG.PZ_GET_OUTPUTLUT, 1)
+                                    [MGMSG.PZ_GET_OUTPUTLUT], 1)
         (index, output) = st.unpack("<Hh", get_msg.data[2:])
-        return index, output*self.voltage_limit*V/32767
+        return index, output*self.voltage_limit/32767
 
     def set_output_lut_parameters(self, mode, cycle_length, num_cycles,
                                   delay_time, precycle_rest, postcycle_rest):
@@ -626,7 +623,7 @@ class Tpz(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.PZ_REQ_OUTPUTLUTPARAMS,
-                                    MGMSG.PZ_GET_OUTPUTLUTPARAMS, 1)
+                                    [MGMSG.PZ_GET_OUTPUTLUTPARAMS], 1)
         return st.unpack("<HHLLLL", get_msg.data[2:22])
 
     def start_lut_output(self):
@@ -669,7 +666,7 @@ class Tpz(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.PZ_REQ_TPZ_DISPSETTINGS,
-                                    MGMSG.PZ_GET_TPZ_DISPSETTINGS, 1)
+                                    [MGMSG.PZ_GET_TPZ_DISPSETTINGS], 1)
         return st.unpack("<H", get_msg.data)[0]
 
     def set_tpz_io_settings(self, voltage_limit, hub_analog_input):
@@ -684,9 +681,6 @@ class Tpz(Tcube):
             100 V limit.
 
             150 V limit.
-
-            You can either provide this parameter as an integer or as a
-            :class:`artiq.language.units` Volt quantity (e.g. 75*V).
         :param hub_analog_input: When the T-Cube piezo driver unit is used in
             conjunction with the T-Cube Strain Gauge Reader (TSG001) on the
             T-Cube Controller Hub (TCH001), a feedback signal can be passed
@@ -706,7 +700,7 @@ class Tpz(Tcube):
             connectors.
         """
 
-        self.voltage_limit = strip_unit(voltage_limit, "V")
+        self.voltage_limit = voltage_limit
 
         if self.voltage_limit == 75:
             voltage_limit = 1
@@ -727,21 +721,21 @@ class Tpz(Tcube):
             Hub analog input. Refer to :py:meth:`set_tpz_io_settings()
             <artiq.devices.thorlabs.driver.Tpz.set_tpz_io_settings>` for the
             meaning of those parameters.
-        :rtype: a 2 elements tuple (Quantity, int)
+        :rtype: a 2 elements tuple (int, int)
         """
 
         get_msg = self.send_request(MGMSG.PZ_REQ_TPZ_IOSETTINGS,
-                                    MGMSG.PZ_GET_TPZ_IOSETTINGS, 1)
+                                    [MGMSG.PZ_GET_TPZ_IOSETTINGS], 1)
         voltage_limit, hub_analog_input = st.unpack("<HH", get_msg.data[2:6])
         if voltage_limit == 1:
-            voltage_limit = 75*V
+            voltage_limit = 75
         elif voltage_limit == 2:
-            voltage_limit = 100*V
+            voltage_limit = 100
         elif voltage_limit == 3:
-            voltage_limit = 150*V
+            voltage_limit = 150
         else:
             raise ValueError("Voltage limit should be in range [1; 3]")
-        self.voltage_limit = voltage_limit.amount
+        self.voltage_limit = voltage_limit
         return voltage_limit, hub_analog_input
 
 
@@ -763,8 +757,6 @@ class Tdc(Tcube):
             raise MsgError("Hardware error {}: {}"
                            .format(code,
                                    data[4:].decode(encoding="ascii")))
-        elif msg_id == MGMSG.MOT_MOVE_HOMED:
-            pass
         elif (msg_id == MGMSG.MOT_MOVE_COMPLETED or
               msg_id == MGMSG.MOT_MOVE_STOPPED or
               msg_id == MGMSG.MOT_GET_DCSTATUSUPDATE):
@@ -776,6 +768,10 @@ class Tdc(Tcube):
             # 'r' is a currently unused and reserved field
             (self.position, self.velocity, r, self.status) = st.unpack(
                 "<LHHL", data[2:])
+
+    def is_moving(self):
+        status_bits = self.get_status_bits()
+        return (status_bits & 0x2F0) != 0
 
     def set_pot_parameters(self, zero_wnd, vel1, wnd1, vel2, wnd2, vel3,
                            wnd3, vel4):
@@ -811,12 +807,12 @@ class Tdc(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.MOT_REQ_POTPARAMS,
-                                    MGMSG.MOT_GET_POTPARAMS, 1)
+                                    [MGMSG.MOT_GET_POTPARAMS], 1)
         return st.unpack("<HLHLHLHL", get_msg.data[2:])
 
     def hub_get_bay_used(self):
         get_msg = self.send_request(MGMSG.HUB_REQ_BAYUSED,
-                                    MGMSG.HUB_GET_BAYUSED)
+                                    [MGMSG.HUB_GET_BAYUSED])
         return get_msg.param1
 
     def set_position_counter(self, position):
@@ -841,7 +837,7 @@ class Tdc(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.MOT_REQ_POSCOUNTER,
-                                    MGMSG.MOT_GET_POSCOUNTER, 1)
+                                    [MGMSG.MOT_GET_POSCOUNTER], 1)
         return st.unpack("<l", get_msg.data[2:])[0]
 
     def set_encoder_counter(self, encoder_count):
@@ -865,7 +861,7 @@ class Tdc(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.MOT_REQ_ENCCOUNTER,
-                                    MGMSG.MOT_GET_ENCCOUNTER, 1)
+                                    [MGMSG.MOT_GET_ENCCOUNTER], 1)
         return st.unpack("<l", get_msg.data[2:])[0]
 
     def set_velocity_parameters(self, acceleration, max_velocity):
@@ -886,7 +882,7 @@ class Tdc(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.MOT_REQ_VELPARAMS,
-                                    MGMSG.MOT_GET_VELPARAMS, 1)
+                                    [MGMSG.MOT_GET_VELPARAMS], 1)
         return st.unpack("<LL", get_msg.data[6:])
 
     def set_jog_parameters(self, mode, step_size, acceleration,
@@ -915,7 +911,7 @@ class Tdc(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.MOT_REQ_JOGPARAMS,
-                                    MGMSG.MOT_GET_JOGPARAMS, 1)
+                                    [MGMSG.MOT_GET_JOGPARAMS], 1)
         (jog_mode, step_size, _, acceleration, max_velocity,
          stop_mode) = st.unpack("<HLLLLH", get_msg.data[2:])
         return jog_mode, step_size, acceleration, max_velocity, stop_mode
@@ -938,7 +934,7 @@ class Tdc(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.MOT_REQ_GENMOVEPARAMS,
-                                    MGMSG.MOT_GET_GENMOVEPARAMS, 1)
+                                    [MGMSG.MOT_GET_GENMOVEPARAMS], 1)
         return st.unpack("<l", get_msg.data[2:])[0]
 
     def set_move_relative_parameters(self, relative_distance):
@@ -960,7 +956,7 @@ class Tdc(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.MOT_REQ_MOVERELPARAMS,
-                                    MGMSG.MOT_GET_MOVERELPARAMS, 1)
+                                    [MGMSG.MOT_GET_MOVERELPARAMS], 1)
         return st.unpack("<l", get_msg.data[2:])[0]
 
     def set_move_absolute_parameters(self, absolute_position):
@@ -982,7 +978,7 @@ class Tdc(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.MOT_REQ_MOVEABSPARAMS,
-                                    MGMSG.MOT_GET_MOVEABSPARAMS, 1)
+                                    [MGMSG.MOT_GET_MOVEABSPARAMS], 1)
         return st.unpack("<l", get_msg.data[2:])[0]
 
     def set_home_parameters(self, home_velocity):
@@ -1002,17 +998,17 @@ class Tdc(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.MOT_REQ_HOMEPARAMS,
-                                    MGMSG.MOT_GET_HOMEPARAMS, 1)
+                                    [MGMSG.MOT_GET_HOMEPARAMS], 1)
         return st.unpack("<L", get_msg.data[6:10])[0]
 
     def move_home(self):
         """Start a home move sequence.
 
-        This call is blocking until device is homed.
+        This call is blocking until device is homed or move is stopped.
         """
 
         self.send_request(MGMSG.MOT_MOVE_HOME,
-                          MGMSG.MOT_MOVE_HOMED, 1)
+                          [MGMSG.MOT_MOVE_HOMED, MGMSG.MOT_MOVE_STOPPED], 1)
 
     def set_limit_switch_parameters(self, cw_hw_limit, ccw_hw_limit):
         """Set the limit switch parameters.
@@ -1057,7 +1053,7 @@ class Tdc(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.MOT_REQ_LIMSWITCHPARAMS,
-                                    MGMSG.MOT_GET_LIMSWITCHPARAMS, 1)
+                                    [MGMSG.MOT_GET_LIMSWITCHPARAMS], 1)
         return st.unpack("<HH", get_msg.data[2:6])
 
     def move_relative_memory(self):
@@ -1069,7 +1065,8 @@ class Tdc(Tcube):
         command.
         """
 
-        self.send(Message(MGMSG.MOT_MOVE_RELATIVE, param1=1))
+        self.send_request(MGMSG.MOT_MOVE_RELATIVE,
+                          [MGMSG.MOT_MOVE_COMPLETED, MGMSG.MOT_MOVE_STOPPED], 1)
 
     def move_relative(self, relative_distance):
         """Start a relative move
@@ -1079,7 +1076,9 @@ class Tdc(Tcube):
         """
 
         payload = st.pack("<Hl", 1, relative_distance)
-        self.send(Message(MGMSG.MOT_MOVE_RELATIVE, data=payload))
+        self.send_request(MGMSG.MOT_MOVE_RELATIVE,
+                          [MGMSG.MOT_MOVE_COMPLETED, MGMSG.MOT_MOVE_STOPPED],
+                          data=payload)
 
     def move_absolute_memory(self):
         """Start an absolute move of distance in the controller's memory.
@@ -1090,7 +1089,9 @@ class Tdc(Tcube):
         command.
         """
 
-        self.send(Message(MGMSG.MOT_MOVE_ABSOLUTE, param1=1))
+        self.send_request(MGMSG.MOT_MOVE_ABSOLUTE,
+                          [MGMSG.MOT_MOVE_COMPLETED, MGMSG.MOT_MOVE_STOPPED],
+                          param1=1)
 
     def move_absolute(self, absolute_distance):
         """Start an absolute move.
@@ -1101,21 +1102,19 @@ class Tdc(Tcube):
         """
 
         payload = st.pack("<Hl", 1, absolute_distance)
-        self.send(Message(MGMSG.MOT_MOVE_ABSOLUTE, data=payload))
+        self.send_request(MGMSG.MOT_MOVE_ABSOLUTE,
+                          [MGMSG.MOT_MOVE_COMPLETED, MGMSG.MOT_MOVE_STOPPED],
+                          data=payload)
 
-    def move_jog(self, direction, async=False):
+    def move_jog(self, direction):
         """Start a job move.
 
         :param direction: The direction to jog. 1 is forward, 2 is backward.
-        :param async: If True then the command does not wait for the move to
-            finish. If False the command only returns when move is finished.
         """
 
-        if async:
-            self.send_request(MGMSG.MOT_MOVE_JOG,
-                              MGMSG.MOT_MOVE_COMPLETED, 1, direction)
-        else:
-            self.send(Message(MGMSG.MOT_MOVE_JOG, param1=1, param2=direction))
+        self.send_request(MGMSG.MOT_MOVE_JOG,
+                          [MGMSG.MOT_MOVE_COMPLETED, MGMSG.MOT_MOVE_STOPPED],
+                          param1=1, param2=direction)
 
     def move_velocity(self, direction):
         """Start a move.
@@ -1134,7 +1133,7 @@ class Tdc(Tcube):
 
         self.send(Message(MGMSG.MOT_MOVE_VELOCITY, param1=1, param2=direction))
 
-    def move_stop(self, stop_mode, async=False):
+    def move_stop(self, stop_mode):
         """Stop any type of motor move.
 
         Stops any of those motor move: relative, absolute, homing or move at
@@ -1143,15 +1142,13 @@ class Tdc(Tcube):
         :param stop_mode: The stop mode defines either an immediate (abrupt)
             or profiled stop. Set this byte to 1 to stop immediately, or to 2
             to stop in a controlled (profiled) manner.
-        :param async: If set to False, this method will block until motor
-            is really stopped. Returns immediately if set to True.
         """
 
-        if async:
-            self.send(Message(MGMSG.MOT_MOVE_STOP, param1=1, param2=stop_mode))
-        else:
+        if self.is_moving():
             self.send_request(MGMSG.MOT_MOVE_STOP,
-                              MGMSG.MOT_MOVE_STOPPED, 1, stop_mode)
+                              [MGMSG.MOT_MOVE_STOPPED,
+                               MGMSG.MOT_MOVE_COMPLETED],
+                              1, stop_mode)
 
     def set_dc_pid_parameters(self, proportional, integral, differential,
                               integral_limit, filter_control=0x0F):
@@ -1185,7 +1182,7 @@ class Tdc(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.MOT_REQ_DCPIDPARAMS,
-                                    MGMSG.MOT_GET_DCPIDPARAMS, 1)
+                                    [MGMSG.MOT_GET_DCPIDPARAMS], 1)
         return st.unpack("<LLLLH", get_msg.data[2:])
 
     def set_av_modes(self, mode_bits):
@@ -1212,7 +1209,7 @@ class Tdc(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.MOT_REQ_AVMODES,
-                                    MGMSG.MOT_GET_AVMODES, 1)
+                                    [MGMSG.MOT_GET_AVMODES], 1)
         return st.unpack("<H", get_msg.data[2:])[0]
 
     def set_button_parameters(self, mode, position1, position2):
@@ -1250,7 +1247,7 @@ class Tdc(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.MOT_REQ_BUTTONPARAMS,
-                                    MGMSG.MOT_GET_BUTTONPARAMS, 1)
+                                    [MGMSG.MOT_GET_BUTTONPARAMS], 1)
         return st.unpack("<Hll", get_msg.data[2:12])
 
     def set_eeprom_parameters(self, msg_id):
@@ -1274,7 +1271,7 @@ class Tdc(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.MOT_REQ_DCSTATUSUPDATE,
-                                    MGMSG.MOT_GET_DCSTATUSUPDATE, 1)
+                                    [MGMSG.MOT_GET_DCSTATUSUPDATE], 1)
         pos, vel, _, stat = st.unpack("<LHHL", get_msg.data[2:])
         return pos, vel, stat
 
@@ -1286,7 +1283,7 @@ class Tdc(Tcube):
         """
 
         get_msg = self.send_request(MGMSG.MOT_REQ_STATUSBITS,
-                                    MGMSG.MOT_GET_STATUSBITS, 1)
+                                    [MGMSG.MOT_GET_STATUSBITS], 1)
         return st.unpack("<L", get_msg.data[2:])[0]
 
     def suspend_end_of_move_messages(self):
@@ -1319,6 +1316,9 @@ class TpzSim:
     def __init__(self):
         self.voltage_limit = 150
         self.hub_analog_input = 1
+
+    def close(self):
+        pass
 
     def module_identify(self):
         pass
@@ -1392,17 +1392,19 @@ class TpzSim:
         return self.intensity
 
     def set_tpz_io_settings(self, voltage_limit, hub_analog_input):
-        self.voltage_limit = strip_unit(voltage_limit, "V")
-
-        if self.voltage_limit not in [75, 100, 150]:
+        if voltage_limit not in [75, 100, 150]:
             raise ValueError("voltage_limit must be 75 V, 100 V or 150 V")
+        self.voltage_limit = voltage_limit
         self.hub_analog_input = hub_analog_input
 
     def get_tpz_io_settings(self):
-        return self.voltage_limit*V, self.hub_analog_input
+        return self.voltage_limit, self.hub_analog_input
 
 
 class TdcSim:
+    def close(self):
+        pass
+
     def module_identify(self):
         pass
 

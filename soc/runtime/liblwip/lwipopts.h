@@ -66,7 +66,7 @@ a lot of data that needs to be copied, this should be set high. */
 #define MEMP_NUM_PBUF           64
 /* MEMP_NUM_UDP_PCB: the number of UDP protocol control blocks. One
    per active UDP "connection". */
-#define MEMP_NUM_UDP_PCB        1
+#define MEMP_NUM_UDP_PCB        2
 /* MEMP_NUM_TCP_PCB: the number of simulatenously active TCP
    connections. */
 #define MEMP_NUM_TCP_PCB        8
@@ -159,7 +159,7 @@ a lot of data that needs to be copied, this should be set high. */
 #define DHCP_DOES_ARP_CHECK     0
 
 /* ---------- UDP options ---------- */
-#define LWIP_UDP                0
+#define LWIP_UDP                1
 #define UDP_TTL                 255
 
 

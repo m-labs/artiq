@@ -2,8 +2,20 @@
 Core ARTIQ extensions to the Python language.
 """
 
-from collections import namedtuple as _namedtuple
-from functools import wraps as _wraps
+from collections import namedtuple
+from functools import wraps
+
+
+__all__ = ["int64", "round64", "kernel", "portable",
+           "set_time_manager", "set_syscall_manager", "set_watchdog_factory",
+           "RuntimeException", "EncodedException"]
+
+# global namespace for kernels
+kernel_globals = ("sequential", "parallel",
+    "delay_mu", "now_mu", "at_mu", "delay",
+    "seconds_to_mu", "mu_to_seconds",
+    "syscall", "watchdog")
+__all__.extend(kernel_globals)
 
 
 class int64(int):
@@ -28,7 +40,6 @@ class int64(int):
     True
     >>> a + b
     6
-
     """
     pass
 
@@ -62,12 +73,11 @@ def round64(x):
     This function is equivalent to ``int64(round(x))`` but, when targeting
     static compilation, prevents overflow when the rounded value is too large
     to fit in a 32-bit integer.
-
     """
     return int64(round(x))
 
 
-_KernelFunctionInfo = _namedtuple("_KernelFunctionInfo", "core_name k_function")
+_KernelFunctionInfo = namedtuple("_KernelFunctionInfo", "core_name k_function")
 
 
 def kernel(arg):
@@ -88,20 +98,19 @@ def kernel(arg):
 
     The decorator takes an optional parameter that defaults to ``core`` and
     specifies the name of the attribute to use as core device driver.
-
     """
     if isinstance(arg, str):
         def real_decorator(k_function):
-            @_wraps(k_function)
+            @wraps(k_function)
             def run_on_core(exp, *k_args, **k_kwargs):
-                return getattr(exp, arg).run(k_function, 
+                return getattr(exp, arg).run(k_function,
                                              ((exp,) + k_args), k_kwargs)
             run_on_core.k_function_info = _KernelFunctionInfo(
                 core_name=arg, k_function=k_function)
             return run_on_core
         return real_decorator
     else:
-        @_wraps(arg)
+        @wraps(arg)
         def run_on_core(exp, *k_args, **k_kwargs):
             return exp.core.run(arg, ((exp,) + k_args), k_kwargs)
         run_on_core.k_function_info = _KernelFunctionInfo(
@@ -117,7 +126,6 @@ def portable(f):
     host will be executed on the host (no compilation and execution on the
     core device). A decorated function called from a kernel will be executed
     on the core device (no RPC).
-
     """
     f.k_function_info = _KernelFunctionInfo(core_name="", k_function=f)
     return f
@@ -131,9 +139,10 @@ class _DummyTimeManager:
     enter_sequential = _not_implemented
     enter_parallel = _not_implemented
     exit = _not_implemented
+    take_time_mu = _not_implemented
+    get_time_mu = _not_implemented
+    set_time_mu = _not_implemented
     take_time = _not_implemented
-    get_time = _not_implemented
-    set_time = _not_implemented
 
 _time_manager = _DummyTimeManager()
 
@@ -143,7 +152,6 @@ def set_time_manager(time_manager):
     directly inside the Python interpreter. The time manager responds to the
     entering and leaving of parallel/sequential blocks, delays, etc. and
     provides a time-stamped logging facility for events.
-
     """
     global _time_manager
     _time_manager = time_manager
@@ -160,16 +168,9 @@ _syscall_manager = _DummySyscallManager()
 def set_syscall_manager(syscall_manager):
     """Set the system call manager used for simulating the core device's
     runtime in the Python interpreter.
-
     """
     global _syscall_manager
     _syscall_manager = syscall_manager
-
-# global namespace for kernels
-
-kernel_globals = ("sequential", "parallel",
-    "delay", "now", "at", "time_to_cycles", "cycles_to_time",
-    "syscall", "watchdog")
 
 
 class _Sequential:
@@ -190,7 +191,6 @@ class _Parallel:
     The execution time of a parallel block is the execution time of its longest
     statement. A parallel block may contain sequential blocks, which themselves
     may contain parallel blocks, etc.
-
     """
     def __enter__(self):
         _time_manager.enter_parallel()
@@ -200,50 +200,49 @@ class _Parallel:
 parallel = _Parallel()
 
 
-def delay(duration):
-    """Increases the RTIO time by the given amount.
+def delay_mu(duration):
+    """Increases the RTIO time by the given amount (in machine units)."""
+    _time_manager.take_time_mu(duration)
 
-    """
+
+def now_mu():
+    """Retrieves the current RTIO time, in machine units."""
+    return _time_manager.get_time_mu()
+
+
+def at_mu(time):
+    """Sets the RTIO time to the specified absolute value, in machine units."""
+    _time_manager.set_time_mu(time)
+
+
+def delay(duration):
+    """Increases the RTIO time by the given amount (in seconds)."""
     _time_manager.take_time(duration)
 
 
-def now():
-    """Retrieves the current RTIO time, in seconds.
+def seconds_to_mu(seconds, core=None):
+    """Converts seconds to the corresponding number of machine units
+    (RTIO cycles).
 
-    """
-    return _time_manager.get_time()
-
-
-def at(time):
-    """Sets the RTIO time to the specified absolute value.
-
-    """
-    _time_manager.set_time(time)
-
-
-def time_to_cycles(time, core=None):
-    """Converts time to the corresponding number of RTIO cycles.
-
-    :param time: Time (in seconds) to convert.
-    :param core: Core device for which to perform the conversion. Specify only
-        when running in the interpreter (not in kernel).
-
-    """
-    if core is None:
-        raise ValueError("Core device must be specified for time conversion")
-    return round64(time.amount//core.ref_period)
-
-
-def cycles_to_time(cycles, core=None):
-    """Converts RTIO cycles to the corresponding time.
-
-    :param time: Cycle count to convert.
-    :param core: Core device for which to perform the conversion. Specify only
+    :param seconds: time (in seconds) to convert.
+    :param core: core device for which to perform the conversion. Specify only
         when running in the interpreter (not in kernel).
     """
     if core is None:
         raise ValueError("Core device must be specified for time conversion")
-    return cycles*core.ref_period
+    return round64(seconds//core.ref_period)
+
+
+def mu_to_seconds(mu, core=None):
+    """Converts machine units (RTIO cycles) to seconds.
+
+    :param mu: cycle count to convert.
+    :param core: core device for which to perform the conversion. Specify only
+        when running in the interpreter (not in kernel).
+    """
+    if core is None:
+        raise ValueError("Core device must be specified for time conversion")
+    return mu*core.ref_period
 
 
 def syscall(*args):

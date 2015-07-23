@@ -56,3 +56,11 @@ long long int ttl_get(int channel, long long int time_limit)
     rtio_i_re_write(1);
     return r;
 }
+
+void ttl_clock_set(long long int timestamp, int channel, int ftw)
+{
+    rtio_chan_sel_write(channel);
+    rtio_o_timestamp_write(timestamp);
+    rtio_o_data_write(ftw);
+    rtio_write_and_process_status(timestamp, channel);
+}

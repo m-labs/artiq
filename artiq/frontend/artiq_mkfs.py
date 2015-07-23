@@ -20,16 +20,13 @@ def get_argparser():
 
 
 def write_record(f, key, value):
+    key_size = len(key) + 1
+    value_size = len(value)
+    record_size = key_size + value_size + 4
+    f.write(struct.pack(">l", record_size))
     f.write(key.encode())
     f.write(b"\x00")
-    key_size = len(key) + 1
-    if key_size % 4:
-        f.write(bytes(4 - (key_size % 4)))
-    f.write(struct.pack(">l", len(value)))
     f.write(value)
-    value_size = len(value)
-    if value_size % 4:
-        f.write(bytes(4 - (value_size % 4)))
 
 
 def write_end_marker(f):

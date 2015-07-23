@@ -92,3 +92,61 @@ This tool compiles key/value pairs into a binary image suitable for flashing int
 .. argparse::
    :ref: artiq.frontend.artiq_mkfs.get_argparser
    :prog: artiq_mkfs
+
+.. _core-device-configuration-tool:
+
+Core device configuration tool
+------------------------------
+
+The artiq_coreconfig tool allows to read, write and remove key-value records from the :ref:`core-device-flash-storage`.
+
+It also allows to erase the entire flash storage area.
+
+To use this tool, you need to specify a ``ddb.pyon`` DDB file which contains a ``comm`` device (an example is provided in ``artiq/examples/master/ddb.pyon``).
+This tells the tool how to connect to the core device (via serial or via TCP) and with which parameters (baudrate, serial device, IP address, TCP port).
+When not specified, the artiq_coreconfig tool will assume that there is a file named ``ddb.pyon`` in the current directory.
+
+
+To read the record whose key is ``mac``::
+
+    $ artiq_coreconfig read mac
+
+To write the value ``test_value`` in the key ``my_key``::
+
+    $ artiq_coreconfig write -s my_key test_value
+    $ artiq_coreconfig read my_key
+    b'test_value'
+
+You can also write entire files in a record using the ``-f`` parameter. This is useful for instance to write the ``idle`` kernel in the flash storage::
+
+    $ artiq_coreconfig write -f idle_kernel idle.elf
+    $ artiq_coreconfig read idle_kernel | head -c9
+    b'\x7fELF
+
+You can write several records at once::
+
+    $ artiq_coreconfig write -s key1 value1 -f key2 filename -s key3 value3
+
+To remove the previously written key ``my_key``::
+
+    $ artiq_coreconfig delete my_key
+
+You can remove several keys at once::
+
+    $ artiq_coreconfig delete key1 key2
+
+To erase the entire flash storage area::
+
+    $ artiq_coreconfig erase
+
+You don't need to remove a record in order to change its value, just overwrite
+it::
+
+    $ artiq_coreconfig write -s my_key some_value
+    $ artiq_coreconfig write -s my_key some_other_value
+    $ artiq_coreconfig read my_key
+    b'some_other_value'
+
+.. argparse::
+   :ref: artiq.frontend.artiq_coreconfig.get_argparser
+   :prog: artiq_coreconfig

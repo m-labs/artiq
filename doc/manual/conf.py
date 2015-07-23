@@ -25,7 +25,7 @@ class Mock(MagicMock):
             return Mock()
 
 
-mock_modules = ["quamash", "pyqtgraph", "matplotlib"]
+mock_modules = ["artiq.gui.moninj", "quamash", "pyqtgraph", "matplotlib"]
 
 for module in mock_modules:
     sys.modules[module] = Mock()

@@ -29,22 +29,8 @@ static void _flush_cpu_dcache(void)
         mtspr(SPR_DCBIR, i);
 }
 
-/* TODO: do not use L2 cache in AMP systems */
-static void _flush_l2_cache(void)
-{
-    unsigned int i;
-    register unsigned int addr;
-    register unsigned int dummy;
-
-    for(i=0;i<2*8192/4;i++) {
-        addr = 0x40000000 + i*4;
-        __asm__ volatile("l.lwz %0, 0(%1)\n":"=r"(dummy):"r"(addr));
-    }
-}
-
 void mailbox_send(void *ptr)
 {
-    _flush_l2_cache();
     last_transmission = (unsigned int)ptr;
     KERNELCPU_MAILBOX = last_transmission;
 }
@@ -72,7 +58,6 @@ void *mailbox_receive(void)
         return NULL;
     else {
         if(r) {
-            _flush_l2_cache();
             _flush_cpu_dcache();
         }
         return (void *)r;

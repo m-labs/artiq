@@ -4,10 +4,11 @@ import logging
 import subprocess
 import traceback
 import time
+from functools import partial
 
 from artiq.protocols import pyon
-from artiq.language.units import strip_unit
-from artiq.tools import asyncio_process_wait_timeout, asyncio_wait_or_cancel
+from artiq.tools import (asyncio_process_wait_timeout, asyncio_process_wait,
+                         asyncio_wait_or_cancel)
 
 
 logger = logging.getLogger(__name__)
@@ -26,14 +27,9 @@ class WorkerError(Exception):
 
 
 class Worker:
-    def __init__(self, handlers,
-                 send_timeout=0.5, term_timeout=1.0,
-                 prepare_timeout=15.0, results_timeout=15.0):
+    def __init__(self, handlers=dict(), send_timeout=0.5):
         self.handlers = handlers
         self.send_timeout = send_timeout
-        self.term_timeout = term_timeout
-        self.prepare_timeout = prepare_timeout
-        self.results_timeout = results_timeout
 
         self.rid = None
         self.process = None
@@ -49,7 +45,7 @@ class Worker:
         avail = set(range(n_user_watchdogs + 1)) \
             - set(self.watchdogs.keys())
         wid = next(iter(avail))
-        self.watchdogs[wid] = time.monotonic() + strip_unit(t, "s")
+        self.watchdogs[wid] = time.monotonic() + t
         return wid
 
     def delete_watchdog(self, wid):
@@ -74,7 +70,12 @@ class Worker:
             self.io_lock.release()
 
     @asyncio.coroutine
-    def close(self):
+    def close(self, term_timeout=1.0):
+        """Interrupts any I/O with the worker process and terminates the
+        worker process.
+
+        This method should always be called by the user to clean up, even if
+        build() or examine() raises an exception."""
         self.closed.set()
         yield from self.io_lock.acquire()
         try:
@@ -83,33 +84,35 @@ class Worker:
                 logger.debug("worker was not created (RID %s)", self.rid)
                 return
             if self.process.returncode is not None:
-                logger.debug("worker already terminated (RID %d)", self.rid)
+                logger.debug("worker already terminated (RID %s)", self.rid)
                 if self.process.returncode != 0:
                     logger.warning("worker finished with status code %d"
-                                   " (RID %d)", self.process.returncode,
+                                   " (RID %s)", self.process.returncode,
                                    self.rid)
                 return
             obj = {"action": "terminate"}
             try:
-                yield from self._send(obj, self.send_timeout, cancellable=False)
+                yield from self._send(obj, cancellable=False)
             except:
                 logger.warning("failed to send terminate command to worker"
-                               " (RID %d), killing", self.rid, exc_info=True)
+                               " (RID %s), killing", self.rid, exc_info=True)
                 self.process.kill()
+                yield from asyncio_process_wait(self.process)
                 return
             try:
                 yield from asyncio_process_wait_timeout(self.process,
-                                                        self.term_timeout)
+                                                        term_timeout)
             except asyncio.TimeoutError:
-                logger.warning("worker did not exit (RID %d), killing", self.rid)
+                logger.warning("worker did not exit (RID %s), killing", self.rid)
                 self.process.kill()
+                yield from asyncio_process_wait(self.process)
             else:
-                logger.debug("worker exited gracefully (RID %d)", self.rid)
+                logger.debug("worker exited gracefully (RID %s)", self.rid)
         finally:
             self.io_lock.release()
 
     @asyncio.coroutine
-    def _send(self, obj, timeout, cancellable=True):
+    def _send(self, obj, cancellable=True):
         assert self.io_lock.locked()
         line = pyon.encode(obj)
         self.process.stdin.write(line.encode())
@@ -118,7 +121,7 @@ class Worker:
         if cancellable:
             ifs.append(self.closed.wait())
         fs = yield from asyncio_wait_or_cancel(
-            ifs, timeout=timeout,
+            ifs, timeout=self.send_timeout,
             return_when=asyncio.FIRST_COMPLETED)
         if all(f.cancelled() for f in fs):
             raise WorkerTimeout("Timeout sending data to worker")
@@ -135,7 +138,7 @@ class Worker:
             [self.process.stdout.readline(), self.closed.wait()],
             timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
         if all(f.cancelled() for f in fs):
-            raise WorkerTimeout("Timeout sending data to worker")
+            raise WorkerTimeout("Timeout receiving data from worker")
         if self.closed.is_set():
             raise WorkerError("Data transmission to worker cancelled")
         line = fs[0].result()
@@ -168,8 +171,12 @@ class Worker:
                 func = self.create_watchdog
             elif action == "delete_watchdog":
                 func = self.delete_watchdog
+            elif action == "register_experiment":
+                func = self.register_experiment
             else:
                 func = self.handlers[action]
+            if getattr(func, "worker_pass_rid", False):
+                func = partial(func, self.rid)
             try:
                 data = func(**obj)
                 reply = {"status": "ok", "data": data}
@@ -178,7 +185,7 @@ class Worker:
                          "message": traceback.format_exc()}
             yield from self.io_lock.acquire()
             try:
-                yield from self._send(reply, self.send_timeout)
+                yield from self._send(reply)
             finally:
                 self.io_lock.release()
 
@@ -189,7 +196,7 @@ class Worker:
         try:
             yield from self.io_lock.acquire()
             try:
-                yield from self._send(obj, self.send_timeout)
+                yield from self._send(obj)
             finally:
                 self.io_lock.release()
             try:
@@ -202,16 +209,20 @@ class Worker:
         return completed
 
     @asyncio.coroutine
-    def prepare(self, rid, pipeline_name, expid, priority):
+    def build(self, rid, pipeline_name, expid, priority, timeout=15.0):
         self.rid = rid
         yield from self._create_process()
         yield from self._worker_action(
-            {"action": "prepare",
+            {"action": "build",
              "rid": rid,
              "pipeline_name": pipeline_name,
              "expid": expid,
              "priority": priority},
-            self.prepare_timeout)
+            timeout)
+
+    @asyncio.coroutine
+    def prepare(self):
+        yield from self._worker_action({"action": "prepare"})
 
     @asyncio.coroutine
     def run(self):
@@ -236,6 +247,18 @@ class Worker:
         yield from self._worker_action({"action": "analyze"})
 
     @asyncio.coroutine
-    def write_results(self):
+    def write_results(self, timeout=15.0):
         yield from self._worker_action({"action": "write_results"},
-                                       self.results_timeout)
+                                       timeout)
+
+    @asyncio.coroutine
+    def examine(self, file, timeout=20.0):
+        yield from self._create_process()
+        r = dict()
+        def register(class_name, name, arguments):
+            r[class_name] = {"name": name, "arguments": arguments}
+        self.register_experiment = register
+        yield from self._worker_action({"action": "examine",
+                                        "file": file}, timeout)
+        del self.register_experiment
+        return r

@@ -1,0 +1,28 @@
+diff --git a/pyqtgraph/dockarea/Dock.py b/pyqtgraph/dockarea/Dock.py
+index 4493d07..a05e685 100644
+--- a/pyqtgraph/dockarea/Dock.py
++++ b/pyqtgraph/dockarea/Dock.py
+@@ -18,6 +18,7 @@ class Dock(QtGui.QWidget, DockDrop):
+         self.label = DockLabel(name, self, closable)
+         if closable:
+             self.label.sigCloseClicked.connect(self.close)
++        self.closable = closable
+         self.labelHidden = False
+         self.moveLabel = True  ## If false, the dock is no longer allowed to move the label.
+         self.autoOrient = autoOrientation
+diff --git a/pyqtgraph/dockarea/DockArea.py b/pyqtgraph/dockarea/DockArea.py
+index ffe75b6..b054b24 100644
+--- a/pyqtgraph/dockarea/DockArea.py
++++ b/pyqtgraph/dockarea/DockArea.py
+@@ -306,7 +306,10 @@ class DockArea(Container, QtGui.QWidget, DockDrop):
+     def clear(self):
+         docks = self.findAll()[1]
+         for dock in docks.values():
+-            dock.close()
++            if dock.closable:
++                dock.close()
++            else:
++                self.home.moveDock(dock, "top", None)
+             
+     ## PySide bug: We need to explicitly redefine these methods
+     ## or else drag/drop events will not be delivered.

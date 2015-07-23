@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 
 from setuptools import setup, find_packages
+import sys
+import os
 
+if sys.version_info[:3] < (3, 4, 3):
+    raise Exception("You need at least Python 3.4.3 to run ARTIQ")
 
 requirements = [
     "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
@@ -12,6 +16,7 @@ requirements = [
 scripts = [
     "artiq_client=artiq.frontend.artiq_client:main",
     "artiq_compile=artiq.frontend.artiq_compile:main",
+    "artiq_coreconfig=artiq.frontend.artiq_coreconfig:main",
     "artiq_ctlmgr=artiq.frontend.artiq_ctlmgr:main",
     "artiq_gui=artiq.frontend.artiq_gui:main",
     "artiq_master=artiq.frontend.artiq_master:main",
@@ -37,9 +42,13 @@ setup(
     license="BSD",
     install_requires=requirements,
     extras_require={},
+    dependency_links=[
+        "git+https://github.com/pyqtgraph/pyqtgraph.git@a6d5e28#egg=pyqtgraph"
+    ],
     packages=find_packages(),
     namespace_packages=[],
     test_suite="artiq.test",
+    package_data={"artiq": [os.path.join("gui", "icon.png")]},
     ext_modules=[],
     entry_points={
         "console_scripts": scripts,

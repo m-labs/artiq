@@ -8,11 +8,11 @@ describing each modification made to the structure (*mods*).
 
 Structures must be PYON serializable and contain only lists, dicts, and
 immutable types. Lists and dicts can be nested arbitrarily.
-
 """
 
 import asyncio
 from operator import getitem
+from functools import partial
 
 from artiq.protocols import pyon
 from artiq.protocols.asyncio_server import AsyncioServer
@@ -22,9 +22,7 @@ _init_string = b"ARTIQ sync_struct\n"
 
 
 def process_mod(target, mod):
-    """Apply a *mod* to the target, mutating it.
-
-    """
+    """Apply a *mod* to the target, mutating it."""
     for key in mod["path"]:
         target = getitem(target, key)
     action = mod["action"]
@@ -52,8 +50,8 @@ class Subscriber:
         Multiple functions can be specified in a list for the ``Subscriber``
         to update several local objects simultaneously.
     :param notify_cb: An optional function called every time a mod is received
-        from the publisher. The mod is passed as parameter.
-
+        from the publisher. The mod is passed as parameter. The function is
+        called after the mod has been processed.
     """
     def __init__(self, notifier_name, target_builder, notify_cb=None):
         self.notifier_name = notifier_name
@@ -133,7 +131,6 @@ class Notifier:
 
     :param backing_struct: Structure to encapsulate. For convenience, it
         also becomes available as the ``read`` property of the ``Notifier``.
-
     """
     def __init__(self, backing_struct, root=None, path=[]):
         self.read = backing_struct
@@ -149,52 +146,46 @@ class Notifier:
     # All modifications must go through them!
 
     def append(self, x):
-        """Append to a list.
-
-        """
+        """Append to a list."""
         self._backing_struct.append(x)
         if self.root.publish is not None:
-            self.root.publish(self.root, {"action": "append",
-                                          "path": self._path,
-                                          "x": x})
+            self.root.publish({"action": "append",
+                               "path": self._path,
+                               "x": x})
 
     def insert(self, i, x):
-        """Insert an element into a list.
-
-        """
+        """Insert an element into a list."""
         self._backing_struct.insert(i, x)
         if self.root.publish is not None:
-            self.root.publish(self.root, {"action": "insert",
-                                          "path": self._path,
-                                          "i": i, "x": x})
+            self.root.publish({"action": "insert",
+                               "path": self._path,
+                               "i": i, "x": x})
 
     def pop(self, i=-1):
         """Pop an element from a list. The returned element is not
         encapsulated in a ``Notifier`` and its mutations are no longer
-        tracked.
-
-        """
+        tracked."""
         r = self._backing_struct.pop(i)
         if self.root.publish is not None:
-            self.root.publish(self.root, {"action": "pop",
-                                          "path": self._path,
-                                          "i": i})
+            self.root.publish({"action": "pop",
+                               "path": self._path,
+                               "i": i})
         return r
 
     def __setitem__(self, key, value):
         self._backing_struct.__setitem__(key, value)
         if self.root.publish is not None:
-            self.root.publish(self.root, {"action": "setitem",
-                                "path": self._path,
-                                "key": key,
-                                "value": value})
+            self.root.publish({"action": "setitem",
+                               "path": self._path,
+                               "key": key,
+                               "value": value})
 
     def __delitem__(self, key):
         self._backing_struct.__delitem__(key)
         if self.root.publish is not None:
-            self.root.publish(self.root, {"action": "delitem",
-                                          "path": self._path,
-                                          "key": key})
+            self.root.publish({"action": "delitem",
+                               "path": self._path,
+                               "key": key})
 
     def __getitem__(self, key):
         item = getitem(self._backing_struct, key)
@@ -208,7 +199,6 @@ class Publisher(AsyncioServer):
     :param notifiers: A dictionary containing the notifiers to associate with
         the ``Publisher``. The keys of the dictionary are the names of the
         notifiers to be used with ``Subscriber``.
-
     """
     def __init__(self, notifiers):
         AsyncioServer.__init__(self)
@@ -217,7 +207,7 @@ class Publisher(AsyncioServer):
         self._notifier_names = {id(v): k for k, v in notifiers.items()}
 
         for notifier in notifiers.values():
-            notifier.publish = self.publish
+            notifier.publish = partial(self.publish, notifier)
 
     @asyncio.coroutine
     def _handle_connection_cr(self, reader, writer):
@@ -256,8 +246,8 @@ class Publisher(AsyncioServer):
         finally:
             writer.close()
 
-    def publish(self, notifier, obj):
-        line = pyon.encode(obj) + "\n"
+    def publish(self, notifier, mod):
+        line = pyon.encode(mod) + "\n"
         line = line.encode()
         notifier_name = self._notifier_names[id(notifier)]
         for recipient in self._recipients[notifier_name]:

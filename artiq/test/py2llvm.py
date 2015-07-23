@@ -5,7 +5,7 @@ from fractions import Fraction
 from ctypes import CFUNCTYPE, c_int, c_int32, c_int64, c_double
 import struct
 
-import llvmlite.binding as llvm
+import llvmlite_or1k.binding as llvm
 
 from artiq.language.core import int64
 from artiq.py2llvm.infer_types import infer_function_types

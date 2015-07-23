@@ -44,7 +44,8 @@ class _RTIOCounter(Module):
 
         # # #
 
-        self.sync.rio += self.value_rio.eq(self.value_rio + 1),
+        # note: counter is in rtio domain and never affected by the reset CSRs
+        self.sync.rtio += self.value_rio.eq(self.value_rio + 1)
         gt = _GrayCodeTransfer(width)
         self.submodules += gt
         self.comb += gt.i.eq(self.value_rio), self.value_sys.eq(gt.o)
@@ -121,12 +122,20 @@ class _OutputManager(Module):
             sequence_error.eq(self.ev.timestamp < buf.timestamp[fine_ts_width:])
         ]
         if interface.suppress_nop:
-            self.sync.rsys += nop.eq(
-                optree("&", 
-                       [getattr(self.ev, a) == getattr(buf, a)
-                        for a in ("data", "address")
-                        if hasattr(self.ev, a)],
-                       default=0))
+            # disable NOP at reset: do not suppress a first write with all 0s
+            nop_en = Signal(reset=0)
+            self.sync.rsys += [
+                nop.eq(nop_en &
+                    optree("&",
+                           [getattr(self.ev, a) == getattr(buf, a)
+                            for a in ("data", "address")
+                            if hasattr(self.ev, a)],
+                           default=0)),
+                # buf now contains valid data. enable NOP.
+                If(self.we & ~sequence_error, nop_en.eq(1)),
+                # underflows cancel the write. allow it to be retried.
+                If(self.underflow, nop_en.eq(0))
+            ]
         self.comb += self.sequence_error.eq(self.we & sequence_error)
 
         # Buffer read and FIFO write
@@ -247,10 +256,19 @@ class _InputManager(Module):
 
 
 class Channel:
-    def __init__(self, interface, ofifo_depth=64, ififo_depth=64):
+    def __init__(self, interface, probes=[], overrides=[],
+                 ofifo_depth=64, ififo_depth=64):
         self.interface = interface
+        self.probes = probes
+        self.overrides = overrides
         self.ofifo_depth = ofifo_depth
         self.ififo_depth = ififo_depth
+
+    @classmethod
+    def from_phy(cls, phy, **kwargs):
+        probes = getattr(phy, "probes", [])
+        overrides = getattr(phy, "overrides", [])
+        return cls(phy.rtlink, probes, overrides, **kwargs)
 
 
 class _KernelCSRs(AutoCSR):

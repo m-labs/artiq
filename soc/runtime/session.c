@@ -12,6 +12,7 @@
 #include "kloader.h"
 #include "exceptions.h"
 #include "session.h"
+#include "flash_storage.h"
 
 #define BUFFER_IN_SIZE (1024*1024)
 #define BUFFER_OUT_SIZE (1024*1024)
@@ -69,11 +70,13 @@ void session_start(void)
     memset(&buffer_out[4], 0, 4);
     kloader_stop();
     user_kernel_state = USER_KERNEL_NONE;
+    now = -1;
 }
 
 void session_end(void)
 {
     kloader_stop();
+    now = -1;
     kloader_start_idle_kernel();
 }
 
@@ -86,7 +89,12 @@ enum {
     REMOTEMSG_TYPE_LOAD_OBJECT,
     REMOTEMSG_TYPE_RUN_KERNEL,
 
-    REMOTEMSG_TYPE_RPC_REPLY
+    REMOTEMSG_TYPE_RPC_REPLY,
+
+    REMOTEMSG_TYPE_FLASH_READ_REQUEST,
+    REMOTEMSG_TYPE_FLASH_WRITE_REQUEST,
+    REMOTEMSG_TYPE_FLASH_ERASE_REQUEST,
+    REMOTEMSG_TYPE_FLASH_REMOVE_REQUEST
 };
 
 /* device to host */
@@ -104,7 +112,22 @@ enum {
     REMOTEMSG_TYPE_KERNEL_EXCEPTION,
 
     REMOTEMSG_TYPE_RPC_REQUEST,
+
+    REMOTEMSG_TYPE_FLASH_READ_REPLY,
+    REMOTEMSG_TYPE_FLASH_OK_REPLY,
+    REMOTEMSG_TYPE_FLASH_ERROR_REPLY
 };
+
+static int check_flash_storage_key_len(char *key, unsigned int key_len)
+{
+    if(key_len == get_in_packet_len() - 8) {
+        log("Invalid key: not a null-terminated string");
+        buffer_out[8] = REMOTEMSG_TYPE_FLASH_ERROR_REPLY;
+        submit_output(9);
+        return 0;
+    }
+    return 1;
+}
 
 static int process_input(void)
 {
@@ -132,7 +155,7 @@ static int process_input(void)
                 submit_output(9);
                 break;    
             }
-            rtiocrg_clock_sel_write(buffer_in[9]);
+            rtio_crg_clock_sel_write(buffer_in[9]);
             buffer_out[8] = REMOTEMSG_TYPE_CLOCK_SWITCH_COMPLETED;
             submit_output(9);
             break;
@@ -168,10 +191,7 @@ static int process_input(void)
             }
             buffer_in[buffer_in_index] = 0;
 
-            if(buffer_in[9])
-                now = -1;
-
-            k = kloader_find((char *)&buffer_in[10]);
+            k = kloader_find((char *)&buffer_in[9]);
             if(k == NULL) {
                 log("Failed to find kernel entry point '%s' in object", &buffer_in[9]);
                 buffer_out[8] = REMOTEMSG_TYPE_KERNEL_STARTUP_FAILED;
@@ -196,12 +216,66 @@ static int process_input(void)
             memcpy(&reply.eid, &buffer_in[9], 4);
             memcpy(&reply.retval, &buffer_in[13], 4);
             mailbox_send_and_wait(&reply);
-            /* HACK/FIXME: workaround for intermittent crashes that happen when running rpc_timing with comm_tcp */
-            int i;
-            for(i=0;i<100000;i++)
-                __asm__ volatile("l.nop");
-            /* */
             user_kernel_state = USER_KERNEL_RUNNING;
+            break;
+        }
+        case REMOTEMSG_TYPE_FLASH_READ_REQUEST: {
+#if SPIFLASH_SECTOR_SIZE - 4 > BUFFER_OUT_SIZE - 9
+#error Output buffer cannot hold the flash storage data
+#elif SPIFLASH_SECTOR_SIZE - 4 > BUFFER_IN_SIZE - 9
+#error Input buffer cannot hold the flash storage data
+#endif
+            unsigned int ret, in_packet_len;
+            char *key;
+
+            in_packet_len = get_in_packet_len();
+            key = &buffer_in[9];
+            buffer_in[in_packet_len] = '\0';
+
+            buffer_out[8] = REMOTEMSG_TYPE_FLASH_READ_REPLY;
+            ret = fs_read(key, &buffer_out[9], sizeof(buffer_out) - 9, NULL);
+            submit_output(9 + ret);
+            break;
+        }
+        case REMOTEMSG_TYPE_FLASH_WRITE_REQUEST: {
+            char *key, *value;
+            unsigned int key_len, value_len, in_packet_len;
+            int ret;
+
+            in_packet_len = get_in_packet_len();
+            key = &buffer_in[9];
+            key_len = strnlen(key, in_packet_len - 9) + 1;
+            if(!check_flash_storage_key_len(key, key_len))
+                break;
+
+            value_len = in_packet_len - key_len - 9;
+            value = key + key_len;
+            ret = fs_write(key, value, value_len);
+
+            if(ret)
+                buffer_out[8] = REMOTEMSG_TYPE_FLASH_OK_REPLY;
+            else
+                buffer_out[8] = REMOTEMSG_TYPE_FLASH_ERROR_REPLY;
+            submit_output(9);
+            break;
+        }
+        case REMOTEMSG_TYPE_FLASH_ERASE_REQUEST: {
+            fs_erase();
+            buffer_out[8] = REMOTEMSG_TYPE_FLASH_OK_REPLY;
+            submit_output(9);
+            break;
+        }
+        case REMOTEMSG_TYPE_FLASH_REMOVE_REQUEST: {
+            char *key;
+            unsigned int in_packet_len;
+
+            in_packet_len = get_in_packet_len();
+            key = &buffer_in[9];
+            buffer_in[in_packet_len] = '\0';
+
+            fs_remove(key);
+            buffer_out[8] = REMOTEMSG_TYPE_FLASH_OK_REPLY;
+            submit_output(9);
             break;
         }
         default:
@@ -236,6 +310,9 @@ int session_input(void *data, int len)
             /* receiving length */
             buffer_in[buffer_in_index++] = _data[consumed];
             consumed++; len--;
+            if((buffer_in_index == 8) && (get_in_packet_len() == 0))
+                /* zero-length packet = session reset */
+                return -2;
         } else {
             /* receiving payload */
             int packet_len;
@@ -390,12 +467,14 @@ static int send_rpc_request(int rpc_num, va_list args)
 /* assumes output buffer is empty when called */
 static int process_kmsg(struct msg_base *umsg)
 {
-    if(user_kernel_state != USER_KERNEL_RUNNING) {
-        log("Received message from kernel CPU while not in running state");
-        return 0;
-    }
     if(!validate_kpointer(umsg))
         return 0;
+    if((user_kernel_state != USER_KERNEL_RUNNING)
+      && (umsg->type != MESSAGE_TYPE_NOW_INIT_REQUEST)
+      && (umsg->type != MESSAGE_TYPE_NOW_SAVE)) {
+        log("Received unexpected message from kernel CPU while not in running state");
+        return 0;
+    }
 
     switch(umsg->type) {
         case MESSAGE_TYPE_NOW_INIT_REQUEST: {
@@ -462,7 +541,7 @@ static int process_kmsg(struct msg_base *umsg)
         case MESSAGE_TYPE_LOG: {
             struct msg_log *msg = (struct msg_log *)umsg;
 
-            log(msg->fmt, msg->args);
+            log_va(msg->fmt, msg->args);
             mailbox_acknowledge();
             break;
         }

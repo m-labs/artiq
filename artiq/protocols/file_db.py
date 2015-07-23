@@ -20,7 +20,7 @@ class FlatFileDB:
     def save(self):
         pyon.store_file(self.filename, self.data.read)
 
-    def request(self, name):
+    def get(self, name):
         return self.data.read[name]
 
     def set(self, name, value):
@@ -36,19 +36,3 @@ class FlatFileDB:
         timestamp = time()
         for hook in self.hooks:
             hook.delete(timestamp, name)
-
-
-class SimpleHistory:
-    def __init__(self, depth):
-        self.depth = depth
-        self.history = Notifier([])
-
-    def set(self, timestamp, name, value):
-        if len(self.history.read) >= self.depth:
-            del self.history[0]
-        self.history.append((timestamp, name, value))
-
-    def delete(self, timestamp, name):
-        if len(self.history.read) >= self.depth:
-            del self.history[0]
-        self.history.append((timestamp, name))

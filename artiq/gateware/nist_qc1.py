@@ -4,10 +4,22 @@ from mibuild.generic_platform import *
 papilio_adapter_io = [
     ("ext_led", 0, Pins("B:7"), IOStandard("LVTTL")),
 
+    # to feed the 125 MHz clock (preferrably from DDS SYNC_CLK)
+    # to the FPGA, use the xtrig pair.
+    #
+    # on papiliopro-adapter, xtrig (C:12) is connected to a GCLK
+    #
+    # on pipistrello, C:15 is the only GCLK in proximity, used as a button
+    # input, BTN2/PMT2 in papiliopro-adapter
+    # either improve the DDS box to feed 125MHz into the PMT2 pair, or:
+    #
+    # * disconnect C:15 from its periphery on the adapter board
+    # * bridge C:15 to the xtrig output of the transciever
+    # * optionally, disconnect C:12 from its periphery
+    ("xtrig", 0, Pins("C:12"), IOStandard("LVTTL")),
     ("pmt", 0, Pins("C:13"), IOStandard("LVTTL")),
     ("pmt", 1, Pins("C:14"), IOStandard("LVTTL")),
-    ("xtrig", 0, Pins("C:12"), IOStandard("LVTTL")),
-    ("dds_clock", 0, Pins("C:15"), IOStandard("LVTTL")),  # PMT2
+    ("pmt", 2, Pins("C:15"), IOStandard("LVTTL")),  # rarely equipped
 
     ("ttl", 0, Pins("C:11"), IOStandard("LVTTL")),
     ("ttl", 1, Pins("C:10"), IOStandard("LVTTL")),

@@ -1,21 +1,9 @@
 from operator import itemgetter
 
-from artiq.language.db import AutoDB
-from artiq.language.units import ms
-from artiq.coredevice.runtime import LinkInterface
 
-
-class _RuntimeEnvironment(LinkInterface):
-    def __init__(self):
-        self.warmup_time = 1*ms
-
-    def emit_object(self):
-        return str(self.llvm_module)
-
-
-class Comm(AutoDB):
-    def get_runtime_env(self):
-        return _RuntimeEnvironment()
+class Comm:
+    def __init__(self, dmgr):
+        pass
 
     def switch_clock(self, external):
         pass

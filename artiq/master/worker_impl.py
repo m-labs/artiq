@@ -3,9 +3,8 @@ import time
 
 from artiq.protocols import pyon
 from artiq.tools import file_import
-from artiq.master.worker_db import DBHub, ResultDB
-from artiq.master.results import get_hdf5_output
-from artiq.language.experiment import is_experiment
+from artiq.master.worker_db import DeviceManager, ResultDB, get_hdf5_output
+from artiq.language.environment import is_experiment
 from artiq.language.core import set_watchdog_factory
 
 
@@ -45,16 +44,34 @@ def make_parent_action(action, argnames, exception=ParentActionError):
     return parent_action
 
 
+
+
+class LogForwarder:
+    def __init__(self):
+        self.buffer = ""
+
+    to_parent = staticmethod(make_parent_action("log", "message"))
+
+    def write(self, data):
+        self.buffer += data
+        while "\n" in self.buffer:
+            i = self.buffer.index("\n")
+            self.to_parent(self.buffer[:i])
+            self.buffer = self.buffer[i+1:]
+
+    def flush(self):
+        pass
+
+
 class ParentDDB:
-    request = make_parent_action("req_device", "name", KeyError)
+    get = make_parent_action("get_device", "name", KeyError)
 
 
 class ParentPDB:
-    request = make_parent_action("req_parameter", "name", KeyError)
+    get = make_parent_action("get_parameter", "name", KeyError)
     set = make_parent_action("set_parameter", "name value")
 
 
-init_rt_results = make_parent_action("init_rt_results", "description")
 update_rt_results = make_parent_action("update_rt_results", "mod")
 
 
@@ -79,18 +96,18 @@ class Scheduler:
     pause = staticmethod(make_parent_action("pause", ""))
 
     submit = staticmethod(make_parent_action("scheduler_submit",
-        "pipeline_name expid priority due_date"))
+        "pipeline_name expid priority due_date flush"))
     cancel = staticmethod(make_parent_action("scheduler_cancel", "rid"))
 
-    def __init__(self, pipeline_name, expid, priority):
+    def set_run_info(self, pipeline_name, expid, priority):
         self.pipeline_name = pipeline_name
         self.expid = expid
         self.priority = priority
 
 
-def get_exp(file, exp):
+def get_exp(file, class_name):
     module = file_import(file)
-    if exp is None:
+    if class_name is None:
         exps = [v for k, v in module.__dict__.items()
                 if is_experiment(v)]
         if len(exps) != 1:
@@ -98,11 +115,44 @@ def get_exp(file, exp):
                              .format(len(exps)))
         return exps[0]
     else:
-        return getattr(module, exp)
+        return getattr(module, class_name)
+
+
+register_experiment = make_parent_action("register_experiment",
+                                         "class_name name arguments")
+
+
+class DummyDMGR:
+    def get(self, name):
+        return None
+
+
+class DummyPDB:
+    def get(self, name):
+        return None
+
+    def set(self, name, value):
+        pass
+
+
+def examine(dmgr, pdb, rdb, file):
+    module = file_import(file)
+    for class_name, exp_class in module.__dict__.items():
+        if is_experiment(exp_class):
+            if exp_class.__doc__ is None:
+                name = class_name
+            else:
+                name = exp_class.__doc__.splitlines()[0].strip()
+                if name[-1] == ".":
+                    name = name[:-1]
+            exp_inst = exp_class(dmgr, pdb, rdb, default_arg_none=True)
+            arguments = [(k, v.describe())
+                         for k, v in exp_inst.requested_args.items()]
+            register_experiment(class_name, name, arguments)
 
 
 def main():
-    sys.stdout = sys.stderr
+    sys.stdout = sys.stderr = LogForwarder()
 
     start_time = None
     rid = None
@@ -110,26 +160,27 @@ def main():
     exp = None
     exp_inst = None
 
-    rdb = ResultDB(init_rt_results, update_rt_results)
-    dbh = DBHub(ParentDDB, ParentPDB, rdb)
+    dmgr = DeviceManager(ParentDDB,
+                         virtual_devices={"scheduler": Scheduler()})
+    rdb = ResultDB()
+    rdb.rt.publish = update_rt_results
 
     try:
         while True:
             obj = get_object()
             action = obj["action"]
-            if action == "prepare":
+            if action == "build":
                 start_time = time.localtime()
                 rid = obj["rid"]
-                pipeline_name = obj["pipeline_name"]
                 expid = obj["expid"]
-                priority = obj["priority"]
-                exp = get_exp(expid["file"], expid["experiment"])
-                exp_inst = exp(dbh,
-                               scheduler=Scheduler(pipeline_name,
-                                                   expid,
-                                                   priority),
-                               **expid["arguments"])
-                rdb.build()
+                exp = get_exp(expid["file"], expid["class_name"])
+                dmgr.virtual_devices["scheduler"].set_run_info(
+                    obj["pipeline_name"], expid, obj["priority"])
+                exp_inst = exp(dmgr, ParentPDB, rdb,
+                    **expid["arguments"])
+                put_object({"action": "completed"})
+            elif action == "prepare":
+                exp_inst.prepare()
                 put_object({"action": "completed"})
             elif action == "run":
                 exp_inst.run()
@@ -144,10 +195,13 @@ def main():
                 finally:
                     f.close()
                 put_object({"action": "completed"})
+            elif action == "examine":
+                examine(DummyDMGR(), DummyPDB(), ResultDB(), obj["file"])
+                put_object({"action": "completed"})
             elif action == "terminate":
                 break
     finally:
-        dbh.close_devices()
+        dmgr.close_devices()
 
 if __name__ == "__main__":
     main()

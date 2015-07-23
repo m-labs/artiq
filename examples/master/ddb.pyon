@@ -43,6 +43,12 @@
         "class": "TTLOut",
         "arguments": {"channel": 4}
     },
+    "ttl3": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 5}
+    },
     "led": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
@@ -59,20 +65,20 @@
     "dds0": {
         "type": "local",
         "module": "artiq.coredevice.dds",
-        "class": "DDS",
-        "arguments": {"channel": 0}
+        "class": "AD9858",
+        "arguments": {"sysclk": 1e9, "channel": 0}
     },
     "dds1": {
         "type": "local",
         "module": "artiq.coredevice.dds",
-        "class": "DDS",
-        "arguments": {"channel": 1}
+        "class": "AD9858",
+        "arguments": {"sysclk": 1e9, "channel": 1}
     },
     "dds2": {
         "type": "local",
         "module": "artiq.coredevice.dds",
-        "class": "DDS",
-        "arguments": {"channel": 2}
+        "class": "AD9858",
+        "arguments": {"sysclk": 1e9, "channel": 2}
     },
 
     "qc_q1_0": {
@@ -113,10 +119,9 @@
         "class": "CompoundPDQ2",
         "arguments": {
             "pdq2_devices": ["qc_q1_0", "qc_q1_1", "qc_q1_2", "qc_q1_3"],
-            "rtio_trigger": 7,
-            "rtio_frame": (2, 3, 4)
-        },
-        "comment": "Conflicts with dds2 and ttl0-2"
+            "trigger_device": "ttl3",
+            "frame_devices": ["ttl0", "ttl1", "ttl2"]
+        }
     },
 
     "lda": {

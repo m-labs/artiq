@@ -12,6 +12,9 @@ These drivers are for peripherals closely integrated into the core device, which
 :mod:`artiq.coredevice.dds` module
 ----------------------------------
 
+.. autoclass:: artiq.coredevice.dds._DDSGeneric
+	:members:
+
 .. automodule:: artiq.coredevice.dds
     :members:
 

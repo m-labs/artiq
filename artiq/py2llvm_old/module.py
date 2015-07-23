@@ -1,16 +1,16 @@
-import llvmlite.ir as ll
-import llvmlite.binding as llvm
+import llvmlite_or1k.ir as ll
+import llvmlite_or1k.binding as llvm
 
 from artiq.py2llvm import infer_types, ast_body, base_types, fractions, tools
 
 
 class Module:
-    def __init__(self, env=None):
+    def __init__(self, runtime=None):
         self.llvm_module = ll.Module("main")
-        self.env = env
+        self.runtime = runtime
 
-        if self.env is not None:
-            self.env.init_module(self)
+        if self.runtime is not None:
+            self.runtime.init_module(self)
         fractions.init_module(self)
 
     def finalize(self):
@@ -30,10 +30,10 @@ class Module:
 
     def emit_object(self):
         self.finalize()
-        return self.env.emit_object()
+        return self.runtime.emit_object()
 
     def compile_function(self, func_def, param_types):
-        ns = infer_types.infer_function_types(self.env, func_def, param_types)
+        ns = infer_types.infer_function_types(self.runtime, func_def, param_types)
         retval = ns["return"]
 
         function_type = ll.FunctionType(retval.get_llvm_type(),
@@ -50,7 +50,7 @@ class Module:
         for arg_ast, arg_llvm in zip(func_def.args.args, function.args):
             ns[arg_ast.arg].auto_store(builder, arg_llvm)
 
-        visitor = ast_body.Visitor(self.env, ns, builder)
+        visitor = ast_body.Visitor(self.runtime, ns, builder)
         visitor.visit_statements(func_def.body)
 
         if not tools.is_terminated(builder.basic_block):

@@ -1,13 +1,16 @@
 #!/bin/bash
 
+# exit on error
 set -e
+# print commands
+#set -x
 
 ARTIQ_PREFIX=$(python3 -c "import artiq; print(artiq.__path__[0])")
 
 # Default is kc705
 BOARD=kc705
 
-while getopts "bBrht:d:" opt
+while getopts "bBrht:d:f:" opt
 do
 	case $opt in
 		b)
@@ -18,6 +21,15 @@ do
 			;;
 		r)
 			FLASH_RUNTIME=1
+			;;
+		f)
+			if [ -f $OPTARG ]
+			then
+				FILENAME=$OPTARG
+			else
+				echo "You specified a non-existing file to flash: $OPTARG"
+				exit 1
+			fi
 			;;
 		t)
 			if [ "$OPTARG" == "kc705" ]
@@ -52,6 +64,7 @@ do
 			echo "-r  Flash ARTIQ runtime"
 			echo "-h  Show this help message"
 			echo "-t  Target (kc705, pipistrello, default is: kc705)"
+			echo "-f  Flash storage image generated with artiq_mkfs"
 			echo "-d  Directory containing the binaries to be flashed"
 			exit 1
 			;;
@@ -95,22 +108,24 @@ then
 	PROXY=bscan_spi_kc705.bit
 	BIOS_ADDR=0xaf0000
 	RUNTIME_ADDR=0xb00000
+	FS_ADDR=0xb40000
 	if [ -z "$BIN_PREFIX" ]; then BIN_PREFIX=$ARTIQ_PREFIX/binaries/kc705; fi
 	search_for_proxy $PROXY
 elif [ "$BOARD" == "pipistrello" ]
 then
 	UDEV_RULES=99-papilio.rules
-	BITSTREAM=artiq_pipistrello-nist_qc1-pipistrello.bin
+	BITSTREAM=artiq_pipistrello-nist_qc1-pipistrello.bit
 	CABLE=papilio
 	PROXY=bscan_spi_lx45_csg324.bit
 	BIOS_ADDR=0x170000
 	RUNTIME_ADDR=0x180000
+	FS_ADDR=0x1c0000
 	if [ -z "$BIN_PREFIX" ]; then BIN_PREFIX=$ARTIQ_PREFIX/binaries/pipistrello; fi
 	search_for_proxy $PROXY
 fi
 
 # Check if neither of -b|-B|-r have been used
-if [ -z "$FLASH_RUNTIME" -a -z "$FLASH_BIOS" -a -z "$FLASH_BITSTREAM" ]
+if [ -z "$FLASH_RUNTIME" -a -z "$FLASH_BIOS" -a -z "$FLASH_BITSTREAM" -a -z "$FILENAME" ]
 then
 	FLASH_RUNTIME=1
 	FLASH_BIOS=1
@@ -132,10 +147,16 @@ then
 fi
 set -e
 
+if [ ! -z "$FILENAME" ]
+then
+	echo "Flashing file $FILENAME at address $FS_ADDR"
+	xc3sprog -v -c $CABLE -I$PROXY_PATH/$PROXY $FILENAME:w:$FS_ADDR:BIN
+fi
+
 if [ "${FLASH_BITSTREAM}" == "1" ]
 then
 	echo "Flashing FPGA bitstream..."
-	xc3sprog -v -c $CABLE -I$PROXY_PATH/$PROXY $BIN_PREFIX/$BITSTREAM:w:0x0:BIN
+	xc3sprog -v -c $CABLE -I$PROXY_PATH/$PROXY $BIN_PREFIX/$BITSTREAM:w:0x0:BIT
 fi
 
 if [ "${FLASH_BIOS}" == "1" ]

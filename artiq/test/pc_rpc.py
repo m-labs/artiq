@@ -6,7 +6,7 @@ import time
 
 import numpy as np
 
-from artiq.protocols import pc_rpc
+from artiq.protocols import pc_rpc, fire_and_forget
 
 
 test_address = "::1"
@@ -73,11 +73,27 @@ class RPCCase(unittest.TestCase):
             remote.close_rpc()
 
     def _loop_asyncio_echo(self):
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self._asyncio_echo())
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(self._asyncio_echo())
+        finally:
+            loop.close()
 
     def test_asyncio_echo(self):
         self._run_server_and_test(self._loop_asyncio_echo)
+
+
+class FireAndForgetCase(unittest.TestCase):
+    def _set_ok(self):
+        self.ok = True
+
+    def test_fire_and_forget(self):
+        self.ok = False
+        p = fire_and_forget.FFProxy(self)
+        p._set_ok()
+        p.ff_join()
+        self.assertTrue(self.ok)
 
 
 class Echo:
@@ -96,7 +112,8 @@ class Echo:
 
 
 def run_server():
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
         echo = Echo()
         server = pc_rpc.Server({"test": echo})

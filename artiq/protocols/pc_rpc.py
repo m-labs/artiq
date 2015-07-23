@@ -22,7 +22,6 @@ import inspect
 
 from artiq.protocols import pyon
 from artiq.protocols.asyncio_server import AsyncioServer as _AsyncioServer
-from artiq.tools import format_arguments
 
 
 logger = logging.getLogger(__name__)
@@ -246,7 +245,8 @@ class AsyncioClient:
     def __getattr__(self, name):
         @asyncio.coroutine
         def proxy(*args, **kwargs):
-            return self.__do_rpc(name, args, kwargs)
+            res = yield from self.__do_rpc(name, args, kwargs)
+            return res
         return proxy
 
 
@@ -374,6 +374,16 @@ class BestEffortClient:
         return proxy
 
 
+def _format_arguments(arguments):
+    fmtargs = []
+    for k, v in sorted(arguments.items(), key=itemgetter(0)):
+        fmtargs.append(k + "=" + repr(v))
+    if fmtargs:
+        return ", ".join(fmtargs)
+    else:
+        return ""
+
+
 class _PrettyPrintCall:
     def __init__(self, obj):
         self.obj = obj
@@ -382,7 +392,7 @@ class _PrettyPrintCall:
         r = self.obj["name"] + "("
         args = ", ".join([repr(a) for a in self.obj["args"]])
         r += args
-        kwargs = format_arguments(self.obj["kwargs"])
+        kwargs = _format_arguments(self.obj["kwargs"])
         if args and kwargs:
             r += ", "
         r += kwargs
@@ -442,15 +452,18 @@ class Server(_AsyncioServer):
                 try:
                     if obj["action"] == "get_rpc_method_list":
                         members = inspect.getmembers(target, inspect.ismethod)
-                        methods = {}
+                        doc = {
+                            "docstring": inspect.getdoc(target),
+                            "methods": {}
+                        }
                         for name, method in members:
                             if name.startswith("_"):
                                 continue
                             method = getattr(target, name)
                             argspec = inspect.getfullargspec(method)
-                            methods[name] = (dict(argspec.__dict__),
-                                             inspect.getdoc(method))
-                        obj = {"status": "ok", "ret": methods}
+                            doc["methods"][name] = (dict(argspec.__dict__),
+                                                    inspect.getdoc(method))
+                        obj = {"status": "ok", "ret": doc}
                     elif obj["action"] == "call":
                         logger.debug("calling %s", _PrettyPrintCall(obj))
                         method = getattr(target, obj["name"])

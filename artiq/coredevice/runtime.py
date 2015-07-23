@@ -1,7 +1,7 @@
 import os
 
-import llvmlite.ir as ll
-import llvmlite.binding as llvm
+import llvmlite_or1k.ir as ll
+import llvmlite_or1k.binding as llvm
 
 from artiq.py2llvm import base_types, fractions, lists
 from artiq.language import units
@@ -21,6 +21,7 @@ _syscalls = {
     "ttl_set_oe": "Iib:n",
     "ttl_set_sensitivity": "Iii:n",
     "ttl_get": "iI:I",
+    "ttl_clock_set": "Iii:n",
     "dds_init": "Ii:n",
     "dds_batch_enter": "I:n",
     "dds_batch_exit": "n:n",
@@ -195,7 +196,7 @@ def _debug_dump_obj(obj):
     raise IOError
 
 
-class Environment(LinkInterface):
+class Runtime(LinkInterface):
     def __init__(self):
         self.cpu_type = "or1k"
         # allow 1ms for all initial DDS programming
@@ -208,4 +209,4 @@ class Environment(LinkInterface):
         return obj
 
     def __repr__(self):
-        return "<Environment {}>".format(self.cpu_type)
+        return "<Runtime {}>".format(self.cpu_type)

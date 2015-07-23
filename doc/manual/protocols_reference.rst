@@ -21,6 +21,14 @@ Protocols reference
 .. automodule:: artiq.protocols.pc_rpc
     :members:
 
+
+:mod:`artiq.protocols.fire_and_forget` module
+---------------------------------------------
+
+.. automodule:: artiq.protocols.fire_and_forget
+    :members:
+
+
 :mod:`artiq.protocols.sync_struct` module
 -----------------------------------------
 

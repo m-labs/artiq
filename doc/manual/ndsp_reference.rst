@@ -34,6 +34,28 @@ Client
 Lab Brick Digital Attenuator (LDA)
 ----------------------------------
 
+On Linux, you need to give your user access to the USB device.
+
+You can do that by creating a file under ``/etc/udev/rules.d/`` named
+``99-lda.rules`` with the following content::
+
+    SUBSYSTEM=="usb", ATTR{idVendor}=="041f", MODE="0666"
+
+Then you need to tell udev to reload its rules::
+
+    $ sudo invoke-rc.d udev reload
+
+You must also unplug/replug your device if it was already plugged in.
+
+Then, to run the Lab Brick Digital Attenuator (LDA) controller::
+
+    $ lda_controller -d SN:xxxxx
+
+The serial number must contain exactly 5 digits, prepend it with the necessary number of 0s.
+Also, the ``SN:`` prefix is mandatory.
+
+You can choose the LDA model with the ``-P`` parameter. The default is LDA-102.
+
 Driver
 ++++++
 
@@ -66,6 +88,8 @@ Controller
 Thorlabs T-Cube
 ---------------
 
+.. _tdc001-controller-usage-example:
+
 TDC001 controller usage example
 +++++++++++++++++++++++++++++++
 
@@ -75,6 +99,19 @@ First, run the TDC001 controller::
 
 .. note::
     On Windows the serial port (the ``-d`` argument) will be of the form ``COMx``.
+
+.. note::
+    Anything compatible with `serial_for_url <http://pyserial.sourceforge.net/pyserial_api.html#serial.serial_for_url>`_
+    can be given as a device in ``-d`` argument.
+
+    For instance, if you want to specify the Vendor/Product ID and the USB Serial Number, you can do:
+
+    ``-d "hwgrep://<VID>:<PID> SNR=<serial_number>"``.
+    for instance:
+
+    ``-d "hwgrep://0403:faf0 SNR=83852734"``
+
+    The hwgrep URL works on both Linux and Windows.
 
 Then, send commands to it via the ``artiq_rpctool`` utility::
 
@@ -95,6 +132,11 @@ First, run the TPZ001 controller::
 
 .. note::
     On Windows the serial port (the ``-d`` argument) will be of the form ``COMx``.
+
+.. note::
+    See the :ref:`TDC001 documentation <tdc001-controller-usage-example>` for
+    how to specify the USB Serial Number of the device instead of the
+    /dev/ttyUSBx (or the COMx name).
 
 Then, send commands to it via the ``artiq_rpctool`` utility::
 

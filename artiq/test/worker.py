@@ -7,20 +7,26 @@ from artiq import *
 from artiq.master.worker import *
 
 
-class WatchdogNoTimeout(Experiment, AutoDB):
+class WatchdogNoTimeout(EnvExperiment):
+    def build(self):
+        pass
+
     def run(self):
         for i in range(10):
             with watchdog(0.5*s):
                 sleep(0.1)
 
 
-class WatchdogTimeout(Experiment, AutoDB):
+class WatchdogTimeout(EnvExperiment):
+    def build(self):
+        pass
+
     def run(self):
         with watchdog(0.1*s):
             sleep(100.0)
 
 
-class WatchdogTimeoutInBuild(Experiment, AutoDB):
+class WatchdogTimeoutInBuild(EnvExperiment):
     def build(self):
         with watchdog(0.1*s):
             sleep(100.0)
@@ -31,32 +37,33 @@ class WatchdogTimeoutInBuild(Experiment, AutoDB):
 
 @asyncio.coroutine
 def _call_worker(worker, expid):
-    yield from worker.prepare(0, "main", expid, 0)
     try:
+        yield from worker.build(0, "main", expid, 0)
+        yield from worker.prepare()
         yield from worker.run()
         yield from worker.analyze()
     finally:
         yield from worker.close()
 
 
-def _run_experiment(experiment):
+def _run_experiment(class_name):
     expid = {
         "file": sys.modules[__name__].__file__,
-        "experiment": experiment,
+        "class_name": class_name,
         "arguments": dict()
     }
-    handlers = {
-        "init_rt_results": lambda description: None
-    }
-
-    worker = Worker(handlers)
     loop = asyncio.get_event_loop()
+    worker = Worker()
     loop.run_until_complete(_call_worker(worker, expid))
 
 
 class WatchdogCase(unittest.TestCase):
+    def setUp(self):
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+
     def test_watchdog_no_timeout(self):
-       _run_experiment("WatchdogNoTimeout")
+        _run_experiment("WatchdogNoTimeout")
 
     def test_watchdog_timeout(self):
         with self.assertRaises(WorkerWatchdogTimeout):
@@ -65,3 +72,6 @@ class WatchdogCase(unittest.TestCase):
     def test_watchdog_timeout_in_build(self):
         with self.assertRaises(WorkerWatchdogTimeout):
             _run_experiment("WatchdogTimeoutInBuild")
+
+    def tearDown(self):
+        self.loop.close()

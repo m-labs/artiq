@@ -7,7 +7,7 @@ import asyncio
 import time
 import os.path
 
-from artiq.language.experiment import is_experiment
+from artiq.language.environment import is_experiment
 from artiq.protocols import pyon
 
 
@@ -17,15 +17,6 @@ def parse_arguments(arguments):
         name, eq, value = argument.partition("=")
         d[name] = pyon.decode(value)
     return d
-
-def format_arguments(arguments):
-    fmtargs = []
-    for k, v in sorted(arguments.items(), key=itemgetter(0)):
-        fmtargs.append(k + "=" + repr(v))
-    if fmtargs:
-        return ", ".join(fmtargs)
-    else:
-        return ""
 
 
 def file_import(filename):
@@ -90,12 +81,21 @@ def asyncio_process_wait_timeout(process, timeout):
     # causes a futures.InvalidStateError inside asyncio if and when the
     # process terminates after the timeout.
     # Work around this problem.
-    end_time = time.monotonic() + timeout
+    @asyncio.coroutine
+    def process_wait_returncode_timeout():
+        while True:
+            if process.returncode is not None:
+                break
+            yield from asyncio.sleep(0.1)
+    yield from asyncio.wait_for(process_wait_returncode_timeout(),
+                                timeout=timeout)
+
+@asyncio.coroutine
+def asyncio_process_wait(process):
     r = True
     while r:
-        r = yield from asyncio.wait_for(
-                process.stdout.read(1024),
-                timeout=end_time - time.monotonic())
+        f, p = yield from asyncio.wait([process.stdout.read(1024)])
+        r = f.pop().result()
 
 
 @asyncio.coroutine
@@ -119,3 +119,42 @@ def asyncio_queue_peek(q):
         return q._queue[0]
     else:
         raise asyncio.QueueEmpty
+
+
+class TaskObject:
+    def start(self):
+        self.task = asyncio.async(self._do())
+
+    @asyncio.coroutine
+    def stop(self):
+        self.task.cancel()
+        yield from asyncio.wait([self.task])
+        del self.task
+
+    @asyncio.coroutine
+    def _do(self):
+        raise NotImplementedError
+
+
+class WaitSet:
+    def __init__(self):
+        self._s = set()
+        self._ev = asyncio.Event()
+
+    def _update_ev(self):
+        if self._s:
+            self._ev.clear()
+        else:
+            self._ev.set()
+
+    def add(self, e):
+        self._s.add(e)
+        self._update_ev()
+
+    def discard(self, e):
+        self._s.discard(e)
+        self._update_ev()
+
+    @asyncio.coroutine
+    def wait_empty(self):
+        yield from self._ev.wait()

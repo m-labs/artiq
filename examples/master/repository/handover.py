@@ -1,10 +1,10 @@
 from artiq import *
 
 
-class Handover(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
-        led = Device()
+class Handover(EnvExperiment):
+    def build(self):
+        self.attr_device("core")
+        self.attr_device("led")
 
     @kernel
     def blink_once(self):

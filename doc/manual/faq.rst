@@ -7,30 +7,19 @@ How do I ...
 prevent my first RTIO command from causing an underflow?
 --------------------------------------------------------
 
-The RTIO timestamp counter starts counting at zero at the beginning of the first kernel run on the core device. The first RTIO event is programmed with a small timestamp above zero. If the kernel needs more time than this timestamp to produce the event, an underflow will occur. You can prevent it by calling ``break_realtime`` just before programming the first event.
-
-override the `sysclk` frequency of just one DDS?
-------------------------------------------------
-
-Override the parameter using an argument in the DDB.
+The first RTIO event is programmed with a small timestamp above the value of the timecounter at the start of the experiment. If the kernel needs more time than this timestamp to produce the event, an underflow will occur. You can prevent it by calling ``break_realtime`` just before programming the first event, or by adding a sufficient delay.
 
 organize parameters in folders?
 -------------------------------
 
-Use GUI auto-completion and filtering.
-Names need to be unique.
+Folders are not supported yet, use GUI filtering for now. Names need to be unique.
 
 enforce functional dependencies between parameters?
 ---------------------------------------------------
 
 If you want to override a parameter ``b`` in the PDB to be ``b = 2*a``,
 use wrapper experiments, overriding parameters by passing them to the
-experiment's constructor.
-
-get rid of ``DBKeys``?
-----------------------
-
-``DBKeys`` references keys in PDB, DDB and RDB.
+experiment's constructor (``param_override`` argument).
 
 write a generator feeding a kernel feeding an analyze function?
 ---------------------------------------------------------------
@@ -74,3 +63,24 @@ sub-experiments difficult and fragile. You can however always use the
 scheduler API to achieve the same (``scheduler.yield(duration=0)``)
 or wrap your own generators/coroutines/tasks in regular functions that
 you then expose as part of the API.
+
+determine the pyserial URL to attach to a device by its serial number?
+----------------------------------------------------------------------
+
+You can list your system's serial devices and print their vendor/product
+id and serial number by running::
+
+    $ python3 -m serial.tools.list_ports -v
+
+It will give you the ``/dev/ttyUSBxx`` (or the ``COMxx`` for Windows) device
+names.
+The ``hwid:`` field gives you the string you can pass via the ``hwgrep://``
+feature of pyserial
+`serial_for_url() <http://pyserial.sourceforge.net/pyserial_api.html#serial.serial_for_url>`_
+in order to open a serial device.
+
+The preferred way to specify a serial device is to make use of the ``hwgrep://``
+URL: it allows to select the serial device by its USB vendor ID, product
+ID and/or serial number. Those never change, unlike the device file name.
+
+See the :ref:`TDC001 documentation <tdc001-controller-usage-example>` for an example of ``hwgrep://`` usage.

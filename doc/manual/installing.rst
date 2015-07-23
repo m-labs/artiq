@@ -1,8 +1,79 @@
 Installing ARTIQ
 ================
 
+The preferred way of installing ARTIQ is through the use of the conda package manager.
+The conda package contains pre-built binaries that you can directly flash to your board.
+But you can also :ref:`install from sources <install-from-sources>`.
+
+.. note:: Only the linux-64 and linux-32 conda packages contain the FPGA/BIOS/runtime pre-built binaries.
+
+Installing using conda
+----------------------
+
+Installing Anaconda or Miniconda
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* You can either install Anaconda (chose Python 3.4) from https://store.continuum.io/cshop/anaconda/
+
+* Or install the more minimalistic Miniconda (chose Python3.4) from http://conda.pydata.org/miniconda.html
+
+After installing either Anaconda or Miniconda, open a new terminal and make sure the following command works::
+
+    $ conda
+
+If it prints the help of the ``conda`` command, your install is OK.
+If not, then make sure your ``$PATH`` environment variable contains the path to anaconda3/bin (or miniconda3/bin)::
+
+    $ echo $PATH
+    /home/fallen/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games
+
+If your ``$PATH`` misses reference the miniconda3/bin or anaconda3/bin you can fix this by typing::
+
+    $ export PATH=$HOME/miniconda3:$PATH
+
+Installing the host side software
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For this, you need to add our binstar repository to your conda configuration::
+
+    $ conda config --add channels http://conda.anaconda.org/fallen/channel/dev
+
+Then you can install the ARTIQ package, it will pull all the necessary dependencies::
+
+    $ conda install artiq
+
 Preparing the core device FPGA board
-------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You now need to flash 3 things on the FPGA board:
+
+1. The FPGA bitstream
+2. The BIOS
+3. The ARTIQ runtime
+
+First you need to :ref:`install xc3sprog <install-xc3sprog>`. Then, you can flash the board:
+
+* For the Pipistrello board::
+
+    $ artiq_flash.sh -t pipistrello
+
+* For the KC705 board::
+
+    $ artiq_flash.sh
+
+Next step (for KC705) is to flash MAC and IP addresses to the board:
+
+* See :ref:`those instructions <flash-mac-ip-addr>` to flash MAC and IP addresses.
+
+.. _install-from-sources:
+
+Installing from source
+----------------------
+
+You can skip this if you already installed from conda.
+
+Preparing the core device FPGA board
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 These steps are required to generate bitstream (``.bit``) files, build the MiSoC BIOS and ARTIQ runtime, and flash FPGA boards. If the board is already flashed, you may skip those steps and go directly to `Installing the host-side software`.
 
@@ -22,7 +93,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/m-labs/migen
-        $ cd ~/artiq-dev/migen
+        $ cd migen
         $ python3 setup.py develop --user
 
 .. note::
@@ -30,11 +101,11 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
 * Install OpenRISC GCC/binutils toolchain (or1k-elf-...): ::
 
-        $ mkdir ~/artiq-dev
         $ cd ~/artiq-dev
         $ git clone https://github.com/openrisc/or1k-src
-        $ mkdir ~/artiq-dev/or1k-src/build
-        $ cd ~/artiq-dev/or1k-src/build
+        $ cd or1k-src
+        $ mkdir build
+        $ cd build
         $ ../configure --target=or1k-elf --enable-shared --disable-itcl \
                        --disable-tk --disable-tcl --disable-winsup \
                        --disable-gdbtk --disable-libgui --disable-rda \
@@ -45,12 +116,15 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/openrisc/or1k-gcc
-        $ mkdir ~/artiq-dev/or1k-gcc/build
-        $ cd ~/artiq-dev/or1k-gcc/build
+        $ cd or1k-gcc
+        $ mkdir build
+        $ cd build
         $ ../configure --target=or1k-elf --enable-languages=c \
                        --disable-shared --disable-libssp
         $ make -j4
         $ sudo make install
+
+.. _install-xc3sprog:
 
 * Install JTAG tools needed to program the Pipistrello and KC705:
 
@@ -58,12 +132,14 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
         $ cd ~/artiq-dev
         $ svn co https://xc3sprog.svn.sourceforge.net/svnroot/xc3sprog/trunk xc3sprog
-        $ cd ~/artiq-dev/xc3sprog
+        $ cd xc3sprog
         $ cmake . && make
         $ sudo make install
 
     .. note::
         It is safe to ignore the message "Could NOT find LIBFTD2XX" (libftd2xx is different from libftdi, and is not required).
+
+.. _install-flash-proxy:
 
 * Install the required flash proxy bitstreams:
 
@@ -84,8 +160,10 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
             $ cd ~/artiq-dev
             $ git clone https://github.com/m-labs/bscan_spi_kc705
+            $ cd bscan_spi_kc705
+            $ make
 
-        Build the bitstream and copy it to one of the folders above.
+        Then copy the generated ``bscan_spi_kc705.bit`` to ``~/.migen``, ``/usr/local/share/migen`` or ``/usr/share/migen``.
 
 * Download MiSoC: ::
 
@@ -99,10 +177,18 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
         $ git clone https://github.com/m-labs/artiq
         $ python3 setup.py develop --user
 
-* Build and flash the bitstream and BIOS by running `from the MiSoC top-level directory`: ::
+* Build and flash the bitstream and BIOS by running `from the MiSoC top-level directory`:
+    ::
 
         $ cd ~/artiq-dev/misoc
-        $ ./make.py -X ~/artiq-dev/artiq/soc -t artiq_ppro all
+
+    * For Pipistrello::
+
+        $ ./make.py -X ~/artiq-dev/artiq/soc -t artiq_pipistrello all
+
+    * For KC705::
+
+        $ ./make.py -X ~/artiq-dev/artiq/soc -t artiq_kc705 all
 
 * Then, build and flash the ARTIQ runtime: ::
 
@@ -124,27 +210,95 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
 The communication parameters are 115200 8-N-1.
 
+.. _flash-mac-ip-addr:
+
+* Set the MAC and IP address in the :ref:`core device configuration flash storage <core-device-flash-storage>`:
+
+    * You can either set it by generating a flash storage image and then flash it: ::
+
+        $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
+        $ ~/artiq-dev/artiq/frontend/artiq_flash.sh -f flash_storage.img
+
+    * Or you can set it via the runtime test mode command line
+
+        * Boot the board.
+
+        * Quickly run flterm (in ``path/to/misoc/tools``) to access the serial console.
+
+        * If you weren't quick enough to see anything in the serial console, press the reset button.
+
+        * Wait for "Press 't' to enter test mode..." to appear and hit the ``t`` key.
+
+        * Enter the following commands (which will erase the flash storage content).
+
+            ::
+
+                test> fserase
+                test> fswrite ip xx.xx.xx.xx
+                test> fswrite mac xx:xx:xx:xx:xx:xx
+
+        * Then reboot.
+
+        You should see something like this in the serial console: ::
+
+            ~/dev/misoc$ ./tools/flterm --port /dev/ttyUSB1
+            [FLTERM] Starting...
+
+            MiSoC BIOS   http://m-labs.hk
+            (c) Copyright 2007-2014 Sebastien Bourdeauducq
+            [...]
+            Press 't' to enter test mode...
+            Entering test mode.
+            test> fserase
+            test> fswrite ip 192.168.10.2
+            test> fswrite mac 11:22:33:44:55:66
+
+.. note:: The reset button of the KC705 board is the "CPU_RST" labeled button.
+.. warning:: Both those instructions will result in the flash storage being wiped out. However you can use the test mode to change the IP/MAC without erasing everything if you skip the "fserase" command.
+
+* (optional) Flash the ``idle`` kernel
+
+The ``idle`` kernel is the kernel (some piece of code running on the core device) which the core device runs whenever it is not connected to a PC via ethernet.
+This kernel is therefore stored in the :ref:`core device configuration flash storage <core-device-flash-storage>`.
+To flash the ``idle`` kernel:
+
+        * Compile the ``idle`` experiment:
+                The ``idle`` experiment's ``run()`` method must be a kernel: it must be decorated with the ``@kernel`` decorator (see :ref:`next topic <connecting-to-the-core-device>` for more information about kernels).
+
+                Since the core device is not connected to the PC, RPCs (calling Python code running on the PC from the kernel) are forbidden in the ``idle`` experiment.
+                ::
+
+                $ artiq_compile idle.py
+
+        * Write it into the core device configuration flash storage: ::
+
+                $ artiq_coreconfig write -f idle_kernel idle.elf
+
+.. note:: You can find more information about how to use the ``artiq_coreconfig`` tool on the :ref:`Utilities <core-device-configuration-tool>` page.
+
 Installing the host-side software
----------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * Install LLVM and the llvmlite Python bindings: ::
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/openrisc/llvm-or1k
-        $ cd ~/artiq-dev/llvm-or1k/tools
+        $ cd llvm-or1k/tools
         $ git clone https://github.com/openrisc/clang-or1k clang
 
-        $ cd ~/artiq-dev/llvm-or1k
+        $ cd ..
         $ mkdir build
-        $ cd ~/artiq-dev/llvm-or1k/build
-        $ cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local/llvm-or1k -DLLVM_TARGETS_TO_BUILD=OR1K -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=ON
+        $ cd build
+        $ cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local/llvm-or1k -DLLVM_TARGETS_TO_BUILD="OR1K;X86" -DCMAKE_BUILD_TYPE=Debug
         $ make -j4
         $ sudo make install
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/numba/llvmlite
-        $ cd ~/artiq-dev/llvmlite
+        $ cd llvmlite
         $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-add-all-targets.patch
+        $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-rename.patch
+        $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-build-as-debug-on-windows.patch
         $ PATH=/usr/local/llvm-or1k/bin:$PATH sudo -E python3 setup.py install
 
 .. note::
@@ -153,30 +307,12 @@ Installing the host-side software
 .. note::
     Compilation of LLVM can take more than 30 min on some machines.
 
-* Install ARTIQ (without the GUI): ::
+* Install ARTIQ: ::
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/m-labs/artiq # if not already done
         $ cd artiq
         $ python3 setup.py develop --user
-
-* Install ARTIQ (with the GUI): ::
-
-        $ cd ~/artiq-dev
-        $ git clone https://github.com/m-labs/cairoplot3
-        $ cd cairoplot3
-        $ python3 setup.py install --user
-        $ cd -
-        $ git clone https://github.com/m-labs/gbulb
-        $ cd gbulb
-        $ python3 setup.py install --user
-        $ cd -
-        $ git clone https://github.com/m-labs/artiq # if not already done
-        $ cd artiq
-        $ ARTIQ_GUI=1 python3 setup.py develop --user
-
-.. note::
-    Use ARTIQ_GUI=1 to install GUI dependencies which are only supported on Linux for now, to install ARTIQ on Windows do not set ARTIQ_GUI.
 
 * Build the documentation: ::
 
@@ -188,7 +324,7 @@ Ubuntu 14.04 specific instructions
 
 This command installs all the required packages: ::
 
-    $ sudo apt-get install build-essential autotools-dev file git patch perl xutils-devs python3-pip texinfo flex bison libmpc-dev python3-serial python3-dateutil python3-prettytable python3-setuptools python3-numpy python3-scipy python3-sphinx python3-h5py python3-gi python3-dev python-dev subversion cmake libusb-dev libftdi-dev pkg-config
+    $ sudo apt-get install build-essential autotools-dev file git patch perl xutils-devs python3-pip texinfo flex bison libmpc-dev python3-serial python3-dateutil python3-prettytable python3-setuptools python3-numpy python3-scipy python3-sphinx python3-h5py python3-dev python-dev subversion cmake libusb-dev libftdi-dev pkg-config
 
 Note that ARTIQ requires Python 3.4 or above.
 

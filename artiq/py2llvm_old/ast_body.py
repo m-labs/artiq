@@ -1,6 +1,6 @@
 from pythonparser import ast
 
-import llvmlite.ir as ll
+import llvmlite_or1k.ir as ll
 
 from artiq.py2llvm import values, base_types, fractions, lists, iterators
 from artiq.py2llvm.tools import is_terminated
@@ -39,8 +39,8 @@ _ast_cmps = {
 
 
 class Visitor:
-    def __init__(self, env, ns, builder=None):
-        self.env = env
+    def __init__(self, runtime, ns, builder=None):
+        self.runtime = runtime
         self.ns = ns
         self.builder = builder
         self._break_stack = []
@@ -182,7 +182,7 @@ class Visitor:
                 self.builder,
                 [self.visit_expression(arg) for arg in node.args])
         elif fn == "syscall":
-            return self.env.build_syscall(
+            return self.runtime.build_syscall(
                 node.args[0].s,
                 [self.visit_expression(expr) for expr in node.args[1:]],
                 self.builder)
@@ -420,7 +420,7 @@ class Visitor:
     def _break_loop_body(self, target_block):
         exception_levels = self._exception_level_stack[-1]
         if exception_levels:
-            self.env.build_pop(self.builder, exception_levels)
+            self.runtime.build_pop(self.builder, exception_levels)
         self.builder.branch(target_block)
 
     def _visit_stmt_Break(self, node):
@@ -436,7 +436,7 @@ class Visitor:
             val = self.visit_expression(node.value)
         exception_levels = sum(self._exception_level_stack)
         if exception_levels:
-            self.env.build_pop(self.builder, exception_levels)
+            self.runtime.build_pop(self.builder, exception_levels)
         if isinstance(val, base_types.VNone):
             self.builder.ret_void()
         else:
@@ -456,11 +456,11 @@ class Visitor:
             self.builder.branch(finally_block)
         else:
             eid = ll.Constant(ll.IntType(32), node.exc.args[0].n)
-            self.env.build_raise(self.builder, eid)
+            self.runtime.build_raise(self.builder, eid)
 
     def _handle_exception(self, function, finally_block,
                           propagate, propagate_eid, handlers):
-        eid = self.env.build_getid(self.builder)
+        eid = self.runtime.build_getid(self.builder)
         self._active_exception_stack.append(
             (finally_block, propagate, propagate_eid))
         self.builder.store(ll.Constant(ll.IntType(1), 1), propagate)
@@ -509,7 +509,7 @@ class Visitor:
         self.builder.store(ll.Constant(ll.IntType(1), 0), propagate)
         propagate_eid = self.builder.alloca(ll.IntType(32),
                                             name="propagate_eid")
-        exception_occured = self.env.build_catch(self.builder)
+        exception_occured = self.runtime.build_catch(self.builder)
         self.builder.cbranch(exception_occured, exc_block, noexc_block)
 
         self.builder.position_at_end(noexc_block)
@@ -517,7 +517,7 @@ class Visitor:
         self.visit_statements(node.body)
         self._exception_level_stack[-1] -= 1
         if not self._bb_terminated():
-            self.env.build_pop(self.builder, 1)
+            self.runtime.build_pop(self.builder, 1)
             self.visit_statements(node.orelse)
             if not self._bb_terminated():
                 self.builder.branch(finally_block)
@@ -534,6 +534,6 @@ class Visitor:
                 self.builder.load(propagate),
                 propagate_block, merge_block)
         self.builder.position_at_end(propagate_block)
-        self.env.build_raise(self.builder, self.builder.load(propagate_eid))
+        self.runtime.build_raise(self.builder, self.builder.load(propagate_eid))
         self.builder.branch(merge_block)
         self.builder.position_at_end(merge_block)

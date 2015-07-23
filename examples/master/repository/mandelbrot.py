@@ -3,11 +3,11 @@ import sys
 from artiq import *
 
 
-class Mandelbrot(Experiment, AutoDB):
+class Mandelbrot(EnvExperiment):
     """Mandelbrot set demo"""
 
-    class DBKeys:
-        core = Device()
+    def build(self):
+        self.attr_device("core")
 
     def col(self, i):
         sys.stdout.write(" .,-:;i+hHM$*#@ "[i])

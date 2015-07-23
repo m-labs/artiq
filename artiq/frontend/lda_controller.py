@@ -15,8 +15,14 @@ def get_argparser():
                         choices=["LDA-102", "LDA-602"])
     simple_network_args(parser, 3253)
     parser.add_argument("-d", "--device", default=None,
-                        help="USB serial number of the device."
-                             " Omit for simulation mode.")
+                        help="USB serial number of the device. "
+                             "The serial number is written on a sticker under "
+                             "the device, you should write for example "
+                             "-d \"SN:03461\". You must prepend enough 0s for "
+                             "it to be 5 digits. If omitted, the first "
+                             "available device will be used.")
+    parser.add_argument("--simulation", action="store_true",
+                        help="Put the driver in simulation mode.")
     verbosity_args(parser)
     return parser
 
@@ -24,7 +30,7 @@ def get_argparser():
 def main():
     args = get_argparser().parse_args()
     init_logger(args)
-    if args.device is None:
+    if args.simulation:
         lda = Ldasim()
     else:
         lda = Lda(args.device, args.product)

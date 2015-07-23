@@ -4,7 +4,7 @@ import logging
 import argparse
 
 from artiq.protocols.file_db import FlatFileDB
-from artiq.master.worker_db import DBHub
+from artiq.master.worker_db import DeviceManager
 from artiq.tools import *
 
 
@@ -36,15 +36,14 @@ def main():
     args = get_argparser().parse_args()
     init_logger(args)
 
-    ddb = FlatFileDB(args.ddb)
+    dmgr = DeviceManager(FlatFileDB(args.ddb))
     pdb = FlatFileDB(args.pdb)
-    dbh = DBHub(ddb, pdb, rdb=None, read_only=True)
 
     try:
         module = file_import(args.file)
         exp = get_experiment(module, args.experiment)
         arguments = parse_arguments(args.arguments)
-        exp_inst = exp(dbh, **arguments)
+        exp_inst = exp(dmgr, pdb, **arguments)
 
         if (not hasattr(exp.run, "k_function_info")
                 or not exp.run.k_function_info):
@@ -56,7 +55,7 @@ def main():
                                           [exp_inst], {},
                                           with_attr_writeback=False)
     finally:
-        dbh.close_devices()
+        dmgr.close_devices()
 
     if rpc_map:
         raise ValueError("Experiment must not use RPC")

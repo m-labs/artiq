@@ -1,0 +1,13 @@
+diff --git a/ffi/build.py b/ffi/build.py
+index 3889ba5..58f93ec 100755
+--- a/ffi/build.py
++++ b/ffi/build.py
+@@ -58,7 +58,7 @@ def find_win32_generator():
+ 
+ def main_win32():
+     generator = find_win32_generator()
+-    config = 'Release'
++    config = 'Debug'
+     if not os.path.exists(build_dir):
+         os.mkdir(build_dir)
+     try_cmake(here_dir, build_dir, generator)

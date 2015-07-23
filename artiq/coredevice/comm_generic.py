@@ -20,7 +20,12 @@ class _H2DMsgType(Enum):
     RUN_KERNEL = 5
 
     RPC_REPLY = 6
-    
+
+    FLASH_READ_REQUEST = 7
+    FLASH_WRITE_REQUEST = 8
+    FLASH_ERASE_REQUEST = 9
+    FLASH_REMOVE_REQUEST = 10
+
 
 class _D2HMsgType(Enum):
     LOG_REPLY = 1
@@ -36,6 +41,10 @@ class _D2HMsgType(Enum):
     KERNEL_EXCEPTION = 9
 
     RPC_REQUEST = 10
+
+    FLASH_READ_REPLY = 11
+    FLASH_OK_REPLY = 12
+    FLASH_ERROR_REPLY = 13
 
 
 class UnsupportedDevice(Exception):
@@ -86,7 +95,12 @@ class CommGeneric:
     def _write_header(self, length, ty):
         self.open()
         logger.debug("sending message: type=%r length=%d", ty, length)
-        self.write(struct.pack(">llB", 0x5a5a5a5a, length, ty.value))
+        self.write(struct.pack(">ll", 0x5a5a5a5a, length))
+        if ty is not None:
+            self.write(struct.pack("B", ty.value))
+
+    def reset_session(self):
+        self._write_header(0, None)
 
     def check_ident(self):
         self._write_header(9, _H2DMsgType.IDENT_REQUEST)
@@ -116,11 +130,45 @@ class CommGeneric:
         if ty != _D2HMsgType.LOAD_COMPLETED:
             raise IOError("Incorrect reply from device: "+str(ty))
 
-    def run(self, kname, reset_now):
-        self._write_header(len(kname) + 10, _H2DMsgType.RUN_KERNEL)
-        self.write(struct.pack("B", reset_now))
+    def run(self, kname):
+        self._write_header(len(kname) + 9, _H2DMsgType.RUN_KERNEL)
         self.write(bytes(kname, "ascii"))
         logger.debug("running kernel: %s", kname)
+
+    def flash_storage_read(self, key):
+        self._write_header(9+len(key), _H2DMsgType.FLASH_READ_REQUEST)
+        self.write(key)
+        length, ty = self._read_header()
+        if ty != _D2HMsgType.FLASH_READ_REPLY:
+            raise IOError("Incorrect reply from device: {}".format(ty))
+        value = self.read(length - 9)
+        return value
+
+    def flash_storage_write(self, key, value):
+        self._write_header(9+len(key)+1+len(value),
+                           _H2DMsgType.FLASH_WRITE_REQUEST)
+        self.write(key)
+        self.write(b"\x00")
+        self.write(value)
+        _, ty = self._read_header()
+        if ty != _D2HMsgType.FLASH_OK_REPLY:
+            if ty == _D2HMsgType.FLASH_ERROR_REPLY:
+                raise IOError("Flash storage is full")
+            else:
+                raise IOError("Incorrect reply from device: {}".format(ty))
+
+    def flash_storage_erase(self):
+        self._write_header(9, _H2DMsgType.FLASH_ERASE_REQUEST)
+        _, ty = self._read_header()
+        if ty != _D2HMsgType.FLASH_OK_REPLY:
+            raise IOError("Incorrect reply from device: {}".format(ty))
+
+    def flash_storage_remove(self, key):
+        self._write_header(9+len(key), _H2DMsgType.FLASH_REMOVE_REQUEST)
+        self.write(key)
+        _, ty = self._read_header()
+        if ty != _D2HMsgType.FLASH_OK_REPLY:
+            raise IOError("Incorrect reply from device: {}".format(ty))
 
     def _receive_rpc_value(self, type_tag):
         if type_tag == "n":

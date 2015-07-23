@@ -10,23 +10,22 @@ transport_data = dict(
     # 4 devices, 3 board each, 3 dacs each
 )
 
-class Transport(Experiment, AutoDB):
+class Transport(EnvExperiment):
     """Transport"""
 
-    class DBKeys:
-        core = Device()
-        bd = Device()
-        bdd = Device()
-        pmt = Device()
-        electrodes = Device()
+    def build(self):
+        self.attr_device("core")
+        self.attr_device("bd")
+        self.attr_device("bdd")
+        self.attr_device("pmt")
+        self.attr_device("electrodes")
 
-        wait_at_stop = Parameter(100*us)
-        speed = Parameter(1.5)
+        self.attr_argument("wait_at_stop", FreeValue(100*us))
+        self.attr_argument("speed", FreeValue(1.5))
+        self.attr_argument("repeats", FreeValue(100))
+        self.attr_argument("nbins", FreeValue(100))
 
-        repeats = Argument(100)
-        nbins = Argument(100)
-
-    def prepare(self, stop):
+    def calc_waveforms(self, stop):
         t = transport_data["t"][:stop]*self.speed
         u = transport_data["u"][:stop]
 
@@ -89,9 +88,9 @@ class Transport(Experiment, AutoDB):
     def scan(self, stops):
         for s in stops:
             self.histogram = []
-            # non-kernel, calculate waveforms, build frames
+            # non-kernel, build frames
             # could also be rpc'ed from repeat()
-            self.prepare(s)
+            self.calc_waveforms(s)
             # kernel part
             self.repeat()
             # live update 2d plot with current self.histogram

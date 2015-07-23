@@ -1,20 +1,20 @@
 from artiq import *
 
 
-class AluminumSpectroscopy(Experiment, AutoDB):
+class AluminumSpectroscopy(EnvExperiment):
     """Aluminum spectroscopy (simulation)"""
 
-    class DBKeys:
-        core = Device()
-        mains_sync = Device()
-        laser_cooling = Device()
-        spectroscopy = Device()
-        spectroscopy_b = Device()
-        state_detection = Device()
-        pmt = Device()
-        spectroscopy_freq = Parameter(432*MHz)
-        photon_limit_low = Argument(10)
-        photon_limit_high = Argument(15)
+    def build(self):
+        self.attr_device("core")
+        self.attr_device("mains_sync")
+        self.attr_device("laser_cooling")
+        self.attr_device("spectroscopy")
+        self.attr_device("spectroscopy_b")
+        self.attr_device("state_detection")
+        self.attr_device("pmt")
+        self.attr_parameter("spectroscopy_freq", 432*MHz)
+        self.attr_argument("photon_limit_low", FreeValue(10))
+        self.attr_argument("photon_limit_high", FreeValue(15))
 
     @kernel
     def run(self):

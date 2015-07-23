@@ -15,12 +15,12 @@ requirements:
         - python
 
 build:
-    number: 0
+    number: 1
 
 test:
     imports:
-        - llvmlite
-        - llvmlite.llvmpy
+        - llvmlite_or1k
+        - llvmlite_or1k.llvmpy
 
 about:
     home: https://pypi.python.org/pypi/llvmlite/

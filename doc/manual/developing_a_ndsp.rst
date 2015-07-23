@@ -103,7 +103,7 @@ Run it as before, while the controller is running. You should see the message ap
     $ ./hello_controller.py
     message: Hello World!
 
-When using the driver in an experiment, for simple cases the ``Client`` instance can be returned by the :class:`artiq.language.db.AutoDB` mechanism and used normally as a device.
+When using the driver in an experiment, the ``Client`` instance can be returned by the environment mechanism (via the ``get_device`` and ``attr_device`` methods of :class:`artiq.language.environment.HasEnvironment`) and used normally as a device.
 
 :warning: RPC servers operate on copies of objects provided by the client, and modifications to mutable types are not written back. For example, if the client passes a list as a parameter of an RPC method, and that method ``append()s`` an element to the list, the element is not appended to the client's list.
 
@@ -177,7 +177,7 @@ General guidelines
 * Use new-style formatting (``str.format``) except for logging where it is not well supported, and double quotes for strings.
 * The device identification (e.g. serial number, or entry in ``/dev``) to attach to must be passed as a command-line parameter to the controller. We suggest using ``-d`` and ``--device`` as parameter name.
 * Controllers must be able to operate in "simulation" mode, where they behave properly even if the associated hardware is not connected. For example, they can print the data to the console instead of sending it to the device, or dump it into a file.
-* We suggest that the simulation mode is entered whenever the ``-d/--device`` option is omitted.
+* The simulation mode is entered whenever the ``--simulation`` option is specified.
 * Keep command line parameters consistent across clients/controllers. When adding new command line options, look for a client/controller that does a similar thing and follow its use of ``argparse``. If the original client/controller could use ``argparse`` in a better way, improve it.
 * Use docstrings for all public methods of the driver (note that those will be retrieved by ``artiq_rpctool``).
 * Choose a free default TCP port and add it to the default port list in this manual.

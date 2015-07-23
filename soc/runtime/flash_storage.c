@@ -3,11 +3,13 @@
  */
 
 #include <string.h>
+#include <stdio.h>
 #include <system.h>
 #include <spiflash.h>
 #include <generated/mem.h>
 #include <generated/csr.h>
 
+#include "log.h"
 #include "flash_storage.h"
 
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
@@ -19,133 +21,246 @@
 #define min(a, b) (a>b?b:a)
 #define max(a, b) (a>b?a:b)
 
-#define goto_next_record(buff, addr) do { \
-        unsigned int key_size = strlen(&buff[addr])+1; \
-        if(key_size % 4) \
-            key_size += 4 - (key_size % 4); \
-        unsigned int *buflen_p = (unsigned int *)&buff[addr + key_size]; \
-        unsigned int buflen = *buflen_p; \
-        if(buflen % 4) \
-            buflen += 4 - (buflen % 4); \
-        addr += key_size + sizeof(int) + buflen; \
-    } while (0)
-
-union seek {
-    unsigned int integer;
-    char bytes[4];
+struct record {
+    char *key;
+    unsigned int key_len;
+    char *value;
+    unsigned int value_len;
+    char *raw_record;
+    unsigned int size;
 };
 
-static void write_at_offset(char *key, void *buffer, int buflen, unsigned int sector_offset);
-static char key_exists(char *buff, char *key, char *end);
-static char check_for_duplicates(char *buff);
-static unsigned int try_to_flush_duplicates(void);
+struct iter_state {
+    char *buffer;
+    unsigned int seek;
+    unsigned int buf_len;
+};
 
-static char key_exists(char *buff, char *key, char *end)
+static unsigned int get_record_size(char *buff)
 {
-    unsigned int addr;
+    unsigned int record_size;
 
-    addr = 0;
-    while(&buff[addr] < end && *(unsigned int*)&buff[addr] != END_MARKER) {
-        if(strcmp(&buff[addr], key) == 0)
-            return 1;
-        goto_next_record(buff, addr);
+    memcpy(&record_size, buff, 4);
+    return record_size;
+}
+
+static void record_iter_init(struct iter_state *is, char *buffer, unsigned int buf_len)
+{
+    is->buffer = buffer;
+    is->seek = 0;
+    is->buf_len = buf_len;
+}
+
+static int record_iter_next(struct iter_state *is, struct record *record, int *fatal)
+{
+    if(is->seek >= is->buf_len)
+        return 0;
+
+    record->raw_record = &is->buffer[is->seek];
+    record->size = get_record_size(record->raw_record);
+
+    if(record->size == END_MARKER)
+        return 0;
+
+    if(record->size < 6) {
+        log("flash_storage might be corrupted: record size is %u (<6) at address %08x", record->size, record->raw_record);
+        if(fatal)
+            *fatal = 1;
+        return 0;
     }
+
+    if(is->seek > is->buf_len - sizeof(record->size) - 2) { /* 2 is the minimum key length */
+        log("flash_storage might be corrupted: END_MARKER missing at the end of the storage sector");
+        if(fatal)
+            *fatal = 1;
+        return 0;
+    }
+
+    if(record->size > is->buf_len - is->seek) {
+        log("flash_storage might be corrupted: invalid record_size %d at address %08x", record->size, record->raw_record);
+        if(fatal)
+            *fatal = 1;
+        return 0;
+    }
+
+    record->key = record->raw_record + sizeof(record->size);
+    record->key_len = strnlen(record->key, record->size - sizeof(record->size)) + 1;
+
+    if(record->key_len == record->size - sizeof(record->size) + 1) {
+        log("flash_storage might be corrupted: invalid key length at address %08x", record->raw_record);
+        if(fatal)
+            *fatal = 1;
+        return 0;
+    }
+
+    record->value = record->key + record->key_len;
+    record->value_len = record->size - record->key_len - sizeof(record->size);
+
+    is->seek += record->size;
+    return 1;
+}
+
+static unsigned int get_free_space(void)
+{
+    struct iter_state is;
+    struct record record;
+
+    record_iter_init(&is, STORAGE_ADDRESS, STORAGE_SIZE);
+    while(record_iter_next(&is, &record, NULL));
+    return STORAGE_SIZE - is.seek;
+}
+
+static int is_empty(struct record *record)
+{
+    return record->value_len == 0;
+}
+
+static int key_exists(char *buff, char *key, char *end, char accept_empty, struct record *found_record)
+{
+    struct iter_state is;
+    struct record iter_record;
+    int found = 0;
+
+    record_iter_init(&is, buff, end - buff);
+    while(record_iter_next(&is, &iter_record, NULL)) {
+        if(strcmp(iter_record.key, key) == 0) {
+            found = 1;
+            if(found_record)
+                *found_record = iter_record;
+        }
+    }
+
+    if(found && is_empty(found_record) && !accept_empty)
+        return 0;
+
+    if(found)
+        return 1;
+
     return 0;
 }
 
 static char check_for_duplicates(char *buff)
 {
-    unsigned int addr;
-    char *key_name;
+    struct record record, following_record;
+    struct iter_state is;
+    int no_error;
 
-    addr = 0;
-    while(addr < STORAGE_SIZE && *(unsigned int *)&buff[addr] != END_MARKER) {
-        key_name = &buff[addr];
-        goto_next_record(buff, addr);
-        if(key_exists(&buff[addr], key_name, &buff[STORAGE_SIZE]))
+    record_iter_init(&is, buff, STORAGE_SIZE);
+    no_error = record_iter_next(&is, &record, NULL);
+    while(no_error) {
+        no_error = record_iter_next(&is, &following_record, NULL);
+        if(no_error && key_exists(following_record.raw_record, record.key, &buff[STORAGE_SIZE], 1, NULL))
             return 1;
+        record = following_record;
     }
 
     return 0;
 }
 
-static unsigned int try_to_flush_duplicates(void)
+static char check_for_empty_records(char *buff)
 {
-    unsigned int addr, i, key_size, buflen;
-    char *key_name, *last_duplicate;
-    char sector_buff[STORAGE_SIZE];
-    union seek *seeker = (union seek *)sector_buff;
+    struct iter_state is;
+    struct record record;
 
-    memcpy(sector_buff, STORAGE_ADDRESS, STORAGE_SIZE);
-    if(check_for_duplicates(sector_buff)) {
-        fs_erase();
-        for(addr = 0; addr < STORAGE_SIZE && seeker[addr >> 2].integer != END_MARKER;) {
-            key_name = &sector_buff[addr];
-            key_size = strlen(key_name)+1;
-            if(key_size % 4)
-                key_size += 4 - (key_size % 4);
-            if(!key_exists((char *)STORAGE_ADDRESS, key_name, STORAGE_ADDRESS+STORAGE_SIZE)) {
-                last_duplicate = key_name;
-                for(i = addr; i < STORAGE_SIZE;) {
-                    goto_next_record(sector_buff, i);
-                    if(strcmp(&sector_buff[i], key_name) == 0)
-                        last_duplicate = &sector_buff[i];
-                }
-                buflen = *(unsigned int *)&last_duplicate[key_size];
-                fs_write(key_name, &last_duplicate[key_size+sizeof(int)], buflen);
-            }
-            goto_next_record(sector_buff, addr);
-        }
-        return 0;
-    } else
-        return 1;
+    record_iter_init(&is, buff, STORAGE_SIZE);
+    while(record_iter_next(&is, &record, NULL))
+        if(is_empty(&record))
+            return 1;
+
+    return 0;
 }
 
-static void write_at_offset(char *key, void *buffer, int buflen, unsigned int sector_offset)
+static unsigned int try_to_flush_duplicates(char *new_key, unsigned int buf_len)
+{
+    unsigned int key_size, new_record_size, ret = 0, can_rollback = 0;
+    struct record record, previous_record;
+    char sector_buff[STORAGE_SIZE];
+    struct iter_state is;
+
+    memcpy(sector_buff, STORAGE_ADDRESS, STORAGE_SIZE);
+    if(check_for_duplicates(sector_buff)
+       || key_exists(sector_buff, new_key, &sector_buff[STORAGE_SIZE], 0, NULL)
+       || check_for_empty_records(sector_buff)) {
+        fs_erase();
+        record_iter_init(&is, sector_buff, STORAGE_SIZE);
+        while(record_iter_next(&is, &record, NULL)) {
+            if(is_empty(&record))
+                continue;
+            if(!key_exists((char *)STORAGE_ADDRESS, record.key, STORAGE_ADDRESS + STORAGE_SIZE, 1, NULL)) {
+                struct record rec;
+
+                if(!key_exists(sector_buff, record.key, &sector_buff[STORAGE_SIZE], 0, &rec))
+                    continue;
+                if(strcmp(new_key, record.key) == 0) { // If we are about to write this key we don't keep the old value.
+                    previous_record = rec; // This holds the old record in case we need it back (for instance if new record is too long)
+                    can_rollback = 1;
+                } else
+                    fs_write(record.key, rec.value, rec.value_len);
+            }
+        }
+        ret = 1;
+    }
+
+    key_size = strlen(new_key) + 1;
+    new_record_size = key_size + buf_len + sizeof(new_record_size);
+    if(can_rollback && new_record_size > get_free_space()) {
+        fs_write(new_key, previous_record.value, previous_record.value_len);
+    }
+
+    return ret;
+}
+
+static void write_at_offset(char *key, void *buffer, int buf_len, unsigned int sector_offset)
 {
     int key_len = strlen(key) + 1;
-    int key_len_alignment = 0, buflen_alignment = 0;
-    unsigned char padding[3] = {0, 0, 0};
+    unsigned int record_size = key_len + buf_len + sizeof(record_size);
+    unsigned int flash_addr = (unsigned int)STORAGE_ADDRESS + sector_offset;
 
-    if(key_len % 4)
-        key_len_alignment = 4 - (key_len % 4);
-
-    if(buflen % 4)
-        buflen_alignment = 4 - (buflen % 4);
-
-    write_to_flash(sector_offset, (unsigned char *)key, key_len);
-    write_to_flash(sector_offset+key_len, padding, key_len_alignment);
-    write_to_flash(sector_offset+key_len+key_len_alignment, (unsigned char *)&buflen, sizeof(buflen));
-    write_to_flash(sector_offset+key_len+key_len_alignment+sizeof(buflen), buffer, buflen);
-    write_to_flash(sector_offset+key_len+key_len_alignment+sizeof(buflen)+buflen, padding, buflen_alignment);
+    write_to_flash(flash_addr, (unsigned char *)&record_size, sizeof(record_size));
+    write_to_flash(flash_addr+sizeof(record_size), (unsigned char *)key, key_len);
+    write_to_flash(flash_addr+sizeof(record_size)+key_len, buffer, buf_len);
     flush_cpu_dcache();
 }
 
 
-void fs_write(char *key, void *buffer, unsigned int buflen)
+int fs_write(char *key, void *buffer, unsigned int buf_len)
 {
-    char *addr;
-    unsigned int key_size = strlen(key)+1;
-    unsigned int record_size = key_size + sizeof(int) + buflen;
+    struct record record;
+    unsigned int key_size = strlen(key) + 1;
+    unsigned int new_record_size = key_size + sizeof(int) + buf_len;
+    int no_error, fatal = 0;
+    struct iter_state is;
 
-    for(addr = STORAGE_ADDRESS; addr < STORAGE_ADDRESS + STORAGE_SIZE - record_size; addr += 4) {
-        if(*(unsigned int *)addr == END_MARKER) {
-            write_at_offset(key, buffer, buflen, (unsigned int)addr);
-            break;
-        }
-    }
-    if(addr >= STORAGE_ADDRESS + STORAGE_SIZE - record_size) { // Flash is full? Try to flush duplicates.
-        if(try_to_flush_duplicates())
-            return; // No duplicates found, cannot write the new key-value record: sector is full.
+    record_iter_init(&is, STORAGE_ADDRESS, STORAGE_SIZE);
+    while((no_error = record_iter_next(&is, &record, &fatal)));
 
-        // Now retrying to write, hoping enough flash was freed.
-        for(addr = STORAGE_ADDRESS; addr < STORAGE_ADDRESS + STORAGE_SIZE - record_size; addr += 4) {
-            if(*(unsigned int *)addr == END_MARKER) {
-                write_at_offset(key, buffer, buflen, (unsigned int)addr);
-                break;
-            }
-        }
+    if(fatal)
+        goto fatal_error;
+
+    if(STORAGE_SIZE - is.seek >= new_record_size) {
+        write_at_offset(key, buffer, buf_len, is.seek);
+        return 1;
     }
+
+    if(!try_to_flush_duplicates(key, buf_len)) // storage is full, let's try to free some space up.
+        return 0; // No duplicates found, cannot write the new key-value record: sector is full.
+    // Now retrying to write, hoping enough flash was freed.
+
+    record_iter_init(&is, STORAGE_ADDRESS, STORAGE_SIZE);
+    while((no_error = record_iter_next(&is, &record, &fatal)));
+
+    if(fatal)
+        goto fatal_error;
+
+    if(STORAGE_SIZE - is.seek >= new_record_size) {
+        write_at_offset(key, buffer, buf_len, is.seek);
+        return 1; // We eventually succeeded in writing the record
+    } else
+        return 0; // Storage is definitely full.
+
+fatal_error:
+    log("fatal error: flash storage might be corrupted");
+    return 0;
 }
 
 void fs_erase(void)
@@ -154,33 +269,35 @@ void fs_erase(void)
     flush_cpu_dcache();
 }
 
-unsigned int fs_read(char *key, void *buffer, unsigned int buflen, unsigned int *remain)
+unsigned int fs_read(char *key, void *buffer, unsigned int buf_len, unsigned int *remain)
 {
     unsigned int read_length = 0;
-    char *addr;
+    struct iter_state is;
+    struct record record;
+    int fatal = 0;
 
-    addr = STORAGE_ADDRESS;
-    while(addr < (STORAGE_ADDRESS + STORAGE_SIZE) && (*addr != END_MARKER)) {
-        unsigned int key_len, value_len;
-        char *key_addr = addr;
+    if(remain)
+        *remain = 0;
 
-        key_len = strlen(addr) + 1;
-        if(key_len % 4)
-            key_len += 4 - (key_len % 4);
-        addr += key_len;
-        value_len = *(unsigned int *)addr;
-        addr += sizeof(value_len);
-        if(strcmp(key_addr, key) == 0) {
-            memcpy(buffer, addr, min(value_len, buflen));
-            read_length = min(value_len, buflen);
+    record_iter_init(&is, STORAGE_ADDRESS, STORAGE_SIZE);
+    while(record_iter_next(&is, &record, &fatal)) {
+        if(strcmp(record.key, key) == 0) {
+            memcpy(buffer, record.value, min(record.value_len, buf_len));
+            read_length = min(record.value_len, buf_len);
             if(remain)
-                *remain = max(0, (int)value_len - (int)buflen);
+                *remain = max(0, (int)record.value_len - (int)buf_len);
         }
-        addr += value_len;
-        if((int)addr % 4)
-            addr += 4 - ((int)addr % 4);
     }
+
+    if(fatal)
+        log("fatal error: flash storage might be corrupted");
+
     return read_length;
+}
+
+void fs_remove(char *key)
+{
+    fs_write(key, NULL, 0);
 }
 
 #endif /* CSR_SPIFLASH_BASE && SPIFLASH_PAGE_SIZE */

@@ -4,7 +4,8 @@ from enum import Enum
 from time import time
 
 from artiq.master.worker import Worker
-from artiq.tools import asyncio_wait_or_cancel, asyncio_queue_peek
+from artiq.tools import (asyncio_wait_or_cancel, asyncio_queue_peek,
+                         TaskObject, WaitSet)
 from artiq.protocols.sync_struct import Notifier
 
 
@@ -13,27 +14,28 @@ logger = logging.getLogger(__name__)
 
 class RunStatus(Enum):
     pending = 0
-    preparing = 1
-    prepare_done = 2
-    running = 3
-    run_done = 4
-    analyzing = 5
-    analyze_done = 6
-    paused = 7
+    flushing = 1
+    preparing = 2
+    prepare_done = 3
+    running = 4
+    run_done = 5
+    analyzing = 6
+    analyze_done = 7
+    paused = 8
 
 
 def _mk_worker_method(name):
     @asyncio.coroutine
     def worker_method(self, *args, **kwargs):
-        if self._terminated:
+        if self.worker.closed.is_set():
             return True
-        m = getattr(self._worker, name)
+        m = getattr(self.worker, name)
         try:
             return (yield from m(*args, **kwargs))
         except Exception as e:
             if isinstance(e, asyncio.CancelledError):
                 raise
-            if self._terminated:
+            if self.worker.closed.is_set():
                 logger.debug("suppressing worker exception of terminated run",
                              exc_info=True)
                 # Return completion on termination
@@ -45,7 +47,7 @@ def _mk_worker_method(name):
 
 class Run:
     def __init__(self, rid, pipeline_name,
-                 expid, priority, due_date,
+                 expid, priority, due_date, flush,
                  worker_handlers, notifier):
         # called through pool
         self.rid = rid
@@ -53,10 +55,11 @@ class Run:
         self.expid = expid
         self.priority = priority
         self.due_date = due_date
+        self.flush = flush
+
+        self.worker = Worker(worker_handlers)
 
         self._status = RunStatus.pending
-        self._terminated = False
-        self._worker = Worker(worker_handlers)
 
         self._notifier = notifier
         self._notifier[self.rid] = {
@@ -64,6 +67,7 @@ class Run:
             "expid": self.expid,
             "priority": self.priority,
             "due_date": self.due_date,
+            "flush": self.flush,
             "status": self._status.name
         }
 
@@ -74,33 +78,35 @@ class Run:
     @status.setter
     def status(self, value):
         self._status = value
-        if not self._terminated:
+        if not self.worker.closed.is_set():
             self._notifier[self.rid]["status"] = self._status.name
 
     # The run with the largest priority_key is to be scheduled first
-    def priority_key(self, now):
+    def priority_key(self, now=None):
         if self.due_date is None:
-            overdue = 0
             due_date_k = 0
         else:
-            overdue = int(now > self.due_date)
             due_date_k = -self.due_date
-        return (overdue, self.priority, due_date_k, -self.rid)
+        if now is not None and self.due_date is not None:
+            runnable = int(now > self.due_date)
+        else:
+            runnable = 1
+        return (runnable, self.priority, due_date_k, -self.rid)
 
     @asyncio.coroutine
     def close(self):
         # called through pool
-        self._terminated = True
-        yield from self._worker.close()
+        yield from self.worker.close()
         del self._notifier[self.rid]
 
-    _prepare = _mk_worker_method("prepare")
+    _build = _mk_worker_method("build")
 
     @asyncio.coroutine
-    def prepare(self):
-        yield from self._prepare(self.rid, self.pipeline_name, self.expid,
-                                 self.priority)
+    def build(self):
+        yield from self._build(self.rid, self.pipeline_name, self.expid,
+                               self.priority)
 
+    prepare = _mk_worker_method("prepare")
     run = _mk_worker_method("run")
     resume = _mk_worker_method("resume")
     analyze = _mk_worker_method("analyze")
@@ -120,20 +126,20 @@ class RIDCounter:
 class RunPool:
     def __init__(self, ridc, worker_handlers, notifier):
         self.runs = dict()
-        self.submitted_callback = None
+        self.submitted_cb = None
 
         self._ridc = ridc
         self._worker_handlers = worker_handlers
         self._notifier = notifier
 
-    def submit(self, expid, priority, due_date, pipeline_name):
+    def submit(self, expid, priority, due_date, flush, pipeline_name):
         # called through scheduler
         rid = self._ridc.get()
-        run = Run(rid, pipeline_name, expid, priority, due_date,
+        run = Run(rid, pipeline_name, expid, priority, due_date, flush,
                   self._worker_handlers, self._notifier)
         self.runs[rid] = run
-        if self.submitted_callback is not None:
-            self.submitted_callback()
+        if self.submitted_cb is not None:
+            self.submitted_cb()
         return rid
 
     @asyncio.coroutine
@@ -145,29 +151,15 @@ class RunPool:
         del self.runs[rid]
 
 
-class TaskObject:
-    def start(self):
-        self.task = asyncio.async(self._do())
-
-    @asyncio.coroutine
-    def stop(self):
-        self.task.cancel()
-        yield from asyncio.wait([self.task])
-        del self.task
-
-    @asyncio.coroutine
-    def _do(self):
-        raise NotImplementedError
-
-
 class PrepareStage(TaskObject):
-    def __init__(self, deleter, pool, outq):
-        self.deleter = deleter
+    def __init__(self, flush_tracker, delete_cb, pool, outq):
+        self.flush_tracker = flush_tracker
+        self.delete_cb = delete_cb
         self.pool = pool
         self.outq = outq
 
         self.pool_submitted = asyncio.Event()
-        self.pool.submitted_callback = lambda: self.pool_submitted.set()
+        self.pool.submitted_cb = lambda: self.pool_submitted.set()
 
     @asyncio.coroutine
     def _push_runs(self):
@@ -186,14 +178,24 @@ class PrepareStage(TaskObject):
                 # pending_runs is an empty sequence
                 return None
             if run.due_date is None or run.due_date < now:
+                if run.flush:
+                    run.status = RunStatus.flushing
+                    yield from asyncio_wait_or_cancel(
+                        [self.flush_tracker.wait_empty(),
+                         run.worker.closed.wait()],
+                        return_when=asyncio.FIRST_COMPLETED)
+                    if run.worker.closed.is_set():
+                        continue
                 run.status = RunStatus.preparing
+                self.flush_tracker.add(run.rid)
                 try:
+                    yield from run.build()
                     yield from run.prepare()
                 except:
                     logger.warning("got worker exception in prepare stage, "
                                    "deleting RID %d",
                                    run.rid, exc_info=True)
-                    self.deleter.delete(run.rid)
+                    self.delete_cb(run.rid)
                 run.status = RunStatus.prepare_done
                 yield from self.outq.put(run)
             else:
@@ -214,8 +216,8 @@ class PrepareStage(TaskObject):
 
 
 class RunStage(TaskObject):
-    def __init__(self, deleter, inq, outq):
-        self.deleter = deleter
+    def __init__(self, delete_cb, inq, outq):
+        self.delete_cb = delete_cb
         self.inq = inq
         self.outq = outq
 
@@ -228,10 +230,9 @@ class RunStage(TaskObject):
                 next_irun = asyncio_queue_peek(self.inq)
             except asyncio.QueueEmpty:
                 next_irun = None
-            now = time()
             if not stack or (
                     next_irun is not None and
-                    next_irun.priority_key(now) > stack[-1].priority_key(now)):
+                    next_irun.priority_key() > stack[-1].priority_key()):
                 stack.append((yield from self.inq.get()))
 
             run = stack.pop()
@@ -246,7 +247,7 @@ class RunStage(TaskObject):
                 logger.warning("got worker exception in run stage, "
                                "deleting RID %d",
                                run.rid, exc_info=True)
-                self.deleter.delete(run.rid)
+                self.delete_cb(run.rid)
             else:
                 if completed:
                     run.status = RunStatus.run_done
@@ -257,8 +258,8 @@ class RunStage(TaskObject):
 
 
 class AnalyzeStage(TaskObject):
-    def __init__(self, deleter, inq):
-        self.deleter = deleter
+    def __init__(self, delete_cb, inq):
+        self.delete_cb = delete_cb
         self.inq = inq
 
     @asyncio.coroutine
@@ -273,17 +274,23 @@ class AnalyzeStage(TaskObject):
                 logger.warning("got worker exception in analyze stage, "
                                "deleting RID %d",
                                run.rid, exc_info=True)
-                self.deleter.delete(run.rid)
+                self.delete_cb(run.rid)
             run.status = RunStatus.analyze_done
-            self.deleter.delete(run.rid)
+            self.delete_cb(run.rid)
 
 
 class Pipeline:
     def __init__(self, ridc, deleter, worker_handlers, notifier):
+        flush_tracker = WaitSet()
+        def delete_cb(rid):
+            deleter.delete(rid)
+            flush_tracker.discard(rid)
         self.pool = RunPool(ridc, worker_handlers, notifier)
-        self._prepare = PrepareStage(deleter, self.pool, asyncio.Queue(maxsize=1))
-        self._run = RunStage(deleter, self._prepare.outq, asyncio.Queue(maxsize=1))
-        self._analyze = AnalyzeStage(deleter, self._run.outq)
+        self._prepare = PrepareStage(flush_tracker, delete_cb,
+                                     self.pool, asyncio.Queue(maxsize=1))
+        self._run = RunStage(delete_cb,
+                             self._prepare.outq, asyncio.Queue(maxsize=1))
+        self._analyze = AnalyzeStage(delete_cb, self._run.outq)
 
     def start(self):
         self._prepare.start()
@@ -366,7 +373,7 @@ class Scheduler:
         if self._pipelines:
             logger.warning("some pipelines were not garbage-collected")
 
-    def submit(self, pipeline_name, expid, priority, due_date):
+    def submit(self, pipeline_name, expid, priority, due_date, flush):
         if self._terminated:
             return
         try:
@@ -377,7 +384,7 @@ class Scheduler:
                                 self._worker_handlers, self.notifier)
             self._pipelines[pipeline_name] = pipeline
             pipeline.start()
-        return pipeline.pool.submit(expid, priority, due_date, pipeline_name)
+        return pipeline.pool.submit(expid, priority, due_date, flush, pipeline_name)
 
     def delete(self, rid):
         self._deleter.delete(rid)

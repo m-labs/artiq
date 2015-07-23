@@ -10,6 +10,7 @@
 #include "dds.h"
 #include "flash_storage.h"
 #include "bridge_ctl.h"
+#include "clock.h"
 #include "test_mode.h"
 
 static void leds(char *value)
@@ -47,7 +48,7 @@ static void clksrc(char *value)
         return;
     }
 
-    rtiocrg_clock_sel_write(value2);
+    rtio_crg_clock_sel_write(value2);
 }
 
 static void ttloe(char *n, char *value)
@@ -114,6 +115,9 @@ static void ddssel(char *n)
         return;
     }
 
+#ifdef DDS_ONEHOT_SEL
+    n2 = 1 << n2;
+#endif
     brg_ddssel(n2);
 }
 
@@ -157,7 +161,12 @@ static void ddsr(char *addr)
         return;
     }
 
+#ifdef DDS_AD9858
     printf("0x%02x\n", brg_ddsread(addr2));
+#endif
+#ifdef DDS_AD9914
+    printf("0x%04x\n", brg_ddsread(addr2));
+#endif
 }
 
 static void ddsfud(void)
@@ -186,11 +195,22 @@ static void ddsftw(char *n, char *ftw)
         return;
     }
 
+#ifdef DDS_ONEHOT_SEL
+    n2 = 1 << n2;
+#endif
     brg_ddssel(n2);
+
+#ifdef DDS_AD9858
     brg_ddswrite(DDS_FTW0, ftw2 & 0xff);
     brg_ddswrite(DDS_FTW1, (ftw2 >> 8) & 0xff);
     brg_ddswrite(DDS_FTW2, (ftw2 >> 16) & 0xff);
     brg_ddswrite(DDS_FTW3, (ftw2 >> 24) & 0xff);
+#endif
+#ifdef DDS_AD9914
+    brg_ddswrite(DDS_FTWL, ftw2 & 0xffff);
+    brg_ddswrite(DDS_FTWH, (ftw2 >> 16) & 0xffff);
+#endif
+
     brg_ddsfud();
 }
 
@@ -199,15 +219,34 @@ static void ddsreset(void)
     brg_ddsreset();
 }
 
+#ifdef DDS_AD9858
 static void ddsinit(void)
 {
     brg_ddsreset();
-    brg_ddswrite(0x00, 0x78);
-    brg_ddswrite(0x01, 0x00);
-    brg_ddswrite(0x02, 0x00);
-    brg_ddswrite(0x03, 0x00);
+    brg_ddswrite(DDS_CFR0, 0x78);
+    brg_ddswrite(DDS_CFR1, 0x00);
+    brg_ddswrite(DDS_CFR2, 0x00);
+    brg_ddswrite(DDS_CFR3, 0x00);
     brg_ddsfud();
 }
+#endif
+
+#ifdef DDS_AD9914
+static void ddsinit(void)
+{
+    long long int t;
+
+    brg_ddsreset();
+    brg_ddswrite(DDS_CFR1L, 0x0008);
+    brg_ddswrite(DDS_CFR1H, 0x0000);
+    brg_ddswrite(DDS_CFR4H, 0x0105);
+    brg_ddswrite(DDS_FUD, 0);
+    t = clock_get_ms();
+    while(clock_get_ms() < t + 2);
+    brg_ddswrite(DDS_CFR4H, 0x0005);
+    brg_ddsfud();
+}
+#endif
 
 static void ddstest_one(unsigned int i)
 {
@@ -223,15 +262,27 @@ static void ddstest_one(unsigned int i)
 
     for(j=0; j<12; j++) {
         f = v[j];
-        brg_ddswrite(0x0a, f & 0xff);
-        brg_ddswrite(0x0b, (f >> 8) & 0xff);
-        brg_ddswrite(0x0c, (f >> 16) & 0xff);
-        brg_ddswrite(0x0d, (f >> 24) & 0xff);
+#ifdef DDS_AD9858
+        brg_ddswrite(DDS_FTW0, f & 0xff);
+        brg_ddswrite(DDS_FTW1, (f >> 8) & 0xff);
+        brg_ddswrite(DDS_FTW2, (f >> 16) & 0xff);
+        brg_ddswrite(DDS_FTW3, (f >> 24) & 0xff);
+#endif
+#ifdef DDS_AD9914
+        brg_ddswrite(DDS_FTWL, f & 0xffff);
+        brg_ddswrite(DDS_FTWH, (f >> 16) & 0xffff);
+#endif
         brg_ddsfud();
-        g = brg_ddsread(0x0a);
-        g |= brg_ddsread(0x0b) << 8;
-        g |= brg_ddsread(0x0c) << 16;
-        g |= brg_ddsread(0x0d) << 24;
+#ifdef DDS_AD9858
+        g = brg_ddsread(DDS_FTW0);
+        g |= brg_ddsread(DDS_FTW1) << 8;
+        g |= brg_ddsread(DDS_FTW2) << 16;
+        g |= brg_ddsread(DDS_FTW3) << 24;
+#endif
+#ifdef DDS_AD9914
+        g = brg_ddsread(DDS_FTWL);
+        g |= brg_ddsread(DDS_FTWH) << 16;
+#endif
         if(g != f)
             printf("readback fail on DDS %d, 0x%08x != 0x%08x\n", i, g, f);
     }
@@ -259,13 +310,201 @@ static void ddstest(char *n)
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
 static void fsread(char *key)
 {
-    char buf[256];
+    char readbuf[SPIFLASH_SECTOR_SIZE];
     int r;
 
-    r = fs_read(key, buf, sizeof(buf)-1, NULL);
-    buf[r] = 0;
-    puts(buf);
+    r = fs_read(key, readbuf, sizeof(readbuf)-1, NULL);
+    readbuf[r] = 0;
+    if(r == 0)
+        printf("key %s does not exist\n", key);
+    else
+        puts(readbuf);
 }
+
+static void fswrite(char *key, void *buffer, unsigned int length)
+{
+    if(!fs_write(key, buffer, length))
+        printf("cannot write key %s because flash storage is full\n", key);
+}
+
+static void fsfull(void)
+{
+    int i;
+    char value[4096];
+    memset(value, '@', sizeof(value));
+
+    for(i = 0; i < SPIFLASH_SECTOR_SIZE/sizeof(value); i++)
+        fs_write("plip", value, sizeof(value));
+}
+
+static void check_read(char *key, char *expected, unsigned int length, unsigned int testnum)
+{
+    char readbuf[SPIFLASH_SECTOR_SIZE];
+    unsigned int remain, readlength;
+
+    memset(readbuf, '\0', sizeof(readbuf));
+
+    readlength = fs_read(key, readbuf, sizeof(readbuf), &remain);
+    if(remain > 0)
+        printf("KO[%u] remain == %u, expected 0\n", testnum, remain);
+    if(readlength != length)
+        printf("KO[%u] read length == %u, expected %u\n", testnum, readlength, length);
+    if(remain == 0 && readlength == length)
+        printf(".");
+
+    readbuf[readlength] = 0;
+    if(memcmp(expected, readbuf, readlength) == 0)
+        printf(".\n");
+    else
+        printf("KO[%u] read %s instead of %s\n", testnum, readbuf, expected);
+}
+
+static void check_doesnt_exist(char *key, unsigned int testnum)
+{
+    char readbuf;
+    unsigned int remain, readlength;
+
+    readlength = fs_read(key, &readbuf, sizeof(readbuf), &remain);
+    if(remain > 0)
+        printf("KO[%u] remain == %u, expected 0\n", testnum, remain);
+    if(readlength > 0)
+        printf("KO[%u] readlength == %d, expected 0\n", testnum, readlength);
+    if(remain == 0 && readlength == 0)
+        printf(".\n");
+}
+
+static void check_write(unsigned int ret)
+{
+    if(!ret)
+        printf("KO");
+    else
+        printf(".");
+}
+
+static inline void test_sector_is_full(void)
+{
+    char c;
+    char value[4096];
+    char key[2] = {0, 0};
+
+    fs_erase();
+    memset(value, '@', sizeof(value));
+    for(c = 1; c <= SPIFLASH_SECTOR_SIZE/sizeof(value); c++) {
+        key[0] = c;
+        check_write(fs_write(key, value, sizeof(value) - 6));
+    }
+    check_write(!fs_write("this_should_fail", "fail", 5));
+    printf("\n");
+}
+
+static void test_one_big_record(int testnum)
+{
+    char value[SPIFLASH_SECTOR_SIZE];
+    memset(value, '@', sizeof(value));
+
+    fs_erase();
+    check_write(fs_write("a", value, sizeof(value) - 6));
+    check_read("a", value, sizeof(value) - 6, testnum);
+    check_write(fs_write("a", value, sizeof(value) - 6));
+    check_read("a", value, sizeof(value) - 6, testnum);
+    check_write(!fs_write("b", value, sizeof(value) - 6));
+    check_read("a", value, sizeof(value) - 6, testnum);
+    fs_remove("a");
+    check_doesnt_exist("a", testnum);
+    check_write(fs_write("a", value, sizeof(value) - 6));
+    check_read("a", value, sizeof(value) - 6, testnum);
+    fs_remove("a");
+    check_doesnt_exist("a", testnum);
+    value[0] = '!';
+    check_write(fs_write("b", value, sizeof(value) - 6));
+    check_read("b", value, sizeof(value) - 6, testnum);
+}
+
+static void test_flush_duplicate_rollback(int testnum)
+{
+    char value[SPIFLASH_SECTOR_SIZE];
+    memset(value, '@', sizeof(value));
+
+    fs_erase();
+    /* This makes the flash storage full with one big record */
+    check_write(fs_write("a", value, SPIFLASH_SECTOR_SIZE - 6));
+    /* This should trigger the try_to_flush_duplicate code which
+     * at first will not keep the old "a" record value because we are
+     * overwriting it. But then it should roll back to the old value
+     * because the new record is too large.
+     */
+    value[0] = '!';
+    check_write(!fs_write("a", value, sizeof(value)));
+    /* check we still have the old record value */
+    value[0] = '@';
+    check_read("a", value, SPIFLASH_SECTOR_SIZE - 6, testnum);
+}
+
+static void test_too_big_fails(int testnum)
+{
+    char value[SPIFLASH_SECTOR_SIZE];
+    memset(value, '@', sizeof(value));
+
+    fs_erase();
+    check_write(!fs_write("a", value, sizeof(value) - 6 + /* TOO BIG */ 1));
+    check_doesnt_exist("a", testnum);
+}
+
+static void fs_test(void)
+{
+    int i;
+    char writebuf[] = "abcdefghijklmnopqrst";
+    char read_check[4096];
+    int vect_length = sizeof(writebuf);
+
+    memset(read_check, '@', sizeof(read_check));
+    printf("testing...\n");
+    for(i = 0; i < vect_length; i++) {
+        printf("%u.0:", i);
+        fs_erase();
+        check_write(fs_write("a", writebuf, i));
+        check_read("a", writebuf, i, i);
+
+        printf("%u.1:", i);
+        fsfull();
+        check_read("a", writebuf, i, i);
+
+        printf("%u.2:", i);
+        check_read("plip", read_check, sizeof(read_check), i);
+
+        printf("%u.3:", i);
+        check_write(fs_write("a", "b", 2));
+        check_read("a", "b", 2, i);
+
+        printf("%u.4:", i);
+        fsfull();
+        check_read("a", "b", 2, i);
+
+        printf("%u.5:", i);
+        check_doesnt_exist("notfound", i);
+
+        printf("%u.6:", i);
+        fs_remove("a");
+        check_doesnt_exist("a", i);
+
+        printf("%u.7:", i);
+        fsfull();
+        check_doesnt_exist("a", i);
+    }
+
+    printf("%u:", vect_length);
+    test_sector_is_full();
+
+    printf("%u:", vect_length+1);
+    test_one_big_record(vect_length+1);
+
+    printf("%u:", vect_length+2);
+    test_flush_duplicate_rollback(vect_length+2);
+
+    printf("%u:", vect_length+3);
+    test_too_big_fails(vect_length+3);
+}
+
 #endif
 
 static void help(void)
@@ -288,6 +527,8 @@ static void help(void)
     puts("fserase         - erase flash storage");
     puts("fswrite <k> <v> - write to flash storage");
     puts("fsread <k>      - read flash storage");
+    puts("fsremove <k>    - remove a key-value record from flash storage");
+    puts("fstest          - run flash storage tests. WARNING: erases the storage area");
 #endif
 }
 
@@ -340,6 +581,7 @@ static char *get_token(char **str)
     return d;
 }
 
+
 static void do_command(char *c)
 {
     char *token;
@@ -365,8 +607,10 @@ static void do_command(char *c)
 
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
     else if(strcmp(token, "fserase") == 0) fs_erase();
-    else if(strcmp(token, "fswrite") == 0) fs_write(get_token(&c), c, strlen(c));
+    else if(strcmp(token, "fswrite") == 0) fswrite(get_token(&c), c, strlen(c));
     else if(strcmp(token, "fsread") == 0) fsread(get_token(&c));
+    else if(strcmp(token, "fsremove") == 0) fs_remove(get_token(&c));
+    else if(strcmp(token, "fstest") == 0) fs_test();
 #endif
 
     else if(strcmp(token, "") != 0)

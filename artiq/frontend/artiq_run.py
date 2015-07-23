@@ -9,20 +9,19 @@ import logging
 
 import h5py
 
-from artiq.language.db import *
-from artiq.language.experiment import Experiment
+from artiq.language.environment import EnvExperiment
 from artiq.protocols.file_db import FlatFileDB
-from artiq.master.worker_db import DBHub, ResultDB
+from artiq.master.worker_db import DeviceManager, ResultDB
 from artiq.tools import *
 
 
 logger = logging.getLogger(__name__)
 
 
-class ELFRunner(Experiment, AutoDB):
-    class DBKeys:
-        core = Device()
-        file = Argument()
+class ELFRunner(EnvExperiment):
+    def build(self):
+        self.attr_device("core")
+        self.attr_argument("file")
 
     def run(self):
         with open(self.file, "rb") as f:
@@ -36,42 +35,21 @@ class SimpleParamLogger:
         logger.info("Parameter change: {} = {}".format(name, value))
 
 
-class DummyWatchdog:
-    def __init__(self, t):
-        pass
-
-    def __enter__(self):
-        pass
-
-    def __exit__(self, type, value, traceback):
-        pass
-
-
 class DummyScheduler:
     def __init__(self):
         self.next_rid = 0
-        self.next_trid = 0
+        self.pipeline_name = "main"
+        self.priority = 0
+        self.expid = None
 
-    def run_queued(self, run_params):
+    def submit(self, pipeline_name, expid, priority, due_date, flush):
         rid = self.next_rid
         self.next_rid += 1
-        logger.info("Queuing: %s, RID=%s", run_params, rid)
+        logger.info("Submitting: %s, RID=%s", expid, rid)
         return rid
 
-    def cancel_queued(self, rid):
-        logger.info("Cancelling RID %s", rid)
-
-    def run_timed(self, run_params, next_run):
-        trid = self.next_trid
-        self.next_trid += 1
-        next_run_s = time.strftime("%m/%d %H:%M:%S", time.localtime(next_run))
-        logger.info("Timing: %s at %s, TRID=%s", run_params, next_run_s, trid)
-        return trid
-
-    def cancel_timed(self, trid):
-        logger.info("Cancelling TRID %s", trid)
-
-    watchdog = DummyWatchdog
+    def delete(self, rid):
+        logger.info("Deleting RID %s", rid)
 
 
 def get_argparser(with_file=True):
@@ -98,7 +76,7 @@ def get_argparser(with_file=True):
     return parser
 
 
-def _build_experiment(dbh, args):
+def _build_experiment(dmgr, pdb, rdb, args):
     if hasattr(args, "file"):
         if args.file.endswith(".elf"):
             if args.arguments:
@@ -106,7 +84,7 @@ def _build_experiment(dbh, args):
             if args.experiment:
                 raise ValueError("experiment-by-name not supported "
                                  "for ELF kernels")
-            return ELFRunner(dbh, file=args.file)
+            return ELFRunner(dmgr, pdb, rdb, file=args.file)
         else:
             module = file_import(args.file)
         file = args.file
@@ -115,37 +93,38 @@ def _build_experiment(dbh, args):
         file = getattr(module, "__file__")
     exp = get_experiment(module, args.experiment)
     arguments = parse_arguments(args.arguments)
-    return exp(dbh,
-               scheduler=DummyScheduler(),
-               run_params=dict(file=file,
-                               experiment=args.experiment,
-                               arguments=arguments),
-               **arguments)
+    expid = {
+        "file": file,
+        "experiment": args.experiment,
+        "arguments": arguments
+    }
+    dmgr.virtual_devices["scheduler"].expid = expid
+    return exp(dmgr, pdb, rdb, **arguments)
 
 
 def run(with_file=False):
     args = get_argparser(with_file).parse_args()
     init_logger(args)
 
-    ddb = FlatFileDB(args.ddb)
+    dmgr = DeviceManager(FlatFileDB(args.ddb),
+                         virtual_devices={"scheduler": DummyScheduler()})
     pdb = FlatFileDB(args.pdb)
     pdb.hooks.append(SimpleParamLogger())
-    rdb = ResultDB(lambda description: None, lambda mod: None)
-    dbh = DBHub(ddb, pdb, rdb)
+    rdb = ResultDB()
 
     try:
-        exp_inst = _build_experiment(dbh, args)
-        rdb.build()
+        exp_inst = _build_experiment(dmgr, pdb, rdb, args)
+        exp_inst.prepare()
         exp_inst.run()
         exp_inst.analyze()
     finally:
-        dbh.close_devices()
+        dmgr.close_devices()
 
     if args.hdf5 is not None:
         with h5py.File(args.hdf5, "w") as f:
             rdb.write_hdf5(f)
-    elif rdb.data.read or rdb.realtime_data.read:
-        r = chain(rdb.realtime_data.read.items(), rdb.data.read.items())
+    elif rdb.rt.read or rdb.nrt:
+        r = chain(rdb.rt.read.items(), rdb.nrt.items())
         for k, v in sorted(r, key=itemgetter(0)):
             print("{}: {}".format(k, v))
 
