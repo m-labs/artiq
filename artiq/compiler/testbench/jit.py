@@ -23,6 +23,7 @@ def main():
     lltarget = llvm.Target.from_default_triple()
     llmachine = lltarget.create_target_machine()
     llparsedmod = llvm.parse_assembly(str(llmod))
+    llparsedmod.verify()
     lljit = llvm.create_mcjit_compiler(llparsedmod, llmachine)
     lljit.finalize_object()
     llmain = lljit.get_pointer_to_global(llparsedmod.get_function(llmod.name + ".__modinit__"))
