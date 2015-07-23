@@ -9,6 +9,8 @@ class Spline:
         self.c = [0.0]
 
     def set_coefficients(self, c):
+        if not c:
+            c = [0.]
         self.c = copy(c)
         discrete_compensate(self.c)
 
@@ -25,6 +27,8 @@ class SplinePhase:
         self.c0 = 0.0
 
     def set_coefficients(self, c):
+        if not c:
+            c = [0.]
         self.c0 = c[0]
         c1p = c[1:]
         discrete_compensate(c1p)
