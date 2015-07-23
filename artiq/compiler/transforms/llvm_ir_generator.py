@@ -17,8 +17,9 @@ class LLVMIRGenerator:
         self.fixups = []
 
     def llty_of_type(self, typ, bare=False, for_return=False):
+        typ = typ.find()
         if types.is_tuple(typ):
-            return ll.LiteralStructType([self.llty_of_type(eltty) for eltty in typ.find().elts])
+            return ll.LiteralStructType([self.llty_of_type(eltty) for eltty in typ.elts])
         elif types.is_function(typ):
             envarg = ll.IntType(8).as_pointer()
             llty = ll.FunctionType(args=[envarg] +

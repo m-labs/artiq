@@ -32,8 +32,6 @@ class Module:
         monomorphism_validator.visit(self.typedtree)
         escape_validator.visit(self.typedtree)
         self.artiq_ir = artiq_ir_generator.visit(self.typedtree)
-        print(self.artiq_ir[0])
-        print(self.artiq_ir[1])
         dead_code_eliminator.process(self.artiq_ir)
         local_access_validator.process(self.artiq_ir)
         self.llvm_ir = llvm_ir_generator.process(self.artiq_ir)

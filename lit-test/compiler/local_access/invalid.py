@@ -20,7 +20,7 @@ else:
 -t
 
 # CHECK-L: ${LINE:+1}: error: variable 't' can be captured in a closure uninitialized
-lambda: t
+l = lambda: t
 
 # CHECK-L: ${LINE:+1}: error: variable 't' can be captured in a closure uninitialized
 def f():

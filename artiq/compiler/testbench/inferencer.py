@@ -42,7 +42,7 @@ class Printer(algorithm.Visitor):
                                        ":{}".format(self.type_printer.name(node.type)))
 
 def main():
-    if sys.argv[1] == "+mono":
+    if len(sys.argv) > 1 and sys.argv[1] == "+mono":
         del sys.argv[1]
         monomorphize = True
     else:

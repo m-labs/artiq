@@ -97,16 +97,18 @@ class LocalAccessValidator:
                                 self._uninitialized_access(insn, var_name,
                                                            pred_at_fault(env, var_name))
 
-                if isinstance(insn, ir.Closure):
-                    env = insn.environment()
-                    # Make sure this environment has any interesting variables.
-                    if env in block_state:
-                        for var_name in block_state[env]:
-                            if not block_state[env][var_name]:
-                                # A closure would capture this variable while it is not always
-                                # initialized. Note that this check is transitive.
-                                self._uninitialized_access(insn, var_name,
-                                                           pred_at_fault(env, var_name))
+                # Creating a closure has no side effects. However, using a closure does.
+                for operand in insn.operands:
+                    if isinstance(operand, ir.Closure):
+                        env = operand.environment()
+                        # Make sure this environment has any interesting variables.
+                        if env in block_state:
+                            for var_name in block_state[env]:
+                                if not block_state[env][var_name]:
+                                    # A closure would capture this variable while it is not always
+                                    # initialized. Note that this check is transitive.
+                                    self._uninitialized_access(operand, var_name,
+                                                               pred_at_fault(env, var_name))
 
             # Save the state.
             state[block] = block_state
