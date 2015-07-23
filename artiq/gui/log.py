@@ -30,6 +30,7 @@ class LogDock(dockarea.Dock):
         self.log.setShowGrid(False)
         self.log.setTextElideMode(QtCore.Qt.ElideNone)
         self.addWidget(self.log)
+        self.scroll_at_bottom = False
 
     @asyncio.coroutine
     def sub_connect(self, host, port):
@@ -40,7 +41,17 @@ class LogDock(dockarea.Dock):
     def sub_close(self):
         yield from self.subscriber.close()
 
+    def rows_inserted_before(self):
+        scrollbar = self.log.verticalScrollBar()
+        self.scroll_at_bottom = scrollbar.value() == scrollbar.maximum()
+
+    def rows_inserted_after(self):
+        if self.scroll_at_bottom:
+            self.log.scrollToBottom()
+
     def init_log_model(self, init):
         table_model = _LogModel(self.log, init)
         self.log.setModel(table_model)
+        table_model.rowsAboutToBeInserted.connect(self.rows_inserted_before)
+        table_model.rowsInserted.connect(self.rows_inserted_after)
         return table_model
