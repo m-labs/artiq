@@ -723,51 +723,86 @@ class ARTIQIRGenerator(algorithm.Visitor):
             length = self.iterable_len(value, node.slice.type)
 
             if node.slice.lower is not None:
-                min_index = self.visit(node.slice.lower)
+                start_index = self.visit(node.slice.lower)
             else:
-                min_index = ir.Constant(0, node.slice.type)
-            mapped_min_index = self._map_index(length, min_index)
+                start_index = ir.Constant(0, node.slice.type)
+            mapped_start_index = self._map_index(length, start_index)
 
             if node.slice.upper is not None:
-                max_index = self.visit(node.slice.upper)
+                stop_index = self.visit(node.slice.upper)
             else:
-                max_index = length
-            mapped_max_index = self._map_index(length, max_index, one_past_the_end=True)
+                stop_index = length
+            mapped_stop_index = self._map_index(length, stop_index, one_past_the_end=True)
 
             if node.slice.step is not None:
                 step = self.visit(node.slice.step)
+                self._make_check(self.append(ir.Compare(ast.NotEq(loc=None), step,
+                                                        ir.Constant(0, step.type))),
+                                 lambda: self.append(ir.Alloc([], builtins.TValueError())))
             else:
                 step = ir.Constant(1, node.slice.type)
+            counting_up = self.append(ir.Compare(ast.Gt(loc=None), step,
+                                                 ir.Constant(0, step.type)))
 
             unstepped_size = self.append(ir.Arith(ast.Sub(loc=None),
-                                                  mapped_max_index, mapped_min_index))
-            slice_size = self.append(ir.Arith(ast.FloorDiv(loc=None), unstepped_size, step,
-                                              name="slice.size"))
-
+                                                  mapped_stop_index, mapped_start_index))
+            slice_size_a = self.append(ir.Arith(ast.FloorDiv(loc=None), unstepped_size, step))
+            slice_size_b = self.append(ir.Arith(ast.Mod(loc=None), unstepped_size, step))
+            rem_not_empty = self.append(ir.Compare(ast.NotEq(loc=None), slice_size_b,
+                                                   ir.Constant(0, slice_size_b.type)))
+            slice_size_c = self.append(ir.Arith(ast.Add(loc=None), slice_size_a,
+                                                ir.Constant(1, slice_size_a.type)))
+            slice_size = self.append(ir.Select(rem_not_empty,
+                                               slice_size_c, slice_size_a,
+                                               name="slice.size"))
             self._make_check(self.append(ir.Compare(ast.LtE(loc=None), slice_size, length)),
                              lambda: self.append(ir.Alloc([], builtins.TValueError())))
 
             if self.current_assign is None:
-                other_value = self.append(ir.Alloc([slice_size], value.type))
+                is_neg_size = self.append(ir.Compare(ast.Lt(loc=None),
+                                                     slice_size, ir.Constant(0, slice_size.type)))
+                abs_slice_size = self.append(ir.Select(is_neg_size,
+                                                       ir.Constant(0, slice_size.type), slice_size))
+                other_value = self.append(ir.Alloc([abs_slice_size], value.type,
+                                                   name="slice.result"))
             else:
                 other_value = self.current_assign
 
-            def body_gen(other_index):
-                offset = self.append(ir.Arith(ast.Mult(loc=None), step, other_index))
-                index = self.append(ir.Arith(ast.Add(loc=None), min_index, offset))
+            prehead = self.current_block
 
-                if self.current_assign is None:
-                    elem = self.iterable_get(value, index)
-                    self.append(ir.SetElem(other_value, other_index, elem))
-                else:
-                    elem = self.append(ir.GetElem(self.current_assign, other_index))
-                    self.append(ir.SetElem(value, index, elem))
+            head = self.current_block = self.add_block()
+            prehead.append(ir.Branch(head))
 
-                return self.append(ir.Arith(ast.Add(loc=None), other_index,
-                                            ir.Constant(1, node.slice.type)))
-            self._make_loop(ir.Constant(0, node.slice.type),
-                lambda index: self.append(ir.Compare(ast.Lt(loc=None), index, slice_size)),
-                body_gen)
+            index = self.append(ir.Phi(node.slice.type,
+                                       name="slice.index"))
+            index.add_incoming(mapped_start_index, prehead)
+            other_index = self.append(ir.Phi(node.slice.type,
+                                             name="slice.resindex"))
+            other_index.add_incoming(ir.Constant(0, node.slice.type), prehead)
+
+            # Still within bounds?
+            bounded_up = self.append(ir.Compare(ast.Lt(loc=None), index, mapped_stop_index))
+            bounded_down = self.append(ir.Compare(ast.Gt(loc=None), index, mapped_stop_index))
+            within_bounds = self.append(ir.Select(counting_up, bounded_up, bounded_down))
+
+            body = self.current_block = self.add_block()
+
+            if self.current_assign is None:
+                elem = self.iterable_get(value, index)
+                self.append(ir.SetElem(other_value, other_index, elem))
+            else:
+                elem = self.append(ir.GetElem(self.current_assign, other_index))
+                self.append(ir.SetElem(value, index, elem))
+
+            next_index = self.append(ir.Arith(ast.Add(loc=None), index, step))
+            index.add_incoming(next_index, body)
+            next_other_index = self.append(ir.Arith(ast.Add(loc=None), other_index,
+                                                    ir.Constant(1, node.slice.type)))
+            other_index.add_incoming(next_other_index, body)
+            self.append(ir.Branch(head))
+
+            tail = self.current_block = self.add_block()
+            head.append(ir.BranchIf(within_bounds, body, tail))
 
             if self.current_assign is None:
                 return other_value
