@@ -39,6 +39,8 @@ class ParametersDock(dockarea.Dock):
 
         self.table = QtGui.QTableView()
         self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.table.horizontalHeader().setResizeMode(
+            QtGui.QHeaderView.ResizeToContents)
         grid.addWidget(self.table, 1, 0)
 
     def search_parameters(self):

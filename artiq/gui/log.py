@@ -23,6 +23,8 @@ class LogDock(dockarea.Dock):
 
         self.log = QtGui.QTableView()
         self.log.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
+        self.log.horizontalHeader().setResizeMode(
+            QtGui.QHeaderView.ResizeToContents)
         self.addWidget(self.log)
 
     @asyncio.coroutine

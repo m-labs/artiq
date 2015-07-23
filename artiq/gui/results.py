@@ -39,6 +39,8 @@ class ResultsDock(dockarea.Dock):
 
         self.table = QtGui.QTableView()
         self.table.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
+        self.table.horizontalHeader().setResizeMode(
+            QtGui.QHeaderView.ResizeToContents)
         grid.addWidget(self.table, 0, 0)
 
         add_display_box = QtGui.QGroupBox("Add display")
