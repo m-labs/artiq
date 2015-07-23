@@ -1,6 +1,6 @@
 import asyncio
 
-from quamash import QtGui
+from quamash import QtGui, QtCore
 from pyqtgraph import dockarea
 
 from artiq.protocols.sync_struct import Subscriber
@@ -25,6 +25,10 @@ class LogDock(dockarea.Dock):
         self.log.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
         self.log.horizontalHeader().setResizeMode(
             QtGui.QHeaderView.ResizeToContents)
+        self.log.setHorizontalScrollMode(
+            QtGui.QAbstractItemView.ScrollPerPixel)
+        self.log.setShowGrid(False)
+        self.log.setTextElideMode(QtCore.Qt.ElideNone)
         self.addWidget(self.log)
 
     @asyncio.coroutine
