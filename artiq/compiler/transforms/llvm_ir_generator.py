@@ -519,7 +519,7 @@ class LLVMIRGenerator:
         if builtins.is_none(insn.value().type):
             return self.llbuilder.ret_void()
         else:
-            return self.llbuilder.ret(self.llmap[insn.value()])
+            return self.llbuilder.ret(self.map(insn.value()))
 
     def process_Unreachable(self, insn):
         return self.llbuilder.unreachable()

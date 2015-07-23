@@ -1250,18 +1250,37 @@ class ARTIQIRGenerator(algorithm.Visitor):
         else:
             typ = node.func.type.find()
             func = self.visit(node.func)
-            args = [self.visit(arg) for arg in node.args]
-            for index, optarg_name in enumerate(typ.optargs):
-                if len(typ.args) + index >= len(args):
-                    optarg_typ = ir.TOption(typ.optargs[optarg_name])
-                    for keyword in node.keywords:
-                        if keyword.arg == optarg_name:
-                            value = self.append(ir.Alloc([self.visit(keyword.value)], optarg_typ))
-                            args.append(value)
+            args = [None] * (len(typ.args) + len(typ.optargs))
+
+            for index, arg_node in enumerate(node.args):
+                arg = self.visit(arg_node)
+                if index < len(typ.args):
+                    args[index] = arg
+                else:
+                    args[index] = self.append(ir.Alloc([arg], ir.TOption(arg.type)))
+
+            for keyword in node.keywords:
+                arg = self.visit(keyword.value)
+                if keyword.arg in typ.args:
+                    for index, arg_name in enumerate(typ.args):
+                        if keyword.arg == arg_name:
+                            assert args[index] is None
+                            args[index] = arg
                             break
-                    else:
-                        value = self.append(ir.Alloc([], optarg_typ))
-                        args.append(value)
+                elif keyword.arg in typ.optargs:
+                    for index, optarg_name in enumerate(typ.optargs):
+                        if keyword.arg == optarg_name:
+                            assert args[len(typ.args) + index] is None
+                            args[len(typ.args) + index] = \
+                                    self.append(ir.Alloc([arg], ir.TOption(arg.type)))
+                            break
+
+            for index, optarg_name in enumerate(typ.optargs):
+                if args[len(typ.args) + index] is None:
+                    args[len(typ.args) + index] = \
+                            self.append(ir.Alloc([], ir.TOption(typ.optargs[optarg_name])))
+
+            assert None not in args
 
             if self.unwind_target is None:
                 return self.append(ir.Call(func, args))
