@@ -69,7 +69,7 @@ def main():
     scheduler.start()
     atexit.register(lambda: loop.run_until_complete(scheduler.stop()))
 
-    repository = Repository()
+    repository = Repository(log.log)
     repository.scan_async()
 
     server_control = Server({

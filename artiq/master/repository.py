@@ -10,13 +10,13 @@ logger = logging.getLogger(__name__)
 
 
 @asyncio.coroutine
-def _scan_experiments():
+def _scan_experiments(log):
     r = dict()
     for f in os.listdir("repository"):
         if f.endswith(".py"):
             try:
                 full_name = os.path.join("repository", f)
-                worker = Worker()
+                worker = Worker({"log": lambda message: log("scan", message)})
                 try:
                     description = yield from worker.examine(full_name)
                 finally:
@@ -52,16 +52,17 @@ def _sync_explist(target, source):
 
 
 class Repository:
-    def __init__(self):
+    def __init__(self, log_fn):
         self.explist = Notifier(dict())
         self._scanning = False
+        self.log_fn = log_fn
 
     @asyncio.coroutine
     def scan(self):
         if self._scanning:
             return
         self._scanning = True
-        new_explist = yield from _scan_experiments()
+        new_explist = yield from _scan_experiments(self.log_fn)
         _sync_explist(self.explist, new_explist)
         self._scanning = False
 
