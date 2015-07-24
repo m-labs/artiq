@@ -34,7 +34,7 @@ class ParametersDock(dockarea.Dock):
 
         self.search = QtGui.QLineEdit()
         self.search.setPlaceholderText("search...")
-        self.search.editingFinished.connect(self.search_parameters)
+        self.search.editingFinished.connect(self._search_parameters)
         grid.addWidget(self.search, 0, 0)
 
         self.table = QtGui.QTableView()
@@ -43,7 +43,10 @@ class ParametersDock(dockarea.Dock):
             QtGui.QHeaderView.ResizeToContents)
         grid.addWidget(self.table, 1, 0)
 
-    def search_parameters(self):
+    def get_parameter(self, key):
+        return self.table_model.backing_store[key]
+
+    def _search_parameters(self):
         model = self.table.model()
         parentIndex = model.index(0, 0)
         numRows = model.rowCount(parentIndex)
@@ -66,6 +69,6 @@ class ParametersDock(dockarea.Dock):
         yield from self.subscriber.close()
 
     def init_parameters_model(self, init):
-        table_model = ParametersModel(self.table, init)
-        self.table.setModel(table_model)
-        return table_model
+        self.table_model = ParametersModel(self.table, init)
+        self.table.setModel(self.table_model)
+        return self.table_model

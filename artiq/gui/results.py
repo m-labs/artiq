@@ -55,6 +55,9 @@ class ResultsDock(dockarea.Dock):
 
         self.displays = dict()
 
+    def get_result(self, key):
+        return self.table_model.backing_store[key]
+
     @asyncio.coroutine
     def sub_connect(self, host, port):
         self.subscriber = Subscriber("rt_results", self.init_results_model,
