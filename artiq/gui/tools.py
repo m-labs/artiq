@@ -1,6 +1,14 @@
 from quamash import QtCore
 
 
+def force_spinbox_value(spinbox, value):
+    if spinbox.minimum() > value:
+        spinbox.setMinimum(value)
+    if spinbox.maximum() < value:
+        spinbox.setMaximum(value)
+    spinbox.setValue(value)
+
+
 def short_format(v):
     t = type(v)
     if t is int or t is float:
