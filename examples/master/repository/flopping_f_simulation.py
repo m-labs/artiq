@@ -27,12 +27,11 @@ class FloppingF(EnvExperiment):
     """Flopping F simulation"""
 
     def build(self):
-        self.attr_argument("npoints", FreeValue(100))
-        self.attr_argument("min_freq", FreeValue(1000))
-        self.attr_argument("max_freq", FreeValue(2000))
+        self.attr_argument("frequency_scan", Scannable(
+            default=LinearScan(1000, 2000, 100)))
 
-        self.attr_argument("F0", FreeValue(1500))
-        self.attr_argument("noise_amplitude", FreeValue(0.1))
+        self.attr_argument("F0", NumberValue(1500, min=1000, max=2000))
+        self.attr_argument("noise_amplitude", NumberValue(0.1, min=0, max=100))
 
         self.frequency = self.set_result("flopping_f_frequency", [], True)
         self.brightness = self.set_result("flopping_f_brightness", [], True)
@@ -40,8 +39,7 @@ class FloppingF(EnvExperiment):
         self.attr_device("scheduler")
 
     def run(self):
-        for i in range(self.npoints):
-            frequency = (self.max_freq-self.min_freq)*i/(self.npoints - 1) + self.min_freq
+        for frequency in self.frequency_scan:
             brightness = model(frequency, self.F0) + self.noise_amplitude*random.random()
             self.frequency.append(frequency)
             self.brightness.append(brightness)
