@@ -102,10 +102,10 @@ class ScanController(LayoutWidget):
                 force_spinbox_value(self.v_noscan, d["value"])
             elif d["ty"] == "LinearScan":
                 self.linear.setChecked(True)
-                self.v_linear.set_values(d["min"], d["max"], d["step"])
+                self.v_linear.set_values(d["min"], d["max"], d["npoints"])
             elif d["ty"] == "RandomScan":
                 self.random.setChecked(True)
-                self.v_random.set_values(d["min"], d["max"], d["step"])
+                self.v_random.set_values(d["min"], d["max"], d["npoints"])
             elif d["ty"] == "ExplicitScan":
                 self.explicit.setChecked(True)
                 self.v_explicit.insert(" ".join(
