@@ -9,7 +9,6 @@ and modifications to mutable types are not written back. For example, if the
 client passes a list as a parameter of an RPC method, and that method
 ``append()s`` an element to the list, the element is not appended to the
 client's list.
-
 """
 
 import socket
@@ -29,17 +28,13 @@ logger = logging.getLogger(__name__)
 
 class RemoteError(Exception):
     """Raised when a RPC failed or raised an exception on the remote (server)
-    side.
-
-    """
+    side."""
     pass
 
 
 class IncompatibleServer(Exception):
     """Raised by the client when attempting to connect to a server that does
-    not have the expected target.
-
-    """
+    not have the expected target."""
     pass
 
 
@@ -74,7 +69,6 @@ class Client:
         Use ``None`` to skip selecting a target. The list of targets can then
         be retrieved using ``get_rpc_id`` and then one can be selected later
         using ``select_rpc_target``.
-
     """
     def __init__(self, host, port, target_name):
         self.__socket = socket.create_connection((host, port))
@@ -93,25 +87,20 @@ class Client:
 
     def select_rpc_target(self, target_name):
         """Selects a RPC target by name. This function should be called
-        exactly once if the object was created with ``target_name=None``.
-
-        """
+        exactly once if the object was created with ``target_name=None``."""
         if target_name not in self.__target_names:
             raise IncompatibleServer
         self.__socket.sendall((target_name + "\n").encode())
 
     def get_rpc_id(self):
         """Returns a tuple (target_names, id_parameters) containing the
-        identification information of the server.
-
-        """
+        identification information of the server."""
         return (self.__target_names, self.__id_parameters)
 
     def close_rpc(self):
         """Closes the connection to the RPC server.
 
         No further method calls should be done after this method is called.
-
         """
         self.__socket.close()
 
@@ -159,6 +148,8 @@ class AsyncioClient:
 
     All RPC methods are coroutines.
 
+    Concurrent access from different asyncio tasks is supported; all calls
+    use a single lock.
     """
     def __init__(self):
         self.__lock = asyncio.Lock()
@@ -171,9 +162,7 @@ class AsyncioClient:
     def connect_rpc(self, host, port, target_name):
         """Connects to the server. This cannot be done in __init__ because
         this method is a coroutine. See ``Client`` for a description of the
-        parameters.
-
-        """
+        parameters."""
         self.__reader, self.__writer = \
             yield from asyncio.open_connection(host, port)
         try:
@@ -190,7 +179,6 @@ class AsyncioClient:
     def select_rpc_target(self, target_name):
         """Selects a RPC target by name. This function should be called
         exactly once if the connection was created with ``target_name=None``.
-
         """
         if target_name not in self.__target_names:
             raise IncompatibleServer
@@ -198,16 +186,13 @@ class AsyncioClient:
 
     def get_rpc_id(self):
         """Returns a tuple (target_names, id_parameters) containing the
-        identification information of the server.
-
-        """
+        identification information of the server."""
         return (self.__target_names, self.__id_parameters)
 
     def close_rpc(self):
         """Closes the connection to the RPC server.
 
         No further method calls should be done after this method is called.
-
         """
         self.__writer.close()
         self.__reader = None
@@ -261,7 +246,6 @@ class BestEffortClient:
         connection attempt at object initialization.
     :param retry: Amount of time to wait between retries when reconnecting
         in the background.
-
     """
     def __init__(self, host, port, target_name,
                  firstcon_timeout=0.5, retry=5.0):
@@ -322,7 +306,6 @@ class BestEffortClient:
         """Closes the connection to the RPC server.
 
         No further method calls should be done after this method is called.
-
         """
         if self.__conretry_thread is None:
             if self.__socket is not None:
@@ -415,7 +398,6 @@ class Server(_AsyncioServer):
         Clients select one of these objects using its name upon connection.
     :param id_parameters: An optional human-readable string giving more
         information about the parameters of the server.
-
     """
     def __init__(self, targets, id_parameters=None):
         _AsyncioServer.__init__(self)
@@ -485,7 +467,6 @@ def simple_server_loop(targets, host, port, id_parameters=None):
     """Runs a server until an exception is raised (e.g. the user hits Ctrl-C).
 
     See ``Server`` for a description of the parameters.
-
     """
     loop = asyncio.get_event_loop()
     try:
