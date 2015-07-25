@@ -588,9 +588,11 @@ class LLVMIRGenerator:
         return llinsn
 
     def process_LandingPad(self, insn):
-        lllandingpad = self.llbuilder.landingpad(self.llty_of_type(insn.type),
+        lllandingpad = self.llbuilder.landingpad(ll.LiteralStructType([ll.IntType(8).as_pointer()]),
                                                  self.llbuiltin("__artiq_personality"))
-        llexnnameptr = self.llbuilder.gep(lllandingpad, [self.llindex(0), self.llindex(0)])
+        llrawexn = self.llbuilder.extract_value(lllandingpad, 0)
+        llexn = self.llbuilder.bitcast(llrawexn, self.llty_of_type(insn.type))
+        llexnnameptr = self.llbuilder.gep(llexn, [self.llindex(0), self.llindex(0)])
         llexnname = self.llbuilder.load(llexnnameptr)
 
         for target, typ in insn.clauses():
@@ -602,11 +604,15 @@ class LLVMIRGenerator:
                     ir.Constant(typ.name, ir.TExceptionTypeInfo()))
             lllandingpad.add_clause(ll.CatchClause(llclauseexnname))
 
-            llmatchingclause = self.llbuilder.icmp_unsigned('==', llexnname, llclauseexnname)
-            with self.llbuilder.if_then(llmatchingclause):
+            if typ is None:
                 self.llbuilder.branch(self.map(target))
+            else:
+                llmatchingclause = self.llbuilder.icmp_unsigned('==', llexnname, llclauseexnname)
+                with self.llbuilder.if_then(llmatchingclause):
+                    self.llbuilder.branch(self.map(target))
 
-        self.llbuilder.resume(lllandingpad)
+        if self.llbuilder.basic_block.terminator is None:
+            self.llbuilder.resume(lllandingpad)
 
-        return lllandingpad
+        return llexn
 
