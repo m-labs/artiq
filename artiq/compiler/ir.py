@@ -29,6 +29,13 @@ class TOption(types.TMono):
 def is_option(typ):
     return isinstance(typ, TOption)
 
+class TExceptionTypeInfo(types.TMono):
+    def __init__(self):
+        super().__init__("exntypeinfo")
+
+def is_exn_typeinfo(typ):
+    return isinstance(typ, TExceptionTypeInfo)
+
 class Value:
     """
     An SSA value that keeps track of its uses.
@@ -620,7 +627,7 @@ class SetAttr(Instruction):
             assert value.type == obj.type.elts[attr]
         else:
             assert value.type == obj.type.attributes[attr]
-        super().__init__([obj, value], typ, name)
+        super().__init__([obj, value], builtins.TNone(), name)
         self.attr = attr
 
     def opcode(self):
@@ -1004,7 +1011,7 @@ class Invoke(Terminator):
     def opcode(self):
         return "invoke"
 
-    def function(self):
+    def target_function(self):
         return self.operands[0]
 
     def arguments(self):
@@ -1038,11 +1045,15 @@ class LandingPad(Terminator):
         super().__init__([], builtins.TException(), name)
         self.types = []
 
+    def clauses(self):
+        return zip(self.operands, self.types)
+
     def add_clause(self, target, typ):
         assert isinstance(target, BasicBlock)
-        assert builtins.is_exception(typ)
+        assert typ is None or builtins.is_exception(typ)
         self.operands.append(target)
-        self.types.append(typ.find())
+        self.types.append(typ.find() if typ is not None else None)
+        target.uses.add(self)
 
     def opcode(self):
         return "landingpad"
@@ -1050,5 +1061,8 @@ class LandingPad(Terminator):
     def _operands_as_string(self):
         table = []
         for typ, target in zip(self.types, self.operands):
-            table.append("{} => {}".format(types.TypePrinter().name(typ), target.as_operand()))
+            if typ is None:
+                table.append("... => {}".format(target.as_operand()))
+            else:
+                table.append("{} => {}".format(types.TypePrinter().name(typ), target.as_operand()))
         return "[{}]".format(", ".join(table))

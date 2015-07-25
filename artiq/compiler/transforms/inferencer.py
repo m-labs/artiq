@@ -440,23 +440,32 @@ class Inferencer(algorithm.Visitor):
             self.engine.process(diag)
 
         if types.is_exn_constructor(typ):
-            exns = {
-                "IndexError": builtins.TIndexError,
-                "ValueError": builtins.TValueError,
-            }
-            for exn in exns:
-                if types.is_exn_constructor(typ, exn):
-                    valid_forms = lambda: [
-                        valid_form("{exn}() -> {exn}".format(exn=exn))
-                    ]
+            valid_forms = lambda: [
+                valid_form("{exn}() -> {exn}".format(exn=typ.name)),
+                valid_form("{exn}(message:str) -> {exn}".format(exn=typ.name)),
+                valid_form("{exn}(message:str, param1:int(width=64)) -> {exn}".format(exn=typ.name)),
+                valid_form("{exn}(message:str, param1:int(width=64), "
+                           "param2:int(width=64)) -> {exn}".format(exn=typ.name)),
+                valid_form("{exn}(message:str, param1:int(width=64), "
+                           "param2:int(width=64), param3:int(width=64)) "
+                           "-> {exn}".format(exn=typ.name)),
+            ]
 
-                    if len(node.args) == 0 and len(node.keywords) == 0:
-                        pass # False
-                    else:
-                        diagnose(valid_forms())
+            if len(node.args) == 0 and len(node.keywords) == 0:
+                pass # Default message, zeroes as parameters
+            elif len(node.args) >= 1 and len(node.args) <= 4 and len(node.keywords) == 0:
+                message, *params = node.args
 
-                    self._unify(node.type, exns[exn](),
-                                node.loc, None)
+                self._unify(message.type, builtins.TStr(),
+                            message.loc, None)
+                for param in params:
+                    self._unify(param.type, builtins.TInt(types.TValue(64)),
+                                param.loc, None)
+            else:
+                diagnose(valid_forms())
+
+            self._unify(node.type, getattr(builtins, "T" + typ.name)(),
+                        node.loc, None)
         elif types.is_builtin(typ, "bool"):
             valid_forms = lambda: [
                 valid_form("bool() -> bool"),
@@ -829,26 +838,27 @@ class Inferencer(algorithm.Visitor):
     def visit_ExceptHandlerT(self, node):
         self.generic_visit(node)
 
-        if not types.is_exn_constructor(node.filter.type):
-            diag = diagnostic.Diagnostic("error",
-                "this expression must refer to an exception constructor",
-                {"type": types.TypePrinter().name(node.filter.type)},
-                node.filter.loc)
-            self.engine.process(diag)
-        else:
-            def makenotes(printer, typea, typeb, loca, locb):
-                return [
-                    diagnostic.Diagnostic("note",
-                        "expression of type {typea}",
-                        {"typea": printer.name(typea)},
-                        loca),
-                    diagnostic.Diagnostic("note",
-                        "constructor of an exception of type {typeb}",
-                        {"typeb": printer.name(typeb)},
-                        locb)
-                ]
-            self._unify(node.name_type, builtins.TException(node.filter.type.name),
-                        node.name_loc, node.filter.loc, makenotes)
+        if node.filter is not None:
+            if not types.is_exn_constructor(node.filter.type):
+                diag = diagnostic.Diagnostic("error",
+                    "this expression must refer to an exception constructor",
+                    {"type": types.TypePrinter().name(node.filter.type)},
+                    node.filter.loc)
+                self.engine.process(diag)
+            else:
+                def makenotes(printer, typea, typeb, loca, locb):
+                    return [
+                        diagnostic.Diagnostic("note",
+                            "expression of type {typea}",
+                            {"typea": printer.name(typea)},
+                            loca),
+                        diagnostic.Diagnostic("note",
+                            "constructor of an exception of type {typeb}",
+                            {"typeb": printer.name(typeb)},
+                            locb)
+                    ]
+                self._unify(node.name_type, builtins.TException(node.filter.type.name),
+                            node.name_loc, node.filter.loc, makenotes)
 
     def _type_from_arguments(self, node, ret):
         self.generic_visit(node)
@@ -942,6 +952,17 @@ class Inferencer(algorithm.Visitor):
         else:
             self._unify(self.function.return_type, node.value.type,
                         self.function.name_loc, node.value.loc, makenotes)
+
+    def visit_Raise(self, node):
+        self.generic_visit(node)
+
+        exc_type = node.exc.type
+        if not types.is_var(exc_type) and not builtins.is_exception(exc_type):
+            diag = diagnostic.Diagnostic("error",
+                "cannot raise a value of type {type}, which is not an exception",
+                {"type": types.TypePrinter().name(exc_type)},
+                node.exc.loc)
+            self.engine.process(diag)
 
     def visit_Assert(self, node):
         self.generic_visit(node)

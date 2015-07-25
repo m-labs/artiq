@@ -239,13 +239,17 @@ class EscapeValidator(algorithm.Visitor):
     # Only three ways for a pointer to escape:
     #   * Assigning or op-assigning it (we ensure an outlives relationship)
     #   * Returning it (we only allow returning values that live forever)
-    #   * Raising it (we forbid raising mutable data)
+    #   * Raising it (we forbid allocating exceptions that refer to mutable data)¹
     #
     # Literals doesn't count: a constructed object is always
     # outlived by all its constituents.
     # Closures don't count: see above.
     # Calling functions doesn't count: arguments never outlive
     # the function body.
+    #
+    # ¹Strings are currently never allocated with a limited lifetime,
+    # and exceptions can only refer to strings, so we don't actually check
+    # this property. But we will need to, if string operations are ever added.
 
     def visit_assignment(self, target, value, is_aug_assign=False):
         target_region = self._region_of(target)
@@ -297,15 +301,4 @@ class EscapeValidator(algorithm.Visitor):
             diag = diagnostic.Diagnostic("error",
                 "cannot return a mutable value that does not live forever", {},
                 node.value.loc, notes=self._diagnostics_for(region, node.value.loc) + [note])
-            self.engine.process(diag)
-
-    def visit_Raise(self, node):
-        if builtins.is_allocated(node.exc.type):
-            note = diagnostic.Diagnostic("note",
-                "this expression has type {type}",
-                {"type": types.TypePrinter().name(node.exc.type)},
-                node.exc.loc)
-            diag = diagnostic.Diagnostic("error",
-                "cannot raise a mutable value", {},
-                node.exc.loc, notes=[note])
             self.engine.process(diag)

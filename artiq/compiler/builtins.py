@@ -72,6 +72,26 @@ class TRange(types.TMono):
         ])
 
 class TException(types.TMono):
+    # All exceptions share the same internal layout:
+    #  * Pointer to the unique global with the name of the exception (str)
+    #    (which also serves as the EHABI type_info).
+    #  * File, line and column where it was raised (str, int, int).
+    #  * Message, which can contain substitutions {0}, {1} and {2} (str).
+    #  * Three 64-bit integers, parameterizing the message (int(width=64)).
+
+
+    # Keep this in sync with the function ARTIQIRGenerator.alloc_exn.
+    attributes = OrderedDict([
+        ("__name__",    TStr()),
+        ("__file__",    TStr()),
+        ("__line__",    TInt(types.TValue(32))),
+        ("__col__",     TInt(types.TValue(32))),
+        ("__message__", TStr()),
+        ("__param0__",  TInt(types.TValue(64))),
+        ("__param1__",  TInt(types.TValue(64))),
+        ("__param2__",  TInt(types.TValue(64))),
+    ])
+
     def __init__(self, name="Exception"):
         super().__init__(name)
 
@@ -170,8 +190,12 @@ def is_range(typ, elt=None):
     else:
         return types.is_mono(typ, "range")
 
-def is_exception(typ):
-    return isinstance(typ.find(), TException)
+def is_exception(typ, name=None):
+    if name is None:
+        return isinstance(typ.find(), TException)
+    else:
+        return isinstance(typ.find(), TException) and \
+            typ.name == name
 
 def is_iterable(typ):
     typ = typ.find()
@@ -189,4 +213,5 @@ def is_collection(typ):
 
 def is_allocated(typ):
     return typ.fold(False, lambda accum, typ:
-        is_list(typ) or is_str(typ) or types.is_function(typ))
+        is_list(typ) or is_str(typ) or types.is_function(typ) or
+        is_exception(typ))

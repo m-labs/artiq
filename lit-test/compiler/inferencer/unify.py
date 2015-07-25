@@ -56,3 +56,18 @@ lambda x, y=1: x
 
 k = "x"
 # CHECK-L: k:str
+
+IndexError()
+# CHECK-L: IndexError:<constructor IndexError>():IndexError
+
+IndexError("x")
+# CHECK-L: IndexError:<constructor IndexError>("x":str):IndexError
+
+IndexError("x", 1)
+# CHECK-L: IndexError:<constructor IndexError>("x":str, 1:int(width=64)):IndexError
+
+IndexError("x", 1, 1)
+# CHECK-L: IndexError:<constructor IndexError>("x":str, 1:int(width=64), 1:int(width=64)):IndexError
+
+IndexError("x", 1, 1, 1)
+# CHECK-L: IndexError:<constructor IndexError>("x":str, 1:int(width=64), 1:int(width=64), 1:int(width=64)):IndexError

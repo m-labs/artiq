@@ -465,8 +465,17 @@ class ARTIQIRGenerator(algorithm.Visitor):
     def visit_Continue(self, node):
         self.append(ir.Branch(self.continue_target))
 
+    def raise_exn(self, exn):
+        loc_file = ir.Constant(self.current_loc.source_buffer.name, builtins.TStr())
+        loc_line = ir.Constant(self.current_loc.line(), builtins.TInt(types.TValue(32)))
+        loc_column = ir.Constant(self.current_loc.column(), builtins.TInt(types.TValue(32)))
+        self.append(ir.SetAttr(exn, "__file__", loc_file))
+        self.append(ir.SetAttr(exn, "__line__", loc_line))
+        self.append(ir.SetAttr(exn, "__col__", loc_column))
+        self.append(ir.Raise(exn))
+
     def visit_Raise(self, node):
-        self.append(ir.Raise(self.visit(node.exc)))
+        self.raise_exn(self.visit(node.exc))
 
     def visit_Try(self, node):
         dispatcher = self.add_block("try.dispatch")
@@ -521,15 +530,25 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.return_target = old_return
 
         handlers = []
+        has_catchall = False
         for handler_node in node.handlers:
-            handler = self.add_block("handler." + handler_node.name_type.find().name)
+            exn_type = handler_node.name_type.find()
+            if handler_node.filter is not None and \
+                    not builtins.is_exception(exn_type, 'Exception'):
+                handler = self.add_block("handler." + exn_type.name)
+                landingpad.add_clause(handler, exn_type)
+            else:
+                handler = self.add_block("handler.catchall")
+                landingpad.add_clause(handler, None)
+                has_catchall = True
+
             self.current_block = handler
             handlers.append(handler)
-            landingpad.add_clause(handler, handler_node.name_type)
 
             if handler_node.name is not None:
                 exn = self.append(ir.Builtin("exncast", [landingpad], handler_node.name_type))
                 self._set_local(handler_node.name, exn)
+
             self.visit(handler_node.body)
 
         if any(node.finalbody):
@@ -537,36 +556,44 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.current_block = finalizer
 
             self.visit(node.finalbody)
+            post_finalizer = self.current_block
 
-            if not self.current_block.is_terminated():
-                dest = self.append(ir.GetLocal(final_state, ".k"))
-                self.append(ir.IndirectBranch(dest, final_targets))
-
-        tail = self.add_block("try.tail")
+        self.current_block = tail = self.add_block("try.tail")
         if any(node.finalbody):
+            final_targets.append(tail)
+
             if self.break_target:
                 break_proxy.append(ir.Branch(finalizer))
             if self.continue_target:
                 continue_proxy.append(ir.Branch(finalizer))
             return_proxy.append(ir.Branch(finalizer))
-        if not body.is_terminated():
-            if any(node.finalbody):
+
+            if not body.is_terminated():
                 body.append(ir.SetLocal(final_state, ".k", tail))
                 body.append(ir.Branch(finalizer))
-                for handler in handlers:
-                    if not handler.is_terminated():
-                        handler.append(ir.SetLocal(final_state, ".k", tail))
-                        handler.append(ir.Branch(tail))
-            else:
-                body.append(ir.Branch(tail))
-                for handler in handlers:
-                    if not handler.is_terminated():
-                        handler.append(ir.Branch(tail))
 
-        if any(tail.predecessors()):
-            self.current_block = tail
+            if not has_catchall:
+                # Add a catch-all handler so that finally would have a chance
+                # to execute.
+                handler = self.add_block("handler.catchall")
+                landingpad.add_clause(handler, None)
+                handlers.append(handler)
+
+            for handler in handlers:
+                if not handler.is_terminated():
+                    handler.append(ir.SetLocal(final_state, ".k", tail))
+                    handler.append(ir.Branch(tail))
+
+            if not post_finalizer.is_terminated():
+                dest = post_finalizer.append(ir.GetLocal(final_state, ".k"))
+                post_finalizer.append(ir.IndirectBranch(dest, final_targets))
         else:
-            self.current_function.remove(tail)
+            if not body.is_terminated():
+                body.append(ir.Branch(tail))
+
+            for handler in handlers:
+                if not handler.is_terminated():
+                    handler.append(ir.Branch(tail))
 
     # TODO: With
 
@@ -655,15 +682,16 @@ class ARTIQIRGenerator(algorithm.Visitor):
         mapped_lt_len = self.append(ir.Compare(end_cmpop, mapped_index, length))
         in_bounds     = self.append(ir.Select(mapped_ge_0, mapped_lt_len,
                                               ir.Constant(False, builtins.TBool())))
+        head = self.current_block
 
-        out_of_bounds_block = self.add_block()
-        exn = out_of_bounds_block.append(ir.Alloc([], builtins.TIndexError()))
-        out_of_bounds_block.append(ir.Raise(exn))
+        self.current_block = out_of_bounds_block = self.add_block()
+        exn = self.alloc_exn(builtins.TIndexError(),
+            ir.Constant("index {0} out of bounds 0:{1}", builtins.TStr()),
+            index, length)
+        self.raise_exn(exn)
 
-        in_bounds_block = self.add_block()
-
-        self.append(ir.BranchIf(in_bounds, in_bounds_block, out_of_bounds_block))
-        self.current_block = in_bounds_block
+        self.current_block = in_bounds_block = self.add_block()
+        head.append(ir.BranchIf(in_bounds, in_bounds_block, out_of_bounds_block))
 
         return mapped_index
 
@@ -673,7 +701,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         cond_block = self.current_block
 
         self.current_block = body_block = self.add_block()
-        self.append(ir.Raise(exn_gen()))
+        self.raise_exn(exn_gen())
 
         self.current_block = tail_block = self.add_block()
         cond_block.append(ir.BranchIf(cond, tail_block, body_block))
@@ -736,9 +764,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             if node.slice.step is not None:
                 step = self.visit(node.slice.step)
-                self._make_check(self.append(ir.Compare(ast.NotEq(loc=None), step,
-                                                        ir.Constant(0, step.type))),
-                                 lambda: self.append(ir.Alloc([], builtins.TValueError())))
+                self._make_check(
+                    self.append(ir.Compare(ast.NotEq(loc=None), step, ir.Constant(0, step.type))),
+                    lambda: self.alloc_exn(builtins.TValueError(),
+                        ir.Constant("step cannot be zero", builtins.TStr())))
             else:
                 step = ir.Constant(1, node.slice.type)
             counting_up = self.append(ir.Compare(ast.Gt(loc=None), step,
@@ -755,8 +784,12 @@ class ARTIQIRGenerator(algorithm.Visitor):
             slice_size = self.append(ir.Select(rem_not_empty,
                                                slice_size_c, slice_size_a,
                                                name="slice.size"))
-            self._make_check(self.append(ir.Compare(ast.LtE(loc=None), slice_size, length)),
-                             lambda: self.append(ir.Alloc([], builtins.TValueError())))
+            self._make_check(
+                self.append(ir.Compare(ast.LtE(loc=None), slice_size, length)),
+                lambda: self.alloc_exn(builtins.TValueError(),
+                    ir.Constant("slice size {0} is larger than iterable length {1}",
+                                builtins.TStr()),
+                    slice_size, iterable_len))
 
             if self.current_assign is None:
                 is_neg_size = self.append(ir.Compare(ast.Lt(loc=None),
@@ -832,9 +865,12 @@ class ARTIQIRGenerator(algorithm.Visitor):
             return lst
         else:
             length = self.iterable_len(self.current_assign)
-            self._make_check(self.append(ir.Compare(ast.Eq(loc=None), length,
-                                                    ir.Constant(len(node.elts), self._size_type))),
-                             lambda: self.append(ir.Alloc([], builtins.TValueError())))
+            self._make_check(
+                self.append(ir.Compare(ast.Eq(loc=None), length,
+                                       ir.Constant(len(node.elts), self._size_type))),
+                lambda: self.alloc_exn(builtins.TValueError(),
+                    ir.Constant("list must be {0} elements long to decompose", builtins.TStr()),
+                    length))
 
             for index, elt_node in enumerate(node.elts):
                 elt = self.append(ir.GetElem(self.current_assign,
@@ -937,13 +973,15 @@ class ARTIQIRGenerator(algorithm.Visitor):
             rhs = self.visit(node.right)
             if isinstance(node.op, (ast.LShift, ast.RShift)):
                 # Check for negative shift amount.
-                self._make_check(self.append(ir.Compare(ast.GtE(loc=None), rhs,
-                                                        ir.Constant(0, rhs.type))),
-                                 lambda: self.append(ir.Alloc([], builtins.TValueError())))
+                self._make_check(
+                    self.append(ir.Compare(ast.GtE(loc=None), rhs, ir.Constant(0, rhs.type))),
+                    lambda: self.alloc_exn(builtins.TValueError(),
+                        ir.Constant("shift amount must be nonnegative", builtins.TStr())))
             elif isinstance(node.op, (ast.Div, ast.FloorDiv)):
-                self._make_check(self.append(ir.Compare(ast.NotEq(loc=None), rhs,
-                                                        ir.Constant(0, rhs.type))),
-                                 lambda: self.append(ir.Alloc([], builtins.TZeroDivisionError())))
+                self._make_check(
+                    self.append(ir.Compare(ast.NotEq(loc=None), rhs, ir.Constant(0, rhs.type))),
+                    lambda: self.alloc_exn(builtins.TZeroDivisionError(),
+                        ir.Constant("cannot divide by zero", builtins.TStr())))
 
             return self.append(ir.Arith(node.op, self.visit(node.left), rhs))
         elif isinstance(node.op, ast.Add): # list + list, tuple + tuple
@@ -1179,6 +1217,31 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 result_tail.append(ir.Branch(tail))
         return phi
 
+    # Keep this function with builtins.TException.attributes.
+    def alloc_exn(self, typ, message=None, param0=None, param1=None, param2=None):
+        attributes = [
+            ir.Constant(typ.find().name, ir.TExceptionTypeInfo()),  # typeinfo
+            ir.Constant("<not thrown>", builtins.TStr()),           # file
+            ir.Constant(0, builtins.TInt(types.TValue(32))),        # line
+            ir.Constant(0, builtins.TInt(types.TValue(32))),        # column
+        ]
+
+        if message is None:
+            attributes.append(ir.Constant(typ.find().name, builtins.TStr()))
+        else:
+            attributes.append(message)                              # message
+
+        param_type = builtins.TInt(types.TValue(64))
+        for param in [param0, param1, param2]:
+            if param is None:
+                attributes.append(ir.Constant(0, builtins.TInt(types.TValue(64))))
+            else:
+                if param.type != param_type:
+                    param = self.append(ir.Coerce(param, param_type))
+                attributes.append(param)                            # paramN, N=0:2
+
+        return self.append(ir.Alloc(attributes, typ))
+
     def visit_builtin_call(self, node):
         # A builtin by any other name... Ignore node.func, just use the type.
         typ = node.func.type
@@ -1275,7 +1338,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                                    separator=" ", suffix="\n")
             return ir.Constant(None, builtins.TNone())
         elif types.is_exn_constructor(typ):
-            return self.append(ir.Alloc([self.visit(arg) for args in node.args], node.type))
+            return self.alloc_exn(node.type, *[self.visit(arg_node) for arg_node in node.args])
         else:
             assert False
 
@@ -1485,8 +1548,14 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
                 format_string += ")"
             elif builtins.is_exception(value.type):
-                # TODO: print exceptions
-                assert False
+                name    = self.append(ir.GetAttr(value, "__name__"))
+                message = self.append(ir.GetAttr(value, "__message__"))
+                param1  = self.append(ir.GetAttr(value, "__param0__"))
+                param2  = self.append(ir.GetAttr(value, "__param1__"))
+                param3  = self.append(ir.GetAttr(value, "__param2__"))
+
+                format_string += "%s(%s, %lld, %lld, %lld)"
+                args += [name, message, param1, param2, param3]
             else:
                 assert False
 

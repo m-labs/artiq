@@ -85,7 +85,9 @@ class TMono(Type):
     A monomorphic type, possibly parametric.
 
     :class:`TMono` is supposed to be subclassed by builtin types,
-    unlike all other :class:`Type` descendants.
+    unlike all other :class:`Type` descendants. Similarly,
+    instances of :class:`TMono` should never be allocated directly,
+    as that will break the type-sniffing code in :mod:`builtins`.
     """
 
     attributes = OrderedDict()

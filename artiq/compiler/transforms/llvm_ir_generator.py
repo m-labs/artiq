@@ -43,7 +43,7 @@ class LLVMIRGenerator:
             return ll.IntType(builtins.get_int_width(typ))
         elif builtins.is_float(typ):
             return ll.DoubleType()
-        elif builtins.is_str(typ):
+        elif builtins.is_str(typ) or ir.is_exn_typeinfo(typ):
             return ll.IntType(8).as_pointer()
         elif builtins.is_list(typ):
             lleltty = self.llty_of_type(builtins.get_iterable_elt(typ))
@@ -51,11 +51,8 @@ class LLVMIRGenerator:
         elif builtins.is_range(typ):
             lleltty = self.llty_of_type(builtins.get_iterable_elt(typ))
             return ll.LiteralStructType([lleltty, lleltty, lleltty])
-        elif builtins.is_exception(typ):
-            # TODO: hack before EH is working
-            return ll.LiteralStructType([])
         elif ir.is_basic_block(typ):
-            return ll.LabelType()
+            return ll.IntType(8).as_pointer()
         elif ir.is_option(typ):
             return ll.LiteralStructType([ll.IntType(1), self.llty_of_type(typ.params["inner"])])
         elif ir.is_environment(typ):
@@ -65,8 +62,21 @@ class LLVMIRGenerator:
                 return llty
             else:
                 return llty.as_pointer()
-        else:
-            assert False
+        else: # Catch-all for exceptions and custom classes
+            if builtins.is_exception(typ):
+                name = 'Exception' # they all share layout
+            else:
+                name = typ.name
+
+            llty = self.llcontext.get_identified_type(name)
+            if llty.elements is None:
+                llty.elements = [self.llty_of_type(attrtyp)
+                                 for attrtyp in typ.attributes.values()]
+
+            if bare or not builtins.is_allocated(typ):
+                return llty
+            else:
+                return llty.as_pointer()
 
     def llconst_of_const(self, const):
         llty = self.llty_of_type(const.type)
@@ -79,14 +89,27 @@ class LLVMIRGenerator:
         elif isinstance(const.value, (int, float)):
             return ll.Constant(llty, const.value)
         elif isinstance(const.value, str):
-            as_bytes = (const.value + '\0').encode('utf-8')
+            assert "\0" not in const.value
+
+            as_bytes = (const.value + "\0").encode("utf-8")
+            if ir.is_exn_typeinfo(const.type):
+                # Exception typeinfo; should be merged with identical others
+                name = "__artiq_exn_" + const.value
+                linkage = "linkonce"
+                unnamed_addr = False
+            else:
+                # Just a string
+                name = self.llmodule.get_unique_name("str")
+                linkage = "private"
+                unnamed_addr = True
+
             llstrty = ll.ArrayType(ll.IntType(8), len(as_bytes))
-            llconst = ll.GlobalVariable(self.llmodule, llstrty,
-                                        name=self.llmodule.get_unique_name("str"))
+            llconst = ll.GlobalVariable(self.llmodule, llstrty, name)
             llconst.global_constant = True
-            llconst.unnamed_addr = True
-            llconst.linkage = 'internal'
             llconst.initializer = ll.Constant(llstrty, bytearray(as_bytes))
+            llconst.linkage = linkage
+            llconst.unnamed_addr = unnamed_addr
+
             return llconst.bitcast(ll.IntType(8).as_pointer())
         else:
             assert False
@@ -112,6 +135,10 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType(), ll.DoubleType()])
         elif name == "printf":
             llty = ll.FunctionType(ll.VoidType(), [ll.IntType(8).as_pointer()], var_arg=True)
+        elif name == "__artiq_raise":
+            llty = ll.FunctionType(ll.VoidType(), [self.llty_of_type(builtins.TException())])
+        elif name == "__artiq_personality":
+            llty = ll.FunctionType(ll.IntType(32), [], var_arg=True)
         else:
             assert False
         return ll.Function(self.llmodule, llty, name)
@@ -124,8 +151,10 @@ class LLVMIRGenerator:
         elif isinstance(value, ir.Function):
             llfun = self.llmodule.get_global(value.name)
             if llfun is None:
-                return ll.Function(self.llmodule, self.llty_of_type(value.type, bare=True),
-                                   value.name)
+                llfun = ll.Function(self.llmodule, self.llty_of_type(value.type, bare=True),
+                                    value.name)
+                llfun.linkage = 'internal'
+                return llfun
             else:
                 return llfun
         else:
@@ -186,6 +215,9 @@ class LLVMIRGenerator:
         self.fixups.append(fixup)
         return llinsn
 
+    def llindex(self, index):
+        return ll.Constant(ll.IntType(32), index)
+
     def process_Alloc(self, insn):
         if ir.is_environment(insn.type):
             return self.llbuilder.alloca(self.llty_of_type(insn.type, bare=True),
@@ -210,6 +242,13 @@ class LLVMIRGenerator:
                                             size=llsize)
             llvalue = self.llbuilder.insert_value(llvalue, llalloc, 1, name=insn.name)
             return llvalue
+        elif builtins.is_exception(insn.type):
+            llalloc = self.llbuilder.alloca(self.llty_of_type(insn.type, bare=True))
+            for index, operand in enumerate(insn.operands):
+                lloperand = self.map(operand)
+                llfieldptr = self.llbuilder.gep(llalloc, [self.llindex(0), self.llindex(index)])
+                self.llbuilder.store(lloperand, llfieldptr)
+            return llalloc
         elif builtins.is_allocated(insn.type):
             assert False
         else: # immutable
@@ -218,9 +257,6 @@ class LLVMIRGenerator:
                 llvalue = self.llbuilder.insert_value(llvalue, self.map(elt), index)
             llvalue.name = insn.name
             return llvalue
-
-    def llindex(self, index):
-        return ll.Constant(ll.IntType(32), index)
 
     def llptr_to_var(self, llenv, env_ty, var_name):
         if var_name in env_ty.params:
@@ -241,6 +277,8 @@ class LLVMIRGenerator:
         env = insn.environment()
         llptr = self.llptr_to_var(self.map(env), env.type, insn.var_name)
         llvalue = self.map(insn.value())
+        if isinstance(llvalue, ll.Block):
+            llvalue = ll.BlockAddress(self.llfunction, llvalue)
         if llptr.type.pointee != llvalue.type:
             # The environment argument is an i8*, so that all closures can
             # unify with each other regardless of environment type or size.
@@ -266,11 +304,11 @@ class LLVMIRGenerator:
             return self.llbuilder.load(llptr)
 
     def process_SetAttr(self, insn):
-        assert builtins.is_allocated(insns.object().type)
+        assert builtins.is_allocated(insn.object().type)
         llptr = self.llbuilder.gep(self.map(insn.object()),
                                    [self.llindex(0), self.llindex(self.attr_index(insn))],
                                    name=insn.name)
-        return self.llbuilder.store(llptr, self.map(insn.value()))
+        return self.llbuilder.store(self.map(insn.value()), llptr)
 
     def process_GetElem(self, insn):
         llelts = self.llbuilder.extract_value(self.map(insn.list()), 1)
@@ -483,7 +521,9 @@ class LLVMIRGenerator:
             llargs = map(self.map, insn.operands)
             return self.llbuilder.call(self.llbuiltin("printf"), llargs,
                                        name=insn.name)
-        # elif insn.op == "exncast":
+        elif insn.op == "exncast":
+            # This is an identity cast at LLVM IR level.
+            return self.map(insn.operands[0])
         else:
             assert False
 
@@ -495,12 +535,23 @@ class LLVMIRGenerator:
                                               name=insn.name)
         return llvalue
 
-    def process_Call(self, insn):
+    def prepare_call(self, insn):
         llclosure, llargs = self.map(insn.target_function()), map(self.map, insn.arguments())
         llenv = self.llbuilder.extract_value(llclosure, 0)
         llfun = self.llbuilder.extract_value(llclosure, 1)
-        return self.llbuilder.call(llfun, [llenv] + list(llargs),
+        return llfun, [llenv] + list(llargs)
+
+    def process_Call(self, insn):
+        llfun, llargs = self.prepare_call(insn)
+        return self.llbuilder.call(llfun, llargs,
                                    name=insn.name)
+
+    def process_Invoke(self, insn):
+        llfun, llargs = self.prepare_call(insn)
+        llnormalblock = self.map(insn.normal_target())
+        llunwindblock = self.map(insn.exception_target())
+        return self.llbuilder.invoke(llfun, llargs, llnormalblock, llunwindblock,
+                                     name=insn.name)
 
     def process_Select(self, insn):
         return self.llbuilder.select(self.map(insn.condition()),
@@ -513,8 +564,11 @@ class LLVMIRGenerator:
         return self.llbuilder.cbranch(self.map(insn.condition()),
                                       self.map(insn.if_true()), self.map(insn.if_false()))
 
-    # def process_IndirectBranch(self, insn):
-    #     pass
+    def process_IndirectBranch(self, insn):
+        llinsn = self.llbuilder.branch_indirect(self.map(insn.target()))
+        for dest in insn.destinations():
+            llinsn.add_destination(self.map(dest))
+        return llinsn
 
     def process_Return(self, insn):
         if builtins.is_none(insn.value().type):
@@ -526,15 +580,33 @@ class LLVMIRGenerator:
         return self.llbuilder.unreachable()
 
     def process_Raise(self, insn):
-        # TODO: hack before EH is working
-        llinsn = self.llbuilder.call(self.llbuiltin("llvm.trap"), [],
+        arg = self.map(insn.operands[0])
+        llinsn = self.llbuilder.call(self.llbuiltin("__artiq_raise"), [arg],
                                      name=insn.name)
+        llinsn.attributes.add('noreturn')
         self.llbuilder.unreachable()
         return llinsn
 
-    # def process_Invoke(self, insn):
-    #     pass
+    def process_LandingPad(self, insn):
+        lllandingpad = self.llbuilder.landingpad(self.llty_of_type(insn.type),
+                                                 self.llbuiltin("__artiq_personality"))
+        llexnnameptr = self.llbuilder.gep(lllandingpad, [self.llindex(0), self.llindex(0)])
+        llexnname = self.llbuilder.load(llexnnameptr)
 
-    # def process_LandingPad(self, insn):
-    #     pass
+        for target, typ in insn.clauses():
+            if typ is None:
+                llclauseexnname = ll.Constant(
+                    self.llty_of_type(ir.TExceptionTypeInfo()), None)
+            else:
+                llclauseexnname = self.llconst_of_const(
+                    ir.Constant(typ.name, ir.TExceptionTypeInfo()))
+            lllandingpad.add_clause(ll.CatchClause(llclauseexnname))
+
+            llmatchingclause = self.llbuilder.icmp_unsigned('==', llexnname, llclauseexnname)
+            with self.llbuilder.if_then(llmatchingclause):
+                self.llbuilder.branch(self.map(target))
+
+        self.llbuilder.resume(lllandingpad)
+
+        return lllandingpad
 
