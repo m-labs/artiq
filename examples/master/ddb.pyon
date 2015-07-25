@@ -53,7 +53,7 @@
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 18}
+        "arguments": {"channel": 17}
     },
 
     "dds_bus": {
