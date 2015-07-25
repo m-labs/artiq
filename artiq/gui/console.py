@@ -2,6 +2,8 @@ from pyqtgraph import console, dockarea
 
 
 _help = """
+This is an interactive Python console.
+
 The following functions are available:
     get_parameter(key)
     set_parameter(key, value) [asynchronous update]
