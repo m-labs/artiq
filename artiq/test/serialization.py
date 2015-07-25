@@ -4,14 +4,12 @@ from fractions import Fraction
 
 import numpy as np
 
-from artiq.language.units import *
 from artiq.protocols import pyon
 
 
 _pyon_test_object = {
     (1, 2): [(3, 4.2), (2, )],
     Fraction(3, 4): np.linspace(5, 10, 1),
-    "frequency": 10*GHz
 }
 
 
