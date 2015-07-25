@@ -100,7 +100,7 @@ def main():
     area.addDock(d_params, "above", d_results)
     area.addDock(d_explorer, "above", d_params)
 
-    d_schedule = ScheduleDock(schedule_ctl)
+    d_schedule = ScheduleDock(status_bar, schedule_ctl)
     loop.run_until_complete(d_schedule.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_schedule.sub_close()))
