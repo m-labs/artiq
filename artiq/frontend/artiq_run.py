@@ -26,7 +26,7 @@ class ELFRunner(EnvExperiment):
     def run(self):
         with open(self.file, "rb") as f:
             self.core.comm.load(f.read())
-        self.core.comm.run("run", False)
+        self.core.comm.run("run")
         self.core.comm.serve(dict(), dict())
 
 
