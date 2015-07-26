@@ -70,34 +70,18 @@ Next step (for KC705) is to flash MAC and IP addresses to the board:
 Installing from source
 ----------------------
 
-You can skip this if you already installed from conda.
+You can skip the first two steps if you already installed from conda.
 
-Preparing the core device FPGA board
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Preparing the build environment for the core device
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-These steps are required to generate bitstream (``.bit``) files, build the MiSoC BIOS and ARTIQ runtime, and flash FPGA boards. If the board is already flashed, you may skip those steps and go directly to `Installing the host-side software`.
-
-* Install the FPGA vendor tools (e.g. Xilinx ISE and/or Vivado):
-
-    * Get Xilinx tools from http://www.xilinx.com/support/download/index.htm. ISE can build bitstreams both for boards using the Spartan-6 (Pipistrello) and 7-series devices (KC705), while Vivado supports only boards using 7-series devices.
-
-    * The Pipistrello is supported by Webpack, the KC705 is not.
-
-    * During the Xilinx toolchain installation, uncheck ``Install cable drivers`` (they are not required as we use better and open source alternatives).
+These steps are required to generate code that can run on the core
+device. They are necessary both for building the MiSoC BIOS
+and the ARTIQ kernels.
 
 * Create a development directory: ::
 
         $ mkdir ~/artiq-dev
-
-* Install Migen: ::
-
-        $ cd ~/artiq-dev
-        $ git clone https://github.com/m-labs/migen
-        $ cd migen
-        $ python3 setup.py develop --user
-
-.. note::
-    The options ``develop`` and ``--user`` are for setup.py to install Migen in ``~/.local/lib/python3.4``.
 
 * Install OpenRISC binutils (or1k-linux-...): ::
 
@@ -132,6 +116,29 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
 .. note::
     Compilation of LLVM can take more than 30 min on some machines.
+
+Preparing the core device FPGA board
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+These steps are required to generate bitstream (``.bit``) files, build the MiSoC BIOS and ARTIQ runtime, and flash FPGA boards. If the board is already flashed, you may skip those steps and go directly to `Installing the host-side software`.
+
+* Install the FPGA vendor tools (e.g. Xilinx ISE and/or Vivado):
+
+    * Get Xilinx tools from http://www.xilinx.com/support/download/index.htm. ISE can build bitstreams both for boards using the Spartan-6 (Pipistrello) and 7-series devices (KC705), while Vivado supports only boards using 7-series devices.
+
+    * The Pipistrello is supported by Webpack, the KC705 is not.
+
+    * During the Xilinx toolchain installation, uncheck ``Install cable drivers`` (they are not required as we use better and open source alternatives).
+
+* Install Migen: ::
+
+        $ cd ~/artiq-dev
+        $ git clone https://github.com/m-labs/migen
+        $ cd migen
+        $ python3 setup.py develop --user
+
+.. note::
+    The options ``develop`` and ``--user`` are for setup.py to install Migen in ``~/.local/lib/python3.4``.
 
 .. _install-xc3sprog:
 
@@ -297,7 +304,7 @@ Installing the host-side software
         $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-add-all-targets.patch
         $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-rename.patch
         $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-build-as-debug-on-windows.patch
-        $ PATH=/usr/local/llvm-or1k/bin:$PATH sudo -E python3 setup.py install
+        $ LLVM_CONFIG=/usr/local/llvm-or1k/bin/llvm-config python3 setup.py install --user
 
 .. note::
     llvmlite is in development and its API is not stable yet. Commit ID ``11a8303d02e3d6dd2d1e0e9065701795cd8a979f`` is known to work.
