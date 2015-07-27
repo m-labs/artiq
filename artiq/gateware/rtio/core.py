@@ -331,12 +331,12 @@ class RTIO(Module):
         self.specials += AsyncResetSynchronizer(
             self.cd_rio,
             self.kcsrs.reset.storage | ResetSignal("rtio",
-                                                   allow_resetless=True))
+                                                   allow_reset_less=True))
         self.comb += self.cd_rio_phy.clk.eq(ClockSignal("rtio"))
         self.specials += AsyncResetSynchronizer(
             self.cd_rio_phy,
             self.kcsrs.reset_phy.storage | ResetSignal("rtio",
-                                                       allow_resetless=True))
+                                                       allow_reset_less=True))
 
         # Managers
         self.submodules.counter = _RTIOCounter(full_ts_width - fine_ts_width)
