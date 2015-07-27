@@ -1,4 +1,6 @@
 from migen.fhdl.std import *
+from migen.genlib.resetsync import AsyncResetSynchronizer
+from migen.genlib.cdc import MultiReg
 from migen.bank.description import *
 from migen.bank import wbgen
 from mibuild.generic_platform import *
@@ -12,13 +14,16 @@ from targets.kc705 import MiniSoC
 
 from artiq.gateware.soc import AMPSoC
 from artiq.gateware import rtio, nist_qc1, nist_qc2
-from artiq.gateware.rtio.phy import ttl_simple, dds
+from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, dds
 
 
 class _RTIOCRG(Module, AutoCSR):
     def __init__(self, platform, rtio_internal_clk):
         self._clock_sel = CSRStorage()
-        self.clock_domains.cd_rtio = ClockDomain(reset_less=True)
+        self._pll_reset = CSRStorage(reset=1)
+        self._pll_locked = CSRStatus()
+        self.clock_domains.cd_rtio = ClockDomain()
+        self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
 
         rtio_external_clk = Signal()
         user_sma_clock = platform.request("user_sma_clock")
@@ -26,11 +31,34 @@ class _RTIOCRG(Module, AutoCSR):
         self.specials += Instance("IBUFDS",
                                   i_I=user_sma_clock.p, i_IB=user_sma_clock.n,
                                   o_O=rtio_external_clk)
-        self.specials += Instance("BUFGMUX",
-                                  i_I0=rtio_internal_clk,
-                                  i_I1=rtio_external_clk,
-                                  i_S=self._clock_sel.storage,
-                                  o_O=self.cd_rtio.clk)
+
+        pll_locked = Signal()
+        rtio_clk = Signal()
+        rtiox4_clk = Signal()
+        self.specials += [
+            Instance("PLLE2_ADV",
+                     p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
+
+                     p_REF_JITTER1=0.01,
+                     p_CLKIN1_PERIOD=8.0, p_CLKIN2_PERIOD=8.0,
+                     i_CLKIN1=rtio_internal_clk, i_CLKIN2=rtio_external_clk,
+                     # Warning: CLKINSEL=0 means CLKIN2 is selected
+                     i_CLKINSEL=~self._clock_sel.storage,
+
+                     p_CLKFBOUT_MULT=8, p_DIVCLK_DIVIDE=1,
+                     i_CLKFBIN=self.cd_rtio.clk,
+                     i_RST=self._pll_reset.storage,
+
+                     p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0,
+                     o_CLKFBOUT=rtio_clk,
+                     p_CLKOUT1_DIVIDE=2, p_CLKOUT1_PHASE=0.0,
+                     o_CLKOUT1=rtiox4_clk),
+            Instance("BUFG", i_I=rtio_clk, o_O=self.cd_rtio.clk),
+            Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk),
+
+            AsyncResetSynchronizer(self.cd_rtio, ~pll_locked),
+            MultiReg(pll_locked, self._pll_locked.status)
+        ]
 
 
 class _NIST_QCx(MiniSoC, AMPSoC):
@@ -58,9 +86,10 @@ class _NIST_QCx(MiniSoC, AMPSoC):
             platform.request("user_led", 1)))
 
     def add_rtio(self, rtio_channels):
-        self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.pll_sys)
+        self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
         self.submodules.rtio = rtio.RTIO(rtio_channels)
         self.add_constant("RTIO_FINE_TS_WIDTH", self.rtio.fine_ts_width)
+        assert self.rtio.fine_ts_width <= 3
         self.add_constant("DDS_RTIO_CLK_RATIO", 8 >> self.rtio.fine_ts_width)
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
 
@@ -99,11 +128,11 @@ class NIST_QC1(_NIST_QCx):
 
         rtio_channels = []
         for i in range(2):
-            phy = ttl_simple.Inout(platform.request("pmt", i))
+            phy = ttl_serdes_7series.Inout_8X(platform.request("pmt", i))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
         for i in range(15):
-            phy = ttl_simple.Output(platform.request("ttl", i))
+            phy = ttl_serdes_7series.Output_8X(platform.request("ttl", i))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
@@ -138,11 +167,11 @@ class NIST_QC2(_NIST_QCx):
                 # TTL14 is for the clock generator
                 continue
             if i % 4 == 3:
-                phy = ttl_simple.Inout(platform.request("ttl", i))
+                phy = ttl_serdes_7series.Inout_8X(platform.request("ttl", i))
                 self.submodules += phy
                 rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
             else:
-                phy = ttl_simple.Output(platform.request("ttl", i))
+                phy = ttl_serdes_7series.Output_8X(platform.request("ttl", i))
                 self.submodules += phy
                 rtio_channels.append(rtio.Channel.from_phy(phy))
 
