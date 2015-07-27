@@ -12,9 +12,9 @@ class _OSERDESE2_8X(Module):
         # # #
 
         o = self.o
-        self.specials += Instance("OSERDESE2", p_DATA_RATE_OQ="DDR",
-                                  p_DATA_RATE_TQ="DDR", p_DATA_WIDTH=8,
-                                  p_TRISTATE_WIDTH=1,
+        self.specials += Instance("OSERDESE2",
+                                  p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="BUF",
+                                  p_DATA_WIDTH=8, p_TRISTATE_WIDTH=1,
                                   o_OQ=pad, o_TQ=self.t_out,
                                   i_CLK=ClockSignal("rtiox4"),
                                   i_CLKDIV=ClockSignal("rio_phy"),
