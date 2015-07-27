@@ -10,6 +10,11 @@ llvm.initialize_native_asmprinter()
 llvm.check_jit_execution()
 
 def main():
+    while sys.argv[1].startswith("+"):
+        if sys.argv[1] == "+load":
+            llvm.load_library_permanently(sys.argv[2])
+            del sys.argv[1:3]
+
     def process_diagnostic(diag):
         print("\n".join(diag.render()))
         if diag.level in ("fatal", "error"):
