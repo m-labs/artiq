@@ -39,6 +39,16 @@ _encode_map = {
     numpy.ndarray: "nparray"
 }
 
+_numpy_scalar = {
+    "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64",
+    "float16", "float32", "float64"
+}
+
+
+for _t in _numpy_scalar:
+    _encode_map[getattr(numpy, _t)] = "npscalar"
+
+
 class _Encoder:
     def __init__(self, pretty):
         self.pretty = pretty
@@ -114,6 +124,13 @@ class _Encoder:
         r += ")"
         return r
 
+    def encode_npscalar(self, x):
+        r = "npscalar("
+        r += "\"" + type(x).__name__ + "\", "
+        r += encode(base64.b64encode(x).decode())
+        r += ")"
+        return r
+
     def encode(self, x):
         return getattr(self, "encode_" + _encode_map[type(x)])(x)
 
@@ -131,6 +148,10 @@ def _nparray(shape, dtype, data):
     return a.reshape(shape)
 
 
+def _npscalar(ty, data):
+    return numpy.frombuffer(base64.b64decode(data), dtype=ty)[0]
+
+
 _eval_dict = {
     "__builtins__": None,
 
@@ -139,7 +160,8 @@ _eval_dict = {
     "true": True,
 
     "Fraction": Fraction,
-    "nparray": _nparray
+    "nparray": _nparray,
+    "npscalar": _npscalar
 }
 
 def decode(s):

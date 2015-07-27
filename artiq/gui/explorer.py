@@ -7,7 +7,7 @@ from pyqtgraph import LayoutWidget
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols import pyon
-from artiq.gui.tools import DictSyncModel
+from artiq.gui.tools import DictSyncModel, force_spinbox_value
 from artiq.gui.scan import ScanController
 
 
@@ -73,7 +73,7 @@ class _NumberEntry(QtGui.QDoubleSpinBox):
         if procdesc["unit"]:
             self.setSuffix(" " + procdesc["unit"])
         if "default" in procdesc:
-            self.setValue(procdesc["default"])
+            force_spinbox_value(self, procdesc["default"])
 
     def get_argument_value(self):
         return self.value()

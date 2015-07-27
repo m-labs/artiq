@@ -70,7 +70,52 @@ Next step (for KC705) is to flash MAC and IP addresses to the board:
 Installing from source
 ----------------------
 
-You can skip this if you already installed from conda.
+You can skip the first two steps if you already installed from conda.
+
+Preparing the build environment for the core device
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+These steps are required to generate code that can run on the core
+device. They are necessary both for building the MiSoC BIOS
+and the ARTIQ kernels.
+
+* Create a development directory: ::
+
+        $ mkdir ~/artiq-dev
+
+* Install OpenRISC binutils (or1k-linux-...): ::
+
+        $ cd ~/artiq-dev
+        $ wget https://ftp.gnu.org/gnu/binutils/binutils-2.25.1.tar.bz2
+        $ tar xvf binutils-2.25.1.tar.bz2
+        $ rm binutils-2.25.1.tar.bz2
+
+        $ mkdir binutils-2.25.1/build
+        $ cd binutils-2.25.1/build
+        $ ../configure --target=or1k-linux --prefix=/usr/local
+        $ make -j4
+        $ sudo make install
+
+.. note::
+    We're using an ``or1k-linux`` target because it is necessary to enable
+    shared library support in ``ld``, not because Linux is involved.
+
+* Install LLVM and Clang: ::
+
+        $ cd ~/artiq-dev
+        $ git clone https://github.com/openrisc/llvm-or1k
+        $ cd llvm-or1k/tools
+        $ git clone https://github.com/openrisc/clang-or1k clang
+        $ cd ..
+
+        $ mkdir build
+        $ cd build
+        $ cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local/llvm-or1k -DLLVM_TARGETS_TO_BUILD="OR1K;X86" -DCMAKE_BUILD_TYPE=Rel -DLLVM_ENABLE_ASSERTIONS=ON
+        $ make -j4
+        $ sudo make install
+
+.. note::
+    Compilation of LLVM can take more than 30 min on some machines.
 
 Preparing the core device FPGA board
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -85,10 +130,6 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
     * During the Xilinx toolchain installation, uncheck ``Install cable drivers`` (they are not required as we use better and open source alternatives).
 
-* Create a development directory: ::
-
-        $ mkdir ~/artiq-dev
-
 * Install Migen: ::
 
         $ cd ~/artiq-dev
@@ -98,31 +139,6 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
 .. note::
     The options ``develop`` and ``--user`` are for setup.py to install Migen in ``~/.local/lib/python3.4``.
-
-* Install OpenRISC GCC/binutils toolchain (or1k-elf-...): ::
-
-        $ cd ~/artiq-dev
-        $ git clone https://github.com/openrisc/or1k-src
-        $ cd or1k-src
-        $ mkdir build
-        $ cd build
-        $ ../configure --target=or1k-elf --enable-shared --disable-itcl \
-                       --disable-tk --disable-tcl --disable-winsup \
-                       --disable-gdbtk --disable-libgui --disable-rda \
-                       --disable-sid --disable-sim --disable-gdb \
-                       --disable-newlib --disable-libgloss --disable-werror
-        $ make -j4
-        $ sudo make install
-
-        $ cd ~/artiq-dev
-        $ git clone https://github.com/openrisc/or1k-gcc
-        $ cd or1k-gcc
-        $ mkdir build
-        $ cd build
-        $ ../configure --target=or1k-elf --enable-languages=c \
-                       --disable-shared --disable-libssp
-        $ make -j4
-        $ sudo make install
 
 .. _install-xc3sprog:
 
@@ -181,6 +197,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
     ::
 
         $ cd ~/artiq-dev/misoc
+        $ export PATH=$PATH:/usr/local/llvm-or1k/bin
 
     * For Pipistrello::
 
@@ -279,19 +296,7 @@ To flash the ``idle`` kernel:
 Installing the host-side software
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* Install LLVM and the llvmlite Python bindings: ::
-
-        $ cd ~/artiq-dev
-        $ git clone https://github.com/openrisc/llvm-or1k
-        $ cd llvm-or1k/tools
-        $ git clone https://github.com/openrisc/clang-or1k clang
-
-        $ cd ..
-        $ mkdir build
-        $ cd build
-        $ cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local/llvm-or1k -DLLVM_TARGETS_TO_BUILD="OR1K;X86" -DCMAKE_BUILD_TYPE=Debug
-        $ make -j4
-        $ sudo make install
+* Install the llvmlite Python bindings: ::
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/numba/llvmlite
@@ -299,13 +304,10 @@ Installing the host-side software
         $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-add-all-targets.patch
         $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-rename.patch
         $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-build-as-debug-on-windows.patch
-        $ PATH=/usr/local/llvm-or1k/bin:$PATH sudo -E python3 setup.py install
+        $ LLVM_CONFIG=/usr/local/llvm-or1k/bin/llvm-config python3 setup.py install --user
 
 .. note::
     llvmlite is in development and its API is not stable yet. Commit ID ``11a8303d02e3d6dd2d1e0e9065701795cd8a979f`` is known to work.
-
-.. note::
-    Compilation of LLVM can take more than 30 min on some machines.
 
 * Install ARTIQ: ::
 

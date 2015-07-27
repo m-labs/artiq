@@ -1,6 +1,8 @@
 from quamash import QtGui
 from pyqtgraph import LayoutWidget
 
+from artiq.gui.tools import force_spinbox_value
+
 
 class _Range(LayoutWidget):
     def __init__(self, global_min, global_max, global_step, unit):
@@ -33,9 +35,9 @@ class _Range(LayoutWidget):
         self.addWidget(self.npoints, 0, 5)
 
     def set_values(self, min, max, npoints):
-        self.min.setValue(min)
-        self.max.setValue(max)
-        self.npoints.setValue(npoints)
+        force_spinbox_value(self.min, min)
+        force_spinbox_value(self.max, max)
+        force_spinbox_value(self.npoints, npoints)
 
     def get_values(self):
         return {
@@ -97,13 +99,13 @@ class ScanController(LayoutWidget):
             d = procdesc["default"]
             if d["ty"] == "NoScan":
                 self.noscan.setChecked(True)
-                self.v_noscan.setValue(d["value"])
+                force_spinbox_value(self.v_noscan, d["value"])
             elif d["ty"] == "LinearScan":
                 self.linear.setChecked(True)
-                self.v_linear.set_values(d["min"], d["max"], d["step"])
+                self.v_linear.set_values(d["min"], d["max"], d["npoints"])
             elif d["ty"] == "RandomScan":
                 self.random.setChecked(True)
-                self.v_random.set_values(d["min"], d["max"], d["step"])
+                self.v_random.set_values(d["min"], d["max"], d["npoints"])
             elif d["ty"] == "ExplicitScan":
                 self.explicit.setChecked(True)
                 self.v_explicit.insert(" ".join(

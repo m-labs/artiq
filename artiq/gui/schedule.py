@@ -46,9 +46,10 @@ class _ScheduleModel(DictSyncModel):
 
 
 class ScheduleDock(dockarea.Dock):
-    def __init__(self, schedule_ctl):
+    def __init__(self, status_bar, schedule_ctl):
         dockarea.Dock.__init__(self, "Schedule", size=(1000, 300))
 
+        self.status_bar = status_bar
         self.schedule_ctl = schedule_ctl
 
         self.table = QtGui.QTableView()
@@ -86,4 +87,5 @@ class ScheduleDock(dockarea.Dock):
         if idx:
             row = idx[0].row()
             rid = self.table_model.row_to_key[row]
+            self.status_bar.showMessage("Deleted RID {}".format(rid))
             asyncio.async(self.delete(rid))

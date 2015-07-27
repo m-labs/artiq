@@ -143,6 +143,7 @@ static void regular_main(void)
     session_end();
     while(1) {
         lwip_service();
+        kloader_service_essential_kmsg();
         kserver_service();
     }
 }
@@ -201,8 +202,10 @@ static void regular_main(void)
 
     /* Open the session for the serial control. */
     session_start();
-    while(1)
+    while(1) {
+        kloader_service_essential_kmsg();
         serial_service();
+    }
 }
 
 #endif

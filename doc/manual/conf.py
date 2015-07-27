@@ -22,7 +22,9 @@ from unittest.mock import MagicMock
 class Mock(MagicMock):
     @classmethod
     def __getattr__(cls, name):
-            return Mock()
+        if name == "_mock_methods":
+            return None
+        return Mock()
 
 
 mock_modules = ["artiq.gui.moninj", "quamash", "pyqtgraph", "matplotlib"]

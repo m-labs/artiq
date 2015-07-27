@@ -4,6 +4,7 @@
 #include "log.h"
 #include "flash_storage.h"
 #include "mailbox.h"
+#include "messages.h"
 #include "elf_loader.h"
 #include "services.h"
 #include "kloader.h"
@@ -121,4 +122,66 @@ void kloader_stop(void)
 {
     kernel_cpu_reset_write(1);
     mailbox_acknowledge();
+}
+
+int kloader_validate_kpointer(void *p)
+{
+    unsigned int v = (unsigned int)p;
+    if((v < 0x40400000) || (v > (0x4fffffff - 1024*1024))) {
+        log("Received invalid pointer from kernel CPU: 0x%08x", v);
+        return 0;
+    }
+    return 1;
+}
+
+int kloader_is_essential_kmsg(int msgtype)
+{
+    switch(msgtype) {
+        case MESSAGE_TYPE_NOW_INIT_REQUEST:
+        case MESSAGE_TYPE_NOW_SAVE:
+        case MESSAGE_TYPE_LOG:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+long long int now;
+
+void kloader_service_essential_kmsg(void)
+{
+    struct msg_base *umsg;
+
+    umsg = mailbox_receive();
+    if(umsg) {
+        if(!kloader_validate_kpointer(umsg))
+            return;
+        switch(umsg->type) {
+            case MESSAGE_TYPE_NOW_INIT_REQUEST: {
+                struct msg_now_init_reply reply;
+
+                reply.type = MESSAGE_TYPE_NOW_INIT_REPLY;
+                reply.now = now;
+                mailbox_send_and_wait(&reply);
+                break;
+            }
+            case MESSAGE_TYPE_NOW_SAVE: {
+                struct msg_now_save *msg = (struct msg_now_save *)umsg;
+
+                now = msg->now;
+                mailbox_acknowledge();
+                break;
+            }
+            case MESSAGE_TYPE_LOG: {
+                struct msg_log *msg = (struct msg_log *)umsg;
+
+                log_va(msg->fmt, msg->args);
+                mailbox_acknowledge();
+                break;
+            }
+            default:
+                /* handled elsewhere */
+                break;
+        }
+    }
 }

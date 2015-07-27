@@ -1,10 +1,23 @@
 from quamash import QtCore
 
 
+def force_spinbox_value(spinbox, value):
+    if spinbox.minimum() > value:
+        spinbox.setMinimum(value)
+    if spinbox.maximum() < value:
+        spinbox.setMaximum(value)
+    spinbox.setValue(value)
+
+
 def short_format(v):
     t = type(v)
     if t is int or t is float:
         return str(v)
+    elif t is str:
+        if len(v) < 15:
+            return "\"" + v + "\""
+        else:
+            return "\"" + v[:12] + "\"..."
     else:
         r = t.__name__
         if t is list or t is dict or t is set:

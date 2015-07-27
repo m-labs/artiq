@@ -12,6 +12,15 @@ class _LogModel(ListSyncModel):
         ListSyncModel.__init__(self,
             ["RID", "Message"],
             parent, init)
+        self.fixed_font = QtGui.QFont()
+        self.fixed_font.setFamily("Monospace")
+
+    def data(self, index, role):
+        if (role == QtCore.Qt.FontRole and index.isValid()
+                and index.column() == 1):
+            return self.fixed_font
+        else:
+            return ListSyncModel.data(self, index, role)
 
     def convert(self, v, column):
         return v[column]

@@ -18,6 +18,7 @@ from artiq.gui.results import ResultsDock
 from artiq.gui.parameters import ParametersDock
 from artiq.gui.schedule import ScheduleDock
 from artiq.gui.log import LogDock
+from artiq.gui.console import ConsoleDock
 
 
 data_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)),
@@ -99,7 +100,7 @@ def main():
     area.addDock(d_params, "above", d_results)
     area.addDock(d_explorer, "above", d_params)
 
-    d_schedule = ScheduleDock(schedule_ctl)
+    d_schedule = ScheduleDock(status_bar, schedule_ctl)
     loop.run_until_complete(d_schedule.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_schedule.sub_close()))
@@ -109,7 +110,19 @@ def main():
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_log.sub_close()))
 
-    area.addDock(d_log, "bottom")
+    pdb = AsyncioClient()
+    loop.run_until_complete(pdb.connect_rpc(
+        args.server, args.port_control, "master_pdb"))
+    atexit.register(lambda: pdb.close_rpc())
+    def _get_parameter(k, v):
+        asyncio.async(pdb.set(k, v))
+    d_console = ConsoleDock(
+        d_params.get_parameter,
+        _get_parameter,
+        d_results.get_result)
+
+    area.addDock(d_console, "bottom")
+    area.addDock(d_log, "above", d_console)
     area.addDock(d_schedule, "above", d_log)
 
     win.show()
