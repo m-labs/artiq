@@ -546,13 +546,13 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 has_catchall = True
 
             self.current_block = handler
-            handlers.append(handler)
-
             if handler_node.name is not None:
                 exn = self.append(ir.Builtin("exncast", [landingpad], handler_node.name_type))
                 self._set_local(handler_node.name, exn)
-
             self.visit(handler_node.body)
+            post_handler = self.current_block
+
+            handlers.append((handler, post_handler))
 
         if any(node.finalbody):
             finalizer = self.add_block("finally")
@@ -580,12 +580,12 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 # to execute.
                 handler = self.add_block("handler.catchall")
                 landingpad.add_clause(handler, None)
-                handlers.append(handler)
+                handlers.append((handler, handler))
 
-            for handler in handlers:
-                if not handler.is_terminated():
-                    handler.append(ir.SetLocal(final_state, ".k", tail))
-                    handler.append(ir.Branch(tail))
+            for handler, post_handler in handlers:
+                if not post_handler.is_terminated():
+                    post_handler.append(ir.SetLocal(final_state, ".k", tail))
+                    post_handler.append(ir.Branch(tail))
 
             if not post_finalizer.is_terminated():
                 dest = post_finalizer.append(ir.GetLocal(final_state, ".k"))
@@ -594,9 +594,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
             if not body.is_terminated():
                 body.append(ir.Branch(tail))
 
-            for handler in handlers:
-                if not handler.is_terminated():
-                    handler.append(ir.Branch(tail))
+            for handler, post_handler in handlers:
+                if not post_handler.is_terminated():
+                    post_handler.append(ir.Branch(tail))
 
     # TODO: With
 

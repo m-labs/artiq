@@ -229,7 +229,7 @@ void __artiq_raise(struct artiq_exception *artiq_exn) {
 _Unwind_Reason_Code __artiq_personality(
         int version, _Unwind_Action actions, uint64_t exceptionClass,
         struct _Unwind_Exception *exceptionObject, struct _Unwind_Context *context) {
-  EH_LOG("entry (actions =%s%s%s%s; class=%08lx; object=%p, context=%p)",
+  EH_LOG("===> entry (actions =%s%s%s%s; class=%08lx; object=%p, context=%p)",
          (actions & _UA_SEARCH_PHASE ? " search" : ""),
          (actions & _UA_CLEANUP_PHASE ? " cleanup" : ""),
          (actions & _UA_HANDLER_FRAME ? " handler" : ""),
@@ -240,7 +240,7 @@ _Unwind_Reason_Code __artiq_personality(
 
   struct artiq_raised_exception *inflight =
           (struct artiq_raised_exception*)exceptionObject;
-  EH_LOG("exception name=%s",
+  EH_LOG("=> exception name=%s",
          inflight->artiq.name);
 
   // Get a pointer to LSDA. If there's no LSDA, this function doesn't
@@ -259,7 +259,7 @@ _Unwind_Reason_Code __artiq_personality(
   uintptr_t funcStart = _Unwind_GetRegionStart(context);
   uintptr_t pcOffset = pc - funcStart;
 
-  EH_LOG("pc=%p (%p+%p)", (void*)pc, (void*)funcStart, (void*)pcOffset);
+  EH_LOG("=> pc=%p (%p+%p)", (void*)pc, (void*)funcStart, (void*)pcOffset);
 
   // Parse LSDA header.
   uint8_t lpStartEncoding = *lsda++;
@@ -286,7 +286,7 @@ _Unwind_Reason_Code __artiq_personality(
   const uint8_t *actionTableStart = callSiteTableEnd;
   const uint8_t *callSitePtr = callSiteTableStart;
 
-  while (callSitePtr < callSiteTableEnd) {
+  while(callSitePtr < callSiteTableEnd) {
     uintptr_t start = readEncodedPointer(&callSitePtr,
                                          callSiteEncoding);
     uintptr_t length = readEncodedPointer(&callSitePtr,
@@ -303,8 +303,8 @@ _Unwind_Reason_Code __artiq_personality(
       continue;
     }
 
-    if ((start <= pcOffset) && (pcOffset < (start + length))) {
-      EH_LOG0("call site matches pc");
+    if((start <= pcOffset) && (pcOffset < (start + length))) {
+      EH_LOG0("=> call site matches pc");
 
       int exceptionMatched = 0;
       if(actionValue) {
@@ -329,7 +329,7 @@ _Unwind_Reason_Code __artiq_personality(
                  encodingSize, typeInfoPtrPtr, (void*)typeInfoPtr);
           EH_LOG("typeInfo=%s", (char*)typeInfoPtr);
 
-          if(inflight->artiq.typeinfo == typeInfoPtr) {
+          if(typeInfoPtr == 0 || inflight->artiq.typeinfo == typeInfoPtr) {
             EH_LOG0("matching action found");
             exceptionMatched = 1;
             break;
@@ -342,8 +342,8 @@ _Unwind_Reason_Code __artiq_personality(
         }
       }
 
-      if (!(actions & _UA_SEARCH_PHASE)) {
-        EH_LOG0("jumping to landing pad");
+      if(!(actions & _UA_SEARCH_PHASE)) {
+        EH_LOG0("=> jumping to landing pad");
 
         _Unwind_SetGR(context, __builtin_eh_return_data_regno(0),
                       (uintptr_t)exceptionObject);
@@ -353,11 +353,11 @@ _Unwind_Reason_Code __artiq_personality(
 
         return _URC_INSTALL_CONTEXT;
       } else if(exceptionMatched) {
-        EH_LOG0("handler found");
+        EH_LOG0("=> handler found");
 
         return _URC_HANDLER_FOUND;
       } else {
-        EH_LOG0("handler not found");
+        EH_LOG0("=> handler not found");
 
         return _URC_CONTINUE_UNWIND;
       }
