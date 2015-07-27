@@ -253,6 +253,10 @@ int main(void)
     puts("Press 't' to enter test mode...");
     blink_led();
 
+#ifdef CSR_RTIO_CRG_PLL_RESET_ADDR
+    rtio_crg_pll_reset_write(0);
+#endif
+
     if(check_test_mode()) {
         puts("Entering test mode.");
         test_main();

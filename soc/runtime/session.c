@@ -128,6 +128,22 @@ static int check_flash_storage_key_len(char *key, unsigned int key_len)
     return 1;
 }
 
+static void switch_clock(int clk)
+{
+    int current_clk;
+
+    current_clk = rtio_crg_clock_sel_read();
+    if(clk == current_clk)
+        return;
+#ifdef CSR_RTIO_CRG_PLL_RESET_ADDR
+    rtio_crg_pll_reset_write(1);
+#endif
+    rtio_crg_clock_sel_write(clk);
+#ifdef CSR_RTIO_CRG_PLL_RESET_ADDR
+    rtio_crg_pll_reset_write(0);
+#endif
+}
+
 static int process_input(void)
 {
     switch(buffer_in[8]) {
@@ -154,7 +170,7 @@ static int process_input(void)
                 submit_output(9);
                 break;
             }
-            rtio_crg_clock_sel_write(buffer_in[9]);
+            switch_clock(buffer_in[9]);
             buffer_out[8] = REMOTEMSG_TYPE_CLOCK_SWITCH_COMPLETED;
             submit_output(9);
             break;
