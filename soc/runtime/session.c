@@ -128,20 +128,30 @@ static int check_flash_storage_key_len(char *key, unsigned int key_len)
     return 1;
 }
 
-static void switch_clock(int clk)
+static int switch_clock(int clk)
 {
     int current_clk;
 
     current_clk = rtio_crg_clock_sel_read();
-    if(clk == current_clk)
-        return;
+    if(clk == current_clk) {
+#ifdef CSR_RTIO_CRG_PLL_RESET_ADDR
+        busywait_us(150);
+        if(!rtio_crg_pll_locked_read())
+            return 0;
+#endif
+        return 1;
+    }
 #ifdef CSR_RTIO_CRG_PLL_RESET_ADDR
     rtio_crg_pll_reset_write(1);
 #endif
     rtio_crg_clock_sel_write(clk);
 #ifdef CSR_RTIO_CRG_PLL_RESET_ADDR
     rtio_crg_pll_reset_write(0);
+    busywait_us(150);
+    if(!rtio_crg_pll_locked_read())
+        return 0;
 #endif
+    return 1;
 }
 
 static int process_input(void)
@@ -170,8 +180,10 @@ static int process_input(void)
                 submit_output(9);
                 break;
             }
-            switch_clock(buffer_in[9]);
-            buffer_out[8] = REMOTEMSG_TYPE_CLOCK_SWITCH_COMPLETED;
+            if(switch_clock(buffer_in[9]))
+                buffer_out[8] = REMOTEMSG_TYPE_CLOCK_SWITCH_COMPLETED;
+            else
+                buffer_out[8] = REMOTEMSG_TYPE_CLOCK_SWITCH_FAILED;
             submit_output(9);
             break;
         case REMOTEMSG_TYPE_LOAD_OBJECT:
@@ -543,10 +555,19 @@ void session_poll(void **data, int *len)
 {
     int l;
 
-    if((user_kernel_state == USER_KERNEL_RUNNING) && watchdog_expired()) {
-        log("Watchdog expired");
-        *len = -1;
-        return;
+    if(user_kernel_state == USER_KERNEL_RUNNING) {
+        if(watchdog_expired()) {
+            log("Watchdog expired");
+            *len = -1;
+            return;
+        }
+#ifdef CSR_RTIO_CRG_PLL_RESET_ADDR
+        if(!rtio_crg_pll_locked_read()) {
+            log("RTIO clock failure");
+            *len = -1;
+            return;
+        }
+#endif
     }
 
     l = get_out_packet_len();

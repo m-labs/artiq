@@ -26,6 +26,16 @@ long long int clock_get_ms(void)
     return clock_ms;
 }
 
+void busywait_us(long long int us)
+{
+    long long int threshold;
+
+    timer0_update_value_write(1);
+    threshold = timer0_value_read() - us*(long long int)identifier_frequency_read()/1000000LL;
+    while(timer0_value_read() > threshold)
+        timer0_update_value_write(1);
+}
+
 struct watchdog {
     int active;
     long long int threshold;
