@@ -26,6 +26,17 @@ SECTIONS
 		_etext = .;
 	} > runtime
 
+	.got :
+	{
+		_GLOBAL_OFFSET_TABLE_ = .;
+		*(.got)
+	} > runtime
+
+	.got.plt :
+	{
+		*(.got.plt)
+	} > runtime
+
 	.rodata :
 	{
 		. = ALIGN(4);
@@ -41,7 +52,6 @@ SECTIONS
 		_fdata = .;
 		*(.data .data.* .gnu.linkonce.d.*)
 		*(.data1)
-		_gp = ALIGN(16);
 		*(.sdata .sdata.* .gnu.linkonce.s.*)
 		_edata = .;
 	} > runtime
