@@ -30,6 +30,19 @@ void __artiq_raise(struct artiq_exception *artiq_exn)
 void __artiq_reraise()
         __attribute__((noreturn));
 
+#define artiq_raise_from_c(exnname, exnmsg, exnparam0, exnparam1, exnparam2) \
+        do { \
+          struct artiq_exception exn = { \
+            .name = exnname, \
+            .message = exnmsg, \
+            .param = { exnparam0, exnparam1, exnparam2 }, \
+            .file = __FILE__, \
+            .line = __LINE__, \
+            .column = 0 \
+          }; \
+          __artiq_raise(&exn); \
+        } while(0)
+
 /* Called by the runtime */
 void __artiq_terminate(struct artiq_exception *artiq_exn,
                        struct artiq_backtrace_item *backtrace,
