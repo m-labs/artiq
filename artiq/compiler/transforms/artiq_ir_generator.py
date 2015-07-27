@@ -472,7 +472,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.append(ir.SetAttr(exn, "__file__", loc_file))
         self.append(ir.SetAttr(exn, "__line__", loc_line))
         self.append(ir.SetAttr(exn, "__col__", loc_column))
-        self.append(ir.Raise(exn))
+        if self.unwind_target:
+            self.append(ir.Raise(exn, self.unwind_target))
+        else:
+            self.append(ir.Raise(exn))
 
     def visit_Raise(self, node):
         self.raise_exn(self.visit(node.exc))

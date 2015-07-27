@@ -582,17 +582,30 @@ class LLVMIRGenerator:
         return self.llbuilder.unreachable()
 
     def process_Raise(self, insn):
-        arg = self.map(insn.operands[0])
-        llinsn = self.llbuilder.call(self.llbuiltin("__artiq_raise"), [arg],
-                                     name=insn.name)
+        llexn = self.map(insn.value())
+        if insn.exception_target() is not None:
+            llnormalblock = self.llfunction.append_basic_block("unreachable")
+            llnormalblock.terminator = ll.Unreachable(llnormalblock)
+            llnormalblock.instructions.append(llnormalblock.terminator)
+
+            llunwindblock = self.map(insn.exception_target())
+            llinsn = self.llbuilder.invoke(self.llbuiltin("__artiq_raise"), [llexn],
+                                           llnormalblock, llunwindblock,
+                                           name=insn.name)
+        else:
+            llinsn = self.llbuilder.call(self.llbuiltin("__artiq_raise"), [llexn],
+                                         name=insn.name)
+            self.llbuilder.unreachable()
         llinsn.attributes.add('noreturn')
-        self.llbuilder.unreachable()
         return llinsn
 
     def process_LandingPad(self, insn):
-        lllandingpad = self.llbuilder.landingpad(ll.LiteralStructType([ll.IntType(8).as_pointer()]),
+        # Layout on return from landing pad: {%_Unwind_Exception*, %Exception*}
+        lllandingpadty = ll.LiteralStructType([ll.IntType(8).as_pointer(),
+                                               ll.IntType(8).as_pointer()])
+        lllandingpad = self.llbuilder.landingpad(lllandingpadty,
                                                  self.llbuiltin("__artiq_personality"))
-        llrawexn = self.llbuilder.extract_value(lllandingpad, 0)
+        llrawexn = self.llbuilder.extract_value(lllandingpad, 1)
         llexn = self.llbuilder.bitcast(llrawexn, self.llty_of_type(insn.type))
         llexnnameptr = self.llbuilder.gep(llexn, [self.llindex(0), self.llindex(0)])
         llexnname = self.llbuilder.load(llexnnameptr)

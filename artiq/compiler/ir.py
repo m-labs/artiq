@@ -979,16 +979,25 @@ class Raise(Terminator):
 
     """
     :param value: (:class:`Value`) exception value
+    :param exn: (:class:`BasicBlock`) exceptional target
     """
-    def __init__(self, value, name=""):
+    def __init__(self, value, exn=None, name=""):
         assert isinstance(value, Value)
-        super().__init__([value], builtins.TNone(), name)
+        if exn is not None:
+            assert isinstance(exn, BasicBlock)
+            operands = [value, exn]
+        else:
+            operands = [value]
+        super().__init__(operands, builtins.TNone(), name)
 
     def opcode(self):
         return "raise"
 
     def value(self):
         return self.operands[0]
+
+    def exception_target(self):
+        return self.operands[1]
 
 class Invoke(Terminator):
     """

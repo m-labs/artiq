@@ -5,7 +5,7 @@
 
 struct artiq_exception {
   union {
-    void *typeinfo;
+    uintptr_t typeinfo;
     const char *name;
   };
   const char *file;
