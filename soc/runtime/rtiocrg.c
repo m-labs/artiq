@@ -24,8 +24,11 @@ void rtiocrg_init(void)
     } else
         printf("WARNING: unknown startup_clock entry in flash storage\n");
 
-    if(!rtiocrg_switch_clock(clk))
+    if(!rtiocrg_switch_clock(clk)) {
         printf("WARNING: startup RTIO clock failed\n");
+        printf("WARNING: this may cause the system initialization to fail\n");
+        printf("WARNING: fix clocking and reset the device\n");
+    }
 }
 
 int rtiocrg_check(void)
