@@ -300,8 +300,7 @@ class _KernelCSRs(AutoCSR):
 
 
 class RTIO(Module):
-    def __init__(self, channels, clk_freq, full_ts_width=63,
-                 guard_io_cycles=20):
+    def __init__(self, channels, full_ts_width=63, guard_io_cycles=20):
         data_width = max(rtlink.get_data_width(c.interface)
                          for c in channels)
         address_width = max(rtlink.get_address_width(c.interface)

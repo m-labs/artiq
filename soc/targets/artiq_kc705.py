@@ -58,8 +58,7 @@ class _NIST_QCx(MiniSoC, AMPSoC):
 
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.pll_sys)
-        self.submodules.rtio = rtio.RTIO(rtio_channels,
-                                         clk_freq=125000000)
+        self.submodules.rtio = rtio.RTIO(rtio_channels)
         self.add_constant("RTIO_FINE_TS_WIDTH", self.rtio.fine_ts_width)
         self.add_constant("DDS_RTIO_CLK_RATIO", 8 >> self.rtio.fine_ts_width)
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)

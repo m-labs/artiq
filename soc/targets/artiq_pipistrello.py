@@ -128,8 +128,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
 
         # RTIO core
         self.submodules.rtio_crg = _RTIOCRG(platform, self.clk_freq)
-        self.submodules.rtio = rtio.RTIO(rtio_channels,
-                                         clk_freq=125000000)
+        self.submodules.rtio = rtio.RTIO(rtio_channels)
         self.add_constant("RTIO_FINE_TS_WIDTH", self.rtio.fine_ts_width)
         self.add_constant("DDS_RTIO_CLK_RATIO", 8 >> self.rtio.fine_ts_width)
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
