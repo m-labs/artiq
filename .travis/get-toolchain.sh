@@ -15,7 +15,7 @@ done
 for a in $archives
 do
   wget $a
-  (cd packages && tar xvf ../$(basename $a))
+  (cd packages && tar xf ../$(basename $a))
 done
 
 export PATH=$PWD/packages/usr/local/llvm-or1k/bin:$PWD/packages/usr/local/bin:$PWD/packages/usr/bin:$PATH
