@@ -200,11 +200,17 @@ static uintptr_t readEncodedPointer(const uint8_t **data, uint8_t encoding) {
 #define ARTIQ_EXCEPTION_CLASS 0x4152545141525451LL // 'ARTQARTQ'
 
 static void __artiq_cleanup(_Unwind_Reason_Code reason, struct _Unwind_Exception *exc);
+static _Unwind_Reason_Code __artiq_uncaught_exception(
+        int version, _Unwind_Action actions, uint64_t exceptionClass,
+        struct _Unwind_Exception *exceptionObject, struct _Unwind_Context *context,
+        void *stop_parameter);
 
 struct artiq_raised_exception {
   struct _Unwind_Exception unwind;
   struct artiq_exception artiq;
   int handled;
+  struct artiq_backtrace_item backtrace[1024];
+  size_t backtrace_size;
 };
 
 static struct artiq_raised_exception inflight;
@@ -216,13 +222,17 @@ void __artiq_raise(struct artiq_exception *artiq_exn) {
   inflight.unwind.exception_class = ARTIQ_EXCEPTION_CLASS;
   inflight.unwind.exception_cleanup = &__artiq_cleanup;
   inflight.handled = 0;
+  inflight.backtrace_size = 0;
 
   _Unwind_Reason_Code result = _Unwind_RaiseException(&inflight.unwind);
   EH_ASSERT((result == _URC_END_OF_STACK) &&
             "Unexpected error during unwinding");
 
   // If we're here, there are no handlers, only cleanups.
-  __artiq_terminate(&inflight.artiq);
+  // Force unwinding anyway; we shall stop at nothing except the end of stack.
+  result = _Unwind_ForcedUnwind(&inflight.unwind, &__artiq_uncaught_exception,
+                                NULL);
+  EH_FAIL("_Unwind_ForcedUnwind should not return");
 }
 
 void __artiq_reraise() {
@@ -238,7 +248,7 @@ void __artiq_reraise() {
   }
 }
 
-/* Catching */
+/* Unwinding */
 
 // The code below does not refer to the `inflight` global.
 
@@ -248,6 +258,34 @@ static void __artiq_cleanup(_Unwind_Reason_Code reason, struct _Unwind_Exception
   // The in-flight exception is statically allocated, so we don't need to free it.
   // But, we clear it to mark it as processed.
   memset(&inflight->artiq, 0, sizeof(struct artiq_exception));
+}
+
+static _Unwind_Reason_Code __artiq_uncaught_exception(
+        int version, _Unwind_Action actions, uint64_t exceptionClass,
+        struct _Unwind_Exception *exceptionObject, struct _Unwind_Context *context,
+        void *stop_parameter) {
+  struct artiq_raised_exception *inflight =
+          (struct artiq_raised_exception*)exceptionObject;
+  EH_ASSERT(inflight->backtrace_size <
+            sizeof(inflight->backtrace) / sizeof(inflight->backtrace[0]) &&
+            "Out of space for backtrace");
+
+  uintptr_t pc = _Unwind_GetIP(context);
+  uintptr_t funcStart = _Unwind_GetRegionStart(context);
+  uintptr_t pcOffset = pc - funcStart;
+  EH_LOG("===> uncaught (pc=%p+%p)", (void*)funcStart, (void*)pcOffset);
+
+  inflight->backtrace[inflight->backtrace_size].function = funcStart;
+  inflight->backtrace[inflight->backtrace_size].offset = pcOffset;
+  ++inflight->backtrace_size;
+
+  if(actions & _UA_END_OF_STACK) {
+    EH_LOG0("end of stack");
+    __artiq_terminate(&inflight->artiq, inflight->backtrace, inflight->backtrace_size);
+  } else {
+    EH_LOG0("continue");
+    return _URC_NO_REASON;
+  }
 }
 
 _Unwind_Reason_Code __artiq_personality(
