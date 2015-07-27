@@ -60,6 +60,10 @@ class _RTIOCRG(Module, AutoCSR):
             MultiReg(pll_locked, self._pll_locked.status)
         ]
 
+        # 62.5MHz when using internal RTIO clock
+        ext_clkout = platform.request("user_sma_gpio_p")
+        self.sync.rtio += ext_clkout.eq(~ext_clkout)
+
 
 class _NIST_QCx(MiniSoC, AMPSoC):
     csr_map = {
