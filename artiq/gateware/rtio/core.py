@@ -118,8 +118,10 @@ class _OutputManager(Module):
         sequence_error = Signal()
         nop = Signal()
         self.sync.rsys += [
-            replace.eq(self.ev.timestamp == buf.timestamp[fine_ts_width:]),
-            sequence_error.eq(self.ev.timestamp < buf.timestamp[fine_ts_width:])
+            replace.eq(self.ev.timestamp[fine_ts_width:] \
+                       == buf.timestamp[fine_ts_width:]),
+            sequence_error.eq(self.ev.timestamp[fine_ts_width:] \
+                              < buf.timestamp[fine_ts_width:])
         ]
         if interface.suppress_nop:
             # disable NOP at reset: do not suppress a first write with all 0s
