@@ -12,6 +12,7 @@
 #include "kloader.h"
 #include "exceptions.h"
 #include "flash_storage.h"
+#include "rtiocrg.h"
 #include "session.h"
 
 #define BUFFER_IN_SIZE (1024*1024)
@@ -128,32 +129,6 @@ static int check_flash_storage_key_len(char *key, unsigned int key_len)
     return 1;
 }
 
-static int switch_clock(int clk)
-{
-    int current_clk;
-
-    current_clk = rtio_crg_clock_sel_read();
-    if(clk == current_clk) {
-#ifdef CSR_RTIO_CRG_PLL_RESET_ADDR
-        busywait_us(150);
-        if(!rtio_crg_pll_locked_read())
-            return 0;
-#endif
-        return 1;
-    }
-#ifdef CSR_RTIO_CRG_PLL_RESET_ADDR
-    rtio_crg_pll_reset_write(1);
-#endif
-    rtio_crg_clock_sel_write(clk);
-#ifdef CSR_RTIO_CRG_PLL_RESET_ADDR
-    rtio_crg_pll_reset_write(0);
-    busywait_us(150);
-    if(!rtio_crg_pll_locked_read())
-        return 0;
-#endif
-    return 1;
-}
-
 static int process_input(void)
 {
     switch(buffer_in[8]) {
@@ -180,7 +155,7 @@ static int process_input(void)
                 submit_output(9);
                 break;
             }
-            if(switch_clock(buffer_in[9]))
+            if(rtiocrg_switch_clock(buffer_in[9]))
                 buffer_out[8] = REMOTEMSG_TYPE_CLOCK_SWITCH_COMPLETED;
             else
                 buffer_out[8] = REMOTEMSG_TYPE_CLOCK_SWITCH_FAILED;
@@ -561,13 +536,11 @@ void session_poll(void **data, int *len)
             *len = -1;
             return;
         }
-#ifdef CSR_RTIO_CRG_PLL_RESET_ADDR
-        if(!rtio_crg_pll_locked_read()) {
+        if(!rtiocrg_check()) {
             log("RTIO clock failure");
             *len = -1;
             return;
         }
-#endif
     }
 
     l = get_out_packet_len();

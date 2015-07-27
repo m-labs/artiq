@@ -24,6 +24,7 @@
 #include "kloader.h"
 #include "flash_storage.h"
 #include "clock.h"
+#include "rtiocrg.h"
 #include "test_mode.h"
 #include "kserver.h"
 #include "session.h"
@@ -250,12 +251,9 @@ int main(void)
     puts("ARTIQ runtime built "__DATE__" "__TIME__"\n");
 
     clock_init();
+    rtiocrg_init();
     puts("Press 't' to enter test mode...");
     blink_led();
-
-#ifdef CSR_RTIO_CRG_PLL_RESET_ADDR
-    rtio_crg_pll_reset_write(0);
-#endif
 
     if(check_test_mode()) {
         puts("Entering test mode.");
