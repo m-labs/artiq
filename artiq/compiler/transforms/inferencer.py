@@ -956,13 +956,14 @@ class Inferencer(algorithm.Visitor):
     def visit_Raise(self, node):
         self.generic_visit(node)
 
-        exc_type = node.exc.type
-        if not types.is_var(exc_type) and not builtins.is_exception(exc_type):
-            diag = diagnostic.Diagnostic("error",
-                "cannot raise a value of type {type}, which is not an exception",
-                {"type": types.TypePrinter().name(exc_type)},
-                node.exc.loc)
-            self.engine.process(diag)
+        if node.exc is not None:
+            exc_type = node.exc.type
+            if not types.is_var(exc_type) and not builtins.is_exception(exc_type):
+                diag = diagnostic.Diagnostic("error",
+                    "cannot raise a value of type {type}, which is not an exception",
+                    {"type": types.TypePrinter().name(exc_type)},
+                    node.exc.loc)
+                self.engine.process(diag)
 
     def visit_Assert(self, node):
         self.generic_visit(node)

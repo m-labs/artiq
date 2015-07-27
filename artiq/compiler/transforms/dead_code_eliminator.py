@@ -15,7 +15,9 @@ class DeadCodeEliminator:
 
     def process_function(self, func):
         for block in func.basic_blocks:
-            if not any(block.predecessors()) and block != func.entry():
+            if not any(block.predecessors()) and \
+                    not any([isinstance(use, ir.SetLocal) for use in block.uses]) and \
+                    block != func.entry():
                 self.remove_block(block)
 
     def remove_block(self, block):
@@ -25,10 +27,6 @@ class DeadCodeEliminator:
                 use.remove_incoming_block(block)
                 if not any(use.operands):
                     self.remove_instruction(use)
-            elif isinstance(use, ir.SetLocal):
-                # Setting the target for `finally` resumption, e.g.
-                #   setlocal(.k) %v.4, label %try.doreturn
-                use.erase()
             else:
                 assert False
 

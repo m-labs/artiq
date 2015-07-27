@@ -62,3 +62,15 @@ def i():
 # CHECK-NOT-L: i-out
 # CHECK-L: i 30
 print("i", i())
+
+def j():
+    try:
+        print("j-try")
+    finally:
+        print("j-finally")
+    print("j-out")
+
+# CHECK-L: j-try
+# CHECK-L: j-finally
+# CHECK-L: j-out
+print("j", j())

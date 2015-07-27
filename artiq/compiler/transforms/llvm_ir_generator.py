@@ -137,13 +137,19 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType(), ll.DoubleType()])
         elif name == "printf":
             llty = ll.FunctionType(ll.VoidType(), [ll.IntType(8).as_pointer()], var_arg=True)
-        elif name == "__artiq_raise":
-            llty = ll.FunctionType(ll.VoidType(), [self.llty_of_type(builtins.TException())])
         elif name == "__artiq_personality":
             llty = ll.FunctionType(ll.IntType(32), [], var_arg=True)
+        elif name == "__artiq_raise":
+            llty = ll.FunctionType(ll.VoidType(), [self.llty_of_type(builtins.TException())])
+        elif name == "__artiq_reraise":
+            llty = ll.FunctionType(ll.VoidType(), [])
         else:
             assert False
-        return ll.Function(self.llmodule, llty, name)
+
+        llfun = ll.Function(self.llmodule, llty, name)
+        if name in ("__artiq_raise", "__artiq_reraise", "llvm.trap"):
+            llfun.attributes.add("noreturn")
+        return llfun
 
     def map(self, value):
         if isinstance(value, (ir.Argument, ir.Instruction, ir.BasicBlock)):
@@ -599,12 +605,20 @@ class LLVMIRGenerator:
         llinsn.attributes.add('noreturn')
         return llinsn
 
+    def process_Reraise(self, insn):
+        llinsn = self.llbuilder.call(self.llbuiltin("__artiq_reraise"), [],
+                                     name=insn.name)
+        llinsn.attributes.add('noreturn')
+        self.llbuilder.unreachable()
+        return llinsn
+
     def process_LandingPad(self, insn):
         # Layout on return from landing pad: {%_Unwind_Exception*, %Exception*}
         lllandingpadty = ll.LiteralStructType([ll.IntType(8).as_pointer(),
                                                ll.IntType(8).as_pointer()])
         lllandingpad = self.llbuilder.landingpad(lllandingpadty,
-                                                 self.llbuiltin("__artiq_personality"))
+                                                 self.llbuiltin("__artiq_personality"),
+                                                 cleanup=True)
         llrawexn = self.llbuilder.extract_value(lllandingpad, 1)
         llexn = self.llbuilder.bitcast(llrawexn, self.llty_of_type(insn.type))
         llexnnameptr = self.llbuilder.gep(llexn, [self.llindex(0), self.llindex(0)])
@@ -627,7 +641,7 @@ class LLVMIRGenerator:
                     self.llbuilder.branch(self.map(target))
 
         if self.llbuilder.basic_block.terminator is None:
-            self.llbuilder.resume(lllandingpad)
+            self.llbuilder.branch(self.map(insn.cleanup()))
 
         return llexn
 

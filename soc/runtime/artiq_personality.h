@@ -19,10 +19,15 @@ struct artiq_exception {
 extern "C" {
 #endif
 
-void __artiq_terminate(struct artiq_exception *artiq_exn)
+/* Provided by the runtime */
+void __artiq_raise(struct artiq_exception *artiq_exn)
+        __attribute__((noreturn));
+void __artiq_reraise()
         __attribute__((noreturn));
 
-void __artiq_raise(struct artiq_exception *artiq_exn);
+/* Called by the runtime */
+void __artiq_terminate(struct artiq_exception *artiq_exn)
+        __attribute__((noreturn));
 
 #ifdef __cplusplus
 }

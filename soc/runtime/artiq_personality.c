@@ -8,8 +8,8 @@
 /* Logging */
 
 #ifndef NDEBUG
-#define EH_LOG0(fmt)     fprintf(stderr, "__artiq_personality: " fmt "\n")
-#define EH_LOG(fmt, ...) fprintf(stderr, "__artiq_personality: " fmt "\n", __VA_ARGS__)
+#define EH_LOG0(fmt)     fprintf(stderr, "%s: " fmt "\n", __func__)
+#define EH_LOG(fmt, ...) fprintf(stderr, "%s: " fmt "\n", __func__, __VA_ARGS__)
 #else
 #define EH_LOG0(fmt)
 #define EH_LOG(fmt, ...)
@@ -17,7 +17,7 @@
 
 #define EH_FAIL(err) \
   do { \
-    fprintf(stderr, "__artiq_personality fatal: %s\n", err); \
+    fprintf(stderr, "%s fatal: %s\n", __func__, err); \
     abort(); \
   } while(0)
 
@@ -195,35 +195,59 @@ static uintptr_t readEncodedPointer(const uint8_t **data, uint8_t encoding) {
 }
 
 
-/* Raising and catching */
+/* Raising */
 
 #define ARTIQ_EXCEPTION_CLASS 0x4152545141525451LL // 'ARTQARTQ'
+
+static void __artiq_cleanup(_Unwind_Reason_Code reason, struct _Unwind_Exception *exc);
 
 struct artiq_raised_exception {
   struct _Unwind_Exception unwind;
   struct artiq_exception artiq;
+  int handled;
 };
 
+static struct artiq_raised_exception inflight;
+
+void __artiq_raise(struct artiq_exception *artiq_exn) {
+  EH_LOG("===> raise (name=%s)", artiq_exn->name);
+
+  memmove(&inflight.artiq, artiq_exn, sizeof(struct artiq_exception));
+  inflight.unwind.exception_class = ARTIQ_EXCEPTION_CLASS;
+  inflight.unwind.exception_cleanup = &__artiq_cleanup;
+  inflight.handled = 0;
+
+  _Unwind_Reason_Code result = _Unwind_RaiseException(&inflight.unwind);
+  EH_ASSERT((result == _URC_END_OF_STACK) &&
+            "Unexpected error during unwinding");
+
+  // If we're here, there are no handlers, only cleanups.
+  __artiq_terminate(&inflight.artiq);
+}
+
+void __artiq_reraise() {
+  if(inflight.handled) {
+    EH_LOG0("===> reraise");
+    __artiq_raise(&inflight.artiq);
+  } else {
+    EH_LOG0("===> resume");
+    EH_ASSERT((inflight.artiq.typeinfo != 0) &&
+              "Need an exception to reraise");
+    _Unwind_Resume(&inflight.unwind);
+    abort();
+  }
+}
+
+/* Catching */
+
+// The code below does not refer to the `inflight` global.
+
 static void __artiq_cleanup(_Unwind_Reason_Code reason, struct _Unwind_Exception *exc) {
+  EH_LOG0("===> cleanup");
   struct artiq_raised_exception *inflight = (struct artiq_raised_exception*) exc;
   // The in-flight exception is statically allocated, so we don't need to free it.
   // But, we clear it to mark it as processed.
   memset(&inflight->artiq, 0, sizeof(struct artiq_exception));
-}
-
-void __artiq_raise(struct artiq_exception *artiq_exn) {
-  static struct artiq_raised_exception inflight;
-  memcpy(&inflight.artiq, artiq_exn, sizeof(struct artiq_exception));
-  inflight.unwind.exception_class = ARTIQ_EXCEPTION_CLASS;
-  inflight.unwind.exception_cleanup = &__artiq_cleanup;
-
-  _Unwind_Reason_Code result = _Unwind_RaiseException(&inflight.unwind);
-  if(result == _URC_END_OF_STACK) {
-    __artiq_terminate(&inflight.artiq);
-  } else {
-    fprintf(stderr, "__artiq_raise: unexpected error (%d)\n", result);
-    abort();
-  }
 }
 
 _Unwind_Reason_Code __artiq_personality(
@@ -344,6 +368,9 @@ _Unwind_Reason_Code __artiq_personality(
 
       if(!(actions & _UA_SEARCH_PHASE)) {
         EH_LOG0("=> jumping to landing pad");
+
+        if(actions & _UA_HANDLER_FRAME)
+          inflight->handled = 1;
 
         _Unwind_SetGR(context, __builtin_eh_return_data_regno(0),
                       (uintptr_t)exceptionObject);

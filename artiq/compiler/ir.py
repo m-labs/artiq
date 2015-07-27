@@ -979,15 +979,14 @@ class Raise(Terminator):
 
     """
     :param value: (:class:`Value`) exception value
-    :param exn: (:class:`BasicBlock`) exceptional target
+    :param exn: (:class:`BasicBlock` or None) exceptional target
     """
-    def __init__(self, value, exn=None, name=""):
+    def __init__(self, value=None, exn=None, name=""):
         assert isinstance(value, Value)
+        operands = [value]
         if exn is not None:
             assert isinstance(exn, BasicBlock)
-            operands = [value, exn]
-        else:
-            operands = [value]
+            operands.append(exn)
         super().__init__(operands, builtins.TNone(), name)
 
     def opcode(self):
@@ -999,6 +998,28 @@ class Raise(Terminator):
     def exception_target(self):
         if len(self.operands) > 1:
             return self.operands[1]
+
+class Reraise(Terminator):
+    """
+    A reraise instruction.
+    """
+
+    """
+    :param exn: (:class:`BasicBlock` or None) exceptional target
+    """
+    def __init__(self, exn=None, name=""):
+        operands = []
+        if exn is not None:
+            assert isinstance(exn, BasicBlock)
+            operands.append(exn)
+        super().__init__(operands, builtins.TNone(), name)
+
+    def opcode(self):
+        return "reraise"
+
+    def exception_target(self):
+        if len(self.operands) > 0:
+            return self.operands[0]
 
 class Invoke(Terminator):
     """
@@ -1051,12 +1072,18 @@ class LandingPad(Terminator):
         exception types corresponding to the basic block operands
     """
 
-    def __init__(self, name=""):
-        super().__init__([], builtins.TException(), name)
+    def __init__(self, cleanup, name=""):
+        super().__init__([cleanup], builtins.TException(), name)
         self.types = []
 
+    def opcode(self):
+        return "landingpad"
+
+    def cleanup(self):
+        return self.operands[0]
+
     def clauses(self):
-        return zip(self.operands, self.types)
+        return zip(self.operands[1:], self.types)
 
     def add_clause(self, target, typ):
         assert isinstance(target, BasicBlock)
@@ -1065,14 +1092,11 @@ class LandingPad(Terminator):
         self.types.append(typ.find() if typ is not None else None)
         target.uses.add(self)
 
-    def opcode(self):
-        return "landingpad"
-
     def _operands_as_string(self):
         table = []
-        for typ, target in zip(self.types, self.operands):
+        for target, typ in self.clauses():
             if typ is None:
                 table.append("... => {}".format(target.as_operand()))
             else:
                 table.append("{} => {}".format(types.TypePrinter().name(typ), target.as_operand()))
-        return "[{}]".format(", ".join(table))
+        return "cleanup {}, [{}]".format(self.cleanup().as_operand(), ", ".join(table))

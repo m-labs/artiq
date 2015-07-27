@@ -1,4 +1,5 @@
-# RUN: %python -m artiq.compiler.testbench.jit %s
+# RUN: %python -m artiq.compiler.testbench.jit %s >%t
+# RUN: OutputCheck %s --file-to-check=%t
 # REQUIRES: exceptions
 
 try:

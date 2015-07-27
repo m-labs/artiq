@@ -466,23 +466,29 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.append(ir.Branch(self.continue_target))
 
     def raise_exn(self, exn):
-        loc_file = ir.Constant(self.current_loc.source_buffer.name, builtins.TStr())
-        loc_line = ir.Constant(self.current_loc.line(), builtins.TInt(types.TValue(32)))
-        loc_column = ir.Constant(self.current_loc.column(), builtins.TInt(types.TValue(32)))
-        self.append(ir.SetAttr(exn, "__file__", loc_file))
-        self.append(ir.SetAttr(exn, "__line__", loc_line))
-        self.append(ir.SetAttr(exn, "__col__", loc_column))
-        if self.unwind_target:
-            self.append(ir.Raise(exn, self.unwind_target))
+        if exn is not None:
+            loc_file = ir.Constant(self.current_loc.source_buffer.name, builtins.TStr())
+            loc_line = ir.Constant(self.current_loc.line(), builtins.TInt(types.TValue(32)))
+            loc_column = ir.Constant(self.current_loc.column(), builtins.TInt(types.TValue(32)))
+            self.append(ir.SetAttr(exn, "__file__", loc_file))
+            self.append(ir.SetAttr(exn, "__line__", loc_line))
+            self.append(ir.SetAttr(exn, "__col__", loc_column))
+
+            if self.unwind_target is not None:
+                self.append(ir.Raise(exn, self.unwind_target))
+            else:
+                self.append(ir.Raise(exn))
         else:
-            self.append(ir.Raise(exn))
+            if self.unwind_target is not None:
+                self.append(ir.Reraise(self.unwind_target))
+            else:
+                self.append(ir.Reraise())
 
     def visit_Raise(self, node):
         self.raise_exn(self.visit(node.exc))
 
     def visit_Try(self, node):
         dispatcher = self.add_block("try.dispatch")
-        landingpad = dispatcher.append(ir.LandingPad())
 
         if any(node.finalbody):
             # k for continuation
@@ -532,8 +538,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.continue_target = old_continue
             self.return_target = old_return
 
+        cleanup = self.add_block('handler.cleanup')
+        landingpad = dispatcher.append(ir.LandingPad(cleanup))
+
         handlers = []
-        has_catchall = False
         for handler_node in node.handlers:
             exn_type = handler_node.name_type.find()
             if handler_node.filter is not None and \
@@ -543,7 +551,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
             else:
                 handler = self.add_block("handler.catchall")
                 landingpad.add_clause(handler, None)
-                has_catchall = True
 
             self.current_block = handler
             if handler_node.name is not None:
@@ -561,9 +568,13 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.visit(node.finalbody)
             post_finalizer = self.current_block
 
+            reraise = self.add_block('try.reraise')
+            reraise.append(ir.Reraise(self.unwind_target))
+
         self.current_block = tail = self.add_block("try.tail")
         if any(node.finalbody):
             final_targets.append(tail)
+            final_targets.append(reraise)
 
             if self.break_target:
                 break_proxy.append(ir.Branch(finalizer))
@@ -575,17 +586,13 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 body.append(ir.SetLocal(final_state, ".k", tail))
                 body.append(ir.Branch(finalizer))
 
-            if not has_catchall:
-                # Add a catch-all handler so that finally would have a chance
-                # to execute.
-                handler = self.add_block("handler.catchall")
-                landingpad.add_clause(handler, None)
-                handlers.append((handler, handler))
+            cleanup.append(ir.SetLocal(final_state, ".k", reraise))
+            cleanup.append(ir.Branch(finalizer))
 
             for handler, post_handler in handlers:
                 if not post_handler.is_terminated():
                     post_handler.append(ir.SetLocal(final_state, ".k", tail))
-                    post_handler.append(ir.Branch(tail))
+                    post_handler.append(ir.Branch(finalizer))
 
             if not post_finalizer.is_terminated():
                 dest = post_finalizer.append(ir.GetLocal(final_state, ".k"))
@@ -593,6 +600,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
         else:
             if not body.is_terminated():
                 body.append(ir.Branch(tail))
+
+            cleanup.append(ir.Reraise(self.unwind_target))
 
             for handler, post_handler in handlers:
                 if not post_handler.is_terminated():
