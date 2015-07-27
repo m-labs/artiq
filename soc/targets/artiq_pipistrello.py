@@ -50,7 +50,7 @@ NET "{int_clk}" TNM_NET = "GRPint_clk";
 NET "sys_clk" TNM_NET = "GRPsys_clk";
 TIMESPEC "TSfix_ise1" = FROM "GRPint_clk" TO "GRPsys_clk" TIG;
 TIMESPEC "TSfix_ise2" = FROM "GRPsys_clk" TO "GRPint_clk" TIG;
-""", int_clk=rtio_internal_clk, ext_clk=rtio_external_clk)
+""", int_clk=rtio_internal_clk)
 
 
 class NIST_QC1(BaseSoC, AMPSoC):
