@@ -3,6 +3,7 @@ from migen.bank.description import *
 from migen.bank import wbgen
 from mibuild.generic_platform import *
 from mibuild.xilinx.vivado import XilinxVivadoToolchain
+from mibuild.xilinx.ise import XilinxISEToolchain
 
 from misoclib.com import gpio
 from misoclib.soc import mem_decoder
@@ -70,6 +71,13 @@ create_clock -name rio_clk -period 8.0 [get_nets {rio_clk}]
 set_false_path -from [get_clocks rsys_clk] -to [get_clocks rio_clk]
 set_false_path -from [get_clocks rio_clk] -to [get_clocks rsys_clk]
 """, rsys_clk=self.rtio.cd_rsys.clk, rio_clk=self.rtio.cd_rio.clk)
+        if isinstance(self.platform.toolchain, XilinxISEToolchain):
+            self.platform.add_platform_command("""
+NET "sys_clk" TNM_NET = "GRPrsys_clk";
+NET "{rio_clk}" TNM_NET = "GRPrio_clk";
+TIMESPEC "TSfix_cdc1" = FROM "GRPrsys_clk" TO "GRPrio_clk" TIG;
+TIMESPEC "TSfix_cdc2" = FROM "GRPrio_clk" TO "GRPrsys_clk" TIG;
+""", rio_clk=self.rtio_crg.cd_rtio.clk)
 
         rtio_csrs = self.rtio.get_csrs()
         self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
