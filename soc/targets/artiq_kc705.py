@@ -49,10 +49,10 @@ class _RTIOCRG(Module, AutoCSR):
                      i_CLKFBIN=self.cd_rtio.clk,
                      i_RST=self._pll_reset.storage,
 
-                     p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0,
                      o_CLKFBOUT=rtio_clk,
-                     p_CLKOUT1_DIVIDE=2, p_CLKOUT1_PHASE=0.0,
-                     o_CLKOUT1=rtiox4_clk),
+
+                     p_CLKOUT0_DIVIDE=2, p_CLKOUT0_PHASE=0.0,
+                     o_CLKOUT0=rtiox4_clk),
             Instance("BUFG", i_I=rtio_clk, o_O=self.cd_rtio.clk),
             Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk),
 
