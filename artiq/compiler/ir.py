@@ -292,7 +292,7 @@ class BasicBlock(NamedValue):
 
     def erase(self):
         # self.instructions is updated while iterating
-        for insn in list(self.instructions):
+        for insn in reversed(self.instructions):
             insn.erase()
         self.remove_from_parent()
         # Check this after erasing instructions in case the block
@@ -997,7 +997,8 @@ class Raise(Terminator):
         return self.operands[0]
 
     def exception_target(self):
-        return self.operands[1]
+        if len(self.operands) > 1:
+            return self.operands[1]
 
 class Invoke(Terminator):
     """

@@ -25,6 +25,10 @@ class DeadCodeEliminator:
                 use.remove_incoming_block(block)
                 if not any(use.operands):
                     self.remove_instruction(use)
+            elif isinstance(use, ir.SetLocal):
+                # Setting the target for `finally` resumption, e.g.
+                #   setlocal(.k) %v.4, label %try.doreturn
+                use.erase()
             else:
                 assert False
 
