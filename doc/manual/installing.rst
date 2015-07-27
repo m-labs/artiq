@@ -147,7 +147,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
     ::
 
         $ cd ~/artiq-dev
-        $ svn co https://xc3sprog.svn.sourceforge.net/svnroot/xc3sprog/trunk xc3sprog
+        $ svn co http://svn.code.sf.net/p/xc3sprog/code/trunk xc3sprog
         $ cd xc3sprog
         $ cmake . && make
         $ sudo make install
