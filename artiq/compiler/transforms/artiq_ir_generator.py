@@ -789,7 +789,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 lambda: self.alloc_exn(builtins.TValueError(),
                     ir.Constant("slice size {0} is larger than iterable length {1}",
                                 builtins.TStr()),
-                    slice_size, iterable_len))
+                    slice_size, length))
 
             if self.current_assign is None:
                 is_neg_size = self.append(ir.Compare(ast.Lt(loc=None),

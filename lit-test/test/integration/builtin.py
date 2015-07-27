@@ -1,5 +1,6 @@
 # RUN: %python -m artiq.compiler.testbench.jit %s
 # RUN: %python %s
+# REQUIRES: exceptions
 
 assert bool() is False
 # bool(x) is tested in bool.py

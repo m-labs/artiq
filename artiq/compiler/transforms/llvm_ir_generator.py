@@ -103,12 +103,14 @@ class LLVMIRGenerator:
                 linkage = "private"
                 unnamed_addr = True
 
-            llstrty = ll.ArrayType(ll.IntType(8), len(as_bytes))
-            llconst = ll.GlobalVariable(self.llmodule, llstrty, name)
-            llconst.global_constant = True
-            llconst.initializer = ll.Constant(llstrty, bytearray(as_bytes))
-            llconst.linkage = linkage
-            llconst.unnamed_addr = unnamed_addr
+            llconst = self.llmodule.get_global(name)
+            if llconst is None:
+                llstrty = ll.ArrayType(ll.IntType(8), len(as_bytes))
+                llconst = ll.GlobalVariable(self.llmodule, llstrty, name)
+                llconst.global_constant = True
+                llconst.initializer = ll.Constant(llstrty, bytearray(as_bytes))
+                llconst.linkage = linkage
+                llconst.unnamed_addr = unnamed_addr
 
             return llconst.bitcast(ll.IntType(8).as_pointer())
         else:

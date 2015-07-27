@@ -1,5 +1,6 @@
 # RUN: %python -m artiq.compiler.testbench.jit %s
 # RUN: %python %s
+# REQUIRES: exceptions
 
 lst = list(range(10))
 assert lst[0] == 0

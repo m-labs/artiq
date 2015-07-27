@@ -1,5 +1,6 @@
 # RUN: %python -m artiq.compiler.testbench.jit %s
 # RUN: %python %s
+# REQUIRES: exceptions
 
 assert -(-1) == 1
 assert -(-1.0) == 1.0

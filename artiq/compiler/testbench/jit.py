@@ -1,5 +1,4 @@
-import sys, fileinput
-from ctypes import CFUNCTYPE
+import os, sys, fileinput, ctypes
 from pythonparser import diagnostic
 from llvmlite import binding as llvm
 from .. import Module
@@ -10,10 +9,9 @@ llvm.initialize_native_asmprinter()
 llvm.check_jit_execution()
 
 def main():
-    while sys.argv[1].startswith("+"):
-        if sys.argv[1] == "+load":
-            llvm.load_library_permanently(sys.argv[2])
-            del sys.argv[1:3]
+    libartiq_personality = os.getenv('LIBARTIQ_PERSONALITY')
+    if libartiq_personality is not None:
+        llvm.load_library_permanently(libartiq_personality)
 
     def process_diagnostic(diag):
         print("\n".join(diag.render()))
@@ -34,7 +32,7 @@ def main():
     lljit = llvm.create_mcjit_compiler(llparsedmod, llmachine)
     lljit.finalize_object()
     llmain = lljit.get_pointer_to_global(llparsedmod.get_function(llmod.name + ".__modinit__"))
-    CFUNCTYPE(None)(llmain)()
+    ctypes.CFUNCTYPE(None)(llmain)()
 
 if __name__ == "__main__":
     main()
