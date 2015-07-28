@@ -166,7 +166,9 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         self.add_constant("RTIO_DDS_CHANNEL", len(rtio_channels))
         self.add_constant("DDS_CHANNEL_COUNT", 8)
         self.add_constant("DDS_AD9858")
-        phy = dds.AD9858(platform.request("dds"), 8)
+        dds_pins = platform.request("dds")
+        self.comb += dds_pins.p.eq(0)
+        phy = dds.AD9858(dds_pins, 8)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,
                                                    ofifo_depth=512,
