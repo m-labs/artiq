@@ -196,12 +196,22 @@ class TTLInOut:
 
     @kernel
     def timestamp_mu(self):
-        """Poll the RTIO input and returns an event timestamp, according to
-        the gating.
+        """Poll the RTIO input and returns an event timestamp (in machine
+        units), according to the gating.
 
         If the gate is permanently closed, returns a negative value.
         """
         return syscall("ttl_get", self.channel, self.i_previous_timestamp)
+
+    @kernel
+    def timestamp(self):
+        """Poll the RTIO input and returns an event timestamp (in seconds),
+        according to the gating.
+
+        If the gate is permanently closed, returns a negative value.
+        """
+        return mu_to_seconds(
+            syscall("ttl_get", self.channel, self.i_previous_timestamp))
 
 
 class TTLClockGen:
