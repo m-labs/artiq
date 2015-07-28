@@ -25,6 +25,12 @@ class _RTIOCRG(Module, AutoCSR):
         self.clock_domains.cd_rtio = ClockDomain()
         self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
 
+        # 10 MHz when using 125MHz input
+        self.clock_domains.cd_ext_clkout = ClockDomain(reset_less=True)
+        ext_clkout = platform.request("user_sma_gpio_p")
+        self.sync.ext_clkout += ext_clkout.eq(~ext_clkout)
+
+
         rtio_external_clk = Signal()
         user_sma_clock = platform.request("user_sma_clock")
         platform.add_period_constraint(user_sma_clock.p, 8.0)
@@ -35,6 +41,7 @@ class _RTIOCRG(Module, AutoCSR):
         pll_locked = Signal()
         rtio_clk = Signal()
         rtiox4_clk = Signal()
+        ext_clkout_clk = Signal()
         self.specials += [
             Instance("PLLE2_ADV",
                      p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
@@ -45,6 +52,7 @@ class _RTIOCRG(Module, AutoCSR):
                      # Warning: CLKINSEL=0 means CLKIN2 is selected
                      i_CLKINSEL=~self._clock_sel.storage,
 
+                     # VCO @ 1GHz when using 125MHz input
                      p_CLKFBOUT_MULT=8, p_DIVCLK_DIVIDE=1,
                      i_CLKFBIN=self.cd_rtio.clk,
                      i_RST=self._pll_reset.storage,
@@ -52,17 +60,17 @@ class _RTIOCRG(Module, AutoCSR):
                      o_CLKFBOUT=rtio_clk,
 
                      p_CLKOUT0_DIVIDE=2, p_CLKOUT0_PHASE=0.0,
-                     o_CLKOUT0=rtiox4_clk),
+                     o_CLKOUT0=rtiox4_clk,
+
+                     p_CLKOUT1_DIVIDE=50, p_CLKOUT1_PHASE=0.0,
+                     o_CLKOUT1=ext_clkout_clk),
             Instance("BUFG", i_I=rtio_clk, o_O=self.cd_rtio.clk),
             Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk),
+            Instance("BUFG", i_I=ext_clkout_clk, o_O=self.cd_ext_clkout.clk),
 
             AsyncResetSynchronizer(self.cd_rtio, ~pll_locked),
             MultiReg(pll_locked, self._pll_locked.status)
         ]
-
-        # 62.5MHz when using internal RTIO clock
-        ext_clkout = platform.request("user_sma_gpio_p")
-        self.sync.rtio += ext_clkout.eq(~ext_clkout)
 
 
 class _NIST_QCx(MiniSoC, AMPSoC):
