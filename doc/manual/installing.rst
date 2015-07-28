@@ -299,15 +299,13 @@ Installing the host-side software
 * Install the llvmlite Python bindings: ::
 
         $ cd ~/artiq-dev
-        $ git clone https://github.com/numba/llvmlite
+        $ git clone https://github.com/m-labs/llvmlite
+        $ git checkout backport-3.5
         $ cd llvmlite
         $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-add-all-targets.patch
         $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-rename.patch
         $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-build-as-debug-on-windows.patch
         $ LLVM_CONFIG=/usr/local/llvm-or1k/bin/llvm-config python3 setup.py install --user
-
-.. note::
-    llvmlite is in development and its API is not stable yet. Commit ID ``11a8303d02e3d6dd2d1e0e9065701795cd8a979f`` is known to work.
 
 * Install ARTIQ: ::
 
