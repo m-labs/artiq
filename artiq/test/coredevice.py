@@ -120,7 +120,7 @@ class LoopbackCount(EnvExperiment):
     @kernel
     def run(self):
         self.ttl_inout.output()
-        delay(1*us)
+        delay(5*us)
         with parallel:
             self.ttl_inout.gate_rising(10*us)
             with sequential:
