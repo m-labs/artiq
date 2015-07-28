@@ -145,8 +145,15 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
 
         # ttl2 can run on a 8x serdes if xtrig is not used
         for i in range(15):
-            phy = ttl_serdes_spartan6.Output_4X(platform.request("ttl", i),
-                                                self.rtio_crg.rtiox4_stb)
+            if i in (0, 1):
+                phy = ttl_serdes_spartan6.Output_4X(platform.request("ttl", i),
+                                                    self.rtio_crg.rtiox4_stb)
+            elif i in (2,):
+                phy = ttl_serdes_spartan6.Output_8X(platform.request("ttl", i),
+                                                    self.rtio_crg.rtiox8_stb)
+            else:
+                phy = ttl_simple.Output(platform.request("ttl", i))
+
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=256))
 
