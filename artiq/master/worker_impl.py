@@ -138,6 +138,8 @@ class DummyPDB:
 def examine(dmgr, pdb, rdb, file):
     module = file_import(file)
     for class_name, exp_class in module.__dict__.items():
+        if class_name[0] == "_":
+            continue
         if is_experiment(exp_class):
             if exp_class.__doc__ is None:
                 name = class_name
