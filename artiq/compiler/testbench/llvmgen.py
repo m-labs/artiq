@@ -2,6 +2,7 @@ import sys, fileinput
 from pythonparser import diagnostic
 from llvmlite_artiq import ir as ll
 from .. import Module
+from ..targets import NativeTarget
 
 def main():
     def process_diagnostic(diag):
@@ -12,7 +13,10 @@ def main():
     engine = diagnostic.Engine()
     engine.process = process_diagnostic
 
-    llmod = Module.from_string("".join(fileinput.input()).expandtabs(), engine=engine).llvm_ir
+    mod = Module.from_string("".join(fileinput.input()).expandtabs(), engine=engine)
+
+    target = NativeTarget()
+    llmod = mod.build_llvm_ir(target=target)
 
     # Add main so that the result can be executed with lli
     llmain = ll.Function(llmod, ll.FunctionType(ll.VoidType(), []), "main")

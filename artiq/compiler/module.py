@@ -21,7 +21,6 @@ class Module:
         artiq_ir_generator = transforms.ARTIQIRGenerator(engine=engine, module_name=self.name)
         dead_code_eliminator = transforms.DeadCodeEliminator(engine=engine)
         local_access_validator = validators.LocalAccessValidator(engine=engine)
-        llvm_ir_generator = transforms.LLVMIRGenerator(engine=engine, module_name=self.name)
 
         self.parsetree, self.comments = parse_buffer(source_buffer, engine=engine)
         self.typedtree = asttyped_rewriter.visit(self.parsetree)
@@ -34,7 +33,15 @@ class Module:
         self.artiq_ir = artiq_ir_generator.visit(self.typedtree)
         dead_code_eliminator.process(self.artiq_ir)
         # local_access_validator.process(self.artiq_ir)
-        self.llvm_ir = llvm_ir_generator.process(self.artiq_ir)
+
+    def build_llvm_ir(self, target):
+        """Compile the module to LLVM IR for the specified target."""
+        llvm_ir_generator = transforms.LLVMIRGenerator(module_name=self.name, target=target)
+        return llvm_ir_generator.process(self.artiq_ir)
+
+    def entry_point(self):
+        """Return the name of the function that is the entry point of this module."""
+        return self.name + ".__modinit__"
 
     @classmethod
     def from_string(cls, source_string, name="input.py", first_line=1, engine=None):

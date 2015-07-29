@@ -2,10 +2,7 @@ import os, sys, fileinput, ctypes
 from pythonparser import diagnostic
 from llvmlite_artiq import binding as llvm
 from .. import Module
-
-llvm.initialize()
-llvm.initialize_native_target()
-llvm.initialize_native_asmprinter()
+from ..targets import NativeTarget
 
 def main():
     libartiq_personality = os.getenv('LIBARTIQ_PERSONALITY')
@@ -22,14 +19,15 @@ def main():
 
     source = "".join(fileinput.input())
     source = source.replace("#ARTIQ#", "")
-    llmod = Module.from_string(source.expandtabs(), engine=engine).llvm_ir
+    mod = Module.from_string(source.expandtabs(), engine=engine)
 
-    lltarget = llvm.Target.from_default_triple()
-    llmachine = lltarget.create_target_machine()
+    target = NativeTarget()
+    llmod = mod.build_llvm_ir(target)
     llparsedmod = llvm.parse_assembly(str(llmod))
     llparsedmod.verify()
+
+    llmachine = llvm.Target.from_triple(target.triple).create_target_machine()
     lljit = llvm.create_mcjit_compiler(llparsedmod, llmachine)
-    lljit.finalize_object()
     llmain = lljit.get_pointer_to_global(llparsedmod.get_function(llmod.name + ".__modinit__"))
     ctypes.CFUNCTYPE(None)(llmain)()
 

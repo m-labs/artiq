@@ -8,10 +8,11 @@ from llvmlite_artiq import ir as ll
 from .. import types, builtins, ir
 
 class LLVMIRGenerator:
-    def __init__(self, engine, module_name, context=ll.Context()):
-        self.engine = engine
-        self.llcontext = context
+    def __init__(self, module_name, target):
+        self.target = target
+        self.llcontext = target.llcontext
         self.llmodule = ll.Module(context=self.llcontext, name=module_name)
+        self.llmodule.triple = target.triple
         self.llfunction = None
         self.llmap = {}
         self.fixups = []
@@ -135,7 +136,7 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType(), ll.IntType(32)])
         elif name == "llvm.copysign.f64":
             llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType(), ll.DoubleType()])
-        elif name == "printf":
+        elif name == self.target.print_function:
             llty = ll.FunctionType(ll.VoidType(), [ll.IntType(8).as_pointer()], var_arg=True)
         elif name == "__artiq_personality":
             llty = ll.FunctionType(ll.IntType(32), [], var_arg=True)
@@ -161,10 +162,7 @@ class LLVMIRGenerator:
             if llfun is None:
                 llfun = ll.Function(self.llmodule, self.llty_of_type(value.type, bare=True),
                                     value.name)
-                llfun.linkage = 'internal'
-                return llfun
-            else:
-                return llfun
+            return llfun
         else:
             assert False
 
@@ -184,6 +182,8 @@ class LLVMIRGenerator:
                 llfunty = ll.FunctionType(args=llargtys,
                                           return_type=self.llty_of_type(func.type.ret, for_return=True))
                 self.llfunction = ll.Function(self.llmodule, llfunty, func.name)
+                self.llfunction.attributes.add('uwtable')
+            if func.is_internal:
                 self.llfunction.linkage = 'internal'
 
             self.llmap = {}
@@ -527,7 +527,7 @@ class LLVMIRGenerator:
         elif insn.op == "printf":
             # We only get integers, floats, pointers and strings here.
             llargs = map(self.map, insn.operands)
-            return self.llbuilder.call(self.llbuiltin("printf"), llargs,
+            return self.llbuilder.call(self.llbuiltin(self.target.print_function), llargs,
                                        name=insn.name)
         elif insn.op == "exncast":
             # This is an identity cast at LLVM IR level.

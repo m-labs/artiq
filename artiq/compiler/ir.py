@@ -387,12 +387,17 @@ class Argument(NamedValue):
 class Function:
     """
     A function containing SSA IR.
+
+    :ivar is_internal:
+        (bool) if True, the function should not be accessible from outside
+        the module it is contained in
     """
 
     def __init__(self, typ, name, arguments):
         self.type, self.name = typ, name
         self.names, self.arguments, self.basic_blocks = set(), [], []
         self.set_arguments(arguments)
+        self.is_internal = False
 
     def _remove_name(self, name):
         self.names.remove(name)

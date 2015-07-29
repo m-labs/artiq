@@ -155,7 +155,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
     # Statement visitors
 
-    def visit_function(self, node, is_lambda):
+    def visit_function(self, node, is_lambda, is_internal):
         if is_lambda:
             name = "lambda.{}.{}".format(node.loc.line(), node.loc.column())
             typ = node.type.find()
@@ -185,6 +185,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 optargs.append(ir.Argument(ir.TOption(typ.optargs[arg_name]), "arg." + arg_name))
 
             func = ir.Function(typ, ".".join(self.name), [env_arg] + args + optargs)
+            func.is_internal = is_internal
             self.functions.append(func)
             old_func, self.current_function = self.current_function, func
 
@@ -237,7 +238,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         return self.append(ir.Closure(func, self.current_env))
 
     def visit_FunctionDefT(self, node):
-        func = self.visit_function(node, is_lambda=False)
+        func = self.visit_function(node, is_lambda=False, is_internal=len(name) > 2)
         self._set_local(node.name, func)
 
     def visit_Return(self, node):
@@ -614,7 +615,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
     # the IR.
 
     def visit_LambdaT(self, node):
-        return self.visit_function(node, is_lambda=True)
+        return self.visit_function(node, is_lambda=True, is_internal=True)
 
     def visit_IfExpT(self, node):
         cond = self.visit(node.test)
