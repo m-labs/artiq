@@ -155,6 +155,19 @@ class SequenceError(EnvExperiment):
         self.ttl_out.pulse(25*us)
 
 
+class CollisionError(EnvExperiment):
+    def build(self):
+        self.attr_device("core")
+        self.attr_device("ttl_out_serdes")
+
+    @kernel
+    def run(self):
+        delay(5*ms)  # make sure we won't get underflow
+        for i in range(16):
+            self.ttl_out_serdes.pulse_mu(1)
+            delay_mu(1)
+
+
 class TimeKeepsRunning(EnvExperiment):
     def build(self):
         self.attr_device("core")
@@ -211,7 +224,7 @@ class CoredeviceTest(ExperimentCase):
 
     def test_loopback_count(self):
         npulses = 2
-        r = self.execute(LoopbackCount, npulses=npulses)
+        self.execute(LoopbackCount, npulses=npulses)
         count = self.rdb.get("count")
         self.assertEqual(count, npulses)
 
@@ -222,6 +235,10 @@ class CoredeviceTest(ExperimentCase):
     def test_sequence_error(self):
         with self.assertRaises(runtime_exceptions.RTIOSequenceError):
             self.execute(SequenceError)
+
+    def test_collision_error(self):
+        with self.assertRaises(runtime_exceptions.RTIOCollisionError):
+            self.execute(CollisionError)
 
     def test_watchdog(self):
         # watchdog only works on the device

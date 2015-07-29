@@ -7,8 +7,9 @@ enum {
     EID_RPC_EXCEPTION = 2,
     EID_RTIO_UNDERFLOW = 3,
     EID_RTIO_SEQUENCE_ERROR = 4,
-    EID_RTIO_OVERFLOW = 5,
-    EID_DDS_BATCH_ERROR = 6,
+    EID_RTIO_COLLISION_ERROR = 5,
+    EID_RTIO_OVERFLOW = 6,
+    EID_DDS_BATCH_ERROR = 7
 };
 
 int exception_setjmp(void *jb) __attribute__((returns_twice));

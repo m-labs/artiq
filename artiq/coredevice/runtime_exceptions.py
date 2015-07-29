@@ -41,6 +41,22 @@ class RTIOSequenceError(RuntimeException):
         return "at {} on channel {}".format(self.p0*self.core.ref_period,
                                             self.p1)
 
+class RTIOCollisionError(RuntimeException):
+    """Raised when an event is submitted on a given channel with the same
+    coarse timestamp as the previous one but with a different fine timestamp.
+
+    Coarse timestamps correspond to the RTIO system clock (typically around
+    125MHz) whereas fine timestamps correspond to the RTIO SERDES clock
+    (typically around 1GHz).
+
+    The offending event is discarded and the RTIO core keeps operating.
+    """
+    eid = 5
+
+    def __str__(self):
+        return "at {} on channel {}".format(self.p0*self.core.ref_period,
+                                            self.p1)
+
 
 class RTIOOverflow(RuntimeException):
     """Raised when at least one event could not be registered into the RTIO
@@ -50,7 +66,7 @@ class RTIOOverflow(RuntimeException):
     read attempt and discarding some events. Reading can be reattempted after
     the exception is caught, and events will be partially retrieved.
     """
-    eid = 5
+    eid = 6
 
     def __str__(self):
         return "on channel {}".format(self.p0)
@@ -60,7 +76,7 @@ class DDSBatchError(RuntimeException):
     """Raised when attempting to start a DDS batch while already in a batch,
     or when too many commands are batched.
     """
-    eid = 6
+    eid = 7
 
 
 exception_map = {e.eid: e for e in globals().values()

@@ -135,6 +135,7 @@
 
     "ttl_inout": "pmt0",
     "ttl_out": "ttl0",
+    "ttl_out_serdes": "ttl0",
 
     "pmt": "pmt0",
     "bd_dds": "dds0",
