@@ -20,7 +20,7 @@ class PushDocCommand(Command):
 requirements = [
     "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
     "python-dateutil", "prettytable", "h5py", "pydaqmx", "pyelftools",
-    "quamash", "pyqtgraph"
+    "quamash", "pyqtgraph", "llvmlite_artiq"
 ]
 
 scripts = [

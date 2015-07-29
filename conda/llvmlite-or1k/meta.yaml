@@ -19,8 +19,8 @@ build:
 
 test:
     imports:
-        - llvmlite_or1k
-        - llvmlite_or1k.llvmpy
+        - llvmlite_artiq
+        - llvmlite_artiq.llvmpy
 
 about:
     home: https://pypi.python.org/pypi/llvmlite/

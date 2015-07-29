@@ -1,7 +1,7 @@
 import os
 
-import llvmlite_or1k.ir as ll
-import llvmlite_or1k.binding as llvm
+import llvmlite_artiq.ir as ll
+import llvmlite_artiq.binding as llvm
 
 from artiq.py2llvm import base_types, fractions, lists
 from artiq.language import units

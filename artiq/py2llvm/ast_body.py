@@ -1,6 +1,6 @@
 import ast
 
-import llvmlite_or1k.ir as ll
+import llvmlite_artiq.ir as ll
 
 from artiq.py2llvm import values, base_types, fractions, lists, iterators
 from artiq.py2llvm.tools import is_terminated
