@@ -76,7 +76,7 @@ class ClockGeneratorLoopback(EnvExperiment):
 class PulseRate(EnvExperiment):
     def build(self):
         self.attr_device("core")
-        self.attr_device("loop_out")
+        self.attr_device("ttl_out")
 
     def set_pulse_rate(self, pulse_rate):
         self.set_result("pulse_rate", pulse_rate)
@@ -87,7 +87,7 @@ class PulseRate(EnvExperiment):
         while True:
             try:
                 for i in range(1000):
-                    self.loop_out.pulse_mu(dt)
+                    self.ttl_out.pulse_mu(dt)
                     delay_mu(dt)
             except RTIOUnderflow:
                 dt += 1
