@@ -16,18 +16,32 @@ def main():
     engine = diagnostic.Engine()
     engine.process = process_diagnostic
 
-    modules = []
+    # Make sure everything's valid
+    modules = [Module.from_filename(filename, engine=engine)
+               for filename in sys.argv[1:]]
+
+    def benchmark(f, name):
+        start = time.perf_counter()
+        end   = 0
+        runs  = 0
+        while end - start < 5 or runs < 10:
+            f()
+            runs += 1
+            end = time.perf_counter()
+
+        print("{} {} runs: {:.2f}s, {:.2f}ms/run".format(
+                runs, name, end - start, (end - start) / runs * 1000))
+
+    sources = []
     for filename in sys.argv[1:]:
-        modules.append(Module.from_filename(filename, engine=engine))
+        with open(filename) as f:
+            sources.append(f.read())
 
-    runs = 100
-    start = time.perf_counter()
-    for _ in range(runs):
-        llobj = OR1KTarget().compile_and_link(modules)
-    end = time.perf_counter()
+    benchmark(lambda: [Module.from_string(src) for src in sources],
+              "ARTIQ typechecking and transforms")
 
-    print("{} compilation runs: {:.2f}s, {:.2f}ms/run".format(
-            runs, end - start, (end - start) / runs * 1000))
+    benchmark(lambda: OR1KTarget().compile_and_link(modules),
+              "LLVM optimization and linking")
 
 if __name__ == "__main__":
     main()
