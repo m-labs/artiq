@@ -1,4 +1,4 @@
-# RUN: %python -m artiq.compiler.testbench.module %s >%t
+# RUN: %python -m artiq.compiler.testbench.signature %s >%t
 
 if False:
     x = 1

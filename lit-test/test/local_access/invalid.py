@@ -1,4 +1,4 @@
-# RUN: %python -m artiq.compiler.testbench.module +diag %s >%t
+# RUN: %python -m artiq.compiler.testbench.signature +diag %s >%t
 # RUN: OutputCheck %s --file-to-check=%t
 
 x = 1
