@@ -69,7 +69,7 @@ class _NumberEntry(QtGui.QDoubleSpinBox):
         if procdesc["min"] is not None:
             self.setMinimum(procdesc["min"])
         if procdesc["max"] is not None:
-            self.setMinimum(procdesc["max"])
+            self.setMaximum(procdesc["max"])
         if procdesc["unit"]:
             self.setSuffix(" " + procdesc["unit"])
         if "default" in procdesc:
