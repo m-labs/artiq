@@ -203,16 +203,6 @@ class TTLInOut:
         """
         return syscall("ttl_get", self.channel, self.i_previous_timestamp)
 
-    @kernel
-    def timestamp(self):
-        """Poll the RTIO input and returns an event timestamp (in seconds),
-        according to the gating.
-
-        If the gate is permanently closed, returns a negative value.
-        """
-        return mu_to_seconds(
-            syscall("ttl_get", self.channel, self.i_previous_timestamp))
-
 
 class TTLClockGen:
     """RTIO TTL clock generator driver.
