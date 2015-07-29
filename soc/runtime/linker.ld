@@ -26,17 +26,6 @@ SECTIONS
 		_etext = .;
 	} > runtime
 
-	.got :
-	{
-		_GLOBAL_OFFSET_TABLE_ = .;
-		*(.got)
-	} > runtime
-
-	.got.plt :
-	{
-		*(.got.plt)
-	} > runtime
-
 	.rodata :
 	{
 		. = ALIGN(4);

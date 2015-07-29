@@ -24,17 +24,6 @@ SECTIONS
         _etext = .;
     } > ksupport
 
-    .got :
-    {
-        _GLOBAL_OFFSET_TABLE_ = .;
-        *(.got)
-    } > ksupport
-
-    .got.plt :
-    {
-        *(.got.plt)
-    } > ksupport
-
     .rodata :
     {
         . = ALIGN(4);
