@@ -49,27 +49,23 @@ class TDR(EnvExperiment):
             print("rising: {:5g} ns, falling {:5g} ns".format(
                 t_rise/1e-9, t_fall/1e-9))
 
-    def rep(self, t):
-        self.t = t
-
     @kernel
     def many(self, n, p):
         t = [0 for i in range(2)]
         self.core.break_realtime()
         for i in range(n):
             self.one(t, p)
-        self.rep(t)
+        self.t = t
 
     @kernel
     def one(self, t, p):
+        t0 = now_mu()
         with parallel:
             self.pmt0.gate_both_mu(2*p)
-            with sequential:
-                t0 = now_mu()
-                self.ttl2.pulse_mu(p)
+            self.ttl2.pulse_mu(p)
         for i in range(len(t)):
             ti = self.pmt0.timestamp_mu()
             if ti <= 0:
                 raise PulseNotReceivedError
             t[i] += ti - t0
-        self.pmt0.count()
+        self.pmt0.count()  # flush
