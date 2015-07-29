@@ -396,6 +396,7 @@ class Function:
     def __init__(self, typ, name, arguments):
         self.type, self.name = typ, name
         self.names, self.arguments, self.basic_blocks = set(), [], []
+        self.next_name = 1
         self.set_arguments(arguments)
         self.is_internal = False
 
@@ -403,13 +404,14 @@ class Function:
         self.names.remove(name)
 
     def _add_name(self, base_name):
-        name, counter = base_name, 1
-        while name in self.names or name == "":
-            if base_name == "":
-                name = "v.{}".format(str(counter))
-            else:
-                name = "{}.{}".format(name, counter)
-            counter += 1
+        if base_name == "":
+            name = "v.{}".format(self.next_name)
+            self.next_name += 1
+        elif base_name in self.names:
+            name = "{}.{}".format(base_name, self.next_name)
+            self.next_name += 1
+        else:
+            name = base_name
 
         self.names.add(name)
         return name
