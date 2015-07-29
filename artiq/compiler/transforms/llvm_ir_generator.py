@@ -3,8 +3,8 @@
 into LLVM intermediate representation.
 """
 
-import llvmlite.ir as ll
 from pythonparser import ast
+from llvmlite_artiq import ir as ll
 from .. import types, builtins, ir
 
 class LLVMIRGenerator:

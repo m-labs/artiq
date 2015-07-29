@@ -1,12 +1,11 @@
 import os, sys, fileinput, ctypes
 from pythonparser import diagnostic
-from llvmlite import binding as llvm
+from llvmlite_artiq import binding as llvm
 from .. import Module
 
 llvm.initialize()
 llvm.initialize_native_target()
 llvm.initialize_native_asmprinter()
-llvm.check_jit_execution()
 
 def main():
     libartiq_personality = os.getenv('LIBARTIQ_PERSONALITY')

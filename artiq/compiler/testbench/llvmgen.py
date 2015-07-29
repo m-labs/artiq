@@ -1,6 +1,6 @@
 import sys, fileinput
 from pythonparser import diagnostic
-from llvmlite import ir as ll
+from llvmlite_artiq import ir as ll
 from .. import Module
 
 def main():

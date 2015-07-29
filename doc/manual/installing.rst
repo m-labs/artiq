@@ -300,11 +300,8 @@ Installing the host-side software
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/m-labs/llvmlite
-        $ git checkout backport-3.5
+        $ git checkout artiq
         $ cd llvmlite
-        $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-add-all-targets.patch
-        $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-rename.patch
-        $ patch -p1 < ~/artiq-dev/artiq/misc/llvmlite-build-as-debug-on-windows.patch
         $ LLVM_CONFIG=/usr/local/llvm-or1k/bin/llvm-config python3 setup.py install --user
 
 * Install ARTIQ: ::
