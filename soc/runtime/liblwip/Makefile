@@ -53,4 +53,3 @@ clean:
 
 liblwip.a: $(LWIPOBJS)
 	$(AR) clr liblwip.a $(LWIPOBJS)
-	$(RANLIB) liblwip.a

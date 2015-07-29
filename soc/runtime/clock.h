@@ -3,6 +3,7 @@
 
 void clock_init(void);
 long long int clock_get_ms(void);
+void busywait_us(long long us);
 
 #define MAX_WATCHDOGS 16
 

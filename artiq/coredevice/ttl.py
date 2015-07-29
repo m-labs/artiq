@@ -177,7 +177,7 @@ class TTLInOut:
         self._set_sensitivity(0)
 
     @kernel
-    def gate_both_mu(self, duration):
+    def gate_both(self, duration):
         """Register both rising and falling edge events for the specified
         duration (in seconds)."""
         self._set_sensitivity(3)
@@ -196,8 +196,8 @@ class TTLInOut:
 
     @kernel
     def timestamp_mu(self):
-        """Poll the RTIO input and returns an event timestamp, according to
-        the gating.
+        """Poll the RTIO input and returns an event timestamp (in machine
+        units), according to the gating.
 
         If the gate is permanently closed, returns a negative value.
         """

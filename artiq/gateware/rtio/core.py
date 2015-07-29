@@ -118,8 +118,10 @@ class _OutputManager(Module):
         sequence_error = Signal()
         nop = Signal()
         self.sync.rsys += [
-            replace.eq(self.ev.timestamp == buf.timestamp[fine_ts_width:]),
-            sequence_error.eq(self.ev.timestamp < buf.timestamp[fine_ts_width:])
+            replace.eq(self.ev.timestamp[fine_ts_width:] \
+                       == buf.timestamp[fine_ts_width:]),
+            sequence_error.eq(self.ev.timestamp[fine_ts_width:] \
+                              < buf.timestamp[fine_ts_width:])
         ]
         if interface.suppress_nop:
             # disable NOP at reset: do not suppress a first write with all 0s
@@ -300,8 +302,7 @@ class _KernelCSRs(AutoCSR):
 
 
 class RTIO(Module):
-    def __init__(self, channels, clk_freq, full_ts_width=63,
-                 guard_io_cycles=20):
+    def __init__(self, channels, full_ts_width=63, guard_io_cycles=20):
         data_width = max(rtlink.get_data_width(c.interface)
                          for c in channels)
         address_width = max(rtlink.get_address_width(c.interface)
@@ -329,11 +330,15 @@ class RTIO(Module):
             self.cd_rsys.rst.eq(self.kcsrs.reset.storage)
         ]
         self.comb += self.cd_rio.clk.eq(ClockSignal("rtio"))
-        self.specials += AsyncResetSynchronizer(self.cd_rio,
-                                                self.kcsrs.reset.storage)
+        self.specials += AsyncResetSynchronizer(
+            self.cd_rio,
+            self.kcsrs.reset.storage | ResetSignal("rtio",
+                                                   allow_reset_less=True))
         self.comb += self.cd_rio_phy.clk.eq(ClockSignal("rtio"))
-        self.specials += AsyncResetSynchronizer(self.cd_rio_phy,
-                                                self.kcsrs.reset_phy.storage)
+        self.specials += AsyncResetSynchronizer(
+            self.cd_rio_phy,
+            self.kcsrs.reset_phy.storage | ResetSignal("rtio",
+                                                       allow_reset_less=True))
 
         # Managers
         self.submodules.counter = _RTIOCounter(full_ts_width - fine_ts_width)

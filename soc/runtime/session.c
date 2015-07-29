@@ -12,6 +12,7 @@
 #include "kloader.h"
 #include "exceptions.h"
 #include "flash_storage.h"
+#include "rtiocrg.h"
 #include "session.h"
 
 #define BUFFER_IN_SIZE (1024*1024)
@@ -154,8 +155,10 @@ static int process_input(void)
                 submit_output(9);
                 break;
             }
-            rtio_crg_clock_sel_write(buffer_in[9]);
-            buffer_out[8] = REMOTEMSG_TYPE_CLOCK_SWITCH_COMPLETED;
+            if(rtiocrg_switch_clock(buffer_in[9]))
+                buffer_out[8] = REMOTEMSG_TYPE_CLOCK_SWITCH_COMPLETED;
+            else
+                buffer_out[8] = REMOTEMSG_TYPE_CLOCK_SWITCH_FAILED;
             submit_output(9);
             break;
         case REMOTEMSG_TYPE_LOAD_OBJECT:
@@ -527,10 +530,17 @@ void session_poll(void **data, int *len)
 {
     int l;
 
-    if((user_kernel_state == USER_KERNEL_RUNNING) && watchdog_expired()) {
-        log("Watchdog expired");
-        *len = -1;
-        return;
+    if(user_kernel_state == USER_KERNEL_RUNNING) {
+        if(watchdog_expired()) {
+            log("Watchdog expired");
+            *len = -1;
+            return;
+        }
+        if(!rtiocrg_check()) {
+            log("RTIO clock failure");
+            *len = -1;
+            return;
+        }
     }
 
     l = get_out_packet_len();
