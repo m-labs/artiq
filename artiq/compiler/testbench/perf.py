@@ -1,4 +1,4 @@
-import sys, os, time
+import sys, os, time, cProfile as profile, pstats
 from pythonparser import diagnostic
 from .. import Module
 from ..targets import OR1KTarget
@@ -21,6 +21,9 @@ def main():
                for filename in sys.argv[1:]]
 
     def benchmark(f, name):
+        profiler = profile.Profile()
+        profiler.enable()
+
         start = time.perf_counter()
         end   = 0
         runs  = 0
@@ -29,8 +32,13 @@ def main():
             runs += 1
             end = time.perf_counter()
 
+        profiler.create_stats()
+
         print("{} {} runs: {:.2f}s, {:.2f}ms/run".format(
                 runs, name, end - start, (end - start) / runs * 1000))
+
+        stats = pstats.Stats(profiler)
+        stats.strip_dirs().sort_stats('time').print_stats(10)
 
     sources = []
     for filename in sys.argv[1:]:
