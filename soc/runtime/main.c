@@ -26,7 +26,7 @@
 #include "clock.h"
 #include "rtiocrg.h"
 #include "test_mode.h"
-#include "kserver.h"
+#include "net_server.h"
 #include "session.h"
 #include "moninj.h"
 
@@ -138,14 +138,14 @@ static void regular_main(void)
 {
     puts("Accepting sessions on Ethernet.");
     network_init();
-    kserver_init();
+    net_server_init();
     moninj_init();
 
     session_end();
     while(1) {
         lwip_service();
         kloader_service_essential_kmsg();
-        kserver_service();
+        net_server_service();
     }
 }
 

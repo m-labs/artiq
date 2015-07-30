@@ -14,19 +14,19 @@
 #include <lwip/timers.h>
 
 #include "session.h"
-#include "kserver.h"
+#include "net_server.h"
 
-struct kserver_connstate {
+struct net_server_connstate {
     int magic_recognized;
     struct pbuf *rp;
     int rp_offset;
 };
 
-static struct kserver_connstate *cs_new(void)
+static struct net_server_connstate *cs_new(void)
 {
-    struct kserver_connstate *cs;
+    struct net_server_connstate *cs;
 
-    cs = (struct kserver_connstate *)mem_malloc(sizeof(struct kserver_connstate));
+    cs = (struct net_server_connstate *)mem_malloc(sizeof(struct net_server_connstate));
     if(!cs)
         return NULL;
     cs->magic_recognized = 0;
@@ -35,24 +35,24 @@ static struct kserver_connstate *cs_new(void)
     return cs;
 }
 
-static void cs_free(struct kserver_connstate *cs)
+static void cs_free(struct net_server_connstate *cs)
 {
     if(cs->rp)
         pbuf_free(cs->rp);
     mem_free(cs);
 }
 
-static const char kserver_magic[] = "ARTIQ coredev\n";
+static const char net_server_magic[] = "ARTIQ coredev\n";
 
-static int magic_ok(struct kserver_connstate *cs)
+static int magic_ok(struct net_server_connstate *cs)
 {
     return cs->magic_recognized >= 14;
 }
 
-static struct kserver_connstate *active_cs;
+static struct net_server_connstate *active_cs;
 static struct tcp_pcb *active_pcb;
 
-static void kserver_close(struct kserver_connstate *cs, struct tcp_pcb *pcb)
+static void net_server_close(struct net_server_connstate *cs, struct tcp_pcb *pcb)
 {
     if(cs == active_cs) {
         session_end();
@@ -70,11 +70,11 @@ static void kserver_close(struct kserver_connstate *cs, struct tcp_pcb *pcb)
     tcp_close(pcb);
 }
 
-static err_t kserver_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
+static err_t net_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
 {
-    struct kserver_connstate *cs;
+    struct net_server_connstate *cs;
 
-    cs = (struct kserver_connstate *)arg;
+    cs = (struct net_server_connstate *)arg;
     if(p) {
         if(cs->rp)
             pbuf_cat(cs->rp, p);
@@ -83,11 +83,11 @@ static err_t kserver_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t 
             cs->rp_offset = 0;
         }
     } else
-        kserver_close(cs, pcb);
+        net_server_close(cs, pcb);
     return ERR_OK;
 }
 
-static err_t kserver_sent(void *arg, struct tcp_pcb *pcb, u16_t len)
+static err_t net_server_sent(void *arg, struct tcp_pcb *pcb, u16_t len)
 {
     session_ack_mem(len);
     return ERR_OK;
@@ -95,13 +95,13 @@ static err_t kserver_sent(void *arg, struct tcp_pcb *pcb, u16_t len)
 
 static void tcp_pcb_service(void *arg, struct tcp_pcb *pcb)
 {
-    struct kserver_connstate *cs;
+    struct net_server_connstate *cs;
     int remaining_in_pbuf;
     char *rpp;
     struct pbuf *next;
     int r;
 
-    cs = (struct kserver_connstate *)arg;
+    cs = (struct net_server_connstate *)arg;
 
     while(cs->rp) {
         remaining_in_pbuf = cs->rp->len - cs->rp_offset;
@@ -116,20 +116,20 @@ static void tcp_pcb_service(void *arg, struct tcp_pcb *pcb)
                 } else if(r == 0)
                     return;
                 else
-                    kserver_close(cs, pcb);
+                    net_server_close(cs, pcb);
             } else {
-                if(rpp[cs->rp_offset] == kserver_magic[cs->magic_recognized]) {
+                if(rpp[cs->rp_offset] == net_server_magic[cs->magic_recognized]) {
                     cs->magic_recognized++;
                     if(magic_ok(cs)) {
                         if(active_cs)
-                            kserver_close(active_cs, active_pcb);
+                            net_server_close(active_cs, active_pcb);
                         session_start();
                         active_cs = cs;
                         active_pcb = pcb;
-                        tcp_sent(pcb, kserver_sent);
+                        tcp_sent(pcb, net_server_sent);
                     }
                 } else {
-                    kserver_close(cs, pcb);
+                    net_server_close(cs, pcb);
                     return;
                 }
                 remaining_in_pbuf--;
@@ -150,41 +150,41 @@ static void tcp_pcb_service(void *arg, struct tcp_pcb *pcb)
     }
 }
 
-static void kserver_err(void *arg, err_t err)
+static void net_server_err(void *arg, err_t err)
 {
-    struct kserver_connstate *cs;
+    struct net_server_connstate *cs;
 
-    cs = (struct kserver_connstate *)arg;
+    cs = (struct net_server_connstate *)arg;
     cs_free(cs);
 }
 
 static struct tcp_pcb *listen_pcb;
 
-static err_t kserver_accept(void *arg, struct tcp_pcb *newpcb, err_t err)
+static err_t net_server_accept(void *arg, struct tcp_pcb *newpcb, err_t err)
 {
-    struct kserver_connstate *cs;
+    struct net_server_connstate *cs;
 
     cs = cs_new();
     if(!cs)
         return ERR_MEM;
     tcp_accepted(listen_pcb);
     tcp_arg(newpcb, cs);
-    tcp_recv(newpcb, kserver_recv);
-    tcp_err(newpcb, kserver_err);
+    tcp_recv(newpcb, net_server_recv);
+    tcp_err(newpcb, net_server_err);
     return ERR_OK;
 }
 
-void kserver_init(void)
+void net_server_init(void)
 {
     listen_pcb = tcp_new();
     tcp_bind(listen_pcb, IP_ADDR_ANY, 1381);
     listen_pcb = tcp_listen(listen_pcb);
-    tcp_accept(listen_pcb, kserver_accept);
+    tcp_accept(listen_pcb, net_server_accept);
 }
 
 extern struct tcp_pcb *tcp_active_pcbs;
 
-void kserver_service(void)
+void net_server_service(void)
 {
     struct tcp_pcb *pcb;
     void *data;
@@ -208,7 +208,7 @@ void kserver_service(void)
             session_ack_data(len);
         }
         if(len < 0)
-            kserver_close(active_cs, active_pcb);
+            net_server_close(active_cs, active_pcb);
     }
 }
 
