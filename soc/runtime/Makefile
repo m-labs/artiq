@@ -1,5 +1,7 @@
 include $(MSCDIR)/software/common.mak
 
+PYTHON ?= python3
+
 OBJECTS := isr.o flash_storage.o clock.o rtiocrg.o elf_loader.o services.o session.o log.o test_mode.o kloader.o bridge_ctl.o mailbox.o ksupport_data.o net_server.o moninj.o main.o
 OBJECTS_KSUPPORT := ksupport.o exception_jmp.o exceptions.o mailbox.o bridge.o rtio.o ttl.o dds.o
 
@@ -43,7 +45,7 @@ ksupport_data.o: ksupport.bin
 	$(LD) -r -b binary -o $@ $<
 
 service_table.h: ksupport.elf gen_service_table.py
-	@echo " GEN     " $@ && ./gen_service_table.py ksupport.elf > $@
+	@echo " GEN     " $@ && $(PYTHON) gen_service_table.py ksupport.elf > $@
 
 services.c: service_table.h
 
