@@ -18,6 +18,12 @@ mkdir -p $BIN_PREFIX/kc705 $BIN_PREFIX/pipistrello
 
 # build for KC705
 
+echo $PYTHONPATH
+echo $PREFIX/lib/python3.4/site-packages
+ls $PREFIX/lib/python3.4/site-packages
+ls $PREFIX/lib/python3.4/site-packages/migen
+ls $PREFIX/lib/python3.4/site-packages/mibuild
+
 cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_kc705 build-headers build-bios; cd -
 make -C soc/runtime clean runtime.fbi
 cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_kc705 $MISOC_EXTRA_VIVADO_CMDLINE build-bitstream; cd -
