@@ -42,11 +42,8 @@ class _PayloadCoreSend1MB(EnvExperiment):
 
     @kernel
     def run(self):
-        # FIXME: make this a single list
-        # affected by issue #82 at the moment
-        data = [0 for _ in range(20000//4)]
-        for i in range(50):
-            self.devnull(data)
+        data = [0 for _ in range(1000000//4)]
+        self.devnull(data)
 
 
 class _PayloadCorePrimes(EnvExperiment):
