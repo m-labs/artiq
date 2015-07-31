@@ -16,20 +16,11 @@ BIN_PREFIX=$ARTIQ_PREFIX/binaries/
 mkdir -p $ARTIQ_PREFIX/misc
 mkdir -p $BIN_PREFIX/kc705 $BIN_PREFIX/pipistrello
 
-# workarounds
-export PYTHONPATH=$PREFIX/lib/python3.4/site-packages
-echo $PATH
-echo $PREFIX/lib/python3.4/site-packages
-echo $PYTHON
-which python
-which $PYTHON
-#
-
 # build for KC705
 
-cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_kc705 build-headers build-bios; cd -
+cd $SRC_DIR/misoc; $PYTHON make.py -X ../soc -t artiq_kc705 build-headers build-bios; cd -
 make -C soc/runtime clean runtime.fbi
-cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_kc705 $MISOC_EXTRA_VIVADO_CMDLINE build-bitstream; cd -
+cd $SRC_DIR/misoc; $PYTHON make.py -X ../soc -t artiq_kc705 $MISOC_EXTRA_VIVADO_CMDLINE build-bitstream; cd -
 
 # install KC705 binaries
 
@@ -41,9 +32,9 @@ mv bscan_spi_kc705.bit $BIN_PREFIX/kc705/
 
 # build for Pipistrello
 
-cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_pipistrello build-headers build-bios; cd -
+cd $SRC_DIR/misoc; $PYTHON make.py -X ../soc -t artiq_pipistrello build-headers build-bios; cd -
 make -C soc/runtime clean runtime.fbi
-cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_pipistrello $MISOC_EXTRA_ISE_CMDLINE build-bitstream; cd -
+cd $SRC_DIR/misoc; $PYTHON make.py -X ../soc -t artiq_pipistrello $MISOC_EXTRA_ISE_CMDLINE build-bitstream; cd -
 
 # install Pipistrello binaries
 
