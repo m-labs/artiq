@@ -20,7 +20,9 @@ mkdir -p $BIN_PREFIX/kc705 $BIN_PREFIX/pipistrello
 export PYTHONPATH=$PREFIX/lib/python3.4/site-packages
 echo $PATH
 echo $PREFIX/lib/python3.4/site-packages
+echo $PYTHON
 which python
+which $PYTHON
 #
 
 # build for KC705
