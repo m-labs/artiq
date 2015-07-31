@@ -16,9 +16,14 @@ BIN_PREFIX=$ARTIQ_PREFIX/binaries/
 mkdir -p $ARTIQ_PREFIX/misc
 mkdir -p $BIN_PREFIX/kc705 $BIN_PREFIX/pipistrello
 
-# build for KC705
-
+# workarounds
 export PYTHONPATH=$PREFIX/lib/python3.4/site-packages
+echo $PATH
+echo $PREFIX/lib/python3.4/site-packages
+which python
+#
+
+# build for KC705
 
 cd $SRC_DIR/misoc; python make.py -X ../soc -t artiq_kc705 build-headers build-bios; cd -
 make -C soc/runtime clean runtime.fbi
