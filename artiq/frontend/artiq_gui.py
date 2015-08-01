@@ -82,6 +82,7 @@ def main():
     atexit.register(lambda: loop.run_until_complete(d_explorer.sub_close()))
 
     d_results = ResultsDock(win, area)
+    smgr.register(d_results)
     loop.run_until_complete(d_results.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_results.sub_close()))
