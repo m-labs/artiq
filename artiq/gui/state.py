@@ -1,8 +1,12 @@
 import asyncio
 from collections import OrderedDict
+import logging
 
 from artiq.tools import TaskObject
 from artiq.protocols import pyon
+
+
+logger = logging.getLogger(__name__)
 
 
 # support Qt CamelCase naming scheme for save/restore state
@@ -38,6 +42,8 @@ class StateManager(TaskObject):
         try:
             data = pyon.load_file(self.filename)
         except FileNotFoundError:
+            logger.info("State database '%s' not found, using defaults",
+                        self.filename)
             return
         # The state of one object may depend on the state of another,
         # e.g. the display state may create docks that are referenced in
@@ -47,10 +53,20 @@ class StateManager(TaskObject):
         for name, obj in reversed(list(self.stateful_objects.items())):
             state = data.get(name, None)
             if state is not None:
-                _restore_state(obj, state)
+                try:
+                    _restore_state(obj, state)
+                except:
+                    logger.warning("Failed to restore state for object '%s'",
+                                   name, exc_info=True)
 
     def save(self):
-        data = {k: _save_state(v) for k, v in self.stateful_objects.items()}
+        data = dict()
+        for k, v in self.stateful_objects.items():
+            try:
+                data[k] = _save_state(v)
+            except:
+                logger.warning("Failed to save state for object '%s'", k,
+                               exc_info=True)
         pyon.store_file(self.filename, data)
 
     @asyncio.coroutine
