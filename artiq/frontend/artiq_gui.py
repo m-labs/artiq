@@ -10,8 +10,8 @@ import os
 from quamash import QEventLoop, QtGui
 from pyqtgraph import dockarea
 
-from artiq.protocols.file_db import FlatFileDB
 from artiq.protocols.pc_rpc import AsyncioClient
+from artiq.gui.state import StateManager
 from artiq.gui.explorer import ExplorerDock
 from artiq.gui.moninj import MonInj
 from artiq.gui.results import ResultsDock
@@ -53,15 +53,15 @@ class _MainWindow(QtGui.QMainWindow):
     def closeEvent(self, *args):
         self.exit_request.set()
 
+
 def main():
-    args = get_argparser().parse_args()
-
-    db = FlatFileDB(args.db_file, default_data=dict())
-
     app = QtGui.QApplication([])
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
     atexit.register(lambda: loop.close())
+
+    args = get_argparser().parse_args()
+    smgr = StateManager(args.db_file)
 
     schedule_ctl = AsyncioClient()
     loop.run_until_complete(schedule_ctl.connect_rpc(
@@ -70,6 +70,7 @@ def main():
 
     win = _MainWindow(app)
     area = dockarea.DockArea()
+    smgr.register(area)
     win.setCentralWidget(area)
     status_bar = QtGui.QStatusBar()
     status_bar.showMessage("Connected to {}".format(args.server))
@@ -125,6 +126,9 @@ def main():
     area.addDock(d_log, "above", d_console)
     area.addDock(d_schedule, "above", d_log)
 
+    smgr.load()
+    smgr.start()
+    atexit.register(lambda: loop.run_until_complete(smgr.stop()))
     win.show()
     loop.run_until_complete(win.exit_request.wait())
 
