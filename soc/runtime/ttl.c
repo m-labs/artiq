@@ -1,6 +1,6 @@
 #include <generated/csr.h>
 
-#include "exceptions.h"
+#include "artiq_personality.h"
 #include "rtio.h"
 #include "ttl.h"
 
@@ -40,7 +40,8 @@ long long int ttl_get(int channel, long long int time_limit)
     while((status = rtio_i_status_read())) {
         if(rtio_i_status_read() & RTIO_I_STATUS_OVERFLOW) {
             rtio_i_overflow_reset_write(1);
-            exception_raise_params(EID_RTIO_OVERFLOW,
+            artiq_raise_from_c("RTIOOverflow",
+                "RTIO overflow at channel {0}",
                 channel, 0, 0);
         }
         if(rtio_get_counter() >= time_limit) {

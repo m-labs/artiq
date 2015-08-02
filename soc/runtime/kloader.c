@@ -1,120 +1,82 @@
 #include <string.h>
 #include <generated/csr.h>
 
+#include <dyld.h>
+
+#include "kloader.h"
 #include "log.h"
 #include "flash_storage.h"
 #include "mailbox.h"
 #include "messages.h"
-#include "elf_loader.h"
-#include "services.h"
-#include "kloader.h"
 
-static struct symbol symtab[128];
-static int _symtab_count;
-static char _symtab_strings[128*16];
-static char *_symtab_strptr;
-
-static void symtab_init(void)
+static void start_kernel_cpu(struct msg_load_request *msg)
 {
-    memset(symtab, 0, sizeof(symtab));
-    _symtab_count = 0;
-    _symtab_strptr = _symtab_strings;
+    // Stop kernel CPU before messing with its code.
+    kernel_cpu_reset_write(1);
+
+    // Load kernel support code.
+    extern void _binary_ksupport_elf_start, _binary_ksupport_elf_end;
+    memcpy((void *)(KERNELCPU_EXEC_ADDRESS - KSUPPORT_HEADER_SIZE),
+           &_binary_ksupport_elf_start,
+           &_binary_ksupport_elf_end - &_binary_ksupport_elf_start);
+
+    // Start kernel CPU.
+    mailbox_send(msg);
+    kernel_cpu_reset_write(0);
 }
 
-static int symtab_add(const char *name, void *target)
+void kloader_start_bridge()
 {
-    if(_symtab_count >= sizeof(symtab)/sizeof(symtab[0])) {
-        log("Too many provided symbols in object");
-        symtab_init();
-        return 0;
-    }
-    symtab[_symtab_count].name = _symtab_strptr;
-    symtab[_symtab_count].target = target;
-    _symtab_count++;
+    start_kernel_cpu(NULL);
+}
 
-    while(1) {
-        if(_symtab_strptr >= &_symtab_strings[sizeof(_symtab_strings)]) {
-            log("Provided symbol string table overflow");
-            symtab_init();
-            return 0;
-        }
-        *_symtab_strptr = *name;
-        _symtab_strptr++;
-        if(*name == 0)
-            break;
-        name++;
+static int load_or_start_kernel(void *library, const char *kernel)
+{
+    static struct dyld_info library_info;
+    struct msg_load_request request = {
+        .library      = library,
+        .library_info = &library_info,
+        .kernel       = kernel,
+    };
+    start_kernel_cpu(&request);
+
+    struct msg_load_reply *reply = mailbox_wait_and_receive();
+    if(reply != NULL && reply->type == MESSAGE_TYPE_LOAD_REPLY) {
+        log("cannot load/run kernel: %s", reply->error);
+        return 0;
     }
 
     return 1;
 }
 
-int kloader_load(void *buffer, int length)
+int kloader_load_library(void *library)
 {
     if(!kernel_cpu_reset_read()) {
-        log("BUG: attempted to load while kernel CPU running");
+        log("BUG: attempted to load kernel library while kernel CPU is running");
         return 0;
     }
-    symtab_init();
-    return load_elf(
-        resolve_service_symbol, symtab_add,
-        buffer, length, (void *)KERNELCPU_PAYLOAD_ADDRESS, 4*1024*1024);
+
+    return load_or_start_kernel(library, NULL);
 }
 
-kernel_function kloader_find(const char *name)
+int kloader_start_kernel(const char *name)
 {
-    return find_symbol(symtab, name);
+    return load_or_start_kernel(NULL, name);
 }
 
-extern char _binary_ksupport_bin_start;
-extern char _binary_ksupport_bin_end;
-
-static void start_kernel_cpu(void *addr)
+int kloader_start_idle_kernel(void)
 {
-    memcpy((void *)KERNELCPU_EXEC_ADDRESS, &_binary_ksupport_bin_start,
-        &_binary_ksupport_bin_end - &_binary_ksupport_bin_start);
-    mailbox_acknowledge();
-    mailbox_send(addr);
-    kernel_cpu_reset_write(0);
-}
-
-void kloader_start_bridge(void)
-{
-    start_kernel_cpu(NULL);
-}
-
-void kloader_start_user_kernel(kernel_function k)
-{
-    if(!kernel_cpu_reset_read()) {
-        log("BUG: attempted to start kernel CPU while already running (user kernel)");
-        return;
-    }
-    start_kernel_cpu((void *)k);
-}
-
-void kloader_start_idle_kernel(void)
-{
-    char buffer[32*1024];
-    int len;
-    kernel_function k;
-
-    if(!kernel_cpu_reset_read()) {
-        log("BUG: attempted to start kernel CPU while already running (idle kernel)");
-        return;
-    }
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
-    len = fs_read("idle_kernel", buffer, sizeof(buffer), NULL);
-    if(len <= 0)
-        return;
-    if(!kloader_load(buffer, len)) {
-        log("Failed to load ELF binary for idle kernel");
-        return;
-    }
-    k = kloader_find("run");
-    if(!k) {
-        log("Failed to find entry point for ELF kernel");
-        return;
-    }
-    start_kernel_cpu((void *)k);
+    char buffer[32*1024];
+    int length;
+
+    length = fs_read("idle_kernel", buffer, sizeof(buffer), NULL);
+    if(length <= 0)
+        return 0;
+
+    return load_or_start_kernel(buffer, "test.__modinit__");
+#else
+    return 0;
 #endif
 }
 
@@ -127,7 +89,7 @@ void kloader_stop(void)
 int kloader_validate_kpointer(void *p)
 {
     unsigned int v = (unsigned int)p;
-    if((v < 0x40400000) || (v > (0x4fffffff - 1024*1024))) {
+    if((v < KERNELCPU_EXEC_ADDRESS) || (v > KERNELCPU_LAST_ADDRESS)) {
         log("Received invalid pointer from kernel CPU: 0x%08x", v);
         return 0;
     }

@@ -10,7 +10,7 @@
 #include "clock.h"
 #include "log.h"
 #include "kloader.h"
-#include "exceptions.h"
+#include "artiq_personality.h"
 #include "flash_storage.h"
 #include "rtiocrg.h"
 #include "session.h"
@@ -19,7 +19,7 @@
 #define BUFFER_OUT_SIZE (1024*1024)
 
 static int buffer_in_index;
-/* The 9th byte (right after the header) of buffer_in must be aligned 
+/* The 9th byte (right after the header) of buffer_in must be aligned
  * to a 32-bit boundary for elf_loader to work.
  */
 static struct {
@@ -85,8 +85,8 @@ enum {
     REMOTEMSG_TYPE_LOG_REQUEST = 1,
     REMOTEMSG_TYPE_IDENT_REQUEST,
     REMOTEMSG_TYPE_SWITCH_CLOCK,
-    
-    REMOTEMSG_TYPE_LOAD_OBJECT,
+
+    REMOTEMSG_TYPE_LOAD_LIBRARY,
     REMOTEMSG_TYPE_RUN_KERNEL,
 
     REMOTEMSG_TYPE_RPC_REPLY,
@@ -161,23 +161,22 @@ static int process_input(void)
                 buffer_out[8] = REMOTEMSG_TYPE_CLOCK_SWITCH_FAILED;
             submit_output(9);
             break;
-        case REMOTEMSG_TYPE_LOAD_OBJECT:
+        case REMOTEMSG_TYPE_LOAD_LIBRARY:
             if(user_kernel_state >= USER_KERNEL_RUNNING) {
-                log("Attempted to load new kernel while already running");
+                log("Attempted to load new kernel library while already running");
                 buffer_out[8] = REMOTEMSG_TYPE_LOAD_FAILED;
                 submit_output(9);
-                break;    
+                break;
             }
-            if(kloader_load(&buffer_in[9], get_in_packet_len() - 8)) {
+            if(kloader_load_library(&buffer_in[9])) {
                 buffer_out[8] = REMOTEMSG_TYPE_LOAD_COMPLETED;
                 user_kernel_state = USER_KERNEL_LOADED;
-            } else
+            } else {
                 buffer_out[8] = REMOTEMSG_TYPE_LOAD_FAILED;
+            }
             submit_output(9);
             break;
         case REMOTEMSG_TYPE_RUN_KERNEL: {
-            kernel_function k;
-
             if(user_kernel_state != USER_KERNEL_LOADED) {
                 log("Attempted to run kernel while not in the LOADED state");
                 buffer_out[8] = REMOTEMSG_TYPE_KERNEL_STARTUP_FAILED;
@@ -193,16 +192,14 @@ static int process_input(void)
             }
             buffer_in[buffer_in_index] = 0;
 
-            k = kloader_find((char *)&buffer_in[9]);
-            if(k == NULL) {
+            watchdog_init();
+            if(!kloader_start_kernel((char *)&buffer_in[9])) {
                 log("Failed to find kernel entry point '%s' in object", &buffer_in[9]);
                 buffer_out[8] = REMOTEMSG_TYPE_KERNEL_STARTUP_FAILED;
                 submit_output(9);
                 break;
             }
 
-            watchdog_init();
-            kloader_start_user_kernel(k);
             user_kernel_state = USER_KERNEL_RUNNING;
             break;
         }
@@ -215,7 +212,7 @@ static int process_input(void)
             }
 
             reply.type = MESSAGE_TYPE_RPC_REPLY;
-            memcpy(&reply.eid, &buffer_in[9], 4);
+            // FIXME memcpy(&reply.eid, &buffer_in[9], 4);
             memcpy(&reply.retval, &buffer_in[13], 4);
             mailbox_send_and_wait(&reply);
             user_kernel_state = USER_KERNEL_RUNNING;
@@ -481,8 +478,8 @@ static int process_kmsg(struct msg_base *umsg)
             struct msg_exception *msg = (struct msg_exception *)umsg;
 
             buffer_out[8] = REMOTEMSG_TYPE_KERNEL_EXCEPTION;
-            memcpy(&buffer_out[9], &msg->eid, 4);
-            memcpy(&buffer_out[13], msg->eparams, 3*8);
+            // memcpy(&buffer_out[9], &msg->eid, 4);
+            // memcpy(&buffer_out[13], msg->eparams, 3*8);
             submit_output(9+4+3*8);
 
             kloader_stop();
@@ -545,7 +542,7 @@ void session_poll(void **data, int *len)
 
     l = get_out_packet_len();
 
-    /* If the output buffer is available, 
+    /* If the output buffer is available,
      * check if the kernel CPU has something to transmit.
      */
     if(l == 0) {

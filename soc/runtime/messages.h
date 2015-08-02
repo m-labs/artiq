@@ -2,8 +2,10 @@
 #define __MESSAGES_H
 
 #include <stdarg.h>
+#include <stddef.h>
 
 enum {
+    MESSAGE_TYPE_LOAD_REPLY,
     MESSAGE_TYPE_NOW_INIT_REQUEST,
     MESSAGE_TYPE_NOW_INIT_REPLY,
     MESSAGE_TYPE_NOW_SAVE,
@@ -34,6 +36,17 @@ struct msg_base {
 
 /* kernel messages */
 
+struct msg_load_request {
+    void *library;
+    struct dyld_info *library_info;
+    const char *kernel;
+};
+
+struct msg_load_reply {
+    int type;
+    const char *error;
+};
+
 struct msg_now_init_reply {
     int type;
     long long int now;
@@ -46,8 +59,9 @@ struct msg_now_save {
 
 struct msg_exception {
     int type;
-    int eid;
-    long long int eparams[3];
+    struct artiq_exception *exception;
+    struct artiq_backtrace_item *backtrace;
+    size_t backtrace_size;
 };
 
 struct msg_watchdog_set_request {
@@ -73,7 +87,7 @@ struct msg_rpc_request {
 
 struct msg_rpc_reply {
     int type;
-    int eid;
+    struct artiq_exception *exception;
     int retval;
 };
 

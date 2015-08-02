@@ -1,67 +1,254 @@
 #include <stdarg.h>
+#include <string.h>
+#include <stdio.h>
 
-#include "exceptions.h"
-#include "bridge.h"
+#include <link.h>
+#include <dlfcn.h>
+#include <dyld.h>
+#include <unwind.h>
+
+#include "ksupport.h"
+#include "kloader.h"
 #include "mailbox.h"
 #include "messages.h"
-#include "rtio.h"
+#include "bridge.h"
+#include "artiq_personality.h"
+#include "ttl.h"
 #include "dds.h"
+#include "rtio.h"
 
-/* for the prototypes for watchdog_set() and watchdog_clear() */
-#include "clock.h"
-/* for the prototype for rpc() */
-#include "session.h"
-/* for the prototype for log() */
-#include "log.h"
+/* compiler-rt symbols */
+extern void __divsi3, __modsi3, __ledf2, __gedf2, __unorddf2, __eqdf2, __ltdf2,
+    __nedf2, __gtdf2, __negsf2, __negdf2, __addsf3, __subsf3, __mulsf3,
+    __divsf3, __lshrdi3, __muldi3, __divdi3, __ashldi3, __ashrdi3,
+    __udivmoddi4, __floatsisf, __floatunsisf, __fixsfsi, __fixunssfsi,
+    __adddf3, __subdf3, __muldf3, __divdf3, __floatsidf, __floatunsidf,
+    __floatdidf, __fixdfsi, __fixdfdi, __fixunsdfsi, __clzsi2, __ctzsi2,
+    __udivdi3, __umoddi3, __moddi3;
 
-void exception_handler(unsigned long vect, unsigned long *sp);
-void exception_handler(unsigned long vect, unsigned long *sp)
+/* artiq_personality symbols */
+extern void __artiq_personality;
+
+struct symbol {
+    const char *name;
+    void *addr;
+};
+
+static const struct symbol runtime_exports[] = {
+    /* compiler-rt */
+    {"divsi3", &__divsi3},
+    {"modsi3", &__modsi3},
+    {"ledf2", &__ledf2},
+    {"gedf2", &__gedf2},
+    {"unorddf2", &__unorddf2},
+    {"eqdf2", &__eqdf2},
+    {"ltdf2", &__ltdf2},
+    {"nedf2", &__nedf2},
+    {"gtdf2", &__gtdf2},
+    {"negsf2", &__negsf2},
+    {"negdf2", &__negdf2},
+    {"addsf3", &__addsf3},
+    {"subsf3", &__subsf3},
+    {"mulsf3", &__mulsf3},
+    {"divsf3", &__divsf3},
+    {"lshrdi3", &__lshrdi3},
+    {"muldi3", &__muldi3},
+    {"divdi3", &__divdi3},
+    {"ashldi3", &__ashldi3},
+    {"ashrdi3", &__ashrdi3},
+    {"udivmoddi4", &__udivmoddi4},
+    {"floatsisf", &__floatsisf},
+    {"floatunsisf", &__floatunsisf},
+    {"fixsfsi", &__fixsfsi},
+    {"fixunssfsi", &__fixunssfsi},
+    {"adddf3", &__adddf3},
+    {"subdf3", &__subdf3},
+    {"muldf3", &__muldf3},
+    {"divdf3", &__divdf3},
+    {"floatsidf", &__floatsidf},
+    {"floatunsidf", &__floatunsidf},
+    {"floatdidf", &__floatdidf},
+    {"fixdfsi", &__fixdfsi},
+    {"fixdfdi", &__fixdfdi},
+    {"fixunsdfsi", &__fixunsdfsi},
+    {"clzsi2", &__clzsi2},
+    {"ctzsi2", &__ctzsi2},
+    {"udivdi3", &__udivdi3},
+    {"umoddi3", &__umoddi3},
+    {"moddi3", &__moddi3},
+
+    /* exceptions */
+    {"_Unwind_Resume", &_Unwind_Resume},
+    {"__artiq_personality", &__artiq_personality},
+    {"__artiq_raise", &__artiq_raise},
+    {"__artiq_reraise", &__artiq_reraise},
+
+    /* proxified syscalls */
+    {"now_init", &now_init},
+    {"now_save", &now_save},
+
+    {"watchdog_set", &watchdog_set},
+    {"watchdog_clear", &watchdog_clear},
+
+    {"log", &log},
+    {"lognonl", &lognonl},
+    {"rpc", &rpc},
+
+    /* direct syscalls */
+    {"rtio_get_counter", &rtio_get_counter},
+
+    {"ttl_set_o", &ttl_set_o},
+    {"ttl_set_oe", &ttl_set_oe},
+    {"ttl_set_sensitivity", &ttl_set_sensitivity},
+    {"ttl_get", &ttl_get},
+    {"ttl_clock_set", &ttl_clock_set},
+
+    {"dds_init", &dds_init},
+    {"dds_batch_enter", &dds_batch_enter},
+    {"dds_batch_exit", &dds_batch_exit},
+    {"dds_set", &dds_set},
+
+    /* end */
+    {NULL, NULL}
+};
+
+/* called by libunwind */
+int fprintf(FILE *stream, const char *fmt, ...)
 {
-    struct msg_exception msg;
+    struct msg_log request;
 
-    msg.type = MESSAGE_TYPE_EXCEPTION;
-    msg.eid = EID_INTERNAL_ERROR;
-    msg.eparams[0] = 256;
-    msg.eparams[1] = 256;
-    msg.eparams[2] = 256;
-    mailbox_send_and_wait(&msg);
-    while(1);
+    request.type = MESSAGE_TYPE_LOG;
+    request.fmt = fmt;
+    request.no_newline = 1;
+    va_start(request.args, fmt);
+    mailbox_send_and_wait(&request);
+    va_end(request.args);
+
+    return 0;
 }
 
-typedef void (*kernel_function)(void);
+/* called by libunwind */
+int dladdr (const void *address, Dl_info *info) {
+    /* we don't try to resolve names */
+    return 0;
+}
+
+/* called by libunwind */
+int dl_iterate_phdr (int (*callback) (struct dl_phdr_info *, size_t, void *), void *data) {
+    Elf32_Ehdr *ehdr;
+    struct dl_phdr_info phdr_info;
+    int retval;
+
+    ehdr = (Elf32_Ehdr *)(KERNELCPU_EXEC_ADDRESS - KSUPPORT_HEADER_SIZE);
+    phdr_info = (struct dl_phdr_info){
+        .dlpi_addr  = 0, /* absolutely linked */
+        .dlpi_name  = "<ksupport>",
+        .dlpi_phdr  = (Elf32_Phdr*) ((intptr_t)ehdr + ehdr->e_phoff),
+        .dlpi_phnum = ehdr->e_phnum,
+    };
+    retval = callback(&phdr_info, sizeof(phdr_info), data);
+    if(retval)
+        return retval;
+
+    ehdr = (Elf32_Ehdr *)KERNELCPU_PAYLOAD_ADDRESS;
+    phdr_info = (struct dl_phdr_info){
+        .dlpi_addr  = KERNELCPU_PAYLOAD_ADDRESS,
+        .dlpi_name  = "<kernel>",
+        .dlpi_phdr  = (Elf32_Phdr*) ((intptr_t)ehdr + ehdr->e_phoff),
+        .dlpi_phnum = ehdr->e_phnum,
+    };
+    retval = callback(&phdr_info, sizeof(phdr_info), data);
+    return retval;
+}
+
+static Elf32_Addr resolve_runtime_export(const char *name) {
+    const struct symbol *sym = runtime_exports;
+    while(sym->name) {
+        if(!strcmp(sym->name, name))
+            return (Elf32_Addr)sym->addr;
+        ++sym;
+    }
+    return 0;
+}
+
+void exception_handler(unsigned long vect, unsigned long *regs,
+                       unsigned long pc, unsigned long ea);
+void exception_handler(unsigned long vect, unsigned long *regs,
+                       unsigned long pc, unsigned long ea)
+{
+    artiq_raise_from_c("InternalError",
+        "Hardware exception {0} at PC {1}, EA {2}",
+        vect, pc, ea);
+}
 
 int main(void);
 int main(void)
 {
-    kernel_function k;
-    void *jb;
+    struct msg_load_request *msg = mailbox_receive();
 
-    k = mailbox_receive();
-
-    if(k == NULL)
+    if(msg == NULL) {
         bridge_main();
-    else {
-        jb = exception_push();
-        if(exception_setjmp(jb)) {
-            struct msg_exception msg;
+        while(1);
+    }
 
-            msg.type = MESSAGE_TYPE_EXCEPTION;
-            msg.eid = exception_getid(msg.eparams);
-            mailbox_send_and_wait(&msg);
-        } else {
-            struct msg_base msg;
-
-            k();
-            exception_pop(1);
-
-            msg.type = MESSAGE_TYPE_FINISHED;
-            mailbox_send_and_wait(&msg);
+    if(msg->library != NULL) {
+        const char *error;
+        if(!dyld_load(msg->library, KERNELCPU_PAYLOAD_ADDRESS,
+                      resolve_runtime_export, msg->library_info, &error)) {
+            struct msg_load_reply msg = {
+                .type = MESSAGE_TYPE_LOAD_REPLY,
+                .error = error
+            };
+            mailbox_send(&msg);
+            while(1);
         }
     }
+
+    void (*kernel)(void) = NULL;
+    if(msg->kernel != NULL) {
+        kernel = dyld_lookup(msg->kernel, msg->library_info);
+        if(kernel == NULL) {
+            char error[256];
+            snprintf(error, sizeof(error),
+                     "kernel '%s' not found in library", msg->kernel);
+            struct msg_load_reply msg = {
+                .type = MESSAGE_TYPE_LOAD_REPLY,
+                .error = error
+            };
+            mailbox_send(&msg);
+            while(1);
+        }
+    }
+
+    mailbox_acknowledge();
+
+    if(kernel) {
+        void (*run_closure)(void *) = msg->library_info->init;
+        run_closure(kernel);
+
+        struct msg_base msg;
+        msg.type = MESSAGE_TYPE_FINISHED;
+        mailbox_send_and_wait(&msg);
+    }
+
     while(1);
 }
 
-long long int now_init(void);
+/* called from __artiq_personality */
+void __artiq_terminate(struct artiq_exception *artiq_exn,
+                       struct artiq_backtrace_item *backtrace,
+                       size_t backtrace_size) {
+    struct msg_exception msg;
+
+    msg.type = MESSAGE_TYPE_EXCEPTION;
+    msg.exception = artiq_exn;
+    msg.backtrace = backtrace;
+    msg.backtrace_size = backtrace_size;
+    mailbox_send(&msg);
+
+    while(1);
+}
+
 long long int now_init(void)
 {
     struct msg_base request;
@@ -72,8 +259,10 @@ long long int now_init(void)
     mailbox_send_and_wait(&request);
 
     reply = mailbox_wait_and_receive();
-    if(reply->type != MESSAGE_TYPE_NOW_INIT_REPLY)
-        exception_raise_params(EID_INTERNAL_ERROR, 1, 0, 0);
+    if(reply->type != MESSAGE_TYPE_NOW_INIT_REPLY) {
+        log("Malformed MESSAGE_TYPE_NOW_INIT_REQUEST reply type");
+        while(1);
+    }
     now = reply->now;
     mailbox_acknowledge();
 
@@ -85,7 +274,6 @@ long long int now_init(void)
     return now;
 }
 
-void now_save(long long int now);
 void now_save(long long int now)
 {
     struct msg_now_save request;
@@ -106,8 +294,10 @@ int watchdog_set(int ms)
     mailbox_send_and_wait(&request);
 
     reply = mailbox_wait_and_receive();
-    if(reply->type != MESSAGE_TYPE_WATCHDOG_SET_REPLY)
-        exception_raise_params(EID_INTERNAL_ERROR, 2, 0, 0);
+    if(reply->type != MESSAGE_TYPE_WATCHDOG_SET_REPLY) {
+        log("Malformed MESSAGE_TYPE_WATCHDOG_SET_REQUEST reply type");
+        while(1);
+    }
     id = reply->id;
     mailbox_acknowledge();
 
@@ -127,7 +317,6 @@ int rpc(int rpc_num, ...)
 {
     struct msg_rpc_request request;
     struct msg_rpc_reply *reply;
-    int eid, retval;
 
     request.type = MESSAGE_TYPE_RPC_REQUEST;
     request.rpc_num = rpc_num;
@@ -136,15 +325,21 @@ int rpc(int rpc_num, ...)
     va_end(request.args);
 
     reply = mailbox_wait_and_receive();
-    if(reply->type != MESSAGE_TYPE_RPC_REPLY)
-        exception_raise_params(EID_INTERNAL_ERROR, 3, 0, 0);
-    eid = reply->eid;
-    retval = reply->retval;
-    mailbox_acknowledge();
+    if(reply->type != MESSAGE_TYPE_RPC_REPLY) {
+        log("Malformed MESSAGE_TYPE_RPC_REPLY reply type");
+        while(1);
+    }
 
-    if(eid != EID_NONE)
-        exception_raise(eid);
-    return retval;
+    if(reply->exception != NULL) {
+        struct artiq_exception exception;
+        memcpy(&exception, reply->exception, sizeof(exception));
+        mailbox_acknowledge();
+        __artiq_raise(&exception);
+    } else {
+        int retval = reply->retval;
+        mailbox_acknowledge();
+        return retval;
+    }
 }
 
 void lognonl(const char *fmt, ...)

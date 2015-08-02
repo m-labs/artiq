@@ -16,7 +16,7 @@ class _H2DMsgType(Enum):
     IDENT_REQUEST = 2
     SWITCH_CLOCK = 3
 
-    LOAD_OBJECT = 4
+    LOAD_LIBRARY = 4
     RUN_KERNEL = 5
 
     RPC_REPLY = 6
@@ -124,7 +124,7 @@ class CommGeneric:
             raise IOError("Incorrect reply from device: {}".format(ty))
 
     def load(self, kcode):
-        self._write_header(len(kcode) + 9, _H2DMsgType.LOAD_OBJECT)
+        self._write_header(len(kcode) + 9, _H2DMsgType.LOAD_LIBRARY)
         self.write(kcode)
         _, ty = self._read_header()
         if ty != _D2HMsgType.LOAD_COMPLETED:

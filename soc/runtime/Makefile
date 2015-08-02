@@ -1,9 +1,15 @@
 include $(MSCDIR)/software/common.mak
 
-OBJECTS := isr.o flash_storage.o clock.o rtiocrg.o elf_loader.o services.o session.o log.o test_mode.o kloader.o bridge_ctl.o mailbox.o ksupport_data.o net_server.o moninj.o main.o
-OBJECTS_KSUPPORT := ksupport.o exception_jmp.o exceptions.o mailbox.o bridge.o rtio.o ttl.o dds.o
+OBJECTS := isr.o clock.o rtiocrg.o flash_storage.o mailbox.o \
+	session.o log.o moninj.o net_server.o bridge_ctl.o \
+	ksupport_data.o kloader.o test_mode.o main.o
+OBJECTS_KSUPPORT := ksupport.o artiq_personality.o mailbox.o \
+	bridge.o rtio.o ttl.o dds.o
 
-CFLAGS += -Ilwip/src/include -Iliblwip
+CFLAGS += -I$(MSCDIR)/software/include/dyld \
+	-I$(MSCDIR)/software/unwinder/include \
+	-I$(MSCDIR)/software/libunwind \
+	-Ilwip/src/include -Iliblwip
 
 all: runtime.bin runtime.fbi
 
@@ -19,7 +25,7 @@ all: runtime.bin runtime.fbi
 
 runtime.elf: $(OBJECTS) libs
 	$(LD) $(LDFLAGS) \
-		-T linker.ld \
+		-T runtime.ld \
 		-N -o $@ \
 		$(MSCDIR)/software/libbase/crt0-$(CPU).o \
 		$(OBJECTS) \
@@ -29,23 +35,22 @@ runtime.elf: $(OBJECTS) libs
 		-lbase -lcompiler-rt -llwip
 	@chmod -x $@
 
-ksupport.elf: $(OBJECTS_KSUPPORT)
+ksupport.elf: $(OBJECTS_KSUPPORT) libs
 	$(LD) $(LDFLAGS) \
+		--eh-frame-hdr \
 		-T ksupport.ld \
 		-N -o $@ \
 		$(MSCDIR)/software/libbase/crt0-$(CPU).o \
-		$^ \
+		$(OBJECTS_KSUPPORT) \
+		-L$(MSCDIR)/software/libbase \
 		-L$(MSCDIR)/software/libcompiler-rt \
-		-lcompiler-rt
+		-L$(MSCDIR)/software/libunwind \
+		-L$(MSCDIR)/software/libdyld \
+		-lbase -lcompiler-rt -lunwind -ldyld
 	@chmod -x $@
 
-ksupport_data.o: ksupport.bin
+ksupport_data.o: ksupport.elf
 	$(LD) -r -b binary -o $@ $<
-
-service_table.h: ksupport.elf gen_service_table.py
-	@echo " GEN     " $@ && ./gen_service_table.py ksupport.elf > $@
-
-services.c: service_table.h
 
 main.o: main.c
 	$(compile-dep)
@@ -58,13 +63,15 @@ main.o: main.c
 
 libs:
 	$(MAKE) -C $(MSCDIR)/software/libcompiler-rt
+	$(MAKE) -C $(MSCDIR)/software/libunwind
 	$(MAKE) -C $(MSCDIR)/software/libbase
+	$(MAKE) -C $(MSCDIR)/software/libdyld
 	$(MAKE) -C liblwip
 
 clean:
 	$(MAKE) -C liblwip clean
 	$(RM) $(OBJECTS) $(OBJECTS:.o=.d) $(OBJECTS_KSUPPORT) $(OBJECTS_KSUPPORT:.o=.d)
 	$(RM) runtime.elf runtime.bin runtime.fbi .*~ *~
-	$(RM) service_table.h ksupport.elf ksupport.bin
+	$(RM) ksupport.elf ksupport.bin
 
 .PHONY: all main.o clean libs load
