@@ -8,8 +8,14 @@
 /* Logging */
 
 #ifndef NDEBUG
+#if defined(__or1k__)
+#include "log.h"
+#define EH_LOG0(fmt)     log("%s: " fmt, __func__)
+#define EH_LOG(fmt, ...) log("%s: " fmt, __func__, __VA_ARGS__)
+#else
 #define EH_LOG0(fmt)     fprintf(stderr, "%s: " fmt "\n", __func__)
 #define EH_LOG(fmt, ...) fprintf(stderr, "%s: " fmt "\n", __func__, __VA_ARGS__)
+#endif
 #else
 #define EH_LOG0(fmt)
 #define EH_LOG(fmt, ...)
@@ -312,6 +318,9 @@ static _Unwind_Reason_Code __artiq_uncaught_exception(
   }
 }
 
+_Unwind_Reason_Code __artiq_personality(
+        int version, _Unwind_Action actions, uint64_t exceptionClass,
+        struct _Unwind_Exception *exceptionObject, struct _Unwind_Context *context);
 _Unwind_Reason_Code __artiq_personality(
         int version, _Unwind_Action actions, uint64_t exceptionClass,
         struct _Unwind_Exception *exceptionObject, struct _Unwind_Context *context) {
