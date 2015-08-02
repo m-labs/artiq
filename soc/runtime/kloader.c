@@ -175,7 +175,11 @@ void kloader_service_essential_kmsg(void)
             case MESSAGE_TYPE_LOG: {
                 struct msg_log *msg = (struct msg_log *)umsg;
 
-                log_va(msg->fmt, msg->args);
+                if(msg->no_newline) {
+                    lognonl_va(msg->fmt, msg->args);
+                } else {
+                    log_va(msg->fmt, msg->args);
+                }
                 mailbox_acknowledge();
                 break;
             }

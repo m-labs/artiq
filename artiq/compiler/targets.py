@@ -83,4 +83,4 @@ class NativeTarget(Target):
 class OR1KTarget(Target):
     triple = "or1k-linux"
     attributes = ["mul", "div", "ffl1", "cmov", "addc"]
-    print_function = "log"
+    print_function = "lognonl"

@@ -147,12 +147,25 @@ int rpc(int rpc_num, ...)
     return retval;
 }
 
+void lognonl(const char *fmt, ...)
+{
+    struct msg_log request;
+
+    request.type = MESSAGE_TYPE_LOG;
+    request.fmt = fmt;
+    request.no_newline = 1;
+    va_start(request.args, fmt);
+    mailbox_send_and_wait(&request);
+    va_end(request.args);
+}
+
 void log(const char *fmt, ...)
 {
     struct msg_log request;
 
     request.type = MESSAGE_TYPE_LOG;
     request.fmt = fmt;
+    request.no_newline = 0;
     va_start(request.args, fmt);
     mailbox_send_and_wait(&request);
     va_end(request.args);

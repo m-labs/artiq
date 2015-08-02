@@ -80,6 +80,7 @@ struct msg_rpc_reply {
 struct msg_log {
     int type;
     const char *fmt;
+    int no_newline;
     va_list args;
 };
 
