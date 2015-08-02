@@ -126,7 +126,7 @@ static uintptr_t readEncodedPointer(const uint8_t **data, uint8_t encoding) {
   // first get value
   switch (encoding & 0x0F) {
     case DW_EH_PE_absptr:
-      result = *((uintptr_t*)p);
+      memcpy(&result, p, sizeof(uintptr_t));
       p += sizeof(uintptr_t);
       break;
     case DW_EH_PE_uleb128:
@@ -137,27 +137,51 @@ static uintptr_t readEncodedPointer(const uint8_t **data, uint8_t encoding) {
       result = readSLEB128(&p);
       break;
     case DW_EH_PE_udata2:
-      result = *((uint16_t*)p);
+      {
+        uint16_t valu16;
+        memcpy(&valu16, p, sizeof(uint16_t));
+        result = valu16;
+      }
       p += sizeof(uint16_t);
       break;
     case DW_EH_PE_udata4:
-      result = *((uint32_t*)p);
+      {
+        uint32_t valu32;
+        memcpy(&valu32, p, sizeof(uint32_t));
+        result = valu32;
+      }
       p += sizeof(uint32_t);
       break;
     case DW_EH_PE_udata8:
-      result = *((uint64_t*)p);
+      {
+        uint64_t valu64;
+        memcpy(&valu64, p, sizeof(uint64_t));
+        result = valu64;
+      }
       p += sizeof(uint64_t);
       break;
     case DW_EH_PE_sdata2:
-      result = *((int16_t*)p);
+      {
+        int16_t val16;
+        memcpy(&val16, p, sizeof(int16_t));
+        result = val16;
+      }
       p += sizeof(int16_t);
       break;
     case DW_EH_PE_sdata4:
-      result = *((int32_t*)p);
+      {
+        int32_t val32;
+        memcpy(&val32, p, sizeof(int32_t));
+        result = val32;
+      }
       p += sizeof(int32_t);
       break;
     case DW_EH_PE_sdata8:
-      result = *((int64_t*)p);
+      {
+        int64_t val64;
+        memcpy(&val64, p, sizeof(int64_t));
+        result = val64;
+      }
       p += sizeof(int64_t);
       break;
     default:
