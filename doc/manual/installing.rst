@@ -289,9 +289,9 @@ To flash the ``idle`` kernel:
 
         * Write it into the core device configuration flash storage: ::
 
-                $ artiq_coreconfig write -f idle_kernel idle.elf
+                $ artiq_coretool cfg-write -f idle_kernel idle.elf
 
-.. note:: You can find more information about how to use the ``artiq_coreconfig`` tool on the :ref:`Utilities <core-device-configuration-tool>` page.
+.. note:: You can find more information about how to use the ``artiq_coretool`` utility on the :ref:`Utilities <core-device-access-tool>` page.
 
 Installing the host-side software
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

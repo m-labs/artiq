@@ -11,15 +11,26 @@ def to_bytes(string):
 
 
 def get_argparser():
-    parser = argparse.ArgumentParser(description="ARTIQ core device config "
-                                                 "remote access")
+    parser = argparse.ArgumentParser(description="ARTIQ core device "
+                                                 "remote access tool")
+    parser.add_argument("--ddb", default="ddb.pyon",
+                        help="device database file")
+
     subparsers = parser.add_subparsers(dest="action")
     subparsers.required = True
-    p_read = subparsers.add_parser("read",
+
+    # Log Read command
+    subparsers.add_parser("log",
+                          help="read from the core device log ring buffer")
+
+    # Configuration Read command
+    p_read = subparsers.add_parser("cfg-read",
                                    help="read key from core device config")
     p_read.add_argument("key", type=to_bytes,
                         help="key to be read from core device config")
-    p_write = subparsers.add_parser("write",
+
+    # Configuration Write command
+    p_write = subparsers.add_parser("cfg-write",
                                     help="write key-value records to core "
                                          "device config")
     p_write.add_argument("-s", "--string", nargs=2, action="append",
@@ -31,14 +42,17 @@ def get_argparser():
                          metavar=("KEY", "FILENAME"),
                          help="key and file whose content to be written to "
                               "core device config")
-    subparsers.add_parser("erase", help="erase core device config")
-    p_delete = subparsers.add_parser("delete",
+
+    # Configuration Delete command
+    p_delete = subparsers.add_parser("cfg-delete",
                                      help="delete key from core device config")
     p_delete.add_argument("key", nargs=argparse.REMAINDER,
                           default=[], type=to_bytes,
                           help="key to be deleted from core device config")
-    parser.add_argument("--ddb", default="ddb.pyon",
-                        help="device database file")
+
+    # Configuration Erase command
+    subparsers.add_parser("cfg-erase", help="erase core device config")
+
     return parser
 
 
@@ -48,23 +62,25 @@ def main():
     try:
         comm = dmgr.get("comm")
 
-        if args.action == "read":
+        if args.action == "log":
+          print(comm.get_log())
+        elif args.action == "cfg-read":
             value = comm.flash_storage_read(args.key)
             if not value:
                 print("Key {} does not exist".format(args.key))
             else:
                 print(value)
-        elif args.action == "erase":
-                comm.flash_storage_erase()
-        elif args.action == "delete":
-            for key in args.key:
-                comm.flash_storage_remove(key)
-        elif args.action == "write":
+        elif args.action == "cfg-write":
             for key, value in args.string:
                 comm.flash_storage_write(key, value)
             for key, filename in args.file:
                 with open(filename, "rb") as fi:
                     comm.flash_storage_write(key, fi.read())
+        elif args.action == "cfg-delete":
+            for key in args.key:
+                comm.flash_storage_remove(key)
+        elif args.action == "cfg-erase":
+                comm.flash_storage_erase()
     finally:
         dmgr.close_devices()
 
