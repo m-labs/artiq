@@ -197,7 +197,9 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
     ::
 
         $ cd ~/artiq-dev/misoc
-        $ export PATH=$PATH:/usr/local/llvm-or1k/bin
+        $ export PATH=/usr/local/llvm-or1k/bin:$PATH
+
+    .. note:: Make sure that ``/usr/local/llvm-or1k/bin`` is first in your ``PATH``, so that the ``clang`` command you just built is found instead of the system one, if any.
 
     * For Pipistrello::
 
