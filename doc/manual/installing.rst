@@ -190,7 +190,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 * Download and install ARTIQ: ::
 
         $ cd ~/artiq-dev
-        $ git clone https://github.com/m-labs/artiq
+        $ git clone --recursive https://github.com/m-labs/artiq
         $ python3 setup.py develop --user
 
 * Build and flash the bitstream and BIOS by running `from the MiSoC top-level directory`:
@@ -310,7 +310,7 @@ Installing the host-side software
 * Install ARTIQ: ::
 
         $ cd ~/artiq-dev
-        $ git clone https://github.com/m-labs/artiq # if not already done
+        $ git clone --recursive https://github.com/m-labs/artiq # if not already done
         $ cd artiq
         $ python3 setup.py develop --user
 
