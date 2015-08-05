@@ -10,6 +10,7 @@ import os
 from quamash import QEventLoop, QtGui
 from pyqtgraph import dockarea
 
+from artiq.tools import verbosity_args, init_logger
 from artiq.protocols.pc_rpc import AsyncioClient
 from artiq.gui.state import StateManager
 from artiq.gui.explorer import ExplorerDock
@@ -39,6 +40,7 @@ def get_argparser():
     parser.add_argument(
         "--db-file", default="artiq_gui.pyon",
         help="database file for local GUI settings")
+    verbosity_args(parser)
     return parser
 
 
@@ -55,12 +57,14 @@ class _MainWindow(QtGui.QMainWindow):
 
 
 def main():
+    args = get_argparser().parse_args()
+    init_logger(args)
+
     app = QtGui.QApplication([])
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
     atexit.register(lambda: loop.close())
 
-    args = get_argparser().parse_args()
     smgr = StateManager(args.db_file)
 
     schedule_ctl = AsyncioClient()
