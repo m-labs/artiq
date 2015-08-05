@@ -34,7 +34,7 @@ requirements:
         - pyelftools
     run:
         - python >=3.4.3
-        - llvmlite-or1k
+        - llvmlite-artiq
         - scipy
         - numpy
         - prettytable
