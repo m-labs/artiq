@@ -28,20 +28,26 @@ class _FreeValueEntry(QtGui.QLineEdit):
     def __init__(self, procdesc):
         QtGui.QLineEdit.__init__(self)
         if "default" in procdesc:
-            self.insert(pyon.encode(procdesc["default"]))
+            self.set_argument_value(procdesc["default"])
 
     def get_argument_value(self):
         return pyon.decode(self.text())
+
+    def set_argument_value(self, value):
+        self.setText(pyon.encode(value))
 
 
 class _BooleanEntry(QtGui.QCheckBox):
     def __init__(self, procdesc):
         QtGui.QCheckBox.__init__(self)
         if "default" in procdesc:
-            self.setChecked(procdesc["default"])
+            self.set_argument_value(procdesc["default"])
 
     def get_argument_value(self):
         return self.isChecked()
+
+    def set_argument_value(self, value):
+        self.setChecked(value)
 
 
 class _EnumerationEntry(QtGui.QComboBox):
@@ -50,15 +56,14 @@ class _EnumerationEntry(QtGui.QComboBox):
         self.choices = procdesc["choices"]
         self.addItems(self.choices)
         if "default" in procdesc:
-            try:
-                idx = self.choices.index(procdesc["default"])
-            except:
-                pass
-            else:
-                self.setCurrentIndex(idx)
+            self.set_argument_value(procdesc["default"])
 
     def get_argument_value(self):
         return self.choices[self.currentIndex()]
+
+    def set_argument_value(self, value):
+        idx = self.choices.index(value)
+        self.setCurrentIndex(idx)
 
 
 class _NumberEntry(QtGui.QDoubleSpinBox):
@@ -73,20 +78,26 @@ class _NumberEntry(QtGui.QDoubleSpinBox):
         if procdesc["unit"]:
             self.setSuffix(" " + procdesc["unit"])
         if "default" in procdesc:
-            force_spinbox_value(self, procdesc["default"])
+            self.set_argument_value(procdesc["default"])
 
     def get_argument_value(self):
         return self.value()
+
+    def set_argument_value(self, value):
+        force_spinbox_value(self, value)
 
 
 class _StringEntry(QtGui.QLineEdit):
     def __init__(self, procdesc):
         QtGui.QLineEdit.__init__(self)
         if "default" in procdesc:
-            self.insert(procdesc["default"])
+            self.set_argument_value(procdesc["default"])
 
     def get_argument_value(self):
         return self.text()
+
+    def set_argument_value(self, value):
+        self.setText(value)
 
 
 _procty_to_entry = {
@@ -114,20 +125,30 @@ class _ArgumentSetter(LayoutWidget):
             self.addWidget(entry, n, 1)
             self._args_to_entries[name] = entry
 
-    def get_argument_values(self):
+    def get_argument_values(self, show_error_message):
         r = dict()
         for arg, entry in self._args_to_entries.items():
             try:
                 r[arg] = entry.get_argument_value()
             except:
-                msgbox = QtGui.QMessageBox(self.dialog_parent)
-                msgbox.setWindowTitle("Error")
-                msgbox.setText("Failed to obtain value for argument '{}'.\n{}"
-                               .format(arg, traceback.format_exc()))
-                msgbox.setStandardButtons(QtGui.QMessageBox.Ok)
-                msgbox.show()
+                if show_error_message:
+                    msgbox = QtGui.QMessageBox(self.dialog_parent)
+                    msgbox.setWindowTitle("Error")
+                    msgbox.setText("Failed to obtain value for argument '{}'.\n{}"
+                                   .format(arg, traceback.format_exc()))
+                    msgbox.setStandardButtons(QtGui.QMessageBox.Ok)
+                    msgbox.show()
                 return None
         return r
+
+    def set_argument_values(self, arguments, ignore_errors):
+        for arg, value in arguments.items():
+            try:
+                entry = self._args_to_entries[arg]
+                entry.set_argument_value(value)
+            except:
+                if not ignore_errors:
+                    raise
 
 
 class ExplorerDock(dockarea.Dock):
@@ -163,7 +184,7 @@ class ExplorerDock(dockarea.Dock):
         grid.addWidget(self.priority, 1, 3)
 
         self.pipeline = QtGui.QLineEdit()
-        self.pipeline.insert("main")
+        self.pipeline.setText("main")
         grid.addWidget(QtGui.QLabel("Pipeline:"), 2, 0)
         grid.addWidget(self.pipeline, 2, 1)
 
@@ -177,8 +198,15 @@ class ExplorerDock(dockarea.Dock):
         self.argsetter = _ArgumentSetter(self.dialog_parent, [])
         self.splitter.addWidget(self.argsetter)
         self.splitter.setSizes([grid.minimumSizeHint().width(), 1000])
+        self.state = dict()
 
     def update_argsetter(self, selected, deselected):
+        deselected = deselected.indexes()
+        if deselected:
+            row = deselected[0].row()
+            key = self.explist_model.row_to_key[row]
+            self.state[key] = self.argsetter.get_argument_values(False)
+
         selected = selected.indexes()
         if selected:
             row = selected[0].row()
@@ -188,8 +216,23 @@ class ExplorerDock(dockarea.Dock):
             sizes = self.splitter.sizes()
             self.argsetter.deleteLater()
             self.argsetter = _ArgumentSetter(self.dialog_parent, arguments)
+            if key in self.state:
+                arguments = self.state[key]
+                if arguments is not None:
+                    self.argsetter.set_argument_values(arguments, True)
             self.splitter.insertWidget(1, self.argsetter)
             self.splitter.setSizes(sizes)
+
+    def save_state(self):
+        idx = self.el.selectedIndexes()
+        if idx:
+            row = idx[0].row()
+            key = self.explist_model.row_to_key[row]
+            self.state[key] = self.argsetter.get_argument_values(False)
+        return self.state
+
+    def restore_state(self, state):
+        self.state = state
 
     def enable_duedate(self):
         self.datetime_en.setChecked(True)
@@ -231,7 +274,7 @@ class ExplorerDock(dockarea.Dock):
                 due_date = self.datetime.dateTime().toMSecsSinceEpoch()/1000
             else:
                 due_date = None
-            arguments = self.argsetter.get_argument_values()
+            arguments = self.argsetter.get_argument_values(True)
             if arguments is None:
                 return
             asyncio.async(self.submit(self.pipeline.text(),

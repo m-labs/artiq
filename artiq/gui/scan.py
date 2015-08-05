@@ -96,20 +96,7 @@ class ScanController(LayoutWidget):
             b.toggled.connect(self.select_page)
 
         if "default" in procdesc:
-            d = procdesc["default"]
-            if d["ty"] == "NoScan":
-                self.noscan.setChecked(True)
-                force_spinbox_value(self.v_noscan, d["value"])
-            elif d["ty"] == "LinearScan":
-                self.linear.setChecked(True)
-                self.v_linear.set_values(d["min"], d["max"], d["npoints"])
-            elif d["ty"] == "RandomScan":
-                self.random.setChecked(True)
-                self.v_random.set_values(d["min"], d["max"], d["npoints"])
-            elif d["ty"] == "ExplicitScan":
-                self.explicit.setChecked(True)
-                self.v_explicit.insert(" ".join(
-                    [str(x) for x in d["sequence"]]))
+            self.set_argument_value(procdesc["default"])
         else:
             self.noscan.setChecked(True)
 
@@ -137,3 +124,20 @@ class ScanController(LayoutWidget):
         elif self.explicit.isChecked():
             sequence = [float(x) for x in self.v_explicit.text().split()]
             return {"ty": "ExplicitScan", "sequence": sequence}
+
+    def set_argument_value(self, d):
+        if d["ty"] == "NoScan":
+            self.noscan.setChecked(True)
+            force_spinbox_value(self.v_noscan, d["value"])
+        elif d["ty"] == "LinearScan":
+            self.linear.setChecked(True)
+            self.v_linear.set_values(d["min"], d["max"], d["npoints"])
+        elif d["ty"] == "RandomScan":
+            self.random.setChecked(True)
+            self.v_random.set_values(d["min"], d["max"], d["npoints"])
+        elif d["ty"] == "ExplicitScan":
+            self.explicit.setChecked(True)
+            self.v_explicit.insert(" ".join(
+                [str(x) for x in d["sequence"]]))
+        else:
+            raise ValueError("Unknown scan type '{}'".format(d["ty"]))

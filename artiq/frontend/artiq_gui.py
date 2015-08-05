@@ -81,6 +81,7 @@ def main():
     win.setStatusBar(status_bar)
 
     d_explorer = ExplorerDock(win, status_bar, schedule_ctl)
+    smgr.register(d_explorer)
     loop.run_until_complete(d_explorer.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_explorer.sub_close()))
