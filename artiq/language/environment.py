@@ -223,12 +223,6 @@ class HasEnvironment:
                 raise ValueError("Result is already realtime")
             self.__rdb.nrt[key] = value
 
-    def attr_rtresult(self, key, init_value):
-        """Writes the value of a real-time result and sets the corresponding
-        ``Notifier`` as attribute. The names of the result and of the
-        attribute are the same."""
-        setattr(self, key, set_result(key, init_value, True))
-
     def get_result(self, key):
         """Retrieves the value of a result.
 
