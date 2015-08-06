@@ -201,13 +201,15 @@ class HasEnvironment:
             raise ValueError("Parameter database not present")
         self.__pdb.set(key, value)
 
-    def set_result(self, key, value, realtime=False):
+    def set_result(self, key, value, realtime=False, store=True):
         """Writes the value of a result.
 
         :param realtime: Marks the result as real-time, making it immediately
             available to clients such as the user interface. Returns a
             ``Notifier`` instance that can be used to modify mutable results
             (such as lists) and synchronize the modifications with the clients.
+        :param store: Defines if the result should be stored permanently,
+            e.g. in HDF5 output. Default is to store.
         """
         if self.__rdb is None:
             raise ValueError("Result database not present")
@@ -217,11 +219,13 @@ class HasEnvironment:
             self.__rdb.rt[key] = value
             notifier = self.__rdb.rt[key]
             notifier.kernel_attr_init = False
+            self.__rdb.set_store(key, store)
             return notifier
         else:
             if key in self.__rdb.rt.read:
                 raise ValueError("Result is already realtime")
             self.__rdb.nrt[key] = value
+            self.__rdb.set_store(key, store)
 
     def get_result(self, key):
         """Retrieves the value of a result.
