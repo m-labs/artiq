@@ -37,16 +37,16 @@ class FloppingF(EnvExperiment):
         self.attr_device("scheduler")
 
     def run(self):
-        self.frequency = self.set_result("flopping_f_frequency", [],
-                                         realtime=True, store=False)
-        self.brightness = self.set_result("flopping_f_brightness", [],
-                                          realtime=True)
+        frequency = self.set_result("flopping_f_frequency", [],
+                                    realtime=True, store=False)
+        brightness = self.set_result("flopping_f_brightness", [],
+                                     realtime=True)
         self.set_result("flopping_f_fit", [], realtime=True, store=False)
 
-        for frequency in self.frequency_scan:
-            brightness = model(frequency, self.F0) + self.noise_amplitude*random.random()
-            self.frequency.append(frequency)
-            self.brightness.append(brightness)
+        for f in self.frequency_scan:
+            m_brightness = model(f, self.F0) + self.noise_amplitude*random.random()
+            frequency.append(f)
+            brightness.append(m_brightness)
             time.sleep(0.1)
         self.scheduler.submit(self.scheduler.pipeline_name, self.scheduler.expid,
                               self.scheduler.priority, time.time() + 20, False)
