@@ -31,14 +31,18 @@ class FloppingF(EnvExperiment):
             default=LinearScan(1000, 2000, 100)))
 
         self.attr_argument("F0", NumberValue(1500, min=1000, max=2000))
-        self.attr_argument("noise_amplitude", NumberValue(0.1, min=0, max=100))
-
-        self.frequency = self.set_result("flopping_f_frequency", [], True)
-        self.brightness = self.set_result("flopping_f_brightness", [], True)
+        self.attr_argument("noise_amplitude", NumberValue(0.1, min=0, max=100,
+                                                          step=0.01))
 
         self.attr_device("scheduler")
 
     def run(self):
+        self.frequency = self.set_result("flopping_f_frequency", [],
+                                         realtime=True, store=False)
+        self.brightness = self.set_result("flopping_f_brightness", [],
+                                          realtime=True)
+        self.set_result("flopping_f_fit", [], realtime=True, store=False)
+
         for frequency in self.frequency_scan:
             brightness = model(frequency, self.F0) + self.noise_amplitude*random.random()
             self.frequency.append(frequency)
@@ -48,9 +52,16 @@ class FloppingF(EnvExperiment):
                               self.scheduler.priority, time.time() + 20, False)
 
     def analyze(self):
+        # Use get_result so that analyze can be run stand-alone.
+        frequency = self.get_result("flopping_f_frequency")
+        brightness = self.get_result("flopping_f_brightness")
         popt, pcov = curve_fit(model_numpy,
-                               self.frequency.read, self.brightness.read,
+                               frequency, brightness,
                                p0=[self.get_parameter("flopping_freq")])
         perr = np.sqrt(np.diag(pcov))
         if perr < 0.1:
-            self.set_parameter("flopping_freq", float(popt))
+            F0 = float(popt)
+            self.set_parameter("flopping_freq", F0)
+            self.set_result("flopping_f_fit",
+                            [model(x, F0) for x in frequency],
+                            realtime=True, store=False)
