@@ -242,7 +242,9 @@ static struct artiq_raised_exception inflight;
 void __artiq_raise(struct artiq_exception *artiq_exn) {
   EH_LOG("===> raise (name=%s, msg=%s, params=[%lld,%lld,%lld])",
          artiq_exn->name, artiq_exn->message,
-         artiq_exn->param[0], artiq_exn->param[1], artiq_exn->param[2]);
+         (long long int)artiq_exn->param[0],
+         (long long int)artiq_exn->param[1],
+         (long long int)artiq_exn->param[2]);
 
   memmove(&inflight.artiq, artiq_exn, sizeof(struct artiq_exception));
   inflight.unwind.exception_class = ARTIQ_EXCEPTION_CLASS;
