@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import numpy as np
 
 from quamash import QtGui
 import pyqtgraph as pg
@@ -47,24 +48,30 @@ class _SimpleSettings(_BaseSettings):
         _BaseSettings.__init__(self, parent, self._window_title,
                                prev_name, create_cb)
 
-        self.grid.addWidget(QtGui.QLabel("Result:"))
-        self.result = QtGui.QComboBox()
-        self.grid.addWidget(self.result, 1, 1)
-        self.result.addItems(result_list)
-        self.result.setEditable(True)
-        if "result" in prev_settings:
-            self.result.setEditText(prev_settings["result"])
+        self.result_widgets = dict()
+        for row, (has_none, key) in enumerate(self._result_keys):
+            self.grid.addWidget(QtGui.QLabel(key.capitalize() + ":"))
+            w = QtGui.QComboBox()
+            self.grid.addWidget(w, row + 1, 1)
+            if has_none:
+                w.addItem("<None>")
+            w.addItems(result_list)
+            w.setEditable(True)
+            if key in prev_settings:
+                w.setEditText(prev_settings[key])
+            self.result_widgets[key] = w
         self.add_buttons()
 
     def validate_input(self):
-        return bool(self.result.currentText())
+        return all(w.currentText() for w in self.result_widgets.values())
 
     def get_input(self):
-        return {"result": self.result.currentText()}
+        return {k: v.currentText() for k, v in self.result_widgets.items()}
 
 
 class NumberDisplaySettings(_SimpleSettings):
     _window_title = "Number display"
+    _result_keys = [(False, "result")]
 
 
 class NumberDisplay(dockarea.Dock):
@@ -90,6 +97,7 @@ class NumberDisplay(dockarea.Dock):
 
 class XYDisplaySettings(_SimpleSettings):
     _window_title = "XY plot"
+    _result_keys = [(False, "y"), (True, "x"), (True, "error"), (True, "fit")]
 
 
 class XYDisplay(dockarea.Dock):
@@ -101,44 +109,56 @@ class XYDisplay(dockarea.Dock):
         self.addWidget(self.plot)
 
     def data_sources(self):
-        return {self.settings["result"]}
+        s = {self.settings["y"]}
+        for k in "x", "error", "fit":
+            if self.settings[k] != "<None>":
+                s.add(self.settings[k])
+        return s
 
     def update_data(self, data):
-        result = self.settings["result"]
+        result_y = self.settings["y"]
+        result_x = self.settings["x"]
+        result_error = self.settings["error"]
+        result_fit = self.settings["fit"]
+
         try:
-            y = data[result]
+            y = data[result_y]
         except KeyError:
             return
-        self.plot.clear()
-        if not y:
+        x = data.get(result_x, None)
+        if x is None:
+            x = list(range(len(y)))
+        error = data.get(result_error, None)
+        fit = data.get(result_fit, None)
+
+        if not y or len(y) != len(x):
             return
-        self.plot.plot(y)
+        if error is not None and hasattr(error, "__len__"):
+            if not len(error):
+                error = None
+            elif len(error) != len(y):
+                return
+        if fit is not None:
+            if not len(fit):
+                fit = None
+            elif len(fit) != len(y):
+                return
+
+        self.plot.clear()
+        self.plot.plot(x, y, pen=None, symbol="x")
+        if error is not None:
+            # See https://github.com/pyqtgraph/pyqtgraph/issues/211
+            if hasattr(error, "__len__") and not isinstance(error, np.ndarray):
+                error = np.array(error)
+            errbars = pg.ErrorBarItem(x=np.array(x), y=np.array(y), height=error)
+            self.plot.addItem(errbars)
+        if fit is not None:
+            self.plot.plot(x, fit)
 
 
-class HistogramDisplaySettings(_BaseSettings):
-    def __init__(self, parent, prev_name, prev_settings,
-                 result_list, create_cb):
-        _BaseSettings.__init__(self, parent, "Histogram",
-                               prev_name, create_cb)
-
-        for row, axis in enumerate("yx"):
-            self.grid.addWidget(QtGui.QLabel(axis.upper() + ":"))
-            w = QtGui.QComboBox()
-            self.grid.addWidget(w, row + 1, 1)
-            if axis == "x":
-                w.addItem("<None>")
-            w.addItems(result_list)
-            w.setEditable(True)
-            if axis in prev_settings:
-                w.setEditText(prev_settings["y"])
-            setattr(self, axis, w)
-        self.add_buttons()
-
-    def validate_input(self):
-        return bool(self.y.currentText()) and bool(self.x.currentText())
-
-    def get_input(self):
-        return {"y": self.y.currentText(), "x": self.x.currentText()}
+class HistogramDisplaySettings(_SimpleSettings):
+    _window_title = "Histogram"
+    _result_keys = [(False, "y"), (True, "x")]
 
 
 class HistogramDisplay(dockarea.Dock):
