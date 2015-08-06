@@ -1,7 +1,7 @@
 import os, sys, fileinput, ctypes
 from pythonparser import diagnostic
 from llvmlite_artiq import binding as llvm
-from .. import Module
+from .. import Module, Source
 from ..targets import NativeTarget
 
 def main():
@@ -19,7 +19,7 @@ def main():
 
     source = "".join(fileinput.input())
     source = source.replace("#ARTIQ#", "")
-    mod = Module.from_string(source.expandtabs(), engine=engine)
+    mod = Module(Source.from_string(source.expandtabs(), engine=engine))
 
     target = NativeTarget()
     llmod = mod.build_llvm_ir(target)

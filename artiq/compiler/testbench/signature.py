@@ -1,6 +1,6 @@
 import sys, fileinput
 from pythonparser import diagnostic
-from .. import Module
+from .. import Module, Source
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "+diag":
@@ -21,7 +21,7 @@ def main():
     engine.process = process_diagnostic
 
     try:
-        mod = Module.from_string("".join(fileinput.input()).expandtabs(), engine=engine)
+        mod = Module(Source.from_string("".join(fileinput.input()).expandtabs(), engine=engine))
         print(repr(mod))
     except:
         if not diag: raise

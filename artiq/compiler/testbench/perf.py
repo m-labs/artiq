@@ -1,6 +1,6 @@
 import sys, os, time, cProfile as profile, pstats
 from pythonparser import diagnostic
-from .. import Module
+from .. import Module, Source
 from ..targets import OR1KTarget
 
 def main():
@@ -17,7 +17,7 @@ def main():
     engine.process = process_diagnostic
 
     # Make sure everything's valid
-    modules = [Module.from_filename(filename, engine=engine)
+    modules = [Module(Source.from_filename(filename, engine=engine))
                for filename in sys.argv[1:]]
 
     def benchmark(f, name):

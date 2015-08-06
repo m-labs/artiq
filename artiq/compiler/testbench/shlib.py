@@ -1,6 +1,6 @@
 import sys, os
 from pythonparser import diagnostic
-from .. import Module
+from .. import Module, Source
 from ..targets import OR1KTarget
 
 def main():
@@ -18,7 +18,7 @@ def main():
 
     modules = []
     for filename in sys.argv[1:]:
-        modules.append(Module.from_filename(filename, engine=engine))
+        modules.append(Module(Source.from_filename(filename, engine=engine)))
 
     llobj = OR1KTarget().compile_and_link(modules)
 

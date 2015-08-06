@@ -4,7 +4,7 @@ to a typedtree (:mod:`..asttyped`).
 """
 
 from pythonparser import algorithm, diagnostic
-from .. import asttyped, types, builtins, prelude
+from .. import asttyped, types, builtins
 
 # This visitor will be called for every node with a scope,
 # i.e.: class, function, comprehension, lambda
@@ -185,10 +185,10 @@ class ASTTypedRewriter(algorithm.Transformer):
     via :class:`LocalExtractor`.
     """
 
-    def __init__(self, engine):
+    def __init__(self, engine, globals):
         self.engine = engine
         self.globals = None
-        self.env_stack = [prelude.globals()]
+        self.env_stack = [globals]
 
     def _find_name(self, name, loc):
         for typing_env in reversed(self.env_stack):

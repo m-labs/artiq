@@ -66,7 +66,7 @@ def main():
     buf = source.Buffer("".join(fileinput.input()).expandtabs(),
                         os.path.basename(fileinput.filename()))
     parsed, comments = parse_buffer(buf, engine=engine)
-    typed = ASTTypedRewriter(engine=engine).visit(parsed)
+    typed = ASTTypedRewriter(engine=engine, globals=prelude.globals()).visit(parsed)
     Inferencer(engine=engine).visit(typed)
     if monomorphize:
         IntMonomorphizer(engine=engine).visit(typed)

@@ -1,6 +1,6 @@
 import sys, fileinput
 from pythonparser import diagnostic
-from .. import Module
+from .. import Module, Source
 
 def main():
     def process_diagnostic(diag):
@@ -11,7 +11,7 @@ def main():
     engine = diagnostic.Engine()
     engine.process = process_diagnostic
 
-    mod = Module.from_string("".join(fileinput.input()).expandtabs(), engine=engine)
+    mod = Module(Source.from_string("".join(fileinput.input()).expandtabs(), engine=engine))
     for fn in mod.artiq_ir:
         print(fn)
 
