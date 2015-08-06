@@ -238,7 +238,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         return self.append(ir.Closure(func, self.current_env))
 
     def visit_FunctionDefT(self, node):
-        func = self.visit_function(node, is_lambda=False, is_internal=len(name) > 2)
+        func = self.visit_function(node, is_lambda=False, is_internal=len(self.name) > 2)
         self._set_local(node.name, func)
 
     def visit_Return(self, node):
