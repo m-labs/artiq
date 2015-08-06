@@ -10,6 +10,8 @@ def force_spinbox_value(spinbox, value):
 
 
 def short_format(v):
+    if v is None:
+        return "None"
     t = type(v)
     if t is int or t is float:
         return str(v)
