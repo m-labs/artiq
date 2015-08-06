@@ -7,7 +7,7 @@ import os
 
 # Quamash must be imported first so that pyqtgraph picks up the Qt binding
 # it has chosen.
-from quamash import QEventLoop, QtGui
+from quamash import QEventLoop, QtGui, QtCore
 from pyqtgraph import dockarea
 
 from artiq.tools import verbosity_args, init_logger
@@ -44,16 +44,22 @@ def get_argparser():
     return parser
 
 
-class _MainWindow(QtGui.QMainWindow):
+class MainWindow(QtGui.QMainWindow):
     def __init__(self, app):
         QtGui.QMainWindow.__init__(self)
         self.setWindowIcon(QtGui.QIcon(os.path.join(data_dir, "icon.png")))
-        self.resize(1400, 800)
+        #self.resize(1400, 800)
         self.setWindowTitle("ARTIQ")
         self.exit_request = asyncio.Event()
 
     def closeEvent(self, *args):
         self.exit_request.set()
+
+    def save_state(self):
+        return bytes(self.saveGeometry())
+
+    def restore_state(self, state):
+        self.restoreGeometry(QtCore.QByteArray(state))
 
 
 def main():
@@ -72,9 +78,10 @@ def main():
         args.server, args.port_control, "master_schedule"))
     atexit.register(lambda: schedule_ctl.close_rpc())
 
-    win = _MainWindow(app)
+    win = MainWindow(app)
     area = dockarea.DockArea()
     smgr.register(area)
+    smgr.register(win)
     win.setCentralWidget(area)
     status_bar = QtGui.QStatusBar()
     status_bar.showMessage("Connected to {}".format(args.server))
