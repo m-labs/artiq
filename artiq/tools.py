@@ -128,7 +128,10 @@ class TaskObject:
     @asyncio.coroutine
     def stop(self):
         self.task.cancel()
-        yield from asyncio.wait([self.task])
+        try:
+            yield from asyncio.wait_for(self.task, None)
+        except asyncio.CancelledError:
+            pass
         del self.task
 
     @asyncio.coroutine
