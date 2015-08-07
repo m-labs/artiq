@@ -184,21 +184,8 @@ static int process_input(void)
                 break;
             }
 
-            if((buffer_in_index + 1) > BUFFER_OUT_SIZE) {
-                log("Kernel name too long");
-                buffer_out[8] = REMOTEMSG_TYPE_KERNEL_STARTUP_FAILED;
-                submit_output(9);
-                break;
-            }
-            buffer_in[buffer_in_index] = 0;
-
             watchdog_init();
-            if(!kloader_start_kernel((char *)&buffer_in[9])) {
-                log("Failed to find kernel entry point '%s' in object", &buffer_in[9]);
-                buffer_out[8] = REMOTEMSG_TYPE_KERNEL_STARTUP_FAILED;
-                submit_output(9);
-                break;
-            }
+            kloader_start_kernel();
 
             user_kernel_state = USER_KERNEL_RUNNING;
             break;

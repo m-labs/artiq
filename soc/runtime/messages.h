@@ -39,7 +39,7 @@ struct msg_base {
 struct msg_load_request {
     void *library;
     struct dyld_info *library_info;
-    const char *kernel;
+    int run_kernel;
 };
 
 struct msg_load_reply {

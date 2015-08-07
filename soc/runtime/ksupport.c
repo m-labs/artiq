@@ -184,51 +184,37 @@ void exception_handler(unsigned long vect, unsigned long *regs,
 int main(void);
 int main(void)
 {
-    struct msg_load_request *msg = mailbox_receive();
+    struct msg_load_request *request = mailbox_receive();
+    struct msg_load_reply load_reply = {
+        .type = MESSAGE_TYPE_LOAD_REPLY,
+        .error = NULL
+    };
 
-    if(msg == NULL) {
+    if(request == NULL) {
         bridge_main();
         while(1);
     }
 
-    if(msg->library != NULL) {
-        const char *error;
-        if(!dyld_load(msg->library, KERNELCPU_PAYLOAD_ADDRESS,
-                      resolve_runtime_export, msg->library_info, &error)) {
-            struct msg_load_reply msg = {
-                .type = MESSAGE_TYPE_LOAD_REPLY,
-                .error = error
-            };
-            mailbox_send(&msg);
+    if(request->library != NULL) {
+        if(!dyld_load(request->library, KERNELCPU_PAYLOAD_ADDRESS,
+                      resolve_runtime_export, request->library_info,
+                      &load_reply.error)) {
+            mailbox_send(&load_reply);
             while(1);
         }
     }
 
-    void (*kernel)(void) = NULL;
-    if(msg->kernel != NULL) {
-        kernel = dyld_lookup(msg->kernel, msg->library_info);
-        if(kernel == NULL) {
-            char error[256];
-            snprintf(error, sizeof(error),
-                     "kernel '%s' not found in library", msg->kernel);
-            struct msg_load_reply msg = {
-                .type = MESSAGE_TYPE_LOAD_REPLY,
-                .error = error
-            };
-            mailbox_send(&msg);
-            while(1);
-        }
-    }
+    if(request->run_kernel) {
+        void (*kernel_init)() = request->library_info->init;
 
-    mailbox_acknowledge();
+        mailbox_send_and_wait(&load_reply);
+        kernel_init();
 
-    if(kernel) {
-        void (*run_closure)(void *) = msg->library_info->init;
-        run_closure(kernel);
-
-        struct msg_base msg;
-        msg.type = MESSAGE_TYPE_FINISHED;
-        mailbox_send_and_wait(&msg);
+        struct msg_base finished_reply;
+        finished_reply.type = MESSAGE_TYPE_FINISHED;
+        mailbox_send_and_wait(&finished_reply);
+    } else {
+        mailbox_send(&load_reply);
     }
 
     while(1);

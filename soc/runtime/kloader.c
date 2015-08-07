@@ -30,21 +30,28 @@ void kloader_start_bridge()
     start_kernel_cpu(NULL);
 }
 
-static int load_or_start_kernel(void *library, const char *kernel)
+static int load_or_start_kernel(void *library, int run_kernel)
 {
     static struct dyld_info library_info;
     struct msg_load_request request = {
         .library      = library,
         .library_info = &library_info,
-        .kernel       = kernel,
+        .run_kernel   = run_kernel,
     };
     start_kernel_cpu(&request);
 
     struct msg_load_reply *reply = mailbox_wait_and_receive();
-    if(reply != NULL && reply->type == MESSAGE_TYPE_LOAD_REPLY) {
-        log("cannot load/run kernel: %s", reply->error);
+    if(reply->type != MESSAGE_TYPE_LOAD_REPLY) {
+        log("BUG: unexpected reply to load/run request");
         return 0;
     }
+
+    if(reply->error != NULL) {
+        log("cannot load kernel: %s", reply->error);
+        return 0;
+    }
+
+    mailbox_acknowledge();
 
     return 1;
 }
@@ -56,12 +63,12 @@ int kloader_load_library(void *library)
         return 0;
     }
 
-    return load_or_start_kernel(library, NULL);
+    return load_or_start_kernel(library, 0);
 }
 
-int kloader_start_kernel(const char *name)
+void kloader_start_kernel()
 {
-    return load_or_start_kernel(NULL, name);
+    load_or_start_kernel(NULL, 1);
 }
 
 int kloader_start_idle_kernel(void)
@@ -74,7 +81,7 @@ int kloader_start_idle_kernel(void)
     if(length <= 0)
         return 0;
 
-    return load_or_start_kernel(buffer, "test.__modinit__");
+    return load_or_start_kernel(buffer, 1);
 #else
     return 0;
 #endif

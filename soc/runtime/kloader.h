@@ -12,7 +12,7 @@ int kloader_load_library(void *code);
 
 void kloader_start_bridge(void);
 int kloader_start_idle_kernel(void);
-int kloader_start_kernel(const char *name);
+void kloader_start_kernel(void);
 void kloader_stop(void);
 
 int kloader_validate_kpointer(void *p);

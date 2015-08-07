@@ -130,10 +130,9 @@ class CommGeneric:
         if ty != _D2HMsgType.LOAD_COMPLETED:
             raise IOError("Incorrect reply from device: "+str(ty))
 
-    def run(self, kname):
-        self._write_header(len(kname) + 9, _H2DMsgType.RUN_KERNEL)
-        self.write(bytes(kname, "ascii"))
-        logger.debug("running kernel: %s", kname)
+    def run(self):
+        self._write_header(9, _H2DMsgType.RUN_KERNEL)
+        logger.debug("running kernel")
 
     def flash_storage_read(self, key):
         self._write_header(9+len(key), _H2DMsgType.FLASH_READ_REQUEST)
