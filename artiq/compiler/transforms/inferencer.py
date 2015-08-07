@@ -76,9 +76,12 @@ class Inferencer(algorithm.Visitor):
 
     def visit_ListT(self, node):
         self.generic_visit(node)
+        elt_type_loc = node.loc
         for elt in node.elts:
             self._unify(node.type["elt"], elt.type,
-                        node.loc, elt.loc, self._makenotes_elts(node.elts, "a list element"))
+                        elt_type_loc, elt.loc,
+                        self._makenotes_elts(node.elts, "a list element"))
+            elt_type_loc = elt.loc
 
     def visit_AttributeT(self, node):
         self.generic_visit(node)

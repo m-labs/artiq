@@ -12,9 +12,10 @@ from .transforms import ASTTypedRewriter, Inferencer
 
 
 class ASTSynthesizer:
-    def __init__(self):
+    def __init__(self, expanded_from=None):
         self.source = ""
         self.source_buffer = source.Buffer(self.source, "<synthesized>")
+        self.expanded_from = expanded_from
 
     def finalize(self):
         self.source_buffer.source = self.source
@@ -24,7 +25,8 @@ class ASTSynthesizer:
         range_from   = len(self.source)
         self.source += fragment
         range_to     = len(self.source)
-        return source.Range(self.source_buffer, range_from, range_to)
+        return source.Range(self.source_buffer, range_from, range_to,
+                            expanded_from=self.expanded_from)
 
     def quote(self, value):
         """Construct an AST fragment equal to `value`."""
@@ -128,7 +130,7 @@ class StitchingASTTypedRewriter(ASTTypedRewriter):
 
                 else:
                     # It's just a value. Quote it.
-                    synthesizer = ASTSynthesizer()
+                    synthesizer = ASTSynthesizer(expanded_from=node.loc)
                     node = synthesizer.quote(value)
                     synthesizer.finalize()
                     return node
