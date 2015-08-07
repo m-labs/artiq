@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 class Comm(CommGeneric):
     def __init__(self, dmgr, host, port=1381):
+        super().__init__()
         self.host = host
         self.port = port
 

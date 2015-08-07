@@ -3,7 +3,7 @@ from operator import itemgetter
 
 class Comm:
     def __init__(self, dmgr):
-        pass
+        super().__init__()
 
     def switch_clock(self, external):
         pass

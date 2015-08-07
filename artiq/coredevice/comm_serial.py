@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 class Comm(CommGeneric):
     def __init__(self, dmgr, serial_dev, baud_rate=115200):
+        super().__init__()
         self.serial_dev = serial_dev
         self.baud_rate = baud_rate
 
