@@ -70,8 +70,6 @@ Next step (for KC705) is to flash MAC and IP addresses to the board:
 Installing from source
 ----------------------
 
-You can skip the first two steps if you already installed from conda.
-
 Preparing the build environment for the core device
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -229,6 +227,34 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
 The communication parameters are 115200 8-N-1.
 
+Installing the host-side software
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* Install the llvmlite Python bindings: ::
+
+        $ cd ~/artiq-dev
+        $ git clone https://github.com/m-labs/llvmlite
+        $ git checkout artiq
+        $ cd llvmlite
+        $ LLVM_CONFIG=/usr/local/llvm-or1k/bin/llvm-config python3 setup.py install --user
+
+* Install ARTIQ: ::
+
+        $ cd ~/artiq-dev
+        $ git clone --recursive https://github.com/m-labs/artiq # if not already done
+        $ cd artiq
+        $ python3 setup.py develop --user
+
+* Build the documentation: ::
+
+        $ cd ~/artiq-dev/artiq/doc/manual
+        $ make html
+
+Configuring the core device
+---------------------------
+
+This should be done after either installation methods (conda or source).
+
 .. _flash-mac-ip-addr:
 
 * Set the MAC and IP address in the :ref:`core device configuration flash storage <core-device-flash-storage>`:
@@ -294,29 +320,6 @@ To flash the ``idle`` kernel:
                 $ artiq_coretool cfg-write -f idle_kernel idle.elf
 
 .. note:: You can find more information about how to use the ``artiq_coretool`` utility on the :ref:`Utilities <core-device-access-tool>` page.
-
-Installing the host-side software
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-* Install the llvmlite Python bindings: ::
-
-        $ cd ~/artiq-dev
-        $ git clone https://github.com/m-labs/llvmlite
-        $ git checkout artiq
-        $ cd llvmlite
-        $ LLVM_CONFIG=/usr/local/llvm-or1k/bin/llvm-config python3 setup.py install --user
-
-* Install ARTIQ: ::
-
-        $ cd ~/artiq-dev
-        $ git clone --recursive https://github.com/m-labs/artiq # if not already done
-        $ cd artiq
-        $ python3 setup.py develop --user
-
-* Build the documentation: ::
-
-        $ cd ~/artiq-dev/artiq/doc/manual
-        $ make html
 
 Ubuntu 14.04 specific instructions
 ----------------------------------
