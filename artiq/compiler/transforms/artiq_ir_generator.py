@@ -70,7 +70,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
     def __init__(self, module_name, engine):
         self.engine = engine
         self.functions = []
-        self.name = [module_name]
+        self.name = [module_name] if module_name != "" else []
         self.current_loc = None
         self.current_function = None
         self.current_globals = set()

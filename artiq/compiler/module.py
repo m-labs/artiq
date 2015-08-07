@@ -67,7 +67,10 @@ class Module:
 
     def entry_point(self):
         """Return the name of the function that is the entry point of this module."""
-        return self.name + ".__modinit__"
+        if self.name != "":
+            return self.name + ".__modinit__"
+        else:
+            return "__modinit__"
 
     def __repr__(self):
         printer = types.TypePrinter()

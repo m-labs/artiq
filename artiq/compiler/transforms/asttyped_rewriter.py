@@ -185,10 +185,10 @@ class ASTTypedRewriter(algorithm.Transformer):
     via :class:`LocalExtractor`.
     """
 
-    def __init__(self, engine, globals):
+    def __init__(self, engine, prelude):
         self.engine = engine
         self.globals = None
-        self.env_stack = [globals]
+        self.env_stack = [prelude]
 
     def _try_find_name(self, name):
         for typing_env in reversed(self.env_stack):
