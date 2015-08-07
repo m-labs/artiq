@@ -209,13 +209,14 @@ class Worker:
         return completed
 
     @asyncio.coroutine
-    def build(self, rid, pipeline_name, expid, priority, timeout=15.0):
+    def build(self, rid, pipeline_name, wd, expid, priority, timeout=15.0):
         self.rid = rid
         yield from self._create_process()
         yield from self._worker_action(
             {"action": "build",
              "rid": rid,
              "pipeline_name": pipeline_name,
+             "wd": wd,
              "expid": expid,
              "priority": priority},
             timeout)

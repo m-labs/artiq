@@ -47,11 +47,12 @@ def _mk_worker_method(name):
 
 class Run:
     def __init__(self, rid, pipeline_name,
-                 expid, priority, due_date, flush,
+                 wd, expid, priority, due_date, flush,
                  worker_handlers, notifier):
         # called through pool
         self.rid = rid
         self.pipeline_name = pipeline_name
+        self.wd = wd
         self.expid = expid
         self.priority = priority
         self.due_date = due_date
@@ -103,7 +104,8 @@ class Run:
 
     @asyncio.coroutine
     def build(self):
-        yield from self._build(self.rid, self.pipeline_name, self.expid,
+        yield from self._build(self.rid, self.pipeline_name,
+                               self.wd, self.expid,
                                self.priority)
 
     prepare = _mk_worker_method("prepare")
@@ -124,18 +126,26 @@ class RIDCounter:
 
 
 class RunPool:
-    def __init__(self, ridc, worker_handlers, notifier):
+    def __init__(self, ridc, worker_handlers, notifier, repo_backend):
         self.runs = dict()
         self.submitted_cb = None
 
         self._ridc = ridc
         self._worker_handlers = worker_handlers
         self._notifier = notifier
+        self._repo_backend = repo_backend
 
     def submit(self, expid, priority, due_date, flush, pipeline_name):
+        # mutates expid to insert head repository revision if None
         # called through scheduler
         rid = self._ridc.get()
-        run = Run(rid, pipeline_name, expid, priority, due_date, flush,
+        if "repo_rev" in expid:
+            if expid["repo_rev"] is None:
+                expid["repo_rev"] = self._repo_backend.get_head_rev()
+            wd = self._repo_backend.request_rev(expid["repo_rev"])
+        else:
+            wd = None
+        run = Run(rid, pipeline_name, wd, expid, priority, due_date, flush,
                   self._worker_handlers, self._notifier)
         self.runs[rid] = run
         if self.submitted_cb is not None:
@@ -147,7 +157,10 @@ class RunPool:
         # called through deleter
         if rid not in self.runs:
             return
-        yield from self.runs[rid].close()
+        run = self.runs[rid]
+        yield from run.close()
+        if "repo_rev" in run.expid:
+            self._repo_backend.release_rev(run.expid["repo_rev"])
         del self.runs[rid]
 
 
@@ -280,12 +293,12 @@ class AnalyzeStage(TaskObject):
 
 
 class Pipeline:
-    def __init__(self, ridc, deleter, worker_handlers, notifier):
+    def __init__(self, ridc, deleter, worker_handlers, notifier, repo_backend):
         flush_tracker = WaitSet()
         def delete_cb(rid):
             deleter.delete(rid)
             flush_tracker.discard(rid)
-        self.pool = RunPool(ridc, worker_handlers, notifier)
+        self.pool = RunPool(ridc, worker_handlers, notifier, repo_backend)
         self._prepare = PrepareStage(flush_tracker, delete_cb,
                                      self.pool, asyncio.Queue(maxsize=1))
         self._run = RunStage(delete_cb,
@@ -348,11 +361,12 @@ class Deleter(TaskObject):
 
 
 class Scheduler:
-    def __init__(self, next_rid, worker_handlers):
+    def __init__(self, next_rid, worker_handlers, repo_backend):
         self.notifier = Notifier(dict())
 
         self._pipelines = dict()
         self._worker_handlers = worker_handlers
+        self._repo_backend = repo_backend
         self._terminated = False
 
         self._ridc = RIDCounter(next_rid)
@@ -374,6 +388,7 @@ class Scheduler:
             logger.warning("some pipelines were not garbage-collected")
 
     def submit(self, pipeline_name, expid, priority, due_date, flush):
+        # mutates expid to insert head repository revision if None
         if self._terminated:
             return
         try:
@@ -381,7 +396,8 @@ class Scheduler:
         except KeyError:
             logger.debug("creating pipeline '%s'", pipeline_name)
             pipeline = Pipeline(self._ridc, self._deleter,
-                                self._worker_handlers, self.notifier)
+                                self._worker_handlers, self.notifier,
+                                self._repo_backend)
             self._pipelines[pipeline_name] = pipeline
             pipeline.start()
         return pipeline.pool.submit(expid, priority, due_date, flush, pipeline_name)

@@ -42,6 +42,12 @@ def get_argparser():
     parser_add.add_argument("-f", "--flush", default=False, action="store_true",
                             help="flush the pipeline before preparing "
                             "the experiment")
+    parser_add.add_argument("-R", "--repository", default=False,
+                            action="store_true",
+                            help="use the experiment repository")
+    parser_add.add_argument("-r", "--revision", default=None,
+                            help="use a specific repository revision "
+                                 "(defaults to head, ignored without -R)")
     parser_add.add_argument("-c", "--class-name", default=None,
                             help="name of the class to run")
     parser_add.add_argument("file",
@@ -81,8 +87,8 @@ def get_argparser():
         "what",
         help="select object to show: schedule/devices/parameters")
 
-    parser_scan_repository = subparsers.add_parser(
-        "scan-repository", help="rescan repository")
+    subparsers.add_parser("scan-repository",
+                          help="trigger a repository rescan")
 
     return parser
 
@@ -107,6 +113,8 @@ def _action_submit(remote, args):
         "class_name": args.class_name,
         "arguments": arguments,
     }
+    if args.repository:
+        expid["repo_rev"] = args.revision
     if args.timed is None:
         due_date = None
     else:
@@ -148,7 +156,7 @@ def _show_schedule(schedule):
                                   x[1]["due_date"] or 0,
                                   x[0]))
         table = PrettyTable(["RID", "Pipeline", "    Status    ", "Prio",
-                             "Due date", "File", "Class name"])
+                             "Due date", "Revision", "File", "Class name"])
         for rid, v in l:
             row = [rid, v["pipeline"], v["status"], v["priority"]]
             if v["due_date"] is None:
@@ -156,11 +164,16 @@ def _show_schedule(schedule):
             else:
                 row.append(time.strftime("%m/%d %H:%M:%S",
                            time.localtime(v["due_date"])))
-            row.append(v["expid"]["file"])
-            if v["expid"]["class_name"] is None:
+            expid = v["expid"]
+            if "repo_rev" in expid:
+                row.append(expid["repo_rev"])
+            else:
+                row.append("Outside repo.")
+            row.append(expid["file"])
+            if expid["class_name"] is None:
                 row.append("")
             else:
-                row.append(v["expid"]["class_name"])
+                row.append(expid["class_name"])
             table.add_row(row)
         print(table)
     else:

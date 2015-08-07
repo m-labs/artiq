@@ -10,7 +10,7 @@ from artiq.protocols.sync_struct import Notifier, Publisher, process_mod
 from artiq.protocols.file_db import FlatFileDB
 from artiq.master.scheduler import Scheduler
 from artiq.master.worker_db import get_last_rid
-from artiq.master.repository import Repository
+from artiq.master.repository import FilesystemBackend, GitBackend, Repository
 from artiq.tools import verbosity_args, init_logger
 
 
@@ -26,6 +26,13 @@ def get_argparser():
     group.add_argument(
         "--port-control", default=3251, type=int,
         help="TCP port to listen to for control (default: %(default)d)")
+    group = parser.add_argument_group("repository")
+    group.add_argument(
+        "-g", "--git", default=False, action="store_true",
+        help="use the Git repository backend")
+    group.add_argument(
+        "-r", "--repository", default="repository",
+        help="path to the repository (default: '%(default)s')")
     verbosity_args(parser)
     return parser
 
@@ -57,6 +64,13 @@ def main():
     rtr = Notifier(dict())
     log = Log(1000)
 
+    if args.git:
+        repo_backend = GitBackend(args.repository)
+    else:
+        repo_backend = FilesystemBackend(args.repository)
+    repository = Repository(repo_backend, log.log)
+    repository.scan_async()
+
     worker_handlers = {
         "get_device": ddb.get,
         "get_parameter": pdb.get,
@@ -64,13 +78,10 @@ def main():
         "update_rt_results": lambda mod: process_mod(rtr, mod),
         "log": log.log
     }
-    scheduler = Scheduler(get_last_rid() + 1, worker_handlers)
+    scheduler = Scheduler(get_last_rid() + 1, worker_handlers, repo_backend)
     worker_handlers["scheduler_submit"] = scheduler.submit
     scheduler.start()
     atexit.register(lambda: loop.run_until_complete(scheduler.stop()))
-
-    repository = Repository(log.log)
-    repository.scan_async()
 
     server_control = Server({
         "master_ddb": ddb,

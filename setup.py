@@ -4,6 +4,7 @@ from setuptools import setup, find_packages, Command
 import sys
 import os
 
+
 if sys.version_info[:3] < (3, 4, 3):
     raise Exception("You need at least Python 3.4.3 to run ARTIQ")
 
@@ -20,7 +21,7 @@ class PushDocCommand(Command):
 requirements = [
     "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
     "python-dateutil", "prettytable", "h5py", "pydaqmx", "pyelftools",
-    "quamash", "pyqtgraph", "llvmlite_artiq"
+    "quamash", "pyqtgraph", "llvmlite_artiq", "pygit2"
 ]
 
 scripts = [
@@ -63,5 +64,5 @@ setup(
     entry_points={
         "console_scripts": scripts,
     },
-    cmdclass={"push_doc":PushDocCommand}
+    cmdclass={"push_doc": PushDocCommand}
 )

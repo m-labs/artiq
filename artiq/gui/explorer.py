@@ -256,6 +256,7 @@ class ExplorerDock(dockarea.Dock):
     def submit(self, pipeline_name, file, class_name, arguments,
                priority, due_date, flush):
         expid = {
+            "repo_rev": None,
             "file": file,
             "class_name": class_name,
             "arguments": arguments,

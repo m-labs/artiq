@@ -12,7 +12,7 @@ class _ScheduleModel(DictSyncModel):
     def __init__(self, parent, init):
         DictSyncModel.__init__(self,
             ["RID", "Pipeline", "Status", "Prio", "Due date",
-             "File", "Class name"],
+             "Revision", "File", "Class name"],
             parent, init)
 
     def sort_key(self, k, v):
@@ -35,8 +35,14 @@ class _ScheduleModel(DictSyncModel):
                 return time.strftime("%m/%d %H:%M:%S",
                                      time.localtime(v["due_date"]))
         elif column == 5:
-            return v["expid"]["file"]
+            expid = v["expid"]
+            if "repo_rev" in expid:
+                return expid["repo_rev"]
+            else:
+                return "Outside repo."
         elif column == 6:
+            return v["expid"]["file"]
+        elif column == 7:
             if v["expid"]["class_name"] is None:
                 return ""
             else:
