@@ -887,10 +887,13 @@ class Inferencer(algorithm.Visitor):
                         arg.loc, default.loc)
 
     def visit_FunctionDefT(self, node):
-        if any(node.decorator_list):
+        for index, decorator in enumerate(node.decorator_list):
+            if types.is_builtin(decorator.type, "kernel"):
+                continue
+
             diag = diagnostic.Diagnostic("error",
                 "decorators are not supported", {},
-                node.at_locs[0], [node.decorator_list[0].loc])
+                node.at_locs[index], [decorator.loc])
             self.engine.process(diag)
             return
 
