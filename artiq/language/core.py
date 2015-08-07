@@ -8,7 +8,7 @@ from functools import wraps
 
 __all__ = ["int64", "round64", "kernel", "portable",
            "set_time_manager", "set_syscall_manager", "set_watchdog_factory",
-           "RuntimeException", "EncodedException"]
+           "ARTIQException"]
 
 # global namespace for kernels
 kernel_globals = ("sequential", "parallel",
@@ -77,7 +77,7 @@ def round64(x):
     return int64(round(x))
 
 
-_KernelFunctionInfo = namedtuple("_KernelFunctionInfo", "core_name k_function")
+_ARTIQEmbeddedInfo = namedtuple("_ARTIQEmbeddedInfo", "core_name function")
 
 
 def kernel(arg):
@@ -100,25 +100,19 @@ def kernel(arg):
     specifies the name of the attribute to use as core device driver.
     """
     if isinstance(arg, str):
-        def real_decorator(k_function):
-            @wraps(k_function)
-            def run_on_core(exp, *k_args, **k_kwargs):
-                return getattr(exp, arg).run(k_function,
-                                             ((exp,) + k_args), k_kwargs)
-            run_on_core.k_function_info = _KernelFunctionInfo(
-                core_name=arg, k_function=k_function)
+        def inner_decorator(function):
+            @wraps(function)
+            def run_on_core(self, *k_args, **k_kwargs):
+                return getattr(self, arg).run(function, ((self,) + k_args), k_kwargs)
+            run_on_core.artiq_embedded = _ARTIQEmbeddedInfo(
+                core_name=arg, function=function)
             return run_on_core
-        return real_decorator
+        return inner_decorator
     else:
-        @wraps(arg)
-        def run_on_core(exp, *k_args, **k_kwargs):
-            return exp.core.run(arg, ((exp,) + k_args), k_kwargs)
-        run_on_core.k_function_info = _KernelFunctionInfo(
-            core_name="core", k_function=arg)
-        return run_on_core
+        return kernel("core")(arg)
 
 
-def portable(f):
+def portable(function):
     """This decorator marks a function for execution on the same device as its
     caller.
 
@@ -127,8 +121,8 @@ def portable(f):
     core device). A decorated function called from a kernel will be executed
     on the core device (no RPC).
     """
-    f.k_function_info = _KernelFunctionInfo(core_name="", k_function=f)
-    return f
+    function.artiq_embedded = _ARTIQEmbeddedInfo(core_name="", function=function)
+    return function
 
 
 class _DummyTimeManager:
@@ -280,32 +274,34 @@ def watchdog(timeout):
     return _watchdog_factory(timeout)
 
 
-_encoded_exceptions = dict()
+class ARTIQException(Exception):
+    """Base class for exceptions raised or passed through the core device."""
 
+    # Try and create an instance of the specific class, if one exists.
+    def __new__(cls, name, message, params):
+        def find_subclass(cls):
+            if cls.__name__ == name:
+                return cls
+            else:
+                for subclass in cls.__subclasses__():
+                    cls = find_subclass(subclass)
+                    if cls is not None:
+                        return cls
 
-def EncodedException(eid):
-    """Represents exceptions on the core device, which are identified
-    by a single number."""
-    try:
-        return _encoded_exceptions[eid]
-    except KeyError:
-        class EncodedException(Exception):
-            def __init__(self):
-                Exception.__init__(self, eid)
-        _encoded_exceptions[eid] = EncodedException
-        return EncodedException
+        more_specific_cls = find_subclass(cls)
+        if more_specific_cls is None:
+            more_specific_cls = cls
 
+        exn = Exception.__new__(more_specific_cls)
+        exn.__init__(name, message, params)
+        return exn
 
-class RuntimeException(Exception):
-    """Base class for all exceptions used by the device runtime.
-    Those exceptions are defined in ``artiq.coredevice.runtime_exceptions``.
-    """
-    def __init__(self, core, p0, p1, p2):
-        Exception.__init__(self)
-        self.core = core
-        self.p0 = p0
-        self.p1 = p1
-        self.p2 = p2
+    def __init__(self, name, message, params):
+        Exception.__init__(self, name, message, *params)
+        self.name, self.message, self.params = name, message, params
 
-
-first_user_eid = 1024
+    def __str__(self):
+        if type(self).__name__ == self.name:
+            return self.message.format(*self.params)
+        else:
+            return "({}) {}".format(self.name, self.message.format(*self.params))

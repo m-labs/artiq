@@ -3,9 +3,7 @@ import logging
 from enum import Enum
 from fractions import Fraction
 
-from artiq.coredevice import runtime_exceptions
 from artiq.language import core as core_language
-from artiq.coredevice.rpc_wrapper import RPCWrapper
 
 
 logger = logging.getLogger(__name__)
@@ -198,35 +196,28 @@ class CommGeneric:
             else:
                 r.append(self._receive_rpc_value(type_tag))
 
-    def _serve_rpc(self, rpc_wrapper, rpc_map, user_exception_map):
+    def _serve_rpc(self, rpc_map):
         rpc_num = struct.unpack(">l", self.read(4))[0]
         args = self._receive_rpc_values()
         logger.debug("rpc service: %d %r", rpc_num, args)
-        eid, r = rpc_wrapper.run_rpc(
-            user_exception_map, rpc_map[rpc_num], args)
+        eid, r = rpc_wrapper.run_rpc(rpc_map[rpc_num], args)
         self._write_header(9+2*4, _H2DMsgType.RPC_REPLY)
         self.write(struct.pack(">ll", eid, r))
         logger.debug("rpc service: %d %r == %r (eid %d)", rpc_num, args,
                      r, eid)
 
-    def _serve_exception(self, rpc_wrapper, user_exception_map):
+    def _serve_exception(self):
         eid, p0, p1, p2 = struct.unpack(">lqqq", self.read(4+3*8))
         rpc_wrapper.filter_rpc_exception(eid)
-        if eid < core_language.first_user_eid:
-            exception = runtime_exceptions.exception_map[eid]
-            raise exception(self.core, p0, p1, p2)
-        else:
-            exception = user_exception_map[eid]
-            raise exception
+        raise exception(self.core, p0, p1, p2)
 
-    def serve(self, rpc_map, user_exception_map):
-        rpc_wrapper = RPCWrapper()
+    def serve(self, rpc_map):
         while True:
             _, ty = self._read_header()
             if ty == _D2HMsgType.RPC_REQUEST:
-                self._serve_rpc(rpc_wrapper, rpc_map, user_exception_map)
+                self._serve_rpc(rpc_map)
             elif ty == _D2HMsgType.KERNEL_EXCEPTION:
-                self._serve_exception(rpc_wrapper, user_exception_map)
+                self._serve_exception()
             elif ty == _D2HMsgType.KERNEL_FINISHED:
                 return
             else:

@@ -190,10 +190,15 @@ class ASTTypedRewriter(algorithm.Transformer):
         self.globals = None
         self.env_stack = [globals]
 
-    def _find_name(self, name, loc):
+    def _try_find_name(self, name):
         for typing_env in reversed(self.env_stack):
             if name in typing_env:
                 return typing_env[name]
+
+    def _find_name(self, name, loc):
+        typ = self._try_find_name(name)
+        if typ is not None:
+            return typ
         diag = diagnostic.Diagnostic("fatal",
             "name '{name}' is not bound to anything", {"name":name}, loc)
         self.engine.process(diag)

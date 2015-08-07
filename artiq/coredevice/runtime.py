@@ -3,13 +3,7 @@ import os
 import llvmlite_or1k.ir as ll
 import llvmlite_or1k.binding as llvm
 
-from artiq.py2llvm import base_types, fractions, lists
 from artiq.language import units
-
-
-llvm.initialize()
-llvm.initialize_all_targets()
-llvm.initialize_all_asmprinters()
 
 _syscalls = {
     "now_init": "n:I",
@@ -97,27 +91,6 @@ class LinkInterface:
             self.syscalls[func_name] = ll.Function(
                 llvm_module, func_type, "__syscall_" + func_name)
 
-        # exception handling
-        func_type = ll.FunctionType(ll.IntType(32),
-                                    [ll.PointerType(ll.IntType(8))])
-        self.eh_setjmp = ll.Function(llvm_module, func_type,
-                                     "__eh_setjmp")
-        self.eh_setjmp.attributes.add("nounwind")
-        self.eh_setjmp.attributes.add("returns_twice")
-
-        func_type = ll.FunctionType(ll.PointerType(ll.IntType(8)), [])
-        self.eh_push = ll.Function(llvm_module, func_type, "__eh_push")
-
-        func_type = ll.FunctionType(ll.VoidType(), [ll.IntType(32)])
-        self.eh_pop = ll.Function(llvm_module, func_type, "__eh_pop")
-
-        func_type = ll.FunctionType(ll.IntType(32), [])
-        self.eh_getid = ll.Function(llvm_module, func_type, "__eh_getid")
-
-        func_type = ll.FunctionType(ll.VoidType(), [ll.IntType(32)])
-        self.eh_raise = ll.Function(llvm_module, func_type, "__eh_raise")
-        self.eh_raise.attributes.add("noreturn")
-
     def _build_rpc(self, args, builder):
         r = base_types.VInt()
         if builder is not None:
@@ -159,54 +132,3 @@ class LinkInterface:
             return self._build_rpc(args, builder)
         else:
             return self._build_regular_syscall(syscall_name, args, builder)
-
-    def build_catch(self, builder):
-        jmpbuf = builder.call(self.eh_push, [])
-        exception_occured = builder.call(self.eh_setjmp, [jmpbuf])
-        return builder.icmp_signed("!=",
-                                   exception_occured,
-                                   ll.Constant(ll.IntType(32), 0))
-
-    def build_pop(self, builder, levels):
-        builder.call(self.eh_pop, [ll.Constant(ll.IntType(32), levels)])
-
-    def build_getid(self, builder):
-        return builder.call(self.eh_getid, [])
-
-    def build_raise(self, builder, eid):
-        builder.call(self.eh_raise, [eid])
-
-
-def _debug_dump_obj(obj):
-    try:
-        env = os.environ["ARTIQ_DUMP_OBJECT"]
-    except KeyError:
-        return
-
-    for i in range(1000):
-        filename = "{}_{:03d}.elf".format(env, i)
-        try:
-            f = open(filename, "xb")
-        except FileExistsError:
-            pass
-        else:
-            f.write(obj)
-            f.close()
-            return
-    raise IOError
-
-
-class Runtime(LinkInterface):
-    def __init__(self):
-        self.cpu_type = "or1k"
-        # allow 1ms for all initial DDS programming
-        self.warmup_time = 1*units.ms
-
-    def emit_object(self):
-        tm = llvm.Target.from_triple(self.cpu_type).create_target_machine()
-        obj = tm.emit_object(self.module.llvm_module_ref)
-        _debug_dump_obj(obj)
-        return obj
-
-    def __repr__(self):
-        return "<Runtime {}>".format(self.cpu_type)

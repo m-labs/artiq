@@ -93,3 +93,5 @@ class YieldFromT(ast.YieldFrom, commontyped):
 # Novel typed nodes
 class CoerceT(ast.expr, commontyped):
     _fields = ('value',) # other_value deliberately not in _fields
+class QuoteT(ast.expr, commontyped):
+    _fields = ('value',)
