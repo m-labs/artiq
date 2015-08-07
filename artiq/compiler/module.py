@@ -22,7 +22,7 @@ class Source:
         self.name, _ = os.path.splitext(os.path.basename(source_buffer.name))
 
         asttyped_rewriter = transforms.ASTTypedRewriter(engine=engine,
-                                                        globals=prelude.globals())
+                                                        prelude=prelude.globals())
         inferencer = transforms.Inferencer(engine=engine)
 
         self.parsetree, self.comments = parse_buffer(source_buffer, engine=engine)
