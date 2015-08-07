@@ -41,6 +41,8 @@ static int load_or_start_kernel(void *library, int run_kernel)
     start_kernel_cpu(&request);
 
     struct msg_load_reply *reply = mailbox_wait_and_receive();
+    mailbox_acknowledge();
+
     if(reply->type != MESSAGE_TYPE_LOAD_REPLY) {
         log("BUG: unexpected reply to load/run request");
         return 0;
@@ -50,8 +52,6 @@ static int load_or_start_kernel(void *library, int run_kernel)
         log("cannot load kernel: %s", reply->error);
         return 0;
     }
-
-    mailbox_acknowledge();
 
     return 1;
 }
