@@ -12,7 +12,8 @@ from artiq.gui.scan import ScanController
 
 
 class _ExplistModel(DictSyncModel):
-    def __init__(self, parent, init):
+    def __init__(self, explorer, parent, init):
+        self.explorer = explorer
         DictSyncModel.__init__(self,
             ["Experiment"],
             parent, init)
@@ -22,6 +23,11 @@ class _ExplistModel(DictSyncModel):
 
     def convert(self, k, v, column):
         return k
+
+    def __setitem__(self, k, v):
+        DictSyncModel.__setitem__(self, k, v)
+        if k == self.explorer.selected_key:
+            self.explorer.update_selection(k, k)
 
 
 class _FreeValueEntry(QtGui.QLineEdit):
@@ -166,7 +172,8 @@ class ExplorerDock(dockarea.Dock):
         self.splitter.addWidget(grid)
 
         self.el = QtGui.QListView()
-        self.el.selectionChanged = self.update_argsetter
+        self.el.selectionChanged = self._selection_changed
+        self.selected_key = None
         grid.addWidget(self.el, 0, 0, colspan=4)
 
         self.datetime = QtGui.QDateTimeEdit()
@@ -200,28 +207,35 @@ class ExplorerDock(dockarea.Dock):
         self.splitter.setSizes([grid.minimumSizeHint().width(), 1000])
         self.state = dict()
 
-    def update_argsetter(self, selected, deselected):
-        deselected = deselected.indexes()
+    def update_selection(self, selected, deselected):
         if deselected:
-            row = deselected[0].row()
-            key = self.explist_model.row_to_key[row]
-            self.state[key] = self.argsetter.get_argument_values(False)
+            self.state[deselected] = self.argsetter.get_argument_values(False)
 
-        selected = selected.indexes()
         if selected:
-            row = selected[0].row()
-            key = self.explist_model.row_to_key[row]
-            expinfo = self.explist_model.backing_store[key]
+            expinfo = self.explist_model.backing_store[selected]
             arguments = expinfo["arguments"]
             sizes = self.splitter.sizes()
             self.argsetter.deleteLater()
             self.argsetter = _ArgumentSetter(self.dialog_parent, arguments)
-            if key in self.state:
-                arguments = self.state[key]
+            if selected in self.state:
+                arguments = self.state[selected]
                 if arguments is not None:
                     self.argsetter.set_argument_values(arguments, True)
             self.splitter.insertWidget(1, self.argsetter)
             self.splitter.setSizes(sizes)
+        self.selected_key = selected
+
+    def _sel_to_key(self, selection):
+        selection = selection.indexes()
+        if selection:
+            row = selection[0].row()
+            return self.explist_model.row_to_key[row]
+        else:
+            return None
+
+    def _selection_changed(self, selected, deselected):
+        self.update_selection(self._sel_to_key(selected),
+                              self._sel_to_key(deselected))
 
     def save_state(self):
         idx = self.el.selectedIndexes()
@@ -248,7 +262,7 @@ class ExplorerDock(dockarea.Dock):
         yield from self.explist_subscriber.close()
 
     def init_explist_model(self, init):
-        self.explist_model = _ExplistModel(self.el, init)
+        self.explist_model = _ExplistModel(self, self.el, init)
         self.el.setModel(self.explist_model)
         return self.explist_model
 
@@ -266,11 +280,8 @@ class ExplorerDock(dockarea.Dock):
         self.status_bar.showMessage("Submitted RID {}".format(rid))
 
     def submit_clicked(self):
-        idx = self.el.selectedIndexes()
-        if idx:
-            row = idx[0].row()
-            key = self.explist_model.row_to_key[row]
-            expinfo = self.explist_model.backing_store[key]
+        if self.selected_key is not None:
+            expinfo = self.explist_model.backing_store[self.selected_key]
             if self.datetime_en.isChecked():
                 due_date = self.datetime.dateTime().toMSecsSinceEpoch()/1000
             else:
