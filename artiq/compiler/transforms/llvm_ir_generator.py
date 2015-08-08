@@ -153,7 +153,7 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(ll.VoidType(), [self.llty_of_type(builtins.TException())])
         elif name == "__artiq_reraise":
             llty = ll.FunctionType(ll.VoidType(), [])
-        elif name == "rpc":
+        elif name == "send_rpc":
             llty = ll.FunctionType(ll.IntType(32), [ll.IntType(32), ll.IntType(8).as_pointer()],
                                    var_arg=True)
         else:
@@ -609,7 +609,7 @@ class LLVMIRGenerator:
                 tag += self._rpc_tag(arg.type, arg.type, None)
             else:
                 tag += self._rpc_tag(arg.type, arg.type, arg.loc)
-        tag += b":\x00"
+        tag += b"\x00"
         lltag = self.llconst_of_const(ir.Constant(tag, builtins.TStr()))
 
         llargs = []
@@ -619,7 +619,7 @@ class LLVMIRGenerator:
             self.llbuilder.store(llarg, llargslot)
             llargs.append(llargslot)
 
-        return self.llbuiltin("rpc"), [llservice, lltag] + llargs
+        return self.llbuiltin("send_rpc"), [llservice, lltag] + llargs
 
     def prepare_call(self, insn):
         if types.is_rpc_function(insn.target_function().type):

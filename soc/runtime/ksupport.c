@@ -92,7 +92,7 @@ static const struct symbol runtime_exports[] = {
 
     {"log", &log},
     {"lognonl", &lognonl},
-    {"rpc", &rpc},
+    {"send_rpc", &send_rpc},
 
     /* direct syscalls */
     {"rtio_get_counter", &rtio_get_counter},
@@ -301,19 +301,19 @@ void watchdog_clear(int id)
     mailbox_send_and_wait(&request);
 }
 
-int rpc(int service, const char *tag, ...)
+int send_rpc(int service, const char *tag, ...)
 {
-    struct msg_rpc_send_request request;
-    struct msg_base *reply;
+    struct msg_rpc_send request;
 
-    request.type = MESSAGE_TYPE_RPC_SEND_REQUEST;
+    request.type = MESSAGE_TYPE_RPC_SEND;
     request.service = service;
     request.tag = tag;
     va_start(request.args, tag);
     mailbox_send_and_wait(&request);
     va_end(request.args);
 
-    reply = mailbox_wait_and_receive();
+    // struct msg_base *reply;
+    // reply = mailbox_wait_and_receive();
     // if(reply->type == MESSAGE_TYPE_RPC_REPLY) {
     //     int result = ((struct msg_rpc_reply *)reply)->result;
     //     mailbox_acknowledge();
@@ -325,8 +325,8 @@ int rpc(int service, const char *tag, ...)
     //     mailbox_acknowledge();
     //     __artiq_raise(&exception);
     // } else {
-        log("Malformed MESSAGE_TYPE_RPC_REQUEST reply type %d",
-            reply->type);
+        // log("Malformed MESSAGE_TYPE_RPC_REQUEST reply type %d",
+        //     reply->type);
         while(1);
     // }
 }
