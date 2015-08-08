@@ -2,7 +2,7 @@
 Core ARTIQ extensions to the Python language.
 """
 
-import linecache
+import linecache, re
 from collections import namedtuple
 from functools import wraps
 
@@ -320,5 +320,6 @@ class ARTIQException(Exception):
                             function=self.function))
         line = linecache.getline(self.filename, self.line)
         lines.append("    {}".format(line.strip() if line else "<unknown>"))
+        lines.append("    {}^".format(" " * (self.column - re.search(r"^\s+", line).end())))
 
         return "\n".join(lines)
