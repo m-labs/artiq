@@ -108,7 +108,10 @@ class CommGeneric:
         if ty != _D2HMsgType.IDENT_REPLY:
             raise IOError("Incorrect reply from device: {}".format(ty))
         (reply, ) = struct.unpack("B", self.read(1))
-        runtime_id = self.read(4).decode()
+        runtime_id = chr(reply)
+        for i in range(3):
+            (reply, ) = struct.unpack("B", self.read(1))
+            runtime_id += chr(reply)
         if runtime_id != "AROR":
             raise UnsupportedDevice("Unsupported runtime ID: {}"
                                     .format(runtime_id))
@@ -235,11 +238,9 @@ class CommGeneric:
         length, ty = self._read_header()
         if ty != _D2HMsgType.LOG_REPLY:
             raise IOError("Incorrect request from device: "+str(ty))
-        log = self.read(length - 9).decode()
-        try:
-            idx = log.index("\x00")
-        except ValueError:
-            pass
-        else:
-            log = log[:idx]
-        return log
+        r = ""
+        for i in range(length - 9):
+            c = struct.unpack("B", self.read(1))[0]
+            if c:
+                r += chr(c)
+        return r
