@@ -32,10 +32,19 @@ class Core:
             stitcher = Stitcher(engine=engine)
             stitcher.stitch_call(function, args, kwargs)
 
-            module  = Module(stitcher)
-            library = OR1KTarget().compile_and_link([module])
+            module = Module(stitcher)
+            target = OR1KTarget()
 
-            return library, stitcher.rpc_map
+            if os.getenv('ARTIQ_DUMP_IR'):
+                print("====== ARTIQ IR DUMP ======", file=sys.stderr)
+                for function in module.artiq_ir:
+                    print(function, file=sys.stderr)
+
+            if os.getenv('ARTIQ_DUMP_LLVM'):
+                print("====== LLVM IR DUMP ======", file=sys.stderr)
+                print(module.build_llvm_ir(target), file=sys.stderr)
+
+            return target.compile_and_link([module]), stitcher.rpc_map
         except diagnostic.Error as error:
             print("\n".join(error.diagnostic.render(colored=True)), file=sys.stderr)
             raise CompileError() from error
