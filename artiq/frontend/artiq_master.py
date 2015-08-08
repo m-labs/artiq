@@ -74,6 +74,7 @@ def main():
     else:
         repo_backend = FilesystemBackend(args.repository)
     repository = Repository(repo_backend, log.log)
+    atexit.register(repository.close)
     repository.scan_async()
 
     worker_handlers = {

@@ -63,6 +63,10 @@ class Repository:
 
         self._scanning = False
 
+    def close(self):
+        # The object cannot be used anymore after calling this method.
+        self.backend.release_rev(self.head_rev)
+
     @asyncio.coroutine
     def scan(self):
         if self._scanning:
