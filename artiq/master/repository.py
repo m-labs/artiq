@@ -6,6 +6,7 @@ import logging
 
 from artiq.protocols.sync_struct import Notifier
 from artiq.master.worker import Worker
+from artiq.tools import exc_to_warning
 
 
 logger = logging.getLogger(__name__)
@@ -72,19 +73,20 @@ class Repository:
         if self._scanning:
             return
         self._scanning = True
+        try:
+            if new_cur_rev is None:
+                new_cur_rev = self.backend.get_head_rev()
+            wd, _ = self.backend.request_rev(new_cur_rev)
+            self.backend.release_rev(self.cur_rev)
+            self.cur_rev = new_cur_rev
+            new_explist = yield from _scan_experiments(wd, self.log_fn)
 
-        if new_cur_rev is None:
-            new_cur_rev = self.backend.get_head_rev()
-        wd, _ = self.backend.request_rev(new_cur_rev)
-        self.backend.release_rev(self.cur_rev)
-        self.cur_rev = new_cur_rev
-        new_explist = yield from _scan_experiments(wd, self.log_fn)
-
-        _sync_explist(self.explist, new_explist)
-        self._scanning = False
+            _sync_explist(self.explist, new_explist)
+        finally:
+            self._scanning = False
 
     def scan_async(self, new_cur_rev=None):
-        asyncio.async(self.scan(new_cur_rev))
+        asyncio.async(exc_to_warning(self.scan(new_cur_rev)))
 
 
 class FilesystemBackend:

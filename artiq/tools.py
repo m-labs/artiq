@@ -11,6 +11,9 @@ from artiq.language.environment import is_experiment
 from artiq.protocols import pyon
 
 
+logger = logging.getLogger(__name__)
+
+
 def parse_arguments(arguments):
     d = {}
     for argument in arguments:
@@ -73,6 +76,15 @@ def simple_network_args(parser, default_port):
 
 def init_logger(args):
     logging.basicConfig(level=logging.WARNING + args.quiet*10 - args.verbose*10)
+
+
+@asyncio.coroutine
+def exc_to_warning(coro):
+    try:
+        yield from coro
+    except:
+        logger.warning("asyncio coroutine terminated with exception",
+                       exc_info=True)
 
 
 @asyncio.coroutine
