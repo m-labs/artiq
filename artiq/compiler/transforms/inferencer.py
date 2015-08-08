@@ -696,7 +696,7 @@ class Inferencer(algorithm.Visitor):
             return
 
         typ = node.func.type.find()
-        passed_args = set()
+        passed_args = dict()
 
         if len(node.args) > typ.arity():
             note = diagnostic.Diagnostic("note",
@@ -714,14 +714,14 @@ class Inferencer(algorithm.Visitor):
                 zip(node.args, list(typ.args.items()) + list(typ.optargs.items())):
             self._unify(actualarg.type, formaltyp,
                         actualarg.loc, None)
-            passed_args.add(formalname)
+            passed_args[formalname] = actualarg.loc
 
         for keyword in node.keywords:
             if keyword.arg in passed_args:
                 diag = diagnostic.Diagnostic("error",
-                    "the argument '{name}' is already passed",
+                    "the argument '{name}' has been passed earlier as positional",
                     {"name": keyword.arg},
-                    keyword.arg_loc)
+                    keyword.arg_loc, [passed_args[keyword.arg]])
                 self.engine.process(diag)
                 return
 
