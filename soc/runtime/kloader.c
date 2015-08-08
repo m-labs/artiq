@@ -30,7 +30,7 @@ void kloader_start_bridge()
     start_kernel_cpu(NULL);
 }
 
-static int load_or_start_kernel(void *library, int run_kernel)
+static int load_or_start_kernel(const void *library, int run_kernel)
 {
     static struct dyld_info library_info;
     struct msg_load_request request = {
@@ -56,7 +56,7 @@ static int load_or_start_kernel(void *library, int run_kernel)
     return 1;
 }
 
-int kloader_load_library(void *library)
+int kloader_load_library(const void *library)
 {
     if(!kernel_cpu_reset_read()) {
         log("BUG: attempted to load kernel library while kernel CPU is running");
@@ -64,6 +64,22 @@ int kloader_load_library(void *library)
     }
 
     return load_or_start_kernel(library, 0);
+}
+
+void kloader_filter_backtrace(struct artiq_backtrace_item *backtrace,
+                              size_t *backtrace_size) {
+    struct artiq_backtrace_item *cursor = backtrace;
+
+    // Remove all backtrace items belonging to ksupport and subtract
+    // shared object base from the addresses.
+    for(int i = 0; i < *backtrace_size; i++) {
+        if(backtrace[i].function > KERNELCPU_PAYLOAD_ADDRESS) {
+            backtrace[i].function -= KERNELCPU_PAYLOAD_ADDRESS;
+            *cursor++ = backtrace[i];
+        }
+    }
+
+    *backtrace_size = cursor - backtrace;
 }
 
 void kloader_start_kernel()

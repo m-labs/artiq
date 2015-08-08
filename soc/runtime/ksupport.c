@@ -246,7 +246,8 @@ long long int now_init(void)
 
     reply = mailbox_wait_and_receive();
     if(reply->type != MESSAGE_TYPE_NOW_INIT_REPLY) {
-        log("Malformed MESSAGE_TYPE_NOW_INIT_REQUEST reply type");
+        log("Malformed MESSAGE_TYPE_NOW_INIT_REQUEST reply type %d",
+            reply->type);
         while(1);
     }
     now = reply->now;
@@ -281,7 +282,8 @@ int watchdog_set(int ms)
 
     reply = mailbox_wait_and_receive();
     if(reply->type != MESSAGE_TYPE_WATCHDOG_SET_REPLY) {
-        log("Malformed MESSAGE_TYPE_WATCHDOG_SET_REQUEST reply type");
+        log("Malformed MESSAGE_TYPE_WATCHDOG_SET_REQUEST reply type %d",
+            reply->type);
         while(1);
     }
     id = reply->id;
@@ -302,7 +304,7 @@ void watchdog_clear(int id)
 int rpc(int rpc_num, ...)
 {
     struct msg_rpc_request request;
-    struct msg_rpc_reply *reply;
+    struct msg_base *reply;
 
     request.type = MESSAGE_TYPE_RPC_REQUEST;
     request.rpc_num = rpc_num;
@@ -311,20 +313,20 @@ int rpc(int rpc_num, ...)
     va_end(request.args);
 
     reply = mailbox_wait_and_receive();
-    if(reply->type != MESSAGE_TYPE_RPC_REPLY) {
-        log("Malformed MESSAGE_TYPE_RPC_REPLY reply type");
-        while(1);
-    }
-
-    if(reply->exception != NULL) {
+    if(reply->type == MESSAGE_TYPE_RPC_REPLY) {
+        int result = ((struct msg_rpc_reply *)reply)->result;
+        mailbox_acknowledge();
+        return result;
+    } else if(reply->type == MESSAGE_TYPE_RPC_EXCEPTION) {
         struct artiq_exception exception;
-        memcpy(&exception, reply->exception, sizeof(exception));
+        memcpy(&exception, ((struct msg_rpc_exception *)reply)->exception,
+               sizeof(struct artiq_exception));
         mailbox_acknowledge();
         __artiq_raise(&exception);
     } else {
-        int retval = reply->retval;
-        mailbox_acknowledge();
-        return retval;
+        log("Malformed MESSAGE_TYPE_RPC_REQUEST reply type %d",
+            reply->type);
+        while(1);
     }
 }
 

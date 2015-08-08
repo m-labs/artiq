@@ -157,7 +157,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
     def visit_function(self, node, is_lambda, is_internal):
         if is_lambda:
-            name = "lambda.{}.{}".format(node.loc.line(), node.loc.column())
+            name = "lambda@{}:{}".format(node.loc.line(), node.loc.column())
             typ = node.type.find()
         else:
             name = node.name
@@ -471,9 +471,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
             loc_file = ir.Constant(self.current_loc.source_buffer.name, builtins.TStr())
             loc_line = ir.Constant(self.current_loc.line(), builtins.TInt(types.TValue(32)))
             loc_column = ir.Constant(self.current_loc.column(), builtins.TInt(types.TValue(32)))
+            loc_function = ir.Constant(".".join(self.name), builtins.TStr())
             self.append(ir.SetAttr(exn, "__file__", loc_file))
             self.append(ir.SetAttr(exn, "__line__", loc_line))
             self.append(ir.SetAttr(exn, "__col__", loc_column))
+            self.append(ir.SetAttr(exn, "__func__", loc_function))
 
             if self.unwind_target is not None:
                 self.append(ir.Raise(exn, self.unwind_target))
@@ -1237,6 +1239,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             ir.Constant("<not thrown>", builtins.TStr()),           # file
             ir.Constant(0, builtins.TInt(types.TValue(32))),        # line
             ir.Constant(0, builtins.TInt(types.TValue(32))),        # column
+            ir.Constant("<not thrown>", builtins.TStr()),           # function
         ]
 
         if message is None:

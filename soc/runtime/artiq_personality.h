@@ -12,6 +12,7 @@ struct artiq_exception {
   const char *file;
   int32_t line;
   int32_t column;
+  const char *function;
   const char *message;
   int64_t param[3];
 };

@@ -128,6 +128,13 @@ static int32_t in_packet_int32()
     return result;
 }
 
+static int64_t in_packet_int64()
+{
+    int64_t result;
+    in_packet_chunk(&result, sizeof(result));
+    return result;
+}
+
 static const void *in_packet_bytes(int *length)
 {
     *length = in_packet_int32();
@@ -310,6 +317,7 @@ enum {
     REMOTEMSG_TYPE_RUN_KERNEL,
 
     REMOTEMSG_TYPE_RPC_REPLY,
+    REMOTEMSG_TYPE_RPC_EXCEPTION,
 
     REMOTEMSG_TYPE_FLASH_READ_REQUEST,
     REMOTEMSG_TYPE_FLASH_WRITE_REQUEST,
@@ -452,15 +460,44 @@ static int process_input(void)
         case REMOTEMSG_TYPE_RPC_REPLY: {
             struct msg_rpc_reply reply;
 
+            int result = in_packet_int32();
+
             if(user_kernel_state != USER_KERNEL_WAIT_RPC) {
                 log("Unsolicited RPC reply");
                 return 0; // restart session
             }
 
             reply.type = MESSAGE_TYPE_RPC_REPLY;
-            // FIXME memcpy(&reply.eid, &buffer_in[9], 4);
-            // memcpy(&reply.retval, &buffer_in[13], 4);
+            reply.result = result;
             mailbox_send_and_wait(&reply);
+
+            user_kernel_state = USER_KERNEL_RUNNING;
+            break;
+        }
+
+        case REMOTEMSG_TYPE_RPC_EXCEPTION: {
+            struct msg_rpc_exception reply;
+
+            struct artiq_exception exception;
+            exception.name     = in_packet_string();
+            exception.message  = in_packet_string();
+            exception.param[0] = in_packet_int64();
+            exception.param[1] = in_packet_int64();
+            exception.param[2] = in_packet_int64();
+            exception.file     = in_packet_string();
+            exception.line     = in_packet_int32();
+            exception.column   = in_packet_int32();
+            exception.function = in_packet_string();
+
+            if(user_kernel_state != USER_KERNEL_WAIT_RPC) {
+                log("Unsolicited RPC exception reply");
+                return 0; // restart session
+            }
+
+            reply.type = MESSAGE_TYPE_RPC_EXCEPTION;
+            reply.exception = &exception;
+            mailbox_send_and_wait(&reply);
+
             user_kernel_state = USER_KERNEL_RUNNING;
             break;
         }
@@ -509,8 +546,6 @@ static int send_rpc_value(const char **tag, void *value)
             break;
 
         case 'l': { // list(elt='a)
-            size = sizeof(void*);
-
             struct { uint32_t length; void *elements; } *list = value;
             void *element = list->elements;
 
@@ -522,6 +557,18 @@ static int send_rpc_value(const char **tag, void *value)
                 element = (void*)((intptr_t)element + element_size);
             }
             *tag = tag_copy;
+
+            size = sizeof(list);
+            break;
+        }
+
+        case 'o': { // host object
+            struct { uint32_t id; } *object = value;
+
+            if(!out_packet_int32(object->id))
+                return -1;
+
+            size = sizeof(object);
             break;
         }
 
@@ -575,10 +622,29 @@ static int process_kmsg(struct msg_base *umsg)
         case MESSAGE_TYPE_EXCEPTION: {
             struct msg_exception *msg = (struct msg_exception *)umsg;
 
-            out_packet_empty(REMOTEMSG_TYPE_KERNEL_EXCEPTION);
-            // memcpy(&buffer_out[9], &msg->eid, 4);
-            // memcpy(&buffer_out[13], msg->eparams, 3*8);
-            // submit_output(9+4+3*8);
+            out_packet_start(REMOTEMSG_TYPE_KERNEL_EXCEPTION);
+
+            out_packet_string(msg->exception->name);
+            out_packet_string(msg->exception->message);
+            out_packet_int64(msg->exception->param[0]);
+            out_packet_int64(msg->exception->param[1]);
+            out_packet_int64(msg->exception->param[2]);
+
+            out_packet_string(msg->exception->file);
+            out_packet_int32(msg->exception->line);
+            out_packet_int32(msg->exception->column);
+            out_packet_string(msg->exception->function);
+
+            kloader_filter_backtrace(msg->backtrace,
+                                     &msg->backtrace_size);
+
+            out_packet_int32(msg->backtrace_size);
+            for(int i = 0; i < msg->backtrace_size; i++) {
+                struct artiq_backtrace_item *item = &msg->backtrace[i];
+                out_packet_int32(item->function + item->offset);
+            }
+
+            out_packet_finish();
 
             kloader_stop();
             user_kernel_state = USER_KERNEL_LOADED;

@@ -1,5 +1,6 @@
 import struct
 import logging
+import traceback
 from enum import Enum
 from fractions import Fraction
 
@@ -18,11 +19,12 @@ class _H2DMsgType(Enum):
     RUN_KERNEL = 5
 
     RPC_REPLY = 6
+    RPC_EXCEPTION = 7
 
-    FLASH_READ_REQUEST = 7
-    FLASH_WRITE_REQUEST = 8
-    FLASH_ERASE_REQUEST = 9
-    FLASH_REMOVE_REQUEST = 10
+    FLASH_READ_REQUEST = 8
+    FLASH_WRITE_REQUEST = 9
+    FLASH_ERASE_REQUEST = 10
+    FLASH_REMOVE_REQUEST = 11
 
 
 class _D2HMsgType(Enum):
@@ -223,16 +225,12 @@ class CommGeneric:
 
         self._read_empty(_D2HMsgType.CLOCK_SWITCH_COMPLETED)
 
-    def load(self, kernel_library):
-        self._write_header(_H2DMsgType.LOAD_LIBRARY)
-        self._write_chunk(kernel_library)
-        self._write_flush()
+    def get_log(self):
+        self._write_empty(_H2DMsgType.LOG_REQUEST)
 
-        self._read_empty(_D2HMsgType.LOAD_COMPLETED)
-
-    def run(self):
-        self._write_empty(_H2DMsgType.RUN_KERNEL)
-        logger.debug("running kernel")
+        self._read_header()
+        self._read_expect(_D2HMsgType.LOG_REPLY)
+        return self._read_chunk(self._read_length).decode('utf-8')
 
     def flash_storage_read(self, key):
         self._write_header(_H2DMsgType.FLASH_READ_REQUEST)
@@ -267,7 +265,18 @@ class CommGeneric:
 
         self._read_empty(_D2HMsgType.FLASH_OK_REPLY)
 
-    def _receive_rpc_value(self, tag):
+    def load(self, kernel_library):
+        self._write_header(_H2DMsgType.LOAD_LIBRARY)
+        self._write_chunk(kernel_library)
+        self._write_flush()
+
+        self._read_empty(_D2HMsgType.LOAD_COMPLETED)
+
+    def run(self):
+        self._write_empty(_H2DMsgType.RUN_KERNEL)
+        logger.debug("running kernel")
+
+    def _receive_rpc_value(self, tag, rpc_map):
         if tag == "n":
             return None
         elif tag == "b":
@@ -286,37 +295,83 @@ class CommGeneric:
             elt_tag = chr(self._read_int8())
             length = self._read_int32()
             return [self._receive_rpc_value(elt_tag) for _ in range(length)]
+        elif tag == "o":
+            return rpc_map[self._read_int32()]
         else:
             raise IOError("Unknown RPC value tag: {}", tag)
 
-    def _receive_rpc_values(self):
+    def _receive_rpc_values(self, rpc_map):
         result = []
         while True:
             tag = chr(self._read_int8())
             if tag == "\x00":
                 return result
             else:
-                result.append(self._receive_rpc_value(tag))
+                result.append(self._receive_rpc_value(tag, rpc_map))
 
     def _serve_rpc(self, rpc_map):
         service = self._read_int32()
-        args = self._receive_rpc_values()
+        args = self._receive_rpc_values(rpc_map)
         logger.debug("rpc service: %d %r", service, args)
 
-        eid, result = rpc_wrapper.run_rpc(rpc_map[rpc_num], args)
-        logger.debug("rpc service: %d %r == %r (eid %d)", service, args,
-                     result, eid)
+        try:
+            result = rpc_map[rpc_num](args)
+            if not isinstance(result, int) or not (-2**31 < result < 2**31-1):
+                raise ValueError("An RPC must return an int(width=32)")
+        except ARTIQException as exn:
+            logger.debug("rpc service: %d %r ! %r", service, args, exn)
 
-        self._write_header(_H2DMsgType.RPC_REPLY)
-        self._write_int32(eid)
-        self._write_int32(result)
-        self._write_flush()
+            self._write_header(_H2DMsgType.RPC_EXCEPTION)
+            self._write_string(exn.name)
+            self._write_string(exn.message)
+            for index in range(3):
+                self._write_int64(exn.param[index])
+
+            self._write_string(exn.filename)
+            self._write_int32(exn.line)
+            self._write_int32(exn.column)
+            self._write_string(exn.function)
+
+            self._write_flush()
+        except Exception as exn:
+            logger.debug("rpc service: %d %r ! %r", service, args, exn)
+
+            self._write_header(_H2DMsgType.RPC_EXCEPTION)
+            self._write_string(type(exn).__name__)
+            self._write_string(str(exn))
+            for index in range(3):
+                self._write_int64(0)
+
+            ((filename, line, function, _), ) = traceback.extract_tb(exn.__traceback__)
+            self._write_string(filename)
+            self._write_int32(line)
+            self._write_int32(-1) # column not known
+            self._write_string(function)
+
+            self._write_flush()
+        else:
+            logger.debug("rpc service: %d %r == %r", service, args, result)
+
+            self._write_header(_H2DMsgType.RPC_REPLY)
+            self._write_int32(result)
+            self._write_flush()
 
     def _serve_exception(self):
-        eid = self._read_int32()
-        params = [self._read_int64() for _ in range(3)]
-        rpc_wrapper.filter_rpc_exception(eid)
-        raise exception(self.core, *params)
+        name      = self._read_string()
+        message   = self._read_string()
+        params    = [self._read_int64() for _ in range(3)]
+
+        filename  = self._read_string()
+        line      = self._read_int32()
+        column    = self._read_int32()
+        function  = self._read_string()
+
+        backtrace = [self._read_int32() for _ in range(self._read_int32())]
+        # we don't have debug information yet.
+        # print("exception backtrace:", [hex(x) for x in backtrace])
+
+        raise core_language.ARTIQException(name, message, params,
+                                           filename, line, column, function)
 
     def serve(self, rpc_map):
         while True:
@@ -328,10 +383,3 @@ class CommGeneric:
             else:
                 self._read_expect(_D2HMsgType.KERNEL_FINISHED)
                 return
-
-    def get_log(self):
-        self._write_empty(_H2DMsgType.LOG_REQUEST)
-
-        self._read_header()
-        self._read_expect(_D2HMsgType.LOG_REPLY)
-        return self._read_chunk(self._read_length).decode('utf-8')

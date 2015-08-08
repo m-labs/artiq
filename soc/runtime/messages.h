@@ -16,6 +16,7 @@ enum {
     MESSAGE_TYPE_WATCHDOG_CLEAR,
     MESSAGE_TYPE_RPC_REQUEST,
     MESSAGE_TYPE_RPC_REPLY,
+    MESSAGE_TYPE_RPC_EXCEPTION,
     MESSAGE_TYPE_LOG,
 
     MESSAGE_TYPE_BRG_READY,
@@ -37,7 +38,7 @@ struct msg_base {
 /* kernel messages */
 
 struct msg_load_request {
-    void *library;
+    const void *library;
     struct dyld_info *library_info;
     int run_kernel;
 };
@@ -87,8 +88,12 @@ struct msg_rpc_request {
 
 struct msg_rpc_reply {
     int type;
+    int result;
+};
+
+struct msg_rpc_exception {
+    int type;
     struct artiq_exception *exception;
-    int retval;
 };
 
 struct msg_log {

@@ -2,6 +2,7 @@
 Core ARTIQ extensions to the Python language.
 """
 
+import linecache
 from collections import namedtuple
 from functools import wraps
 
@@ -278,7 +279,8 @@ class ARTIQException(Exception):
     """Base class for exceptions raised or passed through the core device."""
 
     # Try and create an instance of the specific class, if one exists.
-    def __new__(cls, name, message, params):
+    def __new__(cls, name, message,
+                params, filename, line, column, function):
         def find_subclass(cls):
             if cls.__name__ == name:
                 return cls
@@ -293,15 +295,30 @@ class ARTIQException(Exception):
             more_specific_cls = cls
 
         exn = Exception.__new__(more_specific_cls)
-        exn.__init__(name, message, params)
+        exn.__init__(name, message, params,
+                     filename, line, column, function)
         return exn
 
-    def __init__(self, name, message, params):
+    def __init__(self, name, message, params,
+                 filename, line, column, function):
         Exception.__init__(self, name, message, *params)
         self.name, self.message, self.params = name, message, params
+        self.filename, self.line, self.column = filename, line, column
+        self.function = function
 
     def __str__(self):
+        lines = []
+
         if type(self).__name__ == self.name:
-            return self.message.format(*self.params)
+            lines.append(self.message.format(*self.params))
         else:
-            return "({}) {}".format(self.name, self.message.format(*self.params))
+            lines.append("({}) {}".format(self.name, self.message.format(*self.params)))
+
+        lines.append("Core Device Traceback (most recent call last):")
+        lines.append("  File \"{file}\", line {line}, column {column}, in {function}".
+                     format(file=self.filename, line=self.line, column=self.column + 1,
+                            function=self.function))
+        line = linecache.getline(self.filename, self.line)
+        lines.append("    {}".format(line.strip() if line else "<unknown>"))
+
+        return "\n".join(lines)

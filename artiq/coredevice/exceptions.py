@@ -1,5 +1,13 @@
 from artiq.language.core import ARTIQException
 
+class ZeroDivisionError(ARTIQException):
+    """Python's :class:`ZeroDivisionError`, mirrored in ARTIQ."""
+
+class ValueError(ARTIQException):
+    """Python's :class:`ValueError`, mirrored in ARTIQ."""
+
+class IndexError(ARTIQException):
+    """Python's :class:`IndexError`, mirrored in ARTIQ."""
 
 class InternalError(ARTIQException):
     """Raised when the runtime encounters an internal error condition."""

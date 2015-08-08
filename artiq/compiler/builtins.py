@@ -86,6 +86,7 @@ class TException(types.TMono):
         ("__file__",    TStr()),
         ("__line__",    TInt(types.TValue(32))),
         ("__col__",     TInt(types.TValue(32))),
+        ("__func__",    TStr()),
         ("__message__", TStr()),
         ("__param0__",  TInt(types.TValue(64))),
         ("__param1__",  TInt(types.TValue(64))),
