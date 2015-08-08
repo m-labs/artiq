@@ -474,7 +474,8 @@ static int process_input(void)
 
 static int send_rpc_value(const char **tag, void *value)
 {
-    out_packet_int8(**tag);
+    if(!out_packet_int8(**tag))
+        return -1;
 
     int size = 0;
     switch(**tag) {
@@ -484,23 +485,27 @@ static int send_rpc_value(const char **tag, void *value)
 
         case 'b': // bool
             size = 1;
-            out_packet_chunk(value, size);
+            if(!out_packet_chunk(value, size))
+                return -1;
             break;
 
         case 'i': // int(width=32)
             size = 4;
-            out_packet_chunk(value, size);
+            if(!out_packet_chunk(value, size))
+                return -1;
             break;
 
         case 'I': // int(width=64)
         case 'f': // float
             size = 8;
-            out_packet_chunk(value, size);
+            if(!out_packet_chunk(value, size))
+                return -1;
             break;
 
         case 'F': // Fraction
             size = 16;
-            out_packet_chunk(value, size);
+            if(!out_packet_chunk(value, size))
+                return -1;
             break;
 
         case 'l': { // list(elt='a)
@@ -604,7 +609,7 @@ static int process_kmsg(struct msg_base *umsg)
 
             if(!send_rpc_request(msg->rpc_num, msg->args)) {
                 log("Failed to send RPC request");
-                return 0;
+                return 0; // restart session
             }
 
             user_kernel_state = USER_KERNEL_WAIT_RPC;
@@ -617,6 +622,7 @@ static int process_kmsg(struct msg_base *umsg)
                 umsg->type);
             return 0;
     }
+
     return 1;
 }
 
