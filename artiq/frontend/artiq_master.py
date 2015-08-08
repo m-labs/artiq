@@ -26,6 +26,11 @@ def get_argparser():
     group.add_argument(
         "--port-control", default=3251, type=int,
         help="TCP port to listen to for control (default: %(default)d)")
+    group = parser.add_argument_group("databases")
+    group.add_argument("-d", "--ddb", default="ddb.pyon",
+                       help="device database file")
+    group.add_argument("-p", "--pdb", default="pdb.pyon",
+                       help="parameter database file")
     group = parser.add_argument_group("repository")
     group.add_argument(
         "-g", "--git", default=False, action="store_true",
@@ -59,8 +64,8 @@ def main():
         loop = asyncio.get_event_loop()
     atexit.register(lambda: loop.close())
 
-    ddb = FlatFileDB("ddb.pyon")
-    pdb = FlatFileDB("pdb.pyon")
+    ddb = FlatFileDB(args.ddb)
+    pdb = FlatFileDB(args.pdb)
     rtr = Notifier(dict())
     log = Log(1000)
 
