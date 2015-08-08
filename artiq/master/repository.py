@@ -57,33 +57,34 @@ class Repository:
         self.backend = backend
         self.log_fn = log_fn
 
-        self.head_rev = self.backend.get_head_rev()
-        self.backend.request_rev(self.head_rev)
+        self.cur_rev = self.backend.get_head_rev()
+        self.backend.request_rev(self.cur_rev)
         self.explist = Notifier(dict())
 
         self._scanning = False
 
     def close(self):
         # The object cannot be used anymore after calling this method.
-        self.backend.release_rev(self.head_rev)
+        self.backend.release_rev(self.cur_rev)
 
     @asyncio.coroutine
-    def scan(self):
+    def scan(self, new_cur_rev=None):
         if self._scanning:
             return
         self._scanning = True
 
-        new_head_rev = self.backend.get_head_rev()
-        wd, _ = self.backend.request_rev(new_head_rev)
-        self.backend.release_rev(self.head_rev)
-        self.head_rev = new_head_rev
+        if new_cur_rev is None:
+            new_cur_rev = self.backend.get_head_rev()
+        wd, _ = self.backend.request_rev(new_cur_rev)
+        self.backend.release_rev(self.cur_rev)
+        self.cur_rev = new_cur_rev
         new_explist = yield from _scan_experiments(wd, self.log_fn)
 
         _sync_explist(self.explist, new_explist)
         self._scanning = False
 
-    def scan_async(self):
-        asyncio.async(self.scan())
+    def scan_async(self, new_cur_rev=None):
+        asyncio.async(self.scan(new_cur_rev))
 
 
 class FilesystemBackend:

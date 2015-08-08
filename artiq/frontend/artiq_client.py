@@ -87,8 +87,11 @@ def get_argparser():
         "what",
         help="select object to show: schedule/log/devices/parameters")
 
-    subparsers.add_parser("scan-repository",
-                          help="trigger a repository rescan")
+    parser_scan = subparsers.add_parser("scan-repository",
+                                        help="trigger a repository (re)scan")
+    parser_scan.add_argument("revision", default=None, nargs="?",
+                             help="use a specific repository revision "
+                                  "(defaults to head)")
 
     return parser
 
@@ -145,7 +148,7 @@ def _action_del_parameter(remote, args):
 
 
 def _action_scan_repository(remote, args):
-    remote.scan_async()
+    remote.scan_async(args.revision)
 
 
 def _show_schedule(schedule):
