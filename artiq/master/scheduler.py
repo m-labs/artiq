@@ -48,7 +48,7 @@ def _mk_worker_method(name):
 class Run:
     def __init__(self, rid, pipeline_name,
                  wd, expid, priority, due_date, flush,
-                 worker_handlers, notifier):
+                 worker_handlers, notifier, **kwargs):
         # called through pool
         self.rid = rid
         self.pipeline_name = pipeline_name
@@ -62,8 +62,7 @@ class Run:
 
         self._status = RunStatus.pending
 
-        self._notifier = notifier
-        self._notifier[self.rid] = {
+        notification = {
             "pipeline": self.pipeline_name,
             "expid": self.expid,
             "priority": self.priority,
@@ -71,6 +70,9 @@ class Run:
             "flush": self.flush,
             "status": self._status.name
         }
+        notification.update(kwargs)
+        self._notifier = notifier
+        self._notifier[self.rid] = notification
 
     @property
     def status(self):
@@ -142,11 +144,11 @@ class RunPool:
         if "repo_rev" in expid:
             if expid["repo_rev"] is None:
                 expid["repo_rev"] = self._repo_backend.get_head_rev()
-            wd = self._repo_backend.request_rev(expid["repo_rev"])
+            wd, repo_msg = self._repo_backend.request_rev(expid["repo_rev"])
         else:
-            wd = None
+            wd, repo_msg = None, None
         run = Run(rid, pipeline_name, wd, expid, priority, due_date, flush,
-                  self._worker_handlers, self._notifier)
+                  self._worker_handlers, self._notifier, repo_msg=repo_msg)
         self.runs[rid] = run
         if self.submitted_cb is not None:
             self.submitted_cb()

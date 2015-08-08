@@ -5,7 +5,7 @@ from quamash import QtGui, QtCore
 from pyqtgraph import dockarea
 
 from artiq.protocols.sync_struct import Subscriber
-from artiq.gui.tools import DictSyncModel
+from artiq.gui.tools import elide, DictSyncModel
 
 
 class _ScheduleModel(DictSyncModel):
@@ -37,7 +37,10 @@ class _ScheduleModel(DictSyncModel):
         elif column == 5:
             expid = v["expid"]
             if "repo_rev" in expid:
-                return expid["repo_rev"]
+                r = expid["repo_rev"]
+                if v["repo_msg"]:
+                    r += "\n" + elide(v["repo_msg"], 40)
+                return r
             else:
                 return "Outside repo."
         elif column == 6:
@@ -62,6 +65,8 @@ class ScheduleDock(dockarea.Dock):
         self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
         self.table.horizontalHeader().setResizeMode(
+            QtGui.QHeaderView.ResizeToContents)
+        self.table.verticalHeader().setResizeMode(
             QtGui.QHeaderView.ResizeToContents)
         self.addWidget(self.table)
 

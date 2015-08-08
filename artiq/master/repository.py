@@ -70,7 +70,7 @@ class Repository:
         self._scanning = True
 
         new_head_rev = self.backend.get_head_rev()
-        wd = self.backend.request_rev(new_head_rev)
+        wd, _ = self.backend.request_rev(new_head_rev)
         self.backend.release_rev(self.head_rev)
         self.head_rev = new_head_rev
         new_explist = yield from _scan_experiments(wd, self.log_fn)
@@ -90,7 +90,7 @@ class FilesystemBackend:
         return "N/A"
 
     def request_rev(self, rev):
-        return self.root
+        return self.root, None
 
     def release_rev(self, rev):
         pass
@@ -99,7 +99,9 @@ class FilesystemBackend:
 class _GitCheckout:
     def __init__(self, git, rev):
         self.path = tempfile.mkdtemp()
-        git.checkout_tree(git.get(rev), directory=self.path)
+        commit = git.get(rev)
+        git.checkout_tree(commit, directory=self.path)
+        self.message = commit.message.strip()
         self.ref_count = 1
         logger.info("checked out revision %s into %s", rev, self.path)
 
@@ -126,7 +128,7 @@ class GitBackend:
         else:
             co = _GitCheckout(self.git, rev)
             self.checkouts[rev] = co
-        return co.path
+        return co.path, co.message
 
     def release_rev(self, rev):
         co = self.checkouts[rev]
