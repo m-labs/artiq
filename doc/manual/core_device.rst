@@ -1,20 +1,23 @@
 Core device
 ===========
 
+The core device is a FPGA-based hardware component that contains a softcore CPU tightly coupled with the so-called RTIO core that provides precision timing. The CPU executes Python code that is statically compiled by the ARTIQ compiler, and communicates with the core device peripherals (TTL, DDS, etc.) over the RTIO core. This architecture provides high timing resolution, low latency, low jitter, high level programming capabilities, and good integration with the rest of the Python experiment code.
+
+While it is possible to use all the other parts of ARTIQ (controllers, master, GUI, result management, etc.) without a core device, many experiments require it.
+
+
 .. _core-device-flash-storage:
 
 Flash storage
 *************
 
-The core device contains some flash space that can be used to store
-some configuration data.
+The core device contains some flash space that can be used to store configuration data.
 
 This storage area is used to store the core device MAC address, IP address and even the idle kernel.
 
-The flash storage area is one sector (typically 64 kB) large and is organized as a list
-of key-value records.
+The flash storage area is one sector (typically 64 kB) large and is organized as a list of key-value records.
 
-This flash storage space can be accessed by using the artiq_coretool :ref:`core-device-access-tool`.
+This flash storage space can be accessed by using ``artiq_coretool`` (see: :ref:`core-device-access-tool`).
 
 
 FPGA board ports
