@@ -175,6 +175,7 @@ class LLVMIRGenerator:
     def process_function(self, func):
         try:
             self.llfunction = self.llmodule.get_global(func.name)
+
             if self.llfunction is None:
                 llargtys = []
                 for arg in func.arguments:
@@ -182,9 +183,11 @@ class LLVMIRGenerator:
                 llfunty = ll.FunctionType(args=llargtys,
                                           return_type=self.llty_of_type(func.type.ret, for_return=True))
                 self.llfunction = ll.Function(self.llmodule, llfunty, func.name)
-                self.llfunction.attributes.add('uwtable')
+
             if func.is_internal:
                 self.llfunction.linkage = 'internal'
+
+            self.llfunction.attributes.add('uwtable')
 
             self.llmap = {}
             self.llbuilder = ll.IRBuilder()
