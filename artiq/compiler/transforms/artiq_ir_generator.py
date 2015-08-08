@@ -714,13 +714,13 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         return mapped_index
 
-    def _make_check(self, cond, exn_gen):
+    def _make_check(self, cond, exn_gen, loc=None):
         # cond:    bool Value, condition
         # exn_gen: lambda()->exn Value, exception if condition not true
         cond_block = self.current_block
 
         self.current_block = body_block = self.add_block()
-        self.raise_exn(exn_gen())
+        self.raise_exn(exn_gen(), loc=loc)
 
         self.current_block = tail_block = self.add_block()
         cond_block.append(ir.BranchIf(cond, tail_block, body_block))
@@ -789,7 +789,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self._make_check(
                     self.append(ir.Compare(ast.NotEq(loc=None), step, ir.Constant(0, step.type))),
                     lambda: self.alloc_exn(builtins.TValueError(),
-                        ir.Constant("step cannot be zero", builtins.TStr())))
+                        ir.Constant("step cannot be zero", builtins.TStr())),
+                    loc=node.slice.step.loc)
             else:
                 step = ir.Constant(1, node.slice.type)
             counting_up = self.append(ir.Compare(ast.Gt(loc=None), step,
@@ -811,7 +812,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 lambda: self.alloc_exn(builtins.TValueError(),
                     ir.Constant("slice size {0} is larger than iterable length {1}",
                                 builtins.TStr()),
-                    slice_size, length))
+                    slice_size, length),
+                loc=node.slice.loc)
 
             if self.current_assign is None:
                 is_neg_size = self.append(ir.Compare(ast.Lt(loc=None),
@@ -992,20 +994,23 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
     def visit_BinOpT(self, node):
         if builtins.is_numeric(node.type):
+            lhs = self.visit(node.left)
             rhs = self.visit(node.right)
             if isinstance(node.op, (ast.LShift, ast.RShift)):
                 # Check for negative shift amount.
                 self._make_check(
                     self.append(ir.Compare(ast.GtE(loc=None), rhs, ir.Constant(0, rhs.type))),
                     lambda: self.alloc_exn(builtins.TValueError(),
-                        ir.Constant("shift amount must be nonnegative", builtins.TStr())))
+                        ir.Constant("shift amount must be nonnegative", builtins.TStr())),
+                    loc=node.right.loc)
             elif isinstance(node.op, (ast.Div, ast.FloorDiv)):
                 self._make_check(
                     self.append(ir.Compare(ast.NotEq(loc=None), rhs, ir.Constant(0, rhs.type))),
                     lambda: self.alloc_exn(builtins.TZeroDivisionError(),
-                        ir.Constant("cannot divide by zero", builtins.TStr())))
+                        ir.Constant("cannot divide by zero", builtins.TStr())),
+                    loc=node.right.loc)
 
-            return self.append(ir.Arith(node.op, self.visit(node.left), rhs))
+            return self.append(ir.Arith(node.op, lhs, rhs))
         elif isinstance(node.op, ast.Add): # list + list, tuple + tuple
             lhs, rhs = self.visit(node.left), self.visit(node.right)
             if types.is_tuple(node.left.type) and types.is_tuple(node.right.type):
