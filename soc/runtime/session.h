@@ -6,6 +6,7 @@ void session_end(void);
 
 int session_input(void *data, int length);
 void session_poll(void **data, int *length);
-void session_ack(int length);
+void session_ack_consumed(int length);
+void session_ack_sent(int length);
 
 #endif /* __SESSION_H */

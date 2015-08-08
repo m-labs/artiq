@@ -191,7 +191,8 @@ static void serial_service(void)
     if(txlen > 0) {
         for(i = 0; i < txlen; i++)
             uart_write(txdata[i]);
-        session_ack(txlen);
+        session_ack_consumed(txlen);
+        session_ack_sent(txlen);
     } else if(txlen < 0) {
         reset_serial_session(1);
     }

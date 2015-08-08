@@ -158,12 +158,13 @@ static union {
     } __attribute__((packed)) header;
 } buffer_out;
 
-static int buffer_out_read_cursor, buffer_out_write_cursor;
+static int buffer_out_read_cursor, buffer_out_sent_cursor, buffer_out_write_cursor;
 
 static void out_packet_reset()
 {
     buffer_out_read_cursor  = 0;
     buffer_out_write_cursor = 0;
+    buffer_out_sent_cursor  = 0;
 }
 
 static int out_packet_available()
@@ -182,17 +183,28 @@ static void out_packet_extract(void **data, int *length)
     }
 }
 
-static void out_packet_advance(int length)
+static void out_packet_advance_consumed(int length)
 {
     if(buffer_out_read_cursor + length > buffer_out_write_cursor) {
-        log("session.c: write underrun while trying to acknowledge %d bytes"
-            " (%d remaining)",
+        log("session.c: write underrun (consume) while trying to"
+            " acknowledge %d bytes (%d remaining)",
             length, buffer_out_write_cursor - buffer_out_read_cursor);
         return;
     }
 
     buffer_out_read_cursor += length;
-    if(buffer_out_read_cursor == buffer_out_write_cursor)
+}
+
+static void out_packet_advance_sent(int length) {
+    if(buffer_out_sent_cursor + length > buffer_out_write_cursor) {
+        log("session.c: write underrun (send) while trying to"
+            " acknowledge %d bytes (%d remaining)",
+            length, buffer_out_write_cursor - buffer_out_sent_cursor);
+        return;
+    }
+
+    buffer_out_sent_cursor += length;
+    if(buffer_out_sent_cursor == buffer_out_write_cursor)
         out_packet_reset();
 }
 
@@ -652,7 +664,12 @@ void session_poll(void **data, int *length)
     out_packet_extract(data, length);
 }
 
-void session_ack(int length)
+void session_ack_consumed(int length)
 {
-    out_packet_advance(length);
+    out_packet_advance_consumed(length);
+}
+
+void session_ack_sent(int length)
+{
+    out_packet_advance_sent(length);
 }
