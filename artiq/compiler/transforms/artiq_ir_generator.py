@@ -466,12 +466,16 @@ class ARTIQIRGenerator(algorithm.Visitor):
     def visit_Continue(self, node):
         self.append(ir.Branch(self.continue_target))
 
-    def raise_exn(self, exn):
+    def raise_exn(self, exn, loc=None):
         if exn is not None:
-            loc_file = ir.Constant(self.current_loc.source_buffer.name, builtins.TStr())
-            loc_line = ir.Constant(self.current_loc.line(), builtins.TInt(types.TValue(32)))
-            loc_column = ir.Constant(self.current_loc.column(), builtins.TInt(types.TValue(32)))
+            if loc is None:
+                loc = self.current_loc
+
+            loc_file = ir.Constant(loc.source_buffer.name, builtins.TStr())
+            loc_line = ir.Constant(loc.line(), builtins.TInt(types.TValue(32)))
+            loc_column = ir.Constant(loc.column(), builtins.TInt(types.TValue(32)))
             loc_function = ir.Constant(".".join(self.name), builtins.TStr())
+
             self.append(ir.SetAttr(exn, "__file__", loc_file))
             self.append(ir.SetAttr(exn, "__line__", loc_line))
             self.append(ir.SetAttr(exn, "__col__", loc_column))
@@ -686,7 +690,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         else:
             self.append(ir.SetAttr(obj, node.attr, self.current_assign))
 
-    def _map_index(self, length, index, one_past_the_end=False):
+    def _map_index(self, length, index, one_past_the_end=False, loc=None):
         lt_0          = self.append(ir.Compare(ast.Lt(loc=None),
                                                index, ir.Constant(0, index.type)))
         from_end      = self.append(ir.Arith(ast.Add(loc=None), length, index))
@@ -703,7 +707,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         exn = self.alloc_exn(builtins.TIndexError(),
             ir.Constant("index {0} out of bounds 0:{1}", builtins.TStr()),
             index, length)
-        self.raise_exn(exn)
+        self.raise_exn(exn, loc=loc)
 
         self.current_block = in_bounds_block = self.add_block()
         head.append(ir.BranchIf(in_bounds, in_bounds_block, out_of_bounds_block))
@@ -754,7 +758,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
         if isinstance(node.slice, ast.Index):
             index = self.visit(node.slice.value)
             length = self.iterable_len(value, index.type)
-            mapped_index = self._map_index(length, index)
+            mapped_index = self._map_index(length, index,
+                                           loc=node.begin_loc)
             if self.current_assign is None:
                 result = self.iterable_get(value, mapped_index)
                 result.set_name("{}.at.{}".format(value.name, _readable_name(index)))
@@ -769,13 +774,15 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 start_index = self.visit(node.slice.lower)
             else:
                 start_index = ir.Constant(0, node.slice.type)
-            mapped_start_index = self._map_index(length, start_index)
+            mapped_start_index = self._map_index(length, start_index,
+                                                 loc=node.begin_loc)
 
             if node.slice.upper is not None:
                 stop_index = self.visit(node.slice.upper)
             else:
                 stop_index = length
-            mapped_stop_index = self._map_index(length, stop_index, one_past_the_end=True)
+            mapped_stop_index = self._map_index(length, stop_index, one_past_the_end=True,
+                                                loc=node.begin_loc)
 
             if node.slice.step is not None:
                 step = self.visit(node.slice.step)
