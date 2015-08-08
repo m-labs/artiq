@@ -5,10 +5,13 @@ the references to the host objects and translates the functions
 annotated as ``@kernel`` when they are referenced.
 """
 
-import inspect, os
+import os, re, linecache, inspect
+from collections import OrderedDict
+
 from pythonparser import ast, source, diagnostic, parse_buffer
+
 from . import types, builtins, asttyped, prelude
-from .transforms import ASTTypedRewriter, Inferencer
+from .transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer
 
 
 class ASTSynthesizer:
@@ -44,6 +47,9 @@ class ASTSynthesizer:
             elif isinstance(value, float):
                 typ = builtins.TFloat()
             return asttyped.NumT(n=value, ctx=None, type=typ,
+                                 loc=self._add(repr(value)))
+        elif isinstance(value, str):
+            return asttyped.StrT(s=value, ctx=None, type=builtins.TStr(),
                                  loc=self._add(repr(value)))
         elif isinstance(value, list):
             begin_loc = self._add("[")
@@ -123,7 +129,7 @@ class StitchingASTTypedRewriter(ASTTypedRewriter):
                 if inspect.isfunction(value):
                     # It's a function. We need to translate the function and insert
                     # a reference to it.
-                    function_name = self.quote_function(value)
+                    function_name = self.quote_function(value, node.loc)
                     return asttyped.NameT(id=function_name, ctx=None,
                                           type=self.globals[function_name],
                                           loc=node.loc)
@@ -154,7 +160,19 @@ class Stitcher:
 
         self.functions = {}
 
+        self.next_rpc = 0
         self.rpc_map = {}
+        self.inverse_rpc_map = {}
+
+    def _map(self, obj):
+        obj_id = id(obj)
+        if obj_id in self.inverse_rpc_map:
+            return self.inverse_rpc_map[obj_id]
+
+        self.next_rpc += 1
+        self.rpc_map[self.next_rpc] = obj
+        self.inverse_rpc_map[obj_id] = self.next_rpc
+        return self.next_rpc
 
     def _iterate(self):
         inferencer = Inferencer(engine=self.engine)
@@ -213,17 +231,102 @@ class Stitcher:
             quote_function=self._quote_function)
         return asttyped_rewriter.visit(function_node)
 
-    def _quote_function(self, function):
+    def _function_def_note(self, function):
+        filename = function.__code__.co_filename
+        line     = function.__code__.co_firstlineno
+        name     = function.__code__.co_name
+
+        source_line = linecache.getline(filename, line)
+        column = re.search("def", source_line).start(0)
+        source_buffer = source.Buffer(source_line, filename, line)
+        loc = source.Range(source_buffer, column, column)
+        return diagnostic.Diagnostic("note",
+            "definition of function '{function}'",
+            {"function": name},
+            loc)
+
+    def _type_of_param(self, function, loc, param):
+        if param.default is not inspect.Parameter.empty:
+            # Try and infer the type from the default value.
+            # This is tricky, because the default value might not have
+            # a well-defined type in APython.
+            # In this case, we bail out, but mention why we do it.
+            synthesizer = ASTSynthesizer()
+            ast = synthesizer.quote(param.default)
+            synthesizer.finalize()
+
+            def proxy_diagnostic(diag):
+                note = diagnostic.Diagnostic("note",
+                    "expanded from here while trying to infer a type for an"
+                    " unannotated optional argument '{param_name}' from its default value",
+                    {"param_name": param.name},
+                    loc)
+                diag.notes.append(note)
+
+                diag.notes.append(self._function_def_note(function))
+
+                self.engine.process(diag)
+
+            proxy_engine = diagnostic.Engine()
+            proxy_engine.process = proxy_diagnostic
+            Inferencer(engine=proxy_engine).visit(ast)
+            IntMonomorphizer(engine=proxy_engine).visit(ast)
+
+            return ast.type
+        else:
+            # Let the rest of the program decide.
+            return types.TVar()
+
+    def _quote_rpc_function(self, function, loc):
+        signature = inspect.signature(function)
+
+        arg_types = OrderedDict()
+        optarg_types = OrderedDict()
+        for param in signature.parameters.values():
+            if param.kind not in (inspect.Parameter.POSITIONAL_ONLY,
+                                  inspect.Parameter.POSITIONAL_OR_KEYWORD):
+                # We pretend we don't see *args, kwpostargs=..., **kwargs.
+                # Since every method can be still invoked without any arguments
+                # going into *args and the slots after it, this is always safe,
+                # if sometimes constraining.
+                #
+                # Accepting POSITIONAL_ONLY is OK, because the compiler
+                # desugars the keyword arguments into positional ones internally.
+                continue
+
+            if param.default is inspect.Parameter.empty:
+                arg_types[param.name] = self._type_of_param(function, loc, param)
+            else:
+                optarg_types[param.name] = self._type_of_param(function, loc, param)
+
+        # Fixed for now.
+        ret_type = builtins.TInt(types.TValue(32))
+
+        rpc_type = types.TRPCFunction(arg_types, optarg_types, ret_type,
+                                      service=self._map(function))
+
+        rpc_name = "__rpc_{}__".format(rpc_type.service)
+        self.globals[rpc_name] = rpc_type
+        self.functions[function] = rpc_name
+
+        return rpc_name
+
+    def _quote_function(self, function, loc):
         if function in self.functions:
             return self.functions[function]
 
-        # Insert the typed AST for the new function and restart inference.
-        # It doesn't really matter where we insert as long as it is before
-        # the final call.
-        function_node = self._quote_embedded_function(function)
-        self.typedtree.insert(0, function_node)
-        self.inference_finished = False
-        return function_node.name
+        if hasattr(function, "artiq_embedded"):
+            # Insert the typed AST for the new function and restart inference.
+            # It doesn't really matter where we insert as long as it is before
+            # the final call.
+            function_node = self._quote_embedded_function(function)
+            self.typedtree.insert(0, function_node)
+            self.inference_finished = False
+            return function_node.name
+        else:
+            # Insert a storage-less global whose type instructs the compiler
+            # to perform an RPC instead of a regular call.
+            return self._quote_rpc_function(function, loc)
 
     def stitch_call(self, function, args, kwargs):
         function_node = self._quote_embedded_function(function)

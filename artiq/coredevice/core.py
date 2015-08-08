@@ -50,12 +50,12 @@ class Core:
             raise CompileError() from error
 
     def run(self, function, args, kwargs):
+        kernel_library, rpc_map = self.compile(function, args, kwargs)
+
         if self.first_run:
             self.comm.check_ident()
             self.comm.switch_clock(self.external_clock)
             self.first_run = False
-
-        kernel_library, rpc_map = self.compile(function, args, kwargs)
 
         try:
             self.comm.load(kernel_library)

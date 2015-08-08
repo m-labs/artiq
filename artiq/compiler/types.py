@@ -222,6 +222,26 @@ class TFunction(Type):
     def __ne__(self, other):
         return not (self == other)
 
+class TRPCFunction(TFunction):
+    """
+    A function type of a remote function.
+
+    :ivar service: (int) RPC service number
+    """
+
+    def __init__(self, args, optargs, ret, service):
+        super().__init__(args, optargs, ret)
+        self.service = service
+
+    def unify(self, other):
+        if isinstance(other, TRPCFunction) and \
+                self.service == other.service:
+            super().unify(other)
+        elif isinstance(other, TVar):
+            other.unify(self)
+        else:
+            raise UnificationError(self, other)
+
 class TBuiltin(Type):
     """
     An instance of builtin type. Every instance of a builtin
@@ -310,6 +330,8 @@ def is_mono(typ, name=None, **params):
     typ = typ.find()
     params_match = True
     for param in params:
+        if param not in typ.params:
+            return False
         params_match = params_match and \
             typ.params[param].find() == params[param].find()
     return isinstance(typ, TMono) and \
@@ -328,6 +350,9 @@ def is_tuple(typ, elts=None):
 
 def is_function(typ):
     return isinstance(typ.find(), TFunction)
+
+def is_rpc_function(typ):
+    return isinstance(typ.find(), TRPCFunction)
 
 def is_builtin(typ, name=None):
     typ = typ.find()
@@ -381,11 +406,16 @@ class TypePrinter(object):
                 return "(%s,)" % self.name(typ.elts[0])
             else:
                 return "(%s)" % ", ".join(list(map(self.name, typ.elts)))
-        elif isinstance(typ, TFunction):
+        elif isinstance(typ, (TFunction, TRPCFunction)):
             args = []
             args += [ "%s:%s" % (arg, self.name(typ.args[arg]))    for arg in typ.args]
             args += ["?%s:%s" % (arg, self.name(typ.optargs[arg])) for arg in typ.optargs]
-            return "(%s)->%s" % (", ".join(args), self.name(typ.ret))
+            signature = "(%s)->%s" % (", ".join(args), self.name(typ.ret))
+
+            if isinstance(typ, TRPCFunction):
+                return "rpc({}) {}".format(typ.service, signature)
+            elif isinstance(typ, TFunction):
+                return signature
         elif isinstance(typ, TBuiltinFunction):
             return "<function %s>" % typ.name
         elif isinstance(typ, (TConstructor, TExceptionConstructor)):

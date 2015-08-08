@@ -301,33 +301,34 @@ void watchdog_clear(int id)
     mailbox_send_and_wait(&request);
 }
 
-int rpc(int rpc_num, ...)
+int rpc(int service, const char *tag, ...)
 {
-    struct msg_rpc_request request;
+    struct msg_rpc_send_request request;
     struct msg_base *reply;
 
-    request.type = MESSAGE_TYPE_RPC_REQUEST;
-    request.rpc_num = rpc_num;
-    va_start(request.args, rpc_num);
+    request.type = MESSAGE_TYPE_RPC_SEND_REQUEST;
+    request.service = service;
+    request.tag = tag;
+    va_start(request.args, tag);
     mailbox_send_and_wait(&request);
     va_end(request.args);
 
     reply = mailbox_wait_and_receive();
-    if(reply->type == MESSAGE_TYPE_RPC_REPLY) {
-        int result = ((struct msg_rpc_reply *)reply)->result;
-        mailbox_acknowledge();
-        return result;
-    } else if(reply->type == MESSAGE_TYPE_RPC_EXCEPTION) {
-        struct artiq_exception exception;
-        memcpy(&exception, ((struct msg_rpc_exception *)reply)->exception,
-               sizeof(struct artiq_exception));
-        mailbox_acknowledge();
-        __artiq_raise(&exception);
-    } else {
+    // if(reply->type == MESSAGE_TYPE_RPC_REPLY) {
+    //     int result = ((struct msg_rpc_reply *)reply)->result;
+    //     mailbox_acknowledge();
+    //     return result;
+    // } else if(reply->type == MESSAGE_TYPE_RPC_EXCEPTION) {
+    //     struct artiq_exception exception;
+    //     memcpy(&exception, ((struct msg_rpc_exception *)reply)->exception,
+    //            sizeof(struct artiq_exception));
+    //     mailbox_acknowledge();
+    //     __artiq_raise(&exception);
+    // } else {
         log("Malformed MESSAGE_TYPE_RPC_REQUEST reply type %d",
             reply->type);
         while(1);
-    }
+    // }
 }
 
 void lognonl(const char *fmt, ...)

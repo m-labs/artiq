@@ -41,14 +41,16 @@ class Source:
 
 class Module:
     def __init__(self, src):
-        int_monomorphizer = transforms.IntMonomorphizer(engine=src.engine)
-        inferencer = transforms.Inferencer(engine=src.engine)
-        monomorphism_validator = validators.MonomorphismValidator(engine=src.engine)
-        escape_validator = validators.EscapeValidator(engine=src.engine)
-        artiq_ir_generator = transforms.ARTIQIRGenerator(engine=src.engine,
+        self.engine = src.engine
+
+        int_monomorphizer = transforms.IntMonomorphizer(engine=self.engine)
+        inferencer = transforms.Inferencer(engine=self.engine)
+        monomorphism_validator = validators.MonomorphismValidator(engine=self.engine)
+        escape_validator = validators.EscapeValidator(engine=self.engine)
+        artiq_ir_generator = transforms.ARTIQIRGenerator(engine=self.engine,
                                                          module_name=src.name)
-        dead_code_eliminator = transforms.DeadCodeEliminator(engine=src.engine)
-        local_access_validator = validators.LocalAccessValidator(engine=src.engine)
+        dead_code_eliminator = transforms.DeadCodeEliminator(engine=self.engine)
+        local_access_validator = validators.LocalAccessValidator(engine=self.engine)
 
         self.name = src.name
         self.globals = src.globals
@@ -62,7 +64,8 @@ class Module:
 
     def build_llvm_ir(self, target):
         """Compile the module to LLVM IR for the specified target."""
-        llvm_ir_generator = transforms.LLVMIRGenerator(module_name=self.name, target=target)
+        llvm_ir_generator = transforms.LLVMIRGenerator(engine=self.engine,
+                                                       module_name=self.name, target=target)
         return llvm_ir_generator.process(self.artiq_ir)
 
     def entry_point(self):

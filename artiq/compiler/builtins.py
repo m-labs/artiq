@@ -163,7 +163,7 @@ def is_bool(typ):
 
 def is_int(typ, width=None):
     if width is not None:
-        return types.is_mono(typ, "int", {"width": width})
+        return types.is_mono(typ, "int", width=width)
     else:
         return types.is_mono(typ, "int")
 
@@ -184,7 +184,7 @@ def is_numeric(typ):
 
 def is_list(typ, elt=None):
     if elt is not None:
-        return types.is_mono(typ, "list", {"elt": elt})
+        return types.is_mono(typ, "list", elt=elt)
     else:
         return types.is_mono(typ, "list")
 

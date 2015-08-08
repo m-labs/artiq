@@ -3,12 +3,13 @@
 into LLVM intermediate representation.
 """
 
-from pythonparser import ast
+from pythonparser import ast, diagnostic
 from llvmlite_artiq import ir as ll
 from .. import types, builtins, ir
 
 class LLVMIRGenerator:
-    def __init__(self, module_name, target):
+    def __init__(self, engine, module_name, target):
+        self.engine = engine
         self.target = target
         self.llcontext = target.llcontext
         self.llmodule = ll.Module(context=self.llcontext, name=module_name)
@@ -21,6 +22,11 @@ class LLVMIRGenerator:
         typ = typ.find()
         if types.is_tuple(typ):
             return ll.LiteralStructType([self.llty_of_type(eltty) for eltty in typ.elts])
+        elif types.is_rpc_function(typ):
+            if for_return:
+                return ll.VoidType()
+            else:
+                return ll.LiteralStructType([])
         elif types.is_function(typ):
             envarg = ll.IntType(8).as_pointer()
             llty = ll.FunctionType(args=[envarg] +
@@ -89,10 +95,13 @@ class LLVMIRGenerator:
             return ll.Constant(llty, False)
         elif isinstance(const.value, (int, float)):
             return ll.Constant(llty, const.value)
-        elif isinstance(const.value, str):
-            assert "\0" not in const.value
+        elif isinstance(const.value, (str, bytes)):
+            if isinstance(const.value, str):
+                assert "\0" not in const.value
+                as_bytes = (const.value + "\0").encode("utf-8")
+            else:
+                as_bytes = const.value
 
-            as_bytes = (const.value + "\0").encode("utf-8")
             if ir.is_exn_typeinfo(const.type):
                 # Exception typeinfo; should be merged with identical others
                 name = "__artiq_exn_" + const.value
@@ -144,6 +153,9 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(ll.VoidType(), [self.llty_of_type(builtins.TException())])
         elif name == "__artiq_reraise":
             llty = ll.FunctionType(ll.VoidType(), [])
+        elif name == "rpc":
+            llty = ll.FunctionType(ll.IntType(32), [ll.IntType(32), ll.IntType(8).as_pointer()],
+                                   var_arg=True)
         else:
             assert False
 
@@ -546,11 +558,79 @@ class LLVMIRGenerator:
                                               name=insn.name)
         return llvalue
 
+    # See session.c:send_rpc_value.
+    def _rpc_tag(self, typ, root_type, root_loc):
+        if types.is_tuple(typ):
+            assert len(typ.elts) < 256
+            return b"t" + bytes([len(typ.elts)]) + \
+                   b"".join([self._rpc_tag(elt_type, root_type, root_loc)
+                             for elt_type in typ.elts])
+        elif builtins.is_none(typ):
+            return b"n"
+        elif builtins.is_bool(typ):
+            return b"b"
+        elif builtins.is_int(typ, types.TValue(32)):
+            return b"i"
+        elif builtins.is_int(typ, types.TValue(64)):
+            return b"I"
+        elif builtins.is_float(typ):
+            return b"f"
+        elif builtins.is_str(typ):
+            return b"s"
+        elif builtins.is_list(typ):
+            return b"l" + self._rpc_tag(builtins.get_iterable_elt(typ),
+                                        root_type, root_loc)
+        elif builtins.is_range(typ):
+            return b"r" + self._rpc_tag(builtins.get_iterable_elt(typ),
+                                        root_type, root_loc)
+        elif ir.is_option(typ):
+            return b"o" + self._rpc_tag(typ.params["inner"],
+                                        root_type, root_loc)
+        else:
+            printer = types.TypePrinter()
+            note = diagnostic.Diagnostic("note",
+                "value of type {type}",
+                {"type": printer.name(root_type)},
+                root_loc)
+            diag = diagnostic.Diagnostic("error",
+                "type {type} is not supported in remote procedure calls",
+                {"type": printer.name(typ)},
+                root_loc)
+            self.engine.process(diag)
+
+    def _build_rpc(self, service, args, return_type):
+        llservice = ll.Constant(ll.IntType(32), service)
+
+        tag = b""
+        for arg in args:
+            if isinstance(arg, ir.Constant):
+                # Constants don't have locations, but conveniently
+                # they also never fail to serialize.
+                tag += self._rpc_tag(arg.type, arg.type, None)
+            else:
+                tag += self._rpc_tag(arg.type, arg.type, arg.loc)
+        tag += b":\x00"
+        lltag = self.llconst_of_const(ir.Constant(tag, builtins.TStr()))
+
+        llargs = []
+        for arg in args:
+            llarg = self.map(arg)
+            llargslot = self.llbuilder.alloca(llarg.type)
+            self.llbuilder.store(llarg, llargslot)
+            llargs.append(llargslot)
+
+        return self.llbuiltin("rpc"), [llservice, lltag] + llargs
+
     def prepare_call(self, insn):
-        llclosure, llargs = self.map(insn.target_function()), map(self.map, insn.arguments())
-        llenv = self.llbuilder.extract_value(llclosure, 0)
-        llfun = self.llbuilder.extract_value(llclosure, 1)
-        return llfun, [llenv] + list(llargs)
+        if types.is_rpc_function(insn.target_function().type):
+            return self._build_rpc(insn.target_function().type.service,
+                                   insn.arguments(),
+                                   insn.target_function().type.ret)
+        else:
+            llclosure, llargs = self.map(insn.target_function()), map(self.map, insn.arguments())
+            llenv = self.llbuilder.extract_value(llclosure, 0)
+            llfun = self.llbuilder.extract_value(llclosure, 1)
+            return llfun, [llenv] + list(llargs)
 
     def process_Call(self, insn):
         llfun, llargs = self.prepare_call(insn)

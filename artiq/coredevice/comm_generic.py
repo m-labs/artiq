@@ -276,8 +276,16 @@ class CommGeneric:
         self._write_empty(_H2DMsgType.RUN_KERNEL)
         logger.debug("running kernel")
 
-    def _receive_rpc_value(self, tag, rpc_map):
-        if tag == "n":
+    _rpc_sentinel = object()
+
+    def _receive_rpc_value(self, rpc_map):
+        tag = chr(self._read_int8())
+        if tag == "\x00":
+            return self._rpc_sentinel
+        elif tag == "t":
+            length = self._read_int8()
+            return tuple(self._receive_rpc_value(rpc_map) for _ in range(length))
+        elif tag == "n":
             return None
         elif tag == "b":
             return bool(self._read_int8())
@@ -291,31 +299,36 @@ class CommGeneric:
             numerator   = self._read_int64()
             denominator = self._read_int64()
             return Fraction(numerator, denominator)
+        elif tag == "s":
+            return self._read_string()
         elif tag == "l":
-            elt_tag = chr(self._read_int8())
             length = self._read_int32()
-            return [self._receive_rpc_value(elt_tag) for _ in range(length)]
+            return [self._receive_rpc_value(rpc_map) for _ in range(length)]
+        elif tag == "r":
+            lower = self._receive_rpc_value(rpc_map)
+            upper = self._receive_rpc_value(rpc_map)
+            step  = self._receive_rpc_value(rpc_map)
+            return range(lower, upper, step)
         elif tag == "o":
             return rpc_map[self._read_int32()]
         else:
-            raise IOError("Unknown RPC value tag: {}", tag)
+            raise IOError("Unknown RPC value tag: {}".format(repr(tag)))
 
-    def _receive_rpc_values(self, rpc_map):
-        result = []
+    def _receive_rpc_args(self, rpc_map):
+        args = []
         while True:
-            tag = chr(self._read_int8())
-            if tag == "\x00":
-                return result
-            else:
-                result.append(self._receive_rpc_value(tag, rpc_map))
+            value = self._receive_rpc_value(rpc_map)
+            if value is self._rpc_sentinel:
+                return args
+            args.append(value)
 
     def _serve_rpc(self, rpc_map):
         service = self._read_int32()
-        args = self._receive_rpc_values(rpc_map)
+        args = self._receive_rpc_args(rpc_map)
         logger.debug("rpc service: %d %r", service, args)
 
         try:
-            result = rpc_map[rpc_num](args)
+            result = rpc_map[service](*args)
             if not isinstance(result, int) or not (-2**31 < result < 2**31-1):
                 raise ValueError("An RPC must return an int(width=32)")
         except ARTIQException as exn:

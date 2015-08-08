@@ -457,23 +457,23 @@ static int process_input(void)
             user_kernel_state = USER_KERNEL_RUNNING;
             break;
 
-        case REMOTEMSG_TYPE_RPC_REPLY: {
-            struct msg_rpc_reply reply;
+        // case REMOTEMSG_TYPE_RPC_REPLY: {
+        //     struct msg_rpc_reply reply;
 
-            int result = in_packet_int32();
+        //     int result = in_packet_int32();
 
-            if(user_kernel_state != USER_KERNEL_WAIT_RPC) {
-                log("Unsolicited RPC reply");
-                return 0; // restart session
-            }
+        //     if(user_kernel_state != USER_KERNEL_WAIT_RPC) {
+        //         log("Unsolicited RPC reply");
+        //         return 0; // restart session
+        //     }
 
-            reply.type = MESSAGE_TYPE_RPC_REPLY;
-            reply.result = result;
-            mailbox_send_and_wait(&reply);
+        //     reply.type = MESSAGE_TYPE_RPC_REPLY;
+        //     reply.result = result;
+        //     mailbox_send_and_wait(&reply);
 
-            user_kernel_state = USER_KERNEL_RUNNING;
-            break;
-        }
+        //     user_kernel_state = USER_KERNEL_RUNNING;
+        //     break;
+        // }
 
         case REMOTEMSG_TYPE_RPC_EXCEPTION: {
             struct msg_rpc_exception reply;
@@ -509,91 +509,156 @@ static int process_input(void)
     return 1;
 }
 
-static int send_rpc_value(const char **tag, void *value)
+// See llvm_ir_generator.py:_rpc_tag.
+static int send_rpc_value(const char **tag, void **value)
 {
     if(!out_packet_int8(**tag))
-        return -1;
+        return 0;
 
-    int size = 0;
-    switch(**tag) {
-        case 0: // last tag
+    switch(*(*tag)++) {
+        case 't': { // tuple
+            int size = *(*tag)++;
+            if(!out_packet_int8(size))
+                return 0;
+
+            for(int i = 0; i < size; i++) {
+                if(!send_rpc_value(tag, value))
+                    return 0;
+            }
+            break;
+        }
+
         case 'n': // None
             break;
 
-        case 'b': // bool
-            size = 1;
-            if(!out_packet_chunk(value, size))
-                return -1;
+        case 'b': { // bool
+            int size = sizeof(int8_t);
+            if(!out_packet_chunk(*value, size))
+                return 0;
+            *value = (void*)((intptr_t)(*value) + size);
             break;
+        }
 
-        case 'i': // int(width=32)
-            size = 4;
-            if(!out_packet_chunk(value, size))
-                return -1;
+        case 'i': { // int(width=32)
+            int size = sizeof(int32_t);
+            if(!out_packet_chunk(*value, size))
+                return 0;
+            *value = (void*)((intptr_t)(*value) + size);
             break;
+        }
 
-        case 'I': // int(width=64)
-        case 'f': // float
-            size = 8;
-            if(!out_packet_chunk(value, size))
-                return -1;
+        case 'I': { // int(width=64)
+            int size = sizeof(int64_t);
+            if(!out_packet_chunk(*value, size))
+                return 0;
+            *value = (void*)((intptr_t)(*value) + size);
             break;
+        }
 
-        case 'F': // Fraction
-            size = 16;
-            if(!out_packet_chunk(value, size))
-                return -1;
+        case 'f': { // float
+            int size = sizeof(double);
+            if(!out_packet_chunk(*value, size))
+                return 0;
+            *value = (void*)((intptr_t)(*value) + size);
             break;
+        }
+
+        case 'F': { // Fraction
+            int size = sizeof(int64_t) * 2;
+            if(!out_packet_chunk(*value, size))
+                return 0;
+            *value = (void*)((intptr_t)(*value) + size);
+            break;
+        }
+
+        case 's': { // string
+            const char **string = *value;
+            if(!out_packet_string(*string))
+                return 0;
+            *value = (void*)((intptr_t)(*value) + strlen(*string) + 1);
+            break;
+        }
 
         case 'l': { // list(elt='a)
-            struct { uint32_t length; void *elements; } *list = value;
+            struct { uint32_t length; struct {} *elements; } *list = *value;
             void *element = list->elements;
 
-            const char *tag_copy = *tag + 1;
+            if(!out_packet_int32(list->length))
+                return 0;
+
+            const char *tag_copy;
             for(int i = 0; i < list->length; i++) {
-                int element_size = send_rpc_value(&tag_copy, element);
-                if(element_size < 0)
-                    return -1;
-                element = (void*)((intptr_t)element + element_size);
+                tag_copy = *tag;
+                if(!send_rpc_value(&tag_copy, &element))
+                    return 0;
             }
             *tag = tag_copy;
 
-            size = sizeof(list);
+            *value = (void*)((intptr_t)(*value) + sizeof(*list));
             break;
         }
 
-        case 'o': { // host object
-            struct { uint32_t id; } *object = value;
-
-            if(!out_packet_int32(object->id))
-                return -1;
-
-            size = sizeof(object);
+        case 'r': { // range(elt='a)
+            const char *tag_copy;
+            tag_copy = *tag;
+            if(!send_rpc_value(&tag_copy, value)) // min
+                return 0;
+            tag_copy = *tag;
+            if(!send_rpc_value(&tag_copy, value)) // max
+                return 0;
+            tag_copy = *tag;
+            if(!send_rpc_value(&tag_copy, value)) // step
+                return 0;
+            *tag = tag_copy;
             break;
+        }
+
+        case 'o': { // option(inner='a)
+            struct { int8_t present; struct {} contents; } *option = *value;
+            void *contents = &option->contents;
+
+            if(!out_packet_int8(option->present))
+                return 0;
+
+            // option never appears in composite types, so we don't have
+            // to accurately advance *value.
+            if(option->present) {
+                return send_rpc_value(tag, &contents);
+            } else {
+                (*tag)++;
+                break;
+            }
+        }
+
+        case 'O': { // host object
+            struct { uint32_t id; } **object = *value;
+
+            if(!out_packet_int32((*object)->id))
+                return 0;
         }
 
         default:
-            return -1;
+            log("send_rpc_value: unknown tag %02x", *((*tag) - 1));
+            return 0;
     }
 
-    (*tag)++;
-    return size;
+    return 1;
 }
 
-static int send_rpc_request(int service, va_list args)
+static int send_rpc_request(int service, const char *tag, va_list args)
 {
     out_packet_start(REMOTEMSG_TYPE_RPC_REQUEST);
     out_packet_int32(service);
 
-    const char *tag = va_arg(args, const char*);
-    while(*tag) {
+    while(*tag != ':') {
         void *value = va_arg(args, void*);
         if(!kloader_validate_kpointer(value))
             return 0;
-        if(send_rpc_value(&tag, &value) < 0)
+        if(!send_rpc_value(&tag, &value))
             return 0;
     }
 
+    out_packet_int8(0);
     out_packet_finish();
     return 1;
 }
@@ -670,10 +735,10 @@ static int process_kmsg(struct msg_base *umsg)
             break;
         }
 
-        case MESSAGE_TYPE_RPC_REQUEST: {
-            struct msg_rpc_request *msg = (struct msg_rpc_request *)umsg;
+        case MESSAGE_TYPE_RPC_SEND_REQUEST: {
+            struct msg_rpc_send_request *msg = (struct msg_rpc_send_request *)umsg;
 
-            if(!send_rpc_request(msg->rpc_num, msg->args)) {
+            if(!send_rpc_request(msg->service, msg->tag, msg->args)) {
                 log("Failed to send RPC request");
                 return 0; // restart session
             }

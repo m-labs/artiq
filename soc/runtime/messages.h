@@ -14,8 +14,9 @@ enum {
     MESSAGE_TYPE_WATCHDOG_SET_REQUEST,
     MESSAGE_TYPE_WATCHDOG_SET_REPLY,
     MESSAGE_TYPE_WATCHDOG_CLEAR,
-    MESSAGE_TYPE_RPC_REQUEST,
-    MESSAGE_TYPE_RPC_REPLY,
+    MESSAGE_TYPE_RPC_SEND_REQUEST,
+    MESSAGE_TYPE_RPC_RECV_REQUEST,
+    MESSAGE_TYPE_RPC_RECV_REPLY,
     MESSAGE_TYPE_RPC_EXCEPTION,
     MESSAGE_TYPE_LOG,
 
@@ -80,15 +81,21 @@ struct msg_watchdog_clear {
     int id;
 };
 
-struct msg_rpc_request {
+struct msg_rpc_send_request {
     int type;
-    int rpc_num;
+    int service;
+    const char *tag;
     va_list args;
 };
 
-struct msg_rpc_reply {
+struct msg_rpc_recv_request {
     int type;
-    int result;
+    // TODO ???
+};
+
+struct msg_rpc_recv_reply {
+    int type;
+    // TODO ???
 };
 
 struct msg_rpc_exception {
