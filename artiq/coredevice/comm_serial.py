@@ -28,10 +28,10 @@ class Comm(CommGeneric):
         del self.port
 
     def read(self, length):
-        r = bytes()
-        while len(r) < length:
-            r += self.port.read(length - len(r))
-        return r
+        result = bytes()
+        while len(result) < length:
+            result += self.port.read(length - len(result))
+        return result
 
     def write(self, data):
         remaining = len(data)

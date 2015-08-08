@@ -18,42 +18,229 @@
 #define BUFFER_IN_SIZE (1024*1024)
 #define BUFFER_OUT_SIZE (1024*1024)
 
-static int buffer_in_index;
-/* The 9th byte (right after the header) of buffer_in must be aligned
- * to a 32-bit boundary for elf_loader to work.
- */
+static int process_input();
+static int out_packet_available();
+
+// ============================= Reader interface =============================
+
+// Align the 9th byte (right after the header) of buffer_in so that
+// the payload can be deserialized directly from the buffer using word reads.
 static struct {
     char padding[3];
-    char data[BUFFER_IN_SIZE];
-} __attribute__((packed)) _buffer_in __attribute__((aligned(4)));
-#define buffer_in _buffer_in.data
-static int buffer_out_index_data;
-static int buffer_out_index_mem;
-static char buffer_out[BUFFER_OUT_SIZE];
+    union {
+        char data[BUFFER_IN_SIZE];
+        struct {
+            int32_t sync;
+            int32_t length;
+            int8_t  type;
+        } __attribute__((packed)) header;
+    };
+} __attribute__((packed, aligned(4))) buffer_in;
 
-static int get_in_packet_len(void)
-{
-    int r;
+static int buffer_in_write_cursor, buffer_in_read_cursor;
 
-    memcpy(&r, &buffer_in[4], 4);
-    return r;
+static void in_packet_reset() {
+    buffer_in_write_cursor = 0;
+    buffer_in_read_cursor  = 0;
 }
 
-static int get_out_packet_len(void)
+static int in_packet_fill(uint8_t *data, int length)
 {
-    int r;
+    int consumed = 0;
+    while(consumed < length) {
+        /* Make sure the output buffer is available for any reply
+         * we might need to send. */
+        if(!out_packet_available())
+            break;
 
-    memcpy(&r, &buffer_out[4], 4);
-    return r;
+        if(buffer_in_write_cursor < 4) {
+            /* Haven't received the synchronization sequence yet. */
+            buffer_in.data[buffer_in_write_cursor++] = data[consumed];
+
+            /* Framing error? */
+            if(data[consumed++] != 0x5a) {
+                buffer_in_write_cursor = 0;
+                continue;
+            }
+        } else if(buffer_in_write_cursor < 8) {
+            /* Haven't received the packet length yet. */
+            buffer_in.data[buffer_in_write_cursor++] = data[consumed++];
+        } else if(buffer_in.header.length == 0) {
+            /* Zero-length packet means session reset. */
+            return -2;
+        } else if(buffer_in.header.length > BUFFER_IN_SIZE) {
+            /* Packet wouldn't fit in the buffer. */
+            return -1;
+        } else if(buffer_in.header.length > buffer_in_write_cursor) {
+            /* Receiving payload. */
+            int remaining = buffer_in.header.length - buffer_in_write_cursor;
+            int amount = length - consumed > remaining ? remaining : length - consumed;
+            memcpy(&buffer_in.data[buffer_in_write_cursor], &data[consumed],
+                   amount);
+            buffer_in_write_cursor += amount;
+            consumed += amount;
+        }
+
+        if(buffer_in.header.length == buffer_in_write_cursor) {
+            /* We have a complete packet. */
+
+            buffer_in_read_cursor = sizeof(buffer_in.header);
+            if(!process_input())
+                return -1;
+
+            if(buffer_in_read_cursor < buffer_in_write_cursor) {
+                log("session.c: read underrun (%d bytes remaining)",
+                    buffer_in_write_cursor - buffer_in_read_cursor);
+            }
+
+            in_packet_reset();
+        }
+    }
+
+    return consumed;
 }
 
-static void submit_output(int len)
-{
-    memset(&buffer_out[0], 0x5a, 4);
-    memcpy(&buffer_out[4], &len, 4);
-    buffer_out_index_data = 0;
-    buffer_out_index_mem = 0;
+static void in_packet_chunk(void *ptr, int length) {
+    if(buffer_in_read_cursor + length > buffer_in_write_cursor) {
+        log("session.c: read overrun while trying to read %d bytes"
+            " (%d remaining)",
+            length, buffer_in_write_cursor - buffer_in_read_cursor);
+    }
+
+    if(ptr != NULL)
+        memcpy(ptr, &buffer_in.data[buffer_in_read_cursor], length);
+    buffer_in_read_cursor += length;
 }
+
+static int8_t in_packet_int8() {
+    int8_t result;
+    in_packet_chunk(&result, sizeof(result));
+    return result;
+}
+
+static int32_t in_packet_int32() {
+    int32_t result;
+    in_packet_chunk(&result, sizeof(result));
+    return result;
+}
+
+static const void *in_packet_bytes(int *length) {
+    *length = in_packet_int32();
+    const void *ptr = &buffer_in.data[buffer_in_read_cursor];
+    in_packet_chunk(NULL, *length);
+    return ptr;
+}
+
+static const char *in_packet_string() {
+    int length;
+    const char *string = in_packet_bytes(&length);
+    if(string[length] != 0) {
+        log("session.c: string is not zero-terminated");
+        return "";
+    }
+    return string;
+}
+
+// ============================= Writer interface =============================
+
+static union {
+    char data[BUFFER_OUT_SIZE];
+    struct {
+        int32_t sync;
+        int32_t length;
+        int8_t  type;
+    } __attribute__((packed)) header;
+} buffer_out;
+
+static int buffer_out_read_cursor, buffer_out_write_cursor;
+
+static void out_packet_reset() {
+    buffer_out_read_cursor  = 0;
+    buffer_out_write_cursor = 0;
+}
+
+static int out_packet_available() {
+    return buffer_out_write_cursor == 0;
+}
+
+static void out_packet_extract(void **data, int *length) {
+    if(buffer_out_write_cursor > 0 &&
+       buffer_out.header.length > 0) {
+        *data   = &buffer_out.data[buffer_out_read_cursor];
+        *length = buffer_out_write_cursor - buffer_out_read_cursor;
+    } else {
+        *length = 0;
+    }
+}
+
+static void out_packet_advance(int length) {
+    if(buffer_out_read_cursor + length > buffer_out_write_cursor) {
+        log("session.c: write underrun while trying to acknowledge %d bytes"
+            " (%d remaining)",
+            length, buffer_out_write_cursor - buffer_out_read_cursor);
+        return;
+    }
+
+    buffer_out_read_cursor += length;
+    if(buffer_out_read_cursor == buffer_out_write_cursor)
+        out_packet_reset();
+}
+
+static int out_packet_chunk(const void *ptr, int length) {
+    if(buffer_out_write_cursor + length > BUFFER_OUT_SIZE) {
+        log("session.c: write overrun while trying to write %d bytes"
+            " (%d remaining)",
+            length, BUFFER_OUT_SIZE - buffer_out_write_cursor);
+        return 0;
+    }
+
+    memcpy(&buffer_out.data[buffer_out_write_cursor], ptr, length);
+    buffer_out_write_cursor += length;
+    return 1;
+}
+
+static void out_packet_start(int type) {
+    buffer_out.header.sync   = 0x5a5a5a5a;
+    buffer_out.header.type   = type;
+    buffer_out.header.length = 0;
+    buffer_out_write_cursor  = sizeof(buffer_out.header);
+}
+
+static void out_packet_finish() {
+    buffer_out.header.length = buffer_out_write_cursor;
+}
+
+static void out_packet_empty(int type) {
+    out_packet_start(type);
+    out_packet_finish();
+}
+
+static int out_packet_int8(int8_t value) {
+    return out_packet_chunk(&value, sizeof(value));
+}
+
+static int out_packet_int32(int32_t value) {
+    return out_packet_chunk(&value, sizeof(value));
+}
+
+static int out_packet_int64(int64_t value) {
+    return out_packet_chunk(&value, sizeof(value));
+}
+
+static int out_packet_float64(double value) {
+    return out_packet_chunk(&value, sizeof(value));
+}
+
+static int out_packet_bytes(const void *ptr, int length) {
+    return out_packet_int32(length) &&
+           out_packet_chunk(ptr, length);
+}
+
+static int out_packet_string(const char *string) {
+    return out_packet_bytes(string, strlen(string) + 1);
+}
+
+// =============================== API handling ===============================
 
 static int user_kernel_state;
 
@@ -66,11 +253,12 @@ enum {
 
 void session_start(void)
 {
-    buffer_in_index = 0;
-    memset(&buffer_out[4], 0, 4);
+    in_packet_reset();
+    out_packet_reset();
+
     kloader_stop();
-    user_kernel_state = USER_KERNEL_NONE;
     now = -1;
+    user_kernel_state = USER_KERNEL_NONE;
 }
 
 void session_end(void)
@@ -118,69 +306,108 @@ enum {
     REMOTEMSG_TYPE_FLASH_ERROR_REPLY
 };
 
-static int check_flash_storage_key_len(char *key, unsigned int key_len)
-{
-    if(key_len == get_in_packet_len() - 8) {
-        log("Invalid key: not a null-terminated string");
-        buffer_out[8] = REMOTEMSG_TYPE_FLASH_ERROR_REPLY;
-        submit_output(9);
-        return 0;
-    }
-    return 1;
-}
-
 static int process_input(void)
 {
-    switch(buffer_in[8]) {
+    switch(buffer_in.header.type) {
+        case REMOTEMSG_TYPE_IDENT_REQUEST:
+            out_packet_start(REMOTEMSG_TYPE_IDENT_REPLY);
+            out_packet_chunk("AROR", 4);
+            out_packet_finish();
+            break;
+
+        case REMOTEMSG_TYPE_SWITCH_CLOCK: {
+            int clk = in_packet_int8();
+
+            if(user_kernel_state >= USER_KERNEL_RUNNING) {
+                log("Attempted to switch RTIO clock while kernel running");
+                out_packet_empty(REMOTEMSG_TYPE_CLOCK_SWITCH_FAILED);
+                break;
+            }
+
+            if(rtiocrg_switch_clock(clk))
+                out_packet_empty(REMOTEMSG_TYPE_CLOCK_SWITCH_COMPLETED);
+            else
+                out_packet_empty(REMOTEMSG_TYPE_CLOCK_SWITCH_FAILED);
+            break;
+        }
+
         case REMOTEMSG_TYPE_LOG_REQUEST:
 #if (LOG_BUFFER_SIZE + 9) > BUFFER_OUT_SIZE
 #error Output buffer cannot hold the log buffer
 #endif
-            buffer_out[8] = REMOTEMSG_TYPE_LOG_REPLY;
-            log_get(&buffer_out[9]);
-            submit_output(9 + LOG_BUFFER_SIZE);
+            out_packet_start(REMOTEMSG_TYPE_LOG_REPLY);
+            log_get(&buffer_out.data[buffer_out_write_cursor]);
+            buffer_out_write_cursor += LOG_BUFFER_SIZE;
+            out_packet_finish();
             break;
-        case REMOTEMSG_TYPE_IDENT_REQUEST:
-            buffer_out[8] = REMOTEMSG_TYPE_IDENT_REPLY;
-            buffer_out[9] = 'A';
-            buffer_out[10] = 'R';
-            buffer_out[11] = 'O';
-            buffer_out[12] = 'R';
-            submit_output(13);
+
+        case REMOTEMSG_TYPE_FLASH_READ_REQUEST: {
+#if SPIFLASH_SECTOR_SIZE - 4 > BUFFER_OUT_SIZE - 9
+#error Output buffer cannot hold the flash storage data
+#endif
+            const char *key = in_packet_string();
+            int value_length;
+
+            out_packet_start(REMOTEMSG_TYPE_FLASH_READ_REPLY);
+            value_length = fs_read(key, &buffer_out.data[buffer_out_write_cursor],
+                                   sizeof(buffer_out.data) - buffer_out_write_cursor, NULL);
+            buffer_out_write_cursor += value_length;
+            out_packet_finish();
             break;
-        case REMOTEMSG_TYPE_SWITCH_CLOCK:
-            if(user_kernel_state >= USER_KERNEL_RUNNING) {
-                log("Attempted to switch RTIO clock while kernel running");
-                buffer_out[8] = REMOTEMSG_TYPE_CLOCK_SWITCH_FAILED;
-                submit_output(9);
-                break;
-            }
-            if(rtiocrg_switch_clock(buffer_in[9]))
-                buffer_out[8] = REMOTEMSG_TYPE_CLOCK_SWITCH_COMPLETED;
+        }
+
+        case REMOTEMSG_TYPE_FLASH_WRITE_REQUEST: {
+#if SPIFLASH_SECTOR_SIZE - 4 > BUFFER_IN_SIZE - 9
+#error Input buffer cannot hold the flash storage data
+#endif
+            const char *key, *value;
+            int value_length;
+            key   = in_packet_string();
+            value = in_packet_bytes(&value_length);
+
+            if(fs_write(key, value, value_length))
+                out_packet_empty(REMOTEMSG_TYPE_FLASH_OK_REPLY);
             else
-                buffer_out[8] = REMOTEMSG_TYPE_CLOCK_SWITCH_FAILED;
-            submit_output(9);
+                out_packet_empty(REMOTEMSG_TYPE_FLASH_ERROR_REPLY);
             break;
-        case REMOTEMSG_TYPE_LOAD_LIBRARY:
+        }
+
+        case REMOTEMSG_TYPE_FLASH_ERASE_REQUEST:
+            fs_erase();
+            out_packet_empty(REMOTEMSG_TYPE_FLASH_OK_REPLY);
+            break;
+
+        case REMOTEMSG_TYPE_FLASH_REMOVE_REQUEST: {
+            const char *key = in_packet_string();
+
+            fs_remove(key);
+            out_packet_empty(REMOTEMSG_TYPE_FLASH_OK_REPLY);
+            break;
+        }
+
+        case REMOTEMSG_TYPE_LOAD_LIBRARY: {
+            const void *kernel = &buffer_in.data[buffer_in_read_cursor];
+            buffer_in_read_cursor = buffer_in_write_cursor;
+
             if(user_kernel_state >= USER_KERNEL_RUNNING) {
                 log("Attempted to load new kernel library while already running");
-                buffer_out[8] = REMOTEMSG_TYPE_LOAD_FAILED;
-                submit_output(9);
+                out_packet_empty(REMOTEMSG_TYPE_LOAD_FAILED);
                 break;
             }
-            if(kloader_load_library(&buffer_in[9])) {
-                buffer_out[8] = REMOTEMSG_TYPE_LOAD_COMPLETED;
+
+            if(kloader_load_library(kernel)) {
+                out_packet_empty(REMOTEMSG_TYPE_LOAD_COMPLETED);
                 user_kernel_state = USER_KERNEL_LOADED;
             } else {
-                buffer_out[8] = REMOTEMSG_TYPE_LOAD_FAILED;
+                out_packet_empty(REMOTEMSG_TYPE_LOAD_FAILED);
             }
-            submit_output(9);
             break;
-        case REMOTEMSG_TYPE_RUN_KERNEL: {
+        }
+
+        case REMOTEMSG_TYPE_RUN_KERNEL:
             if(user_kernel_state != USER_KERNEL_LOADED) {
                 log("Attempted to run kernel while not in the LOADED state");
-                buffer_out[8] = REMOTEMSG_TYPE_KERNEL_STARTUP_FAILED;
-                submit_output(9);
+                out_packet_empty(REMOTEMSG_TYPE_KERNEL_STARTUP_FAILED);
                 break;
             }
 
@@ -189,254 +416,100 @@ static int process_input(void)
 
             user_kernel_state = USER_KERNEL_RUNNING;
             break;
-        }
+
         case REMOTEMSG_TYPE_RPC_REPLY: {
             struct msg_rpc_reply reply;
 
             if(user_kernel_state != USER_KERNEL_WAIT_RPC) {
                 log("Unsolicited RPC reply");
-                return 0;
+                return 0; // restart session
             }
 
             reply.type = MESSAGE_TYPE_RPC_REPLY;
             // FIXME memcpy(&reply.eid, &buffer_in[9], 4);
-            memcpy(&reply.retval, &buffer_in[13], 4);
+            // memcpy(&reply.retval, &buffer_in[13], 4);
             mailbox_send_and_wait(&reply);
             user_kernel_state = USER_KERNEL_RUNNING;
             break;
         }
-        case REMOTEMSG_TYPE_FLASH_READ_REQUEST: {
-#if SPIFLASH_SECTOR_SIZE - 4 > BUFFER_OUT_SIZE - 9
-#error Output buffer cannot hold the flash storage data
-#elif SPIFLASH_SECTOR_SIZE - 4 > BUFFER_IN_SIZE - 9
-#error Input buffer cannot hold the flash storage data
-#endif
-            unsigned int ret, in_packet_len;
-            char *key;
 
-            in_packet_len = get_in_packet_len();
-            key = &buffer_in[9];
-            buffer_in[in_packet_len] = '\0';
-
-            buffer_out[8] = REMOTEMSG_TYPE_FLASH_READ_REPLY;
-            ret = fs_read(key, &buffer_out[9], sizeof(buffer_out) - 9, NULL);
-            submit_output(9 + ret);
-            break;
-        }
-        case REMOTEMSG_TYPE_FLASH_WRITE_REQUEST: {
-            char *key, *value;
-            unsigned int key_len, value_len, in_packet_len;
-            int ret;
-
-            in_packet_len = get_in_packet_len();
-            key = &buffer_in[9];
-            key_len = strnlen(key, in_packet_len - 9) + 1;
-            if(!check_flash_storage_key_len(key, key_len))
-                break;
-
-            value_len = in_packet_len - key_len - 9;
-            value = key + key_len;
-            ret = fs_write(key, value, value_len);
-
-            if(ret)
-                buffer_out[8] = REMOTEMSG_TYPE_FLASH_OK_REPLY;
-            else
-                buffer_out[8] = REMOTEMSG_TYPE_FLASH_ERROR_REPLY;
-            submit_output(9);
-            break;
-        }
-        case REMOTEMSG_TYPE_FLASH_ERASE_REQUEST: {
-            fs_erase();
-            buffer_out[8] = REMOTEMSG_TYPE_FLASH_OK_REPLY;
-            submit_output(9);
-            break;
-        }
-        case REMOTEMSG_TYPE_FLASH_REMOVE_REQUEST: {
-            char *key;
-            unsigned int in_packet_len;
-
-            in_packet_len = get_in_packet_len();
-            key = &buffer_in[9];
-            buffer_in[in_packet_len] = '\0';
-
-            fs_remove(key);
-            buffer_out[8] = REMOTEMSG_TYPE_FLASH_OK_REPLY;
-            submit_output(9);
-            break;
-        }
         default:
             return 0;
     }
+
     return 1;
 }
 
-/* Returns -1 in case of irrecoverable error
- * (the session must be dropped and session_end called)
- */
-int session_input(void *data, int len)
-{
-    unsigned char *_data = data;
-    int consumed;
+static int send_rpc_value(const char **tag, void *value) {
+    out_packet_int8(**tag);
 
-    consumed = 0;
-    while(len > 0) {
-        /* Make sure the output buffer is available for any reply
-         * we might need to send. */
-        if(get_out_packet_len() != 0)
-            return consumed;
+    int size = 0;
+    switch(**tag) {
+        case 0: // last tag
+        case 'n': // None
+            break;
 
-        if(buffer_in_index < 4) {
-            /* synchronizing */
-            if(_data[consumed] == 0x5a)
-                buffer_in[buffer_in_index++] = 0x5a;
-            else
-                buffer_in_index = 0;
-            consumed++; len--;
-        } else if(buffer_in_index < 8) {
-            /* receiving length */
-            buffer_in[buffer_in_index++] = _data[consumed];
-            consumed++; len--;
-            if((buffer_in_index == 8) && (get_in_packet_len() == 0))
-                /* zero-length packet = session reset */
-                return -2;
-        } else {
-            /* receiving payload */
-            int packet_len;
-            int count;
+        case 'b': // bool
+            size = 1;
+            out_packet_chunk(value, size);
+            break;
 
-            packet_len = get_in_packet_len();
-            if(packet_len > BUFFER_IN_SIZE)
-                return -1;
-            count = packet_len - buffer_in_index;
-            if(count > len)
-                count = len;
-            memcpy(&buffer_in[buffer_in_index], &_data[consumed], count);
-            buffer_in_index += count;
+        case 'i': // int(width=32)
+            size = 4;
+            out_packet_chunk(value, size);
+            break;
 
-            if(buffer_in_index == packet_len) {
-                if(!process_input())
+        case 'I': // int(width=64)
+        case 'f': // float
+            size = 8;
+            out_packet_chunk(value, size);
+            break;
+
+        case 'F': // Fraction
+            size = 16;
+            out_packet_chunk(value, size);
+            break;
+
+        case 'l': { // list(elt='a)
+            size = sizeof(void*);
+
+            struct { uint32_t length; void *elements; } *list = value;
+            void *element = list->elements;
+
+            const char *tag_copy = *tag + 1;
+            for(int i = 0; i < list->length; i++) {
+                int element_size = send_rpc_value(&tag_copy, element);
+                if(element_size < 0)
                     return -1;
-                buffer_in_index = 0;
+                element = (void*)((intptr_t)element + element_size);
             }
-
-            consumed += count; len -= count;
+            *tag = tag_copy;
+            break;
         }
-    }
-    return consumed;
-}
 
-static int add_base_rpc_value(char base_type, void *value, char *buffer_out, int available_space)
-{
-    switch(base_type) {
-        case 'n':
-            return 0;
-        case 'b':
-            if(available_space < 1)
-                return -1;
-            if(*(char *)value)
-                buffer_out[0] = 1;
-            else
-                buffer_out[0] = 0;
-            return 1;
-        case 'i':
-            if(available_space < 4)
-                return -1;
-            memcpy(buffer_out, value, 4);
-            return 4;
-        case 'I':
-        case 'f':
-            if(available_space < 8)
-                return -1;
-            memcpy(buffer_out, value, 8);
-            return 8;
-        case 'F':
-            if(available_space < 16)
-                return -1;
-            memcpy(buffer_out, value, 16);
-            return 16;
         default:
             return -1;
     }
+
+    (*tag)++;
+    return size;
 }
 
-static int add_rpc_value(int bi, int type_tag, void *value)
+static int send_rpc_request(int service, va_list args)
 {
-    char base_type;
-    int obi, r;
+    out_packet_start(REMOTEMSG_TYPE_RPC_REQUEST);
+    out_packet_int32(service);
 
-    obi = bi;
-    base_type = type_tag;
-
-    if((bi + 1) > BUFFER_OUT_SIZE)
-        return -1;
-    buffer_out[bi++] = base_type;
-
-    if(base_type == 'l') {
-        char elt_type;
-        int len;
-        int i, p;
-
-        elt_type = type_tag >> 8;
-        if((bi + 1) > BUFFER_OUT_SIZE)
-            return -1;
-        buffer_out[bi++] = elt_type;
-
-        len = *(int *)value;
-        if((bi + 4) > BUFFER_OUT_SIZE)
-            return -1;
-        memcpy(&buffer_out[bi], &len, 4);
-        bi += 4;
-
-        p = 4;
-        for(i=0;i<len;i++) {
-            r = add_base_rpc_value(elt_type, (char *)value + p,
-                                   &buffer_out[bi], BUFFER_OUT_SIZE - bi);
-            if(r < 0)
-                return r;
-            bi += r;
-            p += r;
-        }
-    } else {
-        r = add_base_rpc_value(base_type, value,
-                               &buffer_out[bi], BUFFER_OUT_SIZE - bi);
-        if(r < 0)
-            return r;
-        bi += r;
-    }
-
-    return bi - obi;
-}
-
-static int send_rpc_request(int rpc_num, va_list args)
-{
-    int r;
-    int bi = 8;
-    int type_tag;
-    void *v;
-
-    buffer_out[bi++] = REMOTEMSG_TYPE_RPC_REQUEST;
-
-    memcpy(&buffer_out[bi], &rpc_num, 4);
-    bi += 4;
-
-    while((type_tag = va_arg(args, int))) {
-        if(type_tag == 'n')
-            v = NULL;
-        else {
-            v = va_arg(args, void *);
-            if(!kloader_validate_kpointer(v))
-                return 0;
-        }
-        r = add_rpc_value(bi, type_tag, v);
-        if(r < 0)
+    const char *tag = va_arg(args, const char*);
+    while(*tag) {
+        void *value = va_arg(args, void*);
+        if(!kloader_validate_kpointer(value))
             return 0;
-        bi += r;
+        if(send_rpc_value(&tag, &value) < 0)
+            return 0;
     }
-    if((bi + 1) > BUFFER_OUT_SIZE)
-        return 0;
-    buffer_out[bi++] = 0;
 
-    submit_output(bi);
+    out_packet_finish();
     return 1;
 }
 
@@ -454,26 +527,27 @@ static int process_kmsg(struct msg_base *umsg)
 
     switch(umsg->type) {
         case MESSAGE_TYPE_FINISHED:
-            buffer_out[8] = REMOTEMSG_TYPE_KERNEL_FINISHED;
-            submit_output(9);
+            out_packet_empty(REMOTEMSG_TYPE_KERNEL_FINISHED);
 
             kloader_stop();
             user_kernel_state = USER_KERNEL_LOADED;
             mailbox_acknowledge();
             break;
+
         case MESSAGE_TYPE_EXCEPTION: {
             struct msg_exception *msg = (struct msg_exception *)umsg;
 
-            buffer_out[8] = REMOTEMSG_TYPE_KERNEL_EXCEPTION;
+            out_packet_empty(REMOTEMSG_TYPE_KERNEL_EXCEPTION);
             // memcpy(&buffer_out[9], &msg->eid, 4);
             // memcpy(&buffer_out[13], msg->eparams, 3*8);
-            submit_output(9+4+3*8);
+            // submit_output(9+4+3*8);
 
             kloader_stop();
             user_kernel_state = USER_KERNEL_LOADED;
             mailbox_acknowledge();
             break;
         }
+
         case MESSAGE_TYPE_WATCHDOG_SET_REQUEST: {
             struct msg_watchdog_set_request *msg = (struct msg_watchdog_set_request *)umsg;
             struct msg_watchdog_set_reply reply;
@@ -483,6 +557,7 @@ static int process_kmsg(struct msg_base *umsg)
             mailbox_send_and_wait(&reply);
             break;
         }
+
         case MESSAGE_TYPE_WATCHDOG_CLEAR: {
             struct msg_watchdog_clear *msg = (struct msg_watchdog_clear *)umsg;
 
@@ -490,76 +565,72 @@ static int process_kmsg(struct msg_base *umsg)
             mailbox_acknowledge();
             break;
         }
+
         case MESSAGE_TYPE_RPC_REQUEST: {
             struct msg_rpc_request *msg = (struct msg_rpc_request *)umsg;
 
-            if(!send_rpc_request(msg->rpc_num, msg->args))
+            if(!send_rpc_request(msg->rpc_num, msg->args)) {
+                log("Failed to send RPC request");
                 return 0;
+            }
+
             user_kernel_state = USER_KERNEL_WAIT_RPC;
             mailbox_acknowledge();
             break;
         }
-        default: {
-            log("Received invalid message type from kernel CPU");
+
+        default:
+            log("Received invalid message type %d from kernel CPU",
+                umsg->type);
             return 0;
-        }
     }
     return 1;
 }
 
-/* len is set to -1 in case of irrecoverable error
+/* Returns amount of bytes consumed on success.
+ * Returns -1 in case of irrecoverable error
+ * (the session must be dropped and session_end called).
+ * Returns -2 if the host has requested session reset.
+ */
+int session_input(void *data, int length) {
+    return in_packet_fill((uint8_t*)data, length);
+}
+
+/* *length is set to -1 in case of irrecoverable error
  * (the session must be dropped and session_end called)
  */
-void session_poll(void **data, int *len)
+void session_poll(void **data, int *length)
 {
-    int l;
-
     if(user_kernel_state == USER_KERNEL_RUNNING) {
         if(watchdog_expired()) {
             log("Watchdog expired");
-            *len = -1;
+            *length = -1;
             return;
         }
         if(!rtiocrg_check()) {
             log("RTIO clock failure");
-            *len = -1;
+            *length = -1;
             return;
         }
     }
 
-    l = get_out_packet_len();
-
     /* If the output buffer is available,
      * check if the kernel CPU has something to transmit.
      */
-    if(l == 0) {
-        struct msg_base *umsg;
-
-        umsg = mailbox_receive();
+    if(out_packet_available()) {
+        struct msg_base *umsg = mailbox_receive();
         if(umsg) {
             if(!process_kmsg(umsg)) {
-                *len = -1;
+                *length = -1;
                 return;
             }
         }
-        l = get_out_packet_len();
     }
 
-    if(l > 0) {
-        *len = l - buffer_out_index_data;
-        *data = &buffer_out[buffer_out_index_data];
-    } else
-        *len = 0;
+    out_packet_extract(data, length);
 }
 
-void session_ack_data(int len)
+void session_ack(int length)
 {
-    buffer_out_index_data += len;
-}
-
-void session_ack_mem(int len)
-{
-    buffer_out_index_mem += len;
-    if(buffer_out_index_mem >= get_out_packet_len())
-        memset(&buffer_out[4], 0, 4);
+    out_packet_advance(length);
 }

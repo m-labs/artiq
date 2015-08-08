@@ -115,7 +115,8 @@ static int is_empty(struct record *record)
     return record->value_len == 0;
 }
 
-static int key_exists(char *buff, char *key, char *end, char accept_empty, struct record *found_record)
+static int key_exists(char *buff, const char *key, char *end, char accept_empty,
+                      struct record *found_record)
 {
     struct iter_state is;
     struct record iter_record;
@@ -170,7 +171,7 @@ static char check_for_empty_records(char *buff)
     return 0;
 }
 
-static unsigned int try_to_flush_duplicates(char *new_key, unsigned int buf_len)
+static unsigned int try_to_flush_duplicates(const char *new_key, unsigned int buf_len)
 {
     unsigned int key_size, new_record_size, ret = 0, can_rollback = 0;
     struct record record, previous_record;
@@ -210,7 +211,8 @@ static unsigned int try_to_flush_duplicates(char *new_key, unsigned int buf_len)
     return ret;
 }
 
-static void write_at_offset(char *key, void *buffer, int buf_len, unsigned int sector_offset)
+static void write_at_offset(const char *key, const void *buffer,
+                            int buf_len, unsigned int sector_offset)
 {
     int key_len = strlen(key) + 1;
     unsigned int record_size = key_len + buf_len + sizeof(record_size);
@@ -223,7 +225,7 @@ static void write_at_offset(char *key, void *buffer, int buf_len, unsigned int s
 }
 
 
-int fs_write(char *key, void *buffer, unsigned int buf_len)
+int fs_write(const char *key, const void *buffer, unsigned int buf_len)
 {
     struct record record;
     unsigned int key_size = strlen(key) + 1;
@@ -269,7 +271,7 @@ void fs_erase(void)
     flush_cpu_dcache();
 }
 
-unsigned int fs_read(char *key, void *buffer, unsigned int buf_len, unsigned int *remain)
+unsigned int fs_read(const char *key, void *buffer, unsigned int buf_len, unsigned int *remain)
 {
     unsigned int read_length = 0;
     struct iter_state is;
@@ -295,7 +297,7 @@ unsigned int fs_read(char *key, void *buffer, unsigned int buf_len, unsigned int
     return read_length;
 }
 
-void fs_remove(char *key)
+void fs_remove(const char *key)
 {
     fs_write(key, NULL, 0);
 }

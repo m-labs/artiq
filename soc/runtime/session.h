@@ -4,11 +4,8 @@
 void session_start(void);
 void session_end(void);
 
-int session_input(void *data, int len);
-void session_poll(void **data, int *len);
-void session_ack_data(int len);
-void session_ack_mem(int len);
-
-int rpc(int rpc_num, ...);
+int session_input(void *data, int length);
+void session_poll(void **data, int *length);
+void session_ack(int length);
 
 #endif /* __SESSION_H */

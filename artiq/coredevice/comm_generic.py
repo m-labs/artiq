@@ -122,8 +122,9 @@ class CommGeneric:
 
     def _read_chunk(self, length):
         if self._read_length < length:
-            raise IOError("Read overrun while trying to read {} bytes ({} remaining)".
-                          format(length, self._read_length))
+            raise IOError("Read overrun while trying to read {} bytes ({} remaining)"
+                          " in packet {}".
+                          format(length, self._read_length, self._read_type))
 
         self._read_length -= length
         return self.read(length)
@@ -143,6 +144,12 @@ class CommGeneric:
     def _read_float64(self):
         (value, ) = struct.unpack(">d", self._read_chunk(8))
         return value
+
+    def _read_bytes(self):
+        return self._read_chunk(self._read_int32())
+
+    def _read_string(self):
+        return self._read_bytes()[:-1].decode('utf-8')
 
     #
     # Writer interface
@@ -170,6 +177,9 @@ class CommGeneric:
         self._write_header(ty)
         self._write_flush()
 
+    def _write_chunk(self, chunk):
+        self._write_buffer.append(chunk)
+
     def _write_int8(self, value):
         self._write_buffer.append(struct.pack("B", value))
 
@@ -182,8 +192,12 @@ class CommGeneric:
     def _write_float64(self, value):
         self._write_buffer.append(struct.pack(">d", value))
 
-    def _write_string(self, value):
+    def _write_bytes(self, value):
+        self._write_int32(len(value))
         self._write_buffer.append(value)
+
+    def _write_string(self, value):
+        self._write_bytes(value.encode("utf-8") + b"\0")
 
     #
     # Exported APIs
@@ -211,7 +225,7 @@ class CommGeneric:
 
     def load(self, kernel_library):
         self._write_header(_H2DMsgType.LOAD_LIBRARY)
-        self._write_string(kernel_library)
+        self._write_chunk(kernel_library)
         self._write_flush()
 
         self._read_empty(_D2HMsgType.LOAD_COMPLETED)
@@ -232,8 +246,7 @@ class CommGeneric:
     def flash_storage_write(self, key, value):
         self._write_header(_H2DMsgType.FLASH_WRITE_REQUEST)
         self._write_string(key)
-        self._write_string(b"\x00")
-        self._write_string(value)
+        self._write_bytes(value)
         self._write_flush()
 
         self._read_header()
