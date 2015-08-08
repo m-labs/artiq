@@ -33,13 +33,16 @@ class DDSBus:
     @kernel
     def batch_enter(self):
         """Starts a DDS command batch. All DDS commands are buffered
-        after this call, until ``batch_exit`` is called."""
+        after this call, until ``batch_exit`` is called.
+
+        The time of execution of the DDS commands is the time of entering the
+        batch (as closely as hardware permits)."""
         syscall("dds_batch_enter", now_mu())
 
     @kernel
     def batch_exit(self):
         """Ends a DDS command batch. All buffered DDS commands are issued
-        on the bus, and FUD is pulsed at the time the batch started."""
+        on the bus."""
         syscall("dds_batch_exit")
 
 
