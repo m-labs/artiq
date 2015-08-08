@@ -82,10 +82,10 @@ def get_argparser():
     parser_del_parameter.add_argument("name", help="name of the parameter")
 
     parser_show = subparsers.add_parser(
-        "show", help="show schedule, devices or parameters")
+        "show", help="show schedule, log, devices or parameters")
     parser_show.add_argument(
         "what",
-        help="select object to show: schedule/devices/parameters")
+        help="select object to show: schedule/log/devices/parameters")
 
     subparsers.add_parser("scan-repository",
                           help="trigger a repository rescan")
@@ -224,12 +224,42 @@ def _show_dict(args, notifier_name, display_fun):
     _run_subscriber(args.server, args.port, subscriber)
 
 
+class _LogPrinter:
+    def __init__(self, init):
+        for rid, msg in init:
+            print(rid, msg)
+
+    def append(self, x):
+        rid, msg = x
+        print(rid, msg)
+
+    def insert(self, i, x):
+        rid, msg = x
+        print(rid, msg)
+
+    def pop(self, i=-1):
+        pass
+
+    def __delitem__(self, x):
+        pass
+
+    def __setitem__(self, k, v):
+        pass
+
+
+def _show_log(args):
+    subscriber = Subscriber("log", _LogPrinter)
+    _run_subscriber(args.server, args.port, subscriber)
+
+
 def main():
     args = get_argparser().parse_args()
     action = args.action.replace("-", "_")
     if action == "show":
         if args.what == "schedule":
             _show_dict(args, "schedule", _show_schedule)
+        elif args.what == "log":
+            _show_log(args)
         elif args.what == "devices":
             _show_dict(args, "devices", _show_devices)
         elif args.what == "parameters":
