@@ -73,7 +73,7 @@ def main():
                 print(value)
         elif args.action == "cfg-write":
             for key, value in args.string:
-                comm.flash_storage_write(key, value.encode('utf-8'))
+                comm.flash_storage_write(key, value.encode("utf-8"))
             for key, filename in args.file:
                 with open(filename, "rb") as fi:
                     comm.flash_storage_write(key, fi.read())

@@ -39,7 +39,8 @@ static struct {
 
 static int buffer_in_write_cursor, buffer_in_read_cursor;
 
-static void in_packet_reset() {
+static void in_packet_reset()
+{
     buffer_in_write_cursor = 0;
     buffer_in_read_cursor  = 0;
 }
@@ -100,7 +101,8 @@ static int in_packet_fill(uint8_t *data, int length)
     return consumed;
 }
 
-static void in_packet_chunk(void *ptr, int length) {
+static void in_packet_chunk(void *ptr, int length)
+{
     if(buffer_in_read_cursor + length > buffer_in_write_cursor) {
         log("session.c: read overrun while trying to read %d bytes"
             " (%d remaining)",
@@ -112,26 +114,30 @@ static void in_packet_chunk(void *ptr, int length) {
     buffer_in_read_cursor += length;
 }
 
-static int8_t in_packet_int8() {
+static int8_t in_packet_int8()
+{
     int8_t result;
     in_packet_chunk(&result, sizeof(result));
     return result;
 }
 
-static int32_t in_packet_int32() {
+static int32_t in_packet_int32()
+{
     int32_t result;
     in_packet_chunk(&result, sizeof(result));
     return result;
 }
 
-static const void *in_packet_bytes(int *length) {
+static const void *in_packet_bytes(int *length)
+{
     *length = in_packet_int32();
     const void *ptr = &buffer_in.data[buffer_in_read_cursor];
     in_packet_chunk(NULL, *length);
     return ptr;
 }
 
-static const char *in_packet_string() {
+static const char *in_packet_string()
+{
     int length;
     const char *string = in_packet_bytes(&length);
     if(string[length] != 0) {
@@ -154,16 +160,19 @@ static union {
 
 static int buffer_out_read_cursor, buffer_out_write_cursor;
 
-static void out_packet_reset() {
+static void out_packet_reset()
+{
     buffer_out_read_cursor  = 0;
     buffer_out_write_cursor = 0;
 }
 
-static int out_packet_available() {
+static int out_packet_available()
+{
     return buffer_out_write_cursor == 0;
 }
 
-static void out_packet_extract(void **data, int *length) {
+static void out_packet_extract(void **data, int *length)
+{
     if(buffer_out_write_cursor > 0 &&
        buffer_out.header.length > 0) {
         *data   = &buffer_out.data[buffer_out_read_cursor];
@@ -173,7 +182,8 @@ static void out_packet_extract(void **data, int *length) {
     }
 }
 
-static void out_packet_advance(int length) {
+static void out_packet_advance(int length)
+{
     if(buffer_out_read_cursor + length > buffer_out_write_cursor) {
         log("session.c: write underrun while trying to acknowledge %d bytes"
             " (%d remaining)",
@@ -186,7 +196,8 @@ static void out_packet_advance(int length) {
         out_packet_reset();
 }
 
-static int out_packet_chunk(const void *ptr, int length) {
+static int out_packet_chunk(const void *ptr, int length)
+{
     if(buffer_out_write_cursor + length > BUFFER_OUT_SIZE) {
         log("session.c: write overrun while trying to write %d bytes"
             " (%d remaining)",
@@ -199,44 +210,53 @@ static int out_packet_chunk(const void *ptr, int length) {
     return 1;
 }
 
-static void out_packet_start(int type) {
+static void out_packet_start(int type)
+{
     buffer_out.header.sync   = 0x5a5a5a5a;
     buffer_out.header.type   = type;
     buffer_out.header.length = 0;
     buffer_out_write_cursor  = sizeof(buffer_out.header);
 }
 
-static void out_packet_finish() {
+static void out_packet_finish()
+{
     buffer_out.header.length = buffer_out_write_cursor;
 }
 
-static void out_packet_empty(int type) {
+static void out_packet_empty(int type)
+{
     out_packet_start(type);
     out_packet_finish();
 }
 
-static int out_packet_int8(int8_t value) {
+static int out_packet_int8(int8_t value)
+{
     return out_packet_chunk(&value, sizeof(value));
 }
 
-static int out_packet_int32(int32_t value) {
+static int out_packet_int32(int32_t value)
+{
     return out_packet_chunk(&value, sizeof(value));
 }
 
-static int out_packet_int64(int64_t value) {
+static int out_packet_int64(int64_t value)
+{
     return out_packet_chunk(&value, sizeof(value));
 }
 
-static int out_packet_float64(double value) {
+static int out_packet_float64(double value)
+{
     return out_packet_chunk(&value, sizeof(value));
 }
 
-static int out_packet_bytes(const void *ptr, int length) {
+static int out_packet_bytes(const void *ptr, int length)
+{
     return out_packet_int32(length) &&
            out_packet_chunk(ptr, length);
 }
 
-static int out_packet_string(const char *string) {
+static int out_packet_string(const char *string)
+{
     return out_packet_bytes(string, strlen(string) + 1);
 }
 
@@ -440,7 +460,8 @@ static int process_input(void)
     return 1;
 }
 
-static int send_rpc_value(const char **tag, void *value) {
+static int send_rpc_value(const char **tag, void *value)
+{
     out_packet_int8(**tag);
 
     int size = 0;
@@ -592,7 +613,8 @@ static int process_kmsg(struct msg_base *umsg)
  * (the session must be dropped and session_end called).
  * Returns -2 if the host has requested session reset.
  */
-int session_input(void *data, int length) {
+int session_input(void *data, int length)
+{
     return in_packet_fill((uint8_t*)data, length);
 }
 
