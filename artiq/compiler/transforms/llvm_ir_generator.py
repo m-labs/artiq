@@ -17,6 +17,7 @@ class LLVMIRGenerator:
         self.llmodule.data_layout = target.data_layout
         self.llfunction = None
         self.llmap = {}
+        self.llblock_map = {}
         self.fixups = []
 
     def llty_of_type(self, typ, bare=False, for_return=False):
@@ -229,6 +230,13 @@ class LLVMIRGenerator:
                     assert llinsn is not None
                     self.llmap[insn] = llinsn
 
+                # There is no 1:1 correspondence between ARTIQ and LLVM
+                # basic blocks, because sometimes we expand a single ARTIQ
+                # instruction so that the result spans several LLVM basic
+                # blocks. This only really matters for phis, which will
+                # use a different map.
+                self.llblock_map[block] = self.llbuilder.basic_block
+
             # Fourth, fixup phis.
             for fixup in self.fixups:
                 fixup()
@@ -241,7 +249,7 @@ class LLVMIRGenerator:
         llinsn = self.llbuilder.phi(self.llty_of_type(insn.type), name=insn.name)
         def fixup():
             for value, block in insn.incoming():
-                llinsn.add_incoming(self.map(value), self.map(block))
+                llinsn.add_incoming(self.map(value), self.llblock_map[block])
         self.fixups.append(fixup)
         return llinsn
 
