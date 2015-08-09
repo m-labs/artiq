@@ -40,12 +40,14 @@ class Controller:
         self.name = name
         self.command = ddb_entry["command"]
         self.retry_timer = ddb_entry.get("retry_timer", 5)
+        self.retry_timer_backoff = ddb_entry.get("retry_timer_backoff", 1.1)
 
         self.host = ddb_entry["host"]
         self.port = ddb_entry["port"]
         self.ping_timer = ddb_entry.get("ping_timer", 30)
         self.ping_timeout = ddb_entry.get("ping_timeout", 30)
 
+        self.retry_timer_cur = self.retry_timer
         self.process = None
         self.launch_task = asyncio.Task(self.launcher())
 
@@ -69,8 +71,11 @@ class Controller:
     @asyncio.coroutine
     def _ping(self):
         try:
-            return (yield from asyncio.wait_for(
-                self._ping_notimeout(), self.ping_timeout))
+            ok = yield from asyncio.wait_for(self._ping_notimeout(),
+                                             self.ping_timeout)
+            if ok:
+                self.retry_timer_cur = self.retry_timer
+            return ok
         except:
             return False
 
@@ -102,8 +107,9 @@ class Controller:
                     logger.warning("Controller %s failed to start", self.name)
                 else:
                     logger.warning("Controller %s exited", self.name)
-                logger.warning("Restarting in %.1f seconds", self.retry_timer)
-                yield from asyncio.sleep(self.retry_timer)
+                logger.warning("Restarting in %.1f seconds", self.retry_timer_cur)
+                yield from asyncio.sleep(self.retry_timer_cur)
+                self.retry_timer_cur *= self.retry_timer_backoff
         except asyncio.CancelledError:
             yield from self._terminate()
 
