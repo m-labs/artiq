@@ -93,6 +93,7 @@ static const struct symbol runtime_exports[] = {
     {"log", &log},
     {"lognonl", &lognonl},
     {"send_rpc", &send_rpc},
+    {"recv_rpc", &recv_rpc},
 
     /* direct syscalls */
     {"rtio_get_counter", &rtio_get_counter},
@@ -301,7 +302,7 @@ void watchdog_clear(int id)
     mailbox_send_and_wait(&request);
 }
 
-int send_rpc(int service, const char *tag, ...)
+void send_rpc(int service, const char *tag, ...)
 {
     struct msg_rpc_send request;
 
@@ -311,24 +312,34 @@ int send_rpc(int service, const char *tag, ...)
     va_start(request.args, tag);
     mailbox_send_and_wait(&request);
     va_end(request.args);
+}
 
-    // struct msg_base *reply;
-    // reply = mailbox_wait_and_receive();
-    // if(reply->type == MESSAGE_TYPE_RPC_REPLY) {
-    //     int result = ((struct msg_rpc_reply *)reply)->result;
-    //     mailbox_acknowledge();
-    //     return result;
-    // } else if(reply->type == MESSAGE_TYPE_RPC_EXCEPTION) {
-    //     struct artiq_exception exception;
-    //     memcpy(&exception, ((struct msg_rpc_exception *)reply)->exception,
-    //            sizeof(struct artiq_exception));
-    //     mailbox_acknowledge();
-    //     __artiq_raise(&exception);
-    // } else {
-        // log("Malformed MESSAGE_TYPE_RPC_REQUEST reply type %d",
-        //     reply->type);
+int recv_rpc(void **slot) {
+    struct msg_rpc_recv_request request;
+    struct msg_rpc_recv_reply *reply;
+
+    request.type = MESSAGE_TYPE_RPC_RECV_REQUEST;
+    request.slot = slot;
+    mailbox_send_and_wait(&request);
+
+    reply = mailbox_wait_and_receive();
+    if(reply->type != MESSAGE_TYPE_RPC_RECV_REPLY) {
+        log("Malformed MESSAGE_TYPE_RPC_RECV_REQUEST reply type %d",
+            reply->type);
         while(1);
-    // }
+    }
+
+    if(reply->exception) {
+        struct artiq_exception exception;
+        memcpy(&exception, reply->exception,
+               sizeof(struct artiq_exception));
+        mailbox_acknowledge();
+        __artiq_raise(&exception);
+    } else {
+        int alloc_size = reply->alloc_size;
+        mailbox_acknowledge();
+        return alloc_size;
+    }
 }
 
 void lognonl(const char *fmt, ...)

@@ -146,6 +146,10 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType(), ll.IntType(32)])
         elif name == "llvm.copysign.f64":
             llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType(), ll.DoubleType()])
+        elif name == "llvm.stacksave":
+            llty = ll.FunctionType(ll.IntType(8).as_pointer(), [])
+        elif name == "llvm.stackrestore":
+            llty = ll.FunctionType(ll.VoidType(), [ll.IntType(8).as_pointer()])
         elif name == self.target.print_function:
             llty = ll.FunctionType(ll.VoidType(), [ll.IntType(8).as_pointer()], var_arg=True)
         elif name == "__artiq_personality":
@@ -155,8 +159,10 @@ class LLVMIRGenerator:
         elif name == "__artiq_reraise":
             llty = ll.FunctionType(ll.VoidType(), [])
         elif name == "send_rpc":
-            llty = ll.FunctionType(ll.IntType(32), [ll.IntType(32), ll.IntType(8).as_pointer()],
+            llty = ll.FunctionType(ll.VoidType(), [ll.IntType(32), ll.IntType(8).as_pointer()],
                                    var_arg=True)
+        elif name == "recv_rpc":
+            llty = ll.FunctionType(ll.IntType(32), [ll.IntType(8).as_pointer().as_pointer()])
         else:
             assert False
 
@@ -559,12 +565,18 @@ class LLVMIRGenerator:
                                               name=insn.name)
         return llvalue
 
-    # See session.c:send_rpc_value.
-    def _rpc_tag(self, typ, root_type, root_loc):
+    def _prepare_closure_call(self, insn):
+        llclosure, llargs = self.map(insn.target_function()), map(self.map, insn.arguments())
+        llenv = self.llbuilder.extract_value(llclosure, 0)
+        llfun = self.llbuilder.extract_value(llclosure, 1)
+        return llfun, [llenv] + list(llargs)
+
+    # See session.c:send_rpc_value and session.c:recv_rpc_value.
+    def _rpc_tag(self, typ, error_handler):
         if types.is_tuple(typ):
             assert len(typ.elts) < 256
             return b"t" + bytes([len(typ.elts)]) + \
-                   b"".join([self._rpc_tag(elt_type, root_type, root_loc)
+                   b"".join([self._rpc_tag(elt_type, error_handler)
                              for elt_type in typ.elts])
         elif builtins.is_none(typ):
             return b"n"
@@ -580,38 +592,53 @@ class LLVMIRGenerator:
             return b"s"
         elif builtins.is_list(typ):
             return b"l" + self._rpc_tag(builtins.get_iterable_elt(typ),
-                                        root_type, root_loc)
+                                        error_handler)
         elif builtins.is_range(typ):
             return b"r" + self._rpc_tag(builtins.get_iterable_elt(typ),
-                                        root_type, root_loc)
+                                        error_handler)
         elif ir.is_option(typ):
             return b"o" + self._rpc_tag(typ.params["inner"],
-                                        root_type, root_loc)
+                                        error_handler)
         else:
+            error_handler(typ)
+
+    def _build_rpc(self, fun_loc, fun_type, args, llnormalblock, llunwindblock):
+        llservice = ll.Constant(ll.IntType(32), fun_type.service)
+
+        tag = b""
+
+        for arg in args:
+            def arg_error_handler(typ):
+                printer = types.TypePrinter()
+                note = diagnostic.Diagnostic("note",
+                    "value of type {type}",
+                    {"type": printer.name(typ)},
+                    arg.loc)
+                diag = diagnostic.Diagnostic("error",
+                    "type {type} is not supported in remote procedure calls",
+                    {"type": printer.name(arg.typ)},
+                    arg.loc)
+                self.engine.process(diag)
+            tag += self._rpc_tag(arg.type, arg_error_handler)
+        tag += b":"
+
+        def ret_error_handler(typ):
             printer = types.TypePrinter()
             note = diagnostic.Diagnostic("note",
                 "value of type {type}",
-                {"type": printer.name(root_type)},
-                root_loc)
-            diag = diagnostic.Diagnostic("error",
-                "type {type} is not supported in remote procedure calls",
                 {"type": printer.name(typ)},
-                root_loc)
+                fun_loc)
+            diag = diagnostic.Diagnostic("error",
+                "return type {type} is not supported in remote procedure calls",
+                {"type": printer.name(fun_type.ret)},
+                fun_loc)
             self.engine.process(diag)
-
-    def _build_rpc(self, service, args, return_type):
-        llservice = ll.Constant(ll.IntType(32), service)
-
-        tag = b""
-        for arg in args:
-            if isinstance(arg, ir.Constant):
-                # Constants don't have locations, but conveniently
-                # they also never fail to serialize.
-                tag += self._rpc_tag(arg.type, arg.type, None)
-            else:
-                tag += self._rpc_tag(arg.type, arg.type, arg.loc)
+        tag += self._rpc_tag(fun_type.ret, ret_error_handler)
         tag += b"\x00"
-        lltag = self.llconst_of_const(ir.Constant(tag, builtins.TStr()))
+
+        lltag = self.llconst_of_const(ir.Constant(tag + b"\x00", builtins.TStr()))
+
+        llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [])
 
         llargs = []
         for arg in args:
@@ -620,30 +647,79 @@ class LLVMIRGenerator:
             self.llbuilder.store(llarg, llargslot)
             llargs.append(llargslot)
 
-        return self.llbuiltin("send_rpc"), [llservice, lltag] + llargs
+        self.llbuilder.call(self.llbuiltin("send_rpc"),
+                            [llservice, lltag] + llargs)
 
-    def prepare_call(self, insn):
-        if types.is_rpc_function(insn.target_function().type):
-            return self._build_rpc(insn.target_function().type.service,
-                                   insn.arguments(),
-                                   insn.target_function().type.ret)
+        # Don't waste stack space on saved arguments.
+        self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
+
+        # T result = {
+        #   void *ptr = NULL;
+        #   loop: int size = rpc_recv("tag", ptr);
+        #   if(size) { ptr = alloca(size); goto loop; }
+        #   else *(T*)ptr
+        # }
+        llprehead   = self.llbuilder.basic_block
+        llhead      = self.llbuilder.append_basic_block(name=llprehead.name + ".rpc.head")
+        if llunwindblock:
+            llheadu = self.llbuilder.append_basic_block(name=llprehead.name + ".rpc.head.unwind")
+        llalloc     = self.llbuilder.append_basic_block(name=llprehead.name + ".rpc.alloc")
+        lltail      = self.llbuilder.append_basic_block(name=llprehead.name + ".rpc.tail")
+
+        llslot = self.llbuilder.alloca(ll.IntType(8).as_pointer())
+        self.llbuilder.store(ll.Constant(ll.IntType(8).as_pointer(), None), llslot)
+        self.llbuilder.branch(llhead)
+
+        self.llbuilder.position_at_end(llhead)
+        if llunwindblock:
+            llsize = self.llbuilder.invoke(self.llbuiltin("recv_rpc"), [llslot],
+                                           llheadu, llunwindblock)
+            self.llbuilder.position_at_end(llheadu)
         else:
-            llclosure, llargs = self.map(insn.target_function()), map(self.map, insn.arguments())
-            llenv = self.llbuilder.extract_value(llclosure, 0)
-            llfun = self.llbuilder.extract_value(llclosure, 1)
-            return llfun, [llenv] + list(llargs)
+            llsize = self.llbuilder.call(self.llbuiltin("recv_rpc"), [llslot])
+        lldone = self.llbuilder.icmp_unsigned('==', llsize, ll.Constant(llsize.type, 0))
+        self.llbuilder.cbranch(lldone, lltail, llalloc)
+
+        self.llbuilder.position_at_end(llalloc)
+        llalloca = self.llbuilder.alloca(ll.IntType(8), llsize)
+        self.llbuilder.store(llalloca, llslot)
+        self.llbuilder.branch(llhead)
+
+        self.llbuilder.position_at_end(lltail)
+        llretty = self.llty_of_type(fun_type.ret, for_return=True)
+        llretptr = self.llbuilder.bitcast(llslot, llretty.as_pointer())
+        llret = self.llbuilder.load(llretptr)
+        if not builtins.is_allocated(fun_type.ret):
+            # We didn't allocate anything except the slot for the value itself.
+            # Don't waste stack space.
+            self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
+        if llnormalblock:
+            self.llbuilder.branch(llnormalblock)
+        return llret
 
     def process_Call(self, insn):
-        llfun, llargs = self.prepare_call(insn)
-        return self.llbuilder.call(llfun, llargs,
-                                   name=insn.name)
+        if types.is_rpc_function(insn.target_function().type):
+            return self._build_rpc(insn.target_function().loc,
+                                   insn.target_function().type,
+                                   insn.arguments(),
+                                   llnormalblock=None, llunwindblock=None)
+        else:
+            llfun, llargs = self._prepare_closure_call(insn)
+            return self.llbuilder.call(llfun, llargs,
+                                       name=insn.name)
 
     def process_Invoke(self, insn):
-        llfun, llargs = self.prepare_call(insn)
         llnormalblock = self.map(insn.normal_target())
         llunwindblock = self.map(insn.exception_target())
-        return self.llbuilder.invoke(llfun, llargs, llnormalblock, llunwindblock,
-                                     name=insn.name)
+        if types.is_rpc_function(insn.target_function().type):
+            return self._build_rpc(insn.target_function().loc,
+                                   insn.target_function().type,
+                                   insn.arguments(),
+                                   llnormalblock, llunwindblock)
+        else:
+            llfun, llargs = self._prepare_closure_call(insn)
+            return self.llbuilder.invoke(llfun, llargs, llnormalblock, llunwindblock,
+                                         name=insn.name)
 
     def process_Select(self, insn):
         return self.llbuilder.select(self.map(insn.condition()),

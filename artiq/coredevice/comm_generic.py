@@ -8,6 +8,7 @@ from artiq.language import core as core_language
 
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 class _H2DMsgType(Enum):
@@ -325,13 +326,14 @@ class CommGeneric:
     def _serve_rpc(self, rpc_map):
         service = self._read_int32()
         args = self._receive_rpc_args(rpc_map)
-        logger.debug("rpc service: %d %r", service, args)
+        return_tag = self._read_string()
+        logger.debug("rpc service: %d %r -> %s", service, args, return_tag)
 
         try:
             result = rpc_map[service](*args)
             if not isinstance(result, int) or not (-2**31 < result < 2**31-1):
                 raise ValueError("An RPC must return an int(width=32)")
-        except ARTIQException as exn:
+        except core_language.ARTIQException as exn:
             logger.debug("rpc service: %d %r ! %r", service, args, exn)
 
             self._write_header(_H2DMsgType.RPC_EXCEPTION)
@@ -355,7 +357,7 @@ class CommGeneric:
             for index in range(3):
                 self._write_int64(0)
 
-            ((filename, line, function, _), ) = traceback.extract_tb(exn.__traceback__)
+            (_, (filename, line, function, _), ) = traceback.extract_tb(exn.__traceback__, 2)
             self._write_string(filename)
             self._write_int32(line)
             self._write_int32(-1) # column not known

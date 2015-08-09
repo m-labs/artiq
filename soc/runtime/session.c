@@ -476,7 +476,8 @@ static int process_input(void)
         // }
 
         case REMOTEMSG_TYPE_RPC_EXCEPTION: {
-            struct msg_rpc_exception reply;
+            struct msg_rpc_recv_request *request;
+            struct msg_rpc_recv_reply reply;
 
             struct artiq_exception exception;
             exception.name     = in_packet_string();
@@ -494,7 +495,15 @@ static int process_input(void)
                 return 0; // restart session
             }
 
-            reply.type = MESSAGE_TYPE_RPC_EXCEPTION;
+            request = mailbox_wait_and_receive();
+            if(request->type != MESSAGE_TYPE_RPC_RECV_REQUEST) {
+                log("Expected MESSAGE_TYPE_RPC_RECV_REQUEST, got %d",
+                    request->type);
+                return 0; // restart session
+            }
+
+            reply.type = MESSAGE_TYPE_RPC_RECV_REPLY;
+            reply.alloc_size = 0;
             reply.exception = &exception;
             mailbox_send_and_wait(&reply);
 
@@ -650,15 +659,17 @@ static int send_rpc_request(int service, const char *tag, va_list args)
     out_packet_start(REMOTEMSG_TYPE_RPC_REQUEST);
     out_packet_int32(service);
 
-    while(*tag) {
+    while(*tag != ':') {
         void *value = va_arg(args, void*);
         if(!kloader_validate_kpointer(value))
             return 0;
         if(!send_rpc_value(&tag, &value))
             return 0;
     }
-
     out_packet_int8(0);
+
+    out_packet_string(tag + 1);
+
     out_packet_finish();
     return 1;
 }
@@ -670,6 +681,12 @@ static int process_kmsg(struct msg_base *umsg)
         return 0;
     if(kloader_is_essential_kmsg(umsg->type))
         return 1; /* handled elsewhere */
+    if(user_kernel_state == USER_KERNEL_WAIT_RPC &&
+       umsg->type == MESSAGE_TYPE_RPC_RECV_REQUEST) {
+        // Handled and acknowledged when we receive
+        // REMOTEMSG_TYPE_RPC_{EXCEPTION,REPLY}.
+        return 1;
+    }
     if(user_kernel_state != USER_KERNEL_RUNNING) {
         log("Received unexpected message from kernel CPU while not in running state");
         return 0;
@@ -739,7 +756,8 @@ static int process_kmsg(struct msg_base *umsg)
             struct msg_rpc_send *msg = (struct msg_rpc_send *)umsg;
 
             if(!send_rpc_request(msg->service, msg->tag, msg->args)) {
-                log("Failed to send RPC request");
+                log("Failed to send RPC request (service %d, tag %s)",
+                    msg->service, msg->tag);
                 return 0; // restart session
             }
 
