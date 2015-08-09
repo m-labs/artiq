@@ -1,12 +1,10 @@
 .. image:: doc/logo/artiq.png
 .. image:: https://travis-ci.org/m-labs/artiq.svg
     :target: https://travis-ci.org/m-labs/artiq
-.. image:: https://coveralls.io/repos/m-labs/artiq/badge.svg?branch=master
-    :target: https://coveralls.io/r/m-labs/artiq?branch=master
 
 ARTIQ (Advanced Real-Time Infrastructure for Quantum physics) is a
 next-generation control system for quantum information experiments. It is
-being developed in partnership with the Ion Storage Group at NIST, and its
+developed in partnership with the Ion Storage Group at NIST, and its
 applicability reaches beyond ion trapping.
 
 The system features a high-level programming language that helps describing
