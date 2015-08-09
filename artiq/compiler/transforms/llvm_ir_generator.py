@@ -14,6 +14,7 @@ class LLVMIRGenerator:
         self.llcontext = target.llcontext
         self.llmodule = ll.Module(context=self.llcontext, name=module_name)
         self.llmodule.triple = target.triple
+        self.llmodule.data_layout = target.data_layout
         self.llfunction = None
         self.llmap = {}
         self.fixups = []

@@ -12,6 +12,8 @@ class Target:
 
     :var triple: (string)
         LLVM target triple, e.g. ``"or1k"``
+    :var data_layout: (string)
+        LLVM target data layout, e.g. ``"E-m:e-p:32:32-i64:32-f64:32-v64:32-v128:32-a:0:32-n32"``
     :var features: (list of string)
         LLVM target CPU features, e.g. ``["mul", "div", "ffl1"]``
     :var print_function: (string)
@@ -19,6 +21,7 @@ class Target:
         provided by the target, e.g. ``"printf"``.
     """
     triple = "unknown"
+    data_layout = ""
     features = []
     print_function = "printf"
 
@@ -82,5 +85,6 @@ class NativeTarget(Target):
 
 class OR1KTarget(Target):
     triple = "or1k-linux"
+    data_layout = "E-m:e-p:32:32-i64:32-f64:32-v64:32-v128:32-a:0:32-n32"
     attributes = ["mul", "div", "ffl1", "cmov", "addc"]
     print_function = "lognonl"
