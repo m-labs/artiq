@@ -771,13 +771,12 @@ static int send_rpc_value(const char **tag, void **value)
             if(!out_packet_int32(list->length))
                 return 0;
 
-            const char *tag_copy = *tag;
             for(int i = 0; i < list->length; i++) {
+                const char *tag_copy = *tag;
                 if(!send_rpc_value(&tag_copy, &element))
                     return 0;
-                tag_copy = *tag;
             }
-            *tag = tag_copy;
+            skip_rpc_value(tag);
 
             *value = (void*)((intptr_t)(*value) + sizeof(*list));
             break;
