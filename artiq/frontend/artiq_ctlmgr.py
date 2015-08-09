@@ -4,7 +4,6 @@ import asyncio
 import argparse
 import os
 import logging
-import signal
 import shlex
 import socket
 
@@ -46,6 +45,7 @@ class Controller:
         self.port = ddb_entry["port"]
         self.ping_timer = ddb_entry.get("ping_timer", 30)
         self.ping_timeout = ddb_entry.get("ping_timeout", 30)
+        self.term_timeout = ddb_entry.get("term_timeout", 30)
 
         self.retry_timer_cur = self.retry_timer
         self.process = None
@@ -57,21 +57,21 @@ class Controller:
         yield from asyncio.wait_for(self.launch_task, None)
 
     @asyncio.coroutine
-    def _ping_notimeout(self):
+    def _call_controller(self, method):
         remote = AsyncioClient()
         yield from remote.connect_rpc(self.host, self.port, None)
         try:
             targets, _ = remote.get_rpc_id()
             remote.select_rpc_target(targets[0])
-            ok = yield from remote.ping()
+            r = yield from getattr(remote, method)()
         finally:
             remote.close_rpc()
-        return ok
+        return r
 
     @asyncio.coroutine
     def _ping(self):
         try:
-            ok = yield from asyncio.wait_for(self._ping_notimeout(),
+            ok = yield from asyncio.wait_for(self._call_controller("ping"),
                                              self.ping_timeout)
             if ok:
                 self.retry_timer_cur = self.retry_timer
@@ -92,6 +92,8 @@ class Controller:
                     logger.warning("Controller %s ping failed", self.name)
                     yield from self._terminate()
                     return
+            else:
+                break
 
     @asyncio.coroutine
     def launcher(self):
@@ -117,14 +119,22 @@ class Controller:
     def _terminate(self):
         logger.info("Terminating controller %s", self.name)
         if self.process is not None and self.process.returncode is None:
-            self.process.send_signal(signal.SIGTERM)
-            logger.debug("Signal sent")
             try:
-                yield from asyncio_process_wait_timeout(self.process, 5.0)
-            except asyncio.TimeoutError:
-                logger.warning("Controller %s did not respond to SIGTERM",
+                yield from asyncio.wait_for(self._call_controller("terminate"),
+                                            self.term_timeout)
+            except:
+                logger.warning("Controller %s did not respond to terminate "
+                               "command, killing", self.name)
+                self.process.kill()
+            try:
+                yield from asyncio_process_wait_timeout(self.process,
+                                                        self.term_timeout)
+            except:
+                logger.warning("Controller %s failed to exit, killing",
                                self.name)
-                self.process.send_signal(signal.SIGKILL)
+                self.process.kill()
+                yield from self.process.wait()
+        logger.debug("Controller %s terminated", self.name)
 
 
 def get_ip_addresses(host):
