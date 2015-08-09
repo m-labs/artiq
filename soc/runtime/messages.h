@@ -89,7 +89,7 @@ struct msg_rpc_send {
 
 struct msg_rpc_recv_request {
     int type;
-    void **slot;
+    void *slot;
 };
 
 struct msg_rpc_recv_reply {

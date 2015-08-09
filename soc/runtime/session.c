@@ -147,7 +147,7 @@ static const char *in_packet_string()
 {
     int length;
     const char *string = in_packet_bytes(&length);
-    if(string[length] != 0) {
+    if(string[length - 1] != 0) {
         log("session.c: string is not zero-terminated");
         return "";
     }
@@ -346,6 +346,8 @@ enum {
     REMOTEMSG_TYPE_FLASH_ERROR_REPLY
 };
 
+static int receive_rpc_value(const char **tag, void **slot);
+
 static int process_input(void)
 {
     switch(buffer_in.header.type) {
@@ -457,23 +459,37 @@ static int process_input(void)
             user_kernel_state = USER_KERNEL_RUNNING;
             break;
 
-        // case REMOTEMSG_TYPE_RPC_REPLY: {
-        //     struct msg_rpc_reply reply;
+        case REMOTEMSG_TYPE_RPC_REPLY: {
+            struct msg_rpc_recv_request *request;
+            struct msg_rpc_recv_reply reply;
 
-        //     int result = in_packet_int32();
+            if(user_kernel_state != USER_KERNEL_WAIT_RPC) {
+                log("Unsolicited RPC reply");
+                return 0; // restart session
+            }
 
-        //     if(user_kernel_state != USER_KERNEL_WAIT_RPC) {
-        //         log("Unsolicited RPC reply");
-        //         return 0; // restart session
-        //     }
+            request = mailbox_wait_and_receive();
+            if(request->type != MESSAGE_TYPE_RPC_RECV_REQUEST) {
+                log("Expected MESSAGE_TYPE_RPC_RECV_REQUEST, got %d",
+                    request->type);
+                return 0; // restart session
+            }
 
-        //     reply.type = MESSAGE_TYPE_RPC_REPLY;
-        //     reply.result = result;
-        //     mailbox_send_and_wait(&reply);
+            const char *tag = in_packet_string();
+            void *slot = request->slot;
+            if(!receive_rpc_value(&tag, &slot)) {
+                log("Failed to receive RPC reply");
+                return 0; // restart session
+            }
 
-        //     user_kernel_state = USER_KERNEL_RUNNING;
-        //     break;
-        // }
+            reply.type = MESSAGE_TYPE_RPC_RECV_REPLY;
+            reply.alloc_size = 0;
+            reply.exception = NULL;
+            mailbox_send_and_wait(&reply);
+
+            user_kernel_state = USER_KERNEL_RUNNING;
+            break;
+        }
 
         case REMOTEMSG_TYPE_RPC_EXCEPTION: {
             struct msg_rpc_recv_request *request;
@@ -512,13 +528,191 @@ static int process_input(void)
         }
 
         default:
+            log("Received invalid packet type %d from host",
+                buffer_in.header.type);
             return 0;
     }
 
     return 1;
 }
 
-// See llvm_ir_generator.py:_rpc_tag.
+// See comm_generic.py:_{send,receive}_rpc_value and llvm_ir_generator.py:_rpc_tag.
+static void skip_rpc_value(const char **tag) {
+    switch(*(*tag)++) {
+        case 't': {
+            int size = *(*tag)++;
+            for(int i = 0; i < size; i++)
+                skip_rpc_value(tag);
+            break;
+        }
+
+        case 'l':
+            skip_rpc_value(tag);
+            break;
+
+        case 'r':
+            skip_rpc_value(tag);
+            break;
+    }
+}
+
+static int sizeof_rpc_value(const char **tag)
+{
+    switch(*(*tag)++) {
+        case 't': { // tuple
+            int size = *(*tag)++;
+
+            int32_t length = 0;
+            for(int i = 0; i < size; i++)
+                length += sizeof_rpc_value(tag);
+            return length;
+        }
+
+        case 'n': // None
+            return 0;
+
+        case 'b': // bool
+            return sizeof(int8_t);
+
+        case 'i': // int(width=32)
+            return sizeof(int32_t);
+
+        case 'I': // int(width=64)
+            return sizeof(int64_t);
+
+        case 'f': // float
+            return sizeof(double);
+
+        case 'F': // Fraction
+            return sizeof(struct { int64_t numerator, denominator; });
+
+        case 's': // string
+            return sizeof(char *);
+
+        case 'l': // list(elt='a)
+            skip_rpc_value(tag);
+            return sizeof(struct { int32_t length; struct {} *elements; });
+
+        case 'r': // range(elt='a)
+            return sizeof_rpc_value(tag) * 3;
+
+        default:
+            log("sizeof_rpc_value: unknown tag %02x", *((*tag) - 1));
+            return 0;
+    }
+}
+
+static void *alloc_rpc_value(int size)
+{
+    struct msg_rpc_recv_request *request;
+    struct msg_rpc_recv_reply reply;
+
+    reply.type = MESSAGE_TYPE_RPC_RECV_REPLY;
+    reply.alloc_size = size;
+    reply.exception = NULL;
+    mailbox_send_and_wait(&reply);
+
+    request = mailbox_wait_and_receive();
+    if(request->type != MESSAGE_TYPE_RPC_RECV_REQUEST) {
+        log("Expected MESSAGE_TYPE_RPC_RECV_REQUEST, got %d",
+            request->type);
+        return NULL;
+    }
+    return request->slot;
+}
+
+static int receive_rpc_value(const char **tag, void **slot)
+{
+    switch(*(*tag)++) {
+        case 't': { // tuple
+            int size = *(*tag)++;
+
+            for(int i = 0; i < size; i++) {
+                if(!receive_rpc_value(tag, slot))
+                    return 0;
+            }
+            break;
+        }
+
+        case 'n': // None
+            break;
+
+        case 'b': { // bool
+            *((*(int8_t**)slot)++) = in_packet_int8();
+            break;
+        }
+
+        case 'i': { // int(width=32)
+            *((*(int32_t**)slot)++) = in_packet_int32();
+            break;
+        }
+
+        case 'I': { // int(width=64)
+            *((*(int64_t**)slot)++) = in_packet_int64();
+            break;
+        }
+
+        case 'f': { // float
+            *((*(int64_t**)slot)++) = in_packet_int64();
+            break;
+        }
+
+        case 'F': { // Fraction
+            struct { int64_t numerator, denominator; } *fraction = *slot;
+            fraction->numerator = in_packet_int64();
+            fraction->denominator = in_packet_int64();
+            *slot = (void*)((intptr_t)(*slot) + sizeof(*fraction));
+            break;
+        }
+
+        case 's': { // string
+            const char *in_string = in_packet_string();
+            char *out_string = alloc_rpc_value(strlen(in_string) + 1);
+            memcpy(out_string, in_string, strlen(in_string) + 1);
+            *((*(char***)slot)++) = out_string;
+            break;
+        }
+
+        case 'l': { // list(elt='a)
+            struct { int32_t length; struct {} *elements; } *list = *slot;
+            list->length = in_packet_int32();
+
+            const char *tag_copy = *tag;
+            list->elements = alloc_rpc_value(sizeof_rpc_value(&tag_copy) * list->length);
+
+            void *element = list->elements;
+            for(int i = 0; i < list->length; i++) {
+                const char *tag_copy = *tag;
+                if(!receive_rpc_value(&tag_copy, &element))
+                    return 0;
+            }
+            skip_rpc_value(tag);
+            break;
+        }
+
+        case 'r': { // range(elt='a)
+            const char *tag_copy;
+            tag_copy = *tag;
+            if(!receive_rpc_value(&tag_copy, slot)) // min
+                return 0;
+            tag_copy = *tag;
+            if(!receive_rpc_value(&tag_copy, slot)) // max
+                return 0;
+            tag_copy = *tag;
+            if(!receive_rpc_value(&tag_copy, slot)) // step
+                return 0;
+            *tag = tag_copy;
+            break;
+        }
+
+        default:
+            log("receive_rpc_value: unknown tag %02x", *((*tag) - 1));
+            return 0;
+    }
+
+    return 1;
+}
+
 static int send_rpc_value(const char **tag, void **value)
 {
     if(!out_packet_int8(**tag))
@@ -541,51 +735,33 @@ static int send_rpc_value(const char **tag, void **value)
             break;
 
         case 'b': { // bool
-            int size = sizeof(int8_t);
-            if(!out_packet_chunk(*value, size))
-                return 0;
-            *value = (void*)((intptr_t)(*value) + size);
-            break;
+            return out_packet_int8(*((*(int8_t**)value)++));
         }
 
         case 'i': { // int(width=32)
-            int size = sizeof(int32_t);
-            if(!out_packet_chunk(*value, size))
-                return 0;
-            *value = (void*)((intptr_t)(*value) + size);
-            break;
+            return out_packet_int32(*((*(int32_t**)value)++));
         }
 
         case 'I': { // int(width=64)
-            int size = sizeof(int64_t);
-            if(!out_packet_chunk(*value, size))
-                return 0;
-            *value = (void*)((intptr_t)(*value) + size);
-            break;
+            return out_packet_int64(*((*(int64_t**)value)++));
         }
 
         case 'f': { // float
-            int size = sizeof(double);
-            if(!out_packet_chunk(*value, size))
-                return 0;
-            *value = (void*)((intptr_t)(*value) + size);
-            break;
+            return out_packet_float64(*((*(double**)value)++));
         }
 
         case 'F': { // Fraction
-            int size = sizeof(int64_t) * 2;
-            if(!out_packet_chunk(*value, size))
+            struct { int64_t numerator, denominator; } *fraction = *value;
+            if(!out_packet_int64(fraction->numerator))
                 return 0;
-            *value = (void*)((intptr_t)(*value) + size);
+            if(!out_packet_int64(fraction->denominator))
+                return 0;
+            *value = (void*)((intptr_t)(*value) + sizeof(*fraction));
             break;
         }
 
         case 's': { // string
-            const char **string = *value;
-            if(!out_packet_string(*string))
-                return 0;
-            *value = (void*)((intptr_t)(*value) + strlen(*string) + 1);
-            break;
+            return out_packet_string(*((*(const char***)value)++));
         }
 
         case 'l': { // list(elt='a)
@@ -595,11 +771,11 @@ static int send_rpc_value(const char **tag, void **value)
             if(!out_packet_int32(list->length))
                 return 0;
 
-            const char *tag_copy;
+            const char *tag_copy = *tag;
             for(int i = 0; i < list->length; i++) {
-                tag_copy = *tag;
                 if(!send_rpc_value(&tag_copy, &element))
                     return 0;
+                tag_copy = *tag;
             }
             *tag = tag_copy;
 
@@ -634,7 +810,7 @@ static int send_rpc_value(const char **tag, void **value)
             if(option->present) {
                 return send_rpc_value(tag, &contents);
             } else {
-                (*tag)++;
+                skip_rpc_value(tag);
                 break;
             }
         }
@@ -668,8 +844,7 @@ static int send_rpc_request(int service, const char *tag, va_list args)
     }
     out_packet_int8(0);
 
-    out_packet_string(tag + 1);
-
+    out_packet_string(tag + 1); // return tags
     out_packet_finish();
     return 1;
 }

@@ -162,7 +162,7 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(ll.VoidType(), [ll.IntType(32), ll.IntType(8).as_pointer()],
                                    var_arg=True)
         elif name == "recv_rpc":
-            llty = ll.FunctionType(ll.IntType(32), [ll.IntType(8).as_pointer().as_pointer()])
+            llty = ll.FunctionType(ll.IntType(32), [ll.IntType(8).as_pointer()])
         else:
             assert False
 
@@ -571,7 +571,7 @@ class LLVMIRGenerator:
         llfun = self.llbuilder.extract_value(llclosure, 1)
         return llfun, [llenv] + list(llargs)
 
-    # See session.c:send_rpc_value and session.c:recv_rpc_value.
+    # See session.c:{send,receive}_rpc_value and comm_generic.py:_{send,receive}_rpc_value.
     def _rpc_tag(self, typ, error_handler):
         if types.is_tuple(typ):
             assert len(typ.elts) < 256
@@ -666,29 +666,30 @@ class LLVMIRGenerator:
         llalloc     = self.llbuilder.append_basic_block(name=llprehead.name + ".rpc.alloc")
         lltail      = self.llbuilder.append_basic_block(name=llprehead.name + ".rpc.tail")
 
-        llslot = self.llbuilder.alloca(ll.IntType(8).as_pointer())
-        self.llbuilder.store(ll.Constant(ll.IntType(8).as_pointer(), None), llslot)
+        llretty = self.llty_of_type(fun_type.ret)
+        llslot = self.llbuilder.alloca(llretty)
+        llslotgen = self.llbuilder.bitcast(llslot, ll.IntType(8).as_pointer())
         self.llbuilder.branch(llhead)
 
         self.llbuilder.position_at_end(llhead)
+        llphi = self.llbuilder.phi(llslotgen.type)
+        llphi.add_incoming(llslotgen, llprehead)
         if llunwindblock:
-            llsize = self.llbuilder.invoke(self.llbuiltin("recv_rpc"), [llslot],
+            llsize = self.llbuilder.invoke(self.llbuiltin("recv_rpc"), [llphi],
                                            llheadu, llunwindblock)
             self.llbuilder.position_at_end(llheadu)
         else:
-            llsize = self.llbuilder.call(self.llbuiltin("recv_rpc"), [llslot])
+            llsize = self.llbuilder.call(self.llbuiltin("recv_rpc"), [llphi])
         lldone = self.llbuilder.icmp_unsigned('==', llsize, ll.Constant(llsize.type, 0))
         self.llbuilder.cbranch(lldone, lltail, llalloc)
 
         self.llbuilder.position_at_end(llalloc)
         llalloca = self.llbuilder.alloca(ll.IntType(8), llsize)
-        self.llbuilder.store(llalloca, llslot)
+        llphi.add_incoming(llalloca, llalloc)
         self.llbuilder.branch(llhead)
 
         self.llbuilder.position_at_end(lltail)
-        llretty = self.llty_of_type(fun_type.ret, for_return=True)
-        llretptr = self.llbuilder.bitcast(llslot, llretty.as_pointer())
-        llret = self.llbuilder.load(llretptr)
+        llret = self.llbuilder.load(llslot)
         if not builtins.is_allocated(fun_type.ret):
             # We didn't allocate anything except the slot for the value itself.
             # Don't waste stack space.

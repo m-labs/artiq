@@ -8,7 +8,6 @@ from artiq.language import core as core_language
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 class _H2DMsgType(Enum):
@@ -49,6 +48,9 @@ class _D2HMsgType(Enum):
 
 
 class UnsupportedDevice(Exception):
+    pass
+
+class RPCReturnValueError(ValueError):
     pass
 
 
@@ -279,6 +281,7 @@ class CommGeneric:
 
     _rpc_sentinel = object()
 
+    # See session.c:{send,receive}_rpc_value and llvm_ir_generator.py:_rpc_tag.
     def _receive_rpc_value(self, rpc_map):
         tag = chr(self._read_int8())
         if tag == "\x00":
@@ -306,11 +309,15 @@ class CommGeneric:
             length = self._read_int32()
             return [self._receive_rpc_value(rpc_map) for _ in range(length)]
         elif tag == "r":
-            lower = self._receive_rpc_value(rpc_map)
-            upper = self._receive_rpc_value(rpc_map)
+            start = self._receive_rpc_value(rpc_map)
+            stop  = self._receive_rpc_value(rpc_map)
             step  = self._receive_rpc_value(rpc_map)
-            return range(lower, upper, step)
+            return range(start, stop, step)
         elif tag == "o":
+            present = self._read_int8()
+            if present:
+                return self._receive_rpc_value(rpc_map)
+        elif tag == "O":
             return rpc_map[self._read_int32()]
         else:
             raise IOError("Unknown RPC value tag: {}".format(repr(tag)))
@@ -323,16 +330,101 @@ class CommGeneric:
                 return args
             args.append(value)
 
+    def _skip_rpc_value(self, tags):
+        tag = tags.pop(0)
+        if tag == "t":
+            length = tags.pop(0)
+            for _ in range(length):
+                self._skip_rpc_value(tags)
+        elif tag == "l":
+            self._skip_rpc_value(tags)
+        elif tag == "r":
+            self._skip_rpc_value(tags)
+        else:
+            pass
+
+    def _send_rpc_value(self, tags, value, root, function):
+        def check(cond, expected):
+            if not cond:
+                raise RPCReturnValueError(
+                    "type mismatch: cannot serialize {value} as {type}"
+                    " ({function} has returned {root})".format(
+                        value=repr(value), type=expected(),
+                        function=function, root=root))
+
+        tag = chr(tags.pop(0))
+        if tag == "t":
+            length = tags.pop(0)
+            check(isinstance(value, tuple) and length == len(value),
+                  lambda: "tuple of {}".format(length))
+            for elt in value:
+                self._send_rpc_value(tags, elt, root, function)
+        elif tag == "n":
+            check(value is None,
+                  lambda: "None")
+        elif tag == "b":
+            check(isinstance(value, bool),
+                  lambda: "bool")
+            self._write_int8(value)
+        elif tag == "i":
+            check(isinstance(value, int) and (-2**31 < value < 2**31-1),
+                  lambda: "32-bit int")
+            self._write_int32(value)
+        elif tag == "I":
+            check(isinstance(value, int) and (-2**63 < value < 2**63-1),
+                  lambda: "64-bit int")
+            self._write_int64(value)
+        elif tag == "f":
+            check(isinstance(value, float),
+                  lambda: "float")
+            self._write_float64(value)
+        elif tag == "F":
+            check(isinstance(value, Fraction) and
+                    (-2**63 < value.numerator < 2**63-1) and
+                    (-2**63 < value.denominator < 2**63-1),
+                  lambda: "64-bit Fraction")
+            self._write_int64(value.numerator)
+            self._write_int64(value.denominator)
+        elif tag == "s":
+            check(isinstance(value, str) and "\x00" not in value,
+                  lambda: "str")
+            self._write_string(value)
+        elif tag == "l":
+            check(isinstance(value, list),
+                  lambda: "list")
+            self._write_int32(len(value))
+            for elt in value:
+                tags_copy = bytearray(tags)
+                self._send_rpc_value(tags_copy, elt, root, function)
+            self._skip_rpc_value(tags)
+        elif tag == "r":
+            check(isinstance(value, range),
+                  lambda: "range")
+            tags_copy = bytearray(tags)
+            self._send_rpc_value(tags_copy, value.start, root, function)
+            tags_copy = bytearray(tags)
+            self._send_rpc_value(tags_copy, value.stop, root, function)
+            tags_copy = bytearray(tags)
+            self._send_rpc_value(tags_copy, value.step, root, function)
+            tags = tags_copy
+        else:
+            raise IOError("Unknown RPC value tag: {}".format(repr(tag)))
+
     def _serve_rpc(self, rpc_map):
         service = self._read_int32()
         args = self._receive_rpc_args(rpc_map)
-        return_tag = self._read_string()
-        logger.debug("rpc service: %d %r -> %s", service, args, return_tag)
+        return_tags = self._read_bytes()
+        logger.debug("rpc service: %d %r -> %s", service, args, return_tags)
 
         try:
             result = rpc_map[service](*args)
-            if not isinstance(result, int) or not (-2**31 < result < 2**31-1):
-                raise ValueError("An RPC must return an int(width=32)")
+            logger.debug("rpc service: %d %r == %r", service, args, result)
+
+            self._write_header(_H2DMsgType.RPC_REPLY)
+            self._write_bytes(return_tags)
+            self._send_rpc_value(bytearray(return_tags), result, result,
+                                 rpc_map[service])
+            self._write_flush()
         except core_language.ARTIQException as exn:
             logger.debug("rpc service: %d %r ! %r", service, args, exn)
 
@@ -363,12 +455,6 @@ class CommGeneric:
             self._write_int32(-1) # column not known
             self._write_string(function)
 
-            self._write_flush()
-        else:
-            logger.debug("rpc service: %d %r == %r", service, args, result)
-
-            self._write_header(_H2DMsgType.RPC_REPLY)
-            self._write_int32(result)
             self._write_flush()
 
     def _serve_exception(self):

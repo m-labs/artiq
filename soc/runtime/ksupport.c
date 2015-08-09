@@ -314,7 +314,7 @@ void send_rpc(int service, const char *tag, ...)
     va_end(request.args);
 }
 
-int recv_rpc(void **slot) {
+int recv_rpc(void *slot) {
     struct msg_rpc_recv_request request;
     struct msg_rpc_recv_reply *reply;
 
