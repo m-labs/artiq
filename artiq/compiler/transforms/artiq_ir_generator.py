@@ -1489,7 +1489,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         tail = self.current_block = self.add_block()
         self.append(ir.BranchIf(cond, tail, if_failed), block=head)
 
-    def polymorphic_print(self, values, separator, suffix=""):
+    def polymorphic_print(self, values, separator, suffix="", as_repr=False):
         format_string = ""
         args = []
         def flush():
@@ -1508,7 +1508,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 format_string += "("; flush()
                 self.polymorphic_print([self.append(ir.GetAttr(value, index))
                                         for index in range(len(value.type.elts))],
-                                       separator=", ")
+                                       separator=", ", as_repr=True)
                 if len(value.type.elts) == 1:
                     format_string += ",)"
                 else:
@@ -1538,7 +1538,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 format_string += "%g"
                 args.append(value)
             elif builtins.is_str(value.type):
-                format_string += "%s"
+                if as_repr:
+                    format_string += "\"%s\""
+                else:
+                    format_string += "%s"
                 args.append(value)
             elif builtins.is_list(value.type):
                 format_string += "["; flush()
@@ -1547,7 +1550,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 last = self.append(ir.Arith(ast.Sub(loc=None), length, ir.Constant(1, length.type)))
                 def body_gen(index):
                     elt = self.iterable_get(value, index)
-                    self.polymorphic_print([elt], separator="")
+                    self.polymorphic_print([elt], separator="", as_repr=True)
                     is_last = self.append(ir.Compare(ast.Lt(loc=None), index, last))
                     head = self.current_block
 
