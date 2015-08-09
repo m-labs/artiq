@@ -1,4 +1,4 @@
-import tempfile, subprocess
+import os, sys, tempfile, subprocess
 from llvmlite_artiq import ir as ll, binding as llvm
 
 llvm.initialize()
@@ -56,9 +56,19 @@ class Target:
 
     def compile(self, module):
         """Compile the module to a relocatable object for this target."""
+
+        if os.getenv('ARTIQ_DUMP_IR'):
+            print("====== ARTIQ IR DUMP ======", file=sys.stderr)
+            for function in module.artiq_ir:
+                print(function, file=sys.stderr)
+
         llmod = module.build_llvm_ir(self)
         llparsedmod = llvm.parse_assembly(str(llmod))
         llparsedmod.verify()
+
+        if os.getenv('ARTIQ_DUMP_LLVM'):
+            print("====== LLVM IR DUMP ======", file=sys.stderr)
+            print(str(llparsedmod), file=sys.stderr)
 
         llpassmgrbuilder = llvm.create_pass_manager_builder()
         llpassmgrbuilder.opt_level  = 2 # -O2
@@ -68,10 +78,19 @@ class Target:
         llpassmgrbuilder.populate(llpassmgr)
         llpassmgr.run(llparsedmod)
 
+        if os.getenv('ARTIQ_DUMP_LLVM'):
+            print("====== LLVM IR DUMP (OPTIMIZED) ======", file=sys.stderr)
+            print(str(llparsedmod), file=sys.stderr)
+
         lltarget = llvm.Target.from_triple(self.triple)
         llmachine = lltarget.create_target_machine(
                         features=",".join(self.features),
                         reloc="pic", codemodel="default")
+
+        if os.getenv('ARTIQ_DUMP_ASSEMBLY'):
+            print("====== ASSEMBLY DUMP ======", file=sys.stderr)
+            print(llmachine.emit_assembly(llparsedmod), file=sys.stderr)
+
         return llmachine.emit_object(llparsedmod)
 
     def compile_and_link(self, modules):
