@@ -213,3 +213,6 @@ class Pdq2:
         for frame_data in program:
             self.program_frame(frame_data)
         self.write_all()
+
+    def ping(self):
+        return True
