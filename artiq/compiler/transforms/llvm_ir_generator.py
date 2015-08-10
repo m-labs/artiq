@@ -3,6 +3,7 @@
 into LLVM intermediate representation.
 """
 
+import os
 from pythonparser import ast, diagnostic
 from llvmlite_artiq import ir as ll
 from .. import types, builtins, ir
@@ -14,7 +15,147 @@ lli8       = ll.IntType(8)
 lli32      = ll.IntType(32)
 lldouble   = ll.DoubleType()
 llptr      = ll.IntType(8).as_pointer()
-llemptyptr = ll.LiteralStructType( []).as_pointer()
+llmetadata = ll.MetaData()
+
+
+DW_LANG_Python         = 0x0014
+DW_TAG_compile_unit    = 17
+DW_TAG_subroutine_type = 21
+DW_TAG_file_type       = 41
+DW_TAG_subprogram      = 46
+
+def memoize(generator):
+    def memoized(self, *args):
+        result = self.cache.get((generator,) + args, None)
+        if result is None:
+            return generator(self, *args)
+        else:
+            return result
+    return memoized
+
+class DebugInfoEmitter:
+    def __init__(self, llmodule):
+        self.llmodule = llmodule
+        self.cache = {}
+        self.subprograms = []
+
+    def emit(self, operands):
+        def map_operand(operand):
+            if operand is None:
+                return ll.Constant(llmetadata, None)
+            elif isinstance(operand, str):
+                return ll.MetaDataString(self.llmodule, operand)
+            elif isinstance(operand, bool):
+                return ll.Constant(lli1, operand)
+            elif isinstance(operand, int):
+                return ll.Constant(lli32, operand)
+            elif isinstance(operand, (list, tuple)):
+                return self.emit(operand)
+            elif isinstance(operand, ll.Value):
+                return operand
+            else:
+                print(operand)
+                assert False
+        return self.llmodule.add_metadata(list(map(map_operand, operands)))
+
+    @memoize
+    def emit_filename(self, source_buffer):
+        source_dir, source_file = os.path.split(source_buffer.name)
+        return self.emit([source_file, source_dir])
+
+    @memoize
+    def emit_compile_unit(self, source_buffer, llsubprograms):
+        return self.emit([
+            DW_TAG_compile_unit,
+            self.emit_filename(source_buffer),    # filename
+            DW_LANG_Python,                       # source language
+            "ARTIQ",                              # producer
+            False,                                # optimized?
+            "",                                   # linker flags
+            0,                                    # runtime version
+            [],                                   # enum types
+            [],                                   # retained types
+            llsubprograms,                        # subprograms
+            [],                                   # global variables
+            [],                                   # imported entities
+            "",                                   # split debug filename
+            2,                                    # kind (full=1, lines only=2)
+        ])
+
+    @memoize
+    def emit_file(self, source_buffer):
+        return self.emit([
+            DW_TAG_file_type,
+            self.emit_filename(source_buffer),    # filename
+        ])
+
+    @memoize
+    def emit_subroutine_type(self, typ):
+        return self.emit([
+            DW_TAG_subroutine_type,
+            None,                                 # filename
+            None,                                 # context descriptor
+            "",                                   # name
+            0,                                    # line number
+            0,                                    # (i64) size in bits
+            0,                                    # (i64) alignment in bits
+            0,                                    # (i64) offset in bits
+            0,                                    # flags
+            None,                                 # derived from
+            [None],                               # members
+            0,                                    # runtime languages
+            None,                                 # base type with vtable pointer
+            None,                                 # template parameters
+            None                                  # unique identifier
+        ])
+
+    @memoize
+    def emit_subprogram(self, func, llfunc):
+        source_buffer = func.loc.source_buffer
+        display_name = "{}{}".format(func.name, types.TypePrinter().name(func.type))
+        subprogram = self.emit([
+            DW_TAG_subprogram,
+            self.emit_filename(source_buffer),    # filename
+            self.emit_file(source_buffer),        # context descriptor
+            func.name,                            # name
+            display_name,                         # display name
+            llfunc.name,                          # linkage name
+            func.loc.line(),                      # line number where defined
+            self.emit_subroutine_type(func.type), # type descriptor
+            func.is_internal,                     # local to compile unit?
+            True,                                 # global is defined in the compile unit?
+            0,                                    # virtuality
+            0,                                    # index into a virtual function
+            None,                                 # base type with vtable pointer
+            0,                                    # flags
+            False,                                # optimized?
+            llfunc,                               # LLVM function
+            None,                                 # template parameters
+            None,                                 # function declaration descriptor
+            [],                                   # function variables
+            func.loc.line(),                      # line number where scope begins
+        ])
+        self.subprograms.append(subprogram)
+        return subprogram
+
+    @memoize
+    def emit_loc(self, loc, scope, inlined_scope=None):
+        return self.emit([
+            loc.line(),                           # line
+            loc.column(),                         # column
+            scope,                                # scope
+            inlined_scope,                        # inlined scope
+        ])
+
+    def finalize(self, source_buffer):
+        llident = self.llmodule.add_named_metadata('llvm.ident')
+        llident.add(self.emit(["ARTIQ"]))
+
+        llflags = self.llmodule.add_named_metadata('llvm.module.flags')
+        llflags.add(self.emit([2, "Debug Info Version", 1]))
+
+        llcompile_units = self.llmodule.add_named_metadata('llvm.dbg.cu')
+        llcompile_units.add(self.emit_compile_unit(source_buffer, tuple(self.subprograms)))
 
 
 class LLVMIRGenerator:
@@ -27,8 +168,8 @@ class LLVMIRGenerator:
         self.llmodule.data_layout = target.data_layout
         self.llfunction = None
         self.llmap = {}
-        self.llblock_map = {}
-        self.fixups = []
+        self.phis = []
+        self.debug_info_emitter = DebugInfoEmitter(self.llmodule)
 
     def llty_of_type(self, typ, bare=False, for_return=False):
         typ = typ.find()
@@ -200,6 +341,9 @@ class LLVMIRGenerator:
         for func in functions:
             self.process_function(func)
 
+        if any(functions):
+            self.debug_info_emitter.finalize(functions[0].loc.source_buffer)
+
         return self.llmodule
 
     def process_function(self, func):
@@ -219,9 +363,10 @@ class LLVMIRGenerator:
 
             self.llfunction.attributes.add('uwtable')
 
-            self.llmap = {}
             self.llbuilder = ll.IRBuilder()
-            self.fixups = []
+            llblock_map = {}
+
+            disubprogram = self.debug_info_emitter.emit_subprogram(func, self.llfunction)
 
             # First, map arguments.
             for arg, llarg in zip(func.arguments, self.llfunction.args):
@@ -240,27 +385,29 @@ class LLVMIRGenerator:
                     assert llinsn is not None
                     self.llmap[insn] = llinsn
 
+                    if insn.loc is not None:
+                        diloc = self.debug_info_emitter.emit_loc(insn.loc, disubprogram)
+                        llinsn.set_metadata('dbg', diloc)
+
                 # There is no 1:1 correspondence between ARTIQ and LLVM
                 # basic blocks, because sometimes we expand a single ARTIQ
                 # instruction so that the result spans several LLVM basic
                 # blocks. This only really matters for phis, which will
                 # use a different map.
-                self.llblock_map[block] = self.llbuilder.basic_block
+                llblock_map[block] = self.llbuilder.basic_block
 
-            # Fourth, fixup phis.
-            for fixup in self.fixups:
-                fixup()
+            # Fourth, add incoming values to phis.
+            for phi, llphi in self.phis:
+                for value, block in phi.incoming():
+                    llphi.add_incoming(self.map(value), llblock_map[block])
         finally:
             self.llfunction = None
-            self.llmap = None
-            self.fixups = []
+            self.llmap = {}
+            self.llphis = []
 
     def process_Phi(self, insn):
         llinsn = self.llbuilder.phi(self.llty_of_type(insn.type), name=insn.name)
-        def fixup():
-            for value, block in insn.incoming():
-                llinsn.add_incoming(self.map(value), self.llblock_map[block])
-        self.fixups.append(fixup)
+        self.phis.append((insn, llinsn))
         return llinsn
 
     def llindex(self, index):
@@ -793,8 +940,7 @@ class LLVMIRGenerator:
 
     def process_LandingPad(self, insn):
         # Layout on return from landing pad: {%_Unwind_Exception*, %Exception*}
-        lllandingpadty = ll.LiteralStructType([llptr,
-                                               llptr])
+        lllandingpadty = ll.LiteralStructType([llptr, llptr])
         lllandingpad = self.llbuilder.landingpad(lllandingpadty,
                                                  self.llbuiltin("__artiq_personality"),
                                                  cleanup=True)
