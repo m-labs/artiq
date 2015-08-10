@@ -232,7 +232,7 @@ class Stitcher:
             quote_function=self._quote_function)
         return asttyped_rewriter.visit(function_node)
 
-    def _function_def_note(self, function):
+    def _function_loc(self, function):
         filename = function.__code__.co_filename
         line     = function.__code__.co_firstlineno
         name     = function.__code__.co_name
@@ -240,14 +240,36 @@ class Stitcher:
         source_line = linecache.getline(filename, line)
         column = re.search("def", source_line).start(0)
         source_buffer = source.Buffer(source_line, filename, line)
-        loc = source.Range(source_buffer, column, column)
+        return source.Range(source_buffer, column, column)
+
+    def _function_def_note(self, function):
         return diagnostic.Diagnostic("note",
             "definition of function '{function}'",
-            {"function": name},
-            loc)
+            {"function": function.__name__},
+            self._function_loc(function))
+
+    def _extract_annot(self, function, annot, kind, call_loc):
+        if not isinstance(annot, types.Type):
+            note = diagnostic.Diagnostic("note",
+                "in function called remotely here", {},
+                call_loc)
+            diag = diagnostic.Diagnostic("error",
+                "type annotation for {kind}, '{annot}', is not an ARTIQ type",
+                {"kind": kind, "annot": repr(annot)},
+                self._function_loc(function),
+                notes=[note])
+            self.engine.process(diag)
+
+            return types.TVar()
+        else:
+            return annot
 
     def _type_of_param(self, function, loc, param):
-        if param.default is not inspect.Parameter.empty:
+        if param.annotation is not inspect.Parameter.empty:
+            # Type specified explicitly.
+            return self._extract_annot(function, param.annotation,
+                                       "argument {}".format(param.name), loc)
+        elif param.default is not inspect.Parameter.empty:
             # Try and infer the type from the default value.
             # This is tricky, because the default value might not have
             # a well-defined type in APython.
@@ -300,8 +322,14 @@ class Stitcher:
             else:
                 optarg_types[param.name] = self._type_of_param(function, loc, param)
 
-        # Fixed for now.
-        ret_type = builtins.TInt(types.TValue(32))
+        if signature.return_annotation is not inspect.Signature.empty:
+            ret_type = self._extract_annot(function, signature.return_annotation,
+                                           "return type", loc)
+        else:
+            diag = diagnostic.Diagnostic("fatal",
+                "function must have a return type specified to be called remotely", {},
+                self._function_loc(function))
+            self.engine.process(diag)
 
         rpc_type = types.TRPCFunction(arg_types, optarg_types, ret_type,
                                       service=self._map(function))
