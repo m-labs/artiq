@@ -7,6 +7,16 @@ from pythonparser import ast, diagnostic
 from llvmlite_artiq import ir as ll
 from .. import types, builtins, ir
 
+
+llvoid     = ll.VoidType()
+lli1       = ll.IntType(1)
+lli8       = ll.IntType(8)
+lli32      = ll.IntType(32)
+lldouble   = ll.DoubleType()
+llptr      = ll.IntType(8).as_pointer()
+llemptyptr = ll.LiteralStructType( []).as_pointer()
+
+
 class LLVMIRGenerator:
     def __init__(self, engine, module_name, target):
         self.engine = engine
@@ -26,11 +36,11 @@ class LLVMIRGenerator:
             return ll.LiteralStructType([self.llty_of_type(eltty) for eltty in typ.elts])
         elif types.is_rpc_function(typ):
             if for_return:
-                return ll.VoidType()
+                return llvoid
             else:
                 return ll.LiteralStructType([])
         elif types.is_function(typ):
-            envarg = ll.IntType(8).as_pointer()
+            envarg = llptr
             llty = ll.FunctionType(args=[envarg] +
                                         [self.llty_of_type(typ.args[arg])
                                          for arg in typ.args] +
@@ -43,27 +53,27 @@ class LLVMIRGenerator:
                 return ll.LiteralStructType([envarg, llty.as_pointer()])
         elif builtins.is_none(typ):
             if for_return:
-                return ll.VoidType()
+                return llvoid
             else:
                 return ll.LiteralStructType([])
         elif builtins.is_bool(typ):
-            return ll.IntType(1)
+            return lli1
         elif builtins.is_int(typ):
             return ll.IntType(builtins.get_int_width(typ))
         elif builtins.is_float(typ):
-            return ll.DoubleType()
+            return lldouble
         elif builtins.is_str(typ) or ir.is_exn_typeinfo(typ):
-            return ll.IntType(8).as_pointer()
+            return llptr
         elif builtins.is_list(typ):
             lleltty = self.llty_of_type(builtins.get_iterable_elt(typ))
-            return ll.LiteralStructType([ll.IntType(32), lleltty.as_pointer()])
+            return ll.LiteralStructType([lli32, lleltty.as_pointer()])
         elif builtins.is_range(typ):
             lleltty = self.llty_of_type(builtins.get_iterable_elt(typ))
             return ll.LiteralStructType([lleltty, lleltty, lleltty])
         elif ir.is_basic_block(typ):
-            return ll.IntType(8).as_pointer()
+            return llptr
         elif ir.is_option(typ):
-            return ll.LiteralStructType([ll.IntType(1), self.llty_of_type(typ.params["inner"])])
+            return ll.LiteralStructType([lli1, self.llty_of_type(typ.params["inner"])])
         elif ir.is_environment(typ):
             llty = ll.LiteralStructType([self.llty_of_type(typ.params[name])
                                          for name in typ.params])
@@ -117,14 +127,14 @@ class LLVMIRGenerator:
 
             llconst = self.llmodule.get_global(name)
             if llconst is None:
-                llstrty = ll.ArrayType(ll.IntType(8), len(as_bytes))
+                llstrty = ll.ArrayType(lli8, len(as_bytes))
                 llconst = ll.GlobalVariable(self.llmodule, llstrty, name)
                 llconst.global_constant = True
                 llconst.initializer = ll.Constant(llstrty, bytearray(as_bytes))
                 llconst.linkage = linkage
                 llconst.unnamed_addr = unnamed_addr
 
-            return llconst.bitcast(ll.IntType(8).as_pointer())
+            return llconst.bitcast(llptr)
         else:
             assert False
 
@@ -134,36 +144,36 @@ class LLVMIRGenerator:
             return llfun
 
         if name in "llvm.donothing":
-            llty = ll.FunctionType(ll.VoidType(), [])
+            llty = ll.FunctionType(llvoid, [])
         elif name in "llvm.trap":
-            llty = ll.FunctionType(ll.VoidType(), [])
+            llty = ll.FunctionType(llvoid, [])
         elif name == "llvm.floor.f64":
-            llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType()])
+            llty = ll.FunctionType(lldouble, [lldouble])
         elif name == "llvm.round.f64":
-            llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType()])
+            llty = ll.FunctionType(lldouble, [lldouble])
         elif name == "llvm.pow.f64":
-            llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType(), ll.DoubleType()])
+            llty = ll.FunctionType(lldouble, [lldouble, lldouble])
         elif name == "llvm.powi.f64":
-            llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType(), ll.IntType(32)])
+            llty = ll.FunctionType(lldouble, [lldouble, lli32])
         elif name == "llvm.copysign.f64":
-            llty = ll.FunctionType(ll.DoubleType(), [ll.DoubleType(), ll.DoubleType()])
+            llty = ll.FunctionType(lldouble, [lldouble, lldouble])
         elif name == "llvm.stacksave":
-            llty = ll.FunctionType(ll.IntType(8).as_pointer(), [])
+            llty = ll.FunctionType(llptr, [])
         elif name == "llvm.stackrestore":
-            llty = ll.FunctionType(ll.VoidType(), [ll.IntType(8).as_pointer()])
+            llty = ll.FunctionType(llvoid, [llptr])
         elif name == self.target.print_function:
-            llty = ll.FunctionType(ll.VoidType(), [ll.IntType(8).as_pointer()], var_arg=True)
+            llty = ll.FunctionType(llvoid, [llptr], var_arg=True)
         elif name == "__artiq_personality":
-            llty = ll.FunctionType(ll.IntType(32), [], var_arg=True)
+            llty = ll.FunctionType(lli32, [], var_arg=True)
         elif name == "__artiq_raise":
-            llty = ll.FunctionType(ll.VoidType(), [self.llty_of_type(builtins.TException())])
+            llty = ll.FunctionType(llvoid, [self.llty_of_type(builtins.TException())])
         elif name == "__artiq_reraise":
-            llty = ll.FunctionType(ll.VoidType(), [])
+            llty = ll.FunctionType(llvoid, [])
         elif name == "send_rpc":
-            llty = ll.FunctionType(ll.VoidType(), [ll.IntType(32), ll.IntType(8).as_pointer()],
+            llty = ll.FunctionType(llvoid, [lli32, llptr],
                                    var_arg=True)
         elif name == "recv_rpc":
-            llty = ll.FunctionType(ll.IntType(32), [ll.IntType(8).as_pointer()])
+            llty = ll.FunctionType(lli32, [llptr])
         else:
             assert False
 
@@ -254,7 +264,7 @@ class LLVMIRGenerator:
         return llinsn
 
     def llindex(self, index):
-        return ll.Constant(ll.IntType(32), index)
+        return ll.Constant(lli32, index)
 
     def process_Alloc(self, insn):
         if ir.is_environment(insn.type):
@@ -263,11 +273,11 @@ class LLVMIRGenerator:
         elif ir.is_option(insn.type):
             if len(insn.operands) == 0: # empty
                 llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
-                return self.llbuilder.insert_value(llvalue, ll.Constant(ll.IntType(1), False), 0,
+                return self.llbuilder.insert_value(llvalue, ll.Constant(lli1, False), 0,
                                                    name=insn.name)
             elif len(insn.operands) == 1: # full
                 llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
-                llvalue = self.llbuilder.insert_value(llvalue, ll.Constant(ll.IntType(1), True), 0)
+                llvalue = self.llbuilder.insert_value(llvalue, ll.Constant(lli1, True), 0)
                 return self.llbuilder.insert_value(llvalue, self.map(insn.operands[0]), 1,
                                                    name=insn.name)
             else:
@@ -439,8 +449,8 @@ class LLVMIRGenerator:
                                            [self.map(insn.lhs()), self.map(insn.rhs())],
                                            name=insn.name)
             else:
-                lllhs = self.llbuilder.sitofp(self.map(insn.lhs()), ll.DoubleType())
-                llrhs = self.llbuilder.trunc(self.map(insn.rhs()), ll.IntType(32))
+                lllhs = self.llbuilder.sitofp(self.map(insn.lhs()), lldouble)
+                llrhs = self.llbuilder.trunc(self.map(insn.rhs()), lli32)
                 llvalue = self.llbuilder.call(self.llbuiltin("llvm.powi.f64"), [lllhs, llrhs])
                 return self.llbuilder.fptosi(llvalue, self.llty_of_type(insn.type),
                                              name=insn.name)
@@ -497,19 +507,19 @@ class LLVMIRGenerator:
         elif isinstance(lllhs.type, ll.PointerType):
             return self.llbuilder.icmp_unsigned(op, lllhs, llrhs,
                                                 name=insn.name)
-        elif isinstance(lllhs.type, (ll.FloatType, ll.DoubleType)):
+        elif isinstance(lllhs.type, ll.DoubleType):
             return self.llbuilder.fcmp_ordered(op, lllhs, llrhs,
                                                name=insn.name)
         elif isinstance(lllhs.type, ll.LiteralStructType):
             # Compare aggregates (such as lists or ranges) element-by-element.
-            llvalue = ll.Constant(ll.IntType(1), True)
+            llvalue = ll.Constant(lli1, True)
             for index in range(len(lllhs.type.elements)):
                 lllhselt = self.llbuilder.extract_value(lllhs, index)
                 llrhselt = self.llbuilder.extract_value(llrhs, index)
                 llresult = self.llbuilder.icmp_unsigned('==', lllhselt, llrhselt)
                 llvalue  = self.llbuilder.select(llresult, llvalue,
-                                                 ll.Constant(ll.IntType(1), False))
-            return self.llbuilder.icmp_unsigned(op, llvalue, ll.Constant(ll.IntType(1), True),
+                                                 ll.Constant(lli1, False))
+            return self.llbuilder.icmp_unsigned(op, llvalue, ll.Constant(lli1, True),
                                                 name=insn.name)
         else:
             print(lllhs, llrhs)
@@ -567,7 +577,7 @@ class LLVMIRGenerator:
 
     def process_Closure(self, insn):
         llvalue = ll.Constant(self.llty_of_type(insn.target_function.type), ll.Undefined)
-        llenv = self.llbuilder.bitcast(self.map(insn.environment()), ll.IntType(8).as_pointer())
+        llenv = self.llbuilder.bitcast(self.map(insn.environment()), llptr)
         llvalue = self.llbuilder.insert_value(llvalue, llenv, 0)
         llvalue = self.llbuilder.insert_value(llvalue, self.map(insn.target_function), 1,
                                               name=insn.name)
@@ -611,7 +621,7 @@ class LLVMIRGenerator:
             error_handler(typ)
 
     def _build_rpc(self, fun_loc, fun_type, args, llnormalblock, llunwindblock):
-        llservice = ll.Constant(ll.IntType(32), fun_type.service)
+        llservice = ll.Constant(lli32, fun_type.service)
 
         tag = b""
 
@@ -676,7 +686,7 @@ class LLVMIRGenerator:
 
         llretty = self.llty_of_type(fun_type.ret)
         llslot = self.llbuilder.alloca(llretty)
-        llslotgen = self.llbuilder.bitcast(llslot, ll.IntType(8).as_pointer())
+        llslotgen = self.llbuilder.bitcast(llslot, llptr)
         self.llbuilder.branch(llhead)
 
         self.llbuilder.position_at_end(llhead)
@@ -692,7 +702,7 @@ class LLVMIRGenerator:
         self.llbuilder.cbranch(lldone, lltail, llalloc)
 
         self.llbuilder.position_at_end(llalloc)
-        llalloca = self.llbuilder.alloca(ll.IntType(8), llsize)
+        llalloca = self.llbuilder.alloca(lli8, llsize)
         llphi.add_incoming(llalloca, llalloc)
         self.llbuilder.branch(llhead)
 
@@ -783,8 +793,8 @@ class LLVMIRGenerator:
 
     def process_LandingPad(self, insn):
         # Layout on return from landing pad: {%_Unwind_Exception*, %Exception*}
-        lllandingpadty = ll.LiteralStructType([ll.IntType(8).as_pointer(),
-                                               ll.IntType(8).as_pointer()])
+        lllandingpadty = ll.LiteralStructType([llptr,
+                                               llptr])
         lllandingpad = self.llbuilder.landingpad(lllandingpadty,
                                                  self.llbuiltin("__artiq_personality"),
                                                  cleanup=True)
