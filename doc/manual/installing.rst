@@ -286,7 +286,7 @@ This should be done after either installation methods (conda or source).
 
         You should see something like this in the serial console: ::
 
-            ~/dev/misoc$ ./tools/flterm --port /dev/ttyUSB1
+            $ ./tools/flterm --port /dev/ttyUSB1
             [FLTERM] Starting...
 
             MiSoC BIOS   http://m-labs.hk

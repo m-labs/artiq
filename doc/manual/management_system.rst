@@ -42,9 +42,9 @@ The master may use a Git repository for the storage of experiment source code. U
 
 Even though the master also supports non-bare repositories, it is recommended to use a bare repository so that it can easily support push transactions from clients. Create it with e.g.: ::
 
-   mkdir experiments
-   cd experiments
-   git init --bare
+   $ mkdir experiments
+   $ cd experiments
+   $ git init --bare
 
 You want Git to notify the master every time the repository is pushed to (updated), so that it is rescanned for experiments and e.g. the GUI controls and the experiment list are updated.
 
@@ -55,11 +55,11 @@ Create a file named ``post-receive`` in the ``hooks`` folder (this folder has be
 
 Then set the execution permission on it: ::
 
-   chmod 755 hooks/post-receive
+   $ chmod 755 hooks/post-receive
 
 You may now run the master with the Git support enabled: ::
 
-   artiq_master -g -r /path_to/experiments
+   $ artiq_master -g -r /path_to/experiments
 
 Push commits containing experiments to the bare repository using e.g. Git over SSH, and the new experiments should automatically appear in the GUI.
 
