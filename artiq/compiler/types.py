@@ -6,6 +6,12 @@ in :mod:`asttyped`.
 import string
 from collections import OrderedDict
 
+
+class UnificationError(Exception):
+    def __init__(self, typea, typeb):
+        self.typea, self.typeb = typea, typeb
+
+
 def genalnum():
     ident = ["a"]
     while True:
@@ -22,9 +28,8 @@ def genalnum():
         if pos < 0:
             ident = ["a"] + ident
 
-class UnificationError(Exception):
-    def __init__(self, typea, typeb):
-        self.typea, self.typeb = typea, typeb
+def _freeze(dict_):
+    return tuple((key, dict_[key]) for key in dict_)
 
 def _map_find(elts):
     if isinstance(elts, list):
@@ -33,6 +38,7 @@ def _map_find(elts):
         return {k: elts[k].find() for k in elts}
     else:
         assert False
+
 
 class Type(object):
     pass
@@ -93,6 +99,7 @@ class TMono(Type):
     attributes = OrderedDict()
 
     def __init__(self, name, params={}):
+        assert isinstance(params, dict)
         self.name, self.params = name, params
 
     def find(self):
@@ -126,6 +133,9 @@ class TMono(Type):
 
     def __ne__(self, other):
         return not (self == other)
+
+    def __hash__(self):
+        return hash((self.name, _freeze(self.params)))
 
 class TTuple(Type):
     """
@@ -181,6 +191,9 @@ class TFunction(Type):
     attributes = OrderedDict()
 
     def __init__(self, args, optargs, ret):
+        assert isinstance(args, OrderedDict)
+        assert isinstance(optargs, OrderedDict)
+        assert isinstance(ret, Type)
         self.args, self.optargs, self.ret = args, optargs, ret
 
     def arity(self):
@@ -222,6 +235,9 @@ class TFunction(Type):
     def __ne__(self, other):
         return not (self == other)
 
+    def __hash__(self):
+        return hash((_freeze(self.args), _freeze(self.optargs), self.ret))
+
 class TRPCFunction(TFunction):
     """
     A function type of a remote function.
@@ -249,6 +265,7 @@ class TBuiltin(Type):
     """
 
     def __init__(self, name):
+        assert isinstance(name, str)
         self.name = name
         self.attributes = OrderedDict()
 
