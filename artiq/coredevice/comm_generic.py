@@ -457,7 +457,7 @@ class CommGeneric:
 
             self._write_flush()
 
-    def _serve_exception(self):
+    def _serve_exception(self, symbolizer):
         name      = self._read_string()
         message   = self._read_string()
         params    = [self._read_int64() for _ in range(3)]
@@ -468,19 +468,18 @@ class CommGeneric:
         function  = self._read_string()
 
         backtrace = [self._read_int32() for _ in range(self._read_int32())]
-        # we don't have debug information yet.
-        # print("exception backtrace:", [hex(x) for x in backtrace])
 
-        raise core_language.ARTIQException(name, message, params,
-                                           filename, line, column, function)
+        traceback = list(reversed(symbolizer(backtrace))) + \
+                    [(filename, line, column, function, None)]
+        raise core_language.ARTIQException(name, message, params, traceback)
 
-    def serve(self, rpc_map):
+    def serve(self, rpc_map, symbolizer):
         while True:
             self._read_header()
             if self._read_type == _D2HMsgType.RPC_REQUEST:
                 self._serve_rpc(rpc_map)
             elif self._read_type == _D2HMsgType.KERNEL_EXCEPTION:
-                self._serve_exception()
+                self._serve_exception(symbolizer)
             else:
                 self._read_expect(_D2HMsgType.KERNEL_FINISHED)
                 return

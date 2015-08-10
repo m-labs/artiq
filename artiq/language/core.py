@@ -279,8 +279,7 @@ class ARTIQException(Exception):
     """Base class for exceptions raised or passed through the core device."""
 
     # Try and create an instance of the specific class, if one exists.
-    def __new__(cls, name, message,
-                params, filename, line, column, function):
+    def __new__(cls, name, message, params, traceback):
         def find_subclass(cls):
             if cls.__name__ == name:
                 return cls
@@ -295,16 +294,13 @@ class ARTIQException(Exception):
             more_specific_cls = cls
 
         exn = Exception.__new__(more_specific_cls)
-        exn.__init__(name, message, params,
-                     filename, line, column, function)
+        exn.__init__(name, message, params, traceback)
         return exn
 
-    def __init__(self, name, message, params,
-                 filename, line, column, function):
+    def __init__(self, name, message, params, traceback):
         Exception.__init__(self, name, message, *params)
         self.name, self.message, self.params = name, message, params
-        self.filename, self.line, self.column = filename, line, column
-        self.function = function
+        self.traceback = list(traceback)
 
     def __str__(self):
         lines = []
@@ -315,11 +311,26 @@ class ARTIQException(Exception):
             lines.append("({}) {}".format(self.name, self.message.format(*self.params)))
 
         lines.append("Core Device Traceback (most recent call last):")
-        lines.append("  File \"{file}\", line {line}, column {column}, in {function}".
-                     format(file=self.filename, line=self.line, column=self.column + 1,
-                            function=self.function))
-        line = linecache.getline(self.filename, self.line)
-        lines.append("    {}".format(line.strip() if line else "<unknown>"))
-        lines.append("    {}^".format(" " * (self.column - re.search(r"^\s+", line).end())))
+        for (filename, line, column, function, address) in self.traceback:
+            source_line = linecache.getline(filename, line)
+            indentation = re.search(r"^\s*", source_line).end()
+
+            if address is None:
+                formatted_address = ""
+            else:
+                formatted_address = " (RA=0x{:x})".format(address)
+
+            if column == -1:
+                lines.append("  File \"{file}\", line {line}, in {function}{address}".
+                             format(file=filename, line=line, function=function,
+                                    address=formatted_address))
+                lines.append("    {}".format(source_line.strip() if source_line else "<unknown>"))
+            else:
+                lines.append("  File \"{file}\", line {line}, column {column},"
+                             " in {function}{address}".
+                             format(file=filename, line=line, column=column + 1,
+                                    function=function, address=formatted_address))
+                lines.append("    {}".format(source_line.strip() if source_line else "<unknown>"))
+                lines.append("    {}^".format(" " * (column - indentation)))
 
         return "\n".join(lines)

@@ -5,6 +5,43 @@ llvm.initialize()
 llvm.initialize_all_targets()
 llvm.initialize_all_asmprinters()
 
+class RunTool:
+    def __init__(self, pattern, **tempdata):
+        self.files = []
+        self.pattern = pattern
+        self.tempdata = tempdata
+
+    def maketemp(self, data):
+        f = tempfile.NamedTemporaryFile()
+        f.write(data)
+        f.flush()
+        self.files.append(f)
+        return f
+
+    def __enter__(self):
+        tempfiles = {}
+        tempnames = {}
+        for key in self.tempdata:
+            tempfiles[key] = self.maketemp(self.tempdata[key])
+            tempnames[key] = tempfiles[key].name
+
+        cmdline = []
+        for argument in self.pattern:
+            cmdline.append(argument.format(**tempnames))
+
+        process = subprocess.Popen(cmdline, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+        if process.returncode != 0:
+            raise Exception("{} invocation failed: {}".
+                            format(cmdline[0], stderr.decode('utf-8')))
+
+        tempfiles["__stdout__"] = stdout.decode('utf-8')
+        return tempfiles
+
+    def __exit__(self, exc_typ, exc_value, exc_trace):
+        for f in self.files:
+            f.close()
+
 class Target:
     """
     A description of the target environment where the binaries
@@ -25,34 +62,9 @@ class Target:
     features = []
     print_function = "printf"
 
+
     def __init__(self):
         self.llcontext = ll.Context()
-
-    def link(self, objects, init_fn):
-        """Link the relocatable objects into a shared library for this target."""
-        files = []
-
-        def make_tempfile(data=b""):
-            f = tempfile.NamedTemporaryFile()
-            files.append(f)
-            f.write(data)
-            f.flush()
-            return f
-
-        try:
-            output_file = make_tempfile()
-            cmdline = [self.triple + "-ld", "-shared", "--eh-frame-hdr", "-init", init_fn] + \
-                      [make_tempfile(obj).name for obj in objects] + \
-                      ["-o", output_file.name]
-            linker = subprocess.Popen(cmdline, stderr=subprocess.PIPE)
-            stdout, stderr = linker.communicate()
-            if linker.returncode != 0:
-                raise Exception("Linker invocation failed: " + stderr.decode('utf-8'))
-
-            return output_file.read()
-        finally:
-            for f in files:
-                f.close()
 
     def compile(self, module):
         """Compile the module to a relocatable object for this target."""
@@ -93,9 +105,49 @@ class Target:
 
         return llmachine.emit_object(llparsedmod)
 
+    def link(self, objects, init_fn):
+        """Link the relocatable objects into a shared library for this target."""
+        with RunTool([self.triple + "-ld", "-shared", "--eh-frame-hdr", "-init", init_fn] +
+                     ["{{obj{}}}".format(index) for index in range(len(objects))] +
+                     ["-o", "{output}"],
+                     output=b"",
+                     **{"obj{}".format(index): obj for index, obj in enumerate(objects)}) \
+                as results:
+            library = results["output"].read()
+
+            if os.getenv('ARTIQ_DUMP_ELF'):
+                shlib_temp = tempfile.NamedTemporaryFile(suffix=".so", delete=False)
+                shlib_temp.write(library)
+                shlib_temp.close()
+                print("====== SHARED LIBRARY DUMP ======", file=sys.stderr)
+                print("Shared library dumped as {}".format(shlib_temp.name), file=sys.stderr)
+
+            return library
+
     def compile_and_link(self, modules):
         return self.link([self.compile(module) for module in modules],
                          init_fn=modules[0].entry_point())
+
+    def strip(self, library):
+        with RunTool([self.triple + "-strip", "--strip-debug", "{library}", "-o", "{output}"],
+                     library=library, output=b"") \
+                as results:
+            return results["output"].read()
+
+    def symbolize(self, library, addresses):
+        # Addresses point one instruction past the jump; offset them back by 1.
+        offset_addresses = [hex(addr - 1) for addr in addresses]
+        with RunTool([self.triple + "-addr2line", "--functions", "--inlines",
+                      "--exe={library}"] + offset_addresses,
+                     library=library) \
+                as results:
+            lines = results["__stdout__"].rstrip().split("\n")
+            backtrace = []
+            for function_name, location, address in zip(lines[::2], lines[1::2], addresses):
+                filename, line = location.rsplit(":", 1)
+                # can't get column out of addr2line D:
+                backtrace.append((filename, int(line), -1, function_name, address))
+            return backtrace
 
 class NativeTarget(Target):
     def __init__(self):

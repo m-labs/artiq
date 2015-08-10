@@ -35,29 +35,26 @@ class Core:
             module = Module(stitcher)
             target = OR1KTarget()
 
-            return target.compile_and_link([module]), stitcher.rpc_map
+            library = target.compile_and_link([module])
+            stripped_library = target.strip(library)
+
+            return stitcher.rpc_map, stripped_library, \
+                   lambda addresses: target.symbolize(library, addresses)
         except diagnostic.Error as error:
             print("\n".join(error.diagnostic.render(colored=True)), file=sys.stderr)
             raise CompileError() from error
 
     def run(self, function, args, kwargs):
-        kernel_library, rpc_map = self.compile(function, args, kwargs)
+        rpc_map, kernel_library, symbolizer = self.compile(function, args, kwargs)
 
         if self.first_run:
             self.comm.check_ident()
             self.comm.switch_clock(self.external_clock)
             self.first_run = False
 
-        try:
-            self.comm.load(kernel_library)
-        except Exception as error:
-            shlib_temp = tempfile.NamedTemporaryFile(suffix=".so", delete=False)
-            shlib_temp.write(kernel_library)
-            shlib_temp.close()
-            raise RuntimeError("shared library dumped to {}".format(shlib_temp.name)) from error
-
+        self.comm.load(kernel_library)
         self.comm.run()
-        self.comm.serve(rpc_map)
+        self.comm.serve(rpc_map, symbolizer)
 
     @kernel
     def get_rtio_counter_mu(self):
