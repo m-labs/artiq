@@ -81,6 +81,11 @@ and the ARTIQ kernels.
 
         $ mkdir ~/artiq-dev
 
+* Clone ARTIQ repository: ::
+
+        $ cd ~/artiq-dev
+        $ git clone --recursive https://github.com/m-labs/artiq
+
 * Install OpenRISC binutils (or1k-linux-...): ::
 
         $ cd ~/artiq-dev
@@ -88,8 +93,11 @@ and the ARTIQ kernels.
         $ tar xvf binutils-2.25.1.tar.bz2
         $ rm binutils-2.25.1.tar.bz2
 
-        $ mkdir binutils-2.25.1/build
-        $ cd binutils-2.25.1/build
+        $ cd binutils-2.25.1
+        $ patch -p1 <~/artiq-dev/misc/binutils-2.25.1-or1k-R_PCREL-pcrel_offset.patch
+
+        $ mkdir build
+        $ cd build
         $ ../configure --target=or1k-linux --prefix=/usr/local
         $ make -j4
         $ sudo make install
