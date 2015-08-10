@@ -9,6 +9,24 @@ PHASE_MODE_ABSOLUTE = 1
 PHASE_MODE_TRACKING = 2
 
 
+@syscall
+def dds_init(time_mu: TInt64, channel: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+@syscall
+def dds_batch_enter(time_mu: TInt64) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+@syscall
+def dds_batch_exit() -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+@syscall
+def dds_set(time_mu: TInt64, channel: TInt32, ftw: TInt32,
+            pow: TInt32, phase_mode: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+
 class _BatchContextManager:
     def __init__(self, dds_bus):
         self.dds_bus = dds_bus
@@ -34,13 +52,13 @@ class DDSBus:
     def batch_enter(self):
         """Starts a DDS command batch. All DDS commands are buffered
         after this call, until ``batch_exit`` is called."""
-        syscall("dds_batch_enter", now_mu())
+        dds_batch_enter(now_mu())
 
     @kernel
     def batch_exit(self):
         """Ends a DDS command batch. All buffered DDS commands are issued
         on the bus, and FUD is pulsed at the time the batch started."""
-        syscall("dds_batch_exit")
+        dds_batch_exit()
 
 
 class _DDSGeneric:
@@ -91,7 +109,7 @@ class _DDSGeneric:
         """Resets and initializes the DDS channel.
 
         The runtime does this for all channels upon core device startup."""
-        syscall("dds_init", now_mu(), self.channel)
+        dds_init(now_mu(), self.channel)
 
     @kernel
     def set_phase_mode(self, phase_mode):
@@ -128,7 +146,7 @@ class _DDSGeneric:
         """
         if phase_mode == _PHASE_MODE_DEFAULT:
             phase_mode = self.phase_mode
-        syscall("dds_set", now_mu(), self.channel,
+        dds_set(now_mu(), self.channel,
            frequency, round(phase*2**self.pow_width), phase_mode)
 
     @kernel

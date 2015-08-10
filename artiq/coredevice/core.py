@@ -1,9 +1,9 @@
-import sys, tempfile
+import sys
 
 from pythonparser import diagnostic
 
 from artiq.language.core import *
-from artiq.language.units import ns
+from artiq.language.types import *
 
 from artiq.compiler import Stitcher, Module
 from artiq.compiler.targets import OR1KTarget
@@ -14,6 +14,11 @@ from artiq.coredevice import exceptions
 
 class CompileError(Exception):
     pass
+
+
+@syscall
+def rtio_get_counter() -> TInt64:
+    raise NotImplementedError("syscall not simulated")
 
 class Core:
     def __init__(self, dmgr, ref_period=8*ns, external_clock=False):
@@ -58,8 +63,8 @@ class Core:
 
     @kernel
     def get_rtio_counter_mu(self):
-        return syscall("rtio_get_counter")
+        return rtio_get_counter()
 
     @kernel
     def break_realtime(self):
-        at_mu(syscall("rtio_get_counter") + 125000)
+        at_mu(rtio_get_counter() + 125000)

@@ -258,6 +258,26 @@ class TRPCFunction(TFunction):
         else:
             raise UnificationError(self, other)
 
+class TCFunction(TFunction):
+    """
+    A function type of a runtime-provided C function.
+
+    :ivar name: (str) C function name
+    """
+
+    def __init__(self, args, ret, name):
+        super().__init__(args, OrderedDict(), ret)
+        self.name = name
+
+    def unify(self, other):
+        if isinstance(other, TCFunction) and \
+                self.name == other.name:
+            super().unify(other)
+        elif isinstance(other, TVar):
+            other.unify(self)
+        else:
+            raise UnificationError(self, other)
+
 class TBuiltin(Type):
     """
     An instance of builtin type. Every instance of a builtin
@@ -371,6 +391,9 @@ def is_function(typ):
 def is_rpc_function(typ):
     return isinstance(typ.find(), TRPCFunction)
 
+def is_c_function(typ):
+    return isinstance(typ.find(), TCFunction)
+
 def is_builtin(typ, name=None):
     typ = typ.find()
     if name is None:
@@ -423,7 +446,7 @@ class TypePrinter(object):
                 return "(%s,)" % self.name(typ.elts[0])
             else:
                 return "(%s)" % ", ".join(list(map(self.name, typ.elts)))
-        elif isinstance(typ, (TFunction, TRPCFunction)):
+        elif isinstance(typ, (TFunction, TRPCFunction, TCFunction)):
             args = []
             args += [ "%s:%s" % (arg, self.name(typ.args[arg]))    for arg in typ.args]
             args += ["?%s:%s" % (arg, self.name(typ.optargs[arg])) for arg in typ.optargs]
@@ -431,6 +454,8 @@ class TypePrinter(object):
 
             if isinstance(typ, TRPCFunction):
                 return "rpc({}) {}".format(typ.service, signature)
+            if isinstance(typ, TCFunction):
+                return "ffi({}) {}".format(repr(typ.name), signature)
             elif isinstance(typ, TFunction):
                 return signature
         elif isinstance(typ, TBuiltinFunction):

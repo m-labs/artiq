@@ -7,15 +7,19 @@ from collections import namedtuple
 from functools import wraps
 
 
-__all__ = ["int64", "round64", "kernel", "portable",
-           "set_time_manager", "set_syscall_manager", "set_watchdog_factory",
+
+__all__ = ["int64", "round64",
+           "kernel", "portable", "syscall",
+           "set_time_manager", "set_watchdog_factory",
            "ARTIQException"]
 
 # global namespace for kernels
-kernel_globals = ("sequential", "parallel",
+kernel_globals = (
+    "sequential", "parallel",
     "delay_mu", "now_mu", "at_mu", "delay",
     "seconds_to_mu", "mu_to_seconds",
-    "syscall", "watchdog")
+    "watchdog"
+)
 __all__.extend(kernel_globals)
 
 
@@ -78,11 +82,12 @@ def round64(x):
     return int64(round(x))
 
 
-_ARTIQEmbeddedInfo = namedtuple("_ARTIQEmbeddedInfo", "core_name function")
-
+_ARTIQEmbeddedInfo = namedtuple("_ARTIQEmbeddedInfo",
+                                "core_name function syscall")
 
 def kernel(arg):
-    """This decorator marks an object's method for execution on the core
+    """
+    This decorator marks an object's method for execution on the core
     device.
 
     When a decorated method is called from the Python interpreter, the ``core``
@@ -106,15 +111,15 @@ def kernel(arg):
             def run_on_core(self, *k_args, **k_kwargs):
                 return getattr(self, arg).run(function, ((self,) + k_args), k_kwargs)
             run_on_core.artiq_embedded = _ARTIQEmbeddedInfo(
-                core_name=arg, function=function)
+                core_name=arg, function=function, syscall=None)
             return run_on_core
         return inner_decorator
     else:
         return kernel("core")(arg)
 
-
 def portable(function):
-    """This decorator marks a function for execution on the same device as its
+    """
+    This decorator marks a function for execution on the same device as its
     caller.
 
     In other words, a decorated function called from the interpreter on the
@@ -122,8 +127,30 @@ def portable(function):
     core device). A decorated function called from a kernel will be executed
     on the core device (no RPC).
     """
-    function.artiq_embedded = _ARTIQEmbeddedInfo(core_name="", function=function)
+    function.artiq_embedded = \
+        _ARTIQEmbeddedInfo(core_name=None, function=function, syscall=None)
     return function
+
+def syscall(arg):
+    """
+    This decorator marks a function as a system call. When executed on a core
+    device, a C function with the provided name (or the same name as
+    the Python function, if not provided) will be called. When executed on
+    host, the Python function will be called as usual.
+
+    Every argument and the return value must be annotated with ARTIQ types.
+
+    Only drivers should normally define syscalls.
+    """
+    if isinstance(arg, str):
+        def inner_decorator(function):
+            function.artiq_embedded = \
+                _ARTIQEmbeddedInfo(core_name=None, function=None,
+                                   syscall=function.__name__)
+            return function
+        return inner_decorator
+    else:
+        return syscall(arg.__name__)(arg)
 
 
 class _DummyTimeManager:
@@ -150,22 +177,6 @@ def set_time_manager(time_manager):
     """
     global _time_manager
     _time_manager = time_manager
-
-
-class _DummySyscallManager:
-    def do(self, *args):
-        raise NotImplementedError(
-            "Attempted to interpret kernel without a syscall manager")
-
-_syscall_manager = _DummySyscallManager()
-
-
-def set_syscall_manager(syscall_manager):
-    """Set the system call manager used for simulating the core device's
-    runtime in the Python interpreter.
-    """
-    global _syscall_manager
-    _syscall_manager = syscall_manager
 
 
 class _Sequential:
@@ -238,17 +249,6 @@ def mu_to_seconds(mu, core=None):
     if core is None:
         raise ValueError("Core device must be specified for time conversion")
     return mu*core.ref_period
-
-
-def syscall(*args):
-    """Invokes a service of the runtime.
-
-    Kernels use this function to interface to the outside world: program RTIO
-    events, make RPCs, etc.
-
-    Only drivers should normally use ``syscall``.
-    """
-    return _syscall_manager.do(*args)
 
 
 class _DummyWatchdog:

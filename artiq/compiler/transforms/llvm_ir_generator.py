@@ -175,7 +175,7 @@ class LLVMIRGenerator:
         typ = typ.find()
         if types.is_tuple(typ):
             return ll.LiteralStructType([self.llty_of_type(eltty) for eltty in typ.elts])
-        elif types.is_rpc_function(typ):
+        elif types.is_rpc_function(typ) or types.is_c_function(typ):
             if for_return:
                 return llvoid
             else:
@@ -731,10 +731,19 @@ class LLVMIRGenerator:
         return llvalue
 
     def _prepare_closure_call(self, insn):
-        llclosure, llargs = self.map(insn.target_function()), map(self.map, insn.arguments())
-        llenv = self.llbuilder.extract_value(llclosure, 0)
-        llfun = self.llbuilder.extract_value(llclosure, 1)
+        llclosure = self.map(insn.target_function())
+        llargs    = [self.map(arg) for arg in insn.arguments()]
+        llenv     = self.llbuilder.extract_value(llclosure, 0)
+        llfun     = self.llbuilder.extract_value(llclosure, 1)
         return llfun, [llenv] + list(llargs)
+
+    def _prepare_ffi_call(self, insn):
+        llargs    = [self.map(arg) for arg in insn.arguments()]
+        llfunty   = ll.FunctionType(self.llty_of_type(insn.type, for_return=True),
+                                    [llarg.type for llarg in llargs])
+        llfun     = ll.Function(self.llmodule, llfunty,
+                                insn.target_function().type.name)
+        return llfun, list(llargs)
 
     # See session.c:{send,receive}_rpc_value and comm_generic.py:_{send,receive}_rpc_value.
     def _rpc_tag(self, typ, error_handler):
@@ -869,6 +878,10 @@ class LLVMIRGenerator:
                                    insn.target_function().type,
                                    insn.arguments(),
                                    llnormalblock=None, llunwindblock=None)
+        elif types.is_c_function(insn.target_function().type):
+            llfun, llargs = self._prepare_ffi_call(insn)
+            return self.llbuilder.call(llfun, llargs,
+                                       name=insn.name)
         else:
             llfun, llargs = self._prepare_closure_call(insn)
             return self.llbuilder.call(llfun, llargs,
@@ -882,6 +895,10 @@ class LLVMIRGenerator:
                                    insn.target_function().type,
                                    insn.arguments(),
                                    llnormalblock, llunwindblock)
+        elif types.is_c_function(insn.target_function().type):
+            llfun, llargs = self._prepare_ffi_call(insn)
+            return self.llbuilder.invoke(llfun, llargs, llnormalblock, llunwindblock,
+                                         name=insn.name)
         else:
             llfun, llargs = self._prepare_closure_call(insn)
             return self.llbuilder.invoke(llfun, llargs, llnormalblock, llunwindblock,

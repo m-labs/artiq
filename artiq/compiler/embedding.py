@@ -238,6 +238,10 @@ class Stitcher:
         name     = function.__code__.co_name
 
         source_line = linecache.getline(filename, line)
+        while source_line.lstrip().startswith("@"):
+            line += 1
+            source_line = linecache.getline(filename, line)
+
         column = re.search("def", source_line).start(0)
         source_buffer = source.Buffer(source_line, filename, line)
         return source.Range(source_buffer, column, column)
@@ -248,11 +252,16 @@ class Stitcher:
             {"function": function.__name__},
             self._function_loc(function))
 
-    def _extract_annot(self, function, annot, kind, call_loc):
+    def _extract_annot(self, function, annot, kind, call_loc, is_syscall):
         if not isinstance(annot, types.Type):
-            note = diagnostic.Diagnostic("note",
-                "in function called remotely here", {},
-                call_loc)
+            if is_syscall:
+                note = diagnostic.Diagnostic("note",
+                    "in system call here", {},
+                    call_loc)
+            else:
+                note = diagnostic.Diagnostic("note",
+                    "in function called remotely here", {},
+                    call_loc)
             diag = diagnostic.Diagnostic("error",
                 "type annotation for {kind}, '{annot}', is not an ARTIQ type",
                 {"kind": kind, "annot": repr(annot)},
@@ -264,11 +273,19 @@ class Stitcher:
         else:
             return annot
 
-    def _type_of_param(self, function, loc, param):
+    def _type_of_param(self, function, loc, param, is_syscall):
         if param.annotation is not inspect.Parameter.empty:
             # Type specified explicitly.
             return self._extract_annot(function, param.annotation,
-                                       "argument {}".format(param.name), loc)
+                                       "argument '{}'".format(param.name), loc,
+                                       is_syscall)
+        elif is_syscall:
+            # Syscalls must be entirely annotated.
+            diag = diagnostic.Diagnostic("error",
+                "system call argument '{argument}' must have a type annotation",
+                {"argument": param.name},
+                self._function_loc(function))
+            self.engine.process(diag)
         elif param.default is not inspect.Parameter.empty:
             # Try and infer the type from the default value.
             # This is tricky, because the default value might not have
@@ -281,8 +298,8 @@ class Stitcher:
             def proxy_diagnostic(diag):
                 note = diagnostic.Diagnostic("note",
                     "expanded from here while trying to infer a type for an"
-                    " unannotated optional argument '{param_name}' from its default value",
-                    {"param_name": param.name},
+                    " unannotated optional argument '{argument}' from its default value",
+                    {"argument": param.name},
                     loc)
                 diag.notes.append(note)
 
@@ -300,7 +317,7 @@ class Stitcher:
             # Let the rest of the program decide.
             return types.TVar()
 
-    def _quote_rpc_function(self, function, loc):
+    def _quote_foreign_function(self, function, loc, syscall):
         signature = inspect.signature(function)
 
         arg_types = OrderedDict()
@@ -318,44 +335,73 @@ class Stitcher:
                 continue
 
             if param.default is inspect.Parameter.empty:
-                arg_types[param.name] = self._type_of_param(function, loc, param)
+                arg_types[param.name] = self._type_of_param(function, loc, param,
+                                                            is_syscall=syscall is not None)
+            elif syscall is None:
+                optarg_types[param.name] = self._type_of_param(function, loc, param,
+                                                               is_syscall=syscall is not None)
             else:
-                optarg_types[param.name] = self._type_of_param(function, loc, param)
+                diag = diagnostic.Diagnostic("error",
+                    "system call argument '{argument}' must not have a default value",
+                    {"argument": param.name},
+                    self._function_loc(function))
+                self.engine.process(diag)
 
         if signature.return_annotation is not inspect.Signature.empty:
             ret_type = self._extract_annot(function, signature.return_annotation,
-                                           "return type", loc)
-        else:
-            diag = diagnostic.Diagnostic("fatal",
-                "function must have a return type specified to be called remotely", {},
+                                           "return type", loc, is_syscall=syscall is not None)
+        elif syscall is None:
+            diag = diagnostic.Diagnostic("error",
+                "function must have a return type annotation to be called remotely", {},
                 self._function_loc(function))
             self.engine.process(diag)
+            ret_type = types.TVar()
+        else: # syscall is not None
+            diag = diagnostic.Diagnostic("error",
+                "system call must have a return type annotation", {},
+                self._function_loc(function))
+            self.engine.process(diag)
+            ret_type = types.TVar()
 
-        rpc_type = types.TRPCFunction(arg_types, optarg_types, ret_type,
-                                      service=self._map(function))
+        if syscall is None:
+            function_type = types.TRPCFunction(arg_types, optarg_types, ret_type,
+                                               service=self._map(function))
+            function_name = "__rpc_{}__".format(function_type.service)
+        else:
+            function_type = types.TCFunction(arg_types, ret_type,
+                                             name=syscall)
+            function_name = "__ffi_{}__".format(function_type.name)
 
-        rpc_name = "__rpc_{}__".format(rpc_type.service)
-        self.globals[rpc_name] = rpc_type
-        self.functions[function] = rpc_name
+        self.globals[function_name] = function_type
+        self.functions[function] = function_name
 
-        return rpc_name
+        return function_name
 
     def _quote_function(self, function, loc):
         if function in self.functions:
             return self.functions[function]
 
         if hasattr(function, "artiq_embedded"):
-            # Insert the typed AST for the new function and restart inference.
-            # It doesn't really matter where we insert as long as it is before
-            # the final call.
-            function_node = self._quote_embedded_function(function)
-            self.typedtree.insert(0, function_node)
-            self.inference_finished = False
-            return function_node.name
+            if function.artiq_embedded.function is not None:
+                # Insert the typed AST for the new function and restart inference.
+                # It doesn't really matter where we insert as long as it is before
+                # the final call.
+                function_node = self._quote_embedded_function(function)
+                self.typedtree.insert(0, function_node)
+                self.inference_finished = False
+                return function_node.name
+            elif function.artiq_embedded.syscall is not None:
+                # Insert a storage-less global whose type instructs the compiler
+                # to perform a system call instead of a regular call.
+                return self._quote_foreign_function(function, loc,
+                                                    syscall=function.artiq_embedded.syscall)
+            else:
+                assert False
         else:
             # Insert a storage-less global whose type instructs the compiler
             # to perform an RPC instead of a regular call.
-            return self._quote_rpc_function(function, loc)
+            return self._quote_foreign_function(function, loc,
+                                                syscall=None)
 
     def stitch_call(self, function, args, kwargs):
         function_node = self._quote_embedded_function(function)
