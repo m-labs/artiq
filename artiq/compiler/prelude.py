@@ -20,5 +20,4 @@ def globals():
         "round":                builtins.fn_round(),
         "print":                builtins.fn_print(),
         "kernel":               builtins.fn_kernel(),
-        "syscall":              builtins.fn_syscall(),
     }

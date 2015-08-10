@@ -666,10 +666,6 @@ class Inferencer(algorithm.Visitor):
                 pass
             else:
                 diagnose(valid_forms())
-        # TODO: add when it is clear what interface syscall() has
-        # elif types.is_builtin(typ, "syscall"):
-        #     valid_Forms = lambda: [
-        #     ]
 
     def visit_CallT(self, node):
         self.generic_visit(node)
