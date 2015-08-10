@@ -36,6 +36,7 @@ class Core:
 
             stitcher = Stitcher(engine=engine)
             stitcher.stitch_call(function, args, kwargs)
+            stitcher.finalize()
 
             module = Module(stitcher)
             target = OR1KTarget()
