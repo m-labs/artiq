@@ -129,7 +129,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         try:
             typ = types.TFunction(OrderedDict(), OrderedDict(), builtins.TNone())
-            func = ir.Function(typ, ".".join(self.name + ['__modinit__']), [])
+            func = ir.Function(typ, ".".join(self.name + ['__modinit__']), [],
+                               loc=node.loc.begin())
             self.functions.append(func)
             old_func, self.current_function = self.current_function, func
 
@@ -184,7 +185,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             for arg_name in typ.optargs:
                 optargs.append(ir.Argument(ir.TOption(typ.optargs[arg_name]), "arg." + arg_name))
 
-            func = ir.Function(typ, ".".join(self.name), [env_arg] + args + optargs)
+            func = ir.Function(typ, ".".join(self.name), [env_arg] + args + optargs,
+                               loc=node.keyword_loc)
             func.is_internal = is_internal
             self.functions.append(func)
             old_func, self.current_function = self.current_function, func

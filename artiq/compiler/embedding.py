@@ -184,9 +184,10 @@ class Stitcher:
             inferencer.visit(self.typedtree)
 
         # After we have found all functions, synthesize a module to hold them.
+        source_buffer = source.Buffer("", "<synthesized>")
         self.typedtree = asttyped.ModuleT(
             typing_env=self.globals, globals_in_scope=set(),
-            body=self.typedtree, loc=None)
+            body=self.typedtree, loc=source.Range(source_buffer, 0, 0))
 
     def _quote_embedded_function(self, function):
         if not hasattr(function, "artiq_embedded"):

@@ -138,6 +138,9 @@ class User(NamedValue):
 class Instruction(User):
     """
     An SSA instruction.
+
+    :ivar loc: (:class:`pythonparser.source.Range` or None)
+        source location
     """
 
     def __init__(self, operands, typ, name=""):
@@ -388,13 +391,15 @@ class Function:
     """
     A function containing SSA IR.
 
+    :ivar loc: (:class:`pythonparser.source.Range` or None)
+        source location of function definition
     :ivar is_internal:
         (bool) if True, the function should not be accessible from outside
         the module it is contained in
     """
 
-    def __init__(self, typ, name, arguments):
-        self.type, self.name = typ, name
+    def __init__(self, typ, name, arguments, loc=None):
+        self.type, self.name, self.loc = typ, name, loc
         self.names, self.arguments, self.basic_blocks = set(), [], []
         self.next_name = 1
         self.set_arguments(arguments)
