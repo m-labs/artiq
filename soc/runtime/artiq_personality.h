@@ -40,7 +40,8 @@ void __artiq_reraise(void)
             .param = { exnparam0, exnparam1, exnparam2 }, \
             .file = __FILE__, \
             .line = __LINE__, \
-            .column = 0 \
+            .column = -1, \
+            .function = __func__, \
           }; \
           __artiq_raise(&exn); \
         } while(0)

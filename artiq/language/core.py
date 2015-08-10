@@ -6,6 +6,8 @@ import linecache, re
 from collections import namedtuple
 from functools import wraps
 
+# for runtime files in backtraces
+from artiq.coredevice.runtime import source_loader
 
 
 __all__ = ["int64", "round64",
@@ -312,7 +314,8 @@ class ARTIQException(Exception):
 
         lines.append("Core Device Traceback (most recent call last):")
         for (filename, line, column, function, address) in self.traceback:
-            source_line = linecache.getline(filename, line)
+            stub_globals = {"__name__": filename, "__loader__": source_loader}
+            source_line = linecache.getline(filename, line, stub_globals)
             indentation = re.search(r"^\s*", source_line).end()
 
             if address is None:
