@@ -5,6 +5,7 @@ import logging
 import sys
 import asyncio
 import time
+import collections
 import os.path
 
 from artiq.language.environment import is_experiment
@@ -125,14 +126,6 @@ def asyncio_wait_or_cancel(fs, **kwargs):
     return fs
 
 
-def asyncio_queue_peek(q):
-    """Like q.get_nowait(), but does not remove the item from the queue."""
-    if q._queue:
-        return q._queue[0]
-    else:
-        raise asyncio.QueueEmpty
-
-
 class TaskObject:
     def start(self):
         self.task = asyncio.async(self._do())
@@ -151,25 +144,25 @@ class TaskObject:
         raise NotImplementedError
 
 
-class WaitSet:
-    def __init__(self):
-        self._s = set()
-        self._ev = asyncio.Event()
-
-    def _update_ev(self):
-        if self._s:
-            self._ev.clear()
+class Condition:
+    def __init__(self, *, loop=None):
+        if loop is not None:
+            self._loop = loop
         else:
-            self._ev.set()
-
-    def add(self, e):
-        self._s.add(e)
-        self._update_ev()
-
-    def discard(self, e):
-        self._s.discard(e)
-        self._update_ev()
+            self._loop = asyncio.get_event_loop()
+        self._waiters = collections.deque()
 
     @asyncio.coroutine
-    def wait_empty(self):
-        yield from self._ev.wait()
+    def wait(self):
+        """Wait until notified."""
+        fut = asyncio.Future(loop=self._loop)
+        self._waiters.append(fut)
+        try:
+            yield from fut
+        finally:
+            self._waiters.remove(fut)
+
+    def notify(self):
+        for fut in self._waiters:
+            if not fut.done():
+                fut.set_result(False)

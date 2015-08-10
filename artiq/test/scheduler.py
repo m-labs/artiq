@@ -50,7 +50,7 @@ def _get_basic_steps(rid, expid, priority=0, flush=False):
             "path": [rid]},
         {"action": "setitem", "key": "status", "value": "analyzing",
             "path": [rid]},
-        {"action": "setitem", "key": "status", "value": "analyze_done",
+        {"action": "setitem", "key": "status", "value": "deleting",
             "path": [rid]},
         {"action": "delitem", "key": rid, "path": []}
     ]
