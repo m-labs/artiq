@@ -596,7 +596,7 @@ class Inferencer(algorithm.Visitor):
                     self._unify(arg.type, range_tvar,
                                 arg.loc, None)
 
-                    if builtins.is_numeric(arg.type):
+                    if builtins.is_int(arg.type):
                         pass
                     elif types.is_var(arg.type):
                         pass # undetermined yet
@@ -606,7 +606,7 @@ class Inferencer(algorithm.Visitor):
                             {"type": types.TypePrinter().name(arg.type)},
                             arg.loc)
                         diag = diagnostic.Diagnostic("error",
-                            "an argument of range() must be of a numeric type", {},
+                            "an argument of range() must be of an integer type", {},
                             node.func.loc, notes=[note])
                         self.engine.process(diag)
             else:
@@ -616,15 +616,16 @@ class Inferencer(algorithm.Visitor):
                 valid_form("len(x:'a) -> int(width='b) where 'a is iterable"),
             ]
 
-            # TODO: should be ssize_t-sized
-            self._unify(node.type, builtins.TInt(types.TValue(32)),
-                        node.loc, None)
-
             if len(node.args) == 1 and len(node.keywords) == 0:
                 arg, = node.args
 
-                if builtins.is_iterable(arg.type):
-                    pass
+                if builtins.is_range(arg.type):
+                    self._unify(node.type, builtins.get_iterable_elt(arg.type),
+                                node.loc, None)
+                elif builtins.is_list(arg.type):
+                    # TODO: should be ssize_t-sized
+                    self._unify(node.type, builtins.TInt(types.TValue(32)),
+                                node.loc, None)
                 elif types.is_var(arg.type):
                     pass # undetermined yet
                 else:
