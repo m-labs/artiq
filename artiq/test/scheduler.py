@@ -37,7 +37,8 @@ def _get_basic_steps(rid, expid, priority=0, flush=False):
     return [
         {"action": "setitem", "key": rid, "value": 
             {"pipeline": "main", "status": "pending", "priority": priority,
-             "expid": expid, "due_date": None, "flush": flush},
+             "expid": expid, "due_date": None, "flush": flush,
+             "repo_msg": None},
             "path": []},
         {"action": "setitem", "key": "status", "value": "preparing",
             "path": [rid]},
@@ -89,7 +90,8 @@ class SchedulerCase(unittest.TestCase):
         expect.insert(0,
             {"action": "setitem", "key": 0, "value":
                 {"pipeline": "main", "status": "pending", "priority": 99,
-                 "expid": expid, "due_date": late, "flush": False},
+                 "expid": expid, "due_date": late, "flush": False,
+                 "repo_msg": None},
              "path": []})
         scheduler.submit("main", expid, 99, late, False)
 
