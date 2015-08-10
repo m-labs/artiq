@@ -728,7 +728,7 @@ class Inferencer(algorithm.Visitor):
             elif keyword.arg in typ.optargs:
                 self._unify(keyword.value.type, typ.optargs[keyword.arg],
                             keyword.value.loc, None)
-            passed_args.add(keyword.arg)
+            passed_args[keyword.arg] = keyword.arg_loc
 
         for formalname in typ.args:
             if formalname not in passed_args:

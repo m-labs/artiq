@@ -13,7 +13,7 @@ f(*[])
 # CHECK-L: ${LINE:+1}: error: variadic arguments are not supported
 f(**[])
 
-# CHECK-L: ${LINE:+1}: error: the argument 'x' is already passed
+# CHECK-L: ${LINE:+1}: error: the argument 'x' has been passed earlier as positional
 f(1, x=1)
 
 # CHECK-L: ${LINE:+1}: error: mandatory argument 'x' is not passed

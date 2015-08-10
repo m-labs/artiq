@@ -403,7 +403,7 @@ class LLVMIRGenerator:
         finally:
             self.llfunction = None
             self.llmap = {}
-            self.llphis = []
+            self.phis = []
 
     def process_Phi(self, insn):
         llinsn = self.llbuilder.phi(self.llty_of_type(insn.type), name=insn.name)

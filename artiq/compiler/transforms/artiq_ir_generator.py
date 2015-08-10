@@ -186,7 +186,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 optargs.append(ir.Argument(ir.TOption(typ.optargs[arg_name]), "arg." + arg_name))
 
             func = ir.Function(typ, ".".join(self.name), [env_arg] + args + optargs,
-                               loc=node.keyword_loc)
+                               loc=node.lambda_loc if is_lambda else node.keyword_loc)
             func.is_internal = is_internal
             self.functions.append(func)
             old_func, self.current_function = self.current_function, func
