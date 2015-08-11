@@ -48,6 +48,7 @@ requirements:
         - quamash
         - pyqtgraph
         - flterm # [linux]
+        - pygit2
 
 test:
     imports:
