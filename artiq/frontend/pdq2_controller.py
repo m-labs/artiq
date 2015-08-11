@@ -39,7 +39,7 @@ def main():
     dev = Pdq2(url=args.device, dev=port)
     try:
         simple_server_loop({"pdq2": dev}, args.bind, args.port,
-                           id_parameters="device=" + str(args.device))
+                           description="device=" + str(args.device))
     finally:
         dev.close()
 
