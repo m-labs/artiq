@@ -10,7 +10,7 @@ from functools import wraps
 from artiq.coredevice.runtime import source_loader
 
 
-__all__ = ["int64", "round64",
+__all__ = ["host_int", "int",
            "kernel", "portable", "syscall",
            "set_time_manager", "set_watchdog_factory",
            "ARTIQException"]
@@ -24,64 +24,135 @@ kernel_globals = (
 )
 __all__.extend(kernel_globals)
 
+host_int = int
 
-class int64(int):
-    """64-bit integers for static compilation.
+class int:
+    """
+    Arbitrary-precision integers for static compilation.
 
-    When this class is used instead of Python's ``int``, the static compiler
-    stores the corresponding variable on 64 bits instead of 32.
+    The static compiler does not use unlimited-precision integers,
+    like Python normally does, because of their unbounded memory requirements.
+    Instead, it allows to choose a bit width (usually 32 or 64) at compile-time,
+    and all computations follow wrap-around semantics on overflow.
 
-    When used in the interpreter, it behaves as ``int`` and the results of
-    integer operations involving it are also ``int64`` (which matches the
-    size promotion rules of the static compiler). This way, it is possible to
-    specify 64-bit size annotations on constants that are passed to the
-    kernels.
+    This class implements the same semantics on the host.
 
-    Example:
+    For example:
 
-    >>> a = int64(1)
-    >>> b = int64(3) + 2
-    >>> isinstance(a, int64)
+    >>> a = int(1, width=64)
+    >>> b = int(3, width=64) + 2
+    >>> isinstance(a, int)
     True
-    >>> isinstance(b, int64)
+    >>> isinstance(b, int)
     True
     >>> a + b
-    6
+    int(6, width=64)
+    >>> int(10, width=32) + 0x7fffffff
+    int(9, width=32)
+    >>> int(0x80000000)
+    int(-2147483648, width=32)
     """
-    pass
 
-def _make_int64_op_method(int_method):
-    def method(self, *args):
-        r = int_method(self, *args)
-        if isinstance(r, int):
-            r = int64(r)
-        return r
-    return method
+    __slots__ = ['_value', '_width']
 
-for _op_name in ("neg", "pos", "abs", "invert", "round",
-                 "add", "radd", "sub", "rsub", "mul", "rmul", "pow", "rpow",
-                 "lshift", "rlshift", "rshift", "rrshift",
-                 "and", "rand", "xor", "rxor", "or", "ror",
-                 "floordiv", "rfloordiv", "mod", "rmod"):
-    _method_name = "__" + _op_name + "__"
-    _orig_method = getattr(int, _method_name)
-    setattr(int64, _method_name, _make_int64_op_method(_orig_method))
+    def __new__(cls, value, width=32):
+        if isinstance(value, int):
+            return value
+        else:
+            sign_bit = 2 ** (width - 1)
+            value = host_int(value)
+            if value & sign_bit:
+                value  = -1 & ~sign_bit + (value & (sign_bit - 1)) + 1
+            else:
+                value &= sign_bit - 1
 
-for _op_name in ("add", "sub", "mul", "floordiv", "mod",
-                 "pow", "lshift", "rshift", "lshift",
-                 "and", "xor", "or"):
-    _op_method = getattr(int, "__" + _op_name + "__")
-    setattr(int64, "__i" + _op_name + "__", _make_int64_op_method(_op_method))
+            self = super().__new__(cls)
+            self._value = value
+            self._width = width
+            return self
 
+    @property
+    def width(width):
+        return width._width
 
-def round64(x):
-    """Rounds to a 64-bit integer.
+    def __int__(self):
+        return self._value
 
-    This function is equivalent to ``int64(round(x))`` but, when targeting
-    static compilation, prevents overflow when the rounded value is too large
-    to fit in a 32-bit integer.
-    """
-    return int64(round(x))
+    def __float__(self):
+        return float(self._value)
+
+    def __str__(self):
+        return str(self._value)
+
+    def __repr__(self):
+        return "int({}, width={})".format(self._value, self._width)
+
+    def _unaryop(lower_fn):
+        def operator(self):
+            return int(lower_fn(self._value), self._width)
+        return operator
+
+    __neg__                       = _unaryop(host_int.__neg__)
+    __pos__                       = _unaryop(host_int.__pos__)
+    __abs__                       = _unaryop(host_int.__abs__)
+    __invert__                    = _unaryop(host_int.__invert__)
+    __round__                     = _unaryop(host_int.__round__)
+
+    def _binaryop(lower_fn, rlower_fn=None):
+        def operator(self, other):
+            if isinstance(other, host_int):
+                return int(lower_fn(self._value, other), self._width)
+            elif isinstance(other, int):
+                width = self._width if self._width > other._width else other._width
+                return int(lower_fn(self._value, other._value), width)
+            elif rlower_fn:
+                return getattr(other, rlower_fn)(self._value)
+            else:
+                return NotImplemented
+        return operator
+
+    __add__       = __iadd__      = _binaryop(host_int.__add__,       "__radd__")
+    __sub__       = __isub__      = _binaryop(host_int.__sub__,       "__rsub__")
+    __mul__       = __imul__      = _binaryop(host_int.__mul__,       "__rmul__")
+    __floordiv__  = __ifloordiv__ = _binaryop(host_int.__floordiv__,  "__rfloordiv__")
+    __mod__       = __imod__      = _binaryop(host_int.__mod__,       "__rmod__")
+    __pow__       = __ipow__      = _binaryop(host_int.__pow__,       "__rpow__")
+
+    __radd__                      = _binaryop(host_int.__radd__,      "__add__")
+    __rsub__                      = _binaryop(host_int.__rsub__,      "__sub__")
+    __rmul__                      = _binaryop(host_int.__rmul__,      "__mul__")
+    __rfloordiv__                 = _binaryop(host_int.__rfloordiv__, "__floordiv__")
+    __rmod__                      = _binaryop(host_int.__rmod__,      "__mod__")
+    __rpow__                      = _binaryop(host_int.__rpow__,      "__pow__")
+
+    __lshift__    = __ilshift__   = _binaryop(host_int.__lshift__)
+    __rshift__    = __irshift__   = _binaryop(host_int.__rshift__)
+    __and__       = __iand__      = _binaryop(host_int.__and__)
+    __or__        = __ior__       = _binaryop(host_int.__or__)
+    __xor__       = __ixor__      = _binaryop(host_int.__xor__)
+
+    __rlshift__                   = _binaryop(host_int.__rlshift__)
+    __rrshift__                   = _binaryop(host_int.__rrshift__)
+    __rand__                      = _binaryop(host_int.__rand__)
+    __ror__                       = _binaryop(host_int.__ror__)
+    __rxor__                      = _binaryop(host_int.__rxor__)
+
+    def _compareop(lower_fn, rlower_fn):
+        def operator(self, other):
+            if isinstance(other, host_int):
+                return lower_fn(self._value, other)
+            elif isinstance(other, int):
+                return lower_fn(self._value, other._value)
+            else:
+                return getattr(other, rlower_fn)(self._value)
+        return operator
+
+    __eq__                        = _compareop(host_int.__eq__,       "__ne__")
+    __ne__                        = _compareop(host_int.__ne__,       "__eq__")
+    __gt__                        = _compareop(host_int.__gt__,       "__le__")
+    __ge__                        = _compareop(host_int.__ge__,       "__lt__")
+    __lt__                        = _compareop(host_int.__lt__,       "__ge__")
+    __le__                        = _compareop(host_int.__le__,       "__gt__")
 
 
 _ARTIQEmbeddedInfo = namedtuple("_ARTIQEmbeddedInfo",
