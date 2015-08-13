@@ -87,10 +87,12 @@ class TTLInOut:
 
     @kernel
     def output(self):
+        """Set the direction to output."""
         self.set_oe(True)
 
     @kernel
     def input(self):
+        """Set the direction to input."""
         self.set_oe(False)
 
     @kernel
@@ -107,12 +109,16 @@ class TTLInOut:
 
     @kernel
     def on(self):
-        """Set the output to a logic high state."""
+        """Set the output to a logic high state.
+
+        The channel must be in output mode."""
         self.set_o(True)
 
     @kernel
     def off(self):
-        """Set the output to a logic low state."""
+        """Set the output to a logic low state.
+
+        The channel must be in output mode."""
         self.set_o(False)
 
     @kernel
