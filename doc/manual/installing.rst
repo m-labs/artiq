@@ -25,7 +25,7 @@ If it prints the help of the ``conda`` command, your install is OK.
 If not, then make sure your ``$PATH`` environment variable contains the path to anaconda3/bin (or miniconda3/bin)::
 
     $ echo $PATH
-    /home/fallen/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games
+    /home/..../miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games
 
 If your ``$PATH`` misses reference the miniconda3/bin or anaconda3/bin you can fix this by typing::
 
@@ -36,7 +36,7 @@ Installing the host side software
 
 For this, you need to add our binstar repository to your conda configuration::
 
-    $ conda config --add channels http://conda.anaconda.org/fallen/channel/dev
+    $ conda config --add channels http://conda.anaconda.org/m-labs/channel/dev
 
 Then you can install the ARTIQ package, it will pull all the necessary dependencies::
 
