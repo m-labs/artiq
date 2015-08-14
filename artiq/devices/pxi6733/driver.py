@@ -115,9 +115,9 @@ class DAQmx:
         ret = t.WriteAnalogF64(samps_per_channel, False, 0,
                                self.daq.DAQmx_Val_GroupByChannel, values,
                                byref(num_samps_written), None)
-        if num_samps_written.value != nb_values:
-            raise IOError("Error: only {} sample values were written"
-                          .format(num_samps_written.value))
+        if num_samps_written.value != samps_per_channel:
+            raise IOError("Error: only {} sample values per channel were"
+                          "written".format(num_samps_written.value))
         if ret:
             raise IOError("Error while writing samples to the channel buffer")
 
