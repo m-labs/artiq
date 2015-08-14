@@ -7,7 +7,7 @@ source:
   git_tag: libssh2-1.6.0
 
 build:
-  number: 0
+  number: 1
 
 requirements:
   build:

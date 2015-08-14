@@ -7,7 +7,7 @@ source:
   git_tag: v0.22.1
 
 build:
-  number: 0
+  number: 1
 
 requirements:
   build:

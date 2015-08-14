@@ -7,12 +7,19 @@ source:
   git_tag: v0.22.3
 
 build:
-  number: 0
+  number: 1
 
 requirements:
   build:
     - system # [linux]
     - cmake # [linux]
+    - openssl
+    - libssh2
+    - zlib
+  run:
+    - openssl
+    - zlib
+    - libssh2
 
 about:
   home: https://libgit2.github.com/
