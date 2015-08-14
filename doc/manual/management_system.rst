@@ -105,7 +105,7 @@ You may now run the master with the Git support enabled: ::
 
 Push commits containing experiments to the bare repository using e.g. Git over SSH, and the new experiments should automatically appear in the GUI.
 
-.. note:: If you plan to run the ARTIQ system entirely on a single machine, you may also consider using a non-bare repository and the ``post-commit`` hook to trigger repository scans every time you commit changes (locally). The ARTIQ master never uses the repository's working directory, but only what is committed.
+.. note:: If you plan to run the ARTIQ system entirely on a single machine, you may also consider using a non-bare repository and the ``post-commit`` hook to trigger repository scans every time you commit changes (locally). The ARTIQ master never uses the repository's working directory, but only what is committed. More precisely, it fetches by default the last (atomically) completed commit at the time of experiment submission and checks it out in a temporary folder (which solves the problem of concurrent repository access).
 
 The GUI always runs experiments from the repository. The command-line client, by default, runs experiment from the raw filesystem (which is useful for iterating rapidly without creating many disorganized commits). If you want to use the repository instead, simply pass the ``-R`` option.
 
