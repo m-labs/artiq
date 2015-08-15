@@ -51,6 +51,9 @@ class DummyScheduler:
     def delete(self, rid):
         logger.info("Deleting RID %s", rid)
 
+    def pause(self):
+        pass
+
 
 def get_argparser(with_file=True):
     parser = argparse.ArgumentParser(
