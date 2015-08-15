@@ -25,15 +25,15 @@ class scoped(object):
 class argT(ast.arg, commontyped):
     pass
 
-class ClassDefT(ast.ClassDef, scoped):
-    pass
+class ClassDefT(ast.ClassDef):
+    _types = ("constructor_type",)
 class FunctionDefT(ast.FunctionDef, scoped):
     _types = ("signature_type",)
 class ModuleT(ast.Module, scoped):
     pass
 
 class ExceptHandlerT(ast.ExceptHandler):
-    _fields = ("filter", "name", "body") # rename ast.ExceptHandler.type
+    _fields = ("filter", "name", "body") # rename ast.ExceptHandler.type to filter
     _types = ("name_type",)
 
 class SliceT(ast.Slice, commontyped):

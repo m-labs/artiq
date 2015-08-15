@@ -467,7 +467,7 @@ class Inferencer(algorithm.Visitor):
             else:
                 diagnose(valid_forms())
 
-            self._unify(node.type, getattr(builtins, "T" + typ.name)(),
+            self._unify(node.type, typ.instance,
                         node.loc, None)
         elif types.is_builtin(typ, "bool"):
             valid_forms = lambda: [
@@ -895,37 +895,46 @@ class Inferencer(algorithm.Visitor):
                 "decorators are not supported", {},
                 node.at_locs[index], [decorator.loc])
             self.engine.process(diag)
-            return
 
-        old_function, self.function = self.function, node
-        old_in_loop, self.in_loop = self.in_loop, False
-        old_has_return, self.has_return = self.has_return, False
+        try:
+            old_function, self.function = self.function, node
+            old_in_loop, self.in_loop = self.in_loop, False
+            old_has_return, self.has_return = self.has_return, False
 
-        self.generic_visit(node)
+            self.generic_visit(node)
 
-        # Lack of return statements is not the only case where the return
-        # type cannot be inferred. The other one is infinite (possibly mutual)
-        # recursion. Since Python functions don't have to return a value,
-        # we ignore that one.
-        if not self.has_return:
-            def makenotes(printer, typea, typeb, loca, locb):
-                return [
-                    diagnostic.Diagnostic("note",
-                        "function with return type {typea}",
-                        {"typea": printer.name(typea)},
-                        node.name_loc),
-                ]
-            self._unify(node.return_type, builtins.TNone(),
-                        node.name_loc, None, makenotes)
-
-        self.function = old_function
-        self.in_loop = old_in_loop
-        self.has_return = old_has_return
+            # Lack of return statements is not the only case where the return
+            # type cannot be inferred. The other one is infinite (possibly mutual)
+            # recursion. Since Python functions don't have to return a value,
+            # we ignore that one.
+            if not self.has_return:
+                def makenotes(printer, typea, typeb, loca, locb):
+                    return [
+                        diagnostic.Diagnostic("note",
+                            "function with return type {typea}",
+                            {"typea": printer.name(typea)},
+                            node.name_loc),
+                    ]
+                self._unify(node.return_type, builtins.TNone(),
+                            node.name_loc, None, makenotes)
+        finally:
+            self.function = old_function
+            self.in_loop = old_in_loop
+            self.has_return = old_has_return
 
         signature_type = self._type_from_arguments(node.args, node.return_type)
         if signature_type:
             self._unify(node.signature_type, signature_type,
                         node.name_loc, None)
+
+    def visit_ClassDefT(self, node):
+        if any(node.decorator_list):
+            diag = diagnostic.Diagnostic("error",
+                "decorators are not supported", {},
+                node.at_locs[0], [node.decorator_list[0].loc])
+            self.engine.process(diag)
+
+        self.generic_visit(node)
 
     def visit_Return(self, node):
         if not self.function:

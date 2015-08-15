@@ -437,7 +437,7 @@ class LLVMIRGenerator:
                                             size=llsize)
             llvalue = self.llbuilder.insert_value(llvalue, llalloc, 1, name=insn.name)
             return llvalue
-        elif builtins.is_exception(insn.type):
+        elif builtins.is_exception(insn.type) or types.is_constructor(insn.type):
             llalloc = self.llbuilder.alloca(self.llty_of_type(insn.type, bare=True))
             for index, operand in enumerate(insn.operands):
                 lloperand = self.map(operand)

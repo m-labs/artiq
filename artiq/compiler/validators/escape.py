@@ -208,7 +208,7 @@ class EscapeValidator(algorithm.Visitor):
                     loc)
             ]
 
-    def visit_in_region(self, node, region):
+    def visit_in_region(self, node, region, typing_env):
         try:
             old_youngest_region = self.youngest_region
             self.youngest_region = region
@@ -216,8 +216,8 @@ class EscapeValidator(algorithm.Visitor):
             old_youngest_env = self.youngest_env
             self.youngest_env = {}
 
-            for name in node.typing_env:
-                if builtins.is_allocated(node.typing_env[name]):
+            for name in typing_env:
+                if builtins.is_allocated(typing_env[name]):
                     self.youngest_env[name] = Region(None) # not yet known
                 else:
                     self.youngest_env[name] = None # lives forever
@@ -230,11 +230,15 @@ class EscapeValidator(algorithm.Visitor):
             self.youngest_region = old_youngest_region
 
     def visit_ModuleT(self, node):
-        self.visit_in_region(node, None)
+        self.visit_in_region(node, None, node.typing_env)
 
     def visit_FunctionDefT(self, node):
         self.youngest_env[node.name] = self.youngest_region
-        self.visit_in_region(node, Region(node.loc))
+        self.visit_in_region(node, Region(node.loc), node.typing_env)
+
+    def visit_ClassDefT(self, node):
+        self.youngest_env[node.name] = self.youngest_region
+        self.visit_in_region(node, Region(node.loc), node.constructor_type.attributes)
 
     # Only three ways for a pointer to escape:
     #   * Assigning or op-assigning it (we ensure an outlives relationship)

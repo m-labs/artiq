@@ -3,7 +3,8 @@
 to a typedtree (:mod:`..asttyped`).
 """
 
-from pythonparser import algorithm, diagnostic
+from collections import OrderedDict
+from pythonparser import ast, algorithm, diagnostic
 from .. import asttyped, types, builtins
 
 # This visitor will be called for every node with a scope,
@@ -16,7 +17,7 @@ class LocalExtractor(algorithm.Visitor):
 
         self.in_root    = False
         self.in_assign  = False
-        self.typing_env = {}
+        self.typing_env = OrderedDict()
 
         # which names are global have to be recorded in the current scope
         self.global_    = set()
@@ -189,6 +190,7 @@ class ASTTypedRewriter(algorithm.Transformer):
         self.engine = engine
         self.globals = None
         self.env_stack = [prelude]
+        self.in_class = None
 
     def _try_find_name(self, name):
         for typing_env in reversed(self.env_stack):
@@ -196,11 +198,17 @@ class ASTTypedRewriter(algorithm.Transformer):
                 return typing_env[name]
 
     def _find_name(self, name, loc):
+        if self.in_class is not None:
+            typ = self.in_class.constructor_type.attributes.get(name)
+            if typ is not None:
+                return typ
+
         typ = self._try_find_name(name)
         if typ is not None:
             return typ
+
         diag = diagnostic.Diagnostic("fatal",
-            "name '{name}' is not bound to anything", {"name":name}, loc)
+            "undefined variable '{name}'", {"name":name}, loc)
         self.engine.process(diag)
 
     # Visitors that replace node with a typed node
@@ -238,6 +246,66 @@ class ASTTypedRewriter(algorithm.Transformer):
             return self.generic_visit(node)
         finally:
             self.env_stack.pop()
+
+    def visit_ClassDef(self, node):
+        if any(node.bases) or any(node.keywords) or \
+                node.starargs is not None or node.kwargs is not None:
+            diag = diagnostic.Diagnostic("error",
+                "inheritance is not supported", {},
+                node.lparen_loc.join(node.rparen_loc))
+            self.engine.process(diag)
+
+        for child in node.body:
+            if isinstance(child, (ast.Assign, ast.FunctionDef, ast.Pass)):
+                continue
+
+            diag = diagnostic.Diagnostic("fatal",
+                "class body must contain only assignments and function definitions", {},
+                child.loc)
+            self.engine.process(diag)
+
+        if node.name in self.env_stack[-1]:
+            diag = diagnostic.Diagnostic("fatal",
+                "variable '{name}' is already defined", {"name":name}, loc)
+            self.engine.process(diag)
+
+        extractor = LocalExtractor(env_stack=self.env_stack, engine=self.engine)
+        extractor.visit(node)
+
+        # Now we create two types.
+        # The first type is the type of instances created by the constructor.
+        # Its attributes are those of the class environment, but wrapped
+        # appropriately so that they are linked to the class from which they
+        # originate.
+        instance_type = types.TMono(node.name)
+        instance_type.attributes = OrderedDict({}) # TODO
+
+        # The second type is the type of the constructor itself (in other words,
+        # the class object): it is simply a singleton type that has the class
+        # environment as attributes.
+        constructor_type = types.TConstructor(instance_type)
+        constructor_type.attributes = extractor.typing_env
+
+        self.env_stack[-1][node.name] = constructor_type
+
+        node = asttyped.ClassDefT(
+            constructor_type=constructor_type,
+            name=node.name,
+            bases=self.visit(node.bases), keywords=self.visit(node.keywords),
+            starargs=self.visit(node.starargs), kwargs=self.visit(node.kwargs),
+            body=node.body,
+            decorator_list=self.visit(node.decorator_list),
+            keyword_loc=node.keyword_loc, name_loc=node.name_loc,
+            lparen_loc=node.lparen_loc, star_loc=node.star_loc,
+            dstar_loc=node.dstar_loc, rparen_loc=node.rparen_loc,
+            colon_loc=node.colon_loc, at_locs=node.at_locs,
+            loc=node.loc)
+
+        try:
+            old_in_class, self.in_class = self.in_class, node
+            return self.generic_visit(node)
+        finally:
+            self.in_class = old_in_class
 
     def visit_arg(self, node):
         return asttyped.argT(type=self._find_name(node.arg, node.loc),
@@ -426,7 +494,6 @@ class ASTTypedRewriter(algorithm.Transformer):
     visit_YieldFrom = visit_unsupported
 
     # stmt
-    visit_ClassDef = visit_unsupported
     visit_Delete = visit_unsupported
     visit_Import = visit_unsupported
     visit_ImportFrom = visit_unsupported

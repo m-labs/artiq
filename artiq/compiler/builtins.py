@@ -96,44 +96,32 @@ class TException(types.TMono):
     def __init__(self, name="Exception"):
         super().__init__(name)
 
-class TIndexError(TException):
-    def __init__(self):
-        super().__init__("IndexError")
-
-class TValueError(TException):
-    def __init__(self):
-        super().__init__("ValueError")
-
-class TZeroDivisionError(TException):
-    def __init__(self):
-        super().__init__("ZeroDivisionError")
-
 def fn_bool():
-    return types.TConstructor("bool")
+    return types.TConstructor(TBool())
 
 def fn_int():
-    return types.TConstructor("int")
+    return types.TConstructor(TInt())
 
 def fn_float():
-    return types.TConstructor("float")
+    return types.TConstructor(TFloat())
 
 def fn_str():
-    return types.TConstructor("str")
+    return types.TConstructor(TStr())
 
 def fn_list():
-    return types.TConstructor("list")
+    return types.TConstructor(TList())
 
 def fn_Exception():
-    return types.TExceptionConstructor("Exception")
+    return types.TExceptionConstructor(TException("Exception"))
 
 def fn_IndexError():
-    return types.TExceptionConstructor("IndexError")
+    return types.TExceptionConstructor(TException("IndexError"))
 
 def fn_ValueError():
-    return types.TExceptionConstructor("ValueError")
+    return types.TExceptionConstructor(TException("ValueError"))
 
 def fn_ZeroDivisionError():
-    return types.TExceptionConstructor("ZeroDivisionError")
+    return types.TExceptionConstructor(TException("ZeroDivisionError"))
 
 def fn_range():
     return types.TBuiltinFunction("range")
@@ -215,4 +203,4 @@ def is_collection(typ):
 def is_allocated(typ):
     return typ.fold(False, lambda accum, typ:
         is_list(typ) or is_str(typ) or types.is_function(typ) or
-        is_exception(typ))
+        is_exception(typ) or types.is_constructor(typ))

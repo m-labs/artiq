@@ -319,9 +319,17 @@ class TConstructor(TBuiltin):
     A type of a constructor of a builtin class, e.g. ``list``.
     Note that this is not the same as the type of an instance of
     the class, which is ``TMono("list", ...)``.
+
+    :ivar instance: (:class:`Type`)
+        the type of the instance created by this constructor
     """
 
-class TExceptionConstructor(TBuiltin):
+    def __init__(self, instance):
+        assert isinstance(instance, TMono)
+        super().__init__(instance.name)
+        self.instance = instance
+
+class TExceptionConstructor(TConstructor):
     """
     A type of a constructor of a builtin exception, e.g. ``Exception``.
     Note that this is not the same as the type of an instance of
@@ -402,6 +410,14 @@ def is_builtin(typ, name=None):
         return isinstance(typ, TBuiltin) and \
             typ.name == name
 
+def is_constructor(typ, name=None):
+    typ = typ.find()
+    if name is not None:
+        return isinstance(typ, TConstructor) and \
+            typ.name == name
+    else:
+        return isinstance(typ, TConstructor)
+
 def is_exn_constructor(typ, name=None):
     typ = typ.find()
     if name is not None:
@@ -459,9 +475,11 @@ class TypePrinter(object):
             elif isinstance(typ, TFunction):
                 return signature
         elif isinstance(typ, TBuiltinFunction):
-            return "<function %s>" % typ.name
+            return "<function {}>".format(typ.name)
         elif isinstance(typ, (TConstructor, TExceptionConstructor)):
-            return "<constructor %s>" % typ.name
+            attrs = ", ".join(["{}: {}".format(attr, self.name(typ.attributes[attr]))
+                               for attr in typ.attributes])
+            return "<constructor {} {{{}}}>".format(typ.name, attrs)
         elif isinstance(typ, TValue):
             return repr(typ.value)
         else:

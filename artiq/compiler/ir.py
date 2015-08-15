@@ -636,9 +636,9 @@ class SetAttr(Instruction):
         assert isinstance(attr, (str, int))
         assert isinstance(value, Value)
         if isinstance(attr, int):
-            assert value.type == obj.type.elts[attr]
+            assert value.type == obj.type.elts[attr].find()
         else:
-            assert value.type == obj.type.attributes[attr]
+            assert value.type == obj.type.attributes[attr].find()
         super().__init__([obj, value], builtins.TNone(), name)
         self.attr = attr
 

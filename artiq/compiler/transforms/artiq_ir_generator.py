@@ -73,6 +73,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.name = [module_name] if module_name != "" else []
         self.current_loc = None
         self.current_function = None
+        self.current_class = None
         self.current_globals = set()
         self.current_block = None
         self.current_env = None
@@ -155,6 +156,17 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.current_private_env = old_priv_env
 
     # Statement visitors
+
+    def visit_ClassDefT(self, node):
+        klass = self.append(ir.Alloc([], node.constructor_type,
+                                     name="class.{}".format(node.name)))
+        self._set_local(node.name, klass)
+
+        try:
+            old_class, self.current_class = self.current_class, klass
+            self.visit(node.body)
+        finally:
+            self.current_class = old_class
 
     def visit_function(self, node, is_lambda, is_internal):
         if is_lambda:
@@ -239,9 +251,12 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         return self.append(ir.Closure(func, self.current_env))
 
-    def visit_FunctionDefT(self, node):
+    def visit_FunctionDefT(self, node, in_class=None):
         func = self.visit_function(node, is_lambda=False, is_internal=len(self.name) > 2)
-        self._set_local(node.name, func)
+        if in_class is None:
+            self._set_local(node.name, func)
+        else:
+            self.append(ir.SetAttr(in_class, node.name, func))
 
     def visit_Return(self, node):
         if node.value is None:
@@ -668,9 +683,19 @@ class ARTIQIRGenerator(algorithm.Visitor):
             return self.current_env
 
     def _get_local(self, name):
-        return self.append(ir.GetLocal(self._env_for(name), name, name="local." + name))
+        if self.current_class is not None and \
+                name in self.current_class.type.attributes:
+            return self.append(ir.GetAttr(self.current_class, name,
+                                          name="local." + name))
+
+        return self.append(ir.GetLocal(self._env_for(name), name,
+                                       name="local." + name))
 
     def _set_local(self, name, value):
+        if self.current_class is not None and \
+                name in self.current_class.type.attributes:
+            return self.append(ir.SetAttr(self.current_class, name, value))
+
         self.append(ir.SetLocal(self._env_for(name), name, value))
 
     def visit_NameT(self, node):
@@ -706,7 +731,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         head = self.current_block
 
         self.current_block = out_of_bounds_block = self.add_block()
-        exn = self.alloc_exn(builtins.TIndexError(),
+        exn = self.alloc_exn(builtins.TException("IndexError"),
             ir.Constant("index {0} out of bounds 0:{1}", builtins.TStr()),
             index, length)
         self.raise_exn(exn, loc=loc)
@@ -790,7 +815,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 step = self.visit(node.slice.step)
                 self._make_check(
                     self.append(ir.Compare(ast.NotEq(loc=None), step, ir.Constant(0, step.type))),
-                    lambda: self.alloc_exn(builtins.TValueError(),
+                    lambda: self.alloc_exn(builtins.TException("ValueError"),
                         ir.Constant("step cannot be zero", builtins.TStr())),
                     loc=node.slice.step.loc)
             else:
@@ -811,7 +836,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                                                name="slice.size"))
             self._make_check(
                 self.append(ir.Compare(ast.LtE(loc=None), slice_size, length)),
-                lambda: self.alloc_exn(builtins.TValueError(),
+                lambda: self.alloc_exn(builtins.TException("ValueError"),
                     ir.Constant("slice size {0} is larger than iterable length {1}",
                                 builtins.TStr()),
                     slice_size, length),
@@ -894,7 +919,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self._make_check(
                 self.append(ir.Compare(ast.Eq(loc=None), length,
                                        ir.Constant(len(node.elts), self._size_type))),
-                lambda: self.alloc_exn(builtins.TValueError(),
+                lambda: self.alloc_exn(builtins.TException("ValueError"),
                     ir.Constant("list must be {0} elements long to decompose", builtins.TStr()),
                     length))
 
@@ -1002,13 +1027,13 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 # Check for negative shift amount.
                 self._make_check(
                     self.append(ir.Compare(ast.GtE(loc=None), rhs, ir.Constant(0, rhs.type))),
-                    lambda: self.alloc_exn(builtins.TValueError(),
+                    lambda: self.alloc_exn(builtins.TException("ValueError"),
                         ir.Constant("shift amount must be nonnegative", builtins.TStr())),
                     loc=node.right.loc)
             elif isinstance(node.op, (ast.Div, ast.FloorDiv)):
                 self._make_check(
                     self.append(ir.Compare(ast.NotEq(loc=None), rhs, ir.Constant(0, rhs.type))),
-                    lambda: self.alloc_exn(builtins.TZeroDivisionError(),
+                    lambda: self.alloc_exn(builtins.TException("ZeroDivisionError"),
                         ir.Constant("cannot divide by zero", builtins.TStr())),
                     loc=node.right.loc)
 
