@@ -224,7 +224,9 @@ class LLVMIRGenerator:
                 return llty.as_pointer()
         else: # Catch-all for exceptions and custom classes
             if builtins.is_exception(typ):
-                name = 'Exception' # they all share layout
+                name = "class.Exception" # they all share layout
+            elif types.is_constructor(typ):
+                name = "class.{}".format(typ.name)
             else:
                 name = typ.name
 
@@ -437,24 +439,23 @@ class LLVMIRGenerator:
                                             size=llsize)
             llvalue = self.llbuilder.insert_value(llvalue, llalloc, 1, name=insn.name)
             return llvalue
-        elif builtins.is_exception(insn.type) or types.is_constructor(insn.type):
+        elif not builtins.is_allocated(insn.type):
+            llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
+            for index, elt in enumerate(insn.operands):
+                llvalue = self.llbuilder.insert_value(llvalue, self.map(elt), index)
+            llvalue.name = insn.name
+            return llvalue
+        else: # catchall for exceptions and custom (allocated) classes
             llalloc = self.llbuilder.alloca(self.llty_of_type(insn.type, bare=True))
             for index, operand in enumerate(insn.operands):
                 lloperand = self.map(operand)
                 llfieldptr = self.llbuilder.gep(llalloc, [self.llindex(0), self.llindex(index)])
                 self.llbuilder.store(lloperand, llfieldptr)
             return llalloc
-        elif builtins.is_allocated(insn.type):
-            assert False
-        else: # immutable
-            llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
-            for index, elt in enumerate(insn.operands):
-                llvalue = self.llbuilder.insert_value(llvalue, self.map(elt), index)
-            llvalue.name = insn.name
-            return llvalue
 
-    def llptr_to_var(self, llenv, env_ty, var_name):
-        if var_name in env_ty.params:
+    def llptr_to_var(self, llenv, env_ty, var_name, var_type=None):
+        if var_name in env_ty.params and (var_type is None or
+                env_ty.params[var_name] == var_type):
             var_index = list(env_ty.params.keys()).index(var_name)
             return self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(var_index)])
         else:
@@ -466,6 +467,11 @@ class LLVMIRGenerator:
     def process_GetLocal(self, insn):
         env = insn.environment()
         llptr = self.llptr_to_var(self.map(env), env.type, insn.var_name)
+        return self.llbuilder.load(llptr)
+
+    def process_GetConstructor(self, insn):
+        env = insn.environment()
+        llptr = self.llptr_to_var(self.map(env), env.type, insn.var_name, insn.type)
         return self.llbuilder.load(llptr)
 
     def process_SetLocal(self, insn):

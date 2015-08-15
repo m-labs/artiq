@@ -91,6 +91,11 @@ class Inferencer(algorithm.Visitor):
                 # assumes no free type variables in .attributes
                 self._unify(node.type, object_type.attributes[node.attr],
                             node.loc, None)
+            elif types.is_instance(object_type) and \
+                    node.attr in object_type.constructor.attributes:
+                # assumes no free type variables in .attributes
+                self._unify(node.type, object_type.constructor.attributes[node.attr],
+                            node.loc, None)
             else:
                 diag = diagnostic.Diagnostic("error",
                     "type {type} does not have an attribute '{attr}'",
@@ -680,19 +685,24 @@ class Inferencer(algorithm.Visitor):
                 self.engine.process(diag)
                 return
 
-        if types.is_var(node.func.type):
+        typ = node.func.type.find()
+
+        if types.is_var(typ):
             return # not enough info yet
-        elif types.is_builtin(node.func.type):
+        elif types.is_constructor(typ) and not types.is_exn_constructor(typ):
+            self._unify(node.type, typ.find().instance,
+                        node.loc, None)
+            return
+        elif types.is_builtin(typ):
             return self.visit_builtin_call(node)
-        elif not types.is_function(node.func.type):
+        elif not types.is_function(typ):
             diag = diagnostic.Diagnostic("error",
                 "cannot call this expression of type {type}",
-                {"type": types.TypePrinter().name(node.func.type)},
+                {"type": types.TypePrinter().name(typ)},
                 node.func.loc, [])
             self.engine.process(diag)
             return
 
-        typ = node.func.type.find()
         passed_args = dict()
 
         if len(node.args) > typ.arity():

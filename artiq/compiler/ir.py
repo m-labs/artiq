@@ -554,7 +554,7 @@ class GetLocal(Instruction):
         self.var_name = var_name
 
     def opcode(self):
-        return "getlocal({})".format(self.var_name)
+        return "getlocal({})".format(repr(self.var_name))
 
     def environment(self):
         return self.operands[0]
@@ -582,13 +582,40 @@ class SetLocal(Instruction):
         self.var_name = var_name
 
     def opcode(self):
-        return "setlocal({})".format(self.var_name)
+        return "setlocal({})".format(repr(self.var_name))
 
     def environment(self):
         return self.operands[0]
 
     def value(self):
         return self.operands[1]
+
+class GetConstructor(Instruction):
+    """
+    An intruction that loads a local variable with the given type
+    from an environment, possibly going through multiple levels of indirection.
+
+    :ivar var_name: (string) variable name
+    """
+
+    """
+    :param env: (:class:`Value`) local environment
+    :param var_name: (string) local variable name
+    :param var_type: (:class:`types.Type`) local variable type
+    """
+    def __init__(self, env, var_name, var_type, name=""):
+        assert isinstance(env, Value)
+        assert isinstance(env.type, TEnvironment)
+        assert isinstance(var_name, str)
+        assert isinstance(var_type, types.Type)
+        super().__init__([env], var_type, name)
+        self.var_name = var_name
+
+    def opcode(self):
+        return "getconstructor({})".format(repr(self.var_name))
+
+    def environment(self):
+        return self.operands[0]
 
 class GetAttr(Instruction):
     """

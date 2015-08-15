@@ -202,5 +202,7 @@ def is_collection(typ):
 
 def is_allocated(typ):
     return typ.fold(False, lambda accum, typ:
-        is_list(typ) or is_str(typ) or types.is_function(typ) or
-        is_exception(typ) or types.is_constructor(typ))
+        accum or not (is_none(typ) or is_bool(typ) or is_int(typ) or
+                      is_float(typ) or is_range(typ) or
+                      types.is_c_function(typ) or types.is_rpc_function(typ) or
+                      types.is_value(typ)))

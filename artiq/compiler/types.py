@@ -300,7 +300,7 @@ class TBuiltin(Type):
         return fn(accum, self)
 
     def __repr__(self):
-        return "py2llvm.types.TBuiltin(%s)" % repr(self.name)
+        return "py2llvm.types.{}({})".format(type(self).__name__, repr(self.name))
 
     def __eq__(self, other):
         return isinstance(other, TBuiltin) and \
@@ -316,9 +316,9 @@ class TBuiltinFunction(TBuiltin):
 
 class TConstructor(TBuiltin):
     """
-    A type of a constructor of a builtin class, e.g. ``list``.
+    A type of a constructor of a class, e.g. ``list``.
     Note that this is not the same as the type of an instance of
-    the class, which is ``TMono("list", ...)``.
+    the class, which is ``TMono("list", ...)`` (or a descendant).
 
     :ivar instance: (:class:`Type`)
         the type of the instance created by this constructor
@@ -331,10 +331,28 @@ class TConstructor(TBuiltin):
 
 class TExceptionConstructor(TConstructor):
     """
-    A type of a constructor of a builtin exception, e.g. ``Exception``.
+    A type of a constructor of an exception, e.g. ``Exception``.
     Note that this is not the same as the type of an instance of
     the class, which is ``TMono("Exception", ...)``.
     """
+
+class TInstance(TMono):
+    """
+    A type of an instance of a user-defined class.
+
+    :ivar constructor: (:class:`TConstructor`)
+        the type of the constructor with which this instance
+        was created
+    """
+
+    def __init__(self, name, attributes=OrderedDict()):
+        super().__init__(name)
+        self.attributes = attributes
+
+    def __repr__(self):
+        return "py2llvm.types.TInstance({}, {]})".format(
+                    repr(self.name), repr(self.attributes))
+
 
 class TValue(Type):
     """
@@ -425,6 +443,17 @@ def is_exn_constructor(typ, name=None):
             typ.name == name
     else:
         return isinstance(typ, TExceptionConstructor)
+
+def is_instance(typ, name=None):
+    typ = typ.find()
+    if name is not None:
+        return isinstance(typ, TInstance) and \
+            typ.name == name
+    else:
+        return isinstance(typ, TInstance)
+
+def is_value(typ):
+    return isinstance(typ.find(), TValue)
 
 def get_value(typ):
     typ = typ.find()

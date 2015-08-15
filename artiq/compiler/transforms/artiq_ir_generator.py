@@ -711,6 +711,14 @@ class ARTIQIRGenerator(algorithm.Visitor):
         finally:
             self.current_assign = old_assign
 
+        if node.attr not in node.type.find().attributes:
+            # A class attribute. Get the constructor (class object) and
+            # extract the attribute from it.
+            constructor = obj.type.constructor
+            obj = self.append(ir.GetConstructor(self._env_for(constructor.name),
+                                                constructor.name, constructor,
+                                                name="constructor." + constructor.name))
+
         if self.current_assign is None:
             return self.append(ir.GetAttr(obj, node.attr,
                                           name="{}.{}".format(_readable_name(obj), node.attr)))
@@ -1398,10 +1406,13 @@ class ARTIQIRGenerator(algorithm.Visitor):
             assert False
 
     def visit_CallT(self, node):
-        if types.is_builtin(node.func.type):
+        typ = node.func.type.find()
+
+        if types.is_constructor(typ) and not types.is_exn_constructor(typ):
+            return self.append(ir.Alloc([], typ.instance))
+        elif types.is_builtin(typ):
             return self.visit_builtin_call(node)
         else:
-            typ = node.func.type.find()
             func = self.visit(node.func)
             args = [None] * (len(typ.args) + len(typ.optargs))
 

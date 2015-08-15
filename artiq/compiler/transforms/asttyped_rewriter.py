@@ -277,14 +277,14 @@ class ASTTypedRewriter(algorithm.Transformer):
         # Its attributes are those of the class environment, but wrapped
         # appropriately so that they are linked to the class from which they
         # originate.
-        instance_type = types.TMono(node.name)
-        instance_type.attributes = OrderedDict({}) # TODO
+        instance_type = types.TInstance(node.name)
 
         # The second type is the type of the constructor itself (in other words,
         # the class object): it is simply a singleton type that has the class
         # environment as attributes.
         constructor_type = types.TConstructor(instance_type)
         constructor_type.attributes = extractor.typing_env
+        instance_type.constructor = constructor_type
 
         self.env_stack[-1][node.name] = constructor_type
 
