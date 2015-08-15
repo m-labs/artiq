@@ -120,20 +120,28 @@ class ResultsDock(dockarea.Dock):
         dsp.sigClosed.connect(on_close)
         self.dock_area.addDock(dsp)
         self.dock_area.floatDock(dsp)
+        return dsp
 
     def save_state(self):
         r = dict()
         for name, display in self.displays.items():
             r[name] = {
                 "ty": _get_display_type_name(type(display)),
-                "settings": display.settings
+                "settings": display.settings,
+                "state": display.save_state()
             }
         return r
 
     def restore_state(self, state):
         for name, desc in state.items():
             try:
-                self.create_display(desc["ty"], None, name, desc["settings"])
+                dsp = self.create_display(desc["ty"], None, name,
+                                          desc["settings"])
             except:
                 logger.warning("Failed to create display '%s'", name,
                                exc_info=True)
+            try:
+                dsp.restore_state(desc["state"])
+            except:
+                logger.warning("Failed to restore display state of '%s'",
+                               name, exc_info=True)

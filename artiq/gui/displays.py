@@ -94,6 +94,12 @@ class NumberDisplay(dockarea.Dock):
             n = "---"
         self.number.display(n)
 
+    def save_state(self):
+        return None
+
+    def restore_state(self, state):
+        pass
+
 
 class XYDisplaySettings(_SimpleSettings):
     _window_title = "XY plot"
@@ -155,6 +161,12 @@ class XYDisplay(dockarea.Dock):
         if fit is not None:
             self.plot.plot(x, fit)
 
+    def save_state(self):
+        return self.plot.saveState()
+
+    def restore_state(self, state):
+        self.plot.restoreState(state)
+
 
 class HistogramDisplaySettings(_SimpleSettings):
     _window_title = "Histogram"
@@ -191,7 +203,14 @@ class HistogramDisplay(dockarea.Dock):
 
         if y and len(x) == len(y) + 1:
             self.plot.clear()
-            self.plot.plot(x, y, stepMode=True, fillLevel=0, brush=(0, 0, 255, 150))
+            self.plot.plot(x, y, stepMode=True, fillLevel=0,
+                           brush=(0, 0, 255, 150))
+
+    def save_state(self):
+        return self.plot.saveState()
+
+    def restore_state(self, state):
+        self.plot.restoreState(state)
 
 
 display_types = OrderedDict([
