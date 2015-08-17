@@ -22,19 +22,11 @@ def elide(s, maxlen):
     return s
 
 
-_scalar_types = {
-    int, float,
-    np.int8, np.int16, np.int32, np.int64,
-    np.uint8, np.uint16, np.uint32, np.uint64,
-    np.float16, np.float32, np.float64
-}
-
-
 def short_format(v):
     if v is None:
         return "None"
     t = type(v)
-    if t in _scalar_types:
+    if np.issubdtype(t, int) or np.issubdtype(t, float):
         return str(v)
     elif t is str:
         return "\"" + elide(v, 15) + "\""
