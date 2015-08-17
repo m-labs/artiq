@@ -49,6 +49,7 @@ requirements:
         - pyqtgraph
         - flterm # [linux]
         - pygit2
+        - aiohttp
 
 test:
     imports:
