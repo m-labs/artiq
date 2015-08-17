@@ -48,7 +48,6 @@ class MainWindow(QtGui.QMainWindow):
     def __init__(self, app):
         QtGui.QMainWindow.__init__(self)
         self.setWindowIcon(QtGui.QIcon(os.path.join(data_dir, "icon.png")))
-        #self.resize(1400, 800)
         self.setWindowTitle("ARTIQ")
         self.exit_request = asyncio.Event()
 
