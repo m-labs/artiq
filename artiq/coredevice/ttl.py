@@ -6,7 +6,6 @@ class TTLOut:
 
     This should be used with output-only channels.
 
-    :param core: core device
     :param channel: channel number
     """
     def __init__(self, dmgr, channel):
@@ -70,7 +69,6 @@ class TTLInOut:
 
     This should be used with bidirectional channels.
 
-    :param core: core device
     :param channel: channel number
     """
     def __init__(self, dmgr, channel):
@@ -216,7 +214,6 @@ class TTLClockGen:
     This should be used with TTL channels that have a clock generator
     built into the gateware (not compatible with regular TTL channels).
 
-    :param core: core device
     :param channel: channel number
     """
     def __init__(self, dmgr, channel):
