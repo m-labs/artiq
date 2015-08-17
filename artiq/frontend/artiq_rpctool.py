@@ -4,6 +4,7 @@ import argparse
 import textwrap
 import sys
 import numpy as np  # Needed to use numpy in RPC call arguments on cmd line
+import pprint
 
 from artiq.protocols.pc_rpc import Client
 
@@ -77,7 +78,7 @@ def call_method(remote, method_name, args):
     method = getattr(remote, method_name)
     ret = method(*[eval(arg) for arg in args])
     if ret is not None:
-        print("{}".format(ret))
+        pprint.pprint(ret)
 
 
 def main():
