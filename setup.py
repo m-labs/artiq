@@ -8,20 +8,25 @@ import os
 if sys.version_info[:3] < (3, 4, 3):
     raise Exception("You need at least Python 3.4.3 to run ARTIQ")
 
+
 class PushDocCommand(Command):
     description = "uploads the documentation to m-labs.hk"
     user_options = []
+
     def initialize_options(self):
         pass
+
     def finalize_options(self):
         pass
+
     def run(self):
         os.system("rsync -avz doc/manual/_build/html/ shell.serverraum.org:~/web/m-labs.hk/artiq/manual")
+
 
 requirements = [
     "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
     "python-dateutil", "prettytable", "h5py", "pydaqmx", "pyelftools",
-    "quamash", "pyqtgraph", "llvmlite_artiq", "pygit2"
+    "quamash", "pyqtgraph", "llvmlite_artiq", "pygit2", "aiohttp"
 ]
 
 scripts = [
@@ -30,6 +35,7 @@ scripts = [
     "artiq_coretool=artiq.frontend.artiq_coretool:main",
     "artiq_ctlmgr=artiq.frontend.artiq_ctlmgr:main",
     "artiq_gui=artiq.frontend.artiq_gui:main",
+    "artiq_influxdb=artiq.frontend.artiq_influxdb:main",
     "artiq_master=artiq.frontend.artiq_master:main",
     "artiq_mkfs=artiq.frontend.artiq_mkfs:main",
     "artiq_rpctool=artiq.frontend.artiq_rpctool:main",
