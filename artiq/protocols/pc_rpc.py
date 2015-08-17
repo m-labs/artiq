@@ -454,6 +454,17 @@ class Server(_AsyncioServer):
                             argspec = inspect.getfullargspec(method)
                             doc["methods"][name] = (dict(argspec.__dict__),
                                                     inspect.getdoc(method))
+                        if self.builtin_terminate:
+                            doc["methods"]["terminate"] = (
+                                {
+                                    "args": ["self"],
+                                    "defaults": None,
+                                    "varargs": None,
+                                    "varkw": None,
+                                    "kwonlyargs": [],
+                                    "kwonlydefaults": [],
+                                },
+                                "Terminate the server.")
                         obj = {"status": "ok", "ret": doc}
                     elif obj["action"] == "call":
                         logger.debug("calling %s", _PrettyPrintCall(obj))
