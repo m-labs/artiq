@@ -7,6 +7,7 @@ import atexit
 import fnmatch
 from functools import partial
 
+import numpy as np
 import aiohttp
 
 from artiq.tools import verbosity_args, init_logger
@@ -100,19 +101,31 @@ class DBWriter(TaskObject):
                 response.close()
 
 
+def format_influxdb(v):
+    if isinstance(v, bool):
+        if v:
+            return "t"
+        else:
+            return "f"
+    elif np.issubdtype(type(v), int):
+        return "{}i".format(v)
+    elif np.issubdtype(type(v), float):
+        return "{}".format(v)
+    elif isinstance(v, str):
+        return '"' + v.replace('"', '\\"') + '"'
+    else:
+        return None
+
+
 class Parameters:
     def __init__(self, filter_function, writer, init):
         self.filter_function = filter_function
         self.writer = writer
 
     def __setitem__(self, k, v):
-        try:
-            v = float(v)
-        except:
-            pass
-        else:
-            if self.filter_function(k):
-                self.writer.update(k, v)
+        v_db = format_influxdb(v)
+        if v_db is not None and self.filter_function(k):
+            self.writer.update(k, v_db)
 
 
 class MasterReader(TaskObject):
