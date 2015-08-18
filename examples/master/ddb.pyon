@@ -49,11 +49,17 @@
         "class": "TTLOut",
         "arguments": {"channel": 5}
     },
+    "ttl_sma": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLInOut",
+        "arguments": {"channel": 17}
+    },
     "led": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 17}
+        "arguments": {"channel": 18}
     },
 
     "dds_bus": {
