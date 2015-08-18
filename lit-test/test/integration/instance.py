@@ -6,11 +6,9 @@ class c:
 
 i = c()
 
-# CHECK-L: a 1
-print("a", i.a)
+assert i.a == 1
 
 def f():
     c = None
-    # CHECK-L: shadow a 1
-    print("shadow a", i.a)
+    assert i.a == 1
 f()

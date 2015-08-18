@@ -6,7 +6,5 @@ class c:
     def f():
         return 2
 
-# CHECK-L: a 1
-print("a", c.a)
-# CHECK-L: f() 2
-print("f()", c.f())
+assert c.a == 1
+assert c.f() == 2

@@ -1,5 +1,7 @@
-# RUN: %python -m artiq.compiler.testbench.jit %s
-# RUN: %python %s
+# RUN: %python -m artiq.compiler.testbench.jit %s >%t.1
+# RUN: OutputCheck %s --file-to-check=%t.1
+# RUN: %python %s >%t.2
+# RUN: OutputCheck %s --file-to-check=%t.2
 # REQUIRES: exceptions
 
 def f():
