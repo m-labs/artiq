@@ -91,8 +91,12 @@ class DBWriter(TaskObject):
                                k, exc_info=True)
             else:
                 if response.status not in (200, 204):
-                    logger.warning("got HTTP status %d trying to update '%s'",
-                                   response.status, k)
+                    content = (yield from response.content.read()).decode()
+                    if content:
+                        content = content[:-1]  # drop \n
+                    logger.warning("got HTTP status %d "
+                                   "trying to update '%s': %s",
+                                   response.status, k, content)
                 response.close()
 
 
