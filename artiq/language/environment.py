@@ -285,6 +285,10 @@ class Experiment:
 
 
 class EnvExperiment(Experiment, HasEnvironment):
+    """Base class for experiments that use the ``HasEnvironment`` environment
+    manager.
+
+    Most experiment should derive from this class."""
     pass
 
 

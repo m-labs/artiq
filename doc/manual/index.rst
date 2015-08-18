@@ -10,6 +10,7 @@ Contents:
     installing
     getting_started
     management_system
+    environment
     core_device
     core_language_reference
     core_drivers_reference
