@@ -59,6 +59,26 @@ def get_argparser():
     return parser
 
 
+def influxdb_str(s):
+    return '"' + s.replace('"', '\\"') + '"'
+
+
+def format_influxdb(v):
+    if isinstance(v, bool):
+        if v:
+            return "bool", "t"
+        else:
+            return "bool", "f"
+    elif np.issubdtype(type(v), int):
+        return "int", "{}i".format(v)
+    elif np.issubdtype(type(v), float):
+        return "float", "{}".format(v)
+    elif isinstance(v, str):
+        return "str", influxdb_str(v)
+    else:
+        return "pyon", influxdb_str(pyon.encode(v))
+
+
 class DBWriter(TaskObject):
     def __init__(self, base_url, user, password, database, table):
         self.base_url = base_url
@@ -83,7 +103,8 @@ class DBWriter(TaskObject):
             url = self.base_url + "/write"
             params = {"u": self.user, "p": self.password, "db": self.database,
                       "consistency": "any", "precision": "n"}
-            data = "{} {}={}".format(self.table, k, v)
+            fmt_ty, fmt_v = format_influxdb(v)
+            data = "{},parameter={} {}={}".format(self.table, k, fmt_ty, fmt_v)
             try:
                 response = yield from aiohttp.request(
                     "POST", url, params=params, data=data)
@@ -101,31 +122,14 @@ class DBWriter(TaskObject):
                 response.close()
 
 
-def format_influxdb(v):
-    if isinstance(v, bool):
-        if v:
-            return "t"
-        else:
-            return "f"
-    elif np.issubdtype(type(v), int):
-        return "{}i".format(v)
-    elif np.issubdtype(type(v), float):
-        return "{}".format(v)
-    elif isinstance(v, str):
-        return '"' + v.replace('"', '\\"') + '"'
-    else:
-        return None
-
-
 class Parameters:
     def __init__(self, filter_function, writer, init):
         self.filter_function = filter_function
         self.writer = writer
 
     def __setitem__(self, k, v):
-        v_db = format_influxdb(v)
-        if v_db is not None and self.filter_function(k):
-            self.writer.update(k, v_db)
+        if self.filter_function(k):
+            self.writer.update(k, v)
 
     def __delitem__(self, k):
         pass
