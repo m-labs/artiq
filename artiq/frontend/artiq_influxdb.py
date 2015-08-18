@@ -127,6 +127,9 @@ class Parameters:
         if v_db is not None and self.filter_function(k):
             self.writer.update(k, v_db)
 
+    def __delitem__(self, k):
+        pass
+
 
 class MasterReader(TaskObject):
     def __init__(self, server, port, retry, filter_function, writer):
