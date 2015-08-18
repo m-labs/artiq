@@ -27,7 +27,7 @@ test:
 
   requires:
     - chardet
-    - gunicorn
+    - gunicorn # [not win]
     - nose
 
 about:

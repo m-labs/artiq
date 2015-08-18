@@ -42,25 +42,6 @@ Then you can install the ARTIQ package, it will pull all the necessary dependenc
 
     $ conda install artiq
 
-.. note::
-    You need to have a recent libstdc++6.
-    If you are installing on e.g. Ubuntu 14.04 LTS: you need to update your
-    libstdc++6.
-
-    If the following command outputs `GLIBCXX_3.4.20`, then you don't need to
-    upgrade::
-
-        $ strings /usr/lib/x86_64-linux-gnu/libstdc++.so.6 | grep GLIBCXX_3.4.20
-        GLIBCXX_3.4.20
-
-    Adapt the previous command to the location of libstdc++ on your system.
-
-    To upgrade, on Ubuntu you need to do the following::
-
-        $ sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        $ sudo apt-get update
-        $ sudo apt-get install libstdc++6
-
 Preparing the core device FPGA board
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
