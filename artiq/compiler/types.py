@@ -176,6 +176,10 @@ class TTuple(Type):
     def __ne__(self, other):
         return not (self == other)
 
+class _TPointer(TMono):
+    def __init__(self):
+        super().__init__("pointer")
+
 class TFunction(Type):
     """
     A function type.
@@ -188,7 +192,10 @@ class TFunction(Type):
         return type
     """
 
-    attributes = OrderedDict()
+    attributes = OrderedDict([
+        ('__code__',    _TPointer()),
+        ('__closure__', _TPointer()),
+    ])
 
     def __init__(self, args, optargs, ret):
         assert isinstance(args, OrderedDict)
@@ -245,6 +252,8 @@ class TRPCFunction(TFunction):
     :ivar service: (int) RPC service number
     """
 
+    attributes = OrderedDict()
+
     def __init__(self, args, optargs, ret, service):
         super().__init__(args, optargs, ret)
         self.service = service
@@ -264,6 +273,8 @@ class TCFunction(TFunction):
 
     :ivar name: (str) C function name
     """
+
+    attributes = OrderedDict()
 
     def __init__(self, args, ret, name):
         super().__init__(args, OrderedDict(), ret)
@@ -421,6 +432,9 @@ def is_tuple(typ, elts=None):
             elts == typ.elts
     else:
         return isinstance(typ, TTuple)
+
+def _is_pointer(typ):
+    return isinstance(typ.find(), _TPointer)
 
 def is_function(typ):
     return isinstance(typ.find(), TFunction)

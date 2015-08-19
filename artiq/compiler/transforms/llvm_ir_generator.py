@@ -180,6 +180,8 @@ class LLVMIRGenerator:
                 return llvoid
             else:
                 return ll.LiteralStructType([])
+        elif types._is_pointer(typ):
+            return llptr
         elif types.is_function(typ):
             envarg = llptr
             llty = ll.FunctionType(args=[envarg] +

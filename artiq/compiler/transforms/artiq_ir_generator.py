@@ -1575,9 +1575,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     format_string += ")"
             elif types.is_function(value.type):
                 format_string += "<closure %p(%p)>"
-                # We're relying on the internal layout of the closure here.
-                args.append(self.append(ir.GetAttr(value, 0)))
-                args.append(self.append(ir.GetAttr(value, 1)))
+                args.append(self.append(ir.GetAttr(value, '__code__')))
+                args.append(self.append(ir.GetAttr(value, '__closure__')))
             elif builtins.is_none(value.type):
                 format_string += "None"
             elif builtins.is_bool(value.type):

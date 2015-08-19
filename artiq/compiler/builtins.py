@@ -203,6 +203,7 @@ def is_collection(typ):
 def is_allocated(typ):
     return not (is_none(typ) or is_bool(typ) or is_int(typ) or
                   is_float(typ) or is_range(typ) or
+                  types._is_pointer(typ) or types.is_function(typ) or
                   types.is_c_function(typ) or types.is_rpc_function(typ) or
                   types.is_method(typ) or types.is_tuple(typ) or
                   types.is_value(typ))
