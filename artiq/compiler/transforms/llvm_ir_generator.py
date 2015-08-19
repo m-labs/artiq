@@ -387,13 +387,13 @@ class LLVMIRGenerator:
             for block in func.basic_blocks:
                 self.llbuilder.position_at_end(self.llmap[block])
                 for insn in block.instructions:
+                    if insn.loc is not None:
+                        self.llbuilder.debug_metadata = \
+                            self.debug_info_emitter.emit_loc(insn.loc, disubprogram)
+
                     llinsn = getattr(self, "process_" + type(insn).__name__)(insn)
                     assert llinsn is not None
                     self.llmap[insn] = llinsn
-
-                    if insn.loc is not None and not isinstance(llinsn, ll.Constant):
-                        diloc = self.debug_info_emitter.emit_loc(insn.loc, disubprogram)
-                        llinsn.set_metadata('dbg', diloc)
 
                 # There is no 1:1 correspondence between ARTIQ and LLVM
                 # basic blocks, because sometimes we expand a single ARTIQ
