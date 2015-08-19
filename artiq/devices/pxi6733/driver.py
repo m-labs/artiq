@@ -93,7 +93,7 @@ class DAQmx:
         values = values.flatten()
         t = self.daq.Task()
         t.CreateAOVoltageChan(self.channels, b"",
-                              min(values), max(values),
+                              min(values), max(values)+1,
                               self.daq.DAQmx_Val_Volts, None)
 
         channel_number = (c_ulong*1)()
