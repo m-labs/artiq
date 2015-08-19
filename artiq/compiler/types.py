@@ -350,9 +350,20 @@ class TInstance(TMono):
         self.attributes = attributes
 
     def __repr__(self):
-        return "py2llvm.types.TInstance({}, {]})".format(
+        return "py2llvm.types.TInstance({}, {})".format(
                     repr(self.name), repr(self.attributes))
 
+class TMethod(TMono):
+    """
+    A type of a method.
+    """
+
+    def __init__(self, self_type, function_type):
+        super().__init__("method", {"self": self_type, "fn": function_type})
+        self.attributes = OrderedDict([
+            ("__func__", function_type),
+            ("__self__", self_type),
+        ])
 
 class TValue(Type):
     """
@@ -451,6 +462,17 @@ def is_instance(typ, name=None):
             typ.name == name
     else:
         return isinstance(typ, TInstance)
+
+def is_method(typ):
+    return isinstance(typ.find(), TMethod)
+
+def get_method_self(typ):
+    if is_method(typ):
+        return typ.find().params["self"]
+
+def get_method_function(typ):
+    if is_method(typ):
+        return typ.find().params["fn"]
 
 def is_value(typ):
     return isinstance(typ.find(), TValue)

@@ -192,6 +192,10 @@ class LLVMIRGenerator:
                 return llty
             else:
                 return ll.LiteralStructType([envarg, llty.as_pointer()])
+        elif types.is_method(typ):
+            llfuncty = self.llty_of_type(types.get_method_function(typ))
+            llselfty = self.llty_of_type(types.get_method_self(typ))
+            return ll.LiteralStructType([llfuncty, llselfty])
         elif builtins.is_none(typ):
             if for_return:
                 return llvoid

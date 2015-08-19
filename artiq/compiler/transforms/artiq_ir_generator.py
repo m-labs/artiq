@@ -711,13 +711,22 @@ class ARTIQIRGenerator(algorithm.Visitor):
         finally:
             self.current_assign = old_assign
 
-        if node.attr not in node.type.find().attributes:
+        if node.attr not in obj.type.find().attributes:
             # A class attribute. Get the constructor (class object) and
             # extract the attribute from it.
-            constructor = obj.type.constructor
-            obj = self.append(ir.GetConstructor(self._env_for(constructor.name),
-                                                constructor.name, constructor,
-                                                name="constructor." + constructor.name))
+            print(node)
+            print(obj)
+            constr_type = obj.type.constructor
+            constr = self.append(ir.GetConstructor(self._env_for(constr_type.name),
+                                                   constr_type.name, constr_type,
+                                                   name="constructor." + constr_type.name))
+
+            if types.is_function(constr.type.attributes[node.attr]):
+                # A method. Construct a method object instead.
+                func = self.append(ir.GetAttr(constr, node.attr))
+                return self.append(ir.Alloc([func, obj], node.type))
+            else:
+                obj = constr
 
         if self.current_assign is None:
             return self.append(ir.GetAttr(obj, node.attr,
@@ -1413,36 +1422,49 @@ class ARTIQIRGenerator(algorithm.Visitor):
         elif types.is_builtin(typ):
             return self.visit_builtin_call(node)
         else:
-            func = self.visit(node.func)
-            args = [None] * (len(typ.args) + len(typ.optargs))
+            if types.is_function(typ):
+                func     = self.visit(node.func)
+                self_arg = None
+                fn_typ   = typ
+            elif types.is_method(typ):
+                method   = self.visit(node.func)
+                func     = self.append(ir.GetAttr(method, "__func__"))
+                self_arg = self.append(ir.GetAttr(method, "__self__"))
+                fn_typ   = types.get_method_function(typ)
+
+            args = [None] * (len(fn_typ.args) + len(fn_typ.optargs))
 
             for index, arg_node in enumerate(node.args):
                 arg = self.visit(arg_node)
-                if index < len(typ.args):
+                if index < len(fn_typ.args):
                     args[index] = arg
                 else:
                     args[index] = self.append(ir.Alloc([arg], ir.TOption(arg.type)))
 
             for keyword in node.keywords:
                 arg = self.visit(keyword.value)
-                if keyword.arg in typ.args:
-                    for index, arg_name in enumerate(typ.args):
+                if keyword.arg in fn_typ.args:
+                    for index, arg_name in enumerate(fn_typ.args):
                         if keyword.arg == arg_name:
                             assert args[index] is None
                             args[index] = arg
                             break
-                elif keyword.arg in typ.optargs:
-                    for index, optarg_name in enumerate(typ.optargs):
+                elif keyword.arg in fn_typ.optargs:
+                    for index, optarg_name in enumerate(fn_typ.optargs):
                         if keyword.arg == optarg_name:
-                            assert args[len(typ.args) + index] is None
-                            args[len(typ.args) + index] = \
+                            assert args[len(fn_typ.args) + index] is None
+                            args[len(fn_typ.args) + index] = \
                                     self.append(ir.Alloc([arg], ir.TOption(arg.type)))
                             break
 
-            for index, optarg_name in enumerate(typ.optargs):
-                if args[len(typ.args) + index] is None:
-                    args[len(typ.args) + index] = \
-                            self.append(ir.Alloc([], ir.TOption(typ.optargs[optarg_name])))
+            for index, optarg_name in enumerate(fn_typ.optargs):
+                if args[len(fn_typ.args) + index] is None:
+                    args[len(fn_typ.args) + index] = \
+                            self.append(ir.Alloc([], ir.TOption(fn_typ.optargs[optarg_name])))
+
+            if self_arg is not None:
+                assert args[0] is None
+                args[0] = self_arg
 
             assert None not in args
 

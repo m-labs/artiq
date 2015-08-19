@@ -205,4 +205,5 @@ def is_allocated(typ):
         accum or not (is_none(typ) or is_bool(typ) or is_int(typ) or
                       is_float(typ) or is_range(typ) or
                       types.is_c_function(typ) or types.is_rpc_function(typ) or
+                      types.is_method(typ) or
                       types.is_value(typ)))

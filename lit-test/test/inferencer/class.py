@@ -5,10 +5,15 @@ class c:
     a = 1
     def f():
         pass
+    def m(self):
+        pass
 
-# CHECK-L: c:<constructor c {a: int(width='a), f: ()->NoneType}>
+# CHECK-L: c:<constructor c {a: int(width='a), f: ()->NoneType, m: (self:c)->NoneType}>
 c
 # CHECK-L: .a:int(width='a)
 c.a
 # CHECK-L: .f:()->NoneType
 c.f
+
+# CHECK-L: .m:method(self=c, fn=(self:c)->NoneType)
+c().m()

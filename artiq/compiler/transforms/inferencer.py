@@ -22,7 +22,7 @@ class Inferencer(algorithm.Visitor):
         self.in_loop = False
         self.has_return = False
 
-    def _unify(self, typea, typeb, loca, locb, makenotes=None):
+    def _unify(self, typea, typeb, loca, locb, makenotes=None, when=""):
         try:
             typea.unify(typeb)
         except types.UnificationError as e:
@@ -45,16 +45,19 @@ class Inferencer(algorithm.Visitor):
                             locb))
 
             highlights = [locb] if locb else []
-            if e.typea.find() == typea.find() and e.typeb.find() == typeb.find():
+            if e.typea.find() == typea.find() and e.typeb.find() == typeb.find() or \
+                    e.typeb.find() == typea.find() and e.typea.find() == typeb.find():
                 diag = diagnostic.Diagnostic("error",
-                    "cannot unify {typea} with {typeb}",
-                    {"typea": printer.name(typea), "typeb": printer.name(typeb)},
+                    "cannot unify {typea} with {typeb}{when}",
+                    {"typea": printer.name(typea), "typeb": printer.name(typeb),
+                     "when": when},
                     loca, highlights, notes)
             else: # give more detail
                 diag = diagnostic.Diagnostic("error",
-                    "cannot unify {typea} with {typeb}: {fraga} is incompatible with {fragb}",
+                    "cannot unify {typea} with {typeb}{when}: {fraga} is incompatible with {fragb}",
                     {"typea": printer.name(typea),   "typeb": printer.name(typeb),
-                     "fraga": printer.name(e.typea), "fragb": printer.name(e.typeb)},
+                     "fraga": printer.name(e.typea), "fragb": printer.name(e.typeb),
+                      "when": when},
                     loca, highlights, notes)
             self.engine.process(diag)
 
@@ -88,13 +91,43 @@ class Inferencer(algorithm.Visitor):
         object_type = node.value.type.find()
         if not types.is_var(object_type):
             if node.attr in object_type.attributes:
-                # assumes no free type variables in .attributes
+                # Assumes no free type variables in .attributes.
                 self._unify(node.type, object_type.attributes[node.attr],
                             node.loc, None)
             elif types.is_instance(object_type) and \
                     node.attr in object_type.constructor.attributes:
-                # assumes no free type variables in .attributes
-                self._unify(node.type, object_type.constructor.attributes[node.attr],
+                # Assumes no free type variables in .attributes.
+                attr_type = object_type.constructor.attributes[node.attr].find()
+                if types.is_function(attr_type):
+                    # Convert to a method.
+                    if len(attr_type.args) < 1:
+                        diag = diagnostic.Diagnostic("error",
+                            "function '{attr}{type}' of class '{class}' cannot accept a self argument",
+                            {"attr": node.attr, "type": types.TypePrinter().name(attr_type),
+                             "class": object_type.name},
+                            node.loc)
+                        self.engine.process(diag)
+                        return
+                    else:
+                        def makenotes(printer, typea, typeb, loca, locb):
+                            return [
+                                diagnostic.Diagnostic("note",
+                                    "expression of type {typea}",
+                                    {"typea": printer.name(typea)},
+                                    loca),
+                                diagnostic.Diagnostic("note",
+                                    "reference to a class function of type {typeb}",
+                                    {"typeb": printer.name(attr_type)},
+                                    locb)
+                            ]
+
+                        self._unify(object_type, list(attr_type.args.values())[0],
+                                    node.value.loc, node.loc,
+                                    makenotes=makenotes,
+                                    when=" while inferring the type for self argument")
+
+                    attr_type = types.TMethod(object_type, attr_type)
+                self._unify(node.type, attr_type,
                             node.loc, None)
             else:
                 diag = diagnostic.Diagnostic("error",
@@ -695,7 +728,7 @@ class Inferencer(algorithm.Visitor):
             return
         elif types.is_builtin(typ):
             return self.visit_builtin_call(node)
-        elif not types.is_function(typ):
+        elif not (types.is_function(typ) or types.is_method(typ)):
             diag = diagnostic.Diagnostic("error",
                 "cannot call this expression of type {type}",
                 {"type": types.TypePrinter().name(typ)},
@@ -703,22 +736,34 @@ class Inferencer(algorithm.Visitor):
             self.engine.process(diag)
             return
 
+        if types.is_function(typ):
+            typ_arity   = typ.arity()
+            typ_args    = typ.args
+            typ_optargs = typ.optargs
+            typ_ret     = typ.ret
+        else:
+            typ         = types.get_method_function(typ)
+            typ_arity   = typ.arity() - 1
+            typ_args    = OrderedDict(list(typ.args.items())[1:])
+            typ_optargs = typ.optargs
+            typ_ret     = typ.ret
+
         passed_args = dict()
 
-        if len(node.args) > typ.arity():
+        if len(node.args) > typ_arity:
             note = diagnostic.Diagnostic("note",
                 "extraneous argument(s)", {},
-                node.args[typ.arity()].loc.join(node.args[-1].loc))
+                node.args[typ_arity].loc.join(node.args[-1].loc))
             diag = diagnostic.Diagnostic("error",
                 "this function of type {type} accepts at most {num} arguments",
                 {"type": types.TypePrinter().name(node.func.type),
-                 "num": typ.arity()},
+                 "num": typ_arity},
                 node.func.loc, [], [note])
             self.engine.process(diag)
             return
 
         for actualarg, (formalname, formaltyp) in \
-                zip(node.args, list(typ.args.items()) + list(typ.optargs.items())):
+                zip(node.args, list(typ_args.items()) + list(typ_optargs.items())):
             self._unify(actualarg.type, formaltyp,
                         actualarg.loc, None)
             passed_args[formalname] = actualarg.loc
@@ -732,15 +777,15 @@ class Inferencer(algorithm.Visitor):
                 self.engine.process(diag)
                 return
 
-            if keyword.arg in typ.args:
-                self._unify(keyword.value.type, typ.args[keyword.arg],
+            if keyword.arg in typ_args:
+                self._unify(keyword.value.type, typ_args[keyword.arg],
                             keyword.value.loc, None)
-            elif keyword.arg in typ.optargs:
-                self._unify(keyword.value.type, typ.optargs[keyword.arg],
+            elif keyword.arg in typ_optargs:
+                self._unify(keyword.value.type, typ_optargs[keyword.arg],
                             keyword.value.loc, None)
             passed_args[keyword.arg] = keyword.arg_loc
 
-        for formalname in typ.args:
+        for formalname in typ_args:
             if formalname not in passed_args:
                 note = diagnostic.Diagnostic("note",
                     "the called function is of type {type}",
@@ -753,7 +798,7 @@ class Inferencer(algorithm.Visitor):
                 self.engine.process(diag)
                 return
 
-        self._unify(node.type, typ.ret,
+        self._unify(node.type, typ_ret,
                     node.loc, None)
 
     def visit_LambdaT(self, node):
