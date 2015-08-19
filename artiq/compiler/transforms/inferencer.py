@@ -705,6 +705,12 @@ class Inferencer(algorithm.Visitor):
                 pass
             else:
                 diagnose(valid_forms())
+        elif types.is_constructor(typ):
+            # An user-defined class.
+            self._unify(node.type, typ.find().instance,
+                        node.loc, None)
+        else:
+            assert False
 
     def visit_CallT(self, node):
         self.generic_visit(node)
@@ -722,10 +728,6 @@ class Inferencer(algorithm.Visitor):
 
         if types.is_var(typ):
             return # not enough info yet
-        elif types.is_constructor(typ) and not types.is_exn_constructor(typ):
-            self._unify(node.type, typ.find().instance,
-                        node.loc, None)
-            return
         elif types.is_builtin(typ):
             return self.visit_builtin_call(node)
         elif not (types.is_function(typ) or types.is_method(typ)):

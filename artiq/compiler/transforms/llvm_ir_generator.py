@@ -391,7 +391,7 @@ class LLVMIRGenerator:
                     assert llinsn is not None
                     self.llmap[insn] = llinsn
 
-                    if insn.loc is not None:
+                    if insn.loc is not None and not isinstance(llinsn, ll.Constant):
                         diloc = self.debug_info_emitter.emit_loc(insn.loc, disubprogram)
                         llinsn.set_metadata('dbg', diloc)
 

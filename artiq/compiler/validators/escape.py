@@ -7,6 +7,9 @@ import functools
 from pythonparser import algorithm, diagnostic
 from .. import asttyped, types, builtins
 
+def has_region(typ):
+    return typ.fold(False, lambda accum, typ: accum or builtins.is_allocated(typ))
+
 class Region:
     """
     A last-in-first-out allocation region. Tied to lexical scoping
@@ -78,7 +81,7 @@ class RegionOf(algorithm.Visitor):
     # Value lives as long as the current scope, if it's mutable,
     # or else forever
     def visit_sometimes_allocating(self, node):
-        if builtins.is_allocated(node.type):
+        if has_region(node.type):
             return self.youngest_region
         else:
             return None
@@ -89,7 +92,7 @@ class RegionOf(algorithm.Visitor):
     # Value lives as long as the object/container, if it's mutable,
     # or else forever
     def visit_accessor(self, node):
-        if builtins.is_allocated(node.type):
+        if has_region(node.type):
             return self.visit(node.value)
         else:
             return None
@@ -131,7 +134,7 @@ class RegionOf(algorithm.Visitor):
 
     # Value lives forever
     def visit_immutable(self, node):
-        assert not builtins.is_allocated(node.type)
+        assert not has_region(node.type)
         return None
 
     visit_NameConstantT = visit_immutable
@@ -217,7 +220,7 @@ class EscapeValidator(algorithm.Visitor):
             self.youngest_env = {}
 
             for name in typing_env:
-                if builtins.is_allocated(typing_env[name]):
+                if has_region(typing_env[name]):
                     self.youngest_env[name] = Region(None) # not yet known
                 else:
                     self.youngest_env[name] = None # lives forever

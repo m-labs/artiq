@@ -15,5 +15,5 @@ c.a
 # CHECK-L: .f:()->NoneType
 c.f
 
-# CHECK-L: .m:method(self=c, fn=(self:c)->NoneType)
+# CHECK-L: .m:method(fn=(self:c)->NoneType, self=c)
 c().m()

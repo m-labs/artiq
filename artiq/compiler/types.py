@@ -99,8 +99,8 @@ class TMono(Type):
     attributes = OrderedDict()
 
     def __init__(self, name, params={}):
-        assert isinstance(params, dict)
-        self.name, self.params = name, params
+        assert isinstance(params, (dict, OrderedDict))
+        self.name, self.params = name, OrderedDict(sorted(params.items()))
 
     def find(self):
         return self

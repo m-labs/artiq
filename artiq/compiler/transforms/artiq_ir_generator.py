@@ -1411,15 +1411,15 @@ class ARTIQIRGenerator(algorithm.Visitor):
             return ir.Constant(None, builtins.TNone())
         elif types.is_exn_constructor(typ):
             return self.alloc_exn(node.type, *[self.visit(arg_node) for arg_node in node.args])
+        elif types.is_constructor(typ):
+            return self.append(ir.Alloc([], typ.instance))
         else:
             assert False
 
     def visit_CallT(self, node):
         typ = node.func.type.find()
 
-        if types.is_constructor(typ) and not types.is_exn_constructor(typ):
-            return self.append(ir.Alloc([], typ.instance))
-        elif types.is_builtin(typ):
+        if types.is_builtin(typ):
             return self.visit_builtin_call(node)
         else:
             if types.is_function(typ):
