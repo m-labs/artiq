@@ -4,6 +4,7 @@ from pythonparser import diagnostic
 
 from artiq.language.core import *
 from artiq.language.types import *
+from artiq.language.units import *
 
 from artiq.compiler import Stitcher, Module
 from artiq.compiler.targets import OR1KTarget
