@@ -9,6 +9,8 @@ ARTIQ_PREFIX=$(python3 -c "import artiq; print(artiq.__path__[0])")
 
 # Default is kc705
 BOARD=kc705
+# Default carrier board is nist_qc1
+CARRIER_BOARD=nist_qc1
 
 while getopts "bBrht:d:f:" opt
 do
@@ -53,17 +55,29 @@ do
 				exit 1
 			fi
 			;;
+		c)
+			if [ "$OPTARG" == "nist_qc1" ]
+			then
+				CARRIER_BOARD=nist_qc1
+			elif [ "$OPTARG" == "nist_qc2" ]
+			then
+				CARRIER_BOARD=nist_qc2
+			else
+				echo "KC705 carrier board is either nist_qc1 or nist_qc2"
+				exit 1
+			fi
 		*)
 			echo "ARTIQ flashing tool"
 			echo ""
 			echo "To flash everything, do not use any of the -b|-B|-r option."
 			echo ""
-			echo "usage: $0 [-b] [-B] [-r] [-h] [-t kc705|pipistrello] [-d path]"
+			echo "usage: $0 [-b] [-B] [-r] [-h] [-c nist_qc1|nist_qc2] [-t kc705|pipistrello] [-d path] [-f path]"
 			echo "-b  Flash bitstream"
 			echo "-B  Flash BIOS"
 			echo "-r  Flash ARTIQ runtime"
 			echo "-h  Show this help message"
 			echo "-t  Target (kc705, pipistrello, default is: kc705)"
+			echo "-c  Carrier board (nist_qc1, nist_qc2, default is: nist_qc1)"
 			echo "-f  Flash storage image generated with artiq_mkfs"
 			echo "-d  Directory containing the binaries to be flashed"
 			exit 1
@@ -103,11 +117,12 @@ fi
 if [ "$BOARD" == "kc705" ]
 then
 	UDEV_RULES=99-kc705.rules
-	BITSTREAM=artiq_kc705-nist_qc1-kc705.bit
+	BITSTREAM=artiq_kc705-${CARRIER_BOARD}-kc705.bit
 	CABLE=jtaghs1_fast
 	PROXY=bscan_spi_kc705.bit
 	BIOS_ADDR=0xaf0000
 	RUNTIME_ADDR=0xb00000
+	RUNTIME_FILENAME=runtime_${CARRIER_BOARD}.fbi
 	FS_ADDR=0xb40000
 	if [ -z "$BIN_PREFIX" ]; then BIN_PREFIX=$ARTIQ_PREFIX/binaries/kc705; fi
 	search_for_proxy $PROXY
@@ -119,6 +134,7 @@ then
 	PROXY=bscan_spi_lx45_csg324.bit
 	BIOS_ADDR=0x170000
 	RUNTIME_ADDR=0x180000
+	RUNTIME_FILENAME=runtime.fbi
 	FS_ADDR=0x1c0000
 	if [ -z "$BIN_PREFIX" ]; then BIN_PREFIX=$ARTIQ_PREFIX/binaries/pipistrello; fi
 	search_for_proxy $PROXY
