@@ -66,6 +66,7 @@ do
 				echo "KC705 carrier board is either nist_qc1 or nist_qc2"
 				exit 1
 			fi
+			;;
 		*)
 			echo "ARTIQ flashing tool"
 			echo ""
