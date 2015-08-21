@@ -86,7 +86,7 @@ class RandomScan:
 
 
 class ExplicitScan:
-    """A scan object that yields values from a explicitly defined sequence."""
+    """A scan object that yields values from an explicitly defined sequence."""
     def __init__(self, sequence):
         self.sequence = sequence
 
