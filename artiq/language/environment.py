@@ -73,7 +73,7 @@ class NumberValue(_SimpleArgProcessor):
 
     :param unit: A string representing the unit of the value, for user
         interface (UI) purposes.
-    :param step: The step with with the value should be modified by up/down
+    :param step: The step with which the value should be modified by up/down
         buttons in a UI.
     :param min: The minimum value of the argument.
     :param max: The maximum value of the argument.
