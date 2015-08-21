@@ -23,7 +23,7 @@ script:
   - make -C doc/manual html
 after_success:
   - anaconda -q login --hostname $(hostname) --username $binstar_login --password $binstar_password
-  - anaconda -q upload --user $binstar_login --channel dev --force $HOME/miniconda/conda-bld/linux-64/artiq-*.tar.bz2
+  - if [ "$TRAVIS_BRANCH" == "master" ]; then anaconda -q upload --user $binstar_login --channel dev --force $HOME/miniconda/conda-bld/linux-64/artiq-*.tar.bz2; fi
   - anaconda -q logout
   - coveralls
 notifications:
