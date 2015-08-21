@@ -15,6 +15,12 @@ The most commonly used features from those modules can be imported with ``from a
 .. automodule:: artiq.language.environment
     :members:
 
+:mod:`artiq.language.scan` module
+----------------------------------------
+
+.. automodule:: artiq.language.scan
+    :members:
+
 :mod:`artiq.language.units` module
 ----------------------------------
 
