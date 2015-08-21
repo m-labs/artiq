@@ -9,10 +9,10 @@ ARTIQ_PREFIX=$(python3 -c "import artiq; print(artiq.__path__[0])")
 
 # Default is kc705
 BOARD=kc705
-# Default carrier board is nist_qc1
-CARRIER_BOARD=nist_qc1
+# Default mezzanine board is nist_qc1
+MEZZANINE_BOARD=nist_qc1
 
-while getopts "bBrht:d:f:" opt
+while getopts "bBrht:d:f:m:" opt
 do
 	case $opt in
 		b)
@@ -55,15 +55,15 @@ do
 				exit 1
 			fi
 			;;
-		c)
+		m)
 			if [ "$OPTARG" == "nist_qc1" ]
 			then
-				CARRIER_BOARD=nist_qc1
+				MEZZANINE_BOARD=nist_qc1
 			elif [ "$OPTARG" == "nist_qc2" ]
 			then
-				CARRIER_BOARD=nist_qc2
+				MEZZANINE_BOARD=nist_qc2
 			else
-				echo "KC705 carrier board is either nist_qc1 or nist_qc2"
+				echo "KC705 mezzanine board is either nist_qc1 or nist_qc2"
 				exit 1
 			fi
 			;;
@@ -72,13 +72,13 @@ do
 			echo ""
 			echo "To flash everything, do not use any of the -b|-B|-r option."
 			echo ""
-			echo "usage: $0 [-b] [-B] [-r] [-h] [-c nist_qc1|nist_qc2] [-t kc705|pipistrello] [-d path] [-f path]"
+			echo "usage: $0 [-b] [-B] [-r] [-h] [-m nist_qc1|nist_qc2] [-t kc705|pipistrello] [-d path] [-f path]"
 			echo "-b  Flash bitstream"
 			echo "-B  Flash BIOS"
 			echo "-r  Flash ARTIQ runtime"
 			echo "-h  Show this help message"
 			echo "-t  Target (kc705, pipistrello, default is: kc705)"
-			echo "-c  Carrier board (nist_qc1, nist_qc2, default is: nist_qc1)"
+			echo "-m  Mezzanine board (nist_qc1, nist_qc2, default is: nist_qc1)"
 			echo "-f  Flash storage image generated with artiq_mkfs"
 			echo "-d  Directory containing the binaries to be flashed"
 			exit 1
@@ -118,12 +118,12 @@ fi
 if [ "$BOARD" == "kc705" ]
 then
 	UDEV_RULES=99-kc705.rules
-	BITSTREAM=artiq_kc705-${CARRIER_BOARD}-kc705.bit
+	BITSTREAM=artiq_kc705-${MEZZANINE_BOARD}-kc705.bit
 	CABLE=jtaghs1_fast
 	PROXY=bscan_spi_kc705.bit
 	BIOS_ADDR=0xaf0000
 	RUNTIME_ADDR=0xb00000
-	RUNTIME_FILENAME=runtime_${CARRIER_BOARD}.fbi
+	RUNTIME_FILENAME=runtime_${MEZZANINE_BOARD}.fbi
 	FS_ADDR=0xb40000
 	if [ -z "$BIN_PREFIX" ]; then BIN_PREFIX=$ARTIQ_PREFIX/binaries/kc705; fi
 	search_for_proxy $PROXY
