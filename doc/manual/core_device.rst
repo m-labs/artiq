@@ -19,6 +19,7 @@ The flash storage area is one sector (typically 64 kB) large and is organized as
 
 This flash storage space can be accessed by using ``artiq_coretool`` (see: :ref:`core-device-access-tool`).
 
+.. _board-ports:
 
 FPGA board ports
 ****************
@@ -49,7 +50,7 @@ With the QC1 hardware, the TTL lines are mapped as follows:
 Pipistrello
 -----------
 
-The low-cost Pipistrello FPGA board can be used as a lower-cost but slower alternative.
+The low-cost Pipistrello FPGA board can be used as a lower-cost but slower alternative. The current USB over serial protocol also suffers from limitations (no monitoring/injection, no idle experiment, no kernel interruptions, lack of robustness).
 
 When plugged to an adapter, the NIST QC1 hardware can be used. The TTL lines are mapped to RTIO channels as follows:
 
