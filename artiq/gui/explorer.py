@@ -1,5 +1,4 @@
 import asyncio
-import traceback
 
 from quamash import QtGui, QtCore
 from pyqtgraph import dockarea
@@ -136,12 +135,12 @@ class _ArgumentSetter(LayoutWidget):
         for arg, entry in self._args_to_entries.items():
             try:
                 r[arg] = entry.get_argument_value()
-            except:
+            except Exception as e:
                 if show_error_message:
                     msgbox = QtGui.QMessageBox(self.dialog_parent)
                     msgbox.setWindowTitle("Error")
-                    msgbox.setText("Failed to obtain value for argument '{}'.\n{}"
-                                   .format(arg, traceback.format_exc()))
+                    msgbox.setText("Failed to obtain value for argument '{}':\n{}"
+                                   .format(arg, str(e)))
                     msgbox.setStandardButtons(QtGui.QMessageBox.Ok)
                     msgbox.show()
                 return None
