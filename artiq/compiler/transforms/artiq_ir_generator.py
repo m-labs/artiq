@@ -714,8 +714,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
         if node.attr not in obj.type.find().attributes:
             # A class attribute. Get the constructor (class object) and
             # extract the attribute from it.
-            print(node)
-            print(obj)
             constr_type = obj.type.constructor
             constr = self.append(ir.GetConstructor(self._env_for(constr_type.name),
                                                    constr_type.name, constr_type,
