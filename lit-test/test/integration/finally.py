@@ -13,11 +13,6 @@ def f():
             print("f-finally")
     print("f-out")
 
-# CHECK-L: f-try
-# CHECK-L: f-finally
-# CHECK-L: f-out
-f()
-
 def g():
     x = True
     while x:
@@ -29,11 +24,6 @@ def g():
             print("g-finally")
     print("g-out")
 
-# CHECK-L: g-try
-# CHECK-L: g-finally
-# CHECK-L: g-out
-g()
-
 def h():
     try:
         print("h-try")
@@ -42,12 +32,6 @@ def h():
         print("h-finally")
     print("h-out")
     return 20
-
-# CHECK-L: h-try
-# CHECK-L: h-finally
-# CHECK-NOT-L: h-out
-# CHECK-L: h 10
-print("h", h())
 
 def i():
     try:
@@ -59,18 +43,34 @@ def i():
     print("i-out")
     return 20
 
-# CHECK-L: i-try
-# CHECK-L: i-finally
-# CHECK-NOT-L: i-out
-# CHECK-L: i 30
-print("i", i())
-
 def j():
     try:
         print("j-try")
     finally:
         print("j-finally")
     print("j-out")
+
+# CHECK-L: f-try
+# CHECK-L: f-finally
+# CHECK-L: f-out
+f()
+
+# CHECK-L: g-try
+# CHECK-L: g-finally
+# CHECK-L: g-out
+g()
+
+# CHECK-L: h-try
+# CHECK-L: h-finally
+# CHECK-NOT-L: h-out
+# CHECK-L: h 10
+print("h", h())
+
+# CHECK-L: i-try
+# CHECK-L: i-finally
+# CHECK-NOT-L: i-out
+# CHECK-L: i 30
+print("i", i())
 
 # CHECK-L: j-try
 # CHECK-L: j-finally

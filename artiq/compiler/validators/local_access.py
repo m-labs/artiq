@@ -16,11 +16,13 @@ class LocalAccessValidator:
             self.process_function(func)
 
     def process_function(self, func):
-        # Find all environments allocated in this func.
-        environments = []
+        # Find all environments and closures allocated in this func.
+        environments, closures = [], []
         for insn in func.instructions():
             if isinstance(insn, ir.Alloc) and ir.is_environment(insn.type):
                 environments.append(insn)
+            elif isinstance(insn, ir.Closure):
+                closures.append(insn)
 
         # Compute initial state of interesting environments.
         # Environments consisting only of internal variables (containing a ".")
@@ -82,6 +84,7 @@ class LocalAccessValidator:
                     # It's the entry block and it was never initialized.
                     return None
 
+                set_local_in_this_frame = False
                 if isinstance(insn, (ir.SetLocal, ir.GetLocal)) and \
                         "." not in insn.var_name:
                     env, var_name = insn.environment(), insn.var_name
@@ -91,24 +94,41 @@ class LocalAccessValidator:
                         if isinstance(insn, ir.SetLocal):
                             # We've just initialized it.
                             block_state[env][var_name] = True
+                            set_local_in_this_frame = True
                         else: # isinstance(insn, ir.GetLocal)
                             if not block_state[env][var_name]:
                                 # Oops, accessing it uninitialized.
                                 self._uninitialized_access(insn, var_name,
                                                            pred_at_fault(env, var_name))
 
-                # Creating a closure has no side effects. However, using a closure does.
-                for operand in insn.operands:
-                    if isinstance(operand, ir.Closure):
-                        env = operand.environment()
-                        # Make sure this environment has any interesting variables.
-                        if env in block_state:
-                            for var_name in block_state[env]:
-                                if not block_state[env][var_name]:
-                                    # A closure would capture this variable while it is not always
-                                    # initialized. Note that this check is transitive.
-                                    self._uninitialized_access(operand, var_name,
-                                                               pred_at_fault(env, var_name))
+                closures_to_check = []
+
+                if (isinstance(insn, (ir.SetLocal, ir.SetAttr, ir.SetElem)) and
+                        not set_local_in_this_frame):
+                    # Closures may escape via these mechanisms and be invoked elsewhere.
+                    if isinstance(insn.value(), ir.Closure):
+                        closures_to_check.append(insn.value())
+
+                if isinstance(insn, (ir.Call, ir.Invoke)):
+                    # We can't always trace the flow of closures from point of
+                    # definition to point of call; however, we know that, by transitiveness
+                    # of this analysis, only closures defined in this function can contain
+                    # uninitialized variables.
+                    #
+                    # Thus, enumerate the closures, and check all of them during any operation
+                    # that may eventually result in the closure being called.
+                    closures_to_check = closures
+
+                for closure in closures_to_check:
+                    env = closure.environment()
+                    # Make sure this environment has any interesting variables.
+                    if env in block_state:
+                        for var_name in block_state[env]:
+                            if not block_state[env][var_name]:
+                                # A closure would capture this variable while it is not always
+                                # initialized. Note that this check is transitive.
+                                self._uninitialized_access(closure, var_name,
+                                                           pred_at_fault(env, var_name))
 
             # Save the state.
             state[block] = block_state

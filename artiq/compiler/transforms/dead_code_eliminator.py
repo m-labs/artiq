@@ -14,10 +14,11 @@ class DeadCodeEliminator:
             self.process_function(func)
 
     def process_function(self, func):
-        for block in func.basic_blocks:
-            if not any(block.predecessors()) and \
-                    not any([isinstance(use, ir.SetLocal) for use in block.uses]) and \
-                    block != func.entry():
+        for block in list(func.basic_blocks):
+            if not any(block.predecessors()) and block != func.entry():
+                for use in set(block.uses):
+                    if isinstance(use, ir.SetLocal):
+                        use.erase()
                 self.remove_block(block)
 
     def remove_block(self, block):

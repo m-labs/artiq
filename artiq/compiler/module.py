@@ -60,7 +60,7 @@ class Module:
         escape_validator.visit(src.typedtree)
         self.artiq_ir = artiq_ir_generator.visit(src.typedtree)
         dead_code_eliminator.process(self.artiq_ir)
-        # local_access_validator.process(self.artiq_ir)
+        local_access_validator.process(self.artiq_ir)
 
     def build_llvm_ir(self, target):
         """Compile the module to LLVM IR for the specified target."""
