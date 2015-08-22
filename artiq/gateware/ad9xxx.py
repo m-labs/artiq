@@ -55,7 +55,11 @@ class AD9xxx(Module):
             dts.oe.eq(~rx)
         ]
 
-        gpio = Signal(flen(pads.sel) + 1)
+        if hasattr(pads, "sel"):
+            sel_len = flen(pads.sel)
+        else:
+            sel_len = flen(pads.sel_n)
+        gpio = Signal(sel_len + 1)
         gpio_load = Signal()
         self.sync += If(gpio_load, gpio.eq(bus.dat_w))
         if hasattr(pads, "rst"):
