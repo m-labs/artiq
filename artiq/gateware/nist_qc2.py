@@ -26,9 +26,9 @@ fmc_adapter_io = [
                             "LPC:LA11_N LPC:LA12_N LPC:LA11_P LPC:LA12_P "
                             "LPC:LA07_N LPC:LA08_N LPC:LA07_P LPC:LA08_P "
                             "LPC:LA04_N LPC:LA03_N LPC:LA04_P LPC:LA03_P")),
-        Subsignal("sel", Pins("LPC:LA24_N LPC:LA29_P LPC:LA28_P LPC:LA29_N "
-                              "LPC:LA28_N LPC:LA31_P LPC:LA30_P LPC:LA31_N "
-                              "LPC:LA30_N LPC:LA33_P LPC:LA33_N")),
+        Subsignal("sel_n", Pins("LPC:LA24_N LPC:LA29_P LPC:LA28_P LPC:LA29_N "
+                                "LPC:LA28_N LPC:LA31_P LPC:LA30_P LPC:LA31_N "
+                                "LPC:LA30_N LPC:LA33_P LPC:LA33_N")),
         Subsignal("fud", Pins("LPC:LA21_N")),
         Subsignal("wr_n", Pins("LPC:LA24_P")),
         Subsignal("rd_n", Pins("LPC:LA25_N")),

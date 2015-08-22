@@ -62,7 +62,10 @@ class AD9xxx(Module):
             self.comb += pads.rst.eq(gpio[0])
         else:
             self.comb += pads.rst_n.eq(~gpio[0])
-        self.comb += pads.sel.eq(gpio[1:])
+        if hasattr(pads, "sel"):
+            self.comb += pads.sel.eq(gpio[1:])
+        else:
+            self.comb += pads.sel_n.eq(~gpio[1:])
 
         bus_r_gpio = Signal()
         self.comb += If(bus_r_gpio,
