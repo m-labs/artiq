@@ -303,8 +303,8 @@ static void ddstest(char *n)
     }
     n2 = strtoul(n, &c, 0);
 
-    for(i=0; i<n2; i++) {
-        for(j=0; j<8; j++) {
+    for(i=0;i<n2;i++) {
+        for(j=0;j<DDS_CHANNEL_COUNT;j++) {
             ddstest_one(j);
         }
     }
