@@ -133,6 +133,15 @@ class HasEnvironment:
         raise NotImplementedError
 
     def dbs(self):
+        """Returns the device manager, the parameter database and the result
+        database, in this order.
+
+        This is the same order that the constructor takes them, allowing
+        sub-objects to be created with this idiom to pass the environment
+        around: ::
+
+            sub_object = SomeLibrary(*self.dbs())
+        """
         return self.__dmgr, self.__pdb, self.__rdb
 
     def get_argument(self, key, processor=None):
