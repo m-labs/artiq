@@ -40,9 +40,13 @@ class _Range(LayoutWidget):
         force_spinbox_value(self.npoints, npoints)
 
     def get_values(self):
+        min = self.min.value()
+        max = self.max.value()
+        if min > max:
+            raise ValueError("Minimum scan boundary must be less than maximum")
         return {
-            "min": self.min.value(),
-            "max": self.max.value(),
+            "min": min,
+            "max": max,
             "npoints": self.npoints.value()
         }
 
