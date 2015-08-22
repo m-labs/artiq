@@ -153,7 +153,7 @@ def _npscalar(ty, data):
 
 
 _eval_dict = {
-    "__builtins__": None,
+    "__builtins__": {},
 
     "null": None,
     "false": False,
