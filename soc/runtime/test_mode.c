@@ -248,7 +248,7 @@ static void ddsinit(void)
 }
 #endif
 
-static void ddstest_one(unsigned int i)
+static void do_ddstest_one(unsigned int i)
 {
     unsigned int v[12] = {
         0xaaaaaaaa, 0x55555555, 0xa5a5a5a5, 0x5a5a5a5a,
@@ -258,9 +258,10 @@ static void ddstest_one(unsigned int i)
     unsigned int f, g, j;
 
 #ifdef DDS_ONEHOT_SEL
-    i = 1 << i;
-#endif
+    brg_ddssel(1 << i);
+#else
     brg_ddssel(i);
+#endif
     ddsinit();
 
     for(j=0; j<12; j++) {
@@ -291,22 +292,39 @@ static void ddstest_one(unsigned int i)
     }
 }
 
-static void ddstest(char *n)
+static void ddstest(char *n, char *channel)
 {
     int i, j;
     char *c;
     unsigned int n2;
+    int channel2;
 
-    if (*n == 0) {
-        printf("ddstest <cycles>\n");
+    if((*n == 0) || (*channel == 0)) {
+        printf("ddstest <cycles> <channel/'all'>\n");
         return;
     }
     n2 = strtoul(n, &c, 0);
-
-    for(i=0;i<n2;i++) {
-        for(j=0;j<DDS_CHANNEL_COUNT;j++) {
-            ddstest_one(j);
+    if(*c != 0) {
+        printf("incorrect cycles\n");
+        return;
+    }
+    if(strcmp(channel, "all") == 0)
+        channel2 = -1;
+    else {
+        channel2 = strtoul(channel, &c, 0);
+        if(*c != 0) {
+            printf("incorrect channel\n");
+            return;
         }
+    }
+
+    if(channel2 >= 0) {
+        for(i=0;i<n2;i++)
+            do_ddstest_one(channel2);
+    } else {
+        for(i=0;i<n2;i++)
+            for(j=0;j<DDS_CHANNEL_COUNT;j++)
+                do_ddstest_one(j);
     }
 }
 
@@ -524,7 +542,7 @@ static void help(void)
     puts("ddsr <a>        - read DDS register");
     puts("ddsfud          - pulse FUD");
     puts("ddsftw <n> <d>  - write FTW");
-    puts("ddstest <n>     - perform test sequence on DDS");
+    puts("ddstest <n> <c> - perform test sequence on DDS");
     puts("leds <n>        - set LEDs");
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
     puts("fserase         - erase flash storage");
@@ -606,7 +624,7 @@ static void do_command(char *c)
     else if(strcmp(token, "ddsinit") == 0) ddsinit();
     else if(strcmp(token, "ddsfud") == 0) ddsfud();
     else if(strcmp(token, "ddsftw") == 0) ddsftw(get_token(&c), get_token(&c));
-    else if(strcmp(token, "ddstest") == 0) ddstest(get_token(&c));
+    else if(strcmp(token, "ddstest") == 0) ddstest(get_token(&c), get_token(&c));
 
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
     else if(strcmp(token, "fserase") == 0) fs_erase();
