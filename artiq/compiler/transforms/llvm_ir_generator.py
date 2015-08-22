@@ -495,10 +495,10 @@ class LLVMIRGenerator:
             var_index = list(env_ty.params.keys()).index(var_name)
             return self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(var_index)])
         else:
-            outer_index = list(env_ty.params.keys()).index(".outer")
+            outer_index = list(env_ty.params.keys()).index("$outer")
             llptr = self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(outer_index)])
             llouterenv = self.llbuilder.load(llptr)
-            return self.llptr_to_var(llouterenv, env_ty.params[".outer"], var_name)
+            return self.llptr_to_var(llouterenv, env_ty.params["$outer"], var_name)
 
     def process_GetLocal(self, insn):
         env = insn.environment()
@@ -519,7 +519,7 @@ class LLVMIRGenerator:
         if llptr.type.pointee != llvalue.type:
             # The environment argument is an i8*, so that all closures can
             # unify with each other regardless of environment type or size.
-            # We fixup the type on assignment into the ".outer" slot.
+            # We fixup the type on assignment into the "$outer" slot.
             assert isinstance(insn.value(), ir.EnvironmentArgument)
             llvalue = self.llbuilder.bitcast(llvalue, llptr.type.pointee)
         return self.llbuilder.store(llvalue, llptr)
@@ -740,11 +740,11 @@ class LLVMIRGenerator:
                                          name=insn.name)
         elif insn.op == "globalenv":
             def get_outer(llenv, env_ty):
-                if ".outer" in env_ty.params:
-                    outer_index = list(env_ty.params.keys()).index(".outer")
+                if "$outer" in env_ty.params:
+                    outer_index = list(env_ty.params.keys()).index("$outer")
                     llptr = self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(outer_index)])
                     llouterenv = self.llbuilder.load(llptr)
-                    return self.llptr_to_var(llouterenv, env_ty.params[".outer"], var_name)
+                    return self.llptr_to_var(llouterenv, env_ty.params["$outer"], var_name)
                 else:
                     return llenv
 

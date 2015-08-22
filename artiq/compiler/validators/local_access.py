@@ -7,6 +7,9 @@ from functools import reduce
 from pythonparser import diagnostic
 from .. import ir, analyses
 
+def is_special_variable(name):
+    return "$" in name
+
 class LocalAccessValidator:
     def __init__(self, engine):
         self.engine = engine
@@ -85,8 +88,8 @@ class LocalAccessValidator:
                     return None
 
                 set_local_in_this_frame = False
-                if isinstance(insn, (ir.SetLocal, ir.GetLocal)) and \
-                        "." not in insn.var_name:
+                if (isinstance(insn, (ir.SetLocal, ir.GetLocal)) and
+                        not is_special_variable(insn.var_name)):
                     env, var_name = insn.environment(), insn.var_name
 
                     # Make sure that the variable is defined in the scope of this function.
@@ -124,7 +127,7 @@ class LocalAccessValidator:
                     # Make sure this environment has any interesting variables.
                     if env in block_state:
                         for var_name in block_state[env]:
-                            if not block_state[env][var_name]:
+                            if not block_state[env][var_name] and not is_special_variable(var_name):
                                 # A closure would capture this variable while it is not always
                                 # initialized. Note that this check is transitive.
                                 self._uninitialized_access(closure, var_name,

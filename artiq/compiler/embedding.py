@@ -366,11 +366,11 @@ class Stitcher:
         if syscall is None:
             function_type = types.TRPCFunction(arg_types, optarg_types, ret_type,
                                                service=self._map(function))
-            function_name = "__rpc_{}__".format(function_type.service)
+            function_name = "rpc${}".format(function_type.service)
         else:
             function_type = types.TCFunction(arg_types, ret_type,
                                              name=syscall)
-            function_name = "__ffi_{}__".format(function_type.name)
+            function_name = "ffi${}".format(function_type.name)
 
         self.globals[function_name] = function_type
         self.functions[function] = function_name

@@ -465,7 +465,7 @@ class TEnvironment(types.TMono):
     def __init__(self, vars, outer=None):
         if outer is not None:
             assert isinstance(outer, TEnvironment)
-            env = OrderedDict({".outer": outer})
+            env = OrderedDict({"$outer": outer})
             env.update(vars)
         else:
             env = OrderedDict(vars)
@@ -475,14 +475,14 @@ class TEnvironment(types.TMono):
     def type_of(self, name):
         if name in self.params:
             return self.params[name].find()
-        elif ".outer" in self.params:
-            return self.params[".outer"].type_of(name)
+        elif "$outer" in self.params:
+            return self.params["$outer"].type_of(name)
         else:
             assert False
 
     def outermost(self):
-        if ".outer" in self.params:
-            return self.params[".outer"].outermost()
+        if "$outer" in self.params:
+            return self.params["$outer"].outermost()
         else:
             return self
 

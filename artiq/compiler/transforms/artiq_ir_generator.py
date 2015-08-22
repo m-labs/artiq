@@ -141,7 +141,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             env = self.append(ir.Alloc([], ir.TEnvironment(node.typing_env), name="env"))
             old_env, self.current_env = self.current_env, env
 
-            priv_env = self.append(ir.Alloc([], ir.TEnvironment({ ".return": typ.ret }),
+            priv_env = self.append(ir.Alloc([], ir.TEnvironment({ "$return": typ.ret }),
                                             name="privenv"))
             old_priv_env, self.current_private_env = self.current_private_env, priv_env
 
@@ -181,7 +181,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             for arg_name, default_node in zip(typ.optargs, node.args.defaults):
                 default = self.visit(default_node)
                 env_default_name = \
-                    self.current_env.type.add("default." + arg_name, default.type)
+                    self.current_env.type.add("default$" + arg_name, default.type)
                 self.append(ir.SetLocal(self.current_env, env_default_name, default))
                 defaults.append(env_default_name)
 
@@ -217,11 +217,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
             old_env, self.current_env = self.current_env, env
 
             if not is_lambda:
-                priv_env = self.append(ir.Alloc([], ir.TEnvironment({ ".return": typ.ret }),
+                priv_env = self.append(ir.Alloc([], ir.TEnvironment({ "$return": typ.ret }),
                                                 name="privenv"))
                 old_priv_env, self.current_private_env = self.current_private_env, priv_env
 
-            self.append(ir.SetLocal(env, ".outer", env_arg))
+            self.append(ir.SetLocal(env, "$outer", env_arg))
             for index, arg_name in enumerate(typ.args):
                 self.append(ir.SetLocal(env, arg_name, args[index]))
             for index, (arg_name, env_default_name) in enumerate(zip(typ.optargs, defaults)):
@@ -267,7 +267,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         if self.return_target is None:
             self.append(ir.Return(return_value))
         else:
-            self.append(ir.SetLocal(self.current_private_env, ".return", return_value))
+            self.append(ir.SetLocal(self.current_private_env, "$return", return_value))
             self.append(ir.Branch(self.return_target))
 
     def visit_Expr(self, node):
@@ -516,30 +516,30 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         if any(node.finalbody):
             # k for continuation
-            final_state = self.append(ir.Alloc([], ir.TEnvironment({ ".k": ir.TBasicBlock() })))
+            final_state = self.append(ir.Alloc([], ir.TEnvironment({ "$k": ir.TBasicBlock() })))
             final_targets = []
 
             if self.break_target is not None:
                 break_proxy = self.add_block("try.break")
                 old_break, self.break_target = self.break_target, break_proxy
-                break_proxy.append(ir.SetLocal(final_state, ".k", old_break))
+                break_proxy.append(ir.SetLocal(final_state, "$k", old_break))
                 final_targets.append(old_break)
             if self.continue_target is not None:
                 continue_proxy = self.add_block("try.continue")
                 old_continue, self.continue_target = self.continue_target, continue_proxy
-                continue_proxy.append(ir.SetLocal(final_state, ".k", old_continue))
+                continue_proxy.append(ir.SetLocal(final_state, "$k", old_continue))
                 final_targets.append(old_continue)
 
             return_proxy = self.add_block("try.return")
             old_return, self.return_target = self.return_target, return_proxy
             if old_return is not None:
-                return_proxy.append(ir.SetLocal(final_state, ".k", old_return))
+                return_proxy.append(ir.SetLocal(final_state, "$k", old_return))
                 final_targets.append(old_return)
             else:
                 return_action = self.add_block("try.doreturn")
-                value = return_action.append(ir.GetLocal(self.current_private_env, ".return"))
+                value = return_action.append(ir.GetLocal(self.current_private_env, "$return"))
                 return_action.append(ir.Return(value))
-                return_proxy.append(ir.SetLocal(final_state, ".k", return_action))
+                return_proxy.append(ir.SetLocal(final_state, "$k", return_action))
                 final_targets.append(return_action)
 
         body = self.add_block("try.body")
@@ -607,19 +607,19 @@ class ARTIQIRGenerator(algorithm.Visitor):
             return_proxy.append(ir.Branch(finalizer))
 
             if not body.is_terminated():
-                body.append(ir.SetLocal(final_state, ".k", tail))
+                body.append(ir.SetLocal(final_state, "$k", tail))
                 body.append(ir.Branch(finalizer))
 
-            cleanup.append(ir.SetLocal(final_state, ".k", reraise))
+            cleanup.append(ir.SetLocal(final_state, "$k", reraise))
             cleanup.append(ir.Branch(finalizer))
 
             for handler, post_handler in handlers:
                 if not post_handler.is_terminated():
-                    post_handler.append(ir.SetLocal(final_state, ".k", tail))
+                    post_handler.append(ir.SetLocal(final_state, "$k", tail))
                     post_handler.append(ir.Branch(finalizer))
 
             if not post_finalizer.is_terminated():
-                dest = post_finalizer.append(ir.GetLocal(final_state, ".k"))
+                dest = post_finalizer.append(ir.GetLocal(final_state, "$k"))
                 post_finalizer.append(ir.IndirectBranch(dest, final_targets))
         else:
             if not body.is_terminated():
@@ -961,7 +961,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             env = self.append(ir.Alloc([], env_type, name="env.gen"))
             old_env, self.current_env = self.current_env, env
 
-            self.append(ir.SetLocal(env, ".outer", old_env))
+            self.append(ir.SetLocal(env, "$outer", old_env))
 
             def body_gen(index):
                 elt = self.iterable_get(iterable, index)
@@ -1483,7 +1483,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     for (subexpr, name) in self.current_assert_subexprs]):
                 return # don't display the same subexpression twice
 
-            name = self.current_assert_env.type.add(".subexpr", ir.TOption(node.type))
+            name = self.current_assert_env.type.add("$subexpr", ir.TOption(node.type))
             value_opt = self.append(ir.Alloc([value], ir.TOption(node.type)),
                                     loc=node.loc)
             self.append(ir.SetLocal(self.current_assert_env, name, value_opt),
