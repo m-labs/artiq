@@ -257,6 +257,9 @@ static void ddstest_one(unsigned int i)
     };
     unsigned int f, g, j;
 
+#ifdef DDS_ONEHOT_SEL
+    i = 1 << i;
+#endif
     brg_ddssel(i);
     ddsinit();
 
