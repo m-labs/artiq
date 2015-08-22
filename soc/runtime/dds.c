@@ -77,18 +77,12 @@ void dds_init(long long int timestamp, int channel)
 #endif
 
 #ifdef DDS_AD9914
-    /*
-     * Enable cosine output (to match AD9858 behavior)
-     * Enable DAC calibration
-     * Leave SYNCLK enabled and PLL/divider disabled
-     */
-    DDS_WRITE(DDS_CFR1L, 0x0008);
-    DDS_WRITE(DDS_CFR1H, 0x0000);
-    DDS_WRITE(DDS_CFR4H, 0x0105);
+    DDS_WRITE(DDS_CFR1H, 0x0000); /* Enable cosine output */
+    DDS_WRITE(DDS_CFR2L, 0x8900); /* Enable matched latency */
+    DDS_WRITE(DDS_CFR4H, 0x0105); /* Enable DAC calibration */
     DDS_WRITE(DDS_FUD, 0);
-    /* Disable DAC calibration */
     now += DURATION_DAC_CAL;
-    DDS_WRITE(DDS_CFR4H, 0x0005);
+    DDS_WRITE(DDS_CFR4H, 0x0005); /* Disable DAC calibration */
     DDS_WRITE(DDS_FUD, 0);
 #endif
 }

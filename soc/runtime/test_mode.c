@@ -237,13 +237,13 @@ static void ddsinit(void)
     long long int t;
 
     brg_ddsreset();
-    brg_ddswrite(DDS_CFR1L, 0x0008);
-    brg_ddswrite(DDS_CFR1H, 0x0000);
-    brg_ddswrite(DDS_CFR4H, 0x0105);
+    brg_ddswrite(DDS_CFR1H, 0x0000); /* Enable cosine output */
+    brg_ddswrite(DDS_CFR2L, 0x8900); /* Enable matched latency */
+    brg_ddswrite(DDS_CFR4H, 0x0105); /* Enable DAC calibration */
     brg_ddswrite(DDS_FUD, 0);
     t = clock_get_ms();
     while(clock_get_ms() < t + 2);
-    brg_ddswrite(DDS_CFR4H, 0x0005);
+    brg_ddswrite(DDS_CFR4H, 0x0005); /* Disable DAC calibration */
     brg_ddsfud();
 }
 #endif
