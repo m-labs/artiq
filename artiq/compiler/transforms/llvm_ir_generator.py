@@ -832,7 +832,7 @@ class LLVMIRGenerator:
                     arg.loc)
                 diag = diagnostic.Diagnostic("error",
                     "type {type} is not supported in remote procedure calls",
-                    {"type": printer.name(arg.typ)},
+                    {"type": printer.name(arg.type)},
                     arg.loc)
                 self.engine.process(diag)
             tag += self._rpc_tag(arg.type, arg_error_handler)
