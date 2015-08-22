@@ -123,7 +123,7 @@ then
 	PROXY=bscan_spi_kc705.bit
 	BIOS_ADDR=0xaf0000
 	RUNTIME_ADDR=0xb00000
-	RUNTIME_FILENAME=runtime_${MEZZANINE_BOARD}.fbi
+	RUNTIME_FILE=${MEZZANINE_BOARD}/runtime.fbi
 	FS_ADDR=0xb40000
 	if [ -z "$BIN_PREFIX" ]; then BIN_PREFIX=$ARTIQ_PREFIX/binaries/kc705; fi
 	search_for_proxy $PROXY
@@ -135,7 +135,7 @@ then
 	PROXY=bscan_spi_lx45_csg324.bit
 	BIOS_ADDR=0x170000
 	RUNTIME_ADDR=0x180000
-	RUNTIME_FILENAME=runtime.fbi
+	RUNTIME_FILE=runtime.fbi
 	FS_ADDR=0x1c0000
 	if [ -z "$BIN_PREFIX" ]; then BIN_PREFIX=$ARTIQ_PREFIX/binaries/pipistrello; fi
 	search_for_proxy $PROXY
@@ -185,7 +185,7 @@ fi
 if [ "${FLASH_RUNTIME}" == "1" ]
 then
 	echo "Flashing ARTIQ runtime..."
-	xc3sprog -v -c $CABLE -I$PROXY_PATH/$PROXY $BIN_PREFIX/runtime.fbi:w:$RUNTIME_ADDR:BIN
+	xc3sprog -v -c $CABLE -I$PROXY_PATH/$PROXY $BIN_PREFIX/${RUNTIME_FILE}:w:$RUNTIME_ADDR:BIN
 fi
 echo "Done."
 xc3sprog -v -c $CABLE -R > /dev/null 2>&1

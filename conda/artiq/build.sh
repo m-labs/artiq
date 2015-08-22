@@ -24,7 +24,8 @@ cd $SRC_DIR/misoc; $PYTHON make.py -X ../soc -t artiq_kc705 $MISOC_EXTRA_VIVADO_
 
 # install KC705 NIST_QC1 binaries
 
-cp soc/runtime/runtime.fbi $BIN_PREFIX/kc705/runtime_nist_qc1.fbi
+mkdir -p $BIN_PREFIX/kc705/nist_qc1
+cp soc/runtime/runtime.fbi $BIN_PREFIX/kc705/nist_qc1/
 cp $SRC_DIR/misoc/software/bios/bios.bin $BIN_PREFIX/kc705/
 cp $SRC_DIR/misoc/build/artiq_kc705-nist_qc1-kc705.bit $BIN_PREFIX/kc705/
 wget http://sionneau.net/artiq/binaries/kc705/flash_proxy/bscan_spi_kc705.bit
@@ -52,7 +53,8 @@ cd $SRC_DIR/misoc; $PYTHON make.py -X ../soc -t artiq_kc705 -s NIST_QC2 $MISOC_E
 
 # install KC705 NIST_QC2 binaries
 
-cp soc/runtime/runtime.fbi $BIN_PREFIX/kc705/runtime_nist_qc2.fbi
+mkdir -p $BIN_PREFIX/kc705/nist_qc2
+cp soc/runtime/runtime.fbi $BIN_PREFIX/kc705/nist_qc2/
 cp $SRC_DIR/misoc/build/artiq_kc705-nist_qc2-kc705.bit $BIN_PREFIX/kc705/
 
 cp artiq/frontend/artiq_flash.sh $PREFIX/bin
