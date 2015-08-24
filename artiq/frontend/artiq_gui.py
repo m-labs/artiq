@@ -45,10 +45,10 @@ def get_argparser():
 
 
 class MainWindow(QtGui.QMainWindow):
-    def __init__(self, app):
+    def __init__(self, app, server):
         QtGui.QMainWindow.__init__(self)
         self.setWindowIcon(QtGui.QIcon(os.path.join(data_dir, "icon.png")))
-        self.setWindowTitle("ARTIQ")
+        self.setWindowTitle("ARTIQ - {}".format(server))
         self.exit_request = asyncio.Event()
 
     def closeEvent(self, *args):
@@ -77,7 +77,7 @@ def main():
         args.server, args.port_control, "master_schedule"))
     atexit.register(lambda: schedule_ctl.close_rpc())
 
-    win = MainWindow(app)
+    win = MainWindow(app, args.server)
     area = dockarea.DockArea()
     smgr.register(area)
     smgr.register(win)
