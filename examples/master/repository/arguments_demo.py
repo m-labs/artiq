@@ -35,9 +35,12 @@ class SubComponent2(HasEnvironment):
 class ArgumentsDemo(EnvExperiment):
     def build(self):
         self.attr_argument("free_value", FreeValue(None))
-        self.attr_argument("number", NumberValue(42, unit="s", step=0.1))
+        self.attr_argument("number", NumberValue(42, unit="s", step=0.1,
+                                                 ndecimals=4))
         self.attr_argument("string", StringValue("Hello World"))
-        self.attr_argument("scan", Scannable(global_max=400, default=NoScan(325)))
+        self.attr_argument("scan", Scannable(global_max=400,
+                                             default=NoScan(325),
+                                             ndecimals=6))
         self.attr_argument("boolean", BooleanValue(True), "Group")
         self.attr_argument("enum", EnumerationValue(
             ["foo", "bar", "quux"], "foo"), "Group")

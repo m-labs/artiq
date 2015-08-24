@@ -77,14 +77,16 @@ class NumberValue(_SimpleArgProcessor):
         buttons in a UI.
     :param min: The minimum value of the argument.
     :param max: The maximum value of the argument.
+    :param ndecimals: The number of decimals a UI should use.
     """
     def __init__(self, default=NoDefault, unit="", step=None,
-                 min=None, max=None):
+                 min=None, max=None, ndecimals=2):
         _SimpleArgProcessor.__init__(self, default)
         self.unit = unit
         self.step = step
         self.min = min
         self.max = max
+        self.ndecimals = ndecimals
 
     def describe(self):
         d = _SimpleArgProcessor.describe(self)
@@ -92,6 +94,7 @@ class NumberValue(_SimpleArgProcessor):
         d["step"] = self.step
         d["min"] = self.min
         d["max"] = self.max
+        d["ndecimals"] = self.ndecimals
         return d
 
 

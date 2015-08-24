@@ -5,10 +5,11 @@ from artiq.gui.tools import force_spinbox_value
 
 
 class _Range(LayoutWidget):
-    def __init__(self, global_min, global_max, global_step, unit):
+    def __init__(self, global_min, global_max, global_step, unit, ndecimals):
         LayoutWidget.__init__(self)
 
         def apply_properties(spinbox):
+            spinbox.setDecimals(ndecimals)
             if global_min is not None:
                 spinbox.setMinimum(global_min)
             if global_max is not None:
@@ -61,8 +62,10 @@ class ScanController(LayoutWidget):
         gmin, gmax = procdesc["global_min"], procdesc["global_max"]
         gstep = procdesc["global_step"]
         unit = procdesc["unit"]
+        ndecimals = procdesc["ndecimals"]
 
         self.v_noscan = QtGui.QDoubleSpinBox()
+        self.v_noscan.setDecimals(ndecimals)
         if gmin is not None:
             self.v_noscan.setMinimum(gmin)
         if gmax is not None:
@@ -76,10 +79,10 @@ class ScanController(LayoutWidget):
         self.v_noscan_gr.addWidget(self.v_noscan, 0, 1)
         self.stack.addWidget(self.v_noscan_gr)
 
-        self.v_linear = _Range(gmin, gmax, gstep, unit)
+        self.v_linear = _Range(gmin, gmax, gstep, unit, ndecimals)
         self.stack.addWidget(self.v_linear)
 
-        self.v_random = _Range(gmin, gmax, gstep, unit)
+        self.v_random = _Range(gmin, gmax, gstep, unit, ndecimals)
         self.stack.addWidget(self.v_random)
 
         self.v_explicit = QtGui.QLineEdit()

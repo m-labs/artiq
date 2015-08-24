@@ -117,16 +117,19 @@ class Scannable:
     :param global_step: The step with which the value should be modified by
         up/down buttons in a user interface.
     :param unit: A string representing the unit of the scanned variable, for user
-        interface purposes.
+        interface (UI) purposes.
+    :param ndecimals: The number of decimals a UI should use.
     """
-    def __init__(self, global_min=None, global_max=None, global_step=None,
-                 unit="", default=NoDefault):
-        self.global_min = global_min
-        self.global_max = global_max
-        self.global_step = global_step
-        self.unit = unit
+    def __init__(self, default=NoDefault, unit="",
+                 global_step=None, global_min=None, global_max=None,
+                 ndecimals=2):
         if default is not NoDefault:
             self.default_value = default
+        self.unit = unit
+        self.global_step = global_step
+        self.global_min = global_min
+        self.global_max = global_max
+        self.ndecimals = ndecimals
 
     def default(self):
         if not hasattr(self, "default_value"):
@@ -143,10 +146,11 @@ class Scannable:
 
     def describe(self):
         d = {"ty": "Scannable"}
-        d["global_min"] = self.global_min
-        d["global_max"] = self.global_max
-        d["global_step"] = self.global_step
-        d["unit"] = self.unit
         if hasattr(self, "default_value"):
             d["default"] = self.default_value.describe()
+        d["unit"] = self.unit
+        d["global_step"] = self.global_step
+        d["global_min"] = self.global_min
+        d["global_max"] = self.global_max
+        d["ndecimals"] = self.ndecimals
         return d
