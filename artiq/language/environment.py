@@ -144,19 +144,21 @@ class HasEnvironment:
         """
         return self.__dmgr, self.__pdb, self.__rdb
 
-    def get_argument(self, key, processor=None):
+    def get_argument(self, key, processor=None, group=None):
         """Retrieves and returns the value of an argument.
 
         :param key: Name of the argument.
         :param processor: A description of how to process the argument, such
             as instances of ``BooleanValue`` and ``NumberValue``.
+        :param group: An optional string that defines what group the argument
+            belongs to, for user interface purposes.
         """
         if not self.__in_build:
             raise TypeError("get_argument() should only "
                             "be called from build()")
         if processor is None:
             processor = FreeValue()
-        self.requested_args[key] = processor
+        self.requested_args[key] = processor, group
         try:
             argval = self.__kwargs[key]
         except KeyError:
@@ -169,10 +171,10 @@ class HasEnvironment:
                     raise
         return processor.process(argval)
 
-    def attr_argument(self, key, processor=None):
+    def attr_argument(self, key, processor=None, group=None):
         """Sets an argument as attribute. The names of the argument and of the
         attribute are the same."""
-        setattr(self, key, self.get_argument(key, processor))
+        setattr(self, key, self.get_argument(key, processor, group))
 
     def get_device(self, key):
         """Creates and returns a device driver."""

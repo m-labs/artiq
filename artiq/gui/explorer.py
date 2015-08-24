@@ -119,13 +119,31 @@ class _ArgumentEditor(QtGui.QTreeWidget):
     def __init__(self, dialog_parent):
         QtGui.QTreeWidget.__init__(self)
         self.setColumnCount(2)
-        self.header().setResizeMode(
-            QtGui.QHeaderView.ResizeToContents)
+        self.header().setResizeMode(QtGui.QHeaderView.ResizeToContents)
         self.header().setVisible(False)
         self.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
 
         self.dialog_parent = dialog_parent
+        self._groups = dict()
         self.set_arguments([])
+
+    def clear(self):
+        QtGui.QTreeWidget.clear(self)
+        self._groups.clear()
+
+    def _get_group(self, name):
+        if name in self._groups:
+            return self._groups[name]
+        group = QtGui.QTreeWidgetItem([name, ""])
+        for c in 0, 1:
+            group.setBackground(c, QtGui.QBrush(QtGui.QColor(100, 100, 100)))
+            group.setForeground(c, QtGui.QBrush(QtGui.QColor(220, 220, 255)))
+            font = group.font(c)
+            font.setBold(True)
+            group.setFont(c, font)
+        self.addTopLevelItem(group)
+        self._groups[name] = group
+        return group
 
     def set_arguments(self, arguments):
         self.clear()
@@ -134,12 +152,15 @@ class _ArgumentEditor(QtGui.QTreeWidget):
             self.addTopLevelItem(QtGui.QTreeWidgetItem(["No arguments", ""]))
 
         self._args_to_entries = dict()
-        for n, (name, procdesc) in enumerate(arguments):
+        for n, (name, (procdesc, group)) in enumerate(arguments):
             entry = _procty_to_entry[procdesc["ty"]](procdesc)
             self._args_to_entries[name] = entry
 
             widget_item = QtGui.QTreeWidgetItem([name, ""])
-            self.addTopLevelItem(widget_item)
+            if group is None:
+                self.addTopLevelItem(widget_item)
+            else:
+                self._get_group(group).addChild(widget_item)
             self.setItemWidget(widget_item, 1, entry)
 
     def get_argument_values(self, show_error_message):
@@ -166,6 +187,25 @@ class _ArgumentEditor(QtGui.QTreeWidget):
             except:
                 if not ignore_errors:
                     raise
+
+    def save_state(self):
+        expanded = []
+        for k, v in self._groups.items():
+            if v.isExpanded():
+                expanded.append(k)
+        argument_values = self.get_argument_values(False)
+        return {
+            "expanded": expanded,
+            "argument_values": argument_values
+        }
+
+    def restore_state(self, state):
+        self.set_argument_values(state["argument_values"], True)
+        for e in state["expanded"]:
+            try:
+                self._groups[e].setExpanded(True)
+            except KeyError:
+                pass
 
 
 class ExplorerDock(dockarea.Dock):
@@ -220,15 +260,13 @@ class ExplorerDock(dockarea.Dock):
 
     def update_selection(self, selected, deselected):
         if deselected:
-            self.state[deselected] = self.argeditor.get_argument_values(False)
+            self.state[deselected] = self.argeditor.save_state()
 
         if selected:
             expinfo = self.explist_model.backing_store[selected]
             self.argeditor.set_arguments(expinfo["arguments"])
             if selected in self.state:
-                arguments = self.state[selected]
-                if arguments is not None:
-                    self.argeditor.set_argument_values(arguments, True)
+                self.argeditor.restore_state(self.state[selected])
             self.splitter.insertWidget(1, self.argeditor)
         self.selected_key = selected
 
@@ -249,7 +287,7 @@ class ExplorerDock(dockarea.Dock):
         if idx:
             row = idx[0].row()
             key = self.explist_model.row_to_key[row]
-            self.state[key] = self.argeditor.get_argument_values(False)
+            self.state[key] = self.argeditor.save_state()
         return self.state
 
     def restore_state(self, state):
