@@ -98,18 +98,22 @@ def main():
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_results.sub_close()))
 
-    d_ttl_dds = MonInj()
-    loop.run_until_complete(d_ttl_dds.start(args.server, args.port_notify))
-    atexit.register(lambda: loop.run_until_complete(d_ttl_dds.stop()))
+    if os.name != "nt":
+        d_ttl_dds = MonInj()
+        loop.run_until_complete(d_ttl_dds.start(args.server, args.port_notify))
+        atexit.register(lambda: loop.run_until_complete(d_ttl_dds.stop()))
 
     d_params = ParametersDock()
     loop.run_until_complete(d_params.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_params.sub_close()))
 
-    area.addDock(d_ttl_dds.dds_dock, "top")
-    area.addDock(d_ttl_dds.ttl_dock, "above", d_ttl_dds.dds_dock)
-    area.addDock(d_results, "above", d_ttl_dds.ttl_dock)
+    if os.name != "nt":
+        area.addDock(d_ttl_dds.dds_dock, "top")
+        area.addDock(d_ttl_dds.ttl_dock, "above", d_ttl_dds.dds_dock)
+        area.addDock(d_results, "above", d_ttl_dds.ttl_dock)
+    else:
+        area.addDock(d_results, "top")
     area.addDock(d_params, "above", d_results)
     area.addDock(d_explorer, "above", d_params)
 
