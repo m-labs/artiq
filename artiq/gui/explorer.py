@@ -6,7 +6,7 @@ from pyqtgraph import LayoutWidget
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols import pyon
-from artiq.gui.tools import DictSyncModel, force_spinbox_value
+from artiq.gui.tools import DictSyncModel
 from artiq.gui.scan import ScanController
 
 
@@ -79,8 +79,12 @@ class _NumberEntry(QtGui.QDoubleSpinBox):
             self.setSingleStep(procdesc["step"])
         if procdesc["min"] is not None:
             self.setMinimum(procdesc["min"])
+        else:
+            self.setMinimum(float("-inf"))
         if procdesc["max"] is not None:
             self.setMaximum(procdesc["max"])
+        else:
+            self.setMaximum(float("inf"))
         if procdesc["unit"]:
             self.setSuffix(" " + procdesc["unit"])
         if "default" in procdesc:
@@ -90,7 +94,7 @@ class _NumberEntry(QtGui.QDoubleSpinBox):
         return self.value()
 
     def set_argument_value(self, value):
-        force_spinbox_value(self, value)
+        self.setValue(value)
 
 
 class _StringEntry(QtGui.QLineEdit):

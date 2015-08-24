@@ -37,14 +37,6 @@ def short_format(v):
         return r
 
 
-def force_spinbox_value(spinbox, value):
-    if spinbox.minimum() > value:
-        spinbox.setMinimum(value)
-    if spinbox.maximum() < value:
-        spinbox.setMaximum(value)
-    spinbox.setValue(value)
-
-
 class _SyncSubstruct:
     def __init__(self, update_cb, ref):
         self.update_cb = update_cb

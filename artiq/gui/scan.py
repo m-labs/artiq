@@ -1,8 +1,6 @@
 from quamash import QtGui
 from pyqtgraph import LayoutWidget
 
-from artiq.gui.tools import force_spinbox_value
-
 
 class _Range(LayoutWidget):
     def __init__(self, global_min, global_max, global_step, unit, ndecimals):
@@ -12,8 +10,12 @@ class _Range(LayoutWidget):
             spinbox.setDecimals(ndecimals)
             if global_min is not None:
                 spinbox.setMinimum(global_min)
+            else:
+                spinbox.setMinimum(float("-inf"))
             if global_max is not None:
                 spinbox.setMaximum(global_max)
+            else:
+                spinbox.setMaximum(float("inf"))
             if global_step is not None:
                 spinbox.setSingleStep(global_step)
             if unit:
@@ -36,9 +38,9 @@ class _Range(LayoutWidget):
         self.addWidget(self.npoints, 0, 5)
 
     def set_values(self, min, max, npoints):
-        force_spinbox_value(self.min, min)
-        force_spinbox_value(self.max, max)
-        force_spinbox_value(self.npoints, npoints)
+        self.min.setValue(min)
+        self.max.setValue(max)
+        self.npoints.setValue(npoints)
 
     def get_values(self):
         min = self.min.value()
@@ -68,8 +70,12 @@ class ScanController(LayoutWidget):
         self.v_noscan.setDecimals(ndecimals)
         if gmin is not None:
             self.v_noscan.setMinimum(gmin)
+        else:
+            self.v_noscan.setMinimum(float("-inf"))
         if gmax is not None:
             self.v_noscan.setMaximum(gmax)
+        else:
+            self.v_noscan.setMaximum(float("inf"))
         if gstep is not None:
             self.v_noscan.setSingleStep(gstep)
         if unit:
@@ -135,7 +141,7 @@ class ScanController(LayoutWidget):
     def set_argument_value(self, d):
         if d["ty"] == "NoScan":
             self.noscan.setChecked(True)
-            force_spinbox_value(self.v_noscan, d["value"])
+            self.v_noscan.setValue(d["value"])
         elif d["ty"] == "LinearScan":
             self.linear.setChecked(True)
             self.v_linear.set_values(d["min"], d["max"], d["npoints"])
