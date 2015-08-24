@@ -103,13 +103,14 @@ class StringValue(_SimpleArgProcessor):
 class HasEnvironment:
     """Provides methods to manage the environment of an experiment (devices,
     parameters, results, arguments)."""
-    def __init__(self, dmgr=None, pdb=None, rdb=None, *,
+    def __init__(self, dmgr=None, pdb=None, rdb=None, *, parent=None,
                  param_override=dict(), default_arg_none=False, **kwargs):
         self.requested_args = OrderedDict()
 
         self.__dmgr = dmgr
         self.__pdb = pdb
         self.__rdb = rdb
+        self.__parent = parent
         self.__param_override = param_override
         self.__default_arg_none = default_arg_none
 
@@ -156,6 +157,8 @@ class HasEnvironment:
         if not self.__in_build:
             raise TypeError("get_argument() should only "
                             "be called from build()")
+        if self.__parent is not None and key not in self.__kwargs:
+            return self.__parent.get_argument(key, processor, group)
         if processor is None:
             processor = FreeValue()
         self.requested_args[key] = processor, group
@@ -178,6 +181,8 @@ class HasEnvironment:
 
     def get_device(self, key):
         """Creates and returns a device driver."""
+        if self.__parent is not None:
+            return self.__parent.get_device(key)
         if self.__dmgr is None:
             raise ValueError("Device manager not present")
         return self.__dmgr.get(key)
@@ -189,6 +194,8 @@ class HasEnvironment:
 
     def get_parameter(self, key, default=NoDefault):
         """Retrieves and returns a parameter."""
+        if self.__parent is not None and key not in self.__param_override:
+            return self.__parent.get_parameter(key, default)
         if self.__pdb is None:
             raise ValueError("Parameter database not present")
         if key in self.__param_override:
@@ -208,6 +215,8 @@ class HasEnvironment:
 
     def set_parameter(self, key, value):
         """Writes the value of a parameter into the parameter database."""
+        if self.__parent is not None:
+            self.__parent.set_parameter(key, value)
         if self.__pdb is None:
             raise ValueError("Parameter database not present")
         self.__pdb.set(key, value)
@@ -222,6 +231,8 @@ class HasEnvironment:
         :param store: Defines if the result should be stored permanently,
             e.g. in HDF5 output. Default is to store.
         """
+        if self.__parent is not None:
+            self.__parent.set_result(key, value, realtime, store)
         if self.__rdb is None:
             raise ValueError("Result database not present")
         if realtime:
@@ -244,6 +255,8 @@ class HasEnvironment:
         There is no difference between real-time and non-real-time results
         (this function does not return ``Notifier`` instances).
         """
+        if self.__parent is not None:
+            return self.__parent.get_result(key)
         if self.__rdb is None:
             raise ValueError("Result database not present")
         return self.__rdb.get(key)
