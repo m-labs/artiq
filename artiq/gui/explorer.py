@@ -115,20 +115,32 @@ _procty_to_entry = {
 }
 
 
-class _ArgumentSetter(LayoutWidget):
-    def __init__(self, dialog_parent, arguments):
-        LayoutWidget.__init__(self)
+class _ArgumentEditor(QtGui.QTreeWidget):
+    def __init__(self, dialog_parent):
+        QtGui.QTreeWidget.__init__(self)
+        self.setColumnCount(2)
+        self.header().setResizeMode(
+            QtGui.QHeaderView.ResizeToContents)
+        self.header().setVisible(False)
+        self.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
+
         self.dialog_parent = dialog_parent
+        self.set_arguments([])
+
+    def set_arguments(self, arguments):
+        self.clear()
 
         if not arguments:
-            self.addWidget(QtGui.QLabel("No arguments"), 0, 0)
+            self.addTopLevelItem(QtGui.QTreeWidgetItem(["No arguments", ""]))
 
         self._args_to_entries = dict()
         for n, (name, procdesc) in enumerate(arguments):
-            self.addWidget(QtGui.QLabel(name), n, 0)
             entry = _procty_to_entry[procdesc["ty"]](procdesc)
-            self.addWidget(entry, n, 1)
             self._args_to_entries[name] = entry
+
+            widget_item = QtGui.QTreeWidgetItem([name, ""])
+            self.addTopLevelItem(widget_item)
+            self.setItemWidget(widget_item, 1, entry)
 
     def get_argument_values(self, show_error_message):
         r = dict()
@@ -201,27 +213,23 @@ class ExplorerDock(dockarea.Dock):
         grid.addWidget(submit, 3, 0, colspan=4)
         submit.clicked.connect(self.submit_clicked)
 
-        self.argsetter = _ArgumentSetter(self.dialog_parent, [])
-        self.splitter.addWidget(self.argsetter)
+        self.argeditor = _ArgumentEditor(self.dialog_parent)
+        self.splitter.addWidget(self.argeditor)
         self.splitter.setSizes([grid.minimumSizeHint().width(), 1000])
         self.state = dict()
 
     def update_selection(self, selected, deselected):
         if deselected:
-            self.state[deselected] = self.argsetter.get_argument_values(False)
+            self.state[deselected] = self.argeditor.get_argument_values(False)
 
         if selected:
             expinfo = self.explist_model.backing_store[selected]
-            arguments = expinfo["arguments"]
-            sizes = self.splitter.sizes()
-            self.argsetter.deleteLater()
-            self.argsetter = _ArgumentSetter(self.dialog_parent, arguments)
+            self.argeditor.set_arguments(expinfo["arguments"])
             if selected in self.state:
                 arguments = self.state[selected]
                 if arguments is not None:
-                    self.argsetter.set_argument_values(arguments, True)
-            self.splitter.insertWidget(1, self.argsetter)
-            self.splitter.setSizes(sizes)
+                    self.argeditor.set_argument_values(arguments, True)
+            self.splitter.insertWidget(1, self.argeditor)
         self.selected_key = selected
 
     def _sel_to_key(self, selection):
@@ -241,7 +249,7 @@ class ExplorerDock(dockarea.Dock):
         if idx:
             row = idx[0].row()
             key = self.explist_model.row_to_key[row]
-            self.state[key] = self.argsetter.get_argument_values(False)
+            self.state[key] = self.argeditor.get_argument_values(False)
         return self.state
 
     def restore_state(self, state):
@@ -285,7 +293,7 @@ class ExplorerDock(dockarea.Dock):
                 due_date = self.datetime.dateTime().toMSecsSinceEpoch()/1000
             else:
                 due_date = None
-            arguments = self.argsetter.get_argument_values(True)
+            arguments = self.argeditor.get_argument_values(True)
             if arguments is None:
                 return
             asyncio.async(self.submit(self.pipeline.text(),
