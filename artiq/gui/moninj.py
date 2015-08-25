@@ -23,9 +23,10 @@ _mode_enc = {
 
 
 class _TTLWidget(QtGui.QFrame):
-    def __init__(self, send_to_device, channel, force_out, name):
+    def __init__(self, send_to_device, channel, force_out, name, comment):
         self.send_to_device = send_to_device
         self.channel = channel
+        self.comment = comment
         self.force_out = force_out
 
         QtGui.QFrame.__init__(self)
@@ -35,7 +36,7 @@ class _TTLWidget(QtGui.QFrame):
 
         grid = QtGui.QGridLayout()
         self.setLayout(grid)
-        label = QtGui.QLabel(name)
+        label = QtGui.QLabel("{} {}".format(name, comment))
         label.setAlignment(QtCore.Qt.AlignCenter)
         grid.addWidget(label, 1, 1)
 
@@ -112,9 +113,10 @@ class _TTLWidget(QtGui.QFrame):
 
 
 class _DDSWidget(QtGui.QFrame):
-    def __init__(self, send_to_device, channel, sysclk, name):
+    def __init__(self, send_to_device, channel, sysclk, name, comment):
         self.send_to_device = send_to_device
         self.channel = channel
+        self.comment = comment
         self.sysclk = sysclk
         self.name = name
 
@@ -125,7 +127,7 @@ class _DDSWidget(QtGui.QFrame):
 
         grid = QtGui.QGridLayout()
         self.setLayout(grid)
-        label = QtGui.QLabel(name)
+        label = QtGui.QLabel("{} {}".format(name, comment))
         label.setAlignment(QtCore.Qt.AlignCenter)
         grid.addWidget(label, 1, 1)
 
@@ -160,18 +162,20 @@ class _DeviceManager:
             return
         try:
             if v["type"] == "local":
+                channel = v["arguments"]["channel"]
+                comment = v["arguments"]["comment"]
                 if v["module"] == "artiq.coredevice.ttl":
-                    channel = v["arguments"]["channel"]
                     force_out = v["class"] == "TTLOut"
                     self.ttl_widgets[channel] = _TTLWidget(
-                        self.send_to_device, channel, force_out, k)
+                        self.send_to_device, channel, 
+                        force_out, k, comment)
                     self.ttl_cb()
                 if (v["module"] == "artiq.coredevice.dds"
                         and v["class"] in {"AD9858", "AD9914"}):
-                    channel = v["arguments"]["channel"]
                     sysclk = v["arguments"]["sysclk"]
                     self.dds_widgets[channel] = _DDSWidget(
-                        self.send_to_device, channel, sysclk, k)
+                        self.send_to_device, channel, 
+                        sysclk, k, comment)
                     self.dds_cb()
         except KeyError:
             pass
