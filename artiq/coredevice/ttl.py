@@ -8,9 +8,10 @@ class TTLOut:
 
     :param channel: channel number
     """
-    def __init__(self, dmgr, channel):
+    def __init__(self, dmgr, channel, comment=""):
         self.core = dmgr.get("core")
         self.channel = channel
+        self.comment = comment
 
         # in RTIO cycles
         self.o_previous_timestamp = int64(0)
@@ -71,9 +72,10 @@ class TTLInOut:
 
     :param channel: channel number
     """
-    def __init__(self, dmgr, channel):
+    def __init__(self, dmgr, channel, comment=""):
         self.core = dmgr.get("core")
         self.channel = channel
+        self.comment = comment
 
         # in RTIO cycles
         self.o_previous_timestamp = int64(0)

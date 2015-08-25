@@ -26,9 +26,10 @@ class DDSBus:
     """Core device Direct Digital Synthesis (DDS) bus batching driver.
 
     Manages batching of DDS commands on a DDS shared bus."""
-    def __init__(self, dmgr):
+    def __init__(self, dmgr, comment=""):
         self.core = dmgr.get("core")
         self.batch = _BatchContextManager(self)
+        self.comment = comment
 
     @kernel
     def batch_enter(self):
@@ -57,11 +58,12 @@ class _DDSGeneric:
     :param sysclk: DDS system frequency.
     :param channel: channel number of the DDS device to control.
     """
-    def __init__(self, dmgr, sysclk, channel):
+    def __init__(self, dmgr, sysclk, channel, comment=""):
         self.core = dmgr.get("core")
         self.sysclk = sysclk
         self.channel = channel
         self.phase_mode = PHASE_MODE_CONTINUOUS
+        self.comment = comment
 
     @portable
     def frequency_to_ftw(self, frequency):
