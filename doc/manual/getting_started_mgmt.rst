@@ -136,3 +136,21 @@ The master should now run the new version from its repository.
 
 As an exercise, add another argument to the experiment, commit and push the result, and verify that the new control is added in the GUI.
 
+Results
+-------
+
+Modify the ``run()`` method of the experiment as follows: ::
+
+    def run(self):
+        parabola = self.set_result("parabola", [], realtime=True)
+        for i in range(int(self.count)):
+            parabola.append(i*i)
+            time.sleep(0.5)
+
+.. note:: You need to import the ``time`` module.
+
+Commit, push and submit the experiment as before. While it is running, go to the "Results" dock of the GUI and create a new XY plot showing the new result. Observe how the points are added one by one to the plot.
+
+After the experiment has finished executing, the results are written to a HDF5 file that resides in ``~/artiq-master/results/<date>/<time>``. Open that file with HDFView or h5dump, and observe the data we just generated as well as the Git commit ID of the experiment (a hexadecimal hash such as ``947acb1f90ae1b8862efb489a9cc29f7d4e0c645`` that represents the data at a particular time in the Git repository). The list of Git commit IDs can be found using the ``git log`` command in ``~/artiq-work``.
+
+.. note:: HDFView and h5dump are third-party tools not supplied with ARTIQ.
