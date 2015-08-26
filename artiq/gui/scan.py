@@ -76,8 +76,7 @@ class ScanController(LayoutWidget):
             self.v_noscan.setMaximum(gmax)
         else:
             self.v_noscan.setMaximum(float("inf"))
-        if gstep is not None:
-            self.v_noscan.setSingleStep(gstep)
+        self.v_noscan.setSingleStep(gstep)
         if unit:
             self.v_noscan.setSuffix(" " + unit)
         self.v_noscan_gr = LayoutWidget()

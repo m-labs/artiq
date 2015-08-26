@@ -79,7 +79,7 @@ class NumberValue(_SimpleArgProcessor):
     :param max: The maximum value of the argument.
     :param ndecimals: The number of decimals a UI should use.
     """
-    def __init__(self, default=NoDefault, unit="", step=None,
+    def __init__(self, default=NoDefault, unit="", step=1.0,
                  min=None, max=None, ndecimals=2):
         _SimpleArgProcessor.__init__(self, default)
         self.unit = unit

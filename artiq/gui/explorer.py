@@ -75,8 +75,7 @@ class _NumberEntry(QtGui.QDoubleSpinBox):
     def __init__(self, procdesc):
         QtGui.QDoubleSpinBox.__init__(self)
         self.setDecimals(procdesc["ndecimals"])
-        if procdesc["step"] is not None:
-            self.setSingleStep(procdesc["step"])
+        self.setSingleStep(procdesc["step"])
         if procdesc["min"] is not None:
             self.setMinimum(procdesc["min"])
         else:

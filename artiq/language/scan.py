@@ -121,7 +121,7 @@ class Scannable:
     :param ndecimals: The number of decimals a UI should use.
     """
     def __init__(self, default=NoDefault, unit="",
-                 global_step=None, global_min=None, global_max=None,
+                 global_step=1.0, global_min=None, global_max=None,
                  ndecimals=2):
         if default is not NoDefault:
             self.default_value = default
