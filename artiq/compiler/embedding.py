@@ -446,18 +446,3 @@ class Stitcher:
         call_node = synthesizer.call(function_node, args, kwargs)
         synthesizer.finalize()
         self.typedtree.append(call_node)
-
-    def finalize(self):
-        inferencer = Inferencer(engine=self.engine)
-
-        # Iterate inference to fixed point.
-        self.inference_finished = False
-        while not self.inference_finished:
-            self.inference_finished = True
-            inferencer.visit(self.typedtree)
-
-        # After we have found all functions, synthesize a module to hold them.
-        source_buffer = source.Buffer("", "<synthesized>")
-        self.typedtree = asttyped.ModuleT(
-            typing_env=self.globals, globals_in_scope=set(),
-            body=self.typedtree, loc=source.Range(source_buffer, 0, 0))
