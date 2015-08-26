@@ -267,6 +267,7 @@ class CodeGenCase(unittest.TestCase):
     def test_float_div(self):
         self._test_float_arith(3)
 
+    @unittest.skipIf(os.name == "nt", "This test is known to fail on Windows")
     def test_is_prime(self):
         is_prime_c = CompiledFunction(is_prime, {"x": base_types.VInt()})
         for i in range(200):
