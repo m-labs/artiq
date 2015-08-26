@@ -8,10 +8,11 @@ Contents:
 
     introduction
     installing
-    getting_started
+    getting_started_core
+    getting_started_mgmt
+    core_device
     management_system
     environment
-    core_device
     core_language_reference
     core_drivers_reference
     protocols_reference
