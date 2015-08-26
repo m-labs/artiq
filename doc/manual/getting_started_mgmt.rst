@@ -42,7 +42,7 @@ Now, start the GUI client with the following commands in another terminal: ::
 
 .. note:: The ``artiq_gui`` program uses a file called ``artiq_gui.pyon`` in the current directory to save and restore the GUI state (window/dock positions, last values entered by the user, etc.).
 
-The GUI should display the list of experiments from the repository folder in a dock called "Explorer". There should be only the experiment we created. Select it and click "Submit", lhen look at the "Log" dock for the output from this simple experiment.
+The GUI should display the list of experiments from the repository folder in a dock called "Explorer". There should be only the experiment we created. Select it and click "Submit", then look at the "Log" dock for the output from this simple experiment.
 
 .. note:: Multiple clients may be connected at the same time, possibly on different machines, and will be synchronized. See the ``-s`` option of ``artiq_gui`` and the ``--bind`` option of ``artiq_master`` to use the network. Both IPv4 and IPv6 are supported.
 
@@ -71,7 +71,7 @@ The GUI should now display a spin box that allows you to set the value of the ``
 Setting up Git integration
 --------------------------
 
-So far, we have used the bare filesystem for the experiment repository, without any version control. Using Git to host the experiment repository helps with the tracking of modifications to experiments and with the tracability of a result to a particular version of an experiment.
+So far, we have used the bare filesystem for the experiment repository, without any version control. Using Git to host the experiment repository helps with the tracking of modifications to experiments and with the traceability of a result to a particular version of an experiment.
 
 .. note:: The workflow we will describe in this tutorial corresponds to a situation where the ARTIQ master machine is also used as a Git server where multiple users may push and pull code. The Git setup can be customized according to your needs; the main point to remember is that when scanning or submitting, the ARTIQ master uses the internal Git data (*not* any working directory that may be present) to fetch the latest *fully completed commit* at the repository's head.
 
