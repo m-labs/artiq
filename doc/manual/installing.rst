@@ -15,7 +15,11 @@ Installing Anaconda or Miniconda
 
 * You can either install Anaconda (chose Python 3.4) from https://store.continuum.io/cshop/anaconda/
 
-* Or install the more minimalistic Miniconda (chose Python3.4) from http://conda.pydata.org/miniconda.html
+* Or install the more minimalistic Miniconda (chose Python 3.4) from http://conda.pydata.org/miniconda.html
+
+.. warning::
+    If you are installing on Windows, chose the Windows 32-bit version regardless of whether you have
+    a 32-bit or 64-bit Windows.
 
 After installing either Anaconda or Miniconda, open a new terminal and make sure the following command works::
 
