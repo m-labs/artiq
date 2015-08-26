@@ -282,13 +282,13 @@ class CommGeneric:
     _rpc_sentinel = object()
 
     # See session.c:{send,receive}_rpc_value and llvm_ir_generator.py:_rpc_tag.
-    def _receive_rpc_value(self, rpc_map):
+    def _receive_rpc_value(self, object_map):
         tag = chr(self._read_int8())
         if tag == "\x00":
             return self._rpc_sentinel
         elif tag == "t":
             length = self._read_int8()
-            return tuple(self._receive_rpc_value(rpc_map) for _ in range(length))
+            return tuple(self._receive_rpc_value(object_map) for _ in range(length))
         elif tag == "n":
             return None
         elif tag == "b":
@@ -307,25 +307,25 @@ class CommGeneric:
             return self._read_string()
         elif tag == "l":
             length = self._read_int32()
-            return [self._receive_rpc_value(rpc_map) for _ in range(length)]
+            return [self._receive_rpc_value(object_map) for _ in range(length)]
         elif tag == "r":
-            start = self._receive_rpc_value(rpc_map)
-            stop  = self._receive_rpc_value(rpc_map)
-            step  = self._receive_rpc_value(rpc_map)
+            start = self._receive_rpc_value(object_map)
+            stop  = self._receive_rpc_value(object_map)
+            step  = self._receive_rpc_value(object_map)
             return range(start, stop, step)
         elif tag == "o":
             present = self._read_int8()
             if present:
-                return self._receive_rpc_value(rpc_map)
+                return self._receive_rpc_value(object_map)
         elif tag == "O":
-            return rpc_map[self._read_int32()]
+            return object_map.retrieve(self._read_int32())
         else:
             raise IOError("Unknown RPC value tag: {}".format(repr(tag)))
 
-    def _receive_rpc_args(self, rpc_map):
+    def _receive_rpc_args(self, object_map):
         args = []
         while True:
-            value = self._receive_rpc_value(rpc_map)
+            value = self._receive_rpc_value(object_map)
             if value is self._rpc_sentinel:
                 return args
             args.append(value)
@@ -410,20 +410,20 @@ class CommGeneric:
         else:
             raise IOError("Unknown RPC value tag: {}".format(repr(tag)))
 
-    def _serve_rpc(self, rpc_map):
+    def _serve_rpc(self, object_map):
         service = self._read_int32()
-        args = self._receive_rpc_args(rpc_map)
+        args = self._receive_rpc_args(object_map)
         return_tags = self._read_bytes()
         logger.debug("rpc service: %d %r -> %s", service, args, return_tags)
 
         try:
-            result = rpc_map[service](*args)
+            result = object_map.retrieve(service)(*args)
             logger.debug("rpc service: %d %r == %r", service, args, result)
 
             self._write_header(_H2DMsgType.RPC_REPLY)
             self._write_bytes(return_tags)
             self._send_rpc_value(bytearray(return_tags), result, result,
-                                 rpc_map[service])
+                                 object_map.retrieve(service))
             self._write_flush()
         except core_language.ARTIQException as exn:
             logger.debug("rpc service: %d %r ! %r", service, args, exn)
@@ -473,11 +473,11 @@ class CommGeneric:
                     [(filename, line, column, function, None)]
         raise core_language.ARTIQException(name, message, params, traceback)
 
-    def serve(self, rpc_map, symbolizer):
+    def serve(self, object_map, symbolizer):
         while True:
             self._read_header()
             if self._read_type == _D2HMsgType.RPC_REQUEST:
-                self._serve_rpc(rpc_map)
+                self._serve_rpc(object_map)
             elif self._read_type == _D2HMsgType.KERNEL_EXCEPTION:
                 self._serve_exception(symbolizer)
             else:

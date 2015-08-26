@@ -14,11 +14,30 @@ from . import types, builtins, asttyped, prelude
 from .transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer
 
 
+class ObjectMap:
+    def __init__(self):
+        self.current_key = 0
+        self.forward_map = {}
+        self.reverse_map = {}
+
+    def store(self, obj_ref):
+        obj_id = id(obj_ref)
+        if obj_id in self.reverse_map:
+            return self.reverse_map[obj_id]
+
+        self.current_key += 1
+        self.forward_map[self.current_key] = obj_ref
+        self.reverse_map[obj_id] = self.current_key
+        return self.current_key
+
+    def retrieve(self, obj_key):
+        return self.forward_map[obj_key]
+
 class ASTSynthesizer:
-    def __init__(self, expanded_from=None):
+    def __init__(self, type_map, expanded_from=None):
         self.source = ""
         self.source_buffer = source.Buffer(self.source, "<synthesized>")
-        self.expanded_from = expanded_from
+        self.type_map, self.expanded_from = type_map, expanded_from
 
     def finalize(self):
         self.source_buffer.source = self.source
@@ -63,8 +82,32 @@ class ASTSynthesizer:
                                   begin_loc=begin_loc, end_loc=end_loc,
                                   loc=begin_loc.join(end_loc))
         else:
-            raise "no"
-            # return asttyped.QuoteT(value=value, type=types.TVar())
+            if isinstance(value, type):
+                typ = value
+            else:
+                typ = type(value)
+
+            if typ in self.type_map:
+                instance_type, constructor_type = self.type_map[typ]
+            else:
+                instance_type = types.TInstance("{}.{}".format(typ.__module__, typ.__name__))
+                instance_type.attributes['__objectid__'] = builtins.TInt(types.TValue(32))
+
+                constructor_type = types.TConstructor(instance_type)
+                constructor_type.attributes['__objectid__'] = builtins.TInt(types.TValue(32))
+
+                self.type_map[typ] = instance_type, constructor_type
+
+            quote_loc   = self._add('`')
+            repr_loc    = self._add(repr(value))
+            unquote_loc = self._add('`')
+
+            if isinstance(value, type):
+                return asttyped.QuoteT(value=value, type=constructor_type,
+                                       loc=quote_loc.join(unquote_loc))
+            else:
+                return asttyped.QuoteT(value=value, type=instance_type,
+                                       loc=quote_loc.join(unquote_loc))
 
     def call(self, function_node, args, kwargs):
         """
@@ -108,13 +151,14 @@ class ASTSynthesizer:
             loc=name_loc.join(end_loc))
 
 class StitchingASTTypedRewriter(ASTTypedRewriter):
-    def __init__(self, engine, prelude, globals, host_environment, quote_function):
+    def __init__(self, engine, prelude, globals, host_environment, quote_function, type_map):
         super().__init__(engine, prelude)
         self.globals = globals
         self.env_stack.append(self.globals)
 
         self.host_environment = host_environment
         self.quote_function = quote_function
+        self.type_map = type_map
 
     def visit_Name(self, node):
         typ = super()._try_find_name(node.id)
@@ -136,7 +180,7 @@ class StitchingASTTypedRewriter(ASTTypedRewriter):
 
                 else:
                     # It's just a value. Quote it.
-                    synthesizer = ASTSynthesizer(expanded_from=node.loc)
+                    synthesizer = ASTSynthesizer(expanded_from=node.loc, type_map=self.type_map)
                     node = synthesizer.quote(value)
                     synthesizer.finalize()
                     return node
@@ -160,19 +204,8 @@ class Stitcher:
 
         self.functions = {}
 
-        self.next_rpc = 0
-        self.rpc_map = {}
-        self.inverse_rpc_map = {}
-
-    def _map(self, obj):
-        obj_id = id(obj)
-        if obj_id in self.inverse_rpc_map:
-            return self.inverse_rpc_map[obj_id]
-
-        self.next_rpc += 1
-        self.rpc_map[self.next_rpc] = obj
-        self.inverse_rpc_map[obj_id] = self.next_rpc
-        return self.next_rpc
+        self.object_map = ObjectMap()
+        self.type_map = {}
 
     def finalize(self):
         inferencer = Inferencer(engine=self.engine)
@@ -229,7 +262,7 @@ class Stitcher:
         asttyped_rewriter = StitchingASTTypedRewriter(
             engine=self.engine, prelude=self.prelude,
             globals=self.globals, host_environment=host_environment,
-            quote_function=self._quote_function)
+            quote_function=self._quote_function, type_map=self.type_map)
         return asttyped_rewriter.visit(function_node)
 
     def _function_loc(self, function):
@@ -291,7 +324,7 @@ class Stitcher:
             # This is tricky, because the default value might not have
             # a well-defined type in APython.
             # In this case, we bail out, but mention why we do it.
-            synthesizer = ASTSynthesizer()
+            synthesizer = ASTSynthesizer(type_map=self.type_map)
             ast = synthesizer.quote(param.default)
             synthesizer.finalize()
 
@@ -365,7 +398,7 @@ class Stitcher:
 
         if syscall is None:
             function_type = types.TRPCFunction(arg_types, optarg_types, ret_type,
-                                               service=self._map(function))
+                                               service=self.object_map.store(function))
             function_name = "rpc${}".format(function_type.service)
         else:
             function_type = types.TCFunction(arg_types, ret_type,
@@ -409,7 +442,7 @@ class Stitcher:
 
         # We synthesize source code for the initial call so that
         # diagnostics would have something meaningful to display to the user.
-        synthesizer = ASTSynthesizer()
+        synthesizer = ASTSynthesizer(type_map=self.type_map)
         call_node = synthesizer.call(function_node, args, kwargs)
         synthesizer.finalize()
         self.typedtree.append(call_node)

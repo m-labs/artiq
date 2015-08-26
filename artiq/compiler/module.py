@@ -19,6 +19,8 @@ class Source:
         else:
             self.engine = engine
 
+        self.object_map = None
+
         self.name, _ = os.path.splitext(os.path.basename(source_buffer.name))
 
         asttyped_rewriter = transforms.ASTTypedRewriter(engine=engine,
@@ -42,6 +44,7 @@ class Source:
 class Module:
     def __init__(self, src):
         self.engine = src.engine
+        self.object_map = src.object_map
 
         int_monomorphizer = transforms.IntMonomorphizer(engine=self.engine)
         inferencer = transforms.Inferencer(engine=self.engine)
@@ -65,7 +68,8 @@ class Module:
     def build_llvm_ir(self, target):
         """Compile the module to LLVM IR for the specified target."""
         llvm_ir_generator = transforms.LLVMIRGenerator(engine=self.engine,
-                                                       module_name=self.name, target=target)
+                                                       module_name=self.name, target=target,
+                                                       object_map=self.object_map)
         return llvm_ir_generator.process(self.artiq_ir)
 
     def entry_point(self):

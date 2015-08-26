@@ -45,14 +45,14 @@ class Core:
             library = target.compile_and_link([module])
             stripped_library = target.strip(library)
 
-            return stitcher.rpc_map, stripped_library, \
+            return stitcher.object_map, stripped_library, \
                    lambda addresses: target.symbolize(library, addresses)
         except diagnostic.Error as error:
             print("\n".join(error.diagnostic.render(colored=True)), file=sys.stderr)
             raise CompileError() from error
 
     def run(self, function, args, kwargs):
-        rpc_map, kernel_library, symbolizer = self.compile(function, args, kwargs)
+        object_map, kernel_library, symbolizer = self.compile(function, args, kwargs)
 
         if self.first_run:
             self.comm.check_ident()
@@ -61,7 +61,7 @@ class Core:
 
         self.comm.load(kernel_library)
         self.comm.run()
-        self.comm.serve(rpc_map, symbolizer)
+        self.comm.serve(object_map, symbolizer)
 
     @kernel
     def get_rtio_counter_mu(self):

@@ -1474,6 +1474,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.current_block = after_invoke
                 return invoke
 
+    def visit_QuoteT(self, node):
+        return self.append(ir.Quote(node.value, node.type))
+
     def instrument_assert(self, node, value):
         if self.current_assert_env is not None:
             if isinstance(value, ir.Constant):

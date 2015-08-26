@@ -901,6 +901,23 @@ class Select(Instruction):
     def if_false(self):
         return self.operands[2]
 
+class Quote(Instruction):
+    """
+    A quote operation. Returns a host interpreter value as a constant.
+
+    :ivar value: (string) operation name
+    """
+
+    """
+    :param value: (string) operation name
+    """
+    def __init__(self, value, typ, name=""):
+        super().__init__([], typ, name)
+        self.value = value
+
+    def opcode(self):
+        return "quote({})".format(repr(self.value))
+
 class Branch(Terminator):
     """
     An unconditional branch instruction.

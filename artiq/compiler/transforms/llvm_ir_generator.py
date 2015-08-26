@@ -159,15 +159,17 @@ class DebugInfoEmitter:
 
 
 class LLVMIRGenerator:
-    def __init__(self, engine, module_name, target):
+    def __init__(self, engine, module_name, target, object_map):
         self.engine = engine
         self.target = target
+        self.object_map = object_map
         self.llcontext = target.llcontext
         self.llmodule = ll.Module(context=self.llcontext, name=module_name)
         self.llmodule.triple = target.triple
         self.llmodule.data_layout = target.data_layout
         self.llfunction = None
         self.llmap = {}
+        self.llobject_map = {}
         self.phis = []
         self.debug_info_emitter = DebugInfoEmitter(self.llmodule)
 
@@ -815,6 +817,8 @@ class LLVMIRGenerator:
         elif ir.is_option(typ):
             return b"o" + self._rpc_tag(typ.params["inner"],
                                         error_handler)
+        elif '__objectid__' in typ.attributes:
+            return b"O"
         else:
             error_handler(typ)
 
@@ -959,6 +963,54 @@ class LLVMIRGenerator:
             llfun, llargs = self._prepare_closure_call(insn)
             return self.llbuilder.invoke(llfun, llargs, llnormalblock, llunwindblock,
                                          name=insn.name)
+
+    def _quote(self, value, typ, path):
+        value_id = id(value)
+        if value_id in self.llobject_map:
+            return self.llobject_map[value_id]
+
+        global_name = ""
+        llty = self.llty_of_type(typ)
+
+        if types.is_constructor(typ) or types.is_instance(typ):
+            llfields = []
+            for attr in typ.attributes:
+                if attr == "__objectid__":
+                    objectid = self.object_map.store(value)
+                    llfields.append(ll.Constant(lli32, objectid))
+                    global_name = "object.{}".format(objectid)
+                else:
+                    llfields.append(self._quote(getattr(value, attr), typ.attributes[attr],
+                                                path + [attr]))
+
+            llvalue = ll.Constant.literal_struct(llfields)
+        elif builtins.is_none(typ):
+            assert value is None
+            return self.llconst_of_const(value)
+        elif builtins.is_bool(typ):
+            assert value in (True, False)
+            return self.llconst_of_const(value)
+        elif builtins.is_int(typ):
+            assert isinstance(value, int)
+            return self.llconst_of_const(value)
+        elif builtins.is_float(typ):
+            assert isinstance(value, float)
+            return self.llconst_of_const(value)
+        elif builtins.is_str(typ):
+            assert isinstance(value, (str, bytes))
+            return self.llconst_of_const(value)
+        else:
+            assert False
+
+        llconst = ll.GlobalVariable(self.llmodule, llvalue.type, global_name)
+        llconst.initializer = llvalue
+        llconst.linkage = "private"
+        self.llobject_map[value_id] = llconst
+        return llconst
+
+    def process_Quote(self, insn):
+        assert self.object_map is not None
+        return self._quote(insn.value, insn.type, lambda: [repr(insn.value)])
 
     def process_Select(self, insn):
         return self.llbuilder.select(self.map(insn.condition()),
