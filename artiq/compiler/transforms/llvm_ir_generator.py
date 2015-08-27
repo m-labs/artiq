@@ -270,6 +270,9 @@ class LLVMIRGenerator:
 
             llty = self.llcontext.get_identified_type(name)
             if llty.elements is None:
+                # First setting elements to [] will allow us to handle
+                # self-referential types.
+                llty.elements = []
                 llty.elements = [self.llty_of_type(attrtyp)
                                  for attrtyp in typ.attributes.values()]
 
