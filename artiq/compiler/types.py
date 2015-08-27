@@ -78,7 +78,7 @@ class TVar(Type):
 
     def __repr__(self):
         if self.parent is self:
-            return "<py2llvm.types.TVar %d>" % id(self)
+            return "<artiq.compiler.types.TVar %d>" % id(self)
         else:
             return repr(self.find())
 
@@ -121,7 +121,7 @@ class TMono(Type):
         return fn(accum, self)
 
     def __repr__(self):
-        return "py2llvm.types.TMono(%s, %s)" % (repr(self.name), repr(self.params))
+        return "artiq.compiler.types.TMono(%s, %s)" % (repr(self.name), repr(self.params))
 
     def __getitem__(self, param):
         return self.params[param]
@@ -167,7 +167,7 @@ class TTuple(Type):
         return fn(accum, self)
 
     def __repr__(self):
-        return "py2llvm.types.TTuple(%s)" % repr(self.elts)
+        return "artiq.compiler.types.TTuple(%s)" % repr(self.elts)
 
     def __eq__(self, other):
         return isinstance(other, TTuple) and \
@@ -231,7 +231,7 @@ class TFunction(Type):
         return fn(accum, self)
 
     def __repr__(self):
-        return "py2llvm.types.TFunction({}, {}, {})".format(
+        return "artiq.compiler.types.TFunction({}, {}, {})".format(
             repr(self.args), repr(self.optargs), repr(self.ret))
 
     def __eq__(self, other):
@@ -311,7 +311,7 @@ class TBuiltin(Type):
         return fn(accum, self)
 
     def __repr__(self):
-        return "py2llvm.types.{}({})".format(type(self).__name__, repr(self.name))
+        return "artiq.compiler.types.{}({})".format(type(self).__name__, repr(self.name))
 
     def __eq__(self, other):
         return isinstance(other, TBuiltin) and \
@@ -364,7 +364,7 @@ class TInstance(TMono):
         self.attributes = attributes
 
     def __repr__(self):
-        return "py2llvm.types.TInstance({}, {})".format(
+        return "artiq.compiler.types.TInstance({}, {})".format(
                     repr(self.name), repr(self.attributes))
 
 class TMethod(TMono):
@@ -401,7 +401,7 @@ class TValue(Type):
         return fn(accum, self)
 
     def __repr__(self):
-        return "py2llvm.types.TValue(%s)" % repr(self.value)
+        return "artiq.compiler.types.TValue(%s)" % repr(self.value)
 
     def __eq__(self, other):
         return isinstance(other, TValue) and \
