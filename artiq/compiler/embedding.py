@@ -5,7 +5,7 @@ the references to the host objects and translates the functions
 annotated as ``@kernel`` when they are referenced.
 """
 
-import os, re, linecache, inspect
+import os, re, linecache, inspect, textwrap
 from collections import OrderedDict, defaultdict
 
 from pythonparser import ast, source, diagnostic, parse_buffer
@@ -316,7 +316,7 @@ class Stitcher:
 
         # Extract function source.
         embedded_function = function.artiq_embedded.function
-        source_code = inspect.getsource(embedded_function)
+        source_code = textwrap.dedent(inspect.getsource(embedded_function))
         filename = embedded_function.__code__.co_filename
         module_name, _ = os.path.splitext(os.path.basename(filename))
         first_line = embedded_function.__code__.co_firstlineno
