@@ -131,11 +131,11 @@ class _DDSGeneric:
         """
         if phase_mode == _PHASE_MODE_DEFAULT:
             phase_mode = self.phase_mode
-        syscall("dds_set", now_mu(), self.channel,
-           frequency, round(phase*2**self.pow_width), phase_mode)
+        syscall("dds_set", now_mu(), self.channel, frequency,
+                phase, phase_mode)
 
     @kernel
-    def set(self, frequency, phase=0, phase_mode=_PHASE_MODE_DEFAULT):
+    def set(self, frequency, phase=0.0, phase_mode=_PHASE_MODE_DEFAULT):
         """Like ``set_mu``, but uses Hz and turns."""
         self.set_mu(self.frequency_to_ftw(frequency),
                     self.turns_to_pow(phase), phase_mode)
