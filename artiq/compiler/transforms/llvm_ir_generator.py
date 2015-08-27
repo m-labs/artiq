@@ -942,8 +942,6 @@ class LLVMIRGenerator:
                 llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [])
 
                 llresultslot = self.llbuilder.alloca(llfun.type.pointee.args[0].pointee)
-                print(llfun)
-                print(llresultslot)
                 self.llbuilder.call(llfun, [llresultslot] + llargs)
                 llresult = self.llbuilder.load(llresultslot)
 
