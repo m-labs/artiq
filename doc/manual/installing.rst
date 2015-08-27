@@ -176,7 +176,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
         ::
 
             $ cd ~/artiq-dev
-            $ wget http://www.phys.ethz.ch/~robertjo/bscan_spi_lx45_csg324.bit
+            $ wget https://people.phys.ethz.ch/~robertjo/bscan_spi_lx45_csg324.bit
 
         Then copy ``~/artiq-dev/bscan_spi_lx45_csg324.bit`` to ``~/.migen``, ``/usr/local/share/migen`` or ``/usr/share/migen``.
 
