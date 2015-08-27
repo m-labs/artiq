@@ -991,6 +991,11 @@ class LLVMIRGenerator:
                                                 lambda: path() + [attr]))
 
             llvalue = ll.Constant.literal_struct(llfields)
+            llconst = ll.GlobalVariable(self.llmodule, llvalue.type, global_name)
+            llconst.initializer = llvalue
+            llconst.linkage = "private"
+            self.llobject_map[value_id] = llconst
+            return llconst
         elif builtins.is_none(typ):
             assert value is None
             return ll.Constant.literal_struct([])
@@ -1006,14 +1011,11 @@ class LLVMIRGenerator:
         elif builtins.is_str(typ):
             assert isinstance(value, (str, bytes))
             return self.llstr_of_str(value)
+        elif types.is_rpc_function(typ):
+            return ll.Constant.literal_struct([])
         else:
+            print(typ)
             assert False
-
-        llconst = ll.GlobalVariable(self.llmodule, llvalue.type, global_name)
-        llconst.initializer = llvalue
-        llconst.linkage = "private"
-        self.llobject_map[value_id] = llconst
-        return llconst
 
     def process_Quote(self, insn):
         assert self.object_map is not None

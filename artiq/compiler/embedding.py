@@ -12,7 +12,6 @@ from pythonparser import ast, source, diagnostic, parse_buffer
 
 from . import types, builtins, asttyped, prelude
 from .transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer
-from .validators import MonomorphismValidator
 
 
 class ObjectMap:
@@ -156,16 +155,13 @@ class ASTSynthesizer:
             loc=name_loc.join(end_loc))
 
 class StitchingASTTypedRewriter(ASTTypedRewriter):
-    def __init__(self, engine, prelude, globals, host_environment, quote_function,
-                 type_map, value_map):
+    def __init__(self, engine, prelude, globals, host_environment, quote):
         super().__init__(engine, prelude)
         self.globals = globals
         self.env_stack.append(self.globals)
 
         self.host_environment = host_environment
-        self.quote_function = quote_function
-        self.type_map = type_map
-        self.value_map = value_map
+        self.quote = quote
 
     def visit_Name(self, node):
         typ = super()._try_find_name(node.id)
@@ -176,23 +172,7 @@ class StitchingASTTypedRewriter(ASTTypedRewriter):
         else:
             # Try to find this value in the host environment and quote it.
             if node.id in self.host_environment:
-                value = self.host_environment[node.id]
-                if inspect.isfunction(value):
-                    # It's a function. We need to translate the function and insert
-                    # a reference to it.
-                    function_name = self.quote_function(value, node.loc)
-                    return asttyped.NameT(id=function_name, ctx=None,
-                                          type=self.globals[function_name],
-                                          loc=node.loc)
-
-                else:
-                    # It's just a value. Quote it.
-                    synthesizer = ASTSynthesizer(expanded_from=node.loc,
-                                                 type_map=self.type_map,
-                                                 value_map=self.value_map)
-                    node = synthesizer.quote(value)
-                    synthesizer.finalize()
-                    return node
+                return self.quote(self.host_environment[node.id], node.loc)
             else:
                 diag = diagnostic.Diagnostic("fatal",
                     "name '{name}' is not bound to anything", {"name":node.id},
@@ -200,9 +180,10 @@ class StitchingASTTypedRewriter(ASTTypedRewriter):
                 self.engine.process(diag)
 
 class StitchingInferencer(Inferencer):
-    def __init__(self, engine, type_map, value_map):
+    def __init__(self, engine, value_map, quote):
         super().__init__(engine)
-        self.type_map, self.value_map = type_map, value_map
+        self.value_map = value_map
+        self.quote = quote
 
     def visit_AttributeT(self, node):
         self.generic_visit(node)
@@ -239,10 +220,7 @@ class StitchingInferencer(Inferencer):
             # overhead (i.e. synthesizing a source buffer), but has the advantage
             # of having the host-to-ARTIQ mapping code in only one place and
             # also immediately getting proper diagnostics on type errors.
-            synthesizer = ASTSynthesizer(type_map=self.type_map,
-                                         value_map=self.value_map)
-            ast = synthesizer.quote(getattr(object_value, node.attr))
-            synthesizer.finalize()
+            ast = self.quote(getattr(object_value, node.attr), object_loc.expanded_from)
 
             def proxy_diagnostic(diag):
                 note = diagnostic.Diagnostic("note",
@@ -258,7 +236,6 @@ class StitchingInferencer(Inferencer):
             proxy_engine.process = proxy_diagnostic
             Inferencer(engine=proxy_engine).visit(ast)
             IntMonomorphizer(engine=proxy_engine).visit(ast)
-            MonomorphismValidator(engine=proxy_engine).visit(ast)
 
             if node.attr not in object_type.attributes:
                 # We just figured out what the type should be. Add it.
@@ -296,7 +273,8 @@ class Stitcher:
 
     def finalize(self):
         inferencer = StitchingInferencer(engine=self.engine,
-                                         type_map=self.type_map, value_map=self.value_map)
+                                         value_map=self.value_map,
+                                         quote=self._quote)
 
         # Iterate inference to fixed point.
         self.inference_finished = False
@@ -350,8 +328,7 @@ class Stitcher:
         asttyped_rewriter = StitchingASTTypedRewriter(
             engine=self.engine, prelude=self.prelude,
             globals=self.globals, host_environment=host_environment,
-            quote_function=self._quote_function,
-            type_map=self.type_map, value_map=self.value_map)
+            quote=self._quote)
         return asttyped_rewriter.visit(function_node)
 
     def _function_loc(self, function):
@@ -525,6 +502,24 @@ class Stitcher:
             # to perform an RPC instead of a regular call.
             return self._quote_foreign_function(function, loc,
                                                 syscall=None)
+
+    def _quote(self, value, loc):
+        if inspect.isfunction(value):
+            # It's a function. We need to translate the function and insert
+            # a reference to it.
+            function_name = self._quote_function(value, loc)
+            return asttyped.NameT(id=function_name, ctx=None,
+                                  type=self.globals[function_name],
+                                  loc=loc)
+
+        else:
+            # It's just a value. Quote it.
+            synthesizer = ASTSynthesizer(expanded_from=loc,
+                                         type_map=self.type_map,
+                                         value_map=self.value_map)
+            node = synthesizer.quote(value)
+            synthesizer.finalize()
+            return node
 
     def stitch_call(self, function, args, kwargs):
         function_node = self._quote_embedded_function(function)
