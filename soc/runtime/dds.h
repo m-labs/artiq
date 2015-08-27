@@ -35,6 +35,7 @@
 #define DDS_FTWL   0x2d
 #define DDS_FTWH   0x2f
 #define DDS_POW    0x31
+#define DDS_ASF    0x33
 #define DDS_FUD    0x80
 #define DDS_GPIO   0x81
 #endif

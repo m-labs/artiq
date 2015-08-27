@@ -239,6 +239,8 @@ static void ddsinit(void)
     brg_ddsreset();
     brg_ddswrite(DDS_CFR1H, 0x0000); /* Enable cosine output */
     brg_ddswrite(DDS_CFR2L, 0x8900); /* Enable matched latency */
+    brg_ddswrite(DDS_CFR2H, 0x0080); /* Enable profile mode */
+    brg_ddswrite(DDS_ASF, 0x0fff); /* Set amplitude to maximum */
     brg_ddswrite(DDS_CFR4H, 0x0105); /* Enable DAC calibration */
     brg_ddswrite(DDS_FUD, 0);
     t = clock_get_ms();

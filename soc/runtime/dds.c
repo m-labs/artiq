@@ -18,7 +18,7 @@
 /* DAC calibration takes max. 135us as per datasheet. Take a good margin. */
 #define DURATION_DAC_CAL (30000 << RTIO_FINE_TS_WIDTH)
 /* not counting final FUD */
-#define DURATION_INIT (8*DURATION_WRITE + DURATION_DAC_CAL)
+#define DURATION_INIT (10*DURATION_WRITE + DURATION_DAC_CAL)
 #define DURATION_PROGRAM (5*DURATION_WRITE) /* not counting FUD */
 
 #else
@@ -79,6 +79,8 @@ void dds_init(long long int timestamp, int channel)
 #ifdef DDS_AD9914
     DDS_WRITE(DDS_CFR1H, 0x0000); /* Enable cosine output */
     DDS_WRITE(DDS_CFR2L, 0x8900); /* Enable matched latency */
+    DDS_WRITE(DDS_CFR2H, 0x0080); /* Enable profile mode */
+    DDS_WRITE(DDS_ASF, 0x0fff); /* Set amplitude to maximum */
     DDS_WRITE(DDS_CFR4H, 0x0105); /* Enable DAC calibration */
     DDS_WRITE(DDS_FUD, 0);
     now += DURATION_DAC_CAL;
