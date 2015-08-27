@@ -504,7 +504,7 @@ class Stitcher:
                                                 syscall=None)
 
     def _quote(self, value, loc):
-        if inspect.isfunction(value):
+        if inspect.isfunction(value) or inspect.ismethod(value):
             # It's a function. We need to translate the function and insert
             # a reference to it.
             function_name = self._quote_function(value, loc)
