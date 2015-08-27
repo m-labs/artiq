@@ -220,7 +220,6 @@ class TTLClockGen:
         self.core = dmgr.get("core")
         self.channel = channel
 
-    def build(self):
         # in RTIO cycles
         self.previous_timestamp = int64(0)
         self.acc_width = 24
