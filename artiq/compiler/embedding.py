@@ -6,12 +6,13 @@ annotated as ``@kernel`` when they are referenced.
 """
 
 import os, re, linecache, inspect
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 from pythonparser import ast, source, diagnostic, parse_buffer
 
 from . import types, builtins, asttyped, prelude
 from .transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer
+from .validators import MonomorphismValidator
 
 
 class ObjectMap:
@@ -34,10 +35,11 @@ class ObjectMap:
         return self.forward_map[obj_key]
 
 class ASTSynthesizer:
-    def __init__(self, type_map, expanded_from=None):
+    def __init__(self, type_map, value_map, expanded_from=None):
         self.source = ""
         self.source_buffer = source.Buffer(self.source, "<synthesized>")
-        self.type_map, self.expanded_from = type_map, expanded_from
+        self.type_map, self.value_map = type_map, value_map
+        self.expanded_from = expanded_from
 
     def finalize(self):
         self.source_buffer.source = self.source
@@ -82,6 +84,11 @@ class ASTSynthesizer:
                                   begin_loc=begin_loc, end_loc=end_loc,
                                   loc=begin_loc.join(end_loc))
         else:
+            quote_loc   = self._add('`')
+            repr_loc    = self._add(repr(value))
+            unquote_loc = self._add('`')
+            loc         = quote_loc.join(unquote_loc)
+
             if isinstance(value, type):
                 typ = value
             else:
@@ -98,16 +105,14 @@ class ASTSynthesizer:
 
                 self.type_map[typ] = instance_type, constructor_type
 
-            quote_loc   = self._add('`')
-            repr_loc    = self._add(repr(value))
-            unquote_loc = self._add('`')
-
             if isinstance(value, type):
+                self.value_map[constructor_type].append((value, loc))
                 return asttyped.QuoteT(value=value, type=constructor_type,
-                                       loc=quote_loc.join(unquote_loc))
+                                       loc=loc)
             else:
+                self.value_map[instance_type].append((value, loc))
                 return asttyped.QuoteT(value=value, type=instance_type,
-                                       loc=quote_loc.join(unquote_loc))
+                                       loc=loc)
 
     def call(self, function_node, args, kwargs):
         """
@@ -151,7 +156,8 @@ class ASTSynthesizer:
             loc=name_loc.join(end_loc))
 
 class StitchingASTTypedRewriter(ASTTypedRewriter):
-    def __init__(self, engine, prelude, globals, host_environment, quote_function, type_map):
+    def __init__(self, engine, prelude, globals, host_environment, quote_function,
+                 type_map, value_map):
         super().__init__(engine, prelude)
         self.globals = globals
         self.env_stack.append(self.globals)
@@ -159,6 +165,7 @@ class StitchingASTTypedRewriter(ASTTypedRewriter):
         self.host_environment = host_environment
         self.quote_function = quote_function
         self.type_map = type_map
+        self.value_map = value_map
 
     def visit_Name(self, node):
         typ = super()._try_find_name(node.id)
@@ -180,7 +187,9 @@ class StitchingASTTypedRewriter(ASTTypedRewriter):
 
                 else:
                     # It's just a value. Quote it.
-                    synthesizer = ASTSynthesizer(expanded_from=node.loc, type_map=self.type_map)
+                    synthesizer = ASTSynthesizer(expanded_from=node.loc,
+                                                 type_map=self.type_map,
+                                                 value_map=self.value_map)
                     node = synthesizer.quote(value)
                     synthesizer.finalize()
                     return node
@@ -189,6 +198,83 @@ class StitchingASTTypedRewriter(ASTTypedRewriter):
                     "name '{name}' is not bound to anything", {"name":node.id},
                     node.loc)
                 self.engine.process(diag)
+
+class StitchingInferencer(Inferencer):
+    def __init__(self, engine, type_map, value_map):
+        super().__init__(engine)
+        self.type_map, self.value_map = type_map, value_map
+
+    def visit_AttributeT(self, node):
+        self.generic_visit(node)
+        object_type = node.value.type.find()
+
+        # The inferencer can only observe types, not values; however,
+        # when we work with host objects, we have to get the values
+        # somewhere, since host interpreter does not have types.
+        # Since we have categorized every host object we quoted according to
+        # its type, we now interrogate every host object we have to ensure
+        # that we can successfully serialize the value of the attribute we
+        # are now adding at the code generation stage.
+        #
+        # FIXME: We perform exhaustive checks of every known host object every
+        # time an attribute access is visited, which is potentially quadratic.
+        # This is done because it is simpler than performing the checks only when:
+        #   * a previously unknown attribute is encountered,
+        #   * a previously unknown host object is encountered;
+        # which would be the optimal solution.
+        for object_value, object_loc in self.value_map[object_type]:
+            if not hasattr(object_value, node.attr):
+                note = diagnostic.Diagnostic("note",
+                    "attribute accessed here", {},
+                    node.loc)
+                diag = diagnostic.Diagnostic("error",
+                    "host object does not have an attribute '{attr}'",
+                    {"attr": node.attr},
+                    object_loc, notes=[note])
+                self.engine.process(diag)
+                return
+
+            # Figure out what ARTIQ type does the value of the attribute have.
+            # We do this by quoting it, as if to serialize. This has some
+            # overhead (i.e. synthesizing a source buffer), but has the advantage
+            # of having the host-to-ARTIQ mapping code in only one place and
+            # also immediately getting proper diagnostics on type errors.
+            synthesizer = ASTSynthesizer(type_map=self.type_map,
+                                         value_map=self.value_map)
+            ast = synthesizer.quote(getattr(object_value, node.attr))
+            synthesizer.finalize()
+
+            def proxy_diagnostic(diag):
+                note = diagnostic.Diagnostic("note",
+                    "expanded from here while trying to infer a type for an"
+                    " attribute '{attr}' of a host object",
+                    {"attr": node.attr},
+                    node.loc)
+                diag.notes.append(note)
+
+                self.engine.process(diag)
+
+            proxy_engine = diagnostic.Engine()
+            proxy_engine.process = proxy_diagnostic
+            Inferencer(engine=proxy_engine).visit(ast)
+            IntMonomorphizer(engine=proxy_engine).visit(ast)
+            MonomorphismValidator(engine=proxy_engine).visit(ast)
+
+            if node.attr not in object_type.attributes:
+                # We just figured out what the type should be. Add it.
+                object_type.attributes[node.attr] = ast.type
+            elif object_type.attributes[node.attr] != ast.type:
+                # Does this conflict with an earlier guess?
+                printer = types.TypePrinter()
+                diag = diagnostic.Diagnostic("error",
+                    "host object has an attribute of type {typea}, which is"
+                    " different from previously inferred type {typeb}",
+                    {"typea": printer.name(ast.type),
+                     "typeb": printer.name(object_type.attributes[node.attr])},
+                    object_loc)
+                self.engine.process(diag)
+
+        super().visit_AttributeT(node)
 
 class Stitcher:
     def __init__(self, engine=None):
@@ -206,9 +292,11 @@ class Stitcher:
 
         self.object_map = ObjectMap()
         self.type_map = {}
+        self.value_map = defaultdict(lambda: [])
 
     def finalize(self):
-        inferencer = Inferencer(engine=self.engine)
+        inferencer = StitchingInferencer(engine=self.engine,
+                                         type_map=self.type_map, value_map=self.value_map)
 
         # Iterate inference to fixed point.
         self.inference_finished = False
@@ -262,7 +350,8 @@ class Stitcher:
         asttyped_rewriter = StitchingASTTypedRewriter(
             engine=self.engine, prelude=self.prelude,
             globals=self.globals, host_environment=host_environment,
-            quote_function=self._quote_function, type_map=self.type_map)
+            quote_function=self._quote_function,
+            type_map=self.type_map, value_map=self.value_map)
         return asttyped_rewriter.visit(function_node)
 
     def _function_loc(self, function):
@@ -324,7 +413,8 @@ class Stitcher:
             # This is tricky, because the default value might not have
             # a well-defined type in APython.
             # In this case, we bail out, but mention why we do it.
-            synthesizer = ASTSynthesizer(type_map=self.type_map)
+            synthesizer = ASTSynthesizer(type_map=self.type_map,
+                                         value_map=self.value_map)
             ast = synthesizer.quote(param.default)
             synthesizer.finalize()
 
@@ -442,7 +532,8 @@ class Stitcher:
 
         # We synthesize source code for the initial call so that
         # diagnostics would have something meaningful to display to the user.
-        synthesizer = ASTSynthesizer(type_map=self.type_map)
+        synthesizer = ASTSynthesizer(type_map=self.type_map,
+                                     value_map=self.value_map)
         call_node = synthesizer.call(function_node, args, kwargs)
         synthesizer.finalize()
         self.typedtree.append(call_node)

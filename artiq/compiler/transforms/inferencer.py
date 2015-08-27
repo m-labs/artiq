@@ -130,10 +130,20 @@ class Inferencer(algorithm.Visitor):
                 self._unify(node.type, attr_type,
                             node.loc, None)
             else:
+                if node.attr_loc.source_buffer == node.value.loc.source_buffer:
+                    highlights, notes = [node.value.loc], []
+                else:
+                    # This happens when the object being accessed is embedded
+                    # from the host program.
+                    note = diagnostic.Diagnostic("note",
+                        "object being accessed", {},
+                        node.value.loc)
+                    highlights, notes = [], [note]
+
                 diag = diagnostic.Diagnostic("error",
                     "type {type} does not have an attribute '{attr}'",
                     {"type": types.TypePrinter().name(object_type), "attr": node.attr},
-                    node.attr_loc, [node.value.loc])
+                    node.attr_loc, highlights, notes)
                 self.engine.process(diag)
 
     def _unify_iterable(self, element, collection):

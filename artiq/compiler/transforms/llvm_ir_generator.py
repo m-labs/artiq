@@ -278,6 +278,27 @@ class LLVMIRGenerator:
             else:
                 return llty.as_pointer()
 
+    def llstr_of_str(self, value, name=None,
+                        linkage="private", unnamed_addr=True):
+        if isinstance(value, str):
+            assert "\0" not in value
+            as_bytes = (value + "\0").encode("utf-8")
+        else:
+            as_bytes = value
+
+        if name is None:
+            name = self.llmodule.get_unique_name("str")
+
+        llstr = self.llmodule.get_global(name)
+        if llstr is None:
+            llstrty = ll.ArrayType(lli8, len(as_bytes))
+            llstr = ll.GlobalVariable(self.llmodule, llstrty, name)
+            llstr.global_constant = True
+            llstr.initializer = ll.Constant(llstrty, bytearray(as_bytes))
+            llstr.linkage = linkage
+            llstr.unnamed_addr = unnamed_addr
+        return llstr.bitcast(llptr)
+
     def llconst_of_const(self, const):
         llty = self.llty_of_type(const.type)
         if const.value is None:
@@ -289,12 +310,6 @@ class LLVMIRGenerator:
         elif isinstance(const.value, (int, float)):
             return ll.Constant(llty, const.value)
         elif isinstance(const.value, (str, bytes)):
-            if isinstance(const.value, str):
-                assert "\0" not in const.value
-                as_bytes = (const.value + "\0").encode("utf-8")
-            else:
-                as_bytes = const.value
-
             if ir.is_exn_typeinfo(const.type):
                 # Exception typeinfo; should be merged with identical others
                 name = "__artiq_exn_" + const.value
@@ -302,20 +317,12 @@ class LLVMIRGenerator:
                 unnamed_addr = False
             else:
                 # Just a string
-                name = self.llmodule.get_unique_name("str")
+                name = None
                 linkage = "private"
                 unnamed_addr = True
 
-            llconst = self.llmodule.get_global(name)
-            if llconst is None:
-                llstrty = ll.ArrayType(lli8, len(as_bytes))
-                llconst = ll.GlobalVariable(self.llmodule, llstrty, name)
-                llconst.global_constant = True
-                llconst.initializer = ll.Constant(llstrty, bytearray(as_bytes))
-                llconst.linkage = linkage
-                llconst.unnamed_addr = unnamed_addr
-
-            return llconst.bitcast(llptr)
+            return self.llstr_of_str(const.value, name=name,
+                                     linkage=linkage, unnamed_addr=unnamed_addr)
         else:
             assert False
 
@@ -856,7 +863,7 @@ class LLVMIRGenerator:
         tag += self._rpc_tag(fun_type.ret, ret_error_handler)
         tag += b"\x00"
 
-        lltag = self.llconst_of_const(ir.Constant(tag + b"\x00", builtins.TStr()))
+        lltag = self.llstr_of_str(tag)
 
         llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [])
 
@@ -981,24 +988,24 @@ class LLVMIRGenerator:
                     global_name = "object.{}".format(objectid)
                 else:
                     llfields.append(self._quote(getattr(value, attr), typ.attributes[attr],
-                                                path + [attr]))
+                                                lambda: path() + [attr]))
 
             llvalue = ll.Constant.literal_struct(llfields)
         elif builtins.is_none(typ):
             assert value is None
-            return self.llconst_of_const(value)
+            return ll.Constant.literal_struct([])
         elif builtins.is_bool(typ):
             assert value in (True, False)
-            return self.llconst_of_const(value)
+            return ll.Constant(lli1, value)
         elif builtins.is_int(typ):
             assert isinstance(value, int)
-            return self.llconst_of_const(value)
+            return ll.Constant(ll.IntType(builtins.get_int_width(typ)), value)
         elif builtins.is_float(typ):
             assert isinstance(value, float)
-            return self.llconst_of_const(value)
+            return ll.Constant(lldouble, value)
         elif builtins.is_str(typ):
             assert isinstance(value, (str, bytes))
-            return self.llconst_of_const(value)
+            return self.llstr_of_str(value)
         else:
             assert False
 
