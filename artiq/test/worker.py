@@ -1,6 +1,7 @@
 import unittest
 import asyncio
 import sys
+import os
 from time import sleep
 
 from artiq import *
@@ -59,7 +60,10 @@ def _run_experiment(class_name):
 
 class WatchdogCase(unittest.TestCase):
     def setUp(self):
-        self.loop = asyncio.new_event_loop()
+        if os.name == "nt":
+            self.loop = asyncio.ProactorEventLoop()
+        else:
+            self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
     def test_watchdog_no_timeout(self):
