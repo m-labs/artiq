@@ -105,7 +105,8 @@ class ASTSynthesizer:
             if typ in self.type_map:
                 instance_type, constructor_type = self.type_map[typ]
             else:
-                instance_type = types.TInstance("{}.{}".format(typ.__module__, typ.__qualname__))
+                instance_type = types.TInstance("{}.{}".format(typ.__module__, typ.__qualname__),
+                                                OrderedDict())
                 instance_type.attributes['__objectid__'] = builtins.TInt(types.TValue(32))
 
                 constructor_type = types.TConstructor(instance_type)

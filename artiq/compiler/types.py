@@ -359,7 +359,8 @@ class TInstance(TMono):
         was created
     """
 
-    def __init__(self, name, attributes=OrderedDict()):
+    def __init__(self, name, attributes):
+        assert isinstance(attributes, OrderedDict)
         super().__init__(name)
         self.attributes = attributes
 
