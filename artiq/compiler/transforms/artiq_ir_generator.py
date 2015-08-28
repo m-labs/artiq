@@ -1134,7 +1134,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
             assert False
 
     def polymorphic_compare_pair_order(self, op, lhs, rhs):
-        if builtins.is_numeric(lhs.type) and builtins.is_numeric(rhs.type):
+        if builtins.is_none(lhs.type) and builtins.is_none(rhs.type):
+            return self.append(ir.Compare(op, lhs, rhs))
+        elif builtins.is_numeric(lhs.type) and builtins.is_numeric(rhs.type):
             return self.append(ir.Compare(op, lhs, rhs))
         elif builtins.is_bool(lhs.type) and builtins.is_bool(rhs.type):
             return self.append(ir.Compare(op, lhs, rhs))
