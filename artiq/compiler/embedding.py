@@ -74,6 +74,10 @@ class ASTSynthesizer:
                 typ = builtins.TFloat()
             return asttyped.NumT(n=value, ctx=None, type=typ,
                                  loc=self._add(repr(value)))
+        elif isinstance(value, language_core.int):
+            typ = builtins.TInt(width=types.TValue(value.width))
+            return asttyped.NumT(n=int(value), ctx=None, type=typ,
+                                 loc=self._add(repr(value)))
         elif isinstance(value, str):
             return asttyped.StrT(s=value, ctx=None, type=builtins.TStr(),
                                  loc=self._add(repr(value)))

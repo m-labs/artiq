@@ -6,6 +6,7 @@ into LLVM intermediate representation.
 import os
 from pythonparser import ast, diagnostic
 from llvmlite_artiq import ir as ll
+from ...language import core as language_core
 from .. import types, builtins, ir
 
 
@@ -1007,8 +1008,8 @@ class LLVMIRGenerator:
             assert value in (True, False)
             return ll.Constant(lli1, value)
         elif builtins.is_int(typ):
-            assert isinstance(value, int)
-            return ll.Constant(ll.IntType(builtins.get_int_width(typ)), value)
+            assert isinstance(value, (int, language_core.int))
+            return ll.Constant(ll.IntType(builtins.get_int_width(typ)), int(value))
         elif builtins.is_float(typ):
             assert isinstance(value, float)
             return ll.Constant(lldouble, value)

@@ -72,8 +72,8 @@ class int:
             return self
 
     @property
-    def width(width):
-        return width._width
+    def width(self):
+        return self._width
 
     def __int__(self):
         return self._value
