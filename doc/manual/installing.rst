@@ -203,6 +203,12 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
         $ git clone --recursive https://github.com/m-labs/artiq
         $ python3 setup.py develop --user
 
+.. note::
+    If you have any trouble during ARTIQ setup about ``pygit2`` installation,
+    refer to the section dealing with
+    :ref:`installing the host-side software <installing-the-host-side-software>`.
+
+
 * Build and flash the bitstream and BIOS by running `from the MiSoC top-level directory`:
     ::
 
@@ -239,6 +245,8 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
 The communication parameters are 115200 8-N-1.
 
+.. _installing-the-host-side-software:
+
 Installing the host-side software
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -256,6 +264,27 @@ Installing the host-side software
         $ git clone --recursive https://github.com/m-labs/artiq # if not already done
         $ cd artiq
         $ python3 setup.py develop --user
+
+.. note::
+    If you have any trouble during ARTIQ setup about ``pygit2`` installation,
+    you can install it by using ``pip``:
+
+    On Ubuntu 14.04::
+
+        $ pip install --user pygit2==0.19.1
+
+    On Ubuntu 14.10::
+
+        $ pip install --user pygit2==0.20.3
+
+    On Ubuntu 15.04 and 15.10::
+
+        $ pip install --user pygit2==0.22.1
+
+    The rationale behind this is that pygit2 and libgit2 must have the same
+    major.minor version numbers.
+
+    See http://www.pygit2.org/install.html#version-numbers
 
 * Build the documentation: ::
 
@@ -338,7 +367,7 @@ Ubuntu 14.04 specific instructions
 
 This command installs all the required packages: ::
 
-    $ sudo apt-get install build-essential autotools-dev file git patch perl xutils-dev python3-pip texinfo flex bison libmpc-dev python3-serial python3-dateutil python3-prettytable python3-setuptools python3-numpy python3-scipy python3-sphinx python3-h5py python3-dev python-dev subversion cmake libusb-dev libftdi-dev pkg-config
+    $ sudo apt-get install build-essential autotools-dev file git patch perl xutils-dev python3-pip texinfo flex bison libmpc-dev python3-serial python3-dateutil python3-prettytable python3-setuptools python3-numpy python3-scipy python3-sphinx python3-h5py python3-dev python-dev subversion cmake libusb-dev libftdi-dev pkg-config libffi-dev libgit2-dev
 
 Note that ARTIQ requires Python 3.4 or above.
 
