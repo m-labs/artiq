@@ -10,6 +10,7 @@ from collections import OrderedDict, defaultdict
 
 from pythonparser import ast, algorithm, source, diagnostic, parse_buffer
 
+from ..language import core as language_core
 from . import types, builtins, asttyped, prelude
 from .transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer
 

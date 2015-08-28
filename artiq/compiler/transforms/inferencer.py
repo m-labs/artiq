@@ -91,9 +91,22 @@ class Inferencer(algorithm.Visitor):
         object_type = node.value.type.find()
         if not types.is_var(object_type):
             if node.attr in object_type.attributes:
+                def makenotes(printer, typea, typeb, loca, locb):
+                    return [
+                        diagnostic.Diagnostic("note",
+                            "expression of type {typea}",
+                            {"typea": printer.name(typea)},
+                            loca),
+                        diagnostic.Diagnostic("note",
+                            "expression of type {typeb}",
+                            {"typeb": printer.name(object_type)},
+                            node.value.loc)
+                    ]
+
                 # Assumes no free type variables in .attributes.
                 self._unify(node.type, object_type.attributes[node.attr],
-                            node.loc, None)
+                            node.loc, None,
+                            makenotes=makenotes, when=" for attribute '{}'".format(node.attr))
             elif types.is_instance(object_type) and \
                     node.attr in object_type.constructor.attributes:
                 # Assumes no free type variables in .attributes.
