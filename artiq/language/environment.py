@@ -220,6 +220,7 @@ class HasEnvironment:
         """Writes the value of a parameter into the parameter database."""
         if self.__parent is not None:
             self.__parent.set_parameter(key, value)
+            return
         if self.__pdb is None:
             raise ValueError("Parameter database not present")
         self.__pdb.set(key, value)
@@ -236,6 +237,7 @@ class HasEnvironment:
         """
         if self.__parent is not None:
             self.__parent.set_result(key, value, realtime, store)
+            return
         if self.__rdb is None:
             raise ValueError("Result database not present")
         if realtime:
