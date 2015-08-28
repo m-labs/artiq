@@ -420,7 +420,7 @@ class Stitcher:
         embedded_function = function.artiq_embedded.function
         source_code = textwrap.dedent(inspect.getsource(embedded_function))
         filename = embedded_function.__code__.co_filename
-        module_name, _ = os.path.splitext(os.path.basename(filename))
+        module_name = embedded_function.__globals__['__name__']
         first_line = embedded_function.__code__.co_firstlineno
 
         # Extract function environment.
@@ -436,7 +436,7 @@ class Stitcher:
         function_node = parsetree.body[0]
 
         # Mangle the name, since we put everything into a single module.
-        function_node.name = "{}.{}".format(module_name, function_node.name)
+        function_node.name = "{}.{}".format(module_name, function.__qualname__)
 
         # Normally, LocalExtractor would populate the typing environment
         # of the module with the function name. However, since we run
