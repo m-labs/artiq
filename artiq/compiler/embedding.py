@@ -479,14 +479,17 @@ class Stitcher:
         return source.Range(source_buffer, column, column)
 
     def _call_site_note(self, call_loc, is_syscall):
-        if is_syscall:
-            return diagnostic.Diagnostic("note",
-                "in system call here", {},
-                call_loc)
+        if call_loc:
+            if is_syscall:
+                return [diagnostic.Diagnostic("note",
+                    "in system call here", {},
+                    call_loc)]
+            else:
+                return [diagnostic.Diagnostic("note",
+                    "in function called remotely here", {},
+                    call_loc)]
         else:
-            return diagnostic.Diagnostic("note",
-                "in function called remotely here", {},
-                call_loc)
+            return []
 
     def _extract_annot(self, function, annot, kind, call_loc, is_syscall):
         if not isinstance(annot, types.Type):
@@ -494,7 +497,7 @@ class Stitcher:
                 "type annotation for {kind}, '{annot}', is not an ARTIQ type",
                 {"kind": kind, "annot": repr(annot)},
                 self._function_loc(function),
-                notes=[self._call_site_note(call_loc, is_syscall)])
+                notes=self._call_site_note(call_loc, is_syscall))
             self.engine.process(diag)
 
             return types.TVar()
@@ -513,7 +516,7 @@ class Stitcher:
                 "system call argument '{argument}' must have a type annotation",
                 {"argument": param.name},
                 self._function_loc(function),
-                notes=[self._call_site_note(loc, is_syscall)])
+                notes=self._call_site_note(loc, is_syscall))
             self.engine.process(diag)
         elif param.default is not inspect.Parameter.empty:
             # Try and infer the type from the default value.
@@ -530,7 +533,9 @@ class Stitcher:
                     self._function_loc(function))
                 diag.notes.append(note)
 
-                diag.notes.append(self._call_site_note(loc, is_syscall))
+                note = self._call_site_note(loc, is_syscall)
+                if note:
+                    diag.notes += note
 
                 self.engine.process(diag)
 
@@ -572,7 +577,7 @@ class Stitcher:
                     "system call argument '{argument}' must not have a default value",
                     {"argument": param.name},
                     self._function_loc(function),
-                    notes=[self._call_site_note(loc, is_syscall=True)])
+                    notes=self._call_site_note(loc, is_syscall=True))
                 self.engine.process(diag)
 
         if signature.return_annotation is not inspect.Signature.empty:
@@ -582,14 +587,14 @@ class Stitcher:
             diag = diagnostic.Diagnostic("error",
                 "function must have a return type annotation to be called remotely", {},
                 self._function_loc(function),
-                notes=[self._call_site_note(loc, is_syscall=False)])
+                notes=self._call_site_note(loc, is_syscall=False))
             self.engine.process(diag)
             ret_type = types.TVar()
         else: # syscall is not None
             diag = diagnostic.Diagnostic("error",
                 "system call must have a return type annotation", {},
                 self._function_loc(function),
-                notes=[self._call_site_note(loc, is_syscall=True)])
+                notes=self._call_site_note(loc, is_syscall=True))
             self.engine.process(diag)
             ret_type = types.TVar()
 
