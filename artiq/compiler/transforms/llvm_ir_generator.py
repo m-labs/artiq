@@ -793,10 +793,13 @@ class LLVMIRGenerator:
 
     def _prepare_ffi_call(self, insn):
         llargs    = [self.map(arg) for arg in insn.arguments()]
-        llfunty   = ll.FunctionType(self.llty_of_type(insn.type, for_return=True),
-                                    [llarg.type for llarg in llargs])
-        llfun     = ll.Function(self.llmodule, llfunty,
-                                insn.target_function().type.name)
+        llfunname = insn.target_function().type.name
+        llfun     = self.llmodule.get_global(llfunname)
+        if llfun is None:
+            llfunty = ll.FunctionType(self.llty_of_type(insn.type, for_return=True),
+                                      [llarg.type for llarg in llargs])
+            llfun   = ll.Function(self.llmodule, llfunty,
+                                  insn.target_function().type.name)
         return llfun, list(llargs)
 
     # See session.c:{send,receive}_rpc_value and comm_generic.py:_{send,receive}_rpc_value.
