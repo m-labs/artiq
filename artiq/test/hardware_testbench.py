@@ -37,7 +37,16 @@ class ExperimentCase(unittest.TestCase):
         self.pdb = FlatFileDB(os.path.join(artiq_root, "pdb.pyon"))
         self.rdb = ResultDB()
 
-    def execute(self, cls, **kwargs):
+    def create(self, cls, **kwargs):
+        try:
+            exp = cls(self.dmgr, self.pdb, self.rdb, **kwargs)
+            exp.prepare()
+            return exp
+        except KeyError as e:
+            # skip if ddb does not match requirements
+            raise unittest.SkipTest(*e.args)
+
+    def execute(self, cls, *args, **kwargs):
         expid = {
             "file": sys.modules[cls.__module__].__file__,
             "class_name": cls.__name__,
@@ -45,12 +54,7 @@ class ExperimentCase(unittest.TestCase):
         }
         self.dmgr.virtual_devices["scheduler"].expid = expid
         try:
-            try:
-                exp = cls(self.dmgr, self.pdb, self.rdb, **kwargs)
-            except KeyError as e:
-                # skip if ddb does not match requirements
-                raise unittest.SkipTest(*e.args)
-            exp.prepare()
+            exp = self.create(cls, **kwargs)
             exp.run()
             exp.analyze()
             return exp
