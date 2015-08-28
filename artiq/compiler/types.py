@@ -521,10 +521,10 @@ class TypePrinter(object):
                 self.map[typ] = "'%s" % next(self.gen)
             return self.map[typ]
         elif isinstance(typ, TInstance):
-            if typ.name in self.recurse_guard:
+            if typ in self.recurse_guard:
                 return "<instance {}>".format(typ.name)
             else:
-                self.recurse_guard.add(typ.name)
+                self.recurse_guard.add(typ)
                 attrs = ", ".join(["{}: {}".format(attr, self.name(typ.attributes[attr]))
                                    for attr in typ.attributes])
                 return "<instance {} {{{}}}>".format(typ.name, attrs)
@@ -554,10 +554,10 @@ class TypePrinter(object):
         elif isinstance(typ, TBuiltinFunction):
             return "<function {}>".format(typ.name)
         elif isinstance(typ, (TConstructor, TExceptionConstructor)):
-            if typ.name in self.recurse_guard:
+            if typ in self.recurse_guard:
                 return "<constructor {}>".format(typ.name)
             else:
-                self.recurse_guard.add(typ.name)
+                self.recurse_guard.add(typ)
                 attrs = ", ".join(["{}: {}".format(attr, self.name(typ.attributes[attr]))
                                    for attr in typ.attributes])
                 return "<constructor {} {{{}}}>".format(typ.name, attrs)
