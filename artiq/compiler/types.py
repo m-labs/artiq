@@ -41,7 +41,8 @@ def _map_find(elts):
 
 
 class Type(object):
-    pass
+    def __str__(self):
+        return TypePrinter().name(self)
 
 class TVar(Type):
     """
