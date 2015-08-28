@@ -12,23 +12,26 @@ logger = logging.getLogger(__name__)
 
 class _H2DMsgType(Enum):
     LOG_REQUEST = 1
-    IDENT_REQUEST = 2
-    SWITCH_CLOCK = 3
+    LOG_CLEAR = 2
 
-    LOAD_LIBRARY = 4
-    RUN_KERNEL = 5
+    IDENT_REQUEST = 3
+    SWITCH_CLOCK = 4
 
-    RPC_REPLY = 6
-    RPC_EXCEPTION = 7
+    LOAD_LIBRARY = 5
+    RUN_KERNEL = 6
 
-    FLASH_READ_REQUEST = 8
-    FLASH_WRITE_REQUEST = 9
-    FLASH_ERASE_REQUEST = 10
-    FLASH_REMOVE_REQUEST = 11
+    RPC_REPLY = 7
+    RPC_EXCEPTION = 8
+
+    FLASH_READ_REQUEST = 9
+    FLASH_WRITE_REQUEST = 10
+    FLASH_ERASE_REQUEST = 11
+    FLASH_REMOVE_REQUEST = 12
 
 
 class _D2HMsgType(Enum):
     LOG_REPLY = 1
+
     IDENT_REPLY = 2
     CLOCK_SWITCH_COMPLETED = 3
     CLOCK_SWITCH_FAILED = 4
@@ -234,6 +237,11 @@ class CommGeneric:
         self._read_header()
         self._read_expect(_D2HMsgType.LOG_REPLY)
         return self._read_chunk(self._read_length).decode('utf-8')
+
+    def clear_log(self):
+        self._write_empty(_H2DMsgType.LOG_CLEAR)
+
+        self._read_empty(_D2HMsgType.LOG_REPLY)
 
     def flash_storage_read(self, key):
         self._write_header(_H2DMsgType.FLASH_READ_REQUEST)

@@ -12,5 +12,6 @@ void log_va(const char *fmt, va_list args);
 void log(const char *fmt, ...);
 
 void log_get(char *outbuf);
+void log_clear();
 
 #endif /* __LOG_H */

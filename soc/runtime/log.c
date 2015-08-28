@@ -61,3 +61,8 @@ void log_get(char *outbuf)
         j = (j + 1) % LOG_BUFFER_SIZE;
     }
 }
+
+void log_clear()
+{
+    memset(buffer, 0, sizeof(buffer));
+}

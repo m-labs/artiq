@@ -310,6 +310,8 @@ void session_end(void)
 /* host to device */
 enum {
     REMOTEMSG_TYPE_LOG_REQUEST = 1,
+    REMOTEMSG_TYPE_LOG_CLEAR,
+
     REMOTEMSG_TYPE_IDENT_REQUEST,
     REMOTEMSG_TYPE_SWITCH_CLOCK,
 
@@ -328,6 +330,7 @@ enum {
 /* device to host */
 enum {
     REMOTEMSG_TYPE_LOG_REPLY = 1,
+
     REMOTEMSG_TYPE_IDENT_REPLY,
     REMOTEMSG_TYPE_CLOCK_SWITCH_COMPLETED,
     REMOTEMSG_TYPE_CLOCK_SWITCH_FAILED,
@@ -381,6 +384,11 @@ static int process_input(void)
             log_get(&buffer_out.data[buffer_out_write_cursor]);
             buffer_out_write_cursor += LOG_BUFFER_SIZE;
             out_packet_finish();
+            break;
+
+        case REMOTEMSG_TYPE_LOG_CLEAR:
+            log_clear();
+            out_packet_empty(REMOTEMSG_TYPE_LOG_REPLY);
             break;
 
         case REMOTEMSG_TYPE_FLASH_READ_REQUEST: {
