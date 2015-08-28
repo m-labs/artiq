@@ -42,7 +42,7 @@ cd $SRC_DIR/misoc; $PYTHON make.py -X ../soc -t artiq_pipistrello $MISOC_EXTRA_I
 cp soc/runtime/runtime.fbi $BIN_PREFIX/pipistrello/
 cp $SRC_DIR/misoc/software/bios/bios.bin $BIN_PREFIX/pipistrello/
 cp $SRC_DIR/misoc/build/artiq_pipistrello-nist_qc1-pipistrello.bit $BIN_PREFIX/pipistrello/
-wget http://www.phys.ethz.ch/~robertjo/bscan_spi_lx45_csg324.bit
+wget https://people.phys.ethz.ch/~robertjo/bscan_spi_lx45_csg324.bit
 mv bscan_spi_lx45_csg324.bit $BIN_PREFIX/pipistrello/
 
 # build for KC705 NIST_QC2

@@ -123,9 +123,13 @@ then
 	PROXY=bscan_spi_kc705.bit
 	BIOS_ADDR=0xaf0000
 	RUNTIME_ADDR=0xb00000
-	RUNTIME_FILE=${MEZZANINE_BOARD}/runtime.fbi
+	RUNTIME_FILE=runtime.fbi
 	FS_ADDR=0xb40000
-	if [ -z "$BIN_PREFIX" ]; then BIN_PREFIX=$ARTIQ_PREFIX/binaries/kc705; fi
+	if [ -z "$BIN_PREFIX" ]
+	then
+		RUNTIME_FILE=${MEZZANINE_BOARD}/runtime.fbi
+		BIN_PREFIX=$ARTIQ_PREFIX/binaries/kc705
+	fi
 	search_for_proxy $PROXY
 elif [ "$BOARD" == "pipistrello" ]
 then
