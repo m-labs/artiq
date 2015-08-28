@@ -115,7 +115,6 @@ class SpeedBenchmark(EnvExperiment):
                         (end_time-start_time)/self.nruns,
                         realtime=True)
 
-
     def run(self):
         if self.mode == "Single experiment":
             self.run_without_scheduler(False)
