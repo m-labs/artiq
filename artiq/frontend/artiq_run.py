@@ -12,9 +12,10 @@ import h5py
 from artiq.language.environment import EnvExperiment
 from artiq.protocols.file_db import FlatFileDB
 from artiq.master.worker_db import DeviceManager, ResultDB
-from artiq.tools import *
+from artiq.coredevice.core import CompileError
 from artiq.compiler.embedding import ObjectMap
 from artiq.compiler.targets import OR1KTarget
+from artiq.tools import *
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +123,11 @@ def run(with_file=False):
         exp_inst.prepare()
         exp_inst.run()
         exp_inst.analyze()
+    except CompileError as error:
+        message = "\n".join(error.__cause__.diagnostic.render(colored=True))
+        message = message.replace(os.path.normpath(os.path.join(os.path.dirname(__file__), "..")),
+                                  "<artiq>")
+        print(message, file=sys.stderr)
     finally:
         dmgr.close_devices()
 
