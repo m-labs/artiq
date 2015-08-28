@@ -32,7 +32,7 @@ class Comm(CommGeneric):
     def open(self):
         if hasattr(self, "socket"):
             return
-        self.socket = socket.create_connection((self.host, self.port))
+        self.socket = socket.create_connection((self.host, self.port), 5.0)
         set_keepalive(self.socket, 3, 2, 3)
         logger.debug("connected to host %s on port %d", self.host, self.port)
         self.write(b"ARTIQ coredev\n")
