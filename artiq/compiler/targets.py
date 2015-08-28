@@ -69,7 +69,11 @@ class Target:
     def compile(self, module):
         """Compile the module to a relocatable object for this target."""
 
-        if os.getenv('ARTIQ_DUMP_IR'):
+        if os.getenv("ARTIQ_DUMP_SIG"):
+            print("====== MODULE_SIGNATURE DUMP ======", file=sys.stderr)
+            print(module, file=sys.stderr)
+
+        if os.getenv("ARTIQ_DUMP_IR"):
             print("====== ARTIQ IR DUMP ======", file=sys.stderr)
             for function in module.artiq_ir:
                 print(function, file=sys.stderr)
@@ -78,7 +82,7 @@ class Target:
         llparsedmod = llvm.parse_assembly(str(llmod))
         llparsedmod.verify()
 
-        if os.getenv('ARTIQ_DUMP_LLVM'):
+        if os.getenv("ARTIQ_DUMP_LLVM"):
             print("====== LLVM IR DUMP ======", file=sys.stderr)
             print(str(llparsedmod), file=sys.stderr)
 
@@ -90,7 +94,7 @@ class Target:
         llpassmgrbuilder.populate(llpassmgr)
         llpassmgr.run(llparsedmod)
 
-        if os.getenv('ARTIQ_DUMP_LLVM'):
+        if os.getenv("ARTIQ_DUMP_LLVM"):
             print("====== LLVM IR DUMP (OPTIMIZED) ======", file=sys.stderr)
             print(str(llparsedmod), file=sys.stderr)
 
@@ -99,7 +103,7 @@ class Target:
                         features=",".join(self.features),
                         reloc="pic", codemodel="default")
 
-        if os.getenv('ARTIQ_DUMP_ASSEMBLY'):
+        if os.getenv("ARTIQ_DUMP_ASSEMBLY"):
             print("====== ASSEMBLY DUMP ======", file=sys.stderr)
             print(llmachine.emit_assembly(llparsedmod), file=sys.stderr)
 
@@ -115,7 +119,7 @@ class Target:
                 as results:
             library = results["output"].read()
 
-            if os.getenv('ARTIQ_DUMP_ELF'):
+            if os.getenv("ARTIQ_DUMP_ELF"):
                 shlib_temp = tempfile.NamedTemporaryFile(suffix=".so", delete=False)
                 shlib_temp.write(library)
                 shlib_temp.close()
@@ -145,7 +149,7 @@ class Target:
             backtrace = []
             for function_name, location, address in zip(lines[::2], lines[1::2], addresses):
                 filename, line = location.rsplit(":", 1)
-                if filename == '??':
+                if filename == "??":
                     continue
                 # can't get column out of addr2line D:
                 backtrace.append((filename, int(line), -1, function_name, address))
