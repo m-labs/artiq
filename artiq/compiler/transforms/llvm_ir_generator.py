@@ -266,7 +266,7 @@ class LLVMIRGenerator:
             elif types.is_constructor(typ):
                 name = "class.{}".format(typ.name)
             else:
-                name = typ.name
+                name = "instance.{}".format(typ.name)
 
             llty = self.llcontext.get_identified_type(name)
             if llty.elements is None:
@@ -991,7 +991,7 @@ class LLVMIRGenerator:
                     llfields.append(self._quote(getattr(value, attr), typ.attributes[attr],
                                                 lambda: path() + [attr]))
 
-            llvalue = ll.Constant.literal_struct(llfields)
+            llvalue = ll.Constant(llty.pointee, llfields)
             llconst = ll.GlobalVariable(self.llmodule, llvalue.type, global_name)
             llconst.initializer = llvalue
             llconst.linkage = "private"
@@ -1012,8 +1012,10 @@ class LLVMIRGenerator:
         elif builtins.is_str(typ):
             assert isinstance(value, (str, bytes))
             return self.llstr_of_str(value)
-        elif types.is_rpc_function(typ):
-            return ll.Constant.literal_struct([])
+        elif types.is_function(typ):
+            # RPC and C functions have no runtime representation; ARTIQ
+            # functions are initialized explicitly.
+            return ll.Constant(llty, ll.Undefined)
         else:
             print(typ)
             assert False

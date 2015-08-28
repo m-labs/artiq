@@ -127,8 +127,10 @@ class Inferencer(algorithm.Visitor):
                                     when=" while inferring the type for self argument")
 
                     attr_type = types.TMethod(object_type, attr_type)
-                self._unify(node.type, attr_type,
-                            node.loc, None)
+
+                if not types.is_var(attr_type):
+                    self._unify(node.type, attr_type,
+                                node.loc, None)
             else:
                 if node.attr_loc.source_buffer == node.value.loc.source_buffer:
                     highlights, notes = [node.value.loc], []
