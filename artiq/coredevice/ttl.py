@@ -36,7 +36,7 @@ class TTLOut:
         self.channel = channel
 
         # in RTIO cycles
-        self.o_previous_timestamp = int64(0)
+        self.o_previous_timestamp = int(0, width=64)
 
     @kernel
     def set_o(self, o):
@@ -100,8 +100,8 @@ class TTLInOut:
         self.channel = channel
 
         # in RTIO cycles
-        self.o_previous_timestamp = int64(0)
-        self.i_previous_timestamp = int64(0)
+        self.o_previous_timestamp = int(0, width=64)
+        self.i_previous_timestamp = int(0, width=64)
 
     @kernel
     def set_oe(self, oe):
@@ -240,7 +240,7 @@ class TTLClockGen:
 
     def build(self):
         # in RTIO cycles
-        self.previous_timestamp = int64(0)
+        self.previous_timestamp = int(0, width=64)
         self.acc_width = 24
 
     @portable
