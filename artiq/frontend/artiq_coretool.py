@@ -13,7 +13,7 @@ def to_bytes(string):
 def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ core device "
                                                  "remote access tool")
-    parser.add_argument("--ddb", default="ddb.pyon",
+    parser.add_argument("-d", "--ddb", default="ddb.pyon",
                         help="device database file")
 
     subparsers = parser.add_subparsers(dest="action")

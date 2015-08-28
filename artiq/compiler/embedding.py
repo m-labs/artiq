@@ -33,6 +33,10 @@ class ObjectMap:
     def retrieve(self, obj_key):
         return self.forward_map[obj_key]
 
+    def has_rpc(self):
+        return any(filter(lambda x: inspect.isfunction(x) or inspect.ismethod(x),
+                          self.forward_map.values()))
+
 class ASTSynthesizer:
     def __init__(self, type_map, value_map, quote_function=None, expanded_from=None):
         self.source = ""

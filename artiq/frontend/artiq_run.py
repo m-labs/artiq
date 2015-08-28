@@ -13,7 +13,8 @@ from artiq.language.environment import EnvExperiment
 from artiq.protocols.file_db import FlatFileDB
 from artiq.master.worker_db import DeviceManager, ResultDB
 from artiq.tools import *
-
+from artiq.compiler.embedding import ObjectMap
+from artiq.compiler.targets import OR1KTarget
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +26,13 @@ class ELFRunner(EnvExperiment):
 
     def run(self):
         with open(self.file, "rb") as f:
-            self.core.comm.load(f.read())
-        self.core.comm.run("run")
-        self.core.comm.serve(dict(), dict())
+            kernel_library = f.read()
+
+        target = OR1KTarget()
+        self.core.comm.load(kernel_library)
+        self.core.comm.run()
+        self.core.comm.serve(ObjectMap(),
+                             lambda addresses: target.symbolize(kernel_library, addresses))
 
 
 class SimpleParamLogger:

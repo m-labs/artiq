@@ -145,6 +145,8 @@ class Target:
             backtrace = []
             for function_name, location, address in zip(lines[::2], lines[1::2], addresses):
                 filename, line = location.rsplit(":", 1)
+                if filename == '??':
+                    continue
                 # can't get column out of addr2line D:
                 backtrace.append((filename, int(line), -1, function_name, address))
             return backtrace

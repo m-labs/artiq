@@ -45,29 +45,27 @@ def main():
         arguments = parse_arguments(args.arguments)
         exp_inst = exp(dmgr, pdb, **arguments)
 
-        if (not hasattr(exp.run, "k_function_info")
-                or not exp.run.k_function_info):
+        if not hasattr(exp.run, "artiq_embedded"):
             raise ValueError("Experiment entry point must be a kernel")
-        core_name = exp.run.k_function_info.core_name
+        core_name = exp.run.artiq_embedded.core_name
         core = getattr(exp_inst, core_name)
 
-        binary, rpc_map, _ = core.compile(exp.run.k_function_info.k_function,
-                                          [exp_inst], {},
-                                          with_attr_writeback=False)
+        object_map, kernel_library, symbolizer = \
+            core.compile(exp.run, [exp_inst], {},
+                         with_attr_writeback=False)
     finally:
         dmgr.close_devices()
 
-    if rpc_map:
+    if object_map.has_rpc():
         raise ValueError("Experiment must not use RPC")
 
     output = args.output
     if output is None:
-        output = args.file
-        if output.endswith(".py"):
-            output = output[:-3]
-        output += ".elf"
+        basename, ext = os.path.splitext(args.file)
+        output = "{}.elf".format(basename)
+
     with open(output, "wb") as f:
-        f.write(binary)
+        f.write(kernel_library)
 
 if __name__ == "__main__":
     main()

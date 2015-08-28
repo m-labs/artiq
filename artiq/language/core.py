@@ -182,7 +182,7 @@ def kernel(arg):
         def inner_decorator(function):
             @wraps(function)
             def run_on_core(self, *k_args, **k_kwargs):
-                return getattr(self, arg).run(function, ((self,) + k_args), k_kwargs)
+                return getattr(self, arg).run(run_on_core, ((self,) + k_args), k_kwargs)
             run_on_core.artiq_embedded = _ARTIQEmbeddedInfo(
                 core_name=arg, function=function, syscall=None)
             return run_on_core
