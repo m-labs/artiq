@@ -64,7 +64,7 @@ def main():
         comm.check_ident()
 
         if args.action == "log":
-          print(comm.get_log())
+          print(comm.get_log(), end='')
         elif args.action == "cfg-read":
             value = comm.flash_storage_read(args.key)
             if not value:

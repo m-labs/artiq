@@ -56,8 +56,8 @@ void log_get(char *outbuf)
 {
     int i, j;
 
-    j = buffer_index + 1;
-    for(i=0;i<LOG_BUFFER_SIZE;i++) {
+    j = buffer_index;
+    for(i = 0; i < LOG_BUFFER_SIZE; i++) {
         outbuf[i] = buffer[j];
         j = (j + 1) % LOG_BUFFER_SIZE;
     }
