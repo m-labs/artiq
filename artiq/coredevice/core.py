@@ -48,7 +48,6 @@ class Core:
             return stitcher.object_map, stripped_library, \
                    lambda addresses: target.symbolize(library, addresses)
         except diagnostic.Error as error:
-            print("\n".join(error.diagnostic.render(colored=True)), file=sys.stderr)
             raise CompileError() from error
 
     def run(self, function, args, kwargs):

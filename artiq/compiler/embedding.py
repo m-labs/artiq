@@ -269,12 +269,11 @@ class StitchingInferencer(Inferencer):
             else:
                 attributes = object_type.attributes
 
-            ast = self.quote(attr_value, None)
+            ast = self.quote(attr_value, object_loc.expanded_from)
 
             def proxy_diagnostic(diag):
                 note = diagnostic.Diagnostic("note",
-                    "expanded from here while trying to infer a type for an"
-                    " attribute '{attr}' of a host object",
+                    "while inferring a type for an attribute '{attr}' of a host object",
                     {"attr": node.attr},
                     node.loc)
                 diag.notes.append(note)
@@ -293,10 +292,11 @@ class StitchingInferencer(Inferencer):
                 # Does this conflict with an earlier guess?
                 printer = types.TypePrinter()
                 diag = diagnostic.Diagnostic("error",
-                    "host object has an attribute of type {typea}, which is"
-                    " different from previously inferred type {typeb}",
+                    "host object has an attribute '{attr}' of type {typea}, which is"
+                    " different from previously inferred type {typeb} for the same attribute",
                     {"typea": printer.name(ast.type),
-                     "typeb": printer.name(attributes[node.attr])},
+                     "typeb": printer.name(attributes[node.attr]),
+                     "attr": node.attr},
                     object_loc)
                 self.engine.process(diag)
 
@@ -465,27 +465,23 @@ class Stitcher:
         source_buffer = source.Buffer(source_line, filename, line)
         return source.Range(source_buffer, column, column)
 
-    def _function_def_note(self, function):
-        return diagnostic.Diagnostic("note",
-            "definition of function '{function}'",
-            {"function": function.__name__},
-            self._function_loc(function))
+    def _call_site_note(self, call_loc, is_syscall):
+        if is_syscall:
+            return diagnostic.Diagnostic("note",
+                "in system call here", {},
+                call_loc)
+        else:
+            return diagnostic.Diagnostic("note",
+                "in function called remotely here", {},
+                call_loc)
 
     def _extract_annot(self, function, annot, kind, call_loc, is_syscall):
         if not isinstance(annot, types.Type):
-            if is_syscall:
-                note = diagnostic.Diagnostic("note",
-                    "in system call here", {},
-                    call_loc)
-            else:
-                note = diagnostic.Diagnostic("note",
-                    "in function called remotely here", {},
-                    call_loc)
             diag = diagnostic.Diagnostic("error",
                 "type annotation for {kind}, '{annot}', is not an ARTIQ type",
                 {"kind": kind, "annot": repr(annot)},
                 self._function_loc(function),
-                notes=[note])
+                notes=[self._call_site_note(call_loc, is_syscall)])
             self.engine.process(diag)
 
             return types.TVar()
@@ -503,7 +499,8 @@ class Stitcher:
             diag = diagnostic.Diagnostic("error",
                 "system call argument '{argument}' must have a type annotation",
                 {"argument": param.name},
-                self._function_loc(function))
+                self._function_loc(function),
+                notes=[self._call_site_note(loc, is_syscall)])
             self.engine.process(diag)
         elif param.default is not inspect.Parameter.empty:
             # Try and infer the type from the default value.
@@ -517,10 +514,10 @@ class Stitcher:
                     "expanded from here while trying to infer a type for an"
                     " unannotated optional argument '{argument}' from its default value",
                     {"argument": param.name},
-                    loc)
+                    self._function_loc(function))
                 diag.notes.append(note)
 
-                diag.notes.append(self._function_def_note(function))
+                diag.notes.append(self._call_site_note(loc, is_syscall))
 
                 self.engine.process(diag)
 
@@ -556,12 +553,13 @@ class Stitcher:
                                                             is_syscall=syscall is not None)
             elif syscall is None:
                 optarg_types[param.name] = self._type_of_param(function, loc, param,
-                                                               is_syscall=syscall is not None)
+                                                               is_syscall=False)
             else:
                 diag = diagnostic.Diagnostic("error",
                     "system call argument '{argument}' must not have a default value",
                     {"argument": param.name},
-                    self._function_loc(function))
+                    self._function_loc(function),
+                    notes=[self._call_site_note(loc, is_syscall=True)])
                 self.engine.process(diag)
 
         if signature.return_annotation is not inspect.Signature.empty:
@@ -570,13 +568,15 @@ class Stitcher:
         elif syscall is None:
             diag = diagnostic.Diagnostic("error",
                 "function must have a return type annotation to be called remotely", {},
-                self._function_loc(function))
+                self._function_loc(function),
+                notes=[self._call_site_note(loc, is_syscall=False)])
             self.engine.process(diag)
             ret_type = types.TVar()
         else: # syscall is not None
             diag = diagnostic.Diagnostic("error",
                 "system call must have a return type annotation", {},
-                self._function_loc(function))
+                self._function_loc(function),
+                notes=[self._call_site_note(loc, is_syscall=True)])
             self.engine.process(diag)
             ret_type = types.TVar()
 
