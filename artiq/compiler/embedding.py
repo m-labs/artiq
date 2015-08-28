@@ -471,7 +471,10 @@ class Stitcher:
             line += 1
             source_line = linecache.getline(filename, line)
 
-        column = re.search("def", source_line).start(0)
+        if "<lambda>" in function.__qualname__:
+            column = 0 # can't get column of lambda
+        else:
+            column = re.search("def", source_line).start(0)
         source_buffer = source.Buffer(source_line, filename, line)
         return source.Range(source_buffer, column, column)
 
