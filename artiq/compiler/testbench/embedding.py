@@ -8,7 +8,7 @@ from artiq.coredevice.core import Core, CompileError
 def main():
     with open(sys.argv[1]) as f:
         testcase_code = compile(f.read(), f.name, "exec")
-        testcase_vars = {}
+        testcase_vars = {'__name__': 'testbench'}
         exec(testcase_code, testcase_vars)
 
     ddb_path = os.path.join(os.path.dirname(sys.argv[1]), "ddb.pyon")
