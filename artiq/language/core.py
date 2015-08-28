@@ -2,7 +2,7 @@
 Core ARTIQ extensions to the Python language.
 """
 
-import linecache, re
+import os, linecache, re
 from collections import namedtuple
 from functools import wraps
 
@@ -394,6 +394,8 @@ class ARTIQException(Exception):
             else:
                 formatted_address = " (RA=0x{:x})".format(address)
 
+            filename = filename.replace(os.path.normpath(os.path.join(os.path.dirname(__file__),
+                                                                      "..")), "<artiq>")
             if column == -1:
                 lines.append("  File \"{file}\", line {line}, in {function}{address}".
                              format(file=filename, line=line, function=function,
