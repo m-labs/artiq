@@ -17,6 +17,8 @@
 #include "dds.h"
 #include "rtio.h"
 
+void ksupport_abort(void);
+
 /* compiler-rt symbols */
 extern void __divsi3, __modsi3, __ledf2, __gedf2, __unorddf2, __eqdf2, __ltdf2,
     __nedf2, __gtdf2, __negsf2, __negdf2, __addsf3, __subsf3, __mulsf3,
@@ -82,6 +84,7 @@ static const struct symbol runtime_exports[] = {
     {"__artiq_personality", &__artiq_personality},
     {"__artiq_raise", &__artiq_raise},
     {"__artiq_reraise", &__artiq_reraise},
+    {"abort", &ksupport_abort},
 
     /* proxified syscalls */
     {"now_init", &now_init},
@@ -234,6 +237,11 @@ void __artiq_terminate(struct artiq_exception *artiq_exn,
     mailbox_send(&msg);
 
     while(1);
+}
+
+void ksupport_abort() {
+    artiq_raise_from_c("InternalError", "abort() called; check device log for details",
+                       0, 0, 0);
 }
 
 long long int now_init(void)
