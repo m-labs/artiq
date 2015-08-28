@@ -92,7 +92,7 @@ def _build_experiment(dmgr, pdb, rdb, args):
                                  "for ELF kernels")
             return ELFRunner(dmgr, pdb, rdb, file=args.file)
         else:
-            module = file_import(args.file)
+            module = file_import(args.file, prefix="artiq_run_")
         file = args.file
     else:
         module = sys.modules["__main__"]
