@@ -1,11 +1,12 @@
-import sys, os, time, cProfile as profile, pstats
+import sys, os
 from pythonparser import diagnostic
 from .. import Module, Source
 from ..targets import OR1KTarget
+from . import benchmark
 
 def main():
-    if not len(sys.argv) > 1:
-        print("Expected at least one module filename", file=sys.stderr)
+    if not len(sys.argv) == 2:
+        print("Expected exactly one module filename", file=sys.stderr)
         exit(1)
 
     def process_diagnostic(diag):
@@ -17,38 +18,19 @@ def main():
     engine.process = process_diagnostic
 
     # Make sure everything's valid
-    modules = [Module(Source.from_filename(filename, engine=engine))
-               for filename in sys.argv[1:]]
+    filename = sys.argv[1]
+    with open(filename) as f:
+        code = f.read()
+    source = Source.from_string(code, filename, engine=engine)
+    module = Module(source)
 
-    def benchmark(f, name):
-        profiler = profile.Profile()
-        profiler.enable()
+    benchmark(lambda: Source.from_string(code, filename),
+              "ARTIQ parsing and inference")
 
-        start = time.perf_counter()
-        end   = 0
-        runs  = 0
-        while end - start < 5 or runs < 10:
-            f()
-            runs += 1
-            end = time.perf_counter()
+    benchmark(lambda: Module(source),
+              "ARTIQ transforms and validators")
 
-        profiler.create_stats()
-
-        print("{} {} runs: {:.2f}s, {:.2f}ms/run".format(
-                runs, name, end - start, (end - start) / runs * 1000))
-
-        stats = pstats.Stats(profiler)
-        stats.strip_dirs().sort_stats('time').print_stats(10)
-
-    sources = []
-    for filename in sys.argv[1:]:
-        with open(filename) as f:
-            sources.append(f.read())
-
-    benchmark(lambda: [Module.from_string(src) for src in sources],
-              "ARTIQ typechecking and transforms")
-
-    benchmark(lambda: OR1KTarget().compile_and_link(modules),
+    benchmark(lambda: OR1KTarget().compile_and_link([module]),
               "LLVM optimization and linking")
 
 if __name__ == "__main__":
