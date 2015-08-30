@@ -100,7 +100,7 @@ class Target:
 
         lltarget = llvm.Target.from_triple(self.triple)
         llmachine = lltarget.create_target_machine(
-                        features=",".join(self.features),
+                        features=",".join(["+{}".format(f) for f in self.features]),
                         reloc="pic", codemodel="default")
 
         if os.getenv("ARTIQ_DUMP_ASSEMBLY"):
