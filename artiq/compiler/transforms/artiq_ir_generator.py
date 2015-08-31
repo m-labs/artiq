@@ -67,10 +67,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
     _size_type = builtins.TInt(types.TValue(32))
 
-    def __init__(self, module_name, engine):
+    def __init__(self, module_name, engine, ref_period):
         self.engine = engine
         self.functions = []
         self.name = [module_name] if module_name != "" else []
+        self.ref_period = ir.Constant(ref_period, builtins.TFloat())
         self.current_loc = None
         self.current_function = None
         self.current_class = None
@@ -1409,6 +1410,39 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.polymorphic_print([self.visit(arg) for arg in node.args],
                                    separator=" ", suffix="\n")
             return ir.Constant(None, builtins.TNone())
+        elif types.is_builtin(typ, "now"):
+            if len(node.args) == 0 and len(node.keywords) == 0:
+                now_mu = self.append(ir.Builtin("now_mu", [], builtins.TInt(types.TValue(64))))
+                now_mu_float = self.append(ir.Coerce(now_mu, builtins.TFloat()))
+                return self.append(ir.Arith(ast.Mult(loc=None), now_mu_float, self.ref_period))
+            else:
+                assert False
+        elif types.is_builtin(typ, "delay") or types.is_builtin(typ, "at"):
+            if len(node.args) == 1 and len(node.keywords) == 0:
+                arg = self.visit(node.args[0])
+                arg_mu_float = self.append(ir.Arith(ast.Div(loc=None), arg, self.ref_period))
+                arg_mu = self.append(ir.Coerce(arg_mu_float, builtins.TInt(types.TValue(64))))
+                self.append(ir.Builtin(typ.name + "_mu", [arg_mu], builtins.TNone()))
+            else:
+                assert False
+        elif types.is_builtin(typ, "now_mu") or types.is_builtin(typ, "delay_mu") \
+                or types.is_builtin(typ, "at_mu"):
+            return self.append(ir.Builtin(typ.name,
+                                          [self.visit(arg) for arg in node.args], node.type))
+        elif types.is_builtin(typ, "mu_to_seconds"):
+            if len(node.args) == 1 and len(node.keywords) == 0:
+                arg = self.visit(node.args[0])
+                arg_float = self.append(ir.Coerce(arg, builtins.TFloat()))
+                return self.append(ir.Arith(ast.Mult(loc=None), arg_float, self.ref_period))
+            else:
+                assert False
+        elif types.is_builtin(typ, "seconds_to_mu"):
+            if len(node.args) == 1 and len(node.keywords) == 0:
+                arg = self.visit(node.args[0])
+                arg_mu = self.append(ir.Arith(ast.Div(loc=None), arg, self.ref_period))
+                return self.append(ir.Coerce(arg_mu, builtins.TInt(types.TValue(64))))
+            else:
+                assert False
         elif types.is_exn_constructor(typ):
             return self.alloc_exn(node.type, *[self.visit(arg_node) for arg_node in node.args])
         elif types.is_constructor(typ):

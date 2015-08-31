@@ -42,7 +42,7 @@ class Source:
             return cls(source.Buffer(f.read(), filename, 1), engine=engine)
 
 class Module:
-    def __init__(self, src):
+    def __init__(self, src, ref_period=1e-6):
         self.engine = src.engine
         self.object_map = src.object_map
 
@@ -51,7 +51,8 @@ class Module:
         monomorphism_validator = validators.MonomorphismValidator(engine=self.engine)
         escape_validator = validators.EscapeValidator(engine=self.engine)
         artiq_ir_generator = transforms.ARTIQIRGenerator(engine=self.engine,
-                                                         module_name=src.name)
+                                                         module_name=src.name,
+                                                         ref_period=ref_period)
         dead_code_eliminator = transforms.DeadCodeEliminator(engine=self.engine)
         local_access_validator = validators.LocalAccessValidator(engine=self.engine)
 

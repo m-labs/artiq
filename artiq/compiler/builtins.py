@@ -138,6 +138,30 @@ def fn_print():
 def fn_kernel():
     return types.TBuiltinFunction("kernel")
 
+def fn_now():
+    return types.TBuiltinFunction("now")
+
+def fn_delay():
+    return types.TBuiltinFunction("delay")
+
+def fn_at():
+    return types.TBuiltinFunction("at")
+
+def fn_now_mu():
+    return types.TBuiltinFunction("now_mu")
+
+def fn_delay_mu():
+    return types.TBuiltinFunction("delay_mu")
+
+def fn_at_mu():
+    return types.TBuiltinFunction("at_mu")
+
+def fn_mu_to_seconds():
+    return types.TBuiltinFunction("mu_to_seconds")
+
+def fn_seconds_to_mu():
+    return types.TBuiltinFunction("seconds_to_mu")
+
 # Accessors
 
 def is_none(typ):

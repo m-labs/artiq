@@ -19,6 +19,8 @@
 
 void ksupport_abort(void);
 
+int64_t now;
+
 /* compiler-rt symbols */
 extern void __divsi3, __modsi3, __ledf2, __gedf2, __unorddf2, __eqdf2, __ltdf2,
     __nedf2, __gtdf2, __negsf2, __negdf2, __addsf3, __subsf3, __mulsf3,
@@ -87,8 +89,7 @@ static const struct symbol runtime_exports[] = {
     {"abort", &ksupport_abort},
 
     /* proxified syscalls */
-    {"now_init", &now_init},
-    {"now_save", &now_save},
+    {"now", &now},
 
     {"watchdog_set", &watchdog_set},
     {"watchdog_clear", &watchdog_clear},
@@ -212,7 +213,10 @@ int main(void)
         void (*kernel_init)() = request->library_info->init;
 
         mailbox_send_and_wait(&load_reply);
+
+        now = now_init();
         kernel_init();
+        now_save(now);
 
         struct msg_base finished_reply;
         finished_reply.type = MESSAGE_TYPE_FINISHED;

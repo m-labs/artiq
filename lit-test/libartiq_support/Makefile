@@ -1,4 +1,4 @@
 CC ?= clang
 
-libartiq_personality.so: ../../soc/runtime/artiq_personality.c artiq_terminate.c
+libartiq_support.so: ../../soc/runtime/artiq_personality.c artiq_terminate.c artiq_time.c
 	$(CC) -std=c99 -Wall -Werror -I. -I../../soc/runtime -g -fPIC -shared -o $@ $^

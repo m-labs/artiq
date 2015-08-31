@@ -14,6 +14,7 @@ llvoid     = ll.VoidType()
 lli1       = ll.IntType(1)
 lli8       = ll.IntType(8)
 lli32      = ll.IntType(32)
+lli64      = ll.IntType(64)
 lldouble   = ll.DoubleType()
 llptr      = ll.IntType(8).as_pointer()
 llmetadata = ll.MetaData()
@@ -331,9 +332,9 @@ class LLVMIRGenerator:
             assert False
 
     def llbuiltin(self, name):
-        llfun = self.llmodule.get_global(name)
-        if llfun is not None:
-            return llfun
+        llglobal = self.llmodule.get_global(name)
+        if llglobal is not None:
+            return llglobal
 
         if name in "llvm.donothing":
             llty = ll.FunctionType(llvoid, [])
@@ -366,13 +367,19 @@ class LLVMIRGenerator:
                                    var_arg=True)
         elif name == "recv_rpc":
             llty = ll.FunctionType(lli32, [llptr])
+        elif name == "now":
+            llty = lli64
         else:
             assert False
 
-        llfun = ll.Function(self.llmodule, llty, name)
-        if name in ("__artiq_raise", "__artiq_reraise", "llvm.trap"):
-            llfun.attributes.add("noreturn")
-        return llfun
+        if isinstance(llty, ll.FunctionType):
+            llglobal = ll.Function(self.llmodule, llty, name)
+            if name in ("__artiq_raise", "__artiq_reraise", "llvm.trap"):
+                llglobal.attributes.add("noreturn")
+        else:
+            llglobal = ll.GlobalVariable(self.llmodule, llty, name)
+
+        return llglobal
 
     def map(self, value):
         if isinstance(value, (ir.Argument, ir.Instruction, ir.BasicBlock)):
@@ -774,6 +781,17 @@ class LLVMIRGenerator:
         elif insn.op == "exncast":
             # This is an identity cast at LLVM IR level.
             return self.map(insn.operands[0])
+        elif insn.op == "now_mu":
+            return self.llbuilder.load(self.llbuiltin("now"), name=insn.name)
+        elif insn.op == "delay_mu":
+            interval, = insn.operands
+            llnowptr = self.llbuiltin("now")
+            llnow = self.llbuilder.load(llnowptr)
+            lladjusted = self.llbuilder.add(llnow, self.map(interval))
+            return self.llbuilder.store(lladjusted, llnowptr)
+        elif insn.op == "at_mu":
+            time, = insn.operands
+            return self.llbuilder.store(self.map(time), self.llbuiltin("now"))
         else:
             assert False
 

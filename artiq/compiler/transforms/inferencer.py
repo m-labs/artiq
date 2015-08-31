@@ -505,6 +505,17 @@ class Inferencer(algorithm.Visitor):
                 node.func.loc, notes=valid_forms)
             self.engine.process(diag)
 
+        def simple_form(info, arg_types=[], return_type=builtins.TNone()):
+            self._unify(node.type, return_type,
+                        node.loc, None)
+
+            if len(node.args) == len(arg_types) and len(node.keywords) == 0:
+                for index, arg_type in enumerate(arg_types):
+                    self._unify(node.args[index].type, arg_type,
+                                node.args[index].loc, None)
+            else:
+                diagnose([ valid_form(info) ])
+
         if types.is_exn_constructor(typ):
             valid_forms = lambda: [
                 valid_form("{exn}() -> {exn}".format(exn=typ.name)),
@@ -730,6 +741,30 @@ class Inferencer(algorithm.Visitor):
                 pass
             else:
                 diagnose(valid_forms())
+        elif types.is_builtin(typ, "now"):
+            simple_form("now() -> float",
+                        [], builtins.TFloat())
+        elif types.is_builtin(typ, "delay"):
+            simple_form("delay(time:float) -> None",
+                        [builtins.TFloat()])
+        elif types.is_builtin(typ, "at"):
+            simple_form("at(time:float) -> None",
+                        [builtins.TFloat()])
+        elif types.is_builtin(typ, "now_mu"):
+            simple_form("now_mu() -> int(width=64)",
+                        [], builtins.TInt(types.TValue(64)))
+        elif types.is_builtin(typ, "delay_mu"):
+            simple_form("delay_mu(time_mu:int(width=64)) -> None",
+                        [builtins.TInt(types.TValue(64))])
+        elif types.is_builtin(typ, "at_mu"):
+            simple_form("at_mu(time_mu:int(width=64)) -> None",
+                        [builtins.TInt(types.TValue(64))])
+        elif types.is_builtin(typ, "mu_to_seconds"):
+            simple_form("mu_to_seconds(time_mu:int(width=64)) -> float",
+                        [builtins.TInt(types.TValue(64))], builtins.TFloat())
+        elif types.is_builtin(typ, "seconds_to_mu"):
+            simple_form("seconds_to_mu(time:float) -> int(width=64)",
+                        [builtins.TFloat()], builtins.TInt(types.TValue(64)))
         elif types.is_constructor(typ):
             # An user-defined class.
             self._unify(node.type, typ.find().instance,

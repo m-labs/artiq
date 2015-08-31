@@ -5,9 +5,9 @@ from .. import Module, Source
 from ..targets import NativeTarget
 
 def main():
-    libartiq_personality = os.getenv('LIBARTIQ_PERSONALITY')
-    if libartiq_personality is not None:
-        llvm.load_library_permanently(libartiq_personality)
+    libartiq_support = os.getenv('LIBARTIQ_SUPPORT')
+    if libartiq_support is not None:
+        llvm.load_library_permanently(libartiq_support)
 
     def process_diagnostic(diag):
         print("\n".join(diag.render()))

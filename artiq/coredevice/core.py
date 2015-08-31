@@ -39,7 +39,7 @@ class Core:
             stitcher.stitch_call(function, args, kwargs)
             stitcher.finalize()
 
-            module = Module(stitcher)
+            module = Module(stitcher, ref_period=self.ref_period)
             target = OR1KTarget()
 
             library = target.compile_and_link([module])
