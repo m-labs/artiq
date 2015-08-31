@@ -409,11 +409,7 @@ class LLVMIRGenerator:
             self.llfunction = self.llmodule.get_global(func.name)
 
             if self.llfunction is None:
-                llargtys = []
-                for arg in func.arguments:
-                    llargtys.append(self.llty_of_type(arg.type))
-                llfunty = ll.FunctionType(args=llargtys,
-                                          return_type=self.llty_of_type(func.type.ret, for_return=True))
+                llfunty = self.llty_of_type(func.type, bare=True)
                 self.llfunction = ll.Function(self.llmodule, llfunty, func.name)
 
             if func.is_internal:
@@ -427,7 +423,12 @@ class LLVMIRGenerator:
             disubprogram = self.debug_info_emitter.emit_subprogram(func, self.llfunction)
 
             # First, map arguments.
-            for arg, llarg in zip(func.arguments, self.llfunction.args):
+            if self.llfunction.type.pointee.__has_sret:
+                llactualargs = self.llfunction.args[1:]
+            else:
+                llactualargs = self.llfunction.args
+
+            for arg, llarg in zip(func.arguments, llactualargs):
                 self.llmap[arg] = llarg
 
             # Second, create all basic blocks.
