@@ -1483,19 +1483,19 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     for index, arg_name in enumerate(fn_typ.args):
                         if keyword.arg == arg_name:
                             assert args[index] is None
-                            args[index + offset] = arg
+                            args[index] = arg
                             break
                 elif keyword.arg in fn_typ.optargs:
                     for index, optarg_name in enumerate(fn_typ.optargs):
                         if keyword.arg == optarg_name:
                             assert args[len(fn_typ.args) + index] is None
-                            args[len(fn_typ.args) + index + offset] = \
+                            args[len(fn_typ.args) + index] = \
                                     self.append(ir.Alloc([arg], ir.TOption(arg.type)))
                             break
 
             for index, optarg_name in enumerate(fn_typ.optargs):
-                if args[len(fn_typ.args) + index + offset] is None:
-                    args[len(fn_typ.args) + index + offset] = \
+                if args[len(fn_typ.args) + index] is None:
+                    args[len(fn_typ.args) + index] = \
                             self.append(ir.Alloc([], ir.TOption(fn_typ.optargs[optarg_name])))
 
             if self_arg is not None:
