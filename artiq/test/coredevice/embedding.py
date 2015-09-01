@@ -12,7 +12,7 @@ class Roundtrip(EnvExperiment):
 class RoundtripTest(ExperimentCase):
     def assertRoundtrip(self, obj):
         exp = self.create(Roundtrip)
-        def callback(objcopy) -> TNone:
+        def callback(objcopy):
             self.assertEqual(obj, objcopy)
         exp.roundtrip(obj, callback)
 

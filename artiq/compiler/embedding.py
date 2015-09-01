@@ -595,12 +595,7 @@ class Stitcher:
             ret_type = self._extract_annot(function, signature.return_annotation,
                                            "return type", loc, is_syscall=syscall is not None)
         elif syscall is None:
-            diag = diagnostic.Diagnostic("error",
-                "function must have a return type annotation to be called remotely", {},
-                self._function_loc(function),
-                notes=self._call_site_note(loc, is_syscall=False))
-            self.engine.process(diag)
-            ret_type = types.TVar()
+            ret_type = builtins.TNone()
         else: # syscall is not None
             diag = diagnostic.Diagnostic("error",
                 "system call must have a return type annotation", {},
