@@ -2,8 +2,7 @@ from math import sqrt
 
 from artiq.language import *
 from artiq.test.hardware_testbench import ExperimentCase
-from artiq.coredevice.runtime_exceptions import RTIOUnderflow
-from artiq.coredevice import runtime_exceptions
+from artiq.coredevice.exceptions import RTIOUnderflow, RTIOSequenceError
 
 
 class RTT(EnvExperiment):
@@ -159,7 +158,7 @@ class TimeKeepsRunning(EnvExperiment):
     def build(self):
         self.attr_device("core")
 
-    def set_time_at_start(self, time_at_start):
+    def set_time_at_start(self, time_at_start) -> TNone:
         self.set_result("time_at_start", time_at_start)
 
     @kernel
@@ -176,6 +175,7 @@ class Handover(EnvExperiment):
         self.time_at_start = now_mu()
 
     def run(self):
+        self.time_at_start = int(0, width=64)
         self.get_now()
         self.set_result("t1", self.time_at_start)
         self.get_now()
@@ -216,11 +216,11 @@ class CoredeviceTest(ExperimentCase):
         self.assertEqual(count, npulses)
 
     def test_underflow(self):
-        with self.assertRaises(runtime_exceptions.RTIOUnderflow):
+        with self.assertRaises(RTIOUnderflow):
             self.execute(Underflow)
 
     def test_sequence_error(self):
-        with self.assertRaises(runtime_exceptions.RTIOSequenceError):
+        with self.assertRaises(RTIOSequenceError):
             self.execute(SequenceError)
 
     def test_watchdog(self):
@@ -236,7 +236,7 @@ class CoredeviceTest(ExperimentCase):
         dead_time = mu_to_seconds(t2 - t1, self.dmgr.get("core"))
         print(dead_time)
         self.assertGreater(dead_time, 1*ms)
-        self.assertLess(dead_time, 300*ms)
+        self.assertLess(dead_time, 500*ms)
 
     def test_handover(self):
         self.execute(Handover)
@@ -248,12 +248,11 @@ class RPCTiming(EnvExperiment):
         self.attr_device("core")
         self.attr_argument("repeats", FreeValue(100))
 
-    def nop(self, x):
+    def nop(self, x) -> TNone:
         pass
 
     @kernel
     def bench(self):
-        self.ts = [0. for _ in range(self.repeats)]
         for i in range(self.repeats):
             t1 = self.core.get_rtio_counter_mu()
             self.nop(1)
@@ -261,6 +260,7 @@ class RPCTiming(EnvExperiment):
             self.ts[i] = mu_to_seconds(t2 - t1)
 
     def run(self):
+        self.ts = [0. for _ in range(self.repeats)]
         self.bench()
         mean = sum(self.ts)/self.repeats
         self.set_result("rpc_time_stddev", sqrt(
