@@ -10,9 +10,6 @@ class RTT(EnvExperiment):
         self.attr_device("core")
         self.attr_device("ttl_inout")
 
-    def set_rtt(self, rtt):
-        self.set_result("rtt", rtt)
-
     @kernel
     def run(self):
         self.ttl_inout.output()
@@ -25,7 +22,7 @@ class RTT(EnvExperiment):
                 delay(1*us)
                 t0 = now_mu()
                 self.ttl_inout.pulse(1*us)
-        self.set_rtt(mu_to_seconds(self.ttl_inout.timestamp_mu() - t0))
+        self.set_result("rtt", mu_to_seconds(self.ttl_inout.timestamp_mu() - t0))
 
 
 class Loopback(EnvExperiment):
@@ -33,9 +30,6 @@ class Loopback(EnvExperiment):
         self.attr_device("core")
         self.attr_device("loop_in")
         self.attr_device("loop_out")
-
-    def set_rtt(self, rtt):
-        self.set_result("rtt", rtt)
 
     @kernel
     def run(self):
@@ -47,7 +41,7 @@ class Loopback(EnvExperiment):
                 delay(1*us)
                 t0 = now_mu()
                 self.loop_out.pulse(1*us)
-        self.set_rtt(mu_to_seconds(self.loop_in.timestamp_mu() - t0))
+        self.set_result("rtt", mu_to_seconds(self.loop_in.timestamp_mu() - t0))
 
 
 class ClockGeneratorLoopback(EnvExperiment):
@@ -55,9 +49,6 @@ class ClockGeneratorLoopback(EnvExperiment):
         self.attr_device("core")
         self.attr_device("loop_clock_in")
         self.attr_device("loop_clock_out")
-
-    def set_count(self, count):
-        self.set_result("count", count)
 
     @kernel
     def run(self):
@@ -69,16 +60,13 @@ class ClockGeneratorLoopback(EnvExperiment):
             with sequential:
                 delay(200*ns)
                 self.loop_clock_out.set(1*MHz)
-        self.set_count(self.loop_clock_in.count())
+        self.set_result("count", self.loop_clock_in.count())
 
 
 class PulseRate(EnvExperiment):
     def build(self):
         self.attr_device("core")
         self.attr_device("loop_out")
-
-    def set_pulse_rate(self, pulse_rate):
-        self.set_result("pulse_rate", pulse_rate)
 
     @kernel
     def run(self):
@@ -92,7 +80,7 @@ class PulseRate(EnvExperiment):
                 dt += 1
                 self.core.break_realtime()
             else:
-                self.set_pulse_rate(mu_to_seconds(2*dt))
+                self.set_result("pulse_rate", mu_to_seconds(2*dt))
                 break
 
 
@@ -113,9 +101,6 @@ class LoopbackCount(EnvExperiment):
         self.attr_device("ttl_inout")
         self.attr_argument("npulses")
 
-    def set_count(self, count):
-        self.set_result("count", count)
-
     @kernel
     def run(self):
         self.ttl_inout.output()
@@ -126,7 +111,7 @@ class LoopbackCount(EnvExperiment):
                 for i in range(self.npulses):
                     delay(25*ns)
                     self.ttl_inout.pulse(25*ns)
-        self.set_count(self.ttl_inout.count())
+        self.set_result("count", self.ttl_inout.count())
 
 
 class Underflow(EnvExperiment):
@@ -158,12 +143,9 @@ class TimeKeepsRunning(EnvExperiment):
     def build(self):
         self.attr_device("core")
 
-    def set_time_at_start(self, time_at_start) -> TNone:
-        self.set_result("time_at_start", time_at_start)
-
     @kernel
     def run(self):
-        self.set_time_at_start(now_mu())
+        self.set_result("time_at_start", now_mu())
 
 
 class Handover(EnvExperiment):
@@ -171,15 +153,12 @@ class Handover(EnvExperiment):
         self.attr_device("core")
 
     @kernel
-    def get_now(self):
-        self.time_at_start = now_mu()
+    def get_now(self, var):
+        self.set_result(var, now_mu())
 
     def run(self):
-        self.time_at_start = int(0, width=64)
-        self.get_now()
-        self.set_result("t1", self.time_at_start)
-        self.get_now()
-        self.set_result("t2", self.time_at_start)
+        self.get_now("t1")
+        self.get_now("t2")
 
 
 class CoredeviceTest(ExperimentCase):
@@ -248,14 +227,14 @@ class RPCTiming(EnvExperiment):
         self.attr_device("core")
         self.attr_argument("repeats", FreeValue(100))
 
-    def nop(self, x) -> TNone:
+    def nop(self):
         pass
 
     @kernel
     def bench(self):
         for i in range(self.repeats):
             t1 = self.core.get_rtio_counter_mu()
-            self.nop(1)
+            self.nop()
             t2 = self.core.get_rtio_counter_mu()
             self.ts[i] = mu_to_seconds(t2 - t1)
 
