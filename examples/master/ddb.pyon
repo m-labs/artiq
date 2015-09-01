@@ -29,13 +29,15 @@
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 2}
+        "arguments": {"channel": 2},
+        "comment": "This is a fairly long comment to test word wrapping in GUI."
     },
     "ttl1": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 3}
+        "arguments": {"channel": 3},
+        "comment": "Hello World"
     },
     "ttl2": {
         "type": "local",
@@ -72,7 +74,8 @@
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "AD9858",
-        "arguments": {"sysclk": 1e9, "channel": 0}
+        "arguments": {"sysclk": 1e9, "channel": 0},
+        "comment": "Comments work in DDS panel as well"
     },
     "dds1": {
         "type": "local",
