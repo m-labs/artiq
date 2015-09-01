@@ -799,7 +799,12 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.current_assign = old_assign
 
         if isinstance(node.slice, ast.Index):
-            index = self.visit(node.slice.value)
+            try:
+                old_assign, self.current_assign = self.current_assign, None
+                index = self.visit(node.slice.value)
+            finally:
+                self.current_assign = old_assign
+
             length = self.iterable_len(value, index.type)
             mapped_index = self._map_index(length, index,
                                            loc=node.begin_loc)
@@ -814,21 +819,34 @@ class ARTIQIRGenerator(algorithm.Visitor):
             length = self.iterable_len(value, node.slice.type)
 
             if node.slice.lower is not None:
-                start_index = self.visit(node.slice.lower)
+                try:
+                    old_assign, self.current_assign = self.current_assign, None
+                    start_index = self.visit(node.slice.lower)
+                finally:
+                    self.current_assign = old_assign
             else:
                 start_index = ir.Constant(0, node.slice.type)
             mapped_start_index = self._map_index(length, start_index,
                                                  loc=node.begin_loc)
 
             if node.slice.upper is not None:
-                stop_index = self.visit(node.slice.upper)
+                try:
+                    old_assign, self.current_assign = self.current_assign, None
+                    stop_index = self.visit(node.slice.upper)
+                finally:
+                    self.current_assign = old_assign
             else:
                 stop_index = length
             mapped_stop_index = self._map_index(length, stop_index, one_past_the_end=True,
                                                 loc=node.begin_loc)
 
             if node.slice.step is not None:
-                step = self.visit(node.slice.step)
+                try:
+                    old_assign, self.current_assign = self.current_assign, None
+                    step = self.visit(node.slice.step)
+                finally:
+                    self.current_assign = old_assign
+
                 self._make_check(
                     self.append(ir.Compare(ast.NotEq(loc=None), step, ir.Constant(0, step.type))),
                     lambda: self.alloc_exn(builtins.TException("ValueError"),
