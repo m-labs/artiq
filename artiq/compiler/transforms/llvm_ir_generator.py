@@ -1013,28 +1013,42 @@ class LLVMIRGenerator:
                 else:
                     llfields.append(self._quote(getattr(value, attr), typ.attributes[attr],
                                                 lambda: path() + [attr]))
+            llconst = ll.Constant(llty.pointee, llfields)
 
-            llvalue = ll.Constant(llty.pointee, llfields)
-            llconst = ll.GlobalVariable(self.llmodule, llvalue.type, global_name)
-            llconst.initializer = llvalue
-            llconst.linkage = "private"
-            self.llobject_map[value_id] = llconst
-            return llconst
+            llglobal = ll.GlobalVariable(self.llmodule, llconst.type, global_name)
+            llglobal.initializer = llconst
+            llglobal.linkage = "private"
+            self.llobject_map[value_id] = llglobal
+            return llglobal
         elif builtins.is_none(typ):
             assert value is None
             return ll.Constant.literal_struct([])
         elif builtins.is_bool(typ):
             assert value in (True, False)
-            return ll.Constant(lli1, value)
+            return ll.Constant(llty, value)
         elif builtins.is_int(typ):
             assert isinstance(value, (int, language_core.int))
-            return ll.Constant(ll.IntType(builtins.get_int_width(typ)), int(value))
+            return ll.Constant(llty, int(value))
         elif builtins.is_float(typ):
             assert isinstance(value, float)
-            return ll.Constant(lldouble, value)
+            return ll.Constant(llty, value)
         elif builtins.is_str(typ):
             assert isinstance(value, (str, bytes))
             return self.llstr_of_str(value)
+        elif builtins.is_list(typ):
+            assert isinstance(value, list)
+            elt_type  = builtins.get_iterable_elt(typ)
+            llelts    = [self._quote(value[i], elt_type, lambda: path() + [str(i)])
+                         for i in range(len(value))]
+            lleltsary = ll.Constant(ll.ArrayType(llelts[0].type, len(llelts)), llelts)
+
+            llglobal  = ll.GlobalVariable(self.llmodule, lleltsary.type, "quoted.list")
+            llglobal.initializer = lleltsary
+            llglobal.linkage = "private"
+
+            lleltsptr = llglobal.bitcast(lleltsary.type.element.as_pointer())
+            llconst   = ll.Constant(llty, [ll.Constant(lli32, len(llelts)), lleltsptr])
+            return llconst
         elif types.is_function(typ):
             # RPC and C functions have no runtime representation; ARTIQ
             # functions are initialized explicitly.
