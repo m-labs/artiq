@@ -51,7 +51,7 @@ def get_experiment(module, experiment=None):
         return getattr(module, experiment)
 
     exps = [(k, v) for k, v in module.__dict__.items()
-            if is_experiment(v)]
+            if k[0] != "_" and is_experiment(v)]
     if not exps:
         raise ValueError("No experiments in module")
     if len(exps) > 1:
