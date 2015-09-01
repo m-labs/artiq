@@ -124,10 +124,8 @@ def run(with_file=False):
         exp_inst.run()
         exp_inst.analyze()
     except CompileError as error:
-        message = "\n".join(error.__cause__.diagnostic.render(colored=True))
-        message = message.replace(os.path.normpath(os.path.join(os.path.dirname(__file__), "..")),
-                                  "<artiq>")
-        print(message, file=sys.stderr)
+        print(error.render_string(colored=True), file=sys.stderr)
+        return
     finally:
         dmgr.close_devices()
 

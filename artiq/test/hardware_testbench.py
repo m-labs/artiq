@@ -1,9 +1,7 @@
-import os
-import sys
-import unittest
-import logging
+import os, sys, unittest, logging
 
 from artiq.language import *
+from artiq.coredevice.core import CompileError
 from artiq.protocols.file_db import FlatFileDB
 from artiq.master.worker_db import DeviceManager, ResultDB
 from artiq.frontend.artiq_run import DummyScheduler
@@ -58,5 +56,8 @@ class ExperimentCase(unittest.TestCase):
             exp.run()
             exp.analyze()
             return exp
+        except CompileError as error:
+            # Reduce amount of text on terminal.
+            raise error from None
         finally:
             self.dmgr.close_devices()

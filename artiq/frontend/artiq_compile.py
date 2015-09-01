@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-import logging
-import argparse
+import sys, logging, argparse
 
 from artiq.protocols.file_db import FlatFileDB
 from artiq.master.worker_db import DeviceManager
+from artiq.coredevice.core import CompileError
 from artiq.tools import *
 
 
@@ -53,6 +53,9 @@ def main():
         object_map, kernel_library, symbolizer = \
             core.compile(exp.run, [exp_inst], {},
                          with_attr_writeback=False)
+    except CompileError as error:
+        print(error.render_string(colored=True), file=sys.stderr)
+        return
     finally:
         dmgr.close_devices()
 
