@@ -131,6 +131,7 @@ class _DDSWidget(QtGui.QFrame):
 
         self._value = QtGui.QLabel()
         self._value.setAlignment(QtCore.Qt.AlignCenter)
+        self._value.setWordWrap(True)
         grid.addWidget(self._value, 2, 1, 6, 1)
 
         self.set_value(0)
