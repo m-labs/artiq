@@ -1,7 +1,7 @@
 #!/bin/sh
 
 packages="http://us.archive.ubuntu.com/ubuntu/pool/universe/i/iverilog/iverilog_0.9.7-1_amd64.deb"
-archives="http://fehu.whitequark.org/files/binutils-or1k.tbz2 http://fehu.whitequark.org/files/llvm-or1k.tbz2"
+archives="http://fehu.whitequark.org/files/llvm-or1k.tbz2"
 
 mkdir -p packages
 

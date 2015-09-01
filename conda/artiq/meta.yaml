@@ -33,6 +33,7 @@ requirements:
         - numpy
         - migen
         - pyelftools
+        - binutils-or1k-linux
     run:
         - python >=3.4.3
         - llvmlite-artiq
@@ -51,6 +52,7 @@ requirements:
         - flterm # [linux]
         - pygit2
         - aiohttp
+        - binutils-or1k-linux
 
 test:
     imports:
