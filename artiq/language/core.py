@@ -114,6 +114,7 @@ class int:
     __add__       = __iadd__      = _binaryop(host_int.__add__,       "__radd__")
     __sub__       = __isub__      = _binaryop(host_int.__sub__,       "__rsub__")
     __mul__       = __imul__      = _binaryop(host_int.__mul__,       "__rmul__")
+    __truediv__   = __itruediv__  = _binaryop(host_int.__truediv__,   "__rtruediv__")
     __floordiv__  = __ifloordiv__ = _binaryop(host_int.__floordiv__,  "__rfloordiv__")
     __mod__       = __imod__      = _binaryop(host_int.__mod__,       "__rmod__")
     __pow__       = __ipow__      = _binaryop(host_int.__pow__,       "__rpow__")
@@ -122,6 +123,7 @@ class int:
     __rsub__                      = _binaryop(host_int.__rsub__,      "__sub__")
     __rmul__                      = _binaryop(host_int.__rmul__,      "__mul__")
     __rfloordiv__                 = _binaryop(host_int.__rfloordiv__, "__floordiv__")
+    __rtruediv__                  = _binaryop(host_int.__rtruediv__,  "__truediv__")
     __rmod__                      = _binaryop(host_int.__rmod__,      "__mod__")
     __rpow__                      = _binaryop(host_int.__rpow__,      "__pow__")
 
