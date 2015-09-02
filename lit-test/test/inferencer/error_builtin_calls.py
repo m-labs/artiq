@@ -10,6 +10,3 @@ len(1)
 
 # CHECK-L: ${LINE:+1}: error: the argument of list() must be of an iterable type
 list(1)
-
-# CHECK-L: ${LINE:+1}: error: an argument of range() must be of an integer type
-range([])

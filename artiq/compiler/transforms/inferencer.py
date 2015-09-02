@@ -656,33 +656,21 @@ class Inferencer(algorithm.Visitor):
                 diagnose(valid_forms())
         elif types.is_builtin(typ, "range"):
             valid_forms = lambda: [
-                valid_form("range(max:'a) -> range(elt='a)"),
-                valid_form("range(min:'a, max:'a) -> range(elt='a)"),
-                valid_form("range(min:'a, max:'a, step:'a) -> range(elt='a)"),
+                valid_form("range(max:int(width='a)) -> range(elt=int(width='a))"),
+                valid_form("range(min:int(width='a), max:int(width='a)) "
+                           "-> range(elt=int(width='a))"),
+                valid_form("range(min:int(width='a), max:int(width='a), "
+                           "step:int(width='a)) -> range(elt=int(width='a))"),
             ]
 
-            range_tvar = types.TVar()
-            self._unify(node.type, builtins.TRange(range_tvar),
+            range_elt = builtins.TInt(types.TVar())
+            self._unify(node.type, builtins.TRange(range_elt),
                         node.loc, None)
 
             if len(node.args) in (1, 2, 3) and len(node.keywords) == 0:
                 for arg in node.args:
-                    self._unify(arg.type, range_tvar,
+                    self._unify(arg.type, range_elt,
                                 arg.loc, None)
-
-                    if builtins.is_int(arg.type):
-                        pass
-                    elif types.is_var(arg.type):
-                        pass # undetermined yet
-                    else:
-                        note = diagnostic.Diagnostic("note",
-                            "this expression has type {type}",
-                            {"type": types.TypePrinter().name(arg.type)},
-                            arg.loc)
-                        diag = diagnostic.Diagnostic("error",
-                            "an argument of range() must be of an integer type", {},
-                            node.func.loc, notes=[note])
-                        self.engine.process(diag)
             else:
                 diagnose(valid_forms())
         elif types.is_builtin(typ, "len"):
