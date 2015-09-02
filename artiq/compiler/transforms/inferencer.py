@@ -945,12 +945,18 @@ class Inferencer(algorithm.Visitor):
 
     def visit_withitem(self, node):
         self.generic_visit(node)
-        if True: # none are supported yet
+
+        typ = node.context_expr.type
+        if not types.is_builtin(typ, "parallel") or types.is_builtin(typ, "sequential"):
             diag = diagnostic.Diagnostic("error",
                 "value of type {type} cannot act as a context manager",
-                {"type": types.TypePrinter().name(node.context_expr.type)},
+                {"type": types.TypePrinter().name(typ)},
                 node.context_expr.loc)
             self.engine.process(diag)
+
+        if node.optional_vars is not None:
+            self._unify(node.optional_vars.type, node.context_expr.type,
+                        node.optional_vars.loc, node.context_expr.loc)
 
     def visit_ExceptHandlerT(self, node):
         self.generic_visit(node)

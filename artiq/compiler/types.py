@@ -5,6 +5,7 @@ in :mod:`asttyped`.
 
 import string
 from collections import OrderedDict
+from . import iodelay
 
 
 class UnificationError(Exception):
@@ -191,6 +192,8 @@ class TFunction(Type):
         optional arguments
     :ivar ret: (:class:`Type`)
         return type
+    :ivar delay: (:class:`iodelay.Delay`)
+        RTIO delay expression
     """
 
     attributes = OrderedDict([
@@ -198,11 +201,12 @@ class TFunction(Type):
         ('__closure__', _TPointer()),
     ])
 
-    def __init__(self, args, optargs, ret):
+    def __init__(self, args, optargs, ret, delay=iodelay.Unknown()):
         assert isinstance(args, OrderedDict)
         assert isinstance(optargs, OrderedDict)
         assert isinstance(ret, Type)
-        self.args, self.optargs, self.ret = args, optargs, ret
+        assert isinstance(delay, iodelay.Delay)
+        self.args, self.optargs, self.ret, self.delay = args, optargs, ret, delay
 
     def arity(self):
         return len(self.args) + len(self.optargs)
@@ -256,7 +260,8 @@ class TRPCFunction(TFunction):
     attributes = OrderedDict()
 
     def __init__(self, args, optargs, ret, service):
-        super().__init__(args, optargs, ret)
+        super().__init__(args, optargs, ret,
+                         delay=iodelay.Fixed(iodelay.Constant(0)))
         self.service = service
 
     def unify(self, other):
@@ -278,7 +283,8 @@ class TCFunction(TFunction):
     attributes = OrderedDict()
 
     def __init__(self, args, ret, name):
-        super().__init__(args, OrderedDict(), ret)
+        super().__init__(args, OrderedDict(), ret,
+                         delay=iodelay.Fixed(iodelay.Constant(0)))
         self.name = name
 
     def unify(self, other):
@@ -546,6 +552,15 @@ class TypePrinter(object):
             args += [ "%s:%s" % (arg, self.name(typ.args[arg]))    for arg in typ.args]
             args += ["?%s:%s" % (arg, self.name(typ.optargs[arg])) for arg in typ.optargs]
             signature = "(%s)->%s" % (", ".join(args), self.name(typ.ret))
+
+            if iodelay.is_unknown(typ.delay) or iodelay.is_fixed(typ.delay, 0):
+                pass
+            elif iodelay.is_fixed(typ.delay):
+                signature += " delay({} mu)".format(typ.delay.length)
+            elif iodelay.is_indeterminate(typ.delay):
+                signature += " delay(?)"
+            else:
+                assert False
 
             if isinstance(typ, TRPCFunction):
                 return "rpc({}) {}".format(typ.service, signature)

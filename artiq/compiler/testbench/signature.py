@@ -1,6 +1,6 @@
 import sys, fileinput
 from pythonparser import diagnostic
-from .. import Module, Source
+from .. import types, iodelay, Module, Source
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "+diag":
@@ -13,15 +13,28 @@ def main():
     else:
         diag = False
         def process_diagnostic(diag):
-            print("\n".join(diag.render()))
+            print("\n".join(diag.render(colored=True)))
             if diag.level in ("fatal", "error"):
                 exit(1)
+
+    if len(sys.argv) > 1 and sys.argv[1] == "+delay":
+        del sys.argv[1]
+        force_delays = True
+    else:
+        force_delays = False
 
     engine = diagnostic.Engine()
     engine.process = process_diagnostic
 
     try:
         mod = Module(Source.from_string("".join(fileinput.input()).expandtabs(), engine=engine))
+
+        if force_delays:
+            for var in mod.globals:
+                typ = mod.globals[var].find()
+                if types.is_function(typ) and iodelay.is_indeterminate(typ.delay):
+                    process_diagnostic(typ.delay.cause)
+
         print(repr(mod))
     except:
         if not diag: raise

@@ -28,6 +28,10 @@ def globals():
         # ARTIQ decorators
         "kernel":               builtins.fn_kernel(),
 
+        # ARTIQ context managers
+        "parallel":             builtins.fn_parallel(),
+        "sequential":           builtins.fn_sequential(),
+
         # ARTIQ time management functions
         "now":                  builtins.fn_now(),
         "delay":                builtins.fn_delay(),

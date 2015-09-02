@@ -50,6 +50,7 @@ class Module:
         inferencer = transforms.Inferencer(engine=self.engine)
         monomorphism_validator = validators.MonomorphismValidator(engine=self.engine)
         escape_validator = validators.EscapeValidator(engine=self.engine)
+        iodelay_estimator = transforms.IODelayEstimator(ref_period=ref_period)
         artiq_ir_generator = transforms.ARTIQIRGenerator(engine=self.engine,
                                                          module_name=src.name,
                                                          ref_period=ref_period)
@@ -62,6 +63,7 @@ class Module:
         inferencer.visit(src.typedtree)
         monomorphism_validator.visit(src.typedtree)
         escape_validator.visit(src.typedtree)
+        iodelay_estimator.visit_fixpoint(src.typedtree)
         self.artiq_ir = artiq_ir_generator.visit(src.typedtree)
         dead_code_eliminator.process(self.artiq_ir)
         local_access_validator.process(self.artiq_ir)
