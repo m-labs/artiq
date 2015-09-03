@@ -15,8 +15,8 @@
 
 #elif defined DDS_AD9914
 /* Assume 16-bit bus */
-/* DAC calibration takes max. 135us as per datasheet. Take a good margin. */
-#define DURATION_DAC_CAL (30000 << RTIO_FINE_TS_WIDTH)
+/* DAC calibration takes max. 1ms as per datasheet */
+#define DURATION_DAC_CAL (147000 << RTIO_FINE_TS_WIDTH)
 /* not counting final FUD */
 #define DURATION_INIT (10*DURATION_WRITE + DURATION_DAC_CAL)
 #define DURATION_PROGRAM (5*DURATION_WRITE) /* not counting FUD */

@@ -79,7 +79,7 @@ long long int now_init(void)
 
     if(now < 0) {
         rtio_init();
-        now = rtio_get_counter() + (125000 << RTIO_FINE_TS_WIDTH);
+        now = rtio_get_counter() + (272000 << RTIO_FINE_TS_WIDTH);
     }
 
     return now;
