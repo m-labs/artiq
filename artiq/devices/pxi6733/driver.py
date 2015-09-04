@@ -1,6 +1,6 @@
 # Yann Sionneau <ys@m-labs.hk>, 2015
 
-from ctypes import byref, c_ulong
+from ctypes import byref, c_ulong, create_string_buffer
 import logging
 
 import numpy as np
@@ -50,11 +50,13 @@ class DAQmx:
 
     def ping(self):
         try:
-            data = (c_ulong*1)()
-            self.daq.DAQmxGetDevSerialNum(self.device, data)
+            data_len = 128
+            data = create_string_buffer(data_len)
+            self.daq.DAQmxGetSysDevNames(data, data_len)
+            print("data == {}".format(data.value))
         except:
             return False
-        return True
+        return data.value != ""
 
     def load_sample_values(self, sampling_freq, values):
         """Load sample values into PXI 6733 device.
