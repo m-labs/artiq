@@ -89,6 +89,11 @@ class _DDSGeneric:
         word."""
         return pow/2**self.pow_width
 
+    @portable
+    def amplitude_to_asf(self, amplitude):
+        """Converts amplitude from scale of 0 to 1 to 0 to 2^12."""
+        return round(amplitude*0x0fff)
+
     @kernel
     def init(self):
         """Resets and initializes the DDS channel.
@@ -117,12 +122,14 @@ class _DDSGeneric:
         self.phase_mode = phase_mode
 
     @kernel
-    def set_mu(self, frequency, phase=0, phase_mode=_PHASE_MODE_DEFAULT):
+    def set_mu(self, frequency, phase=0, phase_mode=_PHASE_MODE_DEFAULT, 
+               amplitude=0x0fff):
         """Sets the DDS channel to the specified frequency and phase.
 
         This uses machine units (FTW and POW). The frequency tuning word width
         is 32, whereas the phase offset word width depends on the type of DDS
-        chip and can be retrieved via the ``pow_width`` attribute.
+        chip and can be retrieved via the ``pow_width`` attribute. The amplitude
+        width is 12.
 
         :param frequency: frequency to generate.
         :param phase: adds an offset, in turns, to the phase.
@@ -132,13 +139,15 @@ class _DDSGeneric:
         if phase_mode == _PHASE_MODE_DEFAULT:
             phase_mode = self.phase_mode
         syscall("dds_set", now_mu(), self.channel, frequency,
-                phase, phase_mode)
+                phase, phase_mode, amplitude)
 
     @kernel
-    def set(self, frequency, phase=0.0, phase_mode=_PHASE_MODE_DEFAULT):
+    def set(self, frequency, phase=0.0, phase_mode=_PHASE_MODE_DEFAULT,
+            amplitude=1.0):
         """Like ``set_mu``, but uses Hz and turns."""
         self.set_mu(self.frequency_to_ftw(frequency),
-                    self.turns_to_pow(phase), phase_mode)
+                    self.turns_to_pow(phase), phase_mode, 
+                    self.amplitude_to_asf(amplitude))
 
 
 class AD9858(_DDSGeneric):
