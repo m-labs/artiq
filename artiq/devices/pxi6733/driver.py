@@ -53,7 +53,7 @@ class DAQmx:
             data_len = 128
             data = create_string_buffer(data_len)
             self.daq.DAQmxGetSysDevNames(data, data_len)
-            print("data == {}".format(data.value))
+            logger.debug("Device names: %s", data.value)
         except:
             return False
         return data.value != ""
