@@ -7,19 +7,21 @@
 #include "dds.h"
 
 #define DURATION_WRITE (5 << RTIO_FINE_TS_WIDTH)
+#define DURATION_RESET_PULSE (50 << RTIO_FINE_TS_WIDTH)
+#define DURATION_RESET_RECOVERY (50 << RTIO_FINE_TS_WIDTH)
 
 #if defined DDS_AD9858
 /* Assume 8-bit bus */
 #define DURATION_INIT (7*DURATION_WRITE) /* not counting FUD */
-#define DURATION_PROGRAM (8*DURATION_WRITE) /* not counting FUD */
+#define DURATION_PROGRAM (8*DURATION_WRITE + DURATION_RESET_PULSE + DURATION_RESET_RECOVERY) /* not counting FUD */
 
 #elif defined DDS_AD9914
 /* Assume 16-bit bus */
 /* DAC calibration takes max. 1ms as per datasheet */
-#define DURATION_DAC_CAL (147000 << RTIO_FINE_TS_WIDTH)
+#define DURATION_DAC_CAL (166666 << RTIO_FINE_TS_WIDTH)
 /* not counting final FUD */
-#define DURATION_INIT (10*DURATION_WRITE + DURATION_DAC_CAL)
-#define DURATION_PROGRAM (5*DURATION_WRITE) /* not counting FUD */
+#define DURATION_INIT (10*DURATION_WRITE + DURATION_RESET_PULSE + DURATION_RESET_RECOVERY + DURATION_DAC_CAL)
+#define DURATION_PROGRAM (6*DURATION_WRITE) /* not counting FUD */
 
 #else
 #error Unknown DDS configuration
@@ -59,8 +61,10 @@ void dds_init(long long int timestamp, int channel)
 #endif
     channel <<= 1;
     DDS_WRITE(DDS_GPIO, channel);
-    DDS_WRITE(DDS_GPIO, channel | 1); /* reset */
+    DDS_WRITE(DDS_GPIO, channel); /* reset */
+    now += DURATION_RESET_PULSE;
     DDS_WRITE(DDS_GPIO, channel);
+    now += DURATION_RESET_RECOVERY;
 
 #ifdef DDS_AD9858
     /*
@@ -94,7 +98,7 @@ void dds_init(long long int timestamp, int channel)
 static unsigned int continuous_phase_comp[DDS_CHANNEL_COUNT];
 
 static void dds_set_one(long long int now, long long int ref_time, unsigned int channel,
-    unsigned int ftw, unsigned int pow, int phase_mode)
+    unsigned int ftw, unsigned int pow, int phase_mode, unsigned int amplitude)
 {
     unsigned int channel_enc;
 
@@ -130,7 +134,7 @@ static void dds_set_one(long long int now, long long int ref_time, unsigned int 
         DDS_WRITE(DDS_CFR2, 0x00);
 #endif
 #ifdef DDS_AD9914
-        DDS_WRITE(DDS_CFR1L, 0x0008);
+        DDS_WRITE(DDS_CFR1L, 0x0108);
 #endif
         pow += continuous_phase_comp[channel];
     } else {
@@ -141,7 +145,7 @@ static void dds_set_one(long long int now, long long int ref_time, unsigned int 
         DDS_WRITE(DDS_CFR2, 0x40);
 #endif
 #ifdef DDS_AD9914
-        DDS_WRITE(DDS_CFR1L, 0x2008);
+        DDS_WRITE(DDS_CFR1L, 0x2108);
 #endif
         fud_time = now + 2*DURATION_WRITE;
         pow -= (ref_time - fud_time)*DDS_RTIO_CLK_RATIO*ftw >> (32-DDS_POW_WIDTH);
@@ -157,6 +161,9 @@ static void dds_set_one(long long int now, long long int ref_time, unsigned int 
 #ifdef DDS_AD9914
     DDS_WRITE(DDS_POW, pow);
 #endif
+#ifdef DDS_AD9914
+    DDS_WRITE(DDS_ASF, amplitude);
+#endif
     DDS_WRITE(DDS_FUD, 0);
 }
 
@@ -165,6 +172,7 @@ struct dds_set_params {
     unsigned int ftw;
     unsigned int pow;
     int phase_mode;
+    unsigned int amplitude;
 };
 
 static int batch_mode;
@@ -193,14 +201,15 @@ void dds_batch_exit(void)
     now = batch_ref_time - batch_count*(DURATION_PROGRAM + DURATION_WRITE);
     for(i=0;i<batch_count;i++) {
         dds_set_one(now, batch_ref_time,
-            batch[i].channel, batch[i].ftw, batch[i].pow, batch[i].phase_mode);
+            batch[i].channel, batch[i].ftw, batch[i].pow, batch[i].phase_mode,
+            batch[i].amplitude);
         now += DURATION_PROGRAM + DURATION_WRITE;
     }
     batch_mode = 0;
 }
 
 void dds_set(long long int timestamp, int channel,
-    unsigned int ftw, unsigned int pow, int phase_mode)
+    unsigned int ftw, unsigned int pow, int phase_mode, unsigned int amplitude)
 {
     if(batch_mode) {
         if(batch_count >= DDS_MAX_BATCH)
@@ -210,9 +219,11 @@ void dds_set(long long int timestamp, int channel,
         batch[batch_count].ftw = ftw;
         batch[batch_count].pow = pow;
         batch[batch_count].phase_mode = phase_mode;
+        batch[batch_count].amplitude = amplitude;
         batch_count++;
     } else {
         rtio_chan_sel_write(RTIO_DDS_CHANNEL);
-        dds_set_one(timestamp - DURATION_PROGRAM, timestamp, channel, ftw, pow, phase_mode);
+        dds_set_one(timestamp - DURATION_PROGRAM, timestamp, channel, ftw, pow, phase_mode,
+                    amplitude);
     }
 }
