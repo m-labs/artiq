@@ -58,6 +58,9 @@ class _Segment:
             raise ArmError
         self.lines.append((duration, channel_data))
 
+    def get_sample_count(self):
+        return sum(duration for duration, _ in self.lines)
+
     @kernel
     def advance(self):
         if self.frame.invalidated:
@@ -107,13 +110,13 @@ class _Frame:
         self.invalidated = True
 
     def _get_samples(self):
-        program = [
+        program = [[
             {
                 "dac_divider": 1,
                 "duration": duration,
                 "channel_data": channel_data,
-            } for duration, channel_data in segment.lines 
-                for segment in self.segments]
+            } for segment in self.segments
+                for duration, channel_data in segment.lines]]
         synth = Synthesizer(self.daqmx.channel_count, program)
         synth.select(0)
         # not setting any trigger flag in the program causes the whole
@@ -145,7 +148,7 @@ class CompoundDAQmx:
         self.daqmx = dmgr.get(daqmx_device)
         self.clock = dmgr.get(clock_device)
         self.channel_count = channel_count
-        if self.sample_rate_in_mu:
+        if sample_rate_in_mu:
             self.sample_rate = sample_rate
         else:
             self.sample_rate = self.clock.frequency_to_ftw(sample_rate)
