@@ -25,10 +25,16 @@ from artiq.language.core import *
 from artiq.language.environment import NoDefault, DefaultMissing
 
 
-__all__ = ["NoScan", "LinearScan", "RandomScan", "ExplicitScan", "Scannable"]
+__all__ = ["ScanObject",
+           "NoScan", "LinearScan", "RandomScan", "ExplicitScan",
+           "Scannable"]
 
 
-class NoScan:
+class ScanObject:
+    pass
+
+
+class NoScan(ScanObject):
     """A scan object that yields a single value."""
     def __init__(self, value):
         self.value = value
@@ -45,7 +51,7 @@ class NoScan:
         return {"ty": "NoScan", "value": self.value}
 
 
-class LinearScan:
+class LinearScan(ScanObject):
     """A scan object that yields a fixed number of increasing evenly
     spaced values in a range."""
     def __init__(self, min, max, npoints):
@@ -69,7 +75,7 @@ class LinearScan:
                 "min": self.min, "max": self.max, "npoints": self.npoints}
 
 
-class RandomScan:
+class RandomScan(ScanObject):
     """A scan object that yields a fixed number of randomly ordered evenly
     spaced values in a range."""
     def __init__(self, min, max, npoints, seed=0):
@@ -85,7 +91,7 @@ class RandomScan:
                 "min": self.min, "max": self.max, "npoints": self.npoints}
 
 
-class ExplicitScan:
+class ExplicitScan(ScanObject):
     """A scan object that yields values from an explicitly defined sequence."""
     def __init__(self, sequence):
         self.sequence = sequence
