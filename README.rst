@@ -13,7 +13,7 @@ nanosecond timing resolution and sub-microsecond latency.
 
 Technologies employed include Python, Migen, MiSoC/mor1kx, LLVM and llvmlite.
 
-ARTIQ is licensed under 3-clause BSD.
-
 Website:
 http://m-labs.hk/artiq
+
+Copyright (C) 2014-2015 M-Labs Limited. Licensed under GNU GPL version 3.
