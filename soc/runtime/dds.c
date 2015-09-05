@@ -18,7 +18,7 @@
 /* DAC calibration takes max. 1ms as per datasheet */
 #define DURATION_DAC_CAL (147000 << RTIO_FINE_TS_WIDTH)
 /* not counting final FUD */
-#define DURATION_INIT (10*DURATION_WRITE + DURATION_DAC_CAL)
+#define DURATION_INIT (8*DURATION_WRITE + DURATION_DAC_CAL)
 #define DURATION_PROGRAM (6*DURATION_WRITE) /* not counting FUD */
 
 #else
@@ -59,8 +59,17 @@ void dds_init(long long int timestamp, int channel)
 #endif
     channel <<= 1;
     DDS_WRITE(DDS_GPIO, channel);
+#ifndef DDS_AD9914
+    /*
+     * Resetting a AD9914 intermittently crashes it. It does not produce any
+     * output until power-cycled.
+     * Increasing the reset pulse length and the delay until the first write
+     * to 300ns do not solve the problem.
+     * The chips seem fine without a reset.
+     */
     DDS_WRITE(DDS_GPIO, channel | 1); /* reset */
     DDS_WRITE(DDS_GPIO, channel);
+#endif
 
 #ifdef DDS_AD9858
     /*
