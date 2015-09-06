@@ -1,3 +1,5 @@
+# Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
+
 import numpy as np
 from scipy.interpolate import splrep, splev, spalde
 from scipy.special import binom

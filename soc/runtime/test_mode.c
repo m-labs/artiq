@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2014, 2015 M-Labs Limited
+ * Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

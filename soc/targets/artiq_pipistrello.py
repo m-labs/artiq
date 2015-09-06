@@ -1,3 +1,6 @@
+# Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
+# Copyright (C) 2014, 2015 M-Labs Limited
+
 from fractions import Fraction
 
 from migen.fhdl.std import *

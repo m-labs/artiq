@@ -1,3 +1,6 @@
+# Copyright (C) 2014, 2015 M-Labs Limited
+# Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
+
 from math import sqrt
 
 from artiq.language import *

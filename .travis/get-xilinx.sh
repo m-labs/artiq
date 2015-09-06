@@ -1,4 +1,6 @@
 #!/bin/sh
+# Copyright (C) 2014, 2015 M-Labs Limited
+# Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
 
 wget http://sionneau.net/artiq/Xilinx/xilinx_ise_14.7_s3_s6.tar.gz.gpg
 echo "$secret" | gpg --passphrase-fd 0 xilinx_ise_14.7_s3_s6.tar.gz.gpg

@@ -1,4 +1,5 @@
 #!/bin/sh
+# Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
 
 export PATH=$HOME/miniconda/bin:$PATH
 wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh

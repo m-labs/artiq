@@ -1,3 +1,6 @@
+# Copyright (C) 2014, 2015 M-Labs Limited
+# Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
+
 from copy import copy
 from math import cos, pi
 
