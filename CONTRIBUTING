@@ -40,7 +40,7 @@ then you just add a line saying
 
 	Signed-off-by: Random J Developer <random@developer.example.org>
 
-using your real name (sorry, no pseudonyms or anonymous contributions.)
+using your legal name (sorry, no pseudonyms or anonymous contributions.)
 
 ARTIQ files that do not contain a license header are copyrighted by M-Labs Limited
 and are licensed under GNU GPL version 3.
