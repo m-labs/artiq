@@ -243,8 +243,6 @@ class IODelayEstimator(algorithm.Visitor):
                 for arg_name, arg_node in zip(typ.args, node.args[offset:]):
                     args[arg_name] = arg_node
 
-                print(args)
-
                 free_vars = delay.length.free_vars()
                 self.current_delay += delay.length.fold(
                     { arg: self.evaluate(args[arg], abort=abort) for arg in free_vars })
