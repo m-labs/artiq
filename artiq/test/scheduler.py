@@ -1,6 +1,7 @@
 import unittest
 import asyncio
 import sys
+import os
 from time import time, sleep
 
 from artiq import *
@@ -37,7 +38,8 @@ def _get_basic_steps(rid, expid, priority=0, flush=False):
     return [
         {"action": "setitem", "key": rid, "value": 
             {"pipeline": "main", "status": "pending", "priority": priority,
-             "expid": expid, "due_date": None, "flush": flush},
+             "expid": expid, "due_date": None, "flush": flush,
+             "repo_msg": None},
             "path": []},
         {"action": "setitem", "key": "status", "value": "preparing",
             "path": [rid]},
@@ -49,7 +51,7 @@ def _get_basic_steps(rid, expid, priority=0, flush=False):
             "path": [rid]},
         {"action": "setitem", "key": "status", "value": "analyzing",
             "path": [rid]},
-        {"action": "setitem", "key": "status", "value": "analyze_done",
+        {"action": "setitem", "key": "status", "value": "deleting",
             "path": [rid]},
         {"action": "delitem", "key": rid, "path": []}
     ]
@@ -62,12 +64,15 @@ _handlers = {
 
 class SchedulerCase(unittest.TestCase):
     def setUp(self):
-        self.loop = asyncio.new_event_loop()
+        if os.name == "nt":
+            self.loop = asyncio.ProactorEventLoop()
+        else:
+            self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
     def test_steps(self):
         loop = self.loop
-        scheduler = Scheduler(0, _handlers)
+        scheduler = Scheduler(0, _handlers, None)
         expid = _get_expid("EmptyExperiment")
 
         expect = _get_basic_steps(1, expid)
@@ -89,7 +94,8 @@ class SchedulerCase(unittest.TestCase):
         expect.insert(0,
             {"action": "setitem", "key": 0, "value":
                 {"pipeline": "main", "status": "pending", "priority": 99,
-                 "expid": expid, "due_date": late, "flush": False},
+                 "expid": expid, "due_date": late, "flush": False,
+                 "repo_msg": None},
              "path": []})
         scheduler.submit("main", expid, 99, late, False)
 
@@ -102,7 +108,7 @@ class SchedulerCase(unittest.TestCase):
 
     def test_pause(self):
         loop = self.loop
-        scheduler = Scheduler(0, _handlers)
+        scheduler = Scheduler(0, _handlers, None)
         expid_bg = _get_expid("BackgroundExperiment")
         expid = _get_expid("EmptyExperiment")
 
@@ -133,7 +139,7 @@ class SchedulerCase(unittest.TestCase):
 
     def test_flush(self):
         loop = self.loop
-        scheduler = Scheduler(0, _handlers)
+        scheduler = Scheduler(0, _handlers, None)
         expid = _get_expid("EmptyExperiment")
 
         expect = _get_basic_steps(1, expid, 1, True)

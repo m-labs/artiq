@@ -148,6 +148,9 @@ class NIST_QC1(_NIST_QCx):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
+        phy = ttl_simple.Inout(platform.request("user_sma_gpio_n"))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
         phy = ttl_simple.Output(platform.request("user_led", 2))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
@@ -187,6 +190,9 @@ class NIST_QC2(_NIST_QCx):
                 self.submodules += phy
                 rtio_channels.append(rtio.Channel.from_phy(phy))
 
+        phy = ttl_simple.Inout(platform.request("user_sma_gpio_n"))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
         phy = ttl_simple.Output(platform.request("user_led", 2))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
@@ -200,7 +206,7 @@ class NIST_QC2(_NIST_QCx):
         self.add_constant("DDS_CHANNEL_COUNT", 11)
         self.add_constant("DDS_AD9914")
         self.add_constant("DDS_ONEHOT_SEL")
-        phy = dds.AD9914(platform.request("dds"), 11)
+        phy = dds.AD9914(platform.request("dds"), 11, onehot=True)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,
                                                    ofifo_depth=512,

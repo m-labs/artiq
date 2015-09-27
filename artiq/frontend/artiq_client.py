@@ -42,6 +42,12 @@ def get_argparser():
     parser_add.add_argument("-f", "--flush", default=False, action="store_true",
                             help="flush the pipeline before preparing "
                             "the experiment")
+    parser_add.add_argument("-R", "--repository", default=False,
+                            action="store_true",
+                            help="use the experiment repository")
+    parser_add.add_argument("-r", "--revision", default=None,
+                            help="use a specific repository revision "
+                                 "(defaults to head, ignored without -R)")
     parser_add.add_argument("-c", "--class-name", default=None,
                             help="name of the class to run")
     parser_add.add_argument("file",
@@ -76,13 +82,16 @@ def get_argparser():
     parser_del_parameter.add_argument("name", help="name of the parameter")
 
     parser_show = subparsers.add_parser(
-        "show", help="show schedule, devices or parameters")
+        "show", help="show schedule, log, devices or parameters")
     parser_show.add_argument(
         "what",
-        help="select object to show: schedule/devices/parameters")
+        help="select object to show: schedule/log/devices/parameters")
 
-    parser_scan_repository = subparsers.add_parser(
-        "scan-repository", help="rescan repository")
+    parser_scan = subparsers.add_parser("scan-repository",
+                                        help="trigger a repository (re)scan")
+    parser_scan.add_argument("revision", default=None, nargs="?",
+                             help="use a specific repository revision "
+                                  "(defaults to head)")
 
     return parser
 
@@ -107,6 +116,8 @@ def _action_submit(remote, args):
         "class_name": args.class_name,
         "arguments": arguments,
     }
+    if args.repository:
+        expid["repo_rev"] = args.revision
     if args.timed is None:
         due_date = None
     else:
@@ -137,7 +148,7 @@ def _action_del_parameter(remote, args):
 
 
 def _action_scan_repository(remote, args):
-    remote.scan_async()
+    remote.scan_async(args.revision)
 
 
 def _show_schedule(schedule):
@@ -148,7 +159,7 @@ def _show_schedule(schedule):
                                   x[1]["due_date"] or 0,
                                   x[0]))
         table = PrettyTable(["RID", "Pipeline", "    Status    ", "Prio",
-                             "Due date", "File", "Class name"])
+                             "Due date", "Revision", "File", "Class name"])
         for rid, v in l:
             row = [rid, v["pipeline"], v["status"], v["priority"]]
             if v["due_date"] is None:
@@ -156,11 +167,16 @@ def _show_schedule(schedule):
             else:
                 row.append(time.strftime("%m/%d %H:%M:%S",
                            time.localtime(v["due_date"])))
-            row.append(v["expid"]["file"])
-            if v["expid"]["class_name"] is None:
+            expid = v["expid"]
+            if "repo_rev" in expid:
+                row.append(expid["repo_rev"])
+            else:
+                row.append("Outside repo.")
+            row.append(expid["file"])
+            if expid["class_name"] is None:
                 row.append("")
             else:
-                row.append(v["expid"]["class_name"])
+                row.append(expid["class_name"])
             table.add_row(row)
         print(table)
     else:
@@ -211,12 +227,42 @@ def _show_dict(args, notifier_name, display_fun):
     _run_subscriber(args.server, args.port, subscriber)
 
 
+class _LogPrinter:
+    def __init__(self, init):
+        for rid, msg in init:
+            print(rid, msg)
+
+    def append(self, x):
+        rid, msg = x
+        print(rid, msg)
+
+    def insert(self, i, x):
+        rid, msg = x
+        print(rid, msg)
+
+    def pop(self, i=-1):
+        pass
+
+    def __delitem__(self, x):
+        pass
+
+    def __setitem__(self, k, v):
+        pass
+
+
+def _show_log(args):
+    subscriber = Subscriber("log", _LogPrinter)
+    _run_subscriber(args.server, args.port, subscriber)
+
+
 def main():
     args = get_argparser().parse_args()
     action = args.action.replace("-", "_")
     if action == "show":
         if args.what == "schedule":
             _show_dict(args, "schedule", _show_schedule)
+        elif args.what == "log":
+            _show_log(args)
         elif args.what == "devices":
             _show_dict(args, "devices", _show_devices)
         elif args.what == "parameters":

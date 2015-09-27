@@ -80,4 +80,6 @@ class Core:
 
     @kernel
     def break_realtime(self):
-        at_mu(rtio_get_counter() + 125000)
+        min_now = rtio_get_counter() + 125000
+        if now_mu() < min_now:
+            at_mu(min_now)

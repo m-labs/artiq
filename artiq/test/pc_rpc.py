@@ -45,7 +45,7 @@ class RPCCase(unittest.TestCase):
             self.assertEqual(test_object, test_object_back)
             with self.assertRaises(pc_rpc.RemoteError):
                 remote.non_existing_method()
-            remote.quit()
+            remote.terminate()
         finally:
             remote.close_rpc()
 
@@ -68,7 +68,7 @@ class RPCCase(unittest.TestCase):
             self.assertEqual(test_object, test_object_back)
             with self.assertRaises(pc_rpc.RemoteError):
                 yield from remote.non_existing_method()
-            yield from remote.quit()
+            yield from remote.terminate()
         finally:
             remote.close_rpc()
 
@@ -97,16 +97,6 @@ class FireAndForgetCase(unittest.TestCase):
 
 
 class Echo:
-    def __init__(self):
-        self.terminate_notify = asyncio.Semaphore(0)
-
-    @asyncio.coroutine
-    def wait_quit(self):
-        yield from self.terminate_notify.acquire()
-
-    def quit(self):
-        self.terminate_notify.release()
-
     def echo(self, x):
         return x
 
@@ -116,10 +106,10 @@ def run_server():
     asyncio.set_event_loop(loop)
     try:
         echo = Echo()
-        server = pc_rpc.Server({"test": echo})
+        server = pc_rpc.Server({"test": echo}, builtin_terminate=True)
         loop.run_until_complete(server.start(test_address, test_port))
         try:
-            loop.run_until_complete(echo.wait_quit())
+            loop.run_until_complete(server.wait_terminate())
         finally:
             loop.run_until_complete(server.stop())
     finally:

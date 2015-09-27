@@ -1,3 +1,5 @@
+# Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
+
 from migen.fhdl.std import *
 
 from artiq.gateware.rtio.phy import ttl_serdes_generic

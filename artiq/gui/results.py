@@ -1,6 +1,7 @@
 import asyncio
 from collections import OrderedDict
 from functools import partial
+import logging
 
 from quamash import QtGui, QtCore
 from pyqtgraph import dockarea
@@ -9,6 +10,9 @@ from pyqtgraph import LayoutWidget
 from artiq.protocols.sync_struct import Subscriber
 from artiq.gui.tools import DictSyncModel, short_format
 from artiq.gui.displays import *
+
+
+logger = logging.getLogger(__name__)
 
 
 class ResultsModel(DictSyncModel):
@@ -26,6 +30,12 @@ class ResultsModel(DictSyncModel):
             return short_format(v)
         else:
            raise ValueError
+
+
+def _get_display_type_name(display_cls):
+    for name, (_, cls) in display_types.items():
+        if cls is display_cls:
+            return name
 
 
 class ResultsDock(dockarea.Dock):
@@ -110,3 +120,28 @@ class ResultsDock(dockarea.Dock):
         dsp.sigClosed.connect(on_close)
         self.dock_area.addDock(dsp)
         self.dock_area.floatDock(dsp)
+        return dsp
+
+    def save_state(self):
+        r = dict()
+        for name, display in self.displays.items():
+            r[name] = {
+                "ty": _get_display_type_name(type(display)),
+                "settings": display.settings,
+                "state": display.save_state()
+            }
+        return r
+
+    def restore_state(self, state):
+        for name, desc in state.items():
+            try:
+                dsp = self.create_display(desc["ty"], None, name,
+                                          desc["settings"])
+            except:
+                logger.warning("Failed to create display '%s'", name,
+                               exc_info=True)
+            try:
+                dsp.restore_state(desc["state"])
+            except:
+                logger.warning("Failed to restore display state of '%s'",
+                               name, exc_info=True)

@@ -5,16 +5,9 @@ from artiq.protocols.sync_struct import Notifier
 
 
 class FlatFileDB:
-    def __init__(self, filename, default_data=None):
+    def __init__(self, filename):
         self.filename = filename
-        try:
-            data = pyon.load_file(self.filename)
-        except FileNotFoundError:
-            if default_data is None:
-                raise
-            else:
-                data = default_data
-        self.data = Notifier(data)
+        self.data = Notifier(pyon.load_file(self.filename))
         self.hooks = []
 
     def save(self):

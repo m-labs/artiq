@@ -28,7 +28,6 @@ class TTLOut:
 
     This should be used with output-only channels.
 
-    :param core: core device
     :param channel: channel number
     """
     def __init__(self, dmgr, channel):
@@ -92,7 +91,6 @@ class TTLInOut:
 
     This should be used with bidirectional channels.
 
-    :param core: core device
     :param channel: channel number
     """
     def __init__(self, dmgr, channel):
@@ -109,10 +107,12 @@ class TTLInOut:
 
     @kernel
     def output(self):
+        """Set the direction to output."""
         self.set_oe(True)
 
     @kernel
     def input(self):
+        """Set the direction to input."""
         self.set_oe(False)
 
     @kernel
@@ -129,12 +129,16 @@ class TTLInOut:
 
     @kernel
     def on(self):
-        """Set the output to a logic high state."""
+        """Set the output to a logic high state.
+
+        The channel must be in output mode."""
         self.set_o(True)
 
     @kernel
     def off(self):
-        """Set the output to a logic low state."""
+        """Set the output to a logic low state.
+
+        The channel must be in output mode."""
         self.set_o(False)
 
     @kernel
@@ -231,14 +235,12 @@ class TTLClockGen:
     This should be used with TTL channels that have a clock generator
     built into the gateware (not compatible with regular TTL channels).
 
-    :param core: core device
     :param channel: channel number
     """
     def __init__(self, dmgr, channel):
         self.core = dmgr.get("core")
         self.channel = channel
 
-    def build(self):
         # in RTIO cycles
         self.previous_timestamp = int(0, width=64)
         self.acc_width = 24

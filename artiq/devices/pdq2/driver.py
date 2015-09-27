@@ -1,4 +1,4 @@
-# Robert Jordens <jordens@gmail.com>, 2012-2015
+# Copyright (C) 2012-2015 Robert Jordens <jordens@gmail.com>
 
 from math import log, sqrt
 import logging
@@ -213,3 +213,6 @@ class Pdq2:
         for frame_data in program:
             self.program_frame(frame_data)
         self.write_all()
+
+    def ping(self):
+        return True

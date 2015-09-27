@@ -1,5 +1,6 @@
 import sys
 import time
+import os
 
 from artiq.protocols import pyon
 from artiq.tools import file_import
@@ -42,8 +43,6 @@ def make_parent_action(action, argnames, exception=ParentActionError):
         else:
             raise exception(reply["message"])
     return parent_action
-
-
 
 
 class LogForwarder:
@@ -138,6 +137,8 @@ class DummyPDB:
 def examine(dmgr, pdb, rdb, file):
     module = file_import(file)
     for class_name, exp_class in module.__dict__.items():
+        if class_name[0] == "_":
+            continue
         if is_experiment(exp_class):
             if exp_class.__doc__ is None:
                 name = class_name
@@ -146,8 +147,8 @@ def examine(dmgr, pdb, rdb, file):
                 if name[-1] == ".":
                     name = name[:-1]
             exp_inst = exp_class(dmgr, pdb, rdb, default_arg_none=True)
-            arguments = [(k, v.describe())
-                         for k, v in exp_inst.requested_args.items()]
+            arguments = [(k, (proc.describe(), group))
+                         for k, (proc, group) in exp_inst.requested_args.items()]
             register_experiment(class_name, name, arguments)
 
 
@@ -173,7 +174,12 @@ def main():
                 start_time = time.localtime()
                 rid = obj["rid"]
                 expid = obj["expid"]
-                exp = get_exp(expid["file"], expid["class_name"])
+                if obj["wd"] is not None:
+                    # Using repository
+                    expf = os.path.join(obj["wd"], expid["file"])
+                else:
+                    expf = expid["file"]
+                exp = get_exp(expf, expid["class_name"])
                 dmgr.virtual_devices["scheduler"].set_run_info(
                     obj["pipeline_name"], expid, obj["priority"])
                 exp_inst = exp(dmgr, ParentPDB, rdb,
@@ -192,6 +198,11 @@ def main():
                 f = get_hdf5_output(start_time, rid, exp.__name__)
                 try:
                     rdb.write_hdf5(f)
+                    if "repo_rev" in expid:
+                        rr = expid["repo_rev"]
+                        dtype = "S{}".format(len(rr))
+                        dataset = f.create_dataset("repo_rev", (), dtype)
+                        dataset[()] = rr.encode()
                 finally:
                     f.close()
                 put_object({"action": "completed"})

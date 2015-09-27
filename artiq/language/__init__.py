@@ -1,3 +1,5 @@
+# Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
+
 from artiq.language import core, types, environment, units, scan
 from artiq.language.core import *
 from artiq.language.types import *

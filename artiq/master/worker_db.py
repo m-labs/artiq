@@ -91,6 +91,7 @@ class ResultDB:
     def __init__(self):
         self.rt = Notifier(dict())
         self.nrt = dict()
+        self.store = set()
 
     def get(self, key):
         try:
@@ -98,9 +99,17 @@ class ResultDB:
         except KeyError:
             return self.rt[key].read
 
+    def set_store(self, key, store):
+        if store:
+            self.store.add(key)
+        else:
+            self.store.discard(key)
+
     def write_hdf5(self, f):
-        result_dict_to_hdf5(f, self.rt.read)
-        result_dict_to_hdf5(f, self.nrt)
+        result_dict_to_hdf5(
+            f, {k: v for k, v in self.rt.read.items() if k in self.store})
+        result_dict_to_hdf5(
+            f, {k: v for k, v in self.nrt.items() if k in self.store})
 
 
 def _create_device(desc, dmgr):

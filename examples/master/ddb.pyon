@@ -29,13 +29,15 @@
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 2}
+        "arguments": {"channel": 2},
+        "comment": "This is a fairly long comment to test word wrapping in GUI."
     },
     "ttl1": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 3}
+        "arguments": {"channel": 3},
+        "comment": "Hello World"
     },
     "ttl2": {
         "type": "local",
@@ -49,11 +51,17 @@
         "class": "TTLOut",
         "arguments": {"channel": 5}
     },
+    "ttl_sma": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLInOut",
+        "arguments": {"channel": 17}
+    },
     "led": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 17}
+        "arguments": {"channel": 18}
     },
 
     "dds_bus": {
@@ -66,7 +74,8 @@
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "AD9858",
-        "arguments": {"sysclk": 1e9, "channel": 0}
+        "arguments": {"sysclk": 1e9, "channel": 0},
+        "comment": "Comments work in DDS panel as well"
     },
     "dds1": {
         "type": "local",
@@ -87,7 +96,7 @@
         "host": "::1",
         "port": 4000,
         "target_name": "pdq2",
-        "command": "pdq2_controller -p {port} --bind {bind} --dump qc_q1_0.bin"
+        "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_0.bin"
     },
     "qc_q1_1": {
         "type": "controller",
@@ -95,7 +104,7 @@
         "host": "::1",
         "port": 4001,
         "target_name": "pdq2",
-        "command": "pdq2_controller -p {port} --bind {bind} --dump qc_q1_1.bin"
+        "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_1.bin"
     },
     "qc_q1_2": {
         "type": "controller",
@@ -103,7 +112,7 @@
         "host": "::1",
         "port": 4002,
         "target_name": "pdq2",
-        "command": "pdq2_controller -p {port} --bind {bind} --dump qc_q1_2.bin"
+        "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_2.bin"
     },
     "qc_q1_3": {
         "type": "controller",
@@ -111,7 +120,7 @@
         "host": "::1",
         "port": 4003,
         "target_name": "pdq2",
-        "command": "pdq2_controller -p {port} --bind {bind} --dump qc_q1_3.bin"
+        "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_3.bin"
     },
     "electrodes": {
         "type": "local",
@@ -130,11 +139,12 @@
         "host": "::1",
         "port": 3253,
         "target_name": "lda",
-        "command": "lda_controller -p {port} --bind {bind}"
+        "command": "lda_controller -p {port} --bind {bind} --simulation"
     },
 
     "ttl_inout": "pmt0",
     "ttl_out": "ttl0",
+    "ttl_out_serdes": "ttl0",
 
     "pmt": "pmt0",
     "bd_dds": "dds0",

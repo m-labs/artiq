@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2014, 2015 M-Labs Limited
+ * Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -237,18 +242,20 @@ static void ddsinit(void)
     long long int t;
 
     brg_ddsreset();
-    brg_ddswrite(DDS_CFR1L, 0x0008);
-    brg_ddswrite(DDS_CFR1H, 0x0000);
-    brg_ddswrite(DDS_CFR4H, 0x0105);
+    brg_ddswrite(DDS_CFR1H, 0x0000); /* Enable cosine output */
+    brg_ddswrite(DDS_CFR2L, 0x8900); /* Enable matched latency */
+    brg_ddswrite(DDS_CFR2H, 0x0080); /* Enable profile mode */
+    brg_ddswrite(DDS_ASF, 0x0fff); /* Set amplitude to maximum */
+    brg_ddswrite(DDS_CFR4H, 0x0105); /* Enable DAC calibration */
     brg_ddswrite(DDS_FUD, 0);
     t = clock_get_ms();
     while(clock_get_ms() < t + 2);
-    brg_ddswrite(DDS_CFR4H, 0x0005);
+    brg_ddswrite(DDS_CFR4H, 0x0005); /* Disable DAC calibration */
     brg_ddsfud();
 }
 #endif
 
-static void ddstest_one(unsigned int i)
+static void do_ddstest_one(unsigned int i)
 {
     unsigned int v[12] = {
         0xaaaaaaaa, 0x55555555, 0xa5a5a5a5, 0x5a5a5a5a,
@@ -257,7 +264,11 @@ static void ddstest_one(unsigned int i)
     };
     unsigned int f, g, j;
 
+#ifdef DDS_ONEHOT_SEL
+    brg_ddssel(1 << i);
+#else
     brg_ddssel(i);
+#endif
     ddsinit();
 
     for(j=0; j<12; j++) {
@@ -288,22 +299,39 @@ static void ddstest_one(unsigned int i)
     }
 }
 
-static void ddstest(char *n)
+static void ddstest(char *n, char *channel)
 {
     int i, j;
     char *c;
     unsigned int n2;
+    int channel2;
 
-    if (*n == 0) {
-        printf("ddstest <cycles>\n");
+    if((*n == 0) || (*channel == 0)) {
+        printf("ddstest <cycles> <channel/'all'>\n");
         return;
     }
     n2 = strtoul(n, &c, 0);
-
-    for(i=0; i<n2; i++) {
-        for(j=0; j<8; j++) {
-            ddstest_one(j);
+    if(*c != 0) {
+        printf("incorrect cycles\n");
+        return;
+    }
+    if(strcmp(channel, "all") == 0)
+        channel2 = -1;
+    else {
+        channel2 = strtoul(channel, &c, 0);
+        if(*c != 0) {
+            printf("incorrect channel\n");
+            return;
         }
+    }
+
+    if(channel2 >= 0) {
+        for(i=0;i<n2;i++)
+            do_ddstest_one(channel2);
+    } else {
+        for(i=0;i<n2;i++)
+            for(j=0;j<DDS_CHANNEL_COUNT;j++)
+                do_ddstest_one(j);
     }
 }
 
@@ -521,7 +549,7 @@ static void help(void)
     puts("ddsr <a>        - read DDS register");
     puts("ddsfud          - pulse FUD");
     puts("ddsftw <n> <d>  - write FTW");
-    puts("ddstest <n>     - perform test sequence on DDS");
+    puts("ddstest <n> <c> - perform test sequence on DDS");
     puts("leds <n>        - set LEDs");
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
     puts("fserase         - erase flash storage");
@@ -603,7 +631,7 @@ static void do_command(char *c)
     else if(strcmp(token, "ddsinit") == 0) ddsinit();
     else if(strcmp(token, "ddsfud") == 0) ddsfud();
     else if(strcmp(token, "ddsftw") == 0) ddsftw(get_token(&c), get_token(&c));
-    else if(strcmp(token, "ddstest") == 0) ddstest(get_token(&c));
+    else if(strcmp(token, "ddstest") == 0) ddstest(get_token(&c), get_token(&c));
 
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
     else if(strcmp(token, "fserase") == 0) fs_erase();

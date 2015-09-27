@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Robert Jordens <jordens@gmail.com>, 2012-2015
+# Copyright (C) 2012-2015 Robert Jordens <jordens@gmail.com>
 
 import argparse
 import time

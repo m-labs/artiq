@@ -5,10 +5,14 @@ import logging
 import sys
 import asyncio
 import time
+import collections
 import os.path
 
 from artiq.language.environment import is_experiment
 from artiq.protocols import pyon
+
+
+logger = logging.getLogger(__name__)
 
 
 def parse_arguments(arguments):
@@ -47,7 +51,7 @@ def get_experiment(module, experiment=None):
         return getattr(module, experiment)
 
     exps = [(k, v) for k, v in module.__dict__.items()
-            if is_experiment(v)]
+            if k[0] != "_" and is_experiment(v)]
     if not exps:
         raise ValueError("No experiments in module")
     if len(exps) > 1:
@@ -73,6 +77,15 @@ def simple_network_args(parser, default_port):
 
 def init_logger(args):
     logging.basicConfig(level=logging.WARNING + args.quiet*10 - args.verbose*10)
+
+
+@asyncio.coroutine
+def exc_to_warning(coro):
+    try:
+        yield from coro
+    except:
+        logger.warning("asyncio coroutine terminated with exception",
+                       exc_info=True)
 
 
 @asyncio.coroutine
@@ -113,14 +126,6 @@ def asyncio_wait_or_cancel(fs, **kwargs):
     return fs
 
 
-def asyncio_queue_peek(q):
-    """Like q.get_nowait(), but does not remove the item from the queue."""
-    if q._queue:
-        return q._queue[0]
-    else:
-        raise asyncio.QueueEmpty
-
-
 class TaskObject:
     def start(self):
         self.task = asyncio.async(self._do())
@@ -128,7 +133,10 @@ class TaskObject:
     @asyncio.coroutine
     def stop(self):
         self.task.cancel()
-        yield from asyncio.wait([self.task])
+        try:
+            yield from asyncio.wait_for(self.task, None)
+        except asyncio.CancelledError:
+            pass
         del self.task
 
     @asyncio.coroutine
@@ -136,25 +144,25 @@ class TaskObject:
         raise NotImplementedError
 
 
-class WaitSet:
-    def __init__(self):
-        self._s = set()
-        self._ev = asyncio.Event()
-
-    def _update_ev(self):
-        if self._s:
-            self._ev.clear()
+class Condition:
+    def __init__(self, *, loop=None):
+        if loop is not None:
+            self._loop = loop
         else:
-            self._ev.set()
-
-    def add(self, e):
-        self._s.add(e)
-        self._update_ev()
-
-    def discard(self, e):
-        self._s.discard(e)
-        self._update_ev()
+            self._loop = asyncio.get_event_loop()
+        self._waiters = collections.deque()
 
     @asyncio.coroutine
-    def wait_empty(self):
-        yield from self._ev.wait()
+    def wait(self):
+        """Wait until notified."""
+        fut = asyncio.Future(loop=self._loop)
+        self._waiters.append(fut)
+        try:
+            yield from fut
+        finally:
+            self._waiters.remove(fut)
+
+    def notify(self):
+        for fut in self._waiters:
+            if not fut.done():
+                fut.set_result(False)

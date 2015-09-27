@@ -23,7 +23,7 @@ _mode_enc = {
 
 
 class _TTLWidget(QtGui.QFrame):
-    def __init__(self, send_to_device, channel, force_out, name):
+    def __init__(self, send_to_device, channel, force_out, title):
         self.send_to_device = send_to_device
         self.channel = channel
         self.force_out = force_out
@@ -35,8 +35,9 @@ class _TTLWidget(QtGui.QFrame):
 
         grid = QtGui.QGridLayout()
         self.setLayout(grid)
-        label = QtGui.QLabel(name)
+        label = QtGui.QLabel(title)
         label.setAlignment(QtCore.Qt.AlignCenter)
+        label.setWordWrap(True)
         grid.addWidget(label, 1, 1)
 
         self._direction = QtGui.QLabel()
@@ -77,6 +78,12 @@ class _TTLWidget(QtGui.QFrame):
         self._value.addAction(self._forcein_action)
         self._forcein_action.triggered.connect(lambda: self.set_mode("in"))
 
+        grid.setRowStretch(1, 1)
+        grid.setRowStretch(2, 0)
+        grid.setRowStretch(3, 0)
+        grid.setRowStretch(4, 0)
+        grid.setRowStretch(5, 1)
+
         self.set_value(0, False, False)
 
     def set_mode(self, mode):
@@ -112,11 +119,8 @@ class _TTLWidget(QtGui.QFrame):
 
 
 class _DDSWidget(QtGui.QFrame):
-    def __init__(self, send_to_device, channel, sysclk, name):
-        self.send_to_device = send_to_device
-        self.channel = channel
+    def __init__(self, sysclk, title):
         self.sysclk = sysclk
-        self.name = name
 
         QtGui.QFrame.__init__(self)
 
@@ -125,13 +129,19 @@ class _DDSWidget(QtGui.QFrame):
 
         grid = QtGui.QGridLayout()
         self.setLayout(grid)
-        label = QtGui.QLabel(name)
+        label = QtGui.QLabel(title)
         label.setAlignment(QtCore.Qt.AlignCenter)
+        label.setWordWrap(True)
         grid.addWidget(label, 1, 1)
 
         self._value = QtGui.QLabel()
         self._value.setAlignment(QtCore.Qt.AlignCenter)
+        self._value.setWordWrap(True)
         grid.addWidget(self._value, 2, 1, 6, 1)
+
+        grid.setRowStretch(1, 1)
+        grid.setRowStretch(2, 0)
+        grid.setRowStretch(3, 1)
 
         self.set_value(0)
 
@@ -160,18 +170,20 @@ class _DeviceManager:
             return
         try:
             if v["type"] == "local":
+                title = k
+                if "comment" in v:
+                    title += ": " + v["comment"]
                 if v["module"] == "artiq.coredevice.ttl":
                     channel = v["arguments"]["channel"]
                     force_out = v["class"] == "TTLOut"
                     self.ttl_widgets[channel] = _TTLWidget(
-                        self.send_to_device, channel, force_out, k)
+                        self.send_to_device, channel, force_out, title)
                     self.ttl_cb()
                 if (v["module"] == "artiq.coredevice.dds"
                         and v["class"] in {"AD9858", "AD9914"}):
                     channel = v["arguments"]["channel"]
                     sysclk = v["arguments"]["sysclk"]
-                    self.dds_widgets[channel] = _DDSWidget(
-                        self.send_to_device, channel, sysclk, k)
+                    self.dds_widgets[channel] = _DDSWidget(sysclk, title)
                     self.dds_cb()
         except KeyError:
             pass
@@ -208,6 +220,7 @@ class _MonInjDock(dockarea.Dock):
             w = self.grid.itemAt(0)
         for i, (_, w) in enumerate(sorted(widgets, key=itemgetter(0))):
             self.grid.addWidget(w, i // 4, i % 4)
+            self.grid.setColumnStretch(i % 4, 1)
 
 
 class MonInj(TaskObject):

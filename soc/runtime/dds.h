@@ -35,6 +35,7 @@
 #define DDS_FTWL   0x2d
 #define DDS_FTWH   0x2f
 #define DDS_POW    0x31
+#define DDS_ASF    0x33
 #define DDS_FUD    0x80
 #define DDS_GPIO   0x81
 #endif
@@ -58,6 +59,6 @@ void dds_init(long long int timestamp, int channel);
 void dds_batch_enter(long long int timestamp);
 void dds_batch_exit(void);
 void dds_set(long long int timestamp, int channel,
-    unsigned int ftw, unsigned int pow, int phase_mode);
+    unsigned int ftw, unsigned int pow, int phase_mode, unsigned int amplitude);
 
 #endif /* __DDS_H */

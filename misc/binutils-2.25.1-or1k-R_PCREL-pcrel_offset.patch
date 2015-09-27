@@ -1,0 +1,29 @@
+--- a/bfd/elf32-or1k.c        2015-08-02 15:45:34.275922535 +0300
++++ b/bfd/elf32-or1k.c        2015-08-02 15:45:36.635931622 +0300
+@@ -199,7 +199,7 @@
+          FALSE,                 /* partial_inplace */
+          0,                     /* src_mask */
+          0xffffffff,            /* dst_mask */
+-         FALSE),                /* pcrel_offset */
++         TRUE),                 /* pcrel_offset */
+
+   HOWTO (R_OR1K_16_PCREL,
+          0,                     /* rightshift */
+@@ -213,7 +213,7 @@
+          FALSE,                 /* partial_inplace */
+          0,                     /* src_mask */
+          0xffff,                /* dst_mask */
+-         FALSE),                /* pcrel_offset */
++         TRUE),                 /* pcrel_offset */
+
+   HOWTO (R_OR1K_8_PCREL,
+          0,                     /* rightshift */
+@@ -227,7 +227,7 @@
+          FALSE,                 /* partial_inplace */
+          0,                     /* src_mask */
+          0xff,                  /* dst_mask */
+-         FALSE),                /* pcrel_offset */
++         TRUE),                 /* pcrel_offset */
+
+    HOWTO (R_OR1K_GOTPC_HI16,    /* Type.  */
+          16,                    /* Rightshift.  */

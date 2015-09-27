@@ -1,3 +1,6 @@
+# Copyright (C) 2014, 2015 M-Labs Limited
+# Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
+
 from math import sqrt
 
 from artiq.language import *
@@ -66,7 +69,7 @@ class ClockGeneratorLoopback(EnvExperiment):
 class PulseRate(EnvExperiment):
     def build(self):
         self.attr_device("core")
-        self.attr_device("loop_out")
+        self.attr_device("ttl_out")
 
     @kernel
     def run(self):
@@ -74,7 +77,7 @@ class PulseRate(EnvExperiment):
         while True:
             try:
                 for i in range(1000):
-                    self.loop_out.pulse_mu(dt)
+                    self.ttl_out.pulse_mu(dt)
                     delay_mu(dt)
             except RTIOUnderflow:
                 dt += 1
@@ -139,6 +142,19 @@ class SequenceError(EnvExperiment):
         self.ttl_out.pulse(25*us)
 
 
+class CollisionError(EnvExperiment):
+    def build(self):
+        self.attr_device("core")
+        self.attr_device("ttl_out_serdes")
+
+    @kernel
+    def run(self):
+        delay(5*ms)  # make sure we won't get underflow
+        for i in range(16):
+            self.ttl_out_serdes.pulse_mu(1)
+            delay_mu(1)
+
+
 class TimeKeepsRunning(EnvExperiment):
     def build(self):
         self.attr_device("core")
@@ -190,7 +206,7 @@ class CoredeviceTest(ExperimentCase):
 
     def test_loopback_count(self):
         npulses = 2
-        r = self.execute(LoopbackCount, npulses=npulses)
+        self.execute(LoopbackCount, npulses=npulses)
         count = self.rdb.get("count")
         self.assertEqual(count, npulses)
 
@@ -201,6 +217,10 @@ class CoredeviceTest(ExperimentCase):
     def test_sequence_error(self):
         with self.assertRaises(RTIOSequenceError):
             self.execute(SequenceError)
+
+    def test_collision_error(self):
+        with self.assertRaises(runtime_exceptions.RTIOCollisionError):
+            self.execute(CollisionError)
 
     def test_watchdog(self):
         # watchdog only works on the device

@@ -7,11 +7,13 @@
 #define RTIO_O_STATUS_FULL 1
 #define RTIO_O_STATUS_UNDERFLOW 2
 #define RTIO_O_STATUS_SEQUENCE_ERROR 4
+#define RTIO_O_STATUS_COLLISION_ERROR 8
 #define RTIO_I_STATUS_EMPTY 1
 #define RTIO_I_STATUS_OVERFLOW 2
 
 void rtio_init(void);
 long long int rtio_get_counter(void);
+void rtio_process_exceptional_status(int status, long long int timestamp, int channel);
 
 static inline void rtio_write_and_process_status(long long int timestamp, int channel)
 {
@@ -19,22 +21,8 @@ static inline void rtio_write_and_process_status(long long int timestamp, int ch
 
     rtio_o_we_write(1);
     status = rtio_o_status_read();
-    if(status) {
-        if(status & RTIO_O_STATUS_FULL)
-            while(rtio_o_status_read() & RTIO_O_STATUS_FULL);
-        if(status & RTIO_O_STATUS_UNDERFLOW) {
-            rtio_o_underflow_reset_write(1);
-            artiq_raise_from_c("RTIOUnderflow",
-                "RTIO underflow at {0}mu, channel {1}, counter {2}",
-                timestamp, channel, rtio_get_counter());
-        }
-        if(status & RTIO_O_STATUS_SEQUENCE_ERROR) {
-            rtio_o_sequence_error_reset_write(1);
-            artiq_raise_from_c("RTIOSequenceError",
-                "RTIO sequence error at {0}mu, channel {1}",
-                timestamp, channel, 0);
-        }
-    }
+    if(status)
+        rtio_process_exceptional_status(status, timestamp, channel);
 }
 
 #endif /* __RTIO_H */

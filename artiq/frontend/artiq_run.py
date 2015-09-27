@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (C) 2014, 2015 M-Labs Limited
+# Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
 
 import argparse
 import sys
@@ -56,6 +58,9 @@ class DummyScheduler:
 
     def delete(self, rid):
         logger.info("Deleting RID %s", rid)
+
+    def pause(self):
+        pass
 
 
 def get_argparser(with_file=True):

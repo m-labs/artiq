@@ -7,11 +7,12 @@ import os
 
 # Quamash must be imported first so that pyqtgraph picks up the Qt binding
 # it has chosen.
-from quamash import QEventLoop, QtGui
+from quamash import QEventLoop, QtGui, QtCore
 from pyqtgraph import dockarea
 
-from artiq.protocols.file_db import FlatFileDB
+from artiq.tools import verbosity_args, init_logger
 from artiq.protocols.pc_rpc import AsyncioClient
+from artiq.gui.state import StateManager
 from artiq.gui.explorer import ExplorerDock
 from artiq.gui.moninj import MonInj
 from artiq.gui.results import ResultsDock
@@ -39,64 +40,80 @@ def get_argparser():
     parser.add_argument(
         "--db-file", default="artiq_gui.pyon",
         help="database file for local GUI settings")
+    verbosity_args(parser)
     return parser
 
 
-class _MainWindow(QtGui.QMainWindow):
-    def __init__(self, app):
+class MainWindow(QtGui.QMainWindow):
+    def __init__(self, app, server):
         QtGui.QMainWindow.__init__(self)
         self.setWindowIcon(QtGui.QIcon(os.path.join(data_dir, "icon.png")))
-        self.resize(1400, 800)
-        self.setWindowTitle("ARTIQ")
+        self.setWindowTitle("ARTIQ - {}".format(server))
         self.exit_request = asyncio.Event()
 
     def closeEvent(self, *args):
         self.exit_request.set()
 
+    def save_state(self):
+        return bytes(self.saveGeometry())
+
+    def restore_state(self, state):
+        self.restoreGeometry(QtCore.QByteArray(state))
+
+
 def main():
     args = get_argparser().parse_args()
-
-    db = FlatFileDB(args.db_file, default_data=dict())
+    init_logger(args)
 
     app = QtGui.QApplication([])
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
     atexit.register(lambda: loop.close())
 
+    smgr = StateManager(args.db_file)
+
     schedule_ctl = AsyncioClient()
     loop.run_until_complete(schedule_ctl.connect_rpc(
         args.server, args.port_control, "master_schedule"))
     atexit.register(lambda: schedule_ctl.close_rpc())
 
-    win = _MainWindow(app)
+    win = MainWindow(app, args.server)
     area = dockarea.DockArea()
+    smgr.register(area)
+    smgr.register(win)
     win.setCentralWidget(area)
     status_bar = QtGui.QStatusBar()
     status_bar.showMessage("Connected to {}".format(args.server))
     win.setStatusBar(status_bar)
 
     d_explorer = ExplorerDock(win, status_bar, schedule_ctl)
+    smgr.register(d_explorer)
     loop.run_until_complete(d_explorer.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_explorer.sub_close()))
 
     d_results = ResultsDock(win, area)
+    smgr.register(d_results)
     loop.run_until_complete(d_results.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_results.sub_close()))
 
-    d_ttl_dds = MonInj()
-    loop.run_until_complete(d_ttl_dds.start(args.server, args.port_notify))
-    atexit.register(lambda: loop.run_until_complete(d_ttl_dds.stop()))
+    if os.name != "nt":
+        d_ttl_dds = MonInj()
+        loop.run_until_complete(d_ttl_dds.start(args.server, args.port_notify))
+        atexit.register(lambda: loop.run_until_complete(d_ttl_dds.stop()))
 
     d_params = ParametersDock()
     loop.run_until_complete(d_params.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_params.sub_close()))
 
-    area.addDock(d_ttl_dds.dds_dock, "top")
-    area.addDock(d_ttl_dds.ttl_dock, "above", d_ttl_dds.dds_dock)
-    area.addDock(d_results, "above", d_ttl_dds.ttl_dock)
+    if os.name != "nt":
+        area.addDock(d_ttl_dds.dds_dock, "top")
+        area.addDock(d_ttl_dds.ttl_dock, "above", d_ttl_dds.dds_dock)
+        area.addDock(d_results, "above", d_ttl_dds.ttl_dock)
+    else:
+        area.addDock(d_results, "top")
     area.addDock(d_params, "above", d_results)
     area.addDock(d_explorer, "above", d_params)
 
@@ -125,6 +142,9 @@ def main():
     area.addDock(d_log, "above", d_console)
     area.addDock(d_schedule, "above", d_log)
 
+    smgr.load()
+    smgr.start()
+    atexit.register(lambda: loop.run_until_complete(smgr.stop()))
     win.show()
     loop.run_until_complete(win.exit_request.wait())
 

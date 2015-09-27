@@ -1,6 +1,6 @@
 # Yann Sionneau <ys@m-labs.hk>, 2015
 
-from ctypes import byref, c_ulong
+from ctypes import byref, c_ulong, create_string_buffer
 import logging
 
 import numpy as np
@@ -50,11 +50,13 @@ class DAQmx:
 
     def ping(self):
         try:
-            data = (c_ulong*1)()
-            self.daq.DAQmxGetDevSerialNum(self.device, data)
+            data_len = 128
+            data = create_string_buffer(data_len)
+            self.daq.DAQmxGetSysDevNames(data, data_len)
+            logger.debug("Device names: %s", data.value)
         except:
             return False
-        return True
+        return data.value != ""
 
     def load_sample_values(self, sampling_freq, values):
         """Load sample values into PXI 6733 device.
@@ -93,7 +95,7 @@ class DAQmx:
         values = values.flatten()
         t = self.daq.Task()
         t.CreateAOVoltageChan(self.channels, b"",
-                              min(values), max(values),
+                              min(values), max(values)+1,
                               self.daq.DAQmx_Val_Volts, None)
 
         channel_number = (c_ulong*1)()
@@ -115,9 +117,9 @@ class DAQmx:
         ret = t.WriteAnalogF64(samps_per_channel, False, 0,
                                self.daq.DAQmx_Val_GroupByChannel, values,
                                byref(num_samps_written), None)
-        if num_samps_written.value != nb_values:
-            raise IOError("Error: only {} sample values were written"
-                          .format(num_samps_written.value))
+        if num_samps_written.value != samps_per_channel:
+            raise IOError("Error: only {} sample values per channel were"
+                          "written".format(num_samps_written.value))
         if ret:
             raise IOError("Error while writing samples to the channel buffer")
 

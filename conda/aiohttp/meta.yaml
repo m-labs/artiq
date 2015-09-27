@@ -1,0 +1,36 @@
+package:
+  name: aiohttp
+  version: "0.17.2"
+
+source:
+  fn: aiohttp-0.17.2.tar.gz
+  url: https://pypi.python.org/packages/source/a/aiohttp/aiohttp-0.17.2.tar.gz
+  md5: 7640928fd4b5c1ccf1f8bcad276d39d6
+
+build:
+  number: 0
+
+requirements:
+  build:
+    - python
+    - setuptools
+    - chardet
+
+  run:
+    - python
+    - chardet
+
+test:
+  # Python imports
+  imports:
+    - aiohttp
+
+  requires:
+    - chardet
+    - gunicorn # [not win]
+    - nose
+
+about:
+  home: https://github.com/KeepSafe/aiohttp/
+  license: Apache Software License
+  summary: 'http client/server for asyncio'

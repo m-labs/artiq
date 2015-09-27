@@ -16,7 +16,7 @@ before_install:
   - . ./.travis/get-toolchain.sh
   - . ./.travis/get-anaconda.sh
   - source $HOME/miniconda/bin/activate py34
-  - conda install -q pip coverage binstar migen cython
+  - conda install -q pip coverage anaconda-client migen cython
   - pip install coveralls
 install:
   - conda build conda/artiq
@@ -25,9 +25,9 @@ script:
   - coverage run --source=artiq setup.py test
   - make -C doc/manual html
 after_success:
-  - binstar -q login --hostname $(hostname) --username $binstar_login --password $binstar_password
-  - binstar -q upload --user $binstar_login --channel dev --force $HOME/miniconda/conda-bld/linux-64/artiq-*.tar.bz2
-  - binstar -q logout
+  - anaconda -q login --hostname $(hostname) --username $binstar_login --password $binstar_password
+  - if [ "$TRAVIS_BRANCH" == "master" ]; then anaconda -q upload --user $binstar_login --channel dev --force $HOME/miniconda/conda-bld/linux-64/artiq-*.tar.bz2; fi
+  - anaconda -q logout
   - coveralls
 notifications:
   email:

@@ -8,15 +8,16 @@ Contents:
 
     introduction
     installing
-    getting_started
-    developing_a_ndsp
+    getting_started_core
+    getting_started_mgmt
+    core_device
     management_system
+    environment
     core_language_reference
     core_drivers_reference
     protocols_reference
     ndsp_reference
-    core_device_flash_storage
+    developing_a_ndsp
     utilities
-    fpga_board_ports
     default_network_ports
     faq

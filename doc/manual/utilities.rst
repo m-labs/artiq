@@ -152,3 +152,10 @@ it::
 .. argparse::
    :ref: artiq.frontend.artiq_coretool.get_argparser
    :prog: artiq_coretool
+
+Data to InfluxDB bridge
+-----------------------
+
+.. argparse::
+   :ref: artiq.frontend.artiq_influxdb.get_argparser
+   :prog: artiq_influxdb

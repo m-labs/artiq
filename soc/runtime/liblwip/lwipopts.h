@@ -105,6 +105,10 @@ a lot of data that needs to be copied, this should be set high. */
 
 /* ---------- TCP options ---------- */
 #define LWIP_TCP                1
+#define LWIP_TCP_KEEPALIVE      1
+#define TCP_KEEPIDLE_DEFAULT    1250
+#define TCP_KEEPINTVL_DEFAULT   1000
+#define TCP_KEEPCNT_DEFAULT     3
 #define TCP_TTL                 255
 
 /* Controls if TCP should queue segments that arrive out of
@@ -117,9 +121,8 @@ a lot of data that needs to be copied, this should be set high. */
 /* TCP sender buffer space (bytes). */
 #define TCP_SND_BUF             32 * 1024
 
-/* TCP sender buffer space (pbufs). This must be at least = 2 *
-   TCP_SND_BUF/TCP_MSS for things to work. */
-#define TCP_SND_QUEUELEN        2 * TCP_SND_BUF/TCP_MSS
+/* TCP sender buffer space (pbufs). */
+#define TCP_SND_QUEUELEN        3 * TCP_SND_BUF/TCP_MSS
 
 /* TCP receive window. */
 #define TCP_WND                 16 * 1024

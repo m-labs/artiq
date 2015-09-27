@@ -20,7 +20,13 @@ static int dds_read(int addr)
 {
     int r;
 
-    dds_write(addr | 128, 0);
+#ifdef DDS_AD9858
+#define DDS_READ_FLAG 128
+#endif
+#ifdef DDS_AD9914
+#define DDS_READ_FLAG 256
+#endif
+    dds_write(addr | DDS_READ_FLAG, 0);
     while(rtio_i_status_read() & RTIO_I_STATUS_EMPTY);
     r = rtio_i_data_read();
     rtio_i_re_write(1);

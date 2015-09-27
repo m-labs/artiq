@@ -73,18 +73,20 @@ class NumberValue(_SimpleArgProcessor):
 
     :param unit: A string representing the unit of the value, for user
         interface (UI) purposes.
-    :param step: The step with with the value should be modified by up/down
+    :param step: The step with which the value should be modified by up/down
         buttons in a UI.
     :param min: The minimum value of the argument.
     :param max: The maximum value of the argument.
+    :param ndecimals: The number of decimals a UI should use.
     """
-    def __init__(self, default=NoDefault, unit="", step=None,
-                 min=None, max=None):
+    def __init__(self, default=NoDefault, unit="", step=1.0,
+                 min=None, max=None, ndecimals=2):
         _SimpleArgProcessor.__init__(self, default)
         self.unit = unit
         self.step = step
         self.min = min
         self.max = max
+        self.ndecimals = ndecimals
 
     def describe(self):
         d = _SimpleArgProcessor.describe(self)
@@ -92,6 +94,7 @@ class NumberValue(_SimpleArgProcessor):
         d["step"] = self.step
         d["min"] = self.min
         d["max"] = self.max
+        d["ndecimals"] = self.ndecimals
         return d
 
 
@@ -103,13 +106,14 @@ class StringValue(_SimpleArgProcessor):
 class HasEnvironment:
     """Provides methods to manage the environment of an experiment (devices,
     parameters, results, arguments)."""
-    def __init__(self, dmgr=None, pdb=None, rdb=None, *,
+    def __init__(self, dmgr=None, pdb=None, rdb=None, *, parent=None,
                  param_override=dict(), default_arg_none=False, **kwargs):
         self.requested_args = OrderedDict()
 
         self.__dmgr = dmgr
         self.__pdb = pdb
         self.__rdb = rdb
+        self.__parent = parent
         self.__param_override = param_override
         self.__default_arg_none = default_arg_none
 
@@ -133,21 +137,34 @@ class HasEnvironment:
         raise NotImplementedError
 
     def dbs(self):
+        """Returns the device manager, the parameter database and the result
+        database, in this order.
+
+        This is the same order that the constructor takes them, allowing
+        sub-objects to be created with this idiom to pass the environment
+        around: ::
+
+            sub_object = SomeLibrary(*self.dbs())
+        """
         return self.__dmgr, self.__pdb, self.__rdb
 
-    def get_argument(self, key, processor=None):
+    def get_argument(self, key, processor=None, group=None):
         """Retrieves and returns the value of an argument.
 
         :param key: Name of the argument.
         :param processor: A description of how to process the argument, such
             as instances of ``BooleanValue`` and ``NumberValue``.
+        :param group: An optional string that defines what group the argument
+            belongs to, for user interface purposes.
         """
         if not self.__in_build:
             raise TypeError("get_argument() should only "
                             "be called from build()")
+        if self.__parent is not None and key not in self.__kwargs:
+            return self.__parent.get_argument(key, processor, group)
         if processor is None:
             processor = FreeValue()
-        self.requested_args[key] = processor
+        self.requested_args[key] = processor, group
         try:
             argval = self.__kwargs[key]
         except KeyError:
@@ -160,13 +177,15 @@ class HasEnvironment:
                     raise
         return processor.process(argval)
 
-    def attr_argument(self, key, processor=None):
+    def attr_argument(self, key, processor=None, group=None):
         """Sets an argument as attribute. The names of the argument and of the
         attribute are the same."""
-        setattr(self, key, self.get_argument(key, processor))
+        setattr(self, key, self.get_argument(key, processor, group))
 
     def get_device(self, key):
         """Creates and returns a device driver."""
+        if self.__parent is not None:
+            return self.__parent.get_device(key)
         if self.__dmgr is None:
             raise ValueError("Device manager not present")
         return self.__dmgr.get(key)
@@ -178,6 +197,8 @@ class HasEnvironment:
 
     def get_parameter(self, key, default=NoDefault):
         """Retrieves and returns a parameter."""
+        if self.__parent is not None and key not in self.__param_override:
+            return self.__parent.get_parameter(key, default)
         if self.__pdb is None:
             raise ValueError("Parameter database not present")
         if key in self.__param_override:
@@ -197,18 +218,26 @@ class HasEnvironment:
 
     def set_parameter(self, key, value):
         """Writes the value of a parameter into the parameter database."""
+        if self.__parent is not None:
+            self.__parent.set_parameter(key, value)
+            return
         if self.__pdb is None:
             raise ValueError("Parameter database not present")
         self.__pdb.set(key, value)
 
-    def set_result(self, key, value, realtime=False):
+    def set_result(self, key, value, realtime=False, store=True):
         """Writes the value of a result.
 
         :param realtime: Marks the result as real-time, making it immediately
             available to clients such as the user interface. Returns a
             ``Notifier`` instance that can be used to modify mutable results
             (such as lists) and synchronize the modifications with the clients.
+        :param store: Defines if the result should be stored permanently,
+            e.g. in HDF5 output. Default is to store.
         """
+        if self.__parent is not None:
+            self.__parent.set_result(key, value, realtime, store)
+            return
         if self.__rdb is None:
             raise ValueError("Result database not present")
         if realtime:
@@ -217,17 +246,13 @@ class HasEnvironment:
             self.__rdb.rt[key] = value
             notifier = self.__rdb.rt[key]
             notifier.kernel_attr_init = False
+            self.__rdb.set_store(key, store)
             return notifier
         else:
             if key in self.__rdb.rt.read:
                 raise ValueError("Result is already realtime")
             self.__rdb.nrt[key] = value
-
-    def attr_rtresult(self, key, init_value):
-        """Writes the value of a real-time result and sets the corresponding
-        ``Notifier`` as attribute. The names of the result and of the
-        attribute are the same."""
-        setattr(self, key, set_result(key, init_value, True))
+            self.__rdb.set_store(key, store)
 
     def get_result(self, key):
         """Retrieves the value of a result.
@@ -235,6 +260,8 @@ class HasEnvironment:
         There is no difference between real-time and non-real-time results
         (this function does not return ``Notifier`` instances).
         """
+        if self.__parent is not None:
+            return self.__parent.get_result(key)
         if self.__rdb is None:
             raise ValueError("Result database not present")
         return self.__rdb.get(key)
@@ -287,6 +314,10 @@ class Experiment:
 
 
 class EnvExperiment(Experiment, HasEnvironment):
+    """Base class for experiments that use the ``HasEnvironment`` environment
+    manager.
+
+    Most experiment should derive from this class."""
     pass
 
 

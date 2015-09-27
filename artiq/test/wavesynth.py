@@ -1,3 +1,5 @@
+# Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
+
 import unittest
 
 from artiq.wavesynth import compute_samples

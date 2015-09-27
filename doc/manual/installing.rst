@@ -15,7 +15,11 @@ Installing Anaconda or Miniconda
 
 * You can either install Anaconda (chose Python 3.4) from https://store.continuum.io/cshop/anaconda/
 
-* Or install the more minimalistic Miniconda (chose Python3.4) from http://conda.pydata.org/miniconda.html
+* Or install the more minimalistic Miniconda (chose Python 3.4) from http://conda.pydata.org/miniconda.html
+
+.. warning::
+    If you are installing on Windows, chose the Windows 32-bit version regardless of whether you have
+    a 32-bit or 64-bit Windows.
 
 After installing either Anaconda or Miniconda, open a new terminal and make sure the following command works::
 
@@ -25,7 +29,7 @@ If it prints the help of the ``conda`` command, your install is OK.
 If not, then make sure your ``$PATH`` environment variable contains the path to anaconda3/bin (or miniconda3/bin)::
 
     $ echo $PATH
-    /home/fallen/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games
+    /home/..../miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games
 
 If your ``$PATH`` misses reference the miniconda3/bin or anaconda3/bin you can fix this by typing::
 
@@ -36,7 +40,7 @@ Installing the host side software
 
 For this, you need to add our binstar repository to your conda configuration::
 
-    $ conda config --add channels http://conda.anaconda.org/fallen/channel/dev
+    $ conda config --add channels http://conda.anaconda.org/m-labs/channel/dev
 
 Then you can install the ARTIQ package, it will pull all the necessary dependencies::
 
@@ -70,8 +74,6 @@ Next step (for KC705) is to flash MAC and IP addresses to the board:
 Installing from source
 ----------------------
 
-You can skip the first two steps if you already installed from conda.
-
 Preparing the build environment for the core device
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -83,6 +85,11 @@ and the ARTIQ kernels.
 
         $ mkdir ~/artiq-dev
 
+* Clone ARTIQ repository: ::
+
+        $ cd ~/artiq-dev
+        $ git clone --recursive https://github.com/m-labs/artiq
+
 * Install OpenRISC binutils (or1k-linux-...): ::
 
         $ cd ~/artiq-dev
@@ -90,8 +97,11 @@ and the ARTIQ kernels.
         $ tar xvf binutils-2.25.1.tar.bz2
         $ rm binutils-2.25.1.tar.bz2
 
-        $ mkdir binutils-2.25.1/build
-        $ cd binutils-2.25.1/build
+        $ cd binutils-2.25.1
+        $ patch -p1 <~/artiq-dev/misc/binutils-2.25.1-or1k-R_PCREL-pcrel_offset.patch
+
+        $ mkdir build
+        $ cd build
         $ ../configure --target=or1k-linux --prefix=/usr/local
         $ make -j4
         $ sudo make install
@@ -166,7 +176,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
         ::
 
             $ cd ~/artiq-dev
-            $ wget http://www.phys.ethz.ch/~robertjo/bscan_spi_lx45_csg324.bit
+            $ wget https://people.phys.ethz.ch/~robertjo/bscan_spi_lx45_csg324.bit
 
         Then copy ``~/artiq-dev/bscan_spi_lx45_csg324.bit`` to ``~/.migen``, ``/usr/local/share/migen`` or ``/usr/share/migen``.
 
@@ -190,14 +200,22 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 * Download and install ARTIQ: ::
 
         $ cd ~/artiq-dev
-        $ git clone https://github.com/m-labs/artiq
+        $ git clone --recursive https://github.com/m-labs/artiq
         $ python3 setup.py develop --user
+
+.. note::
+    If you have any trouble during ARTIQ setup about ``pygit2`` installation,
+    refer to the section dealing with
+    :ref:`installing the host-side software <installing-the-host-side-software>`.
+
 
 * Build and flash the bitstream and BIOS by running `from the MiSoC top-level directory`:
     ::
 
         $ cd ~/artiq-dev/misoc
-        $ export PATH=$PATH:/usr/local/llvm-or1k/bin
+        $ export PATH=/usr/local/llvm-or1k/bin:$PATH
+
+    .. note:: Make sure that ``/usr/local/llvm-or1k/bin`` is first in your ``PATH``, so that the ``clang`` command you just built is found instead of the system one, if any.
 
     * For Pipistrello::
 
@@ -226,6 +244,57 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
         ARTIQ runtime built <date/time>
 
 The communication parameters are 115200 8-N-1.
+
+.. _installing-the-host-side-software:
+
+Installing the host-side software
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* Install the llvmlite Python bindings: ::
+
+        $ cd ~/artiq-dev
+        $ git clone https://github.com/m-labs/llvmlite
+        $ git checkout artiq
+        $ cd llvmlite
+        $ LLVM_CONFIG=/usr/local/llvm-or1k/bin/llvm-config python3 setup.py install --user
+
+* Install ARTIQ: ::
+
+        $ cd ~/artiq-dev
+        $ git clone --recursive https://github.com/m-labs/artiq # if not already done
+        $ cd artiq
+        $ python3 setup.py develop --user
+
+.. note::
+    If you have any trouble during ARTIQ setup about ``pygit2`` installation,
+    you can install it by using ``pip``:
+
+    On Ubuntu 14.04::
+
+        $ pip install --user pygit2==0.19.1
+
+    On Ubuntu 14.10::
+
+        $ pip install --user pygit2==0.20.3
+
+    On Ubuntu 15.04 and 15.10::
+
+        $ pip install --user pygit2==0.22.1
+
+    The rationale behind this is that pygit2 and libgit2 must have the same
+    major.minor version numbers.
+
+    See http://www.pygit2.org/install.html#version-numbers
+
+* Build the documentation: ::
+
+        $ cd ~/artiq-dev/artiq/doc/manual
+        $ make html
+
+Configuring the core device
+---------------------------
+
+This should be done after either installation methods (conda or source).
 
 .. _flash-mac-ip-addr:
 
@@ -258,7 +327,7 @@ The communication parameters are 115200 8-N-1.
 
         You should see something like this in the serial console: ::
 
-            ~/dev/misoc$ ./tools/flterm --port /dev/ttyUSB1
+            $ ./tools/flterm --port /dev/ttyUSB1
             [FLTERM] Starting...
 
             MiSoC BIOS   http://m-labs.hk
@@ -293,37 +362,14 @@ To flash the ``idle`` kernel:
 
 .. note:: You can find more information about how to use the ``artiq_coretool`` utility on the :ref:`Utilities <core-device-access-tool>` page.
 
-Installing the host-side software
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-* Install the llvmlite Python bindings: ::
-
-        $ cd ~/artiq-dev
-        $ git clone https://github.com/m-labs/llvmlite
-        $ git checkout artiq
-        $ cd llvmlite
-        $ LLVM_CONFIG=/usr/local/llvm-or1k/bin/llvm-config python3 setup.py install --user
-
-* Install ARTIQ: ::
-
-        $ cd ~/artiq-dev
-        $ git clone https://github.com/m-labs/artiq # if not already done
-        $ cd artiq
-        $ python3 setup.py develop --user
-
-* Build the documentation: ::
-
-        $ cd ~/artiq-dev/artiq/doc/manual
-        $ make html
-
 Ubuntu 14.04 specific instructions
 ----------------------------------
 
 This command installs all the required packages: ::
 
-    $ sudo apt-get install build-essential autotools-dev file git patch perl xutils-devs python3-pip texinfo flex bison libmpc-dev python3-serial python3-dateutil python3-prettytable python3-setuptools python3-numpy python3-scipy python3-sphinx python3-h5py python3-dev python-dev subversion cmake libusb-dev libftdi-dev pkg-config
+    $ sudo apt-get install build-essential autotools-dev file git patch perl xutils-dev python3-pip texinfo flex bison libmpc-dev python3-serial python3-dateutil python3-prettytable python3-setuptools python3-numpy python3-scipy python3-sphinx python3-h5py python3-dev python-dev subversion cmake libusb-dev libftdi-dev pkg-config libffi-dev libgit2-dev
 
-Note that ARTIQ requires Python 3.4 or above.
+Note that ARTIQ requires Python 3.4.3 or above.
 
 To set user permissions on the JTAG and serial ports of the Pipistrello, create a ``/etc/udev/rules.d/30-usb-papilio.rules`` file containing the following: ::
 

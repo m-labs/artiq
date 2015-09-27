@@ -1,6 +1,7 @@
 import unittest
 import asyncio
 import sys
+import os
 from time import sleep
 
 from artiq import *
@@ -38,7 +39,7 @@ class WatchdogTimeoutInBuild(EnvExperiment):
 @asyncio.coroutine
 def _call_worker(worker, expid):
     try:
-        yield from worker.build(0, "main", expid, 0)
+        yield from worker.build(0, "main", None, expid, 0)
         yield from worker.prepare()
         yield from worker.run()
         yield from worker.analyze()
@@ -59,7 +60,10 @@ def _run_experiment(class_name):
 
 class WatchdogCase(unittest.TestCase):
     def setUp(self):
-        self.loop = asyncio.new_event_loop()
+        if os.name == "nt":
+            self.loop = asyncio.ProactorEventLoop()
+        else:
+            self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
     def test_watchdog_no_timeout(self):

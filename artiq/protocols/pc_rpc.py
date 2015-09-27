@@ -18,6 +18,7 @@ import threading
 import time
 import logging
 import inspect
+from operator import itemgetter
 
 from artiq.protocols import pyon
 from artiq.protocols.asyncio_server import AsyncioServer as _AsyncioServer
@@ -78,7 +79,7 @@ class Client:
 
             server_identification = self.__recv()
             self.__target_names = server_identification["targets"]
-            self.__id_parameters = server_identification["parameters"]
+            self.__description = server_identification["description"]
             if target_name is not None:
                 self.select_rpc_target(target_name)
         except:
@@ -93,9 +94,9 @@ class Client:
         self.__socket.sendall((target_name + "\n").encode())
 
     def get_rpc_id(self):
-        """Returns a tuple (target_names, id_parameters) containing the
+        """Returns a tuple (target_names, description) containing the
         identification information of the server."""
-        return (self.__target_names, self.__id_parameters)
+        return (self.__target_names, self.__description)
 
     def close_rpc(self):
         """Closes the connection to the RPC server.
@@ -156,7 +157,7 @@ class AsyncioClient:
         self.__reader = None
         self.__writer = None
         self.__target_names = None
-        self.__id_parameters = None
+        self.__description = None
 
     @asyncio.coroutine
     def connect_rpc(self, host, port, target_name):
@@ -169,7 +170,7 @@ class AsyncioClient:
             self.__writer.write(_init_string)
             server_identification = yield from self.__recv()
             self.__target_names = server_identification["targets"]
-            self.__id_parameters = server_identification["parameters"]
+            self.__description = server_identification["description"]
             if target_name is not None:
                 self.select_rpc_target(target_name)
         except:
@@ -185,9 +186,9 @@ class AsyncioClient:
         self.__writer.write((target_name + "\n").encode())
 
     def get_rpc_id(self):
-        """Returns a tuple (target_names, id_parameters) containing the
+        """Returns a tuple (target_names, description) containing the
         identification information of the server."""
-        return (self.__target_names, self.__id_parameters)
+        return (self.__target_names, self.__description)
 
     def close_rpc(self):
         """Closes the connection to the RPC server.
@@ -198,7 +199,7 @@ class AsyncioClient:
         self.__reader = None
         self.__writer = None
         self.__target_names = None
-        self.__id_parameters = None
+        self.__description = None
 
     def __send(self, obj):
         line = pyon.encode(obj) + "\n"
@@ -240,7 +241,8 @@ class BestEffortClient:
     network errors are suppressed and connections are retried in the
     background.
 
-    RPC calls that failed because of network errors return ``None``.
+    RPC calls that failed because of network errors return ``None``. Other RPC
+    calls are blocking and return the correct value.
 
     :param firstcon_timeout: Timeout to use during the first (blocking)
         connection attempt at object initialization.
@@ -396,13 +398,20 @@ class Server(_AsyncioServer):
     :param targets: A dictionary of objects providing the RPC methods to be
         exposed to the client. Keys are names identifying each object.
         Clients select one of these objects using its name upon connection.
-    :param id_parameters: An optional human-readable string giving more
-        information about the parameters of the server.
+    :param description: An optional human-readable string giving more
+        information about the server.
+    :param builtin_terminate: If set, the server provides a built-in
+        ``terminate`` method that unblocks any tasks waiting on
+        ``wait_terminate``. This is useful to handle server termination
+        requests from clients.
     """
-    def __init__(self, targets, id_parameters=None):
+    def __init__(self, targets, description=None, builtin_terminate=False):
         _AsyncioServer.__init__(self)
         self.targets = targets
-        self.id_parameters = id_parameters
+        self.description = description
+        self.builtin_terminate = builtin_terminate
+        if builtin_terminate:
+            self._terminate_request = asyncio.Event()
 
     @asyncio.coroutine
     def _handle_connection_cr(self, reader, writer):
@@ -413,7 +422,7 @@ class Server(_AsyncioServer):
 
             obj = {
                 "targets": sorted(self.targets.keys()),
-                "parameters": self.id_parameters
+                "description": self.description
             }
             line = pyon.encode(obj) + "\n"
             writer.write(line.encode())
@@ -445,12 +454,27 @@ class Server(_AsyncioServer):
                             argspec = inspect.getfullargspec(method)
                             doc["methods"][name] = (dict(argspec.__dict__),
                                                     inspect.getdoc(method))
+                        if self.builtin_terminate:
+                            doc["methods"]["terminate"] = (
+                                {
+                                    "args": ["self"],
+                                    "defaults": None,
+                                    "varargs": None,
+                                    "varkw": None,
+                                    "kwonlyargs": [],
+                                    "kwonlydefaults": [],
+                                },
+                                "Terminate the server.")
                         obj = {"status": "ok", "ret": doc}
                     elif obj["action"] == "call":
                         logger.debug("calling %s", _PrettyPrintCall(obj))
-                        method = getattr(target, obj["name"])
-                        ret = method(*obj["args"], **obj["kwargs"])
-                        obj = {"status": "ok", "ret": ret}
+                        if self.builtin_terminate and obj["name"] == "terminate":
+                            self._terminate_request.set()
+                            obj = {"status": "ok", "ret": None}
+                        else:
+                            method = getattr(target, obj["name"])
+                            ret = method(*obj["args"], **obj["kwargs"])
+                            obj = {"status": "ok", "ret": ret}
                     else:
                         raise ValueError("Unknown action: {}"
                                          .format(obj["action"]))
@@ -462,18 +486,23 @@ class Server(_AsyncioServer):
         finally:
             writer.close()
 
+    @asyncio.coroutine
+    def wait_terminate(self):
+        yield from self._terminate_request.wait()
 
-def simple_server_loop(targets, host, port, id_parameters=None):
-    """Runs a server until an exception is raised (e.g. the user hits Ctrl-C).
+
+def simple_server_loop(targets, host, port, description=None):
+    """Runs a server until an exception is raised (e.g. the user hits Ctrl-C)
+    or termination is requested by a client.
 
     See ``Server`` for a description of the parameters.
     """
     loop = asyncio.get_event_loop()
     try:
-        server = Server(targets, id_parameters)
+        server = Server(targets, description, True)
         loop.run_until_complete(server.start(host, port))
         try:
-            loop.run_forever()
+            loop.run_until_complete(server.wait_terminate())
         finally:
             loop.run_until_complete(server.stop())
     finally:

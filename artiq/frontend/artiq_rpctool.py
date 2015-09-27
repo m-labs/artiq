@@ -4,6 +4,7 @@ import argparse
 import textwrap
 import sys
 import numpy as np  # Needed to use numpy in RPC call arguments on cmd line
+import pprint
 
 from artiq.protocols.pc_rpc import Client
 
@@ -29,10 +30,10 @@ def get_argparser():
     return parser
 
 
-def list_targets(target_names, id_parameters):
+def list_targets(target_names, description):
     print("Target(s):   " + ", ".join(target_names))
-    if id_parameters is not None:
-        print("Parameters:  " + id_parameters)
+    if description is not None:
+        print("Description: " + description)
 
 
 def list_methods(remote):
@@ -77,7 +78,7 @@ def call_method(remote, method_name, args):
     method = getattr(remote, method_name)
     ret = method(*[eval(arg) for arg in args])
     if ret is not None:
-        print("{}".format(ret))
+        pprint.pprint(ret)
 
 
 def main():
@@ -85,7 +86,7 @@ def main():
 
     remote = Client(args.server, args.port, None)
 
-    targets, id_parameters = remote.get_rpc_id()
+    targets, description = remote.get_rpc_id()
 
     if args.action != "list-targets":
         # If no target specified and remote has only one, then use this one.
@@ -99,7 +100,7 @@ def main():
         remote.select_rpc_target(args.target)
 
     if args.action == "list-targets":
-        list_targets(targets, id_parameters)
+        list_targets(targets, description)
     elif args.action == "list-methods":
         list_methods(remote)
     elif args.action == "call":

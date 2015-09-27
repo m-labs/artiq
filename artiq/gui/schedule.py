@@ -5,14 +5,14 @@ from quamash import QtGui, QtCore
 from pyqtgraph import dockarea
 
 from artiq.protocols.sync_struct import Subscriber
-from artiq.gui.tools import DictSyncModel
+from artiq.gui.tools import elide, DictSyncModel
 
 
 class _ScheduleModel(DictSyncModel):
     def __init__(self, parent, init):
         DictSyncModel.__init__(self,
             ["RID", "Pipeline", "Status", "Prio", "Due date",
-             "File", "Class name"],
+             "Revision", "File", "Class name"],
             parent, init)
 
     def sort_key(self, k, v):
@@ -35,8 +35,17 @@ class _ScheduleModel(DictSyncModel):
                 return time.strftime("%m/%d %H:%M:%S",
                                      time.localtime(v["due_date"]))
         elif column == 5:
-            return v["expid"]["file"]
+            expid = v["expid"]
+            if "repo_rev" in expid:
+                r = expid["repo_rev"]
+                if v["repo_msg"]:
+                    r += "\n" + elide(v["repo_msg"], 40)
+                return r
+            else:
+                return "Outside repo."
         elif column == 6:
+            return v["expid"]["file"]
+        elif column == 7:
             if v["expid"]["class_name"] is None:
                 return ""
             else:
@@ -56,6 +65,8 @@ class ScheduleDock(dockarea.Dock):
         self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
         self.table.horizontalHeader().setResizeMode(
+            QtGui.QHeaderView.ResizeToContents)
+        self.table.verticalHeader().setResizeMode(
             QtGui.QHeaderView.ResizeToContents)
         self.addWidget(self.table)
 

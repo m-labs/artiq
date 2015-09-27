@@ -11,9 +11,10 @@ build:
     entry_points:
         - artiq_client = artiq.frontend.artiq_client:main
         - artiq_compile = artiq.frontend.artiq_compile:main
-        - artiq_coreconfig = artiq.frontend.artiq_coreconfig:main
+        - artiq_coretool = artiq.frontend.artiq_coretool:main
         - artiq_ctlmgr = artiq.frontend.artiq_ctlmgr:main
         - artiq_gui = artiq.frontend.artiq_gui:main
+        - artiq_influxdb = artiq.frontend.artiq_influxdb:main
         - artiq_master = artiq.frontend.artiq_master:main
         - artiq_mkfs = artiq.frontend.artiq_mkfs:main
         - artiq_rpctool = artiq.frontend.artiq_rpctool:main
@@ -32,9 +33,10 @@ requirements:
         - numpy
         - migen
         - pyelftools
+        - binutils-or1k-linux
     run:
         - python >=3.4.3
-        - llvmlite-or1k
+        - llvmlite-artiq
         - scipy
         - numpy
         - prettytable
@@ -48,6 +50,9 @@ requirements:
         - quamash
         - pyqtgraph
         - flterm # [linux]
+        - pygit2
+        - aiohttp
+        - binutils-or1k-linux
 
 test:
     imports:

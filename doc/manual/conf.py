@@ -66,7 +66,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'ARTIQ'
-copyright = '2014-2015, M-Labs / NIST Ion Storage Group'
+copyright = '2014-2015, M-Labs Limited'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

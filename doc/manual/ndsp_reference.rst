@@ -34,6 +34,15 @@ Client
 Lab Brick Digital Attenuator (LDA)
 ----------------------------------
 
+Driver
+++++++
+
+.. automodule:: artiq.devices.lda.driver
+    :members:
+
+Controller
+++++++++++
+
 On Linux, you need to give your user access to the USB device.
 
 You can do that by creating a file under ``/etc/udev/rules.d/`` named
@@ -55,15 +64,6 @@ The serial number must contain exactly 5 digits, prepend it with the necessary n
 Also, the ``SN:`` prefix is mandatory.
 
 You can choose the LDA model with the ``-P`` parameter. The default is LDA-102.
-
-Driver
-++++++
-
-.. automodule:: artiq.devices.lda.driver
-    :members:
-
-Controller
-++++++++++
 
 .. argparse::
    :ref: artiq.frontend.lda_controller.get_argparser
@@ -87,6 +87,25 @@ Controller
 
 Thorlabs T-Cube
 ---------------
+
+TDC001 Driver
++++++++++++++
+
+.. autoclass:: artiq.devices.thorlabs_tcube.driver.Tdc
+    :members:
+
+TPZ001 Driver
++++++++++++++
+
+.. autoclass:: artiq.devices.thorlabs_tcube.driver.Tpz
+    :members:
+
+Controller
+++++++++++
+
+.. argparse::
+    :ref: artiq.frontend.thorlabs_tcube_controller.get_argparser
+    :prog: thorlabs_controller
 
 .. _tdc001-controller-usage-example:
 
@@ -149,28 +168,21 @@ Then, send commands to it via the ``artiq_rpctool`` utility::
     $ artiq_rpctool ::1 3255 call set_output_volts 150 # set output voltage to 150 V
     $ artiq_rpctool ::1 3255 call close # close the device
 
-TDC001 Driver
-+++++++++++++
+NI PXI6733
+----------
 
-.. autoclass:: artiq.devices.thorlabs_tcube.driver.Tdc
-    :members:
+Driver
+++++++
 
-TPZ001 Driver
-+++++++++++++
-
-.. autoclass:: artiq.devices.thorlabs_tcube.driver.Tpz
+.. automodule:: artiq.devices.pxi6733.driver
     :members:
 
 Controller
 ++++++++++
 
 .. argparse::
-    :ref: artiq.frontend.thorlabs_tcube_controller.get_argparser
-    :prog: thorlabs_controller
-
-
-NI PXI6733
-----------
+   :ref: artiq.frontend.pxi6733_controller.get_argparser
+   :prog: pxi6733_controller
 
 PXI6733 controller usage example
 ++++++++++++++++++++++++++++++++
@@ -201,19 +213,3 @@ Then, send a load_sample_values command to it via the ``artiq_rpctool`` utility:
 This loads 4 voltage values as a numpy float array: 1.0 V, 2.0 V, 3.0 V, 4.0 V
 
 Then the device is set up to output those samples at each rising edge of the clock.
-
-Driver
-++++++
-
-.. automodule:: artiq.devices.pxi6733.driver
-    :members:
-
-Controller
-++++++++++
-
-Usage example
-
-.. argparse::
-   :ref: artiq.frontend.pxi6733_controller.get_argparser
-   :prog: pxi6733_controller
-

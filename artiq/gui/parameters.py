@@ -38,7 +38,7 @@ class ParametersDock(dockarea.Dock):
         grid.addWidget(self.search, 0, 0)
 
         self.table = QtGui.QTableView()
-        self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
         self.table.horizontalHeader().setResizeMode(
             QtGui.QHeaderView.ResizeToContents)
         grid.addWidget(self.table, 1, 0)

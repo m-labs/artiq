@@ -1,3 +1,6 @@
+# Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
+# Copyright (C) 2014, 2015 M-Labs Limited
+
 from fractions import Fraction
 
 from migen.fhdl.std import *
@@ -113,7 +116,6 @@ class NIST_QC1(BaseSoC, AMPSoC):
                          sdram_controller_settings=MiniconSettings(l2_size=64*1024),
                          with_timer=False, **kwargs)
         AMPSoC.__init__(self)
-        platform.toolchain.bitgen_opt = "-g Binary:Yes -w"
         platform.toolchain.ise_commands += """
 trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd {build_name}.pcf
 """

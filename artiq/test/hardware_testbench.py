@@ -1,4 +1,9 @@
-import os, sys, unittest, logging
+# Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
+
+import os
+import sys
+import unittest
+import logging
 
 from artiq.language import *
 from artiq.coredevice.core import CompileError

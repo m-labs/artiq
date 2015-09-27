@@ -210,3 +210,15 @@ class Novatech409B:
             result = [r.rstrip().decode() for r in result]
             logger.debug("got device status: %s", result)
             return result
+
+    def ping(self):
+        try:
+            stat = self.get_status()
+        except:
+            return False
+        # check that version number matches is "21"
+        if stat[4][20:] == "21":
+            logger.debug("ping successful")
+            return True
+        else:
+            return False

@@ -60,14 +60,16 @@ static void net_server_close(struct net_server_connstate *cs, struct tcp_pcb *pc
         active_pcb = NULL;
     }
 
-    /* lwip loves to call back with broken pointers. Prevent that. */
-    tcp_arg(pcb, NULL);
-    tcp_recv(pcb, NULL);
-    tcp_sent(pcb, NULL);
-    tcp_err(pcb, NULL);
+    if(pcb) {
+        /* lwip loves to call back with broken pointers. Prevent that. */
+        tcp_arg(pcb, NULL);
+        tcp_recv(pcb, NULL);
+        tcp_sent(pcb, NULL);
+        tcp_err(pcb, NULL);
 
+        tcp_close(pcb);
+    }
     cs_free(cs);
-    tcp_close(pcb);
 }
 
 static err_t net_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
@@ -155,7 +157,7 @@ static void net_server_err(void *arg, err_t err)
     struct net_server_connstate *cs;
 
     cs = (struct net_server_connstate *)arg;
-    cs_free(cs);
+    net_server_close(cs, NULL);
 }
 
 static struct tcp_pcb *listen_pcb;
@@ -177,6 +179,7 @@ static err_t net_server_accept(void *arg, struct tcp_pcb *newpcb, err_t err)
 void net_server_init(void)
 {
     listen_pcb = tcp_new();
+    listen_pcb->so_options |= SOF_KEEPALIVE;
     tcp_bind(listen_pcb, IP_ADDR_ANY, 1381);
     listen_pcb = tcp_listen(listen_pcb);
     tcp_accept(listen_pcb, net_server_accept);
