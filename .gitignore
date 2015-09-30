@@ -14,4 +14,4 @@ doc/manual/_build
 /.coverage
 examples/master/results
 Output/
-/lit-test/libartiq_personality/libartiq_personality.so
+/lit-test/libartiq_support/libartiq_support.so
