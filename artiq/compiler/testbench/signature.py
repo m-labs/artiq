@@ -32,8 +32,8 @@ def main():
         if force_delays:
             for var in mod.globals:
                 typ = mod.globals[var].find()
-                if types.is_function(typ) and iodelay.is_indeterminate(typ.delay):
-                    process_diagnostic(typ.delay.cause)
+                if types.is_function(typ) and types.is_indeterminate_delay(typ.delay):
+                    process_diagnostic(typ.delay.find().cause)
 
         print(repr(mod))
     except:

@@ -7,7 +7,8 @@ def f():
         delay(1.5)
     return 10
 
-# CHECK-L: g: (x:float)->int(width=32) delay(0 mu)
+# CHECK-L: g: (x:float)->int(width=32)
+# CHECK-NOT-L: delay
 def g(x):
     if x > 1.0:
         return 1

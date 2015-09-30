@@ -11,7 +11,8 @@ class _UnknownDelay(Exception):
     pass
 
 class IODelayEstimator(algorithm.Visitor):
-    def __init__(self, ref_period):
+    def __init__(self, engine, ref_period):
+        self.engine         = engine
         self.ref_period     = ref_period
         self.changed        = False
         self.current_delay  = iodelay.Const(0)
@@ -83,7 +84,7 @@ class IODelayEstimator(algorithm.Visitor):
         except (diagnostic.Error, _UnknownDelay):
             pass # we don't care; module-level code is never interleaved
 
-    def visit_function(self, args, body, typ):
+    def visit_function(self, args, body, typ, loc):
         old_args, self.current_args = self.current_args, args
         old_return, self.current_return = self.current_return, None
         old_delay, self.current_delay = self.current_delay, iodelay.Const(0)
@@ -93,19 +94,23 @@ class IODelayEstimator(algorithm.Visitor):
                 self.abort("only return statement at the end of the function "
                            "can be interleaved", self.current_return.loc)
 
-            delay = iodelay.Fixed(self.current_delay.fold())
+            delay = types.TFixedDelay(self.current_delay.fold())
         except diagnostic.Error as error:
-            delay = iodelay.Indeterminate(error.diagnostic)
+            delay = types.TIndeterminateDelay(error.diagnostic)
         self.current_delay = old_delay
         self.current_return = old_return
         self.current_args = old_args
 
-        if iodelay.is_unknown(typ.delay) or iodelay.is_indeterminate(typ.delay):
-            typ.delay = delay
-        elif iodelay.is_fixed(typ.delay):
-            assert typ.delay.value == delay.value
-        else:
-            assert False
+        try:
+            typ.delay.unify(delay)
+        except types.UnificationError as e:
+            printer = types.TypePrinter()
+            diag = diagnostic.Diagnostic("fatal",
+                "delay {delaya} was inferred for this function, but its delay is already "
+                "constrained externally to {delayb}",
+                {"delaya": printer.name(delay), "delayb": printer.name(typ.delay)},
+                loc)
+            self.engine.process(diag)
 
     def visit_FunctionDefT(self, node):
         self.visit(node.args.defaults)
@@ -116,10 +121,10 @@ class IODelayEstimator(algorithm.Visitor):
             body = node.body[:-1]
         else:
             body = node.body
-        self.visit_function(node.args, body, node.signature_type.find())
+        self.visit_function(node.args, body, node.signature_type.find(), node.loc)
 
     def visit_LambdaT(self, node):
-        self.visit_function(node.args, node.body, node.type.find())
+        self.visit_function(node.args, node.body, node.type.find(), node.loc)
 
     def get_iterable_length(self, node):
         def abort(notes):
@@ -225,10 +230,10 @@ class IODelayEstimator(algorithm.Visitor):
             else:
                 assert False
 
-            delay = typ.find().delay
-            if iodelay.is_unknown(delay):
+            delay = typ.find().delay.find()
+            if types.is_var(delay):
                 raise _UnknownDelay()
-            elif iodelay.is_indeterminate(delay):
+            elif delay.is_indeterminate():
                 cause = delay.cause
                 note = diagnostic.Diagnostic("note",
                     "function called here", {},
@@ -236,15 +241,15 @@ class IODelayEstimator(algorithm.Visitor):
                 diag = diagnostic.Diagnostic(cause.level, cause.reason, cause.arguments,
                                              cause.location, cause.highlights, cause.notes + [note])
                 raise diagnostic.Error(diag)
-            elif iodelay.is_fixed(delay):
+            elif delay.is_fixed():
                 args = {}
                 for kw_node in node.keywords:
                     args[kw_node.arg] = kw_node.value
                 for arg_name, arg_node in zip(typ.args, node.args[offset:]):
                     args[arg_name] = arg_node
 
-                free_vars = delay.length.free_vars()
-                self.current_delay += delay.length.fold(
+                free_vars = delay.duration.free_vars()
+                self.current_delay += delay.duration.fold(
                     { arg: self.evaluate(args[arg], abort=abort) for arg in free_vars })
             else:
                 assert False

@@ -4,9 +4,6 @@ the statically inferred RTIO delay arising from executing
 a function.
 """
 
-from pythonparser import diagnostic
-
-
 class Expr:
     def __add__(lhs, rhs):
         assert isinstance(rhs, Expr)
@@ -227,59 +224,3 @@ def is_const(expr, value=None):
 
 def is_zero(expr):
     return is_const(expr, 0)
-
-
-class Delay:
-    pass
-
-class Unknown(Delay):
-    """
-    Unknown delay, that is, IO delay that we have not
-    tried to compute yet.
-    """
-
-    def __repr__(self):
-        return "{}.Unknown()".format(__name__)
-
-class Indeterminate(Delay):
-    """
-    Indeterminate delay, that is, IO delay that can vary from
-    invocation to invocation.
-
-    :ivar cause: (:class:`pythonparser.diagnostic.Diagnostic`)
-        reason for the delay not being inferred
-    """
-
-    def __init__(self, cause):
-        assert isinstance(cause, diagnostic.Diagnostic)
-        self.cause = cause
-
-    def __repr__(self):
-        return "<{}.Indeterminate>".format(__name__)
-
-class Fixed(Delay):
-    """
-    Fixed delay, that is, IO delay that is always the same
-    for every invocation.
-
-    :ivar length: (int) delay in machine units
-    """
-
-    def __init__(self, length):
-        assert isinstance(length, Expr)
-        self.length = length
-
-    def __repr__(self):
-        return "{}.Fixed({})".format(__name__, self.length)
-
-def is_unknown(delay):
-    return isinstance(delay, Unknown)
-
-def is_indeterminate(delay):
-    return isinstance(delay, Indeterminate)
-
-def is_fixed(delay, length=None):
-    if length is None:
-        return isinstance(delay, Fixed)
-    else:
-        return isinstance(delay, Fixed) and delay.length == length

@@ -5,6 +5,7 @@ in :mod:`asttyped`.
 
 import string
 from collections import OrderedDict
+from pythonparser import diagnostic
 from . import iodelay
 
 
@@ -192,8 +193,8 @@ class TFunction(Type):
         optional arguments
     :ivar ret: (:class:`Type`)
         return type
-    :ivar delay: (:class:`iodelay.Delay`)
-        RTIO delay expression
+    :ivar delay: (:class:`Type`)
+        RTIO delay
     """
 
     attributes = OrderedDict([
@@ -201,12 +202,12 @@ class TFunction(Type):
         ('__closure__', _TPointer()),
     ])
 
-    def __init__(self, args, optargs, ret, delay=iodelay.Unknown()):
+    def __init__(self, args, optargs, ret):
         assert isinstance(args, OrderedDict)
         assert isinstance(optargs, OrderedDict)
         assert isinstance(ret, Type)
-        assert isinstance(delay, iodelay.Delay)
-        self.args, self.optargs, self.ret, self.delay = args, optargs, ret, delay
+        self.args, self.optargs, self.ret = args, optargs, ret
+        self.delay = TVar()
 
     def arity(self):
         return len(self.args) + len(self.optargs)
@@ -222,6 +223,7 @@ class TFunction(Type):
                                          list(other.args.values()) + list(other.optargs.values())):
                 selfarg.unify(otherarg)
             self.ret.unify(other.ret)
+            self.delay.unify(other.delay)
         elif isinstance(other, TVar):
             other.unify(self)
         else:
@@ -261,7 +263,7 @@ class TRPCFunction(TFunction):
 
     def __init__(self, args, optargs, ret, service):
         super().__init__(args, optargs, ret,
-                         delay=iodelay.Fixed(iodelay.Constant(0)))
+                         delay=FixedDelay(iodelay.Constant(0)))
         self.service = service
 
     def unify(self, other):
@@ -284,7 +286,7 @@ class TCFunction(TFunction):
 
     def __init__(self, args, ret, name):
         super().__init__(args, OrderedDict(), ret,
-                         delay=iodelay.Fixed(iodelay.Constant(0)))
+                         delay=FixedDelay(iodelay.Constant(0)))
         self.name = name
 
     def unify(self, other):
@@ -418,6 +420,63 @@ class TValue(Type):
     def __ne__(self, other):
         return not (self == other)
 
+class TDelay(Type):
+    """
+    The type-level representation of IO delay.
+    """
+
+    def __init__(self, duration, cause):
+        assert duration is None or isinstance(duration, iodelay.Expr)
+        assert cause is None or isinstance(cause, diagnostic.Diagnostic)
+        assert (not (duration and cause)) and (duration or cause)
+        self.duration, self.cause = duration, cause
+
+    def is_fixed(self):
+        return self.duration is not None
+
+    def is_indeterminate(self):
+        return self.cause is not None
+
+    def find(self):
+        return self
+
+    def unify(self, other):
+        other = other.find()
+
+        if self.is_fixed() and other.is_fixed() and \
+                self.duration.fold() == other.duration.fold():
+            pass
+        elif isinstance(other, TVar):
+            other.unify(self)
+        else:
+            raise UnificationError(self, other)
+
+    def fold(self, accum, fn):
+        # delay types do not participate in folding
+        pass
+
+    def __eq__(self, other):
+        return isinstance(other, TDelay) and \
+                (self.duration == other.duration and \
+                 self.cause == other.cause)
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def __repr__(self):
+        if self.duration is None:
+            return "<{}.TIndeterminateDelay>".format(__name__)
+        elif self.cause is None:
+            return "{}.TFixedDelay({})".format(__name__, self.duration)
+        else:
+            assert False
+
+def TIndeterminateDelay(cause):
+    return TDelay(None, cause)
+
+def TFixedDelay(duration):
+    return TDelay(duration, None)
+
 
 def is_var(typ):
     return isinstance(typ.find(), TVar)
@@ -511,6 +570,16 @@ def get_value(typ):
     else:
         assert False
 
+def is_delay(typ):
+    return isinstance(typ.find(), TDelay)
+
+def is_fixed_delay(typ):
+    return is_delay(typ) and typ.find().is_fixed()
+
+def is_indeterminate_delay(typ):
+    return is_delay(typ) and typ.find().is_indeterminate()
+
+
 class TypePrinter(object):
     """
     A class that prints types using Python-like syntax and gives
@@ -553,14 +622,10 @@ class TypePrinter(object):
             args += ["?%s:%s" % (arg, self.name(typ.optargs[arg])) for arg in typ.optargs]
             signature = "(%s)->%s" % (", ".join(args), self.name(typ.ret))
 
-            if iodelay.is_unknown(typ.delay) or iodelay.is_fixed(typ.delay, 0):
-                pass
-            elif iodelay.is_fixed(typ.delay):
-                signature += " delay({} mu)".format(typ.delay.length)
-            elif iodelay.is_indeterminate(typ.delay):
-                signature += " delay(?)"
-            else:
-                assert False
+            delay = typ.delay.find()
+            if not (isinstance(delay, TVar) or
+                        delay.is_fixed() and iodelay.is_zero(delay.duration)):
+                signature += " " + self.name(delay)
 
             if isinstance(typ, TRPCFunction):
                 return "rpc({}) {}".format(typ.service, signature)
@@ -580,5 +645,12 @@ class TypePrinter(object):
                 return "<constructor {} {{{}}}>".format(typ.name, attrs)
         elif isinstance(typ, TValue):
             return repr(typ.value)
+        elif isinstance(typ, TDelay):
+            if typ.is_fixed():
+                return "delay({} mu)".format(typ.duration)
+            elif typ.is_indeterminate():
+                return "delay(?)"
+            else:
+                assert False
         else:
             assert False

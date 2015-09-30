@@ -50,7 +50,8 @@ class Module:
         inferencer = transforms.Inferencer(engine=self.engine)
         monomorphism_validator = validators.MonomorphismValidator(engine=self.engine)
         escape_validator = validators.EscapeValidator(engine=self.engine)
-        iodelay_estimator = transforms.IODelayEstimator(ref_period=ref_period)
+        iodelay_estimator = transforms.IODelayEstimator(engine=self.engine,
+                                                        ref_period=ref_period)
         artiq_ir_generator = transforms.ARTIQIRGenerator(engine=self.engine,
                                                          module_name=src.name,
                                                          ref_period=ref_period)
