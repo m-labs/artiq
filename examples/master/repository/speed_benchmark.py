@@ -71,8 +71,8 @@ class SpeedBenchmark(EnvExperiment):
     """Speed benchmark"""
     def build(self):
         self.attr_argument("mode", EnumerationValue(["Single experiment",
-                                              "With pause",
-                                              "With scheduler"]))
+                                                     "With pause",
+                                                     "With scheduler"]))
         self.attr_argument("payload", EnumerationValue(["NOP",
                                                         "CoreNOP",
                                                         "CoreSend100Ints",
