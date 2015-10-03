@@ -132,7 +132,7 @@ def main():
         args.server, args.port_control, "master_pdb"))
     atexit.register(lambda: pdb.close_rpc())
     def _get_parameter(k, v):
-        asyncio.async(pdb.set(k, v))
+        asyncio.ensure_future(pdb.set(k, v))
     d_console = ConsoleDock(
         d_params.get_parameter,
         _get_parameter,

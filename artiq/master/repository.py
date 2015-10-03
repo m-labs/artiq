@@ -86,7 +86,7 @@ class Repository:
             self._scanning = False
 
     def scan_async(self, new_cur_rev=None):
-        asyncio.async(exc_to_warning(self.scan(new_cur_rev)))
+        asyncio.ensure_future(exc_to_warning(self.scan(new_cur_rev)))
 
 
 class FilesystemBackend:

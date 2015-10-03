@@ -90,7 +90,7 @@ def exc_to_warning(coro):
 
 @asyncio.coroutine
 def asyncio_wait_or_cancel(fs, **kwargs):
-    fs = [asyncio.async(f) for f in fs]
+    fs = [asyncio.ensure_future(f) for f in fs]
     try:
         d, p = yield from asyncio.wait(fs, **kwargs)
     except:
@@ -105,7 +105,7 @@ def asyncio_wait_or_cancel(fs, **kwargs):
 
 class TaskObject:
     def start(self):
-        self.task = asyncio.async(self._do())
+        self.task = asyncio.ensure_future(self._do())
 
     @asyncio.coroutine
     def stop(self):

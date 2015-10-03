@@ -338,7 +338,10 @@ class ExplorerDock(dockarea.Dock):
             arguments = self.argeditor.get_argument_values(True)
             if arguments is None:
                 return
-            asyncio.async(self.submit(self.pipeline.text(),
-                                      expinfo["file"], expinfo["class_name"],
-                                      arguments, self.priority.value(),
-                                      due_date, self.flush.isChecked()))
+            asyncio.ensure_future(self.submit(self.pipeline.text(),
+                                              expinfo["file"],
+                                              expinfo["class_name"],
+                                              arguments,
+                                              self.priority.value(),
+                                              due_date,
+                                              self.flush.isChecked()))

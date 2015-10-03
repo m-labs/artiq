@@ -59,7 +59,7 @@ class SyncStructCase(unittest.TestCase):
         self.receiving_done = asyncio.Event()
         publisher = asyncio.Future()
         test_dict = asyncio.Future()
-        asyncio.async(start_server(publisher, test_dict))
+        asyncio.ensure_future(start_server(publisher, test_dict))
         loop.run_until_complete(publisher)
         loop.run_until_complete(test_dict)
 
@@ -68,7 +68,7 @@ class SyncStructCase(unittest.TestCase):
         test_vector = dict()
         loop.run_until_complete(write_test_data(test_vector))
 
-        asyncio.async(write_test_data(test_dict))
+        asyncio.ensure_future(write_test_data(test_dict))
         self.subscriber = sync_struct.Subscriber("test", self.init_test_dict,
                                                  self.notify)
         loop.run_until_complete(self.subscriber.connect(test_address,
