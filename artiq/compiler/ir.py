@@ -365,9 +365,9 @@ class BasicBlock(NamedValue):
                     source_lines = loc.source_lines()
                     beg_col, end_col = loc.column(), loc.end().column()
                     source_lines[-1] = \
-                        source_lines[-1][:end_col] + "`" + source_lines[-1][end_col:]
+                        source_lines[-1][:end_col] + "\x1b[0m" + source_lines[-1][end_col:]
                     source_lines[0] = \
-                        source_lines[0][:beg_col] + "`" + source_lines[0][beg_col:]
+                        source_lines[0][:beg_col] + "\x1b[1;32m" + source_lines[0][beg_col:]
 
                     line_desc = "{}:{}".format(loc.source_buffer.name, loc.line())
                     lines += ["; {} {}".format(line_desc, line.rstrip("\n"))
