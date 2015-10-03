@@ -78,7 +78,7 @@ class SpeedBenchmark(EnvExperiment):
                                                         "CoreSend100Ints",
                                                         "CoreSend1MB",
                                                         "CorePrimes"]))
-        self.attr_argument("nruns", NumberValue(10, min=1, max=1000))
+        self.attr_argument("nruns", NumberValue(10, min=1, max=1000, ndecimals=0))
         self.attr_device("core")
         self.attr_device("scheduler")
 
