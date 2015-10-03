@@ -75,23 +75,20 @@ class ScheduleDock(dockarea.Dock):
         delete_action.triggered.connect(self.delete_clicked)
         self.table.addAction(delete_action)
 
-    @asyncio.coroutine
-    def sub_connect(self, host, port):
+    async def sub_connect(self, host, port):
         self.subscriber = Subscriber("schedule", self.init_schedule_model)
-        yield from self.subscriber.connect(host, port)
+        await self.subscriber.connect(host, port)
 
-    @asyncio.coroutine
-    def sub_close(self):
-        yield from self.subscriber.close()
+    async def sub_close(self):
+        await self.subscriber.close()
 
     def init_schedule_model(self, init):
         self.table_model = _ScheduleModel(self.table, init)
         self.table.setModel(self.table_model)
         return self.table_model
 
-    @asyncio.coroutine
-    def delete(self, rid):
-        yield from self.schedule_ctl.delete(rid)
+    async def delete(self, rid):
+        await self.schedule_ctl.delete(rid)
 
     def delete_clicked(self):
         idx = self.table.selectedIndexes()

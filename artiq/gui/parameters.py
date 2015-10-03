@@ -59,14 +59,12 @@ class ParametersDock(dockarea.Dock):
             else:
                 self.table.hideRow(row)
 
-    @asyncio.coroutine
-    def sub_connect(self, host, port):
+    async def sub_connect(self, host, port):
         self.subscriber = Subscriber("parameters", self.init_parameters_model)
-        yield from self.subscriber.connect(host, port)
+        await self.subscriber.connect(host, port)
 
-    @asyncio.coroutine
-    def sub_close(self):
-        yield from self.subscriber.close()
+    async def sub_close(self):
+        await self.subscriber.close()
 
     def init_parameters_model(self, init):
         self.table_model = ParametersModel(self.table, init)

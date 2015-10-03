@@ -69,11 +69,10 @@ class StateManager(TaskObject):
                                exc_info=True)
         pyon.store_file(self.filename, data)
 
-    @asyncio.coroutine
-    def _do(self):
+    async def _do(self):
         try:
             while True:
-                yield from asyncio.sleep(self.autosave_period)
+                await asyncio.sleep(self.autosave_period)
                 self.save()
         finally:
             self.save()

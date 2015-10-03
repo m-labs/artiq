@@ -24,13 +24,12 @@ class RunStatus(Enum):
 
 
 def _mk_worker_method(name):
-    @asyncio.coroutine
-    def worker_method(self, *args, **kwargs):
+    async def worker_method(self, *args, **kwargs):
         if self.worker.closed.is_set():
             return True
         m = getattr(self.worker, name)
         try:
-            return (yield from m(*args, **kwargs))
+            return await m(*args, **kwargs)
         except Exception as e:
             if isinstance(e, asyncio.CancelledError):
                 raise
@@ -97,19 +96,17 @@ class Run:
             runnable = 1
         return (runnable, self.priority, due_date_k, -self.rid)
 
-    @asyncio.coroutine
-    def close(self):
+    async def close(self):
         # called through pool
-        yield from self.worker.close()
+        await self.worker.close()
         del self._notifier[self.rid]
 
     _build = _mk_worker_method("build")
 
-    @asyncio.coroutine
-    def build(self):
-        yield from self._build(self.rid, self.pipeline_name,
-                               self.wd, self.expid,
-                               self.priority)
+    async def build(self):
+        await self._build(self.rid, self.pipeline_name,
+                          self.wd, self.expid,
+                          self.priority)
 
     prepare = _mk_worker_method("prepare")
     run = _mk_worker_method("run")
@@ -154,13 +151,12 @@ class RunPool:
         self.state_changed.notify()
         return rid
 
-    @asyncio.coroutine
-    def delete(self, rid):
+    async def delete(self, rid):
         # called through deleter
         if rid not in self.runs:
             return
         run = self.runs[rid]
-        yield from run.close()
+        await run.close()
         if "repo_rev" in run.expid:
             self.repo_backend.release_rev(run.expid["repo_rev"])
         del self.runs[rid]
@@ -203,14 +199,13 @@ class PrepareStage(TaskObject):
         else:
             return candidate.due_date - now
 
-    @asyncio.coroutine
-    def _do(self):
+    async def _do(self):
         while True:
             run = self._get_run()
             if run is None:
-                yield from self.pool.state_changed.wait()
+                await self.pool.state_changed.wait()
             elif isinstance(run, float):
-                yield from asyncio_wait_or_cancel([self.pool.state_changed.wait()],
+                await asyncio_wait_or_cancel([self.pool.state_changed.wait()],
                                                   timeout=run)
             else:
                 if run.flush:
@@ -221,7 +216,7 @@ class PrepareStage(TaskObject):
                                   for r in self.pool.runs.values()):
                         ev = [self.pool.state_changed.wait(),
                               run.worker.closed.wait()]
-                        yield from asyncio_wait_or_cancel(
+                        await asyncio_wait_or_cancel(
                             ev, return_when=asyncio.FIRST_COMPLETED)
                         if run.worker.closed.is_set():
                             break
@@ -229,8 +224,8 @@ class PrepareStage(TaskObject):
                             continue
                 run.status = RunStatus.preparing
                 try:
-                    yield from run.build()
-                    yield from run.prepare()
+                    await run.build()
+                    await run.prepare()
                 except:
                     logger.warning("got worker exception in prepare stage, "
                                    "deleting RID %d",
@@ -255,8 +250,7 @@ class RunStage(TaskObject):
             r = None
         return r
 
-    @asyncio.coroutine
-    def _do(self):
+    async def _do(self):
         stack = []
 
         while True:
@@ -265,7 +259,7 @@ class RunStage(TaskObject):
                     next_irun is not None and
                     next_irun.priority_key() > stack[-1].priority_key()):
                 while next_irun is None:
-                    yield from self.pool.state_changed.wait()
+                    await self.pool.state_changed.wait()
                     next_irun = self._get_run()
                 stack.append(next_irun)
 
@@ -273,10 +267,10 @@ class RunStage(TaskObject):
             try:
                 if run.status == RunStatus.paused:
                     run.status = RunStatus.running
-                    completed = yield from run.resume()
+                    completed = await run.resume()
                 else:
                     run.status = RunStatus.running
-                    completed = yield from run.run()
+                    completed = await run.run()
             except:
                 logger.warning("got worker exception in run stage, "
                                "deleting RID %d",
@@ -305,17 +299,16 @@ class AnalyzeStage(TaskObject):
             r = None
         return r
 
-    @asyncio.coroutine
-    def _do(self):
+    async def _do(self):
         while True:
             run = self._get_run()
             while run is None:
-                yield from self.pool.state_changed.wait()
+                await self.pool.state_changed.wait()
                 run = self._get_run()
             run.status = RunStatus.analyzing
             try:
-                yield from run.analyze()
-                yield from run.write_results()
+                await run.analyze()
+                await run.write_results()
             except:
                 logger.warning("got worker exception in analyze stage, "
                                "deleting RID %d",
@@ -337,12 +330,11 @@ class Pipeline:
         self._run.start()
         self._analyze.start()
 
-    @asyncio.coroutine
-    def stop(self):
+    async def stop(self):
         # NB: restart of a stopped pipeline is not supported
-        yield from self._analyze.stop()
-        yield from self._run.stop()
-        yield from self._prepare.stop()
+        await self._analyze.stop()
+        await self._run.stop()
+        await self._prepare.stop()
 
 
 class Deleter(TaskObject):
@@ -358,36 +350,32 @@ class Deleter(TaskObject):
                 break
         self._queue.put_nowait(rid)
 
-    @asyncio.coroutine
-    def join(self):
-        yield from self._queue.join()
+    async def join(self):
+        await self._queue.join()
 
-    @asyncio.coroutine
-    def _delete(self, rid):
+    async def _delete(self, rid):
         for pipeline in self._pipelines.values():
             if rid in pipeline.pool.runs:
                 logger.debug("deleting RID %d...", rid)
-                yield from pipeline.pool.delete(rid)
+                await pipeline.pool.delete(rid)
                 logger.debug("deletion of RID %d completed", rid)
                 break
 
-    @asyncio.coroutine
-    def _gc_pipelines(self):
+    async def _gc_pipelines(self):
         pipeline_names = list(self._pipelines.keys())
         for name in pipeline_names:
             if not self._pipelines[name].pool.runs:
                 logger.debug("garbage-collecting pipeline '%s'...", name)
-                yield from self._pipelines[name].stop()
+                await self._pipelines[name].stop()
                 del self._pipelines[name]
                 logger.debug("garbage-collection of pipeline '%s' completed",
                              name)
 
-    @asyncio.coroutine
-    def _do(self):
+    async def _do(self):
         while True:
-            rid = yield from self._queue.get()
-            yield from self._delete(rid)
-            yield from self._gc_pipelines()
+            rid = await self._queue.get()
+            await self._delete(rid)
+            await self._gc_pipelines()
             self._queue.task_done()
 
 
@@ -406,15 +394,14 @@ class Scheduler:
     def start(self):
         self._deleter.start()
 
-    @asyncio.coroutine
-    def stop(self):
+    async def stop(self):
         # NB: restart of a stopped scheduler is not supported
         self._terminated = True  # prevent further runs from being created
         for pipeline in self._pipelines.values():
             for rid in pipeline.pool.runs.keys():
                 self._deleter.delete(rid)
-        yield from self._deleter.join()
-        yield from self._deleter.stop()
+        await self._deleter.join()
+        await self._deleter.stop()
         if self._pipelines:
             logger.warning("some pipelines were not garbage-collected")
 

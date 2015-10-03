@@ -79,27 +79,25 @@ def init_logger(args):
     logging.basicConfig(level=logging.WARNING + args.quiet*10 - args.verbose*10)
 
 
-@asyncio.coroutine
-def exc_to_warning(coro):
+async def exc_to_warning(coro):
     try:
-        yield from coro
+        await coro
     except:
         logger.warning("asyncio coroutine terminated with exception",
                        exc_info=True)
 
 
-@asyncio.coroutine
-def asyncio_wait_or_cancel(fs, **kwargs):
+async def asyncio_wait_or_cancel(fs, **kwargs):
     fs = [asyncio.ensure_future(f) for f in fs]
     try:
-        d, p = yield from asyncio.wait(fs, **kwargs)
+        d, p = await asyncio.wait(fs, **kwargs)
     except:
         for f in fs:
             f.cancel()
         raise
     for f in p:
         f.cancel()
-        yield from asyncio.wait([f])
+        await asyncio.wait([f])
     return fs
 
 
@@ -107,17 +105,15 @@ class TaskObject:
     def start(self):
         self.task = asyncio.ensure_future(self._do())
 
-    @asyncio.coroutine
-    def stop(self):
+    async def stop(self):
         self.task.cancel()
         try:
-            yield from asyncio.wait_for(self.task, None)
+            await asyncio.wait_for(self.task, None)
         except asyncio.CancelledError:
             pass
         del self.task
 
-    @asyncio.coroutine
-    def _do(self):
+    async def _do(self):
         raise NotImplementedError
 
 
@@ -129,13 +125,12 @@ class Condition:
             self._loop = asyncio.get_event_loop()
         self._waiters = collections.deque()
 
-    @asyncio.coroutine
-    def wait(self):
+    async def wait(self):
         """Wait until notified."""
         fut = asyncio.Future(loop=self._loop)
         self._waiters.append(fut)
         try:
-            yield from fut
+            await fut
         finally:
             self._waiters.remove(fut)
 

@@ -68,15 +68,13 @@ class ResultsDock(dockarea.Dock):
     def get_result(self, key):
         return self.table_model.backing_store[key]
 
-    @asyncio.coroutine
-    def sub_connect(self, host, port):
+    async def sub_connect(self, host, port):
         self.subscriber = Subscriber("rt_results", self.init_results_model,
                                      self.on_mod)
-        yield from self.subscriber.connect(host, port)
+        await self.subscriber.connect(host, port)
 
-    @asyncio.coroutine
-    def sub_close(self):
-        yield from self.subscriber.close()
+    async def sub_close(self):
+        await self.subscriber.close()
 
     def init_results_model(self, init):
         self.table_model = ResultsModel(self.table, init)

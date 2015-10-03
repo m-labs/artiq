@@ -96,24 +96,23 @@ class DBWriter(TaskObject):
             logger.warning("failed to update parameter '%s': "
                            "too many pending updates", k)
 
-    @asyncio.coroutine
-    def _do(self):
+    async def _do(self):
         while True:
-            k, v = yield from self._queue.get()
+            k, v = await self._queue.get()
             url = self.base_url + "/write"
             params = {"u": self.user, "p": self.password, "db": self.database,
                       "consistency": "any", "precision": "n"}
             fmt_ty, fmt_v = format_influxdb(v)
             data = "{},parameter={} {}={}".format(self.table, k, fmt_ty, fmt_v)
             try:
-                response = yield from aiohttp.request(
+                response = await aiohttp.request(
                     "POST", url, params=params, data=data)
             except:
                 logger.warning("got exception trying to update '%s'",
                                k, exc_info=True)
             else:
                 if response.status not in (200, 204):
-                    content = (yield from response.content.read()).decode()
+                    content = (await response.content.read()).decode()
                     if content:
                         content = content[:-1]  # drop \n
                     logger.warning("got HTTP status %d "
@@ -144,18 +143,17 @@ class MasterReader(TaskObject):
         self.filter_function = filter_function
         self.writer = writer
 
-    @asyncio.coroutine
-    def _do(self):
+    async def _do(self):
         subscriber = Subscriber(
             "parameters",
             partial(Parameters, self.filter_function, self.writer))
         while True:
             try:
-                yield from subscriber.connect(self.server, self.port)
+                await subscriber.connect(self.server, self.port)
                 try:
-                    yield from asyncio.wait_for(subscriber.receive_task, None)
+                    await asyncio.wait_for(subscriber.receive_task, None)
                 finally:
-                    yield from subscriber.close()
+                    await subscriber.close()
             except (ConnectionAbortedError, ConnectionError,
                     ConnectionRefusedError, ConnectionResetError) as e:
                 logger.warning("Connection to master failed (%s: %s)",
@@ -163,7 +161,7 @@ class MasterReader(TaskObject):
             else:
                 logger.warning("Connection to master lost")
             logger.warning("Retrying in %.1f seconds", self.retry)
-            yield from asyncio.sleep(self.retry)
+            await asyncio.sleep(self.retry)
 
 
 class Filter:

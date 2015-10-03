@@ -12,17 +12,16 @@ from artiq.tools import exc_to_warning
 logger = logging.getLogger(__name__)
 
 
-@asyncio.coroutine
-def _scan_experiments(wd, log):
+async def _scan_experiments(wd, log):
     r = dict()
     for f in os.listdir(wd):
         if f.endswith(".py"):
             try:
                 worker = Worker({"log": lambda message: log("scan", message)})
                 try:
-                    description = yield from worker.examine(os.path.join(wd, f))
+                    description = await worker.examine(os.path.join(wd, f))
                 finally:
-                    yield from worker.close()
+                    await worker.close()
                 for class_name, class_desc in description.items():
                     name = class_desc["name"]
                     arguments = class_desc["arguments"]
@@ -68,8 +67,7 @@ class Repository:
         # The object cannot be used anymore after calling this method.
         self.backend.release_rev(self.cur_rev)
 
-    @asyncio.coroutine
-    def scan(self, new_cur_rev=None):
+    async def scan(self, new_cur_rev=None):
         if self._scanning:
             return
         self._scanning = True
@@ -79,7 +77,7 @@ class Repository:
             wd, _ = self.backend.request_rev(new_cur_rev)
             self.backend.release_rev(self.cur_rev)
             self.cur_rev = new_cur_rev
-            new_explist = yield from _scan_experiments(wd, self.log_fn)
+            new_explist = await _scan_experiments(wd, self.log_fn)
 
             _sync_explist(self.explist, new_explist)
         finally:

@@ -56,60 +56,55 @@ class Controller:
         self.process = None
         self.launch_task = asyncio.Task(self.launcher())
 
-    @asyncio.coroutine
-    def end(self):
+    async def end(self):
         self.launch_task.cancel()
-        yield from asyncio.wait_for(self.launch_task, None)
+        await asyncio.wait_for(self.launch_task, None)
 
-    @asyncio.coroutine
-    def _call_controller(self, method):
+    async def _call_controller(self, method):
         remote = AsyncioClient()
-        yield from remote.connect_rpc(self.host, self.port, None)
+        await remote.connect_rpc(self.host, self.port, None)
         try:
             targets, _ = remote.get_rpc_id()
             remote.select_rpc_target(targets[0])
-            r = yield from getattr(remote, method)()
+            r = await getattr(remote, method)()
         finally:
             remote.close_rpc()
         return r
 
-    @asyncio.coroutine
-    def _ping(self):
+    async def _ping(self):
         try:
-            ok = yield from asyncio.wait_for(self._call_controller("ping"),
-                                             self.ping_timeout)
+            ok = await asyncio.wait_for(self._call_controller("ping"),
+                                        self.ping_timeout)
             if ok:
                 self.retry_timer_cur = self.retry_timer
             return ok
         except:
             return False
 
-    @asyncio.coroutine
-    def _wait_and_ping(self):
+    async def _wait_and_ping(self):
         while True:
             try:
-                yield from asyncio.wait_for(self.process.wait(),
-                                            self.ping_timer)
+                await asyncio.wait_for(self.process.wait(),
+                                       self.ping_timer)
             except asyncio.TimeoutError:
                 logger.debug("pinging controller %s", self.name)
-                ok = yield from self._ping()
+                ok = await self._ping()
                 if not ok:
                     logger.warning("Controller %s ping failed", self.name)
-                    yield from self._terminate()
+                    await self._terminate()
                     return
             else:
                 break
 
-    @asyncio.coroutine
-    def launcher(self):
+    async def launcher(self):
         try:
             while True:
                 logger.info("Starting controller %s with command: %s",
                             self.name, self.command)
                 try:
-                    self.process = yield from asyncio.create_subprocess_exec(
+                    self.process = await asyncio.create_subprocess_exec(
                         *shlex.split(self.command))
-                    yield from self._wait_and_ping()
+                    await self._wait_and_ping()
                 except FileNotFoundError:
                     logger.warning("Controller %s failed to start", self.name)
                 else:
@@ -117,33 +112,32 @@ class Controller:
                 logger.warning("Restarting in %.1f seconds",
                                self.retry_timer_cur)
                 try:
-                    yield from asyncio.wait_for(self.retry_now.wait(),
-                                                self.retry_timer_cur)
+                    await asyncio.wait_for(self.retry_now.wait(),
+                                           self.retry_timer_cur)
                 except asyncio.TimeoutError:
                     pass
                 self.retry_timer_cur *= self.retry_timer_backoff
         except asyncio.CancelledError:
-            yield from self._terminate()
+            await self._terminate()
 
-    @asyncio.coroutine
-    def _terminate(self):
+    async def _terminate(self):
         logger.info("Terminating controller %s", self.name)
         if self.process is not None and self.process.returncode is None:
             try:
-                yield from asyncio.wait_for(self._call_controller("terminate"),
-                                            self.term_timeout)
+                await asyncio.wait_for(self._call_controller("terminate"),
+                                       self.term_timeout)
             except:
                 logger.warning("Controller %s did not respond to terminate "
                                "command, killing", self.name)
                 self.process.kill()
             try:
-                yield from asyncio.wait_for(self.process.wait(),
-                                            self.term_timeout)
+                await asyncio.wait_for(self.process.wait(),
+                                       self.term_timeout)
             except:
                 logger.warning("Controller %s failed to exit, killing",
                                self.name)
                 self.process.kill()
-                yield from self.process.wait()
+                await self.process.wait()
         logger.debug("Controller %s terminated", self.name)
 
 
@@ -163,17 +157,16 @@ class Controllers:
         self.active = dict()
         self.process_task = asyncio.Task(self._process())
 
-    @asyncio.coroutine
-    def _process(self):
+    async def _process(self):
         while True:
-            action, param = yield from self.queue.get()
+            action, param = await self.queue.get()
             if action == "set":
                 k, ddb_entry = param
                 if k in self.active:
-                    yield from self.active[k].end()
+                    await self.active[k].end()
                 self.active[k] = Controller(k, ddb_entry)
             elif action == "del":
-                yield from self.active[param].end()
+                await self.active[param].end()
                 del self.active[param]
             else:
                 raise ValueError
@@ -196,11 +189,10 @@ class Controllers:
         for name in set(self.active_or_queued):
             del self[name]
 
-    @asyncio.coroutine
-    def shutdown(self):
+    async def shutdown(self):
         self.process_task.cancel()
         for c in self.active.values():
-            yield from c.end()
+            await c.end()
 
 
 class ControllerDB:
@@ -225,8 +217,7 @@ class ControllerManager(TaskObject):
         self.retry_master = retry_master
         self.controller_db = ControllerDB()
 
-    @asyncio.coroutine
-    def _do(self):
+    async def _do(self):
         try:
             subscriber = Subscriber("devices",
                                     self.controller_db.sync_struct_init)
@@ -236,12 +227,12 @@ class ControllerManager(TaskObject):
                         s = subscriber.writer.get_extra_info("socket")
                         localhost = s.getsockname()[0]
                         self.controller_db.set_host_filter(localhost)
-                    yield from subscriber.connect(self.server, self.port,
-                                                  set_host_filter)
+                    await subscriber.connect(self.server, self.port,
+                                             set_host_filter)
                     try:
-                        yield from asyncio.wait_for(subscriber.receive_task, None)
+                        await asyncio.wait_for(subscriber.receive_task, None)
                     finally:
-                        yield from subscriber.close()
+                        await subscriber.close()
                 except (ConnectionAbortedError, ConnectionError,
                         ConnectionRefusedError, ConnectionResetError) as e:
                     logger.warning("Connection to master failed (%s: %s)",
@@ -249,11 +240,11 @@ class ControllerManager(TaskObject):
                 else:
                     logger.warning("Connection to master lost")
                 logger.warning("Retrying in %.1f seconds", self.retry_master)
-                yield from asyncio.sleep(self.retry_master)
+                await asyncio.sleep(self.retry_master)
         except asyncio.CancelledError:
             pass
         finally:
-            yield from self.controller_db.current_controllers.shutdown()
+            await self.controller_db.current_controllers.shutdown()
 
     def retry_now(self, k):
         """If a controller is disabled and pending retry, perform that retry

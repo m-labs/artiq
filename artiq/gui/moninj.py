@@ -232,26 +232,24 @@ class MonInj(TaskObject):
         self.dm = _DeviceManager(self.send_to_device, dict())
         self.transport = None
 
-    @asyncio.coroutine
-    def start(self, server, port):
+    async def start(self, server, port):
         loop = asyncio.get_event_loop()
-        yield from loop.create_datagram_endpoint(lambda: self,
+        await loop.create_datagram_endpoint(lambda: self,
                                                  family=socket.AF_INET)
         try:
-            yield from self.subscriber.connect(server, port)
+            await self.subscriber.connect(server, port)
             try:
                 TaskObject.start(self)
             except:
-                yield from self.subscriber.close()
+                await self.subscriber.close()
                 raise
         except:
             self.transport.close()
             raise
 
-    @asyncio.coroutine
-    def stop(self):
-        yield from TaskObject.stop(self)
-        yield from self.subscriber.close()
+    async def stop(self):
+        await TaskObject.stop(self)
+        await self.subscriber.close()
         if self.transport is not None:
             self.transport.close()
             self.transport = None
@@ -295,10 +293,9 @@ class MonInj(TaskObject):
         else:
             self.transport.sendto(data, (ca, 3250))
 
-    @asyncio.coroutine
-    def _do(self):
+    async def _do(self):
         while True:
-            yield from asyncio.sleep(0.2)
+            await asyncio.sleep(0.2)
             # MONINJ_REQ_MONITOR
             self.send_to_device(b"\x01")
 

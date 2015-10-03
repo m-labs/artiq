@@ -8,7 +8,6 @@ test_address = "::1"
 test_port = 7777
 
 
-@asyncio.coroutine
 def write_test_data(test_dict):
     test_values = [5, 2.1, None, True, False,
                    {"a": 5, 2: np.linspace(0, 10, 1)},
@@ -30,12 +29,11 @@ def write_test_data(test_dict):
     test_dict["finished"] = True
 
 
-@asyncio.coroutine
-def start_server(publisher_future, test_dict_future):
+async def start_server(publisher_future, test_dict_future):
     test_dict = sync_struct.Notifier(dict())
     publisher = sync_struct.Publisher(
         {"test": test_dict})
-    yield from publisher.start(test_address, test_port)
+    await publisher.start(test_address, test_port)
     publisher_future.set_result(publisher)
     test_dict_future.set_result(test_dict)
 
@@ -66,9 +64,9 @@ class SyncStructCase(unittest.TestCase):
         self.publisher = publisher.result()
         test_dict = test_dict.result()
         test_vector = dict()
-        loop.run_until_complete(write_test_data(test_vector))
+        write_test_data(test_vector)
 
-        asyncio.ensure_future(write_test_data(test_dict))
+        write_test_data(test_dict)
         self.subscriber = sync_struct.Subscriber("test", self.init_test_dict,
                                                  self.notify)
         loop.run_until_complete(self.subscriber.connect(test_address,

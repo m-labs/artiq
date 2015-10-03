@@ -36,15 +36,14 @@ class WatchdogTimeoutInBuild(EnvExperiment):
         pass
 
 
-@asyncio.coroutine
-def _call_worker(worker, expid):
+async def _call_worker(worker, expid):
     try:
-        yield from worker.build(0, "main", None, expid, 0)
-        yield from worker.prepare()
-        yield from worker.run()
-        yield from worker.analyze()
+        await worker.build(0, "main", None, expid, 0)
+        await worker.prepare()
+        await worker.run()
+        await worker.analyze()
     finally:
-        yield from worker.close()
+        await worker.close()
 
 
 def _run_experiment(class_name):

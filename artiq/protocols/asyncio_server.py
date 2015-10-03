@@ -12,8 +12,7 @@ class AsyncioServer:
     def __init__(self):
         self._client_tasks = set()
 
-    @asyncio.coroutine
-    def start(self, host, port):
+    async def start(self, host, port):
         """Starts the server.
 
         The user must call ``stop`` to free resources properly after this
@@ -26,11 +25,10 @@ class AsyncioServer:
         :param port: TCP port to bind to.
 
         """
-        self.server = yield from asyncio.start_server(self._handle_connection,
-                                                      host, port)
+        self.server = await asyncio.start_server(self._handle_connection,
+                                                 host, port)
 
-    @asyncio.coroutine
-    def stop(self):
+    async def stop(self):
         """Stops the server.
 
         """
@@ -39,11 +37,11 @@ class AsyncioServer:
             task.cancel()
         for task in wait_for:
             try:
-                yield from asyncio.wait_for(task, None)
+                await asyncio.wait_for(task, None)
             except asyncio.CancelledError:
                 pass
         self.server.close()
-        yield from self.server.wait_closed()
+        await self.server.wait_closed()
         del self.server
 
     def _client_done(self, task):

@@ -52,23 +52,22 @@ class RPCCase(unittest.TestCase):
     def test_blocking_echo(self):
         self._run_server_and_test(self._blocking_echo)
 
-    @asyncio.coroutine
-    def _asyncio_echo(self):
+    async def _asyncio_echo(self):
         remote = pc_rpc.AsyncioClient()
         for attempt in range(100):
-            yield from asyncio.sleep(.2)
+            await asyncio.sleep(.2)
             try:
-                yield from remote.connect_rpc(test_address, test_port, "test")
+                await remote.connect_rpc(test_address, test_port, "test")
             except ConnectionRefusedError:
                 pass
             else:
                 break
         try:
-            test_object_back = yield from remote.echo(test_object)
+            test_object_back = await remote.echo(test_object)
             self.assertEqual(test_object, test_object_back)
             with self.assertRaises(pc_rpc.RemoteError):
-                yield from remote.non_existing_method()
-            yield from remote.terminate()
+                await remote.non_existing_method()
+            await remote.terminate()
         finally:
             remote.close_rpc()
 

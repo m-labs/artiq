@@ -56,27 +56,25 @@ class Worker:
         else:
             return None
 
-    @asyncio.coroutine
-    def _create_process(self):
-        yield from self.io_lock.acquire()
+    async def _create_process(self):
+        await self.io_lock.acquire()
         try:
             if self.closed.is_set():
                 raise WorkerError("Attempting to create process after close")
-            self.process = yield from asyncio.create_subprocess_exec(
+            self.process = await asyncio.create_subprocess_exec(
                 sys.executable, "-m", "artiq.master.worker_impl",
                 stdout=subprocess.PIPE, stdin=subprocess.PIPE)
         finally:
             self.io_lock.release()
 
-    @asyncio.coroutine
-    def close(self, term_timeout=1.0):
+    async def close(self, term_timeout=1.0):
         """Interrupts any I/O with the worker process and terminates the
         worker process.
 
         This method should always be called by the user to clean up, even if
         build() or examine() raises an exception."""
         self.closed.set()
-        yield from self.io_lock.acquire()
+        await self.io_lock.acquire()
         try:
             if self.process is None:
                 # Note the %s - self.rid can be None
@@ -91,26 +89,25 @@ class Worker:
                 return
             obj = {"action": "terminate"}
             try:
-                yield from self._send(obj, cancellable=False)
+                await self._send(obj, cancellable=False)
             except:
                 logger.warning("failed to send terminate command to worker"
                                " (RID %s), killing", self.rid, exc_info=True)
                 self.process.kill()
-                yield from self.process.wait()
+                await self.process.wait()
                 return
             try:
-                yield from asyncio.wait_for(self.process.wait(), term_timeout)
+                await asyncio.wait_for(self.process.wait(), term_timeout)
             except asyncio.TimeoutError:
                 logger.warning("worker did not exit (RID %s), killing", self.rid)
                 self.process.kill()
-                yield from self.process.wait()
+                await self.process.wait()
             else:
                 logger.debug("worker exited gracefully (RID %s)", self.rid)
         finally:
             self.io_lock.release()
 
-    @asyncio.coroutine
-    def _send(self, obj, cancellable=True):
+    async def _send(self, obj, cancellable=True):
         assert self.io_lock.locked()
         line = pyon.encode(obj)
         self.process.stdin.write(line.encode())
@@ -118,7 +115,7 @@ class Worker:
         ifs = [self.process.stdin.drain()]
         if cancellable:
             ifs.append(self.closed.wait())
-        fs = yield from asyncio_wait_or_cancel(
+        fs = await asyncio_wait_or_cancel(
             ifs, timeout=self.send_timeout,
             return_when=asyncio.FIRST_COMPLETED)
         if all(f.cancelled() for f in fs):
@@ -129,10 +126,9 @@ class Worker:
         if cancellable and self.closed.is_set():
             raise WorkerError("Data transmission to worker cancelled")
 
-    @asyncio.coroutine
-    def _recv(self, timeout):
+    async def _recv(self, timeout):
         assert self.io_lock.locked()
-        fs = yield from asyncio_wait_or_cancel(
+        fs = await asyncio_wait_or_cancel(
             [self.process.stdout.readline(), self.closed.wait()],
             timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
         if all(f.cancelled() for f in fs):
@@ -148,13 +144,12 @@ class Worker:
             raise WorkerError("Worker sent invalid PYON data")
         return obj
 
-    @asyncio.coroutine
-    def _handle_worker_requests(self):
+    async def _handle_worker_requests(self):
         while True:
             try:
-                yield from self.io_lock.acquire()
+                await self.io_lock.acquire()
                 try:
-                    obj = yield from self._recv(self.watchdog_time())
+                    obj = await self._recv(self.watchdog_time())
                 finally:
                     self.io_lock.release()
             except WorkerTimeout:
@@ -181,24 +176,23 @@ class Worker:
             except:
                 reply = {"status": "failed",
                          "message": traceback.format_exc()}
-            yield from self.io_lock.acquire()
+            await self.io_lock.acquire()
             try:
-                yield from self._send(reply)
+                await self._send(reply)
             finally:
                 self.io_lock.release()
 
-    @asyncio.coroutine
-    def _worker_action(self, obj, timeout=None):
+    async def _worker_action(self, obj, timeout=None):
         if timeout is not None:
             self.watchdogs[-1] = time.monotonic() + timeout
         try:
-            yield from self.io_lock.acquire()
+            await self.io_lock.acquire()
             try:
-                yield from self._send(obj)
+                await self._send(obj)
             finally:
                 self.io_lock.release()
             try:
-                completed = yield from self._handle_worker_requests()
+                completed = await self._handle_worker_requests()
             except WorkerTimeout:
                 raise WorkerWatchdogTimeout
         finally:
@@ -206,11 +200,10 @@ class Worker:
                 del self.watchdogs[-1]
         return completed
 
-    @asyncio.coroutine
-    def build(self, rid, pipeline_name, wd, expid, priority, timeout=15.0):
+    async def build(self, rid, pipeline_name, wd, expid, priority, timeout=15.0):
         self.rid = rid
-        yield from self._create_process()
-        yield from self._worker_action(
+        await self._create_process()
+        await self._worker_action(
             {"action": "build",
              "rid": rid,
              "pipeline_name": pipeline_name,
@@ -219,45 +212,39 @@ class Worker:
              "priority": priority},
             timeout)
 
-    @asyncio.coroutine
-    def prepare(self):
-        yield from self._worker_action({"action": "prepare"})
+    async def prepare(self):
+        await self._worker_action({"action": "prepare"})
 
-    @asyncio.coroutine
-    def run(self):
-        completed = yield from self._worker_action({"action": "run"})
+    async def run(self):
+        completed = await self._worker_action({"action": "run"})
         if not completed:
             self.yield_time = time.monotonic()
         return completed
 
-    @asyncio.coroutine
-    def resume(self):
+    async def resume(self):
         stop_duration = time.monotonic() - self.yield_time
         for wid, expiry in self.watchdogs:
             self.watchdogs[wid] += stop_duration
-        completed = yield from self._worker_action({"status": "ok",
-                                                    "data": None})
+        completed = await self._worker_action({"status": "ok",
+                                               "data": None})
         if not completed:
             self.yield_time = time.monotonic()
         return completed
 
-    @asyncio.coroutine
-    def analyze(self):
-        yield from self._worker_action({"action": "analyze"})
+    async def analyze(self):
+        await self._worker_action({"action": "analyze"})
 
-    @asyncio.coroutine
-    def write_results(self, timeout=15.0):
-        yield from self._worker_action({"action": "write_results"},
-                                       timeout)
+    async def write_results(self, timeout=15.0):
+        await self._worker_action({"action": "write_results"},
+                                  timeout)
 
-    @asyncio.coroutine
-    def examine(self, file, timeout=20.0):
-        yield from self._create_process()
+    async def examine(self, file, timeout=20.0):
+        await self._create_process()
         r = dict()
         def register(class_name, name, arguments):
             r[class_name] = {"name": name, "arguments": arguments}
         self.register_experiment = register
-        yield from self._worker_action({"action": "examine",
+        await self._worker_action({"action": "examine",
                                         "file": file}, timeout)
         del self.register_experiment
         return r

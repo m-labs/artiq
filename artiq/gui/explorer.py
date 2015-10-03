@@ -300,23 +300,20 @@ class ExplorerDock(dockarea.Dock):
     def enable_duedate(self):
         self.datetime_en.setChecked(True)
 
-    @asyncio.coroutine
-    def sub_connect(self, host, port):
+    async def sub_connect(self, host, port):
         self.explist_subscriber = Subscriber("explist",
                                              self.init_explist_model)
-        yield from self.explist_subscriber.connect(host, port)
+        await self.explist_subscriber.connect(host, port)
 
-    @asyncio.coroutine
-    def sub_close(self):
-        yield from self.explist_subscriber.close()
+    async def sub_close(self):
+        await self.explist_subscriber.close()
 
     def init_explist_model(self, init):
         self.explist_model = _ExplistModel(self, self.el, init)
         self.el.setModel(self.explist_model)
         return self.explist_model
 
-    @asyncio.coroutine
-    def submit(self, pipeline_name, file, class_name, arguments,
+    async def submit(self, pipeline_name, file, class_name, arguments,
                priority, due_date, flush):
         expid = {
             "repo_rev": None,
@@ -324,8 +321,8 @@ class ExplorerDock(dockarea.Dock):
             "class_name": class_name,
             "arguments": arguments,
         }
-        rid = yield from self.schedule_ctl.submit(pipeline_name, expid,
-                                                  priority, due_date, flush)
+        rid = await self.schedule_ctl.submit(pipeline_name, expid,
+                                             priority, due_date, flush)
         self.status_bar.showMessage("Submitted RID {}".format(rid))
 
     def submit_clicked(self):
