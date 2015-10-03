@@ -11,7 +11,7 @@ import socket
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols.pc_rpc import AsyncioClient, Server
 from artiq.tools import verbosity_args, init_logger
-from artiq.tools import TaskObject, asyncio_process_wait_timeout, Condition
+from artiq.tools import TaskObject, Condition
 
 
 logger = logging.getLogger(__name__)
@@ -88,8 +88,8 @@ class Controller:
     def _wait_and_ping(self):
         while True:
             try:
-                yield from asyncio_process_wait_timeout(self.process,
-                                                        self.ping_timer)
+                yield from asyncio.wait_for(self.process.wait(),
+                                            self.ping_timer)
             except asyncio.TimeoutError:
                 logger.debug("pinging controller %s", self.name)
                 ok = yield from self._ping()
@@ -137,8 +137,8 @@ class Controller:
                                "command, killing", self.name)
                 self.process.kill()
             try:
-                yield from asyncio_process_wait_timeout(self.process,
-                                                        self.term_timeout)
+                yield from asyncio.wait_for(self.process.wait(),
+                                            self.term_timeout)
             except:
                 logger.warning("Controller %s failed to exit, killing",
                                self.name)

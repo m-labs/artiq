@@ -13,9 +13,9 @@ Installing using conda
 Installing Anaconda or Miniconda
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* You can either install Anaconda (chose Python 3.4) from https://store.continuum.io/cshop/anaconda/
+* You can either install Anaconda (chose Python 3.5) from https://store.continuum.io/cshop/anaconda/
 
-* Or install the more minimalistic Miniconda (chose Python 3.4) from http://conda.pydata.org/miniconda.html
+* Or install the more minimalistic Miniconda (chose Python 3.5) from http://conda.pydata.org/miniconda.html
 
 .. warning::
     If you are installing on Windows, chose the Windows 32-bit version regardless of whether you have
@@ -148,7 +148,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
         $ python3 setup.py develop --user
 
 .. note::
-    The options ``develop`` and ``--user`` are for setup.py to install Migen in ``~/.local/lib/python3.4``.
+    The options ``develop`` and ``--user`` are for setup.py to install Migen in ``~/.local/lib/python3.5``.
 
 .. _install-xc3sprog:
 
@@ -369,7 +369,7 @@ This command installs all the required packages: ::
 
     $ sudo apt-get install build-essential autotools-dev file git patch perl xutils-dev python3-pip texinfo flex bison libmpc-dev python3-serial python3-dateutil python3-prettytable python3-setuptools python3-numpy python3-scipy python3-sphinx python3-h5py python3-dev python-dev subversion cmake libusb-dev libftdi-dev pkg-config libffi-dev libgit2-dev
 
-Note that ARTIQ requires Python 3.4.4 or above.
+Note that ARTIQ requires Python 3.5.0 or above.
 
 To set user permissions on the JTAG and serial ports of the Pipistrello, create a ``/etc/udev/rules.d/30-usb-papilio.rules`` file containing the following: ::
 

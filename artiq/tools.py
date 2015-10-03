@@ -89,29 +89,6 @@ def exc_to_warning(coro):
 
 
 @asyncio.coroutine
-def asyncio_process_wait_timeout(process, timeout):
-    # In Python < 3.5, asyncio.wait_for(process.wait(), ...
-    # causes a futures.InvalidStateError inside asyncio if and when the
-    # process terminates after the timeout.
-    # Work around this problem.
-    @asyncio.coroutine
-    def process_wait_returncode_timeout():
-        while True:
-            if process.returncode is not None:
-                break
-            yield from asyncio.sleep(0.1)
-    yield from asyncio.wait_for(process_wait_returncode_timeout(),
-                                timeout=timeout)
-
-@asyncio.coroutine
-def asyncio_process_wait(process):
-    r = True
-    while r:
-        f, p = yield from asyncio.wait([process.stdout.read(1024)])
-        r = f.pop().result()
-
-
-@asyncio.coroutine
 def asyncio_wait_or_cancel(fs, **kwargs):
     fs = [asyncio.async(f) for f in fs]
     try:

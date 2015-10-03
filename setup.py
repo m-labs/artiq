@@ -5,8 +5,8 @@ import sys
 import os
 
 
-if sys.version_info[:3] < (3, 4, 4):
-    raise Exception("You need Python 3.4.4+")
+if sys.version_info[:3] < (3, 5, 0):
+    raise Exception("You need Python 3.5.0+")
 
 
 class PushDocCommand(Command):
