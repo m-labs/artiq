@@ -5,20 +5,20 @@ class PhotonHistogram(EnvExperiment):
     """Photon histogram"""
 
     def build(self):
-        self.attr_device("core")
-        self.attr_device("dds_bus")
-        self.attr_device("bd_dds")
-        self.attr_device("bd_sw")
-        self.attr_device("bdd_dds")
-        self.attr_device("bdd_sw")
-        self.attr_device("pmt")
+        self.setattr_device("core")
+        self.setattr_device("dds_bus")
+        self.setattr_device("bd_dds")
+        self.setattr_device("bd_sw")
+        self.setattr_device("bdd_dds")
+        self.setattr_device("bdd_sw")
+        self.setattr_device("pmt")
 
-        self.attr_argument("nbins", FreeValue(100))
-        self.attr_argument("repeats", FreeValue(100))
+        self.setattr_argument("nbins", FreeValue(100))
+        self.setattr_argument("repeats", FreeValue(100))
 
-        self.attr_parameter("cool_f", 230*MHz)
-        self.attr_parameter("detect_f", 220*MHz)
-        self.attr_parameter("detect_t", 100*us)
+        self.setattr_parameter("cool_f", 230*MHz)
+        self.setattr_parameter("detect_f", 220*MHz)
+        self.setattr_parameter("detect_t", 100*us)
 
     @kernel
     def program_cooling(self):

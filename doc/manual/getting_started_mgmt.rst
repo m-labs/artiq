@@ -53,7 +53,7 @@ Experiments may have arguments whose values can be set in the GUI and used in th
 
 
     def build(self):
-        self.attr_argument("count", NumberValue(ndecimals=0))
+        self.setattr_argument("count", NumberValue(ndecimals=0))
 
     def run(self):
         for i in range(int(self.count)):

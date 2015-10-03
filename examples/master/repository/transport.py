@@ -16,16 +16,16 @@ class Transport(EnvExperiment):
     """Transport"""
 
     def build(self):
-        self.attr_device("core")
-        self.attr_device("bd")
-        self.attr_device("bdd")
-        self.attr_device("pmt")
-        self.attr_device("electrodes")
+        self.setattr_device("core")
+        self.setattr_device("bd")
+        self.setattr_device("bdd")
+        self.setattr_device("pmt")
+        self.setattr_device("electrodes")
 
-        self.attr_argument("wait_at_stop", FreeValue(100*us))
-        self.attr_argument("speed", FreeValue(1.5))
-        self.attr_argument("repeats", FreeValue(100))
-        self.attr_argument("nbins", FreeValue(100))
+        self.setattr_argument("wait_at_stop", FreeValue(100*us))
+        self.setattr_argument("speed", FreeValue(1.5))
+        self.setattr_argument("repeats", FreeValue(100))
+        self.setattr_argument("nbins", FreeValue(100))
 
     def calc_waveforms(self, stop):
         t = transport_data["t"][:stop]*self.speed

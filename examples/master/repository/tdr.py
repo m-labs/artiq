@@ -31,9 +31,9 @@ class TDR(EnvExperiment):
     This is also equivalent to a loopback tester or a delay measurement.
     """
     def build(self):
-        self.attr_device("core")
-        self.attr_device("pmt0")
-        self.attr_device("ttl2")
+        self.setattr_device("core")
+        self.setattr_device("pmt0")
+        self.setattr_device("ttl2")
 
     def run(self):
         n = 1000  # repetitions

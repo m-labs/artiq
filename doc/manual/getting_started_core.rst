@@ -13,14 +13,14 @@ As a very first step, we will turn on a LED on the core device. Create a file ``
 
     class LED(EnvExperiment):
         def build(self):
-            self.attr_device("core")
-            self.attr_device("led")
+            self.setattr_device("core")
+            self.setattr_device("led")
 
         @kernel
         def run(self):
             self.led.on()
 
-The central part of our code is our ``LED`` class, that derives from :class:`artiq.language.environment.EnvExperiment`. Among other features, ``EnvExperiment`` calls our ``build`` method and provides the ``attr_device`` method that interfaces to the device database to create the appropriate device drivers and make those drivers accessible as ``self.core`` and ``self.led``. The ``@kernel`` decorator tells the system that the ``run`` method must be executed on the core device (instead of the host). The decorator uses ``self.core`` internally, which is why we request the core device using ``attr_device`` like any other.
+The central part of our code is our ``LED`` class, that derives from :class:`artiq.language.environment.EnvExperiment`. Among other features, ``EnvExperiment`` calls our ``build`` method and provides the ``setattr_device`` method that interfaces to the device database to create the appropriate device drivers and make those drivers accessible as ``self.core`` and ``self.led``. The ``@kernel`` decorator tells the system that the ``run`` method must be executed on the core device (instead of the host). The decorator uses ``self.core`` internally, which is why we request the core device using ``setattr_device`` like any other.
 
 Copy the files ``ddb.pyon`` and ``pdb.pyon`` (containing the device and parameter databases) from the ``examples/master`` folder of ARTIQ into the same directory as ``led.py`` (alternatively, you can use the ``-d`` and ``-p`` options of ``artiq_run``). You can open the database files using a text editor - their contents are in a human-readable format. You will probably want to set the IP address of the core device in ``ddb.pyon`` so that the computer can connect to it (it is the ``host`` parameter of the ``comm`` entry). See :ref:`ddb` for more information. The example device database is designed for the NIST QC1 hardware on the KC705; see :ref:`board-ports` for RTIO channel assignments if you need to adapt the device database to a different hardware platform.
 
@@ -48,8 +48,8 @@ Modify the code as follows: ::
 
     class LED(EnvExperiment):
         def build(self):
-            self.attr_device("core")
-            self.attr_device("led")
+            self.setattr_device("core")
+            self.setattr_device("led")
 
         @kernel
         def run(self):
@@ -98,8 +98,8 @@ Create a new file ``rtio.py`` containing the following: ::
 
     class Tutorial(EnvExperiment):
         def build(self):
-            self.attr_device("core")
-            self.attr_device("ttl0")
+            self.setattr_device("core")
+            self.setattr_device("ttl0")
 
         @kernel
         def run(self):
@@ -122,8 +122,8 @@ Try reducing the period of the generated waveform until the CPU cannot keep up w
 
     class Tutorial(EnvExperiment):
         def build(self):
-            self.attr_device("core")
-            self.attr_device("ttl0")
+            self.setattr_device("core")
+            self.setattr_device("ttl0")
 
         @kernel
         def run(self):

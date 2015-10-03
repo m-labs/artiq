@@ -177,7 +177,7 @@ class HasEnvironment:
                     raise
         return processor.process(argval)
 
-    def attr_argument(self, key, processor=None, group=None):
+    def setattr_argument(self, key, processor=None, group=None):
         """Sets an argument as attribute. The names of the argument and of the
         attribute are the same."""
         setattr(self, key, self.get_argument(key, processor, group))
@@ -190,7 +190,7 @@ class HasEnvironment:
             raise ValueError("Device manager not present")
         return self.__dmgr.get(key)
 
-    def attr_device(self, key):
+    def setattr_device(self, key):
         """Sets a device driver as attribute. The names of the device driver
          and of the attribute are the same."""
         setattr(self, key, self.get_device(key))
@@ -211,7 +211,7 @@ class HasEnvironment:
             else:
                 raise
 
-    def attr_parameter(self, key, default=NoDefault):
+    def setattr_parameter(self, key, default=NoDefault):
         """Sets a parameter as attribute. The names of the argument and of the
         parameter are the same."""
         setattr(self, key, self.get_parameter(key, default))

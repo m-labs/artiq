@@ -18,7 +18,7 @@ class EmptyExperiment(EnvExperiment):
 
 class BackgroundExperiment(EnvExperiment):
     def build(self):
-        self.attr_device("scheduler")
+        self.setattr_device("scheduler")
 
     def run(self):
         while True:

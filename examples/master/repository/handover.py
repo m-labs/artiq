@@ -3,8 +3,8 @@ from artiq import *
 
 class Handover(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_device("led")
+        self.setattr_device("core")
+        self.setattr_device("led")
 
     @kernel
     def blink_once(self):

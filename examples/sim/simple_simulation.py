@@ -5,9 +5,9 @@ class SimpleSimulation(EnvExperiment):
     """Simple simulation"""
 
     def build(self):
-        self.attr_device("core")
+        self.setattr_device("core")
         for wo in "abcd":
-            self.attr_device(wo)
+            self.setattr_device(wo)
 
     @kernel
     def run(self):

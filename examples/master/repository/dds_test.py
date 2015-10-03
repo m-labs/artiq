@@ -5,15 +5,15 @@ class DDSTest(EnvExperiment):
     """DDS test"""
 
     def build(self):
-        self.attr_device("core")
-        self.attr_device("dds_bus")
-        self.attr_device("dds0")
-        self.attr_device("dds1")
-        self.attr_device("dds2")
-        self.attr_device("ttl0")
-        self.attr_device("ttl1")
-        self.attr_device("ttl2")
-        self.attr_device("led")
+        self.setattr_device("core")
+        self.setattr_device("dds_bus")
+        self.setattr_device("dds0")
+        self.setattr_device("dds1")
+        self.setattr_device("dds2")
+        self.setattr_device("ttl0")
+        self.setattr_device("ttl1")
+        self.setattr_device("ttl2")
+        self.setattr_device("led")
 
     @kernel
     def run(self):

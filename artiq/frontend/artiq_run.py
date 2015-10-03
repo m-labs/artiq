@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 
 class ELFRunner(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_argument("file")
+        self.setattr_device("core")
+        self.setattr_argument("file")
 
     def run(self):
         with open(self.file, "rb") as f:

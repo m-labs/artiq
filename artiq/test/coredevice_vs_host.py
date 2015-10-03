@@ -16,9 +16,9 @@ def _run_on_host(k_class, **arguments):
 
 class _Primes(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_argument("output_list")
-        self.attr_argument("maximum")
+        self.setattr_device("core")
+        self.setattr_argument("output_list")
+        self.setattr_argument("maximum")
 
     @kernel
     def run(self):
@@ -36,7 +36,7 @@ class _Primes(EnvExperiment):
 
 class _Misc(EnvExperiment):
     def build(self):
-        self.attr_device("core")
+        self.setattr_device("core")
 
         self.input = 84
         self.al = [1, 2, 3, 4, 5]
@@ -54,9 +54,9 @@ class _Misc(EnvExperiment):
 
 class _PulseLogger(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_argument("output_list")
-        self.attr_argument("name")
+        self.setattr_device("core")
+        self.setattr_argument("output_list")
+        self.setattr_argument("name")
 
     def _append(self, t, l, f):
         if not hasattr(self, "first_timestamp"):
@@ -81,8 +81,8 @@ class _PulseLogger(EnvExperiment):
 
 class _Pulses(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_argument("output_list")
+        self.setattr_device("core")
+        self.setattr_argument("output_list")
 
         for name in "a", "b", "c", "d":
             pl = _PulseLogger(*self.dbs(),
@@ -108,8 +108,8 @@ class _MyException(Exception):
 
 class _Exceptions(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_argument("trace")
+        self.setattr_device("core")
+        self.setattr_argument("trace")
 
     @kernel
     def run(self):
@@ -152,8 +152,8 @@ class _Exceptions(EnvExperiment):
 
 class _RPCExceptions(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_argument("catch", FreeValue(False))
+        self.setattr_device("core")
+        self.setattr_argument("catch", FreeValue(False))
 
         self.success = False
 

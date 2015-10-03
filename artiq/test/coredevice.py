@@ -11,8 +11,8 @@ from artiq.coredevice import runtime_exceptions
 
 class RTT(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_device("ttl_inout")
+        self.setattr_device("core")
+        self.setattr_device("ttl_inout")
 
     def set_rtt(self, rtt):
         self.set_result("rtt", rtt)
@@ -34,9 +34,9 @@ class RTT(EnvExperiment):
 
 class Loopback(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_device("loop_in")
-        self.attr_device("loop_out")
+        self.setattr_device("core")
+        self.setattr_device("loop_in")
+        self.setattr_device("loop_out")
 
     def set_rtt(self, rtt):
         self.set_result("rtt", rtt)
@@ -56,9 +56,9 @@ class Loopback(EnvExperiment):
 
 class ClockGeneratorLoopback(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_device("loop_clock_in")
-        self.attr_device("loop_clock_out")
+        self.setattr_device("core")
+        self.setattr_device("loop_clock_in")
+        self.setattr_device("loop_clock_out")
 
     def set_count(self, count):
         self.set_result("count", count)
@@ -78,8 +78,8 @@ class ClockGeneratorLoopback(EnvExperiment):
 
 class PulseRate(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_device("ttl_out")
+        self.setattr_device("core")
+        self.setattr_device("ttl_out")
 
     def set_pulse_rate(self, pulse_rate):
         self.set_result("pulse_rate", pulse_rate)
@@ -102,7 +102,7 @@ class PulseRate(EnvExperiment):
 
 class Watchdog(EnvExperiment):
     def build(self):
-        self.attr_device("core")
+        self.setattr_device("core")
 
     @kernel
     def run(self):
@@ -113,9 +113,9 @@ class Watchdog(EnvExperiment):
 
 class LoopbackCount(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_device("ttl_inout")
-        self.attr_argument("npulses")
+        self.setattr_device("core")
+        self.setattr_device("ttl_inout")
+        self.setattr_argument("npulses")
 
     def set_count(self, count):
         self.set_result("count", count)
@@ -135,8 +135,8 @@ class LoopbackCount(EnvExperiment):
 
 class Underflow(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_device("ttl_out")
+        self.setattr_device("core")
+        self.setattr_device("ttl_out")
 
     @kernel
     def run(self):
@@ -147,8 +147,8 @@ class Underflow(EnvExperiment):
 
 class SequenceError(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_device("ttl_out")
+        self.setattr_device("core")
+        self.setattr_device("ttl_out")
 
     @kernel
     def run(self):
@@ -160,8 +160,8 @@ class SequenceError(EnvExperiment):
 
 class CollisionError(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_device("ttl_out_serdes")
+        self.setattr_device("core")
+        self.setattr_device("ttl_out_serdes")
 
     @kernel
     def run(self):
@@ -173,7 +173,7 @@ class CollisionError(EnvExperiment):
 
 class TimeKeepsRunning(EnvExperiment):
     def build(self):
-        self.attr_device("core")
+        self.setattr_device("core")
 
     def set_time_at_start(self, time_at_start):
         self.set_result("time_at_start", time_at_start)
@@ -185,7 +185,7 @@ class TimeKeepsRunning(EnvExperiment):
 
 class Handover(EnvExperiment):
     def build(self):
-        self.attr_device("core")
+        self.setattr_device("core")
 
     @kernel
     def get_now(self):
@@ -265,8 +265,8 @@ class CoredeviceTest(ExperimentCase):
 
 class RPCTiming(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_argument("repeats", FreeValue(100))
+        self.setattr_device("core")
+        self.setattr_argument("repeats", FreeValue(100))
 
     def nop(self, x):
         pass

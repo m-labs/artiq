@@ -27,14 +27,14 @@ class FloppingF(EnvExperiment):
     """Flopping F simulation"""
 
     def build(self):
-        self.attr_argument("frequency_scan", Scannable(
+        self.setattr_argument("frequency_scan", Scannable(
             default=LinearScan(1000, 2000, 100)))
 
-        self.attr_argument("F0", NumberValue(1500, min=1000, max=2000))
-        self.attr_argument("noise_amplitude", NumberValue(0.1, min=0, max=100,
+        self.setattr_argument("F0", NumberValue(1500, min=1000, max=2000))
+        self.setattr_argument("noise_amplitude", NumberValue(0.1, min=0, max=100,
                                                           step=0.01))
 
-        self.attr_device("scheduler")
+        self.setattr_device("scheduler")
 
     def run(self):
         frequency = self.set_result("flopping_f_frequency", [],
