@@ -5,8 +5,8 @@ import sys
 import os
 
 
-if sys.version_info[:3] < (3, 4, 3):
-    raise Exception("You need at least Python 3.4.3 to run ARTIQ")
+if sys.version_info[:3] < (3, 4, 4):
+    raise Exception("You need Python 3.4.4+")
 
 
 class PushDocCommand(Command):

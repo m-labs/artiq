@@ -348,7 +348,7 @@ class Pipeline:
 class Deleter(TaskObject):
     def __init__(self, pipelines):
         self._pipelines = pipelines
-        self._queue = asyncio.JoinableQueue()
+        self._queue = asyncio.Queue()
 
     def delete(self, rid):
         logger.debug("delete request for RID %d", rid)

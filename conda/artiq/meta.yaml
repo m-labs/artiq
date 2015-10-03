@@ -28,14 +28,14 @@ build:
 
 requirements:
     build:
-        - python >=3.4.3
+        - python >=3.4.4
         - setuptools
         - numpy
         - migen
         - pyelftools
         - binutils-or1k-linux
     run:
-        - python >=3.4.3
+        - python >=3.4.4
         - llvmlite-artiq
         - scipy
         - numpy
