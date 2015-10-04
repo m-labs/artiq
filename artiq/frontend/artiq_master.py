@@ -7,6 +7,7 @@ import os
 
 from artiq.protocols.pc_rpc import Server
 from artiq.protocols.sync_struct import Notifier, Publisher, process_mod
+from artiq.master.ddb import DDB
 from artiq.protocols.file_db import FlatFileDB
 from artiq.master.scheduler import Scheduler
 from artiq.master.worker_db import get_last_rid
@@ -64,7 +65,7 @@ def main():
         loop = asyncio.get_event_loop()
     atexit.register(lambda: loop.close())
 
-    ddb = FlatFileDB(args.ddb)
+    ddb = DDB(args.ddb)
     pdb = FlatFileDB(args.pdb)
     rtr = Notifier(dict())
     log = Log(1000)

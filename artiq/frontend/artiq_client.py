@@ -61,16 +61,6 @@ def get_argparser():
     parser_delete.add_argument("rid", type=int,
                                help="run identifier (RID)")
 
-    parser_set_device = subparsers.add_parser(
-        "set-device", help="add or modify a device")
-    parser_set_device.add_argument("name", help="name of the device")
-    parser_set_device.add_argument("description",
-                                   help="description in PYON format")
-
-    parser_del_device = subparsers.add_parser(
-        "del-device", help="delete a device")
-    parser_del_device.add_argument("name", help="name of the device")
-
     parser_set_parameter = subparsers.add_parser(
         "set-parameter", help="add or modify a parameter")
     parser_set_parameter.add_argument("name", help="name of the parameter")
@@ -87,11 +77,14 @@ def get_argparser():
         "what",
         help="select object to show: schedule/log/devices/parameters")
 
-    parser_scan = subparsers.add_parser("scan-repository",
-                                        help="trigger a repository (re)scan")
-    parser_scan.add_argument("revision", default=None, nargs="?",
-                             help="use a specific repository revision "
-                                  "(defaults to head)")
+    subparsers.add_parser(
+        "scan-ddb", help="trigger a device database (re)scan")
+
+    parser_scan_repos = subparsers.add_parser(
+        "scan-repository", help="trigger a repository (re)scan")
+    parser_scan_repos.add_argument("revision", default=None, nargs="?",
+                                   help="use a specific repository revision "
+                                        "(defaults to head)")
 
     return parser
 
@@ -131,20 +124,16 @@ def _action_delete(remote, args):
     remote.delete(args.rid)
 
 
-def _action_set_device(remote, args):
-    remote.set(args.name, pyon.decode(args.description))
-
-
-def _action_del_device(remote, args):
-    remote.delete(args.name)
-
-
 def _action_set_parameter(remote, args):
     remote.set(args.name, pyon.decode(args.value))
 
 
 def _action_del_parameter(remote, args):
     remote.delete(args.name)
+
+
+def _action_scan_ddb(remote, args):
+    remote.scan()
 
 
 def _action_scan_repository(remote, args):
@@ -275,10 +264,9 @@ def main():
         target_name = {
             "submit": "master_schedule",
             "delete": "master_schedule",
-            "set_device": "master_ddb",
-            "del_device": "master_ddb",
             "set_parameter": "master_pdb",
             "del_parameter": "master_pdb",
+            "scan_ddb": "master_ddb",
             "scan_repository": "master_repository"
         }[action]
         remote = Client(args.server, port, target_name)
