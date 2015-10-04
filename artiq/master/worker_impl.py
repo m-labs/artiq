@@ -63,12 +63,13 @@ class LogForwarder:
 
 
 class ParentDDB:
-    get = make_parent_action("get_device", "name", KeyError)
+    get_ddb = make_parent_action("get_ddb", "")
+    get = make_parent_action("get_device", "key", KeyError)
 
 
 class ParentPDB:
-    get = make_parent_action("get_parameter", "name", KeyError)
-    set = make_parent_action("set_parameter", "name value")
+    get = make_parent_action("get_parameter", "key", KeyError)
+    set = make_parent_action("set_parameter", "key value")
 
 
 update_rt_results = make_parent_action("update_rt_results", "mod")

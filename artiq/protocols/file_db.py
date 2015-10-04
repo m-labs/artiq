@@ -13,19 +13,19 @@ class FlatFileDB:
     def save(self):
         pyon.store_file(self.filename, self.data.read)
 
-    def get(self, name):
-        return self.data.read[name]
+    def get(self, key):
+        return self.data.read[key]
 
-    def set(self, name, value):
-        self.data[name] = value
+    def set(self, key, value):
+        self.data[key] = value
         self.save()
         timestamp = time()
         for hook in self.hooks:
-            hook.set(timestamp, name, value)
+            hook.set(timestamp, key, value)
 
-    def delete(self, name):
-        del self.data[name]
+    def delete(self, key):
+        del self.data[key]
         self.save()
         timestamp = time()
         for hook in self.hooks:
-            hook.delete(timestamp, name)
+            hook.delete(timestamp, key)
