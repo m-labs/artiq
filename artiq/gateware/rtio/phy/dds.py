@@ -36,13 +36,13 @@ class _AD9xxx(Module):
         ftws = [Signal(32) for i in range(nchannels)]
         for c, ftw in enumerate(ftws):
             if flen(pads.d) == 8:
-                self.sync.rio += \
+                self.sync.rio_phy += \
                     If(selected(c), [
                         If(current_address == ftw_base+i,
                            ftw[i*8:(i+1)*8].eq(current_data))
                         for i in range(4)])
             elif flen(pads.d) == 16:
-                self.sync.rio += \
+                self.sync.rio_phy += \
                     If(selected(c), [
                         If(current_address == ftw_base+2*i,
                            ftw[i*16:(i+1)*16].eq(current_data))
@@ -51,7 +51,7 @@ class _AD9xxx(Module):
                 raise NotImplementedError
 
         # FTW to probe on FUD
-        self.sync.rio += If(current_address == 2**flen(pads.a), [
+        self.sync.rio_phy += If(current_address == 2**flen(pads.a), [
             If(selected(c), probe.eq(ftw))
             for c, (probe, ftw) in enumerate(zip(self.probes, ftws))])
 
