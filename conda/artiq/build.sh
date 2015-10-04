@@ -11,7 +11,7 @@ $PYTHON setup.py install --single-version-externally-managed --record=record.txt
 git clone --recursive https://github.com/m-labs/misoc
 export MSCDIR=$SRC_DIR/misoc
 
-ARTIQ_PREFIX=$PREFIX/lib/python3.4/site-packages/artiq
+ARTIQ_PREFIX=$PREFIX/lib/python3.5/site-packages/artiq
 BIN_PREFIX=$ARTIQ_PREFIX/binaries/
 mkdir -p $ARTIQ_PREFIX/misc
 mkdir -p $BIN_PREFIX/kc705 $BIN_PREFIX/pipistrello

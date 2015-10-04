@@ -1,6 +1,6 @@
 language: python
 python:
-  - '3.4'
+  - '3.5'
 sudo: false
 env:
   global:
@@ -12,7 +12,7 @@ before_install:
   - if [ $BUILD_SOC -ne 0 ]; then ./.travis/get-xilinx.sh; fi
   - . ./.travis/get-toolchain.sh
   - . ./.travis/get-anaconda.sh
-  - source $HOME/miniconda/bin/activate py34
+  - source $HOME/miniconda/bin/activate py35
   - conda install -q pip coverage anaconda-client migen cython
   - pip install coveralls
 install:
