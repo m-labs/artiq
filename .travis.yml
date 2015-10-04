@@ -16,7 +16,7 @@ before_install:
   - conda install -q pip coverage anaconda-client migen cython
   - pip install coveralls
 install:
-  - conda build conda/artiq
+  - conda build --python 3.5 conda/artiq
   - conda install -q artiq --use-local
 script:
   - coverage run --source=artiq setup.py test
