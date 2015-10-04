@@ -182,6 +182,12 @@ class HasEnvironment:
         attribute are the same."""
         setattr(self, key, self.get_argument(key, processor, group))
 
+    def get_ddb(self):
+        """Returns the full contents of the device database."""
+        if self.__parent is not None:
+            return self.__parent.get_ddb()
+        return self.__dmgr.get_ddb()
+
     def get_device(self, key):
         """Creates and returns a device driver."""
         if self.__parent is not None:

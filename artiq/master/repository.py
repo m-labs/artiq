@@ -12,12 +12,15 @@ from artiq.tools import exc_to_warning
 logger = logging.getLogger(__name__)
 
 
-async def _scan_experiments(wd, log):
+async def _scan_experiments(wd, get_ddb, log):
     r = dict()
     for f in os.listdir(wd):
         if f.endswith(".py"):
             try:
-                worker = Worker({"log": lambda message: log("scan", message)})
+                worker = Worker({
+                    "get_ddb": get_ddb,
+                    "log": lambda message: log("scan", message)
+                })
                 try:
                     description = await worker.examine(os.path.join(wd, f))
                 finally:
@@ -53,8 +56,9 @@ def _sync_explist(target, source):
 
 
 class Repository:
-    def __init__(self, backend, log_fn):
+    def __init__(self, backend, get_ddb_fn, log_fn):
         self.backend = backend
+        self.get_ddb_fn = get_ddb_fn
         self.log_fn = log_fn
 
         self.cur_rev = self.backend.get_head_rev()
@@ -77,7 +81,7 @@ class Repository:
             wd, _ = self.backend.request_rev(new_cur_rev)
             self.backend.release_rev(self.cur_rev)
             self.cur_rev = new_cur_rev
-            new_explist = await _scan_experiments(wd, self.log_fn)
+            new_explist = await _scan_experiments(wd, self.get_ddb_fn, self.log_fn)
 
             _sync_explist(self.explist, new_explist)
         finally:

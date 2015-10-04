@@ -74,11 +74,12 @@ def main():
         repo_backend = GitBackend(args.repository)
     else:
         repo_backend = FilesystemBackend(args.repository)
-    repository = Repository(repo_backend, log.log)
+    repository = Repository(repo_backend, ddb.get_ddb, log.log)
     atexit.register(repository.close)
     repository.scan_async()
 
     worker_handlers = {
+        "get_ddb": ddb.get_ddb,
         "get_device": ddb.get,
         "get_parameter": pdb.get,
         "set_parameter": pdb.set,

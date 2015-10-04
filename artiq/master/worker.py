@@ -244,7 +244,7 @@ class Worker:
         def register(class_name, name, arguments):
             r[class_name] = {"name": name, "arguments": arguments}
         self.register_experiment = register
-        await self._worker_action({"action": "examine",
-                                        "file": file}, timeout)
+        await self._worker_action({"action": "examine", "file": file},
+                                  timeout)
         del self.register_experiment
         return r

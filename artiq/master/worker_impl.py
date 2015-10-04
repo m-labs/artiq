@@ -122,7 +122,9 @@ register_experiment = make_parent_action("register_experiment",
                                          "class_name name arguments")
 
 
-class DummyDMGR:
+class ExamineDMGR:
+    get_ddb = make_parent_action("get_ddb", "")
+
     def get(self, name):
         return None
 
@@ -208,7 +210,7 @@ def main():
                     f.close()
                 put_object({"action": "completed"})
             elif action == "examine":
-                examine(DummyDMGR(), DummyPDB(), ResultDB(), obj["file"])
+                examine(ExamineDMGR(), DummyPDB(), ResultDB(), obj["file"])
                 put_object({"action": "completed"})
             elif action == "terminate":
                 break

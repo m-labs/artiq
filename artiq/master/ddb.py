@@ -17,5 +17,8 @@ class DDB:
             if k not in self.data.read or self.data.read[k] != new_data[k]:
                 self.data[k] = new_data[k]
 
+    def get_ddb(self):
+        return self.data.read
+
     def get(self, key):
         return self.data.read[key]

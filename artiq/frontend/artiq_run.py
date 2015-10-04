@@ -13,6 +13,7 @@ import h5py
 
 from artiq.language.environment import EnvExperiment
 from artiq.protocols.file_db import FlatFileDB
+from artiq.master.ddb import DDB
 from artiq.master.worker_db import DeviceManager, ResultDB
 from artiq.tools import *
 
@@ -111,7 +112,7 @@ def run(with_file=False):
     args = get_argparser(with_file).parse_args()
     init_logger(args)
 
-    dmgr = DeviceManager(FlatFileDB(args.ddb),
+    dmgr = DeviceManager(DDB(args.ddb),
                          virtual_devices={"scheduler": DummyScheduler()})
     pdb = FlatFileDB(args.pdb)
     pdb.hooks.append(SimpleParamLogger())
