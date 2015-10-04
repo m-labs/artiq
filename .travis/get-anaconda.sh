@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
 
 export PATH=$HOME/miniconda/bin:$PATH
@@ -7,7 +7,7 @@ bash miniconda.sh -b -p $HOME/miniconda
 hash -r
 conda config --set always_yes yes --set changeps1 no
 conda create -q -n py35 python=$TRAVIS_PYTHON_VERSION
-. $HOME/miniconda/bin/activate py35
+source $HOME/miniconda/bin/activate py35
 conda update -q conda
 conda info -a
 conda install conda-build jinja2
