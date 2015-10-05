@@ -121,17 +121,24 @@ class Scannable:
         range of its input widgets.
     :param global_max: Same as global_min, but for the maximum value.
     :param global_step: The step with which the value should be modified by
-        up/down buttons in a user interface.
+        up/down buttons in a user interface. The default is the scale divided
+        by 10.
     :param unit: A string representing the unit of the scanned variable, for user
         interface (UI) purposes.
+    :param scale: The scale of value for UI purposes. The corresponding SI
+        prefix is shown in front of the unit, and the displayed value is
+        divided by the scale.
     :param ndecimals: The number of decimals a UI should use.
     """
-    def __init__(self, default=NoDefault, unit="",
-                 global_step=1.0, global_min=None, global_max=None,
+    def __init__(self, default=NoDefault, unit="", scale=1.0,
+                 global_step=None, global_min=None, global_max=None,
                  ndecimals=2):
+        if global_step is None:
+            global_step = scale/10.0
         if default is not NoDefault:
             self.default_value = default
         self.unit = unit
+        self.scale = scale
         self.global_step = global_step
         self.global_min = global_min
         self.global_max = global_max
@@ -155,6 +162,7 @@ class Scannable:
         if hasattr(self, "default_value"):
             d["default"] = self.default_value.describe()
         d["unit"] = self.unit
+        d["scale"] = self.scale
         d["global_step"] = self.global_step
         d["global_min"] = self.global_min
         d["global_max"] = self.global_max

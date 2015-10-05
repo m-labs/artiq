@@ -73,16 +73,22 @@ class NumberValue(_SimpleArgProcessor):
 
     :param unit: A string representing the unit of the value, for user
         interface (UI) purposes.
+    :param scale: The scale of value for UI purposes. The corresponding SI
+        prefix is shown in front of the unit, and the displayed value is
+        divided by the scale.
     :param step: The step with which the value should be modified by up/down
-        buttons in a UI.
+        buttons in a UI. The default is the scale divided by 10.
     :param min: The minimum value of the argument.
     :param max: The maximum value of the argument.
     :param ndecimals: The number of decimals a UI should use.
     """
-    def __init__(self, default=NoDefault, unit="", step=1.0,
-                 min=None, max=None, ndecimals=2):
+    def __init__(self, default=NoDefault, unit="", scale=1.0,
+                 step=None, min=None, max=None, ndecimals=2):
+        if step is None:
+            step = scale/10.0
         _SimpleArgProcessor.__init__(self, default)
         self.unit = unit
+        self.scale = scale
         self.step = step
         self.min = min
         self.max = max
@@ -91,6 +97,7 @@ class NumberValue(_SimpleArgProcessor):
     def describe(self):
         d = _SimpleArgProcessor.describe(self)
         d["unit"] = self.unit
+        d["scale"] = self.scale
         d["step"] = self.step
         d["min"] = self.min
         d["max"] = self.max
