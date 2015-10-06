@@ -57,11 +57,6 @@ def _get_basic_steps(rid, expid, priority=0, flush=False):
     ]
 
 
-_handlers = {
-    "init_rt_results": lambda description: None
-}
-
-
 class SchedulerCase(unittest.TestCase):
     def setUp(self):
         if os.name == "nt":
@@ -72,7 +67,7 @@ class SchedulerCase(unittest.TestCase):
 
     def test_steps(self):
         loop = self.loop
-        scheduler = Scheduler(0, _handlers, None)
+        scheduler = Scheduler(0, dict(), None)
         expid = _get_expid("EmptyExperiment")
 
         expect = _get_basic_steps(1, expid)
@@ -108,7 +103,7 @@ class SchedulerCase(unittest.TestCase):
 
     def test_pause(self):
         loop = self.loop
-        scheduler = Scheduler(0, _handlers, None)
+        scheduler = Scheduler(0, dict(), None)
         expid_bg = _get_expid("BackgroundExperiment")
         expid = _get_expid("EmptyExperiment")
 
@@ -139,7 +134,7 @@ class SchedulerCase(unittest.TestCase):
 
     def test_flush(self):
         loop = self.loop
-        scheduler = Scheduler(0, _handlers, None)
+        scheduler = Scheduler(0, dict(), None)
         expid = _get_expid("EmptyExperiment")
 
         expect = _get_basic_steps(1, expid, 1, True)
