@@ -6,7 +6,7 @@ from artiq.protocols import pyon
 from artiq.tools import file_import
 from artiq.master.worker_db import DeviceManager, ResultDB, get_hdf5_output
 from artiq.language.environment import is_experiment
-from artiq.language.core import set_watchdog_factory
+from artiq.language.core import set_watchdog_factory, TerminationRequested
 
 
 def get_object():
@@ -93,7 +93,11 @@ set_watchdog_factory(Watchdog)
 
 
 class Scheduler:
-    pause = staticmethod(make_parent_action("pause", ""))
+    pause_noexc = staticmethod(make_parent_action("pause", ""))
+
+    def pause(self):
+        if self.pause_noexc():
+            raise TerminationRequested
 
     submit = staticmethod(make_parent_action("scheduler_submit",
         "pipeline_name expid priority due_date flush"))

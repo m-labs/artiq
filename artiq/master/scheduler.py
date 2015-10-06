@@ -57,6 +57,7 @@ class Run:
         self.flush = flush
 
         self.worker = Worker(pool.worker_handlers)
+        self.termination_requested = False
 
         self._status = RunStatus.pending
 
@@ -267,7 +268,12 @@ class RunStage(TaskObject):
             try:
                 if run.status == RunStatus.paused:
                     run.status = RunStatus.running
-                    completed = await run.resume()
+                    # clear "termination requested" flag now
+                    # so that if it is set again during the resume, this
+                    # results in another exception.
+                    request_termination = run.termination_requested
+                    run.termination_requested = False
+                    completed = await run.resume(request_termination)
                 else:
                     run.status = RunStatus.running
                     completed = await run.run()
@@ -422,3 +428,13 @@ class Scheduler:
 
     def delete(self, rid):
         self._deleter.delete(rid)
+
+    def request_termination(self, rid):
+        for pipeline in self._pipelines.values():
+            if rid in pipeline.pool.runs:
+                run = pipeline.pool.runs[rid]
+                if run.status == RunStatus.running or run.status == RunStatus.paused:
+                    run.termination_requested = True
+                else:
+                    self.delete(rid)
+                break

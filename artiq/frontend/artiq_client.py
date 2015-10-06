@@ -58,6 +58,8 @@ def get_argparser():
     parser_delete = subparsers.add_parser("delete",
                                           help="delete an experiment "
                                                "from the schedule")
+    parser_delete.add_argument("-g", action="store_true",
+                               help="request graceful termination")
     parser_delete.add_argument("rid", type=int,
                                help="run identifier (RID)")
 
@@ -121,7 +123,10 @@ def _action_submit(remote, args):
 
 
 def _action_delete(remote, args):
-    remote.delete(args.rid)
+    if args.g:
+        remote.request_termination(args.rid)
+    else:
+        remote.delete(args.rid)
 
 
 def _action_set_parameter(remote, args):

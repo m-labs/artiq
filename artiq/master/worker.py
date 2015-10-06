@@ -221,12 +221,12 @@ class Worker:
             self.yield_time = time.monotonic()
         return completed
 
-    async def resume(self):
+    async def resume(self, request_termination):
         stop_duration = time.monotonic() - self.yield_time
         for wid, expiry in self.watchdogs:
             self.watchdogs[wid] += stop_duration
         completed = await self._worker_action({"status": "ok",
-                                               "data": None})
+                                               "data": request_termination})
         if not completed:
             self.yield_time = time.monotonic()
         return completed

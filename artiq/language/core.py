@@ -6,7 +6,8 @@ from collections import namedtuple
 from functools import wraps
 
 
-__all__ = ["int64", "round64", "kernel", "portable",
+__all__ = ["int64", "round64", "TerminationRequested",
+           "kernel", "portable",
            "set_time_manager", "set_syscall_manager", "set_watchdog_factory",
            "RuntimeException", "EncodedException"]
 
@@ -75,6 +76,11 @@ def round64(x):
     to fit in a 32-bit integer.
     """
     return int64(round(x))
+
+
+class TerminationRequested(Exception):
+    """Raised by ``pause`` when the user has requested termination."""
+    pass
 
 
 _KernelFunctionInfo = namedtuple("_KernelFunctionInfo", "core_name k_function")

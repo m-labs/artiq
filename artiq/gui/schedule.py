@@ -1,5 +1,6 @@
 import asyncio
 import time
+from functools import partial
 
 from quamash import QtGui, QtCore
 from pyqtgraph import dockarea
@@ -71,9 +72,13 @@ class ScheduleDock(dockarea.Dock):
         self.addWidget(self.table)
 
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        request_termination_action = QtGui.QAction("Request termination", self.table)
+        request_termination_action.triggered.connect(partial(self.delete_clicked, True))
+        self.table.addAction(request_termination_action)
         delete_action = QtGui.QAction("Delete", self.table)
-        delete_action.triggered.connect(self.delete_clicked)
+        delete_action.triggered.connect(partial(self.delete_clicked, False))
         self.table.addAction(delete_action)
+
 
     async def sub_connect(self, host, port):
         self.subscriber = Subscriber("schedule", self.init_schedule_model)
@@ -87,13 +92,16 @@ class ScheduleDock(dockarea.Dock):
         self.table.setModel(self.table_model)
         return self.table_model
 
-    async def delete(self, rid):
-        await self.schedule_ctl.delete(rid)
+    async def delete(self, rid, graceful):
+        if graceful:
+            await self.schedule_ctl.request_termination(rid)
+        else:
+            await self.schedule_ctl.delete(rid)
 
-    def delete_clicked(self):
+    def delete_clicked(self, graceful):
         idx = self.table.selectedIndexes()
         if idx:
             row = idx[0].row()
             rid = self.table_model.row_to_key[row]
             self.status_bar.showMessage("Deleted RID {}".format(rid))
-            asyncio.ensure_future(self.delete(rid))
+            asyncio.ensure_future(self.delete(rid, graceful))
