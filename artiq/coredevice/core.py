@@ -46,10 +46,22 @@ def _no_debug_unparse(label, node):
 
 
 class Core:
-    def __init__(self, dmgr, ref_period=8*ns, external_clock=False):
-        self.comm = dmgr.get("comm")
+    """Core device driver.
+
+    :param ref_period: period of the reference clock for the RTIO subsystem.
+        On platforms that use clock multiplication and SERDES-based PHYs,
+        this is the period after multiplication. For example, with a RTIO core
+        clocked at 125MHz and a SERDES multiplication factor of 8, the
+        reference period is 1ns.
+        The time machine unit is equal to this period.
+    :param external_clock: whether the core device should switch to its
+        external RTIO clock input instead of using its internal oscillator.
+    :param comm_device: name of the device used for communications.
+    """
+    def __init__(self, dmgr, ref_period=8*ns, external_clock=False, comm_device="comm"):
         self.ref_period = ref_period
         self.external_clock = external_clock
+        self.comm = dmgr.get(comm_device)
 
         self.first_run = True
         self.core = self
@@ -120,10 +132,13 @@ class Core:
 
     @kernel
     def get_rtio_counter_mu(self):
+        """Return the current value of the hardware RTIO counter."""
         return syscall("rtio_get_counter")
 
     @kernel
     def break_realtime(self):
+        """Set the timeline to the current value of the hardware RTIO counter
+        plus a margin of 125000 machine units."""
         min_now = syscall("rtio_get_counter") + 125000
         if now_mu() < min_now:
             at_mu(min_now)
