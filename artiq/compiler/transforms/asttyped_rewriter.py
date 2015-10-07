@@ -38,8 +38,7 @@ class LocalExtractor(algorithm.Visitor):
 
     def visit_Assign(self, node):
         self.visit(node.value)
-        for target in node.targets:
-            self.visit_in_assign(target, in_assign=True)
+        self.visit_in_assign(node.targets, in_assign=True)
 
     def visit_For(self, node):
         self.visit(node.iter)
@@ -49,14 +48,12 @@ class LocalExtractor(algorithm.Visitor):
 
     def visit_withitem(self, node):
         self.visit(node.context_expr)
-        if node.optional_vars is not None:
-            self.visit_in_assign(node.optional_vars, in_assign=True)
+        self.visit_in_assign(node.optional_vars, in_assign=True)
 
     def visit_comprehension(self, node):
         self.visit(node.iter)
         self.visit_in_assign(node.target, in_assign=True)
-        for if_ in node.ifs:
-            self.visit(node.ifs)
+        self.visit(node.ifs)
 
     def visit_generator(self, node):
         if self.in_root:
