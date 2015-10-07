@@ -6,11 +6,11 @@ Devirtualization is implemented using a lattice
 with three states: unknown → assigned once → diverges.
 The lattice is computed individually for every
 variable in scope as well as every
-(constructor type, field name) pair.
+(instance type, field name) pair.
 """
 
 from pythonparser import algorithm
-from .. import ir, types
+from .. import asttyped, ir, types
 
 def _advance(target_map, key, value):
     if key not in target_map:
@@ -80,13 +80,38 @@ class FunctionResolver(algorithm.Visitor):
                     self.variable_map[node] = self.scope_map[key]
             self.queue.append(thunk)
 
+class MethodResolver(algorithm.Visitor):
+    def __init__(self, variable_map, method_map):
+        self.variable_map = variable_map
+        self.method_map = method_map
+
+    # embedding.Stitcher.finalize generates initialization statements
+    # of form "constructor.meth = meth_body".
+    def visit_Assign(self, node):
+        if node.value not in self.variable_map:
+            return
+
+        value = self.variable_map[node.value]
+        for target in node.targets:
+            if isinstance(target, asttyped.AttributeT):
+                if types.is_constructor(target.value.type):
+                    instance_type = target.value.type.instance
+                elif types.is_instance(target.value.type):
+                    instance_type = target.value.type
+                else:
+                    continue
+                _advance(self.method_map, (instance_type, target.attr), value)
+
 class Devirtualizer:
     def __init__(self):
         self.variable_map = dict()
         self.method_map = dict()
 
     def visit(self, node):
-        resolver = FunctionResolver(self.variable_map)
-        resolver.visit(node)
-        resolver.finalize()
-        # print(self.variable_map)
+        function_resolver = FunctionResolver(self.variable_map)
+        function_resolver.visit(node)
+        function_resolver.finalize()
+
+        method_resolver = MethodResolver(self.variable_map, self.method_map)
+        method_resolver.visit(node)
+        print(self.method_map)
