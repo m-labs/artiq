@@ -57,6 +57,7 @@ class Module:
                                                          ref_period=ref_period)
         dead_code_eliminator = transforms.DeadCodeEliminator(engine=self.engine)
         local_access_validator = validators.LocalAccessValidator(engine=self.engine)
+        devirtualizer = transforms.Devirtualizer()
 
         self.name = src.name
         self.globals = src.globals
@@ -65,9 +66,12 @@ class Module:
         monomorphism_validator.visit(src.typedtree)
         escape_validator.visit(src.typedtree)
         iodelay_estimator.visit_fixpoint(src.typedtree)
+        devirtualizer.visit(src.typedtree)
         self.artiq_ir = artiq_ir_generator.visit(src.typedtree)
         dead_code_eliminator.process(self.artiq_ir)
         local_access_validator.process(self.artiq_ir)
+        # for f in self.artiq_ir:
+        #     print(f)
 
     def build_llvm_ir(self, target):
         """Compile the module to LLVM IR for the specified target."""
