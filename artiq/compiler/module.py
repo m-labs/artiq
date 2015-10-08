@@ -68,10 +68,9 @@ class Module:
         iodelay_estimator.visit_fixpoint(src.typedtree)
         devirtualization.visit(src.typedtree)
         self.artiq_ir = artiq_ir_generator.visit(src.typedtree)
+        artiq_ir_generator.annotate_calls(devirtualization)
         dead_code_eliminator.process(self.artiq_ir)
         local_access_validator.process(self.artiq_ir)
-        # for f in self.artiq_ir:
-        #     print(f)
 
     def build_llvm_ir(self, target):
         """Compile the module to LLVM IR for the specified target."""

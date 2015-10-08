@@ -63,6 +63,18 @@ class ARTIQIRGenerator(algorithm.Visitor):
         the basic block to which ``return`` will transfer control
     :ivar unwind_target: (:class:`ir.BasicBlock` or None)
         the basic block to which unwinding will transfer control
+
+    There is, additionally, some global state that is used to translate
+    the results of analyses on AST level to IR level:
+
+    :ivar function_map: (map of :class:`ast.FunctionDefT` to :class:`ir.Function`)
+        the map from function definition nodes to IR functions
+    :ivar variable_map: (map of :class:`ast.NameT` to :class:`ir.GetLocal`)
+        the map from variable name nodes to instructions retrieving
+        the variable values
+    :ivar method_map: (map of :class:`ast.AttributeT` to :class:`ir.GetAttribute`)
+        the map from method resolution nodes to instructions retrieving
+        the called function inside a translated :class:`ast.CallT` node
     """
 
     _size_type = builtins.TInt(types.TValue(32))
@@ -86,6 +98,19 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.continue_target = None
         self.return_target = None
         self.unwind_target = None
+        self.function_map = dict()
+        self.variable_map = dict()
+        self.method_map = dict()
+
+    def annotate_calls(self, devirtualization):
+        for var_node in devirtualization.variable_map:
+            callee_node = devirtualization.variable_map[var_node]
+            callee      = self.function_map[callee_node]
+            call_target = self.variable_map[var_node]
+            for use in call_target.uses:
+                if isinstance(use, (ir.Call, ir.Invoke)) and \
+                        use.target_function() == call_target:
+                    use.static_target_function = callee
 
     def add_block(self, name=""):
         block = ir.BasicBlock([], name)
@@ -203,6 +228,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
             func.is_internal = is_internal
             self.functions.append(func)
             old_func, self.current_function = self.current_function, func
+
+            if not is_lambda:
+                self.function_map[node] = func
 
             entry = self.add_block()
             old_block, self.current_block = self.current_block, entry
@@ -701,7 +729,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
     def visit_NameT(self, node):
         if self.current_assign is None:
-            return self._get_local(node.id)
+            insn = self._get_local(node.id)
+            self.variable_map[node] = insn
+            return insn
         else:
             return self._set_local(node.id, self.current_assign)
 

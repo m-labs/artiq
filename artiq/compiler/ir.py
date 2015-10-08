@@ -48,7 +48,7 @@ class Value:
         self.uses, self.type = set(), typ.find()
 
     def replace_all_uses_with(self, value):
-        for user in self.uses:
+        for user in set(self.uses):
             user.replace_uses_of(self, value)
 
 class Constant(Value):
@@ -126,11 +126,11 @@ class User(NamedValue):
         self.set_operands([])
 
     def replace_uses_of(self, value, replacement):
-        assert value in operands
+        assert value in self.operands
 
-        for index, operand in enumerate(operands):
+        for index, operand in enumerate(self.operands):
             if operand == value:
-                operands[index] = replacement
+                self.operands[index] = replacement
 
         value.uses.remove(self)
         replacement.uses.add(self)
@@ -851,6 +851,9 @@ class Closure(Instruction):
 class Call(Instruction):
     """
     A function call operation.
+
+    :ivar static_target_function: (:class:`Function` or None)
+        statically resolved callee
     """
 
     """
@@ -861,6 +864,7 @@ class Call(Instruction):
         assert isinstance(func, Value)
         for arg in args: assert isinstance(arg, Value)
         super().__init__([func] + args, func.type.ret, name)
+        self.static_target_function = None
 
     def opcode(self):
         return "call"
@@ -870,6 +874,12 @@ class Call(Instruction):
 
     def arguments(self):
         return self.operands[1:]
+
+    def __str__(self):
+        result = super().__str__()
+        if self.static_target_function is not None:
+            result += " ; calls {}".format(self.static_target_function.name)
+        return result
 
 class Select(Instruction):
     """
@@ -1080,6 +1090,9 @@ class Reraise(Terminator):
 class Invoke(Terminator):
     """
     A function call operation that supports exception handling.
+
+    :ivar static_target_function: (:class:`Function` or None)
+        statically resolved callee
     """
 
     """
@@ -1094,6 +1107,7 @@ class Invoke(Terminator):
         assert isinstance(normal, BasicBlock)
         assert isinstance(exn, BasicBlock)
         super().__init__([func] + args + [normal, exn], func.type.ret, name)
+        self.static_target_function = None
 
     def opcode(self):
         return "invoke"
@@ -1114,6 +1128,12 @@ class Invoke(Terminator):
         result = ", ".join([operand.as_operand() for operand in self.operands[:-2]])
         result += " to {} unwind {}".format(self.operands[-2].as_operand(),
                                             self.operands[-1].as_operand())
+        return result
+
+    def __str__(self):
+        result = super().__str__()
+        if self.static_target_function is not None:
+            result += " ; calls {}".format(self.static_target_function.name)
         return result
 
 class LandingPad(Terminator):
