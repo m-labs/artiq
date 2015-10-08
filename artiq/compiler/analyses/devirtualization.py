@@ -22,19 +22,20 @@ class FunctionResolver(algorithm.Visitor):
     def __init__(self, variable_map):
         self.variable_map = variable_map
 
-        self.in_assign = False
         self.scope_map = dict()
-        self.scope = None
         self.queue = []
+
+        self.in_assign = False
+        self.current_scopes = []
 
     def finalize(self):
         for thunk in self.queue:
             thunk()
 
     def visit_scope(self, node):
-        old_scope, self.scope = self.scope, node
+        self.current_scopes.append(node)
         self.generic_visit(node)
-        self.scope = old_scope
+        self.current_scopes.pop()
 
     def visit_in_assign(self, node):
         self.in_assign = True
@@ -64,20 +65,22 @@ class FunctionResolver(algorithm.Visitor):
         self.visit_scope(node)
 
     def visit_FunctionDefT(self, node):
-        _advance(self.scope_map, (self.scope, node.name), node)
+        _advance(self.scope_map, (self.current_scopes[-1], node.name), node)
         self.visit_scope(node)
 
     def visit_NameT(self, node):
         if self.in_assign:
             # Just give up if we assign anything at all to a variable, and
             # assume it diverges.
-            _advance(self.scope_map, (self.scope, node.id), None)
+            _advance(self.scope_map, (self.current_scopes[-1], node.id), None)
         else:
-            # Copy the final value in scope_map into variable_map.
-            key = (self.scope, node.id)
+            # Look up the final value in scope_map and copy it into variable_map.
+            keys = [(scope, node.id) for scope in reversed(self.current_scopes)]
             def thunk():
-                if key in self.scope_map:
-                    self.variable_map[node] = self.scope_map[key]
+                for key in keys:
+                    if key in self.scope_map:
+                        self.variable_map[node] = self.scope_map[key]
+                        return
             self.queue.append(thunk)
 
 class MethodResolver(algorithm.Visitor):
