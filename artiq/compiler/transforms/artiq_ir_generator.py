@@ -6,9 +6,9 @@ but without too much detail, such as exposing the reference/value
 semantics explicitly.
 """
 
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from pythonparser import algorithm, diagnostic, ast
-from .. import types, builtins, ir
+from .. import types, builtins, asttyped, ir
 
 def _readable_name(insn):
     if isinstance(insn, ir.Constant):
@@ -100,17 +100,26 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.unwind_target = None
         self.function_map = dict()
         self.variable_map = dict()
-        self.method_map = dict()
+        self.method_map = defaultdict(lambda: [])
 
     def annotate_calls(self, devirtualization):
         for var_node in devirtualization.variable_map:
             callee_node = devirtualization.variable_map[var_node]
             callee      = self.function_map[callee_node]
+
             call_target = self.variable_map[var_node]
             for use in call_target.uses:
                 if isinstance(use, (ir.Call, ir.Invoke)) and \
                         use.target_function() == call_target:
                     use.static_target_function = callee
+
+        for type_and_method in devirtualization.method_map:
+            callee_node = devirtualization.method_map[type_and_method]
+            callee      = self.function_map[callee_node]
+
+            for call in self.method_map[type_and_method]:
+                assert isinstance(call, (ir.Call, ir.Invoke))
+                call.static_target_function = callee
 
     def add_block(self, name=""):
         block = ir.BasicBlock([], name)
@@ -1553,12 +1562,18 @@ class ARTIQIRGenerator(algorithm.Visitor):
             assert None not in args
 
             if self.unwind_target is None:
-                return self.append(ir.Call(func, args))
+                insn = self.append(ir.Call(func, args))
             else:
                 after_invoke = self.add_block()
-                invoke = self.append(ir.Invoke(func, args, after_invoke, self.unwind_target))
+                insn = self.append(ir.Invoke(func, args, after_invoke, self.unwind_target))
                 self.current_block = after_invoke
-                return invoke
+
+            method_key = None
+            if isinstance(node.func, asttyped.AttributeT):
+                attr_node = node.func
+                self.method_map[(attr_node.value.type, attr_node.attr)].append(insn)
+
+            return insn
 
     def visit_QuoteT(self, node):
         return self.append(ir.Quote(node.value, node.type))
