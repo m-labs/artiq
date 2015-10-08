@@ -94,9 +94,13 @@ class ASTSynthesizer:
                                   begin_loc=begin_loc, end_loc=end_loc,
                                   loc=begin_loc.join(end_loc))
         elif inspect.isfunction(value) or inspect.ismethod(value):
+            quote_loc   = self._add('`')
+            repr_loc    = self._add(repr(value))
+            unquote_loc = self._add('`')
+            loc         = quote_loc.join(unquote_loc)
+
             function_name, function_type = self.quote_function(value, self.expanded_from)
-            return asttyped.NameT(id=function_name, ctx=None, type=function_type,
-                                  loc=self._add(repr(value)))
+            return asttyped.NameT(id=function_name, ctx=None, type=function_type, loc=loc)
         else:
             quote_loc   = self._add('`')
             repr_loc    = self._add(repr(value))
