@@ -1,0 +1,8 @@
+{
+    "comm": {
+        "type": "local",
+        "module": "artiq.coredevice.comm_dummy",
+        "class": "Comm",
+        "arguments": {}
+    }
+}
