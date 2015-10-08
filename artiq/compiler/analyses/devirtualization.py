@@ -102,7 +102,7 @@ class MethodResolver(algorithm.Visitor):
                     continue
                 _advance(self.method_map, (instance_type, target.attr), value)
 
-class Devirtualizer:
+class Devirtualization:
     def __init__(self):
         self.variable_map = dict()
         self.method_map = dict()
@@ -114,4 +114,3 @@ class Devirtualizer:
 
         method_resolver = MethodResolver(self.variable_map, self.method_map)
         method_resolver.visit(node)
-        print(self.method_map)

@@ -10,7 +10,7 @@ string and infers types for it using a trivial :module:`prelude`.
 
 import os
 from pythonparser import source, diagnostic, parse_buffer
-from . import prelude, types, transforms, validators
+from . import prelude, types, transforms, analyses, validators
 
 class Source:
     def __init__(self, source_buffer, engine=None):
@@ -57,7 +57,7 @@ class Module:
                                                          ref_period=ref_period)
         dead_code_eliminator = transforms.DeadCodeEliminator(engine=self.engine)
         local_access_validator = validators.LocalAccessValidator(engine=self.engine)
-        devirtualizer = transforms.Devirtualizer()
+        devirtualization = analyses.Devirtualization()
 
         self.name = src.name
         self.globals = src.globals
@@ -66,7 +66,7 @@ class Module:
         monomorphism_validator.visit(src.typedtree)
         escape_validator.visit(src.typedtree)
         iodelay_estimator.visit_fixpoint(src.typedtree)
-        devirtualizer.visit(src.typedtree)
+        devirtualization.visit(src.typedtree)
         self.artiq_ir = artiq_ir_generator.visit(src.typedtree)
         dead_code_eliminator.process(self.artiq_ir)
         local_access_validator.process(self.artiq_ir)
