@@ -1000,6 +1000,7 @@ class IndirectBranch(Terminator):
         return self.operands[1:]
 
     def add_destination(self, destination):
+        destination.uses.add(self)
         self.operands.append(destination)
 
     def _operands_as_string(self):
@@ -1176,3 +1177,22 @@ class LandingPad(Terminator):
             else:
                 table.append("{} => {}".format(types.TypePrinter().name(typ), target.as_operand()))
         return "cleanup {}, [{}]".format(self.cleanup().as_operand(), ", ".join(table))
+
+class Parallel(Terminator):
+    """
+    An instruction that schedules several threads of execution
+    in parallel.
+    """
+
+    def __init__(self, destinations=[], name=""):
+        super().__init__(destinations, builtins.TNone(), name)
+
+    def opcode(self):
+        return "parallel"
+
+    def destinations(self):
+        return self.operands
+
+    def add_destination(self, destination):
+        destination.uses.add(self)
+        self.operands.append(destination)

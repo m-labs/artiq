@@ -669,7 +669,36 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 if not post_handler.is_terminated():
                     post_handler.append(ir.Branch(tail))
 
-    # TODO: With
+    def visit_With(self, node):
+        if len(node.items) != 1:
+            diag = diagnostic.Diagnostic("fatal",
+                "only one expression per 'with' statement is supported",
+                {"type": types.TypePrinter().name(typ)},
+                node.context_expr.loc)
+            self.engine.process(diag)
+
+        context_expr_node  = node.items[0].context_expr
+        optional_vars_node = node.items[0].optional_vars
+
+        if types.is_builtin(context_expr_node.type, "sequential"):
+            self.visit(node.body)
+        elif types.is_builtin(context_expr_node.type, "parallel"):
+            parallel = self.append(ir.Parallel())
+
+            heads, tails = [], []
+            for stmt in node.body:
+                self.current_block = self.add_block()
+                heads.append(self.current_block)
+                self.visit(stmt)
+                tails.append(self.current_block)
+
+            for head in heads:
+                parallel.add_destination(head)
+
+            self.current_block = self.add_block()
+            for tail in tails:
+                if not tail.is_terminated():
+                    tail.append(ir.Branch(self.current_block))
 
     # Expression visitors
     # These visitors return a node in addition to mutating
