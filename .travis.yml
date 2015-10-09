@@ -4,8 +4,10 @@ python:
 sudo: false
 env:
   global:
-    - BUILD_SOC=1
     - secure: "DUk/Ihg8KbbzEgPF0qrHqlxU8e8eET9i/BtzNvFddIGX4HP/P2qz0nk3cVkmjuWhqJXSbC22RdKME9qqPzw6fJwJ6dpJ3OR6dDmSd7rewavq+niwxu52PVa+yK8mL4yf1terM7QQ5tIRf+yUL9qGKrZ2xyvEuRit6d4cFep43Ws="
+  matrix:
+    - BUILD_SOC=0
+    - BUILD_SOC=1
 before_install:
   - mkdir -p $HOME/.mlabs
   - if [ $TRAVIS_PULL_REQUEST != false ]; then BUILD_SOC=0; fi
