@@ -14,6 +14,7 @@ before_install:
   - if [ $BUILD_SOC -ne 0 ]; then ./.travis/get-xilinx.sh; fi
   - . ./.travis/get-toolchain.sh
   - . ./.travis/get-anaconda.sh
+  - echo "BUILD_SOC=$BUILD_SOC" >> $HOME/.mlabs/build_settings.sh
   - source $HOME/miniconda/bin/activate py35
   - conda install -q pip coverage anaconda-client migen cython
   - pip install coveralls
@@ -24,9 +25,12 @@ script:
   - coverage run --source=artiq setup.py test
   - make -C doc/manual html
 after_success:
-  - anaconda -q login --hostname $(hostname) --username $binstar_login --password $binstar_password
-  - if [ "$TRAVIS_BRANCH" == "master" ]; then anaconda -q upload --user $binstar_login --channel dev --force $HOME/miniconda/conda-bld/linux-64/artiq-*.tar.bz2; fi
-  - anaconda -q logout
+  - |
+      if [ "$TRAVIS_BRANCH" == "master" -a $BUILD_SOC -eq 1 ]; then
+        anaconda -q login --hostname $(hostname) --username $binstar_login --password $binstar_password
+        anaconda -q upload --user $binstar_login --channel dev --force $HOME/miniconda/conda-bld/linux-64/artiq-*.tar.bz2
+        anaconda -q logout
+      fi
   - coveralls
 notifications:
   email:

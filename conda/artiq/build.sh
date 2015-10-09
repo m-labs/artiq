@@ -20,14 +20,14 @@ mkdir -p $BIN_PREFIX/kc705 $BIN_PREFIX/pipistrello
 
 cd $SRC_DIR/misoc; $PYTHON make.py -X ../soc -t artiq_kc705 build-headers build-bios; cd -
 make -C soc/runtime clean runtime.fbi
-cd $SRC_DIR/misoc; $PYTHON make.py -X ../soc -t artiq_kc705 $MISOC_EXTRA_VIVADO_CMDLINE build-bitstream; cd -
+[ "$BUILD_SOC" != "0" ] && (cd $SRC_DIR/misoc; $PYTHON make.py -X ../soc -t artiq_kc705 $MISOC_EXTRA_VIVADO_CMDLINE build-bitstream)
 
 # install KC705 NIST_QC1 binaries
 
 mkdir -p $BIN_PREFIX/kc705/nist_qc1
 cp soc/runtime/runtime.fbi $BIN_PREFIX/kc705/nist_qc1/
 cp $SRC_DIR/misoc/software/bios/bios.bin $BIN_PREFIX/kc705/
-cp $SRC_DIR/misoc/build/artiq_kc705-nist_qc1-kc705.bit $BIN_PREFIX/kc705/
+[ "$BUILD_SOC" != "0" ] && cp $SRC_DIR/misoc/build/artiq_kc705-nist_qc1-kc705.bit $BIN_PREFIX/kc705/
 wget http://sionneau.net/artiq/binaries/kc705/flash_proxy/bscan_spi_kc705.bit
 mv bscan_spi_kc705.bit $BIN_PREFIX/kc705/
 
@@ -35,13 +35,13 @@ mv bscan_spi_kc705.bit $BIN_PREFIX/kc705/
 
 cd $SRC_DIR/misoc; $PYTHON make.py -X ../soc -t artiq_pipistrello build-headers build-bios; cd -
 make -C soc/runtime clean runtime.fbi
-cd $SRC_DIR/misoc; $PYTHON make.py -X ../soc -t artiq_pipistrello $MISOC_EXTRA_ISE_CMDLINE build-bitstream; cd -
+[ "$BUILD_SOC" != "0" ] && (cd $SRC_DIR/misoc; $PYTHON make.py -X ../soc -t artiq_pipistrello $MISOC_EXTRA_ISE_CMDLINE build-bitstream)
 
 # install Pipistrello binaries
 
 cp soc/runtime/runtime.fbi $BIN_PREFIX/pipistrello/
 cp $SRC_DIR/misoc/software/bios/bios.bin $BIN_PREFIX/pipistrello/
-cp $SRC_DIR/misoc/build/artiq_pipistrello-nist_qc1-pipistrello.bit $BIN_PREFIX/pipistrello/
+[ "$BUILD_SOC" != "0" ] && cp $SRC_DIR/misoc/build/artiq_pipistrello-nist_qc1-pipistrello.bit $BIN_PREFIX/pipistrello/
 wget https://people.phys.ethz.ch/~robertjo/bscan_spi_lx45_csg324.bit
 mv bscan_spi_lx45_csg324.bit $BIN_PREFIX/pipistrello/
 
@@ -49,13 +49,13 @@ mv bscan_spi_lx45_csg324.bit $BIN_PREFIX/pipistrello/
 
 cd $SRC_DIR/misoc; $PYTHON make.py -X ../soc -t artiq_kc705 -s NIST_QC2 build-headers; cd -
 make -C soc/runtime clean runtime.fbi
-cd $SRC_DIR/misoc; $PYTHON make.py -X ../soc -t artiq_kc705 -s NIST_QC2 $MISOC_EXTRA_VIVADO_CMDLINE build-bitstream; cd -
+[ "$BUILD_SOC" != "0" ] && (cd $SRC_DIR/misoc; $PYTHON make.py -X ../soc -t artiq_kc705 -s NIST_QC2 $MISOC_EXTRA_VIVADO_CMDLINE build-bitstream)
 
 # install KC705 NIST_QC2 binaries
 
 mkdir -p $BIN_PREFIX/kc705/nist_qc2
 cp soc/runtime/runtime.fbi $BIN_PREFIX/kc705/nist_qc2/
-cp $SRC_DIR/misoc/build/artiq_kc705-nist_qc2-kc705.bit $BIN_PREFIX/kc705/
+[ "$BUILD_SOC" != "0" ] && cp $SRC_DIR/misoc/build/artiq_kc705-nist_qc2-kc705.bit $BIN_PREFIX/kc705/
 
 cp artiq/frontend/artiq_flash.sh $PREFIX/bin
 
