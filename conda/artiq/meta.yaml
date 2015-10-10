@@ -31,7 +31,7 @@ requirements:
         - python >=3.5.0
         - setuptools
         - numpy
-        - migen
+        - migen 0.0
         - pyelftools
         - binutils-or1k-linux
     run:

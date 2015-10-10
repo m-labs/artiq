@@ -1,0 +1,33 @@
+package:
+  name: chardet
+  version: 2.2.1
+
+source:
+  fn: chardet-2.2.1.tar.gz
+  url: https://pypi.python.org/packages/source/c/chardet/chardet-2.2.1.tar.gz
+  md5: 4a758402eaefd0331bdedc7ecb6f452c
+
+build:
+  entry_points:
+    - chardetect = chardet.chardetect:main
+  number: 0
+
+requirements:
+  build:
+    - python
+    - setuptools
+
+  run:
+    - python
+
+test:
+  # Python imports
+  imports:
+    - chardet
+
+  commands:
+    - chardetect run_test.py
+
+about:
+  home: https://github.com/chardet/chardet
+  license: GNU Library or Lesser General Public License (LGPL)
