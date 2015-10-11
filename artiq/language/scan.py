@@ -79,6 +79,9 @@ class RandomScan(ScanObject):
     """A scan object that yields a fixed number of randomly ordered evenly
     spaced values in a range."""
     def __init__(self, min, max, npoints, seed=0):
+        self.min = min
+        self.max = max
+        self.npoints = npoints
         self.sequence = list(LinearScan(min, max, npoints))
         shuffle(self.sequence, Random(seed).random)
 
