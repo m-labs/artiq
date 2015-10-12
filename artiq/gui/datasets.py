@@ -49,14 +49,19 @@ class DatasetsDock(dockarea.Dock):
         grid = LayoutWidget()
         self.addWidget(grid)
 
+        self.search = QtGui.QLineEdit()
+        self.search.setPlaceholderText("search...")
+        self.search.editingFinished.connect(self._search_datasets)
+        grid.addWidget(self.search, 0, )
+
         self.table = QtGui.QTableView()
         self.table.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
         self.table.horizontalHeader().setResizeMode(
             QtGui.QHeaderView.ResizeToContents)
-        grid.addWidget(self.table, 0, 0)
+        grid.addWidget(self.table, 1, 0)
 
         add_display_box = QtGui.QGroupBox("Add display")
-        grid.addWidget(add_display_box, 0, 1)
+        grid.addWidget(add_display_box, 1, 1)
         display_grid = QtGui.QGridLayout()
         add_display_box.setLayout(display_grid)
 
@@ -66,6 +71,17 @@ class DatasetsDock(dockarea.Dock):
             btn.clicked.connect(partial(self.create_dialog, name))
 
         self.displays = dict()
+
+    def _search_datasets(self):
+        model = self.table_model
+        search = self.search.displayText()
+        for row in range(model.rowCount(model.index(0, 0))):
+            index = model.index(row, 0)
+            dataset = model.data(index, QtCore.Qt.DisplayRole)
+            if search in dataset:
+                self.table.showRow(row)
+            else:
+                self.table.hideRow(row)
 
     def get_dataset(self, key):
         return self.table_model.backing_store[key][1]
