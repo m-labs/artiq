@@ -22,6 +22,8 @@ A controller manager connects to the master and uses the device database to dete
 
 Controller managers use the local network address of the connection to the master to filter the device database and run only those controllers that are allocated to the current node. Hostname resolution is supported.
 
+.. warning:: With some network setups, the current machine's hostname without the domain name resolves to a localhost address (127.0.0.1 or even 127.0.1.1). If you wish to use controllers across a network, make sure that the hostname you provide resolves to an IP address visible on the network (e.g. try providing the full hostname including the domain name).
+
 Command-line client
 -------------------
 
