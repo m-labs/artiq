@@ -23,6 +23,41 @@ def parse_arguments(arguments):
     return d
 
 
+def elide(s, maxlen):
+    elided = False
+    if len(s) > maxlen:
+        s = s[:maxlen]
+        elided = True
+    try:
+        idx = s.index("\n")
+    except ValueError:
+        pass
+    else:
+        s = s[:idx]
+        elided = True
+    if elided:
+        maxlen -= 3
+        if len(s) > maxlen:
+            s = s[:maxlen]
+        s += "..."
+    return s
+
+
+def short_format(v):
+    if v is None:
+        return "None"
+    t = type(v)
+    if np.issubdtype(t, int) or np.issubdtype(t, float):
+        return str(v)
+    elif t is str:
+        return "\"" + elide(v, 15) + "\""
+    else:
+        r = t.__name__
+        if t is list or t is dict or t is set:
+            r += " ({})".format(len(v))
+        return r
+
+
 def file_import(filename):
     linecache.checkcache(filename)
 

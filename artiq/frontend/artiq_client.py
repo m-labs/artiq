@@ -12,6 +12,7 @@ from prettytable import PrettyTable
 from artiq.protocols.pc_rpc import Client
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols import pyon
+from artiq.tools import short_format
 
 
 def clear_screen():
@@ -192,7 +193,7 @@ def _show_datasets(datasets):
     clear_screen()
     table = PrettyTable(["Dataset", "Persistent", "Value"])
     for k, (persist, value) in sorted(datasets.items(), key=itemgetter(0)):
-        table.add_row([k, "Y" if persist else "N", str(value)])
+        table.add_row([k, "Y" if persist else "N", short_format(value)])
     print(table)
 
 

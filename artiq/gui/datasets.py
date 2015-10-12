@@ -8,7 +8,8 @@ from pyqtgraph import dockarea
 from pyqtgraph import LayoutWidget
 
 from artiq.protocols.sync_struct import Subscriber
-from artiq.gui.tools import DictSyncModel, short_format
+from artiq.tools import short_format
+from artiq.gui.tools import DictSyncModel
 from artiq.gui.displays import *
 
 
