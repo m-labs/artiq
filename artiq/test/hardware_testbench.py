@@ -6,7 +6,7 @@ import unittest
 import logging
 
 from artiq.language import *
-from artiq.protocols.file_db import FlatFileDB
+from artiq.protocols.pyon import FlatFileDB
 from artiq.master.worker_db import DeviceManager, ResultDB
 from artiq.frontend.artiq_run import DummyScheduler
 
