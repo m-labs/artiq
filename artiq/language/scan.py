@@ -47,6 +47,9 @@ class NoScan(ScanObject):
     def __iter__(self):
         return self._gen()
 
+    def __len__(self):
+        return 1
+
     def describe(self):
         return {"ty": "NoScan", "value": self.value}
 
@@ -70,6 +73,9 @@ class LinearScan(ScanObject):
     def __iter__(self):
         return self._gen()
 
+    def __len__(self):
+        return self.npoints
+
     def describe(self):
         return {"ty": "LinearScan",
                 "min": self.min, "max": self.max, "npoints": self.npoints}
@@ -89,6 +95,9 @@ class RandomScan(ScanObject):
     def __iter__(self):
         return iter(self.sequence)
 
+    def __len__(self):
+        return self.npoints
+
     def describe(self):
         return {"ty": "RandomScan",
                 "min": self.min, "max": self.max, "npoints": self.npoints}
@@ -102,6 +111,9 @@ class ExplicitScan(ScanObject):
     @portable
     def __iter__(self):
         return iter(self.sequence)
+
+    def __len__(self):
+        return len(self.sequence)
 
     def describe(self):
         return {"ty": "ExplicitScan", "sequence": self.sequence}
