@@ -211,20 +211,6 @@ class _Unparser:
             else:
                 comma = True
             self.dispatch(e)
-        if t.starargs:
-            if comma:
-                self.write(", ")
-            else:
-                comma = True
-            self.write("*")
-            self.dispatch(t.starargs)
-        if t.kwargs:
-            if comma:
-                self.write(", ")
-            else:
-                comma = True
-            self.write("**")
-            self.dispatch(t.kwargs)
         self.write(")")
 
         self.enter()
@@ -466,20 +452,6 @@ class _Unparser:
             else:
                 comma = True
             self.dispatch(e)
-        if t.starargs:
-            if comma:
-                self.write(", ")
-            else:
-                comma = True
-            self.write("*")
-            self.dispatch(t.starargs)
-        if t.kwargs:
-            if comma:
-                self.write(", ")
-            else:
-                comma = True
-            self.write("**")
-            self.dispatch(t.kwargs)
         self.write(")")
 
     def _Subscript(self, t):
@@ -571,8 +543,11 @@ class _Unparser:
                 self.dispatch(t.kwarg.annotation)
 
     def _keyword(self, t):
-        self.write(t.arg)
-        self.write("=")
+        if t.arg is None:
+            self.write("**")
+        else:
+            self.write(t.arg)
+            self.write("=")
         self.dispatch(t.value)
 
     def _Lambda(self, t):

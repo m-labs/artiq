@@ -23,8 +23,7 @@ def _seconds_to_mu(ref_period, node):
         node)
     return ast.copy_location(
         ast.Call(func=ast.Name("round64", ast.Load()),
-                 args=[divided],
-                 keywords=[], starargs=[], kwargs=[]),
+                 args=[divided], keywords=[]),
         divided)
 
 
@@ -77,12 +76,10 @@ class _TimeQuantizer(ast.NodeTransformer):
                              right=ast.Num(1000))
             time_int = ast.Call(
                 func=ast.Name("round", ast.Load()),
-                args=[time],
-                keywords=[], starargs=None, kwargs=None)
+                args=[time], keywords=[])
             syscall_set = ast.Call(
                 func=ast.Name("syscall", ast.Load()),
-                args=[ast.Str("watchdog_set"), time_int],
-                keywords=[], starargs=None, kwargs=None)
+                args=[ast.Str("watchdog_set"), time_int], keywords=[])
             stmt_set = ast.copy_location(
                 ast.Assign(targets=[ast.Name(idname, ast.Store())],
                            value=syscall_set),
@@ -91,8 +88,7 @@ class _TimeQuantizer(ast.NodeTransformer):
             syscall_clear = ast.Call(
                 func=ast.Name("syscall", ast.Load()),
                 args=[ast.Str("watchdog_clear"),
-                              ast.Name(idname, ast.Load())],
-                keywords=[], starargs=None, kwargs=None)
+                              ast.Name(idname, ast.Load())], keywords=[])
             stmt_clear = ast.copy_location(ast.Expr(syscall_clear), node)
 
             node.items[0] = ast.withitem(

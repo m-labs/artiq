@@ -40,8 +40,7 @@ def value_to_ast(value):
     if isinstance(value, core_language.int64):  # must be before int
         return ast.Call(
             func=ast.Name("int64", ast.Load()),
-            args=[ast.Num(int(value))],
-            keywords=[], starargs=None, kwargs=None)
+            args=[ast.Num(int(value))], keywords=[])
     elif isinstance(value, bool) or value is None:
         # must also be before int
         # isinstance(True/False, int) == True
@@ -51,8 +50,7 @@ def value_to_ast(value):
     elif isinstance(value, Fraction):
         return ast.Call(
             func=ast.Name("Fraction", ast.Load()),
-            args=[ast.Num(value.numerator), ast.Num(value.denominator)],
-            keywords=[], starargs=None, kwargs=None)
+            args=[ast.Num(value.numerator), ast.Num(value.denominator)], keywords=[])
     elif isinstance(value, str):
         return ast.Str(value)
     elif isinstance(value, list):
