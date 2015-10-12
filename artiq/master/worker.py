@@ -21,6 +21,10 @@ class WorkerWatchdogTimeout(Exception):
     pass
 
 
+class WorkerException(Exception):
+    pass
+
+
 class WorkerError(Exception):
     pass
 
@@ -159,6 +163,8 @@ class Worker:
                 return True
             elif action == "pause":
                 return False
+            elif action == "exception":
+                raise WorkerException
             del obj["action"]
             if action == "create_watchdog":
                 func = self.create_watchdog

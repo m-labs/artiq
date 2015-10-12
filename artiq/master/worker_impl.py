@@ -1,6 +1,7 @@
 import sys
 import time
 import os
+import traceback
 
 from artiq.protocols import pyon
 from artiq.tools import file_import
@@ -214,6 +215,9 @@ def main():
                 put_object({"action": "completed"})
             elif action == "terminate":
                 break
+    except:
+        traceback.print_exc()
+        put_object({"action": "exception"})
     finally:
         device_mgr.close_devices()
 

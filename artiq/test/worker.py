@@ -8,6 +8,22 @@ from artiq import *
 from artiq.master.worker import *
 
 
+class SimpleExperiment(EnvExperiment):
+    def build(self):
+        pass
+
+    def run(self):
+        pass
+
+
+class ExceptionTermination(EnvExperiment):
+    def build(self):
+        pass
+
+    def run(self):
+        raise TypeError
+
+
 class WatchdogNoTimeout(EnvExperiment):
     def build(self):
         pass
@@ -53,17 +69,24 @@ def _run_experiment(class_name):
         "arguments": dict()
     }
     loop = asyncio.get_event_loop()
-    worker = Worker()
+    worker = Worker(handlers={"log": lambda message: None})
     loop.run_until_complete(_call_worker(worker, expid))
 
 
-class WatchdogCase(unittest.TestCase):
+class WorkerCase(unittest.TestCase):
     def setUp(self):
         if os.name == "nt":
             self.loop = asyncio.ProactorEventLoop()
         else:
             self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
+
+    def test_simple_run(self):
+        _run_experiment("SimpleExperiment")
+
+    def test_exception(self):
+        with self.assertRaises(WorkerException):
+            _run_experiment("ExceptionTermination")
 
     def test_watchdog_no_timeout(self):
         _run_experiment("WatchdogNoTimeout")
