@@ -39,9 +39,9 @@ class DeviceManager:
         self.virtual_devices = virtual_devices
         self.active_devices = OrderedDict()
 
-    def get_ddb(self):
+    def get_device_db(self):
         """Returns the full contents of the device database."""
-        return self.ddb.get_ddb()
+        return self.ddb.get_device_db()
 
     def get(self, name):
         """Get the device driver or controller client corresponding to a

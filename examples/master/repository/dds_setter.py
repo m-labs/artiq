@@ -8,8 +8,8 @@ class DDSSetter(EnvExperiment):
     def build(self):
         self.dds = dict()
 
-        ddb = self.get_ddb()
-        for k, v in sorted(ddb.items(), key=itemgetter(0)):
+        device_db = self.get_device_db()
+        for k, v in sorted(device_db.items(), key=itemgetter(0)):
             if (isinstance(v, dict)
                     and v["type"] == "local"
                     and v["module"] == "artiq.coredevice.dds"

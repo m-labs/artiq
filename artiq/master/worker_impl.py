@@ -63,7 +63,7 @@ class LogForwarder:
 
 
 class ParentDeviceDB:
-    get_ddb = make_parent_action("get_ddb", "")
+    get_device_db = make_parent_action("get_device_db", "")
     get = make_parent_action("get_device", "key", KeyError)
 
 
@@ -124,7 +124,7 @@ register_experiment = make_parent_action("register_experiment",
 
 
 class ExamineDeviceMgr:
-    get_ddb = make_parent_action("get_ddb", "")
+    get_device_db = make_parent_action("get_device_db", "")
 
     def get(self, name):
         return None
