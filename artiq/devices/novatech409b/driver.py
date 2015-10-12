@@ -143,14 +143,11 @@ class Novatech409B:
 
     def set_freq(self, ch_no, freq):
         """Set frequency of one channel."""
-        self.set_simultaneous_update(False)
         # Novatech expects MHz
         self._ser_send("F{:d} {:f}".format(ch_no, freq/1e6)) 
 
     def set_phase(self, ch_no, phase):
         """Set phase of one channel."""
-        # do this immediately, disable SimultaneousUpdate mode
-        self.set_simultaneous_update(False)
         # phase word is required by device
         # N is an integer from 0 to 16383. Phase is set to
         # N*360/16384 deg; in ARTIQ represent phase in cycles [0, 1]
@@ -168,7 +165,6 @@ class Novatech409B:
             s = "Amplitude out of range {v}".format(v=volts)
             raise ValueError(s)
 
-        self.set_simultaneous_update(False)
         s = "V{:d} {:d}".format(ch_no, dac_value)
         self._ser_send(s)
 
