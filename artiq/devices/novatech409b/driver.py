@@ -137,6 +137,10 @@ class Novatech409B:
         else:
             self._ser_send("I a")
 
+    def do_simultaneous_update(self):
+        """Apply update in simultaneous update mode."""
+        self._ser_send("I p")
+
     def set_freq(self, ch_no, freq):
         """Set frequency of one channel."""
         self.set_simultaneous_update(False)
@@ -153,33 +157,6 @@ class Novatech409B:
         phase_word = round(phase*16383)
         cmd = "P{:d} {:d}".format(ch_no, phase_word)
         self._ser_send(cmd)
-
-    def set_freq_all_phase_continuous(self, freq):
-        """Set frequency of all channels simultaneously.
-
-        Set frequency of all channels simultaneously.
-        1) all DDSs are set to phase continuous mode
-        2) all DDSs are simultaneously set to new frequency
-        Together 1 and 2 ensure phase continuous frequency switching.
-        """
-        self.set_simultaneous_update(True)
-        self.set_phase_continuous(True)
-        for i in range(4):
-            self.set_freq(i, freq)
-        # send command necessary to update all channels at the same time
-        self._ser_send("I p")
-
-    def set_phase_all(self, phase):
-        """Set phase of all channels simultaneously."""
-
-        self.set_simultaneous_update(True)
-        # Note that this only works if the continuous
-        # phase switching is turned off.
-        self.set_phase_continuous(False)
-        for i in range(4):
-            self.set_phase(i, phase)
-        # send command necessary to update all channels at the same time
-        self._ser_send("I p")
 
     def set_gain(self, ch_no, volts):
         """Set amplitude of one channel."""
