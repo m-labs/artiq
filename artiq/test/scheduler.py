@@ -26,7 +26,8 @@ class BackgroundExperiment(EnvExperiment):
                 self.scheduler.pause()
                 sleep(0.2)
         except TerminationRequested:
-            self.set_parameter("termination_ok", True)
+            self.set_dataset("termination_ok", True,
+                             broadcast=True, save=False)
 
 
 def _get_expid(name):
@@ -108,13 +109,15 @@ class SchedulerCase(unittest.TestCase):
         loop = self.loop
 
         termination_ok = False
-        def check_termination(key, value):
+        def check_termination(mod):
             nonlocal termination_ok
-            self.assertEqual(key, "termination_ok")
-            self.assertEqual(value, True)
+            self.assertEqual(
+                mod,
+                {"action": "setitem", "key": "termination_ok",
+                 "value": (False, True), "path": []})
             termination_ok = True
         handlers = {
-            "set_parameter": check_termination
+            "update_dataset": check_termination
         }
         scheduler = Scheduler(0, handlers, None)
 

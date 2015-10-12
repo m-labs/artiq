@@ -85,7 +85,7 @@ class _Pulses(EnvExperiment):
         self.setattr_argument("output_list")
 
         for name in "a", "b", "c", "d":
-            pl = _PulseLogger(*self.dbs(),
+            pl = _PulseLogger(*self.managers(),
                               output_list=self.output_list,
                               name=name)
             setattr(self, name, pl)
