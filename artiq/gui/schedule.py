@@ -6,7 +6,8 @@ from quamash import QtGui, QtCore
 from pyqtgraph import dockarea
 
 from artiq.protocols.sync_struct import Subscriber
-from artiq.gui.tools import elide, DictSyncModel
+from artiq.gui.tools import DictSyncModel
+from artiq.tools import elide
 
 
 class _ScheduleModel(DictSyncModel):

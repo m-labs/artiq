@@ -8,6 +8,8 @@ import time
 import collections
 import os.path
 
+import numpy as np
+
 from artiq.language.environment import is_experiment
 from artiq.protocols import pyon
 
