@@ -111,9 +111,9 @@ class SpeedBenchmark(EnvExperiment):
                 self.scheduler.pause()
         end_time = time.monotonic()
 
-        self.set_result("benchmark_run_time",
-                        (end_time-start_time)/self.nruns,
-                        realtime=True)
+        self.set_dataset("benchmark_run_time",
+                         (end_time-start_time)/self.nruns,
+                         broadcast=True)
 
     def run(self):
         if self.mode == "Single experiment":
@@ -133,6 +133,6 @@ class _Report(EnvExperiment):
 
     def run(self):
         end_time = time.monotonic()
-        self.set_result("benchmark_run_time",
-                        (end_time-self.start_time)/self.nruns,
-                        realtime=True)
+        self.set_dataset("benchmark_run_time",
+                         (end_time-self.start_time)/self.nruns,
+                         broadcast=True)

@@ -93,7 +93,7 @@ class DBWriter(TaskObject):
         try:
             self._queue.put_nowait((k, v))
         except asyncio.QueueFull:
-            logger.warning("failed to update parameter '%s': "
+            logger.warning("failed to update dataset '%s': "
                            "too many pending updates", k)
 
     async def _do(self):
@@ -103,7 +103,7 @@ class DBWriter(TaskObject):
             params = {"u": self.user, "p": self.password, "db": self.database,
                       "consistency": "any", "precision": "n"}
             fmt_ty, fmt_v = format_influxdb(v)
-            data = "{},parameter={} {}={}".format(self.table, k, fmt_ty, fmt_v)
+            data = "{},dataset={} {}={}".format(self.table, k, fmt_ty, fmt_v)
             try:
                 response = await aiohttp.request(
                     "POST", url, params=params, data=data)
@@ -121,15 +121,31 @@ class DBWriter(TaskObject):
                 response.close()
 
 
-class Parameters:
+class _Mock:
+    def __setitem__(self, k, v):
+        pass
+
+    def __getitem__(self, k):
+        return self
+
+    def __delitem__(self, k):
+        pass
+
+
+class Datasets:
     def __init__(self, filter_function, writer, init):
         self.filter_function = filter_function
         self.writer = writer
 
     def __setitem__(self, k, v):
         if self.filter_function(k):
-            self.writer.update(k, v)
+            self.writer.update(k, v[1])
 
+    # ignore mutations
+    def __getitem__(self, k):
+        return _Mock()
+
+    # ignore deletions
     def __delitem__(self, k):
         pass
 
@@ -145,8 +161,8 @@ class MasterReader(TaskObject):
 
     async def _do(self):
         subscriber = Subscriber(
-            "parameters",
-            partial(Parameters, self.filter_function, self.writer))
+            "datasets",
+            partial(Datasets, self.filter_function, self.writer))
         while True:
             try:
                 await subscriber.connect(self.server, self.port)

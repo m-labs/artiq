@@ -15,6 +15,64 @@ from artiq.protocols.pc_rpc import Client, BestEffortClient
 logger = logging.getLogger(__name__)
 
 
+def _create_device(desc, device_mgr):
+    ty = desc["type"]
+    if ty == "local":
+        module = importlib.import_module(desc["module"])
+        device_class = getattr(module, desc["class"])
+        return device_class(device_mgr, **desc["arguments"])
+    elif ty == "controller":
+        if desc["best_effort"]:
+            cl = BestEffortClient
+        else:
+            cl = Client
+        return cl(desc["host"], desc["port"], desc["target_name"])
+    else:
+        raise ValueError("Unsupported type in device DB: " + ty)
+
+
+class DeviceManager:
+    """Handles creation and destruction of local device drivers and controller
+    RPC clients."""
+    def __init__(self, ddb, virtual_devices=dict()):
+        self.ddb = ddb
+        self.virtual_devices = virtual_devices
+        self.active_devices = OrderedDict()
+
+    def get_ddb(self):
+        """Returns the full contents of the device database."""
+        return self.ddb.get_ddb()
+
+    def get(self, name):
+        """Get the device driver or controller client corresponding to a
+        device database entry."""
+        if name in self.virtual_devices:
+            return self.virtual_devices[name]
+        if name in self.active_devices:
+            return self.active_devices[name]
+        else:
+            desc = self.ddb.get(name)
+            while isinstance(desc, str):
+                # alias
+                desc = self.ddb.get(desc)
+            dev = _create_device(desc, self)
+            self.active_devices[name] = dev
+            return dev
+
+    def close_devices(self):
+        """Closes all active devices, in the opposite order as they were
+        requested."""
+        for dev in reversed(list(self.active_devices.values())):
+            try:
+                if isinstance(dev, (Client, BestEffortClient)):
+                    dev.close_rpc()
+                elif hasattr(dev, "close"):
+                    dev.close()
+            except Exception as e:
+                logger.warning("Exception %r when closing device %r", e, dev)
+        self.active_devices.clear()
+
+
 def get_hdf5_output(start_time, rid, name):
     dirname = os.path.join("results",
                            time.strftime("%Y-%m-%d", start_time),
@@ -87,84 +145,30 @@ def result_dict_to_hdf5(f, rd):
             dataset[()] = data
 
 
-class ResultDB:
-    def __init__(self):
-        self.rt = Notifier(dict())
-        self.nrt = dict()
-        self.store = set()
+class DatasetManager:
+    def __init__(self, ddb):
+        self.broadcast = Notifier(dict())
+        self.local = dict()
+
+        self.ddb = ddb
+        self.broadcast.publish = ddb.update
+
+    def set(self, key, value, broadcast=False, persist=False, save=True):
+        if persist:
+            broadcast = True
+        r = None
+        if broadcast:
+            self.broadcast[key] = (persist, value)
+            r = self.broadcast[key][1]
+        if save:
+            self.local[key] = value
+        return r
 
     def get(self, key):
         try:
-            return self.nrt[key]
+            return self.local[key]
         except KeyError:
-            return self.rt[key].read
-
-    def set_store(self, key, store):
-        if store:
-            self.store.add(key)
-        else:
-            self.store.discard(key)
+            return self.ddb.get(key)
 
     def write_hdf5(self, f):
-        result_dict_to_hdf5(
-            f, {k: v for k, v in self.rt.read.items() if k in self.store})
-        result_dict_to_hdf5(
-            f, {k: v for k, v in self.nrt.items() if k in self.store})
-
-
-def _create_device(desc, dmgr):
-    ty = desc["type"]
-    if ty == "local":
-        module = importlib.import_module(desc["module"])
-        device_class = getattr(module, desc["class"])
-        return device_class(dmgr, **desc["arguments"])
-    elif ty == "controller":
-        if desc["best_effort"]:
-            cl = BestEffortClient
-        else:
-            cl = Client
-        return cl(desc["host"], desc["port"], desc["target_name"])
-    else:
-        raise ValueError("Unsupported type in device DB: " + ty)
-
-
-class DeviceManager:
-    """Handles creation and destruction of local device drivers and controller
-    RPC clients."""
-    def __init__(self, ddb, virtual_devices=dict()):
-        self.ddb = ddb
-        self.virtual_devices = virtual_devices
-        self.active_devices = OrderedDict()
-
-    def get_ddb(self):
-        """Returns the full contents of the device database."""
-        return self.ddb.get_ddb()
-
-    def get(self, name):
-        """Get the device driver or controller client corresponding to a
-        device database entry."""
-        if name in self.virtual_devices:
-            return self.virtual_devices[name]
-        if name in self.active_devices:
-            return self.active_devices[name]
-        else:
-            desc = self.ddb.get(name)
-            while isinstance(desc, str):
-                # alias
-                desc = self.ddb.get(desc)
-            dev = _create_device(desc, self)
-            self.active_devices[name] = dev
-            return dev
-
-    def close_devices(self):
-        """Closes all active devices, in the opposite order as they were
-        requested."""
-        for dev in reversed(list(self.active_devices.values())):
-            try:
-                if isinstance(dev, (Client, BestEffortClient)):
-                    dev.close_rpc()
-                elif hasattr(dev, "close"):
-                    dev.close()
-            except Exception as e:
-                logger.warning("Exception %r when closing device %r", e, dev)
-        self.active_devices.clear()
+        result_dict_to_hdf5(f, self.local)

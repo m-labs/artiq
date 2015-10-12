@@ -12,7 +12,7 @@ class AluminumSpectroscopy(EnvExperiment):
         self.setattr_device("spectroscopy_b")
         self.setattr_device("state_detection")
         self.setattr_device("pmt")
-        self.setattr_parameter("spectroscopy_freq", 432*MHz)
+        self.setattr_dataset("spectroscopy_freq", 432*MHz)
         self.setattr_argument("photon_limit_low", FreeValue(10))
         self.setattr_argument("photon_limit_high", FreeValue(15))
 

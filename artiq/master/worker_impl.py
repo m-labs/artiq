@@ -4,7 +4,7 @@ import os
 
 from artiq.protocols import pyon
 from artiq.tools import file_import
-from artiq.master.worker_db import DeviceManager, ResultDB, get_hdf5_output
+from artiq.master.worker_db import DeviceManager, DatasetManager, get_hdf5_output
 from artiq.language.environment import is_experiment
 from artiq.language.core import set_watchdog_factory, TerminationRequested
 
@@ -62,17 +62,14 @@ class LogForwarder:
         pass
 
 
-class ParentDDB:
+class ParentDeviceDB:
     get_ddb = make_parent_action("get_ddb", "")
     get = make_parent_action("get_device", "key", KeyError)
 
 
-class ParentPDB:
-    get = make_parent_action("get_parameter", "key", KeyError)
-    set = make_parent_action("set_parameter", "key value")
-
-
-update_rt_results = make_parent_action("update_rt_results", "mod")
+class ParentDatasetDB:
+    get = make_parent_action("get_dataset", "key", KeyError)
+    update = make_parent_action("update_dataset", "mod")
 
 
 class Watchdog:
@@ -126,22 +123,22 @@ register_experiment = make_parent_action("register_experiment",
                                          "class_name name arguments")
 
 
-class ExamineDMGR:
+class ExamineDeviceMgr:
     get_ddb = make_parent_action("get_ddb", "")
 
     def get(self, name):
         return None
 
 
-class DummyPDB:
-    def get(self, name):
+class DummyDatasetMgr:
+    def set(self, key, value, broadcast=False, persist=False, save=True):
         return None
 
-    def set(self, name, value):
+    def get(self, key):
         pass
 
 
-def examine(dmgr, pdb, rdb, file):
+def examine(device_mgr, dataset_mgr, file):
     module = file_import(file)
     for class_name, exp_class in module.__dict__.items():
         if class_name[0] == "_":
@@ -153,7 +150,7 @@ def examine(dmgr, pdb, rdb, file):
                 name = exp_class.__doc__.splitlines()[0].strip()
                 if name[-1] == ".":
                     name = name[:-1]
-            exp_inst = exp_class(dmgr, pdb, rdb, default_arg_none=True)
+            exp_inst = exp_class(device_mgr, dataset_mgr, default_arg_none=True)
             arguments = [(k, (proc.describe(), group))
                          for k, (proc, group) in exp_inst.requested_args.items()]
             register_experiment(class_name, name, arguments)
@@ -168,10 +165,9 @@ def main():
     exp = None
     exp_inst = None
 
-    dmgr = DeviceManager(ParentDDB,
-                         virtual_devices={"scheduler": Scheduler()})
-    rdb = ResultDB()
-    rdb.rt.publish = update_rt_results
+    device_mgr = DeviceManager(ParentDeviceDB,
+                               virtual_devices={"scheduler": Scheduler()})
+    dataset_mgr = DatasetManager(ParentDatasetDB)
 
     try:
         while True:
@@ -187,9 +183,9 @@ def main():
                 else:
                     expf = expid["file"]
                 exp = get_exp(expf, expid["class_name"])
-                dmgr.virtual_devices["scheduler"].set_run_info(
+                device_mgr.virtual_devices["scheduler"].set_run_info(
                     obj["pipeline_name"], expid, obj["priority"])
-                exp_inst = exp(dmgr, ParentPDB, rdb,
+                exp_inst = exp(device_mgr, dataset_mgr,
                     **expid["arguments"])
                 put_object({"action": "completed"})
             elif action == "prepare":
@@ -204,7 +200,7 @@ def main():
             elif action == "write_results":
                 f = get_hdf5_output(start_time, rid, exp.__name__)
                 try:
-                    rdb.write_hdf5(f)
+                    dataset_mgr.write_hdf5(f)
                     if "repo_rev" in expid:
                         rr = expid["repo_rev"]
                         dtype = "S{}".format(len(rr))
@@ -214,12 +210,12 @@ def main():
                     f.close()
                 put_object({"action": "completed"})
             elif action == "examine":
-                examine(ExamineDMGR(), DummyPDB(), ResultDB(), obj["file"])
+                examine(ExamineDeviceMgr(), DummyDatasetMgr(), obj["file"])
                 put_object({"action": "completed"})
             elif action == "terminate":
                 break
     finally:
-        dmgr.close_devices()
+        device_mgr.close_devices()
 
 if __name__ == "__main__":
     main()

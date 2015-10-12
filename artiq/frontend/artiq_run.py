@@ -4,17 +4,14 @@
 
 import argparse
 import sys
-import time
 from operator import itemgetter
-from itertools import chain
 import logging
 
 import h5py
 
 from artiq.language.environment import EnvExperiment
-from artiq.protocols.file_db import FlatFileDB
-from artiq.master.ddb import DDB
-from artiq.master.worker_db import DeviceManager, ResultDB
+from artiq.master.databases import DeviceDB, DatasetDB
+from artiq.master.worker_db import DeviceManager, DatasetManager
 from artiq.tools import *
 
 
@@ -31,11 +28,6 @@ class ELFRunner(EnvExperiment):
             self.core.comm.load(f.read())
         self.core.comm.run("run")
         self.core.comm.serve(dict(), dict())
-
-
-class SimpleParamLogger:
-    def set(self, timestamp, name, value):
-        logger.info("Parameter change: {} = {}".format(name, value))
 
 
 class DummyScheduler:
@@ -63,10 +55,10 @@ def get_argparser(with_file=True):
         description="Local experiment running tool")
 
     verbosity_args(parser)
-    parser.add_argument("-d", "--ddb", default="ddb.pyon",
-                        help="device database file")
-    parser.add_argument("-p", "--pdb", default="pdb.pyon",
-                        help="parameter database file")
+    parser.add_argument("--device-db", default="device_db.pyon",
+                        help="device database file (default: '%(default)s')")
+    parser.add_argument("--dataset-db", default="dataset_db.pyon",
+                        help="dataset file (default: '%(default)s')")
 
     parser.add_argument("-e", "--experiment", default=None,
                         help="experiment to run")
@@ -82,7 +74,7 @@ def get_argparser(with_file=True):
     return parser
 
 
-def _build_experiment(dmgr, pdb, rdb, args):
+def _build_experiment(device_mgr, dataset_mgr, args):
     if hasattr(args, "file"):
         if args.file.endswith(".elf"):
             if args.arguments:
@@ -90,7 +82,7 @@ def _build_experiment(dmgr, pdb, rdb, args):
             if args.experiment:
                 raise ValueError("experiment-by-name not supported "
                                  "for ELF kernels")
-            return ELFRunner(dmgr, pdb, rdb, file=args.file)
+            return ELFRunner(device_mgr, dataset_mgr, file=args.file)
         else:
             module = file_import(args.file)
         file = args.file
@@ -104,35 +96,34 @@ def _build_experiment(dmgr, pdb, rdb, args):
         "experiment": args.experiment,
         "arguments": arguments
     }
-    dmgr.virtual_devices["scheduler"].expid = expid
-    return exp(dmgr, pdb, rdb, **arguments)
+    device_mgr.virtual_devices["scheduler"].expid = expid
+    return exp(device_mgr, dataset_mgr, **arguments)
 
 
 def run(with_file=False):
     args = get_argparser(with_file).parse_args()
     init_logger(args)
 
-    dmgr = DeviceManager(DDB(args.ddb),
-                         virtual_devices={"scheduler": DummyScheduler()})
-    pdb = FlatFileDB(args.pdb)
-    pdb.hooks.append(SimpleParamLogger())
-    rdb = ResultDB()
+    device_mgr = DeviceManager(DeviceDB(args.device_db),
+                               virtual_devices={"scheduler": DummyScheduler()})
+    dataset_db = DatasetDB(args.dataset_db)
+    dataset_mgr = DatasetManager(dataset_db)
 
     try:
-        exp_inst = _build_experiment(dmgr, pdb, rdb, args)
+        exp_inst = _build_experiment(device_mgr, dataset_mgr, args)
         exp_inst.prepare()
         exp_inst.run()
         exp_inst.analyze()
     finally:
-        dmgr.close_devices()
+        device_mgr.close_devices()
 
     if args.hdf5 is not None:
         with h5py.File(args.hdf5, "w") as f:
-            rdb.write_hdf5(f)
-    elif rdb.rt.read or rdb.nrt:
-        r = chain(rdb.rt.read.items(), rdb.nrt.items())
-        for k, v in sorted(r, key=itemgetter(0)):
+            dataset_mgr.write_hdf5(f)
+    else:
+        for k, v in sorted(dataset_mgr.local.items(), key=itemgetter(0)):
             print("{}: {}".format(k, v))
+    dataset_db.save()
 
 
 def main():

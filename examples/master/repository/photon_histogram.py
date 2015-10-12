@@ -16,9 +16,9 @@ class PhotonHistogram(EnvExperiment):
         self.setattr_argument("nbins", FreeValue(100))
         self.setattr_argument("repeats", FreeValue(100))
 
-        self.setattr_parameter("cool_f", 230*MHz)
-        self.setattr_parameter("detect_f", 220*MHz)
-        self.setattr_parameter("detect_t", 100*us)
+        self.setattr_dataset("cool_f", 230*MHz)
+        self.setattr_dataset("detect_f", 220*MHz)
+        self.setattr_dataset("detect_t", 100*us)
 
     @kernel
     def program_cooling(self):
@@ -60,8 +60,9 @@ class PhotonHistogram(EnvExperiment):
             hist[n] += 1
             total += n
 
-        self.set_result("cooling_photon_histogram", hist)
-        self.set_parameter("ion_present", total > 5*self.repeats)
+        self.set_dataset("cooling_photon_histogram", hist)
+        self.set_dataset("ion_present", total > 5*self.repeats,
+                         broadcast=True)
 
 
 if __name__ == "__main__":
