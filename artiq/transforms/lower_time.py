@@ -46,14 +46,12 @@ def lower_time(func_def):
     _TimeLowerer().visit(func_def)
     call_init = ast.Call(
         func=ast.Name("syscall", ast.Load()),
-        args=[ast.Str("now_init")],
-        keywords=[], starargs=None, kwargs=None)
+        args=[ast.Str("now_init")], keywords=[])
     stmt_init = ast.Assign(targets=[ast.Name("now", ast.Store())],
         value=call_init)
     call_save = ast.Call(
         func=ast.Name("syscall", ast.Load()),
-        args=[ast.Str("now_save"), ast.Name("now", ast.Load())],
-        keywords=[], starargs=None, kwargs=None)
+        args=[ast.Str("now_save"), ast.Name("now", ast.Load())], keywords=[])
     stmt_save = ast.Expr(call_save)
     func_def.body = [
         stmt_init,

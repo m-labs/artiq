@@ -356,8 +356,7 @@ class Function:
             exception_id = self.mappers.exception.encode(exception_class)
         return ast.copy_location(
             ast.Call(func=ast.Name("EncodedException", ast.Load()),
-                     args=[value_to_ast(exception_id)],
-                     keywords=[], starargs=None, kwargs=None),
+                     args=[value_to_ast(exception_id)], keywords=[]),
             e)
 
     def code_visit_Raise(self, node):
@@ -514,8 +513,7 @@ def get_attr_writeback(attribute_namespace, rpc_mapper, loc_node):
             arg3 = ast.copy_location(
                 ast.Name(attr_info.mangled_name, ast.Load()), loc_node)
             call = ast.copy_location(
-                ast.Call(func=func, args=[arg1, arg2, arg3],
-                         keywords=[], starargs=None, kwargs=None),
+                ast.Call(func=func, args=[arg1, arg2, arg3], keywords=[]),
                 loc_node)
             expr = ast.copy_location(ast.Expr(call), loc_node)
             attr_writeback.append(expr)

@@ -71,8 +71,7 @@ def _interleave_timelines(timelines):
             delay_stmt = ast.copy_location(
                 ast.Expr(ast.Call(
                     func=ast.Name("delay_mu", ast.Load()),
-                    args=[value_to_ast(dt)],
-                    keywords=[], starargs=[], kwargs=[])),
+                    args=[value_to_ast(dt)], keywords=[])),
                 ref_stmt)
             r.append(delay_stmt)
         else:
