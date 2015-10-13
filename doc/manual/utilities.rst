@@ -104,9 +104,7 @@ The artiq_coretool utility allows to perform maintenance on the core device:
     * as well as read, write and remove key-value records from the :ref:`core-device-flash-storage`;
     * erase the entire flash storage area.
 
-To use this tool, you need to specify a ``ddb.pyon`` DDB file which contains a ``comm`` device (an example is provided in ``artiq/examples/master/ddb.pyon``).
-This tells the tool how to connect to the core device (via serial or via TCP) and with which parameters (baudrate, serial device, IP address, TCP port).
-When not specified, the artiq_coretool utility will assume that there is a file named ``ddb.pyon`` in the current directory.
+To use this tool, you need to specify a ``device_db.pyon`` device database file which contains a ``comm`` device (an example is provided in ``artiq/examples/master/device_db.pyon``). This tells the tool how to connect to the core device (via serial or via TCP) and with which parameters (baudrate, serial device, IP address, TCP port). When not specified, the artiq_coretool utility will assume that there is a file named ``device_db.pyon`` in the current directory.
 
 
 To read the record whose key is ``mac``::

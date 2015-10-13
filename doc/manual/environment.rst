@@ -3,7 +3,7 @@ The environment
 
 Experiments interact with an environment that consists of devices, parameters, arguments and results. Access to the environment is handled by the class :class:`artiq.language.environment.EnvExperiment` that experiments should derive from.
 
-.. _ddb:
+.. _device-db:
 
 The device database
 -------------------
@@ -12,7 +12,7 @@ The device database contains information about the devices available in a ARTIQ 
 
 The master (or ``artiq_run``) instantiates the device drivers (and the RPC clients in the case of controllers) for the experiments based on the contents of the device database.
 
-The device database is stored in the memory of the master and is backed by a PYON file typically called ``ddb.pyon``.
+The device database is stored in the memory of the master and is backed by a PYON file typically called ``device_db.pyon``.
 
 The device database is a Python dictionary whose keys are the device names, and values can have several types.
 
@@ -33,11 +33,6 @@ Aliases
 
 If an entry is a string, that string is used as a key for another lookup in the device database.
 
-The parameter database
-----------------------
-
-The parameter database is a key-value store that is global to all experiments. It is stored in the memory of the master and is backed by a PYON file typically called ``pdb.pyon``. It may be used to communicate values across experiments; for example, a periodic calibration experiment may update a parameter read by payload experiments.
-
 Arguments
 ---------
 
@@ -45,7 +40,14 @@ Arguments are values that parameterize the behavior of an experiment and are set
 
 Requesting the values of arguments can only be done in the build phase of an experiment. The value requests are also used to define the GUI widgets shown in the explorer when the experiment is selected.
 
-Results
--------
 
-Results are the output of an experiment. They are archived after in the HDF5 format after the experiment is run. Experiments may define real-time results that are (additionally) distributed to all clients connected to the master; for example, the ARTIQ GUI may plot them while the experiment is in progress to give rapid feedback to the user. Real-time results are a global key-value store (similar to the parameter database); experiments should use distinctive real-time result names in order to avoid conflicts.
+Datasets
+--------
+
+Datasets are values (possibly arrays) that are read and written by experiments and live in a key-value store.
+
+A dataset may be broadcasted, that is, distributed to all clients connected to the master. For example, the ARTIQ GUI may plot it while the experiment is in progress to give rapid feedback to the user. Broadcasted datasets live in a global key-value store; experiments should use distinctive real-time result names in order to avoid conflicts. Broadcasted datasets may be used to communicate values across experiments; for example, a periodic calibration experiment may update a dataset read by payload experiments. Broadcasted datasets are replaced when a new dataset with the same key (name) is produced.
+
+Broadcasted datasets may be persistent: the master stores them in a file typically called ``dataset_db.pyon`` so they are saved across master restarts.
+
+Datasets produced by an experiment run may be archived in the HDF5 output for that run.

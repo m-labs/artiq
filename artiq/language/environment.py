@@ -207,6 +207,14 @@ class HasEnvironment:
 
     def set_dataset(self, key, value,
                     broadcast=False, persist=False, save=True):
+        """Sets the contents and handling modes of a dataset.
+
+        :param broadcast: the data is sent in real-time to the master, which
+            dispatches it. Returns a Notifier that can be used to mutate the dataset.
+        :param persist: the master should store the data on-disk. Implies broadcast.
+        :param save: the data is saved into the local storage of the current
+            run (archived as a HDF5 file).
+        """
         if self.__parent is not None:
             self.__parent.set_dataset(key, value, broadcast, persist, save)
             return
@@ -215,6 +223,15 @@ class HasEnvironment:
         return self.__dataset_mgr.set(key, value, broadcast, persist, save)
 
     def get_dataset(self, key, default=NoDefault):
+        """Returns the contents of a dataset.
+
+        The local storage is searched first, followed by the master storage
+        (which contains the broadcasted datasets from all experiments) if the
+        key was not found initially.
+
+        If the dataset does not exist, returns the default value. If no default
+        is provided, raises ``KeyError``.
+        """
         if self.__parent is not None:
             return self.__parent.get_dataset(key, default)
         if self.__dataset_mgr is None:
@@ -228,6 +245,8 @@ class HasEnvironment:
                 return default
 
     def setattr_dataset(self, key, default=NoDefault):
+        """Sets the contents of a dataset as attribute. The names of the
+        dataset and of the attribute are the same."""
         setattr(self, key, self.get_dataset(key, default))
 
 
