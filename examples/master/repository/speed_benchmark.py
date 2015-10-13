@@ -13,7 +13,7 @@ class _PayloadNOP(EnvExperiment):
 
 class _PayloadCoreNOP(EnvExperiment):
     def build(self):
-        self.attr_device("core")
+        self.setattr_device("core")
 
     @kernel
     def run(self):
@@ -22,7 +22,7 @@ class _PayloadCoreNOP(EnvExperiment):
 
 class _PayloadCoreSend100Ints(EnvExperiment):
     def build(self):
-        self.attr_device("core")
+        self.setattr_device("core")
 
     def devnull(self, d):
         pass
@@ -35,7 +35,7 @@ class _PayloadCoreSend100Ints(EnvExperiment):
 
 class _PayloadCoreSend1MB(EnvExperiment):
     def build(self):
-        self.attr_device("core")
+        self.setattr_device("core")
 
     def devnull(self, d):
         pass
@@ -48,7 +48,7 @@ class _PayloadCoreSend1MB(EnvExperiment):
 
 class _PayloadCorePrimes(EnvExperiment):
     def build(self):
-        self.attr_device("core")
+        self.setattr_device("core")
 
     def devnull(self, d):
         pass
@@ -70,17 +70,17 @@ class _PayloadCorePrimes(EnvExperiment):
 class SpeedBenchmark(EnvExperiment):
     """Speed benchmark"""
     def build(self):
-        self.attr_argument("mode", EnumerationValue(["Single experiment",
-                                              "With pause",
-                                              "With scheduler"]))
-        self.attr_argument("payload", EnumerationValue(["NOP",
-                                                        "CoreNOP",
-                                                        "CoreSend100Ints",
-                                                        "CoreSend1MB",
-                                                        "CorePrimes"]))
-        self.attr_argument("nruns", NumberValue(10, min=1, max=1000))
-        self.attr_device("core")
-        self.attr_device("scheduler")
+        self.setattr_argument("mode", EnumerationValue(["Single experiment",
+                                                        "With pause",
+                                                        "With scheduler"]))
+        self.setattr_argument("payload", EnumerationValue(["NOP",
+                                                           "CoreNOP",
+                                                           "CoreSend100Ints",
+                                                           "CoreSend1MB",
+                                                           "CorePrimes"]))
+        self.setattr_argument("nruns", NumberValue(10, min=1, max=1000, ndecimals=0))
+        self.setattr_device("core")
+        self.setattr_device("scheduler")
 
     def run_with_scheduler(self):
         nruns = int(self.nruns)
@@ -111,9 +111,9 @@ class SpeedBenchmark(EnvExperiment):
                 self.scheduler.pause()
         end_time = time.monotonic()
 
-        self.set_result("benchmark_run_time",
-                        (end_time-start_time)/self.nruns,
-                        realtime=True)
+        self.set_dataset("benchmark_run_time",
+                         (end_time-start_time)/self.nruns,
+                         broadcast=True)
 
     def run(self):
         if self.mode == "Single experiment":
@@ -128,11 +128,11 @@ class SpeedBenchmark(EnvExperiment):
 
 class _Report(EnvExperiment):
     def build(self):
-        self.attr_argument("start_time")
-        self.attr_argument("nruns")
+        self.setattr_argument("start_time")
+        self.setattr_argument("nruns")
 
     def run(self):
         end_time = time.monotonic()
-        self.set_result("benchmark_run_time",
-                        (end_time-self.start_time)/self.nruns,
-                        realtime=True)
+        self.set_dataset("benchmark_run_time",
+                         (end_time-self.start_time)/self.nruns,
+                         broadcast=True)

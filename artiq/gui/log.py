@@ -41,14 +41,12 @@ class LogDock(dockarea.Dock):
         self.addWidget(self.log)
         self.scroll_at_bottom = False
 
-    @asyncio.coroutine
-    def sub_connect(self, host, port):
+    async def sub_connect(self, host, port):
         self.subscriber = Subscriber("log", self.init_log_model)
-        yield from self.subscriber.connect(host, port)
+        await self.subscriber.connect(host, port)
 
-    @asyncio.coroutine
-    def sub_close(self):
-        yield from self.subscriber.close()
+    async def sub_close(self):
+        await self.subscriber.close()
 
     def rows_inserted_before(self):
         scrollbar = self.log.verticalScrollBar()

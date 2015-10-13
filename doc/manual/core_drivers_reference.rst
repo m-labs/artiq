@@ -1,7 +1,13 @@
 Core drivers reference
 ======================
 
-These drivers are for peripherals closely integrated into the core device, which do not use the controller mechanism.
+These drivers are for the core device and the peripherals closely integrated into it, which do not use the controller mechanism.
+
+:mod:`artiq.coredevice.core` module
+-----------------------------------
+
+.. automodule:: artiq.coredevice.core
+    :members:
 
 :mod:`artiq.coredevice.ttl` module
 -----------------------------------

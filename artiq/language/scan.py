@@ -47,6 +47,9 @@ class NoScan(ScanObject):
     def __iter__(self):
         return self._gen()
 
+    def __len__(self):
+        return 1
+
     def describe(self):
         return {"ty": "NoScan", "value": self.value}
 
@@ -70,6 +73,9 @@ class LinearScan(ScanObject):
     def __iter__(self):
         return self._gen()
 
+    def __len__(self):
+        return self.npoints
+
     def describe(self):
         return {"ty": "LinearScan",
                 "min": self.min, "max": self.max, "npoints": self.npoints}
@@ -79,12 +85,18 @@ class RandomScan(ScanObject):
     """A scan object that yields a fixed number of randomly ordered evenly
     spaced values in a range."""
     def __init__(self, min, max, npoints, seed=0):
+        self.min = min
+        self.max = max
+        self.npoints = npoints
         self.sequence = list(LinearScan(min, max, npoints))
         shuffle(self.sequence, Random(seed).random)
 
     @portable
     def __iter__(self):
         return iter(self.sequence)
+
+    def __len__(self):
+        return self.npoints
 
     def describe(self):
         return {"ty": "RandomScan",
@@ -99,6 +111,9 @@ class ExplicitScan(ScanObject):
     @portable
     def __iter__(self):
         return iter(self.sequence)
+
+    def __len__(self):
+        return len(self.sequence)
 
     def describe(self):
         return {"ty": "ExplicitScan", "sequence": self.sequence}
@@ -121,17 +136,24 @@ class Scannable:
         range of its input widgets.
     :param global_max: Same as global_min, but for the maximum value.
     :param global_step: The step with which the value should be modified by
-        up/down buttons in a user interface.
+        up/down buttons in a user interface. The default is the scale divided
+        by 10.
     :param unit: A string representing the unit of the scanned variable, for user
         interface (UI) purposes.
+    :param scale: The scale of value for UI purposes. The corresponding SI
+        prefix is shown in front of the unit, and the displayed value is
+        divided by the scale.
     :param ndecimals: The number of decimals a UI should use.
     """
-    def __init__(self, default=NoDefault, unit="",
-                 global_step=1.0, global_min=None, global_max=None,
+    def __init__(self, default=NoDefault, unit="", scale=1.0,
+                 global_step=None, global_min=None, global_max=None,
                  ndecimals=2):
+        if global_step is None:
+            global_step = scale/10.0
         if default is not NoDefault:
             self.default_value = default
         self.unit = unit
+        self.scale = scale
         self.global_step = global_step
         self.global_min = global_min
         self.global_max = global_max
@@ -155,6 +177,7 @@ class Scannable:
         if hasattr(self, "default_value"):
             d["default"] = self.default_value.describe()
         d["unit"] = self.unit
+        d["scale"] = self.scale
         d["global_step"] = self.global_step
         d["global_min"] = self.global_min
         d["global_max"] = self.global_max

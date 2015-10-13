@@ -13,7 +13,8 @@ from artiq.coredevice.runtime import source_loader
 __all__ = ["host_int", "int",
            "kernel", "portable", "syscall",
            "set_time_manager", "set_watchdog_factory",
-           "ARTIQException"]
+           "ARTIQException",
+           "TerminationRequested"]
 
 # global namespace for kernels
 kernel_globals = (
@@ -348,6 +349,11 @@ def set_watchdog_factory(f):
 
 def watchdog(timeout):
     return _watchdog_factory(timeout)
+
+
+class TerminationRequested(Exception):
+    """Raised by ``pause`` when the user has requested termination."""
+    pass
 
 
 class ARTIQException(Exception):

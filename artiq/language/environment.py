@@ -73,16 +73,22 @@ class NumberValue(_SimpleArgProcessor):
 
     :param unit: A string representing the unit of the value, for user
         interface (UI) purposes.
+    :param scale: The scale of value for UI purposes. The corresponding SI
+        prefix is shown in front of the unit, and the displayed value is
+        divided by the scale.
     :param step: The step with which the value should be modified by up/down
-        buttons in a UI.
+        buttons in a UI. The default is the scale divided by 10.
     :param min: The minimum value of the argument.
     :param max: The maximum value of the argument.
     :param ndecimals: The number of decimals a UI should use.
     """
-    def __init__(self, default=NoDefault, unit="", step=1.0,
-                 min=None, max=None, ndecimals=2):
+    def __init__(self, default=NoDefault, unit="", scale=1.0,
+                 step=None, min=None, max=None, ndecimals=2):
+        if step is None:
+            step = scale/10.0
         _SimpleArgProcessor.__init__(self, default)
         self.unit = unit
+        self.scale = scale
         self.step = step
         self.min = min
         self.max = max
@@ -91,6 +97,7 @@ class NumberValue(_SimpleArgProcessor):
     def describe(self):
         d = _SimpleArgProcessor.describe(self)
         d["unit"] = self.unit
+        d["scale"] = self.scale
         d["step"] = self.step
         d["min"] = self.min
         d["max"] = self.max
@@ -106,15 +113,13 @@ class StringValue(_SimpleArgProcessor):
 class HasEnvironment:
     """Provides methods to manage the environment of an experiment (devices,
     parameters, results, arguments)."""
-    def __init__(self, dmgr=None, pdb=None, rdb=None, *, parent=None,
-                 param_override=dict(), default_arg_none=False, **kwargs):
+    def __init__(self, device_mgr=None, dataset_mgr=None, *, parent=None,
+                 default_arg_none=False, **kwargs):
         self.requested_args = OrderedDict()
 
-        self.__dmgr = dmgr
-        self.__pdb = pdb
-        self.__rdb = rdb
+        self.__device_mgr = device_mgr
+        self.__dataset_mgr = dataset_mgr
         self.__parent = parent
-        self.__param_override = param_override
         self.__default_arg_none = default_arg_none
 
         self.__kwargs = kwargs
@@ -136,17 +141,16 @@ class HasEnvironment:
         are set to ``None``."""
         raise NotImplementedError
 
-    def dbs(self):
-        """Returns the device manager, the parameter database and the result
-        database, in this order.
+    def managers(self):
+        """Returns the device manager and the dataset manager, in this order.
 
         This is the same order that the constructor takes them, allowing
         sub-objects to be created with this idiom to pass the environment
         around: ::
 
-            sub_object = SomeLibrary(*self.dbs())
+            sub_object = SomeLibrary(*self.managers())
         """
-        return self.__dmgr, self.__pdb, self.__rdb
+        return self.__device_mgr, self.__dataset_mgr
 
     def get_argument(self, key, processor=None, group=None):
         """Retrieves and returns the value of an argument.
@@ -177,94 +181,54 @@ class HasEnvironment:
                     raise
         return processor.process(argval)
 
-    def attr_argument(self, key, processor=None, group=None):
+    def setattr_argument(self, key, processor=None, group=None):
         """Sets an argument as attribute. The names of the argument and of the
         attribute are the same."""
         setattr(self, key, self.get_argument(key, processor, group))
+
+    def get_device_db(self):
+        """Returns the full contents of the device database."""
+        if self.__parent is not None:
+            return self.__parent.get_device_db()
+        return self.__device_mgr.get_device_db()
 
     def get_device(self, key):
         """Creates and returns a device driver."""
         if self.__parent is not None:
             return self.__parent.get_device(key)
-        if self.__dmgr is None:
+        if self.__device_mgr is None:
             raise ValueError("Device manager not present")
-        return self.__dmgr.get(key)
+        return self.__device_mgr.get(key)
 
-    def attr_device(self, key):
+    def setattr_device(self, key):
         """Sets a device driver as attribute. The names of the device driver
          and of the attribute are the same."""
         setattr(self, key, self.get_device(key))
 
-    def get_parameter(self, key, default=NoDefault):
-        """Retrieves and returns a parameter."""
-        if self.__parent is not None and key not in self.__param_override:
-            return self.__parent.get_parameter(key, default)
-        if self.__pdb is None:
-            raise ValueError("Parameter database not present")
-        if key in self.__param_override:
-            return self.__param_override[key]
+    def set_dataset(self, key, value,
+                    broadcast=False, persist=False, save=True):
+        if self.__parent is not None:
+            self.__parent.set_dataset(key, value, broadcast, persist, save)
+            return
+        if self.__dataset_mgr is None:
+            raise ValueError("Dataset manager not present")
+        return self.__dataset_mgr.set(key, value, broadcast, persist, save)
+
+    def get_dataset(self, key, default=NoDefault):
+        if self.__parent is not None:
+            return self.__parent.get_dataset(key, default)
+        if self.__dataset_mgr is None:
+            raise ValueError("Dataset manager not present")
         try:
-            return self.__pdb.get(key)
+            return self.__dataset_mgr.get(key)
         except KeyError:
-            if default is not NoDefault:
-                return default
-            else:
+            if default is NoDefault:
                 raise
+            else:
+                return default
 
-    def attr_parameter(self, key, default=NoDefault):
-        """Sets a parameter as attribute. The names of the argument and of the
-        parameter are the same."""
-        setattr(self, key, self.get_parameter(key, default))
-
-    def set_parameter(self, key, value):
-        """Writes the value of a parameter into the parameter database."""
-        if self.__parent is not None:
-            self.__parent.set_parameter(key, value)
-            return
-        if self.__pdb is None:
-            raise ValueError("Parameter database not present")
-        self.__pdb.set(key, value)
-
-    def set_result(self, key, value, realtime=False, store=True):
-        """Writes the value of a result.
-
-        :param realtime: Marks the result as real-time, making it immediately
-            available to clients such as the user interface. Returns a
-            ``Notifier`` instance that can be used to modify mutable results
-            (such as lists) and synchronize the modifications with the clients.
-        :param store: Defines if the result should be stored permanently,
-            e.g. in HDF5 output. Default is to store.
-        """
-        if self.__parent is not None:
-            self.__parent.set_result(key, value, realtime, store)
-            return
-        if self.__rdb is None:
-            raise ValueError("Result database not present")
-        if realtime:
-            if key in self.__rdb.nrt:
-                raise ValueError("Result is already non-realtime")
-            self.__rdb.rt[key] = value
-            notifier = self.__rdb.rt[key]
-            notifier.kernel_attr_init = False
-            self.__rdb.set_store(key, store)
-            return notifier
-        else:
-            if key in self.__rdb.rt.read:
-                raise ValueError("Result is already realtime")
-            self.__rdb.nrt[key] = value
-            self.__rdb.set_store(key, store)
-
-    def get_result(self, key):
-        """Retrieves the value of a result.
-
-        There is no difference between real-time and non-real-time results
-        (this function does not return ``Notifier`` instances).
-        """
-        if self.__parent is not None:
-            return self.__parent.get_result(key)
-        if self.__rdb is None:
-            raise ValueError("Result database not present")
-        return self.__rdb.get(key)
+    def setattr_dataset(self, key, default=NoDefault):
+        setattr(self, key, self.get_dataset(key, default))
 
 
 class Experiment:

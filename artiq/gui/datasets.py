@@ -8,16 +8,17 @@ from pyqtgraph import dockarea
 from pyqtgraph import LayoutWidget
 
 from artiq.protocols.sync_struct import Subscriber
-from artiq.gui.tools import DictSyncModel, short_format
+from artiq.tools import short_format
+from artiq.gui.tools import DictSyncModel
 from artiq.gui.displays import *
 
 
 logger = logging.getLogger(__name__)
 
 
-class ResultsModel(DictSyncModel):
+class DatasetsModel(DictSyncModel):
     def __init__(self, parent, init):
-        DictSyncModel.__init__(self, ["Result", "Value"],
+        DictSyncModel.__init__(self, ["Dataset", "Persistent", "Value"],
                                parent, init)
 
     def sort_key(self, k, v):
@@ -27,7 +28,9 @@ class ResultsModel(DictSyncModel):
         if column == 0:
             return k
         elif column == 1:
-            return short_format(v)
+            return "Y" if v[0] else "N"
+        elif column == 2:
+            return short_format(v[1])
         else:
            raise ValueError
 
@@ -38,23 +41,28 @@ def _get_display_type_name(display_cls):
             return name
 
 
-class ResultsDock(dockarea.Dock):
+class DatasetsDock(dockarea.Dock):
     def __init__(self, dialog_parent, dock_area):
-        dockarea.Dock.__init__(self, "Results", size=(1500, 500))
+        dockarea.Dock.__init__(self, "Datasets", size=(1500, 500))
         self.dialog_parent = dialog_parent
         self.dock_area = dock_area
 
         grid = LayoutWidget()
         self.addWidget(grid)
 
+        self.search = QtGui.QLineEdit()
+        self.search.setPlaceholderText("search...")
+        self.search.editingFinished.connect(self._search_datasets)
+        grid.addWidget(self.search, 0, )
+
         self.table = QtGui.QTableView()
         self.table.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
         self.table.horizontalHeader().setResizeMode(
             QtGui.QHeaderView.ResizeToContents)
-        grid.addWidget(self.table, 0, 0)
+        grid.addWidget(self.table, 1, 0)
 
         add_display_box = QtGui.QGroupBox("Add display")
-        grid.addWidget(add_display_box, 0, 1)
+        grid.addWidget(add_display_box, 1, 1)
         display_grid = QtGui.QGridLayout()
         add_display_box.setLayout(display_grid)
 
@@ -65,23 +73,36 @@ class ResultsDock(dockarea.Dock):
 
         self.displays = dict()
 
-    def get_result(self, key):
-        return self.table_model.backing_store[key]
+    def _search_datasets(self):
+        model = self.table_model
+        search = self.search.displayText()
+        for row in range(model.rowCount(model.index(0, 0))):
+            index = model.index(row, 0)
+            dataset = model.data(index, QtCore.Qt.DisplayRole)
+            if search in dataset:
+                self.table.showRow(row)
+            else:
+                self.table.hideRow(row)
 
-    @asyncio.coroutine
-    def sub_connect(self, host, port):
-        self.subscriber = Subscriber("rt_results", self.init_results_model,
+    def get_dataset(self, key):
+        return self.table_model.backing_store[key][1]
+
+    async def sub_connect(self, host, port):
+        self.subscriber = Subscriber("datasets", self.init_datasets_model,
                                      self.on_mod)
-        yield from self.subscriber.connect(host, port)
+        await self.subscriber.connect(host, port)
 
-    @asyncio.coroutine
-    def sub_close(self):
-        yield from self.subscriber.close()
+    async def sub_close(self):
+        await self.subscriber.close()
 
-    def init_results_model(self, init):
-        self.table_model = ResultsModel(self.table, init)
+    def init_datasets_model(self, init):
+        self.table_model = DatasetsModel(self.table, init)
         self.table.setModel(self.table_model)
         return self.table_model
+
+    def update_display_data(self, dsp):
+        dsp.update_data({k: self.table_model.backing_store[k][1]
+                         for k in dsp.data_sources()})
 
     def on_mod(self, mod):
         if mod["action"] == "init":
@@ -98,7 +119,7 @@ class ResultsDock(dockarea.Dock):
 
         for display in self.displays.values():
             if source in display.data_sources():
-                display.update_data(self.table_model.backing_store)
+                self.update_display_data(display)
 
     def create_dialog(self, ty):
         dlg_class = display_types[ty][0]
@@ -113,7 +134,7 @@ class ResultsDock(dockarea.Dock):
         dsp_class = display_types[ty][1]
         dsp = dsp_class(name, settings)
         self.displays[name] = dsp
-        dsp.update_data(self.table_model.backing_store)
+        self.update_display_data(dsp)
 
         def on_close():
             del self.displays[name]

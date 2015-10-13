@@ -1,3 +1,4 @@
+# Copyright (C) 2015 M-Labs Limited
 # Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
 
 import os
@@ -6,9 +7,10 @@ import unittest
 import logging
 
 from artiq.language import *
+from artiq.master.databases import DeviceDB, DatasetDB
+from artiq.master.worker_db import DeviceManager, DatasetManager
 from artiq.coredevice.core import CompileError
-from artiq.protocols.file_db import FlatFileDB
-from artiq.master.worker_db import DeviceManager, ResultDB
+from artiq.protocols import pyon
 from artiq.frontend.artiq_run import DummyScheduler
 
 
@@ -19,14 +21,14 @@ logger = logging.getLogger(__name__)
 def get_from_ddb(*path, default="skip"):
     if not artiq_root:
         raise unittest.SkipTest("no ARTIQ_ROOT")
-    v = FlatFileDB(os.path.join(artiq_root, "ddb.pyon")).data
+    v = pyon.load_file(os.path.join(artiq_root, "device_db.pyon"))
     try:
         for p in path:
             v = v[p]
         return v.read
     except KeyError:
         if default == "skip":
-            raise unittest.SkipTest("ddb path {} not found".format(path))
+            raise unittest.SkipTest("device db path {} not found".format(path))
         else:
             return default
 
@@ -34,15 +36,15 @@ def get_from_ddb(*path, default="skip"):
 @unittest.skipUnless(artiq_root, "no ARTIQ_ROOT")
 class ExperimentCase(unittest.TestCase):
     def setUp(self):
-        self.ddb = FlatFileDB(os.path.join(artiq_root, "ddb.pyon"))
-        self.dmgr = DeviceManager(self.ddb,
+        self.device_db = DeviceDB(os.path.join(artiq_root, "device_db.pyon"))
+        self.dataset_db = DatasetDB(os.path.join(artiq_root, "dataset_db.pyon"))
+        self.device_mgr = DeviceManager(self.device_db,
             virtual_devices={"scheduler": DummyScheduler()})
-        self.pdb = FlatFileDB(os.path.join(artiq_root, "pdb.pyon"))
-        self.rdb = ResultDB()
+        self.dataset_mgr = DatasetManager(self.dataset_db)
 
     def create(self, cls, **kwargs):
         try:
-            exp = cls(self.dmgr, self.pdb, self.rdb, **kwargs)
+            exp = cls(self.device_mgr, self.dataset_mgr, **kwargs)
             exp.prepare()
             return exp
         except KeyError as e:
@@ -55,7 +57,7 @@ class ExperimentCase(unittest.TestCase):
             "class_name": cls.__name__,
             "arguments": kwargs
         }
-        self.dmgr.virtual_devices["scheduler"].expid = expid
+        self.device_mgr.virtual_devices["scheduler"].expid = expid
         try:
             exp = self.create(cls, **kwargs)
             exp.run()
@@ -65,4 +67,4 @@ class ExperimentCase(unittest.TestCase):
             # Reduce amount of text on terminal.
             raise error from None
         finally:
-            self.dmgr.close_devices()
+            self.device_mgr.close_devices()

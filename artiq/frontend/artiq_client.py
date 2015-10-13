@@ -12,6 +12,7 @@ from prettytable import PrettyTable
 from artiq.protocols.pc_rpc import Client
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols import pyon
+from artiq.tools import short_format
 
 
 def clear_screen():
@@ -58,40 +59,37 @@ def get_argparser():
     parser_delete = subparsers.add_parser("delete",
                                           help="delete an experiment "
                                                "from the schedule")
+    parser_delete.add_argument("-g", action="store_true",
+                               help="request graceful termination")
     parser_delete.add_argument("rid", type=int,
                                help="run identifier (RID)")
 
-    parser_set_device = subparsers.add_parser(
-        "set-device", help="add or modify a device")
-    parser_set_device.add_argument("name", help="name of the device")
-    parser_set_device.add_argument("description",
-                                   help="description in PYON format")
+    parser_set_dataset = subparsers.add_parser(
+        "set-dataset", help="add or modify a dataset")
+    parser_set_dataset.add_argument("name", help="name of the dataset")
+    parser_set_dataset.add_argument("value",
+                                    help="value in PYON format")
+    parser_set_dataset.add_argument("-p", "--persist", action="store_true",
+                                    help="make the dataset persistent")
 
-    parser_del_device = subparsers.add_parser(
-        "del-device", help="delete a device")
-    parser_del_device.add_argument("name", help="name of the device")
-
-    parser_set_parameter = subparsers.add_parser(
-        "set-parameter", help="add or modify a parameter")
-    parser_set_parameter.add_argument("name", help="name of the parameter")
-    parser_set_parameter.add_argument("value",
-                                      help="value in PYON format")
-
-    parser_del_parameter = subparsers.add_parser(
-        "del-parameter", help="delete a parameter")
-    parser_del_parameter.add_argument("name", help="name of the parameter")
+    parser_del_dataset = subparsers.add_parser(
+        "del-dataset", help="delete a dataset")
+    parser_del_dataset.add_argument("name", help="name of the dataset")
 
     parser_show = subparsers.add_parser(
-        "show", help="show schedule, log, devices or parameters")
+        "show", help="show schedule, log, devices or datasets")
     parser_show.add_argument(
         "what",
-        help="select object to show: schedule/log/devices/parameters")
+        help="select object to show: schedule/log/devices/datasets")
 
-    parser_scan = subparsers.add_parser("scan-repository",
-                                        help="trigger a repository (re)scan")
-    parser_scan.add_argument("revision", default=None, nargs="?",
-                             help="use a specific repository revision "
-                                  "(defaults to head)")
+    subparsers.add_parser(
+        "scan-devices", help="trigger a device database (re)scan")
+
+    parser_scan_repos = subparsers.add_parser(
+        "scan-repository", help="trigger a repository (re)scan")
+    parser_scan_repos.add_argument("revision", default=None, nargs="?",
+                                   help="use a specific repository revision "
+                                        "(defaults to head)")
 
     return parser
 
@@ -128,23 +126,22 @@ def _action_submit(remote, args):
 
 
 def _action_delete(remote, args):
-    remote.delete(args.rid)
+    if args.g:
+        remote.request_termination(args.rid)
+    else:
+        remote.delete(args.rid)
 
 
-def _action_set_device(remote, args):
-    remote.set(args.name, pyon.decode(args.description))
+def _action_set_dataset(remote, args):
+    remote.set(args.name, pyon.decode(args.value), args.persist)
 
 
-def _action_del_device(remote, args):
+def _action_del_dataset(remote, args):
     remote.delete(args.name)
 
 
-def _action_set_parameter(remote, args):
-    remote.set(args.name, pyon.decode(args.value))
-
-
-def _action_del_parameter(remote, args):
-    remote.delete(args.name)
+def _action_scan_devices(remote, args):
+    remote.scan()
 
 
 def _action_scan_repository(remote, args):
@@ -192,11 +189,11 @@ def _show_devices(devices):
     print(table)
 
 
-def _show_parameters(parameters):
+def _show_datasets(datasets):
     clear_screen()
-    table = PrettyTable(["Parameter", "Value"])
-    for k, v in sorted(parameters.items(), key=itemgetter(0)):
-        table.add_row([k, str(v)])
+    table = PrettyTable(["Dataset", "Persistent", "Value"])
+    for k, (persist, value) in sorted(datasets.items(), key=itemgetter(0)):
+        table.add_row([k, "Y" if persist else "N", short_format(value)])
     print(table)
 
 
@@ -265,8 +262,8 @@ def main():
             _show_log(args)
         elif args.what == "devices":
             _show_dict(args, "devices", _show_devices)
-        elif args.what == "parameters":
-            _show_dict(args, "parameters", _show_parameters)
+        elif args.what == "datasets":
+            _show_dict(args, "datasets", _show_datasets)
         else:
             print("Unknown object to show, use -h to list valid names.")
             sys.exit(1)
@@ -275,10 +272,9 @@ def main():
         target_name = {
             "submit": "master_schedule",
             "delete": "master_schedule",
-            "set_device": "master_ddb",
-            "del_device": "master_ddb",
-            "set_parameter": "master_pdb",
-            "del_parameter": "master_pdb",
+            "set_dataset": "master_dataset_db",
+            "del_dataset": "master_dataset_db",
+            "scan_devices": "master_device_db",
             "scan_repository": "master_repository"
         }[action]
         remote = Client(args.server, port, target_name)

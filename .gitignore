@@ -12,6 +12,7 @@ doc/manual/_build
 /dist
 /*.egg-info
 /.coverage
+artiq/test/results
 examples/master/results
 Output/
 /lit-test/libartiq_support/libartiq_support.so

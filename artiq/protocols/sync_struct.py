@@ -61,10 +61,9 @@ class Subscriber:
             self.target_builders = [target_builder]
         self.notify_cb = notify_cb
 
-    @asyncio.coroutine
-    def connect(self, host, port, before_receive_cb=None):
+    async def connect(self, host, port, before_receive_cb=None):
         self.reader, self.writer = \
-            yield from asyncio.open_connection(host, port)
+            await asyncio.open_connection(host, port)
         try:
             if before_receive_cb is not None:
                 before_receive_cb()
@@ -77,12 +76,11 @@ class Subscriber:
             del self.writer
             raise
 
-    @asyncio.coroutine
-    def close(self):
+    async def close(self):
         try:
             self.receive_task.cancel()
             try:
-                yield from asyncio.wait_for(self.receive_task, None)
+                await asyncio.wait_for(self.receive_task, None)
             except asyncio.CancelledError:
                 pass
         finally:
@@ -90,11 +88,10 @@ class Subscriber:
             del self.reader
             del self.writer
 
-    @asyncio.coroutine
-    def _receive_cr(self):
+    async def _receive_cr(self):
         targets = []
         while True:
-            line = yield from self.reader.readline()
+            line = await self.reader.readline()
             if not line:
                 return
             mod = pyon.decode(line.decode())
@@ -209,14 +206,13 @@ class Publisher(AsyncioServer):
         for notifier in notifiers.values():
             notifier.publish = partial(self.publish, notifier)
 
-    @asyncio.coroutine
-    def _handle_connection_cr(self, reader, writer):
+    async def _handle_connection_cr(self, reader, writer):
         try:
-            line = yield from reader.readline()
+            line = await reader.readline()
             if line != _init_string:
                 return
 
-            line = yield from reader.readline()
+            line = await reader.readline()
             if not line:
                 return
             notifier_name = line.decode()[:-1]
@@ -234,10 +230,10 @@ class Publisher(AsyncioServer):
             self._recipients[notifier_name].add(queue)
             try:
                 while True:
-                    line = yield from queue.get()
+                    line = await queue.get()
                     writer.write(line)
                     # raise exception on connection error
-                    yield from writer.drain()
+                    await writer.drain()
             finally:
                 self._recipients[notifier_name].remove(queue)
         except ConnectionResetError:

@@ -6,8 +6,8 @@ import atexit
 import os
 
 from artiq.protocols.pc_rpc import Server
-from artiq.protocols.sync_struct import Notifier, Publisher, process_mod
-from artiq.protocols.file_db import FlatFileDB
+from artiq.protocols.sync_struct import Notifier, Publisher
+from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.scheduler import Scheduler
 from artiq.master.worker_db import get_last_rid
 from artiq.master.repository import FilesystemBackend, GitBackend, Repository
@@ -27,10 +27,10 @@ def get_argparser():
         "--port-control", default=3251, type=int,
         help="TCP port to listen to for control (default: %(default)d)")
     group = parser.add_argument_group("databases")
-    group.add_argument("-d", "--ddb", default="ddb.pyon",
-                       help="device database file")
-    group.add_argument("-p", "--pdb", default="pdb.pyon",
-                       help="parameter database file")
+    group.add_argument("--device-db", default="device_db.pyon",
+                       help="device database file (default: '%(default)s')")
+    group.add_argument("--dataset-db", default="dataset_db.pyon",
+                       help="dataset file (default: '%(default)s')")
     group = parser.add_argument_group("repository")
     group.add_argument(
         "-g", "--git", default=False, action="store_true",
@@ -64,24 +64,25 @@ def main():
         loop = asyncio.get_event_loop()
     atexit.register(lambda: loop.close())
 
-    ddb = FlatFileDB(args.ddb)
-    pdb = FlatFileDB(args.pdb)
-    rtr = Notifier(dict())
+    device_db = DeviceDB(args.device_db)
+    dataset_db = DatasetDB(args.dataset_db)
+    dataset_db.start()
+    atexit.register(lambda: loop.run_until_complete(dataset_db.stop()))
     log = Log(1000)
 
     if args.git:
         repo_backend = GitBackend(args.repository)
     else:
         repo_backend = FilesystemBackend(args.repository)
-    repository = Repository(repo_backend, log.log)
+    repository = Repository(repo_backend, device_db.get_device_db, log.log)
     atexit.register(repository.close)
     repository.scan_async()
 
     worker_handlers = {
-        "get_device": ddb.get,
-        "get_parameter": pdb.get,
-        "set_parameter": pdb.set,
-        "update_rt_results": lambda mod: process_mod(rtr, mod),
+        "get_device_db": device_db.get_device_db,
+        "get_device": device_db.get,
+        "get_dataset": dataset_db.get,
+        "update_dataset": dataset_db.update,
         "log": log.log
     }
     scheduler = Scheduler(get_last_rid() + 1, worker_handlers, repo_backend)
@@ -90,8 +91,8 @@ def main():
     atexit.register(lambda: loop.run_until_complete(scheduler.stop()))
 
     server_control = Server({
-        "master_ddb": ddb,
-        "master_pdb": pdb,
+        "master_device_db": device_db,
+        "master_dataset_db": dataset_db,
         "master_schedule": scheduler,
         "master_repository": repository
     })
@@ -101,9 +102,8 @@ def main():
 
     server_notify = Publisher({
         "schedule": scheduler.notifier,
-        "devices": ddb.data,
-        "parameters": pdb.data,
-        "rt_results": rtr,
+        "devices": device_db.data,
+        "datasets": dataset_db.data,
         "explist": repository.explist,
         "log": log.data
     })

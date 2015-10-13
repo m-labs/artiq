@@ -1,6 +1,6 @@
 import sys, os
 
-from artiq.protocols.file_db import FlatFileDB
+from artiq.master.databases import DeviceDB
 from artiq.master.worker_db import DeviceManager
 
 from artiq.coredevice.core import Core, CompileError
@@ -17,10 +17,10 @@ def main():
         testcase_vars = {'__name__': 'testbench'}
         exec(testcase_code, testcase_vars)
 
-    ddb_path = os.path.join(os.path.dirname(sys.argv[1]), "ddb.pyon")
+    ddb_path = os.path.join(os.path.dirname(sys.argv[1]), "device_db.pyon")
 
     try:
-        core = Core(dmgr=DeviceManager(FlatFileDB(ddb_path)))
+        core = Core(dmgr=DeviceManager(DeviceDB(ddb_path)))
         if compile_only:
             core.compile(testcase_vars["entrypoint"], (), {})
         else:

@@ -7,7 +7,7 @@ class Mandelbrot(EnvExperiment):
     """Mandelbrot set demo"""
 
     def build(self):
-        self.attr_device("core")
+        self.setattr_device("core")
 
     def col(self, i):
         sys.stdout.write(" .,-:;i+hHM$*#@ "[i])

@@ -27,21 +27,21 @@ class FloppingF(EnvExperiment):
     """Flopping F simulation"""
 
     def build(self):
-        self.attr_argument("frequency_scan", Scannable(
+        self.setattr_argument("frequency_scan", Scannable(
             default=LinearScan(1000, 2000, 100)))
 
-        self.attr_argument("F0", NumberValue(1500, min=1000, max=2000))
-        self.attr_argument("noise_amplitude", NumberValue(0.1, min=0, max=100,
+        self.setattr_argument("F0", NumberValue(1500, min=1000, max=2000))
+        self.setattr_argument("noise_amplitude", NumberValue(0.1, min=0, max=100,
                                                           step=0.01))
 
-        self.attr_device("scheduler")
+        self.setattr_device("scheduler")
 
     def run(self):
-        frequency = self.set_result("flopping_f_frequency", [],
-                                    realtime=True, store=False)
-        brightness = self.set_result("flopping_f_brightness", [],
-                                     realtime=True)
-        self.set_result("flopping_f_fit", [], realtime=True, store=False)
+        frequency = self.set_dataset("flopping_f_frequency", [],
+                                     broadcast=True, save=False)
+        brightness = self.set_dataset("flopping_f_brightness", [],
+                                     broadcast=True)
+        self.set_dataset("flopping_f_fit", [], broadcast=True, save=False)
 
         for f in self.frequency_scan:
             m_brightness = model(f, self.F0) + self.noise_amplitude*random.random()
@@ -52,16 +52,16 @@ class FloppingF(EnvExperiment):
                               self.scheduler.priority, time.time() + 20, False)
 
     def analyze(self):
-        # Use get_result so that analyze can be run stand-alone.
-        frequency = self.get_result("flopping_f_frequency")
-        brightness = self.get_result("flopping_f_brightness")
+        # Use get_dataset so that analyze can be run stand-alone.
+        frequency = self.get_dataset("flopping_f_frequency")
+        brightness = self.get_dataset("flopping_f_brightness")
         popt, pcov = curve_fit(model_numpy,
                                frequency, brightness,
-                               p0=[self.get_parameter("flopping_freq")])
+                               p0=[self.get_dataset("flopping_freq")])
         perr = np.sqrt(np.diag(pcov))
         if perr < 0.1:
             F0 = float(popt)
-            self.set_parameter("flopping_freq", F0)
-            self.set_result("flopping_f_fit",
-                            [model(x, F0) for x in frequency],
-                            realtime=True, store=False)
+            self.set_dataset("flopping_freq", F0, persist=True, save=False)
+            self.set_dataset("flopping_f_fit",
+                             [model(x, F0) for x in frequency],
+                             broadcast=True, save=False)

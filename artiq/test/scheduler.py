@@ -18,12 +18,16 @@ class EmptyExperiment(EnvExperiment):
 
 class BackgroundExperiment(EnvExperiment):
     def build(self):
-        self.attr_device("scheduler")
+        self.setattr_device("scheduler")
 
     def run(self):
-        while True:
-            self.scheduler.pause()
-            sleep(0.2)
+        try:
+            while True:
+                self.scheduler.pause()
+                sleep(0.2)
+        except TerminationRequested:
+            self.set_dataset("termination_ok", True,
+                             broadcast=True, save=False)
 
 
 def _get_expid(name):
@@ -57,11 +61,6 @@ def _get_basic_steps(rid, expid, priority=0, flush=False):
     ]
 
 
-_handlers = {
-    "init_rt_results": lambda description: None
-}
-
-
 class SchedulerCase(unittest.TestCase):
     def setUp(self):
         if os.name == "nt":
@@ -72,7 +71,7 @@ class SchedulerCase(unittest.TestCase):
 
     def test_steps(self):
         loop = self.loop
-        scheduler = Scheduler(0, _handlers, None)
+        scheduler = Scheduler(0, dict(), None)
         expid = _get_expid("EmptyExperiment")
 
         expect = _get_basic_steps(1, expid)
@@ -108,13 +107,27 @@ class SchedulerCase(unittest.TestCase):
 
     def test_pause(self):
         loop = self.loop
-        scheduler = Scheduler(0, _handlers, None)
+
+        termination_ok = False
+        def check_termination(mod):
+            nonlocal termination_ok
+            self.assertEqual(
+                mod,
+                {"action": "setitem", "key": "termination_ok",
+                 "value": (False, True), "path": []})
+            termination_ok = True
+        handlers = {
+            "update_dataset": check_termination
+        }
+        scheduler = Scheduler(0, handlers, None)
+
         expid_bg = _get_expid("BackgroundExperiment")
         expid = _get_expid("EmptyExperiment")
 
         expect = _get_basic_steps(1, expid)
         background_running = asyncio.Event()
-        done = asyncio.Event()
+        empty_completed = asyncio.Event()
+        background_completed = asyncio.Event()
         expect_idx = 0
         def notify(mod):
             nonlocal expect_idx
@@ -123,23 +136,34 @@ class SchedulerCase(unittest.TestCase):
                        "key": "status",
                        "action": "setitem"}:
                 background_running.set()
+            if mod == {"path": [0],
+                       "value": "deleting",
+                       "key": "status",
+                       "action": "setitem"}:
+                background_completed.set()
             if mod["path"] == [1] or (mod["path"] == [] and mod["key"] == 1):
                 self.assertEqual(mod, expect[expect_idx])
                 expect_idx += 1
                 if expect_idx >= len(expect):
-                    done.set()
+                    empty_completed.set()
         scheduler.notifier.publish = notify
 
         scheduler.start()
         scheduler.submit("main", expid_bg, -99, None, False)
         loop.run_until_complete(background_running.wait())
         scheduler.submit("main", expid, 0, None, False)
-        loop.run_until_complete(done.wait())
+        loop.run_until_complete(empty_completed.wait())
+
+        self.assertFalse(termination_ok)
+        scheduler.request_termination(0)
+        loop.run_until_complete(background_completed.wait())
+        self.assertTrue(termination_ok)
+
         loop.run_until_complete(scheduler.stop())
 
     def test_flush(self):
         loop = self.loop
-        scheduler = Scheduler(0, _handlers, None)
+        scheduler = Scheduler(0, dict(), None)
         expid = _get_expid("EmptyExperiment")
 
         expect = _get_basic_steps(1, expid, 1, True)

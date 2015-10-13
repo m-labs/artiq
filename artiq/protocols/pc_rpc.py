@@ -159,16 +159,15 @@ class AsyncioClient:
         self.__target_names = None
         self.__description = None
 
-    @asyncio.coroutine
-    def connect_rpc(self, host, port, target_name):
+    async def connect_rpc(self, host, port, target_name):
         """Connects to the server. This cannot be done in __init__ because
         this method is a coroutine. See ``Client`` for a description of the
         parameters."""
         self.__reader, self.__writer = \
-            yield from asyncio.open_connection(host, port)
+            await asyncio.open_connection(host, port)
         try:
             self.__writer.write(_init_string)
-            server_identification = yield from self.__recv()
+            server_identification = await self.__recv()
             self.__target_names = server_identification["targets"]
             self.__description = server_identification["description"]
             if target_name is not None:
@@ -205,20 +204,18 @@ class AsyncioClient:
         line = pyon.encode(obj) + "\n"
         self.__writer.write(line.encode())
 
-    @asyncio.coroutine
-    def __recv(self):
-        line = yield from self.__reader.readline()
+    async def __recv(self):
+        line = await self.__reader.readline()
         return pyon.decode(line.decode())
 
-    @asyncio.coroutine
-    def __do_rpc(self, name, args, kwargs):
-        yield from self.__lock.acquire()
+    async def __do_rpc(self, name, args, kwargs):
+        await self.__lock.acquire()
         try:
             obj = {"action": "call", "name": name,
                    "args": args, "kwargs": kwargs}
             self.__send(obj)
 
-            obj = yield from self.__recv()
+            obj = await self.__recv()
             if obj["status"] == "ok":
                 return obj["ret"]
             elif obj["status"] == "failed":
@@ -229,9 +226,8 @@ class AsyncioClient:
             self.__lock.release()
 
     def __getattr__(self, name):
-        @asyncio.coroutine
-        def proxy(*args, **kwargs):
-            res = yield from self.__do_rpc(name, args, kwargs)
+        async def proxy(*args, **kwargs):
+            res = await self.__do_rpc(name, args, kwargs)
             return res
         return proxy
 
@@ -413,10 +409,9 @@ class Server(_AsyncioServer):
         if builtin_terminate:
             self._terminate_request = asyncio.Event()
 
-    @asyncio.coroutine
-    def _handle_connection_cr(self, reader, writer):
+    async def _handle_connection_cr(self, reader, writer):
         try:
-            line = yield from reader.readline()
+            line = await reader.readline()
             if line != _init_string:
                 return
 
@@ -426,7 +421,7 @@ class Server(_AsyncioServer):
             }
             line = pyon.encode(obj) + "\n"
             writer.write(line.encode())
-            line = yield from reader.readline()
+            line = await reader.readline()
             if not line:
                 return
             target_name = line.decode()[:-1]
@@ -436,7 +431,7 @@ class Server(_AsyncioServer):
                 return
 
             while True:
-                line = yield from reader.readline()
+                line = await reader.readline()
                 if not line:
                     break
                 obj = pyon.decode(line.decode())
@@ -486,9 +481,8 @@ class Server(_AsyncioServer):
         finally:
             writer.close()
 
-    @asyncio.coroutine
-    def wait_terminate(self):
-        yield from self._terminate_request.wait()
+    async def wait_terminate(self):
+        await self._terminate_request.wait()
 
 
 def simple_server_loop(targets, host, port, description=None):

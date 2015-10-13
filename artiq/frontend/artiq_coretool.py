@@ -2,8 +2,8 @@
 
 import argparse
 
+from artiq.master.databases import DeviceDB
 from artiq.master.worker_db import DeviceManager
-from artiq.protocols.file_db import FlatFileDB
 
 
 def to_bytes(string):
@@ -13,8 +13,8 @@ def to_bytes(string):
 def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ core device "
                                                  "remote access tool")
-    parser.add_argument("-d", "--ddb", default="ddb.pyon",
-                        help="device database file")
+    parser.add_argument("--device-db", default="device_db.pyon",
+                       help="device database file (default: '%(default)s')")
 
     subparsers = parser.add_subparsers(dest="action")
     subparsers.required = True
@@ -58,9 +58,9 @@ def get_argparser():
 
 def main():
     args = get_argparser().parse_args()
-    dmgr = DeviceManager(FlatFileDB(args.ddb))
+    device_mgr = DeviceManager(DeviceDB(args.device_db))
     try:
-        comm = dmgr.get("comm")
+        comm = device_mgr.get("comm")
         comm.check_ident()
 
         if args.action == "log":
@@ -83,7 +83,7 @@ def main():
         elif args.action == "cfg-erase":
                 comm.flash_storage_erase()
     finally:
-        dmgr.close_devices()
+        device_mgr.close_devices()
 
 if __name__ == "__main__":
     main()

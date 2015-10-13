@@ -1,25 +1,28 @@
 from quamash import QtGui
 from pyqtgraph import LayoutWidget
 
+from artiq.gui.tools import si_prefix
+
 
 class _Range(LayoutWidget):
-    def __init__(self, global_min, global_max, global_step, unit, ndecimals):
+    def __init__(self, global_min, global_max, global_step, suffix, scale, ndecimals):
         LayoutWidget.__init__(self)
 
+        self.scale = scale
         def apply_properties(spinbox):
             spinbox.setDecimals(ndecimals)
             if global_min is not None:
-                spinbox.setMinimum(global_min)
+                spinbox.setMinimum(global_min/self.scale)
             else:
                 spinbox.setMinimum(float("-inf"))
             if global_max is not None:
-                spinbox.setMaximum(global_max)
+                spinbox.setMaximum(global_max/self.scale)
             else:
                 spinbox.setMaximum(float("inf"))
             if global_step is not None:
-                spinbox.setSingleStep(global_step)
-            if unit:
-                spinbox.setSuffix(" " + unit)
+                spinbox.setSingleStep(global_step/self.scale)
+            if suffix:
+                spinbox.setSuffix(" " + suffix)
 
         self.addWidget(QtGui.QLabel("Min:"), 0, 0)
         self.min = QtGui.QDoubleSpinBox()
@@ -38,8 +41,8 @@ class _Range(LayoutWidget):
         self.addWidget(self.npoints, 0, 5)
 
     def set_values(self, min, max, npoints):
-        self.min.setValue(min)
-        self.max.setValue(max)
+        self.min.setValue(min/self.scale)
+        self.max.setValue(max/self.scale)
         self.npoints.setValue(npoints)
 
     def get_values(self):
@@ -48,8 +51,8 @@ class _Range(LayoutWidget):
         if min > max:
             raise ValueError("Minimum scan boundary must be less than maximum")
         return {
-            "min": min,
-            "max": max,
+            "min": min*self.scale,
+            "max": max*self.scale,
             "npoints": self.npoints.value()
         }
 
@@ -61,33 +64,35 @@ class ScanController(LayoutWidget):
         self.stack = QtGui.QStackedWidget()
         self.addWidget(self.stack, 1, 0, colspan=4)
 
+        self.scale = procdesc["scale"]
+
         gmin, gmax = procdesc["global_min"], procdesc["global_max"]
         gstep = procdesc["global_step"]
-        unit = procdesc["unit"]
+        suffix = si_prefix(self.scale) + procdesc["unit"]
         ndecimals = procdesc["ndecimals"]
 
         self.v_noscan = QtGui.QDoubleSpinBox()
         self.v_noscan.setDecimals(ndecimals)
         if gmin is not None:
-            self.v_noscan.setMinimum(gmin)
+            self.v_noscan.setMinimum(gmin/self.scale)
         else:
             self.v_noscan.setMinimum(float("-inf"))
         if gmax is not None:
-            self.v_noscan.setMaximum(gmax)
+            self.v_noscan.setMaximum(gmax/self.scale)
         else:
             self.v_noscan.setMaximum(float("inf"))
-        self.v_noscan.setSingleStep(gstep)
-        if unit:
-            self.v_noscan.setSuffix(" " + unit)
+        self.v_noscan.setSingleStep(gstep/self.scale)
+        if suffix:
+            self.v_noscan.setSuffix(" " + suffix)
         self.v_noscan_gr = LayoutWidget()
         self.v_noscan_gr.addWidget(QtGui.QLabel("Value:"), 0, 0)
         self.v_noscan_gr.addWidget(self.v_noscan, 0, 1)
         self.stack.addWidget(self.v_noscan_gr)
 
-        self.v_linear = _Range(gmin, gmax, gstep, unit, ndecimals)
+        self.v_linear = _Range(gmin, gmax, gstep, suffix, self.scale, ndecimals)
         self.stack.addWidget(self.v_linear)
 
-        self.v_random = _Range(gmin, gmax, gstep, unit, ndecimals)
+        self.v_random = _Range(gmin, gmax, gstep, suffix, self.scale, ndecimals)
         self.stack.addWidget(self.v_random)
 
         self.v_explicit = QtGui.QLineEdit()
@@ -124,7 +129,7 @@ class ScanController(LayoutWidget):
 
     def get_argument_value(self):
         if self.noscan.isChecked():
-            return {"ty": "NoScan", "value": self.v_noscan.value()}
+            return {"ty": "NoScan", "value": self.v_noscan.value()*self.scale}
         elif self.linear.isChecked():
             d = {"ty": "LinearScan"}
             d.update(self.v_linear.get_values())
@@ -140,7 +145,7 @@ class ScanController(LayoutWidget):
     def set_argument_value(self, d):
         if d["ty"] == "NoScan":
             self.noscan.setChecked(True)
-            self.v_noscan.setValue(d["value"])
+            self.v_noscan.setValue(d["value"]/self.scale)
         elif d["ty"] == "LinearScan":
             self.linear.setChecked(True)
             self.v_linear.set_values(d["min"], d["max"], d["npoints"])

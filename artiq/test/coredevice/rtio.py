@@ -10,8 +10,11 @@ from artiq.coredevice.exceptions import RTIOUnderflow, RTIOSequenceError
 
 class RTT(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_device("ttl_inout")
+        self.setattr_device("core")
+        self.setattr_device("ttl_inout")
+
+    def set_rtt(self, rtt):
+        self.set_dataset("rtt", rtt)
 
     @kernel
     def run(self):
@@ -30,9 +33,12 @@ class RTT(EnvExperiment):
 
 class Loopback(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_device("loop_in")
-        self.attr_device("loop_out")
+        self.setattr_device("core")
+        self.setattr_device("loop_in")
+        self.setattr_device("loop_out")
+
+    def set_rtt(self, rtt):
+        self.set_dataset("rtt", rtt)
 
     @kernel
     def run(self):
@@ -49,9 +55,12 @@ class Loopback(EnvExperiment):
 
 class ClockGeneratorLoopback(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_device("loop_clock_in")
-        self.attr_device("loop_clock_out")
+        self.setattr_device("core")
+        self.setattr_device("loop_clock_in")
+        self.setattr_device("loop_clock_out")
+
+    def set_count(self, count):
+        self.set_dataset("count", count)
 
     @kernel
     def run(self):
@@ -68,8 +77,11 @@ class ClockGeneratorLoopback(EnvExperiment):
 
 class PulseRate(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_device("ttl_out")
+        self.setattr_device("core")
+        self.setattr_device("ttl_out")
+
+    def set_pulse_rate(self, pulse_rate):
+        self.set_dataset("pulse_rate", pulse_rate)
 
     @kernel
     def run(self):
@@ -89,7 +101,7 @@ class PulseRate(EnvExperiment):
 
 class Watchdog(EnvExperiment):
     def build(self):
-        self.attr_device("core")
+        self.setattr_device("core")
 
     @kernel
     def run(self):
@@ -100,9 +112,12 @@ class Watchdog(EnvExperiment):
 
 class LoopbackCount(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_device("ttl_inout")
-        self.attr_argument("npulses")
+        self.setattr_device("core")
+        self.setattr_device("ttl_inout")
+        self.setattr_argument("npulses")
+
+    def set_count(self, count):
+        self.set_dataset("count", count)
 
     @kernel
     def run(self):
@@ -119,8 +134,8 @@ class LoopbackCount(EnvExperiment):
 
 class Underflow(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_device("ttl_out")
+        self.setattr_device("core")
+        self.setattr_device("ttl_out")
 
     @kernel
     def run(self):
@@ -131,8 +146,8 @@ class Underflow(EnvExperiment):
 
 class SequenceError(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_device("ttl_out")
+        self.setattr_device("core")
+        self.setattr_device("ttl_out")
 
     @kernel
     def run(self):
@@ -144,8 +159,8 @@ class SequenceError(EnvExperiment):
 
 class CollisionError(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_device("ttl_out_serdes")
+        self.setattr_device("core")
+        self.setattr_device("ttl_out_serdes")
 
     @kernel
     def run(self):
@@ -157,7 +172,10 @@ class CollisionError(EnvExperiment):
 
 class TimeKeepsRunning(EnvExperiment):
     def build(self):
-        self.attr_device("core")
+        self.setattr_device("core")
+
+    def set_time_at_start(self, time_at_start):
+        self.set_dataset("time_at_start", time_at_start)
 
     @kernel
     def run(self):
@@ -166,40 +184,42 @@ class TimeKeepsRunning(EnvExperiment):
 
 class Handover(EnvExperiment):
     def build(self):
-        self.attr_device("core")
+        self.setattr_device("core")
 
     @kernel
     def get_now(self, var):
         self.set_result(var, now_mu())
 
     def run(self):
-        self.get_now("t1")
-        self.get_now("t2")
+        self.get_now()
+        self.set_dataset("t1", self.time_at_start)
+        self.get_now()
+        self.set_dataset("t2", self.time_at_start)
 
 
 class CoredeviceTest(ExperimentCase):
     def test_rtt(self):
         self.execute(RTT)
-        rtt = self.rdb.get("rtt")
+        rtt = self.dataset_mgr.get("rtt")
         print(rtt)
         self.assertGreater(rtt, 0*ns)
         self.assertLess(rtt, 100*ns)
 
     def test_loopback(self):
         self.execute(Loopback)
-        rtt = self.rdb.get("rtt")
+        rtt = self.dataset_mgr.get("rtt")
         print(rtt)
         self.assertGreater(rtt, 0*ns)
         self.assertLess(rtt, 50*ns)
 
     def test_clock_generator_loopback(self):
         self.execute(ClockGeneratorLoopback)
-        count = self.rdb.get("count")
+        count = self.dataset_mgr.get("count")
         self.assertEqual(count, 10)
 
     def test_pulse_rate(self):
         self.execute(PulseRate)
-        rate = self.rdb.get("pulse_rate")
+        rate = self.dataset_mgr.get("pulse_rate")
         print(rate)
         self.assertGreater(rate, 100*ns)
         self.assertLess(rate, 2500*ns)
@@ -207,7 +227,7 @@ class CoredeviceTest(ExperimentCase):
     def test_loopback_count(self):
         npulses = 2
         self.execute(LoopbackCount, npulses=npulses)
-        count = self.rdb.get("count")
+        count = self.dataset_mgr.get("count")
         self.assertEqual(count, npulses)
 
     def test_underflow(self):
@@ -229,23 +249,24 @@ class CoredeviceTest(ExperimentCase):
 
     def test_time_keeps_running(self):
         self.execute(TimeKeepsRunning)
-        t1 = self.rdb.get("time_at_start")
+        t1 = self.dataset_mgr.get("time_at_start")
         self.execute(TimeKeepsRunning)
-        t2 = self.rdb.get("time_at_start")
-        dead_time = mu_to_seconds(t2 - t1, self.dmgr.get("core"))
+        t2 = self.dataset_mgr.get("time_at_start")
+        dead_time = mu_to_seconds(t2 - t1, self.device_mgr.get("core"))
         print(dead_time)
         self.assertGreater(dead_time, 1*ms)
         self.assertLess(dead_time, 500*ms)
 
     def test_handover(self):
         self.execute(Handover)
-        self.assertEqual(self.rdb.get("t1"), self.rdb.get("t2"))
+        self.assertEqual(self.dataset_mgr.get("t1"),
+                         self.dataset_mgr.get("t2"))
 
 
 class RPCTiming(EnvExperiment):
     def build(self):
-        self.attr_device("core")
-        self.attr_argument("repeats", FreeValue(100))
+        self.setattr_device("core")
+        self.setattr_argument("repeats", FreeValue(100))
 
     def nop(self):
         pass
@@ -262,14 +283,14 @@ class RPCTiming(EnvExperiment):
         self.ts = [0. for _ in range(self.repeats)]
         self.bench()
         mean = sum(self.ts)/self.repeats
-        self.set_result("rpc_time_stddev", sqrt(
+        self.set_dataset("rpc_time_stddev", sqrt(
             sum([(t - mean)**2 for t in self.ts])/self.repeats))
-        self.set_result("rpc_time_mean", mean)
+        self.set_dataset("rpc_time_mean", mean)
 
 
 class RPCTest(ExperimentCase):
     def test_rpc_timing(self):
         self.execute(RPCTiming)
-        self.assertGreater(self.rdb.get("rpc_time_mean"), 100*ns)
-        self.assertLess(self.rdb.get("rpc_time_mean"), 15*ms)
-        self.assertLess(self.rdb.get("rpc_time_stddev"), 1*ms)
+        self.assertGreater(self.dataset_mgr.get("rpc_time_mean"), 100*ns)
+        self.assertLess(self.dataset_mgr.get("rpc_time_mean"), 15*ms)
+        self.assertLess(self.dataset_mgr.get("rpc_time_stddev"), 1*ms)

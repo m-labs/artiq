@@ -9,5 +9,5 @@ conda config --set always_yes yes --set changeps1 no
 conda update -q conda
 conda info -a
 conda install conda-build jinja2
-conda create -q -n py34 python=$TRAVIS_PYTHON_VERSION
+conda create -q -n py35 python=$TRAVIS_PYTHON_VERSION
 conda config --add channels https://conda.anaconda.org/m-labs/channel/dev

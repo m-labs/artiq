@@ -6,7 +6,7 @@ from pyqtgraph import LayoutWidget
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols import pyon
-from artiq.gui.tools import DictSyncModel
+from artiq.gui.tools import si_prefix, DictSyncModel
 from artiq.gui.scan import ScanController
 
 
@@ -74,26 +74,28 @@ class _EnumerationEntry(QtGui.QComboBox):
 class _NumberEntry(QtGui.QDoubleSpinBox):
     def __init__(self, procdesc):
         QtGui.QDoubleSpinBox.__init__(self)
+        self.scale = procdesc["scale"]
         self.setDecimals(procdesc["ndecimals"])
-        self.setSingleStep(procdesc["step"])
+        self.setSingleStep(procdesc["step"]/self.scale)
         if procdesc["min"] is not None:
-            self.setMinimum(procdesc["min"])
+            self.setMinimum(procdesc["min"]/self.scale)
         else:
             self.setMinimum(float("-inf"))
         if procdesc["max"] is not None:
-            self.setMaximum(procdesc["max"])
+            self.setMaximum(procdesc["max"]/self.scale)
         else:
             self.setMaximum(float("inf"))
-        if procdesc["unit"]:
-            self.setSuffix(" " + procdesc["unit"])
+        suffix = si_prefix(self.scale) + procdesc["unit"]
+        if suffix:
+            self.setSuffix(" " + suffix)
         if "default" in procdesc:
             self.set_argument_value(procdesc["default"])
 
     def get_argument_value(self):
-        return self.value()
+        return self.value()*self.scale
 
     def set_argument_value(self, value):
-        self.setValue(value)
+        self.setValue(value/self.scale)
 
 
 class _StringEntry(QtGui.QLineEdit):
@@ -300,23 +302,20 @@ class ExplorerDock(dockarea.Dock):
     def enable_duedate(self):
         self.datetime_en.setChecked(True)
 
-    @asyncio.coroutine
-    def sub_connect(self, host, port):
+    async def sub_connect(self, host, port):
         self.explist_subscriber = Subscriber("explist",
                                              self.init_explist_model)
-        yield from self.explist_subscriber.connect(host, port)
+        await self.explist_subscriber.connect(host, port)
 
-    @asyncio.coroutine
-    def sub_close(self):
-        yield from self.explist_subscriber.close()
+    async def sub_close(self):
+        await self.explist_subscriber.close()
 
     def init_explist_model(self, init):
         self.explist_model = _ExplistModel(self, self.el, init)
         self.el.setModel(self.explist_model)
         return self.explist_model
 
-    @asyncio.coroutine
-    def submit(self, pipeline_name, file, class_name, arguments,
+    async def submit(self, pipeline_name, file, class_name, arguments,
                priority, due_date, flush):
         expid = {
             "repo_rev": None,
@@ -324,8 +323,8 @@ class ExplorerDock(dockarea.Dock):
             "class_name": class_name,
             "arguments": arguments,
         }
-        rid = yield from self.schedule_ctl.submit(pipeline_name, expid,
-                                                  priority, due_date, flush)
+        rid = await self.schedule_ctl.submit(pipeline_name, expid,
+                                             priority, due_date, flush)
         self.status_bar.showMessage("Submitted RID {}".format(rid))
 
     def submit_clicked(self):
@@ -338,7 +337,10 @@ class ExplorerDock(dockarea.Dock):
             arguments = self.argeditor.get_argument_values(True)
             if arguments is None:
                 return
-            asyncio.async(self.submit(self.pipeline.text(),
-                                      expinfo["file"], expinfo["class_name"],
-                                      arguments, self.priority.value(),
-                                      due_date, self.flush.isChecked()))
+            asyncio.ensure_future(self.submit(self.pipeline.text(),
+                                              expinfo["file"],
+                                              expinfo["class_name"],
+                                              arguments,
+                                              self.priority.value(),
+                                              due_date,
+                                              self.flush.isChecked()))

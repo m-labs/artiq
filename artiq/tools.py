@@ -8,6 +8,8 @@ import time
 import collections
 import os.path
 
+import numpy as np
+
 from artiq.language.environment import is_experiment
 from artiq.protocols import pyon
 
@@ -21,6 +23,41 @@ def parse_arguments(arguments):
         name, eq, value = argument.partition("=")
         d[name] = pyon.decode(value)
     return d
+
+
+def elide(s, maxlen):
+    elided = False
+    if len(s) > maxlen:
+        s = s[:maxlen]
+        elided = True
+    try:
+        idx = s.index("\n")
+    except ValueError:
+        pass
+    else:
+        s = s[:idx]
+        elided = True
+    if elided:
+        maxlen -= 3
+        if len(s) > maxlen:
+            s = s[:maxlen]
+        s += "..."
+    return s
+
+
+def short_format(v):
+    if v is None:
+        return "None"
+    t = type(v)
+    if np.issubdtype(t, int) or np.issubdtype(t, float):
+        return str(v)
+    elif t is str:
+        return "\"" + elide(v, 15) + "\""
+    else:
+        r = t.__name__
+        if t is list or t is dict or t is set:
+            r += " ({})".format(len(v))
+        return r
 
 
 def file_import(filename, prefix="file_import_"):
@@ -79,68 +116,41 @@ def init_logger(args):
     logging.basicConfig(level=logging.WARNING + args.quiet*10 - args.verbose*10)
 
 
-@asyncio.coroutine
-def exc_to_warning(coro):
+async def exc_to_warning(coro):
     try:
-        yield from coro
+        await coro
     except:
         logger.warning("asyncio coroutine terminated with exception",
                        exc_info=True)
 
 
-@asyncio.coroutine
-def asyncio_process_wait_timeout(process, timeout):
-    # In Python < 3.5, asyncio.wait_for(process.wait(), ...
-    # causes a futures.InvalidStateError inside asyncio if and when the
-    # process terminates after the timeout.
-    # Work around this problem.
-    @asyncio.coroutine
-    def process_wait_returncode_timeout():
-        while True:
-            if process.returncode is not None:
-                break
-            yield from asyncio.sleep(0.1)
-    yield from asyncio.wait_for(process_wait_returncode_timeout(),
-                                timeout=timeout)
-
-@asyncio.coroutine
-def asyncio_process_wait(process):
-    r = True
-    while r:
-        f, p = yield from asyncio.wait([process.stdout.read(1024)])
-        r = f.pop().result()
-
-
-@asyncio.coroutine
-def asyncio_wait_or_cancel(fs, **kwargs):
-    fs = [asyncio.async(f) for f in fs]
+async def asyncio_wait_or_cancel(fs, **kwargs):
+    fs = [asyncio.ensure_future(f) for f in fs]
     try:
-        d, p = yield from asyncio.wait(fs, **kwargs)
+        d, p = await asyncio.wait(fs, **kwargs)
     except:
         for f in fs:
             f.cancel()
         raise
     for f in p:
         f.cancel()
-        yield from asyncio.wait([f])
+        await asyncio.wait([f])
     return fs
 
 
 class TaskObject:
     def start(self):
-        self.task = asyncio.async(self._do())
+        self.task = asyncio.ensure_future(self._do())
 
-    @asyncio.coroutine
-    def stop(self):
+    async def stop(self):
         self.task.cancel()
         try:
-            yield from asyncio.wait_for(self.task, None)
+            await asyncio.wait_for(self.task, None)
         except asyncio.CancelledError:
             pass
         del self.task
 
-    @asyncio.coroutine
-    def _do(self):
+    async def _do(self):
         raise NotImplementedError
 
 
@@ -152,13 +162,12 @@ class Condition:
             self._loop = asyncio.get_event_loop()
         self._waiters = collections.deque()
 
-    @asyncio.coroutine
-    def wait(self):
+    async def wait(self):
         """Wait until notified."""
         fut = asyncio.Future(loop=self._loop)
         self._waiters.append(fut)
         try:
-            yield from fut
+            await fut
         finally:
             self._waiters.remove(fut)
 

@@ -5,16 +5,16 @@ class AluminumSpectroscopy(EnvExperiment):
     """Aluminum spectroscopy (simulation)"""
 
     def build(self):
-        self.attr_device("core")
-        self.attr_device("mains_sync")
-        self.attr_device("laser_cooling")
-        self.attr_device("spectroscopy")
-        self.attr_device("spectroscopy_b")
-        self.attr_device("state_detection")
-        self.attr_device("pmt")
-        self.attr_parameter("spectroscopy_freq", 432*MHz)
-        self.attr_argument("photon_limit_low", FreeValue(10))
-        self.attr_argument("photon_limit_high", FreeValue(15))
+        self.setattr_device("core")
+        self.setattr_device("mains_sync")
+        self.setattr_device("laser_cooling")
+        self.setattr_device("spectroscopy")
+        self.setattr_device("spectroscopy_b")
+        self.setattr_device("state_detection")
+        self.setattr_device("pmt")
+        self.setattr_dataset("spectroscopy_freq", 432*MHz)
+        self.setattr_argument("photon_limit_low", FreeValue(10))
+        self.setattr_argument("photon_limit_high", FreeValue(15))
 
     @kernel
     def run(self):

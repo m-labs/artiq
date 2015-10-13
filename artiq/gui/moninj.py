@@ -23,9 +23,9 @@ _mode_enc = {
 
 
 class _TTLWidget(QtGui.QFrame):
-    def __init__(self, send_to_device, channel, force_out, title):
-        self.send_to_device = send_to_device
+    def __init__(self, channel, send_to_device, force_out, title):
         self.channel = channel
+        self.send_to_device = send_to_device
         self.force_out = force_out
 
         QtGui.QFrame.__init__(self)
@@ -119,7 +119,8 @@ class _TTLWidget(QtGui.QFrame):
 
 
 class _DDSWidget(QtGui.QFrame):
-    def __init__(self, sysclk, title):
+    def __init__(self, channel, sysclk, title):
+        self.channel = channel
         self.sysclk = sysclk
 
         QtGui.QFrame.__init__(self)
@@ -163,9 +164,11 @@ class _DeviceManager:
             self[k] = v
 
     def __setitem__(self, k, v):
-        self.ddb[k] = v
         if k in self.ttl_widgets:
             del self[k]
+        if k in self.dds_widgets:
+            del self[k]
+        self.ddb[k] = v
         if not isinstance(v, dict):
             return
         try:
@@ -176,14 +179,15 @@ class _DeviceManager:
                 if v["module"] == "artiq.coredevice.ttl":
                     channel = v["arguments"]["channel"]
                     force_out = v["class"] == "TTLOut"
-                    self.ttl_widgets[channel] = _TTLWidget(
-                        self.send_to_device, channel, force_out, title)
+                    self.ttl_widgets[k] = _TTLWidget(
+                        channel, self.send_to_device, force_out, title)
                     self.ttl_cb()
                 if (v["module"] == "artiq.coredevice.dds"
                         and v["class"] in {"AD9858", "AD9914"}):
                     channel = v["arguments"]["channel"]
                     sysclk = v["arguments"]["sysclk"]
-                    self.dds_widgets[channel] = _DDSWidget(sysclk, title)
+                    self.dds_widgets[channel] = _DDSWidget(
+                        channel, sysclk, title)
                     self.dds_cb()
         except KeyError:
             pass
@@ -191,8 +195,13 @@ class _DeviceManager:
     def __delitem__(self, k):
         del self.ddb[k]
         if k in self.ttl_widgets:
+            self.ttl_widgets[k].deleteLater()
             del self.ttl_widgets[k]
             self.ttl_cb()
+        if k in self.dds_widgets:
+            self.dds_widgets[k].deleteLater()
+            del self.dds_widgets[k]
+            self.dds_cb()
 
     def get_core_addr(self):
         try:
@@ -232,26 +241,24 @@ class MonInj(TaskObject):
         self.dm = _DeviceManager(self.send_to_device, dict())
         self.transport = None
 
-    @asyncio.coroutine
-    def start(self, server, port):
+    async def start(self, server, port):
         loop = asyncio.get_event_loop()
-        yield from loop.create_datagram_endpoint(lambda: self,
+        await loop.create_datagram_endpoint(lambda: self,
                                                  family=socket.AF_INET)
         try:
-            yield from self.subscriber.connect(server, port)
+            await self.subscriber.connect(server, port)
             try:
                 TaskObject.start(self)
             except:
-                yield from self.subscriber.close()
+                await self.subscriber.close()
                 raise
         except:
             self.transport.close()
             raise
 
-    @asyncio.coroutine
-    def stop(self):
-        yield from TaskObject.stop(self)
-        yield from self.subscriber.close()
+    async def stop(self):
+        await TaskObject.stop(self)
+        await self.subscriber.close()
         if self.transport is not None:
             self.transport.close()
             self.transport = None
@@ -263,16 +270,17 @@ class MonInj(TaskObject):
         try:
             ttl_levels, ttl_oes, ttl_overrides = \
                 struct.unpack(">QQQ", data[:8*3])
-            for channel, w in self.dm.ttl_widgets.items():
+            for w in self.dm.ttl_widgets.values():
+                channel = w.channel
                 w.set_value(ttl_levels & (1 << channel),
                             ttl_oes & (1 << channel),
                             ttl_overrides & (1 << channel))
             dds_data = data[8*3:]
             ndds = len(dds_data)//4
             ftws = struct.unpack(">" + "I"*ndds, dds_data)
-            for channel, w in self.dm.dds_widgets.items():
+            for w in self.dm.dds_widgets.values():
                 try:
-                    ftw = ftws[channel]
+                    ftw = ftws[w.channel]
                 except KeyError:
                     pass
                 else:
@@ -295,10 +303,9 @@ class MonInj(TaskObject):
         else:
             self.transport.sendto(data, (ca, 3250))
 
-    @asyncio.coroutine
-    def _do(self):
+    async def _do(self):
         while True:
-            yield from asyncio.sleep(0.2)
+            await asyncio.sleep(0.2)
             # MONINJ_REQ_MONITOR
             self.send_to_device(b"\x01")
 
