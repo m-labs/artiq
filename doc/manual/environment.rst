@@ -1,7 +1,7 @@
 The environment
 ===============
 
-Experiments interact with an environment that consists of devices, parameters, arguments and results. Access to the environment is handled by the class :class:`artiq.language.environment.EnvExperiment` that experiments should derive from.
+Experiments interact with an environment that consists of devices, arguments and datasets. Access to the environment is handled by the class :class:`artiq.language.environment.EnvExperiment` that experiments should derive from.
 
 .. _device-db:
 
