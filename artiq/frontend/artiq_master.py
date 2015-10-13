@@ -6,16 +6,17 @@ import atexit
 import os
 
 from artiq.protocols.pc_rpc import Server
-from artiq.protocols.sync_struct import Notifier, Publisher
+from artiq.protocols.sync_struct import Publisher
+from artiq.master.log import log_args, init_log
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.scheduler import Scheduler
 from artiq.master.worker_db import get_last_rid
 from artiq.master.repository import FilesystemBackend, GitBackend, Repository
-from artiq.tools import verbosity_args, init_logger
 
 
 def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ master")
+
     group = parser.add_argument_group("network")
     group.add_argument(
         "--bind", default="::1",
@@ -26,11 +27,13 @@ def get_argparser():
     group.add_argument(
         "--port-control", default=3251, type=int,
         help="TCP port to listen to for control (default: %(default)d)")
+
     group = parser.add_argument_group("databases")
     group.add_argument("--device-db", default="device_db.pyon",
                        help="device database file (default: '%(default)s')")
     group.add_argument("--dataset-db", default="dataset_db.pyon",
                        help="dataset file (default: '%(default)s')")
+
     group = parser.add_argument_group("repository")
     group.add_argument(
         "-g", "--git", default=False, action="store_true",
@@ -38,25 +41,15 @@ def get_argparser():
     group.add_argument(
         "-r", "--repository", default="repository",
         help="path to the repository (default: '%(default)s')")
-    verbosity_args(parser)
+
+    log_args(parser)
+
     return parser
-
-
-class Log:
-    def __init__(self, depth):
-        self.depth = depth
-        self.data = Notifier([])
-
-    def log(self, rid, message):
-        if len(self.data.read) >= self.depth:
-            del self.data[0]
-        self.data.append((rid, message))
-    log.worker_pass_rid = True
 
 
 def main():
     args = get_argparser().parse_args()
-    init_logger(args)
+    log_buffer, log_forwarder = init_log(args)
     if os.name == "nt":
         loop = asyncio.ProactorEventLoop()
         asyncio.set_event_loop(loop)
@@ -68,13 +61,13 @@ def main():
     dataset_db = DatasetDB(args.dataset_db)
     dataset_db.start()
     atexit.register(lambda: loop.run_until_complete(dataset_db.stop()))
-    log = Log(1000)
 
     if args.git:
         repo_backend = GitBackend(args.repository)
     else:
         repo_backend = FilesystemBackend(args.repository)
-    repository = Repository(repo_backend, device_db.get_device_db, log.log)
+    repository = Repository(repo_backend, device_db.get_device_db,
+                            log_forwarder.log_worker)
     atexit.register(repository.close)
     repository.scan_async()
 
@@ -83,7 +76,7 @@ def main():
         "get_device": device_db.get,
         "get_dataset": dataset_db.get,
         "update_dataset": dataset_db.update,
-        "log": log.log
+        "log": log_forwarder.log_worker
     }
     scheduler = Scheduler(get_last_rid() + 1, worker_handlers, repo_backend)
     worker_handlers["scheduler_submit"] = scheduler.submit
@@ -105,7 +98,7 @@ def main():
         "devices": device_db.data,
         "datasets": dataset_db.data,
         "explist": repository.explist,
-        "log": log.data
+        "log": log_buffer.data
     })
     loop.run_until_complete(server_notify.start(
         args.bind, args.port_notify))
