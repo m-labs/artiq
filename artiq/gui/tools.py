@@ -95,7 +95,7 @@ class DictSyncModel(QtCore.QAbstractTableModel):
             new_row = self._find_row(k, v)
             if old_row == new_row:
                 self.dataChanged.emit(self.index(old_row, 0),
-                                      self.index(old_row, len(self.headers)))
+                                      self.index(old_row, len(self.headers)-1))
             else:
                 self.beginMoveRows(QtCore.QModelIndex(), old_row, old_row,
                                    QtCore.QModelIndex(), new_row)
@@ -157,7 +157,7 @@ class ListSyncModel(QtCore.QAbstractTableModel):
 
     def __setitem__(self, k, v):
         self.dataChanged.emit(self.index(k, 0),
-                              self.index(k, len(self.headers)))
+                              self.index(k, len(self.headers)-1))
         self.backing_store[k] = v
 
     def __delitem__(self, k):
