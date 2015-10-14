@@ -28,6 +28,8 @@ class _LogModel(ListSyncModel):
         self.fixed_font = QtGui.QFont()
         self.fixed_font.setFamily("Monospace")
 
+        self.white = QtGui.QBrush(QtGui.QColor(255, 255, 255))
+        self.black = QtGui.QBrush(QtGui.QColor(0, 0, 0))
         self.debug_fg = QtGui.QBrush(QtGui.QColor(55, 55, 55))
         self.warning_bg = QtGui.QBrush(QtGui.QColor(255, 255, 180))
         self.error_bg = QtGui.QBrush(QtGui.QColor(255, 150, 150))
@@ -43,13 +45,13 @@ class _LogModel(ListSyncModel):
             elif level >= logging.WARNING:
                 return self.warning_bg
             else:
-                return ListSyncModel.data(self, index, role)
+                return self.white
         elif role == QtCore.Qt.ForegroundRole and index.isValid():
             level = self.backing_store[index.row()][0]
             if level <= logging.DEBUG:
                 return self.debug_fg
             else:
-                return ListSyncModel.data(self, index, role)
+                return self.black
         else:
             return ListSyncModel.data(self, index, role)
 
