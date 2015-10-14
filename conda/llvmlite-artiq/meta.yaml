@@ -15,12 +15,12 @@ requirements:
         - python
 
 build:
-    number: 4
+    number: 5
 
 test:
     imports:
         - llvmlite_artiq
-        - llvmlite_artiq.llvmpy
+        - llvmlite_artiq.binding
 
 about:
     home: https://pypi.python.org/pypi/llvmlite/

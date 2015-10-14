@@ -19,10 +19,11 @@ do
 done
 
 export PATH=$PWD/packages/usr/local/llvm-or1k/bin:$PWD/packages/usr/local/bin:$PWD/packages/usr/bin:$PATH
-export LD_LIBRARY_PATH=$PWD/packages/usr/local/llvm-or1k/lib:$PWD/packages/usr/lib/x86_64-linux-gnu:$PWD/packages/usr/local/x86_64-unknown-linux-gnu/or1k-elf/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$PWD/packages/usr/lib/x86_64-linux-gnu:$PWD/packages/usr/local/x86_64-unknown-linux-gnu/or1k-elf/lib:$LD_LIBRARY_PATH
 
+echo "export LD_LIBRARY_PATH=$PWD/packages/usr/lib/x86_64-linux-gnu:$PWD/packages/usr/local/x86_64-unknown-linux-gnu/or1k-elf/lib:\$LD_LIBRARY_PATH" >> $HOME/.mlabs/build_settings.sh
 echo "export PATH=$PWD/packages/usr/local/llvm-or1k/bin:$PWD/packages/usr/local/bin:$PWD/packages/usr/bin:\$PATH" >> $HOME/.mlabs/build_settings.sh
-echo "export LD_LIBRARY_PATH=$PWD/packages/usr/local/llvm-or1k/lib:$PWD/packages/usr/lib/x86_64-linux-gnu:$PWD/packages/usr/local/x86_64-unknown-linux-gnu/or1k-elf/lib:\$LD_LIBRARY_PATH" >> $HOME/.mlabs/build_settings.sh
 
+or1k-linux-as --version
 llc --version
 clang --version
