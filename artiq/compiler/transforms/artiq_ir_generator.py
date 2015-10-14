@@ -105,7 +105,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
     def annotate_calls(self, devirtualization):
         for var_node in devirtualization.variable_map:
             callee_node = devirtualization.variable_map[var_node]
-            callee      = self.function_map[callee_node]
+            if callee_node is None:
+                continue
+            callee = self.function_map[callee_node]
 
             call_target = self.variable_map[var_node]
             for use in call_target.uses:
@@ -115,7 +117,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         for type_and_method in devirtualization.method_map:
             callee_node = devirtualization.method_map[type_and_method]
-            callee      = self.function_map[callee_node]
+            if callee_node is None:
+                continue
+            callee = self.function_map[callee_node]
 
             for call in self.method_map[type_and_method]:
                 assert isinstance(call, (ir.Call, ir.Invoke))
