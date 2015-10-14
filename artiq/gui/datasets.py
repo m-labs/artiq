@@ -74,15 +74,7 @@ class DatasetsDock(dockarea.Dock):
         self.displays = dict()
 
     def _search_datasets(self):
-        model = self.table_model
-        search = self.search.displayText()
-        for row in range(model.rowCount(model.index(0, 0))):
-            index = model.index(row, 0)
-            dataset = model.data(index, QtCore.Qt.DisplayRole)
-            if search in dataset:
-                self.table.showRow(row)
-            else:
-                self.table.hideRow(row)
+        self.table_model_filter.setFilterFixedString(self.search.displayText())
 
     def get_dataset(self, key):
         return self.table_model.backing_store[key][1]
@@ -97,7 +89,9 @@ class DatasetsDock(dockarea.Dock):
 
     def init_datasets_model(self, init):
         self.table_model = DatasetsModel(self.table, init)
-        self.table.setModel(self.table_model)
+        self.table_model_filter = QtCore.QSortFilterProxyModel()
+        self.table_model_filter.setSourceModel(self.table_model)
+        self.table.setModel(self.table_model_filter)
         return self.table_model
 
     def update_display_data(self, dsp):
