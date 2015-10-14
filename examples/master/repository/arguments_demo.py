@@ -1,3 +1,5 @@
+import logging
+
 from artiq import *
 
 
@@ -51,6 +53,12 @@ class ArgumentsDemo(EnvExperiment):
         self.sc2 = SubComponent2(parent=self)
 
     def run(self):
+        logging.basicConfig(level=logging.DEBUG)
+        logging.error("logging test: error")
+        logging.warning("logging test: warning")
+        logging.info("logging test: info")
+        logging.debug("logging test: debug")
+
         print(self.free_value)
         print(self.boolean)
         print(self.enum)
