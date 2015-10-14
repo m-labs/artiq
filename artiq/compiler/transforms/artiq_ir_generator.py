@@ -687,7 +687,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         if types.is_builtin(context_expr_node.type, "sequential"):
             self.visit(node.body)
         elif types.is_builtin(context_expr_node.type, "parallel"):
-            parallel = self.append(ir.Parallel())
+            parallel = self.append(ir.Parallel([]))
 
             heads, tails = [], []
             for stmt in node.body:

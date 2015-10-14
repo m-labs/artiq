@@ -1184,7 +1184,7 @@ class Parallel(Terminator):
     in parallel.
     """
 
-    def __init__(self, destinations=[], name=""):
+    def __init__(self, destinations, name=""):
         super().__init__(destinations, builtins.TNone(), name)
 
     def opcode(self):
