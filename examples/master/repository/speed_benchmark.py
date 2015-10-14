@@ -101,7 +101,7 @@ class SpeedBenchmark(EnvExperiment):
                               self.scheduler.priority, None, False)
 
     def run_without_scheduler(self, pause):
-        payload = globals()["_Payload" + self.payload](*self.dbs())
+        payload = globals()["_Payload" + self.payload](*self.managers())
 
         start_time = time.monotonic()
         for i in range(int(self.nruns)):

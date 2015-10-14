@@ -10,7 +10,7 @@ Starting your first experiment with the master
 
 In the previous tutorial, we used the ``artiq_run`` utility to execute our experiments, which is a simple stand-alone tool that bypasses the ARTIQ management system. We will now see how to run an experiment using the master (the central program in the management system that schedules and executes experiments) and the GUI client (that connects to the master and controls it).
 
-First, create a folder ``~/artiq-master`` and copy the ``ddb.pyon`` and ``pdb.pyon`` files (device and parameter databases) found in the ``examples/master`` directory from the ARTIQ sources. The master uses those files in the same way as ``artiq_run``.
+First, create a folder ``~/artiq-master`` and copy the ``device_db.pyon`` and ``dataset_db.pyon`` (containing the device and dataset databases) found in the ``examples/master`` directory from the ARTIQ sources. The master uses those files in the same way as ``artiq_run``.
 
 Then create a ``~/artiq-master/repository`` sub-folder to contain experiments. The master scans this ``repository`` folder to determine what experiments are available (the name of the folder can be changed using ``-r``).
 
@@ -136,20 +136,20 @@ The master should now run the new version from its repository.
 
 As an exercise, add another argument to the experiment, commit and push the result, and verify that the new control is added in the GUI.
 
-Results
--------
+Datasets
+--------
 
 Modify the ``run()`` method of the experiment as follows: ::
 
     def run(self):
-        parabola = self.set_result("parabola", [], realtime=True)
+        parabola = self.set_dataset("parabola", [], broadcast=True)
         for i in range(int(self.count)):
             parabola.append(i*i)
             time.sleep(0.5)
 
 .. note:: You need to import the ``time`` module.
 
-Commit, push and submit the experiment as before. While it is running, go to the "Results" dock of the GUI and create a new XY plot showing the new result. Observe how the points are added one by one to the plot.
+Commit, push and submit the experiment as before. While it is running, go to the "Datasets" dock of the GUI and create a new XY plot showing the new result. Observe how the points are added one by one to the plot.
 
 After the experiment has finished executing, the results are written to a HDF5 file that resides in ``~/artiq-master/results/<date>/<time>``. Open that file with HDFView or h5dump, and observe the data we just generated as well as the Git commit ID of the experiment (a hexadecimal hash such as ``947acb1f90ae1b8862efb489a9cc29f7d4e0c645`` that represents the data at a particular time in the Git repository). The list of Git commit IDs can be found using the ``git log`` command in ``~/artiq-work``.
 

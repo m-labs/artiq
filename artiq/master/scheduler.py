@@ -228,9 +228,9 @@ class PrepareStage(TaskObject):
                     await run.build()
                     await run.prepare()
                 except:
-                    logger.warning("got worker exception in prepare stage, "
-                                   "deleting RID %d",
-                                   run.rid, exc_info=True)
+                    logger.error("got worker exception in prepare stage, "
+                                 "deleting RID %d",
+                                 run.rid, exc_info=True)
                     self.delete_cb(run.rid)
                 else:
                     run.status = RunStatus.prepare_done
@@ -278,9 +278,9 @@ class RunStage(TaskObject):
                     run.status = RunStatus.running
                     completed = await run.run()
             except:
-                logger.warning("got worker exception in run stage, "
-                               "deleting RID %d",
-                               run.rid, exc_info=True)
+                logger.error("got worker exception in run stage, "
+                             "deleting RID %d",
+                             run.rid, exc_info=True)
                 self.delete_cb(run.rid)
             else:
                 if completed:
@@ -316,9 +316,9 @@ class AnalyzeStage(TaskObject):
                 await run.analyze()
                 await run.write_results()
             except:
-                logger.warning("got worker exception in analyze stage, "
-                               "deleting RID %d",
-                               run.rid, exc_info=True)
+                logger.error("got worker exception in analyze stage, "
+                             "deleting RID %d",
+                             run.rid, exc_info=True)
                 self.delete_cb(run.rid)
             else:
                 self.delete_cb(run.rid)

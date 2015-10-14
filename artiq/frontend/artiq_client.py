@@ -224,18 +224,22 @@ def _show_dict(args, notifier_name, display_fun):
     _run_subscriber(args.server, args.port, subscriber)
 
 
+def _print_log_record(record):
+    level, source, t, message = record
+    t = time.strftime("%m/%d %H:%M:%S", time.localtime(t))
+    print(level, source, t, message)
+
+
 class _LogPrinter:
     def __init__(self, init):
-        for rid, msg in init:
-            print(rid, msg)
+        for record in init:
+            _print_log_record(record)
 
-    def append(self, x):
-        rid, msg = x
-        print(rid, msg)
+    def append(self, record):
+        _print_log_record(record)
 
-    def insert(self, i, x):
-        rid, msg = x
-        print(rid, msg)
+    def insert(self, i, record):
+        _print_log_record(record)
 
     def pop(self, i=-1):
         pass
