@@ -5,9 +5,10 @@ import argparse
 import atexit
 import os
 
-from artiq.protocols.pc_rpc import Server
+from artiq.protocols.pc_rpc import Server as RPCServer
 from artiq.protocols.sync_struct import Publisher
-from artiq.master.log import log_args, init_log
+from artiq.protocols.logging import Server as LoggingServer
+from artiq.master.log import log_args, init_log, log_worker
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.scheduler import Scheduler
 from artiq.master.worker_db import get_last_rid
@@ -27,6 +28,9 @@ def get_argparser():
     group.add_argument(
         "--port-control", default=3251, type=int,
         help="TCP port to listen to for control (default: %(default)d)")
+    group.add_argument(
+        "--port-logging", default=1066, type=int,
+        help="TCP port to listen to for remote logging (default: %(default)d)")
 
     group = parser.add_argument_group("databases")
     group.add_argument("--device-db", default="device_db.pyon",
@@ -49,7 +53,7 @@ def get_argparser():
 
 def main():
     args = get_argparser().parse_args()
-    log_buffer, log_forwarder = init_log(args)
+    log_buffer = init_log(args)
     if os.name == "nt":
         loop = asyncio.ProactorEventLoop()
         asyncio.set_event_loop(loop)
@@ -67,7 +71,7 @@ def main():
     else:
         repo_backend = FilesystemBackend(args.repository)
     repository = Repository(repo_backend, device_db.get_device_db,
-                            log_forwarder.log_worker)
+                            log_worker)
     atexit.register(repository.close)
     repository.scan_async()
 
@@ -76,14 +80,14 @@ def main():
         "get_device": device_db.get,
         "get_dataset": dataset_db.get,
         "update_dataset": dataset_db.update,
-        "log": log_forwarder.log_worker
+        "log": log_worker
     }
     scheduler = Scheduler(get_last_rid() + 1, worker_handlers, repo_backend)
     worker_handlers["scheduler_submit"] = scheduler.submit
     scheduler.start()
     atexit.register(lambda: loop.run_until_complete(scheduler.stop()))
 
-    server_control = Server({
+    server_control = RPCServer({
         "master_device_db": device_db,
         "master_dataset_db": dataset_db,
         "master_schedule": scheduler,
@@ -103,6 +107,11 @@ def main():
     loop.run_until_complete(server_notify.start(
         args.bind, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(server_notify.stop()))
+
+    server_logging = LoggingServer()
+    loop.run_until_complete(server_logging.start(
+        args.bind, args.port_logging))
+    atexit.register(lambda: loop.run_until_complete(server_logging.stop()))
 
     loop.run_forever()
 

@@ -2,6 +2,7 @@ import logging
 import logging.handlers
 
 from artiq.protocols.sync_struct import Notifier
+from artiq.protocols.logging import parse_log_message, log_with_name
 
 
 class LogBuffer:
@@ -25,38 +26,11 @@ class LogBufferHandler(logging.Handler):
         self.log_buffer.log(record.levelno, record.source, record.created, message)
 
 
-name_to_level = {
-    "CRITICAL": logging.CRITICAL,
-    "ERROR": logging.ERROR,
-    "WARN": logging.WARNING,
-    "WARNING": logging.WARNING,
-    "INFO": logging.INFO,
-    "DEBUG": logging.DEBUG,
-}
-
-
-def parse_log_message(msg):
-    for name, level in name_to_level.items():
-        if msg.startswith(name + ":"):
-            remainder = msg[len(name) + 1:]
-            try:
-                idx = remainder.index(":")
-            except:
-                continue
-            return level, remainder[:idx], remainder[idx+1:]
-    return logging.INFO, "print", msg
-
-
-fwd_logger = logging.getLogger("fwd")
-
-
-class LogForwarder:
-    def log_worker(self, rid, message):
-        level, name, message = parse_log_message(message)
-        fwd_logger.name = name
-        fwd_logger.log(level, message,
-                       extra={"source": "worker({})".format(rid)})
-    log_worker.worker_pass_rid = True
+def log_worker(rid, message):
+    level, name, message = parse_log_message(message)
+    log_with_name(name, level, message,
+                  extra={"source": "worker({})".format(rid)})
+log_worker.worker_pass_rid = True
 
 
 class SourceFilter:
@@ -120,6 +94,4 @@ def init_log(args):
         handler.addFilter(flt)
         root_logger.addHandler(handler)
 
-    log_forwarder = LogForwarder()
-
-    return log_buffer, log_forwarder
+    return log_buffer
