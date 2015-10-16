@@ -20,6 +20,7 @@ class LogBufferHandler(logging.Handler):
     def __init__(self, log_buffer, *args, **kwargs):
         logging.Handler.__init__(self, *args, **kwargs)
         self.log_buffer = log_buffer
+        self.setFormatter(logging.Formatter("%(name)s:%(message)s"))
 
     def emit(self, record):
         message = self.format(record)
@@ -87,7 +88,6 @@ def init_log(args):
     
     log_buffer = LogBuffer(1000)
     buffer_handler = LogBufferHandler(log_buffer)
-    buffer_handler.setFormatter(logging.Formatter("%(name)s:%(message)s"))
     handlers.append(buffer_handler)
 
     for handler in handlers:
