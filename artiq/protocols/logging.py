@@ -38,6 +38,11 @@ _init_string = b"ARTIQ logging\n"
 
 
 class Server(AsyncioServer):
+    """Remote logging TCP server.
+
+    Takes one log entry per line, in the format:
+        source:levelno:name:message
+    """
     async def _handle_connection_cr(self, reader, writer):
         try:
             line = await reader.readline()
@@ -56,10 +61,10 @@ class Server(AsyncioServer):
                 linesplit = line.split(":", 4)
                 if len(linesplit) != 4:
                     return
-                source, levelname, name, message = linesplit
+                source, level, name, message = linesplit
                 try:
-                    level = _name_to_level[levelname]
-                except KeyError:
+                    level = int(level)
+                except:
                     return
                 log_with_name(name, level, message,
                               extra={"source": source})
