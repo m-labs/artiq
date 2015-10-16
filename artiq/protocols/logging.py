@@ -5,6 +5,7 @@ from artiq.protocols.asyncio_server import AsyncioServer
 from artiq.tools import TaskObject
 
 
+logger = logging.getLogger(__name__)
 _fwd_logger = logging.getLogger("fwd")
 
 
@@ -59,13 +60,17 @@ class Server(AsyncioServer):
                 except:
                     return
                 line = line[:-1]
-                linesplit = line.split(":", 4)
+                linesplit = line.split(":", 3)
                 if len(linesplit) != 4:
+                    logger.warning("received improperly formatted message, "
+                                   "dropping connection")
                     return
                 source, level, name, message = linesplit
                 try:
                     level = int(level)
                 except:
+                    logger.warning("received improperly formatted level, "
+                                   "dropping connection")
                     return
                 log_with_name(name, level, message,
                               extra={"source": source})
