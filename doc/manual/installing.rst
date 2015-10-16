@@ -13,12 +13,12 @@ Installing using conda
 Installing Anaconda or Miniconda
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* You can either install Anaconda (chose Python 3.5) from https://store.continuum.io/cshop/anaconda/
+* You can either install Anaconda (choose Python 3.5) from https://store.continuum.io/cshop/anaconda/
 
-* Or install the more minimalistic Miniconda (chose Python 3.5) from http://conda.pydata.org/miniconda.html
+* Or install the more minimalistic Miniconda (choose Python 3.5) from http://conda.pydata.org/miniconda.html
 
 .. warning::
-    If you are installing on Windows, chose the Windows 32-bit version regardless of whether you have
+    If you are installing on Windows, choose the Windows 32-bit version regardless of whether you have
     a 32-bit or 64-bit Windows.
 
 After installing either Anaconda or Miniconda, open a new terminal and make sure the following command works::
@@ -40,6 +40,7 @@ Installing the host side software
 
 For this, you need to add our binstar repository to your conda configuration::
 
+    $ conda config --add channels http://conda.anaconda.org/m-labs/channel/main
     $ conda config --add channels http://conda.anaconda.org/m-labs/channel/dev
 
 Then you can install the ARTIQ package, it will pull all the necessary dependencies::

@@ -1,3 +1,0 @@
-set LIBGIT2=%PREFIX%
-set VS100COMNTOOLS=%VS120COMNTOOLS%
-%PYTHON% setup.py install
