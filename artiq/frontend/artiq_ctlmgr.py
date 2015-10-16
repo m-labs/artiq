@@ -10,32 +10,11 @@ import socket
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols.pc_rpc import AsyncioClient, Server
-from artiq.tools import verbosity_args, init_logger
+from artiq.protocols.logging import LogForwarder
 from artiq.tools import TaskObject, Condition
 
 
 logger = logging.getLogger(__name__)
-
-
-def get_argparser():
-    parser = argparse.ArgumentParser(description="ARTIQ controller manager")
-    verbosity_args(parser)
-    parser.add_argument(
-        "-s", "--server", default="::1",
-        help="hostname or IP of the master to connect to")
-    parser.add_argument(
-        "--port", default=3250, type=int,
-        help="TCP port to use to connect to the master")
-    parser.add_argument(
-        "--retry-master", default=5.0, type=float,
-        help="retry timer for reconnecting to master")
-    parser.add_argument(
-        "--bind", default="::1",
-        help="hostname or IP address to bind to")
-    parser.add_argument(
-        "--bind-port", default=3249, type=int,
-        help="TCP port to listen to for control (default: %(default)d)")
-    return parser
 
 
 class Controller:
@@ -252,9 +231,54 @@ class ControllerManager(TaskObject):
         self.controller_db.current_controllers.active[k].retry_now.notify()
 
 
+def get_argparser():
+    parser = argparse.ArgumentParser(description="ARTIQ controller manager")
+
+    group = parser.add_argument_group("verbosity")
+    group.add_argument("-v", "--verbose", default=0, action="count",
+                       help="increase logging level")
+    group.add_argument("-q", "--quiet", default=0, action="count",
+                       help="decrease logging level")
+
+    parser.add_argument(
+        "-s", "--server", default="::1",
+        help="hostname or IP of the master to connect to")
+    parser.add_argument(
+        "--port-notify", default=3250, type=int,
+        help="TCP port to connect to for notifications")
+    parser.add_argument(
+        "--port-logging", default=1066, type=int,
+        help="TCP port to connect to for logging")
+    parser.add_argument(
+        "--retry-master", default=5.0, type=float,
+        help="retry timer for reconnecting to master")
+    parser.add_argument(
+        "--bind", default="::1",
+        help="hostname or IP address to bind to")
+    parser.add_argument(
+        "--bind-port", default=3249, type=int,
+        help="TCP port to listen to for control (default: %(default)d)")
+    return parser
+
+
+class SourceAdder:
+    def filter(self, record):
+        if not hasattr(record, "source"):
+            record.source = "ctlmgr"
+        return True
+
+
 def main():
     args = get_argparser().parse_args()
-    init_logger(args)
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.WARNING + args.quiet*10 - args.verbose*10)
+    source_adder = SourceAdder()
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter(
+        "%(levelname)s:%(source)s:%(name)s:%(message)s"))
+    console_handler.addFilter(source_adder)
+    root_logger.addHandler(console_handler)
 
     if os.name == "nt":
         loop = asyncio.ProactorEventLoop()
@@ -263,7 +287,15 @@ def main():
         loop = asyncio.get_event_loop()
     atexit.register(lambda: loop.close())
 
-    ctlmgr = ControllerManager(args.server, args.port, args.retry_master)
+    logfwd = LogForwarder(args.server, args.port_logging,
+                          args.retry_master)
+    logfwd.addFilter(source_adder)
+    root_logger.addHandler(logfwd)
+    logfwd.start()
+    atexit.register(lambda: loop.run_until_complete(logfwd.stop()))
+
+    ctlmgr = ControllerManager(args.server, args.port_notify,
+                               args.retry_master)
     ctlmgr.start()
     atexit.register(lambda: loop.run_until_complete(ctlmgr.stop()))
 
