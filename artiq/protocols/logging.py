@@ -78,6 +78,22 @@ class Server(AsyncioServer):
             writer.close()
 
 
+class SourceFilter:
+    def __init__(self, local_level, local_source):
+        self.local_level = local_level
+        self.local_source = local_source
+
+    def filter(self, record):
+        if not hasattr(record, "source"):
+            record.source = self.local_source
+        if record.source == self.local_source:
+            return record.levelno >= self.local_level
+        else:
+            # log messages that are forwarded from a source have already
+            # been filtered, and may have a level below the local level.
+            return True
+
+
 class LogForwarder(logging.Handler, TaskObject):
     def __init__(self, host, port, reconnect_timer=5.0, queue_size=1000,
                  **kwargs):

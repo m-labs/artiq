@@ -5,12 +5,15 @@ import atexit
 import argparse
 import os
 import logging
+import subprocess
 import shlex
 import socket
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols.pc_rpc import AsyncioClient, Server
-from artiq.protocols.logging import LogForwarder
+from artiq.protocols.logging import (LogForwarder,
+                                     parse_log_message, log_with_name,
+                                     SourceFilter)
 from artiq.tools import TaskObject, Condition
 
 
@@ -75,6 +78,23 @@ class Controller:
             else:
                 break
 
+    async def forward_logs(self, stream):
+        source = "controller({})".format(self.name)
+        while True:
+            try:
+                entry = (await stream.readline())
+                if not entry:
+                    break
+                entry = entry[:-1]
+                level, name, message = parse_log_message(entry.decode())
+                log_with_name(name, level, message, extra={"source": source})
+            except:
+                logger.debug("exception in log forwarding", exc_info=True)
+                break
+        logger.debug("stopped log forwarding of stream %s of %s",
+            stream, self.name)
+
+
     async def launcher(self):
         try:
             while True:
@@ -82,7 +102,12 @@ class Controller:
                             self.name, self.command)
                 try:
                     self.process = await asyncio.create_subprocess_exec(
-                        *shlex.split(self.command))
+                        *shlex.split(self.command),
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    asyncio.ensure_future(self.forward_logs(
+                        self.process.stdout))
+                    asyncio.ensure_future(self.forward_logs(
+                        self.process.stderr))
                     await self._wait_and_ping()
                 except FileNotFoundError:
                     logger.warning("Controller %s failed to start", self.name)
@@ -236,9 +261,9 @@ def get_argparser():
 
     group = parser.add_argument_group("verbosity")
     group.add_argument("-v", "--verbose", default=0, action="count",
-                       help="increase logging level")
+                       help="increase logging level of the manager process")
     group.add_argument("-q", "--quiet", default=0, action="count",
-                       help="decrease logging level")
+                       help="decrease logging level of the manager process")
 
     parser.add_argument(
         "-s", "--server", default="::1",
@@ -261,19 +286,13 @@ def get_argparser():
     return parser
 
 
-class SourceAdder:
-    def filter(self, record):
-        if not hasattr(record, "source"):
-            record.source = "ctlmgr"
-        return True
-
-
 def main():
     args = get_argparser().parse_args()
 
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.WARNING + args.quiet*10 - args.verbose*10)
-    source_adder = SourceAdder()
+    root_logger.setLevel(logging.NOTSET)
+    source_adder = SourceFilter(logging.WARNING + args.quiet*10 - args.verbose*10,
+                                "ctlmgr")
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(logging.Formatter(
         "%(levelname)s:%(source)s:%(name)s:%(message)s"))

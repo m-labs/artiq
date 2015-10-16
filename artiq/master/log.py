@@ -2,7 +2,7 @@ import logging
 import logging.handlers
 
 from artiq.protocols.sync_struct import Notifier
-from artiq.protocols.logging import parse_log_message, log_with_name
+from artiq.protocols.logging import parse_log_message, log_with_name, SourceFilter
 
 
 class LogBuffer:
@@ -34,21 +34,6 @@ def log_worker(rid, message):
 log_worker.worker_pass_rid = True
 
 
-class SourceFilter:
-    def __init__(self, master_level):
-        self.master_level = master_level
-
-    def filter(self, record):
-        if not hasattr(record, "source"):
-            record.source = "master"
-        if record.source == "master":
-            return record.levelno >= self.master_level
-        else:
-            # log messages that are forwarded from a source have already
-            # been filtered, and may have a level below the master level.
-            return True
-
-
 def log_args(parser):
     group = parser.add_argument_group("logging")
     group.add_argument("-v", "--verbose", default=0, action="count",
@@ -69,7 +54,8 @@ def log_args(parser):
 def init_log(args):
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.NOTSET)  # we use our custom filter only
-    flt = SourceFilter(logging.WARNING + args.quiet*10 - args.verbose*10)
+    flt = SourceFilter(logging.WARNING + args.quiet*10 - args.verbose*10,
+                       "master")
     full_fmt = logging.Formatter(
         "%(levelname)s:%(source)s:%(name)s:%(message)s")
 
