@@ -58,12 +58,10 @@ def init_log(args):
     root_logger.setLevel(logging.NOTSET)  # we use our custom filter only
     flt = SourceFilter(logging.WARNING + args.quiet*10 - args.verbose*10,
                        "master")
-    full_fmt = logging.Formatter(
-        "%(levelname)s:%(source)s:%(name)s:%(message)s")
-
     handlers = []
     console_handler = logging.StreamHandler()
-    console_handler.setFormatter(full_fmt)
+    console_handler.setFormatter(logging.Formatter(
+        "%(levelname)s:%(source)s:%(name)s:%(message)s"))
     handlers.append(console_handler)
 
     if args.log_file:
@@ -71,7 +69,8 @@ def init_log(args):
             args.log_file,
             maxBytes=args.log_max_size*1024,
             backupCount=args.log_backup_count)
-        file_handler.setFormatter(full_fmt)
+        file_handler.setFormatter(logging.Formatter(
+            "%(asctime)s %(levelname)s:%(source)s:%(name)s:%(message)s"))
         handlers.append(file_handler)
     
     log_buffer = LogBuffer(1000)
