@@ -158,7 +158,8 @@ def examine(device_mgr, dataset_mgr, file):
 
 
 def main():
-    sys.stdout = sys.stderr = LogForwarder()
+    sys.stdout = LogForwarder()
+    sys.stderr = LogForwarder()
 
     start_time = None
     rid = None
