@@ -1,6 +1,6 @@
-from artiq.language.environment import *
-
 import logging
+
+from artiq.language.environment import *
 
 
 __all__ = ["LogExperiment"]
