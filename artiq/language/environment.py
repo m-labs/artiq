@@ -73,8 +73,7 @@ class NumberValue(_SimpleArgProcessor):
 
     :param unit: A string representing the unit of the value, for user
         interface (UI) purposes.
-    :param scale: The scale of value for UI purposes. The corresponding SI
-        prefix is shown in front of the unit, and the displayed value is
+    :param scale: The scale of value for UI purposes. The displayed value is
         divided by the scale.
     :param step: The step with which the value should be modified by up/down
         buttons in a UI. The default is the scale divided by 10.

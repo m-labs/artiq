@@ -6,7 +6,7 @@ from pyqtgraph import LayoutWidget
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols import pyon
-from artiq.gui.tools import si_prefix, DictSyncModel
+from artiq.gui.tools import DictSyncModel
 from artiq.gui.scan import ScanController
 
 
@@ -85,9 +85,8 @@ class _NumberEntry(QtGui.QDoubleSpinBox):
             self.setMaximum(procdesc["max"]/self.scale)
         else:
             self.setMaximum(float("inf"))
-        suffix = si_prefix(self.scale) + procdesc["unit"]
-        if suffix:
-            self.setSuffix(" " + suffix)
+        if procdesc["unit"]:
+            self.setSuffix(" " + procdesc["unit"])
         if "default" in procdesc:
             self.set_argument_value(procdesc["default"])
 

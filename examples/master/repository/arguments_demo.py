@@ -4,7 +4,7 @@ from artiq import *
 class SubComponent1(HasEnvironment):
     def build(self):
         self.setattr_argument("sc1_scan", Scannable(default=NoScan(3250),
-                                                    scale=1e3, unit="Hz"),
+                                                    scale=1e3, unit="kHz"),
                               "Flux capacitor")
         self.setattr_argument("sc1_enum", EnumerationValue(["1", "2", "3"]),
                               "Flux capacitor")
@@ -39,7 +39,7 @@ class ArgumentsDemo(EnvExperiment, LogExperiment):
 
         self.setattr_argument("free_value", FreeValue(None))
         self.setattr_argument("number", NumberValue(42e-6,
-                                                    unit="s", scale=1e-6,
+                                                    unit="us", scale=1e-6,
                                                     ndecimals=4))
         self.setattr_argument("string", StringValue("Hello World"))
         self.setattr_argument("scan", Scannable(global_max=400,

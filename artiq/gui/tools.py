@@ -1,22 +1,4 @@
 from quamash import QtCore
-import numpy as np
-
-
-def si_prefix(scale):
-    try:
-        return {
-            1e-12: "p",
-            1e-9: "n",
-            1e-6: "u",
-            1e-3: "m",
-            1.0: "",
-            1e3: "k",
-            1e6: "M",
-            1e9: "G",
-            1e12: "T"
-        }[scale]
-    except KeyError:
-        return "[x{}]".format(scale)
 
 
 class _SyncSubstruct:
