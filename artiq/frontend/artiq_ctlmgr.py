@@ -8,6 +8,7 @@ import logging
 import subprocess
 import shlex
 import socket
+import platform
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols.pc_rpc import AsyncioClient, Server
@@ -292,7 +293,7 @@ def main():
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.NOTSET)
     source_adder = SourceFilter(logging.WARNING + args.quiet*10 - args.verbose*10,
-                                "ctlmgr")
+                                "ctlmgr({})".format(platform.node()))
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(logging.Formatter(
         "%(levelname)s:%(source)s:%(name)s:%(message)s"))
