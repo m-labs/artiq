@@ -8,6 +8,11 @@ from pyqtgraph import dockarea, LayoutWidget
 from artiq.protocols.sync_struct import Subscriber
 from artiq.gui.tools import ListSyncModel
 
+try:
+    QSortFilterProxyModel = QtCore.QSortFilterProxyModel
+except AttributeError:
+    QSortFilterProxyModel = QtGui.QSortFilterProxyModel
+
 
 def _level_to_name(level):
     if level >= logging.CRITICAL:
@@ -67,9 +72,9 @@ class _LogModel(ListSyncModel):
             return v[3]
 
 
-class _LevelFilterProxyModel(QtCore.QSortFilterProxyModel):
+class _LevelFilterProxyModel(QSortFilterProxyModel):
     def __init__(self, min_level):
-        QtCore.QSortFilterProxyModel.__init__(self)
+        QSortFilterProxyModel.__init__(self)
         self.min_level = min_level
 
     def filterAcceptsRow(self, sourceRow, sourceParent):

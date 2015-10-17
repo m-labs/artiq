@@ -12,6 +12,11 @@ from artiq.tools import short_format
 from artiq.gui.tools import DictSyncModel
 from artiq.gui.displays import *
 
+try:
+    QSortFilterProxyModel = QtCore.QSortFilterProxyModel
+except AttributeError:
+    QSortFilterProxyModel = QtGui.QSortFilterProxyModel
+
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +94,7 @@ class DatasetsDock(dockarea.Dock):
 
     def init_datasets_model(self, init):
         self.table_model = DatasetsModel(self.table, init)
-        self.table_model_filter = QtCore.QSortFilterProxyModel()
+        self.table_model_filter = QSortFilterProxyModel()
         self.table_model_filter.setSourceModel(self.table_model)
         self.table.setModel(self.table_model_filter)
         return self.table_model
