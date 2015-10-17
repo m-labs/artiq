@@ -101,16 +101,18 @@ class LogForwarder(logging.Handler, TaskObject):
         self.host = host
         self.port = port
         self.setFormatter(logging.Formatter(
-            "%(source)s:%(levelno)d:%(name)s:%(message)s"))
+            "%(name)s:%(message)s"))
         self._queue = asyncio.Queue(queue_size)
         self.reconnect_timer = reconnect_timer
 
     def emit(self, record):
         message = self.format(record)
-        try:
-            self._queue.put_nowait(message)
-        except asyncio.QueueFull:
-            pass
+        for part in message.split("\n"):
+            part = "{}:{}:{}".format(record.source, record.levelno, part)
+            try:
+                self._queue.put_nowait(part)
+            except asyncio.QueueFull:
+                break
 
     async def _do(self):
         while True:
