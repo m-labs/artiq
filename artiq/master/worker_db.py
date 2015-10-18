@@ -9,7 +9,7 @@ import numpy
 import h5py
 
 from artiq.protocols.sync_struct import Notifier
-from artiq.protocols.pc_rpc import Client, BestEffortClient
+from artiq.protocols.pc_rpc import AutoTarget, Client, BestEffortClient
 
 
 logger = logging.getLogger(__name__)
@@ -25,8 +25,13 @@ def _create_device(desc, device_mgr):
         if desc["best_effort"]:
             cl = BestEffortClient
         else:
-            cl = Client
-        return cl(desc["host"], desc["port"], desc["target_name"])
+            cls = Client
+        # Automatic target can be specified either by the absence of
+        # the target_name parameter, or a None value.
+        target_name = desc.get("target_name", None)
+        if target_name is None:
+            target_name = AutoTarget
+        return cls(desc["host"], desc["port"], target_name)
     else:
         raise ValueError("Unsupported type in device DB: " + ty)
 
