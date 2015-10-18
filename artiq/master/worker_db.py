@@ -22,8 +22,8 @@ def _create_device(desc, device_mgr):
         device_class = getattr(module, desc["class"])
         return device_class(device_mgr, **desc["arguments"])
     elif ty == "controller":
-        if desc["best_effort"]:
-            cl = BestEffortClient
+        if desc.get("best_effort", False):
+            cls = BestEffortClient
         else:
             cls = Client
         # Automatic target can be specified either by the absence of

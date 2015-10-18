@@ -92,28 +92,24 @@
 
     "qc_q1_0": {
         "type": "controller",
-        "best_effort": false,
         "host": "::1",
         "port": 4000,
         "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_0.bin"
     },
     "qc_q1_1": {
         "type": "controller",
-        "best_effort": false,
         "host": "::1",
         "port": 4001,
         "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_1.bin"
     },
     "qc_q1_2": {
         "type": "controller",
-        "best_effort": false,
         "host": "::1",
         "port": 4002,
         "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_2.bin"
     },
     "qc_q1_3": {
         "type": "controller",
-        "best_effort": false,
         "host": "::1",
         "port": 4003,
         "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_3.bin"
