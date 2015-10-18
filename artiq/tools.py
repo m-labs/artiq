@@ -52,7 +52,7 @@ def short_format(v):
     if t is bool or np.issubdtype(t, int) or np.issubdtype(t, float):
         return str(v)
     elif t is str:
-        return "\"" + elide(v, 15) + "\""
+        return "\"" + elide(v, 50) + "\""
     else:
         r = t.__name__
         if t is list or t is dict or t is set:
