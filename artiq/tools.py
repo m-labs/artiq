@@ -49,7 +49,7 @@ def short_format(v):
     if v is None:
         return "None"
     t = type(v)
-    if np.issubdtype(t, int) or np.issubdtype(t, float):
+    if t is bool or np.issubdtype(t, int) or np.issubdtype(t, float):
         return str(v)
     elif t is str:
         return "\"" + elide(v, 15) + "\""
