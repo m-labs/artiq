@@ -175,3 +175,9 @@ class Condition:
         for fut in self._waiters:
             if not fut.done():
                 fut.set_result(False)
+
+
+# See: https://github.com/python/asyncio/issues/263
+@asyncio.coroutine
+def workaround_asyncio263():
+    yield

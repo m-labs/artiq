@@ -16,6 +16,7 @@ from functools import partial
 
 from artiq.protocols import pyon
 from artiq.protocols.asyncio_server import AsyncioServer
+from artiq.tools import workaround_asyncio263
 
 
 _init_string = b"ARTIQ sync_struct\n"
@@ -233,6 +234,7 @@ class Publisher(AsyncioServer):
                     line = await queue.get()
                     writer.write(line)
                     # raise exception on connection error
+                    await workaround_asyncio263()
                     await writer.drain()
             finally:
                 self._recipients[notifier_name].remove(queue)

@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from artiq.protocols.asyncio_server import AsyncioServer
-from artiq.tools import TaskObject
+from artiq.tools import TaskObject, workaround_asyncio263
 
 
 logger = logging.getLogger(__name__)
@@ -119,19 +119,12 @@ class LogForwarder(logging.Handler, TaskObject):
             try:
                 reader, writer = await asyncio.open_connection(self.host,
                                                                self.port)
-                detect_close = asyncio.ensure_future(reader.read(1))
                 writer.write(_init_string)
                 while True:
                     message = await self._queue.get() + "\n"
                     writer.write(message.encode())
+                    await workaround_asyncio263()
                     await writer.drain()
-                    # HACK: detect connection termination through the completion
-                    # of a read operation. For some reason, write/drain operations
-                    # on a closed socket do not raise exceptions, but print
-                    # "asyncio:socket.send() raised exception."
-                    if detect_close.done():
-                        await asyncio.sleep(self.reconnect_timer)
-                        break
             except asyncio.CancelledError:
                 return
             except:
