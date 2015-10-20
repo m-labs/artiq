@@ -92,6 +92,9 @@
 
     "qc_q1_0": {
         "type": "controller",
+        # ::1 is the IPv6 localhost address. If this controller is running on a remote machine,
+        # replace it with the IP or hostname of the machine. If using the hostname, make sure
+        # that it always resolves to a network-visible IP address (see documentation).
         "host": "::1",
         "port": 4000,
         "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_0.bin"
