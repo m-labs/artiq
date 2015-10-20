@@ -1,7 +1,7 @@
 import sys
 import time
 import os
-import traceback
+import logging
 
 from artiq.protocols import pyon
 from artiq.tools import file_import
@@ -160,6 +160,7 @@ def examine(device_mgr, dataset_mgr, file):
 def main():
     sys.stdout = LogForwarder()
     sys.stderr = LogForwarder()
+    logging.basicConfig(level=int(sys.argv[1]))
 
     start_time = None
     rid = None
@@ -217,10 +218,10 @@ def main():
             elif action == "terminate":
                 break
     except:
-        traceback.print_exc()
-        put_object({"action": "exception"})
+        logging.error("Worker terminating with exception", exc_info=True)
     finally:
         device_mgr.close_devices()
+
 
 if __name__ == "__main__":
     main()

@@ -61,7 +61,7 @@ class Server(AsyncioServer):
                     return
                 line = line[:-1]
                 linesplit = line.split(":", 3)
-                if len(linesplit) != 4:
+                if len(linesplit) != 2:
                     logger.warning("received improperly formatted message, "
                                    "dropping connection")
                     return

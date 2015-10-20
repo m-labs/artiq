@@ -1,4 +1,5 @@
 import unittest
+import logging
 import asyncio
 import sys
 import os
@@ -32,6 +33,7 @@ class BackgroundExperiment(EnvExperiment):
 
 def _get_expid(name):
     return {
+        "log_level": logging.WARNING,
         "file": sys.modules[__name__].__file__,
         "class_name": name,
         "arguments": dict()

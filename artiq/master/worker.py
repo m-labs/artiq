@@ -21,10 +21,6 @@ class WorkerWatchdogTimeout(Exception):
     pass
 
 
-class WorkerException(Exception):
-    pass
-
-
 class WorkerError(Exception):
     pass
 
@@ -60,13 +56,14 @@ class Worker:
         else:
             return None
 
-    async def _create_process(self):
+    async def _create_process(self, log_level):
         await self.io_lock.acquire()
         try:
             if self.closed.is_set():
                 raise WorkerError("Attempting to create process after close")
             self.process = await asyncio.create_subprocess_exec(
                 sys.executable, "-m", "artiq.master.worker_impl",
+                str(log_level),
                 stdout=subprocess.PIPE, stdin=subprocess.PIPE)
         finally:
             self.io_lock.release()
@@ -163,8 +160,6 @@ class Worker:
                 return True
             elif action == "pause":
                 return False
-            elif action == "exception":
-                raise WorkerException
             del obj["action"]
             if action == "create_watchdog":
                 func = self.create_watchdog
@@ -208,7 +203,7 @@ class Worker:
 
     async def build(self, rid, pipeline_name, wd, expid, priority, timeout=15.0):
         self.rid = rid
-        await self._create_process()
+        await self._create_process(expid["log_level"])
         await self._worker_action(
             {"action": "build",
              "rid": rid,
@@ -245,7 +240,7 @@ class Worker:
                                   timeout)
 
     async def examine(self, file, timeout=20.0):
-        await self._create_process()
+        await self._create_process(logging.WARNING)
         r = dict()
         def register(class_name, name, arguments):
             r[class_name] = {"name": name, "arguments": arguments}

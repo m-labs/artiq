@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from quamash import QtGui, QtCore
 from pyqtgraph import dockarea
@@ -252,7 +253,14 @@ class ExplorerDock(dockarea.Dock):
 
         self.flush = QtGui.QCheckBox("Flush")
         self.flush.setToolTip("Flush the pipeline before starting the experiment")
-        grid.addWidget(self.flush, 2, 2, colspan=2)
+        grid.addWidget(self.flush, 2, 2)
+
+        self.log_level = QtGui.QComboBox()
+        for item in "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL":
+            self.log_level.addItem(item)
+        self.log_level.setCurrentIndex(1)
+        self.log_level.setToolTip("Minimum level for log entry production")
+        grid.addWidget(self.log_level, 2, 3)
 
         submit = QtGui.QPushButton("Submit")
         grid.addWidget(submit, 3, 0, colspan=4)
@@ -317,6 +325,7 @@ class ExplorerDock(dockarea.Dock):
     async def submit(self, pipeline_name, file, class_name, arguments,
                priority, due_date, flush):
         expid = {
+            "log_level": getattr(logging, self.log_level.currentText()),
             "repo_rev": None,
             "file": file,
             "class_name": class_name,
