@@ -251,6 +251,7 @@ class ExplorerDock(dockarea.Dock):
         grid.addWidget(self.pipeline, 2, 1)
 
         self.flush = QtGui.QCheckBox("Flush")
+        self.flush.setToolTip("Flush the pipeline before starting the experiment")
         grid.addWidget(self.flush, 2, 2, colspan=2)
 
         submit = QtGui.QPushButton("Submit")
