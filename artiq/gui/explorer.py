@@ -234,7 +234,6 @@ class ExplorerDock(dockarea.Dock):
 
         self.datetime = QtGui.QDateTimeEdit()
         self.datetime.setDisplayFormat("MMM d yyyy hh:mm:ss")
-        self.datetime.setCalendarPopup(True)
         self.datetime.setDate(QtCore.QDate.currentDate())
         self.datetime.dateTimeChanged.connect(self.enable_duedate)
         self.datetime_en = QtGui.QCheckBox("Due date:")
