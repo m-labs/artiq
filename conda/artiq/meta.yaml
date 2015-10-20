@@ -7,6 +7,7 @@ source:
     git_tag: master
 
 build:
+    noarch_python: True
     number: {{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}
     entry_points:
         - artiq_client = artiq.frontend.artiq_client:main
