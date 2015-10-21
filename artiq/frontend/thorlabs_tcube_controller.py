@@ -12,7 +12,7 @@ def get_argparser():
     parser = argparse.ArgumentParser()
     parser.add_argument("-P", "--product", required=True,
                         help="type of the Thorlabs T-Cube device to control",
-                        choices=["TDC001", "TPZ001"])
+                        choices=["tdc001", "tpz001"])
     parser.add_argument("-d", "--device", default=None,
                         help="serial device. See documentation for how to "
                              "specify a USB Serial Number.")
@@ -33,19 +33,20 @@ def main():
               "argument. Use --help for more information.")
         sys.exit(1)
 
+    product = args.product.lower()
     if args.simulation:
-        if args.product == "TDC001":
+        if product == "tdc001":
             dev = TdcSim()
-        elif args.product == "TPZ001":
+        elif product == "tpz001":
             dev = TpzSim()
     else:
-        if args.product == "TDC001":
+        if product == "tdc001":
             dev = Tdc(args.device)
-        elif args.product == "TPZ001":
+        elif product == "tpz001":
             dev = Tpz(args.device)
 
     try:
-        simple_server_loop({args.product.lower(): dev}, args.bind, args.port)
+        simple_server_loop({product: dev}, args.bind, args.port)
     finally:
         dev.close()
 
