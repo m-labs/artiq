@@ -57,6 +57,8 @@ def short_format(v):
         r = t.__name__
         if t is list or t is dict or t is set:
             r += " ({})".format(len(v))
+        if t is np.ndarray:
+            r += " " + str(np.shape(v))
         return r
 
 
