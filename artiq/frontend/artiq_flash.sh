@@ -1,5 +1,16 @@
-#!/bin/bash
+#!/usr/bin/env python
+# conda-build requires all scripts to have a python shebang.
+# see https://github.com/conda/conda-build/blob/6921f067a/conda_build/noarch_python.py#L36-L38
 
+def run(script):
+		import sys, tempfile, subprocess
+		file = tempfile.NamedTemporaryFile(mode='w+t', suffix='sh')
+		file.write(script)
+		file.flush()
+		subprocess.run(["/bin/bash", file.name] + sys.argv[1:])
+		file.close()
+
+run("""
 # exit on error
 set -e
 # print commands
@@ -72,7 +83,7 @@ do
 			echo ""
 			echo "To flash everything, do not use any of the -b|-B|-r option."
 			echo ""
-			echo "usage: $0 [-b] [-B] [-r] [-h] [-m nist_qc1|nist_qc2] [-t kc705|pipistrello] [-d path] [-f path]"
+			echo "usage: artiq_flash.sh [-b] [-B] [-r] [-h] [-m nist_qc1|nist_qc2] [-t kc705|pipistrello] [-d path] [-f path]"
 			echo "-b  Flash bitstream"
 			echo "-B  Flash BIOS"
 			echo "-r  Flash ARTIQ runtime"
@@ -193,3 +204,4 @@ then
 fi
 echo "Done."
 xc3sprog -v -c $CABLE -R > /dev/null 2>&1
+""")
