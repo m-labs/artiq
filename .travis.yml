@@ -8,6 +8,8 @@ env:
   matrix:
     - BUILD_SOC=none
     - BUILD_SOC=pipistrello-nist_qc1
+    - BUILD_SOC=kc705-nist_qc1
+    - BUILD_SOC=kc705-nist_qc2
 install:
   - mkdir -p $HOME/.m-labs
   - if [ $TRAVIS_PULL_REQUEST != false ]; then BUILD_SOC=none; fi
