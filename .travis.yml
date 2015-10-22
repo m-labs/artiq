@@ -7,13 +7,16 @@ env:
     - secure: "DUk/Ihg8KbbzEgPF0qrHqlxU8e8eET9i/BtzNvFddIGX4HP/P2qz0nk3cVkmjuWhqJXSbC22RdKME9qqPzw6fJwJ6dpJ3OR6dDmSd7rewavq+niwxu52PVa+yK8mL4yf1terM7QQ5tIRf+yUL9qGKrZ2xyvEuRit6d4cFep43Ws="
   matrix:
     - BUILD_SOC=none
+    - BUILD_SOC=pipistrello-nist_qc1
 install:
-  - mkdir -p $HOME/.mlabs
+  - mkdir -p $HOME/.m-labs
   - if [ $TRAVIS_PULL_REQUEST != false ]; then BUILD_SOC=none; fi
-  - if [ $BUILD_SOC != none ]; then ./.travis/get-xilinx.sh; ./.travis/get-toolchain.sh; fi
+  - if [ $BUILD_SOC != none ]; then ./.travis/get-xilinx.sh; fi
+  - if [ $BUILD_SOC != none ]; then ./.travis/get-toolchain.sh; fi
+  - if [ $BUILD_SOC != none ]; then ./.travis/get-misoc.sh; fi
   - . ./.travis/get-anaconda.sh
   - source $HOME/miniconda/bin/activate py35
-  - conda install -q pip coverage anaconda-client migen=0.0 cython
+  - conda install -q pip coverage anaconda-client cython
   - pip install coveralls
   # workaround for https://github.com/conda/conda-build/issues/466
   - mkdir -p /home/travis/miniconda/conda-bld/linux-64
@@ -26,6 +29,9 @@ script:
         PACKAGES="$(conda build --output --python 3.5 conda/artiq) $PACKAGES"
         coverage run --source=artiq setup.py test
         make -C doc/manual html
+      else
+        PACKAGES="$(conda build --output --python 3.5 conda/artiq-$BUILD_SOC) $PACKAGES"
+        conda build --python 3.5 conda/artiq-$BUILD_SOC
       fi
 after_success:
   - |
