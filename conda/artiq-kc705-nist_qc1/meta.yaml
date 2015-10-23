@@ -23,5 +23,5 @@ requirements:
 
 about:
   home: http://m-labs.hk/artiq
-  license: 3-clause BSD
+  license: GPL
   summary: 'Bitstream, BIOS and runtime for NIST_QC1 on the KC705 board'
