@@ -238,32 +238,32 @@ class ExplorerDock(dockarea.Dock):
         self.datetime.setDate(QtCore.QDate.currentDate())
         self.datetime.dateTimeChanged.connect(self.enable_duedate)
         self.datetime_en = QtGui.QCheckBox("Due date:")
-        grid.addWidget(self.datetime_en, 1, 0)
-        grid.addWidget(self.datetime, 1, 1)
-
-        self.priority = QtGui.QSpinBox()
-        self.priority.setRange(-99, 99)
-        grid.addWidget(QtGui.QLabel("Priority:"), 1, 2)
-        grid.addWidget(self.priority, 1, 3)
+        grid.addWidget(self.datetime_en, 1, 0, colspan=2)
+        grid.addWidget(self.datetime, 1, 2, colspan=2)
 
         self.pipeline = QtGui.QLineEdit()
         self.pipeline.setText("main")
-        grid.addWidget(QtGui.QLabel("Pipeline:"), 2, 0)
-        grid.addWidget(self.pipeline, 2, 1)
+        grid.addWidget(QtGui.QLabel("Pipeline:"), 2, 0, colspan=2)
+        grid.addWidget(self.pipeline, 2, 2, colspan=2)
+
+        self.priority = QtGui.QSpinBox()
+        self.priority.setRange(-99, 99)
+        grid.addWidget(QtGui.QLabel("Priority:"), 3, 0)
+        grid.addWidget(self.priority, 3, 1)
 
         self.flush = QtGui.QCheckBox("Flush")
         self.flush.setToolTip("Flush the pipeline before starting the experiment")
-        grid.addWidget(self.flush, 2, 2)
+        grid.addWidget(self.flush, 3, 2)
 
         self.log_level = QtGui.QComboBox()
         for item in "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL":
             self.log_level.addItem(item)
         self.log_level.setCurrentIndex(1)
         self.log_level.setToolTip("Minimum level for log entry production")
-        grid.addWidget(self.log_level, 2, 3)
+        grid.addWidget(self.log_level, 3, 3)
 
         submit = QtGui.QPushButton("Submit")
-        grid.addWidget(submit, 3, 0, colspan=4)
+        grid.addWidget(submit, 4, 0, colspan=4)
         submit.clicked.connect(self.submit_clicked)
 
         self.argeditor = _ArgumentEditor(self.dialog_parent)
