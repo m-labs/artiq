@@ -13,3 +13,5 @@ doc/manual/_build
 /.coverage
 artiq/test/results
 examples/master/results
+examples/master/dataset_db.pyon
+examples/sim/dataset_db.pyon

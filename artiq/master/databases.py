@@ -32,7 +32,10 @@ class DatasetDB(TaskObject):
         self.persist_file = persist_file
         self.autosave_period = autosave_period
 
-        file_data = pyon.load_file(self.persist_file)
+        try:
+            file_data = pyon.load_file(self.persist_file)
+        except FileNotFoundError:
+            file_data = dict()
         self.data = Notifier({k: (True, v) for k, v in file_data.items()})
 
     def save(self):
