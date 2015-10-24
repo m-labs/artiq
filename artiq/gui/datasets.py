@@ -100,8 +100,10 @@ class DatasetsDock(dockarea.Dock):
         return self.table_model
 
     def update_display_data(self, dsp):
-        dsp.update_data({k: self.table_model.backing_store[k][1]
-                         for k in dsp.data_sources()})
+        filtered_data = {k: self.table_model.backing_store[k][1]
+                         for k in dsp.data_sources()
+                         if k in self.table_model.backing_store}
+        dsp.update_data(filtered_data)
 
     def on_mod(self, mod):
         if mod["action"] == "init":
