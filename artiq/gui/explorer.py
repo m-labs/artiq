@@ -263,6 +263,8 @@ class ExplorerDock(dockarea.Dock):
         grid.addWidget(self.log_level, 3, 3)
 
         submit = QtGui.QPushButton("Submit")
+        submit.setShortcut("CTRL+S")
+        submit.setToolTip("Schedule the selected experiment (CTRL+S)")
         grid.addWidget(submit, 4, 0, colspan=4)
         submit.clicked.connect(self.submit_clicked)
 
