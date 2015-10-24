@@ -5,7 +5,7 @@ import os
 import time
 import re
 
-import numpy
+import numpy as np
 import h5py
 
 from artiq.protocols.sync_struct import Notifier
@@ -119,7 +119,21 @@ def get_last_rid():
 
 _type_to_hdf5 = {
     int: h5py.h5t.STD_I64BE,
-    float: h5py.h5t.IEEE_F64BE
+    float: h5py.h5t.IEEE_F64BE,
+
+    np.int8: h5py.h5t.STD_I8BE,
+    np.int16: h5py.h5t.STD_I16BE,
+    np.int32: h5py.h5t.STD_I32BE,
+    np.int64: h5py.h5t.STD_I64BE,
+
+    np.uint8: h5py.h5t.STD_U8BE,
+    np.uint16: h5py.h5t.STD_U16BE,
+    np.uint32: h5py.h5t.STD_U32BE,
+    np.uint64: h5py.h5t.STD_U64BE,
+
+    np.float16: h5py.h5t.IEEE_F16BE,
+    np.float32: h5py.h5t.IEEE_F32BE,
+    np.float64: h5py.h5t.IEEE_F64BE
 }
 
 def result_dict_to_hdf5(f, rd):
@@ -137,15 +151,19 @@ def result_dict_to_hdf5(f, rd):
                                 " HDF5 output".format(el_ty))
             dataset = f.create_dataset(name, (len(data), ), el_ty_h5)
             dataset[:] = data
-        elif isinstance(data, numpy.ndarray):
+        elif isinstance(data, np.ndarray):
             f.create_dataset(name, data=data)
         else:
             ty = type(data)
-            try:
-                ty_h5 = _type_to_hdf5[ty]
-            except KeyError:
-                raise TypeError("Type {} is not supported for HDF5 output"
-                                .format(ty))
+            if ty is str:
+                ty_h5 = "S{}".format(len(data))
+                data = data.encode()
+            else:
+                try:
+                    ty_h5 = _type_to_hdf5[ty]
+                except KeyError:
+                    raise TypeError("Type {} is not supported for HDF5 output"
+                                    .format(ty))
             dataset = f.create_dataset(name, (), ty_h5)
             dataset[()] = data
 

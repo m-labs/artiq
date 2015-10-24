@@ -12,6 +12,7 @@ doc/manual/_build
 /*.egg-info
 /.coverage
 artiq/test/results
+artiq/test/h5types.h5
 examples/master/results
 examples/master/dataset_db.pyon
 examples/sim/dataset_db.pyon
