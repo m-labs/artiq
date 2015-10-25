@@ -37,16 +37,20 @@ class FloppingF(EnvExperiment):
         self.setattr_device("scheduler")
 
     def run(self):
-        frequency = self.set_dataset("flopping_f_frequency", [],
+        l = len(self.frequency_scan)
+        frequency = self.set_dataset("flopping_f_frequency",
+                                     np.full(l, np.nan),
                                      broadcast=True, save=False)
-        brightness = self.set_dataset("flopping_f_brightness", [],
+        brightness = self.set_dataset("flopping_f_brightness",
+                                      np.full(l, np.nan),
                                      broadcast=True)
-        self.set_dataset("flopping_f_fit", [], broadcast=True, save=False)
+        self.set_dataset("flopping_f_fit", np.full(l, np.nan),
+                         broadcast=True, save=False)
 
-        for f in self.frequency_scan:
+        for i, f in enumerate(self.frequency_scan):
             m_brightness = model(f, self.F0) + self.noise_amplitude*random.random()
-            frequency.append(f)
-            brightness.append(m_brightness)
+            frequency[i] = f
+            brightness[i] = m_brightness
             time.sleep(0.1)
         self.scheduler.submit(self.scheduler.pipeline_name, self.scheduler.expid,
                               self.scheduler.priority, time.time() + 20, False)
@@ -57,11 +61,11 @@ class FloppingF(EnvExperiment):
         brightness = self.get_dataset("flopping_f_brightness")
         popt, pcov = curve_fit(model_numpy,
                                frequency, brightness,
-                               p0=[self.get_dataset("flopping_freq")])
+                               p0=[self.get_dataset("flopping_freq", 1500.0)])
         perr = np.sqrt(np.diag(pcov))
         if perr < 0.1:
             F0 = float(popt)
             self.set_dataset("flopping_freq", F0, persist=True, save=False)
             self.set_dataset("flopping_f_fit",
-                             [model(x, F0) for x in frequency],
+                             np.array([model(x, F0) for x in frequency]),
                              broadcast=True, save=False)
