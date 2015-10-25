@@ -111,10 +111,10 @@ class DatasetsDock(dockarea.Dock):
                 display.update_data(self.table_model.backing_store)
             return
 
-        if mod["action"] == "setitem":
-            source = mod["key"]
-        elif mod["path"]:
+        if mod["path"]:
             source = mod["path"][0]
+        elif mod["action"] == "setitem":
+            source = mod["key"]
         else:
             return
 
