@@ -145,6 +145,7 @@ def encode(x, pretty=False):
 
 def _nparray(shape, dtype, data):
     a = numpy.frombuffer(base64.b64decode(data), dtype=dtype)
+    a = a.copy()
     return a.reshape(shape)
 
 
