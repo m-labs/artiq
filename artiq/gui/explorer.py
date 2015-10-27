@@ -257,8 +257,7 @@ class ExplorerDock(dockarea.Dock):
         grid.addWidget(self.flush, 3, 2)
 
         self.log_level = QtGui.QComboBox()
-        for item in "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL":
-            self.log_level.addItem(item)
+        self.log_level.addItems(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
         self.log_level.setCurrentIndex(1)
         self.log_level.setToolTip("Minimum level for log entry production")
         grid.addWidget(self.log_level, 3, 3)

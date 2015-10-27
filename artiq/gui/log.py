@@ -100,8 +100,7 @@ class LogDock(dockarea.Dock):
         grid.layout.setColumnStretch(1, 0)
         grid.layout.setColumnStretch(2, 1)
         self.filterbox = QtGui.QComboBox()
-        for item in "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL":
-            self.filterbox.addItem(item)
+        self.filterbox.addItems(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
         self.filterbox.setToolTip("Display entries at or above this level")
         grid.addWidget(self.filterbox, 0, 1)
         self.filterbox.currentIndexChanged.connect(self.filter_changed)
