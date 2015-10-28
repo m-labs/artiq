@@ -139,6 +139,12 @@ class Pdq2:
         self.num_channels = self.num_dacs * self.num_boards
         self.channels = [Channel() for i in range(self.num_channels)]
 
+    def get_num_boards(self):
+        return self.num_boards
+
+    def get_num_channels(self):
+        return self.num_channels
+
     def close(self):
         self.dev.close()
         del self.dev
