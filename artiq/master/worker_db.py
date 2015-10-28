@@ -191,7 +191,8 @@ class DatasetManager:
         try:
             return self.local[key]
         except KeyError:
-            return self.ddb.get(key)
+            pass
+        return self.ddb.get(key)
 
     def write_hdf5(self, f):
         result_dict_to_hdf5(f, self.local)
