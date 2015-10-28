@@ -55,7 +55,6 @@ def main():
     args = get_argparser().parse_args()
     init_logger(args)
     dev = Client(args.server, args.port, "pdq2")
-    dev.init()
 
     if args.reset:
         dev.write(b"\x00\x00")  # flush any escape
