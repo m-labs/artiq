@@ -208,9 +208,15 @@ class HasEnvironment:
                     broadcast=False, persist=False, save=True):
         """Sets the contents and handling modes of a dataset.
 
+        If the dataset is broadcasted, it must be PYON-serializable.
+        If the dataset is saved, it must be a scalar (``bool``, ``int``,
+        ``float`` or NumPy scalar) or a NumPy array.
+
         :param broadcast: the data is sent in real-time to the master, which
-            dispatches it. Returns a Notifier that can be used to mutate the dataset.
-        :param persist: the master should store the data on-disk. Implies broadcast.
+            dispatches it. Returns a Notifier that can be used to mutate the
+            dataset.
+        :param persist: the master should store the data on-disk. Implies
+            broadcast.
         :param save: the data is saved into the local storage of the current
             run (archived as a HDF5 file).
         """

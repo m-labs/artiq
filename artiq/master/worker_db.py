@@ -138,21 +138,17 @@ _type_to_hdf5 = {
 
 def result_dict_to_hdf5(f, rd):
     for name, data in rd.items():
-        if isinstance(data, list):
-            el_ty = type(data[0])
-            for d in data:
-                if type(d) != el_ty:
-                    raise TypeError("All list elements must have the same"
-                                    " type for HDF5 output")
-            try:
-                el_ty_h5 = _type_to_hdf5[el_ty]
-            except KeyError:
-                raise TypeError("List element type {} is not supported for"
-                                " HDF5 output".format(el_ty))
-            dataset = f.create_dataset(name, (len(data), ), el_ty_h5)
-            dataset[:] = data
-        elif isinstance(data, np.ndarray):
-            f.create_dataset(name, data=data)
+        flag = None
+        # beware: isinstance(True/False, int) == True
+        if isinstance(data, bool):
+            data = np.int8(data)
+            flag = "py_bool"
+        elif isinstance(data, int):
+            data = np.int64(data)
+            flag = "py_int"
+
+        if isinstance(data, np.ndarray):
+            dataset = f.create_dataset(name, data=data)
         else:
             ty = type(data)
             if ty is str:
@@ -163,9 +159,12 @@ def result_dict_to_hdf5(f, rd):
                     ty_h5 = _type_to_hdf5[ty]
                 except KeyError:
                     raise TypeError("Type {} is not supported for HDF5 output"
-                                    .format(ty))
+                                    .format(ty)) from None
             dataset = f.create_dataset(name, (), ty_h5)
             dataset[()] = data
+
+        if flag is not None:
+            dataset.attrs[flag] = np.int8(1)
 
 
 class DatasetManager:
