@@ -160,8 +160,7 @@ class Worker:
                 return True
             elif action == "pause":
                 return False
-            del obj["action"]
-            if action == "create_watchdog":
+            elif action == "create_watchdog":
                 func = self.create_watchdog
             elif action == "delete_watchdog":
                 func = self.delete_watchdog
@@ -172,7 +171,7 @@ class Worker:
             if getattr(func, "worker_pass_rid", False):
                 func = partial(func, self.rid)
             try:
-                data = func(**obj)
+                data = func(*obj["args"], **obj["kwargs"])
                 reply = {"status": "ok", "data": data}
             except:
                 reply = {"status": "failed",
