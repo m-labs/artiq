@@ -134,14 +134,20 @@ class Controller:
             except:
                 logger.warning("Controller %s did not respond to terminate "
                                "command, killing", self.name)
-                self.process.kill()
+                try:
+                    self.process.kill()
+                except ProcessLookupError:
+                    pass
             try:
                 await asyncio.wait_for(self.process.wait(),
                                        self.term_timeout)
             except:
                 logger.warning("Controller %s failed to exit, killing",
                                self.name)
-                self.process.kill()
+                try:
+                    self.process.kill()
+                except ProcessLookupError:
+                    pass
                 await self.process.wait()
         logger.debug("Controller %s terminated", self.name)
 

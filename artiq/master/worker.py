@@ -94,14 +94,20 @@ class Worker:
             except:
                 logger.warning("failed to send terminate command to worker"
                                " (RID %s), killing", self.rid, exc_info=True)
-                self.process.kill()
+                try:
+                    self.process.kill()
+                except ProcessLookupError:
+                    pass
                 await self.process.wait()
                 return
             try:
                 await asyncio.wait_for(self.process.wait(), term_timeout)
             except asyncio.TimeoutError:
                 logger.warning("worker did not exit (RID %s), killing", self.rid)
-                self.process.kill()
+                try:
+                    self.process.kill()
+                except ProcessLookupError:
+                    pass
                 await self.process.wait()
             else:
                 logger.debug("worker exited gracefully (RID %s)", self.rid)
