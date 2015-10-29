@@ -92,8 +92,8 @@ class Worker:
             try:
                 await self._send(obj, cancellable=False)
             except:
-                logger.warning("failed to send terminate command to worker"
-                               " (RID %s), killing", self.rid, exc_info=True)
+                logger.debug("failed to send terminate command to worker"
+                             " (RID %s), killing", self.rid, exc_info=True)
                 try:
                     self.process.kill()
                 except ProcessLookupError:
@@ -103,14 +103,15 @@ class Worker:
             try:
                 await asyncio.wait_for(self.process.wait(), term_timeout)
             except asyncio.TimeoutError:
-                logger.warning("worker did not exit (RID %s), killing", self.rid)
+                logger.debug("worker did not exit by itself (RID %s), killing",
+                             self.rid)
                 try:
                     self.process.kill()
                 except ProcessLookupError:
                     pass
                 await self.process.wait()
             else:
-                logger.debug("worker exited gracefully (RID %s)", self.rid)
+                logger.debug("worker exited by itself (RID %s)", self.rid)
         finally:
             self.io_lock.release()
 
