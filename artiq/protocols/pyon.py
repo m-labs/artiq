@@ -132,7 +132,10 @@ class _Encoder:
         return r
 
     def encode(self, x):
-        return getattr(self, "encode_" + _encode_map[type(x)])(x)
+        ty = _encode_map.get(type(x), None)
+        if ty is None:
+            raise TypeError(repr(x) + " is not PYON serializable")
+        return getattr(self, "encode_" + ty)(x)
 
 
 def encode(x, pretty=False):
