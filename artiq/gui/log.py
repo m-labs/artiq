@@ -6,7 +6,6 @@ from quamash import QtGui, QtCore
 from pyqtgraph import dockarea, LayoutWidget
 
 from artiq.protocols.sync_struct import Subscriber
-from artiq.gui.tools import ListSyncModel
 
 try:
     QSortFilterProxyModel = QtCore.QSortFilterProxyModel
@@ -26,11 +25,19 @@ def _level_to_name(level):
     return "DEBUG"
 
 
-class _LogModel(ListSyncModel):
+class _LogModel(QtCore.QAbstractTableModel):
     def __init__(self, parent, init):
-        ListSyncModel.__init__(self,
-            ["Level", "Source", "Time", "Message"],
-            parent, init)
+        QtCore.QAbstractTableModel.__init__(self, parent)
+
+        self.headers = ["Level", "Source", "Time", "Message"]
+
+        self.entries = init
+        self.pending_entries = []
+        self.depth = 1000
+        timer = QtCore.QTimer(self)
+        timer.timeout.connect(self.timer_tick)
+        timer.start(100)
+
         self.fixed_font = QtGui.QFont()
         self.fixed_font.setFamily("Monospace")
 
@@ -40,36 +47,75 @@ class _LogModel(ListSyncModel):
         self.warning_bg = QtGui.QBrush(QtGui.QColor(255, 255, 180))
         self.error_bg = QtGui.QBrush(QtGui.QColor(255, 150, 150))
 
-    def data(self, index, role):
-        if (role == QtCore.Qt.FontRole and index.isValid()
-                and index.column() == 3):
-            return self.fixed_font
-        elif role == QtCore.Qt.BackgroundRole and index.isValid():
-            level = self.backing_store[index.row()][0]
-            if level >= logging.ERROR:
-                return self.error_bg
-            elif level >= logging.WARNING:
-                return self.warning_bg
-            else:
-                return self.white
-        elif role == QtCore.Qt.ForegroundRole and index.isValid():
-            level = self.backing_store[index.row()][0]
-            if level <= logging.DEBUG:
-                return self.debug_fg
-            else:
-                return self.black
-        else:
-            return ListSyncModel.data(self, index, role)
+    def headerData(self, col, orientation, role):
+        if (orientation == QtCore.Qt.Horizontal
+                and role == QtCore.Qt.DisplayRole):
+            return self.headers[col]
+        return None
 
-    def convert(self, v, column):
-        if column == 0:
-            return _level_to_name(v[0])
-        elif column == 1:
-            return v[1]
-        elif column == 2:
-            return time.strftime("%m/%d %H:%M:%S", time.localtime(v[2]))
-        else:
-            return v[3]
+    def rowCount(self, parent):
+        return len(self.entries)
+
+    def columnCount(self, parent):
+        return len(self.headers)
+
+    def __delitem__(self, k):
+        pass
+
+    def append(self, v):
+        self.pending_entries.append(v)
+
+    def insertRows(self, position, rows=1, index=QtCore.QModelIndex()):
+        self.beginInsertRows(QtCore.QModelIndex(), position, position+rows-1)
+        self.endInsertRows()
+
+    def removeRows(self, position, rows=1, index=QtCore.QModelIndex()):
+        self.beginRemoveRows(QtCore.QModelIndex(), position, position+rows-1)
+        self.endRemoveRows()
+
+    def timer_tick(self):
+        if not self.pending_entries:
+            return
+        nrows = len(self.entries)
+        records = self.pending_entries
+        self.pending_entries = []
+        self.entries.extend(records)
+        self.insertRows(nrows, len(records))
+        if len(self.entries) > self.depth:
+            start = len(self.entries) - self.depth
+            self.entries = self.entries[start:]
+            self.removeRows(0, start)
+
+    def data(self, index, role):
+        if index.isValid():
+            if (role == QtCore.Qt.FontRole
+                    and index.column() == 3):
+                return self.fixed_font
+            elif role == QtCore.Qt.BackgroundRole:
+                level = self.entries[index.row()][0]
+                if level >= logging.ERROR:
+                    return self.error_bg
+                elif level >= logging.WARNING:
+                    return self.warning_bg
+                else:
+                    return self.white
+            elif role == QtCore.Qt.ForegroundRole:
+                level = self.entries[index.row()][0]
+                if level <= logging.DEBUG:
+                    return self.debug_fg
+                else:
+                    return self.black
+            elif role == QtCore.Qt.DisplayRole:
+                v = self.entries[index.row()]
+                column = index.column()
+                if column == 0:
+                    return _level_to_name(v[0])
+                elif column == 1:
+                    return v[1]
+                elif column == 2:
+                    return time.strftime("%m/%d %H:%M:%S", time.localtime(v[2]))
+                else:
+                    return v[3]
 
 
 class _LogFilterProxyModel(QSortFilterProxyModel):
