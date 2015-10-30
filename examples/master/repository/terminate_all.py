@@ -12,7 +12,6 @@ class TerminateAll(EnvExperiment):
         else:
             terminate = self.scheduler.delete
 
-        print("our RID", self.scheduler.rid)
         for rid in self.scheduler.get_status().keys():
             if rid != self.scheduler.rid:
                 terminate(rid)
