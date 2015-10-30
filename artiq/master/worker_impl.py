@@ -95,9 +95,13 @@ class Scheduler:
             raise TerminationRequested
 
     submit = staticmethod(make_parent_action("scheduler_submit"))
-    cancel = staticmethod(make_parent_action("scheduler_cancel"))
+    delete = staticmethod(make_parent_action("scheduler_delete"))
+    request_termination = staticmethod(
+        make_parent_action("scheduler_request_termination"))
+    get_status  = staticmethod(make_parent_action("scheduler_get_status"))
 
-    def set_run_info(self, pipeline_name, expid, priority):
+    def set_run_info(self, rid, pipeline_name, expid, priority):
+        self.rid = rid
         self.pipeline_name = pipeline_name
         self.expid = expid
         self.priority = priority
@@ -182,7 +186,7 @@ def main():
                     expf = expid["file"]
                 exp = get_exp(expf, expid["class_name"])
                 device_mgr.virtual_devices["scheduler"].set_run_info(
-                    obj["pipeline_name"], expid, obj["priority"])
+                    rid, obj["pipeline_name"], expid, obj["priority"])
                 exp_inst = exp(device_mgr, dataset_mgr,
                     **expid["arguments"])
                 put_object({"action": "completed"})

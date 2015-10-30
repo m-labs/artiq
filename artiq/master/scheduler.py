@@ -412,6 +412,7 @@ class Scheduler:
             logger.warning("some pipelines were not garbage-collected")
 
     def submit(self, pipeline_name, expid, priority, due_date, flush):
+        """Submits a new run."""
         # mutates expid to insert head repository revision if None
         if self._terminated:
             return
@@ -427,9 +428,11 @@ class Scheduler:
         return pipeline.pool.submit(expid, priority, due_date, flush, pipeline_name)
 
     def delete(self, rid):
+        """Kills the run with the specified RID."""
         self._deleter.delete(rid)
 
     def request_termination(self, rid):
+        """Requests graceful termination of the run with the specified RID."""
         for pipeline in self._pipelines.values():
             if rid in pipeline.pool.runs:
                 run = pipeline.pool.runs[rid]
@@ -438,3 +441,8 @@ class Scheduler:
                 else:
                     self.delete(rid)
                 break
+
+    def get_status(self):
+        """Returns a dictionary containing information about the runs currently
+        tracked by the scheduler."""
+        return self.notifier.read
