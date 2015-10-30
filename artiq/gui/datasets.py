@@ -12,6 +12,11 @@ from artiq.tools import short_format
 from artiq.gui.tools import DictSyncModel
 from artiq.gui.displays import *
 
+try:
+    QSortFilterProxyModel = QtCore.QSortFilterProxyModel
+except AttributeError:
+    QSortFilterProxyModel = QtGui.QSortFilterProxyModel
+
 
 logger = logging.getLogger(__name__)
 
@@ -74,15 +79,7 @@ class DatasetsDock(dockarea.Dock):
         self.displays = dict()
 
     def _search_datasets(self):
-        model = self.table_model
-        search = self.search.displayText()
-        for row in range(model.rowCount(model.index(0, 0))):
-            index = model.index(row, 0)
-            dataset = model.data(index, QtCore.Qt.DisplayRole)
-            if search in dataset:
-                self.table.showRow(row)
-            else:
-                self.table.hideRow(row)
+        self.table_model_filter.setFilterFixedString(self.search.displayText())
 
     def get_dataset(self, key):
         return self.table_model.backing_store[key][1]
@@ -97,12 +94,16 @@ class DatasetsDock(dockarea.Dock):
 
     def init_datasets_model(self, init):
         self.table_model = DatasetsModel(self.table, init)
-        self.table.setModel(self.table_model)
+        self.table_model_filter = QSortFilterProxyModel()
+        self.table_model_filter.setSourceModel(self.table_model)
+        self.table.setModel(self.table_model_filter)
         return self.table_model
 
     def update_display_data(self, dsp):
-        dsp.update_data({k: self.table_model.backing_store[k][1]
-                         for k in dsp.data_sources()})
+        filtered_data = {k: self.table_model.backing_store[k][1]
+                         for k in dsp.data_sources()
+                         if k in self.table_model.backing_store}
+        dsp.update_data(filtered_data)
 
     def on_mod(self, mod):
         if mod["action"] == "init":
@@ -110,10 +111,10 @@ class DatasetsDock(dockarea.Dock):
                 display.update_data(self.table_model.backing_store)
             return
 
-        if mod["action"] == "setitem":
-            source = mod["key"]
-        elif mod["path"]:
+        if mod["path"]:
             source = mod["path"][0]
+        elif mod["action"] == "setitem":
+            source = mod["key"]
         else:
             return
 

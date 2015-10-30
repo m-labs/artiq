@@ -1,22 +1,4 @@
 from quamash import QtCore
-import numpy as np
-
-
-def si_prefix(scale):
-    try:
-        return {
-            1e-12: "p",
-            1e-9: "n",
-            1e-6: "u",
-            1e-3: "m",
-            1.0: "",
-            1e3: "k",
-            1e6: "M",
-            1e9: "G",
-            1e12: "T"
-        }[scale]
-    except KeyError:
-        return "[x{}]".format(scale)
 
 
 class _SyncSubstruct:
@@ -95,7 +77,7 @@ class DictSyncModel(QtCore.QAbstractTableModel):
             new_row = self._find_row(k, v)
             if old_row == new_row:
                 self.dataChanged.emit(self.index(old_row, 0),
-                                      self.index(old_row, len(self.headers)))
+                                      self.index(old_row, len(self.headers)-1))
             else:
                 self.beginMoveRows(QtCore.QModelIndex(), old_row, old_row,
                                    QtCore.QModelIndex(), new_row)
@@ -157,7 +139,7 @@ class ListSyncModel(QtCore.QAbstractTableModel):
 
     def __setitem__(self, k, v):
         self.dataChanged.emit(self.index(k, 0),
-                              self.index(k, len(self.headers)))
+                              self.index(k, len(self.headers)-1))
         self.backing_store[k] = v
 
     def __delitem__(self, k):

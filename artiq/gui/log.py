@@ -3,10 +3,15 @@ import logging
 import time
 
 from quamash import QtGui, QtCore
-from pyqtgraph import dockarea
+from pyqtgraph import dockarea, LayoutWidget
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.gui.tools import ListSyncModel
+
+try:
+    QSortFilterProxyModel = QtCore.QSortFilterProxyModel
+except AttributeError:
+    QSortFilterProxyModel = QtGui.QSortFilterProxyModel
 
 
 def _level_to_name(level):
@@ -19,6 +24,7 @@ def _level_to_name(level):
     if level >= logging.INFO:
         return "INFO"
     return "DEBUG"
+
 
 class _LogModel(ListSyncModel):
     def __init__(self, parent, init):
@@ -66,9 +72,38 @@ class _LogModel(ListSyncModel):
             return v[3]
 
 
+class _LevelFilterProxyModel(QSortFilterProxyModel):
+    def __init__(self, min_level):
+        QSortFilterProxyModel.__init__(self)
+        self.min_level = min_level
+
+    def filterAcceptsRow(self, sourceRow, sourceParent):
+        model = self.sourceModel()
+        index = model.index(sourceRow, 0, sourceParent)
+        data = model.data(index, QtCore.Qt.DisplayRole)
+        return getattr(logging, data) >= self.min_level
+
+    def set_min_level(self, min_level):
+        self.min_level = min_level
+        self.invalidateFilter()
+
+
 class LogDock(dockarea.Dock):
     def __init__(self):
         dockarea.Dock.__init__(self, "Log", size=(1000, 300))
+
+        grid = LayoutWidget()
+        self.addWidget(grid)
+
+        grid.addWidget(QtGui.QLabel("Minimum level: "), 0, 0)
+        grid.layout.setColumnStretch(0, 0)
+        grid.layout.setColumnStretch(1, 0)
+        grid.layout.setColumnStretch(2, 1)
+        self.filterbox = QtGui.QComboBox()
+        self.filterbox.addItems(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
+        self.filterbox.setToolTip("Display entries at or above this level")
+        grid.addWidget(self.filterbox, 0, 1)
+        self.filterbox.currentIndexChanged.connect(self.filter_changed)
 
         self.log = QtGui.QTableView()
         self.log.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
@@ -78,7 +113,7 @@ class LogDock(dockarea.Dock):
             QtGui.QAbstractItemView.ScrollPerPixel)
         self.log.setShowGrid(False)
         self.log.setTextElideMode(QtCore.Qt.ElideNone)
-        self.addWidget(self.log)
+        grid.addWidget(self.log, 1, 0, colspan=3)
         self.scroll_at_bottom = False
 
     async def sub_connect(self, host, port):
@@ -87,6 +122,10 @@ class LogDock(dockarea.Dock):
 
     async def sub_close(self):
         await self.subscriber.close()
+
+    def filter_changed(self):
+        self.table_model_filter.set_min_level(
+            getattr(logging, self.filterbox.currentText()))
 
     def rows_inserted_before(self):
         scrollbar = self.log.verticalScrollBar()
@@ -98,7 +137,21 @@ class LogDock(dockarea.Dock):
 
     def init_log_model(self, init):
         table_model = _LogModel(self.log, init)
-        self.log.setModel(table_model)
-        table_model.rowsAboutToBeInserted.connect(self.rows_inserted_before)
-        table_model.rowsInserted.connect(self.rows_inserted_after)
+        self.table_model_filter = _LevelFilterProxyModel(
+            getattr(logging, self.filterbox.currentText()))
+        self.table_model_filter.setSourceModel(table_model)
+        self.log.setModel(self.table_model_filter)
+        self.table_model_filter.rowsAboutToBeInserted.connect(self.rows_inserted_before)
+        self.table_model_filter.rowsInserted.connect(self.rows_inserted_after)
         return table_model
+
+    def save_state(self):
+        return {"min_level_idx": self.filterbox.currentIndex()}
+
+    def restore_state(self, state):
+        try:
+            idx = state["min_level_idx"]
+        except KeyError:
+            pass
+        else:
+            self.filterbox.setCurrentIndex(idx)

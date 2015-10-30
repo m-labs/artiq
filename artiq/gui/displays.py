@@ -137,7 +137,7 @@ class XYDisplay(dockarea.Dock):
         error = data.get(result_error, None)
         fit = data.get(result_fit, None)
 
-        if not y or len(y) != len(x):
+        if not len(y) or len(y) != len(x):
             return
         if error is not None and hasattr(error, "__len__"):
             if not len(error):
@@ -201,7 +201,7 @@ class HistogramDisplay(dockarea.Dock):
         if x is None:
             x = list(range(len(y)+1))
 
-        if y and len(x) == len(y) + 1:
+        if len(y) and len(x) == len(y) + 1:
             self.plot.clear()
             self.plot.plot(x, y, stepMode=True, fillLevel=0,
                            brush=(0, 0, 255, 150))

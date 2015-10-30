@@ -6,7 +6,7 @@ import sys
 import numpy as np  # Needed to use numpy in RPC call arguments on cmd line
 import pprint
 
-from artiq.protocols.pc_rpc import Client
+from artiq.protocols.pc_rpc import AutoTarget, Client
 
 
 def get_argparser():
@@ -85,19 +85,9 @@ def main():
     args = get_argparser().parse_args()
 
     remote = Client(args.server, args.port, None)
-
     targets, description = remote.get_rpc_id()
-
     if args.action != "list-targets":
-        # If no target specified and remote has only one, then use this one.
-        # Exit otherwise.
-        if len(targets) > 1 and args.target is None:
-            print("Remote server has several targets, please supply one with "
-                  "-t")
-            sys.exit(1)
-        elif args.target is None:
-            args.target = targets[0]
-        remote.select_rpc_target(args.target)
+        remote.select_rpc_target(AutoTarget)
 
     if args.action == "list-targets":
         list_targets(targets, description)

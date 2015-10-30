@@ -21,10 +21,6 @@ class WorkerWatchdogTimeout(Exception):
     pass
 
 
-class WorkerException(Exception):
-    pass
-
-
 class WorkerError(Exception):
     pass
 
@@ -60,13 +56,14 @@ class Worker:
         else:
             return None
 
-    async def _create_process(self):
+    async def _create_process(self, log_level):
         await self.io_lock.acquire()
         try:
             if self.closed.is_set():
                 raise WorkerError("Attempting to create process after close")
             self.process = await asyncio.create_subprocess_exec(
                 sys.executable, "-m", "artiq.master.worker_impl",
+                str(log_level),
                 stdout=subprocess.PIPE, stdin=subprocess.PIPE)
         finally:
             self.io_lock.release()
@@ -95,19 +92,26 @@ class Worker:
             try:
                 await self._send(obj, cancellable=False)
             except:
-                logger.warning("failed to send terminate command to worker"
-                               " (RID %s), killing", self.rid, exc_info=True)
-                self.process.kill()
+                logger.debug("failed to send terminate command to worker"
+                             " (RID %s), killing", self.rid, exc_info=True)
+                try:
+                    self.process.kill()
+                except ProcessLookupError:
+                    pass
                 await self.process.wait()
                 return
             try:
                 await asyncio.wait_for(self.process.wait(), term_timeout)
             except asyncio.TimeoutError:
-                logger.warning("worker did not exit (RID %s), killing", self.rid)
-                self.process.kill()
+                logger.debug("worker did not exit by itself (RID %s), killing",
+                             self.rid)
+                try:
+                    self.process.kill()
+                except ProcessLookupError:
+                    pass
                 await self.process.wait()
             else:
-                logger.debug("worker exited gracefully (RID %s)", self.rid)
+                logger.debug("worker exited by itself (RID %s)", self.rid)
         finally:
             self.io_lock.release()
 
@@ -163,10 +167,7 @@ class Worker:
                 return True
             elif action == "pause":
                 return False
-            elif action == "exception":
-                raise WorkerException
-            del obj["action"]
-            if action == "create_watchdog":
+            elif action == "create_watchdog":
                 func = self.create_watchdog
             elif action == "delete_watchdog":
                 func = self.delete_watchdog
@@ -177,7 +178,7 @@ class Worker:
             if getattr(func, "worker_pass_rid", False):
                 func = partial(func, self.rid)
             try:
-                data = func(**obj)
+                data = func(*obj["args"], **obj["kwargs"])
                 reply = {"status": "ok", "data": data}
             except:
                 reply = {"status": "failed",
@@ -208,7 +209,7 @@ class Worker:
 
     async def build(self, rid, pipeline_name, wd, expid, priority, timeout=15.0):
         self.rid = rid
-        await self._create_process()
+        await self._create_process(expid["log_level"])
         await self._worker_action(
             {"action": "build",
              "rid": rid,
@@ -245,7 +246,7 @@ class Worker:
                                   timeout)
 
     async def examine(self, file, timeout=20.0):
-        await self._create_process()
+        await self._create_process(logging.WARNING)
         r = dict()
         def register(class_name, name, arguments):
             r[class_name] = {"name": name, "arguments": arguments}

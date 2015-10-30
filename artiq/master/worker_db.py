@@ -5,11 +5,11 @@ import os
 import time
 import re
 
-import numpy
+import numpy as np
 import h5py
 
 from artiq.protocols.sync_struct import Notifier
-from artiq.protocols.pc_rpc import Client, BestEffortClient
+from artiq.protocols.pc_rpc import AutoTarget, Client, BestEffortClient
 
 
 logger = logging.getLogger(__name__)
@@ -22,11 +22,16 @@ def _create_device(desc, device_mgr):
         device_class = getattr(module, desc["class"])
         return device_class(device_mgr, **desc["arguments"])
     elif ty == "controller":
-        if desc["best_effort"]:
-            cl = BestEffortClient
+        if desc.get("best_effort", False):
+            cls = BestEffortClient
         else:
-            cl = Client
-        return cl(desc["host"], desc["port"], desc["target_name"])
+            cls = Client
+        # Automatic target can be specified either by the absence of
+        # the target_name parameter, or a None value.
+        target_name = desc.get("target_name", None)
+        if target_name is None:
+            target_name = AutoTarget
+        return cls(desc["host"], desc["port"], target_name)
     else:
         raise ValueError("Unsupported type in device DB: " + ty)
 
@@ -114,35 +119,52 @@ def get_last_rid():
 
 _type_to_hdf5 = {
     int: h5py.h5t.STD_I64BE,
-    float: h5py.h5t.IEEE_F64BE
+    float: h5py.h5t.IEEE_F64BE,
+
+    np.int8: h5py.h5t.STD_I8BE,
+    np.int16: h5py.h5t.STD_I16BE,
+    np.int32: h5py.h5t.STD_I32BE,
+    np.int64: h5py.h5t.STD_I64BE,
+
+    np.uint8: h5py.h5t.STD_U8BE,
+    np.uint16: h5py.h5t.STD_U16BE,
+    np.uint32: h5py.h5t.STD_U32BE,
+    np.uint64: h5py.h5t.STD_U64BE,
+
+    np.float16: h5py.h5t.IEEE_F16BE,
+    np.float32: h5py.h5t.IEEE_F32BE,
+    np.float64: h5py.h5t.IEEE_F64BE
 }
 
 def result_dict_to_hdf5(f, rd):
     for name, data in rd.items():
-        if isinstance(data, list):
-            el_ty = type(data[0])
-            for d in data:
-                if type(d) != el_ty:
-                    raise TypeError("All list elements must have the same"
-                                    " type for HDF5 output")
-            try:
-                el_ty_h5 = _type_to_hdf5[el_ty]
-            except KeyError:
-                raise TypeError("List element type {} is not supported for"
-                                " HDF5 output".format(el_ty))
-            dataset = f.create_dataset(name, (len(data), ), el_ty_h5)
-            dataset[:] = data
-        elif isinstance(data, numpy.ndarray):
-            f.create_dataset(name, data=data)
+        flag = None
+        # beware: isinstance(True/False, int) == True
+        if isinstance(data, bool):
+            data = np.int8(data)
+            flag = "py_bool"
+        elif isinstance(data, int):
+            data = np.int64(data)
+            flag = "py_int"
+
+        if isinstance(data, np.ndarray):
+            dataset = f.create_dataset(name, data=data)
         else:
             ty = type(data)
-            try:
-                ty_h5 = _type_to_hdf5[ty]
-            except KeyError:
-                raise TypeError("Type {} is not supported for HDF5 output"
-                                .format(ty))
+            if ty is str:
+                ty_h5 = "S{}".format(len(data))
+                data = data.encode()
+            else:
+                try:
+                    ty_h5 = _type_to_hdf5[ty]
+                except KeyError:
+                    raise TypeError("Type {} is not supported for HDF5 output"
+                                    .format(ty)) from None
             dataset = f.create_dataset(name, (), ty_h5)
             dataset[()] = data
+
+        if flag is not None:
+            dataset.attrs[flag] = np.int8(1)
 
 
 class DatasetManager:
@@ -168,7 +190,8 @@ class DatasetManager:
         try:
             return self.local[key]
         except KeyError:
-            return self.ddb.get(key)
+            pass
+        return self.ddb.get(key)
 
     def write_hdf5(self, f):
         result_dict_to_hdf5(f, self.local)

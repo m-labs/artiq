@@ -55,7 +55,6 @@ def main():
     args = get_argparser().parse_args()
     init_logger(args)
     dev = Client(args.server, args.port, "pdq2")
-    dev.init()
 
     if args.reset:
         dev.write(b"\x00\x00")  # flush any escape
@@ -66,8 +65,6 @@ def main():
     dev.cmd("DCM", args.dcm)
     freq = 100e6 if args.dcm else 50e6
     dev.set_freq(freq)
-    num_channels = dev.get_num_channels()
-    num_frames = dev.get_num_frames()
     times = eval(args.times, globals(), {})
     voltages = eval(args.voltages, globals(), dict(t=times))
 

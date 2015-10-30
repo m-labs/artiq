@@ -1,11 +1,9 @@
 from quamash import QtGui
 from pyqtgraph import LayoutWidget
 
-from artiq.gui.tools import si_prefix
-
 
 class _Range(LayoutWidget):
-    def __init__(self, global_min, global_max, global_step, suffix, scale, ndecimals):
+    def __init__(self, global_min, global_max, global_step, unit, scale, ndecimals):
         LayoutWidget.__init__(self)
 
         self.scale = scale
@@ -21,8 +19,8 @@ class _Range(LayoutWidget):
                 spinbox.setMaximum(float("inf"))
             if global_step is not None:
                 spinbox.setSingleStep(global_step/self.scale)
-            if suffix:
-                spinbox.setSuffix(" " + suffix)
+            if unit:
+                spinbox.setSuffix(" " + unit)
 
         self.addWidget(QtGui.QLabel("Min:"), 0, 0)
         self.min = QtGui.QDoubleSpinBox()
@@ -68,7 +66,7 @@ class ScanController(LayoutWidget):
 
         gmin, gmax = procdesc["global_min"], procdesc["global_max"]
         gstep = procdesc["global_step"]
-        suffix = si_prefix(self.scale) + procdesc["unit"]
+        unit = procdesc["unit"]
         ndecimals = procdesc["ndecimals"]
 
         self.v_noscan = QtGui.QDoubleSpinBox()
@@ -82,17 +80,17 @@ class ScanController(LayoutWidget):
         else:
             self.v_noscan.setMaximum(float("inf"))
         self.v_noscan.setSingleStep(gstep/self.scale)
-        if suffix:
-            self.v_noscan.setSuffix(" " + suffix)
+        if unit:
+            self.v_noscan.setSuffix(" " + unit)
         self.v_noscan_gr = LayoutWidget()
         self.v_noscan_gr.addWidget(QtGui.QLabel("Value:"), 0, 0)
         self.v_noscan_gr.addWidget(self.v_noscan, 0, 1)
         self.stack.addWidget(self.v_noscan_gr)
 
-        self.v_linear = _Range(gmin, gmax, gstep, suffix, self.scale, ndecimals)
+        self.v_linear = _Range(gmin, gmax, gstep, unit, self.scale, ndecimals)
         self.stack.addWidget(self.v_linear)
 
-        self.v_random = _Range(gmin, gmax, gstep, suffix, self.scale, ndecimals)
+        self.v_random = _Range(gmin, gmax, gstep, unit, self.scale, ndecimals)
         self.stack.addWidget(self.v_random)
 
         self.v_explicit = QtGui.QLineEdit()

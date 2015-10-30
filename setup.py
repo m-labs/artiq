@@ -57,7 +57,7 @@ setup(
     url="http://m-labs.hk/artiq",
     description="A control system for trapped-ion experiments",
     long_description=open("README.rst").read(),
-    license="BSD",
+    license="GPL",
     install_requires=requirements,
     extras_require={},
     dependency_links=[

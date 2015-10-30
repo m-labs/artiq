@@ -30,7 +30,7 @@ git clone https://github.com/fallen/impersonate_macaddress
 make -C impersonate_macaddress
 # Tell mibuild where Xilinx toolchains are installed
 # and feed it the mac address corresponding to the license
-cat >> $HOME/.mlabs/build_settings.sh << EOF
+cat >> $HOME/.m-labs/build_settings.sh << EOF
 MISOC_EXTRA_VIVADO_CMDLINE="-Ob vivado_path $HOME/Xilinx/Vivado"
 MISOC_EXTRA_ISE_CMDLINE="-Ob ise_path $HOME/opt/Xilinx/"
 export MACADDR=$macaddress

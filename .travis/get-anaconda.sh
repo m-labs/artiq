@@ -10,4 +10,5 @@ conda update -q conda
 conda info -a
 conda install conda-build jinja2
 conda create -q -n py35 python=$TRAVIS_PYTHON_VERSION
+conda config --add channels https://conda.anaconda.org/m-labs/channel/main
 conda config --add channels https://conda.anaconda.org/m-labs/channel/dev

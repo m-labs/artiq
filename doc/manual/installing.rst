@@ -13,12 +13,12 @@ Installing using conda
 Installing Anaconda or Miniconda
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* You can either install Anaconda (chose Python 3.5) from https://store.continuum.io/cshop/anaconda/
+* You can either install Anaconda (choose Python 3.5) from https://store.continuum.io/cshop/anaconda/
 
-* Or install the more minimalistic Miniconda (chose Python 3.5) from http://conda.pydata.org/miniconda.html
+* Or install the more minimalistic Miniconda (choose Python 3.5) from http://conda.pydata.org/miniconda.html
 
 .. warning::
-    If you are installing on Windows, chose the Windows 32-bit version regardless of whether you have
+    If you are installing on Windows, choose the Windows 32-bit version regardless of whether you have
     a 32-bit or 64-bit Windows.
 
 After installing either Anaconda or Miniconda, open a new terminal and make sure the following command works::
@@ -29,7 +29,7 @@ If it prints the help of the ``conda`` command, your install is OK.
 If not, then make sure your ``$PATH`` environment variable contains the path to anaconda3/bin (or miniconda3/bin)::
 
     $ echo $PATH
-    /home/..../miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games
+    /home/.../miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
 
 If your ``$PATH`` misses reference the miniconda3/bin or anaconda3/bin you can fix this by typing::
 
@@ -38,13 +38,37 @@ If your ``$PATH`` misses reference the miniconda3/bin or anaconda3/bin you can f
 Installing the host side software
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For this, you need to add our binstar repository to your conda configuration::
+For this, you need to add our Anaconda repository to your conda configuration::
 
+    $ conda config --add channels http://conda.anaconda.org/m-labs/channel/main
     $ conda config --add channels http://conda.anaconda.org/m-labs/channel/dev
 
-Then you can install the ARTIQ package, it will pull all the necessary dependencies::
+Then you can install the ARTIQ package, it will pull all the necessary dependencies.
 
-    $ conda install artiq
+* For the Pipistrello board::
+
+    $ ENV=$(date +artiq-%Y-%m-%d); conda create -n $ENV artiq-pipistrello-nist_qc1; \
+        echo "Created environment $ENV for ARTIQ"
+
+* For the KC705 board::
+
+    $ ENV=$(date +artiq-%Y-%m-%d); conda create -n $ENV artiq-kc705-nist_qc1 artiq-kc705-nist_qc2; \
+        echo "Created environment $ENV for ARTIQ"
+
+This creates a new Conda "environment" (i.e. an isolated installation) and prints its name.
+If you ever need to upgrade ARTIQ, it is advised to install it again
+in a new environment so that you can roll back to a version that is known to
+work correctly.
+
+After this, add the newly created environment to your ``$PATH``. This can be easily
+done using the following command::
+
+    $ source activate artiq-[date]
+
+You will need to invoke this command in every new shell. When in doubt, you can list
+the existing environments using::
+
+    $ conda env list
 
 Preparing the core device FPGA board
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

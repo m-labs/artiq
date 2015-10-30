@@ -1,7 +1,7 @@
 import sys
 import time
 import os
-import traceback
+import logging
 
 from artiq.protocols import pyon
 from artiq.tools import file_import
@@ -26,12 +26,9 @@ class ParentActionError(Exception):
     pass
 
 
-def make_parent_action(action, argnames, exception=ParentActionError):
-    argnames = argnames.split()
-    def parent_action(*args):
-        request = {"action": action}
-        for argname, arg in zip(argnames, args):
-            request[argname] = arg
+def make_parent_action(action, exception=ParentActionError):
+    def parent_action(*args, **kwargs):
+        request = {"action": action, "args": args, "kwargs": kwargs}
         put_object(request)
         reply = get_object()
         if "action" in reply:
@@ -50,7 +47,7 @@ class LogForwarder:
     def __init__(self):
         self.buffer = ""
 
-    to_parent = staticmethod(make_parent_action("log", "message"))
+    to_parent = staticmethod(make_parent_action("log"))
 
     def write(self, data):
         self.buffer += data
@@ -64,18 +61,18 @@ class LogForwarder:
 
 
 class ParentDeviceDB:
-    get_device_db = make_parent_action("get_device_db", "")
-    get = make_parent_action("get_device", "key", KeyError)
+    get_device_db = make_parent_action("get_device_db")
+    get = make_parent_action("get_device", KeyError)
 
 
 class ParentDatasetDB:
-    get = make_parent_action("get_dataset", "key", KeyError)
-    update = make_parent_action("update_dataset", "mod")
+    get = make_parent_action("get_dataset", KeyError)
+    update = make_parent_action("update_dataset")
 
 
 class Watchdog:
-    _create = make_parent_action("create_watchdog", "t")
-    _delete = make_parent_action("delete_watchdog", "wid")
+    _create = make_parent_action("create_watchdog")
+    _delete = make_parent_action("delete_watchdog")
 
     def __init__(self, t):
         self.t = t
@@ -91,15 +88,14 @@ set_watchdog_factory(Watchdog)
 
 
 class Scheduler:
-    pause_noexc = staticmethod(make_parent_action("pause", ""))
+    pause_noexc = staticmethod(make_parent_action("pause"))
 
     def pause(self):
         if self.pause_noexc():
             raise TerminationRequested
 
-    submit = staticmethod(make_parent_action("scheduler_submit",
-        "pipeline_name expid priority due_date flush"))
-    cancel = staticmethod(make_parent_action("scheduler_cancel", "rid"))
+    submit = staticmethod(make_parent_action("scheduler_submit"))
+    cancel = staticmethod(make_parent_action("scheduler_cancel"))
 
     def set_run_info(self, pipeline_name, expid, priority):
         self.pipeline_name = pipeline_name
@@ -120,22 +116,21 @@ def get_exp(file, class_name):
         return getattr(module, class_name)
 
 
-register_experiment = make_parent_action("register_experiment",
-                                         "class_name name arguments")
+register_experiment = make_parent_action("register_experiment")
 
 
 class ExamineDeviceMgr:
-    get_device_db = make_parent_action("get_device_db", "")
+    get_device_db = make_parent_action("get_device_db")
 
-    def get(self, name):
+    def get(name):
         return None
 
 
 class DummyDatasetMgr:
-    def set(self, key, value, broadcast=False, persist=False, save=True):
+    def set(key, value, broadcast=False, persist=False, save=True):
         return None
 
-    def get(self, key):
+    def get(key):
         pass
 
 
@@ -158,7 +153,9 @@ def examine(device_mgr, dataset_mgr, file):
 
 
 def main():
-    sys.stdout = sys.stderr = LogForwarder()
+    sys.stdout = LogForwarder()
+    sys.stderr = LogForwarder()
+    logging.basicConfig(level=int(sys.argv[1]))
 
     start_time = None
     rid = None
@@ -211,15 +208,15 @@ def main():
                     f.close()
                 put_object({"action": "completed"})
             elif action == "examine":
-                examine(ExamineDeviceMgr(), DummyDatasetMgr(), obj["file"])
+                examine(ExamineDeviceMgr, DummyDatasetMgr, obj["file"])
                 put_object({"action": "completed"})
             elif action == "terminate":
                 break
     except:
-        traceback.print_exc()
-        put_object({"action": "exception"})
+        logging.error("Worker terminating with exception", exc_info=True)
     finally:
         device_mgr.close_devices()
+
 
 if __name__ == "__main__":
     main()

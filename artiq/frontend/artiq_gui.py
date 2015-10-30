@@ -116,6 +116,7 @@ def main():
     atexit.register(lambda: loop.run_until_complete(d_schedule.sub_close()))
 
     d_log = LogDock()
+    smgr.register(d_log)
     loop.run_until_complete(d_log.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_log.sub_close()))

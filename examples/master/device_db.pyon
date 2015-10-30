@@ -92,34 +92,29 @@
 
     "qc_q1_0": {
         "type": "controller",
-        "best_effort": false,
+        # ::1 is the IPv6 localhost address. If this controller is running on a remote machine,
+        # replace it with the IP or hostname of the machine. If using the hostname, make sure
+        # that it always resolves to a network-visible IP address (see documentation).
         "host": "::1",
         "port": 4000,
-        "target_name": "pdq2",
         "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_0.bin"
     },
     "qc_q1_1": {
         "type": "controller",
-        "best_effort": false,
         "host": "::1",
         "port": 4001,
-        "target_name": "pdq2",
         "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_1.bin"
     },
     "qc_q1_2": {
         "type": "controller",
-        "best_effort": false,
         "host": "::1",
         "port": 4002,
-        "target_name": "pdq2",
         "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_2.bin"
     },
     "qc_q1_3": {
         "type": "controller",
-        "best_effort": false,
         "host": "::1",
         "port": 4003,
-        "target_name": "pdq2",
         "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_3.bin"
     },
     "electrodes": {
@@ -138,7 +133,6 @@
         "best_effort": true,
         "host": "::1",
         "port": 3253,
-        "target_name": "lda",
         "command": "lda_controller -p {port} --bind {bind} --simulation"
     },
 

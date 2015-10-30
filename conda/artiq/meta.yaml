@@ -1,65 +1,66 @@
 package:
-    name: artiq
-    version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}
+  name: artiq
+  version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}
 
 source:
-    git_url: https://github.com/m-labs/artiq
-    git_tag: master
+  git_url: https://github.com/m-labs/artiq
+  git_tag: master
 
 build:
-    number: {{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}
-    entry_points:
-        - artiq_client = artiq.frontend.artiq_client:main
-        - artiq_compile = artiq.frontend.artiq_compile:main
-        - artiq_coretool = artiq.frontend.artiq_coretool:main
-        - artiq_ctlmgr = artiq.frontend.artiq_ctlmgr:main
-        - artiq_gui = artiq.frontend.artiq_gui:main
-        - artiq_influxdb = artiq.frontend.artiq_influxdb:main
-        - artiq_master = artiq.frontend.artiq_master:main
-        - artiq_mkfs = artiq.frontend.artiq_mkfs:main
-        - artiq_rpctool = artiq.frontend.artiq_rpctool:main
-        - artiq_run = artiq.frontend.artiq_run:main
-        - lda_controller = artiq.frontend.lda_controller:main
-        - novatech409b_controller = artiq.frontend.novatech409b_controller:main
-        - pdq2_client = artiq.frontend.pdq2_client:main
-        - pdq2_controller = artiq.frontend.pdq2_controller:main
-        - pxi6733_controller = artiq.frontend.pxi6733_controller:main
-        - thorlabs_tcube_controller = artiq.frontend.thorlabs_tcube_controller:main
+  noarch_python: true
+  number: {{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}
+  string: py_{{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}+git{{ environ.get("GIT_DESCRIBE_HASH", "")[1:] }}
+  entry_points:
+    - artiq_client = artiq.frontend.artiq_client:main
+    - artiq_compile = artiq.frontend.artiq_compile:main
+    - artiq_coretool = artiq.frontend.artiq_coretool:main
+    - artiq_ctlmgr = artiq.frontend.artiq_ctlmgr:main
+    - artiq_gui = artiq.frontend.artiq_gui:main
+    - artiq_influxdb = artiq.frontend.artiq_influxdb:main
+    - artiq_master = artiq.frontend.artiq_master:main
+    - artiq_mkfs = artiq.frontend.artiq_mkfs:main
+    - artiq_rpctool = artiq.frontend.artiq_rpctool:main
+    - artiq_run = artiq.frontend.artiq_run:main
+    - lda_controller = artiq.frontend.lda_controller:main
+    - novatech409b_controller = artiq.frontend.novatech409b_controller:main
+    - pdq2_client = artiq.frontend.pdq2_client:main
+    - pdq2_controller = artiq.frontend.pdq2_controller:main
+    - pxi6733_controller = artiq.frontend.pxi6733_controller:main
+    - thorlabs_tcube_controller = artiq.frontend.thorlabs_tcube_controller:main
 
 requirements:
-    build:
-        - python >=3.5.0
-        - setuptools
-        - numpy
-        - migen 0.0
-        - pyelftools
-        - binutils-or1k-linux
-    run:
-        - python >=3.5.0
-        - llvmlite-artiq
-        - scipy
-        - numpy
-        - prettytable
-        - pyserial
-        - sphinx
-        - sphinx-argparse
-        - h5py
-        - dateutil
-        - pydaqmx
-        - pyelftools
-        - quamash
-        - pyqtgraph
-        - flterm # [linux]
-        - pygit2
-        - aiohttp
-        - binutils-or1k-linux
+  build:
+    - python >=3.5.0
+    - setuptools
+    - numpy
+    - migen 0.0
+    - pyelftools
+    - binutils-or1k-linux
+  run:
+    - python >=3.5.0
+    - llvmlite-artiq
+    - scipy
+    - numpy
+    - prettytable
+    - pyserial
+    - sphinx
+    - sphinx-argparse
+    - h5py
+    - dateutil
+    - pydaqmx
+    - pyelftools
+    - quamash
+    - pyqtgraph
+    - flterm # [linux]
+    - pygit2
+    - aiohttp
+    - binutils-or1k-linux
 
 test:
-    imports:
-        - artiq
-
+  imports:
+    - artiq
 
 about:
-    home: http://m-labs.hk/artiq
-    license: 3-clause BSD
-    summary: 'ARTIQ (Advanced Real-Time Infrastructure for Quantum physics) is a next-generation control system for quantum information experiments. It is being developed in partnership with the Ion Storage Group at NIST, and its applicability reaches beyond ion trapping.'
+  home: http://m-labs.hk/artiq
+  license: GPL
+  summary: 'ARTIQ (Advanced Real-Time Infrastructure for Quantum physics) is a next-generation control system for quantum information experiments. It is being developed in partnership with the Ion Storage Group at NIST, and its applicability reaches beyond ion trapping.'

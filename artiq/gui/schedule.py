@@ -75,9 +75,11 @@ class ScheduleDock(dockarea.Dock):
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         request_termination_action = QtGui.QAction("Request termination", self.table)
         request_termination_action.triggered.connect(partial(self.delete_clicked, True))
+        request_termination_action.setShortcut("DELETE")
         self.table.addAction(request_termination_action)
         delete_action = QtGui.QAction("Delete", self.table)
         delete_action.triggered.connect(partial(self.delete_clicked, False))
+        delete_action.setShortcut("SHIFT+DELETE")
         self.table.addAction(delete_action)
 
 
@@ -104,5 +106,9 @@ class ScheduleDock(dockarea.Dock):
         if idx:
             row = idx[0].row()
             rid = self.table_model.row_to_key[row]
-            self.status_bar.showMessage("Deleted RID {}".format(rid))
+            if graceful:
+                msg = "Requested termination of RID {}".format(rid)
+            else:
+                msg = "Deleted RID {}".format(rid)
+            self.status_bar.showMessage(msg)
             asyncio.ensure_future(self.delete(rid, graceful))

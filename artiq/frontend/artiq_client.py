@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
 import time
 import asyncio
 import sys
@@ -51,6 +52,10 @@ def get_argparser():
                                  "(defaults to head, ignored without -R)")
     parser_add.add_argument("-c", "--class-name", default=None,
                             help="name of the class to run")
+    parser_add.add_argument("-v", "--verbose", default=0, action="count",
+                            help="increase logging level of the experiment")
+    parser_add.add_argument("-q", "--quiet", default=0, action="count",
+                            help="decrease logging level of the experiment")
     parser_add.add_argument("file",
                             help="file containing the experiment to run")
     parser_add.add_argument("arguments", nargs="*",
@@ -110,6 +115,7 @@ def _action_submit(remote, args):
         sys.exit(1)
 
     expid = {
+        "log_level": logging.WARNING + args.quiet*10 - args.verbose*10,
         "file": args.file,
         "class_name": args.class_name,
         "arguments": arguments,

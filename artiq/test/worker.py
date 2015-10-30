@@ -1,4 +1,5 @@
 import unittest
+import logging
 import asyncio
 import sys
 import os
@@ -64,6 +65,7 @@ async def _call_worker(worker, expid):
 
 def _run_experiment(class_name):
     expid = {
+        "log_level": logging.WARNING,
         "file": sys.modules[__name__].__file__,
         "class_name": class_name,
         "arguments": dict()
@@ -85,7 +87,7 @@ class WorkerCase(unittest.TestCase):
         _run_experiment("SimpleExperiment")
 
     def test_exception(self):
-        with self.assertRaises(WorkerException):
+        with self.assertRaises(WorkerError):
             _run_experiment("ExceptionTermination")
 
     def test_watchdog_no_timeout(self):

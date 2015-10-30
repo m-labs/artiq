@@ -5,37 +5,20 @@ import atexit
 import argparse
 import os
 import logging
+import subprocess
 import shlex
 import socket
+import platform
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols.pc_rpc import AsyncioClient, Server
-from artiq.tools import verbosity_args, init_logger
+from artiq.protocols.logging import (LogForwarder,
+                                     parse_log_message, log_with_name,
+                                     SourceFilter)
 from artiq.tools import TaskObject, Condition
 
 
 logger = logging.getLogger(__name__)
-
-
-def get_argparser():
-    parser = argparse.ArgumentParser(description="ARTIQ controller manager")
-    verbosity_args(parser)
-    parser.add_argument(
-        "-s", "--server", default="::1",
-        help="hostname or IP of the master to connect to")
-    parser.add_argument(
-        "--port", default=3250, type=int,
-        help="TCP port to use to connect to the master")
-    parser.add_argument(
-        "--retry-master", default=5.0, type=float,
-        help="retry timer for reconnecting to master")
-    parser.add_argument(
-        "--bind", default="::1",
-        help="hostname or IP address to bind to")
-    parser.add_argument(
-        "--bind-port", default=3249, type=int,
-        help="TCP port to listen to for control (default: %(default)d)")
-    return parser
 
 
 class Controller:
@@ -96,6 +79,23 @@ class Controller:
             else:
                 break
 
+    async def forward_logs(self, stream):
+        source = "controller({})".format(self.name)
+        while True:
+            try:
+                entry = (await stream.readline())
+                if not entry:
+                    break
+                entry = entry[:-1]
+                level, name, message = parse_log_message(entry.decode())
+                log_with_name(name, level, message, extra={"source": source})
+            except:
+                logger.debug("exception in log forwarding", exc_info=True)
+                break
+        logger.debug("stopped log forwarding of stream %s of %s",
+            stream, self.name)
+
+
     async def launcher(self):
         try:
             while True:
@@ -103,7 +103,12 @@ class Controller:
                             self.name, self.command)
                 try:
                     self.process = await asyncio.create_subprocess_exec(
-                        *shlex.split(self.command))
+                        *shlex.split(self.command),
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    asyncio.ensure_future(self.forward_logs(
+                        self.process.stdout))
+                    asyncio.ensure_future(self.forward_logs(
+                        self.process.stderr))
                     await self._wait_and_ping()
                 except FileNotFoundError:
                     logger.warning("Controller %s failed to start", self.name)
@@ -129,14 +134,20 @@ class Controller:
             except:
                 logger.warning("Controller %s did not respond to terminate "
                                "command, killing", self.name)
-                self.process.kill()
+                try:
+                    self.process.kill()
+                except ProcessLookupError:
+                    pass
             try:
                 await asyncio.wait_for(self.process.wait(),
                                        self.term_timeout)
             except:
                 logger.warning("Controller %s failed to exit, killing",
                                self.name)
-                self.process.kill()
+                try:
+                    self.process.kill()
+                except ProcessLookupError:
+                    pass
                 await self.process.wait()
         logger.debug("Controller %s terminated", self.name)
 
@@ -252,9 +263,48 @@ class ControllerManager(TaskObject):
         self.controller_db.current_controllers.active[k].retry_now.notify()
 
 
+def get_argparser():
+    parser = argparse.ArgumentParser(description="ARTIQ controller manager")
+
+    group = parser.add_argument_group("verbosity")
+    group.add_argument("-v", "--verbose", default=0, action="count",
+                       help="increase logging level of the manager process")
+    group.add_argument("-q", "--quiet", default=0, action="count",
+                       help="decrease logging level of the manager process")
+
+    parser.add_argument(
+        "-s", "--server", default="::1",
+        help="hostname or IP of the master to connect to")
+    parser.add_argument(
+        "--port-notify", default=3250, type=int,
+        help="TCP port to connect to for notifications")
+    parser.add_argument(
+        "--port-logging", default=1066, type=int,
+        help="TCP port to connect to for logging")
+    parser.add_argument(
+        "--retry-master", default=5.0, type=float,
+        help="retry timer for reconnecting to master")
+    parser.add_argument(
+        "--bind", default="::1",
+        help="hostname or IP address to bind to")
+    parser.add_argument(
+        "--bind-port", default=3249, type=int,
+        help="TCP port to listen to for control (default: %(default)d)")
+    return parser
+
+
 def main():
     args = get_argparser().parse_args()
-    init_logger(args)
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.NOTSET)
+    source_adder = SourceFilter(logging.WARNING + args.quiet*10 - args.verbose*10,
+                                "ctlmgr({})".format(platform.node()))
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter(
+        "%(levelname)s:%(source)s:%(name)s:%(message)s"))
+    console_handler.addFilter(source_adder)
+    root_logger.addHandler(console_handler)
 
     if os.name == "nt":
         loop = asyncio.ProactorEventLoop()
@@ -263,7 +313,15 @@ def main():
         loop = asyncio.get_event_loop()
     atexit.register(lambda: loop.close())
 
-    ctlmgr = ControllerManager(args.server, args.port, args.retry_master)
+    logfwd = LogForwarder(args.server, args.port_logging,
+                          args.retry_master)
+    logfwd.addFilter(source_adder)
+    root_logger.addHandler(logfwd)
+    logfwd.start()
+    atexit.register(lambda: loop.run_until_complete(logfwd.stop()))
+
+    ctlmgr = ControllerManager(args.server, args.port_notify,
+                               args.retry_master)
     ctlmgr.start()
     atexit.register(lambda: loop.run_until_complete(ctlmgr.stop()))
 
