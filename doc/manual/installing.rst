@@ -50,9 +50,14 @@ Then you can install the ARTIQ package, it will pull all the necessary dependenc
     $ ENV=$(date +artiq-%Y-%m-%d); conda create -n $ENV artiq-pipistrello-nist_qc1; \
         echo "Created environment $ENV for ARTIQ"
 
-* For the KC705 board::
+* For the KC705 board with SCSI cables and AD9858 DDS chips::
 
-    $ ENV=$(date +artiq-%Y-%m-%d); conda create -n $ENV artiq-kc705-nist_qc1 artiq-kc705-nist_qc2; \
+    $ ENV=$(date +artiq-%Y-%m-%d); conda create -n $ENV artiq-kc705-nist_qc1; \
+        echo "Created environment $ENV for ARTIQ"
+
+* For the KC705 board with the FMC backplane and AD9914 DDS chips::
+
+    $ ENV=$(date +artiq-%Y-%m-%d); conda create -n $ENV artiq-kc705-nist_qc2; \
         echo "Created environment $ENV for ARTIQ"
 
 This creates a new Conda "environment" (i.e. an isolated installation) and prints its name.
