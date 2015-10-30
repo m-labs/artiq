@@ -166,9 +166,17 @@ fi
 
 set +e
 xc3sprog -c $CABLE -R > /dev/null 2>&1
-if [ "$?" != "0" ]
+STATUS=$?
+set -e
+if [ "$STATUS" == "127" ]
 then
-		echo "Flashing failed. Maybe you do not have permission to access the USB device?"
+		echo "xc3sprog not found. Please install it or check your PATH."
+		exit
+fi
+if [ "$STATUS" != "0" ]
+then
+		echo "Failed to connect to FPGA."
+		echo "Maybe you do not have permission to access the USB device?"
 		echo "To fix this you might want to add a udev rule by doing:"
 		echo "$ sudo cp $ARTIQ_PREFIX/misc/$UDEV_RULES /etc/udev/rules.d"
 		echo "Then unplug/replug your device and try flashing again"
@@ -177,7 +185,6 @@ then
 		echo "Please make sure you used the correct -t option (currently: $BOARD)"
 		exit
 fi
-set -e
 
 if [ ! -z "$FILENAME" ]
 then
