@@ -72,19 +72,37 @@ class _LogModel(ListSyncModel):
             return v[3]
 
 
-class _LevelFilterProxyModel(QSortFilterProxyModel):
-    def __init__(self, min_level):
+class _LogFilterProxyModel(QSortFilterProxyModel):
+    def __init__(self, min_level, freetext):
         QSortFilterProxyModel.__init__(self)
         self.min_level = min_level
+        self.freetext = freetext
 
     def filterAcceptsRow(self, sourceRow, sourceParent):
         model = self.sourceModel()
+
         index = model.index(sourceRow, 0, sourceParent)
         data = model.data(index, QtCore.Qt.DisplayRole)
-        return getattr(logging, data) >= self.min_level
+        accepted_level = getattr(logging, data) >= self.min_level
+
+        if self.freetext:
+            index = model.index(sourceRow, 1, sourceParent)
+            data_source = model.data(index, QtCore.Qt.DisplayRole)
+            index = model.index(sourceRow, 3, sourceParent)
+            data_message = model.data(index, QtCore.Qt.DisplayRole)
+            accepted_freetext = (self.freetext in data_source
+                or self.freetext in data_message)
+        else:
+            accepted_freetext = True
+
+        return accepted_level and accepted_freetext
 
     def set_min_level(self, min_level):
         self.min_level = min_level
+        self.invalidateFilter()
+
+    def set_freetext(self, freetext):
+        self.freetext = freetext
         self.invalidateFilter()
 
 
@@ -96,14 +114,17 @@ class LogDock(dockarea.Dock):
         self.addWidget(grid)
 
         grid.addWidget(QtGui.QLabel("Minimum level: "), 0, 0)
-        grid.layout.setColumnStretch(0, 0)
-        grid.layout.setColumnStretch(1, 0)
-        grid.layout.setColumnStretch(2, 1)
-        self.filterbox = QtGui.QComboBox()
-        self.filterbox.addItems(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
-        self.filterbox.setToolTip("Display entries at or above this level")
-        grid.addWidget(self.filterbox, 0, 1)
-        self.filterbox.currentIndexChanged.connect(self.filter_changed)
+        self.filter_level = QtGui.QComboBox()
+        self.filter_level.addItems(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
+        self.filter_level.setToolTip("Display entries at or above this level")
+        grid.addWidget(self.filter_level, 0, 1)
+        self.filter_level.currentIndexChanged.connect(
+            self.filter_level_changed)
+        self.filter_freetext = QtGui.QLineEdit()
+        self.filter_freetext.setPlaceholderText("freetext filter...")
+        self.filter_freetext.editingFinished.connect(
+            self.filter_freetext_changed)
+        grid.addWidget(self.filter_freetext, 0, 2)
 
         self.log = QtGui.QTableView()
         self.log.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
@@ -113,7 +134,7 @@ class LogDock(dockarea.Dock):
             QtGui.QAbstractItemView.ScrollPerPixel)
         self.log.setShowGrid(False)
         self.log.setTextElideMode(QtCore.Qt.ElideNone)
-        grid.addWidget(self.log, 1, 0, colspan=3)
+        grid.addWidget(self.log, 1, 0, colspan=4)
         self.scroll_at_bottom = False
 
     async def sub_connect(self, host, port):
@@ -123,9 +144,12 @@ class LogDock(dockarea.Dock):
     async def sub_close(self):
         await self.subscriber.close()
 
-    def filter_changed(self):
+    def filter_level_changed(self):
         self.table_model_filter.set_min_level(
-            getattr(logging, self.filterbox.currentText()))
+            getattr(logging, self.filter_level.currentText()))
+
+    def filter_freetext_changed(self):
+        self.table_model_filter.set_freetext(self.filter_freetext.text())
 
     def rows_inserted_before(self):
         scrollbar = self.log.verticalScrollBar()
@@ -137,8 +161,9 @@ class LogDock(dockarea.Dock):
 
     def init_log_model(self, init):
         table_model = _LogModel(self.log, init)
-        self.table_model_filter = _LevelFilterProxyModel(
-            getattr(logging, self.filterbox.currentText()))
+        self.table_model_filter = _LogFilterProxyModel(
+            getattr(logging, self.filter_level.currentText()),
+            self.filter_freetext.text())
         self.table_model_filter.setSourceModel(table_model)
         self.log.setModel(self.table_model_filter)
         self.table_model_filter.rowsAboutToBeInserted.connect(self.rows_inserted_before)
@@ -146,7 +171,7 @@ class LogDock(dockarea.Dock):
         return table_model
 
     def save_state(self):
-        return {"min_level_idx": self.filterbox.currentIndex()}
+        return {"min_level_idx": self.filter_level.currentIndex()}
 
     def restore_state(self, state):
         try:
@@ -154,4 +179,4 @@ class LogDock(dockarea.Dock):
         except KeyError:
             pass
         else:
-            self.filterbox.setCurrentIndex(idx)
+            self.filter_level.setCurrentIndex(idx)
