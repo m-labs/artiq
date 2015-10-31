@@ -67,14 +67,14 @@ def main():
     app = QtGui.QApplication([])
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
-    atexit.register(lambda: loop.close())
+    atexit.register(loop.close)
 
     rpc_clients = dict()
     for target in "schedule", "repository", "dataset_db":
         client = AsyncioClient()
         loop.run_until_complete(client.connect_rpc(
             args.server, args.port_control, "master_" + target))
-        atexit.register(lambda: client.close_rpc())
+        atexit.register(client.close_rpc)
         rpc_clients[target] = client
 
     smgr = StateManager(args.db_file)
