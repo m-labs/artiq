@@ -69,12 +69,15 @@ def main():
     asyncio.set_event_loop(loop)
     atexit.register(lambda: loop.close())
 
-    smgr = StateManager(args.db_file)
+    rpc_clients = dict()
+    for target in "schedule", "repository", "dataset_db":
+        client = AsyncioClient()
+        loop.run_until_complete(client.connect_rpc(
+            args.server, args.port_control, "master_" + target))
+        atexit.register(lambda: client.close_rpc())
+        rpc_clients[target] = client
 
-    schedule_ctl = AsyncioClient()
-    loop.run_until_complete(schedule_ctl.connect_rpc(
-        args.server, args.port_control, "master_schedule"))
-    atexit.register(lambda: schedule_ctl.close_rpc())
+    smgr = StateManager(args.db_file)
 
     win = MainWindow(app, args.server)
     area = dockarea.DockArea()
@@ -85,7 +88,9 @@ def main():
     status_bar.showMessage("Connected to {}".format(args.server))
     win.setStatusBar(status_bar)
 
-    d_explorer = ExplorerDock(win, status_bar, schedule_ctl)
+    d_explorer = ExplorerDock(win, status_bar,
+                              rpc_clients["schedule"],
+                              rpc_clients["repository"])
     smgr.register(d_explorer)
     loop.run_until_complete(d_explorer.sub_connect(
         args.server, args.port_notify))
@@ -110,7 +115,7 @@ def main():
         area.addDock(d_datasets, "top")
     area.addDock(d_explorer, "above", d_datasets)
 
-    d_schedule = ScheduleDock(status_bar, schedule_ctl)
+    d_schedule = ScheduleDock(status_bar, rpc_clients["schedule"])
     loop.run_until_complete(d_schedule.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_schedule.sub_close()))
@@ -121,14 +126,10 @@ def main():
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_log.sub_close()))
 
-    dataset_db = AsyncioClient()
-    loop.run_until_complete(dataset_db.connect_rpc(
-        args.server, args.port_control, "master_dataset_db"))
-    atexit.register(lambda: dataset_db.close_rpc())
     def _set_dataset(k, v):
-        asyncio.ensure_future(dataset_db.set(k, v))
+        asyncio.ensure_future(rpc_clients["dataset_db"].set(k, v))
     def _del_dataset(k):
-        asyncio.ensure_future(dataset_db.delete(k))
+        asyncio.ensure_future(rpc_clients["dataset_db"].delete(k))
     d_console = ConsoleDock(
         d_datasets.get_dataset,
         _set_dataset,

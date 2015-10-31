@@ -216,7 +216,7 @@ class _ArgumentEditor(QtGui.QTreeWidget):
 
 
 class ExplorerDock(dockarea.Dock):
-    def __init__(self, main_window, status_bar, schedule_ctl):
+    def __init__(self, main_window, status_bar, schedule_ctl, repository_ctl):
         dockarea.Dock.__init__(self, "Explorer", size=(1500, 500))
 
         self.main_window = main_window
@@ -279,6 +279,13 @@ class ExplorerDock(dockarea.Dock):
         edit_shortcuts_action = QtGui.QAction("Edit shortcuts", self.el)
         edit_shortcuts_action.triggered.connect(self.edit_shortcuts)
         self.el.addAction(edit_shortcuts_action)
+        scan_repository_action = QtGui.QAction("(Re)scan repository HEAD",
+                                               self.el)
+        def scan_repository():
+            asyncio.ensure_future(repository_ctl.scan_async())
+            self.status_bar.showMessage("Requested repository scan")
+        scan_repository_action.triggered.connect(scan_repository)
+        self.el.addAction(scan_repository_action)
 
     def update_selection(self, selected, deselected):
         if deselected:
