@@ -199,22 +199,37 @@ class LogDock(dockarea.Dock):
 
     def rows_inserted_before(self):
         scrollbar = self.log.verticalScrollBar()
-        self.scroll_at_bottom = scrollbar.value() == scrollbar.maximum()
+        self.scroll_value = scrollbar.value()
+        self.scroll_at_bottom = self.scroll_value == scrollbar.maximum()
 
     def rows_inserted_after(self):
         if self.scroll_at_bottom:
             self.log.scrollToBottom()
 
+    # HACK:
+    # Qt intermittently likes to scroll back to the top when rows are removed.
+    # Work around this by restoring the scrollbar to the previously memorized
+    # position, after the removal.
+    # Note that this works because _LogModel always does the insertion right
+    # before the removal.
+    def rows_removed(self):
+        if self.scroll_at_bottom:
+            self.log.scrollToBottom()
+        else:
+            scrollbar = self.log.verticalScrollBar()
+            scrollbar.setValue(self.scroll_value)
+
     def init_log_model(self, init):
-        table_model = _LogModel(self.log, init)
+        self.table_model = _LogModel(self.log, init)
         self.table_model_filter = _LogFilterProxyModel(
             getattr(logging, self.filter_level.currentText()),
             self.filter_freetext.text())
-        self.table_model_filter.setSourceModel(table_model)
+        self.table_model_filter.setSourceModel(self.table_model)
         self.log.setModel(self.table_model_filter)
         self.table_model_filter.rowsAboutToBeInserted.connect(self.rows_inserted_before)
         self.table_model_filter.rowsInserted.connect(self.rows_inserted_after)
-        return table_model
+        self.table_model_filter.rowsRemoved.connect(self.rows_removed)
+        return self.table_model
 
     def save_state(self):
         return {"min_level_idx": self.filter_level.currentIndex()}
