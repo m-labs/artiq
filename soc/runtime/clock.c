@@ -62,7 +62,7 @@ int watchdog_set(int ms)
             break;
         }
     if(id < 0) {
-        log("Failed to add watchdog");
+        log("WARNING: Failed to add watchdog");
         return id;
     }
 

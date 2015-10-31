@@ -23,11 +23,6 @@ void brg_start(void)
     }
 }
 
-void brg_stop(void)
-{
-    kloader_stop();
-}
-
 void brg_ttloe(int n, int value)
 {
     struct msg_brg_ttl_out msg;
@@ -45,14 +40,6 @@ void brg_ttlo(int n, int value)
     msg.type = MESSAGE_TYPE_BRG_TTL_O;
     msg.channel = n;
     msg.value = value;
-    mailbox_send_and_wait(&msg);
-}
-
-void brg_ddsinitall(void)
-{
-    struct msg_base msg;
-
-    msg.type = MESSAGE_TYPE_BRG_DDS_INITALL;
     mailbox_send_and_wait(&msg);
 }
 

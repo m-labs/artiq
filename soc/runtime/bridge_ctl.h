@@ -2,12 +2,10 @@
 #define __BRIDGE_CTL_H
 
 void brg_start(void);
-void brg_stop(void);
 
 void brg_ttloe(int n, int value);
 void brg_ttlo(int n, int value);
 
-void brg_ddsinitall(void);
 void brg_ddssel(int channel);
 void brg_ddsreset(void);
 unsigned int brg_ddsread(unsigned int address);

@@ -2,6 +2,7 @@
 #include <generated/csr.h>
 
 #include "log.h"
+#include "clock.h"
 #include "flash_storage.h"
 #include "mailbox.h"
 #include "messages.h"
@@ -91,31 +92,48 @@ void kloader_start_user_kernel(kernel_function k)
     start_kernel_cpu((void *)k);
 }
 
-void kloader_start_idle_kernel(void)
+static int kloader_start_flash_kernel(char *key)
 {
     char buffer[32*1024];
-    int len;
+    unsigned int len, remain;
     kernel_function k;
 
     if(!kernel_cpu_reset_read()) {
-        log("BUG: attempted to start kernel CPU while already running (idle kernel)");
-        return;
+        log("BUG: attempted to start kernel CPU while already running (%s)", key);
+        return 0;
     }
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
-    len = fs_read("idle_kernel", buffer, sizeof(buffer), NULL);
+    len = fs_read(key, buffer, sizeof(buffer), &remain);
     if(len <= 0)
-        return;
+        return 0;
+    if(remain) {
+        log("ERROR: %s too long", key);
+        return 0;
+    }
     if(!kloader_load(buffer, len)) {
-        log("Failed to load ELF binary for idle kernel");
-        return;
+        log("ERROR: failed to load ELF binary (%s)", key);
+        return 0;
     }
     k = kloader_find("run");
     if(!k) {
-        log("Failed to find entry point for ELF kernel");
-        return;
+        log("ERROR: failed to find entry point for ELF kernel (%s)", key);
+        return 0;
     }
     start_kernel_cpu((void *)k);
+    return 1;
+#else
+    return 0;
 #endif
+}
+
+int kloader_start_startup_kernel(void)
+{
+    return kloader_start_flash_kernel("startup_kernel");
+}
+
+int kloader_start_idle_kernel(void)
+{
+    return kloader_start_flash_kernel("idle_kernel");
 }
 
 void kloader_stop(void)
@@ -140,6 +158,8 @@ int kloader_is_essential_kmsg(int msgtype)
         case MESSAGE_TYPE_NOW_INIT_REQUEST:
         case MESSAGE_TYPE_NOW_SAVE:
         case MESSAGE_TYPE_LOG:
+        case MESSAGE_TYPE_WATCHDOG_SET_REQUEST:
+        case MESSAGE_TYPE_WATCHDOG_CLEAR:
             return 1;
         default:
             return 0;
@@ -176,6 +196,22 @@ void kloader_service_essential_kmsg(void)
                 struct msg_log *msg = (struct msg_log *)umsg;
 
                 log_va(msg->fmt, msg->args);
+                mailbox_acknowledge();
+                break;
+            }
+            case MESSAGE_TYPE_WATCHDOG_SET_REQUEST: {
+                struct msg_watchdog_set_request *msg = (struct msg_watchdog_set_request *)umsg;
+                struct msg_watchdog_set_reply reply;
+
+                reply.type = MESSAGE_TYPE_WATCHDOG_SET_REPLY;
+                reply.id = watchdog_set(msg->ms);
+                mailbox_send_and_wait(&reply);
+                break;
+            }
+            case MESSAGE_TYPE_WATCHDOG_CLEAR: {
+                struct msg_watchdog_clear *msg = (struct msg_watchdog_clear *)umsg;
+
+                watchdog_clear(msg->id);
                 mailbox_acknowledge();
                 break;
             }

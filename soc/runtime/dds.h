@@ -54,7 +54,6 @@ enum {
     PHASE_MODE_TRACKING = 2
 };
 
-void dds_init_all(void);
 void dds_init(long long int timestamp, int channel);
 void dds_batch_enter(long long int timestamp);
 void dds_batch_exit(void);
