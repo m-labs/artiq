@@ -104,7 +104,7 @@ The artiq_coretool utility allows to perform maintenance on the core device:
     * as well as read, write and remove key-value records from the :ref:`core-device-flash-storage`;
     * erase the entire flash storage area.
 
-To use this tool, you need to specify a ``device_db.pyon`` device database file which contains a ``comm`` device (an example is provided in ``artiq/examples/master/device_db.pyon``). This tells the tool how to connect to the core device (via serial or via TCP) and with which parameters (baudrate, serial device, IP address, TCP port). When not specified, the artiq_coretool utility will assume that there is a file named ``device_db.pyon`` in the current directory.
+To use this tool, you need to specify a ``device_db.pyon`` device database file which contains a ``comm`` device (an example is provided in ``examples/master/device_db.pyon``). This tells the tool how to connect to the core device (via serial or via TCP) and with which parameters (baudrate, serial device, IP address, TCP port). When not specified, the artiq_coretool utility will assume that there is a file named ``device_db.pyon`` in the current directory.
 
 
 To read the record whose key is ``mac``::
@@ -117,7 +117,7 @@ To write the value ``test_value`` in the key ``my_key``::
     $ artiq_coretool cfg-read my_key
     b'test_value'
 
-You can also write entire files in a record using the ``-f`` parameter. This is useful for instance to write the ``idle`` kernel in the flash storage::
+You can also write entire files in a record using the ``-f`` parameter. This is useful for instance to write the startup and idle kernels in the flash storage::
 
     $ artiq_coretool cfg-write -f idle_kernel idle.elf
     $ artiq_coretool cfg-read idle_kernel | head -c9

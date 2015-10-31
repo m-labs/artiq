@@ -323,7 +323,7 @@ Installing the host-side software
 Configuring the core device
 ---------------------------
 
-This should be done after either installation methods (conda or source).
+This should be done after either installation method (conda or source).
 
 .. _flash-mac-ip-addr:
 
@@ -371,16 +371,16 @@ This should be done after either installation methods (conda or source).
 .. note:: The reset button of the KC705 board is the "CPU_RST" labeled button.
 .. warning:: Both those instructions will result in the flash storage being wiped out. However you can use the test mode to change the IP/MAC without erasing everything if you skip the "fserase" command.
 
-* (optional) Flash the ``idle`` kernel
+* (optional) Flash the idle kernel
 
-The ``idle`` kernel is the kernel (some piece of code running on the core device) which the core device runs whenever it is not connected to a PC via ethernet.
+The idle kernel is the kernel (some piece of code running on the core device) which the core device runs whenever it is not connected to a PC via ethernet.
 This kernel is therefore stored in the :ref:`core device configuration flash storage <core-device-flash-storage>`.
-To flash the ``idle`` kernel:
+To flash the idle kernel:
 
-        * Compile the ``idle`` experiment:
-                The ``idle`` experiment's ``run()`` method must be a kernel: it must be decorated with the ``@kernel`` decorator (see :ref:`next topic <connecting-to-the-core-device>` for more information about kernels).
+        * Compile the idle experiment:
+                The idle experiment's ``run()`` method must be a kernel: it must be decorated with the ``@kernel`` decorator (see :ref:`next topic <connecting-to-the-core-device>` for more information about kernels).
 
-                Since the core device is not connected to the PC, RPCs (calling Python code running on the PC from the kernel) are forbidden in the ``idle`` experiment.
+                Since the core device is not connected to the PC, RPCs (calling Python code running on the PC from the kernel) are forbidden in the idle experiment.
                 ::
 
                 $ artiq_compile idle.py
@@ -390,6 +390,17 @@ To flash the ``idle`` kernel:
                 $ artiq_coretool cfg-write -f idle_kernel idle.elf
 
 .. note:: You can find more information about how to use the ``artiq_coretool`` utility on the :ref:`Utilities <core-device-access-tool>` page.
+
+* (optional) Flash the startup kernel
+
+The startup kernel is executed once when the core device powers up. It should initialize DDSes, set up TTL directions, etc. Proceed as with the idle kernel, but using the ``startup_kernel`` key in ``artiq_coretool``.
+
+* (optional) Select the startup clock
+
+The core device may use either an external clock signal or its internal clock. This clock can be switched dynamically after the PC is connected using the ``external_clock`` parameter of the core device driver; however, one may want to select the clock at power-up so that it is used for the startup and idle kernels. Use one of these commands: ::
+
+    $ artiq_coretool cfg-write -s startup_clock i  # internal clock (default)
+    $ artiq_coretool cfg-write -s startup_clock e  # external clock
 
 Ubuntu 14.04 specific instructions
 ----------------------------------
