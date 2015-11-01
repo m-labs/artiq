@@ -37,3 +37,30 @@ class DominatorTree:
 
             if not changed:
                 break
+
+class PostDominatorTree:
+    def __init__(self, func):
+        exits = [block for block in func.basic_blocks if none(block.successors())]
+
+        self.dominated_by = { exit: {exit} for exit in exits }
+        for block in func.basic_blocks:
+            if block != entry:
+                self.dominated_by[block] = set(func.basic_blocks)
+
+        successors = {block: block.successors() for block in func.basic_blocks}
+        while True:
+            changed = False
+
+            for block in func.basic_blocks:
+                if block in exits:
+                    continue
+
+                new_dominated_by = {block}.union(
+                    reduce(lambda a, b: a.intersection(b),
+                           (self.dominated_by[pred] for pred in successors[block])))
+                if new_dominated_by != self.dominated_by[block]:
+                    self.dominated_by[block] = new_dominated_by
+                    changed = True
+
+            if not changed:
+                break
