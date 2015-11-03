@@ -10,7 +10,7 @@ import os
 from quamash import QEventLoop, QtGui, QtCore
 from pyqtgraph import dockarea
 
-from artiq.tools import verbosity_args, init_logger
+from artiq.tools import verbosity_args, init_logger, artiq_dir
 from artiq.protocols.pc_rpc import AsyncioClient
 from artiq.gui.state import StateManager
 from artiq.gui.explorer import ExplorerDock
@@ -19,10 +19,6 @@ from artiq.gui.datasets import DatasetsDock
 from artiq.gui.schedule import ScheduleDock
 from artiq.gui.log import LogDock
 from artiq.gui.console import ConsoleDock
-
-
-data_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)),
-                        "..", "gui")
 
 
 def get_argparser():
@@ -46,7 +42,8 @@ def get_argparser():
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, app, server):
         QtGui.QMainWindow.__init__(self)
-        self.setWindowIcon(QtGui.QIcon(os.path.join(data_dir, "icon.png")))
+        icon = QtGui.QIcon(os.path.join(artiq_dir, "gui", "icon.png"))
+        self.setWindowIcon(icon)
         self.setWindowTitle("ARTIQ - {}".format(server))
         self.exit_request = asyncio.Event()
 

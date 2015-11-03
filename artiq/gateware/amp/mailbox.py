@@ -1,5 +1,5 @@
-from migen.fhdl.std import *
-from migen.bus import wishbone
+from migen import *
+from misoc.interconnect import wishbone
 
 
 class Mailbox(Module):

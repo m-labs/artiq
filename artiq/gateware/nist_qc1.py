@@ -1,4 +1,4 @@
-from mibuild.generic_platform import *
+from migen.build.generic_platform import *
 
 
 papilio_adapter_io = [

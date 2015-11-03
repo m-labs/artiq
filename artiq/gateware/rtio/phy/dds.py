@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 
 from artiq.gateware import ad9xxx
 from artiq.gateware.rtio.phy.wishbone import RT2WB
@@ -6,9 +6,9 @@ from artiq.gateware.rtio.phy.wishbone import RT2WB
 
 class _AD9xxx(Module):
     def __init__(self, ftw_base, pads, nchannels, onehot=False, **kwargs):
-        self.submodules._ll = RenameClockDomains(
-            ad9xxx.AD9xxx(pads, **kwargs), "rio")
-        self.submodules._rt2wb = RT2WB(flen(pads.a)+1, self._ll.bus)
+        self.submodules._ll = ClockDomainsRenamer("rio")(
+            ad9xxx.AD9xxx(pads, **kwargs))
+        self.submodules._rt2wb = RT2WB(len(pads.a)+1, self._ll.bus)
         self.rtlink = self._rt2wb.rtlink
         self.probes = [Signal(32) for i in range(nchannels)]
 
@@ -22,8 +22,8 @@ class _AD9xxx(Module):
                             current_data.eq(self.rtlink.o.data))
 
         # keep track of the currently selected channel(s)
-        current_sel = Signal(flen(current_data)-1)
-        self.sync.rio += If(current_address == 2**flen(pads.a) + 1,
+        current_sel = Signal(len(current_data)-1)
+        self.sync.rio += If(current_address == 2**len(pads.a) + 1,
                             current_sel.eq(current_data[1:]))  # strip reset
 
         def selected(c):
@@ -35,13 +35,13 @@ class _AD9xxx(Module):
         # keep track of frequency tuning words, before they are FUDed
         ftws = [Signal(32) for i in range(nchannels)]
         for c, ftw in enumerate(ftws):
-            if flen(pads.d) == 8:
+            if len(pads.d) == 8:
                 self.sync.rio_phy += \
                     If(selected(c), [
                         If(current_address == ftw_base+i,
                            ftw[i*8:(i+1)*8].eq(current_data))
                         for i in range(4)])
-            elif flen(pads.d) == 16:
+            elif len(pads.d) == 16:
                 self.sync.rio_phy += \
                     If(selected(c), [
                         If(current_address == ftw_base+2*i,
@@ -51,7 +51,7 @@ class _AD9xxx(Module):
                 raise NotImplementedError
 
         # FTW to probe on FUD
-        self.sync.rio_phy += If(current_address == 2**flen(pads.a), [
+        self.sync.rio_phy += If(current_address == 2**len(pads.a), [
             If(selected(c), probe.eq(ftw))
             for c, (probe, ftw) in enumerate(zip(self.probes, ftws))])
 

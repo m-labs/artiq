@@ -1,5 +1,5 @@
-from migen.fhdl.std import *
-from migen.bus import wishbone
+from migen import *
+from misoc.interconnect import wishbone
 
 from artiq.gateware.rtio import rtlink
 
@@ -11,11 +11,11 @@ class RT2WB(Module):
         self.wb = wb
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(
-                flen(wb.dat_w),
+                len(wb.dat_w),
                 address_width + 1,
                 suppress_nop=False),
             rtlink.IInterface(
-                flen(wb.dat_r),
+                len(wb.dat_r),
                 timestamped=False)
             )
 
@@ -28,7 +28,7 @@ class RT2WB(Module):
                 wb.adr.eq(self.rtlink.o.address[:address_width]),
                 wb.we.eq(~self.rtlink.o.address[address_width]),
                 wb.dat_w.eq(self.rtlink.o.data),
-                wb.sel.eq(2**flen(wb.sel) - 1)
+                wb.sel.eq(2**len(wb.sel) - 1)
             ),
             If(wb.ack,
                 active.eq(0)

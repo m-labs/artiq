@@ -1,22 +1,26 @@
+#!/usr/bin/env python3
+
 # Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
 # Copyright (C) 2014, 2015 M-Labs Limited
 
+import argparse
+import os
 from fractions import Fraction
 
-from migen.fhdl.std import *
-from migen.bank.description import *
-from migen.bank import wbgen
+from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.cdc import MultiReg
 
-from misoclib.com import gpio
-from misoclib.soc import mem_decoder
-from misoclib.mem.sdram.core.minicon import MiniconSettings
-from targets.pipistrello import BaseSoC
+from misoc.interconnect.csr import *
+from misoc.interconnect import wishbone
+from misoc.cores import gpio
+from misoc.integration.soc_core import mem_decoder
+from misoc.targets.pipistrello import *
 
 from artiq.gateware.soc import AMPSoC
 from artiq.gateware import rtio, nist_qc1
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_spartan6, dds
+from artiq.tools import artiq_dir
 
 
 class _RTIOCRG(Module, AutoCSR):
@@ -110,12 +114,15 @@ class NIST_QC1(BaseSoC, AMPSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, platform, cpu_type="or1k", **kwargs):
-        BaseSoC.__init__(self, platform,
+    def __init__(self, cpu_type="or1k", **kwargs):
+        BaseSoC.__init__(self,
                          cpu_type=cpu_type,
-                         sdram_controller_settings=MiniconSettings(l2_size=64*1024),
+                         l2_size=64*1024,
                          with_timer=False, **kwargs)
         AMPSoC.__init__(self)
+
+        platform = self.platform
+
         platform.toolchain.ise_commands += """
 trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd {build_name}.pcf
 """
@@ -192,11 +199,28 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
 
         # CPU connections
         rtio_csrs = self.rtio.get_csrs()
-        self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
+        self.submodules.rtiowb = wishbone.CSRBank(rtio_csrs)
         self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["rtio"]),
                                      self.rtiowb.bus)
         self.add_csr_region("rtio", self.mem_map["rtio"] | 0x80000000, 32,
                             rtio_csrs)
 
 
-default_subtarget = NIST_QC1
+def main():
+    parser = argparse.ArgumentParser(
+        description="ARTIQ core device builder / Pipistrello "
+                    "+ NIST Ions QC1 hardware adapter")
+    builder_args(parser)
+    soc_pipistrello_args(parser)
+    args = parser.parse_args()
+
+    soc = NIST_QC1(**soc_pipistrello_argdict(args))
+    builder = Builder(soc, **builder_argdict(args))
+    builder.add_software_package("liblwip", os.path.join(artiq_dir, "runtime",
+                                                         "liblwip"))
+    builder.add_software_package("runtime", os.path.join(artiq_dir, "runtime"))
+    builder.build()
+
+
+if __name__ == "__main__":
+    main()

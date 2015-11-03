@@ -6,7 +6,7 @@ import sys
 import asyncio
 import time
 import collections
-import os.path
+import os
 
 import numpy as np
 
@@ -15,6 +15,8 @@ from artiq.protocols import pyon
 
 
 logger = logging.getLogger(__name__)
+
+artiq_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)))
 
 
 def parse_arguments(arguments):

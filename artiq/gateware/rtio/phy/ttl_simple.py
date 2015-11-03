@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.cdc import MultiReg
 
 from artiq.gateware.rtio import rtlink

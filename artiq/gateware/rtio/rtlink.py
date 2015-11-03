@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 
 
 class OInterface:
@@ -64,7 +64,7 @@ def _get_or_zero(interface, attr):
                    _get_or_zero(interface.o, attr))
     else:
         if hasattr(interface, attr):
-            return flen(getattr(interface, attr))
+            return len(getattr(interface, attr))
         else:
             return 0
 

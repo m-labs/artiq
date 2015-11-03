@@ -1,6 +1,6 @@
-from migen.fhdl.std import *
-from migen.bank.description import *
+from migen import *
 from migen.genlib.cdc import BusSynchronizer, MultiReg
+from misoc.interconnect.csr import *
 
 
 class Monitor(Module, AutoCSR):
@@ -8,7 +8,7 @@ class Monitor(Module, AutoCSR):
         chan_probes = [c.probes for c in channels]
 
         max_chan_probes = max(len(cp) for cp in chan_probes)
-        max_probe_len = max(flen(p) for cp in chan_probes for p in cp)
+        max_probe_len = max(len(p) for cp in chan_probes for p in cp)
         self.chan_sel = CSRStorage(bits_for(len(chan_probes)-1))
         self.probe_sel = CSRStorage(bits_for(max_chan_probes-1))
         self.value_update = CSR()
@@ -20,7 +20,7 @@ class Monitor(Module, AutoCSR):
         for cp in chan_probes:
             cp_sys = []
             for p in cp:
-                vs = BusSynchronizer(flen(p), "rio", "rsys")
+                vs = BusSynchronizer(len(p), "rio", "rsys")
                 self.submodules += vs
                 self.comb += vs.i.eq(p)
                 cp_sys.append(vs.o)
@@ -36,7 +36,7 @@ class Injector(Module, AutoCSR):
         chan_overrides = [c.overrides for c in channels]
 
         max_chan_overrides = max(len(co) for co in chan_overrides)
-        max_override_len = max(flen(o) for co in chan_overrides for o in co)
+        max_override_len = max(len(o) for co in chan_overrides for o in co)
         self.chan_sel = CSRStorage(bits_for(len(chan_overrides)-1))
         self.override_sel = CSRStorage(bits_for(max_chan_overrides-1))
         self.value = CSR(max_override_len)

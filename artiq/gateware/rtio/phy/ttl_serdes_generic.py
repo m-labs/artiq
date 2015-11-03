@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.coding import PriorityEncoder
 
 from artiq.gateware.rtio import rtlink
@@ -18,7 +18,7 @@ def _mk_edges(w, direction):
 class _SerdesDriver(Module):
     def __init__(self, serdes_o, stb, data, fine_ts, override_en, override_o):
         previous_data = Signal()
-        serdes_width = flen(serdes_o)
+        serdes_width = len(serdes_o)
         edges = Array(_mk_edges(serdes_width, "rising"))
         edges_n = Array(_mk_edges(serdes_width, "falling"))
         self.sync.rio_phy += [
@@ -40,7 +40,7 @@ class _SerdesDriver(Module):
 class Output(Module):
     def __init__(self, serdes):
         self.rtlink = rtlink.Interface(
-            rtlink.OInterface(1, fine_ts_width=log2_int(flen(serdes.o))))
+            rtlink.OInterface(1, fine_ts_width=log2_int(len(serdes.o))))
         self.probes = [serdes.o[-1]]
         override_en = Signal()
         override_o = Signal()
@@ -56,8 +56,8 @@ class Output(Module):
 
 class Inout(Module):
     def __init__(self, serdes):
-        serdes_width = flen(serdes.o)
-        assert flen(serdes.i) == serdes_width
+        serdes_width = len(serdes.o)
+        assert len(serdes.i) == serdes_width
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(2, 2, fine_ts_width=log2_int(serdes_width)),
             rtlink.IInterface(1, fine_ts_width=log2_int(serdes_width)))

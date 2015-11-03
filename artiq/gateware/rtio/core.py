@@ -1,10 +1,12 @@
-from migen.fhdl.std import *
-from migen.bank.description import *
-from migen.genlib.misc import optree
+from functools import reduce
+from operator import and_
+
+from migen import *
 from migen.genlib.record import Record
 from migen.genlib.cdc import *
 from migen.genlib.fifo import AsyncFIFO
 from migen.genlib.resetsync import AsyncResetSynchronizer
+from misoc.interconnect.csr import *
 
 from artiq.gateware.rtio import rtlink
 
@@ -105,9 +107,15 @@ class _OutputManager(Module):
         # # #
 
         # FIFO
-        fifo = RenameClockDomains(AsyncFIFO(ev_layout, fifo_depth),
-                                  {"write": "rsys", "read": "rio"})
+        fifo = ClockDomainsRenamer({"write": "rsys", "read": "rio"})(
+            AsyncFIFO(layout_len(ev_layout), fifo_depth))
         self.submodules += fifo
+        fifo_in = Record(ev_layout)
+        fifo_out = Record(ev_layout)
+        self.comb += [
+            fifo.din.eq(fifo_in.raw_bits()),
+            fifo_out.raw_bits().eq(fifo.dout)
+        ]
 
         # Buffer
         buf_pending = Signal()
@@ -138,13 +146,15 @@ class _OutputManager(Module):
         if interface.suppress_nop:
             # disable NOP at reset: do not suppress a first write with all 0s
             nop_en = Signal(reset=0)
+            addresses_equal = [getattr(self.ev, a) == getattr(buf, a)
+                               for a in ("data", "address")
+                               if hasattr(self.ev, a)]
+            if addresses_equal:
+                self.sync.rsys += nop.eq(
+                    nop_en & reduce(and_, addresses_equal))
+            else:
+                self.comb.eq(nop.eq(0))
             self.sync.rsys += [
-                nop.eq(nop_en &
-                    optree("&",
-                           [getattr(self.ev, a) == getattr(buf, a)
-                            for a in ("data", "address")
-                            if hasattr(self.ev, a)],
-                           default=0)),
                 # buf now contains valid data. enable NOP.
                 If(self.we & ~any_error, nop_en.eq(1)),
                 # underflows cancel the write. allow it to be retried.
@@ -156,7 +166,7 @@ class _OutputManager(Module):
         ]
 
         # Buffer read and FIFO write
-        self.comb += fifo.din.eq(buf)
+        self.comb += fifo_in.eq(buf)
         in_guard_time = Signal()
         self.comb += in_guard_time.eq(
             buf.timestamp[fine_ts_width:]
@@ -195,7 +205,7 @@ class _OutputManager(Module):
         self.sync.rio += \
             If(fifo.re,
                 dout_stb.eq(1),
-                dout.eq(fifo.dout)
+                dout.eq(fifo_out)
             ).Elif(dout_ack,
                 dout_stb.eq(0)
             )
@@ -235,24 +245,30 @@ class _InputManager(Module):
 
         # # #
 
-        fifo = RenameClockDomains(AsyncFIFO(ev_layout, fifo_depth),
-                                  {"read": "rsys", "write": "rio"})
+        fifo = ClockDomainsRenamer({"read": "rsys", "write": "rio"})(
+            AsyncFIFO(layout_len(ev_layout), fifo_depth))
         self.submodules += fifo
+        fifo_in = Record(ev_layout)
+        fifo_out = Record(ev_layout)
+        self.comb += [
+            fifo.din.eq(fifo_in.raw_bits()),
+            fifo_out.raw_bits().eq(fifo.dout)
+        ]
 
         # FIFO write
         if data_width:
-            self.comb += fifo.din.data.eq(interface.data)
+            self.comb += fifo_in.data.eq(interface.data)
         if interface.timestamped:
             if fine_ts_width:
                 full_ts = Cat(interface.fine_ts, counter.value_rio)
             else:
                 full_ts = counter.value_rio
-            self.comb += fifo.din.timestamp.eq(full_ts)
+            self.comb += fifo_in.timestamp.eq(full_ts)
         self.comb += fifo.we.eq(interface.stb)
 
         # FIFO read
         self.comb += [
-            self.ev.eq(fifo.dout),
+            self.ev.eq(fifo_out),
             self.readable.eq(fifo.readable),
             fifo.re.eq(self.re)
         ]
@@ -376,8 +392,8 @@ class RTIO(Module):
             if hasattr(o_manager.ev, "address"):
                 self.comb += o_manager.ev.address.eq(
                     self.kcsrs.o_address.storage)
-            ts_shift = (flen(self.kcsrs.o_timestamp.storage)
-                        - flen(o_manager.ev.timestamp))
+            ts_shift = (len(self.kcsrs.o_timestamp.storage)
+                        - len(o_manager.ev.timestamp))
             self.comb += o_manager.ev.timestamp.eq(
                 self.kcsrs.o_timestamp.storage[ts_shift:])
 
@@ -412,8 +428,8 @@ class RTIO(Module):
                 else:
                     i_datas.append(0)
                 if channel.interface.i.timestamped:
-                    ts_shift = (flen(self.kcsrs.i_timestamp.status)
-                                - flen(i_manager.ev.timestamp))
+                    ts_shift = (len(self.kcsrs.i_timestamp.status)
+                                - len(i_manager.ev.timestamp))
                     i_timestamps.append(i_manager.ev.timestamp << ts_shift)
                 else:
                     i_timestamps.append(0)

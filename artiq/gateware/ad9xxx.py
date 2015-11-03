@@ -1,18 +1,16 @@
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.fsm import *
 from migen.genlib.misc import WaitTimer
-from migen.bus import wishbone
-from migen.bus.transactions import *
-from migen.sim.generic import run_simulation
+from misoc.interconnect import wishbone
 
 
 class AD9xxx(Module):
     """Wishbone interface to the AD9858 and AD9914 DDS chips.
 
-    Addresses 0-2**flen(pads.a)-1 map the AD9xxx registers.
+    Addresses 0-2**len(pads.a)-1 map the AD9xxx registers.
 
-    Write to address 2**flen(pads.a) to pulse the FUD signal.
-    Address 2**flen(pads.a)+1 is a GPIO register that controls the
+    Write to address 2**len(pads.a) to pulse the FUD signal.
+    Address 2**len(pads.a)+1 is a GPIO register that controls the
     sel and reset signals. rst is mapped to bit 0, followed by sel.
 
     Write timing:
@@ -38,15 +36,15 @@ class AD9xxx(Module):
                  read_wait_cycles=10, hiz_wait_cycles=3,
                  bus=None):
         if bus is None:
-            bus = wishbone.Interface(data_width=flen(pads.d))
+            bus = wishbone.Interface(data_width=len(pads.d))
         self.bus = bus
 
         # # #
 
-        dts = TSTriple(flen(pads.d))
+        dts = TSTriple(len(pads.d))
         self.specials += dts.get_tristate(pads.d)
         hold_address = Signal()
-        dr = Signal(flen(pads.d))
+        dr = Signal(len(pads.d))
         rx = Signal()
         self.sync += [
             If(~hold_address, pads.a.eq(bus.adr)),
@@ -56,9 +54,9 @@ class AD9xxx(Module):
         ]
 
         if hasattr(pads, "sel"):
-            sel_len = flen(pads.sel)
+            sel_len = len(pads.sel)
         else:
-            sel_len = flen(pads.sel_n)
+            sel_len = len(pads.sel_n)
         gpio = Signal(sel_len + 1)
         gpio_load = Signal()
         self.sync += If(gpio_load, gpio.eq(bus.dat_w))
@@ -98,7 +96,7 @@ class AD9xxx(Module):
 
         fsm.act("IDLE",
             If(bus.cyc & bus.stb,
-                If(bus.adr[flen(pads.a)],
+                If(bus.adr[len(pads.a)],
                     If(bus.adr[0],
                         NextState("GPIO")
                     ).Else(
@@ -157,20 +155,20 @@ class AD9xxx(Module):
         )
 
 
-def _test_gen():
+def _test_gen(bus):
     # Test external bus writes
-    yield TWrite(4, 2)
-    yield TWrite(5, 3)
+    yield from bus.write(4, 2)
+    yield from bus.write(5, 3)
     yield
     # Test external bus reads
-    yield TRead(14)
-    yield TRead(15)
+    yield from bus.read(14)
+    yield from bus.read(15)
     yield
     # Test FUD
-    yield TWrite(64, 0)
+    yield from bus.write(64, 0)
     yield
     # Test GPIO
-    yield TWrite(65, 0xff)
+    yield from bus.write(65, 0xff)
     yield
 
 
@@ -185,14 +183,7 @@ class _TestPads:
         self.rst_n = Signal()
 
 
-class _TB(Module):
-    def __init__(self):
-        pads = _TestPads()
-        self.submodules.dut = AD9xxx(pads, drive_fud=True)
-        self.submodules.initiator = wishbone.Initiator(_test_gen())
-        self.submodules.interconnect = wishbone.InterconnectPointToPoint(
-            self.initiator.bus, self.dut.bus)
-
-
 if __name__ == "__main__":
-    run_simulation(_TB(), vcd_name="ad9xxx.vcd")
+    pads = _TestPads()
+    dut = AD9xxx(pads)
+    run_simulation(dut, _test_gen(dut.bus), vcd_name="ad9xxx.vcd")
