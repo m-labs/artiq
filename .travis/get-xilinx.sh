@@ -26,13 +26,13 @@ echo "$secret" | gpg --passphrase-fd 0 Xilinx.lic.gpg
 mkdir -p ~/.Xilinx
 mv Xilinx.lic ~/.Xilinx/Xilinx.lic
 
-git clone https://github.com/fallen/impersonate_macaddress
+git clone https://github.com/m-labs/impersonate_macaddress
 make -C impersonate_macaddress
 # Tell mibuild where Xilinx toolchains are installed
 # and feed it the mac address corresponding to the license
 cat >> $HOME/.m-labs/build_settings.sh << EOF
-MISOC_EXTRA_VIVADO_CMDLINE="-Ob vivado_path $HOME/Xilinx/Vivado"
-MISOC_EXTRA_ISE_CMDLINE="-Ob ise_path $HOME/opt/Xilinx/"
+MISOC_EXTRA_ISE_CMDLINE="--gateware-toolchain-path $HOME/opt/Xilinx/"
+MISOC_EXTRA_VIVADO_CMDLINE="--gateware-toolchain-path $HOME/Xilinx/Vivado"
 export MACADDR=$macaddress
 export LD_PRELOAD=$PWD/impersonate_macaddress/impersonate_macaddress.so
 EOF

@@ -16,6 +16,7 @@ requirements:
     # We don't get meaningful GIT_DESCRIBE_* values until before conda installs build dependencies.
     - artiq 0.0
     - migen 0.0
+    - misoc 0.0
     - llvm-or1k
     - binutils-or1k-linux
   run:

@@ -15,7 +15,6 @@ install:
   - if [ $TRAVIS_PULL_REQUEST != false ]; then BUILD_SOC=none; fi
   - if [ $BUILD_SOC != none ]; then ./.travis/get-xilinx.sh; fi
   - if [ $BUILD_SOC != none ]; then ./.travis/get-toolchain.sh; fi
-  - if [ $BUILD_SOC != none ]; then ./.travis/get-misoc.sh; fi
   - . ./.travis/get-anaconda.sh
   - source $HOME/miniconda/bin/activate py35
   - conda install -q pip coverage anaconda-client cython
