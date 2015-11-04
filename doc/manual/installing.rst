@@ -220,16 +220,18 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
         Then copy the generated ``bscan_spi_kc705.bit`` to ``~/.migen``, ``/usr/local/share/migen`` or ``/usr/share/migen``.
 
-* Download MiSoC: ::
+* Download and install MiSoC: ::
 
         $ cd ~/artiq-dev
         $ git clone --recursive https://github.com/m-labs/misoc
-        $ export MSCDIR=~/artiq-dev/misoc # append this line to .bashrc
+        $ cd misoc
+        $ python3 setup.py develop --user
 
 * Download and install ARTIQ: ::
 
         $ cd ~/artiq-dev
         $ git clone --recursive https://github.com/m-labs/artiq
+        $ cd artiq
         $ python3 setup.py develop --user
 
 .. note::
@@ -238,26 +240,30 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
     :ref:`installing the host-side software <installing-the-host-side-software>`.
 
 
-* Build and flash the bitstream and BIOS by running `from the MiSoC top-level directory`:
+* Build the bitstream, BIOS and runtime by running:
     ::
 
-        $ cd ~/artiq-dev/misoc
+        $ cd ~/artiq-dev
         $ export PATH=/usr/local/llvm-or1k/bin:$PATH
 
     .. note:: Make sure that ``/usr/local/llvm-or1k/bin`` is first in your ``PATH``, so that the ``clang`` command you just built is found instead of the system one, if any.
 
     * For Pipistrello::
 
-        $ ./make.py -X ~/artiq-dev/artiq/soc -t artiq_pipistrello all
+        $ python3 -m artiq.gateware.targets.pipistrello
 
     * For KC705::
 
-        $ ./make.py -X ~/artiq-dev/artiq/soc -t artiq_kc705 all
+        $ python3 -m artiq.gateware.targets.kc705 -H qc1  # or qc2
 
-* Then, build and flash the ARTIQ runtime: ::
+* Then, gather the binaries and flash them: ::
 
-        $ cd ~/artiq-dev/artiq/soc/runtime && make runtime.fbi
-        $ ~/artiq-dev/artiq/artiq/frontend/artiq_flash.sh -t pipistrello -d $PWD -r
+        $ mkdir binaries
+        $ cp misoc_nist_qcX_<board>/gateware/top.bit binaries
+        $ cp misoc_nist_qcX_<board>/software/bios/bios.bin binaries
+        $ cp misoc_nist_qcX_<board>/software/runtime/runtime.fbi binaries
+        $ cd binaries
+        $ artiq_flash.sh -d . -t <board>
 
 .. note:: The `-t` option specifies the board your are targeting. Available options are ``kc705`` and ``pipistrello``.
 
