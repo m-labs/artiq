@@ -11,17 +11,14 @@ def run(script):
 		file.close()
 
 run("""
-# exit on error
 set -e
-# print commands
-#set -x
 
 ARTIQ_PREFIX=$(python3 -c "import artiq; print(artiq.__path__[0])")
 
 # Default is kc705
 BOARD=kc705
-# Default mezzanine board is nist_qc1
-MEZZANINE_BOARD=nist_qc1
+# Default hardware adapter is qc1
+HARDWARE_ADAPTER=qc1
 
 while getopts "bBrht:d:f:m:" opt
 do
@@ -67,14 +64,14 @@ do
 			fi
 			;;
 		m)
-			if [ "$OPTARG" == "nist_qc1" ]
+			if [ "$OPTARG" == "qc1" ]
 			then
-				MEZZANINE_BOARD=nist_qc1
-			elif [ "$OPTARG" == "nist_qc2" ]
+				HARDWARE_ADAPTER=qc1
+			elif [ "$OPTARG" == "qc2" ]
 			then
-				MEZZANINE_BOARD=nist_qc2
+				HARDWARE_ADAPTER=qc2
 			else
-				echo "KC705 mezzanine board is either nist_qc1 or nist_qc2"
+				echo "Hardware adapter should be qc1 or qc2"
 				exit 1
 			fi
 			;;
@@ -88,8 +85,8 @@ do
 			echo "-B  Flash BIOS"
 			echo "-r  Flash ARTIQ runtime"
 			echo "-h  Show this help message"
-			echo "-t  Target (kc705, pipistrello, default is: kc705)"
-			echo "-m  Mezzanine board (nist_qc1, nist_qc2, default is: nist_qc1)"
+			echo "-t  Target (kc705/pipistrello, default: kc705)"
+			echo "-m  Hardware adapter (qc1/qc2, default: qc1)"
 			echo "-f  Flash storage image generated with artiq_mkfs"
 			echo "-d  Directory containing the binaries to be flashed"
 			exit 1
@@ -129,30 +126,28 @@ fi
 if [ "$BOARD" == "kc705" ]
 then
 	UDEV_RULES=99-kc705.rules
-	BITSTREAM=artiq_kc705-${MEZZANINE_BOARD}-kc705.bit
 	CABLE=jtaghs1_fast
 	PROXY=bscan_spi_kc705.bit
 	BIOS_ADDR=0xaf0000
 	RUNTIME_ADDR=0xb00000
-	RUNTIME_FILE=runtime.fbi
 	FS_ADDR=0xb40000
 	if [ -z "$BIN_PREFIX" ]
 	then
-		RUNTIME_FILE=${MEZZANINE_BOARD}/runtime.fbi
-		BIN_PREFIX=$ARTIQ_PREFIX/binaries/kc705
+		BIN_PREFIX=$ARTIQ_PREFIX/binaries/kc705-$HARDWARE_ADAPTER
 	fi
 	search_for_proxy $PROXY
 elif [ "$BOARD" == "pipistrello" ]
 then
 	UDEV_RULES=99-papilio.rules
-	BITSTREAM=artiq_pipistrello-nist_qc1-pipistrello.bit
 	CABLE=papilio
 	PROXY=bscan_spi_lx45_csg324.bit
 	BIOS_ADDR=0x170000
 	RUNTIME_ADDR=0x180000
-	RUNTIME_FILE=runtime.fbi
 	FS_ADDR=0x1c0000
-	if [ -z "$BIN_PREFIX" ]; then BIN_PREFIX=$ARTIQ_PREFIX/binaries/pipistrello; fi
+	if [ -z "$BIN_PREFIX" ];
+	then
+		BIN_PREFIX=$ARTIQ_PREFIX/binaries/pipistrello-$HARDWARE_ADAPTER
+	fi
 	search_for_proxy $PROXY
 fi
 
@@ -195,7 +190,7 @@ fi
 if [ "${FLASH_BITSTREAM}" == "1" ]
 then
 	echo "Flashing FPGA bitstream..."
-	xc3sprog -v -c $CABLE -I$PROXY_PATH/$PROXY $BIN_PREFIX/$BITSTREAM:w:0x0:BIT
+	xc3sprog -v -c $CABLE -I$PROXY_PATH/$PROXY $BIN_PREFIX/top.bit:w:0x0:BIT
 fi
 
 if [ "${FLASH_BIOS}" == "1" ]
@@ -207,7 +202,7 @@ fi
 if [ "${FLASH_RUNTIME}" == "1" ]
 then
 	echo "Flashing ARTIQ runtime..."
-	xc3sprog -v -c $CABLE -I$PROXY_PATH/$PROXY $BIN_PREFIX/${RUNTIME_FILE}:w:$RUNTIME_ADDR:BIN
+	xc3sprog -v -c $CABLE -I$PROXY_PATH/$PROXY $BIN_PREFIX/runtime.fbi:w:$RUNTIME_ADDR:BIN
 fi
 echo "Done."
 xc3sprog -v -c $CABLE -R > /dev/null 2>&1
