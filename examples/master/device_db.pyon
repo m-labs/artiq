@@ -1,3 +1,6 @@
+# This is an example device database that needs to be adapted to your setup.
+# The RTIO channel numbers here are for NIST QC1 on KC705.
+
 {
     "comm": {
         "type": "local",
