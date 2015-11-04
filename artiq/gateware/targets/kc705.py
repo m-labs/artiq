@@ -182,8 +182,8 @@ class NIST_QC1(_NIST_QCx):
 
 
 class NIST_QC2(_NIST_QCx):
-    def __init__(self, platform, cpu_type="or1k", **kwargs):
-        _NIST_QCx.__init__(self, platform, cpu_type, **kwargs)
+    def __init__(self, cpu_type="or1k", **kwargs):
+        _NIST_QCx.__init__(self, cpu_type, **kwargs)
 
         platform = self.platform
         platform.add_extension(nist_qc2.fmc_adapter_io)
