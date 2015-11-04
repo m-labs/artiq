@@ -26,7 +26,7 @@ echo "$secret" | gpg --passphrase-fd 0 Xilinx.lic.gpg
 mkdir -p ~/.Xilinx
 mv Xilinx.lic ~/.Xilinx/Xilinx.lic
 
-git clone https://github.com/m-labs/impersonate_macaddress
+git clone http://github.com/m-labs/impersonate_macaddress
 make -C impersonate_macaddress
 # Tell mibuild where Xilinx toolchains are installed
 # and feed it the mac address corresponding to the license
