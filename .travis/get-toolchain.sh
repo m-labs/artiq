@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 packages="http://us.archive.ubuntu.com/ubuntu/pool/universe/i/iverilog/iverilog_0.9.7-1_amd64.deb"
 
 mkdir -p packages
