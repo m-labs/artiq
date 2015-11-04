@@ -8,7 +8,7 @@
 #include "exceptions.h"
 #include "services.h"
 
-#include "service_table.h"
+#include <service_table.h>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wimplicit-int"

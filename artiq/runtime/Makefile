@@ -6,7 +6,7 @@ PYTHON ?= python3
 OBJECTS := isr.o flash_storage.o clock.o rtiocrg.o elf_loader.o services.o session.o log.o test_mode.o kloader.o bridge_ctl.o mailbox.o ksupport_data.o net_server.o moninj.o main.o
 OBJECTS_KSUPPORT := ksupport.o exception_jmp.o exceptions.o mailbox.o bridge.o rtio.o ttl.o dds.o
 
-CFLAGS += -I$(LIBLWIP_DIRECTORY)/../lwip/src/include -I$(LIBLWIP_DIRECTORY)
+CFLAGS += -I$(LIBLWIP_DIRECTORY)/../lwip/src/include -I$(LIBLWIP_DIRECTORY) -I.
 
 all: runtime.bin runtime.fbi
 
@@ -45,7 +45,10 @@ ksupport_data.o: ksupport.bin
 service_table.h: ksupport.elf $(RUNTIME_DIRECTORY)/gen_service_table.py
 	@echo " GEN     " $@ && $(PYTHON) $(RUNTIME_DIRECTORY)/gen_service_table.py ksupport.elf > $@
 
-services.c: service_table.h
+$(RUNTIME_DIRECTORY)/services.c: service_table.h
+
+services.o: $(RUNTIME_DIRECTORY)/services.c service_table.h
+	$(compile)
 
 main.o: $(RUNTIME_DIRECTORY)/main.c
 	$(compile)

@@ -5,7 +5,6 @@ __pycache__
 *.bin
 *.elf
 *.fbi
-artiq/runtime/service_table.h
 doc/manual/_build
 /build
 /dist
