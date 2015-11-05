@@ -116,6 +116,7 @@ def main():
     loop.run_until_complete(d_schedule.sub_connect(
         args.server, args.port_notify))
     atexit.register(lambda: loop.run_until_complete(d_schedule.sub_close()))
+    d_explorer.get_current_schedule = d_schedule.get_current_schedule
 
     d_log = LogDock()
     smgr.register(d_log)
