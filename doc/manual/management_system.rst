@@ -111,8 +111,18 @@ Push commits containing experiments to the bare repository using e.g. Git over S
 
 The GUI always runs experiments from the repository. The command-line client, by default, runs experiment from the raw filesystem (which is useful for iterating rapidly without creating many disorganized commits). If you want to use the repository instead, simply pass the ``-R`` option.
 
-Reference
-*********
+Scheduler API reference
+***********************
+
+The scheduler is exposed to the experiments via a virtual device called ``scheduler``. It can be requested like any regular device, and then the methods below can be called on the returned object.
+
+The scheduler virtual device also contains the attributes ``rid``, ``pipeline_name``, ``priority`` and ``expid`` that contain the corresponding information about the current run.
+
+.. autoclass:: artiq.master.scheduler.Scheduler
+   :members:
+
+Front-end tool reference
+************************
 
 .. argparse::
    :ref: artiq.frontend.artiq_master.get_argparser

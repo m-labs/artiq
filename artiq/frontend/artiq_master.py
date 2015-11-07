@@ -83,7 +83,12 @@ def main():
         "log": log_worker
     }
     scheduler = Scheduler(get_last_rid() + 1, worker_handlers, repo_backend)
-    worker_handlers["scheduler_submit"] = scheduler.submit
+    worker_handlers.update({
+        "scheduler_submit": scheduler.submit,
+        "scheduler_delete": scheduler.delete,
+        "scheduler_request_termination": scheduler.request_termination,
+        "scheduler_get_status": scheduler.get_status
+    })
     scheduler.start()
     atexit.register(lambda: loop.run_until_complete(scheduler.stop()))
 

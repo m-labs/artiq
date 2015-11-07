@@ -15,6 +15,7 @@ void kloader_filter_backtrace(struct artiq_backtrace_item *backtrace,
                               size_t *backtrace_size);
 
 void kloader_start_bridge(void);
+int kloader_start_startup_kernel(void);
 int kloader_start_idle_kernel(void);
 void kloader_start_kernel(void);
 void kloader_stop(void);

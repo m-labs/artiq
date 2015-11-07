@@ -30,13 +30,6 @@
 #include "session.h"
 #include "moninj.h"
 
-static void common_init(void)
-{
-    brg_start();
-    brg_ddsinitall();
-    kloader_stop();
-}
-
 #ifdef CSR_ETHMAC_BASE
 
 u32_t sys_now(void)
@@ -261,7 +254,7 @@ int main(void)
         test_main();
     } else {
         puts("Entering regular mode.");
-        common_init();
+        session_startup_kernel();
         regular_main();
     }
     return 0;

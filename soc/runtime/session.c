@@ -290,6 +290,44 @@ enum {
     USER_KERNEL_WAIT_RPC /* < must come after _RUNNING */
 };
 
+void session_startup_kernel(void)
+{
+    struct msg_base *umsg;
+
+    now = -1;
+    watchdog_init();
+    if(!kloader_start_startup_kernel())
+        return;
+
+    while(1) {
+        kloader_service_essential_kmsg();
+
+        umsg = mailbox_receive();
+        if(umsg) {
+            if(!kloader_validate_kpointer(umsg))
+                break;
+            if(kloader_is_essential_kmsg(umsg->type))
+                continue;
+            if(umsg->type == MESSAGE_TYPE_FINISHED)
+                break;
+            else if(umsg->type == MESSAGE_TYPE_EXCEPTION) {
+                log("WARNING: startup kernel ended with exception");
+                break;
+            } else {
+                log("ERROR: received invalid message type from kernel CPU");
+                break;
+            }
+        }
+
+        if(watchdog_expired()) {
+            log("WARNING: watchdog expired in startup kernel");
+            break;
+        }
+    }
+    kloader_stop();
+    log("Startup kernel terminated");
+}
+
 void session_start(void)
 {
     in_packet_reset();
@@ -304,6 +342,7 @@ void session_end(void)
 {
     kloader_stop();
     now = -1;
+    watchdog_init();
     kloader_start_idle_kernel();
 }
 
@@ -914,24 +953,6 @@ static int process_kmsg(struct msg_base *umsg)
             break;
         }
 
-        case MESSAGE_TYPE_WATCHDOG_SET_REQUEST: {
-            struct msg_watchdog_set_request *msg = (struct msg_watchdog_set_request *)umsg;
-            struct msg_watchdog_set_reply reply;
-
-            reply.type = MESSAGE_TYPE_WATCHDOG_SET_REPLY;
-            reply.id = watchdog_set(msg->ms);
-            mailbox_send_and_wait(&reply);
-            break;
-        }
-
-        case MESSAGE_TYPE_WATCHDOG_CLEAR: {
-            struct msg_watchdog_clear *msg = (struct msg_watchdog_clear *)umsg;
-
-            watchdog_clear(msg->id);
-            mailbox_acknowledge();
-            break;
-        }
-
         case MESSAGE_TYPE_RPC_SEND: {
             struct msg_rpc_send *msg = (struct msg_rpc_send *)umsg;
 
@@ -946,10 +967,11 @@ static int process_kmsg(struct msg_base *umsg)
             break;
         }
 
-        default:
+        default: {
             log("Received invalid message type %d from kernel CPU",
                 umsg->type);
             return 0;
+        }
     }
 
     return 1;

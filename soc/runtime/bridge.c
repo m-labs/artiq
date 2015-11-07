@@ -66,10 +66,6 @@ void bridge_main(void)
                 mailbox_acknowledge();
                 break;
             }
-            case MESSAGE_TYPE_BRG_DDS_INITALL:
-                dds_init_all();
-                mailbox_acknowledge();
-                break;
             case MESSAGE_TYPE_BRG_DDS_SEL: {
                 struct msg_brg_dds_sel *msg;
 

@@ -38,19 +38,27 @@ class ELFRunner(EnvExperiment):
 
 class DummyScheduler:
     def __init__(self):
-        self.next_rid = 0
+        self.rid = 0
         self.pipeline_name = "main"
         self.priority = 0
         self.expid = None
 
+        self._next_rid = 1
+
     def submit(self, pipeline_name, expid, priority, due_date, flush):
-        rid = self.next_rid
-        self.next_rid += 1
+        rid = self._next_rid
+        self._next_rid += 1
         logger.info("Submitting: %s, RID=%s", expid, rid)
         return rid
 
     def delete(self, rid):
         logger.info("Deleting RID %s", rid)
+
+    def request_termination(self, rid):
+        logger.info("Requesting termination of RID %s", rid)
+
+    def get_status(self):
+        return dict()
 
     def pause(self):
         pass

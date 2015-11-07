@@ -1,6 +1,7 @@
 #ifndef __SESSION_H
 #define __SESSION_H
 
+void session_startup_kernel(void);
 void session_start(void);
 void session_end(void);
 

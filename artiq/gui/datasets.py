@@ -58,7 +58,7 @@ class DatasetsDock(dockarea.Dock):
         self.search = QtGui.QLineEdit()
         self.search.setPlaceholderText("search...")
         self.search.editingFinished.connect(self._search_datasets)
-        grid.addWidget(self.search, 0, )
+        grid.addWidget(self.search, 0, 0)
 
         self.table = QtGui.QTableView()
         self.table.setSelectionMode(QtGui.QAbstractItemView.NoSelection)

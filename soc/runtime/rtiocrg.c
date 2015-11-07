@@ -1,6 +1,6 @@
-#include <stdio.h>
 #include <generated/csr.h>
 
+#include "log.h"
 #include "clock.h"
 #include "flash_storage.h"
 #include "rtiocrg.h"
@@ -17,17 +17,17 @@ void rtiocrg_init(void)
     clk = 0;
     fs_read("startup_clock", &b, 1, NULL);
     if(b == 'i')
-        printf("Startup RTIO clock: internal\n");
+        log("Startup RTIO clock: internal");
     else if(b == 'e') {
-        printf("Startup RTIO clock: external\n");
+        log("Startup RTIO clock: external");
         clk = 1;
     } else
-        printf("WARNING: unknown startup_clock entry in flash storage\n");
+        log("ERROR: unrecognized startup_clock entry in flash storage");
 
     if(!rtiocrg_switch_clock(clk)) {
-        printf("WARNING: startup RTIO clock failed\n");
-        printf("WARNING: this may cause the system initialization to fail\n");
-        printf("WARNING: fix clocking and reset the device\n");
+        log("ERROR: startup RTIO clock failed");
+        log("WARNING: this may cause the system initialization to fail");
+        log("WARNING: fix clocking and reset the device");
     }
 }
 

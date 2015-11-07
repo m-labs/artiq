@@ -33,19 +33,6 @@
         now += DURATION_WRITE; \
     } while(0)
 
-void dds_init_all(void)
-{
-    int i;
-    long long int now;
-
-    now = rtio_get_counter() + 10000;
-    for(i=0;i<DDS_CHANNEL_COUNT;i++) {
-        dds_init(now, i);
-        now += DURATION_INIT + DURATION_WRITE; /* + FUD time */
-    }
-    while(rtio_get_counter() < now);
-}
-
 void dds_init(long long int timestamp, int channel)
 {
     long long int now;

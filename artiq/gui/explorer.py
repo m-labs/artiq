@@ -368,12 +368,9 @@ class ExplorerDock(dockarea.Dock):
                 arguments = self.argeditor_states[key]["argument_values"]
             except KeyError:
                 arguments = dict()
-        asyncio.ensure_future(self.submit_task(self.pipeline.text(),
-                                               expinfo["file"],
+        asyncio.ensure_future(self.submit_task(pipeline, expinfo["file"],
                                                expinfo["class_name"],
-                                               arguments,
-                                               priority,
-                                               due_date,
+                                               arguments, priority, due_date,
                                                flush))
 
     def submit_clicked(self):

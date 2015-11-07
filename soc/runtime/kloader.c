@@ -5,6 +5,7 @@
 
 #include "kloader.h"
 #include "log.h"
+#include "clock.h"
 #include "flash_storage.h"
 #include "mailbox.h"
 #include "messages.h"
@@ -87,20 +88,35 @@ void kloader_start_kernel()
     load_or_start_kernel(NULL, 1);
 }
 
-int kloader_start_idle_kernel(void)
+static int kloader_start_flash_kernel(char *key)
 {
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
     char buffer[32*1024];
-    int length;
+    int length, remain;
 
-    length = fs_read("idle_kernel", buffer, sizeof(buffer), NULL);
+    length = fs_read(key, buffer, sizeof(buffer), &remain);
     if(length <= 0)
         return 0;
+
+    if(remain) {
+        log("ERROR: kernel %s is too large", key);
+        return 0;
+    }
 
     return load_or_start_kernel(buffer, 1);
 #else
     return 0;
 #endif
+}
+
+int kloader_start_startup_kernel(void)
+{
+    return kloader_start_flash_kernel("startup_kernel");
+}
+
+int kloader_start_idle_kernel(void)
+{
+    return kloader_start_flash_kernel("idle_kernel");
 }
 
 void kloader_stop(void)
@@ -125,6 +141,8 @@ int kloader_is_essential_kmsg(int msgtype)
         case MESSAGE_TYPE_NOW_INIT_REQUEST:
         case MESSAGE_TYPE_NOW_SAVE:
         case MESSAGE_TYPE_LOG:
+        case MESSAGE_TYPE_WATCHDOG_SET_REQUEST:
+        case MESSAGE_TYPE_WATCHDOG_CLEAR:
             return 1;
         default:
             return 0;
@@ -165,6 +183,22 @@ void kloader_service_essential_kmsg(void)
                 } else {
                     log_va(msg->fmt, msg->args);
                 }
+                mailbox_acknowledge();
+                break;
+            }
+            case MESSAGE_TYPE_WATCHDOG_SET_REQUEST: {
+                struct msg_watchdog_set_request *msg = (struct msg_watchdog_set_request *)umsg;
+                struct msg_watchdog_set_reply reply;
+
+                reply.type = MESSAGE_TYPE_WATCHDOG_SET_REPLY;
+                reply.id = watchdog_set(msg->ms);
+                mailbox_send_and_wait(&reply);
+                break;
+            }
+            case MESSAGE_TYPE_WATCHDOG_CLEAR: {
+                struct msg_watchdog_clear *msg = (struct msg_watchdog_clear *)umsg;
+
+                watchdog_clear(msg->id);
                 mailbox_acknowledge();
                 break;
             }
