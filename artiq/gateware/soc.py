@@ -1,5 +1,5 @@
-from misoclib.soc import mem_decoder
-from misoclib.cpu import timer
+from misoc.integration.soc_core import mem_decoder
+from misoc.cores import timer
 
 from artiq.gateware import amp
 
@@ -11,7 +11,7 @@ class AMPSoC:
     a "mailbox" entry in the memory map.
     """
     def __init__(self):
-        if not hasattr(self, "cpu_or_bridge"):
+        if not hasattr(self, "cpu"):
             raise ValueError("Platform SoC must be initialized first")
         if hasattr(self, "timer0"):
             raise ValueError("Timer already exists. "

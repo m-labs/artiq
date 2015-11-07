@@ -1,9 +1,8 @@
-from migen.fhdl.std import *
-from migen.bank.description import *
-from migen.bus import wishbone
-
-from misoclib.cpu import mor1kx
-from misoclib.soc import mem_decoder
+from migen import *
+from misoc.interconnect.csr import *
+from misoc.interconnect import wishbone
+from misoc.cores import mor1kx
+from misoc.integration.soc_core import mem_decoder
 
 
 class KernelCPU(Module):
@@ -23,9 +22,8 @@ class KernelCPU(Module):
             self.cd_sys_kernel.clk.eq(ClockSignal()),
             self.cd_sys_kernel.rst.eq(self._reset.storage)
         ]
-        self.submodules.cpu = RenameClockDomains(
-            mor1kx.MOR1KX(platform, exec_address),
-            "sys_kernel")
+        self.submodules.cpu = ClockDomainsRenamer("sys_kernel")(
+            mor1kx.MOR1KX(platform, exec_address))
 
         # DRAM access
         self.wb_sdram = wishbone.Interface()

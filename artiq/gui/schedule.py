@@ -82,13 +82,19 @@ class ScheduleDock(dockarea.Dock):
         delete_action.setShortcut("SHIFT+DELETE")
         self.table.addAction(delete_action)
 
-
     async def sub_connect(self, host, port):
         self.subscriber = Subscriber("schedule", self.init_schedule_model)
         await self.subscriber.connect(host, port)
 
     async def sub_close(self):
         await self.subscriber.close()
+
+    def get_current_schedule(self):
+        try:
+            table_model = self.table_model
+        except AttributeError:
+            return dict()
+        return table_model.backing_store
 
     def init_schedule_model(self, init):
         self.table_model = _ScheduleModel(self.table, init)

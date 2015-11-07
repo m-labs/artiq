@@ -191,10 +191,14 @@ class LogDock(dockarea.Dock):
         await self.subscriber.close()
 
     def filter_level_changed(self):
+        if not hasattr(self, "table_model_filter"):
+            return
         self.table_model_filter.set_min_level(
             getattr(logging, self.filter_level.currentText()))
 
     def filter_freetext_changed(self):
+        if not hasattr(self, "table_model_filter"):
+            return
         self.table_model_filter.set_freetext(self.filter_freetext.text())
 
     def rows_inserted_before(self):

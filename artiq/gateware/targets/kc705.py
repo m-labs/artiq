@@ -1,20 +1,26 @@
-from migen.fhdl.std import *
+#!/usr/bin/env python3
+
+import argparse
+import os
+
+from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.cdc import MultiReg
-from migen.bank.description import *
-from migen.bank import wbgen
-from mibuild.generic_platform import *
-from mibuild.xilinx.vivado import XilinxVivadoToolchain
-from mibuild.xilinx.ise import XilinxISEToolchain
+from migen.build.generic_platform import *
+from migen.build.xilinx.vivado import XilinxVivadoToolchain
+from migen.build.xilinx.ise import XilinxISEToolchain
 
-from misoclib.com import gpio
-from misoclib.soc import mem_decoder
-from misoclib.mem.sdram.core.minicon import MiniconSettings
-from targets.kc705 import MiniSoC
+from misoc.interconnect.csr import *
+from misoc.interconnect import wishbone
+from misoc.cores import gpio
+from misoc.integration.soc_core import mem_decoder
+from misoc.integration.builder import *
+from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
 
 from artiq.gateware.soc import AMPSoC
 from artiq.gateware import rtio, nist_qc1, nist_qc2
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, dds
+from artiq.tools import artiq_dir
 
 
 class _RTIOCRG(Module, AutoCSR):
@@ -87,15 +93,17 @@ class _NIST_QCx(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, platform, cpu_type="or1k", **kwargs):
-        MiniSoC.__init__(self, platform,
+    def __init__(self, cpu_type="or1k", **kwargs):
+        MiniSoC.__init__(self,
                          cpu_type=cpu_type,
-                         sdram_controller_settings=MiniconSettings(l2_size=128*1024),
+                         sdram_controller_type="minicon",
+                         l2_size=128*1024,
                          with_timer=False, **kwargs)
         AMPSoC.__init__(self)
+
         self.submodules.leds = gpio.GPIOOut(Cat(
-            platform.request("user_led", 0),
-            platform.request("user_led", 1)))
+            self.platform.request("user_led", 0),
+            self.platform.request("user_led", 1)))
 
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
@@ -121,7 +129,7 @@ TIMESPEC "TSfix_cdc2" = FROM "GRPrio_clk" TO "GRPrsys_clk" TIG;
 """, rio_clk=self.rtio_crg.cd_rtio.clk)
 
         rtio_csrs = self.rtio.get_csrs()
-        self.submodules.rtiowb = wbgen.Bank(rtio_csrs)
+        self.submodules.rtiowb = wishbone.CSRBank(rtio_csrs)
         self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["rtio"]),
                                      self.rtiowb.bus)
         self.add_csr_region("rtio", self.mem_map["rtio"] | 0x80000000, 32,
@@ -129,8 +137,10 @@ TIMESPEC "TSfix_cdc2" = FROM "GRPrio_clk" TO "GRPrsys_clk" TIG;
 
 
 class NIST_QC1(_NIST_QCx):
-    def __init__(self, platform, cpu_type="or1k", **kwargs):
-        _NIST_QCx.__init__(self, platform, cpu_type, **kwargs)
+    def __init__(self, cpu_type="or1k", **kwargs):
+        _NIST_QCx.__init__(self, cpu_type, **kwargs)
+
+        platform = self.platform
         platform.add_extension(nist_qc1.fmc_adapter_io)
 
         self.comb += [
@@ -172,8 +182,10 @@ class NIST_QC1(_NIST_QCx):
 
 
 class NIST_QC2(_NIST_QCx):
-    def __init__(self, platform, cpu_type="or1k", **kwargs):
-        _NIST_QCx.__init__(self, platform, cpu_type, **kwargs)
+    def __init__(self, cpu_type="or1k", **kwargs):
+        _NIST_QCx.__init__(self, cpu_type, **kwargs)
+
+        platform = self.platform
         platform.add_extension(nist_qc2.fmc_adapter_io)
 
         rtio_channels = []
@@ -214,4 +226,34 @@ class NIST_QC2(_NIST_QCx):
         self.add_rtio(rtio_channels)
 
 
-default_subtarget = NIST_QC1
+def main():
+    parser = argparse.ArgumentParser(
+        description="ARTIQ core device builder / KC705 "
+                    "+ NIST Ions QC1/QC2 hardware adapters")
+    builder_args(parser)
+    soc_kc705_args(parser)
+    parser.add_argument("-H", "--hw-adapter", default="qc1",
+                        help="hardware adapter type: qc1/qc2 "
+                             "(default: %(default)s)")
+    args = parser.parse_args()
+
+    hw_adapter = args.hw_adapter.lower()
+    if hw_adapter == "qc1":
+        cls = NIST_QC1
+    elif hw_adapter == "qc2":
+        cls = NIST_QC2
+    else:
+        print("Invalid hardware adapter string (-H/--hw-adapter), "
+              "choose from qc1 or qc2")
+        sys.exit(1)
+
+    soc = cls(**soc_kc705_argdict(args))
+    builder = Builder(soc, **builder_argdict(args))
+    builder.add_software_package("liblwip", os.path.join(artiq_dir, "runtime",
+                                                         "liblwip"))
+    builder.add_software_package("runtime", os.path.join(artiq_dir, "runtime"))
+    builder.build()
+
+
+if __name__ == "__main__":
+    main()

@@ -92,7 +92,7 @@ static int kloader_start_flash_kernel(char *key)
 {
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
     char buffer[32*1024];
-    int length, remain;
+    unsigned int length, remain;
 
     length = fs_read(key, buffer, sizeof(buffer), &remain);
     if(length <= 0)

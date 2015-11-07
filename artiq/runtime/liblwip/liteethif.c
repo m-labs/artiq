@@ -10,7 +10,7 @@
 #include <lwip/mem.h>
 
 #include <netif/etharp.h>
-#include "netif/liteethif.h"
+#include "liteethif.h"
 
 #include <hw/flags.h>
 #include <hw/ethmac_mem.h>

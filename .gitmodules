@@ -1,4 +1,4 @@
-[submodule "soc/runtime/lwip"]
-	path = soc/runtime/lwip
+[submodule "artiq/runtime/lwip"]
+	path = artiq/runtime/lwip
 	url = git://git.savannah.nongnu.org/lwip.git
-    ignore = untracked
+	ignore = untracked

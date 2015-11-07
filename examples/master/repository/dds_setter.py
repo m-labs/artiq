@@ -6,6 +6,8 @@ from artiq import *
 class DDSSetter(EnvExperiment):
     """DDS Setter"""
     def build(self):
+        self.setattr_device("core")
+
         self.dds = dict()
 
         device_db = self.get_device_db()
@@ -16,10 +18,16 @@ class DDSSetter(EnvExperiment):
                     and v["class"] in {"AD9858", "AD9914"}):
                 self.dds[k] = {
                     "driver": self.get_device(k),
-                    "frequency": self.get_argument("{}_frequency".format(k),
-                                                   NumberValue())
+                    "frequency": self.get_argument(
+                        "{}_frequency".format(k),
+                        NumberValue(100e6, scale=1e6, unit="MHz", ndecimals=6))
                 }
+
+    @kernel
+    def set_dds(self, dds, frequency):
+        dds.set(frequency)
+        delay(200*ms)
 
     def run(self):
         for k, v in self.dds.items():
-            v["driver"].set(v["frequency"])
+            self.set_dds(v["driver"], v["frequency"])

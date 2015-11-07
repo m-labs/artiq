@@ -8,8 +8,6 @@
 #include <hw/flags.h>
 
 #ifdef CSR_ETHMAC_BASE
-#include <netif/etharp.h>
-#include <netif/liteethif.h>
 #include <lwip/init.h>
 #include <lwip/memp.h>
 #include <lwip/ip4_addr.h>
@@ -18,6 +16,8 @@
 #include <lwip/sys.h>
 #include <lwip/tcp.h>
 #include <lwip/timers.h>
+#include <netif/etharp.h>
+#include <liteethif.h>
 #endif
 
 #include "bridge_ctl.h"

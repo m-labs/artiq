@@ -216,7 +216,7 @@ class _ArgumentEditor(QtGui.QTreeWidget):
 
 
 class ExplorerDock(dockarea.Dock):
-    def __init__(self, main_window, status_bar, schedule_ctl):
+    def __init__(self, main_window, status_bar, schedule_ctl, repository_ctl):
         dockarea.Dock.__init__(self, "Explorer", size=(1500, 500))
 
         self.main_window = main_window
@@ -263,8 +263,7 @@ class ExplorerDock(dockarea.Dock):
         grid.addWidget(self.log_level, 3, 3)
 
         submit = QtGui.QPushButton("Submit")
-        submit.setShortcut("CTRL+RETURN")
-        submit.setToolTip("Schedule the selected experiment (CTRL+ENTER)")
+        submit.setToolTip("Schedule the selected experiment (Ctrl+Return)")
         grid.addWidget(submit, 4, 0, colspan=4)
         submit.clicked.connect(self.submit_clicked)
 
@@ -276,9 +275,29 @@ class ExplorerDock(dockarea.Dock):
         self.shortcuts = ShortcutManager(self.main_window, self)
 
         self.el.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        submit_action = QtGui.QAction("Submit", self.el)
+        submit_action.triggered.connect(self.submit_clicked)
+        submit_action.setShortcut("CTRL+RETURN")
+        self.el.addAction(submit_action)
+        reqterm_action = QtGui.QAction("Request termination of instances", self.el)
+        reqterm_action.triggered.connect(self.request_inst_term)
+        reqterm_action.setShortcut("CTRL+BACKSPACE")
+        self.el.addAction(reqterm_action)
+
+        sep = QtGui.QAction(self.el)
+        sep.setSeparator(True)
+        self.el.addAction(sep)
+
         edit_shortcuts_action = QtGui.QAction("Edit shortcuts", self.el)
         edit_shortcuts_action.triggered.connect(self.edit_shortcuts)
         self.el.addAction(edit_shortcuts_action)
+        scan_repository_action = QtGui.QAction("(Re)scan repository HEAD",
+                                               self.el)
+        def scan_repository():
+            asyncio.ensure_future(repository_ctl.scan_async())
+            self.status_bar.showMessage("Requested repository scan")
+        scan_repository_action.triggered.connect(scan_repository)
+        self.el.addAction(scan_repository_action)
 
     def update_selection(self, selected, deselected):
         if deselected:
@@ -384,6 +403,28 @@ class ExplorerDock(dockarea.Dock):
                         self.priority.value(),
                         due_date,
                         self.flush.isChecked())
+
+    async def request_term_multiple(self, rids):
+        for rid in rids:
+            try:
+                await self.schedule_ctl.request_termination(rid)
+            except:
+                pass
+
+    def request_inst_term(self):
+        if self.selected_key is not None:
+            expinfo = self.explist_model.backing_store[self.selected_key]
+            # attribute get_current_schedule must be set externally after
+            # instance creation
+            current_schedule = self.get_current_schedule()
+            rids = []
+            for rid, desc in current_schedule.items():
+                expid = desc["expid"]
+                if ("repo_rev" in expid  # only consider runs from repository
+                        and expid["file"] == expinfo["file"]
+                        and expid["class_name"] == expinfo["class_name"]):
+                    rids.append(rid)
+            asyncio.ensure_future(self.request_term_multiple(rids))
 
     def edit_shortcuts(self):
         experiments = sorted(self.explist_model.backing_store.keys())

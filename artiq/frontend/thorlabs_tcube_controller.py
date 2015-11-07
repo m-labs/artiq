@@ -11,8 +11,8 @@ from artiq.tools import verbosity_args, simple_network_args, init_logger
 def get_argparser():
     parser = argparse.ArgumentParser()
     parser.add_argument("-P", "--product", required=True,
-                        help="type of the Thorlabs T-Cube device to control",
-                        choices=["tdc001", "tpz001"])
+                        help="type of the Thorlabs T-Cube device to control: "
+                             "tdc001/tpz001")
     parser.add_argument("-d", "--device", default=None,
                         help="serial device. See documentation for how to "
                              "specify a USB Serial Number.")
@@ -39,11 +39,19 @@ def main():
             dev = TdcSim()
         elif product == "tpz001":
             dev = TpzSim()
+        else:
+            print("Invalid product string (-P/--product), "
+                  "choose from tdc001 or tpz001")
+            sys.exit(1)
     else:
         if product == "tdc001":
             dev = Tdc(args.device)
         elif product == "tpz001":
             dev = Tpz(args.device)
+        else:
+            print("Invalid product string (-P/--product), "
+                  "choose from tdc001 or tpz001")
+            sys.exit(1)
 
     try:
         simple_server_loop({product: dev}, args.bind, args.port)

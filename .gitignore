@@ -6,7 +6,6 @@ __pycache__
 *.elf
 *.fbi
 *.pyc
-soc/runtime/service_table.h
 doc/manual/_build
 /build
 /dist

@@ -1,4 +1,4 @@
-from migen.fhdl.std import *
+from migen import *
 
 from artiq.gateware.rtio.phy import ttl_serdes_generic
 

@@ -299,6 +299,7 @@ void session_startup_kernel(void)
     if(!kloader_start_startup_kernel())
         return;
 
+    log("Startup kernel started");
     while(1) {
         kloader_service_essential_kmsg();
 
