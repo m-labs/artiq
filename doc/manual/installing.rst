@@ -174,7 +174,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
         $ cd ~/artiq-dev
         $ git clone https://github.com/m-labs/migen
         $ cd migen
-        $ python3 setup.py develop --user
+        $ python3.5 setup.py develop --user
 
 .. note::
     The options ``develop`` and ``--user`` are for setup.py to install Migen in ``~/.local/lib/python3.5``.
@@ -225,14 +225,14 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
         $ cd ~/artiq-dev
         $ git clone --recursive https://github.com/m-labs/misoc
         $ cd misoc
-        $ python3 setup.py develop --user
+        $ python3.5 setup.py develop --user
 
 * Download and install ARTIQ: ::
 
         $ cd ~/artiq-dev
         $ git clone --recursive https://github.com/m-labs/artiq
         $ cd artiq
-        $ python3 setup.py develop --user
+        $ python3.5 setup.py develop --user
 
 .. note::
     If you have any trouble during ARTIQ setup about ``pygit2`` installation,
@@ -250,11 +250,11 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
     * For Pipistrello::
 
-        $ python3 -m artiq.gateware.targets.pipistrello
+        $ python3.5 -m artiq.gateware.targets.pipistrello
 
     * For KC705::
 
-        $ python3 -m artiq.gateware.targets.kc705 -H qc1  # or qc2
+        $ python3.5 -m artiq.gateware.targets.kc705 -H qc1  # or qc2
 
 * Then, gather the binaries and flash them: ::
 
@@ -291,14 +291,14 @@ Installing the host-side software
         $ git clone https://github.com/m-labs/llvmlite
         $ git checkout artiq
         $ cd llvmlite
-        $ LLVM_CONFIG=/usr/local/llvm-or1k/bin/llvm-config python3 setup.py install --user
+        $ LLVM_CONFIG=/usr/local/llvm-or1k/bin/llvm-config python3.5 setup.py install --user
 
 * Install ARTIQ: ::
 
         $ cd ~/artiq-dev
         $ git clone --recursive https://github.com/m-labs/artiq # if not already done
         $ cd artiq
-        $ python3 setup.py develop --user
+        $ python3.5 setup.py develop --user
 
 .. note::
     If you have any trouble during ARTIQ setup about ``pygit2`` installation,
@@ -306,15 +306,15 @@ Installing the host-side software
 
     On Ubuntu 14.04::
 
-        $ pip install --user pygit2==0.19.1
+        $ python3.5 `which pip3` install --user pygit2==0.19.1
 
     On Ubuntu 14.10::
 
-        $ pip install --user pygit2==0.20.3
+        $ python3.5 `which pip3` install --user pygit2==0.20.3
 
     On Ubuntu 15.04 and 15.10::
 
-        $ pip install --user pygit2==0.22.1
+        $ python3.5 `which pip3` install --user pygit2==0.22.1
 
     The rationale behind this is that pygit2 and libgit2 must have the same
     major.minor version numbers.
@@ -408,14 +408,12 @@ The core device may use either an external clock signal or its internal clock. T
     $ artiq_coretool cfg-write -s startup_clock i  # internal clock (default)
     $ artiq_coretool cfg-write -s startup_clock e  # external clock
 
-Ubuntu 14.04 specific instructions
-----------------------------------
+Ubuntu 15.10+/Debian jessie+ specific instructions
+--------------------------------------------------
 
 This command installs all the required packages: ::
 
-    $ sudo apt-get install build-essential autotools-dev file git patch perl xutils-dev python3-pip texinfo flex bison libmpc-dev python3-serial python3-dateutil python3-prettytable python3-setuptools python3-numpy python3-scipy python3-sphinx python3-h5py python3-dev python-dev subversion cmake libusb-dev libftdi-dev pkg-config libffi-dev libgit2-dev
-
-Note that ARTIQ requires Python 3.5.0 or above.
+    $ sudo apt-get install build-essential autotools-dev file git patch perl xutils-dev texinfo flex bison libmpc-dev subversion cmake libusb-dev libftdi-dev pkg-config libffi-dev libgit2-dev python3.5 python3.5-dev
 
 To set user permissions on the JTAG and serial ports of the Pipistrello, create a ``/etc/udev/rules.d/30-usb-papilio.rules`` file containing the following: ::
 

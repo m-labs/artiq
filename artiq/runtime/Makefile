@@ -1,7 +1,7 @@
 include ../include/generated/variables.mak
 include $(MISOC_DIRECTORY)/software/common.mak
 
-PYTHON ?= python3
+PYTHON ?= python3.5
 
 OBJECTS := isr.o flash_storage.o clock.o rtiocrg.o elf_loader.o services.o session.o log.o test_mode.o kloader.o bridge_ctl.o mailbox.o ksupport_data.o net_server.o moninj.o main.o
 OBJECTS_KSUPPORT := ksupport.o exception_jmp.o exceptions.o mailbox.o bridge.o rtio.o ttl.o dds.o

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 # conda-build requires all scripts to have a python shebang.
 # see https://github.com/conda/conda-build/blob/6921f067a/conda_build/noarch_python.py#L36-L38
 
