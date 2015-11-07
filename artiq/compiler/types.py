@@ -262,9 +262,9 @@ class TRPCFunction(TFunction):
     attributes = OrderedDict()
 
     def __init__(self, args, optargs, ret, service):
-        super().__init__(args, optargs, ret,
-                         delay=FixedDelay(iodelay.Constant(0)))
+        super().__init__(args, optargs, ret)
         self.service = service
+        self.delay   = TFixedDelay(iodelay.Const(0))
 
     def unify(self, other):
         if isinstance(other, TRPCFunction) and \
@@ -285,9 +285,9 @@ class TCFunction(TFunction):
     attributes = OrderedDict()
 
     def __init__(self, args, ret, name):
-        super().__init__(args, OrderedDict(), ret,
-                         delay=FixedDelay(iodelay.Constant(0)))
-        self.name = name
+        super().__init__(args, OrderedDict(), ret)
+        self.name  = name
+        self.delay = TFixedDelay(iodelay.Const(0))
 
     def unify(self, other):
         if isinstance(other, TCFunction) and \
