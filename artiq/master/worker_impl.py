@@ -8,6 +8,7 @@ from artiq.tools import file_import
 from artiq.master.worker_db import DeviceManager, DatasetManager, get_hdf5_output
 from artiq.language.environment import is_experiment
 from artiq.language.core import set_watchdog_factory, TerminationRequested
+from artiq import __version__ as artiq_version
 
 
 def get_object():
@@ -156,6 +157,12 @@ def examine(device_mgr, dataset_mgr, file):
             register_experiment(class_name, name, arguments)
 
 
+def string_to_hdf5(f, key, value):
+    dtype = "S{}".format(len(value))
+    dataset = f.create_dataset(key, (), dtype)
+    dataset[()] = value.encode()
+
+
 def main():
     sys.stdout = LogForwarder()
     sys.stderr = LogForwarder()
@@ -203,11 +210,9 @@ def main():
                 f = get_hdf5_output(start_time, rid, exp.__name__)
                 try:
                     dataset_mgr.write_hdf5(f)
+                    string_to_hdf5(f, "artiq_version", artiq_version)
                     if "repo_rev" in expid:
-                        rr = expid["repo_rev"]
-                        dtype = "S{}".format(len(rr))
-                        dataset = f.create_dataset("repo_rev", (), dtype)
-                        dataset[()] = rr.encode()
+                        string_to_hdf5(f, "repo_rev", expid["repo_rev"])
                 finally:
                     f.close()
                 put_object({"action": "completed"})
