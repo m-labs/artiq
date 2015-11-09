@@ -40,8 +40,10 @@ LWIPOBJS:=$(LWIPFILES:.c=.o) liteethif.o
 all: prepare liblwip.a
 
 prepare:
-	ln -sf $(LIBLWIP_DIRECTORY)/lwipopts.h lwipopts.h
-	ln -sf $(LIBLWIP_DIRECTORY)/arch arch
+	rm -f lwipopts.h
+	rm -f arch
+	ln -s $(LIBLWIP_DIRECTORY)/lwipopts.h lwipopts.h
+	ln -s $(LIBLWIP_DIRECTORY)/arch arch
 	mkdir -p core/ipv4
 	mkdir -p netif
 
