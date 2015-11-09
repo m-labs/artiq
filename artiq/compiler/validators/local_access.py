@@ -38,8 +38,8 @@ class LocalAccessValidator:
 
         # Traverse the acyclic graph made of basic blocks and forward edges only,
         # while updating the environment state.
-        dom   = analyses.DominatorTree(func)
-        state = {}
+        domtree = analyses.DominatorTree(func)
+        state   = {}
         def traverse(block):
             # Have we computed the state of this block already?
             if block in state:
@@ -48,7 +48,7 @@ class LocalAccessValidator:
             # No! Which forward edges lead to this block?
             # If we dominate a predecessor, it's a back edge instead.
             forward_edge_preds = [pred for pred in block.predecessors()
-                                        if block not in dom.dominated_by[pred]]
+                                        if block not in domtree.dominators(pred)]
 
             # Figure out what the state is before the leader
             # instruction of this block.
