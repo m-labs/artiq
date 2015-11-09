@@ -66,7 +66,7 @@ setup(
     packages=find_packages(),
     namespace_packages=[],
     test_suite="artiq.test",
-    package_data={"artiq": [os.path.join("gui", "icon.png")]},
+    include_package_data=True,
     ext_modules=[],
     entry_points={
         "console_scripts": scripts,

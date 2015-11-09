@@ -1,0 +1,2 @@
+graft artiq/runtime
+include artiq/gui/icon.png
