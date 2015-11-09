@@ -4,6 +4,8 @@ from setuptools import setup, find_packages, Command
 import sys
 import os
 
+import versioneer
+
 
 if sys.version_info[:3] < (3, 5, 0):
     raise Exception("You need Python 3.5.0+")
@@ -48,9 +50,12 @@ scripts = [
     "thorlabs_tcube_controller=artiq.frontend.thorlabs_tcube_controller:main",
 ]
 
+cmdclass = {"push_doc": PushDocCommand}
+cmdclass.update(versioneer.get_cmdclass())
+
 setup(
     name="artiq",
-    version="0.0+dev",
+    version=versioneer.get_version(),
     author="M-Labs / NIST Ion Storage Group",
     author_email="sb@m-labs.hk",
     url="http://m-labs.hk/artiq",
@@ -71,5 +76,5 @@ setup(
     entry_points={
         "console_scripts": scripts,
     },
-    cmdclass={"push_doc": PushDocCommand}
+    cmdclass=cmdclass
 )
