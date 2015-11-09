@@ -44,7 +44,8 @@ def dom(function, domtree):
 def idom(function, domtree):
     idom = {}
     for block in function.basic_blocks:
-        idom[block.name] = domtree.immediate_dominator(block).name
+        idom_block = domtree.immediate_dominator(block)
+        idom[block.name] = idom_block.name if idom_block else None
     return idom
 
 class TestDominatorTree(unittest.TestCase):
@@ -112,4 +113,54 @@ class TestDominatorTree(unittest.TestCase):
         domtree = DominatorTree(func)
         self.assertEqual({
             1: 6, 2: 6, 3: 6, 4: 6, 5: 6, 6: 6
+        }, idom(func, domtree))
+
+class TestPostDominatorTree(unittest.TestCase):
+    def test_linear(self):
+        func = makefn('A', {
+            'A': ['B'],
+            'B': ['C'],
+            'C': []
+        })
+        domtree = PostDominatorTree(func)
+        self.assertEqual({
+            'A': 'B', 'B': 'C', 'C': None
+        }, idom(func, domtree))
+
+    def test_diamond(self):
+        func = makefn('A', {
+            'A': ['B', 'D'],
+            'B': ['C'],
+            'C': ['E'],
+            'D': ['E'],
+            'E': []
+        })
+        domtree = PostDominatorTree(func)
+        self.assertEqual({
+            'E': None, 'D': 'E', 'C': 'E', 'B': 'C', 'A': 'E'
+        }, idom(func, domtree))
+
+    def test_multi_exit(self):
+        func = makefn('A', {
+            'A': ['B', 'C'],
+            'B': [],
+            'C': []
+        })
+        domtree = PostDominatorTree(func)
+        self.assertEqual({
+            'A': None, 'B': None, 'C': None
+        }, idom(func, domtree))
+
+    def test_multi_exit_diamond(self):
+        func = makefn('A', {
+            'A': ['B', 'C'],
+            'B': ['D'],
+            'C': ['D'],
+            'D': ['E', 'F'],
+            'E': [],
+            'F': []
+        })
+        domtree = PostDominatorTree(func)
+        self.assertEqual({
+            'A': 'D', 'B': 'D', 'C': 'D', 'D': None, 'E': None, 'F': None
         }, idom(func, domtree))
