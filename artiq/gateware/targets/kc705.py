@@ -21,6 +21,7 @@ from artiq.gateware.soc import AMPSoC
 from artiq.gateware import rtio, nist_qc1, nist_qc2
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, dds
 from artiq.tools import artiq_dir
+from artiq import __version__ as artiq_version
 
 
 class _RTIOCRG(Module, AutoCSR):
@@ -98,7 +99,9 @@ class _NIST_QCx(MiniSoC, AMPSoC):
                          cpu_type=cpu_type,
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
-                         with_timer=False, **kwargs)
+                         with_timer=False,
+                         ident=artiq_version,
+                         **kwargs)
         AMPSoC.__init__(self)
 
         self.submodules.leds = gpio.GPIOOut(Cat(

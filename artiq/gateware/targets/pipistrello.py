@@ -21,6 +21,7 @@ from artiq.gateware.soc import AMPSoC
 from artiq.gateware import rtio, nist_qc1
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_spartan6, dds
 from artiq.tools import artiq_dir
+from artiq import __version__ as artiq_version
 
 
 class _RTIOCRG(Module, AutoCSR):
@@ -118,7 +119,9 @@ class NIST_QC1(BaseSoC, AMPSoC):
         BaseSoC.__init__(self,
                          cpu_type=cpu_type,
                          l2_size=64*1024,
-                         with_timer=False, **kwargs)
+                         with_timer=False,
+                         ident=artiq_version,
+                         **kwargs)
         AMPSoC.__init__(self)
 
         platform = self.platform

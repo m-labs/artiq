@@ -3,7 +3,6 @@
 #include "log.h"
 #include "clock.h"
 
-static int clkdiv;
 
 void clock_init(void)
 {
@@ -11,7 +10,6 @@ void clock_init(void)
     timer0_load_write(0x7fffffffffffffffLL);
     timer0_reload_write(0x7fffffffffffffffLL);
     timer0_en_write(1);
-    clkdiv = identifier_frequency_read()/1000;
 }
 
 long long int clock_get_ms(void)
@@ -22,7 +20,7 @@ long long int clock_get_ms(void)
     timer0_update_value_write(1);
     clock_sys = 0x7fffffffffffffffLL - timer0_value_read();
 
-    clock_ms = clock_sys/clkdiv;
+    clock_ms = clock_sys/(SYSTEM_CLOCK_FREQUENCY/1000);
     return clock_ms;
 }
 
@@ -31,7 +29,7 @@ void busywait_us(long long int us)
     long long int threshold;
 
     timer0_update_value_write(1);
-    threshold = timer0_value_read() - us*(long long int)identifier_frequency_read()/1000000LL;
+    threshold = timer0_value_read() - us*SYSTEM_CLOCK_FREQUENCY/1000000LL;
     while(timer0_value_read() > threshold)
         timer0_update_value_write(1);
 }
