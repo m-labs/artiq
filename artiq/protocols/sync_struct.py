@@ -51,11 +51,16 @@ class Subscriber:
     :param notify_cb: An optional function called every time a mod is received
         from the publisher. The mod is passed as parameter. The function is
         called after the mod has been processed.
+        A list of functions may also be used, and they will be called in turn.
     """
     def __init__(self, notifier_name, target_builder, notify_cb=None):
         self.notifier_name = notifier_name
         self.target_builder = target_builder
-        self.notify_cb = notify_cb
+        if notify_cb is None:
+            notify_cb = []
+        if not isinstance(notify_cb, list):
+            notify_cb = [notify_cb]
+        self.notify_cbs = notify_cb
 
     async def connect(self, host, port, before_receive_cb=None):
         self.reader, self.writer = \
@@ -97,8 +102,8 @@ class Subscriber:
             else:
                 process_mod(target, mod)
 
-            if self.notify_cb is not None:
-                self.notify_cb(mod)
+            for notify_cb in self.notify_cbs:
+                notify_cb(mod)
 
 
 class Notifier:
