@@ -12,13 +12,8 @@ from pyqtgraph import dockarea
 
 from artiq.tools import verbosity_args, init_logger, artiq_dir
 from artiq.protocols.pc_rpc import AsyncioClient
-from artiq.gui.state import StateManager
-from artiq.gui.explorer import ExplorerDock
-from artiq.gui.moninj import MonInj
-from artiq.gui.datasets import DatasetsDock
-from artiq.gui.schedule import ScheduleDock
-from artiq.gui.log import LogDock
-from artiq.gui.console import ConsoleDock
+from artiq.gui.models import ModelSubscriber
+from artiq.gui import state, explorer, moninj, datasets, schedule, log, console
 
 
 def get_argparser():
@@ -57,6 +52,12 @@ class MainWindow(QtGui.QMainWindow):
         self.restoreGeometry(QtCore.QByteArray(state))
 
 
+def atexit_register_coroutine(coroutine, loop=None):
+    if loop is None:
+        loop = asyncio.get_event_loop()
+    atexit.register(lambda: loop.run_until_complete(coroutine()))
+
+
 def main():
     args = get_argparser().parse_args()
     init_logger(args)
@@ -74,7 +75,18 @@ def main():
         atexit.register(client.close_rpc)
         rpc_clients[target] = client
 
-    smgr = StateManager(args.db_file)
+    sub_clients = dict()
+    for notifier_name, module in (("explist", explorer),
+                                  ("datasets", datasets),
+                                  ("schedule", schedule),
+                                  ("log", log)):
+        subscriber = ModelSubscriber(notifier_name, module.Model)
+        loop.run_until_complete(subscriber.connect(
+            args.server, args.port_notify))
+        atexit_register_coroutine(subscriber.close)
+        sub_clients[notifier_name] = subscriber
+
+    smgr = state.StateManager(args.db_file)
 
     win = MainWindow(app, args.server)
     area = dockarea.DockArea()
@@ -85,24 +97,20 @@ def main():
     status_bar.showMessage("Connected to {}".format(args.server))
     win.setStatusBar(status_bar)
 
-    d_explorer = ExplorerDock(win, status_bar,
-                              rpc_clients["schedule"],
-                              rpc_clients["repository"])
+    d_explorer = explorer.ExplorerDock(win, status_bar,
+                                       sub_clients["explist"],
+                                       sub_clients["schedule"],
+                                       rpc_clients["schedule"],
+                                       rpc_clients["repository"])
     smgr.register(d_explorer)
-    loop.run_until_complete(d_explorer.sub_connect(
-        args.server, args.port_notify))
-    atexit.register(lambda: loop.run_until_complete(d_explorer.sub_close()))
 
-    d_datasets = DatasetsDock(win, area)
+    d_datasets = datasets.DatasetsDock(win, area, sub_clients["datasets"])
     smgr.register(d_datasets)
-    loop.run_until_complete(d_datasets.sub_connect(
-        args.server, args.port_notify))
-    atexit.register(lambda: loop.run_until_complete(d_datasets.sub_close()))
 
     if os.name != "nt":
-        d_ttl_dds = MonInj()
+        d_ttl_dds = moninj.MonInj()
         loop.run_until_complete(d_ttl_dds.start(args.server, args.port_notify))
-        atexit.register(lambda: loop.run_until_complete(d_ttl_dds.stop()))
+        atexit_register_coroutine(d_ttl_dds.stop)
 
     if os.name != "nt":
         area.addDock(d_ttl_dds.dds_dock, "top")
@@ -112,23 +120,17 @@ def main():
         area.addDock(d_datasets, "top")
     area.addDock(d_explorer, "above", d_datasets)
 
-    d_schedule = ScheduleDock(status_bar, rpc_clients["schedule"])
-    loop.run_until_complete(d_schedule.sub_connect(
-        args.server, args.port_notify))
-    atexit.register(lambda: loop.run_until_complete(d_schedule.sub_close()))
-    d_explorer.get_current_schedule = d_schedule.get_current_schedule
+    d_schedule = schedule.ScheduleDock(
+        status_bar, rpc_clients["schedule"], sub_clients["schedule"])
 
-    d_log = LogDock()
+    d_log = log.LogDock(sub_clients["log"])
     smgr.register(d_log)
-    loop.run_until_complete(d_log.sub_connect(
-        args.server, args.port_notify))
-    atexit.register(lambda: loop.run_until_complete(d_log.sub_close()))
 
     def _set_dataset(k, v):
         asyncio.ensure_future(rpc_clients["dataset_db"].set(k, v))
     def _del_dataset(k):
         asyncio.ensure_future(rpc_clients["dataset_db"].delete(k))
-    d_console = ConsoleDock(
+    d_console = console.ConsoleDock(
         d_datasets.get_dataset,
         _set_dataset,
         _del_dataset)
@@ -139,7 +141,7 @@ def main():
 
     smgr.load()
     smgr.start()
-    atexit.register(lambda: loop.run_until_complete(smgr.stop()))
+    atexit_register_coroutine(smgr.stop)
     win.show()
     loop.run_until_complete(win.exit_request.wait())
 

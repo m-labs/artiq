@@ -1,5 +1,26 @@
 from quamash import QtCore
 
+from artiq.protocols.sync_struct import Subscriber
+
+
+class ModelSubscriber(Subscriber):
+    def __init__(self, notifier_name, model_factory):
+        Subscriber.__init__(self, notifier_name, self._create_model)
+        self.model = None
+        self._model_factory = model_factory
+        self._setmodel_callbacks = []
+
+    def _create_model(self, init):
+        self.model = self._model_factory(init)
+        for cb in self._setmodel_callbacks:
+            cb(self.model)
+        return self.model
+
+    def add_setmodel_callback(self, cb):
+        self._setmodel_callbacks.append(cb)
+        if self.model is not None:
+            cb(self.model)
+
 
 class _SyncSubstruct:
     def __init__(self, update_cb, ref):
@@ -31,12 +52,12 @@ class _SyncSubstruct:
 
 
 class DictSyncModel(QtCore.QAbstractTableModel):
-    def __init__(self, headers, parent, init):
+    def __init__(self, headers, init):
         self.headers = headers
         self.backing_store = init
         self.row_to_key = sorted(self.backing_store.keys(),
                                  key=lambda k: self.sort_key(k, self.backing_store[k]))
-        QtCore.QAbstractTableModel.__init__(self, parent)
+        QtCore.QAbstractTableModel.__init__(self)
 
     def rowCount(self, parent):
         return len(self.backing_store)
@@ -45,12 +66,11 @@ class DictSyncModel(QtCore.QAbstractTableModel):
         return len(self.headers)
 
     def data(self, index, role):
-        if not index.isValid():
+        if not index.isValid() or role != QtCore.Qt.DisplayRole:
             return None
-        elif role != QtCore.Qt.DisplayRole:
-            return None
-        k = self.row_to_key[index.row()]
-        return self.convert(k, self.backing_store[k], index.column())
+        else:
+            k = self.row_to_key[index.row()]
+            return self.convert(k, self.backing_store[k], index.column())
 
     def headerData(self, col, orientation, role):
         if (orientation == QtCore.Qt.Horizontal
@@ -113,10 +133,10 @@ class DictSyncModel(QtCore.QAbstractTableModel):
 
 
 class ListSyncModel(QtCore.QAbstractTableModel):
-    def __init__(self, headers, parent, init):
+    def __init__(self, headers, init):
         self.headers = headers
         self.backing_store = init
-        QtCore.QAbstractTableModel.__init__(self, parent)
+        QtCore.QAbstractTableModel.__init__(self)
 
     def rowCount(self, parent):
         return len(self.backing_store)
@@ -125,11 +145,11 @@ class ListSyncModel(QtCore.QAbstractTableModel):
         return len(self.headers)
 
     def data(self, index, role):
-        if not index.isValid():
+        if not index.isValid() or role != QtCore.Qt.DisplayRole:
             return None
-        elif role != QtCore.Qt.DisplayRole:
-            return None
-        return self.convert(self.backing_store[index.row()], index.column())
+        else:
+            return self.convert(self.backing_store[index.row()],
+                                index.column())
 
     def headerData(self, col, orientation, role):
         if (orientation == QtCore.Qt.Horizontal

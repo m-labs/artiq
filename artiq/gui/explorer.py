@@ -5,19 +5,18 @@ from quamash import QtGui, QtCore
 from pyqtgraph import dockarea
 from pyqtgraph import LayoutWidget
 
-from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols import pyon
-from artiq.gui.tools import DictSyncModel
+from artiq.gui.models import DictSyncModel
 from artiq.gui.scan import ScanController
 from artiq.gui.shortcuts import ShortcutManager
 
 
-class _ExplistModel(DictSyncModel):
-    def __init__(self, explorer, parent, init):
-        self.explorer = explorer
+class Model(DictSyncModel):
+    def __init__(self, init):
         DictSyncModel.__init__(self,
             ["Experiment"],
-            parent, init)
+            init)
+        self.explorer = None
 
     def sort_key(self, k, v):
         return k
@@ -27,8 +26,9 @@ class _ExplistModel(DictSyncModel):
 
     def __setitem__(self, k, v):
         DictSyncModel.__setitem__(self, k, v)
-        if k == self.explorer.selected_key:
-            self.explorer.update_selection(k, k)
+        if self.explorer is not None:
+            if k == self.explorer.selected_key:
+                self.explorer.update_selection(k, k)
 
 
 class _FreeValueEntry(QtGui.QLineEdit):
@@ -216,11 +216,14 @@ class _ArgumentEditor(QtGui.QTreeWidget):
 
 
 class ExplorerDock(dockarea.Dock):
-    def __init__(self, main_window, status_bar, schedule_ctl, repository_ctl):
+    def __init__(self, main_window, status_bar,
+                 explist_sub, schedule_sub,
+                 schedule_ctl, repository_ctl):
         dockarea.Dock.__init__(self, "Explorer", size=(1500, 500))
 
         self.main_window = main_window
         self.status_bar = status_bar
+        self.schedule_sub = schedule_sub
         self.schedule_ctl = schedule_ctl
 
         self.splitter = QtGui.QSplitter(QtCore.Qt.Horizontal)
@@ -271,6 +274,8 @@ class ExplorerDock(dockarea.Dock):
         self.splitter.addWidget(self.argeditor)
         self.splitter.setSizes([grid.minimumSizeHint().width(), 1000])
         self.argeditor_states = dict()
+        self.explist_model = Model(dict())
+        explist_sub.add_setmodel_callback(self.set_model)
 
         self.shortcuts = ShortcutManager(self.main_window, self)
 
@@ -298,6 +303,11 @@ class ExplorerDock(dockarea.Dock):
             self.status_bar.showMessage("Requested repository scan")
         scan_repository_action.triggered.connect(scan_repository)
         self.el.addAction(scan_repository_action)
+
+    def set_model(self, model):
+        model.explorer = self
+        self.explist_model = model
+        self.el.setModel(model)
 
     def update_selection(self, selected, deselected):
         if deselected:
@@ -345,19 +355,6 @@ class ExplorerDock(dockarea.Dock):
 
     def enable_duedate(self):
         self.datetime_en.setChecked(True)
-
-    async def sub_connect(self, host, port):
-        self.explist_subscriber = Subscriber("explist",
-                                             self.init_explist_model)
-        await self.explist_subscriber.connect(host, port)
-
-    async def sub_close(self):
-        await self.explist_subscriber.close()
-
-    def init_explist_model(self, init):
-        self.explist_model = _ExplistModel(self, self.el, init)
-        self.el.setModel(self.explist_model)
-        return self.explist_model
 
     async def submit_task(self, pipeline_name, file, class_name, arguments,
                           priority, due_date, flush):
@@ -414,17 +411,16 @@ class ExplorerDock(dockarea.Dock):
     def request_inst_term(self):
         if self.selected_key is not None:
             expinfo = self.explist_model.backing_store[self.selected_key]
-            # attribute get_current_schedule must be set externally after
-            # instance creation
-            current_schedule = self.get_current_schedule()
-            rids = []
-            for rid, desc in current_schedule.items():
-                expid = desc["expid"]
-                if ("repo_rev" in expid  # only consider runs from repository
-                        and expid["file"] == expinfo["file"]
-                        and expid["class_name"] == expinfo["class_name"]):
-                    rids.append(rid)
-            asyncio.ensure_future(self.request_term_multiple(rids))
+            if self.schedule_sub.model is not None:
+                current_schedule = self.schedule_sub.model.backing_store
+                rids = []
+                for rid, desc in current_schedule.items():
+                    expid = desc["expid"]
+                    if ("repo_rev" in expid  # only consider runs from repository
+                            and expid["file"] == expinfo["file"]
+                            and expid["class_name"] == expinfo["class_name"]):
+                        rids.append(rid)
+                asyncio.ensure_future(self.request_term_multiple(rids))
 
     def edit_shortcuts(self):
         experiments = sorted(self.explist_model.backing_store.keys())

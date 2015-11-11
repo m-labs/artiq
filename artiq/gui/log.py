@@ -5,8 +5,6 @@ import time
 from quamash import QtGui, QtCore
 from pyqtgraph import dockarea, LayoutWidget
 
-from artiq.protocols.sync_struct import Subscriber
-
 try:
     QSortFilterProxyModel = QtCore.QSortFilterProxyModel
 except AttributeError:
@@ -25,9 +23,9 @@ def _level_to_name(level):
     return "DEBUG"
 
 
-class _LogModel(QtCore.QAbstractTableModel):
-    def __init__(self, parent, init):
-        QtCore.QAbstractTableModel.__init__(self, parent)
+class Model(QtCore.QAbstractTableModel):
+    def __init__(self, init):
+        QtCore.QAbstractTableModel.__init__(self)
 
         self.headers = ["Level", "Source", "Time", "Message"]
 
@@ -153,7 +151,7 @@ class _LogFilterProxyModel(QSortFilterProxyModel):
 
 
 class LogDock(dockarea.Dock):
-    def __init__(self):
+    def __init__(self, log_sub):
         dockarea.Dock.__init__(self, "Log", size=(1000, 300))
 
         grid = LayoutWidget()
@@ -183,12 +181,7 @@ class LogDock(dockarea.Dock):
         grid.addWidget(self.log, 1, 0, colspan=4)
         self.scroll_at_bottom = False
 
-    async def sub_connect(self, host, port):
-        self.subscriber = Subscriber("log", self.init_log_model)
-        await self.subscriber.connect(host, port)
-
-    async def sub_close(self):
-        await self.subscriber.close()
+        log_sub.add_setmodel_callback(self.set_model)
 
     def filter_level_changed(self):
         if not hasattr(self, "table_model_filter"):
@@ -223,8 +216,8 @@ class LogDock(dockarea.Dock):
             scrollbar = self.log.verticalScrollBar()
             scrollbar.setValue(self.scroll_value)
 
-    def init_log_model(self, init):
-        self.table_model = _LogModel(self.log, init)
+    def set_model(self, model):
+        self.table_model = model
         self.table_model_filter = _LogFilterProxyModel(
             getattr(logging, self.filter_level.currentText()),
             self.filter_freetext.text())
@@ -233,7 +226,6 @@ class LogDock(dockarea.Dock):
         self.table_model_filter.rowsAboutToBeInserted.connect(self.rows_inserted_before)
         self.table_model_filter.rowsInserted.connect(self.rows_inserted_after)
         self.table_model_filter.rowsRemoved.connect(self.rows_removed)
-        return self.table_model
 
     def save_state(self):
         return {"min_level_idx": self.filter_level.currentIndex()}

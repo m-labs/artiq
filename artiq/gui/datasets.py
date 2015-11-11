@@ -7,9 +7,8 @@ from quamash import QtGui, QtCore
 from pyqtgraph import dockarea
 from pyqtgraph import LayoutWidget
 
-from artiq.protocols.sync_struct import Subscriber
 from artiq.tools import short_format
-from artiq.gui.tools import DictSyncModel
+from artiq.gui.models import DictSyncModel
 from artiq.gui.displays import *
 
 try:
@@ -21,10 +20,9 @@ except AttributeError:
 logger = logging.getLogger(__name__)
 
 
-class DatasetsModel(DictSyncModel):
-    def __init__(self, parent, init):
-        DictSyncModel.__init__(self, ["Dataset", "Persistent", "Value"],
-                               parent, init)
+class Model(DictSyncModel):
+    def __init__(self,  init):
+        DictSyncModel.__init__(self, ["Dataset", "Persistent", "Value"], init)
 
     def sort_key(self, k, v):
         return k
@@ -47,7 +45,7 @@ def _get_display_type_name(display_cls):
 
 
 class DatasetsDock(dockarea.Dock):
-    def __init__(self, dialog_parent, dock_area):
+    def __init__(self, dialog_parent, dock_area, datasets_sub):
         dockarea.Dock.__init__(self, "Datasets", size=(1500, 500))
         self.dialog_parent = dialog_parent
         self.dock_area = dock_area
@@ -66,6 +64,9 @@ class DatasetsDock(dockarea.Dock):
             QtGui.QHeaderView.ResizeToContents)
         grid.addWidget(self.table, 1, 0)
 
+        self.table_model = Model(dict())
+        datasets_sub.add_setmodel_callback(self.set_model)
+
         add_display_box = QtGui.QGroupBox("Add display")
         grid.addWidget(add_display_box, 1, 1)
         display_grid = QtGui.QGridLayout()
@@ -79,25 +80,18 @@ class DatasetsDock(dockarea.Dock):
         self.displays = dict()
 
     def _search_datasets(self):
-        self.table_model_filter.setFilterFixedString(self.search.displayText())
+        if hasattr(self, "table_model_filter"):
+            self.table_model_filter.setFilterFixedString(
+                self.search.displayText())
 
     def get_dataset(self, key):
         return self.table_model.backing_store[key][1]
 
-    async def sub_connect(self, host, port):
-        self.subscriber = Subscriber("datasets", self.init_datasets_model,
-                                     self.on_mod)
-        await self.subscriber.connect(host, port)
-
-    async def sub_close(self):
-        await self.subscriber.close()
-
-    def init_datasets_model(self, init):
-        self.table_model = DatasetsModel(self.table, init)
+    def set_model(self, model):
+        self.table_model = model
         self.table_model_filter = QSortFilterProxyModel()
         self.table_model_filter.setSourceModel(self.table_model)
         self.table.setModel(self.table_model_filter)
-        return self.table_model
 
     def update_display_data(self, dsp):
         filtered_data = {k: self.table_model.backing_store[k][1]

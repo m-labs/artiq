@@ -5,17 +5,16 @@ from functools import partial
 from quamash import QtGui, QtCore
 from pyqtgraph import dockarea
 
-from artiq.protocols.sync_struct import Subscriber
-from artiq.gui.tools import DictSyncModel
+from artiq.gui.models import DictSyncModel
 from artiq.tools import elide
 
 
-class _ScheduleModel(DictSyncModel):
-    def __init__(self, parent, init):
+class Model(DictSyncModel):
+    def __init__(self, init):
         DictSyncModel.__init__(self,
             ["RID", "Pipeline", "Status", "Prio", "Due date",
              "Revision", "File", "Class name"],
-            parent, init)
+            init)
 
     def sort_key(self, k, v):
         # order by priority, and then by due date and RID
@@ -57,7 +56,7 @@ class _ScheduleModel(DictSyncModel):
 
 
 class ScheduleDock(dockarea.Dock):
-    def __init__(self, status_bar, schedule_ctl):
+    def __init__(self, status_bar, schedule_ctl, schedule_sub):
         dockarea.Dock.__init__(self, "Schedule", size=(1000, 300))
 
         self.status_bar = status_bar
@@ -82,24 +81,12 @@ class ScheduleDock(dockarea.Dock):
         delete_action.setShortcut("SHIFT+DELETE")
         self.table.addAction(delete_action)
 
-    async def sub_connect(self, host, port):
-        self.subscriber = Subscriber("schedule", self.init_schedule_model)
-        await self.subscriber.connect(host, port)
+        self.table_model = Model(dict())
+        schedule_sub.add_setmodel_callback(self.set_model)
 
-    async def sub_close(self):
-        await self.subscriber.close()
-
-    def get_current_schedule(self):
-        try:
-            table_model = self.table_model
-        except AttributeError:
-            return dict()
-        return table_model.backing_store
-
-    def init_schedule_model(self, init):
-        self.table_model = _ScheduleModel(self.table, init)
+    def set_model(self, model):
+        self.table_model = model
         self.table.setModel(self.table_model)
-        return self.table_model
 
     async def delete(self, rid, graceful):
         if graceful:
