@@ -10,8 +10,7 @@ from functools import partial
 import numpy as np
 import aiohttp
 
-from artiq.tools import verbosity_args, init_logger
-from artiq.tools import TaskObject
+from artiq.tools import *
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols.pc_rpc import Server
 from artiq.protocols import pyon
@@ -239,23 +238,23 @@ def main():
     init_logger(args)
 
     loop = asyncio.get_event_loop()
-    atexit.register(lambda: loop.close())
+    atexit.register(loop.close)
 
     writer = DBWriter(args.baseurl_db,
                       args.user_db, args.password_db,
                       args.database, args.table)
     writer.start()
-    atexit.register(lambda: loop.run_until_complete(writer.stop()))
+    atexit_register_coroutine(writer.stop)
 
     filter = Filter(args.pattern_file)
     rpc_server = Server({"influxdb_filter": filter}, builtin_terminate=True)
     loop.run_until_complete(rpc_server.start(args.bind, args.bind_port))
-    atexit.register(lambda: loop.run_until_complete(rpc_server.stop()))
+    atexit_register_coroutine(rpc_server.stop)
 
     reader = MasterReader(args.server_master, args.port_master,
                           args.retry_master, filter._filter, writer)
     reader.start()
-    atexit.register(lambda: loop.run_until_complete(reader.stop()))
+    atexit_register_coroutine(reader.stop)
 
     loop.run_until_complete(rpc_server.wait_terminate())
 

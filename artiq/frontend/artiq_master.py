@@ -5,6 +5,7 @@ import argparse
 import atexit
 import os
 
+from artiq.tools import atexit_register_coroutine
 from artiq.protocols.pc_rpc import Server as RPCServer
 from artiq.protocols.sync_struct import Publisher
 from artiq.protocols.logging import Server as LoggingServer
@@ -59,12 +60,12 @@ def main():
         asyncio.set_event_loop(loop)
     else:
         loop = asyncio.get_event_loop()
-    atexit.register(lambda: loop.close())
+    atexit.register(loop.close)
 
     device_db = DeviceDB(args.device_db)
     dataset_db = DatasetDB(args.dataset_db)
     dataset_db.start()
-    atexit.register(lambda: loop.run_until_complete(dataset_db.stop()))
+    atexit_register_coroutine(dataset_db.stop)
 
     if args.git:
         repo_backend = GitBackend(args.repository)
@@ -90,7 +91,7 @@ def main():
         "scheduler_get_status": scheduler.get_status
     })
     scheduler.start()
-    atexit.register(lambda: loop.run_until_complete(scheduler.stop()))
+    atexit_register_coroutine(scheduler.stop)
 
     server_control = RPCServer({
         "master_device_db": device_db,
@@ -100,7 +101,7 @@ def main():
     })
     loop.run_until_complete(server_control.start(
         args.bind, args.port_control))
-    atexit.register(lambda: loop.run_until_complete(server_control.stop()))
+    atexit_register_coroutine(server_control.stop)
 
     server_notify = Publisher({
         "schedule": scheduler.notifier,
@@ -111,12 +112,12 @@ def main():
     })
     loop.run_until_complete(server_notify.start(
         args.bind, args.port_notify))
-    atexit.register(lambda: loop.run_until_complete(server_notify.stop()))
+    atexit_register_coroutine(server_notify.stop)
 
     server_logging = LoggingServer()
     loop.run_until_complete(server_logging.start(
         args.bind, args.port_logging))
-    atexit.register(lambda: loop.run_until_complete(server_logging.stop()))
+    atexit_register_coroutine(server_logging.stop)
 
     loop.run_forever()
 

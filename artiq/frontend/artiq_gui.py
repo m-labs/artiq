@@ -10,7 +10,7 @@ import os
 from quamash import QEventLoop, QtGui, QtCore
 from pyqtgraph import dockarea
 
-from artiq.tools import verbosity_args, init_logger, artiq_dir
+from artiq.tools import *
 from artiq.protocols.pc_rpc import AsyncioClient
 from artiq.gui.models import ModelSubscriber
 from artiq.gui import state, explorer, moninj, datasets, schedule, log, console
@@ -50,12 +50,6 @@ class MainWindow(QtGui.QMainWindow):
 
     def restore_state(self, state):
         self.restoreGeometry(QtCore.QByteArray(state))
-
-
-def atexit_register_coroutine(coroutine, loop=None):
-    if loop is None:
-        loop = asyncio.get_event_loop()
-    atexit.register(lambda: loop.run_until_complete(coroutine()))
 
 
 def main():

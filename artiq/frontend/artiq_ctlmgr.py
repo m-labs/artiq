@@ -15,7 +15,7 @@ from artiq.protocols.pc_rpc import AsyncioClient, Server
 from artiq.protocols.logging import (LogForwarder,
                                      parse_log_message, log_with_name,
                                      SourceFilter)
-from artiq.tools import TaskObject, Condition
+from artiq.tools import TaskObject, Condition, atexit_register_coroutine
 
 
 logger = logging.getLogger(__name__)
@@ -311,19 +311,19 @@ def main():
         asyncio.set_event_loop(loop)
     else:
         loop = asyncio.get_event_loop()
-    atexit.register(lambda: loop.close())
+    atexit.register(loop.close)
 
     logfwd = LogForwarder(args.server, args.port_logging,
                           args.retry_master)
     logfwd.addFilter(source_adder)
     root_logger.addHandler(logfwd)
     logfwd.start()
-    atexit.register(lambda: loop.run_until_complete(logfwd.stop()))
+    atexit_register_coroutine(logfwd.stop)
 
     ctlmgr = ControllerManager(args.server, args.port_notify,
                                args.retry_master)
     ctlmgr.start()
-    atexit.register(lambda: loop.run_until_complete(ctlmgr.stop()))
+    atexit_register_coroutine(ctlmgr.stop)
 
     class CtlMgrRPC:
         retry_now = ctlmgr.retry_now
@@ -331,7 +331,7 @@ def main():
     rpc_target = CtlMgrRPC()
     rpc_server = Server({"ctlmgr": rpc_target}, builtin_terminate=True)
     loop.run_until_complete(rpc_server.start(args.bind, args.bind_port))
-    atexit.register(lambda: loop.run_until_complete(rpc_server.stop()))
+    atexit_register_coroutine(rpc_server.stop)
 
     loop.run_until_complete(rpc_server.wait_terminate())
 

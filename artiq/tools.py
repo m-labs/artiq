@@ -7,11 +7,18 @@ import asyncio
 import time
 import collections
 import os
+import atexit
 
 import numpy as np
 
 from artiq.language.environment import is_experiment
 from artiq.protocols import pyon
+
+
+__all__ = ["artiq_dir", "parse_arguments", "elide", "short_format", "file_import",
+           "get_experiment", "verbosity_args", "simple_network_args", "init_logger",
+           "atexit_register_coroutine", "exc_to_warning", "asyncio_wait_or_cancel",
+           "TaskObject", "Condition", "workaround_asyncio263"]
 
 
 logger = logging.getLogger(__name__)
@@ -118,6 +125,12 @@ def simple_network_args(parser, default_port):
 
 def init_logger(args):
     logging.basicConfig(level=logging.WARNING + args.quiet*10 - args.verbose*10)
+
+
+def atexit_register_coroutine(coroutine, loop=None):
+    if loop is None:
+        loop = asyncio.get_event_loop()
+    atexit.register(lambda: loop.run_until_complete(coroutine()))
 
 
 async def exc_to_warning(coro):
