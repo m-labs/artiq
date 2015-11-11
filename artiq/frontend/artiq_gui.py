@@ -53,6 +53,7 @@ class MainWindow(QtGui.QMainWindow):
 
 
 def main():
+    # initialize application
     args = get_argparser().parse_args()
     init_logger(args)
 
@@ -60,7 +61,9 @@ def main():
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
     atexit.register(loop.close)
+    smgr = state.StateManager(args.db_file)
 
+    # create connections to master
     rpc_clients = dict()
     for target in "schedule", "repository", "dataset_db":
         client = AsyncioClient()
@@ -80,8 +83,7 @@ def main():
         atexit_register_coroutine(subscriber.close)
         sub_clients[notifier_name] = subscriber
 
-    smgr = state.StateManager(args.db_file)
-
+    # initialize main window
     win = MainWindow(app, args.server)
     area = dockarea.DockArea()
     smgr.register(area)
@@ -91,6 +93,7 @@ def main():
     status_bar.showMessage("Connected to {}".format(args.server))
     win.setStatusBar(status_bar)
 
+    # create UI components
     d_explorer = explorer.ExplorerDock(win, status_bar,
                                        sub_clients["explist"],
                                        sub_clients["schedule"],
@@ -106,6 +109,16 @@ def main():
         loop.run_until_complete(d_ttl_dds.start(args.server, args.port_notify))
         atexit_register_coroutine(d_ttl_dds.stop)
 
+    d_schedule = schedule.ScheduleDock(
+        status_bar, rpc_clients["schedule"], sub_clients["schedule"])
+
+    logmgr = log.LogDockManager(area, sub_clients["log"])
+    smgr.register(logmgr)
+
+    d_console = console.ConsoleDock(sub_clients["datasets"],
+                                    rpc_clients["dataset_db"])
+
+    # lay out docks
     if os.name != "nt":
         area.addDock(d_ttl_dds.dds_dock, "top")
         area.addDock(d_ttl_dds.ttl_dock, "above", d_ttl_dds.dds_dock)
@@ -113,23 +126,20 @@ def main():
     else:
         area.addDock(d_datasets, "top")
     area.addDock(d_explorer, "above", d_datasets)
-
-    d_schedule = schedule.ScheduleDock(
-        status_bar, rpc_clients["schedule"], sub_clients["schedule"])
-
-    d_log = log.LogDock(sub_clients["log"])
-    smgr.register(d_log)
-
-    d_console = console.ConsoleDock(sub_clients["datasets"],
-                                    rpc_clients["dataset_db"])
-
     area.addDock(d_console, "bottom")
-    area.addDock(d_log, "above", d_console)
-    area.addDock(d_schedule, "above", d_log)
+    area.addDock(d_schedule, "above", d_console)
 
+    # load/initialize state
     smgr.load()
     smgr.start()
     atexit_register_coroutine(smgr.stop)
+
+    # create first log dock if not already in state
+    d_log0 = logmgr.first_log_dock()
+    if d_log0 is not None:
+        area.addDock(d_log0, "right", d_explorer)
+
+    # run
     win.show()
     loop.run_until_complete(win.exit_request.wait())
 
