@@ -238,7 +238,7 @@ class MonInj(TaskObject):
         self.dds_dock = _MonInjDock("DDS")
 
         self.subscriber = Subscriber("devices", self.init_devices)
-        self.dm = _DeviceManager(self.send_to_device, dict())
+        self.dm = None
         self.transport = None
 
     async def start(self, server, port):
@@ -267,6 +267,10 @@ class MonInj(TaskObject):
         self.transport = transport
 
     def datagram_received(self, data, addr):
+        if self.dm is None:
+            logger.debug("received datagram, but device manager "
+                         "is not present yet")
+            return
         try:
             ttl_levels, ttl_oes, ttl_overrides = \
                 struct.unpack(">QQQ", data[:8*3])
@@ -295,7 +299,11 @@ class MonInj(TaskObject):
         self.transport = None
 
     def send_to_device(self, data):
+        if self.dm is None:
+            logger.debug("cannot sent to device yet, no device manager")
+            return
         ca = self.dm.get_core_addr()
+        logger.debug("core device address: %s", ca)
         if ca is None:
             logger.warning("could not find core device address")
         elif self.transport is None:
