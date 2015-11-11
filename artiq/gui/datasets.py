@@ -66,6 +66,7 @@ class DatasetsDock(dockarea.Dock):
 
         self.table_model = Model(dict())
         datasets_sub.add_setmodel_callback(self.set_model)
+        datasets_sub.notify_cbs.append(self.on_mod)
 
         add_display_box = QtGui.QGroupBox("Add display")
         grid.addWidget(add_display_box, 1, 1)
