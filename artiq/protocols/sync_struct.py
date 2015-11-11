@@ -48,18 +48,13 @@ class Subscriber:
     :param target_builder: A function called during initialization that takes
         the object received from the publisher and returns the corresponding
         local structure to use. Can be identity.
-        Multiple functions can be specified in a list for the ``Subscriber``
-        to update several local objects simultaneously.
     :param notify_cb: An optional function called every time a mod is received
         from the publisher. The mod is passed as parameter. The function is
         called after the mod has been processed.
     """
     def __init__(self, notifier_name, target_builder, notify_cb=None):
         self.notifier_name = notifier_name
-        if isinstance(target_builder, list):
-            self.target_builders = target_builder
-        else:
-            self.target_builders = [target_builder]
+        self.target_builder = target_builder
         self.notify_cb = notify_cb
 
     async def connect(self, host, port, before_receive_cb=None):
@@ -90,7 +85,7 @@ class Subscriber:
             del self.writer
 
     async def _receive_cr(self):
-        targets = []
+        target = None
         while True:
             line = await self.reader.readline()
             if not line:
@@ -98,10 +93,9 @@ class Subscriber:
             mod = pyon.decode(line.decode())
 
             if mod["action"] == "init":
-                targets = [tb(mod["struct"]) for tb in self.target_builders]
+                target = self.target_builder(mod["struct"])
             else:
-                for target in targets:
-                    process_mod(target, mod)
+                process_mod(target, mod)
 
             if self.notify_cb is not None:
                 self.notify_cb(mod)
