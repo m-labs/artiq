@@ -84,9 +84,6 @@ class DatasetsDock(dockarea.Dock):
             self.table_model_filter.setFilterFixedString(
                 self.search.displayText())
 
-    def get_dataset(self, key):
-        return self.table_model.backing_store[key][1]
-
     def set_model(self, model):
         self.table_model = model
         self.table_model_filter = QSortFilterProxyModel()

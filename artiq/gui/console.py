@@ -1,3 +1,5 @@
+import asyncio
+
 from pyqtgraph import console, dockarea
 
 
@@ -12,12 +14,25 @@ The following functions are available:
 """
 
 class ConsoleDock(dockarea.Dock):
-    def __init__(self, get_dataset, set_dataset, del_dataset):
+    def __init__(self, dataset_sub, dataset_ctl):
         dockarea.Dock.__init__(self, "Console", size=(1000, 300))
+        self.dataset_sub = dataset_sub
+        self.dataset_ctl = dataset_ctl
         ns = {
-            "get_dataset": get_dataset,
-            "set_dataset": set_dataset,
-            "del_dataset": del_dataset
+            "get_dataset": self.get_dataset,
+            "set_dataset": self.set_dataset,
+            "del_dataset": self.del_dataset
         }
         c = console.ConsoleWidget(namespace=ns, text=_help)
         self.addWidget(c)
+
+    def get_dataset(self, k):
+        if self.dataset_sub.model is None:
+            raise IOError("Datasets not available yet")
+        return self.dataset_sub.model.backing_store[k][1]
+
+    def set_dataset(self, k, v):
+        asyncio.ensure_future(self.dataset_ctl.set(k, v))
+
+    def del_dataset(self, k):
+        asyncio.ensure_future(self.dataset_ctl.delete(k))

@@ -120,14 +120,8 @@ def main():
     d_log = log.LogDock(sub_clients["log"])
     smgr.register(d_log)
 
-    def _set_dataset(k, v):
-        asyncio.ensure_future(rpc_clients["dataset_db"].set(k, v))
-    def _del_dataset(k):
-        asyncio.ensure_future(rpc_clients["dataset_db"].delete(k))
-    d_console = console.ConsoleDock(
-        d_datasets.get_dataset,
-        _set_dataset,
-        _del_dataset)
+    d_console = console.ConsoleDock(sub_clients["datasets"],
+                                    rpc_clients["dataset_db"])
 
     area.addDock(d_console, "bottom")
     area.addDock(d_log, "above", d_console)
