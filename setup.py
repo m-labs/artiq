@@ -65,7 +65,7 @@ setup(
     install_requires=requirements,
     extras_require={},
     dependency_links=[
-        "git+https://github.com/pyqtgraph/pyqtgraph.git@a6d5e28#egg=pyqtgraph",
+        "git+https://github.com/m-labs/pyqtgraph.git@develop#egg=pyqtgraph",
         "git+https://github.com/m-labs/llvmlite.git@artiq#egg=llvmlite_artiq"
     ],
     packages=find_packages(),
