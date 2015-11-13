@@ -12,37 +12,55 @@ from artiq.tools import exc_to_warning
 logger = logging.getLogger(__name__)
 
 
-async def _scan_experiments(wd, get_device_db, log):
+async def _get_repository_entries(root, filename, get_device_db, log):
     r = dict()
-    for f in os.listdir(wd):
-        if f.endswith(".py"):
+    worker = Worker({
+        "get_device_db": get_device_db,
+        "log": lambda message: log("scan", message)
+    })
+    try:
+        description = await worker.examine(os.path.join(root, filename))
+    finally:
+        await worker.close()
+    for class_name, class_desc in description.items():
+        name = class_desc["name"]
+        arguments = class_desc["arguments"]
+        if name in r:
+            logger.warning("Duplicate experiment name: '%s'", name)
+            basename = name
+            i = 1
+            while name in r:
+                name = basename + str(i)
+                i += 1
+        entry = {
+            "file": filename,
+            "class_name": class_name,
+            "arguments": arguments
+        }
+        r[name] = entry
+    return r
+
+
+async def _scan_experiments(root, get_device_db, log, subdir=""):
+    r = dict()
+    for de in os.scandir(os.path.join(root, subdir)):
+        if de.name.startswith("."):
+            continue
+        if de.is_file() and de.name.endswith(".py"):
+            filename = os.path.join(subdir, de.name)
             try:
-                worker = Worker({
-                    "get_device_db": get_device_db,
-                    "log": lambda message: log("scan", message)
-                })
-                try:
-                    description = await worker.examine(os.path.join(wd, f))
-                finally:
-                    await worker.close()
-                for class_name, class_desc in description.items():
-                    name = class_desc["name"]
-                    arguments = class_desc["arguments"]
-                    if name in r:
-                        logger.warning("Duplicate experiment name: '%s'", name)
-                        basename = name
-                        i = 1
-                        while name in r:
-                            name = basename + str(i)
-                            i += 1
-                    entry = {
-                        "file": f,
-                        "class_name": class_name,
-                        "arguments": arguments
-                    }
-                    r[name] = entry
+                entries = await _get_repository_entries(
+                    root, filename, get_device_db, log)
             except:
-                logger.warning("Skipping file '%s'", f, exc_info=True)
+                logger.warning("Skipping file '%s'", filename, exc_info=True)
+            else:
+                r.update(entries)
+        if de.is_dir():
+            subentries = await _scan_experiments(
+                root, get_device_db, log,
+                os.path.join(subdir, de.name))
+            entries = {de.name + "/" + k: v for k, v in subentries.items()}
+            r.update(entries)
     return r
 
 
