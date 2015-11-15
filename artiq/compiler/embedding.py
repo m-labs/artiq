@@ -11,6 +11,8 @@ from collections import OrderedDict, defaultdict
 from pythonparser import ast, algorithm, source, diagnostic, parse_buffer
 from pythonparser import lexer as source_lexer, parser as source_parser
 
+from Levenshtein import jaro_winkler
+
 from ..language import core as language_core
 from . import types, builtins, asttyped, prelude
 from .transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer
@@ -225,10 +227,29 @@ class StitchingASTTypedRewriter(ASTTypedRewriter):
             if node.id in self.host_environment:
                 return self.quote(self.host_environment[node.id], node.loc)
             else:
-                diag = diagnostic.Diagnostic("fatal",
-                    "name '{name}' is not bound to anything", {"name":node.id},
-                    node.loc)
-                self.engine.process(diag)
+                suggestion = self._most_similar_ident(node.id)
+                if suggestion is not None:
+                    diag = diagnostic.Diagnostic("fatal",
+                        "name '{name}' is not bound to anything; did you mean '{suggestion}'?",
+                        {"name": node.id, "suggestion": suggestion},
+                        node.loc)
+                    self.engine.process(diag)
+                else:
+                    diag = diagnostic.Diagnostic("fatal",
+                        "name '{name}' is not bound to anything", {"name": node.id},
+                        node.loc)
+                    self.engine.process(diag)
+
+    def _most_similar_ident(self, id):
+        names = set()
+        names.update(self.host_environment.keys())
+        for typing_env in reversed(self.env_stack):
+            names.update(typing_env.keys())
+
+        sorted_names = sorted(names, key=lambda other: jaro_winkler(id, other), reverse=True)
+        if len(sorted_names) > 0:
+            if jaro_winkler(id, sorted_names[0]) > 0.0:
+                return sorted_names[0]
 
 class StitchingInferencer(Inferencer):
     def __init__(self, engine, value_map, quote):
