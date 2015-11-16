@@ -121,7 +121,7 @@ class BinOp(Expr):
         return "{} {} {}".format(lhs, self._symbol, rhs)
 
     def __eq__(lhs, rhs):
-        return rhs.__class__ == lhs.__class__ and lhs.lhs == rhs.lhs and rhs.lhs == rhs.rhs
+        return rhs.__class__ == lhs.__class__ and lhs.lhs == rhs.lhs and lhs.rhs == rhs.rhs
 
     def eval(self, env):
         return self.__class__._op(self.lhs.eval(env), self.rhs.eval(env))
