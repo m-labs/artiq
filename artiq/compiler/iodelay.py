@@ -66,7 +66,7 @@ class Var(Expr):
         return self.name
 
     def __eq__(lhs, rhs):
-        return rhs.__class__ == lhs.__class__ and lhs.value == rhs.value
+        return rhs.__class__ == lhs.__class__ and lhs.name == rhs.name
 
     def free_vars(self):
         return {self.name}
