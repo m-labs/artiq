@@ -1,4 +1,5 @@
 import os, sys, tempfile, subprocess
+from artiq.compiler import types
 from llvmlite_artiq import ir as ll, binding as llvm
 
 llvm.initialize()
@@ -75,8 +76,9 @@ class Target:
 
         if os.getenv("ARTIQ_DUMP_IR"):
             print("====== ARTIQ IR DUMP ======", file=sys.stderr)
+            type_printer = types.TypePrinter()
             for function in module.artiq_ir:
-                print(function, file=sys.stderr)
+                print(function.as_entity(type_printer), file=sys.stderr)
 
         llmod = module.build_llvm_ir(self)
         llparsedmod = llvm.parse_assembly(str(llmod))

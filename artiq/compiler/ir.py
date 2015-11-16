@@ -51,6 +51,9 @@ class Value:
         for user in set(self.uses):
             user.replace_uses_of(self, value)
 
+    def __str__(self):
+        return self.as_entity(type_printer=types.TypePrinter())
+
 class Constant(Value):
     """
     A constant value.
@@ -62,11 +65,11 @@ class Constant(Value):
         super().__init__(typ)
         self.value = value
 
-    def as_operand(self):
-        return str(self)
+    def as_operand(self, type_printer):
+        return self.as_entity(type_printer)
 
-    def __str__(self):
-        return "{} {}".format(types.TypePrinter().name(self.type),
+    def as_entity(self, type_printer):
+        return "{} {}".format(type_printer.name(self.type),
                               repr(self.value))
 
 class NamedValue(Value):
@@ -99,8 +102,8 @@ class NamedValue(Value):
     def _detach(self):
         self.function = None
 
-    def as_operand(self):
-        return "{} %{}".format(types.TypePrinter().name(self.type),
+    def as_operand(self, type_printer):
+        return "{} %{}".format(type_printer.name(self.type),
                                escape_name(self.name))
 
 class User(NamedValue):
@@ -183,18 +186,19 @@ class Instruction(User):
         else:
             self.erase()
 
-    def _operands_as_string(self):
-        return ", ".join([operand.as_operand() for operand in self.operands])
+    def _operands_as_string(self, type_printer):
+        return ", ".join([operand.as_operand(type_printer) for operand in self.operands])
 
-    def __str__(self):
+    def as_entity(self, type_printer):
         if builtins.is_none(self.type):
             prefix = ""
         else:
             prefix = "%{} = {} ".format(escape_name(self.name),
-                                        types.TypePrinter().name(self.type))
+                                        type_printer.name(self.type))
 
         if any(self.operands):
-            return "{}{} {}".format(prefix, self.opcode(), self._operands_as_string())
+            return "{}{} {}".format(prefix, self.opcode(),
+                                    self._operands_as_string(type_printer))
         else:
             return "{}{}".format(prefix, self.opcode())
 
@@ -248,15 +252,16 @@ class Phi(Instruction):
         self.operands[index].uses.remove(self)
         del self.operands[index - 1:index + 1]
 
-    def __str__(self):
+    def as_entity(self, type_printer):
         if builtins.is_none(self.type):
             prefix = ""
         else:
             prefix = "%{} = {} ".format(escape_name(self.name),
-                                        types.TypePrinter().name(self.type))
+                                        type_printer.name(self.type))
 
         if any(self.operands):
-            operand_list = ["%{} => {}".format(escape_name(block.name), value.as_operand())
+            operand_list = ["%{} => {}".format(escape_name(block.name),
+                                               value.as_operand(type_printer))
                             for value, block in self.incoming()]
             return "{}{} [{}]".format(prefix, self.opcode(), ", ".join(operand_list))
         else:
@@ -346,7 +351,7 @@ class BasicBlock(NamedValue):
     def predecessors(self):
         return [use.basic_block for use in self.uses if isinstance(use, Terminator)]
 
-    def __str__(self):
+    def as_entity(self, type_printer):
         # Header
         lines = ["{}:".format(escape_name(self.name))]
         if self.function is not None:
@@ -372,7 +377,7 @@ class BasicBlock(NamedValue):
                     line_desc = "{}:{}".format(loc.source_buffer.name, loc.line())
                     lines += ["; {} {}".format(line_desc, line.rstrip("\n"))
                               for line in source_lines]
-            lines.append("  " + str(insn))
+            lines.append("  " + insn.as_entity(type_printer))
 
         return "\n".join(lines)
 
@@ -384,8 +389,8 @@ class Argument(NamedValue):
     A function argument.
     """
 
-    def __str__(self):
-        return self.as_operand()
+    def as_entity(self, type_printer):
+        return self.as_operand(type_printer)
 
 class Function:
     """
@@ -447,17 +452,19 @@ class Function:
         for basic_block in self.basic_blocks:
             yield from iter(basic_block.instructions)
 
-    def __str__(self):
-        printer = types.TypePrinter()
+    def as_entity(self, type_printer):
         lines = []
         lines.append("{} {}({}) {{ ; type: {}".format(
-                        printer.name(self.type.ret), self.name,
-                        ", ".join([arg.as_operand() for arg in self.arguments]),
-                        printer.name(self.type)))
+                        type_printer.name(self.type.ret), self.name,
+                        ", ".join([arg.as_operand(type_printer) for arg in self.arguments]),
+                        type_printer.name(self.type)))
         for block in self.basic_blocks:
-            lines.append(str(block))
+            lines.append(block.as_entity(type_printer))
         lines.append("}")
         return "\n".join(lines)
+
+    def __str__(self):
+        return self.as_entity(types.TypePrinter())
 
 # Python-specific SSA IR classes
 
@@ -511,7 +518,7 @@ class EnvironmentArgument(Argument):
     A function argument specifying an outer environment.
     """
 
-    def as_operand(self):
+    def as_operand(self, type_printer):
         return "environment(...) %{}".format(escape_name(self.name))
 
 class Alloc(Instruction):
@@ -527,12 +534,12 @@ class Alloc(Instruction):
     def opcode(self):
         return "alloc"
 
-    def as_operand(self):
+    def as_operand(self, type_printer):
         if is_environment(self.type):
             # Only show full environment in the instruction itself
             return "%{}".format(escape_name(self.name))
         else:
-            return super().as_operand()
+            return super().as_operand(type_printer)
 
 class GetLocal(Instruction):
     """
@@ -875,8 +882,8 @@ class Call(Instruction):
     def arguments(self):
         return self.operands[1:]
 
-    def __str__(self):
-        result = super().__str__()
+    def as_entity(self, type_printer):
+        result = super().as_entity(type_printer)
         if self.static_target_function is not None:
             result += " ; calls {}".format(self.static_target_function.name)
         return result
@@ -1003,9 +1010,10 @@ class IndirectBranch(Terminator):
         destination.uses.add(self)
         self.operands.append(destination)
 
-    def _operands_as_string(self):
-        return "{}, [{}]".format(self.operands[0].as_operand(),
-                                 ", ".join([dest.as_operand() for dest in self.operands[1:]]))
+    def _operands_as_string(self, type_printer):
+        return "{}, [{}]".format(self.operands[0].as_operand(type_printer),
+                                 ", ".join([dest.as_operand(type_printer)
+                                            for dest in self.operands[1:]]))
 
 class Return(Terminator):
     """
@@ -1125,14 +1133,14 @@ class Invoke(Terminator):
     def exception_target(self):
         return self.operands[-1]
 
-    def _operands_as_string(self):
-        result = ", ".join([operand.as_operand() for operand in self.operands[:-2]])
-        result += " to {} unwind {}".format(self.operands[-2].as_operand(),
-                                            self.operands[-1].as_operand())
+    def _operands_as_string(self, type_printer):
+        result = ", ".join([operand.as_operand(type_printer) for operand in self.operands[:-2]])
+        result += " to {} unwind {}".format(self.operands[-2].as_operand(type_printer),
+                                            self.operands[-1].as_operand(type_printer))
         return result
 
-    def __str__(self):
-        result = super().__str__()
+    def as_entity(self, type_printer):
+        result = super().as_entity(type_printer)
         if self.static_target_function is not None:
             result += " ; calls {}".format(self.static_target_function.name)
         return result
@@ -1169,14 +1177,16 @@ class LandingPad(Terminator):
         self.types.append(typ.find() if typ is not None else None)
         target.uses.add(self)
 
-    def _operands_as_string(self):
+    def _operands_as_string(self, type_printer):
         table = []
         for target, typ in self.clauses():
             if typ is None:
-                table.append("... => {}".format(target.as_operand()))
+                table.append("... => {}".format(target.as_operand(type_printer)))
             else:
-                table.append("{} => {}".format(types.TypePrinter().name(typ), target.as_operand()))
-        return "cleanup {}, [{}]".format(self.cleanup().as_operand(), ", ".join(table))
+                table.append("{} => {}".format(type_printer.name(typ),
+                                               target.as_operand(type_printer)))
+        return "cleanup {}, [{}]".format(self.cleanup().as_operand(type_printer),
+                                         ", ".join(table))
 
 class Parallel(Terminator):
     """
