@@ -623,8 +623,9 @@ class TypePrinter(object):
             signature = "(%s)->%s" % (", ".join(args), self.name(typ.ret))
 
             delay = typ.delay.find()
-            if not (isinstance(delay, TVar) or
-                        delay.is_fixed() and iodelay.is_zero(delay.duration)):
+            if isinstance(delay, TVar):
+                signature += " delay({})".format(self.name(delay))
+            elif not (delay.is_fixed() and iodelay.is_zero(delay.duration)):
                 signature += " " + self.name(delay)
 
             if isinstance(typ, TRPCFunction):
