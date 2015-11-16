@@ -263,7 +263,7 @@ class ASTTypedRewriter(algorithm.Transformer):
 
         if node.name in self.env_stack[-1]:
             diag = diagnostic.Diagnostic("fatal",
-                "variable '{name}' is already defined", {"name":name}, loc)
+                "variable '{name}' is already defined", {"name":node.name}, node.name_loc)
             self.engine.process(diag)
 
         extractor = LocalExtractor(env_stack=self.env_stack, engine=self.engine)
