@@ -4,6 +4,8 @@ the statically inferred RTIO delay arising from executing
 a function.
 """
 
+from functools import reduce
+
 class Expr:
     def __add__(lhs, rhs):
         assert isinstance(rhs, Expr)
