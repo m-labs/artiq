@@ -216,7 +216,7 @@ class IODelayEstimator(algorithm.Visitor):
                 self.current_delay = old_delay
 
             self.current_delay += iodelay.Max(delays)
-        elif len(node.items) == 1 and types.is_builtin(context_expr.type, "serial"):
+        elif len(node.items) == 1 and types.is_builtin(context_expr.type, "sequential"):
             self.visit(node.body)
         else:
             self.abort("with statement cannot be interleaved", node.loc)
