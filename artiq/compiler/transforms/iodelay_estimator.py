@@ -258,7 +258,7 @@ class IODelayEstimator(algorithm.Visitor):
                 args = {}
                 for kw_node in node.keywords:
                     args[kw_node.arg] = kw_node.value
-                for arg_name, arg_node in zip(typ.args, node.args[offset:]):
+                for arg_name, arg_node in zip(list(typ.args)[offset:], node.args):
                     args[arg_name] = arg_node
 
                 free_vars = delay.duration.free_vars()
