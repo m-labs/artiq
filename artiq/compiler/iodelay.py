@@ -85,6 +85,11 @@ class Conv(Expr):
         assert isinstance(ref_period, float)
         self.operand, self.ref_period = operand, ref_period
 
+    def __eq__(lhs, rhs):
+        return rhs.__class__ == lhs.__class__ and \
+            lhs.ref_period == rhs.ref_period and \
+            lhs.operand == rhs.operand
+
     def free_vars(self):
         return self.operand.free_vars()
 
