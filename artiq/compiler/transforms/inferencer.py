@@ -935,7 +935,7 @@ class Inferencer(algorithm.Visitor):
         self.generic_visit(node)
 
         typ = node.context_expr.type
-        if not types.is_builtin(typ, "parallel") or types.is_builtin(typ, "sequential"):
+        if not (types.is_builtin(typ, "parallel") or types.is_builtin(typ, "sequential")):
             diag = diagnostic.Diagnostic("error",
                 "value of type {type} cannot act as a context manager",
                 {"type": types.TypePrinter().name(typ)},
