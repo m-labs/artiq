@@ -101,6 +101,12 @@ class IODelayEstimator(algorithm.Visitor):
         self.current_return = old_return
         self.current_args = old_args
 
+        if types.is_indeterminate_delay(delay) and types.is_indeterminate_delay(typ.delay):
+            # Both delays indeterminate; no point in unifying since that will
+            # replace the lazy and more specific error with an eager and more generic
+            # error (unification error of delay(?) with delay(?), which is useless).
+            return
+
         try:
             typ.delay.unify(delay)
         except types.UnificationError as e:
