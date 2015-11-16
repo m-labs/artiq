@@ -8,12 +8,12 @@ class c:
     def m(self):
         pass
 
-# CHECK-L: c:<constructor c {a: int(width='a), f: ()->NoneType, m: (self:<instance c>)->NoneType}>
+# CHECK-L: c:<constructor c {a: int(width='a), f: ()->NoneType delay('b), m: (self:<instance c>)->NoneType delay('c)}>
 c
 # CHECK-L: .a:int(width='a)
 c.a
-# CHECK-L: .f:()->NoneType
+# CHECK-L: .f:()->NoneType delay('b)
 c.f
 
-# CHECK-L: .m:method(fn=(self:<instance c>)->NoneType, self=<instance c>)
+# CHECK-L: .m:method(fn=(self:<instance c>)->NoneType delay('c), self=<instance c>)
 c().m()

@@ -8,7 +8,7 @@ class c:
     def g(self):
         pass
 
-# CHECK-L: ${LINE:+1}: error: function 'f()->NoneType' of class 'c' cannot accept a self argument
+# CHECK-L: ${LINE:+1}: error: function 'f()->NoneType delay('a)' of class 'c' cannot accept a self argument
 c().f()
 
 c.g(1)
