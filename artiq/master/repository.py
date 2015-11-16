@@ -12,8 +12,8 @@ from artiq.tools import exc_to_warning
 logger = logging.getLogger(__name__)
 
 
-async def _get_repository_entries(root, filename, get_device_db, log):
-    r = dict()
+async def _get_repository_entries(entry_dict,
+                                  root, filename, get_device_db, log):
     worker = Worker({
         "get_device_db": get_device_db,
         "log": lambda message: log("scan", message)
@@ -25,11 +25,15 @@ async def _get_repository_entries(root, filename, get_device_db, log):
     for class_name, class_desc in description.items():
         name = class_desc["name"]
         arguments = class_desc["arguments"]
-        if name in r:
+        if "/" in name:
+            logger.warning("Character '/' is not allowed in experiment "
+                           "name (%s)", name)
+            name = name.replace("/", "_")
+        if name in entry_dict:
             logger.warning("Duplicate experiment name: '%s'", name)
             basename = name
             i = 1
-            while name in r:
+            while name in entry_dict:
                 name = basename + str(i)
                 i += 1
         entry = {
@@ -37,31 +41,28 @@ async def _get_repository_entries(root, filename, get_device_db, log):
             "class_name": class_name,
             "arguments": arguments
         }
-        r[name] = entry
-    return r
+        entry_dict[name] = entry
 
 
 async def _scan_experiments(root, get_device_db, log, subdir=""):
-    r = dict()
+    entry_dict = dict()
     for de in os.scandir(os.path.join(root, subdir)):
         if de.name.startswith("."):
             continue
         if de.is_file() and de.name.endswith(".py"):
             filename = os.path.join(subdir, de.name)
             try:
-                entries = await _get_repository_entries(
-                    root, filename, get_device_db, log)
+                await _get_repository_entries(
+                    entry_dict, root, filename, get_device_db, log)
             except:
                 logger.warning("Skipping file '%s'", filename, exc_info=True)
-            else:
-                r.update(entries)
         if de.is_dir():
             subentries = await _scan_experiments(
                 root, get_device_db, log,
                 os.path.join(subdir, de.name))
             entries = {de.name + "/" + k: v for k, v in subentries.items()}
-            r.update(entries)
-    return r
+            entry_dict.update(entries)
+    return entry_dict
 
 
 def _sync_explist(target, source):
