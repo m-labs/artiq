@@ -80,8 +80,12 @@ class IODelayEstimator(algorithm.Visitor):
 
     def visit_ModuleT(self, node):
         try:
-            self.visit(node.body)
-        except (diagnostic.Error, _UnknownDelay):
+            for stmt in node.body:
+                try:
+                    self.visit(stmt)
+                except _UnknownDelay:
+                    pass # more luck next time?
+        except diagnostic.Error:
             pass # we don't care; module-level code is never interleaved
 
     def visit_function(self, args, body, typ, loc):
