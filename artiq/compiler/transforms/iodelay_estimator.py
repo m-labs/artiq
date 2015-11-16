@@ -108,7 +108,10 @@ class IODelayEstimator(algorithm.Visitor):
             return
 
         try:
+            old_delay = typ.delay.find()
             typ.delay.unify(delay)
+            if typ.delay.find() != old_delay:
+                self.changed = True
         except types.UnificationError as e:
             printer = types.TypePrinter()
             diag = diagnostic.Diagnostic("fatal",
