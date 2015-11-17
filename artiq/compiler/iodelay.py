@@ -213,7 +213,7 @@ class Max(Expr):
             operand = operand.fold(vars)
             if isinstance(operand, Const):
                 consts.append(operand.value)
-            else:
+            elif operand not in exprs:
                 exprs.append(operand)
         if any(consts):
             exprs.append(Const(max(consts)))
