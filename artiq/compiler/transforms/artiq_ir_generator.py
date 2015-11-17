@@ -44,6 +44,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
         can become upvalues
     :ivar current_private_env: (:class:`ir.Alloc` of type :class:`ir.TEnvironment`)
         the private function environment, containing internal state
+    :ivar current_args: (dict of string to :class:`ir.Argument`)
+        the map of Python names of formal arguments to
+        the current function to their SSA names
     :ivar current_assign: (:class:`ir.Value` or None)
         the right-hand side of current assignment statement, or
         a component of a composite right-hand side when visiting
@@ -91,6 +94,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.current_block = None
         self.current_env = None
         self.current_private_env = None
+        self.current_args = None
         self.current_assign = None
         self.current_assert_env = None
         self.current_assert_subexprs = None
@@ -228,13 +232,19 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             env_arg  = ir.EnvironmentArgument(self.current_env.type, "outerenv")
 
+            old_args, self.current_args = self.current_args, {}
+
             args = []
             for arg_name in typ.args:
-                args.append(ir.Argument(typ.args[arg_name], "arg." + arg_name))
+                arg = ir.Argument(typ.args[arg_name], "arg." + arg_name)
+                self.current_args[arg_name] = arg
+                args.append(arg)
 
             optargs = []
             for arg_name in typ.optargs:
-                optargs.append(ir.Argument(ir.TOption(typ.optargs[arg_name]), "arg." + arg_name))
+                arg = ir.Argument(ir.TOption(typ.optargs[arg_name]), "arg." + arg_name)
+                self.current_args[arg_name] = arg
+                optargs.append(arg)
 
             func = ir.Function(typ, ".".join(self.name), [env_arg] + args + optargs,
                                loc=node.lambda_loc if is_lambda else node.keyword_loc)
@@ -284,6 +294,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     self.current_block.append(ir.Unreachable())
         finally:
             self.name = old_name
+            self.current_args = old_args
             self.current_function = old_func
             self.current_block = old_block
             self.current_globals = old_globals
@@ -1544,7 +1555,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         typ = node.func.type.find()
 
         if types.is_builtin(typ):
-            return self.visit_builtin_call(node)
+            insn = self.visit_builtin_call(node)
         else:
             if types.is_function(typ):
                 func     = self.visit(node.func)
@@ -1557,6 +1568,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self_arg = self.append(ir.GetAttr(method, "__self__"))
                 fn_typ   = types.get_method_function(typ)
                 offset   = 1
+            else:
+                assert False
 
             args = [None] * (len(fn_typ.args) + len(fn_typ.optargs))
 
@@ -1606,7 +1619,15 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 attr_node = node.func
                 self.method_map[(attr_node.value.type, attr_node.attr)].append(insn)
 
-            return insn
+        if node.iodelay is not None:
+            after_delay = self.add_block()
+            self.append(ir.Delay(node.iodelay,
+                                 {var_name: self.current_args[var_name]
+                                  for var_name in node.iodelay.free_vars()},
+                                 after_delay))
+            self.current_block = after_delay
+
+        return insn
 
     def visit_QuoteT(self, node):
         return self.append(ir.Quote(node.value, node.type))

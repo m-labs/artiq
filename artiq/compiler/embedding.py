@@ -173,7 +173,7 @@ class ASTSynthesizer:
                       for kw, value, (arg_loc, equals_loc)
                        in zip(kwargs, kwarg_nodes, kwarg_locs)],
             starargs=None, kwargs=None,
-            type=types.TVar(),
+            type=types.TVar(), iodelay=None,
             begin_loc=begin_loc, end_loc=end_loc, star_loc=None, dstar_loc=None,
             loc=name_loc.join(end_loc))
 

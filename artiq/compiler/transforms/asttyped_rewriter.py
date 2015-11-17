@@ -426,7 +426,7 @@ class ASTTypedRewriter(algorithm.Transformer):
 
     def visit_Call(self, node):
         node = self.generic_visit(node)
-        node = asttyped.CallT(type=types.TVar(),
+        node = asttyped.CallT(type=types.TVar(), iodelay=None,
                               func=node.func, args=node.args, keywords=node.keywords,
                               starargs=node.starargs, kwargs=node.kwargs,
                               star_loc=node.star_loc, dstar_loc=node.dstar_loc,

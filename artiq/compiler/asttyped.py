@@ -46,7 +46,9 @@ class BinOpT(ast.BinOp, commontyped):
 class BoolOpT(ast.BoolOp, commontyped):
     pass
 class CallT(ast.Call, commontyped):
-    pass
+    """
+    :ivar iodelay: (:class:`iodelay.Expr`)
+    """
 class CompareT(ast.Compare, commontyped):
     pass
 class DictT(ast.Dict, commontyped):

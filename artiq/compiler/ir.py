@@ -1188,6 +1188,43 @@ class LandingPad(Terminator):
         return "cleanup {}, [{}]".format(self.cleanup().as_operand(type_printer),
                                          ", ".join(table))
 
+class Delay(Terminator):
+    """
+    A delay operation. Ties an :class:`iodelay.Expr` to SSA values so that
+    inlining could lead to the expression folding to a constant.
+
+    :ivar expr: (:class:`iodelay.Expr`) expression
+    :ivar var_names: (list of string)
+        iodelay expression names corresponding to operands
+    """
+
+    """
+    :param expr: (:class:`iodelay.Expr`) expression
+    :param substs: (dict of str to :class:`Value`)
+    :param target: (:class:`BasicBlock`) branch target
+    """
+    def __init__(self, expr, substs, target, name=""):
+        for var_name in substs: assert isinstance(var_name, str)
+        assert isinstance(target, BasicBlock)
+        super().__init__([target, *substs.values()], builtins.TNone(), name)
+        self.expr = expr
+        self.var_names = list(substs.keys())
+
+    def target(self):
+        return self.operands[0]
+
+    def substs(self):
+        return zip(self.var_names, self.operands[1:])
+
+    def _operands_as_string(self, type_printer):
+        substs = []
+        for var_name, operand in self.substs():
+            substs.append("{}={}".format(var_name, operand))
+        return "[{}], {}".format(", ".join(substs), self.target().as_operand(type_printer))
+
+    def opcode(self):
+        return "delay({})".format(self.expr)
+
 class Parallel(Terminator):
     """
     An instruction that schedules several threads of execution
