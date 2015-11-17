@@ -6,26 +6,21 @@ from pyqtgraph import dockarea
 from pyqtgraph import LayoutWidget
 
 from artiq.protocols import pyon
-from artiq.gui.models import DictSyncModel
+from artiq.gui.models import DictSyncTreeSepModel
 from artiq.gui.scan import ScanController
 from artiq.gui.shortcuts import ShortcutManager
 
 
-class Model(DictSyncModel):
+class Model(DictSyncTreeSepModel):
     def __init__(self, init):
-        DictSyncModel.__init__(self,
+        self.explorer = None
+        DictSyncTreeSepModel.__init__(self,
+            "/",
             ["Experiment"],
             init)
-        self.explorer = None
-
-    def sort_key(self, k, v):
-        return k
-
-    def convert(self, k, v, column):
-        return k
 
     def __setitem__(self, k, v):
-        DictSyncModel.__setitem__(self, k, v)
+        DictSyncTreeSepModel.__setitem__(self, k, v)
         if self.explorer is not None:
             if k == self.explorer.selected_key:
                 self.explorer.update_selection(k, k)
@@ -232,7 +227,8 @@ class ExplorerDock(dockarea.Dock):
         grid = LayoutWidget()
         self.splitter.addWidget(grid)
 
-        self.el = QtGui.QListView()
+        self.el = QtGui.QTreeView()
+        self.el.setHeaderHidden(True)
         self.el.selectionChanged = self._selection_changed
         self.selected_key = None
         grid.addWidget(self.el, 0, 0, colspan=4)
@@ -310,10 +306,10 @@ class ExplorerDock(dockarea.Dock):
         self.el.setModel(model)
 
     def update_selection(self, selected, deselected):
-        if deselected:
+        if deselected is not None:
             self.argeditor_states[deselected] = self.argeditor.save_state()
 
-        if selected:
+        if selected is not None:
             expinfo = self.explist_model.backing_store[selected]
             self.argeditor.set_arguments(expinfo["arguments"])
             if selected in self.argeditor_states:
@@ -324,8 +320,7 @@ class ExplorerDock(dockarea.Dock):
     def _sel_to_key(self, selection):
         selection = selection.indexes()
         if selection:
-            row = selection[0].row()
-            return self.explist_model.row_to_key[row]
+            return self.explist_model.index_to_key(selection[0])
         else:
             return None
 
@@ -336,9 +331,9 @@ class ExplorerDock(dockarea.Dock):
     def save_state(self):
         idx = self.el.selectedIndexes()
         if idx:
-            row = idx[0].row()
-            key = self.explist_model.row_to_key[row]
-            self.argeditor_states[key] = self.argeditor.save_state()
+            key = self.explist_model.index_to_key(idx[0])
+            if key is not None:
+                self.argeditor_states[key] = self.argeditor.save_state()
         return {
             "argeditor": self.argeditor_states,
             "shortcuts": self.shortcuts.save_state()
