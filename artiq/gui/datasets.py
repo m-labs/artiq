@@ -8,7 +8,7 @@ from pyqtgraph import dockarea
 from pyqtgraph import LayoutWidget
 
 from artiq.tools import short_format
-from artiq.gui.models import DictSyncModel
+from artiq.gui.models import DictSyncTreeSepModel
 from artiq.gui.displays import *
 
 try:
@@ -20,17 +20,14 @@ except AttributeError:
 logger = logging.getLogger(__name__)
 
 
-class Model(DictSyncModel):
+class Model(DictSyncTreeSepModel):
     def __init__(self,  init):
-        DictSyncModel.__init__(self, ["Dataset", "Persistent", "Value"], init)
-
-    def sort_key(self, k, v):
-        return k
+        DictSyncTreeSepModel.__init__(self, ".",
+            ["Dataset", "Persistent", "Value"],
+            init)
 
     def convert(self, k, v, column):
-        if column == 0:
-            return k
-        elif column == 1:
+        if column == 1:
             return "Y" if v[0] else "N"
         elif column == 2:
             return short_format(v[1])
@@ -58,10 +55,9 @@ class DatasetsDock(dockarea.Dock):
         self.search.editingFinished.connect(self._search_datasets)
         grid.addWidget(self.search, 0, 0)
 
-        self.table = QtGui.QTableView()
+        self.table = QtGui.QTreeView()
         self.table.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
-        self.table.horizontalHeader().setResizeMode(
-            QtGui.QHeaderView.ResizeToContents)
+        self.table.header().setResizeMode(QtGui.QHeaderView.ResizeToContents)
         grid.addWidget(self.table, 1, 0)
 
         self.table_model = Model(dict())
