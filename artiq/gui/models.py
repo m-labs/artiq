@@ -331,6 +331,11 @@ class DictSyncTreeSepModel(QtCore.QAbstractItemModel):
         self._del_item(self, k.split(self.separator))
         del self.backing_store[k]
 
+    def __getitem__(self, k):
+        def update():
+            self[k] = self.backing_store[k]
+        return _SyncSubstruct(update, self.backing_store[k])
+
     def index_to_key(self, index):
         item = index.internalPointer()
         if item.children_by_row:
