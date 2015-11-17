@@ -58,6 +58,7 @@ class Module:
         dead_code_eliminator = transforms.DeadCodeEliminator(engine=self.engine)
         local_access_validator = validators.LocalAccessValidator(engine=self.engine)
         devirtualization = analyses.Devirtualization()
+        interleaver = transforms.Interleaver(engine=self.engine)
 
         self.name = src.name
         self.globals = src.globals
@@ -71,6 +72,7 @@ class Module:
         artiq_ir_generator.annotate_calls(devirtualization)
         dead_code_eliminator.process(self.artiq_ir)
         local_access_validator.process(self.artiq_ir)
+        interleaver.process(self.artiq_ir)
 
     def build_llvm_ir(self, target):
         """Compile the module to LLVM IR for the specified target."""
