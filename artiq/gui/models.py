@@ -180,3 +180,176 @@ class ListSyncModel(QtCore.QAbstractTableModel):
 
     def convert(self, v, column):
         raise NotImplementedError
+
+
+# An item is a node if it has children, a leaf if it does not.
+# There can be a node and a leaf with the same name and different
+# rows, e.g. foo/bar and foo.
+class _DictSyncTreeSepItem:
+    def __init__(self, parent, row, name):
+        self.parent = parent
+        self.row = row
+        self.name = name
+        self.children_by_row = []
+        self.children_nodes_by_name = dict()
+        self.children_leaves_by_name = dict()
+
+    def __repr__(self):
+        return ("<DictSyncTreeSepItem {}, row={}, nchildren={}>"
+                 .format(self.name, self.row, len(self.children_by_row)))
+
+
+def _bisect_item(a, name):
+    lo = 0
+    hi = len(a)
+    while lo < hi:
+        mid = (lo + hi)//2
+        if name < a[mid].name:
+            hi = mid
+        else:
+            lo = mid + 1
+    return lo
+
+
+class DictSyncTreeSepModel(QtCore.QAbstractItemModel):
+    def __init__(self, separator, headers, init):
+        QtCore.QAbstractItemModel.__init__(self)
+
+        self.separator = separator
+        self.headers = headers
+
+        self.backing_store = dict()
+        self.children_by_row = []
+        self.children_nodes_by_name = dict()
+        self.children_leaves_by_name = dict()
+
+        for k, v in init.items():
+            self[k] = v
+
+    def rowCount(self, parent):
+        if parent.isValid():
+            item = parent.internalPointer()
+            return len(item.children_by_row)
+        else:
+            return len(self.children_by_row)
+
+    def columnCount(self, parent):
+        return len(self.headers)
+
+    def headerData(self, col, orientation, role):
+        if (orientation == QtCore.Qt.Horizontal
+                and role == QtCore.Qt.DisplayRole):
+            return self.headers[col]
+        return None
+
+    def index(self, row, column, parent):
+        if parent.isValid():
+            parent_item = parent.internalPointer()
+            return self.createIndex(row, column,
+                                    parent_item.children_by_row[row])
+        else:
+            return self.createIndex(row, column,
+                                    self.children_by_row[row])
+
+    def _index_item(self, item):
+        if item is self:
+            return QtCore.QModelIndex()
+        else:
+            return self.createIndex(item.row, 0, item)
+
+    def parent(self, index):
+        if index.isValid():
+            return self._index_item(index.internalPointer().parent)
+        else:
+            return QtCore.QModelIndex()
+
+    def _add_item(self, parent, name, leaf):
+        if leaf:
+            name_dict = parent.children_leaves_by_name
+        else:
+            name_dict = parent.children_nodes_by_name
+
+        if name in name_dict:
+            return name_dict[name]
+        row = _bisect_item(parent.children_by_row, name)
+        item = _DictSyncTreeSepItem(parent, row, name)
+
+        self.beginInsertRows(self._index_item(parent), row, row)
+        parent.children_by_row.insert(row, item)
+        name_dict[name] = item
+        self.endInsertRows()
+        
+        return item
+
+    def __setitem__(self, k, v):
+        *node_names, leaf_name = k.split(self.separator)
+        if k in self.backing_store:
+            parent = self
+            for node_name in node_names:
+                parent = parent.children_nodes_by_name[node_name]
+            item = parent.children_leaves_by_name[leaf_name]
+            index0 = self.createIndex(item.row, 0, item)
+            index1 = self.createIndex(item.row, len(self.headers)-1, item)
+            self.backing_store[k] = v
+            self.dataChanged.emit(index0, index1)
+        else:
+            self.backing_store[k] = v
+            parent = self
+            for node_name in node_names:
+                parent = self._add_item(parent, node_name, False)
+            self._add_item(parent, leaf_name, True)
+
+    def _del_item(self, parent, path):
+        if len(path) == 1:
+            # leaf
+            name = path[0]
+            item = parent.children_leaves_by_name[name]
+            row = item.row
+            self.beginRemoveRows(self._index_item(parent), row, row)
+            del parent.children_leaves_by_name[name]
+            del parent.children_by_row[row]
+            self.endRemoveRows()
+        else:
+            # node
+            name, *rest = path
+            item = parent.children_nodes_by_name[name]
+            self._del_item(item, rest)
+            if not item.children_by_row:
+                row = item.row
+                self.beginRemoveRows(self._index_item(parent), row, row)
+                del parent.children_nodes_by_name[name]
+                del parent.children_by_row[row]
+                self.endRemoveRows()
+
+    def __delitem__(self, k):
+        self._del_item(self, k.split(self.separator))
+        del self.backing_store[k]
+
+    def index_to_key(self, index):
+        item = index.internalPointer()
+        if item.children_by_row:
+            return None
+        key = item.name
+        item = item.parent
+        while item is not self:
+            key = item.name + self.separator + key
+            item = item.parent
+        return key
+
+    def data(self, index, role):
+        if not index.isValid() or role != QtCore.Qt.DisplayRole:
+            return None
+        else:
+            column = index.column()
+            if column == 0:
+                return index.internalPointer().name
+            else:
+                key = self.index_to_key(index)
+                if key is None:
+                    return None
+                else:
+                    return self.convert(key, self.backing_store[key],
+                                        column)
+
+    def convert(self, k, v, column):
+        raise NotImplementedError
