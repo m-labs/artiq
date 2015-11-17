@@ -229,6 +229,7 @@ class ExplorerDock(dockarea.Dock):
 
         self.el = QtGui.QTreeView()
         self.el.setHeaderHidden(True)
+        self.el.setSelectionBehavior(QtGui.QAbstractItemView.SelectItems)
         self.el.selectionChanged = self._selection_changed
         self.selected_key = None
         grid.addWidget(self.el, 0, 0, colspan=4)
