@@ -276,6 +276,8 @@ class DictSyncTreeSepModel(QtCore.QAbstractItemModel):
 
         self.beginInsertRows(self._index_item(parent), row, row)
         parent.children_by_row.insert(row, item)
+        for next_item in parent.children_by_row[row+1:]:
+            next_item.row += 1
         name_dict[name] = item
         self.endInsertRows()
         
@@ -308,6 +310,8 @@ class DictSyncTreeSepModel(QtCore.QAbstractItemModel):
             self.beginRemoveRows(self._index_item(parent), row, row)
             del parent.children_leaves_by_name[name]
             del parent.children_by_row[row]
+            for next_item in parent.children_by_row[row:]:
+                next_item.row -= 1
             self.endRemoveRows()
         else:
             # node
@@ -319,6 +323,8 @@ class DictSyncTreeSepModel(QtCore.QAbstractItemModel):
                 self.beginRemoveRows(self._index_item(parent), row, row)
                 del parent.children_nodes_by_name[name]
                 del parent.children_by_row[row]
+                for next_item in parent.children_by_row[row:]:
+                    next_item.row -= 1
                 self.endRemoveRows()
 
     def __delitem__(self, k):
