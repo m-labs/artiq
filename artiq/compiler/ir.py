@@ -953,6 +953,9 @@ class Branch(Terminator):
     def target(self):
         return self.operands[0]
 
+    def set_target(self, new_target):
+        self.operands[0] = new_target
+
 class BranchIf(Terminator):
     """
     A conditional branch instruction.
@@ -1212,6 +1215,9 @@ class Delay(Terminator):
 
     def target(self):
         return self.operands[0]
+
+    def set_target(self, new_target):
+        self.operands[0] = new_target
 
     def substs(self):
         return zip(self.var_names, self.operands[1:])
