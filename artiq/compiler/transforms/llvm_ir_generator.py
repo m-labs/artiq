@@ -1068,6 +1068,8 @@ class LLVMIRGenerator:
     def process_Branch(self, insn):
         return self.llbuilder.branch(self.map(insn.target()))
 
+    process_Delay = process_Branch
+
     def process_BranchIf(self, insn):
         return self.llbuilder.cbranch(self.map(insn.condition()),
                                       self.map(insn.if_true()), self.map(insn.if_false()))
