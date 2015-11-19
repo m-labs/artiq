@@ -729,23 +729,25 @@ class ARTIQIRGenerator(algorithm.Visitor):
         if_true = self.add_block()
         self.current_block = if_true
         true_result = self.visit(node.body)
+        post_if_true = self.current_block
 
         if_false = self.add_block()
         self.current_block = if_false
         false_result = self.visit(node.orelse)
+        post_if_false = self.current_block
 
         tail = self.add_block()
         self.current_block = tail
 
-        if not if_true.is_terminated():
-            if_true.append(ir.Branch(tail))
-        if not if_false.is_terminated():
-            if_false.append(ir.Branch(tail))
+        if not post_if_true.is_terminated():
+            post_if_true.append(ir.Branch(tail))
+        if not post_if_false.is_terminated():
+            post_if_false.append(ir.Branch(tail))
         head.append(ir.BranchIf(cond, if_true, if_false))
 
         phi = self.append(ir.Phi(node.type))
-        phi.add_incoming(true_result, if_true)
-        phi.add_incoming(false_result, if_false)
+        phi.add_incoming(true_result, post_if_true)
+        phi.add_incoming(false_result, post_if_false)
         return phi
 
     def visit_NumT(self, node):
