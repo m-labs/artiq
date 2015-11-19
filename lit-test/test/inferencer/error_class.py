@@ -8,9 +8,3 @@ class a(1):
 class b:
     # CHECK-L: ${LINE:+1}: fatal: class body must contain only assignments and function definitions
     x += 1
-
-class c:
-    pass
-# CHECK-L: ${LINE:+1}: fatal: variable 'c' is already defined
-class c:
-    pass
