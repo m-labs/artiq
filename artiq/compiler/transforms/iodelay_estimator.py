@@ -266,6 +266,8 @@ class IODelayEstimator(algorithm.Visitor):
                     { arg: self.evaluate(args[arg], abort=abort) for arg in free_vars })
             else:
                 assert False
+        else:
+            call_delay = iodelay.Const(0)
 
         self.current_delay += call_delay
         node.iodelay = call_delay
