@@ -8,7 +8,7 @@ semantics explicitly.
 
 from collections import OrderedDict, defaultdict
 from pythonparser import algorithm, diagnostic, ast
-from .. import types, builtins, asttyped, ir
+from .. import types, builtins, asttyped, ir, iodelay
 
 def _readable_name(insn):
     if isinstance(insn, ir.Constant):
@@ -1619,7 +1619,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 attr_node = node.func
                 self.method_map[(attr_node.value.type, attr_node.attr)].append(insn)
 
-        if node.iodelay is not None:
+        if node.iodelay is not None and not iodelay.is_const(node.iodelay, 0):
             after_delay = self.add_block()
             self.append(ir.Delay(node.iodelay,
                                  {var_name: self.current_args[var_name]
