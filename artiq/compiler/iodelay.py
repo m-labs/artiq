@@ -158,17 +158,22 @@ class Add(BinOpFixpoint):
     _op       = lambda a, b: a + b
     _fixpoint = 0
 
-class Sub(BinOpFixpoint):
-    _priority = 2
-    _symbol   = "-"
-    _op       = lambda a, b: a - b
-    _fixpoint = 0
-
 class Mul(BinOpFixpoint):
     _priority = 1
     _symbol   = "*"
     _op       = lambda a, b: a * b
     _fixpoint = 1
+
+class Sub(BinOp):
+    _priority = 2
+    _symbol   = "-"
+    _op       = lambda a, b: a - b
+
+    def _fold_binop(self, lhs, rhs):
+        if isinstance(rhs, Const) and rhs.value == 0:
+            return lhs
+        else:
+            return super()._fold_binop(lhs, rhs)
 
 class Div(BinOp):
     def _fold_binop(self, lhs, rhs):
