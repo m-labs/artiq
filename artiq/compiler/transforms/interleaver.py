@@ -3,7 +3,7 @@
 the timestamp would always monotonically nondecrease.
 """
 
-from .. import ir, iodelay
+from .. import types, builtins, ir, iodelay
 from ..analyses import domination
 
 def delay_free_subgraph(root, limit):
@@ -81,19 +81,38 @@ class Interleaver:
                 target_time_delta = new_target_time - target_time
 
                 target_terminator = target_block.terminator()
-                if isinstance(target_terminator, (ir.Delay, ir.Branch)):
-                    target_terminator.set_target(source_block)
-                elif isinstance(target_terminator, ir.Parallel):
+                if isinstance(target_terminator, ir.Parallel):
                     target_terminator.replace_with(ir.Branch(source_block))
                 else:
-                    assert False
+                    assert isinstance(target_terminator, (ir.Delay, ir.Branch))
+                    target_terminator.set_target(source_block)
 
                 source_terminator = source_block.terminator()
+
+                if isinstance(source_terminator, ir.Delay):
+                    old_decomp = source_terminator.decomposition()
+                else:
+                    old_decomp = None
+
                 if target_time_delta > 0:
                     assert isinstance(source_terminator, ir.Delay)
-                    source_terminator.expr = iodelay.Const(target_time_delta)
+
+                    if isinstance(old_decomp, ir.Builtin) and \
+                            old_decomp.op in ("delay", "delay_mu"):
+                        new_decomp_expr = ir.Constant(target_time_delta, builtins.TInt64())
+                        new_decomp = ir.Builtin("delay_mu", [new_decomp_expr], builtins.TNone())
+                        new_decomp.loc = old_decomp.loc
+                        source_terminator.basic_block.insert(source_terminator, new_decomp)
+                    else:
+                        assert False # TODO
+
+                    source_terminator.replace_with(ir.Delay(iodelay.Const(target_time_delta), {},
+                                                            new_decomp, source_terminator.target()))
                 else:
                     source_terminator.replace_with(ir.Branch(source_terminator.target()))
+
+                if old_decomp is not None:
+                    old_decomp.erase()
 
                 target_block = source_block
                 target_time  = new_target_time

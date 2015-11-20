@@ -1418,15 +1418,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         return self.append(ir.Alloc(attributes, typ))
 
-    def _make_delay(self, delay):
-        if not iodelay.is_const(delay, 0):
-            after_delay = self.add_block()
-            self.append(ir.Delay(delay,
-                                 {var_name: self.current_args[var_name]
-                                  for var_name in delay.free_vars()},
-                                 after_delay))
-            self.current_block = after_delay
-
     def visit_builtin_call(self, node):
         # A builtin by any other name... Ignore node.func, just use the type.
         typ = node.func.type
@@ -1529,7 +1520,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 return self.append(ir.Arith(ast.Mult(loc=None), now_mu_float, self.ref_period))
             else:
                 assert False
-        elif types.is_builtin(typ, "at"):
+        elif types.is_builtin(typ, "delay") or types.is_builtin(typ, "at"):
             if len(node.args) == 1 and len(node.keywords) == 0:
                 arg = self.visit(node.args[0])
                 arg_mu_float = self.append(ir.Arith(ast.Div(loc=None), arg, self.ref_period))
@@ -1537,7 +1528,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.append(ir.Builtin(typ.name + "_mu", [arg_mu], builtins.TNone()))
             else:
                 assert False
-        elif types.is_builtin(typ, "now_mu") or types.is_builtin(typ, "at_mu"):
+        elif types.is_builtin(typ, "now_mu") or types.is_builtin(typ, "delay_mu") \
+                or types.is_builtin(typ, "at_mu"):
             return self.append(ir.Builtin(typ.name,
                                           [self.visit(arg) for arg in node.args], node.type))
         elif types.is_builtin(typ, "mu_to_seconds"):
@@ -1554,9 +1546,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 return self.append(ir.Coerce(arg_mu, builtins.TInt(types.TValue(64))))
             else:
                 assert False
-        elif types.is_builtin(typ, "delay") or types.is_builtin(typ, "delay_mu"):
-            assert node.iodelay is not None
-            self._make_delay(node.iodelay)
         elif types.is_exn_constructor(typ):
             return self.alloc_exn(node.type, *[self.visit(arg_node) for arg_node in node.args])
         elif types.is_constructor(typ):
@@ -1567,77 +1556,82 @@ class ARTIQIRGenerator(algorithm.Visitor):
     def visit_CallT(self, node):
         typ = node.func.type.find()
 
+        if node.iodelay is not None and not iodelay.is_const(node.iodelay, 0):
+            before_delay = self.current_block
+            during_delay = self.add_block()
+            before_delay.append(ir.Branch(during_delay))
+            self.current_block = during_delay
+
         if types.is_builtin(typ):
-            return self.visit_builtin_call(node)
-
-        if types.is_function(typ):
-            func     = self.visit(node.func)
-            self_arg = None
-            fn_typ   = typ
-            offset   = 0
-        elif types.is_method(typ):
-            method   = self.visit(node.func)
-            func     = self.append(ir.GetAttr(method, "__func__"))
-            self_arg = self.append(ir.GetAttr(method, "__self__"))
-            fn_typ   = types.get_method_function(typ)
-            offset   = 1
+            insn = self.visit_builtin_call(node)
         else:
-            assert False
-
-        args = [None] * (len(fn_typ.args) + len(fn_typ.optargs))
-
-        for index, arg_node in enumerate(node.args):
-            arg = self.visit(arg_node)
-            if index < len(fn_typ.args):
-                args[index + offset] = arg
+            if types.is_function(typ):
+                func     = self.visit(node.func)
+                self_arg = None
+                fn_typ   = typ
+                offset   = 0
+            elif types.is_method(typ):
+                method   = self.visit(node.func)
+                func     = self.append(ir.GetAttr(method, "__func__"))
+                self_arg = self.append(ir.GetAttr(method, "__self__"))
+                fn_typ   = types.get_method_function(typ)
+                offset   = 1
             else:
-                args[index + offset] = self.append(ir.Alloc([arg], ir.TOption(arg.type)))
+                assert False
 
-        for keyword in node.keywords:
-            arg = self.visit(keyword.value)
-            if keyword.arg in fn_typ.args:
-                for index, arg_name in enumerate(fn_typ.args):
-                    if keyword.arg == arg_name:
-                        assert args[index] is None
-                        args[index] = arg
-                        break
-            elif keyword.arg in fn_typ.optargs:
-                for index, optarg_name in enumerate(fn_typ.optargs):
-                    if keyword.arg == optarg_name:
-                        assert args[len(fn_typ.args) + index] is None
-                        args[len(fn_typ.args) + index] = \
-                                self.append(ir.Alloc([arg], ir.TOption(arg.type)))
-                        break
+            args = [None] * (len(fn_typ.args) + len(fn_typ.optargs))
 
-        for index, optarg_name in enumerate(fn_typ.optargs):
-            if args[len(fn_typ.args) + index] is None:
-                args[len(fn_typ.args) + index] = \
-                        self.append(ir.Alloc([], ir.TOption(fn_typ.optargs[optarg_name])))
+            for index, arg_node in enumerate(node.args):
+                arg = self.visit(arg_node)
+                if index < len(fn_typ.args):
+                    args[index + offset] = arg
+                else:
+                    args[index + offset] = self.append(ir.Alloc([arg], ir.TOption(arg.type)))
 
-        if self_arg is not None:
-            assert args[0] is None
-            args[0] = self_arg
+            for keyword in node.keywords:
+                arg = self.visit(keyword.value)
+                if keyword.arg in fn_typ.args:
+                    for index, arg_name in enumerate(fn_typ.args):
+                        if keyword.arg == arg_name:
+                            assert args[index] is None
+                            args[index] = arg
+                            break
+                elif keyword.arg in fn_typ.optargs:
+                    for index, optarg_name in enumerate(fn_typ.optargs):
+                        if keyword.arg == optarg_name:
+                            assert args[len(fn_typ.args) + index] is None
+                            args[len(fn_typ.args) + index] = \
+                                    self.append(ir.Alloc([arg], ir.TOption(arg.type)))
+                            break
 
-        assert None not in args
+            for index, optarg_name in enumerate(fn_typ.optargs):
+                if args[len(fn_typ.args) + index] is None:
+                    args[len(fn_typ.args) + index] = \
+                            self.append(ir.Alloc([], ir.TOption(fn_typ.optargs[optarg_name])))
 
-        if self.unwind_target is None:
-            insn = self.append(ir.Call(func, args))
-        else:
-            after_invoke = self.add_block()
-            insn = self.append(ir.Invoke(func, args, after_invoke, self.unwind_target))
-            self.current_block = after_invoke
+            if self_arg is not None:
+                assert args[0] is None
+                args[0] = self_arg
 
-        method_key = None
-        if isinstance(node.func, asttyped.AttributeT):
-            attr_node = node.func
-            self.method_map[(attr_node.value.type, attr_node.attr)].append(insn)
+            assert None not in args
+
+            if self.unwind_target is None:
+                insn = self.append(ir.Call(func, args))
+            else:
+                after_invoke = self.add_block()
+                insn = self.append(ir.Invoke(func, args, after_invoke, self.unwind_target))
+                self.current_block = after_invoke
+
+            method_key = None
+            if isinstance(node.func, asttyped.AttributeT):
+                attr_node = node.func
+                self.method_map[(attr_node.value.type, attr_node.attr)].append(insn)
 
         if node.iodelay is not None and not iodelay.is_const(node.iodelay, 0):
             after_delay = self.add_block()
-            self.append(ir.Delay(node.iodelay,
-                                 {var_name: self.current_args[var_name]
-                                  for var_name in node.iodelay.free_vars()},
-                                 after_delay))
+            substs = {var_name: self.current_args[var_name]
+                      for var_name in node.iodelay.free_vars()}
+            self.append(ir.Delay(node.iodelay, substs, insn, after_delay))
             self.current_block = after_delay
 
         return insn

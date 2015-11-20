@@ -38,6 +38,12 @@ class TInt(types.TMono):
     def one():
         return 1
 
+def TInt32():
+    return TInt(types.TValue(32))
+
+def TInt64():
+    return TInt(types.TValue(64))
+
 class TFloat(types.TMono):
     def __init__(self):
         super().__init__("float")

@@ -72,6 +72,16 @@ class Constant(Value):
         return "{} {}".format(type_printer.name(self.type),
                               repr(self.value))
 
+    def __hash__(self):
+        return hash(self.value)
+
+    def __eq__(self, other):
+        return isinstance(other, Constant) and \
+            other.type == self.type and other.value == self.value
+
+    def __ne__(self, other):
+        return not (self == other)
+
 class NamedValue(Value):
     """
     An SSA value that has a name.
@@ -190,7 +200,7 @@ class Instruction(User):
         return ", ".join([operand.as_operand(type_printer) for operand in self.operands])
 
     def as_entity(self, type_printer):
-        if builtins.is_none(self.type):
+        if builtins.is_none(self.type) and len(self.uses) == 0:
             prefix = ""
         else:
             prefix = "%{} = {} ".format(escape_name(self.name),
@@ -1198,35 +1208,46 @@ class Delay(Terminator):
 
     :ivar expr: (:class:`iodelay.Expr`) expression
     :ivar var_names: (list of string)
-        iodelay expression names corresponding to operands
+        iodelay variable names corresponding to operands
     """
 
     """
     :param expr: (:class:`iodelay.Expr`) expression
     :param substs: (dict of str to :class:`Value`)
+        SSA values corresponding to iodelay variable names
+    :param call: (:class:`Call` or ``Constant(None, builtins.TNone())``)
+        the call instruction that caused this delay, if any
     :param target: (:class:`BasicBlock`) branch target
     """
-    def __init__(self, expr, substs, target, name=""):
+    def __init__(self, expr, substs, decomposition, target, name=""):
         for var_name in substs: assert isinstance(var_name, str)
+        assert isinstance(decomposition, Call) or \
+            isinstance(decomposition, Builtin) and decomposition.op in ("delay", "delay_mu")
         assert isinstance(target, BasicBlock)
-        super().__init__([target, *substs.values()], builtins.TNone(), name)
+        super().__init__([decomposition, target, *substs.values()], builtins.TNone(), name)
         self.expr = expr
         self.var_names = list(substs.keys())
 
-    def target(self):
+    def decomposition(self):
         return self.operands[0]
 
+    def target(self):
+        return self.operands[1]
+
     def set_target(self, new_target):
-        self.operands[0] = new_target
+        self.operands[1] = new_target
 
     def substs(self):
-        return zip(self.var_names, self.operands[1:])
+        return zip(self.var_names, self.operands[2:])
 
     def _operands_as_string(self, type_printer):
         substs = []
         for var_name, operand in self.substs():
             substs.append("{}={}".format(var_name, operand))
-        return "[{}], {}".format(", ".join(substs), self.target().as_operand(type_printer))
+        result = "[{}]".format(", ".join(substs))
+        result += ", decomp {}, to {}".format(self.decomposition().as_operand(type_printer),
+                                              self.target().as_operand(type_printer))
+        return result
 
     def opcode(self):
         return "delay({})".format(self.expr)

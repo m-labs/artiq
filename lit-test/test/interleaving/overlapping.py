@@ -17,9 +17,9 @@ def g():
             #
             print("E", now_mu())
 
+# CHECK-L: A 0
 # CHECK-L: C 0
-# CHECK-L: A 2
+# CHECK-L: D 2
 # CHECK-L: B 3
-# CHECK-L: D 3
 # CHECK-L: E 4
 g()
