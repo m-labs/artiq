@@ -104,7 +104,7 @@ class Interleaver:
                         new_decomp.loc = old_decomp.loc
                         source_terminator.basic_block.insert(source_terminator, new_decomp)
                     else:
-                        assert False # TODO
+                        old_decomp, new_decomp = None, old_decomp
 
                     source_terminator.replace_with(ir.Delay(iodelay.Const(target_time_delta), {},
                                                             new_decomp, source_terminator.target()))
