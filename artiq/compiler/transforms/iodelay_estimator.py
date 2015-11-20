@@ -10,6 +10,10 @@ from .. import types, iodelay, builtins, asttyped
 class _UnknownDelay(Exception):
     pass
 
+class _IndeterminateDelay(Exception):
+    def __init__(self, cause):
+        self.cause = cause
+
 class IODelayEstimator(algorithm.Visitor):
     def __init__(self, engine, ref_period):
         self.engine         = engine
@@ -69,7 +73,7 @@ class IODelayEstimator(algorithm.Visitor):
 
     def abort(self, message, loc, notes=[]):
         diag = diagnostic.Diagnostic("error", message, {}, loc, notes=notes)
-        raise diagnostic.Error(diag)
+        raise _IndeterminateDelay(diag)
 
     def visit_fixpoint(self, node):
         while True:
@@ -85,7 +89,7 @@ class IODelayEstimator(algorithm.Visitor):
                     self.visit(stmt)
                 except _UnknownDelay:
                     pass # more luck next time?
-        except diagnostic.Error:
+        except _IndeterminateDelay:
             pass # we don't care; module-level code is never interleaved
 
     def visit_function(self, args, body, typ, loc):
@@ -99,8 +103,8 @@ class IODelayEstimator(algorithm.Visitor):
                            "can be interleaved", self.current_return.loc)
 
             delay = types.TFixedDelay(self.current_delay.fold())
-        except diagnostic.Error as error:
-            delay = types.TIndeterminateDelay(error.diagnostic)
+        except _IndeterminateDelay as error:
+            delay = types.TIndeterminateDelay(error.cause)
         self.current_delay = old_delay
         self.current_return = old_return
         self.current_args = old_args
@@ -208,14 +212,21 @@ class IODelayEstimator(algorithm.Visitor):
 
         context_expr = node.items[0].context_expr
         if len(node.items) == 1 and types.is_builtin(context_expr.type, "parallel"):
-            delays = []
-            for stmt in node.body:
-                old_delay, self.current_delay = self.current_delay, iodelay.Const(0)
-                self.visit(stmt)
-                delays.append(self.current_delay)
-                self.current_delay = old_delay
+            try:
+                delays = []
+                for stmt in node.body:
+                    old_delay, self.current_delay = self.current_delay, iodelay.Const(0)
+                    self.visit(stmt)
+                    delays.append(self.current_delay)
+                    self.current_delay = old_delay
 
-            self.current_delay += iodelay.Max(delays)
+                self.current_delay += iodelay.Max(delays)
+            except _IndeterminateDelay as error:
+                # Interleave failures inside `with` statements are hard failures,
+                # since there's no chance that the code will never actually execute
+                # inside a `with` statement after all.
+                self.engine.process(error.cause)
+
         elif len(node.items) == 1 and types.is_builtin(context_expr.type, "sequential"):
             self.visit(node.body)
         else:
@@ -247,13 +258,14 @@ class IODelayEstimator(algorithm.Visitor):
             if types.is_var(delay):
                 raise _UnknownDelay()
             elif delay.is_indeterminate():
-                cause = delay.cause
                 note = diagnostic.Diagnostic("note",
                     "function called here", {},
                     node.loc)
-                diag = diagnostic.Diagnostic(cause.level, cause.reason, cause.arguments,
-                                             cause.location, cause.highlights, cause.notes + [note])
-                raise diagnostic.Error(diag)
+                cause = delay.cause
+                cause = diagnostic.Diagnostic(cause.level, cause.reason, cause.arguments,
+                                              cause.location, cause.highlights,
+                                              cause.notes + [note])
+                raise _IndeterminateDelay(cause)
             elif delay.is_fixed():
                 args = {}
                 for kw_node in node.keywords:
