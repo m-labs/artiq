@@ -7,7 +7,7 @@ import os
 from pythonparser import ast, diagnostic
 from llvmlite_artiq import ir as ll
 from ...language import core as language_core
-from .. import types, builtins, ir
+from .. import types, builtins, ir, iodelay
 
 
 llvoid     = ll.VoidType()
@@ -784,12 +784,6 @@ class LLVMIRGenerator:
             return self.map(insn.operands[0])
         elif insn.op == "now_mu":
             return self.llbuilder.load(self.llbuiltin("now"), name=insn.name)
-        elif insn.op == "delay_mu":
-            interval, = insn.operands
-            llnowptr = self.llbuiltin("now")
-            llnow = self.llbuilder.load(llnowptr)
-            lladjusted = self.llbuilder.add(llnow, self.map(interval))
-            return self.llbuilder.store(lladjusted, llnowptr)
         elif insn.op == "at_mu":
             time, = insn.operands
             return self.llbuilder.store(self.map(time), self.llbuiltin("now"))
@@ -1068,8 +1062,6 @@ class LLVMIRGenerator:
     def process_Branch(self, insn):
         return self.llbuilder.branch(self.map(insn.target()))
 
-    process_Delay = process_Branch
-
     def process_BranchIf(self, insn):
         return self.llbuilder.cbranch(self.map(insn.condition()),
                                       self.map(insn.if_true()), self.map(insn.if_false()))
@@ -1150,3 +1142,16 @@ class LLVMIRGenerator:
 
         return llexn
 
+    def process_Delay(self, insn):
+        def map_delay(expr):
+            if isinstance(expr, iodelay.Const):
+                return ll.Constant(lli64, int(expr.value))
+            else:
+                assert False
+
+        llnowptr = self.llbuiltin("now")
+        llnow = self.llbuilder.load(llnowptr)
+        lladjusted = self.llbuilder.add(llnow, map_delay(insn.expr))
+        self.llbuilder.store(lladjusted, llnowptr)
+
+        return self.llbuilder.branch(self.map(insn.target()))

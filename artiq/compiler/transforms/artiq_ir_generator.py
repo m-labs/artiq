@@ -1418,6 +1418,15 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         return self.append(ir.Alloc(attributes, typ))
 
+    def _make_delay(self, delay):
+        if not iodelay.is_const(delay, 0):
+            after_delay = self.add_block()
+            self.append(ir.Delay(delay,
+                                 {var_name: self.current_args[var_name]
+                                  for var_name in delay.free_vars()},
+                                 after_delay))
+            self.current_block = after_delay
+
     def visit_builtin_call(self, node):
         # A builtin by any other name... Ignore node.func, just use the type.
         typ = node.func.type
@@ -1520,7 +1529,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 return self.append(ir.Arith(ast.Mult(loc=None), now_mu_float, self.ref_period))
             else:
                 assert False
-        elif types.is_builtin(typ, "delay") or types.is_builtin(typ, "at"):
+        elif types.is_builtin(typ, "at"):
             if len(node.args) == 1 and len(node.keywords) == 0:
                 arg = self.visit(node.args[0])
                 arg_mu_float = self.append(ir.Arith(ast.Div(loc=None), arg, self.ref_period))
@@ -1528,8 +1537,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.append(ir.Builtin(typ.name + "_mu", [arg_mu], builtins.TNone()))
             else:
                 assert False
-        elif types.is_builtin(typ, "now_mu") or types.is_builtin(typ, "delay_mu") \
-                or types.is_builtin(typ, "at_mu"):
+        elif types.is_builtin(typ, "now_mu") or types.is_builtin(typ, "at_mu"):
             return self.append(ir.Builtin(typ.name,
                                           [self.visit(arg) for arg in node.args], node.type))
         elif types.is_builtin(typ, "mu_to_seconds"):
@@ -1546,6 +1554,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 return self.append(ir.Coerce(arg_mu, builtins.TInt(types.TValue(64))))
             else:
                 assert False
+        elif types.is_builtin(typ, "delay") or types.is_builtin(typ, "delay_mu"):
+            assert node.iodelay is not None
+            self._make_delay(node.iodelay)
         elif types.is_exn_constructor(typ):
             return self.alloc_exn(node.type, *[self.visit(arg_node) for arg_node in node.args])
         elif types.is_constructor(typ):
@@ -1557,18 +1568,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         typ = node.func.type.find()
 
         if types.is_builtin(typ):
-            insn = self.visit_builtin_call(node)
-
-            # Temporary.
-            if node.iodelay is not None and not iodelay.is_const(node.iodelay, 0):
-                after_delay = self.add_block()
-                self.append(ir.Delay(node.iodelay,
-                                     {var_name: self.current_args[var_name]
-                                      for var_name in node.iodelay.free_vars()},
-                                     after_delay))
-                self.current_block = after_delay
-
-            return insn
+            return self.visit_builtin_call(node)
 
         if types.is_function(typ):
             func     = self.visit(node.func)

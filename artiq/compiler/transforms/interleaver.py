@@ -77,6 +77,9 @@ class Interleaver:
                 index, source_block = min(enumerate(source_blocks), key=time_after_block)
                 source_block_delay  = iodelay_of_block(source_block)
 
+                new_target_time   = source_times[index] + source_block_delay
+                target_time_delta = new_target_time - target_time
+
                 target_terminator = target_block.terminator()
                 if isinstance(target_terminator, (ir.Delay, ir.Branch)):
                     target_terminator.set_target(source_block)
@@ -85,8 +88,15 @@ class Interleaver:
                 else:
                     assert False
 
-                target_block  = source_block
-                target_time  += source_block_delay
+                source_terminator = source_block.terminator()
+                if target_time_delta > 0:
+                    assert isinstance(source_terminator, ir.Delay)
+                    source_terminator.expr = iodelay.Const(target_time_delta)
+                else:
+                    source_terminator.replace_with(ir.Branch(source_terminator.target()))
+
+                target_block = source_block
+                target_time  = new_target_time
 
                 new_source_block = postdom_tree.immediate_dominator(source_block)
                 assert (new_source_block is not None)
@@ -98,4 +108,4 @@ class Interleaver:
                     del source_times[index]
                 else:
                     source_blocks[index] = new_source_block
-                    source_times[index]  = target_time
+                    source_times[index]  = new_target_time
