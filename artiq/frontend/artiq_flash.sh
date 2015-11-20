@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 # conda-build requires all scripts to have a python shebang.
 # see https://github.com/conda/conda-build/blob/6921f067a/conda_build/noarch_python.py#L36-L38
 
@@ -13,7 +13,7 @@ def run(script):
 run("""
 set -e
 
-ARTIQ_PREFIX=$(python3 -c "import artiq; print(artiq.__path__[0])")
+ARTIQ_PREFIX=$(python3.5 -c "import artiq; print(artiq.__path__[0])")
 
 # Default is kc705
 BOARD=kc705

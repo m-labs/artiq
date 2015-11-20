@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.5
 # Yann Sionneau <ys@m-labs.hk>, 2015
 
 import argparse
