@@ -27,16 +27,16 @@ class _Range(LayoutWidget):
         apply_properties(self.min)
         self.addWidget(self.min, 0, 1)
 
-        self.addWidget(QtGui.QLabel("Max:"), 0, 2)
+        self.addWidget(QtGui.QLabel("Max:"), 1, 0)
         self.max = QtGui.QDoubleSpinBox()
         apply_properties(self.max)
-        self.addWidget(self.max, 0, 3)
+        self.addWidget(self.max, 1, 1)
 
-        self.addWidget(QtGui.QLabel("#Points:"), 0, 4)
+        self.addWidget(QtGui.QLabel("#Points:"), 2, 0)
         self.npoints = QtGui.QSpinBox()
         self.npoints.setMinimum(2)
         self.npoints.setValue(10)
-        self.addWidget(self.npoints, 0, 5)
+        self.addWidget(self.npoints, 2, 1)
 
     def set_values(self, min, max, npoints):
         self.min.setValue(min/self.scale)
