@@ -289,8 +289,8 @@ Installing the host-side software
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/m-labs/llvmlite
-        $ git checkout artiq
         $ cd llvmlite
+        $ git checkout artiq
         $ LLVM_CONFIG=/usr/local/llvm-or1k/bin/llvm-config python3.5 setup.py install --user
 
 * Install ARTIQ: ::
@@ -424,3 +424,19 @@ Then reload ``udev``, add your user to the ``dialout`` group, and log out and lo
     $ sudo invoke-rc.d udev reload
     $ sudo adduser <your username> dialout
     $ logout
+
+Fedora 22 specific instructions
+-------------------------------
+
+- Make xc3sprog compile:
+
+Fedora packages the libftdi1 as libftdi, so the autodetection of the library fails. To make it work, you have to explicitly point cmake to the right folder and library: ::
+
+    $ cmake -DLIBFTDI_INCLUDE_DIR=/usr/include/libftdi1 -DLIBFTDI_LIBRARIES=/usr/lib64/libftdi1.so . && make
+
+- Get permission to access the Pipistrello Board:
+
+To be able to access the JTAG and serial ports of the Pipistrello, you have to be in the group plugdev. Do that by running the following command and log out and log in again afterwards. ::
+
+    $ sudo adduser <your username> plugdev
+
