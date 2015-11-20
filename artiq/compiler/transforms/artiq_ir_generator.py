@@ -1525,7 +1525,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 arg = self.visit(node.args[0])
                 arg_mu_float = self.append(ir.Arith(ast.Div(loc=None), arg, self.ref_period))
                 arg_mu = self.append(ir.Coerce(arg_mu_float, builtins.TInt(types.TValue(64))))
-                self.append(ir.Builtin(typ.name + "_mu", [arg_mu], builtins.TNone()))
+                return self.append(ir.Builtin(typ.name + "_mu", [arg_mu], builtins.TNone()))
             else:
                 assert False
         elif types.is_builtin(typ, "now_mu") or types.is_builtin(typ, "delay_mu") \
