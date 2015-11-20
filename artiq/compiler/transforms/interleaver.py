@@ -6,6 +6,25 @@ the timestamp would always monotonically nondecrease.
 from .. import ir, iodelay
 from ..analyses import domination
 
+def delay_free_subgraph(root, limit):
+    visited = set()
+    queue   = root.successors()
+    while len(queue) > 0:
+        block = queue.pop()
+        visited.add(block)
+
+        if block is limit:
+            continue
+
+        if isinstance(block.terminator(), ir.Delay):
+            return False
+
+        for successor in block.successors():
+            if successor not in visited:
+                queue.append(successor)
+
+    return True
+
 class Interleaver:
     def __init__(self, engine):
         self.engine = engine
@@ -66,6 +85,7 @@ class Interleaver:
 
                     new_source_block = postdom_tree.immediate_dominator(source_block)
                     assert (new_source_block is not None)
+                    assert delay_free_subgraph(source_block, new_source_block)
 
                     target_block          = source_block
                     target_time          += source_block_delay
