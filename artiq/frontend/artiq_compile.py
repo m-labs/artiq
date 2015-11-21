@@ -40,7 +40,7 @@ def main():
     dataset_mgr = DatasetManager(DatasetDB(args.dataset_db))
 
     try:
-        module = file_import(args.file)
+        module = file_import(args.file, prefix="artiq_run_")
         exp = get_experiment(module, args.experiment)
         arguments = parse_arguments(args.arguments)
         exp_inst = exp(device_mgr, dataset_mgr, **arguments)
