@@ -65,8 +65,9 @@ class Interleaver:
                     terminator = block.terminator()
                     if isinstance(terminator, ir.Delay):
                         # We should be able to fold everything without free variables.
-                        assert iodelay.is_const(terminator.expr)
-                        return terminator.expr.value
+                        folded_expr = terminator.expr.fold()
+                        assert iodelay.is_const(folded_expr)
+                        return folded_expr.value
                     else:
                         return 0
 
