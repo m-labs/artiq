@@ -221,8 +221,13 @@ def main():
                 put_object({"action": "completed"})
             elif action == "terminate":
                 break
-    except:
-        logging.error("Worker terminating with exception", exc_info=True)
+    except Exception as exc:
+        short_exc_info = type(exc).__name__
+        exc_str = str(exc)
+        if exc_str:
+            short_exc_info += ": " + exc_str
+        logging.error("Terminating with exception (%s)",
+                      short_exc_info, exc_info=True)
     finally:
         device_mgr.close_devices()
 
