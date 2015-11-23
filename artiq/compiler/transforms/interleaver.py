@@ -25,6 +25,9 @@ def delay_free_subgraph(root, limit):
 
     return True
 
+def is_pure_delay(insn):
+    return isinstance(insn, ir.Builtin) and insn.op in ("delay", "delay_mu")
+
 class Interleaver:
     def __init__(self, engine):
         self.engine = engine
@@ -98,14 +101,26 @@ class Interleaver:
                 if target_time_delta > 0:
                     assert isinstance(source_terminator, ir.Delay)
 
-                    if isinstance(old_decomp, ir.Builtin) and \
-                            old_decomp.op in ("delay", "delay_mu"):
+                    if is_pure_delay(old_decomp):
                         new_decomp_expr = ir.Constant(target_time_delta, builtins.TInt64())
                         new_decomp = ir.Builtin("delay_mu", [new_decomp_expr], builtins.TNone())
                         new_decomp.loc = old_decomp.loc
                         source_terminator.basic_block.insert(source_terminator, new_decomp)
-                    else:
-                        old_decomp, new_decomp = None, old_decomp
+                    else: # It's a call.
+                        need_to_inline = False
+                        for other_source_block in filter(lambda block: block != source_block,
+                                                         source_blocks):
+                            other_source_terminator = other_source_block.terminator()
+                            if not (is_pure_delay(other_source_terminator.decomposition()) and \
+                                    iodelay.is_const(other_source_terminator.expr) and \
+                                    other_source_terminator.expr.fold().value >= source_block_delay):
+                                need_to_inline = True
+                                break
+
+                        if need_to_inline:
+                            assert False
+                        else:
+                            old_decomp, new_decomp = None, old_decomp
 
                     source_terminator.replace_with(ir.Delay(iodelay.Const(target_time_delta), {},
                                                             new_decomp, source_terminator.target()))
