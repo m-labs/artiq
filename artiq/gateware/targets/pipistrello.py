@@ -128,12 +128,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
 """
         platform.add_extension(nist_qc1.papilio_adapter_io)
 
-        self.submodules.leds = gpio.GPIOOut(Cat(
-            platform.request("user_led", 0),
-            platform.request("user_led", 1),
-            platform.request("user_led", 2),
-            platform.request("user_led", 3),
-        ))
+        self.submodules.leds = gpio.GPIOOut(platform.request("user_led", 4))
 
         self.comb += [
             platform.request("ttl_l_tx_en").eq(1),
@@ -170,9 +165,10 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
 
-        phy = ttl_simple.Output(platform.request("user_led", 4))
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
+        for led_number in range(4):
+            phy = ttl_simple.Output(platform.request("user_led", led_number))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
 
         self.add_constant("RTIO_REGULAR_TTL_COUNT", len(rtio_channels))
 
