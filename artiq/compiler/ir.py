@@ -463,12 +463,23 @@ class Function:
             yield from iter(basic_block.instructions)
 
     def as_entity(self, type_printer):
+        postorder = []
+        visited   = set()
+        def visit(block):
+            visited.add(block)
+            for next_block in block.successors():
+                if next_block not in visited:
+                    visit(next_block)
+            postorder.append(block)
+
+        visit(self.entry())
+
         lines = []
         lines.append("{} {}({}) {{ ; type: {}".format(
                         type_printer.name(self.type.ret), self.name,
                         ", ".join([arg.as_operand(type_printer) for arg in self.arguments]),
                         type_printer.name(self.type)))
-        for block in self.basic_blocks:
+        for block in reversed(postorder):
             lines.append(block.as_entity(type_printer))
         lines.append("}")
         return "\n".join(lines)
