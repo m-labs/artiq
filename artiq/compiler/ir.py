@@ -163,6 +163,12 @@ class Instruction(User):
         self.basic_block = None
         self.loc = None
 
+    def copy(self, mapper):
+        self_copy = self.__class__.__new__(self.__class__)
+        Instruction.__init__(self_copy, list(map(mapper, self.operands)),
+                             self.type, self.name)
+        return self_copy
+
     def set_basic_block(self, new_basic_block):
         self.basic_block = new_basic_block
         if self.basic_block is not None:
@@ -585,6 +591,11 @@ class GetLocal(Instruction):
         super().__init__([env], env.type.type_of(var_name), name)
         self.var_name = var_name
 
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.var_name = self.var_name
+        return self_copy
+
     def opcode(self):
         return "getlocal({})".format(repr(self.var_name))
 
@@ -612,6 +623,11 @@ class SetLocal(Instruction):
         assert isinstance(value, Value)
         super().__init__([env, value], builtins.TNone(), name)
         self.var_name = var_name
+
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.var_name = self.var_name
+        return self_copy
 
     def opcode(self):
         return "setlocal({})".format(repr(self.var_name))
@@ -643,6 +659,11 @@ class GetConstructor(Instruction):
         super().__init__([env], var_type, name)
         self.var_name = var_name
 
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.var_name = self.var_name
+        return self_copy
+
     def opcode(self):
         return "getconstructor({})".format(repr(self.var_name))
 
@@ -672,6 +693,11 @@ class GetAttr(Instruction):
         super().__init__([obj], typ, name)
         self.attr = attr
 
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.attr = self.attr
+        return self_copy
+
     def opcode(self):
         return "getattr({})".format(repr(self.attr))
 
@@ -700,6 +726,11 @@ class SetAttr(Instruction):
             assert value.type == obj.type.attributes[attr].find()
         super().__init__([obj, value], builtins.TNone(), name)
         self.attr = attr
+
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.attr = self.attr
+        return self_copy
 
     def opcode(self):
         return "setattr({})".format(repr(self.attr))
@@ -798,6 +829,11 @@ class Arith(Instruction):
         super().__init__([lhs, rhs], lhs.type, name)
         self.op = op
 
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.op = self.op
+        return self_copy
+
     def opcode(self):
         return "arith({})".format(type(self.op).__name__)
 
@@ -827,6 +863,11 @@ class Compare(Instruction):
         super().__init__([lhs, rhs], builtins.TBool(), name)
         self.op = op
 
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.op = self.op
+        return self_copy
+
     def opcode(self):
         return "compare({})".format(type(self.op).__name__)
 
@@ -853,6 +894,11 @@ class Builtin(Instruction):
         super().__init__(operands, typ, name)
         self.op = op
 
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.op = self.op
+        return self_copy
+
     def opcode(self):
         return "builtin({})".format(self.op)
 
@@ -873,6 +919,11 @@ class Closure(Instruction):
         assert is_environment(env.type)
         super().__init__([env], func.type, name)
         self.target_function = func
+
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.target_function = self.target_function
+        return self_copy
 
     def opcode(self):
         return "closure({})".format(self.target_function.name)
@@ -897,6 +948,11 @@ class Call(Instruction):
         for arg in args: assert isinstance(arg, Value)
         super().__init__([func] + args, func.type.ret, name)
         self.static_target_function = None
+
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.static_target_function = self.static_target_function
+        return self_copy
 
     def opcode(self):
         return "call"
@@ -956,6 +1012,11 @@ class Quote(Instruction):
     def __init__(self, value, typ, name=""):
         super().__init__([], typ, name)
         self.value = value
+
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.value = self.value
+        return self_copy
 
     def opcode(self):
         return "quote({})".format(repr(self.value))
@@ -1148,6 +1209,11 @@ class Invoke(Terminator):
         super().__init__([func] + args + [normal, exn], func.type.ret, name)
         self.static_target_function = None
 
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.static_target_function = self.static_target_function
+        return self_copy
+
     def opcode(self):
         return "invoke"
 
@@ -1190,6 +1256,11 @@ class LandingPad(Terminator):
     def __init__(self, cleanup, name=""):
         super().__init__([cleanup], builtins.TException(), name)
         self.types = []
+
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.types = list(self.types)
+        return self_copy
 
     def opcode(self):
         return "landingpad"
@@ -1244,6 +1315,12 @@ class Delay(Terminator):
         super().__init__([decomposition, target, *substs.values()], builtins.TNone(), name)
         self.expr = expr
         self.var_names = list(substs.keys())
+
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.expr = self.expr
+        self_copy.var_names = list(self.var_names)
+        return self_copy
 
     def decomposition(self):
         return self.operands[0]
