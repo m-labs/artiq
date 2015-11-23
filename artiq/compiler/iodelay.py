@@ -95,10 +95,6 @@ class Conv(Expr):
     def free_vars(self):
         return self.operand.free_vars()
 
-    def fold(self, vars=None):
-        return self.__class__(self.operand.fold(vars),
-                              ref_period=self.ref_period)
-
 class MUToS(Conv):
     def __str__(self):
         return "mu->s({})".format(self.operand)
@@ -107,10 +103,11 @@ class MUToS(Conv):
         return self.operand.eval(env) * self.ref_period
 
     def fold(self, vars=None):
-        if isinstance(self.operand, Const):
-            return Const(self.operand.value * self.ref_period)
+        operand = self.operand.fold(vars)
+        if isinstance(operand, Const):
+            return Const(operand.value * self.ref_period)
         else:
-            return super().fold(vars)
+            return MUToS(operand, ref_period=self.ref_period)
 
 class SToMU(Conv):
     def __str__(self):
@@ -120,10 +117,11 @@ class SToMU(Conv):
         return self.operand.eval(env) / self.ref_period
 
     def fold(self, vars=None):
-        if isinstance(self.operand, Const):
-            return Const(self.operand.value / self.ref_period)
+        operand = self.operand.fold(vars)
+        if isinstance(operand, Const):
+            return Const(operand.value / self.ref_period)
         else:
-            return super().fold(vars)
+            return SToMU(operand, ref_period=self.ref_period)
 
 class BinOp(Expr):
     def __init__(self, lhs, rhs):
