@@ -20,7 +20,7 @@ def main():
     ddb_path = os.path.join(os.path.dirname(sys.argv[1]), "device_db.pyon")
 
     try:
-        core = Core(dmgr=DeviceManager(DeviceDB(ddb_path)))
+        core = DeviceManager(DeviceDB(ddb_path)).get("core")
         if compile_only:
             core.compile(testcase_vars["entrypoint"], (), {})
         else:
