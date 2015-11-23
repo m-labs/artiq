@@ -220,7 +220,8 @@ class IODelayEstimator(algorithm.Visitor):
                     delays.append(self.current_delay)
                     self.current_delay = old_delay
 
-                self.current_delay += iodelay.Max(delays)
+                if any(delays):
+                    self.current_delay += iodelay.Max(delays)
             except _IndeterminateDelay as error:
                 # Interleave failures inside `with` statements are hard failures,
                 # since there's no chance that the code will never actually execute

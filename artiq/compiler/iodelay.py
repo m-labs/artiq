@@ -208,6 +208,7 @@ class Max(Expr):
     def __init__(self, operands):
         assert isinstance(operands, list)
         assert all([isinstance(operand, Expr) for operand in operands])
+        assert operands != []
         self.operands = operands
 
     def __str__(self):
