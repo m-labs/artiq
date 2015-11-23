@@ -1,10 +1,10 @@
 # RUN: %python -m artiq.compiler.testbench.signature %s >%t
 # RUN: OutputCheck %s --file-to-check=%t
 
-# CHECK-L: f: ()->int(width=32) delay(s->mu(1.5) * 10 mu)
+# CHECK-L: f: ()->int(width=32) delay(30 mu)
 def f():
     for _ in range(10):
-        delay(1.5)
+        delay_mu(3)
     return 10
 
 # CHECK-L: g: (x:float)->int(width=32)
