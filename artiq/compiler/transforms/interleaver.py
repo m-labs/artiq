@@ -102,7 +102,7 @@ class Interleaver:
                     assert isinstance(source_terminator, ir.Delay)
 
                     if is_pure_delay(old_decomp):
-                        new_decomp_expr = ir.Constant(target_time_delta, builtins.TInt64())
+                        new_decomp_expr = ir.Constant(int(target_time_delta), builtins.TInt64())
                         new_decomp = ir.Builtin("delay_mu", [new_decomp_expr], builtins.TNone())
                         new_decomp.loc = old_decomp.loc
                         source_terminator.basic_block.insert(source_terminator, new_decomp)
