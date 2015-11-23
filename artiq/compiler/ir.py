@@ -1339,13 +1339,14 @@ class Delay(Terminator):
         self.operands[1].uses.add(self)
 
     def substs(self):
-        return zip(self.var_names, self.operands[2:])
+        return {key: value for key, value in zip(self.var_names, self.operands[2:])}
 
     def _operands_as_string(self, type_printer):
-        substs = []
-        for var_name, operand in self.substs():
-            substs.append("{}={}".format(var_name, operand))
-        result = "[{}]".format(", ".join(substs))
+        substs = self.substs()
+        substs_as_strings = []
+        for var_name in substs:
+            substs_as_strings.append("{} = {}".format(var_name, substs[var_name]))
+        result = "[{}]".format(", ".join(substs_as_strings))
         result += ", decomp {}, to {}".format(self.decomposition().as_operand(type_printer),
                                               self.target().as_operand(type_printer))
         return result
