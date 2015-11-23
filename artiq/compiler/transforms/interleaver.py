@@ -3,6 +3,8 @@
 the timestamp would always monotonically nondecrease.
 """
 
+from pythonparser import diagnostic
+
 from .. import types, builtins, ir, iodelay
 from ..analyses import domination
 from ..algorithms import inline
@@ -127,6 +129,14 @@ class Interleaver:
                     else: # It's a call.
                         need_to_inline = len(source_blocks) > 1
                         if need_to_inline:
+                            if old_decomp.static_target_function is None:
+                                diag = diagnostic.Diagnostic("fatal",
+                                    "it is not possible to interleave this function call within "
+                                    "a 'with parallel:' statement because the compiler could not "
+                                    "prove that the same function would always be called", {},
+                                    old_decomp.loc)
+                                self.engine.process(diag)
+
                             inline(old_decomp)
                             postdom_tree = domination.PostDominatorTree(func)
                             continue
