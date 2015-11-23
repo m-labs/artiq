@@ -1625,7 +1625,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             method_key = None
             if isinstance(node.func, asttyped.AttributeT):
                 attr_node = node.func
-                self.method_map[(attr_node.value.type, attr_node.attr)].append(insn)
+                self.method_map[(attr_node.value.type.find(), attr_node.attr)].append(insn)
 
         if node.iodelay is not None and not iodelay.is_const(node.iodelay, 0):
             after_delay = self.add_block()
