@@ -231,7 +231,7 @@ class Max(Expr):
                 consts.append(operand.value)
             elif operand not in exprs:
                 exprs.append(operand)
-        if any(consts):
+        if len(consts) > 0:
             exprs.append(Const(max(consts)))
         if len(exprs) == 1:
             return exprs[0]
