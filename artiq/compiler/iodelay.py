@@ -114,12 +114,12 @@ class SToMU(Conv):
         return "s->mu({})".format(self.operand)
 
     def eval(self, env):
-        return self.operand.eval(env) / self.ref_period
+        return int(self.operand.eval(env) / self.ref_period)
 
     def fold(self, vars=None):
         operand = self.operand.fold(vars)
         if isinstance(operand, Const):
-            return Const(operand.value / self.ref_period)
+            return Const(int(operand.value / self.ref_period))
         else:
             return SToMU(operand, ref_period=self.ref_period)
 
