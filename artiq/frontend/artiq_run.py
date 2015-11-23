@@ -12,8 +12,10 @@ import h5py
 from artiq.language.environment import EnvExperiment
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager
+from artiq.coredevice.core import CompileError
+from artiq.compiler.embedding import ObjectMap
+from artiq.compiler.targets import OR1KTarget
 from artiq.tools import *
-
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +27,13 @@ class ELFRunner(EnvExperiment):
 
     def run(self):
         with open(self.file, "rb") as f:
-            self.core.comm.load(f.read())
-        self.core.comm.run("run")
-        self.core.comm.serve(dict(), dict())
+            kernel_library = f.read()
+
+        target = OR1KTarget()
+        self.core.comm.load(kernel_library)
+        self.core.comm.run()
+        self.core.comm.serve(ObjectMap(),
+                             lambda addresses: target.symbolize(kernel_library, addresses))
 
 
 class DummyScheduler:
@@ -92,7 +98,7 @@ def _build_experiment(device_mgr, dataset_mgr, args):
                                  "for ELF kernels")
             return ELFRunner(device_mgr, dataset_mgr, file=args.file)
         else:
-            module = file_import(args.file)
+            module = file_import(args.file, prefix="artiq_run_")
         file = args.file
     else:
         module = sys.modules["__main__"]
@@ -122,6 +128,9 @@ def run(with_file=False):
         exp_inst.prepare()
         exp_inst.run()
         exp_inst.analyze()
+    except CompileError as error:
+        print(error.render_string(colored=True), file=sys.stderr)
+        return
     finally:
         device_mgr.close_devices()
 

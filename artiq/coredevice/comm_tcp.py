@@ -26,6 +26,7 @@ def set_keepalive(sock, after_idle, interval, max_fails):
 
 class Comm(CommGeneric):
     def __init__(self, dmgr, host, port=1381):
+        super().__init__()
         self.host = host
         self.port = port
 

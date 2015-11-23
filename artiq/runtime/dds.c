@@ -1,7 +1,7 @@
 #include <generated/csr.h>
 #include <stdio.h>
 
-#include "exceptions.h"
+#include "artiq_personality.h"
 #include "rtio.h"
 #include "log.h"
 #include "dds.h"
@@ -177,7 +177,7 @@ static struct dds_set_params batch[DDS_MAX_BATCH];
 void dds_batch_enter(long long int timestamp)
 {
     if(batch_mode)
-        exception_raise(EID_DDS_BATCH_ERROR);
+        artiq_raise_from_c("DDSBatchError", "DDS batch error", 0, 0, 0);
     batch_mode = 1;
     batch_count = 0;
     batch_ref_time = timestamp;
@@ -189,7 +189,7 @@ void dds_batch_exit(void)
     int i;
 
     if(!batch_mode)
-        exception_raise(EID_DDS_BATCH_ERROR);
+        artiq_raise_from_c("DDSBatchError", "DDS batch error", 0, 0, 0);
     rtio_chan_sel_write(RTIO_DDS_CHANNEL);
     /* + FUD time */
     now = batch_ref_time - batch_count*(DURATION_PROGRAM + DURATION_WRITE);
@@ -207,7 +207,7 @@ void dds_set(long long int timestamp, int channel,
 {
     if(batch_mode) {
         if(batch_count >= DDS_MAX_BATCH)
-            exception_raise(EID_DDS_BATCH_ERROR);
+            artiq_raise_from_c("DDSBatchError", "DDS batch error", 0, 0, 0);
         /* timestamp parameter ignored (determined by batch) */
         batch[batch_count].channel = channel;
         batch[batch_count].ftw = ftw;

@@ -38,7 +38,7 @@ static void send_ready(void)
     struct msg_base msg;
 
     msg.type = MESSAGE_TYPE_BRG_READY;
-    mailbox_send_and_wait(&msg);    
+    mailbox_send_and_wait(&msg);
 }
 
 void bridge_main(void)

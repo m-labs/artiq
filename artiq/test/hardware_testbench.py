@@ -7,9 +7,10 @@ import unittest
 import logging
 
 from artiq.language import *
-from artiq.protocols import pyon
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager
+from artiq.coredevice.core import CompileError
+from artiq.protocols import pyon
 from artiq.frontend.artiq_run import DummyScheduler
 
 
@@ -41,7 +42,16 @@ class ExperimentCase(unittest.TestCase):
             virtual_devices={"scheduler": DummyScheduler()})
         self.dataset_mgr = DatasetManager(self.dataset_db)
 
-    def execute(self, cls, **kwargs):
+    def create(self, cls, **kwargs):
+        try:
+            exp = cls(self.device_mgr, self.dataset_mgr, **kwargs)
+            exp.prepare()
+            return exp
+        except KeyError as e:
+            # skip if ddb does not match requirements
+            raise unittest.SkipTest(*e.args)
+
+    def execute(self, cls, *args, **kwargs):
         expid = {
             "file": sys.modules[cls.__module__].__file__,
             "class_name": cls.__name__,
@@ -49,14 +59,12 @@ class ExperimentCase(unittest.TestCase):
         }
         self.device_mgr.virtual_devices["scheduler"].expid = expid
         try:
-            try:
-                exp = cls(self.device_mgr, self.dataset_mgr, **kwargs)
-            except KeyError as e:
-                # skip if ddb does not match requirements
-                raise unittest.SkipTest(*e.args)
-            exp.prepare()
+            exp = self.create(cls, **kwargs)
             exp.run()
             exp.analyze()
             return exp
+        except CompileError as error:
+            # Reduce amount of text on terminal.
+            raise error from None
         finally:
             self.device_mgr.close_devices()

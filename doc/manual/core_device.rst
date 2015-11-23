@@ -54,21 +54,27 @@ The low-cost Pipistrello FPGA board can be used as a lower-cost but slower alter
 
 When plugged to an adapter, the NIST QC1 hardware can be used. The TTL lines are mapped to RTIO channels as follows:
 
-+--------------+----------+------------+
-| RTIO channel | TTL line | Capability |
-+==============+==========+============+
-| 0            | PMT0     | Input      |
-+--------------+----------+------------+
-| 1            | PMT1     | Input      |
-+--------------+----------+------------+
-| 2-16         | TTL0-14  | Output     |
-+--------------+----------+------------+
-| 17           | EXT_LED  | Output     |
-+--------------+----------+------------+
-| 18           | USER_LED | Output     |
-+--------------+----------+------------+
-| 19           | TTL15    | Clock      |
-+--------------+----------+------------+
++--------------+------------+------------+
+| RTIO channel | TTL line   | Capability |
++==============+============+============+
+| 0            | PMT0       | Input      |
++--------------+------------+------------+
+| 1            | PMT1       | Input      |
++--------------+------------+------------+
+| 2-16         | TTL0-14    | Output     |
++--------------+------------+------------+
+| 17           | EXT_LED    | Output     |
++--------------+------------+------------+
+| 18           | USER_LED_1 | Output     |
++--------------+------------+------------+
+| 19           | USER_LED_2 | Output     |
++--------------+------------+------------+
+| 20           | USER_LED_3 | Output     |
++--------------+------------+------------+
+| 21           | USER_LED_4 | Output     |
++--------------+------------+------------+
+| 22           | TTL15      | Clock      |
++--------------+------------+------------+
 
 The input only limitation on channels 0 and 1 comes from the QC-DAQ adapter. When the adapter is not used (and physically unplugged from the Pipistrello board), the corresponding pins on the Pipistrello can be used as outputs. Do not configure these channels as outputs when the adapter is plugged, as this would cause electrical contention.
 

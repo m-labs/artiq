@@ -71,7 +71,7 @@ def short_format(v):
         return r
 
 
-def file_import(filename):
+def file_import(filename, prefix="file_import_"):
     linecache.checkcache(filename)
 
     modname = filename
@@ -81,7 +81,7 @@ def file_import(filename):
     i = modname.find(".")
     if i > 0:
         modname = modname[:i]
-    modname = "file_import_" + modname
+    modname = prefix + modname
 
     path = os.path.dirname(os.path.realpath(filename))
     sys.path.insert(0, path)

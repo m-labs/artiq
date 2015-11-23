@@ -2,92 +2,168 @@
 Core ARTIQ extensions to the Python language.
 """
 
+import os, linecache, re
 from collections import namedtuple
 from functools import wraps
 
+# for runtime files in backtraces
+from artiq.coredevice.runtime import source_loader
 
-__all__ = ["int64", "round64", "TerminationRequested",
-           "kernel", "portable",
-           "set_time_manager", "set_syscall_manager", "set_watchdog_factory",
-           "RuntimeException", "EncodedException"]
+
+__all__ = ["host_int", "int",
+           "kernel", "portable", "syscall",
+           "set_time_manager", "set_watchdog_factory",
+           "ARTIQException",
+           "TerminationRequested"]
 
 # global namespace for kernels
-kernel_globals = ("sequential", "parallel",
+kernel_globals = (
+    "sequential", "parallel",
     "delay_mu", "now_mu", "at_mu", "delay",
     "seconds_to_mu", "mu_to_seconds",
-    "syscall", "watchdog")
+    "watchdog"
+)
 __all__.extend(kernel_globals)
 
+host_int = int
 
-class int64(int):
-    """64-bit integers for static compilation.
+class int:
+    """
+    Arbitrary-precision integers for static compilation.
 
-    When this class is used instead of Python's ``int``, the static compiler
-    stores the corresponding variable on 64 bits instead of 32.
+    The static compiler does not use unlimited-precision integers,
+    like Python normally does, because of their unbounded memory requirements.
+    Instead, it allows to choose a bit width (usually 32 or 64) at compile-time,
+    and all computations follow wrap-around semantics on overflow.
 
-    When used in the interpreter, it behaves as ``int`` and the results of
-    integer operations involving it are also ``int64`` (which matches the
-    size promotion rules of the static compiler). This way, it is possible to
-    specify 64-bit size annotations on constants that are passed to the
-    kernels.
+    This class implements the same semantics on the host.
 
-    Example:
+    For example:
 
-    >>> a = int64(1)
-    >>> b = int64(3) + 2
-    >>> isinstance(a, int64)
+    >>> a = int(1, width=64)
+    >>> b = int(3, width=64) + 2
+    >>> isinstance(a, int)
     True
-    >>> isinstance(b, int64)
+    >>> isinstance(b, int)
     True
     >>> a + b
-    6
+    int(6, width=64)
+    >>> int(10, width=32) + 0x7fffffff
+    int(9, width=32)
+    >>> int(0x80000000)
+    int(-2147483648, width=32)
     """
-    pass
 
-def _make_int64_op_method(int_method):
-    def method(self, *args):
-        r = int_method(self, *args)
-        if isinstance(r, int):
-            r = int64(r)
-        return r
-    return method
+    __slots__ = ['_value', '_width']
 
-for _op_name in ("neg", "pos", "abs", "invert", "round",
-                 "add", "radd", "sub", "rsub", "mul", "rmul", "pow", "rpow",
-                 "lshift", "rlshift", "rshift", "rrshift",
-                 "and", "rand", "xor", "rxor", "or", "ror",
-                 "floordiv", "rfloordiv", "mod", "rmod"):
-    _method_name = "__" + _op_name + "__"
-    _orig_method = getattr(int, _method_name)
-    setattr(int64, _method_name, _make_int64_op_method(_orig_method))
+    def __new__(cls, value, width=32):
+        if isinstance(value, int):
+            return value
+        else:
+            sign_bit = 2 ** (width - 1)
+            value = host_int(value)
+            if value & sign_bit:
+                value  = -1 & ~sign_bit + (value & (sign_bit - 1)) + 1
+            else:
+                value &= sign_bit - 1
 
-for _op_name in ("add", "sub", "mul", "floordiv", "mod",
-                 "pow", "lshift", "rshift", "lshift",
-                 "and", "xor", "or"):
-    _op_method = getattr(int, "__" + _op_name + "__")
-    setattr(int64, "__i" + _op_name + "__", _make_int64_op_method(_op_method))
+            self = super().__new__(cls)
+            self._value = value
+            self._width = width
+            return self
+
+    @property
+    def width(self):
+        return self._width
+
+    def __int__(self):
+        return self._value
+
+    def __float__(self):
+        return float(self._value)
+
+    def __str__(self):
+        return str(self._value)
+
+    def __repr__(self):
+        return "int({}, width={})".format(self._value, self._width)
+
+    def _unaryop(lower_fn):
+        def operator(self):
+            return int(lower_fn(self._value), self._width)
+        return operator
+
+    __neg__                       = _unaryop(host_int.__neg__)
+    __pos__                       = _unaryop(host_int.__pos__)
+    __abs__                       = _unaryop(host_int.__abs__)
+    __invert__                    = _unaryop(host_int.__invert__)
+    __round__                     = _unaryop(host_int.__round__)
+
+    def _binaryop(lower_fn, rlower_fn=None):
+        def operator(self, other):
+            if isinstance(other, host_int):
+                return int(lower_fn(self._value, other), self._width)
+            elif isinstance(other, int):
+                width = self._width if self._width > other._width else other._width
+                return int(lower_fn(self._value, other._value), width)
+            elif rlower_fn:
+                return getattr(other, rlower_fn)(self._value)
+            else:
+                return NotImplemented
+        return operator
+
+    __add__       = __iadd__      = _binaryop(host_int.__add__,       "__radd__")
+    __sub__       = __isub__      = _binaryop(host_int.__sub__,       "__rsub__")
+    __mul__       = __imul__      = _binaryop(host_int.__mul__,       "__rmul__")
+    __truediv__   = __itruediv__  = _binaryop(host_int.__truediv__,   "__rtruediv__")
+    __floordiv__  = __ifloordiv__ = _binaryop(host_int.__floordiv__,  "__rfloordiv__")
+    __mod__       = __imod__      = _binaryop(host_int.__mod__,       "__rmod__")
+    __pow__       = __ipow__      = _binaryop(host_int.__pow__,       "__rpow__")
+
+    __radd__                      = _binaryop(host_int.__radd__,      "__add__")
+    __rsub__                      = _binaryop(host_int.__rsub__,      "__sub__")
+    __rmul__                      = _binaryop(host_int.__rmul__,      "__mul__")
+    __rfloordiv__                 = _binaryop(host_int.__rfloordiv__, "__floordiv__")
+    __rtruediv__                  = _binaryop(host_int.__rtruediv__,  "__truediv__")
+    __rmod__                      = _binaryop(host_int.__rmod__,      "__mod__")
+    __rpow__                      = _binaryop(host_int.__rpow__,      "__pow__")
+
+    __lshift__    = __ilshift__   = _binaryop(host_int.__lshift__)
+    __rshift__    = __irshift__   = _binaryop(host_int.__rshift__)
+    __and__       = __iand__      = _binaryop(host_int.__and__)
+    __or__        = __ior__       = _binaryop(host_int.__or__)
+    __xor__       = __ixor__      = _binaryop(host_int.__xor__)
+
+    __rlshift__                   = _binaryop(host_int.__rlshift__)
+    __rrshift__                   = _binaryop(host_int.__rrshift__)
+    __rand__                      = _binaryop(host_int.__rand__)
+    __ror__                       = _binaryop(host_int.__ror__)
+    __rxor__                      = _binaryop(host_int.__rxor__)
+
+    def _compareop(lower_fn, rlower_fn):
+        def operator(self, other):
+            if isinstance(other, host_int):
+                return lower_fn(self._value, other)
+            elif isinstance(other, int):
+                return lower_fn(self._value, other._value)
+            else:
+                return getattr(other, rlower_fn)(self._value)
+        return operator
+
+    __eq__                        = _compareop(host_int.__eq__,       "__ne__")
+    __ne__                        = _compareop(host_int.__ne__,       "__eq__")
+    __gt__                        = _compareop(host_int.__gt__,       "__le__")
+    __ge__                        = _compareop(host_int.__ge__,       "__lt__")
+    __lt__                        = _compareop(host_int.__lt__,       "__ge__")
+    __le__                        = _compareop(host_int.__le__,       "__gt__")
 
 
-def round64(x):
-    """Rounds to a 64-bit integer.
-
-    This function is equivalent to ``int64(round(x))`` but, when targeting
-    static compilation, prevents overflow when the rounded value is too large
-    to fit in a 32-bit integer.
-    """
-    return int64(round(x))
-
-
-class TerminationRequested(Exception):
-    """Raised by ``pause`` when the user has requested termination."""
-    pass
-
-
-_KernelFunctionInfo = namedtuple("_KernelFunctionInfo", "core_name k_function")
-
+_ARTIQEmbeddedInfo = namedtuple("_ARTIQEmbeddedInfo",
+                                "core_name function syscall")
 
 def kernel(arg):
-    """This decorator marks an object's method for execution on the core
+    """
+    This decorator marks an object's method for execution on the core
     device.
 
     When a decorated method is called from the Python interpreter, the ``core``
@@ -106,26 +182,20 @@ def kernel(arg):
     specifies the name of the attribute to use as core device driver.
     """
     if isinstance(arg, str):
-        def real_decorator(k_function):
-            @wraps(k_function)
-            def run_on_core(exp, *k_args, **k_kwargs):
-                return getattr(exp, arg).run(k_function,
-                                             ((exp,) + k_args), k_kwargs)
-            run_on_core.k_function_info = _KernelFunctionInfo(
-                core_name=arg, k_function=k_function)
+        def inner_decorator(function):
+            @wraps(function)
+            def run_on_core(self, *k_args, **k_kwargs):
+                return getattr(self, arg).run(run_on_core, ((self,) + k_args), k_kwargs)
+            run_on_core.artiq_embedded = _ARTIQEmbeddedInfo(
+                core_name=arg, function=function, syscall=None)
             return run_on_core
-        return real_decorator
+        return inner_decorator
     else:
-        @wraps(arg)
-        def run_on_core(exp, *k_args, **k_kwargs):
-            return exp.core.run(arg, ((exp,) + k_args), k_kwargs)
-        run_on_core.k_function_info = _KernelFunctionInfo(
-            core_name="core", k_function=arg)
-        return run_on_core
+        return kernel("core")(arg)
 
-
-def portable(f):
-    """This decorator marks a function for execution on the same device as its
+def portable(function):
+    """
+    This decorator marks a function for execution on the same device as its
     caller.
 
     In other words, a decorated function called from the interpreter on the
@@ -133,8 +203,30 @@ def portable(f):
     core device). A decorated function called from a kernel will be executed
     on the core device (no RPC).
     """
-    f.k_function_info = _KernelFunctionInfo(core_name="", k_function=f)
-    return f
+    function.artiq_embedded = \
+        _ARTIQEmbeddedInfo(core_name=None, function=function, syscall=None)
+    return function
+
+def syscall(arg):
+    """
+    This decorator marks a function as a system call. When executed on a core
+    device, a C function with the provided name (or the same name as
+    the Python function, if not provided) will be called. When executed on
+    host, the Python function will be called as usual.
+
+    Every argument and the return value must be annotated with ARTIQ types.
+
+    Only drivers should normally define syscalls.
+    """
+    if isinstance(arg, str):
+        def inner_decorator(function):
+            function.artiq_embedded = \
+                _ARTIQEmbeddedInfo(core_name=None, function=None,
+                                   syscall=function.__name__)
+            return function
+        return inner_decorator
+    else:
+        return syscall(arg.__name__)(arg)
 
 
 class _DummyTimeManager:
@@ -161,22 +253,6 @@ def set_time_manager(time_manager):
     """
     global _time_manager
     _time_manager = time_manager
-
-
-class _DummySyscallManager:
-    def do(self, *args):
-        raise NotImplementedError(
-            "Attempted to interpret kernel without a syscall manager")
-
-_syscall_manager = _DummySyscallManager()
-
-
-def set_syscall_manager(syscall_manager):
-    """Set the system call manager used for simulating the core device's
-    runtime in the Python interpreter.
-    """
-    global _syscall_manager
-    _syscall_manager = syscall_manager
 
 
 class _Sequential:
@@ -251,17 +327,6 @@ def mu_to_seconds(mu, core=None):
     return mu*core.ref_period
 
 
-def syscall(*args):
-    """Invokes a service of the runtime.
-
-    Kernels use this function to interface to the outside world: program RTIO
-    events, make RPCs, etc.
-
-    Only drivers should normally use ``syscall``.
-    """
-    return _syscall_manager.do(*args)
-
-
 class _DummyWatchdog:
     def __init__(self, timeout):
         pass
@@ -286,32 +351,70 @@ def watchdog(timeout):
     return _watchdog_factory(timeout)
 
 
-_encoded_exceptions = dict()
+class TerminationRequested(Exception):
+    """Raised by ``pause`` when the user has requested termination."""
+    pass
 
 
-def EncodedException(eid):
-    """Represents exceptions on the core device, which are identified
-    by a single number."""
-    try:
-        return _encoded_exceptions[eid]
-    except KeyError:
-        class EncodedException(Exception):
-            def __init__(self):
-                Exception.__init__(self, eid)
-        _encoded_exceptions[eid] = EncodedException
-        return EncodedException
+class ARTIQException(Exception):
+    """Base class for exceptions raised or passed through the core device."""
 
+    # Try and create an instance of the specific class, if one exists.
+    def __new__(cls, name, message, params, traceback):
+        def find_subclass(cls):
+            if cls.__name__ == name:
+                return cls
+            else:
+                for subclass in cls.__subclasses__():
+                    cls = find_subclass(subclass)
+                    if cls is not None:
+                        return cls
 
-class RuntimeException(Exception):
-    """Base class for all exceptions used by the device runtime.
-    Those exceptions are defined in ``artiq.coredevice.runtime_exceptions``.
-    """
-    def __init__(self, core, p0, p1, p2):
-        Exception.__init__(self)
-        self.core = core
-        self.p0 = p0
-        self.p1 = p1
-        self.p2 = p2
+        more_specific_cls = find_subclass(cls)
+        if more_specific_cls is None:
+            more_specific_cls = cls
 
+        exn = Exception.__new__(more_specific_cls)
+        exn.__init__(name, message, params, traceback)
+        return exn
 
-first_user_eid = 1024
+    def __init__(self, name, message, params, traceback):
+        Exception.__init__(self, name, message, *params)
+        self.name, self.message, self.params = name, message, params
+        self.traceback = list(traceback)
+
+    def __str__(self):
+        lines = []
+
+        if type(self).__name__ == self.name:
+            lines.append(self.message.format(*self.params))
+        else:
+            lines.append("({}) {}".format(self.name, self.message.format(*self.params)))
+
+        lines.append("Core Device Traceback (most recent call last):")
+        for (filename, line, column, function, address) in self.traceback:
+            stub_globals = {"__name__": filename, "__loader__": source_loader}
+            source_line = linecache.getline(filename, line, stub_globals)
+            indentation = re.search(r"^\s*", source_line).end()
+
+            if address is None:
+                formatted_address = ""
+            else:
+                formatted_address = " (RA=0x{:x})".format(address)
+
+            filename = filename.replace(os.path.normpath(os.path.join(os.path.dirname(__file__),
+                                                                      "..")), "<artiq>")
+            if column == -1:
+                lines.append("  File \"{file}\", line {line}, in {function}{address}".
+                             format(file=filename, line=line, function=function,
+                                    address=formatted_address))
+                lines.append("    {}".format(source_line.strip() if source_line else "<unknown>"))
+            else:
+                lines.append("  File \"{file}\", line {line}, column {column},"
+                             " in {function}{address}".
+                             format(file=filename, line=line, column=column + 1,
+                                    function=function, address=formatted_address))
+                lines.append("    {}".format(source_line.strip() if source_line else "<unknown>"))
+                lines.append("    {}^".format(" " * (column - indentation)))
+
+        return "\n".join(lines)

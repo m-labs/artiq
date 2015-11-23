@@ -1,49 +1,37 @@
 import os
 
+from pythonparser import diagnostic
+
 from artiq.language.core import *
-from artiq.language.units import ns
+from artiq.language.types import *
+from artiq.language.units import *
 
-from artiq.transforms.inline import inline
-from artiq.transforms.quantize_time import quantize_time
-from artiq.transforms.remove_inter_assigns import remove_inter_assigns
-from artiq.transforms.fold_constants import fold_constants
-from artiq.transforms.remove_dead_code import remove_dead_code
-from artiq.transforms.unroll_loops import unroll_loops
-from artiq.transforms.interleave import interleave
-from artiq.transforms.lower_time import lower_time
-from artiq.transforms.unparse import unparse
+from artiq.compiler import Stitcher, Module
+from artiq.compiler.targets import OR1KTarget
 
-from artiq.coredevice.runtime import Runtime
-
-from artiq.py2llvm import get_runtime_binary
+# Import for side effects (creating the exception classes).
+from artiq.coredevice import exceptions
 
 
-def _announce_unparse(label, node):
-    print("*** Unparsing: "+label)
-    print(unparse(node))
+class CompileError(Exception):
+    def __init__(self, diagnostic):
+        self.diagnostic = diagnostic
+
+    def render_string(self, colored=False):
+        def shorten_path(path):
+            return path.replace(os.path.normpath(os.path.join(__file__, "..", "..")), "<artiq>")
+        lines = [shorten_path(path) for path in self.diagnostic.render(colored=colored)]
+        return "\n".join(lines)
+
+    def __str__(self):
+        # Prepend a newline so that the message shows up on after
+        # exception class name printed by Python.
+        return "\n" + self.render_string(colored=True)
 
 
-def _make_debug_unparse(final):
-    try:
-        env = os.environ["ARTIQ_UNPARSE"]
-    except KeyError:
-        env = ""
-    selected_labels = set(env.split())
-    if "all" in selected_labels:
-        return _announce_unparse
-    else:
-        if "final" in selected_labels:
-            selected_labels.add(final)
-
-        def _filtered_unparse(label, node):
-            if label in selected_labels:
-                _announce_unparse(label, node)
-        return _filtered_unparse
-
-
-def _no_debug_unparse(label, node):
-    pass
-
+@syscall
+def rtio_get_counter() -> TInt64:
+    raise NotImplementedError("syscall not simulated")
 
 class Core:
     """Core device driver.
@@ -66,79 +54,46 @@ class Core:
         self.first_run = True
         self.core = self
         self.comm.core = self
-        self.runtime = Runtime()
 
-    def transform_stack(self, func_def, rpc_map, exception_map,
-                        debug_unparse=_no_debug_unparse):
-        remove_inter_assigns(func_def)
-        debug_unparse("remove_inter_assigns_1", func_def)
+    def compile(self, function, args, kwargs, with_attr_writeback=True):
+        try:
+            engine = diagnostic.Engine(all_errors_are_fatal=True)
 
-        quantize_time(func_def, self.ref_period)
-        debug_unparse("quantize_time", func_def)
+            stitcher = Stitcher(engine=engine)
+            stitcher.stitch_call(function, args, kwargs)
+            stitcher.finalize()
 
-        fold_constants(func_def)
-        debug_unparse("fold_constants_1", func_def)
+            module = Module(stitcher, ref_period=self.ref_period)
+            target = OR1KTarget()
 
-        unroll_loops(func_def, 500)
-        debug_unparse("unroll_loops", func_def)
+            library = target.compile_and_link([module])
+            stripped_library = target.strip(library)
 
-        interleave(func_def)
-        debug_unparse("interleave", func_def)
+            return stitcher.object_map, stripped_library, \
+                   lambda addresses: target.symbolize(library, addresses)
+        except diagnostic.Error as error:
+            raise CompileError(error.diagnostic) from error
 
-        lower_time(func_def)
-        debug_unparse("lower_time", func_def)
+    def run(self, function, args, kwargs):
+        object_map, kernel_library, symbolizer = self.compile(function, args, kwargs)
 
-        remove_inter_assigns(func_def)
-        debug_unparse("remove_inter_assigns_2", func_def)
-
-        fold_constants(func_def)
-        debug_unparse("fold_constants_2", func_def)
-
-        remove_dead_code(func_def)
-        debug_unparse("remove_dead_code_1", func_def)
-
-        remove_inter_assigns(func_def)
-        debug_unparse("remove_inter_assigns_3", func_def)
-
-        fold_constants(func_def)
-        debug_unparse("fold_constants_3", func_def)
-
-        remove_dead_code(func_def)
-        debug_unparse("remove_dead_code_2", func_def)
-
-    def compile(self, k_function, k_args, k_kwargs, with_attr_writeback=True):
-        debug_unparse = _make_debug_unparse("remove_dead_code_2")
-
-        func_def, rpc_map, exception_map = inline(
-            self, k_function, k_args, k_kwargs, with_attr_writeback)
-        debug_unparse("inline", func_def)
-        self.transform_stack(func_def, rpc_map, exception_map, debug_unparse)
-
-        binary = get_runtime_binary(self.runtime, func_def)
-
-        return binary, rpc_map, exception_map
-
-    def run(self, k_function, k_args, k_kwargs):
         if self.first_run:
             self.comm.check_ident()
             self.comm.switch_clock(self.external_clock)
+            self.first_run = False
 
-        binary, rpc_map, exception_map = self.compile(
-            k_function, k_args, k_kwargs)
-        self.comm.load(binary)
-        self.comm.run(k_function.__name__)
-        self.comm.serve(rpc_map, exception_map)
-        self.first_run = False
+        self.comm.load(kernel_library)
+        self.comm.run()
+        self.comm.serve(object_map, symbolizer)
 
     @kernel
     def get_rtio_counter_mu(self):
-        """Return the current value of the hardware RTIO counter."""
-        return syscall("rtio_get_counter")
+        return rtio_get_counter()
 
     @kernel
     def break_realtime(self):
         """Set the timeline to the current value of the hardware RTIO counter
         plus a margin of 125000 machine units."""
-        min_now = syscall("rtio_get_counter") + 125000
+        min_now = rtio_get_counter() + 125000
         if now_mu() < min_now:
             at_mu(min_now)

@@ -3,28 +3,16 @@ from operator import itemgetter
 
 class Comm:
     def __init__(self, dmgr):
-        pass
+        super().__init__()
 
     def switch_clock(self, external):
         pass
 
-    def load(self, kcode):
-        print("================")
-        print(" LLVM IR")
-        print("================")
-        print(kcode)
+    def load(self, kernel_library):
+        pass
 
-    def run(self, kname):
-        print("RUN: "+kname)
+    def run(self):
+        pass
 
-    def serve(self, rpc_map, exception_map):
-        print("================")
-        print(" RPC map")
-        print("================")
-        for k, v in sorted(rpc_map.items(), key=itemgetter(0)):
-            print(str(k)+" -> "+str(v))
-        print("================")
-        print(" Exception map")
-        print("================")
-        for k, v in sorted(exception_map.items(), key=itemgetter(0)):
-            print(str(k)+" -> "+str(v))
+    def serve(self, object_map, symbolizer):
+        pass

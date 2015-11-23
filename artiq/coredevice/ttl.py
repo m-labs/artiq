@@ -1,4 +1,26 @@
 from artiq.language.core import *
+from artiq.language.types import *
+
+
+@syscall
+def ttl_set_o(time_mu: TInt64, channel: TInt32, enabled: TBool) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+@syscall
+def ttl_set_oe(time_mu: TInt64, channel: TInt32, enabled: TBool) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+@syscall
+def ttl_set_sensitivity(time_mu: TInt64, channel: TInt32, sensitivity: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+@syscall
+def ttl_get(channel: TInt32, time_limit_mu: TInt64) -> TInt64:
+    raise NotImplementedError("syscall not simulated")
+
+@syscall
+def ttl_clock_set(time_mu: TInt64, channel: TInt32, ftw: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
 
 
 class TTLOut:
@@ -13,18 +35,18 @@ class TTLOut:
         self.channel = channel
 
         # in RTIO cycles
-        self.o_previous_timestamp = int64(0)
+        self.o_previous_timestamp = int(0, width=64)
 
     @kernel
     def set_o(self, o):
-        syscall("ttl_set_o", now_mu(), self.channel, o)
+        ttl_set_o(now_mu(), self.channel, o)
         self.o_previous_timestamp = now_mu()
 
     @kernel
     def sync(self):
         """Busy-wait until all programmed level switches have been
         effected."""
-        while syscall("rtio_get_counter") < self.o_previous_timestamp:
+        while self.core.get_rtio_counter_mu() < self.o_previous_timestamp:
             pass
 
     @kernel
@@ -76,12 +98,12 @@ class TTLInOut:
         self.channel = channel
 
         # in RTIO cycles
-        self.o_previous_timestamp = int64(0)
-        self.i_previous_timestamp = int64(0)
+        self.o_previous_timestamp = int(0, width=64)
+        self.i_previous_timestamp = int(0, width=64)
 
     @kernel
     def set_oe(self, oe):
-        syscall("ttl_set_oe", now_mu(), self.channel, oe)
+        ttl_set_oe(now_mu(), self.channel, oe)
 
     @kernel
     def output(self):
@@ -95,14 +117,14 @@ class TTLInOut:
 
     @kernel
     def set_o(self, o):
-        syscall("ttl_set_o", now_mu(), self.channel, o)
+        ttl_set_o(now_mu(), self.channel, o)
         self.o_previous_timestamp = now_mu()
 
     @kernel
     def sync(self):
         """Busy-wait until all programmed level switches have been
         effected."""
-        while syscall("rtio_get_counter") < self.o_previous_timestamp:
+        while self.core.get_rtio_counter_mu() < self.o_previous_timestamp:
             pass
 
     @kernel
@@ -137,7 +159,7 @@ class TTLInOut:
 
     @kernel
     def _set_sensitivity(self, value):
-        syscall("ttl_set_sensitivity", now_mu(), self.channel, value)
+        ttl_set_sensitivity(now_mu(), self.channel, value)
         self.i_previous_timestamp = now_mu()
 
     @kernel
@@ -193,8 +215,7 @@ class TTLInOut:
         """Poll the RTIO input during all the previously programmed gate
         openings, and returns the number of registered events."""
         count = 0
-        while syscall("ttl_get", self.channel,
-                      self.i_previous_timestamp) >= 0:
+        while ttl_get(self.channel, self.i_previous_timestamp) >= 0:
             count += 1
         return count
 
@@ -205,7 +226,7 @@ class TTLInOut:
 
         If the gate is permanently closed, returns a negative value.
         """
-        return syscall("ttl_get", self.channel, self.i_previous_timestamp)
+        return ttl_get(self.channel, self.i_previous_timestamp)
 
 
 class TTLClockGen:
@@ -221,7 +242,7 @@ class TTLClockGen:
         self.channel = channel
 
         # in RTIO cycles
-        self.previous_timestamp = int64(0)
+        self.previous_timestamp = int(0, width=64)
         self.acc_width = 24
 
     @portable
@@ -256,7 +277,7 @@ class TTLClockGen:
         that are not powers of two cause jitter of one RTIO clock cycle at the
         output.
         """
-        syscall("ttl_clock_set", now_mu(), self.channel, frequency)
+        ttl_clock_set(now_mu(), self.channel, frequency)
         self.previous_timestamp = now_mu()
 
     @kernel
@@ -273,5 +294,5 @@ class TTLClockGen:
     def sync(self):
         """Busy-wait until all programmed frequency switches and stops have
         been effected."""
-        while syscall("rtio_get_counter") < self.o_previous_timestamp:
+        while self.core.get_rtio_counter_mu() < self.o_previous_timestamp:
             pass

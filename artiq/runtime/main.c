@@ -182,12 +182,13 @@ static void serial_service(void)
 
     session_poll((void **)&txdata, &txlen);
     if(txlen > 0) {
-        for(i=0;i<txlen;i++)
+        for(i = 0; i < txlen; i++)
             uart_write(txdata[i]);
-        session_ack_data(txlen);
-        session_ack_mem(txlen);
-    } else if(txlen < 0)
+        session_ack_consumed(txlen);
+        session_ack_sent(txlen);
+    } else if(txlen < 0) {
         reset_serial_session(1);
+    }
 }
 
 static void regular_main(void)

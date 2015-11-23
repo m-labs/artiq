@@ -2,8 +2,10 @@
 #define __MESSAGES_H
 
 #include <stdarg.h>
+#include <stddef.h>
 
 enum {
+    MESSAGE_TYPE_LOAD_REPLY,
     MESSAGE_TYPE_NOW_INIT_REQUEST,
     MESSAGE_TYPE_NOW_INIT_REPLY,
     MESSAGE_TYPE_NOW_SAVE,
@@ -12,8 +14,9 @@ enum {
     MESSAGE_TYPE_WATCHDOG_SET_REQUEST,
     MESSAGE_TYPE_WATCHDOG_SET_REPLY,
     MESSAGE_TYPE_WATCHDOG_CLEAR,
-    MESSAGE_TYPE_RPC_REQUEST,
-    MESSAGE_TYPE_RPC_REPLY,
+    MESSAGE_TYPE_RPC_SEND,
+    MESSAGE_TYPE_RPC_RECV_REQUEST,
+    MESSAGE_TYPE_RPC_RECV_REPLY,
     MESSAGE_TYPE_LOG,
 
     MESSAGE_TYPE_BRG_READY,
@@ -33,6 +36,17 @@ struct msg_base {
 
 /* kernel messages */
 
+struct msg_load_request {
+    const void *library;
+    struct dyld_info *library_info;
+    int run_kernel;
+};
+
+struct msg_load_reply {
+    int type;
+    const char *error;
+};
+
 struct msg_now_init_reply {
     int type;
     long long int now;
@@ -45,8 +59,9 @@ struct msg_now_save {
 
 struct msg_exception {
     int type;
-    int eid;
-    long long int eparams[3];
+    struct artiq_exception *exception;
+    struct artiq_backtrace_item *backtrace;
+    size_t backtrace_size;
 };
 
 struct msg_watchdog_set_request {
@@ -64,21 +79,28 @@ struct msg_watchdog_clear {
     int id;
 };
 
-struct msg_rpc_request {
+struct msg_rpc_send {
     int type;
-    int rpc_num;
+    int service;
+    const char *tag;
     va_list args;
 };
 
-struct msg_rpc_reply {
+struct msg_rpc_recv_request {
     int type;
-    int eid;
-    int retval;
+    void *slot;
+};
+
+struct msg_rpc_recv_reply {
+    int type;
+    int alloc_size;
+    struct artiq_exception *exception;
 };
 
 struct msg_log {
     int type;
     const char *fmt;
+    int no_newline;
     va_list args;
 };
 

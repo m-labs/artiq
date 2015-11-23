@@ -1,126 +1,109 @@
 #include <string.h>
 #include <generated/csr.h>
 
+#include <dyld.h>
+
+#include "kloader.h"
 #include "log.h"
 #include "clock.h"
 #include "flash_storage.h"
 #include "mailbox.h"
 #include "messages.h"
-#include "elf_loader.h"
-#include "services.h"
-#include "kloader.h"
 
-static struct symbol symtab[128];
-static int _symtab_count;
-static char _symtab_strings[128*16];
-static char *_symtab_strptr;
-
-static void symtab_init(void)
+static void start_kernel_cpu(struct msg_load_request *msg)
 {
-    memset(symtab, 0, sizeof(symtab));
-    _symtab_count = 0;
-    _symtab_strptr = _symtab_strings;
-}
+    // Stop kernel CPU before messing with its code.
+    kernel_cpu_reset_write(1);
 
-static int symtab_add(const char *name, void *target)
-{
-    if(_symtab_count >= sizeof(symtab)/sizeof(symtab[0])) {
-        log("Too many provided symbols in object");
-        symtab_init();
-        return 0;
-    }
-    symtab[_symtab_count].name = _symtab_strptr;
-    symtab[_symtab_count].target = target;
-    _symtab_count++;
+    // Load kernel support code.
+    extern void _binary_ksupport_elf_start, _binary_ksupport_elf_end;
+    memcpy((void *)(KERNELCPU_EXEC_ADDRESS - KSUPPORT_HEADER_SIZE),
+           &_binary_ksupport_elf_start,
+           &_binary_ksupport_elf_end - &_binary_ksupport_elf_start);
 
-    while(1) {
-        if(_symtab_strptr >= &_symtab_strings[sizeof(_symtab_strings)]) {
-            log("Provided symbol string table overflow");
-            symtab_init();
-            return 0;
-        }
-        *_symtab_strptr = *name;
-        _symtab_strptr++;
-        if(*name == 0)
-            break;
-        name++;
-    }
-
-    return 1;
-}
-
-int kloader_load(void *buffer, int length)
-{
-    if(!kernel_cpu_reset_read()) {
-        log("BUG: attempted to load while kernel CPU running");
-        return 0;
-    }
-    symtab_init();
-    return load_elf(
-        resolve_service_symbol, symtab_add,
-        buffer, length, (void *)KERNELCPU_PAYLOAD_ADDRESS, 4*1024*1024);
-}
-
-kernel_function kloader_find(const char *name)
-{
-    return find_symbol(symtab, name);
-}
-
-extern char _binary_ksupport_bin_start;
-extern char _binary_ksupport_bin_end;
-
-static void start_kernel_cpu(void *addr)
-{
-    memcpy((void *)KERNELCPU_EXEC_ADDRESS, &_binary_ksupport_bin_start,
-        &_binary_ksupport_bin_end - &_binary_ksupport_bin_start);
-    mailbox_acknowledge();
-    mailbox_send(addr);
+    // Start kernel CPU.
+    mailbox_send(msg);
     kernel_cpu_reset_write(0);
 }
 
-void kloader_start_bridge(void)
+void kloader_start_bridge()
 {
     start_kernel_cpu(NULL);
 }
 
-void kloader_start_user_kernel(kernel_function k)
+static int load_or_start_kernel(const void *library, int run_kernel)
+{
+    static struct dyld_info library_info;
+    struct msg_load_request request = {
+        .library      = library,
+        .library_info = &library_info,
+        .run_kernel   = run_kernel,
+    };
+    start_kernel_cpu(&request);
+
+    struct msg_load_reply *reply = mailbox_wait_and_receive();
+    mailbox_acknowledge();
+
+    if(reply->type != MESSAGE_TYPE_LOAD_REPLY) {
+        log("BUG: unexpected reply to load/run request");
+        return 0;
+    }
+
+    if(reply->error != NULL) {
+        log("cannot load kernel: %s", reply->error);
+        return 0;
+    }
+
+    return 1;
+}
+
+int kloader_load_library(const void *library)
 {
     if(!kernel_cpu_reset_read()) {
-        log("BUG: attempted to start kernel CPU while already running (user kernel)");
-        return;
+        log("BUG: attempted to load kernel library while kernel CPU is running");
+        return 0;
     }
-    start_kernel_cpu((void *)k);
+
+    return load_or_start_kernel(library, 0);
+}
+
+void kloader_filter_backtrace(struct artiq_backtrace_item *backtrace,
+                              size_t *backtrace_size) {
+    struct artiq_backtrace_item *cursor = backtrace;
+
+    // Remove all backtrace items belonging to ksupport and subtract
+    // shared object base from the addresses.
+    for(int i = 0; i < *backtrace_size; i++) {
+        if(backtrace[i].function > KERNELCPU_PAYLOAD_ADDRESS) {
+            backtrace[i].function -= KERNELCPU_PAYLOAD_ADDRESS;
+            *cursor++ = backtrace[i];
+        }
+    }
+
+    *backtrace_size = cursor - backtrace;
+}
+
+void kloader_start_kernel()
+{
+    load_or_start_kernel(NULL, 1);
 }
 
 static int kloader_start_flash_kernel(char *key)
 {
-    char buffer[32*1024];
-    unsigned int len, remain;
-    kernel_function k;
-
-    if(!kernel_cpu_reset_read()) {
-        log("BUG: attempted to start kernel CPU while already running (%s)", key);
-        return 0;
-    }
 #if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
-    len = fs_read(key, buffer, sizeof(buffer), &remain);
-    if(len <= 0)
+    char buffer[32*1024];
+    unsigned int length, remain;
+
+    length = fs_read(key, buffer, sizeof(buffer), &remain);
+    if(length <= 0)
         return 0;
+
     if(remain) {
-        log("ERROR: %s too long", key);
+        log("ERROR: kernel %s is too large", key);
         return 0;
     }
-    if(!kloader_load(buffer, len)) {
-        log("ERROR: failed to load ELF binary (%s)", key);
-        return 0;
-    }
-    k = kloader_find("run");
-    if(!k) {
-        log("ERROR: failed to find entry point for ELF kernel (%s)", key);
-        return 0;
-    }
-    start_kernel_cpu((void *)k);
-    return 1;
+
+    return load_or_start_kernel(buffer, 1);
 #else
     return 0;
 #endif
@@ -145,7 +128,7 @@ void kloader_stop(void)
 int kloader_validate_kpointer(void *p)
 {
     unsigned int v = (unsigned int)p;
-    if((v < 0x40400000) || (v > (0x4fffffff - 1024*1024))) {
+    if((v < KERNELCPU_EXEC_ADDRESS) || (v > KERNELCPU_LAST_ADDRESS)) {
         log("Received invalid pointer from kernel CPU: 0x%08x", v);
         return 0;
     }
@@ -195,7 +178,11 @@ void kloader_service_essential_kmsg(void)
             case MESSAGE_TYPE_LOG: {
                 struct msg_log *msg = (struct msg_log *)umsg;
 
-                log_va(msg->fmt, msg->args);
+                if(msg->no_newline) {
+                    lognonl_va(msg->fmt, msg->args);
+                } else {
+                    log_va(msg->fmt, msg->args);
+                }
                 mailbox_acknowledge();
                 break;
             }

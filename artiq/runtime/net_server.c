@@ -91,7 +91,7 @@ static err_t net_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err
 
 static err_t net_server_sent(void *arg, struct tcp_pcb *pcb, u16_t len)
 {
-    session_ack_mem(len);
+    session_ack_sent(len);
     return ERR_OK;
 }
 
@@ -208,7 +208,7 @@ void net_server_service(void)
             if(len > sndbuf)
                 len = sndbuf;
             tcp_write(active_pcb, data, len, 0);
-            session_ack_data(len);
+            session_ack_consumed(len);
         }
         if(len < 0)
             net_server_close(active_cs, active_pcb);

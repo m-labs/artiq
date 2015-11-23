@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 class Comm(CommGeneric):
     def __init__(self, dmgr, serial_dev, baud_rate=115200):
+        super().__init__()
         self.serial_dev = serial_dev
         self.baud_rate = baud_rate
 
@@ -27,10 +28,10 @@ class Comm(CommGeneric):
         del self.port
 
     def read(self, length):
-        r = bytes()
-        while len(r) < length:
-            r += self.port.read(length - len(r))
-        return r
+        result = bytes()
+        while len(result) < length:
+            result += self.port.read(length - len(result))
+        return result
 
     def write(self, data):
         remaining = len(data)

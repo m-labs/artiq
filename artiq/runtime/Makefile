@@ -3,10 +3,18 @@ include $(MISOC_DIRECTORY)/software/common.mak
 
 PYTHON ?= python3.5
 
-OBJECTS := isr.o flash_storage.o clock.o rtiocrg.o elf_loader.o services.o session.o log.o test_mode.o kloader.o bridge_ctl.o mailbox.o ksupport_data.o net_server.o moninj.o main.o
-OBJECTS_KSUPPORT := ksupport.o exception_jmp.o exceptions.o mailbox.o bridge.o rtio.o ttl.o dds.o
+OBJECTS := isr.o clock.o rtiocrg.o flash_storage.o mailbox.o \
+	session.o log.o moninj.o net_server.o bridge_ctl.o \
+	ksupport_data.o kloader.o test_mode.o main.o
+OBJECTS_KSUPPORT := ksupport.o artiq_personality.o mailbox.o \
+	bridge.o rtio.o ttl.o dds.o
 
-CFLAGS += -I$(LIBLWIP_DIRECTORY)/../lwip/src/include -I$(LIBLWIP_DIRECTORY) -I.
+CFLAGS += -I$(MISOC_DIRECTORY)/software/include/dyld \
+	-I$(LIBDYLD_DIRECTORY)/include \
+	-I$(LIBUNWIND_DIRECTORY) \
+	-I$(LIBUNWIND_DIRECTORY)/../unwinder/include \
+	-I$(LIBLWIP_DIRECTORY)/../lwip/src/include \
+	-I$(LIBLWIP_DIRECTORY)
 
 all: runtime.bin runtime.fbi
 
@@ -19,7 +27,7 @@ all: runtime.bin runtime.fbi
 
 runtime.elf: $(OBJECTS)
 	$(LD) $(LDFLAGS) \
-		-T $(RUNTIME_DIRECTORY)/linker.ld \
+		-T $(RUNTIME_DIRECTORY)/runtime.ld \
 		-N -o $@ \
 		../libbase/crt0-$(CPU).o \
 		$(OBJECTS) \
@@ -31,27 +39,20 @@ runtime.elf: $(OBJECTS)
 
 ksupport.elf: $(OBJECTS_KSUPPORT)
 	$(LD) $(LDFLAGS) \
+		--eh-frame-hdr \
 		-T $(RUNTIME_DIRECTORY)/ksupport.ld \
 		-N -o $@ \
 		../libbase/crt0-$(CPU).o \
 		$^ \
+		-L../libbase \
 		-L../libcompiler_rt \
-		-lcompiler_rt
+		-L../libunwind \
+		-L../libdyld \
+		-lbase -lcompiler_rt -lunwind -ldyld
 	@chmod -x $@
 
-ksupport_data.o: ksupport.bin
+ksupport_data.o: ksupport.elf
 	$(LD) -r -b binary -o $@ $<
-
-service_table.h: ksupport.elf $(RUNTIME_DIRECTORY)/gen_service_table.py
-	@echo " GEN     " $@ && $(PYTHON) $(RUNTIME_DIRECTORY)/gen_service_table.py ksupport.elf > $@
-
-$(RUNTIME_DIRECTORY)/services.c: service_table.h
-
-services.o: $(RUNTIME_DIRECTORY)/services.c service_table.h
-	$(compile)
-
-main.o: $(RUNTIME_DIRECTORY)/main.c
-	$(compile)
 
 %.o: $(RUNTIME_DIRECTORY)/%.c
 	$(compile)
@@ -62,6 +63,6 @@ main.o: $(RUNTIME_DIRECTORY)/main.c
 clean:
 	$(RM) $(OBJECTS) $(OBJECTS_KSUPPORT)
 	$(RM) runtime.elf runtime.bin runtime.fbi .*~ *~
-	$(RM) service_table.h ksupport.elf ksupport.bin
+	$(RM) ksupport.elf ksupport.bin
 
-.PHONY: all clean main.o
+.PHONY: all clean

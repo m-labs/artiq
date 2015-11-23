@@ -4,16 +4,23 @@ ENTRY(_start)
 INCLUDE generated/regions.ld
 
 /* First 4M of main memory are reserved for runtime code/data
- * then comes kernel memory. First 32K of kernel memory are for support code.
+ * then comes kernel memory. First 128K of kernel memory are for support code.
  */
 MEMORY {
-    ksupport : ORIGIN = 0x40400000, LENGTH = 0x8000
+    ksupport (RWX) : ORIGIN = 0x40400000, LENGTH = 0x20000
 }
 
 /* On AMP systems, kernel stack is at the end of main RAM,
  * before the runtime stack. Leave 1M for runtime stack.
  */
 PROVIDE(_fstack = 0x40000000 + LENGTH(main_ram) - 1024*1024 - 4);
+
+/* Force ld to make the ELF header as loadable. */
+PHDRS
+{
+    text     PT_LOAD FILEHDR PHDRS;
+    eh_frame PT_GNU_EH_FRAME;
+}
 
 SECTIONS
 {
@@ -22,7 +29,7 @@ SECTIONS
         _ftext = .;
         *(.text .stub .text.* .gnu.linkonce.t.*)
         _etext = .;
-    } > ksupport
+    } :text
 
     .rodata :
     {
@@ -33,6 +40,16 @@ SECTIONS
         _erodata = .;
     } > ksupport
 
+    .eh_frame :
+    {
+        *(.eh_frame)
+    } :text
+
+    .eh_frame_hdr :
+    {
+        *(.eh_frame_hdr)
+    } :text :eh_frame
+
     .data :
     {
         . = ALIGN(4);
@@ -41,7 +58,7 @@ SECTIONS
         *(.data1)
         *(.sdata .sdata.* .gnu.linkonce.s.*)
         _edata = .;
-    } > ksupport
+    }
 
     .bss :
     {
@@ -57,5 +74,5 @@ SECTIONS
         _ebss = .;
         . = ALIGN(8);
         _heapstart = .;
-    } > ksupport
+    }
 }

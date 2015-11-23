@@ -2,6 +2,7 @@
 #define __RTIO_H
 
 #include <generated/csr.h>
+#include "artiq_personality.h"
 
 #define RTIO_O_STATUS_FULL 1
 #define RTIO_O_STATUS_UNDERFLOW 2
