@@ -232,10 +232,10 @@ class Phi(Instruction):
             yield next(operand_iter), next(operand_iter)
 
     def incoming_blocks(self):
-        (block for (block, value) in self.incoming())
+        return (block for (block, value) in self.incoming())
 
     def incoming_values(self):
-        (value for (block, value) in self.incoming())
+        return (value for (block, value) in self.incoming())
 
     def incoming_value_for_block(self, target_block):
         for (block, value) in self.incoming():
