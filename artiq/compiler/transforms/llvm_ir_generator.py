@@ -541,7 +541,7 @@ class LLVMIRGenerator:
             # The environment argument is an i8*, so that all closures can
             # unify with each other regardless of environment type or size.
             # We fixup the type on assignment into the "$outer" slot.
-            assert isinstance(insn.value(), ir.EnvironmentArgument)
+            assert insn.var_name == '$outer'
             llvalue = self.llbuilder.bitcast(llvalue, llptr.type.pointee)
         return self.llbuilder.store(llvalue, llptr)
 
