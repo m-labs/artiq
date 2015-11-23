@@ -479,8 +479,12 @@ class Function:
                         type_printer.name(self.type.ret), self.name,
                         ", ".join([arg.as_operand(type_printer) for arg in self.arguments]),
                         type_printer.name(self.type)))
-        for block in reversed(postorder):
+
+        postorder_blocks = list(reversed(postorder))
+        orphan_blocks    = [block for block in self.basic_blocks if block not in postorder]
+        for block in postorder_blocks + orphan_blocks:
             lines.append(block.as_entity(type_printer))
+
         lines.append("}")
         return "\n".join(lines)
 
