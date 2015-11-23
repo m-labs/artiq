@@ -25,8 +25,8 @@ def inline(call_insn):
     else:
         target_return_phi = target_successor.prepend(ir.Phi(source_function.type.ret))
 
-    closure = target_predecessor.insert(call_insn,
-                                        ir.GetAttr(call_insn.target_function(), '__closure__'))
+    closure = target_predecessor.insert(ir.GetAttr(call_insn.target_function(), '__closure__'),
+                                        before=call_insn)
     for actual_arg, formal_arg in zip([closure] + call_insn.arguments(),
                                       source_function.arguments):
         value_map[formal_arg] = actual_arg

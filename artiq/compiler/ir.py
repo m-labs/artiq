@@ -338,7 +338,7 @@ class BasicBlock(NamedValue):
     def index(self, insn):
         return self.instructions.index(insn)
 
-    def insert(self, before, insn):
+    def insert(self, insn, before):
         assert isinstance(insn, Instruction)
         insn.set_basic_block(self)
         self.instructions.insert(self.index(before), insn)
@@ -351,7 +351,7 @@ class BasicBlock(NamedValue):
         return insn
 
     def replace(self, insn, replacement):
-        self.insert(insn, replacement)
+        self.insert(replacement, before=insn)
         self.remove(insn)
 
     def is_terminated(self):
