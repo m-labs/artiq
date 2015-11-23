@@ -964,7 +964,9 @@ class Branch(Terminator):
         return self.operands[0]
 
     def set_target(self, new_target):
+        self.operands[0].uses.remove(self)
         self.operands[0] = new_target
+        self.operands[0].uses.add(self)
 
 class BranchIf(Terminator):
     """
@@ -1231,11 +1233,18 @@ class Delay(Terminator):
     def decomposition(self):
         return self.operands[0]
 
+    def set_decomposition(self, new_decomposition):
+        self.operands[0].uses.remove(self)
+        self.operands[0] = new_decomposition
+        self.operands[0].uses.add(self)
+
     def target(self):
         return self.operands[1]
 
     def set_target(self, new_target):
+        self.operands[1].uses.remove(self)
         self.operands[1] = new_target
+        self.operands[1].uses.add(self)
 
     def substs(self):
         return zip(self.var_names, self.operands[2:])
