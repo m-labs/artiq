@@ -468,7 +468,7 @@ class Server(_AsyncioServer):
                                 continue
                             method = getattr(target, name)
                             argspec = inspect.getfullargspec(method)
-                            doc["methods"][name] = (dict(argspec.__dict__),
+                            doc["methods"][name] = (dict(argspec._asdict()),
                                                     inspect.getdoc(method))
                         if self.builtin_terminate:
                             doc["methods"]["terminate"] = (
