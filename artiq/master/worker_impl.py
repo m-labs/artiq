@@ -8,6 +8,7 @@ from artiq.tools import file_import
 from artiq.master.worker_db import DeviceManager, DatasetManager, get_hdf5_output
 from artiq.language.environment import is_experiment
 from artiq.language.core import set_watchdog_factory, TerminationRequested
+from artiq.coredevice.core import CompileError
 from artiq import __version__ as artiq_version
 
 
@@ -109,7 +110,7 @@ class Scheduler:
 
 
 def get_exp(file, class_name):
-    module = file_import(file)
+    module = file_import(file, prefix="artiq_worker_")
     if class_name is None:
         exps = [v for k, v in module.__dict__.items()
                 if is_experiment(v)]
@@ -173,6 +174,7 @@ def main():
     expid = None
     exp = None
     exp_inst = None
+    repository_path = None
 
     device_mgr = DeviceManager(ParentDeviceDB,
                                virtual_devices={"scheduler": Scheduler()})
@@ -188,10 +190,11 @@ def main():
                 expid = obj["expid"]
                 if obj["wd"] is not None:
                     # Using repository
-                    expf = os.path.join(obj["wd"], expid["file"])
+                    experiment_file = os.path.join(obj["wd"], expid["file"])
+                    repository_path = obj["wd"]
                 else:
-                    expf = expid["file"]
-                exp = get_exp(expf, expid["class_name"])
+                    experiment_file = expid["file"]
+                exp = get_exp(experiment_file, expid["class_name"])
                 device_mgr.virtual_devices["scheduler"].set_run_info(
                     rid, obj["pipeline_name"], expid, obj["priority"])
                 exp_inst = exp(device_mgr, dataset_mgr,
@@ -221,6 +224,11 @@ def main():
                 put_object({"action": "completed"})
             elif action == "terminate":
                 break
+    except CompileError as exc:
+        message = "Cannot compile {}\n".format(experiment_file) + exc.render_string()
+        if repository_path is not None:
+            message = message.replace(repository_path, "<repository>")
+        logging.error(message)
     except Exception as exc:
         short_exc_info = type(exc).__name__
         exc_str = str(exc)
