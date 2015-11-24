@@ -204,7 +204,6 @@ class Message:
 
 class Tcube:
     def __init__(self, serial_dev):
-        self.serial_dev = serial_dev
         self.port = serial.serial_for_url(serial_dev, baudrate=115200,
                                           rtscts=True)
         self.status_report_counter = 0
