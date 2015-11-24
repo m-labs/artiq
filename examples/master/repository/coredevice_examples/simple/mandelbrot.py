@@ -32,6 +32,7 @@ class Mandelbrot(EnvExperiment):
                 c_i = y*yScale/height-yScale/2
                 z_r = c_r
                 z_i = c_i
+                i = 0
                 for i in range(16):
                     if z_r*z_r + z_i*z_i > 4:
                         break
