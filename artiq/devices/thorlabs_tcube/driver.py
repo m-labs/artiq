@@ -113,22 +113,6 @@ class MGMSG(Enum):
     PZ_GET_TPZ_IOSETTINGS = 0x07D6
 
 
-def _write_exactly(f, data):
-    remaining = len(data)
-    pos = 0
-    while remaining:
-        written = f.write(data[pos:])
-        remaining -= written
-        pos += written
-
-
-def _read_exactly(f, n):
-    r = bytes()
-    while len(r) < n:
-        r += f.read(n - len(r))
-    return r
-
-
 class Direction:
     def __init__(self, direction):
         if direction not in (1, 2):
@@ -179,15 +163,15 @@ class Message:
                            self.param1, self.param2, self.dest, self.src)
 
     def send(self, port):
-            _write_exactly(port, self.pack())
+        port.write(self.pack())
 
     @classmethod
     def recv(cls, port):
-        (header, ) = st.unpack("6s", _read_exactly(port, 6))
+        (header, ) = st.unpack("6s", port.read(6))
         data = b""
         if header[4] & 0x80:
             (length, ) = st.unpack("<H", header[2:4])
-            data = _read_exactly(port, length)
+            data = port.read(length)
         return cls.unpack(header + data)
 
     @property
@@ -749,8 +733,8 @@ class Tdc(Tcube):
         if msg_id == MGMSG.HW_DISCONNECT:
             raise MsgError("Error: Please disconnect the TDC001")
         elif msg_id == MGMSG.HW_RESPONSE:
-            raise MsgError("Hardware error, please disconnect"
-                           + "and reconnect the TDC001")
+            raise MsgError("Hardware error, please disconnect "
+                           "and reconnect the TDC001")
         elif msg_id == MGMSG.HW_RICHRESPONSE:
             (code, ) = st.unpack("<H", data[2:4])
             raise MsgError("Hardware error {}: {}"
