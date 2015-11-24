@@ -175,6 +175,10 @@ class LogDock(dockarea.Dock):
         self.log.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
         self.log.horizontalHeader().setResizeMode(
             QtGui.QHeaderView.ResizeToContents)
+        self.log.horizontalHeader().setStretchLastSection(True)
+        self.log.verticalHeader().setResizeMode(
+            QtGui.QHeaderView.ResizeToContents)
+        self.log.verticalHeader().hide()
         self.log.setHorizontalScrollMode(
             QtGui.QAbstractItemView.ScrollPerPixel)
         self.log.setShowGrid(False)

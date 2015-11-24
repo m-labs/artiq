@@ -55,6 +55,7 @@ class ArgumentsDemo(EnvExperiment):
     def run(self):
         logging.error("logging test: error")
         logging.warning("logging test: warning")
+        logging.warning("logging test:" + " this is a very long message."*15)
         logging.info("logging test: info")
         logging.debug("logging test: debug")
 
