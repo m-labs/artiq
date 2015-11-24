@@ -19,23 +19,22 @@ install:
   - if [ $BUILD_SOC != none ]; then ./.travis/get-xilinx.sh; fi
   - if [ $BUILD_SOC != none ]; then ./.travis/get-toolchain.sh; fi
   - . ./.travis/get-anaconda.sh
-  - source $HOME/miniconda/bin/activate py35
   - conda install -q pip coverage anaconda-client cython
   - pip install coveralls
   # workaround for https://github.com/conda/conda-build/issues/466
   - mkdir -p /home/travis/miniconda/conda-bld/linux-64
   - conda index /home/travis/miniconda/conda-bld/linux-64
 script:
-  - conda build --python 3.5 conda/artiq
+  - conda build conda/artiq
   - conda install -q --use-local artiq
   - |
       if [ $BUILD_SOC == none ]; then
-        PACKAGES="$(conda build --output --python 3.5 conda/artiq) $PACKAGES"
+        PACKAGES="$(conda build --output conda/artiq) $PACKAGES"
         coverage run --source=artiq setup.py test
         make -C doc/manual html
       else
-        PACKAGES="$(conda build --output --python 3.5 conda/artiq-$BUILD_SOC) $PACKAGES"
-        conda build --python 3.5 conda/artiq-$BUILD_SOC
+        PACKAGES="$(conda build --output conda/artiq-$BUILD_SOC) $PACKAGES"
+        conda build conda/artiq-$BUILD_SOC
       fi
 after_success:
   - |
