@@ -207,6 +207,13 @@ class ASTSynthesizer:
         return ast.Assign(targets=[attr_node], value=value_node,
                           op_locs=[equals_loc], loc=name_loc.join(value_node.loc))
 
+
+def suggest_identifier(id, names):
+    sorted_names = sorted(names, key=lambda other: jaro_winkler(id, other), reverse=True)
+    if len(sorted_names) > 0:
+        if jaro_winkler(id, sorted_names[0]) > 0.0:
+            return sorted_names[0]
+
 class StitchingASTTypedRewriter(ASTTypedRewriter):
     def __init__(self, engine, prelude, globals, host_environment, quote):
         super().__init__(engine, prelude)
@@ -227,7 +234,12 @@ class StitchingASTTypedRewriter(ASTTypedRewriter):
             if node.id in self.host_environment:
                 return self.quote(self.host_environment[node.id], node.loc)
             else:
-                suggestion = self._most_similar_ident(node.id)
+                names = set()
+                names.update(self.host_environment.keys())
+                for typing_env in reversed(self.env_stack):
+                    names.update(typing_env.keys())
+
+                suggestion = suggest_identifier(node.id, names)
                 if suggestion is not None:
                     diag = diagnostic.Diagnostic("fatal",
                         "name '{name}' is not bound to anything; did you mean '{suggestion}'?",
@@ -239,17 +251,6 @@ class StitchingASTTypedRewriter(ASTTypedRewriter):
                         "name '{name}' is not bound to anything", {"name": node.id},
                         node.loc)
                     self.engine.process(diag)
-
-    def _most_similar_ident(self, id):
-        names = set()
-        names.update(self.host_environment.keys())
-        for typing_env in reversed(self.env_stack):
-            names.update(typing_env.keys())
-
-        sorted_names = sorted(names, key=lambda other: jaro_winkler(id, other), reverse=True)
-        if len(sorted_names) > 0:
-            if jaro_winkler(id, sorted_names[0]) > 0.0:
-                return sorted_names[0]
 
 class StitchingInferencer(Inferencer):
     def __init__(self, engine, value_map, quote):
@@ -277,13 +278,27 @@ class StitchingInferencer(Inferencer):
         # which would be the optimal solution.
         for object_value, object_loc in self.value_map[object_type]:
             if not hasattr(object_value, node.attr):
+                if node.attr.startswith('_'):
+                    names = set(filter(lambda name: not name.startswith('_'),
+                                       dir(object_value)))
+                else:
+                    names = set(dir(object_value))
+                suggestion = suggest_identifier(node.attr, names)
+
                 note = diagnostic.Diagnostic("note",
                     "attribute accessed here", {},
                     node.loc)
-                diag = diagnostic.Diagnostic("error",
-                    "host object does not have an attribute '{attr}'",
-                    {"attr": node.attr},
-                    object_loc, notes=[note])
+                if suggestion is not None:
+                    diag = diagnostic.Diagnostic("error",
+                        "host object does not have an attribute '{attr}'; "
+                        "did you mean '{suggestion}'?",
+                        {"attr": node.attr, "suggestion": suggestion},
+                        object_loc, notes=[note])
+                else:
+                    diag = diagnostic.Diagnostic("error",
+                        "host object does not have an attribute '{attr}'",
+                        {"attr": node.attr},
+                        object_loc, notes=[note])
                 self.engine.process(diag)
                 return
 
