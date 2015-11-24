@@ -11,7 +11,7 @@ from collections import OrderedDict, defaultdict
 from pythonparser import ast, algorithm, source, diagnostic, parse_buffer
 from pythonparser import lexer as source_lexer, parser as source_parser
 
-from Levenshtein import jaro_winkler
+from Levenshtein import ratio as similarity, jaro_winkler
 
 from ..language import core as language_core
 from . import types, builtins, asttyped, prelude
@@ -211,7 +211,7 @@ class ASTSynthesizer:
 def suggest_identifier(id, names):
     sorted_names = sorted(names, key=lambda other: jaro_winkler(id, other), reverse=True)
     if len(sorted_names) > 0:
-        if jaro_winkler(id, sorted_names[0]) > 0.0:
+        if jaro_winkler(id, sorted_names[0]) > 0.0 and similarity(id, sorted_names[0]) > 0.5:
             return sorted_names[0]
 
 class StitchingASTTypedRewriter(ASTTypedRewriter):
