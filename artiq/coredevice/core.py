@@ -6,7 +6,8 @@ from artiq.language.core import *
 from artiq.language.types import *
 from artiq.language.units import *
 
-from artiq.compiler import Stitcher, Module
+from artiq.compiler.module import Module
+from artiq.compiler.embedding import Stitcher
 from artiq.compiler.targets import OR1KTarget
 
 # Import for side effects (creating the exception classes).

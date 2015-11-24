@@ -5,7 +5,6 @@ in :mod:`asttyped`.
 
 import string
 from collections import OrderedDict
-from pythonparser import diagnostic
 from . import iodelay
 
 
@@ -426,6 +425,8 @@ class TDelay(Type):
     """
 
     def __init__(self, duration, cause):
+        # Avoid pulling in too many dependencies with `artiq.language`.
+        from pythonparser import diagnostic
         assert duration is None or isinstance(duration, iodelay.Expr)
         assert cause is None or isinstance(cause, diagnostic.Diagnostic)
         assert (not (duration and cause)) and (duration or cause)
