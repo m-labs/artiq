@@ -4,8 +4,6 @@ import struct as st
 
 import serial
 
-from artiq.language.units import V
-
 
 logger = logging.getLogger(__name__)
 
@@ -174,7 +172,7 @@ class Message:
 
     @classmethod
     def recv(cls, port):
-        (header, ) = st.unpack("6s", port.read(6))
+        header = port.read(6)
         logger.debug("received header: %s", header)
         data = b""
         if header[4] & 0x80:
