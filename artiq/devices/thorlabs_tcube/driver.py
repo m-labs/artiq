@@ -142,6 +142,12 @@ class Message:
         self.src = src
         self.data = data
 
+    def __str__(self):
+        return ("<Message {} p1=0x{:02x} p2=0x{:02x} "
+                "dest=0x{:02x} src=0x{:02x}>".format(
+                    self.id, self.param1, self.param2,
+                    self.dest, self.src))
+
     @staticmethod
     def unpack(data):
         id, param1, param2, dest, src = st.unpack("<HBBBB", data[:6])
@@ -163,16 +169,20 @@ class Message:
                            self.param1, self.param2, self.dest, self.src)
 
     def send(self, port):
+        logger.debug("sending: %s", self)
         port.write(self.pack())
 
     @classmethod
     def recv(cls, port):
         (header, ) = st.unpack("6s", port.read(6))
+        logger.debug("received header: %s", header)
         data = b""
         if header[4] & 0x80:
             (length, ) = st.unpack("<H", header[2:4])
             data = port.read(length)
-        return cls.unpack(header + data)
+        r = cls.unpack(header + data)
+        logger.debug("receiving: %s", r)
+        return r
 
     @property
     def has_data(self):
