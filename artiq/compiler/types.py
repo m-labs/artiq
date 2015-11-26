@@ -78,6 +78,9 @@ class TVar(Type):
         else:
             return self.find().fold(accum, fn)
 
+    def map(self, fn):
+        return fn(self)
+
     def __repr__(self):
         if self.parent is self:
             return "<artiq.compiler.types.TVar %d>" % id(self)
@@ -121,6 +124,21 @@ class TMono(Type):
         for param in self.params:
             accum = self.params[param].fold(accum, fn)
         return fn(accum, self)
+
+    def map(self, fn):
+        params = OrderedDict()
+        for param in self.params:
+            params[param] = self.params[param].map(fn)
+
+        attributes = OrderedDict()
+        for attr in self.attributes:
+            attributes[attr] = self.attributes[attr].map(fn)
+
+        self_copy = self.__class__.__new__(self.__class__)
+        self_copy.name = self.name
+        self_copy.params = params
+        self_copy.attributes = attributes
+        return fn(self_copy)
 
     def __repr__(self):
         return "artiq.compiler.types.TMono(%s, %s)" % (repr(self.name), repr(self.params))
@@ -167,6 +185,9 @@ class TTuple(Type):
         for elt in self.elts:
             accum = elt.fold(accum, fn)
         return fn(accum, self)
+
+    def map(self, fn):
+        return fn(TTuple(list(map(lambda elt: elt.map(fn), self.elts))))
 
     def __repr__(self):
         return "artiq.compiler.types.TTuple(%s)" % repr(self.elts)
@@ -236,6 +257,23 @@ class TFunction(Type):
         accum = self.ret.fold(accum, fn)
         return fn(accum, self)
 
+    def _map_args(self, fn):
+        args = OrderedDict()
+        for arg in self.args:
+            args[arg] = self.args[arg].map(fn)
+
+        optargs = OrderedDict()
+        for optarg in self.optargs:
+            optargs[optarg] = self.optargs[optarg].map(fn)
+
+        return args, optargs, self.ret.map(fn)
+
+    def map(self, fn):
+        args, optargs, ret = self._map_args(fn)
+        self_copy = TFunction(args, optargs, ret)
+        self_copy.delay = self.delay.map(fn)
+        return fn(self_copy)
+
     def __repr__(self):
         return "artiq.compiler.types.TFunction({}, {}, {})".format(
             repr(self.args), repr(self.optargs), repr(self.ret))
@@ -274,6 +312,12 @@ class TRPCFunction(TFunction):
         else:
             raise UnificationError(self, other)
 
+    def map(self, fn):
+        args, optargs, ret = self._map_args(fn)
+        self_copy = TRPCFunction(args, optargs, ret, self.service)
+        self_copy.delay = self.delay.map(fn)
+        return fn(self_copy)
+
 class TCFunction(TFunction):
     """
     A function type of a runtime-provided C function.
@@ -297,6 +341,12 @@ class TCFunction(TFunction):
         else:
             raise UnificationError(self, other)
 
+    def map(self, fn):
+        args, _optargs, ret = self._map_args(fn)
+        self_copy = TCFunction(args, ret, self.name)
+        self_copy.delay = self.delay.map(fn)
+        return fn(self_copy)
+
 class TBuiltin(Type):
     """
     An instance of builtin type. Every instance of a builtin
@@ -317,6 +367,9 @@ class TBuiltin(Type):
 
     def fold(self, accum, fn):
         return fn(accum, self)
+
+    def map(self, fn):
+        return fn(self)
 
     def __repr__(self):
         return "artiq.compiler.types.{}({})".format(type(self).__name__, repr(self.name))
@@ -409,6 +462,9 @@ class TValue(Type):
     def fold(self, accum, fn):
         return fn(accum, self)
 
+    def map(self, fn):
+        return fn(self)
+
     def __repr__(self):
         return "artiq.compiler.types.TValue(%s)" % repr(self.value)
 
@@ -455,6 +511,10 @@ class TDelay(Type):
     def fold(self, accum, fn):
         # delay types do not participate in folding
         pass
+
+    def map(self, fn):
+        # or mapping
+        return self
 
     def __eq__(self, other):
         return isinstance(other, TDelay) and \
