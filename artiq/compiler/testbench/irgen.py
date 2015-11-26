@@ -1,6 +1,6 @@
 import sys, fileinput
 from pythonparser import diagnostic
-from .. import Module, Source
+from ..module import Module, Source
 
 def main():
     def process_diagnostic(diag):

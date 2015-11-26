@@ -2,7 +2,7 @@ import sys, os
 from pythonparser import diagnostic
 from ...protocols.file_db import FlatFileDB
 from ...master.worker_db import DeviceManager
-from .. import Module
+from ..module import Module
 from ..embedding import Stitcher
 from ..targets import OR1KTarget
 from . import benchmark

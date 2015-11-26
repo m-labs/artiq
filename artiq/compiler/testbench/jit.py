@@ -1,7 +1,7 @@
 import os, sys, fileinput, ctypes
 from pythonparser import diagnostic
 from llvmlite_artiq import binding as llvm
-from .. import Module, Source
+from ..module import Module, Source
 from ..targets import NativeTarget
 
 def main():

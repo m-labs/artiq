@@ -1,6 +1,7 @@
 import sys, fileinput
 from pythonparser import diagnostic
-from .. import types, iodelay, Module, Source
+from ..module import Module, Source
+from .. import types, iodelay
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "+diag":

@@ -1,6 +1,6 @@
 import sys, os
 from pythonparser import diagnostic
-from .. import Module, Source
+from ..module import Module, Source
 from ..targets import OR1KTarget
 
 def main():

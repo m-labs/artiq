@@ -6,7 +6,7 @@ annotations.
 from artiq.compiler import types, builtins
 
 __all__ = ["TNone", "TBool", "TInt32", "TInt64", "TFloat",
-           "TStr", "TList", "TRange32", "TRange64"]
+           "TStr", "TList", "TRange32", "TRange64", "TVar"]
 
 TNone      = builtins.TNone()
 TBool      = builtins.TBool()
@@ -17,3 +17,4 @@ TStr       = builtins.TStr()
 TList      = builtins.TList
 TRange32   = builtins.TRange(builtins.TInt(types.TValue(32)))
 TRange64   = builtins.TRange(builtins.TInt(types.TValue(64)))
+TVar       = types.TVar
