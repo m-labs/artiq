@@ -342,8 +342,9 @@ class StitchingInferencer(Inferencer):
             if node.attr not in attributes:
                 # We just figured out what the type should be. Add it.
                 attributes[node.attr] = ast.type
-            elif attributes[node.attr] != ast.type:
+            elif attributes[node.attr] != ast.type and not types.is_rpc_function(ast.type):
                 # Does this conflict with an earlier guess?
+                # RPC function types are exempt because RPCs are dynamically typed.
                 printer = types.TypePrinter()
                 diag = diagnostic.Diagnostic("error",
                     "host object has an attribute '{attr}' of type {typea}, which is"
@@ -660,15 +661,6 @@ class Stitcher:
         return None, function_type
 
     def _quote_function(self, function, loc):
-        def instantiate(typ):
-            tvar_map = dict()
-            typ = typ.find()
-            if types.is_var(typ):
-                if typ not in tvar_map:
-                    tvar_map[typ] = types.TVar()
-                return tvar_map[typ]
-            return typ
-
         if function in self.functions:
             result = self.functions[function]
         else:
@@ -694,7 +686,7 @@ class Stitcher:
 
         function_name, function_type = result
         if types.is_rpc_function(function_type):
-            function_type = function_type.map(instantiate)
+            function_type = types.instantiate(function_type)
         return function_name, function_type
 
     def _quote(self, value, loc):

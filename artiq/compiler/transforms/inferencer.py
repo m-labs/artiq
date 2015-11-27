@@ -103,13 +103,14 @@ class Inferencer(algorithm.Visitor):
                             node.value.loc)
                     ]
 
-                # Assumes no free type variables in .attributes.
-                self._unify(node.type, object_type.attributes[node.attr],
-                            node.loc, None,
+                attr_type = object_type.attributes[node.attr]
+                if types.is_function(attr_type):
+                    attr_type = types.instantiate(attr_type)
+
+                self._unify(node.type, attr_type, node.loc, None,
                             makenotes=makenotes, when=" for attribute '{}'".format(node.attr))
             elif types.is_instance(object_type) and \
                     node.attr in object_type.constructor.attributes:
-                # Assumes no free type variables in .attributes.
                 attr_type = object_type.constructor.attributes[node.attr].find()
                 if types.is_function(attr_type):
                     # Convert to a method.
@@ -139,7 +140,7 @@ class Inferencer(algorithm.Visitor):
                                     makenotes=makenotes,
                                     when=" while inferring the type for self argument")
 
-                    attr_type = types.TMethod(object_type, attr_type)
+                    attr_type = types.TMethod(object_type, types.instantiate(attr_type))
 
                 if not types.is_var(attr_type):
                     self._unify(node.type, attr_type,

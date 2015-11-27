@@ -539,6 +539,18 @@ def TFixedDelay(duration):
     return TDelay(duration, None)
 
 
+def instantiate(typ):
+    tvar_map = dict()
+    def mapper(typ):
+        typ = typ.find()
+        if is_var(typ):
+            if typ not in tvar_map:
+                tvar_map[typ] = TVar()
+            return tvar_map[typ]
+        return typ
+
+    return typ.map(mapper)
+
 def is_var(typ):
     return isinstance(typ.find(), TVar)
 

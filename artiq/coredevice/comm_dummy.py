@@ -16,3 +16,12 @@ class Comm:
 
     def serve(self, object_map, symbolizer):
         pass
+
+    def check_ident(self):
+        pass
+
+    def get_log(self):
+        return ""
+
+    def clear_log(self):
+        pass
