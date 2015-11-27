@@ -151,7 +151,7 @@ class _LogFilterProxyModel(QSortFilterProxyModel):
         self.invalidateFilter()
 
 
-class LogDock(dockarea.Dock):
+class _LogDock(dockarea.Dock):
     def __init__(self, manager, name, log_sub):
         dockarea.Dock.__init__(self, name, label="Log", size=(1000, 300))
 
@@ -180,6 +180,8 @@ class LogDock(dockarea.Dock):
             QtGui.QHeaderView.ResizeToContents)
         self.log.verticalHeader().hide()
         self.log.setHorizontalScrollMode(
+            QtGui.QAbstractItemView.ScrollPerPixel)
+        self.log.setVerticalScrollMode(
             QtGui.QAbstractItemView.ScrollPerPixel)
         self.log.setShowGrid(False)
         self.log.setTextElideMode(QtCore.Qt.ElideNone)
@@ -278,7 +280,7 @@ class LogDockManager:
             n += 1
             name = "log" + str(n)
 
-        dock = LogDock(self, name, self.log_sub)
+        dock = _LogDock(self, name, self.log_sub)
         self.docks[name] = dock
         if add_to_area:
             self.dock_area.addDock(dock)
@@ -303,7 +305,7 @@ class LogDockManager:
         if self.docks:
             raise NotImplementedError
         for name, dock_state in state.items():
-            dock = LogDock(self, name, self.log_sub)
+            dock = _LogDock(self, name, self.log_sub)
             dock.restore_state(dock_state)
             self.dock_area.addDock(dock)
             self.docks[name] = dock
