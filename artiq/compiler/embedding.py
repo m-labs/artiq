@@ -670,31 +670,32 @@ class Stitcher:
             return typ
 
         if function in self.functions:
-            function_name, function_type = self.functions[function]
-            if types.is_rpc_function(function_type):
-                function_type = function_type.map(instantiate)
-            return function_name, function_type
-
-        if hasattr(function, "artiq_embedded"):
-            if function.artiq_embedded.function is not None:
-                # Insert the typed AST for the new function and restart inference.
-                # It doesn't really matter where we insert as long as it is before
-                # the final call.
-                function_node = self._quote_embedded_function(function)
-                self._inject(function_node)
-                return function_node.name, self.globals[function_node.name]
-            elif function.artiq_embedded.syscall is not None:
-                # Insert a storage-less global whose type instructs the compiler
-                # to perform a system call instead of a regular call.
-                return self._quote_foreign_function(function, loc,
-                                                    syscall=function.artiq_embedded.syscall)
-            else:
-                assert False
+            result = self.functions[function]
         else:
-            # Insert a storage-less global whose type instructs the compiler
-            # to perform an RPC instead of a regular call.
-            return self._quote_foreign_function(function, loc,
-                                                syscall=None)
+            if hasattr(function, "artiq_embedded"):
+                if function.artiq_embedded.function is not None:
+                    # Insert the typed AST for the new function and restart inference.
+                    # It doesn't really matter where we insert as long as it is before
+                    # the final call.
+                    function_node = self._quote_embedded_function(function)
+                    self._inject(function_node)
+                    result = function_node.name, self.globals[function_node.name]
+                elif function.artiq_embedded.syscall is not None:
+                    # Insert a storage-less global whose type instructs the compiler
+                    # to perform a system call instead of a regular call.
+                    result = self._quote_foreign_function(function, loc,
+                                                          syscall=function.artiq_embedded.syscall)
+                else:
+                    assert False
+            else:
+                # Insert a storage-less global whose type instructs the compiler
+                # to perform an RPC instead of a regular call.
+                result = self._quote_foreign_function(function, loc, syscall=None)
+
+        function_name, function_type = result
+        if types.is_rpc_function(function_type):
+            function_type = function_type.map(instantiate)
+        return function_name, function_type
 
     def _quote(self, value, loc):
         synthesizer = self._synthesizer(loc)
