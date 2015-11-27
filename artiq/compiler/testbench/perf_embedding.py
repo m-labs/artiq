@@ -1,6 +1,6 @@
 import sys, os
 from pythonparser import diagnostic
-from ...protocols.file_db import FlatFileDB
+from ...master.databases import DeviceDB
 from ...master.worker_db import DeviceManager
 from ..module import Module
 from ..embedding import Stitcher
@@ -25,8 +25,8 @@ def main():
         testcase_vars = {'__name__': 'testbench'}
         exec(testcase_code, testcase_vars)
 
-    ddb_path = os.path.join(os.path.dirname(sys.argv[1]), "ddb.pyon")
-    dmgr = DeviceManager(FlatFileDB(ddb_path))
+    ddb_path = os.path.join(os.path.dirname(sys.argv[1]), "device_db.pyon")
+    dmgr = DeviceManager(DeviceDB(ddb_path))
 
     def embed():
         experiment = testcase_vars["Benchmark"](dmgr)
