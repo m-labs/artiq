@@ -500,11 +500,11 @@ class TDelay(Type):
     def unify(self, other):
         other = other.find()
 
-        if self.is_fixed() and other.is_fixed() and \
+        if isinstance(other, TVar):
+            other.unify(self)
+        elif self.is_fixed() and other.is_fixed() and \
                 self.duration.fold() == other.duration.fold():
             pass
-        elif isinstance(other, TVar):
-            other.unify(self)
         else:
             raise UnificationError(self, other)
 
