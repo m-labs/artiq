@@ -56,18 +56,18 @@ class _Range(LayoutWidget):
 
 
 class ScanController(LayoutWidget):
-    def __init__(self, procdesc):
+    def __init__(self, argdesc):
         LayoutWidget.__init__(self)
 
         self.stack = QtGui.QStackedWidget()
         self.addWidget(self.stack, 1, 0, colspan=4)
 
-        self.scale = procdesc["scale"]
+        self.scale = argdesc["scale"]
 
-        gmin, gmax = procdesc["global_min"], procdesc["global_max"]
-        gstep = procdesc["global_step"]
-        unit = procdesc["unit"]
-        ndecimals = procdesc["ndecimals"]
+        gmin, gmax = argdesc["global_min"], argdesc["global_max"]
+        gstep = argdesc["global_step"]
+        unit = argdesc["unit"]
+        ndecimals = argdesc["ndecimals"]
 
         self.v_noscan = QtGui.QDoubleSpinBox()
         self.v_noscan.setDecimals(ndecimals)
@@ -110,10 +110,9 @@ class ScanController(LayoutWidget):
             radiobuttons.addButton(b)
             b.toggled.connect(self.select_page)
 
-        if "default" in procdesc:
-            self.set_argument_value(procdesc["default"])
-        else:
-            self.noscan.setChecked(True)
+    @staticmethod
+    def default(argdesc):
+        return {"ty": "NoScan", "value": 0.0}
 
     def select_page(self):
         if self.noscan.isChecked():

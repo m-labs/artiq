@@ -13,7 +13,8 @@ from pyqtgraph import dockarea
 from artiq.tools import *
 from artiq.protocols.pc_rpc import AsyncioClient
 from artiq.gui.models import ModelSubscriber
-from artiq.gui import state, explorer, moninj, datasets, schedule, log, console
+from artiq.gui import (state, experiments, explorer,
+                       moninj, datasets, schedule, log, console)
 
 
 def get_argparser():
@@ -85,23 +86,26 @@ def main():
 
     # initialize main window
     win = MainWindow(app, args.server)
-    area = dockarea.DockArea()
-    smgr.register(area)
+    dock_area = dockarea.DockArea()
+    smgr.register(dock_area)
     smgr.register(win)
-    win.setCentralWidget(area)
+    win.setCentralWidget(dock_area)
     status_bar = QtGui.QStatusBar()
     status_bar.showMessage("Connected to {}".format(args.server))
     win.setStatusBar(status_bar)
 
     # create UI components
-    d_explorer = explorer.ExplorerDock(win, status_bar,
+    expmgr = experiments.ExperimentManager(status_bar, dock_area,
+                                           sub_clients["explist"],
+                                           sub_clients["schedule"],
+                                           rpc_clients["schedule"])
+    d_explorer = explorer.ExplorerDock(win, status_bar, expmgr,
                                        sub_clients["explist"],
-                                       sub_clients["schedule"],
                                        rpc_clients["schedule"],
                                        rpc_clients["repository"])
     smgr.register(d_explorer)
 
-    d_datasets = datasets.DatasetsDock(win, area, sub_clients["datasets"])
+    d_datasets = datasets.DatasetsDock(win, dock_area, sub_clients["datasets"])
     smgr.register(d_datasets)
 
     if os.name != "nt":
@@ -112,7 +116,7 @@ def main():
     d_schedule = schedule.ScheduleDock(
         status_bar, rpc_clients["schedule"], sub_clients["schedule"])
 
-    logmgr = log.LogDockManager(area, sub_clients["log"])
+    logmgr = log.LogDockManager(dock_area, sub_clients["log"])
     smgr.register(logmgr)
 
     d_console = console.ConsoleDock(sub_clients["datasets"],
@@ -120,14 +124,14 @@ def main():
 
     # lay out docks
     if os.name != "nt":
-        area.addDock(d_ttl_dds.dds_dock, "top")
-        area.addDock(d_ttl_dds.ttl_dock, "above", d_ttl_dds.dds_dock)
-        area.addDock(d_datasets, "above", d_ttl_dds.ttl_dock)
+        dock_area.addDock(d_ttl_dds.dds_dock, "top")
+        dock_area.addDock(d_ttl_dds.ttl_dock, "above", d_ttl_dds.dds_dock)
+        dock_area.addDock(d_datasets, "above", d_ttl_dds.ttl_dock)
     else:
-        area.addDock(d_datasets, "top")
-    area.addDock(d_explorer, "above", d_datasets)
-    area.addDock(d_console, "bottom")
-    area.addDock(d_schedule, "above", d_console)
+        dock_area.addDock(d_datasets, "top")
+    dock_area.addDock(d_explorer, "above", d_datasets)
+    dock_area.addDock(d_console, "bottom")
+    dock_area.addDock(d_schedule, "above", d_console)
 
     # load/initialize state
     smgr.load()
@@ -137,7 +141,7 @@ def main():
     # create first log dock if not already in state
     d_log0 = logmgr.first_log_dock()
     if d_log0 is not None:
-        area.addDock(d_log0, "right", d_explorer)
+        dock_area.addDock(d_log0, "right", d_explorer)
 
     # run
     win.show()

@@ -1,9 +1,11 @@
 from collections import OrderedDict
 from inspect import isclass
 
+from artiq.protocols import pyon
+
 
 __all__ = ["NoDefault",
-           "FreeValue", "BooleanValue", "EnumerationValue",
+           "PYONValue", "BooleanValue", "EnumerationValue",
            "NumberValue", "StringValue",
            "HasEnvironment",
            "Experiment", "EnvExperiment", "is_experiment"]
@@ -40,9 +42,16 @@ class _SimpleArgProcessor:
         return d
 
 
-class FreeValue(_SimpleArgProcessor):
-    """An argument that can be an arbitrary Python value."""
-    pass
+class PYONValue(_SimpleArgProcessor):
+    """An argument that can be any PYON-serializable value."""
+    def process(self, x):
+        return pyon.decode(x)
+
+    def describe(self):
+        d = {"ty": self.__class__.__name__}
+        if hasattr(self, "default_value"):
+            d["default"] = pyon.encode(self.default_value)
+        return d
 
 
 class BooleanValue(_SimpleArgProcessor):
@@ -166,7 +175,7 @@ class HasEnvironment:
         if self.__parent is not None and key not in self.__kwargs:
             return self.__parent.get_argument(key, processor, group)
         if processor is None:
-            processor = FreeValue()
+            processor = PYONValue()
         self.requested_args[key] = processor, group
         try:
             argval = self.__kwargs[key]

@@ -37,7 +37,7 @@ class SubComponent2(HasEnvironment):
 
 class ArgumentsDemo(EnvExperiment):
     def build(self):
-        self.setattr_argument("free_value", FreeValue(None))
+        self.setattr_argument("pyon_value", PYONValue(None))
         self.setattr_argument("number", NumberValue(42e-6,
                                                     unit="us", scale=1e-6,
                                                     ndecimals=4))
@@ -59,7 +59,7 @@ class ArgumentsDemo(EnvExperiment):
         logging.info("logging test: info")
         logging.debug("logging test: debug")
 
-        print(self.free_value)
+        print(self.pyon_value)
         print(self.boolean)
         print(self.enum)
         print(self.number)

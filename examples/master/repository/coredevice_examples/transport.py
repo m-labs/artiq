@@ -22,10 +22,10 @@ class Transport(EnvExperiment):
         self.setattr_device("pmt")
         self.setattr_device("electrodes")
 
-        self.setattr_argument("wait_at_stop", FreeValue(100*us))
-        self.setattr_argument("speed", FreeValue(1.5))
-        self.setattr_argument("repeats", FreeValue(100))
-        self.setattr_argument("nbins", FreeValue(100))
+        self.setattr_argument("wait_at_stop", NumberValue(100*us))
+        self.setattr_argument("speed", NumberValue(1.5))
+        self.setattr_argument("repeats", NumberValue(100))
+        self.setattr_argument("nbins", NumberValue(100))
 
     def calc_waveforms(self, stop):
         t = transport_data["t"][:stop]*self.speed
