@@ -56,12 +56,13 @@ class _Range(LayoutWidget):
 
 
 class ScanController(LayoutWidget):
-    def __init__(self, argdesc):
+    def __init__(self, argument):
         LayoutWidget.__init__(self)
 
         self.stack = QtGui.QStackedWidget()
         self.addWidget(self.stack, 1, 0, colspan=4)
 
+        argdesc = argument["desc"]
         self.scale = argdesc["scale"]
 
         gmin, gmax = argdesc["global_min"], argdesc["global_max"]

@@ -14,79 +14,73 @@ logger = logging.getLogger(__name__)
 
 
 class _StringEntry(QtGui.QLineEdit):
-    def __init__(self, argdesc):
+    def __init__(self, argument):
         QtGui.QLineEdit.__init__(self)
+        self.setText(argument["value"])
+        def update():
+            argument["value"] = self.text()
+        self.editingFinished.connect(update)
 
     @staticmethod
     def default(argdesc):
         return ""
 
-    def get_argument_value(self):
-        return self.text()
-
-    def set_argument_value(self, value):
-        self.setText(value)
-
 
 class _BooleanEntry(QtGui.QCheckBox):
-    def __init__(self, argdesc):
+    def __init__(self, argument):
         QtGui.QCheckBox.__init__(self)
+        self.setChecked(argument["value"])
+        def update(checked):
+            argument["value"] = checked
+        self.stateChanged.connect(update)
 
     @staticmethod
     def default(argdesc):
         return False
 
-    def get_argument_value(self):
-        return self.isChecked()
-
-    def set_argument_value(self, value):
-        self.setChecked(value)
-
 
 class _EnumerationEntry(QtGui.QComboBox):
-    def __init__(self, argdesc):
+    def __init__(self, argument):
         QtGui.QComboBox.__init__(self)
-        self.choices = argdesc["choices"]
-        self.addItems(self.choices)
+        choices = argument["desc"]["choices"]
+        self.addItems(choices)
+        idx = choices.index(argument["value"])
+        self.setCurrentIndex(idx)
+        def update(index):
+            argument["value"] = choices[index]
+        self.currentIndexChanged.connect(update)
 
     @staticmethod
     def default(argdesc):
         return argdesc["choices"][0]
 
-    def get_argument_value(self):
-        return self.choices[self.currentIndex()]
-
-    def set_argument_value(self, value):
-        idx = self.choices.index(value)
-        self.setCurrentIndex(idx)
-
 
 class _NumberEntry(QtGui.QDoubleSpinBox):
-    def __init__(self, argdesc):
+    def __init__(self, argument):
         QtGui.QDoubleSpinBox.__init__(self)
-        self.scale = argdesc["scale"]
+        argdesc = argument["desc"]
+        scale = argdesc["scale"]
         self.setDecimals(argdesc["ndecimals"])
-        self.setSingleStep(argdesc["step"]/self.scale)
+        self.setSingleStep(argdesc["step"]/scale)
         if argdesc["min"] is not None:
-            self.setMinimum(argdesc["min"]/self.scale)
+            self.setMinimum(argdesc["min"]/scale)
         else:
             self.setMinimum(float("-inf"))
         if argdesc["max"] is not None:
-            self.setMaximum(argdesc["max"]/self.scale)
+            self.setMaximum(argdesc["max"]/scale)
         else:
             self.setMaximum(float("inf"))
         if argdesc["unit"]:
             self.setSuffix(" " + argdesc["unit"])
+
+        self.setValue(argument["value"]/scale)
+        def update(value):
+            argument["value"] = value*scale
+        self.valueChanged.connect(update)
         
     @staticmethod
     def default(argdesc):
         return 0.0
-
-    def get_argument_value(self):
-        return self.value()*self.scale
-
-    def set_argument_value(self, value):
-        self.setValue(value/self.scale)
 
 
 _argty_to_entry = {
@@ -115,16 +109,15 @@ class _ArgumentEditor(QtGui.QTreeWidget):
         if not arguments:
             self.addTopLevelItem(QtGui.QTreeWidgetItem(["No arguments", ""]))
 
-        for n, (name, (argdesc, group, value)) in enumerate(arguments.items()):
-            entry = _argty_to_entry[argdesc["ty"]](argdesc)
-            entry.set_argument_value(value)
+        for n, (name, argument) in enumerate(arguments.items()):
+            entry = _argty_to_entry[argument["desc"]["ty"]](argument)
             self._args_to_entries[name] = entry
 
             widget_item = QtGui.QTreeWidgetItem([name, ""])
-            if group is None:
+            if argument["group"] is None:
                 self.addTopLevelItem(widget_item)
             else:
-                self._get_group(group).addChild(widget_item)
+                self._get_group(argument["group"]).addChild(widget_item)
             self.setItemWidget(widget_item, 1, entry)
 
     def _get_group(self, name):
@@ -141,29 +134,14 @@ class _ArgumentEditor(QtGui.QTreeWidget):
         self._groups[name] = group
         return group
 
-    def get_argument_values(self):
-        return {arg: entry.get_argument_value()
-                for arg, entry in self._args_to_entries.items()}
-
     def save_state(self):
         expanded = []
         for k, v in self._groups.items():
             if v.isExpanded():
                 expanded.append(k)
-        argument_values = self.get_argument_values()
-        return {
-            "expanded": expanded,
-            "argument_values": argument_values
-        }
+        return {"expanded": expanded}
 
     def restore_state(self, state):
-        for arg, value in state["argument_values"].items():
-            try:
-                entry = self._args_to_entries[arg]
-                entry.set_argument_value(value)
-            except:
-                logger.warning("failed to restore value of argument %s", arg,
-                               exc_info=True)
         for e in state["expanded"]:
             try:
                 self._groups[e].setExpanded(True)
@@ -282,7 +260,11 @@ class ExperimentManager:
                     del argdesc["default"]
                 else:
                     value = _argty_to_entry[argdesc["ty"]].default(argdesc)
-                arguments[name] = argdesc, group, value
+                arguments[name] = {
+                    "desc": argdesc,
+                    "group": group,
+                    "value": value  # mutated by entries
+                }
             self.submission_arguments[expname] = arguments
             return arguments
 
@@ -307,7 +289,7 @@ class ExperimentManager:
         scheduling = self.get_submission_scheduling(expname)
         options = self.get_submission_options(expname)
         arguments = self.get_submission_arguments(expname)
-        argument_values = {k: v[2] for k, v in arguments.items()}
+        argument_values = {k: v["value"] for k, v in arguments.items()}
 
         expid = {
             "log_level": options["log_level"],
