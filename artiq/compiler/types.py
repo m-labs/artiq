@@ -71,7 +71,13 @@ class TVar(Type):
                     root = root.parent
 
             # path compression
-            self.parent = root
+            iter = self
+            while isinstance(iter, TVar):
+                if iter is iter.parent:
+                    break
+                else:
+                    iter, iter.parent = iter.parent, root
+
             return root
 
     def unify(self, other):
