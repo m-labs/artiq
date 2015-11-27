@@ -64,7 +64,7 @@ class TVar(Type):
             # because paths resulting from unification of large arrays
             # can easily cause a stack overflow.
             root = self
-            while isinstance(root, TVar):
+            while root.__class__ == TVar:
                 if root is root.parent:
                     break
                 else:
@@ -72,7 +72,7 @@ class TVar(Type):
 
             # path compression
             iter = self
-            while isinstance(iter, TVar):
+            while iter.__class__ == TVar:
                 if iter is iter.parent:
                     break
                 else:
