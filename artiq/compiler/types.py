@@ -60,8 +60,18 @@ class TVar(Type):
         if self.parent is self:
             return self
         else:
-            root = self.parent.find()
-            self.parent = root # path compression
+            # The recursive find() invocation is turned into a loop
+            # because paths resulting from unification of large arrays
+            # can easily cause a stack overflow.
+            root = self
+            while isinstance(root, TVar):
+                if root is root.parent:
+                    break
+                else:
+                    root = root.parent
+
+            # path compression
+            self.parent = root
             return root
 
     def unify(self, other):
