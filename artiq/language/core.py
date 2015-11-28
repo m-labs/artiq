@@ -85,6 +85,10 @@ class int:
     def __str__(self):
         return str(self._value)
 
+    # range() etc call __index__, not __int__
+    def __index__(self):
+        return self._value
+
     def __repr__(self):
         return "int({}, width={})".format(self._value, self._width)
 
