@@ -16,27 +16,35 @@ logger = logging.getLogger(__name__)
 class _StringEntry(QtGui.QLineEdit):
     def __init__(self, argument):
         QtGui.QLineEdit.__init__(self)
-        self.setText(argument["value"])
+        self.setText(argument["state"])
         def update():
-            argument["value"] = self.text()
+            argument["state"] = self.text()
         self.editingFinished.connect(update)
 
     @staticmethod
-    def default(argdesc):
-        return ""
+    def state_to_value(state):
+        return state
+
+    @staticmethod
+    def default_state(procdesc):
+        return procdesc.get("default", "")
 
 
 class _BooleanEntry(QtGui.QCheckBox):
     def __init__(self, argument):
         QtGui.QCheckBox.__init__(self)
-        self.setChecked(argument["value"])
+        self.setChecked(argument["state"])
         def update(checked):
-            argument["value"] = checked
+            argument["state"] = checked
         self.stateChanged.connect(update)
 
     @staticmethod
-    def default(argdesc):
-        return False
+    def state_to_value(state):
+        return state
+
+    @staticmethod
+    def default_state(procdesc):
+        return procdesc.get("default", False)
 
 
 class _EnumerationEntry(QtGui.QComboBox):
@@ -44,43 +52,57 @@ class _EnumerationEntry(QtGui.QComboBox):
         QtGui.QComboBox.__init__(self)
         choices = argument["desc"]["choices"]
         self.addItems(choices)
-        idx = choices.index(argument["value"])
+        idx = choices.index(argument["state"])
         self.setCurrentIndex(idx)
         def update(index):
-            argument["value"] = choices[index]
+            argument["state"] = choices[index]
         self.currentIndexChanged.connect(update)
 
     @staticmethod
-    def default(argdesc):
-        return argdesc["choices"][0]
+    def state_to_value(state):
+        return state
+
+    @staticmethod
+    def default_state(procdesc):
+        if "default" in procdesc:
+            return procdesc["default"]
+        else:
+            return procdesc["choices"][0]
 
 
 class _NumberEntry(QtGui.QDoubleSpinBox):
     def __init__(self, argument):
         QtGui.QDoubleSpinBox.__init__(self)
-        argdesc = argument["desc"]
-        scale = argdesc["scale"]
-        self.setDecimals(argdesc["ndecimals"])
-        self.setSingleStep(argdesc["step"]/scale)
-        if argdesc["min"] is not None:
-            self.setMinimum(argdesc["min"]/scale)
+        procdesc = argument["desc"]
+        scale = procdesc["scale"]
+        self.setDecimals(procdesc["ndecimals"])
+        self.setSingleStep(procdesc["step"]/scale)
+        if procdesc["min"] is not None:
+            self.setMinimum(procdesc["min"]/scale)
         else:
             self.setMinimum(float("-inf"))
-        if argdesc["max"] is not None:
-            self.setMaximum(argdesc["max"]/scale)
+        if procdesc["max"] is not None:
+            self.setMaximum(procdesc["max"]/scale)
         else:
             self.setMaximum(float("inf"))
-        if argdesc["unit"]:
-            self.setSuffix(" " + argdesc["unit"])
+        if procdesc["unit"]:
+            self.setSuffix(" " + procdesc["unit"])
 
-        self.setValue(argument["value"]/scale)
+        self.setValue(argument["state"]/scale)
         def update(value):
-            argument["value"] = value*scale
+            argument["state"] = value*scale
         self.valueChanged.connect(update)
-        
+
     @staticmethod
-    def default(argdesc):
-        return 0.0
+    def state_to_value(state):
+        return state
+
+    @staticmethod
+    def default_state(procdesc):
+        if "default" in procdesc:
+            return procdesc["default"]
+        else:
+            return 0.0
 
 
 _argty_to_entry = {
@@ -254,16 +276,11 @@ class ExperimentManager:
             arguments = OrderedDict()
             arginfo = self.explist[expname]["arguments"]
             for name, (procdesc, group) in arginfo:
-                argdesc = dict(procdesc)
-                if "default" in argdesc:
-                    value = argdesc["default"]
-                    del argdesc["default"]
-                else:
-                    value = _argty_to_entry[argdesc["ty"]].default(argdesc)
+                state = _argty_to_entry[procdesc["ty"]].default_state(procdesc)
                 arguments[name] = {
-                    "desc": argdesc,
+                    "desc": procdesc,
                     "group": group,
-                    "value": value  # mutated by entries
+                    "state": state  # mutated by entries
                 }
             self.submission_arguments[expname] = arguments
             return arguments
@@ -289,7 +306,11 @@ class ExperimentManager:
         scheduling = self.get_submission_scheduling(expname)
         options = self.get_submission_options(expname)
         arguments = self.get_submission_arguments(expname)
-        argument_values = {k: v["value"] for k, v in arguments.items()}
+
+        argument_values = dict()
+        for name, argument in arguments.items():
+            entry_cls = _argty_to_entry[argument["desc"]["ty"]]
+            argument_values[name] = entry_cls.state_to_value(argument["state"])
 
         expid = {
             "log_level": options["log_level"],
