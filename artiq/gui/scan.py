@@ -38,7 +38,6 @@ class _NoScan(LayoutWidget):
         self.value.valueChanged.connect(update)
 
 
-# TODO: prevent max < min
 class _Range(LayoutWidget):
     def __init__(self, procdesc, state):
         LayoutWidget.__init__(self)

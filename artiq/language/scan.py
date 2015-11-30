@@ -58,6 +58,8 @@ class LinearScan(ScanObject):
     """A scan object that yields a fixed number of increasing evenly
     spaced values in a range."""
     def __init__(self, min, max, npoints):
+        if min > max:
+            raise ValueError("Scan minimum must be less than maximum")
         self.min = min
         self.max = max
         self.npoints = npoints
@@ -85,6 +87,8 @@ class RandomScan(ScanObject):
     """A scan object that yields a fixed number of randomly ordered evenly
     spaced values in a range."""
     def __init__(self, min, max, npoints, seed=0):
+        if min > max:
+            raise ValueError("Scan minimum must be less than maximum")
         self.min = min
         self.max = max
         self.npoints = npoints
