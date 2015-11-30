@@ -12,7 +12,7 @@ except AttributeError:
     QSortFilterProxyModel = QtGui.QSortFilterProxyModel
 
 
-def _level_to_name(level):
+def log_level_to_name(level):
     if level >= logging.CRITICAL:
         return "CRITICAL"
     if level >= logging.ERROR:
@@ -108,7 +108,7 @@ class Model(QtCore.QAbstractTableModel):
                 v = self.entries[index.row()]
                 column = index.column()
                 if column == 0:
-                    return _level_to_name(v[0])
+                    return log_level_to_name(v[0])
                 elif column == 1:
                     return v[1]
                 elif column == 2:

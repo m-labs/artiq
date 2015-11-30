@@ -8,6 +8,7 @@ from quamash import QtGui, QtCore
 from pyqtgraph import dockarea
 
 from artiq.gui.scan import ScanController
+from artiq.gui.log import log_level_to_name
 
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ class _BooleanEntry(QtGui.QCheckBox):
         QtGui.QCheckBox.__init__(self)
         self.setChecked(argument["state"])
         def update(checked):
-            argument["state"] = checked
+            argument["state"] = bool(checked)
         self.stateChanged.connect(update)
 
     @staticmethod
@@ -175,7 +176,7 @@ class _ArgumentEditor(QtGui.QTreeWidget):
 
 class _ExperimentDock(dockarea.Dock):
     def __init__(self, manager, expname):
-        dockarea.Dock.__init__(self, "Experiment: " + expname,
+        dockarea.Dock.__init__(self, "Exp: " + expname,
                                closable=True, size=(1500, 500))
         self.manager = manager
         self.expname = expname
@@ -184,34 +185,73 @@ class _ExperimentDock(dockarea.Dock):
             manager.get_submission_arguments(expname))
         self.addWidget(self.argeditor, 0, 0, colspan=4)
 
-        self.datetime = QtGui.QDateTimeEdit()
-        self.datetime.setDisplayFormat("MMM d yyyy hh:mm:ss")
-        self.datetime.setDate(QtCore.QDate.currentDate())
-        self.datetime.dateTimeChanged.connect(
-            lambda: self.datetime_en.setChecked(True))
-        self.datetime_en = QtGui.QCheckBox("Due date:")
-        self.addWidget(self.datetime_en, 1, 0, colspan=2)
-        self.addWidget(self.datetime, 1, 2, colspan=2)
+        scheduling = manager.get_submission_scheduling(expname)
+        options = manager.get_submission_options(expname)
 
-        self.pipeline = QtGui.QLineEdit()
-        self.pipeline.setText("main")
+        datetime = QtGui.QDateTimeEdit()
+        datetime.setDisplayFormat("MMM d yyyy hh:mm:ss")
+        datetime_en = QtGui.QCheckBox("Due date:")
+        self.addWidget(datetime_en, 1, 0, colspan=2)
+        self.addWidget(datetime, 1, 2, colspan=2)
+
+        if scheduling["due_date"] is None:
+            datetime.setDate(QtCore.QDate.currentDate())
+        else:
+            datetime.setDateTime(QtCore.QDateTime.fromMSecsSinceEpoch(
+                scheduling["due_date"]*1000))
+        datetime_en.setChecked(scheduling["due_date"] is not None)
+        def update_datetime(dt):
+            scheduling["due_date"] = dt.toMSecsSinceEpoch()/1000
+            datetime_en.setChecked(True)
+        datetime.dateTimeChanged.connect(update_datetime)
+        def update_datetime_en(checked):
+            if checked:
+                due_date = datetime.dateTime().toMSecsSinceEpoch()/1000
+            else:
+                due_date = None
+            scheduling["due_date"] = due_date
+        datetime_en.stateChanged.connect(update_datetime_en)
+
+        pipeline_name = QtGui.QLineEdit()
         self.addWidget(QtGui.QLabel("Pipeline:"), 2, 0, colspan=2)
-        self.addWidget(self.pipeline, 2, 2, colspan=2)
+        self.addWidget(pipeline_name, 2, 2, colspan=2)
 
-        self.priority = QtGui.QSpinBox()
-        self.priority.setRange(-99, 99)
+        pipeline_name.setText(scheduling["pipeline_name"])
+        def update_pipeline_name():
+            scheduling["pipeline_name"] = pipeline_name.text()
+        pipeline_name.editingFinished.connect(update_pipeline_name)
+
+        priority = QtGui.QSpinBox()
+        priority.setRange(-99, 99)
         self.addWidget(QtGui.QLabel("Priority:"), 3, 0)
-        self.addWidget(self.priority, 3, 1)
+        self.addWidget(priority, 3, 1)
 
-        self.flush = QtGui.QCheckBox("Flush")
-        self.flush.setToolTip("Flush the pipeline before starting the experiment")
-        self.addWidget(self.flush, 3, 2)
+        priority.setValue(scheduling["priority"])
+        def update_priority(value):
+            scheduling["priority"] = value
+        priority.valueChanged.connect(update_priority)
 
-        self.log_level = QtGui.QComboBox()
-        self.log_level.addItems(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
-        self.log_level.setCurrentIndex(1)
-        self.log_level.setToolTip("Minimum level for log entry production")
-        self.addWidget(self.log_level, 3, 3)
+        flush = QtGui.QCheckBox("Flush")
+        flush.setToolTip("Flush the pipeline before starting the experiment")
+        self.addWidget(flush, 3, 2)
+
+        flush.setChecked(scheduling["flush"])
+        def update_flush(checked):
+            scheduling["flush"] = bool(checked)
+        flush.stateChanged.connect(update_flush)
+
+        log_level = QtGui.QComboBox()
+        log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        log_level.addItems(log_levels)
+        log_level.setCurrentIndex(1)
+        log_level.setToolTip("Minimum level for log entry production")
+        self.addWidget(log_level, 3, 3)
+
+        log_level.setCurrentIndex(log_levels.index(
+            log_level_to_name(options["log_level"])))
+        def update_log_level(index):
+            options["log_level"] = getattr(logging, log_level.currentText())
+        log_level.currentIndexChanged.connect(update_log_level)
 
         submit = QtGui.QPushButton("Submit")
         submit.setToolTip("Schedule the selected experiment (Ctrl+Return)")
@@ -257,6 +297,7 @@ class ExperimentManager:
         if expname in self.submission_scheduling:
             return self.submission_scheduling[expname]
         else:
+            # mutated by _ExperimentDock
             scheduling = {
                 "pipeline_name": "main",
                 "priority": 0,
@@ -270,6 +311,7 @@ class ExperimentManager:
         if expname in self.submission_options:
             return self.submission_options[expname]
         else:
+            # mutated by _ExperimentDock
             options = {
                 "log_level": logging.WARNING,
                 "repo_rev": None
