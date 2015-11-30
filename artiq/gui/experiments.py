@@ -178,12 +178,15 @@ class _ExperimentDock(dockarea.Dock):
     def __init__(self, manager, expname):
         dockarea.Dock.__init__(self, "Exp: " + expname,
                                closable=True, size=(1500, 500))
+        self.layout.setSpacing(5)
+        self.layout.setContentsMargins(5, 5, 5, 5)
+
         self.manager = manager
         self.expname = expname
 
         self.argeditor = _ArgumentEditor(
             manager.get_submission_arguments(expname))
-        self.addWidget(self.argeditor, 0, 0, colspan=4)
+        self.addWidget(self.argeditor, 0, 0, colspan=5)
 
         scheduling = manager.get_submission_scheduling(expname)
         options = manager.get_submission_options(expname)
@@ -191,8 +194,8 @@ class _ExperimentDock(dockarea.Dock):
         datetime = QtGui.QDateTimeEdit()
         datetime.setDisplayFormat("MMM d yyyy hh:mm:ss")
         datetime_en = QtGui.QCheckBox("Due date:")
-        self.addWidget(datetime_en, 1, 0, colspan=2)
-        self.addWidget(datetime, 1, 2, colspan=2)
+        self.addWidget(datetime_en, 1, 0)
+        self.addWidget(datetime, 1, 1)
 
         if scheduling["due_date"] is None:
             datetime.setDate(QtCore.QDate.currentDate())
@@ -213,8 +216,8 @@ class _ExperimentDock(dockarea.Dock):
         datetime_en.stateChanged.connect(update_datetime_en)
 
         pipeline_name = QtGui.QLineEdit()
-        self.addWidget(QtGui.QLabel("Pipeline:"), 2, 0, colspan=2)
-        self.addWidget(pipeline_name, 2, 2, colspan=2)
+        self.addWidget(QtGui.QLabel("Pipeline:"), 1, 2)
+        self.addWidget(pipeline_name, 1, 3)
 
         pipeline_name.setText(scheduling["pipeline_name"])
         def update_pipeline_name():
@@ -223,8 +226,8 @@ class _ExperimentDock(dockarea.Dock):
 
         priority = QtGui.QSpinBox()
         priority.setRange(-99, 99)
-        self.addWidget(QtGui.QLabel("Priority:"), 3, 0)
-        self.addWidget(priority, 3, 1)
+        self.addWidget(QtGui.QLabel("Priority:"), 2, 0)
+        self.addWidget(priority, 2, 1)
 
         priority.setValue(scheduling["priority"])
         def update_priority(value):
@@ -233,7 +236,7 @@ class _ExperimentDock(dockarea.Dock):
 
         flush = QtGui.QCheckBox("Flush")
         flush.setToolTip("Flush the pipeline before starting the experiment")
-        self.addWidget(flush, 3, 2)
+        self.addWidget(flush, 2, 2, colspan=2)
 
         flush.setChecked(scheduling["flush"])
         def update_flush(checked):
@@ -245,7 +248,10 @@ class _ExperimentDock(dockarea.Dock):
         log_level.addItems(log_levels)
         log_level.setCurrentIndex(1)
         log_level.setToolTip("Minimum level for log entry production")
-        self.addWidget(log_level, 3, 3)
+        log_level_label = QtGui.QLabel("Logging level:")
+        log_level_label.setToolTip("Minimum level for log message production")
+        self.addWidget(log_level_label, 3, 0)
+        self.addWidget(log_level, 3, 1)
 
         log_level.setCurrentIndex(log_levels.index(
             log_level_to_name(options["log_level"])))
@@ -253,9 +259,29 @@ class _ExperimentDock(dockarea.Dock):
             options["log_level"] = getattr(logging, log_level.currentText())
         log_level.currentIndexChanged.connect(update_log_level)
 
+        repo_rev = QtGui.QLineEdit()
+        repo_rev.setPlaceholderText("HEAD")
+        repo_rev_label = QtGui.QLabel("Revision:")
+        repo_rev_label.setToolTip("Experiment repository revision "
+                                  "(commit ID) to use")
+        self.addWidget(repo_rev_label, 3, 2)
+        self.addWidget(repo_rev, 3, 3)
+
+        if options["repo_rev"] is not None:
+            repo_rev.setText(options["repo_rev"])
+        def update_repo_rev():
+            t = repo_rev.text()
+            if t:
+                options["repo_rev"] = t
+            else:
+                options["repo_rev"] = None
+        repo_rev.editingFinished.connect(update_repo_rev)
+
         submit = QtGui.QPushButton("Submit")
         submit.setToolTip("Schedule the selected experiment (Ctrl+Return)")
-        self.addWidget(submit, 4, 0, colspan=4)
+        submit.setSizePolicy(QtGui.QSizePolicy.Expanding,
+                             QtGui.QSizePolicy.Expanding)
+        self.addWidget(submit, 1, 4, rowspan=3)
         submit.clicked.connect(self.submit_clicked)
 
     def submit_clicked(self):
@@ -316,7 +342,7 @@ class ExperimentManager:
                 "log_level": logging.WARNING,
                 "repo_rev": None
             }
-            self.submission_options = options
+            self.submission_options[expname] = options
             return options
 
     def get_submission_arguments(self, expname):
