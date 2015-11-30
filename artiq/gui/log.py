@@ -6,22 +6,12 @@ from functools import partial
 from quamash import QtGui, QtCore
 from pyqtgraph import dockarea, LayoutWidget
 
+from artiq.gui.tools import log_level_to_name
+
 try:
     QSortFilterProxyModel = QtCore.QSortFilterProxyModel
 except AttributeError:
     QSortFilterProxyModel = QtGui.QSortFilterProxyModel
-
-
-def log_level_to_name(level):
-    if level >= logging.CRITICAL:
-        return "CRITICAL"
-    if level >= logging.ERROR:
-        return "ERROR"
-    if level >= logging.WARNING:
-        return "WARNING"
-    if level >= logging.INFO:
-        return "INFO"
-    return "DEBUG"
 
 
 class Model(QtCore.QAbstractTableModel):

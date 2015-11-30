@@ -4,6 +4,8 @@ from collections import OrderedDict
 from quamash import QtGui
 from pyqtgraph import LayoutWidget
 
+from artiq.gui.tools import disable_scroll_wheel
+
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +16,7 @@ class _NoScan(LayoutWidget):
 
         scale = procdesc["scale"]
         self.value = QtGui.QDoubleSpinBox()
+        disable_scroll_wheel(self.value)
         self.value.setDecimals(procdesc["ndecimals"])
         if procdesc["global_min"] is not None:
             self.value.setMinimum(procdesc["global_min"]/scale)
@@ -58,16 +61,19 @@ class _Range(LayoutWidget):
 
         self.addWidget(QtGui.QLabel("Min:"), 0, 0)
         self.min = QtGui.QDoubleSpinBox()
+        disable_scroll_wheel(self.min)
         apply_properties(self.min)
         self.addWidget(self.min, 0, 1)
 
         self.addWidget(QtGui.QLabel("Max:"), 1, 0)
         self.max = QtGui.QDoubleSpinBox()
+        disable_scroll_wheel(self.max)
         apply_properties(self.max)
         self.addWidget(self.max, 1, 1)
 
         self.addWidget(QtGui.QLabel("#Points:"), 2, 0)
         self.npoints = QtGui.QSpinBox()
+        disable_scroll_wheel(self.npoints)
         self.npoints.setMinimum(2)
         self.npoints.setValue(10)
         self.addWidget(self.npoints, 2, 1)

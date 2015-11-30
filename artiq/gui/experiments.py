@@ -7,15 +7,13 @@ from quamash import QtGui, QtCore
 
 from pyqtgraph import dockarea
 
+from artiq.gui.tools import log_level_to_name, disable_scroll_wheel
 from artiq.gui.scan import ScanController
-from artiq.gui.log import log_level_to_name
 
 
 logger = logging.getLogger(__name__)
 
 
-# TODO: disable mouse wheel on entry widget like QDoubleSpinBox and QComboBox
-# (interferes with QTreeWidget scrolling)
 class _StringEntry(QtGui.QLineEdit):
     def __init__(self, argument):
         QtGui.QLineEdit.__init__(self)
@@ -53,6 +51,7 @@ class _BooleanEntry(QtGui.QCheckBox):
 class _EnumerationEntry(QtGui.QComboBox):
     def __init__(self, argument):
         QtGui.QComboBox.__init__(self)
+        disable_scroll_wheel(self)
         choices = argument["desc"]["choices"]
         self.addItems(choices)
         idx = choices.index(argument["state"])
@@ -76,6 +75,7 @@ class _EnumerationEntry(QtGui.QComboBox):
 class _NumberEntry(QtGui.QDoubleSpinBox):
     def __init__(self, argument):
         QtGui.QDoubleSpinBox.__init__(self)
+        disable_scroll_wheel(self)
         procdesc = argument["desc"]
         scale = procdesc["scale"]
         self.setDecimals(procdesc["ndecimals"])
