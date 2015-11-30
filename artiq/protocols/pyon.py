@@ -19,6 +19,7 @@ function call syntax to mark special data types.
 
 import base64
 from fractions import Fraction
+from collections import OrderedDict
 import os
 import tempfile
 
@@ -36,6 +37,7 @@ _encode_map = {
     list: "list",
     dict: "dict",
     Fraction: "fraction",
+    OrderedDict: "ordereddict",
     numpy.ndarray: "nparray"
 }
 
@@ -113,21 +115,24 @@ class _Encoder:
         return r
 
     def encode_fraction(self, x):
-        return "Fraction({}, {})".format(encode(x.numerator),
-                                         encode(x.denominator))
+        return "Fraction({}, {})".format(self.encode(x.numerator),
+                                         self.encode(x.denominator))
+
+    def encode_ordereddict(self, x):
+        return "OrderedDict("+ self.encode(list(x.items())) +")"
 
     def encode_nparray(self, x):
         r = "nparray("
-        r += encode(x.shape) + ", "
-        r += encode(str(x.dtype)) + ", "
-        r += encode(base64.b64encode(x).decode())
+        r += self.encode(x.shape) + ", "
+        r += self.encode(str(x.dtype)) + ", "
+        r += self.encode(base64.b64encode(x).decode())
         r += ")"
         return r
 
     def encode_npscalar(self, x):
         r = "npscalar("
         r += "\"" + type(x).__name__ + "\", "
-        r += encode(base64.b64encode(x).decode())
+        r += self.encode(base64.b64encode(x).decode())
         r += ")"
         return r
 
@@ -164,6 +169,7 @@ _eval_dict = {
     "true": True,
 
     "Fraction": Fraction,
+    "OrderedDict": OrderedDict,
     "nparray": _nparray,
     "npscalar": _npscalar
 }
