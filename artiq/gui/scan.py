@@ -1,7 +1,7 @@
 import logging
 from collections import OrderedDict
 
-from quamash import QtGui
+from quamash import QtGui, QtCore
 from pyqtgraph import LayoutWidget
 
 from artiq.gui.tools import disable_scroll_wheel
@@ -90,8 +90,6 @@ class _Range(LayoutWidget):
         self.max.valueChanged.connect(update_max)
         self.npoints.valueChanged.connect(update_npoints)
 
-
-# TODO: use QRegExpValidator to prevent invalid input
 class _Explicit(LayoutWidget):
     def __init__(self, state):
         LayoutWidget.__init__(self)
@@ -99,6 +97,11 @@ class _Explicit(LayoutWidget):
         self.value = QtGui.QLineEdit()
         self.addWidget(QtGui.QLabel("Sequence:"), 0, 0)
         self.addWidget(self.value, 0, 1)
+
+        float_regexp = "[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?"
+        regexp = "(float)?( +float)* *".replace("float", float_regexp)
+        self.value.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp(regexp),
+                                                       self.value))
 
         self.value.setText(" ".join([str(x) for x in state["sequence"]]))
         def update():
