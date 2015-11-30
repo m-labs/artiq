@@ -13,6 +13,8 @@ from artiq.gui.scan import ScanController
 logger = logging.getLogger(__name__)
 
 
+# TODO: disable mouse wheel on entry widget like QDoubleSpinBox and QComboBox
+# (interferes with QTreeWidget scrolling)
 class _StringEntry(QtGui.QLineEdit):
     def __init__(self, argument):
         QtGui.QLineEdit.__init__(self)
@@ -219,6 +221,12 @@ class _ExperimentDock(dockarea.Dock):
     def submit_clicked(self):
         self.manager.submit(self.expname)
 
+    def save_state(self):
+        return self.argeditor.save_state()
+
+    def restore_state(self, state):
+        self.argeditor.restore_state(state)
+
 
 class ExperimentManager:
     def __init__(self, status_bar, dock_area,
@@ -287,12 +295,13 @@ class ExperimentManager:
 
     def open_experiment(self, expname):
         if expname in self.open_experiments:
-            return
+            return self.open_experiments[expname]
         dock = _ExperimentDock(self, expname)
         self.open_experiments[expname] = dock
         self.dock_area.addDock(dock)
         self.dock_area.floatDock(dock)
         dock.sigClosed.connect(partial(self.on_dock_closed, expname))
+        return dock
 
     def on_dock_closed(self, expname):
         del self.open_experiments[expname]
@@ -347,8 +356,21 @@ class ExperimentManager:
         asyncio.ensure_future(self._request_term_multiple(rids))
 
     def save_state(self):
-        return dict()
+        docks = {expname: dock.save_state()
+                 for expname, dock in self.open_experiments.items()}
+        return {
+            "scheduling": self.submission_scheduling,
+            "options": self.submission_options,
+            "arguments": self.submission_arguments,
+            "docks": docks
+        }
 
-    def restore_state(self):
+    def restore_state(self, state):
         if self.open_experiments:
             raise NotImplementedError
+        self.submission_scheduling = state["scheduling"]
+        self.submission_options = state["options"]
+        self.submission_arguments = state["arguments"]
+        for expname, dock_state in state["docks"].items():
+            dock = self.open_experiment(expname)
+            dock.restore_state(dock_state)

@@ -99,6 +99,7 @@ def main():
                                            sub_clients["explist"],
                                            sub_clients["schedule"],
                                            rpc_clients["schedule"])
+    smgr.register(expmgr)
     d_explorer = explorer.ExplorerDock(win, status_bar, expmgr,
                                        sub_clients["explist"],
                                        rpc_clients["schedule"],
