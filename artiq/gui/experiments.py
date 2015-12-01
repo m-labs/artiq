@@ -18,9 +18,9 @@ class _StringEntry(QtGui.QLineEdit):
     def __init__(self, argument):
         QtGui.QLineEdit.__init__(self)
         self.setText(argument["state"])
-        def update():
-            argument["state"] = self.text()
-        self.editingFinished.connect(update)
+        def update(text):
+            argument["state"] = text()
+        self.textEdited.connect(update)
 
     @staticmethod
     def state_to_value(state):
@@ -220,9 +220,9 @@ class _ExperimentDock(dockarea.Dock):
         self.addWidget(pipeline_name, 1, 3)
 
         pipeline_name.setText(scheduling["pipeline_name"])
-        def update_pipeline_name():
-            scheduling["pipeline_name"] = pipeline_name.text()
-        pipeline_name.editingFinished.connect(update_pipeline_name)
+        def update_pipeline_name(text):
+            scheduling["pipeline_name"] = text
+        pipeline_name.textEdited.connect(update_pipeline_name)
 
         priority = QtGui.QSpinBox()
         priority.setRange(-99, 99)

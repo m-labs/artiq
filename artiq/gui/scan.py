@@ -104,9 +104,9 @@ class _Explicit(LayoutWidget):
                                                        self.value))
 
         self.value.setText(" ".join([str(x) for x in state["sequence"]]))
-        def update():
-            state["sequence"] = [float(x) for x in self.value.text().split()]
-        self.value.editingFinished.connect(update)
+        def update(text):
+            state["sequence"] = [float(x) for x in text.split()]
+        self.value.textEdited.connect(update)
 
 
 class ScanController(LayoutWidget):
