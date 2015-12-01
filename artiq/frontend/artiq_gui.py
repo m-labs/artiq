@@ -13,7 +13,7 @@ from pyqtgraph import dockarea
 from artiq.tools import *
 from artiq.protocols.pc_rpc import AsyncioClient
 from artiq.gui.models import ModelSubscriber
-from artiq.gui import (state, experiments, explorer,
+from artiq.gui import (state, experiments, shortcuts, explorer,
                        moninj, datasets, schedule, log, console)
 
 
@@ -100,11 +100,12 @@ def main():
                                            sub_clients["schedule"],
                                            rpc_clients["schedule"])
     smgr.register(expmgr)
-    d_explorer = explorer.ExplorerDock(win, status_bar, expmgr,
+    d_shortcuts = shortcuts.ShortcutsDock(win, status_bar, expmgr)
+    smgr.register(d_shortcuts)
+    d_explorer = explorer.ExplorerDock(status_bar, expmgr, d_shortcuts,
                                        sub_clients["explist"],
                                        rpc_clients["schedule"],
                                        rpc_clients["repository"])
-    smgr.register(d_explorer)
 
     d_datasets = datasets.DatasetsDock(win, dock_area, sub_clients["datasets"])
     smgr.register(d_datasets)
@@ -130,7 +131,8 @@ def main():
         dock_area.addDock(d_datasets, "above", d_ttl_dds.ttl_dock)
     else:
         dock_area.addDock(d_datasets, "top")
-    dock_area.addDock(d_explorer, "above", d_datasets)
+    dock_area.addDock(d_shortcuts, "above", d_datasets)
+    dock_area.addDock(d_explorer, "above", d_shortcuts)
     dock_area.addDock(d_console, "bottom")
     dock_area.addDock(d_schedule, "above", d_console)
 

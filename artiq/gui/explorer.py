@@ -1,12 +1,12 @@
 import asyncio
 import logging
+from functools import partial
 
 from quamash import QtGui, QtCore
 from pyqtgraph import dockarea
 from pyqtgraph import LayoutWidget
 
 from artiq.gui.models import DictSyncTreeSepModel
-from artiq.gui.shortcuts import ShortcutManager
 
 
 class Model(DictSyncTreeSepModel):
@@ -22,13 +22,15 @@ class Model(DictSyncTreeSepModel):
 
 
 class ExplorerDock(dockarea.Dock):
-    def __init__(self, main_window, status_bar, exp_manager,
+    def __init__(self, status_bar, exp_manager, d_shortcuts,
                  explist_sub, schedule_ctl, repository_ctl):
         dockarea.Dock.__init__(self, "Explorer", size=(1500, 500))
+        self.layout.setSpacing(5)
+        self.layout.setContentsMargins(5, 5, 5, 5)
 
-        self.main_window = main_window
         self.status_bar = status_bar
         self.exp_manager = exp_manager
+        self.d_shortcuts = d_shortcuts
         self.schedule_ctl = schedule_ctl
 
         self.el = QtGui.QTreeView()
@@ -38,18 +40,21 @@ class ExplorerDock(dockarea.Dock):
         self.el.doubleClicked.connect(self.open_clicked)
 
         open = QtGui.QPushButton("Open")
+        open.setIcon(QtGui.QApplication.style().standardIcon(
+            QtGui.QStyle.SP_DialogOpenButton))
         open.setToolTip("Open the selected experiment (Return)")
         self.addWidget(open, 1, 0)
         open.clicked.connect(self.open_clicked)
 
         submit = QtGui.QPushButton("Submit")
+        submit.setIcon(QtGui.QApplication.style().standardIcon(
+                QtGui.QStyle.SP_DialogOkButton))
         submit.setToolTip("Schedule the selected experiment (Ctrl+Return)")
         self.addWidget(submit, 1, 1)
         submit.clicked.connect(self.submit_clicked)
 
         self.explist_model = Model(dict())
         explist_sub.add_setmodel_callback(self.set_model)
-        self.shortcuts = ShortcutManager(self.main_window, self)
 
         self.el.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         open_action = QtGui.QAction("Open", self.el)
@@ -69,9 +74,15 @@ class ExplorerDock(dockarea.Dock):
         sep.setSeparator(True)
         self.el.addAction(sep)
 
-        edit_shortcuts_action = QtGui.QAction("Edit shortcuts", self.el)
-        edit_shortcuts_action.triggered.connect(self.edit_shortcuts)
-        self.el.addAction(edit_shortcuts_action)
+        set_shortcut_menu = QtGui.QMenu()
+        for i in range(12):
+            action = QtGui.QAction("F" + str(i+1), self.el)
+            action.triggered.connect(partial(self.set_shortcut, i))
+            set_shortcut_menu.addAction(action)
+
+        set_shortcut_action = QtGui.QAction("Set shortcut", self.el)
+        set_shortcut_action.setMenu(set_shortcut_menu)
+        self.el.addAction(set_shortcut_action)
         scan_repository_action = QtGui.QAction("(Re)scan repository HEAD",
                                                self.el)
         def scan_repository():
@@ -107,18 +118,7 @@ class ExplorerDock(dockarea.Dock):
         if expname is not None:
             self.exp_manager.request_inst_term(expname)
 
-    def save_state(self):
-        return {
-            "shortcuts": self.shortcuts.save_state()
-        }
-
-    def restore_state(self, state):
-        try:
-            shortcuts_state = state["shortcuts"]
-        except KeyError:
-            return
-        self.shortcuts.restore_state(shortcuts_state)
-
-    def edit_shortcuts(self):
-        experiments = sorted(self.explist_model.backing_store.keys())
-        self.shortcuts.edit(experiments)
+    def set_shortcut(self, nr):
+        expname = self._get_selected_expname()
+        if expname is not None:
+            self.d_shortcuts.set_shortcut(nr, expname)
