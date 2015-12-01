@@ -35,6 +35,8 @@ class ShortcutsDock(dockarea.Dock):
             self.addWidget(QtGui.QLabel("F" + str(i+1)), row, 0)
 
             label = QtGui.QLabel()
+            label.setSizePolicy(QtGui.QSizePolicy.Ignored,
+                                QtGui.QSizePolicy.Ignored)
             self.addWidget(label, row, 1)
 
             clear = QtGui.QToolButton()
@@ -43,15 +45,22 @@ class ShortcutsDock(dockarea.Dock):
             self.addWidget(clear, row, 2)
             clear.clicked.connect(partial(self.set_shortcut, i, ""))
 
+            open = QtGui.QToolButton()
+            open.setIcon(QtGui.QApplication.style().standardIcon(
+                QtGui.QStyle.SP_DialogOpenButton))
+            self.addWidget(open, row, 3)
+            open.clicked.connect(partial(self._open_experiment, i))
+
             submit = QtGui.QPushButton("Submit")
             submit.setIcon(QtGui.QApplication.style().standardIcon(
                 QtGui.QStyle.SP_DialogOkButton))
-            self.addWidget(submit, row, 3)
+            self.addWidget(submit, row, 4)
             submit.clicked.connect(partial(self._activated, i))
 
             self.shortcut_widgets[i] = {
                 "label": label,
                 "clear": clear,
+                "open": open,
                 "submit": submit
             }
             shortcut = QShortcut("F" + str(i+1), main_window)
@@ -72,14 +81,25 @@ class ShortcutsDock(dockarea.Dock):
                                             "(from global shortcut)"
                                             .format(rid))
 
+    def _open_experiment(self, nr):
+        expname = self.shortcut_widgets[nr]["label"].text()
+        if expname:
+            try:
+                self.exp_manager.open_experiment(expname)
+            except:
+                logger.warning("failed to open experiment %s",
+                               expname, exc_info=True)
+
     def set_shortcut(self, nr, expname):
         widgets = self.shortcut_widgets[nr]
         widgets["label"].setText(expname)
         if expname:
             widgets["clear"].show()
+            widgets["open"].show()
             widgets["submit"].show()
         else:
             widgets["clear"].hide()
+            widgets["open"].hide()
             widgets["submit"].hide()
 
     def save_state(self):
