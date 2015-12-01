@@ -14,12 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 class ShortcutsDock(dockarea.Dock):
-    def __init__(self, main_window, status_bar, exp_manager):
+    def __init__(self, main_window, exp_manager):
         dockarea.Dock.__init__(self, "Shortcuts", size=(1000, 300))
         self.layout.setSpacing(5)
         self.layout.setContentsMargins(5, 5, 5, 5)
 
-        self.status_bar = status_bar
         self.exp_manager = exp_manager
         self.shortcut_widgets = dict()
 
@@ -70,16 +69,12 @@ class ShortcutsDock(dockarea.Dock):
         expname = self.shortcut_widgets[nr]["label"].text()
         if expname:
             try:
-                rid = self.exp_manager.submit(expname)
+                self.exp_manager.submit(expname)
             except:
-                self.status_bar.showMessage("Could not submit experiment '{}'"
-                                            .format(expname))
+                # May happen when experiment has been removed
+                # from repository/explist
                 logger.warning("failed to submit experiment %s",
                                expname, exc_info=True)
-            else:
-                self.status_bar.showMessage("Submitted RID {} "
-                                            "(from global shortcut)"
-                                            .format(rid))
 
     def _open_experiment(self, nr):
         expname = self.shortcut_widgets[nr]["label"].text()
@@ -87,6 +82,8 @@ class ShortcutsDock(dockarea.Dock):
             try:
                 self.exp_manager.open_experiment(expname)
             except:
+                # May happen when experiment has been removed
+                # from repository/explist
                 logger.warning("failed to open experiment %s",
                                expname, exc_info=True)
 

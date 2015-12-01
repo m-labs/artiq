@@ -100,7 +100,7 @@ def main():
                                            sub_clients["schedule"],
                                            rpc_clients["schedule"])
     smgr.register(expmgr)
-    d_shortcuts = shortcuts.ShortcutsDock(win, status_bar, expmgr)
+    d_shortcuts = shortcuts.ShortcutsDock(win, expmgr)
     smgr.register(d_shortcuts)
     d_explorer = explorer.ExplorerDock(status_bar, expmgr, d_shortcuts,
                                        sub_clients["explist"],
