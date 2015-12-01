@@ -1,7 +1,7 @@
 import logging
 from functools import partial
 
-from quamash import QtGui
+from quamash import QtGui, QtCore
 from pyqtgraph import dockarea
 try:
     from quamash import QtWidgets
@@ -63,6 +63,7 @@ class ShortcutsDock(dockarea.Dock):
                 "submit": submit
             }
             shortcut = QShortcut("F" + str(i+1), main_window)
+            shortcut.setContext(QtCore.Qt.ApplicationShortcut)
             shortcut.activated.connect(partial(self._activated, i))
 
     def _activated(self, nr):
