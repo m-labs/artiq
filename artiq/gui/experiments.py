@@ -187,6 +187,7 @@ class _ExperimentDock(dockarea.Dock):
         self.argeditor = _ArgumentEditor(
             manager.get_submission_arguments(expname))
         self.addWidget(self.argeditor, 0, 0, colspan=5)
+        self.layout.setRowStretch(0, 1)
 
         scheduling = manager.get_submission_scheduling(expname)
         options = manager.get_submission_options(expname)
