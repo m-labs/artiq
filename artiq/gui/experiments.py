@@ -278,14 +278,42 @@ class _ExperimentDock(dockarea.Dock):
         repo_rev.editingFinished.connect(update_repo_rev)
 
         submit = QtGui.QPushButton("Submit")
-        submit.setToolTip("Schedule the selected experiment (Ctrl+Return)")
+        submit.setIcon(QtGui.QApplication.style().standardIcon(
+                QtGui.QStyle.SP_DialogOkButton))
+        submit.setToolTip("Schedule the experiment (Ctrl+Return)")
+        submit.setShortcut("CTRL+RETURN")
         submit.setSizePolicy(QtGui.QSizePolicy.Expanding,
                              QtGui.QSizePolicy.Expanding)
-        self.addWidget(submit, 1, 4, rowspan=3)
+        self.addWidget(submit, 1, 4, rowspan=2)
         submit.clicked.connect(self.submit_clicked)
 
+        reqterm = QtGui.QPushButton("Terminate instances")
+        reqterm.setIcon(QtGui.QApplication.style().standardIcon(
+                QtGui.QStyle.SP_DialogCancelButton))
+        reqterm.setToolTip("Request termination of instances (Ctrl+Backspace)")
+        reqterm.setShortcut("CTRL+BACKSPACE")
+        reqterm.setSizePolicy(QtGui.QSizePolicy.Expanding,
+                              QtGui.QSizePolicy.Expanding)
+        self.addWidget(reqterm, 3, 4)
+        reqterm.clicked.connect(self.reqterm_clicked)
+
     def submit_clicked(self):
-        self.manager.submit(self.expname)
+        try:
+            self.manager.submit(self.expname)
+        except:
+            # May happen when experiment has been removed
+            # from repository/explist
+            logger.warning("failed to request termination of instances of %s",
+                           self.expname, exc_info=True)
+
+    def reqterm_clicked(self):
+        try:
+            self.manager.request_inst_term(self.expname)
+        except:
+            # May happen when experiment has been removed
+            # from repository/explist
+            logger.warning("failed to request termination of instances of %s",
+                           self.expname, exc_info=True)
 
     def save_state(self):
         return self.argeditor.save_state()
