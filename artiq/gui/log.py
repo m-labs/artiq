@@ -161,6 +161,15 @@ class _LogDock(dockarea.Dock):
             self.filter_freetext_changed)
         grid.addWidget(self.filter_freetext, 0, 2)
 
+        newdock = QtGui.QToolButton()
+        newdock.setToolTip("Create new log dock")
+        newdock.setIcon(QtGui.QApplication.style().standardIcon(
+            QtGui.QStyle.SP_FileDialogNewFolder))
+        # note the lambda, the default parameter is overriden otherwise
+        newdock.clicked.connect(lambda: manager.create_new_dock())
+        grid.addWidget(newdock, 0, 3)
+        grid.layout.setColumnStretch(2, 1)
+
         self.log = QtGui.QTableView()
         self.log.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
         self.log.horizontalHeader().setResizeMode(
@@ -178,12 +187,6 @@ class _LogDock(dockarea.Dock):
         grid.addWidget(self.log, 1, 0, colspan=4)
         self.scroll_at_bottom = False
         self.scroll_value = 0
-
-        self.log.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        newlog_action = QtGui.QAction("Create new log dock", self.log)
-        # note the lambda, the default parameter is overriden otherwise
-        newlog_action.triggered.connect(lambda: manager.create_new_dock())
-        self.log.addAction(newlog_action)
 
         log_sub.add_setmodel_callback(self.set_model)
 
