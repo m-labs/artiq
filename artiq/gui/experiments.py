@@ -413,6 +413,8 @@ class ExperimentManager:
                              rid, exc_info=True)
 
     def request_inst_term(self, expname):
+        self.status_bar.showMessage("Requesting termination of all instances "
+                                    "of '{}'".format(expname))
         expinfo = self.explist[expname]
         rids = []
         for rid, desc in self.schedule.items():
