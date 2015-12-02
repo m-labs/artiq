@@ -54,6 +54,7 @@ requirements:
     - aiohttp
     - binutils-or1k-linux
     - pythonparser
+    - levenshtein
 
 test:
   imports:
