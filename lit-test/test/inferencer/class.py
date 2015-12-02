@@ -15,5 +15,5 @@ c.a
 # CHECK-L: .f:()->NoneType delay('b)
 c.f
 
-# CHECK-L: .m:method(fn=(self:<instance c>)->NoneType delay('d), self=<instance c>)
+# CHECK-L: .m:method(fn=(self:<instance c>)->NoneType delay('c), self=<instance c>)
 c().m()

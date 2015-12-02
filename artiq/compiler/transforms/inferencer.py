@@ -104,7 +104,7 @@ class Inferencer(algorithm.Visitor):
                     ]
 
                 attr_type = object_type.attributes[node.attr]
-                if types.is_function(attr_type):
+                if types.is_rpc_function(attr_type):
                     attr_type = types.instantiate(attr_type)
 
                 self._unify(node.type, attr_type, node.loc, None,
@@ -112,6 +112,9 @@ class Inferencer(algorithm.Visitor):
             elif types.is_instance(object_type) and \
                     node.attr in object_type.constructor.attributes:
                 attr_type = object_type.constructor.attributes[node.attr].find()
+                if types.is_rpc_function(attr_type):
+                    attr_type = types.instantiate(attr_type)
+
                 if types.is_function(attr_type):
                     # Convert to a method.
                     if len(attr_type.args) < 1:
@@ -140,7 +143,7 @@ class Inferencer(algorithm.Visitor):
                                     makenotes=makenotes,
                                     when=" while inferring the type for self argument")
 
-                    attr_type = types.TMethod(object_type, types.instantiate(attr_type))
+                    attr_type = types.TMethod(object_type, attr_type)
 
                 if not types.is_var(attr_type):
                     self._unify(node.type, attr_type,
@@ -793,7 +796,10 @@ class Inferencer(algorithm.Visitor):
             typ_optargs = typ.optargs
             typ_ret     = typ.ret
         else:
-            typ         = types.get_method_function(typ)
+            typ = types.get_method_function(typ)
+            if types.is_var(typ):
+                return # not enough info yet
+
             typ_arity   = typ.arity() - 1
             typ_args    = OrderedDict(list(typ.args.items())[1:])
             typ_optargs = typ.optargs

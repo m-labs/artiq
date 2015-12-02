@@ -641,11 +641,11 @@ def is_method(typ):
 
 def get_method_self(typ):
     if is_method(typ):
-        return typ.find().params["self"]
+        return typ.find().params["self"].find()
 
 def get_method_function(typ):
     if is_method(typ):
-        return typ.find().params["fn"]
+        return typ.find().params["fn"].find()
 
 def is_value(typ):
     return isinstance(typ.find(), TValue)
