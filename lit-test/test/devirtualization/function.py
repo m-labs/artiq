@@ -4,7 +4,7 @@
 from artiq.language.core import *
 from artiq.language.types import *
 
-# CHECK-L: call ()->NoneType %local.testbench.entrypoint ; calls testbench.entrypoint
+# CHECK-L: call ()->NoneType delay('b) %local.testbench.entrypoint ; calls testbench.entrypoint
 
 @kernel
 def baz():
