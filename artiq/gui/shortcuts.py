@@ -56,6 +56,10 @@ class ShortcutsDock(dockarea.Dock):
             self.addWidget(submit, row, 4)
             submit.clicked.connect(partial(self._activated, i))
 
+            clear.hide()
+            open.hide()
+            submit.hide()
+
             self.shortcut_widgets[i] = {
                 "label": label,
                 "clear": clear,
