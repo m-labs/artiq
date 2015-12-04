@@ -20,7 +20,7 @@ long long int clock_get_ms(void)
     timer0_update_value_write(1);
     clock_sys = 0x7fffffffffffffffLL - timer0_value_read();
 
-    clock_ms = clock_sys/(SYSTEM_CLOCK_FREQUENCY/1000);
+    clock_ms = clock_sys/(CONFIG_CLOCK_FREQUENCY/1000);
     return clock_ms;
 }
 
@@ -29,7 +29,7 @@ void busywait_us(long long int us)
     long long int threshold;
 
     timer0_update_value_write(1);
-    threshold = timer0_value_read() - us*SYSTEM_CLOCK_FREQUENCY/1000000LL;
+    threshold = timer0_value_read() - us*CONFIG_CLOCK_FREQUENCY/1000000LL;
     while(timer0_value_read() > threshold)
         timer0_update_value_write(1);
 }

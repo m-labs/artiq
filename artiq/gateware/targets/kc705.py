@@ -111,9 +111,9 @@ class _NIST_QCx(MiniSoC, AMPSoC):
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
         self.submodules.rtio = rtio.RTIO(rtio_channels)
-        self.add_constant("RTIO_FINE_TS_WIDTH", self.rtio.fine_ts_width)
+        self.config["RTIO_FINE_TS_WIDTH"] = self.rtio.fine_ts_width
         assert self.rtio.fine_ts_width <= 3
-        self.add_constant("DDS_RTIO_CLK_RATIO", 8 >> self.rtio.fine_ts_width)
+        self.config["DDS_RTIO_CLK_RATIO"] = 8 >> self.rtio.fine_ts_width
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
 
         if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
@@ -167,14 +167,14 @@ class NIST_QC1(_NIST_QCx):
         phy = ttl_simple.Output(platform.request("user_led", 2))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
-        self.add_constant("RTIO_REGULAR_TTL_COUNT", len(rtio_channels))
+        self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
         phy = ttl_simple.ClockGen(platform.request("ttl", 15))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        self.add_constant("RTIO_DDS_CHANNEL", len(rtio_channels))
-        self.add_constant("DDS_CHANNEL_COUNT", 8)
+        self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
+        self.config["DDS_CHANNEL_COUNT"] = 8
         self.add_constant("DDS_AD9858")
         phy = dds.AD9858(platform.request("dds"), 8)
         self.submodules += phy
@@ -211,14 +211,14 @@ class NIST_QC2(_NIST_QCx):
         phy = ttl_simple.Output(platform.request("user_led", 2))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
-        self.add_constant("RTIO_REGULAR_TTL_COUNT", len(rtio_channels))
+        self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
         phy = ttl_simple.ClockGen(platform.request("ttl", 14))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        self.add_constant("RTIO_DDS_CHANNEL", len(rtio_channels))
-        self.add_constant("DDS_CHANNEL_COUNT", 11)
+        self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
+        self.config["DDS_CHANNEL_COUNT"] = 11
         self.add_constant("DDS_AD9914")
         self.add_constant("DDS_ONEHOT_SEL")
         phy = dds.AD9914(platform.request("dds"), 11, onehot=True)

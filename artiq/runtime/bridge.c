@@ -5,11 +5,11 @@
 #include "dds.h"
 #include "bridge.h"
 
-#define TIME_BUFFER (8000 << RTIO_FINE_TS_WIDTH)
+#define TIME_BUFFER (8000 << CONFIG_RTIO_FINE_TS_WIDTH)
 
 static void dds_write(int addr, int data)
 {
-    rtio_chan_sel_write(RTIO_DDS_CHANNEL);
+    rtio_chan_sel_write(CONFIG_RTIO_DDS_CHANNEL);
     rtio_o_address_write(addr);
     rtio_o_data_write(data);
     rtio_o_timestamp_write(rtio_get_counter() + TIME_BUFFER);

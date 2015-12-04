@@ -12,10 +12,10 @@
 #include "log.h"
 #include "flash_storage.h"
 
-#if (defined CSR_SPIFLASH_BASE && defined SPIFLASH_PAGE_SIZE)
+#if (defined CSR_SPIFLASH_BASE && defined CONFIG_SPIFLASH_PAGE_SIZE)
 
 #define STORAGE_ADDRESS ((char *)(FLASH_BOOT_ADDRESS + 256*1024))
-#define STORAGE_SIZE    SPIFLASH_SECTOR_SIZE
+#define STORAGE_SIZE    CONFIG_SPIFLASH_SECTOR_SIZE
 #define END_MARKER      (0xFFFFFFFF)
 
 #define min(a, b) (a>b?b:a)
@@ -302,4 +302,4 @@ void fs_remove(const char *key)
     fs_write(key, NULL, 0);
 }
 
-#endif /* CSR_SPIFLASH_BASE && SPIFLASH_PAGE_SIZE */
+#endif /* CSR_SPIFLASH_BASE && CONFIG_SPIFLASH_PAGE_SIZE */

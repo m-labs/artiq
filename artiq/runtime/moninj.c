@@ -39,7 +39,7 @@ struct monitor_reply {
     long long int ttl_levels;
     long long int ttl_oes;
     long long int ttl_overrides;
-    unsigned int dds_ftws[DDS_CHANNEL_COUNT];
+    unsigned int dds_ftws[CONFIG_DDS_CHANNEL_COUNT];
 };
 
 static void moninj_monitor(const ip_addr_t *addr, u16_t port)
@@ -51,7 +51,7 @@ static void moninj_monitor(const ip_addr_t *addr, u16_t port)
     reply.ttl_levels = 0;
     reply.ttl_oes = 0;
     reply.ttl_overrides = 0;
-    for(i=0;i<RTIO_REGULAR_TTL_COUNT;i++) {
+    for(i=0;i<CONFIG_RTIO_REGULAR_TTL_COUNT;i++) {
         rtio_moninj_mon_chan_sel_write(i);
         rtio_moninj_mon_probe_sel_write(0);
         rtio_moninj_mon_value_update_write(1);
@@ -67,8 +67,8 @@ static void moninj_monitor(const ip_addr_t *addr, u16_t port)
             reply.ttl_overrides |= 1LL << i;
     }
 
-    rtio_moninj_mon_chan_sel_write(RTIO_DDS_CHANNEL);
-    for(i=0;i<DDS_CHANNEL_COUNT;i++) {
+    rtio_moninj_mon_chan_sel_write(CONFIG_RTIO_DDS_CHANNEL);
+    for(i=0;i<CONFIG_DDS_CHANNEL_COUNT;i++) {
         rtio_moninj_mon_probe_sel_write(i);
         rtio_moninj_mon_value_update_write(1);
         reply.dds_ftws[i] = rtio_moninj_mon_value_read();

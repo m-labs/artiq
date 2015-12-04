@@ -173,14 +173,14 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
 
-        self.add_constant("RTIO_REGULAR_TTL_COUNT", len(rtio_channels))
+        self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
         phy = ttl_simple.ClockGen(platform.request("ttl", 15))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        self.add_constant("RTIO_DDS_CHANNEL", len(rtio_channels))
-        self.add_constant("DDS_CHANNEL_COUNT", 8)
+        self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
+        self.config["DDS_CHANNEL_COUNT"] = 8
         self.add_constant("DDS_AD9858")
         dds_pins = platform.request("dds")
         self.comb += dds_pins.p.eq(0)
@@ -192,8 +192,8 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
 
         # RTIO core
         self.submodules.rtio = rtio.RTIO(rtio_channels)
-        self.add_constant("RTIO_FINE_TS_WIDTH", self.rtio.fine_ts_width)
-        self.add_constant("DDS_RTIO_CLK_RATIO", 8 >> self.rtio.fine_ts_width)
+        self.config["RTIO_FINE_TS_WIDTH"] = self.rtio.fine_ts_width
+        self.config["DDS_RTIO_CLK_RATIO"] = 8 >> self.rtio.fine_ts_width
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
 
         # CPU connections

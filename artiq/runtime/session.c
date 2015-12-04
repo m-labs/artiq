@@ -432,7 +432,7 @@ static int process_input(void)
             break;
 
         case REMOTEMSG_TYPE_FLASH_READ_REQUEST: {
-#if SPIFLASH_SECTOR_SIZE - 4 > BUFFER_OUT_SIZE - 9
+#if CONFIG_SPIFLASH_SECTOR_SIZE - 4 > BUFFER_OUT_SIZE - 9
 #error Output buffer cannot hold the flash storage data
 #endif
             const char *key = in_packet_string();
@@ -447,7 +447,7 @@ static int process_input(void)
         }
 
         case REMOTEMSG_TYPE_FLASH_WRITE_REQUEST: {
-#if SPIFLASH_SECTOR_SIZE - 4 > BUFFER_IN_SIZE - 9
+#if CONFIG_SPIFLASH_SECTOR_SIZE - 4 > BUFFER_IN_SIZE - 9
 #error Input buffer cannot hold the flash storage data
 #endif
             const char *key, *value;
