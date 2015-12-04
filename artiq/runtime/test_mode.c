@@ -166,10 +166,10 @@ static void ddsr(char *addr)
         return;
     }
 
-#ifdef DDS_AD9858
+#ifdef CONFIG_DDS_AD9858
     printf("0x%02x\n", brg_ddsread(addr2));
 #endif
-#ifdef DDS_AD9914
+#ifdef CONFIG_DDS_AD9914
     printf("0x%04x\n", brg_ddsread(addr2));
 #endif
 }
@@ -205,13 +205,13 @@ static void ddsftw(char *n, char *ftw)
 #endif
     brg_ddssel(n2);
 
-#ifdef DDS_AD9858
+#ifdef CONFIG_DDS_AD9858
     brg_ddswrite(DDS_FTW0, ftw2 & 0xff);
     brg_ddswrite(DDS_FTW1, (ftw2 >> 8) & 0xff);
     brg_ddswrite(DDS_FTW2, (ftw2 >> 16) & 0xff);
     brg_ddswrite(DDS_FTW3, (ftw2 >> 24) & 0xff);
 #endif
-#ifdef DDS_AD9914
+#ifdef CONFIG_DDS_AD9914
     brg_ddswrite(DDS_FTWL, ftw2 & 0xffff);
     brg_ddswrite(DDS_FTWH, (ftw2 >> 16) & 0xffff);
 #endif
@@ -224,7 +224,7 @@ static void ddsreset(void)
     brg_ddsreset();
 }
 
-#ifdef DDS_AD9858
+#ifdef CONFIG_DDS_AD9858
 static void ddsinit(void)
 {
     brg_ddsreset();
@@ -236,7 +236,7 @@ static void ddsinit(void)
 }
 #endif
 
-#ifdef DDS_AD9914
+#ifdef CONFIG_DDS_AD9914
 static void ddsinit(void)
 {
     long long int t;
@@ -273,24 +273,24 @@ static void do_ddstest_one(unsigned int i)
 
     for(j=0; j<12; j++) {
         f = v[j];
-#ifdef DDS_AD9858
+#ifdef CONFIG_DDS_AD9858
         brg_ddswrite(DDS_FTW0, f & 0xff);
         brg_ddswrite(DDS_FTW1, (f >> 8) & 0xff);
         brg_ddswrite(DDS_FTW2, (f >> 16) & 0xff);
         brg_ddswrite(DDS_FTW3, (f >> 24) & 0xff);
 #endif
-#ifdef DDS_AD9914
+#ifdef CONFIG_DDS_AD9914
         brg_ddswrite(DDS_FTWL, f & 0xffff);
         brg_ddswrite(DDS_FTWH, (f >> 16) & 0xffff);
 #endif
         brg_ddsfud();
-#ifdef DDS_AD9858
+#ifdef CONFIG_DDS_AD9858
         g = brg_ddsread(DDS_FTW0);
         g |= brg_ddsread(DDS_FTW1) << 8;
         g |= brg_ddsread(DDS_FTW2) << 16;
         g |= brg_ddsread(DDS_FTW3) << 24;
 #endif
-#ifdef DDS_AD9914
+#ifdef CONFIG_DDS_AD9914
         g = brg_ddsread(DDS_FTWL);
         g |= brg_ddsread(DDS_FTWH) << 16;
 #endif

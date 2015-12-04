@@ -20,10 +20,10 @@ static int dds_read(int addr)
 {
     int r;
 
-#ifdef DDS_AD9858
+#ifdef CONFIG_DDS_AD9858
 #define DDS_READ_FLAG 128
 #endif
-#ifdef DDS_AD9914
+#ifdef CONFIG_DDS_AD9914
 #define DDS_READ_FLAG 256
 #endif
     dds_write(addr | DDS_READ_FLAG, 0);

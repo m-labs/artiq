@@ -8,12 +8,12 @@
 
 #define DURATION_WRITE (5 << CONFIG_RTIO_FINE_TS_WIDTH)
 
-#if defined DDS_AD9858
+#if defined CONFIG_DDS_AD9858
 /* Assume 8-bit bus */
 #define DURATION_INIT (7*DURATION_WRITE) /* not counting FUD */
 #define DURATION_PROGRAM (8*DURATION_WRITE) /* not counting FUD */
 
-#elif defined DDS_AD9914
+#elif defined CONFIG_DDS_AD9914
 /* Assume 16-bit bus */
 /* DAC calibration takes max. 1ms as per datasheet */
 #define DURATION_DAC_CAL (147000 << CONFIG_RTIO_FINE_TS_WIDTH)
@@ -46,7 +46,7 @@ void dds_init(long long int timestamp, int channel)
 #endif
     channel <<= 1;
     DDS_WRITE(DDS_GPIO, channel);
-#ifndef DDS_AD9914
+#ifndef CONFIG_DDS_AD9914
     /*
      * Resetting a AD9914 intermittently crashes it. It does not produce any
      * output until power-cycled.
@@ -58,7 +58,7 @@ void dds_init(long long int timestamp, int channel)
     DDS_WRITE(DDS_GPIO, channel);
 #endif
 
-#ifdef DDS_AD9858
+#ifdef CONFIG_DDS_AD9858
     /*
      * 2GHz divider disable
      * SYNCLK disable
@@ -72,7 +72,7 @@ void dds_init(long long int timestamp, int channel)
     DDS_WRITE(DDS_FUD, 0);
 #endif
 
-#ifdef DDS_AD9914
+#ifdef CONFIG_DDS_AD9914
     DDS_WRITE(DDS_CFR1H, 0x0000); /* Enable cosine output */
     DDS_WRITE(DDS_CFR2L, 0x8900); /* Enable matched latency */
     DDS_WRITE(DDS_CFR2H, 0x0080); /* Enable profile mode */
@@ -105,14 +105,14 @@ static void dds_set_one(long long int now, long long int ref_time, unsigned int 
 #endif
     DDS_WRITE(DDS_GPIO, channel_enc << 1);
 
-#ifdef DDS_AD9858
+#ifdef CONFIG_DDS_AD9858
     DDS_WRITE(DDS_FTW0, ftw & 0xff);
     DDS_WRITE(DDS_FTW1, (ftw >> 8) & 0xff);
     DDS_WRITE(DDS_FTW2, (ftw >> 16) & 0xff);
     DDS_WRITE(DDS_FTW3, (ftw >> 24) & 0xff);
 #endif
 
-#ifdef DDS_AD9914
+#ifdef CONFIG_DDS_AD9914
     DDS_WRITE(DDS_FTWL, ftw & 0xffff);
     DDS_WRITE(DDS_FTWH, (ftw >> 16) & 0xffff);
 #endif
@@ -122,10 +122,10 @@ static void dds_set_one(long long int now, long long int ref_time, unsigned int 
      */
     if(phase_mode == PHASE_MODE_CONTINUOUS) {
         /* Do not clear phase accumulator on FUD */
-#ifdef DDS_AD9858
+#ifdef CONFIG_DDS_AD9858
         DDS_WRITE(DDS_CFR2, 0x00);
 #endif
-#ifdef DDS_AD9914
+#ifdef CONFIG_DDS_AD9914
         /* Disable autoclear phase accumulator and enables OSK. */
         DDS_WRITE(DDS_CFR1L, 0x0108);
 #endif
@@ -134,10 +134,10 @@ static void dds_set_one(long long int now, long long int ref_time, unsigned int 
         long long int fud_time;
 
         /* Clear phase accumulator on FUD */
-#ifdef DDS_AD9858
+#ifdef CONFIG_DDS_AD9858
         DDS_WRITE(DDS_CFR2, 0x40);
 #endif
-#ifdef DDS_AD9914
+#ifdef CONFIG_DDS_AD9914
         /* Enable autoclear phase accumulator and enables OSK. */
         DDS_WRITE(DDS_CFR1L, 0x2108);
 #endif
@@ -148,14 +148,14 @@ static void dds_set_one(long long int now, long long int ref_time, unsigned int 
         continuous_phase_comp[channel] = pow;
     }
 
-#ifdef DDS_AD9858
+#ifdef CONFIG_DDS_AD9858
     DDS_WRITE(DDS_POW0, pow & 0xff);
     DDS_WRITE(DDS_POW1, (pow >> 8) & 0x3f);
 #endif
-#ifdef DDS_AD9914
+#ifdef CONFIG_DDS_AD9914
     DDS_WRITE(DDS_POW, pow);
 #endif
-#ifdef DDS_AD9914
+#ifdef CONFIG_DDS_AD9914
     DDS_WRITE(DDS_ASF, amplitude);
 #endif
     DDS_WRITE(DDS_FUD, 0);

@@ -175,7 +175,7 @@ class NIST_QC1(_NIST_QCx):
 
         self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
         self.config["DDS_CHANNEL_COUNT"] = 8
-        self.add_constant("DDS_AD9858")
+        self.config["DDS_AD9858"] = 1
         phy = dds.AD9858(platform.request("dds"), 8)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,
@@ -219,8 +219,8 @@ class NIST_QC2(_NIST_QCx):
 
         self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
         self.config["DDS_CHANNEL_COUNT"] = 11
-        self.add_constant("DDS_AD9914")
-        self.add_constant("DDS_ONEHOT_SEL")
+        self.config["DDS_AD9914"] = True
+        self.config["DDS_ONEHOT_SEL"] = True
         phy = dds.AD9914(platform.request("dds"), 11, onehot=True)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,

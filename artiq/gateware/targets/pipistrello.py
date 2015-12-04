@@ -181,7 +181,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
 
         self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
         self.config["DDS_CHANNEL_COUNT"] = 8
-        self.add_constant("DDS_AD9858")
+        self.config["DDS_AD9858"] = True
         dds_pins = platform.request("dds")
         self.comb += dds_pins.p.eq(0)
         phy = dds.AD9858(dds_pins, 8)

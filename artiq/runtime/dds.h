@@ -8,7 +8,7 @@
 /* Maximum number of commands in a batch */
 #define DDS_MAX_BATCH 16
 
-#ifdef DDS_AD9858
+#ifdef CONFIG_DDS_AD9858
 #define DDS_CFR0  0x00
 #define DDS_CFR1  0x01
 #define DDS_CFR2  0x02
@@ -23,7 +23,7 @@
 #define DDS_GPIO  0x41
 #endif
 
-#ifdef DDS_AD9914
+#ifdef CONFIG_DDS_AD9914
 #define DDS_CFR1L  0x01
 #define DDS_CFR1H  0x03
 #define DDS_CFR2L  0x05
@@ -40,11 +40,11 @@
 #define DDS_GPIO   0x81
 #endif
 
-#ifdef DDS_AD9858
+#ifdef CONFIG_DDS_AD9858
 #define DDS_POW_WIDTH 14
 #endif
 
-#ifdef DDS_AD9914
+#ifdef CONFIG_DDS_AD9914
 #define DDS_POW_WIDTH 16
 #endif
 
