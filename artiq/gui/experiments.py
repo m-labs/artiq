@@ -5,7 +5,7 @@ from collections import OrderedDict
 
 from quamash import QtGui, QtCore
 
-from pyqtgraph import dockarea
+from pyqtgraph import dockarea, LayoutWidget
 
 from artiq.gui.tools import log_level_to_name, disable_scroll_wheel
 from artiq.gui.scan import ScanController
@@ -121,8 +121,11 @@ _argty_to_entry = {
 class _ArgumentEditor(QtGui.QTreeWidget):
     def __init__(self, arguments):
         QtGui.QTreeWidget.__init__(self)
-        self.setColumnCount(2)
-        self.header().setResizeMode(QtGui.QHeaderView.ResizeToContents)
+        self.setColumnCount(3)
+        self.header().setStretchLastSection(False)
+        self.header().setResizeMode(0, QtGui.QHeaderView.ResizeToContents)
+        self.header().setResizeMode(1, QtGui.QHeaderView.Stretch)
+        self.header().setResizeMode(2, QtGui.QHeaderView.ResizeToContents)
         self.header().setVisible(False)
         self.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
         self.setHorizontalScrollMode(QtGui.QAbstractItemView.ScrollPerPixel)
@@ -132,23 +135,33 @@ class _ArgumentEditor(QtGui.QTreeWidget):
         self._args_to_entries = dict()
 
         if not arguments:
-            self.addTopLevelItem(QtGui.QTreeWidgetItem(["No arguments", ""]))
+            self.addTopLevelItem(QtGui.QTreeWidgetItem(["No arguments"]))
 
         for n, (name, argument) in enumerate(arguments.items()):
             entry = _argty_to_entry[argument["desc"]["ty"]](argument)
             self._args_to_entries[name] = entry
 
-            widget_item = QtGui.QTreeWidgetItem([name, ""])
+            widget_item = QtGui.QTreeWidgetItem([name])
             if argument["group"] is None:
                 self.addTopLevelItem(widget_item)
             else:
                 self._get_group(argument["group"]).addChild(widget_item)
             self.setItemWidget(widget_item, 1, entry)
+            recompute_argument = QtGui.QToolButton()
+            recompute_argument.setToolTip("Re-run the experiment's build "
+                                          "method and take the default value")
+            recompute_argument.setIcon(QtGui.QApplication.style().standardIcon(
+                QtGui.QStyle.SP_BrowserReload))
+            recompute_argument.clicked.connect(
+                partial(self._recompute_argument, name))
+            fix_layout = LayoutWidget()
+            fix_layout.addWidget(recompute_argument)
+            self.setItemWidget(widget_item, 2, fix_layout)
 
     def _get_group(self, name):
         if name in self._groups:
             return self._groups[name]
-        group = QtGui.QTreeWidgetItem([name, ""])
+        group = QtGui.QTreeWidgetItem([name])
         for c in 0, 1:
             group.setBackground(c, QtGui.QBrush(QtGui.QColor(100, 100, 100)))
             group.setForeground(c, QtGui.QBrush(QtGui.QColor(220, 220, 255)))
@@ -158,6 +171,9 @@ class _ArgumentEditor(QtGui.QTreeWidget):
         self.addTopLevelItem(group)
         self._groups[name] = group
         return group
+
+    def _recompute_argument(self, argument):
+        logger.warning("recompute_argument not implemented (%s)", argument)
 
     def save_state(self):
         expanded = []
