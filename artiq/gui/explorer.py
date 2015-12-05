@@ -48,7 +48,7 @@ class ExplorerDock(dockarea.Dock):
 
         submit = QtGui.QPushButton("Submit")
         submit.setIcon(QtGui.QApplication.style().standardIcon(
-                QtGui.QStyle.SP_DialogOkButton))
+            QtGui.QStyle.SP_DialogOkButton))
         submit.setToolTip("Schedule the selected experiment (Ctrl+Return)")
         self.addWidget(submit, 1, 1)
         submit.clicked.connect(self.submit_clicked)

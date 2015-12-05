@@ -304,7 +304,7 @@ class _ExperimentDock(dockarea.Dock):
         except:
             # May happen when experiment has been removed
             # from repository/explist
-            logger.warning("failed to request termination of instances of %s",
+            logger.warning("failed to submit '%s'",
                            self.expname, exc_info=True)
 
     def reqterm_clicked(self):
@@ -313,7 +313,7 @@ class _ExperimentDock(dockarea.Dock):
         except:
             # May happen when experiment has been removed
             # from repository/explist
-            logger.warning("failed to request termination of instances of %s",
+            logger.warning("failed to request termination of instances of '%s'",
                            self.expname, exc_info=True)
 
     def save_state(self):
