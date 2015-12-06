@@ -3,6 +3,7 @@ import os
 import tempfile
 import shutil
 import logging
+from functools import partial
 
 from artiq.protocols.sync_struct import Notifier
 from artiq.master.worker import Worker
@@ -16,7 +17,7 @@ async def _get_repository_entries(entry_dict,
                                   root, filename, get_device_db, log):
     worker = Worker({
         "get_device_db": get_device_db,
-        "log": lambda message: log("scan", message)
+        "log": partial(log, "scan")
     })
     try:
         description = await worker.examine(os.path.join(root, filename))
@@ -24,7 +25,7 @@ async def _get_repository_entries(entry_dict,
         await worker.close()
     for class_name, class_desc in description.items():
         name = class_desc["name"]
-        arguments = class_desc["arguments"]
+        arginfo = class_desc["arginfo"]
         if "/" in name:
             logger.warning("Character '/' is not allowed in experiment "
                            "name (%s)", name)
@@ -39,7 +40,7 @@ async def _get_repository_entries(entry_dict,
         entry = {
             "file": filename,
             "class_name": class_name,
-            "arguments": arguments
+            "arginfo": arginfo
         }
         entry_dict[name] = entry
 
@@ -109,6 +110,23 @@ class Repository:
 
     def scan_async(self, new_cur_rev=None):
         asyncio.ensure_future(exc_to_warning(self.scan(new_cur_rev)))
+
+    async def examine(self, filename, use_repository=True):
+        if use_repository:
+            revision = self.cur_rev
+            wd, _ = self.backend.request_rev(revision)
+            filename = os.path.join(wd, filename)
+        worker = Worker({
+            "get_device_db": self.get_device_db_fn,
+            "log": partial(self.log_fn, "examine")
+        })
+        try:
+            description = await worker.examine(filename)
+        finally:
+            await worker.close()
+        if use_repository:
+            self.backend.release_rev(revision)
+        return description
 
 
 class FilesystemBackend:

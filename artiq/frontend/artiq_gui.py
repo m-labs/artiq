@@ -98,7 +98,8 @@ def main():
     expmgr = experiments.ExperimentManager(status_bar, dock_area,
                                            sub_clients["explist"],
                                            sub_clients["schedule"],
-                                           rpc_clients["schedule"])
+                                           rpc_clients["schedule"],
+                                           rpc_clients["repository"])
     smgr.register(expmgr)
     d_shortcuts = shortcuts.ShortcutsDock(win, expmgr)
     smgr.register(d_shortcuts)

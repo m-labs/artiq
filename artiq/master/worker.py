@@ -248,8 +248,8 @@ class Worker:
     async def examine(self, file, timeout=20.0):
         await self._create_process(logging.WARNING)
         r = dict()
-        def register(class_name, name, arguments):
-            r[class_name] = {"name": name, "arguments": arguments}
+        def register(class_name, name, arginfo):
+            r[class_name] = {"name": name, "arginfo": arginfo}
         self.register_experiment = register
         await self._worker_action({"action": "examine", "file": file},
                                   timeout)

@@ -2,6 +2,7 @@ import sys
 import time
 import os
 import logging
+from collections import OrderedDict
 
 from artiq.protocols import pyon
 from artiq.tools import file_import
@@ -153,9 +154,10 @@ def examine(device_mgr, dataset_mgr, file):
                 if name[-1] == ".":
                     name = name[:-1]
             exp_inst = exp_class(device_mgr, dataset_mgr, default_arg_none=True)
-            arguments = [(k, (proc.describe(), group))
-                         for k, (proc, group) in exp_inst.requested_args.items()]
-            register_experiment(class_name, name, arguments)
+            arginfo = OrderedDict(
+                (k, (proc.describe(), group))
+                for k, (proc, group) in exp_inst.requested_args.items())
+            register_experiment(class_name, name, arginfo)
 
 
 def string_to_hdf5(f, key, value):

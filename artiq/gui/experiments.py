@@ -119,7 +119,10 @@ _argty_to_entry = {
 
 
 class _ArgumentEditor(QtGui.QTreeWidget):
-    def __init__(self, arguments):
+    def __init__(self, manager, expname):
+        self.manager = manager
+        self.expname = expname
+
         QtGui.QTreeWidget.__init__(self)
         self.setColumnCount(3)
         self.header().setStretchLastSection(False)
@@ -132,16 +135,18 @@ class _ArgumentEditor(QtGui.QTreeWidget):
         self.setVerticalScrollMode(QtGui.QAbstractItemView.ScrollPerPixel)
 
         self._groups = dict()
-        self._args_to_entries = dict()
+        self._arg_to_entry_widgetitem = dict()
+
+        arguments = self.manager.get_submission_arguments(self.expname)
 
         if not arguments:
             self.addTopLevelItem(QtGui.QTreeWidgetItem(["No arguments"]))
 
         for n, (name, argument) in enumerate(arguments.items()):
             entry = _argty_to_entry[argument["desc"]["ty"]](argument)
-            self._args_to_entries[name] = entry
-
             widget_item = QtGui.QTreeWidgetItem([name])
+            self._arg_to_entry_widgetitem[name] = entry, widget_item
+
             if argument["group"] is None:
                 self.addTopLevelItem(widget_item)
             else:
@@ -172,8 +177,28 @@ class _ArgumentEditor(QtGui.QTreeWidget):
         self._groups[name] = group
         return group
 
-    def _recompute_argument(self, argument):
-        logger.warning("recompute_argument not implemented (%s)", argument)
+    def _recompute_argument(self, name):
+        asyncio.ensure_future(self._recompute_argument_task(name))
+
+    async def _recompute_argument_task(self, name):
+        try:
+            arginfo = await self.manager.recompute_arginfo(self.expname)
+        except:
+            logger.warning("Could not recompute argument '%s' of '%s'",
+                           name, self.expname, exc_info=True)
+        argument = self.manager.get_submission_arguments(self.expname)[name]
+
+        procdesc = arginfo[name][0]
+        state = _argty_to_entry[procdesc["ty"]].default_state(procdesc)
+        argument["desc"] = procdesc
+        argument["state"] = state
+
+        old_entry, widget_item = self._arg_to_entry_widgetitem[name]
+        old_entry.deleteLater()
+
+        entry = _argty_to_entry[procdesc["ty"]](argument)
+        self._arg_to_entry_widgetitem[name] = entry, widget_item
+        self.setItemWidget(widget_item, 1, entry)
 
     def save_state(self):
         expanded = []
@@ -200,8 +225,7 @@ class _ExperimentDock(dockarea.Dock):
         self.manager = manager
         self.expname = expname
 
-        self.argeditor = _ArgumentEditor(
-            manager.get_submission_arguments(expname))
+        self.argeditor = _ArgumentEditor(manager, expname)
         self.addWidget(self.argeditor, 0, 0, colspan=5)
         self.layout.setRowStretch(0, 1)
 
@@ -342,10 +366,11 @@ class _ExperimentDock(dockarea.Dock):
 class ExperimentManager:
     def __init__(self, status_bar, dock_area,
                  explist_sub, schedule_sub,
-                 schedule_ctl):
+                 schedule_ctl, repository_ctl):
         self.status_bar = status_bar
         self.dock_area = dock_area
         self.schedule_ctl = schedule_ctl
+        self.repository_ctl = repository_ctl
 
         self.submission_scheduling = dict()
         self.submission_options = dict()
@@ -395,8 +420,8 @@ class ExperimentManager:
             return self.submission_arguments[expname]
         else:
             arguments = OrderedDict()
-            arginfo = self.explist[expname]["arguments"]
-            for name, (procdesc, group) in arginfo:
+            arginfo = self.explist[expname]["arginfo"]
+            for name, (procdesc, group) in arginfo.items():
                 state = _argty_to_entry[procdesc["ty"]].default_state(procdesc)
                 arguments[name] = {
                     "desc": procdesc,
@@ -469,6 +494,11 @@ class ExperimentManager:
                     and expid["class_name"] == expinfo["class_name"]):
                 rids.append(rid)
         asyncio.ensure_future(self._request_term_multiple(rids))
+
+    async def recompute_arginfo(self, expname):
+        expinfo = self.explist[expname]
+        description = await self.repository_ctl.examine(expinfo["file"])
+        return description[expinfo["class_name"]]["arginfo"]
 
     def save_state(self):
         docks = {expname: dock.save_state()
