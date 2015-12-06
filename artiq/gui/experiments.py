@@ -301,7 +301,7 @@ class _ExperimentDock(dockarea.Dock):
         log_level.currentIndexChanged.connect(update_log_level)
 
         repo_rev = QtGui.QLineEdit()
-        repo_rev.setPlaceholderText("HEAD")
+        repo_rev.setPlaceholderText("current")
         repo_rev_label = QtGui.QLabel("Revision:")
         repo_rev_label.setToolTip("Experiment repository revision "
                                   "(commit ID) to use")

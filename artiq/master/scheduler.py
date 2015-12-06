@@ -127,14 +127,14 @@ class RIDCounter:
 
 
 class RunPool:
-    def __init__(self, ridc, worker_handlers, notifier, repo_backend):
+    def __init__(self, ridc, worker_handlers, notifier, experiment_db):
         self.runs = dict()
         self.state_changed = Condition()
 
         self.ridc = ridc
         self.worker_handlers = worker_handlers
         self.notifier = notifier
-        self.repo_backend = repo_backend
+        self.experiment_db = experiment_db
 
     def submit(self, expid, priority, due_date, flush, pipeline_name):
         # mutates expid to insert head repository revision if None.
@@ -142,8 +142,9 @@ class RunPool:
         rid = self.ridc.get()
         if "repo_rev" in expid:
             if expid["repo_rev"] is None:
-                expid["repo_rev"] = self.repo_backend.get_head_rev()
-            wd, repo_msg = self.repo_backend.request_rev(expid["repo_rev"])
+                expid["repo_rev"] = self.experiment_db.cur_rev
+            wd, repo_msg = self.experiment_db.repo_backend.request_rev(
+                expid["repo_rev"])
         else:
             wd, repo_msg = None, None
         run = Run(rid, pipeline_name, wd, expid, priority, due_date, flush,
@@ -159,7 +160,7 @@ class RunPool:
         run = self.runs[rid]
         await run.close()
         if "repo_rev" in run.expid:
-            self.repo_backend.release_rev(run.expid["repo_rev"])
+            self.experiment_db.repo_backend.release_rev(run.expid["repo_rev"])
         del self.runs[rid]
 
 
@@ -325,8 +326,8 @@ class AnalyzeStage(TaskObject):
 
 
 class Pipeline:
-    def __init__(self, ridc, deleter, worker_handlers, notifier, repo_backend):
-        self.pool = RunPool(ridc, worker_handlers, notifier, repo_backend)
+    def __init__(self, ridc, deleter, worker_handlers, notifier, experiment_db):
+        self.pool = RunPool(ridc, worker_handlers, notifier, experiment_db)
         self._prepare = PrepareStage(self.pool, deleter.delete)
         self._run = RunStage(self.pool, deleter.delete)
         self._analyze = AnalyzeStage(self.pool, deleter.delete)
@@ -386,12 +387,12 @@ class Deleter(TaskObject):
 
 
 class Scheduler:
-    def __init__(self, next_rid, worker_handlers, repo_backend):
+    def __init__(self, next_rid, worker_handlers, experiment_db):
         self.notifier = Notifier(dict())
 
         self._pipelines = dict()
         self._worker_handlers = worker_handlers
-        self._repo_backend = repo_backend
+        self._experiment_db = experiment_db
         self._terminated = False
 
         self._ridc = RIDCounter(next_rid)
@@ -422,7 +423,7 @@ class Scheduler:
             logger.debug("creating pipeline '%s'", pipeline_name)
             pipeline = Pipeline(self._ridc, self._deleter,
                                 self._worker_handlers, self.notifier,
-                                self._repo_backend)
+                                self._experiment_db)
             self._pipelines[pipeline_name] = pipeline
             pipeline.start()
         return pipeline.pool.submit(expid, priority, due_date, flush, pipeline_name)

@@ -83,7 +83,7 @@ def main():
         "update_dataset": dataset_db.update,
         "log": log_worker
     }
-    scheduler = Scheduler(get_last_rid() + 1, worker_handlers, repo_backend)
+    scheduler = Scheduler(get_last_rid() + 1, worker_handlers, experiment_db)
     worker_handlers.update({
         "scheduler_submit": scheduler.submit,
         "scheduler_delete": scheduler.delete,
