@@ -43,6 +43,8 @@ class RPCCase(unittest.TestCase):
         try:
             test_object_back = remote.echo(test_object)
             self.assertEqual(test_object, test_object_back)
+            test_object_back = remote.async_echo(test_object)
+            self.assertEqual(test_object, test_object_back)
             with self.assertRaises(pc_rpc.RemoteError):
                 remote.non_existing_method()
             remote.terminate()
@@ -67,6 +69,8 @@ class RPCCase(unittest.TestCase):
                 break
         try:
             test_object_back = await remote.echo(test_object)
+            self.assertEqual(test_object, test_object_back)
+            test_object_back = await remote.async_echo(test_object)
             self.assertEqual(test_object, test_object_back)
             with self.assertRaises(pc_rpc.RemoteError):
                 await remote.non_existing_method()
@@ -103,6 +107,10 @@ class FireAndForgetCase(unittest.TestCase):
 
 class Echo:
     def echo(self, x):
+        return x
+
+    async def async_echo(self, x):
+        await asyncio.sleep(0.01)
         return x
 
 

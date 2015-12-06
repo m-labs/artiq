@@ -490,6 +490,8 @@ class Server(_AsyncioServer):
                         else:
                             method = getattr(target, obj["name"])
                             ret = method(*obj["args"], **obj["kwargs"])
+                            if inspect.iscoroutine(ret):
+                                ret = await ret
                             obj = {"status": "ok", "ret": ret}
                     else:
                         raise ValueError("Unknown action: {}"
