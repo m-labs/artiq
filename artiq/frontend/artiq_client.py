@@ -151,7 +151,7 @@ def _action_scan_devices(remote, args):
 
 
 def _action_scan_repository(remote, args):
-    remote.scan_repository_async(args.revision)
+    remote.scan_repository(args.revision)
 
 
 def _show_schedule(schedule):
