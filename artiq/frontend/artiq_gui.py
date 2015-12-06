@@ -66,7 +66,7 @@ def main():
 
     # create connections to master
     rpc_clients = dict()
-    for target in "schedule", "repository", "dataset_db":
+    for target in "schedule", "experiment_db", "dataset_db":
         client = AsyncioClient()
         loop.run_until_complete(client.connect_rpc(
             args.server, args.port_control, "master_" + target))
@@ -99,14 +99,14 @@ def main():
                                            sub_clients["explist"],
                                            sub_clients["schedule"],
                                            rpc_clients["schedule"],
-                                           rpc_clients["repository"])
+                                           rpc_clients["experiment_db"])
     smgr.register(expmgr)
     d_shortcuts = shortcuts.ShortcutsDock(win, expmgr)
     smgr.register(d_shortcuts)
     d_explorer = explorer.ExplorerDock(status_bar, expmgr, d_shortcuts,
                                        sub_clients["explist"],
                                        rpc_clients["schedule"],
-                                       rpc_clients["repository"])
+                                       rpc_clients["experiment_db"])
 
     d_datasets = datasets.DatasetsDock(win, dock_area, sub_clients["datasets"])
     smgr.register(d_datasets)

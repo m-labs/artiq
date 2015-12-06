@@ -151,7 +151,7 @@ def _action_scan_devices(remote, args):
 
 
 def _action_scan_repository(remote, args):
-    remote.scan_async(args.revision)
+    remote.scan_repository_async(args.revision)
 
 
 def _show_schedule(schedule):
@@ -285,7 +285,7 @@ def main():
             "set_dataset": "master_dataset_db",
             "del_dataset": "master_dataset_db",
             "scan_devices": "master_device_db",
-            "scan_repository": "master_repository"
+            "scan_repository": "master_experiment_db"
         }[action]
         remote = Client(args.server, port, target_name)
         try:

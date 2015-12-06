@@ -13,7 +13,7 @@ from artiq.master.log import log_args, init_log, log_worker
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.scheduler import Scheduler
 from artiq.master.worker_db import get_last_rid
-from artiq.master.repository import FilesystemBackend, GitBackend, Repository
+from artiq.master.experiments import FilesystemBackend, GitBackend, ExperimentDB
 
 
 def get_argparser():
@@ -71,10 +71,10 @@ def main():
         repo_backend = GitBackend(args.repository)
     else:
         repo_backend = FilesystemBackend(args.repository)
-    repository = Repository(repo_backend, device_db.get_device_db,
-                            log_worker)
-    atexit.register(repository.close)
-    repository.scan_async()
+    experiment_db = ExperimentDB(repo_backend, device_db.get_device_db,
+                                 log_worker)
+    atexit.register(experiment_db.close)
+    experiment_db.scan_repository_async()
 
     worker_handlers = {
         "get_device_db": device_db.get_device_db,
@@ -97,7 +97,7 @@ def main():
         "master_device_db": device_db,
         "master_dataset_db": dataset_db,
         "master_schedule": scheduler,
-        "master_repository": repository
+        "master_experiment_db": experiment_db
     })
     loop.run_until_complete(server_control.start(
         args.bind, args.port_control))
@@ -107,7 +107,7 @@ def main():
         "schedule": scheduler.notifier,
         "devices": device_db.data,
         "datasets": dataset_db.data,
-        "explist": repository.explist,
+        "explist": experiment_db.explist,
         "log": log_buffer.data
     })
     loop.run_until_complete(server_notify.start(

@@ -75,31 +75,31 @@ def _sync_explist(target, source):
             target[k] = source[k]
 
 
-class Repository:
-    def __init__(self, backend, get_device_db_fn, log_fn):
-        self.backend = backend
+class ExperimentDB:
+    def __init__(self, repo_backend, get_device_db_fn, log_fn):
+        self.repo_backend = repo_backend
         self.get_device_db_fn = get_device_db_fn
         self.log_fn = log_fn
 
-        self.cur_rev = self.backend.get_head_rev()
-        self.backend.request_rev(self.cur_rev)
+        self.cur_rev = self.repo_backend.get_head_rev()
+        self.repo_backend.request_rev(self.cur_rev)
         self.explist = Notifier(dict())
 
         self._scanning = False
 
     def close(self):
         # The object cannot be used anymore after calling this method.
-        self.backend.release_rev(self.cur_rev)
+        self.repo_backend.release_rev(self.cur_rev)
 
-    async def scan(self, new_cur_rev=None):
+    async def scan_repository(self, new_cur_rev=None):
         if self._scanning:
             return
         self._scanning = True
         try:
             if new_cur_rev is None:
-                new_cur_rev = self.backend.get_head_rev()
-            wd, _ = self.backend.request_rev(new_cur_rev)
-            self.backend.release_rev(self.cur_rev)
+                new_cur_rev = self.repo_backend.get_head_rev()
+            wd, _ = self.repo_backend.request_rev(new_cur_rev)
+            self.repo_backend.release_rev(self.cur_rev)
             self.cur_rev = new_cur_rev
             new_explist = await _scan_experiments(wd, self.get_device_db_fn,
                                                   self.log_fn)
@@ -108,13 +108,13 @@ class Repository:
         finally:
             self._scanning = False
 
-    def scan_async(self, new_cur_rev=None):
-        asyncio.ensure_future(exc_to_warning(self.scan(new_cur_rev)))
+    def scan_repository_async(self, new_cur_rev=None):
+        asyncio.ensure_future(exc_to_warning(self.scan_repository(new_cur_rev)))
 
     async def examine(self, filename, use_repository=True):
         if use_repository:
             revision = self.cur_rev
-            wd, _ = self.backend.request_rev(revision)
+            wd, _ = self.repo_backend.request_rev(revision)
             filename = os.path.join(wd, filename)
         worker = Worker({
             "get_device_db": self.get_device_db_fn,
@@ -125,7 +125,7 @@ class Repository:
         finally:
             await worker.close()
         if use_repository:
-            self.backend.release_rev(revision)
+            self.repo_backend.release_rev(revision)
         return description
 
 

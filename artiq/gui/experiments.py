@@ -366,11 +366,11 @@ class _ExperimentDock(dockarea.Dock):
 class ExperimentManager:
     def __init__(self, status_bar, dock_area,
                  explist_sub, schedule_sub,
-                 schedule_ctl, repository_ctl):
+                 schedule_ctl, experiment_db_ctl):
         self.status_bar = status_bar
         self.dock_area = dock_area
         self.schedule_ctl = schedule_ctl
-        self.repository_ctl = repository_ctl
+        self.experiment_db_ctl = experiment_db_ctl
 
         self.submission_scheduling = dict()
         self.submission_options = dict()
@@ -497,7 +497,7 @@ class ExperimentManager:
 
     async def recompute_arginfo(self, expname):
         expinfo = self.explist[expname]
-        description = await self.repository_ctl.examine(expinfo["file"])
+        description = await self.experiment_db_ctl.examine(expinfo["file"])
         return description[expinfo["class_name"]]["arginfo"]
 
     def save_state(self):
