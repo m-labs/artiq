@@ -19,7 +19,7 @@ class _StringEntry(QtGui.QLineEdit):
         QtGui.QLineEdit.__init__(self)
         self.setText(argument["state"])
         def update(text):
-            argument["state"] = text()
+            argument["state"] = text
         self.textEdited.connect(update)
 
     @staticmethod
