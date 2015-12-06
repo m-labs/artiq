@@ -119,7 +119,7 @@ _argty_to_entry = {
 
 
 class _ArgumentEditor(QtGui.QTreeWidget):
-    def __init__(self, manager, expname):
+    def __init__(self, manager, dock, expname):
         self.manager = manager
         self.expname = expname
 
@@ -142,7 +142,7 @@ class _ArgumentEditor(QtGui.QTreeWidget):
         if not arguments:
             self.addTopLevelItem(QtGui.QTreeWidgetItem(["No arguments"]))
 
-        for n, (name, argument) in enumerate(arguments.items()):
+        for name, argument in arguments.items():
             entry = _argty_to_entry[argument["desc"]["ty"]](argument)
             widget_item = QtGui.QTreeWidgetItem([name])
             self._arg_to_entry_widgetitem[name] = entry, widget_item
@@ -158,10 +158,22 @@ class _ArgumentEditor(QtGui.QTreeWidget):
             recompute_argument.setIcon(QtGui.QApplication.style().standardIcon(
                 QtGui.QStyle.SP_BrowserReload))
             recompute_argument.clicked.connect(
-                partial(self._recompute_argument, name))
+                partial(self._recompute_argument_clicked, name))
             fix_layout = LayoutWidget()
             fix_layout.addWidget(recompute_argument)
             self.setItemWidget(widget_item, 2, fix_layout)
+
+        widget_item = QtGui.QTreeWidgetItem()
+        self.addTopLevelItem(widget_item)
+        recompute_arguments = QtGui.QPushButton("Recompute all arguments")
+        recompute_arguments.setIcon(QtGui.QApplication.style().standardIcon(
+            QtGui.QStyle.SP_BrowserReload))
+        recompute_arguments.setSizePolicy(QtGui.QSizePolicy.Maximum,
+                                          QtGui.QSizePolicy.Maximum)
+        recompute_arguments.clicked.connect(dock._recompute_arguments_clicked)
+        fix_layout = LayoutWidget()
+        fix_layout.addWidget(recompute_arguments)
+        self.setItemWidget(widget_item, 1, fix_layout)
 
     def _get_group(self, name):
         if name in self._groups:
@@ -177,10 +189,10 @@ class _ArgumentEditor(QtGui.QTreeWidget):
         self._groups[name] = group
         return group
 
-    def _recompute_argument(self, name):
-        asyncio.ensure_future(self._recompute_argument_task(name))
+    def _recompute_argument_clicked(self, name):
+        asyncio.ensure_future(self._recompute_argument(name))
 
-    async def _recompute_argument_task(self, name):
+    async def _recompute_argument(self, name):
         try:
             arginfo = await self.manager.recompute_arginfo(self.expname)
         except:
@@ -225,7 +237,7 @@ class _ExperimentDock(dockarea.Dock):
         self.manager = manager
         self.expname = expname
 
-        self.argeditor = _ArgumentEditor(manager, expname)
+        self.argeditor = _ArgumentEditor(self.manager, self, self.expname)
         self.addWidget(self.argeditor, 0, 0, colspan=5)
         self.layout.setRowStretch(0, 1)
 
@@ -356,6 +368,21 @@ class _ExperimentDock(dockarea.Dock):
             logger.warning("failed to request termination of instances of '%s'",
                            self.expname, exc_info=True)
 
+    def _recompute_arguments_clicked(self):
+        asyncio.ensure_future(self._recompute_arguments_task())
+
+    async def _recompute_arguments_task(self):
+        try:
+            arginfo = await self.manager.recompute_arginfo(self.expname)
+        except:
+            logger.warning("Could not recompute arguments of '%s'",
+                           self.expname, exc_info=True)
+        self.manager.initialize_submission_arguments(self.expname, arginfo)
+
+        self.argeditor.deleteLater()
+        self.argeditor = _ArgumentEditor(self.manager, self, self.expname)
+        self.addWidget(self.argeditor, 0, 0, colspan=5)
+
     def save_state(self):
         return self.argeditor.save_state()
 
@@ -415,20 +442,24 @@ class ExperimentManager:
             self.submission_options[expname] = options
             return options
 
+    def initialize_submission_arguments(self, expname, arginfo):
+        arguments = OrderedDict()
+        for name, (procdesc, group) in arginfo.items():
+            state = _argty_to_entry[procdesc["ty"]].default_state(procdesc)
+            arguments[name] = {
+                "desc": procdesc,
+                "group": group,
+                "state": state  # mutated by entries
+            }
+        self.submission_arguments[expname] = arguments
+        return arguments
+
     def get_submission_arguments(self, expname):
         if expname in self.submission_arguments:
             return self.submission_arguments[expname]
         else:
-            arguments = OrderedDict()
             arginfo = self.explist[expname]["arginfo"]
-            for name, (procdesc, group) in arginfo.items():
-                state = _argty_to_entry[procdesc["ty"]].default_state(procdesc)
-                arguments[name] = {
-                    "desc": procdesc,
-                    "group": group,
-                    "state": state  # mutated by entries
-                }
-            self.submission_arguments[expname] = arguments
+            arguments = self.initialize_submission_arguments(arginfo)
             return arguments
 
     def open_experiment(self, expname):
