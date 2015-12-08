@@ -202,8 +202,8 @@ class _ArgumentEditor(QtGui.QTreeWidget):
         try:
             arginfo = await self.manager.compute_arginfo(self.expurl)
         except:
-            logger.warning("Could not recompute argument '%s' of '%s'",
-                           name, self.expurl, exc_info=True)
+            logger.error("Could not recompute argument '%s' of '%s'",
+                         name, self.expurl, exc_info=True)
         argument = self.manager.get_submission_arguments(self.expurl)[name]
 
         procdesc = arginfo[name][0]
@@ -362,8 +362,8 @@ class _ExperimentDock(dockarea.Dock):
         except:
             # May happen when experiment has been removed
             # from repository/explist
-            logger.warning("failed to submit '%s'",
-                           self.expurl, exc_info=True)
+            logger.error("Failed to submit '%s'",
+                         self.expurl, exc_info=True)
 
     def reqterm_clicked(self):
         try:
@@ -371,8 +371,8 @@ class _ExperimentDock(dockarea.Dock):
         except:
             # May happen when experiment has been removed
             # from repository/explist
-            logger.warning("failed to request termination of instances of '%s'",
-                           self.expurl, exc_info=True)
+            logger.error("Failed to request termination of instances of '%s'",
+                         self.expurl, exc_info=True)
 
     def _recompute_arguments_clicked(self):
         asyncio.ensure_future(self._recompute_arguments_task())
@@ -381,8 +381,8 @@ class _ExperimentDock(dockarea.Dock):
         try:
             arginfo = await self.manager.compute_arginfo(self.expurl)
         except:
-            logger.warning("Could not recompute arguments of '%s'",
-                           self.expurl, exc_info=True)
+            logger.error("Could not recompute arguments of '%s'",
+                         self.expurl, exc_info=True)
         self.manager.initialize_submission_arguments(self.expurl, arginfo)
 
         self.argeditor.deleteLater()

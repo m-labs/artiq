@@ -9,17 +9,22 @@ from pyqtgraph import LayoutWidget
 from artiq.gui.models import DictSyncTreeSepModel
 
 
+logger = logging.getLogger(__name__)
+
+
 class _OpenFileDialog(QtGui.QDialog):
     def __init__(self, parent, exp_manager):
         QtGui.QDialog.__init__(self, parent=parent)
         self.setWindowTitle("Open file outside repository")
 
+        self.exp_manager = exp_manager
+
         grid = QtGui.QGridLayout()
         self.setLayout(grid)
 
         grid.addWidget(QtGui.QLabel("Filename:"), 0, 0)
-        filename = QtGui.QLineEdit()
-        grid.addWidget(filename, 0, 1)
+        self.filename = QtGui.QLineEdit()
+        grid.addWidget(self.filename, 0, 1)
 
         buttons = QtGui.QDialogButtonBox(
             QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
@@ -27,10 +32,17 @@ class _OpenFileDialog(QtGui.QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
-        def open_file():
-            file = filename.text()
-            asyncio.ensure_future(exp_manager.open_file(file))
-        self.accepted.connect(open_file)
+        self.accepted.connect(self.open_file)
+
+    def open_file(self):
+        file = self.filename.text()
+        async def open_task():
+            try:
+                await self.exp_manager.open_file(file)
+            except:
+                logger.error("Failed to open file '%s'",
+                             file, exc_info=True)
+        asyncio.ensure_future(open_task())
 
 
 class Model(DictSyncTreeSepModel):
