@@ -118,10 +118,16 @@ _argty_to_entry = {
 }
 
 
+# Experiment URLs come in two forms:
+# 1. repo:<experiment name>
+#    (file name and class name to be retrieved from explist)
+# 2. file:<class name>@<file name>
+
+
 class _ArgumentEditor(QtGui.QTreeWidget):
-    def __init__(self, manager, dock, expname):
+    def __init__(self, manager, dock, expurl):
         self.manager = manager
-        self.expname = expname
+        self.expurl = expurl
 
         QtGui.QTreeWidget.__init__(self)
         self.setColumnCount(3)
@@ -137,7 +143,7 @@ class _ArgumentEditor(QtGui.QTreeWidget):
         self._groups = dict()
         self._arg_to_entry_widgetitem = dict()
 
-        arguments = self.manager.get_submission_arguments(self.expname)
+        arguments = self.manager.get_submission_arguments(self.expurl)
 
         if not arguments:
             self.addTopLevelItem(QtGui.QTreeWidgetItem(["No arguments"]))
@@ -194,11 +200,11 @@ class _ArgumentEditor(QtGui.QTreeWidget):
 
     async def _recompute_argument(self, name):
         try:
-            arginfo = await self.manager.recompute_arginfo(self.expname)
+            arginfo = await self.manager.compute_arginfo(self.expurl)
         except:
             logger.warning("Could not recompute argument '%s' of '%s'",
-                           name, self.expname, exc_info=True)
-        argument = self.manager.get_submission_arguments(self.expname)[name]
+                           name, self.expurl, exc_info=True)
+        argument = self.manager.get_submission_arguments(self.expurl)[name]
 
         procdesc = arginfo[name][0]
         state = _argty_to_entry[procdesc["ty"]].default_state(procdesc)
@@ -228,21 +234,21 @@ class _ArgumentEditor(QtGui.QTreeWidget):
 
 
 class _ExperimentDock(dockarea.Dock):
-    def __init__(self, manager, expname):
-        dockarea.Dock.__init__(self, "Exp: " + expname,
+    def __init__(self, manager, expurl):
+        dockarea.Dock.__init__(self, "Exp: " + expurl,
                                closable=True, size=(1500, 500))
         self.layout.setSpacing(5)
         self.layout.setContentsMargins(5, 5, 5, 5)
 
         self.manager = manager
-        self.expname = expname
+        self.expurl = expurl
 
-        self.argeditor = _ArgumentEditor(self.manager, self, self.expname)
+        self.argeditor = _ArgumentEditor(self.manager, self, self.expurl)
         self.addWidget(self.argeditor, 0, 0, colspan=5)
         self.layout.setRowStretch(0, 1)
 
-        scheduling = manager.get_submission_scheduling(expname)
-        options = manager.get_submission_options(expname)
+        scheduling = manager.get_submission_scheduling(expurl)
+        options = manager.get_submission_options(expurl)
 
         datetime = QtGui.QDateTimeEdit()
         datetime.setDisplayFormat("MMM d yyyy hh:mm:ss")
@@ -312,23 +318,23 @@ class _ExperimentDock(dockarea.Dock):
             options["log_level"] = getattr(logging, log_level.currentText())
         log_level.currentIndexChanged.connect(update_log_level)
 
-        repo_rev = QtGui.QLineEdit()
-        repo_rev.setPlaceholderText("current")
-        repo_rev_label = QtGui.QLabel("Revision:")
-        repo_rev_label.setToolTip("Experiment repository revision "
-                                  "(commit ID) to use")
-        self.addWidget(repo_rev_label, 3, 2)
-        self.addWidget(repo_rev, 3, 3)
+        if "repo_rev" in options:
+            repo_rev = QtGui.QLineEdit()
+            repo_rev.setPlaceholderText("current")
+            repo_rev_label = QtGui.QLabel("Revision:")
+            repo_rev_label.setToolTip("Experiment repository revision "
+                                      "(commit ID) to use")
+            self.addWidget(repo_rev_label, 3, 2)
+            self.addWidget(repo_rev, 3, 3)
 
-        if options["repo_rev"] is not None:
-            repo_rev.setText(options["repo_rev"])
-        def update_repo_rev():
-            t = repo_rev.text()
-            if t:
-                options["repo_rev"] = t
-            else:
-                options["repo_rev"] = None
-        repo_rev.editingFinished.connect(update_repo_rev)
+            if options["repo_rev"] is not None:
+                repo_rev.setText(options["repo_rev"])
+            def update_repo_rev(text):
+                if text:
+                    options["repo_rev"] = text
+                else:
+                    options["repo_rev"] = None
+            repo_rev.textEdited.connect(update_repo_rev)
 
         submit = QtGui.QPushButton("Submit")
         submit.setIcon(QtGui.QApplication.style().standardIcon(
@@ -352,35 +358,35 @@ class _ExperimentDock(dockarea.Dock):
 
     def submit_clicked(self):
         try:
-            self.manager.submit(self.expname)
+            self.manager.submit(self.expurl)
         except:
             # May happen when experiment has been removed
             # from repository/explist
             logger.warning("failed to submit '%s'",
-                           self.expname, exc_info=True)
+                           self.expurl, exc_info=True)
 
     def reqterm_clicked(self):
         try:
-            self.manager.request_inst_term(self.expname)
+            self.manager.request_inst_term(self.expurl)
         except:
             # May happen when experiment has been removed
             # from repository/explist
             logger.warning("failed to request termination of instances of '%s'",
-                           self.expname, exc_info=True)
+                           self.expurl, exc_info=True)
 
     def _recompute_arguments_clicked(self):
         asyncio.ensure_future(self._recompute_arguments_task())
 
     async def _recompute_arguments_task(self):
         try:
-            arginfo = await self.manager.recompute_arginfo(self.expname)
+            arginfo = await self.manager.compute_arginfo(self.expurl)
         except:
             logger.warning("Could not recompute arguments of '%s'",
-                           self.expname, exc_info=True)
-        self.manager.initialize_submission_arguments(self.expname, arginfo)
+                           self.expurl, exc_info=True)
+        self.manager.initialize_submission_arguments(self.expurl, arginfo)
 
         self.argeditor.deleteLater()
-        self.argeditor = _ArgumentEditor(self.manager, self, self.expname)
+        self.argeditor = _ArgumentEditor(self.manager, self, self.expurl)
         self.addWidget(self.argeditor, 0, 0, colspan=5)
 
     def save_state(self):
@@ -416,9 +422,19 @@ class ExperimentManager:
     def set_schedule_model(self, model):
         self.schedule = model.backing_store
 
-    def get_submission_scheduling(self, expname):
-        if expname in self.submission_scheduling:
-            return self.submission_scheduling[expname]
+    def resolve_expurl(self, expurl):
+        if expurl[:5] == "repo:":
+            expinfo = self.explist[expurl[5:]]
+            return expinfo["file"], expinfo["class_name"], True
+        elif expurl[:5] == "file:":
+            class_name, file = expurl[5:].split("@", maxsplit=1)
+            return file, class_name, False
+        else:
+            raise ValueError("Malformed experiment URL")
+
+    def get_submission_scheduling(self, expurl):
+        if expurl in self.submission_scheduling:
+            return self.submission_scheduling[expurl]
         else:
             # mutated by _ExperimentDock
             scheduling = {
@@ -427,22 +443,23 @@ class ExperimentManager:
                 "due_date": None,
                 "flush": False
             }
-            self.submission_scheduling[expname] = scheduling
+            self.submission_scheduling[expurl] = scheduling
             return scheduling
 
-    def get_submission_options(self, expname):
-        if expname in self.submission_options:
-            return self.submission_options[expname]
+    def get_submission_options(self, expurl):
+        if expurl in self.submission_options:
+            return self.submission_options[expurl]
         else:
             # mutated by _ExperimentDock
             options = {
-                "log_level": logging.WARNING,
-                "repo_rev": None
+                "log_level": logging.WARNING
             }
-            self.submission_options[expname] = options
+            if expurl[:5] == "repo:":
+                options["repo_rev"] = None
+            self.submission_options[expurl] = options
             return options
 
-    def initialize_submission_arguments(self, expname, arginfo):
+    def initialize_submission_arguments(self, expurl, arginfo):
         arguments = OrderedDict()
         for name, (procdesc, group) in arginfo.items():
             state = _argty_to_entry[procdesc["ty"]].default_state(procdesc)
@@ -451,39 +468,42 @@ class ExperimentManager:
                 "group": group,
                 "state": state  # mutated by entries
             }
-        self.submission_arguments[expname] = arguments
+        self.submission_arguments[expurl] = arguments
         return arguments
 
-    def get_submission_arguments(self, expname):
-        if expname in self.submission_arguments:
-            return self.submission_arguments[expname]
+    def get_submission_arguments(self, expurl):
+        if expurl in self.submission_arguments:
+            return self.submission_arguments[expurl]
         else:
-            arginfo = self.explist[expname]["arginfo"]
-            arguments = self.initialize_submission_arguments(arginfo)
+            if expurl[:5] != "repo:":
+                raise ValueError("Submission arguments must be preinitialized "
+                                 "when not using repository")
+            arginfo = self.explist[expurl[5:]]["arginfo"]
+            arguments = self.initialize_submission_arguments(expurl, arginfo)
             return arguments
 
-    def open_experiment(self, expname):
-        if expname in self.open_experiments:
-            return self.open_experiments[expname]
-        dock = _ExperimentDock(self, expname)
-        self.open_experiments[expname] = dock
+    def open_experiment(self, expurl):
+        if expurl in self.open_experiments:
+            return self.open_experiments[expurl]
+        dock = _ExperimentDock(self, expurl)
+        self.open_experiments[expurl] = dock
         self.dock_area.addDock(dock)
         self.dock_area.floatDock(dock)
-        dock.sigClosed.connect(partial(self.on_dock_closed, expname))
+        dock.sigClosed.connect(partial(self.on_dock_closed, expurl))
         return dock
 
-    def on_dock_closed(self, expname):
-        del self.open_experiments[expname]
+    def on_dock_closed(self, expurl):
+        del self.open_experiments[expurl]
 
     async def _submit_task(self, *args):
         rid = await self.schedule_ctl.submit(*args)
         self.status_bar.showMessage("Submitted RID {}".format(rid))
 
-    def submit(self, expname):
-        expinfo = self.explist[expname]
-        scheduling = self.get_submission_scheduling(expname)
-        options = self.get_submission_options(expname)
-        arguments = self.get_submission_arguments(expname)
+    def submit(self, expurl):
+        file, class_name, _ = self.resolve_expurl(expurl)
+        scheduling = self.get_submission_scheduling(expurl)
+        options = self.get_submission_options(expurl)
+        arguments = self.get_submission_arguments(expurl)
 
         argument_values = dict()
         for name, argument in arguments.items():
@@ -492,11 +512,12 @@ class ExperimentManager:
 
         expid = {
             "log_level": options["log_level"],
-            "repo_rev": options["repo_rev"],
-            "file": expinfo["file"],
-            "class_name": expinfo["class_name"],
+            "file": file,
+            "class_name": class_name,
             "arguments": argument_values,
         }
+        if "repo_rev" in options:
+            expid["repo_rev"] = options["repo_rev"]
         asyncio.ensure_future(self._submit_task(
             scheduling["pipeline_name"],
             expid,
@@ -513,27 +534,41 @@ class ExperimentManager:
                 logger.debug("failed to request termination of RID %d",
                              rid, exc_info=True)
 
-    def request_inst_term(self, expname):
+    def request_inst_term(self, expurl):
         self.status_bar.showMessage("Requesting termination of all instances "
-                                    "of '{}'".format(expname))
-        expinfo = self.explist[expname]
+                                    "of '{}'".format(expurl))
+        file, class_name, use_repository = self.resolve_expurl(expurl)
         rids = []
         for rid, desc in self.schedule.items():
             expid = desc["expid"]
-            if ("repo_rev" in expid  # only consider runs from repository
-                    and expid["file"] == expinfo["file"]
-                    and expid["class_name"] == expinfo["class_name"]):
+            if use_repository:
+                repo_match = "repo_rev" in expid
+            else:
+                repo_match = "repo_rev" not in expid
+            if (repo_match
+                    and expid["file"] == file
+                    and expid["class_name"] == class_name):
                 rids.append(rid)
         asyncio.ensure_future(self._request_term_multiple(rids))
 
-    async def recompute_arginfo(self, expname):
-        expinfo = self.explist[expname]
-        description = await self.experiment_db_ctl.examine(expinfo["file"])
-        return description[expinfo["class_name"]]["arginfo"]
+    async def compute_arginfo(self, expurl):
+        file, class_name, use_repository = self.resolve_expurl(expurl)
+        description = await self.experiment_db_ctl.examine(file,
+                                                           use_repository)
+        return description[class_name]["arginfo"]
+
+    async def open_file(self, file):
+        description = await self.experiment_db_ctl.examine(file, False)
+        for class_name, class_desc in description.items():
+            expurl = "file:{}@{}".format(class_name, file)
+            self.initialize_submission_arguments(expurl, class_desc["arginfo"])
+            if expurl in self.open_experiments:
+                self.open_experiments[expurl].close()
+            self.open_experiment(expurl)
 
     def save_state(self):
-        docks = {expname: dock.save_state()
-                 for expname, dock in self.open_experiments.items()}
+        docks = {expurl: dock.save_state()
+                 for expurl, dock in self.open_experiments.items()}
         return {
             "scheduling": self.submission_scheduling,
             "options": self.submission_options,
@@ -547,6 +582,6 @@ class ExperimentManager:
         self.submission_scheduling = state["scheduling"]
         self.submission_options = state["options"]
         self.submission_arguments = state["arguments"]
-        for expname, dock_state in state["docks"].items():
-            dock = self.open_experiment(expname)
+        for expurl, dock_state in state["docks"].items():
+            dock = self.open_experiment(expurl)
             dock.restore_state(dock_state)

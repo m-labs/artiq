@@ -71,31 +71,31 @@ class ShortcutsDock(dockarea.Dock):
             shortcut.activated.connect(partial(self._activated, i))
 
     def _activated(self, nr):
-        expname = self.shortcut_widgets[nr]["label"].text()
-        if expname:
+        expurl = self.shortcut_widgets[nr]["label"].text()
+        if expurl:
             try:
-                self.exp_manager.submit(expname)
+                self.exp_manager.submit(expurl)
             except:
                 # May happen when experiment has been removed
                 # from repository/explist
                 logger.warning("failed to submit experiment %s",
-                               expname, exc_info=True)
+                               expurl, exc_info=True)
 
     def _open_experiment(self, nr):
-        expname = self.shortcut_widgets[nr]["label"].text()
-        if expname:
+        expurl = self.shortcut_widgets[nr]["label"].text()
+        if expurl:
             try:
-                self.exp_manager.open_experiment(expname)
+                self.exp_manager.open_experiment(expurl)
             except:
                 # May happen when experiment has been removed
                 # from repository/explist
                 logger.warning("failed to open experiment %s",
-                               expname, exc_info=True)
+                               expurl, exc_info=True)
 
-    def set_shortcut(self, nr, expname):
+    def set_shortcut(self, nr, expurl):
         widgets = self.shortcut_widgets[nr]
-        widgets["label"].setText(expname)
-        if expname:
+        widgets["label"].setText(expurl)
+        if expurl:
             widgets["clear"].show()
             widgets["open"].show()
             widgets["submit"].show()
@@ -109,5 +109,5 @@ class ShortcutsDock(dockarea.Dock):
                 for nr, widgets in self.shortcut_widgets.items()}
 
     def restore_state(self, state):
-        for nr, expname in state.items():
-            self.set_shortcut(nr, expname)
+        for nr, expurl in state.items():
+            self.set_shortcut(nr, expurl)
