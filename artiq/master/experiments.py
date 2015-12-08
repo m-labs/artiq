@@ -109,7 +109,8 @@ class ExperimentDB:
             self._scanning = False
 
     def scan_repository_async(self, new_cur_rev=None):
-        asyncio.ensure_future(exc_to_warning(self.scan_repository(new_cur_rev)))
+        asyncio.ensure_future(
+            exc_to_warning(self.scan_repository(new_cur_rev)))
 
     async def examine(self, filename, use_repository=True):
         if use_repository:
@@ -127,6 +128,9 @@ class ExperimentDB:
         if use_repository:
             self.repo_backend.release_rev(revision)
         return description
+
+    def list_directory(self, directory):
+        return [(de.name, de.is_dir()) for de in os.scandir(directory)]
 
 
 class FilesystemBackend:

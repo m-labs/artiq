@@ -96,6 +96,10 @@ def get_argparser():
                                    help="use a specific repository revision "
                                         "(defaults to head)")
 
+    parser_ls = subparsers.add_parser(
+        "ls", help="list a directory on the master")
+    parser_ls.add_argument("directory")
+
     return parser
 
 
@@ -152,6 +156,15 @@ def _action_scan_devices(remote, args):
 
 def _action_scan_repository(remote, args):
     remote.scan_repository(args.revision)
+
+
+def _action_ls(remote, args):
+    contents = remote.list_directory(args.directory)
+    for name, is_dir in sorted(contents, key=lambda x: (-x[1], x[0])):
+        if is_dir:
+            print("<DIR> " + name)
+        else:
+            print("      " + name)
 
 
 def _show_schedule(schedule):
@@ -285,7 +298,8 @@ def main():
             "set_dataset": "master_dataset_db",
             "del_dataset": "master_dataset_db",
             "scan_devices": "master_device_db",
-            "scan_repository": "master_experiment_db"
+            "scan_repository": "master_experiment_db",
+            "ls": "master_experiment_db"
         }[action]
         remote = Client(args.server, port, target_name)
         try:
