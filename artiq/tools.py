@@ -8,6 +8,7 @@ import time
 import collections
 import os
 import atexit
+import string
 
 import numpy as np
 
@@ -18,7 +19,7 @@ from artiq.protocols import pyon
 __all__ = ["artiq_dir", "parse_arguments", "elide", "short_format", "file_import",
            "get_experiment", "verbosity_args", "simple_network_args", "init_logger",
            "atexit_register_coroutine", "exc_to_warning", "asyncio_wait_or_cancel",
-           "TaskObject", "Condition", "workaround_asyncio263"]
+           "TaskObject", "Condition", "workaround_asyncio263", "get_windows_drives"]
 
 
 logger = logging.getLogger(__name__)
@@ -198,3 +199,15 @@ class Condition:
 @asyncio.coroutine
 def workaround_asyncio263():
     yield
+
+
+def get_windows_drives():
+    from ctypes import windll
+
+    drives = []
+    bitmask = windll.kernel32.GetLogicalDrives()
+    for letter in string.ascii_uppercase:
+        if bitmask & 1:
+            drives.append(letter)
+        bitmask >>= 1
+    return drives

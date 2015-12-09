@@ -98,7 +98,7 @@ def get_argparser():
 
     parser_ls = subparsers.add_parser(
         "ls", help="list a directory on the master")
-    parser_ls.add_argument("directory")
+    parser_ls.add_argument("directory", default="", nargs="?")
 
     return parser
 
@@ -160,11 +160,8 @@ def _action_scan_repository(remote, args):
 
 def _action_ls(remote, args):
     contents = remote.list_directory(args.directory)
-    for name, is_dir in sorted(contents, key=lambda x: (-x[1], x[0])):
-        if is_dir:
-            print("<DIR> " + name)
-        else:
-            print("      " + name)
+    for name in sorted(contents, key=lambda x: (x[-1] not in "\\/", x)):
+        print(name)
 
 
 def _show_schedule(schedule):

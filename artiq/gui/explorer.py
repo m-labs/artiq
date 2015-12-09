@@ -13,36 +13,102 @@ logger = logging.getLogger(__name__)
 
 
 class _OpenFileDialog(QtGui.QDialog):
-    def __init__(self, parent, exp_manager):
-        QtGui.QDialog.__init__(self, parent=parent)
+    def __init__(self, explorer, exp_manager, experiment_db_ctl):
+        QtGui.QDialog.__init__(self, parent=explorer)
+        self.resize(710, 700)
         self.setWindowTitle("Open file outside repository")
 
+        self.explorer = explorer
         self.exp_manager = exp_manager
+        self.experiment_db_ctl = experiment_db_ctl
 
         grid = QtGui.QGridLayout()
         self.setLayout(grid)
 
-        grid.addWidget(QtGui.QLabel("Filename:"), 0, 0)
-        self.filename = QtGui.QLineEdit()
-        grid.addWidget(self.filename, 0, 1)
+        grid.addWidget(QtGui.QLabel("Location:"), 0, 0)
+        self.location_label = QtGui.QLabel("")
+        grid.addWidget(self.location_label, 0, 1)
+        grid.setColumnStretch(1, 1)
+
+        self.file_list = QtGui.QListWidget()
+        asyncio.ensure_future(self.refresh_view())
+        grid.addWidget(self.file_list, 1, 0, 1, 2)
+        self.file_list.doubleClicked.connect(self.accept)
 
         buttons = QtGui.QDialogButtonBox(
             QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
-        grid.addWidget(buttons, 1, 0, 1, 2)
+        grid.addWidget(buttons, 2, 0, 1, 2)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
-        self.accepted.connect(self.open_file)
+    async def refresh_view(self):
+        self.file_list.clear()
+        if not self.explorer.current_directory:
+            self.location_label.setText("<root>")
+        else:
+            self.location_label.setText(self.explorer.current_directory)
 
-    def open_file(self):
-        file = self.filename.text()
-        async def open_task():
-            try:
-                await self.exp_manager.open_file(file)
-            except:
-                logger.error("Failed to open file '%s'",
-                             file, exc_info=True)
-        asyncio.ensure_future(open_task())
+        item = QtGui.QListWidgetItem()
+        item.setText("..")
+        item.setIcon(QtGui.QApplication.style().standardIcon(
+            QtGui.QStyle.SP_FileDialogToParent))
+        self.file_list.addItem(item)
+
+        try:
+            contents = await self.experiment_db_ctl.list_directory(
+                self.explorer.current_directory)
+        except:
+            logger.error("Failed to list directory '%s'",
+                         self.explorer.current_directory, exc_info=True)
+            self.explorer.current_directory = ""
+        for name in sorted(contents, key=lambda x: (x[-1] not in "\\/", x)):
+            if name[-1] in "\\/":
+                icon = QtGui.QStyle.SP_DirIcon
+            else:
+                icon = QtGui.QStyle.SP_FileIcon
+                if name[-3:] != ".py":
+                    continue
+            item = QtGui.QListWidgetItem()
+            item.setText(name)
+            item.setIcon(QtGui.QApplication.style().standardIcon(icon))
+            self.file_list.addItem(item)
+
+    def accept(self):
+        selected = self.file_list.selectedItems()
+        if selected:
+            selected = selected[0].text()
+            if selected == "..":
+                if (not self.explorer.current_directory
+                        or self.explorer.current_directory[-1] not in "\\/"):
+                    return
+                idx = None
+                for sep in "\\/":
+                    try:
+                        idx = self.explorer.current_directory[:-1].rindex(sep)
+                    except ValueError:
+                        pass
+                    else:
+                        break
+                if idx is None:
+                    return
+                self.explorer.current_directory = \
+                    self.explorer.current_directory[:idx+1]
+                if self.explorer.current_directory == "/":
+                    self.explorer.current_directory = ""
+                asyncio.ensure_future(self.refresh_view())
+            elif selected[-1] in "\\/":
+                self.explorer.current_directory += selected
+                asyncio.ensure_future(self.refresh_view())
+            else:
+                file = self.explorer.current_directory + selected
+                async def open_task():
+                    try:
+                        await self.exp_manager.open_file(file)
+                    except:
+                        logger.error("Failed to open file '%s'",
+                                     file, exc_info=True)
+                asyncio.ensure_future(open_task())
+                QtGui.QDialog.accept(self)
 
 
 class Model(DictSyncTreeSepModel):
@@ -127,10 +193,12 @@ class ExplorerDock(dockarea.Dock):
         scan_repository_action.triggered.connect(scan_repository)
         self.el.addAction(scan_repository_action)
 
+        self.current_directory = ""
         open_file_action = QtGui.QAction("Open file outside repository",
                                          self.el)
         open_file_action.triggered.connect(
-            lambda: _OpenFileDialog(self, self.exp_manager).open())
+            lambda: _OpenFileDialog(self, self.exp_manager,
+                                    experiment_db_ctl).open())
         self.el.addAction(open_file_action)
 
     def set_model(self, model):

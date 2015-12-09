@@ -7,7 +7,7 @@ from functools import partial
 
 from artiq.protocols.sync_struct import Notifier
 from artiq.master.worker import Worker
-from artiq.tools import exc_to_warning
+from artiq.tools import get_windows_drives, exc_to_warning
 
 
 logger = logging.getLogger(__name__)
@@ -130,7 +130,21 @@ class ExperimentDB:
         return description
 
     def list_directory(self, directory):
-        return [(de.name, de.is_dir()) for de in os.scandir(directory)]
+        r = []
+        prefix = ""
+        if not directory:
+            if os.name == "nt":
+                drives = get_windows_drives()
+                return [drive + ":\\" for drive in drives]
+            else:
+                directory = "/"
+                prefix = "/"
+        for de in os.scandir(directory):
+            if de.is_dir():
+                r.append(prefix + de.name + os.path.sep)
+            else:
+                r.append(prefix + de.name)
+        return r
 
 
 class FilesystemBackend:
