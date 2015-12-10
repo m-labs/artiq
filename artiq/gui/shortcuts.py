@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class ShortcutsDock(dockarea.Dock):
     def __init__(self, main_window, exp_manager):
-        dockarea.Dock.__init__(self, "Shortcuts", size=(1000, 300))
+        dockarea.Dock.__init__(self, "Shortcuts")
         self.layout.setSpacing(5)
         self.layout.setContentsMargins(5, 5, 5, 5)
 

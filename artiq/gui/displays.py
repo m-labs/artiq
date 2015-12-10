@@ -76,8 +76,7 @@ class NumberDisplaySettings(_SimpleSettings):
 
 class NumberDisplay(dockarea.Dock):
     def __init__(self, name, settings):
-        dockarea.Dock.__init__(self, "Display: " + name, size=(250, 250),
-                               closable=True)
+        dockarea.Dock.__init__(self, "Display: " + name, closable=True)
         self.settings = settings
         self.number = QtGui.QLCDNumber()
         self.number.setDigitCount(10)
@@ -108,8 +107,7 @@ class XYDisplaySettings(_SimpleSettings):
 
 class XYDisplay(dockarea.Dock):
     def __init__(self, name, settings):
-        dockarea.Dock.__init__(self, "XY: " + name, size=(640, 480),
-                               closable=True)
+        dockarea.Dock.__init__(self, "XY: " + name, closable=True)
         self.settings = settings
         self.plot = pg.PlotWidget()
         self.addWidget(self.plot)
@@ -175,8 +173,7 @@ class HistogramDisplaySettings(_SimpleSettings):
 
 class HistogramDisplay(dockarea.Dock):
     def __init__(self, name, settings):
-        dockarea.Dock.__init__(self, "Histogram: " + name, size=(640, 480),
-                               closable=True)
+        dockarea.Dock.__init__(self, "Histogram: " + name, closable=True)
         self.settings = settings
         self.plot = pg.PlotWidget()
         self.addWidget(self.plot)

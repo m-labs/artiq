@@ -143,7 +143,8 @@ class _LogFilterProxyModel(QSortFilterProxyModel):
 
 class _LogDock(dockarea.Dock):
     def __init__(self, manager, name, log_sub):
-        dockarea.Dock.__init__(self, name, label="Log", size=(1000, 300))
+        dockarea.Dock.__init__(self, name, label="Log")
+        self.setMinimumSize(QtCore.QSize(850, 450))
 
         grid = LayoutWidget()
         self.addWidget(grid)
@@ -276,7 +277,6 @@ class LogDockManager:
         dock = _LogDock(self, name, self.log_sub)
         self.docks[name] = dock
         if add_to_area:
-            self.dock_area.addDock(dock)
             self.dock_area.floatDock(dock)
         dock.sigClosed.connect(partial(self.on_dock_closed, name))
         self.update_closable()

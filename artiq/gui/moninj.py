@@ -215,7 +215,7 @@ class _DeviceManager:
 
 class _MonInjDock(dockarea.Dock):
     def __init__(self, name):
-        dockarea.Dock.__init__(self, name, size=(1500, 500))
+        dockarea.Dock.__init__(self, name)
 
         self.grid = QtGui.QGridLayout()
         gridw = QtGui.QWidget()

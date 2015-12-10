@@ -1,5 +1,6 @@
 import asyncio
 
+from quamash import QtCore
 from pyqtgraph import console, dockarea
 
 
@@ -15,7 +16,8 @@ The following functions are available:
 
 class ConsoleDock(dockarea.Dock):
     def __init__(self, dataset_sub, dataset_ctl):
-        dockarea.Dock.__init__(self, "Console", size=(1000, 300))
+        dockarea.Dock.__init__(self, "Console")
+        self.setMinimumSize(QtCore.QSize(850, 300))
         self.dataset_sub = dataset_sub
         self.dataset_ctl = dataset_ctl
         ns = {

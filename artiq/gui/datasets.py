@@ -43,7 +43,7 @@ def _get_display_type_name(display_cls):
 
 class DatasetsDock(dockarea.Dock):
     def __init__(self, dialog_parent, dock_area, datasets_sub):
-        dockarea.Dock.__init__(self, "Datasets", size=(1500, 500))
+        dockarea.Dock.__init__(self, "Datasets")
         self.dialog_parent = dialog_parent
         self.dock_area = dock_area
 
@@ -128,7 +128,6 @@ class DatasetsDock(dockarea.Dock):
         def on_close():
             del self.displays[name]
         dsp.sigClosed.connect(on_close)
-        self.dock_area.addDock(dsp)
         self.dock_area.floatDock(dsp)
         return dsp
 

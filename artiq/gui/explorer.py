@@ -119,7 +119,8 @@ class Model(DictSyncTreeSepModel):
 class ExplorerDock(dockarea.Dock):
     def __init__(self, status_bar, exp_manager, d_shortcuts,
                  explist_sub, schedule_ctl, experiment_db_ctl):
-        dockarea.Dock.__init__(self, "Explorer", size=(1500, 500))
+        dockarea.Dock.__init__(self, "Explorer")
+        self.setMinimumSize(QtCore.QSize(300, 300))
         self.layout.setSpacing(5)
         self.layout.setContentsMargins(5, 5, 5, 5)
 

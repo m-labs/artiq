@@ -235,8 +235,8 @@ class _ArgumentEditor(QtGui.QTreeWidget):
 
 class _ExperimentDock(dockarea.Dock):
     def __init__(self, manager, expurl):
-        dockarea.Dock.__init__(self, "Exp: " + expurl,
-                               closable=True, size=(1500, 500))
+        dockarea.Dock.__init__(self, "Exp: " + expurl, closable=True)
+        self.setMinimumSize(QtCore.QSize(1100, 700))
         self.layout.setSpacing(5)
         self.layout.setContentsMargins(5, 5, 5, 5)
 
@@ -487,7 +487,6 @@ class ExperimentManager:
             return self.open_experiments[expurl]
         dock = _ExperimentDock(self, expurl)
         self.open_experiments[expurl] = dock
-        self.dock_area.addDock(dock)
         self.dock_area.floatDock(dock)
         dock.sigClosed.connect(partial(self.on_dock_closed, expurl))
         return dock
