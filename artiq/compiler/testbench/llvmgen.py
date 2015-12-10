@@ -21,7 +21,8 @@ def main():
     # Add main so that the result can be executed with lli
     llmain = ll.Function(llmod, ll.FunctionType(ll.VoidType(), []), "main")
     llbuilder = ll.IRBuilder(llmain.append_basic_block("entry"))
-    llbuilder.call(llmod.get_global(llmod.name + ".__modinit__"), [])
+    llbuilder.call(llmod.get_global(llmod.name + ".__modinit__"), [
+                    ll.Constant(ll.IntType(8).as_pointer(), None)])
     llbuilder.ret_void()
 
     print(llmod)
