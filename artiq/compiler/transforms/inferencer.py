@@ -540,7 +540,7 @@ class Inferencer(algorithm.Visitor):
                 self._unify(message.type, builtins.TStr(),
                             message.loc, None)
                 for param in params:
-                    self._unify(param.type, builtins.TInt(types.TValue(64)),
+                    self._unify(param.type, builtins.TInt64(),
                                 param.loc, None)
             else:
                 diagnose(valid_forms())
@@ -690,7 +690,7 @@ class Inferencer(algorithm.Visitor):
                                 node.loc, None)
                 elif builtins.is_list(arg.type):
                     # TODO: should be ssize_t-sized
-                    self._unify(node.type, builtins.TInt(types.TValue(32)),
+                    self._unify(node.type, builtins.TInt32(),
                                 node.loc, None)
                 elif types.is_var(arg.type):
                     pass # undetermined yet
@@ -744,19 +744,19 @@ class Inferencer(algorithm.Visitor):
                         [builtins.TFloat()])
         elif types.is_builtin(typ, "now_mu"):
             simple_form("now_mu() -> int(width=64)",
-                        [], builtins.TInt(types.TValue(64)))
+                        [], builtins.TInt64())
         elif types.is_builtin(typ, "delay_mu"):
             simple_form("delay_mu(time_mu:int(width=64)) -> None",
-                        [builtins.TInt(types.TValue(64))])
+                        [builtins.TInt64()])
         elif types.is_builtin(typ, "at_mu"):
             simple_form("at_mu(time_mu:int(width=64)) -> None",
-                        [builtins.TInt(types.TValue(64))])
+                        [builtins.TInt64()])
         elif types.is_builtin(typ, "mu_to_seconds"):
             simple_form("mu_to_seconds(time_mu:int(width=64)) -> float",
-                        [builtins.TInt(types.TValue(64))], builtins.TFloat())
+                        [builtins.TInt64()], builtins.TFloat())
         elif types.is_builtin(typ, "seconds_to_mu"):
             simple_form("seconds_to_mu(time:float) -> int(width=64)",
-                        [builtins.TFloat()], builtins.TInt(types.TValue(64)))
+                        [builtins.TFloat()], builtins.TInt64())
         elif types.is_constructor(typ):
             # An user-defined class.
             self._unify(node.type, typ.find().instance,

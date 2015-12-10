@@ -80,7 +80,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         the called function inside a translated :class:`ast.CallT` node
     """
 
-    _size_type = builtins.TInt(types.TValue(32))
+    _size_type = builtins.TInt32()
 
     def __init__(self, module_name, engine, ref_period):
         self.engine = engine
@@ -542,8 +542,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 loc = self.current_loc
 
             loc_file = ir.Constant(loc.source_buffer.name, builtins.TStr())
-            loc_line = ir.Constant(loc.line(), builtins.TInt(types.TValue(32)))
-            loc_column = ir.Constant(loc.column(), builtins.TInt(types.TValue(32)))
+            loc_line = ir.Constant(loc.line(), builtins.TInt32())
+            loc_column = ir.Constant(loc.column(), builtins.TInt32())
             loc_function = ir.Constant(".".join(self.name), builtins.TStr())
 
             self.append(ir.SetAttr(exn, "__file__", loc_file))
@@ -1397,8 +1397,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
         attributes = [
             ir.Constant(typ.find().name, ir.TExceptionTypeInfo()),  # typeinfo
             ir.Constant("<not thrown>", builtins.TStr()),           # file
-            ir.Constant(0, builtins.TInt(types.TValue(32))),        # line
-            ir.Constant(0, builtins.TInt(types.TValue(32))),        # column
+            ir.Constant(0, builtins.TInt32()),                      # line
+            ir.Constant(0, builtins.TInt32()),                      # column
             ir.Constant("<not thrown>", builtins.TStr()),           # function
         ]
 
@@ -1407,10 +1407,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
         else:
             attributes.append(message)                              # message
 
-        param_type = builtins.TInt(types.TValue(64))
+        param_type = builtins.TInt64()
         for param in [param0, param1, param2]:
             if param is None:
-                attributes.append(ir.Constant(0, builtins.TInt(types.TValue(64))))
+                attributes.append(ir.Constant(0, builtins.TInt64()))
             else:
                 if param.type != param_type:
                     param = self.append(ir.Coerce(param, param_type))
@@ -1450,7 +1450,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 assert False
         elif types.is_builtin(typ, "list"):
             if len(node.args) == 0 and len(node.keywords) == 0:
-                length = ir.Constant(0, builtins.TInt(types.TValue(32)))
+                length = ir.Constant(0, builtins.TInt32())
                 return self.append(ir.Alloc([length], node.type))
             elif len(node.args) == 1 and len(node.keywords) == 0:
                 arg = self.visit(node.args[0])
@@ -1515,7 +1515,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             return ir.Constant(None, builtins.TNone())
         elif types.is_builtin(typ, "now"):
             if len(node.args) == 0 and len(node.keywords) == 0:
-                now_mu = self.append(ir.Builtin("now_mu", [], builtins.TInt(types.TValue(64))))
+                now_mu = self.append(ir.Builtin("now_mu", [], builtins.TInt64()))
                 now_mu_float = self.append(ir.Coerce(now_mu, builtins.TFloat()))
                 return self.append(ir.Arith(ast.Mult(loc=None), now_mu_float, self.ref_period))
             else:
@@ -1524,7 +1524,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             if len(node.args) == 1 and len(node.keywords) == 0:
                 arg = self.visit(node.args[0])
                 arg_mu_float = self.append(ir.Arith(ast.Div(loc=None), arg, self.ref_period))
-                arg_mu = self.append(ir.Coerce(arg_mu_float, builtins.TInt(types.TValue(64))))
+                arg_mu = self.append(ir.Coerce(arg_mu_float, builtins.TInt64()))
                 return self.append(ir.Builtin(typ.name + "_mu", [arg_mu], builtins.TNone()))
             else:
                 assert False
@@ -1543,7 +1543,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             if len(node.args) == 1 and len(node.keywords) == 0:
                 arg = self.visit(node.args[0])
                 arg_mu = self.append(ir.Arith(ast.Div(loc=None), arg, self.ref_period))
-                return self.append(ir.Coerce(arg_mu, builtins.TInt(types.TValue(64))))
+                return self.append(ir.Coerce(arg_mu, builtins.TInt64()))
             else:
                 assert False
         elif types.is_exn_constructor(typ):
