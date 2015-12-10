@@ -29,8 +29,8 @@ def globals():
         "kernel":               builtins.fn_kernel(),
 
         # ARTIQ context managers
-        "parallel":             builtins.fn_parallel(),
-        "sequential":           builtins.fn_sequential(),
+        "parallel":             builtins.obj_parallel(),
+        "sequential":           builtins.obj_sequential(),
 
         # ARTIQ time management functions
         "now":                  builtins.fn_now(),
