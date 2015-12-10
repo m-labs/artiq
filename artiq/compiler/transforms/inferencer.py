@@ -762,11 +762,7 @@ class Inferencer(algorithm.Visitor):
             self._unify(node.type, typ.find().instance,
                         node.loc, None)
         else:
-            diag = diagnostic.Diagnostic("error",
-                "builtin function '{name}' cannot be used in this context",
-                {"name": typ.name},
-                node.loc)
-            self.engine.process(diag)
+            assert False
 
     def visit_CallT(self, node):
         self.generic_visit(node)

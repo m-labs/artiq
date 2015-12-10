@@ -695,11 +695,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
         context_expr_node  = node.items[0].context_expr
         optional_vars_node = node.items[0].optional_vars
 
-        if isinstance(context_expr_node, asttyped.NameT) and \
-                context_expr_node.id == "sequential":
+        if types.is_builtin(context_expr_node.type, "sequential"):
             self.visit(node.body)
-        elif isinstance(context_expr_node, asttyped.NameT) and \
-                context_expr_node.id == "parallel":
+        elif types.is_builtin(context_expr_node.type, "parallel"):
             parallel = self.append(ir.Parallel([]))
 
             heads, tails = [], []
@@ -716,9 +714,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
             for tail in tails:
                 if not tail.is_terminated():
                     tail.append(ir.Branch(self.current_block))
-
-        else:
-            assert False
 
     # Expression visitors
     # These visitors return a node in addition to mutating
