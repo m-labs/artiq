@@ -733,6 +733,8 @@ class TypePrinter(object):
                 attrs = ", ".join(["{}: {}".format(attr, self.name(typ.attributes[attr]))
                                    for attr in typ.attributes])
                 return "<constructor {} {{{}}}>".format(typ.name, attrs)
+        elif isinstance(typ, TBuiltin):
+            return "<builtin {}>".format(typ.name)
         elif isinstance(typ, TValue):
             return repr(typ.value)
         elif isinstance(typ, TDelay):
