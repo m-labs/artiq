@@ -1093,30 +1093,29 @@ class LLVMIRGenerator:
     def process_Unreachable(self, insn):
         return self.llbuilder.unreachable()
 
-    def process_Raise(self, insn):
-        llexn = self.map(insn.value())
+    def _gen_raise(self, insn, func, args):
         if insn.exception_target() is not None:
             llnormalblock = self.llfunction.append_basic_block("unreachable")
             llnormalblock.terminator = ll.Unreachable(llnormalblock)
             llnormalblock.instructions.append(llnormalblock.terminator)
 
             llunwindblock = self.map(insn.exception_target())
-            llinsn = self.llbuilder.invoke(self.llbuiltin("__artiq_raise"), [llexn],
+            llinsn = self.llbuilder.invoke(func, args,
                                            llnormalblock, llunwindblock,
                                            name=insn.name)
         else:
-            llinsn = self.llbuilder.call(self.llbuiltin("__artiq_raise"), [llexn],
+            llinsn = self.llbuilder.call(func, args,
                                          name=insn.name)
             self.llbuilder.unreachable()
         llinsn.attributes.add('noreturn')
         return llinsn
 
+    def process_Raise(self, insn):
+        llexn = self.map(insn.value())
+        return self._gen_raise(insn, self.llbuiltin("__artiq_raise"), [llexn])
+
     def process_Reraise(self, insn):
-        llinsn = self.llbuilder.call(self.llbuiltin("__artiq_reraise"), [],
-                                     name=insn.name)
-        llinsn.attributes.add('noreturn')
-        self.llbuilder.unreachable()
-        return llinsn
+        return self._gen_raise(insn, self.llbuiltin("__artiq_reraise"), [])
 
     def process_LandingPad(self, insn):
         # Layout on return from landing pad: {%_Unwind_Exception*, %Exception*}
