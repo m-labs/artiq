@@ -150,6 +150,9 @@ def obj_parallel():
 def obj_sequential():
     return types.TBuiltin("sequential")
 
+def fn_watchdog():
+    return types.TBuiltinFunction("watchdog")
+
 def fn_now():
     return types.TBuiltinFunction("now")
 

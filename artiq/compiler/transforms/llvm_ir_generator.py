@@ -369,6 +369,10 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(lli32, [llptr])
         elif name == "now":
             llty = lli64
+        elif name == "watchdog_set":
+            llty = ll.FunctionType(lli32, [lli32])
+        elif name == "watchdog_clear":
+            llty = ll.FunctionType(llvoid, [lli32])
         else:
             assert False
 
@@ -793,6 +797,12 @@ class LLVMIRGenerator:
             llnow = self.llbuilder.load(llnowptr)
             lladjusted = self.llbuilder.add(llnow, self.map(interval))
             return self.llbuilder.store(lladjusted, llnowptr)
+        elif insn.op == "watchdog_set":
+            interval, = insn.operands
+            return self.llbuilder.call(self.llbuiltin("watchdog_set"), [self.map(interval)])
+        elif insn.op == "watchdog_clear":
+            id, = insn.operands
+            return self.llbuilder.call(self.llbuiltin("watchdog_clear"), [self.map(id)])
         else:
             assert False
 

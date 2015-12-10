@@ -757,6 +757,9 @@ class Inferencer(algorithm.Visitor):
         elif types.is_builtin(typ, "seconds_to_mu"):
             simple_form("seconds_to_mu(time:float) -> int(width=64)",
                         [builtins.TFloat()], builtins.TInt64())
+        elif types.is_builtin(typ, "watchdog"):
+            simple_form("watchdog(time:float) -> [builtin context manager]",
+                        [builtins.TFloat()], builtins.TNone())
         elif types.is_constructor(typ):
             # An user-defined class.
             self._unify(node.type, typ.find().instance,
@@ -942,7 +945,10 @@ class Inferencer(algorithm.Visitor):
         self.generic_visit(node)
 
         typ = node.context_expr.type
-        if not (types.is_builtin(typ, "parallel") or types.is_builtin(typ, "sequential")):
+        if not (types.is_builtin(typ, "parallel") or
+                types.is_builtin(typ, "sequential") or
+                (isinstance(node.context_expr, asttyped.CallT) and
+                 types.is_builtin(node.context_expr.func.type, "watchdog"))):
             diag = diagnostic.Diagnostic("error",
                 "value of type {type} cannot act as a context manager",
                 {"type": types.TypePrinter().name(typ)},

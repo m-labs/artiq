@@ -714,6 +714,32 @@ class ARTIQIRGenerator(algorithm.Visitor):
             for tail in tails:
                 if not tail.is_terminated():
                     tail.append(ir.Branch(self.current_block))
+        elif isinstance(context_expr_node, asttyped.CallT) and \
+                types.is_builtin(context_expr_node.func.type, "watchdog"):
+            timeout        = self.visit(context_expr_node.args[0])
+            timeout_ms     = self.append(ir.Arith(ast.Mult(loc=None), timeout,
+                                                  ir.Constant(1000, builtins.TFloat())))
+            timeout_ms_int = self.append(ir.Coerce(timeout_ms, builtins.TInt32()))
+
+            watchdog   = self.append(ir.Builtin("watchdog_set", [timeout_ms_int], builtins.TInt32()))
+
+            dispatcher = self.add_block("watchdog.dispatch")
+
+            try:
+                old_unwind, self.unwind_target = self.unwind_target, dispatcher
+                self.visit(node.body)
+            finally:
+                self.unwind_target = old_unwind
+
+            cleanup = self.add_block('watchdog.cleanup')
+            landingpad = dispatcher.append(ir.LandingPad(cleanup))
+            cleanup.append(ir.Builtin("watchdog_clear", [watchdog], builtins.TNone()))
+            cleanup.append(ir.Reraise(self.unwind_target))
+
+            if not self.current_block.is_terminated():
+                self.append(ir.Builtin("watchdog_clear", [watchdog], builtins.TNone()))
+        else:
+            assert False
 
     # Expression visitors
     # These visitors return a node in addition to mutating
@@ -1551,7 +1577,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
         elif types.is_constructor(typ):
             return self.append(ir.Alloc([], typ.instance))
         else:
-            assert False
+            diag = diagnostic.Diagnostic("error",
+                "builtin function '{name}' cannot be used in this context",
+                {"name": typ.name},
+                node.loc)
+            self.engine.process(diag)
 
     def visit_CallT(self, node):
         typ = node.func.type.find()
