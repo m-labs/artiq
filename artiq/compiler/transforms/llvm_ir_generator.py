@@ -451,8 +451,8 @@ class LLVMIRGenerator:
                 # There is no 1:1 correspondence between ARTIQ and LLVM
                 # basic blocks, because sometimes we expand a single ARTIQ
                 # instruction so that the result spans several LLVM basic
-                # blocks. This only really matters for phis, which will
-                # use a different map.
+                # blocks. This only really matters for phis, which are thus
+                # using a different map (the following one).
                 llblock_map[block] = self.llbuilder.basic_block
 
             # Fourth, add incoming values to phis.
