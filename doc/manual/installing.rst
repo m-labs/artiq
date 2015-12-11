@@ -5,8 +5,6 @@ The preferred way of installing ARTIQ is through the use of the conda package ma
 The conda package contains pre-built binaries that you can directly flash to your board.
 But you can also :ref:`install from sources <install-from-sources>`.
 
-.. note:: Only the linux-64 and linux-32 conda packages contain the FPGA/BIOS/runtime pre-built binaries.
-
 Installing using conda
 ----------------------
 
