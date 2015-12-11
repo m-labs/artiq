@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <id.h>
 
 #include <generated/csr.h>
 
@@ -394,11 +395,17 @@ static int receive_rpc_value(const char **tag, void **slot);
 static int process_input(void)
 {
     switch(buffer_in.header.type) {
-        case REMOTEMSG_TYPE_IDENT_REQUEST:
+        case REMOTEMSG_TYPE_IDENT_REQUEST: {
+            char version[IDENT_SIZE];
+
+            get_ident(version);
+
             out_packet_start(REMOTEMSG_TYPE_IDENT_REPLY);
             out_packet_chunk("AROR", 4);
+            out_packet_chunk(version, strlen(version));
             out_packet_finish();
             break;
+        }
 
         case REMOTEMSG_TYPE_SWITCH_CLOCK: {
             int clk = in_packet_int8();

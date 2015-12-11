@@ -5,6 +5,7 @@ from enum import Enum
 from fractions import Fraction
 
 from artiq.language import core as core_language
+from artiq import __version__ as software_version
 
 
 logger = logging.getLogger(__name__)
@@ -223,6 +224,11 @@ class CommGeneric:
         if runtime_id != b"AROR":
             raise UnsupportedDevice("Unsupported runtime ID: {}"
                                     .format(runtime_id))
+        gateware_version = self._read_chunk(self._read_length).decode("utf-8")
+        if gateware_version != software_version:
+            logger.warning("Mismatch between gateware (%s) "
+                           "and software (%s) versions",
+                           gateware_version, software_version)
 
     def switch_clock(self, external):
         self._write_header(_H2DMsgType.SWITCH_CLOCK)
@@ -236,7 +242,7 @@ class CommGeneric:
 
         self._read_header()
         self._read_expect(_D2HMsgType.LOG_REPLY)
-        return self._read_chunk(self._read_length).decode('utf-8')
+        return self._read_chunk(self._read_length).decode("utf-8")
 
     def clear_log(self):
         self._write_empty(_H2DMsgType.LOG_CLEAR)
