@@ -132,9 +132,13 @@ class _ArgumentEditor(QtGui.QTreeWidget):
         QtGui.QTreeWidget.__init__(self)
         self.setColumnCount(3)
         self.header().setStretchLastSection(False)
-        self.header().setResizeMode(0, QtGui.QHeaderView.ResizeToContents)
-        self.header().setResizeMode(1, QtGui.QHeaderView.Stretch)
-        self.header().setResizeMode(2, QtGui.QHeaderView.ResizeToContents)
+        if hasattr(self.header(), "setSectionResizeMode"):
+            set_resize_mode = self.header().setSectionResizeMode
+        else:
+            set_resize_mode = self.header().setResizeMode
+        set_resize_mode(0, QtGui.QHeaderView.ResizeToContents)
+        set_resize_mode(1, QtGui.QHeaderView.Stretch)
+        set_resize_mode(2, QtGui.QHeaderView.ResizeToContents)
         self.header().setVisible(False)
         self.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
         self.setHorizontalScrollMode(QtGui.QAbstractItemView.ScrollPerPixel)
