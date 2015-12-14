@@ -24,7 +24,7 @@ import os
 import tempfile
 
 import numpy
-
+from ..language.core import int as wrapping_int
 
 _encode_map = {
     type(None): "none",
@@ -36,6 +36,7 @@ _encode_map = {
     tuple: "tuple",
     list: "list",
     dict: "dict",
+    wrapping_int: "number",
     Fraction: "fraction",
     OrderedDict: "ordereddict",
     numpy.ndarray: "nparray"
@@ -69,7 +70,7 @@ class _Encoder:
             return "false"
 
     def encode_number(self, x):
-        return str(x)
+        return repr(x)
 
     def encode_str(self, x):
         # Do not use repr() for JSON compatibility.
@@ -168,6 +169,7 @@ _eval_dict = {
     "false": False,
     "true": True,
 
+    "int": wrapping_int,
     "Fraction": Fraction,
     "OrderedDict": OrderedDict,
     "nparray": _nparray,
