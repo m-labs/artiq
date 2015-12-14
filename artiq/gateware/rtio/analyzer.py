@@ -1,6 +1,7 @@
 from migen import *
 from migen.genlib.record import Record, layout_len
 from misoc.interconnect.csr import *
+from misoc.interconnect import stream
 
 
 __all__ = ["Analyzer"]
@@ -51,11 +52,13 @@ class ExceptionTypes(AutoCSR):
 
 class MessageEncoder(Module, AutoCSR):
     def __init__(self, rtio_core):
-        self.message = Signal(256)
-        self.stb = Signal()
+        self.source = stream.Endpoint("data", 256)
 
         self.message_types = MessageTypes()
         self.exception_types = ExceptionTypes()
+
+        self.overflow = CSRStatus()
+        self.overflow_reset = CSR()
 
         # # #
 
@@ -127,14 +130,95 @@ class MessageEncoder(Module, AutoCSR):
 
         self.sync += [
             If(exception_stb,
-                self.message.eq(exception.raw_bits())
+                self.source.data.eq(exception.raw_bits())
             ).Else(
-                self.message.eq(input_output.raw_bits())
+                self.source.data.eq(input_output.raw_bits())
             ),
-            self.stb.eq(input_output_stb | exception_stb)
+            self.source.stb.eq(input_output_stb | exception_stb)
+        ]
+
+        self.sync += [
+            If(self.overflow_reset.re, self.overflow.status.eq(0)),
+            If(self.source.stb & ~self.source.ack,
+                self.overflow.status.eq(1)
+            )
         ]
 
 
-class Analyzer(Module):
-    def __init__(self, rtio_core):
-        pass
+class DMAWriter(Module, AutoCSR):
+    def __init__(self, membus):
+        aw = len(membus.adr)
+        dw = len(membus.dat_w)
+        data_alignment = log2_int(dw//8)
+
+        # shutdown procedure: set enable to 0, wait until busy=0
+        self.enable = CSRStorage()
+        self.busy = CSRStatus()
+        self.reset = CSR()  # only apply when shut down
+        # All numbers in bytes
+        self.base_address = CSRStorage(aw + data_alignment,
+                                       alignment_bits=data_alignment)
+        self.last_address = CSRStorage(aw + data_alignment,
+                                       alignment_bits=data_alignment)
+        self.byte_count = CSRStatus(64)  # only read when shut down
+
+        self.sink = stream.Endpoint([("data", dw)])
+
+        # # #
+
+        event_counter = Signal(63)
+        self.comb += self.byte_count.status.eq(
+            event_counter << data_alignment)
+
+        fsm = FSM()
+        self.submodules += fsm
+
+        fsm.act("IDLE",
+            If(self.enable.storage & self.sink.stb,
+                NextState("WRITE")
+            ),
+            If(~self.enable.storage,
+                self.sink.ack.eq(1)
+            ),
+            If(self.reset.re,
+                NextValue(membus.adr, self.base_address.storage),
+                NextValue(event_counter, 0)
+            )
+        )
+        fsm.act("WRITE",
+            self.busy.status.eq(1),
+
+            membus.cyc.eq(1),
+            membus.stb.eq(1),
+            membus.we.eq(1),
+            membus.sel.eq(2**len(membus.sel)-1),
+
+            If(membus.ack,
+                If(membus.adr == self.last_address.storage,
+                    NextValue(membus.adr, self.base_address.storage)
+                ).Else(
+                    NextValue(membus.adr, membus.adr + 1)
+                ),
+                NextValue(event_counter, event_counter + 1),
+                self.sink.ack.eq(1),
+                NextState("IDLE")
+            )
+        )
+
+
+class Analyzer(Module, AutoCSR):
+    def __init__(self, rtio_core, membus, fifo_depth=128):
+        dw = len(membus.dat_w)
+
+        self.submodules.message_encoder = MessageEncoder(rtio_core)
+        self.submodules.converter = stream.Converter(
+            [("data", 256)], [("data", dw)])
+        self.submodules.fifo = stream.SyncFIFO(
+            [("data", dw)], fifo_depth, True)
+        self.submodules.dma = DMAWriter(membus)
+
+        self.comb += [
+            self.message_encoder.source.connect(self.converter.sink),
+            self.converter.source.connect(self.fifo.sink),
+            self.fifo.source.connect(self.dma.sink)
+        ]
