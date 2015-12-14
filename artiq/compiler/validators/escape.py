@@ -32,8 +32,8 @@ class Region:
                     self.range.end_pos >= other.range.end_pos
 
     def intersects(self, other):
-        assert self.range.source_buffer == other.range.source_buffer
         assert self.range
+        assert self.range.source_buffer == other.range.source_buffer
 
         return (self.range.begin_pos <= other.range.begin_pos <= self.range.end_pos and \
                     other.range.end_pos > self.range.end_pos) or \
@@ -172,7 +172,7 @@ class AssignedNamesOf(algorithm.Visitor):
     visit_SubscriptT = visit_accessor
 
     def visit_sequence(self, node):
-        return reduce(list.__add__, map(self.visit, node.elts))
+        return functools.reduce(list.__add__, map(self.visit, node.elts))
 
     visit_TupleT = visit_sequence
     visit_ListT = visit_sequence
@@ -259,7 +259,6 @@ class EscapeValidator(algorithm.Visitor):
     # this property. But we will need to, if string operations are ever added.
 
     def visit_assignment(self, target, value, is_aug_assign=False):
-        target_region = self._region_of(target)
         value_region  = self._region_of(value) if not is_aug_assign else self.youngest_region
 
         # If this is a variable, we might need to contract the live range.
@@ -270,23 +269,25 @@ class EscapeValidator(algorithm.Visitor):
                     region.contract(value_region)
 
         # The assigned value should outlive the assignee
-        if not Region.outlives(value_region, target_region):
-            if is_aug_assign:
-                target_desc = "the assignment target, allocated here,"
-            else:
-                target_desc = "the assignment target"
-            note = diagnostic.Diagnostic("note",
-                "this expression has type {type}",
-                {"type": types.TypePrinter().name(value.type)},
-                value.loc)
-            diag = diagnostic.Diagnostic("error",
-                "the assigned value does not outlive the assignment target", {},
-                value.loc, [target.loc],
-                notes=self._diagnostics_for(target_region, target.loc,
-                                            target_desc) +
-                      self._diagnostics_for(value_region, value.loc,
-                                            "the assigned value"))
-            self.engine.process(diag)
+        target_regions = [self._region_of(name) for name in self._names_of(target)]
+        for target_region in target_regions:
+            if not Region.outlives(value_region, target_region):
+                if is_aug_assign:
+                    target_desc = "the assignment target, allocated here,"
+                else:
+                    target_desc = "the assignment target"
+                note = diagnostic.Diagnostic("note",
+                    "this expression has type {type}",
+                    {"type": types.TypePrinter().name(value.type)},
+                    value.loc)
+                diag = diagnostic.Diagnostic("error",
+                    "the assigned value does not outlive the assignment target", {},
+                    value.loc, [target.loc],
+                    notes=self._diagnostics_for(target_region, target.loc,
+                                                target_desc) +
+                          self._diagnostics_for(value_region, value.loc,
+                                                "the assigned value"))
+                self.engine.process(diag)
 
     def visit_Assign(self, node):
         for target in node.targets:
