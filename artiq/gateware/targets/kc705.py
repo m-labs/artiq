@@ -175,7 +175,7 @@ class NIST_QC1(_NIST_QCx):
 
         self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
         self.config["DDS_CHANNEL_COUNT"] = 8
-        self.config["DDS_AD9858"] = 1
+        self.config["DDS_AD9858"] = True
         phy = dds.AD9858(platform.request("dds"), 8)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,
