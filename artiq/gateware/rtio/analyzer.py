@@ -52,7 +52,7 @@ class ExceptionTypes(AutoCSR):
 
 class MessageEncoder(Module, AutoCSR):
     def __init__(self, rtio_core):
-        self.source = stream.Endpoint("data", 256)
+        self.source = stream.Endpoint([("data", 256)])
 
         self.message_types = MessageTypes()
         self.exception_types = ExceptionTypes()
@@ -75,7 +75,7 @@ class MessageEncoder(Module, AutoCSR):
         else:
             o_address = 0
         if hasattr(kcsrs, "i_data"):
-            i_data = kcsrs.i_data
+            i_data = kcsrs.i_data.status
         else:
             i_data = 0
         self.comb += [
