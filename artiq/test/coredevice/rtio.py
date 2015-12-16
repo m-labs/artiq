@@ -28,7 +28,7 @@ class RTT(EnvExperiment):
                 delay(1*us)
                 t0 = now_mu()
                 self.ttl_inout.pulse(1*us)
-        self.set_result("rtt", mu_to_seconds(self.ttl_inout.timestamp_mu() - t0))
+        self.set_dataset("rtt", mu_to_seconds(self.ttl_inout.timestamp_mu() - t0))
 
 
 class Loopback(EnvExperiment):
@@ -50,7 +50,7 @@ class Loopback(EnvExperiment):
                 delay(1*us)
                 t0 = now_mu()
                 self.loop_out.pulse(1*us)
-        self.set_result("rtt", mu_to_seconds(self.loop_in.timestamp_mu() - t0))
+        self.set_dataset("rtt", mu_to_seconds(self.loop_in.timestamp_mu() - t0))
 
 
 class ClockGeneratorLoopback(EnvExperiment):
@@ -72,7 +72,7 @@ class ClockGeneratorLoopback(EnvExperiment):
             with sequential:
                 delay(200*ns)
                 self.loop_clock_out.set(1*MHz)
-        self.set_result("count", self.loop_clock_in.count())
+        self.set_dataset("count", self.loop_clock_in.count())
 
 
 class PulseRate(EnvExperiment):
@@ -95,7 +95,7 @@ class PulseRate(EnvExperiment):
                 dt += 1
                 self.core.break_realtime()
             else:
-                self.set_result("pulse_rate", mu_to_seconds(2*dt))
+                self.set_dataset("pulse_rate", mu_to_seconds(2*dt))
                 break
 
 
@@ -129,7 +129,7 @@ class LoopbackCount(EnvExperiment):
                 for i in range(self.npulses):
                     delay(25*ns)
                     self.ttl_inout.pulse(25*ns)
-        self.set_result("count", self.ttl_inout.count())
+        self.set_dataset("count", self.ttl_inout.count())
 
 
 class Underflow(EnvExperiment):
@@ -174,12 +174,9 @@ class TimeKeepsRunning(EnvExperiment):
     def build(self):
         self.setattr_device("core")
 
-    def set_time_at_start(self, time_at_start):
-        self.set_dataset("time_at_start", time_at_start)
-
     @kernel
     def run(self):
-        self.set_result("time_at_start", now_mu())
+        self.set_dataset("time_at_start", now_mu())
 
 
 class Handover(EnvExperiment):
@@ -187,14 +184,13 @@ class Handover(EnvExperiment):
         self.setattr_device("core")
 
     @kernel
-    def get_now(self, var):
-        self.set_result(var, now_mu())
+    def k(self, var):
+        self.set_dataset(var, now_mu())
+        delay_mu(1234)
 
     def run(self):
-        self.get_now()
-        self.set_dataset("t1", self.time_at_start)
-        self.get_now()
-        self.set_dataset("t2", self.time_at_start)
+        self.k("t1")
+        self.k("t2")
 
 
 class CoredeviceTest(ExperimentCase):
@@ -259,14 +255,14 @@ class CoredeviceTest(ExperimentCase):
 
     def test_handover(self):
         self.execute(Handover)
-        self.assertEqual(self.dataset_mgr.get("t1"),
+        self.assertEqual(self.dataset_mgr.get("t1") + 1234,
                          self.dataset_mgr.get("t2"))
 
 
 class RPCTiming(EnvExperiment):
     def build(self):
         self.setattr_device("core")
-        self.setattr_argument("repeats", FreeValue(100))
+        self.setattr_argument("repeats", PYONValue(100))
 
     def nop(self):
         pass

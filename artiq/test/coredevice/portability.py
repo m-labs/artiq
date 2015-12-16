@@ -153,7 +153,7 @@ class _Exceptions(EnvExperiment):
 class _RPCExceptions(EnvExperiment):
     def build(self):
         self.setattr_device("core")
-        self.setattr_argument("catch", FreeValue(False))
+        self.setattr_argument("catch", PYONValue(False))
 
         self.success = False
 

@@ -1,13 +1,15 @@
 from artiq.language import *
 from artiq.test.hardware_testbench import ExperimentCase
 
+
 class Roundtrip(EnvExperiment):
     def build(self):
-        self.attr_device("core")
+        self.setattr_device("core")
 
     @kernel
     def roundtrip(self, obj, fn):
         fn(obj)
+
 
 class RoundtripTest(ExperimentCase):
     def assertRoundtrip(self, obj):
