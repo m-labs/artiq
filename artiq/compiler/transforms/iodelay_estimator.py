@@ -167,7 +167,7 @@ class IODelayEstimator(algorithm.Visitor):
                 node.loc)
             abort([note])
 
-    def visit_For(self, node):
+    def visit_ForT(self, node):
         self.visit(node.iter)
 
         old_goto, self.current_goto = self.current_goto, None
@@ -180,8 +180,9 @@ class IODelayEstimator(algorithm.Visitor):
                 self.abort("loop trip count is indeterminate because of control flow",
                            self.current_goto.loc)
 
-            trip_count = self.get_iterable_length(node.iter)
-            self.current_delay = old_delay + self.current_delay * trip_count
+            node.trip_count    = self.get_iterable_length(node.iter).fold()
+            node.trip_interval = self.current_delay.fold()
+            self.current_delay = old_delay + node.trip_interval * node.trip_count
         self.current_goto = old_goto
 
         self.visit(node.orelse)

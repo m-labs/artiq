@@ -2,6 +2,7 @@ import sys, fileinput, os
 from pythonparser import source, diagnostic, algorithm, parse_buffer
 from .. import prelude, types
 from ..transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer
+from ..transforms import IODelayEstimator
 
 class Printer(algorithm.Visitor):
     """
@@ -32,7 +33,15 @@ class Printer(algorithm.Visitor):
 
         if node.name_loc:
             self.rewriter.insert_after(node.name_loc,
-                                        ":{}".format(self.type_printer.name(node.name_type)))
+                                       ":{}".format(self.type_printer.name(node.name_type)))
+
+    def visit_ForT(self, node):
+        super().generic_visit(node)
+
+        if node.trip_count is not None and node.trip_interval is not None:
+            self.rewriter.insert_after(node.keyword_loc,
+                                       "[{} x {} mu]".format(node.trip_count.fold(),
+                                                             node.trip_interval.fold()))
 
     def generic_visit(self, node):
         super().generic_visit(node)
@@ -47,6 +56,12 @@ def main():
         monomorphize = True
     else:
         monomorphize = False
+
+    if len(sys.argv) > 1 and sys.argv[1] == "+iodelay":
+        del sys.argv[1]
+        iodelay = True
+    else:
+        iodelay = False
 
     if len(sys.argv) > 1 and sys.argv[1] == "+diag":
         del sys.argv[1]
@@ -71,6 +86,8 @@ def main():
     if monomorphize:
         IntMonomorphizer(engine=engine).visit(typed)
         Inferencer(engine=engine).visit(typed)
+    if iodelay:
+        IODelayEstimator(engine=engine, ref_period=1e6).visit_fixpoint(typed)
 
     printer = Printer(buf)
     printer.visit(typed)

@@ -36,6 +36,12 @@ class ExceptHandlerT(ast.ExceptHandler):
     _fields = ("filter", "name", "body") # rename ast.ExceptHandler.type to filter
     _types = ("name_type",)
 
+class ForT(ast.For):
+    """
+    :ivar trip_count: (:class:`iodelay.Expr`)
+    :ivar trip_interval: (:class:`iodelay.Expr`)
+    """
+
 class SliceT(ast.Slice, commontyped):
     pass
 

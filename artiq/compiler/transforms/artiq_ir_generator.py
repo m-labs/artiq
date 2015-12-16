@@ -472,7 +472,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         else:
             assert False
 
-    def visit_For(self, node):
+    def visit_ForT(self, node):
         try:
             iterable = self.visit(node.iter)
             length = self.iterable_len(iterable)
@@ -522,7 +522,12 @@ class ARTIQIRGenerator(algorithm.Visitor):
             else:
                 else_tail = tail
 
-            head.append(ir.BranchIf(cond, body, else_tail))
+            if node.trip_count is not None:
+                substs = {var_name: self.current_args[var_name]
+                          for var_name in node.trip_count.free_vars()}
+                head.append(ir.Loop(node.trip_count, substs, cond, body, else_tail))
+            else:
+                head.append(ir.BranchIf(cond, body, else_tail))
             if not post_body.is_terminated():
                 post_body.append(ir.Branch(continue_block))
             break_block.append(ir.Branch(tail))

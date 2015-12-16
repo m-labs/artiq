@@ -916,7 +916,7 @@ class Inferencer(algorithm.Visitor):
 
             node.value = self._coerce_one(value_type, node.value, other_node=node.target)
 
-    def visit_For(self, node):
+    def visit_ForT(self, node):
         old_in_loop, self.in_loop = self.in_loop, True
         self.generic_visit(node)
         self.in_loop = old_in_loop

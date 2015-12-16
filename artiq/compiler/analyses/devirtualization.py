@@ -46,7 +46,7 @@ class FunctionResolver(algorithm.Visitor):
         self.visit(node.value)
         self.visit_in_assign(node.targets)
 
-    def visit_For(self, node):
+    def visit_ForT(self, node):
         self.visit(node.iter)
         self.visit_in_assign(node.target)
         self.visit(node.body)
