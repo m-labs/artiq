@@ -7,7 +7,7 @@ from pythonparser import diagnostic
 
 from .. import types, builtins, ir, iodelay
 from ..analyses import domination
-from ..algorithms import inline
+from ..algorithms import inline, unroll
 
 def delay_free_subgraph(root, limit):
     visited = set()
@@ -152,6 +152,11 @@ class Interleaver:
                             source_terminator.interval = iodelay.Const(target_time_delta)
                         else:
                             source_terminator.replace_with(ir.Branch(source_terminator.target()))
+                elif isinstance(source_terminator, ir.Loop):
+                    unroll(source_terminator)
+
+                    postdom_tree = domination.PostDominatorTree(func)
+                    continue
                 else:
                     assert False
 

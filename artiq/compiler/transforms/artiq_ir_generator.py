@@ -525,7 +525,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             if node.trip_count is not None:
                 substs = {var_name: self.current_args[var_name]
                           for var_name in node.trip_count.free_vars()}
-                head.append(ir.Loop(node.trip_count, substs, cond, body, else_tail))
+                head.append(ir.Loop(node.trip_count, substs, phi, cond, body, else_tail))
             else:
                 head.append(ir.BranchIf(cond, body, else_tail))
             if not post_body.is_terminated():
