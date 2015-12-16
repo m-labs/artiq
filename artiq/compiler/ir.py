@@ -1294,31 +1294,31 @@ class Delay(Terminator):
     A delay operation. Ties an :class:`iodelay.Expr` to SSA values so that
     inlining could lead to the expression folding to a constant.
 
-    :ivar expr: (:class:`iodelay.Expr`) expression
+    :ivar interval: (:class:`iodelay.Expr`) expression
     :ivar var_names: (list of string)
         iodelay variable names corresponding to operands
     """
 
     """
-    :param expr: (:class:`iodelay.Expr`) expression
+    :param interval: (:class:`iodelay.Expr`) expression
     :param substs: (dict of str to :class:`Value`)
         SSA values corresponding to iodelay variable names
     :param call: (:class:`Call` or ``Constant(None, builtins.TNone())``)
         the call instruction that caused this delay, if any
     :param target: (:class:`BasicBlock`) branch target
     """
-    def __init__(self, expr, substs, decomposition, target, name=""):
+    def __init__(self, interval, substs, decomposition, target, name=""):
         for var_name in substs: assert isinstance(var_name, str)
         assert isinstance(decomposition, Call) or \
             isinstance(decomposition, Builtin) and decomposition.op in ("delay", "delay_mu")
         assert isinstance(target, BasicBlock)
         super().__init__([decomposition, target, *substs.values()], builtins.TNone(), name)
-        self.expr = expr
+        self.interval = interval
         self.var_names = list(substs.keys())
 
     def copy(self, mapper):
         self_copy = super().copy(mapper)
-        self_copy.expr = self.expr
+        self_copy.interval = self.interval
         self_copy.var_names = list(self.var_names)
         return self_copy
 
@@ -1352,7 +1352,7 @@ class Delay(Terminator):
         return result
 
     def opcode(self):
-        return "delay({})".format(self.expr)
+        return "delay({})".format(self.interval)
 
 class Parallel(Terminator):
     """

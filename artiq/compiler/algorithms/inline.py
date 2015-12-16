@@ -59,7 +59,7 @@ def inline(call_insn):
             other_substs  = {var: mapped_substs[var]
                              for var in mapped_substs
                               if not isinstance(mapped_substs[var], ir.Constant)}
-            target_insn  = ir.Delay(source_insn.expr.fold(const_substs), other_substs,
+            target_insn  = ir.Delay(source_insn.interval.fold(const_substs), other_substs,
                                     value_map[source_insn.decomposition()],
                                     value_map[source_insn.target()])
         else:

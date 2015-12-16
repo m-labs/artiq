@@ -32,7 +32,7 @@ def iodelay_of_block(block):
     terminator = block.terminator()
     if isinstance(terminator, ir.Delay):
         # We should be able to fold everything without free variables.
-        folded_expr = terminator.expr.fold()
+        folded_expr = terminator.interval.fold()
         assert iodelay.is_const(folded_expr)
         return folded_expr.value
     else:
@@ -57,7 +57,7 @@ class Interleaver:
     def process_function(self, func):
         for insn in func.instructions():
             if isinstance(insn, ir.Delay):
-                if any(insn.expr.free_vars()):
+                if any(insn.interval.free_vars()):
                     # If a function has free variables in delay expressions,
                     # that means its IO delay depends on arguments.
                     # Do not change such functions in any way so that it will
@@ -121,7 +121,7 @@ class Interleaver:
                             new_decomp.loc = old_decomp.loc
 
                             source_terminator.basic_block.insert(new_decomp, before=source_terminator)
-                            source_terminator.expr = iodelay.Const(target_time_delta)
+                            source_terminator.interval = iodelay.Const(target_time_delta)
                             source_terminator.set_decomposition(new_decomp)
                         else:
                             source_terminator.replace_with(ir.Branch(source_terminator.target()))
@@ -141,7 +141,7 @@ class Interleaver:
                             postdom_tree = domination.PostDominatorTree(func)
                             continue
                         elif target_time_delta > 0:
-                            source_terminator.expr = iodelay.Const(target_time_delta)
+                            source_terminator.interval = iodelay.Const(target_time_delta)
                         else:
                             source_terminator.replace_with(ir.Branch(source_terminator.target()))
 
