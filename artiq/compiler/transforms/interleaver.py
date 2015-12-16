@@ -110,8 +110,14 @@ class Interleaver:
                     assert False
 
                 source_terminator = source_block.terminator()
-                if isinstance(source_terminator, (ir.Parallel, ir.Branch)):
+                if isinstance(source_terminator, ir.Parallel):
                     source_terminator.replace_with(ir.Branch(source_terminator.target()))
+                elif isinstance(source_terminator, ir.Branch):
+                    pass
+                elif isinstance(source_terminator, ir.BranchIf):
+                    # Skip a delay-free loop/conditional
+                    source_block = postdom_tree.immediate_dominator(source_block)
+                    assert (source_block is not None)
                 elif isinstance(source_terminator, ir.Return):
                     break
                 elif isinstance(source_terminator, ir.Delay):
