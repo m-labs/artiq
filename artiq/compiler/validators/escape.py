@@ -268,8 +268,12 @@ class EscapeValidator(algorithm.Visitor):
                 if region is not None:
                     region.contract(value_region)
 
+        # If we assign to an attribute of a quoted value, there will be no names
+        # in the assignment lhs.
+        target_names   = self._names_of(target) or []
+
         # The assigned value should outlive the assignee
-        target_regions = [self._region_of(name) for name in self._names_of(target)]
+        target_regions = [self._region_of(name) for name in target_names]
         for target_region in target_regions:
             if not Region.outlives(value_region, target_region):
                 if is_aug_assign:
