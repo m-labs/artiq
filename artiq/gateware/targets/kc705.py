@@ -85,7 +85,8 @@ class _NIST_QCx(MiniSoC, AMPSoC):
         "rtio": None,  # mapped on Wishbone instead
         "rtio_crg": 13,
         "kernel_cpu": 14,
-        "rtio_moninj": 15
+        "rtio_moninj": 15,
+        "rtio_analyzer": 16
     }
     csr_map.update(MiniSoC.csr_map)
     mem_map = {
@@ -137,6 +138,9 @@ TIMESPEC "TSfix_cdc2" = FROM "GRPrio_clk" TO "GRPrsys_clk" TIG;
                                      self.rtiowb.bus)
         self.add_csr_region("rtio", self.mem_map["rtio"] | 0x80000000, 32,
                             rtio_csrs)
+
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio,
+            self.get_native_sdram_if())
 
 
 class NIST_QC1(_NIST_QCx):

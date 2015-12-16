@@ -104,9 +104,9 @@ TIMESPEC "TSfix_ise4" = FROM "GRPsys_clk" TO "GRPrtio_clk" TIG;
 class NIST_QC1(BaseSoC, AMPSoC):
     csr_map = {
         "rtio": None,  # mapped on Wishbone instead
-        "rtio_crg": 13,
-        "kernel_cpu": 14,
-        "rtio_moninj": 15
+        "rtio_crg": 10,
+        "kernel_cpu": 11,
+        "rtio_moninj": 12
     }
     csr_map.update(BaseSoC.csr_map)
     mem_map = {
