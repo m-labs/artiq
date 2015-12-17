@@ -6,10 +6,6 @@ from artiq.master.databases import DeviceDB
 from artiq.master.worker_db import DeviceManager
 
 
-def to_bytes(string):
-    return bytes(string, encoding="ascii")
-
-
 def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ core device "
                                                  "remote access tool")
@@ -64,7 +60,7 @@ def main():
         comm.check_ident()
 
         if args.action == "log":
-          print(comm.get_log(), end='')
+            print(comm.get_log(), end="")
         elif args.action == "cfg-read":
             value = comm.flash_storage_read(args.key)
             if not value:
