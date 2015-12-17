@@ -203,7 +203,8 @@ static void out_packet_advance_consumed(int length)
     buffer_out_read_cursor += length;
 }
 
-static void out_packet_advance_sent(int length) {
+static void out_packet_advance_sent(int length)
+{
     if(buffer_out_sent_cursor + length > buffer_out_write_cursor) {
         log("session.c: write underrun (send) while trying to"
             " acknowledge %d bytes (%d remaining)",

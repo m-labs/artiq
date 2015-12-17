@@ -28,6 +28,7 @@
 #include "test_mode.h"
 #include "net_server.h"
 #include "session.h"
+#include "analyzer.h"
 #include "moninj.h"
 
 #ifdef CSR_ETHMAC_BASE
@@ -137,11 +138,27 @@ static struct net_server_instance session_inst = {
     .ack_sent = session_ack_sent
 };
 
+#ifdef CSR_RTIO_ANALYZER_BASE
+static struct net_server_instance analyzer_inst = {
+    .port = 1382,
+    .start = analyzer_start,
+    .end = analyzer_end,
+    .input = analyzer_input,
+    .poll = analyzer_poll,
+    .ack_consumed = analyzer_ack_consumed,
+    .ack_sent = analyzer_ack_sent
+};
+#endif
+
 static void regular_main(void)
 {
     puts("Accepting sessions on Ethernet.");
     network_init();
     net_server_init(&session_inst);
+#ifdef CSR_RTIO_ANALYZER_BASE
+    analyzer_init();
+    net_server_init(&analyzer_inst);
+#endif
     moninj_init();
 
     session_end();
