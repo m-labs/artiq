@@ -220,13 +220,9 @@ void net_server_service(void)
 {
     struct tcp_pcb *pcb;
 
-    /*
-     * Assume all active TCP PCBs with a non-NULL arg are our connections.
-     * lwip defines "active PCB" as being able to send/receive data.
-     */
     pcb = tcp_active_pcbs;
     while(pcb) {
-        if(pcb->callback_arg)
+        if(pcb->recv == net_server_recv) /* filter our connections */
             tcp_pcb_service(pcb->callback_arg, pcb);
         pcb = pcb->next;
     }
