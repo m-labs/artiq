@@ -127,11 +127,21 @@ static void network_init(void)
     netif_set_link_up(&netif);
 }
 
+static struct net_server_instance session_inst = {
+    .port = 1381,
+    .start = session_start,
+    .end = session_end,
+    .input = session_input,
+    .poll = session_poll,
+    .ack_consumed = session_ack_consumed,
+    .ack_sent = session_ack_sent
+};
+
 static void regular_main(void)
 {
     puts("Accepting sessions on Ethernet.");
     network_init();
-    net_server_init();
+    net_server_init(&session_inst);
     moninj_init();
 
     session_end();
