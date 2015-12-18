@@ -19,10 +19,10 @@ input_output_layout = [
 exception_layout = [
     ("message_type", 2),
     ("channel", 30),
-    ("padding", 64),
+    ("padding0", 64),
     ("rtio_counter", 64),
     ("exception_type", 8),
-    ("padding", 88)
+    ("padding1", 88)
 ]
 
 assert layout_len(input_output_layout) == 256
