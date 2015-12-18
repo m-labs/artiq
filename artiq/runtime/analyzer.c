@@ -1,5 +1,7 @@
+#include <system.h>
 #include <generated/csr.h>
 
+#include "log.h"
 #include "analyzer.h"
 
 
@@ -30,6 +32,8 @@ static void disarm(void)
 {
     rtio_analyzer_dma_enable_write(0);
     while(rtio_analyzer_dma_busy_read());
+    flush_cpu_dcache();
+    flush_l2_cache();
 }
 
 void analyzer_init(void)
@@ -77,7 +81,7 @@ void analyzer_end(void)
 
 int analyzer_input(void *data, int length)
 {
-    /* The analyzer never accepts input. */
+    log("no input should be received by analyzer, dropping connection");
     return -1;
 }
 
@@ -99,6 +103,9 @@ void analyzer_poll(void **data, int *length)
         case SEND_STATE_TERMINATE:
             *length = -1;
             break;
+        default:
+            *length = 0;
+            break;
     }
 }
 
@@ -117,8 +124,12 @@ void analyzer_ack_sent(int length)
                 offset_sent = 0;
                 if(wraparound)
                     send_state = SEND_STATE_POST_POINTER;
-                else
-                    send_state = SEND_STATE_PRE_POINTER;
+                else {
+                    if(pointer)
+                        send_state = SEND_STATE_PRE_POINTER;
+                    else
+                        send_state = SEND_STATE_TERMINATE;
+                }
             }
             break;
         case SEND_STATE_POST_POINTER:
