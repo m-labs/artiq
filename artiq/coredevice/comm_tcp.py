@@ -24,20 +24,26 @@ def set_keepalive(sock, after_idle, interval, max_fails):
                        sys.platform)
 
 
+def initialize_connection(host, port):
+    sock = socket.create_connection((host, port), 5.0)
+    sock.settimeout(None)
+    set_keepalive(sock, 3, 2, 3)
+    logger.debug("connected to host %s on port %d", host, port)
+    sock.sendall(b"ARTIQ coredev\n")
+    return sock
+
+
 class Comm(CommGeneric):
-    def __init__(self, dmgr, host, port=1381):
+    def __init__(self, dmgr, host, port=1381, port_analyzer=1382):
         super().__init__()
         self.host = host
         self.port = port
+        self.port_analyzer = port_analyzer
 
     def open(self):
         if hasattr(self, "socket"):
             return
-        self.socket = socket.create_connection((self.host, self.port), 5.0)
-        self.socket.settimeout(None)
-        set_keepalive(self.socket, 3, 2, 3)
-        logger.debug("connected to host %s on port %d", self.host, self.port)
-        self.write(b"ARTIQ coredev\n")
+        self.socket = initialize_connection(self.host, self.port)
 
     def close(self):
         if not hasattr(self, "socket"):
@@ -57,3 +63,14 @@ class Comm(CommGeneric):
 
     def write(self, data):
         self.socket.sendall(data)
+
+    def get_analyzer_dump(self):
+        sock = initialize_connection(self.host, self.port_analyzer)
+        r = bytes()
+        while True:
+            buf = sock.recv(8192)
+            if not buf:
+                break
+            r += buf
+        sock.close()
+        return r
