@@ -28,7 +28,7 @@ extern void __divsi3, __modsi3, __ledf2, __gedf2, __unorddf2, __eqdf2, __ltdf2,
     __udivmoddi4, __floatsisf, __floatunsisf, __fixsfsi, __fixunssfsi,
     __adddf3, __subdf3, __muldf3, __divdf3, __floatsidf, __floatunsidf,
     __floatdidf, __fixdfsi, __fixdfdi, __fixunsdfsi, __clzsi2, __ctzsi2,
-    __udivdi3, __umoddi3, __moddi3;
+    __udivdi3, __umoddi3, __moddi3, __powidf2;
 
 /* artiq_personality symbols */
 extern void __artiq_personality;
@@ -80,6 +80,7 @@ static const struct symbol runtime_exports[] = {
     {"__udivdi3", &__udivdi3},
     {"__umoddi3", &__umoddi3},
     {"__moddi3", &__moddi3},
+    {"__powidf2", &__powidf2},
 
     /* exceptions */
     {"_Unwind_Resume", &_Unwind_Resume},
