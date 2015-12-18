@@ -74,7 +74,11 @@ class GenericDominatorTree:
         return self._block_of_name[self._doms[self._name_of_block[block]]]
 
     def dominators(self, block):
-        yield block
+        # Blocks that are statically unreachable from entry are considered
+        # dominated by every other block.
+        if block not in self._name_of_block:
+            yield from self._block_of_name
+            return
 
         block_name = self._name_of_block[block]
         while block_name != self._doms[block_name]:
@@ -103,7 +107,9 @@ class DominatorTree(GenericDominatorTree):
 
     def _prev_block_names(self, block_name):
         for block in self._block_of_name[block_name].predecessors():
-            yield self._name_of_block[block]
+            # Only return predecessors that are statically reachable from entry.
+            if block in self._name_of_block:
+                yield self._name_of_block[block]
 
 class PostDominatorTree(GenericDominatorTree):
     def __init__(self, function):
