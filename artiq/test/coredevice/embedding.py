@@ -10,7 +10,6 @@ class Roundtrip(EnvExperiment):
     def roundtrip(self, obj, fn):
         fn(obj)
 
-
 class RoundtripTest(ExperimentCase):
     def assertRoundtrip(self, obj):
         exp = self.create(Roundtrip)
@@ -41,3 +40,22 @@ class RoundtripTest(ExperimentCase):
     def test_object(self):
         obj = object()
         self.assertRoundtrip(obj)
+
+
+class DefaultArg(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+
+    def test(self, foo=42) -> TInt32:
+        return foo
+
+    @kernel
+    def run(self, callback):
+        callback(self.test())
+
+class DefaultArgTest(ExperimentCase):
+    def test_default_arg(self):
+        exp = self.create(DefaultArg)
+        def callback(value):
+            self.assertEqual(value, 42)
+        exp.run(callback)
