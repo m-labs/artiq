@@ -56,7 +56,7 @@ class Core:
         self.core = self
         self.comm.core = self
 
-    def compile(self, function, args, kwargs, set_result, with_attr_writeback=True):
+    def compile(self, function, args, kwargs, set_result=None, with_attr_writeback=True):
         try:
             engine = diagnostic.Engine(all_errors_are_fatal=True)
 
