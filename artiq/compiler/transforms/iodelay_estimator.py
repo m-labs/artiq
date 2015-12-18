@@ -229,6 +229,23 @@ class IODelayEstimator(algorithm.Visitor):
                 # inside a `with` statement after all.
                 self.engine.process(error.cause)
 
+            flow_stmt = None
+            if self.current_goto is not None:
+                flow_stmt = self.current_goto
+            elif self.current_return is not None:
+                flow_stmt = self.current_return
+
+            if flow_stmt is not None:
+                note = diagnostic.Diagnostic("note",
+                    "this '{kind}' statement transfers control out of "
+                    "the 'with parallel:' statement",
+                    {"kind": flow_stmt.keyword_loc.source()},
+                    flow_stmt.loc)
+                diag = diagnostic.Diagnostic("error",
+                    "cannot interleave this 'with parallel:' statement", {},
+                    node.keyword_loc.join(node.colon_loc), notes=[note])
+                self.engine.process(diag)
+
         elif len(node.items) == 1 and types.is_builtin(context_expr.type, "sequential"):
             self.visit(node.body)
         else:
