@@ -181,11 +181,12 @@ class ARTIQIRGenerator(algorithm.Visitor):
             entry = self.add_block("entry")
             old_block, self.current_block = self.current_block, entry
 
-            env = self.append(ir.Alloc([], ir.TEnvironment(node.typing_env), name="env"))
+            env_type = ir.TEnvironment(name=func.name, vars=node.typing_env)
+            env = self.append(ir.Alloc([], env_type, name="env"))
             old_env, self.current_env = self.current_env, env
 
-            priv_env = self.append(ir.Alloc([], ir.TEnvironment({ "$return": typ.ret }),
-                                            name="privenv"))
+            priv_env_type = ir.TEnvironment(name=func.name + ".priv", vars={ "$return": typ.ret })
+            priv_env = self.append(ir.Alloc([], priv_env_type, name="privenv"))
             old_priv_env, self.current_private_env = self.current_private_env, priv_env
 
             self.generic_visit(node)
@@ -264,13 +265,15 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 {var: node.typing_env[var]
                  for var in node.typing_env
                   if var not in node.globals_in_scope}
-            env_type = ir.TEnvironment(env_without_globals, self.current_env.type)
+            env_type = ir.TEnvironment(name=func.name,
+                                       vars=env_without_globals, outer=self.current_env.type)
             env = self.append(ir.Alloc([], env_type, name="env"))
             old_env, self.current_env = self.current_env, env
 
             if not is_lambda:
-                priv_env = self.append(ir.Alloc([], ir.TEnvironment({ "$return": typ.ret }),
-                                                name="privenv"))
+                priv_env_type = ir.TEnvironment(name=func.name + ".priv",
+                                                vars={ "$return": typ.ret })
+                priv_env = self.append(ir.Alloc([], priv_env_type, name="privenv"))
                 old_priv_env, self.current_private_env = self.current_private_env, priv_env
 
             self.append(ir.SetLocal(env, "$outer", env_arg))
@@ -1092,7 +1095,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
         result = self.append(ir.Alloc([length], node.type))
 
         try:
-            env_type = ir.TEnvironment(node.typing_env, self.current_env.type)
+            gen_suffix = ".gen.{}.{}".format(node.loc.line(), node.loc.column())
+            env_type = ir.TEnvironment(name=self.current_function.name + gen_suffix,
+                                       vars=node.typing_env, outer=self.current_env.type)
             env = self.append(ir.Alloc([], env_type, name="env.gen"))
             old_env, self.current_env = self.current_env, env
 

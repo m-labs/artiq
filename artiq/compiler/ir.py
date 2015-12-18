@@ -500,7 +500,10 @@ class Function:
 # Python-specific SSA IR classes
 
 class TEnvironment(types.TMono):
-    def __init__(self, vars, outer=None):
+    def __init__(self, name, vars, outer=None):
+        assert isinstance(name, str)
+        self.env_name = name # for readable type names in LLVM IR
+
         if outer is not None:
             assert isinstance(outer, TEnvironment)
             env = OrderedDict({"$outer": outer})

@@ -256,8 +256,10 @@ class LLVMIRGenerator:
         elif ir.is_option(typ):
             return ll.LiteralStructType([lli1, self.llty_of_type(typ.params["inner"])])
         elif ir.is_environment(typ):
-            llty = ll.LiteralStructType([self.llty_of_type(typ.params[name])
-                                         for name in typ.params])
+            llty = self.llcontext.get_identified_type("env.{}".format(typ.env_name))
+            if llty.elements is None:
+                llty.elements = [self.llty_of_type(typ.params[name]) for name in typ.params]
+
             if bare:
                 return llty
             else:
