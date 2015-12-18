@@ -187,11 +187,8 @@ class DMAWriter(Module, AutoCSR):
         )
         fsm.act("WRITE",
             self.busy.status.eq(1),
-
             membus.cyc.eq(1),
             membus.stb.eq(1),
-            membus.we.eq(1),
-            membus.sel.eq(2**len(membus.sel)-1),
 
             If(membus.ack,
                 If(membus.adr == self.last_address.storage,
@@ -204,6 +201,11 @@ class DMAWriter(Module, AutoCSR):
                 NextState("IDLE")
             )
         )
+        self.comb += [
+            membus.we.eq(1),
+            membus.sel.eq(2**len(membus.sel)-1),
+            membus.dat_w.eq(self.sink.data)
+        ]
 
 
 class Analyzer(Module, AutoCSR):
