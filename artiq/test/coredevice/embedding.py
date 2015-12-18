@@ -50,12 +50,10 @@ class DefaultArg(EnvExperiment):
         return foo
 
     @kernel
-    def run(self, callback):
-        callback(self.test())
+    def run(self):
+        return self.test()
 
 class DefaultArgTest(ExperimentCase):
     def test_default_arg(self):
         exp = self.create(DefaultArg)
-        def callback(value):
-            self.assertEqual(value, 42)
-        exp.run(callback)
+        self.assertEqual(exp.run(), 42)

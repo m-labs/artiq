@@ -907,9 +907,12 @@ class LLVMIRGenerator:
 
         llargs = []
         for arg in args:
-            llarg = self.map(arg)
-            llargslot = self.llbuilder.alloca(llarg.type)
-            self.llbuilder.store(llarg, llargslot)
+            if builtins.is_none(arg.type):
+                llargslot = self.llbuilder.alloca(ll.LiteralStructType([]))
+            else:
+                llarg = self.map(arg)
+                llargslot = self.llbuilder.alloca(llarg.type)
+                self.llbuilder.store(llarg, llargslot)
             llargs.append(llargslot)
 
         self.llbuilder.call(self.llbuiltin("send_rpc"),

@@ -139,11 +139,15 @@ class ASTSynthesizer:
                 return asttyped.QuoteT(value=value, type=instance_type,
                                        loc=loc)
 
-    def call(self, function_node, args, kwargs):
+    def call(self, function_node, args, kwargs, callback=None):
         """
         Construct an AST fragment calling a function specified by
         an AST node `function_node`, with given arguments.
         """
+        if callback is not None:
+            callback_node = self.quote(callback)
+            cb_begin_loc  = self._add("(")
+
         arg_nodes   = []
         kwarg_nodes = []
         kwarg_locs  = []
@@ -165,7 +169,10 @@ class ASTSynthesizer:
                          self._add(", ")
         end_loc        = self._add(")")
 
-        return asttyped.CallT(
+        if callback is not None:
+            cb_end_loc    = self._add(")")
+
+        node = asttyped.CallT(
             func=asttyped.NameT(id=function_node.name, ctx=None,
                                 type=function_node.signature_type,
                                 loc=name_loc),
@@ -179,6 +186,16 @@ class ASTSynthesizer:
             type=types.TVar(), iodelay=None,
             begin_loc=begin_loc, end_loc=end_loc, star_loc=None, dstar_loc=None,
             loc=name_loc.join(end_loc))
+
+        if callback is not None:
+            node = asttyped.CallT(
+                func=callback_node,
+                args=[node], keywords=[], starargs=None, kwargs=None,
+                type=builtins.TNone(), iodelay=None,
+                begin_loc=cb_begin_loc, end_loc=cb_end_loc, star_loc=None, dstar_loc=None,
+                loc=callback_node.loc.join(cb_end_loc))
+
+        return node
 
     def assign_local(self, var_name, value):
         name_loc   = self._add(var_name)
@@ -426,14 +443,14 @@ class Stitcher:
         self.type_map = {}
         self.value_map = defaultdict(lambda: [])
 
-    def stitch_call(self, function, args, kwargs):
+    def stitch_call(self, function, args, kwargs, callback=None):
         function_node = self._quote_embedded_function(function)
         self.typedtree.append(function_node)
 
         # We synthesize source code for the initial call so that
         # diagnostics would have something meaningful to display to the user.
         synthesizer = self._synthesizer()
-        call_node = synthesizer.call(function_node, args, kwargs)
+        call_node = synthesizer.call(function_node, args, kwargs, callback)
         synthesizer.finalize()
         self.typedtree.append(call_node)
 

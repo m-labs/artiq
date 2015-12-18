@@ -56,12 +56,12 @@ class Core:
         self.core = self
         self.comm.core = self
 
-    def compile(self, function, args, kwargs, with_attr_writeback=True):
+    def compile(self, function, args, kwargs, set_result, with_attr_writeback=True):
         try:
             engine = diagnostic.Engine(all_errors_are_fatal=True)
 
             stitcher = Stitcher(engine=engine)
-            stitcher.stitch_call(function, args, kwargs)
+            stitcher.stitch_call(function, args, kwargs, set_result)
             stitcher.finalize()
 
             module = Module(stitcher, ref_period=self.ref_period)
@@ -76,7 +76,12 @@ class Core:
             raise CompileError(error.diagnostic) from error
 
     def run(self, function, args, kwargs):
-        object_map, kernel_library, symbolizer = self.compile(function, args, kwargs)
+        result = None
+        def set_result(new_result):
+            nonlocal result
+            result = new_result
+
+        object_map, kernel_library, symbolizer = self.compile(function, args, kwargs, set_result)
 
         if self.first_run:
             self.comm.check_ident()
@@ -86,6 +91,8 @@ class Core:
         self.comm.load(kernel_library)
         self.comm.run()
         self.comm.serve(object_map, symbolizer)
+
+        return result
 
     @kernel
     def get_rtio_counter_mu(self):
