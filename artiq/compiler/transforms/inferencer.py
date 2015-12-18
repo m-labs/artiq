@@ -1017,7 +1017,7 @@ class Inferencer(algorithm.Visitor):
 
             diag = diagnostic.Diagnostic("error",
                 "decorators are not supported", {},
-                node.at_locs[index], [decorator.loc])
+                node.at_locs[index], [])
             self.engine.process(diag)
 
         try:
