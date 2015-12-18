@@ -577,8 +577,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         if any(node.finalbody):
             # k for continuation
-            final_state = self.append(ir.Alloc([], ir.TEnvironment({ "$k": ir.TBasicBlock() })))
-            final_targets = []
+            final_suffix   = ".try@{}:{}".format(node.loc.line(), node.loc.column())
+            final_env_type = ir.TEnvironment(name=self.current_function.name + final_suffix,
+                                             vars={ "$k": ir.TBasicBlock() })
+            final_state    = self.append(ir.Alloc([], final_env_type))
+            final_targets  = []
 
             if self.break_target is not None:
                 break_proxy = self.add_block("try.break")
@@ -1095,7 +1098,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         result = self.append(ir.Alloc([length], node.type))
 
         try:
-            gen_suffix = ".gen.{}.{}".format(node.loc.line(), node.loc.column())
+            gen_suffix = ".gen@{}:{}".format(node.loc.line(), node.loc.column())
             env_type = ir.TEnvironment(name=self.current_function.name + gen_suffix,
                                        vars=node.typing_env, outer=self.current_env.type)
             env = self.append(ir.Alloc([], env_type, name="env.gen"))
@@ -1697,8 +1700,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
     def visit_Assert(self, node):
         try:
+            assert_suffix   = ".assert@{}:{}".format(node.loc.line(), node.loc.column())
+            assert_env_type = ir.TEnvironment(name=self.current_function.name + assert_suffix,
+                                              vars={})
             assert_env = self.current_assert_env = \
-                self.append(ir.Alloc([], ir.TEnvironment({}), name="assertenv"))
+                self.append(ir.Alloc([], assert_env_type, name="assertenv"))
             assert_subexprs = self.current_assert_subexprs = []
             init = self.current_block
 
