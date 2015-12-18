@@ -1,9 +1,31 @@
 #!/usr/bin/env python3.5
 
 import argparse
+import struct
 
 from artiq.master.databases import DeviceDB
 from artiq.master.worker_db import DeviceManager
+
+
+def print_analyzer_dump(dump):
+    sent_bytes, total_byte_count, overflow_occured = struct.unpack(">IQI", dump[:16])
+    dump = dump[16:]
+    print(sent_bytes, total_byte_count, overflow_occured)
+
+    while dump:
+        message_type_channel = struct.unpack(">I", dump[28:32])[0]
+        message_type = message_type_channel & 0b11
+        channel = message_type_channel >> 2
+
+        if message_type == 2:
+            exception_type, rtio_counter = struct.unpack(">BQ", dump[11:20])
+            print("EXC exception_type={} channel={} rtio_counter={}"
+                  .format(exception_type, channel, rtio_counter))
+        else:
+            (data, address_padding, rtio_counter, timestamp) = struct.unpack(">QIQQ", dump[:28])
+            print("IO  type={} channel={} timestamp={} rtio_counter={} address_padding={} data={}"
+                  .format(message_type, channel, timestamp, rtio_counter, address_padding, data))
+        dump = dump[32:]
 
 
 def get_argparser():
@@ -15,17 +37,14 @@ def get_argparser():
     subparsers = parser.add_subparsers(dest="action")
     subparsers.required = True
 
-    # Log Read command
     subparsers.add_parser("log",
                           help="read from the core device log ring buffer")
 
-    # Configuration Read command
     p_read = subparsers.add_parser("cfg-read",
                                    help="read key from core device config")
     p_read.add_argument("key", type=str,
                         help="key to be read from core device config")
 
-    # Configuration Write command
     p_write = subparsers.add_parser("cfg-write",
                                     help="write key-value records to core "
                                          "device config")
@@ -39,15 +58,15 @@ def get_argparser():
                          help="key and file whose content to be written to "
                               "core device config")
 
-    # Configuration Delete command
     p_delete = subparsers.add_parser("cfg-delete",
                                      help="delete key from core device config")
     p_delete.add_argument("key", nargs=argparse.REMAINDER,
                           default=[], type=str,
                           help="key to be deleted from core device config")
 
-    # Configuration Erase command
     subparsers.add_parser("cfg-erase", help="erase core device config")
+
+    subparsers.add_parser("analyzer-dump")
 
     return parser
 
@@ -57,7 +76,8 @@ def main():
     device_mgr = DeviceManager(DeviceDB(args.device_db))
     try:
         comm = device_mgr.get("comm")
-        comm.check_ident()
+        if args.action != "analyzer-dump":
+            comm.check_ident()
 
         if args.action == "log":
             print(comm.get_log(), end="")
@@ -77,7 +97,10 @@ def main():
             for key in args.key:
                 comm.flash_storage_remove(key)
         elif args.action == "cfg-erase":
-                comm.flash_storage_erase()
+            comm.flash_storage_erase()
+        elif args.action == "analyzer-dump":
+            dump = comm.get_analyzer_dump()
+            print_analyzer_dump(dump)
     finally:
         device_mgr.close_devices()
 
