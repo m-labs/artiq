@@ -9,6 +9,7 @@ def f():
             print(2)
         while False:
             print(3)
+            break
         delay_mu(1)
     print(4)
 
