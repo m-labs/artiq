@@ -30,3 +30,6 @@ len([])
 
 # CHECK-L: round:<function round>(1.0:float):int(width='h)
 round(1.0)
+
+# CHECK-L: round:<function round>(1.0:float, width=64:int(width='i)):int(width=64)
+round(1.0, width=64)
