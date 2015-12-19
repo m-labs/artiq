@@ -26,3 +26,10 @@ class IntMonomorphizer(algorithm.Visitor):
                     return
 
                 node.type["width"].unify(types.TValue(width))
+
+    def visit_CallT(self, node):
+        if types.is_builtin(node.func.type, "int") or \
+                types.is_builtin(node.func.type, "round"):
+            typ = node.type.find()
+            if types.is_var(typ["width"]):
+                typ["width"].unify(types.TValue(32))
