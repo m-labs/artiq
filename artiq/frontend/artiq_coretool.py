@@ -5,7 +5,7 @@ import struct
 
 from artiq.master.databases import DeviceDB
 from artiq.master.worker_db import DeviceManager
-from artiq.coredevice.analyzer import decode_dump
+from artiq.coredevice.analyzer import decode_dump, messages_to_vcd
 
 
 def get_argparser():
@@ -46,7 +46,12 @@ def get_argparser():
 
     subparsers.add_parser("cfg-erase", help="erase core device config")
 
-    subparsers.add_parser("analyzer-dump")
+    p_analyzer = subparsers.add_parser("analyzer-dump",
+                                       help="dump analyzer contents")
+    p_analyzer.add_argument("-m", default=False, action="store_true",
+                            help="print raw messages")
+    p_analyzer.add_argument("-f", type=str, default="",
+                            help="format and write contents to VCD file")
 
     return parser
 
@@ -79,9 +84,12 @@ def main():
         elif args.action == "cfg-erase":
             comm.flash_storage_erase()
         elif args.action == "analyzer-dump":
-            dump = comm.get_analyzer_dump()
-            for msg in decode_dump(dump):
-                print(msg)
+            messages = decode_dump(comm.get_analyzer_dump())
+            if args.m:
+                for message in messages:
+                    print(message)
+            if args.f:
+                messages_to_vcd(args.f, device_mgr.get_device_db(), messages)
     finally:
         device_mgr.close_devices()
 
