@@ -47,7 +47,7 @@ class Core:
         external RTIO clock input instead of using its internal oscillator.
     :param comm_device: name of the device used for communications.
     """
-    def __init__(self, dmgr, ref_period=8*ns, external_clock=False, comm_device="comm"):
+    def __init__(self, dmgr, ref_period, external_clock=False, comm_device="comm"):
         self.ref_period = ref_period
         self.external_clock = external_clock
         self.comm = dmgr.get(comm_device)
