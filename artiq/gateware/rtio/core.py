@@ -11,46 +11,47 @@ from misoc.interconnect.csr import *
 from artiq.gateware.rtio import rtlink
 
 
+# note: transfer is in rtio/sys domains and not affected by the reset CSRs
 class _GrayCodeTransfer(Module):
     def __init__(self, width):
-        self.i = Signal(width)  # in rio domain
-        self.o = Signal(width)  # in rsys domain
+        self.i = Signal(width)  # in rtio domain
+        self.o = Signal(width)  # in sys domain
 
         # # #
 
         # convert to Gray code
-        value_gray_rio = Signal(width)
-        self.sync.rio += value_gray_rio.eq(self.i ^ self.i[1:])
+        value_gray_rtio = Signal(width)
+        self.sync.rtio += value_gray_rtio.eq(self.i ^ self.i[1:])
         # transfer to system clock domain
         value_gray_sys = Signal(width)
         self.specials += [
-            NoRetiming(value_gray_rio),
-            MultiReg(value_gray_rio, value_gray_sys, "rsys")
+            NoRetiming(value_gray_rtio),
+            MultiReg(value_gray_rtio, value_gray_sys)
         ]
         # convert back to binary
         value_sys = Signal(width)
         self.comb += value_sys[-1].eq(value_gray_sys[-1])
         for i in reversed(range(width-1)):
             self.comb += value_sys[i].eq(value_sys[i+1] ^ value_gray_sys[i])
-        self.sync.rsys += self.o.eq(value_sys)
+        self.sync += self.o.eq(value_sys)
 
 
 class _RTIOCounter(Module):
     def __init__(self, width):
         self.width = width
         # Timestamp counter in RTIO domain
-        self.value_rio = Signal(width)
+        self.value_rtio = Signal(width)
         # Timestamp counter resynchronized to sys domain
-        # Lags behind value_rio, monotonic and glitch-free
+        # Lags behind value_rtio, monotonic and glitch-free
         self.value_sys = Signal(width)
 
         # # #
 
         # note: counter is in rtio domain and never affected by the reset CSRs
-        self.sync.rtio += self.value_rio.eq(self.value_rio + 1)
+        self.sync.rtio += self.value_rtio.eq(self.value_rtio + 1)
         gt = _GrayCodeTransfer(width)
         self.submodules += gt
-        self.comb += gt.i.eq(self.value_rio), self.value_sys.eq(gt.o)
+        self.comb += gt.i.eq(self.value_rtio), self.value_sys.eq(gt.o)
 
 
 # CHOOSING A GUARD TIME
@@ -215,7 +216,7 @@ class _OutputManager(Module):
         # TODO: report error on stb & busy
         self.comb += [
             dout_ack.eq(
-                dout.timestamp[fine_ts_width:] == counter.value_rio),
+                dout.timestamp[fine_ts_width:] == counter.value_rtio),
             interface.stb.eq(dout_stb & dout_ack)
         ]
         if data_width:
@@ -260,9 +261,9 @@ class _InputManager(Module):
             self.comb += fifo_in.data.eq(interface.data)
         if interface.timestamped:
             if fine_ts_width:
-                full_ts = Cat(interface.fine_ts, counter.value_rio)
+                full_ts = Cat(interface.fine_ts, counter.value_rtio)
             else:
-                full_ts = counter.value_rio
+                full_ts = counter.value_rtio
             self.comb += fifo_in.timestamp.eq(full_ts)
         self.comb += fifo.we.eq(interface.stb)
 
