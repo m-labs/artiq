@@ -3,10 +3,7 @@ from collections import namedtuple
 from itertools import count
 from enum import Enum
 import struct
-import importlib
 import logging
-
-from artiq.coredevice import ttl
 
 
 logger = logging.getLogger(__name__)
@@ -110,6 +107,9 @@ class VCDManager:
         self.codes = vcd_codes()
         self.current_time = None
 
+    def set_timescale_ns(self, timescale):
+        self.out.write("$timescale {}ns $end\n".format(timescale))
+
     def get_channel(self, name, width):
         code = next(self.codes)
         self.out.write("$var wire {width} {code} {name} $end\n"
@@ -145,13 +145,25 @@ class TTLHandler:
                     self.channel_value.set_value("X")
 
 
+def get_timescale(devices):
+    timescale = None
+    for desc in devices.values():
+        if isinstance(desc, dict) and desc["type"] == "local":
+            if (desc["module"] == "artiq.coredevice.core"
+                    and desc["class"] == "Core"):
+                if timescale is None:
+                    timescale = desc["arguments"]["ref_period"]*1e9
+                else:
+                    return None  # more than one core device found
+    return timescale
+
+
 def create_channel_handlers(vcd_manager, devices):
     channel_handlers = dict()
     for name, desc in sorted(devices.items(), key=itemgetter(0)):
         if isinstance(desc, dict) and desc["type"] == "local":
-            module = importlib.import_module(desc["module"])
-            device_class = getattr(module, desc["class"])
-            if device_class in {ttl.TTLOut, ttl.TTLInOut}:
+            if (desc["module"] == "artiq.coredevice.ttl"
+                    and desc["class"] in {"TTLOut", "TTLInOut"}):
                 channel = desc["arguments"]["channel"]
                 channel_handlers[channel] = TTLHandler(vcd_manager, name)
     return channel_handlers
@@ -162,12 +174,19 @@ def get_message_time(message):
 
 
 def messages_to_vcd(filename, devices, messages):
-    messages = [m for m in messages if get_message_time(m)]  # TODO: remove this hack
-    messages = sorted(messages, key=get_message_time)
     vcd_manager = VCDManager(filename)
     try:
+        timescale = get_timescale(devices)
+        if timescale is not None:
+            vcd_manager.set_timescale_ns(timescale)
+        else:
+            logger.warning("unable to determine VCD timescale")
+
         channel_handlers = create_channel_handlers(vcd_manager, devices)
+
         vcd_manager.set_time(0)
+        messages = [m for m in messages if get_message_time(m)]  # TODO: remove this hack
+        messages = sorted(messages, key=get_message_time)
         if messages:
             start_time = get_message_time(messages[0])
             for message in messages:
