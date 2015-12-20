@@ -3,6 +3,8 @@ from migen.genlib.record import Record, layout_len
 from misoc.interconnect.csr import *
 from misoc.interconnect import stream
 
+from artiq.coredevice.analyzer import MessageType, ExceptionType
+
 
 __all__ = ["Analyzer"]
 
@@ -29,33 +31,9 @@ assert layout_len(input_output_layout) == 256
 assert layout_len(exception_layout) == 256
 
 
-class MessageTypes(AutoCSR):
-    def __init__(self):
-        self.output = CSRConstant(0b00)
-        self.input = CSRConstant(0b01)
-        self.exception = CSRConstant(0b10)
-
-
-class ExceptionTypes(AutoCSR):
-    def __init__(self):
-        self.reset_rising = CSRConstant(0b000000)
-        self.reset_falling = CSRConstant(0b000001)
-        self.reset_phy_rising = CSRConstant(0b000010)
-        self.reset_phy_falling = CSRConstant(0b000011)
-
-        self.o_underflow_reset = CSRConstant(0b010000)
-        self.o_sequence_error_reset = CSRConstant(0b010001)
-        self.o_collision_error_reset = CSRConstant(0b010010)
-
-        self.i_overflow_reset = CSRConstant(0b100000)
-
-
 class MessageEncoder(Module, AutoCSR):
     def __init__(self, rtio_core):
         self.source = stream.Endpoint([("data", 256)])
-
-        self.message_types = MessageTypes()
-        self.exception_types = ExceptionTypes()
 
         self.overflow = CSRStatus()
         self.overflow_reset = CSR()
@@ -84,11 +62,11 @@ class MessageEncoder(Module, AutoCSR):
             input_output.rtio_counter.eq(
                 rtio_core.counter.value_sys << rtio_core.fine_ts_width),
             If(kcsrs.o_we.re,
-                input_output.message_type.eq(self.message_types.output.value),
+                input_output.message_type.eq(MessageType.output.value),
                 input_output.timestamp.eq(kcsrs.o_timestamp.storage),
                 input_output.data.eq(o_data)
             ).Else(
-                input_output.message_type.eq(self.message_types.input.value),
+                input_output.message_type.eq(MessageType.input.value),
                 input_output.timestamp.eq(kcsrs.i_timestamp.status),
                 input_output.data.eq(i_data)
             ),
@@ -98,7 +76,7 @@ class MessageEncoder(Module, AutoCSR):
         exception_stb = Signal()
         exception = Record(exception_layout)
         self.comb += [
-            exception.message_type.eq(self.message_types.exception.value),
+            exception.message_type.eq(MessageType.exception.value),
             exception.channel.eq(kcsrs.chan_sel.storage),
             exception.rtio_counter.eq(
                 rtio_core.counter.value_sys << rtio_core.fine_ts_width),
@@ -109,7 +87,7 @@ class MessageEncoder(Module, AutoCSR):
                 If(getattr(kcsrs, ename).re,
                     exception_stb.eq(1),
                     exception.exception_type.eq(
-                        getattr(self.exception_types, ename).value)
+                        getattr(ExceptionType, ename).value)
                 )
         for rname in "reset", "reset_phy":
             r_d = Signal()
@@ -119,12 +97,12 @@ class MessageEncoder(Module, AutoCSR):
                 If(r & ~r_d,
                     exception_stb.eq(1),
                     exception.exception_type.eq(
-                        getattr(self.exception_types, rname+"_rising").value)
+                        getattr(ExceptionType, rname+"_rising").value)
                 ),
                 If(~r & r_d,
                     exception_stb.eq(1),
                     exception.exception_type.eq(
-                        getattr(self.exception_types, rname+"_falling").value)
+                        getattr(ExceptionType, rname+"_falling").value)
                 )
             ]
 

@@ -5,27 +5,7 @@ import struct
 
 from artiq.master.databases import DeviceDB
 from artiq.master.worker_db import DeviceManager
-
-
-def print_analyzer_dump(dump):
-    sent_bytes, total_byte_count, overflow_occured = struct.unpack(">IQI", dump[:16])
-    dump = dump[16:]
-    print(sent_bytes, total_byte_count, overflow_occured)
-
-    while dump:
-        message_type_channel = struct.unpack(">I", dump[28:32])[0]
-        message_type = message_type_channel & 0b11
-        channel = message_type_channel >> 2
-
-        if message_type == 2:
-            exception_type, rtio_counter = struct.unpack(">BQ", dump[11:20])
-            print("EXC exception_type={} channel={} rtio_counter={}"
-                  .format(exception_type, channel, rtio_counter))
-        else:
-            (data, address_padding, rtio_counter, timestamp) = struct.unpack(">QIQQ", dump[:28])
-            print("IO  type={} channel={} timestamp={} rtio_counter={} address_padding={} data={}"
-                  .format(message_type, channel, timestamp, rtio_counter, address_padding, data))
-        dump = dump[32:]
+from artiq.coredevice.analyzer import decode_dump
 
 
 def get_argparser():
@@ -100,7 +80,8 @@ def main():
             comm.flash_storage_erase()
         elif args.action == "analyzer-dump":
             dump = comm.get_analyzer_dump()
-            print_analyzer_dump(dump)
+            for msg in decode_dump(dump):
+                print(msg)
     finally:
         device_mgr.close_devices()
 
