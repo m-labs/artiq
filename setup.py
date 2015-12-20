@@ -7,8 +7,8 @@ import os
 import versioneer
 
 
-if sys.version_info[:3] < (3, 5, 0):
-    raise Exception("You need Python 3.5.0+")
+if sys.version_info[:3] < (3, 5, 1):
+    raise Exception("You need Python 3.5.1+")
 
 
 requirements = [

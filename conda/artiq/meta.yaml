@@ -29,13 +29,13 @@ build:
 
 requirements:
   build:
-    - python >=3.5.0
+    - python >=3.5.1
     - setuptools
     - numpy
     - pyelftools
     - binutils-or1k-linux
   run:
-    - python >=3.5.0
+    - python >=3.5.1
     - llvmlite-artiq
     - scipy
     - numpy

@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from artiq.protocols.asyncio_server import AsyncioServer
-from artiq.tools import TaskObject, workaround_asyncio263
+from artiq.tools import TaskObject
 
 
 logger = logging.getLogger(__name__)
@@ -123,7 +123,6 @@ class LogForwarder(logging.Handler, TaskObject):
                 while True:
                     message = await self._queue.get() + "\n"
                     writer.write(message.encode())
-                    await workaround_asyncio263()
                     await writer.drain()
             except asyncio.CancelledError:
                 return
