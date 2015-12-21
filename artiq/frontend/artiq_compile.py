@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.5
 
-import sys, logging, argparse
+import os, sys, logging, argparse
 
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager
