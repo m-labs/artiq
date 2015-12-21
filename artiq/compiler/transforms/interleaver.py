@@ -73,13 +73,22 @@ class Interleaver:
             if postdom_tree is None:
                 postdom_tree = domination.PostDominatorTree(func)
 
-            interleave_until = postdom_tree.immediate_dominator(insn.basic_block)
-            assert (interleave_until is not None) # no nonlocal flow in `with parallel`
-
             target_block  = insn.basic_block
             target_time   = 0
             source_blocks = insn.basic_block.successors()
             source_times  = [0 for _ in source_blocks]
+
+            if len(source_blocks) == 1:
+                # Immediate dominator for a parallel instruction with one successor
+                # is the first instruction in the body of the statement which created
+                # it, but below we expect that it would be the first instruction after
+                # the statement itself.
+                insn.replace_with(ir.Branch(source_blocks[0]))
+                continue
+
+            interleave_until = postdom_tree.immediate_dominator(insn.basic_block)
+            assert interleave_until is not None # no nonlocal flow in `with parallel`
+            assert interleave_until not in source_blocks
 
             while len(source_blocks) > 0:
                 def time_after_block(pair):
