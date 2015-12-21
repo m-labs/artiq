@@ -10,7 +10,10 @@
 struct analyzer_header {
     unsigned int sent_bytes;
     unsigned long long int total_byte_count;
-    unsigned int overflow_occured;
+    unsigned char overflow_occured;
+    unsigned char log_channel;
+    unsigned char dds_channel;
+    unsigned char padding;
 } __attribute__((packed));
 
 
@@ -68,6 +71,9 @@ void analyzer_start(void)
         analyzer_header.sent_bytes = analyzer_header.total_byte_count;
 
     analyzer_header.overflow_occured = rtio_analyzer_message_encoder_overflow_read();
+    analyzer_header.log_channel = 0;
+    analyzer_header.dds_channel = CONFIG_RTIO_DDS_CHANNEL;
+    analyzer_header.padding = 0;
 
     offset_consumed = 0;
     offset_sent = 0;

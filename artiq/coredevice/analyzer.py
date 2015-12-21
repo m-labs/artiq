@@ -58,8 +58,9 @@ def decode_message(data):
 
 
 def decode_dump(data):
-    parts = struct.unpack(">IQI", data[:16])
-    sent_bytes, total_byte_count, overflow_occured = parts
+    parts = struct.unpack(">IQbbbb", data[:16])
+    (sent_bytes, total_byte_count,
+     overflow_occured, log_channel, dds_channel, _) = parts
 
     if sent_bytes + 16 != len(data):
         raise ValueError("analyzer dump has incorrect length")
