@@ -1089,6 +1089,8 @@ class LLVMIRGenerator:
         return self.llbuilder.cbranch(self.map(insn.condition()),
                                       self.map(insn.if_true()), self.map(insn.if_false()))
 
+    process_Loop = process_BranchIf
+
     def process_IndirectBranch(self, insn):
         llinsn = self.llbuilder.branch_indirect(self.map(insn.target()))
         for dest in insn.destinations():
