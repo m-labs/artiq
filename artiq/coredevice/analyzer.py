@@ -185,7 +185,6 @@ def messages_to_vcd(filename, devices, messages):
         channel_handlers = create_channel_handlers(vcd_manager, devices)
 
         vcd_manager.set_time(0)
-        messages = [m for m in messages if get_message_time(m)]  # TODO: remove this hack
         messages = sorted(messages, key=get_message_time)
         if messages:
             start_time = get_message_time(messages[0])
