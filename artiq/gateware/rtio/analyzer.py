@@ -90,7 +90,7 @@ class MessageEncoder(Module, AutoCSR):
                         getattr(ExceptionType, ename).value)
                 )
         for rname in "reset", "reset_phy":
-            r_d = Signal()
+            r_d = Signal(reset=1)
             r = getattr(kcsrs, rname).storage
             self.sync += r_d.eq(r)
             self.comb += [
