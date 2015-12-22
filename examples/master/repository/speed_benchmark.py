@@ -129,8 +129,8 @@ class SpeedBenchmark(EnvExperiment):
 
 class _Report(EnvExperiment):
     def build(self):
-        self.setattr_argument("start_time")
-        self.setattr_argument("nruns")
+        self.setattr_argument("start_time", NumberValue())
+        self.setattr_argument("nruns", NumberValue())
 
     def run(self):
         end_time = time.monotonic()
