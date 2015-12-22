@@ -10,7 +10,7 @@ from functools import wraps
 from artiq.coredevice.runtime import source_loader
 
 
-__all__ = ["host_int", "int",
+__all__ = ["host_int", "int", "host_round", "round",
            "kernel", "portable", "syscall",
            "set_time_manager", "set_watchdog_factory",
            "ARTIQException",
@@ -160,6 +160,11 @@ class int:
     __ge__                        = _compareop(host_int.__ge__,       "__lt__")
     __lt__                        = _compareop(host_int.__lt__,       "__ge__")
     __le__                        = _compareop(host_int.__le__,       "__gt__")
+
+host_round = round
+
+def round(value, width=32):
+    return int(host_round(value), width)
 
 
 _ARTIQEmbeddedInfo = namedtuple("_ARTIQEmbeddedInfo",
@@ -316,7 +321,7 @@ def seconds_to_mu(seconds, core=None):
     """
     if core is None:
         raise ValueError("Core device must be specified for time conversion")
-    return round64(seconds//core.ref_period)
+    return round(seconds//core.ref_period, width=64)
 
 
 def mu_to_seconds(mu, core=None):
