@@ -14,9 +14,6 @@ class RTT(EnvExperiment):
         self.setattr_device("core")
         self.setattr_device("ttl_inout")
 
-    def set_rtt(self, rtt):
-        self.set_dataset("rtt", rtt)
-
     @kernel
     def run(self):
         self.ttl_inout.output()
@@ -38,9 +35,6 @@ class Loopback(EnvExperiment):
         self.setattr_device("loop_in")
         self.setattr_device("loop_out")
 
-    def set_rtt(self, rtt):
-        self.set_dataset("rtt", rtt)
-
     @kernel
     def run(self):
         self.loop_in.input()
@@ -60,9 +54,6 @@ class ClockGeneratorLoopback(EnvExperiment):
         self.setattr_device("loop_clock_in")
         self.setattr_device("loop_clock_out")
 
-    def set_count(self, count):
-        self.set_dataset("count", count)
-
     @kernel
     def run(self):
         self.loop_clock_in.input()
@@ -80,9 +71,6 @@ class PulseRate(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.setattr_device("ttl_out")
-
-    def set_pulse_rate(self, pulse_rate):
-        self.set_dataset("pulse_rate", pulse_rate)
 
     @kernel
     def run(self):
