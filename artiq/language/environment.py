@@ -122,13 +122,14 @@ class HasEnvironment:
     """Provides methods to manage the environment of an experiment (devices,
     parameters, results, arguments)."""
     def __init__(self, device_mgr=None, dataset_mgr=None, *, parent=None,
-                 default_arg_none=False, **kwargs):
+                 default_arg_none=False, enable_processors=False, **kwargs):
         self.requested_args = OrderedDict()
 
         self.__device_mgr = device_mgr
         self.__dataset_mgr = dataset_mgr
         self.__parent = parent
         self.__default_arg_none = default_arg_none
+        self.__enable_processors = enable_processors
 
         self.__kwargs = kwargs
         self.__in_build = True
@@ -187,7 +188,10 @@ class HasEnvironment:
                     return None
                 else:
                     raise
-        return processor.process(argval)
+        if self.__enable_processors:
+            return processor.process(argval)
+        else:
+            return argval
 
     def setattr_argument(self, key, processor=None, group=None):
         """Sets an argument as attribute. The names of the argument and of the

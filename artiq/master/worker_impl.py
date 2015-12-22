@@ -153,7 +153,9 @@ def examine(device_mgr, dataset_mgr, file):
                 name = exp_class.__doc__.splitlines()[0].strip()
                 if name[-1] == ".":
                     name = name[:-1]
-            exp_inst = exp_class(device_mgr, dataset_mgr, default_arg_none=True)
+            exp_inst = exp_class(device_mgr, dataset_mgr,
+                                 default_arg_none=True,
+                                 enable_processors=True)
             arginfo = OrderedDict(
                 (k, (proc.describe(), group))
                 for k, (proc, group) in exp_inst.requested_args.items())
@@ -199,7 +201,8 @@ def main():
                 exp = get_exp(experiment_file, expid["class_name"])
                 device_mgr.virtual_devices["scheduler"].set_run_info(
                     rid, obj["pipeline_name"], expid, obj["priority"])
-                exp_inst = exp(device_mgr, dataset_mgr,
+                exp_inst = exp(
+                    device_mgr, dataset_mgr, enable_processors=True,
                     **expid["arguments"])
                 put_object({"action": "completed"})
             elif action == "prepare":
