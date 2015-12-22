@@ -26,6 +26,17 @@ class RTIOSequenceError(ARTIQException):
     The offending event is discarded and the RTIO core keeps operating.
     """
 
+class RTIOCollisionError(ARTIQException):
+    """Raised when an event is submitted on a given channel with the same
+    coarse timestamp as the previous one but with a different fine timestamp.
+
+    Coarse timestamps correspond to the RTIO system clock (typically around
+    125MHz) whereas fine timestamps correspond to the RTIO SERDES clock
+    (typically around 1GHz).
+
+    The offending event is discarded and the RTIO core keeps operating.
+    """
+
 class RTIOOverflow(ARTIQException):
     """Raised when at least one event could not be registered into the RTIO
     input FIFO because it was full (CPU not reading fast enough).

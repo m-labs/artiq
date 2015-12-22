@@ -5,7 +5,8 @@ from math import sqrt
 
 from artiq.language import *
 from artiq.test.hardware_testbench import ExperimentCase
-from artiq.coredevice.exceptions import RTIOUnderflow, RTIOSequenceError
+from artiq.coredevice.exceptions import (RTIOUnderflow, RTIOSequenceError,
+                                         RTIOCollisionError)
 
 
 class RTT(EnvExperiment):
@@ -235,7 +236,7 @@ class CoredeviceTest(ExperimentCase):
             self.execute(SequenceError)
 
     def test_collision_error(self):
-        with self.assertRaises(runtime_exceptions.RTIOCollisionError):
+        with self.assertRaises(RTIOCollisionError):
             self.execute(CollisionError)
 
     def test_watchdog(self):
