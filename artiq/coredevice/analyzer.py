@@ -128,12 +128,15 @@ class VCDManager:
 
 class TTLHandler:
     def __init__(self, vcd_manager, name):
+        self.name = name
         self.channel_value = vcd_manager.get_channel(name, 1)
         self.last_value = "X"
         self.oe = True
 
     def process_message(self, message):
         if isinstance(message, OutputMessage):
+            logger.debug("TTL write @%d %d to %d, name: %s",
+                message.timestamp, message.data, message.address, self.name)
             if message.address == 0:
                 self.last_value = str(message.data)
                 if self.oe:
