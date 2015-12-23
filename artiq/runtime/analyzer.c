@@ -13,7 +13,7 @@ struct analyzer_header {
     unsigned char overflow_occured;
     unsigned char log_channel;
     unsigned char dds_channel;
-    unsigned char padding;
+    unsigned char dds_onehot_sel;
 } __attribute__((packed));
 
 
@@ -73,7 +73,11 @@ void analyzer_start(void)
     analyzer_header.overflow_occured = rtio_analyzer_message_encoder_overflow_read();
     analyzer_header.log_channel = 0;
     analyzer_header.dds_channel = CONFIG_RTIO_DDS_CHANNEL;
-    analyzer_header.padding = 0;
+#ifdef DDS_ONEHOT_SEL
+    analyzer_header.dds_onehot_sel = 1;
+#else
+    analyzer_header.dds_onehot_sel = 0;
+#endif
 
     offset_consumed = 0;
     offset_sent = 0;

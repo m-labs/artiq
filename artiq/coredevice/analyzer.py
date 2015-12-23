@@ -57,10 +57,14 @@ def decode_message(data):
                                 ExceptionType(exception_type))
 
 
+DecodedDump = namedtuple(
+    "DecodedDump", "log_channel dds_channel dds_onehot_sel messages")
+
+
 def decode_dump(data):
     parts = struct.unpack(">IQbbbb", data[:16])
     (sent_bytes, total_byte_count,
-     overflow_occured, log_channel, dds_channel, _) = parts
+     overflow_occured, log_channel, dds_channel, dds_onehot_sel) = parts
 
     if sent_bytes + 16 != len(data):
         raise ValueError("analyzer dump has incorrect length")
@@ -76,7 +80,9 @@ def decode_dump(data):
     for _ in range(sent_bytes//32):
         messages.append(decode_message(data[position:position+32]))
         position += 32
-    return messages, log_channel, dds_channel
+    return DecodedDump(log_channel,
+                       dds_channel, bool(dds_onehot_sel),
+                       messages)
 
 
 def vcd_codes():
@@ -255,7 +261,8 @@ def get_timescale(devices):
     return timescale
 
 
-def create_channel_handlers(vcd_manager, devices, log_channel, dds_channel):
+def create_channel_handlers(vcd_manager, devices, log_channel,
+                            dds_channel, dds_onehot_sel):
     channel_handlers = dict()
     for name, desc in sorted(devices.items(), key=itemgetter(0)):
         if isinstance(desc, dict) and desc["type"] == "local":
@@ -274,10 +281,8 @@ def create_channel_handlers(vcd_manager, devices, log_channel, dds_channel):
                     if dds_handler.sysclk != sysclk:
                         raise ValueError("All DDS channels must have the same sysclk")
                 else:
-                    # Assume AD9914 systems use one-hot selection signals
-                    # TODO: move one-hot flag declarations into a single place
                     dds_handler = DDSHandler(vcd_manager, desc["class"],
-                        desc["class"] == "AD9914", sysclk)
+                        dds_onehot_sel, sysclk)
                     channel_handlers[dds_channel] = dds_handler
                 dds_handler.add_dds_channel(name, dds_channel_ddsbus)
     return channel_handlers
@@ -287,7 +292,7 @@ def get_message_time(message):
     return getattr(message, "timestamp", message.rtio_counter)
 
 
-def messages_to_vcd(filename, devices, messages, log_channel, dds_channel):
+def decoded_dump_to_vcd(filename, devices, dump):
     vcd_manager = VCDManager(filename)
     try:
         timescale = get_timescale(devices)
@@ -296,11 +301,12 @@ def messages_to_vcd(filename, devices, messages, log_channel, dds_channel):
         else:
             logger.warning("unable to determine VCD timescale")
 
-        channel_handlers = create_channel_handlers(vcd_manager, devices,
-                                                   log_channel, dds_channel)
+        channel_handlers = create_channel_handlers(
+            vcd_manager, devices,
+            dump.log_channel, dump.dds_channel, dump.dds_onehot_sel)
 
         vcd_manager.set_time(0)
-        messages = sorted(messages, key=get_message_time)
+        messages = sorted(dump.messages, key=get_message_time)
         if messages:
             start_time = get_message_time(messages[0])
             for message in messages:
