@@ -76,7 +76,7 @@ def decode_dump(data):
     for _ in range(sent_bytes//32):
         messages.append(decode_message(data[position:position+32]))
         position += 32
-    return messages
+    return messages, log_channel, dds_channel
 
 
 def vcd_codes():
@@ -100,6 +100,10 @@ class VCDChannel:
             self.out.write("b" + value + " " + self.code + "\n")
         else:
             self.out.write(value + self.code + "\n")
+
+    def set_value_double(self, x):
+        integer_cast = struct.unpack(">Q", struct.pack(">d", x))[0]
+        self.set_value("{:064b}".format(integer_cast))
 
 
 class VCDManager:
@@ -149,6 +153,95 @@ class TTLHandler:
                     self.channel_value.set_value("X")
 
 
+class DDSHandler:
+    def __init__(self, vcd_manager, dds_type, onehot_sel, sysclk):
+        self.vcd_manager = vcd_manager
+        self.dds_type = dds_type
+        self.onehot_sel = onehot_sel
+        self.sysclk = sysclk
+
+        self.selected_dds_channels = set()
+        self.dds_channels = dict()
+
+    def add_dds_channel(self, name, dds_channel_nr):
+        dds_channel = dict()
+        dds_channel["vcd_frequency"] = \
+            self.vcd_manager.get_channel(name + "/frequency", 64)
+        dds_channel["vcd_phase"] = \
+            self.vcd_manager.get_channel(name + "/phase", 64)
+        if self.dds_type == "AD9858":
+            dds_channel["ftw"] = [None, None, None, None]
+            dds_channel["pow"] = [None, None]
+        elif self.dds_type == "AD9914":
+            dds_channel["ftw"] = [None, None]
+            dds_channel["pow"] = None
+        self.dds_channels[dds_channel_nr] = dds_channel
+
+    def _gpio_to_channels(self, gpio):
+        gpio >>= 1  # strip reset
+        if self.onehot_sel:
+            r = set()
+            nr = 0
+            mask = 1
+            while gpio >= mask:
+                if gpio & mask:
+                    r.add(nr)
+                nr += 1
+                mask *= 2
+            return r
+        else:
+            return {gpio}
+
+    def _decode_ad9858_write(self, message):
+        if message.address == 0x41:
+            self.selected_dds_channels = self._gpio_to_channels(message.data)
+        for dds_channel_nr in self.selected_dds_channels:
+            dds_channel = self.dds_channels[dds_channel_nr]
+            if message.address in range(0x0a, 0x0e):
+                dds_channel["ftw"][message.address - 0x0a] = message.data
+            elif message.address in range(0x0e, 0x10):
+                dds_channel["pow"][message.address - 0x0e] = message.data
+            elif message.address == 0x40:  # FUD
+                if None not in dds_channel["ftw"]:
+                    ftw = sum(x << i*8
+                              for i, x in enumerate(dds_channel["ftw"]))
+                    frequency = ftw*self.sysclk/2**32
+                    dds_channel["vcd_frequency"].set_value_double(frequency)
+                if None not in dds_channel["pow"]:
+                    pow = dds_channel["pow"][0] | (dds_channel["pow"][1] & 0x3f) << 8
+                    phase = pow/2**14
+                    dds_channel["vcd_phase"].set_value_double(phase)
+
+    def _decode_ad9914_write(self, message):
+        if message.address == 0x81:
+            self.selected_dds_channels = self._gpio_to_channels(message.data)
+        for dds_channel_nr in self.selected_dds_channels:
+            dds_channel = self.dds_channels[dds_channel_nr]
+            if message.address in range(0x2d, 0x2f):
+                dds_channel["ftw"][message.address - 0x2d] = message.data
+            elif message.address == 0x31:
+                dds_channel["pow"] = message.data
+            elif message.address == 0x80:  # FUD
+                if None not in dds_channel["ftw"]:
+                    ftw = sum(x << i*8
+                              for i, x in enumerate(dds_channel["ftw"]))
+                    frequency = ftw*self.sysclk/2**32
+                    dds_channel["vcd_frequency"].set_value_double(frequency)
+                if dds_channel["pow"] is not None:
+                    phase = dds_channel["pow"]/2**16
+                    dds_channel["vcd_phase"].set_value_double(phase)
+
+    def process_message(self, message):
+        if isinstance(message, OutputMessage):
+            logger.debug("DDS write @%d 0x%04x to 0x%02x, selected channels: %s",
+                         message.timestamp, message.data, message.address,
+                         self.selected_dds_channels)
+            if self.dds_type == "AD9858":
+                self._decode_ad9858_write(message)
+            elif self.dds_type == "AD9914":
+                self._decode_ad9914_write(message)
+
+
 def get_timescale(devices):
     timescale = None
     for desc in devices.values():
@@ -162,7 +255,7 @@ def get_timescale(devices):
     return timescale
 
 
-def create_channel_handlers(vcd_manager, devices):
+def create_channel_handlers(vcd_manager, devices, log_channel, dds_channel):
     channel_handlers = dict()
     for name, desc in sorted(devices.items(), key=itemgetter(0)):
         if isinstance(desc, dict) and desc["type"] == "local":
@@ -170,6 +263,23 @@ def create_channel_handlers(vcd_manager, devices):
                     and desc["class"] in {"TTLOut", "TTLInOut"}):
                 channel = desc["arguments"]["channel"]
                 channel_handlers[channel] = TTLHandler(vcd_manager, name)
+            if (desc["module"] == "artiq.coredevice.dds"
+                    and desc["class"] in {"AD9858", "AD9914"}):
+                sysclk = desc["arguments"]["sysclk"]
+                dds_channel_ddsbus = desc["arguments"]["channel"]
+                if dds_channel in channel_handlers:
+                    dds_handler = channel_handlers[dds_channel]
+                    if dds_handler.dds_type != desc["class"]:
+                        raise ValueError("All DDS channels must have the same type")
+                    if dds_handler.sysclk != sysclk:
+                        raise ValueError("All DDS channels must have the same sysclk")
+                else:
+                    # Assume AD9914 systems use one-hot selection signals
+                    # TODO: move one-hot flag declarations into a single place
+                    dds_handler = DDSHandler(vcd_manager, desc["class"],
+                        desc["class"] == "AD9914", sysclk)
+                    channel_handlers[dds_channel] = dds_handler
+                dds_handler.add_dds_channel(name, dds_channel_ddsbus)
     return channel_handlers
 
 
@@ -177,7 +287,7 @@ def get_message_time(message):
     return getattr(message, "timestamp", message.rtio_counter)
 
 
-def messages_to_vcd(filename, devices, messages):
+def messages_to_vcd(filename, devices, messages, log_channel, dds_channel):
     vcd_manager = VCDManager(filename)
     try:
         timescale = get_timescale(devices)
@@ -186,7 +296,8 @@ def messages_to_vcd(filename, devices, messages):
         else:
             logger.warning("unable to determine VCD timescale")
 
-        channel_handlers = create_channel_handlers(vcd_manager, devices)
+        channel_handlers = create_channel_handlers(vcd_manager, devices,
+                                                   log_channel, dds_channel)
 
         vcd_manager.set_time(0)
         messages = sorted(messages, key=get_message_time)

@@ -88,12 +88,16 @@ def main():
         elif args.action == "cfg-erase":
             comm.flash_storage_erase()
         elif args.action == "analyzer-dump":
-            messages = decode_dump(comm.get_analyzer_dump())
+            messages, log_channel, dds_channel = \
+                decode_dump(comm.get_analyzer_dump())
             if args.m:
+                print("Log channel:", log_channel)
+                print("DDS channel:", dds_channel)
                 for message in messages:
                     print(message)
             if args.f:
-                messages_to_vcd(args.f, device_mgr.get_device_db(), messages)
+                messages_to_vcd(args.f, device_mgr.get_device_db(), messages,
+                                log_channel, dds_channel)
     finally:
         device_mgr.close_devices()
 
