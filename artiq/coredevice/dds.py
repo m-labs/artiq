@@ -24,7 +24,7 @@ def dds_batch_exit() -> TNone:
 
 @syscall
 def dds_set(time_mu: TInt64, channel: TInt32, ftw: TInt32,
-            pow: TInt32, phase_mode: TInt32) -> TNone:
+            pow: TInt32, phase_mode: TInt32, amplitude: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 
