@@ -24,7 +24,9 @@ class AnalyzerTest(ExperimentCase):
         exp.run()
 
         dump = decode_dump(comm.get_analyzer_dump())
-        ttl_messages = [msg for msg in dump.messages if isinstance(msg, OutputMessage)]
+        ttl_messages = [msg for msg in dump.messages
+                        if isinstance(msg, OutputMessage)]
         self.assertEqual(len(ttl_messages), 2)
-        self.assertEqual(abs(ttl_messages[0].timestamp - ttl_messages[1].timestamp), 1000)
-
+        self.assertEqual(
+            abs(ttl_messages[0].timestamp - ttl_messages[1].timestamp),
+            1000)
