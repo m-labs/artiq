@@ -391,20 +391,20 @@ To flash the idle kernel:
 
         * Write it into the core device configuration flash storage: ::
 
-                $ artiq_coretool cfg-write -f idle_kernel idle.elf
+                $ artiq_coreconfig cfg-write -f idle_kernel idle.elf
 
-.. note:: You can find more information about how to use the ``artiq_coretool`` utility on the :ref:`Utilities <core-device-access-tool>` page.
+.. note:: You can find more information about how to use the ``artiq_coreconfig`` utility on the :ref:`Utilities <core-device-configuration-tool>` page.
 
 * (optional) Flash the startup kernel
 
-The startup kernel is executed once when the core device powers up. It should initialize DDSes, set up TTL directions, etc. Proceed as with the idle kernel, but using the ``startup_kernel`` key in ``artiq_coretool``.
+The startup kernel is executed once when the core device powers up. It should initialize DDSes, set up TTL directions, etc. Proceed as with the idle kernel, but using the ``startup_kernel`` key in ``artiq_coreconfig``.
 
 * (optional) Select the startup clock
 
 The core device may use either an external clock signal or its internal clock. This clock can be switched dynamically after the PC is connected using the ``external_clock`` parameter of the core device driver; however, one may want to select the clock at power-up so that it is used for the startup and idle kernels. Use one of these commands: ::
 
-    $ artiq_coretool cfg-write -s startup_clock i  # internal clock (default)
-    $ artiq_coretool cfg-write -s startup_clock e  # external clock
+    $ artiq_coreconfig cfg-write -s startup_clock i  # internal clock (default)
+    $ artiq_coreconfig cfg-write -s startup_clock e  # external clock
 
 Ubuntu 15.10+/Debian jessie+ specific instructions
 --------------------------------------------------

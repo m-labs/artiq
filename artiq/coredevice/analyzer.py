@@ -113,8 +113,8 @@ class VCDChannel:
 
 
 class VCDManager:
-    def __init__(self, filename):
-        self.out = open(filename, "w")
+    def __init__(self, fileobj):
+        self.out = fileobj
         self.codes = vcd_codes()
         self.current_time = None
 
@@ -131,9 +131,6 @@ class VCDManager:
         if time != self.current_time:
             self.out.write("#{}\n".format(time))
             self.current_time = time
-
-    def close(self):
-        self.out.close()
 
 
 class TTLHandler:
@@ -292,27 +289,24 @@ def get_message_time(message):
     return getattr(message, "timestamp", message.rtio_counter)
 
 
-def decoded_dump_to_vcd(filename, devices, dump):
-    vcd_manager = VCDManager(filename)
-    try:
-        timescale = get_timescale(devices)
-        if timescale is not None:
-            vcd_manager.set_timescale_ns(timescale)
-        else:
-            logger.warning("unable to determine VCD timescale")
+def decoded_dump_to_vcd(fileobj, devices, dump):
+    vcd_manager = VCDManager(fileobj)
+    timescale = get_timescale(devices)
+    if timescale is not None:
+        vcd_manager.set_timescale_ns(timescale)
+    else:
+        logger.warning("unable to determine VCD timescale")
 
-        channel_handlers = create_channel_handlers(
-            vcd_manager, devices,
-            dump.log_channel, dump.dds_channel, dump.dds_onehot_sel)
+    channel_handlers = create_channel_handlers(
+        vcd_manager, devices,
+        dump.log_channel, dump.dds_channel, dump.dds_onehot_sel)
 
-        vcd_manager.set_time(0)
-        messages = sorted(dump.messages, key=get_message_time)
-        if messages:
-            start_time = get_message_time(messages[0])
-            for message in messages:
-                if message.channel in channel_handlers:
-                    vcd_manager.set_time(
-                        get_message_time(message) - start_time)
-                    channel_handlers[message.channel].process_message(message)
-    finally:
-        vcd_manager.close()
+    vcd_manager.set_time(0)
+    messages = sorted(dump.messages, key=get_message_time)
+    if messages:
+        start_time = get_message_time(messages[0])
+        for message in messages:
+            if message.channel in channel_handlers:
+                vcd_manager.set_time(
+                    get_message_time(message) - start_time)
+                channel_handlers[message.channel].process_message(message)

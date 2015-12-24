@@ -6,12 +6,11 @@ import struct
 from artiq.tools import verbosity_args, init_logger
 from artiq.master.databases import DeviceDB
 from artiq.master.worker_db import DeviceManager
-from artiq.coredevice.analyzer import decode_dump, decoded_dump_to_vcd
 
 
 def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ core device "
-                                                 "remote access tool")
+                                                 "configuration tool")
 
     verbosity_args(parser)
     parser.add_argument("--device-db", default="device_db.pyon",
@@ -19,9 +18,6 @@ def get_argparser():
 
     subparsers = parser.add_subparsers(dest="action")
     subparsers.required = True
-
-    subparsers.add_parser("log",
-                          help="read from the core device log ring buffer")
 
     p_read = subparsers.add_parser("cfg-read",
                                    help="read key from core device config")
@@ -48,14 +44,6 @@ def get_argparser():
                           help="key to be deleted from core device config")
 
     subparsers.add_parser("cfg-erase", help="erase core device config")
-
-    p_analyzer = subparsers.add_parser("analyzer-dump",
-                                       help="dump analyzer contents")
-    p_analyzer.add_argument("-m", default=False, action="store_true",
-                            help="print raw messages")
-    p_analyzer.add_argument("-f", type=str, default="",
-                            help="format and write contents to VCD file")
-
     return parser
 
 
@@ -65,12 +53,9 @@ def main():
     device_mgr = DeviceManager(DeviceDB(args.device_db))
     try:
         comm = device_mgr.get("comm")
-        if args.action != "analyzer-dump":
-            comm.check_ident()
+        comm.check_ident()
 
-        if args.action == "log":
-            print(comm.get_log(), end="")
-        elif args.action == "cfg-read":
+        if args.action == "cfg-read":
             value = comm.flash_storage_read(args.key)
             if not value:
                 print("Key {} does not exist".format(args.key))
@@ -87,16 +72,6 @@ def main():
                 comm.flash_storage_remove(key)
         elif args.action == "cfg-erase":
             comm.flash_storage_erase()
-        elif args.action == "analyzer-dump":
-            decoded_dump = decode_dump(comm.get_analyzer_dump())
-            if args.m:
-                print("Log channel:", decoded_dump.log_channel)
-                print("DDS channel:", decoded_dump.dds_channel)
-                print("DDS one-hot:", decoded_dump.dds_onehot_sel)
-                for message in decoded_dump.messages:
-                    print(message)
-            if args.f:
-                decoded_dump_to_vcd(args.f, device_mgr.get_device_db(), decoded_dump)
     finally:
         device_mgr.close_devices()
 
