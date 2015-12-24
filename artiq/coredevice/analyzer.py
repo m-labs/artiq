@@ -245,17 +245,17 @@ class DDSHandler:
                 self._decode_ad9914_write(message)
 
 
-def get_timescale(devices):
-    timescale = None
+def get_ref_period(devices):
+    ref_period = None
     for desc in devices.values():
         if isinstance(desc, dict) and desc["type"] == "local":
             if (desc["module"] == "artiq.coredevice.core"
                     and desc["class"] == "Core"):
-                if timescale is None:
-                    timescale = desc["arguments"]["ref_period"]*1e9
+                if ref_period is None:
+                    ref_period = desc["arguments"]["ref_period"]
                 else:
                     return None  # more than one core device found
-    return timescale
+    return ref_period
 
 
 def create_channel_handlers(vcd_manager, devices, log_channel,
@@ -291,15 +291,17 @@ def get_message_time(message):
 
 def decoded_dump_to_vcd(fileobj, devices, dump):
     vcd_manager = VCDManager(fileobj)
-    timescale = get_timescale(devices)
-    if timescale is not None:
-        vcd_manager.set_timescale_ns(timescale)
+    ref_period = get_ref_period(devices)
+    if ref_period is not None:
+        vcd_manager.set_timescale_ns(ref_period*1e9)
     else:
-        logger.warning("unable to determine VCD timescale")
+        logger.warning("unable to determine core device ref_period")
+        ref_period = 1e-9  # guess
 
     channel_handlers = create_channel_handlers(
         vcd_manager, devices,
         dump.log_channel, dump.dds_channel, dump.dds_onehot_sel)
+    slack = vcd_manager.get_channel("rtio_slack", 64)
 
     vcd_manager.set_time(0)
     messages = sorted(dump.messages, key=get_message_time)
@@ -310,3 +312,7 @@ def decoded_dump_to_vcd(fileobj, devices, dump):
                 vcd_manager.set_time(
                     get_message_time(message) - start_time)
                 channel_handlers[message.channel].process_message(message)
+                if (hasattr(message, "rtio_counter")
+                        and hasattr(message, "timestamp")):
+                    slack.set_value_double(
+                        (message.timestamp - message.rtio_counter)*ref_period)
