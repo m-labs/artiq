@@ -19,12 +19,12 @@ def get_argparser():
     subparsers = parser.add_subparsers(dest="action")
     subparsers.required = True
 
-    p_read = subparsers.add_parser("cfg-read",
+    p_read = subparsers.add_parser("read",
                                    help="read key from core device config")
     p_read.add_argument("key", type=str,
                         help="key to be read from core device config")
 
-    p_write = subparsers.add_parser("cfg-write",
+    p_write = subparsers.add_parser("write",
                                     help="write key-value records to core "
                                          "device config")
     p_write.add_argument("-s", "--string", nargs=2, action="append",
@@ -37,13 +37,13 @@ def get_argparser():
                          help="key and file whose content to be written to "
                               "core device config")
 
-    p_delete = subparsers.add_parser("cfg-delete",
+    p_delete = subparsers.add_parser("delete",
                                      help="delete key from core device config")
     p_delete.add_argument("key", nargs=argparse.REMAINDER,
                           default=[], type=str,
                           help="key to be deleted from core device config")
 
-    subparsers.add_parser("cfg-erase", help="erase core device config")
+    subparsers.add_parser("erase", help="fully erase core device config")
     return parser
 
 
@@ -55,22 +55,22 @@ def main():
         comm = device_mgr.get("comm")
         comm.check_ident()
 
-        if args.action == "cfg-read":
+        if args.action == "read":
             value = comm.flash_storage_read(args.key)
             if not value:
                 print("Key {} does not exist".format(args.key))
             else:
                 print(value)
-        elif args.action == "cfg-write":
+        elif args.action == "write":
             for key, value in args.string:
                 comm.flash_storage_write(key, value.encode("utf-8"))
             for key, filename in args.file:
                 with open(filename, "rb") as fi:
                     comm.flash_storage_write(key, fi.read())
-        elif args.action == "cfg-delete":
+        elif args.action == "delete":
             for key in args.key:
                 comm.flash_storage_remove(key)
-        elif args.action == "cfg-erase":
+        elif args.action == "erase":
             comm.flash_storage_erase()
     finally:
         device_mgr.close_devices()

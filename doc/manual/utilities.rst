@@ -104,41 +104,41 @@ To use this tool, you need to specify a ``device_db.pyon`` device database file 
 
 To read the record whose key is ``mac``::
 
-    $ artiq_coreconfig cfg-read mac
+    $ artiq_coreconfig read mac
 
 To write the value ``test_value`` in the key ``my_key``::
 
-    $ artiq_coreconfig cfg-write -s my_key test_value
-    $ artiq_coreconfig cfg-read my_key
+    $ artiq_coreconfig write -s my_key test_value
+    $ artiq_coreconfig read my_key
     b'test_value'
 
 You can also write entire files in a record using the ``-f`` parameter. This is useful for instance to write the startup and idle kernels in the flash storage::
 
-    $ artiq_coreconfig cfg-write -f idle_kernel idle.elf
-    $ artiq_coreconfig cfg-read idle_kernel | head -c9
+    $ artiq_coreconfig write -f idle_kernel idle.elf
+    $ artiq_coreconfig read idle_kernel | head -c9
     b'\x7fELF
 
 You can write several records at once::
 
-    $ artiq_coreconfig cfg-write -s key1 value1 -f key2 filename -s key3 value3
+    $ artiq_coreconfig write -s key1 value1 -f key2 filename -s key3 value3
 
 To remove the previously written key ``my_key``::
 
-    $ artiq_coreconfig cfg-delete my_key
+    $ artiq_coreconfig delete my_key
 
 You can remove several keys at once::
 
-    $ artiq_coreconfig cfg-delete key1 key2
+    $ artiq_coreconfig delete key1 key2
 
 To erase the entire flash storage area::
 
-    $ artiq_coreconfig cfg-erase
+    $ artiq_coreconfig erase
 
 You do not need to remove a record in order to change its value, just overwrite it::
 
-    $ artiq_coreconfig cfg-write -s my_key some_value
-    $ artiq_coreconfig cfg-write -s my_key some_other_value
-    $ artiq_coreconfig cfg-read my_key
+    $ artiq_coreconfig write -s my_key some_value
+    $ artiq_coreconfig write -s my_key some_other_value
+    $ artiq_coreconfig read my_key
     b'some_other_value'
 
 .. argparse::
