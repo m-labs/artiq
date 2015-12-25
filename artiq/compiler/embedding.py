@@ -124,7 +124,10 @@ class ASTSynthesizer:
                                                 OrderedDict())
                 instance_type.attributes['__objectid__'] = builtins.TInt32()
 
-                constructor_type = types.TConstructor(instance_type)
+                if issubclass(typ, BaseException):
+                    constructor_type = types.TExceptionConstructor(instance_type)
+                else:
+                    constructor_type = types.TConstructor(instance_type)
                 constructor_type.attributes['__objectid__'] = builtins.TInt32()
                 instance_type.constructor = constructor_type
 

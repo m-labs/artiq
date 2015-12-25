@@ -6,6 +6,12 @@ from artiq.master.worker_db import DeviceManager
 from artiq.coredevice.core import Core, CompileError
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "+diag":
+        del sys.argv[1]
+        diag = True
+    else:
+        diag = False
+
     if len(sys.argv) > 1 and sys.argv[1] == "+compile":
         del sys.argv[1]
         compile_only = True
@@ -30,6 +36,8 @@ def main():
             core.comm.clear_log()
     except CompileError as error:
         print("\n".join(error.__cause__.diagnostic.render(only_line=True)))
+        if not diag:
+            exit(1)
 
 if __name__ == "__main__":
     main()

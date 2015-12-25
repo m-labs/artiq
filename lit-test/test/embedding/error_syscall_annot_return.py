@@ -1,4 +1,4 @@
-# RUN: %python -m artiq.compiler.testbench.embedding %s >%t
+# RUN: %python -m artiq.compiler.testbench.embedding +diag %s >%t
 # RUN: OutputCheck %s --file-to-check=%t
 
 from artiq.language.core import *
