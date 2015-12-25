@@ -183,7 +183,7 @@ class ASTSynthesizer:
                       for kw, value, (arg_loc, equals_loc)
                        in zip(kwargs, kwarg_nodes, kwarg_locs)],
             starargs=None, kwargs=None,
-            type=types.TVar(), iodelay=None,
+            type=types.TVar(), iodelay=None, arg_exprs={},
             begin_loc=begin_loc, end_loc=end_loc, star_loc=None, dstar_loc=None,
             loc=name_loc.join(end_loc))
 
@@ -191,7 +191,7 @@ class ASTSynthesizer:
             node = asttyped.CallT(
                 func=callback_node,
                 args=[node], keywords=[], starargs=None, kwargs=None,
-                type=builtins.TNone(), iodelay=None,
+                type=builtins.TNone(), iodelay=None, arg_exprs={},
                 begin_loc=cb_begin_loc, end_loc=cb_end_loc, star_loc=None, dstar_loc=None,
                 loc=callback_node.loc.join(cb_end_loc))
 
