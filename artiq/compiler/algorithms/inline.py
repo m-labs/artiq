@@ -51,20 +51,19 @@ def inline(call_insn):
         elif isinstance(source_insn, ir.Phi):
             target_insn = ir.Phi()
         elif isinstance(source_insn, ir.Delay):
-            substs        = source_insn.substs()
-            mapped_substs = {var: value_map[substs[var]] for var in substs}
-            const_substs  = {var: iodelay.Const(mapped_substs[var].value)
-                             for var in mapped_substs
-                              if isinstance(mapped_substs[var], ir.Constant)}
-            other_substs  = {var: mapped_substs[var]
-                             for var in mapped_substs
-                              if not isinstance(mapped_substs[var], ir.Constant)}
-            target_insn  = ir.Delay(source_insn.interval.fold(const_substs), other_substs,
-                                    value_map[source_insn.decomposition()],
-                                    value_map[source_insn.target()])
+            target_insn = source_insn.copy(mapper)
+            target_insn.interval = source_insn.interval.fold(call_insn.arg_exprs)
+        elif isinstance(source_insn, ir.Loop):
+            target_insn = source_insn.copy(mapper)
+            target_insn.trip_count = source_insn.trip_count.fold(call_insn.arg_exprs)
+        elif isinstance(source_insn, ir.Call):
+            target_insn = source_insn.copy(mapper)
+            target_insn.arg_exprs = \
+                { arg: source_insn.arg_exprs[arg].fold(call_insn.arg_exprs)
+                  for arg in source_insn.arg_exprs }
         else:
             target_insn = source_insn.copy(mapper)
-            target_insn.name = "i." + source_insn.name
+        target_insn.name = "i." + source_insn.name
         value_map[source_insn] = target_insn
         target_block.append(target_insn)
 

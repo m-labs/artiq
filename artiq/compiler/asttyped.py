@@ -54,6 +54,7 @@ class BoolOpT(ast.BoolOp, commontyped):
 class CallT(ast.Call, commontyped):
     """
     :ivar iodelay: (:class:`iodelay.Expr`)
+    :ivar arg_exprs: (dict of str to :class:`iodelay.Expr`)
     """
 class CompareT(ast.Compare, commontyped):
     pass

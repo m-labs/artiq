@@ -526,9 +526,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 else_tail = tail
 
             if node.trip_count is not None:
-                substs = {var_name: self.current_args[var_name]
-                          for var_name in node.trip_count.free_vars()}
-                head.append(ir.Loop(node.trip_count, substs, phi, cond, body, else_tail))
+                head.append(ir.Loop(node.trip_count, phi, cond, body, else_tail))
             else:
                 head.append(ir.BranchIf(cond, body, else_tail))
             if not post_body.is_terminated():
@@ -1659,10 +1657,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
             assert None not in args
 
             if self.unwind_target is None:
-                insn = self.append(ir.Call(func, args))
+                insn = self.append(ir.Call(func, args, node.arg_exprs))
             else:
                 after_invoke = self.add_block()
-                insn = self.append(ir.Invoke(func, args, after_invoke, self.unwind_target))
+                insn = self.append(ir.Invoke(func, args, node.arg_exprs,
+                                             after_invoke, self.unwind_target))
                 self.current_block = after_invoke
 
             method_key = None
@@ -1672,9 +1671,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         if node.iodelay is not None and not iodelay.is_const(node.iodelay, 0):
             after_delay = self.add_block()
-            substs = {var_name: self.current_args[var_name]
-                      for var_name in node.iodelay.free_vars()}
-            self.append(ir.Delay(node.iodelay, substs, insn, after_delay))
+            self.append(ir.Delay(node.iodelay, insn, after_delay))
             self.current_block = after_delay
 
         return insn

@@ -297,8 +297,8 @@ class IODelayEstimator(algorithm.Visitor):
                     args[arg_name] = arg_node
 
                 free_vars = delay.duration.free_vars()
-                call_delay = delay.duration.fold(
-                    { arg: self.evaluate(args[arg], abort=abort) for arg in free_vars })
+                node.arg_exprs = { arg: self.evaluate(args[arg], abort=abort) for arg in free_vars }
+                call_delay = delay.duration.fold(node.arg_exprs)
             else:
                 assert False
         else:
