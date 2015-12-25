@@ -167,6 +167,7 @@ class Instruction(User):
         self_copy = self.__class__.__new__(self.__class__)
         Instruction.__init__(self_copy, list(map(mapper, self.operands)),
                              self.type, self.name)
+        self_copy.loc = self.loc
         return self_copy
 
     def set_basic_block(self, new_basic_block):
