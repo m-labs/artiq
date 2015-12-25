@@ -1626,7 +1626,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             for index, arg_node in enumerate(node.args):
                 arg = self.visit(arg_node)
-                if index < len(fn_typ.args):
+                if index + offset < len(fn_typ.args):
                     args[index + offset] = arg
                 else:
                     args[index + offset] = self.append(ir.Alloc([arg], ir.TOption(arg.type)))
