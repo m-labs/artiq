@@ -234,8 +234,8 @@ class TFunction(Type):
     """
 
     attributes = OrderedDict([
-        ('__code__',    _TPointer()),
         ('__closure__', _TPointer()),
+        ('__code__',    _TPointer()),
     ])
 
     def __init__(self, args, optargs, ret):
