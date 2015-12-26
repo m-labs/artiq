@@ -136,7 +136,7 @@ class VCDManager:
 class TTLHandler:
     def __init__(self, vcd_manager, name):
         self.name = name
-        self.channel_value = vcd_manager.get_channel(name, 1)
+        self.channel_value = vcd_manager.get_channel("ttl/" + name, 1)
         self.last_value = "X"
         self.oe = True
 
@@ -169,9 +169,9 @@ class DDSHandler:
     def add_dds_channel(self, name, dds_channel_nr):
         dds_channel = dict()
         dds_channel["vcd_frequency"] = \
-            self.vcd_manager.get_channel(name + "/frequency", 64)
+            self.vcd_manager.get_channel("dds/" + name + "/frequency", 64)
         dds_channel["vcd_phase"] = \
-            self.vcd_manager.get_channel(name + "/phase", 64)
+            self.vcd_manager.get_channel("dds/" + name + "/phase", 64)
         if self.dds_type == "AD9858":
             dds_channel["ftw"] = [None, None, None, None]
             dds_channel["pow"] = [None, None]
