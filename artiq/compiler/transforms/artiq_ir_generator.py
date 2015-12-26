@@ -417,6 +417,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.current_block = head
             old_continue, self.continue_target = self.continue_target, head
             cond = self.visit(node.test)
+            post_head = self.current_block
 
             break_block = self.add_block("while.break")
             old_break, self.break_target = self.break_target, break_block
@@ -441,7 +442,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             else:
                 else_tail = tail
 
-            head.append(ir.BranchIf(cond, body, else_tail))
+            post_head.append(ir.BranchIf(cond, body, else_tail))
             if not post_body.is_terminated():
                 post_body.append(ir.Branch(head))
             break_block.append(ir.Branch(tail))
