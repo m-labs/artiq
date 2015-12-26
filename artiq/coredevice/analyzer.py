@@ -148,12 +148,14 @@ class TTLHandler:
                 self.last_value = str(message.data)
                 if self.oe:
                     self.channel_value.set_value(self.last_value)
-            elif messages.address == 1:
+            elif message.address == 1:
                 self.oe = bool(message.data)
                 if self.oe:
                     self.channel_value.set_value(self.last_value)
                 else:
                     self.channel_value.set_value("X")
+        elif isinstance(message, InputMessage):
+            self.channel_value.set_value(str(message.data))
 
 
 class DDSHandler:
