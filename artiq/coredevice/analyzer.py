@@ -312,7 +312,6 @@ def decoded_dump_to_vcd(fileobj, devices, dump):
                 vcd_manager.set_time(
                     get_message_time(message) - start_time)
                 channel_handlers[message.channel].process_message(message)
-                if (hasattr(message, "rtio_counter")
-                        and hasattr(message, "timestamp")):
+                if isinstance(message, OutputMessage):
                     slack.set_value_double(
                         (message.timestamp - message.rtio_counter)*ref_period)
