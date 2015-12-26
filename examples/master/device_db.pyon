@@ -66,6 +66,12 @@
         "class": "TTLOut",
         "arguments": {"channel": 18}
     },
+    "ttl15": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLClockGen",
+        "arguments": {"channel": 19}
+    },
 
     "dds_bus": {
         "type": "local",
