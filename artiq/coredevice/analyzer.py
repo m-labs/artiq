@@ -264,6 +264,59 @@ class DDSHandler:
                 self._decode_ad9914_write(message)
 
 
+def _extract_log_chars(data):
+    r = ""
+    for i in range(4):
+        n = data >> 24
+        data = (data << 8) & 0xffffffff
+        if not n:
+            return r
+        r += chr(n)
+    return r
+
+
+class LogHandler:
+    def __init__(self, vcd_manager, vcd_log_channels):
+        self.vcd_channels = dict()
+        for name, maxlength in vcd_log_channels.items():
+            self.vcd_channels[name] = vcd_manager.get_channel("log/" + name,
+                                                              maxlength*8)
+        self.current_entry = ""
+
+    def process_message(self, message):
+        if isinstance(message, OutputMessage):
+            message_payload = _extract_log_chars(message.data)
+            self.current_entry += message_payload
+            if len(message_payload) < 4:
+                channel_name, log_message = \
+                    self.current_entry.split(":", maxsplit=1)
+                vcd_value = ""
+                for c in log_message:
+                    vcd_value += "{:08b}".format(ord(c))
+                self.vcd_channels[channel_name].set_value(vcd_value)
+                self.current_entry = ""
+
+
+def get_vcd_log_channels(log_channel, messages):
+    vcd_log_channels = dict()
+    log_entry = ""
+    for message in messages:
+        if (isinstance(message, OutputMessage)
+                and message.channel == log_channel):
+            message_payload = _extract_log_chars(message.data)
+            log_entry += message_payload
+            if len(message_payload) < 4:
+                channel_name, log_message = log_entry.split(":", maxsplit=1)
+                l = len(log_message)
+                if channel_name in vcd_log_channels:
+                    if vcd_log_channels[channel_name] < l:
+                        vcd_log_channels[channel_name] = l
+                else:
+                    vcd_log_channels[channel_name] = l
+                log_entry = ""
+    return vcd_log_channels
+
+
 def get_ref_period(devices):
     ref_period = None
     for desc in devices.values():
@@ -278,7 +331,7 @@ def get_ref_period(devices):
 
 
 def create_channel_handlers(vcd_manager, devices, ref_period,
-                            log_channel, dds_channel, dds_onehot_sel):
+                            dds_channel, dds_onehot_sel):
     channel_handlers = dict()
     for name, desc in sorted(devices.items(), key=itemgetter(0)):
         if isinstance(desc, dict) and desc["type"] == "local":
@@ -321,13 +374,16 @@ def decoded_dump_to_vcd(fileobj, devices, dump):
         logger.warning("unable to determine core device ref_period")
         ref_period = 1e-9  # guess
 
+    messages = sorted(dump.messages, key=get_message_time)
+
     channel_handlers = create_channel_handlers(
         vcd_manager, devices, ref_period,
-        dump.log_channel, dump.dds_channel, dump.dds_onehot_sel)
+        dump.dds_channel, dump.dds_onehot_sel)
+    vcd_log_channels = get_vcd_log_channels(dump.log_channel, messages)
+    channel_handlers[dump.log_channel] = LogHandler(vcd_manager, vcd_log_channels)
     slack = vcd_manager.get_channel("rtio_slack", 64)
 
     vcd_manager.set_time(0)
-    messages = sorted(dump.messages, key=get_message_time)
     if messages:
         start_time = get_message_time(messages[0])
         for message in messages:
