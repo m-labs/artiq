@@ -310,6 +310,15 @@ class Channel:
         return cls(phy.rtlink, probes, overrides, **kwargs)
 
 
+class LogChannel:
+    """A degenerate channel used to log messages into the analyzer."""
+    def __init__(self):
+        self.interface = rtlink.Interface(
+            rtlink.OInterface(32, suppress_nop=False))
+        self.probes = []
+        self.overrides = []
+
+
 class _KernelCSRs(AutoCSR):
     def __init__(self, chan_sel_width,
                  data_width, address_width, full_ts_width):
@@ -385,6 +394,12 @@ class RTIO(Module):
         o_statuses, i_statuses = [], []
         sel = self.kcsrs.chan_sel.storage
         for n, channel in enumerate(channels):
+            if isinstance(channel, LogChannel):
+                i_datas.append(0)
+                i_timestamps.append(0)
+                i_statuses.append(0)
+                continue
+
             selected = Signal()
             self.comb += selected.eq(sel == n)
 
