@@ -107,6 +107,7 @@ static const struct symbol runtime_exports[] = {
 
     /* direct syscalls */
     {"rtio_get_counter", &rtio_get_counter},
+    {"rtio_log", &rtio_log},
 
     {"ttl_set_o", &ttl_set_o},
     {"ttl_set_oe", &ttl_set_oe},
@@ -167,13 +168,15 @@ int fprintf(FILE *stream, const char *fmt, ...)
 }
 
 /* called by libunwind */
-int dladdr (const void *address, Dl_info *info) {
+int dladdr (const void *address, Dl_info *info)
+{
     /* we don't try to resolve names */
     return 0;
 }
 
 /* called by libunwind */
-int dl_iterate_phdr (int (*callback) (struct dl_phdr_info *, size_t, void *), void *data) {
+int dl_iterate_phdr (int (*callback)(struct dl_phdr_info *, size_t, void *), void *data)
+{
     Elf32_Ehdr *ehdr;
     struct dl_phdr_info phdr_info;
     int retval;
@@ -200,7 +203,8 @@ int dl_iterate_phdr (int (*callback) (struct dl_phdr_info *, size_t, void *), vo
     return retval;
 }
 
-static Elf32_Addr resolve_runtime_export(const char *name) {
+static Elf32_Addr resolve_runtime_export(const char *name)
+{
     const struct symbol *sym = runtime_exports;
     while(sym->name) {
         if(!strcmp(sym->name, name))

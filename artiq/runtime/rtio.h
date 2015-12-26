@@ -14,6 +14,7 @@
 void rtio_init(void);
 long long int rtio_get_counter(void);
 void rtio_process_exceptional_status(int status, long long int timestamp, int channel);
+void rtio_log(long long int timestamp, char *message);
 
 static inline void rtio_write_and_process_status(long long int timestamp, int channel)
 {
