@@ -185,6 +185,10 @@ class NIST_QC1(_NIST_QCx):
         rtio_channels.append(rtio.Channel.from_phy(phy,
                                                    ofifo_depth=512,
                                                    ififo_depth=4))
+
+        self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
+        rtio_channels.append(rtio.LogChannel())
+
         self.add_rtio(rtio_channels)
 
 
@@ -230,6 +234,10 @@ class NIST_QC2(_NIST_QCx):
         rtio_channels.append(rtio.Channel.from_phy(phy,
                                                    ofifo_depth=512,
                                                    ififo_depth=4))
+
+        self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
+        rtio_channels.append(rtio.LogChannel())
+
         self.add_rtio(rtio_channels)
 
 

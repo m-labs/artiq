@@ -190,6 +190,9 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
                                                    ofifo_depth=512,
                                                    ififo_depth=4))
 
+        self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
+        rtio_channels.append(rtio.LogChannel())
+
         # RTIO core
         self.submodules.rtio = rtio.RTIO(rtio_channels)
         self.config["RTIO_FINE_TS_WIDTH"] = self.rtio.fine_ts_width
