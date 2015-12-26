@@ -290,8 +290,13 @@ class _InputManager(Module):
 
 
 class Channel:
-    def __init__(self, interface, probes=[], overrides=[],
+    def __init__(self, interface, probes=None, overrides=None,
                  ofifo_depth=64, ififo_depth=64):
+        if probes is None:
+            probes = []
+        if overrides is None:
+            overrides = []
+
         self.interface = interface
         self.probes = probes
         self.overrides = overrides
