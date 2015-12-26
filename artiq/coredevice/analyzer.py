@@ -155,7 +155,24 @@ class TTLHandler:
                 else:
                     self.channel_value.set_value("X")
         elif isinstance(message, InputMessage):
+            logger.debug("TTL read  @%d %d, name: %s",
+                message.timestamp, message.data, self.name)
             self.channel_value.set_value(str(message.data))
+
+
+class TTLClockGenHandler:
+    def __init__(self, vcd_manager, name, ref_period):
+        self.name = name
+        self.ref_period = ref_period
+        self.channel_frequency = vcd_manager.get_channel(
+            "ttl_clkgen/" + name, 64)
+
+    def process_message(self, message):
+        if isinstance(message, OutputMessage):
+            logger.debug("TTL_CLKGEN write @%d %d to %d, name: %s",
+                message.timestamp, message.data, message.address, self.name)
+            frequency = message.data/self.ref_period/2**24
+            self.channel_frequency.set_value_double(frequency)
 
 
 class DDSHandler:
@@ -260,8 +277,8 @@ def get_ref_period(devices):
     return ref_period
 
 
-def create_channel_handlers(vcd_manager, devices, log_channel,
-                            dds_channel, dds_onehot_sel):
+def create_channel_handlers(vcd_manager, devices, ref_period,
+                            log_channel, dds_channel, dds_onehot_sel):
     channel_handlers = dict()
     for name, desc in sorted(devices.items(), key=itemgetter(0)):
         if isinstance(desc, dict) and desc["type"] == "local":
@@ -269,6 +286,10 @@ def create_channel_handlers(vcd_manager, devices, log_channel,
                     and desc["class"] in {"TTLOut", "TTLInOut"}):
                 channel = desc["arguments"]["channel"]
                 channel_handlers[channel] = TTLHandler(vcd_manager, name)
+            if (desc["module"] == "artiq.coredevice.ttl"
+                    and desc["class"] == "TTLClockGen"):
+                channel = desc["arguments"]["channel"]
+                channel_handlers[channel] = TTLClockGenHandler(vcd_manager, name, ref_period)
             if (desc["module"] == "artiq.coredevice.dds"
                     and desc["class"] in {"AD9858", "AD9914"}):
                 sysclk = desc["arguments"]["sysclk"]
@@ -301,7 +322,7 @@ def decoded_dump_to_vcd(fileobj, devices, dump):
         ref_period = 1e-9  # guess
 
     channel_handlers = create_channel_handlers(
-        vcd_manager, devices,
+        vcd_manager, devices, ref_period,
         dump.log_channel, dump.dds_channel, dump.dds_onehot_sel)
     slack = vcd_manager.get_channel("rtio_slack", 64)
 
