@@ -50,8 +50,8 @@ void rtio_log(long long int timestamp, char *message)
     i = 0;
     word = 0;
     while(1) {
-        word >>= 8;
-        word |= *message << 24;
+        word <<= 8;
+        word |= *message & 0xff;
         if(*message == 0) {
             rtio_o_data_write(word);
             rtio_o_we_write(1);
