@@ -5,7 +5,7 @@ import sys
 
 from artiq.devices.thorlabs_tcube.driver import Tdc, Tpz, TdcSim, TpzSim
 from artiq.protocols.pc_rpc import simple_server_loop
-from artiq.tools import verbosity_args, simple_network_args, init_logger
+from artiq.tools import *
 
 
 def get_argparser():
@@ -54,7 +54,8 @@ def main():
             sys.exit(1)
 
     try:
-        simple_server_loop({product: dev}, args.bind, args.port)
+        simple_server_loop({product: dev},
+                           bind_address_from_args(args), args.port)
     finally:
         dev.close()
 

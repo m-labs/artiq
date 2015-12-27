@@ -6,7 +6,7 @@ import sys
 
 from artiq.protocols.pc_rpc import simple_server_loop
 from artiq.devices.pxi6733.driver import DAQmx, DAQmxSim
-from artiq.tools import verbosity_args, init_logger, simple_network_args
+from artiq.tools import *
 
 
 def get_argparser():
@@ -40,7 +40,7 @@ def main():
 
     try:
         simple_server_loop({"pxi6733": daq},
-                           args.bind, args.port)
+                           bind_address_from_args(args), args.port)
     finally:
         daq.close()
 

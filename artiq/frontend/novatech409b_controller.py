@@ -8,7 +8,7 @@ import sys
 
 from artiq.devices.novatech409b.driver import Novatech409B
 from artiq.protocols.pc_rpc import simple_server_loop
-from artiq.tools import verbosity_args, simple_network_args, init_logger
+from artiq.tools import *
 
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ def main():
     dev = Novatech409B(args.device if not args.simulation else None)
     try:
         simple_server_loop(
-            {"novatech409b": dev}, args.bind, args.port)
+            {"novatech409b": dev}, bind_address_from_args(args), args.port)
     finally:
         dev.close()
 

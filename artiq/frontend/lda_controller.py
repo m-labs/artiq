@@ -4,7 +4,7 @@ import argparse
 
 from artiq.devices.lda.driver import Lda, Ldasim
 from artiq.protocols.pc_rpc import simple_server_loop
-from artiq.tools import verbosity_args, simple_network_args, init_logger
+from artiq.tools import *
 
 
 def get_argparser():
@@ -36,7 +36,7 @@ def main():
         lda = Lda(args.device, args.product)
     try:
         simple_server_loop({"lda": lda},
-                           args.bind, args.port)
+                           bind_address_from_args(args), args.port)
     finally:
         lda.close()
 

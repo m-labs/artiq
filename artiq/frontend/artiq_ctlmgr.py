@@ -15,7 +15,7 @@ from artiq.protocols.pc_rpc import AsyncioClient, Server
 from artiq.protocols.logging import (LogForwarder,
                                      parse_log_message, log_with_name,
                                      SourceFilter)
-from artiq.tools import TaskObject, Condition, atexit_register_coroutine
+from artiq.tools import *
 
 
 logger = logging.getLogger(__name__)
@@ -284,12 +284,7 @@ def get_argparser():
     parser.add_argument(
         "--retry-master", default=5.0, type=float,
         help="retry timer for reconnecting to master")
-    parser.add_argument(
-        "--bind", default="::1",
-        help="hostname or IP address to bind to")
-    parser.add_argument(
-        "--bind-port", default=3249, type=int,
-        help="TCP port to listen to for control (default: %(default)d)")
+    simple_network_args(parser, [("control", "control", 3249)])
     return parser
 
 
@@ -330,7 +325,8 @@ def main():
 
     rpc_target = CtlMgrRPC()
     rpc_server = Server({"ctlmgr": rpc_target}, builtin_terminate=True)
-    loop.run_until_complete(rpc_server.start(args.bind, args.bind_port))
+    loop.run_until_complete(rpc_server.start(bind_address_from_args(args),
+                                             args.port_control))
     atexit_register_coroutine(rpc_server.stop)
 
     loop.run_until_complete(rpc_server.wait_terminate())

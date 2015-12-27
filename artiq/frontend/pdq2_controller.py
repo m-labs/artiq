@@ -5,7 +5,7 @@ import sys
 
 from artiq.devices.pdq2.driver import Pdq2
 from artiq.protocols.pc_rpc import simple_server_loop
-from artiq.tools import verbosity_args, init_logger, simple_network_args
+from artiq.tools import *
 
 
 def get_argparser():
@@ -38,7 +38,7 @@ def main():
         port = open(args.dump, "wb")
     dev = Pdq2(url=args.device, dev=port)
     try:
-        simple_server_loop({"pdq2": dev}, args.bind, args.port,
+        simple_server_loop({"pdq2": dev}, bind_address_from_args(args), args.port,
                            description="device=" + str(args.device))
     finally:
         dev.close()

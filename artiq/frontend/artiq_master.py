@@ -5,7 +5,7 @@ import argparse
 import atexit
 import os
 
-from artiq.tools import atexit_register_coroutine
+from artiq.tools import *
 from artiq.protocols.pc_rpc import Server as RPCServer
 from artiq.protocols.sync_struct import Publisher
 from artiq.protocols.logging import Server as LoggingServer
@@ -19,19 +19,11 @@ from artiq.master.experiments import FilesystemBackend, GitBackend, ExperimentDB
 def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ master")
 
-    group = parser.add_argument_group("network")
-    group.add_argument(
-        "--bind", default="::1",
-        help="hostname or IP address to bind to")
-    group.add_argument(
-        "--port-notify", default=3250, type=int,
-        help="TCP port to listen to for notifications (default: %(default)d)")
-    group.add_argument(
-        "--port-control", default=3251, type=int,
-        help="TCP port to listen to for control (default: %(default)d)")
-    group.add_argument(
-        "--port-logging", default=1066, type=int,
-        help="TCP port to listen to for remote logging (default: %(default)d)")
+    simple_network_args(parser, [
+        ("notify", "notifications", 3250),
+        ("control", "control", 3251),
+        ("logging", "remote logging", 1066)
+    ])
 
     group = parser.add_argument_group("databases")
     group.add_argument("--device-db", default="device_db.pyon",
@@ -93,6 +85,8 @@ def main():
     scheduler.start()
     atexit_register_coroutine(scheduler.stop)
 
+    bind = bind_address_from_args(args)
+
     server_control = RPCServer({
         "master_device_db": device_db,
         "master_dataset_db": dataset_db,
@@ -100,7 +94,7 @@ def main():
         "master_experiment_db": experiment_db
     })
     loop.run_until_complete(server_control.start(
-        args.bind, args.port_control))
+        bind, args.port_control))
     atexit_register_coroutine(server_control.stop)
 
     server_notify = Publisher({
@@ -111,12 +105,12 @@ def main():
         "log": log_buffer.data
     })
     loop.run_until_complete(server_notify.start(
-        args.bind, args.port_notify))
+        bind, args.port_notify))
     atexit_register_coroutine(server_notify.stop)
 
     server_logging = LoggingServer()
     loop.run_until_complete(server_logging.start(
-        args.bind, args.port_logging))
+        bind, args.port_logging))
     atexit_register_coroutine(server_logging.stop)
 
     loop.run_forever()

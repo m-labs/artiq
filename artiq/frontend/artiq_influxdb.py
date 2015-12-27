@@ -46,14 +46,9 @@ def get_argparser():
         "--table", default="lab", help="table name to use")
     group = parser.add_argument_group("filter")
     group.add_argument(
-        "--bind", default="::1",
-        help="hostname or IP address to bind to")
-    group.add_argument(
-        "--bind-port", default=3248, type=int,
-        help="TCP port to listen to for control (default: %(default)d)")
-    group.add_argument(
         "--pattern-file", default="influxdb_patterns.pyon",
         help="file to save the patterns in (default: %(default)s)")
+    simple_network_args(parser, [("control", "control", 3248)])
     verbosity_args(parser)
     return parser
 
@@ -248,7 +243,8 @@ def main():
 
     filter = Filter(args.pattern_file)
     rpc_server = Server({"influxdb_filter": filter}, builtin_terminate=True)
-    loop.run_until_complete(rpc_server.start(args.bind, args.bind_port))
+    loop.run_until_complete(rpc_server.start(bind_address_from_args(args),
+                                             args.port_control))
     atexit_register_coroutine(rpc_server.stop)
 
     reader = MasterReader(args.server_master, args.port_master,

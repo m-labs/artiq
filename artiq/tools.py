@@ -18,7 +18,8 @@ from artiq.protocols import pyon
 
 __all__ = ["artiq_dir", "parse_arguments", "elide", "short_format", "file_import",
            "get_experiment", "verbosity_args", "simple_network_args", "init_logger",
-           "atexit_register_coroutine", "exc_to_warning", "asyncio_wait_or_cancel",
+           "bind_address_from_args", "atexit_register_coroutine",
+           "exc_to_warning", "asyncio_wait_or_cancel",
            "TaskObject", "Condition", "get_windows_drives"]
 
 
@@ -117,15 +118,32 @@ def verbosity_args(parser):
 
 
 def simple_network_args(parser, default_port):
-    group = parser.add_argument_group("network")
-    group.add_argument("--bind", default="::1",
-                       help="hostname or IP address to bind to")
-    group.add_argument("-p", "--port", default=default_port, type=int,
-                       help="TCP port to listen to (default: %(default)d)")
-
+    group = parser.add_argument_group("network server")
+    group.add_argument(
+        "--bind", default=[], action="append",
+        help="add an hostname or IP address to bind to")
+    group.add_argument(
+        "--no-localhost-bind", default=False, action="store_true",
+        help="do not implicitly bind to localhost addresses")
+    if isinstance(default_port, int):
+        group.add_argument("-p", "--port", default=default_port, type=int,
+                           help="TCP port to listen to (default: %(default)d)")
+    else:
+        for name, purpose, default in default_port:
+            h = ("TCP port to listen to for {} (default: {})"
+                  .format(purpose, default))
+            group.add_argument("--port-" + name, default=default, type=int,
+                           help=h)
 
 def init_logger(args):
     logging.basicConfig(level=logging.WARNING + args.quiet*10 - args.verbose*10)
+
+
+def bind_address_from_args(args):
+    if args.no_localhost_bind:
+        return args.bind
+    else:
+        return ["127.0.0.1", "::1"] + args.bind
 
 
 def atexit_register_coroutine(coroutine, loop=None):
