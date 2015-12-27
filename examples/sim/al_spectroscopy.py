@@ -13,8 +13,8 @@ class AluminumSpectroscopy(EnvExperiment):
         self.setattr_device("state_detection")
         self.setattr_device("pmt")
         self.setattr_dataset("spectroscopy_freq", 432*MHz)
-        self.setattr_argument("photon_limit_low", FreeValue(10))
-        self.setattr_argument("photon_limit_high", FreeValue(15))
+        self.setattr_argument("photon_limit_low", NumberValue(10))
+        self.setattr_argument("photon_limit_high", NumberValue(15))
 
     @kernel
     def run(self):
