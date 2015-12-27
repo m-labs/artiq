@@ -12,7 +12,7 @@ class Core:
 
     def run(self, k_function, k_args, k_kwargs):
         self._level += 1
-        r = k_function(*k_args, **k_kwargs)
+        r = k_function.artiq_embedded.function(*k_args, **k_kwargs)
         self._level -= 1
         if self._level == 0:
             print(time.manager.format_timeline())
