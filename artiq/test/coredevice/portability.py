@@ -42,10 +42,13 @@ class _Misc(EnvExperiment):
         self.al = [1, 2, 3, 4, 5]
         self.list_copy_in = [2*Hz, 10*MHz]
 
+        self.half_input = 0
+        self.acc = 0
+        self.list_copy_out = []
+
     @kernel
     def run(self):
         self.half_input = self.input//2
-        self.decimal_fraction = Fraction("1.2")
         self.acc = 0
         for i in range(len(self.al)):
             self.acc += self.al[i]
@@ -190,7 +193,6 @@ class HostVsDeviceCase(ExperimentCase):
         for f in self.execute, _run_on_host:
             uut = f(_Misc)
             self.assertEqual(uut.half_input, 42)
-            self.assertEqual(uut.decimal_fraction, Fraction("1.2"))
             self.assertEqual(uut.acc, sum(uut.al))
             self.assertEqual(uut.list_copy_in, uut.list_copy_out)
 
