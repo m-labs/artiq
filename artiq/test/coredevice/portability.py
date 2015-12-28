@@ -142,7 +142,7 @@ class _Exceptions(EnvExperiment):
                     raise _MyException
                 elif i == 2:
                     raise IndexError
-            except (TypeError, IndexError):
+            except IndexError:
                 self.trace.append(101)
                 raise
             except:
