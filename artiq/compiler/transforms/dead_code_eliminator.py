@@ -1,6 +1,7 @@
 """
-:class:`DeadCodeEliminator` is a very simple dead code elimination
-transform: it only removes basic blocks with no predecessors.
+:class:`DeadCodeEliminator` is a dead code elimination transform:
+it only basic blocks with no predecessors as well as unused
+instructions without side effects.
 """
 
 from .. import ir
