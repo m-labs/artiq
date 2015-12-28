@@ -341,12 +341,14 @@ class CommGeneric:
 
     def _receive_rpc_args(self, object_map, defaults):
         args = []
+        default_arg_num = 0
         while True:
             value = self._receive_rpc_value(object_map)
             if value is self._rpc_sentinel:
                 return args
             elif value is self._rpc_undefined:
-                args.append(defaults[len(args)])
+                args.append(defaults[default_arg_num])
+                default_arg_num += 1
             else:
                 args.append(value)
 
