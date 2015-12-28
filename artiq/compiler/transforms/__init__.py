@@ -4,5 +4,6 @@ from .int_monomorphizer import IntMonomorphizer
 from .iodelay_estimator import IODelayEstimator
 from .artiq_ir_generator import ARTIQIRGenerator
 from .dead_code_eliminator import DeadCodeEliminator
+from .cfg_simplifier import CFGSimplifier
 from .llvm_ir_generator import LLVMIRGenerator
 from .interleaver import Interleaver

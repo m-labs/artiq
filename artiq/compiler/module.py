@@ -55,6 +55,7 @@ class Module:
         artiq_ir_generator = transforms.ARTIQIRGenerator(engine=self.engine,
                                                          module_name=src.name,
                                                          ref_period=ref_period)
+        cfg_simplifier = transforms.CFGSimplifier(engine=self.engine)
         dead_code_eliminator = transforms.DeadCodeEliminator(engine=self.engine)
         local_access_validator = validators.LocalAccessValidator(engine=self.engine)
         devirtualization = analyses.Devirtualization()
@@ -70,6 +71,7 @@ class Module:
         devirtualization.visit(src.typedtree)
         self.artiq_ir = artiq_ir_generator.visit(src.typedtree)
         artiq_ir_generator.annotate_calls(devirtualization)
+        cfg_simplifier.process(self.artiq_ir)
         local_access_validator.process(self.artiq_ir)
         dead_code_eliminator.process(self.artiq_ir)
         interleaver.process(self.artiq_ir)
