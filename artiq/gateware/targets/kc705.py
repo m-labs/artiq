@@ -45,6 +45,18 @@ class _RTIOCRG(Module, AutoCSR):
                                   i_I=user_sma_clock.p, i_IB=user_sma_clock.n,
                                   o_O=rtio_external_clk)
 
+        rtio_half_internal_clk = Signal()
+        self.specials += Instance("BUFR",
+                                  p_BUFR_DIVIDE="2", i_CE=1, i_CLR=0,
+                                  i_I=rtio_internal_clk,
+                                  o_O=rtio_half_internal_clk)
+
+        rtio_half_external_clk = Signal()
+        self.specials += Instance("BUFR",
+                                  p_BUFR_DIVIDE="2", i_CE=1, i_CLR=0,
+                                  i_I=rtio_external_clk,
+                                  o_O=rtio_half_external_clk)
+
         pll_locked = Signal()
         rtio_clk = Signal()
         rtiox4_clk = Signal()
@@ -54,13 +66,15 @@ class _RTIOCRG(Module, AutoCSR):
                      p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
 
                      p_REF_JITTER1=0.01,
-                     p_CLKIN1_PERIOD=8.0, p_CLKIN2_PERIOD=8.0,
-                     i_CLKIN1=rtio_internal_clk, i_CLKIN2=rtio_external_clk,
+                     p_CLKIN1_PERIOD=16.0, p_CLKIN2_PERIOD=16.0,
+                     i_CLKIN1=rtio_half_internal_clk,
+                     i_CLKIN2=rtio_half_external_clk,
                      # Warning: CLKINSEL=0 means CLKIN2 is selected
                      i_CLKINSEL=~self._clock_sel.storage,
 
-                     # VCO @ 1GHz when using 125MHz input
-                     p_CLKFBOUT_MULT=8, p_DIVCLK_DIVIDE=1,
+                     # VCO @ 1GHz when using 62.5MHz input at the PLL
+                     # (125MHz on SMA)
+                     p_CLKFBOUT_MULT=16, p_DIVCLK_DIVIDE=1,
                      i_CLKFBIN=self.cd_rtio.clk,
                      i_RST=self._pll_reset.storage,
 
