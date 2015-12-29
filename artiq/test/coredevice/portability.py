@@ -58,13 +58,14 @@ class _Misc(EnvExperiment):
 class _PulseLogger(EnvExperiment):
     def build(self):
         self.setattr_device("core")
-        self.setattr_argument("output_list")
+        self.setattr_argument("parent_test")
         self.setattr_argument("name")
 
     def _append(self, t, l, f):
-        if not hasattr(self, "first_timestamp"):
-            self.first_timestamp = t
-        self.output_list.append((self.name, t-self.first_timestamp, l, f))
+        if not hasattr(self.parent_test, "first_timestamp"):
+            self.parent_test.first_timestamp = t
+        self.parent_test.output_list.append(
+            (self.name, t-self.parent_test.first_timestamp, l, f))
 
     def int_usec(self, mu):
         return round(mu_to_seconds(mu, self.core)*1000000)
@@ -89,7 +90,7 @@ class _Pulses(EnvExperiment):
 
         for name in "a", "b", "c", "d":
             pl = _PulseLogger(*self.managers(),
-                              output_list=self.output_list,
+                              parent_test=self,
                               name=name)
             setattr(self, name, pl)
 
