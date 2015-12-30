@@ -402,18 +402,21 @@ class StitchingInferencer(Inferencer):
             if node.attr not in attributes:
                 # We just figured out what the type should be. Add it.
                 attributes[node.attr] = attr_value_type
-            elif attributes[node.attr] != attr_value_type and not types.is_rpc_function(attr_value_type):
+            elif not types.is_rpc_function(attr_value_type):
                 # Does this conflict with an earlier guess?
                 # RPC function types are exempt because RPCs are dynamically typed.
-                printer = types.TypePrinter()
-                diag = diagnostic.Diagnostic("error",
-                    "host object has an attribute '{attr}' of type {typea}, which is"
-                    " different from previously inferred type {typeb} for the same attribute",
-                    {"typea": printer.name(attr_value_type),
-                     "typeb": printer.name(attributes[node.attr]),
-                     "attr": node.attr},
-                    object_loc)
-                self.engine.process(diag)
+                try:
+                    attributes[node.attr].unify(attr_value_type)
+                except types.UnificationError as e:
+                    printer = types.TypePrinter()
+                    diag = diagnostic.Diagnostic("error",
+                        "host object has an attribute '{attr}' of type {typea}, which is"
+                        " different from previously inferred type {typeb} for the same attribute",
+                        {"typea": printer.name(attr_value_type),
+                         "typeb": printer.name(attributes[node.attr]),
+                         "attr": node.attr},
+                        object_loc)
+                    self.engine.process(diag)
 
         super().visit_AttributeT(node)
 
