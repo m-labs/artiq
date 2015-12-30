@@ -26,7 +26,10 @@ class CFGSimplifier:
                         # Our IR doesn't tolerate branch_if %c, %b, %b
                         insn.replace_with(ir.Branch(successor))
                     elif isinstance(insn, ir.Phi):
+                        incoming_value = insn.incoming_value_for_block(block)
                         insn.remove_incoming_block(block)
+                        for pred in block.predecessors():
+                            insn.add_incoming(incoming_value, pred)
 
                 block.replace_all_uses_with(successor)
                 block.erase()
