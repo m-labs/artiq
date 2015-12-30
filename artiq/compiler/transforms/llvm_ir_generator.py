@@ -1055,7 +1055,8 @@ class LLVMIRGenerator:
             elt_type  = builtins.get_iterable_elt(typ)
             llelts    = [self._quote(value[i], elt_type, lambda: path() + [str(i)])
                          for i in range(len(value))]
-            lleltsary = ll.Constant(ll.ArrayType(llelts[0].type, len(llelts)), llelts)
+            lleltsary = ll.Constant(ll.ArrayType(self.llty_of_type(elt_type), len(llelts)),
+                                    llelts)
 
             llglobal  = ll.GlobalVariable(self.llmodule, lleltsary.type, "quoted.list")
             llglobal.initializer = lleltsary
