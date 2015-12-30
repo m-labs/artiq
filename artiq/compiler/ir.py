@@ -236,7 +236,10 @@ class Phi(Instruction):
     def incoming(self):
         operand_iter = iter(self.operands)
         while True:
-            yield next(operand_iter), next(operand_iter)
+            try:
+                yield next(operand_iter), next(operand_iter)
+            except StopIteration:
+                return
 
     def incoming_blocks(self):
         return (block for (block, value) in self.incoming())
