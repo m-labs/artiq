@@ -348,6 +348,10 @@ class Inferencer(algorithm.Visitor):
                     pred, kind = builtins.is_list, "list"
                 else:
                     assert False
+
+                if types.is_var(other.type):
+                    return
+
                 if not pred(other.type):
                     printer = types.TypePrinter()
                     note1 = diagnostic.Diagnostic("note",
