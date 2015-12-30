@@ -27,7 +27,12 @@ class DeadCodeEliminator:
         while modified:
             modified = False
             for insn in func.instructions():
-                if isinstance(insn, (ir.Phi, ir.Alloc, ir.GetLocal, ir.GetConstructor,
+                # Note that GetLocal is treated as an impure operation:
+                # the local access validator has to observe it to emit
+                # a diagnostic for reads of uninitialized locals, and
+                # it also has to run after the interleaver, but interleaver
+                # doesn't like to work with IR before DCE.
+                if isinstance(insn, (ir.Phi, ir.Alloc, ir.GetConstructor,
                                      ir.GetAttr, ir.GetElem, ir.Coerce, ir.Arith,
                                      ir.Compare, ir.Closure, ir.Select, ir.Quote)) \
                         and not any(insn.uses):
