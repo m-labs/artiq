@@ -242,13 +242,13 @@ class Phi(Instruction):
                 return
 
     def incoming_blocks(self):
-        return (block for (block, value) in self.incoming())
+        return (block for (value, block) in self.incoming())
 
     def incoming_values(self):
-        return (value for (block, value) in self.incoming())
+        return (value for (value, block) in self.incoming())
 
     def incoming_value_for_block(self, target_block):
-        for (block, value) in self.incoming():
+        for (value, block) in self.incoming():
             if block == target_block:
                 return value
         assert False
@@ -262,12 +262,14 @@ class Phi(Instruction):
 
     def remove_incoming_value(self, value):
         index = self.operands.index(value)
+        assert index % 2 == 0
         self.operands[index].uses.remove(self)
         self.operands[index + 1].uses.remove(self)
         del self.operands[index:index + 2]
 
     def remove_incoming_block(self, block):
         index = self.operands.index(block)
+        assert index % 2 == 1
         self.operands[index - 1].uses.remove(self)
         self.operands[index].uses.remove(self)
         del self.operands[index - 1:index + 1]
