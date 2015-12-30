@@ -331,8 +331,7 @@ class StitchingInferencer(Inferencer):
             # of having the host-to-ARTIQ mapping code in only one place and
             # also immediately getting proper diagnostics on type errors.
             attr_value = getattr(object_value, node.attr)
-            if (inspect.ismethod(attr_value) and hasattr(attr_value.__func__, 'artiq_embedded')
-                    and types.is_instance(object_type)):
+            if inspect.ismethod(attr_value) and types.is_instance(object_type):
                 # In cases like:
                 #     class c:
                 #         @kernel
@@ -340,8 +339,10 @@ class StitchingInferencer(Inferencer):
                 # we want f to be defined on the class, not on the instance.
                 attributes = object_type.constructor.attributes
                 attr_value = attr_value.__func__
+                is_method  = True
             else:
                 attributes = object_type.attributes
+                is_method  = False
 
             attr_value_type = None
 
@@ -392,6 +393,12 @@ class StitchingInferencer(Inferencer):
                 Inferencer(engine=proxy_engine).visit(ast)
                 IntMonomorphizer(engine=proxy_engine).visit(ast)
                 attr_value_type = ast.type
+
+            if is_method:
+                assert types.is_function(attr_value_type)
+                self_type = list(attr_value_type.args.values())[0]
+                self._unify(object_type, self_type,
+                            node.loc, None)
 
             if node.attr not in attributes:
                 # We just figured out what the type should be. Add it.
