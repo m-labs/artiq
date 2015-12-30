@@ -394,8 +394,7 @@ class StitchingInferencer(Inferencer):
                 IntMonomorphizer(engine=proxy_engine).visit(ast)
                 attr_value_type = ast.type
 
-            if is_method:
-                assert types.is_function(attr_value_type)
+            if is_method and types.is_rpc_function(attr_value_type):
                 self_type = list(attr_value_type.args.values())[0]
                 self._unify(object_type, self_type,
                             node.loc, None)

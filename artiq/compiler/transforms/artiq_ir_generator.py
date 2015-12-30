@@ -851,8 +851,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
         if self.current_assign is None:
             return self.append(ir.GetAttr(obj, node.attr,
                                           name="{}.{}".format(_readable_name(obj), node.attr)))
+        elif types.is_rpc_function(self.current_assign.type):
+            # RPC functions are just type-level markers
+            return self.append(ir.Builtin("nop", [], builtins.TNone()))
         else:
-            self.append(ir.SetAttr(obj, node.attr, self.current_assign))
+            return self.append(ir.SetAttr(obj, node.attr, self.current_assign))
 
     def _map_index(self, length, index, one_past_the_end=False, loc=None):
         lt_0          = self.append(ir.Compare(ast.Lt(loc=None),
