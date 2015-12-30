@@ -1058,7 +1058,8 @@ class LLVMIRGenerator:
             lleltsary = ll.Constant(ll.ArrayType(self.llty_of_type(elt_type), len(llelts)),
                                     llelts)
 
-            llglobal  = ll.GlobalVariable(self.llmodule, lleltsary.type, "quoted.list")
+            llglobal  = ll.GlobalVariable(self.llmodule, lleltsary.type,
+                                          self.llmodule.scope.deduplicate("quoted.list"))
             llglobal.initializer = lleltsary
             llglobal.linkage = "private"
 
