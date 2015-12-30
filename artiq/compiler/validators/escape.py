@@ -211,7 +211,7 @@ class EscapeValidator(algorithm.Visitor):
                     loc)
             ]
 
-    def visit_in_region(self, node, region, typing_env):
+    def visit_in_region(self, node, region, typing_env, args=[]):
         try:
             old_youngest_region = self.youngest_region
             self.youngest_region = region
@@ -221,7 +221,10 @@ class EscapeValidator(algorithm.Visitor):
 
             for name in typing_env:
                 if has_region(typing_env[name]):
-                    self.youngest_env[name] = Region(None) # not yet known
+                    if name in args:
+                        self.youngest_env[name] = self.youngest_region
+                    else:
+                        self.youngest_env[name] = Region(None) # not yet known
                 else:
                     self.youngest_env[name] = None # lives forever
             self.env_stack.append(self.youngest_env)
@@ -237,7 +240,8 @@ class EscapeValidator(algorithm.Visitor):
 
     def visit_FunctionDefT(self, node):
         self.youngest_env[node.name] = self.youngest_region
-        self.visit_in_region(node, Region(node.loc), node.typing_env)
+        self.visit_in_region(node, Region(node.loc), node.typing_env,
+                             args=node.signature_type.find().arg_names())
 
     def visit_ClassDefT(self, node):
         self.youngest_env[node.name] = self.youngest_region

@@ -248,6 +248,9 @@ class TFunction(Type):
     def arity(self):
         return len(self.args) + len(self.optargs)
 
+    def arg_names(self):
+        return list(self.args.keys()) + list(self.optargs.keys())
+
     def find(self):
         return self
 
