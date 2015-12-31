@@ -622,7 +622,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         finally:
             self.unwind_target = old_unwind
 
-        if not body.is_terminated():
+        if not self.current_block.is_terminated():
             self.visit(node.orelse)
         elif any(node.orelse):
             self.warn_unreachable(node.orelse[0])
