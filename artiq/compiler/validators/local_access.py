@@ -143,11 +143,23 @@ class LocalAccessValidator:
 
     def _uninitialized_access(self, insn, var_name, pred_at_fault):
         if pred_at_fault is not None:
+            visited = set()
+            possible_preds = [pred_at_fault]
+
             uninitialized_loc = None
-            for pred_insn in reversed(pred_at_fault.instructions):
-                if pred_insn.loc is not None:
-                    uninitialized_loc = pred_insn.loc.begin()
-                    break
+            while uninitialized_loc is None:
+                possible_pred = possible_preds.pop(0)
+                visited.add(possible_pred)
+
+                for pred_insn in reversed(possible_pred.instructions):
+                    if pred_insn.loc is not None:
+                        uninitialized_loc = pred_insn.loc.begin()
+                        break
+
+                for block in possible_pred.predecessors():
+                    if block not in visited:
+                        possible_preds.append(block)
+
             assert uninitialized_loc is not None
 
             note = diagnostic.Diagnostic("note",
