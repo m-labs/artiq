@@ -20,6 +20,9 @@ class _Primes(EnvExperiment):
         self.setattr_argument("output_list")
         self.setattr_argument("maximum")
 
+    def _add_output(self, x):
+        self.output_list.append(x)
+
     @kernel
     def run(self):
         for x in range(1, self.maximum):
@@ -31,7 +34,7 @@ class _Primes(EnvExperiment):
                     break
                 d += 1
             if prime:
-                self.output_list.append(x)
+                self._add_output(x)
 
 
 class _Misc(EnvExperiment):
