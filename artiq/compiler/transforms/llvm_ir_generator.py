@@ -364,6 +364,8 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(llvoid, [self.llty_of_type(builtins.TException())])
         elif name == "__artiq_reraise":
             llty = ll.FunctionType(llvoid, [])
+        elif name == "strcmp":
+            llty = ll.FunctionType(lli32, [llptr, llptr])
         elif name == "send_rpc":
             llty = ll.FunctionType(llvoid, [lli32, llptr],
                                    var_arg=True)
@@ -1159,7 +1161,10 @@ class LLVMIRGenerator:
             if typ is None:
                 self.llbuilder.branch(self.map(target))
             else:
-                llmatchingclause = self.llbuilder.icmp_unsigned('==', llexnname, llclauseexnname)
+                llexnmatch = self.llbuilder.call(self.llbuiltin("strcmp"),
+                                                 [llexnname, llclauseexnname])
+                llmatchingclause = self.llbuilder.icmp_unsigned('==',
+                                                                llexnmatch, ll.Constant(lli32, 0))
                 with self.llbuilder.if_then(llmatchingclause):
                     self.llbuilder.branch(self.map(target))
 

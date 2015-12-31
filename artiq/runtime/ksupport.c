@@ -92,6 +92,7 @@ static const struct symbol runtime_exports[] = {
     {"__artiq_personality", &__artiq_personality},
     {"__artiq_raise", &__artiq_raise},
     {"__artiq_reraise", &__artiq_reraise},
+    {"strcmp", &strcmp},
     {"abort", &ksupport_abort},
 
     /* proxified syscalls */
