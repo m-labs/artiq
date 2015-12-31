@@ -1445,18 +1445,20 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
     # Keep this function with builtins.TException.attributes.
     def alloc_exn(self, typ, message=None, param0=None, param1=None, param2=None):
+        typ = typ.find()
         attributes = [
-            ir.Constant(typ.find().name, ir.TExceptionTypeInfo()),  # typeinfo
-            ir.Constant("<not thrown>", builtins.TStr()),           # file
-            ir.Constant(0, builtins.TInt32()),                      # line
-            ir.Constant(0, builtins.TInt32()),                      # column
-            ir.Constant("<not thrown>", builtins.TStr()),           # function
+            ir.Constant("{}:{}".format(typ.id, typ.name),
+                        ir.TExceptionTypeInfo()),         # typeinfo
+            ir.Constant("<not thrown>", builtins.TStr()), # file
+            ir.Constant(0, builtins.TInt32()),            # line
+            ir.Constant(0, builtins.TInt32()),            # column
+            ir.Constant("<not thrown>", builtins.TStr()), # function
         ]
 
         if message is None:
-            attributes.append(ir.Constant(typ.find().name, builtins.TStr()))
+            attributes.append(ir.Constant(typ.name, builtins.TStr()))
         else:
-            attributes.append(message)                              # message
+            attributes.append(message)                    # message
 
         param_type = builtins.TInt64()
         for param in [param0, param1, param2]:
@@ -1465,7 +1467,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             else:
                 if param.type != param_type:
                     param = self.append(ir.Coerce(param, param_type))
-                attributes.append(param)                            # paramN, N=0:2
+                attributes.append(param)                  # paramN, N=0:2
 
         return self.append(ir.Alloc(attributes, typ))
 
