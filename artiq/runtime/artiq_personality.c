@@ -415,17 +415,19 @@ _Unwind_Reason_Code __artiq_personality(
                  (void*)typeInfoOffset, (void*)actionOffset);
           EH_ASSERT((typeInfoOffset >= 0) && "Filter clauses are not supported");
 
-          unsigned encodingSize = getEncodingSize(ttypeEncoding);
-          const uint8_t *typeInfoPtrPtr = classInfo - typeInfoOffset * encodingSize;
-          uintptr_t typeInfoPtr = readEncodedPointer(&typeInfoPtrPtr, ttypeEncoding);
-          EH_LOG("encodingSize=%u typeInfoPtrPtr=%p typeInfoPtr=%p",
-                 encodingSize, typeInfoPtrPtr, (void*)typeInfoPtr);
-          EH_LOG("typeInfo=%s", (char*)typeInfoPtr);
+          if(typeInfoOffset > 0) {
+            unsigned encodingSize = getEncodingSize(ttypeEncoding);
+            const uint8_t *typeInfoPtrPtr = classInfo - typeInfoOffset * encodingSize;
+            uintptr_t typeInfoPtr = readEncodedPointer(&typeInfoPtrPtr, ttypeEncoding);
+            EH_LOG("encodingSize=%u typeInfoPtrPtr=%p typeInfoPtr=%p",
+                   encodingSize, typeInfoPtrPtr, (void*)typeInfoPtr);
+            EH_LOG("typeInfo=%s", (char*)typeInfoPtr);
 
-          if(typeInfoPtr == 0 || !strcmp(inflight->artiq.typeinfo, typeInfoPtr)) {
-            EH_LOG0("matching action found");
-            exceptionMatched = 1;
-            break;
+            if(typeInfoPtr == 0 || !strcmp(inflight->artiq.typeinfo, typeInfoPtr)) {
+              EH_LOG0("matching action found");
+              exceptionMatched = 1;
+              break;
+            }
           }
 
           if (!actionOffset)
