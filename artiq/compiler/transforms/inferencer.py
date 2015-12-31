@@ -999,7 +999,7 @@ class Inferencer(algorithm.Visitor):
                             {"typeb": printer.name(typeb)},
                             locb)
                     ]
-                self._unify(node.name_type, builtins.TException(node.filter.type.name),
+                self._unify(node.name_type, node.filter.type.instance,
                             node.name_loc, node.filter.loc, makenotes)
 
     def _type_from_arguments(self, node, ret):

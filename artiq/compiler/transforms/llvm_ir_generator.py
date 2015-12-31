@@ -1155,7 +1155,8 @@ class LLVMIRGenerator:
                     self.llty_of_type(ir.TExceptionTypeInfo()), None)
             else:
                 llclauseexnname = self.llconst_of_const(
-                    ir.Constant(typ.name, ir.TExceptionTypeInfo()))
+                    ir.Constant("{}:{}".format(typ.id, typ.name),
+                                ir.TExceptionTypeInfo()))
             lllandingpad.add_clause(ll.CatchClause(llclauseexnname))
 
             if typ is None:

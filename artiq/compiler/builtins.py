@@ -85,7 +85,6 @@ class TException(types.TMono):
     #  * Message, which can contain substitutions {0}, {1} and {2} (str).
     #  * Three 64-bit integers, parameterizing the message (int(width=64)).
 
-
     # Keep this in sync with the function ARTIQIRGenerator.alloc_exn.
     attributes = OrderedDict([
         ("__name__",    TStr()),
@@ -99,8 +98,9 @@ class TException(types.TMono):
         ("__param2__",  TInt(types.TValue(64))),
     ])
 
-    def __init__(self, name="Exception"):
+    def __init__(self, name="Exception", id=0):
         super().__init__(name)
+        self.id = id
 
 def fn_bool():
     return types.TConstructor(TBool())

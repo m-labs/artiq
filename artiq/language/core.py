@@ -365,41 +365,20 @@ class TerminationRequested(Exception):
     pass
 
 
-class ARTIQException(Exception):
-    """Base class for exceptions raised or passed through the core device."""
-
-    # Try and create an instance of the specific class, if one exists.
-    def __new__(cls, name, message, params, traceback):
-        def find_subclass(cls):
-            if cls.__name__ == name:
-                return cls
-            else:
-                for subclass in cls.__subclasses__():
-                    cls = find_subclass(subclass)
-                    if cls is not None:
-                        return cls
-
-        more_specific_cls = find_subclass(cls)
-        if more_specific_cls is None:
-            more_specific_cls = cls
-
-        exn = Exception.__new__(more_specific_cls)
-        exn.__init__(name, message, params, traceback)
-        return exn
+class ARTIQException:
+    """Information about an exception raised or passed through the core device."""
 
     def __init__(self, name, message, params, traceback):
-        Exception.__init__(self, name, message, *params)
-        self.name, self.message, self.params = name, message, params
+        if ':' in name:
+            exn_id, self.name = name.split(':', 2)
+            self.id = host_int(exn_id)
+        else:
+            self.id, self.name = 0, name
+        self.message, self.params = message, params
         self.traceback = list(traceback)
 
     def __str__(self):
         lines = []
-
-        if type(self).__name__ == self.name:
-            lines.append(self.message.format(*self.params))
-        else:
-            lines.append("({}) {}".format(self.name, self.message.format(*self.params)))
-
         lines.append("Core Device Traceback (most recent call last):")
         for (filename, line, column, function, address) in self.traceback:
             stub_globals = {"__name__": filename, "__loader__": source_loader}
@@ -426,4 +405,6 @@ class ARTIQException(Exception):
                 lines.append("    {}".format(source_line.strip() if source_line else "<unknown>"))
                 lines.append("    {}^".format(" " * (column - indentation)))
 
+        lines.append("{}({}): {}".format(self.name, self.id,
+                                         self.message.format(*self.params)))
         return "\n".join(lines)

@@ -42,10 +42,10 @@ class ObjectMap:
                           self.forward_map.values()))
 
 class ASTSynthesizer:
-    def __init__(self, type_map, value_map, quote_function=None, expanded_from=None):
+    def __init__(self, object_map, type_map, value_map, quote_function=None, expanded_from=None):
         self.source = ""
         self.source_buffer = source.Buffer(self.source, "<synthesized>")
-        self.type_map, self.value_map = type_map, value_map
+        self.object_map, self.type_map, self.value_map = object_map, type_map, value_map
         self.quote_function = quote_function
         self.expanded_from = expanded_from
 
@@ -120,13 +120,15 @@ class ASTSynthesizer:
             if typ in self.type_map:
                 instance_type, constructor_type = self.type_map[typ]
             else:
-                instance_type = types.TInstance("{}.{}".format(typ.__module__, typ.__qualname__),
-                                                OrderedDict())
-                instance_type.attributes['__objectid__'] = builtins.TInt32()
-
                 if issubclass(typ, BaseException):
+                    instance_type = builtins.TException("{}.{}".format(typ.__module__, typ.__qualname__),
+                                                        id=self.object_map.store(typ))
                     constructor_type = types.TExceptionConstructor(instance_type)
                 else:
+                    instance_type = types.TInstance("{}.{}".format(typ.__module__, typ.__qualname__),
+                                                    OrderedDict())
+                    instance_type.attributes['__objectid__'] = builtins.TInt32()
+
                     constructor_type = types.TConstructor(instance_type)
                 constructor_type.attributes['__objectid__'] = builtins.TInt32()
                 instance_type.constructor = constructor_type
@@ -522,6 +524,7 @@ class Stitcher:
 
     def _synthesizer(self, expanded_from=None):
         return ASTSynthesizer(expanded_from=expanded_from,
+                              object_map=self.object_map,
                               type_map=self.type_map,
                               value_map=self.value_map,
                               quote_function=self._quote_function)
