@@ -3,7 +3,7 @@
 # REQUIRES: exceptions
 
 def f():
-    # CHECK-L: Uncaught ZeroDivisionError
+    # CHECK-L: Uncaught 0:ZeroDivisionError
     # CHECK-L: at input.py:${LINE:+1}:
     1/0
 

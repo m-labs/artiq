@@ -9,7 +9,7 @@ def g():
     try:
         f()
     except Exception as e:
-        # CHECK-L: Uncaught ZeroDivisionError
+        # CHECK-L: Uncaught 0:ZeroDivisionError
         # CHECK-L: at input.py:${LINE:+1}:
         raise e
 
