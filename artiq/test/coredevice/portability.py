@@ -143,9 +143,9 @@ class _Exceptions(EnvExperiment):
             try:
                 self.trace.append(100)
                 if i == 1:
-                    raise _MyException
+                    raise _MyException()
                 elif i == 2:
-                    raise IndexError
+                    raise IndexError()
             except IndexError:
                 self.trace.append(101)
                 raise
