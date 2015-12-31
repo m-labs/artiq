@@ -423,7 +423,8 @@ _Unwind_Reason_Code __artiq_personality(
                    encodingSize, typeInfoPtrPtr, (void*)typeInfoPtr);
             EH_LOG("typeInfo=%s", (char*)typeInfoPtr);
 
-            if(typeInfoPtr == 0 || !strcmp(inflight->artiq.typeinfo, (char*)typeInfoPtr)) {
+            if(typeInfoPtr == 0 || !strcmp((char*)inflight->artiq.typeinfo,
+                                           (char*)typeInfoPtr)) {
               EH_LOG0("matching action found");
               exceptionMatched = 1;
               break;
