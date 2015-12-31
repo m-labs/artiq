@@ -1,4 +1,4 @@
-import os
+import os, sys
 
 from pythonparser import diagnostic
 
@@ -13,21 +13,24 @@ from artiq.compiler.targets import OR1KTarget
 # Import for side effects (creating the exception classes).
 from artiq.coredevice import exceptions
 
+def _render_diagnostic(diagnostic):
+    def shorten_path(path):
+        return path.replace(os.path.normpath(os.path.join(__file__, "..", "..")), "<artiq>")
+    lines = [shorten_path(path) for path in diagnostic.render(colored=True)]
+    return "\n".join(lines)
+
+class _DiagnosticEngine(diagnostic.Engine):
+    def print_diagnostic(self, diagnostic):
+        sys.stderr.write(_render_diagnostic(diagnostic) + "\n")
 
 class CompileError(Exception):
     def __init__(self, diagnostic):
         self.diagnostic = diagnostic
 
-    def render_string(self, colored=False):
-        def shorten_path(path):
-            return path.replace(os.path.normpath(os.path.join(__file__, "..", "..")), "<artiq>")
-        lines = [shorten_path(path) for path in self.diagnostic.render(colored=colored)]
-        return "\n".join(lines)
-
     def __str__(self):
         # Prepend a newline so that the message shows up on after
         # exception class name printed by Python.
-        return "\n" + self.render_string(colored=True)
+        return "\n" + _render_diagnostic(self.diagnostic)
 
 
 @syscall
@@ -58,7 +61,7 @@ class Core:
 
     def compile(self, function, args, kwargs, set_result=None, with_attr_writeback=True):
         try:
-            engine = diagnostic.Engine(all_errors_are_fatal=True)
+            engine = _DiagnosticEngine(all_errors_are_fatal=True)
 
             stitcher = Stitcher(engine=engine)
             stitcher.stitch_call(function, args, kwargs, set_result)

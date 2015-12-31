@@ -150,14 +150,21 @@ class ARTIQIRGenerator(algorithm.Visitor):
         else:
             insn.drop_references()
 
+    def warn_unreachable(self, node):
+        diag = diagnostic.Diagnostic("warning",
+            "unreachable code", {},
+            node.loc.begin())
+        self.engine.process(diag)
+
     # Visitors
 
     def visit(self, obj):
         if isinstance(obj, list):
             for elt in obj:
-                self.visit(elt)
                 if self.current_block.is_terminated():
+                    self.warn_unreachable(elt)
                     break
+                self.visit(elt)
         elif isinstance(obj, ast.AST):
             try:
                 old_loc, self.current_loc = self.current_loc, _extract_loc(obj)
@@ -615,7 +622,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
         finally:
             self.unwind_target = old_unwind
 
-        self.visit(node.orelse)
+        if not body.is_terminated():
+            self.visit(node.orelse)
+        elif any(node.orelse):
+            self.warn_unreachable(node.orelse[0])
         body = self.current_block
 
         if any(node.finalbody):
