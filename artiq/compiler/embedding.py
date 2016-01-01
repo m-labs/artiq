@@ -41,6 +41,9 @@ class ObjectMap:
         return any(filter(lambda x: inspect.isfunction(x) or inspect.ismethod(x),
                           self.forward_map.values()))
 
+    def __iter__(self):
+        return iter(self.forward_map.keys())
+
 class ASTSynthesizer:
     def __init__(self, object_map, type_map, value_map, quote_function=None, expanded_from=None):
         self.source = ""

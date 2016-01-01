@@ -20,6 +20,7 @@ class Source:
             self.engine = engine
 
         self.object_map = None
+        self.type_map = {}
 
         self.name, _ = os.path.splitext(os.path.basename(source_buffer.name))
 
@@ -45,6 +46,7 @@ class Module:
     def __init__(self, src, ref_period=1e-6):
         self.engine = src.engine
         self.object_map = src.object_map
+        self.type_map = src.type_map
 
         int_monomorphizer = transforms.IntMonomorphizer(engine=self.engine)
         inferencer = transforms.Inferencer(engine=self.engine)
@@ -76,10 +78,10 @@ class Module:
 
     def build_llvm_ir(self, target):
         """Compile the module to LLVM IR for the specified target."""
-        llvm_ir_generator = transforms.LLVMIRGenerator(engine=self.engine,
-                                                       module_name=self.name, target=target,
-                                                       object_map=self.object_map)
-        return llvm_ir_generator.process(self.artiq_ir)
+        llvm_ir_generator = transforms.LLVMIRGenerator(
+            engine=self.engine, module_name=self.name, target=target,
+            object_map=self.object_map, type_map=self.type_map)
+        return llvm_ir_generator.process(self.artiq_ir, attribute_writeback=True)
 
     def entry_point(self):
         """Return the name of the function that is the entry point of this module."""

@@ -3,7 +3,8 @@
 into LLVM intermediate representation.
 """
 
-import os
+import os, re
+from collections import defaultdict
 from pythonparser import ast, diagnostic
 from llvmlite_artiq import ir as ll
 from ...language import core as language_core
@@ -161,10 +162,11 @@ class DebugInfoEmitter:
 
 
 class LLVMIRGenerator:
-    def __init__(self, engine, module_name, target, object_map):
+    def __init__(self, engine, module_name, target, object_map, type_map):
         self.engine = engine
         self.target = target
         self.object_map = object_map
+        self.type_map = type_map
         self.llcontext = target.llcontext
         self.llmodule = ll.Module(context=self.llcontext, name=module_name)
         self.llmodule.triple = target.triple
@@ -285,8 +287,7 @@ class LLVMIRGenerator:
             else:
                 return llty.as_pointer()
 
-    def llstr_of_str(self, value, name=None,
-                        linkage="private", unnamed_addr=True):
+    def llstr_of_str(self, value, name=None, linkage="private", unnamed_addr=True):
         if isinstance(value, str):
             assert "\0" not in value
             as_bytes = (value + "\0").encode("utf-8")
@@ -294,7 +295,8 @@ class LLVMIRGenerator:
             as_bytes = value
 
         if name is None:
-            name = self.llmodule.get_unique_name("str")
+            sanitized_str = re.sub(rb"[^a-zA-Z0-9_.]", b"", as_bytes[:20]).decode('ascii')
+            name = self.llmodule.get_unique_name("str.{}".format(sanitized_str))
 
         llstr = self.llmodule.get_global(name)
         if llstr is None:
@@ -403,14 +405,94 @@ class LLVMIRGenerator:
         else:
             assert False
 
-    def process(self, functions):
+    def process(self, functions, attribute_writeback):
         for func in functions:
             self.process_function(func)
 
         if any(functions):
             self.debug_info_emitter.finalize(functions[0].loc.source_buffer)
 
+        if attribute_writeback:
+            self.emit_attribute_writeback()
+
         return self.llmodule
+
+    def emit_attribute_writeback(self):
+        shadow_memory_dim = defaultdict(lambda: 0)
+
+        for obj_id in self.object_map:
+            obj_ref = self.object_map.retrieve(obj_id)
+            if isinstance(obj_ref, type):
+                _, typ = self.type_map[obj_ref]
+            else:
+                typ, _ = self.type_map[type(obj_ref)]
+
+            if shadow_memory_dim[typ] <= obj_id:
+                shadow_memory_dim[typ] = obj_id + 1
+
+        lldescty = self.llcontext.get_identified_type("shadow.desc")
+        lldescty.elements = [llptr.as_pointer(), llptr, lli32, llptr]
+
+        lldescs = []
+        for typ in shadow_memory_dim:
+            if "__objectid__" not in typ.attributes:
+                continue
+            assert list(typ.attributes.keys())[0] == "__objectid__"
+
+            if types.is_constructor(typ):
+                type_name = "class.{}".format(typ.name)
+            else:
+                type_name = "instance.{}".format(typ.name)
+
+            shadowname = "shadow.{}".format(type_name)
+            llshadow = self.llmodule.get_global(shadowname)
+            if llshadow is None:
+                continue
+
+            llshadowlen = shadow_memory_dim[typ] * len(typ.attributes)
+            llshadowty = ll.ArrayType(lli8, llshadowlen)
+            llshadow.gtype = llshadowty
+            llshadow.type = llshadowty.as_pointer()
+            llshadow.initializer = ll.Constant(llshadowty, None)
+
+            def rpc_tag_error(typ):
+                print(typ)
+                assert False
+
+            rpcattrary = list(typ.attributes.keys())[1:]
+            llrpcattraryty = ll.ArrayType(llptr, len(rpcattrary) + 1)
+            llrpcattrary = list(map(lambda attr: self.llstr_of_str(attr), rpcattrary))
+
+            llrpcattrs = ll.GlobalVariable(self.llmodule, llrpcattraryty,
+                                            name="shadow.attrs.{}".format(type_name))
+            llrpcattrs.initializer = ll.Constant(llrpcattraryty,
+                llrpcattrary  + [ll.Constant(llptr, None)])
+            llrpcattrs.linkage = 'internal'
+
+            rpctag = b""
+            for attr_type in list(typ.attributes.values())[1:]:
+                if types.is_function(attr_type) or types.is_method(attr_type):
+                    continue
+                rpctag += self._rpc_tag(attr_type, error_handler=rpc_tag_error)
+            rpctag += b"\x00"
+            llrpctag = self.llstr_of_str(rpctag)
+
+            lldesc = ll.GlobalVariable(self.llmodule, lldescty,
+                                       name="shadow.desc.{}".format(type_name))
+            lldesc.initializer = ll.Constant(lldescty, [
+                llrpcattrs.bitcast(llptr.as_pointer()),
+                llrpctag,
+                ll.Constant(lli32, shadow_memory_dim[typ]),
+                llshadow.bitcast(llptr)])
+            lldesc.linkage = 'internal'
+            lldescs.append(lldesc)
+
+        llglobaldescty = ll.ArrayType(lldescty.as_pointer(), len(lldescs) + 1)
+        llglobaldesc = ll.GlobalVariable(self.llmodule, llglobaldescty,
+                                         name="shadow.descs")
+        llglobaldesc.initializer = ll.Constant(llglobaldescty,
+            lldescs + [ll.Constant(lldescty.as_pointer(), None)])
+        # llglobaldesc.linkage = 'internal'
 
     def process_function(self, func):
         try:
@@ -571,6 +653,34 @@ class LLVMIRGenerator:
 
     def process_SetAttr(self, insn):
         assert builtins.is_allocated(insn.object().type)
+
+        object_type = insn.object().type.find()
+        value_type = insn.value().type.find()
+        if "__objectid__" in object_type.attributes and \
+                not (types.is_function(value_type) or types.is_method(value_type)):
+            llidptr = self.llbuilder.gep(self.map(insn.object()),
+                                         [self.llindex(0), self.llindex(0)])
+            llid = self.llbuilder.load(llidptr, name="shadow.id")
+            llattrcount = ll.Constant(lli32, len(object_type.attributes) - 1)
+            llshadowpos = self.llbuilder.add(
+                self.llbuilder.mul(llid, llattrcount),
+                ll.Constant(lli32, self.attr_index(insn) - 1))
+
+            if types.is_constructor(object_type):
+                shadowname = "shadow.class.{}".format(object_type.name)
+            else:
+                shadowname = "shadow.instance.{}".format(object_type.name)
+
+            llshadow = self.llmodule.get_global(shadowname)
+            if llshadow is None:
+                llshadowty = ll.ArrayType(lli8, 0)
+                llshadow = ll.GlobalVariable(self.llmodule, llshadowty, shadowname)
+                llshadow.linkage = 'internal'
+
+            llshadowptr = self.llbuilder.gep(llshadow, [self.llindex(0), llshadowpos],
+                                             name="shadow.ptr")
+            self.llbuilder.store(ll.Constant(lli8, 1), llshadowptr)
+
         llptr = self.llbuilder.gep(self.map(insn.object()),
                                    [self.llindex(0), self.llindex(self.attr_index(insn))],
                                    name=insn.name)
@@ -838,6 +948,7 @@ class LLVMIRGenerator:
 
     # See session.c:{send,receive}_rpc_value and comm_generic.py:_{send,receive}_rpc_value.
     def _rpc_tag(self, typ, error_handler):
+        typ = typ.find()
         if types.is_tuple(typ):
             assert len(typ.elts) < 256
             return b"t" + bytes([len(typ.elts)]) + \
