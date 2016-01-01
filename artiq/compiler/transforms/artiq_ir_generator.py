@@ -66,6 +66,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
         the basic block to which ``return`` will transfer control
     :ivar unwind_target: (:class:`ir.BasicBlock` or None)
         the basic block to which unwinding will transfer control
+    :ivar final_branch: (function (target: :class:`ir.BasicBlock`, block: :class:`ir.BasicBlock)
+                         or None)
+        the function that appends to ``block`` a jump through the ``finally`` statement
+        to ``target``
 
     There is, additionally, some global state that is used to translate
     the results of analyses on AST level to IR level:
@@ -102,6 +106,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.continue_target = None
         self.return_target = None
         self.unwind_target = None
+        self.final_branch = None
         self.function_map = dict()
         self.variable_map = dict()
         self.method_map = defaultdict(lambda: [])
@@ -551,6 +556,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.append(ir.Branch(self.continue_target))
 
     def raise_exn(self, exn, loc=None):
+        if self.final_branch is not None:
+            raise_proxy = self.add_block("try.raise")
+            self.final_branch(raise_proxy, self.current_block)
+            self.current_block = raise_proxy
+
         if exn is not None:
             if loc is None:
                 loc = self.current_loc
@@ -588,29 +598,32 @@ class ARTIQIRGenerator(algorithm.Visitor):
                                              vars={ "$k": ir.TBasicBlock() })
             final_state    = self.append(ir.Alloc([], final_env_type))
             final_targets  = []
+            final_paths    = []
+
+            def final_branch(target, block):
+                block.append(ir.SetLocal(final_state, "$k", target))
+                final_targets.append(target)
+                final_paths.append(block)
 
             if self.break_target is not None:
                 break_proxy = self.add_block("try.break")
                 old_break, self.break_target = self.break_target, break_proxy
-                break_proxy.append(ir.SetLocal(final_state, "$k", old_break))
-                final_targets.append(old_break)
+                final_branch(old_break, break_proxy)
+
             if self.continue_target is not None:
                 continue_proxy = self.add_block("try.continue")
                 old_continue, self.continue_target = self.continue_target, continue_proxy
-                continue_proxy.append(ir.SetLocal(final_state, "$k", old_continue))
-                final_targets.append(old_continue)
+                final_branch(old_continue, continue_proxy)
 
             return_proxy = self.add_block("try.return")
             old_return, self.return_target = self.return_target, return_proxy
             if old_return is not None:
-                return_proxy.append(ir.SetLocal(final_state, "$k", old_return))
-                final_targets.append(old_return)
+                final_branch(old_return, return_proxy)
             else:
                 return_action = self.add_block("try.doreturn")
                 value = return_action.append(ir.GetLocal(self.current_private_env, "$return"))
                 return_action.append(ir.Return(value))
-                return_proxy.append(ir.SetLocal(final_state, "$k", return_action))
-                final_targets.append(return_action)
+                final_branch(return_action, return_proxy)
 
         body = self.add_block("try.body")
         self.append(ir.Branch(body))
@@ -634,6 +647,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             if self.continue_target:
                 self.continue_target = old_continue
             self.return_target = old_return
+
+            old_final_branch, self.final_branch = self.final_branch, final_branch
 
         cleanup = self.add_block('handler.cleanup')
         landingpad = dispatcher.append(ir.LandingPad(cleanup))
@@ -659,6 +674,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             handlers.append((handler, post_handler))
 
         if any(node.finalbody):
+            self.final_branch = old_final_branch
+
             finalizer = self.add_block("finally")
             self.current_block = finalizer
 
@@ -673,11 +690,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             final_targets.append(tail)
             final_targets.append(reraise)
 
-            if self.break_target:
-                break_proxy.append(ir.Branch(finalizer))
-            if self.continue_target:
-                continue_proxy.append(ir.Branch(finalizer))
-            return_proxy.append(ir.Branch(finalizer))
+            for block in final_paths:
+                block.append(ir.Branch(finalizer))
 
             if not body.is_terminated():
                 body.append(ir.SetLocal(final_state, "$k", tail))
