@@ -36,7 +36,7 @@ def get_argparser():
 
 
 class MainWindow(QtGui.QMainWindow):
-    def __init__(self, app, server):
+    def __init__(self, server):
         QtGui.QMainWindow.__init__(self)
         icon = QtGui.QIcon(os.path.join(artiq_dir, "gui", "icon.png"))
         self.setWindowIcon(icon)
@@ -85,7 +85,7 @@ def main():
         sub_clients[notifier_name] = subscriber
 
     # initialize main window
-    win = MainWindow(app, args.server)
+    win = MainWindow(args.server)
     dock_area = dockarea.DockArea()
     smgr.register(dock_area)
     smgr.register(win)
