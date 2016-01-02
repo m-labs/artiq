@@ -418,17 +418,9 @@ class LLVMIRGenerator:
         return self.llmodule
 
     def emit_attribute_writeback(self):
-        llobjects = []
-        shadow_memory_dim = defaultdict(lambda: 0)
+        llobjects = defaultdict(lambda: [])
 
         for obj_id in self.object_map:
-            while len(llobjects) <= obj_id:
-                llobjects.append(ll.Constant(llptr, None))
-
-            llobject = self.llmodule.get_global("object.{}".format(obj_id))
-            if llobject is not None:
-                llobjects[obj_id] = llobject.bitcast(llptr)
-
             obj_ref = self.object_map.retrieve(obj_id)
             if isinstance(obj_ref, (pytypes.FunctionType, pytypes.MethodType)):
                 continue
@@ -437,19 +429,20 @@ class LLVMIRGenerator:
             else:
                 typ, _ = self.type_map[type(obj_ref)]
 
-            if shadow_memory_dim[typ] <= obj_id:
-                shadow_memory_dim[typ] = obj_id + 1
+            llobject = self.llmodule.get_global("object.{}".format(obj_id))
+            if llobject is not None:
+                llobjects[typ].append(llobject.bitcast(llptr))
 
         lldatalayout = llvm.create_target_data(self.llmodule.data_layout)
 
-        llrpcattrty = self.llcontext.get_identified_type("shadow.attr")
+        llrpcattrty = self.llcontext.get_identified_type("attr_desc")
         llrpcattrty.elements = [lli32, llptr, llptr]
 
-        lldescty = self.llcontext.get_identified_type("shadow.desc")
-        lldescty.elements = [llrpcattrty.as_pointer().as_pointer(), lli32, llptr]
+        lldescty = self.llcontext.get_identified_type("type_desc")
+        lldescty.elements = [llrpcattrty.as_pointer().as_pointer(), llptr.as_pointer()]
 
         lldescs = []
-        for typ in shadow_memory_dim:
+        for typ in llobjects:
             if "__objectid__" not in typ.attributes:
                 continue
 
@@ -458,44 +451,25 @@ class LLVMIRGenerator:
             else:
                 type_name = "instance.{}".format(typ.name)
 
-            shadowname = "shadow.{}".format(type_name)
-            llshadow = self.llmodule.get_global(shadowname)
-            if llshadow is None:
-                continue
-
-            llshadowlen = shadow_memory_dim[typ] * len(typ.attributes)
-            llshadowty = ll.ArrayType(lli8, llshadowlen)
-            llshadow.gtype = llshadowty
-            llshadow.type = llshadowty.as_pointer()
-            llshadow.initializer = ll.Constant(llshadowty, None)
-
             def llrpcattr_of_attr(name, typ):
-                llty = self.llty_of_type(typ)
-                if isinstance(llty, ll.PointerType):
-                    # Work around llvmlite bug where it is unable to get a C++
-                    # object for a type if it includes an identified type in a context
-                    # other than the default.
-                    size = llptr.get_abi_size(lldatalayout)
-                else:
-                    size = llty.get_abi_size(lldatalayout)
+                size = self.llty_of_type(typ).get_abi_size(lldatalayout, context=self.llcontext)
 
                 def rpc_tag_error(typ):
                     print(typ)
                     assert False
 
-                rpctag = b"Os"
-                if not (types.is_function(typ) or types.is_method(typ)):
-                    rpctag += self._rpc_tag(typ, error_handler=rpc_tag_error)
+                if not (types.is_function(typ) or types.is_method(typ) or
+                        name == "__objectid__"):
+                    rpctag   = b"Os" + self._rpc_tag(typ, error_handler=rpc_tag_error) + b":n\x00"
+                    llrpctag = self.llstr_of_str(rpctag)
                 else:
-                    rpctag += b""
-                rpctag += b":n\x00"
-                llrpctag = self.llstr_of_str(rpctag)
+                    llrpctag = ll.Constant(llptr, None)
 
                 llrpcattr = ll.GlobalVariable(self.llmodule, llrpcattrty,
-                                              name="shadow.attr.{}.{}".format(type_name, name))
+                                              name="attr.{}.{}".format(type_name, name))
                 llrpcattr.initializer = ll.Constant(llrpcattrty, [
                     ll.Constant(lli32, size),
-                    self.llstr_of_str(rpctag),
+                    llrpctag,
                     self.llstr_of_str(name)
                 ])
                 llrpcattr.global_constant = True
@@ -509,32 +483,35 @@ class LLVMIRGenerator:
 
             llrpcattraryty = ll.ArrayType(llrpcattrty.as_pointer(), len(llrpcattrs) + 1)
             llrpcattrary = ll.GlobalVariable(self.llmodule, llrpcattraryty,
-                                             name="shadow.attrs.{}".format(type_name))
+                                             name="attrs.{}".format(type_name))
             llrpcattrary.initializer = ll.Constant(llrpcattraryty,
                 llrpcattrs + [ll.Constant(llrpcattrty.as_pointer(), None)])
             llrpcattrary.global_constant = True
             llrpcattrary.unnamed_addr = True
             llrpcattrary.linkage = 'internal'
 
+            llobjectaryty = ll.ArrayType(llptr, len(llobjects[typ]) + 1)
+            llobjectary = ll.GlobalVariable(self.llmodule, llobjectaryty,
+                                            name="objects.{}".format(type_name))
+            llobjectary.initializer = ll.Constant(llobjectaryty,
+                llobjects[typ] + [ll.Constant(llptr, None)])
+            llobjectary.linkage = 'internal'
+
             lldesc = ll.GlobalVariable(self.llmodule, lldescty,
-                                       name="shadow.desc.{}".format(type_name))
+                                       name="desc.{}".format(type_name))
             lldesc.initializer = ll.Constant(lldescty, [
                 llrpcattrary.bitcast(llrpcattrty.as_pointer().as_pointer()),
-                ll.Constant(lli32, shadow_memory_dim[typ]),
-                llshadow.bitcast(llptr)
+                llobjectary.bitcast(llptr.as_pointer())
             ])
             lldesc.global_constant = True
             lldesc.linkage = 'internal'
             lldescs.append(lldesc)
 
         llglobaldescty = ll.ArrayType(lldescty.as_pointer(), len(lldescs) + 1)
-        llglobaldesc = ll.GlobalVariable(self.llmodule, llglobaldescty, name="shadow")
+        llglobaldesc = ll.GlobalVariable(self.llmodule, llglobaldescty,
+                                         name="typeinfo")
         llglobaldesc.initializer = ll.Constant(llglobaldescty,
             lldescs + [ll.Constant(lldescty.as_pointer(), None)])
-
-        llobjectaryty = ll.ArrayType(llptr, len(llobjects))
-        llobjectary = ll.GlobalVariable(self.llmodule, llobjectaryty, name="objects")
-        llobjectary.initializer = ll.Constant(llobjectaryty, llobjects)
 
     def process_function(self, func):
         try:
@@ -695,34 +672,6 @@ class LLVMIRGenerator:
 
     def process_SetAttr(self, insn):
         assert builtins.is_allocated(insn.object().type)
-
-        object_type = insn.object().type.find()
-        value_type = insn.value().type.find()
-        if "__objectid__" in object_type.attributes and \
-                not (types.is_function(value_type) or types.is_method(value_type)):
-            llidptr = self.llbuilder.gep(self.map(insn.object()),
-                                         [self.llindex(0), self.llindex(0)])
-            llid = self.llbuilder.load(llidptr, name="shadow.id")
-            llattrcount = ll.Constant(lli32, len(object_type.attributes))
-            llshadowpos = self.llbuilder.add(
-                self.llbuilder.mul(llid, llattrcount),
-                ll.Constant(lli32, self.attr_index(insn)))
-
-            if types.is_constructor(object_type):
-                shadowname = "shadow.class.{}".format(object_type.name)
-            else:
-                shadowname = "shadow.instance.{}".format(object_type.name)
-
-            llshadow = self.llmodule.get_global(shadowname)
-            if llshadow is None:
-                llshadowty = ll.ArrayType(lli8, 0)
-                llshadow = ll.GlobalVariable(self.llmodule, llshadowty, shadowname)
-                llshadow.linkage = 'internal'
-
-            llshadowptr = self.llbuilder.gep(llshadow, [self.llindex(0), llshadowpos],
-                                             name="shadow.ptr")
-            self.llbuilder.store(ll.Constant(lli8, 1), llshadowptr)
-
         llptr = self.llbuilder.gep(self.map(insn.object()),
                                    [self.llindex(0), self.llindex(self.attr_index(insn))],
                                    name=insn.name)

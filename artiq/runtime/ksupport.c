@@ -20,7 +20,7 @@
 double round(double x);
 
 void ksupport_abort(void);
-static void attribute_writeback(void *, void *);
+static void attribute_writeback(void *);
 
 int64_t now;
 
@@ -247,16 +247,15 @@ int main(void)
             mailbox_send(&load_reply);
             while(1);
         }
+
+        void *__bss_start = dyld_lookup("__bss_start", request->library_info);
+        void *_end = dyld_lookup("_end", request->library_info);
+        memset(__bss_start, 0, _end - __bss_start);
     }
 
     if(request->run_kernel) {
         void (*kernel_run)() = request->library_info->init;
-        void *__bss_start = dyld_lookup("__bss_start", request->library_info);
-        void *_end = dyld_lookup("_end", request->library_info);
-        void *shadow  = dyld_lookup("shadow", request->library_info);
-        void *objects = dyld_lookup("objects", request->library_info);
-
-        memset(__bss_start, 0, _end - __bss_start);
+        void *typeinfo = dyld_lookup("typeinfo", request->library_info);
 
         mailbox_send_and_wait(&load_reply);
 
@@ -264,7 +263,7 @@ int main(void)
         kernel_run();
         now_save(now);
 
-        attribute_writeback(shadow, objects);
+        attribute_writeback(typeinfo);
 
         struct msg_base finished_reply;
         finished_reply.type = MESSAGE_TYPE_FINISHED;
@@ -405,40 +404,36 @@ int recv_rpc(void *slot) {
     }
 }
 
-struct shadow_attr {
+struct attr_desc {
     uint32_t size;
     const char *tag;
     const char *name;
 };
 
-struct shadow_desc {
-    struct shadow_attr **attributes;
-    uint32_t object_count;
-    uint8_t *shadow;
+struct type_desc {
+    struct attr_desc **attributes;
+    void **objects;
 };
 
-void attribute_writeback(void *udescs, void *uobjects) {
-    struct shadow_desc **descs = (struct shadow_desc **)udescs;
-    void **objects = (void **)uobjects;
-
-    while(*descs) {
-        struct shadow_desc *desc = *descs++;
+void attribute_writeback(void *utypes) {
+    struct type_desc **types = (struct type_desc **)utypes;
+    while(*types) {
+        struct type_desc *type = *types++;
 
         size_t attr_count = 0;
-        for(struct shadow_attr **attr = desc->attributes; *attr; attr++)
+        for(struct attr_desc **attr = type->attributes; *attr; attr++)
             attr_count++;
 
-        for(int object_id = 0; object_id < desc->object_count; object_id++) {
-            uint8_t *shadow = &desc->shadow[object_id * attr_count];
-            void *object = objects[object_id];
-
-            if(object == NULL) continue;
+        void **objects = type->objects;
+        while(*objects) {
+            void *object = *objects++;
 
             size_t offset = 0;
-            for(int attr_index = 0; attr_index < attr_count; attr_index++) {
-                struct shadow_attr *attr = desc->attributes[attr_index];
+            struct attr_desc **attrs = type->attributes;
+            while(*attrs) {
+                struct attr_desc *attr = *attrs++;
 
-                if(shadow[attr_index]) {
+                if(attr->tag) {
                     uintptr_t value = (uintptr_t)object + offset;
                     send_rpc(0, attr->tag, &object, &attr->name, value);
                 }
