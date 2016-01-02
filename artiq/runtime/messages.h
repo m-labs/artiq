@@ -17,6 +17,7 @@ enum {
     MESSAGE_TYPE_RPC_SEND,
     MESSAGE_TYPE_RPC_RECV_REQUEST,
     MESSAGE_TYPE_RPC_RECV_REPLY,
+    MESSAGE_TYPE_RPC_BATCH,
     MESSAGE_TYPE_LOG,
 
     MESSAGE_TYPE_BRG_READY,
@@ -95,6 +96,13 @@ struct msg_rpc_recv_reply {
     int type;
     int alloc_size;
     struct artiq_exception *exception;
+};
+
+struct msg_rpc_batch {
+    int type;
+    int service;
+    const char *tag;
+    void *ptr;
 };
 
 struct msg_log {

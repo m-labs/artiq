@@ -435,7 +435,11 @@ class CommGeneric:
 
     def _serve_rpc(self, object_map):
         service_id  = self._read_int32()
-        service     = object_map.retrieve(service_id)
+        if service_id == 0:
+            service = lambda obj, attr, value: setattr(obj, attr, value)
+        else:
+            service = object_map.retrieve(service_id)
+
         arguments   = self._receive_rpc_args(object_map, service.__defaults__)
         return_tags = self._read_bytes()
         logger.debug("rpc service: [%d]%r %r -> %s", service_id, service, arguments, return_tags)
@@ -444,10 +448,11 @@ class CommGeneric:
             result = service(*arguments)
             logger.debug("rpc service: %d %r == %r", service_id, arguments, result)
 
-            self._write_header(_H2DMsgType.RPC_REPLY)
-            self._write_bytes(return_tags)
-            self._send_rpc_value(bytearray(return_tags), result, result, service)
-            self._write_flush()
+            if service_id != 0:
+                self._write_header(_H2DMsgType.RPC_REPLY)
+                self._write_bytes(return_tags)
+                self._send_rpc_value(bytearray(return_tags), result, result, service)
+                self._write_flush()
         except Exception as exn:
             logger.debug("rpc service: %d %r ! %r", service_id, arguments, exn)
 

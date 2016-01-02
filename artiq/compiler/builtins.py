@@ -89,13 +89,13 @@ class TException(types.TMono):
     attributes = OrderedDict([
         ("__name__",    TStr()),
         ("__file__",    TStr()),
-        ("__line__",    TInt(types.TValue(32))),
-        ("__col__",     TInt(types.TValue(32))),
+        ("__line__",    TInt32()),
+        ("__col__",     TInt32()),
         ("__func__",    TStr()),
         ("__message__", TStr()),
-        ("__param0__",  TInt(types.TValue(64))),
-        ("__param1__",  TInt(types.TValue(64))),
-        ("__param2__",  TInt(types.TValue(64))),
+        ("__param0__",  TInt64()),
+        ("__param1__",  TInt64()),
+        ("__param2__",  TInt64()),
     ])
 
     def __init__(self, name="Exception", id=0):
@@ -190,6 +190,12 @@ def is_int(typ, width=None):
         return types.is_mono(typ, "int", width=width)
     else:
         return types.is_mono(typ, "int")
+
+def is_int32(typ):
+    return is_int(typ, types.TValue(32))
+
+def is_int64(typ):
+    return is_int(typ, types.TValue(64))
 
 def get_int_width(typ):
     if is_int(typ):

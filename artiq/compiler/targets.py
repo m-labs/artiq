@@ -81,8 +81,14 @@ class Target:
                 print(function.as_entity(type_printer), file=sys.stderr)
 
         llmod = module.build_llvm_ir(self)
-        llparsedmod = llvm.parse_assembly(str(llmod))
-        llparsedmod.verify()
+
+        try:
+            llparsedmod = llvm.parse_assembly(str(llmod))
+            llparsedmod.verify()
+        except RuntimeError:
+            print("====== LLVM IR DUMP (PARSE FAILED) ======", file=sys.stderr)
+            print(str(llmod), file=sys.stderr)
+            raise
 
         if os.getenv("ARTIQ_DUMP_LLVM"):
             print("====== LLVM IR DUMP ======", file=sys.stderr)

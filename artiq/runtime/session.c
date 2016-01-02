@@ -962,7 +962,8 @@ static int process_kmsg(struct msg_base *umsg)
             break;
         }
 
-        case MESSAGE_TYPE_RPC_SEND: {
+        case MESSAGE_TYPE_RPC_SEND:
+        case MESSAGE_TYPE_RPC_BATCH: {
             struct msg_rpc_send *msg = (struct msg_rpc_send *)umsg;
 
             if(!send_rpc_request(msg->service, msg->tag, msg->args)) {
@@ -971,7 +972,8 @@ static int process_kmsg(struct msg_base *umsg)
                 return 0; // restart session
             }
 
-            user_kernel_state = USER_KERNEL_WAIT_RPC;
+            if(msg->type == MESSAGE_TYPE_RPC_SEND)
+                user_kernel_state = USER_KERNEL_WAIT_RPC;
             mailbox_acknowledge();
             break;
         }

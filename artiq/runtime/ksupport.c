@@ -20,6 +20,7 @@
 double round(double x);
 
 void ksupport_abort(void);
+static void attribute_writeback(void *, void *);
 
 int64_t now;
 
@@ -249,13 +250,21 @@ int main(void)
     }
 
     if(request->run_kernel) {
-        void (*kernel_init)() = request->library_info->init;
+        void (*kernel_run)() = request->library_info->init;
+        void *__bss_start = dyld_lookup("__bss_start", request->library_info);
+        void *_end = dyld_lookup("_end", request->library_info);
+        void *shadow  = dyld_lookup("shadow", request->library_info);
+        void *objects = dyld_lookup("objects", request->library_info);
+
+        memset(__bss_start, 0, _end - __bss_start);
 
         mailbox_send_and_wait(&load_reply);
 
         now = now_init();
-        kernel_init();
+        kernel_run();
         now_save(now);
+
+        attribute_writeback(shadow, objects);
 
         struct msg_base finished_reply;
         finished_reply.type = MESSAGE_TYPE_FINISHED;
@@ -357,7 +366,10 @@ void send_rpc(int service, const char *tag, ...)
 {
     struct msg_rpc_send request;
 
-    request.type = MESSAGE_TYPE_RPC_SEND;
+    if(service != 0)
+        request.type = MESSAGE_TYPE_RPC_SEND;
+    else
+        request.type = MESSAGE_TYPE_RPC_BATCH;
     request.service = service;
     request.tag = tag;
     va_start(request.args, tag);
@@ -390,6 +402,50 @@ int recv_rpc(void *slot) {
         int alloc_size = reply->alloc_size;
         mailbox_acknowledge();
         return alloc_size;
+    }
+}
+
+struct shadow_attr {
+    uint32_t size;
+    const char *tag;
+    const char *name;
+};
+
+struct shadow_desc {
+    struct shadow_attr **attributes;
+    uint32_t object_count;
+    uint8_t *shadow;
+};
+
+void attribute_writeback(void *udescs, void *uobjects) {
+    struct shadow_desc **descs = (struct shadow_desc **)udescs;
+    void **objects = (void **)uobjects;
+
+    while(*descs) {
+        struct shadow_desc *desc = *descs++;
+
+        size_t attr_count = 0;
+        for(struct shadow_attr **attr = desc->attributes; *attr; attr++)
+            attr_count++;
+
+        for(int object_id = 0; object_id < desc->object_count; object_id++) {
+            uint8_t *shadow = &desc->shadow[object_id * attr_count];
+            void *object = objects[object_id];
+
+            if(object == NULL) continue;
+
+            size_t offset = 0;
+            for(int attr_index = 0; attr_index < attr_count; attr_index++) {
+                struct shadow_attr *attr = desc->attributes[attr_index];
+
+                if(shadow[attr_index]) {
+                    uintptr_t value = (uintptr_t)object + offset;
+                    send_rpc(0, attr->tag, &object, &attr->name, value);
+                }
+
+                offset += attr->size;
+            }
+        }
     }
 }
 
