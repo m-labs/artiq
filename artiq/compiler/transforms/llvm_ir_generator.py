@@ -412,7 +412,7 @@ class LLVMIRGenerator:
         if any(functions):
             self.debug_info_emitter.finalize(functions[0].loc.source_buffer)
 
-        if attribute_writeback:
+        if attribute_writeback and self.object_map is not None:
             self.emit_attribute_writeback()
 
         return self.llmodule
