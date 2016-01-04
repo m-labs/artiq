@@ -963,8 +963,7 @@ class Inferencer(algorithm.Visitor):
         self.generic_visit(node)
 
         typ = node.context_expr.type
-        if not (types.is_builtin(typ, "parallel") or
-                types.is_builtin(typ, "sequential") or
+        if (types.is_builtin(typ, "parallel") or types.is_builtin(typ, "sequential") or
                 (isinstance(node.context_expr, asttyped.CallT) and
                  types.is_builtin(node.context_expr.func.type, "watchdog"))):
             diag = diagnostic.Diagnostic("error",
@@ -976,6 +975,19 @@ class Inferencer(algorithm.Visitor):
         if node.optional_vars is not None:
             self._unify(node.optional_vars.type, node.context_expr.type,
                         node.optional_vars.loc, node.context_expr.loc)
+
+    def visit_With(self, node):
+        self.generic_visit(node)
+
+        for item_node in node.items:
+            typ = item_node.context_expr.type.find()
+            if (types.is_builtin(typ, "parallel") or types.is_builtin(typ, "sequential")) and \
+                    len(node.items) != 1:
+                diag = diagnostic.Diagnostic("error",
+                    "the '{kind}' context manager must be the only one in a 'with' statement",
+                    {"kind": typ.name},
+                    node.keyword_loc.join(node.colon_loc))
+                self.engine.process(diag)
 
     def visit_ExceptHandlerT(self, node):
         self.generic_visit(node)
