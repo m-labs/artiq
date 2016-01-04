@@ -129,7 +129,6 @@ def run(with_file=False):
         exp_inst.run()
         exp_inst.analyze()
     except CompileError as error:
-        print(error.render_string(colored=True), file=sys.stderr)
         return
     except Exception as exn:
         if hasattr(exn, 'artiq_exception'):

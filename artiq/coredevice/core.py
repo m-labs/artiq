@@ -20,7 +20,7 @@ def _render_diagnostic(diagnostic):
     return "\n".join(lines)
 
 class _DiagnosticEngine(diagnostic.Engine):
-    def print_diagnostic(self, diagnostic):
+    def render_diagnostic(self, diagnostic):
         sys.stderr.write(_render_diagnostic(diagnostic) + "\n")
 
 class CompileError(Exception):

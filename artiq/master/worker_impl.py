@@ -230,6 +230,7 @@ def main():
             elif action == "terminate":
                 break
     except CompileError as exc:
+        # TODO: This should be replaced with a proper DiagnosticEngine.
         message = "Cannot compile {}\n".format(experiment_file) + exc.render_string()
         if repository_path is not None:
             message = message.replace(repository_path, "<repository>")
