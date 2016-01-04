@@ -303,8 +303,8 @@ class StitchingInferencer(Inferencer):
         # which would be the optimal solution.
 
         object_type = value_node.type.find()
-        attr_value_type = None
         for object_value, object_loc in self.value_map[object_type]:
+            attr_value_type = None
             if not hasattr(object_value, attr_name):
                 if attr_name.startswith('_'):
                     names = set(filter(lambda name: not name.startswith('_'),
@@ -412,7 +412,7 @@ class StitchingInferencer(Inferencer):
                         " different from previously inferred type {typeb} for the same attribute",
                         {"typea": printer.name(attr_value_type),
                          "typeb": printer.name(attributes[attr_name]),
-                         "attr": node.attr},
+                         "attr": attr_name},
                         object_loc)
                     self.engine.process(diag)
 
