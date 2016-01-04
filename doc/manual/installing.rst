@@ -82,15 +82,15 @@ You now need to flash 3 things on the FPGA board:
 2. The BIOS
 3. The ARTIQ runtime
 
-First you need to :ref:`install xc3sprog <install-xc3sprog>`. Then, you can flash the board:
+First you need to :ref:`install openocd <install-openocd>`. Then, you can flash the board:
 
 * For the Pipistrello board::
 
-    $ artiq_flash.sh -t pipistrello
+    $ artiq_flash -t pipistrello
 
 * For the KC705 board::
 
-    $ artiq_flash.sh
+    $ artiq_flash
 
 Next step (for KC705) is to flash MAC and IP addresses to the board:
 
@@ -177,20 +177,21 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 .. note::
     The options ``develop`` and ``--user`` are for setup.py to install Migen in ``~/.local/lib/python3.5``.
 
-.. _install-xc3sprog:
+.. _install-openocd:
 
 * Install JTAG tools needed to program the Pipistrello and KC705:
 
     ::
 
         $ cd ~/artiq-dev
-        $ svn co http://svn.code.sf.net/p/xc3sprog/code/trunk xc3sprog
-        $ cd xc3sprog
-        $ cmake . && make
+        $ git clone https://github.com/ntfreak/openocd.git
+        $ cd openocd
+        $ ./bootstrap
+        $ ./configure
+        $ make
         $ sudo make install
-
-    .. note::
-        It is safe to ignore the message "Could NOT find LIBFTD2XX" (libftd2xx is different from libftdi, and is not required).
+        $ sudo cp contrib/99-openocd.rules /etc/udev/rules.d
+        $ adduser $USER plugdev
 
 .. _install-flash-proxy:
 
@@ -198,25 +199,16 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
     The purpose of the flash proxy bitstream is to give programming software fast JTAG access to the flash connected to the FPGA.
 
-    * Pipistrello:
+    * Pipistrello and KC705:
 
         ::
 
             $ cd ~/artiq-dev
-            $ wget https://people.phys.ethz.ch/~robertjo/bscan_spi_lx45_csg324.bit
+            $ wget https://github.com/jordens/bscan_spi_bitstreams/blob/master/bscan_spi_xc6slx45.bit?raw=true
+            $ wget https://github.com/jordens/bscan_spi_bitstreams/blob/master/bscan_spi_xc7k325t.bit?raw=true
 
-        Then copy ``~/artiq-dev/bscan_spi_lx45_csg324.bit`` to ``~/.migen``, ``/usr/local/share/migen`` or ``/usr/share/migen``.
+        Then copy both files ``~/artiq-dev/bscan_spi_xc6slx45.bit`` and ``~/artiq-dev/bscan_spi_xc7k325t.bit`` to ``~/.migen``, ``/usr/local/share/migen`` or ``/usr/share/migen``.
 
-    * KC705:
-
-        ::
-
-            $ cd ~/artiq-dev
-            $ git clone https://github.com/m-labs/bscan_spi_kc705
-            $ cd bscan_spi_kc705
-            $ make
-
-        Then copy the generated ``bscan_spi_kc705.bit`` to ``~/.migen``, ``/usr/local/share/migen`` or ``/usr/share/migen``.
 
 * Download and install MiSoC: ::
 
@@ -261,7 +253,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
         $ cp misoc_nist_qcX_<board>/software/bios/bios.bin binaries
         $ cp misoc_nist_qcX_<board>/software/runtime/runtime.fbi binaries
         $ cd binaries
-        $ artiq_flash.sh -d . -t <board>
+        $ artiq_flash -d . -t <board>
 
 .. note:: The `-t` option specifies the board your are targeting. Available options are ``kc705`` and ``pipistrello``.
 
@@ -336,7 +328,7 @@ This should be done after either installation method (conda or source).
     * You can either set it by generating a flash storage image and then flash it: ::
 
         $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
-        $ ~/artiq-dev/artiq/frontend/artiq_flash.sh -f flash_storage.img
+        $ artiq_flash -f flash_storage.img proxy storage start
 
     * Or you can set it via the runtime test mode command line
 
@@ -412,29 +404,3 @@ Ubuntu 15.10+/Debian jessie+ specific instructions
 This command installs all the required packages: ::
 
     $ sudo apt-get install build-essential autotools-dev file git patch perl xutils-dev texinfo flex bison libmpc-dev subversion cmake libusb-dev libftdi-dev pkg-config libffi-dev libgit2-dev python3.5 python3.5-dev
-
-To set user permissions on the JTAG and serial ports of the Pipistrello, create a ``/etc/udev/rules.d/30-usb-papilio.rules`` file containing the following: ::
-
-    SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6010", GROUP="dialout"
-
-Then reload ``udev``, add your user to the ``dialout`` group, and log out and log in again: ::
-
-    $ sudo invoke-rc.d udev reload
-    $ sudo adduser <your username> dialout
-    $ logout
-
-Fedora 22 specific instructions
--------------------------------
-
-- Make xc3sprog compile:
-
-Fedora packages the libftdi1 as libftdi, so the autodetection of the library fails. To make it work, you have to explicitly point cmake to the right folder and library: ::
-
-    $ cmake -DLIBFTDI_INCLUDE_DIR=/usr/include/libftdi1 -DLIBFTDI_LIBRARIES=/usr/lib64/libftdi1.so . && make
-
-- Get permission to access the Pipistrello Board:
-
-To be able to access the JTAG and serial ports of the Pipistrello, you have to be in the group plugdev. Do that by running the following command and log out and log in again afterwards. ::
-
-    $ sudo adduser <your username> plugdev
-
