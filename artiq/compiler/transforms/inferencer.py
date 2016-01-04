@@ -88,9 +88,14 @@ class Inferencer(algorithm.Visitor):
 
     def visit_AttributeT(self, node):
         self.generic_visit(node)
-        object_type = node.value.type.find()
+        self._unify_attribute(result_type=node.type, value_node=node.value,
+                              attr_name=node.attr, attr_loc=node.attr_loc,
+                              loc=node.loc)
+
+    def _unify_attribute(self, result_type, value_node, attr_name, attr_loc, loc):
+        object_type = value_node.type.find()
         if not types.is_var(object_type):
-            if node.attr in object_type.attributes:
+            if attr_name in object_type.attributes:
                 def makenotes(printer, typea, typeb, loca, locb):
                     return [
                         diagnostic.Diagnostic("note",
@@ -100,18 +105,18 @@ class Inferencer(algorithm.Visitor):
                         diagnostic.Diagnostic("note",
                             "expression of type {typeb}",
                             {"typeb": printer.name(object_type)},
-                            node.value.loc)
+                            value_node.loc)
                     ]
 
-                attr_type = object_type.attributes[node.attr]
+                attr_type = object_type.attributes[attr_name]
                 if types.is_rpc_function(attr_type):
                     attr_type = types.instantiate(attr_type)
 
-                self._unify(node.type, attr_type, node.loc, None,
-                            makenotes=makenotes, when=" for attribute '{}'".format(node.attr))
+                self._unify(result_type, attr_type, loc, None,
+                            makenotes=makenotes, when=" for attribute '{}'".format(attr_name))
             elif types.is_instance(object_type) and \
-                    node.attr in object_type.constructor.attributes:
-                attr_type = object_type.constructor.attributes[node.attr].find()
+                    attr_name in object_type.constructor.attributes:
+                attr_type = object_type.constructor.attributes[attr_name].find()
                 if types.is_rpc_function(attr_type):
                     attr_type = types.instantiate(attr_type)
 
@@ -120,48 +125,54 @@ class Inferencer(algorithm.Visitor):
                     if len(attr_type.args) < 1:
                         diag = diagnostic.Diagnostic("error",
                             "function '{attr}{type}' of class '{class}' cannot accept a self argument",
-                            {"attr": node.attr, "type": types.TypePrinter().name(attr_type),
+                            {"attr": attr_name, "type": types.TypePrinter().name(attr_type),
                              "class": object_type.name},
-                            node.loc)
+                            loc)
                         self.engine.process(diag)
                         return
                     else:
                         def makenotes(printer, typea, typeb, loca, locb):
+                            if attr_loc is None:
+                                msgb = "reference to an instance with a method '{attr}{typeb}'"
+                            else:
+                                msgb = "reference to a method '{attr}{typeb}'"
+
                             return [
                                 diagnostic.Diagnostic("note",
                                     "expression of type {typea}",
                                     {"typea": printer.name(typea)},
                                     loca),
                                 diagnostic.Diagnostic("note",
-                                    "reference to a class function of type {typeb}",
-                                    {"typeb": printer.name(attr_type)},
+                                    msgb,
+                                    {"attr": attr_name,
+                                     "typeb": printer.name(attr_type)},
                                     locb)
                             ]
 
                         self._unify(object_type, list(attr_type.args.values())[0],
-                                    node.value.loc, node.loc,
+                                    value_node.loc, loc,
                                     makenotes=makenotes,
                                     when=" while inferring the type for self argument")
 
                     attr_type = types.TMethod(object_type, attr_type)
 
                 if not types.is_var(attr_type):
-                    self._unify(node.type, attr_type,
-                                node.loc, None)
+                    self._unify(result_type, attr_type,
+                                loc, None)
             else:
-                if node.attr_loc.source_buffer == node.value.loc.source_buffer:
-                    highlights, notes = [node.value.loc], []
+                if attr_name_loc.source_buffer == value_node.loc.source_buffer:
+                    highlights, notes = [value_node.loc], []
                 else:
                     # This happens when the object being accessed is embedded
                     # from the host program.
                     note = diagnostic.Diagnostic("note",
                         "object being accessed", {},
-                        node.value.loc)
+                        value_node.loc)
                     highlights, notes = [], [note]
 
                 diag = diagnostic.Diagnostic("error",
                     "type {type} does not have an attribute '{attr}'",
-                    {"type": types.TypePrinter().name(object_type), "attr": node.attr},
+                    {"type": types.TypePrinter().name(object_type), "attr": attr_name},
                     node.attr_loc, highlights, notes)
                 self.engine.process(diag)
 

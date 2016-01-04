@@ -286,10 +286,7 @@ class StitchingInferencer(Inferencer):
         self.value_map = value_map
         self.quote = quote
 
-    def visit_AttributeT(self, node):
-        self.generic_visit(node)
-        object_type = node.value.type.find()
-
+    def _unify_attribute(self, result_type, value_node, attr_name, attr_loc, loc):
         # The inferencer can only observe types, not values; however,
         # when we work with host objects, we have to get the values
         # somewhere, since host interpreter does not have types.
@@ -304,28 +301,31 @@ class StitchingInferencer(Inferencer):
         #   * a previously unknown attribute is encountered,
         #   * a previously unknown host object is encountered;
         # which would be the optimal solution.
+
+        object_type = value_node.type.find()
+        attr_value_type = None
         for object_value, object_loc in self.value_map[object_type]:
-            if not hasattr(object_value, node.attr):
-                if node.attr.startswith('_'):
+            if not hasattr(object_value, attr_name):
+                if attr_name.startswith('_'):
                     names = set(filter(lambda name: not name.startswith('_'),
                                        dir(object_value)))
                 else:
                     names = set(dir(object_value))
-                suggestion = suggest_identifier(node.attr, names)
+                suggestion = suggest_identifier(attr_name, names)
 
                 note = diagnostic.Diagnostic("note",
                     "attribute accessed here", {},
-                    node.loc)
+                    loc)
                 if suggestion is not None:
                     diag = diagnostic.Diagnostic("error",
                         "host object does not have an attribute '{attr}'; "
                         "did you mean '{suggestion}'?",
-                        {"attr": node.attr, "suggestion": suggestion},
+                        {"attr": attr_name, "suggestion": suggestion},
                         object_loc, notes=[note])
                 else:
                     diag = diagnostic.Diagnostic("error",
                         "host object does not have an attribute '{attr}'",
-                        {"attr": node.attr},
+                        {"attr": attr_name},
                         object_loc, notes=[note])
                 self.engine.process(diag)
                 return
@@ -335,7 +335,7 @@ class StitchingInferencer(Inferencer):
             # overhead (i.e. synthesizing a source buffer), but has the advantage
             # of having the host-to-ARTIQ mapping code in only one place and
             # also immediately getting proper diagnostics on type errors.
-            attr_value = getattr(object_value, node.attr)
+            attr_value = getattr(object_value, attr_name)
             if inspect.ismethod(attr_value) and types.is_instance(object_type):
                 # In cases like:
                 #     class c:
@@ -348,8 +348,6 @@ class StitchingInferencer(Inferencer):
             else:
                 attributes = object_type.attributes
                 is_method  = False
-
-            attr_value_type = None
 
             if isinstance(attr_value, list):
                 # Fast path for lists of scalars.
@@ -387,8 +385,8 @@ class StitchingInferencer(Inferencer):
                 def proxy_diagnostic(diag):
                     note = diagnostic.Diagnostic("note",
                         "while inferring a type for an attribute '{attr}' of a host object",
-                        {"attr": node.attr},
-                        node.loc)
+                        {"attr": attr_name},
+                        loc)
                     diag.notes.append(note)
 
                     self.engine.process(diag)
@@ -399,31 +397,26 @@ class StitchingInferencer(Inferencer):
                 IntMonomorphizer(engine=proxy_engine).visit(ast)
                 attr_value_type = ast.type
 
-            if is_method and types.is_rpc_function(attr_value_type):
-                self_type = list(attr_value_type.args.values())[0]
-                self._unify(object_type, self_type,
-                            node.loc, None)
-
-            if node.attr not in attributes:
+            if attr_name not in attributes:
                 # We just figured out what the type should be. Add it.
-                attributes[node.attr] = attr_value_type
+                attributes[attr_name] = attr_value_type
             elif not types.is_rpc_function(attr_value_type):
                 # Does this conflict with an earlier guess?
                 # RPC function types are exempt because RPCs are dynamically typed.
                 try:
-                    attributes[node.attr].unify(attr_value_type)
+                    attributes[attr_name].unify(attr_value_type)
                 except types.UnificationError as e:
                     printer = types.TypePrinter()
                     diag = diagnostic.Diagnostic("error",
                         "host object has an attribute '{attr}' of type {typea}, which is"
                         " different from previously inferred type {typeb} for the same attribute",
                         {"typea": printer.name(attr_value_type),
-                         "typeb": printer.name(attributes[node.attr]),
+                         "typeb": printer.name(attributes[attr_name]),
                          "attr": node.attr},
                         object_loc)
                     self.engine.process(diag)
 
-        super().visit_AttributeT(node)
+        super()._unify_attribute(result_type, value_node, attr_name, attr_loc, loc)
 
 class TypedtreeHasher(algorithm.Visitor):
     def generic_visit(self, node):

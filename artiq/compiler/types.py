@@ -727,9 +727,9 @@ class TypePrinter(object):
                 signature += " " + self.name(delay)
 
             if isinstance(typ, TRPCFunction):
-                return "rpc({}) {}".format(typ.service, signature)
+                return "[rpc #{}]{}".format(typ.service, signature)
             if isinstance(typ, TCFunction):
-                return "ffi({}) {}".format(repr(typ.name), signature)
+                return "[ffi {}]{}".format(repr(typ.name), signature)
             elif isinstance(typ, TFunction):
                 return signature
         elif isinstance(typ, TBuiltinFunction):
