@@ -52,7 +52,7 @@ class FunctionResolver(algorithm.Visitor):
         self.visit(node.body)
         self.visit(node.orelse)
 
-    def visit_withitem(self, node):
+    def visit_withitemT(self, node):
         self.visit(node.context_expr)
         self.visit_in_assign(node.optional_vars)
 

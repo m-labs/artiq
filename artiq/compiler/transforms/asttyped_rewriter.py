@@ -480,6 +480,14 @@ class ASTTypedRewriter(algorithm.Transformer):
             else_loc=node.else_loc, else_colon_loc=node.else_colon_loc)
         return node
 
+    def visit_withitem(self, node):
+        node = self.generic_visit(node)
+        node = asttyped.withitemT(
+            context_expr=node.context_expr, optional_vars=node.optional_vars,
+            enter_type=types.TVar(), exit_type=types.TVar(),
+            as_loc=node.as_loc, loc=node.loc)
+        return node
+
     # Unsupported visitors
     #
     def visit_unsupported(self, node):

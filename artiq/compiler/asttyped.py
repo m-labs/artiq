@@ -42,6 +42,9 @@ class ForT(ast.For):
     :ivar trip_interval: (:class:`iodelay.Expr`)
     """
 
+class withitemT(ast.withitem):
+    _types = ("enter_type", "exit_type")
+
 class SliceT(ast.Slice, commontyped):
     pass
 
