@@ -52,7 +52,6 @@ requirements:
     - pyelftools
     - quamash
     - pyqtgraph
-    - flterm # [linux]
     - pygit2
     - aiohttp
     - binutils-or1k-linux
