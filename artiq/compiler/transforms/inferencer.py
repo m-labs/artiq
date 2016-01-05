@@ -1061,7 +1061,7 @@ class Inferencer(algorithm.Visitor):
                             node.optional_vars.loc, node.context_expr.loc,
                             makenotes=makenotes)
 
-        else:
+        elif not types.is_var(typ):
             diag = diagnostic.Diagnostic("error",
                 "value of type {type} cannot act as a context manager",
                 {"type": types.TypePrinter().name(typ)},
