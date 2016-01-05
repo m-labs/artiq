@@ -11,5 +11,4 @@ cp misoc_nist_qc2_kc705/gateware/top.bit $SOC_PREFIX
 cp misoc_nist_qc2_kc705/software/bios/bios.bin $SOC_PREFIX
 cp misoc_nist_qc2_kc705/software/runtime/runtime.fbi $SOC_PREFIX
 
-wget https://github.com/jordens/bscan_spi_bitstreams/blob/master/bscan_spi_xc7k325t.bit?raw=true -O bscan_spi_xc7k325t.bit
-mv bscan_spi_xc7k325t.bit $SOC_PREFIX
+wget -P $SOC_PREFIX https://raw.githubusercontent.com/jordens/bscan_spi_bitstreams/master/bscan_spi_xc7k325t.bit
