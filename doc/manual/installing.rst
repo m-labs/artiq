@@ -5,6 +5,12 @@ The preferred way of installing ARTIQ is through the use of the conda package ma
 The conda package contains pre-built binaries that you can directly flash to your board.
 But you can also :ref:`install from sources <install-from-sources>`.
 
+.. warning::
+    NIST users need to pay close attention to their ``umask``. The sledgehammer
+    called ``secureconfig`` leaves you (and root) with umask 027 and files
+    created by root (e.g. ``sudo make install``) insaccessible to you.
+    The usual umask is 022.
+
 Installing using conda
 ----------------------
 
@@ -186,6 +192,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
         $ cd ~/artiq-dev
         $ git clone https://github.com/ntfreak/openocd.git
         $ cd openocd
+        $ sudo apt-get install build-essentials libtool libusb-1.0-0-dev libftdi-dev
         $ ./bootstrap
         $ ./configure
         $ make
