@@ -118,6 +118,12 @@ class _NIST_QCx(MiniSoC, AMPSoC):
                          ident=artiq_version,
                          **kwargs)
         AMPSoC.__init__(self)
+        if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
+            self.platform.toolchain.bitstream_commands.extend([
+                "set_property BITSTREAM.GENERAL.COMPRESS True [current_design]",
+            ])
+        if isinstance(self.platform.toolchain, XilinxISEToolchain):
+            self.platform.toolchain.bitgen_opt += " -g compress"
 
         self.submodules.leds = gpio.GPIOOut(Cat(
             self.platform.request("user_led", 0),

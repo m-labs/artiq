@@ -126,6 +126,7 @@ class NIST_QC1(BaseSoC, AMPSoC):
 
         platform = self.platform
 
+        platform.toolchain.bitgen_opt += " -g compress"
         platform.toolchain.ise_commands += """
 trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd {build_name}.pcf
 """
