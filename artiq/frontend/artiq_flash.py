@@ -33,10 +33,6 @@ Prerequisites:
       'sudo cp openocd/contrib/99-openocd.rules /etc/udev/rules.d'
       and replug the device. Ensure you are member of the
       plugdev group: 'sudo adduser $USER plugdev' and re-login.
-    * Make the matching proxy bitstream accessible in ~/.migen or
-      /usr/local/share/migen or /usr/share/migen. Proxy bitstreams are
-      published at https://github.com/jordens/bscan_spi_bitstreams.
-      This script will tell you which one is needed.
 """)
     parser.add_argument("-t", "--target", default="kc705",
                         help="target board, default: %(default)s")
