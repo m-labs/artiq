@@ -1,6 +1,4 @@
 .. image:: doc/logo/artiq.png
-.. image:: https://travis-ci.org/m-labs/artiq.svg
-    :target: https://travis-ci.org/m-labs/artiq
 
 ARTIQ (Advanced Real-Time Infrastructure for Quantum physics) is a
 next-generation control system for quantum information experiments. It is
