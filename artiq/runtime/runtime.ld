@@ -7,14 +7,14 @@ INCLUDE generated/regions.ld
  * ld does not allow this expression here.
  */
 MEMORY {
-	runtime : ORIGIN = 0x40000000, LENGTH = 0x400000 /* 4M */
+	runtime : ORIGIN = 0x40000000, LENGTH = 0x800000 /* 8M */
 }
 
 /* First 4M of main memory are reserved for runtime code/data
  * then comes kernel memory. First 32K of kernel memory are for support code.
  */
 MEMORY {
-  kernel : ORIGIN = 0x40400000, LENGTH = 0x8000
+  kernel : ORIGIN = 0x40800000, LENGTH = 0x8000
 }
 
 /* Kernel memory space start right after the runtime,
