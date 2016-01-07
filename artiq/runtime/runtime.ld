@@ -10,24 +10,12 @@ MEMORY {
 	runtime : ORIGIN = 0x40000000, LENGTH = 0x800000 /* 8M */
 }
 
-/* First 4M of main memory are reserved for runtime code/data
- * then comes kernel memory. First 32K of kernel memory are for support code.
- */
-MEMORY {
-  kernel : ORIGIN = 0x40800000, LENGTH = 0x8000
-}
-
 /* Kernel memory space start right after the runtime,
  * and ends before the runtime stack.
  * Runtime stack is always at the end of main_ram.
  * This stack is shared with the kernel on UP systems.
  */
 PROVIDE(_fstack = 0x40000000 + LENGTH(main_ram) - 4);
-
-/* On AMP systems, kernel stack is at the end of main RAM,
- * before the runtime stack. Leave 1M for runtime stack.
- */
-PROVIDE(_kernel_fstack = 0x40000000 + LENGTH(main_ram) - 1024*1024 - 4);
 
 SECTIONS
 {
