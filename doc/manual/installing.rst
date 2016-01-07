@@ -8,7 +8,7 @@ But you can also :ref:`install from sources <install-from-sources>`.
 .. warning::
     NIST users need to pay close attention to their ``umask``. The sledgehammer
     called ``secureconfig`` leaves you (and root) with umask 027 and files
-    created by root (e.g. ``sudo make install``) insaccessible to you.
+    created by root (e.g. ``sudo make install``) inaccessible to you.
     The usual umask is 022.
 
 Installing using conda
