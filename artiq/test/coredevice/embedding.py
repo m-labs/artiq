@@ -2,7 +2,7 @@ from artiq.language import *
 from artiq.test.hardware_testbench import ExperimentCase
 
 
-class Roundtrip(EnvExperiment):
+class _Roundtrip(EnvExperiment):
     def build(self):
         self.setattr_device("core")
 
@@ -12,7 +12,7 @@ class Roundtrip(EnvExperiment):
 
 class RoundtripTest(ExperimentCase):
     def assertRoundtrip(self, obj):
-        exp = self.create(Roundtrip)
+        exp = self.create(_Roundtrip)
         def callback(objcopy):
             self.assertEqual(obj, objcopy)
         exp.roundtrip(obj, callback)
@@ -42,7 +42,7 @@ class RoundtripTest(ExperimentCase):
         self.assertRoundtrip(obj)
 
 
-class DefaultArg(EnvExperiment):
+class _DefaultArg(EnvExperiment):
     def build(self):
         self.setattr_device("core")
 
@@ -55,5 +55,23 @@ class DefaultArg(EnvExperiment):
 
 class DefaultArgTest(ExperimentCase):
     def test_default_arg(self):
-        exp = self.create(DefaultArg)
+        exp = self.create(_DefaultArg)
         self.assertEqual(exp.run(), 42)
+
+
+class _Payload1MB(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+
+    def devnull(self, d):
+        pass
+
+    @kernel
+    def run(self):
+        data = [0 for _ in range(1000000//4)]
+        self.devnull(data)
+
+class LargePayloadTest(ExperimentCase):
+    def test_1MB(self):
+        exp = self.create(_Payload1MB)
+        exp.run()

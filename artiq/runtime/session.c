@@ -16,8 +16,12 @@
 #include "rtiocrg.h"
 #include "session.h"
 
-#define BUFFER_IN_SIZE (1024*1024)
-#define BUFFER_OUT_SIZE (1024*1024)
+// 2.5MiB in payload + 1KiB for headers.
+// We need more than 1MiB to send a 1MiB list due to tags;
+// about 5/4MiB for an 1MiB int32 list, 9/8MiB for an 1MiB int64 list.
+#define BUFFER_SIZE (2560*1024 + 1024)
+#define BUFFER_IN_SIZE  BUFFER_SIZE
+#define BUFFER_OUT_SIZE BUFFER_SIZE
 
 static int process_input();
 static int out_packet_available();
@@ -829,8 +833,10 @@ static int send_rpc_value(const char **tag, void **value)
 
             for(int i = 0; i < list->length; i++) {
                 const char *tag_copy = *tag;
-                if(!send_rpc_value(&tag_copy, &element))
+                if(!send_rpc_value(&tag_copy, &element)) {
+                    log("failed to send list at element %d/%d", i, list->length);
                     return 0;
+                }
             }
             skip_rpc_value(tag);
 
