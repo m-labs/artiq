@@ -1123,21 +1123,23 @@ class LLVMIRGenerator:
         llty = self.llty_of_type(typ)
 
         if types.is_constructor(typ) or types.is_instance(typ):
+            llglobal = None
             llfields = []
             for attr in typ.attributes:
                 if attr == "__objectid__":
                     objectid = self.object_map.store(value)
                     llfields.append(ll.Constant(lli32, objectid))
-                    global_name = "object.{}".format(objectid)
+
+                    assert llglobal is None
+                    llglobal = ll.GlobalVariable(self.llmodule, llty.pointee,
+                                                 name="object.{}".format(objectid))
+                    self.llobject_map[value_id] = llglobal
                 else:
                     llfields.append(self._quote(getattr(value, attr), typ.attributes[attr],
                                                 lambda: path() + [attr]))
-            llconst = ll.Constant(llty.pointee, llfields)
 
-            llglobal = ll.GlobalVariable(self.llmodule, llconst.type, global_name)
-            llglobal.initializer = llconst
+            llglobal.initializer = ll.Constant(llty.pointee, llfields)
             llglobal.linkage = "private"
-            self.llobject_map[value_id] = llglobal
             return llglobal
         elif builtins.is_none(typ):
             assert value is None
