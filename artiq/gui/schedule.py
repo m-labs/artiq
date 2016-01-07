@@ -70,6 +70,7 @@ class ScheduleDock(dockarea.Dock):
             QtGui.QHeaderView.ResizeToContents)
         self.table.verticalHeader().setResizeMode(
             QtGui.QHeaderView.ResizeToContents)
+        self.table.verticalHeader().hide()
         self.addWidget(self.table)
 
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
