@@ -112,6 +112,7 @@ def main():
     smgr.register(d_datasets)
 
     appletmgr = applets.AppletManager(dock_area)
+    atexit_register_coroutine(appletmgr.stop)
     smgr.register(appletmgr)
 
     if os.name != "nt":
