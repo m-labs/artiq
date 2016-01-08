@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import shlex
+from functools import partial
 
 from quamash import QtCore, QtGui, QtWidgets
 from pyqtgraph import dockarea
@@ -19,16 +20,19 @@ class AppletDock(dockarea.Dock):
         self.applet_name = name
         self.command = command
 
+    def rename(self, name):
+        self.applet_name = name
+        self.label.setText("Applet: " + name)
+
     async def start(self):
         command = self.command.format(embed_token=self.token)
         logger.debug("starting command %s for %s", command, self.applet_name)
         try:
             self.process = await asyncio.create_subprocess_exec(
                                 *shlex.split(command))
-        except FileNotFoundError:
-            logger.warning("Applet %s failed to start", self.applet_name)
-        else:
-            logger.warning("Applet %s exited", self.applet_name)
+        except:
+            logger.warning("Applet %s failed to start", self.applet_name,
+                           exc_info=True)
 
     def capture(self, win_id):
         logger.debug("capturing window 0x%x for %s", win_id, self.applet_name)
@@ -54,11 +58,17 @@ class AppletDock(dockarea.Dock):
                 except ProcessLookupError:
                     pass
                 await self.process.wait()
+            del self.process
+
+    async def restart(self):
+        await self.terminate()
+        await self.start()
 
 
 class AppletsDock(dockarea.Dock):
     def __init__(self, manager):
         self.manager = manager
+        self.token_to_checkbox = dict()
 
         dockarea.Dock.__init__(self, "Applets")
         self.setMinimumSize(QtCore.QSize(850, 450))
@@ -81,6 +91,7 @@ class AppletsDock(dockarea.Dock):
         new_action.triggered.connect(self.new)
         self.table.addAction(new_action)
         restart_action = QtGui.QAction("Restart selected applet", self.table)
+        restart_action.triggered.connect(self.restart)
         self.table.addAction(restart_action)
         delete_action = QtGui.QAction("Delete selected applet", self.table)
         delete_action.triggered.connect(self.delete)
@@ -102,12 +113,26 @@ class AppletsDock(dockarea.Dock):
                         name = name.text()
                     token = self.manager.create(name, command)
                     item.applet_token = token
+                    self.token_to_checkbox[token] = item
             else:
                 token = getattr(item, "applet_token", None)
                 if token is not None:
                     # cell_changed is emitted at row creation
                     self.manager.delete(token)
-                    item.applet_token = None
+        elif column == 1 or column == 2:
+            new_value = self.table.item(row, column).text()
+            token = getattr(self.table.item(row, 0), "applet_token", None)
+            if token is not None:
+                if column == 1:
+                    self.manager.rename(token, new_value)
+                else:
+                    self.manager.set_command(token, new_value)
+
+    def disable_token(self, token):
+        checkbox_item = self.token_to_checkbox[token]
+        checkbox_item.applet_token = None
+        del self.token_to_checkbox[token]
+        checkbox_item.setCheckState(QtCore.Qt.Unchecked)
 
     def new(self):
         row = self.table.rowCount()
@@ -119,10 +144,22 @@ class AppletsDock(dockarea.Dock):
         checkbox.setCheckState(QtCore.Qt.Unchecked)
         self.table.setItem(row, 0, checkbox)
 
+    def restart(self):
+        selection = self.table.selectedRanges()
+        if selection:
+            row = selection[0].topRow()
+            token = getattr(self.table.item(row, 0), "applet_token", None)
+            if token is not None:
+                asyncio.ensure_future(self.manager.restart(token))
+
     def delete(self):
         selection = self.table.selectedRanges()
         if selection:
-            self.table.deleteRow(selection[0].topRow())
+            row = selection[0].topRow()
+            token = getattr(self.table.item(row, 0), "applet_token", None)
+            if token is not None:
+                self.manager.delete(token)
+            self.table.deleteRow(row)
 
 
 class AppletManagerRPC:
@@ -154,10 +191,26 @@ class AppletManager:
         self.applet_docks[token] = dock
         self.dock_area.floatDock(dock)
         asyncio.ensure_future(dock.start())
+        dock.sigClosed.connect(partial(self.on_dock_closed, token))
         return token
 
-    def delete(self, token):
+    def on_dock_closed(self, token):
+        asyncio.ensure_future(self.applet_docks[token].terminate())
+        self.main_dock.disable_token(token)
         del self.applet_docks[token]
+
+    def delete(self, token):
+        # This in turns calls on_dock_closed and main_dock.disable_token
+        self.applet_docks[token].close()
+
+    def rename(self, token, name):
+        self.applet_docks[token].rename(name)
+
+    def set_command(self, token, command):
+        self.applet_docks[token].command = command
+
+    async def restart(self, token):
+        await self.applet_docks[token].restart()
 
     async def stop(self):
         for dock in self.applet_docks.values():
