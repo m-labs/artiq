@@ -143,6 +143,7 @@ class AppletsDock(dockarea.Dock):
                           QtCore.Qt.ItemIsEnabled)
         checkbox.setCheckState(QtCore.Qt.Unchecked)
         self.table.setItem(row, 0, checkbox)
+        return row
 
     def restart(self):
         selection = self.table.selectedRanges()
@@ -161,6 +162,27 @@ class AppletsDock(dockarea.Dock):
                 self.manager.delete(token)
             self.table.deleteRow(row)
 
+    def save_state(self):
+        state = []
+        for row in range(self.table.rowCount()):
+            enabled = self.table.item(row, 0).checkState() == QtCore.Qt.Checked
+            name = self.table.item(row, 1).text()
+            command = self.table.item(row, 2).text()
+            state.append((enabled, name, command))
+        return state
+
+    def restore_state(self, state):
+        for enabled, name, command in state:
+            row = self.new()
+            item = QtWidgets.QTableWidgetItem()
+            item.setText(name)
+            self.table.setItem(row, 1, item)
+            item = QtWidgets.QTableWidgetItem()
+            item.setText(command)
+            self.table.setItem(row, 2, item)
+            if enabled:
+                self.table.item(row, 0).setCheckState(QtCore.Qt.Checked)
+
 
 class AppletManagerRPC:
     def __init__(self, parent):
@@ -176,6 +198,7 @@ class AppletManager:
         self.main_dock = AppletsDock(self)
         self.rpc = AppletManagerRPC(self)
         self.applet_docks = dict()
+        self.workaround_pyqtgraph_bug = False
 
     def embed(self, token, win_id):
         if token not in self.applet_docks:
@@ -189,7 +212,12 @@ class AppletManager:
                           - self.applet_docks.keys()))
         dock = AppletDock(token, name, command)
         self.applet_docks[token] = dock
-        self.dock_area.floatDock(dock)
+        # If a dock is floated and then dock state is restored, pyqtgraph
+        # leaves a "phantom" window open.
+        if self.workaround_pyqtgraph_bug:
+            self.dock_area.addDock(dock)
+        else:
+            self.dock_area.floatDock(dock)
         asyncio.ensure_future(dock.start())
         dock.sigClosed.connect(partial(self.on_dock_closed, token))
         return token
@@ -217,7 +245,9 @@ class AppletManager:
             await dock.terminate()
 
     def save_state(self):
-        return dict()
+        return self.main_dock.save_state()
 
     def restore_state(self, state):
-        pass
+        self.workaround_pyqtgraph_bug = True
+        self.main_dock.restore_state(state)
+        self.workaround_pyqtgraph_bug = False
