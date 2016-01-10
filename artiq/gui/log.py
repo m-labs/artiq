@@ -8,11 +8,6 @@ from pyqtgraph import dockarea, LayoutWidget
 
 from artiq.gui.tools import log_level_to_name
 
-try:
-    QSortFilterProxyModel = QtCore.QSortFilterProxyModel
-except AttributeError:
-    QSortFilterProxyModel = QtGui.QSortFilterProxyModel
-
 
 class Model(QtCore.QAbstractTableModel):
     def __init__(self, init):
@@ -107,9 +102,9 @@ class Model(QtCore.QAbstractTableModel):
                     return v[3]
 
 
-class _LogFilterProxyModel(QSortFilterProxyModel):
+class _LogFilterProxyModel(QtCore.QSortFilterProxyModel):
     def __init__(self, min_level, freetext):
-        QSortFilterProxyModel.__init__(self)
+        QtCore.QSortFilterProxyModel.__init__(self)
         self.min_level = min_level
         self.freetext = freetext
 

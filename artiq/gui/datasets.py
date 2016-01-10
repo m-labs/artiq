@@ -10,11 +10,6 @@ from pyqtgraph import LayoutWidget
 from artiq.tools import short_format
 from artiq.gui.models import DictSyncTreeSepModel
 
-try:
-    QSortFilterProxyModel = QtCore.QSortFilterProxyModel
-except AttributeError:
-    QSortFilterProxyModel = QtGui.QSortFilterProxyModel
-
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +58,6 @@ class DatasetsDock(dockarea.Dock):
 
     def set_model(self, model):
         self.table_model = model
-        self.table_model_filter = QSortFilterProxyModel()
+        self.table_model_filter = QtCore.QSortFilterProxyModel()
         self.table_model_filter.setSourceModel(self.table_model)
         self.table.setModel(self.table_model_filter)
