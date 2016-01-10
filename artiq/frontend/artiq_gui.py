@@ -109,7 +109,6 @@ def main():
                                        rpc_clients["experiment_db"])
 
     d_datasets = datasets.DatasetsDock(win, dock_area, sub_clients["datasets"])
-    smgr.register(d_datasets)
 
     appletmgr = applets.AppletManager(dock_area)
     atexit_register_coroutine(appletmgr.stop)
