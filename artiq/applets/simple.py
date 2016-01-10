@@ -8,10 +8,15 @@ from artiq.protocols.pc_rpc import Client
 
 
 class SimpleApplet:
-    def __init__(self, main_widget_class, cmd_description=None):
+    def __init__(self, main_widget_class, cmd_description=None,
+                 default_update_delay=0.0):
         self.main_widget_class = main_widget_class
 
         self.argparser = argparse.ArgumentParser(description=cmd_description)
+        self.argparser.add_argument("--update-delay", type=float,
+            default=default_update_delay,
+            help="time to wait after a mod (buffering other mods) "
+                  "before updating (default: %(default).2f)")
         group = self.argparser.add_argument_group("data server")
         group.add_argument(
             "--server-notify", default="::1",
@@ -71,8 +76,20 @@ class SimpleApplet:
         self.data = data
         return data
 
+    def flush_mod_buffer(self):
+        self.main_widget.data_changed(self.data, self.mod_buffer)
+        del self.mod_buffer
+
     def sub_mod(self, mod):
-        self.main_widget.data_changed(self.data, mod)
+        if self.args.update_delay:
+            if hasattr(self, "mod_buffer"):
+                self.mod_buffer.append(mod)
+            else:
+                self.mod_buffer = [mod]
+                asyncio.get_event_loop().call_later(self.args.update_delay,
+                                                    self.flush_mod_buffer)
+        else:
+            self.main_widget.data_changed(self.data, [mod])
 
     def create_subscriber(self):
         self.subscriber = Subscriber("datasets",
