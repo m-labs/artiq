@@ -1012,6 +1012,7 @@ static int process_kmsg(struct msg_base *umsg)
             }
 
             mailbox_send(&reply);
+            break;
         }
 
         case MESSAGE_TYPE_CACHE_PUT_REQUEST: {
@@ -1049,6 +1050,7 @@ static int process_kmsg(struct msg_base *umsg)
             }
 
             mailbox_send(&reply);
+            break;
         }
 
         default: {
