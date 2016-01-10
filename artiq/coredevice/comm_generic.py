@@ -512,7 +512,7 @@ class CommGeneric:
             assert exception.id != 0
             python_exn_type = object_map.retrieve(exception.id)
 
-        python_exn = python_exn_type(message)
+        python_exn = python_exn_type(message.format(*params))
         python_exn.artiq_exception = exception
         raise python_exn
 
