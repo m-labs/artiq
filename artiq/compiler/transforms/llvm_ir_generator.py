@@ -191,6 +191,7 @@ class LLVMIRGenerator:
                 and len(lltyp.elements) <= 2:
             return not any([self.needs_sret(elt, may_be_large=False) for elt in lltyp.elements])
         else:
+            assert isinstance(lltyp, ll.Type)
             return True
 
     def has_sret(self, functy):
@@ -1239,7 +1240,7 @@ class LLVMIRGenerator:
             return self.llbuilder.ret_void()
         else:
             llvalue = self.map(insn.value())
-            if self.needs_sret(llvalue):
+            if self.needs_sret(llvalue.type):
                 self.llbuilder.store(llvalue, self.llfunction.args[0])
                 return self.llbuilder.ret_void()
             else:
