@@ -45,10 +45,6 @@ def cache_get(key: TStr) -> TList(TInt32):
 def cache_put(key: TStr, value: TList(TInt32)):
     raise NotImplementedError("syscall not simulated")
 
-@syscall
-def cache_clear(key: TStr):
-    raise NotImplementedError("syscall not simulated")
-
 class Core:
     """Core device driver.
 
@@ -128,7 +124,3 @@ class Core:
     @kernel
     def put_cache(self, key, value):
         return cache_put(key, value)
-
-    @kernel
-    def clear_cache(self, key):
-        return cache_clear(key)

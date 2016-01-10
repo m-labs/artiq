@@ -14,7 +14,6 @@ void send_rpc(int service, const char *tag, ...);
 int recv_rpc(void *slot);
 struct artiq_list cache_get(const char *key);
 void cache_put(const char *key, struct artiq_list value);
-void cache_clear(const char *key);
 void lognonl(const char *fmt, ...);
 void log(const char *fmt, ...);
 

@@ -124,7 +124,6 @@ static const struct symbol runtime_exports[] = {
 
     {"cache_get", &cache_get},
     {"cache_put", &cache_put},
-    {"cache_clear", &cache_clear},
 
     /* end */
     {NULL, NULL}
@@ -490,11 +489,6 @@ void cache_put(const char *key, struct artiq_list value)
             "cannot put into a busy cache row",
             0, 0, 0);
     }
-}
-
-void cache_clear(const char *key)
-{
-    cache_put(key, (struct artiq_list) { 0, NULL });
 }
 
 void lognonl(const char *fmt, ...)
