@@ -925,10 +925,13 @@ class LLVMIRGenerator:
         return llvalue
 
     def _prepare_closure_call(self, insn):
-        llclosure = self.map(insn.target_function())
         llargs    = [self.map(arg) for arg in insn.arguments()]
+        llclosure = self.map(insn.target_function())
         llenv     = self.llbuilder.extract_value(llclosure, 0)
-        llfun     = self.llbuilder.extract_value(llclosure, 1)
+        if insn.static_target_function is None:
+            llfun = self.llbuilder.extract_value(llclosure, 1)
+        else:
+            llfun = self.map(insn.static_target_function)
         return llfun, [llenv] + list(llargs)
 
     def _prepare_ffi_call(self, insn):
