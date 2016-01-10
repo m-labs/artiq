@@ -908,6 +908,16 @@ static int send_rpc_request(int service, const char *tag, va_list args)
     return 1;
 }
 
+struct cache_row {
+    struct cache_row *next;
+    char *key;
+    size_t length;
+    int32_t *elements;
+    int borrowed;
+};
+
+static struct cache_row *cache;
+
 /* assumes output buffer is empty when called */
 static int process_kmsg(struct msg_base *umsg)
 {
@@ -982,6 +992,60 @@ static int process_kmsg(struct msg_base *umsg)
                 user_kernel_state = USER_KERNEL_WAIT_RPC;
             mailbox_acknowledge();
             break;
+        }
+
+        case MESSAGE_TYPE_CACHE_GET_REQUEST: {
+            struct msg_cache_get_request *request = (struct msg_cache_get_request *)umsg;
+            struct msg_cache_get_reply reply;
+
+            reply.type = MESSAGE_TYPE_CACHE_GET_REPLY;
+            reply.length = 0;
+            reply.elements = NULL;
+
+            for(struct cache_row *iter = cache; iter; iter = iter->next) {
+                if(!strcmp(iter->key, request->key)) {
+                    reply.length = iter->length;
+                    reply.elements = iter->elements;
+                    iter->borrowed = 1;
+                    break;
+                }
+            }
+
+            mailbox_send(&reply);
+        }
+
+        case MESSAGE_TYPE_CACHE_PUT_REQUEST: {
+            struct msg_cache_put_request *request = (struct msg_cache_put_request *)umsg;
+            struct msg_cache_put_reply reply;
+
+            reply.type = MESSAGE_TYPE_CACHE_PUT_REPLY;
+
+            struct cache_row *row = NULL;
+            for(struct cache_row *iter = cache; iter; iter = iter->next) {
+                if(!strcmp(iter->key, request->key)) {
+                    free(iter->elements);
+                    row = iter;
+                    break;
+                }
+            }
+
+            if(!row) {
+                struct cache_row *row = calloc(1, sizeof(struct cache_row));
+                row->key = calloc(strlen(request->key) + 1, 1);
+                strcpy(row->key, request->key);
+            }
+
+            if(!row->borrowed) {
+                row->length = request->length;
+                row->elements = calloc(row->length, sizeof(int32_t));
+                memcpy(row->elements, request->elements,
+                       sizeof(int32_t) * row->length);
+                reply.succeeded = 1;
+            } else {
+                reply.succeeded = 0;
+            }
+
+            mailbox_send(&reply);
         }
 
         default: {

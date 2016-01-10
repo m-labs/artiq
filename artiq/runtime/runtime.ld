@@ -7,7 +7,7 @@ INCLUDE generated/regions.ld
  * ld does not allow this expression here.
  */
 MEMORY {
-	runtime : ORIGIN = 0x40000000, LENGTH = 0x800000 /* 8M */
+	runtime : ORIGIN = 0x40000000, LENGTH = 0x2000000 /* 32M */
 }
 
 /* Kernel memory space start right after the runtime,
@@ -65,5 +65,7 @@ SECTIONS
 		*(.eh_frame)
 	}
 
-	_heapstart = .;
+	_fheap = .;
+	. += 0x1800000;
+	_eheap = .;
 }

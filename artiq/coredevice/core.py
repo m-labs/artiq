@@ -37,6 +37,18 @@ class CompileError(Exception):
 def rtio_get_counter() -> TInt64:
     raise NotImplementedError("syscall not simulated")
 
+@syscall
+def cache_get(TStr) -> TList(TInt32):
+    raise NotImplementedError("syscall not simulated")
+
+@syscall
+def cache_put(TStr, TList(TInt32)):
+    raise NotImplementedError("syscall not simulated")
+
+@syscall
+def cache_clear(TStr):
+    raise NotImplementedError("syscall not simulated")
+
 class Core:
     """Core device driver.
 
@@ -108,3 +120,15 @@ class Core:
         min_now = rtio_get_counter() + 125000
         if now_mu() < min_now:
             at_mu(min_now)
+
+    @kernel
+    def get_cache(self, key):
+        return cache_get(key)
+
+    @kernel
+    def put_cache(self, key, value):
+        return cache_put(key, value)
+
+    @kernel
+    def clear_cache(self, key):
+        return cache_clear(key)

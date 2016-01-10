@@ -122,6 +122,10 @@ static const struct symbol runtime_exports[] = {
     {"dds_batch_exit", &dds_batch_exit},
     {"dds_set", &dds_set},
 
+    {"cache_get", &cache_get},
+    {"cache_put", &cache_put},
+    {"cache_clear", &cache_clear},
+
     /* end */
     {NULL, NULL}
 };
@@ -442,6 +446,55 @@ void attribute_writeback(void *utypes) {
             }
         }
     }
+}
+
+struct artiq_list cache_get(const char *key)
+{
+    struct msg_cache_get_request request;
+    struct msg_cache_get_reply *reply;
+
+    request.type = MESSAGE_TYPE_CACHE_GET_REQUEST;
+    request.key = key;
+    mailbox_send_and_wait(&request);
+
+    reply = mailbox_wait_and_receive();
+    if(reply->type != MESSAGE_TYPE_CACHE_GET_REPLY) {
+        log("Malformed MESSAGE_TYPE_CACHE_GET_REQUEST reply type %d",
+            reply->type);
+        while(1);
+    }
+
+    return (struct artiq_list) { reply->length, reply->elements };
+}
+
+void cache_put(const char *key, struct artiq_list value)
+{
+    struct msg_cache_put_request request;
+    struct msg_cache_put_reply *reply;
+
+    request.type = MESSAGE_TYPE_CACHE_PUT_REQUEST;
+    request.key = key;
+    request.elements = value.elements;
+    request.length = value.length;
+    mailbox_send_and_wait(&request);
+
+    reply = mailbox_wait_and_receive();
+    if(reply->type != MESSAGE_TYPE_CACHE_PUT_REPLY) {
+        log("Malformed MESSAGE_TYPE_CACHE_PUT_REQUEST reply type %d",
+            reply->type);
+        while(1);
+    }
+
+    if(!reply->succeeded) {
+        artiq_raise_from_c("CacheError",
+            "cannot put into a busy cache row",
+            0, 0, 0);
+    }
+}
+
+void cache_clear(const char *key)
+{
+    cache_put(key, (struct artiq_list) { 0, NULL });
 }
 
 void lognonl(const char *fmt, ...)

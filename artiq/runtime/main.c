@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <alloc.h>
 #include <irq.h>
 #include <uart.h>
 #include <console.h>
@@ -263,6 +264,8 @@ static int check_test_mode(void)
     return 0;
 }
 
+extern void _fheap, _eheap;
+
 int main(void)
 {
     irq_setmask(0);
@@ -271,6 +274,7 @@ int main(void)
 
     puts("ARTIQ runtime built "__DATE__" "__TIME__"\n");
 
+    alloc_give(&_fheap, &_eheap - &_fheap);
     clock_init();
     rtiocrg_init();
     puts("Press 't' to enter test mode...");
