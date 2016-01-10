@@ -940,10 +940,17 @@ class LLVMIRGenerator:
         llfunname = insn.target_function().type.name
         llfun     = self.llmodule.get_global(llfunname)
         if llfun is None:
-            llfunty = ll.FunctionType(self.llty_of_type(insn.type, for_return=True),
-                                      [llarg.type for llarg in llargs])
-            llfun   = ll.Function(self.llmodule, llfunty,
-                                  insn.target_function().type.name)
+            llretty = self.llty_of_type(insn.type, for_return=True)
+            if self.needs_sret(llretty):
+                llfunty = ll.FunctionType(llvoid, [llretty.as_pointer()] +
+                                          [llarg.type for llarg in llargs])
+            else:
+                llfunty = ll.FunctionType(llretty, [llarg.type for llarg in llargs])
+
+            llfun = ll.Function(self.llmodule, llfunty,
+                                insn.target_function().type.name)
+            if self.needs_sret(llretty):
+                llfun.args[0].add_attribute('sret')
         return llfun, list(llargs)
 
     # See session.c:{send,receive}_rpc_value and comm_generic.py:_{send,receive}_rpc_value.
@@ -1087,24 +1094,22 @@ class LLVMIRGenerator:
                                    llnormalblock=None, llunwindblock=None)
         elif types.is_c_function(insn.target_function().type):
             llfun, llargs = self._prepare_ffi_call(insn)
-            return self.llbuilder.call(llfun, llargs,
-                                       name=insn.name)
         else:
             llfun, llargs = self._prepare_closure_call(insn)
 
-            if self.has_sret(insn.target_function().type):
-                llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [])
+        if self.has_sret(insn.target_function().type):
+            llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [])
 
-                llresultslot = self.llbuilder.alloca(llfun.type.pointee.args[0].pointee)
-                self.llbuilder.call(llfun, [llresultslot] + llargs)
-                llresult = self.llbuilder.load(llresultslot)
+            llresultslot = self.llbuilder.alloca(llfun.type.pointee.args[0].pointee)
+            self.llbuilder.call(llfun, [llresultslot] + llargs)
+            llresult = self.llbuilder.load(llresultslot)
 
-                self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
+            self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
 
-                return llresult
-            else:
-                return self.llbuilder.call(llfun, llargs,
-                                           name=insn.name)
+            return llresult
+        else:
+            return self.llbuilder.call(llfun, llargs,
+                                       name=insn.name)
 
     def process_Invoke(self, insn):
         llnormalblock = self.map(insn.normal_target())
