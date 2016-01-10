@@ -97,6 +97,7 @@ class Target:
         llpassmgrbuilder = llvm.create_pass_manager_builder()
         llpassmgrbuilder.opt_level  = 2 # -O2
         llpassmgrbuilder.size_level = 1 # -Os
+        llpassmgrbuilder.inlining_threshold = 75 # -Os threshold
 
         llpassmgr = llvm.create_module_pass_manager()
         llpassmgrbuilder.populate(llpassmgr)
