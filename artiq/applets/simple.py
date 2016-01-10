@@ -30,11 +30,14 @@ class SimpleApplet:
             help="embed main widget into existing window")
         self._arggroup_datasets = self.argparser.add_argument_group("datasets")
 
-    def add_dataset(self, name, help=None):
-        if help is None:
-            self._arggroup_datasets.add_argument(name)
+    def add_dataset(self, name, help=None, required=True):
+        kwargs = dict()
+        if help is not None:
+            kwargs["help"] = help
+        if required:
+            self._arggroup_datasets.add_argument(name, **kwargs)
         else:
-            self._arggroup_datasets.add_argument(name, help=help)
+            self._arggroup_datasets.add_argument("--" + name, **kwargs)
 
     def args_init(self):
         self.args = self.argparser.parse_args()
