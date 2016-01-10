@@ -176,6 +176,7 @@ class LLVMIRGenerator:
         self.llobject_map = {}
         self.phis = []
         self.debug_info_emitter = DebugInfoEmitter(self.llmodule)
+        self.empty_metadata = self.llmodule.add_metadata([])
 
     def needs_sret(self, lltyp, may_be_large=True):
         if isinstance(lltyp, ll.VoidType):
@@ -628,6 +629,7 @@ class LLVMIRGenerator:
             outer_index = list(env_ty.params.keys()).index("$outer")
             llptr = self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(outer_index)])
             llouterenv = self.llbuilder.load(llptr)
+            llouterenv.metadata['invariant.load'] = self.empty_metadata
             return self.llptr_to_var(llouterenv, env_ty.params["$outer"], var_name)
 
     def process_GetLocal(self, insn):
@@ -638,7 +640,9 @@ class LLVMIRGenerator:
     def process_GetConstructor(self, insn):
         env = insn.environment()
         llptr = self.llptr_to_var(self.map(env), env.type, insn.var_name, insn.type)
-        return self.llbuilder.load(llptr)
+        llconstr = self.llbuilder.load(llptr)
+        llconstr.metadata['invariant.load'] = self.empty_metadata
+        return llconstr
 
     def process_SetLocal(self, insn):
         env = insn.environment()
@@ -874,6 +878,7 @@ class LLVMIRGenerator:
                     outer_index = list(env_ty.params.keys()).index("$outer")
                     llptr = self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(outer_index)])
                     llouterenv = self.llbuilder.load(llptr)
+                    llouterenv.metadata['invariant.load'] = self.empty_metadata
                     return self.llptr_to_var(llouterenv, env_ty.params["$outer"], var_name)
                 else:
                     return llenv
