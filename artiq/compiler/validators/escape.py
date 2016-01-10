@@ -87,7 +87,13 @@ class RegionOf(algorithm.Visitor):
             return None
 
     visit_BinOpT = visit_sometimes_allocating
-    visit_CallT = visit_sometimes_allocating
+
+    def visit_CallT(self, node):
+        if types.is_c_function(node.func.type, "cache_get"):
+            # The cache is borrow checked dynamically
+            return None
+        else:
+            self.visit_sometimes_allocating(node)
 
     # Value lives as long as the object/container, if it's mutable,
     # or else forever
