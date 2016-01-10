@@ -225,7 +225,7 @@ void exception_handler(unsigned long vect, unsigned long *regs,
                        unsigned long pc, unsigned long ea)
 {
     artiq_raise_from_c("InternalError",
-        "Hardware exception {0} at PC {1}, EA {2}",
+        "Hardware exception {0} at PC 0x{1:08x}, EA 0x{2:08x}",
         vect, pc, ea);
 }
 
