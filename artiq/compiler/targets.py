@@ -148,6 +148,9 @@ class Target:
             return results["output"].read()
 
     def symbolize(self, library, addresses):
+        if addresses == []:
+            return []
+
         # Addresses point one instruction past the jump; offset them back by 1.
         offset_addresses = [hex(addr - 1) for addr in addresses]
         with RunTool([self.triple + "-addr2line", "--functions", "--inlines",
