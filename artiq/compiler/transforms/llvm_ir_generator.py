@@ -936,7 +936,18 @@ class LLVMIRGenerator:
         return llfun, [llenv] + list(llargs)
 
     def _prepare_ffi_call(self, insn):
-        llargs    = [self.map(arg) for arg in insn.arguments()]
+        llargs = []
+        byvals = []
+        for i, arg in enumerate(insn.arguments()):
+            llarg = self.map(arg)
+            if isinstance(llarg.type, (ll.LiteralStructType, ll.IdentifiedStructType)):
+                llslot = self.llbuilder.alloca(llarg.type)
+                self.llbuilder.store(llarg, llslot)
+                llargs.append(llslot)
+                byvals.append(i)
+            else:
+                llargs.append(llarg)
+
         llfunname = insn.target_function().type.name
         llfun     = self.llmodule.get_global(llfunname)
         if llfun is None:
@@ -951,6 +962,10 @@ class LLVMIRGenerator:
                                 insn.target_function().type.name)
             if self.needs_sret(llretty):
                 llfun.args[0].add_attribute('sret')
+                byvals = [i + 1 for i in byvals]
+            for i in byvals:
+                llfun.args[i].add_attribute('byval')
+
         return llfun, list(llargs)
 
     # See session.c:{send,receive}_rpc_value and comm_generic.py:_{send,receive}_rpc_value.
