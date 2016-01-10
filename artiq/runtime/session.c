@@ -940,9 +940,12 @@ static int process_kmsg(struct msg_base *umsg)
         case MESSAGE_TYPE_FINISHED:
             out_packet_empty(REMOTEMSG_TYPE_KERNEL_FINISHED);
 
+            for(struct cache_row *iter = cache; iter; iter = iter->next)
+                iter->borrowed = 0;
+
             kloader_stop();
             user_kernel_state = USER_KERNEL_LOADED;
-            mailbox_acknowledge();
+
             break;
 
         case MESSAGE_TYPE_EXCEPTION: {
@@ -1031,9 +1034,11 @@ static int process_kmsg(struct msg_base *umsg)
             }
 
             if(!row) {
-                struct cache_row *row = calloc(1, sizeof(struct cache_row));
+                row = calloc(1, sizeof(struct cache_row));
                 row->key = calloc(strlen(request->key) + 1, 1);
                 strcpy(row->key, request->key);
+                row->next = cache;
+                cache = row;
             }
 
             if(!row->borrowed) {

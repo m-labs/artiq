@@ -42,7 +42,7 @@ def cache_get(key: TStr) -> TList(TInt32):
     raise NotImplementedError("syscall not simulated")
 
 @syscall
-def cache_put(key: TStr, value: TList(TInt32)):
+def cache_put(key: TStr, value: TList(TInt32)) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 class Core:
