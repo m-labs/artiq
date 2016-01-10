@@ -616,7 +616,8 @@ class LLVMIRGenerator:
             llalloc = self.llbuilder.alloca(self.llty_of_type(insn.type, bare=True))
             for index, operand in enumerate(insn.operands):
                 lloperand = self.map(operand)
-                llfieldptr = self.llbuilder.gep(llalloc, [self.llindex(0), self.llindex(index)])
+                llfieldptr = self.llbuilder.gep(llalloc, [self.llindex(0), self.llindex(index)],
+                                                inbounds=True)
                 self.llbuilder.store(lloperand, llfieldptr)
             return llalloc
 
@@ -624,10 +625,12 @@ class LLVMIRGenerator:
         if var_name in env_ty.params and (var_type is None or
                 env_ty.params[var_name] == var_type):
             var_index = list(env_ty.params.keys()).index(var_name)
-            return self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(var_index)])
+            return self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(var_index)],
+                                      inbounds=True)
         else:
             outer_index = list(env_ty.params.keys()).index("$outer")
-            llptr = self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(outer_index)])
+            llptr = self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(outer_index)],
+                                       inbounds=True)
             llouterenv = self.llbuilder.load(llptr)
             llouterenv.metadata['invariant.load'] = self.empty_metadata
             return self.llptr_to_var(llouterenv, env_ty.params["$outer"], var_name)
@@ -671,14 +674,14 @@ class LLVMIRGenerator:
         else:
             llptr = self.llbuilder.gep(self.map(insn.object()),
                                        [self.llindex(0), self.llindex(self.attr_index(insn))],
-                                       name=insn.name)
+                                       inbounds=True, name=insn.name)
             return self.llbuilder.load(llptr)
 
     def process_SetAttr(self, insn):
         assert builtins.is_allocated(insn.object().type)
         llptr = self.llbuilder.gep(self.map(insn.object()),
                                    [self.llindex(0), self.llindex(self.attr_index(insn))],
-                                   name=insn.name)
+                                   inbounds=True, name=insn.name)
         return self.llbuilder.store(self.map(insn.value()), llptr)
 
     def process_GetElem(self, insn):
@@ -876,7 +879,8 @@ class LLVMIRGenerator:
             def get_outer(llenv, env_ty):
                 if "$outer" in env_ty.params:
                     outer_index = list(env_ty.params.keys()).index("$outer")
-                    llptr = self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(outer_index)])
+                    llptr = self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(outer_index)],
+                                               inbounds=True)
                     llouterenv = self.llbuilder.load(llptr)
                     llouterenv.metadata['invariant.load'] = self.empty_metadata
                     return self.llptr_to_var(llouterenv, env_ty.params["$outer"], var_name)
@@ -1258,7 +1262,8 @@ class LLVMIRGenerator:
                                                  cleanup=True)
         llrawexn = self.llbuilder.extract_value(lllandingpad, 1)
         llexn = self.llbuilder.bitcast(llrawexn, self.llty_of_type(insn.type))
-        llexnnameptr = self.llbuilder.gep(llexn, [self.llindex(0), self.llindex(0)])
+        llexnnameptr = self.llbuilder.gep(llexn, [self.llindex(0), self.llindex(0)],
+                                          inbounds=True)
         llexnname = self.llbuilder.load(llexnnameptr)
 
         for target, typ in insn.clauses():
