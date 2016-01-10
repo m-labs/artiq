@@ -1036,10 +1036,13 @@ static int process_kmsg(struct msg_base *umsg)
             }
 
             if(!row->borrowed) {
-                row->length = request->length;
-                row->elements = calloc(row->length, sizeof(int32_t));
-                memcpy(row->elements, request->elements,
-                       sizeof(int32_t) * row->length);
+                if(request->length != 0) {
+                    row->length = request->length;
+                    row->elements = calloc(row->length, sizeof(int32_t));
+                    memcpy(row->elements, request->elements,
+                           sizeof(int32_t) * row->length);
+                }
+
                 reply.succeeded = 1;
             } else {
                 reply.succeeded = 0;

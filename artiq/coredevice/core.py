@@ -38,15 +38,15 @@ def rtio_get_counter() -> TInt64:
     raise NotImplementedError("syscall not simulated")
 
 @syscall
-def cache_get(TStr) -> TList(TInt32):
+def cache_get(key: TStr) -> TList(TInt32):
     raise NotImplementedError("syscall not simulated")
 
 @syscall
-def cache_put(TStr, TList(TInt32)):
+def cache_put(key: TStr, value: TList(TInt32)):
     raise NotImplementedError("syscall not simulated")
 
 @syscall
-def cache_clear(TStr):
+def cache_clear(key: TStr):
     raise NotImplementedError("syscall not simulated")
 
 class Core:
