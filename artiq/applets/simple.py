@@ -34,6 +34,7 @@ class SimpleApplet:
         group.add_argument("--embed", default=None, type=int,
             help="embed main widget into existing window")
         self._arggroup_datasets = self.argparser.add_argument_group("datasets")
+        self.dataset_args = set()
 
     def add_dataset(self, name, help=None, required=True):
         kwargs = dict()
@@ -43,9 +44,12 @@ class SimpleApplet:
             self._arggroup_datasets.add_argument(name, **kwargs)
         else:
             self._arggroup_datasets.add_argument("--" + name, **kwargs)
+        self.dataset_args.add(name)
 
     def args_init(self):
         self.args = self.argparser.parse_args()
+        self.datasets = {getattr(self.args, arg.replace("-", "_"))
+                         for arg in self.dataset_args}
 
     def quamash_init(self):
         app = QtWidgets.QApplication([])
@@ -76,11 +80,24 @@ class SimpleApplet:
         self.data = data
         return data
 
+    def filter_mod(self, mod):
+        if mod["action"] == "init":
+            return True
+        if mod["path"]:
+            return mod["path"][0] in self.datasets
+        elif mod["action"] in {"setitem", "delitem"}:
+            return mod["key"] in self.datasets
+        else:
+            return False
+
     def flush_mod_buffer(self):
         self.main_widget.data_changed(self.data, self.mod_buffer)
         del self.mod_buffer
 
     def sub_mod(self, mod):
+        if not self.filter_mod(mod):
+            return
+
         if self.args.update_delay:
             if hasattr(self, "mod_buffer"):
                 self.mod_buffer.append(mod)
