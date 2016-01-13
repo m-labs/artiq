@@ -97,6 +97,7 @@ class Target:
         llpassmgrbuilder = llvm.create_pass_manager_builder()
         llpassmgrbuilder.opt_level  = 2 # -O2
         llpassmgrbuilder.size_level = 1 # -Os
+        llpassmgrbuilder.inlining_threshold = 75 # -Os threshold
 
         llpassmgr = llvm.create_module_pass_manager()
         llpassmgrbuilder.populate(llpassmgr)
@@ -147,6 +148,9 @@ class Target:
             return results["output"].read()
 
     def symbolize(self, library, addresses):
+        if addresses == []:
+            return []
+
         # Addresses point one instruction past the jump; offset them back by 1.
         offset_addresses = [hex(addr - 1) for addr in addresses]
         with RunTool([self.triple + "-addr2line", "--functions", "--inlines",

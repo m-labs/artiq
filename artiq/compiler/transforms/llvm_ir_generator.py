@@ -176,6 +176,7 @@ class LLVMIRGenerator:
         self.llobject_map = {}
         self.phis = []
         self.debug_info_emitter = DebugInfoEmitter(self.llmodule)
+        self.empty_metadata = self.llmodule.add_metadata([])
 
     def needs_sret(self, lltyp, may_be_large=True):
         if isinstance(lltyp, ll.VoidType):
@@ -190,7 +191,12 @@ class LLVMIRGenerator:
                 and len(lltyp.elements) <= 2:
             return not any([self.needs_sret(elt, may_be_large=False) for elt in lltyp.elements])
         else:
+            assert isinstance(lltyp, ll.Type)
             return True
+
+    def has_sret(self, functy):
+        llretty = self.llty_of_type(functy.ret, for_return=True)
+        return self.needs_sret(llretty)
 
     def llty_of_type(self, typ, bare=False, for_return=False):
         typ = typ.find()
@@ -218,22 +224,14 @@ class LLVMIRGenerator:
                                          for arg in typ.optargs],
                                    return_type=llretty)
 
-            # TODO: actually mark the first argument as sret (also noalias nocapture).
-            # llvmlite currently does not have support for this;
-            # https://github.com/numba/llvmlite/issues/91.
-            if sretarg:
-                llty.__has_sret = True
-            else:
-                llty.__has_sret = False
-
             if bare:
                 return llty
             else:
                 return ll.LiteralStructType([envarg, llty.as_pointer()])
         elif types.is_method(typ):
-            llfuncty = self.llty_of_type(types.get_method_function(typ))
+            llfunty  = self.llty_of_type(types.get_method_function(typ))
             llselfty = self.llty_of_type(types.get_method_self(typ))
-            return ll.LiteralStructType([llfuncty, llselfty])
+            return ll.LiteralStructType([llfunty, llselfty])
         elif builtins.is_none(typ):
             if for_return:
                 return llvoid
@@ -399,8 +397,13 @@ class LLVMIRGenerator:
         elif isinstance(value, ir.Function):
             llfun = self.llmodule.get_global(value.name)
             if llfun is None:
-                llfun = ll.Function(self.llmodule, self.llty_of_type(value.type, bare=True),
-                                    value.name)
+                llfunty = self.llty_of_type(value.type, bare=True)
+                llfun   = ll.Function(self.llmodule, llfunty, value.name)
+
+                llretty = self.llty_of_type(value.type.ret, for_return=True)
+                if self.needs_sret(llretty):
+                    llfun.args[0].add_attribute('sret')
+
             return llfun
         else:
             assert False
@@ -515,11 +518,7 @@ class LLVMIRGenerator:
 
     def process_function(self, func):
         try:
-            self.llfunction = self.llmodule.get_global(func.name)
-
-            if self.llfunction is None:
-                llfunty = self.llty_of_type(func.type, bare=True)
-                self.llfunction = ll.Function(self.llmodule, llfunty, func.name)
+            self.llfunction = self.map(func)
 
             if func.is_internal:
                 self.llfunction.linkage = 'internal'
@@ -532,7 +531,7 @@ class LLVMIRGenerator:
             disubprogram = self.debug_info_emitter.emit_subprogram(func, self.llfunction)
 
             # First, map arguments.
-            if self.llfunction.type.pointee.__has_sret:
+            if self.has_sret(func.type):
                 llactualargs = self.llfunction.args[1:]
             else:
                 llactualargs = self.llfunction.args
@@ -615,7 +614,8 @@ class LLVMIRGenerator:
             llalloc = self.llbuilder.alloca(self.llty_of_type(insn.type, bare=True))
             for index, operand in enumerate(insn.operands):
                 lloperand = self.map(operand)
-                llfieldptr = self.llbuilder.gep(llalloc, [self.llindex(0), self.llindex(index)])
+                llfieldptr = self.llbuilder.gep(llalloc, [self.llindex(0), self.llindex(index)],
+                                                inbounds=True)
                 self.llbuilder.store(lloperand, llfieldptr)
             return llalloc
 
@@ -623,11 +623,14 @@ class LLVMIRGenerator:
         if var_name in env_ty.params and (var_type is None or
                 env_ty.params[var_name] == var_type):
             var_index = list(env_ty.params.keys()).index(var_name)
-            return self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(var_index)])
+            return self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(var_index)],
+                                      inbounds=True)
         else:
             outer_index = list(env_ty.params.keys()).index("$outer")
-            llptr = self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(outer_index)])
+            llptr = self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(outer_index)],
+                                       inbounds=True)
             llouterenv = self.llbuilder.load(llptr)
+            llouterenv.metadata['invariant.load'] = self.empty_metadata
             return self.llptr_to_var(llouterenv, env_ty.params["$outer"], var_name)
 
     def process_GetLocal(self, insn):
@@ -638,7 +641,9 @@ class LLVMIRGenerator:
     def process_GetConstructor(self, insn):
         env = insn.environment()
         llptr = self.llptr_to_var(self.map(env), env.type, insn.var_name, insn.type)
-        return self.llbuilder.load(llptr)
+        llconstr = self.llbuilder.load(llptr)
+        llconstr.metadata['invariant.load'] = self.empty_metadata
+        return llconstr
 
     def process_SetLocal(self, insn):
         env = insn.environment()
@@ -667,14 +672,14 @@ class LLVMIRGenerator:
         else:
             llptr = self.llbuilder.gep(self.map(insn.object()),
                                        [self.llindex(0), self.llindex(self.attr_index(insn))],
-                                       name=insn.name)
+                                       inbounds=True, name=insn.name)
             return self.llbuilder.load(llptr)
 
     def process_SetAttr(self, insn):
         assert builtins.is_allocated(insn.object().type)
         llptr = self.llbuilder.gep(self.map(insn.object()),
                                    [self.llindex(0), self.llindex(self.attr_index(insn))],
-                                   name=insn.name)
+                                   inbounds=True, name=insn.name)
         return self.llbuilder.store(self.map(insn.value()), llptr)
 
     def process_GetElem(self, insn):
@@ -872,8 +877,10 @@ class LLVMIRGenerator:
             def get_outer(llenv, env_ty):
                 if "$outer" in env_ty.params:
                     outer_index = list(env_ty.params.keys()).index("$outer")
-                    llptr = self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(outer_index)])
+                    llptr = self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(outer_index)],
+                                               inbounds=True)
                     llouterenv = self.llbuilder.load(llptr)
+                    llouterenv.metadata['invariant.load'] = self.empty_metadata
                     return self.llptr_to_var(llouterenv, env_ty.params["$outer"], var_name)
                 else:
                     return llenv
@@ -920,21 +927,46 @@ class LLVMIRGenerator:
         return llvalue
 
     def _prepare_closure_call(self, insn):
-        llclosure = self.map(insn.target_function())
         llargs    = [self.map(arg) for arg in insn.arguments()]
+        llclosure = self.map(insn.target_function())
         llenv     = self.llbuilder.extract_value(llclosure, 0)
-        llfun     = self.llbuilder.extract_value(llclosure, 1)
+        if insn.static_target_function is None:
+            llfun = self.llbuilder.extract_value(llclosure, 1)
+        else:
+            llfun = self.map(insn.static_target_function)
         return llfun, [llenv] + list(llargs)
 
     def _prepare_ffi_call(self, insn):
-        llargs    = [self.map(arg) for arg in insn.arguments()]
+        llargs = []
+        byvals = []
+        for i, arg in enumerate(insn.arguments()):
+            llarg = self.map(arg)
+            if isinstance(llarg.type, (ll.LiteralStructType, ll.IdentifiedStructType)):
+                llslot = self.llbuilder.alloca(llarg.type)
+                self.llbuilder.store(llarg, llslot)
+                llargs.append(llslot)
+                byvals.append(i)
+            else:
+                llargs.append(llarg)
+
         llfunname = insn.target_function().type.name
         llfun     = self.llmodule.get_global(llfunname)
         if llfun is None:
-            llfunty = ll.FunctionType(self.llty_of_type(insn.type, for_return=True),
-                                      [llarg.type for llarg in llargs])
-            llfun   = ll.Function(self.llmodule, llfunty,
-                                  insn.target_function().type.name)
+            llretty = self.llty_of_type(insn.type, for_return=True)
+            if self.needs_sret(llretty):
+                llfunty = ll.FunctionType(llvoid, [llretty.as_pointer()] +
+                                          [llarg.type for llarg in llargs])
+            else:
+                llfunty = ll.FunctionType(llretty, [llarg.type for llarg in llargs])
+
+            llfun = ll.Function(self.llmodule, llfunty,
+                                insn.target_function().type.name)
+            if self.needs_sret(llretty):
+                llfun.args[0].add_attribute('sret')
+                byvals = [i + 1 for i in byvals]
+            for i in byvals:
+                llfun.args[i].add_attribute('byval')
+
         return llfun, list(llargs)
 
     # See session.c:{send,receive}_rpc_value and comm_generic.py:_{send,receive}_rpc_value.
@@ -1078,24 +1110,22 @@ class LLVMIRGenerator:
                                    llnormalblock=None, llunwindblock=None)
         elif types.is_c_function(insn.target_function().type):
             llfun, llargs = self._prepare_ffi_call(insn)
-            return self.llbuilder.call(llfun, llargs,
-                                       name=insn.name)
         else:
             llfun, llargs = self._prepare_closure_call(insn)
 
-            if llfun.type.pointee.__has_sret:
-                llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [])
+        if self.has_sret(insn.target_function().type):
+            llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [])
 
-                llresultslot = self.llbuilder.alloca(llfun.type.pointee.args[0].pointee)
-                self.llbuilder.call(llfun, [llresultslot] + llargs)
-                llresult = self.llbuilder.load(llresultslot)
+            llresultslot = self.llbuilder.alloca(llfun.type.pointee.args[0].pointee)
+            self.llbuilder.call(llfun, [llresultslot] + llargs)
+            llresult = self.llbuilder.load(llresultslot)
 
-                self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
+            self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
 
-                return llresult
-            else:
-                return self.llbuilder.call(llfun, llargs,
-                                           name=insn.name)
+            return llresult
+        else:
+            return self.llbuilder.call(llfun, llargs,
+                                       name=insn.name)
 
     def process_Invoke(self, insn):
         llnormalblock = self.map(insn.normal_target())
@@ -1209,11 +1239,12 @@ class LLVMIRGenerator:
         if builtins.is_none(insn.value().type):
             return self.llbuilder.ret_void()
         else:
-            if self.llfunction.type.pointee.__has_sret:
-                self.llbuilder.store(self.map(insn.value()), self.llfunction.args[0])
+            llvalue = self.map(insn.value())
+            if self.needs_sret(llvalue.type):
+                self.llbuilder.store(llvalue, self.llfunction.args[0])
                 return self.llbuilder.ret_void()
             else:
-                return self.llbuilder.ret(self.map(insn.value()))
+                return self.llbuilder.ret(llvalue)
 
     def process_Unreachable(self, insn):
         return self.llbuilder.unreachable()
@@ -1250,7 +1281,8 @@ class LLVMIRGenerator:
                                                  cleanup=True)
         llrawexn = self.llbuilder.extract_value(lllandingpad, 1)
         llexn = self.llbuilder.bitcast(llrawexn, self.llty_of_type(insn.type))
-        llexnnameptr = self.llbuilder.gep(llexn, [self.llindex(0), self.llindex(0)])
+        llexnnameptr = self.llbuilder.gep(llexn, [self.llindex(0), self.llindex(0)],
+                                          inbounds=True)
         llexnname = self.llbuilder.load(llexnnameptr)
 
         for target, typ in insn.clauses():

@@ -9,7 +9,8 @@ OBJECTS := isr.o clock.o rtiocrg.o flash_storage.o mailbox.o \
 OBJECTS_KSUPPORT := ksupport.o artiq_personality.o mailbox.o \
 	bridge.o rtio.o ttl.o dds.o
 
-CFLAGS += -I$(MISOC_DIRECTORY)/software/include/dyld \
+CFLAGS += -I$(LIBALLOC_DIRECTORY) \
+	-I$(MISOC_DIRECTORY)/software/include/dyld \
 	-I$(LIBDYLD_DIRECTORY)/include \
 	-I$(LIBUNWIND_DIRECTORY) \
 	-I$(LIBUNWIND_DIRECTORY)/../unwinder/include \
@@ -31,10 +32,11 @@ runtime.elf: $(OBJECTS)
 		-N -o $@ \
 		../libbase/crt0-$(CPU).o \
 		$(OBJECTS) \
-		-L../libbase \
 		-L../libcompiler_rt \
+		-L../libbase \
+		-L../liballoc \
 		-L../liblwip \
-		-lbase -lcompiler_rt -llwip
+		-lbase -lcompiler_rt  -lalloc -llwip
 	@chmod -x $@
 
 ksupport.elf: $(OBJECTS_KSUPPORT)
@@ -48,7 +50,7 @@ ksupport.elf: $(OBJECTS_KSUPPORT)
 		-L../libcompiler_rt \
 		-L../libunwind \
 		-L../libdyld \
-		-lbase -lcompiler_rt -lunwind -ldyld
+		-lbase -lcompiler_rt -ldyld -lunwind
 	@chmod -x $@
 
 ksupport_data.o: ksupport.elf

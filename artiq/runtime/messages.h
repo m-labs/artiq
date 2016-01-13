@@ -3,6 +3,7 @@
 
 #include <stdarg.h>
 #include <stddef.h>
+#include <stdint.h>
 
 enum {
     MESSAGE_TYPE_LOAD_REPLY,
@@ -18,6 +19,10 @@ enum {
     MESSAGE_TYPE_RPC_RECV_REQUEST,
     MESSAGE_TYPE_RPC_RECV_REPLY,
     MESSAGE_TYPE_RPC_BATCH,
+    MESSAGE_TYPE_CACHE_GET_REQUEST,
+    MESSAGE_TYPE_CACHE_GET_REPLY,
+    MESSAGE_TYPE_CACHE_PUT_REQUEST,
+    MESSAGE_TYPE_CACHE_PUT_REPLY,
     MESSAGE_TYPE_LOG,
 
     MESSAGE_TYPE_BRG_READY,
@@ -103,6 +108,29 @@ struct msg_rpc_batch {
     int service;
     const char *tag;
     void *ptr;
+};
+
+struct msg_cache_get_request {
+    int type;
+    const char *key;
+};
+
+struct msg_cache_get_reply {
+    int type;
+    size_t length;
+    int32_t *elements;
+};
+
+struct msg_cache_put_request {
+    int type;
+    const char *key;
+    size_t length;
+    int32_t *elements;
+};
+
+struct msg_cache_put_reply {
+    int type;
+    int succeeded;
 };
 
 struct msg_log {

@@ -610,8 +610,13 @@ def is_function(typ):
 def is_rpc_function(typ):
     return isinstance(typ.find(), TRPCFunction)
 
-def is_c_function(typ):
-    return isinstance(typ.find(), TCFunction)
+def is_c_function(typ, name=None):
+    typ = typ.find()
+    if name is None:
+        return isinstance(typ, TCFunction)
+    else:
+        return isinstance(typ, TCFunction) and \
+            typ.name == name
 
 def is_builtin(typ, name=None):
     typ = typ.find()

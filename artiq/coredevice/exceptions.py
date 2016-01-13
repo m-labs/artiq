@@ -11,6 +11,10 @@ class InternalError(Exception):
     """Raised when the runtime encounters an internal error condition."""
 
 
+class CacheError(Exception):
+    """Raised when putting a value into a cache row would violate memory safety."""
+
+
 class RTIOUnderflow(Exception):
     """Raised when the CPU fails to submit a RTIO event early enough
     (with respect to the event's timestamp).
