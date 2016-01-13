@@ -93,7 +93,7 @@ This tool compiles key/value pairs into a binary image suitable for flashing int
    :ref: artiq.frontend.artiq_mkfs.get_argparser
    :prog: artiq_mkfs
 
-.. _core-device-access-tool:
+.. _core-device-configuration-tool:
 
 Core device configuration tool
 ------------------------------
