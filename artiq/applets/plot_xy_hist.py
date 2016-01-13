@@ -106,9 +106,12 @@ class XYHistPlot(pyqtgraph.GraphicsWindow):
         return True
 
     def data_changed(self, data, mods):
-        xs = data[self.args.xs][1]
-        histogram_bins = data[self.args.histogram_bins][1]
-        histograms_counts = data[self.args.histograms_counts][1]
+        try:
+            xs = data[self.args.xs][1]
+            histogram_bins = data[self.args.histogram_bins][1]
+            histograms_counts = data[self.args.histograms_counts][1]
+        except KeyError:
+            return
         if self._can_use_partial(mods):
             self._set_partial_data(xs, histograms_counts)
         else:
