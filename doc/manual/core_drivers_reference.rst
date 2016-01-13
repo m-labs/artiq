@@ -24,8 +24,8 @@ These drivers are for the core device and the peripherals closely integrated int
 .. automodule:: artiq.coredevice.dds
     :members:
 
-:mod:`artiq.coredevice.runtime_exceptions` module
--------------------------------------------------
+:mod:`artiq.coredevice.exceptions` module
+-----------------------------------------
 
-.. automodule:: artiq.coredevice.runtime_exceptions
+.. automodule:: artiq.coredevice.exceptions
     :members:
