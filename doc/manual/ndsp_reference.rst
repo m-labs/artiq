@@ -88,6 +88,9 @@ Controller
 Thorlabs T-Cube
 ---------------
 
+.. note::
+    When power is applied before the USB connection, some devices will enter a state where they fail to report the completion of commands. When using the ARTIQ controller, this cause certain function calls to never return and freeze the controller. To prevent this, connect USB first and then power up the device. When a device has entered the problematic state, power-cycling it while keeping the USB connection active also resolves the problem.
+
 TDC001 Driver
 +++++++++++++
 
