@@ -1,6 +1,7 @@
 #!/usr/bin/env python3.5
 
 import numpy as np
+from quamash import QtWidgets
 import pyqtgraph
 
 from artiq.applets.simple import SimpleApplet
@@ -17,18 +18,22 @@ def _compute_ys(histogram_bins, histograms_counts):
         return ys
 
 
-class XYHistPlot(pyqtgraph.GraphicsWindow):
+# pyqtgraph.GraphicsWindow fails to behave like a regular Qt widget
+# and breaks embedding. Do not use as top widget.
+class XYHistPlot(QtWidgets.QSplitter):
     def __init__(self, args):
-        pyqtgraph.GraphicsWindow.__init__(self, title="XY/Histogram")
+        QtWidgets.QSplitter.__init__(self)
         self.resize(1000,600)
         self.setWindowTitle("XY/Histogram")
 
-        self.xy_plot = self.addPlot()
+        self.xy_plot = pyqtgraph.PlotWidget()
+        self.insertWidget(0, self.xy_plot)
         self.xy_plot_data = None
         self.arrow = None
         self.selected_index = None
 
-        self.hist_plot = self.addPlot()
+        self.hist_plot = pyqtgraph.PlotWidget()
+        self.insertWidget(1, self.hist_plot)
         self.hist_plot_data = None
 
         self.args = args
