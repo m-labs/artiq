@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+import re
 from functools import partial
 
 from quamash import QtGui, QtCore
@@ -14,13 +15,19 @@ except AttributeError:
     QSortFilterProxyModel = QtGui.QSortFilterProxyModel
 
 
+def _make_wrappable(row, width=30):
+    level, source, time, msg = row
+    msg = re.sub("(\\S{{{}}})".format(width), "\\1\u200b", msg)
+    return [level, source, time, msg]
+
+
 class Model(QtCore.QAbstractTableModel):
     def __init__(self, init):
         QtCore.QAbstractTableModel.__init__(self)
 
         self.headers = ["Level", "Source", "Time", "Message"]
 
-        self.entries = init
+        self.entries = list(map(_make_wrappable, init))
         self.pending_entries = []
         self.depth = 1000
         timer = QtCore.QTimer(self)
@@ -52,7 +59,7 @@ class Model(QtCore.QAbstractTableModel):
         pass
 
     def append(self, v):
-        self.pending_entries.append(v)
+        self.pending_entries.append(_make_wrappable(v))
 
     def insertRows(self, position, rows=1, index=QtCore.QModelIndex()):
         self.beginInsertRows(QtCore.QModelIndex(), position, position+rows-1)
