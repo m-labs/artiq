@@ -87,14 +87,14 @@ class _DDSGeneric:
         """Returns the frequency tuning word corresponding to the given
         frequency.
         """
-        return round(2**32*frequency/self.sysclk)
+        return round(int(2, width=64)**32*frequency/self.sysclk)
 
     @portable
     def ftw_to_frequency(self, ftw):
         """Returns the frequency corresponding to the given frequency tuning
         word.
         """
-        return ftw*self.sysclk/2**32
+        return ftw*self.sysclk/int(2, width=64)**32
 
     @portable
     def turns_to_pow(self, turns):
