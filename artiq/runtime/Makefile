@@ -34,9 +34,10 @@ runtime.elf: $(OBJECTS)
 		$(OBJECTS) \
 		-L../libcompiler_rt \
 		-L../libbase \
+		-L../libm \
 		-L../liballoc \
 		-L../liblwip \
-		-lbase -lcompiler_rt  -lalloc -llwip
+		-lbase -lm -lcompiler_rt -lalloc -llwip
 	@chmod -x $@
 
 ksupport.elf: $(OBJECTS_KSUPPORT)
@@ -50,7 +51,7 @@ ksupport.elf: $(OBJECTS_KSUPPORT)
 		-L../libcompiler_rt \
 		-L../libunwind \
 		-L../libdyld \
-		-lbase -lcompiler_rt -ldyld -lunwind
+		-lbase-nofloat -lcompiler_rt -ldyld -lunwind
 	@chmod -x $@
 
 ksupport_data.o: ksupport.elf
