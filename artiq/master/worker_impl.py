@@ -93,6 +93,7 @@ set_watchdog_factory(Watchdog)
 class Scheduler:
     pause_noexc = staticmethod(make_parent_action("pause"))
 
+    @host_only
     def pause(self):
         if self.pause_noexc():
             raise TerminationRequested

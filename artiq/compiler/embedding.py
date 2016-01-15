@@ -739,6 +739,12 @@ class Stitcher:
                     # to perform a system call instead of a regular call.
                     result = self._quote_foreign_function(function, loc,
                                                           syscall=function.artiq_embedded.syscall)
+                elif function.artiq_embedded.forbidden is not None:
+                    diag = diagnostic.Diagnostic("fatal",
+                        "this function cannot be called as an RPC", {},
+                        self._function_loc(function),
+                        notes=self._call_site_note(loc, is_syscall=True))
+                    self.engine.process(diag)
                 else:
                     assert False
             else:

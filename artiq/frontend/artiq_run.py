@@ -60,6 +60,7 @@ class DummyScheduler:
     def get_status(self):
         return dict()
 
+    @host_only
     def pause(self):
         pass
 

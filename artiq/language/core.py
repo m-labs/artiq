@@ -11,7 +11,7 @@ from artiq.coredevice.runtime import source_loader
 
 
 __all__ = ["host_int", "int", "host_round", "round",
-           "kernel", "portable", "syscall",
+           "kernel", "portable", "syscall", "host_only",
            "set_time_manager", "set_watchdog_factory",
            "ARTIQException",
            "TerminationRequested"]
@@ -168,7 +168,7 @@ def round(value, width=32):
 
 
 _ARTIQEmbeddedInfo = namedtuple("_ARTIQEmbeddedInfo",
-                                "core_name function syscall")
+                                "core_name function syscall forbidden")
 
 def kernel(arg):
     """
@@ -196,7 +196,8 @@ def kernel(arg):
             def run_on_core(self, *k_args, **k_kwargs):
                 return getattr(self, arg).run(run_on_core, ((self,) + k_args), k_kwargs)
             run_on_core.artiq_embedded = _ARTIQEmbeddedInfo(
-                core_name=arg, function=function, syscall=None)
+                core_name=arg, function=function, syscall=None,
+                forbidden=False)
             return run_on_core
         return inner_decorator
     else:
@@ -213,7 +214,8 @@ def portable(function):
     on the core device (no RPC).
     """
     function.artiq_embedded = \
-        _ARTIQEmbeddedInfo(core_name=None, function=function, syscall=None)
+        _ARTIQEmbeddedInfo(core_name=None, function=function, syscall=None,
+                           forbidden=False)
     return function
 
 def syscall(arg):
@@ -231,11 +233,21 @@ def syscall(arg):
         def inner_decorator(function):
             function.artiq_embedded = \
                 _ARTIQEmbeddedInfo(core_name=None, function=None,
-                                   syscall=function.__name__)
+                                   syscall=function.__name__, forbidden=False)
             return function
         return inner_decorator
     else:
         return syscall(arg.__name__)(arg)
+
+def host_only(function):
+    """
+    This decorator marks a function so that it can only be executed
+    in the host Python interpreter.
+    """
+    function.artiq_embedded = \
+        _ARTIQEmbeddedInfo(core_name=None, function=None, syscall=None,
+                           forbidden=True)
+    return function
 
 
 class _DummyTimeManager:
