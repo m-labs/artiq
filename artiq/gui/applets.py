@@ -160,7 +160,7 @@ class AppletsDock(dockarea.Dock):
             token = getattr(self.table.item(row, 0), "applet_token", None)
             if token is not None:
                 self.manager.delete(token)
-            self.table.deleteRow(row)
+            self.table.removeRow(row)
 
     def save_state(self):
         state = []
