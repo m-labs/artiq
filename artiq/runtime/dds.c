@@ -41,7 +41,7 @@ void dds_init(long long int timestamp, int channel)
 
     now = timestamp - DURATION_INIT;
 
-#ifdef DDS_ONEHOT_SEL
+#ifdef CONFIG_DDS_ONEHOT_SEL
     channel = 1 << channel;
 #endif
     channel <<= 1;
@@ -98,7 +98,7 @@ static void dds_set_one(long long int now, long long int ref_time, unsigned int 
 		log("Attempted to set invalid DDS channel");
 		return;
 	}
-#ifdef DDS_ONEHOT_SEL
+#ifdef CONFIG_DDS_ONEHOT_SEL
     channel_enc = 1 << channel;
 #else
     channel_enc = channel;

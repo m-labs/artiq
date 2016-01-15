@@ -73,7 +73,7 @@ void analyzer_start(void)
     analyzer_header.overflow_occured = rtio_analyzer_message_encoder_overflow_read();
     analyzer_header.log_channel = CONFIG_RTIO_LOG_CHANNEL;
     analyzer_header.dds_channel = CONFIG_RTIO_DDS_CHANNEL;
-#ifdef DDS_ONEHOT_SEL
+#ifdef CONFIG_DDS_ONEHOT_SEL
     analyzer_header.dds_onehot_sel = 1;
 #else
     analyzer_header.dds_onehot_sel = 0;

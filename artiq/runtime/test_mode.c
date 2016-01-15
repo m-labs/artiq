@@ -120,7 +120,7 @@ static void ddssel(char *n)
         return;
     }
 
-#ifdef DDS_ONEHOT_SEL
+#ifdef CONFIG_DDS_ONEHOT_SEL
     n2 = 1 << n2;
 #endif
     brg_ddssel(n2);
@@ -200,7 +200,7 @@ static void ddsftw(char *n, char *ftw)
         return;
     }
 
-#ifdef DDS_ONEHOT_SEL
+#ifdef CONFIG_DDS_ONEHOT_SEL
     n2 = 1 << n2;
 #endif
     brg_ddssel(n2);
@@ -264,7 +264,7 @@ static void do_ddstest_one(unsigned int i)
     };
     unsigned int f, g, j;
 
-#ifdef DDS_ONEHOT_SEL
+#ifdef CONFIG_DDS_ONEHOT_SEL
     brg_ddssel(1 << i);
 #else
     brg_ddssel(i);
