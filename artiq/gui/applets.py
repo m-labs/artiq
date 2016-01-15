@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import sys
 import shlex
 from functools import partial
 
@@ -25,7 +26,8 @@ class AppletDock(dockarea.Dock):
         self.label.setText("Applet: " + name)
 
     async def start(self):
-        command = self.command.format(embed_token=self.token)
+        command = self.command.format(python=sys.executable,
+                                      embed_token=self.token)
         logger.debug("starting command %s for %s", command, self.applet_name)
         try:
             self.process = await asyncio.create_subprocess_exec(
@@ -65,6 +67,22 @@ class AppletDock(dockarea.Dock):
         await self.start()
 
 
+_templates = [
+    ("Big number", "{python} -m artiq.applets.big_number "
+                   "--embed {embed_token} NUMBER_DATASET"),
+    ("Histogram", "{python} -m artiq.applets.plot_hist "
+                  "--embed {embed_token} COUNTS_DATASET "
+                  "--x BIN_BOUNDARIES_DATASET"),
+    ("XY", "{python} -m artiq.applets.plot_xy "
+           "--embed {embed_token} Y_DATASET --x X_DATASET "
+           "--error ERROR_DATASET --fit FIT_DATASET"),
+    ("XY + Histogram", "{python} -m artiq.applets.plot_xy_hist "
+                       "--embed {embed_token} X_DATASET "
+                       "HIST_BIN_BOUNDARIES_DATASET "
+                       "HISTS_COUNTS_DATASET"),
+]
+
+
 class AppletsDock(dockarea.Dock):
     def __init__(self, manager):
         self.manager = manager
@@ -90,6 +108,14 @@ class AppletsDock(dockarea.Dock):
         new_action = QtGui.QAction("New applet", self.table)
         new_action.triggered.connect(self.new)
         self.table.addAction(new_action)
+        templates_menu = QtGui.QMenu()
+        for name, template in _templates:
+            action = QtGui.QAction(name, self.table)
+            action.triggered.connect(partial(self.new_template, template))
+            templates_menu.addAction(action)
+        restart_action = QtGui.QAction("New applet from template", self.table)
+        restart_action.setMenu(templates_menu)
+        self.table.addAction(restart_action)
         restart_action = QtGui.QAction("Restart selected applet", self.table)
         restart_action.triggered.connect(self.restart)
         self.table.addAction(restart_action)
@@ -143,7 +169,13 @@ class AppletsDock(dockarea.Dock):
                           QtCore.Qt.ItemIsEnabled)
         checkbox.setCheckState(QtCore.Qt.Unchecked)
         self.table.setItem(row, 0, checkbox)
+        self.table.setItem(row, 1, QtWidgets.QTableWidgetItem())
+        self.table.setItem(row, 2, QtWidgets.QTableWidgetItem())
         return row
+
+    def new_template(self, template):
+        row = self.new()
+        self.table.item(row, 2).setText(template)
 
     def restart(self):
         selection = self.table.selectedRanges()
