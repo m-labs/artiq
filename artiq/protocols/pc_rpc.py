@@ -292,6 +292,7 @@ class BestEffortClient:
         else:
             self.__socket = socket.create_connection(
                 (self.__host, self.__port), timeout)
+            self.__socket.settimeout(None)
         self.__socket.sendall(_init_string)
         server_identification = self.__recv()
         target_name = _validate_target_name(self.__target_name,
