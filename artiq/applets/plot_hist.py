@@ -32,7 +32,7 @@ class HistogramPlot(pyqtgraph.PlotWidget):
 def main():
     applet = SimpleApplet(HistogramPlot)
     applet.add_dataset("y", "Y values")
-    applet.add_dataset("x", "X values", required=False)
+    applet.add_dataset("x", "Bin boundaries", required=False)
     applet.run()
 
 if __name__ == "__main__":
