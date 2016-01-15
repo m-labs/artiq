@@ -12,7 +12,7 @@ import h5py
 from artiq.language.environment import EnvExperiment
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager
-from artiq.coredevice.core import CompileError
+from artiq.coredevice.core import CompileError, host_only
 from artiq.compiler.embedding import ObjectMap
 from artiq.compiler.targets import OR1KTarget
 from artiq.tools import *
