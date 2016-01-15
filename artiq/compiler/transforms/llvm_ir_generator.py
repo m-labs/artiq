@@ -181,7 +181,7 @@ class LLVMIRGenerator:
     def needs_sret(self, lltyp, may_be_large=True):
         if isinstance(lltyp, ll.VoidType):
             return False
-        elif isinstance(lltyp, ll.IntType) and lltyp.width <= 32:
+        elif isinstance(lltyp, ll.IntType):
             return False
         elif isinstance(lltyp, ll.PointerType):
             return False
