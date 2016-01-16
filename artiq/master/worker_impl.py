@@ -9,7 +9,7 @@ from artiq.tools import file_import
 from artiq.master.worker_db import DeviceManager, DatasetManager, get_hdf5_output
 from artiq.language.environment import is_experiment
 from artiq.language.core import set_watchdog_factory, TerminationRequested
-from artiq.coredevice.core import CompileError
+from artiq.coredevice.core import CompileError, host_only
 from artiq import __version__ as artiq_version
 
 
