@@ -16,6 +16,23 @@
 import sys
 import os
 
+from unittest.mock import MagicMock
+
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+        if name == "_mock_methods":
+            return None
+        return Mock()
+
+
+mock_modules = ["artiq.gui.moninj", "quamash", "pyqtgraph", "matplotlib"]
+
+for module in mock_modules:
+    sys.modules[module] = Mock()
+
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -32,6 +49,7 @@ import os
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.mathjax',
+    'sphinxarg.ext',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -48,7 +66,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'ARTIQ'
-copyright = '2014, M-Labs / NIST Ion Storage Group'
+copyright = '2014-2016, M-Labs Limited'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -107,7 +125,16 @@ html_theme = 'default'
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-#html_theme_options = {}
+html_theme_options = {
+	'sidebarbgcolor': '#171814',
+	'sidebarlinkcolor': '#7389ae',
+	'sidebartextcolor': '#b3b3bb',
+	'footerbgcolor': '#171814',
+	'footertextcolor': '#b3b3bb',
+	'relbarbgcolor': '#171814',
+	'relbarlinkcolor': '#7389ae',
+	'relbartextcolor': '#b3b3bb',
+}
 
 # Add any paths that contain custom themes here, relative to this directory.
 #html_theme_path = []
@@ -121,7 +148,7 @@ html_theme = 'default'
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-#html_logo = None
+html_logo = "../logo/artiq_white.png"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32

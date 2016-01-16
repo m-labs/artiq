@@ -1,10 +1,25 @@
 __pycache__
 *.o
 *.d
+*.a
 *.bin
 *.elf
 *.fbi
+*.pyc
 doc/manual/_build
 /build
 /dist
 /*.egg-info
+/.coverage
+artiq/test/results
+artiq/test/h5types.h5
+examples/master/results
+examples/master/dataset_db.pyon
+examples/sim/dataset_db.pyon
+Output/
+/lit-test/libartiq_support/libartiq_support.so
+
+# for developer convenience
+/test*.py
+/device_db.pyon
+/dataset_db.pyon

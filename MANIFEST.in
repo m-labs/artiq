@@ -1,0 +1,4 @@
+graft artiq/runtime
+include artiq/gui/icon.png
+include versioneer.py
+include artiq/_version.py

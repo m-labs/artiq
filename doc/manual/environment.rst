@@ -1,0 +1,53 @@
+The environment
+===============
+
+Experiments interact with an environment that consists of devices, arguments and datasets. Access to the environment is handled by the class :class:`artiq.language.environment.EnvExperiment` that experiments should derive from.
+
+.. _device-db:
+
+The device database
+-------------------
+
+The device database contains information about the devices available in a ARTIQ installation, what drivers to use, what controllers to use and on what machine, and where the devices are connected.
+
+The master (or ``artiq_run``) instantiates the device drivers (and the RPC clients in the case of controllers) for the experiments based on the contents of the device database.
+
+The device database is stored in the memory of the master and is backed by a PYON file typically called ``device_db.pyon``.
+
+The device database is a Python dictionary whose keys are the device names, and values can have several types.
+
+Local devices
++++++++++++++
+
+Local device entries are dictionaries that contain a ``type`` field set to ``local``. They correspond to device drivers that are created locally on the master (as opposed to going through the controller mechanism). The fields ``module`` and ``class`` determine the location of the Python class that the driver consists of. The ``arguments`` field is another (possibly empty) dictionary that contains arguments to pass to the device driver constructor.
+
+Controllers
++++++++++++
+
+Controller entries are dictionaries whose ``type`` field is set to ``controller``. When an experiment requests such a device, a RPC client (see :class:`artiq.protocols.pc_rpc`) is created and connected to the appropriate controller. Controller entries are also used by controller managers to determine what controllers to run.
+
+The ``best_effort`` field is a boolean that determines whether to use :class:`artiq.protocols.pc_rpc.Client` or :class:`artiq.protocols.pc_rpc.BestEffortClient`. The ``host`` and ``port`` fields configure the TCP connection. The ``target`` field contains the name of the RPC target to use (you may use ``artiq_rpctool`` on a controller to list its targets). Controller managers run the ``command`` field in a shell to launch the controller, after replacing ``{port}`` and ``{bind}`` by respectively the TCP port the controller should listen to (matches the ``port`` field) and an appropriate bind address for the controller's listening socket.
+
+Aliases
++++++++
+
+If an entry is a string, that string is used as a key for another lookup in the device database.
+
+Arguments
+---------
+
+Arguments are values that parameterize the behavior of an experiment and are set before the experiment is executed.
+
+Requesting the values of arguments can only be done in the build phase of an experiment. The value requests are also used to define the GUI widgets shown in the explorer when the experiment is selected.
+
+
+Datasets
+--------
+
+Datasets are values (possibly arrays) that are read and written by experiments and live in a key-value store.
+
+A dataset may be broadcasted, that is, distributed to all clients connected to the master. For example, the ARTIQ GUI may plot it while the experiment is in progress to give rapid feedback to the user. Broadcasted datasets live in a global key-value store; experiments should use distinctive real-time result names in order to avoid conflicts. Broadcasted datasets may be used to communicate values across experiments; for example, a periodic calibration experiment may update a dataset read by payload experiments. Broadcasted datasets are replaced when a new dataset with the same key (name) is produced.
+
+Broadcasted datasets may be persistent: the master stores them in a file typically called ``dataset_db.pyon`` so they are saved across master restarts.
+
+Datasets produced by an experiment run may be archived in the HDF5 output for that run.
