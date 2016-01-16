@@ -231,7 +231,7 @@ class PrepareStage(TaskObject):
                 except:
                     logger.error("got worker exception in prepare stage, "
                                  "deleting RID %d", run.rid)
-                    logger.debug("worker exception details", exc_info=True)
+                    logger.error("worker exception details", exc_info=True)
                     self.delete_cb(run.rid)
                 else:
                     run.status = RunStatus.prepare_done
@@ -281,7 +281,7 @@ class RunStage(TaskObject):
             except:
                 logger.error("got worker exception in run stage, "
                              "deleting RID %d", run.rid)
-                logger.debug("worker exception details", exc_info=True)
+                logger.info("worker exception details", exc_info=True)
                 self.delete_cb(run.rid)
             else:
                 if completed:
