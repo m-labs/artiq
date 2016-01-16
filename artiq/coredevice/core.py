@@ -13,15 +13,16 @@ from artiq.compiler.targets import OR1KTarget
 # Import for side effects (creating the exception classes).
 from artiq.coredevice import exceptions
 
-def _render_diagnostic(diagnostic):
+
+def _render_diagnostic(diagnostic, colored):
     def shorten_path(path):
         return path.replace(os.path.normpath(os.path.join(__file__, "..", "..")), "<artiq>")
-    lines = [shorten_path(path) for path in diagnostic.render(colored=True)]
+    lines = [shorten_path(path) for path in diagnostic.render(colored)]
     return "\n".join(lines)
 
 class _DiagnosticEngine(diagnostic.Engine):
     def render_diagnostic(self, diagnostic):
-        sys.stderr.write(_render_diagnostic(diagnostic) + "\n")
+        sys.stderr.write(_render_diagnostic(diagnostic, colored=True) + "\n")
 
 class CompileError(Exception):
     def __init__(self, diagnostic):
@@ -30,7 +31,7 @@ class CompileError(Exception):
     def __str__(self):
         # Prepend a newline so that the message shows up on after
         # exception class name printed by Python.
-        return "\n" + _render_diagnostic(self.diagnostic)
+        return "\n" + _render_diagnostic(self.diagnostic, colored=True)
 
 
 @syscall

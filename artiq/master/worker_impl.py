@@ -4,12 +4,13 @@ import os
 import logging
 from collections import OrderedDict
 
+import artiq
 from artiq.protocols import pyon
 from artiq.tools import file_import
 from artiq.master.worker_db import DeviceManager, DatasetManager, get_hdf5_output
 from artiq.language.environment import is_experiment
 from artiq.language.core import set_watchdog_factory, TerminationRequested
-from artiq.coredevice.core import CompileError, host_only
+from artiq.coredevice.core import CompileError, host_only, _render_diagnostic
 from artiq import __version__ as artiq_version
 
 
@@ -169,6 +170,26 @@ def string_to_hdf5(f, key, value):
     dataset[()] = value.encode()
 
 
+def setup_diagnostics(experiment_file, repository_path):
+    def render_diagnostic(self, diagnostic):
+        message = "Cannot compile {}\n".format(experiment_file) + \
+                    _render_diagnostic(diagnostic, colored=False)
+        if repository_path is not None:
+            message = message.replace(repository_path, "<repository>")
+        logging.error(message)
+
+    # This is kind of gross, but 1) we do not have any explicit connection
+    # between the worker and a coredevice.core.Core instance at all,
+    # and 2) the diagnostic engine really ought to be per-Core, since
+    # that's what uses it and the repository path is per-Core.
+    # So I don't know how to implement this properly for now.
+    #
+    # This hack is as good or bad as any other solution that involves
+    # putting inherently local objects (the diagnostic engine) into
+    # global slots, and there isn't any point in making it prettier by
+    # wrapping it in layers of indirection.
+    artiq.coredevice.core._DiagnosticEngine.render_diagnostic = render_diagnostic
+
 def main():
     sys.stdout = LogForwarder()
     sys.stderr = LogForwarder()
@@ -199,6 +220,8 @@ def main():
                     repository_path = obj["wd"]
                 else:
                     experiment_file = expid["file"]
+                    repository_path = None
+                setup_diagnostics(experiment_file, repository_path)
                 exp = get_exp(experiment_file, expid["class_name"])
                 device_mgr.virtual_devices["scheduler"].set_run_info(
                     rid, obj["pipeline_name"], expid, obj["priority"])
@@ -230,12 +253,8 @@ def main():
                 put_object({"action": "completed"})
             elif action == "terminate":
                 break
-    except CompileError as exc:
-        # TODO: This should be replaced with a proper DiagnosticEngine.
-        message = "Cannot compile {}\n".format(experiment_file) + exc.render_string()
-        if repository_path is not None:
-            message = message.replace(repository_path, "<repository>")
-        logging.error(message)
+    except CompileError:
+        pass
     except Exception as exc:
         short_exc_info = type(exc).__name__
         exc_str = str(exc)
