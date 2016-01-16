@@ -202,12 +202,16 @@ class Inferencer(algorithm.Visitor):
                         value.loc, None)
 
     def visit_SliceT(self, node):
-        self._unify(node.type, builtins.TInt(),
-                    node.loc, None)
-        for operand in (node.lower, node.upper, node.step):
-            if operand is not None:
-                self._unify(operand.type, node.type,
-                            operand.loc, None)
+        if (node.lower, node.upper, node.step) == (None, None, None):
+            self._unify(node.type, builtins.TInt32(),
+                        node.loc, None)
+        else:
+            self._unify(node.type, builtins.TInt(),
+                        node.loc, None)
+            for operand in (node.lower, node.upper, node.step):
+                if operand is not None:
+                    self._unify(operand.type, node.type,
+                                operand.loc, None)
 
     def visit_ExtSlice(self, node):
         diag = diagnostic.Diagnostic("error",
