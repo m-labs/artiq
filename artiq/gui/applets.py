@@ -117,9 +117,13 @@ class AppletsDock(dockarea.Dock):
         restart_action.setMenu(templates_menu)
         self.table.addAction(restart_action)
         restart_action = QtGui.QAction("Restart selected applet", self.table)
+        restart_action.setShortcut("CTRL+R")
+        restart_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         restart_action.triggered.connect(self.restart)
         self.table.addAction(restart_action)
         delete_action = QtGui.QAction("Delete selected applet", self.table)
+        delete_action.setShortcut("DELETE")
+        delete_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         delete_action.triggered.connect(self.delete)
         self.table.addAction(delete_action)
 
