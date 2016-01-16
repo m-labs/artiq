@@ -111,6 +111,8 @@ def get_last_rid():
                 continue
             for x in h5files:
                 m = re.fullmatch('(\d\d\d\d\d\d\d\d\d)-.*\.h5', x)
+                if m is None:
+                    continue
                 rid = int(m.group(1))
                 if rid > r:
                     r = rid
