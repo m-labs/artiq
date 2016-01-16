@@ -183,7 +183,7 @@ def setup_diagnostics(experiment_file, repository_path):
         if repository_path is not None:
             message = message.replace(repository_path, "<repository>")
 
-        if diagnostic.level == 'warning':
+        if diagnostic.level == "warning":
             logging.warn(message)
         else:
             logging.error(message)
@@ -199,6 +199,7 @@ def setup_diagnostics(experiment_file, repository_path):
     # global slots, and there isn't any point in making it prettier by
     # wrapping it in layers of indirection.
     artiq.coredevice.core._DiagnosticEngine.render_diagnostic = render_diagnostic
+
 
 def main():
     sys.stdout = LogForwarder()
@@ -268,10 +269,10 @@ def main():
     except Exception as exc:
         lines = ["Terminating with exception\n"]
         lines += traceback.format_exception_only(type(exc), exc)
-        if hasattr(exc, 'parent_traceback'):
+        if hasattr(exc, "parent_traceback"):
             lines += exc.parent_traceback
         logging.error("".join(lines).rstrip(),
-                      exc_info=not hasattr(exc, 'parent_traceback'))
+                      exc_info=not hasattr(exc, "parent_traceback"))
     finally:
         device_mgr.close_devices()
 
