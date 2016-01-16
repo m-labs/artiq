@@ -218,6 +218,15 @@ class _LogDock(dockarea.Dock):
         if self.scroll_at_bottom:
             self.log.scrollToBottom()
 
+        # HACK:
+        # If we don't do this, after we first add some rows, the "Time"
+        # column gets undersized and the text in it gets wrapped.
+        # We can call self.log.resizeColumnsToContents(), which fixes
+        # that problem, but now the message column is too large and
+        # a horizontal scrollbar appears.
+        # This is almost certainly a Qt layout bug.
+        self.log.horizontalHeader().reset()
+
     # HACK:
     # Qt intermittently likes to scroll back to the top when rows are removed.
     # Work around this by restoring the scrollbar to the previously memorized
