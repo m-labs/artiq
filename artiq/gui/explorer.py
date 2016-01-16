@@ -160,16 +160,19 @@ class ExplorerDock(dockarea.Dock):
         open_action.triggered.connect(
             partial(self.expname_action, "open_experiment"))
         open_action.setShortcut("RETURN")
+        open_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         self.el.addAction(open_action)
         submit_action = QtGui.QAction("Submit", self.el)
         submit_action.triggered.connect(
             partial(self.expname_action, "submit"))
         submit_action.setShortcut("CTRL+RETURN")
+        submit_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         self.el.addAction(submit_action)
         reqterm_action = QtGui.QAction("Request termination of instances", self.el)
         reqterm_action.triggered.connect(
             partial(self.expname_action, "request_inst_term"))
         reqterm_action.setShortcut("CTRL+BACKSPACE")
+        reqterm_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         self.el.addAction(reqterm_action)
 
         set_shortcut_menu = QtGui.QMenu()
