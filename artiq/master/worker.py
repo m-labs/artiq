@@ -180,9 +180,11 @@ class Worker:
             try:
                 data = func(*obj["args"], **obj["kwargs"])
                 reply = {"status": "ok", "data": data}
-            except:
+            except Exception as e:
                 reply = {"status": "failed",
-                         "message": traceback.format_exc()}
+                         "exception": traceback.format_exception_only(type(e), e)[0][:-1],
+                         "message": str(e),
+                         "traceback": traceback.format_tb(e.__traceback__)}
             await self.io_lock.acquire()
             try:
                 await self._send(reply)

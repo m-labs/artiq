@@ -2,6 +2,7 @@ import sys
 import time
 import os
 import logging
+import traceback
 from collections import OrderedDict
 
 import artiq
@@ -30,7 +31,7 @@ class ParentActionError(Exception):
     pass
 
 
-def make_parent_action(action, exception=ParentActionError):
+def make_parent_action(action, exception=None):
     def parent_action(*args, **kwargs):
         request = {"action": action, "args": args, "kwargs": kwargs}
         put_object(request)
@@ -43,7 +44,12 @@ def make_parent_action(action, exception=ParentActionError):
         if reply["status"] == "ok":
             return reply["data"]
         else:
-            raise exception(reply["message"])
+            if exception is None:
+                exn = ParentActionError(reply["exception"])
+            else:
+                exn = exception(reply["message"])
+            exn.parent_traceback = reply["traceback"]
+            raise exn
     return parent_action
 
 
@@ -172,11 +178,15 @@ def string_to_hdf5(f, key, value):
 
 def setup_diagnostics(experiment_file, repository_path):
     def render_diagnostic(self, diagnostic):
-        message = "Cannot compile {}\n".format(experiment_file) + \
+        message = "While compiling {}\n".format(experiment_file) + \
                     _render_diagnostic(diagnostic, colored=False)
         if repository_path is not None:
             message = message.replace(repository_path, "<repository>")
-        logging.error(message)
+
+        if diagnostic.level == 'warning':
+            logging.warn(message)
+        else:
+            logging.error(message)
 
     # This is kind of gross, but 1) we do not have any explicit connection
     # between the worker and a coredevice.core.Core instance at all,
@@ -256,12 +266,12 @@ def main():
     except CompileError:
         pass
     except Exception as exc:
-        short_exc_info = type(exc).__name__
-        exc_str = str(exc)
-        if exc_str:
-            short_exc_info += ": " + exc_str
-        logging.error("Terminating with exception (%s)",
-                      short_exc_info, exc_info=True)
+        lines = ["Terminating with exception\n"]
+        lines += traceback.format_exception_only(type(exc), exc)
+        if hasattr(exc, 'parent_traceback'):
+            lines += exc.parent_traceback
+        logging.error("".join(lines).rstrip(),
+                      exc_info=not hasattr(exc, 'parent_traceback'))
     finally:
         device_mgr.close_devices()
 
