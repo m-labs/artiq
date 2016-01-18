@@ -13,15 +13,16 @@ from artiq.compiler.targets import OR1KTarget
 # Import for side effects (creating the exception classes).
 from artiq.coredevice import exceptions
 
-def _render_diagnostic(diagnostic):
+
+def _render_diagnostic(diagnostic, colored):
     def shorten_path(path):
         return path.replace(os.path.normpath(os.path.join(__file__, "..", "..")), "<artiq>")
-    lines = [shorten_path(path) for path in diagnostic.render(colored=True)]
+    lines = [shorten_path(path) for path in diagnostic.render(colored)]
     return "\n".join(lines)
 
 class _DiagnosticEngine(diagnostic.Engine):
     def render_diagnostic(self, diagnostic):
-        sys.stderr.write(_render_diagnostic(diagnostic) + "\n")
+        sys.stderr.write(_render_diagnostic(diagnostic, colored=True) + "\n")
 
 class CompileError(Exception):
     def __init__(self, diagnostic):
@@ -30,7 +31,7 @@ class CompileError(Exception):
     def __str__(self):
         # Prepend a newline so that the message shows up on after
         # exception class name printed by Python.
-        return "\n" + _render_diagnostic(self.diagnostic)
+        return "\n" + _render_diagnostic(self.diagnostic, colored=True)
 
 
 @syscall
@@ -119,8 +120,28 @@ class Core:
 
     @kernel
     def get_cache(self, key):
+        """Extract a value from the core device cache.
+        After a value is extracted, it cannot be replaced with another value using
+        :meth:`put_cache` until all kernel functions finish executing; attempting
+        to replace it will result in a :class:`artiq.coredevice.exceptions.CacheError`.
+
+        If the cache does not contain any value associated with ``key``, an empty list
+        is returned.
+
+        The value is not copied, so mutating it will change what's stored in the cache.
+
+        :param str key: cache key
+        :return: a list of 32-bit integers
+        """
         return cache_get(key)
 
     @kernel
     def put_cache(self, key, value):
-        return cache_put(key, value)
+        """Put a value into the core device cache. The value will persist until reboot.
+
+        To remove a value from the cache, call :meth:`put_cache` with an empty list.
+
+        :param str key: cache key
+        :param list value: a list of 32-bit integers
+        """
+        cache_put(key, value)

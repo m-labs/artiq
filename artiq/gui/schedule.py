@@ -77,10 +77,12 @@ class ScheduleDock(dockarea.Dock):
         request_termination_action = QtGui.QAction("Request termination", self.table)
         request_termination_action.triggered.connect(partial(self.delete_clicked, True))
         request_termination_action.setShortcut("DELETE")
+        request_termination_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         self.table.addAction(request_termination_action)
         delete_action = QtGui.QAction("Delete", self.table)
         delete_action.triggered.connect(partial(self.delete_clicked, False))
         delete_action.setShortcut("SHIFT+DELETE")
+        delete_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         self.table.addAction(delete_action)
 
         self.table_model = Model(dict())

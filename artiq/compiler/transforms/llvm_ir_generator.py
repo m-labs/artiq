@@ -29,10 +29,12 @@ DW_TAG_subprogram      = 46
 
 def memoize(generator):
     def memoized(self, *args):
-        result = self.cache.get((generator,) + args, None)
-        if result is None:
-            return generator(self, *args)
-        else:
+        key = (generator,) + args
+        try:
+            return self.cache[key]
+        except KeyError:
+            result = generator(self, *args)
+            self.cache[key] = result
             return result
     return memoized
 

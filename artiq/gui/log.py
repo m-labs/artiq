@@ -169,13 +169,19 @@ class _LogDock(dockarea.Dock):
             self.filter_freetext_changed)
         grid.addWidget(self.filter_freetext, 0, 2)
 
+        scrollbottom = QtGui.QToolButton()
+        scrollbottom.setToolTip("Scroll to bottom")
+        scrollbottom.setIcon(QtGui.QApplication.style().standardIcon(
+            QtGui.QStyle.SP_ArrowDown))
+        grid.addWidget(scrollbottom, 0, 3)
+        scrollbottom.clicked.connect(self.scroll_to_bottom)
         newdock = QtGui.QToolButton()
         newdock.setToolTip("Create new log dock")
         newdock.setIcon(QtGui.QApplication.style().standardIcon(
             QtGui.QStyle.SP_FileDialogNewFolder))
         # note the lambda, the default parameter is overriden otherwise
         newdock.clicked.connect(lambda: manager.create_new_dock())
-        grid.addWidget(newdock, 0, 3)
+        grid.addWidget(newdock, 0, 4)
         grid.layout.setColumnStretch(2, 1)
 
         self.log = QtGui.QTableView()
@@ -192,7 +198,7 @@ class _LogDock(dockarea.Dock):
             QtGui.QAbstractItemView.ScrollPerPixel)
         self.log.setShowGrid(False)
         self.log.setTextElideMode(QtCore.Qt.ElideNone)
-        grid.addWidget(self.log, 1, 0, colspan=4)
+        grid.addWidget(self.log, 1, 0, colspan=5)
         self.scroll_at_bottom = False
         self.scroll_value = 0
 
@@ -209,6 +215,9 @@ class _LogDock(dockarea.Dock):
             return
         self.table_model_filter.set_freetext(self.filter_freetext.text())
 
+    def scroll_to_bottom(self):
+        self.log.scrollToBottom()
+
     def rows_inserted_before(self):
         scrollbar = self.log.verticalScrollBar()
         self.scroll_value = scrollbar.value()
@@ -217,6 +226,15 @@ class _LogDock(dockarea.Dock):
     def rows_inserted_after(self):
         if self.scroll_at_bottom:
             self.log.scrollToBottom()
+
+        # HACK:
+        # If we don't do this, after we first add some rows, the "Time"
+        # column gets undersized and the text in it gets wrapped.
+        # We can call self.log.resizeColumnsToContents(), which fixes
+        # that problem, but now the message column is too large and
+        # a horizontal scrollbar appears.
+        # This is almost certainly a Qt layout bug.
+        self.log.horizontalHeader().reset()
 
     # HACK:
     # Qt intermittently likes to scroll back to the top when rows are removed.
