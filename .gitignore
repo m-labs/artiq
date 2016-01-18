@@ -17,7 +17,7 @@ examples/master/results
 examples/master/dataset_db.pyon
 examples/sim/dataset_db.pyon
 Output/
-/lit-test/libartiq_support/libartiq_support.so
+/artiq/test/libartiq_support/libartiq_support.so
 
 # for developer convenience
 /test*.py
