@@ -16,11 +16,14 @@ __pycache__/
 
 /artiq/test/results
 /artiq/test/h5types.h5
-/results
-/h5types.h5
 /examples/master/results
 /examples/master/dataset_db.pyon
 /examples/sim/results
 /examples/sim/dataset_db.pyon
+
+# when testing ad-hoc experiments at the root:
 /device_db.pyon
 /dataset_db.pyon
+/results
+/h5types.h5
+/test*.py
