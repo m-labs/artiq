@@ -228,11 +228,17 @@ class NIST_QC2(_NIST_QCx):
             if i == 27:
                 # TTL27 is for the clock generator
                 continue
-            else:
-                # all channels can be configured to be either inputs or outputs
-                phy = ttl_serdes_7series.Inout_8X(platform.request("ttl", i))
+            elif i % 28 > 23:
+                # highest 4 ttl channels on each backplane are output only
+                phy = ttl_serdes_7series.Output_8X(platform.request("ttl",i))
                 self.submodules += phy
-                rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=256))
+                rtio_channels.append(rtio.Channel.from_phy(phy))      
+            else:
+                # all other channel directions can be configured at runtime
+                phy = ttl_serdes_7series.Inout_8X(platform.request("ttl",i))
+                self.submodules += phy
+                rtio_channels.append(rtio.Channel.from_phy(phy, 
+                                                           ififo_depth=512))
 
         phy = ttl_simple.Inout(platform.request("user_sma_gpio_n"))
         self.submodules += phy
@@ -242,15 +248,15 @@ class NIST_QC2(_NIST_QCx):
         rtio_channels.append(rtio.Channel.from_phy(phy))
         self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
-        phy = ttl_simple.ClockGen(platform.request("ttl", 14))
+        phy = ttl_simple.ClockGen(platform.request("ttl", 27))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
-        self.config["DDS_CHANNEL_COUNT"] = 11
+        self.config["DDS_CHANNEL_COUNT"] = 12
         self.config["DDS_AD9914"] = True
         self.config["DDS_ONEHOT_SEL"] = True
-        phy = dds.AD9914(platform.request("dds"), 11, onehot=True)
+        phy = dds.AD9914(platform.request("dds"), 12, onehot=True)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,
                                                    ofifo_depth=512,
@@ -279,7 +285,8 @@ class NIST_CLOCK(_NIST_QCx):
             if i % 4 == 3:
                 phy = ttl_serdes_7series.Inout_8X(platform.request("ttl", i))
                 self.submodules += phy
-                rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
+                rtio_channels.append(rtio.Channel.from_phy(phy, 
+                                                           ififo_depth=512))
             else:
                 phy = ttl_serdes_7series.Output_8X(platform.request("ttl", i))
                 self.submodules += phy
