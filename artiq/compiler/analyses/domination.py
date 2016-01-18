@@ -81,6 +81,7 @@ class GenericDominatorTree:
             return
 
         block_name = self._name_of_block[block]
+        yield self._block_of_name[block_name]
         while block_name != self._doms[block_name]:
             block_name = self._doms[block_name]
             yield self._block_of_name[block_name]
