@@ -29,7 +29,7 @@ def main():
         sys.argv[1:] = args.args[1:]
         with open(args.args[0]) as f:
             code = compile(f.read(), args.args[0], 'exec')
-            exec(code)
+            exec(code, globals())
 
 if __name__ == "__main__":
     main()
