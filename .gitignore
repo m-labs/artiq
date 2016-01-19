@@ -13,6 +13,7 @@ __pycache__/
 /.coverage
 /artiq/test/lit/*/Output/
 /artiq/binaries
+/misoc_*/
 
 /artiq/test/results
 /artiq/test/h5types.h5
@@ -21,7 +22,9 @@ __pycache__/
 /examples/sim/results
 /examples/sim/dataset_db.pyon
 
-# when testing ad-hoc experiments at the root:
+# recommended location for testbed
+/run
+# alternatively, when testing ad-hoc experiments at the root:
 /device_db.pyon
 /dataset_db.pyon
 /results
