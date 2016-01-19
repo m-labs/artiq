@@ -19,7 +19,6 @@ COREFILES=core/mem.c \
 	core/tcp_in.c \
 	core/tcp_out.c \
 	core/udp.c \
-	core/dhcp.c \
 	core/inet_chksum.c \
 	core/timers.c \
 	core/init.c
@@ -33,27 +32,12 @@ CORE4FILES=core/ipv4/icmp.c \
 NETIFFILES=netif/etharp.c
 
 PPPFILES=netif/ppp/auth.c \
-	netif/ppp/ccp.c \
-	netif/ppp/chap-md5.c \
-	netif/ppp/chap_ms.c \
-	netif/ppp/chap-new.c \
-	netif/ppp/demand.c \
-	netif/ppp/eap.c \
-	netif/ppp/ecp.c \
-	netif/ppp/eui64.c \
 	netif/ppp/fsm.c \
 	netif/ppp/ipcp.c \
-	netif/ppp/ipv6cp.c \
 	netif/ppp/lcp.c \
 	netif/ppp/magic.c \
-	netif/ppp/mppe.c \
-	netif/ppp/multilink.c \
 	netif/ppp/ppp.c \
-	netif/ppp/pppcrypt.c \
-	netif/ppp/pppoe.c \
-	netif/ppp/pppol2tp.c \
 	netif/ppp/pppos.c \
-	netif/ppp/upap.c \
 	netif/ppp/utils.c \
 	netif/ppp/vj.c
 
