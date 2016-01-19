@@ -150,8 +150,18 @@ static void network_init(void)
 }
 #else /* CSR_ETHMAC_BASE */
 
+static int ppp_connected;
+
 static void ppp_status_cb(ppp_pcb *pcb, int err_code, void *ctx)
 {
+  if (err_code == PPPERR_NONE) {
+    ppp_connected = 1;
+    return;
+  } else if (err_code == PPPERR_USER) {
+    return;
+  } else {
+    ppp_connect(pcb, 10);
+  }
 }
 
 u32_t sio_write(sio_fd_t fd, u8_t *data, u32_t len)
@@ -165,10 +175,16 @@ u32_t sio_write(sio_fd_t fd, u8_t *data, u32_t len)
 
 static void network_init(void)
 {
+    lwip_init();
+
+    ppp_connected = 0;
     ppp = pppos_create(&netif, NULL, ppp_status_cb, NULL);
     ppp_set_auth(ppp, PPPAUTHTYPE_NONE, "", "");
     ppp_set_default(ppp);
     ppp_connect(ppp, 0);
+
+    while (!ppp_connected)
+        lwip_service();
 }
 
 #endif /* CSR_ETHMAC_BASE */
