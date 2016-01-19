@@ -13,13 +13,13 @@ import sys, os, argparse, importlib
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('-m', metavar='mod', type=str,
-                        help='run library module as a script')
-    parser.add_argument('args', type=str, nargs='+',
-                        help='arguments passed to program in sys.argv[1:]')
+    parser.add_argument("-m", metavar="mod", type=str,
+                        help="run library module as a script")
+    parser.add_argument("args", type=str, nargs="+",
+                        help="arguments passed to program in sys.argv[1:]")
     args = parser.parse_args(sys.argv[1:])
 
-    artiq_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    artiq_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     sys.path.insert(1, artiq_path)
 
     if args.m:
@@ -28,7 +28,7 @@ def main():
     else:
         sys.argv[1:] = args.args[1:]
         with open(args.args[0]) as f:
-            code = compile(f.read(), args.args[0], 'exec')
+            code = compile(f.read(), args.args[0], "exec")
             exec(code, globals())
 
 if __name__ == "__main__":
