@@ -22,8 +22,8 @@ void rtio_process_exceptional_status(int status, long long int timestamp, int ch
     if(status & RTIO_O_STATUS_UNDERFLOW) {
         rtio_o_underflow_reset_write(1);
         artiq_raise_from_c("RTIOUnderflow",
-            "RTIO underflow at {0} mu, channel {1}, counter {2}",
-            timestamp, channel, rtio_get_counter());
+            "RTIO underflow at {0} mu, channel {1}, slack {2} mu",
+            timestamp, channel, timestamp - rtio_get_counter());
     }
     if(status & RTIO_O_STATUS_SEQUENCE_ERROR) {
         rtio_o_sequence_error_reset_write(1);
