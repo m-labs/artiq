@@ -124,8 +124,13 @@ class ASTSynthesizer:
                 instance_type, constructor_type = self.type_map[typ]
             else:
                 if issubclass(typ, BaseException):
-                    instance_type = builtins.TException("{}.{}".format(typ.__module__, typ.__qualname__),
-                                                        id=self.object_map.store(typ))
+                    if hasattr(typ, 'artiq_builtin'):
+                        exception_id = 0
+                    else:
+                        exception_id = self.object_map.store(typ)
+                    instance_type = builtins.TException("{}.{}".format(typ.__module__,
+                                                                       typ.__qualname__),
+                                                        id=exception_id)
                     constructor_type = types.TExceptionConstructor(instance_type)
                 else:
                     instance_type = types.TInstance("{}.{}".format(typ.__module__, typ.__qualname__),

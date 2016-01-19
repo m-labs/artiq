@@ -9,10 +9,12 @@ IndexError = builtins.IndexError
 
 class InternalError(Exception):
     """Raised when the runtime encounters an internal error condition."""
+    artiq_builtin = True
 
 
 class CacheError(Exception):
     """Raised when putting a value into a cache row would violate memory safety."""
+    artiq_builtin = True
 
 
 class RTIOUnderflow(Exception):
@@ -21,6 +23,7 @@ class RTIOUnderflow(Exception):
 
     The offending event is discarded and the RTIO core keeps operating.
     """
+    artiq_builtin = True
 
 class RTIOSequenceError(Exception):
     """Raised when an event is submitted on a given channel with a timestamp
@@ -28,6 +31,7 @@ class RTIOSequenceError(Exception):
 
     The offending event is discarded and the RTIO core keeps operating.
     """
+    artiq_builtin = True
 
 class RTIOCollisionError(Exception):
     """Raised when an event is submitted on a given channel with the same
@@ -39,6 +43,7 @@ class RTIOCollisionError(Exception):
 
     The offending event is discarded and the RTIO core keeps operating.
     """
+    artiq_builtin = True
 
 class RTIOOverflow(Exception):
     """Raised when at least one event could not be registered into the RTIO
@@ -48,8 +53,10 @@ class RTIOOverflow(Exception):
     read attempt and discarding some events. Reading can be reattempted after
     the exception is caught, and events will be partially retrieved.
     """
+    artiq_builtin = True
 
 class DDSBatchError(Exception):
     """Raised when attempting to start a DDS batch while already in a batch,
     or when too many commands are batched.
     """
+    artiq_builtin = True

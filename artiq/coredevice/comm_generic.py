@@ -472,7 +472,8 @@ class CommGeneric:
                 self._write_string(function)
             else:
                 exn_type = type(exn)
-                if exn_type in (ZeroDivisionError, ValueError, IndexError):
+                if exn_type in (ZeroDivisionError, ValueError, IndexError) or \
+                        hasattr(exn, 'artiq_builtin'):
                     self._write_string("0:{}".format(exn_type.__name__))
                 else:
                     exn_id = object_map.store(exn_type)
@@ -506,10 +507,10 @@ class CommGeneric:
                     [(filename, line, column, function, None)]
         exception = core_language.ARTIQException(name, message, params, traceback)
 
-        if hasattr(exceptions, exception.name):
-            python_exn_type = getattr(exceptions, exception.name)
+        print(exception.id, exception.name)
+        if exception.id == 0:
+            python_exn_type = getattr(exceptions, exception.name.split('.')[-1])
         else:
-            assert exception.id != 0
             python_exn_type = object_map.retrieve(exception.id)
 
         python_exn = python_exn_type(message.format(*params))

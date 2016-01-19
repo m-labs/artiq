@@ -35,7 +35,7 @@ void __artiq_reraise(void)
 #define artiq_raise_from_c(exnname, exnmsg, exnparam0, exnparam1, exnparam2) \
         do { \
           struct artiq_exception exn = { \
-            .name = exnname, \
+            .name = "0:artiq.coredevice.exceptions." exnname, \
             .message = exnmsg, \
             .param = { exnparam0, exnparam1, exnparam2 }, \
             .file = __FILE__, \
