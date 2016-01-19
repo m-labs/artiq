@@ -15,7 +15,8 @@ CFLAGS += -I$(LIBALLOC_DIRECTORY) \
 	-I$(LIBUNWIND_DIRECTORY) \
 	-I$(LIBUNWIND_DIRECTORY)/../unwinder/include \
 	-I$(LIBLWIP_DIRECTORY)/../lwip/src/include \
-	-I$(LIBLWIP_DIRECTORY)
+	-I$(LIBLWIP_DIRECTORY) \
+	-DNDEBUG
 
 all: runtime.bin runtime.fbi
 
