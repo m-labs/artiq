@@ -196,8 +196,6 @@ class NIST_QC1(_NIST_QCx):
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
-        assert self.rtio.fine_ts_width <= 3
-        self.config["DDS_RTIO_CLK_RATIO"] = 8 >> self.rtio.fine_ts_width
         self.config["DDS_CHANNEL_COUNT"] = 8
         self.config["DDS_AD9858"] = True
         phy = dds.AD9858(platform.request("dds"), 8)
@@ -210,6 +208,8 @@ class NIST_QC1(_NIST_QCx):
         rtio_channels.append(rtio.LogChannel())
 
         self.add_rtio(rtio_channels)
+        assert self.rtio.fine_ts_width <= 3
+        self.config["DDS_RTIO_CLK_RATIO"] = 8 >> self.rtio.fine_ts_width
 
 
 class NIST_QC2(_NIST_QCx):
@@ -246,8 +246,6 @@ class NIST_QC2(_NIST_QCx):
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
-        assert self.rtio.fine_ts_width <= 3
-        self.config["DDS_RTIO_CLK_RATIO"] = 24 >> self.rtio.fine_ts_width
         self.config["DDS_CHANNEL_COUNT"] = 11
         self.config["DDS_AD9914"] = True
         self.config["DDS_ONEHOT_SEL"] = True
@@ -261,6 +259,8 @@ class NIST_QC2(_NIST_QCx):
         rtio_channels.append(rtio.LogChannel())
 
         self.add_rtio(rtio_channels)
+        assert self.rtio.fine_ts_width <= 3
+        self.config["DDS_RTIO_CLK_RATIO"] = 24 >> self.rtio.fine_ts_width
 
 
 def main():
