@@ -143,14 +143,12 @@ class CoefficientSource:
         return build_segment(durations, coefficients, target=target,
                              variable=variable)
 
-    def extend_segment(self, segment, trigger=True, *args, **kwargs):
+    def extend_segment(self, segment, *args, **kwargs):
         """Extend a wavesynth segment.
 
         See `get_segment()` for arguments.
         """
         for i, line in enumerate(self.get_segment_data(*args, **kwargs)):
-            if i == 0:
-                line["trigger"] = trigger
             segment.add_line(**line)
 
 

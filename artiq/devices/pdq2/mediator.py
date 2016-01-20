@@ -111,6 +111,7 @@ class _Frame:
                     "dac_divider": dac_divider,
                     "duration": duration,
                     "channel_data": channel_data,
+                    "trigger": False,
                 } for dac_divider, duration, channel_data in segment.lines]
             segment_program[0]["trigger"] = True
             r += segment_program
@@ -156,7 +157,7 @@ class _Frame:
 class CompoundPDQ2:
     def __init__(self, dmgr, pdq2_devices, trigger_device, frame_devices):
         self.core = dmgr.get("core")
-        self.pdq2s = [dmgr.get(d) for d in self.pdq2_devices]
+        self.pdq2s = [dmgr.get(d) for d in pdq2_devices]
         self.trigger = dmgr.get(trigger_device)
         self.frame0 = dmgr.get(frame_devices[0])
         self.frame1 = dmgr.get(frame_devices[1])
