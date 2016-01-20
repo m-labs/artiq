@@ -1221,10 +1221,19 @@ class Inferencer(algorithm.Visitor):
         if node.exc is not None:
             exc_type = node.exc.type
             if not types.is_var(exc_type) and not builtins.is_exception(exc_type):
+                if types.is_exn_constructor(exc_type):
+                    notes = [diagnostic.Diagnostic("note",
+                        "this value is an exception constructor; use {suggestion} instead",
+                        {"suggestion": node.exc.loc.source() + "()"},
+                        node.exc.loc)]
+                else:
+                    notes = []
+
                 diag = diagnostic.Diagnostic("error",
                     "cannot raise a value of type {type}, which is not an exception",
                     {"type": types.TypePrinter().name(exc_type)},
-                    node.exc.loc)
+                    node.loc,
+                    notes=notes)
                 self.engine.process(diag)
 
     def visit_Assert(self, node):
