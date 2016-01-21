@@ -1,6 +1,6 @@
 from migen.build.generic_platform import *
 
-# Single new backplane in LPC connector, KC705 board, NIST QC2
+
 fmc_adapter_io = [
     ("ttl", 0, Pins("LPC:LA00_CC_P"), IOStandard("LVTTL")),
     ("ttl", 1, Pins("LPC:LA02_P"), IOStandard("LVTTL")),
@@ -18,19 +18,6 @@ fmc_adapter_io = [
     ("ttl", 13, Pins("LPC:LA09_N"), IOStandard("LVTTL")),
     ("ttl", 14, Pins("LPC:LA13_P"), IOStandard("LVTTL")),
     ("ttl", 15, Pins("LPC:LA14_P"), IOStandard("LVTTL")),
-    ("ttl", 16, Pins("LPC:LA13_N"), IOStandard("LVTTL")),
-    ("ttl", 17, Pins("LPC:LA14_N"), IOStandard("LVTTL")),
-    ("ttl", 18, Pins("LPC:LA17_CC_P"), IOStandard("LVTTL")),
-    ("ttl", 19, Pins("LPC:LA17_CC_N"), IOStandard("LVTTL")),
-    ("ttl", 20, Pins("LPC:LA18_CC_P"), IOStandard("LVTTL")),
-    ("ttl", 21, Pins("LPC:LA18_CC_N"), IOStandard("LVTTL")),
-    ("ttl", 22, Pins("LPC:LA23_P"), IOStandard("LVTTL")),
-    ("ttl", 23, Pins("LPC:LA23_N"), IOStandard("LVTTL")),
-    ("ttl", 24, Pins("LPC:LA27_P"), IOStandard("LVTTL")),
-    ("ttl", 25, Pins("LPC:LA26_P"), IOStandard("LVTTL")),
-    ("ttl", 26, Pins("LPC:LA27_N"), IOStandard("LVTTL")),
-    ("ttl", 27, Pins("LPC:LA26_N"), IOStandard("LVTTL")),
-
 
     ("dds", 0,
         Subsignal("a", Pins("LPC:LA22_N LPC:LA21_P LPC:LA22_P LPC:LA19_N "
@@ -41,7 +28,7 @@ fmc_adapter_io = [
                             "LPC:LA04_N LPC:LA03_N LPC:LA04_P LPC:LA03_P")),
         Subsignal("sel_n", Pins("LPC:LA24_N LPC:LA29_P LPC:LA28_P LPC:LA29_N "
                                 "LPC:LA28_N LPC:LA31_P LPC:LA30_P LPC:LA31_N "
-                                "LPC:LA30_N LPC:LA33_P LPC:LA33_N LPC:LA32_P")),
+                                "LPC:LA30_N LPC:LA33_P LPC:LA33_N")),
         Subsignal("fud", Pins("LPC:LA21_N")),
         Subsignal("wr_n", Pins("LPC:LA24_P")),
         Subsignal("rd_n", Pins("LPC:LA25_N")),
@@ -63,4 +50,29 @@ fmc_adapter_io = [
         Subsignal("n", Pins("LPC:CLK1_M2C_N")),
         IOStandard("LVDS")),
 
+    ("la32", 0,
+        Subsignal("p", Pins("LPC:LA32_P")),
+        Subsignal("n", Pins("LPC:LA32_N")),
+        IOStandard("LVDS")),
+
+    ("spi", 0,
+        Subsignal("clk", Pins("LPC:LA13_N")),
+        Subsignal("ce", Pins("LPC:LA14_N")),
+        Subsignal("mosi", Pins("LPC:LA17_CC_P")),
+        Subsignal("miso", Pins("LPC:LA17_CC_N")),
+        IOStandard("LVTTL")),
+
+    ("spi", 1,
+        Subsignal("clk", Pins("LPC:LA18_CC_P")),
+        Subsignal("ce", Pins("LPC:LA18_CC_N")),
+        Subsignal("mosi", Pins("LPC:LA23_P")),
+        Subsignal("miso", Pins("LPC:LA23_N")),
+        IOStandard("LVTTL")),
+
+    ("spi", 2,
+        Subsignal("clk", Pins("LPC:LA27_P")),
+        Subsignal("ce", Pins("LPC:LA26_P")),
+        Subsignal("mosi", Pins("LPC:LA27_N")),
+        Subsignal("miso", Pins("LPC:LA26_N")),
+        IOStandard("LVTTL")),
 ]
