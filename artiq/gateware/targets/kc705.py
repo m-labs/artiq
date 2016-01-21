@@ -162,6 +162,10 @@ TIMESPEC "TSfix_cdc2" = FROM "GRPrio_clk" TO "GRPrsys_clk" TIG;
 
 
 class NIST_QC1(_NIST_Ions):
+    """
+    NIST QC1 hardware, as used in the Penning lab, with FMC to SCSI cables
+    adapter.
+    """
     def __init__(self, cpu_type="or1k", **kwargs):
         _NIST_Ions.__init__(self, cpu_type, **kwargs)
 
