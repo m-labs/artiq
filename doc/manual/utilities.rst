@@ -1,6 +1,10 @@
 Utilities
 =========
 
+.. Sort these tool by some subjective combination of their
+   typical sequence and expected frequency of use.
+
+
 Local running tool
 ------------------
 
@@ -92,6 +96,13 @@ This tool compiles key/value pairs into a binary image suitable for flashing int
 .. argparse::
    :ref: artiq.frontend.artiq_mkfs.get_argparser
    :prog: artiq_mkfs
+
+Flashing/Loading tool
+---------------------
+
+.. argparse::
+   :ref: artiq.frontend.artiq_flash.get_argparser
+   :prog: artiq_flash
 
 .. _core-device-configuration-tool:
 

@@ -4,11 +4,11 @@ import numpy as np
 
 from artiq import *
 
+from artiq.wavesynth.coefficients import SplineSource
 
-# data is usually precomputed offline
-transport_data = dict(
-    t=np.linspace(0, 10, 101),  # waveform time
-    u=np.random.randn(101, 4*3*3),  # waveform data,
+transport = SplineSource(
+    x=np.linspace(0, 10, 101),  # waveform time
+    y=np.random.rand(4*3*3, 101)*1e-6,  # waveform data,
     # 4 devices, 3 board each, 3 dacs each
 )
 
@@ -16,37 +16,33 @@ class Transport(EnvExperiment):
     """Transport"""
 
     def build(self):
-        self.setattr_device("core")
-        self.setattr_device("bd")
-        self.setattr_device("bdd")
-        self.setattr_device("pmt")
-        self.setattr_device("electrodes")
+        self.core = self.get_device("core")
+        self.bd_sw = self.get_device("bd_sw")
+        self.pmt = self.get_device("pmt")
+        self.electrodes = self.get_device("electrodes")
 
-        self.setattr_argument("wait_at_stop", NumberValue(100*us))
-        self.setattr_argument("speed", NumberValue(1.5))
-        self.setattr_argument("repeats", NumberValue(100))
-        self.setattr_argument("nbins", NumberValue(100))
+        self.wait_at_stop = self.get_argument("wait_at_stop",
+                                              NumberValue(100*us))
+        self.speed = self.get_argument("speed", NumberValue(1.5))
+        self.repeats = self.get_argument("repeats", NumberValue(100))
+        self.nbins = self.get_argument("nbins", NumberValue(100))
 
     def calc_waveforms(self, stop):
-        t = transport_data["t"][:stop]*self.speed
-        u = transport_data["u"][:stop]
-
         self.electrodes.disarm()
         self.tf = self.electrodes.create_frame()
-        self.tf.create_segment(t, u, name="to_stop")
+        to_stop = self.tf.create_segment("to_stop")
+        from_stop = self.tf.create_segment("from_stop")
+        transport.extend_segment(to_stop, 0, stop, scale=self.speed)
         # append the reverse transport (from stop to 0)
         # both durations are the same in this case
-        self.tf.create_segment(t[-1] - t[::-1], u[::-1], name="from_stop")
+        transport.extend_segment(from_stop, 0, stop, scale=self.speed)
         # distributes frames to the sub-devices in CompoundPDQ2
         # and uploads them
         self.electrodes.arm()
 
     @kernel
     def cool(self):
-        with parallel:
-            self.bd.pulse(200*MHz, 1*ms)
-            self.bdd.pulse(300*MHz, 1*ms)
-        self.bd.pulse(210*MHz, 100*us)
+        self.bd_sw.pulse(1*ms)
 
     @kernel
     def transport(self):
@@ -65,10 +61,9 @@ class Transport(EnvExperiment):
     @kernel
     def detect(self):
         with parallel:
-            self.bd.pulse(220*MHz, 100*us)
+            self.bd_sw.pulse(100*us)
             self.pmt.gate_rising(100*us)
-        self.bd.on(200*MHz)
-        self.bdd.on(300*MHz)
+        self.bd_sw.on()
         return self.pmt.count()
 
     @kernel
@@ -79,7 +74,7 @@ class Transport(EnvExperiment):
 
     @kernel
     def repeat(self):
-        self.histogram = [0 for _ in range(self.nbins)]
+        self.histogram[:] = [0 for _ in range(self.nbins)]
 
         for i in range(self.repeats):
             n = self.one()
@@ -100,5 +95,5 @@ class Transport(EnvExperiment):
 
     def run(self):
         # scan transport endpoint
-        stops = range(10, len(transport_data["t"]), 10)
+        stops = range(10, len(transport.x), 10)
         self.scan(stops)

@@ -10,7 +10,7 @@ import artiq
 from artiq.frontend.bit2bin import bit2bin
 
 
-def main():
+def get_argparser():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="ARTIQ flashing/deployment tool",
@@ -43,6 +43,11 @@ Prerequisites:
     parser.add_argument("ACTION", nargs="*",
                         default="proxy bitstream bios runtime start".split(),
                         help="actions to perform, default: %(default)s")
+    return parser
+
+
+def main():
+    parser = get_argparser()
     opts = parser.parse_args()
 
     config = {

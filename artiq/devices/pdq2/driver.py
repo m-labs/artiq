@@ -193,6 +193,8 @@ class Pdq2:
 
     def program_frame(self, frame_data):
         segments = [c.new_segment() for c in self.channels]
+        for segment in segments:
+            segment.line(typ=3, data=b"", trigger=True, duration=10, aux=1)
         for i, line in enumerate(frame_data):  # segments are concatenated
             dac_divider = line.get("dac_divider", 1)
             shift = int(log(dac_divider, 2))
@@ -209,9 +211,11 @@ class Pdq2:
                         shift=shift, duration=duration, trigger=trigger,
                         **target_data)
         # append an empty line to stall the memory reader before jumping
-        # through the frame table
+        # through the frame table (`wait` does not prevent reading
+        # the next line)
         for segment in segments:
-            segment.line(typ=3, data=b"", trigger=True, duration=10)
+            segment.line(typ=3, data=b"", trigger=True, duration=1,
+                         jump=True, aux=1)
         return segments
 
     def program(self, program):

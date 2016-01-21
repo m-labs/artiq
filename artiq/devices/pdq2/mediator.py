@@ -45,9 +45,9 @@ class _Segment:
 
     def add_line(self, duration, channel_data, dac_divider=1):
         if self.frame.invalidated:
-            raise InvalidatedError
+            raise InvalidatedError()
         if self.frame.pdq.armed:
-            raise ArmError
+            raise ArmError()
         self.lines.append((dac_divider, duration, channel_data))
 
     def get_duration(self):
@@ -59,13 +59,13 @@ class _Segment:
     @kernel
     def advance(self):
         if self.frame.invalidated:
-            raise InvalidatedError
+            raise InvalidatedError()
         if not self.frame.pdq.armed:
-            raise ArmError
+            raise ArmError()
         # If a frame is currently being played, check that we are next.
         if (self.frame.pdq.current_frame >= 0
                 and self.frame.pdq.next_segment != self.segment_number):
-            raise SegmentSequenceError
+            raise SegmentSequenceError()
         self.frame.advance()
 
 
@@ -83,9 +83,9 @@ class _Frame:
 
     def create_segment(self, name=None):
         if self.invalidated:
-            raise InvalidatedError
+            raise InvalidatedError()
         if self.pdq.armed:
-            raise ArmError
+            raise ArmError()
         segment = _Segment(self, self.segment_count)
         if name is not None:
             if hasattr(self, name):
@@ -111,6 +111,7 @@ class _Frame:
                     "dac_divider": dac_divider,
                     "duration": duration,
                     "channel_data": channel_data,
+                    "trigger": False,
                 } for dac_divider, duration, channel_data in segment.lines]
             segment_program[0]["trigger"] = True
             r += segment_program
@@ -119,17 +120,17 @@ class _Frame:
     @kernel
     def advance(self):
         if self.invalidated:
-            raise InvalidatedError
+            raise InvalidatedError()
         if not self.pdq.armed:
-            raise ArmError
+            raise ArmError()
 
         call_t = now_mu()
         trigger_start_t = call_t - seconds_to_mu(trigger_duration/2)
 
         if self.pdq.current_frame >= 0:
             # PDQ is in the middle of a frame. Check it is us.
-            if self.frame.pdq.current_frame != self.frame_number:
-                raise FrameActiveError
+            if self.pdq.current_frame != self.frame_number:
+                raise FrameActiveError()
         else:
             # PDQ is in the jump table - set the selection signals
             # to play our first segment.
@@ -156,7 +157,7 @@ class _Frame:
 class CompoundPDQ2:
     def __init__(self, dmgr, pdq2_devices, trigger_device, frame_devices):
         self.core = dmgr.get("core")
-        self.pdq2s = [dmgr.get(d) for d in self.pdq2_devices]
+        self.pdq2s = [dmgr.get(d) for d in pdq2_devices]
         self.trigger = dmgr.get(trigger_device)
         self.frame0 = dmgr.get(frame_devices[0])
         self.frame1 = dmgr.get(frame_devices[1])
@@ -175,7 +176,7 @@ class CompoundPDQ2:
 
     def arm(self):
         if self.armed:
-            raise ArmError
+            raise ArmError()
         for frame in self.frames:
             frame._arm()
         self.armed = True
@@ -199,7 +200,7 @@ class CompoundPDQ2:
 
     def create_frame(self):
         if self.armed:
-            raise ArmError
+            raise ArmError()
         r = _Frame(self, len(self.frames))
         self.frames.append(r)
         return r

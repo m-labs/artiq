@@ -133,8 +133,6 @@ class _NIST_QCx(MiniSoC, AMPSoC):
         self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
         self.submodules.rtio = rtio.RTIO(rtio_channels)
         self.config["RTIO_FINE_TS_WIDTH"] = self.rtio.fine_ts_width
-        assert self.rtio.fine_ts_width <= 3
-        self.config["DDS_RTIO_CLK_RATIO"] = 8 >> self.rtio.fine_ts_width
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
 
         if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
@@ -210,6 +208,8 @@ class NIST_QC1(_NIST_QCx):
         rtio_channels.append(rtio.LogChannel())
 
         self.add_rtio(rtio_channels)
+        assert self.rtio.fine_ts_width <= 3
+        self.config["DDS_RTIO_CLK_RATIO"] = 8 >> self.rtio.fine_ts_width
 
 
 class NIST_QC2(_NIST_QCx):
@@ -259,6 +259,8 @@ class NIST_QC2(_NIST_QCx):
         rtio_channels.append(rtio.LogChannel())
 
         self.add_rtio(rtio_channels)
+        assert self.rtio.fine_ts_width <= 3
+        self.config["DDS_RTIO_CLK_RATIO"] = 24 >> self.rtio.fine_ts_width
 
 
 def main():
