@@ -18,7 +18,7 @@ async def _get_repository_entries(entry_dict,
                                   root, filename, get_device_db, log):
     worker = Worker({
         "get_device_db": get_device_db,
-        "log": partial(log, "scan")
+        "log": partial(log, "scan", os.path.basename(filename))
     })
     try:
         description = await worker.examine(os.path.join(root, filename))
@@ -124,7 +124,7 @@ class ExperimentDB:
             filename = os.path.join(wd, filename)
         worker = Worker({
             "get_device_db": self.get_device_db_fn,
-            "log": partial(self.log_fn, "examine")
+            "log": partial(self.log_fn, "examine", os.path.basename(filename))
         })
         try:
             description = await worker.examine(filename)

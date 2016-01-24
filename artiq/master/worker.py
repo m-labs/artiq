@@ -1,4 +1,5 @@
 import sys
+import os
 import asyncio
 import logging
 import subprocess
@@ -45,6 +46,7 @@ class Worker:
         self.send_timeout = send_timeout
 
         self.rid = None
+        self.filename = None
         self.process = None
         self.watchdogs = dict()  # wid -> expiration (using time.monotonic)
 
@@ -191,8 +193,8 @@ class Worker:
                 func = self.register_experiment
             else:
                 func = self.handlers[action]
-            if getattr(func, "worker_pass_rid", False):
-                func = partial(func, self.rid)
+            if getattr(func, "worker_pass_runinfo", False):
+                func = partial(func, self.rid, self.filename)
             try:
                 data = func(*obj["args"], **obj["kwargs"])
                 reply = {"status": "ok", "data": data}
@@ -227,6 +229,7 @@ class Worker:
 
     async def build(self, rid, pipeline_name, wd, expid, priority, timeout=15.0):
         self.rid = rid
+        self.filename = os.path.basename(expid["file"])
         await self._create_process(expid["log_level"])
         await self._worker_action(
             {"action": "build",
