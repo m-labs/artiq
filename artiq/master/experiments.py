@@ -6,7 +6,8 @@ import logging
 from functools import partial
 
 from artiq.protocols.sync_struct import Notifier
-from artiq.master.worker import Worker
+from artiq.master.worker import (Worker, WorkerInternalException,
+                                 log_worker_exception)
 from artiq.tools import get_windows_drives, exc_to_warning
 
 
@@ -21,6 +22,9 @@ async def _get_repository_entries(entry_dict,
     })
     try:
         description = await worker.examine(os.path.join(root, filename))
+    except:
+        log_worker_exception()
+        raise
     finally:
         await worker.close()
     for class_name, class_desc in description.items():
@@ -55,8 +59,9 @@ async def _scan_experiments(root, get_device_db, log, subdir=""):
             try:
                 await _get_repository_entries(
                     entry_dict, root, filename, get_device_db, log)
-            except:
-                logger.warning("Skipping file '%s'", filename, exc_info=True)
+            except Exception as exc:
+                logger.warning("Skipping file '%s'", filename,
+                    exc_info=not isinstance(exc, WorkerInternalException))
         if de.is_dir():
             subentries = await _scan_experiments(
                 root, get_device_db, log,

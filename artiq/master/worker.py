@@ -25,6 +25,20 @@ class WorkerError(Exception):
     pass
 
 
+class WorkerInternalException(Exception):
+    """Exception raised inside the worker, information has been printed
+    through logging."""
+    pass
+
+
+def log_worker_exception():
+    exc, _, _ = sys.exc_info()
+    if exc is WorkerInternalException:
+        logger.debug("worker exception details", exc_info=True)
+    else:
+        logger.error("worker exception details", exc_info=True)
+
+
 class Worker:
     def __init__(self, handlers=dict(), send_timeout=0.5):
         self.handlers = handlers
@@ -167,6 +181,8 @@ class Worker:
                 return True
             elif action == "pause":
                 return False
+            elif action == "exception":
+                raise WorkerInternalException
             elif action == "create_watchdog":
                 func = self.create_watchdog
             elif action == "delete_watchdog":

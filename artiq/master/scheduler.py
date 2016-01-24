@@ -3,7 +3,7 @@ import logging
 from enum import Enum
 from time import time
 
-from artiq.master.worker import Worker
+from artiq.master.worker import Worker, log_worker_exception
 from artiq.tools import asyncio_wait_or_cancel, TaskObject, Condition
 from artiq.protocols.sync_struct import Notifier
 
@@ -231,7 +231,7 @@ class PrepareStage(TaskObject):
                 except:
                     logger.error("got worker exception in prepare stage, "
                                  "deleting RID %d", run.rid)
-                    logger.error("worker exception details", exc_info=True)
+                    log_worker_exception()
                     self.delete_cb(run.rid)
                 else:
                     run.status = RunStatus.prepare_done
@@ -281,7 +281,7 @@ class RunStage(TaskObject):
             except:
                 logger.error("got worker exception in run stage, "
                              "deleting RID %d", run.rid)
-                logger.error("worker exception details", exc_info=True)
+                log_worker_exception()
                 self.delete_cb(run.rid)
             else:
                 if completed:
@@ -319,7 +319,7 @@ class AnalyzeStage(TaskObject):
             except:
                 logger.error("got worker exception in analyze stage, "
                              "deleting RID %d", run.rid)
-                logger.error("worker exception details", exc_info=True)
+                log_worker_exception()
                 self.delete_cb(run.rid)
             else:
                 self.delete_cb(run.rid)
