@@ -1,5 +1,6 @@
 import os
 import asyncio
+from asyncio.streams import FlowControlMixin
 
 
 class _BaseIO:
@@ -20,6 +21,22 @@ class _BaseIO:
 
 
 if os.name != "nt":
+    async def _fds_to_asyncio(rfd, wfd, loop):
+        reader = asyncio.StreamReader(loop=loop)
+        reader_protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
+
+        wf = open(wfd, "wb", 0)
+        transport, protocol = await loop.connect_write_pipe(
+            FlowControlMixin, wf)
+        writer = asyncio.StreamWriter(transport, protocol,
+                                      None, loop)
+
+        rf = open(rfd, "rb", 0)
+        await loop.connect_read_pipe(lambda: reader_protocol, rf)
+
+        return reader, writer
+
+
     class AsyncioParentComm(_BaseIO):
         def __init__(self):
             self.c_rfd, self.p_wfd = os.pipe()
@@ -35,20 +52,19 @@ if os.name != "nt":
             os.close(self.c_rfd)
             os.close(self.c_wfd)
 
-            pipe = open(self.p_rfd, "rb", 0)
-            self.reader = asyncio.StreamReader(loop=loop)
-            def factory():
-                return asyncio.StreamReaderProtocol(self.reader, loop=loop)
-            await loop.connect_read_pipe(factory, pipe)
+            self.reader, self.writer = await _fds_to_asyncio(
+                self.p_rfd, self.p_wfd, loop)
 
-            pipe = open(self.p_wfd, "wb", 0)
-            transport, protocol = await loop.connect_write_pipe(
-                asyncio.Protocol, pipe)
-            self.writer = asyncio.StreamWriter(transport, protocol,
-                                               None, loop)
 
     class AsyncioChildComm(_BaseIO):
-        pass
+        def __init__(self, address):
+            self.address = address
+
+        async def connect(self):
+            rfd, wfd = self.address.split(",", maxsplit=1)
+            self.reader, self.writer = await _fds_to_asyncio(
+                int(rfd), int(wfd), asyncio.get_event_loop())
+
 
     class ChildComm:
         def __init__(self, address):
@@ -82,10 +98,10 @@ else:  # windows
         async def connect(self):
             loop = asyncio.get_event_loop()
             self.reader = asyncio.StreamReader(loop=loop)
-            def factory():
-                return asyncio.StreamReaderProtocol(self.reader)
-            transport, protocol = await loop.create_pipe_connection(self.address,
-                                                                    factory)
+            reader_protocol = asyncio.StreamReaderProtocol(
+                self.reader, loop=loop)
+            transport, protocol = await loop.create_pipe_connection(
+                self.address, lambda: reader_protocol)
             self.writer = asyncio.StreamWriter(transport, protocol,
                                                self.reader, loop)
 
