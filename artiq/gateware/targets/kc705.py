@@ -18,7 +18,7 @@ from misoc.integration.builder import *
 from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
 
 from artiq.gateware.soc import AMPSoC
-from artiq.gateware import rtio, nist_qc1, nist_qc2
+from artiq.gateware import rtio, nist_qc1, nist_clock, nist_qc2
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, dds
 from artiq.tools import artiq_dir
 from artiq import __version__ as artiq_version
@@ -94,7 +94,7 @@ class _RTIOCRG(Module, AutoCSR):
         ]
 
 
-class _NIST_QCx(MiniSoC, AMPSoC):
+class _NIST_Ions(MiniSoC, AMPSoC):
     csr_map = {
         "rtio": None,  # mapped on Wishbone instead
         "rtio_crg": 13,
@@ -161,9 +161,13 @@ TIMESPEC "TSfix_cdc2" = FROM "GRPrio_clk" TO "GRPrsys_clk" TIG;
             self.get_native_sdram_if())
 
 
-class NIST_QC1(_NIST_QCx):
+class NIST_QC1(_NIST_Ions):
+    """
+    NIST QC1 hardware, as used in the Penning lab, with FMC to SCSI cables
+    adapter.
+    """
     def __init__(self, cpu_type="or1k", **kwargs):
-        _NIST_QCx.__init__(self, cpu_type, **kwargs)
+        _NIST_Ions.__init__(self, cpu_type, **kwargs)
 
         platform = self.platform
         platform.add_extension(nist_qc1.fmc_adapter_io)
@@ -212,18 +216,18 @@ class NIST_QC1(_NIST_QCx):
         self.config["DDS_RTIO_CLK_RATIO"] = 8 >> self.rtio.fine_ts_width
 
 
-class NIST_QC2(_NIST_QCx):
+class NIST_CLOCK(_NIST_Ions):
+    """
+    NIST clock hardware, with old backplane and 11 DDS channels
+    """
     def __init__(self, cpu_type="or1k", **kwargs):
-        _NIST_QCx.__init__(self, cpu_type, **kwargs)
+        _NIST_Ions.__init__(self, cpu_type, **kwargs)
 
         platform = self.platform
-        platform.add_extension(nist_qc2.fmc_adapter_io)
+        platform.add_extension(nist_clock.fmc_adapter_io)
 
         rtio_channels = []
         for i in range(16):
-            if i == 14:
-                # TTL14 is for the clock generator
-                continue
             if i % 4 == 3:
                 phy = ttl_serdes_7series.Inout_8X(platform.request("ttl", i))
                 self.submodules += phy
@@ -233,17 +237,19 @@ class NIST_QC2(_NIST_QCx):
                 self.submodules += phy
                 rtio_channels.append(rtio.Channel.from_phy(phy))
 
+        for i in range(2):
+            phy = ttl_serdes_7series.Inout_8X(platform.request("pmt", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
+
         phy = ttl_simple.Inout(platform.request("user_sma_gpio_n"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
+
         phy = ttl_simple.Output(platform.request("user_led", 2))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
         self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
-
-        phy = ttl_simple.ClockGen(platform.request("ttl", 14))
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
         self.config["DDS_CHANNEL_COUNT"] = 11
@@ -263,25 +269,81 @@ class NIST_QC2(_NIST_QCx):
         self.config["DDS_RTIO_CLK_RATIO"] = 24 >> self.rtio.fine_ts_width
 
 
+class NIST_QC2(_NIST_Ions):
+    """
+    NIST QC2 hardware, as used in Quantum I and Quantum II, with new backplane
+    and 12 DDS channels.  Current implementation for single backplane.  
+    """
+    def __init__(self, cpu_type="or1k", **kwargs):
+        _NIST_Ions.__init__(self, cpu_type, **kwargs)
+
+        platform = self.platform
+        platform.add_extension(nist_qc2.fmc_adapter_io)
+
+        rtio_channels = []
+        # TTL0-23 are In+Out capable
+        for i in range(24):
+            phy = ttl_serdes_7series.Inout_8X(platform.request("ttl", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
+        # TTL24-26 are output only
+        for i in range(24, 27):
+            phy = ttl_serdes_7series.Output_8X(platform.request("ttl", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        phy = ttl_simple.Inout(platform.request("user_sma_gpio_n"))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+        phy = ttl_simple.Output(platform.request("user_led", 2))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+        self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
+
+        # TTL27 is for the clock generator
+        phy = ttl_simple.ClockGen(platform.request("ttl", 27))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
+        self.config["DDS_CHANNEL_COUNT"] = 12
+        self.config["DDS_AD9914"] = True
+        self.config["DDS_ONEHOT_SEL"] = True
+        phy = dds.AD9914(platform.request("dds"), 12, onehot=True)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy,
+                                                   ofifo_depth=512,
+                                                   ififo_depth=4))
+
+        self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
+        rtio_channels.append(rtio.LogChannel())
+
+        self.add_rtio(rtio_channels)
+        assert self.rtio.fine_ts_width <= 3
+        self.config["DDS_RTIO_CLK_RATIO"] = 24 >> self.rtio.fine_ts_width
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="ARTIQ core device builder / KC705 "
-                    "+ NIST Ions QC1/QC2 hardware adapters")
+                    "+ NIST Ions QC1/CLOCK/QC2 hardware adapters")
     builder_args(parser)
     soc_kc705_args(parser)
     parser.add_argument("-H", "--hw-adapter", default="qc1",
-                        help="hardware adapter type: qc1/qc2 "
+                        help="hardware adapter type: qc1/clock/qc2 "
                              "(default: %(default)s)")
     args = parser.parse_args()
 
     hw_adapter = args.hw_adapter.lower()
     if hw_adapter == "qc1":
         cls = NIST_QC1
+    elif hw_adapter == "clock":
+        cls = NIST_CLOCK
     elif hw_adapter == "qc2":
         cls = NIST_QC2
     else:
         print("Invalid hardware adapter string (-H/--hw-adapter), "
-              "choose from qc1 or qc2")
+              "choose from qc1, clock or qc2")
         sys.exit(1)
 
     soc = cls(**soc_kc705_argdict(args))

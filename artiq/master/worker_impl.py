@@ -264,15 +264,17 @@ def main():
                 put_object({"action": "completed"})
             elif action == "terminate":
                 break
-    except CompileError:
-        pass
     except Exception as exc:
-        lines = ["Terminating with exception\n"]
-        lines += traceback.format_exception_only(type(exc), exc)
-        if hasattr(exc, "parent_traceback"):
-            lines += exc.parent_traceback
-        logging.error("".join(lines).rstrip(),
-                      exc_info=not hasattr(exc, "parent_traceback"))
+        # When we get CompileError, a more suitable diagnostic has already
+        # been printed.
+        if not isinstance(exc, CompileError):
+            lines = ["Terminating with exception\n"]
+            lines += traceback.format_exception_only(type(exc), exc)
+            if hasattr(exc, "parent_traceback"):
+                lines += exc.parent_traceback
+            logging.error("".join(lines).rstrip(),
+                          exc_info=not hasattr(exc, "parent_traceback"))
+        put_object({"action": "exception"})
     finally:
         device_mgr.close_devices()
 

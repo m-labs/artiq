@@ -29,11 +29,11 @@ class LogBufferHandler(logging.Handler):
                                 part)
 
 
-def log_worker(rid, message):
+def log_worker(rid, filename, message):
     level, name, message = parse_log_message(message)
     log_with_name(name, level, message,
-                  extra={"source": "worker({})".format(rid)})
-log_worker.worker_pass_rid = True
+                  extra={"source": "worker({},{})".format(rid, filename)})
+log_worker.worker_pass_runinfo = True
 
 
 def log_args(parser):

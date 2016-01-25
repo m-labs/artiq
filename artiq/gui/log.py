@@ -25,7 +25,7 @@ class Model(QtCore.QAbstractTableModel):
     def __init__(self, init):
         QtCore.QAbstractTableModel.__init__(self)
 
-        self.headers = ["Level", "Source", "Time", "Message"]
+        self.headers = ["Source", "Message"]
 
         self.entries = list(map(_make_wrappable, init))
         self.pending_entries = []
@@ -85,7 +85,7 @@ class Model(QtCore.QAbstractTableModel):
     def data(self, index, role):
         if index.isValid():
             if (role == QtCore.Qt.FontRole
-                    and index.column() == 3):
+                    and index.column() == 1):
                 return self.fixed_font
             elif role == QtCore.Qt.BackgroundRole:
                 level = self.entries[index.row()][0]
@@ -105,13 +105,13 @@ class Model(QtCore.QAbstractTableModel):
                 v = self.entries[index.row()]
                 column = index.column()
                 if column == 0:
-                    return log_level_to_name(v[0])
-                elif column == 1:
                     return v[1]
-                elif column == 2:
-                    return time.strftime("%m/%d %H:%M:%S", time.localtime(v[2]))
                 else:
                     return v[3]
+            elif role == QtCore.Qt.ToolTipRole:
+                v = self.entries[index.row()]
+                return (log_level_to_name(v[0]) + ", " +
+                    time.strftime("%m/%d %H:%M:%S", time.localtime(v[2])))
 
 
 class _LogFilterProxyModel(QSortFilterProxyModel):
@@ -123,15 +123,11 @@ class _LogFilterProxyModel(QSortFilterProxyModel):
     def filterAcceptsRow(self, sourceRow, sourceParent):
         model = self.sourceModel()
 
-        index = model.index(sourceRow, 0, sourceParent)
-        data = model.data(index, QtCore.Qt.DisplayRole)
-        accepted_level = getattr(logging, data) >= self.min_level
+        accepted_level = model.entries[sourceRow][0] >= self.min_level
 
         if self.freetext:
-            index = model.index(sourceRow, 1, sourceParent)
-            data_source = model.data(index, QtCore.Qt.DisplayRole)
-            index = model.index(sourceRow, 3, sourceParent)
-            data_message = model.data(index, QtCore.Qt.DisplayRole)
+            data_source = model.entries[sourceRow][1]
+            data_message = model.entries[sourceRow][3]
             accepted_freetext = (self.freetext in data_source
                 or self.freetext in data_message)
         else:

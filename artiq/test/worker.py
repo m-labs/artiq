@@ -87,7 +87,7 @@ class WorkerCase(unittest.TestCase):
         _run_experiment("SimpleExperiment")
 
     def test_exception(self):
-        with self.assertRaises(WorkerError):
+        with self.assertRaises(WorkerInternalException):
             _run_experiment("ExceptionTermination")
 
     def test_watchdog_no_timeout(self):

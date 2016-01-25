@@ -1,4 +1,5 @@
 import sys
+import os
 import asyncio
 import logging
 import subprocess
@@ -25,12 +26,27 @@ class WorkerError(Exception):
     pass
 
 
+class WorkerInternalException(Exception):
+    """Exception raised inside the worker, information has been printed
+    through logging."""
+    pass
+
+
+def log_worker_exception():
+    exc, _, _ = sys.exc_info()
+    if exc is WorkerInternalException:
+        logger.debug("worker exception details", exc_info=True)
+    else:
+        logger.error("worker exception details", exc_info=True)
+
+
 class Worker:
     def __init__(self, handlers=dict(), send_timeout=0.5):
         self.handlers = handlers
         self.send_timeout = send_timeout
 
         self.rid = None
+        self.filename = None
         self.process = None
         self.watchdogs = dict()  # wid -> expiration (using time.monotonic)
 
@@ -167,6 +183,8 @@ class Worker:
                 return True
             elif action == "pause":
                 return False
+            elif action == "exception":
+                raise WorkerInternalException
             elif action == "create_watchdog":
                 func = self.create_watchdog
             elif action == "delete_watchdog":
@@ -175,8 +193,8 @@ class Worker:
                 func = self.register_experiment
             else:
                 func = self.handlers[action]
-            if getattr(func, "worker_pass_rid", False):
-                func = partial(func, self.rid)
+            if getattr(func, "worker_pass_runinfo", False):
+                func = partial(func, self.rid, self.filename)
             try:
                 data = func(*obj["args"], **obj["kwargs"])
                 reply = {"status": "ok", "data": data}
@@ -211,6 +229,7 @@ class Worker:
 
     async def build(self, rid, pipeline_name, wd, expid, priority, timeout=15.0):
         self.rid = rid
+        self.filename = os.path.basename(expid["file"])
         await self._create_process(expid["log_level"])
         await self._worker_action(
             {"action": "build",
