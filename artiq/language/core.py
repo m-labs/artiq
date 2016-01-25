@@ -2,7 +2,6 @@
 Core ARTIQ extensions to the Python language.
 """
 
-import os, linecache, re
 from collections import namedtuple
 from functools import wraps
 

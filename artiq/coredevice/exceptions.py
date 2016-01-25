@@ -1,4 +1,8 @@
 import builtins
+import linecache
+import re
+import os
+
 from artiq.coredevice.runtime import source_loader
 
 
