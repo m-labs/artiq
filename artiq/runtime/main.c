@@ -154,14 +154,14 @@ static int ppp_connected;
 
 static void ppp_status_cb(ppp_pcb *pcb, int err_code, void *ctx)
 {
-  if (err_code == PPPERR_NONE) {
-    ppp_connected = 1;
-    return;
-  } else if (err_code == PPPERR_USER) {
-    return;
-  } else {
-    ppp_connect(pcb, 10);
-  }
+    if (err_code == PPPERR_NONE) {
+        ppp_connected = 1;
+        return;
+    } else if (err_code == PPPERR_USER) {
+        return;
+    } else {
+        ppp_connect(pcb, 1);
+    }
 }
 
 u32_t sio_write(sio_fd_t fd, u8_t *data, u32_t len)
@@ -214,7 +214,7 @@ static struct net_server_instance analyzer_inst = {
 
 static void regular_main(void)
 {
-    puts("Accepting sessions on Network.");
+    puts("Accepting network sessions.");
     network_init();
     net_server_init(&session_inst);
 #ifdef CSR_RTIO_ANALYZER_BASE
