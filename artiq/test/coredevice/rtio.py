@@ -3,10 +3,8 @@
 
 from math import sqrt
 
-from artiq.language import *
+from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
-from artiq.coredevice.exceptions import (RTIOUnderflow, RTIOSequenceError,
-                                         RTIOCollisionError)
 
 
 class RTT(EnvExperiment):

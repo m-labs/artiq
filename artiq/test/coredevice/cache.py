@@ -1,5 +1,4 @@
-from artiq.language import *
-from artiq.coredevice.exceptions import *
+from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 
 

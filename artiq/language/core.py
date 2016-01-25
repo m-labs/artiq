@@ -6,9 +6,6 @@ import os, linecache, re
 from collections import namedtuple
 from functools import wraps
 
-# for runtime files in backtraces
-from artiq.coredevice.runtime import source_loader
-
 
 __all__ = ["host_int", "int", "host_round", "round",
            "kernel", "portable", "syscall", "host_only",
@@ -390,6 +387,8 @@ class ARTIQException:
         self.traceback = list(traceback)
 
     def __str__(self):
+        # lazy import this
+        from artiq.coredevice.runtime import source_loader
         lines = []
         lines.append("Core Device Traceback (most recent call last):")
         for (filename, line, column, function, address) in self.traceback:

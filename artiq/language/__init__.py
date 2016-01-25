@@ -5,14 +5,9 @@ from artiq.language.environment import *
 from artiq.language.units import *
 from artiq.language.scan import *
 
-from artiq.coredevice.dds import (PHASE_MODE_CONTINUOUS, PHASE_MODE_ABSOLUTE,
-                                  PHASE_MODE_TRACKING)
-
 __all__ = []
 __all__.extend(core.__all__)
 __all__.extend(types.__all__)
 __all__.extend(environment.__all__)
 __all__.extend(units.__all__)
 __all__.extend(scan.__all__)
-__all__ += ["PHASE_MODE_CONTINUOUS", "PHASE_MODE_ABSOLUTE",
-            "PHASE_MODE_TRACKING"]

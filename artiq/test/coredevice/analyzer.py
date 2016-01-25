@@ -1,4 +1,4 @@
-from artiq.language import *
+from artiq.experiment import *
 from artiq.coredevice.analyzer import decode_dump, OutputMessage, InputMessage
 from artiq.test.hardware_testbench import ExperimentCase
 

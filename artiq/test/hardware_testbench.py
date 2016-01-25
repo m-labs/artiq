@@ -6,7 +6,7 @@ import sys
 import unittest
 import logging
 
-from artiq.language import *
+from artiq.experiment import *
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager
 from artiq.coredevice.core import CompileError

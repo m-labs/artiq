@@ -1,7 +1,7 @@
 from operator import itemgetter
 from fractions import Fraction
 
-from artiq.language import *
+from artiq.experiment import *
 from artiq.sim import devices as sim_devices
 from artiq.test.hardware_testbench import ExperimentCase
 
