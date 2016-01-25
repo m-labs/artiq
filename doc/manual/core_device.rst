@@ -69,7 +69,9 @@ With the CLOCK hardware, the TTL lines are mapped as follows:
 Pipistrello
 -----------
 
-The low-cost Pipistrello FPGA board can be used as a lower-cost but slower alternative. The current USB over serial protocol also suffers from limitations (no monitoring/injection, no idle experiment, no kernel interruptions, lack of robustness).
+The low-cost Pipistrello FPGA board can be used as a lower-cost but slower alternative. Since the device does not have a native network interface, a PPP session is run over the serial port (which is then run over USB). To establish the PPP session with the core device, giving it the IP address 10.0.0.2, as root execute::
+
+    pppd /dev/ttyUSB1 115200 noauth nodetach local nocrtscts novj 10.0.0.1:10.0.0.2
 
 When plugged to an adapter, the NIST QC1 hardware can be used. The TTL lines are mapped to RTIO channels as follows:
 
