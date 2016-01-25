@@ -5,7 +5,6 @@ class SourceLoader:
         self.runtime_root = runtime_root
 
     def get_source(self, filename):
-        print(os.path.join(self.runtime_root, filename))
         with open(os.path.join(self.runtime_root, filename)) as f:
             return f.read()
 

@@ -506,7 +506,6 @@ class CommGeneric:
                     [(filename, line, column, function, None)]
         core_exception = exceptions.CoreException(name, message, params, traceback)
 
-        print(core_exception.id, core_exception.name)
         if core_exception.id == 0:
             python_exn_type = getattr(exceptions, core_exception.name.split('.')[-1])
         else:
