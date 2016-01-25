@@ -19,7 +19,6 @@ COREFILES=core/mem.c \
 	core/tcp_in.c \
 	core/tcp_out.c \
 	core/udp.c \
-	core/dhcp.c \
 	core/inet_chksum.c \
 	core/timers.c \
 	core/init.c
@@ -32,8 +31,18 @@ CORE4FILES=core/ipv4/icmp.c \
 # NETIFFILES: Files implementing various generic network interface functions.
 NETIFFILES=netif/etharp.c
 
+PPPFILES=netif/ppp/auth.c \
+	netif/ppp/fsm.c \
+	netif/ppp/ipcp.c \
+	netif/ppp/lcp.c \
+	netif/ppp/magic.c \
+	netif/ppp/ppp.c \
+	netif/ppp/pppos.c \
+	netif/ppp/utils.c \
+	netif/ppp/vj.c
+
 # LWIPFILES: All the above.
-LWIPFILES=$(COREFILES) $(CORE4FILES) $(NETIFFILES)
+LWIPFILES=$(COREFILES) $(CORE4FILES) $(NETIFFILES) $(PPPFILES)
 
 LWIPOBJS:=$(LWIPFILES:.c=.o) liteethif.o
 
@@ -46,6 +55,7 @@ prepare:
 	ln -s $(LIBLWIP_DIRECTORY)/arch arch
 	mkdir -p core/ipv4
 	mkdir -p netif
+	mkdir -p netif/ppp
 
 core/%.o: $(LWIPDIR)/core/%.c
 	$(compile)
@@ -54,6 +64,9 @@ core/ipv4/%.o: $(LWIPDIR)/core/ipv4/%.c
 	$(compile)
 
 netif/%.o: $(LWIPDIR)/netif/%.c
+	$(compile)
+
+netif/ppp/%.o: $(LWIPDIR)/netif/ppp/%.c
 	$(compile)
 
 %.o: $(LIBLWIP_DIRECTORY)/%.c

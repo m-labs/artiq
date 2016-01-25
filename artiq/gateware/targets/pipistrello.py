@@ -106,7 +106,8 @@ class NIST_QC1(BaseSoC, AMPSoC):
         "rtio": None,  # mapped on Wishbone instead
         "rtio_crg": 10,
         "kernel_cpu": 11,
-        "rtio_moninj": 12
+        "rtio_moninj": 12,
+        "rtio_analyzer": 13
     }
     csr_map.update(BaseSoC.csr_map)
     mem_map = {
@@ -207,6 +208,9 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
                                      self.rtiowb.bus)
         self.add_csr_region("rtio", self.mem_map["rtio"] | 0x80000000, 32,
                             rtio_csrs)
+
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio,
+            self.get_native_sdram_if())
 
 
 def main():

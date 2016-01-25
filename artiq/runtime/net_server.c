@@ -1,7 +1,5 @@
 #include <generated/csr.h>
 
-#ifdef CSR_ETHMAC_BASE
-
 #include <lwip/init.h>
 #include <lwip/memp.h>
 #include <lwip/ip4_addr.h>
@@ -10,8 +8,6 @@
 #include <lwip/sys.h>
 #include <lwip/tcp.h>
 #include <lwip/timers.h>
-#include <netif/etharp.h>
-#include <liteethif.h>
 
 #include "net_server.h"
 
@@ -227,5 +223,3 @@ void net_server_service(void)
         pcb = pcb->next;
     }
 }
-
-#endif /* CSR_ETHMAC_BASE */
