@@ -5,7 +5,7 @@ import sys
 import os
 from time import time, sleep
 
-from artiq import *
+from artiq.language import *
 from artiq.master.scheduler import Scheduler
 
 

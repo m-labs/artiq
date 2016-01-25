@@ -1,4 +1,4 @@
-from artiq import *
+from artiq.language import *
 
 
 class PhotonHistogram(EnvExperiment):

@@ -1,7 +1,7 @@
 Core language reference
 =======================
 
-The most commonly used features from those modules can be imported with ``from artiq import *``.
+The most commonly used features from those modules can be imported with ``from artiq.language import *``.
 
 :mod:`artiq.language.core` module
 ---------------------------------

@@ -5,7 +5,7 @@ import random
 import numpy as np
 from scipy.optimize import curve_fit
 
-from artiq import *
+from artiq.language import *
 
 
 def model(x, F0):

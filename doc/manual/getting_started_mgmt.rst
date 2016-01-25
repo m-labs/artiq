@@ -16,7 +16,7 @@ Then create a ``~/artiq-master/repository`` sub-folder to contain experiments. T
 
 Create a very simple experiment in ``~/artiq-master/repository`` and save it as ``mgmt_tutorial.py``: ::
 
-    from artiq import *
+    from artiq.language import *
 
 
     class MgmtTutorial(EnvExperiment):

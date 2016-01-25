@@ -8,7 +8,7 @@ Connecting to the core device
 
 As a very first step, we will turn on a LED on the core device. Create a file ``led.py`` containing the following: ::
 
-    from artiq import *
+    from artiq.language import *
 
 
     class LED(EnvExperiment):
@@ -93,7 +93,7 @@ The point of running code on the core device is the ability to meet demanding re
 
 Create a new file ``rtio.py`` containing the following: ::
 
-    from artiq import *
+    from artiq.language import *
 
 
     class Tutorial(EnvExperiment):
