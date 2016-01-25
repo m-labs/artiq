@@ -1,6 +1,6 @@
 # Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
 
-from artiq.language import *
+from artiq.experiment import *
 
 
 class PulseNotReceivedError(Exception):

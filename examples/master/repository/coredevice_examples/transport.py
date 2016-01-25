@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from artiq.language import *
+from artiq.experiment import *
 
 from artiq.wavesynth.coefficients import SplineSource
 

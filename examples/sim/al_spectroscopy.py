@@ -1,4 +1,4 @@
-from artiq.language import *
+from artiq.experiment import *
 
 
 class AluminumSpectroscopy(EnvExperiment):

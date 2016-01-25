@@ -1,7 +1,7 @@
 from itertools import count
 from time import sleep
 
-from artiq.language import *
+from artiq.experiment import *
 
 
 class RunForever(EnvExperiment):

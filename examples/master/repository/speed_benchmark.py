@@ -1,6 +1,6 @@
 import time
 
-from artiq.language import *
+from artiq.experiment import *
 
 
 class _PayloadNOP(EnvExperiment):

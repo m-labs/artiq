@@ -1,6 +1,6 @@
 from operator import itemgetter
 
-from artiq.language import *
+from artiq.experiment import *
 
 
 class DDSSetter(EnvExperiment):
