@@ -30,7 +30,6 @@ class IPCCase(unittest.TestCase):
             self.assertEqual(int(s), i+1)
         ipc.write(b"-1\n")
         await ipc.process.wait()
-        ipc.close()
 
     def test_blocking(self):
         self.loop.run_until_complete(self._coro_test(False))
