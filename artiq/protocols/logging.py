@@ -36,6 +36,29 @@ def parse_log_message(msg):
     return logging.INFO, "print", msg
 
 
+class LogParser:
+    def __init__(self, source_cb):
+        self.source_cb = source_cb
+
+    def line_input(self, msg):
+        level, name, message = parse_log_message(msg)
+        log_with_name(name, level, message,
+                      extra={"source": self.source_cb()})
+
+    async def stream_task(self, stream):
+        while True:
+            try:
+                entry = (await stream.readline())
+                if not entry:
+                    break
+                self.line_input(entry[:-1].decode())
+            except:
+                logger.debug("exception in log forwarding", exc_info=True)
+                break
+        logger.debug("stopped log forwarding of stream %s of %s",
+            stream, self.source_cb())
+
+
 _init_string = b"ARTIQ logging\n"
 
 

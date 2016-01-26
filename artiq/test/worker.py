@@ -71,7 +71,7 @@ def _run_experiment(class_name):
         "arguments": dict()
     }
     loop = asyncio.get_event_loop()
-    worker = Worker(handlers={"log": lambda message: None})
+    worker = Worker({})
     loop.run_until_complete(_call_worker(worker, expid))
 
 

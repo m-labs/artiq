@@ -9,7 +9,7 @@ from artiq.tools import *
 from artiq.protocols.pc_rpc import Server as RPCServer
 from artiq.protocols.sync_struct import Publisher
 from artiq.protocols.logging import Server as LoggingServer
-from artiq.master.log import log_args, init_log, log_worker
+from artiq.master.log import log_args, init_log
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.scheduler import Scheduler
 from artiq.master.worker_db import get_last_rid
@@ -63,8 +63,7 @@ def main():
         repo_backend = GitBackend(args.repository)
     else:
         repo_backend = FilesystemBackend(args.repository)
-    experiment_db = ExperimentDB(repo_backend, device_db.get_device_db,
-                                 log_worker)
+    experiment_db = ExperimentDB(repo_backend, device_db.get_device_db)
     atexit.register(experiment_db.close)
     experiment_db.scan_repository_async()
 
@@ -72,8 +71,7 @@ def main():
         "get_device_db": device_db.get_device_db,
         "get_device": device_db.get,
         "get_dataset": dataset_db.get,
-        "update_dataset": dataset_db.update,
-        "log": log_worker
+        "update_dataset": dataset_db.update
     }
     scheduler = Scheduler(get_last_rid() + 1, worker_handlers, experiment_db)
     worker_handlers.update({
