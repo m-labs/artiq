@@ -4,7 +4,6 @@ import traceback
 from enum import Enum
 from fractions import Fraction
 
-from artiq.language import core as core_language
 from artiq.coredevice import exceptions
 from artiq import __version__ as software_version
 
@@ -458,8 +457,8 @@ class CommGeneric:
 
             self._write_header(_H2DMsgType.RPC_EXCEPTION)
 
-            if hasattr(exn, 'artiq_exception'):
-                exn = exn.artiq_exception
+            if hasattr(exn, 'artiq_core_exception'):
+                exn = exn.artiq_core_exception
                 self._write_string(exn.name)
                 self._write_string(exn.message)
                 for index in range(3):
@@ -505,16 +504,15 @@ class CommGeneric:
 
         traceback = list(reversed(symbolizer(backtrace))) + \
                     [(filename, line, column, function, None)]
-        exception = core_language.ARTIQException(name, message, params, traceback)
+        core_exn = exceptions.CoreException(name, message, params, traceback)
 
-        print(exception.id, exception.name)
-        if exception.id == 0:
-            python_exn_type = getattr(exceptions, exception.name.split('.')[-1])
+        if core_exn.id == 0:
+            python_exn_type = getattr(exceptions, core_exn.name.split('.')[-1])
         else:
-            python_exn_type = object_map.retrieve(exception.id)
+            python_exn_type = object_map.retrieve(core_exn.id)
 
         python_exn = python_exn_type(message.format(*params))
-        python_exn.artiq_exception = exception
+        python_exn.artiq_core_exception = core_exn
         raise python_exn
 
     def serve(self, object_map, symbolizer):

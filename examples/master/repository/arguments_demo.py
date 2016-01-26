@@ -1,6 +1,6 @@
 import logging
 
-from artiq import *
+from artiq.experiment import *
 
 
 class SubComponent1(HasEnvironment):

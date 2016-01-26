@@ -1,6 +1,6 @@
 import sys
 
-from artiq import *
+from artiq.experiment import *
 
 
 class Mandelbrot(EnvExperiment):

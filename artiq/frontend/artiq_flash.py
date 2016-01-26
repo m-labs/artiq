@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 
 import artiq
+from artiq import __artiq_dir__ as artiq_dir
 from artiq.frontend.bit2bin import bit2bin
 
 
@@ -70,7 +71,7 @@ def main():
     }[opts.target]
 
     if opts.dir is None:
-        opts.dir = os.path.join(os.path.dirname(artiq.__file__), "binaries",
+        opts.dir = os.path.join(artiq_dir, "binaries",
                                 "{}-{}".format(opts.target, opts.adapter))
 
     conv = False

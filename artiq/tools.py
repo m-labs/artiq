@@ -16,7 +16,7 @@ from artiq.language.environment import is_experiment
 from artiq.protocols import pyon
 
 
-__all__ = ["artiq_dir", "parse_arguments", "elide", "short_format", "file_import",
+__all__ = ["parse_arguments", "elide", "short_format", "file_import",
            "get_experiment", "verbosity_args", "simple_network_args", "init_logger",
            "bind_address_from_args", "atexit_register_coroutine",
            "exc_to_warning", "asyncio_wait_or_cancel",
@@ -24,8 +24,6 @@ __all__ = ["artiq_dir", "parse_arguments", "elide", "short_format", "file_import
 
 
 logger = logging.getLogger(__name__)
-
-artiq_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)))
 
 
 def parse_arguments(arguments):

@@ -1,4 +1,4 @@
-from artiq import *
+from artiq.experiment import *
 
 
 class DDSTest(EnvExperiment):

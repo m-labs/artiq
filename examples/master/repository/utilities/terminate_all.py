@@ -1,4 +1,4 @@
-from artiq import *
+from artiq.experiment import *
 
 
 class TerminateAll(EnvExperiment):

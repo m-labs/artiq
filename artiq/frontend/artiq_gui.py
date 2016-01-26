@@ -10,6 +10,7 @@ import os
 from quamash import QEventLoop, QtGui, QtCore
 from pyqtgraph import dockarea
 
+from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import *
 from artiq.protocols.pc_rpc import AsyncioClient
 from artiq.gui.models import ModelSubscriber

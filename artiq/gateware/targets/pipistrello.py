@@ -20,7 +20,7 @@ from misoc.targets.pipistrello import *
 from artiq.gateware.soc import AMPSoC
 from artiq.gateware import rtio, nist_qc1
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_spartan6, dds
-from artiq.tools import artiq_dir
+from artiq import __artiq_dir__ as artiq_dir
 from artiq import __version__ as artiq_version
 
 

@@ -132,8 +132,8 @@ def run(with_file=False):
     except CompileError as error:
         return
     except Exception as exn:
-        if hasattr(exn, 'artiq_exception'):
-            print(exn.artiq_exception, file=sys.stderr)
+        if hasattr(exn, 'artiq_core_exception'):
+            print(exn.artiq_core_exception, file=sys.stderr)
         raise exn
     finally:
         device_mgr.close_devices()
