@@ -25,7 +25,7 @@ def get_from_ddb(*path, default="skip"):
     try:
         for p in path:
             v = v[p]
-        return v.read
+        return v
     except KeyError:
         if default == "skip":
             raise unittest.SkipTest("device db path {} not found".format(path))

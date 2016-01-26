@@ -13,7 +13,8 @@ class GenericLdaTest:
         for i in test_vector:
             with self.subTest(i=i):
                 self.cont.set_attenuation(i)
-                self.assertEqual(i, self.cont.get_attenuation())
+                j = self.cont.get_attenuation()
+                self.assertEqual(i, j)
 
 
 class TestLda(GenericLdaTest, unittest.TestCase):
