@@ -8,6 +8,7 @@ Contents:
 
     introduction
     installing
+    release_notes
     getting_started_core
     getting_started_mgmt
     core_device

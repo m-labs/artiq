@@ -4,6 +4,7 @@ Introduction
 .. this does not work because of relative paths for the logo:
    .. include:: ../../README.rst
    and including in README.rst does not work on github
+   therefore just keep this content synchronized with README.rst
 
 ARTIQ (Advanced Real-Time Infrastructure for Quantum physics) is a
 next-generation control system for quantum information experiments. It is
