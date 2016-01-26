@@ -19,7 +19,7 @@ from artiq.coredevice import exceptions
 def _render_diagnostic(diagnostic, colored):
     def shorten_path(path):
         return path.replace(artiq_dir, "<artiq>")
-    lines = [shorten_path(path) for path in diagnostic.render(colored)]
+    lines = [shorten_path(path) for path in diagnostic.render(colored=colored)]
     return "\n".join(lines)
 
 class _DiagnosticEngine(diagnostic.Engine):
