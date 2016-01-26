@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 
 from artiq.protocols.asyncio_server import AsyncioServer
 from artiq.tools import TaskObject
@@ -25,25 +26,51 @@ _name_to_level = {
 
 
 def parse_log_message(msg):
-    for name, level in _name_to_level.items():
-        if msg.startswith(name + ":"):
-            remainder = msg[len(name) + 1:]
-            try:
-                idx = remainder.index(":")
-            except:
-                continue
-            return level, remainder[:idx], remainder[idx+1:]
-    return logging.INFO, "print", msg
+    lr = "|".join(_name_to_level.keys())
+    m = re.fullmatch('('+lr+')(<\d+>)?:([^:]*):(.*)', msg)
+    if m is None:
+        return 0, logging.INFO, "print", msg
+    level = _name_to_level[m.group(1)]
+    if m.group(2):
+        multiline = int(m.group(2)[1:-1]) - 1
+    else:
+        multiline = 0
+    name = m.group(3)
+    message = m.group(4)
+    return multiline, level, name, message
 
 
 class LogParser:
     def __init__(self, source_cb):
         self.source_cb = source_cb
+        self.multiline_count = 0
+        self.multiline_level = None
+        self.multiline_name = None
+        self.multiline_message = None
 
     def line_input(self, msg):
-        level, name, message = parse_log_message(msg)
-        log_with_name(name, level, message,
-                      extra={"source": self.source_cb()})
+        if self.multiline_count:
+            self.multiline_message += "\n" + msg
+            self.multiline_count -= 1
+            if not self.multiline_count:
+                log_with_name(
+                    self.multiline_name,
+                    self.multiline_level,
+                    self.multiline_message,
+                    extra={"source": self.source_cb()})
+                self.multiline_level = None
+                self.multiline_name = None
+                self.multiline_message = None
+        else:
+            multiline, level, name, message = parse_log_message(msg)
+            if multiline:
+                self.multiline_count = multiline
+                self.multiline_level = level
+                self.multiline_name = name
+                self.multiline_message = message
+            else:
+                log_with_name(name, level, message,
+                              extra={"source": self.source_cb()})
 
     async def stream_task(self, stream):
         while True:
