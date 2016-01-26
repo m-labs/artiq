@@ -86,6 +86,28 @@ class LogParser:
             stream, self.source_cb())
 
 
+class MultilineFormatter(logging.Formatter):
+    def __init__(self):
+        logging.Formatter.__init__(
+            self, "%(levelname)s:%(name)s:%(message)s")
+
+    def format(self, record):
+        r = logging.Formatter.format(self, record)
+        linebreaks = r.count("\n")
+        if linebreaks:
+            i = r.index(":")
+            r = r[:i] + "<" + str(linebreaks + 1) + ">" + r[i:]
+        return r
+
+
+def multiline_log_config(level):
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+    handler = logging.StreamHandler()
+    handler.setFormatter(MultilineFormatter())
+    root_logger.addHandler(handler)
+
+
 _init_string = b"ARTIQ logging\n"
 
 
