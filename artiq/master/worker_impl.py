@@ -7,8 +7,7 @@ from collections import OrderedDict
 
 import artiq
 from artiq.protocols import pipe_ipc, pyon
-from artiq.protocols.logging import multiline_log_config
-from artiq.tools import file_import
+from artiq.tools import multiline_log_config, file_import
 from artiq.master.worker_db import DeviceManager, DatasetManager, get_hdf5_output
 from artiq.language.environment import is_experiment
 from artiq.language.core import set_watchdog_factory, TerminationRequested

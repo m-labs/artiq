@@ -3,7 +3,7 @@ import logging
 import re
 
 from artiq.protocols.asyncio_server import AsyncioServer
-from artiq.tools import TaskObject
+from artiq.tools import TaskObject, MultilineFormatter
 
 
 logger = logging.getLogger(__name__)
@@ -86,42 +86,25 @@ class LogParser:
             stream, self.source_cb())
 
 
-class MultilineFormatter(logging.Formatter):
-    def __init__(self):
-        logging.Formatter.__init__(
-            self, "%(levelname)s:%(name)s:%(message)s")
-
-    def format(self, record):
-        r = logging.Formatter.format(self, record)
-        linebreaks = r.count("\n")
-        if linebreaks:
-            i = r.index(":")
-            r = r[:i] + "<" + str(linebreaks + 1) + ">" + r[i:]
-        return r
-
-
-def multiline_log_config(level):
-    root_logger = logging.getLogger()
-    root_logger.setLevel(level)
-    handler = logging.StreamHandler()
-    handler.setFormatter(MultilineFormatter())
-    root_logger.addHandler(handler)
-
-
 _init_string = b"ARTIQ logging\n"
 
 
 class Server(AsyncioServer):
     """Remote logging TCP server.
 
-    Takes one log entry per line, in the format:
-        source:levelno:name:message
+    Log entries are in the format:
+        source:levelno<total_lines>:name:message
+        continuation...
+        ...continuation
     """
     async def _handle_connection_cr(self, reader, writer):
         try:
             line = await reader.readline()
             if line != _init_string:
                 return
+
+            source = None
+            parser = LogParser(lambda: source)
 
             while True:
                 line = await reader.readline()
@@ -132,20 +115,16 @@ class Server(AsyncioServer):
                 except:
                     return
                 line = line[:-1]
-                linesplit = line.split(":", 3)
-                if len(linesplit) != 4:
-                    logger.warning("received improperly formatted message, "
-                                   "dropping connection")
-                    return
-                source, level, name, message = linesplit
-                try:
-                    level = int(level)
-                except:
-                    logger.warning("received improperly formatted level, "
-                                   "dropping connection")
-                    return
-                log_with_name(name, level, message,
-                              extra={"source": source})
+                if parser.multiline_count:
+                    parser.line_input(line)
+                else:
+                    linesplit = line.split(":", maxsplit=1)
+                    if len(linesplit) != 2:
+                        logger.warning("received improperly formatted message, "
+                                       "dropping connection")
+                        return
+                    source, remainder = linesplit
+                    parser.line_input(remainder)
         finally:
             writer.close()
 
@@ -172,19 +151,12 @@ class LogForwarder(logging.Handler, TaskObject):
         logging.Handler.__init__(self, **kwargs)
         self.host = host
         self.port = port
-        self.setFormatter(logging.Formatter(
-            "%(name)s:%(message)s"))
+        self.setFormatter(MultilineFormatter())
         self._queue = asyncio.Queue(queue_size)
         self.reconnect_timer = reconnect_timer
 
     def emit(self, record):
-        message = self.format(record)
-        for part in message.split("\n"):
-            part = "{}:{}:{}".format(record.source, record.levelno, part)
-            try:
-                self._queue.put_nowait(part)
-            except asyncio.QueueFull:
-                break
+        self._queue.put_nowait(record.source + ":" + self.format(record))
 
     async def _do(self):
         while True:
