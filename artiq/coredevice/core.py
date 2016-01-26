@@ -2,6 +2,8 @@ import os, sys
 
 from pythonparser import diagnostic
 
+from artiq import __artiq_dir__ as artiq_dir
+
 from artiq.language.core import *
 from artiq.language.types import *
 from artiq.language.units import *
@@ -16,7 +18,7 @@ from artiq.coredevice import exceptions
 
 def _render_diagnostic(diagnostic, colored):
     def shorten_path(path):
-        return path.replace(os.path.normpath(os.path.join(__file__, "..", "..")), "<artiq>")
+        return path.replace(artiq_dir, "<artiq>")
     lines = [shorten_path(path) for path in diagnostic.render(colored)]
     return "\n".join(lines)
 

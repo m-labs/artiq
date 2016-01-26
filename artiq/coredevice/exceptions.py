@@ -3,6 +3,7 @@ import linecache
 import re
 import os
 
+from artiq import __artiq_dir__ as artiq_dir
 from artiq.coredevice.runtime import source_loader
 
 
@@ -36,8 +37,7 @@ class CoreException:
             else:
                 formatted_address = " (RA=0x{:x})".format(address)
 
-            filename = filename.replace(os.path.normpath(os.path.join(os.path.dirname(__file__),
-                                                                      "..")), "<artiq>")
+            filename = filename.replace(artiq_dir, "<artiq>")
             if column == -1:
                 lines.append("  File \"{file}\", line {line}, in {function}{address}".
                              format(file=filename, line=line, function=function,

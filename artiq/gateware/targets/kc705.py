@@ -20,7 +20,7 @@ from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
 from artiq.gateware.soc import AMPSoC
 from artiq.gateware import rtio, nist_qc1, nist_clock, nist_qc2
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, dds
-from artiq.tools import artiq_dir
+from artiq import __artiq_dir__ as artiq_dir
 from artiq import __version__ as artiq_version
 
 
