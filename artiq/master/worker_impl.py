@@ -252,7 +252,11 @@ def main():
         # When we get CompileError, a more suitable diagnostic has already
         # been printed.
         if not isinstance(exc, CompileError):
-            lines = ["Terminating with exception\n"]
+            short_exc_info = type(exc).__name__
+            exc_str = str(exc)
+            if exc_str:
+                short_exc_info += ": " + exc_str
+            lines = ["Terminating with exception ("+short_exc_info+")\n"]
             lines += traceback.format_exception_only(type(exc), exc)
             if hasattr(exc, "parent_traceback"):
                 lines += exc.parent_traceback
