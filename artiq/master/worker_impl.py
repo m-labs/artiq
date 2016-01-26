@@ -7,6 +7,7 @@ from collections import OrderedDict
 
 import artiq
 from artiq.protocols import pipe_ipc, pyon
+from artiq.protocols.logging import multiline_log_config
 from artiq.tools import file_import
 from artiq.master.worker_db import DeviceManager, DatasetManager, get_hdf5_output
 from artiq.language.environment import is_experiment
@@ -187,7 +188,7 @@ def setup_diagnostics(experiment_file, repository_path):
 def main():
     global ipc
 
-    logging.basicConfig(level=int(sys.argv[2]))
+    multiline_log_config(level=int(sys.argv[2]))
     ipc = pipe_ipc.ChildComm(sys.argv[1])
 
     start_time = None
