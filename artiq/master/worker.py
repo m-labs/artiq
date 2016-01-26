@@ -7,7 +7,7 @@ import traceback
 import time
 from functools import partial
 
-from artiq.protocols import pyon
+from artiq.protocols import pipe_ipc, pyon
 from artiq.tools import asyncio_wait_or_cancel
 
 
@@ -47,7 +47,7 @@ class Worker:
 
         self.rid = None
         self.filename = None
-        self.process = None
+        self.ipc = None
         self.watchdogs = dict()  # wid -> expiration (using time.monotonic)
 
         self.io_lock = asyncio.Lock()
@@ -77,10 +77,10 @@ class Worker:
         try:
             if self.closed.is_set():
                 raise WorkerError("Attempting to create process after close")
-            self.process = await asyncio.create_subprocess_exec(
+            self.ipc = pipe_ipc.AsyncioParentComm()
+            await self.ipc.create_subprocess(
                 sys.executable, "-m", "artiq.master.worker_impl",
-                str(log_level),
-                stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+                self.ipc.get_address(), str(log_level))
         finally:
             self.io_lock.release()
 
@@ -93,15 +93,15 @@ class Worker:
         self.closed.set()
         await self.io_lock.acquire()
         try:
-            if self.process is None:
+            if self.ipc is None:
                 # Note the %s - self.rid can be None
                 logger.debug("worker was not created (RID %s)", self.rid)
                 return
-            if self.process.returncode is not None:
+            if self.ipc.process.returncode is not None:
                 logger.debug("worker already terminated (RID %s)", self.rid)
-                if self.process.returncode != 0:
+                if self.ipc.process.returncode != 0:
                     logger.warning("worker finished with status code %d"
-                                   " (RID %s)", self.process.returncode,
+                                   " (RID %s)", self.ipc.process.returncode,
                                    self.rid)
                 return
             obj = {"action": "terminate"}
@@ -111,21 +111,21 @@ class Worker:
                 logger.debug("failed to send terminate command to worker"
                              " (RID %s), killing", self.rid, exc_info=True)
                 try:
-                    self.process.kill()
+                    self.ipc.process.kill()
                 except ProcessLookupError:
                     pass
-                await self.process.wait()
+                await self.ipc.process.wait()
                 return
             try:
-                await asyncio.wait_for(self.process.wait(), term_timeout)
+                await asyncio.wait_for(self.ipc.process.wait(), term_timeout)
             except asyncio.TimeoutError:
                 logger.debug("worker did not exit by itself (RID %s), killing",
                              self.rid)
                 try:
-                    self.process.kill()
+                    self.ipc.process.kill()
                 except ProcessLookupError:
                     pass
-                await self.process.wait()
+                await self.ipc.process.wait()
             else:
                 logger.debug("worker exited by itself (RID %s)", self.rid)
         finally:
@@ -134,9 +134,8 @@ class Worker:
     async def _send(self, obj, cancellable=True):
         assert self.io_lock.locked()
         line = pyon.encode(obj)
-        self.process.stdin.write(line.encode())
-        self.process.stdin.write("\n".encode())
-        ifs = [self.process.stdin.drain()]
+        self.ipc.write((line + "\n").encode())
+        ifs = [self.ipc.drain()]
         if cancellable:
             ifs.append(self.closed.wait())
         fs = await asyncio_wait_or_cancel(
@@ -153,7 +152,7 @@ class Worker:
     async def _recv(self, timeout):
         assert self.io_lock.locked()
         fs = await asyncio_wait_or_cancel(
-            [self.process.stdout.readline(), self.closed.wait()],
+            [self.ipc.readline(), self.closed.wait()],
             timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
         if all(f.cancelled() for f in fs):
             raise WorkerTimeout("Timeout receiving data from worker")
