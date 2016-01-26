@@ -6,8 +6,6 @@ import os
 from artiq.protocols import pipe_ipc
 
 
-@unittest.skip("temporarily skip b/c buildbot is failing "
-               "and i would like packages")
 class IPCCase(unittest.TestCase):
     def setUp(self):
         if os.name == "nt":
