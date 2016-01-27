@@ -3,7 +3,6 @@ import os
 import tempfile
 import shutil
 import logging
-from functools import partial
 
 from artiq.protocols.sync_struct import Notifier
 from artiq.master.worker import (Worker, WorkerInternalException,
@@ -15,13 +14,10 @@ logger = logging.getLogger(__name__)
 
 
 async def _get_repository_entries(entry_dict,
-                                  root, filename, get_device_db, log):
-    worker = Worker({
-        "get_device_db": get_device_db,
-        "log": partial(log, "scan", os.path.basename(filename))
-    })
+                                  root, filename, get_device_db):
+    worker = Worker({"get_device_db": get_device_db})
     try:
-        description = await worker.examine(os.path.join(root, filename))
+        description = await worker.examine("scan", os.path.join(root, filename))
     except:
         log_worker_exception()
         raise
@@ -49,7 +45,7 @@ async def _get_repository_entries(entry_dict,
         entry_dict[name] = entry
 
 
-async def _scan_experiments(root, get_device_db, log, subdir=""):
+async def _scan_experiments(root, get_device_db, subdir=""):
     entry_dict = dict()
     for de in os.scandir(os.path.join(root, subdir)):
         if de.name.startswith("."):
@@ -58,13 +54,13 @@ async def _scan_experiments(root, get_device_db, log, subdir=""):
             filename = os.path.join(subdir, de.name)
             try:
                 await _get_repository_entries(
-                    entry_dict, root, filename, get_device_db, log)
+                    entry_dict, root, filename, get_device_db)
             except Exception as exc:
                 logger.warning("Skipping file '%s'", filename,
                     exc_info=not isinstance(exc, WorkerInternalException))
         if de.is_dir():
             subentries = await _scan_experiments(
-                root, get_device_db, log,
+                root, get_device_db,
                 os.path.join(subdir, de.name))
             entries = {de.name + "/" + k: v for k, v in subentries.items()}
             entry_dict.update(entries)
@@ -81,10 +77,9 @@ def _sync_explist(target, source):
 
 
 class ExperimentDB:
-    def __init__(self, repo_backend, get_device_db_fn, log_fn):
+    def __init__(self, repo_backend, get_device_db_fn):
         self.repo_backend = repo_backend
         self.get_device_db_fn = get_device_db_fn
-        self.log_fn = log_fn
 
         self.cur_rev = self.repo_backend.get_head_rev()
         self.repo_backend.request_rev(self.cur_rev)
@@ -106,8 +101,7 @@ class ExperimentDB:
             wd, _ = self.repo_backend.request_rev(new_cur_rev)
             self.repo_backend.release_rev(self.cur_rev)
             self.cur_rev = new_cur_rev
-            new_explist = await _scan_experiments(wd, self.get_device_db_fn,
-                                                  self.log_fn)
+            new_explist = await _scan_experiments(wd, self.get_device_db_fn)
 
             _sync_explist(self.explist, new_explist)
         finally:
@@ -122,12 +116,9 @@ class ExperimentDB:
             revision = self.cur_rev
             wd, _ = self.repo_backend.request_rev(revision)
             filename = os.path.join(wd, filename)
-        worker = Worker({
-            "get_device_db": self.get_device_db_fn,
-            "log": partial(self.log_fn, "examine", os.path.basename(filename))
-        })
+        worker = Worker({"get_device_db": self.get_device_db_fn})
         try:
-            description = await worker.examine(filename)
+            description = await worker.examine("examine", filename)
         finally:
             await worker.close()
         if use_repository:

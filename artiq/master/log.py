@@ -2,7 +2,7 @@ import logging
 import logging.handlers
 
 from artiq.protocols.sync_struct import Notifier
-from artiq.protocols.logging import parse_log_message, log_with_name, SourceFilter
+from artiq.protocols.logging import SourceFilter
 
 
 class LogBuffer:
@@ -27,14 +27,6 @@ class LogBufferHandler(logging.Handler):
         for part in message.split("\n"):
             self.log_buffer.log(record.levelno, record.source, record.created,
                                 part)
-
-
-def log_worker(rid, filename, message):
-    level, name, message = parse_log_message(message)
-    log_with_name(name, level, message,
-                  extra={"source": "worker({},{})".format(rid, filename)})
-log_worker.worker_pass_runinfo = True
-
 
 def log_args(parser):
     group = parser.add_argument_group("logging")

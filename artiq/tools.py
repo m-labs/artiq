@@ -133,8 +133,30 @@ def simple_network_args(parser, default_port):
             group.add_argument("--port-" + name, default=default, type=int,
                            help=h)
 
+class MultilineFormatter(logging.Formatter):
+    def __init__(self):
+        logging.Formatter.__init__(
+            self, "%(levelname)s:%(name)s:%(message)s")
+
+    def format(self, record):
+        r = logging.Formatter.format(self, record)
+        linebreaks = r.count("\n")
+        if linebreaks:
+            i = r.index(":")
+            r = r[:i] + "<" + str(linebreaks + 1) + ">" + r[i:]
+        return r
+
+
+def multiline_log_config(level):
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+    handler = logging.StreamHandler()
+    handler.setFormatter(MultilineFormatter())
+    root_logger.addHandler(handler)
+
+
 def init_logger(args):
-    logging.basicConfig(level=logging.WARNING + args.quiet*10 - args.verbose*10)
+    multiline_log_config(level=logging.WARNING + args.quiet*10 - args.verbose*10)
 
 
 def bind_address_from_args(args):
