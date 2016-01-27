@@ -74,7 +74,10 @@ class _Encoder:
 
     def encode_str(self, x):
         # Do not use repr() for JSON compatibility.
-        tt = {ord("\""): "\\\"", ord("\\"): "\\\\", ord("\n"): "\\n"}
+        tt = {
+              ord("\""): "\\\"", ord("\\"): "\\\\",
+              ord("\n"): "\\n", ord("\r"): "\\r"
+        }
         return "\"" + x.translate(tt) + "\""
 
     def encode_bytes(self, x):

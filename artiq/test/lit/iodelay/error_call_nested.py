@@ -2,7 +2,7 @@
 # RUN: OutputCheck %s --file-to-check=%t
 
 def f():
-    # CHECK-L: ${LINE:+1}: error: this call cannot be interleaved
+    # CHECK-L: ${LINE:+1}: error: call cannot be interleaved
     delay(1.0**2)
 
 def g():

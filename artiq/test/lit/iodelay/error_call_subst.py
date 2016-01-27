@@ -9,5 +9,5 @@ def pulse(len):
 
 def f():
     a = 100
-    # CHECK-L: ${LINE:+1}: error: this call cannot be interleaved
+    # CHECK-L: ${LINE:+1}: error: call cannot be interleaved
     pulse(a)

@@ -3,12 +3,12 @@
 
 def f():
     x = 1
-    # CHECK-L: ${LINE:+1}: error: this call cannot be interleaved because an argument cannot be statically evaluated
+    # CHECK-L: ${LINE:+1}: error: call cannot be interleaved because an argument cannot be statically evaluated
     delay_mu(x)
 
 def g():
     x = 1.0
-    # CHECK-L: ${LINE:+1}: error: this call cannot be interleaved
+    # CHECK-L: ${LINE:+1}: error: call cannot be interleaved
     delay(x)
 
 

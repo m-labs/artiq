@@ -502,6 +502,9 @@ class Server(_AsyncioServer):
                            "message": traceback.format_exc()}
                 line = pyon.encode(obj) + "\n"
                 writer.write(line.encode())
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+            # May happens on Windows when client disconnects
+            pass
         finally:
             writer.close()
 

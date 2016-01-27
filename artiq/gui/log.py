@@ -147,7 +147,7 @@ class _LogFilterProxyModel(QSortFilterProxyModel):
 class _LogDock(dockarea.Dock):
     def __init__(self, manager, name, log_sub):
         dockarea.Dock.__init__(self, name, label="Log")
-        self.setMinimumSize(QtCore.QSize(850, 450))
+        self.setMinimumSize(QtCore.QSize(720, 250))
 
         grid = LayoutWidget()
         self.addWidget(grid)

@@ -26,7 +26,7 @@ class PYON(unittest.TestCase):
 _json_test_object = {
     "a": "b",
     "x": [1, 2, {}],
-    "foo\nbaz\\qux\"": ["bar", 1.2, {"x": "y"}],
+    "foo\nbaz\\qux\"\r2": ["bar", 1.2, {"x": "y"}],
     "bar": [True, False, None]
 }
 
