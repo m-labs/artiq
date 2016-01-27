@@ -488,7 +488,9 @@ class ExperimentManager:
 
     def open_experiment(self, expurl):
         if expurl in self.open_experiments:
-            return self.open_experiments[expurl]
+            dock = self.open_experiments[expurl]
+            self.dock_area.floatDock(dock)
+            return dock
         dock = _ExperimentDock(self, expurl)
         self.open_experiments[expurl] = dock
         self.dock_area.floatDock(dock)
