@@ -58,7 +58,7 @@ class Model(DictSyncModel):
 class ScheduleDock(dockarea.Dock):
     def __init__(self, status_bar, schedule_ctl, schedule_sub):
         dockarea.Dock.__init__(self, "Schedule")
-        self.setMinimumSize(QtCore.QSize(850, 300))
+        self.setMinimumSize(QtCore.QSize(740, 200))
 
         self.status_bar = status_bar
         self.schedule_ctl = schedule_ctl
