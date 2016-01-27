@@ -125,6 +125,9 @@ class Server(AsyncioServer):
                         return
                     source, remainder = linesplit
                     parser.line_input(remainder)
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+            # May happens on Windows when client disconnects
+            pass
         finally:
             writer.close()
 
