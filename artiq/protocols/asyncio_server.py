@@ -7,7 +7,6 @@ class AsyncioServer:
 
     Users of this class must derive from it and define the
     ``_handle_connection_cr`` method and coroutine.
-
     """
     def __init__(self):
         self._client_tasks = set()
@@ -23,15 +22,12 @@ class AsyncioServer:
         :param host: Bind address of the server (see ``asyncio.start_server``
             from the Python standard library).
         :param port: TCP port to bind to.
-
         """
         self.server = await asyncio.start_server(self._handle_connection,
                                                  host, port)
 
     async def stop(self):
-        """Stops the server.
-
-        """
+        """Stops the server."""
         wait_for = copy(self._client_tasks)
         for task in self._client_tasks:
             task.cancel()
@@ -48,6 +44,6 @@ class AsyncioServer:
         self._client_tasks.remove(task)
 
     def _handle_connection(self, reader, writer):
-        task = asyncio.Task(self._handle_connection_cr(reader, writer))
+        task = asyncio.ensure_future(self._handle_connection_cr(reader, writer))
         self._client_tasks.add(task)
         task.add_done_callback(self._client_done)
