@@ -24,11 +24,11 @@ class IODelayEstimator(algorithm.Visitor):
         self.current_goto   = None
         self.current_return = None
 
-    def evaluate(self, node, abort):
+    def evaluate(self, node, abort, context):
         if isinstance(node, asttyped.NumT):
             return iodelay.Const(node.n)
         elif isinstance(node, asttyped.CoerceT):
-            return self.evaluate(node.value, abort)
+            return self.evaluate(node.value, abort, context)
         elif isinstance(node, asttyped.NameT):
             if self.current_args is None:
                 note = diagnostic.Diagnostic("note",
@@ -48,8 +48,8 @@ class IODelayEstimator(algorithm.Visitor):
                 ]
                 abort(notes)
         elif isinstance(node, asttyped.BinOpT):
-            lhs = self.evaluate(node.left, abort)
-            rhs = self.evaluate(node.right, abort)
+            lhs = self.evaluate(node.left, abort, context)
+            rhs = self.evaluate(node.right, abort, context)
             if isinstance(node.op, ast.Add):
                 return lhs + rhs
             elif isinstance(node.op, ast.Sub):
@@ -62,12 +62,14 @@ class IODelayEstimator(algorithm.Visitor):
                 return lhs // rhs
             else:
                 note = diagnostic.Diagnostic("note",
-                    "this operator is not supported", {},
+                    "this operator is not supported {context}",
+                    {"context": context},
                     node.op.loc)
                 abort([note])
         else:
             note = diagnostic.Diagnostic("note",
-                "this expression is not supported", {},
+                "this expression is not supported {context}",
+                {"context": context},
                 node.loc)
             abort([note])
 
@@ -143,14 +145,14 @@ class IODelayEstimator(algorithm.Visitor):
     def visit_LambdaT(self, node):
         self.visit_function(node.args, node.body, node.type.find(), node.loc)
 
-    def get_iterable_length(self, node):
+    def get_iterable_length(self, node, context):
         def abort(notes):
             self.abort("for statement cannot be interleaved because "
-                       "trip count is indeterminate",
+                       "iteration count is indeterminate",
                        node.loc, notes)
 
         def evaluate(node):
-            return self.evaluate(node, abort)
+            return self.evaluate(node, abort, context)
 
         if isinstance(node, asttyped.CallT) and types.is_builtin(node.func.type, "range"):
             range_min, range_max, range_step = iodelay.Const(0), None, iodelay.Const(1)
@@ -177,10 +179,11 @@ class IODelayEstimator(algorithm.Visitor):
             self.current_delay = old_delay
         else:
             if self.current_goto is not None:
-                self.abort("loop trip count is indeterminate because of control flow",
+                self.abort("loop iteration count is indeterminate because of control flow",
                            self.current_goto.loc)
 
-            node.trip_count    = self.get_iterable_length(node.iter).fold()
+            context            = "in an iterable used in a for loop that is being interleaved"
+            node.trip_count    = self.get_iterable_length(node.iter, context).fold()
             node.trip_interval = self.current_delay.fold()
             self.current_delay = old_delay + node.trip_interval * node.trip_count
         self.current_goto = old_goto
@@ -231,6 +234,10 @@ class IODelayEstimator(algorithm.Visitor):
                 # Interleave failures inside `with` statements are hard failures,
                 # since there's no chance that the code will never actually execute
                 # inside a `with` statement after all.
+                note = diagnostic.Diagnostic("note",
+                    "while interleaving this 'with parallel:' statement", {},
+                    node.loc)
+                error.cause.notes += [note]
                 self.engine.process(error.cause)
 
             flow_stmt = None
@@ -258,15 +265,17 @@ class IODelayEstimator(algorithm.Visitor):
     def visit_CallT(self, node):
         typ = node.func.type.find()
         def abort(notes):
-            self.abort("this call cannot be interleaved because "
+            self.abort("call cannot be interleaved because "
                        "an argument cannot be statically evaluated",
                        node.loc, notes)
 
         if types.is_builtin(typ, "delay"):
-            value = self.evaluate(node.args[0], abort=abort)
+            value = self.evaluate(node.args[0], abort=abort,
+                                  context="as an argument for delay()")
             call_delay = iodelay.SToMU(value, ref_period=self.ref_period)
         elif types.is_builtin(typ, "delay_mu"):
-            value = self.evaluate(node.args[0], abort=abort)
+            value = self.evaluate(node.args[0], abort=abort,
+                                  context="as an argument for delay_mu()")
             call_delay = value
         elif not types.is_builtin(typ):
             if types.is_function(typ):
@@ -297,7 +306,12 @@ class IODelayEstimator(algorithm.Visitor):
                     args[arg_name] = arg_node
 
                 free_vars = delay.duration.free_vars()
-                node.arg_exprs = { arg: self.evaluate(args[arg], abort=abort) for arg in free_vars }
+                node.arg_exprs = {
+                    arg: self.evaluate(args[arg], abort=abort,
+                                       context="in the expression for argument '{}' "
+                                               "that affects I/O delay".format(arg))
+                    for arg in free_vars
+                }
                 call_delay = delay.duration.fold(node.arg_exprs)
             else:
                 assert False
