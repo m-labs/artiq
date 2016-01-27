@@ -235,7 +235,7 @@ class Publisher(AsyncioServer):
                     await writer.drain()
             finally:
                 self._recipients[notifier_name].remove(queue)
-        except (ConnectionResetError, BrokenPipeError):
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
             # subscribers disconnecting are a normal occurence
             pass
         finally:
