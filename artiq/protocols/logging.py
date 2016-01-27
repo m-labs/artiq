@@ -78,7 +78,7 @@ class LogParser:
                 entry = (await stream.readline())
                 if not entry:
                     break
-                self.line_input(entry[:-1].decode())
+                self.line_input(entry.decode().rstrip("\r\n"))
             except:
                 logger.debug("exception in log forwarding", exc_info=True)
                 break
