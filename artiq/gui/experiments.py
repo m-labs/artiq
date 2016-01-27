@@ -240,7 +240,7 @@ class _ArgumentEditor(QtGui.QTreeWidget):
 class _ExperimentDock(dockarea.Dock):
     def __init__(self, manager, expurl):
         dockarea.Dock.__init__(self, "Exp: " + expurl, closable=True)
-        self.setMinimumSize(QtCore.QSize(1100, 700))
+        self.setMinimumSize(QtCore.QSize(740, 470))
         self.layout.setSpacing(5)
         self.layout.setContentsMargins(5, 5, 5, 5)
 
