@@ -35,20 +35,20 @@ class Controller:
         self.launch_task.cancel()
         await asyncio.wait_for(self.launch_task, None)
 
-    async def _call_controller(self, method):
+    async def call(self, method, *args, **kwargs):
         remote = AsyncioClient()
         await remote.connect_rpc(self.host, self.port, None)
         try:
             targets, _ = remote.get_rpc_id()
             remote.select_rpc_target(targets[0])
-            r = await getattr(remote, method)()
+            r = await getattr(remote, method)(*args, **kwargs)
         finally:
             remote.close_rpc()
         return r
 
     async def _ping(self):
         try:
-            ok = await asyncio.wait_for(self._call_controller("ping"),
+            ok = await asyncio.wait_for(self.call("ping"),
                                         self.ping_timeout)
             if ok:
                 self.retry_timer_cur = self.retry_timer
@@ -120,7 +120,7 @@ class Controller:
         logger.info("Terminating controller %s", self.name)
         if self.process is not None and self.process.returncode is None:
             try:
-                await asyncio.wait_for(self._call_controller("terminate"),
+                await asyncio.wait_for(self.call("terminate"),
                                        self.term_timeout)
             except:
                 logger.warning("Controller %s did not respond to terminate "
@@ -172,6 +172,7 @@ class Controllers:
                 del self.active[param]
             else:
                 raise ValueError
+            self.queue.task_done()
 
     def __setitem__(self, k, v):
         if (isinstance(v, dict) and v["type"] == "controller" and
