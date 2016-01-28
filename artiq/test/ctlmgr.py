@@ -21,7 +21,7 @@ class ControllerCase(unittest.TestCase):
         self.controllers = Controllers()
         self.controllers.host_filter = "::1"
         self.addCleanup(
-            lambda: self.loop.run_until_complete(self.controllers.shutdown()))
+            self.loop.run_until_complete, self.controllers.shutdown())
 
     async def start(self, name, entry):
         self.controllers[name] = entry
