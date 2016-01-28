@@ -24,11 +24,12 @@ class ControllerCase(unittest.TestCase):
     def setUp(self):
         self.device_db = DeviceDB(os.path.join(artiq_root, "device_db.pyon"))
         self.device_mgr = DeviceManager(self.device_db)
-        self.addCleanup(self.device_mgr.close_devices)
         self.controllers = {}
 
     def tearDown(self):
-        self.stop_controllers()
+        self.device_mgr.close_devices()
+        for name in list(self.controllers):
+            self.stop_controller(name)
 
     def start_controller(self, name, sleep=1):
         try:
@@ -42,17 +43,15 @@ class ControllerCase(unittest.TestCase):
         self.controllers[name] = entry, proc
         time.sleep(sleep)
 
-    def stop_controllers(self):
-        for entry, proc in self.controllers.values():
-            proc.terminate()
-        for name in list(self.controllers):
-            entry, proc = self.controllers[name]
-            try:
-                proc.wait(entry.get("term_timeout"))
-            except TimeoutError:
-                proc.kill()
-                proc.wait(entry.get("term_timeout"))
-            del self.controllers[name]
+    def stop_controller(self, name, default_timeout=1):
+        entry, proc = self.controllers[name]
+        t = entry.get("term_timeout", default_timeout)
+        try:
+            proc.wait(t)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(t)
+        del self.controllers[name]
 
 
 @unittest.skipUnless(artiq_root, "no ARTIQ_ROOT")
