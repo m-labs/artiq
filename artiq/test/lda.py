@@ -2,7 +2,7 @@ import unittest
 
 from artiq.devices.lda.driver import Ldasim
 from artiq.language.units import dB
-from artiq.test.hardware_testbench import ControllerCase, with_controllers
+from artiq.test.hardware_testbench import ControllerCase
 
 
 class GenericLdaTest:
@@ -18,10 +18,10 @@ class GenericLdaTest:
 
 
 class TestLda(ControllerCase, GenericLdaTest):
-    @with_controllers("lda")
-    def test_attenuation(self):
+    def setUp(self):
+        ControllerCase.setUp(self)
+        self.start_controllers("lda")
         self.cont = self.device_mgr.get("lda")
-        GenericLdaTest.test_attenuation(self)
 
 
 class TestLdaSim(GenericLdaTest, unittest.TestCase):

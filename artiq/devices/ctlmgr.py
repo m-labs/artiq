@@ -170,9 +170,9 @@ class Controllers:
             elif action == "del":
                 await self.active[param].end()
                 del self.active[param]
-            else:
-                raise ValueError
             self.queue.task_done()
+            if action not in ("set", "del"):
+                raise ValueError
 
     def __setitem__(self, k, v):
         if (isinstance(v, dict) and v["type"] == "controller" and
