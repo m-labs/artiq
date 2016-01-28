@@ -1,7 +1,7 @@
 import unittest
 
 from artiq.devices.novatech409b.driver import Novatech409B
-from artiq.test.hardware_testbench import ControllerCase, with_controllers
+from artiq.test.hardware_testbench import ControllerCase
 
 
 class GenericNovatech409BTest:
@@ -21,10 +21,10 @@ class GenericNovatech409BTest:
 
 
 class TestNovatech409B(GenericNovatech409BTest, ControllerCase):
-    @with_controllers("novatech409b")
-    def test_parameters_readback(self):
+    def setUp(self):
+        ControllerCase.setUp(self)
+        self.start_controller("novatech409b")
         self.driver = self.device_mgr.get("novatech409b")
-        GenericNovatech409BTest.test_parameters_readback(self)
 
 
 class TestNovatech409BSim(GenericNovatech409BTest, unittest.TestCase):

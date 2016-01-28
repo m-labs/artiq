@@ -3,7 +3,7 @@ import time
 
 from artiq.devices.thorlabs_tcube.driver import Tdc, Tpz, TdcSim, TpzSim
 from artiq.language.units import V
-from artiq.test.hardware_testbench import get_from_ddb
+from artiq.test.hardware_testbench import ControllerCase
 
 
 class GenericTdcTest:
@@ -131,10 +131,11 @@ class GenericTpzTest:
                 self.assertEqual(test_vector, self.cont.get_tpz_io_settings())
 
 
-class TestTdc(unittest.TestCase, GenericTdcTest):
+class TestTdc(ControllerCase, GenericTdcTest):
     def setUp(self):
-        tdc_serial = get_from_ddb("tdc", "device")
-        self.cont = Tdc(serial_dev=tdc_serial)
+        ControllerCase.setUp(self)
+        self.start_controller("tdc")
+        self.cont = self.device_mgr.get("tdc")
 
 
 class TestTdcSim(unittest.TestCase, GenericTdcTest):
@@ -142,10 +143,11 @@ class TestTdcSim(unittest.TestCase, GenericTdcTest):
         self.cont = TdcSim()
 
 
-class TestTpz(unittest.TestCase, GenericTpzTest):
+class TestTpz(ControllerCase, GenericTpzTest):
     def setUp(self):
-        tpz_serial = get_from_ddb("tpz", "device")
-        self.cont = Tpz(serial_dev=tpz_serial)
+        ControllerCase.setUp(self)
+        self.start_controller("tpz")
+        self.cont = self.device_mgr.get("tpz")
 
 
 class TestTpzSim(unittest.TestCase, GenericTpzTest):

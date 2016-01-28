@@ -20,7 +20,7 @@ class GenericLdaTest:
 class TestLda(ControllerCase, GenericLdaTest):
     def setUp(self):
         ControllerCase.setUp(self)
-        self.start_controllers("lda")
+        self.start_controller("lda")
         self.cont = self.device_mgr.get("lda")
 
 

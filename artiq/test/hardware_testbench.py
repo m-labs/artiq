@@ -5,14 +5,14 @@ import os
 import sys
 import unittest
 import logging
-import asyncio
-import threading
+import subprocess
+import shlex
+import time
 
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager
 from artiq.coredevice.core import CompileError
 from artiq.frontend.artiq_run import DummyScheduler
-from artiq.devices.ctlmgr import Controllers
 
 
 artiq_root = os.getenv("ARTIQ_ROOT")
@@ -21,75 +21,38 @@ logger = logging.getLogger(__name__)
 
 @unittest.skipUnless(artiq_root, "no ARTIQ_ROOT")
 class ControllerCase(unittest.TestCase):
-    host_filter = "::1"
-    timeout = 2
-
     def setUp(self):
-        if os.name == "nt":
-            self.loop = asyncio.ProactorEventLoop()
-        else:
-            self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
-        self.addCleanup(self.loop.close)
-
-        self.loop_thread = threading.Thread(target=self.loop.run_forever)
-        self.addCleanup(self.loop_thread.join)
-        self.addCleanup(self.loop.call_soon_threadsafe, self.loop.stop)
-
-        self.controllers = Controllers()
-        self.controllers.host_filter = self.host_filter
-        self.addCleanup(self._stop_controllers)
-
         self.device_db = DeviceDB(os.path.join(artiq_root, "device_db.pyon"))
         self.device_mgr = DeviceManager(self.device_db)
         self.addCleanup(self.device_mgr.close_devices)
+        self.controllers = {}
 
-        self.loop_thread.start()
+    def tearDown(self):
+        self.stop_controllers()
 
-    def _stop_controllers(self):
-        fut = asyncio.run_coroutine_threadsafe(self.controllers.shutdown(),
-                                               self.loop)
-        fut.result()
+    def start_controller(self, name, sleep=1):
+        try:
+            entry = self.device_db.get(name)
+        except KeyError:
+            raise unittest.SkipTest(
+                "controller `{}` not found".format(name))
+        entry["command"] = entry["command"].format(
+            name=name, bind=entry["host"], port=entry["port"])
+        proc = subprocess.Popen(shlex.split(entry["command"]))
+        self.controllers[name] = entry, proc
+        time.sleep(sleep)
 
-    async def _start(self, *names):
-        print("FOOO started")
-        l = asyncio.get_event_loop_policy()
-        l = l.get_event_loop()
-        print("FOOO started")
-
-
-        for name in names:
+    def stop_controllers(self):
+        for entry, proc in self.controllers.values():
+            proc.terminate()
+        for name in list(self.controllers):
+            entry, proc = self.controllers[name]
             try:
-                self.controllers[name] = self.device_db.get(name)
-            except KeyError:
-                raise unittest.SkipTest(
-                    "controller `{}` not found".format(name))
-        await self.controllers.queue.join()
-        await asyncio.wait([self._wait_for_ping(name)
-                            for name in names])
-
-    async def _wait_for_ping(self, name, retries=5):
-        t = self.timeout
-        dt = t/retries
-        while t > 0:
-            try:
-                ok = await asyncio.wait_for(
-                    self.controllers.active[name].call("ping"), dt)
-                if not ok:
-                    raise ValueError("unexcepted ping() response from "
-                                     "controller `{}`: `{}`".format(name, ok))
-                return ok
-            except asyncio.TimeoutError:
-                t -= dt
-            except (ConnectionAbortedError, ConnectionError,
-                    ConnectionRefusedError, ConnectionResetError):
-                await asyncio.sleep(dt)
-                t -= dt
-        raise asyncio.TimeoutError
-
-    def start_controllers(self, *names):
-        fut = asyncio.run_coroutine_threadsafe(self._start(*names), self.loop)
-        fut.result()
+                proc.wait(entry.get("term_timeout"))
+            except TimeoutError:
+                proc.kill()
+                proc.wait(entry.get("term_timeout"))
+            del self.controllers[name]
 
 
 @unittest.skipUnless(artiq_root, "no ARTIQ_ROOT")
