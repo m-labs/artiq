@@ -5,12 +5,13 @@ import os
 import sys
 import unittest
 import logging
+import subprocess
+import shlex
+import time
 
-from artiq.experiment import *
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager
 from artiq.coredevice.core import CompileError
-from artiq.protocols import pyon
 from artiq.frontend.artiq_run import DummyScheduler
 
 
@@ -18,28 +19,49 @@ artiq_root = os.getenv("ARTIQ_ROOT")
 logger = logging.getLogger(__name__)
 
 
-def get_from_ddb(*path, default="skip"):
-    if not artiq_root:
-        raise unittest.SkipTest("no ARTIQ_ROOT")
-    v = pyon.load_file(os.path.join(artiq_root, "device_db.pyon"))
-    try:
-        for p in path:
-            v = v[p]
-        return v.read
-    except KeyError:
-        if default == "skip":
-            raise unittest.SkipTest("device db path {} not found".format(path))
-        else:
-            return default
+@unittest.skipUnless(artiq_root, "no ARTIQ_ROOT")
+class ControllerCase(unittest.TestCase):
+    def setUp(self):
+        self.device_db = DeviceDB(os.path.join(artiq_root, "device_db.pyon"))
+        self.device_mgr = DeviceManager(self.device_db)
+        self.controllers = {}
+
+    def tearDown(self):
+        self.device_mgr.close_devices()
+        for name in list(self.controllers):
+            self.stop_controller(name)
+
+    def start_controller(self, name, sleep=1):
+        try:
+            entry = self.device_db.get(name)
+        except KeyError:
+            raise unittest.SkipTest(
+                "controller `{}` not found".format(name))
+        entry["command"] = entry["command"].format(
+            name=name, bind=entry["host"], port=entry["port"])
+        proc = subprocess.Popen(shlex.split(entry["command"]))
+        self.controllers[name] = entry, proc
+        time.sleep(sleep)
+
+    def stop_controller(self, name, default_timeout=1):
+        entry, proc = self.controllers[name]
+        t = entry.get("term_timeout", default_timeout)
+        try:
+            proc.wait(t)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(t)
+        del self.controllers[name]
 
 
 @unittest.skipUnless(artiq_root, "no ARTIQ_ROOT")
 class ExperimentCase(unittest.TestCase):
     def setUp(self):
         self.device_db = DeviceDB(os.path.join(artiq_root, "device_db.pyon"))
-        self.dataset_db = DatasetDB(os.path.join(artiq_root, "dataset_db.pyon"))
-        self.device_mgr = DeviceManager(self.device_db,
-            virtual_devices={"scheduler": DummyScheduler()})
+        self.dataset_db = DatasetDB(
+            os.path.join(artiq_root, "dataset_db.pyon"))
+        self.device_mgr = DeviceManager(
+            self.device_db, virtual_devices={"scheduler": DummyScheduler()})
         self.dataset_mgr = DatasetManager(self.dataset_db)
 
     def create(self, cls, **kwargs):

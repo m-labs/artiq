@@ -1,8 +1,8 @@
 import unittest
 
-from artiq.devices.lda.driver import Lda, Ldasim
+from artiq.devices.lda.driver import Ldasim
 from artiq.language.units import dB
-from artiq.test.hardware_testbench import get_from_ddb
+from artiq.test.hardware_testbench import ControllerCase
 
 
 class GenericLdaTest:
@@ -13,14 +13,15 @@ class GenericLdaTest:
         for i in test_vector:
             with self.subTest(i=i):
                 self.cont.set_attenuation(i)
-                self.assertEqual(i, self.cont.get_attenuation())
+                j = self.cont.get_attenuation()
+                self.assertEqual(i, j)
 
 
-class TestLda(GenericLdaTest, unittest.TestCase):
+class TestLda(ControllerCase, GenericLdaTest):
     def setUp(self):
-        lda_serial = get_from_ddb("lda", "device")
-        lda_product = get_from_ddb("lda", "product")
-        self.cont = Lda(serial=lda_serial, product=lda_product)
+        ControllerCase.setUp(self)
+        self.start_controller("lda")
+        self.cont = self.device_mgr.get("lda")
 
 
 class TestLdaSim(GenericLdaTest, unittest.TestCase):
