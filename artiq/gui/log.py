@@ -22,8 +22,7 @@ class Model(QtCore.QAbstractTableModel):
         timer.timeout.connect(self.timer_tick)
         timer.start(100)
 
-        self.fixed_font = QtGui.QFont()
-        self.fixed_font.setFamily("Monospace")
+        self.fixed_font = QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.FixedFont)
 
         self.white = QtGui.QBrush(QtGui.QColor(255, 255, 255))
         self.black = QtGui.QBrush(QtGui.QColor(0, 0, 0))
