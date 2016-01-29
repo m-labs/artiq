@@ -1,9 +1,12 @@
 Release notes
 =============
 
-1.0
----
+1.0 (unreleased)
+----------------
 
-  * First release
-  * Experiments (your code) should use ``from artiq.experiment import *``
-    (and not ``from artiq import *`` as previously)
+* First release
+* Experiments (your code) should use ``from artiq.experiment import *``
+  (and not ``from artiq import *`` as previously)
+* Core device flash storage has moved due to increased runtime size.
+  This requires reflashing the runtime and the flash storage filesystem image
+  or its data.
