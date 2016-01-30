@@ -4,7 +4,7 @@ from itertools import count
 import struct
 import logging
 
-from artiq.gateware.rtio.analyzer_common import MessageType, ExceptionType
+from artiq.protocols.analyzer import MessageType, ExceptionType
 
 
 logger = logging.getLogger(__name__)
