@@ -41,14 +41,14 @@ class Controller:
         try:
             targets, _ = remote.get_rpc_id()
             remote.select_rpc_target(targets[0])
-            r = await getattr(remote, method)()
+            r = await getattr(remote, method)(*args, **kwargs)
         finally:
             remote.close_rpc()
         return r
 
     async def _ping(self):
         try:
-            ok = await asyncio.wait_for(self._call_controller("ping"),
+            ok = await asyncio.wait_for(self.call("ping"),
                                         self.ping_timeout)
             if ok:
                 self.retry_timer_cur = self.retry_timer
