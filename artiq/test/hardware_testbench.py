@@ -46,6 +46,7 @@ class ControllerCase(unittest.TestCase):
     def stop_controller(self, name, default_timeout=1):
         entry, proc = self.controllers[name]
         t = entry.get("term_timeout", default_timeout)
+        proc.terminate()
         try:
             proc.wait(t)
         except subprocess.TimeoutExpired:

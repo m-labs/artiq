@@ -65,6 +65,5 @@ class ControllerCase(unittest.TestCase):
         async def test():
             await self.start("lda_sim", entry)
             remote = await self.get_client(entry["host"], entry["port"])
-            await remote.close()
 
         self.loop.run_until_complete(test())

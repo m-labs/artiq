@@ -1,7 +1,7 @@
 import unittest
 import time
 
-from artiq.devices.thorlabs_tcube.driver import Tdc, Tpz, TdcSim, TpzSim
+from artiq.devices.thorlabs_tcube.driver import TdcSim, TpzSim
 from artiq.language.units import V
 from artiq.test.hardware_testbench import ControllerCase
 
