@@ -9,4 +9,4 @@ Release notes
   (and not ``from artiq import *`` as previously)
 * Core device flash storage has moved due to increased runtime size.
   This requires reflashing the runtime and the flash storage filesystem image
-  or its data.
+  or erase and rewrite its entries.
