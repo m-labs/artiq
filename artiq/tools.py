@@ -85,11 +85,11 @@ def file_import(filename, prefix="file_import_"):
 
     path = os.path.dirname(os.path.realpath(filename))
     sys.path.insert(0, path)
-
-    loader = importlib.machinery.SourceFileLoader(modname, filename)
-    module = loader.load_module()
-
-    sys.path.remove(path)
+    try:
+        loader = importlib.machinery.SourceFileLoader(modname, filename)
+        module = loader.load_module()
+    finally:
+        sys.path.remove(path)
 
     return module
 
