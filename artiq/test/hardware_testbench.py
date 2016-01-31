@@ -27,6 +27,8 @@ class ControllerCase(unittest.TestCase):
         self.controllers = {}
 
     def tearDown(self):
+        for name in self.controllers:
+            self.device_mgr.get(name).terminate()
         self.device_mgr.close_devices()
         for name in list(self.controllers):
             self.stop_controller(name)
