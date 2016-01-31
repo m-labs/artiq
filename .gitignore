@@ -6,6 +6,7 @@ __pycache__/
 *.bin
 *.elf
 *.fbi
+.ipynb_checkpoints
 /doc/manual/_build
 /build
 /dist
