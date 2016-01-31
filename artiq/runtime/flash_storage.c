@@ -14,7 +14,7 @@
 
 #if (defined CSR_SPIFLASH_BASE && defined CONFIG_SPIFLASH_PAGE_SIZE)
 
-#define STORAGE_ADDRESS ((char *)(FLASH_BOOT_ADDRESS + 256*1024))
+#define STORAGE_ADDRESS ((char *)(FLASH_BOOT_ADDRESS + 0x80000 /* max runtime size */))
 #define STORAGE_SIZE    CONFIG_SPIFLASH_SECTOR_SIZE
 #define END_MARKER      (0xFFFFFFFF)
 

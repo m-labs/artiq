@@ -58,7 +58,7 @@ def main():
             "bitstream": 0x000000,
             "bios": 0xaf0000,
             "runtime": 0xb00000,
-            "storage": 0xb40000,
+            "storage": 0xb80000,
         },
         "pipistrello": {
             "chip": "xc6slx45",
@@ -66,7 +66,7 @@ def main():
             "bitstream": 0x000000,
             "bios": 0x170000,
             "runtime": 0x180000,
-            "storage": 0x1c0000,
+            "storage": 0x200000,
         },
     }[opts.target]
 
