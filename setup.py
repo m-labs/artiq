@@ -13,7 +13,7 @@ if sys.version_info[:3] < (3, 5, 1):
 
 requirements = [
     "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
-    "python-dateutil", "prettytable", "h5py", "pydaqmx", "pyelftools",
+    "python-dateutil", "prettytable", "h5py", "pydaqmx",
     "quamash", "pyqtgraph", "pygit2", "aiohttp",
     "llvmlite_artiq", "pythonparser", "python-Levenshtein",
     "lit", "OutputCheck",
