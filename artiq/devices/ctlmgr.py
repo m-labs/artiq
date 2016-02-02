@@ -3,6 +3,7 @@ import logging
 import subprocess
 import shlex
 import socket
+import os
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols.pc_rpc import AsyncioClient
