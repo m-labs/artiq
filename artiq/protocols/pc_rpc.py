@@ -95,7 +95,9 @@ class Client:
         (default), ``0`` for non-blocking, and a finite value to raise
         ``socket.timeout`` if an operation does not complete within the
         given time. See also ``socket.create_connection()`` and
-        ``socket.settimeout()`` in the Python standard library.
+        ``socket.settimeout()`` in the Python standard library. A timeout
+        in the middle of a RPC can break subsequent RPCs (from the same
+        client).
     """
     def __init__(self, host, port, target_name=AutoTarget, timeout=None):
         self.__socket = socket.create_connection((host, port), timeout)
