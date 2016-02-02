@@ -5,7 +5,6 @@ import logging
 import subprocess
 import traceback
 import time
-from functools import partial
 
 from artiq.protocols import pipe_ipc, pyon
 from artiq.protocols.logging import LogParser
@@ -130,12 +129,13 @@ class Worker:
                 except ProcessLookupError:
                     pass
                 try:
-                    await asyncio.wait_for(self.ipc.process.wait(), term_timeout)
+                    await asyncio.wait_for(self.ipc.process.wait(),
+                                           term_timeout)
                     logger.debug("worker terminated (RID %s)", self.rid)
                     return
                 except asyncio.TimeoutError:
-                    logger.warning("worker did not terminate (RID %s), killing",
-                                   self.rid)
+                    logger.warning(
+                        "worker did not terminate (RID %s), killing", self.rid)
             try:
                 self.ipc.process.kill()
             except ProcessLookupError:
@@ -215,7 +215,8 @@ class Worker:
                 reply = {"status": "ok", "data": data}
             except Exception as e:
                 reply = {"status": "failed",
-                         "exception": traceback.format_exception_only(type(e), e)[0][:-1],
+                         "exception": traceback.format_exception_only(
+                             type(e), e)[0][:-1],
                          "message": str(e),
                          "traceback": traceback.format_tb(e.__traceback__)}
             await self.io_lock.acquire()
@@ -242,7 +243,8 @@ class Worker:
                 del self.watchdogs[-1]
         return completed
 
-    async def build(self, rid, pipeline_name, wd, expid, priority, timeout=15.0):
+    async def build(self, rid, pipeline_name, wd, expid, priority,
+                    timeout=15.0):
         self.rid = rid
         self.filename = os.path.basename(expid["file"])
         await self._create_process(expid["log_level"])
@@ -287,6 +289,7 @@ class Worker:
 
         await self._create_process(logging.WARNING)
         r = dict()
+
         def register(class_name, name, arginfo):
             r[class_name] = {"name": name, "arginfo": arginfo}
         self.register_experiment = register
