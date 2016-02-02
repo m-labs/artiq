@@ -12,7 +12,7 @@ if sys.version_info[:3] < (3, 5, 1):
 
 requirements = [
     "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
-    "python-dateutil", "prettytable", "h5py", "pydaqmx",
+    "python-dateutil", "prettytable", "h5py",
     "quamash", "pyqtgraph", "pygit2", "aiohttp",
     "llvmlite_artiq", "pythonparser", "python-Levenshtein",
     "lit", "OutputCheck",
@@ -36,7 +36,6 @@ scripts = [
     "novatech409b_controller=artiq.frontend.novatech409b_controller:main",
     "pdq2_client=artiq.frontend.pdq2_client:main",
     "pdq2_controller=artiq.frontend.pdq2_controller:main",
-    "pxi6733_controller=artiq.frontend.pxi6733_controller:main",
     "thorlabs_tcube_controller=artiq.frontend.thorlabs_tcube_controller:main",
 ]
 
