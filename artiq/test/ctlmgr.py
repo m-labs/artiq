@@ -1,4 +1,5 @@
 import os
+import sys
 import unittest
 import logging
 import asyncio
@@ -55,12 +56,13 @@ class ControllerCase(unittest.TestCase):
         raise asyncio.TimeoutError
 
     def test_start_ping_stop_controller(self):
+        command = sys.executable + " -m "
         entry = {
             "type": "controller",
             "host": "::1",
             "port": 3253,
-            "command": "lda_controller -p {port} --bind {bind} "
-                    "--no-localhost-bind --simulation",
+            "command": sys.executable + " -m artiq.frontend.lda_controller "
+                    "-p {port} --simulation"
         }
         async def test():
             await self.start("lda_sim", entry)
