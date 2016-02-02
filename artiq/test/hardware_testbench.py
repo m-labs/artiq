@@ -8,11 +8,13 @@ import logging
 import subprocess
 import shlex
 import time
+import socket
 
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager
 from artiq.coredevice.core import CompileError
 from artiq.frontend.artiq_run import DummyScheduler
+from artiq.protocols.pc_rpc import AutoTarget, Client
 
 
 artiq_root = os.getenv("ARTIQ_ROOT")
@@ -27,13 +29,13 @@ class ControllerCase(unittest.TestCase):
         self.controllers = {}
 
     def tearDown(self):
-        for name in self.controllers:
-            self.device_mgr.get(name).terminate()
         self.device_mgr.close_devices()
         for name in list(self.controllers):
             self.stop_controller(name)
 
     def start_controller(self, name, sleep=1):
+        if name in self.controllers:
+            raise ValueError("controller `{}` already started".format(name))
         try:
             entry = self.device_db.get(name)
         except KeyError:
@@ -46,15 +48,43 @@ class ControllerCase(unittest.TestCase):
         time.sleep(sleep)
 
     def stop_controller(self, name, default_timeout=1):
-        entry, proc = self.controllers[name]
-        t = entry.get("term_timeout", default_timeout)
-        proc.terminate()
+        desc, proc = self.controllers[name]
+        t = desc.get("term_timeout", default_timeout)
+        target_name = desc.get("target_name", None)
+        if target_name is None:
+            target_name = AutoTarget
         try:
-            proc.wait(t)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait(t)
-        del self.controllers[name]
+            try:
+                client = Client(desc["host"], desc["port"], target_name, t)
+                try:
+                    client.terminate()
+                finally:
+                    client.close_rpc()
+                proc.wait(t)
+                return
+            except (socket.timeout, subprocess.TimeoutExpired):
+                logger.warning("Controller %s failed to exit on request", name)
+            try:
+                proc.terminate()
+            except ProcessLookupError:
+                pass
+            try:
+                proc.wait(t)
+                return
+            except subprocess.TimeoutExpired:
+                logger.warning("Controller %s failed to exit on terminate",
+                               name)
+            try:
+                proc.kill()
+            except ProcessLookupError:
+                pass
+            try:
+                proc.wait(t)
+                return
+            except subprocess.TimeoutExpired:
+                logger.warning("Controller %s failed to die on kill", name)
+        finally:
+            del self.controllers[name]
 
 
 @unittest.skipUnless(artiq_root, "no ARTIQ_ROOT")
