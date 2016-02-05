@@ -10,6 +10,100 @@ from artiq.gui.tools import disable_scroll_wheel
 logger = logging.getLogger(__name__)
 
 
+class _StringEntry(QtGui.QLineEdit):
+    def __init__(self, argument):
+        QtGui.QLineEdit.__init__(self)
+        self.setText(argument["state"])
+        def update(text):
+            argument["state"] = text
+        self.textEdited.connect(update)
+
+    @staticmethod
+    def state_to_value(state):
+        return state
+
+    @staticmethod
+    def default_state(procdesc):
+        return procdesc.get("default", "")
+
+
+class _BooleanEntry(QtGui.QCheckBox):
+    def __init__(self, argument):
+        QtGui.QCheckBox.__init__(self)
+        self.setChecked(argument["state"])
+        def update(checked):
+            argument["state"] = bool(checked)
+        self.stateChanged.connect(update)
+
+    @staticmethod
+    def state_to_value(state):
+        return state
+
+    @staticmethod
+    def default_state(procdesc):
+        return procdesc.get("default", False)
+
+
+class _EnumerationEntry(QtGui.QComboBox):
+    def __init__(self, argument):
+        QtGui.QComboBox.__init__(self)
+        disable_scroll_wheel(self)
+        choices = argument["desc"]["choices"]
+        self.addItems(choices)
+        idx = choices.index(argument["state"])
+        self.setCurrentIndex(idx)
+        def update(index):
+            argument["state"] = choices[index]
+        self.currentIndexChanged.connect(update)
+
+    @staticmethod
+    def state_to_value(state):
+        return state
+
+    @staticmethod
+    def default_state(procdesc):
+        if "default" in procdesc:
+            return procdesc["default"]
+        else:
+            return procdesc["choices"][0]
+
+
+class _NumberEntry(QtGui.QDoubleSpinBox):
+    def __init__(self, argument):
+        QtGui.QDoubleSpinBox.__init__(self)
+        disable_scroll_wheel(self)
+        procdesc = argument["desc"]
+        scale = procdesc["scale"]
+        self.setDecimals(procdesc["ndecimals"])
+        self.setSingleStep(procdesc["step"]/scale)
+        if procdesc["min"] is not None:
+            self.setMinimum(procdesc["min"]/scale)
+        else:
+            self.setMinimum(float("-inf"))
+        if procdesc["max"] is not None:
+            self.setMaximum(procdesc["max"]/scale)
+        else:
+            self.setMaximum(float("inf"))
+        if procdesc["unit"]:
+            self.setSuffix(" " + procdesc["unit"])
+
+        self.setValue(argument["state"]/scale)
+        def update(value):
+            argument["state"] = value*scale
+        self.valueChanged.connect(update)
+
+    @staticmethod
+    def state_to_value(state):
+        return state
+
+    @staticmethod
+    def default_state(procdesc):
+        if "default" in procdesc:
+            return procdesc["default"]
+        else:
+            return 0.0
+
+
 class _NoScan(LayoutWidget):
     def __init__(self, procdesc, state):
         LayoutWidget.__init__(self)
@@ -38,7 +132,7 @@ class _NoScan(LayoutWidget):
         self.value.valueChanged.connect(update)
 
 
-class _Range(LayoutWidget):
+class _RangeScan(LayoutWidget):
     def __init__(self, procdesc, state):
         LayoutWidget.__init__(self)
 
@@ -90,7 +184,8 @@ class _Range(LayoutWidget):
         self.max.valueChanged.connect(update_max)
         self.npoints.valueChanged.connect(update_npoints)
 
-class _Explicit(LayoutWidget):
+
+class _ExplicitScan(LayoutWidget):
     def __init__(self, state):
         LayoutWidget.__init__(self)
 
@@ -109,7 +204,7 @@ class _Explicit(LayoutWidget):
         self.value.textEdited.connect(update)
 
 
-class ScanController(LayoutWidget):
+class _ScanEntry(LayoutWidget):
     def __init__(self, argument):
         LayoutWidget.__init__(self)
         self.argument = argument
@@ -121,9 +216,9 @@ class ScanController(LayoutWidget):
         state = argument["state"]
         self.widgets = OrderedDict()
         self.widgets["NoScan"] = _NoScan(procdesc, state["NoScan"])
-        self.widgets["LinearScan"] = _Range(procdesc, state["LinearScan"])
-        self.widgets["RandomScan"] = _Range(procdesc, state["RandomScan"])
-        self.widgets["ExplicitScan"] = _Explicit(state["ExplicitScan"])
+        self.widgets["LinearScan"] = _RangeScan(procdesc, state["LinearScan"])
+        self.widgets["RandomScan"] = _RangeScan(procdesc, state["RandomScan"])
+        self.widgets["ExplicitScan"] = _ExplicitScan(state["ExplicitScan"])
         for widget in self.widgets.values():
             self.stack.addWidget(widget)
 
@@ -181,3 +276,13 @@ class ScanController(LayoutWidget):
                 self.stack.setCurrentWidget(self.widgets[ty])
                 self.argument["state"]["selected"] = ty
                 break
+
+
+argty_to_entry = {
+    "PYONValue": _StringEntry,
+    "BooleanValue": _BooleanEntry,
+    "EnumerationValue": _EnumerationEntry,
+    "NumberValue": _NumberEntry,
+    "StringValue": _StringEntry,
+    "Scannable": _ScanEntry
+}

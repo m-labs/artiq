@@ -1,13 +1,8 @@
 import logging
 from functools import partial
 
-from quamash import QtGui, QtCore
+from quamash import QtGui, QtCore, QtWidgets
 from pyqtgraph import dockarea
-try:
-    from quamash import QtWidgets
-    QShortcut = QtWidgets.QShortcut
-except:
-    QShortcut = QtGui.QShortcut
 
 
 logger = logging.getLogger(__name__)
@@ -66,7 +61,7 @@ class ShortcutsDock(dockarea.Dock):
                 "open": open,
                 "submit": submit
             }
-            shortcut = QShortcut("F" + str(i+1), main_window)
+            shortcut = QtWidgets.QShortcut("F" + str(i+1), main_window)
             shortcut.setContext(QtCore.Qt.ApplicationShortcut)
             shortcut.activated.connect(partial(self._activated, i))
 

@@ -7,115 +7,11 @@ from quamash import QtGui, QtCore
 
 from pyqtgraph import dockarea, LayoutWidget
 
-from artiq.gui.tools import log_level_to_name, disable_scroll_wheel
-from artiq.gui.scan import ScanController
+from artiq.gui.tools import log_level_to_name
+from artiq.gui.entries import argty_to_entry
 
 
 logger = logging.getLogger(__name__)
-
-
-class _StringEntry(QtGui.QLineEdit):
-    def __init__(self, argument):
-        QtGui.QLineEdit.__init__(self)
-        self.setText(argument["state"])
-        def update(text):
-            argument["state"] = text
-        self.textEdited.connect(update)
-
-    @staticmethod
-    def state_to_value(state):
-        return state
-
-    @staticmethod
-    def default_state(procdesc):
-        return procdesc.get("default", "")
-
-
-class _BooleanEntry(QtGui.QCheckBox):
-    def __init__(self, argument):
-        QtGui.QCheckBox.__init__(self)
-        self.setChecked(argument["state"])
-        def update(checked):
-            argument["state"] = bool(checked)
-        self.stateChanged.connect(update)
-
-    @staticmethod
-    def state_to_value(state):
-        return state
-
-    @staticmethod
-    def default_state(procdesc):
-        return procdesc.get("default", False)
-
-
-class _EnumerationEntry(QtGui.QComboBox):
-    def __init__(self, argument):
-        QtGui.QComboBox.__init__(self)
-        disable_scroll_wheel(self)
-        choices = argument["desc"]["choices"]
-        self.addItems(choices)
-        idx = choices.index(argument["state"])
-        self.setCurrentIndex(idx)
-        def update(index):
-            argument["state"] = choices[index]
-        self.currentIndexChanged.connect(update)
-
-    @staticmethod
-    def state_to_value(state):
-        return state
-
-    @staticmethod
-    def default_state(procdesc):
-        if "default" in procdesc:
-            return procdesc["default"]
-        else:
-            return procdesc["choices"][0]
-
-
-class _NumberEntry(QtGui.QDoubleSpinBox):
-    def __init__(self, argument):
-        QtGui.QDoubleSpinBox.__init__(self)
-        disable_scroll_wheel(self)
-        procdesc = argument["desc"]
-        scale = procdesc["scale"]
-        self.setDecimals(procdesc["ndecimals"])
-        self.setSingleStep(procdesc["step"]/scale)
-        if procdesc["min"] is not None:
-            self.setMinimum(procdesc["min"]/scale)
-        else:
-            self.setMinimum(float("-inf"))
-        if procdesc["max"] is not None:
-            self.setMaximum(procdesc["max"]/scale)
-        else:
-            self.setMaximum(float("inf"))
-        if procdesc["unit"]:
-            self.setSuffix(" " + procdesc["unit"])
-
-        self.setValue(argument["state"]/scale)
-        def update(value):
-            argument["state"] = value*scale
-        self.valueChanged.connect(update)
-
-    @staticmethod
-    def state_to_value(state):
-        return state
-
-    @staticmethod
-    def default_state(procdesc):
-        if "default" in procdesc:
-            return procdesc["default"]
-        else:
-            return 0.0
-
-
-_argty_to_entry = {
-    "PYONValue": _StringEntry,
-    "BooleanValue": _BooleanEntry,
-    "EnumerationValue": _EnumerationEntry,
-    "NumberValue": _NumberEntry,
-    "StringValue": _StringEntry,
-    "Scannable": ScanController
-}
 
 
 # Experiment URLs come in two forms:
@@ -153,7 +49,7 @@ class _ArgumentEditor(QtGui.QTreeWidget):
             self.addTopLevelItem(QtGui.QTreeWidgetItem(["No arguments"]))
 
         for name, argument in arguments.items():
-            entry = _argty_to_entry[argument["desc"]["ty"]](argument)
+            entry = argty_to_entry[argument["desc"]["ty"]](argument)
             widget_item = QtGui.QTreeWidgetItem([name])
             self._arg_to_entry_widgetitem[name] = entry, widget_item
 
@@ -211,14 +107,14 @@ class _ArgumentEditor(QtGui.QTreeWidget):
         argument = self.manager.get_submission_arguments(self.expurl)[name]
 
         procdesc = arginfo[name][0]
-        state = _argty_to_entry[procdesc["ty"]].default_state(procdesc)
+        state = argty_to_entry[procdesc["ty"]].default_state(procdesc)
         argument["desc"] = procdesc
         argument["state"] = state
 
         old_entry, widget_item = self._arg_to_entry_widgetitem[name]
         old_entry.deleteLater()
 
-        entry = _argty_to_entry[procdesc["ty"]](argument)
+        entry = argty_to_entry[procdesc["ty"]](argument)
         self._arg_to_entry_widgetitem[name] = entry, widget_item
         self.setItemWidget(widget_item, 1, entry)
 
@@ -466,7 +362,7 @@ class ExperimentManager:
     def initialize_submission_arguments(self, expurl, arginfo):
         arguments = OrderedDict()
         for name, (procdesc, group) in arginfo.items():
-            state = _argty_to_entry[procdesc["ty"]].default_state(procdesc)
+            state = argty_to_entry[procdesc["ty"]].default_state(procdesc)
             arguments[name] = {
                 "desc": procdesc,
                 "group": group,
@@ -512,7 +408,7 @@ class ExperimentManager:
 
         argument_values = dict()
         for name, argument in arguments.items():
-            entry_cls = _argty_to_entry[argument["desc"]["ty"]]
+            entry_cls = argty_to_entry[argument["desc"]["ty"]]
             argument_values[name] = entry_cls.state_to_value(argument["state"])
 
         expid = {
