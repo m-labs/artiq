@@ -61,9 +61,9 @@ class AppletIPCServer(AsyncioParentComm):
                                 self.datasets_sub.model.backing_store)
                             self.write_pyon({"action": "mod", "mod": mod})
                     else:
-                        raise ValueError("unknown action in applet request")
+                        raise ValueError("unknown action in applet message")
                 except:
-                    logger.warning("error processing applet request",
+                    logger.warning("error processing applet message",
                                    exc_info=True)
                     self.write_pyon({"action": "error"})
         except asyncio.CancelledError:

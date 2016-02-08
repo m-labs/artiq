@@ -53,9 +53,9 @@ class AppletIPCClient(AsyncioChildComm):
                         process_mod(data, mod)
                     self.mod_cb(mod)
                 else:
-                    raise ValueError("unknown action in applet request")
+                    raise ValueError("unknown action in parent message")
             except:
-                logger.error("error processing applet request",
+                logger.error("error processing parent message",
                                exc_info=True)
                 self.close_cb()
 
