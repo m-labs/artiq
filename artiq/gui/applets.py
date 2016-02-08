@@ -248,9 +248,10 @@ class AppletsDock(dockarea.Dock):
         del self.dock_to_checkbox[dock]
         checkbox_item.setCheckState(QtCore.Qt.Unchecked)
 
-    def new(self):
-        uid = next(iter(set(range(len(self.applet_uids) + 1))
-                        - self.applet_uids))
+    def new(self, uid=None):
+        if uid is None:
+            uid = next(iter(set(range(len(self.applet_uids) + 1))
+                            - self.applet_uids))
         self.applet_uids.add(uid)
 
         row = self.table.rowCount()
@@ -301,16 +302,17 @@ class AppletsDock(dockarea.Dock):
     def save_state(self):
         state = []
         for row in range(self.table.rowCount()):
+            uid = self.table.item(row, 0).applet_uid
             enabled = self.table.item(row, 0).checkState() == QtCore.Qt.Checked
             name = self.table.item(row, 1).text()
             command = self.table.item(row, 2).text()
-            state.append((enabled, name, command))
+            state.append((uid, enabled, name, command))
         return state
 
     def restore_state(self, state):
         self.workaround_pyqtgraph_bug = True
-        for enabled, name, command in state:
-            row = self.new()
+        for uid, enabled, name, command in state:
+            row = self.new(uid)
             item = QtWidgets.QTableWidgetItem()
             item.setText(name)
             self.table.setItem(row, 1, item)
