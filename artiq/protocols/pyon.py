@@ -35,6 +35,7 @@ _encode_map = {
     bytes: "bytes",
     tuple: "tuple",
     list: "list",
+    set: "set",
     dict: "dict",
     wrapping_int: "number",
     Fraction: "fraction",
@@ -98,6 +99,12 @@ class _Encoder:
         r += "]"
         return r
 
+    def encode_set(self, x):
+        r = "{"
+        r += ", ".join([self.encode(item) for item in x])
+        r += "}"
+        return r
+
     def encode_dict(self, x):
         r = "{"
         if not self.pretty or len(x) < 2:
@@ -149,9 +156,7 @@ class _Encoder:
 
 def encode(x, pretty=False):
     """Serializes a Python object and returns the corresponding string in
-    Python syntax.
-
-    """
+    Python syntax."""
     return _Encoder(pretty).encode(x)
 
 
@@ -181,9 +186,7 @@ _eval_dict = {
 
 def decode(s):
     """Parses a string in the Python syntax, reconstructs the corresponding
-    object, and returns it.
-
-    """
+    object, and returns it."""
     return eval(s, _eval_dict, {})
 
 
