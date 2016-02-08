@@ -137,15 +137,15 @@ class AppletDock(dockarea.Dock):
 
 _templates = [
     ("Big number", "{python} -m artiq.applets.big_number "
-                   "embedded {ipc_address} NUMBER_DATASET"),
+                   "--embed {ipc_address} NUMBER_DATASET"),
     ("Histogram", "{python} -m artiq.applets.plot_hist "
-                  "embedded {ipc_address} COUNTS_DATASET "
+                  "--embed {ipc_address} COUNTS_DATASET "
                   "--x BIN_BOUNDARIES_DATASET"),
     ("XY", "{python} -m artiq.applets.plot_xy "
-           "embedded {ipc_address} Y_DATASET --x X_DATASET "
+           "--embed {ipc_address} Y_DATASET --x X_DATASET "
            "--error ERROR_DATASET --fit FIT_DATASET"),
     ("XY + Histogram", "{python} -m artiq.applets.plot_xy_hist "
-                       "embedded {ipc_address} X_DATASET "
+                       "--embed {ipc_address} X_DATASET "
                        "HIST_BIN_BOUNDARIES_DATASET "
                        "HISTS_COUNTS_DATASET"),
 ]

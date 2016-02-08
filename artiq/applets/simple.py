@@ -79,24 +79,20 @@ class SimpleApplet:
             help="time to wait after a mod (buffering other mods) "
                   "before updating (default: %(default).2f)")
 
-        self._arggroup_datasets = self.argparser.add_argument_group("datasets")
-
-        subparsers = self.argparser.add_subparsers(dest="mode")
-        subparsers.required = True
-
-        parser_sa = subparsers.add_parser("standalone",
-            help="run standalone, connect to master directly")
-        parser_sa.add_argument(
+        group = self.argparser.add_argument_group("standalone mode (default)")
+        group.add_argument(
             "--server", default="::1",
-            help="hostname or IP to connect to")
-        parser_sa.add_argument(
+            help="hostname or IP of the master to connect to "
+                 "for dataset notifications "
+                 "(ignored in embedded mode)")
+        group.add_argument(
             "--port", default=3250, type=int,
             help="TCP port to connect to")
 
-        parser_em = subparsers.add_parser("embedded",
-            help="embed into GUI")
-        parser_em.add_argument("ipc_address",
-            help="address for pipe_ipc")
+        self.argparser.add_argument("--embed", default=None,
+            help="embed into GUI", metavar="IPC_ADDRESS")
+
+        self._arggroup_datasets = self.argparser.add_argument_group("datasets")
 
         self.dataset_args = set()
 
@@ -121,23 +117,13 @@ class SimpleApplet:
         asyncio.set_event_loop(self.loop)
 
     def ipc_init(self):
-        if self.args.mode == "standalone":
-            # nothing to do
-            pass
-        elif self.args.mode == "embedded":
-            self.ipc = AppletIPCClient(self.args.ipc_address)
+        if self.args.embed is not None:
+            self.ipc = AppletIPCClient(self.args.embed)
             self.loop.run_until_complete(self.ipc.connect())
-        else:
-            raise NotImplementedError
 
     def ipc_close(self):
-        if self.args.mode == "standalone":
-            # nothing to do
-            pass
-        elif self.args.mode == "embedded":
+        if self.args.embed is not None:
             self.ipc.close()
-        else:
-            raise NotImplementedError
 
     def create_main_widget(self):
         self.main_widget = self.main_widget_class(self.args)
@@ -149,7 +135,7 @@ class SimpleApplet:
         # 4. applet shows the widget
         # Doing embedding the other way around (using QWindow.setParent in the
         # applet) breaks resizing.
-        if self.args.mode == "embedded":
+        if self.args.embed is not None:
             self.ipc.set_close_cb(self.main_widget.close)
             win_id = int(self.main_widget.winId())
             self.loop.run_until_complete(self.ipc.embed(win_id))
@@ -160,7 +146,7 @@ class SimpleApplet:
         return data
 
     def filter_mod(self, mod):
-        if self.args.mode == "embedded":
+        if self.args.embed is not None:
             # the parent already filters for us
             return True
 
@@ -192,24 +178,17 @@ class SimpleApplet:
             self.main_widget.data_changed(self.data, [mod])
 
     def subscribe(self):
-        if self.args.mode == "standalone":
+        if self.args.embed is None:
             self.subscriber = Subscriber("datasets",
                                          self.sub_init, self.sub_mod)
             self.loop.run_until_complete(self.subscriber.connect(
-                self.args.server_notify, self.args.port_notify))
-        elif self.args.mode == "embedded":
-            self.ipc.subscribe(self.datasets, self.sub_init, self.sub_mod)
+                self.args.server, self.args.port))
         else:
-            raise NotImplementedError
+            self.ipc.subscribe(self.datasets, self.sub_init, self.sub_mod)
 
     def unsubscribe(self):
-        if self.args.mode == "standalone":
+        if self.args.embed is None:
             self.loop.run_until_complete(self.subscriber.close())
-        elif self.args.mode == "embedded":
-            # nothing to do
-            pass
-        else:
-            raise NotImplementedError
 
     def run(self):
         self.args_init()
