@@ -202,23 +202,3 @@ def load_file(filename):
     """Parses the specified file and returns the decoded Python object."""
     with open(filename, "r") as f:
         return decode(f.read())
-
-
-class FlatFileDB:
-    def __init__(self, filename):
-        self.filename = filename
-        self.data = pyon.load_file(self.filename)
-
-    def save(self):
-        pyon.store_file(self.filename, self.data)
-
-    def get(self, key):
-        return self.data[key]
-
-    def set(self, key, value):
-        self.data[key] = value
-        self.save()
-
-    def delete(self, key):
-        del self.data[key]
-        self.save()
