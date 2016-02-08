@@ -9,11 +9,6 @@ from pyqtgraph import dockarea, LayoutWidget
 
 from artiq.gui.tools import log_level_to_name
 
-try:
-    QSortFilterProxyModel = QtCore.QSortFilterProxyModel
-except AttributeError:
-    QSortFilterProxyModel = QtGui.QSortFilterProxyModel
-
 
 def _make_wrappable(row, width=30):
     level, source, time, msg = row
@@ -34,8 +29,7 @@ class Model(QtCore.QAbstractTableModel):
         timer.timeout.connect(self.timer_tick)
         timer.start(100)
 
-        self.fixed_font = QtGui.QFont()
-        self.fixed_font.setFamily("Monospace")
+        self.fixed_font = QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.FixedFont)
 
         self.white = QtGui.QBrush(QtGui.QColor(255, 255, 255))
         self.black = QtGui.QBrush(QtGui.QColor(0, 0, 0))
@@ -114,9 +108,9 @@ class Model(QtCore.QAbstractTableModel):
                     time.strftime("%m/%d %H:%M:%S", time.localtime(v[2])))
 
 
-class _LogFilterProxyModel(QSortFilterProxyModel):
+class _LogFilterProxyModel(QtCore.QSortFilterProxyModel):
     def __init__(self, min_level, freetext):
-        QSortFilterProxyModel.__init__(self)
+        QtCore.QSortFilterProxyModel.__init__(self)
         self.min_level = min_level
         self.freetext = freetext
 
