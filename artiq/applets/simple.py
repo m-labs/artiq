@@ -4,7 +4,25 @@ import asyncio
 from quamash import QEventLoop, QtWidgets, QtGui, QtCore
 
 from artiq.protocols.sync_struct import Subscriber
-from artiq.protocols.pc_rpc import Client
+from artiq.protocols import pyon
+from artiq.protocols.pipe_ipc import AsyncioChildComm
+
+
+class AppletIPCClient(AsyncioChildComm):
+    def write_pyon(self, obj):
+        self.write(pyon.encode(obj).encode() + b"\n")
+
+    async def read_pyon(self):
+        line = await self.readline()
+        return pyon.decode(line.decode())
+
+    async def embed(self, win_id):
+        self.write_pyon({"action": "embed",
+                         "win_id": win_id})
+        reply = await self.read_pyon()
+        if reply["action"] != "embed_done":
+            raise ValueError("Got erroneous reply to embed request",
+                             reply)
 
 
 class SimpleApplet:
@@ -13,27 +31,31 @@ class SimpleApplet:
         self.main_widget_class = main_widget_class
 
         self.argparser = argparse.ArgumentParser(description=cmd_description)
+
         self.argparser.add_argument("--update-delay", type=float,
             default=default_update_delay,
             help="time to wait after a mod (buffering other mods) "
                   "before updating (default: %(default).2f)")
-        group = self.argparser.add_argument_group("data server")
-        group.add_argument(
-            "--server-notify", default="::1",
-            help="hostname or IP to connect to for dataset notifications")
-        group.add_argument(
-            "--port-notify", default=3250, type=int,
-            help="TCP port to connect to for dataset notifications")
-        group = self.argparser.add_argument_group("GUI server")
-        group.add_argument(
-            "--server-gui", default="::1",
-            help="hostname or IP to connect to for GUI control")
-        group.add_argument(
-            "--port-gui", default=6501, type=int,
-            help="TCP port to connect to for GUI control")
-        group.add_argument("--embed", default=None, type=int,
-            help="embed main widget into existing window")
+
         self._arggroup_datasets = self.argparser.add_argument_group("datasets")
+
+        subparsers = self.argparser.add_subparsers(dest="mode")
+        subparsers.required = True
+
+        parser_sa = subparsers.add_parser("standalone",
+            help="run standalone, connect to master directly")
+        parser_sa.add_argument(
+            "--server", default="::1",
+            help="hostname or IP to connect to")
+        parser_sa.add_argument(
+            "--port", default=3250, type=int,
+            help="TCP port to connect to")
+
+        parser_em = subparsers.add_parser("embedded",
+            help="embed into GUI")
+        parser_em.add_argument("ipc_address",
+            help="address for pipe_ipc")
+
         self.dataset_args = set()
 
     def add_dataset(self, name, help=None, required=True):
@@ -56,6 +78,25 @@ class SimpleApplet:
         self.loop = QEventLoop(app)
         asyncio.set_event_loop(self.loop)
 
+    def ipc_init(self):
+        if self.args.mode == "standalone":
+            # nothing to do
+            pass
+        elif self.args.mode == "embedded":
+            self.ipc = AppletIPCClient(self.args.ipc_address)
+            self.loop.run_until_complete(self.ipc.connect())
+        else:
+            raise NotImplementedError
+
+    def ipc_close(self):
+        if self.args.mode == "standalone":
+            # nothing to do
+            pass
+        elif self.args.mode == "embedded":
+            self.ipc.close()
+        else:
+            raise NotImplementedError
+
     def create_main_widget(self):
         self.main_widget = self.main_widget_class(self.args)
         # Qt window embedding is ridiculously buggy, and empirical testing
@@ -65,15 +106,10 @@ class SimpleApplet:
         # 3. applet sends the ID to host, host embeds the widget
         # 4. applet shows the widget
         # Doing embedding the other way around (using QWindow.setParent in the
-        # applet) breaks resizing; furthermore the host needs to know our
-        # window ID to request graceful termination by closing the window.
-        if self.args.embed is not None:
+        # applet) breaks resizing.
+        if self.args.mode == "embedded":
             win_id = int(self.main_widget.winId())
-            remote = Client(self.args.server_gui, self.args.port_gui, "applets")
-            try:
-                remote.embed(self.args.embed, win_id)
-            finally:
-                remote.close_rpc()
+            self.loop.run_until_complete(self.ipc.embed(win_id))
         self.main_widget.show()
 
     def sub_init(self, data):
@@ -81,6 +117,10 @@ class SimpleApplet:
         return data
 
     def filter_mod(self, mod):
+        if self.args.mode == "embedded":
+            # the parent already filters for us
+            return True
+
         if mod["action"] == "init":
             return True
         if mod["path"]:
@@ -108,21 +148,40 @@ class SimpleApplet:
         else:
             self.main_widget.data_changed(self.data, [mod])
 
-    def create_subscriber(self):
-        self.subscriber = Subscriber("datasets",
-                                     self.sub_init, self.sub_mod)
-        self.loop.run_until_complete(self.subscriber.connect(
-            self.args.server_notify, self.args.port_notify))
+    def subscribe(self):
+        if self.args.mode == "standalone":
+            self.subscriber = Subscriber("datasets",
+                                         self.sub_init, self.sub_mod)
+            self.loop.run_until_complete(self.subscriber.connect(
+                self.args.server_notify, self.args.port_notify))
+        elif self.args.mode == "embedded":
+            # TODO
+            pass
+        else:
+            raise NotImplementedError
+
+    def unsubscribe(self):
+        if self.args.mode == "standalone":
+            self.loop.run_until_complete(self.subscriber.close())
+        elif self.args.mode == "embedded":
+            # nothing to do
+            pass
+        else:
+            raise NotImplementedError
 
     def run(self):
         self.args_init()
         self.quamash_init()
         try:
-            self.create_main_widget()
-            self.create_subscriber()
+            self.ipc_init()
             try:
-                self.loop.run_forever()
+                self.create_main_widget()
+                self.subscribe()
+                try:
+                    self.loop.run_forever()
+                finally:
+                    self.unsubscribe()
             finally:
-                self.loop.run_until_complete(self.subscriber.close())
+                self.ipc_close()
         finally:
             self.loop.close()
