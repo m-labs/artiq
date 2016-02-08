@@ -1,6 +1,7 @@
 #!/usr/bin/env python3.5
 
 import numpy as np
+import PyQt5  # make sure pyqtgraph imports Qt5
 import pyqtgraph
 
 from artiq.applets.simple import SimpleApplet

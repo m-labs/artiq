@@ -7,17 +7,88 @@ from functools import partial
 from quamash import QtCore, QtGui, QtWidgets
 from pyqtgraph import dockarea
 
+from artiq.protocols.pipe_ipc import AsyncioParentComm
+from artiq.protocols import pyon
+
 
 logger = logging.getLogger(__name__)
 
 
+class AppletIPCServer(AsyncioParentComm):
+    def __init__(self, datasets_sub):
+        AsyncioParentComm.__init__(self)
+        self.datasets_sub = datasets_sub
+        self.datasets = set()
+
+    def write_pyon(self, obj):
+        self.write(pyon.encode(obj).encode() + b"\n")
+
+    async def read_pyon(self):
+        line = await self.readline()
+        return pyon.decode(line.decode())
+
+    def _synthesize_init(self, data):
+        struct = {k: v for k, v in data.items() if k in self.datasets}
+        return {"action": "init",
+                "struct": struct}
+
+    def _on_mod(self, mod):
+        if mod["action"] == "init":
+            mod = self._synthesize_init(mod["struct"])
+        else:
+            if mod["path"]:
+                if mod["path"][0] not in self.datasets:
+                    return
+            elif mod["action"] in {"setitem", "delitem"}:
+                if mod["key"] not in self.datasets:
+                    return
+        self.write_pyon({"action": "mod", "mod": mod})
+
+    async def serve(self, embed_cb):
+        self.datasets_sub.notify_cbs.append(self._on_mod)
+        try:
+            while True:
+                obj = await self.read_pyon()
+                try:
+                    action = obj["action"]
+                    if action == "embed":
+                        embed_cb(obj["win_id"])
+                        self.write_pyon({"action": "embed_done"})
+                    elif action == "subscribe":
+                        self.datasets = obj["datasets"]
+                        if self.datasets_sub.model is not None:
+                            mod = self._synthesize_init(
+                                self.datasets_sub.model.backing_store)
+                            self.write_pyon({"action": "mod", "mod": mod})
+                    else:
+                        raise ValueError("unknown action in applet message")
+                except:
+                    logger.warning("error processing applet message",
+                                   exc_info=True)
+                    self.write_pyon({"action": "error"})
+        except asyncio.CancelledError:
+            pass
+        except:
+            logger.error("error processing data from applet, "
+                         "server stopped", exc_info=True)
+        finally:
+            self.datasets_sub.notify_cbs.remove(self._on_mod)
+
+    def start(self, embed_cb):
+        self.server_task = asyncio.ensure_future(self.serve(embed_cb))
+
+    async def stop(self):
+        self.server_task.cancel()
+        await asyncio.wait([self.server_task])
+
+
 class AppletDock(dockarea.Dock):
-    def __init__(self, token, name, command):
-        dockarea.Dock.__init__(self, "applet" + str(token),
+    def __init__(self, datasets_sub, uid, name, command):
+        dockarea.Dock.__init__(self, "applet" + str(uid),
                                label="Applet: " + name,
                                closable=True)
         self.setMinimumSize(QtCore.QSize(500, 400))
-        self.token = token
+        self.datasets_sub = datasets_sub
         self.applet_name = name
         self.command = command
 
@@ -26,41 +97,38 @@ class AppletDock(dockarea.Dock):
         self.label.setText("Applet: " + name)
 
     async def start(self):
+        self.ipc = AppletIPCServer(self.datasets_sub)
         command = self.command.format(python=sys.executable,
-                                      embed_token=self.token)
+                                      ipc_address=self.ipc.get_address())
         logger.debug("starting command %s for %s", command, self.applet_name)
         try:
-            self.process = await asyncio.create_subprocess_exec(
-                                *shlex.split(command))
+            await self.ipc.create_subprocess(*shlex.split(command))
         except:
             logger.warning("Applet %s failed to start", self.applet_name,
                            exc_info=True)
+        self.ipc.start(self.embed)
 
-    def capture(self, win_id):
+    def embed(self, win_id):
         logger.debug("capturing window 0x%x for %s", win_id, self.applet_name)
-        self.captured_window = QtGui.QWindow.fromWinId(win_id)
-        self.captured_widget = QtWidgets.QWidget.createWindowContainer(
-            self.captured_window)
-        self.addWidget(self.captured_widget)
+        embed_window = QtGui.QWindow.fromWinId(win_id)
+        embed_widget = QtWidgets.QWidget.createWindowContainer(embed_window)
+        self.addWidget(embed_widget)
 
     async def terminate(self):
-        if hasattr(self, "captured_window"):
-            self.captured_window.close()
-            self.captured_widget.deleteLater()
-            del self.captured_window
-            del self.captured_widget
-        if hasattr(self, "process"):
+        if hasattr(self, "ipc"):
+            await self.ipc.stop()
+            self.ipc.write_pyon({"action": "terminate"})
             try:
-                await asyncio.wait_for(self.process.wait(), 2.0)
+                await asyncio.wait_for(self.ipc.process.wait(), 2.0)
             except:
                 logger.warning("Applet %s failed to exit, killing",
                                self.applet_name)
                 try:
-                    self.process.kill()
+                    self.ipc.process.kill()
                 except ProcessLookupError:
                     pass
-                await self.process.wait()
-            del self.process
+                await self.ipc.process.wait()
+            del self.ipc
 
     async def restart(self):
         await self.terminate()
@@ -69,24 +137,27 @@ class AppletDock(dockarea.Dock):
 
 _templates = [
     ("Big number", "{python} -m artiq.applets.big_number "
-                   "--embed {embed_token} NUMBER_DATASET"),
+                   "--embed {ipc_address} NUMBER_DATASET"),
     ("Histogram", "{python} -m artiq.applets.plot_hist "
-                  "--embed {embed_token} COUNTS_DATASET "
+                  "--embed {ipc_address} COUNTS_DATASET "
                   "--x BIN_BOUNDARIES_DATASET"),
     ("XY", "{python} -m artiq.applets.plot_xy "
-           "--embed {embed_token} Y_DATASET --x X_DATASET "
+           "--embed {ipc_address} Y_DATASET --x X_DATASET "
            "--error ERROR_DATASET --fit FIT_DATASET"),
     ("XY + Histogram", "{python} -m artiq.applets.plot_xy_hist "
-                       "--embed {embed_token} X_DATASET "
+                       "--embed {ipc_address} X_DATASET "
                        "HIST_BIN_BOUNDARIES_DATASET "
                        "HISTS_COUNTS_DATASET"),
 ]
 
 
 class AppletsDock(dockarea.Dock):
-    def __init__(self, manager):
-        self.manager = manager
-        self.token_to_checkbox = dict()
+    def __init__(self, dock_area, datasets_sub):
+        self.dock_area = dock_area
+        self.datasets_sub = datasets_sub
+        self.dock_to_checkbox = dict()
+        self.applet_uids = set()
+        self.workaround_pyqtgraph_bug = False
 
         dockarea.Dock.__init__(self, "Applets")
         self.setMinimumSize(QtCore.QSize(850, 450))
@@ -129,6 +200,18 @@ class AppletsDock(dockarea.Dock):
 
         self.table.cellChanged.connect(self.cell_changed)
 
+    def create(self, uid, name, command):
+        dock = AppletDock(self.datasets_sub, uid, name, command)
+        # If a dock is floated and then dock state is restored, pyqtgraph
+        # leaves a "phantom" window open.
+        if self.workaround_pyqtgraph_bug:
+            self.dock_area.addDock(dock)
+        else:
+            self.dock_area.floatDock(dock)
+        asyncio.ensure_future(dock.start())
+        dock.sigClosed.connect(partial(self.on_dock_closed, dock))
+        return dock
+
     def cell_changed(self, row, column):
         if column == 0:
             item = self.table.item(row, column)
@@ -141,30 +224,36 @@ class AppletsDock(dockarea.Dock):
                         name = ""
                     else:
                         name = name.text()
-                    token = self.manager.create(name, command)
-                    item.applet_token = token
-                    self.token_to_checkbox[token] = item
+                    dock = self.create(item.applet_uid, name, command)
+                    item.applet_dock = dock
+                    self.dock_to_checkbox[dock] = item
             else:
-                token = getattr(item, "applet_token", None)
-                if token is not None:
-                    # cell_changed is emitted at row creation
-                    self.manager.delete(token)
+                dock = item.applet_dock
+                if dock is not None:
+                    # This calls self.on_dock_closed
+                    dock.close()
         elif column == 1 or column == 2:
             new_value = self.table.item(row, column).text()
-            token = getattr(self.table.item(row, 0), "applet_token", None)
-            if token is not None:
+            dock = self.table.item(row, 0).applet_dock
+            if dock is not None:
                 if column == 1:
-                    self.manager.rename(token, new_value)
+                    dock.rename(new_value)
                 else:
-                    self.manager.set_command(token, new_value)
+                    dock.command = new_value
 
-    def disable_token(self, token):
-        checkbox_item = self.token_to_checkbox[token]
-        checkbox_item.applet_token = None
-        del self.token_to_checkbox[token]
+    def on_dock_closed(self, dock):
+        asyncio.ensure_future(dock.terminate())
+        checkbox_item = self.dock_to_checkbox[dock]
+        checkbox_item.applet_dock = None
+        del self.dock_to_checkbox[dock]
         checkbox_item.setCheckState(QtCore.Qt.Unchecked)
 
-    def new(self):
+    def new(self, uid=None):
+        if uid is None:
+            uid = next(iter(set(range(len(self.applet_uids) + 1))
+                            - self.applet_uids))
+        self.applet_uids.add(uid)
+
         row = self.table.rowCount()
         self.table.insertRow(row)
         checkbox = QtWidgets.QTableWidgetItem()
@@ -172,6 +261,8 @@ class AppletsDock(dockarea.Dock):
                           QtCore.Qt.ItemIsUserCheckable |
                           QtCore.Qt.ItemIsEnabled)
         checkbox.setCheckState(QtCore.Qt.Unchecked)
+        checkbox.applet_uid = uid
+        checkbox.applet_dock = None
         self.table.setItem(row, 0, checkbox)
         self.table.setItem(row, 1, QtWidgets.QTableWidgetItem())
         self.table.setItem(row, 2, QtWidgets.QTableWidgetItem())
@@ -185,31 +276,43 @@ class AppletsDock(dockarea.Dock):
         selection = self.table.selectedRanges()
         if selection:
             row = selection[0].topRow()
-            token = getattr(self.table.item(row, 0), "applet_token", None)
-            if token is not None:
-                asyncio.ensure_future(self.manager.restart(token))
+            dock = self.table.item(row, 0).applet_dock
+            if dock is not None:
+                asyncio.ensure_future(dock.restart())
 
     def delete(self):
         selection = self.table.selectedRanges()
         if selection:
             row = selection[0].topRow()
-            token = getattr(self.table.item(row, 0), "applet_token", None)
-            if token is not None:
-                self.manager.delete(token)
+            item = self.table.item(row, 0)
+            dock = item.applet_dock
+            if dock is not None:
+                # This calls self.on_dock_closed
+                dock.close()
+            self.applet_uids.remove(item.applet_uid)
             self.table.removeRow(row)
+
+
+    async def stop(self):
+        for row in range(self.table.rowCount()):
+            dock = self.table.item(row, 0).applet_dock
+            if dock is not None:
+                await dock.terminate()
 
     def save_state(self):
         state = []
         for row in range(self.table.rowCount()):
+            uid = self.table.item(row, 0).applet_uid
             enabled = self.table.item(row, 0).checkState() == QtCore.Qt.Checked
             name = self.table.item(row, 1).text()
             command = self.table.item(row, 2).text()
-            state.append((enabled, name, command))
+            state.append((uid, enabled, name, command))
         return state
 
     def restore_state(self, state):
-        for enabled, name, command in state:
-            row = self.new()
+        self.workaround_pyqtgraph_bug = True
+        for uid, enabled, name, command in state:
+            row = self.new(uid)
             item = QtWidgets.QTableWidgetItem()
             item.setText(name)
             self.table.setItem(row, 1, item)
@@ -218,72 +321,4 @@ class AppletsDock(dockarea.Dock):
             self.table.setItem(row, 2, item)
             if enabled:
                 self.table.item(row, 0).setCheckState(QtCore.Qt.Checked)
-
-
-class AppletManagerRPC:
-    def __init__(self, parent):
-        self.parent = parent
-
-    def embed(self, token, win_id):
-        self.parent.embed(token, win_id)
-
-
-class AppletManager:
-    def __init__(self, dock_area):
-        self.dock_area = dock_area
-        self.main_dock = AppletsDock(self)
-        self.rpc = AppletManagerRPC(self)
-        self.applet_docks = dict()
-        self.workaround_pyqtgraph_bug = False
-
-    def embed(self, token, win_id):
-        if token not in self.applet_docks:
-            logger.warning("Ignored incorrect embed token %d for winid 0x%x",
-                            token, win_id)
-            return
-        self.applet_docks[token].capture(win_id)
-
-    def create(self, name, command):
-        token = next(iter(set(range(len(self.applet_docks) + 1))
-                          - self.applet_docks.keys()))
-        dock = AppletDock(token, name, command)
-        self.applet_docks[token] = dock
-        # If a dock is floated and then dock state is restored, pyqtgraph
-        # leaves a "phantom" window open.
-        if self.workaround_pyqtgraph_bug:
-            self.dock_area.addDock(dock)
-        else:
-            self.dock_area.floatDock(dock)
-        asyncio.ensure_future(dock.start())
-        dock.sigClosed.connect(partial(self.on_dock_closed, token))
-        return token
-
-    def on_dock_closed(self, token):
-        asyncio.ensure_future(self.applet_docks[token].terminate())
-        self.main_dock.disable_token(token)
-        del self.applet_docks[token]
-
-    def delete(self, token):
-        # This in turns calls on_dock_closed and main_dock.disable_token
-        self.applet_docks[token].close()
-
-    def rename(self, token, name):
-        self.applet_docks[token].rename(name)
-
-    def set_command(self, token, command):
-        self.applet_docks[token].command = command
-
-    async def restart(self, token):
-        await self.applet_docks[token].restart()
-
-    async def stop(self):
-        for dock in self.applet_docks.values():
-            await dock.terminate()
-
-    def save_state(self):
-        return self.main_dock.save_state()
-
-    def restore_state(self, state):
-        self.workaround_pyqtgraph_bug = True
-        self.main_dock.restore_state(state)
         self.workaround_pyqtgraph_bug = False

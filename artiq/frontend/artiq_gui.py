@@ -14,7 +14,7 @@ from pyqtgraph import dockarea
 
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import *
-from artiq.protocols.pc_rpc import AsyncioClient, Server
+from artiq.protocols.pc_rpc import AsyncioClient
 from artiq.gui.models import ModelSubscriber
 from artiq.gui import (state, experiments, shortcuts, explorer,
                        moninj, datasets, applets, schedule, log, console)
@@ -113,9 +113,9 @@ def main():
 
     d_datasets = datasets.DatasetsDock(win, dock_area, sub_clients["datasets"])
 
-    appletmgr = applets.AppletManager(dock_area)
-    atexit_register_coroutine(appletmgr.stop)
-    smgr.register(appletmgr)
+    d_applets = applets.AppletsDock(dock_area, sub_clients["datasets"])
+    atexit_register_coroutine(d_applets.stop)
+    smgr.register(d_applets)
 
     if os.name != "nt":
         d_ttl_dds = moninj.MonInj()
@@ -135,11 +135,11 @@ def main():
     if os.name != "nt":
         dock_area.addDock(d_ttl_dds.dds_dock, "top")
         dock_area.addDock(d_ttl_dds.ttl_dock, "above", d_ttl_dds.dds_dock)
-        dock_area.addDock(appletmgr.main_dock, "above", d_ttl_dds.ttl_dock)
-        dock_area.addDock(d_datasets, "above", appletmgr.main_dock)
+        dock_area.addDock(d_applets, "above", d_ttl_dds.ttl_dock)
+        dock_area.addDock(d_datasets, "above", d_applets)
     else:
-        dock_area.addDock(appletmgr.main_dock, "top")
-        dock_area.addDock(d_datasets, "above", appletmgr.main_dock)
+        dock_area.addDock(d_applets, "top")
+        dock_area.addDock(d_datasets, "above", d_applets)
     dock_area.addDock(d_shortcuts, "above", d_datasets)
     dock_area.addDock(d_explorer, "above", d_shortcuts)
     dock_area.addDock(d_console, "bottom")
@@ -154,11 +154,6 @@ def main():
     d_log0 = logmgr.first_log_dock()
     if d_log0 is not None:
         dock_area.addDock(d_log0, "right", d_explorer)
-
-    # start RPC server
-    rpc_server = Server({"applets": appletmgr.rpc})
-    loop.run_until_complete(rpc_server.start("::1", 6501))
-    atexit_register_coroutine(rpc_server.stop)
 
     # run
     win.show()
