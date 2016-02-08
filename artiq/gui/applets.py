@@ -7,18 +7,14 @@ from functools import partial
 from quamash import QtCore, QtGui, QtWidgets
 from pyqtgraph import dockarea
 
-from artiq.protocols import pyon
 from artiq.protocols.pipe_ipc import AsyncioParentComm
+from artiq.protocols import pyon
 
 
 logger = logging.getLogger(__name__)
 
 
 class AppletIPCServer(AsyncioParentComm):
-    def __init__(self, capture_cb):
-        AsyncioParentComm.__init__(self)
-        self.capture_cb = capture_cb
-
     def write_pyon(self, obj):
         self.write(pyon.encode(obj).encode() + b"\n")
 
@@ -26,25 +22,40 @@ class AppletIPCServer(AsyncioParentComm):
         line = await self.readline()
         return pyon.decode(line.decode())
 
-    async def serve(self):
-        while True:
-            obj = await self.read_pyon()
-            try:
-                action = obj["action"]
-                if action == "embed":
-                    self.capture_cb(obj["win_id"])
-                    self.write_pyon({"action": "embed_done"})
-                else:
-                    raise ValueError("unknown action in applet request")
-            except:
-                logger.warning("error processing applet request",
-                               exc_info=True)
-                self.write_pyon({"action": "error"})
+    async def serve(self, embed_cb):
+        try:
+            while True:
+                obj = await self.read_pyon()
+                try:
+                    action = obj["action"]
+                    if action == "embed":
+                        embed_cb(obj["win_id"])
+                        self.write_pyon({"action": "embed_done"})
+                    elif action == "subscribe":
+                        print("applet subscribed: ", obj["datasets"])
+                    else:
+                        raise ValueError("unknown action in applet request")
+                except:
+                    logger.warning("error processing applet request",
+                                   exc_info=True)
+                    self.write_pyon({"action": "error"})
+        except asyncio.CancelledError:
+            pass
+        except:
+            logger.error("error processing data from applet, "
+                         "server stopped", exc_info=True)
+
+    def start(self, embed_cb):
+        self.server_task = asyncio.ensure_future(self.serve(embed_cb))
+
+    async def stop(self):
+        self.server_task.cancel()
+        await asyncio.wait([self.server_task])
 
 
 class AppletDock(dockarea.Dock):
     def __init__(self, name, command):
-        dockarea.Dock.__init__(self, "applet" + str(id(self)), # XXX
+        dockarea.Dock.__init__(self, "applet" + str(id(self)), # TODO
                                label="Applet: " + name,
                                closable=True)
         self.setMinimumSize(QtCore.QSize(500, 400))
@@ -56,7 +67,7 @@ class AppletDock(dockarea.Dock):
         self.label.setText("Applet: " + name)
 
     async def start(self):
-        self.ipc = AppletIPCServer(self.capture)
+        self.ipc = AppletIPCServer()
         command = self.command.format(python=sys.executable,
                                       ipc_address=self.ipc.get_address())
         logger.debug("starting command %s for %s", command, self.applet_name)
@@ -65,18 +76,18 @@ class AppletDock(dockarea.Dock):
         except:
             logger.warning("Applet %s failed to start", self.applet_name,
                            exc_info=True)
-        asyncio.ensure_future(self.ipc.serve())
+        self.ipc.start(self.embed)
 
-    def capture(self, win_id):
+    def embed(self, win_id):
         logger.debug("capturing window 0x%x for %s", win_id, self.applet_name)
-        captured_window = QtGui.QWindow.fromWinId(win_id)
-        captured_widget = QtWidgets.QWidget.createWindowContainer(
-            captured_window)
-        self.addWidget(captured_widget)
+        embed_window = QtGui.QWindow.fromWinId(win_id)
+        embed_widget = QtWidgets.QWidget.createWindowContainer(embed_window)
+        self.addWidget(embed_widget)
 
     async def terminate(self):
-        if hasattr(self, "process"):
-            # TODO: send IPC termination request
+        if hasattr(self, "ipc"):
+            await self.ipc.stop()
+            self.ipc.write_pyon({"action": "terminate"})
             try:
                 await asyncio.wait_for(self.ipc.process.wait(), 2.0)
             except:

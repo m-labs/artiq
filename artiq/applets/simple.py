@@ -1,3 +1,4 @@
+import logging
 import argparse
 import asyncio
 
@@ -8,7 +9,13 @@ from artiq.protocols import pyon
 from artiq.protocols.pipe_ipc import AsyncioChildComm
 
 
+logger = logging.getLogger(__name__)
+
+
 class AppletIPCClient(AsyncioChildComm):
+    def set_close_cb(self, close_cb):
+        self.close_cb = close_cb
+
     def write_pyon(self, obj):
         self.write(pyon.encode(obj).encode() + b"\n")
 
@@ -17,12 +24,37 @@ class AppletIPCClient(AsyncioChildComm):
         return pyon.decode(line.decode())
 
     async def embed(self, win_id):
+        # This function is only called when not subscribed to anything,
+        # so the only normal replies are embed_done and terminate.
         self.write_pyon({"action": "embed",
                          "win_id": win_id})
         reply = await self.read_pyon()
-        if reply["action"] != "embed_done":
-            raise ValueError("Got erroneous reply to embed request",
-                             reply)
+        if reply["action"] == "terminate":
+            self.close_cb()
+        elif reply["action"] != "embed_done":
+            logger.error("unexpected action reply to embed request: %s",
+                         action)
+            self.close_cb()
+
+    async def listen(self):
+        while True:
+            obj = await self.read_pyon()
+            try:
+                action = obj["action"]
+                if action == "terminate":
+                    self.close_cb()
+                    return
+                else:
+                    raise ValueError("unknown action in applet request")
+            except:
+                logger.error("error processing applet request",
+                               exc_info=True)
+                self.close_cb()
+
+    def subscribe(self, datasets):
+        self.write_pyon({"action": "subscribe",
+                         "datasets": datasets})
+        asyncio.ensure_future(self.listen())
 
 
 class SimpleApplet:
@@ -108,6 +140,7 @@ class SimpleApplet:
         # Doing embedding the other way around (using QWindow.setParent in the
         # applet) breaks resizing.
         if self.args.mode == "embedded":
+            self.ipc.set_close_cb(self.main_widget.close)
             win_id = int(self.main_widget.winId())
             self.loop.run_until_complete(self.ipc.embed(win_id))
         self.main_widget.show()
@@ -155,8 +188,7 @@ class SimpleApplet:
             self.loop.run_until_complete(self.subscriber.connect(
                 self.args.server_notify, self.args.port_notify))
         elif self.args.mode == "embedded":
-            # TODO
-            pass
+            self.ipc.subscribe(self.datasets)
         else:
             raise NotImplementedError
 
