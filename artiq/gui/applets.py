@@ -98,6 +98,9 @@ class AppletDock(dockarea.Dock):
 
     async def start(self):
         self.ipc = AppletIPCServer(self.datasets_sub)
+        if "{ipc_address}" not in self.command:
+            logger.warning("IPC address missing from command for %s",
+                           self.applet_name)
         command = self.command.format(python=sys.executable,
                                       ipc_address=self.ipc.get_address())
         logger.debug("starting command %s for %s", command, self.applet_name)
