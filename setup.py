@@ -10,9 +10,10 @@ if sys.version_info[:3] < (3, 5, 1):
     raise Exception("You need Python 3.5.1+")
 
 
+# Depends on PyQt5, but setuptools cannot check for it.
 requirements = [
     "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
-    "python-dateutil", "prettytable", "h5py", "PyQt5",
+    "python-dateutil", "prettytable", "h5py",
     "quamash", "pyqtgraph", "pygit2", "aiohttp",
     "llvmlite_artiq", "pythonparser", "python-Levenshtein",
     "lit", "OutputCheck",
