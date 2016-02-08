@@ -111,7 +111,7 @@ def main():
 
     d_datasets = datasets.DatasetsDock(win, dock_area, sub_clients["datasets"])
 
-    d_applets = applets.AppletsDock(dock_area)
+    d_applets = applets.AppletsDock(dock_area, sub_clients["datasets"])
     atexit_register_coroutine(d_applets.stop)
     smgr.register(d_applets)
 

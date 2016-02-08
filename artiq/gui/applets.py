@@ -15,6 +15,11 @@ logger = logging.getLogger(__name__)
 
 
 class AppletIPCServer(AsyncioParentComm):
+    def __init__(self, datasets_sub):
+        AsyncioParentComm.__init__(self)
+        self.datasets_sub = datasets_sub
+        self.datasets = set()
+
     def write_pyon(self, obj):
         self.write(pyon.encode(obj).encode() + b"\n")
 
@@ -22,7 +27,25 @@ class AppletIPCServer(AsyncioParentComm):
         line = await self.readline()
         return pyon.decode(line.decode())
 
+    def _synthesize_init(self, data):
+        struct = {k: v for k, v in data.items() if k in self.datasets}
+        return {"action": "init",
+                "struct": struct}
+
+    def _on_mod(self, mod):
+        if mod["action"] == "init":
+            mod = self._synthesize_init(mod["struct"])
+        else:
+            if mod["path"]:
+                if mod["path"][0] not in self.datasets:
+                    return
+            elif mod["action"] in {"setitem", "delitem"}:
+                if mod["key"] not in self.datasets:
+                    return
+        self.write_pyon({"action": "mod", "mod": mod})
+
     async def serve(self, embed_cb):
+        self.datasets_sub.notify_cbs.append(self._on_mod)
         try:
             while True:
                 obj = await self.read_pyon()
@@ -32,7 +55,11 @@ class AppletIPCServer(AsyncioParentComm):
                         embed_cb(obj["win_id"])
                         self.write_pyon({"action": "embed_done"})
                     elif action == "subscribe":
-                        print("applet subscribed: ", obj["datasets"])
+                        self.datasets = obj["datasets"]
+                        if self.datasets_sub.model is not None:
+                            mod = self._synthesize_init(
+                                self.datasets_sub.model.backing_store)
+                            self.write_pyon({"action": "mod", "mod": mod})
                     else:
                         raise ValueError("unknown action in applet request")
                 except:
@@ -44,6 +71,8 @@ class AppletIPCServer(AsyncioParentComm):
         except:
             logger.error("error processing data from applet, "
                          "server stopped", exc_info=True)
+        finally:
+            self.datasets_sub.notify_cbs.remove(self._on_mod)
 
     def start(self, embed_cb):
         self.server_task = asyncio.ensure_future(self.serve(embed_cb))
@@ -54,11 +83,12 @@ class AppletIPCServer(AsyncioParentComm):
 
 
 class AppletDock(dockarea.Dock):
-    def __init__(self, uid, name, command):
+    def __init__(self, datasets_sub, uid, name, command):
         dockarea.Dock.__init__(self, "applet" + str(uid),
                                label="Applet: " + name,
                                closable=True)
         self.setMinimumSize(QtCore.QSize(500, 400))
+        self.datasets_sub = datasets_sub
         self.applet_name = name
         self.command = command
 
@@ -67,7 +97,7 @@ class AppletDock(dockarea.Dock):
         self.label.setText("Applet: " + name)
 
     async def start(self):
-        self.ipc = AppletIPCServer()
+        self.ipc = AppletIPCServer(self.datasets_sub)
         command = self.command.format(python=sys.executable,
                                       ipc_address=self.ipc.get_address())
         logger.debug("starting command %s for %s", command, self.applet_name)
@@ -122,8 +152,9 @@ _templates = [
 
 
 class AppletsDock(dockarea.Dock):
-    def __init__(self, dock_area):
+    def __init__(self, dock_area, datasets_sub):
         self.dock_area = dock_area
+        self.datasets_sub = datasets_sub
         self.dock_to_checkbox = dict()
         self.applet_uids = set()
         self.workaround_pyqtgraph_bug = False
@@ -170,7 +201,7 @@ class AppletsDock(dockarea.Dock):
         self.table.cellChanged.connect(self.cell_changed)
 
     def create(self, uid, name, command):
-        dock = AppletDock(uid, name, command)
+        dock = AppletDock(self.datasets_sub, uid, name, command)
         # If a dock is floated and then dock state is restored, pyqtgraph
         # leaves a "phantom" window open.
         if self.workaround_pyqtgraph_bug:

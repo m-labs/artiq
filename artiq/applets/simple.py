@@ -4,7 +4,7 @@ import asyncio
 
 from quamash import QEventLoop, QtWidgets, QtGui, QtCore
 
-from artiq.protocols.sync_struct import Subscriber
+from artiq.protocols.sync_struct import Subscriber, process_mod
 from artiq.protocols import pyon
 from artiq.protocols.pipe_ipc import AsyncioChildComm
 
@@ -37,6 +37,7 @@ class AppletIPCClient(AsyncioChildComm):
             self.close_cb()
 
     async def listen(self):
+        data = None
         while True:
             obj = await self.read_pyon()
             try:
@@ -44,6 +45,13 @@ class AppletIPCClient(AsyncioChildComm):
                 if action == "terminate":
                     self.close_cb()
                     return
+                elif action == "mod":
+                    mod = obj["mod"]
+                    if mod["action"] == "init":
+                        data = self.init_cb(mod["struct"])
+                    else:
+                        process_mod(data, mod)
+                    self.mod_cb(mod)
                 else:
                     raise ValueError("unknown action in applet request")
             except:
@@ -51,9 +59,11 @@ class AppletIPCClient(AsyncioChildComm):
                                exc_info=True)
                 self.close_cb()
 
-    def subscribe(self, datasets):
+    def subscribe(self, datasets, init_cb, mod_cb):
         self.write_pyon({"action": "subscribe",
                          "datasets": datasets})
+        self.init_cb = init_cb
+        self.mod_cb = mod_cb
         asyncio.ensure_future(self.listen())
 
 
@@ -188,7 +198,7 @@ class SimpleApplet:
             self.loop.run_until_complete(self.subscriber.connect(
                 self.args.server_notify, self.args.port_notify))
         elif self.args.mode == "embedded":
-            self.ipc.subscribe(self.datasets)
+            self.ipc.subscribe(self.datasets, self.sub_init, self.sub_mod)
         else:
             raise NotImplementedError
 
