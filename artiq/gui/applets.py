@@ -54,8 +54,8 @@ class AppletIPCServer(AsyncioParentComm):
 
 
 class AppletDock(dockarea.Dock):
-    def __init__(self, name, command):
-        dockarea.Dock.__init__(self, "applet" + str(id(self)), # TODO
+    def __init__(self, uid, name, command):
+        dockarea.Dock.__init__(self, "applet" + str(uid),
                                label="Applet: " + name,
                                closable=True)
         self.setMinimumSize(QtCore.QSize(500, 400))
@@ -125,6 +125,7 @@ class AppletsDock(dockarea.Dock):
     def __init__(self, dock_area):
         self.dock_area = dock_area
         self.dock_to_checkbox = dict()
+        self.applet_uids = set()
         self.workaround_pyqtgraph_bug = False
 
         dockarea.Dock.__init__(self, "Applets")
@@ -168,8 +169,8 @@ class AppletsDock(dockarea.Dock):
 
         self.table.cellChanged.connect(self.cell_changed)
 
-    def create(self, name, command):
-        dock = AppletDock(name, command)
+    def create(self, uid, name, command):
+        dock = AppletDock(uid, name, command)
         # If a dock is floated and then dock state is restored, pyqtgraph
         # leaves a "phantom" window open.
         if self.workaround_pyqtgraph_bug:
@@ -192,17 +193,17 @@ class AppletsDock(dockarea.Dock):
                         name = ""
                     else:
                         name = name.text()
-                    dock = self.create(name, command)
+                    dock = self.create(item.applet_uid, name, command)
                     item.applet_dock = dock
                     self.dock_to_checkbox[dock] = item
             else:
-                dock = getattr(item, "applet_dock", None)
+                dock = item.applet_dock
                 if dock is not None:
                     # This calls self.on_dock_closed
                     dock.close()
         elif column == 1 or column == 2:
             new_value = self.table.item(row, column).text()
-            dock = getattr(self.table.item(row, 0), "applet_dock", None)
+            dock = self.table.item(row, 0).applet_dock
             if dock is not None:
                 if column == 1:
                     dock.rename(new_value)
@@ -217,6 +218,10 @@ class AppletsDock(dockarea.Dock):
         checkbox_item.setCheckState(QtCore.Qt.Unchecked)
 
     def new(self):
+        uid = next(iter(set(range(len(self.applet_uids) + 1))
+                        - self.applet_uids))
+        self.applet_uids.add(uid)
+
         row = self.table.rowCount()
         self.table.insertRow(row)
         checkbox = QtWidgets.QTableWidgetItem()
@@ -224,6 +229,8 @@ class AppletsDock(dockarea.Dock):
                           QtCore.Qt.ItemIsUserCheckable |
                           QtCore.Qt.ItemIsEnabled)
         checkbox.setCheckState(QtCore.Qt.Unchecked)
+        checkbox.applet_uid = uid
+        checkbox.applet_dock = None
         self.table.setItem(row, 0, checkbox)
         self.table.setItem(row, 1, QtWidgets.QTableWidgetItem())
         self.table.setItem(row, 2, QtWidgets.QTableWidgetItem())
@@ -237,7 +244,7 @@ class AppletsDock(dockarea.Dock):
         selection = self.table.selectedRanges()
         if selection:
             row = selection[0].topRow()
-            dock = getattr(self.table.item(row, 0), "applet_dock", None)
+            dock = self.table.item(row, 0).applet_dock
             if dock is not None:
                 asyncio.ensure_future(dock.restart())
 
@@ -245,15 +252,18 @@ class AppletsDock(dockarea.Dock):
         selection = self.table.selectedRanges()
         if selection:
             row = selection[0].topRow()
-            dock = getattr(self.table.item(row, 0), "applet_dock", None)
+            item = self.table.item(row, 0)
+            dock = item.applet_dock
             if dock is not None:
                 # This calls self.on_dock_closed
                 dock.close()
+            self.applet_uids.remove(item.applet_uid)
             self.table.removeRow(row)
+
 
     async def stop(self):
         for row in range(self.table.rowCount()):
-            dock = getattr(self.table.item(row, 0), "applet_dock", None)
+            dock = self.table.item(row, 0).applet_dock
             if dock is not None:
                 await dock.terminate()
 
