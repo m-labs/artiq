@@ -5,10 +5,12 @@ import asyncio
 import atexit
 import os
 
-# Quamash must be imported first so that pyqtgraph picks up the Qt binding
-# it has chosen.
+import PyQt5
 from quamash import QEventLoop, QtGui, QtCore
+assert QtGui is PyQt5.QtGui
+# pyqtgraph will pick up any already imported Qt binding.
 from pyqtgraph import dockarea
+
 
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import *
