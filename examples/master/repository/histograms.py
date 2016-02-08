@@ -2,7 +2,7 @@ from time import sleep
 
 import numpy as np
 
-from artiq import *
+from artiq.experiment import *
 
 
 class Histograms(EnvExperiment):
