@@ -1,7 +1,7 @@
 #!/usr/bin/env python3.5
 
 import numpy as np
-from quamash import QtWidgets
+from PyQt5 import QtWidgets
 import pyqtgraph
 
 from artiq.applets.simple import SimpleApplet

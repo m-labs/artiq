@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.5
 
-from quamash import QtWidgets
+from PyQt5 import QtWidgets
 
 from artiq.applets.simple import SimpleApplet
 
