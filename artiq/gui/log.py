@@ -81,6 +81,8 @@ class Model(QtCore.QAbstractTableModel):
             if (role == QtCore.Qt.FontRole
                     and index.column() == 1):
                 return self.fixed_font
+            elif role == QtCore.Qt.TextAlignmentRole:
+                return QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop
             elif role == QtCore.Qt.BackgroundRole:
                 level = self.entries[index.row()][0]
                 if level >= logging.ERROR:
