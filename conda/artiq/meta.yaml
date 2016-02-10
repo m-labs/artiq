@@ -51,7 +51,7 @@ requirements:
     - pyqtgraph
     - pygit2
     - aiohttp
-    - binutils-or1k-linux # [linux]
+    - binutils-or1k-linux
     - pythonparser
     - levenshtein
 
