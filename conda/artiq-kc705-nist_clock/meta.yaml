@@ -22,6 +22,6 @@ requirements:
     - artiq {{ "{tag} py_{number}+git{hash}".format(tag=environ.get("GIT_DESCRIBE_TAG"), number=environ.get("GIT_DESCRIBE_NUMBER"), hash=environ.get("GIT_DESCRIBE_HASH")[1:]) if "GIT_DESCRIBE_TAG" in environ else "" }}
 
 about:
-  home: http://m-labs.hk/artiq
+  home: https://m-labs.hk/artiq
   license: GPL
   summary: 'Bitstream, BIOS and runtime for NIST_QC2 on the KC705 board'

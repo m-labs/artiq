@@ -12,6 +12,6 @@ nanosecond timing resolution and sub-microsecond latency.
 Technologies employed include Python, Migen, MiSoC/mor1kx, LLVM and llvmlite.
 
 Website:
-http://m-labs.hk/artiq
+https://m-labs.hk/artiq
 
 Copyright (C) 2014-2016 M-Labs Limited. Licensed under GNU GPL version 3.

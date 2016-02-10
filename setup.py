@@ -46,7 +46,7 @@ setup(
     cmdclass=versioneer.get_cmdclass(),
     author="M-Labs / NIST Ion Storage Group",
     author_email="sb@m-labs.hk",
-    url="http://m-labs.hk/artiq",
+    url="https://m-labs.hk/artiq",
     description="A control system for trapped-ion experiments",
     long_description=open("README.rst").read(),
     license="GPL",
