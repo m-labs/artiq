@@ -14,16 +14,17 @@ But you can also :ref:`install from sources <install-from-sources>`.
 Installing using conda
 ----------------------
 
+.. warning::
+    Conda packages are supported for Linux (64-bit) and Windows (32- and 64-bit). Users of other
+    operating systems (32-bit Linux, BSD, ...) should install from source.
+
+
 Installing Anaconda or Miniconda
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * You can either install Anaconda (choose Python 3.5) from https://store.continuum.io/cshop/anaconda/
 
 * Or install the more minimalistic Miniconda (choose Python 3.5) from http://conda.pydata.org/miniconda.html
-
-.. warning::
-    If you are installing on Windows, choose the Windows 32-bit version regardless of whether you have
-    a 32-bit or 64-bit Windows.
 
 After installing either Anaconda or Miniconda, open a new terminal and make sure the following command works::
 

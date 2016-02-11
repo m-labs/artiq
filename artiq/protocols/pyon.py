@@ -35,6 +35,7 @@ _encode_map = {
     bytes: "bytes",
     tuple: "tuple",
     list: "list",
+    set: "set",
     dict: "dict",
     wrapping_int: "number",
     Fraction: "fraction",
@@ -98,6 +99,12 @@ class _Encoder:
         r += "]"
         return r
 
+    def encode_set(self, x):
+        r = "{"
+        r += ", ".join([self.encode(item) for item in x])
+        r += "}"
+        return r
+
     def encode_dict(self, x):
         r = "{"
         if not self.pretty or len(x) < 2:
@@ -149,9 +156,7 @@ class _Encoder:
 
 def encode(x, pretty=False):
     """Serializes a Python object and returns the corresponding string in
-    Python syntax.
-
-    """
+    Python syntax."""
     return _Encoder(pretty).encode(x)
 
 
@@ -181,9 +186,7 @@ _eval_dict = {
 
 def decode(s):
     """Parses a string in the Python syntax, reconstructs the corresponding
-    object, and returns it.
-
-    """
+    object, and returns it."""
     return eval(s, _eval_dict, {})
 
 
@@ -202,23 +205,3 @@ def load_file(filename):
     """Parses the specified file and returns the decoded Python object."""
     with open(filename, "r") as f:
         return decode(f.read())
-
-
-class FlatFileDB:
-    def __init__(self, filename):
-        self.filename = filename
-        self.data = pyon.load_file(self.filename)
-
-    def save(self):
-        pyon.store_file(self.filename, self.data)
-
-    def get(self, key):
-        return self.data[key]
-
-    def set(self, key, value):
-        self.data[key] = value
-        self.save()
-
-    def delete(self, key):
-        del self.data[key]
-        self.save()

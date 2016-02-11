@@ -5,17 +5,19 @@ import asyncio
 import atexit
 import os
 
-# Quamash must be imported first so that pyqtgraph picks up the Qt binding
-# it has chosen.
+import PyQt5
 from quamash import QEventLoop, QtGui, QtCore
+assert QtGui is PyQt5.QtGui
+# pyqtgraph will pick up any already imported Qt binding.
 from pyqtgraph import dockarea
+
 
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import *
 from artiq.protocols.pc_rpc import AsyncioClient
 from artiq.gui.models import ModelSubscriber
 from artiq.gui import (state, experiments, shortcuts, explorer,
-                       moninj, datasets, schedule, log, console)
+                       moninj, datasets, applets, schedule, log, console)
 
 
 def get_argparser():
@@ -110,7 +112,10 @@ def main():
                                        rpc_clients["experiment_db"])
 
     d_datasets = datasets.DatasetsDock(win, dock_area, sub_clients["datasets"])
-    smgr.register(d_datasets)
+
+    d_applets = applets.AppletsDock(dock_area, sub_clients["datasets"])
+    atexit_register_coroutine(d_applets.stop)
+    smgr.register(d_applets)
 
     if os.name != "nt":
         d_ttl_dds = moninj.MonInj()
@@ -130,9 +135,11 @@ def main():
     if os.name != "nt":
         dock_area.addDock(d_ttl_dds.dds_dock, "top")
         dock_area.addDock(d_ttl_dds.ttl_dock, "above", d_ttl_dds.dds_dock)
-        dock_area.addDock(d_datasets, "above", d_ttl_dds.ttl_dock)
+        dock_area.addDock(d_applets, "above", d_ttl_dds.ttl_dock)
+        dock_area.addDock(d_datasets, "above", d_applets)
     else:
-        dock_area.addDock(d_datasets, "top")
+        dock_area.addDock(d_applets, "top")
+        dock_area.addDock(d_datasets, "above", d_applets)
     dock_area.addDock(d_shortcuts, "above", d_datasets)
     dock_area.addDock(d_explorer, "above", d_shortcuts)
     dock_area.addDock(d_console, "bottom")

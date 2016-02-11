@@ -24,9 +24,9 @@ class LogBufferHandler(logging.Handler):
 
     def emit(self, record):
         message = self.format(record)
-        for part in message.split("\n"):
-            self.log_buffer.log(record.levelno, record.source, record.created,
-                                part)
+        self.log_buffer.log(record.levelno, record.source, record.created,
+                            message)
+
 
 def log_args(parser):
     group = parser.add_argument_group("logging")

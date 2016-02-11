@@ -10,6 +10,7 @@ if sys.version_info[:3] < (3, 5, 1):
     raise Exception("You need Python 3.5.1+")
 
 
+# Depends on PyQt5, but setuptools cannot check for it.
 requirements = [
     "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
     "python-dateutil", "prettytable", "h5py",
@@ -45,7 +46,7 @@ setup(
     cmdclass=versioneer.get_cmdclass(),
     author="M-Labs / NIST Ion Storage Group",
     author_email="sb@m-labs.hk",
-    url="http://m-labs.hk/artiq",
+    url="https://m-labs.hk/artiq",
     description="A control system for trapped-ion experiments",
     long_description=open("README.rst").read(),
     license="GPL",

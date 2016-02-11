@@ -20,4 +20,4 @@ Technologies employed include Python, Migen, MiSoC/mor1kx, LLVM and llvmlite.
 ARTIQ is licensed under 3-clause BSD.
 
 Website:
-http://m-labs.hk/artiq
+https://m-labs.hk/artiq

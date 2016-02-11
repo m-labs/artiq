@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.5
 
-from quamash import QtWidgets
+from PyQt5 import QtWidgets
 
 from artiq.applets.simple import SimpleApplet
 
@@ -11,7 +11,7 @@ class NumberWidget(QtWidgets.QLCDNumber):
         self.setDigitCount(args.digit_count)
         self.dataset_name = args.dataset
 
-    def data_changed(self, data, mod):
+    def data_changed(self, data, mods):
         try:
             n = float(data[self.dataset_name][1])
         except (KeyError, ValueError, TypeError):
