@@ -95,11 +95,17 @@ class AppletDock(dockarea.Dock):
         self.applet_name = name
         self.command = command
 
+        self.starting_stopping = False
+
     def rename(self, name):
         self.applet_name = name
         self.label.setText("Applet: " + name)
 
     async def start(self):
+        if self.starting_stopping:
+            return
+        self.starting_stopping = True
+
         self.ipc = AppletIPCServer(self.datasets_sub)
         if "{ipc_address}" not in self.command:
             logger.warning("IPC address missing from command for %s",
@@ -114,6 +120,8 @@ class AppletDock(dockarea.Dock):
                            exc_info=True)
         self.ipc.start(self.embed, self.fix_initial_size)
 
+        self.starting_stopping = False
+
     def embed(self, win_id):
         logger.debug("capturing window 0x%x for %s", win_id, self.applet_name)
         self.embed_window = QtGui.QWindow.fromWinId(win_id)
@@ -127,6 +135,10 @@ class AppletDock(dockarea.Dock):
         self.embed_window.resize(self.embed_widget.size())
 
     async def terminate(self):
+        if self.starting_stopping:
+            return
+        self.starting_stopping = True
+
         if hasattr(self, "ipc"):
             await self.ipc.stop()
             self.ipc.write_pyon({"action": "terminate"})
@@ -142,8 +154,11 @@ class AppletDock(dockarea.Dock):
                 await self.ipc.process.wait()
             del self.ipc
 
+        if hasattr(self, "embed_widget"):
             self.embed_widget.deleteLater()
             del self.embed_widget
+
+        self.starting_stopping = False
 
     async def restart(self):
         await self.terminate()
