@@ -44,7 +44,7 @@ class AppletIPCServer(AsyncioParentComm):
                     return
         self.write_pyon({"action": "mod", "mod": mod})
 
-    async def serve(self, embed_cb):
+    async def serve(self, embed_cb, fix_initial_size_cb):
         self.datasets_sub.notify_cbs.append(self._on_mod)
         try:
             while True:
@@ -54,6 +54,8 @@ class AppletIPCServer(AsyncioParentComm):
                     if action == "embed":
                         embed_cb(obj["win_id"])
                         self.write_pyon({"action": "embed_done"})
+                    elif action == "fix_initial_size":
+                        fix_initial_size_cb()
                     elif action == "subscribe":
                         self.datasets = obj["datasets"]
                         if self.datasets_sub.model is not None:
@@ -74,8 +76,9 @@ class AppletIPCServer(AsyncioParentComm):
         finally:
             self.datasets_sub.notify_cbs.remove(self._on_mod)
 
-    def start(self, embed_cb):
-        self.server_task = asyncio.ensure_future(self.serve(embed_cb))
+    def start(self, embed_cb, fix_initial_size_cb):
+        self.server_task = asyncio.ensure_future(
+            self.serve(embed_cb, fix_initial_size_cb))
 
     async def stop(self):
         self.server_task.cancel()
@@ -109,13 +112,19 @@ class AppletDock(dockarea.Dock):
         except:
             logger.warning("Applet %s failed to start", self.applet_name,
                            exc_info=True)
-        self.ipc.start(self.embed)
+        self.ipc.start(self.embed, self.fix_initial_size)
 
     def embed(self, win_id):
         logger.debug("capturing window 0x%x for %s", win_id, self.applet_name)
-        embed_window = QtGui.QWindow.fromWinId(win_id)
-        self.embed_widget = QtWidgets.QWidget.createWindowContainer(embed_window)
+        self.embed_window = QtGui.QWindow.fromWinId(win_id)
+        self.embed_widget = QtWidgets.QWidget.createWindowContainer(
+            self.embed_window)
         self.addWidget(self.embed_widget)
+
+    # HACK: This function would not be needed if Qt window embedding
+    # worked correctly.
+    def fix_initial_size(self):
+        self.embed_window.resize(self.embed_widget.size())
 
     async def terminate(self):
         if hasattr(self, "ipc"):

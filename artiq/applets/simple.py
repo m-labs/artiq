@@ -36,6 +36,9 @@ class AppletIPCClient(AsyncioChildComm):
                          action)
             self.close_cb()
 
+    def fix_initial_size(self):
+        self.write_pyon({"action": "fix_initial_size"})
+
     async def listen(self):
         data = None
         while True:
@@ -133,13 +136,15 @@ class SimpleApplet:
         # 2. applet creates native window without showing it, and get its ID
         # 3. applet sends the ID to host, host embeds the widget
         # 4. applet shows the widget
-        # Doing embedding the other way around (using QWindow.setParent in the
-        # applet) breaks resizing.
+        # 5. parent resizes the widget
         if self.args.embed is not None:
             self.ipc.set_close_cb(self.main_widget.close)
             win_id = int(self.main_widget.winId())
             self.loop.run_until_complete(self.ipc.embed(win_id))
-        self.main_widget.show()
+            self.main_widget.show()
+            self.ipc.fix_initial_size()
+        else:
+            self.main_widget.show()
 
     def sub_init(self, data):
         self.data = data
