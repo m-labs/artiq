@@ -114,8 +114,8 @@ class AppletDock(dockarea.Dock):
     def embed(self, win_id):
         logger.debug("capturing window 0x%x for %s", win_id, self.applet_name)
         embed_window = QtGui.QWindow.fromWinId(win_id)
-        embed_widget = QtWidgets.QWidget.createWindowContainer(embed_window)
-        self.addWidget(embed_widget)
+        self.embed_widget = QtWidgets.QWidget.createWindowContainer(embed_window)
+        self.addWidget(self.embed_widget)
 
     async def terminate(self):
         if hasattr(self, "ipc"):
@@ -132,6 +132,9 @@ class AppletDock(dockarea.Dock):
                     pass
                 await self.ipc.process.wait()
             del self.ipc
+
+            self.embed_widget.deleteLater()
+            del self.embed_widget
 
     async def restart(self):
         await self.terminate()
