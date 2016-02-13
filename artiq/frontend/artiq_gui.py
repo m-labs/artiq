@@ -17,7 +17,7 @@ from artiq.tools import *
 from artiq.protocols.pc_rpc import AsyncioClient
 from artiq.gui.models import ModelSubscriber
 from artiq.gui import (state, experiments, shortcuts, explorer,
-                       moninj, datasets, applets, schedule, log, console)
+                       moninj, datasets, applets, schedule, log)
 
 
 def get_argparser():
@@ -129,9 +129,6 @@ def main():
     logmgr = log.LogDockManager(dock_area, sub_clients["log"])
     smgr.register(logmgr)
 
-    d_console = console.ConsoleDock(sub_clients["datasets"],
-                                    rpc_clients["dataset_db"])
-
     # lay out docks
     if os.name != "nt":
         dock_area.addDock(d_ttl_dds.dds_dock, "top")
@@ -143,8 +140,7 @@ def main():
         dock_area.addDock(d_datasets, "above", d_applets)
     dock_area.addDock(d_shortcuts, "above", d_datasets)
     dock_area.addDock(d_explorer, "above", d_shortcuts)
-    dock_area.addDock(d_console, "bottom")
-    dock_area.addDock(d_schedule, "above", d_console)
+    dock_area.addDock(d_schedule, "bottom")
 
     # load/initialize state
     smgr.load()
