@@ -193,6 +193,15 @@ class _DictSyncTreeSepItem:
         self.children_by_row = []
         self.children_nodes_by_name = dict()
         self.children_leaves_by_name = dict()
+        # is_node is permanently set when a child is added.
+        # This must be done instead of checking for the emptiness of
+        # children_by_row: in the middle of deletion operations, we remove
+        # items from children_by_row, and briefly turn nodes into leaves
+        # before they are removed.
+        # Of course, Qt sometimes happily calls data() on those invalid leaves,
+        # resulting in convert() being called for an invalid key if we hadn't
+        # permanently marked those items as nodes.
+        self.is_node = False
 
     def __repr__(self):
         return ("<DictSyncTreeSepItem {}, row={}, nchildren={}>"
@@ -275,6 +284,7 @@ class DictSyncTreeSepModel(QtCore.QAbstractItemModel):
         item = _DictSyncTreeSepItem(parent, row, name)
 
         self.beginInsertRows(self._index_item(parent), row, row)
+        parent.is_node = True
         parent.children_by_row.insert(row, item)
         for next_item in parent.children_by_row[row+1:]:
             next_item.row += 1
@@ -338,7 +348,7 @@ class DictSyncTreeSepModel(QtCore.QAbstractItemModel):
 
     def index_to_key(self, index):
         item = index.internalPointer()
-        if item.children_by_row:
+        if item.is_node:
             return None
         key = item.name
         item = item.parent
