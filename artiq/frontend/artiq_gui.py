@@ -111,7 +111,8 @@ def main():
                                        rpc_clients["schedule"],
                                        rpc_clients["experiment_db"])
 
-    d_datasets = datasets.DatasetsDock(win, dock_area, sub_clients["datasets"])
+    d_datasets = datasets.DatasetsDock(win, sub_clients["datasets"],
+                                       rpc_clients["dataset_db"])
 
     d_applets = applets.AppletsDock(dock_area, sub_clients["datasets"])
     atexit_register_coroutine(d_applets.stop)

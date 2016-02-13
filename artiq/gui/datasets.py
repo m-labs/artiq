@@ -30,10 +30,10 @@ class Model(DictSyncTreeSepModel):
 
 
 class DatasetsDock(dockarea.Dock):
-    def __init__(self, dialog_parent, dock_area, datasets_sub):
+    def __init__(self, dialog_parent, datasets_sub, dataset_ctl):
         dockarea.Dock.__init__(self, "Datasets")
         self.dialog_parent = dialog_parent
-        self.dock_area = dock_area
+        self.dataset_ctl = dataset_ctl
 
         grid = LayoutWidget()
         self.addWidget(grid)
@@ -44,9 +44,17 @@ class DatasetsDock(dockarea.Dock):
         grid.addWidget(self.search, 0, 0)
 
         self.table = QtGui.QTreeView()
-        self.table.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
+        self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
         self.table.header().setResizeMode(QtGui.QHeaderView.ResizeToContents)
         grid.addWidget(self.table, 1, 0)
+
+        self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        delete_action = QtGui.QAction("Delete dataset", self.table)
+        delete_action.triggered.connect(self.delete_clicked)
+        delete_action.setShortcut("DELETE")
+        delete_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        self.table.addAction(delete_action)
 
         self.table_model = Model(dict())
         datasets_sub.add_setmodel_callback(self.set_model)
@@ -61,3 +69,11 @@ class DatasetsDock(dockarea.Dock):
         self.table_model_filter = QtCore.QSortFilterProxyModel()
         self.table_model_filter.setSourceModel(self.table_model)
         self.table.setModel(self.table_model_filter)
+
+    def delete_clicked(self):
+        idx = self.table.selectedIndexes()
+        if idx:
+            idx = self.table_model_filter.mapToSource(idx[0])
+            key = self.table_model.index_to_key(idx)
+            if key is not None:
+                asyncio.ensure_future(self.dataset_ctl.delete(key))
