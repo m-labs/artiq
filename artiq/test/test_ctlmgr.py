@@ -56,7 +56,6 @@ class ControllerCase(unittest.TestCase):
         raise asyncio.TimeoutError
 
     def test_start_ping_stop_controller(self):
-        command = sys.executable + " -m "
         entry = {
             "type": "controller",
             "host": "::1",
@@ -67,5 +66,6 @@ class ControllerCase(unittest.TestCase):
         async def test():
             await self.start("lda_sim", entry)
             remote = await self.get_client(entry["host"], entry["port"])
+            await remote.ping()
 
         self.loop.run_until_complete(test())
