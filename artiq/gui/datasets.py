@@ -31,6 +31,7 @@ class Model(DictSyncTreeSepModel):
 class DatasetsDock(QtWidgets.QDockWidget):
     def __init__(self, datasets_sub, dataset_ctl):
         QtWidgets.QDockWidget.__init__(self, "Datasets")
+        self.setObjectName("Datasets")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
                          QtWidgets.QDockWidget.DockWidgetFloatable)
         self.dataset_ctl = dataset_ctl

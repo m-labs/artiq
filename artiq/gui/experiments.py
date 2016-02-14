@@ -137,7 +137,9 @@ class _ExperimentDock(QtWidgets.QDockWidget):
     sigClosed = QtCore.pyqtSignal()
 
     def __init__(self, manager, expurl):
-        QtWidgets.QDockWidget.__init__(self, "Exp: " + expurl)
+        name = "Exp: " + expurl
+        QtWidgets.QDockWidget.__init__(self, name)
+        self.setObjectName(name)
 
         self.layout = QtWidgets.QGridLayout()
         top_widget = QtWidgets.QWidget()

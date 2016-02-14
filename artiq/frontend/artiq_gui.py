@@ -47,10 +47,10 @@ class MainWindow(QtGui.QMainWindow):
         self.exit_request.set()
 
     def save_state(self):
-        return bytes(self.saveGeometry())
+        return bytes(self.saveState())
 
     def restore_state(self, state):
-        self.restoreGeometry(QtCore.QByteArray(state))
+        self.restoreState(QtCore.QByteArray(state))
 
 
 def main():

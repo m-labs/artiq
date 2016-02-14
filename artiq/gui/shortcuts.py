@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 class ShortcutsDock(QtWidgets.QDockWidget):
     def __init__(self, main_window, exp_manager):
         QtWidgets.QDockWidget.__init__(self, "Shortcuts")
+        self.setObjectName("Shortcuts")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
                          QtWidgets.QDockWidget.DockWidgetFloatable)
 

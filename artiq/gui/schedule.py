@@ -58,6 +58,7 @@ class Model(DictSyncModel):
 class ScheduleDock(QtWidgets.QDockWidget):
     def __init__(self, status_bar, schedule_ctl, schedule_sub):
         QtWidgets.QDockWidget.__init__(self, "Schedule")
+        self.setObjectName("Schedule")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
                          QtWidgets.QDockWidget.DockWidgetFloatable)
 

@@ -188,6 +188,7 @@ _templates = [
 class AppletsDock(QtWidgets.QDockWidget):
     def __init__(self, main_window, datasets_sub):
         QtWidgets.QDockWidget.__init__(self, "Applets")
+        self.setObjectName("Applets")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
                          QtWidgets.QDockWidget.DockWidgetFloatable)
 

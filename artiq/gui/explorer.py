@@ -119,6 +119,7 @@ class ExplorerDock(QtWidgets.QDockWidget):
     def __init__(self, status_bar, exp_manager, d_shortcuts,
                  explist_sub, schedule_ctl, experiment_db_ctl):
         QtWidgets.QDockWidget.__init__(self, "Explorer")
+        self.setObjectName("Explorer")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
                          QtWidgets.QDockWidget.DockWidgetFloatable)
 

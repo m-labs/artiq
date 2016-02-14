@@ -215,6 +215,7 @@ class _DeviceManager:
 class _MonInjDock(QtWidgets.QDockWidget):
     def __init__(self, name):
         QtWidgets.QDockWidget.__init__(self, name)
+        self.setObjectName(name)
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
                          QtWidgets.QDockWidget.DockWidgetFloatable)
 
