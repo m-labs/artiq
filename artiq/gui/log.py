@@ -7,7 +7,7 @@ from functools import partial
 from quamash import QtGui, QtCore, QtWidgets
 from pyqtgraph import LayoutWidget
 
-from artiq.gui.tools import log_level_to_name
+from artiq.gui.tools import log_level_to_name, QDockWidgetCloseDetect
 
 
 def _make_wrappable(row, width=30):
@@ -140,11 +140,9 @@ class _LogFilterProxyModel(QtCore.QSortFilterProxyModel):
         self.invalidateFilter()
 
 
-class _LogDock(QtWidgets.QDockWidget):
-    sigClosed = QtCore.pyqtSignal()
-
+class _LogDock(QDockWidgetCloseDetect):
     def __init__(self, manager, name, log_sub):
-        QtWidgets.QDockWidget.__init__(self, "Log")
+        QDockWidgetCloseDetect.__init__(self, "Log")
         self.setObjectName(name)
 
         grid = LayoutWidget()
@@ -253,10 +251,6 @@ class _LogDock(QtWidgets.QDockWidget):
         self.table_model_filter.rowsAboutToBeInserted.connect(self.rows_inserted_before)
         self.table_model_filter.rowsInserted.connect(self.rows_inserted_after)
         self.table_model_filter.rowsRemoved.connect(self.rows_removed)
-
-    def closeEvent(self, event):
-        QtWidgets.QDockWidget.closeEvent(self, event)
-        self.sigClosed.emit()
 
     def save_state(self):
         return {

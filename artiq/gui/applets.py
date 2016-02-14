@@ -8,6 +8,7 @@ from quamash import QtCore, QtGui, QtWidgets
 
 from artiq.protocols.pipe_ipc import AsyncioParentComm
 from artiq.protocols import pyon
+from artiq.gui.tools import QDockWidgetCloseDetect
 
 
 logger = logging.getLogger(__name__)
@@ -84,11 +85,9 @@ class AppletIPCServer(AsyncioParentComm):
         await asyncio.wait([self.server_task])
 
 
-class AppletDock(QtWidgets.QDockWidget):
-    sigClosed = QtCore.pyqtSignal()
-
+class AppletDock(QDockWidgetCloseDetect):
     def __init__(self, datasets_sub, uid, name, command):
-        QtWidgets.QDockWidget.__init__(self, "Applet: " + name)
+        QDockWidgetCloseDetect.__init__(self, "Applet: " + name)
         self.setObjectName("applet" + str(uid))
 
         self.datasets_sub = datasets_sub
@@ -163,10 +162,6 @@ class AppletDock(QtWidgets.QDockWidget):
     async def restart(self):
         await self.terminate()
         await self.start()
-
-    def closeEvent(self, event):
-        QtWidgets.QDockWidget.closeEvent(self, event)
-        self.sigClosed.emit()
 
 
 _templates = [

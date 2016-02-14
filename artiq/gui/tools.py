@@ -1,6 +1,6 @@
 import logging
 
-from quamash import QtCore
+from PyQt5 import QtCore, QtWidgets, QtGui
 
 
 def log_level_to_name(level):
@@ -27,3 +27,12 @@ class _WheelFilter(QtCore.QObject):
 def disable_scroll_wheel(widget):
     widget.setFocusPolicy(QtCore.Qt.StrongFocus)
     widget.installEventFilter(_WheelFilter(widget))
+
+
+class QDockWidgetCloseDetect(QtWidgets.QDockWidget):
+    sigClosed = QtCore.pyqtSignal()
+
+    def event(self, event):
+        if isinstance(event, QtGui.QCloseEvent):
+            self.sigClosed.emit()
+        return QtWidgets.QDockWidget.event(self, event)

@@ -7,7 +7,7 @@ from quamash import QtGui, QtCore, QtWidgets
 
 from pyqtgraph import LayoutWidget
 
-from artiq.gui.tools import log_level_to_name
+from artiq.gui.tools import log_level_to_name, QDockWidgetCloseDetect
 from artiq.gui.entries import argty_to_entry
 
 
@@ -133,12 +133,10 @@ class _ArgumentEditor(QtGui.QTreeWidget):
                 pass
 
 
-class _ExperimentDock(QtWidgets.QDockWidget):
-    sigClosed = QtCore.pyqtSignal()
-
+class _ExperimentDock(QDockWidgetCloseDetect):
     def __init__(self, manager, expurl):
         name = "Exp: " + expurl
-        QtWidgets.QDockWidget.__init__(self, name)
+        QDockWidgetCloseDetect.__init__(self, name)
         self.setObjectName(name)
 
         self.layout = QtWidgets.QGridLayout()
@@ -296,10 +294,6 @@ class _ExperimentDock(QtWidgets.QDockWidget):
         self.argeditor.deleteLater()
         self.argeditor = _ArgumentEditor(self.manager, self, self.expurl)
         self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
-
-    def closeEvent(self, event):
-        QtWidgets.QDockWidget.closeEvent(self, event)
-        self.sigClosed.emit()
 
     def save_state(self):
         return self.argeditor.save_state()
