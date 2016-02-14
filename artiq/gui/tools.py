@@ -32,7 +32,6 @@ def disable_scroll_wheel(widget):
 class QDockWidgetCloseDetect(QtWidgets.QDockWidget):
     sigClosed = QtCore.pyqtSignal()
 
-    def event(self, event):
-        if isinstance(event, QtGui.QCloseEvent):
-            self.sigClosed.emit()
-        return QtWidgets.QDockWidget.event(self, event)
+    def closeEvent(self, event):
+        self.sigClosed.emit()
+        QtWidgets.QDockWidget.closeEvent(self, event)
