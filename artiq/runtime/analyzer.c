@@ -91,7 +91,7 @@ void analyzer_end(void)
 
 int analyzer_input(void *data, int length)
 {
-    log("no input should be received by analyzer, dropping connection");
+    core_log("no input should be received by analyzer, dropping connection\n");
     return -1;
 }
 

@@ -7,18 +7,26 @@
 
 #include "log.h"
 
-static int buffer_index;
+static int buffer_cursor;
 static char buffer[LOG_BUFFER_SIZE];
 
-void lognonl_va(const char *fmt, va_list args)
+void core_log(const char *fmt, ...)
+{
+    va_list args;
+
+    va_start(args, fmt);
+    core_log_va(fmt, args);
+    va_end(args);
+}
+
+void core_log_va(const char *fmt, va_list args)
 {
     char outbuf[256];
-    int i, len;
+    int len = vscnprintf(outbuf, sizeof(outbuf), fmt, args);
 
-    len = vscnprintf(outbuf, sizeof(outbuf), fmt, args);
-    for(i=0;i<len;i++) {
-        buffer[buffer_index] = outbuf[i];
-        buffer_index = (buffer_index + 1) % LOG_BUFFER_SIZE;
+    for(int i = 0; i < len; i++) {
+        buffer[buffer_cursor] = outbuf[i];
+        buffer_cursor = (buffer_cursor + 1) % LOG_BUFFER_SIZE;
     }
 
 #ifdef CSR_ETHMAC_BASE
@@ -28,42 +36,16 @@ void lognonl_va(const char *fmt, va_list args)
 #endif
 }
 
-void lognonl(const char *fmt, ...)
+void core_log_get(char *outbuf)
 {
-    va_list args;
-
-    va_start(args, fmt);
-    lognonl_va(fmt, args);
-    va_end(args);
-}
-
-void log_va(const char *fmt, va_list args)
-{
-    lognonl_va(fmt, args);
-    lognonl("\n");
-}
-
-void log(const char *fmt, ...)
-{
-    va_list args;
-
-    va_start(args, fmt);
-    log_va(fmt, args);
-    va_end(args);
-}
-
-void log_get(char *outbuf)
-{
-    int i, j;
-
-    j = buffer_index;
-    for(i = 0; i < LOG_BUFFER_SIZE; i++) {
+    int j = buffer_cursor;
+    for(int i = 0; i < LOG_BUFFER_SIZE; i++) {
         outbuf[i] = buffer[j];
         j = (j + 1) % LOG_BUFFER_SIZE;
     }
 }
 
-void log_clear()
+void core_log_clear()
 {
     memset(buffer, 0, sizeof(buffer));
 }

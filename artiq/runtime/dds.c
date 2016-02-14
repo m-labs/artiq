@@ -95,7 +95,7 @@ static void dds_set_one(long long int now, long long int ref_time, unsigned int 
     unsigned int channel_enc;
 
 	if(channel >= CONFIG_DDS_CHANNEL_COUNT) {
-		log("Attempted to set invalid DDS channel");
+		core_log("Attempted to set invalid DDS channel\n");
 		return;
 	}
 #ifdef CONFIG_DDS_ONEHOT_SEL

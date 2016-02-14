@@ -5,13 +5,9 @@
 
 #define LOG_BUFFER_SIZE 4096
 
-void lognonl_va(const char *fmt, va_list args);
-void lognonl(const char *fmt, ...);
-
-void log_va(const char *fmt, va_list args);
-void log(const char *fmt, ...);
-
-void log_get(char *outbuf);
-void log_clear(void);
+void core_log(const char *fmt, ...);
+void core_log_va(const char *fmt, va_list args);
+void core_log_get(char *outbuf);
+void core_log_clear(void);
 
 #endif /* __LOG_H */

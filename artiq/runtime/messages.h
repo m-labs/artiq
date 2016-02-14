@@ -136,7 +136,6 @@ struct msg_cache_put_reply {
 struct msg_log {
     int type;
     const char *fmt;
-    int no_newline;
     va_list args;
 };
 

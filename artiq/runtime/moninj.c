@@ -73,7 +73,7 @@ static void moninj_monitor(const ip_addr_t *addr, u16_t port)
 
     reply_p = pbuf_alloc(PBUF_TRANSPORT, sizeof(struct monitor_reply), PBUF_RAM);
     if(!reply_p) {
-        log("Failed to allocate pbuf for monitor reply");
+        core_log("Failed to allocate pbuf for monitor reply\n");
         return;
     }
     memcpy(reply_p->payload, &reply, sizeof(struct monitor_reply));
@@ -112,7 +112,7 @@ static void moninj_ttlset(int channel, int mode)
             rtio_moninj_inj_value_write(1);
             break;
         default:
-            log("unknown TTL mode %d", mode);
+            core_log("unknown TTL mode %d\n", mode);
             break;
     }
 }
@@ -143,7 +143,7 @@ void moninj_init(void)
 {
     listen_pcb = udp_new();
     if(!listen_pcb) {
-        log("Failed to create UDP listening PCB");
+        core_log("Failed to create UDP listening PCB\n");
         return;
     }
     udp_bind(listen_pcb, IP_ADDR_ANY, 3250);

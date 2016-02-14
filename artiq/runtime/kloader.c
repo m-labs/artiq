@@ -45,12 +45,12 @@ static int load_or_start_kernel(const void *library, int run_kernel)
     mailbox_acknowledge();
 
     if(reply->type != MESSAGE_TYPE_LOAD_REPLY) {
-        log("BUG: unexpected reply to load/run request");
+        core_log("BUG: unexpected reply to load/run request\n");
         return 0;
     }
 
     if(reply->error != NULL) {
-        log("cannot load kernel: %s", reply->error);
+        core_log("cannot load kernel: %s\n", reply->error);
         return 0;
     }
 
@@ -60,7 +60,7 @@ static int load_or_start_kernel(const void *library, int run_kernel)
 int kloader_load_library(const void *library)
 {
     if(!kernel_cpu_reset_read()) {
-        log("BUG: attempted to load kernel library while kernel CPU is running");
+        core_log("BUG: attempted to load kernel library while kernel CPU is running\n");
         return 0;
     }
 
@@ -99,7 +99,7 @@ static int kloader_start_flash_kernel(char *key)
         return 0;
 
     if(remain) {
-        log("ERROR: kernel %s is too large", key);
+        core_log("ERROR: kernel %s is too large\n", key);
         return 0;
     }
 
@@ -129,7 +129,7 @@ int kloader_validate_kpointer(void *p)
 {
     unsigned int v = (unsigned int)p;
     if((v < KERNELCPU_EXEC_ADDRESS) || (v > KERNELCPU_LAST_ADDRESS)) {
-        log("Received invalid pointer from kernel CPU: 0x%08x", v);
+        core_log("Received invalid pointer from kernel CPU: 0x%08x\n", v);
         return 0;
     }
     return 1;
@@ -178,11 +178,7 @@ void kloader_service_essential_kmsg(void)
             case MESSAGE_TYPE_LOG: {
                 struct msg_log *msg = (struct msg_log *)umsg;
 
-                if(msg->no_newline) {
-                    lognonl_va(msg->fmt, msg->args);
-                } else {
-                    log_va(msg->fmt, msg->args);
-                }
+                core_log_va(msg->fmt, msg->args);
                 mailbox_acknowledge();
                 break;
             }

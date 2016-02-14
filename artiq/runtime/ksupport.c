@@ -102,8 +102,7 @@ static const struct symbol runtime_exports[] = {
     {"watchdog_set", &watchdog_set},
     {"watchdog_clear", &watchdog_clear},
 
-    {"log", &log},
-    {"lognonl", &lognonl},
+    {"core_log", &core_log},
     {"send_rpc", &send_rpc},
     {"recv_rpc", &recv_rpc},
 
@@ -164,7 +163,6 @@ int fprintf(FILE *stream, const char *fmt, ...)
 
     request.type = MESSAGE_TYPE_LOG;
     request.fmt = fmt;
-    request.no_newline = 1;
     va_start(request.args, fmt);
     mailbox_send_and_wait(&request);
     va_end(request.args);
@@ -309,8 +307,8 @@ long long int now_init(void)
 
     reply = mailbox_wait_and_receive();
     if(reply->type != MESSAGE_TYPE_NOW_INIT_REPLY) {
-        log("Malformed MESSAGE_TYPE_NOW_INIT_REQUEST reply type %d",
-            reply->type);
+        core_log("Malformed MESSAGE_TYPE_NOW_INIT_REQUEST reply type %d\n",
+                 reply->type);
         while(1);
     }
     now = reply->now;
@@ -345,8 +343,8 @@ int watchdog_set(int ms)
 
     reply = mailbox_wait_and_receive();
     if(reply->type != MESSAGE_TYPE_WATCHDOG_SET_REPLY) {
-        log("Malformed MESSAGE_TYPE_WATCHDOG_SET_REQUEST reply type %d",
-            reply->type);
+        core_log("Malformed MESSAGE_TYPE_WATCHDOG_SET_REQUEST reply type %d\n",
+                 reply->type);
         while(1);
     }
     id = reply->id;
@@ -389,8 +387,8 @@ int recv_rpc(void *slot) {
 
     reply = mailbox_wait_and_receive();
     if(reply->type != MESSAGE_TYPE_RPC_RECV_REPLY) {
-        log("Malformed MESSAGE_TYPE_RPC_RECV_REQUEST reply type %d",
-            reply->type);
+        core_log("Malformed MESSAGE_TYPE_RPC_RECV_REQUEST reply type %d\n",
+                 reply->type);
         while(1);
     }
 
@@ -458,8 +456,8 @@ struct artiq_list cache_get(const char *key)
 
     reply = mailbox_wait_and_receive();
     if(reply->type != MESSAGE_TYPE_CACHE_GET_REPLY) {
-        log("Malformed MESSAGE_TYPE_CACHE_GET_REQUEST reply type %d",
-            reply->type);
+        core_log("Malformed MESSAGE_TYPE_CACHE_GET_REQUEST reply type %d\n",
+                 reply->type);
         while(1);
     }
 
@@ -479,8 +477,8 @@ void cache_put(const char *key, struct artiq_list value)
 
     reply = mailbox_wait_and_receive();
     if(reply->type != MESSAGE_TYPE_CACHE_PUT_REPLY) {
-        log("Malformed MESSAGE_TYPE_CACHE_PUT_REQUEST reply type %d",
-            reply->type);
+        core_log("Malformed MESSAGE_TYPE_CACHE_PUT_REQUEST reply type %d\n",
+                 reply->type);
         while(1);
     }
 
@@ -491,25 +489,12 @@ void cache_put(const char *key, struct artiq_list value)
     }
 }
 
-void lognonl(const char *fmt, ...)
+void core_log(const char *fmt, ...)
 {
     struct msg_log request;
 
     request.type = MESSAGE_TYPE_LOG;
     request.fmt = fmt;
-    request.no_newline = 1;
-    va_start(request.args, fmt);
-    mailbox_send_and_wait(&request);
-    va_end(request.args);
-}
-
-void log(const char *fmt, ...)
-{
-    struct msg_log request;
-
-    request.type = MESSAGE_TYPE_LOG;
-    request.fmt = fmt;
-    request.no_newline = 0;
     va_start(request.args, fmt);
     mailbox_send_and_wait(&request);
     va_end(request.args);

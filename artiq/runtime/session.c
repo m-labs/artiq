@@ -95,8 +95,8 @@ static int in_packet_fill(uint8_t *data, int length)
                 return -1;
 
             if(buffer_in_read_cursor < buffer_in_write_cursor) {
-                log("session.c: read underrun (%d bytes remaining)",
-                    buffer_in_write_cursor - buffer_in_read_cursor);
+                core_log("session.c: read underrun (%d bytes remaining)\n",
+                         buffer_in_write_cursor - buffer_in_read_cursor);
             }
 
             in_packet_reset();
@@ -109,9 +109,9 @@ static int in_packet_fill(uint8_t *data, int length)
 static void in_packet_chunk(void *ptr, int length)
 {
     if(buffer_in_read_cursor + length > buffer_in_write_cursor) {
-        log("session.c: read overrun while trying to read %d bytes"
-            " (%d remaining)",
-            length, buffer_in_write_cursor - buffer_in_read_cursor);
+        core_log("session.c: read overrun while trying to read %d bytes"
+                 " (%d remaining)\n",
+                 length, buffer_in_write_cursor - buffer_in_read_cursor);
     }
 
     if(ptr != NULL)
@@ -153,7 +153,7 @@ static const char *in_packet_string()
     int length;
     const char *string = in_packet_bytes(&length);
     if(string[length - 1] != 0) {
-        log("session.c: string is not zero-terminated");
+        core_log("session.c: string is not zero-terminated\n");
         return "";
     }
     return string;
@@ -198,9 +198,9 @@ static void out_packet_extract(void **data, int *length)
 static void out_packet_advance_consumed(int length)
 {
     if(buffer_out_read_cursor + length > buffer_out_write_cursor) {
-        log("session.c: write underrun (consume) while trying to"
-            " acknowledge %d bytes (%d remaining)",
-            length, buffer_out_write_cursor - buffer_out_read_cursor);
+        core_log("session.c: write underrun (consume) while trying to"
+                 " acknowledge %d bytes (%d remaining)\n",
+                 length, buffer_out_write_cursor - buffer_out_read_cursor);
         return;
     }
 
@@ -210,9 +210,9 @@ static void out_packet_advance_consumed(int length)
 static void out_packet_advance_sent(int length)
 {
     if(buffer_out_sent_cursor + length > buffer_out_write_cursor) {
-        log("session.c: write underrun (send) while trying to"
-            " acknowledge %d bytes (%d remaining)",
-            length, buffer_out_write_cursor - buffer_out_sent_cursor);
+        core_log("session.c: write underrun (send) while trying to"
+                 " acknowledge %d bytes (%d remaining)\n",
+                 length, buffer_out_write_cursor - buffer_out_sent_cursor);
         return;
     }
 
@@ -224,9 +224,9 @@ static void out_packet_advance_sent(int length)
 static int out_packet_chunk(const void *ptr, int length)
 {
     if(buffer_out_write_cursor + length > BUFFER_OUT_SIZE) {
-        log("session.c: write overrun while trying to write %d bytes"
-            " (%d remaining)",
-            length, BUFFER_OUT_SIZE - buffer_out_write_cursor);
+        core_log("session.c: write overrun while trying to write %d bytes"
+                 " (%d remaining)\n",
+                 length, BUFFER_OUT_SIZE - buffer_out_write_cursor);
         return 0;
     }
 
@@ -305,7 +305,7 @@ void session_startup_kernel(void)
     if(!kloader_start_startup_kernel())
         return;
 
-    log("Startup kernel started");
+    core_log("Startup kernel started\n");
     while(1) {
         kloader_service_essential_kmsg();
 
@@ -318,21 +318,21 @@ void session_startup_kernel(void)
             if(umsg->type == MESSAGE_TYPE_FINISHED)
                 break;
             else if(umsg->type == MESSAGE_TYPE_EXCEPTION) {
-                log("WARNING: startup kernel ended with exception");
+                core_log("WARNING: startup kernel ended with exception\n");
                 break;
             } else {
-                log("ERROR: received invalid message type from kernel CPU");
+                core_log("ERROR: received invalid message type from kernel CPU\n");
                 break;
             }
         }
 
         if(watchdog_expired()) {
-            log("WARNING: watchdog expired in startup kernel");
+            core_log("WARNING: watchdog expired in startup kernel\n");
             break;
         }
     }
     kloader_stop();
-    log("Startup kernel terminated");
+    core_log("Startup kernel terminated\n");
 }
 
 void session_start(void)
@@ -416,7 +416,7 @@ static int process_input(void)
             int clk = in_packet_int8();
 
             if(user_kernel_state >= USER_KERNEL_RUNNING) {
-                log("Attempted to switch RTIO clock while kernel running");
+                core_log("Attempted to switch RTIO clock while kernel running\n");
                 out_packet_empty(REMOTEMSG_TYPE_CLOCK_SWITCH_FAILED);
                 break;
             }
@@ -433,13 +433,13 @@ static int process_input(void)
 #error Output buffer cannot hold the log buffer
 #endif
             out_packet_start(REMOTEMSG_TYPE_LOG_REPLY);
-            log_get(&buffer_out.data[buffer_out_write_cursor]);
+            core_log_get(&buffer_out.data[buffer_out_write_cursor]);
             buffer_out_write_cursor += LOG_BUFFER_SIZE;
             out_packet_finish();
             break;
 
         case REMOTEMSG_TYPE_LOG_CLEAR:
-            log_clear();
+            core_log_clear();
             out_packet_empty(REMOTEMSG_TYPE_LOG_REPLY);
             break;
 
@@ -492,7 +492,7 @@ static int process_input(void)
             buffer_in_read_cursor = buffer_in_write_cursor;
 
             if(user_kernel_state >= USER_KERNEL_RUNNING) {
-                log("Attempted to load new kernel library while already running");
+                core_log("Attempted to load new kernel library while already running\n");
                 out_packet_empty(REMOTEMSG_TYPE_LOAD_FAILED);
                 break;
             }
@@ -508,7 +508,7 @@ static int process_input(void)
 
         case REMOTEMSG_TYPE_RUN_KERNEL:
             if(user_kernel_state != USER_KERNEL_LOADED) {
-                log("Attempted to run kernel while not in the LOADED state");
+                core_log("Attempted to run kernel while not in the LOADED state\n");
                 out_packet_empty(REMOTEMSG_TYPE_KERNEL_STARTUP_FAILED);
                 break;
             }
@@ -524,21 +524,21 @@ static int process_input(void)
             struct msg_rpc_recv_reply reply;
 
             if(user_kernel_state != USER_KERNEL_WAIT_RPC) {
-                log("Unsolicited RPC reply");
+                core_log("Unsolicited RPC reply\n");
                 return 0; // restart session
             }
 
             request = mailbox_wait_and_receive();
             if(request->type != MESSAGE_TYPE_RPC_RECV_REQUEST) {
-                log("Expected MESSAGE_TYPE_RPC_RECV_REQUEST, got %d",
-                    request->type);
+                core_log("Expected MESSAGE_TYPE_RPC_RECV_REQUEST, got %d\n",
+                         request->type);
                 return 0; // restart session
             }
 
             const char *tag = in_packet_string();
             void *slot = request->slot;
             if(!receive_rpc_value(&tag, &slot)) {
-                log("Failed to receive RPC reply");
+                core_log("Failed to receive RPC reply\n");
                 return 0; // restart session
             }
 
@@ -567,13 +567,13 @@ static int process_input(void)
             exception.function = in_packet_string();
 
             if(user_kernel_state != USER_KERNEL_WAIT_RPC) {
-                log("Unsolicited RPC exception reply");
+                core_log("Unsolicited RPC exception reply\n");
                 return 0; // restart session
             }
 
             request = mailbox_wait_and_receive();
             if(request->type != MESSAGE_TYPE_RPC_RECV_REQUEST) {
-                log("Expected MESSAGE_TYPE_RPC_RECV_REQUEST, got %d",
+                core_log("Expected MESSAGE_TYPE_RPC_RECV_REQUEST, got %d\n",
                     request->type);
                 return 0; // restart session
             }
@@ -588,8 +588,8 @@ static int process_input(void)
         }
 
         default:
-            log("Received invalid packet type %d from host",
-                buffer_in.header.type);
+            core_log("Received invalid packet type %d from host\n",
+                     buffer_in.header.type);
             return 0;
     }
 
@@ -657,7 +657,7 @@ static int sizeof_rpc_value(const char **tag)
             return sizeof_rpc_value(tag) * 3;
 
         default:
-            log("sizeof_rpc_value: unknown tag %02x", *((*tag) - 1));
+            core_log("sizeof_rpc_value: unknown tag %02x\n", *((*tag) - 1));
             return 0;
     }
 }
@@ -674,8 +674,8 @@ static void *alloc_rpc_value(int size)
 
     request = mailbox_wait_and_receive();
     if(request->type != MESSAGE_TYPE_RPC_RECV_REQUEST) {
-        log("Expected MESSAGE_TYPE_RPC_RECV_REQUEST, got %d",
-            request->type);
+        core_log("Expected MESSAGE_TYPE_RPC_RECV_REQUEST, got %d\n",
+                 request->type);
         return NULL;
     }
     return request->slot;
@@ -766,7 +766,7 @@ static int receive_rpc_value(const char **tag, void **slot)
         }
 
         default:
-            log("receive_rpc_value: unknown tag %02x", *((*tag) - 1));
+            core_log("receive_rpc_value: unknown tag %02x\n", *((*tag) - 1));
             return 0;
     }
 
@@ -834,7 +834,7 @@ static int send_rpc_value(const char **tag, void **value)
             for(int i = 0; i < list->length; i++) {
                 const char *tag_copy = *tag;
                 if(!send_rpc_value(&tag_copy, &element)) {
-                    log("failed to send list at element %d/%d", i, list->length);
+                    core_log("failed to send list at element %d/%d\n", i, list->length);
                     return 0;
                 }
             }
@@ -882,7 +882,7 @@ static int send_rpc_value(const char **tag, void **value)
         }
 
         default:
-            log("send_rpc_value: unknown tag %02x", *((*tag) - 1));
+            core_log("send_rpc_value: unknown tag %02x\n", *((*tag) - 1));
             return 0;
     }
 
@@ -932,7 +932,7 @@ static int process_kmsg(struct msg_base *umsg)
         return 1;
     }
     if(user_kernel_state != USER_KERNEL_RUNNING) {
-        log("Received unexpected message from kernel CPU while not in running state");
+        core_log("Received unexpected message from kernel CPU while not in running state\n");
         return 0;
     }
 
@@ -986,8 +986,8 @@ static int process_kmsg(struct msg_base *umsg)
             struct msg_rpc_send *msg = (struct msg_rpc_send *)umsg;
 
             if(!send_rpc_request(msg->service, msg->tag, msg->args)) {
-                log("Failed to send RPC request (service %d, tag %s)",
-                    msg->service, msg->tag);
+                core_log("Failed to send RPC request (service %d, tag %s)\n",
+                         msg->service, msg->tag);
                 return 0; // restart session
             }
 
@@ -1059,8 +1059,8 @@ static int process_kmsg(struct msg_base *umsg)
         }
 
         default: {
-            log("Received invalid message type %d from kernel CPU",
-                umsg->type);
+            core_log("Received invalid message type %d from kernel CPU\n",
+                     umsg->type);
             return 0;
         }
     }
@@ -1085,12 +1085,12 @@ void session_poll(void **data, int *length)
 {
     if(user_kernel_state == USER_KERNEL_RUNNING) {
         if(watchdog_expired()) {
-            log("Watchdog expired");
+            core_log("Watchdog expired\n");
             *length = -1;
             return;
         }
         if(!rtiocrg_check()) {
-            log("RTIO clock failure");
+            core_log("RTIO clock failure\n");
             *length = -1;
             return;
         }

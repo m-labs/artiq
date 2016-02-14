@@ -17,17 +17,17 @@ void rtiocrg_init(void)
     clk = 0;
     fs_read("startup_clock", &b, 1, NULL);
     if(b == 'i')
-        log("Startup RTIO clock: internal");
+        core_log("Startup RTIO clock: internal\n");
     else if(b == 'e') {
-        log("Startup RTIO clock: external");
+        core_log("Startup RTIO clock: external\n");
         clk = 1;
     } else
-        log("ERROR: unrecognized startup_clock entry in flash storage");
+        core_log("ERROR: unrecognized startup_clock entry in flash storage\n");
 
     if(!rtiocrg_switch_clock(clk)) {
-        log("ERROR: startup RTIO clock failed");
-        log("WARNING: this may cause the system initialization to fail");
-        log("WARNING: fix clocking and reset the device");
+        core_log("ERROR: startup RTIO clock failed\n");
+        core_log("WARNING: this may cause the system initialization to fail\n");
+        core_log("WARNING: fix clocking and reset the device\n");
     }
 }
 
