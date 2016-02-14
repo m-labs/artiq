@@ -4,8 +4,7 @@ import socket
 import struct
 from operator import itemgetter
 
-from quamash import QtGui, QtCore
-from pyqtgraph import dockarea
+from quamash import QtGui, QtCore, QtWidgets
 
 from artiq.tools import TaskObject
 from artiq.protocols.sync_struct import Subscriber
@@ -213,14 +212,16 @@ class _DeviceManager:
             return None
 
 
-class _MonInjDock(dockarea.Dock):
+class _MonInjDock(QtWidgets.QDockWidget):
     def __init__(self, name):
-        dockarea.Dock.__init__(self, name)
+        QtWidgets.QDockWidget.__init__(self, name)
+        self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
+                         QtWidgets.QDockWidget.DockWidgetFloatable)
 
         self.grid = QtGui.QGridLayout()
         gridw = QtGui.QWidget()
         gridw.setLayout(self.grid)
-        self.addWidget(gridw)
+        self.setWidget(gridw)
 
     def layout_widgets(self, widgets):
         w = self.grid.itemAt(0)

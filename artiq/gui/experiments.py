@@ -3,9 +3,9 @@ import asyncio
 from functools import partial
 from collections import OrderedDict
 
-from quamash import QtGui, QtCore
+from quamash import QtGui, QtCore, QtWidgets
 
-from pyqtgraph import dockarea, LayoutWidget
+from pyqtgraph import LayoutWidget
 
 from artiq.gui.tools import log_level_to_name
 from artiq.gui.entries import argty_to_entry
@@ -133,10 +133,16 @@ class _ArgumentEditor(QtGui.QTreeWidget):
                 pass
 
 
-class _ExperimentDock(dockarea.Dock):
+class _ExperimentDock(QtWidgets.QDockWidget):
+    sigClosed = QtCore.pyqtSignal()
+
     def __init__(self, manager, expurl):
-        dockarea.Dock.__init__(self, "Exp: " + expurl, closable=True)
-        self.setMinimumSize(QtCore.QSize(740, 470))
+        QtWidgets.QDockWidget.__init__(self, "Exp: " + expurl)
+
+        self.layout = QtWidgets.QGridLayout()
+        top_widget = QtWidgets.QWidget()
+        top_widget.setLayout(self.layout)
+        self.setWidget(top_widget)
         self.layout.setSpacing(5)
         self.layout.setContentsMargins(5, 5, 5, 5)
 
@@ -144,7 +150,7 @@ class _ExperimentDock(dockarea.Dock):
         self.expurl = expurl
 
         self.argeditor = _ArgumentEditor(self.manager, self, self.expurl)
-        self.addWidget(self.argeditor, 0, 0, colspan=5)
+        self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
         self.layout.setRowStretch(0, 1)
 
         scheduling = manager.get_submission_scheduling(expurl)
@@ -153,8 +159,8 @@ class _ExperimentDock(dockarea.Dock):
         datetime = QtGui.QDateTimeEdit()
         datetime.setDisplayFormat("MMM d yyyy hh:mm:ss")
         datetime_en = QtGui.QCheckBox("Due date:")
-        self.addWidget(datetime_en, 1, 0)
-        self.addWidget(datetime, 1, 1)
+        self.layout.addWidget(datetime_en, 1, 0)
+        self.layout.addWidget(datetime, 1, 1)
 
         if scheduling["due_date"] is None:
             datetime.setDate(QtCore.QDate.currentDate())
@@ -175,8 +181,8 @@ class _ExperimentDock(dockarea.Dock):
         datetime_en.stateChanged.connect(update_datetime_en)
 
         pipeline_name = QtGui.QLineEdit()
-        self.addWidget(QtGui.QLabel("Pipeline:"), 1, 2)
-        self.addWidget(pipeline_name, 1, 3)
+        self.layout.addWidget(QtGui.QLabel("Pipeline:"), 1, 2)
+        self.layout.addWidget(pipeline_name, 1, 3)
 
         pipeline_name.setText(scheduling["pipeline_name"])
         def update_pipeline_name(text):
@@ -185,8 +191,8 @@ class _ExperimentDock(dockarea.Dock):
 
         priority = QtGui.QSpinBox()
         priority.setRange(-99, 99)
-        self.addWidget(QtGui.QLabel("Priority:"), 2, 0)
-        self.addWidget(priority, 2, 1)
+        self.layout.addWidget(QtGui.QLabel("Priority:"), 2, 0)
+        self.layout.addWidget(priority, 2, 1)
 
         priority.setValue(scheduling["priority"])
         def update_priority(value):
@@ -195,7 +201,7 @@ class _ExperimentDock(dockarea.Dock):
 
         flush = QtGui.QCheckBox("Flush")
         flush.setToolTip("Flush the pipeline before starting the experiment")
-        self.addWidget(flush, 2, 2, colspan=2)
+        self.layout.addWidget(flush, 2, 2, 1, 2)
 
         flush.setChecked(scheduling["flush"])
         def update_flush(checked):
@@ -209,8 +215,8 @@ class _ExperimentDock(dockarea.Dock):
         log_level.setToolTip("Minimum level for log entry production")
         log_level_label = QtGui.QLabel("Logging level:")
         log_level_label.setToolTip("Minimum level for log message production")
-        self.addWidget(log_level_label, 3, 0)
-        self.addWidget(log_level, 3, 1)
+        self.layout.addWidget(log_level_label, 3, 0)
+        self.layout.addWidget(log_level, 3, 1)
 
         log_level.setCurrentIndex(log_levels.index(
             log_level_to_name(options["log_level"])))
@@ -224,8 +230,8 @@ class _ExperimentDock(dockarea.Dock):
             repo_rev_label = QtGui.QLabel("Revision:")
             repo_rev_label.setToolTip("Experiment repository revision "
                                       "(commit ID) to use")
-            self.addWidget(repo_rev_label, 3, 2)
-            self.addWidget(repo_rev, 3, 3)
+            self.layout.addWidget(repo_rev_label, 3, 2)
+            self.layout.addWidget(repo_rev, 3, 3)
 
             if options["repo_rev"] is not None:
                 repo_rev.setText(options["repo_rev"])
@@ -243,7 +249,7 @@ class _ExperimentDock(dockarea.Dock):
         submit.setShortcut("CTRL+RETURN")
         submit.setSizePolicy(QtGui.QSizePolicy.Expanding,
                              QtGui.QSizePolicy.Expanding)
-        self.addWidget(submit, 1, 4, rowspan=2)
+        self.layout.addWidget(submit, 1, 4, 2, 1)
         submit.clicked.connect(self.submit_clicked)
 
         reqterm = QtGui.QPushButton("Terminate instances")
@@ -253,7 +259,7 @@ class _ExperimentDock(dockarea.Dock):
         reqterm.setShortcut("CTRL+BACKSPACE")
         reqterm.setSizePolicy(QtGui.QSizePolicy.Expanding,
                               QtGui.QSizePolicy.Expanding)
-        self.addWidget(reqterm, 3, 4)
+        self.layout.addWidget(reqterm, 3, 4)
         reqterm.clicked.connect(self.reqterm_clicked)
 
     def submit_clicked(self):
@@ -287,7 +293,11 @@ class _ExperimentDock(dockarea.Dock):
 
         self.argeditor.deleteLater()
         self.argeditor = _ArgumentEditor(self.manager, self, self.expurl)
-        self.addWidget(self.argeditor, 0, 0, colspan=5)
+        self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
+
+    def closeEvent(self, event):
+        QtWidgets.QDockWidget.closeEvent(self, event)
+        self.sigClosed.emit()
 
     def save_state(self):
         return self.argeditor.save_state()
@@ -297,11 +307,10 @@ class _ExperimentDock(dockarea.Dock):
 
 
 class ExperimentManager:
-    def __init__(self, status_bar, dock_area,
+    def __init__(self, main_window,
                  explist_sub, schedule_sub,
                  schedule_ctl, experiment_db_ctl):
-        self.status_bar = status_bar
-        self.dock_area = dock_area
+        self.main_window = main_window
         self.schedule_ctl = schedule_ctl
         self.experiment_db_ctl = experiment_db_ctl
 
@@ -385,11 +394,12 @@ class ExperimentManager:
     def open_experiment(self, expurl):
         if expurl in self.open_experiments:
             dock = self.open_experiments[expurl]
-            self.dock_area.floatDock(dock)
+            dock.setFloating(True)
             return dock
         dock = _ExperimentDock(self, expurl)
         self.open_experiments[expurl] = dock
-        self.dock_area.floatDock(dock)
+        self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
+        dock.setFloating(True)
         dock.sigClosed.connect(partial(self.on_dock_closed, expurl))
         return dock
 
@@ -398,7 +408,8 @@ class ExperimentManager:
 
     async def _submit_task(self, *args):
         rid = await self.schedule_ctl.submit(*args)
-        self.status_bar.showMessage("Submitted RID {}".format(rid))
+        self.main_window.statusBar().showMessage(
+            "Submitted RID {}".format(rid))
 
     def submit(self, expurl):
         file, class_name, _ = self.resolve_expurl(expurl)
@@ -436,8 +447,9 @@ class ExperimentManager:
                              rid, exc_info=True)
 
     def request_inst_term(self, expurl):
-        self.status_bar.showMessage("Requesting termination of all instances "
-                                    "of '{}'".format(expurl))
+        self.main_window.statusBar().showMessage(
+            "Requesting termination of all instances "
+            "of '{}'".format(expurl))
         file, class_name, use_repository = self.resolve_expurl(expurl)
         rids = []
         for rid, desc in self.schedule.items():

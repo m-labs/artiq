@@ -4,8 +4,8 @@ import time
 import re
 from functools import partial
 
-from quamash import QtGui, QtCore
-from pyqtgraph import dockarea, LayoutWidget
+from quamash import QtGui, QtCore, QtWidgets
+from pyqtgraph import LayoutWidget
 
 from artiq.gui.tools import log_level_to_name
 
@@ -140,13 +140,15 @@ class _LogFilterProxyModel(QtCore.QSortFilterProxyModel):
         self.invalidateFilter()
 
 
-class _LogDock(dockarea.Dock):
+class _LogDock(QtWidgets.QDockWidget):
+    sigClosed = QtCore.pyqtSignal()
+
     def __init__(self, manager, name, log_sub):
-        dockarea.Dock.__init__(self, name, label="Log")
-        self.setMinimumSize(QtCore.QSize(720, 250))
+        QtWidgets.QDockWidget.__init__(self, "Log")
+        self.setObjectName(name)
 
         grid = LayoutWidget()
-        self.addWidget(grid)
+        self.setWidget(grid)
 
         grid.addWidget(QtGui.QLabel("Minimum level: "), 0, 0)
         self.filter_level = QtGui.QComboBox()
@@ -252,6 +254,10 @@ class _LogDock(dockarea.Dock):
         self.table_model_filter.rowsInserted.connect(self.rows_inserted_after)
         self.table_model_filter.rowsRemoved.connect(self.rows_removed)
 
+    def closeEvent(self, event):
+        QtWidgets.QDockWidget.closeEvent(self, event)
+        self.sigClosed.emit()
+
     def save_state(self):
         return {
             "min_level_idx": self.filter_level.currentIndex(),
@@ -279,8 +285,8 @@ class _LogDock(dockarea.Dock):
 
 
 class LogDockManager:
-    def __init__(self, dock_area, log_sub):
-        self.dock_area = dock_area
+    def __init__(self, main_window, log_sub):
+        self.main_window = main_window
         self.log_sub = log_sub
         self.docks = dict()
 
@@ -294,7 +300,8 @@ class LogDockManager:
         dock = _LogDock(self, name, self.log_sub)
         self.docks[name] = dock
         if add_to_area:
-            self.dock_area.floatDock(dock)
+            self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
+            dock.setFloating(True)
         dock.sigClosed.connect(partial(self.on_dock_closed, name))
         self.update_closable()
         return dock
@@ -304,9 +311,12 @@ class LogDockManager:
         self.update_closable()
 
     def update_closable(self):
-        closable = len(self.docks) > 1
+        flags = (QtWidgets.QDockWidget.DockWidgetMovable |
+                 QtWidgets.QDockWidget.DockWidgetFloatable)
+        if len(self.docks) > 1:
+            flags |= QtWidgets.QDockWidget.DockWidgetClosable
         for dock in self.docks.values():
-            dock.setClosable(closable)
+            dock.setFeatures(flags)
 
     def save_state(self):
         return {name: dock.save_state() for name, dock in self.docks.items()}
@@ -317,8 +327,9 @@ class LogDockManager:
         for name, dock_state in state.items():
             dock = _LogDock(self, name, self.log_sub)
             dock.restore_state(dock_state)
-            self.dock_area.addDock(dock)
+            self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
             self.docks[name] = dock
+        self.update_closable()
 
     def first_log_dock(self):
         if self.docks:
