@@ -39,25 +39,28 @@ void rtio_process_exceptional_status(int status, long long int timestamp, int ch
     }
 }
 
-void rtio_log(long long int timestamp, char *message)
+void rtio_log_va(long long int timestamp, const char *fmt, va_list args)
 {
-    unsigned int word;
-    int i;
+    // This executes on the kernel CPU's stack, which is specifically designed
+    // for allocation of this kind of massive buffers.
+    int   len = vsnprintf(NULL, 0, fmt, args);
+    char *buf = __builtin_alloca(len + 1);
+    vsnprintf(buf, len + 1, fmt, args);
 
     rtio_chan_sel_write(CONFIG_RTIO_LOG_CHANNEL);
     rtio_o_timestamp_write(timestamp);
 
-    i = 0;
-    word = 0;
+    int i = 0;
+    unsigned int word = 0;
     while(1) {
         word <<= 8;
-        word |= *message & 0xff;
-        if(*message == 0) {
+        word |= *buf & 0xff;
+        if(*buf == 0) {
             rtio_o_data_write(word);
             rtio_o_we_write(1);
             break;
         }
-        message++;
+        buf++;
         i++;
         if(i == 4) {
             rtio_o_data_write(word);
@@ -66,4 +69,13 @@ void rtio_log(long long int timestamp, char *message)
             i = 0;
         }
     }
+}
+
+void rtio_log(long long int timestamp, const char *fmt, ...)
+{
+    va_list args;
+
+    va_start(args, fmt);
+    rtio_log_va(timestamp, fmt, args);
+    va_end(args);
 }

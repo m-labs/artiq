@@ -1,6 +1,7 @@
 #ifndef __RTIO_H
 #define __RTIO_H
 
+#include <stdarg.h>
 #include <generated/csr.h>
 #include "artiq_personality.h"
 
@@ -14,7 +15,8 @@
 void rtio_init(void);
 long long int rtio_get_counter(void);
 void rtio_process_exceptional_status(int status, long long int timestamp, int channel);
-void rtio_log(long long int timestamp, char *message);
+void rtio_log(long long int timestamp, const char *format, ...);
+void rtio_log_va(long long int timestamp, const char *format, va_list args);
 
 static inline void rtio_write_and_process_status(long long int timestamp, int channel)
 {
