@@ -7,7 +7,6 @@ import os
 
 import PyQt5
 from quamash import QEventLoop, QtGui, QtCore
-assert QtGui is PyQt5.QtGui
 # pyqtgraph will pick up any already imported Qt binding.
 from pyqtgraph import dockarea
 
