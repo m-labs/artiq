@@ -219,19 +219,20 @@ class _MonInjDock(QtWidgets.QDockWidget):
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
                          QtWidgets.QDockWidget.DockWidgetFloatable)
 
-        self.grid = QtWidgets.QGridLayout()
-        gridw = QtWidgets.QWidget()
-        gridw.setLayout(self.grid)
-        self.setWidget(gridw)
 
     def layout_widgets(self, widgets):
-        w = self.grid.itemAt(0)
-        while w is not None:
-            self.grid.removeItem(w)
-            w = self.grid.itemAt(0)
+        scroll_area = QtWidgets.QScrollArea()
+        self.setWidget(scroll_area)
+
+        grid = QtWidgets.QGridLayout()
+        grid_widget = QtWidgets.QWidget()
+        grid_widget.setLayout(grid)
+
         for i, (_, w) in enumerate(sorted(widgets, key=itemgetter(0))):
-            self.grid.addWidget(w, i // 4, i % 4)
-            self.grid.setColumnStretch(i % 4, 1)
+            grid.addWidget(w, i // 4, i % 4)
+            grid.setColumnStretch(i % 4, 1)
+
+        scroll_area.setWidget(grid_widget)
 
 
 class MonInj(TaskObject):
