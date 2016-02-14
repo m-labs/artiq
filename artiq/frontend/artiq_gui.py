@@ -47,10 +47,14 @@ class MainWindow(QtGui.QMainWindow):
         self.exit_request.set()
 
     def save_state(self):
-        return bytes(self.saveState())
+        return {
+            "state": bytes(self.saveState()),
+            "geometry": bytes(self.saveGeometry())
+        }
 
     def restore_state(self, state):
-        self.restoreState(QtCore.QByteArray(state))
+        self.restoreGeometry(QtCore.QByteArray(state["geometry"]))
+        self.restoreState(QtCore.QByteArray(state["state"]))
 
 
 def main():
