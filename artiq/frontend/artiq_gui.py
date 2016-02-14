@@ -131,14 +131,14 @@ def main():
     main_window.setCentralWidget(d_explorer)
     if os.name != "nt":
         main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_ttl_dds.dds_dock)
-        main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_ttl_dds.ttl_dock)
-        main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_applets)
-        main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_datasets)
+        main_window.tabifyDockWidget(d_ttl_dds.dds_dock, d_ttl_dds.ttl_dock)
+        main_window.tabifyDockWidget(d_ttl_dds.ttl_dock, d_applets)
+        main_window.tabifyDockWidget(d_applets, d_datasets)
     else:
         main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_applets)
-        main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_datasets)
-    main_window.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d_shortcuts)
-    main_window.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d_schedule)
+        main_window.tabifyDockWidget(d_applets, d_datasets)
+    main_window.tabifyDockWidget(d_datasets, d_shortcuts)
+    main_window.addDockWidget(QtCore.Qt.BottomDockWidgetArea, d_schedule)
 
     # load/initialize state
     smgr.load()
@@ -148,7 +148,7 @@ def main():
     # create first log dock if not already in state
     d_log0 = logmgr.first_log_dock()
     if d_log0 is not None:
-        main_window.addDockWidget(QtCore.Qt.TopDockWidgetArea, d_log0)
+        main_window.tabifyDockWidget(d_shortcuts, d_log0)
 
     # run
     main_window.show()
