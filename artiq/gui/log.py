@@ -4,7 +4,7 @@ import time
 import re
 from functools import partial
 
-from quamash import QtGui, QtCore, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 from artiq.gui.tools import (LayoutWidget, log_level_to_name,
                              QDockWidgetCloseDetect)
@@ -148,46 +148,46 @@ class _LogDock(QDockWidgetCloseDetect):
         grid = LayoutWidget()
         self.setWidget(grid)
 
-        grid.addWidget(QtGui.QLabel("Minimum level: "), 0, 0)
-        self.filter_level = QtGui.QComboBox()
+        grid.addWidget(QtWidgets.QLabel("Minimum level: "), 0, 0)
+        self.filter_level = QtWidgets.QComboBox()
         self.filter_level.addItems(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
         self.filter_level.setToolTip("Display entries at or above this level")
         grid.addWidget(self.filter_level, 0, 1)
         self.filter_level.currentIndexChanged.connect(
             self.filter_level_changed)
-        self.filter_freetext = QtGui.QLineEdit()
+        self.filter_freetext = QtWidgets.QLineEdit()
         self.filter_freetext.setPlaceholderText("freetext filter...")
         self.filter_freetext.editingFinished.connect(
             self.filter_freetext_changed)
         grid.addWidget(self.filter_freetext, 0, 2)
 
-        scrollbottom = QtGui.QToolButton()
+        scrollbottom = QtWidgets.QToolButton()
         scrollbottom.setToolTip("Scroll to bottom")
-        scrollbottom.setIcon(QtGui.QApplication.style().standardIcon(
-            QtGui.QStyle.SP_ArrowDown))
+        scrollbottom.setIcon(QtWidgets.QApplication.style().standardIcon(
+            QtWidgets.QStyle.SP_ArrowDown))
         grid.addWidget(scrollbottom, 0, 3)
         scrollbottom.clicked.connect(self.scroll_to_bottom)
-        newdock = QtGui.QToolButton()
+        newdock = QtWidgets.QToolButton()
         newdock.setToolTip("Create new log dock")
-        newdock.setIcon(QtGui.QApplication.style().standardIcon(
-            QtGui.QStyle.SP_FileDialogNewFolder))
+        newdock.setIcon(QtWidgets.QApplication.style().standardIcon(
+            QtWidgets.QStyle.SP_FileDialogNewFolder))
         # note the lambda, the default parameter is overriden otherwise
         newdock.clicked.connect(lambda: manager.create_new_dock())
         grid.addWidget(newdock, 0, 4)
         grid.layout.setColumnStretch(2, 1)
 
-        self.log = QtGui.QTableView()
-        self.log.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
-        self.log.horizontalHeader().setResizeMode(
-            QtGui.QHeaderView.ResizeToContents)
+        self.log = QtWidgets.QTableView()
+        self.log.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
+        self.log.horizontalHeader().setSectionResizeMode(
+            QtWidgets.QHeaderView.ResizeToContents)
         self.log.horizontalHeader().setStretchLastSection(True)
-        self.log.verticalHeader().setResizeMode(
-            QtGui.QHeaderView.ResizeToContents)
+        self.log.verticalHeader().setSectionResizeMode(
+            QtWidgets.QHeaderView.ResizeToContents)
         self.log.verticalHeader().hide()
         self.log.setHorizontalScrollMode(
-            QtGui.QAbstractItemView.ScrollPerPixel)
+            QtWidgets.QAbstractItemView.ScrollPerPixel)
         self.log.setVerticalScrollMode(
-            QtGui.QAbstractItemView.ScrollPerPixel)
+            QtWidgets.QAbstractItemView.ScrollPerPixel)
         self.log.setShowGrid(False)
         self.log.setTextElideMode(QtCore.Qt.ElideNone)
         grid.addWidget(self.log, 1, 0, colspan=5)

@@ -3,7 +3,7 @@ from collections import OrderedDict
 from functools import partial
 import logging
 
-from quamash import QtGui, QtCore, QtWidgets
+from PyQt5 import QtCore, QtWidgets
 
 from artiq.tools import short_format
 from artiq.gui.tools import LayoutWidget
@@ -39,19 +39,20 @@ class DatasetsDock(QtWidgets.QDockWidget):
         grid = LayoutWidget()
         self.setWidget(grid)
 
-        self.search = QtGui.QLineEdit()
+        self.search = QtWidgets.QLineEdit()
         self.search.setPlaceholderText("search...")
         self.search.editingFinished.connect(self._search_datasets)
         grid.addWidget(self.search, 0, 0)
 
-        self.table = QtGui.QTreeView()
-        self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
-        self.table.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
-        self.table.header().setResizeMode(QtGui.QHeaderView.ResizeToContents)
+        self.table = QtWidgets.QTreeView()
+        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.table.header().setSectionResizeMode(
+            QtWidgets.QHeaderView.ResizeToContents)
         grid.addWidget(self.table, 1, 0)
 
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        delete_action = QtGui.QAction("Delete dataset", self.table)
+        delete_action = QtWidgets.QAction("Delete dataset", self.table)
         delete_action.triggered.connect(self.delete_clicked)
         delete_action.setShortcut("DELETE")
         delete_action.setShortcutContext(QtCore.Qt.WidgetShortcut)

@@ -39,9 +39,9 @@ class QDockWidgetCloseDetect(QtWidgets.QDockWidget):
 
 class LayoutWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
-        QtGui.QWidget.__init__(self, parent)
-        self.layout = QtGui.QGridLayout()
+        QtWidgets.QWidget.__init__(self, parent)
+        self.layout = QtWidgets.QGridLayout()
         self.setLayout(self.layout)
 
-    def addWidget(self, item, row=None, col=None, rowspan=1, colspan=1):
+    def addWidget(self, item, row=0, col=0, rowspan=1, colspan=1):
         self.layout.addWidget(item, row, col, rowspan, colspan)

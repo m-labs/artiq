@@ -1,4 +1,4 @@
-from quamash import QtCore
+from PyQt5 import QtCore
 
 from artiq.protocols.sync_struct import Subscriber
 

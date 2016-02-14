@@ -2,7 +2,7 @@ import asyncio
 import time
 from functools import partial
 
-from quamash import QtGui, QtCore, QtWidgets
+from PyQt5 import QtCore, QtWidgets
 
 from artiq.gui.models import DictSyncModel
 from artiq.tools import elide
@@ -64,23 +64,23 @@ class ScheduleDock(QtWidgets.QDockWidget):
         self.status_bar = status_bar
         self.schedule_ctl = schedule_ctl
 
-        self.table = QtGui.QTableView()
-        self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
-        self.table.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
-        self.table.horizontalHeader().setResizeMode(
-            QtGui.QHeaderView.ResizeToContents)
-        self.table.verticalHeader().setResizeMode(
-            QtGui.QHeaderView.ResizeToContents)
+        self.table = QtWidgets.QTableView()
+        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.table.horizontalHeader().setSectionResizeMode(
+            QtWidgets.QHeaderView.ResizeToContents)
+        self.table.verticalHeader().setSectionResizeMode(
+            QtWidgets.QHeaderView.ResizeToContents)
         self.table.verticalHeader().hide()
         self.setWidget(self.table)
 
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        request_termination_action = QtGui.QAction("Request termination", self.table)
+        request_termination_action = QtWidgets.QAction("Request termination", self.table)
         request_termination_action.triggered.connect(partial(self.delete_clicked, True))
         request_termination_action.setShortcut("DELETE")
         request_termination_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         self.table.addAction(request_termination_action)
-        delete_action = QtGui.QAction("Delete", self.table)
+        delete_action = QtWidgets.QAction("Delete", self.table)
         delete_action.triggered.connect(partial(self.delete_clicked, False))
         delete_action.setShortcut("SHIFT+DELETE")
         delete_action.setShortcutContext(QtCore.Qt.WidgetShortcut)

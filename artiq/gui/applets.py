@@ -4,7 +4,7 @@ import sys
 import shlex
 from functools import partial
 
-from quamash import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 from artiq.protocols.pipe_ipc import AsyncioParentComm
 from artiq.protocols import pyon
@@ -195,35 +195,35 @@ class AppletsDock(QtWidgets.QDockWidget):
 
         self.table = QtWidgets.QTableWidget(0, 3)
         self.table.setHorizontalHeaderLabels(["Enable", "Name", "Command"])
-        self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
-        self.table.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
+        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.horizontalHeader().setResizeMode(
-            QtGui.QHeaderView.ResizeToContents)
-        self.table.verticalHeader().setResizeMode(
-            QtGui.QHeaderView.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(
+            QtWidgets.QHeaderView.ResizeToContents)
+        self.table.verticalHeader().setSectionResizeMode(
+            QtWidgets.QHeaderView.ResizeToContents)
         self.table.verticalHeader().hide()
         self.table.setTextElideMode(QtCore.Qt.ElideNone)
         self.setWidget(self.table)
 
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        new_action = QtGui.QAction("New applet", self.table)
+        new_action = QtWidgets.QAction("New applet", self.table)
         new_action.triggered.connect(self.new)
         self.table.addAction(new_action)
-        templates_menu = QtGui.QMenu()
+        templates_menu = QtWidgets.QMenu()
         for name, template in _templates:
-            action = QtGui.QAction(name, self.table)
+            action = QtWidgets.QAction(name, self.table)
             action.triggered.connect(partial(self.new_template, template))
             templates_menu.addAction(action)
-        restart_action = QtGui.QAction("New applet from template", self.table)
+        restart_action = QtWidgets.QAction("New applet from template", self.table)
         restart_action.setMenu(templates_menu)
         self.table.addAction(restart_action)
-        restart_action = QtGui.QAction("Restart selected applet", self.table)
+        restart_action = QtWidgets.QAction("Restart selected applet", self.table)
         restart_action.setShortcut("CTRL+R")
         restart_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         restart_action.triggered.connect(self.restart)
         self.table.addAction(restart_action)
-        delete_action = QtGui.QAction("Delete selected applet", self.table)
+        delete_action = QtWidgets.QAction("Delete selected applet", self.table)
         delete_action.setShortcut("DELETE")
         delete_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         delete_action.triggered.connect(self.delete)

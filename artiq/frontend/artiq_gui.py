@@ -5,9 +5,8 @@ import asyncio
 import atexit
 import os
 
-import PyQt5
-from quamash import QEventLoop, QtGui, QtCore, QtWidgets
-import pyqtgraph
+from PyQt5 import QtCore, QtGui, QtWidgets
+from quamash import QEventLoop
 
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import *
@@ -35,9 +34,9 @@ def get_argparser():
     return parser
 
 
-class MainWindow(QtGui.QMainWindow):
+class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, server):
-        QtGui.QMainWindow.__init__(self)
+        QtWidgets.QMainWindow.__init__(self)
         icon = QtGui.QIcon(os.path.join(artiq_dir, "gui", "icon.png"))
         self.setWindowIcon(icon)
         self.setWindowTitle("ARTIQ - {}".format(server))
@@ -62,7 +61,7 @@ def main():
     args = get_argparser().parse_args()
     init_logger(args)
 
-    app = QtGui.QApplication([])
+    app = QtWidgets.QApplication([])
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
     atexit.register(loop.close)
@@ -91,7 +90,7 @@ def main():
     # initialize main window
     main_window = MainWindow(args.server)
     smgr.register(main_window)
-    status_bar = QtGui.QStatusBar()
+    status_bar = QtWidgets.QStatusBar()
     status_bar.showMessage("Connected to {}".format(args.server))
     main_window.setStatusBar(status_bar)
 

@@ -1,7 +1,7 @@
 import logging
 from functools import partial
 
-from quamash import QtGui, QtCore, QtWidgets
+from PyQt5 import QtCore, QtWidgets
 
 from artiq.gui.tools import LayoutWidget
 
@@ -27,7 +27,7 @@ class ShortcutsDock(QtWidgets.QDockWidget):
         self.shortcut_widgets = dict()
 
         for n, title in enumerate(["Key", "Experiment"]):
-            label = QtGui.QLabel("<b>" + title + "</b>")
+            label = QtWidgets.QLabel("<b>" + title + "</b>")
             layout.addWidget(label, 0, n)
             label.setMaximumHeight(label.sizeHint().height())
         layout.setColumnStretch(1, 1)
@@ -35,28 +35,28 @@ class ShortcutsDock(QtWidgets.QDockWidget):
         for i in range(12):
             row = i + 1
 
-            layout.addWidget(QtGui.QLabel("F" + str(i+1)), row, 0)
+            layout.addWidget(QtWidgets.QLabel("F" + str(i+1)), row, 0)
 
-            label = QtGui.QLabel()
-            label.setSizePolicy(QtGui.QSizePolicy.Ignored,
-                                QtGui.QSizePolicy.Ignored)
+            label = QtWidgets.QLabel()
+            label.setSizePolicy(QtWidgets.QSizePolicy.Ignored,
+                                QtWidgets.QSizePolicy.Ignored)
             layout.addWidget(label, row, 1)
 
-            clear = QtGui.QToolButton()
-            clear.setIcon(QtGui.QApplication.style().standardIcon(
-                QtGui.QStyle.SP_DialogResetButton))
+            clear = QtWidgets.QToolButton()
+            clear.setIcon(QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_DialogResetButton))
             layout.addWidget(clear, row, 2)
             clear.clicked.connect(partial(self.set_shortcut, i, ""))
 
-            open = QtGui.QToolButton()
-            open.setIcon(QtGui.QApplication.style().standardIcon(
-                QtGui.QStyle.SP_DialogOpenButton))
+            open = QtWidgets.QToolButton()
+            open.setIcon(QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_DialogOpenButton))
             layout.addWidget(open, row, 3)
             open.clicked.connect(partial(self._open_experiment, i))
 
-            submit = QtGui.QPushButton("Submit")
-            submit.setIcon(QtGui.QApplication.style().standardIcon(
-                QtGui.QStyle.SP_DialogOkButton))
+            submit = QtWidgets.QPushButton("Submit")
+            submit.setIcon(QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_DialogOkButton))
             layout.addWidget(submit, row, 4)
             submit.clicked.connect(partial(self._activated, i))
 

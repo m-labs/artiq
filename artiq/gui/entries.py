@@ -1,7 +1,7 @@
 import logging
 from collections import OrderedDict
 
-from quamash import QtGui, QtCore
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 from artiq.gui.tools import LayoutWidget, disable_scroll_wheel
 
@@ -9,9 +9,9 @@ from artiq.gui.tools import LayoutWidget, disable_scroll_wheel
 logger = logging.getLogger(__name__)
 
 
-class _StringEntry(QtGui.QLineEdit):
+class _StringEntry(QtWidgets.QLineEdit):
     def __init__(self, argument):
-        QtGui.QLineEdit.__init__(self)
+        QtWidgets.QLineEdit.__init__(self)
         self.setText(argument["state"])
         def update(text):
             argument["state"] = text
@@ -26,9 +26,9 @@ class _StringEntry(QtGui.QLineEdit):
         return procdesc.get("default", "")
 
 
-class _BooleanEntry(QtGui.QCheckBox):
+class _BooleanEntry(QtWidgets.QCheckBox):
     def __init__(self, argument):
-        QtGui.QCheckBox.__init__(self)
+        QtWidgets.QCheckBox.__init__(self)
         self.setChecked(argument["state"])
         def update(checked):
             argument["state"] = bool(checked)
@@ -43,9 +43,9 @@ class _BooleanEntry(QtGui.QCheckBox):
         return procdesc.get("default", False)
 
 
-class _EnumerationEntry(QtGui.QComboBox):
+class _EnumerationEntry(QtWidgets.QComboBox):
     def __init__(self, argument):
-        QtGui.QComboBox.__init__(self)
+        QtWidgets.QComboBox.__init__(self)
         disable_scroll_wheel(self)
         choices = argument["desc"]["choices"]
         self.addItems(choices)
@@ -67,9 +67,9 @@ class _EnumerationEntry(QtGui.QComboBox):
             return procdesc["choices"][0]
 
 
-class _NumberEntry(QtGui.QDoubleSpinBox):
+class _NumberEntry(QtWidgets.QDoubleSpinBox):
     def __init__(self, argument):
-        QtGui.QDoubleSpinBox.__init__(self)
+        QtWidgets.QDoubleSpinBox.__init__(self)
         disable_scroll_wheel(self)
         procdesc = argument["desc"]
         scale = procdesc["scale"]
@@ -108,7 +108,7 @@ class _NoScan(LayoutWidget):
         LayoutWidget.__init__(self)
 
         scale = procdesc["scale"]
-        self.value = QtGui.QDoubleSpinBox()
+        self.value = QtWidgets.QDoubleSpinBox()
         disable_scroll_wheel(self.value)
         self.value.setDecimals(procdesc["ndecimals"])
         if procdesc["global_min"] is not None:
@@ -122,7 +122,7 @@ class _NoScan(LayoutWidget):
         self.value.setSingleStep(procdesc["global_step"]/scale)
         if procdesc["unit"]:
             self.value.setSuffix(" " + procdesc["unit"])
-        self.addWidget(QtGui.QLabel("Value:"), 0, 0)
+        self.addWidget(QtWidgets.QLabel("Value:"), 0, 0)
         self.addWidget(self.value, 0, 1)
 
         self.value.setValue(state["value"]/scale)
@@ -151,20 +151,20 @@ class _RangeScan(LayoutWidget):
             if procdesc["unit"]:
                 spinbox.setSuffix(" " + procdesc["unit"])
 
-        self.addWidget(QtGui.QLabel("Min:"), 0, 0)
-        self.min = QtGui.QDoubleSpinBox()
+        self.addWidget(QtWidgets.QLabel("Min:"), 0, 0)
+        self.min = QtWidgets.QDoubleSpinBox()
         disable_scroll_wheel(self.min)
         apply_properties(self.min)
         self.addWidget(self.min, 0, 1)
 
-        self.addWidget(QtGui.QLabel("Max:"), 1, 0)
-        self.max = QtGui.QDoubleSpinBox()
+        self.addWidget(QtWidgets.QLabel("Max:"), 1, 0)
+        self.max = QtWidgets.QDoubleSpinBox()
         disable_scroll_wheel(self.max)
         apply_properties(self.max)
         self.addWidget(self.max, 1, 1)
 
-        self.addWidget(QtGui.QLabel("#Points:"), 2, 0)
-        self.npoints = QtGui.QSpinBox()
+        self.addWidget(QtWidgets.QLabel("#Points:"), 2, 0)
+        self.npoints = QtWidgets.QSpinBox()
         disable_scroll_wheel(self.npoints)
         self.npoints.setMinimum(2)
         self.npoints.setValue(10)
@@ -188,8 +188,8 @@ class _ExplicitScan(LayoutWidget):
     def __init__(self, state):
         LayoutWidget.__init__(self)
 
-        self.value = QtGui.QLineEdit()
-        self.addWidget(QtGui.QLabel("Sequence:"), 0, 0)
+        self.value = QtWidgets.QLineEdit()
+        self.addWidget(QtWidgets.QLabel("Sequence:"), 0, 0)
         self.addWidget(self.value, 0, 1)
 
         float_regexp = "[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?"
@@ -208,7 +208,7 @@ class _ScanEntry(LayoutWidget):
         LayoutWidget.__init__(self)
         self.argument = argument
 
-        self.stack = QtGui.QStackedWidget()
+        self.stack = QtWidgets.QStackedWidget()
         self.addWidget(self.stack, 1, 0, colspan=4)
 
         procdesc = argument["desc"]
@@ -222,11 +222,11 @@ class _ScanEntry(LayoutWidget):
             self.stack.addWidget(widget)
 
         self.radiobuttons = OrderedDict()
-        self.radiobuttons["NoScan"] = QtGui.QRadioButton("No scan")
-        self.radiobuttons["LinearScan"] = QtGui.QRadioButton("Linear")
-        self.radiobuttons["RandomScan"] = QtGui.QRadioButton("Random")
-        self.radiobuttons["ExplicitScan"] = QtGui.QRadioButton("Explicit")
-        scan_type = QtGui.QButtonGroup()
+        self.radiobuttons["NoScan"] = QtWidgets.QRadioButton("No scan")
+        self.radiobuttons["LinearScan"] = QtWidgets.QRadioButton("Linear")
+        self.radiobuttons["RandomScan"] = QtWidgets.QRadioButton("Random")
+        self.radiobuttons["ExplicitScan"] = QtWidgets.QRadioButton("Explicit")
+        scan_type = QtWidgets.QButtonGroup()
         for n, b in enumerate(self.radiobuttons.values()):
             self.addWidget(b, 0, n)
             scan_type.addButton(b)

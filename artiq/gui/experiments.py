@@ -3,7 +3,7 @@ import asyncio
 from functools import partial
 from collections import OrderedDict
 
-from quamash import QtGui, QtCore, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 from artiq.gui.tools import (LayoutWidget, log_level_to_name,
                              QDockWidgetCloseDetect)
@@ -19,25 +19,25 @@ logger = logging.getLogger(__name__)
 # 2. file:<class name>@<file name>
 
 
-class _ArgumentEditor(QtGui.QTreeWidget):
+class _ArgumentEditor(QtWidgets.QTreeWidget):
     def __init__(self, manager, dock, expurl):
         self.manager = manager
         self.expurl = expurl
 
-        QtGui.QTreeWidget.__init__(self)
+        QtWidgets.QTreeWidget.__init__(self)
         self.setColumnCount(3)
         self.header().setStretchLastSection(False)
         if hasattr(self.header(), "setSectionResizeMode"):
             set_resize_mode = self.header().setSectionResizeMode
         else:
             set_resize_mode = self.header().setResizeMode
-        set_resize_mode(0, QtGui.QHeaderView.ResizeToContents)
-        set_resize_mode(1, QtGui.QHeaderView.Stretch)
-        set_resize_mode(2, QtGui.QHeaderView.ResizeToContents)
+        set_resize_mode(0, QtWidgets.QHeaderView.ResizeToContents)
+        set_resize_mode(1, QtWidgets.QHeaderView.Stretch)
+        set_resize_mode(2, QtWidgets.QHeaderView.ResizeToContents)
         self.header().setVisible(False)
-        self.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
-        self.setHorizontalScrollMode(QtGui.QAbstractItemView.ScrollPerPixel)
-        self.setVerticalScrollMode(QtGui.QAbstractItemView.ScrollPerPixel)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
+        self.setHorizontalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
+        self.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
 
         self._groups = dict()
         self._arg_to_entry_widgetitem = dict()
@@ -45,11 +45,11 @@ class _ArgumentEditor(QtGui.QTreeWidget):
         arguments = self.manager.get_submission_arguments(self.expurl)
 
         if not arguments:
-            self.addTopLevelItem(QtGui.QTreeWidgetItem(["No arguments"]))
+            self.addTopLevelItem(QtWidgets.QTreeWidgetItem(["No arguments"]))
 
         for name, argument in arguments.items():
             entry = argty_to_entry[argument["desc"]["ty"]](argument)
-            widget_item = QtGui.QTreeWidgetItem([name])
+            widget_item = QtWidgets.QTreeWidgetItem([name])
             self._arg_to_entry_widgetitem[name] = entry, widget_item
 
             if argument["group"] is None:
@@ -57,24 +57,24 @@ class _ArgumentEditor(QtGui.QTreeWidget):
             else:
                 self._get_group(argument["group"]).addChild(widget_item)
             self.setItemWidget(widget_item, 1, entry)
-            recompute_argument = QtGui.QToolButton()
+            recompute_argument = QtWidgets.QToolButton()
             recompute_argument.setToolTip("Re-run the experiment's build "
                                           "method and take the default value")
-            recompute_argument.setIcon(QtGui.QApplication.style().standardIcon(
-                QtGui.QStyle.SP_BrowserReload))
+            recompute_argument.setIcon(QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_BrowserReload))
             recompute_argument.clicked.connect(
                 partial(self._recompute_argument_clicked, name))
             fix_layout = LayoutWidget()
             fix_layout.addWidget(recompute_argument)
             self.setItemWidget(widget_item, 2, fix_layout)
 
-        widget_item = QtGui.QTreeWidgetItem()
+        widget_item = QtWidgets.QTreeWidgetItem()
         self.addTopLevelItem(widget_item)
-        recompute_arguments = QtGui.QPushButton("Recompute all arguments")
-        recompute_arguments.setIcon(QtGui.QApplication.style().standardIcon(
-            QtGui.QStyle.SP_BrowserReload))
-        recompute_arguments.setSizePolicy(QtGui.QSizePolicy.Maximum,
-                                          QtGui.QSizePolicy.Maximum)
+        recompute_arguments = QtWidgets.QPushButton("Recompute all arguments")
+        recompute_arguments.setIcon(QtWidgets.QApplication.style().standardIcon(
+            QtWidgets.QStyle.SP_BrowserReload))
+        recompute_arguments.setSizePolicy(QtWidgets.QSizePolicy.Maximum,
+                                          QtWidgets.QSizePolicy.Maximum)
         recompute_arguments.clicked.connect(dock._recompute_arguments_clicked)
         fix_layout = LayoutWidget()
         fix_layout.addWidget(recompute_arguments)
@@ -83,7 +83,7 @@ class _ArgumentEditor(QtGui.QTreeWidget):
     def _get_group(self, name):
         if name in self._groups:
             return self._groups[name]
-        group = QtGui.QTreeWidgetItem([name])
+        group = QtWidgets.QTreeWidgetItem([name])
         for c in 0, 1:
             group.setBackground(c, QtGui.QBrush(QtGui.QColor(100, 100, 100)))
             group.setForeground(c, QtGui.QBrush(QtGui.QColor(220, 220, 255)))
@@ -155,9 +155,9 @@ class _ExperimentDock(QDockWidgetCloseDetect):
         scheduling = manager.get_submission_scheduling(expurl)
         options = manager.get_submission_options(expurl)
 
-        datetime = QtGui.QDateTimeEdit()
+        datetime = QtWidgets.QDateTimeEdit()
         datetime.setDisplayFormat("MMM d yyyy hh:mm:ss")
-        datetime_en = QtGui.QCheckBox("Due date:")
+        datetime_en = QtWidgets.QCheckBox("Due date:")
         self.layout.addWidget(datetime_en, 1, 0)
         self.layout.addWidget(datetime, 1, 1)
 
@@ -179,8 +179,8 @@ class _ExperimentDock(QDockWidgetCloseDetect):
             scheduling["due_date"] = due_date
         datetime_en.stateChanged.connect(update_datetime_en)
 
-        pipeline_name = QtGui.QLineEdit()
-        self.layout.addWidget(QtGui.QLabel("Pipeline:"), 1, 2)
+        pipeline_name = QtWidgets.QLineEdit()
+        self.layout.addWidget(QtWidgets.QLabel("Pipeline:"), 1, 2)
         self.layout.addWidget(pipeline_name, 1, 3)
 
         pipeline_name.setText(scheduling["pipeline_name"])
@@ -188,9 +188,9 @@ class _ExperimentDock(QDockWidgetCloseDetect):
             scheduling["pipeline_name"] = text
         pipeline_name.textEdited.connect(update_pipeline_name)
 
-        priority = QtGui.QSpinBox()
+        priority = QtWidgets.QSpinBox()
         priority.setRange(-99, 99)
-        self.layout.addWidget(QtGui.QLabel("Priority:"), 2, 0)
+        self.layout.addWidget(QtWidgets.QLabel("Priority:"), 2, 0)
         self.layout.addWidget(priority, 2, 1)
 
         priority.setValue(scheduling["priority"])
@@ -198,7 +198,7 @@ class _ExperimentDock(QDockWidgetCloseDetect):
             scheduling["priority"] = value
         priority.valueChanged.connect(update_priority)
 
-        flush = QtGui.QCheckBox("Flush")
+        flush = QtWidgets.QCheckBox("Flush")
         flush.setToolTip("Flush the pipeline before starting the experiment")
         self.layout.addWidget(flush, 2, 2, 1, 2)
 
@@ -207,12 +207,12 @@ class _ExperimentDock(QDockWidgetCloseDetect):
             scheduling["flush"] = bool(checked)
         flush.stateChanged.connect(update_flush)
 
-        log_level = QtGui.QComboBox()
+        log_level = QtWidgets.QComboBox()
         log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         log_level.addItems(log_levels)
         log_level.setCurrentIndex(1)
         log_level.setToolTip("Minimum level for log entry production")
-        log_level_label = QtGui.QLabel("Logging level:")
+        log_level_label = QtWidgets.QLabel("Logging level:")
         log_level_label.setToolTip("Minimum level for log message production")
         self.layout.addWidget(log_level_label, 3, 0)
         self.layout.addWidget(log_level, 3, 1)
@@ -224,9 +224,9 @@ class _ExperimentDock(QDockWidgetCloseDetect):
         log_level.currentIndexChanged.connect(update_log_level)
 
         if "repo_rev" in options:
-            repo_rev = QtGui.QLineEdit()
+            repo_rev = QtWidgets.QLineEdit()
             repo_rev.setPlaceholderText("current")
-            repo_rev_label = QtGui.QLabel("Revision:")
+            repo_rev_label = QtWidgets.QLabel("Revision:")
             repo_rev_label.setToolTip("Experiment repository revision "
                                       "(commit ID) to use")
             self.layout.addWidget(repo_rev_label, 3, 2)
@@ -241,23 +241,23 @@ class _ExperimentDock(QDockWidgetCloseDetect):
                     options["repo_rev"] = None
             repo_rev.textEdited.connect(update_repo_rev)
 
-        submit = QtGui.QPushButton("Submit")
-        submit.setIcon(QtGui.QApplication.style().standardIcon(
-                QtGui.QStyle.SP_DialogOkButton))
+        submit = QtWidgets.QPushButton("Submit")
+        submit.setIcon(QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_DialogOkButton))
         submit.setToolTip("Schedule the experiment (Ctrl+Return)")
         submit.setShortcut("CTRL+RETURN")
-        submit.setSizePolicy(QtGui.QSizePolicy.Expanding,
-                             QtGui.QSizePolicy.Expanding)
+        submit.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
+                             QtWidgets.QSizePolicy.Expanding)
         self.layout.addWidget(submit, 1, 4, 2, 1)
         submit.clicked.connect(self.submit_clicked)
 
-        reqterm = QtGui.QPushButton("Terminate instances")
-        reqterm.setIcon(QtGui.QApplication.style().standardIcon(
-                QtGui.QStyle.SP_DialogCancelButton))
+        reqterm = QtWidgets.QPushButton("Terminate instances")
+        reqterm.setIcon(QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_DialogCancelButton))
         reqterm.setToolTip("Request termination of instances (Ctrl+Backspace)")
         reqterm.setShortcut("CTRL+BACKSPACE")
-        reqterm.setSizePolicy(QtGui.QSizePolicy.Expanding,
-                              QtGui.QSizePolicy.Expanding)
+        reqterm.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
+                              QtWidgets.QSizePolicy.Expanding)
         self.layout.addWidget(reqterm, 3, 4)
         reqterm.clicked.connect(self.reqterm_clicked)
 
