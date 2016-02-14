@@ -5,7 +5,7 @@ from ..module import Module, Source
 from ..targets import NativeTarget
 
 def main():
-    libartiq_support = os.getenv('LIBARTIQ_SUPPORT')
+    libartiq_support = os.getenv("LIBARTIQ_SUPPORT")
     if libartiq_support is not None:
         llvm.load_library_permanently(libartiq_support)
 

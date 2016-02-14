@@ -58,7 +58,6 @@ setup(
     ],
     packages=find_packages(),
     namespace_packages=[],
-    test_suite="artiq.test",
     include_package_data=True,
     ext_modules=[],
     entry_points={
