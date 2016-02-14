@@ -2,8 +2,7 @@ import asyncio
 import logging
 from functools import partial
 
-from quamash import QtGui, QtCore
-from pyqtgraph import dockarea
+from quamash import QtGui, QtCore, QtWidgets
 from pyqtgraph import LayoutWidget
 
 from artiq.gui.models import DictSyncTreeSepModel
@@ -116,13 +115,15 @@ class Model(DictSyncTreeSepModel):
         DictSyncTreeSepModel.__init__(self, "/", ["Experiment"], init)
 
 
-class ExplorerDock(dockarea.Dock):
+class Explorer(QtWidgets.QWidget):
     def __init__(self, status_bar, exp_manager, d_shortcuts,
                  explist_sub, schedule_ctl, experiment_db_ctl):
-        dockarea.Dock.__init__(self, "Explorer")
-        self.setMinimumSize(QtCore.QSize(300, 300))
-        self.layout.setSpacing(5)
-        self.layout.setContentsMargins(5, 5, 5, 5)
+        QtWidgets.QWidget.__init__(self)
+
+        layout = QtWidgets.QGridLayout()
+        self.setLayout(layout)
+        layout.setSpacing(5)
+        layout.setContentsMargins(5, 5, 5, 5)
 
         self.status_bar = status_bar
         self.exp_manager = exp_manager
@@ -132,7 +133,7 @@ class ExplorerDock(dockarea.Dock):
         self.el = QtGui.QTreeView()
         self.el.setHeaderHidden(True)
         self.el.setSelectionBehavior(QtGui.QAbstractItemView.SelectItems)
-        self.addWidget(self.el, 0, 0, colspan=2)
+        layout.addWidget(self.el, 0, 0, 1, 2)
         self.el.doubleClicked.connect(
             partial(self.expname_action, "open_experiment"))
 
@@ -140,7 +141,7 @@ class ExplorerDock(dockarea.Dock):
         open.setIcon(QtGui.QApplication.style().standardIcon(
             QtGui.QStyle.SP_DialogOpenButton))
         open.setToolTip("Open the selected experiment (Return)")
-        self.addWidget(open, 1, 0)
+        layout.addWidget(open, 1, 0)
         open.clicked.connect(
             partial(self.expname_action, "open_experiment"))
 
@@ -148,7 +149,7 @@ class ExplorerDock(dockarea.Dock):
         submit.setIcon(QtGui.QApplication.style().standardIcon(
             QtGui.QStyle.SP_DialogOkButton))
         submit.setToolTip("Schedule the selected experiment (Ctrl+Return)")
-        self.addWidget(submit, 1, 1)
+        layout.addWidget(submit, 1, 1)
         submit.clicked.connect(
             partial(self.expname_action, "submit"))
 

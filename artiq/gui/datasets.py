@@ -3,8 +3,7 @@ from collections import OrderedDict
 from functools import partial
 import logging
 
-from quamash import QtGui, QtCore
-from pyqtgraph import dockarea
+from quamash import QtGui, QtCore, QtWidgets
 from pyqtgraph import LayoutWidget
 
 from artiq.tools import short_format
@@ -29,14 +28,16 @@ class Model(DictSyncTreeSepModel):
            raise ValueError
 
 
-class DatasetsDock(dockarea.Dock):
-    def __init__(self, dialog_parent, datasets_sub, dataset_ctl):
-        dockarea.Dock.__init__(self, "Datasets")
-        self.dialog_parent = dialog_parent
+class DatasetsDock(QtWidgets.QDockWidget):
+    def __init__(self, datasets_sub, dataset_ctl):
+        QtWidgets.QDockWidget.__init__(self, "Datasets")
+        self.setObjectName("Datasets")
+        self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
+                         QtWidgets.QDockWidget.DockWidgetFloatable)
         self.dataset_ctl = dataset_ctl
 
         grid = LayoutWidget()
-        self.addWidget(grid)
+        self.setWidget(grid)
 
         self.search = QtGui.QLineEdit()
         self.search.setPlaceholderText("search...")

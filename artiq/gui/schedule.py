@@ -2,7 +2,7 @@ import asyncio
 import time
 from functools import partial
 
-from quamash import QtGui, QtCore
+from quamash import QtGui, QtCore, QtWidgets
 from pyqtgraph import dockarea
 
 from artiq.gui.models import DictSyncModel
@@ -55,10 +55,12 @@ class Model(DictSyncModel):
             raise ValueError
 
 
-class ScheduleDock(dockarea.Dock):
+class ScheduleDock(QtWidgets.QDockWidget):
     def __init__(self, status_bar, schedule_ctl, schedule_sub):
-        dockarea.Dock.__init__(self, "Schedule")
-        self.setMinimumSize(QtCore.QSize(740, 200))
+        QtWidgets.QDockWidget.__init__(self, "Schedule")
+        self.setObjectName("Schedule")
+        self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
+                         QtWidgets.QDockWidget.DockWidgetFloatable)
 
         self.status_bar = status_bar
         self.schedule_ctl = schedule_ctl
@@ -71,7 +73,7 @@ class ScheduleDock(dockarea.Dock):
         self.table.verticalHeader().setResizeMode(
             QtGui.QHeaderView.ResizeToContents)
         self.table.verticalHeader().hide()
-        self.addWidget(self.table)
+        self.setWidget(self.table)
 
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         request_termination_action = QtGui.QAction("Request termination", self.table)

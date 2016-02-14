@@ -5,10 +5,10 @@ import shlex
 from functools import partial
 
 from quamash import QtCore, QtGui, QtWidgets
-from pyqtgraph import dockarea
 
 from artiq.protocols.pipe_ipc import AsyncioParentComm
 from artiq.protocols import pyon
+from artiq.gui.tools import QDockWidgetCloseDetect
 
 
 logger = logging.getLogger(__name__)
@@ -85,12 +85,12 @@ class AppletIPCServer(AsyncioParentComm):
         await asyncio.wait([self.server_task])
 
 
-class AppletDock(dockarea.Dock):
+class AppletDock(QDockWidgetCloseDetect):
     def __init__(self, datasets_sub, uid, name, command):
-        dockarea.Dock.__init__(self, "applet" + str(uid),
-                               label="Applet: " + name,
-                               closable=True)
-        self.setMinimumSize(QtCore.QSize(500, 400))
+        QDockWidgetCloseDetect.__init__(self, "Applet: " + name)
+        self.setObjectName("applet" + str(uid))
+        self.setMinimumSize(QtCore.QSize(100, 100))
+
         self.datasets_sub = datasets_sub
         self.applet_name = name
         self.command = command
@@ -99,7 +99,7 @@ class AppletDock(dockarea.Dock):
 
     def rename(self, name):
         self.applet_name = name
-        self.label.setText("Applet: " + name)
+        self.setWindowTitle("Applet: " + name)
 
     async def start(self):
         if self.starting_stopping:
@@ -127,7 +127,7 @@ class AppletDock(dockarea.Dock):
         self.embed_window = QtGui.QWindow.fromWinId(win_id)
         self.embed_widget = QtWidgets.QWidget.createWindowContainer(
             self.embed_window)
-        self.addWidget(self.embed_widget)
+        self.setWidget(self.embed_widget)
 
     # HACK: This function would not be needed if Qt window embedding
     # worked correctly.
@@ -181,16 +181,17 @@ _templates = [
 ]
 
 
-class AppletsDock(dockarea.Dock):
-    def __init__(self, dock_area, datasets_sub):
-        self.dock_area = dock_area
+class AppletsDock(QtWidgets.QDockWidget):
+    def __init__(self, main_window, datasets_sub):
+        QtWidgets.QDockWidget.__init__(self, "Applets")
+        self.setObjectName("Applets")
+        self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
+                         QtWidgets.QDockWidget.DockWidgetFloatable)
+
+        self.main_window = main_window
         self.datasets_sub = datasets_sub
         self.dock_to_checkbox = dict()
         self.applet_uids = set()
-        self.workaround_pyqtgraph_bug = False
-
-        dockarea.Dock.__init__(self, "Applets")
-        self.setMinimumSize(QtCore.QSize(850, 450))
 
         self.table = QtWidgets.QTableWidget(0, 3)
         self.table.setHorizontalHeaderLabels(["Enable", "Name", "Command"])
@@ -203,7 +204,7 @@ class AppletsDock(dockarea.Dock):
             QtGui.QHeaderView.ResizeToContents)
         self.table.verticalHeader().hide()
         self.table.setTextElideMode(QtCore.Qt.ElideNone)
-        self.addWidget(self.table)
+        self.setWidget(self.table)
 
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         new_action = QtGui.QAction("New applet", self.table)
@@ -232,12 +233,8 @@ class AppletsDock(dockarea.Dock):
 
     def create(self, uid, name, command):
         dock = AppletDock(self.datasets_sub, uid, name, command)
-        # If a dock is floated and then dock state is restored, pyqtgraph
-        # leaves a "phantom" window open.
-        if self.workaround_pyqtgraph_bug:
-            self.dock_area.addDock(dock)
-        else:
-            self.dock_area.floatDock(dock)
+        self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
+        dock.setFloating(True)
         asyncio.ensure_future(dock.start())
         dock.sigClosed.connect(partial(self.on_dock_closed, dock))
         return dock
@@ -340,7 +337,6 @@ class AppletsDock(dockarea.Dock):
         return state
 
     def restore_state(self, state):
-        self.workaround_pyqtgraph_bug = True
         for uid, enabled, name, command in state:
             row = self.new(uid)
             item = QtWidgets.QTableWidgetItem()
@@ -351,4 +347,3 @@ class AppletsDock(dockarea.Dock):
             self.table.setItem(row, 2, item)
             if enabled:
                 self.table.item(row, 0).setCheckState(QtCore.Qt.Checked)
-        self.workaround_pyqtgraph_bug = False

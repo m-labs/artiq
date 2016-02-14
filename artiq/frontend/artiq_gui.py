@@ -6,10 +6,8 @@ import atexit
 import os
 
 import PyQt5
-from quamash import QEventLoop, QtGui, QtCore
-# pyqtgraph will pick up any already imported Qt binding.
-from pyqtgraph import dockarea
-
+from quamash import QEventLoop, QtGui, QtCore, QtWidgets
+assert QtGui is PyQt5.QtGui
 
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import *
@@ -49,10 +47,14 @@ class MainWindow(QtGui.QMainWindow):
         self.exit_request.set()
 
     def save_state(self):
-        return bytes(self.saveGeometry())
+        return {
+            "state": bytes(self.saveState()),
+            "geometry": bytes(self.saveGeometry())
+        }
 
     def restore_state(self, state):
-        self.restoreGeometry(QtCore.QByteArray(state))
+        self.restoreGeometry(QtCore.QByteArray(state["geometry"]))
+        self.restoreState(QtCore.QByteArray(state["state"]))
 
 
 def main():
@@ -87,33 +89,30 @@ def main():
         sub_clients[notifier_name] = subscriber
 
     # initialize main window
-    win = MainWindow(args.server)
-    dock_area = dockarea.DockArea()
-    smgr.register(dock_area)
-    smgr.register(win)
-    win.setCentralWidget(dock_area)
+    main_window = MainWindow(args.server)
+    smgr.register(main_window)
     status_bar = QtGui.QStatusBar()
     status_bar.showMessage("Connected to {}".format(args.server))
-    win.setStatusBar(status_bar)
+    main_window.setStatusBar(status_bar)
 
     # create UI components
-    expmgr = experiments.ExperimentManager(status_bar, dock_area,
+    expmgr = experiments.ExperimentManager(main_window,
                                            sub_clients["explist"],
                                            sub_clients["schedule"],
                                            rpc_clients["schedule"],
                                            rpc_clients["experiment_db"])
     smgr.register(expmgr)
-    d_shortcuts = shortcuts.ShortcutsDock(win, expmgr)
+    d_shortcuts = shortcuts.ShortcutsDock(main_window, expmgr)
     smgr.register(d_shortcuts)
-    d_explorer = explorer.ExplorerDock(status_bar, expmgr, d_shortcuts,
-                                       sub_clients["explist"],
-                                       rpc_clients["schedule"],
-                                       rpc_clients["experiment_db"])
+    d_explorer = explorer.Explorer(status_bar, expmgr, d_shortcuts,
+                                   sub_clients["explist"],
+                                   rpc_clients["schedule"],
+                                   rpc_clients["experiment_db"])
 
-    d_datasets = datasets.DatasetsDock(win, sub_clients["datasets"],
+    d_datasets = datasets.DatasetsDock(sub_clients["datasets"],
                                        rpc_clients["dataset_db"])
 
-    d_applets = applets.AppletsDock(dock_area, sub_clients["datasets"])
+    d_applets = applets.AppletsDock(main_window, sub_clients["datasets"])
     atexit_register_coroutine(d_applets.stop)
     smgr.register(d_applets)
 
@@ -125,21 +124,21 @@ def main():
     d_schedule = schedule.ScheduleDock(
         status_bar, rpc_clients["schedule"], sub_clients["schedule"])
 
-    logmgr = log.LogDockManager(dock_area, sub_clients["log"])
+    logmgr = log.LogDockManager(main_window, sub_clients["log"])
     smgr.register(logmgr)
 
     # lay out docks
+    main_window.setCentralWidget(d_explorer)
     if os.name != "nt":
-        dock_area.addDock(d_ttl_dds.dds_dock, "top")
-        dock_area.addDock(d_ttl_dds.ttl_dock, "above", d_ttl_dds.dds_dock)
-        dock_area.addDock(d_applets, "above", d_ttl_dds.ttl_dock)
-        dock_area.addDock(d_datasets, "above", d_applets)
+        main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_ttl_dds.dds_dock)
+        main_window.tabifyDockWidget(d_ttl_dds.dds_dock, d_ttl_dds.ttl_dock)
+        main_window.tabifyDockWidget(d_ttl_dds.ttl_dock, d_applets)
+        main_window.tabifyDockWidget(d_applets, d_datasets)
     else:
-        dock_area.addDock(d_applets, "top")
-        dock_area.addDock(d_datasets, "above", d_applets)
-    dock_area.addDock(d_shortcuts, "above", d_datasets)
-    dock_area.addDock(d_explorer, "above", d_shortcuts)
-    dock_area.addDock(d_schedule, "bottom")
+        main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_applets)
+        main_window.tabifyDockWidget(d_applets, d_datasets)
+    main_window.tabifyDockWidget(d_datasets, d_shortcuts)
+    main_window.addDockWidget(QtCore.Qt.BottomDockWidgetArea, d_schedule)
 
     # load/initialize state
     smgr.load()
@@ -149,11 +148,11 @@ def main():
     # create first log dock if not already in state
     d_log0 = logmgr.first_log_dock()
     if d_log0 is not None:
-        dock_area.addDock(d_log0, "right", d_explorer)
+        main_window.tabifyDockWidget(d_shortcuts, d_log0)
 
     # run
-    win.show()
-    loop.run_until_complete(win.exit_request.wait())
+    main_window.show()
+    loop.run_until_complete(main_window.exit_request.wait())
 
 if __name__ == "__main__":
     main()

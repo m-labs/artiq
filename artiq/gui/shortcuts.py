@@ -2,53 +2,61 @@ import logging
 from functools import partial
 
 from quamash import QtGui, QtCore, QtWidgets
-from pyqtgraph import dockarea
+from pyqtgraph import LayoutWidget
 
 
 logger = logging.getLogger(__name__)
 
 
-class ShortcutsDock(dockarea.Dock):
+class ShortcutsDock(QtWidgets.QDockWidget):
     def __init__(self, main_window, exp_manager):
-        dockarea.Dock.__init__(self, "Shortcuts")
-        self.layout.setSpacing(5)
-        self.layout.setContentsMargins(5, 5, 5, 5)
+        QtWidgets.QDockWidget.__init__(self, "Shortcuts")
+        self.setObjectName("Shortcuts")
+        self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
+                         QtWidgets.QDockWidget.DockWidgetFloatable)
+
+        layout = QtWidgets.QGridLayout()
+        top_widget = QtWidgets.QWidget()
+        top_widget.setLayout(layout)
+        self.setWidget(top_widget)
+        layout.setSpacing(5)
+        layout.setContentsMargins(5, 5, 5, 5)
 
         self.exp_manager = exp_manager
         self.shortcut_widgets = dict()
 
         for n, title in enumerate(["Key", "Experiment"]):
             label = QtGui.QLabel("<b>" + title + "</b>")
-            self.addWidget(label, 0, n)
+            layout.addWidget(label, 0, n)
             label.setMaximumHeight(label.sizeHint().height())
-        self.layout.setColumnStretch(1, 1)
+        layout.setColumnStretch(1, 1)
 
         for i in range(12):
             row = i + 1
 
-            self.addWidget(QtGui.QLabel("F" + str(i+1)), row, 0)
+            layout.addWidget(QtGui.QLabel("F" + str(i+1)), row, 0)
 
             label = QtGui.QLabel()
             label.setSizePolicy(QtGui.QSizePolicy.Ignored,
                                 QtGui.QSizePolicy.Ignored)
-            self.addWidget(label, row, 1)
+            layout.addWidget(label, row, 1)
 
             clear = QtGui.QToolButton()
             clear.setIcon(QtGui.QApplication.style().standardIcon(
                 QtGui.QStyle.SP_DialogResetButton))
-            self.addWidget(clear, row, 2)
+            layout.addWidget(clear, row, 2)
             clear.clicked.connect(partial(self.set_shortcut, i, ""))
 
             open = QtGui.QToolButton()
             open.setIcon(QtGui.QApplication.style().standardIcon(
                 QtGui.QStyle.SP_DialogOpenButton))
-            self.addWidget(open, row, 3)
+            layout.addWidget(open, row, 3)
             open.clicked.connect(partial(self._open_experiment, i))
 
             submit = QtGui.QPushButton("Submit")
             submit.setIcon(QtGui.QApplication.style().standardIcon(
                 QtGui.QStyle.SP_DialogOkButton))
-            self.addWidget(submit, row, 4)
+            layout.addWidget(submit, row, 4)
             submit.clicked.connect(partial(self._activated, i))
 
             clear.hide()
