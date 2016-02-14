@@ -35,3 +35,13 @@ class QDockWidgetCloseDetect(QtWidgets.QDockWidget):
     def closeEvent(self, event):
         self.sigClosed.emit()
         QtWidgets.QDockWidget.closeEvent(self, event)
+
+
+class LayoutWidget(QtWidgets.QWidget):
+    def __init__(self, parent=None):
+        QtGui.QWidget.__init__(self, parent)
+        self.layout = QtGui.QGridLayout()
+        self.setLayout(self.layout)
+
+    def addWidget(self, item, row=None, col=None, rowspan=1, colspan=1):
+        self.layout.addWidget(item, row, col, rowspan, colspan)

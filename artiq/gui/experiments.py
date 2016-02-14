@@ -5,9 +5,8 @@ from collections import OrderedDict
 
 from quamash import QtGui, QtCore, QtWidgets
 
-from pyqtgraph import LayoutWidget
-
-from artiq.gui.tools import log_level_to_name, QDockWidgetCloseDetect
+from artiq.gui.tools import (LayoutWidget, log_level_to_name,
+                             QDockWidgetCloseDetect)
 from artiq.gui.entries import argty_to_entry
 
 

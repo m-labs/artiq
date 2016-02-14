@@ -2,7 +2,8 @@ import logging
 from functools import partial
 
 from quamash import QtGui, QtCore, QtWidgets
-from pyqtgraph import LayoutWidget
+
+from artiq.gui.tools import LayoutWidget
 
 
 logger = logging.getLogger(__name__)

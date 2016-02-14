@@ -4,9 +4,9 @@ from functools import partial
 import logging
 
 from quamash import QtGui, QtCore, QtWidgets
-from pyqtgraph import LayoutWidget
 
 from artiq.tools import short_format
+from artiq.gui.tools import LayoutWidget
 from artiq.gui.models import DictSyncTreeSepModel
 
 

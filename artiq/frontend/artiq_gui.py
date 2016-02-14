@@ -7,6 +7,7 @@ import os
 
 import PyQt5
 from quamash import QEventLoop, QtGui, QtCore, QtWidgets
+import pyqtgraph
 
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import *

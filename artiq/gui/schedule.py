@@ -3,7 +3,6 @@ import time
 from functools import partial
 
 from quamash import QtGui, QtCore, QtWidgets
-from pyqtgraph import dockarea
 
 from artiq.gui.models import DictSyncModel
 from artiq.tools import elide

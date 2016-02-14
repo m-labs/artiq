@@ -2,9 +2,8 @@ import logging
 from collections import OrderedDict
 
 from quamash import QtGui, QtCore
-from pyqtgraph import LayoutWidget
 
-from artiq.gui.tools import disable_scroll_wheel
+from artiq.gui.tools import LayoutWidget, disable_scroll_wheel
 
 
 logger = logging.getLogger(__name__)

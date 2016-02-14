@@ -3,8 +3,8 @@ import logging
 from functools import partial
 
 from quamash import QtGui, QtCore, QtWidgets
-from pyqtgraph import LayoutWidget
 
+from artiq.gui.tools import LayoutWidget
 from artiq.gui.models import DictSyncTreeSepModel
 
 

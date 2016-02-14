@@ -5,9 +5,9 @@ import re
 from functools import partial
 
 from quamash import QtGui, QtCore, QtWidgets
-from pyqtgraph import LayoutWidget
 
-from artiq.gui.tools import log_level_to_name, QDockWidgetCloseDetect
+from artiq.gui.tools import (LayoutWidget, log_level_to_name,
+                             QDockWidgetCloseDetect)
 
 
 def _make_wrappable(row, width=30):
