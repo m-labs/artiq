@@ -3,6 +3,7 @@ import logging
 import subprocess
 import shlex
 import socket
+import os
 
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols.pc_rpc import AsyncioClient
@@ -106,30 +107,40 @@ class Controller:
             await self._terminate()
 
     async def _terminate(self):
-        logger.info("Terminating controller %s", self.name)
-        if self.process is not None and self.process.returncode is None:
+        if self.process is None or self.process.returncode is not None:
+            logger.info("Controller %s already terminated", self.name)
+            return
+        logger.debug("Terminating controller %s", self.name)
+        try:
+            await asyncio.wait_for(self.call("terminate"), self.term_timeout)
+            await asyncio.wait_for(self.process.wait(), self.term_timeout)
+            logger.info("Controller %s terminated", self.name)
+            return
+        except:
+            logger.warning("Controller %s did not exit on request, "
+                           "ending the process", self.name)
+        if os.name != "nt":
             try:
-                await asyncio.wait_for(self.call("terminate"),
-                                       self.term_timeout)
-            except:
-                logger.warning("Controller %s did not respond to terminate "
-                               "command, killing", self.name)
-                try:
-                    self.process.kill()
-                except ProcessLookupError:
-                    pass
+                self.process.terminate()
+            except ProcessLookupError:
+                pass
             try:
-                await asyncio.wait_for(self.process.wait(),
-                                       self.term_timeout)
-            except:
-                logger.warning("Controller %s failed to exit, killing",
-                               self.name)
-                try:
-                    self.process.kill()
-                except ProcessLookupError:
-                    pass
-                await self.process.wait()
-        logger.debug("Controller %s terminated", self.name)
+                await asyncio.wait_for(self.process.wait(), self.term_timeout)
+                logger.info("Controller process %s terminated", self.name)
+                return
+            except asyncio.TimeoutError:
+                logger.warning("Controller process %s did not terminate, "
+                               "killing", self.name)
+        try:
+            self.process.kill()
+        except ProcessLookupError:
+            pass
+        try:
+            await asyncio.wait_for(self.process.wait(), self.term_timeout)
+            logger.info("Controller process %s killed", self.name)
+            return
+        except asyncio.TimeoutError:
+            logger.warning("Controller process %s failed to die", self.name)
 
 
 def get_ip_addresses(host):
