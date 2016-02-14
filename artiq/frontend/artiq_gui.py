@@ -100,10 +100,10 @@ def main():
     smgr.register(expmgr)
     d_shortcuts = shortcuts.ShortcutsDock(main_window, expmgr)
     smgr.register(d_shortcuts)
-    d_explorer = explorer.ExplorerDock(status_bar, expmgr, d_shortcuts,
-                                       sub_clients["explist"],
-                                       rpc_clients["schedule"],
-                                       rpc_clients["experiment_db"])
+    d_explorer = explorer.Explorer(status_bar, expmgr, d_shortcuts,
+                                   sub_clients["explist"],
+                                   rpc_clients["schedule"],
+                                   rpc_clients["experiment_db"])
 
     d_datasets = datasets.DatasetsDock(sub_clients["datasets"],
                                        rpc_clients["dataset_db"])
@@ -124,6 +124,7 @@ def main():
     smgr.register(logmgr)
 
     # lay out docks
+    main_window.setCentralWidget(d_explorer)
     if os.name != "nt":
         main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_ttl_dds.dds_dock)
         main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_ttl_dds.ttl_dock)
@@ -133,7 +134,6 @@ def main():
         main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_applets)
         main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_datasets)
     main_window.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d_shortcuts)
-    main_window.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d_explorer)
     main_window.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d_schedule)
 
     # load/initialize state
