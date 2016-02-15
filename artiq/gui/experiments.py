@@ -137,6 +137,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
     def __init__(self, manager, expurl):
         QtWidgets.QMdiSubWindow.__init__(self)
         self.setWindowTitle(expurl)
+        self.setWindowIcon(QtWidgets.QApplication.style().standardIcon(
+            QtWidgets.QStyle.SP_FileDialogContentsView))
 
         self.layout = QtWidgets.QGridLayout()
         top_widget = QtWidgets.QWidget()
