@@ -288,7 +288,7 @@ def get_vcd_log_channels(log_channel, messages):
             message_payload = _extract_log_chars(message.data)
             log_entry += message_payload
             if len(message_payload) < 4:
-                channel_name, log_message = log_entry.split(":", maxsplit=1)
+                channel_name, log_message = log_entry.split("\x1E", maxsplit=1)
                 l = len(log_message)
                 if channel_name in vcd_log_channels:
                     if vcd_log_channels[channel_name] < l:
