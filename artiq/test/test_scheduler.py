@@ -63,6 +63,16 @@ def _get_basic_steps(rid, expid, priority=0, flush=False):
     ]
 
 
+class _RIDCounter:
+    def __init__(self, next_rid):
+        self._next_rid = next_rid
+
+    def get(self):
+        rid = self._next_rid
+        self._next_rid += 1
+        return rid
+
+
 class SchedulerCase(unittest.TestCase):
     def setUp(self):
         if os.name == "nt":
@@ -73,7 +83,7 @@ class SchedulerCase(unittest.TestCase):
 
     def test_steps(self):
         loop = self.loop
-        scheduler = Scheduler(0, dict(), None)
+        scheduler = Scheduler(_RIDCounter(0), dict(), None)
         expid = _get_expid("EmptyExperiment")
 
         expect = _get_basic_steps(1, expid)
@@ -121,7 +131,7 @@ class SchedulerCase(unittest.TestCase):
         handlers = {
             "update_dataset": check_termination
         }
-        scheduler = Scheduler(0, handlers, None)
+        scheduler = Scheduler(_RIDCounter(0), handlers, None)
 
         expid_bg = _get_expid("BackgroundExperiment")
         expid = _get_expid("EmptyExperiment")
@@ -165,7 +175,7 @@ class SchedulerCase(unittest.TestCase):
 
     def test_flush(self):
         loop = self.loop
-        scheduler = Scheduler(0, dict(), None)
+        scheduler = Scheduler(_RIDCounter(0), dict(), None)
         expid = _get_expid("EmptyExperiment")
 
         expect = _get_basic_steps(1, expid, 1, True)
