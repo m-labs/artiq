@@ -177,6 +177,9 @@ def fn_mu_to_seconds():
 def fn_seconds_to_mu():
     return types.TBuiltinFunction("seconds_to_mu")
 
+def fn_rtio_log():
+    return types.TBuiltinFunction("rtio_log")
+
 # Accessors
 
 def is_none(typ):

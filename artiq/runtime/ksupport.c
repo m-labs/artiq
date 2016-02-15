@@ -102,8 +102,7 @@ static const struct symbol runtime_exports[] = {
     {"watchdog_set", &watchdog_set},
     {"watchdog_clear", &watchdog_clear},
 
-    {"core_log", &core_log},
-    {"rtio_log", &rtio_log},
+    {"printf", &core_log},
     {"send_rpc", &send_rpc},
     {"recv_rpc", &recv_rpc},
 

@@ -753,7 +753,7 @@ class Inferencer(algorithm.Visitor):
                             node.loc, None)
             else:
                 diagnose(valid_forms())
-        elif types.is_builtin(typ, "print"):
+        elif types.is_builtin(typ, "print") or types.is_builtin(typ, "rtio_log"):
             valid_forms = lambda: [
                 valid_form("print(args...) -> None"),
             ]
