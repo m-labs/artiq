@@ -5,8 +5,7 @@ from collections import OrderedDict
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-from artiq.gui.tools import (LayoutWidget, log_level_to_name,
-                             QDockWidgetCloseDetect)
+from artiq.gui.tools import LayoutWidget, log_level_to_name
 from artiq.gui.entries import argty_to_entry
 
 
@@ -132,11 +131,12 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
                 pass
 
 
-class _ExperimentDock(QDockWidgetCloseDetect):
+class _ExperimentDock(QtWidgets.QMdiSubWindow):
+    sigClosed = QtCore.pyqtSignal()
+
     def __init__(self, manager, expurl):
-        name = "Exp: " + expurl
-        QDockWidgetCloseDetect.__init__(self, name)
-        self.setObjectName(name)
+        QtWidgets.QMdiSubWindow.__init__(self)
+        self.setWindowTitle(expurl)
 
         self.layout = QtWidgets.QGridLayout()
         top_widget = QtWidgets.QWidget()
@@ -294,6 +294,10 @@ class _ExperimentDock(QDockWidgetCloseDetect):
         self.argeditor = _ArgumentEditor(self.manager, self, self.expurl)
         self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
 
+    def closeEvent(self, event):
+        self.sigClosed.emit()
+        QtWidgets.QMdiSubWindow.closeEvent(self, event)
+
     def save_state(self):
         return self.argeditor.save_state()
 
@@ -389,12 +393,12 @@ class ExperimentManager:
     def open_experiment(self, expurl):
         if expurl in self.open_experiments:
             dock = self.open_experiments[expurl]
-            dock.setFloating(True)
+            self.main_window.centralWidget().setActiveSubWindow(dock)
             return dock
         dock = _ExperimentDock(self, expurl)
         self.open_experiments[expurl] = dock
-        self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
-        dock.setFloating(True)
+        self.main_window.centralWidget().addSubWindow(dock)
+        dock.show()
         dock.sigClosed.connect(partial(self.on_dock_closed, expurl))
         return dock
 

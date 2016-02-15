@@ -93,6 +93,7 @@ def main():
     status_bar = QtWidgets.QStatusBar()
     status_bar.showMessage("Connected to {}".format(args.server))
     main_window.setStatusBar(status_bar)
+    main_window.setCentralWidget(QtWidgets.QMdiArea())
 
     # create UI components
     expmgr = experiments.ExperimentManager(main_window,
