@@ -299,10 +299,14 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         QtWidgets.QMdiSubWindow.closeEvent(self, event)
 
     def save_state(self):
-        return self.argeditor.save_state()
+        return {
+            "args": self.argeditor.save_state(),
+            "geometry": bytes(self.saveGeometry())
+        }
 
     def restore_state(self, state):
-        self.argeditor.restore_state(state)
+        self.argeditor.restore_state(state["args"])
+        self.restoreGeometry(QtCore.QByteArray(state["geometry"]))
 
 
 class ExperimentManager:
