@@ -127,12 +127,9 @@ and the ARTIQ kernels.
 * Install OpenRISC binutils (or1k-linux-...): ::
 
         $ cd ~/artiq-dev
-        $ wget https://ftp.gnu.org/gnu/binutils/binutils-2.25.1.tar.bz2
-        $ tar xvf binutils-2.25.1.tar.bz2
-        $ rm binutils-2.25.1.tar.bz2
-
-        $ cd binutils-2.25.1
-        $ patch -p1 <~/artiq-dev/misc/binutils-2.25.1-or1k-R_PCREL-pcrel_offset.patch
+        $ wget https://ftp.gnu.org/gnu/binutils/binutils-2.26.tar.bz2
+        $ tar xvf binutils-2.26.tar.bz2
+        $ rm binutils-2.26.tar.bz2
 
         $ mkdir build
         $ cd build
