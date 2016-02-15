@@ -12,7 +12,7 @@ from artiq.protocols.logging import Server as LoggingServer
 from artiq.master.log import log_args, init_log
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.scheduler import Scheduler
-from artiq.master.worker_db import get_last_rid
+from artiq.master.worker_db import RIDCounter
 from artiq.master.experiments import FilesystemBackend, GitBackend, ExperimentDB
 
 
@@ -73,7 +73,7 @@ def main():
         "get_dataset": dataset_db.get,
         "update_dataset": dataset_db.update
     }
-    scheduler = Scheduler(get_last_rid() + 1, worker_handlers, experiment_db)
+    scheduler = Scheduler(RIDCounter(), worker_handlers, experiment_db)
     worker_handlers.update({
         "scheduler_submit": scheduler.submit,
         "scheduler_delete": scheduler.delete,

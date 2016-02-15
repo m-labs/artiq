@@ -116,16 +116,6 @@ class Run:
     write_results = _mk_worker_method("write_results")
 
 
-class RIDCounter:
-    def __init__(self, next_rid):
-        self._next_rid = next_rid
-
-    def get(self):
-        rid = self._next_rid
-        self._next_rid += 1
-        return rid
-
-
 class RunPool:
     def __init__(self, ridc, worker_handlers, notifier, experiment_db):
         self.runs = dict()
@@ -387,7 +377,7 @@ class Deleter(TaskObject):
 
 
 class Scheduler:
-    def __init__(self, next_rid, worker_handlers, experiment_db):
+    def __init__(self, ridc, worker_handlers, experiment_db):
         self.notifier = Notifier(dict())
 
         self._pipelines = dict()
@@ -395,7 +385,7 @@ class Scheduler:
         self._experiment_db = experiment_db
         self._terminated = False
 
-        self._ridc = RIDCounter(next_rid)
+        self._ridc = ridc
         self._deleter = Deleter(self._pipelines)
 
     def start(self):
