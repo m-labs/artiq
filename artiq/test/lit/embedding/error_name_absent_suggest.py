@@ -4,7 +4,10 @@
 from artiq.language.core import *
 from artiq.language.types import *
 
+def foo():
+    pass
+
 @kernel
 def entrypoint():
-    # CHECK-L: ${LINE:+1}: fatal: name 'prnt' is not bound to anything; did you mean 'print'?
-    prnt()
+    # CHECK-L: ${LINE:+1}: fatal: name 'fo0' is not bound to anything; did you mean 'foo'?
+    fo0()
