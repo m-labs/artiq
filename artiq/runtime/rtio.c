@@ -50,13 +50,12 @@ void rtio_log_va(long long int timestamp, const char *fmt, va_list args)
     rtio_chan_sel_write(CONFIG_RTIO_LOG_CHANNEL);
     rtio_o_timestamp_write(timestamp);
 
-    int i = 0, j = 0;
+    int i = 0;
     unsigned int word = 0;
     while(1) {
         word <<= 8;
         word |= *buf & 0xff;
         if(*buf == 0) {
-            j++;
             rtio_o_data_write(word);
             rtio_o_we_write(1);
             break;
@@ -64,22 +63,11 @@ void rtio_log_va(long long int timestamp, const char *fmt, va_list args)
         buf++;
         i++;
         if(i == 4) {
-            j++;
             rtio_o_data_write(word);
             rtio_o_we_write(1);
             word = 0;
             i = 0;
         }
-    }
-
-    if(j % 2 == 1) {
-        // https://github.com/m-labs/artiq/issues/206#issuecomment-167347507
-        // Note: due to a bug in the analyzer core, for now make sure that all runs
-        // produce an even number of analyzer messages. As far as the log is concerned,
-        // an analyzer message contains 4 characters of payload, the terminal 0 counts
-        // as one, and the payload of one log entry is padded to a message boundary.
-        rtio_o_data_write(0);
-        rtio_o_we_write(1);
     }
 }
 
