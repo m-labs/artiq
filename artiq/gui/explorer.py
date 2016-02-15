@@ -115,13 +115,18 @@ class Model(DictSyncTreeSepModel):
         DictSyncTreeSepModel.__init__(self, "/", ["Experiment"], init)
 
 
-class Explorer(QtWidgets.QWidget):
+class ExplorerDock(QtWidgets.QDockWidget):
     def __init__(self, status_bar, exp_manager, d_shortcuts,
                  explist_sub, schedule_ctl, experiment_db_ctl):
-        QtWidgets.QWidget.__init__(self)
+        QtWidgets.QDockWidget.__init__(self, "Explorer")
+        self.setObjectName("Explorer")
+        self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
+                         QtWidgets.QDockWidget.DockWidgetFloatable)
 
         layout = QtWidgets.QGridLayout()
-        self.setLayout(layout)
+        top_widget = QtWidgets.QWidget()
+        top_widget.setLayout(layout)
+        self.setWidget(top_widget)
         layout.setSpacing(5)
         layout.setContentsMargins(5, 5, 5, 5)
 
