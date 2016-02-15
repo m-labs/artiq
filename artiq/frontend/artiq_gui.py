@@ -93,7 +93,10 @@ def main():
     status_bar = QtWidgets.QStatusBar()
     status_bar.showMessage("Connected to {}".format(args.server))
     main_window.setStatusBar(status_bar)
-    main_window.setCentralWidget(QtWidgets.QMdiArea())
+    mdi_area = QtWidgets.QMdiArea()
+    mdi_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+    mdi_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+    main_window.setCentralWidget(mdi_area)
 
     # create UI components
     expmgr = experiments.ExperimentManager(main_window,
