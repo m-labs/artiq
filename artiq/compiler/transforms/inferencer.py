@@ -753,7 +753,7 @@ class Inferencer(algorithm.Visitor):
                             node.loc, None)
             else:
                 diagnose(valid_forms())
-        elif types.is_builtin(typ, "print") or types.is_builtin(typ, "rtio_log"):
+        elif types.is_builtin(typ, "print"):
             valid_forms = lambda: [
                 valid_form("print(args...) -> None"),
             ]
@@ -764,6 +764,21 @@ class Inferencer(algorithm.Visitor):
             if len(node.keywords) == 0:
                 # We can print any arguments.
                 pass
+            else:
+                diagnose(valid_forms())
+        elif types.is_builtin(typ, "rtio_log"):
+            valid_forms = lambda: [
+                valid_form("rtio_log(channel:str, args...) -> None"),
+            ]
+
+            self._unify(node.type, builtins.TNone(),
+                        node.loc, None)
+
+            if len(node.args) >= 1 and len(node.keywords) == 0:
+                arg = node.args[0]
+
+                self._unify(arg.type, builtins.TStr(),
+                            arg.loc, None)
             else:
                 diagnose(valid_forms())
         elif types.is_builtin(typ, "now"):

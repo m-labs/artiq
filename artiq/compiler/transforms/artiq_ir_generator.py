@@ -1608,10 +1608,16 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 return self.append(ir.Builtin("round", [arg], node.type))
             else:
                 assert False
-        elif types.is_builtin(typ, "print") or types.is_builtin(typ, "rtio_log"):
+        elif types.is_builtin(typ, "print"):
             self.polymorphic_print([self.visit(arg) for arg in node.args],
-                                   separator=" ", suffix="\n",
-                                   as_rtio=types.is_builtin(typ, "rtio_log"))
+                                   separator=" ", suffix="\n")
+            return ir.Constant(None, builtins.TNone())
+        elif types.is_builtin(typ, "rtio_log"):
+            prefix, *args = node.args
+            self.polymorphic_print([self.visit(prefix)],
+                                   separator=" ", suffix="\x1E", as_rtio=True)
+            self.polymorphic_print([self.visit(arg) for arg in args],
+                                   separator=" ", suffix="\n", as_rtio=True)
             return ir.Constant(None, builtins.TNone())
         elif types.is_builtin(typ, "now"):
             if len(node.args) == 0 and len(node.keywords) == 0:
