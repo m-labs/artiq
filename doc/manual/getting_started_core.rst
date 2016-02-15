@@ -134,6 +134,25 @@ Try reducing the period of the generated waveform until the CPU cannot keep up w
             except RTIOUnderflow:
                 print_underflow()
 
+The core device records the real-time IO waveforms into a circular buffer. It is possible to dump any Python object so that it appears alongside the waveforms using the ``rtio_log`` function, which accepts a channel name (i.e. a log target) as the first argument: ::
+
+    from artiq.experiment import *
+
+
+    class Tutorial(EnvExperiment):
+        def build(self):
+            self.setattr_device("core")
+            self.setattr_device("ttl0")
+
+        @kernel
+        def run(self):
+            for i in range(100):
+                self.ttl0.pulse(...)
+                rtio_log("ttl0", "i", i)
+                delay(...)
+
+Afterwards, the recorded data can be extracted and written to a VCD file using ``artiq_coreanalyzer -w rtio.vcd`` (see: :ref:`core-device-rtio-analyzer-tool`).
+
 Parallel and sequential blocks
 ------------------------------
 

@@ -163,6 +163,8 @@ Core device log download tool
    :ref: artiq.frontend.artiq_corelog.get_argparser
    :prog: artiq_corelog
 
+.. _core-device-rtio-analyzer-tool:
+
 Core device RTIO analyzer tool
 ------------------------------
 
