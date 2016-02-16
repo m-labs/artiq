@@ -41,7 +41,7 @@ def log_worker_exception():
 
 
 class Worker:
-    def __init__(self, handlers=dict(), send_timeout=1.0):
+    def __init__(self, handlers=dict(), send_timeout=2.0):
         self.handlers = handlers
         self.send_timeout = send_timeout
 
@@ -94,7 +94,7 @@ class Worker:
         finally:
             self.io_lock.release()
 
-    async def close(self, term_timeout=1.0):
+    async def close(self, term_timeout=2.0):
         """Interrupts any I/O with the worker process and terminates the
         worker process.
 
