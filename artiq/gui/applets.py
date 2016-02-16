@@ -110,8 +110,10 @@ class AppletDock(QDockWidgetCloseDetect):
         if "{ipc_address}" not in self.command:
             logger.warning("IPC address missing from command for %s",
                            self.applet_name)
-        command = self.command.format(python=sys.executable,
-                                      ipc_address=self.ipc.get_address())
+        command = self.command.format(
+            python=sys.executable.replace("\\", "\\\\"),
+            ipc_address=self.ipc.get_address().replace("\\", "\\\\")
+        )
         logger.debug("starting command %s for %s", command, self.applet_name)
         try:
             await self.ipc.create_subprocess(*shlex.split(command))
