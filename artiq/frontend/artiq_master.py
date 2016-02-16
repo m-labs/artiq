@@ -4,6 +4,7 @@ import asyncio
 import argparse
 import atexit
 import os
+import logging
 
 from artiq.tools import *
 from artiq.protocols.pc_rpc import Server as RPCServer
@@ -13,7 +14,10 @@ from artiq.master.log import log_args, init_log
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.scheduler import Scheduler
 from artiq.master.worker_db import RIDCounter
-from artiq.master.experiments import FilesystemBackend, GitBackend, ExperimentDB
+from artiq.master.experiments import (FilesystemBackend, GitBackend,
+                                      ExperimentDB)
+
+logger = logging.getLogger(__name__)
 
 
 def get_argparser():
@@ -111,6 +115,7 @@ def main():
         bind, args.port_logging))
     atexit_register_coroutine(server_logging.stop)
 
+    loop.call_soon(logger.info, "running, bound to %s", bind)
     loop.run_forever()
 
 if __name__ == "__main__":
