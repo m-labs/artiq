@@ -54,6 +54,18 @@
         "class": "TTLOut",
         "arguments": {"channel": 5}
     },
+    "ttl4": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 6}
+    },
+    "ttl5": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 7}
+    },
     "ttl_sma": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
@@ -106,25 +118,25 @@
         # that it always resolves to a network-visible IP address (see documentation).
         "host": "::1",
         "port": 4000,
-        "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_0.bin"
+        "command": "pdq2_controller --no-localhost-bind -p {port} --bind {bind} --simulation --dump qc_q1_0.bin"
     },
     "qc_q1_1": {
         "type": "controller",
         "host": "::1",
         "port": 4001,
-        "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_1.bin"
+        "command": "pdq2_controller --no-localhost-bind -p {port} --bind {bind} --simulation --dump qc_q1_1.bin"
     },
     "qc_q1_2": {
         "type": "controller",
         "host": "::1",
         "port": 4002,
-        "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_2.bin"
+        "command": "pdq2_controller --no-localhost-bind -p {port} --bind {bind} --simulation --dump qc_q1_2.bin"
     },
     "qc_q1_3": {
         "type": "controller",
         "host": "::1",
         "port": 4003,
-        "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_3.bin"
+        "command": "pdq2_controller --no-localhost-bind -p {port} --bind {bind} --simulation --dump qc_q1_3.bin"
     },
     "electrodes": {
         "type": "local",
@@ -132,8 +144,8 @@
         "class": "CompoundPDQ2",
         "arguments": {
             "pdq2_devices": ["qc_q1_0", "qc_q1_1", "qc_q1_2", "qc_q1_3"],
-            "trigger_device": "ttl3",
-            "frame_devices": ["ttl0", "ttl1", "ttl2"]
+            "trigger_device": "ttl2",
+            "frame_devices": ["ttl3", "ttl4", "ttl5"]
         }
     },
 

@@ -3,8 +3,8 @@
 import numpy as np
 
 from artiq.experiment import *
-
 from artiq.wavesynth.coefficients import SplineSource
+
 
 transport = SplineSource(
     x=np.linspace(0, 10, 101),  # waveform time
@@ -12,20 +12,20 @@ transport = SplineSource(
     # 4 devices, 3 board each, 3 dacs each
 )
 
+
 class Transport(EnvExperiment):
     """Transport"""
 
     def build(self):
-        self.core = self.get_device("core")
-        self.bd_sw = self.get_device("bd_sw")
-        self.pmt = self.get_device("pmt")
-        self.electrodes = self.get_device("electrodes")
+        self.setattr_device("core")
+        self.setattr_device("bd_sw")
+        self.setattr_device("pmt")
+        self.setattr_device("electrodes")
 
-        self.wait_at_stop = self.get_argument("wait_at_stop",
-                                              NumberValue(100*us))
-        self.speed = self.get_argument("speed", NumberValue(1.5))
-        self.repeats = self.get_argument("repeats", NumberValue(100))
-        self.nbins = self.get_argument("nbins", NumberValue(100))
+        self.setattr_argument("wait_at_stop", NumberValue(100*us))
+        self.setattr_argument("speed", NumberValue(1.5))
+        self.setattr_argument("repeats", NumberValue(100))
+        self.setattr_argument("bins", NumberValue(100))
 
     def calc_waveforms(self, stop):
         self.electrodes.disarm()
@@ -74,26 +74,34 @@ class Transport(EnvExperiment):
 
     @kernel
     def repeat(self):
-        self.histogram[:] = [0 for _ in range(self.nbins)]
-
+        hist = [0 for _ in range(self.bins)]
         for i in range(self.repeats):
             n = self.one()
-            if n >= self.nbins:
-                n = self.nbins - 1
-            self.histogram[n] += 1
+            if n >= self.bins:
+                n = self.bins - 1
+            hist[n] += 1
+        self.set_dataset("hist", hist)
 
     def scan(self, stops):
         for s in stops:
-            self.histogram = []
+            self.histogram = [0 for _ in range(self.bins)]
             # non-kernel, build frames
             # could also be rpc'ed from repeat()
             self.calc_waveforms(s)
             # kernel part
             self.repeat()
-            # live update 2d plot with current self.histogram
-            # broadcast(s, self.histogram)
 
     def run(self):
         # scan transport endpoint
         stops = range(10, len(transport.x), 10)
         self.scan(stops)
+
+
+# class Benchmark(Transport):
+#     def build(self):
+#         Transport.build(self)
+#         self.calc_waveforms(.3)
+#
+#     @kernel
+#     def run(self):
+#         self.repeat()
