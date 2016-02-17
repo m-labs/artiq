@@ -32,6 +32,15 @@ class TestSplineCoef(unittest.TestCase):
     def test_run(self):
         return self.drive(self.test_synth())
 
+    def test_compare(self):
+        scale = 100
+        d = list(self.s.get_segment_data(start=0, stop=4, scale=1/scale))
+        d[0]["trigger"] = True
+        s = compute_samples.Synthesizer(self.y.shape[0], [d])
+        s.select(0)
+        y = s.trigger()[0]
+        np.testing.assert_almost_equal(y[::scale], self.y[0, :-1])
+
     @unittest.skip("manual/visual test")
     def test_plot(self):
         import matplotlib.pyplot as plt
