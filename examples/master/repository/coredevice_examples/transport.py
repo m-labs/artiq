@@ -60,10 +60,8 @@ class Transport(EnvExperiment):
 
     @kernel
     def detect(self):
-        with parallel:
-            self.bd_sw.pulse(100*us)
-            self.pmt.gate_rising(100*us)
         self.bd_sw.on()
+        self.pmt.gate_rising(100*us)
         return self.pmt.count()
 
     @kernel
