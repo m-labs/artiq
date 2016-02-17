@@ -2,7 +2,6 @@
 
 import numpy as np
 from scipy.interpolate import splrep, splev, spalde
-from scipy.special import binom
 
 
 class UnivariateMultiSpline:
@@ -180,12 +179,11 @@ class SplineSource(CoefficientSource):
             x = self.x[ia:ib]
         return np.r_[start, x, stop]
 
-    def scale_x(self, x, scale, min_duration=1, min_length=20):
+    def scale_x(self, x, scale, min_duration=10, min_length=20):
         """Enforce, round, and scale x to device-dependent values.
 
         Due to minimum duration and/or minimum segment length constraints
-        this method may drop samples from `x_sample` or adjust `durations` to
-        comply. But `x_sample` and `durations` should be kept consistent.
+        this method may drop samples from `x_sample` to comply.
 
         :param min_duration: Minimum duration of a line.
         :param min_length: Minimum segment length to space triggers.
@@ -213,49 +211,6 @@ class SplineSource(CoefficientSource):
 
     def __call__(self, x):
         return self.spline(x)
-
-
-class ComposingSplineSource(SplineSource):
-    # TODO: verify, test, document
-    def __init__(self, x, y, components, order=4, pad_dx=1.):
-        self.x = np.asanyarray(x)
-        assert self.x.ndim == 1
-        self.y = np.asanyarray(y)
-        assert self.y.ndim == 3
-
-        if pad_dx is not None:
-            a = np.arange(-order, 0)*pad_dx + self.x[0]
-            b = self.x[-1] + np.arange(1, order + 1)*pad_dx
-            self.x = np.r_[a, self.x, b]
-            self.y = pad_const(self.y, order, axis=2)
-
-        assert self.y.shape[2] == self.x.shape[0]
-        self.splines = [UnivariateMultiSpline(self.x, yi, order=order)
-                        for yi in self.y]
-
-        # need to resample/upsample the shim splines to the master spline knots
-        # shim knot spacings can span an master spline knot and thus would
-        # cross a highest order derivative boundary
-        y0, x0 = zip(*components)
-        self.components = UnivariateMultiSpline(self.x, y0, x0=x0, order=order)
-
-    def __call__(self, t, gain={}, offset={}):
-        der = list((set(self.components.n) | set(offset))
-                   & set(range(len(self.splines))))
-        u = np.zeros((self.splines[0].order, len(self.splines[0].s), len(t)))
-        # der, order, ele, t
-        p = np.array([self.splines[i](t) for i in der])
-        s_gain = np.array([gain.get(_, 1.) for _ in self.components.n])
-        # order, der, None, t
-        s = self.components(t)[:, :, None, :]*s_gain[None, :, None, None]
-        for k, v in offset.items():
-            if v:
-                u += v*p[k]
-        ps = p[self.shims.n]
-        for i in range(u.shape[1]):
-            for j in range(i + 1):
-                u[i] += binom(i, j)*(s[j]*ps[:, i - j]).sum(0)
-        return u  # (order, ele, t)
 
 
 def discrete_compensate(c):
