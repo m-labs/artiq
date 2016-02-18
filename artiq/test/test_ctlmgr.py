@@ -60,8 +60,9 @@ class ControllerCase(unittest.TestCase):
             "type": "controller",
             "host": "::1",
             "port": 3253,
-            "command": sys.executable + " -m artiq.frontend.lda_controller "
-                    "-p {port} --simulation"
+            "command": (sys.executable.replace("\\", "\\\\")
+                        + " -m artiq.frontend.lda_controller "
+                        + "-p {port} --simulation")
         }
         async def test():
             await self.start("lda_sim", entry)
