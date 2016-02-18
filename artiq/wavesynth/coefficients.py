@@ -120,9 +120,9 @@ class CoefficientSource:
             with `n` being the number of channels."""
         raise NotImplementedError
 
-    def get_segment_data(self, start, stop, scale, *, cutoff=1e-12,
-                         target="bias", variable="amplitude"):
-        """Build wavesynth segment data.
+    def get_segment(self, start, stop, scale, *, cutoff=1e-12,
+                    target="bias", variable="amplitude"):
+        """Build wavesynth segment.
 
         :param start: see `crop_x()`.
         :param stop: see `crop_x()`.
@@ -147,7 +147,7 @@ class CoefficientSource:
 
         See `get_segment()` for arguments.
         """
-        for i, line in enumerate(self.get_segment_data(*args, **kwargs)):
+        for line in self.get_segment(*args, **kwargs):
             segment.add_line(**line)
 
 
