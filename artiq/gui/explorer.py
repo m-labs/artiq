@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from functools import partial
 
 from PyQt5 import QtCore, QtWidgets
@@ -77,23 +78,24 @@ class _OpenFileDialog(QtWidgets.QDialog):
         if selected:
             selected = selected[0].text()
             if selected == "..":
-                if (not self.explorer.current_directory
-                        or self.explorer.current_directory[-1] not in "\\/"):
+                if not self.explorer.current_directory:
                     return
-                idx = None
-                for sep in "\\/":
-                    try:
-                        idx = self.explorer.current_directory[:-1].rindex(sep)
-                    except ValueError:
-                        pass
-                    else:
-                        break
-                if idx is None:
-                    return
-                self.explorer.current_directory = \
-                    self.explorer.current_directory[:idx+1]
-                if self.explorer.current_directory == "/":
+                if re.fullmatch("[a-zA-Z]:\\\\",
+                                self.explorer.current_directory):
                     self.explorer.current_directory = ""
+                else:
+                    idx = None
+                    for sep in "\\/":
+                        try:
+                            idx = self.explorer.current_directory[:-1].rindex(sep)
+                        except ValueError:
+                            pass
+                        else:
+                            break
+                    self.explorer.current_directory = \
+                        self.explorer.current_directory[:idx+1]
+                    if self.explorer.current_directory == "/":
+                        self.explorer.current_directory = ""
                 asyncio.ensure_future(self.refresh_view())
             elif selected[-1] in "\\/":
                 self.explorer.current_directory += selected
