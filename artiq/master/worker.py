@@ -87,7 +87,7 @@ class Worker:
                 sys.executable, "-m", "artiq.master.worker_impl",
                 self.ipc.get_address(), str(log_level),
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                env=env)
+                env=env, start_new_session=True)
             asyncio.ensure_future(
                 LogParser(self._get_log_source).stream_task(
                     self.ipc.process.stdout))

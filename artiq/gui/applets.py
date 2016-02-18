@@ -116,7 +116,8 @@ class AppletDock(QDockWidgetCloseDetect):
         )
         logger.debug("starting command %s for %s", command, self.applet_name)
         try:
-            await self.ipc.create_subprocess(*shlex.split(command))
+            await self.ipc.create_subprocess(*shlex.split(command),
+                                             start_new_session=True)
         except:
             logger.warning("Applet %s failed to start", self.applet_name,
                            exc_info=True)
