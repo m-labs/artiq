@@ -6,7 +6,8 @@ import atexit
 import os
 import logging
 
-from artiq.tools import *
+from artiq.tools import (simple_network_args, atexit_register_coroutine,
+                         bind_address_from_args)
 from artiq.protocols.pc_rpc import Server as RPCServer
 from artiq.protocols.sync_struct import Publisher
 from artiq.protocols.logging import Server as LoggingServer
@@ -115,7 +116,7 @@ def main():
         bind, args.port_logging))
     atexit_register_coroutine(server_logging.stop)
 
-    loop.call_soon(logger.info, "running, bound to %s", bind)
+    logger.info("running, bound to %s", bind)
     loop.run_forever()
 
 if __name__ == "__main__":
