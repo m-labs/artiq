@@ -252,6 +252,8 @@ class _LogDock(QDockWidgetCloseDetect):
         self.table_model_filter.rowsInserted.connect(self.rows_inserted_after)
         self.table_model_filter.rowsRemoved.connect(self.rows_removed)
 
+        asyncio.get_event_loop().call_soon(self.log.scrollToBottom)
+
     def save_state(self):
         return {
             "min_level_idx": self.filter_level.currentIndex(),
