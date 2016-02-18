@@ -81,9 +81,12 @@ class Controller:
                 logger.info("Starting controller %s with command: %s",
                             self.name, self.command)
                 try:
+                    env = os.environ.copy()
+                    env["PYTHONUNBUFFERED"] = "1"
                     self.process = await asyncio.create_subprocess_exec(
                         *shlex.split(self.command),
-                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                        env=env)
                     asyncio.ensure_future(
                         LogParser(self._get_log_source).stream_task(
                             self.process.stdout))

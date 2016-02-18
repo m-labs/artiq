@@ -81,10 +81,13 @@ class Worker:
             if self.closed.is_set():
                 raise WorkerError("Attempting to create process after close")
             self.ipc = pipe_ipc.AsyncioParentComm()
+            env = os.environ.copy()
+            env["PYTHONUNBUFFERED"] = "1"
             await self.ipc.create_subprocess(
                 sys.executable, "-m", "artiq.master.worker_impl",
                 self.ipc.get_address(), str(log_level),
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                env=env)
             asyncio.ensure_future(
                 LogParser(self._get_log_source).stream_task(
                     self.ipc.process.stdout))
