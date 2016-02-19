@@ -1,6 +1,7 @@
 import logging
 import argparse
 import asyncio
+import os
 
 from quamash import QEventLoop, QtWidgets, QtGui, QtCore
 
@@ -130,19 +131,26 @@ class SimpleApplet:
 
     def create_main_widget(self):
         self.main_widget = self.main_widget_class(self.args)
-        # Qt window embedding is ridiculously buggy, and empirical testing
-        # has shown that the following procedure must be followed exactly:
-        # 1. applet creates widget
-        # 2. applet creates native window without showing it, and get its ID
-        # 3. applet sends the ID to host, host embeds the widget
-        # 4. applet shows the widget
-        # 5. parent resizes the widget
         if self.args.embed is not None:
             self.ipc.set_close_cb(self.main_widget.close)
-            win_id = int(self.main_widget.winId())
-            self.loop.run_until_complete(self.ipc.embed(win_id))
-            self.main_widget.show()
-            self.ipc.fix_initial_size()
+            if os.name == "nt":
+                self.main_widget.show()
+                win_id = int(self.main_widget.winId())
+                self.loop.run_until_complete(self.ipc.embed(win_id))
+            else:
+                # Qt window embedding is ridiculously buggy, and empirical
+                # testing has shown that the following procedure must be
+                # followed exactly on Linux:
+                # 1. applet creates widget
+                # 2. applet creates native window without showing it, and 
+                #    gets its ID
+                # 3. applet sends the ID to host, host embeds the widget
+                # 4. applet shows the widget
+                # 5. parent resizes the widget
+                win_id = int(self.main_widget.winId())
+                self.loop.run_until_complete(self.ipc.embed(win_id))
+                self.main_widget.show()
+                self.ipc.fix_initial_size()
         else:
             self.main_widget.show()
 
