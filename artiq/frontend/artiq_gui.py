@@ -144,6 +144,11 @@ def main():
     main_window.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d_explorer)
 
     # load/initialize state
+    if os.name == "nt":
+        # HACK: show the main window before creating applets.
+        # Otherwise, the windows of those applets that are in detached
+        # QDockWidgets fail to be embedded.
+        main_window.show()
     smgr.load()
     smgr.start()
     atexit_register_coroutine(smgr.stop)
