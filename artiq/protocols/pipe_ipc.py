@@ -141,7 +141,16 @@ else:  # windows
             asyncio.ensure_future(self._autoclose())
 
         def _child_connected(self, reader, writer):
-            self.server[0].close()
+            # HACK: We should shut down the pipe server here.
+            # However, self.server[0].close() is racy, and will cause an
+            # invalid handle error if loop.start_serving_pipe has not finished
+            # its work in the background.
+            # The bug manifests itself here frequently as the event loop is
+            # reopening the server as soon as a new client connects.
+            # There is still a race condition in the AsyncioParentComm
+            # creation/destruction, but it is unlikely to cause problems
+            # in most practical cases.
+            assert self.server is not None
             self.server = None
             self.reader = reader
             self.writer = writer
