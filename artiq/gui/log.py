@@ -322,9 +322,10 @@ class LogDockManager:
             raise NotImplementedError
         for name, dock_state in state.items():
             dock = _LogDock(self, name, self.log_sub)
+            self.docks[name] = dock
             dock.restore_state(dock_state)
             self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
-            self.docks[name] = dock
+            dock.sigClosed.connect(partial(self.on_dock_closed, name))
         self.update_closable()
 
     def first_log_dock(self):
