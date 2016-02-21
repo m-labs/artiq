@@ -134,10 +134,15 @@ class SimpleApplet:
         if self.args.embed is not None:
             self.ipc.set_close_cb(self.main_widget.close)
             if os.name == "nt":
+                # HACK: if the window has a frame, there will be garbage
+                # (usually white) displayed at its right and bottom borders
+                #  after it is embedded.
+                self.main_widget.setWindowFlags(QtCore.Qt.FramelessWindowHint)
                 self.main_widget.show()
                 win_id = int(self.main_widget.winId())
                 self.loop.run_until_complete(self.ipc.embed(win_id))
             else:
+                # HACK:
                 # Qt window embedding is ridiculously buggy, and empirical
                 # testing has shown that the following procedure must be
                 # followed exactly on Linux:
