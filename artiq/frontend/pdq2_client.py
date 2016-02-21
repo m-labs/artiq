@@ -2,7 +2,6 @@
 # Copyright (C) 2012-2015 Robert Jordens <jordens@gmail.com>
 
 import argparse
-import time
 
 from scipy import interpolate
 import numpy as np
@@ -31,12 +30,6 @@ def get_argparser():
     parser.add_argument("-o", "--order", default=3, type=int,
                         help="interpolation (0: const, 1: lin, 2: quad,"
                         " 3: cubic) [%(default)s]")
-    parser.add_argument("-r", "--reset", default=False,
-                        action="store_true", help="do reset before")
-    parser.add_argument("-m", "--multiplier", default=False,
-                        action="store_true", help="100MHz clock [%(default)s]")
-    parser.add_argument("-n", "--disarm", default=False, action="store_true",
-                        help="disarm group [%(default)s]")
     parser.add_argument("-e", "--free", default=False, action="store_true",
                         help="software trigger [%(default)s]")
     verbosity_args(parser)
@@ -48,23 +41,9 @@ def main():
     init_logger(args)
     dev = Client(args.server, args.port, "pdq2")
 
-    if args.reset:
-        dev.write(b"\x00\x00")  # flush any escape
-        dev.cmd("RESET", True)
-        time.sleep(.1)
-
-    dev.cmd("DCM", args.multiplier)
-    freq = 50e6
-    if args.multiplier:
-        freq *= 2
-
+    freq = dev.get_freq()
     times = np.around(eval(args.times, globals(), {})*freq)
     voltages = eval(args.voltages, globals(), dict(t=times/freq))
-
-    dev.cmd("START", False)
-    dev.cmd("ARM", True)
-    dev.cmd("TRIGGER", True)
-    dev.flush()
 
     dt = np.diff(times.astype(np.int))
     if args.order:
@@ -84,12 +63,10 @@ def main():
         })
     program = [[] for i in range(args.frame)]
     program.append(segment)
+    dev.park()
     dev.program(program, [args.channel])
-
+    dev.unpark()
     dev.cmd("TRIGGER", args.free)
-    dev.cmd("ARM", not args.disarm)
-    dev.cmd("START", True)
-    dev.flush()
 
 
 if __name__ == "__main__":

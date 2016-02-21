@@ -172,6 +172,8 @@ class CompoundPDQ2:
             frame._invalidate()
         self.frames = []
         self.armed = False
+        for dev in self.pdq2s:
+            dev.park()
 
     def arm(self):
         if self.armed:
@@ -196,6 +198,8 @@ class CompoundPDQ2:
                     frame_program.append(line)
                 program.append(frame_program)
             pdq2.program(program)
+        for pdq2 in self.pdq2s:
+            pdq2.unpark()
 
     def create_frame(self):
         if self.armed:

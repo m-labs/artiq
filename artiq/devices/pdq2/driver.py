@@ -128,6 +128,7 @@ class Pdq2:
     PDQ DAC (a.k.a. QC_Waveform)
     """
     num_dacs = 3
+    freq = 50e6
 
     _escape = b"\xa5"
     _commands = "RESET TRIGGER ARM DCM START".split()
@@ -145,6 +146,12 @@ class Pdq2:
 
     def get_num_channels(self):
         return self.num_channels
+
+    def get_freq(self):
+        return self.freq
+
+    def set_freq(self, freq):
+        self.freq = float(freq)
 
     def close(self):
         self.dev.close()
@@ -171,6 +178,16 @@ class Pdq2:
 
     def flush(self):
         self.dev.flush()
+
+    def park(self):
+        self.cmd("START", False)
+        self.cmd("TRIGGER", True)
+        self.flush()
+
+    def unpark(self):
+        self.cmd("TRIGGER", False)
+        self.cmd("START", True)
+        self.flush()
 
     def program_segments(self, segments, data):
         for i, line in enumerate(data):
