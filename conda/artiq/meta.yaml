@@ -46,7 +46,7 @@ requirements:
     - sphinx-argparse
     - h5py
     - dateutil
-    - pyqt
+    - pyqt5
     - quamash
     - pyqtgraph
     - pygit2
