@@ -5,6 +5,7 @@ import logging
 import time
 import asyncio
 import sys
+import os
 from operator import itemgetter
 from dateutil.parser import parse as parse_date
 
@@ -17,7 +18,10 @@ from artiq.tools import short_format
 
 
 def clear_screen():
-    sys.stdout.write("\x1b[2J\x1b[H")
+    if os.name == "nt":
+        os.system("cls")
+    else:
+        sys.stdout.write("\x1b[2J\x1b[H")
 
 
 def get_argparser():
