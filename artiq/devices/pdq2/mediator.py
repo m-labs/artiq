@@ -1,5 +1,4 @@
-from artiq.language.core import *
-from artiq.language.units import *
+from artiq.language import *
 
 
 frame_setup = 20*ns
@@ -63,8 +62,8 @@ class _Segment:
         if not self.frame.pdq.armed:
             raise ArmError()
         # If a frame is currently being played, check that we are next.
-        if (self.frame.pdq.current_frame >= 0
-                and self.frame.pdq.next_segment != self.segment_number):
+        if (self.frame.pdq.current_frame >= 0 and
+                self.frame.pdq.next_segment != self.segment_number):
             raise SegmentSequenceError()
         self.frame.advance()
 
