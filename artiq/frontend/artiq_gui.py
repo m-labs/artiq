@@ -37,7 +37,7 @@ def get_argparser():
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, server):
         QtWidgets.QMainWindow.__init__(self)
-        icon = QtGui.QIcon(os.path.join(artiq_dir, "gui", "icon.png"))
+        icon = QtGui.QIcon(os.path.join(artiq_dir, "gui", "logo.svg"))
         self.setWindowIcon(icon)
         self.setWindowTitle("ARTIQ - {}".format(server))
         self.exit_request = asyncio.Event()
@@ -54,6 +54,19 @@ class MainWindow(QtWidgets.QMainWindow):
     def restore_state(self, state):
         self.restoreGeometry(QtCore.QByteArray(state["geometry"]))
         self.restoreState(QtCore.QByteArray(state["state"]))
+
+
+class MdiArea(QtWidgets.QMdiArea):
+    def __init__(self):
+        QtWidgets.QMdiArea.__init__(self)
+        self.pixmap = QtGui.QPixmap(os.path.join(artiq_dir, "gui", "logo.svg"))
+
+    def paintEvent(self, event):
+        QtWidgets.QMdiArea.paintEvent(self, event)
+        painter = QtGui.QPainter(self.viewport())
+        x = (self.width() - self.pixmap.width())//2
+        y = (self.height() - self.pixmap.height())//2
+        painter.drawPixmap(x, y, self.pixmap)
 
 
 def main():
@@ -93,7 +106,7 @@ def main():
     status_bar = QtWidgets.QStatusBar()
     status_bar.showMessage("Connected to {}".format(args.server))
     main_window.setStatusBar(status_bar)
-    mdi_area = QtWidgets.QMdiArea()
+    mdi_area = MdiArea()
     mdi_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
     mdi_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
     main_window.setCentralWidget(mdi_area)
