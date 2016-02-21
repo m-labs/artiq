@@ -12,8 +12,7 @@ def get_argparser():
     parser = argparse.ArgumentParser(description="PDQ2 controller")
     simple_network_args(parser, 3252)
     parser.add_argument(
-        "-d", "--device", default=None,
-        help="serial port.")
+        "-d", "--device", default=None, help="serial port.")
     parser.add_argument(
         "--simulation", action="store_true",
         help="Put the driver in simulation mode, even if --device is used.")
@@ -38,8 +37,8 @@ def main():
         port = open(args.dump, "wb")
     dev = Pdq2(url=args.device, dev=port)
     try:
-        simple_server_loop({"pdq2": dev}, bind_address_from_args(args), args.port,
-                           description="device=" + str(args.device))
+        simple_server_loop({"pdq2": dev}, bind_address_from_args(args),
+                           args.port, description="device=" + str(args.device))
     finally:
         dev.close()
 
