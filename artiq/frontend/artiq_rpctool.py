@@ -87,7 +87,10 @@ def main():
     remote = Client(args.server, args.port, None)
     targets, description = remote.get_rpc_id()
     if args.action != "list-targets":
-        remote.select_rpc_target(AutoTarget)
+        if not args.target:
+            remote.select_rpc_target(AutoTarget)
+        else:
+            remote.select_rpc_target(args.target)
 
     if args.action == "list-targets":
         list_targets(targets, description)
