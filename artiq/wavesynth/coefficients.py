@@ -139,7 +139,7 @@ class CoefficientSource:
             coefficients.shape[0])[:, None, None]
         if cutoff:
             coefficients[np.fabs(coefficients) < cutoff] = 0
-        return build_segment(durations, coefficients, target=target,
+        return build_segment(np.fabs(durations), coefficients, target=target,
                              variable=variable)
 
     def extend_segment(self, segment, *args, **kwargs):
