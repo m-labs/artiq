@@ -6,13 +6,6 @@ from artiq.experiment import *
 from artiq.wavesynth.coefficients import SplineSource
 
 
-transport = SplineSource(
-    x=np.linspace(0, 10, 101),  # waveform time
-    y=np.random.rand(4*3*3, 101)*1e-6,  # waveform data,
-    # 4 devices, 3 board each, 3 dacs each
-)
-
-
 class Transport(EnvExperiment):
     """Transport"""
 
@@ -23,19 +16,26 @@ class Transport(EnvExperiment):
         self.setattr_device("electrodes")
 
         self.setattr_argument("wait_at_stop", NumberValue(100*us))
-        self.setattr_argument("speed", NumberValue(1.5))
+        self.setattr_argument("speed", NumberValue(1/(10*us)))
         self.setattr_argument("repeats", NumberValue(100))
         self.setattr_argument("bins", NumberValue(100))
 
+        t = np.linspace(0, 10, 101)  # waveform time
+        u = 1 - np.cos(np.pi*t/t[-1])
+        # 4 devices, 3 board each, 3 dacs each
+        u = np.arange(4*3*3)[:, None]*.1 + u
+        self.data = SplineSource(x=t, y=u)
+
     def calc_waveforms(self, stop):
+        scale = self.speed/(50*MHz)
         self.electrodes.disarm()
         self.tf = self.electrodes.create_frame()
-        to_stop = self.tf.create_segment("to_stop")
-        from_stop = self.tf.create_segment("from_stop")
-        transport.extend_segment(to_stop, 0, stop, scale=self.speed)
+        self.data.extend_segment(self.tf.create_segment("to_stop"),
+                                 0, stop, scale=scale)
         # append the reverse transport (from stop to 0)
         # both durations are the same in this case
-        transport.extend_segment(from_stop, 0, stop, scale=self.speed)
+        self.data.extend_segment(self.tf.create_segment("from_stop"),
+                                 stop, 0, scale=scale)
         # distributes frames to the sub-devices in CompoundPDQ2
         # and uploads them
         self.electrodes.arm()
@@ -91,7 +91,7 @@ class Transport(EnvExperiment):
 
     def run(self):
         # scan transport endpoint
-        stops = range(10, len(transport.x), 10)
+        stops = np.linspace(0, 10, 10)
         self.scan(stops)
 
 
