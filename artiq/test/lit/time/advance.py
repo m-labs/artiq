@@ -1,4 +1,5 @@
 # RUN: %python -m artiq.compiler.testbench.jit %s
+# REQUIRES: time
 
 assert now() == 0.0
 delay(100.0)

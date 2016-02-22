@@ -144,6 +144,9 @@ def fn_print():
 def fn_kernel():
     return types.TBuiltinFunction("kernel")
 
+def obj_parallel():
+    return types.TBuiltin("parallel")
+
 def obj_interleave():
     return types.TBuiltin("interleave")
 

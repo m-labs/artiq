@@ -765,6 +765,28 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 if not tail.is_terminated():
                     tail.append(ir.Branch(self.current_block))
             return
+        elif types.is_builtin(context_expr_node.type, "parallel"):
+            start_mu = self.append(ir.Builtin("now_mu", [], builtins.TInt64()))
+            end_mu   = start_mu
+
+            for stmt in node.body:
+                self.append(ir.Builtin("at_mu", [start_mu], builtins.TNone()))
+
+                block = self.add_block()
+                if self.current_block.is_terminated():
+                    self.warn_unreachable(stmt[0])
+                else:
+                    self.append(ir.Branch(block))
+                self.current_block = block
+
+                self.visit(stmt)
+
+                mid_mu = self.append(ir.Builtin("now_mu", [], builtins.TInt64()))
+                gt_mu  = self.append(ir.Compare(ast.Gt(loc=None), mid_mu, end_mu))
+                end_mu = self.append(ir.Select(gt_mu, mid_mu, end_mu))
+
+            self.append(ir.Builtin("at_mu", [end_mu], builtins.TNone()))
+            return
 
         cleanup = []
         for item_node in node.items:

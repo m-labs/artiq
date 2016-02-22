@@ -994,6 +994,7 @@ class Inferencer(algorithm.Visitor):
 
         typ = node.context_expr.type
         if (types.is_builtin(typ, "interleave") or types.is_builtin(typ, "sequential") or
+            types.is_builtin(typ, "parallel") or
                 (isinstance(node.context_expr, asttyped.CallT) and
                  types.is_builtin(node.context_expr.func.type, "watchdog"))):
             # builtin context managers
@@ -1092,8 +1093,8 @@ class Inferencer(algorithm.Visitor):
 
         for item_node in node.items:
             typ = item_node.context_expr.type.find()
-            if (types.is_builtin(typ, "interleave") or types.is_builtin(typ, "sequential")) and \
-                    len(node.items) != 1:
+            if (types.is_builtin(typ, "parallel") or types.is_builtin(typ, "interleave") or
+                types.is_builtin(typ, "sequential")) and len(node.items) != 1:
                 diag = diagnostic.Diagnostic("error",
                     "the '{kind}' context manager must be the only one in a 'with' statement",
                     {"kind": typ.name},
