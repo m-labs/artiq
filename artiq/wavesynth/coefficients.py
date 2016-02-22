@@ -179,7 +179,7 @@ class SplineSource(CoefficientSource):
             x = self.x[ia:ib]
         return np.r_[start, x, stop]
 
-    def scale_x(self, x, scale, min_duration=10, min_length=20):
+    def scale_x(self, x, scale, min_duration=1, min_length=20):
         """Enforce, round, and scale x to device-dependent values.
 
         Due to minimum duration and/or minimum segment length constraints
@@ -202,11 +202,11 @@ class SplineSource(CoefficientSource):
         dt = np.diff(t.astype(np.int))
 
         valid = np.absolute(dt) >= min_duration
-        dt = dt[valid]
-        t = t[np.r_[True, valid]]
-        if dt.shape[0] == 1:
+        if not np.any(valid):
+            valid[0] = True
             dt[0] = max(dt[0], min_length)
-        x_sample = t[:-1]*scale
+        dt = dt[valid]
+        x_sample = t[:-1][valid]*scale
         return x_sample, dt
 
     def __call__(self, x):
