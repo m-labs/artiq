@@ -173,9 +173,9 @@ class NIST_QC1(_NIST_Ions):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        phy = ttl_simple.Inout(platform.request("user_sma_gpio_n"))
+        phy = ttl_serdes_7series.Inout_8X(platform.request("user_sma_gpio_n"))
         self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
         phy = ttl_simple.Output(platform.request("user_led", 2))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
@@ -228,9 +228,9 @@ class NIST_CLOCK(_NIST_Ions):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
 
-        phy = ttl_simple.Inout(platform.request("user_sma_gpio_n"))
+        phy = ttl_serdes_7series.Inout_8X(platform.request("user_sma_gpio_n"))
         self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
 
         phy = ttl_simple.Output(platform.request("user_led", 2))
         self.submodules += phy
@@ -278,9 +278,9 @@ class NIST_QC2(_NIST_Ions):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        phy = ttl_simple.Inout(platform.request("user_sma_gpio_n"))
+        phy = ttl_serdes_7series.Inout_8X(platform.request("user_sma_gpio_n"))
         self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
         phy = ttl_simple.Output(platform.request("user_led", 2))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
