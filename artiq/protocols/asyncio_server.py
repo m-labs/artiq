@@ -24,7 +24,8 @@ class AsyncioServer:
         :param port: TCP port to bind to.
         """
         self.server = await asyncio.start_server(self._handle_connection,
-                                                 host, port)
+                                                 host, port,
+                                                 limit=4*1024*1024)
 
     async def stop(self):
         """Stops the server."""
