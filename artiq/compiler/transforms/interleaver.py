@@ -66,7 +66,7 @@ class Interleaver:
 
         postdom_tree = None
         for insn in func.instructions():
-            if not isinstance(insn, ir.Parallel):
+            if not isinstance(insn, ir.Interleave):
                 continue
 
             # Lazily compute dominators.
@@ -79,7 +79,7 @@ class Interleaver:
             source_times  = [0 for _ in source_blocks]
 
             if len(source_blocks) == 1:
-                # Immediate dominator for a parallel instruction with one successor
+                # Immediate dominator for a interleave instruction with one successor
                 # is the first instruction in the body of the statement which created
                 # it, but below we expect that it would be the first instruction after
                 # the statement itself.
@@ -87,7 +87,7 @@ class Interleaver:
                 continue
 
             interleave_until = postdom_tree.immediate_dominator(insn.basic_block)
-            assert interleave_until is not None # no nonlocal flow in `with parallel`
+            assert interleave_until is not None # no nonlocal flow in `with interleave`
             assert interleave_until not in source_blocks
 
             while len(source_blocks) > 0:
@@ -111,7 +111,7 @@ class Interleaver:
                 assert target_time_delta >= 0
 
                 target_terminator = target_block.terminator()
-                if isinstance(target_terminator, ir.Parallel):
+                if isinstance(target_terminator, ir.Interleave):
                     target_terminator.replace_with(ir.Branch(source_block))
                 elif isinstance(target_terminator, (ir.Delay, ir.Branch)):
                     target_terminator.set_target(source_block)
@@ -119,7 +119,7 @@ class Interleaver:
                     assert False
 
                 source_terminator = source_block.terminator()
-                if isinstance(source_terminator, ir.Parallel):
+                if isinstance(source_terminator, ir.Interleave):
                     source_terminator.replace_with(ir.Branch(source_terminator.target()))
                 elif isinstance(source_terminator, ir.Branch):
                     pass
@@ -149,7 +149,7 @@ class Interleaver:
                             if old_decomp.static_target_function is None:
                                 diag = diagnostic.Diagnostic("fatal",
                                     "it is not possible to interleave this function call within "
-                                    "a 'with parallel:' statement because the compiler could not "
+                                    "a 'with interleave:' statement because the compiler could not "
                                     "prove that the same function would always be called", {},
                                     old_decomp.loc)
                                 self.engine.process(diag)

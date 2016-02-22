@@ -2,4 +2,4 @@
 # RUN: OutputCheck %s --file-to-check=%t
 
 # CHECK-L: as x:NoneType
-with parallel as x: pass
+with interleave as x: pass

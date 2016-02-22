@@ -2,7 +2,7 @@
 # RUN: OutputCheck %s --file-to-check=%t
 
 def f():
-    with parallel:
+    with interleave:
         if True:
             print(1)
         else:

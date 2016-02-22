@@ -24,7 +24,7 @@ class AluminumSpectroscopy(EnvExperiment):
             delay(10*us)
             self.laser_cooling.pulse(100*MHz, 100*us)
             delay(5*us)
-            with parallel:
+            with interleave:
                 self.spectroscopy.pulse(self.spectroscopy_freq, 100*us)
                 with sequential:
                     delay(50*us)
@@ -32,7 +32,7 @@ class AluminumSpectroscopy(EnvExperiment):
             delay(5*us)
             while True:
                 delay(5*us)
-                with parallel:
+                with interleave:
                     self.state_detection.pulse(100*MHz, 10*us)
                     photon_count = self.pmt.count_gate(10*us)
                 if (photon_count < self.photon_limit_low

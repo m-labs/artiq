@@ -10,7 +10,7 @@ def g():
 x = f if True else g
 
 def h():
-    with parallel:
+    with interleave:
         f()
-        # CHECK-L: ${LINE:+1}: fatal: it is not possible to interleave this function call within a 'with parallel:' statement because the compiler could not prove that the same function would always be called
+        # CHECK-L: ${LINE:+1}: fatal: it is not possible to interleave this function call within a 'with interleave:' statement because the compiler could not prove that the same function would always be called
         x()

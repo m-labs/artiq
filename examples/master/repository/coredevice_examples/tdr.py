@@ -62,7 +62,7 @@ class TDR(EnvExperiment):
     @kernel
     def one(self, t, p):
         t0 = now_mu()
-        with parallel:
+        with interleave:
             self.pmt0.gate_both_mu(2*p)
             self.ttl2.pulse_mu(p)
         for i in range(len(t)):

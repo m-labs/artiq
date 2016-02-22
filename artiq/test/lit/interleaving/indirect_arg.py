@@ -5,7 +5,7 @@ def f(n):
     delay_mu(n)
 
 def g():
-    with parallel:
+    with interleave:
         with sequential:
             print("A", now_mu())
             f(2)

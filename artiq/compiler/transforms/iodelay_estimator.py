@@ -219,7 +219,7 @@ class IODelayEstimator(algorithm.Visitor):
         self.visit(node.items)
 
         context_expr = node.items[0].context_expr
-        if len(node.items) == 1 and types.is_builtin(context_expr.type, "parallel"):
+        if len(node.items) == 1 and types.is_builtin(context_expr.type, "interleave"):
             try:
                 delays = []
                 for stmt in node.body:
@@ -235,7 +235,7 @@ class IODelayEstimator(algorithm.Visitor):
                 # since there's no chance that the code will never actually execute
                 # inside a `with` statement after all.
                 note = diagnostic.Diagnostic("note",
-                    "while interleaving this 'with parallel:' statement", {},
+                    "while interleaving this 'with interleave:' statement", {},
                     node.loc)
                 error.cause.notes += [note]
                 self.engine.process(error.cause)
@@ -249,11 +249,11 @@ class IODelayEstimator(algorithm.Visitor):
             if flow_stmt is not None:
                 note = diagnostic.Diagnostic("note",
                     "this '{kind}' statement transfers control out of "
-                    "the 'with parallel:' statement",
+                    "the 'with interleave:' statement",
                     {"kind": flow_stmt.keyword_loc.source()},
                     flow_stmt.loc)
                 diag = diagnostic.Diagnostic("error",
-                    "cannot interleave this 'with parallel:' statement", {},
+                    "cannot interleave this 'with interleave:' statement", {},
                     node.keyword_loc.join(node.colon_loc), notes=[note])
                 self.engine.process(diag)
 

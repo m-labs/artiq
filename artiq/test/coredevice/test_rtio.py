@@ -16,7 +16,7 @@ class RTT(EnvExperiment):
     def run(self):
         self.ttl_inout.output()
         delay(1*us)
-        with parallel:
+        with interleave:
             # make sure not to send two commands into the same RTIO
             # channel with the same timestamp
             self.ttl_inout.gate_rising(5*us)
@@ -37,7 +37,7 @@ class Loopback(EnvExperiment):
     def run(self):
         self.loop_in.input()
         delay(1*us)
-        with parallel:
+        with interleave:
             self.loop_in.gate_rising(2*us)
             with sequential:
                 delay(1*us)
@@ -57,7 +57,7 @@ class ClockGeneratorLoopback(EnvExperiment):
         self.loop_clock_in.input()
         self.loop_clock_out.stop()
         delay(1*us)
-        with parallel:
+        with interleave:
             self.loop_clock_in.gate_rising(10*us)
             with sequential:
                 delay(200*ns)
@@ -110,7 +110,7 @@ class LoopbackCount(EnvExperiment):
     def run(self):
         self.ttl_inout.output()
         delay(5*us)
-        with parallel:
+        with interleave:
             self.ttl_inout.gate_rising(10*us)
             with sequential:
                 for i in range(self.npulses):

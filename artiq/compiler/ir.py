@@ -1418,7 +1418,7 @@ class Loop(Terminator):
     def opcode(self):
         return "loop({} times)".format(self.trip_count)
 
-class Parallel(Terminator):
+class Interleave(Terminator):
     """
     An instruction that schedules several threads of execution
     in parallel.
@@ -1428,7 +1428,7 @@ class Parallel(Terminator):
         super().__init__(destinations, builtins.TNone(), name)
 
     def opcode(self):
-        return "parallel"
+        return "interleave"
 
     def destinations(self):
         return self.operands

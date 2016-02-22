@@ -13,7 +13,7 @@ __all__ = ["host_int", "int", "host_round", "round",
 
 # global namespace for kernels
 kernel_globals = (
-    "sequential", "parallel",
+    "sequential", "parallel", "interleave",
     "delay_mu", "now_mu", "at_mu", "delay",
     "seconds_to_mu", "mu_to_seconds",
     "watchdog"
@@ -264,7 +264,7 @@ _time_manager = _DummyTimeManager()
 def set_time_manager(time_manager):
     """Set the time manager used for simulating kernels by running them
     directly inside the Python interpreter. The time manager responds to the
-    entering and leaving of parallel/sequential blocks, delays, etc. and
+    entering and leaving of interleave/parallel/sequential blocks, delays, etc. and
     provides a time-stamped logging facility for events.
     """
     global _time_manager
@@ -288,7 +288,7 @@ class _Parallel:
 
     The execution time of a parallel block is the execution time of its longest
     statement. A parallel block may contain sequential blocks, which themselves
-    may contain parallel blocks, etc.
+    may contain interleave blocks, etc.
     """
     def __enter__(self):
         _time_manager.enter_parallel()
@@ -296,7 +296,7 @@ class _Parallel:
     def __exit__(self, type, value, traceback):
         _time_manager.exit()
 parallel = _Parallel()
-
+interleave = _Parallel() # no difference in semantics on host
 
 def delay_mu(duration):
     """Increases the RTIO time by the given amount (in machine units)."""

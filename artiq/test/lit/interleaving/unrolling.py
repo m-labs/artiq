@@ -1,7 +1,7 @@
 # RUN: %python -m artiq.compiler.testbench.jit %s >%t
 # RUN: OutputCheck %s --file-to-check=%t
 
-with parallel:
+with interleave:
     for x in range(10):
         delay_mu(1)
         print("a", x)

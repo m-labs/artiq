@@ -117,10 +117,10 @@ dds.pulse(200*MHz, 11*us)     # exactly 1 ms after trigger
   \footnotesize
   \begin{minted}[frame=leftline]{python}
 with sequential:
-    with parallel:
+    with interleave:
         a.pulse(100*MHz, 10*us)
         b.pulse(200*MHz, 20*us)
-    with parallel:
+    with interleave:
         c.pulse(300*MHz, 30*us)
         d.pulse(400*MHz, 20*us)
   \end{minted}
@@ -128,7 +128,7 @@ with sequential:
   \begin{itemize}
     \item Experiments are inherently parallel:
         simultaneous laser pulses, parallel cooling of ions in different trap zones
-    \item \verb!parallel! and \verb!sequential! contexts with arbitrary nesting
+    \item \verb!interleave! and \verb!sequential! contexts with arbitrary nesting
     \item \verb!a! and \verb!b! pulses both start at the same time
     \item \verb!c! and \verb!d! pulses both start when \verb!a! and \verb!b! are both done
       (after 20\,µs)
@@ -181,7 +181,7 @@ class Experiment:
 
     @kernel
     def run(self):
-        with parallel:
+        with interleave:
           self.ion1.cool(duration=10*us)
           self.ion2.cool(frequency=...)
         self.transporter.move(speed=...)
@@ -222,7 +222,7 @@ class Experiment:
     \item RPC and exception mappings are generated
     \item Constants and small kernels are inlined
     \item Small loops are unrolled
-    \item Statements in parallel blocks are interleaved
+    \item Statements in interleave blocks are interleaved
     \item Time is converted to RTIO clock cycles
     \item The Python AST is converted to LLVM IR
     \item The LLVM IR is compiled to OpenRISC machine code
@@ -244,7 +244,7 @@ class Experiment:
   \item Scheduling of experiments \\
       e.g.\ calibrations, queue
   \item Archival of results (HDF5 format)
-  \item Graphical user interface \\ 
+  \item Graphical user interface \\
   	run with arguments, schedule, real-time plotting
   \end{itemize}
 \end{frame}
@@ -262,7 +262,7 @@ class Experiment:
   \item Novatech 409B DDS
   \item Thorlabs motor controllers
   \end{itemize}
-\end{frame}  
+\end{frame}
 
 \begin{frame}
   \begin{center}

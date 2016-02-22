@@ -27,7 +27,7 @@ class DDSTest(EnvExperiment):
                 self.led.on()
             else:
                 self.led.off()
-            with parallel:
+            with interleave:
                 with sequential:
                     self.dds0.set(100*MHz + 4*i*kHz)
                     self.ttl0.pulse(500*us)

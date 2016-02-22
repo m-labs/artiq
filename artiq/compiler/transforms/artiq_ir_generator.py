@@ -747,8 +747,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
         if types.is_builtin(context_expr_node.type, "sequential"):
             self.visit(node.body)
             return
-        elif types.is_builtin(context_expr_node.type, "parallel"):
-            parallel = self.append(ir.Parallel([]))
+        elif types.is_builtin(context_expr_node.type, "interleave"):
+            interleave = self.append(ir.Interleave([]))
 
             heads, tails = [], []
             for stmt in node.body:
@@ -758,7 +758,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 tails.append(self.current_block)
 
             for head in heads:
-                parallel.add_destination(head)
+                interleave.add_destination(head)
 
             self.current_block = self.add_block()
             for tail in tails:

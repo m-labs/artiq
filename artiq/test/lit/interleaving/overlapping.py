@@ -2,7 +2,7 @@
 # RUN: OutputCheck %s --file-to-check=%t
 
 def g():
-    with parallel:
+    with interleave:
         with sequential:
             print("A", now_mu())
             delay_mu(3)
