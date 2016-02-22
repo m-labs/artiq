@@ -214,8 +214,6 @@ class Pdq2:
             channel.clear()
         for frame in program:
             segments = [c.new_segment() for c in chs]
-            for segment in segments:
-                segment.line(typ=3, data=b"", trigger=True, duration=1, aux=1)
             self.program_segments(segments, frame)
             # append an empty line to stall the memory reader before jumping
             # through the frame table (`wait` does not prevent reading
