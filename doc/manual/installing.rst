@@ -403,10 +403,3 @@ The core device may use either an external clock signal or its internal clock. T
 
     $ artiq_coreconfig write -s startup_clock i  # internal clock (default)
     $ artiq_coreconfig write -s startup_clock e  # external clock
-
-Ubuntu 15.10+/Debian jessie+ specific instructions
---------------------------------------------------
-
-This command installs all the required packages: ::
-
-    $ sudo apt-get install build-essential autotools-dev file git patch perl xutils-dev texinfo flex bison libmpc-dev subversion cmake libusb-dev libftdi-dev pkg-config libffi-dev libgit2-dev python3.5 python3.5-dev
