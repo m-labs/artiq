@@ -36,9 +36,9 @@ If not, then make sure your ``$PATH`` environment variable contains the path to 
     $ echo $PATH
     /home/.../miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
 
-If your ``$PATH`` misses reference the miniconda3/bin or anaconda3/bin you can fix this by typing::
+If your ``$PATH`` misses reference the ``miniconda3/bin`` or ``anaconda3/bin`` you can fix this by typing::
 
-    $ export PATH=$HOME/miniconda3:$PATH
+    $ export PATH=$HOME/miniconda3/bin:$PATH
 
 Installing the host side software
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
