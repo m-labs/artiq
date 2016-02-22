@@ -14,7 +14,7 @@ def main():
     else:
         diag = False
         def process_diagnostic(diag):
-            print("\n".join(diag.render(colored=True)))
+            print("\n".join(diag.render(colored=False)))
             if diag.level in ("fatal", "error"):
                 exit(1)
 

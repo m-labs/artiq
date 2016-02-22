@@ -22,9 +22,10 @@ def _render_diagnostic(diagnostic, colored):
     lines = [shorten_path(path) for path in diagnostic.render(colored=colored)]
     return "\n".join(lines)
 
+colors_supported = (os.name == 'posix')
 class _DiagnosticEngine(diagnostic.Engine):
     def render_diagnostic(self, diagnostic):
-        sys.stderr.write(_render_diagnostic(diagnostic, colored=True) + "\n")
+        sys.stderr.write(_render_diagnostic(diagnostic, colored=colors_supported) + "\n")
 
 class CompileError(Exception):
     def __init__(self, diagnostic):
@@ -33,7 +34,7 @@ class CompileError(Exception):
     def __str__(self):
         # Prepend a newline so that the message shows up on after
         # exception class name printed by Python.
-        return "\n" + _render_diagnostic(self.diagnostic, colored=True)
+        return "\n" + _render_diagnostic(self.diagnostic, colored=colors_supported)
 
 
 @syscall
