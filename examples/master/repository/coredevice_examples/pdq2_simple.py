@@ -39,5 +39,4 @@ class PDQ2Simple(EnvExperiment):
         offsets = np.linspace(0, 10, 3)
         for o in offsets:
             self.setup(o)
-            print(self.electrodes.get_program())
             self.one()
