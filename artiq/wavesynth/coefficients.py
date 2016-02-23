@@ -73,6 +73,8 @@ def build_segment(durations, coefficients, target="bias",
                 if cdj or abs(yijk) or not compress:
                     cdj.append(float(yijk))
             cdj.reverse()
+            if not cdj:
+                cdj.append(float(yij[0]))
             cd.append({target: {variable: cdj}})
         yield {"duration": int(dxi), "channel_data": cd}
 
