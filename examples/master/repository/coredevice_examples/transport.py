@@ -82,7 +82,6 @@ class Transport(EnvExperiment):
 
     def scan(self, stops):
         for s in stops:
-            self.histogram = [0 for _ in range(self.bins)]
             # non-kernel, build frames
             # could also be rpc'ed from repeat()
             self.calc_waveforms(s)
