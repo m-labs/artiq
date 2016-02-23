@@ -117,10 +117,10 @@ dds.pulse(200*MHz, 11*us)     # exactly 1 ms after trigger
   \footnotesize
   \begin{minted}[frame=leftline]{python}
 with sequential:
-    with interleave:
+    with parallel:
         a.pulse(100*MHz, 10*us)
         b.pulse(200*MHz, 20*us)
-    with interleave:
+    with parallel:
         c.pulse(300*MHz, 30*us)
         d.pulse(400*MHz, 20*us)
   \end{minted}
@@ -128,11 +128,10 @@ with sequential:
   \begin{itemize}
     \item Experiments are inherently parallel:
         simultaneous laser pulses, parallel cooling of ions in different trap zones
-    \item \verb!interleave! and \verb!sequential! contexts with arbitrary nesting
+    \item \verb!parallel! and \verb!sequential! contexts with arbitrary nesting
     \item \verb!a! and \verb!b! pulses both start at the same time
     \item \verb!c! and \verb!d! pulses both start when \verb!a! and \verb!b! are both done
       (after 20\,µs)
-    \item Implemented by inlining, loop-unrolling, and interleaving
   \end{itemize}
 \end{frame}
 
@@ -181,7 +180,7 @@ class Experiment:
 
     @kernel
     def run(self):
-        with interleave:
+        with parallel:
           self.ion1.cool(duration=10*us)
           self.ion2.cool(frequency=...)
         self.transporter.move(speed=...)
@@ -219,11 +218,6 @@ class Experiment:
   \frametitle{Kernel deployment to the core device}
   \footnotesize
   \begin{itemize}
-    \item RPC and exception mappings are generated
-    \item Constants and small kernels are inlined
-    \item Small loops are unrolled
-    \item Statements in interleave blocks are interleaved
-    \item Time is converted to RTIO clock cycles
     \item The Python AST is converted to LLVM IR
     \item The LLVM IR is compiled to OpenRISC machine code
     \item The OpenRISC binary is sent to the core device
