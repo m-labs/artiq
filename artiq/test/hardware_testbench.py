@@ -97,6 +97,9 @@ class ExperimentCase(unittest.TestCase):
             self.device_db, virtual_devices={"scheduler": DummyScheduler()})
         self.dataset_mgr = DatasetManager(self.dataset_db)
 
+    def tearDown(self):
+        self.device_mgr.close_devices()
+
     def create(self, cls, **kwargs):
         try:
             exp = cls(self.device_mgr, self.dataset_mgr, **kwargs)
@@ -121,5 +124,3 @@ class ExperimentCase(unittest.TestCase):
         except CompileError as error:
             # Reduce amount of text on terminal.
             raise error from None
-        finally:
-            self.device_mgr.close_devices()
