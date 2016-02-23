@@ -28,7 +28,7 @@ class PhotonHistogram(EnvExperiment):
 
     @kernel
     def cool_detect(self):
-        with interleave:
+        with parallel:
             self.bd_sw.pulse(1*ms)
             self.bdd_sw.pulse(1*ms)
 
@@ -36,7 +36,7 @@ class PhotonHistogram(EnvExperiment):
         self.bd_sw.pulse(100*us)
 
         self.bd_dds.set(self.detect_f)
-        with interleave:
+        with parallel:
             self.bd_sw.pulse(self.detect_t)
             self.pmt.gate_rising(self.detect_t)
 
