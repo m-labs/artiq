@@ -12,7 +12,7 @@ class CreateTTLPulse(EnvExperiment):
     def run(self):
         self.ttl_inout.output()
         delay_mu(100)
-        with interleave:
+        with parallel:
             self.ttl_inout.gate_both_mu(1200)
             with sequential:
                 delay_mu(100)

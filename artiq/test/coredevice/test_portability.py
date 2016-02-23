@@ -100,7 +100,7 @@ class _Pulses(EnvExperiment):
     @kernel
     def run(self):
         for i in range(3):
-            with interleave:
+            with parallel:
                 with sequential:
                     self.a.pulse(100+i, 20*us)
                     self.b.pulse(200+i, 20*us)
