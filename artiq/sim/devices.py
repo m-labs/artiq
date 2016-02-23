@@ -1,7 +1,6 @@
 from random import Random
 
-from artiq.language.core import delay, kernel
-from artiq.language import units
+from artiq.language.core import delay, at_mu, kernel
 from artiq.sim import time
 
 
@@ -16,6 +15,7 @@ class Core:
         self._level -= 1
         if self._level == 0:
             print(time.manager.format_timeline())
+            time.manager.timeline.clear()
         return r
 
 
@@ -27,17 +27,56 @@ class Input:
         self.prng = Random()
 
     @kernel
-    def wait_edge(self):
-        duration = self.prng.randrange(0, 20)*units.ms
-        time.manager.event(("wait_edge", self.name, duration))
+    def gate_rising(self, duration):
+        time.manager.event(("gate_rising", self.name, duration))
         delay(duration)
 
     @kernel
-    def count_gate(self, duration):
-        result = self.prng.randrange(0, 100)
-        time.manager.event(("count_gate", self.name, duration, result))
+    def gate_falling(self, duration):
+        time.manager.event(("gate_falling", self.name, duration))
         delay(duration)
+
+    @kernel
+    def gate_both(self, duration):
+        time.manager.event(("gate_both", self.name, duration))
+        delay(duration)
+
+    @kernel
+    def count(self):
+        result = self.prng.randrange(0, 100)
+        time.manager.event(("count", self.name, result))
         return result
+
+    @kernel
+    def timestamp_mu(self):
+        result = time.manager.get_time_mu()
+        result += self.prng.randrange(100, 1000)
+        time.manager.event(("timestamp_mu", self.name, result))
+        at_mu(result)
+        return result
+
+
+class Output:
+    def __init__(self, dmgr, name):
+        self.core = dmgr.get("core")
+        self.name = name
+
+    @kernel
+    def set_o(self, value):
+        time.manager.event(("set", self.name, value))
+
+    @kernel
+    def pulse(self, duration):
+        time.manager.event(("pulse", self.name, duration))
+        delay(duration)
+
+    @kernel
+    def on(self):
+        self.set_o(True)
+
+    @kernel
+    def off(self):
+        self.set_o(False)
 
 
 class WaveOutput:
