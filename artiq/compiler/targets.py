@@ -43,6 +43,17 @@ class RunTool:
         for f in self.files:
             f.close()
 
+def _dump(target, kind, suffix, content):
+    if target is not None:
+        print("====== {} DUMP ======".format(kind.upper()), file=sys.stderr)
+        if target == "":
+            file = tempfile.NamedTemporaryFile(suffix, delete=False)
+        else:
+            file = open(target + suffix, "wb")
+        file.write(content())
+        file.close()
+        print("{} dumped as {}".format(kind, file.name), file=sys.stderr)
+
 class Target:
     """
     A description of the target environment where the binaries
@@ -73,11 +84,9 @@ class Target:
             print("====== MODULE_SIGNATURE DUMP ======", file=sys.stderr)
             print(module, file=sys.stderr)
 
-        if os.getenv("ARTIQ_DUMP_IR"):
-            print("====== ARTIQ IR DUMP ======", file=sys.stderr)
-            type_printer = types.TypePrinter()
-            for function in module.artiq_ir:
-                print(function.as_entity(type_printer), file=sys.stderr)
+        type_printer = types.TypePrinter()
+        _dump(os.getenv("ARTIQ_DUMP_IR"), "ARTIQ IR", ".txt",
+              lambda: "\n".join(fn.as_entity(type_printer) for fn in module.artiq_ir))
 
         llmod = module.build_llvm_ir(self)
 
@@ -85,13 +94,11 @@ class Target:
             llparsedmod = llvm.parse_assembly(str(llmod))
             llparsedmod.verify()
         except RuntimeError:
-            print("====== LLVM IR DUMP (PARSE FAILED) ======", file=sys.stderr)
-            print(str(llmod), file=sys.stderr)
+            _dump("", "LLVM IR (broken)", ".ll", lambda: str(llmod))
             raise
 
-        if os.getenv("ARTIQ_DUMP_LLVM"):
-            print("====== LLVM IR DUMP ======", file=sys.stderr)
-            print(str(llparsedmod), file=sys.stderr)
+        _dump(os.getenv("ARTIQ_DUMP_UNOPT_LLVM"), "LLVM IR (generated)", "_unopt.ll",
+              lambda: str(llparsedmod))
 
         llpassmgrbuilder = llvm.create_pass_manager_builder()
         llpassmgrbuilder.opt_level  = 2 # -O2
@@ -102,18 +109,16 @@ class Target:
         llpassmgrbuilder.populate(llpassmgr)
         llpassmgr.run(llparsedmod)
 
-        if os.getenv("ARTIQ_DUMP_LLVM"):
-            print("====== LLVM IR DUMP (OPTIMIZED) ======", file=sys.stderr)
-            print(str(llparsedmod), file=sys.stderr)
+        _dump(os.getenv("ARTIQ_DUMP_LLVM"), "LLVM IR (optimized)", ".ll",
+              lambda: str(llparsedmod))
 
         lltarget = llvm.Target.from_triple(self.triple)
         llmachine = lltarget.create_target_machine(
                         features=",".join(["+{}".format(f) for f in self.features]),
                         reloc="pic", codemodel="default")
 
-        if os.getenv("ARTIQ_DUMP_ASSEMBLY"):
-            print("====== ASSEMBLY DUMP ======", file=sys.stderr)
-            print(llmachine.emit_assembly(llparsedmod), file=sys.stderr)
+        _dump(os.getenv("ARTIQ_DUMP_ASM"), "Assembly", ".s",
+              lambda: llmachine.emit_assembly(llparsedmod))
 
         return llmachine.emit_object(llparsedmod)
 
@@ -127,12 +132,8 @@ class Target:
                 as results:
             library = results["output"].read()
 
-            if os.getenv("ARTIQ_DUMP_ELF"):
-                shlib_temp = tempfile.NamedTemporaryFile(suffix=".so", delete=False)
-                shlib_temp.write(library)
-                shlib_temp.close()
-                print("====== SHARED LIBRARY DUMP ======", file=sys.stderr)
-                print("Shared library dumped as {}".format(shlib_temp.name), file=sys.stderr)
+            _dump(os.getenv("ARTIQ_DUMP_ELF"), "Shared library", ".so",
+                  lambda: library)
 
             return library
 
