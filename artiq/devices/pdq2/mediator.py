@@ -5,6 +5,7 @@ frame_setup = 20*ns
 trigger_duration = 50*ns
 sample_period = 10*ns
 delay_margin_factor = 1 + 1e-4
+minimum_duration = 100*ns
 
 
 class FrameActiveError(Exception):
@@ -103,6 +104,9 @@ class _Frame:
     def _get_program(self):
         r = []
         for segment in self.segments:
+            if segment.duration < minimum_duration:
+                raise ValueError(("Segment too short ({:g} s), trigger might "
+                                  "overlap").format(segment.duration))
             segment_program = [
                 {
                     "dac_divider": dac_divider,
