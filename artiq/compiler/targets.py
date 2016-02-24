@@ -151,20 +151,31 @@ class Target:
         if addresses == []:
             return []
 
-        # Addresses point one instruction past the jump; offset them back by 1.
-        offset_addresses = [hex(addr - 1) for addr in addresses]
-        with RunTool([self.triple + "-addr2line", "--functions", "--inlines",
+        offset_addresses = [hex(addr) for addr in addresses]
+        with RunTool([self.triple + "-addr2line", "--addresses",  "--functions", "--inlines",
                       "--exe={library}"] + offset_addresses,
                      library=library) \
                 as results:
-            lines = results["__stdout__"].rstrip().split("\n")
+            lines = iter(results["__stdout__"].rstrip().split("\n"))
             backtrace = []
-            for function_name, location, address in zip(lines[::2], lines[1::2], addresses):
+            while True:
+                try:
+                    address_or_function = next(lines)
+                except StopIteration:
+                    break
+                if address_or_function[:2] == "0x":
+                    address  = int(address_or_function[2:], 16)
+                    function = next(lines)
+                else:
+                    address  = backtrace[-1][4] # inlined
+                    function = address_or_function
+                location = next(lines)
+
                 filename, line = location.rsplit(":", 1)
-                if filename == "??":
+                if filename == "??" or filename == "<synthesized>":
                     continue
                 # can't get column out of addr2line D:
-                backtrace.append((filename, int(line), -1, function_name, address))
+                backtrace.append((filename, int(line), -1, function, address))
             return backtrace
 
 class NativeTarget(Target):

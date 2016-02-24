@@ -27,6 +27,7 @@ class CoreException:
     def __str__(self):
         lines = []
         lines.append("Core Device Traceback (most recent call last):")
+        last_address = 0
         for (filename, line, column, function, address) in self.traceback:
             stub_globals = {"__name__": filename, "__loader__": source_loader}
             source_line = linecache.getline(filename, line, stub_globals)
@@ -34,8 +35,11 @@ class CoreException:
 
             if address is None:
                 formatted_address = ""
+            elif address == last_address:
+                formatted_address = " (inlined)"
             else:
                 formatted_address = " (RA=0x{:x})".format(address)
+            last_address = address
 
             filename = filename.replace(artiq_dir, "<artiq>")
             if column == -1:
