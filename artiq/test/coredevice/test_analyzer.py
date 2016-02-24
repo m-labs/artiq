@@ -6,18 +6,17 @@ from artiq.test.hardware_testbench import ExperimentCase
 class CreateTTLPulse(EnvExperiment):
     def build(self):
         self.setattr_device("core")
-        self.setattr_device("ttl_inout")
+        self.setattr_device("loop_in")
+        self.setattr_device("loop_out")
 
     @kernel
     def run(self):
-        self.ttl_inout.output()
-        delay_mu(100)
         with parallel:
-            self.ttl_inout.gate_both_mu(1200)
+            self.loop_in.gate_both_mu(1200)
             with sequential:
                 delay_mu(100)
-                self.ttl_inout.pulse_mu(1000)
-        self.ttl_inout.count()
+                self.loop_out.pulse_mu(1000)
+        self.loop_in.count()
 
 
 class AnalyzerTest(ExperimentCase):

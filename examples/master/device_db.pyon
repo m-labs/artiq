@@ -157,7 +157,6 @@
         "command": "lda_controller -p {port} --bind {bind} --simulation"
     },
 
-    "ttl_inout": "pmt0",
     "ttl_out": "ttl0",
     "ttl_out_serdes": "ttl0",
 

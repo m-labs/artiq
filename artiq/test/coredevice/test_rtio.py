@@ -20,7 +20,7 @@ class RTT(EnvExperiment):
     def run(self):
         self.ttl_inout.output()
         delay(1*us)
-        with parallel:
+        with interleave:
             # make sure not to send two commands into the same RTIO
             # channel with the same timestamp
             self.ttl_inout.gate_rising(5*us)
@@ -101,28 +101,6 @@ class Watchdog(EnvExperiment):
                 pass
 
 
-class LoopbackCount(EnvExperiment):
-    def build(self):
-        self.setattr_device("core")
-        self.setattr_device("ttl_inout")
-        self.setattr_argument("npulses")
-
-    def set_count(self, count):
-        self.set_dataset("count", count)
-
-    @kernel
-    def run(self):
-        self.ttl_inout.output()
-        delay(5*us)
-        with parallel:
-            self.ttl_inout.gate_rising(10*us)
-            with sequential:
-                for i in range(self.npulses):
-                    delay(25*ns)
-                    self.ttl_inout.pulse(25*ns)
-        self.set_dataset("count", self.ttl_inout.count())
-
-
 class Underflow(EnvExperiment):
     def build(self):
         self.setattr_device("core")
@@ -185,17 +163,6 @@ class Handover(EnvExperiment):
 
 
 class CoredeviceTest(ExperimentCase):
-    @unittest.skipUnless(artiq_low_latency,
-                         "timings are dependent on CPU load and network conditions")
-    def test_rtt(self):
-        self.execute(RTT)
-        rtt = self.dataset_mgr.get("rtt")
-        print(rtt)
-        self.assertGreater(rtt, 0*ns)
-        self.assertLess(rtt, 100*ns)
-
-    @unittest.skipUnless(artiq_low_latency,
-                         "timings are dependent on CPU load and network conditions")
     def test_loopback(self):
         self.execute(Loopback)
         rtt = self.dataset_mgr.get("rtt")
@@ -208,20 +175,12 @@ class CoredeviceTest(ExperimentCase):
         count = self.dataset_mgr.get("count")
         self.assertEqual(count, 10)
 
-    @unittest.skipUnless(artiq_low_latency,
-                         "timings are dependent on CPU load and network conditions")
     def test_pulse_rate(self):
         self.execute(PulseRate)
         rate = self.dataset_mgr.get("pulse_rate")
         print(rate)
         self.assertGreater(rate, 100*ns)
         self.assertLess(rate, 2500*ns)
-
-    def test_loopback_count(self):
-        npulses = 2
-        self.execute(LoopbackCount, npulses=npulses)
-        count = self.dataset_mgr.get("count")
-        self.assertEqual(count, npulses)
 
     def test_underflow(self):
         with self.assertRaises(RTIOUnderflow):
