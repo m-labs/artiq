@@ -113,15 +113,18 @@ class Target:
         _dump(os.getenv("ARTIQ_DUMP_LLVM"), "LLVM IR (optimized)", ".ll",
               lambda: str(llparsedmod))
 
+        return llparsedmod
+
+    def assemble(self, llmodule):
         lltarget = llvm.Target.from_triple(self.triple)
         llmachine = lltarget.create_target_machine(
                         features=",".join(["+{}".format(f) for f in self.features]),
                         reloc="pic", codemodel="default")
 
         _dump(os.getenv("ARTIQ_DUMP_ASM"), "Assembly", ".s",
-              lambda: llmachine.emit_assembly(llparsedmod))
+              lambda: llmachine.emit_assembly(llmodule))
 
-        return llmachine.emit_object(llparsedmod)
+        return llmachine.emit_object(llmodule)
 
     def link(self, objects, init_fn):
         """Link the relocatable objects into a shared library for this target."""
@@ -139,7 +142,7 @@ class Target:
             return library
 
     def compile_and_link(self, modules):
-        return self.link([self.compile(module) for module in modules],
+        return self.link([self.assemble(self.compile(module)) for module in modules],
                          init_fn=modules[0].entry_point())
 
     def strip(self, library):

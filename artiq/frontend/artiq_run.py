@@ -6,8 +6,11 @@ import argparse
 import sys
 from operator import itemgetter
 import logging
+from collections import defaultdict
 
 import h5py
+
+from llvmlite_artiq import binding as llvm
 
 from artiq.language.environment import EnvExperiment
 from artiq.master.databases import DeviceDB, DatasetDB
@@ -19,21 +22,58 @@ from artiq.tools import *
 
 logger = logging.getLogger(__name__)
 
+class StubObject:
+    def __setattr__(self, name, value):
+        pass
 
-class ELFRunner(EnvExperiment):
+class StubObjectMap:
+    def __init__(self):
+        stub_object = StubObject()
+        self.forward_map = defaultdict(lambda: stub_object)
+        self.forward_map[1] = lambda _: None # return RPC
+        self.next_id = -1
+
+    def retrieve(self, object_id):
+        return self.forward_map[object_id]
+
+    def store(self, value):
+        self.forward_map[self.next_id] = value
+        self.next_id -= 1
+
+class FileRunner(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.setattr_argument("file")
+        self.target = OR1KTarget()
 
     def run(self):
-        with open(self.file, "rb") as f:
-            kernel_library = f.read()
+        kernel_library = self.compile()
 
-        target = OR1KTarget()
         self.core.comm.load(kernel_library)
         self.core.comm.run()
-        self.core.comm.serve(ObjectMap(),
-                             lambda addresses: target.symbolize(kernel_library, addresses))
+        self.core.comm.serve(StubObjectMap(),
+            lambda addresses: self.target.symbolize(kernel_library, addresses))
+
+class ELFRunner(FileRunner):
+    def compile(self):
+        with open(self.file, "rb") as f:
+            return f.read()
+
+class LLVMIRRunner(FileRunner):
+    def compile(self):
+        with open(self.file, "r") as f:
+            llmodule = llvm.parse_assembly(f.read())
+        llmodule.verify()
+        return self.target.link([self.target.assemble(llmodule)],
+                                init_fn='__modinit__')
+
+class LLVMBitcodeRunner(FileRunner):
+    def compile(self):
+        with open(self.file, "rb") as f:
+            llmodule = llvm.parse_bitcode(f.read())
+        llmodule.verify()
+        return self.target.link([self.target.assemble(llmodule)],
+                                init_fn='__modinit__')
 
 
 class DummyScheduler:
@@ -91,13 +131,21 @@ def get_argparser(with_file=True):
 
 def _build_experiment(device_mgr, dataset_mgr, args):
     if hasattr(args, "file"):
-        if args.file.endswith(".elf"):
+        is_elf = args.file.endswith(".elf")
+        is_ll  = args.file.endswith(".ll")
+        is_bc  = args.file.endswith(".bc")
+        if is_elf or is_ll or is_bc:
             if args.arguments:
-                raise ValueError("arguments not supported for ELF kernels")
+                raise ValueError("arguments not supported for precompiled kernels")
             if args.experiment:
                 raise ValueError("experiment-by-name not supported "
-                                 "for ELF kernels")
+                                 "for precompiled kernels")
+        if is_elf:
             return ELFRunner(device_mgr, dataset_mgr, file=args.file)
+        elif is_ll:
+            return LLVMIRRunner(device_mgr, dataset_mgr, file=args.file)
+        elif is_bc:
+            return LLVMBitcodeRunner(device_mgr, dataset_mgr, file=args.file)
         else:
             module = file_import(args.file, prefix="artiq_run_")
         file = args.file
