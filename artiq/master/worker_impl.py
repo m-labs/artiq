@@ -257,6 +257,8 @@ def main():
             if exc_str:
                 short_exc_info += ": " + exc_str
             lines = ["Terminating with exception ("+short_exc_info+")\n"]
+            if hasattr(exc, "artiq_core_exception"):
+                lines.append(str(exc.artiq_core_exception))
             if hasattr(exc, "parent_traceback"):
                 lines += exc.parent_traceback
                 lines += traceback.format_exception_only(type(exc), exc)
