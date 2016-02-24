@@ -132,7 +132,7 @@ def run(with_file=False):
     except CompileError as error:
         return
     except Exception as exn:
-        if hasattr(exn, 'artiq_core_exception'):
+        if hasattr(exn, "artiq_core_exception"):
             print(exn.artiq_core_exception, file=sys.stderr)
         raise exn
     finally:
