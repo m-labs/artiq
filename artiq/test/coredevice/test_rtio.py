@@ -1,10 +1,14 @@
 # Copyright (C) 2014, 2015 M-Labs Limited
 # Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
 
+import os, unittest
+
 from math import sqrt
 
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
+
+artiq_low_latency = os.getenv("ARTIQ_LOW_LATENCY")
 
 
 class RTT(EnvExperiment):
@@ -181,6 +185,8 @@ class Handover(EnvExperiment):
 
 
 class CoredeviceTest(ExperimentCase):
+    @unittest.skipUnless(artiq_low_latency,
+                         "timings are dependent on CPU load and network conditions")
     def test_rtt(self):
         self.execute(RTT)
         rtt = self.dataset_mgr.get("rtt")
@@ -188,6 +194,8 @@ class CoredeviceTest(ExperimentCase):
         self.assertGreater(rtt, 0*ns)
         self.assertLess(rtt, 100*ns)
 
+    @unittest.skipUnless(artiq_low_latency,
+                         "timings are dependent on CPU load and network conditions")
     def test_loopback(self):
         self.execute(Loopback)
         rtt = self.dataset_mgr.get("rtt")
@@ -200,6 +208,8 @@ class CoredeviceTest(ExperimentCase):
         count = self.dataset_mgr.get("count")
         self.assertEqual(count, 10)
 
+    @unittest.skipUnless(artiq_low_latency,
+                         "timings are dependent on CPU load and network conditions")
     def test_pulse_rate(self):
         self.execute(PulseRate)
         rate = self.dataset_mgr.get("pulse_rate")
@@ -230,6 +240,8 @@ class CoredeviceTest(ExperimentCase):
         with self.assertRaises(IOError):
             self.execute(Watchdog)
 
+    @unittest.skipUnless(artiq_low_latency,
+                         "timings are dependent on CPU load and network conditions")
     def test_time_keeps_running(self):
         self.execute(TimeKeepsRunning)
         t1 = self.dataset_mgr.get("time_at_start")
@@ -272,6 +284,8 @@ class RPCTiming(EnvExperiment):
 
 
 class RPCTest(ExperimentCase):
+    @unittest.skipUnless(artiq_low_latency,
+                         "timings are dependent on CPU load and network conditions")
     def test_rpc_timing(self):
         self.execute(RPCTiming)
         self.assertGreater(self.dataset_mgr.get("rpc_time_mean"), 100*ns)
