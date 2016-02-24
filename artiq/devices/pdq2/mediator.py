@@ -5,7 +5,6 @@ frame_setup = 20*ns
 trigger_duration = 50*ns
 sample_period = 10*ns
 delay_margin_factor = 1 + 1e-4
-minimum_duration = 100*ns
 
 
 class FrameActiveError(Exception):
@@ -104,9 +103,9 @@ class _Frame:
     def _get_program(self):
         r = []
         for segment in self.segments:
-            if segment.duration < minimum_duration:
+            if segment.duration < 2*trigger_duration:
                 raise ValueError(("Segment too short ({:g} s), trigger might "
-                                  "overlap").format(segment.duration))
+                                  "spill").format(segment.duration))
             segment_program = [
                 {
                     "dac_divider": dac_divider,
@@ -172,10 +171,10 @@ class CompoundPDQ2:
     def disarm(self):
         for frame in self.frames:
             frame._invalidate()
-        self.frames = []
-        self.armed = False
+        self.frames.clear()
         for dev in self.pdq2s:
             dev.park()
+        self.armed = False
 
     def get_program(self):
         return [f._get_program() for f in self.frames]
@@ -185,7 +184,6 @@ class CompoundPDQ2:
             raise ArmError()
         for frame in self.frames:
             frame._arm()
-        self.armed = True
 
         full_program = self.get_program()
         n = 0
@@ -207,6 +205,7 @@ class CompoundPDQ2:
             n += dn
         for pdq2 in self.pdq2s:
             pdq2.unpark()
+        self.armed = True
 
     def create_frame(self):
         if self.armed:
