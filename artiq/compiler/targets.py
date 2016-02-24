@@ -151,7 +151,11 @@ class Target:
         if addresses == []:
             return []
 
-        offset_addresses = [hex(addr) for addr in addresses]
+        # We got a list of return addresses, i.e. addresses of instructions
+        # just after the call. Offset them back to get an address somewhere
+        # inside the call instruction (or its delay slot), since that's what
+        # the backtrace entry should point at.
+        offset_addresses = [hex(addr - 1) for addr in addresses]
         with RunTool([self.triple + "-addr2line", "--addresses",  "--functions", "--inlines",
                       "--exe={library}"] + offset_addresses,
                      library=library) \
@@ -164,7 +168,7 @@ class Target:
                 except StopIteration:
                     break
                 if address_or_function[:2] == "0x":
-                    address  = int(address_or_function[2:], 16)
+                    address  = int(address_or_function[2:], 16) + 1 # remove offset
                     function = next(lines)
                 else:
                     address  = backtrace[-1][4] # inlined
