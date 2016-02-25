@@ -11,6 +11,6 @@ class contextmgr:
 
 def foo():
     # CHECK-L: ${LINE:+2}: error: cannot unify int(width='a) with NoneType
-    # CHECK-L: ${LINE:+1}: note: exception handling via context managers is not supported; the argument 'n3' of function '__exit__(self:<instance contextmgr {}>, n1:NoneType, n2:NoneType, n3:int(width='a))->NoneType delay('b)' will always be None
+    # CHECK-L: ${LINE:+1}: note: exception handling via context managers is not supported; the argument 'n3' of function '__exit__(self:<instance contextmgr>, n1:NoneType, n2:NoneType, n3:int(width='a))->NoneType delay('b)' will always be None
     with contextmgr():
         pass

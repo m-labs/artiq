@@ -11,7 +11,7 @@ class contextmgr:
 def foo():
     contextmgr.__enter__(1)
     # CHECK-L: ${LINE:+3}: error: cannot unify <instance contextmgr> with int(width='a) while inferring the type for self argument
-    # CHECK-L: ${LINE:+2}: note: expression of type <instance contextmgr {}>
+    # CHECK-L: ${LINE:+2}: note: expression of type <instance contextmgr>
     # CHECK-L: ${LINE:+1}: note: reference to an instance with a method '__enter__(self:int(width='a))->NoneType delay('b)'
     with contextmgr():
         pass
