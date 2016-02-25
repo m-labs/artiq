@@ -694,42 +694,45 @@ class TypePrinter(object):
         self.map = {}
         self.recurse_guard = set()
 
-    def name(self, typ):
+    def name(self, typ, depth=0, max_depth=1):
         typ = typ.find()
         if isinstance(typ, TVar):
             if typ not in self.map:
                 self.map[typ] = "'%s" % next(self.gen)
             return self.map[typ]
         elif isinstance(typ, TInstance):
-            if typ in self.recurse_guard:
+            if typ in self.recurse_guard or depth >= max_depth:
                 return "<instance {}>".format(typ.name)
             else:
                 self.recurse_guard.add(typ)
-                attrs = ", ".join(["{}: {}".format(attr, self.name(typ.attributes[attr]))
-                                   for attr in typ.attributes])
-                return "<instance {} {{{}}}>".format(typ.name, attrs)
+                attrs = ",\n\t\t".join(["{}: {}".format(attr, self.name(typ.attributes[attr],
+                                                                        depth + 1))
+                                      for attr in typ.attributes])
+                return "<instance {} {{\n\t\t{}\n\t}}>".format(typ.name, attrs)
         elif isinstance(typ, TMono):
             if typ.params == {}:
                 return typ.name
             else:
                 return "%s(%s)" % (typ.name, ", ".join(
-                    ["%s=%s" % (k, self.name(typ.params[k])) for k in typ.params]))
+                    ["%s=%s" % (k, self.name(typ.params[k], depth + 1)) for k in typ.params]))
         elif isinstance(typ, TTuple):
             if len(typ.elts) == 1:
-                return "(%s,)" % self.name(typ.elts[0])
+                return "(%s,)" % self.name(typ.elts[0], depth + 1)
             else:
-                return "(%s)" % ", ".join(list(map(self.name, typ.elts)))
+                return "(%s)" % ", ".join([self.name(typ, depth + 1) for typ in typ.elts])
         elif isinstance(typ, (TFunction, TRPCFunction, TCFunction)):
             args = []
-            args += [ "%s:%s" % (arg, self.name(typ.args[arg]))    for arg in typ.args]
-            args += ["?%s:%s" % (arg, self.name(typ.optargs[arg])) for arg in typ.optargs]
-            signature = "(%s)->%s" % (", ".join(args), self.name(typ.ret))
+            args += [ "%s:%s" % (arg, self.name(typ.args[arg], depth + 1))
+                     for arg in typ.args]
+            args += ["?%s:%s" % (arg, self.name(typ.optargs[arg], depth + 1))
+                     for arg in typ.optargs]
+            signature = "(%s)->%s" % (", ".join(args), self.name(typ.ret, depth + 1))
 
             delay = typ.delay.find()
             if isinstance(delay, TVar):
-                signature += " delay({})".format(self.name(delay))
+                signature += " delay({})".format(self.name(delay, depth + 1))
             elif not (delay.is_fixed() and iodelay.is_zero(delay.duration)):
-                signature += " " + self.name(delay)
+                signature += " " + self.name(delay, depth + 1)
 
             if isinstance(typ, TRPCFunction):
                 return "[rpc #{}]{}".format(typ.service, signature)
@@ -740,11 +743,12 @@ class TypePrinter(object):
         elif isinstance(typ, TBuiltinFunction):
             return "<function {}>".format(typ.name)
         elif isinstance(typ, (TConstructor, TExceptionConstructor)):
-            if typ in self.recurse_guard:
+            if typ in self.recurse_guard or depth >= max_depth:
                 return "<constructor {}>".format(typ.name)
             else:
                 self.recurse_guard.add(typ)
-                attrs = ", ".join(["{}: {}".format(attr, self.name(typ.attributes[attr]))
+                attrs = ", ".join(["{}: {}".format(attr, self.name(typ.attributes[attr],
+                                                                   depth + 1))
                                    for attr in typ.attributes])
                 return "<constructor {} {{{}}}>".format(typ.name, attrs)
         elif isinstance(typ, TBuiltin):
