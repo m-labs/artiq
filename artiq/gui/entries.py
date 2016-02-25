@@ -4,6 +4,8 @@ from collections import OrderedDict
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 from artiq.gui.tools import LayoutWidget, disable_scroll_wheel
+from artiq.gui.scanwidget import ScanWidget
+from artiq.gui.scientific_spinbox import ScientificSpinBox
 
 
 logger = logging.getLogger(__name__)
@@ -136,6 +138,7 @@ class _RangeScan(LayoutWidget):
         LayoutWidget.__init__(self)
 
         scale = procdesc["scale"]
+
         def apply_properties(spinbox):
             spinbox.setDecimals(procdesc["ndecimals"])
             if procdesc["global_min"] is not None:
@@ -151,37 +154,53 @@ class _RangeScan(LayoutWidget):
             if procdesc["unit"]:
                 spinbox.setSuffix(" " + procdesc["unit"])
 
-        self.addWidget(QtWidgets.QLabel("Min:"), 0, 0)
-        self.min = QtWidgets.QDoubleSpinBox()
+        self.scanner = scanner = ScanWidget()
+        scanner.setSizePolicy(QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed))
+        self.addWidget(scanner, 0, 0, -1, 1)
+
+        self.min = ScientificSpinBox()
+        self.min.setStyleSheet("QDoubleSpinBox {color:blue}")
+        self.min.setMinimumSize(110, 0)
+        self.min.setSizePolicy(QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed))
+        self.min.setValue(state["min"]/scale)
         disable_scroll_wheel(self.min)
         apply_properties(self.min)
         self.addWidget(self.min, 0, 1)
 
-        self.addWidget(QtWidgets.QLabel("Max:"), 1, 0)
-        self.max = QtWidgets.QDoubleSpinBox()
+        self.npoints = QtWidgets.QSpinBox()
+        self.npoints.setMinimum(1)
+        self.npoints.setValue(state["npoints"])
+        disable_scroll_wheel(self.npoints)
+        self.addWidget(self.npoints, 1, 1)
+
+        self.max = ScientificSpinBox()
+        self.max.setStyleSheet("QDoubleSpinBox {color:red}")
+        self.max.setMinimumSize(110, 0)
+        self.max.setValue(state["max"]/scale)
         disable_scroll_wheel(self.max)
         apply_properties(self.max)
-        self.addWidget(self.max, 1, 1)
+        self.addWidget(self.max, 2, 1)
 
-        self.addWidget(QtWidgets.QLabel("#Points:"), 2, 0)
-        self.npoints = QtWidgets.QSpinBox()
-        disable_scroll_wheel(self.npoints)
-        self.npoints.setMinimum(2)
-        self.npoints.setValue(10)
-        self.addWidget(self.npoints, 2, 1)
-
-        self.min.setValue(state["min"]/scale)
-        self.max.setValue(state["max"]/scale)
-        self.npoints.setValue(state["npoints"])
         def update_min(value):
             state["min"] = value*scale
+
         def update_max(value):
             state["min"] = value*scale
+
         def update_npoints(value):
             state["npoints"] = value
+
+        scanner.sigMinMoved.connect(self.min.setValue)
+        # scanner.sigNumChanged.connect(self.npoints.setValue)
+        scanner.sigMaxMoved.connect(self.max.setValue)
         self.min.valueChanged.connect(update_min)
-        self.max.valueChanged.connect(update_max)
+        self.min.valueChanged.connect(scanner.setMin)
+        # self.npoints.valueChanged.connect(scanner.setNumPoints)
         self.npoints.valueChanged.connect(update_npoints)
+        self.max.valueChanged.connect(scanner.setMax)
+        self.max.valueChanged.connect(update_max)
 
 
 class _ExplicitScan(LayoutWidget):
