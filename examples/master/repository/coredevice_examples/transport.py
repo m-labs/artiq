@@ -72,6 +72,7 @@ class Transport(EnvExperiment):
 
     @kernel
     def repeat(self):
+        self.core.break_realtime()
         hist = [0 for _ in range(self.bins)]
         for i in range(self.repeats):
             n = self.one()

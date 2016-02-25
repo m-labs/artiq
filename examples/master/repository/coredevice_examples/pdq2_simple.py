@@ -28,6 +28,8 @@ class PDQ2Simple(EnvExperiment):
 
     @kernel
     def one(self):
+        self.core.break_realtime()
+        delay(1*ms)
         self.load.advance()
         delay(1*ms)
         self.detect.advance()
