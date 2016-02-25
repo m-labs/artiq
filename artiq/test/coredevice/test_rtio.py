@@ -101,6 +101,28 @@ class Watchdog(EnvExperiment):
                 pass
 
 
+class LoopbackCount(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.setattr_device("ttl_inout")
+        self.setattr_argument("npulses")
+
+    def set_count(self, count):
+        self.set_dataset("count", count)
+
+    @kernel
+    def run(self):
+        self.loop_out.output()
+        delay(5*us)
+        with parallel:
+            self.loop_in.gate_rising(10*us)
+            with sequential:
+                for i in range(self.npulses):
+                    delay(25*ns)
+                    self.loop_out.pulse(25*ns)
+        self.set_dataset("count", self.loop_in.count())
+
+
 class Underflow(EnvExperiment):
     def build(self):
         self.setattr_device("core")
@@ -181,6 +203,12 @@ class CoredeviceTest(ExperimentCase):
         print(rate)
         self.assertGreater(rate, 100*ns)
         self.assertLess(rate, 2500*ns)
+
+    def test_loopback_count(self):
+        npulses = 2
+        self.execute(LoopbackCount, npulses=npulses)
+        count = self.dataset_mgr.get("count")
+        self.assertEqual(count, npulses)
 
     def test_underflow(self):
         with self.assertRaises(RTIOUnderflow):
