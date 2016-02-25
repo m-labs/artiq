@@ -485,7 +485,7 @@ class LLVMIRGenerator:
                 ])
                 llrpcattr.global_constant = True
                 llrpcattr.unnamed_addr = True
-                llrpcattr.linkage = 'internal'
+                llrpcattr.linkage = 'private'
 
                 return llrpcattr
 
@@ -499,14 +499,14 @@ class LLVMIRGenerator:
                 llrpcattrs + [ll.Constant(llrpcattrty.as_pointer(), None)])
             llrpcattrary.global_constant = True
             llrpcattrary.unnamed_addr = True
-            llrpcattrary.linkage = 'internal'
+            llrpcattrary.linkage = 'private'
 
             llobjectaryty = ll.ArrayType(llptr, len(llobjects[typ]) + 1)
             llobjectary = ll.GlobalVariable(self.llmodule, llobjectaryty,
                                             name="objects.{}".format(type_name))
             llobjectary.initializer = ll.Constant(llobjectaryty,
                 llobjects[typ] + [ll.Constant(llptr, None)])
-            llobjectary.linkage = 'internal'
+            llobjectary.linkage = 'private'
 
             lldesc = ll.GlobalVariable(self.llmodule, lldescty,
                                        name="desc.{}".format(type_name))
@@ -515,7 +515,7 @@ class LLVMIRGenerator:
                 llobjectary.bitcast(llptr.as_pointer())
             ])
             lldesc.global_constant = True
-            lldesc.linkage = 'internal'
+            lldesc.linkage = 'private'
             lldescs.append(lldesc)
 
         llglobaldescty = ll.ArrayType(lldescty.as_pointer(), len(lldescs) + 1)
@@ -529,7 +529,7 @@ class LLVMIRGenerator:
             self.llfunction = self.map(func)
 
             if func.is_internal:
-                self.llfunction.linkage = 'internal'
+                self.llfunction.linkage = 'private'
 
             self.llfunction.attributes.add('uwtable')
 
