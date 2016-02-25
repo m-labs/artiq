@@ -443,7 +443,7 @@ class LLVMIRGenerator:
         lldatalayout = llvm.create_target_data(self.llmodule.data_layout)
 
         llrpcattrty = self.llcontext.get_identified_type("attr_desc")
-        llrpcattrty.elements = [lli32, llptr, llptr]
+        llrpcattrty.elements = [lli32, lli32, llptr, llptr]
 
         lldescty = self.llcontext.get_identified_type("type_desc")
         lldescty.elements = [llrpcattrty.as_pointer().as_pointer(), llptr.as_pointer()]
@@ -459,7 +459,10 @@ class LLVMIRGenerator:
                 type_name = "instance.{}".format(typ.name)
 
             def llrpcattr_of_attr(name, typ):
-                size = self.llty_of_type(typ).get_abi_size(lldatalayout, context=self.llcontext)
+                size      = self.llty_of_type(typ). \
+                    get_abi_size(lldatalayout, context=self.llcontext)
+                alignment = self.llty_of_type(typ). \
+                    get_abi_alignment(lldatalayout, context=self.llcontext)
 
                 def rpc_tag_error(typ):
                     print(typ)
@@ -476,6 +479,7 @@ class LLVMIRGenerator:
                                               name="attr.{}.{}".format(type_name, name))
                 llrpcattr.initializer = ll.Constant(llrpcattrty, [
                     ll.Constant(lli32, size),
+                    ll.Constant(lli32, alignment),
                     llrpctag,
                     self.llstr_of_str(name)
                 ])
