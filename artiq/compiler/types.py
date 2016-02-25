@@ -527,7 +527,7 @@ class TDelay(Type):
         elif self.is_fixed() and other.is_fixed() and \
                 self.duration.fold() == other.duration.fold():
             pass
-        else:
+        elif self is not other:
             raise UnificationError(self, other)
 
     def fold(self, accum, fn):
