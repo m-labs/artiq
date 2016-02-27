@@ -710,6 +710,7 @@ class TypePrinter(object):
                                       for attr in typ.attributes])
                 return "<instance {} {{\n\t\t{}\n\t}}>".format(typ.name, attrs)
             else:
+                self.recurse_guard.add(typ)
                 return "<instance {} {{}}>".format(typ.name)
         elif isinstance(typ, TMono):
             if typ.params == {}:
@@ -754,6 +755,7 @@ class TypePrinter(object):
                                    for attr in typ.attributes])
                 return "<constructor {} {{{}}}>".format(typ.name, attrs)
             else:
+                self.recurse_guard.add(typ)
                 return "<constructor {} {{}}>".format(typ.name)
         elif isinstance(typ, TBuiltin):
             return "<builtin {}>".format(typ.name)
