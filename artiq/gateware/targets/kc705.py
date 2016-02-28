@@ -80,6 +80,18 @@ class _RTIOCRG(Module, AutoCSR):
         ]
 
 
+_ams101_dac = [
+    ("ams101_dac", 0,
+
+        Subsignal("ldac", Pins("XADC:GPIO0")),
+        Subsignal("clk", Pins("XADC:GPIO1")),
+        Subsignal("mosi", Pins("XADC:GPIO2")),
+        Subsignal("cs_n", Pins("XADC:GPIO3")),
+        IOStandard("LVTTL")
+     )
+]
+
+
 class _NIST_Ions(MiniSoC, AMPSoC):
     csr_map = {
         "rtio": None,  # mapped on Wishbone instead
@@ -114,6 +126,8 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.submodules.leds = gpio.GPIOOut(Cat(
             self.platform.request("user_led", 0),
             self.platform.request("user_led", 1)))
+
+        self.platform.add_extension(_ams101_dac)
 
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
@@ -237,19 +251,15 @@ class NIST_CLOCK(_NIST_Ions):
         rtio_channels.append(rtio.Channel.from_phy(phy))
         self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
-        self.config["RTIO_SPI_LDAC_CHANNEL"] = len(rtio_channels)
-        ldac_n = self.platform.request("xadc_gpio", 0)
-        phy = ttl_simple.Output(ldac_n)
+        spi_pins = self.platform.request("ams101_dac", 0)
+        phy = ttl_simple.Output(spi_pins.ldac)
         self.submodules += phy
+        self.config["RTIO_SPI_LDAC_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        self.config["RTIO_SPI_CHANNEL"] = len(rtio_channels)
-        spi_pins = Module()
-        spi_pins.clk = self.platform.request("xadc_gpio", 1)
-        spi_pins.mosi = self.platform.request("xadc_gpio", 2)
-        spi_pins.cs_n = self.platform.request("xadc_gpio", 3)
         phy = spi.SPIMaster(spi_pins)
         self.submodules += phy
+        self.config["RTIO_SPI_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ofifo_depth=4, ififo_depth=4))
 
