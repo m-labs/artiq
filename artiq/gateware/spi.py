@@ -1,9 +1,156 @@
 from itertools import product
 
 from migen import *
-from migen.genlib.fsm import *
-from migen.genlib.misc import WaitTimer
+from migen.genlib.fsm import FSM, NextState
 from misoc.interconnect import wishbone
+
+
+class SPIClockGen(Module):
+    def __init__(self, width):
+        self.load = Signal(width)
+        self.bias = Signal()  # bias this clock phase to longer times
+        self.edge = Signal()
+        self.clk = Signal(reset=1)
+
+        cnt = Signal.like(self.load)
+        self.comb += [
+            self.edge.eq(cnt == 0),
+        ]
+        self.sync += [
+            cnt.eq(cnt - 1),
+            If(self.edge,
+                cnt.eq(self.load[1:] +
+                       (self.load[0] & self.bias)),
+                self.clk.eq(~self.clk),
+            )
+        ]
+
+
+class SPIRegister(Module):
+    def __init__(self, width):
+        self.data = Signal(width)
+        self.o = Signal()
+        self.i = Signal()
+        self.lsb = Signal()
+        self.shift = Signal()
+        self.sample = Signal()
+
+        self.comb += [
+            self.o.eq(Mux(self.lsb, self.data[0], self.data[-1])),
+        ]
+        self.sync += [
+            If(self.shift,
+                If(self.lsb,
+                    self.data[:-1].eq(self.data[1:]),
+                ).Else(
+                    self.data[1:].eq(self.data[:-1]),
+                )
+            ),
+            If(self.sample,
+                If(self.lsb,
+                    self.data[-1].eq(self.i),
+                ).Else(
+                    self.data[0].eq(self.i),
+                )
+            )
+        ]
+
+
+class SPIBitCounter(Module):
+    def __init__(self, width):
+        self.n_read = Signal(width)
+        self.n_write = Signal(width)
+        self.read = Signal()
+        self.write = Signal()
+        self.done = Signal()
+
+        self.comb += [
+            self.write.eq(self.n_write != 0),
+            self.read.eq(self.n_read != 0),
+            self.done.eq(~(self.write | self.read)),
+        ]
+        self.sync += [
+            If(self.write,
+                self.n_write.eq(self.n_write - 1),
+            ).Elif(self.read,
+                self.n_read.eq(self.n_read - 1),
+            )
+        ]
+
+
+class SPIMachine(Module):
+    def __init__(self, data_width, clock_width, bits_width):
+        ce = CEInserter()
+        self.submodules.cg = ce(SPIClockGen(clock_width))
+        self.submodules.reg = ce(SPIRegister(data_width))
+        self.submodules.bits = ce(SPIBitCounter(bits_width))
+        self.div_write = Signal.like(self.cg.load)
+        self.div_read = Signal.like(self.cg.load)
+        self.clk_phase = Signal()
+        self.start = Signal()
+        self.cs = Signal()
+        self.oe = Signal()
+        self.done = Signal()
+
+        # # #
+
+        fsm = CEInserter()(FSM("IDLE"))
+        self.submodules += fsm
+
+        fsm.act("IDLE",
+            If(self.start,
+                If(self.clk_phase,
+                    NextState("WAIT"),
+                ).Else(
+                    NextState("SETUP"),
+                )
+            )
+        )
+        fsm.act("SETUP",
+            self.reg.sample.eq(1),
+            NextState("HOLD"),
+        )
+        fsm.act("HOLD",
+            If(self.bits.done & ~self.start,
+                If(self.clk_phase,
+                    NextState("IDLE"),
+                ).Else(
+                    NextState("WAIT"),
+                )
+            ).Else(
+                self.reg.shift.eq(1),
+                NextState("SETUP"),
+            )
+        )
+        fsm.act("WAIT",
+            If(self.bits.done,
+                NextState("IDLE"),
+            ).Else(
+                NextState("SETUP"),
+            )
+        )
+
+        write0 = Signal()
+        self.sync += [
+            If(self.cg.edge & self.reg.shift,
+                write0.eq(self.bits.write),
+            )
+        ]
+        self.comb += [
+            self.cg.ce.eq(self.start | self.cs | ~self.cg.edge),
+            If(self.bits.write | ~self.bits.read,
+                self.cg.load.eq(self.div_write),
+            ).Else(
+                self.cg.load.eq(self.div_read),
+            ),
+            self.cg.bias.eq(fsm.before_entering("SETUP")),
+            fsm.ce.eq(self.cg.edge),
+            self.cs.eq(~fsm.ongoing("IDLE")),
+            self.reg.ce.eq(self.cg.edge),
+            self.bits.ce.eq(self.cg.edge & self.reg.sample),
+            self.done.eq(self.cg.edge & self.bits.done & fsm.ongoing("HOLD")),
+            self.oe.eq(write0 | self.bits.write),
+        ]
 
 
 class SPIMaster(Module):
@@ -15,50 +162,61 @@ class SPIMaster(Module):
         * If there is a miso wire in pads, the input and output can be done
           with two signals (a.k.a. 4-wire SPI), else mosi must be used for
           both output and input (a.k.a. 3-wire SPI) and config.half_duplex
-          needs to be set.
-        * Every transfer consists of a 0-M bit write followed by a 0-M
-          bit read.
-        * cs_n is always asserted at the beginning and deasserted
-          at the end of the transfer.
+          must to be set when reading data is desired.
+        * Every transfer consists of a write_length 0-M bit write followed
+          by a read_length 0-M bit read.
+        * cs_n is asserted at the beginning and deasserted at the end of the
+          transfer if there is no other transfer pending.
         * cs_n handling is agnostic to whether it is one-hot or decoded
           somewhere downstream. If it is decoded, "cs_n all deasserted"
           should be handled accordingly (no slave selected).
           If it is one-hot, asserting multiple slaves should only be attempted
-          if miso is either not connected between slaves or open collector.
-          cs can also be handled independently through other means.
+          if miso is either not connected between slaves, or open collector,
+          or correctly multiplexed externally.
         * If config.cs_polarity == 0 (cs active low, the default),
           "cs_n all deasserted" means "all cs_n bits high".
+        * cs is not mandatory in pads. Framing and chip selection can also
+          be handled independently through other means.
         * The first bit output on mosi is always the MSB/LSB (depending on
           config.lsb_first) of the data register, independent of
           xfer.write_len. The last bit input from miso always ends up in
           the LSB/MSB (respectively) of the data register, independent of
           read_len.
         * For 4-wire SPI only the sum of read_len and write_len matters. The
-          behavior is the same no matter how the transfer length is divided
-          between the two. For 3-wire SPI, the direction of mosi/miso is
-          switched from output to input after write_len cycles, at the
-          "output" clk edge corresponding to bit write_len + 1 of the transfer.
+          behavior is the same no matter how the total transfer length is
+          divided between the two. For 3-wire SPI, the direction of mosi/miso
+          is switched from output to input after write_len cycles, at the
+          "shift_out" clk edge corresponding to bit write_length + 1 of the
+          transfer.
         * Data output on mosi in 4-wire SPI during the read cycles is what
           is found in the data register at the time.
           Data in the data register outside the least/most (depending
-          on config.lsb_first) significant read_len bits is what is
+          on config.lsb_first) significant read_length bits is what is
           seen on miso during the write cycles.
-        * When the transfer is complete the wishbone transaction is ack-ed.
-        * Input data from the last transaction can be read from the data
-          register at any time.
+        * The SPI data register is double-buffered: once a transfer completes,
+          the previous transfer's read data is available in the data register
+          and new write data can be written, queuing a new transfer. Transfers
+          submitted this way are chained and executed without deasserting cs.
+        * A wishbone transaction is ack-ed when the transfer has been written
+          to the intermediate buffer. It will be started when there are no
+          other transactions being executed.
 
     Transaction Sequence:
         * If desired, write the config register to set up the core.
         * If desired, write the xfer register to change lengths and cs_n.
         * Write the data register (also for zero-length writes),
-          writing triggers the transfer and when the transfer is complete the
-          write is ack-ed.
+          writing triggers the transfer and when the transfer is accepted to
+          the inermediate buffer, the write is ack-ed.
         * If desired, read the data register.
+        * If desired write xfer and data for the next, chained, transfer
 
     Register address and bit map:
 
     config (address 2):
         1 offline: all pins high-z (reset=1)
+        1 active: cs/transfer active
+        1 pending: transfer pending in intermediate buffer, bus writes will
+            block
         1 cs_polarity: active level of chip select (reset=0)
         1 clk_polarity: idle level for clk (reset=0)
         1 clk_phase: first edge after cs assertion to sample data on (reset=0)
@@ -68,11 +226,11 @@ class SPIMaster(Module):
             (1, 1): idle high, output on falling, input on rising
         1 lsb_first: LSB is the first bit on the wire (reset=0)
         1 half_duplex: 3-wire SPI, in/out on mosi (reset=0)
-        10 undefined
-        16 clk_load: clock load value to divide from this module's clock
-            to the SPI write clk clk pulses are asymmetric
-            if a divider is odd, favoring longer setup over hold times.
-            clk/spi_clk == clk_load + 2 (reset=0)
+        12 div_write: counter load value to divide this module's clock
+            to the SPI write clk. clk pulses are asymmetric
+            if the value is odd, favoring longer setup over hold times.
+            f_clk/f_spi_write == div_write + 2 (reset=0)
+        12 div_read: ditto for the read clock
 
     xfer (address 1):
         16 cs: active high bit mask of chip selects to assert
@@ -89,50 +247,18 @@ class SPIMaster(Module):
 
         ###
 
-        # State machine
-        wb_we = Signal()
-        start = Signal()
-        active = Signal()
-
-        fsm = FSM("IDLE")
-        self.submodules += fsm
-
-        fsm.act("IDLE",
-            If(bus.cyc & bus.stb,
-                NextState("ACK"),
-                If(bus.we,
-                    wb_we.eq(1),
-                    If(bus.adr == 0,  # data register
-                        NextState("START"),
-                    )
-                )
-            )
-        )
-        fsm.act("START",
-            start.eq(1),
-            NextState("ACTIVE"),
-        )
-        fsm.act("ACTIVE",
-            If(~active,
-                bus.ack.eq(1),
-                NextState("IDLE"),
-            )
-        )
-        fsm.act("ACK",
-            bus.ack.eq(1),
-            NextState("IDLE"),
-        )
-
         # Wishbone
         config = Record([
             ("offline", 1),
+            ("active", 1),
+            ("pending", 1),
             ("cs_polarity", 1),
             ("clk_polarity", 1),
             ("clk_phase", 1),
             ("lsb_first", 1),
             ("half_duplex", 1),
-            ("padding", 10),
-            ("clk_load", 16),
+            ("div_write", 12),
+            ("div_read", 12),
         ])
         config.offline.reset = 1
         assert len(config) <= len(bus.dat_w)
@@ -144,101 +270,96 @@ class SPIMaster(Module):
         ])
         assert len(xfer) <= len(bus.dat_w)
 
-        data = Signal.like(bus.dat_w)
-
-        wb_data = Array([data, xfer.raw_bits(), config.raw_bits()])[bus.adr]
-        self.comb += bus.dat_r.eq(wb_data)
-        self.sync += If(wb_we, wb_data.eq(bus.dat_w))
-
         # SPI
-        write_count = Signal.like(xfer.write_length)
-        read_count = Signal.like(xfer.read_length)
-        clk_count = Signal.like(config.clk_load)
-        clk = Signal(reset=1)  # idle high
-        phase = Signal()
-        edge = Signal()
-        write = Signal()
-        read = Signal()
-        miso = Signal()
-        miso_i = Signal()
-        mosi_o = Signal()
+        spi = SPIMachine(data_width, clock_width=len(config.div_read),
+                         bits_width=len(xfer.read_length))
+        self.submodules += spi
+
+        wb_we = Signal()
+        pending = Signal()
+        cs = Signal.like(xfer.cs)
+        data_read = Signal.like(spi.reg.data)
+        data_write = Signal.like(spi.reg.data)
 
         self.comb += [
-            phase.eq(clk ^ config.clk_phase),
-            edge.eq(active & (clk_count == 0)),
-            write.eq(write_count != 0),
-            read.eq(read_count != 0),
+            wb_we.eq(bus.cyc & bus.stb & bus.we & (~pending | spi.done)),
+            bus.dat_r.eq(
+                Array([data_read, xfer.raw_bits(), config.raw_bits()
+                       ])[bus.adr]),
+            spi.start.eq(pending & (~spi.cs | spi.done)),
+            spi.clk_phase.eq(config.clk_phase),
+            spi.reg.lsb.eq(config.lsb_first),
+            spi.div_write.eq(config.div_write),
+            spi.div_read.eq(config.div_read),
         ]
-
         self.sync += [
-            If(start,
-                write_count.eq(xfer.write_length),
-                read_count.eq(xfer.read_length),
-                active.eq(1),
+            bus.ack.eq(~bus.we | ~pending | spi.done),
+            If(wb_we,
+               Array([data_write, xfer.raw_bits(), config.raw_bits()
+                      ])[bus.adr].eq(bus.dat_w)
             ),
-            If(active,
-                clk_count.eq(clk_count - 1),
+            config.active.eq(spi.cs),
+            config.pending.eq(pending),
+            If(spi.done,
+                data_read.eq(spi.reg.data),
             ),
-            If(start | edge,
-                # setup time passes during phase 0
-                # use the lsb to bias that time to favor longer setup times
-                clk_count.eq(config.clk_load[1:] +
-                             (config.clk_load[0] & phase)),
-                clk.eq(~clk),  # idle high
-                If(phase,
-                    data.eq(Mux(config.lsb_first,
-                                Cat(data[1:], miso),
-                                Cat(miso, data[:-1]))),
-                    mosi_o.eq(Mux(config.lsb_first, data[0], data[-1])),
-                    If(write,
-                        write_count.eq(write_count - 1),
-                    ),
-                ).Else(
-                    miso.eq(miso_i),
-                    If(~write & read,
-                        read_count.eq(read_count - 1),
-                    ),
-                ),
+            If(spi.start,
+                cs.eq(xfer.cs),
+                spi.bits.n_write.eq(xfer.write_length),
+                spi.bits.n_read.eq(xfer.read_length),
+                spi.reg.data.eq(data_write),
+                pending.eq(0),
             ),
-            If(~clk & edge & ~write & ~read,  # always from low clk
-                active.eq(0),
+            If(wb_we & (bus.adr == 0),  # data register
+                pending.eq(1),
             ),
         ]
 
         # I/O
-        cs_n_t = TSTriple(len(pads.cs_n))
-        self.specials += cs_n_t.get_tristate(pads.cs_n)
+        if hasattr(pads, "cs_n"):
+            cs_n_t = TSTriple(len(pads.cs_n))
+            self.specials += cs_n_t.get_tristate(pads.cs_n)
+            self.comb += [
+                cs_n_t.oe.eq(~config.offline),
+                cs_n_t.o.eq((cs & Replicate(spi.cs, len(cs))) ^
+                            Replicate(~config.cs_polarity, len(cs))),
+            ]
+
         clk_t = TSTriple()
         self.specials += clk_t.get_tristate(pads.clk)
         mosi_t = TSTriple()
         self.specials += mosi_t.get_tristate(pads.mosi)
 
         self.comb += [
-            cs_n_t.oe.eq(~config.offline),
             clk_t.oe.eq(~config.offline),
-            mosi_t.oe.eq(~config.offline & (write | ~config.half_duplex)),
-            cs_n_t.o.eq((xfer.cs & Replicate(active, len(xfer.cs))) ^
-                        Replicate(~config.cs_polarity, len(xfer.cs))),
-            clk_t.o.eq((clk & active) ^ config.clk_polarity),
-            miso_i.eq(Mux(config.half_duplex, mosi_t.i,
-                          getattr(pads, "miso", mosi_t.i))),
-            mosi_t.o.eq(mosi_o),
+            mosi_t.oe.eq(~config.offline & spi.cs &
+                         (spi.oe | ~config.half_duplex)),
+            clk_t.o.eq((spi.cg.clk & spi.cs) ^ config.clk_polarity),
+            spi.reg.i.eq(Mux(config.half_duplex, mosi_t.i,
+                             getattr(pads, "miso", mosi_t.i))),
+            mosi_t.o.eq(spi.reg.o),
         ]
 
 
-SPI_CONFIG_ADDR = 2
-SPI_XFER_ADDR = 1
-SPI_DATA_ADDR = 0
-SPI_OFFLINE = 1 << 0
-SPI_CS_POLARITY = 1 << 1
-SPI_CLK_POLARITY = 1 << 2
-SPI_CLK_PHASE = 1 << 3
-SPI_LSB_FIRST = 1 << 4
-SPI_HALF_DUPLEX = 1 << 5
+SPI_DATA_ADDR, SPI_XFER_ADDR, SPI_CONFIG_ADDR = range(3)
+(
+    SPI_OFFLINE,
+    SPI_ACTIVE,
+    SPI_PENDING,
+    SPI_CS_POLARITY,
+    SPI_CLK_POLARITY,
+    SPI_CLK_PHASE,
+    SPI_LSB_FIRST,
+    SPI_HALF_DUPLEX,
+) = (1 << i for i in range(8))
 
 
-def SPI_CLK_LOAD(i):
-    return i << 16
+def SPI_DIV_WRITE(i):
+    return i << 8
+
+
+def SPI_DIV_READ(i):
+    return i << 20
 
 
 def SPI_CS(i):
@@ -253,53 +374,44 @@ def SPI_READ_LENGTH(i):
     return i << 24
 
 
-def _test_gen(bus):
-    yield from bus.write(SPI_CONFIG_ADDR,
-                         1*SPI_CLK_PHASE | 0*SPI_LSB_FIRST |
-                         1*SPI_HALF_DUPLEX | SPI_CLK_LOAD(3))
-    yield
-    yield from bus.write(SPI_XFER_ADDR, SPI_CS(0b00001) |
-                         SPI_WRITE_LENGTH(4) | SPI_READ_LENGTH(0))
-    yield
-    yield from bus.write(SPI_DATA_ADDR, 0x90000000)
-    yield
-    print(hex((yield from bus.read(SPI_DATA_ADDR))))
-    yield
-    yield from bus.write(SPI_XFER_ADDR, SPI_CS(0b00010) |
-                         SPI_WRITE_LENGTH(4) | SPI_READ_LENGTH(4))
-    yield
-    yield from bus.write(SPI_DATA_ADDR, 0x81000000)
-    yield
-    print(hex((yield from bus.read(SPI_DATA_ADDR))))
-    yield
-    yield from bus.write(SPI_XFER_ADDR, SPI_CS(0b00010) |
-                         SPI_WRITE_LENGTH(0) | SPI_READ_LENGTH(4))
-    yield
-    yield from bus.write(SPI_DATA_ADDR, 0x90000000)
-    yield
-    print(hex((yield from bus.read(SPI_DATA_ADDR))))
-    yield
-    yield from bus.write(SPI_XFER_ADDR, SPI_CS(0b00010) |
-                         SPI_WRITE_LENGTH(32) | SPI_READ_LENGTH(0))
-    yield
-    yield from bus.write(SPI_DATA_ADDR, 0x87654321)
-    yield
-    print(hex((yield from bus.read(SPI_DATA_ADDR))))
+def _test_xfer(bus, cs, wlen, rlen, wdata):
+    yield from bus.write(SPI_XFER_ADDR, SPI_CS(cs) |
+                         SPI_WRITE_LENGTH(wlen) | SPI_READ_LENGTH(rlen))
+    yield from bus.write(SPI_DATA_ADDR, wdata)
     yield
 
+
+def _test_read(bus, sync=SPI_ACTIVE | SPI_PENDING):
+    while (yield from bus.read(SPI_CONFIG_ADDR)) & sync:
+        pass
+    return (yield from bus.read(SPI_DATA_ADDR))
+
+
+def _test_gen(bus):
+    yield from bus.write(SPI_CONFIG_ADDR,
+                         0*SPI_CLK_PHASE | 0*SPI_LSB_FIRST |
+                         1*SPI_HALF_DUPLEX |
+                         SPI_DIV_WRITE(3) | SPI_DIV_READ(5))
+    yield from _test_xfer(bus, 0b01, 4, 0, 0x90000000)
+    print(hex((yield from _test_read(bus))))
+    yield from _test_xfer(bus, 0b10, 0, 4, 0x90000000)
+    print(hex((yield from _test_read(bus))))
+    yield from _test_xfer(bus, 0b11, 4, 4, 0x81000000)
+    print(hex((yield from _test_read(bus))))
+    yield from _test_xfer(bus, 0b01, 8, 32, 0x87654321)
+    yield from _test_xfer(bus, 0b01, 0, 32, 0x12345678)
+    print(hex((yield from _test_read(bus, SPI_PENDING))))
+    print(hex((yield from _test_read(bus, SPI_ACTIVE))))
     return
     for cpol, cpha, lsb, clk in product(
             (0, 1), (0, 1), (0, 1), (0, 1)):
         yield from bus.write(SPI_CONFIG_ADDR,
                              cpol*SPI_CLK_POLARITY | cpha*SPI_CLK_PHASE |
-                             lsb*SPI_LSB_FIRST | SPI_CLK_LOAD(clk))
+                             lsb*SPI_LSB_FIRST | SPI_DIV_WRITE(clk) |
+                             SPI_DIV_READ(clk))
         for wlen, rlen, wdata in product((0, 8, 32), (0, 8, 32),
                                          (0, 0xffffffff, 0xdeadbeef)):
-            yield from bus.write(SPI_XFER_ADDR, SPI_CS(0b00001) |
-                                 SPI_WRITE_LENGTH(wlen) |
-                                 SPI_READ_LENGTH(rlen))
-            yield from bus.write(SPI_DATA_ADDR, wdata)
-            rdata = yield from bus.read(SPI_DATA_ADDR)
+            rdata = (yield from _test_xfer(bus, 0b1, wlen, rlen, wdata, True))
             len = (wlen + rlen) % 32
             mask = (1 << len) - 1
             if lsb:
@@ -336,10 +448,10 @@ if __name__ == "__main__":
             ]
     Tristate.lower = staticmethod(lambda dr: T(dr))
 
-    from migen.fhdl.verilog import convert
     pads = _TestPads()
     dut = SPIMaster(pads)
     dut.comb += pads.miso.eq(pads.mosi)
-    #print(convert(dut))
+    # from migen.fhdl.verilog import convert
+    # print(convert(dut))
 
     run_simulation(dut, _test_gen(dut.bus), vcd_name="spi_master.vcd")
