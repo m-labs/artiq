@@ -19,7 +19,7 @@ from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
 
 from artiq.gateware.soc import AMPSoC
 from artiq.gateware import rtio, nist_qc1, nist_clock, nist_qc2
-from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, dds
+from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, dds, spi
 from artiq import __artiq_dir__ as artiq_dir
 from artiq import __version__ as artiq_version
 
@@ -236,6 +236,22 @@ class NIST_CLOCK(_NIST_Ions):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
         self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
+
+        self.config["RTIO_SPI_LDAC_CHANNEL"] = len(rtio_channels)
+        ldac_n = self.platform.request("xadc_gpio", 0)
+        phy = ttl_simple.Output(ldac_n)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.config["RTIO_SPI_CHANNEL"] = len(rtio_channels)
+        spi_pins = Module()
+        spi_pins.clk = self.platform.request("xadc_gpio", 1)
+        spi_pins.mosi = self.platform.request("xadc_gpio", 2)
+        spi_pins.cs_n = self.platform.request("xadc_gpio", 3)
+        phy = spi.SPIMaster(spi_pins)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(
+            phy, ofifo_depth=4, ififo_depth=4))
 
         self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
         self.config["DDS_CHANNEL_COUNT"] = 11
