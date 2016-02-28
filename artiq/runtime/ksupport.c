@@ -15,6 +15,7 @@
 #include "artiq_personality.h"
 #include "ttl.h"
 #include "dds.h"
+#include "spi.h"
 #include "rtio.h"
 
 double round(double x);
@@ -120,6 +121,9 @@ static const struct symbol runtime_exports[] = {
     {"dds_batch_enter", &dds_batch_enter},
     {"dds_batch_exit", &dds_batch_exit},
     {"dds_set", &dds_set},
+
+    {"spi_write", &spi_write},
+    {"spi_read", &spi_read},
 
     {"cache_get", &cache_get},
     {"cache_put", &cache_put},
