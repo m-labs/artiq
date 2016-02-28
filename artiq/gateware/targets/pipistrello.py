@@ -200,6 +200,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         spi_pins.cs_n = pmod.d[3:]
         phy = spi.SPIMaster(spi_pins)
         self.submodules += phy
+        self.config["RTIO_SPI_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ofifo_depth=4, ififo_depth=4))
 
