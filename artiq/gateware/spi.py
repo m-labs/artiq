@@ -20,7 +20,7 @@ class SPIClockGen(Module):
             cnt.eq(cnt - 1),
             If(self.edge,
                 cnt.eq(self.load[1:] +
-                       (self.load[0] & self.bias)),
+                       (self.load[0] & (self.clk ^ self.bias))),
                 self.clk.eq(~self.clk),
             )
         ]
@@ -143,7 +143,7 @@ class SPIMachine(Module):
             ).Else(
                 self.cg.load.eq(self.div_read),
             ),
-            self.cg.bias.eq(fsm.before_entering("SETUP")),
+            self.cg.bias.eq(self.clk_phase),
             fsm.ce.eq(self.cg.edge),
             self.cs.eq(~fsm.ongoing("IDLE")),
             self.reg.ce.eq(self.cg.edge),
