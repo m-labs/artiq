@@ -703,12 +703,15 @@ class TypePrinter(object):
         elif isinstance(typ, TInstance):
             if typ in self.recurse_guard or depth >= max_depth:
                 return "<instance {}>".format(typ.name)
-            else:
+            elif len(typ.attributes) > 0:
                 self.recurse_guard.add(typ)
                 attrs = ",\n\t\t".join(["{}: {}".format(attr, self.name(typ.attributes[attr],
                                                                         depth + 1))
                                       for attr in typ.attributes])
                 return "<instance {} {{\n\t\t{}\n\t}}>".format(typ.name, attrs)
+            else:
+                self.recurse_guard.add(typ)
+                return "<instance {} {{}}>".format(typ.name)
         elif isinstance(typ, TMono):
             if typ.params == {}:
                 return typ.name
@@ -745,12 +748,15 @@ class TypePrinter(object):
         elif isinstance(typ, (TConstructor, TExceptionConstructor)):
             if typ in self.recurse_guard or depth >= max_depth:
                 return "<constructor {}>".format(typ.name)
-            else:
+            elif len(typ.attributes) > 0:
                 self.recurse_guard.add(typ)
                 attrs = ", ".join(["{}: {}".format(attr, self.name(typ.attributes[attr],
                                                                    depth + 1))
                                    for attr in typ.attributes])
                 return "<constructor {} {{{}}}>".format(typ.name, attrs)
+            else:
+                self.recurse_guard.add(typ)
+                return "<constructor {} {{}}>".format(typ.name)
         elif isinstance(typ, TBuiltin):
             return "<builtin {}>".format(typ.name)
         elif isinstance(typ, TValue):

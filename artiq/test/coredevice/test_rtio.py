@@ -104,7 +104,8 @@ class Watchdog(EnvExperiment):
 class LoopbackCount(EnvExperiment):
     def build(self):
         self.setattr_device("core")
-        self.setattr_device("ttl_inout")
+        self.setattr_device("loop_in")
+        self.setattr_device("loop_out")
         self.setattr_argument("npulses")
 
     def set_count(self, count):
