@@ -315,7 +315,7 @@ def main():
                     "+ NIST Ions QC1/CLOCK/QC2 hardware adapters")
     builder_args(parser)
     soc_kc705_args(parser)
-    parser.add_argument("-H", "--hw-adapter", default="qc1",
+    parser.add_argument("-H", "--hw-adapter", default="clock",
                         help="hardware adapter type: qc1/clock/qc2 "
                              "(default: %(default)s)")
     args = parser.parse_args()
