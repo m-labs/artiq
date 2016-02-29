@@ -1,4 +1,5 @@
-from artiq.language.core import *
+from artiq.language.core import (kernel, portable, seconds_to_mu, now_mu,
+                                 delay_mu)
 from artiq.language.units import MHz
 from artiq.coredevice.rt2wb import rt2wb_write, rt2wb_read_sync
 
@@ -83,6 +84,11 @@ class SPIMaster:
                                SPI_RT2WB_READ, int(2*self.ref_period_mu))
 
     @kernel
-    def get_config_sync(self):
+    def _get_config_sync(self):
         return rt2wb_read_sync(now_mu(), self.channel, SPI_CONFIG_ADDR |
+                               SPI_RT2WB_READ, int(2*self.ref_period_mu))
+
+    @kernel
+    def _get_xfer_sync(self):
+        return rt2wb_read_sync(now_mu(), self.channel, SPI_XFER_ADDR |
                                SPI_RT2WB_READ, int(2*self.ref_period_mu))
