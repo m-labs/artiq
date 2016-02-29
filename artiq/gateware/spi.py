@@ -310,7 +310,7 @@ class SPIMaster(Module):
             spi.div_read.eq(config.div_read),
         ]
         self.sync += [
-            bus.ack.eq(~bus.we | ~pending | spi.done),
+            bus.ack.eq(bus.cyc & bus.stb & (~bus.we | ~pending | spi.done)),
             If(wb_we,
                Array([data_write, xfer.raw_bits(), config.raw_bits()
                       ])[bus.adr].eq(bus.dat_w)
