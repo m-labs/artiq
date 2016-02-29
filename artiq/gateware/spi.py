@@ -292,14 +292,12 @@ class SPIMaster(Module):
             data_width, clock_width=len(config.div_read),
             bits_width=len(xfer.read_length))
 
-        wb_we = Signal()
         pending = Signal()
         cs = Signal.like(xfer.cs)
         data_read = Signal.like(spi.reg.data)
         data_write = Signal.like(spi.reg.data)
 
         self.comb += [
-            wb_we.eq(bus.cyc & bus.stb & bus.we & (~pending | spi.done)),
             bus.dat_r.eq(
                 Array([data_read, xfer.raw_bits(), config.raw_bits()
                        ])[bus.adr]),
@@ -310,13 +308,6 @@ class SPIMaster(Module):
             spi.div_read.eq(config.div_read),
         ]
         self.sync += [
-            bus.ack.eq(bus.cyc & bus.stb & (~bus.we | ~pending | spi.done)),
-            If(wb_we,
-               Array([data_write, xfer.raw_bits(), config.raw_bits()
-                      ])[bus.adr].eq(bus.dat_w)
-            ),
-            config.active.eq(spi.cs),
-            config.pending.eq(pending),
             If(spi.done,
                 data_read.eq(spi.reg.data),
             ),
@@ -327,9 +318,19 @@ class SPIMaster(Module):
                 spi.reg.data.eq(data_write),
                 pending.eq(0),
             ),
-            If(wb_we & (bus.adr == 0),  # data register
-                pending.eq(1),
+            bus.ack.eq(bus.cyc & bus.stb & (~bus.we | ~pending | spi.done)),
+            If(bus.ack,
+                bus.ack.eq(0),
             ),
+            If(bus.we & bus.ack,
+                Array([data_write, xfer.raw_bits(), config.raw_bits()
+                      ])[bus.adr].eq(bus.dat_w),
+                If(bus.adr == 0,  # data register
+                    pending.eq(1),
+                ),
+            ),
+            config.active.eq(spi.cs),
+            config.pending.eq(pending),
         ]
 
         # I/O
