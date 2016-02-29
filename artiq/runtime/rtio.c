@@ -51,7 +51,7 @@ void rtio_output(long long int timestamp, int channel, unsigned int addr,
 }
 
 
-void rtio_input_wait(long long int timeout, int channel)
+int rtio_input_wait(long long int timeout, int channel)
 {
     int status;
 
@@ -59,21 +59,19 @@ void rtio_input_wait(long long int timeout, int channel)
     while((status = rtio_i_status_read())) {
         if(status & RTIO_I_STATUS_OVERFLOW) {
             rtio_i_overflow_reset_write(1);
-            artiq_raise_from_c("RTIOOverflow",
-                "RTIO input overflow on channel {0}",
-                channel, 0, 0);
+            break;
         }
         if(rtio_get_counter() >= timeout) {
             /* check empty flag again to prevent race condition.
              * now we are sure that the time limit has been exceeded.
              */
-            if(rtio_i_status_read() & RTIO_I_STATUS_EMPTY)
-                artiq_raise_from_c("InternalError",
-                        "RTIO input timeout on channel {0}",
-                        channel, 0, 0);
+            status = rtio_i_status_read();
+            if(status & RTIO_I_STATUS_EMPTY)
+                break;
         }
         /* input FIFO is empty - keep waiting */
     }
+    return status;
 }
 
 

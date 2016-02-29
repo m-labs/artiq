@@ -22,8 +22,15 @@ void ttl_set_sensitivity(long long int timestamp, int channel, int sensitivity)
 long long int ttl_get(int channel, long long int time_limit)
 {
     long long int r;
+    int status = rtio_input_wait(time_limit, channel);
 
-    rtio_input_wait(time_limit, channel);
+    if (status & RTIO_I_STATUS_OVERFLOW)
+        artiq_raise_from_c("RTIOOverflow",
+                "RTIO input overflow on channel {0}",
+                channel, 0, 0);
+    if (status & RTIO_I_STATUS_EMPTY)
+        return -1;
+
     r = rtio_i_timestamp_read();
     rtio_i_re_write(1);
     return r;

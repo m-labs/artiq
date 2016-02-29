@@ -108,6 +108,17 @@ class RTIOOverflow(Exception):
     """
     artiq_builtin = True
 
+class RTIOTimeout(Exception):
+    """Raised when an RTIO input operation does not complete within the expected
+    time. This is only raised by channels where a response is guaranteed, such
+    as RT2WB (DDS and SPI).
+
+    This does not interrupt operations further than cancelling the current read
+    attempt. Reading can be reattempted after the exception is caught, and
+    events that have arrived in the meantime will be retrieved.
+    """
+    artiq_builtin = True
+
 class DDSBatchError(Exception):
     """Raised when attempting to start a DDS batch while already in a batch,
     or when too many commands are batched.
