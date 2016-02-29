@@ -282,10 +282,9 @@ class SPIMaster(Module):
         ])
         assert len(xfer) <= len(bus.dat_w)
 
-        # SPI
-        spi = SPIMachine(data_width, clock_width=len(config.div_read),
-                         bits_width=len(xfer.read_length))
-        self.submodules += spi
+        self.submodules.spi = spi = SPIMachine(
+            data_width, clock_width=len(config.div_read),
+            bits_width=len(xfer.read_length))
 
         wb_we = Signal()
         pending = Signal()
@@ -344,12 +343,12 @@ class SPIMaster(Module):
 
         self.comb += [
             clk_t.oe.eq(~config.offline),
+            clk_t.o.eq((spi.cg.clk & spi.cs) ^ config.clk_polarity),
             mosi_t.oe.eq(~config.offline & spi.cs &
                          (spi.oe | ~config.half_duplex)),
-            clk_t.o.eq((spi.cg.clk & spi.cs) ^ config.clk_polarity),
+            mosi_t.o.eq(spi.reg.o),
             spi.reg.i.eq(Mux(config.half_duplex, mosi_t.i,
                              getattr(pads, "miso", mosi_t.i))),
-            mosi_t.o.eq(spi.reg.o),
         ]
 
 
@@ -438,27 +437,25 @@ def _test_gen(bus):
                   hex(wdata), hex(rdata), hex(a), hex(b))
 
 
-
 class _TestPads:
     def __init__(self):
-        self.cs_n = Signal(3)
+        self.cs_n = Signal(2)
         self.clk = Signal()
         self.mosi = Signal()
         self.miso = Signal()
 
 
+class _TestTristate(Module):
+    def __init__(self, t):
+        oe = Signal()
+        self.comb += [
+            t.target.eq(t.o),
+            oe.eq(t.oe),
+            t.i.eq(t.o),
+        ]
+
 if __name__ == "__main__":
     from migen.fhdl.specials import Tristate
-
-    class T(Module):
-        def __init__(self, t):
-            oe = Signal()
-            self.comb += [
-                t.target.eq(t.o),
-                oe.eq(t.oe),
-                t.i.eq(t.o),
-            ]
-    Tristate.lower = staticmethod(lambda dr: T(dr))
 
     pads = _TestPads()
     dut = SPIMaster(pads)
@@ -466,4 +463,5 @@ if __name__ == "__main__":
     # from migen.fhdl.verilog import convert
     # print(convert(dut))
 
+    Tristate.lower = _TestTristate
     run_simulation(dut, _test_gen(dut.bus), vcd_name="spi_master.vcd")
