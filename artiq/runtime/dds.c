@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 #include "artiq_personality.h"
-#include "rtio.h"
+#include "rt2wb.h"
 #include "log.h"
 #include "dds.h"
 
@@ -26,18 +26,13 @@
 #endif
 
 #define DDS_WRITE(addr, data) do { \
-        rtio_o_address_write(addr); \
-        rtio_o_data_write(data); \
-        rtio_o_timestamp_write(now); \
-        rtio_write_and_process_status(now, CONFIG_RTIO_DDS_CHANNEL); \
+        rt2wb_write(now, CONFIG_RTIO_DDS_CHANNEL, addr, data); \
         now += DURATION_WRITE; \
     } while(0)
 
 void dds_init(long long int timestamp, int channel)
 {
     long long int now;
-
-    rtio_chan_sel_write(CONFIG_RTIO_DDS_CHANNEL);
 
     now = timestamp - DURATION_INIT;
 
@@ -94,10 +89,10 @@ static void dds_set_one(long long int now, long long int ref_time, unsigned int 
 {
     unsigned int channel_enc;
 
-	if(channel >= CONFIG_DDS_CHANNEL_COUNT) {
-		core_log("Attempted to set invalid DDS channel\n");
-		return;
-	}
+    if(channel >= CONFIG_DDS_CHANNEL_COUNT) {
+        core_log("Attempted to set invalid DDS channel\n");
+        return;
+    }
 #ifdef CONFIG_DDS_ONEHOT_SEL
     channel_enc = 1 << channel;
 #else
@@ -190,7 +185,6 @@ void dds_batch_exit(void)
 
     if(!batch_mode)
         artiq_raise_from_c("DDSBatchError", "DDS batch error", 0, 0, 0);
-    rtio_chan_sel_write(CONFIG_RTIO_DDS_CHANNEL);
     /* + FUD time */
     now = batch_ref_time - batch_count*(DURATION_PROGRAM + DURATION_WRITE);
     for(i=0;i<batch_count;i++) {
@@ -216,7 +210,6 @@ void dds_set(long long int timestamp, int channel,
         batch[batch_count].amplitude = amplitude;
         batch_count++;
     } else {
-        rtio_chan_sel_write(CONFIG_RTIO_DDS_CHANNEL);
         dds_set_one(timestamp - DURATION_PROGRAM, timestamp, channel, ftw, pow, phase_mode,
                     amplitude);
     }

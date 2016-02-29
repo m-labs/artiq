@@ -39,6 +39,44 @@ void rtio_process_exceptional_status(int status, long long int timestamp, int ch
     }
 }
 
+
+void rtio_output(long long int timestamp, int channel, unsigned int addr,
+        unsigned int data)
+{
+    rtio_chan_sel_write(channel);
+    rtio_o_timestamp_write(timestamp);
+    rtio_o_address_write(addr);
+    rtio_o_data_write(data);
+    rtio_write_and_process_status(timestamp, channel);
+}
+
+
+void rtio_input_wait(long long int timeout, int channel)
+{
+    int status;
+
+    rtio_chan_sel_write(channel);
+    while((status = rtio_i_status_read())) {
+        if(status & RTIO_I_STATUS_OVERFLOW) {
+            rtio_i_overflow_reset_write(1);
+            artiq_raise_from_c("RTIOOverflow",
+                "RTIO input overflow on channel {0}",
+                channel, 0, 0);
+        }
+        if(rtio_get_counter() >= timeout) {
+            /* check empty flag again to prevent race condition.
+             * now we are sure that the time limit has been exceeded.
+             */
+            if(rtio_i_status_read() & RTIO_I_STATUS_EMPTY)
+                artiq_raise_from_c("InternalError",
+                        "RTIO input timeout on channel {0}",
+                        channel, 0, 0);
+        }
+        /* input FIFO is empty - keep waiting */
+    }
+}
+
+
 void rtio_log_va(long long int timestamp, const char *fmt, va_list args)
 {
     // This executes on the kernel CPU's stack, which is specifically designed
