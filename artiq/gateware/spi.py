@@ -166,10 +166,6 @@ class SPIMaster(Module):
     Notes:
         * M = 32 is the data width (width of the data register,
           maximum write bits, maximum read bits)
-        * If there is a miso wire in pads, the input and output can be done
-          with two signals (a.k.a. 4-wire SPI), else mosi must be used for
-          both output and input (a.k.a. 3-wire SPI) and config.half_duplex
-          must to be set when reading data is desired.
         * Every transfer consists of a write_length 0-M bit write followed
           by a read_length 0-M bit read.
         * cs_n is asserted at the beginning and deasserted at the end of the
@@ -184,29 +180,37 @@ class SPIMaster(Module):
           "cs_n all deasserted" means "all cs_n bits high".
         * cs is not mandatory in pads. Framing and chip selection can also
           be handled independently through other means.
+        * If there is a miso wire in pads, the input and output can be done
+          with two signals (a.k.a. 4-wire SPI), else mosi must be used for
+          both output and input (a.k.a. 3-wire SPI) and config.half_duplex
+          must to be set when reading data is desired.
+        * For 4-wire SPI only the sum of read_length and write_length matters.
+          The behavior is the same no matter how the total transfer length is
+          divided between the two. For 3-wire SPI, the direction of mosi/miso
+          is switched from output to input after write_len cycles, at the
+          "shift_out" clk edge corresponding to bit write_length + 1 of the
+          transfer.
         * The first bit output on mosi is always the MSB/LSB (depending on
           config.lsb_first) of the data register, independent of
           xfer.write_len. The last bit input from miso always ends up in
           the LSB/MSB (respectively) of the data register, independent of
           read_len.
-        * For 4-wire SPI only the sum of read_len and write_len matters. The
-          behavior is the same no matter how the total transfer length is
-          divided between the two. For 3-wire SPI, the direction of mosi/miso
-          is switched from output to input after write_len cycles, at the
-          "shift_out" clk edge corresponding to bit write_length + 1 of the
-          transfer.
         * Data output on mosi in 4-wire SPI during the read cycles is what
           is found in the data register at the time.
           Data in the data register outside the least/most (depending
           on config.lsb_first) significant read_length bits is what is
           seen on miso during the write cycles.
-        * The SPI data register is double-buffered: once a transfer completes,
-          the previous transfer's read data is available in the data register
-          and new write data can be written, queuing a new transfer. Transfers
-          submitted this way are chained and executed without deasserting cs.
+        * The SPI data register is double-buffered: Once a transfer has
+          started, new write data can be written, queuing a new transfer.
+          Transfers submitted this way are chained and executed without
+          deasserting cs. Once a transfer completes, the previous transfer's
+          read data is available in the data register.
         * A wishbone transaction is ack-ed when the transfer has been written
           to the intermediate buffer. It will be started when there are no
-          other transactions being executed.
+          other transactions being executed. Writes take one cycle when
+          there is either no transfer being executed, no data in the
+          intermediate buffer, or a transfer just completing. Reads always
+          finish in one cycle.
 
     Transaction Sequence:
         * If desired, write the config register to set up the core.
@@ -215,28 +219,30 @@ class SPIMaster(Module):
           writing triggers the transfer and when the transfer is accepted to
           the inermediate buffer, the write is ack-ed.
         * If desired, read the data register.
-        * If desired write xfer and data for the next, chained, transfer
+        * If desired, write data for the next, chained, transfer.
 
     Register address and bit map:
 
     config (address 2):
         1 offline: all pins high-z (reset=1)
-        1 active: cs/transfer active
+        1 active: cs/transfer active (read-only)
         1 pending: transfer pending in intermediate buffer, bus writes will
-            block
+            block (read-only)
         1 cs_polarity: active level of chip select (reset=0)
-        1 clk_polarity: idle level for clk (reset=0)
+        1 clk_polarity: idle level of clk (reset=0)
         1 clk_phase: first edge after cs assertion to sample data on (reset=0)
+            (clk_polarity, clk_phase) == (CPOL, CPHA) in Freescale language.
             (0, 0): idle low, output on falling, input on rising
             (0, 1): idle low, output on rising, input on falling
             (1, 0): idle high, output on rising, input on falling
             (1, 1): idle high, output on falling, input on rising
+            There is never a clk edge during a cs edge.
         1 lsb_first: LSB is the first bit on the wire (reset=0)
         1 half_duplex: 3-wire SPI, in/out on mosi (reset=0)
         8 undefined
         8 div_write: counter load value to divide this module's clock
-            to the SPI write clk.
-            f_clk/f_spi_write == 2*(div_write + 1) (reset=0)
+            to generate the SPI write clk (reset=0)
+            f_clk/f_spi_write == div_write + 2
         8 div_read: ditto for the read clock
 
     xfer (address 1):
@@ -338,12 +344,14 @@ class SPIMaster(Module):
 
         clk_t = TSTriple()
         self.specials += clk_t.get_tristate(pads.clk)
-        mosi_t = TSTriple()
-        self.specials += mosi_t.get_tristate(pads.mosi)
-
         self.comb += [
             clk_t.oe.eq(~config.offline),
             clk_t.o.eq((spi.cg.clk & spi.cs) ^ config.clk_polarity),
+        ]
+
+        mosi_t = TSTriple()
+        self.specials += mosi_t.get_tristate(pads.mosi)
+        self.comb += [
             mosi_t.oe.eq(~config.offline & spi.cs &
                          (spi.oe | ~config.half_duplex)),
             mosi_t.o.eq(spi.reg.o),
