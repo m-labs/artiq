@@ -12,7 +12,7 @@
 void spi_write(long long int timestamp, int channel, int addr,
         unsigned int data)
 {
-    rtio_chan_sel_write(CONFIG_RTIO_FIRST_SPI_CHANNEL + channel);
+    rtio_chan_sel_write(channel);
     rtio_o_address_write(addr);
     rtio_o_data_write(data);
     rtio_o_timestamp_write(timestamp);
