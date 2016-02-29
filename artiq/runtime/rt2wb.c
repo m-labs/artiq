@@ -28,7 +28,7 @@ unsigned int rt2wb_read_sync(long long int timestamp, int channel,
         if(status & RTIO_I_STATUS_OVERFLOW) {
             rtio_i_overflow_reset_write(1);
             artiq_raise_from_c("RTIOOverflow",
-                "RTIO WB overflow on channel {0}",
+                "RT2WB overflow on channel {0}",
                 channel, 0, 0);
         }
         if(rtio_get_counter() >= timestamp + duration) {
@@ -37,7 +37,7 @@ unsigned int rt2wb_read_sync(long long int timestamp, int channel,
              */
             if(rtio_i_status_read() & RTIO_I_STATUS_EMPTY)
                 artiq_raise_from_c("InternalError",
-                        "RTIO WB read failed on channel {0}",
+                        "RT2WB read failed on channel {0}",
                         channel, 0, 0);
         }
         /* input FIFO is empty - keep waiting */
