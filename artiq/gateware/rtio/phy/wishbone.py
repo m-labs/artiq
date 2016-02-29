@@ -39,6 +39,6 @@ class RT2WB(Module):
             wb.cyc.eq(active),
             wb.stb.eq(active),
 
-            self.rtlink.i.stb.eq(wb.ack & ~wb.we),
+            self.rtlink.i.stb.eq(active & wb.ack & ~wb.we),
             self.rtlink.i.data.eq(wb.dat_r)
         ]
