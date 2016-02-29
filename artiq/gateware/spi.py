@@ -226,16 +226,18 @@ class SPIMaster(Module):
             (1, 1): idle high, output on falling, input on rising
         1 lsb_first: LSB is the first bit on the wire (reset=0)
         1 half_duplex: 3-wire SPI, in/out on mosi (reset=0)
-        12 div_write: counter load value to divide this module's clock
-            to the SPI write clk. clk pulses are asymmetric
-            if the value is odd, favoring longer setup over hold times.
-            f_clk/f_spi_write == div_write + 2 (reset=0)
-        12 div_read: ditto for the read clock
+        8 undefined
+        8 div_write: counter load value to divide this module's clock
+            to the SPI write clk.
+            f_clk/f_spi_write == 2*(div_write + 1) (reset=0)
+        8 div_read: ditto for the read clock
 
     xfer (address 1):
         16 cs: active high bit mask of chip selects to assert
-        8 write_len: 0-M bits
-        8 read_len: 0-M bits
+        6 write_len: 0-M bits
+        2 undefined
+        6 read_len: 0-M bits
+        2 undefined
 
     data (address 0):
         M write/read data
@@ -257,16 +259,19 @@ class SPIMaster(Module):
             ("clk_phase", 1),
             ("lsb_first", 1),
             ("half_duplex", 1),
-            ("div_write", 12),
-            ("div_read", 12),
+            ("padding", 8),
+            ("div_write", 8),
+            ("div_read", 8),
         ])
         config.offline.reset = 1
         assert len(config) <= len(bus.dat_w)
 
         xfer = Record([
             ("cs", 16),
-            ("write_length", 8),
-            ("read_length", 8),
+            ("write_length", 6),
+            ("padding0", 2),
+            ("read_length", 6),
+            ("padding1", 2),
         ])
         assert len(xfer) <= len(bus.dat_w)
 
@@ -355,11 +360,11 @@ SPI_DATA_ADDR, SPI_XFER_ADDR, SPI_CONFIG_ADDR = range(3)
 
 
 def SPI_DIV_WRITE(i):
-    return i << 8
+    return i << 16
 
 
 def SPI_DIV_READ(i):
-    return i << 20
+    return i << 24
 
 
 def SPI_CS(i):
