@@ -259,7 +259,7 @@ class NIST_CLOCK(_NIST_Ions):
 
         phy = spi.SPIMaster(spi_pins)
         self.submodules += phy
-        self.config["RTIO_SPI_CHANNEL"] = len(rtio_channels)
+        self.config["RTIO_FIRST_SPI_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ofifo_depth=4, ififo_depth=4))
 
