@@ -122,8 +122,9 @@ static const struct symbol runtime_exports[] = {
     {"dds_batch_exit", &dds_batch_exit},
     {"dds_set", &dds_set},
 
-    {"rt2wb_write", &rt2wb_write},
-    {"rt2wb_read_sync", &rt2wb_read_sync},
+    {"rt2wb_output", &rt2wb_output},
+    {"rt2wb_input", &rt2wb_input},
+    {"rt2wb_input_sync", &rt2wb_input_sync},
 
     {"cache_get", &cache_get},
     {"cache_put", &cache_put},

@@ -1,7 +1,7 @@
 from artiq.language.core import (kernel, portable, seconds_to_mu, now_mu,
-                                 delay_mu)
+                                 delay_mu, int)
 from artiq.language.units import MHz
-from artiq.coredevice.rt2wb import rt2wb_write, rt2wb_read_sync
+from artiq.coredevice.rt2wb import rt2wb_output, rt2wb_input, rt2wb_input_sync
 
 
 SPI_DATA_ADDR, SPI_XFER_ADDR, SPI_CONFIG_ADDR = range(3)
@@ -28,11 +28,11 @@ class SPIMaster:
     def __init__(self, dmgr, ref_period, channel):
         self.core = dmgr.get("core")
         self.ref_period = ref_period
-        self.ref_period_mu = seconds_to_mu(ref_period, self.core)
+        self.ref_period_mu = int(seconds_to_mu(ref_period, self.core))
         self.channel = channel
-        self.write_period_mu = 0
-        self.read_period_mu = 0
-        self.xfer_period_mu = 0
+        self.write_period_mu = int(0)
+        self.read_period_mu = int(0)
+        self.xfer_period_mu = int(0)
         # A full transfer takes write_period_mu + xfer_period_mu.
         # Chained transfers can happen every xfer_period_mu.
         # The second transfer of a chain can be written 2*ref_period_mu
@@ -49,11 +49,11 @@ class SPIMaster:
 
     @kernel
     def set_config_mu(self, flags=0, write_div=6, read_div=6):
-        rt2wb_write(now_mu(), self.channel, SPI_CONFIG_ADDR, flags |
-                    ((write_div - 2) << 16) | ((read_div - 2) << 24))
+        rt2wb_output(now_mu(), self.channel, SPI_CONFIG_ADDR, flags |
+                     ((write_div - 2) << 16) | ((read_div - 2) << 24))
         self.write_period_mu = int(write_div*self.ref_period_mu)
         self.read_period_mu = int(read_div*self.ref_period_mu)
-        delay_mu(2*self.ref_period_mu)
+        delay_mu(3*self.ref_period_mu)
 
     @portable
     def get_xfer_period_mu(self, write_length, read_length):
@@ -62,33 +62,40 @@ class SPIMaster:
 
     @kernel
     def set_xfer(self, chip_select=0, write_length=0, read_length=0):
-        rt2wb_write(now_mu(), self.channel, SPI_XFER_ADDR,
-                    chip_select | (write_length << 16) | (read_length << 24))
-        self.xfer_period_mu = self.get_xfer_period_mu(
-            write_length, read_length)
-        delay_mu(int(2*self.ref_period_mu))
+        rt2wb_output(now_mu(), self.channel, SPI_XFER_ADDR,
+                     chip_select | (write_length << 16) | (read_length << 24))
+        self.xfer_period_mu = self.get_xfer_period_mu(write_length,
+                                                      read_length)
+        delay_mu(3*self.ref_period_mu)
 
     @kernel
     def write(self, data):
-        rt2wb_write(now_mu(), self.channel, SPI_DATA_ADDR, data)
-        delay_mu(int(self.write_period_mu + self.xfer_period_mu))
+        rt2wb_output(now_mu(), self.channel, SPI_DATA_ADDR, data)
+        delay_mu(3*self.ref_period_mu)
 
     @kernel
-    def read_async(self):
-        rt2wb_write(now_mu(), self.channel, SPI_DATA_ADDR | SPI_RT2WB_READ, 0)
-        delay_mu(int(2*self.ref_period_mu))
+    def read(self):
+        rt2wb_output(now_mu(), self.channel, SPI_DATA_ADDR | SPI_RT2WB_READ, 0)
+        delay_mu(3*self.ref_period_mu)
+
+    @kernel
+    def input(self):
+        return rt2wb_input(self.channel)
+
+    @kernel
+    def _rt2wb_read_sync(self, addr=0):
+        t = now_mu()
+        rt2wb_output(t, self.channel, addr | SPI_RT2WB_READ, 0)
+        return rt2wb_input_sync(t + 3*self.ref_period_mu, self.channel)
 
     @kernel
     def read_sync(self):
-        return rt2wb_read_sync(now_mu(), self.channel, SPI_DATA_ADDR |
-                               SPI_RT2WB_READ, int(2*self.ref_period_mu))
+        return self._rt2wb_read_sync(SPI_DATA_ADDR)
 
     @kernel
     def _get_config_sync(self):
-        return rt2wb_read_sync(now_mu(), self.channel, SPI_CONFIG_ADDR |
-                               SPI_RT2WB_READ, int(2*self.ref_period_mu))
+        return self._rt2wb_read_sync(SPI_CONFIG_ADDR)
 
     @kernel
     def _get_xfer_sync(self):
-        return rt2wb_read_sync(now_mu(), self.channel, SPI_XFER_ADDR |
-                               SPI_RT2WB_READ, int(2*self.ref_period_mu))
+        return self._rt2wb_read_sync(SPI_XFER_ADDR)

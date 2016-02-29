@@ -26,7 +26,7 @@
 #endif
 
 #define DDS_WRITE(addr, data) do { \
-        rt2wb_write(now, CONFIG_RTIO_DDS_CHANNEL, addr, data); \
+        rt2wb_output(now, CONFIG_RTIO_DDS_CHANNEL, addr, data); \
         now += DURATION_WRITE; \
     } while(0)
 
