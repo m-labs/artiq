@@ -38,7 +38,7 @@ long long int ttl_get(int channel, long long int time_limit)
 
     rtio_chan_sel_write(channel);
     while((status = rtio_i_status_read())) {
-        if(rtio_i_status_read() & RTIO_I_STATUS_OVERFLOW) {
+        if(status & RTIO_I_STATUS_OVERFLOW) {
             rtio_i_overflow_reset_write(1);
             artiq_raise_from_c("RTIOOverflow",
                 "RTIO overflow at channel {0}",
