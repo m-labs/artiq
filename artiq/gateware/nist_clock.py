@@ -48,10 +48,8 @@ fmc_adapter_io = [
         Subsignal("n", Pins("LPC:CLK1_M2C_N")),
         IOStandard("LVDS")),
 
-    ("la32", 0,
-        Subsignal("p", Pins("LPC:LA32_P")),
-        Subsignal("n", Pins("LPC:LA32_N")),
-        IOStandard("LVDS")),
+    ("la32_p", 0, Pins("LPC:LA32_P"), IOStandard("LVTTL")),
+    ("la32_n", 0, Pins("LPC:LA32_N"), IOStandard("LVTTL")),
 
     ("spi", 0,
         Subsignal("clk", Pins("LPC:LA13_N")),
