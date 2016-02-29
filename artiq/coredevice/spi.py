@@ -15,6 +15,8 @@ SPI_DATA_ADDR, SPI_XFER_ADDR, SPI_CONFIG_ADDR = range(3)
     SPI_HALF_DUPLEX,
 ) = (1 << i for i in range(8))
 
+SPI_RT2WB_READ = 1 << 2
+
 
 class SPIMaster:
     """Core device Serial Peripheral Interface (SPI) bus master.
@@ -73,7 +75,7 @@ class SPIMaster:
 
     @kernel
     def read_sync(self):
-        r = rt2wb_read_sync(now_mu(), self.channel, SPI_DATA_ADDR,
-                            int(self.ref_period_mu))
+        r = rt2wb_read_sync(now_mu(), self.channel, SPI_DATA_ADDR |
+                            SPI_RT2WB_READ, int(self.ref_period_mu))
         delay_mu(self.ref_period_mu)
         return r
