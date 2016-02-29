@@ -250,17 +250,23 @@ class NIST_CLOCK(_NIST_Ions):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        spi_pins = self.platform.request("ams101_dac", 0)
-        phy = ttl_simple.Output(spi_pins.ldac)
+        ams101_dac = self.platform.request("ams101_dac", 0)
+        phy = ttl_simple.Output(ams101_dac.ldac)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
         self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
-        phy = spi.SPIMaster(spi_pins)
+        phy = spi.SPIMaster(ams101_dac)
         self.submodules += phy
         self.config["RTIO_FIRST_SPI_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ofifo_depth=4, ififo_depth=4))
+
+        for i in range(3):
+            phy = spi.SPIMaster(self.platform.request("spi", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(
+                phy, ofifo_depth=128, ififo_depth=128))
 
         phy = ttl_simple.ClockGen(platform.request("la32_p"))
         self.submodules += phy
