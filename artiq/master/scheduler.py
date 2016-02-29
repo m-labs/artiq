@@ -198,7 +198,7 @@ class PrepareStage(TaskObject):
                 await self.pool.state_changed.wait()
             elif isinstance(run, float):
                 await asyncio_wait_or_cancel([self.pool.state_changed.wait()],
-                                                  timeout=run)
+                                             timeout=run)
             else:
                 if run.flush:
                     run.status = RunStatus.flushing
