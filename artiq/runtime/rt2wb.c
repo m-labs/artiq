@@ -1,15 +1,11 @@
 #include <generated/csr.h>
-#include <stdio.h>
 
 #include "artiq_personality.h"
 #include "rtio.h"
-#include "log.h"
-#include "spi.h"
+#include "rt2wb.h"
 
 
-#define DURATION_WRITE (1 << CONFIG_RTIO_FINE_TS_WIDTH)
-
-void spi_write(long long int timestamp, int channel, int addr,
+void rt2wb_write(long long int timestamp, int channel, int addr,
         unsigned int data)
 {
     rtio_chan_sel_write(channel);
@@ -20,31 +16,33 @@ void spi_write(long long int timestamp, int channel, int addr,
 }
 
 
-unsigned int spi_read(long long int timestamp, int channel, int addr)
+unsigned int rt2wb_read_sync(long long int timestamp, int channel,
+        int addr, int duration)
 {
     int status;
-    long long int time_limit = timestamp + DURATION_WRITE;
-    unsigned int r;
+    unsigned int data;
 
-    spi_write(timestamp, channel, addr | SPI_WB_READ, 0);
+    rt2wb_write(timestamp, channel, addr, 0);
 
     while((status = rtio_i_status_read())) {
-        if(rtio_i_status_read() & RTIO_I_STATUS_OVERFLOW) {
+        if(status & RTIO_I_STATUS_OVERFLOW) {
             rtio_i_overflow_reset_write(1);
             artiq_raise_from_c("RTIOOverflow",
-                "RTIO overflow at channel {0}",
+                "RTIO WB overflow on channel {0}",
                 channel, 0, 0);
         }
-        if(rtio_get_counter() >= time_limit) {
+        if(rtio_get_counter() >= timestamp + duration) {
             /* check empty flag again to prevent race condition.
              * now we are sure that the time limit has been exceeded.
              */
             if(rtio_i_status_read() & RTIO_I_STATUS_EMPTY)
-                return -1;
+                artiq_raise_from_c("InternalError",
+                        "RTIO WB read failed on channel {0}",
+                        channel, 0, 0);
         }
         /* input FIFO is empty - keep waiting */
     }
-    r = rtio_i_data_read();
+    data = rtio_i_data_read();
     rtio_i_re_write(1);
-    return r;
+    return data;
 }
