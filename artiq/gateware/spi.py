@@ -13,14 +13,21 @@ class SPIClockGen(Module):
         self.clk = Signal(reset=1)
 
         cnt = Signal.like(self.load)
+        bias = Signal()
+        zero = Signal()
         self.comb += [
-            self.edge.eq(cnt == 0),
+            zero.eq(cnt == 0),
+            self.edge.eq(zero & ~bias),
         ]
         self.sync += [
-            cnt.eq(cnt - 1),
+            If(zero,
+                bias.eq(0),
+            ).Else(
+                cnt.eq(cnt - 1),
+            ),
             If(self.edge,
-                cnt.eq(self.load[1:] +
-                       (self.load[0] & (self.clk ^ self.bias))),
+                cnt.eq(self.load[1:]),
+                bias.eq(self.load[0] & (self.clk ^ self.bias)),
                 self.clk.eq(~self.clk),
             )
         ]
