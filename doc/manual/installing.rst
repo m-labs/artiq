@@ -40,13 +40,16 @@ If your ``$PATH`` misses reference the ``miniconda3/bin`` or ``anaconda3/bin`` y
 
     $ export PATH=$HOME/miniconda3/bin:$PATH
 
-Installing the host side software
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Installing the ARTIQ packages
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For this, you need to add our Anaconda repository to your conda configuration::
 
     $ conda config --add channels http://conda.anaconda.org/m-labs/channel/main
-    $ conda config --add channels http://conda.anaconda.org/m-labs/channel/dev
+
+.. note::
+    To use the development versions of ARTIQ, also add the ``dev`` channel (http://conda.anaconda.org/m-labs/channel/dev).
+    Development versions contain more features, but are not as well-tested and are more likely to contain bugs or inconsistencies.
 
 Then you can install the ARTIQ package, it will pull all the necessary dependencies.
 
@@ -60,7 +63,12 @@ Then you can install the ARTIQ package, it will pull all the necessary dependenc
     $ ENV=$(date +artiq-%Y-%m-%d); conda create -n $ENV artiq-kc705-nist_qc1; \
         echo "Created environment $ENV for ARTIQ"
 
-* For the KC705 board with the FMC backplane and AD9914 DDS chips::
+* For the KC705 board with the "clock" FMC backplane and AD9914 DDS chips::
+
+    $ ENV=$(date +artiq-%Y-%m-%d); conda create -n $ENV artiq-kc705-nist_clock; \
+        echo "Created environment $ENV for ARTIQ"
+
+* For the KC705 board with the QC2 FMC backplane and AD9914 DDS chips::
 
     $ ENV=$(date +artiq-%Y-%m-%d); conda create -n $ENV artiq-kc705-nist_qc2; \
         echo "Created environment $ENV for ARTIQ"
@@ -89,7 +97,9 @@ You now need to flash 3 things on the FPGA board:
 2. The BIOS
 3. The ARTIQ runtime
 
-First you need to :ref:`install openocd <install-openocd>`. Then, you can flash the board:
+They are all shipped in our Conda packages, along with the required flash proxy bitstreams.
+
+First you need to install OpenOCD. Then, you can flash the board:
 
 * For the Pipistrello board::
 
@@ -97,11 +107,9 @@ First you need to :ref:`install openocd <install-openocd>`. Then, you can flash 
 
 * For the KC705 board::
 
-    $ artiq_flash
+    $ artiq_flash -m [qc1/clock/qc2]
 
-Next step (for KC705) is to flash MAC and IP addresses to the board:
-
-* See :ref:`those instructions <flash-mac-ip-addr>` to flash MAC and IP addresses.
+For the KC705, the next step is to flash the MAC and IP addresses to the board. See :ref:`those instructions <flash-mac-ip-addr>`.
 
 .. _install-from-sources:
 

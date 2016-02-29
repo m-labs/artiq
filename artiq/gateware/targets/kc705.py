@@ -249,19 +249,22 @@ class NIST_CLOCK(_NIST_Ions):
         phy = ttl_simple.Output(platform.request("user_led", 2))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
-        self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
         spi_pins = self.platform.request("ams101_dac", 0)
         phy = ttl_simple.Output(spi_pins.ldac)
         self.submodules += phy
-        self.config["RTIO_SPI_LDAC_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.Channel.from_phy(phy))
+        self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
         phy = spi.SPIMaster(spi_pins)
         self.submodules += phy
         self.config["RTIO_FIRST_SPI_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ofifo_depth=4, ififo_depth=4))
+
+        phy = ttl_simple.ClockGen(platform.request("la32_p"))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
         self.config["DDS_CHANNEL_COUNT"] = 11
@@ -341,7 +344,7 @@ def main():
                     "+ NIST Ions QC1/CLOCK/QC2 hardware adapters")
     builder_args(parser)
     soc_kc705_args(parser)
-    parser.add_argument("-H", "--hw-adapter", default="qc1",
+    parser.add_argument("-H", "--hw-adapter", default="clock",
                         help="hardware adapter type: qc1/clock/qc2 "
                              "(default: %(default)s)")
     args = parser.parse_args()
