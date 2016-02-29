@@ -23,9 +23,6 @@ class RT2WB(Module):
 
         active = Signal()
         self.sync.rio += [
-            If(active & wb.ack,
-                active.eq(0),
-            ),
             If(self.rtlink.o.stb,
                 active.eq(1),
                 wb.adr.eq(self.rtlink.o.address[:address_width]),
@@ -33,11 +30,15 @@ class RT2WB(Module):
                 wb.dat_w.eq(self.rtlink.o.data),
                 wb.sel.eq(2**len(wb.sel) - 1)
             ),
+            If(wb.ack,
+                active.eq(0)
+            )
         ]
         self.comb += [
-            self.rtlink.o.busy.eq(active & ~wb.ack),
+            self.rtlink.o.busy.eq(active),
             wb.cyc.eq(active),
             wb.stb.eq(active),
+
             self.rtlink.i.stb.eq(active & wb.ack & ~wb.we),
             self.rtlink.i.data.eq(wb.dat_r)
         ]
