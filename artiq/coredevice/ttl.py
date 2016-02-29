@@ -91,6 +91,11 @@ class TTLInOut:
 
     This should be used with bidirectional channels.
 
+    Note that the channel is in input mode by default. If you need to drive a
+    signal, you must call ``output``. If the channel is in output mode most of
+    the time in your setup, it is a good idea to call ``output`` in the
+    startup kernel.
+
     :param channel: channel number
     """
     def __init__(self, dmgr, channel):
@@ -107,12 +112,18 @@ class TTLInOut:
 
     @kernel
     def output(self):
-        """Set the direction to output."""
+        """Set the direction to output.
+
+        There must be a delay of at least one RTIO clock cycle before any
+        other command can be issued."""
         self.set_oe(True)
 
     @kernel
     def input(self):
-        """Set the direction to input."""
+        """Set the direction to input.
+
+        There must be a delay of at least one RTIO clock cycle before any
+        other command can be issued."""
         self.set_oe(False)
 
     @kernel
