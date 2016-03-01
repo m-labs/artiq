@@ -109,7 +109,6 @@ else:  # windows
             # mode or not.
             self.address = "\\\\.\\pipe\\artiq-{}-{}".format(os.getpid(),
                                                              next(_pipe_count))
-            self.server = None
             self.ready = asyncio.Event()
             self.write_buffer = b""
 
@@ -118,11 +117,12 @@ else:  # windows
 
         async def _autoclose(self):
             await self.process.wait()
-            if self.server is not None:
-                self.server[0].close()
-                self.server = None
+            self.server[0].close()
+            del self.server
             if self.ready.is_set():
                 self.writer.close()
+                del self.reader
+                del self.writer
 
         async def create_subprocess(self, *args, **kwargs):
             loop = asyncio.get_event_loop()
@@ -150,8 +150,12 @@ else:  # windows
             # There is still a race condition in the AsyncioParentComm
             # creation/destruction, but it is unlikely to cause problems
             # in most practical cases.
-            assert self.server is not None
-            self.server = None
+            if self.ready.is_set():
+                # A child already connected before. We should have shut down
+                # the server, but asyncio won't let us do that.
+                # Drop connections immediately instead.
+                writer.close()
+                return
             self.reader = reader
             self.writer = writer
             if self.write_buffer:
