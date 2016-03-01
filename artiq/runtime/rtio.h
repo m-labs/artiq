@@ -19,6 +19,17 @@ void rtio_log(long long int timestamp, const char *format, ...);
 void rtio_log_va(long long int timestamp, const char *format, va_list args);
 void rtio_output(long long int timestamp, int channel, unsigned int address,
         unsigned int data);
+
+/*
+ * Waits at least until timeout and returns the timestamp of the first
+ * input event on the chanel, -1 if there was no event.
+ */
 long long int rtio_input_timestamp(long long int timeout, int channel);
+
+/*
+ * Assumes that there is or will be an event in the channel and returns only
+ * its data.
+ */
+unsigned int rtio_input_data(int channel);
 
 #endif /* __RTIO_H */

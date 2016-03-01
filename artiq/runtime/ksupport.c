@@ -15,7 +15,6 @@
 #include "artiq_personality.h"
 #include "dds.h"
 #include "rtio.h"
-#include "rt2wb.h"
 
 double round(double x);
 
@@ -111,13 +110,12 @@ static const struct symbol runtime_exports[] = {
     {"rtio_log", &rtio_log},
     {"rtio_output", &rtio_output},
     {"rtio_input_timestamp", &rtio_input_timestamp},
+    {"rtio_input_data", &rtio_input_data},
 
     {"dds_init", &dds_init},
     {"dds_batch_enter", &dds_batch_enter},
     {"dds_batch_exit", &dds_batch_exit},
     {"dds_set", &dds_set},
-
-    {"rt2wb_input", &rt2wb_input},
 
     {"cache_get", &cache_get},
     {"cache_put", &cache_put},
