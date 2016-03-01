@@ -205,12 +205,15 @@ class SPIMaster(Module):
           Transfers submitted this way are chained and executed without
           deasserting cs. Once a transfer completes, the previous transfer's
           read data is available in the data register.
-        * A wishbone transaction is ack-ed when the transfer has been written
-          to the intermediate buffer. It will be started when there are no
-          other transactions being executed. Writes take one cycle when
-          there is either no transfer being executed, no data in the
-          intermediate buffer, or a transfer just completing. Reads always
-          finish in one cycle.
+        * Writes to the config register take effect immediately. Writes to xfer
+          and data are synchronized to the start of a transfer.
+        * A wishbone data register write is ack-ed when the transfer has
+          been written to the intermediate buffer. It will be started when
+          there are no other transactions being executed, either starting
+          a new SPI transfer of chained to an in-flight transfer.
+          Writes take two cycles unless the write is to the data register
+          and another chained transfer is pending and the transfer being
+          executed is not complete. Reads always finish in two cycles.
 
     Transaction Sequence:
         * If desired, write the config register to set up the core.
@@ -218,16 +221,17 @@ class SPIMaster(Module):
         * Write the data register (also for zero-length writes),
           writing triggers the transfer and when the transfer is accepted to
           the inermediate buffer, the write is ack-ed.
-        * If desired, read the data register.
-        * If desired, write data for the next, chained, transfer.
+        * If desired, read the data register corresponding to the last
+          completed transfer.
+        * If desired, change xfer register for the next transfer.
+        * If desired, write data queuing the next (possibly chained) transfer.
 
     Register address and bit map:
 
     config (address 2):
         1 offline: all pins high-z (reset=1)
         1 active: cs/transfer active (read-only)
-        1 pending: transfer pending in intermediate buffer, bus writes will
-            block (read-only)
+        1 pending: transfer pending in intermediate buffer (read-only)
         1 cs_polarity: active level of chip select (reset=0)
         1 clk_polarity: idle level of clk (reset=0)
         1 clk_phase: first edge after cs assertion to sample data on (reset=0)
@@ -246,18 +250,18 @@ class SPIMaster(Module):
         8 div_read: ditto for the read clock
 
     xfer (address 1):
-        16 cs: active high bit mask of chip selects to assert
-        6 write_len: 0-M bits
+        16 cs: active high bit mask of chip selects to assert (reset=0)
+        6 write_len: 0-M bits (reset=0)
         2 undefined
-        6 read_len: 0-M bits
+        6 read_len: 0-M bits (reset=0)
         2 undefined
 
     data (address 0):
-        M write/read data
+        M write/read data (reset=0)
     """
-    def __init__(self, pads, bus=None, data_width=32):
+    def __init__(self, pads, bus=None):
         if bus is None:
-            bus = wishbone.Interface(data_width=data_width)
+            bus = wishbone.Interface(data_width=32)
         self.bus = bus
 
         ###
@@ -289,7 +293,8 @@ class SPIMaster(Module):
         assert len(xfer) <= len(bus.dat_w)
 
         self.submodules.spi = spi = SPIMachine(
-            data_width, clock_width=len(config.div_read),
+            data_width=len(bus.dat_w),
+            clock_width=len(config.div_read),
             bits_width=len(xfer.read_length))
 
         pending = Signal()
@@ -318,15 +323,21 @@ class SPIMaster(Module):
                 spi.reg.data.eq(data_write),
                 pending.eq(0),
             ),
-            bus.ack.eq(bus.cyc & bus.stb & (~bus.we | ~pending | spi.done)),
+            # wb.ack a transaction if any of the following:
+            # a) reading,
+            # b) writing to non-data register
+            # c) writing to data register and no pending transfer
+            # d) writing to data register and pending and swapping buffers
+            bus.ack.eq(bus.cyc & bus.stb &
+                       (~bus.we | (bus.adr != 0) | ~pending | spi.done)),
             If(bus.ack,
                 bus.ack.eq(0),
-            ),
-            If(bus.we & bus.ack,
-                Array([data_write, xfer.raw_bits(), config.raw_bits()
-                      ])[bus.adr].eq(bus.dat_w),
-                If(bus.adr == 0,  # data register
-                    pending.eq(1),
+                If(bus.we,
+                    Array([data_write, xfer.raw_bits(), config.raw_bits()
+                          ])[bus.adr].eq(bus.dat_w),
+                    If(bus.adr == 0,  # data register
+                        pending.eq(1),
+                    ),
                 ),
             ),
             config.active.eq(spi.cs),
