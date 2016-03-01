@@ -1,4 +1,4 @@
-from artiq.language.core import (kernel, seconds_to_mu, now_mu,
+from artiq.language.core import (kernel, portable, seconds_to_mu, now_mu,
                                  delay_mu, int)
 from artiq.language.units import MHz
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
@@ -57,6 +57,10 @@ class SPIMaster:
         # To chain transfers together, new data must be written before
         # pending transfer's read data becomes available.
 
+    @portable
+    def frequency_to_div(self, f):
+        return int(1/(f*self.ref_period)) + 1
+
     @kernel
     def set_config(self, flags=0, write_freq=20*MHz, read_freq=20*MHz):
         """Set the configuration register.
@@ -105,9 +109,8 @@ class SPIMaster:
         :param write_freq: Desired SPI clock frequency during write bits.
         :param read_freq: Desired SPI clock frequency during read bits.
         """
-        write_div = round(1/(write_freq*self.ref_period))
-        read_div = round(1/(read_freq*self.ref_period))
-        self.set_config_mu(flags, write_div, read_div)
+        self.set_config_mu(flags, self.frequency_to_div(write_freq),
+                           self.frequency_to_div(read_freq))
 
     @kernel
     def set_config_mu(self, flags=0, write_div=6, read_div=6):
@@ -174,7 +177,7 @@ class SPIMaster:
         delay_mu(3*self.ref_period_mu)
 
     @kernel
-    def write(self, data):
+    def write(self, data=0):
         """Write data to data register.
 
         * The ``data`` register and the shift register are 32 bits wide.
