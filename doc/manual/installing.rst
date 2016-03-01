@@ -93,11 +93,11 @@ Preparing the core device FPGA board
 
 You now need to flash 3 things on the FPGA board:
 
-1. The FPGA bitstream
+1. The FPGA gateware bitstream
 2. The BIOS
 3. The ARTIQ runtime
 
-They are all shipped in our Conda packages, along with the required flash proxy bitstreams.
+They are all shipped in our Conda packages, along with the required flash proxy gateware bitstreams.
 
 First you need to install OpenOCD. Then, you can flash the board:
 
@@ -169,11 +169,11 @@ and the ARTIQ kernels.
 Preparing the core device FPGA board
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-These steps are required to generate bitstream (``.bit``) files, build the MiSoC BIOS and ARTIQ runtime, and flash FPGA boards. If the board is already flashed, you may skip those steps and go directly to `Installing the host-side software`.
+These steps are required to generate gateware bitstream (``.bit``) files, build the MiSoC BIOS and ARTIQ runtime, and flash FPGA boards. If the board is already flashed, you may skip those steps and go directly to `Installing the host-side software`.
 
 * Install the FPGA vendor tools (e.g. Xilinx ISE and/or Vivado):
 
-    * Get Xilinx tools from http://www.xilinx.com/support/download/index.htm. ISE can build bitstreams both for boards using the Spartan-6 (Pipistrello) and 7-series devices (KC705), while Vivado supports only boards using 7-series devices.
+    * Get Xilinx tools from http://www.xilinx.com/support/download/index.htm. ISE can build gateware bitstreams both for boards using the Spartan-6 (Pipistrello) and 7-series devices (KC705), while Vivado supports only boards using 7-series devices.
 
     * The Pipistrello is supported by Webpack, the KC705 is not.
 
@@ -208,9 +208,9 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
 .. _install-flash-proxy:
 
-* Install the required flash proxy bitstreams:
+* Install the required flash proxy gateware bitstreams:
 
-    The purpose of the flash proxy bitstream is to give programming software fast JTAG access to the flash connected to the FPGA.
+    The purpose of the flash proxy gateware bitstream is to give programming software fast JTAG access to the flash connected to the FPGA.
 
     * Pipistrello and KC705:
 
@@ -243,7 +243,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
     :ref:`installing the host-side software <installing-the-host-side-software>`.
 
 
-* Build the bitstream, BIOS and runtime by running:
+* Build the gateware bitstream, BIOS and runtime by running:
     ::
 
         $ cd ~/artiq-dev
@@ -270,7 +270,7 @@ These steps are required to generate bitstream (``.bit``) files, build the MiSoC
 
 .. note:: The `-t` option specifies the board your are targeting. Available options are ``kc705`` and ``pipistrello``.
 
-* Check that the board boots by running a serial terminal program (you may need to press its FPGA reconfiguration button or power-cycle it to load the bitstream that was newly written into the flash): ::
+* Check that the board boots by running a serial terminal program (you may need to press its FPGA reconfiguration button or power-cycle it to load the gateware bitstream that was newly written into the flash): ::
 
         $ make -C ~/artiq-dev/misoc/tools # do only once
         $ ~/artiq-dev/misoc/tools/flterm --port /dev/ttyUSB1

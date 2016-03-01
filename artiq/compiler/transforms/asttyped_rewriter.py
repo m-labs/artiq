@@ -477,7 +477,7 @@ class ASTTypedRewriter(algorithm.Transformer):
             target=node.target, iter=node.iter, body=node.body, orelse=node.orelse,
             trip_count=None, trip_interval=None,
             keyword_loc=node.keyword_loc, in_loc=node.in_loc, for_colon_loc=node.for_colon_loc,
-            else_loc=node.else_loc, else_colon_loc=node.else_colon_loc)
+            else_loc=node.else_loc, else_colon_loc=node.else_colon_loc, loc=node.loc)
         return node
 
     def visit_withitem(self, node):
