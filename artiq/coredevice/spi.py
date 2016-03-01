@@ -1,4 +1,4 @@
-from artiq.language.core import (kernel, portable, seconds_to_mu, now_mu,
+from artiq.language.core import (kernel, seconds_to_mu, now_mu,
                                  delay_mu, int)
 from artiq.language.units import MHz
 from artiq.coredevice.rt2wb import rt2wb_output, rt2wb_input
