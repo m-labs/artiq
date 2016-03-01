@@ -150,7 +150,7 @@ class TTLInOut:
 
     @kernel
     def _set_sensitivity(self, value):
-        rtio_output(now_mu(), self.channel, 2, 1 if value else 0)
+        rtio_output(now_mu(), self.channel, 2, value)
         self.i_previous_timestamp = now_mu()
 
     @kernel
