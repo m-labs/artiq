@@ -59,7 +59,7 @@ void bridge_main(void)
                 struct msg_brg_ttl_out *msg;
 
                 msg = (struct msg_brg_ttl_out *)umsg;
-                rtio_output_blind(msg->channel, TTL_O_ADDR, msg->value);
+                rtio_output_blind(msg->channel, TTL_OE_ADDR, msg->value);
                 mailbox_acknowledge();
                 break;
             }
@@ -67,7 +67,7 @@ void bridge_main(void)
                 struct msg_brg_ttl_out *msg;
 
                 msg = (struct msg_brg_ttl_out *)umsg;
-                rtio_output_blind(msg->channel, TTL_OE_ADDR, msg->value);
+                rtio_output_blind(msg->channel, TTL_O_ADDR, msg->value);
                 mailbox_acknowledge();
                 break;
             }
