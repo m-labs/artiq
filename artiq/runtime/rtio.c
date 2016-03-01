@@ -15,7 +15,8 @@ long long int rtio_get_counter(void)
     return rtio_counter_read();
 }
 
-void rtio_process_exceptional_status(int status, long long int timestamp, int channel)
+static void rtio_process_exceptional_status(
+        long long int timestamp, int channel, int status)
 {
     if(status & RTIO_O_STATUS_FULL)
         while(rtio_o_status_read() & RTIO_O_STATUS_FULL);
@@ -52,7 +53,7 @@ void rtio_output(long long int timestamp, int channel, unsigned int addr,
     rtio_o_we_write(1);
     status = rtio_o_status_read();
     if(status)
-        rtio_process_exceptional_status(status, timestamp, channel);
+        rtio_process_exceptional_status(timestamp, channel, status);
 }
 
 
