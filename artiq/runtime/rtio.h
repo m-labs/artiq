@@ -21,14 +21,4 @@ void rtio_output(long long int timestamp, int channel, unsigned int address,
         unsigned int data);
 int rtio_input_wait(long long int timeout, int channel);
 
-static inline void rtio_write_and_process_status(long long int timestamp, int channel)
-{
-    int status;
-
-    rtio_o_we_write(1);
-    status = rtio_o_status_read();
-    if(status)
-        rtio_process_exceptional_status(status, timestamp, channel);
-}
-
 #endif /* __RTIO_H */

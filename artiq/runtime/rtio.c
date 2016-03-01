@@ -43,11 +43,16 @@ void rtio_process_exceptional_status(int status, long long int timestamp, int ch
 void rtio_output(long long int timestamp, int channel, unsigned int addr,
         unsigned int data)
 {
+    int status;
+
     rtio_chan_sel_write(channel);
     rtio_o_timestamp_write(timestamp);
     rtio_o_address_write(addr);
     rtio_o_data_write(data);
-    rtio_write_and_process_status(timestamp, channel);
+    rtio_o_we_write(1);
+    status = rtio_o_status_read();
+    if(status)
+        rtio_process_exceptional_status(status, timestamp, channel);
 }
 
 
