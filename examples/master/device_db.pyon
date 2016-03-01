@@ -100,24 +100,12 @@
         "class": "SPIMaster",
         "arguments": {"channel": 22}
     },
-    "spi1": {
-        "type": "local",
-        "module": "artiq.coredevice.spi",
-        "class": "SPIMaster",
-        "arguments": {"channel": 23}
-    },
-    "spi2": {
-        "type": "local",
-        "module": "artiq.coredevice.spi",
-        "class": "SPIMaster",
-        "arguments": {"channel": 24}
-    },
 
     "ttl_clock_la32_p": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLClockGen",
-        "arguments": {"channel": 25}
+        "arguments": {"channel": 23}
     },
 
     "dds_bus": {

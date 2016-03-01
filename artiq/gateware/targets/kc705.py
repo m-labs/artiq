@@ -262,7 +262,7 @@ class NIST_CLOCK(_NIST_Ions):
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ofifo_depth=4, ififo_depth=4))
 
-        for i in range(3):
+        for i in range(1):  # spi1 and spi2 collide in pinout with ttl
             phy = spi.SPIMaster(self.platform.request("spi", i))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(
