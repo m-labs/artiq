@@ -203,7 +203,7 @@ class SPIMaster:
 
     @kernel
     def read_async(self):
-        """Trigger an asynchronous read from the data register.
+        """Trigger an asynchronous read from the ``data`` register.
 
         Reads always finish in two cycles.
 
@@ -218,7 +218,7 @@ class SPIMaster:
 
     @kernel
     def input_async(self):
-        """Retrieves data written asynchronously.
+        """Retrieves data read asynchronously from the ``data`` register.
 
         :meth:`input_async` must match a preeeding :meth:`read_async`.
         """
