@@ -655,8 +655,11 @@ class LLVMIRGenerator:
 
     def process_SetLocal(self, insn):
         env = insn.environment()
-        llptr = self.llptr_to_var(self.map(env), env.type, insn.var_name)
         llvalue = self.map(insn.value())
+        if isinstance(llvalue.type, ll.VoidType):
+            # We store NoneType as {} but return it as void. So, bail out here.
+            return ll.Constant(ll.LiteralStructType([]), [])
+        llptr = self.llptr_to_var(self.map(env), env.type, insn.var_name)
         if isinstance(llvalue, ll.Block):
             llvalue = ll.BlockAddress(self.llfunction, llvalue)
         if llptr.type.pointee != llvalue.type:
