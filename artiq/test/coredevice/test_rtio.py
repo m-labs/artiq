@@ -8,6 +8,7 @@ from math import sqrt
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 
+
 artiq_low_latency = os.getenv("ARTIQ_LOW_LATENCY")
 
 

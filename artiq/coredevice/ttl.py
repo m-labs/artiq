@@ -38,6 +38,10 @@ class TTLOut:
         self.o_previous_timestamp = int(0, width=64)
 
     @kernel
+    def output(self):
+        pass
+
+    @kernel
     def set_o(self, o):
         ttl_set_o(now_mu(), self.channel, o)
         self.o_previous_timestamp = now_mu()
