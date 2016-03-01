@@ -14,18 +14,21 @@
 
 void rtio_init(void);
 long long int rtio_get_counter(void);
-void rtio_process_exceptional_status(int status, long long int timestamp, int channel);
 void rtio_log(long long int timestamp, const char *format, ...);
 void rtio_log_va(long long int timestamp, const char *format, va_list args);
+void rtio_output(long long int timestamp, int channel, unsigned int address,
+        unsigned int data);
 
-static inline void rtio_write_and_process_status(long long int timestamp, int channel)
-{
-    int status;
+/*
+ * Waits at least until timeout and returns the timestamp of the first
+ * input event on the chanel, -1 if there was no event.
+ */
+long long int rtio_input_timestamp(long long int timeout, int channel);
 
-    rtio_o_we_write(1);
-    status = rtio_o_status_read();
-    if(status)
-        rtio_process_exceptional_status(status, timestamp, channel);
-}
+/*
+ * Assumes that there is or will be an event in the channel and returns only
+ * its data.
+ */
+unsigned int rtio_input_data(int channel);
 
 #endif /* __RTIO_H */

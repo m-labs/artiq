@@ -74,19 +74,38 @@
         "class": "TTLInOut",
         "arguments": {"channel": 18}
     },
-    "ttl_clock_la32_p": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLClockGen",
-        "arguments": {"channel": 20}
-    },
-
-
     "led": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
         "arguments": {"channel": 19}
+    },
+
+    "ams101_ldac": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 20}
+    },
+    "ttl_clock_la32_p": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLClockGen",
+        "arguments": {"channel": 21}
+    },
+
+    "ams101_spi": {
+        "type": "local",
+        "module": "artiq.coredevice.spi",
+        "class": "SPIMaster",
+        "arguments": {"channel": 22}
+    },
+
+    "spi0": {
+        "type": "local",
+        "module": "artiq.coredevice.spi",
+        "class": "SPIMaster",
+        "arguments": {"channel": 23}
     },
 
     "dds_bus": {

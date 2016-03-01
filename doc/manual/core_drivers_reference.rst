@@ -19,10 +19,17 @@ These drivers are for the core device and the peripherals closely integrated int
 ----------------------------------
 
 .. autoclass:: artiq.coredevice.dds._DDSGeneric
-	:members:
+    :members:
 
 .. automodule:: artiq.coredevice.dds
     :members:
+
+:mod:`artiq.coredevice.spi` module
+----------------------------------
+
+.. automodule:: artiq.coredevice.spi
+    :members:
+
 
 :mod:`artiq.coredevice.exceptions` module
 -----------------------------------------

@@ -19,7 +19,7 @@ from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
 
 from artiq.gateware.soc import AMPSoC
 from artiq.gateware import rtio, nist_qc1, nist_clock, nist_qc2
-from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, dds
+from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, dds, spi
 from artiq import __artiq_dir__ as artiq_dir
 from artiq import __version__ as artiq_version
 
@@ -80,6 +80,18 @@ class _RTIOCRG(Module, AutoCSR):
         ]
 
 
+_ams101_dac = [
+    ("ams101_dac", 0,
+
+        Subsignal("ldac", Pins("XADC:GPIO0")),
+        Subsignal("clk", Pins("XADC:GPIO1")),
+        Subsignal("mosi", Pins("XADC:GPIO2")),
+        Subsignal("cs_n", Pins("XADC:GPIO3")),
+        IOStandard("LVTTL")
+     )
+]
+
+
 class _NIST_Ions(MiniSoC, AMPSoC):
     csr_map = {
         "rtio": None,  # mapped on Wishbone instead
@@ -114,6 +126,8 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.submodules.leds = gpio.GPIOOut(Cat(
             self.platform.request("user_led", 0),
             self.platform.request("user_led", 1)))
+
+        self.platform.add_extension(_ams101_dac)
 
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
@@ -235,11 +249,28 @@ class NIST_CLOCK(_NIST_Ions):
         phy = ttl_simple.Output(platform.request("user_led", 2))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        ams101_dac = self.platform.request("ams101_dac", 0)
+        phy = ttl_simple.Output(ams101_dac.ldac)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
         self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
         phy = ttl_simple.ClockGen(platform.request("la32_p"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        phy = spi.SPIMaster(ams101_dac)
+        self.submodules += phy
+        self.config["RTIO_FIRST_SPI_CHANNEL"] = len(rtio_channels)
+        rtio_channels.append(rtio.Channel.from_phy(
+            phy, ofifo_depth=4, ififo_depth=4))
+
+        for i in range(1):  # spi1 and spi2 collide in pinout with ttl
+            phy = spi.SPIMaster(self.platform.request("spi", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(
+                phy, ofifo_depth=128, ififo_depth=128))
 
         self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
         self.config["DDS_CHANNEL_COUNT"] = 11

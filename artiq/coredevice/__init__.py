@@ -1,4 +1,4 @@
-from artiq.coredevice import exceptions, dds
+from artiq.coredevice import exceptions, dds, spi
 from artiq.coredevice.exceptions import (RTIOUnderflow, RTIOSequenceError,
                                          RTIOCollisionError, RTIOOverflow,
                                          DDSBatchError, CacheError)

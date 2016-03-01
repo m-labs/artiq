@@ -39,6 +39,7 @@ class TDR(EnvExperiment):
         n = 1000  # repetitions
         latency = 50e-9  # calibrated latency without a transmission line
         pulse = 1e-6  # pulse length, larger than rtt
+        self.t = [0 for i in range(2)]
         try:
             self.many(n, seconds_to_mu(pulse, self.core))
         except PulseNotReceivedError:
@@ -53,21 +54,19 @@ class TDR(EnvExperiment):
 
     @kernel
     def many(self, n, p):
-        t = [0 for i in range(2)]
         self.core.break_realtime()
         for i in range(n):
-            self.one(t, p)
-        self.t = t
+            self.one(p)
 
     @kernel
-    def one(self, t, p):
+    def one(self, p):
         t0 = now_mu()
         with parallel:
             self.pmt0.gate_both_mu(2*p)
             self.ttl2.pulse_mu(p)
-        for i in range(len(t)):
+        for i in range(len(self.t)):
             ti = self.pmt0.timestamp_mu()
             if ti <= 0:
-                raise PulseNotReceivedError
-            t[i] += ti - t0
+                raise PulseNotReceivedError()
+            self.t[i] = int(self.t[i] + ti - t0)
         self.pmt0.count()  # flush

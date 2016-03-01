@@ -13,7 +13,6 @@
 #include "messages.h"
 #include "bridge.h"
 #include "artiq_personality.h"
-#include "ttl.h"
 #include "dds.h"
 #include "rtio.h"
 
@@ -109,12 +108,9 @@ static const struct symbol runtime_exports[] = {
     /* direct syscalls */
     {"rtio_get_counter", &rtio_get_counter},
     {"rtio_log", &rtio_log},
-
-    {"ttl_set_o", &ttl_set_o},
-    {"ttl_set_oe", &ttl_set_oe},
-    {"ttl_set_sensitivity", &ttl_set_sensitivity},
-    {"ttl_get", &ttl_get},
-    {"ttl_clock_set", &ttl_clock_set},
+    {"rtio_output", &rtio_output},
+    {"rtio_input_timestamp", &rtio_input_timestamp},
+    {"rtio_input_data", &rtio_input_data},
 
     {"dds_init", &dds_init},
     {"dds_batch_enter", &dds_batch_enter},
