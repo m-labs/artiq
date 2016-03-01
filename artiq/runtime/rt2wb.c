@@ -5,13 +5,6 @@
 #include "rt2wb.h"
 
 
-void rt2wb_output(long long int timestamp, int channel, int addr,
-        unsigned int data)
-{
-    rtio_output(timestamp, channel, addr, data);
-}
-
-
 unsigned int rt2wb_input(int channel)
 {
     unsigned int data;

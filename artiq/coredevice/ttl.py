@@ -1,26 +1,6 @@
 from artiq.language.core import *
 from artiq.language.types import *
-
-
-@syscall
-def ttl_set_o(time_mu: TInt64, channel: TInt32, enabled: TBool) -> TNone:
-    raise NotImplementedError("syscall not simulated")
-
-@syscall
-def ttl_set_oe(time_mu: TInt64, channel: TInt32, enabled: TBool) -> TNone:
-    raise NotImplementedError("syscall not simulated")
-
-@syscall
-def ttl_set_sensitivity(time_mu: TInt64, channel: TInt32, sensitivity: TInt32) -> TNone:
-    raise NotImplementedError("syscall not simulated")
-
-@syscall
-def ttl_get(channel: TInt32, time_limit_mu: TInt64) -> TInt64:
-    raise NotImplementedError("syscall not simulated")
-
-@syscall
-def ttl_clock_set(time_mu: TInt64, channel: TInt32, ftw: TInt32) -> TNone:
-    raise NotImplementedError("syscall not simulated")
+from artiq.coredevice.rtio import rtio_output, rtio_input_timestamp
 
 
 class TTLOut:
@@ -39,7 +19,7 @@ class TTLOut:
 
     @kernel
     def set_o(self, o):
-        ttl_set_o(now_mu(), self.channel, o)
+        rtio_output(now_mu(), self.channel, 0, 1 if o else 0)
         self.o_previous_timestamp = now_mu()
 
     @kernel
@@ -108,7 +88,7 @@ class TTLInOut:
 
     @kernel
     def set_oe(self, oe):
-        ttl_set_oe(now_mu(), self.channel, oe)
+        rtio_output(now_mu(), self.channel, 1, 1 if oe else 0)
 
     @kernel
     def output(self):
@@ -128,7 +108,7 @@ class TTLInOut:
 
     @kernel
     def set_o(self, o):
-        ttl_set_o(now_mu(), self.channel, o)
+        rtio_output(now_mu(), self.channel, 0, 1 if o else 0)
         self.o_previous_timestamp = now_mu()
 
     @kernel
@@ -170,7 +150,7 @@ class TTLInOut:
 
     @kernel
     def _set_sensitivity(self, value):
-        ttl_set_sensitivity(now_mu(), self.channel, value)
+        rtio_output(now_mu(), self.channel, 2, 1 if value else 0)
         self.i_previous_timestamp = now_mu()
 
     @kernel
@@ -226,7 +206,7 @@ class TTLInOut:
         """Poll the RTIO input during all the previously programmed gate
         openings, and returns the number of registered events."""
         count = 0
-        while ttl_get(self.channel, self.i_previous_timestamp) >= 0:
+        while rtio_input_timestamp(self.i_previous_timestamp, self.channel) >= 0:
             count += 1
         return count
 
@@ -237,7 +217,7 @@ class TTLInOut:
 
         If the gate is permanently closed, returns a negative value.
         """
-        return ttl_get(self.channel, self.i_previous_timestamp)
+        return rtio_input_timestamp(self.i_previous_timestamp, self.channel)
 
 
 class TTLClockGen:
@@ -288,7 +268,7 @@ class TTLClockGen:
         that are not powers of two cause jitter of one RTIO clock cycle at the
         output.
         """
-        ttl_clock_set(now_mu(), self.channel, frequency)
+        rtio_output(now_mu(), self.channel, 0, frequency)
         self.previous_timestamp = now_mu()
 
     @kernel

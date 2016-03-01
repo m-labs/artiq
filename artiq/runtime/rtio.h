@@ -19,6 +19,6 @@ void rtio_log(long long int timestamp, const char *format, ...);
 void rtio_log_va(long long int timestamp, const char *format, va_list args);
 void rtio_output(long long int timestamp, int channel, unsigned int address,
         unsigned int data);
-int rtio_input_wait(long long int timeout, int channel);
+long long int rtio_input_timestamp(long long int timeout, int channel);
 
 #endif /* __RTIO_H */

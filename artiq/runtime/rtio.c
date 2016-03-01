@@ -56,8 +56,9 @@ void rtio_output(long long int timestamp, int channel, unsigned int addr,
 }
 
 
-int rtio_input_wait(long long int timeout, int channel)
+long long int rtio_input_timestamp(long long int timeout, int channel)
 {
+    long long int r;
     int status;
 
     rtio_chan_sel_write(channel);
@@ -76,7 +77,17 @@ int rtio_input_wait(long long int timeout, int channel)
         }
         /* input FIFO is empty - keep waiting */
     }
-    return status;
+
+    if (status & RTIO_I_STATUS_OVERFLOW)
+        artiq_raise_from_c("RTIOOverflow",
+                "RTIO input overflow on channel {0}",
+                channel, 0, 0);
+    if (status & RTIO_I_STATUS_EMPTY)
+        return -1;
+
+    r = rtio_i_timestamp_read();
+    rtio_i_re_write(1);
+    return r;
 }
 
 

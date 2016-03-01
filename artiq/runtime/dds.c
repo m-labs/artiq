@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 #include "artiq_personality.h"
-#include "rt2wb.h"
+#include "rtio.h"
 #include "log.h"
 #include "dds.h"
 
@@ -26,7 +26,7 @@
 #endif
 
 #define DDS_WRITE(addr, data) do { \
-        rt2wb_output(now, CONFIG_RTIO_DDS_CHANNEL, addr, data); \
+        rtio_output(now, CONFIG_RTIO_DDS_CHANNEL, addr, data); \
         now += DURATION_WRITE; \
     } while(0)
 

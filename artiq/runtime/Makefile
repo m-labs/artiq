@@ -7,7 +7,7 @@ OBJECTS := isr.o clock.o rtiocrg.o flash_storage.o mailbox.o \
 	session.o log.o analyzer.o moninj.o net_server.o bridge_ctl.o \
 	ksupport_data.o kloader.o test_mode.o main.o
 OBJECTS_KSUPPORT := ksupport.o artiq_personality.o mailbox.o \
-	bridge.o rtio.o ttl.o rt2wb.o dds.o
+	bridge.o rtio.o rt2wb.o dds.o
 
 CFLAGS += -I$(LIBALLOC_DIRECTORY) \
 	-I$(MISOC_DIRECTORY)/software/include/dyld \

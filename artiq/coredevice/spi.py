@@ -1,7 +1,8 @@
 from artiq.language.core import (kernel, seconds_to_mu, now_mu,
                                  delay_mu, int)
 from artiq.language.units import MHz
-from artiq.coredevice.rt2wb import rt2wb_output, rt2wb_input
+from artiq.coredevice.rtio import rtio_output as rt2wb_output
+from artiq.coredevice.rt2wb import rt2wb_input
 
 
 SPI_DATA_ADDR, SPI_XFER_ADDR, SPI_CONFIG_ADDR = range(3)
