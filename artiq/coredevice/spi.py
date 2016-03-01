@@ -1,7 +1,7 @@
 from artiq.language.core import (kernel, portable, seconds_to_mu, now_mu,
                                  delay_mu, int)
 from artiq.language.units import MHz
-from artiq.coredevice.rt2wb import rt2wb_output, rt2wb_input, rt2wb_input_sync
+from artiq.coredevice.rt2wb import rt2wb_output, rt2wb_input
 
 
 SPI_DATA_ADDR, SPI_XFER_ADDR, SPI_CONFIG_ADDR = range(3)
@@ -55,17 +55,12 @@ class SPIMaster:
         self.read_period_mu = int(read_div*self.ref_period_mu)
         delay_mu(3*self.ref_period_mu)
 
-    @portable
-    def get_xfer_period_mu(self, write_length, read_length):
-        return int(write_length*self.write_period_mu +
-                   read_length*self.read_period_mu)
-
     @kernel
     def set_xfer(self, chip_select=0, write_length=0, read_length=0):
         rt2wb_output(now_mu(), self.channel, SPI_XFER_ADDR,
                      chip_select | (write_length << 16) | (read_length << 24))
-        self.xfer_period_mu = self.get_xfer_period_mu(write_length,
-                                                      read_length)
+        self.xfer_period_mu = int(write_length*self.write_period_mu +
+                                  read_length*self.read_period_mu)
         delay_mu(3*self.ref_period_mu)
 
     @kernel
@@ -74,28 +69,28 @@ class SPIMaster:
         delay_mu(3*self.ref_period_mu)
 
     @kernel
-    def read(self):
+    def read_async(self):
+        # every read_async() must be matched by an input_async()
         rt2wb_output(now_mu(), self.channel, SPI_DATA_ADDR | SPI_RT2WB_READ, 0)
         delay_mu(3*self.ref_period_mu)
 
     @kernel
-    def input(self):
+    def input_async(self):
+        # matches the preeeding read_async()
         return rt2wb_input(self.channel)
 
     @kernel
-    def _rt2wb_read_sync(self, addr=0):
-        t = now_mu()
-        rt2wb_output(t, self.channel, addr | SPI_RT2WB_READ, 0)
-        return rt2wb_input_sync(t + 3*self.ref_period_mu, self.channel)
-
-    @kernel
     def read_sync(self):
-        return self._rt2wb_read_sync(SPI_DATA_ADDR)
-
-    @kernel
-    def _get_config_sync(self):
-        return self._rt2wb_read_sync(SPI_CONFIG_ADDR)
+        rt2wb_output(now_mu(), self.channel, SPI_DATA_ADDR | SPI_RT2WB_READ, 0)
+        return rt2wb_input(self.channel)
 
     @kernel
     def _get_xfer_sync(self):
-        return self._rt2wb_read_sync(SPI_XFER_ADDR)
+        rt2wb_output(now_mu(), self.channel, SPI_XFER_ADDR | SPI_RT2WB_READ, 0)
+        return rt2wb_input(self.channel)
+
+    @kernel
+    def _get_config_sync(self):
+        rt2wb_output(now_mu(), self.channel, SPI_CONFIG_ADDR | SPI_RT2WB_READ,
+                     0)
+        return rt2wb_input(self.channel)
