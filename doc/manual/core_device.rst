@@ -64,7 +64,9 @@ With the CLOCK hardware, the TTL lines are mapped as follows:
 +--------------------+-----------------------+--------------+
 | 19                 | LED                   | Output       |
 +--------------------+-----------------------+--------------+
-| 20                 | LA32_P                | Clock        |
+| 20                 | AMS101_LDAC_B         | Output       |
++--------------------+-----------------------+--------------+
+| 21                 | LA32_P                | Clock        |
 +--------------------+-----------------------+--------------+
 
 
@@ -101,6 +103,4 @@ When plugged to an adapter, the NIST QC1 hardware can be used. The TTL lines are
 
 The input only limitation on channels 0 and 1 comes from the QC-DAQ adapter. When the adapter is not used (and physically unplugged from the Pipistrello board), the corresponding pins on the Pipistrello can be used as outputs. Do not configure these channels as outputs when the adapter is plugged, as this would cause electrical contention.
 
-The board can accept an external RTIO clock connected to PMT2. If the DDS box
-does not drive the PMT2 pair, use XTRIG and patch the XTRIG transceiver output
-on the adapter board onto C:15 disconnecting PMT2.
+The board can accept an external RTIO clock connected to PMT2. If the DDS box does not drive the PMT2 pair, use XTRIG and patch the XTRIG transceiver output on the adapter board onto C:15 disconnecting PMT2.

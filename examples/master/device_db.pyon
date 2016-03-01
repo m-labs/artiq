@@ -87,24 +87,24 @@
         "class": "TTLOut",
         "arguments": {"channel": 20}
     },
-    "ams101_spi": {
+    "ttl_clock_la32_p": {
         "type": "local",
-        "module": "artiq.coredevice.spi",
-        "class": "SPIMaster",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLClockGen",
         "arguments": {"channel": 21}
     },
 
-    "spi0": {
+    "ams101_spi": {
         "type": "local",
         "module": "artiq.coredevice.spi",
         "class": "SPIMaster",
         "arguments": {"channel": 22}
     },
 
-    "ttl_clock_la32_p": {
+    "spi0": {
         "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLClockGen",
+        "module": "artiq.coredevice.spi",
+        "class": "SPIMaster",
         "arguments": {"channel": 23}
     },
 
