@@ -3,10 +3,12 @@
 import argparse
 import textwrap
 import sys
+import traceback
 import numpy as np  # Needed to use numpy in RPC call arguments on cmd line
+import readline  # This makes input() nicer
 import pprint
 
-from artiq.protocols.pc_rpc import AutoTarget, Client
+from artiq.protocols.pc_rpc import AutoTarget, Client, RemoteError
 
 
 def get_argparser():
@@ -17,7 +19,6 @@ def get_argparser():
     parser.add_argument("port", type=int,
                         help="TCP port to use to connect to the controller")
     subparsers = parser.add_subparsers(dest="action")
-    subparsers.required = True
     subparsers.add_parser("list-targets", help="list existing targets")
     parser_list_methods = subparsers.add_parser("list-methods",
                                                 help="list target's methods")
@@ -27,6 +28,10 @@ def get_argparser():
     parser_call.add_argument("method", help="method name")
     parser_call.add_argument("args", nargs=argparse.REMAINDER,
                              help="arguments")
+    parser_interactive = subparsers.add_parser("interactive",
+                                               help="enter interactive mode "
+                                                    "(default)")
+    parser_interactive.add_argument("-t", "--target", help="target name")
     return parser
 
 
@@ -81,8 +86,35 @@ def call_method(remote, method_name, args):
         pprint.pprint(ret)
 
 
+def interactive(remote):
+    while True:
+        try:
+            cmd = input("({}) ".format(remote.get_selected_target()))
+        except EOFError:
+            return
+        class RemoteDict:
+            def __getitem__(self, k):
+                if k == "np":
+                    return np
+                else:
+                    return getattr(remote, k)
+        try:
+            result = eval(cmd, {}, RemoteDict())
+        except Exception as e:
+            if isinstance(e, RemoteError):
+                print("Remote exception:")
+                print(str(e))
+            else:
+                traceback.print_exc()
+        else:
+            if result is not None:
+                print(result)
+
+
 def main():
     args = get_argparser().parse_args()
+    if not args.action:
+        args.target = None
 
     remote = Client(args.server, args.port, None)
     targets, description = remote.get_rpc_id()
@@ -98,6 +130,8 @@ def main():
         list_methods(remote)
     elif args.action == "call":
         call_method(remote, args.method, args.args)
+    elif args.action == "interactive" or not args.action:
+        interactive(remote)
     else:
         print("Unrecognized action: {}".format(args.action))
 
