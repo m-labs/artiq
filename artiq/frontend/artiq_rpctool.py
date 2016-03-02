@@ -99,7 +99,7 @@ def interactive(remote):
                 else:
                     return getattr(remote, k)
         try:
-            result = eval(cmd, {}, RemoteDict())
+            ret = eval(cmd, {}, RemoteDict())
         except Exception as e:
             if isinstance(e, RemoteError):
                 print("Remote exception:")
@@ -107,8 +107,8 @@ def interactive(remote):
             else:
                 traceback.print_exc()
         else:
-            if result is not None:
-                print(result)
+            if ret is not None:
+                pprint.pprint(ret)
 
 
 def main():
