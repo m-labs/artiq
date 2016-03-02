@@ -9,6 +9,7 @@ from migen.genlib.cdc import MultiReg
 from migen.build.generic_platform import *
 from migen.build.xilinx.vivado import XilinxVivadoToolchain
 from migen.build.xilinx.ise import XilinxISEToolchain
+from migen.fhdl.specials import Keep
 
 from misoc.interconnect.csr import *
 from misoc.interconnect import wishbone
@@ -135,20 +136,22 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.config["RTIO_FINE_TS_WIDTH"] = self.rtio.fine_ts_width
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
 
-        if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
-            self.platform.add_platform_command("""
-create_clock -name rsys_clk -period 8.0 [get_nets {rsys_clk}]
-create_clock -name rio_clk -period 8.0 [get_nets {rio_clk}]
-set_false_path -from [get_clocks rsys_clk] -to [get_clocks rio_clk]
-set_false_path -from [get_clocks rio_clk] -to [get_clocks rsys_clk]
-""", rsys_clk=self.rtio.cd_rsys.clk, rio_clk=self.rtio.cd_rio.clk)
-        if isinstance(self.platform.toolchain, XilinxISEToolchain):
-            self.platform.add_platform_command("""
-NET "sys_clk" TNM_NET = "GRPrsys_clk";
-NET "{rio_clk}" TNM_NET = "GRPrio_clk";
-TIMESPEC "TSfix_cdc1" = FROM "GRPrsys_clk" TO "GRPrio_clk" TIG;
-TIMESPEC "TSfix_cdc2" = FROM "GRPrio_clk" TO "GRPrsys_clk" TIG;
-""", rio_clk=self.rtio_crg.cd_rtio.clk)
+        self.specials += [
+            Keep(self.rtio.cd_rsys.clk),
+            Keep(self.rtio_crg.cd_rtio.clk),
+            Keep(self.ethphy.crg.cd_eth_rx.clk),
+            Keep(self.ethphy.crg.cd_eth_tx.clk),
+        ]
+
+        self.platform.add_period_constraint(self.rtio.cd_rsys.clk, 8.)
+        self.platform.add_period_constraint(self.rtio_crg.cd_rtio.clk, 8.)
+        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 8.)
+        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 8.)
+        self.platform.add_false_path_constraints(
+            self.rtio.cd_rsys.clk,
+            self.rtio_crg.cd_rtio.clk,
+            self.ethphy.crg.cd_eth_rx.clk,
+            self.ethphy.crg.cd_eth_tx.clk)
 
         rtio_csrs = self.rtio.get_csrs()
         self.submodules.rtiowb = wishbone.CSRBank(rtio_csrs)
