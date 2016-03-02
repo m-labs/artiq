@@ -108,6 +108,7 @@ class Client:
             server_identification = self.__recv()
             self.__target_names = server_identification["targets"]
             self.__description = server_identification["description"]
+            self.__selected_target = None
             if target_name is not None:
                 self.select_rpc_target(target_name)
         except:
@@ -119,6 +120,12 @@ class Client:
         exactly once if the object was created with ``target_name=None``."""
         target_name = _validate_target_name(target_name, self.__target_names)
         self.__socket.sendall((target_name + "\n").encode())
+        self.__selected_target = target_name
+
+    def get_selected_target(self):
+        """Returns the selected target, or ``None`` if no target has been
+        selected yet."""
+        return self.__selected_target
 
     def get_rpc_id(self):
         """Returns a tuple (target_names, description) containing the
@@ -197,6 +204,7 @@ class AsyncioClient:
             server_identification = await self.__recv()
             self.__target_names = server_identification["targets"]
             self.__description = server_identification["description"]
+            self.__selected_target = None
             if target_name is not None:
                 self.select_rpc_target(target_name)
         except:
@@ -209,6 +217,12 @@ class AsyncioClient:
         """
         target_name = _validate_target_name(target_name, self.__target_names)
         self.__writer.write((target_name + "\n").encode())
+        self.__selected_target = target_name
+
+    def get_selected_target(self):
+        """Returns the selected target, or ``None`` if no target has been
+        selected yet."""
+        return self.__selected_target
 
     def get_rpc_id(self):
         """Returns a tuple (target_names, description) containing the
