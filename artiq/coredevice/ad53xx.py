@@ -41,8 +41,8 @@ class AD53xx:
                  chip_select=0, write_div=4, read_div=6):
         self.core = dmgr.get("core")
         self.bus = dmgr.get(spi_bus)
-        # if ldac is not None:
-        ldac = dmgr.get(ldac)
+        if ldac is not None:
+            ldac = dmgr.get(ldac)
         self.ldac = ldac
         self.chip_select = chip_select
         self.write_div = write_div
