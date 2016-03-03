@@ -353,6 +353,7 @@ class NIST_QC2(_NIST_Ions):
         i2c = platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
         self.register_kernel_cpu_csrdevice("i2c")
+        self.config["I2C_BUS_COUNT"] = 1
 
 
 def main():

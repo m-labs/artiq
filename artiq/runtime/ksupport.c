@@ -13,8 +13,9 @@
 #include "messages.h"
 #include "bridge.h"
 #include "artiq_personality.h"
-#include "dds.h"
 #include "rtio.h"
+#include "dds.h"
+#include "i2c.h"
 
 double round(double x);
 
@@ -116,6 +117,12 @@ static const struct symbol runtime_exports[] = {
     {"dds_batch_enter", &dds_batch_enter},
     {"dds_batch_exit", &dds_batch_exit},
     {"dds_set", &dds_set},
+
+    {"i2c_init", &i2c_init},
+    {"i2c_start", &i2c_start},
+    {"i2c_stop", &i2c_stop},
+    {"i2c_write", &i2c_write},
+    {"i2c_read", &i2c_read},
 
     {"cache_get", &cache_get},
     {"cache_put", &cache_put},
