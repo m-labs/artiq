@@ -1,5 +1,6 @@
 #include <generated/csr.h>
 
+#include "artiq_personality.h"
 #include "rtio.h"
 
 void rtio_init(void)
