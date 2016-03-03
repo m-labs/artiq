@@ -742,6 +742,16 @@ class Stitcher:
         else:
             if hasattr(function, "artiq_embedded"):
                 if function.artiq_embedded.function is not None:
+                    if function.__name__ == "<lambda>":
+                        note = diagnostic.Diagnostic("note",
+                            "lambda created here", {},
+                            self._function_loc(function.artiq_embedded.function))
+                        diag = diagnostic.Diagnostic("fatal",
+                            "lambdas cannot be used as kernel functions", {},
+                            loc,
+                            notes=[note])
+                        self.engine.process(diag)
+
                     # Insert the typed AST for the new function and restart inference.
                     # It doesn't really matter where we insert as long as it is before
                     # the final call.
