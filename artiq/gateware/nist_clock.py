@@ -9,7 +9,7 @@ fmc_adapter_io = [
     ("ttl", 4, Pins("LPC:LA01_CC_N"), IOStandard("LVTTL")),
     ("ttl", 5, Pins("LPC:LA06_P"), IOStandard("LVTTL")),
     ("ttl", 6, Pins("LPC:LA06_N"), IOStandard("LVTTL")),
-    ("ttl", 7, Pins("LPC:LA27_P"), IOStandard("LVTTL")),
+    ("ttl", 7, Pins("LPC:LA01_CC_P"), IOStandard("LVTTL")),
     ("ttl", 8, Pins("LPC:LA10_P"), IOStandard("LVTTL")),
     ("ttl", 9, Pins("LPC:LA05_N"), IOStandard("LVTTL")),
     ("ttl", 10, Pins("LPC:LA05_P"), IOStandard("LVTTL")),
@@ -66,9 +66,9 @@ fmc_adapter_io = [
         IOStandard("LVTTL")),
 
     ("spi", 2,
-        Subsignal("clk", Pins("LPC:LA27_P")),
-        Subsignal("cs_n", Pins("LPC:LA26_P")),
-        Subsignal("mosi", Pins("LPC:LA27_N")),
-        Subsignal("miso", Pins("LPC:LA26_N")),
+        Subsignal("clk", Pins("LPC:LA26_N")),
+        Subsignal("cs_n", Pins("LPC:LA27_N")),
+        Subsignal("mosi", Pins("LPC:LA26_P")),
+        Subsignal("miso", Pins("LPC:LA27_P")),
         IOStandard("LVTTL")),
 ]
