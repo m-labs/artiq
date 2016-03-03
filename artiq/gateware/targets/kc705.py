@@ -291,8 +291,17 @@ class NIST_CLOCK(_NIST_Ions):
 class NIST_QC2(_NIST_Ions):
     """
     NIST QC2 hardware, as used in Quantum I and Quantum II, with new backplane
-    and 12 DDS channels.  Current implementation for single backplane.  
+    and 12 DDS channels. Current implementation for single backplane.
     """
+    csr_map = {
+        "i2c": None
+    }
+    csr_map.update(_NIST_Ions.csr_map)
+    mem_map = {
+        "i2c":  0x30000000 # (shadow @0xb0000000)
+    }
+    mem_map.update(_NIST_Ions.mem_map)
+
     def __init__(self, cpu_type="or1k", **kwargs):
         _NIST_Ions.__init__(self, cpu_type, **kwargs)
 
@@ -340,6 +349,10 @@ class NIST_QC2(_NIST_Ions):
         self.add_rtio(rtio_channels)
         assert self.rtio.fine_ts_width <= 3
         self.config["DDS_RTIO_CLK_RATIO"] = 24 >> self.rtio.fine_ts_width
+
+        i2c = platform.request("i2c")
+        self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
+        self.register_kernel_cpu_csrdevice("i2c")
 
 
 def main():
