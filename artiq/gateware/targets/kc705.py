@@ -134,6 +134,7 @@ class _NIST_Ions(MiniSoC, AMPSoC):
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
         self.submodules.rtio = rtio.RTIO(rtio_channels)
+        self.register_kernel_cpu_csrdevice("rtio")
         self.config["RTIO_FINE_TS_WIDTH"] = self.rtio.fine_ts_width
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
 
@@ -153,13 +154,6 @@ class _NIST_Ions(MiniSoC, AMPSoC):
             self.rtio_crg.cd_rtio.clk,
             self.ethphy.crg.cd_eth_rx.clk,
             self.ethphy.crg.cd_eth_tx.clk)
-
-        rtio_csrs = self.rtio.get_csrs()
-        self.submodules.rtiowb = wishbone.CSRBank(rtio_csrs)
-        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["rtio"]),
-                                     self.rtiowb.bus)
-        self.add_csr_region("rtio", self.mem_map["rtio"] | 0x80000000, 32,
-                            rtio_csrs)
 
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio,
             self.get_native_sdram_if())

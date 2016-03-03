@@ -32,11 +32,17 @@ class AMPSoC:
                                self.mem_map["mailbox"] | 0x80000000, 4)
 
         self.submodules.timer_kernel = timer.Timer()
-        timer_csrs = self.timer_kernel.get_csrs()
-        timerwb = wishbone.CSRBank(timer_csrs)
-        self.submodules += timerwb
-        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["timer_kernel"]),
-                                     timerwb.bus)
-        self.add_csr_region("timer_kernel",
-                            self.mem_map["timer_kernel"] | 0x80000000, 32,
-                            timer_csrs)
+        self.register_kernel_cpu_csrdevice("timer_kernel")
+
+    def register_kernel_cpu_csrdevice(self, name):
+        # make sure the device is not getting connected to the comms-CPU already
+        assert self.csr_map[name] is None
+
+        csrs = getattr(self, name).get_csrs()
+        bank = wishbone.CSRBank(csrs)
+        self.submodules += bank
+        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map[name]),
+                                     bank.bus)
+        self.add_csr_region(name,
+                            self.mem_map[name] | 0x80000000, 32,
+                            csrs)
