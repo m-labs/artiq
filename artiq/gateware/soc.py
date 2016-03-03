@@ -1,5 +1,6 @@
 from misoc.integration.soc_core import mem_decoder
 from misoc.cores import timer
+from misoc.interconnect import wishbone
 
 from artiq.gateware import amp
 
@@ -29,3 +30,13 @@ class AMPSoC:
                                      self.mailbox.i2)
         self.add_memory_region("mailbox",
                                self.mem_map["mailbox"] | 0x80000000, 4)
+
+        self.submodules.timer_kernel = timer.Timer()
+        timer_csrs = self.timer_kernel.get_csrs()
+        timerwb = wishbone.CSRBank(timer_csrs)
+        self.submodules += timerwb
+        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["timer_kernel"]),
+                                     timerwb.bus)
+        self.add_csr_region("timer_kernel",
+                            self.mem_map["timer_kernel"] | 0x80000000, 32,
+                            timer_csrs)

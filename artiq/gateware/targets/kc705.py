@@ -83,7 +83,6 @@ class _RTIOCRG(Module, AutoCSR):
 
 _ams101_dac = [
     ("ams101_dac", 0,
-
         Subsignal("ldac", Pins("XADC:GPIO0")),
         Subsignal("clk", Pins("XADC:GPIO1")),
         Subsignal("mosi", Pins("XADC:GPIO2")),
@@ -95,6 +94,7 @@ _ams101_dac = [
 
 class _NIST_Ions(MiniSoC, AMPSoC):
     csr_map = {
+        "timer_kernel": None,  # mapped on Wishbone instead
         "rtio": None,  # mapped on Wishbone instead
         "rtio_crg": 13,
         "kernel_cpu": 14,
@@ -103,8 +103,9 @@ class _NIST_Ions(MiniSoC, AMPSoC):
     }
     csr_map.update(MiniSoC.csr_map)
     mem_map = {
-        "rtio":     0x20000000, # (shadow @0xa0000000)
-        "mailbox":  0x70000000  # (shadow @0xf0000000)
+        "timer_kernel":  0x10000000, # (shadow @0x90000000)
+        "rtio":          0x20000000, # (shadow @0xa0000000)
+        "mailbox":       0x70000000  # (shadow @0xf0000000)
     }
     mem_map.update(MiniSoC.mem_map)
 
