@@ -29,7 +29,7 @@ class _TTLWidget(QtWidgets.QFrame):
 
         QtWidgets.QFrame.__init__(self)
 
-        self.setFrameShape(QtWidgets.QFrame.Panel)
+        self.setFrameShape(QtWidgets.QFrame.Box)
         self.setFrameShadow(QtWidgets.QFrame.Raised)
 
         grid = QtWidgets.QGridLayout()
