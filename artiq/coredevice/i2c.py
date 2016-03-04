@@ -64,7 +64,7 @@ class TCA6424A:
                 raise I2CError("TCA6424A failed to ack command")
             for i in range(3):
                 if not i2c_write(self.busno, value >> 16):
-                    raise I2CError("TCA6424A failed to ack command")
+                    raise I2CError("TCA6424A failed to ack data")
                 value <<= 8
         finally:
             i2c_stop(self.busno)
