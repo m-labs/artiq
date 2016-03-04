@@ -1,4 +1,6 @@
-from artiq.language.core import kernel, portable, delay_mu
+from artiq.language.core import (kernel, portable, delay_mu, delay,
+                                 seconds_to_mu)
+from artiq.language.units import ns, us
 from artiq.coredevice import spi
 
 # Designed from the data sheets and somewhat after the linux kernel
@@ -95,17 +97,22 @@ class AD5360:
     @kernel
     def load(self):
         self.ldac.off()
-        delay_mu(3*self.bus.ref_period_mu)
+        # t13 = 10ns ldac pulse width low
+        delay_mu(2*self.bus.ref_period_mu)
         self.ldac.on()
 
     @kernel
     def set(self, values, op=_AD5360_CMD_DATA):
-        # write() compensation
+        # compensate all delays that will be applied
         delay_mu(-len(values)*(self.bus.xfer_period_mu +
                                self.bus.write_period_mu +
                                self.bus.ref_period_mu) -
-                 3*self.bus.ref_period_mu)  # latency alignment
+                 3*self.bus.ref_period_mu -
+                 seconds_to_mu(1.5*us) -
+                 seconds_to_mu(3*us))
         self.write_channels(values, op)
-        delay_mu(3*self.bus.ref_period_mu)  # latency alignment
+        delay_mu(3*self.bus.ref_period_mu +  # latency alignment ttl to spi
+                 seconds_to_mu(1.5*us))  # t10 max busy low for one channel
         self.load()
-        delay_mu(-3*self.bus.ref_period_mu)  # load() compensation
+        delay_mu(-2*self.bus.ref_period_mu +  # load(), t13
+                 seconds_to_mu(3*us))  # t16 dac response time
