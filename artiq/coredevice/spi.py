@@ -38,17 +38,16 @@ class SPIMaster:
     * If desired, :meth:`write` ``data`` queuing the next
       (possibly chained) transfer.
 
-    :param ref_period: clock period of the SPI core.
     :param channel: RTIO channel number of the SPI bus to control.
     """
-    def __init__(self, dmgr, ref_period, channel):
+    def __init__(self, dmgr, channel):
         self.core = dmgr.get("core")
-        self.ref_period = ref_period
-        self.ref_period_mu = int(seconds_to_mu(ref_period, self.core))
+        self.ref_period_mu = seconds_to_mu(self.core.coarse_ref_period,
+                                           self.core)
         self.channel = channel
-        self.write_period_mu = int(0)
-        self.read_period_mu = int(0)
-        self.xfer_period_mu = int(0)
+        self.write_period_mu = int(0, 64)
+        self.read_period_mu = int(0, 64)
+        self.xfer_period_mu = int(0, 64)
         # A full transfer takes write_period_mu + xfer_period_mu.
         # Chained transfers can happen every xfer_period_mu.
         # The second transfer of a chain can be written 2*ref_period_mu

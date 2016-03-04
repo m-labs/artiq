@@ -81,7 +81,7 @@
         "arguments": {"channel": 19}
     },
 
-    "ams101_ldac": {
+    "ttl_ams101_ldac": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
@@ -94,7 +94,7 @@
         "arguments": {"channel": 21}
     },
 
-    "ams101_spi": {
+    "spi_ams101": {
         "type": "local",
         "module": "artiq.coredevice.spi",
         "class": "SPIMaster",
@@ -106,6 +106,13 @@
         "module": "artiq.coredevice.spi",
         "class": "SPIMaster",
         "arguments": {"channel": 23}
+    },
+
+    "dac0": {
+        "type": "local",
+        "module": "artiq.coredevice.ad5360",
+        "class": "AD5360",
+        "arguments": {"spi_device": "spi0", "ldac_device": "ttl0"}
     },
 
     "dds_bus": {

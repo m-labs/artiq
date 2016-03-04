@@ -1,7 +1,8 @@
-from artiq.language.core import kernel, portable, delay
-from artiq.language.units import ns
+from artiq.language.core import kernel, portable, delay_mu
 from artiq.coredevice import spi
 
+# Designed from the data sheets and somewhat after the linux kernel
+# iio driver.
 
 _AD5360_SPI_CONFIG = (0*spi.SPI_OFFLINE | 0*spi.SPI_CS_POLARITY |
                       0*spi.SPI_CLK_POLARITY | 1*spi.SPI_CLK_PHASE |
@@ -21,7 +22,7 @@ _AD5360_SPECIAL_NOP = 0 << 16
 _AD5360_SPECIAL_CONTROL = 1 << 16
 _AD5360_SPECIAL_OFS0 = 2 << 16
 _AD5360_SPECIAL_OFS1 = 3 << 16
-_AD5360_SPECIAL_READ = 3 << 16
+_AD5360_SPECIAL_READ = 5 << 16
 
 
 @portable
@@ -43,11 +44,12 @@ class AD5360:
     multi-channel Digital to Analog Converters
     """
 
-    def __init__(self, dmgr, spi_bus, ldac=None, chip_select=0):
+    def __init__(self, dmgr, spi_device, ldac_device=None,
+                 chip_select=1):
         self.core = dmgr.get("core")
-        self.bus = dmgr.get(spi_bus)
-        if ldac is not None:
-            ldac = dmgr.get(ldac)
+        self.bus = dmgr.get(spi_device)
+        if ldac_device is not None:
+            ldac = dmgr.get(ldac_device)
         self.ldac = ldac
         self.chip_select = chip_select
 
@@ -59,31 +61,34 @@ class AD5360:
         self.bus.set_xfer(self.chip_select, 24, 0)
 
     @kernel
+    def write(self, data):
+        self.bus.write(data << 8)
+        delay_mu(self.bus.ref_period_mu)  # get to 20ns min cs high
+
+    @kernel
     def write_offsets(self, value=0x1fff):
         value &= 0x3fff
-        self.bus.write((_AD5360_CMD_SPECIAL | _AD5360_SPECIAL_OFS0 | value
-                        ) << 8)
-        self.bus.write((_AD5360_CMD_SPECIAL | _AD5360_SPECIAL_OFS1 | value
-                        ) << 8)
+        self.write(_AD5360_CMD_SPECIAL | _AD5360_SPECIAL_OFS0 | value)
+        self.write(_AD5360_CMD_SPECIAL | _AD5360_SPECIAL_OFS1 | value)
 
     @kernel
     def write_channel(self, channel=0, value=0, op=_AD5360_CMD_DATA):
         channel &= 0x3f
         value &= 0xffff
-        self.bus.write((op | _AD5360_WRITE_CHANNEL(channel) | value) << 8)
+        self.write(op | _AD5360_WRITE_CHANNEL(channel) | value)
 
     @kernel
-    def write_channels(self, values, first=0, op=_AD5360_CMD_DATA):
+    def write_channels(self, values, op=_AD5360_CMD_DATA):
         for i in range(len(values)):
-            self.write_channel(i + first, values[i], op)
+            self.write_channel(i, values[i], op)
 
     @kernel
     def read_channel_sync(self, channel=0, op=_AD5360_READ_X1A):
         channel &= 0x3f
-        self.bus.write((_AD5360_CMD_SPECIAL | _AD5360_SPECIAL_READ | op |
-                        _AD5360_READ_CHANNEL(channel)) << 8)
+        self.write(_AD5360_CMD_SPECIAL | _AD5360_SPECIAL_READ | op |
+                   _AD5360_READ_CHANNEL(channel))
         self.bus.set_xfer(self.chip_select, 0, 24)
-        self.bus.write((_AD5360_CMD_SPECIAL | _AD5360_SPECIAL_NOP) << 8)
+        self.write(_AD5360_CMD_SPECIAL | _AD5360_SPECIAL_NOP)
         self.bus.read_async()
         self.bus.set_xfer(self.chip_select, 24, 0)
         return self.bus.input_async() & 0xffff
@@ -91,5 +96,5 @@ class AD5360:
     @kernel
     def load(self):
         self.ldac.off()
-        delay(24*ns)
+        delay_mu(3*self.bus.ref_period_mu)
         self.ldac.on()
