@@ -238,7 +238,7 @@ class TTLClockGen:
 
         # in RTIO cycles
         self.previous_timestamp = int(0, width=64)
-        self.acc_width = 24
+        self.acc_width = int(24, width=64)
 
     @portable
     def frequency_to_ftw(self, frequency):
