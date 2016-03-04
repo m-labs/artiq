@@ -30,6 +30,11 @@ These drivers are for the core device and the peripherals closely integrated int
 .. automodule:: artiq.coredevice.spi
     :members:
 
+:mod:`artiq.coredevice.ad5360` module
+-------------------------------------
+
+.. automodule:: artiq.coredevice.ad5360
+    :members:
 
 :mod:`artiq.coredevice.exceptions` module
 -----------------------------------------

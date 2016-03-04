@@ -198,11 +198,11 @@ class SPIMaster:
           the previous transfer's read data is available in the
           ``data`` register.
 
-        This method advances the timeline by the duration of the
-        RTIO-to-Wishbone bus transaction (three RTIO clock cycles).
+        This method advances the timeline by the duration of the SPI transfer.
+        If a transfer is to be chained, the timeline needs to be rewound.
         """
         rtio_output(now_mu(), self.channel, SPI_DATA_ADDR, data)
-        delay_mu(3*self.ref_period_mu)
+        delay_mu(self.xfer_period_mu + self.write_period_mu)
 
     @kernel
     def read_async(self):
