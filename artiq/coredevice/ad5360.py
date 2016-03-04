@@ -50,8 +50,7 @@ class AD5360:
         self.core = dmgr.get("core")
         self.bus = dmgr.get(spi_device)
         if ldac_device is not None:
-            ldac = dmgr.get(ldac_device)
-        self.ldac = ldac
+            self.ldac = dmgr.get(ldac_device)
         self.chip_select = chip_select
 
     @kernel
@@ -77,11 +76,6 @@ class AD5360:
         channel &= 0x3f
         value &= 0xffff
         self.write(op | _AD5360_WRITE_CHANNEL(channel) | value)
-
-    @kernel
-    def write_channels(self, values, op=_AD5360_CMD_DATA):
-        for i in range(len(values)):
-            self.write_channel(i, values[i], op)
 
     @kernel
     def read_channel_sync(self, channel=0, op=_AD5360_READ_X1A):
@@ -110,7 +104,8 @@ class AD5360:
                  3*self.bus.ref_period_mu -
                  seconds_to_mu(1.5*us) -
                  seconds_to_mu(3*us))
-        self.write_channels(values, op)
+        for i in range(len(values)):
+            self.write_channel(i, values[i], op)
         delay_mu(3*self.bus.ref_period_mu +  # latency alignment ttl to spi
                  seconds_to_mu(1.5*us))  # t10 max busy low for one channel
         self.load()
