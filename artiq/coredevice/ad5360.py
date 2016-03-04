@@ -98,3 +98,15 @@ class AD5360:
         self.ldac.off()
         delay_mu(3*self.bus.ref_period_mu)
         self.ldac.on()
+
+    @kernel
+    def set(self, values, op=_AD5360_CMD_DATA):
+        # write() compensation
+        delay_mu(-len(values)*(self.bus.xfer_period_mu +
+                               self.bus.write_period_mu +
+                               self.bus.ref_period_mu) -
+                 3*self.bus.ref_period_mu)  # latency alignment
+        self.write_channels(values, op)
+        delay_mu(3*self.bus.ref_period_mu)  # latency alignment
+        self.load()
+        delay_mu(-3*self.bus.ref_period_mu)  # load() compensation
