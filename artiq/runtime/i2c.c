@@ -106,7 +106,7 @@ void i2c_init(int busno)
     i2c_halfperiod();
     i2c_halfperiod();
     if(!i2c_sda_i(busno))
-        artiq_raise_from_c("I2CError", "SDA is stuck low")
+        artiq_raise_from_c("I2CError", "SDA is stuck low", 0, 0, 0);
 }
 
 void i2c_start(int busno)
