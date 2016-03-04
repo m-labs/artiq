@@ -29,7 +29,7 @@ def i2c_read(busno: TInt32, ack: TBool) -> TInt32:
 
 
 class PCA9548:
-    def __init__(self, dmgr, busno=0, address=0x74):
+    def __init__(self, dmgr, busno=0, address=0xe8):
         self.core = dmgr.get("core")
         self.busno = busno
         self.address = address
