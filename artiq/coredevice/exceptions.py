@@ -113,3 +113,7 @@ class DDSBatchError(Exception):
     or when too many commands are batched.
     """
     artiq_builtin = True
+
+class I2CError(Exception):
+    """Raised with a I2C transaction fails."""
+    artiq_builtin = True

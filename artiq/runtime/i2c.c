@@ -1,5 +1,6 @@
 #include <generated/csr.h>
 
+#include "artiq_personality.h"
 #include "rtio.h"
 #include "i2c.h"
 
@@ -91,7 +92,7 @@ static void i2c_scl_o(int busno, int o) {}
 #endif
 
 
-int i2c_init(int busno)
+void i2c_init(int busno)
 {
     /* Set SCL as output, and high level */
     i2c_scl_o(busno, 1);
@@ -104,10 +105,8 @@ int i2c_init(int busno)
     /* Check the I2C bus is ready */
     i2c_halfperiod();
     i2c_halfperiod();
-    if(i2c_sda_i(busno))
-        return 1; /* success */
-    else
-        return 0;
+    if(!i2c_sda_i(busno))
+        artiq_raise_from_c("I2CError", "SDA is stuck low")
 }
 
 void i2c_start(int busno)
@@ -132,7 +131,7 @@ void i2c_stop(int busno)
     i2c_halfperiod();
 }
 
-int i2c_write(int busno, char b)
+int i2c_write(int busno, int b)
 {
     int i;
 
@@ -158,7 +157,7 @@ int i2c_write(int busno, char b)
     return !i2c_sda_i(busno);
 }
 
-char i2c_read(int busno, int ack)
+int i2c_read(int busno, int ack)
 {
     int i;
     char b;
