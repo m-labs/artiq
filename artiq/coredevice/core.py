@@ -60,11 +60,17 @@ class Core:
         The time machine unit is equal to this period.
     :param external_clock: whether the core device should switch to its
         external RTIO clock input instead of using its internal oscillator.
+    :param ref_multiplier: ratio between the RTIO fine timestamp frequency
+        and the RTIO coarse timestamp frequency (e.g. SERDES multiplication
+        factor).
     :param comm_device: name of the device used for communications.
     """
-    def __init__(self, dmgr, ref_period, external_clock=False, comm_device="comm"):
+    def __init__(self, dmgr, ref_period, external_clock=False,
+                 ref_multiplier=8, comm_device="comm"):
         self.ref_period = ref_period
         self.external_clock = external_clock
+        self.ref_multiplier = ref_multiplier
+        self.coarse_ref_period = ref_period*ref_multiplier
         self.comm = dmgr.get(comm_device)
 
         self.first_run = True
