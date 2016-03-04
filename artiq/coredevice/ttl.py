@@ -245,14 +245,14 @@ class TTLClockGen:
         """Returns the frequency tuning word corresponding to the given
         frequency.
         """
-        return round(2**self.acc_width*frequency*self.core.ref_period)
+        return round(2**self.acc_width*frequency*self.core.coarse_ref_period)
 
     @portable
     def ftw_to_frequency(self, ftw):
         """Returns the frequency corresponding to the given frequency tuning
         word.
         """
-        return ftw/self.core.ref_period/2**self.acc_width
+        return ftw/self.core.coarse_ref_period/2**self.acc_width
 
     @kernel
     def set_mu(self, frequency):
