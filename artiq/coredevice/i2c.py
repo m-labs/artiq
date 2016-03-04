@@ -1,5 +1,5 @@
 from artiq.language.core import syscall, kernel
-from artiq.language.types import TBool, TInt8, TInt32, TNone
+from artiq.language.types import TBool, TInt32, TNone
 from artiq.coredevice.exceptions import I2CError
 
 
