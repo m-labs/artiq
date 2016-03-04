@@ -44,8 +44,7 @@ class AD5360:
     multi-channel Digital to Analog Converters
     """
 
-    def __init__(self, dmgr, spi_device, ldac_device=None,
-                 chip_select=1):
+    def __init__(self, dmgr, spi_device, ldac_device=None, chip_select=1):
         self.core = dmgr.get("core")
         self.bus = dmgr.get(spi_device)
         if ldac_device is not None:
