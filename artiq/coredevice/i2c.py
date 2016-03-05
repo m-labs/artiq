@@ -46,6 +46,19 @@ class PCA9548:
         finally:
             i2c_stop(self.busno)
 
+    @kernel
+    def readback(self):
+        i2c_init(self.busno)
+        i2c_start(self.busno)
+        r = 0
+        try:
+            if not i2c_write(self.busno, self.address | 1):
+                raise I2CError("PCA9548 failed to ack address")
+            r = i2c_read(self.busno, False)
+        finally:
+            i2c_stop(self.busno)
+        return r
+
 
 class TCA6424A:
     def __init__(self, dmgr, busno=0, address=0x44):
