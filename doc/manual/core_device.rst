@@ -29,6 +29,9 @@ KC705
 
 The main target board for the ARTIQ core device is the KC705 development board from Xilinx. It supports the NIST QC1 hardware via an adapter, and the NIST CLOCK and QC2 hardware (FMC).
 
+NIST QC1
+++++++++
+
 With the QC1 hardware, the TTL lines are mapped as follows:
 
 +--------------+------------+--------------+
@@ -46,6 +49,9 @@ With the QC1 hardware, the TTL lines are mapped as follows:
 +--------------+------------+--------------+
 | 19           | TTL15      | Clock        |
 +--------------+------------+--------------+
+
+NIST CLOCK
+++++++++++
 
 With the CLOCK hardware, the TTL lines are mapped as follows:
 
@@ -68,6 +74,20 @@ With the CLOCK hardware, the TTL lines are mapped as follows:
 +--------------------+-----------------------+--------------+
 | 21                 | LA32_P                | Clock        |
 +--------------------+-----------------------+--------------+
+
+
+NIST QC2
+++++++++
+
+With the QC2 hardware, the TTL lines are mapped as follows:
+
+TODO
+
+The QC2 hardware uses TCA6424A I2C I/O expanders to define the directions of its TTL buffers. There is one such expander per FMC card, and they are selected using the PCA9548 on the KC705.
+
+To avoid I/O contention, the startup kernel should first program the TCA6424A expanders and then call ``output()`` on all ``TTLInOut`` channels that should be configured as outputs.
+
+See :mod:`artiq.coredevice.i2c` for more details.
 
 
 Pipistrello

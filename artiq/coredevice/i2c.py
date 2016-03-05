@@ -29,6 +29,11 @@ def i2c_read(busno: TInt32, ack: TBool) -> TInt32:
 
 
 class PCA9548:
+    """Driver for the PCA9548 I2C bus switch.
+
+    On the KC705, this chip is used for selecting the I2C buses on the two FMC
+    connectors. HPC=1, LPC=2.
+    """
     def __init__(self, dmgr, busno=0, address=0xe8):
         self.core = dmgr.get("core")
         self.busno = busno
@@ -36,6 +41,12 @@ class PCA9548:
 
     @kernel
     def set(self, channel):
+        """Select one channel.
+
+        Selecting multiple channels is not supported by this driver.
+
+        :param channel: channel number (0-7)
+        """
         i2c_init(self.busno)
         i2c_start(self.busno)
         try:
@@ -61,6 +72,10 @@ class PCA9548:
 
 
 class TCA6424A:
+    """Driver for the TCA6424A I2C I/O expander.
+
+    On the NIST QC2 hardware, this chip is used for switching the directions
+    of TTL buffers."""
     def __init__(self, dmgr, busno=0, address=0x44):
         self.core = dmgr.get("core")
         self.busno = busno
@@ -84,5 +99,13 @@ class TCA6424A:
 
     @kernel
     def set(self, outputs):
+        """Drive all pins of the chip to the levels given by the
+        specified 24-bit word.
+
+        On the QC2 hardware, the LSB of the word determines the direction of
+        TTL0 (on a given FMC card) and the MSB that of TTL23.
+
+        A bit set to 1 means the TTL is an output.
+        """
         self._write24(0x8c, 0)  # set all directions to output
         self._write24(0x84, output)  # set levels
