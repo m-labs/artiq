@@ -160,7 +160,7 @@ int i2c_write(int busno, int b)
 int i2c_read(int busno, int ack)
 {
     int i;
-    char b;
+    unsigned char b;
 
     /* Set SCL low first, otherwise setting SDA as input may cause a transition
      * on SDA with SCL high which will be interpreted as START/STOP condition.
