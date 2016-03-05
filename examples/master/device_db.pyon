@@ -15,6 +15,12 @@
         "arguments": {"ref_period": 1e-9}
     },
 
+    "i2c_switch": {
+        "type": "local",
+        "module": "artiq.coredevice.i2c",
+        "class": "PCA9548"
+    },
+
     "ttl0": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
