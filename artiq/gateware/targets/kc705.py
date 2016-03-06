@@ -1,7 +1,6 @@
 #!/usr/bin/env python3.5
 
 import argparse
-import os
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -15,13 +14,12 @@ from misoc.interconnect.csr import *
 from misoc.interconnect import wishbone
 from misoc.cores import gpio
 from misoc.integration.soc_core import mem_decoder
-from misoc.integration.builder import *
 from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
+from misoc.integration.builder import builder_args, builder_argdict
 
-from artiq.gateware.soc import AMPSoC
+from artiq.gateware.soc import AMPSoC, build_artiq_soc
 from artiq.gateware import rtio, nist_qc1, nist_clock, nist_qc2
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, dds, spi
-from artiq import __artiq_dir__ as artiq_dir
 from artiq import __version__ as artiq_version
 
 
@@ -375,11 +373,7 @@ def main():
         sys.exit(1)
 
     soc = cls(**soc_kc705_argdict(args))
-    builder = Builder(soc, **builder_argdict(args))
-    builder.add_software_package("liblwip", os.path.join(artiq_dir, "runtime",
-                                                         "liblwip"))
-    builder.add_software_package("runtime", os.path.join(artiq_dir, "runtime"))
-    builder.build()
+    build_artiq_soc(soc, builder_argdict(args))
 
 
 if __name__ == "__main__":

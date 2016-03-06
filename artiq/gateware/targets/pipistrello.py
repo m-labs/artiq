@@ -4,7 +4,6 @@
 # Copyright (C) 2014, 2015 M-Labs Limited
 
 import argparse
-import os
 from fractions import Fraction
 
 from migen import *
@@ -15,12 +14,13 @@ from misoc.interconnect.csr import *
 from misoc.interconnect import wishbone
 from misoc.cores import gpio
 from misoc.integration.soc_core import mem_decoder
-from misoc.targets.pipistrello import *
+from misoc.targets.pipistrello import (BaseSoC, soc_pipistrello_args,
+                                       soc_pipistrello_argdict)
+from misoc.integration.builder import builder_args, builder_argdict
 
-from artiq.gateware.soc import AMPSoC
+from artiq.gateware.soc import AMPSoC, build_artiq_soc
 from artiq.gateware import rtio, nist_qc1
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_spartan6, dds, spi
-from artiq import __artiq_dir__ as artiq_dir
 from artiq import __version__ as artiq_version
 
 
@@ -228,11 +228,7 @@ def main():
     args = parser.parse_args()
 
     soc = NIST_QC1(**soc_pipistrello_argdict(args))
-    builder = Builder(soc, **builder_argdict(args))
-    builder.add_software_package("liblwip", os.path.join(artiq_dir, "runtime",
-                                                         "liblwip"))
-    builder.add_software_package("runtime", os.path.join(artiq_dir, "runtime"))
-    builder.build()
+    build_artiq_soc(soc, builder_argdict(args))
 
 
 if __name__ == "__main__":

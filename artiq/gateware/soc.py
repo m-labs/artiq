@@ -1,8 +1,12 @@
+import os
+
 from misoc.integration.soc_core import mem_decoder
 from misoc.cores import timer
 from misoc.interconnect import wishbone
+from misoc.integration.builder import *
 
 from artiq.gateware import amp
+from artiq import __artiq_dir__ as artiq_dir
 
 
 class AMPSoC:
@@ -46,3 +50,12 @@ class AMPSoC:
         self.add_csr_region(name,
                             self.mem_map[name] | 0x80000000, 32,
                             csrs)
+
+
+def build_artiq_soc(soc, argdict):
+    builder = Builder(soc, **argdict)
+    builder.add_extra_software_packages()
+    builder.add_software_package("liblwip", os.path.join(artiq_dir, "runtime",
+                                                         "liblwip"))
+    builder.add_software_package("runtime", os.path.join(artiq_dir, "runtime"))
+    builder.build()
