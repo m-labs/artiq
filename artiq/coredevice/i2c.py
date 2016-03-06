@@ -43,7 +43,8 @@ class PCA9548:
     def set(self, channel):
         """Select one channel.
 
-        Selecting multiple channels is not supported by this driver.
+        Selecting multiple channels at the same time is not supported by this
+        driver.
 
         :param channel: channel number (0-7)
         """
