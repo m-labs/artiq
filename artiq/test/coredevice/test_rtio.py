@@ -192,7 +192,7 @@ class CoredeviceTest(ExperimentCase):
         rtt = self.dataset_mgr.get("rtt")
         print(rtt)
         self.assertGreater(rtt, 0*ns)
-        self.assertLess(rtt, 50*ns)
+        self.assertLess(rtt, 60*ns)
 
     def test_clock_generator_loopback(self):
         self.execute(ClockGeneratorLoopback)
