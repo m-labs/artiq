@@ -163,6 +163,17 @@ class Collision(EnvExperiment):
             delay_mu(1)
 
 
+class AddressCollision(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.setattr_device("loop_in")
+
+    @kernel
+    def run(self):
+        self.loop_in.input()
+        self.loop_in.pulse(10*us)
+
+
 class TimeKeepsRunning(EnvExperiment):
     def build(self):
         self.setattr_device("core")
@@ -223,6 +234,10 @@ class CoredeviceTest(ExperimentCase):
     def test_collision(self):
         with self.assertRaises(RTIOCollision):
             self.execute(Collision)
+
+    def test_address_collision(self):
+        with self.assertRaises(RTIOCollision):
+            self.execute(AddressCollision)
 
     def test_watchdog(self):
         # watchdog only works on the device
