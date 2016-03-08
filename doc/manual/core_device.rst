@@ -132,3 +132,12 @@ When plugged to an adapter, the NIST QC1 hardware can be used. The TTL lines are
 The input only limitation on channels 0 and 1 comes from the QC-DAQ adapter. When the adapter is not used (and physically unplugged from the Pipistrello board), the corresponding pins on the Pipistrello can be used as outputs. Do not configure these channels as outputs when the adapter is plugged, as this would cause electrical contention.
 
 The board can accept an external RTIO clock connected to PMT2. If the DDS box does not drive the PMT2 pair, use XTRIG and patch the XTRIG transceiver output on the adapter board onto C:15 disconnecting PMT2.
+
+The board has one RTIO SPI bus on the PMOD connector, compliant to PMOD
+Interface Type 2 (SPI) and 2A (expanded SPI):
+
++--------------+--------+--------+--------+--------+
+| RTIO channel | CS_N   | MOSI   | MISO   | CLK    |
++==============+========+========+========+========+
+| 28           | PMOD_0 | PMOD_1 | PMOD_2 | PMOD_3 |
++--------------+--------+--------+--------+--------+
