@@ -234,8 +234,11 @@ class CoredeviceTest(ExperimentCase):
     def test_time_keeps_running(self):
         self.execute(TimeKeepsRunning)
         t1 = self.dataset_mgr.get("time_at_start")
+
+        self.device_mgr.get("comm").close()  # start a new session
         self.execute(TimeKeepsRunning)
         t2 = self.dataset_mgr.get("time_at_start")
+
         dead_time = mu_to_seconds(t2 - t1, self.device_mgr.get("core"))
         print(dead_time)
         self.assertGreater(dead_time, 1*ms)
