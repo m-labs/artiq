@@ -17,11 +17,11 @@ def log_level_to_name(level):
 
 class _WheelFilter(QtCore.QObject):
     def eventFilter(self, obj, event):
-        if event.type() == QtCore.QEvent.Wheel:
+        if (event.type() == QtCore.QEvent.Wheel and
+                event.modifiers() == QtCore.Qt.NoModifier):
             event.ignore()
             return True
-        else:
-            return False
+        return False
 
 
 def disable_scroll_wheel(widget):

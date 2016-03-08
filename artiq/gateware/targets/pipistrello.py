@@ -177,11 +177,30 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
 
+        pmod = self.platform.request("pmod", 0)
+
+        for i in range(4, 8):
+            phy = ttl_simple.Inout(pmod.d[i])
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=128,
+                                                       ofifo_depth=128))
+
         self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
         phy = ttl_simple.ClockGen(platform.request("ttl", 15))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        spi_pins = Module()
+        spi_pins.cs_n = pmod.d[0]
+        spi_pins.mosi = pmod.d[1]
+        spi_pins.miso = pmod.d[2]
+        spi_pins.clk = pmod.d[3]
+        phy = spi.SPIMaster(spi_pins)
+        self.submodules += phy
+        self.config["RTIO_FIRST_SPI_CHANNEL"] = len(rtio_channels)
+        rtio_channels.append(rtio.Channel.from_phy(
+            phy, ofifo_depth=128, ififo_depth=128))
 
         self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
         self.config["DDS_CHANNEL_COUNT"] = 8
@@ -193,18 +212,6 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         rtio_channels.append(rtio.Channel.from_phy(phy,
                                                    ofifo_depth=512,
                                                    ififo_depth=4))
-
-        pmod = self.platform.request("pmod", 0)
-        spi_pins = Module()
-        spi_pins.clk = pmod.d[0]
-        spi_pins.mosi = pmod.d[1]
-        spi_pins.miso = pmod.d[2]
-        spi_pins.cs_n = pmod.d[3:]
-        phy = spi.SPIMaster(spi_pins)
-        self.submodules += phy
-        self.config["RTIO_FIRST_SPI_CHANNEL"] = len(rtio_channels)
-        rtio_channels.append(rtio.Channel.from_phy(
-            phy, ofifo_depth=4, ififo_depth=4))
 
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.LogChannel())
