@@ -7,13 +7,18 @@
 
 #define TIME_BUFFER (8000 << CONFIG_RTIO_FINE_TS_WIDTH)
 
-static void dds_write(int addr, int data)
+static void rtio_output_blind(int channel, int addr, int data)
 {
-    rtio_chan_sel_write(CONFIG_RTIO_DDS_CHANNEL);
+    rtio_chan_sel_write(channel);
     rtio_o_address_write(addr);
     rtio_o_data_write(data);
     rtio_o_timestamp_write(rtio_get_counter() + TIME_BUFFER);
     rtio_o_we_write(1);
+}
+
+static void dds_write(int addr, int data)
+{
+    rtio_output_blind(CONFIG_RTIO_DDS_CHANNEL, addr, data);
 }
 
 static int dds_read(int addr)
@@ -54,7 +59,7 @@ void bridge_main(void)
                 struct msg_brg_ttl_out *msg;
 
                 msg = (struct msg_brg_ttl_out *)umsg;
-                ttl_set_oe(rtio_get_counter() + TIME_BUFFER, msg->channel, msg->value);
+                rtio_output_blind(msg->channel, TTL_OE_ADDR, msg->value);
                 mailbox_acknowledge();
                 break;
             }
@@ -62,7 +67,7 @@ void bridge_main(void)
                 struct msg_brg_ttl_out *msg;
 
                 msg = (struct msg_brg_ttl_out *)umsg;
-                ttl_set_o(rtio_get_counter() + TIME_BUFFER, msg->channel, msg->value);
+                rtio_output_blind(msg->channel, TTL_O_ADDR, msg->value);
                 mailbox_acknowledge();
                 break;
             }

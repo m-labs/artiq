@@ -158,7 +158,7 @@ class CommGeneric:
         return self._read_chunk(self._read_int32())
 
     def _read_string(self):
-        return self._read_bytes()[:-1].decode('utf-8')
+        return self._read_bytes()[:-1].decode("utf-8")
 
     #
     # Writer interface
@@ -242,7 +242,7 @@ class CommGeneric:
 
         self._read_header()
         self._read_expect(_D2HMsgType.LOG_REPLY)
-        return self._read_chunk(self._read_length).decode("utf-8")
+        return self._read_chunk(self._read_length).decode("utf-8", "replace")
 
     def clear_log(self):
         self._write_empty(_H2DMsgType.LOG_CLEAR)

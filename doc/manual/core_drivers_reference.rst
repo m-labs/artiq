@@ -19,9 +19,27 @@ These drivers are for the core device and the peripherals closely integrated int
 ----------------------------------
 
 .. autoclass:: artiq.coredevice.dds._DDSGeneric
-	:members:
+    :members:
 
 .. automodule:: artiq.coredevice.dds
+    :members:
+
+:mod:`artiq.coredevice.spi` module
+----------------------------------
+
+.. automodule:: artiq.coredevice.spi
+    :members:
+
+:mod:`artiq.coredevice.ad5360` module
+-------------------------------------
+
+.. automodule:: artiq.coredevice.ad5360
+    :members:
+
+:mod:`artiq.coredevice.i2c` module
+----------------------------------
+
+.. automodule:: artiq.coredevice.i2c
     :members:
 
 :mod:`artiq.coredevice.exceptions` module

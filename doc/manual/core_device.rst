@@ -29,6 +29,9 @@ KC705
 
 The main target board for the ARTIQ core device is the KC705 development board from Xilinx. It supports the NIST QC1 hardware via an adapter, and the NIST CLOCK and QC2 hardware (FMC).
 
+NIST QC1
+++++++++
+
 With the QC1 hardware, the TTL lines are mapped as follows:
 
 +--------------+------------+--------------+
@@ -47,6 +50,9 @@ With the QC1 hardware, the TTL lines are mapped as follows:
 | 19           | TTL15      | Clock        |
 +--------------+------------+--------------+
 
+NIST CLOCK
+++++++++++
+
 With the CLOCK hardware, the TTL lines are mapped as follows:
 
 +--------------------+-----------------------+--------------+
@@ -64,6 +70,24 @@ With the CLOCK hardware, the TTL lines are mapped as follows:
 +--------------------+-----------------------+--------------+
 | 19                 | LED                   | Output       |
 +--------------------+-----------------------+--------------+
+| 20                 | AMS101_LDAC_B         | Output       |
++--------------------+-----------------------+--------------+
+| 21                 | LA32_P                | Clock        |
++--------------------+-----------------------+--------------+
+
+
+NIST QC2
+++++++++
+
+With the QC2 hardware, the TTL lines are mapped as follows:
+
+TODO
+
+The QC2 hardware uses TCA6424A I2C I/O expanders to define the directions of its TTL buffers. There is one such expander per FMC card, and they are selected using the PCA9548 on the KC705.
+
+To avoid I/O contention, the startup kernel should first program the TCA6424A expanders and then call ``output()`` on all ``TTLInOut`` channels that should be configured as outputs.
+
+See :mod:`artiq.coredevice.i2c` for more details.
 
 
 Pipistrello
@@ -99,6 +123,4 @@ When plugged to an adapter, the NIST QC1 hardware can be used. The TTL lines are
 
 The input only limitation on channels 0 and 1 comes from the QC-DAQ adapter. When the adapter is not used (and physically unplugged from the Pipistrello board), the corresponding pins on the Pipistrello can be used as outputs. Do not configure these channels as outputs when the adapter is plugged, as this would cause electrical contention.
 
-The board can accept an external RTIO clock connected to PMT2. If the DDS box
-does not drive the PMT2 pair, use XTRIG and patch the XTRIG transceiver output
-on the adapter board onto C:15 disconnecting PMT2.
+The board can accept an external RTIO clock connected to PMT2. If the DDS box does not drive the PMT2 pair, use XTRIG and patch the XTRIG transceiver output on the adapter board onto C:15 disconnecting PMT2.

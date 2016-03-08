@@ -86,7 +86,7 @@ class RTIOSequenceError(Exception):
     """
     artiq_builtin = True
 
-class RTIOCollisionError(Exception):
+class RTIOCollision(Exception):
     """Raised when an event is submitted on a given channel with the same
     coarse timestamp as the previous one but with a different fine timestamp.
 
@@ -112,4 +112,8 @@ class DDSBatchError(Exception):
     """Raised when attempting to start a DDS batch while already in a batch,
     or when too many commands are batched.
     """
+    artiq_builtin = True
+
+class I2CError(Exception):
+    """Raised with a I2C transaction fails."""
     artiq_builtin = True

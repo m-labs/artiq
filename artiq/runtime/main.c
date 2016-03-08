@@ -137,9 +137,9 @@ static void network_init(void)
     struct ip4_addr gateway_ip;
 
     init_macadr();
-    fsip_or_default(&local_ip, "ip", 192, 168, 0, 42);
+    fsip_or_default(&local_ip, "ip", 192, 168, 1, 50);
     fsip_or_default(&netmask, "netmask", 255, 255, 255, 0);
-    fsip_or_default(&gateway_ip, "gateway", 192, 168, 0, 1);
+    fsip_or_default(&gateway_ip, "gateway", 192, 168, 1, 1);
 
     lwip_init();
 

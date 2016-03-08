@@ -87,8 +87,12 @@ class WorkerCase(unittest.TestCase):
         _run_experiment("SimpleExperiment")
 
     def test_exception(self):
-        with self.assertRaises(WorkerInternalException):
-            _run_experiment("ExceptionTermination")
+        with self.assertLogs() as logs:
+            with self.assertRaises(WorkerInternalException):
+                _run_experiment("ExceptionTermination")
+            self.assertEqual(len(logs.records), 1)
+            self.assertIn("Terminating with exception (TypeError)",
+                          logs.output[0])
 
     def test_watchdog_no_timeout(self):
         _run_experiment("WatchdogNoTimeout")

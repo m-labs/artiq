@@ -1,26 +1,6 @@
 from artiq.language.core import *
 from artiq.language.types import *
-
-
-@syscall
-def ttl_set_o(time_mu: TInt64, channel: TInt32, enabled: TBool) -> TNone:
-    raise NotImplementedError("syscall not simulated")
-
-@syscall
-def ttl_set_oe(time_mu: TInt64, channel: TInt32, enabled: TBool) -> TNone:
-    raise NotImplementedError("syscall not simulated")
-
-@syscall
-def ttl_set_sensitivity(time_mu: TInt64, channel: TInt32, sensitivity: TInt32) -> TNone:
-    raise NotImplementedError("syscall not simulated")
-
-@syscall
-def ttl_get(channel: TInt32, time_limit_mu: TInt64) -> TInt64:
-    raise NotImplementedError("syscall not simulated")
-
-@syscall
-def ttl_clock_set(time_mu: TInt64, channel: TInt32, ftw: TInt32) -> TNone:
-    raise NotImplementedError("syscall not simulated")
+from artiq.coredevice.rtio import rtio_output, rtio_input_timestamp
 
 
 class TTLOut:
@@ -38,8 +18,12 @@ class TTLOut:
         self.o_previous_timestamp = int(0, width=64)
 
     @kernel
+    def output(self):
+        pass
+
+    @kernel
     def set_o(self, o):
-        ttl_set_o(now_mu(), self.channel, o)
+        rtio_output(now_mu(), self.channel, 0, 1 if o else 0)
         self.o_previous_timestamp = now_mu()
 
     @kernel
@@ -91,6 +75,11 @@ class TTLInOut:
 
     This should be used with bidirectional channels.
 
+    Note that the channel is in input mode by default. If you need to drive a
+    signal, you must call ``output``. If the channel is in output mode most of
+    the time in your setup, it is a good idea to call ``output`` in the
+    startup kernel.
+
     :param channel: channel number
     """
     def __init__(self, dmgr, channel):
@@ -103,21 +92,27 @@ class TTLInOut:
 
     @kernel
     def set_oe(self, oe):
-        ttl_set_oe(now_mu(), self.channel, oe)
+        rtio_output(now_mu(), self.channel, 1, 1 if oe else 0)
 
     @kernel
     def output(self):
-        """Set the direction to output."""
+        """Set the direction to output.
+
+        There must be a delay of at least one RTIO clock cycle before any
+        other command can be issued."""
         self.set_oe(True)
 
     @kernel
     def input(self):
-        """Set the direction to input."""
+        """Set the direction to input.
+
+        There must be a delay of at least one RTIO clock cycle before any
+        other command can be issued."""
         self.set_oe(False)
 
     @kernel
     def set_o(self, o):
-        ttl_set_o(now_mu(), self.channel, o)
+        rtio_output(now_mu(), self.channel, 0, 1 if o else 0)
         self.o_previous_timestamp = now_mu()
 
     @kernel
@@ -159,7 +154,7 @@ class TTLInOut:
 
     @kernel
     def _set_sensitivity(self, value):
-        ttl_set_sensitivity(now_mu(), self.channel, value)
+        rtio_output(now_mu(), self.channel, 2, value)
         self.i_previous_timestamp = now_mu()
 
     @kernel
@@ -215,7 +210,7 @@ class TTLInOut:
         """Poll the RTIO input during all the previously programmed gate
         openings, and returns the number of registered events."""
         count = 0
-        while ttl_get(self.channel, self.i_previous_timestamp) >= 0:
+        while rtio_input_timestamp(self.i_previous_timestamp, self.channel) >= 0:
             count += 1
         return count
 
@@ -226,7 +221,7 @@ class TTLInOut:
 
         If the gate is permanently closed, returns a negative value.
         """
-        return ttl_get(self.channel, self.i_previous_timestamp)
+        return rtio_input_timestamp(self.i_previous_timestamp, self.channel)
 
 
 class TTLClockGen:
@@ -243,21 +238,21 @@ class TTLClockGen:
 
         # in RTIO cycles
         self.previous_timestamp = int(0, width=64)
-        self.acc_width = 24
+        self.acc_width = int(24, width=64)
 
     @portable
     def frequency_to_ftw(self, frequency):
         """Returns the frequency tuning word corresponding to the given
         frequency.
         """
-        return round(2**self.acc_width*frequency*self.core.ref_period)
+        return round(2**self.acc_width*frequency*self.core.coarse_ref_period)
 
     @portable
     def ftw_to_frequency(self, ftw):
         """Returns the frequency corresponding to the given frequency tuning
         word.
         """
-        return ftw/self.core.ref_period/2**self.acc_width
+        return ftw/self.core.coarse_ref_period/2**self.acc_width
 
     @kernel
     def set_mu(self, frequency):
@@ -277,7 +272,7 @@ class TTLClockGen:
         that are not powers of two cause jitter of one RTIO clock cycle at the
         output.
         """
-        ttl_clock_set(now_mu(), self.channel, frequency)
+        rtio_output(now_mu(), self.channel, 0, frequency)
         self.previous_timestamp = now_mu()
 
     @kernel

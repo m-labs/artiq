@@ -1,7 +1,12 @@
+import os
+
 from misoc.integration.soc_core import mem_decoder
 from misoc.cores import timer
+from misoc.interconnect import wishbone
+from misoc.integration.builder import *
 
 from artiq.gateware import amp
+from artiq import __artiq_dir__ as artiq_dir
 
 
 class AMPSoC:
@@ -29,3 +34,28 @@ class AMPSoC:
                                      self.mailbox.i2)
         self.add_memory_region("mailbox",
                                self.mem_map["mailbox"] | 0x80000000, 4)
+
+        self.submodules.timer_kernel = timer.Timer()
+        self.register_kernel_cpu_csrdevice("timer_kernel")
+
+    def register_kernel_cpu_csrdevice(self, name):
+        # make sure the device is not getting connected to the comms-CPU already
+        assert self.csr_map[name] is None
+
+        csrs = getattr(self, name).get_csrs()
+        bank = wishbone.CSRBank(csrs)
+        self.submodules += bank
+        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map[name]),
+                                     bank.bus)
+        self.add_csr_region(name,
+                            self.mem_map[name] | 0x80000000, 32,
+                            csrs)
+
+
+def build_artiq_soc(soc, argdict):
+    builder = Builder(soc, **argdict)
+    builder.add_extra_software_packages()
+    builder.add_software_package("liblwip", os.path.join(artiq_dir, "runtime",
+                                                         "liblwip"))
+    builder.add_software_package("runtime", os.path.join(artiq_dir, "runtime"))
+    builder.build()

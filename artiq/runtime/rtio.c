@@ -1,5 +1,6 @@
 #include <generated/csr.h>
 
+#include "artiq_personality.h"
 #include "rtio.h"
 
 void rtio_init(void)
@@ -15,7 +16,8 @@ long long int rtio_get_counter(void)
     return rtio_counter_read();
 }
 
-void rtio_process_exceptional_status(int status, long long int timestamp, int channel)
+static void rtio_process_exceptional_status(
+        long long int timestamp, int channel, int status)
 {
     if(status & RTIO_O_STATUS_FULL)
         while(rtio_o_status_read() & RTIO_O_STATUS_FULL);
@@ -31,13 +33,86 @@ void rtio_process_exceptional_status(int status, long long int timestamp, int ch
             "RTIO sequence error at {0} mu, channel {1}",
             timestamp, channel, 0);
     }
-    if(status & RTIO_O_STATUS_COLLISION_ERROR) {
-        rtio_o_collision_error_reset_write(1);
-        artiq_raise_from_c("RTIOCollisionError",
-            "RTIO collision error at {0} mu, channel {1}",
+    if(status & RTIO_O_STATUS_COLLISION) {
+        rtio_o_collision_reset_write(1);
+        artiq_raise_from_c("RTIOCollision",
+            "RTIO collision at {0} mu, channel {1}",
             timestamp, channel, 0);
     }
 }
+
+
+void rtio_output(long long int timestamp, int channel, unsigned int addr,
+        unsigned int data)
+{
+    int status;
+
+    rtio_chan_sel_write(channel);
+    rtio_o_timestamp_write(timestamp);
+    rtio_o_address_write(addr);
+    rtio_o_data_write(data);
+    rtio_o_we_write(1);
+    status = rtio_o_status_read();
+    if(status)
+        rtio_process_exceptional_status(timestamp, channel, status);
+}
+
+
+long long int rtio_input_timestamp(long long int timeout, int channel)
+{
+    long long int r;
+    int status;
+
+    rtio_chan_sel_write(channel);
+    while((status = rtio_i_status_read())) {
+        if(status & RTIO_I_STATUS_OVERFLOW) {
+            rtio_i_overflow_reset_write(1);
+            break;
+        }
+        if(rtio_get_counter() >= timeout) {
+            /* check empty flag again to prevent race condition.
+             * now we are sure that the time limit has been exceeded.
+             */
+            status = rtio_i_status_read();
+            if(status & RTIO_I_STATUS_EMPTY)
+                break;
+        }
+        /* input FIFO is empty - keep waiting */
+    }
+
+    if (status & RTIO_I_STATUS_OVERFLOW)
+        artiq_raise_from_c("RTIOOverflow",
+                "RTIO input overflow on channel {0}",
+                channel, 0, 0);
+    if (status & RTIO_I_STATUS_EMPTY)
+        return -1;
+
+    r = rtio_i_timestamp_read();
+    rtio_i_re_write(1);
+    return r;
+}
+
+
+unsigned int rtio_input_data(int channel)
+{
+    unsigned int data;
+    int status;
+
+    rtio_chan_sel_write(channel);
+    while((status = rtio_i_status_read())) {
+        if(status & RTIO_I_STATUS_OVERFLOW) {
+            rtio_i_overflow_reset_write(1);
+            artiq_raise_from_c("RTIOOverflow",
+                    "RTIO input overflow on channel {0}",
+                    channel, 0, 0);
+        }
+    }
+
+    data = rtio_i_data_read();
+    rtio_i_re_write(1);
+    return data;
+}
+
 
 void rtio_log_va(long long int timestamp, const char *fmt, va_list args)
 {

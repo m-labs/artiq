@@ -13,9 +13,9 @@
 #include "messages.h"
 #include "bridge.h"
 #include "artiq_personality.h"
-#include "ttl.h"
-#include "dds.h"
 #include "rtio.h"
+#include "dds.h"
+#include "i2c.h"
 
 double round(double x);
 
@@ -109,17 +109,20 @@ static const struct symbol runtime_exports[] = {
     /* direct syscalls */
     {"rtio_get_counter", &rtio_get_counter},
     {"rtio_log", &rtio_log},
-
-    {"ttl_set_o", &ttl_set_o},
-    {"ttl_set_oe", &ttl_set_oe},
-    {"ttl_set_sensitivity", &ttl_set_sensitivity},
-    {"ttl_get", &ttl_get},
-    {"ttl_clock_set", &ttl_clock_set},
+    {"rtio_output", &rtio_output},
+    {"rtio_input_timestamp", &rtio_input_timestamp},
+    {"rtio_input_data", &rtio_input_data},
 
     {"dds_init", &dds_init},
     {"dds_batch_enter", &dds_batch_enter},
     {"dds_batch_exit", &dds_batch_exit},
     {"dds_set", &dds_set},
+
+    {"i2c_init", &i2c_init},
+    {"i2c_start", &i2c_start},
+    {"i2c_stop", &i2c_stop},
+    {"i2c_write", &i2c_write},
+    {"i2c_read", &i2c_read},
 
     {"cache_get", &cache_get},
     {"cache_put", &cache_put},

@@ -90,7 +90,7 @@ def _create_device(desc, device_mgr):
     if ty == "local":
         module = importlib.import_module(desc["module"])
         device_class = getattr(module, desc["class"])
-        return device_class(device_mgr, **desc["arguments"])
+        return device_class(device_mgr, **desc.get("arguments", {}))
     elif ty == "controller":
         if desc.get("best_effort", False):
             cls = BestEffortClient

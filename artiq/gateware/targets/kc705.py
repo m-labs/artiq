@@ -1,7 +1,6 @@
 #!/usr/bin/env python3.5
 
 import argparse
-import os
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -9,18 +8,18 @@ from migen.genlib.cdc import MultiReg
 from migen.build.generic_platform import *
 from migen.build.xilinx.vivado import XilinxVivadoToolchain
 from migen.build.xilinx.ise import XilinxISEToolchain
+from migen.fhdl.specials import Keep
 
 from misoc.interconnect.csr import *
 from misoc.interconnect import wishbone
 from misoc.cores import gpio
 from misoc.integration.soc_core import mem_decoder
-from misoc.integration.builder import *
 from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
+from misoc.integration.builder import builder_args, builder_argdict
 
-from artiq.gateware.soc import AMPSoC
+from artiq.gateware.soc import AMPSoC, build_artiq_soc
 from artiq.gateware import rtio, nist_qc1, nist_clock, nist_qc2
-from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, dds
-from artiq import __artiq_dir__ as artiq_dir
+from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, dds, spi
 from artiq import __version__ as artiq_version
 
 
@@ -80,9 +79,24 @@ class _RTIOCRG(Module, AutoCSR):
         ]
 
 
+_ams101_dac = [
+    ("ams101_dac", 0,
+        Subsignal("ldac", Pins("XADC:GPIO0")),
+        Subsignal("clk", Pins("XADC:GPIO1")),
+        Subsignal("mosi", Pins("XADC:GPIO2")),
+        Subsignal("cs_n", Pins("XADC:GPIO3")),
+        IOStandard("LVTTL")
+     )
+]
+
+
 class _NIST_Ions(MiniSoC, AMPSoC):
     csr_map = {
-        "rtio": None,  # mapped on Wishbone instead
+        # mapped on Wishbone instead
+        "timer_kernel": None,
+        "rtio": None,
+        "i2c": None,
+
         "rtio_crg": 13,
         "kernel_cpu": 14,
         "rtio_moninj": 15,
@@ -90,8 +104,10 @@ class _NIST_Ions(MiniSoC, AMPSoC):
     }
     csr_map.update(MiniSoC.csr_map)
     mem_map = {
-        "rtio":     0x20000000, # (shadow @0xa0000000)
-        "mailbox":  0x70000000  # (shadow @0xf0000000)
+        "timer_kernel":  0x10000000, # (shadow @0x90000000)
+        "rtio":          0x20000000, # (shadow @0xa0000000)
+        "i2c":           0x30000000, # (shadow @0xb0000000)
+        "mailbox":       0x70000000  # (shadow @0xf0000000)
     }
     mem_map.update(MiniSoC.mem_map)
 
@@ -115,33 +131,36 @@ class _NIST_Ions(MiniSoC, AMPSoC):
             self.platform.request("user_led", 0),
             self.platform.request("user_led", 1)))
 
+        self.platform.add_extension(_ams101_dac)
+
+        i2c = self.platform.request("i2c")
+        self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
+        self.register_kernel_cpu_csrdevice("i2c")
+        self.config["I2C_BUS_COUNT"] = 1
+
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
         self.submodules.rtio = rtio.RTIO(rtio_channels)
+        self.register_kernel_cpu_csrdevice("rtio")
         self.config["RTIO_FINE_TS_WIDTH"] = self.rtio.fine_ts_width
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
 
-        if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
-            self.platform.add_platform_command("""
-create_clock -name rsys_clk -period 8.0 [get_nets {rsys_clk}]
-create_clock -name rio_clk -period 8.0 [get_nets {rio_clk}]
-set_false_path -from [get_clocks rsys_clk] -to [get_clocks rio_clk]
-set_false_path -from [get_clocks rio_clk] -to [get_clocks rsys_clk]
-""", rsys_clk=self.rtio.cd_rsys.clk, rio_clk=self.rtio.cd_rio.clk)
-        if isinstance(self.platform.toolchain, XilinxISEToolchain):
-            self.platform.add_platform_command("""
-NET "sys_clk" TNM_NET = "GRPrsys_clk";
-NET "{rio_clk}" TNM_NET = "GRPrio_clk";
-TIMESPEC "TSfix_cdc1" = FROM "GRPrsys_clk" TO "GRPrio_clk" TIG;
-TIMESPEC "TSfix_cdc2" = FROM "GRPrio_clk" TO "GRPrsys_clk" TIG;
-""", rio_clk=self.rtio_crg.cd_rtio.clk)
+        self.specials += [
+            Keep(self.rtio.cd_rsys.clk),
+            Keep(self.rtio_crg.cd_rtio.clk),
+            Keep(self.ethphy.crg.cd_eth_rx.clk),
+            Keep(self.ethphy.crg.cd_eth_tx.clk),
+        ]
 
-        rtio_csrs = self.rtio.get_csrs()
-        self.submodules.rtiowb = wishbone.CSRBank(rtio_csrs)
-        self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["rtio"]),
-                                     self.rtiowb.bus)
-        self.add_csr_region("rtio", self.mem_map["rtio"] | 0x80000000, 32,
-                            rtio_csrs)
+        self.platform.add_period_constraint(self.rtio.cd_rsys.clk, 8.)
+        self.platform.add_period_constraint(self.rtio_crg.cd_rtio.clk, 8.)
+        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 8.)
+        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 8.)
+        self.platform.add_false_path_constraints(
+            self.rtio.cd_rsys.clk,
+            self.rtio_crg.cd_rtio.clk,
+            self.ethphy.crg.cd_eth_rx.clk,
+            self.ethphy.crg.cd_eth_tx.clk)
 
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio,
             self.get_native_sdram_if())
@@ -235,7 +254,28 @@ class NIST_CLOCK(_NIST_Ions):
         phy = ttl_simple.Output(platform.request("user_led", 2))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        ams101_dac = self.platform.request("ams101_dac", 0)
+        phy = ttl_simple.Output(ams101_dac.ldac)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
         self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
+
+        phy = ttl_simple.ClockGen(platform.request("la32_p"))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        phy = spi.SPIMaster(ams101_dac)
+        self.submodules += phy
+        self.config["RTIO_FIRST_SPI_CHANNEL"] = len(rtio_channels)
+        rtio_channels.append(rtio.Channel.from_phy(
+            phy, ofifo_depth=4, ififo_depth=4))
+
+        for i in range(3):
+            phy = spi.SPIMaster(self.platform.request("spi", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(
+                phy, ofifo_depth=128, ififo_depth=128))
 
         self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
         self.config["DDS_CHANNEL_COUNT"] = 11
@@ -258,7 +298,7 @@ class NIST_CLOCK(_NIST_Ions):
 class NIST_QC2(_NIST_Ions):
     """
     NIST QC2 hardware, as used in Quantum I and Quantum II, with new backplane
-    and 12 DDS channels.  Current implementation for single backplane.  
+    and 12 DDS channels. Current implementation for single backplane.
     """
     def __init__(self, cpu_type="or1k", **kwargs):
         _NIST_Ions.__init__(self, cpu_type, **kwargs)
@@ -315,7 +355,7 @@ def main():
                     "+ NIST Ions QC1/CLOCK/QC2 hardware adapters")
     builder_args(parser)
     soc_kc705_args(parser)
-    parser.add_argument("-H", "--hw-adapter", default="qc1",
+    parser.add_argument("-H", "--hw-adapter", default="clock",
                         help="hardware adapter type: qc1/clock/qc2 "
                              "(default: %(default)s)")
     args = parser.parse_args()
@@ -333,11 +373,7 @@ def main():
         sys.exit(1)
 
     soc = cls(**soc_kc705_argdict(args))
-    builder = Builder(soc, **builder_argdict(args))
-    builder.add_software_package("liblwip", os.path.join(artiq_dir, "runtime",
-                                                         "liblwip"))
-    builder.add_software_package("runtime", os.path.join(artiq_dir, "runtime"))
-    builder.build()
+    build_artiq_soc(soc, builder_argdict(args))
 
 
 if __name__ == "__main__":
