@@ -192,17 +192,6 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
-        self.config["DDS_CHANNEL_COUNT"] = 8
-        self.config["DDS_AD9858"] = True
-        dds_pins = platform.request("dds")
-        self.comb += dds_pins.p.eq(0)
-        phy = dds.AD9858(dds_pins, 8)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy,
-                                                   ofifo_depth=512,
-                                                   ififo_depth=4))
-
         spi_pins = Module()
         spi_pins.cs_n = pmod.d[0]
         spi_pins.mosi = pmod.d[1]
@@ -213,6 +202,17 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         self.config["RTIO_FIRST_SPI_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ofifo_depth=32, ififo_depth=32))
+
+        self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
+        self.config["DDS_CHANNEL_COUNT"] = 8
+        self.config["DDS_AD9858"] = True
+        dds_pins = platform.request("dds")
+        self.comb += dds_pins.p.eq(0)
+        phy = dds.AD9858(dds_pins, 8)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy,
+                                                   ofifo_depth=512,
+                                                   ififo_depth=4))
 
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.LogChannel())
