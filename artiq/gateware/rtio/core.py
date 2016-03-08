@@ -104,6 +104,7 @@ class _OutputManager(Module):
         self.underflow = Signal()  # valid 1 cycle after we, pulsed
         self.sequence_error = Signal()
         self.collision = Signal()
+        self.busy = Signal()  # pulsed
 
         # # #
 
@@ -223,6 +224,20 @@ class _OutputManager(Module):
                 dout.timestamp[fine_ts_width:] == counter.value_rtio),
             interface.stb.eq(dout_stb & dout_ack)
         ]
+        busy_sync = PulseSynchronizer("rio", "rsys")
+        busy_ack_sync = PulseSynchronizer("rsys", "rio")
+        self.submodules += busy_sync, busy_ack_sync
+        busy_blind = Signal()
+        self.comb += busy_sync.i.eq(interface.stb & interface.busy & ~busy_blind)
+        self.sync.rio += [
+            If(interface.stb & interface.busy, busy_blind.eq(1)),
+            If(busy_ack_sync.o, busy_blind.eq(0))
+        ]
+        self.comb += [
+            busy_ack_sync.i.eq(busy_sync.o),
+            self.busy.eq(busy_sync.o)
+        ]
+
         if data_width:
             self.comb += interface.data.eq(dout.data)
         if address_width:
@@ -336,10 +351,11 @@ class _KernelCSRs(AutoCSR):
             self.o_address = CSRStorage(address_width)
         self.o_timestamp = CSRStorage(full_ts_width)
         self.o_we = CSR()
-        self.o_status = CSRStatus(4)
+        self.o_status = CSRStatus(5)
         self.o_underflow_reset = CSR()
         self.o_sequence_error_reset = CSR()
         self.o_collision_reset = CSR()
+        self.o_busy_reset = CSR()
 
         if data_width:
             self.i_data = CSRStatus(data_width)
@@ -427,6 +443,7 @@ class RTIO(Module):
             underflow = Signal()
             sequence_error = Signal()
             collision = Signal()
+            busy = Signal()
             self.sync.rsys += [
                 If(selected & self.kcsrs.o_underflow_reset.re,
                    underflow.eq(0)),
@@ -434,14 +451,18 @@ class RTIO(Module):
                    sequence_error.eq(0)),
                 If(selected & self.kcsrs.o_collision_reset.re,
                    collision.eq(0)),
+                If(selected & self.kcsrs.o_busy_reset.re,
+                   busy.eq(0)),
                 If(o_manager.underflow, underflow.eq(1)),
                 If(o_manager.sequence_error, sequence_error.eq(1)),
-                If(o_manager.collision, collision.eq(1))
+                If(o_manager.collision, collision.eq(1)),
+                If(o_manager.busy, busy.eq(1))
             ]
             o_statuses.append(Cat(~o_manager.writable,
                                   underflow,
                                   sequence_error,
-                                  collision))
+                                  collision,
+                                  busy))
 
             if channel.interface.i is not None:
                 i_manager = _InputManager(channel.interface.i, self.counter,

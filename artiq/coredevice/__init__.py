@@ -1,6 +1,6 @@
 from artiq.coredevice import exceptions, dds, spi
 from artiq.coredevice.exceptions import (RTIOUnderflow, RTIOSequenceError,
-                                         RTIOCollision, RTIOOverflow,
+                                         RTIOCollision, RTIOOverflow, RTIOBusy,
                                          DDSBatchError, CacheError)
 from artiq.coredevice.dds import (PHASE_MODE_CONTINUOUS, PHASE_MODE_ABSOLUTE,
                                   PHASE_MODE_TRACKING)

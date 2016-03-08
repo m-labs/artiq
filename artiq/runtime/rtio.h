@@ -2,11 +2,13 @@
 #define __RTIO_H
 
 #include <stdarg.h>
+#include "generated/csr.h"
 
 #define RTIO_O_STATUS_FULL 1
 #define RTIO_O_STATUS_UNDERFLOW 2
 #define RTIO_O_STATUS_SEQUENCE_ERROR 4
 #define RTIO_O_STATUS_COLLISION 8
+#define RTIO_O_STATUS_BUSY 16
 #define RTIO_I_STATUS_EMPTY 1
 #define RTIO_I_STATUS_OVERFLOW 2
 
