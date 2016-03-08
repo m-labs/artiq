@@ -151,7 +151,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
             phy = ttl_serdes_spartan6.Inout_4X(platform.request("pmt", i),
                                                self.rtio_crg.rtiox4_stb)
             self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512,
+            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=256,
                                                        ofifo_depth=4))
 
         # the last TTL is used for ClockGen
@@ -166,7 +166,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
                 phy = ttl_simple.Output(platform.request("ttl", i))
 
             self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=256))
+            rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=128))
 
         phy = ttl_simple.Output(platform.request("ext_led", 0))
         self.submodules += phy
@@ -182,8 +182,8 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         for i in range(4, 8):
             phy = ttl_simple.Inout(pmod.d[i])
             self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
-                                                       ofifo_depth=32))
+            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=8,
+                                                       ofifo_depth=8))
 
         self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
@@ -200,7 +200,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         self.submodules += phy
         self.config["RTIO_FIRST_SPI_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.Channel.from_phy(
-            phy, ofifo_depth=32, ififo_depth=32))
+            phy, ofifo_depth=8, ififo_depth=8))
 
         self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
         self.config["DDS_CHANNEL_COUNT"] = 8
@@ -210,7 +210,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         phy = dds.AD9858(dds_pins, 8)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,
-                                                   ofifo_depth=512,
+                                                   ofifo_depth=256,
                                                    ififo_depth=4))
 
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
