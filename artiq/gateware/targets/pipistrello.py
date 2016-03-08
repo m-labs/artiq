@@ -180,8 +180,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         pmod = self.platform.request("pmod", 0)
 
         for i in range(4, 8):
-            phy = ttl_serdes_spartan6.Inout_4X(pmod.d[i],
-                                               self.rtio_crg.rtiox4_stb)
+            phy = ttl_simple.Inout(pmod.d[i])
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
                                                        ofifo_depth=32))
