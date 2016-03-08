@@ -196,15 +196,14 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
 
-        for led_number in range(4):
+        for led_number in range(2):
             phy = ttl_simple.Output(platform.request("user_led", led_number))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
 
         spi_pins = self.platform.request("pmod_extended_spi", 0)
 
-        for i, p in enumerate((spi_pins.int, spi_pins.rst,
-                               spi_pins.d0, spi_pins.d1)):
+        for i, p in enumerate((spi_pins.int, spi_pins.rst)):
             phy = ttl_simple.Inout(p)
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4,
@@ -220,7 +219,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         self.submodules += phy
         self.config["RTIO_FIRST_SPI_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.Channel.from_phy(
-            phy, ofifo_depth=64, ififo_depth=64))
+            phy, ofifo_depth=256, ififo_depth=256))
 
         self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
         self.config["DDS_CHANNEL_COUNT"] = 8
