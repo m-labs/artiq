@@ -196,10 +196,10 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
 
         pmod = self.platform.request("pmod", 0)
         spi_pins = Module()
-        spi_pins.clk = pmod.d[0]
+        spi_pins.cs_n = pmod.d[0]
         spi_pins.mosi = pmod.d[1]
         spi_pins.miso = pmod.d[2]
-        spi_pins.cs_n = pmod.d[3:]
+        spi_pins.clk = pmod.d[3]
         phy = spi.SPIMaster(spi_pins)
         self.submodules += phy
         self.config["RTIO_FIRST_SPI_CHANNEL"] = len(rtio_channels)
