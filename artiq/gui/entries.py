@@ -157,6 +157,8 @@ class _RangeScan(LayoutWidget):
         self.scanner = scanner = ScanWidget()
         scanner.setSizePolicy(QtWidgets.QSizePolicy(
             QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed))
+        disable_scroll_wheel(scanner.axis)
+        disable_scroll_wheel(scanner.slider)
         self.addWidget(scanner, 0, 0, -1, 1)
 
         self.min = ScientificSpinBox()
