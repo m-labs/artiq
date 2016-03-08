@@ -9,11 +9,10 @@ from fractions import Fraction
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.cdc import MultiReg
+from migen.build.generic_platform import *
 
 from misoc.interconnect.csr import *
-from misoc.interconnect import wishbone
 from misoc.cores import gpio
-from misoc.integration.soc_core import mem_decoder
 from misoc.targets.pipistrello import (BaseSoC, soc_pipistrello_args,
                                        soc_pipistrello_argdict)
 from misoc.integration.builder import builder_args, builder_argdict
@@ -22,6 +21,28 @@ from artiq.gateware.soc import AMPSoC, build_artiq_soc
 from artiq.gateware import rtio, nist_qc1
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_spartan6, dds, spi
 from artiq import __version__ as artiq_version
+
+
+_pmod_spi = [
+    ("pmod_spi", 0,
+     Subsignal("cs_n", Pins("PMOD:0")),
+     Subsignal("mosi", Pins("PMOD:1")),
+     Subsignal("miso", Pins("PMOD:2")),
+     Subsignal("clk", Pins("PMOD:3")),
+     IOStandard("LVTTL")
+     ),
+    ("pmod_extended_spi", 0,
+     Subsignal("cs_n", Pins("PMOD:0")),
+     Subsignal("mosi", Pins("PMOD:1")),
+     Subsignal("miso", Pins("PMOD:2")),
+     Subsignal("clk", Pins("PMOD:3")),
+     Subsignal("int", Pins("PMOD:4")),
+     Subsignal("rst", Pins("PMOD:5")),
+     Subsignal("d0", Pins("PMOD:6")),
+     Subsignal("d1", Pins("PMOD:7")),
+     IOStandard("LVTTL")
+     ),
+]
 
 
 class _RTIOCRG(Module, AutoCSR):
@@ -88,7 +109,8 @@ class _RTIOCRG(Module, AutoCSR):
 
         # ISE infers correct period constraints for cd_rtio.clk from
         # the internal clock. The first two TIGs target just the BUFGMUX.
-        platform.add_platform_command("""
+        platform.add_platform_command(
+            """
 NET "sys_clk" TNM_NET = "GRPsys_clk";
 NET "{ext_clk}" TNM_NET = "GRPext_clk";
 TIMESPEC "TSfix_ise1" = FROM "GRPsys_clk" TO "GRPext_clk" TIG;
@@ -97,8 +119,9 @@ TIMESPEC "TSfix_ise2" = FROM "GRPsys_clk" TO "GRPint_clk" TIG;
 NET "{rtio_clk}" TNM_NET = "GRPrtio_clk";
 TIMESPEC "TSfix_ise3" = FROM "GRPrtio_clk" TO "GRPsys_clk" TIG;
 TIMESPEC "TSfix_ise4" = FROM "GRPsys_clk" TO "GRPrtio_clk" TIG;
-""", ext_clk=rtio_external_clk, int_clk=rtio_internal_clk,
-     rtio_clk=self.cd_rtio.clk)
+""",
+            ext_clk=rtio_external_clk, int_clk=rtio_internal_clk,
+            rtio_clk=self.cd_rtio.clk)
 
 
 class NIST_QC1(BaseSoC, AMPSoC):
@@ -112,9 +135,9 @@ class NIST_QC1(BaseSoC, AMPSoC):
     }
     csr_map.update(BaseSoC.csr_map)
     mem_map = {
-        "timer_kernel":  0x10000000, # (shadow @0x90000000)
-        "rtio":          0x20000000, # (shadow @0xa0000000)
-        "mailbox":       0x70000000  # (shadow @0xf0000000)
+        "timer_kernel":  0x10000000,  # (shadow @0x90000000)
+        "rtio":          0x20000000,  # (shadow @0xa0000000)
+        "mailbox":       0x70000000   # (shadow @0xf0000000)
     }
     mem_map.update(BaseSoC.mem_map)
 
@@ -134,6 +157,7 @@ class NIST_QC1(BaseSoC, AMPSoC):
 trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd {build_name}.pcf
 """
         platform.add_extension(nist_qc1.papilio_adapter_io)
+        platform.add_extension(_pmod_spi)
 
         self.submodules.leds = gpio.GPIOOut(platform.request("user_led", 4))
 
@@ -177,13 +201,14 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
 
-        pmod = self.platform.request("pmod", 0)
+        spi_pins = self.platform.request("pmod_extended_spi", 0)
 
-        for i in range(4, 8):
-            phy = ttl_simple.Inout(pmod.d[i])
+        for i, p in enumerate((spi_pins.int, spi_pins.rst,
+                               spi_pins.d0, spi_pins.d1)):
+            phy = ttl_simple.Inout(p)
             self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=128,
-                                                       ofifo_depth=128))
+            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4,
+                                                       ofifo_depth=4))
 
         self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
@@ -191,16 +216,11 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        spi_pins = Module()
-        spi_pins.cs_n = pmod.d[0]
-        spi_pins.mosi = pmod.d[1]
-        spi_pins.miso = pmod.d[2]
-        spi_pins.clk = pmod.d[3]
         phy = spi.SPIMaster(spi_pins)
         self.submodules += phy
         self.config["RTIO_FIRST_SPI_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.Channel.from_phy(
-            phy, ofifo_depth=128, ififo_depth=128))
+            phy, ofifo_depth=64, ififo_depth=64))
 
         self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
         self.config["DDS_CHANNEL_COUNT"] = 8
@@ -222,8 +242,8 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         self.config["RTIO_FINE_TS_WIDTH"] = self.rtio.fine_ts_width
         self.config["DDS_RTIO_CLK_RATIO"] = 8 >> self.rtio.fine_ts_width
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
-        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio,
-            self.get_native_sdram_if())
+        self.submodules.rtio_analyzer = rtio.Analyzer(
+            self.rtio, self.get_native_sdram_if())
 
 
 def main():
