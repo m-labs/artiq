@@ -33,10 +33,10 @@ static void rtio_process_exceptional_status(
             "RTIO sequence error at {0} mu, channel {1}",
             timestamp, channel, 0);
     }
-    if(status & RTIO_O_STATUS_COLLISION_ERROR) {
-        rtio_o_collision_error_reset_write(1);
-        artiq_raise_from_c("RTIOCollisionError",
-            "RTIO collision error at {0} mu, channel {1}",
+    if(status & RTIO_O_STATUS_COLLISION) {
+        rtio_o_collision_reset_write(1);
+        artiq_raise_from_c("RTIOCollision",
+            "RTIO collision at {0} mu, channel {1}",
             timestamp, channel, 0);
     }
 }

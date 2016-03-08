@@ -10,3 +10,5 @@ Release notes
 * Core device flash storage has moved due to increased runtime size.
   This requires reflashing the runtime and the flash storage filesystem image
   or erase and rewrite its entries.
+* RTIOCollisionError has been renamed to RTIOCollision
+ 

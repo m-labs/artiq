@@ -86,7 +86,7 @@ class RTIOSequenceError(Exception):
     """
     artiq_builtin = True
 
-class RTIOCollisionError(Exception):
+class RTIOCollision(Exception):
     """Raised when an event is submitted on a given channel with the same
     coarse timestamp as the previous one but with a different fine timestamp.
 

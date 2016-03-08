@@ -82,7 +82,7 @@ class MessageEncoder(Module, AutoCSR):
                 rtio_core.counter.value_sys << rtio_core.fine_ts_width),
         ]
         for ename in ("o_underflow_reset", "o_sequence_error_reset",
-                      "o_collision_error_reset", "i_overflow_reset"):
+                      "o_collision_reset", "i_overflow_reset"):
             self.comb += \
                 If(getattr(kcsrs, ename).re,
                     exception_stb.eq(1),

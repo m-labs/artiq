@@ -150,7 +150,7 @@ class SequenceError(EnvExperiment):
         self.ttl_out.pulse(25*us)
 
 
-class CollisionError(EnvExperiment):
+class Collision(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.setattr_device("ttl_out_serdes")
@@ -220,9 +220,9 @@ class CoredeviceTest(ExperimentCase):
         with self.assertRaises(RTIOSequenceError):
             self.execute(SequenceError)
 
-    def test_collision_error(self):
-        with self.assertRaises(RTIOCollisionError):
-            self.execute(CollisionError)
+    def test_collision(self):
+        with self.assertRaises(RTIOCollision):
+            self.execute(Collision)
 
     def test_watchdog(self):
         # watchdog only works on the device
