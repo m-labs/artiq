@@ -559,8 +559,8 @@ class ScanWidget(QtWidgets.QWidget):
 
     def __init__(self, zoomFactor=1.05, rangeFactor=6):
         QtWidgets.QWidget.__init__(self)
-        slider = ScanSlider()
-        axis = ScanAxis(zoomFactor)
+        self.slider = slider = ScanSlider()
+        self.axis = axis = ScanAxis(zoomFactor)
         zoomFitButton = QtWidgets.QPushButton("View Range")
         fitViewButton = QtWidgets.QPushButton("Snap Range")
         self.proxy = ScanProxy(slider, axis, rangeFactor)
