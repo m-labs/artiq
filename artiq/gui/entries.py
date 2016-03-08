@@ -164,43 +164,43 @@ class _RangeScan(LayoutWidget):
         self.min.setMinimumSize(110, 0)
         self.min.setSizePolicy(QtWidgets.QSizePolicy(
             QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed))
-        self.min.setValue(state["min"]/scale)
         disable_scroll_wheel(self.min)
-        apply_properties(self.min)
         self.addWidget(self.min, 0, 1)
 
         self.npoints = QtWidgets.QSpinBox()
         self.npoints.setMinimum(1)
-        self.npoints.setValue(state["npoints"])
         disable_scroll_wheel(self.npoints)
         self.addWidget(self.npoints, 1, 1)
 
         self.max = ScientificSpinBox()
         self.max.setStyleSheet("QDoubleSpinBox {color:red}")
         self.max.setMinimumSize(110, 0)
-        self.max.setValue(state["max"]/scale)
         disable_scroll_wheel(self.max)
-        apply_properties(self.max)
         self.addWidget(self.max, 2, 1)
 
         def update_min(value):
             state["min"] = value*scale
+            scanner.setStart(value)
 
         def update_max(value):
             state["min"] = value*scale
+            scanner.setStop(value)
 
         def update_npoints(value):
             state["npoints"] = value
+            scanner.setNumPoints(value)
 
-        scanner.sigMinMoved.connect(self.min.setValue)
-        # scanner.sigNumChanged.connect(self.npoints.setValue)
-        scanner.sigMaxMoved.connect(self.max.setValue)
+        scanner.sigStartMoved.connect(self.min.setValue)
+        scanner.sigNumChanged.connect(self.npoints.setValue)
+        scanner.sigStopMoved.connect(self.max.setValue)
         self.min.valueChanged.connect(update_min)
-        self.min.valueChanged.connect(scanner.setMin)
-        # self.npoints.valueChanged.connect(scanner.setNumPoints)
         self.npoints.valueChanged.connect(update_npoints)
-        self.max.valueChanged.connect(scanner.setMax)
         self.max.valueChanged.connect(update_max)
+        self.min.setValue(state["min"]/scale)
+        self.npoints.setValue(state["npoints"])
+        self.max.setValue(state["max"]/scale)
+        apply_properties(self.min)
+        apply_properties(self.max)
 
 
 class _ExplicitScan(LayoutWidget):
