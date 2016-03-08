@@ -196,18 +196,12 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
 
-        for led_number in range(2):
+        for led_number in range(4):
             phy = ttl_simple.Output(platform.request("user_led", led_number))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
 
         spi_pins = self.platform.request("pmod_extended_spi", 0)
-
-        for i, p in enumerate((spi_pins.int, spi_pins.rst)):
-            phy = ttl_simple.Inout(p)
-            self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4,
-                                                       ofifo_depth=4))
 
         self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 

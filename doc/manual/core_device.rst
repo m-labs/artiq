@@ -128,9 +128,9 @@ When plugged to an adapter, the NIST QC1 hardware can be used. The TTL lines are
 +--------------+------------+--------------+
 | 19           | USER_LED_2 | Output       |
 +--------------+------------+--------------+
-| 20           | PMOD_4     | Input+Output |
+| 20           | USER_LED_3 | Output       |
 +--------------+------------+--------------+
-| 21           | PMOD_5     | Input+Output |
+| 21           | USER_LED_4 | Output       |
 +--------------+------------+--------------+
 | 22           | TTL15      | Clock        |
 +--------------+------------+--------------+
