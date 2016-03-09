@@ -133,11 +133,10 @@ class _OutputManager(Module):
             # Note: replace may be asserted at the same time as collision
             # when addresses are different. In that case, it is a collision.
             self.sync.rsys += replace.eq(self.ev.timestamp == buf.timestamp)
-        self.sync.rsys += \
             # Detect sequence errors on coarse timestamps only
             # so that they are mutually exclusive with collision errors.
-            sequence_error.eq(self.ev.timestamp[fine_ts_width:]
-                              < buf.timestamp[fine_ts_width:])
+        self.sync.rsys += sequence_error.eq(self.ev.timestamp[fine_ts_width:] <
+                                            buf.timestamp[fine_ts_width:])
         if interface.enable_replace:
             if hasattr(self.ev, "a"):
                 different_addresses = self.ev.a != buf.a
