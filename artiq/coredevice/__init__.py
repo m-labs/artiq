@@ -7,6 +7,6 @@ from artiq.coredevice.dds import (PHASE_MODE_CONTINUOUS, PHASE_MODE_ABSOLUTE,
 
 __all__ = []
 __all__ += ["RTIOUnderflow", "RTIOSequenceError", "RTIOCollision",
-            "RTIOOverflow", "DDSBatchError", "CacheError"]
+            "RTIOOverflow", "RTIOBusy", "DDSBatchError", "CacheError"]
 __all__ += ["PHASE_MODE_CONTINUOUS", "PHASE_MODE_ABSOLUTE",
             "PHASE_MODE_TRACKING"]
