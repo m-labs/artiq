@@ -40,16 +40,19 @@ def decode_message(data):
 
 
 DecodedDump = namedtuple(
-    "DecodedDump", "log_channel dds_channel dds_onehot_sel messages")
+    "DecodedDump", "log_channel dds_onehot_sel messages")
 
 
 def decode_dump(data):
-    parts = struct.unpack(">IQbbbb", data[:16])
+    parts = struct.unpack(">IQbbb", data[:15])
     (sent_bytes, total_byte_count,
-     overflow_occured, log_channel, dds_channel, dds_onehot_sel) = parts
+     overflow_occured, log_channel, dds_onehot_sel) = parts
 
-    if sent_bytes + 16 != len(data):
-        raise ValueError("analyzer dump has incorrect length")
+    expected_len = sent_bytes + 15
+    if expected_len != len(data):
+        raise ValueError("analyzer dump has incorrect length "
+                         "(got {}, expected {})".format(
+                            len(data), expected_len))
     if overflow_occured:
         logger.warning("analyzer FIFO overflow occured, "
                        "some messages have been lost")
@@ -57,14 +60,12 @@ def decode_dump(data):
         logger.info("analyzer ring buffer has wrapped %d times",
                     total_byte_count//sent_bytes)
 
-    position = 16
+    position = 15
     messages = []
     for _ in range(sent_bytes//32):
         messages.append(decode_message(data[position:position+32]))
         position += 32
-    return DecodedDump(log_channel,
-                       dds_channel, bool(dds_onehot_sel),
-                       messages)
+    return DecodedDump(log_channel, bool(dds_onehot_sel), messages)
 
 
 def vcd_codes():
@@ -299,21 +300,31 @@ def get_vcd_log_channels(log_channel, messages):
     return vcd_log_channels
 
 
-def get_ref_period(devices):
+def get_single_device_argument(devices, module, cls, argument):
     ref_period = None
     for desc in devices.values():
         if isinstance(desc, dict) and desc["type"] == "local":
-            if (desc["module"] == "artiq.coredevice.core"
-                    and desc["class"] == "Core"):
+            if (desc["module"] == module
+                    and desc["class"] == cls):
                 if ref_period is None:
-                    ref_period = desc["arguments"]["ref_period"]
+                    ref_period = desc["arguments"][argument]
                 else:
-                    return None  # more than one core device found
+                    return None  # more than one device found
     return ref_period
 
 
+def get_ref_period(devices):
+    return get_single_device_argument(devices, "artiq.coredevice.core",
+                                      "Core", "ref_period")
+
+
+def get_dds_sysclk(devices):
+    return get_single_device_argument(devices, "artiq.coredevice.core",
+                                      "CoreDDS", "sysclk")
+
+
 def create_channel_handlers(vcd_manager, devices, ref_period,
-                            dds_channel, dds_onehot_sel):
+                            dds_sysclk, dds_onehot_sel):
     channel_handlers = dict()
     for name, desc in sorted(devices.items(), key=itemgetter(0)):
         if isinstance(desc, dict) and desc["type"] == "local":
@@ -327,19 +338,17 @@ def create_channel_handlers(vcd_manager, devices, ref_period,
                 channel_handlers[channel] = TTLClockGenHandler(vcd_manager, name, ref_period)
             if (desc["module"] == "artiq.coredevice.dds"
                     and desc["class"] in {"AD9858", "AD9914"}):
-                sysclk = desc["arguments"]["sysclk"]
-                dds_channel_ddsbus = desc["arguments"]["channel"]
-                if dds_channel in channel_handlers:
-                    dds_handler = channel_handlers[dds_channel]
+                dds_bus_channel = desc["arguments"]["bus_channel"]
+                dds_channel = desc["arguments"]["channel"]
+                if dds_bus_channel in channel_handlers:
+                    dds_handler = channel_handlers[dds_bus_channel]
                     if dds_handler.dds_type != desc["class"]:
                         raise ValueError("All DDS channels must have the same type")
-                    if dds_handler.sysclk != sysclk:
-                        raise ValueError("All DDS channels must have the same sysclk")
                 else:
                     dds_handler = DDSHandler(vcd_manager, desc["class"],
-                        dds_onehot_sel, sysclk)
-                    channel_handlers[dds_channel] = dds_handler
-                dds_handler.add_dds_channel(name, dds_channel_ddsbus)
+                        dds_sysclk, dds_onehot_sel)
+                    channel_handlers[dds_bus_channel] = dds_handler
+                dds_handler.add_dds_channel(name, dds_channel)
     return channel_handlers
 
 
@@ -355,12 +364,16 @@ def decoded_dump_to_vcd(fileobj, devices, dump):
     else:
         logger.warning("unable to determine core device ref_period")
         ref_period = 1e-9  # guess
+    dds_sysclk = get_dds_sysclk(devices)
+    if dds_sysclk is None:
+        logger.warning("unable to determine DDS sysclk")
+        dds_sysclk = 3e9  # guess
 
     messages = sorted(dump.messages, key=get_message_time)
 
     channel_handlers = create_channel_handlers(
         vcd_manager, devices, ref_period,
-        dump.dds_channel, dump.dds_onehot_sel)
+        dds_sysclk, dump.dds_onehot_sel)
     vcd_log_channels = get_vcd_log_channels(dump.log_channel, messages)
     channel_handlers[dump.log_channel] = LogHandler(vcd_manager, vcd_log_channels)
     slack = vcd_manager.get_channel("rtio_slack", 64)

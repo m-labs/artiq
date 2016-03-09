@@ -26,11 +26,11 @@
 #endif
 
 #define DDS_WRITE(addr, data) do { \
-        rtio_output(now, CONFIG_RTIO_DDS_CHANNEL, addr, data); \
+        rtio_output(now, bus_channel, addr, data); \
         now += DURATION_WRITE; \
     } while(0)
 
-void dds_init(long long int timestamp, int channel)
+void dds_init(long long int timestamp, int bus_channel, int channel)
 {
     long long int now;
 
@@ -84,7 +84,8 @@ void dds_init(long long int timestamp, int channel)
  * to continuous phase mode. */
 static unsigned int continuous_phase_comp[CONFIG_DDS_CHANNEL_COUNT];
 
-static void dds_set_one(long long int now, long long int ref_time, unsigned int channel,
+static void dds_set_one(long long int now, long long int ref_time,
+    unsigned int bus_channel, unsigned int channel,
     unsigned int ftw, unsigned int pow, int phase_mode, unsigned int amplitude)
 {
     unsigned int channel_enc;
@@ -157,6 +158,7 @@ static void dds_set_one(long long int now, long long int ref_time, unsigned int 
 }
 
 struct dds_set_params {
+    int bus_channel;
     int channel;
     unsigned int ftw;
     unsigned int pow;
@@ -189,20 +191,22 @@ void dds_batch_exit(void)
     now = batch_ref_time - batch_count*(DURATION_PROGRAM + DURATION_WRITE);
     for(i=0;i<batch_count;i++) {
         dds_set_one(now, batch_ref_time,
-            batch[i].channel, batch[i].ftw, batch[i].pow, batch[i].phase_mode,
+            batch[i].bus_channel, batch[i].channel,
+            batch[i].ftw, batch[i].pow, batch[i].phase_mode,
             batch[i].amplitude);
         now += DURATION_PROGRAM + DURATION_WRITE;
     }
     batch_mode = 0;
 }
 
-void dds_set(long long int timestamp, int channel,
+void dds_set(long long int timestamp, int bus_channel, int channel,
     unsigned int ftw, unsigned int pow, int phase_mode, unsigned int amplitude)
 {
     if(batch_mode) {
         if(batch_count >= DDS_MAX_BATCH)
             artiq_raise_from_c("DDSBatchError", "DDS batch error", 0, 0, 0);
         /* timestamp parameter ignored (determined by batch) */
+        batch[batch_count].bus_channel = bus_channel;
         batch[batch_count].channel = channel;
         batch[batch_count].ftw = ftw;
         batch[batch_count].pow = pow;
@@ -210,7 +214,8 @@ void dds_set(long long int timestamp, int channel,
         batch[batch_count].amplitude = amplitude;
         batch_count++;
     } else {
-        dds_set_one(timestamp - DURATION_PROGRAM, timestamp, channel, ftw, pow, phase_mode,
-                    amplitude);
+        dds_set_one(timestamp - DURATION_PROGRAM, timestamp,
+                    bus_channel, channel,
+                    ftw, pow, phase_mode, amplitude);
     }
 }

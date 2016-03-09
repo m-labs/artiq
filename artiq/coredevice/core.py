@@ -22,7 +22,7 @@ def _render_diagnostic(diagnostic, colored):
     lines = [shorten_path(path) for path in diagnostic.render(colored=colored)]
     return "\n".join(lines)
 
-colors_supported = (os.name == 'posix')
+colors_supported = os.name == "posix"
 class _DiagnosticEngine(diagnostic.Engine):
     def render_diagnostic(self, diagnostic):
         sys.stderr.write(_render_diagnostic(diagnostic, colored=colors_supported) + "\n")
@@ -48,6 +48,7 @@ def cache_get(key: TStr) -> TList(TInt32):
 @syscall
 def cache_put(key: TStr, value: TList(TInt32)) -> TNone:
     raise NotImplementedError("syscall not simulated")
+
 
 class Core:
     """Core device driver.

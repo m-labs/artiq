@@ -150,23 +150,37 @@ struct msg_brg_ttl_out {
 
 struct msg_brg_dds_sel {
     int type;
+    int bus_channel;
     int channel;
+};
+
+struct msg_brg_dds_reset {
+    int type;
+    int bus_channel;
 };
 
 struct msg_brg_dds_read_request {
     int type;
+    int bus_channel;
     unsigned int address;
 };
 
 struct msg_brg_dds_read_reply {
     int type;
+    int bus_channel;
     unsigned int data;
 };
 
 struct msg_brg_dds_write {
     int type;
+    int bus_channel;
     unsigned int address;
     unsigned int data;
+};
+
+struct msg_brg_dds_fud {
+    int type;
+    int bus_channel;
 };
 
 #endif /* __MESSAGES_H */

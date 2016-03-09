@@ -14,6 +14,12 @@
         "class": "Core",
         "arguments": {"ref_period": 1e-9}
     },
+    "core_dds": {
+        "type": "local",
+        "module": "artiq.coredevice.dds",
+        "class": "CoreDDS",
+        "arguments": {"sysclk": 3e9}
+    },
 
     "i2c_switch": {
         "type": "local",
@@ -121,30 +127,24 @@
         "arguments": {"spi_device": "spi0", "ldac_device": "ttl0"}
     },
 
-    "dds_bus": {
-        "type": "local",
-        "module": "artiq.coredevice.dds",
-        "class": "DDSBus",
-        "arguments": {}
-    },
     "dds0": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "AD9914",
-        "arguments": {"sysclk": 3e9, "channel": 0},
+        "arguments": {"bus_channel": 26, "channel": 0},
         "comment": "Comments work in DDS panel as well"
     },
     "dds1": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "AD9914",
-        "arguments": {"sysclk": 3e9, "channel": 1}
+        "arguments": {"bus_channel": 26, "channel": 1}
     },
     "dds2": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "AD9914",
-        "arguments": {"sysclk": 3e9, "channel": 2}
+        "arguments": {"bus_channel": 26, "channel": 2}
     },
 
     "qc_q1_0": {

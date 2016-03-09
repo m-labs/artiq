@@ -11,7 +11,12 @@ PHASE_MODE_TRACKING = 2
 
 
 @syscall
-def dds_init(time_mu: TInt64, channel: TInt32) -> TNone:
+def dds_init(time_mu: TInt64, bus_channel: TInt32, channel: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+@syscall
+def dds_set(time_mu: TInt64, bus_channel: TInt32, channel: TInt32, ftw: TInt32,
+            pow: TInt32, phase_mode: TInt32, amplitude: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 @syscall
@@ -22,35 +27,36 @@ def dds_batch_enter(time_mu: TInt64) -> TNone:
 def dds_batch_exit() -> TNone:
     raise NotImplementedError("syscall not simulated")
 
-@syscall
-def dds_set(time_mu: TInt64, channel: TInt32, ftw: TInt32,
-            pow: TInt32, phase_mode: TInt32, amplitude: TInt32) -> TNone:
-    raise NotImplementedError("syscall not simulated")
-
 
 class _BatchContextManager:
-    def __init__(self, dds_bus):
-        self.dds_bus = dds_bus
+    def __init__(self, core_dds):
+        self.core_dds = core_dds
+        self.core = self.core_dds.core
 
     @kernel
     def __enter__(self):
-        self.dds_bus.batch_enter()
+        self.core_dds.dds_batch_enter()
 
     @kernel
     def __exit__(self, type, value, traceback):
-        self.dds_bus.batch_exit()
+        self.core_dds.dds_batch_exit()
 
 
-class DDSBus:
-    """Core device Direct Digital Synthesis (DDS) bus batching driver.
+class CoreDDS:
+    """Core device Direct Digital Synthesis (DDS) driver.
 
-    Manages batching of DDS commands on a DDS shared bus."""
-    def __init__(self, dmgr):
-        self.core = dmgr.get("core")
+    Gives access to the DDS functionality of the core device.
+
+    :param sysclk: DDS system frequency. The DDS system clock must be a
+        phase-locked multiple of the RTIO clock.
+    """
+    def __init__(self, dmgr, sysclk, core_device="core"):
+        self.core = dmgr.get(core_device)
+        self.sysclk = sysclk
         self.batch = _BatchContextManager(self)
 
     @kernel
-    def batch_enter(self):
+    def dds_batch_enter(self):
         """Starts a DDS command batch. All DDS commands are buffered
         after this call, until ``batch_exit`` is called.
 
@@ -59,26 +65,27 @@ class DDSBus:
         dds_batch_enter(now_mu())
 
     @kernel
-    def batch_exit(self):
+    def dds_batch_exit(self):
         """Ends a DDS command batch. All buffered DDS commands are issued
         on the bus."""
         dds_batch_exit()
 
 
 class _DDSGeneric:
-    """Core device Direct Digital Synthesis (DDS) driver.
+    """Core device Direct Digital Synthesis (DDS) channel driver.
 
     Controls one DDS channel managed directly by the core device's runtime.
 
     This class should not be used directly, instead, use the chip-specific
     drivers such as ``AD9858`` and ``AD9914``.
 
-    :param sysclk: DDS system frequency.
+    :param bus: name of the DDS bus device that this DDS is connected to.
     :param channel: channel number of the DDS device to control.
     """
-    def __init__(self, dmgr, sysclk, channel):
-        self.core = dmgr.get("core")
-        self.sysclk = sysclk
+    def __init__(self, dmgr, sysclk, bus_channel, channel, core_dds_device="core_dds"):
+        self.core_dds = dmgr.get(core_dds_device)
+        self.core = self.core_dds.core
+        self.bus_channel = bus_channel
         self.channel = channel
         self.phase_mode = PHASE_MODE_CONTINUOUS
 
@@ -87,14 +94,14 @@ class _DDSGeneric:
         """Returns the frequency tuning word corresponding to the given
         frequency.
         """
-        return round(int(2, width=64)**32*frequency/self.sysclk)
+        return round(int(2, width=64)**32*frequency/self.core_dds.sysclk)
 
     @portable
     def ftw_to_frequency(self, ftw):
         """Returns the frequency corresponding to the given frequency tuning
         word.
         """
-        return ftw*self.sysclk/int(2, width=64)**32
+        return ftw*self.core_dds.sysclk/int(2, width=64)**32
 
     @portable
     def turns_to_pow(self, turns):
@@ -124,7 +131,7 @@ class _DDSGeneric:
         """Resets and initializes the DDS channel.
 
         The runtime does this for all channels upon core device startup."""
-        dds_init(now_mu(), self.channel)
+        dds_init(now_mu(), self.bus_channel, self.channel)
 
     @kernel
     def set_phase_mode(self, phase_mode):
@@ -163,7 +170,8 @@ class _DDSGeneric:
         """
         if phase_mode == _PHASE_MODE_DEFAULT:
             phase_mode = self.phase_mode
-        dds_set(now_mu(), self.channel, frequency, phase, phase_mode, amplitude)
+        dds_set(now_mu(), self.bus_channel, self.channel,
+                frequency, phase, phase_mode, amplitude)
 
     @kernel
     def set(self, frequency, phase=0.0, phase_mode=_PHASE_MODE_DEFAULT,

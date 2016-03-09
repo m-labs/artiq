@@ -43,30 +43,33 @@ void brg_ttlo(int n, int value)
     mailbox_send_and_wait(&msg);
 }
 
-void brg_ddssel(int channel)
+void brg_ddssel(int bus_channel, int channel)
 {
     struct msg_brg_dds_sel msg;
 
     msg.type = MESSAGE_TYPE_BRG_DDS_SEL;
+    msg.bus_channel = bus_channel;
     msg.channel = channel;
     mailbox_send_and_wait(&msg);
 }
 
-void brg_ddsreset(void)
+void brg_ddsreset(int bus_channel)
 {
-    struct msg_base msg;
+    struct msg_brg_dds_reset msg;
 
     msg.type = MESSAGE_TYPE_BRG_DDS_RESET;
+    msg.bus_channel = bus_channel;
     mailbox_send_and_wait(&msg);
 }
 
-unsigned int brg_ddsread(unsigned int address)
+unsigned int brg_ddsread(int bus_channel, unsigned int address)
 {
     struct msg_brg_dds_read_request msg;
     struct msg_brg_dds_read_reply *rmsg;
     unsigned int r;
 
     msg.type = MESSAGE_TYPE_BRG_DDS_READ_REQUEST;
+    msg.bus_channel = bus_channel;
     msg.address = address;
     mailbox_send(&msg);
     while(1) {
@@ -82,20 +85,22 @@ unsigned int brg_ddsread(unsigned int address)
     }
 }
 
-void brg_ddswrite(unsigned int address, unsigned int data)
+void brg_ddswrite(int bus_channel, unsigned int address, unsigned int data)
 {
     struct msg_brg_dds_write msg;
 
     msg.type = MESSAGE_TYPE_BRG_DDS_WRITE;
+    msg.bus_channel = bus_channel;
     msg.address = address;
     msg.data = data;
     mailbox_send_and_wait(&msg);
 }
 
-void brg_ddsfud(void)
+void brg_ddsfud(int bus_channel)
 {
-    struct msg_base msg;
+    struct msg_brg_dds_fud msg;
 
     msg.type = MESSAGE_TYPE_BRG_DDS_FUD;
+    msg.bus_channel = bus_channel;
     mailbox_send_and_wait(&msg);
 }
