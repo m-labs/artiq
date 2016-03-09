@@ -42,8 +42,8 @@ static void rtio_process_exceptional_status(
     if(status & RTIO_O_STATUS_BUSY) {
         rtio_o_busy_reset_write(1);
         artiq_raise_from_c("RTIOBusy",
-            "RTIO busy at {0} mu, channel {1}",
-            timestamp, channel, 0);
+            "RTIO busy on channel {0}",
+            channel, 0, 0);
     }
 }
 
