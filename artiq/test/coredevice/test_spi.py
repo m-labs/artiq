@@ -2,6 +2,19 @@ from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 
 
+class Collision(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.setattr_device("spi0")
+
+    @kernel
+    def run(self):
+        t = now_mu()
+        self.spi0.set_config_mu()
+        at_mu(t)
+        self.spi0.set_config_mu()
+
+
 class Busy(EnvExperiment):
     def build(self):
         self.setattr_device("core")
@@ -10,8 +23,9 @@ class Busy(EnvExperiment):
 
     @kernel
     def run(self):
+        t = now_mu()
         self.spi0.set_config_mu()
-        delay(-8*ns)
+        at_mu(t + self.spi0.ref_period_mu)
         self.spi0.set_config_mu()  # causes the error
         self.led.on()
         self.led.sync()            # registers the error
@@ -20,5 +34,10 @@ class Busy(EnvExperiment):
 
 
 class SPITest(ExperimentCase):
+    def test_collision(self):
+        with self.assertRaises(RTIOCollision):
+            self.execute(Collision)
+
     def test_busy(self):
-        self.execute(Busy)
+        with self.assertRaises(RTIOBusy):
+            self.execute(Busy)
