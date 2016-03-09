@@ -124,3 +124,6 @@ class ExperimentCase(unittest.TestCase):
         except CompileError as error:
             # Reduce amount of text on terminal.
             raise error from None
+        except Exception as exn:
+            exn.args = exn.args[0] + "\n" + str(exn.artiq_core_exception),
+            raise exn
