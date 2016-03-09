@@ -109,7 +109,7 @@ class ExperimentCase(unittest.TestCase):
             # skip if ddb does not match requirements
             raise unittest.SkipTest(*e.args)
 
-    def execute(self, cls, *args, **kwargs):
+    def execute(self, cls, **kwargs):
         expid = {
             "file": sys.modules[cls.__module__].__file__,
             "class_name": cls.__name__,
