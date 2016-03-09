@@ -99,15 +99,14 @@ class RTIOCollision(Exception):
     artiq_builtin = True
 
 class RTIOBusy(Exception):
-    """Raised when an event could not be executed because the given channel
-    was already busy executing a previous event. The two events were not
-    sufficiently spaced on the timeline.
+    """Raised when at least one output event could not be executed because
+    the given channel was already busy executing a previous event.
 
-    This exception is raised after the error condition appeared. More
+    This exception is raised late: after the error condition occurred. More
     specifically it is raised on submitting an event on the same channel after
     the execution of the faulty event was attempted.
 
-    The offending event is discarded and the RTIO core keeps operating.
+    The offending event was discarded.
     """
     artiq_builtin = True
 
