@@ -125,5 +125,7 @@ class ExperimentCase(unittest.TestCase):
             # Reduce amount of text on terminal.
             raise error from None
         except Exception as exn:
-            exn.args = exn.args[0] + "\n" + str(exn.artiq_core_exception),
+            if hasattr(exn, "artiq_core_exception"):
+                exn.args = "{}\n{}".format(exn.args[0],
+                                           exn.artiq_core_exception),
             raise exn
