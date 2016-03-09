@@ -34,8 +34,8 @@ class PCA9548:
     On the KC705, this chip is used for selecting the I2C buses on the two FMC
     connectors. HPC=1, LPC=2.
     """
-    def __init__(self, dmgr, busno=0, address=0xe8):
-        self.core = dmgr.get("core")
+    def __init__(self, dmgr, busno=0, address=0xe8, core_device="core"):
+        self.core = dmgr.get(core_device)
         self.busno = busno
         self.address = address
 
@@ -77,8 +77,8 @@ class TCA6424A:
 
     On the NIST QC2 hardware, this chip is used for switching the directions
     of TTL buffers."""
-    def __init__(self, dmgr, busno=0, address=0x44):
-        self.core = dmgr.get("core")
+    def __init__(self, dmgr, busno=0, address=0x44, core_device="core"):
+        self.core = dmgr.get(core_device)
         self.busno = busno
         self.address = address
 
