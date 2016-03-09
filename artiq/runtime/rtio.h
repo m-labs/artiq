@@ -2,7 +2,6 @@
 #define __RTIO_H
 
 #include <stdarg.h>
-#include "generated/csr.h"
 
 #define RTIO_O_STATUS_FULL 1
 #define RTIO_O_STATUS_UNDERFLOW 2
