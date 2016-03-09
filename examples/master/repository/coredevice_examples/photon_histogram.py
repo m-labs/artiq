@@ -6,7 +6,7 @@ class PhotonHistogram(EnvExperiment):
 
     def build(self):
         self.setattr_device("core")
-        self.setattr_device("dds_bus")
+        self.setattr_device("core_dds")
         self.setattr_device("bd_dds")
         self.setattr_device("bd_sw")
         self.setattr_device("bdd_dds")
@@ -22,7 +22,7 @@ class PhotonHistogram(EnvExperiment):
 
     @kernel
     def program_cooling(self):
-        with self.dds_bus.batch:
+        with self.core_dds.batch:
             self.bd_dds.set(200*MHz)
             self.bdd_dds.set(300*MHz)
 
