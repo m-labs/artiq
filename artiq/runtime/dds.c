@@ -85,7 +85,7 @@ void dds_init(long long int timestamp, int bus_channel, int channel)
 static unsigned int continuous_phase_comp[CONFIG_DDS_CHANNEL_COUNT];
 
 static void dds_set_one(long long int now, long long int ref_time,
-    unsigned int bus_channel, unsigned int channel,
+    int bus_channel, int channel,
     unsigned int ftw, unsigned int pow, int phase_mode, unsigned int amplitude)
 {
     unsigned int channel_enc;

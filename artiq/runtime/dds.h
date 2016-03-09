@@ -54,10 +54,10 @@ enum {
     PHASE_MODE_TRACKING = 2
 };
 
-void dds_init(long long int timestamp, int channel);
+void dds_init(long long int timestamp, int bus_channel, int channel);
 void dds_batch_enter(long long int timestamp);
 void dds_batch_exit(void);
-void dds_set(long long int timestamp, int channel,
+void dds_set(long long int timestamp, int bus_channel, int channel,
     unsigned int ftw, unsigned int pow, int phase_mode, unsigned int amplitude);
 
 #endif /* __DDS_H */
