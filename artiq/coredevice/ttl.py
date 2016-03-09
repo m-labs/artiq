@@ -10,8 +10,8 @@ class TTLOut:
 
     :param channel: channel number
     """
-    def __init__(self, dmgr, channel):
-        self.core = dmgr.get("core")
+    def __init__(self, dmgr, channel, core_device="core"):
+        self.core = dmgr.get(core_device)
         self.channel = channel
 
         # in RTIO cycles
@@ -82,8 +82,8 @@ class TTLInOut:
 
     :param channel: channel number
     """
-    def __init__(self, dmgr, channel):
-        self.core = dmgr.get("core")
+    def __init__(self, dmgr, channel, core_device="core"):
+        self.core = dmgr.get(core_device)
         self.channel = channel
 
         # in RTIO cycles
@@ -232,8 +232,8 @@ class TTLClockGen:
 
     :param channel: channel number
     """
-    def __init__(self, dmgr, channel):
-        self.core = dmgr.get("core")
+    def __init__(self, dmgr, channel, core_device="core"):
+        self.core = dmgr.get(core_device)
         self.channel = channel
 
         # in RTIO cycles

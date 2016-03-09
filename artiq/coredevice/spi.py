@@ -40,8 +40,8 @@ class SPIMaster:
 
     :param channel: RTIO channel number of the SPI bus to control.
     """
-    def __init__(self, dmgr, channel):
-        self.core = dmgr.get("core")
+    def __init__(self, dmgr, channel, core_device="core"):
+        self.core = dmgr.get(core_device)
         self.ref_period_mu = seconds_to_mu(self.core.coarse_ref_period,
                                            self.core)
         self.channel = channel
