@@ -82,7 +82,7 @@ void dds_init(long long int timestamp, int bus_channel, int channel)
 
 /* Compensation to keep phase continuity when switching from absolute or tracking
  * to continuous phase mode. */
-static unsigned int continuous_phase_comp[CONFIG_DDS_CHANNEL_COUNT];
+static unsigned int continuous_phase_comp[CONFIG_RTIO_DDS_COUNT][CONFIG_DDS_CHANNELS_PER_BUS];
 
 static void dds_set_one(long long int now, long long int ref_time,
     int bus_channel, int channel,
@@ -90,8 +90,13 @@ static void dds_set_one(long long int now, long long int ref_time,
 {
     unsigned int channel_enc;
 
-    if(channel >= CONFIG_DDS_CHANNEL_COUNT) {
+    if((channel < 0) || (channel >= CONFIG_DDS_CHANNELS_PER_BUS)) {
         core_log("Attempted to set invalid DDS channel\n");
+        return;
+    }
+    if((bus_channel < CONFIG_RTIO_FIRST_DDS_CHANNEL)
+       || (bus_channel >= (CONFIG_RTIO_FIRST_DDS_CHANNEL+CONFIG_RTIO_DDS_COUNT))) {
+        core_log("Attempted to use invalid DDS bus\n");
         return;
     }
 #ifdef CONFIG_DDS_ONEHOT_SEL
@@ -125,7 +130,7 @@ static void dds_set_one(long long int now, long long int ref_time,
         /* Disable autoclear phase accumulator and enables OSK. */
         DDS_WRITE(DDS_CFR1L, 0x0108);
 #endif
-        pow += continuous_phase_comp[channel];
+        pow += continuous_phase_comp[bus_channel-CONFIG_RTIO_FIRST_DDS_CHANNEL][channel];
     } else {
         long long int fud_time;
 
@@ -141,7 +146,7 @@ static void dds_set_one(long long int now, long long int ref_time,
         pow -= (ref_time - fud_time)*CONFIG_DDS_RTIO_CLK_RATIO*ftw >> (32-DDS_POW_WIDTH);
         if(phase_mode == PHASE_MODE_TRACKING)
             pow += ref_time*CONFIG_DDS_RTIO_CLK_RATIO*ftw >> (32-DDS_POW_WIDTH);
-        continuous_phase_comp[channel] = pow;
+        continuous_phase_comp[bus_channel-CONFIG_RTIO_FIRST_DDS_CHANNEL][channel] = pow;
     }
 
 #ifdef CONFIG_DDS_AD9858

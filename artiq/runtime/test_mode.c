@@ -305,7 +305,7 @@ static void do_ddstest_one(unsigned int i)
         brg_ddswrite(bus_channel, DDS_FTWL, f & 0xffff);
         brg_ddswrite(bus_channel, DDS_FTWH, (f >> 16) & 0xffff);
 #endif
-        brg_ddsfud();
+        brg_ddsfud(bus_channel);
 #ifdef CONFIG_DDS_AD9858
         g = brg_ddsread(bus_channel, DDS_FTW0);
         g |= brg_ddsread(bus_channel, DDS_FTW1) << 8;
