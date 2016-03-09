@@ -118,7 +118,8 @@ class _TTLWidget(QtWidgets.QFrame):
 
 
 class _DDSWidget(QtWidgets.QFrame):
-    def __init__(self, channel, sysclk, title):
+    def __init__(self, bus_channel, channel, sysclk, title):
+        self.bus_channel = bus_channel
         self.channel = channel
         self.sysclk = sysclk
 
@@ -146,13 +147,14 @@ class _DDSWidget(QtWidgets.QFrame):
         self.set_value(0)
 
     def set_value(self, ftw):
-        frequency = ftw*self.sysclk/2**32
+        frequency = ftw*self.sysclk()/2**32
         self._value.setText("<font size=\"6\">{:.7f} MHz</font>"
                             .format(float(frequency)/1e6))
 
 
 class _DeviceManager:
     def __init__(self, send_to_device, init):
+        self.dds_sysclk = 0
         self.send_to_device = send_to_device
         self.ddb = dict()
         self.ttl_cb = lambda: None
@@ -161,6 +163,9 @@ class _DeviceManager:
         self.dds_widgets = dict()
         for k, v in init.items():
             self[k] = v
+
+    def get_dds_sysclk(self):
+        return self.dds_sysclk
 
     def __setitem__(self, k, v):
         if k in self.ttl_widgets:
@@ -182,11 +187,14 @@ class _DeviceManager:
                         channel, self.send_to_device, force_out, title)
                     self.ttl_cb()
                 if (v["module"] == "artiq.coredevice.dds"
+                        and v["class"] == "CoreDDS"):
+                    self.dds_sysclk = v["arguments"]["sysclk"]
+                if (v["module"] == "artiq.coredevice.dds"
                         and v["class"] in {"AD9858", "AD9914"}):
+                    bus_channel = v["arguments"]["bus_channel"]
                     channel = v["arguments"]["channel"]
-                    sysclk = v["arguments"]["sysclk"]
                     self.dds_widgets[channel] = _DDSWidget(
-                        channel, sysclk, title)
+                        bus_channel, channel, self.get_dds_sysclk, title)
                     self.dds_cb()
         except KeyError:
             pass
@@ -275,19 +283,23 @@ class MonInj(TaskObject):
                          "is not present yet")
             return
         try:
-            ttl_levels, ttl_oes, ttl_overrides = \
-                struct.unpack(">QQQ", data[:8*3])
+            hlen = 8*3+4
+            (ttl_levels, ttl_oes, ttl_overrides,
+             dds_rtio_first_channel, dds_channels_per_bus) = \
+                struct.unpack(">QQQHH", data[:hlen])
             for w in self.dm.ttl_widgets.values():
                 channel = w.channel
                 w.set_value(ttl_levels & (1 << channel),
                             ttl_oes & (1 << channel),
                             ttl_overrides & (1 << channel))
-            dds_data = data[8*3:]
+            dds_data = data[hlen:]
             ndds = len(dds_data)//4
             ftws = struct.unpack(">" + "I"*ndds, dds_data)
             for w in self.dm.dds_widgets.values():
+                offset = (dds_channels_per_bus*w.bus_channel
+                          + w.channel-dds_rtio_first_channel)
                 try:
-                    ftw = ftws[w.channel]
+                    ftw = ftws[offset]
                 except KeyError:
                     pass
                 else:

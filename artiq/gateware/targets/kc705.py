@@ -204,8 +204,9 @@ class NIST_QC1(_NIST_Ions):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
-        self.config["DDS_CHANNEL_COUNT"] = 8
+        self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
+        self.config["RTIO_DDS_COUNT"] = 1
+        self.config["DDS_CHANNELS_PER_BUS"] = 8
         self.config["DDS_AD9858"] = True
         phy = dds.AD9858(platform.request("dds"), 8)
         self.submodules += phy
@@ -277,8 +278,9 @@ class NIST_CLOCK(_NIST_Ions):
             rtio_channels.append(rtio.Channel.from_phy(
                 phy, ofifo_depth=128, ififo_depth=128))
 
-        self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
-        self.config["DDS_CHANNEL_COUNT"] = 11
+        self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
+        self.config["RTIO_DDS_COUNT"] = 1
+        self.config["DDS_CHANNELS_PER_BUS"] = 11
         self.config["DDS_AD9914"] = True
         self.config["DDS_ONEHOT_SEL"] = True
         phy = dds.AD9914(platform.request("dds"), 11, onehot=True)
@@ -331,8 +333,9 @@ class NIST_QC2(_NIST_Ions):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        self.config["RTIO_DDS_CHANNEL"] = len(rtio_channels)
-        self.config["DDS_CHANNEL_COUNT"] = 12
+        self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
+        self.config["RTIO_DDS_COUNT"] = 1
+        self.config["DDS_CHANNELS_PER_BUS"] = 12
         self.config["DDS_AD9914"] = True
         self.config["DDS_ONEHOT_SEL"] = True
         phy = dds.AD9914(platform.request("dds"), 12, onehot=True)

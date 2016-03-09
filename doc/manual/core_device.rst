@@ -89,6 +89,8 @@ The board has RTIO SPI buses mapped as follows:
 | 25           | SPI2_CS_N   | SPI2_MOSI   | SPI2_MISO | SPI2_CLK   |
 +--------------+-------------+-------------+-----------+------------+
 
+The DDS bus is on channel 26.
+
 
 NIST QC2
 ++++++++

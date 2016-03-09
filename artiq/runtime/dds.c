@@ -26,11 +26,11 @@
 #endif
 
 #define DDS_WRITE(addr, data) do { \
-        rtio_output(now, CONFIG_RTIO_DDS_CHANNEL, addr, data); \
+        rtio_output(now, bus_channel, addr, data); \
         now += DURATION_WRITE; \
     } while(0)
 
-void dds_init(long long int timestamp, int channel)
+void dds_init(long long int timestamp, int bus_channel, int channel)
 {
     long long int now;
 
@@ -82,15 +82,21 @@ void dds_init(long long int timestamp, int channel)
 
 /* Compensation to keep phase continuity when switching from absolute or tracking
  * to continuous phase mode. */
-static unsigned int continuous_phase_comp[CONFIG_DDS_CHANNEL_COUNT];
+static unsigned int continuous_phase_comp[CONFIG_RTIO_DDS_COUNT][CONFIG_DDS_CHANNELS_PER_BUS];
 
-static void dds_set_one(long long int now, long long int ref_time, unsigned int channel,
+static void dds_set_one(long long int now, long long int ref_time,
+    int bus_channel, int channel,
     unsigned int ftw, unsigned int pow, int phase_mode, unsigned int amplitude)
 {
     unsigned int channel_enc;
 
-    if(channel >= CONFIG_DDS_CHANNEL_COUNT) {
+    if((channel < 0) || (channel >= CONFIG_DDS_CHANNELS_PER_BUS)) {
         core_log("Attempted to set invalid DDS channel\n");
+        return;
+    }
+    if((bus_channel < CONFIG_RTIO_FIRST_DDS_CHANNEL)
+       || (bus_channel >= (CONFIG_RTIO_FIRST_DDS_CHANNEL+CONFIG_RTIO_DDS_COUNT))) {
+        core_log("Attempted to use invalid DDS bus\n");
         return;
     }
 #ifdef CONFIG_DDS_ONEHOT_SEL
@@ -124,7 +130,7 @@ static void dds_set_one(long long int now, long long int ref_time, unsigned int 
         /* Disable autoclear phase accumulator and enables OSK. */
         DDS_WRITE(DDS_CFR1L, 0x0108);
 #endif
-        pow += continuous_phase_comp[channel];
+        pow += continuous_phase_comp[bus_channel-CONFIG_RTIO_FIRST_DDS_CHANNEL][channel];
     } else {
         long long int fud_time;
 
@@ -140,7 +146,7 @@ static void dds_set_one(long long int now, long long int ref_time, unsigned int 
         pow -= (ref_time - fud_time)*CONFIG_DDS_RTIO_CLK_RATIO*ftw >> (32-DDS_POW_WIDTH);
         if(phase_mode == PHASE_MODE_TRACKING)
             pow += ref_time*CONFIG_DDS_RTIO_CLK_RATIO*ftw >> (32-DDS_POW_WIDTH);
-        continuous_phase_comp[channel] = pow;
+        continuous_phase_comp[bus_channel-CONFIG_RTIO_FIRST_DDS_CHANNEL][channel] = pow;
     }
 
 #ifdef CONFIG_DDS_AD9858
@@ -157,6 +163,7 @@ static void dds_set_one(long long int now, long long int ref_time, unsigned int 
 }
 
 struct dds_set_params {
+    int bus_channel;
     int channel;
     unsigned int ftw;
     unsigned int pow;
@@ -189,20 +196,22 @@ void dds_batch_exit(void)
     now = batch_ref_time - batch_count*(DURATION_PROGRAM + DURATION_WRITE);
     for(i=0;i<batch_count;i++) {
         dds_set_one(now, batch_ref_time,
-            batch[i].channel, batch[i].ftw, batch[i].pow, batch[i].phase_mode,
+            batch[i].bus_channel, batch[i].channel,
+            batch[i].ftw, batch[i].pow, batch[i].phase_mode,
             batch[i].amplitude);
         now += DURATION_PROGRAM + DURATION_WRITE;
     }
     batch_mode = 0;
 }
 
-void dds_set(long long int timestamp, int channel,
+void dds_set(long long int timestamp, int bus_channel, int channel,
     unsigned int ftw, unsigned int pow, int phase_mode, unsigned int amplitude)
 {
     if(batch_mode) {
         if(batch_count >= DDS_MAX_BATCH)
             artiq_raise_from_c("DDSBatchError", "DDS batch error", 0, 0, 0);
         /* timestamp parameter ignored (determined by batch) */
+        batch[batch_count].bus_channel = bus_channel;
         batch[batch_count].channel = channel;
         batch[batch_count].ftw = ftw;
         batch[batch_count].pow = pow;
@@ -210,7 +219,8 @@ void dds_set(long long int timestamp, int channel,
         batch[batch_count].amplitude = amplitude;
         batch_count++;
     } else {
-        dds_set_one(timestamp - DURATION_PROGRAM, timestamp, channel, ftw, pow, phase_mode,
-                    amplitude);
+        dds_set_one(timestamp - DURATION_PROGRAM, timestamp,
+                    bus_channel, channel,
+                    ftw, pow, phase_mode, amplitude);
     }
 }
