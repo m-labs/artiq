@@ -9,6 +9,7 @@ class Collision(EnvExperiment):
 
     @kernel
     def run(self):
+        self.core.break_realtime()
         t = now_mu()
         self.spi0.set_config_mu()
         at_mu(t)
@@ -23,6 +24,7 @@ class Busy(EnvExperiment):
 
     @kernel
     def run(self):
+        self.core.break_realtime()
         t = now_mu()
         self.spi0.set_config_mu()
         at_mu(t + self.spi0.ref_period_mu)
