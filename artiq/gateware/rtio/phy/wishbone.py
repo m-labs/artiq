@@ -13,7 +13,8 @@ class RT2WB(Module):
             rtlink.OInterface(
                 len(wb.dat_w),
                 address_width + 1,
-                suppress_nop=False),
+                suppress_nop=False,
+                enable_replace=False),
             rtlink.IInterface(
                 len(wb.dat_r),
                 timestamped=False)

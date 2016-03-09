@@ -3,7 +3,8 @@ from migen import *
 
 class OInterface:
     def __init__(self, data_width, address_width=0,
-                 fine_ts_width=0, suppress_nop=True):
+                 fine_ts_width=0, suppress_nop=True,
+                 enable_replace=True):
         self.stb = Signal()
         self.busy = Signal()
 
@@ -15,6 +16,7 @@ class OInterface:
             self.fine_ts = Signal(fine_ts_width)
 
         self.suppress_nop = suppress_nop
+        self.enable_replace = enable_replace
 
     @classmethod
     def like(cls, other):
