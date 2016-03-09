@@ -54,6 +54,26 @@ class _RTIOCounter(Module):
         self.comb += gt.i.eq(self.value_rtio), self.value_sys.eq(gt.o)
 
 
+class _BlindTransfer(Module):
+    def __init__(self):
+        self.i = Signal()
+        self.o = Signal()
+
+        ps = PulseSynchronizer("rio", "rsys")
+        ps_ack = PulseSynchronizer("rsys", "rio")
+        self.submodules += ps, ps_ack
+        blind = Signal()
+        self.sync.rio += [
+            If(self.i, blind.eq(1)),
+            If(ps_ack.o, blind.eq(0))
+        ]
+        self.comb += [
+            ps.i.eq(self.i & ~blind),
+            ps_ack.i.eq(ps.o),
+            self.o.eq(ps.o)
+        ]
+
+
 # CHOOSING A GUARD TIME
 #
 # The buffer must be transferred to the FIFO soon enough to account for:
@@ -221,24 +241,17 @@ class _OutputManager(Module):
         self.comb += fifo.re.eq(fifo.readable & (~dout_stb | dout_ack))
 
         # FIFO read through buffer
-        # TODO: report error on stb & busy
         self.comb += [
             dout_ack.eq(
                 dout.timestamp[fine_ts_width:] == counter.value_rtio),
             interface.stb.eq(dout_stb & dout_ack)
         ]
-        busy_sync = PulseSynchronizer("rio", "rsys")
-        busy_ack_sync = PulseSynchronizer("rsys", "rio")
-        self.submodules += busy_sync, busy_ack_sync
-        busy_blind = Signal()
-        self.comb += busy_sync.i.eq(interface.stb & interface.busy & ~busy_blind)
-        self.sync.rio += [
-            If(interface.stb & interface.busy, busy_blind.eq(1)),
-            If(busy_ack_sync.o, busy_blind.eq(0))
-        ]
+
+        busy_transfer = _BlindTransfer()
+        self.submodules += busy_transfer
         self.comb += [
-            busy_ack_sync.i.eq(busy_sync.o),
-            self.busy.eq(busy_sync.o)
+            busy_transfer.i.eq(interface.stb & interface.busy),
+            self.busy.eq(busy_transfer.o),
         ]
 
         if data_width:
@@ -263,7 +276,7 @@ class _InputManager(Module):
 
         self.readable = Signal()
         self.re = Signal()
-        
+
         self.overflow = Signal()  # pulsed
 
         # # #
@@ -296,18 +309,11 @@ class _InputManager(Module):
             fifo.re.eq(self.re)
         ]
 
-        overflow_sync = PulseSynchronizer("rio", "rsys")
-        overflow_ack_sync = PulseSynchronizer("rsys", "rio")
-        self.submodules += overflow_sync, overflow_ack_sync
-        overflow_blind = Signal()
-        self.comb += overflow_sync.i.eq(fifo.we & ~fifo.writable & ~overflow_blind)
-        self.sync.rio += [
-            If(fifo.we & ~fifo.writable, overflow_blind.eq(1)),
-            If(overflow_ack_sync.o, overflow_blind.eq(0))
-        ]
+        overflow_transfer = _BlindTransfer()
+        self.submodules += overflow_transfer
         self.comb += [
-            overflow_ack_sync.i.eq(overflow_sync.o),
-            self.overflow.eq(overflow_sync.o)
+            overflow_transfer.i.eq(fifo.we & ~fifo.writable),
+            self.overflow.eq(overflow_transfer.o),
         ]
 
 
