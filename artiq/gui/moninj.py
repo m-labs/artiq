@@ -296,8 +296,8 @@ class MonInj(TaskObject):
             ndds = len(dds_data)//4
             ftws = struct.unpack(">" + "I"*ndds, dds_data)
             for w in self.dm.dds_widgets.values():
-                offset = (dds_channels_per_bus*w.bus_channel
-                          + w.channel-dds_rtio_first_channel)
+                bus_nr = w.bus_channel - dds_rtio_first_channel
+                offset = dds_channels_per_bus*bus_nr + w.channel
                 try:
                     ftw = ftws[offset]
                 except KeyError:
