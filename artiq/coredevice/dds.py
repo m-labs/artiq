@@ -82,7 +82,7 @@ class _DDSGeneric:
     :param bus: name of the DDS bus device that this DDS is connected to.
     :param channel: channel number of the DDS device to control.
     """
-    def __init__(self, dmgr, sysclk, bus_channel, channel, core_dds_device="core_dds"):
+    def __init__(self, dmgr, bus_channel, channel, core_dds_device="core_dds"):
         self.core_dds = dmgr.get(core_dds_device)
         self.core = self.core_dds.core
         self.bus_channel = bus_channel
