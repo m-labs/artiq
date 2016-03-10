@@ -48,7 +48,6 @@ def main():
         decoded_dump = decode_dump(dump)
         if args.print_decoded:
             print("Log channel:", decoded_dump.log_channel)
-            print("DDS channel:", decoded_dump.dds_channel)
             print("DDS one-hot:", decoded_dump.dds_onehot_sel)
             for message in decoded_dump.messages:
                 print(message)
