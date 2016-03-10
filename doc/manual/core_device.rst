@@ -50,6 +50,10 @@ With the QC1 hardware, the TTL lines are mapped as follows:
 | 19           | TTL15      | Clock        |
 +--------------+------------+--------------+
 
+There are no SPI channels.
+
+The DDS bus is on channel 20.
+
 NIST CLOCK
 ++++++++++
 
@@ -105,6 +109,9 @@ To avoid I/O contention, the startup kernel should first program the TCA6424A ex
 
 See :mod:`artiq.coredevice.i2c` for more details.
 
+There are no SPI channels.
+
+The QC2 hardware has two DDS buses, on channels TODO for LPC and TODO for HPC.
 
 Pipistrello
 -----------
@@ -149,3 +156,5 @@ Interface Type 2 (SPI) and 2A (expanded SPI):
 +==============+========+========+========+========+
 | 23           | PMOD_0 | PMOD_1 | PMOD_2 | PMOD_3 |
 +--------------+--------+--------+--------+--------+
+
+The DDS bus is on channel 24.
