@@ -42,6 +42,12 @@ These drivers are for the core device and the peripherals closely integrated int
 .. automodule:: artiq.coredevice.i2c
     :members:
 
+:mod:`artiq.coredevice.cache` module
+-----------------------------------------
+
+.. automodule:: artiq.coredevice.cache
+    :members:
+
 :mod:`artiq.coredevice.exceptions` module
 -----------------------------------------
 

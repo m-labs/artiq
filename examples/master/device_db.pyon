@@ -1,5 +1,6 @@
 # This is an example device database that needs to be adapted to your setup.
 # The RTIO channel numbers here are for NIST CLOCK on KC705.
+# The list of devices here is not exhaustive.
 
 {
     "comm": {
@@ -13,6 +14,11 @@
         "module": "artiq.coredevice.core",
         "class": "Core",
         "arguments": {"ref_period": 1e-9}
+    },
+    "core_cache": {
+        "type": "local",
+        "module": "artiq.coredevice.cache",
+        "class": "CoreCache"
     },
     "core_dds": {
         "type": "local",
