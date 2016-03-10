@@ -48,6 +48,7 @@ class Loopback(EnvExperiment):
     @kernel
     def run(self):
         self.loop_in.input()
+        self.loop_out.off()
         delay(1*us)
         with parallel:
             self.loop_in.gate_rising(2*us)
