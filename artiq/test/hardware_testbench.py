@@ -107,7 +107,8 @@ class ExperimentCase(unittest.TestCase):
             return exp
         except KeyError as e:
             # skip if ddb does not match requirements
-            raise unittest.SkipTest(*e.args)
+            raise unittest.SkipTest(
+                "device_db entry `{}` not found".format(*e.args))
 
     def execute(self, cls, **kwargs):
         expid = {
