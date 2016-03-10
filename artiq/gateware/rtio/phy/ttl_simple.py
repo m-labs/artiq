@@ -79,8 +79,7 @@ class Inout(Module):
 
 class ClockGen(Module):
     def __init__(self, pad, ftw_width=24):
-        self.rtlink = rtlink.Interface(
-            rtlink.OInterface(ftw_width, suppress_nop=False))
+        self.rtlink = rtlink.Interface(rtlink.OInterface(ftw_width))
 
         # # #
 

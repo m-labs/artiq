@@ -95,7 +95,7 @@ class _OutputManager(Module):
             ev_layout.append(("address", address_width))
         ev_layout.append(("timestamp", counter.width + fine_ts_width))
         # ev must be valid 1 cycle before we to account for the latency in
-        # generating replace, sequence_error and nop
+        # generating replace, sequence_error and collision
         self.ev = Record(ev_layout)
 
         self.writable = Signal()
@@ -128,7 +128,6 @@ class _OutputManager(Module):
         sequence_error = Signal()
         collision = Signal()
         any_error = Signal()
-        nop = Signal()
         if interface.enable_replace:
             # Note: replace may be asserted at the same time as collision
             # when addresses are different. In that case, it is a collision.
@@ -151,25 +150,8 @@ class _OutputManager(Module):
         else:
             self.sync.rsys += collision.eq(
                 self.ev.timestamp[fine_ts_width:] == buf.timestamp[fine_ts_width:])
-        self.comb += any_error.eq(sequence_error | collision)
-        if interface.suppress_nop:
-            # disable NOP at reset: do not suppress a first write with all 0s
-            nop_en = Signal(reset=0)
-            addresses_equal = [getattr(self.ev, a) == getattr(buf, a)
-                               for a in ("data", "address")
-                               if hasattr(self.ev, a)]
-            if addresses_equal:
-                self.sync.rsys += nop.eq(
-                    nop_en & reduce(and_, addresses_equal))
-            else:
-                self.comb.eq(nop.eq(0))
-            self.sync.rsys += [
-                # buf now contains valid data. enable NOP.
-                If(self.we & ~any_error, nop_en.eq(1)),
-                # underflows cancel the write. allow it to be retried.
-                If(self.underflow, nop_en.eq(0))
-            ]
         self.comb += [
+            any_error.eq(sequence_error | collision),
             self.sequence_error.eq(self.we & sequence_error),
             self.collision.eq(self.we & collision)
         ]
@@ -190,7 +172,7 @@ class _OutputManager(Module):
                         fifo.we.eq(1)
                     )
                 ),
-                If(self.we & ~replace & ~nop & ~any_error,
+                If(self.we & ~replace & ~any_error,
                    fifo.we.eq(1)
                 )
             )
@@ -199,7 +181,7 @@ class _OutputManager(Module):
         # Must come after read to handle concurrent read+write properly
         self.sync.rsys += [
             buf_just_written.eq(0),
-            If(self.we & ~nop & ~any_error,
+            If(self.we & ~any_error,
                 buf_just_written.eq(1),
                 buf_pending.eq(1),
                 buf.eq(self.ev)
@@ -321,8 +303,7 @@ class Channel:
 class LogChannel:
     """A degenerate channel used to log messages into the analyzer."""
     def __init__(self):
-        self.interface = rtlink.Interface(
-            rtlink.OInterface(32, suppress_nop=False))
+        self.interface = rtlink.Interface(rtlink.OInterface(32))
         self.probes = []
         self.overrides = []
 

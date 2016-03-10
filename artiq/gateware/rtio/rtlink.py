@@ -3,8 +3,7 @@ from migen import *
 
 class OInterface:
     def __init__(self, data_width, address_width=0,
-                 fine_ts_width=0, suppress_nop=True,
-                 enable_replace=True):
+                 fine_ts_width=0, enable_replace=True):
         self.stb = Signal()
         self.busy = Signal()
 
@@ -15,7 +14,6 @@ class OInterface:
         if fine_ts_width:
             self.fine_ts = Signal(fine_ts_width)
 
-        self.suppress_nop = suppress_nop
         self.enable_replace = enable_replace
 
     @classmethod
@@ -23,7 +21,7 @@ class OInterface:
         return cls(get_data_width(other),
                    get_address_width(other),
                    get_fine_ts_width(other),
-                   other.suppress_nop)
+                   other.enable_replace)
 
 
 class IInterface:
