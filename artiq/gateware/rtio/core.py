@@ -158,8 +158,8 @@ class _OutputManager(Module):
         self.sync.rsys += sequence_error.eq(self.ev.timestamp[fine_ts_width:] <
                                             buf.timestamp[fine_ts_width:])
         if interface.enable_replace:
-            if hasattr(self.ev, "a"):
-                different_addresses = self.ev.a != buf.a
+            if address_width:
+                different_addresses = self.ev.address != buf.address
             else:
                 different_addresses = 0
             if fine_ts_width:
