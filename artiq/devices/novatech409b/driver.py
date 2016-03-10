@@ -65,7 +65,7 @@ class Novatech409B:
         # ser_send("F0 1.0") # sets the freq of channel 0 to 1.0 MHz
 
         if self.simulation:
-            print(cmd)
+            logger.info("simulation _ser_send(\"%s\")", cmd)
         else:
             self.port.flushInput()
             self.port.write((cmd + "\r\n").encode())
@@ -81,7 +81,8 @@ class Novatech409B:
                         errstr = self.error_codes[result]
                     except KeyError:
                         errstr = "Unrecognized reply: '{}'".format(result)
-                    s = "Error Code = {ec}, {ecs}".format(ec=result, ecs=errstr)
+                    s = "Error Code = {ec}, {ecs}".format(
+                        ec=result, ecs=errstr)
                     raise UnexpectedResponse(s)
             else:
                 pass
@@ -144,7 +145,7 @@ class Novatech409B:
     def set_freq(self, ch_no, freq):
         """Set frequency of one channel."""
         # Novatech expects MHz
-        self._ser_send("F{:d} {:f}".format(ch_no, freq/1e6)) 
+        self._ser_send("F{:d} {:f}".format(ch_no, freq/1e6))
 
     def set_phase(self, ch_no, phase):
         """Set phase of one channel."""
@@ -171,10 +172,10 @@ class Novatech409B:
     def get_status(self):
         if self.simulation:
             return ["00989680 2000 01F5 0000 00000000 00000000 000301",
-                "00989680 2000 01F5 0000 00000000 00000000 000301",
-                "00989680 2000 01F5 0000 00000000 00000000 000301",
-                "00989680 2000 01F5 0000 00000000 00000000 000301",
-                "80 BC0000 0000 0102 21"]
+                    "00989680 2000 01F5 0000 00000000 00000000 000301",
+                    "00989680 2000 01F5 0000 00000000 00000000 000301",
+                    "00989680 2000 01F5 0000 00000000 00000000 000301",
+                    "80 BC0000 0000 0102 21"]
         else:
             # status message is multi-line
             self.port.flushInput()
