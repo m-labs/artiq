@@ -89,6 +89,8 @@ The board has RTIO SPI buses mapped as follows:
 | 25           | SPI2_CS_N   | SPI2_MOSI   | SPI2_MISO | SPI2_CLK   |
 +--------------+-------------+-------------+-----------+------------+
 
+The DDS bus is on channel 26.
+
 
 NIST QC2
 ++++++++
@@ -132,15 +134,7 @@ When plugged to an adapter, the NIST QC1 hardware can be used. The TTL lines are
 +--------------+------------+--------------+
 | 21           | USER_LED_4 | Output       |
 +--------------+------------+--------------+
-| 22           | PMOD_4     | Input+Output |
-+--------------+------------+--------------+
-| 23           | PMOD_5     | Input+Output |
-+--------------+------------+--------------+
-| 24           | PMOD_6     | Input+Output |
-+--------------+------------+--------------+
-| 25           | PMOD_7     | Input+Output |
-+--------------+------------+--------------+
-| 26           | TTL15      | Clock        |
+| 22           | TTL15      | Clock        |
 +--------------+------------+--------------+
 
 The input only limitation on channels 0 and 1 comes from the QC-DAQ adapter. When the adapter is not used (and physically unplugged from the Pipistrello board), the corresponding pins on the Pipistrello can be used as outputs. Do not configure these channels as outputs when the adapter is plugged, as this would cause electrical contention.
@@ -153,5 +147,5 @@ Interface Type 2 (SPI) and 2A (expanded SPI):
 +--------------+--------+--------+--------+--------+
 | RTIO channel | CS_N   | MOSI   | MISO   | CLK    |
 +==============+========+========+========+========+
-| 27           | PMOD_0 | PMOD_1 | PMOD_2 | PMOD_3 |
+| 23           | PMOD_0 | PMOD_1 | PMOD_2 | PMOD_3 |
 +--------------+--------+--------+--------+--------+

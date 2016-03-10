@@ -107,9 +107,10 @@ class ExperimentCase(unittest.TestCase):
             return exp
         except KeyError as e:
             # skip if ddb does not match requirements
-            raise unittest.SkipTest(*e.args)
+            raise unittest.SkipTest(
+                "device_db entry `{}` not found".format(*e.args))
 
-    def execute(self, cls, *args, **kwargs):
+    def execute(self, cls, **kwargs):
         expid = {
             "file": sys.modules[cls.__module__].__file__,
             "class_name": cls.__name__,
@@ -124,3 +125,8 @@ class ExperimentCase(unittest.TestCase):
         except CompileError as error:
             # Reduce amount of text on terminal.
             raise error from None
+        except Exception as exn:
+            if hasattr(exn, "artiq_core_exception"):
+                exn.args = "{}\n{}".format(exn.args[0],
+                                           exn.artiq_core_exception),
+            raise exn

@@ -104,6 +104,28 @@ static void ttlo(char *n, char *value)
     brg_ttlo(n2, value2);
 }
 
+static int bus_channel = CONFIG_RTIO_FIRST_DDS_CHANNEL;
+
+static void ddsbus(char *n)
+{
+    char *c;
+    unsigned int n2;
+
+    if(*n == 0) {
+        printf("ddsbus <n>\n");
+        return;
+    }
+
+    n2 = strtoul(n, &c, 0);
+    if(*c != 0) {
+        printf("incorrect bus channel\n");
+        return;
+    }
+
+    bus_channel = n2;
+}
+
+
 static void ddssel(char *n)
 {
     char *c;
@@ -123,7 +145,7 @@ static void ddssel(char *n)
 #ifdef CONFIG_DDS_ONEHOT_SEL
     n2 = 1 << n2;
 #endif
-    brg_ddssel(n2);
+    brg_ddssel(bus_channel, n2);
 }
 
 static void ddsw(char *addr, char *value)
@@ -147,7 +169,7 @@ static void ddsw(char *addr, char *value)
         return;
     }
 
-    brg_ddswrite(addr2, value2);
+    brg_ddswrite(bus_channel, addr2, value2);
 }
 
 static void ddsr(char *addr)
@@ -167,16 +189,16 @@ static void ddsr(char *addr)
     }
 
 #ifdef CONFIG_DDS_AD9858
-    printf("0x%02x\n", brg_ddsread(addr2));
+    printf("0x%02x\n", brg_ddsread(bus_channel, addr2));
 #endif
 #ifdef CONFIG_DDS_AD9914
-    printf("0x%04x\n", brg_ddsread(addr2));
+    printf("0x%04x\n", brg_ddsread(bus_channel, addr2));
 #endif
 }
 
 static void ddsfud(void)
 {
-    brg_ddsfud();
+    brg_ddsfud(bus_channel);
 }
 
 static void ddsftw(char *n, char *ftw)
@@ -203,36 +225,36 @@ static void ddsftw(char *n, char *ftw)
 #ifdef CONFIG_DDS_ONEHOT_SEL
     n2 = 1 << n2;
 #endif
-    brg_ddssel(n2);
+    brg_ddssel(bus_channel, n2);
 
 #ifdef CONFIG_DDS_AD9858
-    brg_ddswrite(DDS_FTW0, ftw2 & 0xff);
-    brg_ddswrite(DDS_FTW1, (ftw2 >> 8) & 0xff);
-    brg_ddswrite(DDS_FTW2, (ftw2 >> 16) & 0xff);
-    brg_ddswrite(DDS_FTW3, (ftw2 >> 24) & 0xff);
+    brg_ddswrite(bus_channel, DDS_FTW0, ftw2 & 0xff);
+    brg_ddswrite(bus_channel, DDS_FTW1, (ftw2 >> 8) & 0xff);
+    brg_ddswrite(bus_channel, DDS_FTW2, (ftw2 >> 16) & 0xff);
+    brg_ddswrite(bus_channel, DDS_FTW3, (ftw2 >> 24) & 0xff);
 #endif
 #ifdef CONFIG_DDS_AD9914
-    brg_ddswrite(DDS_FTWL, ftw2 & 0xffff);
-    brg_ddswrite(DDS_FTWH, (ftw2 >> 16) & 0xffff);
+    brg_ddswrite(bus_channel, DDS_FTWL, ftw2 & 0xffff);
+    brg_ddswrite(bus_channel, DDS_FTWH, (ftw2 >> 16) & 0xffff);
 #endif
 
-    brg_ddsfud();
+    brg_ddsfud(bus_channel);
 }
 
 static void ddsreset(void)
 {
-    brg_ddsreset();
+    brg_ddsreset(bus_channel);
 }
 
 #ifdef CONFIG_DDS_AD9858
 static void ddsinit(void)
 {
-    brg_ddsreset();
-    brg_ddswrite(DDS_CFR0, 0x78);
-    brg_ddswrite(DDS_CFR1, 0x00);
-    brg_ddswrite(DDS_CFR2, 0x00);
-    brg_ddswrite(DDS_CFR3, 0x00);
-    brg_ddsfud();
+    brg_ddsreset(bus_channel);
+    brg_ddswrite(bus_channel, DDS_CFR0, 0x78);
+    brg_ddswrite(bus_channel, DDS_CFR1, 0x00);
+    brg_ddswrite(bus_channel, DDS_CFR2, 0x00);
+    brg_ddswrite(bus_channel, DDS_CFR3, 0x00);
+    brg_ddsfud(bus_channel);
 }
 #endif
 
@@ -241,17 +263,17 @@ static void ddsinit(void)
 {
     long long int t;
 
-    brg_ddsreset();
-    brg_ddswrite(DDS_CFR1H, 0x0000); /* Enable cosine output */
-    brg_ddswrite(DDS_CFR2L, 0x8900); /* Enable matched latency */
-    brg_ddswrite(DDS_CFR2H, 0x0080); /* Enable profile mode */
-    brg_ddswrite(DDS_ASF, 0x0fff); /* Set amplitude to maximum */
-    brg_ddswrite(DDS_CFR4H, 0x0105); /* Enable DAC calibration */
-    brg_ddswrite(DDS_FUD, 0);
+    brg_ddsreset(bus_channel);
+    brg_ddswrite(bus_channel, DDS_CFR1H, 0x0000); /* Enable cosine output */
+    brg_ddswrite(bus_channel, DDS_CFR2L, 0x8900); /* Enable matched latency */
+    brg_ddswrite(bus_channel, DDS_CFR2H, 0x0080); /* Enable profile mode */
+    brg_ddswrite(bus_channel, DDS_ASF, 0x0fff); /* Set amplitude to maximum */
+    brg_ddswrite(bus_channel, DDS_CFR4H, 0x0105); /* Enable DAC calibration */
+    brg_ddswrite(bus_channel, DDS_FUD, 0);
     t = clock_get_ms();
     while(clock_get_ms() < t + 2);
-    brg_ddswrite(DDS_CFR4H, 0x0005); /* Disable DAC calibration */
-    brg_ddsfud();
+    brg_ddswrite(bus_channel, DDS_CFR4H, 0x0005); /* Disable DAC calibration */
+    brg_ddsfud(bus_channel);
 }
 #endif
 
@@ -265,34 +287,34 @@ static void do_ddstest_one(unsigned int i)
     unsigned int f, g, j;
 
 #ifdef CONFIG_DDS_ONEHOT_SEL
-    brg_ddssel(1 << i);
+    brg_ddssel(bus_channel, 1 << i);
 #else
-    brg_ddssel(i);
+    brg_ddssel(bus_channel, i);
 #endif
     ddsinit();
 
     for(j=0; j<12; j++) {
         f = v[j];
 #ifdef CONFIG_DDS_AD9858
-        brg_ddswrite(DDS_FTW0, f & 0xff);
-        brg_ddswrite(DDS_FTW1, (f >> 8) & 0xff);
-        brg_ddswrite(DDS_FTW2, (f >> 16) & 0xff);
-        brg_ddswrite(DDS_FTW3, (f >> 24) & 0xff);
+        brg_ddswrite(bus_channel, DDS_FTW0, f & 0xff);
+        brg_ddswrite(bus_channel, DDS_FTW1, (f >> 8) & 0xff);
+        brg_ddswrite(bus_channel, DDS_FTW2, (f >> 16) & 0xff);
+        brg_ddswrite(bus_channel, DDS_FTW3, (f >> 24) & 0xff);
 #endif
 #ifdef CONFIG_DDS_AD9914
-        brg_ddswrite(DDS_FTWL, f & 0xffff);
-        brg_ddswrite(DDS_FTWH, (f >> 16) & 0xffff);
+        brg_ddswrite(bus_channel, DDS_FTWL, f & 0xffff);
+        brg_ddswrite(bus_channel, DDS_FTWH, (f >> 16) & 0xffff);
 #endif
-        brg_ddsfud();
+        brg_ddsfud(bus_channel);
 #ifdef CONFIG_DDS_AD9858
-        g = brg_ddsread(DDS_FTW0);
-        g |= brg_ddsread(DDS_FTW1) << 8;
-        g |= brg_ddsread(DDS_FTW2) << 16;
-        g |= brg_ddsread(DDS_FTW3) << 24;
+        g = brg_ddsread(bus_channel, DDS_FTW0);
+        g |= brg_ddsread(bus_channel, DDS_FTW1) << 8;
+        g |= brg_ddsread(bus_channel, DDS_FTW2) << 16;
+        g |= brg_ddsread(bus_channel, DDS_FTW3) << 24;
 #endif
 #ifdef CONFIG_DDS_AD9914
-        g = brg_ddsread(DDS_FTWL);
-        g |= brg_ddsread(DDS_FTWH) << 16;
+        g = brg_ddsread(bus_channel, DDS_FTWL);
+        g |= brg_ddsread(bus_channel, DDS_FTWH) << 16;
 #endif
         if(g != f)
             printf("readback fail on DDS %d, 0x%08x != 0x%08x\n", i, g, f);
@@ -330,7 +352,7 @@ static void ddstest(char *n, char *channel)
             do_ddstest_one(channel2);
     } else {
         for(i=0;i<n2;i++)
-            for(j=0;j<CONFIG_DDS_CHANNEL_COUNT;j++)
+            for(j=0;j<CONFIG_DDS_CHANNELS_PER_BUS;j++)
                 do_ddstest_one(j);
     }
 }
@@ -542,6 +564,7 @@ static void help(void)
     puts("clksrc <n>      - select RTIO clock source");
     puts("ttloe <n> <v>   - set TTL output enable");
     puts("ttlo <n> <v>    - set TTL output value");
+    puts("ddsbus <n>      - select the DDS bus RTIO channel");
     puts("ddssel <n>      - select a DDS");
     puts("ddsinit         - reset, config, FUD DDS");
     puts("ddsreset        - reset DDS");
@@ -624,6 +647,7 @@ static void do_command(char *c)
     else if(strcmp(token, "ttloe") == 0) ttloe(get_token(&c), get_token(&c));
     else if(strcmp(token, "ttlo") == 0) ttlo(get_token(&c), get_token(&c));
 
+    else if(strcmp(token, "ddsbus") == 0) ddsbus(get_token(&c));
     else if(strcmp(token, "ddssel") == 0) ddssel(get_token(&c));
     else if(strcmp(token, "ddsw") == 0) ddsw(get_token(&c), get_token(&c));
     else if(strcmp(token, "ddsr") == 0) ddsr(get_token(&c));

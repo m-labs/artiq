@@ -12,6 +12,10 @@ from artiq.test.hardware_testbench import ExperimentCase
 artiq_low_latency = os.getenv("ARTIQ_LOW_LATENCY")
 
 
+class PulseNotReceived(Exception):
+    pass
+
+
 class RTT(EnvExperiment):
     def build(self):
         self.setattr_device("core")
@@ -29,7 +33,10 @@ class RTT(EnvExperiment):
                 delay(1*us)
                 t0 = now_mu()
                 self.ttl_inout.pulse(1*us)
-        self.set_dataset("rtt", mu_to_seconds(self.ttl_inout.timestamp_mu() - t0))
+        t1 = self.ttl_inout.timestamp_mu()
+        if t1 < 0:
+            raise PulseNotReceived()
+        self.set_dataset("rtt", mu_to_seconds(t1 - t0))
 
 
 class Loopback(EnvExperiment):
@@ -41,6 +48,7 @@ class Loopback(EnvExperiment):
     @kernel
     def run(self):
         self.loop_in.input()
+        self.loop_out.off()
         delay(1*us)
         with parallel:
             self.loop_in.gate_rising(2*us)
@@ -48,7 +56,10 @@ class Loopback(EnvExperiment):
                 delay(1*us)
                 t0 = now_mu()
                 self.loop_out.pulse(1*us)
-        self.set_dataset("rtt", mu_to_seconds(self.loop_in.timestamp_mu() - t0))
+        t1 = self.loop_in.timestamp_mu()
+        if t1 < 0:
+            raise PulseNotReceived()
+        self.set_dataset("rtt", mu_to_seconds(t1 - t0))
 
 
 class ClockGeneratorLoopback(EnvExperiment):

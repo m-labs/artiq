@@ -1,5 +1,6 @@
 # This is an example device database that needs to be adapted to your setup.
 # The RTIO channel numbers here are for NIST CLOCK on KC705.
+# The list of devices here is not exhaustive.
 
 {
     "comm": {
@@ -13,6 +14,17 @@
         "module": "artiq.coredevice.core",
         "class": "Core",
         "arguments": {"ref_period": 1e-9}
+    },
+    "core_cache": {
+        "type": "local",
+        "module": "artiq.coredevice.cache",
+        "class": "CoreCache"
+    },
+    "core_dds": {
+        "type": "local",
+        "module": "artiq.coredevice.dds",
+        "class": "CoreDDS",
+        "arguments": {"sysclk": 3e9}
     },
 
     "i2c_switch": {
@@ -121,30 +133,24 @@
         "arguments": {"spi_device": "spi0", "ldac_device": "ttl0"}
     },
 
-    "dds_bus": {
-        "type": "local",
-        "module": "artiq.coredevice.dds",
-        "class": "DDSBus",
-        "arguments": {}
-    },
     "dds0": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "AD9914",
-        "arguments": {"sysclk": 3e9, "channel": 0},
+        "arguments": {"bus_channel": 26, "channel": 0},
         "comment": "Comments work in DDS panel as well"
     },
     "dds1": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "AD9914",
-        "arguments": {"sysclk": 3e9, "channel": 1}
+        "arguments": {"bus_channel": 26, "channel": 1}
     },
     "dds2": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "AD9914",
-        "arguments": {"sysclk": 3e9, "channel": 2}
+        "arguments": {"bus_channel": 26, "channel": 2}
     },
 
     "qc_q1_0": {
@@ -154,25 +160,25 @@
         # that it always resolves to a network-visible IP address (see documentation).
         "host": "::1",
         "port": 4000,
-        "command": "pdq2_controller --no-localhost-bind -p {port} --bind {bind} --simulation --dump qc_q1_0.bin"
+        "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_0.bin"
     },
     "qc_q1_1": {
         "type": "controller",
         "host": "::1",
         "port": 4001,
-        "command": "pdq2_controller --no-localhost-bind -p {port} --bind {bind} --simulation --dump qc_q1_1.bin"
+        "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_1.bin"
     },
     "qc_q1_2": {
         "type": "controller",
         "host": "::1",
         "port": 4002,
-        "command": "pdq2_controller --no-localhost-bind -p {port} --bind {bind} --simulation --dump qc_q1_2.bin"
+        "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_2.bin"
     },
     "qc_q1_3": {
         "type": "controller",
         "host": "::1",
         "port": 4003,
-        "command": "pdq2_controller --no-localhost-bind -p {port} --bind {bind} --simulation --dump qc_q1_3.bin"
+        "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_3.bin"
     },
     "electrodes": {
         "type": "local",
