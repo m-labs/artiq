@@ -5,7 +5,7 @@ from artiq.gateware.rtio import rtlink
 
 
 class RT2WB(Module):
-    def __init__(self, address_width, wb=None):
+    def __init__(self, address_width, wb=None, rtio_enable_replace=False):
         if wb is None:
             wb = wishbone.Interface()
         self.wb = wb
@@ -14,7 +14,7 @@ class RT2WB(Module):
                 len(wb.dat_w),
                 address_width + 1,
                 suppress_nop=False,
-                enable_replace=False),
+                enable_replace=rtio_enable_replace),
             rtlink.IInterface(
                 len(wb.dat_r),
                 timestamped=False)
