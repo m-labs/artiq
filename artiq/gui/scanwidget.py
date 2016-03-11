@@ -1,6 +1,7 @@
 from PyQt5 import QtGui, QtCore, QtWidgets
-from .ticker import Ticker
 from numpy import linspace
+
+from .ticker import Ticker
 
 
 class ScanAxis(QtWidgets.QWidget):
@@ -10,7 +11,6 @@ class ScanAxis(QtWidgets.QWidget):
     def __init__(self, zoomFactor):
         QtWidgets.QWidget.__init__(self)
         self.proxy = None
-        self.slider = None # Needed for eventFilter
         self.sizePolicy().setControlType(QtWidgets.QSizePolicy.ButtonBox)
         self.ticker = Ticker()
         self.zoomFactor = zoomFactor
@@ -26,26 +26,25 @@ class ScanAxis(QtWidgets.QWidget):
         painter.drawLine(0, 0, self.width(), 0)
         realLeft = self.proxy.pixelToReal(0)
         realRight = self.proxy.pixelToReal(self.width())
-
         ticks, prefix, labels = self.ticker(realLeft, realRight)
+        painter.drawText(0, -25, prefix)
+
+        pen = QtGui.QPen()
+        pen.setWidth(2)
+        painter.setPen(pen)
+
         for t, l in zip(ticks, labels):
             t = self.proxy.realToPixel(t)
-            textCenter = (len(l)/2.0)*avgCharWidth
-            painter.drawLine(t, 5, t, -5)
-            painter.drawText(t - textCenter, -10, l)
+            painter.drawLine(t, 0, t, -5)
+            painter.drawText(t - len(l)/2*avgCharWidth, -10, l)
 
-        painter.save()
-        painter.setPen(QtGui.QColor(QtCore.Qt.green))
         sliderStartPixel = self.proxy.realToPixel(self.proxy.realStart)
         sliderStopPixel = self.proxy.realToPixel(self.proxy.realStop)
         pixels = linspace(sliderStartPixel, sliderStopPixel,
-            self.proxy.numPoints)
+                          self.proxy.numPoints)
         for p in pixels:
             p_int = int(p)
             painter.drawLine(p_int, 0, p_int, 5)
-
-        painter.restore()
-        painter.drawText(0, -25, prefix)
         ev.accept()
 
     def wheelEvent(self, ev):
@@ -62,26 +61,24 @@ class ScanAxis(QtWidgets.QWidget):
                 # over a tick during a zoom, it should appear as if we are
                 # doing zoom relative to the ticks which live in axis
                 # pixel-space, not slider pixel-space.
-                self.sigZoom.emit(z, ev.x() -
-                    self.proxy.slider.handleWidth()/2)
+                self.sigZoom.emit(
+                    z, ev.x() - self.proxy.slider.handleWidth()/2)
             self.update()
         ev.accept()
 
     def eventFilter(self, obj, ev):
-        if obj != self.slider:
+        if obj is not self.proxy.slider:
             return False
         if ev.type() != QtCore.QEvent.Wheel:
             return False
         self.wheelEvent(ev)
         return True
 
+
 # Basic ideas from https://gist.github.com/Riateche/27e36977f7d5ea72cf4f
 class ScanSlider(QtWidgets.QSlider):
     sigStartMoved = QtCore.pyqtSignal(int)
     sigStopMoved = QtCore.pyqtSignal(int)
-    noSlider, startSlider, stopSlider = range(3)
-    stopStyle = "QSlider::handle {background:red}"
-    startStyle = "QSlider::handle {background:blue}"
 
     def __init__(self):
         QtWidgets.QSlider.__init__(self, QtCore.Qt.Horizontal)
@@ -92,8 +89,6 @@ class ScanSlider(QtWidgets.QSlider):
         self.stopVal = 99  # upper
         self.offset = 0
         self.position = 0
-        self.lastPressed = ScanSlider.noSlider
-        self.selectedHandle = ScanSlider.startSlider
         self.upperPressed = QtWidgets.QStyle.SC_None
         self.lowerPressed = QtWidgets.QStyle.SC_None
         self.firstMovement = False  # State var for handling slider overlap.
@@ -103,63 +98,40 @@ class ScanSlider(QtWidgets.QSlider):
         # set the stylesheets for drawing each slider later. See paintEvent.
         self.dummyStartSlider = QtWidgets.QSlider()
         self.dummyStopSlider = QtWidgets.QSlider()
-        self.dummyStartSlider.setStyleSheet(ScanSlider.startStyle)
-        self.dummyStopSlider.setStyleSheet(ScanSlider.stopStyle)
+        self.dummyStartSlider.setStyleSheet(
+            "QSlider::handle {background:blue}")
+        self.dummyStopSlider.setStyleSheet(
+            "QSlider::handle {background:red}")
 
     # We basically superimpose two QSliders on top of each other, discarding
     # the state that remains constant between the two when drawing.
     # Everything except the handles remain constant.
     def initHandleStyleOption(self, opt, handle):
         self.initStyleOption(opt)
-        if handle == ScanSlider.startSlider:
+        if handle == "start":
             opt.sliderPosition = self.startPos
             opt.sliderValue = self.startVal
-        elif handle == ScanSlider.stopSlider:
+        elif handle == "stop":
             opt.sliderPosition = self.stopPos
             opt.sliderValue = self.stopVal
-        else:
-            pass  # AssertionErrors
 
     # We get the range of each slider separately.
     def pixelPosToRangeValue(self, pos):
         opt = QtWidgets.QStyleOptionSlider()
         self.initStyleOption(opt)
-
         gr = self.style().subControlRect(QtWidgets.QStyle.CC_Slider, opt,
                                          QtWidgets.QStyle.SC_SliderGroove,
                                          self)
-        sr = self.style().subControlRect(QtWidgets.QStyle.CC_Slider, opt,
-                                         QtWidgets.QStyle.SC_SliderHandle,
-                                         self)
-
-        sliderLength = sr.width()
-        sliderStart = gr.x()
-        # For historical reasons right() returns left()+width() - 1
-        # x() is equivalent to left().
-        sliderStop = gr.right() - sliderLength + 1
-
         rangeVal = QtWidgets.QStyle.sliderValueFromPosition(
-            self.minimum(), self.maximum(), pos - sliderStart,
-            sliderStop - sliderStart, opt.upsideDown)
+            self.minimum(), self.maximum(), pos - gr.x(),
+            self.effectiveWidth(), opt.upsideDown)
         return rangeVal
 
     def rangeValueToPixelPos(self, val):
         opt = QtWidgets.QStyleOptionSlider()
         self.initStyleOption(opt)
-
-        gr = self.style().subControlRect(QtWidgets.QStyle.CC_Slider, opt,
-                                         QtWidgets.QStyle.SC_SliderGroove,
-                                         self)
-        sr = self.style().subControlRect(QtWidgets.QStyle.CC_Slider, opt,
-                                         QtWidgets.QStyle.SC_SliderHandle,
-                                         self)
-
-        sliderLength = sr.width()
-        sliderStart = gr.x()
-        sliderStop = gr.right() - sliderLength + 1
-
         pixel = QtWidgets.QStyle.sliderPositionFromValue(
-            self.minimum(), self.maximum(), val, sliderStop - sliderStart,
+            self.minimum(), self.maximum(), val, self.effectiveWidth(),
             opt.upsideDown)
         return pixel
 
@@ -180,28 +152,15 @@ class ScanSlider(QtWidgets.QSlider):
         gr = self.style().subControlRect(QtWidgets.QStyle.CC_Slider, opt,
                                          QtWidgets.QStyle.SC_SliderGroove,
                                          self)
-        sliderLength = self.handleWidth()
-        sliderStart = gr.x()
-        sliderStop = gr.right() - sliderLength + 1
-        return sliderStop - sliderStart
-
-    # If groove and axis are not aligned (and they should be), we can use
-    # this function to calculate the offset between them.
-    def grooveX(self):
-        opt = QtWidgets.QStyleOptionSlider()
-        self.initStyleOption(opt)
-        gr = self.style().subControlRect(QtWidgets.QStyle.CC_Slider, opt,
-                                         QtWidgets.QStyle.SC_SliderGroove,
-                                         self)
-        return gr.x()
+        return gr.width() - self.handleWidth()
 
     def handleMousePress(self, pos, control, val, handle):
         opt = QtWidgets.QStyleOptionSlider()
         self.initHandleStyleOption(opt, handle)
-        startAtEdges = (handle == ScanSlider.startSlider and
+        startAtEdges = (handle == "start" and
                         (self.startVal == self.minimum() or
                          self.startVal == self.maximum()))
-        stopAtEdges = (handle == ScanSlider.stopSlider and
+        stopAtEdges = (handle == "stop" and
                        (self.stopVal == self.minimum() or
                         self.stopVal == self.maximum()))
 
@@ -218,9 +177,7 @@ class ScanSlider(QtWidgets.QSlider):
         if control == QtWidgets.QStyle.SC_SliderHandle:
             # no pick()- slider orientation static
             self.offset = pos.x() - sr.topLeft().x()
-            self.lastPressed = handle
             self.setSliderDown(True)
-            self.selectedHandle = handle
             # emit
 
         # Needed?
@@ -239,25 +196,11 @@ class ScanSlider(QtWidgets.QSlider):
     #     if action == QtWidgets.QAbstractSlider.SliderSingleStepAdd:
     #         if
 
-    def setStartValue(self, val):
-        self.setSpan(val, self.stopVal)
-
-    def setStopValue(self, val):
-        self.setSpan(self.startVal, val)
-
-    def setSpan(self, lower, upper):
-        # TODO: Is bound() necessary? QStyle::sliderPositionFromValue appears
+    def setSpan(self, low, high):
+        # TODO: Is this necessary? QStyle::sliderPositionFromValue appears
         # to clamp already.
-        def bound(min, curr, max):
-            if curr < min:
-                return min
-            elif curr > max:
-                return max
-            else:
-                return curr
-
-        low = bound(self.minimum(), lower, self.maximum())
-        high = bound(self.minimum(), upper, self.maximum())
+        low = min(max(self.minimum(), low), self.maximum())
+        high = min(max(self.minimum(), high), self.maximum())
 
         if low != self.startVal or high != self.stopVal:
             if low != self.startVal:
@@ -276,7 +219,7 @@ class ScanSlider(QtWidgets.QSlider):
             if self.isSliderDown():
                 self.sigStartMoved.emit(self.startPos)
             if self.hasTracking() and not self.blockTracking:
-                self.setStartValue(val)
+                self.setSpan(self.startPos, self.stopVal)
 
     def setStopPosition(self, val):
         if val != self.stopPos:
@@ -286,7 +229,7 @@ class ScanSlider(QtWidgets.QSlider):
             if self.isSliderDown():
                 self.sigStopMoved.emit(self.stopPos)
             if self.hasTracking() and not self.blockTracking:
-                self.setStopValue(val)
+                self.setSpan(self.startVal, self.stopPos)
 
     def mousePressEvent(self, ev):
         if self.minimum() == self.maximum() or (ev.buttons() ^ ev.button()):
@@ -295,11 +238,10 @@ class ScanSlider(QtWidgets.QSlider):
 
         # Prefer stopVal in the default case.
         self.upperPressed = self.handleMousePress(
-            ev.pos(), self.upperPressed, self.stopVal, ScanSlider.stopSlider)
+            ev.pos(), self.upperPressed, self.stopVal, "stop")
         if self.upperPressed != QtWidgets.QStyle.SC_SliderHandle:
             self.lowerPressed = self.handleMousePress(
-                ev.pos(), self.upperPressed, self.startVal,
-                ScanSlider.startSlider)
+                ev.pos(), self.upperPressed, self.startVal, "start")
 
         # State that is needed to handle the case where two sliders are equal.
         self.firstMovement = True
@@ -350,7 +292,6 @@ class ScanSlider(QtWidgets.QSlider):
 
     def paintEvent(self, ev):
         # Use QStylePainters to make redrawing as painless as possible.
-        painter = QtWidgets.QStylePainter(self)
         # Paint on the custom widget, using the attributes of the fake
         # slider references we keep around. setStyleSheet within paintEvent
         # leads to heavy performance penalties (and recursion?).
@@ -361,22 +302,14 @@ class ScanSlider(QtWidgets.QSlider):
         startPainter = QtWidgets.QStylePainter(self, self.dummyStartSlider)
         stopPainter = QtWidgets.QStylePainter(self, self.dummyStopSlider)
 
-        # Groove
-        opt = QtWidgets.QStyleOptionSlider()
-        self.initStyleOption(opt)
-        opt.sliderValue = 0
-        opt.sliderPosition = 0
-        opt.subControls = QtWidgets.QStyle.SC_SliderGroove
-        painter.drawComplexControl(QtWidgets.QStyle.CC_Slider, opt)
-
         # Handles
         # Qt will snap sliders to 0 or maximum() if given a desired pixel
         # location outside the mapped range. So we manually just don't draw
         # the handles if they are at 0 or max.
         if self.startVal > 0 and self.startVal < self.maximum():
-            self.drawHandle(startPainter, ScanSlider.startSlider)
+            self.drawHandle(startPainter, "start")
         if self.stopVal > 0 and self.stopVal < self.maximum():
-            self.drawHandle(stopPainter, ScanSlider.stopSlider)
+            self.drawHandle(stopPainter, "stop")
 
 
 # real (Sliders) => pixel (one pixel movement of sliders would increment by X)
@@ -386,7 +319,7 @@ class ScanProxy(QtCore.QObject):
     sigStopMoved = QtCore.pyqtSignal(float)
     sigNumPoints = QtCore.pyqtSignal(int)
 
-    def __init__(self, slider, axis, rangeFactor):
+    def __init__(self, slider, axis, rangeFactor, dynamicRange):
         QtCore.QObject.__init__(self)
         self.axis = axis
         self.slider = slider
@@ -394,6 +327,7 @@ class ScanProxy(QtCore.QObject):
         self.realStop = 0
         self.numPoints = 10
         self.rangeFactor = rangeFactor
+        self.dynamicRange = dynamicRange
 
         # Transform that maps the spinboxes to a pixel position on the
         # axis. 0 to axis.width() exclusive indicate positions which will be
@@ -401,42 +335,23 @@ class ScanProxy(QtCore.QObject):
         # Because the axis's width will change when placed within a layout,
         # the realToPixelTransform will initially be invalid. It will be set
         # properly during the first resizeEvent, with the below transform.
-        self.realToPixelTransform = self.calculateNewRealToPixel(
-            -self.axis.width()/2, 1.0)
+        self.realToPixelTransform = self.axis.width()/2, 1.
         self.invalidOldSizeExpected = True
-
-    # What real value should map to the axis/slider left? This doesn't depend
-    # on any public members so we can make decisions about centering during
-    # resize and zoom events.
-    def calculateNewRealToPixel(self, targetLeft, targetScale):
-        return QtGui.QTransform.fromScale(targetScale, 1).translate(
-            -targetLeft, 0)
 
     # pixel vals for sliders: 0 to slider_width - 1
     def realToPixel(self, val):
-        rawVal = (QtCore.QPointF(val, 0) * self.realToPixelTransform).x()
+        a, b = self.realToPixelTransform
+        rawVal = b*(val + a)
         # Clamp pixel values to 32 bits, b/c Qt will otherwise wrap values.
-        if rawVal < -(2**31):
-            rawVal = -(2**31)
-        elif rawVal > (2**31 - 1):
-            rawVal = (2**31 - 1)
+        rawVal = min(max(-(1 << 31), rawVal), (1 << 31) - 1)
         return rawVal
 
     # Get a point from pixel units to what the sliders display.
     def pixelToReal(self, val):
-        (revXform, invertible) = self.realToPixelTransform.inverted()
-        if not invertible:
-            revXform = (QtGui.QTransform.fromTranslate(
-                -self.realToPixelTransform.dx(), 0) *
-                        QtGui.QTransform.fromScale(
-                            1/self.realToPixelTransform.m11(), 0))
-        realPoint = QtCore.QPointF(val, 0) * revXform
-        return realPoint.x()
+        a, b = self.realToPixelTransform
+        return val/b - a
 
     def rangeToReal(self, val):
-        # gx = self.slider.grooveX()
-        # ax = self.axis.x()
-        # assert gx == ax, "gx: {}, ax: {}".format(gx, ax)
         pixelVal = self.slider.rangeValueToPixelPos(val)
         return self.pixelToReal(pixelVal)
 
@@ -470,11 +385,12 @@ class ScanProxy(QtCore.QObject):
         self.axis.update()
 
     def handleZoom(self, zoomFactor, mouseXPos):
-        newScale = self.realToPixelTransform.m11() * zoomFactor
+        newScale = self.realToPixelTransform[1] * zoomFactor
         refReal = self.pixelToReal(mouseXPos)
-        newLeft = refReal - mouseXPos/newScale
-        self.realToPixelTransform = self.calculateNewRealToPixel(
-            newLeft, newScale)
+        newLeft = mouseXPos/newScale - refReal
+        if abs(newLeft*newScale) > self.dynamicRange:
+            return
+        self.realToPixelTransform = newLeft, newScale
         self.moveStop(self.realStop)
         self.moveStart(self.realStart)
 
@@ -485,20 +401,40 @@ class ScanProxy(QtCore.QObject):
             refSlider = self.realStop
         else:
             refSlider = self.realStart
-        if self.rangeFactor <= 2:
-            return  # Ill-formed snap range- do nothing.
+        if self.rangeFactor <= 2 or currRangeReal == 0:
+            return  # Ill-formed snap range- do nothing
         proportion = self.rangeFactor/(self.rangeFactor - 2)
         newScale = self.slider.effectiveWidth()/(proportion*currRangeReal)
-        newLeft = refSlider - self.slider.effectiveWidth() \
-            / (self.rangeFactor*newScale)
-        self.realToPixelTransform = self.calculateNewRealToPixel(
-            newLeft, newScale)
-        self.printTransform()
+        newLeft = (self.slider.effectiveWidth()/(self.rangeFactor*newScale) -
+                   refSlider)
+        self.realToPixelTransform = newLeft, newScale
         self.moveStop(self.realStop)
         self.moveStart(self.realStart)
         self.axis.update()  # Axis normally takes care to update itself during
         # zoom. In this code path however, the zoom didn't arrive via the axis
         # widget, so we need to notify manually.
+
+    # This function is called if the axis width, slider width, and slider
+    # positions are in an inconsistent state, to initialize the widget.
+    # This function handles handles the slider positions. Slider and axis
+    # handle its own width changes; proxy watches for axis width resizeEvent to
+    # alter mapping from real to pixel space.
+    def zoomToFitInit(self):
+        currRangeReal = abs(self.realStop - self.realStart)
+        if self.rangeFactor <= 2 or currRangeReal == 0:
+            self.moveStop(self.realStop)
+            self.moveStart(self.realStart)
+            # Ill-formed snap range- move the sliders anyway,
+            # because we arrived here during widget
+            # initialization, where the slider positions are likely invalid.
+            # This will force the sliders to have positions on the axis
+            # which reflect the start/stop values currently set.
+        else:
+            self.zoomToFit()
+        # Notify spinboxes manually, since slider wasn't clicked and will
+        # therefore not emit signals.
+        self.sigStopMoved.emit(self.realStop)
+        self.sigStartMoved.emit(self.realStart)
 
     def fitToView(self):
         lowRange = 1.0/self.rangeFactor
@@ -527,15 +463,22 @@ class ScanProxy(QtCore.QObject):
             newWidth = ev.size().width() - self.slider.handleWidth()
             # assert refRight > oldLeft
             newScale = newWidth/(refRight - oldLeft)
+            self.realToPixelTransform = -oldLeft, newScale
         else:
             # TODO: self.axis.width() is invalid during object
             # construction. The width will change when placed in a
             # layout WITHOUT a resizeEvent. Why?
             oldLeft = -ev.size().width()/2
             newScale = 1.0
+            self.realToPixelTransform = -oldLeft, newScale
+            # We need to reinitialize the pixel transform b/c the old width
+            # of the axis is no longer valid. When we have a valid transform,
+            # we can then zoomToFit based on the desired real values.
+            # The slider handle values are invalid before this point as well;
+            # we set them to the correct value here, regardless of whether
+            # the slider has already resized itsef or not.
+            self.zoomToFitInit()
             self.invalidOldSizeExpected = False
-        self.realToPixelTransform = self.calculateNewRealToPixel(
-            oldLeft, newScale)
         # assert self.pixelToReal(0) == oldLeft, \
         # "{}, {}".format(self.pixelToReal(0), oldLeft)
         # Slider will update independently, making sure that the old
@@ -544,26 +487,17 @@ class ScanProxy(QtCore.QObject):
         # same positions in the new axis-space.
         return False
 
-    def printTransform(self):
-        print("m11: {}, dx: {}".format(
-            self.realToPixelTransform.m11(), self.realToPixelTransform.dx()))
-        (inverted, invertible) = self.realToPixelTransform.inverted()
-        print("m11: {}, dx: {}, singular: {}".format(
-            inverted.m11(), inverted.dx(), not invertible))
-
 
 class ScanWidget(QtWidgets.QWidget):
     sigStartMoved = QtCore.pyqtSignal(float)
     sigStopMoved = QtCore.pyqtSignal(float)
     sigNumChanged = QtCore.pyqtSignal(int)
 
-    def __init__(self, zoomFactor=1.05, rangeFactor=6):
+    def __init__(self, zoomFactor=1.05, rangeFactor=6, dynamicRange=1e8):
         QtWidgets.QWidget.__init__(self)
         self.slider = slider = ScanSlider()
         self.axis = axis = ScanAxis(zoomFactor)
-        zoomFitButton = QtWidgets.QPushButton("View Range")
-        fitViewButton = QtWidgets.QPushButton("Snap Range")
-        self.proxy = ScanProxy(slider, axis, rangeFactor)
+        self.proxy = ScanProxy(slider, axis, rangeFactor, dynamicRange)
         axis.proxy = self.proxy
         axis.slider = slider
         slider.setMaximum(1023)
@@ -574,11 +508,9 @@ class ScanWidget(QtWidgets.QWidget):
         layout.setRowMinimumHeight(0, 40)
         layout.addWidget(axis, 0, 0, 1, -1)
         layout.addWidget(slider, 1, 0, 1, -1)
-        layout.addWidget(zoomFitButton, 2, 0)
-        layout.addWidget(fitViewButton, 2, 1)
         self.setLayout(layout)
 
-        # Connect signals
+        # Connect signals (minus context menu)
         slider.sigStopMoved.connect(self.proxy.handleStopMoved)
         slider.sigStartMoved.connect(self.proxy.handleStartMoved)
         self.proxy.sigStopMoved.connect(self.sigStopMoved)
@@ -586,12 +518,16 @@ class ScanWidget(QtWidgets.QWidget):
         self.proxy.sigNumPoints.connect(self.sigNumChanged)
         axis.sigZoom.connect(self.proxy.handleZoom)
         axis.sigPoints.connect(self.proxy.handleNumPoints)
-        fitViewButton.clicked.connect(self.fitToView)
-        zoomFitButton.clicked.connect(self.zoomToFit)
 
         # Connect event observers.
         axis.installEventFilter(self.proxy)
         slider.installEventFilter(axis)
+
+        # Context menu entries
+        self.zoomToFitAct = QtWidgets.QAction("&View Range", self)
+        self.fitToViewAct = QtWidgets.QAction("&Snap Range", self)
+        self.zoomToFitAct.triggered.connect(self.zoomToFit)
+        self.fitToViewAct.triggered.connect(self.fitToView)
 
     # Spinbox and button slots. Any time the spinboxes change, ScanWidget
     # mirrors it and passes the information to the proxy.
@@ -610,5 +546,8 @@ class ScanWidget(QtWidgets.QWidget):
     def fitToView(self):
         self.proxy.fitToView()
 
-    def reset(self):
-        self.proxy.reset()
+    def contextMenuEvent(self, ev):
+        menu = QtWidgets.QMenu(self)
+        menu.addAction(self.zoomToFitAct)
+        menu.addAction(self.fitToViewAct)
+        menu.exec(ev.globalPos())
