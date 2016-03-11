@@ -186,7 +186,7 @@ class _RangeScan(LayoutWidget):
             scanner.setStart(value)
 
         def update_max(value):
-            state["min"] = value*scale
+            state["max"] = value*scale
             scanner.setStop(value)
 
         def update_npoints(value):
