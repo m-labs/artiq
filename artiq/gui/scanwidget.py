@@ -10,15 +10,12 @@ logger = logging.getLogger(__name__)
 
 
 class ScanAxis(QtWidgets.QWidget):
-    sigZoom = QtCore.pyqtSignal(float, int)
-    sigPoints = QtCore.pyqtSignal(int)
-
-    def __init__(self, zoomFactor):
+    def __init__(self):
         QtWidgets.QWidget.__init__(self)
         self.proxy = None
         self.sizePolicy().setControlType(QtWidgets.QSizePolicy.ButtonBox)
         self.ticker = Ticker()
-        self.zoomFactor = zoomFactor
+        self.setMinimumHeight(40)
 
     def paintEvent(self, ev):
         painter = QtGui.QPainter(self)
@@ -52,37 +49,6 @@ class ScanAxis(QtWidgets.QWidget):
             painter.drawLine(p_int, 0, p_int, 5)
         ev.accept()
 
-    def wheelEvent(self, ev):
-        y = ev.angleDelta().y()
-        if y:
-            if ev.modifiers() & QtCore.Qt.ShiftModifier:
-                # If shift+scroll, modify number of points.
-                # TODO: This is not perfect. For high-resolution touchpads you
-                # get many small events with y < 120 which should accumulate.
-                # That would also match the wheel behavior of an integer
-                # spinbox.
-                z = int(y / 120.)
-                self.sigPoints.emit(z)
-            else:
-                z = self.zoomFactor**(y / 120.)
-                # Remove the slider-handle shift correction, b/c none of the
-                # other widgets know about it. If we have the mouse directly
-                # over a tick during a zoom, it should appear as if we are
-                # doing zoom relative to the ticks which live in axis
-                # pixel-space, not slider pixel-space.
-                self.sigZoom.emit(
-                    z, ev.x() - self.proxy.slider.handleWidth()/2)
-            self.update()
-        ev.accept()
-
-    def eventFilter(self, obj, ev):
-        if obj is not self.proxy.slider:
-            return False
-        if ev.type() != QtCore.QEvent.Wheel:
-            return False
-        self.wheelEvent(ev)
-        return True
-
 
 # Basic ideas from https://gist.github.com/Riateche/27e36977f7d5ea72cf4f
 class ScanSlider(QtWidgets.QSlider):
@@ -102,6 +68,9 @@ class ScanSlider(QtWidgets.QSlider):
         self.lowerPressed = QtWidgets.QStyle.SC_None
         self.firstMovement = False  # State var for handling slider overlap.
         self.blockTracking = False
+
+        self.setMinimum(0)
+        self.setMaximum(4095)
 
         # We need fake sliders to keep around so that we can dynamically
         # set the stylesheets for drawing each slider later. See paintEvent.
@@ -201,10 +170,6 @@ class ScanSlider(QtWidgets.QSlider):
         opt.subControls = QtWidgets.QStyle.SC_SliderHandle
         painter.drawComplexControl(QtWidgets.QStyle.CC_Slider, opt)
 
-    # def triggerAction(self, action, slider):
-    #     if action == QtWidgets.QAbstractSlider.SliderSingleStepAdd:
-    #         if
-
     def setSpan(self, low, high):
         # TODO: Is this necessary? QStyle::sliderPositionFromValue appears
         # to clamp already.
@@ -241,7 +206,7 @@ class ScanSlider(QtWidgets.QSlider):
                 self.setSpan(self.startVal, self.stopPos)
 
     def mousePressEvent(self, ev):
-        if self.minimum() == self.maximum() or (ev.buttons() ^ ev.button()):
+        if ev.buttons() ^ ev.button():
             ev.ignore()
             return
 
@@ -315,9 +280,9 @@ class ScanSlider(QtWidgets.QSlider):
         # Qt will snap sliders to 0 or maximum() if given a desired pixel
         # location outside the mapped range. So we manually just don't draw
         # the handles if they are at 0 or max.
-        if self.startVal > 0 and self.startVal < self.maximum():
+        if self.minimum() < self.startVal < self.maximum():
             self.drawHandle(startPainter, "start")
-        if self.stopVal > 0 and self.stopVal < self.maximum():
+        if self.minimum() < self.stopVal < self.maximum():
             self.drawHandle(stopPainter, "stop")
 
 
@@ -326,17 +291,19 @@ class ScanSlider(QtWidgets.QSlider):
 class ScanProxy(QtCore.QObject):
     sigStartMoved = QtCore.pyqtSignal(float)
     sigStopMoved = QtCore.pyqtSignal(float)
-    sigNumPoints = QtCore.pyqtSignal(int)
+    sigNumChanged = QtCore.pyqtSignal(int)
 
-    def __init__(self, slider, axis, zoomMargin, dynamicRange):
+    def __init__(self, slider, axis, zoomMargin, dynamicRange, zoomFactor):
         QtCore.QObject.__init__(self)
         self.axis = axis
+        axis.proxy = self
         self.slider = slider
-        self.realStart = 0
-        self.realStop = 0
-        self.numPoints = 10
+        self.realStart = -1.
+        self.realStop = 1.
+        self.numPoints = 11
         self.zoomMargin = zoomMargin
         self.dynamicRange = dynamicRange
+        self.zoomFactor = zoomFactor
 
         # Transform that maps the spinboxes to a pixel position on the
         # axis. 0 to axis.width() exclusive indicate positions which will be
@@ -346,6 +313,12 @@ class ScanProxy(QtCore.QObject):
         # properly during the first resizeEvent, with the below transform.
         self.realToPixelTransform = -self.axis.width()/2, 1.
         self.invalidOldSizeExpected = True
+
+        # Connect event observers.
+        axis.installEventFilter(self)
+        slider.installEventFilter(self)
+        slider.sigStopMoved.connect(self.handleStopMoved)
+        slider.sigStartMoved.connect(self.handleStartMoved)
 
     # pixel vals for sliders: 0 to slider_width - 1
     def realToPixel(self, val):
@@ -381,13 +354,14 @@ class ScanProxy(QtCore.QObject):
         self.axis.update()
 
     def handleStopMoved(self, rangeVal):
+        # FIXME: this relies on the event being fed back and ending up calling
+        # moveStop()
         self.sigStopMoved.emit(self.rangeToReal(rangeVal))
 
     def handleStartMoved(self, rangeVal):
+        # FIXME: this relies on the event being fed back and ending up calling
+        # moveStart()
         self.sigStartMoved.emit(self.rangeToReal(rangeVal))
-
-    def handleNumPoints(self, inc):
-        self.sigNumPoints.emit(self.numPoints + inc)
 
     def setNumPoints(self, val):
         self.numPoints = val
@@ -446,28 +420,55 @@ class ScanProxy(QtCore.QObject):
         highRange = 1 - self.zoomMargin
         newStart = self.pixelToReal(lowRange * self.slider.effectiveWidth())
         newStop = self.pixelToReal(highRange * self.slider.effectiveWidth())
-        sliderRange = self.slider.maximum() - self.slider.minimum()
         # Signals won't fire unless slider was actually grabbed, so
         # manually update so the spinboxes know that knew values were set.
         # self.realStop/Start and the sliders themselves will be updated as a
         # consequence of ValueChanged signal in spinboxes. The slider widget
         # has guards against recursive signals in setSpan().
-        if sliderRange > 0:
-            self.sigStopMoved.emit(newStop)
-            self.sigStartMoved.emit(newStart)
+        # FIXME: this relies on the events being fed back and ending up
+        # calling moveStart() and moveStop()
+        self.sigStopMoved.emit(newStop)
+        self.sigStartMoved.emit(newStart)
+
+    def wheelEvent(self, ev):
+        y = ev.angleDelta().y()
+        if y:
+            if ev.modifiers() & QtCore.Qt.ShiftModifier:
+                # If shift+scroll, modify number of points.
+                # TODO: This is not perfect. For high-resolution touchpads you
+                # get many small events with y < 120 which should accumulate.
+                # That would also match the wheel behavior of an integer
+                # spinbox.
+                z = int(y / 120.)
+                # FIXME: this relies on the event being fed back and ending up
+                # calling setNumPoints()
+                self.sigNumChanged.emit(self.numPoints + z)
+                self.axis.update()
+            else:
+                z = self.zoomFactor**(y / 120.)
+                # Remove the slider-handle shift correction, b/c none of the
+                # other widgets know about it. If we have the mouse directly
+                # over a tick during a zoom, it should appear as if we are
+                # doing zoom relative to the ticks which live in axis
+                # pixel-space, not slider pixel-space.
+                self.handleZoom(z, ev.x() - self.slider.handleWidth()/2)
+        ev.accept()
 
     def eventFilter(self, obj, ev):
-        if obj != self.axis:
-            return False
-        if ev.type() != QtCore.QEvent.Resize:
+        if ev.type() == QtCore.QEvent.Wheel:
+            self.wheelEvent(ev)
+            return True
+        if not (obj is self.axis and ev.type() == QtCore.QEvent.Resize):
             return False
         if ev.oldSize().isValid():
             oldLeft = self.pixelToReal(0)
             refWidth = ev.oldSize().width() - self.slider.handleWidth()
             refRight = self.pixelToReal(refWidth)
             newWidth = ev.size().width() - self.slider.handleWidth()
-            # assert refRight > oldLeft
             newScale = newWidth/(refRight - oldLeft)
+            center = (self.realStop + self.realStart)/2
+            if center:
+                newScale = min(newScale, self.dynamicRange/abs(center))
             self.realToPixelTransform = oldLeft, newScale
         else:
             # TODO: self.axis.width() is invalid during object
@@ -484,8 +485,6 @@ class ScanProxy(QtCore.QObject):
             # the slider has already resized itsef or not.
             self.viewRangeInit()
             self.invalidOldSizeExpected = False
-        # assert self.pixelToReal(0) == oldLeft, \
-        # "{}, {}".format(self.pixelToReal(0), oldLeft)
         # Slider will update independently, making sure that the old
         # slider positions are preserved. Because of this, we can be
         # confident that the new slider position will still map to the
@@ -498,43 +497,34 @@ class ScanWidget(QtWidgets.QWidget):
     sigStopMoved = QtCore.pyqtSignal(float)
     sigNumChanged = QtCore.pyqtSignal(int)
 
-    def __init__(self, zoomFactor=1.05, zoomMargin=.1, dynamicRange=1e8):
+    def __init__(self, zoomFactor=1.05, zoomMargin=.1, dynamicRange=1e9):
         QtWidgets.QWidget.__init__(self)
         self.slider = slider = ScanSlider()
-        self.axis = axis = ScanAxis(zoomFactor)
-        self.proxy = ScanProxy(slider, axis, zoomMargin, dynamicRange)
-        axis.proxy = self.proxy
-        slider.setMaximum(1023)
+        self.axis = axis = ScanAxis()
+        self.proxy = ScanProxy(slider, axis, zoomMargin, dynamicRange,
+                               zoomFactor)
 
         # Layout.
-        layout = QtWidgets.QGridLayout()
-        # Default size will cause axis to disappear otherwise.
-        layout.setRowMinimumHeight(0, 40)
-        layout.addWidget(axis, 0, 0, 1, -1)
-        layout.addWidget(slider, 1, 0, 1, -1)
+        layout = QtWidgets.QVBoxLayout()
+        layout.setSpacing(0)
+        layout.addWidget(axis)
+        layout.addWidget(slider)
         self.setLayout(layout)
 
         # Connect signals (minus context menu)
-        slider.sigStopMoved.connect(self.proxy.handleStopMoved)
-        slider.sigStartMoved.connect(self.proxy.handleStartMoved)
         self.proxy.sigStopMoved.connect(self.sigStopMoved)
         self.proxy.sigStartMoved.connect(self.sigStartMoved)
-        self.proxy.sigNumPoints.connect(self.sigNumChanged)
-        axis.sigZoom.connect(self.proxy.handleZoom)
-        axis.sigPoints.connect(self.proxy.handleNumPoints)
-
-        # Connect event observers.
-        axis.installEventFilter(self.proxy)
-        slider.installEventFilter(axis)
+        self.proxy.sigNumChanged.connect(self.sigNumChanged)
 
         # Context menu entries
-        self.viewRangeAct = QtWidgets.QAction("&View Range", self)
-        self.snapRangeAct = QtWidgets.QAction("&Snap Range", self)
-        self.viewRangeAct.triggered.connect(self.viewRange)
-        self.snapRangeAct.triggered.connect(self.snapRange)
+        self.menu = QtWidgets.QMenu(self)
+        viewRangeAct = QtWidgets.QAction("&View Range", self)
+        viewRangeAct.triggered.connect(self.viewRange)
+        self.menu.addAction(viewRangeAct)
+        snapRangeAct = QtWidgets.QAction("&Snap Range", self)
+        snapRangeAct.triggered.connect(self.snapRange)
+        self.menu.addAction(snapRangeAct)
 
-    # Spinbox and button slots. Any time the spinboxes change, ScanWidget
-    # mirrors it and passes the information to the proxy.
     def setStop(self, val):
         self.proxy.moveStop(val)
 
@@ -551,7 +541,4 @@ class ScanWidget(QtWidgets.QWidget):
         self.proxy.snapRange()
 
     def contextMenuEvent(self, ev):
-        menu = QtWidgets.QMenu(self)
-        menu.addAction(self.viewRangeAct)
-        menu.addAction(self.snapRangeAct)
-        menu.exec(ev.globalPos())
+        self.menu.popup(ev.globalPos())
