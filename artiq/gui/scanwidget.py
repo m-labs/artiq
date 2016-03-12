@@ -15,12 +15,17 @@ class ScanAxis(QtWidgets.QWidget):
         self.proxy = None
         self.sizePolicy().setControlType(QtWidgets.QSizePolicy.ButtonBox)
         self.ticker = Ticker()
-        self.setMinimumHeight(40)
+        qfm = QtGui.QFontMetrics(QtGui.QFont())
+        lineSpacing = qfm.lineSpacing()
+        descent = qfm.descent()
+        self.setMinimumHeight(2*lineSpacing + descent + 5 + 5)
 
     def paintEvent(self, ev):
         painter = QtGui.QPainter(self)
-        font = painter.font()
-        avgCharWidth = QtGui.QFontMetrics(font).averageCharWidth()
+        qfm = QtGui.QFontMetrics(painter.font())
+        avgCharWidth = qfm.averageCharWidth()
+        lineSpacing = qfm.lineSpacing()
+        descent = qfm.descent()
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         # The center of the slider handles should reflect what's displayed
         # on the spinboxes.
@@ -29,7 +34,7 @@ class ScanAxis(QtWidgets.QWidget):
         realLeft = self.proxy.pixelToReal(0)
         realRight = self.proxy.pixelToReal(self.width())
         ticks, prefix, labels = self.ticker(realLeft, realRight)
-        painter.drawText(0, -25, prefix)
+        painter.drawText(0, -5-descent-lineSpacing, prefix)
 
         pen = QtGui.QPen()
         pen.setWidth(2)
@@ -38,7 +43,7 @@ class ScanAxis(QtWidgets.QWidget):
         for t, l in zip(ticks, labels):
             t = self.proxy.realToPixel(t)
             painter.drawLine(t, 0, t, -5)
-            painter.drawText(t - len(l)/2*avgCharWidth, -10, l)
+            painter.drawText(t - len(l)/2*avgCharWidth, -5-descent, l)
 
         sliderStartPixel = self.proxy.realToPixel(self.proxy.realStart)
         sliderStopPixel = self.proxy.realToPixel(self.proxy.realStop)
