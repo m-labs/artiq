@@ -364,7 +364,7 @@ class ScanWidget(QtWidgets.QWidget):
             return
         self.setView(newLeft, newScale)
 
-    def _wheelEvent(self, ev):
+    def wheelEvent(self, ev):
         y = ev.angleDelta().y()
         if ev.modifiers() & QtCore.Qt.ShiftModifier:
             # If shift+scroll, modify number of points.
@@ -405,7 +405,7 @@ class ScanWidget(QtWidgets.QWidget):
 
     def eventFilter(self, obj, ev):
         if ev.type() == QtCore.QEvent.Wheel:
-            self._wheelEvent(ev)
+            ev.ignore()
             return True
         if ev.type() == QtCore.QEvent.Resize:
             ev.ignore()
