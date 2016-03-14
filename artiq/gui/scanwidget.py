@@ -389,12 +389,7 @@ class ScanWidget(QtWidgets.QWidget):
         else:
             ev.ignore()
 
-    def eventFilter(self, obj, ev):
-        if ev.type() == QtCore.QEvent.Wheel:
-            self._wheelEvent(ev)
-            return True
-        if not (obj is self.axis and ev.type() == QtCore.QEvent.Resize):
-            return False
+    def resizeEvent(self, ev):
         if ev.oldSize().isValid():
             oldLeft = self.pixelToReal(0)
             refWidth = ev.oldSize().width() - self.slider.handleWidth()
@@ -407,4 +402,12 @@ class ScanWidget(QtWidgets.QWidget):
             self.setView(oldLeft, newScale)
         else:
             self.viewRange()
+
+    def eventFilter(self, obj, ev):
+        if ev.type() == QtCore.QEvent.Wheel:
+            self._wheelEvent(ev)
+            return True
+        if ev.type() == QtCore.QEvent.Resize:
+            ev.ignore()
+            return True
         return False
