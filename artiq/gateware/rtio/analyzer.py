@@ -191,8 +191,7 @@ class Analyzer(Module, AutoCSR):
         dw = len(membus.dat_w)
 
         self.submodules.message_encoder = MessageEncoder(rtio_core)
-        self.submodules.converter = stream.Converter(
-            [("data", 256)], [("data", dw)], reverse=True)
+        self.submodules.converter = stream.Converter(256, dw, reverse=True)
         self.submodules.fifo = stream.SyncFIFO(
             [("data", dw)], fifo_depth, True)
         self.submodules.dma = DMAWriter(membus)
