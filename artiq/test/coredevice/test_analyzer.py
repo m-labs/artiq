@@ -1,5 +1,6 @@
 from artiq.experiment import *
-from artiq.coredevice.analyzer import decode_dump, OutputMessage, InputMessage
+from artiq.coredevice.analyzer import (decode_dump, StoppedMessage,
+                                       OutputMessage, InputMessage)
 from artiq.test.hardware_testbench import ExperimentCase
 
 
@@ -30,6 +31,7 @@ class AnalyzerTest(ExperimentCase):
         exp.run()
 
         dump = decode_dump(comm.get_analyzer_dump())
+        self.assertIsInstance(dump.messages[-1], StoppedMessage)
         output_messages = [msg for msg in dump.messages
                            if isinstance(msg, OutputMessage)
                               and msg.address == 0]
