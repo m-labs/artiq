@@ -135,6 +135,7 @@ class MessageEncoder(Module, AutoCSR):
                 ).Else(
                     self.source.data.eq(input_output.raw_bits())
                 ),
+                self.source.eop.eq(0),
                 self.source.stb.eq(enable &
                                   (input_output_stb | exception_stb)),
 
