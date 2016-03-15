@@ -356,7 +356,7 @@ def create_channel_handlers(vcd_manager, devices, ref_period,
                         raise ValueError("All DDS channels must have the same type")
                 else:
                     dds_handler = DDSHandler(vcd_manager, desc["class"],
-                        dds_sysclk, dds_onehot_sel)
+                        dds_onehot_sel, dds_sysclk)
                     channel_handlers[dds_bus_channel] = dds_handler
                 dds_handler.add_dds_channel(name, dds_channel)
     return channel_handlers
