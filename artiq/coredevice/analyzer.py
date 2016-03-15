@@ -327,7 +327,7 @@ def get_ref_period(devices):
 
 
 def get_dds_sysclk(devices):
-    return get_single_device_argument(devices, "artiq.coredevice.core",
+    return get_single_device_argument(devices, "artiq.coredevice.dds",
                                       "CoreDDS", "sysclk")
 
 
