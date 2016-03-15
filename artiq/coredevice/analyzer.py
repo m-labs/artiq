@@ -230,13 +230,15 @@ class DDSHandler:
             self.selected_dds_channels = self._gpio_to_channels(message.data)
         for dds_channel_nr in self.selected_dds_channels:
             dds_channel = self.dds_channels[dds_channel_nr]
-            if message.address in range(0x2d, 0x2f):
-                dds_channel["ftw"][message.address - 0x2d] = message.data
+            if message.address == 0x2d:
+                dds_channel["ftw"][0] = message.data
+            elif message.address == 0x2f:
+                dds_channel["ftw"][1] = message.data
             elif message.address == 0x31:
                 dds_channel["pow"] = message.data
             elif message.address == 0x80:  # FUD
                 if None not in dds_channel["ftw"]:
-                    ftw = sum(x << i*8
+                    ftw = sum(x << i*16
                               for i, x in enumerate(dds_channel["ftw"]))
                     frequency = ftw*self.sysclk/2**32
                     dds_channel["vcd_frequency"].set_value_double(frequency)
