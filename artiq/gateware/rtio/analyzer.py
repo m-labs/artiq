@@ -175,6 +175,7 @@ class DMAWriter(Module, AutoCSR):
         # # #
 
         self.comb += [
+            membus.cyc.eq(self.sink.stb),
             membus.stb.eq(self.sink.stb),
             self.sink.ack.eq(membus.ack),
             membus.we.eq(1),
