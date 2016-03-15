@@ -66,6 +66,7 @@ class MdiArea(QtWidgets.QMdiArea):
         painter = QtGui.QPainter(self.viewport())
         x = (self.width() - self.pixmap.width())//2
         y = (self.height() - self.pixmap.height())//2
+        painter.setOpacity(0.5)
         painter.drawPixmap(x, y, self.pixmap)
 
 
