@@ -27,13 +27,13 @@ static void arm(void)
     rtio_analyzer_dma_base_address_write((unsigned int)analyzer_buffer);
     rtio_analyzer_dma_last_address_write((unsigned int)analyzer_buffer + ANALYZER_BUFFER_SIZE - 1);
     rtio_analyzer_dma_reset_write(1);
-    rtio_analyzer_dma_enable_write(1);
+    rtio_analyzer_enable_write(1);
 }
 
 static void disarm(void)
 {
-    rtio_analyzer_dma_enable_write(0);
-    while(rtio_analyzer_dma_busy_read());
+    rtio_analyzer_enable_write(0);
+    while(rtio_analyzer_busy_read());
     flush_cpu_dcache();
     flush_l2_cache();
 }

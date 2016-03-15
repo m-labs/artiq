@@ -19,6 +19,9 @@ InputMessage = namedtuple(
 ExceptionMessage = namedtuple(
     "ExceptionMessage", "channel rtio_counter exception_type")
 
+StoppedMessage = namedtuple(
+    "StoppedMessage", "rtio_counter")
+
 
 def decode_message(data):
     message_type_channel = struct.unpack(">I", data[28:32])[0]
@@ -37,6 +40,11 @@ def decode_message(data):
         exception_type, rtio_counter = struct.unpack(">BQ", data[11:20])
         return ExceptionMessage(channel, rtio_counter,
                                 ExceptionType(exception_type))
+    elif message_type == MessageType.stopped:
+        rtio_counter = struct.unpack(">Q", data[12:20])[0]
+        return StoppedMessage(rtio_counter)
+    else:
+        raise ValueError
 
 
 DecodedDump = namedtuple(
