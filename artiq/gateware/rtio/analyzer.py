@@ -167,11 +167,9 @@ class DMAWriter(Module, AutoCSR):
                                        alignment_bits=data_alignment)
         self.byte_count = CSRStatus(32)  # only read when shut down
 
-        sink_layout = [("data", dw)]
-        if messages_per_dw > 1:
-            sink_layout.append(("valid_token_count",
-                                bits_for(messages_per_dw)))
-        self.sink = stream.Endpoint(sink_layout)
+        self.sink = stream.Endpoint(
+            [("data", dw),
+             ("valid_token_count", bits_for(messages_per_dw))])
 
         # # #
 
@@ -201,12 +199,13 @@ class DMAWriter(Module, AutoCSR):
             )
         ]
 
-        event_counter = Signal(32)
+        message_count = Signal(32 - log2_int(message_len))
         self.comb += self.byte_count.status.eq(
-            event_counter << data_alignment)
+            message_count << log2_int(message_len))
         self.sync += [
-            If(self.reset.re, event_counter.eq(0)),
-            If(membus.ack, event_counter.eq(event_counter + 1))
+            If(self.reset.re, message_count.eq(0)),
+            If(membus.ack, message_count.eq(
+                message_count + self.sink.valid_token_count))
         ]
 
 
@@ -220,10 +219,9 @@ class Analyzer(Module, AutoCSR):
             rtio_core, self.enable.storage)
         self.submodules.fifo = stream.SyncFIFO(
             [("data", message_len)], fifo_depth, True)
-        dw = len(membus.dat_w)
         self.submodules.converter = stream.Converter(
-            message_len, dw, reverse=True,
-            report_valid_token_count=dw > message_len)
+            message_len, len(membus.dat_w), reverse=True,
+            report_valid_token_count=True)
         self.submodules.dma = DMAWriter(membus)
 
         enable_r = Signal()
