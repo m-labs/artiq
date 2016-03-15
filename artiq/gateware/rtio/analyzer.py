@@ -199,9 +199,9 @@ class DMAWriter(Module, AutoCSR):
             )
         ]
 
-        message_count = Signal(32 - log2_int(message_len))
+        message_count = Signal(32 - log2_int(message_len//8))
         self.comb += self.byte_count.status.eq(
-            message_count << log2_int(message_len))
+            message_count << log2_int(message_len//8))
         self.sync += [
             If(self.reset.re, message_count.eq(0)),
             If(membus.ack, message_count.eq(
