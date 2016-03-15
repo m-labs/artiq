@@ -377,13 +377,19 @@ def decoded_dump_to_vcd(fileobj, devices, dump):
         logger.warning("unable to determine DDS sysclk")
         dds_sysclk = 3e9  # guess
 
-    messages = sorted(dump.messages, key=get_message_time)
+    if isinstance(dump.messages[-1], StoppedMessage):
+        messages = dump.messages[:-1]
+    else:
+        logger.warning("StoppedMessage missing")
+        messages = dump.messages
+    messages = sorted(messages, key=get_message_time)
 
     channel_handlers = create_channel_handlers(
         vcd_manager, devices, ref_period,
         dds_sysclk, dump.dds_onehot_sel)
     vcd_log_channels = get_vcd_log_channels(dump.log_channel, messages)
-    channel_handlers[dump.log_channel] = LogHandler(vcd_manager, vcd_log_channels)
+    channel_handlers[dump.log_channel] = LogHandler(
+        vcd_manager, vcd_log_channels)
     slack = vcd_manager.get_channel("rtio_slack", 64)
 
     vcd_manager.set_time(0)
