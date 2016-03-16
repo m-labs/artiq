@@ -156,14 +156,12 @@ class ScanWidget(QtWidgets.QWidget):
 
     def wheelEvent(self, ev):
         y = ev.angleDelta().y()/120.
+        if not y:
+            return
         if ev.modifiers() & QtCore.Qt.ShiftModifier:
-            if y:
-                self.setNum(max(1, self._num + y))
-        elif ev.modifiers() & QtCore.Qt.ControlModifier:
-            if y:
-                self._zoom(self.zoomFactor**y, ev.x())
+            self.setNum(max(1, self._num + y))
         else:
-            ev.ignore()
+            self._zoom(self.zoomFactor**y, ev.x())
 
     def resizeEvent(self, ev):
         if not ev.oldSize().isValid():

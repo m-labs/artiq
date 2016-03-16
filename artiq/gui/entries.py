@@ -155,9 +155,7 @@ class _RangeScan(LayoutWidget):
                 spinbox.setSuffix(" " + procdesc["unit"])
 
         self.scanner = scanner = ScanWidget()
-        scanner.setFocusPolicy(QtCore.Qt.StrongFocus)
-        scanner.setSizePolicy(QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed))
+        disable_scroll_wheel(scanner)
         self.addWidget(scanner, 0, 0, -1, 1)
 
         self.min = ScientificSpinBox()
