@@ -9,13 +9,13 @@ from .ticker import Ticker
 logger = logging.getLogger(__name__)
 
 
-class ScanWidget(QtWidgets.QSlider):
+class ScanWidget(QtWidgets.QWidget):
     startChanged = QtCore.pyqtSignal(float)
     stopChanged = QtCore.pyqtSignal(float)
     numChanged = QtCore.pyqtSignal(int)
 
     def __init__(self, zoomFactor=1.05, zoomMargin=.1, dynamicRange=1e9):
-        QtWidgets.QSlider.__init__(self, QtCore.Qt.Horizontal)
+        QtWidgets.QWidget.__init__(self)
         self.zoomMargin = zoomMargin
         self.dynamicRange = dynamicRange
         self.zoomFactor = zoomFactor
@@ -30,15 +30,13 @@ class ScanWidget(QtWidgets.QSlider):
         action.triggered.connect(self.snapRange)
         self.menu.addAction(action)
 
-        self.setRange(0, 4095)
-
         qfm = QtGui.QFontMetrics(self.font())
         self._labelSize = QtCore.QSize(
             (self.ticker.precision + 5)*qfm.averageCharWidth(),
             qfm.lineSpacing())
 
         self._start, self._stop, self._num = None, None, None
-        self._axisView, self._sliderView = None, None
+        self._axisView = None, None
         self._offset, self._pressed, self._dragLeft = None, None, None
 
     def contextMenuEvent(self, ev):
@@ -60,21 +58,7 @@ class ScanWidget(QtWidgets.QSlider):
         return (val - a)/b
 
     def _setView(self, axis_left, axis_scale):
-        opt = QtWidgets.QStyleOptionSlider()
-        self.initStyleOption(opt)
-        g = self.style().subControlRect(QtWidgets.QStyle.CC_Slider, opt,
-                                        QtWidgets.QStyle.SC_SliderGroove,
-                                        self)
-        h = self.style().subControlRect(QtWidgets.QStyle.CC_Slider, opt,
-                                        QtWidgets.QStyle.SC_SliderHandle,
-                                        self)
-        slider_left = g.x() + h.width()/2
-        slider_scale = (self.maximum() - self.minimum())/(
-            g.width() - h.width())
-
         self._axisView = axis_left, axis_scale
-        self._sliderView = ((axis_left - slider_left)*slider_scale,
-                            axis_scale*slider_scale)
         self.update()
 
     def setStart(self, val):
@@ -116,36 +100,12 @@ class ScanWidget(QtWidgets.QSlider):
         self.setStart(self._pixelToAxis(self.zoomMargin*self.width()))
         self.setStop(self._pixelToAxis((1 - self.zoomMargin)*self.width()))
 
-    def _getStyleOptionSlider(self, val):
-        a, b = self._sliderView
-        val = a + val*b
-        if not (self.minimum() <= val <= self.maximum()):
-            return None
-        opt = QtWidgets.QStyleOptionSlider()
-        self.initStyleOption(opt)
-        rect = self.rect()
-        qfm = QtGui.QFontMetrics(self.font())
-        opt.rect = QtCore.QRect(0, 3*qfm.lineSpacing(), rect.width(),
-                                qfm.lineSpacing())
-        opt.sliderPosition = val
-        opt.sliderValue = val
-        opt.subControls = QtWidgets.QStyle.SC_SliderHandle
-        return opt
-
     def _hitHandle(self, pos, val):
-        opt = self._getStyleOptionSlider(val)
-        if not opt:
-            return False
-        control = self.style().hitTestComplexControl(
-            QtWidgets.QStyle.CC_Slider, opt, pos, self)
-        if control != QtWidgets.QStyle.SC_SliderHandle:
-            return False
-        sr = self.style().subControlRect(QtWidgets.QStyle.CC_Slider, opt,
-                                         QtWidgets.QStyle.SC_SliderHandle,
-                                         self)
-        self._offset = pos.x() - sr.center().x()
-        self.setSliderDown(True)
-        return True
+        qfm = QtGui.QFontMetrics(self.font())
+        val = self._axisToPixel(val)
+        rect = QtCore.QRect(val - qfm.lineSpacing()/2, 3*qfm.lineSpacing(),
+                            qfm.lineSpacing(), qfm.lineSpacing())
+        return rect.contains(pos)
 
     def mousePressEvent(self, ev):
         if ev.buttons() ^ ev.button():
@@ -153,8 +113,10 @@ class ScanWidget(QtWidgets.QSlider):
             return
         if self._hitHandle(ev.pos(), self._stop):
             self._pressed = "stop"
+            self._offset = ev.x() - self._axisToPixel(self._stop)
         elif self._hitHandle(ev.pos(), self._start):
             self._pressed = "start"
+            self._offset = ev.x() - self._axisToPixel(self._stop)
         else:
             self._pressed = "axis"
             self._offset = ev.x()
@@ -167,20 +129,16 @@ class ScanWidget(QtWidgets.QSlider):
         if self._pressed == "stop":
             self._stop = self._pixelToAxis(ev.x() - self._offset)
             self.update()
-            if self.hasTracking():
-                self.stopChanged.emit(self._stop)
+            self.stopChanged.emit(self._stop)
         elif self._pressed == "start":
             self._start = self._pixelToAxis(ev.x() - self._offset)
             self.update()
-            if self.hasTracking():
-                self.startChanged.emit(self._start)
+            self.startChanged.emit(self._start)
         elif self._pressed == "axis":
             self._setView(self._dragLeft + ev.x() - self._offset,
                           self._axisView[1])
 
     def mouseReleaseEvent(self, ev):
-        QtWidgets.QSlider.mouseReleaseEvent(self, ev)
-        self.setSliderDown(False)
         if self._pressed == "start":
             self.startChanged.emit(self._start)
         elif self._pressed == "stop":
@@ -250,9 +208,8 @@ class ScanWidget(QtWidgets.QSlider):
 
         for x, c in (self._start, QtCore.Qt.blue), (self._stop, QtCore.Qt.red):
             x = self._axisToPixel(x)
-            if self.minimum() <= x <= self.maximum():
-                painter.setPen(c)
-                painter.setBrush(c)
-                painter.drawPolygon(*(QtCore.QPointF(*i) for i in [
-                    (x, 0), (x - lineSpacing/2, lineSpacing),
-                    (x + lineSpacing/2, lineSpacing)]))
+            painter.setPen(c)
+            painter.setBrush(c)
+            painter.drawPolygon(*(QtCore.QPointF(*i) for i in [
+                (x, 0), (x - lineSpacing/2, lineSpacing),
+                (x + lineSpacing/2, lineSpacing)]))
