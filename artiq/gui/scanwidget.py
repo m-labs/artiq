@@ -36,8 +36,8 @@ class ScanWidget(QtWidgets.QWidget):
             qfm.lineSpacing())
 
         self._start, self._stop, self._num = None, None, None
-        self._axisView = None, None
-        self._offset, self._pressed, self._dragLeft = None, None, None
+        self._axisView = None
+        self._offset, self._drag = None, None
 
     def contextMenuEvent(self, ev):
         self.menu.popup(ev.globalPos())
@@ -100,50 +100,50 @@ class ScanWidget(QtWidgets.QWidget):
         self.setStart(self._pixelToAxis(self.zoomMargin*self.width()))
         self.setStop(self._pixelToAxis((1 - self.zoomMargin)*self.width()))
 
-    def _hitHandle(self, pos, val):
-        qfm = QtGui.QFontMetrics(self.font())
-        val = self._axisToPixel(val)
-        rect = QtCore.QRect(val - qfm.lineSpacing()/2, 3*qfm.lineSpacing(),
-                            qfm.lineSpacing(), qfm.lineSpacing())
-        return rect.contains(pos)
-
     def mousePressEvent(self, ev):
-        if ev.buttons() ^ ev.button():
+        if ev.buttons() ^ ev.button():  # buttons changed
             ev.ignore()
             return
-        if self._hitHandle(ev.pos(), self._stop):
-            self._pressed = "stop"
+        qfm = QtGui.QFontMetrics(self.font())
+        if ev.y() <= 2.5*qfm.lineSpacing():  # axis
+            self._drag = "axis"
+            self._offset = ev.x() - self._axisView[0]
+        elif abs(self._axisToPixel(self._stop) -
+                 ev.x()) < qfm.lineSpacing()/2:
+            self._drag = "stop"
             self._offset = ev.x() - self._axisToPixel(self._stop)
-        elif self._hitHandle(ev.pos(), self._start):
-            self._pressed = "start"
-            self._offset = ev.x() - self._axisToPixel(self._stop)
+        elif abs(self._axisToPixel(self._start) -
+                 ev.x()) < qfm.lineSpacing()/2:
+            self._drag = "start"
+            self._offset = ev.x() - self._axisToPixel(self._start)
         else:
-            self._pressed = "axis"
-            self._offset = ev.x()
-            self._dragLeft = self._axisView[0]
+            self._drag = "both"
+            self._offset = (ev.x() - self._axisToPixel(self._start),
+                            ev.x() - self._axisToPixel(self._stop))
 
     def mouseMoveEvent(self, ev):
-        if not self._pressed:
+        if not self._drag:
             ev.ignore()
             return
-        if self._pressed == "stop":
+        if self._drag == "axis":
+            self._setView(ev.x() - self._offset, self._axisView[1])
+        elif self._drag == "stop":
             self._stop = self._pixelToAxis(ev.x() - self._offset)
             self.update()
             self.stopChanged.emit(self._stop)
-        elif self._pressed == "start":
+        elif self._drag == "start":
             self._start = self._pixelToAxis(ev.x() - self._offset)
             self.update()
             self.startChanged.emit(self._start)
-        elif self._pressed == "axis":
-            self._setView(self._dragLeft + ev.x() - self._offset,
-                          self._axisView[1])
+        elif self._drag == "both":
+            self._start = self._pixelToAxis(ev.x() - self._offset[0])
+            self._stop = self._pixelToAxis(ev.x() - self._offset[1])
+            self.update()
+            self.startChanged.emit(self._start)
+            self.stopChanged.emit(self._stop)
 
     def mouseReleaseEvent(self, ev):
-        if self._pressed == "start":
-            self.startChanged.emit(self._start)
-        elif self._pressed == "stop":
-            self.stopChanged.emit(self._stop)
-        self._pressed = None
+        self._drag = None
 
     def _zoom(self, z, x):
         a, b = self._axisView
@@ -184,27 +184,28 @@ class ScanWidget(QtWidgets.QWidget):
         avgCharWidth = qfm.averageCharWidth()
         lineSpacing = qfm.lineSpacing()
         descent = qfm.descent()
-        painter.translate(0, lineSpacing)
+        ascent = qfm.ascent()
+        painter.translate(0, ascent)
 
         ticks, prefix, labels = self.ticker(self._pixelToAxis(0),
                                             self._pixelToAxis(self.width()))
         painter.drawText(0, 0, prefix)
         painter.translate(0, lineSpacing)
 
-        painter.setPen(QtGui.QPen(QtCore.Qt.black, 2, QtCore.Qt.SolidLine))
+        painter.setPen(QtGui.QPen(QtCore.Qt.black, 1, QtCore.Qt.SolidLine))
         for t, l in zip(ticks, labels):
             t = self._axisToPixel(t)
             painter.drawText(t - len(l)/2*avgCharWidth, 0, l)
-            painter.drawLine(t, descent, t, (lineSpacing + descent)/2)
-        painter.translate(0, (lineSpacing + descent)/2)
+            painter.drawLine(t, descent, t, lineSpacing/2)
+        painter.translate(0, lineSpacing/2)
 
         painter.drawLine(0, 0, self.width(), 0)
 
         for p in np.linspace(self._axisToPixel(self._start),
                              self._axisToPixel(self._stop),
                              self._num):
-            painter.drawLine(p, 0, p, (lineSpacing - descent)/2)
-        painter.translate(0, (lineSpacing - descent)/2)
+            painter.drawLine(p, 0, p, lineSpacing/2)
+        painter.translate(0, lineSpacing/2)
 
         for x, c in (self._start, QtCore.Qt.blue), (self._stop, QtCore.Qt.red):
             x = self._axisToPixel(x)
