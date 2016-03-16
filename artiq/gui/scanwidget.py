@@ -173,8 +173,8 @@ class ScanWidget(QtWidgets.QWidget):
         if center:
             scale = min(scale, self.dynamicRange/abs(center))
         left = a*scale/b
-        self.ticker.min_ticks = int(ev.size().width() /
-                                    (2.5*self._labelSize.width()))
+        self.ticker.min_ticks = max(
+            3, int(ev.size().width()/(2.5*self._labelSize.width())))
         self._setView(left, scale)
 
     def paintEvent(self, ev):
