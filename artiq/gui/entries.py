@@ -158,8 +158,6 @@ class _RangeScan(LayoutWidget):
         scanner.setMinimumSize(150, 0)
         scanner.setSizePolicy(QtWidgets.QSizePolicy(
             QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed))
-        disable_scroll_wheel(scanner.axis)
-        disable_scroll_wheel(scanner.slider)
         self.addWidget(scanner, 0, 0, -1, 1)
 
         self.min = ScientificSpinBox()
@@ -191,17 +189,17 @@ class _RangeScan(LayoutWidget):
 
         def update_npoints(value):
             state["npoints"] = value
-            scanner.setNumPoints(value)
+            scanner.setNum(value)
 
-        scanner.sigStartMoved.connect(self.min.setValue)
-        scanner.sigNumChanged.connect(self.npoints.setValue)
-        scanner.sigStopMoved.connect(self.max.setValue)
+        scanner.startChanged.connect(self.min.setValue)
+        scanner.numChanged.connect(self.npoints.setValue)
+        scanner.stopChanged.connect(self.max.setValue)
         self.min.valueChanged.connect(update_min)
         self.npoints.valueChanged.connect(update_npoints)
         self.max.valueChanged.connect(update_max)
-        self.min.setValue(state["min"]/scale)
-        self.npoints.setValue(state["npoints"])
-        self.max.setValue(state["max"]/scale)
+        scanner.setStart(state["min"]/scale)
+        scanner.setNum(state["npoints"])
+        scanner.setStop(state["max"]/scale)
         apply_properties(self.min)
         apply_properties(self.max)
 
