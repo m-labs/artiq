@@ -39,7 +39,7 @@ class ScanWidget(QtWidgets.QSlider):
 
         self._start, self._stop, self._num = None, None, None
         self._axisView, self._sliderView = None, None
-        self._offset, self._pressed = None, None
+        self._offset, self._pressed, self._dragLeft = None, None, None
 
     def contextMenuEvent(self, ev):
         self.menu.popup(ev.globalPos())
@@ -145,23 +145,27 @@ class ScanWidget(QtWidgets.QSlider):
         elif self._hitHandle(ev.pos(), self._start):
             self._pressed = "start"
         else:
-            self._pressed = None
+            self._pressed = "axis"
+            self._offset = ev.x()
+            self._dragLeft = self._axisView[0]
 
     def mouseMoveEvent(self, ev):
         if not self._pressed:
             ev.ignore()
             return
-        val = self._pixelToAxis(ev.pos().x() - self._offset)
         if self._pressed == "stop":
-            self._stop = val
+            self._stop = self._pixelToAxis(ev.x() - self._offset)
             self.update()
             if self.hasTracking():
-                self.stopChanged.emit(val)
+                self.stopChanged.emit(self._stop)
         elif self._pressed == "start":
-            self._start = val
+            self._start = self._pixelToAxis(ev.x() - self._offset)
             self.update()
             if self.hasTracking():
-                self.startChanged.emit(val)
+                self.startChanged.emit(self._start)
+        elif self._pressed == "axis":
+            self._setView(self._dragLeft + ev.x() - self._offset,
+                          self._axisView[1])
 
     def mouseReleaseEvent(self, ev):
         QtWidgets.QSlider.mouseReleaseEvent(self, ev)
