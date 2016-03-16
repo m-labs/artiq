@@ -30,11 +30,6 @@ class ScanWidget(QtWidgets.QSlider):
         action.triggered.connect(self.snapRange)
         self.menu.addAction(action)
 
-        self._startSlider = QtWidgets.QSlider()
-        self._startSlider.setStyleSheet("QSlider::handle {background:blue}")
-        self._stopSlider = QtWidgets.QSlider()
-        self._stopSlider.setStyleSheet("QSlider::handle {background:red}")
-
         self.setRange(0, 4095)
 
         self._start, self._stop, self._num = None, None, None
@@ -43,6 +38,14 @@ class ScanWidget(QtWidgets.QSlider):
 
     def contextMenuEvent(self, ev):
         self.menu.popup(ev.globalPos())
+
+    def sizeHint(self):
+        return self.minimumSizeHint()
+
+    def minimumSizeHint(self):
+        qfm = QtGui.QFontMetrics(self.font())
+        return QtCore.QSize(5*10*qfm.averageCharWidth(),
+                            4*qfm.lineSpacing())
 
     def _axisToPixel(self, val):
         a, b = self._axisView
@@ -116,6 +119,10 @@ class ScanWidget(QtWidgets.QSlider):
             return None
         opt = QtWidgets.QStyleOptionSlider()
         self.initStyleOption(opt)
+        rect = self.rect()
+        qfm = QtGui.QFontMetrics(self.font())
+        opt.rect = QtCore.QRect(0, 3*qfm.lineSpacing(), rect.width(),
+                                qfm.lineSpacing())
         opt.sliderPosition = val
         opt.sliderValue = val
         opt.subControls = QtWidgets.QStyle.SC_SliderHandle
@@ -205,52 +212,42 @@ class ScanWidget(QtWidgets.QSlider):
         if center:
             scale = min(scale, self.dynamicRange/abs(center))
         left = a*scale/b
+        self.ticker.min_ticks = int(ev.size().width()/100)
         self._setView(left, scale)
 
     def paintEvent(self, ev):
-        self._paintSliders()
-        self._paintAxis()
-
-    def _paintAxis(self):
         painter = QtGui.QPainter(self)
         qfm = QtGui.QFontMetrics(painter.font())
         avgCharWidth = qfm.averageCharWidth()
         lineSpacing = qfm.lineSpacing()
         descent = qfm.descent()
-        ascent = qfm.ascent()
-        height = qfm.height()
-        # painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.translate(0, lineSpacing)
 
-        # TODO: make drawable area big enough and move axis higher
-        painter.translate(0, ascent - 15)
         ticks, prefix, labels = self.ticker(self._pixelToAxis(0),
                                             self._pixelToAxis(self.width()))
         painter.drawText(0, 0, prefix)
-
-        pen = QtGui.QPen()
-        pen.setWidth(2)
-        painter.setPen(pen)
-
         painter.translate(0, lineSpacing)
+
+        painter.setPen(QtGui.QPen(QtCore.Qt.black, 2, QtCore.Qt.SolidLine))
         for t, l in zip(ticks, labels):
             t = self._axisToPixel(t)
-            painter.drawLine(t, descent, t, height/2)
             painter.drawText(t - len(l)/2*avgCharWidth, 0, l)
-        painter.drawLine(0, height/2, self.width(), height/2)
+            painter.drawLine(t, descent, t, (lineSpacing + descent)/2)
+        painter.translate(0, (lineSpacing + descent)/2)
 
-        painter.translate(0, height)
+        painter.drawLine(0, 0, self.width(), 0)
+
         for p in np.linspace(self._axisToPixel(self._start),
                              self._axisToPixel(self._stop),
                              self._num):
-            # TODO: is drawing far outside the viewport dangerous?
-            painter.drawLine(p, 0, p, -height/2)
+            painter.drawLine(p, 0, p, (lineSpacing - descent)/2)
+        painter.translate(0, (lineSpacing - descent)/2)
 
-    def _paintSliders(self):
-        startPainter = QtWidgets.QStylePainter(self, self._startSlider)
-        stopPainter = QtWidgets.QStylePainter(self, self._stopSlider)
-        opt = self._getStyleOptionSlider(self._start)
-        if opt:
-            startPainter.drawComplexControl(QtWidgets.QStyle.CC_Slider, opt)
-        opt = self._getStyleOptionSlider(self._stop)
-        if opt:
-            stopPainter.drawComplexControl(QtWidgets.QStyle.CC_Slider, opt)
+        for x, c in (self._start, QtCore.Qt.blue), (self._stop, QtCore.Qt.red):
+            x = self._axisToPixel(x)
+            if self.minimum() <= x <= self.maximum():
+                painter.setPen(c)
+                painter.setBrush(c)
+                painter.drawPolygon(*(QtCore.QPointF(*i) for i in [
+                    (x, 0), (x - lineSpacing/2, lineSpacing),
+                    (x + lineSpacing/2, lineSpacing)]))
