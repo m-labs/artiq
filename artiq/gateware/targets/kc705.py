@@ -300,7 +300,7 @@ class NIST_CLOCK(_NIST_Ions):
 class NIST_QC2(_NIST_Ions):
     """
     NIST QC2 hardware, as used in Quantum I and Quantum II, with new backplane
-    and 12 DDS channels. Current implementation for single backplane.
+    and 24 DDS channels.
     """
     def __init__(self, cpu_type="or1k", **kwargs):
         _NIST_Ions.__init__(self, cpu_type, **kwargs)
@@ -309,16 +309,25 @@ class NIST_QC2(_NIST_Ions):
         platform.add_extension(nist_qc2.fmc_adapter_io)
 
         rtio_channels = []
-        # TTL0-23 are In+Out capable
-        for i in range(24):
-            phy = ttl_serdes_7series.Inout_8X(platform.request("ttl", i))
+        clock_generators = []
+        for backplane_offset in 0, 28:
+            # TTL0-23 are In+Out capable
+            for i in range(24):
+                phy = ttl_serdes_7series.Inout_8X(
+                    platform.request("ttl", backplane_offset+i))
+                self.submodules += phy
+                rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
+            # TTL24-26 are output only
+            for i in range(24, 27):
+                phy = ttl_serdes_7series.Output_8X(
+                    platform.request("ttl", backplane_offset+i))
+                self.submodules += phy
+                rtio_channels.append(rtio.Channel.from_phy(phy))
+            # TTL27 is for the clock generator
+            phy = ttl_simple.ClockGen(
+                platform.request("ttl", backplane_offset+27))
             self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
-        # TTL24-26 are output only
-        for i in range(24, 27):
-            phy = ttl_serdes_7series.Output_8X(platform.request("ttl", i))
-            self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy))
+            clock_generators.append(rtio.Channel.from_phy(phy))
 
         phy = ttl_serdes_7series.Inout_8X(platform.request("user_sma_gpio_n"))
         self.submodules += phy
@@ -328,21 +337,21 @@ class NIST_QC2(_NIST_Ions):
         rtio_channels.append(rtio.Channel.from_phy(phy))
         self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
-        # TTL27 is for the clock generator
-        phy = ttl_simple.ClockGen(platform.request("ttl", 27))
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
+        # add clock generators after RTIO_REGULAR_TTL_COUNT
+        rtio_channels += clock_generators
 
         self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
-        self.config["RTIO_DDS_COUNT"] = 1
+        self.config["RTIO_DDS_COUNT"] = 2
         self.config["DDS_CHANNELS_PER_BUS"] = 12
         self.config["DDS_AD9914"] = True
         self.config["DDS_ONEHOT_SEL"] = True
-        phy = dds.AD9914(platform.request("dds"), 12, onehot=True)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy,
-                                                   ofifo_depth=512,
-                                                   ififo_depth=4))
+        for backplane_offset in range(2):
+            phy = dds.AD9914(
+                platform.request("dds", backplane_offset), 12, onehot=True)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy,
+                                                       ofifo_depth=512,
+                                                       ififo_depth=4))
 
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.LogChannel())
