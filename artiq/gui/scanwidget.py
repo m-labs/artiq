@@ -22,13 +22,17 @@ class ScanWidget(QtWidgets.QWidget):
 
         self.ticker = Ticker()
 
-        self.menu = QtWidgets.QMenu(self)
-        action = QtWidgets.QAction("&View Range", self)
+        self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        action = QtWidgets.QAction("V&iew range", self)
+        action.setShortcut(QtGui.QKeySequence("CTRL+i"))
+        action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         action.triggered.connect(self.viewRange)
-        self.menu.addAction(action)
-        action = QtWidgets.QAction("&Snap Range", self)
+        self.addAction(action)
+        action = QtWidgets.QAction("Sna&p range", self)
+        action.setShortcut(QtGui.QKeySequence("CTRL+p"))
+        action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         action.triggered.connect(self.snapRange)
-        self.menu.addAction(action)
+        self.addAction(action)
 
         qfm = QtGui.QFontMetrics(self.font())
         self._labelSize = QtCore.QSize(
@@ -38,9 +42,6 @@ class ScanWidget(QtWidgets.QWidget):
         self._start, self._stop, self._num = None, None, None
         self._axisView = None
         self._offset, self._drag = None, None
-
-    def contextMenuEvent(self, ev):
-        self.menu.popup(ev.globalPos())
 
     def sizeHint(self):
         return self.minimumSizeHint()

@@ -155,7 +155,7 @@ class _RangeScan(LayoutWidget):
                 spinbox.setSuffix(" " + procdesc["unit"])
 
         self.scanner = scanner = ScanWidget()
-        scanner.setMinimumSize(150, 0)
+        scanner.setFocusPolicy(QtCore.Qt.StrongFocus)
         scanner.setSizePolicy(QtWidgets.QSizePolicy(
             QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed))
         self.addWidget(scanner, 0, 0, -1, 1)
