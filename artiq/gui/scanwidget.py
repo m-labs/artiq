@@ -32,6 +32,11 @@ class ScanWidget(QtWidgets.QSlider):
 
         self.setRange(0, 4095)
 
+        qfm = QtGui.QFontMetrics(self.font())
+        self._labelSize = QtCore.QSize(
+            (self.ticker.precision + 5)*qfm.averageCharWidth(),
+            qfm.lineSpacing())
+
         self._start, self._stop, self._num = None, None, None
         self._axisView, self._sliderView = None, None
         self._offset, self._pressed, self._dragLeft = None, None, None
@@ -43,9 +48,8 @@ class ScanWidget(QtWidgets.QSlider):
         return self.minimumSizeHint()
 
     def minimumSizeHint(self):
-        qfm = QtGui.QFontMetrics(self.font())
-        return QtCore.QSize(5*10*qfm.averageCharWidth(),
-                            4*qfm.lineSpacing())
+        return QtCore.QSize(2.5*3*self._labelSize.width(),
+                            4*self._labelSize.height())
 
     def _axisToPixel(self, val):
         a, b = self._axisView
@@ -212,7 +216,8 @@ class ScanWidget(QtWidgets.QSlider):
         if center:
             scale = min(scale, self.dynamicRange/abs(center))
         left = a*scale/b
-        self.ticker.min_ticks = int(ev.size().width()/100)
+        self.ticker.min_ticks = int(ev.size().width() /
+                                    (2.5*self._labelSize.width()))
         self._setView(left, scale)
 
     def paintEvent(self, ev):
