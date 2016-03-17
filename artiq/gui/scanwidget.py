@@ -41,7 +41,7 @@ class ScanWidget(QtWidgets.QWidget):
 
         self._start, self._stop, self._num = None, None, None
         self._axisView = None
-        self._offset, self._drag = None, None
+        self._offset, self._drag, self._rubber = None, None, None
 
     def sizeHint(self):
         return self.minimumSizeHint()
@@ -105,45 +105,66 @@ class ScanWidget(QtWidgets.QWidget):
         if ev.buttons() ^ ev.button():  # buttons changed
             ev.ignore()
             return
-        qfm = QtGui.QFontMetrics(self.font())
-        if ev.y() <= 2.5*qfm.lineSpacing():  # axis
-            self._drag = "axis"
-            self._offset = ev.x() - self._axisView[0]
-        elif abs(self._axisToPixel(self._stop) -
-                 ev.x()) < qfm.lineSpacing()/2:
-            self._drag = "stop"
-            self._offset = ev.x() - self._axisToPixel(self._stop)
-        elif abs(self._axisToPixel(self._start) -
-                 ev.x()) < qfm.lineSpacing()/2:
-            self._drag = "start"
-            self._offset = ev.x() - self._axisToPixel(self._start)
+        if ev.modifiers() & QtCore.Qt.ShiftModifier:
+            self._drag = "select"
+            self.setStart(self._pixelToAxis(ev.x()))
+            self.setStop(self._start)
+        elif ev.modifiers() & QtCore.Qt.ControlModifier:
+            self._drag = "zoom"
+            self._offset = ev.pos()
+            self._rubber = QtWidgets.QRubberBand(
+                QtWidgets.QRubberBand.Rectangle, self)
+            self._rubber.setGeometry(
+                QtCore.QRect(self._offset, QtCore.QSize()))
+            self._rubber.show()
         else:
-            self._drag = "both"
-            self._offset = (ev.x() - self._axisToPixel(self._start),
-                            ev.x() - self._axisToPixel(self._stop))
+            qfm = QtGui.QFontMetrics(self.font())
+            if ev.y() <= 2.5*qfm.lineSpacing():
+                self._drag = "axis"
+                self._offset = ev.x() - self._axisView[0]
+            # testing should match inverse drawing order for start/stop
+            elif abs(self._axisToPixel(self._stop) -
+                     ev.x()) < qfm.lineSpacing()/2:
+                self._drag = "stop"
+                self._offset = ev.x() - self._axisToPixel(self._stop)
+            elif abs(self._axisToPixel(self._start) -
+                     ev.x()) < qfm.lineSpacing()/2:
+                self._drag = "start"
+                self._offset = ev.x() - self._axisToPixel(self._start)
+            else:
+                self._drag = "both"
+                self._offset = (ev.x() - self._axisToPixel(self._start),
+                                ev.x() - self._axisToPixel(self._stop))
 
     def mouseMoveEvent(self, ev):
         if not self._drag:
             ev.ignore()
             return
-        if self._drag == "axis":
+        if self._drag == "select":
+            self.setStop(self._pixelToAxis(ev.x()))
+        elif self._drag == "zoom":
+            self._rubber.setGeometry(QtCore.QRect(
+                self._offset, ev.pos()).normalized())
+        elif self._drag == "axis":
             self._setView(ev.x() - self._offset, self._axisView[1])
-        elif self._drag == "stop":
-            self._stop = self._pixelToAxis(ev.x() - self._offset)
-            self.update()
-            self.stopChanged.emit(self._stop)
         elif self._drag == "start":
-            self._start = self._pixelToAxis(ev.x() - self._offset)
-            self.update()
-            self.startChanged.emit(self._start)
+            self.setStart(self._pixelToAxis(ev.x() - self._offset))
+        elif self._drag == "stop":
+            self.setStop(self._pixelToAxis(ev.x() - self._offset))
         elif self._drag == "both":
-            self._start = self._pixelToAxis(ev.x() - self._offset[0])
-            self._stop = self._pixelToAxis(ev.x() - self._offset[1])
-            self.update()
-            self.startChanged.emit(self._start)
-            self.stopChanged.emit(self._stop)
+            self.setStart(self._pixelToAxis(ev.x() - self._offset[0]))
+            self.setStop(self._pixelToAxis(ev.x() - self._offset[1]))
 
     def mouseReleaseEvent(self, ev):
+        if self._drag == "zoom":
+            self._rubber.hide()
+            left, scale = self._axisView
+            scale *= self.width()/self._rubber.geometry().width()
+            center = self._pixelToAxis(self._rubber.geometry().center().x())
+            if center:
+                scale = min(scale, self.dynamicRange/abs(center))
+            left = self.width()/2 - center*scale
+            self._setView(left, scale)
         self._drag = None
 
     def _zoom(self, z, x):
