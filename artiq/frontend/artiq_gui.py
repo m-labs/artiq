@@ -91,11 +91,12 @@ def main():
         rpc_clients[target] = client
 
     sub_clients = dict()
-    for notifier_name, module in (("explist", explorer),
-                                  ("datasets", datasets),
-                                  ("schedule", schedule),
-                                  ("log", log)):
-        subscriber = ModelSubscriber(notifier_name, module.Model)
+    for notifier_name, modelf in (("explist", explorer.Model),
+                                  ("explist_status", explorer.StatusUpdater),
+                                  ("datasets", datasets.Model),
+                                  ("schedule", schedule.Model),
+                                  ("log", log.Model)):
+        subscriber = ModelSubscriber(notifier_name, modelf)
         loop.run_until_complete(subscriber.connect(
             args.server, args.port_notify))
         atexit_register_coroutine(subscriber.close)
@@ -123,6 +124,7 @@ def main():
     smgr.register(d_shortcuts)
     d_explorer = explorer.ExplorerDock(status_bar, expmgr, d_shortcuts,
                                        sub_clients["explist"],
+                                       sub_clients["explist_status"],
                                        rpc_clients["schedule"],
                                        rpc_clients["experiment_db"])
 

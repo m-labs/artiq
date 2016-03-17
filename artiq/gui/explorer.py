@@ -7,6 +7,7 @@ from PyQt5 import QtCore, QtWidgets
 
 from artiq.gui.tools import LayoutWidget
 from artiq.gui.models import DictSyncTreeSepModel
+from artiq.gui.waitingspinnerwidget import QtWaitingSpinner
 
 
 logger = logging.getLogger(__name__)
@@ -117,38 +118,81 @@ class Model(DictSyncTreeSepModel):
         DictSyncTreeSepModel.__init__(self, "/", ["Experiment"], init)
 
 
+class StatusUpdater:
+    def __init__(self, init):
+        self.status = init
+        self.explorer = None
+
+    def set_explorer(self, explorer):
+        self.explorer = explorer
+        self.explorer.update_scanning(self.status["scanning"])
+        self.explorer.update_cur_rev(self.status["cur_rev"])
+
+    def __setitem__(self, k, v):
+        self.status[k] = v
+        if self.explorer is not None:
+            if k == "scanning":
+                self.explorer.update_scanning(v)
+            elif k == "cur_rev":
+                self.explorer.update_cur_rev(v)
+
+
+class WaitingPanel(LayoutWidget):
+    def __init__(self):
+        LayoutWidget.__init__(self)
+
+        self.waiting_spinner = QtWaitingSpinner()
+        self.addWidget(self.waiting_spinner, 1, 1)
+        self.addWidget(QtWidgets.QLabel("Repository scan in progress..."), 1, 2)
+
+    def start(self):
+        self.waiting_spinner.start()
+
+    def stop(self):
+        self.waiting_spinner.stop()
+
+
 class ExplorerDock(QtWidgets.QDockWidget):
     def __init__(self, status_bar, exp_manager, d_shortcuts,
-                 explist_sub, schedule_ctl, experiment_db_ctl):
+                 explist_sub, explist_status_sub,
+                 schedule_ctl, experiment_db_ctl):
         QtWidgets.QDockWidget.__init__(self, "Explorer")
         self.setObjectName("Explorer")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
                          QtWidgets.QDockWidget.DockWidgetFloatable)
 
-        layout = QtWidgets.QGridLayout()
-        top_widget = QtWidgets.QWidget()
-        top_widget.setLayout(layout)
+        top_widget = LayoutWidget()
         self.setWidget(top_widget)
-        layout.setSpacing(5)
-        layout.setContentsMargins(5, 5, 5, 5)
 
         self.status_bar = status_bar
         self.exp_manager = exp_manager
         self.d_shortcuts = d_shortcuts
         self.schedule_ctl = schedule_ctl
 
+        top_widget.addWidget(QtWidgets.QLabel("Revision:"), 0, 0)
+        self.revision = QtWidgets.QLabel()
+        self.revision.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        top_widget.addWidget(self.revision, 0, 1)
+
+        self.stack = QtWidgets.QStackedWidget()
+        top_widget.addWidget(self.stack, 1, 0, colspan=2)
+
+        self.el_buttons = LayoutWidget()
+        self.el_buttons.layout.setContentsMargins(0, 0, 0, 0)
+        self.stack.addWidget(self.el_buttons)
+
         self.el = QtWidgets.QTreeView()
         self.el.setHeaderHidden(True)
         self.el.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectItems)
-        layout.addWidget(self.el, 0, 0, 1, 2)
         self.el.doubleClicked.connect(
             partial(self.expname_action, "open_experiment"))
+        self.el_buttons.addWidget(self.el, 0, 0, colspan=2)
 
         open = QtWidgets.QPushButton("Open")
         open.setIcon(QtWidgets.QApplication.style().standardIcon(
             QtWidgets.QStyle.SP_DialogOpenButton))
         open.setToolTip("Open the selected experiment (Return)")
-        layout.addWidget(open, 1, 0)
+        self.el_buttons.addWidget(open, 1, 0)
         open.clicked.connect(
             partial(self.expname_action, "open_experiment"))
 
@@ -156,7 +200,7 @@ class ExplorerDock(QtWidgets.QDockWidget):
         submit.setIcon(QtWidgets.QApplication.style().standardIcon(
             QtWidgets.QStyle.SP_DialogOkButton))
         submit.setToolTip("Schedule the selected experiment (Ctrl+Return)")
-        layout.addWidget(submit, 1, 1)
+        self.el_buttons.addWidget(submit, 1, 1)
         submit.clicked.connect(
             partial(self.expname_action, "submit"))
 
@@ -201,7 +245,6 @@ class ExplorerDock(QtWidgets.QDockWidget):
                                                    self.el)
         def scan_repository():
             asyncio.ensure_future(experiment_db_ctl.scan_repository_async())
-            self.status_bar.showMessage("Requested repository scan")
         scan_repository_action.triggered.connect(scan_repository)
         self.el.addAction(scan_repository_action)
 
@@ -212,6 +255,11 @@ class ExplorerDock(QtWidgets.QDockWidget):
             lambda: _OpenFileDialog(self, self.exp_manager,
                                     experiment_db_ctl).open())
         self.el.addAction(open_file_action)
+
+        self.waiting_panel = WaitingPanel()
+        self.stack.addWidget(self.waiting_panel)
+        explist_status_sub.add_setmodel_callback(
+            lambda updater: updater.set_explorer(self))
 
     def set_model(self, model):
         self.explist_model = model
@@ -237,3 +285,14 @@ class ExplorerDock(QtWidgets.QDockWidget):
             self.d_shortcuts.set_shortcut(nr, expurl)
             self.status_bar.showMessage("Set shortcut F{} to '{}'"
                                         .format(nr+1, expurl))
+
+    def update_scanning(self, scanning):
+        if scanning:
+            self.stack.setCurrentWidget(self.waiting_panel)
+            self.waiting_panel.start()
+        else:
+            self.stack.setCurrentWidget(self.el_buttons)
+            self.waiting_panel.stop()
+
+    def update_cur_rev(self, cur_rev):
+        self.revision.setText(cur_rev)
