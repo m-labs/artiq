@@ -154,52 +154,52 @@ class _RangeScan(LayoutWidget):
             if procdesc["unit"]:
                 spinbox.setSuffix(" " + procdesc["unit"])
 
-        self.scanner = scanner = ScanWidget()
+        scanner = ScanWidget()
         disable_scroll_wheel(scanner)
         self.addWidget(scanner, 0, 0, -1, 1)
 
-        self.min = ScientificSpinBox()
-        self.min.setStyleSheet("QDoubleSpinBox {color:blue}")
-        self.min.setMinimumSize(110, 0)
-        self.min.setSizePolicy(QtWidgets.QSizePolicy(
+        start = ScientificSpinBox()
+        start.setStyleSheet("QDoubleSpinBox {color:blue}")
+        start.setMinimumSize(110, 0)
+        start.setSizePolicy(QtWidgets.QSizePolicy(
             QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed))
-        disable_scroll_wheel(self.min)
-        self.addWidget(self.min, 0, 1)
+        disable_scroll_wheel(start)
+        self.addWidget(start, 0, 1)
 
-        self.npoints = QtWidgets.QSpinBox()
-        self.npoints.setMinimum(1)
-        disable_scroll_wheel(self.npoints)
-        self.addWidget(self.npoints, 1, 1)
+        npoints = QtWidgets.QSpinBox()
+        npoints.setMinimum(1)
+        disable_scroll_wheel(npoints)
+        self.addWidget(npoints, 1, 1)
 
-        self.max = ScientificSpinBox()
-        self.max.setStyleSheet("QDoubleSpinBox {color:red}")
-        self.max.setMinimumSize(110, 0)
-        disable_scroll_wheel(self.max)
-        self.addWidget(self.max, 2, 1)
+        stop = ScientificSpinBox()
+        stop.setStyleSheet("QDoubleSpinBox {color:red}")
+        stop.setMinimumSize(110, 0)
+        disable_scroll_wheel(stop)
+        self.addWidget(stop, 2, 1)
 
-        def update_min(value):
-            state["min"] = value*scale
+        def update_start(value):
+            state["start"] = value*scale
             scanner.setStart(value)
 
-        def update_max(value):
-            state["max"] = value*scale
+        def update_stop(value):
+            state["stop"] = value*scale
             scanner.setStop(value)
 
         def update_npoints(value):
             state["npoints"] = value
             scanner.setNum(value)
 
-        scanner.startChanged.connect(self.min.setValue)
-        scanner.numChanged.connect(self.npoints.setValue)
-        scanner.stopChanged.connect(self.max.setValue)
-        self.min.valueChanged.connect(update_min)
-        self.npoints.valueChanged.connect(update_npoints)
-        self.max.valueChanged.connect(update_max)
-        scanner.setStart(state["min"]/scale)
+        scanner.startChanged.connect(start.setValue)
+        scanner.numChanged.connect(npoints.setValue)
+        scanner.stopChanged.connect(stop.setValue)
+        start.valueChanged.connect(update_start)
+        npoints.valueChanged.connect(update_npoints)
+        stop.valueChanged.connect(update_stop)
+        scanner.setStart(state["start"]/scale)
         scanner.setNum(state["npoints"])
-        scanner.setStop(state["max"]/scale)
-        apply_properties(self.min)
-        apply_properties(self.max)
+        scanner.setStop(state["stop"]/scale)
+        apply_properties(start)
+        apply_properties(stop)
 
 
 class _ExplicitScan(LayoutWidget):
@@ -266,8 +266,8 @@ class _ScanEntry(LayoutWidget):
         state = {
             "selected": "NoScan",
             "NoScan": {"value": 0.0},
-            "LinearScan": {"min": 0.0, "max": 100.0*scale, "npoints": 10},
-            "RandomScan": {"min": 0.0, "max": 100.0*scale, "npoints": 10},
+            "LinearScan": {"start": 0.0, "stop": 100.0*scale, "npoints": 10},
+            "RandomScan": {"start": 0.0, "stop": 100.0*scale, "npoints": 10},
             "ExplicitScan": {"sequence": []}
         }
         if "default" in procdesc:
@@ -278,8 +278,8 @@ class _ScanEntry(LayoutWidget):
                 state["NoScan"]["value"] = default["value"]
             elif ty == "LinearScan" or ty == "RandomScan":
                 for d in state["LinearScan"], state["RandomScan"]:
-                    d["min"] = default["min"]
-                    d["max"] = default["max"]
+                    d["start"] = default["start"]
+                    d["stop"] = default["stop"]
                     d["npoints"] = default["npoints"]
             elif ty == "ExplicitScan":
                 state["ExplicitScan"]["sequence"] = default["sequence"]

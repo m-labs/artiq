@@ -11,7 +11,7 @@ Iterate on a scan object to scan it, e.g. ::
         do_something(variable)
 
 Iterating multiple times on the same scan object is possible, with the scan
-restarting at the minimum value each time. Iterating concurrently on the
+yielding the same values each time. Iterating concurrently on the
 same scan object (e.g. via nested loops) is also supported, and the
 iterators are independent from each other.
 
@@ -55,21 +55,23 @@ class NoScan(ScanObject):
 
 
 class LinearScan(ScanObject):
-    """A scan object that yields a fixed number of increasing evenly
+    """A scan object that yields a fixed number of evenly
     spaced values in a range."""
-    def __init__(self, min, max, npoints):
-        if min > max:
-            raise ValueError("Scan minimum must be less than maximum")
-        self.min = min
-        self.max = max
+    def __init__(self, start, stop, npoints):
+        self.start = start
+        self.stop = stop
         self.npoints = npoints
 
     @portable
     def _gen(self):
-        r = self.max - self.min
-        d = self.npoints - 1
-        for i in range(self.npoints):
-            yield r*i/d + self.min
+        if self.npoints == 0:
+            return
+        if self.npoints == 1:
+            yield self.start
+        else:
+            dx = (self.stop - self.start)/(self.npoints - 1)
+            for i in range(self.npoints):
+                yield i*dx + self.start
 
     @portable
     def __iter__(self):
@@ -80,19 +82,18 @@ class LinearScan(ScanObject):
 
     def describe(self):
         return {"ty": "LinearScan",
-                "min": self.min, "max": self.max, "npoints": self.npoints}
+                "start": self.start, "stop": self.stop,
+                "npoints": self.npoints}
 
 
 class RandomScan(ScanObject):
     """A scan object that yields a fixed number of randomly ordered evenly
     spaced values in a range."""
-    def __init__(self, min, max, npoints, seed=0):
-        if min > max:
-            raise ValueError("Scan minimum must be less than maximum")
-        self.min = min
-        self.max = max
+    def __init__(self, start, stop, npoints, seed=0):
+        self.start = start
+        self.stop = stop
         self.npoints = npoints
-        self.sequence = list(LinearScan(min, max, npoints))
+        self.sequence = list(LinearScan(start, stop, npoints))
         shuffle(self.sequence, Random(seed).random)
 
     @portable
@@ -104,7 +105,8 @@ class RandomScan(ScanObject):
 
     def describe(self):
         return {"ty": "RandomScan",
-                "min": self.min, "max": self.max, "npoints": self.npoints}
+                "start": self.start, "stop": self.stop,
+                "npoints": self.npoints}
 
 
 class ExplicitScan(ScanObject):
@@ -142,8 +144,8 @@ class Scannable:
     :param global_step: The step with which the value should be modified by
         up/down buttons in a user interface. The default is the scale divided
         by 10.
-    :param unit: A string representing the unit of the scanned variable, for user
-        interface (UI) purposes.
+    :param unit: A string representing the unit of the scanned variable, for
+        user interface (UI) purposes.
     :param scale: The scale of value for UI purposes. The displayed value is
         divided by the scale.
     :param ndecimals: The number of decimals a UI should use.
