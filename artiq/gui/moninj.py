@@ -4,7 +4,7 @@ import socket
 import struct
 from operator import itemgetter
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtWidgets, QtGui
 
 from artiq.tools import TaskObject
 from artiq.protocols.sync_struct import Subscriber
@@ -21,20 +21,30 @@ _mode_enc = {
     "in": 3
 }
 
-_widget_size = QtCore.QSize(350, 300)
+
+class _MoninjWidget(QtWidgets.QFrame):
+    def __init__(self):
+        QtWidgets.QFrame.__init__(self)
+        qfm = QtGui.QFontMetrics(self.font())
+        self._size = QtCore.QSize(
+            29*qfm.averageCharWidth(),
+            10*qfm.lineSpacing())
+        self.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+
+        self.setFrameShape(QtWidgets.QFrame.Box)
+        self.setFrameShadow(QtWidgets.QFrame.Raised)
+
+    def sizeHint(self):
+        return self._size
 
 
-class _TTLWidget(QtWidgets.QFrame):
+class _TTLWidget(_MoninjWidget):
     def __init__(self, channel, send_to_device, force_out, title):
         self.channel = channel
         self.send_to_device = send_to_device
         self.force_out = force_out
 
-        QtWidgets.QFrame.__init__(self)
-        self.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-
-        self.setFrameShape(QtWidgets.QFrame.Box)
-        self.setFrameShadow(QtWidgets.QFrame.Raised)
+        _MoninjWidget.__init__(self)
 
         grid = QtWidgets.QGridLayout()
         self.setLayout(grid)
@@ -89,9 +99,6 @@ class _TTLWidget(QtWidgets.QFrame):
 
         self.set_value(0, False, False)
 
-    def sizeHint(self):
-        return _widget_size
-
     def set_mode(self, mode):
         data = struct.pack("bbb",
                            2,  # MONINJ_REQ_TTLSET
@@ -124,17 +131,13 @@ class _TTLWidget(QtWidgets.QFrame):
             self._expctl_action.setChecked(True)
 
 
-class _DDSWidget(QtWidgets.QFrame):
+class _DDSWidget(_MoninjWidget):
     def __init__(self, bus_channel, channel, sysclk, title):
         self.bus_channel = bus_channel
         self.channel = channel
         self.sysclk = sysclk
 
-        QtWidgets.QFrame.__init__(self)
-        self.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-
-        self.setFrameShape(QtWidgets.QFrame.Box)
-        self.setFrameShadow(QtWidgets.QFrame.Raised)
+        _MoninjWidget.__init__(self)
 
         grid = QtWidgets.QGridLayout()
         self.setLayout(grid)
@@ -153,9 +156,6 @@ class _DDSWidget(QtWidgets.QFrame):
         grid.setRowStretch(3, 1)
 
         self.set_value(0)
-
-    def sizeHint(self):
-        return _widget_size
 
     def set_value(self, ftw):
         frequency = ftw*self.sysclk()/2**32
