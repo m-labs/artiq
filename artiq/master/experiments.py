@@ -84,8 +84,12 @@ class ExperimentDB:
         self.cur_rev = self.repo_backend.get_head_rev()
         self.repo_backend.request_rev(self.cur_rev)
         self.explist = Notifier(dict())
-
         self._scanning = False
+
+        self.status = Notifier({
+            "scanning": False,
+            "cur_rev": self.cur_rev
+        })
 
     def close(self):
         # The object cannot be used anymore after calling this method.
@@ -95,17 +99,20 @@ class ExperimentDB:
         if self._scanning:
             return
         self._scanning = True
+        self.status["scanning"] = True
         try:
             if new_cur_rev is None:
                 new_cur_rev = self.repo_backend.get_head_rev()
             wd, _ = self.repo_backend.request_rev(new_cur_rev)
             self.repo_backend.release_rev(self.cur_rev)
             self.cur_rev = new_cur_rev
+            self.status["cur_rev"] = new_cur_rev
             new_explist = await _scan_experiments(wd, self.get_device_db_fn)
 
             _sync_explist(self.explist, new_explist)
         finally:
             self._scanning = False
+            self.status["scanning"] = False
 
     def scan_repository_async(self, new_cur_rev=None):
         asyncio.ensure_future(

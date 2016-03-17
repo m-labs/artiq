@@ -105,6 +105,7 @@ def main():
         "devices": device_db.data,
         "datasets": dataset_db.data,
         "explist": experiment_db.explist,
+        "explist_status": experiment_db.status,
         "log": log_buffer.data
     })
     loop.run_until_complete(server_notify.start(
