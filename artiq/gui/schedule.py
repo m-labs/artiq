@@ -89,9 +89,17 @@ class ScheduleDock(QtWidgets.QDockWidget):
         self.table_model = Model(dict())
         schedule_sub.add_setmodel_callback(self.set_model)
 
+    def rows_inserted_after(self):
+        # HACK:
+        # workaround the usual Qt layout bug when the first row is inserted
+        # (columns are undersized if an experiment with a due date is scheduled
+        # and the schedule was empty)
+        self.table.horizontalHeader().reset()
+
     def set_model(self, model):
         self.table_model = model
         self.table.setModel(self.table_model)
+        self.table_model.rowsInserted.connect(self.rows_inserted_after)
 
     async def delete(self, rid, graceful):
         if graceful:
