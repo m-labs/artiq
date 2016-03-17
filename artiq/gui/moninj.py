@@ -8,6 +8,7 @@ from PyQt5 import QtCore, QtWidgets
 
 from artiq.tools import TaskObject
 from artiq.protocols.sync_struct import Subscriber
+from artiq.gui.flowlayout import FlowLayout
 
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,8 @@ _mode_enc = {
     "in": 3
 }
 
+_widget_size = QtCore.QSize(350, 300)
+
 
 class _TTLWidget(QtWidgets.QFrame):
     def __init__(self, channel, send_to_device, force_out, title):
@@ -28,6 +31,7 @@ class _TTLWidget(QtWidgets.QFrame):
         self.force_out = force_out
 
         QtWidgets.QFrame.__init__(self)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
 
         self.setFrameShape(QtWidgets.QFrame.Box)
         self.setFrameShadow(QtWidgets.QFrame.Raised)
@@ -85,6 +89,9 @@ class _TTLWidget(QtWidgets.QFrame):
 
         self.set_value(0, False, False)
 
+    def sizeHint(self):
+        return _widget_size
+
     def set_mode(self, mode):
         data = struct.pack("bbb",
                            2,  # MONINJ_REQ_TTLSET
@@ -124,6 +131,7 @@ class _DDSWidget(QtWidgets.QFrame):
         self.sysclk = sysclk
 
         QtWidgets.QFrame.__init__(self)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
 
         self.setFrameShape(QtWidgets.QFrame.Box)
         self.setFrameShadow(QtWidgets.QFrame.Raised)
@@ -145,6 +153,9 @@ class _DDSWidget(QtWidgets.QFrame):
         grid.setRowStretch(3, 1)
 
         self.set_value(0)
+
+    def sizeHint(self):
+        return _widget_size
 
     def set_value(self, ftw):
         frequency = ftw*self.sysclk()/2**32
@@ -232,14 +243,14 @@ class _MonInjDock(QtWidgets.QDockWidget):
         scroll_area = QtWidgets.QScrollArea()
         self.setWidget(scroll_area)
 
-        grid = QtWidgets.QGridLayout()
+        grid = FlowLayout()
         grid_widget = QtWidgets.QWidget()
         grid_widget.setLayout(grid)
 
-        for i, (_, w) in enumerate(sorted(widgets, key=itemgetter(0))):
-            grid.addWidget(w, i // 4, i % 4)
-            grid.setColumnStretch(i % 4, 1)
+        for _, w in sorted(widgets, key=itemgetter(0)):
+            grid.addWidget(w)
 
+        scroll_area.setWidgetResizable(True)
         scroll_area.setWidget(grid_widget)
 
 
