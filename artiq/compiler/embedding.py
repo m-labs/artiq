@@ -754,7 +754,8 @@ class Stitcher:
                             notes=[note])
                         self.engine.process(diag)
 
-                    if self.dmgr.get(function.artiq_embedded.core_name) != self.core:
+                    core_name = function.artiq_embedded.core_name
+                    if core_name is not None and self.dmgr.get(core_name) != self.core:
                         note = diagnostic.Diagnostic("note",
                             "called from this function", {},
                             loc)
