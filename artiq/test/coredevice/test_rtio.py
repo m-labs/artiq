@@ -7,6 +7,7 @@ from math import sqrt
 
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
+from artiq.coredevice import exceptions
 
 
 artiq_low_latency = os.getenv("ARTIQ_LOW_LATENCY")
@@ -285,7 +286,7 @@ class CoredeviceTest(ExperimentCase):
 
     def test_watchdog(self):
         # watchdog only works on the device
-        with self.assertRaises(IOError):
+        with self.assertRaises(exceptions.WatchdogExpired):
             self.execute(Watchdog)
 
     @unittest.skipUnless(artiq_low_latency,
