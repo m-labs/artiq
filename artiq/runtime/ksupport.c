@@ -97,6 +97,8 @@ static const struct symbol runtime_exports[] = {
     {"abort", &ksupport_abort},
 
     /* proxified syscalls */
+    {"core_log", &core_log},
+
     {"now", &now},
 
     {"watchdog_set", &watchdog_set},

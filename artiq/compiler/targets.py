@@ -73,6 +73,7 @@ class Target:
     triple = "unknown"
     data_layout = ""
     features = []
+    print_function = "printf"
 
 
     def __init__(self):
@@ -195,3 +196,4 @@ class OR1KTarget(Target):
     triple = "or1k-linux"
     data_layout = "E-m:e-p:32:32-i64:32-f64:32-v64:32-v128:32-a:0:32-n32"
     features = ["mul", "div", "ffl1", "cmov", "addc"]
+    print_function = "core_log"

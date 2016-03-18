@@ -358,7 +358,7 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(llptr, [])
         elif name == "llvm.stackrestore":
             llty = ll.FunctionType(llvoid, [llptr])
-        elif name == "printf":
+        elif name == self.target.print_function:
             llty = ll.FunctionType(llvoid, [llptr], var_arg=True)
         elif name == "rtio_log":
             llty = ll.FunctionType(llvoid, [lli64, llptr], var_arg=True)
@@ -904,7 +904,8 @@ class LLVMIRGenerator:
         elif insn.op in ("printf", "rtio_log"):
             # We only get integers, floats, pointers and strings here.
             llargs = map(self.map, insn.operands)
-            return self.llbuilder.call(self.llbuiltin(insn.op), llargs,
+            func_name = self.target.print_function if insn.op == "printf" else insn.op
+            return self.llbuilder.call(self.llbuiltin(func_name), llargs,
                                        name=insn.name)
         elif insn.op == "exncast":
             # This is an identity cast at LLVM IR level.

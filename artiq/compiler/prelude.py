@@ -47,4 +47,5 @@ def globals():
 
         # ARTIQ utility functions
         "rtio_log":             builtins.fn_rtio_log(),
+        "core_log":             builtins.fn_print(),
     }
