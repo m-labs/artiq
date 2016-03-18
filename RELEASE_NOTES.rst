@@ -1,10 +1,11 @@
+.. Add new releases at the top to keep important stuff directly visible.
+
 Release notes
 =============
 
-1.0 (unreleased)
-----------------
+Unreleased
+----------
 
-* First release
 * Experiments (your code) should use ``from artiq.experiment import *``
   (and not ``from artiq import *`` as previously)
 * Core device flash storage has moved due to increased runtime size.
