@@ -3,8 +3,8 @@
 Release notes
 =============
 
-Unreleased
-----------
+1.0rc1
+------
 
 * Experiments (your code) should use ``from artiq.experiment import *``
   (and not ``from artiq import *`` as previously)
@@ -20,5 +20,5 @@ Unreleased
   with ``core_dds`` a device of type ``artiq.coredevice.dds.CoreDDS``.
   The dds_bus device should not be used anymore.
 * LinearScan now supports scanning from high to low. Accordingly,
-  it's arguments ``min/max`` have been renamed to ``start/stop`` respectively.
+  its arguments ``min/max`` have been renamed to ``start/stop`` respectively.
   Same for RandomScan (even though there direction matters little).
