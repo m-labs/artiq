@@ -192,6 +192,7 @@ void dds_batch_exit(void)
 
     if(!batch_mode)
         artiq_raise_from_c("DDSBatchError", "DDS batch error", 0, 0, 0);
+    batch_mode = 0;
     /* + FUD time */
     now = batch_ref_time - batch_count*(DURATION_PROGRAM + DURATION_WRITE);
     for(i=0;i<batch_count;i++) {
@@ -201,7 +202,6 @@ void dds_batch_exit(void)
             batch[i].amplitude);
         now += DURATION_PROGRAM + DURATION_WRITE;
     }
-    batch_mode = 0;
 }
 
 void dds_set(long long int timestamp, int bus_channel, int channel,
