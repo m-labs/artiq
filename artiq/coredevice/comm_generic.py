@@ -50,6 +50,9 @@ class _D2HMsgType(Enum):
     FLASH_OK_REPLY = 12
     FLASH_ERROR_REPLY = 13
 
+    WATCHDOG_EXPIRED = 14
+    CLOCK_FAILURE = 15
+
 
 class UnsupportedDevice(Exception):
     pass
@@ -522,6 +525,10 @@ class CommGeneric:
                 self._serve_rpc(object_map)
             elif self._read_type == _D2HMsgType.KERNEL_EXCEPTION:
                 self._serve_exception(object_map, symbolizer)
+            elif self._read_type == _D2HMsgType.WATCHDOG_EXPIRED:
+                raise exceptions.WatchdogExpired
+            elif self._read_type == _D2HMsgType.CLOCK_FAILURE:
+                raise exceptions.ClockFailure
             else:
                 self._read_expect(_D2HMsgType.KERNEL_FINISHED)
                 return

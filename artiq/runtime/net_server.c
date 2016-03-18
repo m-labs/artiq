@@ -158,9 +158,9 @@ static void tcp_pcb_service(void *arg, struct tcp_pcb *pcb)
     /* Writer interface */
     if(cs == instance->open_session_cs) {
         void *data;
-        int len, sndbuf;
+        int len, sndbuf, close_flag;
 
-        cs->instance->poll(&data, &len);
+        cs->instance->poll(&data, &len, &close_flag);
         if(len > 0) {
             sndbuf = tcp_sndbuf(pcb);
             if(len > sndbuf)
@@ -168,8 +168,10 @@ static void tcp_pcb_service(void *arg, struct tcp_pcb *pcb)
             tcp_write(pcb, data, len, 0);
             instance->ack_consumed(len);
         }
-        if(len < 0)
+        if(close_flag) {
+            tcp_output(pcb);
             net_server_close(cs, pcb);
+        }
     }
 }
 

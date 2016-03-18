@@ -10,7 +10,7 @@ struct net_server_instance {
     void (*start)(void);
     void (*end)(void);
     int (*input)(void *data, int length);
-    void (*poll)(void **data, int *length);
+    void (*poll)(void **data, int *length, int *close_flag);
     void (*ack_consumed)(int length);
     void (*ack_sent)(int length);
 

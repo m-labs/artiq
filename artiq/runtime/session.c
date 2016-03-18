@@ -392,7 +392,10 @@ enum {
 
     REMOTEMSG_TYPE_FLASH_READ_REPLY,
     REMOTEMSG_TYPE_FLASH_OK_REPLY,
-    REMOTEMSG_TYPE_FLASH_ERROR_REPLY
+    REMOTEMSG_TYPE_FLASH_ERROR_REPLY,
+
+    REMOTEMSG_TYPE_WATCHDOG_EXPIRED,
+    REMOTEMSG_TYPE_CLOCK_FAILURE,
 };
 
 static int receive_rpc_value(const char **tag, void **slot);
@@ -1083,30 +1086,36 @@ int session_input(void *data, int length)
 /* *length is set to -1 in case of irrecoverable error
  * (the session must be dropped and session_end called)
  */
-void session_poll(void **data, int *length)
+void session_poll(void **data, int *length, int *close_flag)
 {
+    *close_flag = 0;
+
     if(user_kernel_state == USER_KERNEL_RUNNING) {
         if(watchdog_expired()) {
             core_log("Watchdog expired\n");
-            *length = -1;
-            return;
+
+            *close_flag = 1;
+            out_packet_empty(REMOTEMSG_TYPE_WATCHDOG_EXPIRED);
         }
         if(!rtiocrg_check()) {
             core_log("RTIO clock failure\n");
-            *length = -1;
-            return;
+
+            *close_flag = 1;
+            out_packet_empty(REMOTEMSG_TYPE_CLOCK_FAILURE);
         }
     }
 
-    /* If the output buffer is available,
-     * check if the kernel CPU has something to transmit.
-     */
-    if(out_packet_available()) {
-        struct msg_base *umsg = mailbox_receive();
-        if(umsg) {
-            if(!process_kmsg(umsg)) {
-                *length = -1;
-                return;
+    if(!*close_flag) {
+        /* If the output buffer is available,
+         * check if the kernel CPU has something to transmit.
+         */
+        if(out_packet_available()) {
+            struct msg_base *umsg = mailbox_receive();
+            if(umsg) {
+                if(!process_kmsg(umsg)) {
+                    *length = -1;
+                    return;
+                }
             }
         }
     }

@@ -129,3 +129,9 @@ class DDSBatchError(Exception):
 class I2CError(Exception):
     """Raised with a I2C transaction fails."""
     artiq_builtin = True
+
+class WatchdogExpired(Exception):
+    """Raised when a watchdog expires."""
+
+class ClockFailure(Exception):
+    """Raised when RTIO PLL is unable to lock."""
