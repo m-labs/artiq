@@ -12,6 +12,7 @@ Release notes
   or erase and rewrite its entries.
 * ``RTIOCollisionError`` has been renamed to ``RTIOCollision``
 * the new API for DDS batches is::
+
     with self.core_dds.batch:
        ...
 
