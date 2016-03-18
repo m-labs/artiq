@@ -412,7 +412,14 @@ class ExperimentManager:
             dock = self.open_experiments[expurl]
             self.main_window.centralWidget().setActiveSubWindow(dock)
             return dock
-        dock = _ExperimentDock(self, expurl)
+        try:
+            dock = _ExperimentDock(self, expurl)
+        except:
+            logger.warning("Failed to create experiment dock for %s, "
+                           "attempting to reset arguments", expurl,
+                           exc_info=True)
+            del self.submission_arguments[expurl]
+            dock = _ExperimentDock(self, expurl)
         self.open_experiments[expurl] = dock
         self.main_window.centralWidget().addSubWindow(dock)
         dock.show()
