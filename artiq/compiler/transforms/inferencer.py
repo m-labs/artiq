@@ -446,8 +446,42 @@ class Inferencer(algorithm.Visitor):
             return_type, left_type, right_type = coerced
             node.left  = self._coerce_one(left_type, node.left, other_node=node.right)
             node.right = self._coerce_one(right_type, node.right, other_node=node.left)
+
+            def makenotes(printer, typea, typeb, loca, locb):
+                def makenote(typ, coerced, loc):
+                    if typ == coerced:
+                        return diagnostic.Diagnostic("note",
+                            "expression of type {type}",
+                            {"type": printer.name(typ)},
+                            loc)
+                    else:
+                        return diagnostic.Diagnostic("note",
+                            "expression of type {typea} (coerced to {typeb})",
+                            {"typea": printer.name(typ),
+                             "typeb": printer.name(coerced)},
+                            loc)
+
+                if node.type == return_type:
+                    note = diagnostic.Diagnostic("note",
+                        "expression of type {type}",
+                        {"type": printer.name(typea)},
+                        loca)
+                else:
+                    note = diagnostic.Diagnostic("note",
+                        "expression of type {typea} (but {typeb} was expected)",
+                        {"typea": printer.name(typea),
+                         "typeb": printer.name(typeb)},
+                        loca)
+
+                return [
+                    makenote(node.left.type, left_type, node.left.loc),
+                    makenote(node.right.type, right_type, node.right.loc),
+                    note
+                ]
+
             self._unify(node.type, return_type,
-                        node.loc, None)
+                        node.loc, None,
+                        makenotes=makenotes)
 
     def visit_CompareT(self, node):
         self.generic_visit(node)
