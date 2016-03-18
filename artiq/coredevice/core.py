@@ -67,6 +67,7 @@ class Core:
         self.comm = dmgr.get(comm_device)
 
         self.first_run = True
+        self.dmgr = dmgr
         self.core = self
         self.comm.core = self
 
@@ -74,7 +75,7 @@ class Core:
         try:
             engine = _DiagnosticEngine(all_errors_are_fatal=True)
 
-            stitcher = Stitcher(engine=engine)
+            stitcher = Stitcher(engine=engine, core=self, dmgr=self.dmgr)
             stitcher.stitch_call(function, args, kwargs, set_result)
             stitcher.finalize()
 

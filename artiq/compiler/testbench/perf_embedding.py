@@ -31,7 +31,7 @@ def main():
     def embed():
         experiment = testcase_vars["Benchmark"](dmgr)
 
-        stitcher = Stitcher()
+        stitcher = Stitcher(core=experiment.core, dmgr=dmgr)
         stitcher.stitch_call(experiment.run, (experiment,), {})
         stitcher.finalize()
         return stitcher

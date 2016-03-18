@@ -448,7 +448,9 @@ class TypedtreeHasher(algorithm.Visitor):
         return hash(tuple(freeze(getattr(node, field_name)) for field_name in fields))
 
 class Stitcher:
-    def __init__(self, engine=None):
+    def __init__(self, core, dmgr, engine=None):
+        self.core = core
+        self.dmgr = dmgr
         if engine is None:
             self.engine = diagnostic.Engine(all_errors_are_fatal=True)
         else:
@@ -473,7 +475,7 @@ class Stitcher:
 
         # We synthesize source code for the initial call so that
         # diagnostics would have something meaningful to display to the user.
-        synthesizer = self._synthesizer()
+        synthesizer = self._synthesizer(self._function_loc(function.artiq_embedded.function))
         call_node = synthesizer.call(function_node, args, kwargs, callback)
         synthesizer.finalize()
         self.typedtree.append(call_node)
@@ -749,6 +751,17 @@ class Stitcher:
                         diag = diagnostic.Diagnostic("fatal",
                             "lambdas cannot be used as kernel functions", {},
                             loc,
+                            notes=[note])
+                        self.engine.process(diag)
+
+                    if self.dmgr.get(function.artiq_embedded.core_name) != self.core:
+                        note = diagnostic.Diagnostic("note",
+                            "called from this function", {},
+                            loc)
+                        diag = diagnostic.Diagnostic("fatal",
+                            "this function runs on a different core device '{name}'",
+                            {"name": function.artiq_embedded.core_name},
+                            self._function_loc(function.artiq_embedded.function),
                             notes=[note])
                         self.engine.process(diag)
 
