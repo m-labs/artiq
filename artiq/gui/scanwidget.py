@@ -58,9 +58,15 @@ class ScanWidget(QtWidgets.QWidget):
         a, b = self._axisView
         return (val - a)/b
 
-    def _setView(self, axis_left, axis_scale):
-        self._axisView = axis_left, axis_scale
+    def _setView(self, left, scale):
+        self._axisView = left, scale
         self.update()
+
+    def _setViewAxis(self, center, scale):
+        if center:
+            scale = min(scale, self.dynamicRange/abs(center))
+        left = self.width()/2 - center*scale
+        self._setView(left, scale)
 
     def setStart(self, val):
         if self._start == val:
@@ -88,14 +94,9 @@ class ScanWidget(QtWidgets.QWidget):
         scale = self.width()*(1 - 2*self.zoomMargin)
         if self._stop != self._start:
             scale /= abs(self._stop - self._start)
-            if center:
-                scale = min(scale, self.dynamicRange/abs(center))
         else:
             scale = self.dynamicRange
-            if center:
-                scale /= abs(center)
-        left = self.width()/2 - center*scale
-        self._setView(left, scale)
+        self._setViewAxis(center, scale)
 
     def snapRange(self):
         self.setStart(self._pixelToAxis(self.zoomMargin*self.width()))
@@ -111,11 +112,11 @@ class ScanWidget(QtWidgets.QWidget):
             self.setStop(self._start)
         elif ev.modifiers() & QtCore.Qt.ControlModifier:
             self._drag = "zoom"
-            self._offset = ev.pos()
+            self._offset = QtCore.QPoint(ev.x(), 0)
             self._rubber = QtWidgets.QRubberBand(
                 QtWidgets.QRubberBand.Rectangle, self)
-            self._rubber.setGeometry(
-                QtCore.QRect(self._offset, QtCore.QSize()))
+            self._rubber.setGeometry(QtCore.QRect(
+                self._offset, QtCore.QPoint(ev.x(), self.height() - 1)))
             self._rubber.show()
         else:
             qfm = QtGui.QFontMetrics(self.font())
@@ -144,7 +145,8 @@ class ScanWidget(QtWidgets.QWidget):
             self.setStop(self._pixelToAxis(ev.x()))
         elif self._drag == "zoom":
             self._rubber.setGeometry(QtCore.QRect(
-                self._offset, ev.pos()).normalized())
+                self._offset, QtCore.QPoint(ev.x(), self.height() - 1)
+            ).normalized())
         elif self._drag == "axis":
             self._setView(ev.x() - self._offset, self._axisView[1])
         elif self._drag == "start":
@@ -158,22 +160,18 @@ class ScanWidget(QtWidgets.QWidget):
     def mouseReleaseEvent(self, ev):
         if self._drag == "zoom":
             self._rubber.hide()
-            left, scale = self._axisView
-            center = self._pixelToAxis(self._rubber.geometry().center().x())
             if self._rubber.geometry().width():
+                scale = self._axisView[1]
                 scale *= self.width()/self._rubber.geometry().width()
-                if center:
-                    scale = min(scale, self.dynamicRange/abs(center))
-            elif center:
-                scale = self.dynamicRange/abs(center)
-            left = self.width()/2 - center*scale
-            self._setView(left, scale)
+                center = self._pixelToAxis(
+                    self._rubber.geometry().center().x())
+                self._setViewAxis(center, scale)
         self._drag = None
 
     def _zoom(self, z, x):
         a, b = self._axisView
         scale = z*b
-        left = x - z*(x - a)
+        left = x + z*(a - x)
         if z > 1 and abs(left - self.width()/2) > self.dynamicRange:
             return
         self._setView(left, scale)
@@ -191,15 +189,12 @@ class ScanWidget(QtWidgets.QWidget):
         if not ev.oldSize().isValid():
             self.viewRange()
             return
-        a, b = self._axisView
-        scale = b*ev.size().width()/ev.oldSize().width()
-        center = (self._stop + self._start)/2
-        if center:
-            scale = min(scale, self.dynamicRange/abs(center))
-        left = a*scale/b
         self.ticker.min_ticks = max(
             3, int(ev.size().width()/(2.5*self._labelSize.width())))
-        self._setView(left, scale)
+        scale = self._axisView[1]
+        scale *= ev.size().width()/ev.oldSize().width()
+        center = self._pixelToAxis(ev.oldSize().width()/2)
+        self._setViewAxis(center, scale)
 
     def paintEvent(self, ev):
         painter = QtGui.QPainter(self)
@@ -215,7 +210,6 @@ class ScanWidget(QtWidgets.QWidget):
         painter.drawText(0, 0, prefix)
         painter.translate(0, lineSpacing)
 
-        painter.setPen(QtGui.QPen(QtCore.Qt.black, 1, QtCore.Qt.SolidLine))
         for t, l in zip(ticks, labels):
             t = self._axisToPixel(t)
             painter.drawText(t - len(l)/2*avgCharWidth, 0, l)
