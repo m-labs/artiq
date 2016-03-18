@@ -159,10 +159,13 @@ class ScanWidget(QtWidgets.QWidget):
         if self._drag == "zoom":
             self._rubber.hide()
             left, scale = self._axisView
-            scale *= self.width()/self._rubber.geometry().width()
             center = self._pixelToAxis(self._rubber.geometry().center().x())
-            if center:
-                scale = min(scale, self.dynamicRange/abs(center))
+            if self._rubber.geometry().width():
+                scale *= self.width()/self._rubber.geometry().width()
+                if center:
+                    scale = min(scale, self.dynamicRange/abs(center))
+            elif center:
+                scale = self.dynamicRange/abs(center)
             left = self.width()/2 - center*scale
             self._setView(left, scale)
         self._drag = None
