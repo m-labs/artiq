@@ -165,7 +165,7 @@ class DMAWriter(Module, AutoCSR):
                                        alignment_bits=data_alignment)
         self.last_address = CSRStorage(aw + data_alignment,
                                        alignment_bits=data_alignment)
-        self.byte_count = CSRStatus(32)  # only read when shut down
+        self.byte_count = CSRStatus(64)  # only read when shut down
 
         self.sink = stream.Endpoint(
             [("data", dw),
@@ -199,7 +199,7 @@ class DMAWriter(Module, AutoCSR):
             )
         ]
 
-        message_count = Signal(32 - log2_int(message_len//8))
+        message_count = Signal(64 - log2_int(message_len//8))
         self.comb += self.byte_count.status.eq(
             message_count << log2_int(message_len//8))
         self.sync += [
