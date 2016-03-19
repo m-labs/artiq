@@ -90,15 +90,12 @@ static void dds_set_one(long long int now, long long int ref_time,
 {
     unsigned int channel_enc;
 
-    if((channel < 0) || (channel >= CONFIG_DDS_CHANNELS_PER_BUS)) {
-        core_log("Attempted to set invalid DDS channel\n");
-        return;
-    }
+    if((channel < 0) || (channel >= CONFIG_DDS_CHANNELS_PER_BUS))
+        artiq_raise_from_c("DDSError", "Attempted to set invalid DDS channel", 0, 0, 0);
     if((bus_channel < CONFIG_RTIO_FIRST_DDS_CHANNEL)
-       || (bus_channel >= (CONFIG_RTIO_FIRST_DDS_CHANNEL+CONFIG_RTIO_DDS_COUNT))) {
-        core_log("Attempted to use invalid DDS bus\n");
-        return;
-    }
+       || (bus_channel >= (CONFIG_RTIO_FIRST_DDS_CHANNEL+CONFIG_RTIO_DDS_COUNT)))
+        artiq_raise_from_c("DDSError", "Attempted to use invalid DDS bus", 0, 0, 0);
+
 #ifdef CONFIG_DDS_ONEHOT_SEL
     channel_enc = 1 << channel;
 #else
@@ -179,7 +176,7 @@ static struct dds_set_params batch[DDS_MAX_BATCH];
 void dds_batch_enter(long long int timestamp)
 {
     if(batch_mode)
-        artiq_raise_from_c("DDSBatchError", "DDS batch error", 0, 0, 0);
+        artiq_raise_from_c("DDSError", "DDS batch entered twice", 0, 0, 0);
     batch_mode = 1;
     batch_count = 0;
     batch_ref_time = timestamp;
@@ -191,7 +188,7 @@ void dds_batch_exit(void)
     int i;
 
     if(!batch_mode)
-        artiq_raise_from_c("DDSBatchError", "DDS batch error", 0, 0, 0);
+        artiq_raise_from_c("DDSError", "DDS batch exited twice", 0, 0, 0);
     batch_mode = 0;
     /* + FUD time */
     now = batch_ref_time - batch_count*(DURATION_PROGRAM + DURATION_WRITE);
@@ -209,7 +206,7 @@ void dds_set(long long int timestamp, int bus_channel, int channel,
 {
     if(batch_mode) {
         if(batch_count >= DDS_MAX_BATCH)
-            artiq_raise_from_c("DDSBatchError", "DDS batch error", 0, 0, 0);
+            artiq_raise_from_c("DDSError", "Too many commands in DDS batch", 0, 0, 0);
         /* timestamp parameter ignored (determined by batch) */
         batch[batch_count].bus_channel = bus_channel;
         batch[batch_count].channel = channel;

@@ -120,9 +120,10 @@ class RTIOOverflow(Exception):
     """
     artiq_builtin = True
 
-class DDSBatchError(Exception):
+class DDSError(Exception):
     """Raised when attempting to start a DDS batch while already in a batch,
-    or when too many commands are batched.
+    when too many commands are batched, and when DDS channel settings are
+    incorrect.
     """
     artiq_builtin = True
 
