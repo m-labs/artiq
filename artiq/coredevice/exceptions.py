@@ -135,4 +135,4 @@ class WatchdogExpired(Exception):
     """Raised when a watchdog expires."""
 
 class ClockFailure(Exception):
-    """Raised when RTIO PLL is unable to lock."""
+    """Raised when RTIO PLL has lost lock."""
