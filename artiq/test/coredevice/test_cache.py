@@ -1,4 +1,5 @@
 from artiq.experiment import *
+from artiq.coredevice.exceptions import CacheError
 from artiq.test.hardware_testbench import ExperimentCase
 
 
