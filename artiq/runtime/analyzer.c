@@ -93,8 +93,9 @@ int analyzer_input(void *data, int length)
     return -1;
 }
 
-void analyzer_poll(void **data, int *length)
+void analyzer_poll(void **data, int *length, int *close_flag)
 {
+    *close_flag = 0;
     switch(send_state) {
         case SEND_STATE_HEADER:
             *length = sizeof(struct analyzer_header) - offset_consumed;

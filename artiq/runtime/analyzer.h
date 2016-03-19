@@ -7,7 +7,7 @@ void analyzer_start(void);
 void analyzer_end(void);
 
 int analyzer_input(void *data, int length);
-void analyzer_poll(void **data, int *length);
+void analyzer_poll(void **data, int *length, int *close_flag);
 void analyzer_ack_consumed(int length);
 void analyzer_ack_sent(int length);
 
