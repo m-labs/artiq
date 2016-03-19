@@ -168,10 +168,10 @@ static void tcp_pcb_service(void *arg, struct tcp_pcb *pcb)
             tcp_write(pcb, data, len, 0);
             instance->ack_consumed(len);
         }
-        if(close_flag) {
+        if(close_flag)
             tcp_output(pcb);
+        if((len < 0) || close_flag)
             net_server_close(cs, pcb);
-        }
     }
 }
 
