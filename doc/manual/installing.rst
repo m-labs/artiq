@@ -40,6 +40,27 @@ If your ``$PATH`` misses reference the ``miniconda3/bin`` or ``anaconda3/bin`` y
 
     $ export PATH=$HOME/miniconda3/bin:$PATH
 
+.. _install-openocd:
+
+Installing OpenOCD
+^^^^^^^^^^^^^^^^^^^
+The following instructions are for Ubuntu.
+
+* Install JTAG tools needed to program the Pipistrello and KC705:
+
+    ::
+
+        $ cd ~/artiq-dev
+        $ git clone https://github.com/ntfreak/openocd.git
+        $ cd openocd
+        $ sudo apt-get install build-essential libtool libusb-1.0-0-dev libftdi-dev automake
+        $ ./bootstrap
+        $ ./configure
+        $ make
+        $ sudo make install
+        $ sudo cp contrib/99-openocd.rules /etc/udev/rules.d
+        $ sudo adduser $USER plugdev
+
 Installing the ARTIQ packages
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -188,23 +209,6 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
 .. note::
     The options ``develop`` and ``--user`` are for setup.py to install Migen in ``~/.local/lib/python3.5``.
-
-.. _install-openocd:
-
-* Install JTAG tools needed to program the Pipistrello and KC705:
-
-    ::
-
-        $ cd ~/artiq-dev
-        $ git clone https://github.com/ntfreak/openocd.git
-        $ cd openocd
-        $ sudo apt-get install build-essentials libtool libusb-1.0-0-dev libftdi-dev
-        $ ./bootstrap
-        $ ./configure
-        $ make
-        $ sudo make install
-        $ sudo cp contrib/99-openocd.rules /etc/udev/rules.d
-        $ adduser $USER plugdev
 
 .. _install-flash-proxy:
 
