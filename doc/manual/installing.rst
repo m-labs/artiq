@@ -103,7 +103,7 @@ First you need to install OpenOCD. Then, you can flash the board:
 
 * For the Pipistrello board::
 
-    $ artiq_flash -t pipistrello
+    $ artiq_flash -t pipistrello -m qc1
 
 * For the KC705 board::
 
