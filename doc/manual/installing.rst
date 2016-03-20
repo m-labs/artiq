@@ -40,27 +40,6 @@ If your ``$PATH`` misses reference the ``miniconda3/bin`` or ``anaconda3/bin`` y
 
     $ export PATH=$HOME/miniconda3/bin:$PATH
 
-.. _install-openocd:
-
-Installing OpenOCD
-^^^^^^^^^^^^^^^^^^^
-The following instructions are for Ubuntu.
-
-* Install JTAG tools needed to program the Pipistrello and KC705:
-
-    ::
-
-        $ cd ~/artiq-dev
-        $ git clone https://github.com/ntfreak/openocd.git
-        $ cd openocd
-        $ sudo apt-get install build-essential libtool libusb-1.0-0-dev libftdi-dev automake
-        $ ./bootstrap
-        $ ./configure
-        $ make
-        $ sudo make install
-        $ sudo cp contrib/99-openocd.rules /etc/udev/rules.d
-        $ sudo adduser $USER plugdev
-
 Installing the ARTIQ packages
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -120,7 +99,34 @@ You now need to flash 3 things on the FPGA board:
 
 They are all shipped in our Conda packages, along with the required flash proxy gateware bitstreams.
 
-First you need to install OpenOCD. Then, you can flash the board:
+.. _install-openocd:
+
+Installing OpenOCD
+..................
+
+There are several tools that can be used to write the thee binaries into
+the core device FPGA board's flash memory. Xilinx ISE (impact) or Vivado work, as does xc3sprog
+sometimes. OpenOCD is the recommended and most reliable method. But
+it is not currently packaged as a conda package.
+
+The following instructions are for Ubuntu.
+
+    ::
+
+        $ cd ~/artiq-dev
+        $ git clone https://github.com/ntfreak/openocd.git
+        $ cd openocd
+        $ sudo apt-get install build-essential libtool libusb-1.0-0-dev libftdi-dev automake
+        $ ./bootstrap
+        $ ./configure
+        $ make
+        $ sudo make install
+        $ sudo cp contrib/99-openocd.rules /etc/udev/rules.d
+        $ sudo adduser $USER plugdev
+
+
+
+Then, you can flash the board:
 
 * For the Pipistrello board::
 
@@ -226,6 +232,7 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
         Then move both files ``~/artiq-dev/bscan_spi_xc6slx45.bit`` and ``~/artiq-dev/bscan_spi_xc7k325t.bit`` to ``~/.migen``, ``/usr/local/share/migen``, or ``/usr/share/migen``.
 
+* :ref:`Download and install OpenOCD <install-openocd>`.
 
 * Download and install MiSoC: ::
 
