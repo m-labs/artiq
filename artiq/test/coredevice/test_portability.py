@@ -67,17 +67,15 @@ class _PulseLogger(EnvExperiment):
     def _append(self, t, l, f):
         if not hasattr(self.parent_test, "first_timestamp"):
             self.parent_test.first_timestamp = t
-        self.parent_test.output_list.append(
-            (self.name, t-self.parent_test.first_timestamp, l, f))
-
-    def int_usec(self, mu):
-        return round(mu_to_seconds(mu, self.core)*1000000)
+        origin = self.parent_test.first_timestamp
+        t_usec = round(mu_to_seconds(t-origin, self.core)*1000000)
+        self.parent_test.output_list.append((self.name, t_usec, l, f))
 
     def on(self, t, f):
-        self._append(self.int_usec(t), True, f)
+        self._append(t, True, f)
 
     def off(self, t):
-        self._append(self.int_usec(t), False, 0)
+        self._append(t, False, 0)
 
     @kernel
     def pulse(self, f, duration):
