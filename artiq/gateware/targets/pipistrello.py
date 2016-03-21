@@ -147,6 +147,7 @@ class NIST_QC1(BaseSoC, AMPSoC):
                          l2_size=64*1024,
                          with_timer=False,
                          ident=artiq_version,
+                         clk_freq=75*1000*1000,
                          **kwargs)
         AMPSoC.__init__(self)
 
