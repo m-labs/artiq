@@ -95,7 +95,7 @@ def main():
         "master_dataset_db": dataset_db,
         "master_schedule": scheduler,
         "master_experiment_db": experiment_db
-    })
+    }, allow_parallel=True)
     loop.run_until_complete(server_control.start(
         bind, args.port_control))
     atexit_register_coroutine(server_control.stop)
