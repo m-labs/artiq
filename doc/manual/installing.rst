@@ -99,11 +99,38 @@ You now need to flash 3 things on the FPGA board:
 
 They are all shipped in our Conda packages, along with the required flash proxy gateware bitstreams.
 
-First you need to install OpenOCD. Then, you can flash the board:
+.. _install-openocd:
+
+Installing OpenOCD
+..................
+
+There are several tools that can be used to write the thee binaries into
+the core device FPGA board's flash memory. Xilinx ISE (impact) or Vivado work, as does xc3sprog
+sometimes. OpenOCD is the recommended and most reliable method. But
+it is not currently packaged as a conda package.
+
+The following instructions are for Ubuntu.
+
+    ::
+
+        $ cd ~/artiq-dev
+        $ git clone https://github.com/ntfreak/openocd.git
+        $ cd openocd
+        $ sudo apt-get install build-essential libtool libusb-1.0-0-dev libftdi-dev automake
+        $ ./bootstrap
+        $ ./configure
+        $ make
+        $ sudo make install
+        $ sudo cp contrib/99-openocd.rules /etc/udev/rules.d
+        $ sudo adduser $USER plugdev
+
+
+
+Then, you can flash the board:
 
 * For the Pipistrello board::
 
-    $ artiq_flash -t pipistrello
+    $ artiq_flash -t pipistrello -m qc1
 
 * For the KC705 board::
 
@@ -189,23 +216,6 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 .. note::
     The options ``develop`` and ``--user`` are for setup.py to install Migen in ``~/.local/lib/python3.5``.
 
-.. _install-openocd:
-
-* Install JTAG tools needed to program the Pipistrello and KC705:
-
-    ::
-
-        $ cd ~/artiq-dev
-        $ git clone https://github.com/ntfreak/openocd.git
-        $ cd openocd
-        $ sudo apt-get install build-essentials libtool libusb-1.0-0-dev libftdi-dev
-        $ ./bootstrap
-        $ ./configure
-        $ make
-        $ sudo make install
-        $ sudo cp contrib/99-openocd.rules /etc/udev/rules.d
-        $ adduser $USER plugdev
-
 .. _install-flash-proxy:
 
 * Install the required flash proxy gateware bitstreams:
@@ -222,6 +232,7 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
         Then move both files ``~/artiq-dev/bscan_spi_xc6slx45.bit`` and ``~/artiq-dev/bscan_spi_xc7k325t.bit`` to ``~/.migen``, ``/usr/local/share/migen``, or ``/usr/share/migen``.
 
+* :ref:`Download and install OpenOCD <install-openocd>`.
 
 * Download and install MiSoC: ::
 
