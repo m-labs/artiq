@@ -41,7 +41,7 @@ requirements:
     - scipy
     - numpy
     - prettytable
-    - pyserial
+    - asyncserial
     - sphinx
     - sphinx-argparse
     - h5py

@@ -12,7 +12,7 @@ if sys.version_info[:3] < (3, 5, 1):
 
 # Depends on PyQt5, but setuptools cannot check for it.
 requirements = [
-    "sphinx", "sphinx-argparse", "pyserial", "numpy", "scipy",
+    "sphinx", "sphinx-argparse", "asyncserial", "numpy", "scipy",
     "python-dateutil", "prettytable", "h5py",
     "quamash", "pyqtgraph", "pygit2", "aiohttp",
     "llvmlite_artiq", "pythonparser", "python-Levenshtein",
