@@ -5,6 +5,7 @@
 import argparse
 import logging
 import sys
+import asyncio
 
 from artiq.devices.novatech409b.driver import Novatech409B
 from artiq.protocols.pc_rpc import simple_server_loop
@@ -38,6 +39,7 @@ def main():
         sys.exit(1)
 
     dev = Novatech409B(args.device if not args.simulation else None)
+    asyncio.get_event_loop().run_until_complete(dev.setup())
     try:
         simple_server_loop(
             {"novatech409b": dev}, bind_address_from_args(args), args.port)
