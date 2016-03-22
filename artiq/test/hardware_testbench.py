@@ -21,10 +21,12 @@ artiq_root = os.getenv("ARTIQ_ROOT")
 logger = logging.getLogger(__name__)
 
 
-@unittest.skipUnless(artiq_root, "no ARTIQ_ROOT")
-class ControllerCase(unittest.TestCase):
+class GenericControllerCase(unittest.TestCase):
+    def get_device_db(self):
+        raise NotImplementedError
+
     def setUp(self):
-        self.device_db = DeviceDB(os.path.join(artiq_root, "device_db.pyon"))
+        self.device_db = self.get_device_db()
         self.device_mgr = DeviceManager(self.device_db)
         self.controllers = {}
 
@@ -85,6 +87,12 @@ class ControllerCase(unittest.TestCase):
                 logger.warning("Controller %s failed to die on kill", name)
         finally:
             del self.controllers[name]
+
+
+@unittest.skipUnless(artiq_root, "no ARTIQ_ROOT")
+class ControllerCase(GenericControllerCase):
+    def get_device_db(self):
+        return DeviceDB(os.path.join(artiq_root, "device_db.pyon"))
 
 
 @unittest.skipUnless(artiq_root, "no ARTIQ_ROOT")

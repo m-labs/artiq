@@ -1,9 +1,9 @@
-import unittest
 import time
+import sys
+import unittest
 
-from artiq.devices.thorlabs_tcube.driver import TdcSim, TpzSim
 from artiq.language.units import V
-from artiq.test.hardware_testbench import ControllerCase
+from artiq.test.hardware_testbench import ControllerCase, GenericControllerCase
 
 
 class GenericTdcTest:
@@ -138,9 +138,23 @@ class TestTdc(ControllerCase, GenericTdcTest):
         self.cont = self.device_mgr.get("tdc")
 
 
-class TestTdcSim(unittest.TestCase, GenericTdcTest):
+class TestTdcSim(GenericControllerCase, GenericTdcTest):
+    def get_device_db(self):
+        return {
+            "tdc": {
+                "type": "controller",
+                "host": "::1",
+                "port": 3255,
+                "command": (sys.executable.replace("\\", "\\\\")
+                            + " -m artiq.frontend.thorlabs_tcube_controller "
+                            + "-p {port} -P tdc001 --simulation")
+            }
+        }
+
     def setUp(self):
-        self.cont = TdcSim()
+        GenericControllerCase.setUp(self)
+        self.start_controller("tdc")
+        self.cont = self.device_mgr.get("tdc")
 
 
 class TestTpz(ControllerCase, GenericTpzTest):
@@ -150,6 +164,20 @@ class TestTpz(ControllerCase, GenericTpzTest):
         self.cont = self.device_mgr.get("tpz")
 
 
-class TestTpzSim(unittest.TestCase, GenericTpzTest):
+class TestTpzSim(GenericControllerCase, GenericTpzTest):
+    def get_device_db(self):
+        return {
+            "tpz": {
+                "type": "controller",
+                "host": "::1",
+                "port": 3255,
+                "command": (sys.executable.replace("\\", "\\\\")
+                            + " -m artiq.frontend.thorlabs_tcube_controller "
+                            + "-p {port} -P tpz001 --simulation")
+            }
+        }
+
     def setUp(self):
-        self.cont = TpzSim()
+        GenericControllerCase.setUp(self)
+        self.start_controller("tpz")
+        self.cont = self.device_mgr.get("tpz")

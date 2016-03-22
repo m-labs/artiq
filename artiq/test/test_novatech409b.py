@@ -1,7 +1,7 @@
+import sys
 import unittest
 
-from artiq.devices.novatech409b.driver import Novatech409B
-from artiq.test.hardware_testbench import ControllerCase
+from artiq.test.hardware_testbench import GenericControllerCase, ControllerCase
 
 
 class GenericNovatech409BTest:
@@ -27,6 +27,20 @@ class TestNovatech409B(GenericNovatech409BTest, ControllerCase):
         self.driver = self.device_mgr.get("novatech409b")
 
 
-class TestNovatech409BSim(GenericNovatech409BTest, unittest.TestCase):
+class TestNovatech409BSim(GenericNovatech409BTest, GenericControllerCase):
+    def get_device_db(self):
+        return {
+            "novatech409b": {
+                "type": "controller",
+                "host": "::1",
+                "port": 3254,
+                "command": (sys.executable.replace("\\", "\\\\")
+                            + " -m artiq.frontend.novatech409b_controller "
+                            + "-p {port} --simulation")
+            }
+        }
+
     def setUp(self):
-        self.driver = Novatech409B(None)
+        GenericControllerCase.setUp(self)
+        self.start_controller("novatech409b")
+        self.driver = self.device_mgr.get("novatech409b")
