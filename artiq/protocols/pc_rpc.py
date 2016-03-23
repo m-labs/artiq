@@ -538,6 +538,9 @@ class Server(_AsyncioServer):
             except KeyError:
                 return
 
+            if callable(target):
+                target = target()
+
             while True:
                 line = await reader.readline()
                 if not line:
