@@ -185,6 +185,8 @@ _templates = [
                        "--embed {ipc_address} X_DATASET "
                        "HIST_BIN_BOUNDARIES_DATASET "
                        "HISTS_COUNTS_DATASET"),
+    ("Image", "{python} -m artiq.applets.image "
+                  "--embed {ipc_address} IMG_DATASET"),
 ]
 
 
