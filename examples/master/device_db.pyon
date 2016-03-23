@@ -199,6 +199,20 @@
         "command": "lda_controller -p {port} --bind {bind} --simulation"
     },
 
+    "camera_sim": {
+        "type": "controller",
+        "host": "::1",
+        "port": 6283,
+        "target_name": "camera_sim",
+        "command": "./remote_exec_controller.py"
+    },
+    "camera_sim_rexec": {
+        "type": "controller_aux_target",
+        "controller": "camera_sim",
+        "target_name": "camera_sim_rexec"
+    },
+
+
     "ttl_out": "ttl0",
     "ttl_out_serdes": "ttl0",
 
