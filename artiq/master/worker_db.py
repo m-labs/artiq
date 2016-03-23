@@ -102,6 +102,13 @@ def _create_device(desc, device_mgr):
         if target_name is None:
             target_name = AutoTarget
         return cls(desc["host"], desc["port"], target_name)
+    elif ty == "controller_aux_target":
+        controller = device_mgr.get_desc(desc["controller"])
+        if desc.get("best_effort", controller.get("best_effort", False)):
+            cls = BestEffortClient
+        else:
+            cls = Client
+        return cls(controller["host"], controller["port"], desc["target_name"])
     else:
         raise ValueError("Unsupported type in device DB: " + ty)
 
@@ -118,6 +125,13 @@ class DeviceManager:
         """Returns the full contents of the device database."""
         return self.ddb.get_device_db()
 
+    def get_desc(self, name):
+        desc = self.ddb.get(name)
+        while isinstance(desc, str):
+            # alias
+            desc = self.ddb.get(desc)
+        return desc
+
     def get(self, name):
         """Get the device driver or controller client corresponding to a
         device database entry."""
@@ -126,11 +140,7 @@ class DeviceManager:
         if name in self.active_devices:
             return self.active_devices[name]
         else:
-            desc = self.ddb.get(name)
-            while isinstance(desc, str):
-                # alias
-                desc = self.ddb.get(desc)
-            dev = _create_device(desc, self)
+            dev = _create_device(self.get_desc(name), self)
             self.active_devices[name] = dev
             return dev
 
