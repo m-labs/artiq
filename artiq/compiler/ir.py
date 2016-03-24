@@ -647,38 +647,6 @@ class SetLocal(Instruction):
     def value(self):
         return self.operands[1]
 
-class GetConstructor(Instruction):
-    """
-    An intruction that loads a local variable with the given type
-    from an environment, possibly going through multiple levels of indirection.
-
-    :ivar var_name: (string) variable name
-    """
-
-    """
-    :param env: (:class:`Value`) local environment
-    :param var_name: (string) local variable name
-    :param var_type: (:class:`types.Type`) local variable type
-    """
-    def __init__(self, env, var_name, var_type, name=""):
-        assert isinstance(env, Value)
-        assert isinstance(env.type, TEnvironment)
-        assert isinstance(var_name, str)
-        assert isinstance(var_type, types.Type)
-        super().__init__([env], var_type, name)
-        self.var_name = var_name
-
-    def copy(self, mapper):
-        self_copy = super().copy(mapper)
-        self_copy.var_name = self.var_name
-        return self_copy
-
-    def opcode(self):
-        return "getconstructor({})".format(repr(self.var_name))
-
-    def environment(self):
-        return self.operands[0]
-
 class GetAttr(Instruction):
     """
     An intruction that loads an attribute from an object,
@@ -697,8 +665,12 @@ class GetAttr(Instruction):
         if isinstance(attr, int):
             assert isinstance(obj.type, types.TTuple)
             typ = obj.type.elts[attr]
-        else:
+        elif attr in obj.type.attributes:
             typ = obj.type.attributes[attr]
+        else:
+            typ = obj.type.constructor.attributes[attr]
+            if types.is_function(typ):
+                typ = types.TMethod(obj.type, typ)
         super().__init__([obj], typ, name)
         self.attr = attr
 

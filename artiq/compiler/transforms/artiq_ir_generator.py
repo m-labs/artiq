@@ -806,8 +806,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     self.append(ir.Builtin("watchdog_clear", [watchdog_id], builtins.TNone())))
             else: # user-defined context manager
                 context_mgr = self.visit(context_expr_node)
-                enter_fn    = self._get_attribute(context_mgr, '__enter__')
-                exit_fn     = self._get_attribute(context_mgr, '__exit__')
+                enter_fn    = self.append(ir.GetAttr(context_mgr, '__enter__'))
+                exit_fn     = self.append(ir.GetAttr(context_mgr, '__exit__'))
 
                 try:
                     self.current_assign = self._user_call(enter_fn, [], {})
@@ -900,26 +900,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
         else:
             return self._set_local(node.id, self.current_assign)
 
-    def _get_attribute(self, obj, attr_name):
-        if attr_name not in obj.type.find().attributes:
-            # A class attribute. Get the constructor (class object) and
-            # extract the attribute from it.
-            constr_type = obj.type.constructor
-            constr = self.append(ir.GetConstructor(self._env_for(constr_type.name),
-                                                   constr_type.name, constr_type,
-                                                   name="constructor." + constr_type.name))
-
-            if types.is_function(constr.type.attributes[attr_name]):
-                # A method. Construct a method object instead.
-                func = self.append(ir.GetAttr(constr, attr_name))
-                return self.append(ir.Alloc([func, obj],
-                                   types.TMethod(obj.type, func.type)))
-            else:
-                obj = constr
-
-        return self.append(ir.GetAttr(obj, attr_name,
-                                      name="{}.{}".format(_readable_name(obj), attr_name)))
-
     def visit_AttributeT(self, node):
         try:
             old_assign, self.current_assign = self.current_assign, None
@@ -928,7 +908,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.current_assign = old_assign
 
         if self.current_assign is None:
-            return self._get_attribute(obj, node.attr)
+            return self.append(ir.GetAttr(obj, node.attr,
+                                          name="{}.{}".format(_readable_name(obj), node.attr)))
         elif types.is_rpc_function(self.current_assign.type):
             # RPC functions are just type-level markers
             return self.append(ir.Builtin("nop", [], builtins.TNone()))
