@@ -618,6 +618,8 @@ class LLVMIRGenerator:
                 llvalue = self.llbuilder.insert_value(llvalue, self.map(elt), index)
             llvalue.name = insn.name
             return llvalue
+        elif types.is_constructor(insn.type):
+            return self.get_class(insn.type)
         else: # catchall for exceptions and custom (allocated) classes
             llalloc = self.llbuilder.alloca(self.llty_of_type(insn.type, bare=True))
             for index, operand in enumerate(insn.operands):
@@ -666,15 +668,27 @@ class LLVMIRGenerator:
     def attr_index(self, typ, attr):
         return list(typ.attributes.keys()).index(attr)
 
-    def get_class(self, typ):
-        assert types.is_constructor(typ)
-        name = "class.{}".format(typ.name)
+    def get_or_define_global(self, name, llty, llvalue=None):
         if name in self.llmodule.globals:
             llglobal = self.llmodule.get_global(name)
         else:
-            llty = self.llty_of_type(typ)
-            llglobal = ll.GlobalVariable(self.llmodule, llty.pointee, name)
+            llglobal = ll.GlobalVariable(self.llmodule, llty, name)
+            if llvalue is not None:
+                llglobal.linkage = "private"
+                llglobal.initializer = llvalue
         return llglobal
+
+    def get_class(self, typ):
+        assert types.is_constructor(typ)
+        llty = self.llty_of_type(typ).pointee
+        return self.get_or_define_global("class.{}".format(typ.name), llty)
+
+    def get_closure(self, typ, attr):
+        assert types.is_constructor(typ)
+        assert types.is_function(typ.attributes[attr])
+        llty = self.llty_of_type(typ.attributes[attr])
+        return self.get_or_define_global("method.{}.{}".format(typ.name, attr),
+                                         llty, ll.Constant(llty, ll.Undefined))
 
     def process_GetAttr(self, insn):
         typ, attr = insn.object().type, insn.attr
@@ -695,20 +709,24 @@ class LLVMIRGenerator:
             else:
                 assert False
 
-            llptr = self.llbuilder.gep(obj, [self.llindex(0), self.llindex(index)],
-                                       inbounds=True, name=insn.name)
-            llclosure = self.llbuilder.load(llptr)
-
             if types.is_method(insn.type) and attr not in typ.attributes:
+                llfun  = self.llbuilder.load(self.get_closure(typ.constructor, attr))
+                llself = self.map(insn.object())
+
                 llmethodty = self.llty_of_type(insn.type)
                 llmethod = ll.Constant(llmethodty, ll.Undefined)
-                llmethod = self.llbuilder.insert_value(llmethod, llclosure,
+                llmethod = self.llbuilder.insert_value(llmethod, llfun,
                                                        self.attr_index(insn.type, '__func__'))
-                llmethod = self.llbuilder.insert_value(llmethod, self.map(insn.object()),
+                llmethod = self.llbuilder.insert_value(llmethod, llself,
                                                        self.attr_index(insn.type, '__self__'))
                 return llmethod
+            elif types.is_function(insn.type) and attr in typ.attributes and \
+                    types.is_constructor(typ):
+                return self.llbuilder.load(self.get_closure(typ, attr))
             else:
-                return llclosure
+                llptr = self.llbuilder.gep(obj, [self.llindex(0), self.llindex(index)],
+                                           inbounds=True, name=insn.name)
+                return self.llbuilder.load(llptr)
 
     def process_SetAttr(self, insn):
         typ, attr = insn.object().type, insn.attr
@@ -722,9 +740,13 @@ class LLVMIRGenerator:
         else:
             assert False
 
-        llptr = self.llbuilder.gep(obj, [self.llindex(0),
-                                         self.llindex(self.attr_index(typ, attr))],
-                                   inbounds=True, name=insn.name)
+        if types.is_function(insn.value().type) and attr in typ.attributes and \
+                types.is_constructor(typ):
+            llptr = self.get_closure(typ, attr)
+        else:
+            llptr = self.llbuilder.gep(obj, [self.llindex(0),
+                                             self.llindex(self.attr_index(typ, attr))],
+                                       inbounds=True, name=insn.name)
         return self.llbuilder.store(self.map(insn.value()), llptr)
 
     def process_GetElem(self, insn):
