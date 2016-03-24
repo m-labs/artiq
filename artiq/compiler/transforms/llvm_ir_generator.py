@@ -646,13 +646,6 @@ class LLVMIRGenerator:
         llptr = self.llptr_to_var(self.map(env), env.type, insn.var_name)
         return self.llbuilder.load(llptr)
 
-    def process_GetConstructor(self, insn):
-        env = insn.environment()
-        llptr = self.llptr_to_var(self.map(env), env.type, insn.var_name, insn.type)
-        llconstr = self.llbuilder.load(llptr)
-        llconstr.metadata['invariant.load'] = self.empty_metadata
-        return llconstr
-
     def process_SetLocal(self, insn):
         env = insn.environment()
         llvalue = self.map(insn.value())
@@ -670,26 +663,67 @@ class LLVMIRGenerator:
             llvalue = self.llbuilder.bitcast(llvalue, llptr.type.pointee)
         return self.llbuilder.store(llvalue, llptr)
 
-    def attr_index(self, insn):
-        return list(insn.object().type.attributes.keys()).index(insn.attr)
+    def attr_index(self, typ, attr):
+        return list(typ.attributes.keys()).index(attr)
+
+    def get_class(self, typ):
+        assert types.is_constructor(typ)
+        name = "class.{}".format(typ.name)
+        if name in self.llmodule.globals:
+            llglobal = self.llmodule.get_global(name)
+        else:
+            llty = self.llty_of_type(typ)
+            llglobal = ll.GlobalVariable(self.llmodule, llty.pointee, name)
+        return llglobal
 
     def process_GetAttr(self, insn):
-        if types.is_tuple(insn.object().type):
-            return self.llbuilder.extract_value(self.map(insn.object()), insn.attr,
+        typ, attr = insn.object().type, insn.attr
+        if types.is_tuple(typ):
+            return self.llbuilder.extract_value(self.map(insn.object()), attr,
                                                 name=insn.name)
-        elif not builtins.is_allocated(insn.object().type):
-            return self.llbuilder.extract_value(self.map(insn.object()), self.attr_index(insn),
+        elif not builtins.is_allocated(typ):
+            return self.llbuilder.extract_value(self.map(insn.object()),
+                                                self.attr_index(typ, attr),
                                                 name=insn.name)
         else:
-            llptr = self.llbuilder.gep(self.map(insn.object()),
-                                       [self.llindex(0), self.llindex(self.attr_index(insn))],
+            if attr in typ.attributes:
+                index = self.attr_index(typ, attr)
+                obj = self.map(insn.object())
+            elif attr in typ.constructor.attributes:
+                index = self.attr_index(typ.constructor, attr)
+                obj = self.get_class(typ.constructor)
+            else:
+                assert False
+
+            llptr = self.llbuilder.gep(obj, [self.llindex(0), self.llindex(index)],
                                        inbounds=True, name=insn.name)
-            return self.llbuilder.load(llptr)
+            llclosure = self.llbuilder.load(llptr)
+
+            if types.is_method(insn.type) and attr not in typ.attributes:
+                llmethodty = self.llty_of_type(insn.type)
+                llmethod = ll.Constant(llmethodty, ll.Undefined)
+                llmethod = self.llbuilder.insert_value(llmethod, llclosure,
+                                                       self.attr_index(insn.type, '__func__'))
+                llmethod = self.llbuilder.insert_value(llmethod, self.map(insn.object()),
+                                                       self.attr_index(insn.type, '__self__'))
+                return llmethod
+            else:
+                return llclosure
 
     def process_SetAttr(self, insn):
-        assert builtins.is_allocated(insn.object().type)
-        llptr = self.llbuilder.gep(self.map(insn.object()),
-                                   [self.llindex(0), self.llindex(self.attr_index(insn))],
+        typ, attr = insn.object().type, insn.attr
+        assert builtins.is_allocated(typ)
+
+        if attr in typ.attributes:
+            obj = self.map(insn.object())
+        elif attr in typ.constructor.attributes:
+            typ = typ.constructor
+            obj = self.get_class(typ)
+        else:
+            assert False
+
+        llptr = self.llbuilder.gep(obj, [self.llindex(0),
+                                         self.llindex(self.attr_index(typ, attr))],
                                    inbounds=True, name=insn.name)
         return self.llbuilder.store(self.map(insn.value()), llptr)
 
@@ -1161,9 +1195,7 @@ class LLVMIRGenerator:
         if value_id in self.llobject_map:
             return self.llobject_map[value_id]
 
-        global_name = ""
         llty = self.llty_of_type(typ)
-
         if types.is_constructor(typ) or types.is_instance(typ):
             llglobal = None
             llfields = []
@@ -1173,8 +1205,12 @@ class LLVMIRGenerator:
                     llfields.append(ll.Constant(lli32, objectid))
 
                     assert llglobal is None
-                    llglobal = ll.GlobalVariable(self.llmodule, llty.pointee,
-                                                 name="object.{}".format(objectid))
+                    if types.is_constructor(typ):
+                        llglobal = self.get_class(typ)
+                    else:
+                        llglobal = ll.GlobalVariable(self.llmodule, llty.pointee,
+                                                     name="object.{}".format(objectid))
+
                     self.llobject_map[value_id] = llglobal
                 else:
                     llfields.append(self._quote(getattr(value, attr), typ.attributes[attr],
