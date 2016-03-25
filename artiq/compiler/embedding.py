@@ -107,11 +107,8 @@ class ASTSynthesizer:
             unquote_loc = self._add('`')
             loc         = quote_loc.join(unquote_loc)
 
-            function_name, function_type = self.quote_function(value, self.expanded_from)
-            if function_name is None:
-                return asttyped.QuoteT(value=value, type=function_type, loc=loc)
-            else:
-                return asttyped.NameT(id=function_name, ctx=None, type=function_type, loc=loc)
+            function_type = self.quote_function(value, self.expanded_from)
+            return asttyped.QuoteT(value=value, type=function_type, loc=loc)
         else:
             quote_loc   = self._add('`')
             repr_loc    = self._add(repr(value))
@@ -155,7 +152,7 @@ class ASTSynthesizer:
                 return asttyped.QuoteT(value=value, type=instance_type,
                                        loc=loc)
 
-    def call(self, function_node, args, kwargs, callback=None):
+    def call(self, callee, args, kwargs, callback=None):
         """
         Construct an AST fragment calling a function specified by
         an AST node `function_node`, with given arguments.
@@ -164,11 +161,11 @@ class ASTSynthesizer:
             callback_node = self.quote(callback)
             cb_begin_loc  = self._add("(")
 
+        callee_node = self.quote(callee)
         arg_nodes   = []
         kwarg_nodes = []
         kwarg_locs  = []
 
-        name_loc       = self._add(function_node.name)
         begin_loc      = self._add("(")
         for index, arg in enumerate(args):
             arg_nodes.append(self.quote(arg))
@@ -189,9 +186,7 @@ class ASTSynthesizer:
             cb_end_loc    = self._add(")")
 
         node = asttyped.CallT(
-            func=asttyped.NameT(id=function_node.name, ctx=None,
-                                type=function_node.signature_type,
-                                loc=name_loc),
+            func=callee_node,
             args=arg_nodes,
             keywords=[ast.keyword(arg=kw, value=value,
                                   arg_loc=arg_loc, equals_loc=equals_loc,
@@ -201,7 +196,7 @@ class ASTSynthesizer:
             starargs=None, kwargs=None,
             type=types.TVar(), iodelay=None, arg_exprs={},
             begin_loc=begin_loc, end_loc=end_loc, star_loc=None, dstar_loc=None,
-            loc=name_loc.join(end_loc))
+            loc=callee_node.loc.join(end_loc))
 
         if callback is not None:
             node = asttyped.CallT(
@@ -212,19 +207,6 @@ class ASTSynthesizer:
                 loc=callback_node.loc.join(cb_end_loc))
 
         return node
-
-    def assign_local(self, var_name, value):
-        name_loc   = self._add(var_name)
-        _          = self._add(" ")
-        equals_loc = self._add("=")
-        _          = self._add(" ")
-        value_node = self.quote(value)
-
-        var_node   = asttyped.NameT(id=var_name, ctx=None, type=value_node.type,
-                                    loc=name_loc)
-
-        return ast.Assign(targets=[var_node], value=value_node,
-                          op_locs=[equals_loc], loc=name_loc.join(value_node.loc))
 
     def assign_attribute(self, obj, attr_name, value):
         obj_node   = self.quote(obj)
@@ -465,18 +447,16 @@ class Stitcher:
 
         self.functions = {}
 
+        self.function_map = {}
         self.object_map = ObjectMap()
         self.type_map = {}
         self.value_map = defaultdict(lambda: [])
 
     def stitch_call(self, function, args, kwargs, callback=None):
-        function_node = self._quote_embedded_function(function)
-        self.typedtree.append(function_node)
-
         # We synthesize source code for the initial call so that
         # diagnostics would have something meaningful to display to the user.
         synthesizer = self._synthesizer(self._function_loc(function.artiq_embedded.function))
-        call_node = synthesizer.call(function_node, args, kwargs, callback)
+        call_node = synthesizer.call(function, args, kwargs, callback)
         synthesizer.finalize()
         self.typedtree.append(call_node)
 
@@ -496,9 +476,8 @@ class Stitcher:
                 break
             old_typedtree_hash = typedtree_hash
 
-        # For every host class we embed, add an appropriate constructor
-        # as a global. This is necessary for method lookup, which uses
-        # the getconstructor instruction.
+        # For every host class we embed, fill in the function slots
+        # with their corresponding closures.
         for instance_type, constructor_type in list(self.type_map.values()):
             # Do we have any direct reference to a constructor?
             if len(self.value_map[constructor_type]) > 0:
@@ -508,13 +487,6 @@ class Stitcher:
                 # No, extract one from a reference to an instance.
                 instance, _instance_loc = self.value_map[instance_type][0]
                 constructor = type(instance)
-
-            self.globals[constructor_type.name] = constructor_type
-
-            synthesizer = self._synthesizer()
-            ast = synthesizer.assign_local(constructor_type.name, constructor)
-            synthesizer.finalize()
-            self._inject(ast)
 
             for attr in constructor_type.attributes:
                 if types.is_function(constructor_type.attributes[attr]):
@@ -577,23 +549,28 @@ class Stitcher:
         # Mangle the name, since we put everything into a single module.
         function_node.name = "{}.{}".format(module_name, function.__qualname__)
 
-        # Normally, LocalExtractor would populate the typing environment
-        # of the module with the function name. However, since we run
-        # ASTTypedRewriter on the function node directly, we need to do it
-        # explicitly.
-        function_type = types.TVar()
-        self.globals[function_node.name] = function_type
+        # Record the function in the function map so that LLVM IR generator
+        # can handle quoting it.
+        self.function_map[function] = function_node.name
 
-        # Memoize the function before typing it to handle recursive
+        # Memoize the function type before typing it to handle recursive
         # invocations.
-        self.functions[function] = function_node.name, function_type
+        self.functions[function] = types.TVar()
 
         # Rewrite into typed form.
         asttyped_rewriter = StitchingASTTypedRewriter(
             engine=self.engine, prelude=self.prelude,
             globals=self.globals, host_environment=host_environment,
             quote=self._quote)
-        return asttyped_rewriter.visit(function_node)
+        function_node = asttyped_rewriter.visit(function_node)
+
+        # Add it into our typedtree so that it gets inferenced and codegen'd.
+        self._inject(function_node)
+
+        # Tie the typing knot.
+        self.functions[function].unify(function_node.signature_type)
+
+        return function_node
 
     def _function_loc(self, function):
         filename = function.__code__.co_filename
@@ -734,14 +711,12 @@ class Stitcher:
             function_type = types.TCFunction(arg_types, ret_type,
                                              name=syscall)
 
-        self.functions[function] = None, function_type
+        self.functions[function] = function_type
 
-        return None, function_type
+        return function_type
 
     def _quote_function(self, function, loc):
-        if function in self.functions:
-            result = self.functions[function]
-        else:
+        if function not in self.functions:
             if hasattr(function, "artiq_embedded"):
                 if function.artiq_embedded.function is not None:
                     if function.__name__ == "<lambda>":
@@ -766,17 +741,12 @@ class Stitcher:
                             notes=[note])
                         self.engine.process(diag)
 
-                    # Insert the typed AST for the new function and restart inference.
-                    # It doesn't really matter where we insert as long as it is before
-                    # the final call.
-                    function_node = self._quote_embedded_function(function)
-                    self._inject(function_node)
-                    result = function_node.name, self.globals[function_node.name]
+                    self._quote_embedded_function(function)
                 elif function.artiq_embedded.syscall is not None:
                     # Insert a storage-less global whose type instructs the compiler
                     # to perform a system call instead of a regular call.
-                    result = self._quote_foreign_function(function, loc,
-                                                          syscall=function.artiq_embedded.syscall)
+                    self._quote_foreign_function(function, loc,
+                                                 syscall=function.artiq_embedded.syscall)
                 elif function.artiq_embedded.forbidden is not None:
                     diag = diagnostic.Diagnostic("fatal",
                         "this function cannot be called as an RPC", {},
@@ -788,12 +758,12 @@ class Stitcher:
             else:
                 # Insert a storage-less global whose type instructs the compiler
                 # to perform an RPC instead of a regular call.
-                result = self._quote_foreign_function(function, loc, syscall=None)
+                self._quote_foreign_function(function, loc, syscall=None)
 
-        function_name, function_type = result
+        function_type = self.functions[function]
         if types.is_rpc_function(function_type):
             function_type = types.instantiate(function_type)
-        return function_name, function_type
+        return function_type
 
     def _quote(self, value, loc):
         synthesizer = self._synthesizer(loc)
