@@ -518,9 +518,13 @@ class Server(_AsyncioServer):
                     else:
                         raise ValueError("Unknown action: {}"
                                          .format(obj["action"]))
-                except Exception:
+                except Exception as exc:
+                    short_exc_info = type(exc).__name__
+                    exc_str = str(exc)
+                    if exc_str:
+                        short_exc_info += ": " + exc_str.splitlines()[0]
                     obj = {"status": "failed",
-                           "message": traceback.format_exc()}
+                           "message": short_exc_info + "\n" + traceback.format_exc()}
                 line = pyon.encode(obj) + "\n"
                 writer.write(line.encode())
         except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
