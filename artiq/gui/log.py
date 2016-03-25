@@ -63,7 +63,7 @@ class Model(QtCore.QAbstractItemModel):
     def append(self, v):
         severity, source, timestamp, message = v
         self.pending_entries.append((severity, source, timestamp,
-                                     message.split("\n")))
+                                     message.splitlines()))
 
     def timer_tick(self):
         if not self.pending_entries:
