@@ -17,7 +17,7 @@ class RemoteExecServer:
         exec(code, self.namespace)
 
     def call(self, function, *args, **kwargs):
-        return self.namespace[k](self, *args, **kwargs)
+        return self.namespace[function](self, *args, **kwargs)
 
 
 class RemoteExecClient(RPCClient):
