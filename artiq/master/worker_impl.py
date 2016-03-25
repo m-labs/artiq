@@ -255,7 +255,7 @@ def main():
             short_exc_info = type(exc).__name__
             exc_str = str(exc)
             if exc_str:
-                short_exc_info += ": " + exc_str
+                short_exc_info += ": " + exc_str.splitlines()[0]
             lines = ["Terminating with exception ("+short_exc_info+")\n"]
             if hasattr(exc, "artiq_core_exception"):
                 lines.append(str(exc.artiq_core_exception))
