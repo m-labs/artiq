@@ -139,7 +139,6 @@ int i2c_write(int busno, int b)
     for(i=7;i>=0;i--) {
         /* Set SCL low and set our bit on SDA */
         i2c_scl_o(busno, 0);
-        i2c_halfperiod(); /* make sure SCL has settled low */
         i2c_sda_oe(busno, b & (1 << i) ? 0 : 1);
         i2c_halfperiod();
         /* Set SCL high ; data is shifted on the rising edge of SCL */
@@ -149,9 +148,8 @@ int i2c_write(int busno, int b)
     /* Check ack */
     /* Set SCL low, then release SDA so that the I2C target can respond */
     i2c_scl_o(busno, 0);
-    i2c_halfperiod(); /* make sure SCL has settled low */
-    i2c_sda_oe(busno, 0);
     i2c_halfperiod();
+    i2c_sda_oe(busno, 0);
     /* Set SCL high and check for ack */
     i2c_scl_o(busno, 1);
     i2c_halfperiod();
@@ -184,7 +182,6 @@ int i2c_read(int busno, int ack)
     /* Send ack */
     /* Set SCL low and pull SDA low when acking */
     i2c_scl_o(busno, 0);
-    i2c_halfperiod(); /* make sure SCL has settled low */
     if(ack)
         i2c_sda_oe(busno, 1);
     i2c_halfperiod();
