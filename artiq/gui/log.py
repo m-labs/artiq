@@ -10,20 +10,24 @@ from artiq.gui.tools import (LayoutWidget, log_level_to_name,
                              QDockWidgetCloseDetect)
 
 
-def _make_wrappable(row, width=30):
-    level, source, time, msg = row
-    msg = re.sub("(\\S{{{}}})".format(width), "\\1\u200b", msg)
-    return [level, source, time, msg]
+class ModelItem:
+    def __init__(self, parent, row):
+        self.parent = parent
+        self.row = row
+        self.children_by_row = []
 
 
-class Model(QtCore.QAbstractTableModel):
+class Model(QtCore.QAbstractItemModel):
     def __init__(self, init):
         QtCore.QAbstractTableModel.__init__(self)
 
         self.headers = ["Source", "Message"]
+        self.children_by_row = []
 
-        self.entries = list(map(_make_wrappable, init))
+        self.entries = []
         self.pending_entries = []
+        for entry in init:
+            self.append(entry)
         self.depth = 1000
         timer = QtCore.QTimer(self)
         timer.timeout.connect(self.timer_tick)
@@ -44,7 +48,11 @@ class Model(QtCore.QAbstractTableModel):
         return None
 
     def rowCount(self, parent):
-        return len(self.entries)
+        if parent.isValid():
+            item = parent.internalPointer()
+            return len(item.children_by_row)
+        else:
+            return len(self.entries)
 
     def columnCount(self, parent):
         return len(self.headers)
@@ -53,7 +61,9 @@ class Model(QtCore.QAbstractTableModel):
         pass
 
     def append(self, v):
-        self.pending_entries.append(_make_wrappable(v))
+        severity, source, timestamp, message = v
+        self.pending_entries.append((severity, source, timestamp,
+                                     message.split("\n")))
 
     def insertRows(self, position, rows=1, index=QtCore.QModelIndex()):
         self.beginInsertRows(QtCore.QModelIndex(), position, position+rows-1)
@@ -70,44 +80,82 @@ class Model(QtCore.QAbstractTableModel):
         records = self.pending_entries
         self.pending_entries = []
         self.entries.extend(records)
+        for rec in records:
+            item = ModelItem(self, len(self.children_by_row))
+            self.children_by_row.append(item)
+            for i in range(len(rec[3])-1):
+                item.children_by_row.append(ModelItem(item, i))
         self.insertRows(nrows, len(records))
+
         if len(self.entries) > self.depth:
             start = len(self.entries) - self.depth
             self.entries = self.entries[start:]
+            self.children_by_row = self.children_by_row[start:]
+            for child in self.children_by_row:
+                child.row -= start
             self.removeRows(0, start)
 
-    def data(self, index, role):
+    def index(self, row, column, parent):
+        if parent.isValid():
+            parent_item = parent.internalPointer()
+            return self.createIndex(row, column,
+                                    parent_item.children_by_row[row])
+        else:
+            return self.createIndex(row, column, self.children_by_row[row])
+
+    def parent(self, index):
         if index.isValid():
-            if (role == QtCore.Qt.FontRole
-                    and index.column() == 1):
-                return self.fixed_font
-            elif role == QtCore.Qt.TextAlignmentRole:
-                return QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop
-            elif role == QtCore.Qt.BackgroundRole:
-                level = self.entries[index.row()][0]
-                if level >= logging.ERROR:
-                    return self.error_bg
-                elif level >= logging.WARNING:
-                    return self.warning_bg
-                else:
-                    return self.white
-            elif role == QtCore.Qt.ForegroundRole:
-                level = self.entries[index.row()][0]
-                if level <= logging.DEBUG:
-                    return self.debug_fg
-                else:
-                    return self.black
-            elif role == QtCore.Qt.DisplayRole:
-                v = self.entries[index.row()]
-                column = index.column()
+            parent = index.internalPointer().parent
+            if parent is self:
+                return QtCore.QModelIndex()
+            else:
+                return self.createIndex(parent.row, 0, parent)
+        else:
+            return QtCore.QModelIndex()
+
+    def data(self, index, role):
+        if not index.isValid():
+            return
+
+        item = index.internalPointer()
+        if item.parent is self:
+            msgnum = item.row
+        else:
+            msgnum = item.parent.row
+
+        if role == QtCore.Qt.FontRole and index.column() == 1:
+            return self.fixed_font
+        elif role == QtCore.Qt.BackgroundRole:
+            level = self.entries[msgnum][0]
+            if level >= logging.ERROR:
+                return self.error_bg
+            elif level >= logging.WARNING:
+                return self.warning_bg
+            else:
+                return self.white
+        elif role == QtCore.Qt.ForegroundRole:
+            level = self.entries[msgnum][0]
+            if level <= logging.DEBUG:
+                return self.debug_fg
+            else:
+                return self.black
+        elif role == QtCore.Qt.DisplayRole:
+            v = self.entries[msgnum]
+            column = index.column()
+            if item.parent is self:
                 if column == 0:
                     return v[1]
                 else:
-                    return v[3]
-            elif role == QtCore.Qt.ToolTipRole:
-                v = self.entries[index.row()]
-                return (log_level_to_name(v[0]) + ", " +
-                    time.strftime("%m/%d %H:%M:%S", time.localtime(v[2])))
+                    return v[3][0]
+            else:
+                if column == 0:
+                    return ""
+                else:
+                    return v[3][item.row+1]
+        elif role == QtCore.Qt.ToolTipRole:
+            v = self.entries[msgnum]
+            return (log_level_to_name(v[0]) + ", " +
+                time.strftime("%m/%d %H:%M:%S", time.localtime(v[2])))
 
 
 class _LogFilterProxyModel(QtCore.QSortFilterProxyModel):
@@ -118,14 +166,19 @@ class _LogFilterProxyModel(QtCore.QSortFilterProxyModel):
 
     def filterAcceptsRow(self, sourceRow, sourceParent):
         model = self.sourceModel()
+        if sourceParent.isValid():
+            parent_item = sourceParent.internalPointer()
+            msgnum = parent_item.row
+        else:
+            msgnum = sourceRow
 
-        accepted_level = model.entries[sourceRow][0] >= self.min_level
+        accepted_level = model.entries[msgnum][0] >= self.min_level
 
         if self.freetext:
-            data_source = model.entries[sourceRow][1]
-            data_message = model.entries[sourceRow][3]
+            data_source = model.entries[msgnum][1]
+            data_message = model.entries[msgnum][3]
             accepted_freetext = (self.freetext in data_source
-                or self.freetext in data_message)
+                or any(self.freetext in m for m in data_message))
         else:
             accepted_freetext = True
 
@@ -176,25 +229,29 @@ class _LogDock(QDockWidgetCloseDetect):
         grid.addWidget(newdock, 0, 4)
         grid.layout.setColumnStretch(2, 1)
 
-        self.log = QtWidgets.QTableView()
+        self.log = QtWidgets.QTreeView()
         self.log.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
-        self.log.horizontalHeader().setSectionResizeMode(
-            QtWidgets.QHeaderView.ResizeToContents)
-        self.log.horizontalHeader().setStretchLastSection(True)
-        self.log.verticalHeader().setSectionResizeMode(
-            QtWidgets.QHeaderView.ResizeToContents)
-        self.log.verticalHeader().hide()
         self.log.setHorizontalScrollMode(
             QtWidgets.QAbstractItemView.ScrollPerPixel)
         self.log.setVerticalScrollMode(
             QtWidgets.QAbstractItemView.ScrollPerPixel)
-        self.log.setShowGrid(False)
-        self.log.setTextElideMode(QtCore.Qt.ElideNone)
+        self.log.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         grid.addWidget(self.log, 1, 0, colspan=5)
         self.scroll_at_bottom = False
         self.scroll_value = 0
 
+        # If Qt worked correctly, this would be nice to have. Alas, resizeSections
+        # is broken when the horizontal scrollbar is enabled.
+        # self.log.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        # sizeheader_action = QtWidgets.QAction("Resize header", self.log)
+        # sizeheader_action.triggered.connect(
+        #     lambda: self.log.header().resizeSections(QtWidgets.QHeaderView.ResizeToContents))
+        # self.log.addAction(sizeheader_action)
+
         log_sub.add_setmodel_callback(self.set_model)
+
+        cw = QtGui.QFontMetrics(self.font()).averageCharWidth()
+        self.log.header().resizeSection(0, 26*cw)
 
     def filter_level_changed(self):
         if not hasattr(self, "table_model_filter"):
@@ -219,21 +276,13 @@ class _LogDock(QDockWidgetCloseDetect):
         if self.scroll_at_bottom:
             self.log.scrollToBottom()
 
-        # HACK:
-        # If we don't do this, after we first add some rows, the "Time"
-        # column gets undersized and the text in it gets wrapped.
-        # We can call self.log.resizeColumnsToContents(), which fixes
-        # that problem, but now the message column is too large and
-        # a horizontal scrollbar appears.
-        # This is almost certainly a Qt layout bug.
-        self.log.horizontalHeader().reset()
-
     # HACK:
     # Qt intermittently likes to scroll back to the top when rows are removed.
     # Work around this by restoring the scrollbar to the previously memorized
     # position, after the removal.
     # Note that this works because _LogModel always does the insertion right
     # before the removal.
+    # TODO: check if this is still required after moving to QTreeView
     def rows_removed(self):
         if self.scroll_at_bottom:
             self.log.scrollToBottom()
@@ -257,7 +306,8 @@ class _LogDock(QDockWidgetCloseDetect):
     def save_state(self):
         return {
             "min_level_idx": self.filter_level.currentIndex(),
-            "freetext_filter": self.filter_freetext.text()
+            "freetext_filter": self.filter_freetext.text(),
+            "header": bytes(self.log.header().saveState())
         }
 
     def restore_state(self, state):
@@ -278,6 +328,13 @@ class _LogDock(QDockWidgetCloseDetect):
             # (unlike currentIndexChanged) so we need to call the callback
             # manually here, unlike for the combobox.
             self.filter_freetext_changed()
+
+        try:
+            header = state["header"]
+        except KeyError:
+            pass
+        else:
+            self.log.header().restoreState(QtCore.QByteArray(header))
 
 
 class LogDockManager:
