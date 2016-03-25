@@ -65,35 +65,30 @@ class Model(QtCore.QAbstractItemModel):
         self.pending_entries.append((severity, source, timestamp,
                                      message.split("\n")))
 
-    def insertRows(self, position, rows=1, index=QtCore.QModelIndex()):
-        self.beginInsertRows(QtCore.QModelIndex(), position, position+rows-1)
-        self.endInsertRows()
-
-    def removeRows(self, position, rows=1, index=QtCore.QModelIndex()):
-        self.beginRemoveRows(QtCore.QModelIndex(), position, position+rows-1)
-        self.endRemoveRows()
-
     def timer_tick(self):
         if not self.pending_entries:
             return
         nrows = len(self.entries)
         records = self.pending_entries
         self.pending_entries = []
+
+        self.beginInsertRows(QtCore.QModelIndex(), nrows, nrows+len(records)-1)
         self.entries.extend(records)
         for rec in records:
             item = ModelItem(self, len(self.children_by_row))
             self.children_by_row.append(item)
             for i in range(len(rec[3])-1):
                 item.children_by_row.append(ModelItem(item, i))
-        self.insertRows(nrows, len(records))
+        self.endInsertRows()
 
         if len(self.entries) > self.depth:
             start = len(self.entries) - self.depth
+            self.beginRemoveRows(QtCore.QModelIndex(), 0, start-1)
             self.entries = self.entries[start:]
             self.children_by_row = self.children_by_row[start:]
             for child in self.children_by_row:
                 child.row -= start
-            self.removeRows(0, start)
+            self.endRemoveRows()
 
     def index(self, row, column, parent):
         if parent.isValid():
