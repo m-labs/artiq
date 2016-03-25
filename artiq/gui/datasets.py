@@ -47,8 +47,6 @@ class DatasetsDock(QtWidgets.QDockWidget):
         self.table = QtWidgets.QTreeView()
         self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
-        self.table.header().setSectionResizeMode(
-            QtWidgets.QHeaderView.ResizeToContents)
         grid.addWidget(self.table, 1, 0)
 
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
@@ -79,3 +77,9 @@ class DatasetsDock(QtWidgets.QDockWidget):
             key = self.table_model.index_to_key(idx)
             if key is not None:
                 asyncio.ensure_future(self.dataset_ctl.delete(key))
+
+    def save_state(self):
+        return bytes(self.table.header().saveState())
+
+    def restore_state(self, state):
+        self.table.header().restoreState(QtCore.QByteArray(state))

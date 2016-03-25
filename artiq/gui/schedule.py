@@ -2,7 +2,7 @@ import asyncio
 import time
 from functools import partial
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtWidgets, QtGui
 
 from artiq.gui.models import DictSyncModel
 from artiq.tools import elide
@@ -67,8 +67,6 @@ class ScheduleDock(QtWidgets.QDockWidget):
         self.table = QtWidgets.QTableView()
         self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
-        self.table.horizontalHeader().setSectionResizeMode(
-            QtWidgets.QHeaderView.ResizeToContents)
         self.table.verticalHeader().setSectionResizeMode(
             QtWidgets.QHeaderView.ResizeToContents)
         self.table.verticalHeader().hide()
@@ -89,17 +87,20 @@ class ScheduleDock(QtWidgets.QDockWidget):
         self.table_model = Model(dict())
         schedule_sub.add_setmodel_callback(self.set_model)
 
-    def rows_inserted_after(self):
-        # HACK:
-        # workaround the usual Qt layout bug when the first row is inserted
-        # (columns are undersized if an experiment with a due date is scheduled
-        # and the schedule was empty)
-        self.table.horizontalHeader().reset()
+        cw = QtGui.QFontMetrics(self.font()).averageCharWidth()
+        h = self.table.horizontalHeader()
+        h.resizeSection(0, 7*cw)
+        h.resizeSection(1, 12*cw)
+        h.resizeSection(2, 16*cw)
+        h.resizeSection(3, 6*cw)
+        h.resizeSection(4, 16*cw)
+        h.resizeSection(5, 30*cw)
+        h.resizeSection(6, 20*cw)
+        h.resizeSection(7, 20*cw)
 
     def set_model(self, model):
         self.table_model = model
         self.table.setModel(self.table_model)
-        self.table_model.rowsInserted.connect(self.rows_inserted_after)
 
     async def delete(self, rid, graceful):
         if graceful:
@@ -118,3 +119,9 @@ class ScheduleDock(QtWidgets.QDockWidget):
                 msg = "Deleted RID {}".format(rid)
             self.status_bar.showMessage(msg)
             asyncio.ensure_future(self.delete(rid, graceful))
+
+    def save_state(self):
+        return bytes(self.table.horizontalHeader().saveState())
+
+    def restore_state(self, state):
+        self.table.horizontalHeader().restoreState(QtCore.QByteArray(state))

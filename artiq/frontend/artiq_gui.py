@@ -130,6 +130,7 @@ def main():
 
     d_datasets = datasets.DatasetsDock(sub_clients["datasets"],
                                        rpc_clients["dataset_db"])
+    smgr.register(d_datasets)
 
     d_applets = applets.AppletsDock(main_window, sub_clients["datasets"])
     atexit_register_coroutine(d_applets.stop)
@@ -142,6 +143,7 @@ def main():
 
     d_schedule = schedule.ScheduleDock(
         status_bar, rpc_clients["schedule"], sub_clients["schedule"])
+    smgr.register(d_schedule)
 
     logmgr = log.LogDockManager(main_window, sub_clients["log"])
     smgr.register(logmgr)
@@ -172,7 +174,7 @@ def main():
     # create first log dock if not already in state
     d_log0 = logmgr.first_log_dock()
     if d_log0 is not None:
-        main_window.tabifyDockWidget(d_shortcuts, d_log0)
+        main_window.tabifyDockWidget(d_schedule, d_log0)
 
     # run
     main_window.show()
