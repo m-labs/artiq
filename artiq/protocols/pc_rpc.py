@@ -510,9 +510,13 @@ class Server(_AsyncioServer):
                                  .format(obj["action"]))
         except asyncio.CancelledError:
             raise
-        except:
+        except Exception as exc:
+            short_exc_info = type(exc).__name__
+            exc_str = str(exc)
+            if exc_str:
+                short_exc_info += ": " + exc_str.splitlines()[0]
             return {"status": "failed",
-                    "message": traceback.format_exc()}
+                    "message": short_exc_info + "\n" + traceback.format_exc()}
         finally:
             if self._noparallel is not None:
                 self._noparallel.release()
