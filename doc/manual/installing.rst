@@ -283,14 +283,15 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
 * Check that the board boots by running a serial terminal program (you may need to press its FPGA reconfiguration button or power-cycle it to load the gateware bitstream that was newly written into the flash): ::
 
-        $ make -C ~/artiq-dev/misoc/tools # do only once
-        $ ~/artiq-dev/misoc/tools/flterm --port /dev/ttyUSB1
+        $ flterm /dev/ttyUSB1
         MiSoC BIOS   http://m-labs.hk
         [...]
         Booting from flash...
         Loading xxxxx bytes from flash...
         Executing booted program.
         ARTIQ runtime built <date/time>
+
+.. note:: flterm is part of MiSoC. If you installed MiSoC with ``setup.py develop --user``, the flterm launcher is in ``~/.local/bin``.
 
 The communication parameters are 115200 8-N-1. Ensure that your user has access
 to the serial device (``sudo adduser $USER dialout`` assuming standard setup).
