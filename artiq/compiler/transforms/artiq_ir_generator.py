@@ -319,13 +319,14 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         return self.append(ir.Closure(func, self.current_env))
 
-    def visit_FunctionDefT(self, node, in_class=None):
+    def visit_FunctionDefT(self, node):
         func = self.visit_function(node, is_lambda=False,
                                    is_internal=len(self.name) > 0 or '.' in node.name)
-        if in_class is None:
-            self._set_local(node.name, func)
+        if self.current_class is None:
+            if node.name in self.current_env.type.params:
+                self._set_local(node.name, func)
         else:
-            self.append(ir.SetAttr(in_class, node.name, func))
+            self.append(ir.SetAttr(self.current_class, node.name, func))
 
     def visit_Return(self, node):
         if node.value is None:

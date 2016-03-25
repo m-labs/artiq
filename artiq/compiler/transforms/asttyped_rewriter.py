@@ -190,16 +190,16 @@ class ASTTypedRewriter(algorithm.Transformer):
         self.in_class = None
 
     def _try_find_name(self, name):
-        for typing_env in reversed(self.env_stack):
-            if name in typing_env:
-                return typing_env[name]
-
-    def _find_name(self, name, loc):
         if self.in_class is not None:
             typ = self.in_class.constructor_type.attributes.get(name)
             if typ is not None:
                 return typ
 
+        for typing_env in reversed(self.env_stack):
+            if name in typing_env:
+                return typing_env[name]
+
+    def _find_name(self, name, loc):
         typ = self._try_find_name(name)
         if typ is not None:
             return typ
@@ -229,9 +229,13 @@ class ASTTypedRewriter(algorithm.Transformer):
         extractor = LocalExtractor(env_stack=self.env_stack, engine=self.engine)
         extractor.visit(node)
 
+        signature_type = self._try_find_name(node.name)
+        if signature_type is None:
+            signature_type = types.TVar()
+
         node = asttyped.FunctionDefT(
             typing_env=extractor.typing_env, globals_in_scope=extractor.global_,
-            signature_type=self._find_name(node.name, node.name_loc), return_type=types.TVar(),
+            signature_type=signature_type, return_type=types.TVar(),
             name=node.name, args=node.args, returns=node.returns,
             body=node.body, decorator_list=node.decorator_list,
             keyword_loc=node.keyword_loc, name_loc=node.name_loc,

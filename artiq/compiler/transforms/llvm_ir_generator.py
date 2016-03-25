@@ -164,9 +164,10 @@ class DebugInfoEmitter:
 
 
 class LLVMIRGenerator:
-    def __init__(self, engine, module_name, target, object_map, type_map):
+    def __init__(self, engine, module_name, target, function_map, object_map, type_map):
         self.engine = engine
         self.target = target
+        self.function_map = function_map
         self.object_map = object_map
         self.type_map = type_map
         self.llcontext = target.llcontext
@@ -393,22 +394,24 @@ class LLVMIRGenerator:
 
         return llglobal
 
+    def get_function(self, typ, name):
+        llfun = self.llmodule.get_global(name)
+        if llfun is None:
+            llfunty = self.llty_of_type(typ, bare=True)
+            llfun   = ll.Function(self.llmodule, llfunty, name)
+
+            llretty = self.llty_of_type(typ.ret, for_return=True)
+            if self.needs_sret(llretty):
+                llfun.args[0].add_attribute('sret')
+        return llfun
+
     def map(self, value):
         if isinstance(value, (ir.Argument, ir.Instruction, ir.BasicBlock)):
             return self.llmap[value]
         elif isinstance(value, ir.Constant):
             return self.llconst_of_const(value)
         elif isinstance(value, ir.Function):
-            llfun = self.llmodule.get_global(value.name)
-            if llfun is None:
-                llfunty = self.llty_of_type(value.type, bare=True)
-                llfun   = ll.Function(self.llmodule, llfunty, value.name)
-
-                llretty = self.llty_of_type(value.type.ret, for_return=True)
-                if self.needs_sret(llretty):
-                    llfun.args[0].add_attribute('sret')
-
-            return llfun
+            return self.get_function(value.type, value.name)
         else:
             assert False
 
@@ -669,6 +672,9 @@ class LLVMIRGenerator:
         return list(typ.attributes.keys()).index(attr)
 
     def get_or_define_global(self, name, llty, llvalue=None):
+        if llvalue is None:
+            llvalue = ll.Constant(llty, ll.Undefined)
+
         if name in self.llmodule.globals:
             llglobal = self.llmodule.get_global(name)
         else:
@@ -683,12 +689,11 @@ class LLVMIRGenerator:
         llty = self.llty_of_type(typ).pointee
         return self.get_or_define_global("class.{}".format(typ.name), llty)
 
-    def get_closure(self, typ, attr):
+    def get_method(self, typ, attr):
         assert types.is_constructor(typ)
         assert types.is_function(typ.attributes[attr])
         llty = self.llty_of_type(typ.attributes[attr])
-        return self.get_or_define_global("method.{}.{}".format(typ.name, attr),
-                                         llty, ll.Constant(llty, ll.Undefined))
+        return self.get_or_define_global("method.{}.{}".format(typ.name, attr), llty)
 
     def process_GetAttr(self, insn):
         typ, attr = insn.object().type, insn.attr
@@ -710,7 +715,7 @@ class LLVMIRGenerator:
                 assert False
 
             if types.is_method(insn.type) and attr not in typ.attributes:
-                llfun  = self.llbuilder.load(self.get_closure(typ.constructor, attr))
+                llfun  = self.llbuilder.load(self.get_method(typ.constructor, attr))
                 llself = self.map(insn.object())
 
                 llmethodty = self.llty_of_type(insn.type)
@@ -722,7 +727,7 @@ class LLVMIRGenerator:
                 return llmethod
             elif types.is_function(insn.type) and attr in typ.attributes and \
                     types.is_constructor(typ):
-                return self.llbuilder.load(self.get_closure(typ, attr))
+                return self.llbuilder.load(self.get_method(typ, attr))
             else:
                 llptr = self.llbuilder.gep(obj, [self.llindex(0), self.llindex(index)],
                                            inbounds=True, name=insn.name)
@@ -742,7 +747,7 @@ class LLVMIRGenerator:
 
         if types.is_function(insn.value().type) and attr in typ.attributes and \
                 types.is_constructor(typ):
-            llptr = self.get_closure(typ, attr)
+            llptr = self.get_method(typ, attr)
         else:
             llptr = self.llbuilder.gep(obj, [self.llindex(0),
                                              self.llindex(self.attr_index(typ, attr))],
@@ -987,8 +992,15 @@ class LLVMIRGenerator:
             assert False
 
     def process_Closure(self, insn):
-        llvalue = ll.Constant(self.llty_of_type(insn.target_function.type), ll.Undefined)
         llenv = self.llbuilder.bitcast(self.map(insn.environment()), llptr)
+        if insn.target_function.name in self.function_map.values():
+            # If this closure belongs to a quoted function, we assume this is the only
+            # time that the closure is created, and record the environment globally
+            llenvptr = self.get_or_define_global("env.{}".format(insn.target_function.name),
+                                                 llptr)
+            self.llbuilder.store(llenv, llenvptr)
+
+        llvalue = ll.Constant(self.llty_of_type(insn.target_function.type), ll.Undefined)
         llvalue = self.llbuilder.insert_value(llvalue, llenv, 0)
         llvalue = self.llbuilder.insert_value(llvalue, self.map(insn.target_function), 1,
                                               name=insn.name)
@@ -1273,16 +1285,29 @@ class LLVMIRGenerator:
             llconst   = ll.Constant(llty, [ll.Constant(lli32, len(llelts)), lleltsptr])
             return llconst
         elif types.is_function(typ):
-            # RPC and C functions have no runtime representation; ARTIQ
-            # functions are initialized explicitly.
+            # RPC and C functions have no runtime representation.
+            # We only get down this codepath for ARTIQ Python functions when they're
+            # referenced from a constructor, and the value inside the constructor
+            # is never used.
             return ll.Constant(llty, ll.Undefined)
         else:
             print(typ)
             assert False
 
     def process_Quote(self, insn):
-        assert self.object_map is not None
-        return self._quote(insn.value, insn.type, lambda: [repr(insn.value)])
+        if insn.value in self.function_map:
+            func_name = self.function_map[insn.value]
+            llenvptr = self.get_or_define_global("env.{}".format(func_name), llptr)
+            llenv = self.llbuilder.load(llenvptr)
+            llfun = self.get_function(insn.type.find(), func_name)
+
+            llclosure = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
+            llclosure = self.llbuilder.insert_value(llclosure, llenv, 0)
+            llclosure = self.llbuilder.insert_value(llclosure, llfun, 1, name=insn.name)
+            return llclosure
+        else:
+            assert self.object_map is not None
+            return self._quote(insn.value, insn.type, lambda: [repr(insn.value)])
 
     def process_Select(self, insn):
         return self.llbuilder.select(self.map(insn.condition()),

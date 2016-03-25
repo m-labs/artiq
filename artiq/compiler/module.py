@@ -19,6 +19,7 @@ class Source:
         else:
             self.engine = engine
 
+        self.function_map = {}
         self.object_map = None
         self.type_map = {}
 
@@ -45,6 +46,7 @@ class Source:
 class Module:
     def __init__(self, src, ref_period=1e-6):
         self.engine = src.engine
+        self.function_map = src.function_map
         self.object_map = src.object_map
         self.type_map = src.type_map
 
@@ -80,7 +82,7 @@ class Module:
         """Compile the module to LLVM IR for the specified target."""
         llvm_ir_generator = transforms.LLVMIRGenerator(
             engine=self.engine, module_name=self.name, target=target,
-            object_map=self.object_map, type_map=self.type_map)
+            function_map=self.function_map, object_map=self.object_map, type_map=self.type_map)
         return llvm_ir_generator.process(self.artiq_ir, attribute_writeback=True)
 
     def entry_point(self):
