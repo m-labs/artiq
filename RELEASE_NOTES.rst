@@ -3,6 +3,14 @@
 Release notes
 =============
 
+unreleased
+----------
+
+* The CPU speed in the pipistrello gateware has been reduced from 83 1/3 MHz to
+  75 MHz. This will reduce the achievable sustained pulse rate and latency
+  accordingly. ISE was intermittently failing to meet timing (#341).
+
+
 1.0rc1
 ------
 
