@@ -94,6 +94,7 @@ class Target:
         llpassmgr.add_sroa_pass()
         llpassmgr.add_dead_code_elimination_pass()
         llpassmgr.add_gvn_pass()
+        llpassmgr.add_function_attrs_pass()
         llpassmgr.run(llmodule)
 
     def compile(self, module):

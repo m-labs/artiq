@@ -24,6 +24,8 @@ class MonomorphismValidator(algorithm.Visitor):
                 node.name_loc, notes=[note])
             self.engine.process(diag)
 
+    visit_QuotedFunctionDefT = visit_FunctionDefT
+
     def generic_visit(self, node):
         super().generic_visit(node)
 
