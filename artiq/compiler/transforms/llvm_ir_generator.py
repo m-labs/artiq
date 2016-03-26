@@ -947,8 +947,8 @@ class LLVMIRGenerator:
                                                 name=insn.name)
         elif insn.op == "unwrap_or":
             lloptarg, lldefault = map(self.map, insn.operands)
-            llhas_arg = self.llbuilder.extract_value(lloptarg, 0)
-            llarg = self.llbuilder.extract_value(lloptarg, 1)
+            llhas_arg = self.llbuilder.extract_value(lloptarg, 0, name="opt.has")
+            llarg = self.llbuilder.extract_value(lloptarg, 1, name="opt.val")
             return self.llbuilder.select(llhas_arg, llarg, lldefault,
                                          name=insn.name)
         elif insn.op == "round":
@@ -1005,28 +1005,21 @@ class LLVMIRGenerator:
     def process_Closure(self, insn):
         llenv = self.map(insn.environment())
         llenv = self.llbuilder.bitcast(llenv, llptr, name="ptr.{}".format(llenv.name))
-        if insn.target_function.name in self.function_map.values():
-            # If this closure belongs to a quoted function, we assume this is the only
-            # time that the closure is created, and record the environment globally
-            llenvptr = self.get_or_define_global("E.{}".format(insn.target_function.name),
-                                                 llptr)
-            self.llbuilder.store(llenv, llenvptr)
-
+        llfun = self.map(insn.target_function)
         llvalue = ll.Constant(self.llty_of_type(insn.target_function.type), ll.Undefined)
         llvalue = self.llbuilder.insert_value(llvalue, llenv, 0)
-        llvalue = self.llbuilder.insert_value(llvalue, self.map(insn.target_function), 1,
-                                              name=insn.name)
+        llvalue = self.llbuilder.insert_value(llvalue, llfun, 1, name=insn.name)
         return llvalue
 
     def _prepare_closure_call(self, insn):
         llargs    = [self.map(arg) for arg in insn.arguments()]
         llclosure = self.map(insn.target_function())
-        llenv     = self.llbuilder.extract_value(llclosure, 0, name="env.call")
         if insn.static_target_function is None:
             llfun = self.llbuilder.extract_value(llclosure, 1,
                                                  name="fun.{}".format(llclosure.name))
         else:
             llfun = self.map(insn.static_target_function)
+        llenv     = self.llbuilder.extract_value(llclosure, 0, name="env.fun")
         return llfun, [llenv] + list(llargs)
 
     def _prepare_ffi_call(self, insn):
@@ -1315,13 +1308,8 @@ class LLVMIRGenerator:
 
     def process_Quote(self, insn):
         if insn.value in self.function_map:
-            func_name = self.function_map[insn.value]
-            llenvptr = self.get_or_define_global("E.{}".format(func_name), llptr)
-            llenv = self.llbuilder.load(llenvptr)
-            llfun = self.get_function(insn.type.find(), func_name)
-
+            llfun = self.get_function(insn.type.find(), self.function_map[insn.value])
             llclosure = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
-            llclosure = self.llbuilder.insert_value(llclosure, llenv, 0)
             llclosure = self.llbuilder.insert_value(llclosure, llfun, 1, name=insn.name)
             return llclosure
         else:

@@ -33,7 +33,7 @@ class DeadCodeEliminator:
                 # it also has to run after the interleaver, but interleaver
                 # doesn't like to work with IR before DCE.
                 if isinstance(insn, (ir.Phi, ir.Alloc, ir.GetAttr, ir.GetElem, ir.Coerce,
-                                     ir.Arith, ir.Compare, ir.Select, ir.Quote)) \
+                                     ir.Arith, ir.Compare, ir.Select, ir.Quote, ir.Closure)) \
                         and not any(insn.uses):
                     insn.erase()
                     modified = True

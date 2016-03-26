@@ -224,7 +224,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         finally:
             self.current_class = old_class
 
-    def visit_function(self, node, is_lambda, is_internal):
+    def visit_function(self, node, is_lambda=False, is_internal=False, is_quoted=False):
         if is_lambda:
             name = "lambda@{}:{}".format(node.loc.line(), node.loc.column())
             typ = node.type.find()
@@ -234,16 +234,24 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         try:
             defaults = []
-            for arg_name, default_node in zip(typ.optargs, node.args.defaults):
-                default = self.visit(default_node)
-                env_default_name = \
-                    self.current_env.type.add("$default." + arg_name, default.type)
-                self.append(ir.SetLocal(self.current_env, env_default_name, default))
-                defaults.append(env_default_name)
+            if not is_quoted:
+                for arg_name, default_node in zip(typ.optargs, node.args.defaults):
+                    default = self.visit(default_node)
+                    env_default_name = \
+                        self.current_env.type.add("$default." + arg_name, default.type)
+                    self.append(ir.SetLocal(self.current_env, env_default_name, default))
+                    def codegen_default(env_default_name):
+                        return lambda: self.append(ir.GetLocal(self.current_env, env_default_name))
+                    defaults.append(codegen_default(env_default_name))
+            else:
+                for default_node in node.args.defaults:
+                    def codegen_default(default_node):
+                        return lambda: self.visit(default_node)
+                    defaults.append(codegen_default(default_node))
 
             old_name, self.name = self.name, self.name + [name]
 
-            env_arg  = ir.EnvironmentArgument(self.current_env.type, "CLS")
+            env_arg  = ir.EnvironmentArgument(self.current_env.type, "ARG.ENV")
 
             old_args, self.current_args = self.current_args, {}
 
@@ -291,8 +299,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.append(ir.SetLocal(env, "$outer", env_arg))
             for index, arg_name in enumerate(typ.args):
                 self.append(ir.SetLocal(env, arg_name, args[index]))
-            for index, (arg_name, env_default_name) in enumerate(zip(typ.optargs, defaults)):
-                default = self.append(ir.GetLocal(self.current_env, env_default_name))
+            for index, (arg_name, codegen_default) in enumerate(zip(typ.optargs, defaults)):
+                default = codegen_default()
                 value = self.append(ir.Builtin("unwrap_or", [optargs[index], default],
                                                typ.optargs[arg_name]))
                 self.append(ir.SetLocal(env, arg_name, value))
@@ -320,13 +328,14 @@ class ARTIQIRGenerator(algorithm.Visitor):
         return self.append(ir.Closure(func, self.current_env))
 
     def visit_FunctionDefT(self, node):
-        func = self.visit_function(node, is_lambda=False,
-                                   is_internal=len(self.name) > 0 or '.' in node.name)
+        func = self.visit_function(node, is_internal=len(self.name) > 0)
         if self.current_class is None:
-            if node.name in self.current_env.type.params:
-                self._set_local(node.name, func)
+            self._set_local(node.name, func)
         else:
             self.append(ir.SetAttr(self.current_class, node.name, func))
+
+    def visit_QuotedFunctionDefT(self, node):
+        self.visit_function(node, is_internal=True, is_quoted=True)
 
     def visit_Return(self, node):
         if node.value is None:
@@ -1676,7 +1685,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             offset   = 0
         elif types.is_method(callee.type):
             func     = self.append(ir.GetAttr(callee, "__func__",
-                                              name="{}.CLS".format(callee.name)))
+                                              name="{}.ENV".format(callee.name)))
             self_arg = self.append(ir.GetAttr(callee, "__self__",
                                               name="{}.SLF".format(callee.name)))
             fn_typ   = types.get_method_function(callee.type)

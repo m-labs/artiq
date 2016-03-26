@@ -142,6 +142,8 @@ class IODelayEstimator(algorithm.Visitor):
             body = node.body
         self.visit_function(node.args, body, node.signature_type.find(), node.loc)
 
+    visit_QuotedFunctionDefT = visit_FunctionDefT
+
     def visit_LambdaT(self, node):
         self.visit_function(node.args, node.body, node.type.find(), node.loc)
 

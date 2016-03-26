@@ -16,6 +16,7 @@ from Levenshtein import ratio as similarity, jaro_winkler
 from ..language import core as language_core
 from . import types, builtins, asttyped, prelude
 from .transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer
+from .transforms.asttyped_rewriter import LocalExtractor
 
 
 def coredevice_print(x): print(x)
@@ -240,6 +241,35 @@ class StitchingASTTypedRewriter(ASTTypedRewriter):
 
         self.host_environment = host_environment
         self.quote = quote
+
+    def visit_quoted_function(self, node, function):
+        extractor = LocalExtractor(env_stack=self.env_stack, engine=self.engine)
+        extractor.visit(node)
+
+        # We quote the defaults so they end up in the global data in LLVM IR.
+        # This way there is no "life before main", i.e. they do not have to be
+        # constructed before the main translated call executes; but the Python
+        # semantics is kept.
+        defaults = function.__defaults__ or ()
+        quoted_defaults = []
+        for default, default_node in zip(defaults, node.args.defaults):
+            quoted_defaults.append(self.quote(default, default_node.loc))
+        node.args.defaults = quoted_defaults
+
+        node = asttyped.QuotedFunctionDefT(
+            typing_env=extractor.typing_env, globals_in_scope=extractor.global_,
+            signature_type=types.TVar(), return_type=types.TVar(),
+            name=node.name, args=node.args, returns=node.returns,
+            body=node.body, decorator_list=node.decorator_list,
+            keyword_loc=node.keyword_loc, name_loc=node.name_loc,
+            arrow_loc=node.arrow_loc, colon_loc=node.colon_loc, at_locs=node.at_locs,
+            loc=node.loc)
+
+        try:
+            self.env_stack.append(node.typing_env)
+            return self.generic_visit(node)
+        finally:
+            self.env_stack.pop()
 
     def visit_Name(self, node):
         typ = super()._try_find_name(node.id)
@@ -562,7 +592,7 @@ class Stitcher:
             engine=self.engine, prelude=self.prelude,
             globals=self.globals, host_environment=host_environment,
             quote=self._quote)
-        function_node = asttyped_rewriter.visit(function_node)
+        function_node = asttyped_rewriter.visit_quoted_function(function_node, embedded_function)
 
         # Add it into our typedtree so that it gets inferenced and codegen'd.
         self._inject(function_node)

@@ -29,6 +29,8 @@ class ClassDefT(ast.ClassDef):
     _types = ("constructor_type",)
 class FunctionDefT(ast.FunctionDef, scoped):
     _types = ("signature_type",)
+class QuotedFunctionDefT(FunctionDefT):
+    pass
 class ModuleT(ast.Module, scoped):
     pass
 

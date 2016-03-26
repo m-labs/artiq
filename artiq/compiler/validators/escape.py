@@ -277,6 +277,8 @@ class EscapeValidator(algorithm.Visitor):
         self.visit_in_region(node, Region(node.loc), node.typing_env,
                              args={ arg.arg: Argument(arg.loc) for arg in node.args.args })
 
+    visit_QuotedFunctionDefT = visit_FunctionDefT
+
     def visit_ClassDefT(self, node):
         self.youngest_env[node.name] = self.youngest_region
         self.visit_in_region(node, Region(node.loc), node.constructor_type.attributes)

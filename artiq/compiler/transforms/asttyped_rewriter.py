@@ -229,9 +229,7 @@ class ASTTypedRewriter(algorithm.Transformer):
         extractor = LocalExtractor(env_stack=self.env_stack, engine=self.engine)
         extractor.visit(node)
 
-        signature_type = self._try_find_name(node.name)
-        if signature_type is None:
-            signature_type = types.TVar()
+        signature_type = self._find_name(node.name, node.name_loc)
 
         node = asttyped.FunctionDefT(
             typing_env=extractor.typing_env, globals_in_scope=extractor.global_,

@@ -1227,6 +1227,8 @@ class Inferencer(algorithm.Visitor):
             self._unify(node.signature_type, signature_type,
                         node.name_loc, None)
 
+    visit_QuotedFunctionDefT = visit_FunctionDefT
+
     def visit_ClassDefT(self, node):
         if any(node.decorator_list):
             diag = diagnostic.Diagnostic("error",
