@@ -88,13 +88,24 @@ class Target:
     def optimize(self, llmodule):
         llpassmgr = llvm.create_module_pass_manager()
         self.target_machine().target_data.add_pass(llpassmgr)
+
+        # Start by cleaning up after our codegen and exposing as much
+        # information to LLVM as possible.
         llpassmgr.add_constant_merge_pass()
         llpassmgr.add_cfg_simplification_pass()
         llpassmgr.add_instruction_combining_pass()
         llpassmgr.add_sroa_pass()
         llpassmgr.add_dead_code_elimination_pass()
-        llpassmgr.add_gvn_pass()
         llpassmgr.add_function_attrs_pass()
+        llpassmgr.add_global_optimizer_pass()
+
+        # Now, actually optimize the code.
+        llpassmgr.add_function_inlining_pass(70)
+        llpassmgr.add_cfg_simplification_pass()
+        llpassmgr.add_instruction_combining_pass()
+        llpassmgr.add_gvn_pass()
+        llpassmgr.add_global_dce_pass()
+
         llpassmgr.run(llmodule)
 
     def compile(self, module):
