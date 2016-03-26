@@ -437,7 +437,7 @@ class Function:
 
     def _add_name(self, base_name):
         if base_name == "":
-            name = "v.{}".format(self.next_name)
+            name = "UNN.{}".format(self.next_name)
             self.next_name += 1
         elif base_name in self.names:
             name = "{}.{}".format(base_name, self.next_name)
@@ -869,9 +869,11 @@ class Builtin(Instruction):
     """
     :param op: (string) operation name
     """
-    def __init__(self, op, operands, typ, name=""):
+    def __init__(self, op, operands, typ, name=None):
         assert isinstance(op, str)
         for operand in operands: assert isinstance(operand, Value)
+        if name is None:
+            name = "BLT.{}".format(op)
         super().__init__(operands, typ, name)
         self.op = op
 
