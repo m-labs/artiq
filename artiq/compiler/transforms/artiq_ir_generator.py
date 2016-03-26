@@ -237,25 +237,25 @@ class ARTIQIRGenerator(algorithm.Visitor):
             for arg_name, default_node in zip(typ.optargs, node.args.defaults):
                 default = self.visit(default_node)
                 env_default_name = \
-                    self.current_env.type.add("default$" + arg_name, default.type)
+                    self.current_env.type.add("$default." + arg_name, default.type)
                 self.append(ir.SetLocal(self.current_env, env_default_name, default))
                 defaults.append(env_default_name)
 
             old_name, self.name = self.name, self.name + [name]
 
-            env_arg  = ir.EnvironmentArgument(self.current_env.type, "outerenv")
+            env_arg  = ir.EnvironmentArgument(self.current_env.type, "CLS")
 
             old_args, self.current_args = self.current_args, {}
 
             args = []
             for arg_name in typ.args:
-                arg = ir.Argument(typ.args[arg_name], "arg." + arg_name)
+                arg = ir.Argument(typ.args[arg_name], "ARG." + arg_name)
                 self.current_args[arg_name] = arg
                 args.append(arg)
 
             optargs = []
             for arg_name in typ.optargs:
-                arg = ir.Argument(ir.TOption(typ.optargs[arg_name]), "arg." + arg_name)
+                arg = ir.Argument(ir.TOption(typ.optargs[arg_name]), "ARG." + arg_name)
                 self.current_args[arg_name] = arg
                 optargs.append(arg)
 
@@ -268,7 +268,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             if not is_lambda:
                 self.function_map[node] = func
 
-            entry = self.add_block()
+            entry = self.add_block("entry")
             old_block, self.current_block = self.current_block, entry
 
             old_globals, self.current_globals = self.current_globals, node.globals_in_scope
@@ -279,13 +279,13 @@ class ARTIQIRGenerator(algorithm.Visitor):
                   if var not in node.globals_in_scope}
             env_type = ir.TEnvironment(name=func.name,
                                        vars=env_without_globals, outer=self.current_env.type)
-            env = self.append(ir.Alloc([], env_type, name="env"))
+            env = self.append(ir.Alloc([], env_type, name="ENV"))
             old_env, self.current_env = self.current_env, env
 
             if not is_lambda:
-                priv_env_type = ir.TEnvironment(name=func.name + ".priv",
+                priv_env_type = ir.TEnvironment(name="{}.private".format(func.name),
                                                 vars={ "$return": typ.ret })
-                priv_env = self.append(ir.Alloc([], priv_env_type, name="privenv"))
+                priv_env = self.append(ir.Alloc([], priv_env_type, name="PRV"))
                 old_priv_env, self.current_private_env = self.current_private_env, priv_env
 
             self.append(ir.SetLocal(env, "$outer", env_arg))
@@ -401,18 +401,18 @@ class ARTIQIRGenerator(algorithm.Visitor):
         cond = self.coerce_to_bool(cond)
         head = self.current_block
 
-        if_true = self.add_block()
+        if_true = self.add_block("if.body")
         self.current_block = if_true
         self.visit(node.body)
         post_if_true = self.current_block
 
         if any(node.orelse):
-            if_false = self.add_block()
+            if_false = self.add_block("if.else")
             self.current_block = if_false
             self.visit(node.orelse)
             post_if_false = self.current_block
 
-        tail = self.add_block()
+        tail = self.add_block("if.tail")
         self.current_block = tail
         if not post_if_true.is_terminated():
             post_if_true.append(ir.Branch(tail))
@@ -499,9 +499,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
             head = self.add_block("for.head")
             self.append(ir.Branch(head))
             self.current_block = head
-            phi = self.append(ir.Phi(length.type))
+            phi = self.append(ir.Phi(length.type, name="IND"))
             phi.add_incoming(ir.Constant(0, phi.type), prehead)
-            cond = self.append(ir.Compare(ast.Lt(loc=None), phi, length))
+            cond = self.append(ir.Compare(ast.Lt(loc=None), phi, length, name="CMP"))
 
             break_block = self.add_block("for.break")
             old_break, self.break_target = self.break_target, break_block
@@ -510,7 +510,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             old_continue, self.continue_target = self.continue_target, continue_block
             self.current_block = continue_block
 
-            updated_index = self.append(ir.Arith(ast.Add(loc=None), phi, ir.Constant(1, phi.type)))
+            updated_index = self.append(ir.Arith(ast.Add(loc=None), phi, ir.Constant(1, phi.type),
+                                                 name="IND.new"))
             phi.add_incoming(updated_index, continue_block)
             self.append(ir.Branch(head))
 
@@ -597,13 +598,13 @@ class ARTIQIRGenerator(algorithm.Visitor):
             # k for continuation
             final_suffix   = ".try@{}:{}".format(node.loc.line(), node.loc.column())
             final_env_type = ir.TEnvironment(name=self.current_function.name + final_suffix,
-                                             vars={ "$k": ir.TBasicBlock() })
+                                             vars={ "$cont": ir.TBasicBlock() })
             final_state    = self.append(ir.Alloc([], final_env_type))
             final_targets  = []
             final_paths    = []
 
             def final_branch(target, block):
-                block.append(ir.SetLocal(final_state, "$k", target))
+                block.append(ir.SetLocal(final_state, "$cont", target))
                 final_targets.append(target)
                 final_paths.append(block)
 
@@ -696,19 +697,19 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 block.append(ir.Branch(finalizer))
 
             if not body.is_terminated():
-                body.append(ir.SetLocal(final_state, "$k", tail))
+                body.append(ir.SetLocal(final_state, "$cont", tail))
                 body.append(ir.Branch(finalizer))
 
-            cleanup.append(ir.SetLocal(final_state, "$k", reraise))
+            cleanup.append(ir.SetLocal(final_state, "$cont", reraise))
             cleanup.append(ir.Branch(finalizer))
 
             for handler, post_handler in handlers:
                 if not post_handler.is_terminated():
-                    post_handler.append(ir.SetLocal(final_state, "$k", tail))
+                    post_handler.append(ir.SetLocal(final_state, "$cont", tail))
                     post_handler.append(ir.Branch(finalizer))
 
             if not post_finalizer.is_terminated():
-                dest = post_finalizer.append(ir.GetLocal(final_state, "$k"))
+                dest = post_finalizer.append(ir.GetLocal(final_state, "$cont"))
                 post_finalizer.append(ir.IndirectBranch(dest, final_targets))
         else:
             if not body.is_terminated():
@@ -753,7 +754,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             heads, tails = [], []
             for stmt in node.body:
-                self.current_block = self.add_block()
+                self.current_block = self.add_block("interleave.branch")
                 heads.append(self.current_block)
                 self.visit(stmt)
                 tails.append(self.current_block)
@@ -761,7 +762,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             for head in heads:
                 interleave.add_destination(head)
 
-            self.current_block = self.add_block()
+            self.current_block = self.add_block("interleave.tail")
             for tail in tails:
                 if not tail.is_terminated():
                     tail.append(ir.Branch(self.current_block))
@@ -773,7 +774,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             for stmt in node.body:
                 self.append(ir.Builtin("at_mu", [start_mu], builtins.TNone()))
 
-                block = self.add_block()
+                block = self.add_block("parallel.branch")
                 if self.current_block.is_terminated():
                     self.warn_unreachable(stmt[0])
                 else:
@@ -837,17 +838,17 @@ class ARTIQIRGenerator(algorithm.Visitor):
         cond = self.visit(node.test)
         head = self.current_block
 
-        if_true = self.add_block()
+        if_true = self.add_block("ifexp.body")
         self.current_block = if_true
         true_result = self.visit(node.body)
         post_if_true = self.current_block
 
-        if_false = self.add_block()
+        if_false = self.add_block("ifexp.else")
         self.current_block = if_false
         false_result = self.visit(node.orelse)
         post_if_false = self.current_block
 
-        tail = self.add_block()
+        tail = self.add_block("ifexp.tail")
         self.current_block = tail
 
         if not post_if_true.is_terminated():
@@ -881,10 +882,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
         if self.current_class is not None and \
                 name in self.current_class.type.attributes:
             return self.append(ir.GetAttr(self.current_class, name,
-                                          name="local." + name))
+                                          name="FLD." + name))
 
         return self.append(ir.GetLocal(self._env_for(name), name,
-                                       name="local." + name))
+                                       name="LOC." + name))
 
     def _set_local(self, name, value):
         if self.current_class is not None and \
@@ -910,7 +911,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         if self.current_assign is None:
             return self.append(ir.GetAttr(obj, node.attr,
-                                          name="{}.{}".format(_readable_name(obj), node.attr)))
+                                          name="{}.FLD.{}".format(_readable_name(obj), node.attr)))
         elif types.is_rpc_function(self.current_assign.type):
             # RPC functions are just type-level markers
             return self.append(ir.Builtin("nop", [], builtins.TNone()))
@@ -930,47 +931,47 @@ class ARTIQIRGenerator(algorithm.Visitor):
                                               ir.Constant(False, builtins.TBool())))
         head = self.current_block
 
-        self.current_block = out_of_bounds_block = self.add_block()
+        self.current_block = out_of_bounds_block = self.add_block("index.outofbounds")
         exn = self.alloc_exn(builtins.TException("IndexError"),
             ir.Constant("index {0} out of bounds 0:{1}", builtins.TStr()),
             index, length)
         self.raise_exn(exn, loc=loc)
 
-        self.current_block = in_bounds_block = self.add_block()
+        self.current_block = in_bounds_block = self.add_block("index.inbounds")
         head.append(ir.BranchIf(in_bounds, in_bounds_block, out_of_bounds_block))
 
         return mapped_index
 
-    def _make_check(self, cond, exn_gen, loc=None):
+    def _make_check(self, cond, exn_gen, loc=None, name="check"):
         # cond:    bool Value, condition
         # exn_gen: lambda()->exn Value, exception if condition not true
         cond_block = self.current_block
 
-        self.current_block = body_block = self.add_block()
+        self.current_block = body_block = self.add_block("{}.body".format(name))
         self.raise_exn(exn_gen(), loc=loc)
 
-        self.current_block = tail_block = self.add_block()
+        self.current_block = tail_block = self.add_block("{}.tail".format(name))
         cond_block.append(ir.BranchIf(cond, tail_block, body_block))
 
-    def _make_loop(self, init, cond_gen, body_gen):
+    def _make_loop(self, init, cond_gen, body_gen, name="loop"):
         # init:     'iter Value, initial loop variable value
         # cond_gen: lambda('iter Value)->bool Value, loop condition
         # body_gen: lambda('iter Value)->'iter Value, loop body,
         #               returns next loop variable value
         init_block = self.current_block
 
-        self.current_block = head_block = self.add_block()
+        self.current_block = head_block = self.add_block("{}.head".format(name))
         init_block.append(ir.Branch(head_block))
         phi = self.append(ir.Phi(init.type))
         phi.add_incoming(init, init_block)
         cond = cond_gen(phi)
 
-        self.current_block = body_block = self.add_block()
+        self.current_block = body_block = self.add_block("{}.body".format(name))
         body = body_gen(phi)
         self.append(ir.Branch(head_block))
         phi.add_incoming(body, self.current_block)
 
-        self.current_block = tail_block = self.add_block()
+        self.current_block = tail_block = self.add_block("{}.tail".format(name))
         head_block.append(ir.BranchIf(cond, body_block, tail_block))
 
         return head_block, body_block, tail_block
@@ -1072,7 +1073,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             prehead = self.current_block
 
-            head = self.current_block = self.add_block()
+            head = self.current_block = self.add_block("slice.head")
             prehead.append(ir.Branch(head))
 
             index = self.append(ir.Phi(node.slice.type,
@@ -1087,7 +1088,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             bounded_down = self.append(ir.Compare(ast.Gt(loc=None), index, mapped_stop_index))
             within_bounds = self.append(ir.Select(counting_up, bounded_up, bounded_down))
 
-            body = self.current_block = self.add_block()
+            body = self.current_block = self.add_block("slice.body")
 
             if self.current_assign is None:
                 elem = self.iterable_get(value, index)
@@ -1103,7 +1104,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             other_index.add_incoming(next_other_index, body)
             self.append(ir.Branch(head))
 
-            tail = self.current_block = self.add_block()
+            tail = self.current_block = self.add_block("slice.tail")
             head.append(ir.BranchIf(within_bounds, body, tail))
 
             if self.current_assign is None:
@@ -1197,7 +1198,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             value_tail = self.current_block
 
             blocks.append((value, value_head, value_tail))
-            self.current_block = self.add_block()
+            self.current_block = self.add_block("boolop.seq")
 
         tail = self.current_block
         phi = self.append(ir.Phi(node.type))
@@ -1366,26 +1367,26 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             # If the length is the same, compare element-by-element
             # and break when the comparison result is false
-            loop_head = self.add_block()
+            loop_head = self.add_block("compare.head")
             self.current_block = loop_head
             index_phi = self.append(ir.Phi(self._size_type))
             index_phi.add_incoming(ir.Constant(0, self._size_type), head)
             loop_cond = self.append(ir.Compare(ast.Lt(loc=None), index_phi, lhs_length))
 
-            loop_body = self.add_block()
+            loop_body = self.add_block("compare.body")
             self.current_block = loop_body
             lhs_elt = self.append(ir.GetElem(lhs, index_phi))
             rhs_elt = self.append(ir.GetElem(rhs, index_phi))
             body_result = self.polymorphic_compare_pair(op, lhs_elt, rhs_elt)
 
-            loop_body2 = self.add_block()
+            loop_body2 = self.add_block("compare.body2")
             self.current_block = loop_body2
             index_next = self.append(ir.Arith(ast.Add(loc=None), index_phi,
                                               ir.Constant(1, self._size_type)))
             self.append(ir.Branch(loop_head))
             index_phi.add_incoming(index_next, loop_body2)
 
-            tail = self.add_block()
+            tail = self.add_block("compare.tail")
             self.current_block = tail
             phi = self.append(ir.Phi(builtins.TBool()))
             head.append(ir.BranchIf(eq_length, loop_head, tail))
@@ -1431,14 +1432,14 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 elt = self.iterable_get(haystack, index)
                 cmp_result = self.polymorphic_compare_pair(ast.Eq(loc=None), needle, elt)
 
-                loop_body2 = self.add_block()
+                loop_body2 = self.add_block("compare.body")
                 self.current_block = loop_body2
                 return self.append(ir.Arith(ast.Add(loc=None), index,
                                             ir.Constant(1, length.type)))
             loop_head, loop_body, loop_tail = \
                 self._make_loop(ir.Constant(0, length.type),
                     lambda index: self.append(ir.Compare(ast.Lt(loc=None), index, length)),
-                    body_gen)
+                    body_gen, name="compare")
 
             loop_body.append(ir.BranchIf(cmp_result, loop_tail, loop_body2))
             phi = loop_tail.prepend(ir.Phi(builtins.TBool()))
@@ -1479,7 +1480,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             result_tail = self.current_block
 
             blocks.append((result, result_head, result_tail))
-            self.current_block = self.add_block()
+            self.current_block = self.add_block("compare.seq")
             lhs = rhs
 
         tail = self.current_block
@@ -1674,8 +1675,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
             fn_typ   = callee.type
             offset   = 0
         elif types.is_method(callee.type):
-            func     = self.append(ir.GetAttr(callee, "__func__"))
-            self_arg = self.append(ir.GetAttr(callee, "__self__"))
+            func     = self.append(ir.GetAttr(callee, "__func__",
+                                              name="{}.CLS".format(callee.name)))
+            self_arg = self.append(ir.GetAttr(callee, "__self__",
+                                              name="{}.SLF".format(callee.name)))
             fn_typ   = types.get_method_function(callee.type)
             offset   = 1
         else:
@@ -1719,7 +1722,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         if self.unwind_target is None:
             insn = self.append(ir.Call(func, args, arg_exprs))
         else:
-            after_invoke = self.add_block()
+            after_invoke = self.add_block("invoke")
             insn = self.append(ir.Invoke(func, args, arg_exprs,
                                          after_invoke, self.unwind_target))
             self.current_block = after_invoke
@@ -1734,7 +1737,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         if node.iodelay is not None and not iodelay.is_const(node.iodelay, 0):
             before_delay = self.current_block
-            during_delay = self.add_block()
+            during_delay = self.add_block("delay.head")
             before_delay.append(ir.Branch(during_delay))
             self.current_block = during_delay
 
@@ -1748,7 +1751,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.method_map[(attr_node.value.type.find(), attr_node.attr)].append(insn)
 
         if node.iodelay is not None and not iodelay.is_const(node.iodelay, 0):
-            after_delay = self.add_block()
+            after_delay = self.add_block("delay.tail")
             self.append(ir.Delay(node.iodelay, insn, after_delay))
             self.current_block = after_delay
 
@@ -1783,7 +1786,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             assert_subexprs = self.current_assert_subexprs = []
             init = self.current_block
 
-            prehead = self.current_block = self.add_block()
+            prehead = self.current_block = self.add_block("assert.prehead")
             cond = self.visit(node.test)
             head = self.current_block
         finally:
@@ -1795,7 +1798,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             init.append(ir.SetLocal(assert_env, subexpr_name, empty))
         init.append(ir.Branch(prehead))
 
-        if_failed = self.current_block = self.add_block()
+        if_failed = self.current_block = self.add_block("assert.fail")
 
         if node.msg:
             explanation = node.msg.s
@@ -1813,7 +1816,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             subexpr_cond = self.append(ir.Builtin("is_some", [subexpr_value_opt],
                                                   builtins.TBool()))
 
-            subexpr_body = self.current_block = self.add_block()
+            subexpr_body = self.current_block = self.add_block("assert.subexpr.body")
             self.append(ir.Builtin("printf", [
                     ir.Constant("  (%s) = ", builtins.TStr()),
                     ir.Constant(subexpr_node.loc.source(), builtins.TStr())
@@ -1823,14 +1826,14 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.polymorphic_print([subexpr_value], separator="", suffix="\n")
             subexpr_postbody = self.current_block
 
-            subexpr_tail = self.current_block = self.add_block()
+            subexpr_tail = self.current_block = self.add_block("assert.subexpr.tail")
             self.append(ir.Branch(subexpr_tail), block=subexpr_postbody)
             self.append(ir.BranchIf(subexpr_cond, subexpr_body, subexpr_tail), block=subexpr_head)
 
         self.append(ir.Builtin("abort", [], builtins.TNone()))
         self.append(ir.Unreachable())
 
-        tail = self.current_block = self.add_block()
+        tail = self.current_block = self.add_block("assert.tail")
         self.append(ir.BranchIf(cond, tail, if_failed), block=head)
 
     def polymorphic_print(self, values, separator, suffix="", as_repr=False, as_rtio=False):
@@ -1904,10 +1907,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     is_last = self.append(ir.Compare(ast.Lt(loc=None), index, last))
                     head = self.current_block
 
-                    if_last = self.current_block = self.add_block()
+                    if_last = self.current_block = self.add_block("print.comma")
                     printf(", ")
 
-                    tail = self.current_block = self.add_block()
+                    tail = self.current_block = self.add_block("print.tail")
                     if_last.append(ir.Branch(tail))
                     head.append(ir.BranchIf(is_last, if_last, tail))
 
