@@ -79,6 +79,23 @@ class Target:
     def __init__(self):
         self.llcontext = ll.Context()
 
+    def target_machine(self):
+        lltarget = llvm.Target.from_triple(self.triple)
+        return lltarget.create_target_machine(
+                        features=",".join(["+{}".format(f) for f in self.features]),
+                        reloc="pic", codemodel="default")
+
+    def optimize(self, llmodule):
+        llpassmgr = llvm.create_module_pass_manager()
+        self.target_machine().target_data.add_pass(llpassmgr)
+        llpassmgr.add_constant_merge_pass()
+        llpassmgr.add_cfg_simplification_pass()
+        llpassmgr.add_instruction_combining_pass()
+        llpassmgr.add_sroa_pass()
+        llpassmgr.add_dead_code_elimination_pass()
+        llpassmgr.add_gvn_pass()
+        llpassmgr.run(llmodule)
+
     def compile(self, module):
         """Compile the module to a relocatable object for this target."""
 
@@ -102,14 +119,7 @@ class Target:
         _dump(os.getenv("ARTIQ_DUMP_UNOPT_LLVM"), "LLVM IR (generated)", "_unopt.ll",
               lambda: str(llparsedmod))
 
-        llpassmgrbuilder = llvm.create_pass_manager_builder()
-        llpassmgrbuilder.opt_level  = 2 # -O2
-        llpassmgrbuilder.size_level = 1 # -Os
-        llpassmgrbuilder.inlining_threshold = 75 # -Os threshold
-
-        llpassmgr = llvm.create_module_pass_manager()
-        llpassmgrbuilder.populate(llpassmgr)
-        llpassmgr.run(llparsedmod)
+        self.optimize(llparsedmod)
 
         _dump(os.getenv("ARTIQ_DUMP_LLVM"), "LLVM IR (optimized)", ".ll",
               lambda: str(llparsedmod))
@@ -117,10 +127,7 @@ class Target:
         return llparsedmod
 
     def assemble(self, llmodule):
-        lltarget = llvm.Target.from_triple(self.triple)
-        llmachine = lltarget.create_target_machine(
-                        features=",".join(["+{}".format(f) for f in self.features]),
-                        reloc="pic", codemodel="default")
+        llmachine = self.target_machine()
 
         _dump(os.getenv("ARTIQ_DUMP_ASM"), "Assembly", ".s",
               lambda: llmachine.emit_assembly(llmodule))
