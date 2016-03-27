@@ -115,19 +115,20 @@ class PulseRateDDS(EnvExperiment):
     def run(self):
         dt = seconds_to_mu(150*us)
         while True:
-            try:
-                delay(10*ms)
-                for i in range(100):
+            delay(10*ms)
+            for i in range(100):
+                try:
                     with self.core_dds.batch:
                         self.dds0.set(100*MHz)
                         self.dds1.set(100*MHz)
                     delay_mu(dt)
-            except RTIOUnderflow:
-                dt += 100
-                self.core.break_realtime()
+                except RTIOUnderflow:
+                    dt += 100
+                    self.core.break_realtime()
+                    break
             else:
                 self.set_dataset("pulse_rate", mu_to_seconds(2*dt))
-                break
+                return
 
 
 class Watchdog(EnvExperiment):
@@ -262,7 +263,7 @@ class CoredeviceTest(ExperimentCase):
         rate = self.dataset_mgr.get("pulse_rate")
         print(rate)
         self.assertGreater(rate, 100*us)
-        self.assertLess(rate, 2500*us)
+        self.assertLess(rate, 400*us)
 
     def test_loopback_count(self):
         npulses = 2
