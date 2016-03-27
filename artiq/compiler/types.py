@@ -443,6 +443,7 @@ class TInstance(TMono):
         assert isinstance(attributes, OrderedDict)
         super().__init__(name)
         self.attributes = attributes
+        self.constant_attributes = set()
 
     def __repr__(self):
         return "artiq.compiler.types.TInstance({}, {})".format(
