@@ -411,8 +411,7 @@ int recv_rpc(void *slot) {
 }
 
 struct attr_desc {
-    uint32_t size;
-    uint32_t alignment;
+    uint32_t offset;
     const char *tag;
     const char *name;
 };
@@ -435,20 +434,14 @@ void attribute_writeback(void *utypes) {
         while(*objects) {
             void *object = *objects++;
 
-            size_t offset = 0;
             struct attr_desc **attrs = type->attributes;
             while(*attrs) {
                 struct attr_desc *attr = *attrs++;
 
-                if(offset % attr->alignment != 0)
-                    offset += attr->alignment - (offset % attr->alignment);
-
                 if(attr->tag) {
-                    uintptr_t value = (uintptr_t)object + offset;
+                    uintptr_t value = (uintptr_t)object + attr->offset;
                     send_rpc(0, attr->tag, &object, &attr->name, value);
                 }
-
-                offset += attr->size;
             }
         }
     }
