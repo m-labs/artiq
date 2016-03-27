@@ -450,7 +450,7 @@ class LLVMIRGenerator:
         lldatalayout = llvm.create_target_data(self.llmodule.data_layout)
 
         llrpcattrty = self.llcontext.get_identified_type("A")
-        llrpcattrty.elements = [lli32, lli32, llptr, llptr]
+        llrpcattrty.elements = [lli32, llptr, llptr]
 
         lldescty = self.llcontext.get_identified_type("D")
         lldescty.elements = [llrpcattrty.as_pointer().as_pointer(), llptr.as_pointer()]
@@ -465,12 +465,7 @@ class LLVMIRGenerator:
             else:
                 type_name = "I.{}".format(typ.name)
 
-            def llrpcattr_of_attr(name, typ):
-                size      = self.llty_of_type(typ). \
-                    get_abi_size(lldatalayout, context=self.llcontext)
-                alignment = self.llty_of_type(typ). \
-                    get_abi_alignment(lldatalayout, context=self.llcontext)
-
+            def llrpcattr_of_attr(offset, name, typ):
                 def rpc_tag_error(typ):
                     print(typ)
                     assert False
@@ -483,8 +478,7 @@ class LLVMIRGenerator:
                     llrpctag = ll.Constant(llptr, None)
 
                 llrpcattrinit = ll.Constant(llrpcattrty, [
-                    ll.Constant(lli32, size),
-                    ll.Constant(lli32, alignment),
+                    ll.Constant(lli32, offset),
                     llrpctag,
                     self.llstr_of_str(name)
                 ])
@@ -501,8 +495,27 @@ class LLVMIRGenerator:
 
                 return llrpcattr
 
-            llrpcattrs = [llrpcattr_of_attr(attr, typ.attributes[attr])
-                          for attr in typ.attributes]
+            offset = 0
+            llrpcattrs = []
+            for attr in typ.attributes:
+                attrtyp   = typ.attributes[attr]
+                size      = self.llty_of_type(attrtyp). \
+                    get_abi_size(lldatalayout, context=self.llcontext)
+                alignment = self.llty_of_type(attrtyp). \
+                    get_abi_alignment(lldatalayout, context=self.llcontext)
+
+                if offset % alignment != 0:
+                    offset += alignment - (offset % alignment)
+
+                if types.is_instance(typ) and attr not in typ.constant_attributes:
+                    llrpcattrs.append(llrpcattr_of_attr(offset, attr, attrtyp))
+
+                offset += size
+
+            if len(llrpcattrs) == 1:
+                # Don't bother serializing objects that only have __objectid__
+                # since there's nothing to writeback anyway.
+                continue
 
             llrpcattraryty = ll.ArrayType(llrpcattrty.as_pointer(), len(llrpcattrs) + 1)
             llrpcattrary = ll.GlobalVariable(self.llmodule, llrpcattraryty,
