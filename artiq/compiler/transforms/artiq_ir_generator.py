@@ -302,7 +302,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             for index, (arg_name, codegen_default) in enumerate(zip(typ.optargs, defaults)):
                 default = codegen_default()
                 value = self.append(ir.Builtin("unwrap_or", [optargs[index], default],
-                                               typ.optargs[arg_name]))
+                                               typ.optargs[arg_name],
+                                               name="DEF.{}".format(arg_name)))
                 self.append(ir.SetLocal(env, arg_name, value))
 
             result = self.visit(node.body)
@@ -574,9 +575,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.current_block = raise_proxy
 
         if exn is not None:
-            if loc is None:
-                loc = self.current_loc
-
+            assert loc is not None
             loc_file = ir.Constant(loc.source_buffer.name, builtins.TStr())
             loc_line = ir.Constant(loc.line(), builtins.TInt32())
             loc_column = ir.Constant(loc.column(), builtins.TInt32())
@@ -598,7 +597,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.append(ir.Reraise())
 
     def visit_Raise(self, node):
-        self.raise_exn(self.visit(node.exc))
+        self.raise_exn(self.visit(node.exc), loc=self.current_loc)
 
     def visit_Try(self, node):
         dispatcher = self.add_block("try.dispatch")
@@ -927,6 +926,55 @@ class ARTIQIRGenerator(algorithm.Visitor):
         else:
             return self.append(ir.SetAttr(obj, node.attr, self.current_assign))
 
+    def _make_check(self, cond, exn_gen, loc=None, params=[]):
+        if loc is None:
+            loc = self.current_loc
+
+        try:
+            name = "check:{}:{}".format(loc.line(), loc.column())
+            args = [ir.EnvironmentArgument(self.current_env.type, "ARG.ENV")] + \
+                   [ir.Argument(param.type, "ARG.{}".format(index))
+                    for index, param in enumerate(params)]
+            typ  = types.TFunction(OrderedDict([("arg{}".format(index), param.type)
+                                                for index, param in enumerate(params)]),
+                                   OrderedDict(),
+                                   builtins.TNone())
+            func = ir.Function(typ, ".".join(self.name + [name]), args, loc=loc)
+            func.is_internal = True
+            func.is_cold = True
+            self.functions.append(func)
+            old_func, self.current_function = self.current_function, func
+
+            entry = self.add_block("entry")
+            old_block, self.current_block = self.current_block, entry
+
+            old_final_branch, self.final_branch = self.final_branch, None
+            old_unwind, self.unwind_target = self.unwind_target, None
+            self.raise_exn(exn_gen(*args[1:]), loc=loc)
+        finally:
+            self.current_function = old_func
+            self.current_block = old_block
+            self.final_branch = old_final_branch
+            self.unwind_target = old_unwind
+
+        # cond:    bool Value, condition
+        # exn_gen: lambda()->exn Value, exception if condition not true
+        cond_block = self.current_block
+
+        self.current_block = body_block = self.add_block("check.body")
+        closure = self.append(ir.Closure(func, ir.Constant(None, ir.TEnvironment("check", {}))))
+        if self.unwind_target is None:
+            insn = self.append(ir.Call(closure, params, {}))
+        else:
+            after_invoke = self.add_block("check.invoke")
+            insn = self.append(ir.Invoke(closure, params, {}, after_invoke, self.unwind_target))
+            self.current_block = after_invoke
+        insn.is_cold = True
+        self.append(ir.Unreachable())
+
+        self.current_block = tail_block = self.add_block("check.tail")
+        cond_block.append(ir.BranchIf(cond, tail_block, body_block))
+
     def _map_index(self, length, index, one_past_the_end=False, loc=None):
         lt_0          = self.append(ir.Compare(ast.Lt(loc=None),
                                                index, ir.Constant(0, index.type)))
@@ -940,27 +988,15 @@ class ARTIQIRGenerator(algorithm.Visitor):
                                               ir.Constant(False, builtins.TBool())))
         head = self.current_block
 
-        self.current_block = out_of_bounds_block = self.add_block("index.outofbounds")
-        exn = self.alloc_exn(builtins.TException("IndexError"),
-            ir.Constant("index {0} out of bounds 0:{1}", builtins.TStr()),
-            index, length)
-        self.raise_exn(exn, loc=loc)
-
-        self.current_block = in_bounds_block = self.add_block("index.inbounds")
-        head.append(ir.BranchIf(in_bounds, in_bounds_block, out_of_bounds_block))
+        self._make_check(
+            in_bounds,
+            lambda index, length: self.alloc_exn(builtins.TException("IndexError"),
+                ir.Constant("index {0} out of bounds 0:{1}", builtins.TStr()),
+                index, length),
+            params=[index, length],
+            loc=loc)
 
         return mapped_index
-
-    def _make_check(self, cond, exn_gen, loc=None, name="check"):
-        # cond:    bool Value, condition
-        # exn_gen: lambda()->exn Value, exception if condition not true
-        cond_block = self.current_block
-
-        self.current_block = body_block = self.add_block("{}.body".format(name))
-        self.raise_exn(exn_gen(), loc=loc)
-
-        self.current_block = tail_block = self.add_block("{}.tail".format(name))
-        cond_block.append(ir.BranchIf(cond, tail_block, body_block))
 
     def _make_loop(self, init, cond_gen, body_gen, name="loop"):
         # init:     'iter Value, initial loop variable value
@@ -1064,10 +1100,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
                                                name="slice.size"))
             self._make_check(
                 self.append(ir.Compare(ast.LtE(loc=None), slice_size, length)),
-                lambda: self.alloc_exn(builtins.TException("ValueError"),
+                lambda slice_size, length: self.alloc_exn(builtins.TException("ValueError"),
                     ir.Constant("slice size {0} is larger than iterable length {1}",
                                 builtins.TStr()),
                     slice_size, length),
+                params=[slice_size, length],
                 loc=node.slice.loc)
 
             if self.current_assign is None:
@@ -1147,9 +1184,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self._make_check(
                 self.append(ir.Compare(ast.Eq(loc=None), length,
                                        ir.Constant(len(node.elts), self._size_type))),
-                lambda: self.alloc_exn(builtins.TException("ValueError"),
+                lambda length: self.alloc_exn(builtins.TException("ValueError"),
                     ir.Constant("list must be {0} elements long to decompose", builtins.TStr()),
-                    length))
+                    length),
+                params=[length])
 
             for index, elt_node in enumerate(node.elts):
                 elt = self.append(ir.GetElem(self.current_assign,

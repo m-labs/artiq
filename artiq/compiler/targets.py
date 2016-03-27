@@ -101,8 +101,9 @@ class Target:
 
         # Now, actually optimize the code.
         llpassmgr.add_function_inlining_pass(70)
-        llpassmgr.add_cfg_simplification_pass()
         llpassmgr.add_instruction_combining_pass()
+        llpassmgr.add_cfg_simplification_pass()
+        llpassmgr.add_dead_arg_elimination_pass()
         llpassmgr.add_gvn_pass()
         llpassmgr.add_global_dce_pass()
 

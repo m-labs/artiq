@@ -423,6 +423,8 @@ class Function:
     :ivar is_internal:
         (bool) if True, the function should not be accessible from outside
         the module it is contained in
+    :ivar is_cold:
+        (bool) if True, the function should be considered rarely called
     """
 
     def __init__(self, typ, name, arguments, loc=None):
@@ -431,6 +433,7 @@ class Function:
         self.next_name = 1
         self.set_arguments(arguments)
         self.is_internal = False
+        self.is_cold = False
 
     def _remove_name(self, name):
         self.names.remove(name)
@@ -922,6 +925,8 @@ class Call(Instruction):
         iodelay expressions for values of arguments
     :ivar static_target_function: (:class:`Function` or None)
         statically resolved callee
+    :ivar is_cold: (bool)
+        the callee function is cold
     """
 
     """
@@ -938,6 +943,7 @@ class Call(Instruction):
         super().__init__([func] + args, func.type.ret, name)
         self.arg_exprs = arg_exprs
         self.static_target_function = None
+        self.is_cold = False
 
     def copy(self, mapper):
         self_copy = super().copy(mapper)
@@ -1186,6 +1192,8 @@ class Invoke(Terminator):
         iodelay expressions for values of arguments
     :ivar static_target_function: (:class:`Function` or None)
         statically resolved callee
+    :ivar is_cold: (bool)
+        the callee function is cold
     """
 
     """
@@ -1206,6 +1214,7 @@ class Invoke(Terminator):
         super().__init__([func] + args + [normal, exn], func.type.ret, name)
         self.arg_exprs = arg_exprs
         self.static_target_function = None
+        self.is_cold = False
 
     def copy(self, mapper):
         self_copy = super().copy(mapper)

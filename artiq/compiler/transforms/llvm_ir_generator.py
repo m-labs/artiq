@@ -313,7 +313,10 @@ class LLVMIRGenerator:
     def llconst_of_const(self, const):
         llty = self.llty_of_type(const.type)
         if const.value is None:
-            return ll.Constant(llty, [])
+            if isinstance(llty, ll.PointerType):
+                return ll.Constant(llty, None)
+            else:
+                return ll.Constant(llty, [])
         elif const.value is True:
             return ll.Constant(llty, True)
         elif const.value is False:
@@ -539,6 +542,10 @@ class LLVMIRGenerator:
 
             if func.is_internal:
                 self.llfunction.linkage = 'private'
+            if func.is_cold:
+                self.llfunction.calling_convention = 'coldcc'
+                self.llfunction.attributes.add('cold')
+                self.llfunction.attributes.add('noinline')
 
             self.llfunction.attributes.add('uwtable')
 
@@ -1039,7 +1046,7 @@ class LLVMIRGenerator:
 
     def process_Closure(self, insn):
         llenv = self.map(insn.environment())
-        llenv = self.llbuilder.bitcast(llenv, llptr, name="ptr.{}".format(llenv.name))
+        llenv = self.llbuilder.bitcast(llenv, llptr)
         llfun = self.map(insn.target_function)
         llvalue = ll.Constant(self.llty_of_type(insn.target_function.type), ll.Undefined)
         llvalue = self.llbuilder.insert_value(llvalue, llenv, 0)
@@ -1244,15 +1251,17 @@ class LLVMIRGenerator:
             llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [])
 
             llresultslot = self.llbuilder.alloca(llfun.type.pointee.args[0].pointee)
-            self.llbuilder.call(llfun, [llresultslot] + llargs)
+            llcall = self.llbuilder.call(llfun, [llresultslot] + llargs)
             llresult = self.llbuilder.load(llresultslot)
 
             self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
-
-            return llresult
         else:
-            return self.llbuilder.call(llfun, llargs,
-                                       name=insn.name)
+            llcall = llresult = self.llbuilder.call(llfun, llargs, name=insn.name)
+
+        if insn.is_cold:
+            llcall.cconv = 'coldcc'
+
+        return llresult
 
     def process_Invoke(self, insn):
         llnormalblock = self.map(insn.normal_target())
@@ -1264,12 +1273,26 @@ class LLVMIRGenerator:
                                    llnormalblock, llunwindblock)
         elif types.is_c_function(insn.target_function().type):
             llfun, llargs = self._prepare_ffi_call(insn)
-            return self.llbuilder.invoke(llfun, llargs, llnormalblock, llunwindblock,
-                                         name=insn.name)
         else:
             llfun, llargs = self._prepare_closure_call(insn)
-            return self.llbuilder.invoke(llfun, llargs, llnormalblock, llunwindblock,
-                                         name=insn.name)
+
+        if self.has_sret(insn.target_function().type):
+            llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [])
+
+            llresultslot = self.llbuilder.alloca(llfun.type.pointee.args[0].pointee)
+            llcall = self.llbuilder.invoke(llfun, llargs, llnormalblock, llunwindblock,
+                                           name=insn.name)
+            llresult = self.llbuilder.load(llresultslot)
+
+            self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
+        else:
+            llcall = self.llbuilder.invoke(llfun, llargs, llnormalblock, llunwindblock,
+                                           name=insn.name)
+
+        if insn.is_cold:
+            llcall.cconv = 'coldcc'
+
+        return llcall
 
     def _quote(self, value, typ, path):
         value_id = id(value)
