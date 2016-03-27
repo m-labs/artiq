@@ -137,6 +137,9 @@ class ASTSynthesizer:
                     instance_type = types.TInstance("{}.{}".format(typ.__module__, typ.__qualname__),
                                                     OrderedDict())
                     instance_type.attributes['__objectid__'] = builtins.TInt32()
+                    if hasattr(typ, 'kernel_constant_attributes'):
+                        assert isinstance(typ.kernel_constant_attributes, set)
+                        instance_type.constant_attributes = typ.kernel_constant_attributes
 
                     constructor_type = types.TConstructor(instance_type)
                 constructor_type.attributes['__objectid__'] = builtins.TInt32()
