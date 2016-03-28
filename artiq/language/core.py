@@ -165,7 +165,7 @@ def round(value, width=32):
 _ARTIQEmbeddedInfo = namedtuple("_ARTIQEmbeddedInfo",
                                 "core_name function syscall forbidden flags")
 
-def kernel(arg):
+def kernel(arg=None, flags={}):
     """
     This decorator marks an object's method for execution on the core
     device.
@@ -192,13 +192,17 @@ def kernel(arg):
                 return getattr(self, arg).run(run_on_core, ((self,) + k_args), k_kwargs)
             run_on_core.artiq_embedded = _ARTIQEmbeddedInfo(
                 core_name=arg, function=function, syscall=None,
-                forbidden=False, flags={})
+                forbidden=False, flags=set(flags))
             return run_on_core
         return inner_decorator
+    elif arg is None:
+        def inner_decorator(function):
+            return kernel(function, flags)
+        return inner_decorator
     else:
-        return kernel("core")(arg)
+        return kernel("core", flags)(arg)
 
-def portable(function):
+def portable(arg=None, flags={}):
     """
     This decorator marks a function for execution on the same device as its
     caller.
@@ -208,12 +212,17 @@ def portable(function):
     core device). A decorated function called from a kernel will be executed
     on the core device (no RPC).
     """
-    function.artiq_embedded = \
-        _ARTIQEmbeddedInfo(core_name=None, function=function, syscall=None,
-                           forbidden=False, flags={})
-    return function
+    if arg is None:
+        def inner_decorator(function):
+            return portable(function, flags)
+        return inner_decorator
+    else:
+        arg.artiq_embedded = \
+            _ARTIQEmbeddedInfo(core_name=None, function=arg, syscall=None,
+                               forbidden=False, flags=set(flags))
+        return arg
 
-def syscall(arg, flags={}):
+def syscall(arg=None, flags={}):
     """
     This decorator marks a function as a system call. When executed on a core
     device, a C function with the provided name (or the same name as
@@ -229,8 +238,12 @@ def syscall(arg, flags={}):
             function.artiq_embedded = \
                 _ARTIQEmbeddedInfo(core_name=None, function=None,
                                    syscall=function.__name__, forbidden=False,
-                                   flags=flags)
+                                   flags=set(flags))
             return function
+        return inner_decorator
+    elif arg is None:
+        def inner_decorator(function):
+            return syscall(function.__name__, flags)(function)
         return inner_decorator
     else:
         return syscall(arg.__name__)(arg)

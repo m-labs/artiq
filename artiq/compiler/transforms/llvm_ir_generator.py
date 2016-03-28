@@ -175,6 +175,7 @@ class LLVMIRGenerator:
         self.llmodule = ll.Module(context=self.llcontext, name=module_name)
         self.llmodule.triple = target.triple
         self.llmodule.data_layout = target.data_layout
+        self.function_flags = None
         self.llfunction = None
         self.llmap = {}
         self.llobject_map = {}
@@ -562,6 +563,7 @@ class LLVMIRGenerator:
 
     def process_function(self, func):
         try:
+            self.function_flags = func.flags
             self.llfunction = self.map(func)
 
             if func.is_internal:
@@ -617,6 +619,7 @@ class LLVMIRGenerator:
                 for value, block in phi.incoming():
                     llphi.add_incoming(self.map(value), llblock_map[block])
         finally:
+            self.function_flags = None
             self.llfunction = None
             self.llmap = {}
             self.phis = []
@@ -863,40 +866,55 @@ class LLVMIRGenerator:
         else:
             assert False
 
+    def add_fast_math_flags(self, llvalue):
+        if 'fast-math' in self.function_flags:
+            llvalue.opname = llvalue.opname + ' fast'
+
     def process_Arith(self, insn):
         if isinstance(insn.op, ast.Add):
             if builtins.is_float(insn.type):
-                return self.llbuilder.fadd(self.map(insn.lhs()), self.map(insn.rhs()),
-                                           name=insn.name)
+                llvalue = self.llbuilder.fadd(self.map(insn.lhs()), self.map(insn.rhs()),
+                                              name=insn.name)
+                self.add_fast_math_flags(llvalue)
+                return llvalue
             else:
                 return self.llbuilder.add(self.map(insn.lhs()), self.map(insn.rhs()),
                                           name=insn.name)
         elif isinstance(insn.op, ast.Sub):
             if builtins.is_float(insn.type):
-                return self.llbuilder.fsub(self.map(insn.lhs()), self.map(insn.rhs()),
-                                           name=insn.name)
+                llvalue = self.llbuilder.fsub(self.map(insn.lhs()), self.map(insn.rhs()),
+                                              name=insn.name)
+                self.add_fast_math_flags(llvalue)
+                return llvalue
             else:
                 return self.llbuilder.sub(self.map(insn.lhs()), self.map(insn.rhs()),
                                           name=insn.name)
         elif isinstance(insn.op, ast.Mult):
             if builtins.is_float(insn.type):
-                return self.llbuilder.fmul(self.map(insn.lhs()), self.map(insn.rhs()),
-                                           name=insn.name)
+                llvalue = self.llbuilder.fmul(self.map(insn.lhs()), self.map(insn.rhs()),
+                                              name=insn.name)
+                self.add_fast_math_flags(llvalue)
+                return llvalue
             else:
                 return self.llbuilder.mul(self.map(insn.lhs()), self.map(insn.rhs()),
                                           name=insn.name)
         elif isinstance(insn.op, ast.Div):
             if builtins.is_float(insn.lhs().type):
-                return self.llbuilder.fdiv(self.map(insn.lhs()), self.map(insn.rhs()),
-                                           name=insn.name)
+                llvalue = self.llbuilder.fdiv(self.map(insn.lhs()), self.map(insn.rhs()),
+                                              name=insn.name)
+                self.add_fast_math_flags(llvalue)
+                return llvalue
             else:
                 lllhs = self.llbuilder.sitofp(self.map(insn.lhs()), self.llty_of_type(insn.type))
                 llrhs = self.llbuilder.sitofp(self.map(insn.rhs()), self.llty_of_type(insn.type))
-                return self.llbuilder.fdiv(lllhs, llrhs,
-                                           name=insn.name)
+                llvalue = self.llbuilder.fdiv(lllhs, llrhs,
+                                              name=insn.name)
+                self.add_fast_math_flags(llvalue)
+                return llvalue
         elif isinstance(insn.op, ast.FloorDiv):
             if builtins.is_float(insn.type):
                 llvalue = self.llbuilder.fdiv(self.map(insn.lhs()), self.map(insn.rhs()))
+                self.add_fast_math_flags(llvalue)
                 return self.llbuilder.call(self.llbuiltin("llvm.floor.f64"), [llvalue],
                                            name=insn.name)
             else:
@@ -906,6 +924,7 @@ class LLVMIRGenerator:
             # Python only has the modulo operator, LLVM only has the remainder
             if builtins.is_float(insn.type):
                 llvalue = self.llbuilder.frem(self.map(insn.lhs()), self.map(insn.rhs()))
+                self.add_fast_math_flags(llvalue)
                 return self.llbuilder.call(self.llbuiltin("llvm.copysign.f64"),
                                            [llvalue, self.map(insn.rhs())],
                                            name=insn.name)

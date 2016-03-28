@@ -9,7 +9,7 @@ from artiq.language.types import *
 # CHECK-L: ; Function Attrs: nounwind
 # CHECK-NEXT-L: declare void @foo()
 
-@syscall("foo", flags={"nounwind", "nowrite"})
+@syscall(flags={"nounwind", "nowrite"})
 def foo() -> TNone:
     pass
 

@@ -425,6 +425,8 @@ class Function:
         the module it is contained in
     :ivar is_cold:
         (bool) if True, the function should be considered rarely called
+    :ivar flags: (set of str) Code generation flags.
+        Flag ``fast-math`` is the equivalent of gcc's ``-ffast-math``.
     """
 
     def __init__(self, typ, name, arguments, loc=None):
@@ -434,6 +436,7 @@ class Function:
         self.set_arguments(arguments)
         self.is_internal = False
         self.is_cold = False
+        self.flags = {}
 
     def _remove_name(self, name):
         self.names.remove(name)

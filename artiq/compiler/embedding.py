@@ -546,7 +546,7 @@ class Stitcher:
                               value_map=self.value_map,
                               quote_function=self._quote_function)
 
-    def _quote_embedded_function(self, function):
+    def _quote_embedded_function(self, function, flags):
         if not hasattr(function, "artiq_embedded"):
             raise ValueError("{} is not an embedded function".format(repr(function)))
 
@@ -596,6 +596,7 @@ class Stitcher:
             globals=self.globals, host_environment=host_environment,
             quote=self._quote)
         function_node = asttyped_rewriter.visit_quoted_function(function_node, embedded_function)
+        function_node.flags = flags
 
         # Add it into our typedtree so that it gets inferenced and codegen'd.
         self._inject(function_node)
@@ -774,7 +775,8 @@ class Stitcher:
                             notes=[note])
                         self.engine.process(diag)
 
-                    self._quote_embedded_function(function)
+                    self._quote_embedded_function(function,
+                                                  flags=function.artiq_embedded.flags)
                 elif function.artiq_embedded.syscall is not None:
                     # Insert a storage-less global whose type instructs the compiler
                     # to perform a system call instead of a regular call.
