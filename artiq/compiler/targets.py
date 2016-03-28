@@ -89,6 +89,10 @@ class Target:
         llpassmgr = llvm.create_module_pass_manager()
         self.target_machine().target_data.add_pass(llpassmgr)
 
+        # Register our alias analysis passes.
+        llpassmgr.add_basic_alias_analysis_pass()
+        llpassmgr.add_type_based_alias_analysis_pass()
+
         # Start by cleaning up after our codegen and exposing as much
         # information to LLVM as possible.
         llpassmgr.add_constant_merge_pass()
