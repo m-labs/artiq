@@ -1317,19 +1317,20 @@ class LLVMIRGenerator:
         return llresult
 
     def process_Invoke(self, insn):
+        functiontyp = insn.target_function().type
         llnormalblock = self.map(insn.normal_target())
         llunwindblock = self.map(insn.exception_target())
-        if types.is_rpc_function(insn.target_function().type):
+        if types.is_rpc_function(functiontyp):
             return self._build_rpc(insn.target_function().loc,
-                                   insn.target_function().type,
+                                   functiontyp,
                                    insn.arguments(),
                                    llnormalblock, llunwindblock)
-        elif types.is_c_function(insn.target_function().type):
+        elif types.is_c_function(functiontyp):
             llfun, llargs = self._prepare_ffi_call(insn)
         else:
             llfun, llargs = self._prepare_closure_call(insn)
 
-        if self.has_sret(insn.target_function().type):
+        if self.has_sret(functiontyp):
             llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [])
 
             llresultslot = self.llbuilder.alloca(llfun.type.pointee.args[0].pointee)
@@ -1341,6 +1342,10 @@ class LLVMIRGenerator:
         else:
             llcall = self.llbuilder.invoke(llfun, llargs, llnormalblock, llunwindblock,
                                            name=insn.name)
+
+            # See the comment in process_Call.
+            if types.is_c_function(functiontyp) and 'nowrite' in functiontyp.flags:
+                llcall.metadata['tbaa'] = self.tbaa_nowrite_call
 
         if insn.is_cold:
             llcall.cconv = 'coldcc'
