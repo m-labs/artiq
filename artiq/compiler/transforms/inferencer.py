@@ -846,6 +846,10 @@ class Inferencer(algorithm.Visitor):
             # An user-defined class.
             self._unify(node.type, typ.find().instance,
                         node.loc, None)
+        elif types.is_builtin(typ, "kernel"):
+            # Ignored.
+            self._unify(node.type, builtins.TNone(),
+                        node.loc, None)
         else:
             assert False
 
@@ -1188,7 +1192,9 @@ class Inferencer(algorithm.Visitor):
 
     def visit_FunctionDefT(self, node):
         for index, decorator in enumerate(node.decorator_list):
-            if types.is_builtin(decorator.type, "kernel"):
+            if types.is_builtin(decorator.type, "kernel") or \
+                    isinstance(decorator, asttyped.CallT) and \
+                    types.is_builtin(decorator.func.type, "kernel"):
                 continue
 
             diag = diagnostic.Diagnostic("error",

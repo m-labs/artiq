@@ -10,20 +10,20 @@ PHASE_MODE_ABSOLUTE = 1
 PHASE_MODE_TRACKING = 2
 
 
-@syscall("dds_init", flags={"nowrite"})
+@syscall(flags={"nowrite"})
 def dds_init(time_mu: TInt64, bus_channel: TInt32, channel: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
-@syscall("dds_set", flags={"nowrite"})
+@syscall(flags={"nowrite"})
 def dds_set(time_mu: TInt64, bus_channel: TInt32, channel: TInt32, ftw: TInt32,
             pow: TInt32, phase_mode: TInt32, amplitude: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
-@syscall("dds_batch_enter", flags={"nowrite"})
+@syscall(flags={"nowrite"})
 def dds_batch_enter(time_mu: TInt64) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
-@syscall("dds_batch_exit", flags={"nowrite"})
+@syscall(flags={"nowrite"})
 def dds_batch_exit() -> TNone:
     raise NotImplementedError("syscall not simulated")
 
@@ -99,27 +99,27 @@ class _DDSGeneric:
         self.channel = channel
         self.phase_mode = PHASE_MODE_CONTINUOUS
 
-    @portable
+    @portable(flags=["fast-math"])
     def frequency_to_ftw(self, frequency):
         """Returns the frequency tuning word corresponding to the given
         frequency.
         """
         return round(int(2, width=64)**32*frequency/self.core_dds.sysclk)
 
-    @portable
+    @portable(flags=["fast-math"])
     def ftw_to_frequency(self, ftw):
         """Returns the frequency corresponding to the given frequency tuning
         word.
         """
         return ftw*self.core_dds.sysclk/int(2, width=64)**32
 
-    @portable
+    @portable(flags=["fast-math"])
     def turns_to_pow(self, turns):
         """Returns the phase offset word corresponding to the given phase
         in turns."""
         return round(turns*2**self.pow_width)
 
-    @portable
+    @portable(flags=["fast-math"])
     def pow_to_turns(self, pow):
         """Returns the phase in turns corresponding to the given phase offset
         word."""

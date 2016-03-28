@@ -30,7 +30,9 @@ class ClassDefT(ast.ClassDef):
 class FunctionDefT(ast.FunctionDef, scoped):
     _types = ("signature_type",)
 class QuotedFunctionDefT(FunctionDefT):
-    pass
+    """
+    :ivar flags: (set of str) Code generation flags (see :class:`ir.Function`).
+    """
 class ModuleT(ast.Module, scoped):
     pass
 

@@ -224,7 +224,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
         finally:
             self.current_class = old_class
 
-    def visit_function(self, node, is_lambda=False, is_internal=False, is_quoted=False):
+    def visit_function(self, node, is_lambda=False, is_internal=False, is_quoted=False,
+                       flags={}):
         if is_lambda:
             name = "lambda@{}:{}".format(node.loc.line(), node.loc.column())
             typ = node.type.find()
@@ -270,6 +271,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             func = ir.Function(typ, ".".join(self.name), [env_arg] + args + optargs,
                                loc=node.lambda_loc if is_lambda else node.keyword_loc)
             func.is_internal = is_internal
+            func.flags = flags
             self.functions.append(func)
             old_func, self.current_function = self.current_function, func
 
@@ -336,7 +338,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.append(ir.SetAttr(self.current_class, node.name, func))
 
     def visit_QuotedFunctionDefT(self, node):
-        self.visit_function(node, is_internal=True, is_quoted=True)
+        self.visit_function(node, is_internal=True, is_quoted=True, flags=node.flags)
 
     def visit_Return(self, node):
         if node.value is None:
