@@ -181,6 +181,14 @@ class LLVMIRGenerator:
         self.phis = []
         self.debug_info_emitter = DebugInfoEmitter(self.llmodule)
         self.empty_metadata = self.llmodule.add_metadata([])
+        self.tbaa_tree = self.llmodule.add_metadata([
+            ll.MetaDataString(self.llmodule, "ARTIQ TBAA")
+        ])
+        self.tbaa_noalias_call = self.llmodule.add_metadata([
+            ll.MetaDataString(self.llmodule, "non-aliasing function call"),
+            self.tbaa_tree,
+            ll.Constant(lli64, 1)
+        ])
 
     def needs_sret(self, lltyp, may_be_large=True):
         if isinstance(lltyp, ll.VoidType):
@@ -1252,17 +1260,18 @@ class LLVMIRGenerator:
         return llret
 
     def process_Call(self, insn):
-        if types.is_rpc_function(insn.target_function().type):
+        functiontyp = insn.target_function().type
+        if types.is_rpc_function(functiontyp):
             return self._build_rpc(insn.target_function().loc,
-                                   insn.target_function().type,
+                                   functiontyp,
                                    insn.arguments(),
                                    llnormalblock=None, llunwindblock=None)
-        elif types.is_c_function(insn.target_function().type):
+        elif types.is_c_function(functiontyp):
             llfun, llargs = self._prepare_ffi_call(insn)
         else:
             llfun, llargs = self._prepare_closure_call(insn)
 
-        if self.has_sret(insn.target_function().type):
+        if self.has_sret(functiontyp):
             llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [])
 
             llresultslot = self.llbuilder.alloca(llfun.type.pointee.args[0].pointee)
@@ -1275,6 +1284,11 @@ class LLVMIRGenerator:
 
         if insn.is_cold:
             llcall.cconv = 'coldcc'
+
+        if types.is_c_function(functiontyp):
+            # All our global state is confined to our compilation unit,
+            # so by definition no FFI call can mutate it.
+            llcall.metadata['tbaa'] = self.tbaa_noalias_call
 
         return llresult
 
