@@ -796,7 +796,9 @@ class LLVMIRGenerator:
             else:
                 llptr = self.llbuilder.gep(obj, [self.llindex(0), self.llindex(index)],
                                            inbounds=True, name="ptr.{}".format(insn.name))
-                return self.llbuilder.load(llptr, name="val.{}".format(insn.name))
+                llval = self.llbuilder.load(llptr, name="val.{}".format(insn.name))
+                llval.metadata['invariant.load'] = self.empty_metadata
+                return llval
 
     def process_SetAttr(self, insn):
         typ, attr = insn.object().type, insn.attr
