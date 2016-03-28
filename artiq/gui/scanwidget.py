@@ -14,11 +14,12 @@ class ScanWidget(QtWidgets.QWidget):
     stopChanged = QtCore.pyqtSignal(float)
     numChanged = QtCore.pyqtSignal(int)
 
-    def __init__(self, zoomFactor=1.05, zoomMargin=.1, dynamicRange=1e9):
+    def __init__(self):
         QtWidgets.QWidget.__init__(self)
-        self.zoomMargin = zoomMargin
-        self.dynamicRange = dynamicRange
-        self.zoomFactor = zoomFactor
+        self.zoomMargin = .1
+        self.zoomFactor = 1.05
+        self.dynamicRange = 1e9
+        self.suffix = ""
 
         self.ticker = Ticker()
 
@@ -40,6 +41,7 @@ class ScanWidget(QtWidgets.QWidget):
             qfm.lineSpacing())
 
         self._start, self._stop, self._num = None, None, None
+        self._min, self._max = None, None
         self._axisView = None
         self._offset, self._drag, self._rubber = None, None, None
 
@@ -68,7 +70,15 @@ class ScanWidget(QtWidgets.QWidget):
         left = self.width()/2 - center*scale
         self._setView(left, scale)
 
+    def _clamp(self, v):
+        if self._min is not None:
+            v = max(self._min, v)
+        if self._max is not None:
+            v = min(self._max, v)
+        return v
+
     def setStart(self, val):
+        val = self._clamp(val)
         if self._start == val:
             return
         self._start = val
@@ -76,6 +86,7 @@ class ScanWidget(QtWidgets.QWidget):
         self.startChanged.emit(val)
 
     def setStop(self, val):
+        val = self._clamp(val)
         if self._stop == val:
             return
         self._stop = val
@@ -88,6 +99,31 @@ class ScanWidget(QtWidgets.QWidget):
         self._num = val
         self.update()
         self.numChanged.emit(val)
+
+    def setMinimum(self, v):
+        self._min = v
+        self.setStart(self._start)
+        self.setStop(self._stop)
+
+    def setMaximum(self, v):
+        self._max = v
+        self.setStart(self._start)
+        self.setStop(self._stop)
+
+    def setDecimals(self, n):
+        # TODO
+        # the axis should always use compressed notation is useful
+        # do not:
+        # self.ticker.precision = n
+        pass
+
+    def setSingleStep(self, v):
+        # TODO
+        # use this (and maybe decimals) to snap to "nice" values when dragging
+        pass
+
+    def setSuffix(self, v):
+        self.suffix = v
 
     def viewRange(self):
         center = (self._stop + self._start)/2
@@ -207,8 +243,11 @@ class ScanWidget(QtWidgets.QWidget):
 
         ticks, prefix, labels = self.ticker(self._pixelToAxis(0),
                                             self._pixelToAxis(self.width()))
-        painter.drawText(0, 0, prefix)
-        painter.translate(0, lineSpacing)
+        rect = QtCore.QRect(0, 0, self.width(), lineSpacing)
+        painter.drawText(rect, QtCore.Qt.AlignLeft, prefix)
+        painter.drawText(rect, QtCore.Qt.AlignRight, self.suffix)
+
+        painter.translate(0, lineSpacing + ascent)
 
         for t, l in zip(ticks, labels):
             t = self._axisToPixel(t)
