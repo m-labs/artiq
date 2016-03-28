@@ -139,20 +139,20 @@ class _RangeScan(LayoutWidget):
 
         scale = procdesc["scale"]
 
-        def apply_properties(spinbox):
-            spinbox.setDecimals(procdesc["ndecimals"])
+        def apply_properties(widget):
+            widget.setDecimals(procdesc["ndecimals"])
             if procdesc["global_min"] is not None:
-                spinbox.setMinimum(procdesc["global_min"]/scale)
+                widget.setMinimum(procdesc["global_min"]/scale)
             else:
-                spinbox.setMinimum(float("-inf"))
+                widget.setMinimum(float("-inf"))
             if procdesc["global_max"] is not None:
-                spinbox.setMaximum(procdesc["global_max"]/scale)
+                widget.setMaximum(procdesc["global_max"]/scale)
             else:
-                spinbox.setMaximum(float("inf"))
+                widget.setMaximum(float("inf"))
             if procdesc["global_step"] is not None:
-                spinbox.setSingleStep(procdesc["global_step"]/scale)
+                widget.setSingleStep(procdesc["global_step"]/scale)
             if procdesc["unit"]:
-                spinbox.setSuffix(" " + procdesc["unit"])
+                widget.setSuffix(" " + procdesc["unit"])
 
         scanner = ScanWidget()
         disable_scroll_wheel(scanner)
@@ -200,6 +200,7 @@ class _RangeScan(LayoutWidget):
         scanner.setStop(state["stop"]/scale)
         apply_properties(start)
         apply_properties(stop)
+        apply_properties(scanner)
 
 
 class _ExplicitScan(LayoutWidget):
