@@ -163,7 +163,7 @@ def round(value, width=32):
 
 
 _ARTIQEmbeddedInfo = namedtuple("_ARTIQEmbeddedInfo",
-                                "core_name function syscall forbidden")
+                                "core_name function syscall forbidden flags")
 
 def kernel(arg):
     """
@@ -192,7 +192,7 @@ def kernel(arg):
                 return getattr(self, arg).run(run_on_core, ((self,) + k_args), k_kwargs)
             run_on_core.artiq_embedded = _ARTIQEmbeddedInfo(
                 core_name=arg, function=function, syscall=None,
-                forbidden=False)
+                forbidden=False, flags={})
             return run_on_core
         return inner_decorator
     else:
@@ -210,10 +210,10 @@ def portable(function):
     """
     function.artiq_embedded = \
         _ARTIQEmbeddedInfo(core_name=None, function=function, syscall=None,
-                           forbidden=False)
+                           forbidden=False, flags={})
     return function
 
-def syscall(arg):
+def syscall(arg, flags={}):
     """
     This decorator marks a function as a system call. When executed on a core
     device, a C function with the provided name (or the same name as
@@ -228,7 +228,8 @@ def syscall(arg):
         def inner_decorator(function):
             function.artiq_embedded = \
                 _ARTIQEmbeddedInfo(core_name=None, function=None,
-                                   syscall=function.__name__, forbidden=False)
+                                   syscall=function.__name__, forbidden=False,
+                                   flags=flags)
             return function
         return inner_decorator
     else:
@@ -241,7 +242,7 @@ def host_only(function):
     """
     function.artiq_embedded = \
         _ARTIQEmbeddedInfo(core_name=None, function=None, syscall=None,
-                           forbidden=True)
+                           forbidden=True, flags={})
     return function
 
 

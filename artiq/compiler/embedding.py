@@ -693,7 +693,7 @@ class Stitcher:
             # Let the rest of the program decide.
             return types.TVar()
 
-    def _quote_foreign_function(self, function, loc, syscall):
+    def _quote_foreign_function(self, function, loc, syscall, flags):
         signature = inspect.signature(function)
 
         arg_types = OrderedDict()
@@ -742,7 +742,7 @@ class Stitcher:
                                                service=self.object_map.store(function))
         else:
             function_type = types.TCFunction(arg_types, ret_type,
-                                             name=syscall)
+                                             name=syscall, flags=flags)
 
         self.functions[function] = function_type
 
@@ -779,7 +779,8 @@ class Stitcher:
                     # Insert a storage-less global whose type instructs the compiler
                     # to perform a system call instead of a regular call.
                     self._quote_foreign_function(function, loc,
-                                                 syscall=function.artiq_embedded.syscall)
+                                                 syscall=function.artiq_embedded.syscall,
+                                                 flags=function.artiq_embedded.flags)
                 elif function.artiq_embedded.forbidden is not None:
                     diag = diagnostic.Diagnostic("fatal",
                         "this function cannot be called as an RPC", {},
@@ -791,7 +792,7 @@ class Stitcher:
             else:
                 # Insert a storage-less global whose type instructs the compiler
                 # to perform an RPC instead of a regular call.
-                self._quote_foreign_function(function, loc, syscall=None)
+                self._quote_foreign_function(function, loc, syscall=None, flags=None)
 
         function_type = self.functions[function]
         if types.is_rpc_function(function_type):

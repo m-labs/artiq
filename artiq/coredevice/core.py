@@ -37,7 +37,7 @@ class CompileError(Exception):
         return "\n" + _render_diagnostic(self.diagnostic, colored=colors_supported)
 
 
-@syscall
+@syscall("rtio_get_counter", flags={"nounwind", "nowrite"})
 def rtio_get_counter() -> TInt64:
     raise NotImplementedError("syscall not simulated")
 

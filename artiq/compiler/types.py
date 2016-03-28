@@ -342,14 +342,21 @@ class TCFunction(TFunction):
     A function type of a runtime-provided C function.
 
     :ivar name: (str) C function name
+    :ivar flags: (set of str) C function flags.
+        Flag ``nounwind`` means the function never raises an exception.
+        Flag ``nowrite`` means the function never writes any memory
+        that the ARTIQ Python code can observe.
     """
 
     attributes = OrderedDict()
 
-    def __init__(self, args, ret, name):
+    def __init__(self, args, ret, name, flags={}):
+        for flag in flags:
+            assert flag in {'nounwind', 'nowrite'}
         super().__init__(args, OrderedDict(), ret)
         self.name  = name
         self.delay = TFixedDelay(iodelay.Const(0))
+        self.flags = flags
 
     def unify(self, other):
         if isinstance(other, TCFunction) and \
