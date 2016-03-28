@@ -3,27 +3,27 @@ from artiq.language.types import TBool, TInt32, TNone
 from artiq.coredevice.exceptions import I2CError
 
 
-@syscall
+@syscall("i2c_init", flags={"nowrite"})
 def i2c_init(busno: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall
+@syscall("i2c_start", flags={"nounwind", "nowrite"})
 def i2c_start(busno: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall
+@syscall("i2c_stop", flags={"nounwind", "nowrite"})
 def i2c_stop(busno: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall
+@syscall("i2c_write", flags={"nounwind", "nowrite"})
 def i2c_write(busno: TInt32, b: TInt32) -> TBool:
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall
+@syscall("i2c_read", flags={"nounwind", "nowrite"})
 def i2c_read(busno: TInt32, ack: TBool) -> TInt32:
     raise NotImplementedError("syscall not simulated")
 

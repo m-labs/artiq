@@ -10,20 +10,20 @@ PHASE_MODE_ABSOLUTE = 1
 PHASE_MODE_TRACKING = 2
 
 
-@syscall
+@syscall("dds_init", flags={"nowrite"})
 def dds_init(time_mu: TInt64, bus_channel: TInt32, channel: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
-@syscall
+@syscall("dds_set", flags={"nowrite"})
 def dds_set(time_mu: TInt64, bus_channel: TInt32, channel: TInt32, ftw: TInt32,
             pow: TInt32, phase_mode: TInt32, amplitude: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
-@syscall
+@syscall("dds_batch_enter", flags={"nowrite"})
 def dds_batch_enter(time_mu: TInt64) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
-@syscall
+@syscall("dds_batch_exit", flags={"nowrite"})
 def dds_batch_exit() -> TNone:
     raise NotImplementedError("syscall not simulated")
 

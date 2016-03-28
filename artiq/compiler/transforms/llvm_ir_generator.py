@@ -184,8 +184,8 @@ class LLVMIRGenerator:
         self.tbaa_tree = self.llmodule.add_metadata([
             ll.MetaDataString(self.llmodule, "ARTIQ TBAA")
         ])
-        self.tbaa_noalias_call = self.llmodule.add_metadata([
-            ll.MetaDataString(self.llmodule, "non-aliasing function call"),
+        self.tbaa_nowrite_call = self.llmodule.add_metadata([
+            ll.MetaDataString(self.llmodule, "ref-only function call"),
             self.tbaa_tree,
             ll.Constant(lli64, 1)
         ])
@@ -401,6 +401,9 @@ class LLVMIRGenerator:
             llglobal = ll.Function(self.llmodule, llty, name)
             if name in ("__artiq_raise", "__artiq_reraise", "llvm.trap"):
                 llglobal.attributes.add("noreturn")
+            if name in ("rtio_log", "send_rpc", "watchdog_set", "watchdog_clear",
+                        self.target.print_function):
+                llglobal.attributes.add("nounwind")
         else:
             llglobal = ll.GlobalVariable(self.llmodule, llty, name)
 
@@ -1117,6 +1120,8 @@ class LLVMIRGenerator:
                 byvals = [i + 1 for i in byvals]
             for i in byvals:
                 llfun.args[i].add_attribute('byval')
+            if 'nounwind' in insn.target_function().type.flags:
+                llfun.attributes.add('nounwind')
 
         return llfun, list(llargs)
 
@@ -1282,13 +1287,13 @@ class LLVMIRGenerator:
         else:
             llcall = llresult = self.llbuilder.call(llfun, llargs, name=insn.name)
 
+            # Never add TBAA nowrite metadata to a functon with sret!
+            # This leads to miscompilations.
+            if types.is_c_function(functiontyp) and 'nowrite' in functiontyp.flags:
+                llcall.metadata['tbaa'] = self.tbaa_nowrite_call
+
         if insn.is_cold:
             llcall.cconv = 'coldcc'
-
-        if types.is_c_function(functiontyp):
-            # All our global state is confined to our compilation unit,
-            # so by definition no FFI call can mutate it.
-            llcall.metadata['tbaa'] = self.tbaa_noalias_call
 
         return llresult
 
