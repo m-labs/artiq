@@ -105,6 +105,7 @@ class Target:
         llpassmgr.add_instruction_combining_pass()
         llpassmgr.add_gvn_pass()
         llpassmgr.add_cfg_simplification_pass()
+        llpassmgr.add_licm_pass()
 
         # Clean up after optimizing.
         llpassmgr.add_dead_arg_elimination_pass()
