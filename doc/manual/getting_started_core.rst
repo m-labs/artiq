@@ -43,8 +43,8 @@ A method or function running on the core device (which we call a "kernel") may c
 
 Modify the code as follows: ::
 
-    def input_led_state():
-        return int(input("Enter desired LED state: "))
+    def input_led_state() -> TBool:
+        return bool(input("Enter desired LED state: "))
 
     class LED(EnvExperiment):
         def build(self):
@@ -69,6 +69,8 @@ You can then turn the LED off and on by entering 0 or 1 at the prompt that appea
     Enter desired LED state: 0
 
 What happens is the ARTIQ compiler notices that the ``input_led_state`` function does not have a ``@kernel`` decorator and thus must be executed on the host. When the core device calls it, it sends a request to the host to execute it. The host displays the prompt, collects user input, and sends the result back to the core device, which sets the LED state accordingly.
+
+RPC functions must always return a value of the same type. When they return a non-``None`` value, the compiler should be informed in advance of the type of the value, which is what the ``-> TBool`` annotation is for.
 
 The ``break_realtime`` call is necessary to waive the real-time requirements of the LED state change (as the ``input_led_state`` function can take an arbitrarily long time). This will become clearer later as we explain timing control.
 
