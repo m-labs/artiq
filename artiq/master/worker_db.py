@@ -228,20 +228,26 @@ class DatasetManager:
     def set(self, key, value, broadcast=False, persist=False, save=True):
         if persist:
             broadcast = True
-        r = None
         if broadcast:
-            self.broadcast[key] = (persist, value)
-            r = self.broadcast[key][1]
+            self.broadcast[key] = persist, value
         if save:
             self.local[key] = value
-        return r
+
+    def mutate(self, key, index, value):
+        target = None
+        if key in self.local:
+            target = self.local[key]
+        if key in self.broadcast.read:
+            target = self.broadcast[key][1]
+        if target is None:
+            raise KeyError("Cannot mutate non-existing dataset")
+        target[index] = value
 
     def get(self, key):
-        try:
+        if key in self.local:
             return self.local[key]
-        except KeyError:
-            pass
-        return self.ddb.get(key)
+        else:
+            return self.ddb.get(key)
 
     def write_hdf5(self, f):
         result_dict_to_hdf5(f, self.local)

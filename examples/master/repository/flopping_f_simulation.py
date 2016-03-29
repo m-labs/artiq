@@ -38,19 +38,19 @@ class FloppingF(EnvExperiment):
 
     def run(self):
         l = len(self.frequency_scan)
-        frequency = self.set_dataset("flopping_f_frequency",
-                                     np.full(l, np.nan),
-                                     broadcast=True, save=False)
-        brightness = self.set_dataset("flopping_f_brightness",
-                                      np.full(l, np.nan),
-                                     broadcast=True)
+        self.set_dataset("flopping_f_frequency",
+                         np.full(l, np.nan),
+                         broadcast=True, save=False)
+        self.set_dataset("flopping_f_brightness",
+                         np.full(l, np.nan),
+                         broadcast=True)
         self.set_dataset("flopping_f_fit", np.full(l, np.nan),
                          broadcast=True, save=False)
 
         for i, f in enumerate(self.frequency_scan):
             m_brightness = model(f, self.F0) + self.noise_amplitude*random.random()
-            frequency[i] = f
-            brightness[i] = m_brightness
+            self.mutate_dataset("flopping_f_frequency", i, f)
+            self.mutate_dataset("flopping_f_brightness", i, m_brightness)
             time.sleep(0.1)
         self.scheduler.submit(self.scheduler.pipeline_name, self.scheduler.expid,
                               self.scheduler.priority, time.time() + 20, False)

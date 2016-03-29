@@ -221,13 +221,11 @@ class HasEnvironment:
                     broadcast=False, persist=False, save=True):
         """Sets the contents and handling modes of a dataset.
 
-        If the dataset is broadcasted, it must be PYON-serializable.
-        If the dataset is saved, it must be a scalar (``bool``, ``int``,
-        ``float`` or NumPy scalar) or a NumPy array.
+        Datasets must be scalars (``bool``, ``int``, ``float`` or NumPy scalar)
+        or NumPy arrays.
 
         :param broadcast: the data is sent in real-time to the master, which
-            dispatches it. Returns a Notifier that can be used to mutate the
-            dataset.
+            dispatches it.
         :param persist: the master should store the data on-disk. Implies
             broadcast.
         :param save: the data is saved into the local storage of the current
@@ -238,7 +236,19 @@ class HasEnvironment:
             return
         if self.__dataset_mgr is None:
             raise ValueError("Dataset manager not present")
-        return self.__dataset_mgr.set(key, value, broadcast, persist, save)
+        self.__dataset_mgr.set(key, value, broadcast, persist, save)
+
+    def mutate_dataset(self, key, index, value):
+        """Mutate an existing dataset at the given index (e.g. set a value at
+        a given position in a NumPy array)
+
+        If the dataset was created in broadcast mode, the modification is
+        immediately transmitted."""
+        if self.__parent is not None:
+            self.__parent.mutate_dataset(key, index, value)
+        if self.__dataset_mgr is None:
+            raise ValueError("Dataset manager not present")
+        self.__dataset_mgr.mutate(key, index, value)
 
     def get_dataset(self, key, default=NoDefault):
         """Returns the contents of a dataset.
