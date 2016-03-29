@@ -74,5 +74,10 @@ class StateManager(TaskObject):
             while True:
                 await asyncio.sleep(self.autosave_period)
                 self.save()
+        except asyncio.CancelledError:
+            pass
+        except:
+            logger.error("Uncaught exception attempting to save state",
+                         exc_info=True)
         finally:
             self.save()
