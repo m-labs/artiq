@@ -135,7 +135,7 @@ class _DDSGeneric:
 
         This function cannot be used in a batch; the correct way of
         initializing multiple DDS channels is to call this function
-        sequentially with a delay between the calls. 500us provides a good
+        sequentially with a delay between the calls. 2ms provides a good
         timing margin."""
         dds_init(now_mu(), self.bus_channel, self.channel)
 
