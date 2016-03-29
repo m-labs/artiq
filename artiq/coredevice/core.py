@@ -60,8 +60,8 @@ class Core:
     """
 
     kernel_constant_attributes = {
-        'core', 'ref_period', 'coarse_ref_period', 'ref_multiplier',
-        'external_clock',
+        "core", "ref_period", "coarse_ref_period", "ref_multiplier",
+        "external_clock",
     }
 
     def __init__(self, dmgr, ref_period, external_clock=False,
