@@ -89,7 +89,10 @@ class _AppletDock(QDockWidgetCloseDetect):
     def __init__(self, datasets_sub, uid, name, command):
         QDockWidgetCloseDetect.__init__(self, "Applet: " + name)
         self.setObjectName("applet" + str(uid))
-        self.setMinimumSize(QtCore.QSize(100, 100))
+
+        qfm = QtGui.QFontMetrics(self.font())
+        self.setMinimumSize(20*qfm.averageCharWidth(), 5*qfm.lineSpacing())
+        self.resize(40*qfm.averageCharWidth(), 10*qfm.lineSpacing())
 
         self.datasets_sub = datasets_sub
         self.applet_name = name
