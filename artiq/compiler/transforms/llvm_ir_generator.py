@@ -685,13 +685,17 @@ class LLVMIRGenerator:
                                        inbounds=True)
             llouterenv = self.llbuilder.load(llptr)
             llouterenv.metadata['invariant.load'] = self.empty_metadata
+            llouterenv.metadata['nonnull'] = self.empty_metadata
             return self.llptr_to_var(llouterenv, env_ty.params["$outer"], var_name)
 
     def process_GetLocal(self, insn):
         env = insn.environment()
         llptr = self.llptr_to_var(self.map(env), env.type, insn.var_name)
         llptr.name = "ptr.{}.{}".format(env.name, insn.var_name)
-        return self.llbuilder.load(llptr, name="val.{}.{}".format(env.name, insn.var_name))
+        llvalue = self.llbuilder.load(llptr, name="val.{}.{}".format(env.name, insn.var_name))
+        if isinstance(llvalue.type, ll.PointerType):
+            llvalue.metadata['nonnull'] = self.empty_metadata
+        return llvalue
 
     def process_SetLocal(self, insn):
         env = insn.environment()
@@ -810,10 +814,12 @@ class LLVMIRGenerator:
             else:
                 llptr = self.llbuilder.gep(obj, [self.llindex(0), self.llindex(index)],
                                            inbounds=True, name="ptr.{}".format(insn.name))
-                llval = self.llbuilder.load(llptr, name="val.{}".format(insn.name))
-                if types.is_instance(typ) and attr not in typ.constant_attributes:
-                    llval.metadata['invariant.load'] = self.empty_metadata
-                return llval
+                llvalue = self.llbuilder.load(llptr, name="val.{}".format(insn.name))
+                if types.is_instance(typ) and attr in typ.constant_attributes:
+                    llvalue.metadata['invariant.load'] = self.empty_metadata
+                if isinstance(llvalue.type, ll.PointerType):
+                    llvalue.metadata['nonnull'] = self.empty_metadata
+                return llvalue
 
     def process_SetAttr(self, insn):
         typ, attr = insn.object().type, insn.attr
@@ -841,7 +847,10 @@ class LLVMIRGenerator:
         llelts = self.llbuilder.extract_value(self.map(insn.list()), 1)
         llelt = self.llbuilder.gep(llelts, [self.map(insn.index())],
                                    inbounds=True)
-        return self.llbuilder.load(llelt)
+        llvalue = self.llbuilder.load(llelt)
+        if isinstance(llvalue.type, ll.PointerType):
+            llvalue.metadata['nonnull'] = self.empty_metadata
+        return llvalue
 
     def process_SetElem(self, insn):
         llelts = self.llbuilder.extract_value(self.map(insn.list()), 1)
@@ -1052,6 +1061,7 @@ class LLVMIRGenerator:
                                                inbounds=True)
                     llouterenv = self.llbuilder.load(llptr)
                     llouterenv.metadata['invariant.load'] = self.empty_metadata
+                    llouterenv.metadata['nonnull'] = self.empty_metadata
                     return self.llptr_to_var(llouterenv, env_ty.params["$outer"], var_name)
                 else:
                     return llenv
