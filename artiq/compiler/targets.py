@@ -46,12 +46,14 @@ class RunTool:
 def _dump(target, kind, suffix, content):
     if target is not None:
         print("====== {} DUMP ======".format(kind.upper()), file=sys.stderr)
-        content_bytes = bytes(content(), 'utf-8')
+        content_value = content()
+        if isinstance(content_value, str):
+            content_value = bytes(content_value, 'utf-8')
         if target == "":
             file = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
         else:
             file = open(target + suffix, "wb")
-        file.write(content_bytes)
+        file.write(content_value)
         file.close()
         print("{} dumped as {}".format(kind, file.name), file=sys.stderr)
 
