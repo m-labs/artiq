@@ -569,7 +569,6 @@ class LLVMIRGenerator:
             if func.is_internal:
                 self.llfunction.linkage = 'private'
             if func.is_cold:
-                self.llfunction.calling_convention = 'coldcc'
                 self.llfunction.attributes.add('cold')
                 self.llfunction.attributes.add('noinline')
 
@@ -1322,9 +1321,6 @@ class LLVMIRGenerator:
             if types.is_c_function(functiontyp) and 'nowrite' in functiontyp.flags:
                 llcall.metadata['tbaa'] = self.tbaa_nowrite_call
 
-        if insn.is_cold:
-            llcall.cconv = 'coldcc'
-
         return llresult
 
     def process_Invoke(self, insn):
@@ -1357,9 +1353,6 @@ class LLVMIRGenerator:
             # See the comment in process_Call.
             if types.is_c_function(functiontyp) and 'nowrite' in functiontyp.flags:
                 llcall.metadata['tbaa'] = self.tbaa_nowrite_call
-
-        if insn.is_cold:
-            llcall.cconv = 'coldcc'
 
         return llcall
 
