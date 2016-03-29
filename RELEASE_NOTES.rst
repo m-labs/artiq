@@ -9,6 +9,8 @@ unreleased
 * The CPU speed in the pipistrello gateware has been reduced from 83 1/3 MHz to
   75 MHz. This will reduce the achievable sustained pulse rate and latency
   accordingly. ISE was intermittently failing to meet timing (#341).
+* set_dataset in broadcast mode no longer returns a Notifier. Mutating datasets
+  should be done with mutate_dataset instead (#345).
 
 
 1.0rc1
