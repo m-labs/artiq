@@ -193,12 +193,12 @@ class _Tcube:
         await self.port.write(message.pack())
 
     async def recv(self):
-        header = await self.port.read(6)
+        header = await self.port.read_exactly(6)
         logger.debug("received header: %s", header)
         data = b""
         if header[4] & 0x80:
             (length, ) = st.unpack("<H", header[2:4])
-            data = await self.port.read(length)
+            data = await self.port.read_exactly(length)
         r = Message.unpack(header + data)
         logger.debug("receiving: %s", r)
         return r
