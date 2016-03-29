@@ -4,7 +4,7 @@
 from artiq.language.core import *
 from artiq.language.types import *
 
-# CHECK: call void @foo\(\), !dbg !\d+, !tbaa !\d+
+# CHECK: call void @foo\(\)(, !dbg !\d+)?, !tbaa !\d+
 
 # CHECK-L: ; Function Attrs: nounwind
 # CHECK-NEXT-L: declare void @foo()
