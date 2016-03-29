@@ -130,7 +130,13 @@ class _DDSGeneric:
     def init(self):
         """Resets and initializes the DDS channel.
 
-        The runtime does this for all channels upon core device startup."""
+        This needs to be done for each DDS channel before it can be used, and
+        it is recommended to use the startup kernel for this.
+
+        This function cannot be used in a batch; the correct way of
+        initializing multiple DDS channels is to call this function
+        sequentially with a delay between the calls. 500us provides a good
+        timing margin."""
         dds_init(now_mu(), self.bus_channel, self.channel)
 
     @kernel
