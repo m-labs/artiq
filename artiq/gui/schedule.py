@@ -83,6 +83,10 @@ class ScheduleDock(QtWidgets.QDockWidget):
         delete_action.setShortcut("SHIFT+DELETE")
         delete_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         self.table.addAction(delete_action)
+        terminate_pipeline = QtWidgets.QAction(
+            "Gracefully terminate all in pipeline", self.table)
+        terminate_pipeline.triggered.connect(self.terminate_pipeline_clicked)
+        self.table.addAction(terminate_pipeline)
 
         self.table_model = Model(dict())
         schedule_sub.add_setmodel_callback(self.set_model)
@@ -119,6 +123,32 @@ class ScheduleDock(QtWidgets.QDockWidget):
                 msg = "Deleted RID {}".format(rid)
             self.status_bar.showMessage(msg)
             asyncio.ensure_future(self.delete(rid, graceful))
+
+    async def request_term_multiple(self, rids):
+        for rid in rids:
+            try:
+                await self.schedule_ctl.request_termination(rid)
+            except:
+                # May happen if the experiment has terminated by itself
+                # while we were terminating others.
+                logger.debug("failed to request termination of RID %d",
+                             rid, exc_info=True)
+
+    def terminate_pipeline_clicked(self):
+        idx = self.table.selectedIndexes()
+        if idx:
+            row = idx[0].row()
+            selected_rid = self.table_model.row_to_key[row]
+            pipeline = self.table_model.backing_store[selected_rid]["pipeline"]
+            self.status_bar.showMessage("Requesting termination of all "
+                "experiments in pipeline '{}'".format(pipeline))
+
+            rids = set()
+            for rid, info in self.table_model.backing_store.items():
+                if info["pipeline"] == pipeline:
+                    rids.add(rid)
+            asyncio.ensure_future(self.request_term_multiple(rids))
+
 
     def save_state(self):
         return bytes(self.table.horizontalHeader().saveState())
