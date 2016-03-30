@@ -167,7 +167,6 @@ class _AppletDock(QDockWidgetCloseDetect):
         self.starting_stopping = False
 
         if delete_self:
-            self.setParent(None)
             self.deleteLater()
 
     async def restart(self):
