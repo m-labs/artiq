@@ -3,6 +3,20 @@
 Release notes
 =============
 
+unreleased [2.x]
+----------------
+
+* The format of the influxdb pattern file is simplified. The procedure to
+  edit patterns is also changed to modifying the pattern file and calling:
+  ``artiq_rpctool.py ::1 3248 call scan_patterns`` (or restarting the bridge)
+  The patterns can be converted to the new format using this code snippet::
+
+    from artiq.protocols import pyon
+    patterns = pyon.load_file("influxdb_patterns.pyon")
+    for p in patterns:
+        print(p)
+
+
 unreleased
 ----------
 
