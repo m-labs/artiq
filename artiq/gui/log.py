@@ -356,7 +356,6 @@ class LogDockManager:
 
     def on_dock_closed(self, name):
         dock = self.docks[name]
-        dock.setParent(None)
         dock.deleteLater()
         del self.docks[name]
         self.update_closable()
