@@ -17,8 +17,8 @@ unreleased [2.x]
         print(p)
 
 
-unreleased
-----------
+1.0rc2
+------
 
 * The CPU speed in the pipistrello gateware has been reduced from 83 1/3 MHz to
   75 MHz. This will reduce the achievable sustained pulse rate and latency
