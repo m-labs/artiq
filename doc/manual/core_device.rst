@@ -113,6 +113,8 @@ There are no SPI channels.
 
 The QC2 hardware has two DDS buses, on channels TODO for LPC and TODO for HPC.
 
+For the safe operation of the DDS buses, the FMC voltage of the KC705 should be changed to 3.3V. Plug the TI USB PMBus adapter to the PMBus connector in the corner of the KC705 and use the Fusion Digital Power Designer software (requires Windows). Write to chip number U55 (address 52), channel 4, which is VADJ, to make it 3.3V instead of 2.5V.
+
 Pipistrello
 -----------
 
