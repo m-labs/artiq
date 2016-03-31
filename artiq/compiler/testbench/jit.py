@@ -28,7 +28,7 @@ def main():
 
     llmachine = llvm.Target.from_triple(target.triple).create_target_machine()
     lljit = llvm.create_mcjit_compiler(llparsedmod, llmachine)
-    llmain = lljit.get_pointer_to_global(llparsedmod.get_function(llmod.name + ".__modinit__"))
+    llmain = lljit.get_function_address(llmod.name + ".__modinit__")
     ctypes.CFUNCTYPE(None)(llmain)()
 
 if __name__ == "__main__":
