@@ -572,7 +572,7 @@ static void help(void)
     puts("ddsr <a>        - read DDS register");
     puts("ddsfud          - pulse FUD");
     puts("ddsftw <n> <d>  - write FTW");
-    puts("ddstest <n> <c> - perform test sequence on DDS");
+    puts("ddstest <c> <n> - perform test sequence on DDS");
     puts("leds <n>        - set LEDs");
 #if (defined CSR_SPIFLASH_BASE && defined CONFIG_SPIFLASH_PAGE_SIZE)
     puts("fserase         - erase flash storage");
