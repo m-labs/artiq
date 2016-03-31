@@ -88,6 +88,12 @@ the existing environments using::
 
     $ conda env list
 
+.. note::
+    The ``qt5`` package requires (on Linux only) libraries not packaged in the ``m-labs`` conda channels.
+    Those need to be installed through the Linux distribution's mechanism.
+    If ``artiq_gui`` does not start because ``it could not find or load the Qt platform plugin "xcb"``, install the various ``libxcb-*`` packages through your distribution's mechanism.
+    The names of the libraries missing can be obtained from the output of a command like ``ldd [path-to-conda-installation]/envs/artiq-[date]/lib/qt5/plugins/platform/libqxcb.so``.
+
 Preparing the core device FPGA board
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
