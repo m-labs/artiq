@@ -175,6 +175,7 @@ class LLVMIRGenerator:
         self.llmodule = ll.Module(context=self.llcontext, name=module_name)
         self.llmodule.triple = target.triple
         self.llmodule.data_layout = target.data_layout
+        self.lldatalayout = llvm.create_target_data(self.llmodule.data_layout)
         self.function_flags = None
         self.llfunction = None
         self.llmap = {}
@@ -459,8 +460,6 @@ class LLVMIRGenerator:
             if llobject is not None:
                 llobjects[typ].append(llobject.bitcast(llptr))
 
-        lldatalayout = llvm.create_target_data(self.llmodule.data_layout)
-
         llrpcattrty = self.llcontext.get_identified_type("A")
         llrpcattrty.elements = [lli32, llptr, llptr]
 
@@ -512,9 +511,9 @@ class LLVMIRGenerator:
             for attr in typ.attributes:
                 attrtyp   = typ.attributes[attr]
                 size      = self.llty_of_type(attrtyp). \
-                    get_abi_size(lldatalayout, context=self.llcontext)
+                    get_abi_size(self.lldatalayout, context=self.llcontext)
                 alignment = self.llty_of_type(attrtyp). \
-                    get_abi_alignment(lldatalayout, context=self.llcontext)
+                    get_abi_alignment(self.lldatalayout, context=self.llcontext)
 
                 if offset % alignment != 0:
                     offset += alignment - (offset % alignment)
@@ -688,13 +687,19 @@ class LLVMIRGenerator:
             llouterenv.metadata['nonnull'] = self.empty_metadata
             return self.llptr_to_var(llouterenv, env_ty.params["$outer"], var_name)
 
+    def mark_dereferenceable(self, load):
+        assert isinstance(load, ll.LoadInstr) and isinstance(load.type, ll.PointerType)
+        pointee_size = load.type.pointee.get_abi_size(self.lldatalayout, context=self.llcontext)
+        metadata = self.llmodule.add_metadata([ll.Constant(lli64, pointee_size)])
+        load.metadata['dereferenceable'] = metadata
+
     def process_GetLocal(self, insn):
         env = insn.environment()
         llptr = self.llptr_to_var(self.map(env), env.type, insn.var_name)
         llptr.name = "ptr.{}.{}".format(env.name, insn.var_name)
         llvalue = self.llbuilder.load(llptr, name="val.{}.{}".format(env.name, insn.var_name))
         if isinstance(llvalue.type, ll.PointerType):
-            llvalue.metadata['nonnull'] = self.empty_metadata
+            self.mark_dereferenceable(llvalue)
         return llvalue
 
     def process_SetLocal(self, insn):
@@ -818,7 +823,7 @@ class LLVMIRGenerator:
                 if types.is_instance(typ) and attr in typ.constant_attributes:
                     llvalue.metadata['invariant.load'] = self.empty_metadata
                 if isinstance(llvalue.type, ll.PointerType):
-                    llvalue.metadata['nonnull'] = self.empty_metadata
+                    self.mark_dereferenceable(llvalue)
                 return llvalue
 
     def process_SetAttr(self, insn):
@@ -849,7 +854,7 @@ class LLVMIRGenerator:
                                    inbounds=True)
         llvalue = self.llbuilder.load(llelt)
         if isinstance(llvalue.type, ll.PointerType):
-            llvalue.metadata['nonnull'] = self.empty_metadata
+            self.mark_dereferenceable(llvalue)
         return llvalue
 
     def process_SetElem(self, insn):

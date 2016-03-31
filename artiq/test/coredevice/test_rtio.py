@@ -105,6 +105,8 @@ class PulseRate(EnvExperiment):
 
 
 class PulseRateDDS(EnvExperiment):
+    kernel_constant_attributes = {"core", "core_dds", "dds0", "dds1"}
+
     def build(self):
         self.setattr_device("core")
         self.setattr_device("core_dds")
@@ -113,7 +115,7 @@ class PulseRateDDS(EnvExperiment):
 
     @kernel
     def run(self):
-        dt = seconds_to_mu(150*us)
+        dt = seconds_to_mu(50*us)
         while True:
             delay(10*ms)
             for i in range(1250):
@@ -262,7 +264,7 @@ class CoredeviceTest(ExperimentCase):
         rate = self.dataset_mgr.get("pulse_rate")
         print(rate)
         self.assertGreater(rate, 100*us)
-        self.assertLess(rate, 400*us)
+        self.assertLess(rate, 150*us)
 
     def test_loopback_count(self):
         npulses = 2
