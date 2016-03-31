@@ -116,7 +116,7 @@ class PulseRateDDS(EnvExperiment):
         dt = seconds_to_mu(150*us)
         while True:
             delay(10*ms)
-            for i in range(100):
+            for i in range(1250):
                 try:
                     with self.core_dds.batch:
                         self.dds0.set(100*MHz)
