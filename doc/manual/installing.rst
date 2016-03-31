@@ -45,10 +45,10 @@ Installing the ARTIQ packages
 
 For this, you need to add our Anaconda repository to your conda configuration::
 
-    $ conda config --add channels http://conda.anaconda.org/m-labs/channel/main
+    $ conda config --add channels http://conda.anaconda.org/m-labs/label/main
 
 .. note::
-    To use the development versions of ARTIQ, also add the ``dev`` channel (http://conda.anaconda.org/m-labs/channel/dev).
+    To use the development versions of ARTIQ, also add the ``dev`` label (http://conda.anaconda.org/m-labs/label/dev).
     Development versions contain more features, but are not as well-tested and are more likely to contain bugs or inconsistencies.
 
 Then you can install the ARTIQ package, it will pull all the necessary dependencies.
@@ -89,7 +89,7 @@ the existing environments using::
     $ conda env list
 
 .. note::
-    The ``qt5`` package requires (on Linux only) libraries not packaged in the ``m-labs`` conda channels.
+    The ``qt5`` package requires (on Linux only) libraries not packaged under the ``m-labs`` conda labels.
     Those need to be installed through the Linux distribution's mechanism.
     If ``artiq_gui`` does not start because ``it could not find or load the Qt platform plugin "xcb"``, install the various ``libxcb-*`` packages through your distribution's mechanism.
     The names of the libraries missing can be obtained from the output of a command like ``ldd [path-to-conda-installation]/envs/artiq-[date]/lib/qt5/plugins/platform/libqxcb.so``.
