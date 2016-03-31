@@ -37,8 +37,7 @@ requirements:
     - binutils-or1k-linux
   run:
     - python >=3.5.1
-    - llvm-or1k 3.5.*
-    - llvmlite-artiq
+    - llvmlite-artiq 0.5.1=17
     - scipy
     - numpy
     - prettytable
