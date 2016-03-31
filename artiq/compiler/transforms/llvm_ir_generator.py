@@ -573,6 +573,7 @@ class LLVMIRGenerator:
                 self.llfunction.attributes.add('noinline')
 
             self.llfunction.attributes.add('uwtable')
+            self.llfunction.attributes.personality = self.llbuiltin("__artiq_personality")
 
             self.llbuilder = ll.IRBuilder()
             llblock_map = {}
@@ -1498,9 +1499,7 @@ class LLVMIRGenerator:
     def process_LandingPad(self, insn):
         # Layout on return from landing pad: {%_Unwind_Exception*, %Exception*}
         lllandingpadty = ll.LiteralStructType([llptr, llptr])
-        lllandingpad = self.llbuilder.landingpad(lllandingpadty,
-                                                 self.llbuiltin("__artiq_personality"),
-                                                 cleanup=True)
+        lllandingpad = self.llbuilder.landingpad(lllandingpadty, cleanup=True)
         llrawexn = self.llbuilder.extract_value(lllandingpad, 1)
         llexn = self.llbuilder.bitcast(llrawexn, self.llty_of_type(insn.type))
         llexnnameptr = self.llbuilder.gep(llexn, [self.llindex(0), self.llindex(0)],
