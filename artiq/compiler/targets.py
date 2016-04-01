@@ -88,8 +88,10 @@ class Target:
                         reloc="pic", codemodel="default")
 
     def optimize(self, llmodule):
+        llmachine = self.target_machine()
         llpassmgr = llvm.create_module_pass_manager()
-        self.target_machine().target_data.add_pass(llpassmgr)
+        llmachine.target_data.add_pass(llpassmgr)
+        llmachine.add_analysis_passes(llpassmgr)
 
         # Register our alias analysis passes.
         llpassmgr.add_basic_alias_analysis_pass()
