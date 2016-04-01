@@ -83,9 +83,11 @@ class Target:
 
     def target_machine(self):
         lltarget = llvm.Target.from_triple(self.triple)
-        return lltarget.create_target_machine(
+        llmachine = lltarget.create_target_machine(
                         features=",".join(["+{}".format(f) for f in self.features]),
                         reloc="pic", codemodel="default")
+        llmachine.set_verbose(True)
+        return llmachine
 
     def optimize(self, llmodule):
         llmachine = self.target_machine()
