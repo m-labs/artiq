@@ -1,7 +1,8 @@
+"""Image processing with SciPy example"""
+
 import numpy as np
 from scipy.optimize import least_squares
 from scipy import constants
-# from numba import jit
 
 
 class Fit:
@@ -81,7 +82,6 @@ class Fit2DGaussParabola(Fit):
         # TODO: this is usually smarter, based on self.data and self.meta
         return [1000, 100, 100, 2000, 4, 4, 2000, 20, 20]
 
-    # @jit
     def model(self, param):
         p = self.variables_dict(param)
         x, y = self.xy
