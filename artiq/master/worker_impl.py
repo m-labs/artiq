@@ -124,14 +124,6 @@ class ExamineDeviceMgr:
         return None
 
 
-class DummyDatasetMgr:
-    def set(key, value, broadcast=False, persist=False, save=True):
-        return None
-
-    def get(key):
-        pass
-
-
 def examine(device_mgr, dataset_mgr, file):
     module = file_import(file)
     for class_name, exp_class in module.__dict__.items():
@@ -244,7 +236,7 @@ def main():
                     f.close()
                 put_object({"action": "completed"})
             elif action == "examine":
-                examine(ExamineDeviceMgr, DummyDatasetMgr, obj["file"])
+                examine(ExamineDeviceMgr, ParentDatasetDB, obj["file"])
                 put_object({"action": "completed"})
             elif action == "terminate":
                 break
