@@ -544,8 +544,9 @@ class LLVMIRGenerator:
             self.llbuilder = ll.IRBuilder()
             llblock_map = {}
 
-            disubprogram = self.debug_info_emitter.emit_subprogram(func, self.llfunction)
-            self.llfunction.set_metadata('dbg', disubprogram)
+            if not func.is_generated:
+                lldisubprogram = self.debug_info_emitter.emit_subprogram(func, self.llfunction)
+                self.llfunction.set_metadata('dbg', lldisubprogram)
 
             # First, map arguments.
             if self.has_sret(func.type):
@@ -566,9 +567,9 @@ class LLVMIRGenerator:
             for block in func.basic_blocks:
                 self.llbuilder.position_at_end(self.llmap[block])
                 for insn in block.instructions:
-                    if insn.loc is not None:
+                    if insn.loc is not None and not func.is_generated:
                         self.llbuilder.debug_metadata = \
-                            self.debug_info_emitter.emit_loc(insn.loc, disubprogram)
+                            self.debug_info_emitter.emit_loc(insn.loc, lldisubprogram)
 
                     llinsn = getattr(self, "process_" + type(insn).__name__)(insn)
                     assert llinsn is not None

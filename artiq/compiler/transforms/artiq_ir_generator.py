@@ -944,6 +944,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             func = ir.Function(typ, ".".join(self.name + [name]), args, loc=loc)
             func.is_internal = True
             func.is_cold = True
+            func.is_generated = True
             self.functions.append(func)
             old_func, self.current_function = self.current_function, func
 
