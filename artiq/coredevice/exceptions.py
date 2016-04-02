@@ -38,7 +38,7 @@ class CoreException:
             elif address == last_address:
                 formatted_address = " (inlined)"
             else:
-                formatted_address = " (RA=0x{:x})".format(address)
+                formatted_address = " (RA=+0x{:x})".format(address)
             last_address = address
 
             filename = filename.replace(artiq_dir, "<artiq>")
