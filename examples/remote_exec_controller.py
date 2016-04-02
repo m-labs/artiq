@@ -7,7 +7,7 @@ from artiq.protocols.remote_exec import simple_rexec_server_loop
 
 
 @jit(nopython=True)
-def compute_picture(r, img_h, img_w,
+def compute_picture(r, img_w, img_h,
                     gaussian_w, gaussian_h,
                     gaussian_cx, gaussian_cy,
                     noise_level):
@@ -43,7 +43,7 @@ class CameraSimulation:
 
     def get_picture(self):
         r = np.empty((self.img_w, self.img_h))
-        compute_picture(r, self.img_h, self.img_w,
+        compute_picture(r, self.img_w, self.img_h,
             self.gaussian_w, self.gaussian_h,
             self.gaussian_cx, self.gaussian_cy,
             self.noise_level)
