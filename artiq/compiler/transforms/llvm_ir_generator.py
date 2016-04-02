@@ -154,6 +154,10 @@ class LLVMIRGenerator:
             self.tbaa_tree,
             ll.Constant(lli64, 1)
         ])
+        self.tbaa_now = self.llmodule.add_metadata([
+            ll.MetaDataString(self.llmodule, "timeline position"),
+            self.tbaa_tree
+        ])
 
     def needs_sret(self, lltyp, may_be_large=True):
         if isinstance(lltyp, ll.VoidType):
@@ -1050,7 +1054,9 @@ class LLVMIRGenerator:
             # This is an identity cast at LLVM IR level.
             return self.map(insn.operands[0])
         elif insn.op == "now_mu":
-            return self.llbuilder.load(self.llbuiltin("now"), name=insn.name)
+            llnow = self.llbuilder.load(self.llbuiltin("now"), name=insn.name)
+            llnow.set_metadata("tbaa", self.tbaa_now)
+            return llnow
         elif insn.op == "at_mu":
             time, = insn.operands
             return self.llbuilder.store(self.map(time), self.llbuiltin("now"))
@@ -1058,8 +1064,11 @@ class LLVMIRGenerator:
             interval, = insn.operands
             llnowptr = self.llbuiltin("now")
             llnow = self.llbuilder.load(llnowptr, name="now.old")
+            llnow.set_metadata("tbaa", self.tbaa_now)
             lladjusted = self.llbuilder.add(llnow, self.map(interval), name="now.new")
-            return self.llbuilder.store(lladjusted, llnowptr)
+            llnowstore = self.llbuilder.store(lladjusted, llnowptr)
+            llnowstore.set_metadata("tbaa", self.tbaa_now)
+            return llnowstore
         elif insn.op == "watchdog_set":
             interval, = insn.operands
             return self.llbuilder.call(self.llbuiltin("watchdog_set"), [self.map(interval)])
