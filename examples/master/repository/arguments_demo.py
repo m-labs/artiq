@@ -37,7 +37,10 @@ class SubComponent2(HasEnvironment):
 
 class ArgumentsDemo(EnvExperiment):
     def build(self):
-        self.setattr_argument("pyon_value", PYONValue(None))
+        # change the "foo" dataset and click the "recompute argument"
+        # buttons.
+        self.setattr_argument("pyon_value",
+            PYONValue(self.get_dataset("foo", default=42)))
         self.setattr_argument("number", NumberValue(42e-6,
                                                     unit="us", scale=1e-6,
                                                     ndecimals=4))
