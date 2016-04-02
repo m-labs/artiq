@@ -42,126 +42,89 @@ def memoize(generator):
 class DebugInfoEmitter:
     def __init__(self, llmodule):
         self.llmodule = llmodule
+        self.llsubprograms = []
         self.cache = {}
-        self.subprograms = []
 
-    def emit(self, operands):
+    def emit_metadata(self, operands):
         def map_operand(operand):
             if operand is None:
                 return ll.Constant(llmetadata, None)
             elif isinstance(operand, str):
                 return ll.MetaDataString(self.llmodule, operand)
-            elif isinstance(operand, bool):
-                return ll.Constant(lli1, operand)
             elif isinstance(operand, int):
                 return ll.Constant(lli32, operand)
             elif isinstance(operand, (list, tuple)):
-                return self.emit(operand)
-            elif isinstance(operand, ll.Value):
-                return operand
+                return self.emit_metadata(operand)
             else:
-                print(operand)
-                assert False
+                assert isinstance(operand, ll.NamedValue)
+                return operand
         return self.llmodule.add_metadata(list(map(map_operand, operands)))
 
-    @memoize
-    def emit_filename(self, source_buffer):
-        source_dir, source_file = os.path.split(source_buffer.name)
-        return self.emit([source_file, source_dir])
-
-    @memoize
-    def emit_compile_unit(self, source_buffer, llsubprograms):
-        return self.emit([
-            DW_TAG_compile_unit,
-            self.emit_filename(source_buffer),    # filename
-            DW_LANG_Python,                       # source language
-            "ARTIQ",                              # producer
-            False,                                # optimized?
-            "",                                   # linker flags
-            0,                                    # runtime version
-            [],                                   # enum types
-            [],                                   # retained types
-            llsubprograms,                        # subprograms
-            [],                                   # global variables
-            [],                                   # imported entities
-            "",                                   # split debug filename
-            2,                                    # kind (full=1, lines only=2)
-        ])
+    def emit_debug_info(self, kind, operands, is_distinct=False):
+        return self.llmodule.add_debug_info(kind, operands, is_distinct)
 
     @memoize
     def emit_file(self, source_buffer):
-        return self.emit([
-            DW_TAG_file_type,
-            self.emit_filename(source_buffer),    # filename
-        ])
+        source_dir, source_file = os.path.split(source_buffer.name)
+        return self.emit_debug_info("DIFile", {
+            "filename":        source_file,
+            "directory":       source_dir,
+        })
+
+    @memoize
+    def emit_compile_unit(self, source_buffer, llsubprograms):
+        return self.emit_debug_info("DICompileUnit", {
+            "language":        ll.DIToken("DW_LANG_C99"),
+            "file":            self.emit_file(source_buffer),
+            "producer":        "ARTIQ",
+            "runtimeVersion":  0,
+            "emissionKind":    2, # full=1, lines only=2
+            "subprograms":     self.emit_metadata(llsubprograms)
+        }, is_distinct=True)
 
     @memoize
     def emit_subroutine_type(self, typ):
-        return self.emit([
-            DW_TAG_subroutine_type,
-            None,                                 # filename
-            None,                                 # context descriptor
-            "",                                   # name
-            0,                                    # line number
-            0,                                    # (i64) size in bits
-            0,                                    # (i64) alignment in bits
-            0,                                    # (i64) offset in bits
-            0,                                    # flags
-            None,                                 # derived from
-            [None],                               # members
-            0,                                    # runtime languages
-            None,                                 # base type with vtable pointer
-            None,                                 # template parameters
-            None                                  # unique identifier
-        ])
+        return self.emit_debug_info("DISubroutineType", {
+            "types":           self.emit_metadata([None])
+        })
 
     @memoize
     def emit_subprogram(self, func, llfunc):
         source_buffer = func.loc.source_buffer
         display_name = "{}{}".format(func.name, types.TypePrinter().name(func.type))
-        subprogram = self.emit([
-            DW_TAG_subprogram,
-            self.emit_filename(source_buffer),    # filename
-            self.emit_file(source_buffer),        # context descriptor
-            func.name,                            # name
-            display_name,                         # display name
-            llfunc.name,                          # linkage name
-            func.loc.line(),                      # line number where defined
-            self.emit_subroutine_type(func.type), # type descriptor
-            func.is_internal,                     # local to compile unit?
-            True,                                 # global is defined in the compile unit?
-            0,                                    # virtuality
-            0,                                    # index into a virtual function
-            None,                                 # base type with vtable pointer
-            0,                                    # flags
-            False,                                # optimized?
-            llfunc,                               # LLVM function
-            None,                                 # template parameters
-            None,                                 # function declaration descriptor
-            [],                                   # function variables
-            func.loc.line(),                      # line number where scope begins
-        ])
-        self.subprograms.append(subprogram)
-        return subprogram
+        llsubprogram = self.emit_debug_info("DISubprogram", {
+            "name":            func.name,
+            "linkageName":     llfunc.name,
+            "type":            self.emit_subroutine_type(func.type),
+            "file":            self.emit_file(source_buffer),
+            "line":            func.loc.line(),
+            "scope":           self.emit_file(source_buffer),
+            "scopeLine":       func.loc.line(),
+            "isLocal":         func.is_internal,
+            "isDefinition":    True,
+            "variables":       self.emit_metadata([])
+        }, is_distinct=True)
+        self.llsubprograms.append(llsubprogram)
+        return llsubprogram
 
     @memoize
-    def emit_loc(self, loc, scope, inlined_scope=None):
-        return self.emit([
-            loc.line(),                           # line
-            loc.column(),                         # column
-            scope,                                # scope
-            inlined_scope,                        # inlined scope
-        ])
+    def emit_loc(self, loc, scope):
+        return self.emit_debug_info("DILocation", {
+            "line":            loc.line(),
+            "column":          loc.column(),
+            "scope":           scope
+        })
 
     def finalize(self, source_buffer):
         llident = self.llmodule.add_named_metadata('llvm.ident')
-        llident.add(self.emit(["ARTIQ"]))
+        llident.add(self.emit_metadata(["ARTIQ"]))
 
         llflags = self.llmodule.add_named_metadata('llvm.module.flags')
-        llflags.add(self.emit([2, "Debug Info Version", 1]))
+        llflags.add(self.emit_metadata([2, "Debug Info Version", 3]))
+        llflags.add(self.emit_metadata([2, "Dwarf Version", 4]))
 
         llcompile_units = self.llmodule.add_named_metadata('llvm.dbg.cu')
-        llcompile_units.add(self.emit_compile_unit(source_buffer, tuple(self.subprograms)))
+        llcompile_units.add(self.emit_compile_unit(source_buffer, tuple(self.llsubprograms)))
 
 
 class LLVMIRGenerator:
@@ -578,6 +541,7 @@ class LLVMIRGenerator:
             llblock_map = {}
 
             disubprogram = self.debug_info_emitter.emit_subprogram(func, self.llfunction)
+            self.llfunction.set_metadata('dbg', disubprogram)
 
             # First, map arguments.
             if self.has_sret(func.type):
@@ -683,15 +647,15 @@ class LLVMIRGenerator:
             llptr = self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(outer_index)],
                                        inbounds=True)
             llouterenv = self.llbuilder.load(llptr)
-            llouterenv.metadata['invariant.load'] = self.empty_metadata
-            llouterenv.metadata['nonnull'] = self.empty_metadata
+            llouterenv.set_metadata('invariant.load', self.empty_metadata)
+            llouterenv.set_metadata('nonnull', self.empty_metadata)
             return self.llptr_to_var(llouterenv, env_ty.params["$outer"], var_name)
 
     def mark_dereferenceable(self, load):
         assert isinstance(load, ll.LoadInstr) and isinstance(load.type, ll.PointerType)
         pointee_size = load.type.pointee.get_abi_size(self.lldatalayout, context=self.llcontext)
         metadata = self.llmodule.add_metadata([ll.Constant(lli64, pointee_size)])
-        load.metadata['dereferenceable'] = metadata
+        load.set_metadata('dereferenceable', metadata)
 
     def process_GetLocal(self, insn):
         env = insn.environment()
@@ -821,7 +785,7 @@ class LLVMIRGenerator:
                                            inbounds=True, name="ptr.{}".format(insn.name))
                 llvalue = self.llbuilder.load(llptr, name="val.{}".format(insn.name))
                 if types.is_instance(typ) and attr in typ.constant_attributes:
-                    llvalue.metadata['invariant.load'] = self.empty_metadata
+                    llvalue.set_metadata('invariant.load', self.empty_metadata)
                 if isinstance(llvalue.type, ll.PointerType):
                     self.mark_dereferenceable(llvalue)
                 return llvalue
@@ -1065,8 +1029,8 @@ class LLVMIRGenerator:
                     llptr = self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(outer_index)],
                                                inbounds=True)
                     llouterenv = self.llbuilder.load(llptr)
-                    llouterenv.metadata['invariant.load'] = self.empty_metadata
-                    llouterenv.metadata['nonnull'] = self.empty_metadata
+                    llouterenv.set_metadata('invariant.load', self.empty_metadata)
+                    llouterenv.set_metadata('nonnull', self.empty_metadata)
                     return self.llptr_to_var(llouterenv, env_ty.params["$outer"], var_name)
                 else:
                     return llenv
@@ -1325,7 +1289,7 @@ class LLVMIRGenerator:
             # Never add TBAA nowrite metadata to a functon with sret!
             # This leads to miscompilations.
             if types.is_c_function(functiontyp) and 'nowrite' in functiontyp.flags:
-                llcall.metadata['tbaa'] = self.tbaa_nowrite_call
+                llcall.set_metadata('tbaa', self.tbaa_nowrite_call)
 
         return llresult
 
@@ -1358,7 +1322,7 @@ class LLVMIRGenerator:
 
             # See the comment in process_Call.
             if types.is_c_function(functiontyp) and 'nowrite' in functiontyp.flags:
-                llcall.metadata['tbaa'] = self.tbaa_nowrite_call
+                llcall.set_metadata('tbaa', self.tbaa_nowrite_call)
 
         return llcall
 
