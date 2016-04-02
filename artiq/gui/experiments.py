@@ -113,6 +113,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         except:
             logger.error("Could not recompute argument '%s' of '%s'",
                          name, self.expurl, exc_info=True)
+            return
         argument = self.manager.get_submission_arguments(self.expurl)[name]
 
         procdesc = arginfo[name][0]
