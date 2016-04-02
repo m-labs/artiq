@@ -22,12 +22,6 @@ llptr      = ll.IntType(8).as_pointer()
 llmetadata = ll.MetaData()
 
 
-DW_LANG_Python         = 0x0014
-DW_TAG_compile_unit    = 17
-DW_TAG_subroutine_type = 21
-DW_TAG_file_type       = 41
-DW_TAG_subprogram      = 46
-
 def memoize(generator):
     def memoized(self, *args):
         key = (generator,) + args
@@ -74,7 +68,7 @@ class DebugInfoEmitter:
     @memoize
     def emit_compile_unit(self, source_buffer, llsubprograms):
         return self.emit_debug_info("DICompileUnit", {
-            "language":        ll.DIToken("DW_LANG_C99"),
+            "language":        ll.DIToken("DW_LANG_Python"),
             "file":            self.emit_file(source_buffer),
             "producer":        "ARTIQ",
             "runtimeVersion":  0,
