@@ -63,30 +63,30 @@ def main():
     dataset_db = DatasetDB(args.dataset_db)
     dataset_db.start()
     atexit_register_coroutine(dataset_db.stop)
+    worker_handlers = dict()
 
     if args.git:
         repo_backend = GitBackend(args.repository)
     else:
         repo_backend = FilesystemBackend(args.repository)
-    experiment_db = ExperimentDB(repo_backend, device_db.get_device_db)
+    experiment_db = ExperimentDB(repo_backend, worker_handlers)
     atexit.register(experiment_db.close)
-    experiment_db.scan_repository_async()
 
-    worker_handlers = {
+    scheduler = Scheduler(RIDCounter(), worker_handlers, experiment_db)
+    scheduler.start()
+    atexit_register_coroutine(scheduler.stop)
+
+    worker_handlers.update({
         "get_device_db": device_db.get_device_db,
         "get_device": device_db.get,
         "get_dataset": dataset_db.get,
-        "update_dataset": dataset_db.update
-    }
-    scheduler = Scheduler(RIDCounter(), worker_handlers, experiment_db)
-    worker_handlers.update({
+        "update_dataset": dataset_db.update,
         "scheduler_submit": scheduler.submit,
         "scheduler_delete": scheduler.delete,
         "scheduler_request_termination": scheduler.request_termination,
-        "scheduler_get_status": scheduler.get_status
+        "scheduler_get_status": scheduler.get_status        
     })
-    scheduler.start()
-    atexit_register_coroutine(scheduler.stop)
+    experiment_db.scan_repository_async()
 
     bind = bind_address_from_args(args)
 
