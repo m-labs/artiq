@@ -10,6 +10,8 @@ class TTLOut:
 
     :param channel: channel number
     """
+    kernel_constant_attributes = {"core", "channel"}
+
     def __init__(self, dmgr, channel, core_device="core"):
         self.core = dmgr.get(core_device)
         self.channel = channel
@@ -82,6 +84,8 @@ class TTLInOut:
 
     :param channel: channel number
     """
+    kernel_constant_attributes = {"core", "channel"}
+
     def __init__(self, dmgr, channel, core_device="core"):
         self.core = dmgr.get(core_device)
         self.channel = channel
@@ -232,6 +236,8 @@ class TTLClockGen:
 
     :param channel: channel number
     """
+    kernel_constant_attributes = {"core", "channel", "acc_width"}
+
     def __init__(self, dmgr, channel, core_device="core"):
         self.core = dmgr.get(core_device)
         self.channel = channel
