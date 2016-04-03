@@ -115,7 +115,7 @@ class PulseRateDDS(EnvExperiment):
 
     @kernel
     def run(self):
-        dt = seconds_to_mu(50*us)
+        dt = seconds_to_mu(5*us)
         while True:
             delay(10*ms)
             for i in range(1250):
@@ -263,8 +263,8 @@ class CoredeviceTest(ExperimentCase):
         self.execute(PulseRateDDS)
         rate = self.dataset_mgr.get("pulse_rate")
         print(rate)
-        self.assertGreater(rate, 100*us)
-        self.assertLess(rate, 150*us)
+        self.assertGreater(rate, 5*us)
+        self.assertLess(rate, 25*us)
 
     def test_loopback_count(self):
         npulses = 2
