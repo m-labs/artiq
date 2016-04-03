@@ -980,8 +980,10 @@ class LLVMIRGenerator:
             return self.llbuilder.icmp_unsigned(op, lllhs, llrhs,
                                                 name=insn.name)
         elif isinstance(lllhs.type, ll.DoubleType):
-            return self.llbuilder.fcmp_ordered(op, lllhs, llrhs,
-                                               name=insn.name)
+            llresult = self.llbuilder.fcmp_ordered(op, lllhs, llrhs,
+                                                   name=insn.name)
+            self.add_fast_math_flags(llresult)
+            return llresult
         elif isinstance(lllhs.type, ll.LiteralStructType):
             # Compare aggregates (such as lists or ranges) element-by-element.
             llvalue = ll.Constant(lli1, True)
