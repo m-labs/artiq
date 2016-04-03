@@ -654,7 +654,7 @@ class LLVMIRGenerator:
         assert isinstance(load, ll.LoadInstr) and isinstance(load.type, ll.PointerType)
         pointee_size = load.type.pointee.get_abi_size(self.lldatalayout, context=self.llcontext)
         metadata = self.llmodule.add_metadata([ll.Constant(lli64, pointee_size)])
-        load.set_metadata('dereferenceable', metadata)
+        load.set_metadata('unconditionally_dereferenceable', metadata)
 
     def process_GetLocal(self, insn):
         env = insn.environment()
