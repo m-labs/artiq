@@ -132,6 +132,10 @@ class Client:
         identification information of the server."""
         return (self.__target_names, self.__description)
 
+    def get_local_host(self):
+        """Returns the address of the local end of the connection."""
+        return self.__socket.getsockname()[0]
+
     def close_rpc(self):
         """Closes the connection to the RPC server.
 
@@ -223,6 +227,10 @@ class AsyncioClient:
         """Returns the selected target, or ``None`` if no target has been
         selected yet."""
         return self.__selected_target
+
+    def get_local_host(self):
+        """Returns the address of the local end of the connection."""
+        return self.__writer.get_extra_info("socket").getsockname()[0]
 
     def get_rpc_id(self):
         """Returns a tuple (target_names, description) containing the
@@ -395,6 +403,12 @@ class BestEffortClient:
         def proxy(*args, **kwargs):
             return self.__do_rpc(name, args, kwargs)
         return proxy
+
+    def get_selected_target(self):
+        raise NotImplementedError
+
+    def get_local_host(self):
+        raise NotImplementedError
 
 
 def _format_arguments(arguments):
