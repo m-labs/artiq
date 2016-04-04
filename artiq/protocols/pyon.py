@@ -13,7 +13,7 @@ objects. Its main features are:
 The main rationale for this new custom serializer (instead of using JSON) is
 that JSON does not support Numpy and more generally cannot be extended with
 other data types while keeping a concise syntax. Here we can use the Python
-function call syntax to mark special data types.
+function call syntax to express special data types.
 """
 
 
@@ -24,7 +24,9 @@ import os
 import tempfile
 
 import numpy
+
 from ..language.core import int as wrapping_int
+
 
 _encode_map = {
     type(None): "none",
