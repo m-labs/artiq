@@ -55,8 +55,9 @@ class DictSyncModel(QtCore.QAbstractTableModel):
     def __init__(self, headers, init):
         self.headers = headers
         self.backing_store = init
-        self.row_to_key = sorted(self.backing_store.keys(),
-                                 key=lambda k: self.sort_key(k, self.backing_store[k]))
+        self.row_to_key = sorted(
+            self.backing_store.keys(),
+            key=lambda k: self.sort_key(k, self.backing_store[k]))
         QtCore.QAbstractTableModel.__init__(self)
 
     def rowCount(self, parent):
@@ -73,8 +74,8 @@ class DictSyncModel(QtCore.QAbstractTableModel):
             return self.convert(k, self.backing_store[k], index.column())
 
     def headerData(self, col, orientation, role):
-        if (orientation == QtCore.Qt.Horizontal
-                and role == QtCore.Qt.DisplayRole):
+        if (orientation == QtCore.Qt.Horizontal and
+                role == QtCore.Qt.DisplayRole):
             return self.headers[col]
         return None
 
@@ -84,8 +85,8 @@ class DictSyncModel(QtCore.QAbstractTableModel):
         while lo < hi:
             mid = (lo + hi)//2
             if (self.sort_key(self.row_to_key[mid],
-                              self.backing_store[self.row_to_key[mid]])
-                    < self.sort_key(k, v)):
+                              self.backing_store[self.row_to_key[mid]]) <
+                    self.sort_key(k, v)):
                 lo = mid + 1
             else:
                 hi = mid
@@ -152,8 +153,8 @@ class ListSyncModel(QtCore.QAbstractTableModel):
                                 index.column())
 
     def headerData(self, col, orientation, role):
-        if (orientation == QtCore.Qt.Horizontal
-                and role == QtCore.Qt.DisplayRole):
+        if (orientation == QtCore.Qt.Horizontal and
+                role == QtCore.Qt.DisplayRole):
             return self.headers[col]
         return None
 
@@ -204,8 +205,8 @@ class _DictSyncTreeSepItem:
         self.is_node = False
 
     def __repr__(self):
-        return ("<DictSyncTreeSepItem {}, row={}, nchildren={}>"
-                 .format(self.name, self.row, len(self.children_by_row)))
+        return ("<DictSyncTreeSepItem {}, row={}, nchildren={}>".
+                format(self.name, self.row, len(self.children_by_row)))
 
 
 def _bisect_item(a, name):
@@ -246,8 +247,8 @@ class DictSyncTreeSepModel(QtCore.QAbstractItemModel):
         return len(self.headers)
 
     def headerData(self, col, orientation, role):
-        if (orientation == QtCore.Qt.Horizontal
-                and role == QtCore.Qt.DisplayRole):
+        if (orientation == QtCore.Qt.Horizontal and
+                role == QtCore.Qt.DisplayRole):
             return self.headers[col]
         return None
 
@@ -290,7 +291,7 @@ class DictSyncTreeSepModel(QtCore.QAbstractItemModel):
             next_item.row += 1
         name_dict[name] = item
         self.endInsertRows()
-        
+
         return item
 
     def __setitem__(self, k, v):
