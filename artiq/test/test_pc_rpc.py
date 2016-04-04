@@ -45,7 +45,7 @@ class RPCCase(unittest.TestCase):
             self.assertEqual(test_object, test_object_back)
             test_object_back = remote.async_echo(test_object)
             self.assertEqual(test_object, test_object_back)
-            with self.assertRaises(pc_rpc.RemoteError):
+            with self.assertRaises(AttributeError):
                 remote.non_existing_method()
             remote.terminate()
         finally:
@@ -72,7 +72,7 @@ class RPCCase(unittest.TestCase):
             self.assertEqual(test_object, test_object_back)
             test_object_back = await remote.async_echo(test_object)
             self.assertEqual(test_object, test_object_back)
-            with self.assertRaises(pc_rpc.RemoteError):
+            with self.assertRaises(AttributeError):
                 await remote.non_existing_method()
             await remote.terminate()
         finally:

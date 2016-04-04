@@ -13,7 +13,6 @@ client's list.
 
 import socket
 import asyncio
-import traceback
 import threading
 import time
 import logging
@@ -22,6 +21,7 @@ from operator import itemgetter
 
 from artiq.protocols import pyon
 from artiq.protocols.asyncio_server import AsyncioServer as _AsyncioServer
+from artiq.protocols.packed_exceptions import *
 
 
 logger = logging.getLogger(__name__)
@@ -30,12 +30,6 @@ logger = logging.getLogger(__name__)
 class AutoTarget:
     """Use this as target value in clients for them to automatically connect
     to the target exposed by the server. Servers must have only one target."""
-    pass
-
-
-class RemoteError(Exception):
-    """Raised when a RPC failed or raised an exception on the remote (server)
-    side."""
     pass
 
 
@@ -163,7 +157,7 @@ class Client:
         if obj["status"] == "ok":
             return obj["ret"]
         elif obj["status"] == "failed":
-            raise RemoteError(obj["message"])
+            raise_packed_exc(obj["exception"])
         else:
             raise ValueError
 
@@ -267,7 +261,7 @@ class AsyncioClient:
             if obj["status"] == "ok":
                 return obj["ret"]
             elif obj["status"] == "failed":
-                raise RemoteError(obj["message"])
+                raise_packed_exc(obj["exception"])
             else:
                 raise ValueError
         finally:
@@ -395,7 +389,7 @@ class BestEffortClient:
             if obj["status"] == "ok":
                 return obj["ret"]
             elif obj["status"] == "failed":
-                raise RemoteError(obj["message"])
+                raise_packed_exc(obj["exception"])
             else:
                 raise ValueError
 
@@ -524,13 +518,11 @@ class Server(_AsyncioServer):
                                  .format(obj["action"]))
         except asyncio.CancelledError:
             raise
-        except Exception as exc:
-            short_exc_info = type(exc).__name__
-            exc_str = str(exc)
-            if exc_str:
-                short_exc_info += ": " + exc_str.splitlines()[0]
-            return {"status": "failed",
-                    "message": short_exc_info + "\n" + traceback.format_exc()}
+        except:
+            return {
+                "status": "failed",
+                "exception": current_exc_packed()
+            }
         finally:
             if self._noparallel is not None:
                 self._noparallel.release()

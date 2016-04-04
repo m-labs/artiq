@@ -8,7 +8,7 @@ import numpy as np  # Needed to use numpy in RPC call arguments on cmd line
 import readline  # This makes input() nicer
 import pprint
 
-from artiq.protocols.pc_rpc import AutoTarget, Client, RemoteError
+from artiq.protocols.pc_rpc import AutoTarget, Client
 
 
 def get_argparser():
@@ -101,9 +101,11 @@ def interactive(remote):
         try:
             ret = eval(cmd, {}, RemoteDict())
         except Exception as e:
-            if isinstance(e, RemoteError):
+            if hasattr(e, "parent_traceback"):
                 print("Remote exception:")
-                print(str(e))
+                print(traceback.format_exception_only(type(e), e)[0].rstrip())
+                for l in e.parent_traceback:
+                    print(l.rstrip())
             else:
                 traceback.print_exc()
         else:

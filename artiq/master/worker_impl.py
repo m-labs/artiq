@@ -7,6 +7,7 @@ from collections import OrderedDict
 
 import artiq
 from artiq.protocols import pipe_ipc, pyon
+from artiq.protocols.packed_exceptions import raise_packed_exc
 from artiq.tools import multiline_log_config, file_import
 from artiq.master.worker_db import DeviceManager, DatasetManager, get_hdf5_output
 from artiq.language.environment import is_experiment
@@ -27,11 +28,7 @@ def put_object(obj):
     ipc.write((ds + "\n").encode())
 
 
-class ParentActionError(Exception):
-    pass
-
-
-def make_parent_action(action, exception=None):
+def make_parent_action(action):
     def parent_action(*args, **kwargs):
         request = {"action": action, "args": args, "kwargs": kwargs}
         put_object(request)
@@ -44,22 +41,17 @@ def make_parent_action(action, exception=None):
         if reply["status"] == "ok":
             return reply["data"]
         else:
-            if exception is None:
-                exn = ParentActionError(reply["exception"])
-            else:
-                exn = exception(reply["message"])
-            exn.parent_traceback = reply["traceback"]
-            raise exn
+            raise_packed_exc(reply["exception"])
     return parent_action
 
 
 class ParentDeviceDB:
     get_device_db = make_parent_action("get_device_db")
-    get = make_parent_action("get_device", KeyError)
+    get = make_parent_action("get_device")
 
 
 class ParentDatasetDB:
-    get = make_parent_action("get_dataset", KeyError)
+    get = make_parent_action("get_dataset")
     update = make_parent_action("update_dataset")
 
 

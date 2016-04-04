@@ -39,10 +39,9 @@ def get_and_fit():
     if "dataset_db" in globals():
         logger.info("using dataset DB for Gaussian fit guess")
         def get_dataset(name, default):
-            from artiq.protocols import pc_rpc
             try:
                 return dataset_db.get(name)
-            except (KeyError, pc_rpc.RemoteError):  # TODO: serializable exceptions
+            except KeyError:
                 return default
     else:
         logger.info("using defaults for Gaussian fit guess")
