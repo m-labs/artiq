@@ -65,8 +65,23 @@ class MdiArea(QtWidgets.QMdiArea):
         painter.drawPixmap(x, y, self.pixmap)
 
 
-class LocalModel(
+class LocalModelManager:
+    def __init__(self, model_factory):
+        self.model = None
+        self._model_factory = model_factory
+        self._setmodel_callbacks = []
+        self.notify_cbs = []
 
+    def _create_model(self, init):
+        self.model = self._model_factory(init)
+        for cb in self._setmodel_callbacks:
+            cb(self.model)
+        return self.model
+
+    def add_setmodel_callback(self, cb):
+        self._setmodel_callbacks.append(cb)
+        if self.model is not None:
+            cb(self.model)
 
 
 def main():
@@ -80,13 +95,7 @@ def main():
     atexit.register(loop.close)
     smgr = state.StateManager(args.db_file)
 
-    subscriber = ModelSubscriber("datasets", datasets.Model)
-    loop.run_until_complete(subscriber.connect(
-        args.server, args.port_notify))
-    atexit_register_coroutine(subscriber.close)
-    sub_clients[notifier_name] = subscriber
-
-                                  ("datasets", datasets.Model),
+    datasets_sub = LocalModelManager(datasets.Model)
 
     # initialize main window
     main_window = MainWindow()
@@ -105,8 +114,12 @@ def main():
     atexit_register_coroutine(d_applets.stop)
     smgr.register(d_applets)
 
+    d_datasets = datasets.DatasetsDock(datasets_sub,
+                                       None)  # TODO: datsets_ctl.delete()
+    smgr.register(d_datasets)
+
     # lay out docks
-    right_docks = [d_results]
+    right_docks = [d_results, d_applets, d_datasets]
     main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, right_docks[0])
     for d1, d2 in zip(right_docks, right_docks[1:]):
         main_window.tabifyDockWidget(d1, d2)
