@@ -17,7 +17,7 @@ from artiq.gui import (state, experiments, shortcuts, explorer,
 
 
 def get_argparser():
-    parser = argparse.ArgumentParser(description="ARTIQ GUI client")
+    parser = argparse.ArgumentParser(description="ARTIQ Dashboard")
     parser.add_argument(
         "-s", "--server", default="::1",
         help="hostname or IP of the master to connect to")
@@ -28,7 +28,7 @@ def get_argparser():
         "--port-control", default=3251, type=int,
         help="TCP port to connect to for control")
     parser.add_argument(
-        "--db-file", default="artiq_gui.pyon",
+        "--db-file", default="artiq_dashboard.pyon",
         help="database file for local GUI settings")
     verbosity_args(parser)
     return parser
@@ -40,7 +40,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         icon = QtGui.QIcon(os.path.join(artiq_dir, "gui", "logo.svg"))
         self.setWindowIcon(icon)
-        self.setWindowTitle("ARTIQ - {}".format(server))
+        self.setWindowTitle("ARTIQ Dashboard - {}".format(server))
 
         qfm = QtGui.QFontMetrics(self.font())
         self.resize(140*qfm.averageCharWidth(), 38*qfm.lineSpacing())

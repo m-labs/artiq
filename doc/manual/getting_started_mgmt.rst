@@ -8,7 +8,7 @@ The manipulations described in this tutorial can be carried out using a single c
 Starting your first experiment with the master
 ----------------------------------------------
 
-In the previous tutorial, we used the ``artiq_run`` utility to execute our experiments, which is a simple stand-alone tool that bypasses the ARTIQ management system. We will now see how to run an experiment using the master (the central program in the management system that schedules and executes experiments) and the GUI client (that connects to the master and controls it).
+In the previous tutorial, we used the ``artiq_run`` utility to execute our experiments, which is a simple stand-alone tool that bypasses the ARTIQ management system. We will now see how to run an experiment using the master (the central program in the management system that schedules and executes experiments) and the dashboard (that connects to the master and controls it).
 
 First, create a folder ``~/artiq-master`` and copy the file ``device_db.pyon`` (containing the device database) found in the ``examples/master`` directory from the ARTIQ sources. The master uses those files in the same way as ``artiq_run``.
 
@@ -35,21 +35,21 @@ Start the master with: ::
 
 This last command should not return, as the master keeps running.
 
-Now, start the GUI client with the following commands in another terminal: ::
+Now, start the dashboard with the following commands in another terminal: ::
 
     $ cd ~
-    $ artiq_gui
+    $ artiq_dashboard
 
-.. note:: The ``artiq_gui`` program uses a file called ``artiq_gui.pyon`` in the current directory to save and restore the GUI state (window/dock positions, last values entered by the user, etc.).
+.. note:: The ``artiq_dashboard`` program uses a file called ``artiq_dashboard.pyon`` in the current directory to save and restore the GUI state (window/dock positions, last values entered by the user, etc.).
 
-The GUI should display the list of experiments from the repository folder in a dock called "Explorer". There should be only the experiment we created. Select it and click "Submit", then look at the "Log" dock for the output from this simple experiment.
+The dashboard should display the list of experiments from the repository folder in a dock called "Explorer". There should be only the experiment we created. Select it and click "Submit", then look at the "Log" dock for the output from this simple experiment.
 
-.. note:: Multiple clients may be connected at the same time, possibly on different machines, and will be synchronized. See the ``-s`` option of ``artiq_gui`` and the ``--bind`` option of ``artiq_master`` to use the network. Both IPv4 and IPv6 are supported.
+.. note:: Multiple clients may be connected at the same time, possibly on different machines, and will be synchronized. See the ``-s`` option of ``artiq_dashboard`` and the ``--bind`` option of ``artiq_master`` to use the network. Both IPv4 and IPv6 are supported.
 
 Adding an argument
 ------------------
 
-Experiments may have arguments whose values can be set in the GUI and used in the experiment's code. Modify the experiment as follows: ::
+Experiments may have arguments whose values can be set in the dashboard and used in the experiment's code. Modify the experiment as follows: ::
 
 
     def build(self):
@@ -66,7 +66,7 @@ Use the command-line client to trigger a repository rescan: ::
 
     artiq_client scan-repository
 
-The GUI should now display a spin box that allows you to set the value of the ``count`` argument. Try submitting the experiment as before.
+The dashboard should now display a spin box that allows you to set the value of the ``count`` argument. Try submitting the experiment as before.
 
 Setting up Git integration
 --------------------------
