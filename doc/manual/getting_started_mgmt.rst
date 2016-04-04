@@ -93,7 +93,7 @@ There should be no errors displayed, and if you start the GUI again you should n
 First, another small configuration step is needed. We must tell Git to make the master rescan the repository when new data is added to it. Create a file ``~/artiq-master/repository/hooks/post-receive`` with the following contents: ::
 
    #!/bin/sh
-   artiq_client scan-repository
+   artiq_client scan-repository --async
 
 Then set the execution permission on it: ::
 
