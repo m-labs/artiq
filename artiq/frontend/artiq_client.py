@@ -96,6 +96,8 @@ def get_argparser():
 
     parser_scan_repos = subparsers.add_parser(
         "scan-repository", help="trigger a repository (re)scan")
+    parser_scan_repos.add_argument("--async", action="store_true",
+                                   help="trigger scan and return immediately")
     parser_scan_repos.add_argument("revision", default=None, nargs="?",
                                    help="use a specific repository revision "
                                         "(defaults to head)")
@@ -159,7 +161,10 @@ def _action_scan_devices(remote, args):
 
 
 def _action_scan_repository(remote, args):
-    remote.scan_repository(args.revision)
+    if args.async:
+        remote.scan_repository_async(args.revision)
+    else:
+        remote.scan_repository(args.revision)
 
 
 def _action_ls(remote, args):
