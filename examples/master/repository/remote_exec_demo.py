@@ -2,6 +2,7 @@ import time
 import inspect
 
 from artiq.experiment import *
+from artiq.protocols.remote_exec import connect_global_rpc
 
 import remote_exec_processing
 
@@ -18,19 +19,16 @@ class RemoteExecDemo(EnvExperiment):
 
     def prepare(self):
         if self.remote_exec:
+            connect_global_rpc(self.camera_sim_rexec)
             self.camera_sim_rexec.add_code(
                 inspect.getsource(remote_exec_processing))
 
-    def set_dataset(self, name, *args, **kwargs):
-        EnvExperiment.set_dataset(self, "rexec_demo." + name,
-                                  *args, **kwargs)
-
     def transfer_parameters(self, parameters):
         w, h, cx, cy = parameters
-        self.set_dataset("gaussian_w", w, save=False, broadcast=True)
-        self.set_dataset("gaussian_h", h, save=False, broadcast=True)
-        self.set_dataset("gaussian_cx", cx, save=False, broadcast=True)
-        self.set_dataset("gaussian_cy", cy, save=False, broadcast=True)
+        self.set_dataset("rexec_demo.gaussian_w", w, save=False, broadcast=True)
+        self.set_dataset("rexec_demo.gaussian_h", h, save=False, broadcast=True)
+        self.set_dataset("rexec_demo.gaussian_cx", cx, save=False, broadcast=True)
+        self.set_dataset("rexec_demo.gaussian_cy", cy, save=False, broadcast=True)
 
     def fps_meter(self):
         t = time.monotonic()
@@ -39,7 +37,7 @@ class RemoteExecDemo(EnvExperiment):
             dt = t - self.last_pt_update
             if dt >= 5:
                 pt = dt/self.iter_count
-                self.set_dataset("picture_pt", pt, save=False, broadcast=True)
+                self.set_dataset("rexec_demo.picture_pt", pt, save=False, broadcast=True)
                 self.last_pt_update = t
                 self.iter_count = 0
         else:
@@ -51,15 +49,18 @@ class RemoteExecDemo(EnvExperiment):
             self.fps_meter()
             data = self.camera_sim.get_picture()
             if self.show_picture:
-                self.set_dataset("picture", data, save=False, broadcast=True)
+                self.set_dataset("rexec_demo.picture", data,
+                                 save=False, broadcast=True)
             if self.enable_fit:
-                self.transfer_parameters(remote_exec_processing.fit(data))
+                p = remote_exec_processing.fit(data, self.get_dataset)
+                self.transfer_parameters(p)
             self.scheduler.pause()
 
     def run_remote(self):
         while True:
             self.fps_meter()
-            self.transfer_parameters(self.camera_sim_rexec.call("get_and_fit"))
+            p = self.camera_sim_rexec.call("get_and_fit")
+            self.transfer_parameters(p)
             self.scheduler.pause()
 
     def run(self):

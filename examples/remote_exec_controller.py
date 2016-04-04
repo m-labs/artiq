@@ -2,6 +2,7 @@
 
 import numpy as np
 from numba import jit
+import logging
 
 from artiq.protocols.remote_exec import simple_rexec_server_loop
 
@@ -51,6 +52,7 @@ class CameraSimulation:
 
 
 def main():
+    logging.basicConfig(level=logging.INFO)
     simple_rexec_server_loop("camera_sim", CameraSimulation(),
                              "::1", 6283)
 

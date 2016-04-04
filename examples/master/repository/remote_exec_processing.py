@@ -1,6 +1,10 @@
 import numpy as np
 from numba import jit
 from scipy.optimize import least_squares
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 @jit(nopython=True)
@@ -14,17 +18,35 @@ def compute_gaussian(r, img_w, img_h,
             r[x, y] = np.exp(-ds/2)
 
 
-def fit(data):
+def fit(data, get_dataset):
     img_w, img_h = data.shape
     def err(parameters):
         r = np.empty((img_w, img_h))
         compute_gaussian(r, img_w, img_h, *parameters)
         r -= data
         return r.ravel()
-    guess = [12, 15, img_w/2, img_h/2]
+    guess = [
+        get_dataset("rexec_demo.gaussian_w", 12),
+        get_dataset("rexec_demo.gaussian_h", 15),
+        get_dataset("rexec_demo.gaussian_cx", img_w/2),
+        get_dataset("rexec_demo.gaussian_cy", img_h/2)
+    ]
     res = least_squares(err, guess)
     return res.x
 
 
 def get_and_fit():
-    return fit(controller_driver.get_picture())
+    if "dataset_db" in globals():
+        logger.info("using dataset DB for Gaussian fit guess")
+        def get_dataset(name, default):
+            from artiq.protocols import pc_rpc
+            try:
+                return dataset_db.get(name)
+            except (KeyError, pc_rpc.RemoteError):  # TODO: serializable exceptions
+                return default
+    else:
+        logger.info("using defaults for Gaussian fit guess")
+        def get_dataset(name, default):
+            return default
+        get_dataset = lambda name, default: default 
+    return fit(controller_driver.get_picture(), get_dataset)
