@@ -20,6 +20,7 @@ requirements = [
 ]
 
 scripts = [
+    "artiq_browser=artiq.frontend.artiq_browser:main",
     "artiq_client=artiq.frontend.artiq_client:main",
     "artiq_compile=artiq.frontend.artiq_compile:main",
     "artiq_coreanalyzer=artiq.frontend.artiq_coreanalyzer:main",
