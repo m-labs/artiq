@@ -9,10 +9,8 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from quamash import QEventLoop
 
 from artiq import __artiq_dir__ as artiq_dir
-from artiq.tools import *
-from artiq.gui import (state, results,
-                       datasets, applets)
-from artiq.protocols.sync_struct import process_mod
+from artiq.tools import verbosity_args, init_logger, atexit_register_coroutine
+from artiq.gui import state, results, datasets, applets, models
 
 
 def get_argparser():
@@ -20,7 +18,7 @@ def get_argparser():
     parser.add_argument(
         "--db-file", default="artiq_browser.pyon",
         help="database file for local browser settings")
-    parser.add_argument("PATH", nargs="?", help="browse path")
+    parser.add_argument("PATH", nargs="?", help="browse path or file")
     verbosity_args(parser)
     return parser
 
@@ -66,35 +64,6 @@ class MdiArea(QtWidgets.QMdiArea):
         painter.drawPixmap(x, y, self.pixmap)
 
 
-class LocalModelManager:
-    def __init__(self, model_factory, notify_cb=None):
-        self.model = None
-        self._model_factory = model_factory
-        self._setmodel_callbacks = []
-        if notify_cb is None:
-            notify_cb = []
-        if not isinstance(notify_cb, list):
-            notify_cb = [notify_cb]
-        self.notify_cbs = notify_cb
-
-    def init(self, struct):
-        self._create_model(struct)
-        mod = {"action": "init", "struct": struct}
-        for notify_cb in self.notify_cbs:
-            notify_cb(mod)
-
-    def _create_model(self, init):
-        self.model = self._model_factory(init)
-        for cb in self._setmodel_callbacks:
-            cb(self.model)
-        return self.model
-
-    def add_setmodel_callback(self, cb):
-        self._setmodel_callbacks.append(cb)
-        if self.model is not None:
-            cb(self.model)
-
-
 def main():
     # initialize application
     args = get_argparser().parse_args()
@@ -106,7 +75,7 @@ def main():
     atexit.register(loop.close)
     smgr = state.StateManager(args.db_file)
 
-    datasets_sub = LocalModelManager(datasets.Model)
+    datasets_sub = models.LocalModelManager(datasets.Model)
 
     # initialize main window
     main_window = MainWindow()
@@ -118,7 +87,7 @@ def main():
     mdi_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
     main_window.setCentralWidget(mdi_area)
 
-    d_results = results.ResultsDock(datasets_sub)
+    d_results = results.ResultsBrowser(datasets_sub)
     smgr.register(d_results)
 
     d_applets = applets.AppletsDock(main_window, datasets_sub)
@@ -129,7 +98,7 @@ def main():
                                        None)  # TODO: datsets_ctl.delete()
     smgr.register(d_datasets)
 
-    main_window.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d_results)
+    main_window.setCentralWidget(d_results)
     main_window.addDockWidget(QtCore.Qt.BottomDockWidgetArea, d_applets)
     main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_datasets)
 
