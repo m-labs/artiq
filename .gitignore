@@ -18,11 +18,11 @@ __pycache__/
 
 /artiq/test/results
 /artiq/test/h5types.h5
-/examples/master/results
-/examples/master/last_rid.pyon
-/examples/master/dataset_db.pyon
-/examples/sim/results
-/examples/sim/dataset_db.pyon
+/artiq/examples/master/results
+/artiq/examples/master/last_rid.pyon
+/artiq/examples/master/dataset_db.pyon
+/artiq/examples/sim/results
+/artiq/examples/sim/dataset_db.pyon
 
 # recommended location for testbed
 /run

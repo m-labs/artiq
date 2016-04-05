@@ -204,7 +204,7 @@
         "host": "::1",
         "port": 6283,
         "target_name": "camera_sim",
-        "command": "./remote_exec_controller.py"
+        "command": "python3.5 -m artiq.examples.remote_exec_controller"
     },
     "camera_sim_rexec": {
         "type": "controller_aux_target",
