@@ -17,7 +17,6 @@ __pycache__/
 /misoc_*/
 
 /artiq/test/results
-/artiq/test/h5types.h5
 /artiq/examples/master/results
 /artiq/examples/master/last_rid.pyon
 /artiq/examples/master/dataset_db.pyon
@@ -31,5 +30,4 @@ __pycache__/
 /last_rid.pyon
 /dataset_db.pyon
 /device_db.pyon
-/h5types.h5
 /test*.py
