@@ -21,13 +21,6 @@ class ResultsDock(QtWidgets.QDockWidget):
         top_widget = LayoutWidget()
         self.setWidget(top_widget)
 
-        self.stack = QtWidgets.QStackedWidget()
-        top_widget.addWidget(self.stack, 1, 0, colspan=2)
-
-        self.rt_buttons = LayoutWidget()
-        self.rt_buttons.layout.setContentsMargins(0, 0, 0, 0)
-        self.stack.addWidget(self.rt_buttons)
-
         self.rt_model = QtWidgets.QFileSystemModel()
         self.rt_model.setRootPath(QtCore.QDir.currentPath())
         self.rt_model.setNameFilters(["*.h5"])
@@ -38,9 +31,15 @@ class ResultsDock(QtWidgets.QDockWidget):
         self.rt.setRootIndex(self.rt_model.index(QtCore.QDir.currentPath()))
         self.rt.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.rt.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
-        self.rt.selectionModel().selectionChanged.connect(
+        top_widget.addWidget(self.rt, 0, 0)
+
+        self.rl = QtWidgets.QListView()
+        self.rl.setModel(self.rt_model)
+        self.rl.setRootIndex(self.rt_model.index(QtCore.QDir.currentPath()))
+        self.rl.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.rl.selectionModel().selectionChanged.connect(
             self.selection_changed)
-        self.rt_buttons.addWidget(self.rt, 0, 0, colspan=2)
+        top_widget.addWidget(self.rl, 0, 1)
 
     def selection_changed(self, selected, deselected):
         indexes = selected.indexes()
