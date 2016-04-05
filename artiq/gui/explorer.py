@@ -117,6 +117,10 @@ class Model(DictSyncTreeSepModel):
     def __init__(self, init):
         DictSyncTreeSepModel.__init__(self, "/", ["Experiment"], init)
 
+    def convert_tooltip(self, k, v, column):
+        return ("<b>File:</b> {file}<br><b>Class:</b> {cls}"
+                .format(file=v["file"], cls=v["class_name"]))
+
 
 class StatusUpdater:
     def __init__(self, init):
