@@ -102,7 +102,7 @@ class PulseRate(EnvExperiment):
                     self.core.break_realtime()
                     break
             else:
-                self.set_dataset("pulse_rate", mu_to_seconds(2*dt))
+                self.set_dataset("pulse_rate", mu_to_seconds(dt))
                 return
 
 
@@ -131,7 +131,7 @@ class PulseRateDDS(EnvExperiment):
                     self.core.break_realtime()
                     break
             else:
-                self.set_dataset("pulse_rate", mu_to_seconds(dt))
+                self.set_dataset("pulse_rate", mu_to_seconds(dt/2))
                 return
 
 
@@ -256,21 +256,20 @@ class CoredeviceTest(ExperimentCase):
         self.assertEqual(count, 10)
 
     def test_pulse_rate(self):
-        """Mimumum delay and duration of sustainably emitted TTL pulses"""
+        """Minimum interval for sustained TTL output switching"""
         self.execute(PulseRate)
         rate = self.dataset_mgr.get("pulse_rate")
         print(rate)
         self.assertGreater(rate, 100*ns)
-        self.assertLess(rate, 1500*ns)
+        self.assertLess(rate, 700*ns)
 
     def test_pulse_rate_dds(self):
-        """Minimum delay between DDS batches each setting the frequencies of
-        two DDS"""
+        """Minimum interval for sustained DDS frequency switching"""
         self.execute(PulseRateDDS)
         rate = self.dataset_mgr.get("pulse_rate")
         print(rate)
-        self.assertGreater(rate, 3*us)
-        self.assertLess(rate, 12*us)
+        self.assertGreater(rate, 1*us)
+        self.assertLess(rate, 6*us)
 
     def test_loopback_count(self):
         npulses = 2
