@@ -83,6 +83,8 @@ class ClockGeneratorLoopback(EnvExperiment):
 
 
 class PulseRate(EnvExperiment):
+    kernel_constant_attributes = {"core", "ttl_out"}
+
     def build(self):
         self.setattr_device("core")
         self.setattr_device("ttl_out")
@@ -129,7 +131,7 @@ class PulseRateDDS(EnvExperiment):
                     self.core.break_realtime()
                     break
             else:
-                self.set_dataset("pulse_rate", mu_to_seconds(2*dt))
+                self.set_dataset("pulse_rate", mu_to_seconds(dt))
                 return
 
 
@@ -253,6 +255,7 @@ class CoredeviceTest(ExperimentCase):
         self.assertEqual(count, 10)
 
     def test_pulse_rate(self):
+        """Mimumum delay and duration of sustainably emitted TTL pulses"""
         self.execute(PulseRate)
         rate = self.dataset_mgr.get("pulse_rate")
         print(rate)
@@ -260,11 +263,13 @@ class CoredeviceTest(ExperimentCase):
         self.assertLess(rate, 1500*ns)
 
     def test_pulse_rate_dds(self):
+        """Minimum delay between DDS batches each setting the frequencies of
+        two DDS"""
         self.execute(PulseRateDDS)
         rate = self.dataset_mgr.get("pulse_rate")
         print(rate)
-        self.assertGreater(rate, 5*us)
-        self.assertLess(rate, 25*us)
+        self.assertGreater(rate, 3*us)
+        self.assertLess(rate, 12*us)
 
     def test_loopback_count(self):
         npulses = 2
