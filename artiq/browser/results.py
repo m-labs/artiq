@@ -6,6 +6,20 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 logger = logging.getLogger(__name__)
 
 
+class ResultIconProvider(QtWidgets.QFileIconProvider):
+    def icon(self, info):
+        if not (info.isFile() and info.isReadable() and info.suffix() == "h5"):
+            return QtWidgets.QFileIconProvider.icon(self, info)
+        try:
+            with h5py.File(info.filePath(), "r") as f:
+                d = f["thumbnail"]
+                img = QtGui.QImage.fromData(d.value, d.attrs["extension"])
+                pix = QtGui.QPixmap.fromImage(img)
+                return QtGui.QIcon(pix)
+        except:
+            return QtWidgets.QFileIconProvider.icon(self, info)
+
+
 class ResultsBrowser(QtWidgets.QSplitter):
     def __init__(self, datasets):
         QtWidgets.QSplitter.__init__(self)
@@ -16,6 +30,7 @@ class ResultsBrowser(QtWidgets.QSplitter):
         self.rt_model.setRootPath(QtCore.QDir.currentPath())
         self.rt_model.setNameFilters(["*.h5"])
         self.rt_model.setNameFilterDisables(False)
+        self.rt_model.setIconProvider(ResultIconProvider())
 
         self.rt = QtWidgets.QTreeView()
         self.rt.setModel(self.rt_model)
