@@ -36,7 +36,7 @@ Prerequisites:
 """)
     parser.add_argument("-t", "--target", default="kc705",
                         help="target board, default: %(default)s")
-    parser.add_argument("-m", "--adapter", default="clock",
+    parser.add_argument("-m", "--adapter", default="nist_clock",
                         help="target adapter, default: %(default)s")
     parser.add_argument("-f", "--storage", help="write file to storage area")
     parser.add_argument("-d", "--dir", help="look for files in this directory")

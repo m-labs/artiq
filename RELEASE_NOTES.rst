@@ -16,6 +16,9 @@ unreleased [2.x]
     for p in patterns:
         print(p)
 * The "GUI" has been renamed the "dashboard".
+* When flashing NIST boards, use "-m nist_qcX" or "-m nist_clock" instead of
+  just "-m qcX" or "-m clock" (#290).
+
 
 1.0rc2
 ------

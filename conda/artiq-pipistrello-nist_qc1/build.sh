@@ -3,7 +3,7 @@
 BUILD_SETTINGS_FILE=$HOME/.m-labs/build_settings.sh
 [ -f $BUILD_SETTINGS_FILE ] && . $BUILD_SETTINGS_FILE
 
-SOC_PREFIX=$PREFIX/lib/python3.5/site-packages/artiq/binaries/pipistrello-qc1
+SOC_PREFIX=$PREFIX/lib/python3.5/site-packages/artiq/binaries/pipistrello-nist_qc1
 mkdir -p $SOC_PREFIX
 
 $PYTHON -m artiq.gateware.targets.pipistrello $MISOC_EXTRA_ISE_CMDLINE

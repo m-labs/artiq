@@ -368,21 +368,20 @@ def main():
     builder_args(parser)
     soc_kc705_args(parser)
     parser.add_argument("-H", "--hw-adapter", default="clock",
-                        help="hardware adapter type: qc1/clock/qc2 "
+                        help="hardware adapter type: "
+                             "nist_qc1/nist_clock/nist_qc2 "
                              "(default: %(default)s)")
     args = parser.parse_args()
 
     hw_adapter = args.hw_adapter.lower()
-    if hw_adapter == "qc1":
+    if hw_adapter == "nist_qc1":
         cls = NIST_QC1
-    elif hw_adapter == "clock":
+    elif hw_adapter == "nist_clock":
         cls = NIST_CLOCK
-    elif hw_adapter == "qc2":
+    elif hw_adapter == "nist_qc2":
         cls = NIST_QC2
     else:
-        print("Invalid hardware adapter string (-H/--hw-adapter), "
-              "choose from qc1, clock or qc2")
-        sys.exit(1)
+        raise SystemExit("Invalid hardware adapter string (-H/--hw-adapter)")
 
     soc = cls(**soc_kc705_argdict(args))
     build_artiq_soc(soc, builder_argdict(args))
