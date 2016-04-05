@@ -131,7 +131,7 @@ class PulseRateDDS(EnvExperiment):
                     self.core.break_realtime()
                     break
             else:
-                self.set_dataset("pulse_rate", mu_to_seconds(dt/2))
+                self.set_dataset("pulse_rate", mu_to_seconds(dt//2))
                 return
 
 
