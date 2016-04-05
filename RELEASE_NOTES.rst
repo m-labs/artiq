@@ -15,7 +15,7 @@ unreleased [2.x]
     patterns = pyon.load_file("influxdb_patterns.pyon")
     for p in patterns:
         print(p)
-
+* The "GUI" has been renamed the "dashboard".
 
 1.0rc2
 ------
