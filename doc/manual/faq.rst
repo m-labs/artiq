@@ -6,6 +6,15 @@ FAQ
 How do I ...
 ============
 
+find ARTIQ examples?
+--------------------
+
+The examples are installed in the ``examples`` folder of the ARTIQ package. You can find where the ARTIQ package is installed on your machine with: ::
+
+  python3.5 -c "import artiq; print(artiq.__path__[0])"
+
+Copy the ``examples`` folder from that path into your home/user directory, and start experimenting!
+
 prevent my first RTIO command from causing an underflow?
 --------------------------------------------------------
 
