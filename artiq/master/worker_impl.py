@@ -137,12 +137,6 @@ def examine(device_mgr, dataset_mgr, file):
             register_experiment(class_name, name, arginfo)
 
 
-def string_to_hdf5(f, key, value):
-    dtype = "S{}".format(len(value))
-    dataset = f.create_dataset(key, (), dtype)
-    dataset[()] = value.encode()
-
-
 def setup_diagnostics(experiment_file, repository_path):
     def render_diagnostic(self, diagnostic):
         message = "While compiling {}\n".format(experiment_file) + \
@@ -220,9 +214,9 @@ def main():
             elif action == "write_results":
                 with get_hdf5_output(start_time, rid, exp.__name__) as f:
                     dataset_mgr.write_hdf5(f)
-                    string_to_hdf5(f, "version", artiq_version)
+                    f["artiq_version"] = artiq_version
                     if "repo_rev" in expid:
-                        string_to_hdf5(f, "repo_rev", expid["repo_rev"])
+                        f["repo_rev"] = expid["repo_rev"]
                 put_object({"action": "completed"})
             elif action == "examine":
                 examine(ExamineDeviceMgr, ParentDatasetDB, obj["file"])
