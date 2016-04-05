@@ -359,19 +359,27 @@ class DictSyncTreeSepModel(QtCore.QAbstractItemModel):
         return key
 
     def data(self, index, role):
-        if not index.isValid() or role != QtCore.Qt.DisplayRole:
+        if not index.isValid() or (role != QtCore.Qt.DisplayRole
+                                   and role != QtCore.Qt.ToolTipRole):
             return None
         else:
             column = index.column()
-            if column == 0:
+            if column == 0 and role == QtCore.Qt.DisplayRole:
                 return index.internalPointer().name
             else:
                 key = self.index_to_key(index)
                 if key is None:
                     return None
                 else:
-                    return self.convert(key, self.backing_store[key],
-                                        column)
+                    if role == QtCore.Qt.DisplayRole:
+                        convert = self.convert
+                    else:
+                        convert = self.convert_tooltip
+                    return convert(key, self.backing_store[key],
+                                   column)
 
     def convert(self, k, v, column):
         raise NotImplementedError
+
+    def convert_tooltip(self, k, v, column):
+        return None
