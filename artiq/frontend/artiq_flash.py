@@ -72,6 +72,9 @@ def main():
     if opts.dir is None:
         opts.dir = os.path.join(artiq_dir, "binaries",
                                 "{}-{}".format(opts.target, opts.adapter))
+    if not os.path.exists(opts.dir):
+        raise SystemExit("Binaries directory '{}' does not exist"
+                         .format(opts.dir))
 
     conv = False
 
