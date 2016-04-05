@@ -9,7 +9,8 @@ import artiq
 from artiq.protocols import pipe_ipc, pyon
 from artiq.protocols.packed_exceptions import raise_packed_exc
 from artiq.tools import multiline_log_config, file_import
-from artiq.master.worker_db import DeviceManager, DatasetManager, get_hdf5_output
+from artiq.master.worker_db import (DeviceManager, DatasetManager,
+                                    get_hdf5_output)
 from artiq.language.environment import is_experiment
 from artiq.language.core import set_watchdog_factory, TerminationRequested
 from artiq.coredevice.core import CompileError, host_only, _render_diagnostic
@@ -17,6 +18,7 @@ from artiq import __version__ as artiq_version
 
 
 ipc = None
+
 
 def get_object():
     line = ipc.readline().decode()
@@ -84,7 +86,7 @@ class Scheduler:
     delete = staticmethod(make_parent_action("scheduler_delete"))
     request_termination = staticmethod(
         make_parent_action("scheduler_request_termination"))
-    get_status  = staticmethod(make_parent_action("scheduler_get_status"))
+    get_status = staticmethod(make_parent_action("scheduler_get_status"))
 
     def set_run_info(self, rid, pipeline_name, expid, priority):
         self.rid = rid
@@ -159,7 +161,8 @@ def setup_diagnostics(experiment_file, repository_path):
     # putting inherently local objects (the diagnostic engine) into
     # global slots, and there isn't any point in making it prettier by
     # wrapping it in layers of indirection.
-    artiq.coredevice.core._DiagnosticEngine.render_diagnostic = render_diagnostic
+    artiq.coredevice.core._DiagnosticEngine.render_diagnostic = \
+        render_diagnostic
 
 
 def main():
