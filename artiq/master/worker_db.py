@@ -167,56 +167,6 @@ def get_hdf5_output(start_time, rid, name):
     return h5py.File(os.path.join(dirname, filename), "w")
 
 
-_type_to_hdf5 = {
-    int: h5py.h5t.STD_I64BE,
-    float: h5py.h5t.IEEE_F64BE,
-
-    np.int8: h5py.h5t.STD_I8BE,
-    np.int16: h5py.h5t.STD_I16BE,
-    np.int32: h5py.h5t.STD_I32BE,
-    np.int64: h5py.h5t.STD_I64BE,
-
-    np.uint8: h5py.h5t.STD_U8BE,
-    np.uint16: h5py.h5t.STD_U16BE,
-    np.uint32: h5py.h5t.STD_U32BE,
-    np.uint64: h5py.h5t.STD_U64BE,
-
-    np.float16: h5py.h5t.IEEE_F16BE,
-    np.float32: h5py.h5t.IEEE_F32BE,
-    np.float64: h5py.h5t.IEEE_F64BE
-}
-
-def result_dict_to_hdf5(f, rd):
-    for name, data in rd.items():
-        flag = None
-        # beware: isinstance(True/False, int) == True
-        if isinstance(data, bool):
-            data = np.int8(data)
-            flag = "py_bool"
-        elif isinstance(data, int):
-            data = np.int64(data)
-            flag = "py_int"
-
-        if isinstance(data, np.ndarray):
-            dataset = f.create_dataset(name, data=data)
-        else:
-            ty = type(data)
-            if ty is str:
-                ty_h5 = "S{}".format(len(data))
-                data = data.encode()
-            else:
-                try:
-                    ty_h5 = _type_to_hdf5[ty]
-                except KeyError:
-                    raise TypeError("Type {} is not supported for HDF5 output"
-                                    .format(ty)) from None
-            dataset = f.create_dataset(name, (), ty_h5)
-            dataset[()] = data
-
-        if flag is not None:
-            dataset.attrs[flag] = np.int8(1)
-
-
 class DatasetManager:
     def __init__(self, ddb):
         self.broadcast = Notifier(dict())
@@ -251,4 +201,5 @@ class DatasetManager:
 
     def write_hdf5(self, f):
         g = f.create_group("datasets")
-        result_dict_to_hdf5(g, self.local)
+        for k, v in self.local.items():
+            g[k] = v

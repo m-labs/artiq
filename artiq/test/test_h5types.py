@@ -3,8 +3,6 @@ import unittest
 import h5py
 import numpy as np
 
-from artiq.master.worker_db import result_dict_to_hdf5
-
 
 class TypesCase(unittest.TestCase):
     def test_types(self):
@@ -25,4 +23,5 @@ class TypesCase(unittest.TestCase):
             d["f"+str(size)] = getattr(np, "float" + str(size))(42)
 
         with h5py.File("h5types.h5", "w", "core", backing_store=False) as f:
-            result_dict_to_hdf5(f, d)
+            for k, v in d.items():
+                f[k] = v
