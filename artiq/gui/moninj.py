@@ -8,6 +8,7 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 
 from artiq.tools import TaskObject
 from artiq.protocols.sync_struct import Subscriber
+from artiq.gui.tools import LayoutWidget
 from artiq.gui.flowlayout import FlowLayout
 
 
@@ -27,8 +28,8 @@ class _MoninjWidget(QtWidgets.QFrame):
         QtWidgets.QFrame.__init__(self)
         qfm = QtGui.QFontMetrics(self.font())
         self._size = QtCore.QSize(
-            29*qfm.averageCharWidth(),
-            10*qfm.lineSpacing())
+            18*qfm.averageCharWidth(),
+            6*qfm.lineSpacing())
         self.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
 
         self.setFrameShape(QtWidgets.QFrame.Box)
@@ -53,51 +54,65 @@ class _TTLWidget(_MoninjWidget):
         label.setWordWrap(True)
         grid.addWidget(label, 1, 1)
 
-        self._direction = QtWidgets.QLabel()
-        self._direction.setAlignment(QtCore.Qt.AlignCenter)
-        grid.addWidget(self._direction, 2, 1)
-        self._override = QtWidgets.QLabel()
-        self._override.setAlignment(QtCore.Qt.AlignCenter)
-        grid.addWidget(self._override, 3, 1)
-        self._value = QtWidgets.QLabel()
-        self._value.setAlignment(QtCore.Qt.AlignCenter)
-        grid.addWidget(self._value, 4, 1, 6, 1)
+        self.stack = QtWidgets.QStackedWidget()
+        grid.addWidget(self.stack, 2, 1)
 
-        self._value.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        menu = QtWidgets.QActionGroup(self._value)
-        menu.setExclusive(True)
-        self._expctl_action = QtWidgets.QAction("Experiment controlled", self._value)
-        self._expctl_action.setCheckable(True)
-        menu.addAction(self._expctl_action)
-        self._value.addAction(self._expctl_action)
-        self._expctl_action.triggered.connect(lambda: self.set_mode("exp"))
-        separator = QtWidgets.QAction(self._value)
-        separator.setSeparator(True)
-        self._value.addAction(separator)
-        self._force1_action = QtWidgets.QAction("Force 1", self._value)
-        self._force1_action.setCheckable(True)
-        menu.addAction(self._force1_action)
-        self._value.addAction(self._force1_action)
-        self._force1_action.triggered.connect(lambda: self.set_mode("1"))
-        self._force0_action = QtWidgets.QAction("Force 0", self._value)
-        self._force0_action.setCheckable(True)
-        menu.addAction(self._force0_action)
-        self._value.addAction(self._force0_action)
-        self._force0_action.triggered.connect(lambda: self.set_mode("0"))
-        self._forcein_action = QtWidgets.QAction("Force input", self._value)
-        self._forcein_action.setCheckable(True)
-        self._forcein_action.setEnabled(not force_out)
-        menu.addAction(self._forcein_action)
-        self._value.addAction(self._forcein_action)
-        self._forcein_action.triggered.connect(lambda: self.set_mode("in"))
+        self.direction = QtWidgets.QLabel()
+        self.direction.setAlignment(QtCore.Qt.AlignCenter)
+        self.stack.addWidget(self.direction)
+
+        grid_cb = LayoutWidget()
+        self.override = QtWidgets.QCheckBox("Override")
+        grid_cb.addWidget(self.override, 3, 1)
+        self.level = QtWidgets.QCheckBox("Level")
+        grid_cb.addWidget(self.level, 3, 2)
+        self.stack.addWidget(grid_cb)
+
+        self.value = QtWidgets.QLabel()
+        self.value.setAlignment(QtCore.Qt.AlignCenter)
+        grid.addWidget(self.value, 3, 1)
 
         grid.setRowStretch(1, 1)
         grid.setRowStretch(2, 0)
         grid.setRowStretch(3, 0)
-        grid.setRowStretch(4, 0)
-        grid.setRowStretch(5, 1)
+        grid.setRowStretch(4, 1)
+
+        self.programmatic_change = False
+        self.override.stateChanged.connect(self.override_toggled)
+        self.level.stateChanged.connect(self.level_toggled)
 
         self.set_value(0, False, False)
+
+    def enterEvent(self, event):
+        self.stack.setCurrentIndex(1)
+        _MoninjWidget.enterEvent(self, event)
+
+    def leaveEvent(self, event):
+        if not self.override.isChecked():
+            self.stack.setCurrentIndex(0)
+        _MoninjWidget.leaveEvent(self, event)
+
+    def override_toggled(self, override):
+        print("override", override, self.programmatic_change)
+        if self.programmatic_change:
+            return
+        if override:
+            if self.level.isChecked():
+                self.set_mode("1")
+            else:
+                self.set_mode("0")
+        else:
+            self.set_mode("exp")
+
+    def level_toggled(self, level):
+        print("level", level, self.programmatic_change)
+        if self.programmatic_change:
+            return
+        if self.override.isChecked():
+            if level:
+                self.set_mode("1")
+            else:
+                self.set_mode("0")
 
     def set_mode(self, mode):
         data = struct.pack("bbb",
@@ -110,25 +125,22 @@ class _TTLWidget(_MoninjWidget):
         if override:
             value_s = "<b>" + value_s + "</b>"
             color = " color=\"red\""
-            self._override.setText("<font size=\"1\" color=\"red\">OVERRIDE</font>")
         else:
             color = ""
-            self._override.setText("")
-        self._value.setText("<font size=\"9\"{}>{}</font>".format(
+        self.value.setText("<font size=\"9\"{}>{}</font>".format(
                             color, value_s))
         oe = oe or self.force_out
         direction = "OUT" if oe else "IN"
-        self._direction.setText("<font size=\"1\">" + direction + "</font>")
-        if override:
-            if oe:
-                if value:
-                    self._force1_action.setChecked(True)
-                else:
-                    self._force0_action.setChecked(True)
-            else:
-                self._forcein_action.setChecked(True)
-        else:
-            self._expctl_action.setChecked(True)
+        self.direction.setText("<font size=\"1\">" + direction + "</font>")
+
+        self.programmatic_change = True
+        try:
+            self.override.setChecked(bool(override))
+            if override:
+                self.stack.setCurrentIndex(1)
+                self.level.setChecked(bool(value))
+        finally:
+            self.programmatic_change = False
 
 
 class _DDSWidget(_MoninjWidget):
@@ -146,10 +158,10 @@ class _DDSWidget(_MoninjWidget):
         label.setWordWrap(True)
         grid.addWidget(label, 1, 1)
 
-        self._value = QtWidgets.QLabel()
-        self._value.setAlignment(QtCore.Qt.AlignCenter)
-        self._value.setWordWrap(True)
-        grid.addWidget(self._value, 2, 1, 6, 1)
+        self.value = QtWidgets.QLabel()
+        self.value.setAlignment(QtCore.Qt.AlignCenter)
+        self.value.setWordWrap(True)
+        grid.addWidget(self.value, 2, 1, 6, 1)
 
         grid.setRowStretch(1, 1)
         grid.setRowStretch(2, 0)
@@ -159,8 +171,8 @@ class _DDSWidget(_MoninjWidget):
 
     def set_value(self, ftw):
         frequency = ftw*self.sysclk()/2**32
-        self._value.setText("<font size=\"6\">{:.7f} MHz</font>"
-                            .format(float(frequency)/1e6))
+        self.value.setText("<font size=\"5\">{:.7f} MHz</font>"
+                           .format(frequency/1e6))
 
 
 class _DeviceManager:
@@ -188,14 +200,13 @@ class _DeviceManager:
             return
         try:
             if v["type"] == "local":
-                title = k
-                if "comment" in v:
-                    title += ": " + v["comment"]
+                widget = None
                 if v["module"] == "artiq.coredevice.ttl":
                     channel = v["arguments"]["channel"]
                     force_out = v["class"] == "TTLOut"
-                    self.ttl_widgets[k] = _TTLWidget(
-                        channel, self.send_to_device, force_out, title)
+                    widget = _TTLWidget(
+                        channel, self.send_to_device, force_out, k)
+                    self.ttl_widgets[k] = widget
                     self.ttl_cb()
                 if (v["module"] == "artiq.coredevice.dds"
                         and v["class"] == "CoreDDS"):
@@ -204,9 +215,12 @@ class _DeviceManager:
                         and v["class"] in {"AD9858", "AD9914"}):
                     bus_channel = v["arguments"]["bus_channel"]
                     channel = v["arguments"]["channel"]
-                    self.dds_widgets[channel] = _DDSWidget(
-                        bus_channel, channel, self.get_dds_sysclk, title)
+                    widget = _DDSWidget(
+                        bus_channel, channel, self.get_dds_sysclk, k)
+                    self.dds_widgets[channel] = widget
                     self.dds_cb()
+                if widget is not None and "comment" in v:
+                    widget.setToolTip(v["comment"])
         except KeyError:
             pass
 
