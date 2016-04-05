@@ -24,7 +24,12 @@ unreleased [2.x]
 unreleased [1.0rc3]
 -------------------
 
-* The HDF5 format has changed. The datasets are located in the subgroup ``datasets``.
+* The HDF5 format has changed.
+
+  * The datasets are located in the HDF5 subgroup ``datasets``.
+  * Datasets are now stored without additional type annotations from ARTIQ,
+    trusting that h5py maps and convert types between HDF5 and python/numpy
+    "as expected".
 
 
 1.0rc2
