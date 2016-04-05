@@ -20,6 +20,12 @@ unreleased [2.x]
   just "-m qcX" or "-m clock" (#290).
 
 
+unreleased [1.0rc3]
+-------------------
+
+* The HDF5 format has changed. The datasets are located in the subgroup ``datasets``.
+
+
 1.0rc2
 ------
 

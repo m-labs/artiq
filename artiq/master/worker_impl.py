@@ -218,14 +218,11 @@ def main():
                 exp_inst.analyze()
                 put_object({"action": "completed"})
             elif action == "write_results":
-                f = get_hdf5_output(start_time, rid, exp.__name__)
-                try:
+                with get_hdf5_output(start_time, rid, exp.__name__) as f:
                     dataset_mgr.write_hdf5(f)
-                    string_to_hdf5(f, "artiq_version", artiq_version)
+                    string_to_hdf5(f, "version", artiq_version)
                     if "repo_rev" in expid:
                         string_to_hdf5(f, "repo_rev", expid["repo_rev"])
-                finally:
-                    f.close()
                 put_object({"action": "completed"})
             elif action == "examine":
                 examine(ExamineDeviceMgr, ParentDatasetDB, obj["file"])
