@@ -50,6 +50,9 @@ class CameraSimulation:
             self.noise_level)
         return r
 
+    def ping(self):
+        return True
+
 
 def main():
     logging.basicConfig(level=logging.INFO)
