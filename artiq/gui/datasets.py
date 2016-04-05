@@ -1,6 +1,4 @@
 import asyncio
-from collections import OrderedDict
-from functools import partial
 import logging
 
 from PyQt5 import QtCore, QtWidgets
@@ -16,8 +14,8 @@ logger = logging.getLogger(__name__)
 class Model(DictSyncTreeSepModel):
     def __init__(self,  init):
         DictSyncTreeSepModel.__init__(self, ".",
-            ["Dataset", "Persistent", "Value"],
-            init)
+                                      ["Dataset", "Persistent", "Value"],
+                                      init)
 
     def convert(self, k, v, column):
         if column == 1:
@@ -25,7 +23,7 @@ class Model(DictSyncTreeSepModel):
         elif column == 2:
             return short_format(v[1])
         else:
-           raise ValueError
+            raise ValueError
 
 
 class DatasetsDock(QtWidgets.QDockWidget):
@@ -46,7 +44,8 @@ class DatasetsDock(QtWidgets.QDockWidget):
 
         self.table = QtWidgets.QTreeView()
         self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        self.table.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.table.setSelectionMode(
+            QtWidgets.QAbstractItemView.SingleSelection)
         grid.addWidget(self.table, 1, 0)
 
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
