@@ -12,6 +12,7 @@ from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import *
 from artiq.gui import (state, results,
                        datasets, applets)
+from artiq.protocols.sync_struct import process_mod
 
 
 def get_argparser():
@@ -66,11 +67,21 @@ class MdiArea(QtWidgets.QMdiArea):
 
 
 class LocalModelManager:
-    def __init__(self, model_factory):
+    def __init__(self, model_factory, notify_cb=None):
         self.model = None
         self._model_factory = model_factory
         self._setmodel_callbacks = []
-        self.notify_cbs = []
+        if notify_cb is None:
+            notify_cb = []
+        if not isinstance(notify_cb, list):
+            notify_cb = [notify_cb]
+        self.notify_cbs = notify_cb
+
+    def init(self, struct):
+        self._create_model(struct)
+        mod = {"action": "init", "struct": struct}
+        for notify_cb in self.notify_cbs:
+            notify_cb(mod)
 
     def _create_model(self, init):
         self.model = self._model_factory(init)
@@ -107,7 +118,7 @@ def main():
     mdi_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
     main_window.setCentralWidget(mdi_area)
 
-    d_results = results.ResultsDock()
+    d_results = results.ResultsDock(datasets_sub)
     smgr.register(d_results)
 
     d_applets = applets.AppletsDock(main_window, datasets_sub)
@@ -118,11 +129,9 @@ def main():
                                        None)  # TODO: datsets_ctl.delete()
     smgr.register(d_datasets)
 
-    # lay out docks
-    right_docks = [d_results, d_applets, d_datasets]
-    main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, right_docks[0])
-    for d1, d2 in zip(right_docks, right_docks[1:]):
-        main_window.tabifyDockWidget(d1, d2)
+    main_window.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d_results)
+    main_window.addDockWidget(QtCore.Qt.BottomDockWidgetArea, d_applets)
+    main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_datasets)
 
     # load/initialize state
     if os.name == "nt":

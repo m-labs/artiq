@@ -1,18 +1,19 @@
-import asyncio
 import logging
-from functools import partial
 
+import h5py
 from PyQt5 import QtCore, QtWidgets
 
 from artiq.gui.tools import LayoutWidget
-
 
 logger = logging.getLogger(__name__)
 
 
 class ResultsDock(QtWidgets.QDockWidget):
-    def __init__(self):
+    def __init__(self, datasets):
         QtWidgets.QDockWidget.__init__(self, "Results")
+
+        self.datasets = datasets
+
         self.setObjectName("Results")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
                          QtWidgets.QDockWidget.DockWidgetFloatable)
@@ -29,21 +30,32 @@ class ResultsDock(QtWidgets.QDockWidget):
 
         self.rt_model = QtWidgets.QFileSystemModel()
         self.rt_model.setRootPath(QtCore.QDir.currentPath())
-        self.rt_model.setNameFilters(["HDF5 files (*.h5)"])
+        self.rt_model.setNameFilters(["*.h5"])
         self.rt_model.setNameFilterDisables(False)
 
         self.rt = QtWidgets.QTreeView()
         self.rt.setModel(self.rt_model)
         self.rt.setRootIndex(self.rt_model.index(QtCore.QDir.currentPath()))
-        self.rt.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectItems)
+        self.rt.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.rt.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.rt.selectionModel().selectionChanged.connect(
             self.selection_changed)
         self.rt_buttons.addWidget(self.rt, 0, 0, colspan=2)
 
     def selection_changed(self, selected, deselected):
         indexes = selected.indexes()
-        if indexes:
-            print(self.rt_model.filePath(indexes[0]))
+        if not indexes:
+            return
+        path = self.rt_model.filePath(indexes[0])
+        logger.info("opening %s", path)
+        try:
+            with h5py.File(path, "r") as f:
+                rd = {}
+                for k in f["datasets"]:
+                    rd[k] = False, f[k].value
+                self.datasets.init(rd)
+        except:
+            pass
 
     def select(self, path):
         s = self.rt_model.index(path)
@@ -51,9 +63,6 @@ class ResultsDock(QtWidgets.QDockWidget):
             s,
             QtCore.QItemSelectionModel.ClearAndSelect)
         self.rt.scrollTo(s)  # TODO: call_soon?
-
-    def resultname_action(self, action):
-        pass
 
     def save_state(self):
         return {
