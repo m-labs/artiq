@@ -16,8 +16,11 @@ class TypesCase(unittest.TestCase):
         }
 
         for size in 8, 16, 32, 64:
-            d["i"+str(size)] = getattr(np, "int" + str(size))(42)
-            d["u"+str(size)] = getattr(np, "uint" + str(size))(42)
+            for typ in "int", "uint":
+                dt = getattr(np, typ + str(size))
+                d[typ+str(size)] = dt(42)
+                d["n"+typ+str(size)] = np.array(42, dt)
+                d["m"+typ+str(size)] = np.array([[[[42]]]], dt)
         for size in 16, 32, 64:
             d["f"+str(size)] = getattr(np, "float" + str(size))(42)
 
