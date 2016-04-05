@@ -21,5 +21,5 @@ class TypesCase(unittest.TestCase):
         for size in 16, 32, 64:
             d["f"+str(size)] = getattr(np, "float" + str(size))(42)
 
-        with h5py.File("h5types.h5", "w") as f:
+        with h5py.File("h5types.h5", "w", "core", backing_store=False) as f:
             result_dict_to_hdf5(f, d)
