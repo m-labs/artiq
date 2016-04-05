@@ -54,8 +54,9 @@ class ResultsBrowser(QtWidgets.QSplitter):
         try:
             with h5py.File(path, "r") as f:
                 rd = {}
-                for k in f: #["datasets"]:
-                    rd[k] = False, f[k].value
+                group = f["datasets"]
+                for k in group:
+                    rd[k] = True, group[k].value
                 self.datasets.init(rd)
         except:
             pass

@@ -10,11 +10,12 @@ from quamash import QEventLoop
 
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import verbosity_args, init_logger, atexit_register_coroutine
-from artiq.gui import state, results, datasets, applets, models
+from artiq.gui import state, applets, models
+from artiq.browser import datasets, results
 
 
 def get_argparser():
-    parser = argparse.ArgumentParser(description="ARTIQ results browser")
+    parser = argparse.ArgumentParser(description="ARTIQ Browser")
     parser.add_argument(
         "--db-file", default="artiq_browser.pyon",
         help="database file for local browser settings")
@@ -29,7 +30,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         icon = QtGui.QIcon(os.path.join(artiq_dir, "gui", "logo.svg"))
         self.setWindowIcon(icon)
-        self.setWindowTitle("ARTIQ - Browser")
+        self.setWindowTitle("ARTIQ Browser")
 
         qfm = QtGui.QFontMetrics(self.font())
         self.resize(140*qfm.averageCharWidth(), 38*qfm.lineSpacing())
@@ -94,8 +95,7 @@ def main():
     atexit_register_coroutine(d_applets.stop)
     smgr.register(d_applets)
 
-    d_datasets = datasets.DatasetsDock(datasets_sub,
-                                       None)  # TODO: datsets_ctl.delete()
+    d_datasets = datasets.DatasetsDock(datasets_sub)
     smgr.register(d_datasets)
 
     main_window.setCentralWidget(d_results)
