@@ -1,4 +1,5 @@
 import logging
+import threading
 
 import h5py
 from PyQt5 import QtCore, QtWidgets, QtGui
@@ -6,17 +7,26 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 logger = logging.getLogger(__name__)
 
 
+class ResultError(Exception):
+    pass
+
+
 class ResultIconProvider(QtWidgets.QFileIconProvider):
     def icon(self, info):
-        if not (info.isFile() and info.isReadable() and info.suffix() == "h5"):
-            return QtWidgets.QFileIconProvider.icon(self, info)
         try:
+            if not (info.isFile() and info.isReadable() and
+                    info.suffix() == "h5"):
+                raise ResultError
             with h5py.File(info.filePath(), "r") as f:
+                if "thumbnail" not in f:
+                    raise ResultError
                 d = f["thumbnail"]
+                if "extension" not in d.attrs:
+                    raise ResultError
                 img = QtGui.QImage.fromData(d.value, d.attrs["extension"])
                 pix = QtGui.QPixmap.fromImage(img)
                 return QtGui.QIcon(pix)
-        except:
+        except ResultError:
             return QtWidgets.QFileIconProvider.icon(self, info)
 
 
@@ -30,15 +40,16 @@ class ResultsBrowser(QtWidgets.QSplitter):
         self.rt_model.setRootPath(QtCore.QDir.currentPath())
         self.rt_model.setNameFilters(["*.h5"])
         self.rt_model.setNameFilterDisables(False)
-        self.rt_model.setIconProvider(ResultIconProvider())
+        self.icon_provider = ResultIconProvider()
+        self.rt_model.setIconProvider(self.icon_provider)
 
         self.rt = QtWidgets.QTreeView()
         self.rt.setModel(self.rt_model)
         self.rt.setRootIndex(self.rt_model.index(QtCore.QDir.currentPath()))
         self.rt.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.rt.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
-        self.rt.selectionModel().selectionChanged.connect(
-            self.selection_changed)
+        self.rt.selectionModel().currentChanged.connect(
+            self.current_changed)
         self.rt.setRootIsDecorated(False)
         self.addWidget(self.rt)
 
@@ -49,6 +60,8 @@ class ResultsBrowser(QtWidgets.QSplitter):
         self.rl.setRootIndex(self.rt.rootIndex())
         l = QtGui.QFontMetrics(self.font()).lineSpacing()
         self.rl.setIconSize(QtCore.QSize(20*l, 20*l))
+        self.rl.setWrapping(True)
+        self.rl.setFlow(QtWidgets.QListView.LeftToRight)
         self.addWidget(self.rl)
 
     def showEvent(self, ev):
@@ -60,20 +73,25 @@ class ResultsBrowser(QtWidgets.QSplitter):
         self.rt.hideColumn(3)
         self.rt.scrollTo(self.rt.selectionModel().currentIndex())
 
-    def selection_changed(self, selected, deselected):
-        indexes = selected.indexes()
-        if not indexes:
-            return
-        path = self.rt_model.filePath(indexes[0])
-        logger.info("opening %s", path)
+    def cleanup(self):
+        pass
+
+    def current_changed(self, current, previous):
+        info = self.rt_model.fileInfo(current)
+        logger.info("opening %s", info.filePath())
         try:
-            with h5py.File(path, "r") as f:
+            if not (info.isFile() and info.isReadable() and
+                    info.suffix() == "h5"):
+                raise ResultError
+            with h5py.File(info.filePath(), "r") as f:
                 rd = {}
+                if "datasets" not in f:
+                    raise ResultError
                 group = f["datasets"]
                 for k in group:
                     rd[k] = True, group[k].value
                 self.datasets.init(rd)
-        except:
+        except ResultError:
             pass
 
     def select(self, path):
