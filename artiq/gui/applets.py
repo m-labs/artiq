@@ -264,6 +264,10 @@ class AppletsDock(QtWidgets.QDockWidget):
                         name = name.text()
                     dock = self.create(item.applet_uid, name, command)
                     item.applet_dock = dock
+                    if item.applet_geometry is not None:
+                        dock.restoreGeometry(item.applet_geometry)
+                        # geometry is now handled by main window state
+                        item.applet_geometry = None
                     self.dock_to_checkbox[dock] = item
             else:
                 dock = item.applet_dock
@@ -280,9 +284,10 @@ class AppletsDock(QtWidgets.QDockWidget):
                     dock.command = new_value
 
     def on_dock_closed(self, dock):
-        asyncio.ensure_future(dock.terminate())
         checkbox_item = self.dock_to_checkbox[dock]
         checkbox_item.applet_dock = None
+        checkbox_item.applet_geometry = dock.saveGeometry()
+        asyncio.ensure_future(dock.terminate())
         del self.dock_to_checkbox[dock]
         checkbox_item.setCheckState(QtCore.Qt.Unchecked)
 
@@ -301,6 +306,7 @@ class AppletsDock(QtWidgets.QDockWidget):
         checkbox.setCheckState(QtCore.Qt.Unchecked)
         checkbox.applet_uid = uid
         checkbox.applet_dock = None
+        checkbox.applet_geometry = None
         self.table.setItem(row, 0, checkbox)
         self.table.setItem(row, 1, QtWidgets.QTableWidgetItem())
         self.table.setItem(row, 2, QtWidgets.QTableWidgetItem())
@@ -344,11 +350,14 @@ class AppletsDock(QtWidgets.QDockWidget):
             enabled = self.table.item(row, 0).checkState() == QtCore.Qt.Checked
             name = self.table.item(row, 1).text()
             command = self.table.item(row, 2).text()
-            state.append((uid, enabled, name, command))
+            geometry = self.table.item(row, 0).applet_geometry
+            if geometry is not None:
+                geometry = bytes(geometry)
+            state.append((uid, enabled, name, command, geometry))
         return state
 
     def restore_state(self, state):
-        for uid, enabled, name, command in state:
+        for uid, enabled, name, command, geometry in state:
             row = self.new(uid)
             item = QtWidgets.QTableWidgetItem()
             item.setText(name)
@@ -356,5 +365,8 @@ class AppletsDock(QtWidgets.QDockWidget):
             item = QtWidgets.QTableWidgetItem()
             item.setText(command)
             self.table.setItem(row, 2, item)
+            if geometry is not None:
+                geometry = QtCore.QByteArray(geometry)
+                self.table.item(row, 0).applet_geometry = geometry
             if enabled:
                 self.table.item(row, 0).setCheckState(QtCore.Qt.Checked)
