@@ -59,7 +59,7 @@ class Core:
     :param comm_device: name of the device used for communications.
     """
 
-    kernel_constant_attributes = {
+    kernel_invariants = {
         "core", "ref_period", "coarse_ref_period", "ref_multiplier",
         "external_clock",
     }

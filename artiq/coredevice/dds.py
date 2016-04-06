@@ -29,7 +29,7 @@ def dds_batch_exit() -> TNone:
 
 
 class _BatchContextManager:
-    kernel_constant_attributes = {"core", "core_dds"}
+    kernel_invariants = {"core", "core_dds"}
 
     def __init__(self, core_dds):
         self.core_dds = core_dds
@@ -53,7 +53,7 @@ class CoreDDS:
         phase-locked multiple of the RTIO clock.
     """
 
-    kernel_constant_attributes = {"core", "sysclk", "batch"}
+    kernel_invariants = {"core", "sysclk", "batch"}
 
     def __init__(self, dmgr, sysclk, core_device="core"):
         self.core = dmgr.get(core_device)
@@ -88,7 +88,7 @@ class _DDSGeneric:
     :param channel: channel number of the DDS device to control.
     """
 
-    kernel_constant_attributes = {
+    kernel_invariants = {
         "core", "core_dds", "bus_channel", "channel", "pow_width"
     }
 

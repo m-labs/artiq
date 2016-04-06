@@ -5,7 +5,7 @@ from artiq.language.core import *
 from artiq.language.types import *
 
 class c:
-    kernel_constant_attributes = {'a'}
+    kernel_invariants = {'a'}
 
     def __init__(self):
         self.a = 1
