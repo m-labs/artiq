@@ -169,6 +169,11 @@ The program below exemplifies how to use logging: ::
         main()
 
 
+Remote execution support
+------------------------
+
+If you wish to support remote execution in your controller, you may do so by simply replacing ``simple_server_loop`` with :class:`artiq.protocols.remote_exec.simple_rexec_server_loop`.
+
 General guidelines
 ------------------
 

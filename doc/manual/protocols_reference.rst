@@ -34,3 +34,10 @@ Protocols reference
 
 .. automodule:: artiq.protocols.sync_struct
     :members:
+
+
+:mod:`artiq.protocols.remote_exec` module
+-----------------------------------------
+
+.. automodule:: artiq.protocols.remote_exec
+    :members:
