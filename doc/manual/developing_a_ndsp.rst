@@ -110,9 +110,9 @@ When using the driver in an experiment, the ``Client`` instance can be returned 
 Command-line arguments
 ----------------------
 
-Use the Python ``argparse`` module to make the bind address and port configurable on the controller, and the server address, port and message configurable on the client.
+Use the Python ``argparse`` module to make the bind address(es) and port configurable on the controller, and the server address, port and message configurable on the client.
 
-We suggest naming the controller parameters ``--bind`` and ``--port`` so that those parameters stay consistent across controller, and use ``-s/--server`` and ``--port`` on the client. The ``artiq.tools.simple_network_args`` library function adds such arguments for the controller.
+We suggest naming the controller parameters ``--bind`` (which adds a bind address in addition to a default binding to localhost), ``--no-bind-localhost`` (which disables the default binding to localhost), and ``--port``, so that those parameters stay consistent across controllers. Use ``-s/--server`` and ``--port`` on the client. The ``artiq.tools.simple_network_args`` library function adds such arguments for the controller, and the ``artiq.tools.bind_address_from_args`` function processes them.
 
 The controller's code would contain something similar to this: ::
 
@@ -125,7 +125,7 @@ The controller's code would contain something similar to this: ::
 
     def main():
         args = get_argparser().parse_args()
-        simple_server_loop(Hello(), args.bind, args.port)
+        simple_server_loop(Hello(), bind_address_from_args(args), args.port)
 
 We suggest that you define a function ``get_argparser`` that returns the argument parser, so that it can be used to document the command line parameters using sphinx-argparse.
 
