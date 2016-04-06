@@ -4,7 +4,7 @@ import numpy as np
 import PyQt5  # make sure pyqtgraph imports Qt5
 import pyqtgraph
 
-from artiq.applets.simple import SimpleApplet
+from artiq.applets.simple import TitleApplet
 
 
 class XYPlot(pyqtgraph.PlotWidget):
@@ -12,7 +12,7 @@ class XYPlot(pyqtgraph.PlotWidget):
         pyqtgraph.PlotWidget.__init__(self)
         self.args = args
 
-    def data_changed(self, data, mods):
+    def data_changed(self, data, mods, title):
         try:
             y = data[self.args.y][1]
         except KeyError:
@@ -38,6 +38,7 @@ class XYPlot(pyqtgraph.PlotWidget):
 
         self.clear()
         self.plot(x, y, pen=None, symbol="x")
+        self.setTitle(title)
         if error is not None:
             # See https://github.com/pyqtgraph/pyqtgraph/issues/211
             if hasattr(error, "__len__") and not isinstance(error, np.ndarray):
@@ -49,7 +50,7 @@ class XYPlot(pyqtgraph.PlotWidget):
 
 
 def main():
-    applet = SimpleApplet(XYPlot)
+    applet = TitleApplet(XYPlot)
     applet.add_dataset("y", "Y values")
     applet.add_dataset("x", "X values", required=False)
     applet.add_dataset("error", "Error bars for each X value", required=False)

@@ -4,7 +4,7 @@ import numpy as np
 import PyQt5  # make sure pyqtgraph imports Qt5
 import pyqtgraph
 
-from artiq.applets.simple import SimpleApplet
+from artiq.applets.simple import TitleApplet
 
 
 class HistogramPlot(pyqtgraph.PlotWidget):
@@ -12,7 +12,7 @@ class HistogramPlot(pyqtgraph.PlotWidget):
         pyqtgraph.PlotWidget.__init__(self)
         self.args = args
 
-    def data_changed(self, data, mods):
+    def data_changed(self, data, mods, title):
         try:
             y = data[self.args.y][1]
             if self.args.x is None:
@@ -28,10 +28,11 @@ class HistogramPlot(pyqtgraph.PlotWidget):
             self.clear()
             self.plot(x, y, stepMode=True, fillLevel=0,
                       brush=(0, 0, 255, 150))
+            self.setTitle(title)
 
 
 def main():
-    applet = SimpleApplet(HistogramPlot)
+    applet = TitleApplet(HistogramPlot)
     applet.add_dataset("y", "Y values")
     applet.add_dataset("x", "Bin boundaries", required=False)
     applet.run()
