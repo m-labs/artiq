@@ -2,6 +2,7 @@ import logging
 import argparse
 import asyncio
 import os
+import string
 
 from quamash import QEventLoop, QtWidgets, QtGui, QtCore
 
@@ -177,8 +178,11 @@ class SimpleApplet:
         else:
             return False
 
+    def emit_data_changed(self, data, mod_buffer):
+        self.main_widget.data_changed(data, mod_buffer)
+
     def flush_mod_buffer(self):
-        self.main_widget.data_changed(self.data, self.mod_buffer)
+        self.emit_data_changed(self.data, self.mod_buffer)
         del self.mod_buffer
 
     def sub_mod(self, mod):
@@ -193,7 +197,7 @@ class SimpleApplet:
                 asyncio.get_event_loop().call_later(self.args.update_delay,
                                                     self.flush_mod_buffer)
         else:
-            self.main_widget.data_changed(self.data, [mod])
+            self.emit_data_changed(self.data, [mod])
 
     def subscribe(self):
         if self.args.embed is None:
@@ -224,3 +228,38 @@ class SimpleApplet:
                 self.ipc_close()
         finally:
             self.loop.close()
+
+
+class TitleApplet(SimpleApplet):
+    def __init__(self, *args, **kwargs):
+        SimpleApplet.__init__(self, *args, **kwargs)
+        self.argparser.add_argument("--title", default=None,
+                                    help="set title (can be a Python format "
+                                    "string where field names are dataset "
+                                    "names)")
+
+    def args_init(self):
+        SimpleApplet.args_init(self)
+        if self.args.title is not None:
+            self.dataset_title = set()
+            parsed = string.Formatter().parse(self.args.title)
+            for _, format_field, _, _ in parsed:
+                if format_field is None:
+                    break
+                if not format_field:
+                    raise ValueError("Invalid title format string")
+                self.dataset_title.add(format_field)
+            self.datasets |= self.dataset_title
+
+    def emit_data_changed(self, data, mod_buffer):
+        if self.args.title is not None:
+            title_values = {k: data.get(k, (False, None))[1]
+                            for k in self.dataset_title}
+            try:
+                title = self.args.title.format(**title_values)
+            except:
+                logger.warning("failed to format title", exc_info=True)
+                title = self.args.title
+        else:
+            title = None
+        self.main_widget.data_changed(data, mod_buffer, title)
