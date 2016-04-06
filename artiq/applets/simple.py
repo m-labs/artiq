@@ -236,7 +236,7 @@ class TitleApplet(SimpleApplet):
         self.argparser.add_argument("--title", default=None,
                                     help="set title (can be a Python format "
                                     "string where field names are dataset "
-                                    "names)")
+                                    "names, replace '.' with '/')")
 
     def args_init(self):
         SimpleApplet.args_init(self)
@@ -248,12 +248,12 @@ class TitleApplet(SimpleApplet):
                     break
                 if not format_field:
                     raise ValueError("Invalid title format string")
-                self.dataset_title.add(format_field)
+                self.dataset_title.add(format_field.replace("/", "."))
             self.datasets |= self.dataset_title
 
     def emit_data_changed(self, data, mod_buffer):
         if self.args.title is not None:
-            title_values = {k: data.get(k, (False, None))[1]
+            title_values = {k.replace(".", "/"): data.get(k, (False, None))[1]
                             for k in self.dataset_title}
             try:
                 title = self.args.title.format(**title_values)
