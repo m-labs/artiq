@@ -6,27 +6,50 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 logger = logging.getLogger(__name__)
 
 
-class ResultError(Exception):
-    pass
-
-
 class ResultIconProvider(QtWidgets.QFileIconProvider):
     def icon(self, info):
-        try:
-            if not (info.isFile() and info.isReadable() and
-                    info.suffix() == "h5"):
-                raise ResultError
-            with h5py.File(info.filePath(), "r") as f:
-                if "thumbnail" not in f:
-                    raise ResultError
-                d = f["thumbnail"]
-                if "suffix" not in d.attrs:
-                    raise ResultError
-                img = QtGui.QImage.fromData(d.value, d.attrs["suffix"])
-                pix = QtGui.QPixmap.fromImage(img)
-                return QtGui.QIcon(pix)
-        except ResultError:
-            return QtWidgets.QFileIconProvider.icon(self, info)
+        icon = self.hdf5_thumbnail(info)
+        if icon is None:
+            icon = QtWidgets.QFileIconProvider.icon(self, info)
+        return icon
+
+    def hdf5_thumbnail(self, info):
+        if not (info.isFile() and info.isReadable() and
+                info.suffix() == "h5"):
+            return
+        with h5py.File(info.filePath(), "r") as f:
+            if "thumbnail" not in f:
+                return
+            img = QtGui.QImage.fromData(f["thumbnail"].value)
+            pix = QtGui.QPixmap.fromImage(img)
+            return QtGui.QIcon(pix)
+
+
+class DirsOnly(QtCore.QSortFilterProxyModel):
+    def filterAcceptsRow(self, row, parent):
+        m = self.sourceModel()
+        if not m.isDir(m.index(row, 0, parent)):
+            return False
+        return QtCore.QSortFilterProxyModel.filterAcceptsRow(self, row, parent)
+
+
+class FilesOnly(QtCore.QSortFilterProxyModel):
+    _root_idx = None
+
+    def filterAcceptsRow(self, row, parent):
+        if self._root_idx is not None:
+            model = self.sourceModel()
+            idx = model.index(row, 0, parent)
+            if idx == self._root_idx:
+                return True
+            if model.isDir(idx):
+                print("false", model.filePath(idx),
+                      model.filePath(self._root_idx))
+                return False
+        return QtCore.QSortFilterProxyModel.filterAcceptsRow(self, row, parent)
+
+    def setRootIndex(self, idx):
+        self._root_idx = idx
 
 
 class ResultsBrowser(QtWidgets.QSplitter):
@@ -35,31 +58,36 @@ class ResultsBrowser(QtWidgets.QSplitter):
 
         self.datasets = datasets
 
-        self.rt_model = QtWidgets.QFileSystemModel()
-        self.rt_model.setRootPath(QtCore.QDir.currentPath())
-        self.rt_model.setNameFilters(["*.h5"])
-        self.rt_model.setNameFilterDisables(False)
-        self.rt_model.setIconProvider(ResultIconProvider())
+        self.model = QtWidgets.QFileSystemModel()
+        self.model.setRootPath(QtCore.QDir.currentPath())
+        self.model.setNameFilters(["*.h5"])
+        self.model.setNameFilterDisables(False)
+        self.model.setIconProvider(ResultIconProvider())
 
         self.rt = QtWidgets.QTreeView()
+        self.rt_model = DirsOnly()
+        self.rt_model.setSourceModel(self.model)
         self.rt.setModel(self.rt_model)
-        self.rt.setRootIndex(self.rt_model.index(QtCore.QDir.currentPath()))
+        self.rt.setRootIndex(self.rt_model.mapFromSource(self.model.index(
+            QtCore.QDir.currentPath())))
         self.rt.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.rt.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.rt.selectionModel().currentChanged.connect(
-            self.current_changed)
+            self.tree_current_changed)
         self.rt.setRootIsDecorated(False)
         self.addWidget(self.rt)
 
         self.rl = QtWidgets.QListView()
+        self.rl_model = FilesOnly()
+        self.rl_model.setSourceModel(self.model)
+        self.rl.setModel(self.rl_model)
         self.rl.setViewMode(QtWidgets.QListView.IconMode)
-        self.rl.setModel(self.rt_model)
-        self.rl.setSelectionModel(self.rt.selectionModel())
-        self.rl.setRootIndex(self.rt.rootIndex())
         l = QtGui.QFontMetrics(self.font()).lineSpacing()
-        self.rl.setIconSize(QtCore.QSize(20*l, 20*l))
-        self.rl.setWrapping(True)
+        self.rl.setIconSize(QtCore.QSize(20*l, 15*l))
         self.rl.setFlow(QtWidgets.QListView.LeftToRight)
+        self.rl.setWrapping(True)
+        self.rl.selectionModel().currentChanged.connect(
+            self.list_current_changed)
         self.addWidget(self.rl)
 
     def showEvent(self, ev):
@@ -71,33 +99,40 @@ class ResultsBrowser(QtWidgets.QSplitter):
         self.rt.hideColumn(3)
         self.rt.scrollTo(self.rt.selectionModel().currentIndex())
 
-    def current_changed(self, current, previous):
-        info = self.rt_model.fileInfo(current)
+    def tree_current_changed(self, current, previous):
+        i = self.rt_model.mapToSource(current)
+        self.rl_model.setRootIndex(i)
+        j = self.rl_model.mapFromSource(i)
+        print("root", self.model.filePath(i),
+                      i.isValid())
+        self.rl.setRootIndex(j)
+
+    def list_current_changed(self, current, previous):
+        info = self.model.fileInfo(self.rl_model.mapToSource(current))
         logger.info("opening %s", info.filePath())
-        try:
-            if not (info.isFile() and info.isReadable() and
-                    info.suffix() == "h5"):
-                raise ResultError
-            with h5py.File(info.filePath(), "r") as f:
-                rd = {}
-                if "datasets" not in f:
-                    raise ResultError
-                group = f["datasets"]
-                for k in group:
-                    rd[k] = True, group[k].value
-                self.datasets.init(rd)
-        except ResultError:
-            pass
+        if not (info.isFile() and info.isReadable() and
+                info.suffix() == "h5"):
+            return
+        with h5py.File(info.filePath(), "r") as f:
+            rd = {}
+            if "datasets" not in f:
+                return
+            group = f["datasets"]
+            for k in group:
+                rd[k] = True, group[k].value
+            self.datasets.init(rd)
 
     def select(self, path):
+        idx = self.rt_model.mapFromSource(self.model.index(path))
+        self.rt.scrollTo(idx)
+        self.rt.expand(idx)
         self.rt.selectionModel().setCurrentIndex(
-            self.rt_model.index(path),
-            QtCore.QItemSelectionModel.ClearAndSelect)
+            idx, QtCore.QItemSelectionModel.ClearAndSelect)
 
     def save_state(self):
         return {
-            "selected": self.rt_model.filePath(
-                self.rt.selectionModel().currentIndex()),
+            "selected": self.model.filePath(self.rt_model.mapToSource(
+                self.rt.selectionModel().currentIndex())),
             "header": bytes(self.rt.header().saveState()),
             "splitter": bytes(self.saveState()),
         }
