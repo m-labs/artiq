@@ -12,8 +12,9 @@ from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import *
 from artiq.protocols.pc_rpc import AsyncioClient
 from artiq.gui.models import ModelSubscriber
-from artiq.gui import (state, experiments, shortcuts, explorer,
-                       moninj, datasets, applets, schedule, log)
+from artiq.gui import state, applets
+from artiq.dashboard import (experiments, shortcuts, explorer,
+                             moninj, datasets, schedule, log)
 
 
 def get_argparser():
