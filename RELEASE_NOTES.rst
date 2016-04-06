@@ -18,7 +18,8 @@ unreleased [2.x]
 * The "GUI" has been renamed the "dashboard".
 * When flashing NIST boards, use "-m nist_qcX" or "-m nist_clock" instead of
   just "-m qcX" or "-m clock" (#290).
-
+* Applet command lines now use templates (e.g. $python) instead of formats
+  (e.g. {python}).
 
 
 unreleased [1.0rc3]

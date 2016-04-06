@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import sys
+import string
 import shlex
 from functools import partial
 
@@ -108,25 +109,26 @@ class _AppletDock(QDockWidgetCloseDetect):
         if self.starting_stopping:
             return
         self.starting_stopping = True
-
-        self.ipc = AppletIPCServer(self.datasets_sub)
-        if "{ipc_address}" not in self.command:
-            logger.warning("IPC address missing from command for %s",
-                           self.applet_name)
-        command = self.command.format(
-            python=sys.executable.replace("\\", "\\\\"),
-            ipc_address=self.ipc.get_address().replace("\\", "\\\\")
-        )
-        logger.debug("starting command %s for %s", command, self.applet_name)
         try:
-            await self.ipc.create_subprocess(*shlex.split(command),
-                                             start_new_session=True)
-        except:
-            logger.warning("Applet %s failed to start", self.applet_name,
-                           exc_info=True)
-        self.ipc.start(self.embed, self.fix_initial_size)
-
-        self.starting_stopping = False
+            self.ipc = AppletIPCServer(self.datasets_sub)
+            if "$ipc_address" not in self.command:
+                logger.warning("IPC address missing from command for %s",
+                               self.applet_name)
+            command_tpl = string.Template(self.command)
+            command = command_tpl.safe_substitute(
+                python=sys.executable.replace("\\", "\\\\"),
+                ipc_address=self.ipc.get_address().replace("\\", "\\\\")
+            )
+            logger.info("starting command %s for %s", command, self.applet_name)
+            try:
+                await self.ipc.create_subprocess(*shlex.split(command),
+                                                 start_new_session=True)
+            except:
+                logger.warning("Applet %s failed to start", self.applet_name,
+                               exc_info=True)
+            self.ipc.start(self.embed, self.fix_initial_size)
+        finally:
+            self.starting_stopping = False
 
     def embed(self, win_id):
         logger.debug("capturing window 0x%x for %s", win_id, self.applet_name)
@@ -175,20 +177,20 @@ class _AppletDock(QDockWidgetCloseDetect):
 
 
 _templates = [
-    ("Big number", "{python} -m artiq.applets.big_number "
-                   "--embed {ipc_address} NUMBER_DATASET"),
-    ("Histogram", "{python} -m artiq.applets.plot_hist "
-                  "--embed {ipc_address} COUNTS_DATASET "
+    ("Big number", "$python -m artiq.applets.big_number "
+                   "--embed $ipc_address NUMBER_DATASET"),
+    ("Histogram", "$python -m artiq.applets.plot_hist "
+                  "--embed $ipc_address COUNTS_DATASET "
                   "--x BIN_BOUNDARIES_DATASET"),
-    ("XY", "{python} -m artiq.applets.plot_xy "
-           "--embed {ipc_address} Y_DATASET --x X_DATASET "
+    ("XY", "$python -m artiq.applets.plot_xy "
+           "--embed $ipc_address Y_DATASET --x X_DATASET "
            "--error ERROR_DATASET --fit FIT_DATASET"),
-    ("XY + Histogram", "{python} -m artiq.applets.plot_xy_hist "
-                       "--embed {ipc_address} X_DATASET "
+    ("XY + Histogram", "$python -m artiq.applets.plot_xy_hist "
+                       "--embed $ipc_address X_DATASET "
                        "HIST_BIN_BOUNDARIES_DATASET "
                        "HISTS_COUNTS_DATASET"),
-    ("Image", "{python} -m artiq.applets.image "
-                  "--embed {ipc_address} IMG_DATASET"),
+    ("Image", "$python -m artiq.applets.image "
+                  "--embed $ipc_address IMG_DATASET"),
 ]
 
 
