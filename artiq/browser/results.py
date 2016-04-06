@@ -1,5 +1,4 @@
 import logging
-import threading
 
 import h5py
 from PyQt5 import QtCore, QtWidgets, QtGui
@@ -21,9 +20,9 @@ class ResultIconProvider(QtWidgets.QFileIconProvider):
                 if "thumbnail" not in f:
                     raise ResultError
                 d = f["thumbnail"]
-                if "extension" not in d.attrs:
+                if "suffix" not in d.attrs:
                     raise ResultError
-                img = QtGui.QImage.fromData(d.value, d.attrs["extension"])
+                img = QtGui.QImage.fromData(d.value, d.attrs["suffix"])
                 pix = QtGui.QPixmap.fromImage(img)
                 return QtGui.QIcon(pix)
         except ResultError:
@@ -40,8 +39,7 @@ class ResultsBrowser(QtWidgets.QSplitter):
         self.rt_model.setRootPath(QtCore.QDir.currentPath())
         self.rt_model.setNameFilters(["*.h5"])
         self.rt_model.setNameFilterDisables(False)
-        self.icon_provider = ResultIconProvider()
-        self.rt_model.setIconProvider(self.icon_provider)
+        self.rt_model.setIconProvider(ResultIconProvider())
 
         self.rt = QtWidgets.QTreeView()
         self.rt.setModel(self.rt_model)
@@ -72,9 +70,6 @@ class ResultsBrowser(QtWidgets.QSplitter):
         self.rt.hideColumn(2)
         self.rt.hideColumn(3)
         self.rt.scrollTo(self.rt.selectionModel().currentIndex())
-
-    def cleanup(self):
-        pass
 
     def current_changed(self, current, previous):
         info = self.rt_model.fileInfo(current)
