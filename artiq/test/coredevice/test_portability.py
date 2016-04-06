@@ -37,6 +37,19 @@ class _Primes(EnvExperiment):
                 self._add_output(x)
 
 
+class _Math(EnvExperiment):
+    """Test kernel math"""
+
+    def build(self):
+        self.setattr_device("core")
+        self.x = 3.1
+        self.x_sqrt = 0.0
+
+    @kernel
+    def run(self):
+        self.x_sqrt = self.x**0.5
+
+
 class _Misc(EnvExperiment):
     def build(self):
         self.setattr_device("core")
@@ -193,6 +206,11 @@ class HostVsDeviceCase(ExperimentCase):
         self.execute(_Primes, maximum=100, output_list=l_device)
         _run_on_host(_Primes, maximum=100, output_list=l_host)
         self.assertEqual(l_device, l_host)
+
+    def test_math(self):
+        math_device = self.execute(_Math)
+        math_host = _run_on_host(_Math)
+        self.assertEqual(math_device.x_sqrt, math_host.x_sqrt)
 
     def test_misc(self):
         for f in self.execute, _run_on_host:
