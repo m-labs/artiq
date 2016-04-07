@@ -216,10 +216,11 @@ def main():
                 put_object({"action": "completed"})
             elif action == "write_results":
                 with get_hdf5_output(start_time, rid, exp.__name__) as f:
-                    dataset_mgr.write_hdf5(f)
+                    dataset_mgr.write_hdf5(f.create_group("datasets"))
                     f["artiq_version"] = artiq_version
-                    if "repo_rev" in expid:
-                        f["repo_rev"] = expid["repo_rev"]
+                    f["rid"] = rid
+                    f["start_time"] = start_time
+                    f["expid"] = pyon.encode(expid)
                 put_object({"action": "completed"})
             elif action == "examine":
                 examine(ExamineDeviceMgr, ParentDatasetDB, obj["file"])
