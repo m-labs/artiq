@@ -6,7 +6,6 @@ import tempfile
 import time
 import re
 
-import numpy as np
 import h5py
 
 from artiq.protocols.sync_struct import Notifier
@@ -44,7 +43,8 @@ class RIDCounter:
     def _update_cache(self, rid):
         contents = str(rid) + "\n"
         directory = os.path.abspath(os.path.dirname(self.cache_filename))
-        with tempfile.NamedTemporaryFile("w", dir=directory, delete=False) as f:
+        with tempfile.NamedTemporaryFile("w", dir=directory, delete=False
+                                         ) as f:
             f.write(contents)
             tmpname = f.name
         os.replace(tmpname, self.cache_filename)
@@ -68,7 +68,7 @@ class RIDCounter:
             except:
                 continue
             minute_folders = filter(lambda x: re.fullmatch('\d\d-\d\d', x),
-                                              minute_folders)
+                                    minute_folders)
             for mf in minute_folders:
                 minute_path = os.path.join(day_path, mf)
                 try:
@@ -158,13 +158,18 @@ class DeviceManager:
         self.active_devices.clear()
 
 
-def get_hdf5_output(start_time, rid, name):
+def get_output_prefix(start_time, rid, name):
     dirname = os.path.join("results",
                            time.strftime("%Y-%m-%d", start_time),
                            time.strftime("%H-%M", start_time))
-    filename = "{:09}-{}.h5".format(rid, name)
+    filename = "{:09}-{}".format(rid, name)
     os.makedirs(dirname, exist_ok=True)
-    return h5py.File(os.path.join(dirname, filename), "w")
+    return os.path.join(dirname, filename)
+
+
+def get_hdf5_output(start_time, rid, name):
+    prefix = get_output_prefix(start_time, rid, name)
+    return h5py.File("{}.h5".format(prefix), "w")
 
 
 class DatasetManager:
