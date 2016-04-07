@@ -198,13 +198,14 @@ class Pdq2:
             duration = line["duration"]
             trigger = line.get("trigger", False)
             for segment, data in zip(segments, line["channel_data"]):
+                silence = data.pop("silence", False)
                 if len(data) != 1:
                     raise ValueError("only one target per channel and line "
                                      "supported")
                 for target, target_data in data.items():
                     getattr(segment, target)(
                         shift=shift, duration=duration, trigger=trigger,
-                        **target_data)
+                        silence=silence, **target_data)
 
     def program(self, program, channels=None):
         if channels is None:

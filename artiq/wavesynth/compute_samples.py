@@ -57,7 +57,7 @@ class DDS:
         return self.amplitude.next()*cos(2*pi*self.phase.next())
 
 
-class Wave:
+class Channel:
     def __init__(self):
         self.bias = Spline()
         self.dds = DDS()
@@ -80,7 +80,7 @@ class TriggerError(Exception):
 
 class Synthesizer:
     def __init__(self, nchannels, program):
-        self.channels = [Wave() for _ in range(nchannels)]
+        self.channels = [Channel() for _ in range(nchannels)]
         self.program = program
         # line_iter is None: "wait for segment selection" state
         # otherwise: iterator on the current position in the frame
@@ -104,6 +104,7 @@ class Synthesizer:
         while True:
             for channel, channel_data in zip(self.channels,
                                              line["channel_data"]):
+                channel.set_silence(channel_data.get("silence", False))
                 if "bias" in channel_data:
                     channel.bias.set_coefficients(
                         channel_data["bias"]["amplitude"])
@@ -115,7 +116,6 @@ class Synthesizer:
                             channel_data["dds"]["phase"])
                     if channel_data["dds"].get("clear", False):
                         channel.dds.phase.clear()
-                    channel.set_silence(channel_data.get("silence", False))
 
             if line.get("dac_divider", 1) != 1:
                 raise NotImplementedError

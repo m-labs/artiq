@@ -31,7 +31,7 @@ class TestPdq2(unittest.TestCase):
         self.dev.program(_test_program)
         self.dev.cmd("START", True)
         self.dev.cmd("ARM", True)
-        #self.dev.cmd("TRIGGER", True)
+        # self.dev.cmd("TRIGGER", True)
         return self.dev.dev.getvalue()
 
     def test_synth(self):
@@ -103,10 +103,10 @@ _test_program = [
             "duration": 40,
             "channel_data": [
                 {"bias": {"amplitude": [.4, .04, -2e-3]}},
-                {"bias": {
-                    "amplitude": [.5],
+                {
+                    "bias": {"amplitude": [.5]},
                     "silence": True,
-                }},
+                },
                 {"dds": {
                     "amplitude": [.8, .08, -4e-3, 0],
                     "phase": [.25, .025, .02/40],
