@@ -121,6 +121,7 @@ class TestSynthesizer(unittest.TestCase):
 
     @unittest.skip("manual/visual test")
     def test_plot(self):
-        import cairoplot
+        from matplotlib import pyplot as plt
         x, y = self.drive()
-        cairoplot.scatter_plot("plot.png", [x, y])
+        plt.plot(x, y)
+        plt.show()
