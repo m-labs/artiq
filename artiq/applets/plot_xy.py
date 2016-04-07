@@ -46,7 +46,8 @@ class XYPlot(pyqtgraph.PlotWidget):
             errbars = pg.ErrorBarItem(x=np.array(x), y=np.array(y), height=error)
             self.addItem(errbars)
         if fit is not None:
-            self.plot(x, fit)
+            xi = np.argsort(x)
+            self.plot(x[xi], fit[xi])
 
 
 def main():
