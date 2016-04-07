@@ -195,6 +195,5 @@ class DatasetManager:
             return self.ddb.get(key)
 
     def write_hdf5(self, f):
-        g = f.create_group("datasets")
         for k, v in self.local.items():
-            g[k] = v
+            f[k] = v
