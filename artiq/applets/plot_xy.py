@@ -42,7 +42,8 @@ class XYPlot(pyqtgraph.PlotWidget):
             # See https://github.com/pyqtgraph/pyqtgraph/issues/211
             if hasattr(error, "__len__") and not isinstance(error, np.ndarray):
                 error = np.array(error)
-            errbars = pg.ErrorBarItem(x=np.array(x), y=np.array(y), height=error)
+            errbars = pyqtgraph.ErrorBarItem(
+                x=np.array(x), y=np.array(y), height=error)
             self.addItem(errbars)
         if fit is not None:
             xi = np.argsort(x)
