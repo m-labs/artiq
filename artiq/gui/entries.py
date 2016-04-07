@@ -168,6 +168,7 @@ class _RangeScan(LayoutWidget):
 
         npoints = QtWidgets.QSpinBox()
         npoints.setMinimum(1)
+        npoints.setMaximum((1 << 31) - 1)
         disable_scroll_wheel(npoints)
         self.addWidget(npoints, 1, 1)
 
