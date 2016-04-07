@@ -23,7 +23,7 @@ def _compute_ys(histogram_bins, histograms_counts):
 class XYHistPlot(QtWidgets.QSplitter):
     def __init__(self, args):
         QtWidgets.QSplitter.__init__(self)
-        self.resize(1000,600)
+        self.resize(1000, 600)
         self.setWindowTitle("XY/Histogram")
 
         self.xy_plot = pyqtgraph.PlotWidget()
@@ -121,7 +121,7 @@ class XYHistPlot(QtWidgets.QSplitter):
             self._set_partial_data(xs, histograms_counts)
         else:
             self._set_full_data(xs, histogram_bins, histograms_counts)
-        
+
 
 def main():
     applet = SimpleApplet(XYHistPlot)
