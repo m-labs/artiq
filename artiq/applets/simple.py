@@ -3,7 +3,7 @@ import argparse
 import asyncio
 import os
 
-from quamash import QEventLoop, QtWidgets, QtGui, QtCore
+from quamash import QEventLoop, QtWidgets, QtCore
 
 from artiq.protocols.sync_struct import Subscriber, process_mod
 from artiq.protocols import pyon
@@ -34,7 +34,7 @@ class AppletIPCClient(AsyncioChildComm):
             self.close_cb()
         elif reply["action"] != "embed_done":
             logger.error("unexpected action reply to embed request: %s",
-                         action)
+                         reply["action"])
             self.close_cb()
 
     def fix_initial_size(self):
@@ -60,7 +60,7 @@ class AppletIPCClient(AsyncioChildComm):
                     raise ValueError("unknown action in parent message")
             except:
                 logger.error("error processing parent message",
-                               exc_info=True)
+                             exc_info=True)
                 self.close_cb()
 
     def subscribe(self, datasets, init_cb, mod_cb):
@@ -78,10 +78,10 @@ class SimpleApplet:
 
         self.argparser = argparse.ArgumentParser(description=cmd_description)
 
-        self.argparser.add_argument("--update-delay", type=float,
-            default=default_update_delay,
+        self.argparser.add_argument(
+            "--update-delay", type=float, default=default_update_delay,
             help="time to wait after a mod (buffering other mods) "
-                  "before updating (default: %(default).2f)")
+                 "before updating (default: %(default).2f)")
 
         group = self.argparser.add_argument_group("standalone mode (default)")
         group.add_argument(
@@ -93,8 +93,9 @@ class SimpleApplet:
             "--port", default=3250, type=int,
             help="TCP port to connect to")
 
-        self.argparser.add_argument("--embed", default=None,
-            help="embed into GUI", metavar="IPC_ADDRESS")
+        self.argparser.add_argument(
+            "--embed", default=None, help="embed into GUI",
+            metavar="IPC_ADDRESS")
 
         self._arggroup_datasets = self.argparser.add_argument_group("datasets")
 
@@ -147,7 +148,7 @@ class SimpleApplet:
                 # testing has shown that the following procedure must be
                 # followed exactly on Linux:
                 # 1. applet creates widget
-                # 2. applet creates native window without showing it, and 
+                # 2. applet creates native window without showing it, and
                 #    gets its ID
                 # 3. applet sends the ID to host, host embeds the widget
                 # 4. applet shows the widget
