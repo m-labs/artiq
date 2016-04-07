@@ -148,13 +148,18 @@ class DeviceManager:
         self.active_devices.clear()
 
 
-def get_hdf5_output(start_time, rid, name):
+def get_output_prefix(start_time, rid, name):
     dirname = os.path.join("results",
                            time.strftime("%Y-%m-%d", start_time),
                            time.strftime("%H-%M", start_time))
-    filename = "{:09}-{}.h5".format(rid, name)
+    filename = "{:09}-{}".format(rid, name)
     os.makedirs(dirname, exist_ok=True)
-    return h5py.File(os.path.join(dirname, filename), "w")
+    return os.path.join(dirname, filename)
+
+
+def get_hdf5_output(start_time, rid, name):
+    prefix = get_output_prefix(start_time, rid, name)
+    return h5py.File("{}.h5".format(prefix), "w")
 
 
 class DatasetManager:
