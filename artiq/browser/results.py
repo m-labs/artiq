@@ -96,6 +96,7 @@ class ResultsBrowser(QtWidgets.QSplitter):
             f = h5py.File(info.filePath(), "r")
         except:
             logger.warning("unable to read HDF5 file", exc_info=True)
+            return
         with f:
             rd = {}
             try:
