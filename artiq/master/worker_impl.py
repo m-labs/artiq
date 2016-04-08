@@ -5,12 +5,13 @@ import logging
 import traceback
 from collections import OrderedDict
 
+import h5py
+
 import artiq
 from artiq.protocols import pipe_ipc, pyon
 from artiq.protocols.packed_exceptions import raise_packed_exc
 from artiq.tools import multiline_log_config, file_import
-from artiq.master.worker_db import (DeviceManager, DatasetManager,
-                                    get_hdf5_output)
+from artiq.master.worker_db import DeviceManager, DatasetManager
 from artiq.language.environment import is_experiment
 from artiq.language.core import set_watchdog_factory, TerminationRequested
 from artiq.coredevice.core import CompileError, host_only, _render_diagnostic
@@ -201,6 +202,11 @@ def main():
                 exp = get_exp(experiment_file, expid["class_name"])
                 device_mgr.virtual_devices["scheduler"].set_run_info(
                     rid, obj["pipeline_name"], expid, obj["priority"])
+                dirname = os.path.join("results",
+                                       time.strftime("%Y-%m-%d", start_time),
+                                       time.strftime("%H-%M", start_time))
+                os.makedirs(dirname, exist_ok=True)
+                os.chdir(dirname)
                 exp_inst = exp(
                     device_mgr, dataset_mgr, enable_processors=True,
                     **expid["arguments"])
@@ -215,7 +221,8 @@ def main():
                 exp_inst.analyze()
                 put_object({"action": "completed"})
             elif action == "write_results":
-                with get_hdf5_output(start_time, rid, exp.__name__) as f:
+                filename = "{:09}-{}.h5".format(rid, exp.__name__)
+                with h5py.File(filename, "w") as f:
                     dataset_mgr.write_hdf5(f.create_group("datasets"))
                     f["artiq_version"] = artiq_version
                     f["rid"] = rid

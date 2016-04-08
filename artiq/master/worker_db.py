@@ -3,10 +3,7 @@ import importlib
 import logging
 import os
 import tempfile
-import time
 import re
-
-import h5py
 
 from artiq.protocols.sync_struct import Notifier
 from artiq.protocols.pc_rpc import AutoTarget, Client, BestEffortClient
@@ -156,20 +153,6 @@ class DeviceManager:
             except Exception as e:
                 logger.warning("Exception %r when closing device %r", e, dev)
         self.active_devices.clear()
-
-
-def get_output_prefix(start_time, rid, name):
-    dirname = os.path.join("results",
-                           time.strftime("%Y-%m-%d", start_time),
-                           time.strftime("%H-%M", start_time))
-    filename = "{:09}-{}".format(rid, name)
-    os.makedirs(dirname, exist_ok=True)
-    return os.path.join(dirname, filename)
-
-
-def get_hdf5_output(start_time, rid, name):
-    prefix = get_output_prefix(start_time, rid, name)
-    return h5py.File("{}.h5".format(prefix), "w")
 
 
 class DatasetManager:
