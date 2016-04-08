@@ -18,10 +18,20 @@ class ResultIconProvider(QtWidgets.QFileIconProvider):
         if not (info.isFile() and info.isReadable() and
                 info.suffix() == "h5"):
             return
-        with h5py.File(info.filePath(), "r") as f:
-            if "thumbnail" not in f:
+        try:
+            f = h5py.File(info.filePath(), "r")
+        except:
+            return
+        with f:
+            try:
+                t = f["datasets/thumbnail"]
+            except KeyError:
                 return
-            img = QtGui.QImage.fromData(f["thumbnail"].value)
+            try:
+                img = QtGui.QImage.fromData(t.value)
+            except:
+                logger.warning("unable to read thumbnail", exc_info=True)
+                return
             pix = QtGui.QPixmap.fromImage(img)
             return QtGui.QIcon(pix)
 
@@ -82,12 +92,17 @@ class ResultsBrowser(QtWidgets.QSplitter):
         if not (info.isFile() and info.isReadable() and
                 info.suffix() == "h5"):
             return
-        with h5py.File(info.filePath(), "r") as f:
+        try:
+            f = h5py.File(info.filePath(), "r")
+        except:
+            logger.warning("unable to read HDF5 file", exc_info=True)
+        with f:
             rd = {}
-            if "datasets" not in f:
+            try:
+                group = f["datasets"]
+            except KeyError:
                 return
-            group = f["datasets"]
-            for k in group:
+            for k in f["datasets"]:
                 rd[k] = True, group[k].value
             self.datasets.init(rd)
 
@@ -96,7 +111,6 @@ class ResultsBrowser(QtWidgets.QSplitter):
         self.rt.expand(idx)
         self.rt.scrollTo(idx)
         self.rt.setCurrentIndex(idx)
-        # rl root is signaled
         self.rl.setCurrentIndex(self.rl_model.index(path))
 
     def save_state(self):
