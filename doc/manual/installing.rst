@@ -6,118 +6,109 @@ The conda package contains pre-built binaries that you can directly flash to you
 But you can also :ref:`install from sources <install-from-sources>`.
 
 .. warning::
-    NIST users need to pay close attention to their ``umask``. The sledgehammer
-    called ``secureconfig`` leaves you (and root) with umask 027 and files
-    created by root (e.g. ``sudo make install``) inaccessible to you.
+    NIST users on Linux need to pay close attention to their ``umask``.
+    The sledgehammer called ``secureconfig`` leaves you (and root) with umask 027 and files created by root (for example through ``sudo make install``) inaccessible to you.
     The usual umask is 022.
+
 
 Installing using conda
 ----------------------
 
 .. warning::
-    Conda packages are supported for Linux (64-bit) and Windows (32- and 64-bit). Users of other
-    operating systems (32-bit Linux, BSD, ...) should install from source.
+    Conda packages are supported for Linux (64-bit) and Windows (32- and 64-bit).
+    Users of other operating systems (32-bit Linux, BSD, OSX ...) should and can :ref:`install from source <install-from-sources>`.
 
 
 Installing Anaconda or Miniconda
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* You can either install Anaconda (choose Python 3.5) from https://store.continuum.io/cshop/anaconda/
+You can either install Anaconda (choose Python 3.5) from https://store.continuum.io/cshop/anaconda/ or install the more minimalistic Miniconda (choose Python 3.5) from http://conda.pydata.org/miniconda.html
 
-* Or install the more minimalistic Miniconda (choose Python 3.5) from http://conda.pydata.org/miniconda.html
-
-After installing either Anaconda or Miniconda, open a new terminal and make sure the following command works::
+After installing either Anaconda or Miniconda, open a new terminal (also known as command line, console, or shell and denoted here as lines starting with ``$``) and verify the following command works::
 
     $ conda
 
-If it prints the help of the ``conda`` command, your install is OK.
-If not, then make sure your ``$PATH`` environment variable contains the path to anaconda3/bin (or miniconda3/bin)::
-
-    $ echo $PATH
-    /home/.../miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
-
-If your ``$PATH`` misses reference the ``miniconda3/bin`` or ``anaconda3/bin`` you can fix this by typing::
-
-    $ export PATH=$HOME/miniconda3/bin:$PATH
+Executing just ``conda`` should print the help of the ``conda`` command [1]_.
 
 Installing the ARTIQ packages
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For this, you need to add our Anaconda repository to your conda configuration::
+Add the M-Labs ``main`` Anaconda package repository containing stable releases and release candidates to your conda configuration::
 
     $ conda config --add channels http://conda.anaconda.org/m-labs/label/main
 
 .. note::
     To use the development versions of ARTIQ, also add the ``dev`` label (http://conda.anaconda.org/m-labs/label/dev).
-    Development versions contain more features, but are not as well-tested and are more likely to contain bugs or inconsistencies.
+    Development versions are built for every change and contain more features, but are not as well-tested and are more likely to contain more bugs or inconsistencies than the releases in the ``main`` label.
 
-Then you can install the ARTIQ package, it will pull all the necessary dependencies.
+Then prepare to create a new conda environment with the ARTIQ package and the matching binaries for your hardware:
+choose a suitable name for the environment, for example ``artiq-main`` if you intend to track the main label or ``artiq-2016-04-01`` if you consider the environment a snapshot of ARTIQ on 2016-04-01.
+Choose the package containing the binaries for your hardware:
 
-* For the Pipistrello board::
+    * ``artiq-pipistrello-nist_qc1`` for the `Pipistrello <http://pipistrello.saanlima.com/>`_ board with the NIST adapter to SCSI cables and AD9858 DDS chips.
+    * ``artiq-kc705-nist_qc1`` for the `KC705 <http://www.xilinx.com/products/boards-and-kits/ek-k7-kc705-g.html>`_ board with the NIST adapter to SCSI cables and AD9858 DDS chips.
+    * ``artiq-kc705-nist_clock`` for the KC705 board with the NIST "clock" FMC backplane and AD9914 DDS chips.
+    * ``artiq-kc7005-nist_qc2`` for the KC705 board with the NIST QC2 FMC backplane and AD9914 DDS chips.
 
-    $ ENV=$(date +artiq-%Y-%m-%d); conda create -n $ENV artiq-pipistrello-nist_qc1; \
-        echo "Created environment $ENV for ARTIQ"
+Conda will create the environment, automatically resolve, download, and install the necessary dependencies and install the packages you select:::
 
-* For the KC705 board with SCSI cables and AD9858 DDS chips::
+    $ conda create -n artiq-main artiq-pipistrello-nist_qc1
 
-    $ ENV=$(date +artiq-%Y-%m-%d); conda create -n $ENV artiq-kc705-nist_qc1; \
-        echo "Created environment $ENV for ARTIQ"
+After the installation, activate the newly created environment by name.
+On Unix::
 
-* For the KC705 board with the "clock" FMC backplane and AD9914 DDS chips::
+    $ source activate artiq-main
 
-    $ ENV=$(date +artiq-%Y-%m-%d); conda create -n $ENV artiq-kc705-nist_clock; \
-        echo "Created environment $ENV for ARTIQ"
+On Windows::
 
-* For the KC705 board with the QC2 FMC backplane and AD9914 DDS chips::
+    $ activate artiq-main
 
-    $ ENV=$(date +artiq-%Y-%m-%d); conda create -n $ENV artiq-kc705-nist_qc2; \
-        echo "Created environment $ENV for ARTIQ"
+This activation has to be performed in every new shell you open to make the ARTIQ tools from that environment available.
 
-This creates a new Conda "environment" (i.e. an isolated installation) and prints its name.
-If you ever need to upgrade ARTIQ, it is advised to install it again
-in a new environment so that you can roll back to a version that is known to
-work correctly.
+.. note::
+    [Linux] The ``qt5`` package requires libraries not packaged under the ``m-labs`` conda labels.
+    Those need to be installed through the Linux distribution's mechanism.
+    If GUI programs do not start because they ``could not find or load the Qt platform plugin "xcb"``, install the various ``libxcb-*`` packages through your distribution's preferred mechanism.
+    The names of the libraries missing can be obtained from the output of a command like ``ldd [path-to-conda-installation]/envs/artiq-main/lib/qt5/plugins/platform/libqxcb.so``.
 
-After this, add the newly created environment to your ``$PATH``. This can be easily
-done using the following command::
+Upgrading ARTIQ
+^^^^^^^^^^^^^^^
 
-    $ source activate artiq-[date]
+When upgrading ARTIQ or when testing different versions it is recommended that new environments are created instead of upgrading the packages in existing environments.
+Keep previous environments around until you are certain that they are not needed anymore and a new environment is known to work correctly.
+You can create a new conda environment specifically to test a certain version of ARTIQ:::
 
-You will need to invoke this command in every new shell. When in doubt, you can list
-the existing environments using::
+    $ conda create -n artiq-test-1.0rc2 artiq-pipistrello-nist_qc1=1.0rc2
+
+Switching between conda environments using ``$ source deactivate artiq-1.0rc2`` and ``$ source activate artiq-1.0rc1`` is the recommended way to roll back to previous versions of ARTIQ.
+You can list the environments you have created using::
 
     $ conda env list
 
-.. note::
-    The ``qt5`` package requires (on Linux only) libraries not packaged under the ``m-labs`` conda labels.
-    Those need to be installed through the Linux distribution's mechanism.
-    If GUI programs do not start because they ``could not find or load the Qt platform plugin "xcb"``, install the various ``libxcb-*`` packages through your distribution's mechanism.
-    The names of the libraries missing can be obtained from the output of a command like ``ldd [path-to-conda-installation]/envs/artiq-[date]/lib/qt5/plugins/platform/libqxcb.so``.
+See also the `conda documentation <http://conda.pydata.org/docs/using/envs.html>`_ for managing environments.
 
 Preparing the core device FPGA board
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You now need to flash 3 things on the FPGA board:
+You now need to write three binary images onto the FPGA board:
 
 1. The FPGA gateware bitstream
 2. The BIOS
 3. The ARTIQ runtime
 
-They are all shipped in our Conda packages, along with the required flash proxy gateware bitstreams.
+They are all shipped in the conda packages, along with the required flash proxy gateware bitstreams.
 
 .. _install-openocd:
 
 Installing OpenOCD
 ..................
 
-There are several tools that can be used to write the thee binaries into
-the core device FPGA board's flash memory. Xilinx ISE (impact) or Vivado work, as does xc3sprog
-sometimes. OpenOCD is the recommended and most reliable method. But
-it is not currently packaged as a conda package.
+There are several tools that can be used to write the thee binaries into the core device FPGA board's flash memory.
+Xilinx ISE (impact) or Vivado work, as does xc3sprog sometimes.
+OpenOCD is the recommended and most reliable method.
+It is however not currently packaged as a conda package nor has it been tested on Windows.
 
-The following instructions are for Ubuntu.
-
-    ::
+Use these commands to download, build, and install ``openocd`` from source on Debian or Ubuntu systems::
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/ntfreak/openocd.git
@@ -130,17 +121,15 @@ The following instructions are for Ubuntu.
         $ sudo cp contrib/99-openocd.rules /etc/udev/rules.d
         $ sudo adduser $USER plugdev
 
-
-
 Then, you can flash the board:
 
 * For the Pipistrello board::
 
     $ artiq_flash -t pipistrello -m qc1
 
-* For the KC705 board::
+* For the KC705 board (selecting the appropriate hardware peripheral)::
 
-    $ artiq_flash -m [qc1/clock/qc2]
+    $ artiq_flash -t kc705 -m [qc1/clock/qc2]
 
 For the KC705, the next step is to flash the MAC and IP addresses to the board. See :ref:`those instructions <flash-mac-ip-addr>`.
 
@@ -204,7 +193,7 @@ Preparing the core device FPGA board
 
 These steps are required to generate gateware bitstream (``.bit``) files, build the MiSoC BIOS and ARTIQ runtime, and flash FPGA boards. If the board is already flashed, you may skip those steps and go directly to `Installing the host-side software`.
 
-* Install the FPGA vendor tools (e.g. Xilinx ISE and/or Vivado):
+* Install the FPGA vendor tools (i.e. Xilinx ISE and/or Vivado):
 
     * Get Xilinx tools from http://www.xilinx.com/support/download/index.htm. ISE can build gateware bitstreams both for boards using the Spartan-6 (Pipistrello) and 7-series devices (KC705), while Vivado supports only boards using 7-series devices.
 
@@ -429,3 +418,9 @@ The core device may use either an external clock signal or its internal clock. T
 
     $ artiq_coreconfig write -s startup_clock i  # internal clock (default)
     $ artiq_coreconfig write -s startup_clock e  # external clock
+
+
+.. rubric:: Footnotes
+
+.. [1] [Linux] If your shell does not find the ``conda`` command, make sure that the conda binaries are in your ``$PATH``:
+       If ``$ echo $PATH`` does not show the conda directories, add them: execute ``$ export PATH=$HOME/miniconda3/bin:$PATH`` if you installed conda into ``~/miniconda3``.
