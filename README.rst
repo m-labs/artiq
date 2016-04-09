@@ -1,3 +1,5 @@
+.. Always keep doc/manual/introduction.rst synchronized with this file except the logo.
+
 .. image:: doc/logo/artiq.png
 
 ARTIQ (Advanced Real-Time Infrastructure for Quantum physics) is a
