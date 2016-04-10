@@ -125,11 +125,11 @@ Then, you can flash the board:
 
 * For the Pipistrello board::
 
-    $ artiq_flash -t pipistrello -m qc1
+    $ artiq_flash -t pipistrello -m nist_qc1
 
 * For the KC705 board (selecting the appropriate hardware peripheral)::
 
-    $ artiq_flash -t kc705 -m [qc1/clock/qc2]
+    $ artiq_flash -t kc705 -m [nist_qc1/nist_clock/nist_qc2]
 
 For the KC705, the next step is to flash the MAC and IP addresses to the board. See :ref:`those instructions <flash-mac-ip-addr>`.
 
