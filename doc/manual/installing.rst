@@ -48,7 +48,7 @@ Choose the package containing the binaries for your hardware:
     * ``artiq-pipistrello-nist_qc1`` for the `Pipistrello <http://pipistrello.saanlima.com/>`_ board with the NIST adapter to SCSI cables and AD9858 DDS chips.
     * ``artiq-kc705-nist_qc1`` for the `KC705 <http://www.xilinx.com/products/boards-and-kits/ek-k7-kc705-g.html>`_ board with the NIST adapter to SCSI cables and AD9858 DDS chips.
     * ``artiq-kc705-nist_clock`` for the KC705 board with the NIST "clock" FMC backplane and AD9914 DDS chips.
-    * ``artiq-kc7005-nist_qc2`` for the KC705 board with the NIST QC2 FMC backplane and AD9914 DDS chips.
+    * ``artiq-kc705-nist_qc2`` for the KC705 board with the NIST QC2 FMC backplane and AD9914 DDS chips.
 
 Conda will create the environment, automatically resolve, download, and install the necessary dependencies and install the packages you select::
 
