@@ -51,6 +51,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.restoreState(QtCore.QByteArray(state["state"]))
 
 
+class MdiArea(QtWidgets.QMdiArea):
+    def __init__(self):
+        QtWidgets.QMdiArea.__init__(self)
+        self.pixmap = QtGui.QPixmap(os.path.join(artiq_dir, "gui", "logo.svg"))
+
+    def paintEvent(self, event):
+        QtWidgets.QMdiArea.paintEvent(self, event)
+        painter = QtGui.QPainter(self.viewport())
+        x = (self.width() - self.pixmap.width())//2
+        y = (self.height() - self.pixmap.height())//2
+        painter.setOpacity(0.5)
+        painter.drawPixmap(x, y, self.pixmap)
+
+
+
 def main():
     # initialize application
     args = get_argparser().parse_args()
@@ -70,7 +85,7 @@ def main():
     status_bar = QtWidgets.QStatusBar()
     main_window.setStatusBar(status_bar)
 
-    d_results = results.ResultsBrowser(datasets_sub)
+    d_results = results.ResultsDock(datasets_sub)
     smgr.register(d_results)
 
     d_applets = applets.AppletsDock(main_window, datasets_sub)
@@ -80,7 +95,12 @@ def main():
     d_datasets = datasets.DatasetsDock(datasets_sub)
     smgr.register(d_datasets)
 
-    main_window.setCentralWidget(d_results)
+    mdi_area = MdiArea()
+    mdi_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+    mdi_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+    main_window.setCentralWidget(mdi_area)
+
+    main_window.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d_results)
     main_window.addDockWidget(QtCore.Qt.BottomDockWidgetArea, d_applets)
     main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_datasets)
 

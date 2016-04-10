@@ -36,9 +36,15 @@ class ResultIconProvider(QtWidgets.QFileIconProvider):
             return QtGui.QIcon(pix)
 
 
-class ResultsBrowser(QtWidgets.QSplitter):
+class ResultsDock(QtWidgets.QDockWidget):
     def __init__(self, datasets, root=None):
-        QtWidgets.QSplitter.__init__(self)
+        QtWidgets.QDockWidget.__init__(self, "Results")
+        self.setObjectName("Results")
+        self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
+                         QtWidgets.QDockWidget.DockWidgetFloatable)
+
+        self.splitter = QtWidgets.QSplitter()
+        self.setWidget(self.splitter)
 
         if root is None:
             root = QtCore.QDir.currentPath()
@@ -57,7 +63,7 @@ class ResultsBrowser(QtWidgets.QSplitter):
         self.rt.selectionModel().currentChanged.connect(
             self.tree_current_changed)
         self.rt.setRootIsDecorated(False)
-        self.addWidget(self.rt)
+        self.splitter.addWidget(self.rt)
 
         self.rl = QtWidgets.QListView()
         self.rl.setViewMode(QtWidgets.QListView.IconMode)
@@ -66,7 +72,7 @@ class ResultsBrowser(QtWidgets.QSplitter):
         self.rl.setFlow(QtWidgets.QListView.LeftToRight)
         self.rl.setWrapping(True)
         self.tree_current_changed(self.rt.currentIndex(), None)
-        self.addWidget(self.rl)
+        self.splitter.addWidget(self.rl)
 
     def showEvent(self, ev):
         self.rt.hideColumn(1)
@@ -118,7 +124,7 @@ class ResultsBrowser(QtWidgets.QSplitter):
         return {
             "selected": self.rl_model.filePath(self.rt.currentIndex()),
             "header": bytes(self.rt.header().saveState()),
-            "splitter": bytes(self.saveState()),
+            "splitter": bytes(self.splitter.saveState()),
         }
 
     def restore_state(self, state):
@@ -130,4 +136,4 @@ class ResultsBrowser(QtWidgets.QSplitter):
             self.rt.header().restoreState(QtCore.QByteArray(header))
         splitter = state.get("splitter")
         if splitter:
-            self.restoreState(QtCore.QByteArray(splitter))
+            self.splitter.restoreState(QtCore.QByteArray(splitter))
