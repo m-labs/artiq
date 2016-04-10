@@ -50,7 +50,7 @@ Choose the package containing the binaries for your hardware:
     * ``artiq-kc705-nist_clock`` for the KC705 board with the NIST "clock" FMC backplane and AD9914 DDS chips.
     * ``artiq-kc7005-nist_qc2`` for the KC705 board with the NIST QC2 FMC backplane and AD9914 DDS chips.
 
-Conda will create the environment, automatically resolve, download, and install the necessary dependencies and install the packages you select:::
+Conda will create the environment, automatically resolve, download, and install the necessary dependencies and install the packages you select::
 
     $ conda create -n artiq-main artiq-pipistrello-nist_qc1
 
@@ -76,7 +76,7 @@ Upgrading ARTIQ
 
 When upgrading ARTIQ or when testing different versions it is recommended that new environments are created instead of upgrading the packages in existing environments.
 Keep previous environments around until you are certain that they are not needed anymore and a new environment is known to work correctly.
-You can create a new conda environment specifically to test a certain version of ARTIQ:::
+You can create a new conda environment specifically to test a certain version of ARTIQ::
 
     $ conda create -n artiq-test-1.0rc2 artiq-pipistrello-nist_qc1=1.0rc2
 
