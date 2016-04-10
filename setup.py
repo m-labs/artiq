@@ -19,15 +19,13 @@ requirements = [
     "lit", "OutputCheck",
 ]
 
-scripts = [
-    "artiq_browser=artiq.frontend.artiq_browser:main",
+console_scripts = [
     "artiq_client=artiq.frontend.artiq_client:main",
     "artiq_compile=artiq.frontend.artiq_compile:main",
     "artiq_coreanalyzer=artiq.frontend.artiq_coreanalyzer:main",
     "artiq_coreconfig=artiq.frontend.artiq_coreconfig:main",
     "artiq_corelog=artiq.frontend.artiq_corelog:main",
     "artiq_ctlmgr=artiq.frontend.artiq_ctlmgr:main",
-    "artiq_dashboard=artiq.frontend.artiq_dashboard:main",
     "artiq_influxdb=artiq.frontend.artiq_influxdb:main",
     "artiq_master=artiq.frontend.artiq_master:main",
     "artiq_mkfs=artiq.frontend.artiq_mkfs:main",
@@ -39,6 +37,11 @@ scripts = [
     "pdq2_client=artiq.frontend.pdq2_client:main",
     "pdq2_controller=artiq.frontend.pdq2_controller:main",
     "thorlabs_tcube_controller=artiq.frontend.thorlabs_tcube_controller:main",
+]
+
+gui_scripts = [
+    "artiq_browser=artiq.frontend.artiq_browser:main",
+    "artiq_dashboard=artiq.frontend.artiq_dashboard:main",
 ]
 
 setup(
@@ -62,6 +65,7 @@ setup(
     include_package_data=True,
     ext_modules=[],
     entry_points={
-        "console_scripts": scripts,
+        "console_scripts": console_scripts,
+        "gui_scripts": gui_scripts,
     }
 )

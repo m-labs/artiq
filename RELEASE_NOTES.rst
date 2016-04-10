@@ -15,11 +15,21 @@ unreleased [2.x]
     patterns = pyon.load_file("influxdb_patterns.pyon")
     for p in patterns:
         print(p)
+
 * The "GUI" has been renamed the "dashboard".
 * When flashing NIST boards, use "-m nist_qcX" or "-m nist_clock" instead of
   just "-m qcX" or "-m clock" (#290).
 * Applet command lines now use templates (e.g. $python) instead of formats
   (e.g. {python}).
+* On Windows, GUI applications no longer open a console. For debugging
+  purposes, the console messages can still be displayed by running the GUI
+  applications this way::
+
+    python3.5 -m artiq.frontend.artiq_browser
+    python3.5 -m artiq.frontend.artiq_dashboard
+
+  (you may need to replace python3.5 with python)
+  Please always include the console output when reporting a GUI crash.
 
 
 unreleased [1.0rc3]
