@@ -85,7 +85,7 @@ def main():
     status_bar = QtWidgets.QStatusBar()
     main_window.setStatusBar(status_bar)
 
-    d_results = results.ResultsDock(datasets_sub)
+    d_results = results.ResultsDock(datasets_sub, main_window)
     smgr.register(d_results)
 
     d_applets = applets.AppletsDock(main_window, datasets_sub)

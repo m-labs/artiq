@@ -37,7 +37,7 @@ class ResultIconProvider(QtWidgets.QFileIconProvider):
 
 
 class ResultsDock(QtWidgets.QDockWidget):
-    def __init__(self, datasets, root=None):
+    def __init__(self, datasets, main_window, root=None):
         QtWidgets.QDockWidget.__init__(self, "Results")
         self.setObjectName("Results")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
@@ -50,6 +50,7 @@ class ResultsDock(QtWidgets.QDockWidget):
             root = QtCore.QDir.currentPath()
 
         self.datasets = datasets
+        self.main_window = main_window
 
         self.rt_model = QtWidgets.QFileSystemModel()
         self.rt_model.setFilter(QtCore.QDir.NoDotAndDotDot |
@@ -81,7 +82,7 @@ class ResultsDock(QtWidgets.QDockWidget):
 
     def tree_current_changed(self, current, previous):
         path = self.rt_model.filePath(current)
-        # we need to create a new model here. the old one remembers side effect
+        # create a new model for the ListView here
         self.rl_model = QtWidgets.QFileSystemModel()
         self.rl_model.setFilter(QtCore.QDir.Files)
         self.rl_model.setNameFilters(["*.h5"])
