@@ -275,7 +275,7 @@ class MonInj(TaskObject):
         self.subscriber = Subscriber("devices", self.init_devices)
         self.dm = None
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.bind(("", 39284))
+        self.socket.bind(("", 0))
         # Never ceasing to disappoint, asyncio has an issue about UDP
         # not being supported on Windows (ProactorEventLoop) open since 2014.
         self.loop = asyncio.get_event_loop()
