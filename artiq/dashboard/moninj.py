@@ -275,6 +275,7 @@ class MonInj(TaskObject):
         self.subscriber = Subscriber("devices", self.init_devices)
         self.dm = None
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.bind(("", 39284))
         # Never ceasing to disappoint, asyncio has an issue about UDP
         # not being supported on Windows (ProactorEventLoop) open since 2014.
         self.loop = asyncio.get_event_loop()
@@ -305,8 +306,13 @@ class MonInj(TaskObject):
 
     def receiver_thread(self):
         while True:
-            data, addr = self.socket.recvfrom(2048)
+            try:
+                data, addr = self.socket.recvfrom(2048)
+            except OSError:
+                # Windows does this when the socket is terminated
+                break
             if addr is None:
+                # Linux does this when the socket is terminated
                 break
             self.loop.call_soon_threadsafe(self.datagram_received, data)
 
