@@ -1,4 +1,5 @@
 import asyncio
+import threading
 import logging
 import socket
 import struct
@@ -273,34 +274,43 @@ class MonInj(TaskObject):
 
         self.subscriber = Subscriber("devices", self.init_devices)
         self.dm = None
-        self.transport = None
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Never ceasing to disappoint, asyncio has an issue about UDP
+        # not being supported on Windows (ProactorEventLoop) open since 2014.
+        self.loop = asyncio.get_event_loop()
+        self.thread = threading.Thread(target=self.receiver_thread,
+                                       daemon=True)
+        self.thread.start()
 
     async def start(self, server, port):
-        loop = asyncio.get_event_loop()
-        await loop.create_datagram_endpoint(lambda: self,
-                                                 family=socket.AF_INET)
+        await self.subscriber.connect(server, port)
         try:
-            await self.subscriber.connect(server, port)
-            try:
-                TaskObject.start(self)
-            except:
-                await self.subscriber.close()
-                raise
+            TaskObject.start(self)
         except:
-            self.transport.close()
+            await self.subscriber.close()
             raise
 
     async def stop(self):
         await TaskObject.stop(self)
         await self.subscriber.close()
-        if self.transport is not None:
-            self.transport.close()
-            self.transport = None
+        try:
+            # This is required to make recvfrom terminate in the thread.
+            # On Linux, this raises "OSError: Transport endpoint is not
+            # connected", but still has the intended effect.
+            self.socket.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        self.socket.close()
+        self.thread.join()
 
-    def connection_made(self, transport):
-        self.transport = transport
+    def receiver_thread(self):
+        while True:
+            data, addr = self.socket.recvfrom(2048)
+            if addr is None:
+                break
+            self.loop.call_soon_threadsafe(self.datagram_received, data)
 
-    def datagram_received(self, data, addr):
+    def datagram_received(self, data):
         if self.dm is None:
             logger.debug("received datagram, but device manager "
                          "is not present yet")
@@ -330,12 +340,6 @@ class MonInj(TaskObject):
         except:
             logger.warning("failed to process datagram", exc_info=True)
 
-    def error_received(self, exc):
-        logger.warning("datagram endpoint error")
-
-    def connection_lost(self, exc):
-        self.transport = None
-
     def send_to_device(self, data):
         if self.dm is None:
             logger.debug("cannot sent to device yet, no device manager")
@@ -344,10 +348,8 @@ class MonInj(TaskObject):
         logger.debug("core device address: %s", ca)
         if ca is None:
             logger.warning("could not find core device address")
-        elif self.transport is None:
-            logger.warning("datagram endpoint not available")
         else:
-            self.transport.sendto(data, (ca, 3250))
+            self.socket.sendto(data, (ca, 3250))
 
     async def _do(self):
         while True:
