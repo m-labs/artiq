@@ -252,13 +252,24 @@ class DictSyncTreeSepModel(QtCore.QAbstractItemModel):
         return None
 
     def index(self, row, column, parent):
+        if column >= len(self.headers):
+            return QtCore.QModelIndex()
         if parent.isValid():
             parent_item = parent.internalPointer()
-            return self.createIndex(row, column,
-                                    parent_item.children_by_row[row])
+            try:
+                child = parent_item.children_by_row[row]
+            except IndexError:
+                # This can happen when the last row is selected
+                # and then deleted; Qt will attempt to select
+                # the non-existent next one.
+                return QtCore.QModelIndex()
+            return self.createIndex(row, column, child)
         else:
-            return self.createIndex(row, column,
-                                    self.children_by_row[row])
+            try:
+                child = self.children_by_row[row]
+            except IndexError:
+                return QtCore.QModelIndex()
+            return self.createIndex(row, column, child)
 
     def _index_item(self, item):
         if item is self:
