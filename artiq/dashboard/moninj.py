@@ -93,7 +93,6 @@ class _TTLWidget(_MoninjWidget):
         _MoninjWidget.leaveEvent(self, event)
 
     def override_toggled(self, override):
-        print("override", override, self.programmatic_change)
         if self.programmatic_change:
             return
         if override:
@@ -105,7 +104,6 @@ class _TTLWidget(_MoninjWidget):
             self.set_mode("exp")
 
     def level_toggled(self, level):
-        print("level", level, self.programmatic_change)
         if self.programmatic_change:
             return
         if self.override.isChecked():
