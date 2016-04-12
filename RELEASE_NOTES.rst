@@ -30,6 +30,8 @@ unreleased [2.x]
 
   (you may need to replace python3.5 with python)
   Please always include the console output when reporting a GUI crash.
+* Closing the core device communications before pausing is done automatically.
+  Experiments no longer need to do it explicitly.
 
 
 unreleased [1.0rc3]

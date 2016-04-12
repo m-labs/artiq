@@ -87,6 +87,10 @@ class CommGeneric:
         The channel is assumed to be opened."""
         raise NotImplementedError
 
+
+    def pause(self):
+        self.close()
+
     #
     # Reader interface
     #
