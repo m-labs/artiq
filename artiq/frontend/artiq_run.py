@@ -20,11 +20,14 @@ from artiq.compiler.embedding import ObjectMap
 from artiq.compiler.targets import OR1KTarget
 from artiq.tools import *
 
+
 logger = logging.getLogger(__name__)
+
 
 class StubObject:
     def __setattr__(self, name, value):
         pass
+
 
 class StubObjectMap:
     def __init__(self):
@@ -40,6 +43,7 @@ class StubObjectMap:
         self.forward_map[self.next_id] = value
         self.next_id -= 1
 
+
 class FileRunner(EnvExperiment):
     def build(self):
         self.setattr_device("core")
@@ -54,10 +58,12 @@ class FileRunner(EnvExperiment):
         self.core.comm.serve(StubObjectMap(),
             lambda addresses: self.target.symbolize(kernel_library, addresses))
 
+
 class ELFRunner(FileRunner):
     def compile(self):
         with open(self.file, "rb") as f:
             return f.read()
+
 
 class LLVMIRRunner(FileRunner):
     def compile(self):
@@ -65,7 +71,8 @@ class LLVMIRRunner(FileRunner):
             llmodule = llvm.parse_assembly(f.read())
         llmodule.verify()
         return self.target.link([self.target.assemble(llmodule)],
-                                init_fn='__modinit__')
+                                init_fn="__modinit__")
+
 
 class LLVMBitcodeRunner(FileRunner):
     def compile(self):
@@ -73,7 +80,7 @@ class LLVMBitcodeRunner(FileRunner):
             llmodule = llvm.parse_bitcode(f.read())
         llmodule.verify()
         return self.target.link([self.target.assemble(llmodule)],
-                                init_fn='__modinit__')
+                                init_fn="__modinit__")
 
 
 class DummyScheduler:
