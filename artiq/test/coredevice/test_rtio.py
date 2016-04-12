@@ -152,6 +152,7 @@ class LoopbackCount(EnvExperiment):
 
     @kernel
     def run(self):
+        self.loop_in.input()
         self.loop_out.output()
         delay(5*us)
         with parallel:
