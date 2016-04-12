@@ -300,7 +300,7 @@ class NIST_CLOCK(_NIST_Ions):
 class NIST_QC2(_NIST_Ions):
     """
     NIST QC2 hardware, as used in Quantum I and Quantum II, with new backplane
-    and 24 DDS channels.
+    and 24 DDS channels.  Two backplanes are used.  
     """
     def __init__(self, cpu_type="or1k", **kwargs):
         _NIST_Ions.__init__(self, cpu_type, **kwargs)
@@ -310,35 +310,55 @@ class NIST_QC2(_NIST_Ions):
 
         rtio_channels = []
         clock_generators = []
-        for backplane_offset in 0, 28:
-            # TTL0-23 are In+Out capable
-            for i in range(24):
+        for backplane_offset in 0, 20:
+            # TTL0-15, 20-35 are In+Out capable
+            for i in range(16):
                 phy = ttl_serdes_7series.Inout_8X(
                     platform.request("ttl", backplane_offset+i))
                 self.submodules += phy
                 rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
-            # TTL24-26 are output only
-            for i in range(24, 27):
+            # TTL16-19, 36-39 are output only
+            for i in range(16, 20):
                 phy = ttl_serdes_7series.Output_8X(
                     platform.request("ttl", backplane_offset+i))
                 self.submodules += phy
                 rtio_channels.append(rtio.Channel.from_phy(phy))
-            # TTL27 is for the clock generator
+        
+        # CLK0, CLK1 are for the clock generators, on backplane SMP connectors
+        for backplane_offset in range(2):        
             phy = ttl_simple.ClockGen(
-                platform.request("ttl", backplane_offset+27))
+                platform.request("clkout", backplane_offset))
             self.submodules += phy
-            clock_generators.append(rtio.Channel.from_phy(phy))
+            clock_generators.append(rtio.Channel.from_phy(phy)) 
 
         phy = ttl_serdes_7series.Inout_8X(platform.request("user_sma_gpio_n"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
+        
         phy = ttl_simple.Output(platform.request("user_led", 2))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        ams101_dac = self.platform.request("ams101_dac", 0)
+        phy = ttl_simple.Output(ams101_dac.ldac)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
         self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
         # add clock generators after RTIO_REGULAR_TTL_COUNT
         rtio_channels += clock_generators
+
+        phy = spi.SPIMaster(ams101_dac)
+        self.submodules += phy
+        self.config["RTIO_FIRST_SPI_CHANNEL"] = len(rtio_channels)
+        rtio_channels.append(rtio.Channel.from_phy(
+            phy, ofifo_depth=4, ififo_depth=4))
+
+        for i in range(4):
+            phy = spi.SPIMaster(self.platform.request("spi", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(
+                phy, ofifo_depth=128, ififo_depth=128))
 
         self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
         self.config["RTIO_DDS_COUNT"] = 2
