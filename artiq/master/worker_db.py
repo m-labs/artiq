@@ -113,7 +113,9 @@ def _create_device(desc, device_mgr):
 class DeviceManager:
     """Handles creation and destruction of local device drivers and controller
     RPC clients."""
-    def __init__(self, ddb, virtual_devices=dict()):
+    def __init__(self, ddb, virtual_devices=None):
+        if virtual_devices is None:
+            virtual_devices = dict()
         self.ddb = ddb
         self.virtual_devices = virtual_devices
         self.active_devices = OrderedDict()
@@ -141,6 +143,28 @@ class DeviceManager:
             self.active_devices[name] = dev
             return dev
 
+    def pause_devices(self):
+        """Pauses all active devices, in the opposite order as they were
+        requested."""
+        for dev in reversed(list(self.active_devices.values())):
+            if hasattr(dev.__class__, "pause"):
+                try:
+                    dev.pause()
+                except:
+                    logger.warning("Exception when pausing device %r", dev,
+                                   exc_info=True)
+
+    def resume_devices(self):
+        """Resumes all active devices, in the same order as they were
+        requested."""
+        for dev in self.active_devices.values():
+            if hasattr(dev.__class__, "resume"):
+                try:
+                    dev.resume()
+                except:
+                    logger.warning("Exception when resuming device %r", dev,
+                                   exc_info=True)
+
     def close_devices(self):
         """Closes all active devices, in the opposite order as they were
         requested."""
@@ -148,10 +172,11 @@ class DeviceManager:
             try:
                 if isinstance(dev, (Client, BestEffortClient)):
                     dev.close_rpc()
-                elif hasattr(dev, "close"):
+                elif hasattr(dev.__class__, "close"):
                     dev.close()
-            except Exception as e:
-                logger.warning("Exception %r when closing device %r", e, dev)
+            except:
+                logger.warning("Exception when closing device %r", dev,
+                               exc_info=True)
         self.active_devices.clear()
 
 
