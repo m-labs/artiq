@@ -187,7 +187,7 @@
         "arguments": {
             "pdq2_devices": ["qc_q1_0", "qc_q1_1", "qc_q1_2", "qc_q1_3"],
             "trigger_device": "ttl2",
-            "frame_devices": ["ttl3", "ttl4", "ttl5"]
+            "frame_devices": ["ttl4", "ttl5", "ttl6"]
         }
     },
 
