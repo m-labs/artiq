@@ -101,7 +101,40 @@ NIST QC2
 
 With the QC2 hardware, the TTL lines are mapped as follows:
 
-TODO
++--------------------+-----------------------+--------------+
+| RTIO channel       | TTL line              | Capability   |
++====================+=======================+==============+
+| 0-15, 20-35        | TTL0-15, TTL20-35     | Input+Output |
++--------------------+-----------------------+--------------+
+| 16-19, 36-39       | TTL16-19, TTL36-39    | Output       |
++--------------------+-----------------------+--------------+
+| 40                 | SMA_GPIO_N            | Input+Output |
++--------------------+-----------------------+--------------+
+| 41                 | LED                   | Output       |
++--------------------+-----------------------+--------------+
+| 42                 | AMS101_LDAC_B         | Output       |
++--------------------+-----------------------+--------------+
+| 43, 44             | CLK0, CLK1            | Clock        |
++--------------------+-----------------------+--------------+
+
+The board has RTIO SPI buses mapped as follows:
+
++--------------+-------------+-------------+-----------+------------+
+| RTIO channel | CS_N        | MOSI        | MISO      | CLK        |
++==============+=============+=============+===========+============+
+| 45           | AMS101_CS_N | AMS101_MOSI |           | AMS101_CLK |
++--------------+-------------+-------------+-----------+------------+
+| 46           | SPI0_CS_N   | SPI0_MOSI   | SPI0_MISO | SPI0_CLK   |
++--------------+-------------+-------------+-----------+------------+
+| 47           | SPI1_CS_N   | SPI1_MOSI   | SPI1_MISO | SPI1_CLK   |
++--------------+-------------+-------------+-----------+------------+
+| 48           | SPI2_CS_N   | SPI2_MOSI   | SPI2_MISO | SPI2_CLK   |
++--------------+-------------+-------------+-----------+------------+
+| 49           | SPI3_CS_N   | SPI3_MOSI   | SPI3_MISO | SPI3_CLK   |
++--------------+-------------+-------------+-----------+------------+
+
+There are two DDS buses on channels 50 (LPC, DDS0-DDS11) and 51 (HPC, DDS12-DDS23).
+
 
 The QC2 hardware uses TCA6424A I2C I/O expanders to define the directions of its TTL buffers. There is one such expander per FMC card, and they are selected using the PCA9548 on the KC705.
 
@@ -109,11 +142,7 @@ To avoid I/O contention, the startup kernel should first program the TCA6424A ex
 
 See :mod:`artiq.coredevice.i2c` for more details.
 
-There are no SPI channels.
-
-The QC2 hardware has two DDS buses, on channels TODO for LPC and TODO for HPC.
-
-For the safe operation of the DDS buses, the FMC voltage of the KC705 should be changed to 3.3V. Plug the TI USB PMBus adapter to the PMBus connector in the corner of the KC705 and use the Fusion Digital Power Designer software (requires Windows). Write to chip number U55 (address 52), channel 4, which is VADJ, to make it 3.3V instead of 2.5V.
+For safe operation of the DDS buses (to prevent damage to the IO banks of the FPGA), the FMC VADJ rail of the KC705 should be changed to 3.3V. Plug the Texas Instruments USB-TO-GPIO PMBus adapter into the PMBus connector in the corner of the KC705 and use the Fusion Digital Power Designer software to configure (requires Windows). Write to chip number U55 (address 52), channel 4, which is the VADJ rail, to make it 3.3V instead of 2.5V.  Power cycle the KC705 board to check that the startup voltage on the VADJ rail is now 3.3V.
 
 Pipistrello
 -----------

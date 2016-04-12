@@ -8,9 +8,8 @@ __all__ = ["fmc_adapter_io"]
 
 ttl_pins = [
     "LA00_CC_P", "LA02_P", "LA00_CC_N", "LA02_N", "LA01_CC_P", "LA01_CC_N", "LA06_P", "LA06_N",
-    "LA05_P", "LA05_N", "LA10_P", "LA09_P", "LA10_N", "LA09_N", "LA13_P", "LA14_P", "LA13_N",
-    "LA14_N", "LA17_CC_P", "LA17_CC_N", "LA18_CC_P", "LA18_CC_N", "LA23_P", "LA23_N", "LA27_P",
-    "LA26_P", "LA27_N", "LA26_N"
+    "LA05_P", "LA05_N", "LA10_P", "LA09_P", "LA10_N", "LA09_N", "LA13_P", "LA14_P",
+    "LA27_P", "LA26_P", "LA27_N", "LA26_N"
 ]
 
 
@@ -18,7 +17,8 @@ def get_fmc_adapter_io():
     ttl = itertools.count()
     dds = itertools.count()
     i2c_fmc = itertools.count()
-    clk_m2c = itertools.count()
+    spi = itertools.count()
+    clkout = itertools.count()
 
     r = []
     for connector in "LPC", "HPC":
@@ -50,15 +50,24 @@ def get_fmc_adapter_io():
                 Subsignal("sda", FPins("FMC:IIC_SDA")),
                 IOStandard("LVCMOS25")),
 
-            ("clk_m2c", next(clk_m2c),
-                Subsignal("p", FPins("FMC:CLK0_M2C_P")),
-                Subsignal("n", FPins("FMC:CLK0_M2C_N")),
-                IOStandard("LVDS")),
+            ("clkout", next(clkout), FPins("FMC:CLK1_M2C_P"),
+                IOStandard("LVTTL")),
 
-            ("clk_m2c", next(clk_m2c),
-                Subsignal("p", FPins("FMC:CLK1_M2C_P")),
-                Subsignal("n", FPins("FMC:CLK1_M2C_N")),
-                IOStandard("LVDS")),
+            ("spi", next(spi),
+                Subsignal("clk", Pins("FMC:LA13_N")),
+                Subsignal("mosi", Pins("FMC:LA14_N")),
+                Subsignal("miso", Pins("FMC:LA17_CC_P")),
+                Subsignal("cs_n", Pins("FMC:LA17_CC_N")),
+                IOStandard("LVTTL")),
+
+            ("spi", next(spi),
+                Subsignal("clk", Pins("FMC:LA18_CC_P")),
+                Subsignal("mosi", Pins("FMC:LA18_CC_N")),
+                Subsignal("miso", Pins("FMC:LA23_P")),
+                Subsignal("cs_n", Pins("FMC:LA23_N")),
+                IOStandard("LVTTL")),
+
+
         ]
     return r
 
