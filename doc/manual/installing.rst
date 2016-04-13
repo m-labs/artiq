@@ -265,6 +265,8 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
         $ python3.5 -m artiq.gateware.targets.kc705 -H qc1  # or qc2
 
+    .. note:: Add ``--toolchain vivado`` if you wish to use Vivado instead of ISE.
+
 * Then, gather the binaries and flash them: ::
 
         $ mkdir binaries
