@@ -83,23 +83,7 @@ We will use the current ``repository`` folder as working directory for making lo
     $ cd repository
     $ git init --bare
 
-Start the master again with the ``-g`` flag, telling it to treat the contents of the ``repository`` folder as a bare Git repository: ::
-
-    $ cd ~/artiq-master
-    $ artiq_master -g
-
-There should be no errors displayed, and if you start the GUI again you should notice an empty experiment list. We will now add our previously written experiment to it.
-
-First, another small configuration step is needed. We must tell Git to make the master rescan the repository when new data is added to it. Create a file ``~/artiq-master/repository/hooks/post-receive`` with the following contents: ::
-
-   #!/bin/sh
-   artiq_client scan-repository --async
-
-Then set the execution permission on it: ::
-
-   $ chmod 755 ~/artiq-master/repository/hooks/post-receive
-
-The setup on the master side is now complete. All we need to do now is push data to into the bare repository. Initialize a regular (non-bare) Git repository into our working directory: ::
+Now, push data to into the bare repository. Initialize a regular (non-bare) Git repository into our working directory: ::
 
     $ cd ~/artiq-work
     $ git init    
@@ -114,7 +98,23 @@ and finally, push the commit into the master's bare repository: ::
     $ git remote add origin ~/artiq-master/repository
     $ git push -u origin master
 
-The GUI should immediately list the experiment again, and you should be able to submit it as before.
+Start the master again with the ``-g`` flag, telling it to treat the contents of the ``repository`` folder (not ``artiq-work``) as a bare Git repository: ::
+
+    $ cd ~/artiq-master
+    $ artiq_master -g
+
+.. note:: You need at least one commit in the repository before you can start the master.
+
+There should be no errors displayed, and if you start the GUI again, you will find the experiment there.
+
+To complete the master configuration, we must tell Git to make the master rescan the repository when new data is added to it. Create a file ``~/artiq-master/repository/hooks/post-receive`` with the following contents: ::
+
+   #!/bin/sh
+   artiq_client scan-repository --async
+
+Then set the execution permission on it: ::
+
+   $ chmod 755 ~/artiq-master/repository/hooks/post-receive
 
 .. note:: Remote machines may also push and pull into the master's bare repository using e.g. Git over SSH.
 
@@ -122,7 +122,9 @@ Let's now make a modification to the experiment. In the source present in the wo
 
     $ artiq_client submit ~/artiq-work/mgmt_tutorial.py
 
-.. note:: Submitting experiments outside the repository from the GUI is currently not supported. Submitting an experiment from the repository using the ``artiq_client`` command-line tool is done using the ``-R`` flag.
+.. note:: You may also use the "Open file outside repository" feature of the GUI, by right-clicking on the explorer.
+
+.. note:: Submitting an experiment from the repository using the ``artiq_client`` command-line tool is done using the ``-R`` flag.
 
 Verify the log in the GUI. If you are happy with the result, commit the new version and push it into the master's repository: ::
 
@@ -134,7 +136,7 @@ Verify the log in the GUI. If you are happy with the result, commit the new vers
 
 The master should now run the new version from its repository.
 
-As an exercise, add another argument to the experiment, commit and push the result, and verify that the new control is added in the GUI.
+As an exercise, add another experiment to the repository, commit and push the result, and verify that it appears in the GUI.
 
 Datasets
 --------
