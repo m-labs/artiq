@@ -99,7 +99,7 @@ The core device tests require the following TTL devices and connections:
 
 * ``ttl_out``: any output-only TTL.
 * ``ttl_out_serdes``: any output-only TTL that uses a SERDES (i.e. has a fine timestamp). Can be aliased to ``ttl_out``.
-* ``loop_out``: : any output-only TTL. Must be physically connected to ``loop_in``. Can be aliased to ``ttl_out``.
+* ``loop_out``: any output-only TTL. Must be physically connected to ``loop_in``. Can be aliased to ``ttl_out``.
 * ``loop_in``: any input-capable TTL. Must be physically connected to ``loop_out``.
 * ``loop_clock_out``: a clock generator TTL. Must be physically connected to ``loop_clock_in``.
 * ``loop_clock_in``: any input-capable TTL. Must be physically connected to ``loop_clock_out``.
