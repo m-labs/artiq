@@ -54,20 +54,18 @@ def get_fmc_adapter_io():
                 IOStandard("LVTTL")),
 
             ("spi", next(spi),
-                Subsignal("clk", Pins("FMC:LA13_N")),
-                Subsignal("mosi", Pins("FMC:LA14_N")),
-                Subsignal("miso", Pins("FMC:LA17_CC_P")),
-                Subsignal("cs_n", Pins("FMC:LA17_CC_N")),
+                Subsignal("clk", FPins("FMC:LA13_N")),
+                Subsignal("mosi", FPins("FMC:LA14_N")),
+                Subsignal("miso", FPins("FMC:LA17_CC_P")),
+                Subsignal("cs_n", FPins("FMC:LA17_CC_N")),
                 IOStandard("LVTTL")),
 
             ("spi", next(spi),
-                Subsignal("clk", Pins("FMC:LA18_CC_P")),
-                Subsignal("mosi", Pins("FMC:LA18_CC_N")),
-                Subsignal("miso", Pins("FMC:LA23_P")),
-                Subsignal("cs_n", Pins("FMC:LA23_N")),
+                Subsignal("clk", FPins("FMC:LA18_CC_P")),
+                Subsignal("mosi", FPins("FMC:LA18_CC_N")),
+                Subsignal("miso", FPins("FMC:LA23_P")),
+                Subsignal("cs_n", FPins("FMC:LA23_N")),
                 IOStandard("LVTTL")),
-
-
         ]
     return r
 
