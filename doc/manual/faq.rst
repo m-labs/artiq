@@ -92,3 +92,16 @@ run unit tests?
 ---------------
 
 The unit tests assume that the Python environment has been set up in such a way that ``import artiq`` will import the code being tested, and that this is still true for any subprocess created. This is not the way setuptools operates as it adds the path to ARTIQ to ``sys.path`` which is not passed to subprocesses; as a result, running the tests via ``setup.py`` is not supported. The user must first install the package or set ``PYTHONPATH``, and then run the tests with e.g. ``python3.5 -m unittest discover`` in the ``artiq/test`` folder and ``lit .`` in the ``artiq/test/lit`` folder.
+
+For the hardware-in-the-loop unit tests, set the ``ARTIQ_ROOT`` environment variable to the path to a device database containing the relevant devices.
+
+The core device tests require the following TTL devices and connections:
+
+* ``ttl_out``: any output-only TTL.
+* ``ttl_out_serdes``: any output-only TTL that uses a SERDES (i.e. has a fine timestamp). Can be aliased to ``ttl_out``.
+* ``loop_out``: : any output-only TTL. Must be physically connected to ``loop_in``. Can be aliased to ``ttl_out``.
+* ``loop_in``: any input-capable TTL. Must be physically connected to ``loop_out``.
+* ``loop_clock_out``: a clock generator TTL. Must be physically connected to ``loop_clock_in``.
+* ``loop_clock_in``: any input-capable TTL. Must be physically connected to ``loop_clock_out``.
+
+If TTL devices are missing, the corresponding tests are skipped.
