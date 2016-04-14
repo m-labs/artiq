@@ -6,7 +6,6 @@ import tempfile
 import time
 import re
 
-import numpy as np
 import h5py
 
 from artiq.protocols.sync_struct import Notifier
@@ -44,7 +43,8 @@ class RIDCounter:
     def _update_cache(self, rid):
         contents = str(rid) + "\n"
         directory = os.path.abspath(os.path.dirname(self.cache_filename))
-        with tempfile.NamedTemporaryFile("w", dir=directory, delete=False) as f:
+        with tempfile.NamedTemporaryFile("w", dir=directory, delete=False
+                                         ) as f:
             f.write(contents)
             tmpname = f.name
         os.replace(tmpname, self.cache_filename)
@@ -68,7 +68,7 @@ class RIDCounter:
             except:
                 continue
             minute_folders = filter(lambda x: re.fullmatch('\d\d-\d\d', x),
-                                              minute_folders)
+                                    minute_folders)
             for mf in minute_folders:
                 minute_path = os.path.join(day_path, mf)
                 try:
