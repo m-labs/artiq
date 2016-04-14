@@ -7,11 +7,12 @@ Major releases
 --------------
 
 1. Create branch release-X from master.
-2. Ensure that release versions of all packages required are available under the ``main`` label in conda. Ensure that new packages in ``main`` do not break older ARTIQ releases.
-3. Remove any unfinished features.
-4. Test and fix any problems found.
-5. If you have willing testers for release candidates, tag X.0rc0, have it build, and point testers there. Iterate over the previous points with new release candidates if necessary.
-6. Tag X.0, have it build, and copy its packages to ``main`` channel.
+2. Tag the next commit in master X+1.0.dev.
+3. Ensure that release versions of all packages required are available under the ``main`` label in conda. Ensure that new packages in ``main`` do not break older ARTIQ releases.
+4. In the release-X branch, remove any unfinished features.
+5. Test and fix any problems found. Apply fixes to both master and release-X.
+6. If you have willing testers for release candidates, tag X.0rc1 in the release-X branch, have it build, and point testers there. Iterate over the previous points with new release candidates if necessary.
+7. Tag X.0 in the release-X branch, build it, and copy its packages to ``main`` channel.
 
 Minor (bugfix) releases
 -----------------------
