@@ -13,13 +13,14 @@ def compute_gaussian(r, img_w, img_h,
                      gaussian_cx, gaussian_cy):
     for y in range(img_h):
         for x in range(img_w):
-            ds = ((gaussian_cx-x)/gaussian_w)**2 
+            ds = ((gaussian_cx-x)/gaussian_w)**2
             ds += ((gaussian_cy-y)/gaussian_h)**2
             r[x, y] = np.exp(-ds/2)
 
 
 def fit(data, get_dataset):
     img_w, img_h = data.shape
+
     def err(parameters):
         r = np.empty((img_w, img_h))
         compute_gaussian(r, img_w, img_h, *parameters)
@@ -38,6 +39,7 @@ def fit(data, get_dataset):
 def get_and_fit():
     if "dataset_db" in globals():
         logger.info("using dataset DB for Gaussian fit guess")
+
         def get_dataset(name, default):
             try:
                 return dataset_db.get(name)
@@ -45,7 +47,7 @@ def get_and_fit():
                 return default
     else:
         logger.info("using defaults for Gaussian fit guess")
+
         def get_dataset(name, default):
             return default
-        get_dataset = lambda name, default: default 
     return fit(controller_driver.get_picture(), get_dataset)
