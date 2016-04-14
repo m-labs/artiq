@@ -11,7 +11,7 @@ from quamash import QEventLoop
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import verbosity_args, init_logger, atexit_register_coroutine
 from artiq.gui import state, applets, models
-from artiq.browser import datasets, results
+from artiq.browser import datasets, files
 
 
 def get_argparser():
@@ -85,8 +85,8 @@ def main():
     status_bar = QtWidgets.QStatusBar()
     main_window.setStatusBar(status_bar)
 
-    d_results = results.ResultsDock(datasets_sub, main_window)
-    smgr.register(d_results)
+    d_files = files.FilesDock(datasets_sub, main_window)
+    smgr.register(d_files)
 
     d_applets = applets.AppletsDock(main_window, datasets_sub)
     atexit_register_coroutine(d_applets.stop)
@@ -100,7 +100,7 @@ def main():
     mdi_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
     main_window.setCentralWidget(mdi_area)
 
-    main_window.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d_results)
+    main_window.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d_files)
     main_window.addDockWidget(QtCore.Qt.BottomDockWidgetArea, d_applets)
     main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_datasets)
 
@@ -114,7 +114,7 @@ def main():
     smgr.load()
 
     if args.PATH:
-        d_results.select(args.PATH)
+        d_files.select(args.PATH)
 
     smgr.start()
     atexit_register_coroutine(smgr.stop)

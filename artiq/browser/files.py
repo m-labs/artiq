@@ -36,10 +36,10 @@ class ResultIconProvider(QtWidgets.QFileIconProvider):
             return QtGui.QIcon(pix)
 
 
-class ResultsDock(QtWidgets.QDockWidget):
+class FilesDock(QtWidgets.QDockWidget):
     def __init__(self, datasets, main_window, root=None):
-        QtWidgets.QDockWidget.__init__(self, "Results")
-        self.setObjectName("Results")
+        QtWidgets.QDockWidget.__init__(self, "Files")
+        self.setObjectName("Files")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
                          QtWidgets.QDockWidget.DockWidgetFloatable)
 
