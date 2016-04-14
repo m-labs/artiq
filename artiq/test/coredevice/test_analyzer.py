@@ -13,6 +13,7 @@ class CreateTTLPulse(EnvExperiment):
     @kernel
     def run(self):
         self.loop_in.input()
+        self.loop_out.off()
         delay_mu(8)
         with parallel:
             self.loop_in.gate_both_mu(1200)
