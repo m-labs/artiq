@@ -56,24 +56,26 @@ class RIDCounter:
             day_folders = os.listdir(self.results_dir)
         except:
             return r
-        day_folders = filter(lambda x: re.fullmatch('\d\d\d\d-\d\d-\d\d', x),
-                             day_folders)
+        day_folders = filter(
+            lambda x: re.fullmatch("\\d\\d\\d\\d-\\d\\d-\\d\\d", x),
+            day_folders)
         for df in day_folders:
             day_path = os.path.join(self.results_dir, df)
             try:
-                minute_folders = os.listdir(day_path)
+                hm_folders = os.listdir(day_path)
             except:
                 continue
-            minute_folders = filter(lambda x: re.fullmatch('\d\d-\d\d', x),
-                                    minute_folders)
-            for mf in minute_folders:
-                minute_path = os.path.join(day_path, mf)
+            hm_folders = filter(lambda x: re.fullmatch("\\d\\d(-\\d\\d)?", x),
+                                hm_folders)
+            for hmf in hm_folders:
+                hm_path = os.path.join(day_path, hmf)
                 try:
-                    h5files = os.listdir(minute_path)
+                    h5files = os.listdir(hm_path)
                 except:
                     continue
                 for x in h5files:
-                    m = re.fullmatch('(\d\d\d\d\d\d\d\d\d)-.*\.h5', x)
+                    m = re.fullmatch(
+                        "(\\d\\d\\d\\d\\d\\d\\d\\d\\d)-.*\\.h5", x)
                     if m is None:
                         continue
                     rid = int(m.group(1))

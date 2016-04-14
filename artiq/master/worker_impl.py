@@ -211,7 +211,7 @@ def main():
                     rid, obj["pipeline_name"], expid, obj["priority"])
                 dirname = os.path.join("results",
                                        time.strftime("%Y-%m-%d", start_time),
-                                       time.strftime("%H-%M", start_time))
+                                       time.strftime("%H", start_time))
                 os.makedirs(dirname, exist_ok=True)
                 os.chdir(dirname)
                 exp_inst = exp(
