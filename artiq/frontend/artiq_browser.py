@@ -15,10 +15,16 @@ from artiq.browser import datasets, files
 
 
 def get_argparser():
+    if os.name == "nt":
+        default_db_file = os.path.expanduser("~\\artiq_browser.pyon")
+    else:
+        default_db_file = os.path.expanduser("~/.artiq_browser.pyon")
+
     parser = argparse.ArgumentParser(description="ARTIQ Browser")
     parser.add_argument(
-        "--db-file", default="artiq_browser.pyon",
-        help="database file for local browser settings")
+        "--db-file", default=default_db_file,
+        help="database file for local browser settings "
+             "(default: %(default)s)")
     parser.add_argument("PATH", nargs="?", help="browse path or file")
     verbosity_args(parser)
     return parser

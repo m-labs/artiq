@@ -34,6 +34,8 @@ unreleased [2.x]
   Experiments no longer need to do it explicitly.
 * The result folders are formatted "%Y-%m-%d/%H instead of "%Y-%m-%d/%H-%M".
   (i.e. grouping by day and then by hour, instead of by day and then by minute)
+* GUI tools save their state file in the user's home directory instead of the
+  current directory.
 
 
 unreleased [1.0rc3]

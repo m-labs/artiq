@@ -18,6 +18,11 @@ from artiq.dashboard import (experiments, shortcuts, explorer,
 
 
 def get_argparser():
+    if os.name == "nt":
+        default_db_file = os.path.expanduser("~\\artiq_dashboard.pyon")
+    else:
+        default_db_file = os.path.expanduser("~/.artiq_dashboard.pyon")
+
     parser = argparse.ArgumentParser(description="ARTIQ Dashboard")
     parser.add_argument(
         "-s", "--server", default="::1",
@@ -29,8 +34,9 @@ def get_argparser():
         "--port-control", default=3251, type=int,
         help="TCP port to connect to for control")
     parser.add_argument(
-        "--db-file", default="artiq_dashboard.pyon",
-        help="database file for local GUI settings")
+        "--db-file", default=default_db_file,
+        help="database file for local GUI settings "
+             "(default: %(default)s)")
     verbosity_args(parser)
     return parser
 
