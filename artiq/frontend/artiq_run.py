@@ -12,7 +12,7 @@ import h5py
 
 from llvmlite_artiq import binding as llvm
 
-from artiq.language.environment import EnvExperiment
+from artiq.language.environment import EnvExperiment, ProcessArgumentManager
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager
 from artiq.coredevice.core import CompileError, host_only
@@ -167,7 +167,8 @@ def _build_experiment(device_mgr, dataset_mgr, args):
         "arguments": arguments
     }
     device_mgr.virtual_devices["scheduler"].expid = expid
-    return exp(device_mgr, dataset_mgr, **arguments)
+    argument_mgr = ProcessArgumentManager(arguments)
+    return exp((device_mgr, dataset_mgr, argument_mgr))
 
 
 def run(with_file=False):

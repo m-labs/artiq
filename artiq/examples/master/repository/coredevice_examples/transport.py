@@ -17,8 +17,8 @@ class Transport(EnvExperiment):
 
         self.setattr_argument("wait_at_stop", NumberValue(100*us))
         self.setattr_argument("speed", NumberValue(1/(10*us)))
-        self.repeats = int(self.get_argument("repeats", NumberValue(100)))
-        self.bins = int(self.get_argument("bins", NumberValue(100)))
+        self.setattr_argument("repeats", NumberValue(100, step=1, ndecimals=0))
+        self.setattr_argument("bins", NumberValue(100, step=1, ndecimals=0))
 
         t = np.linspace(0, 10, 101)  # waveform time
         u = 1 - np.cos(np.pi*t/t[-1])

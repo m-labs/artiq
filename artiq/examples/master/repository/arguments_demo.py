@@ -54,8 +54,8 @@ class ArgumentsDemo(EnvExperiment):
         self.setattr_argument("enum", EnumerationValue(
             ["foo", "bar", "quux"], "foo"), "Group")
 
-        self.sc1 = SubComponent1(parent=self)
-        self.sc2 = SubComponent2(parent=self)
+        self.sc1 = SubComponent1(self)
+        self.sc2 = SubComponent2(self)
 
     def run(self):
         logging.error("logging test: error")

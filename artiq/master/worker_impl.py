@@ -12,7 +12,8 @@ from artiq.protocols import pipe_ipc, pyon
 from artiq.protocols.packed_exceptions import raise_packed_exc
 from artiq.tools import multiline_log_config, file_import
 from artiq.master.worker_db import DeviceManager, DatasetManager
-from artiq.language.environment import is_experiment
+from artiq.language.environment import (is_experiment, TraceArgumentManager,
+                                        ProcessArgumentManager)
 from artiq.language.core import set_watchdog_factory, TerminationRequested
 from artiq.coredevice.core import CompileError, host_only, _render_diagnostic
 from artiq import __version__ as artiq_version
@@ -138,11 +139,11 @@ def examine(device_mgr, dataset_mgr, file):
                 name = exp_class.__doc__.splitlines()[0].strip()
                 if name[-1] == ".":
                     name = name[:-1]
-            exp_inst = exp_class(device_mgr, dataset_mgr,
-                                 default_arg_none=True)
+            argument_mgr = TraceArgumentManager()
+            exp_inst = exp_class((device_mgr, dataset_mgr, argument_mgr))
             arginfo = OrderedDict(
                 (k, (proc.describe(), group))
-                for k, (proc, group) in exp_inst.requested_args.items())
+                for k, (proc, group) in argument_mgr.requested_args.items())
             register_experiment(class_name, name, arginfo)
 
 
@@ -213,8 +214,8 @@ def main():
                                        time.strftime("%H", start_time))
                 os.makedirs(dirname, exist_ok=True)
                 os.chdir(dirname)
-                exp_inst = exp(
-                    device_mgr, dataset_mgr, **expid["arguments"])
+                argument_mgr = ProcessArgumentManager(expid["arguments"])
+                exp_inst = exp((device_mgr, dataset_mgr, argument_mgr))
                 put_object({"action": "completed"})
             elif action == "prepare":
                 exp_inst.prepare()

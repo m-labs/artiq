@@ -147,11 +147,11 @@ class Watchdog(EnvExperiment):
 
 
 class LoopbackCount(EnvExperiment):
-    def build(self):
+    def build(self, npulses):
         self.setattr_device("core")
         self.setattr_device("loop_in")
         self.setattr_device("loop_out")
-        self.setattr_argument("npulses")
+        self.npulses = npulses
 
     def set_count(self, count):
         self.set_dataset("count", count)
@@ -320,9 +320,9 @@ class CoredeviceTest(ExperimentCase):
 
 
 class RPCTiming(EnvExperiment):
-    def build(self):
+    def build(self, repeats=100):
         self.setattr_device("core")
-        self.setattr_argument("repeats", PYONValue(100))
+        self.repeats = repeats
 
     def nop(self):
         pass

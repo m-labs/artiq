@@ -6,19 +6,21 @@ from artiq.sim import devices as sim_devices
 from artiq.test.hardware_testbench import ExperimentCase
 
 
-def _run_on_host(k_class, **arguments):
-    dmgr = dict()
-    dmgr["core"] = sim_devices.Core(dmgr)
-    k_inst = k_class(dmgr, **arguments)
+def _run_on_host(k_class, *args, **kwargs):
+    device_mgr = dict()
+    device_mgr["core"] = sim_devices.Core(device_mgr)
+
+    k_inst = k_class((device_mgr, None, None),
+                     *args, **kwargs)
     k_inst.run()
     return k_inst
 
 
 class _Primes(EnvExperiment):
-    def build(self):
+    def build(self, output_list, maximum):
         self.setattr_device("core")
-        self.setattr_argument("output_list")
-        self.setattr_argument("maximum")
+        self.output_list = output_list
+        self.maximum = maximum
 
     def _add_output(self, x):
         self.output_list.append(x)
@@ -72,10 +74,10 @@ class _Misc(EnvExperiment):
 
 
 class _PulseLogger(EnvExperiment):
-    def build(self):
+    def build(self, parent_test, name):
         self.setattr_device("core")
-        self.setattr_argument("parent_test")
-        self.setattr_argument("name")
+        self.parent_test = parent_test
+        self.name = name
 
     def _append(self, t, l, f):
         if not hasattr(self.parent_test, "first_timestamp"):
@@ -98,12 +100,12 @@ class _PulseLogger(EnvExperiment):
 
 
 class _Pulses(EnvExperiment):
-    def build(self):
+    def build(self, output_list):
         self.setattr_device("core")
-        self.setattr_argument("output_list")
+        self.output_list = output_list
 
         for name in "a", "b", "c", "d":
-            pl = _PulseLogger(*self.managers(),
+            pl = _PulseLogger(self,
                               parent_test=self,
                               name=name)
             setattr(self, name, pl)
@@ -125,9 +127,9 @@ class _MyException(Exception):
 
 
 class _Exceptions(EnvExperiment):
-    def build(self):
+    def build(self, trace):
         self.setattr_device("core")
-        self.setattr_argument("trace")
+        self.trace = trace
 
     def _trace(self, i):
         self.trace.append(i)
@@ -172,9 +174,9 @@ class _Exceptions(EnvExperiment):
 
 
 class _RPCExceptions(EnvExperiment):
-    def build(self):
+    def build(self, catch):
         self.setattr_device("core")
-        self.setattr_argument("catch", PYONValue(False))
+        self.catch = catch
 
         self.success = False
 

@@ -108,9 +108,11 @@ class ExperimentCase(unittest.TestCase):
     def tearDown(self):
         self.device_mgr.close_devices()
 
-    def create(self, cls, **kwargs):
+    def create(self, cls, *args, **kwargs):
         try:
-            exp = cls(self.device_mgr, self.dataset_mgr, **kwargs)
+            exp = cls(
+                (self.device_mgr, self.dataset_mgr, None),
+                *args, **kwargs)
             exp.prepare()
             return exp
         except KeyError as e:
@@ -118,15 +120,15 @@ class ExperimentCase(unittest.TestCase):
             raise unittest.SkipTest(
                 "device_db entry `{}` not found".format(*e.args))
 
-    def execute(self, cls, **kwargs):
+    def execute(self, cls, *args, **kwargs):
         expid = {
             "file": sys.modules[cls.__module__].__file__,
             "class_name": cls.__name__,
-            "arguments": kwargs
+            "arguments": dict()
         }
         self.device_mgr.virtual_devices["scheduler"].expid = expid
         try:
-            exp = self.create(cls, **kwargs)
+            exp = self.create(cls, *args, **kwargs)
             exp.run()
             exp.analyze()
             return exp

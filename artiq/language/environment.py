@@ -7,8 +7,7 @@ from artiq.protocols import pyon
 __all__ = ["NoDefault",
            "PYONValue", "BooleanValue", "EnumerationValue",
            "NumberValue", "StringValue",
-           "HasEnvironment",
-           "Experiment", "EnvExperiment", "is_experiment"]
+           "HasEnvironment", "Experiment", "EnvExperiment"]
 
 
 class NoDefault:
@@ -145,50 +144,62 @@ class StringValue(_SimpleArgProcessor):
     pass
 
 
-class HasEnvironment:
-    """Provides methods to manage the environment of an experiment (devices,
-    parameters, results, arguments)."""
-    def __init__(self, device_mgr=None, dataset_mgr=None, *, parent=None,
-                 default_arg_none=False, **kwargs):
+class TraceArgumentManager:
+    def __init__(self):
         self.requested_args = OrderedDict()
 
-        self.__device_mgr = device_mgr
-        self.__dataset_mgr = dataset_mgr
-        self.__parent = parent
-        self.__default_arg_none = default_arg_none
+    def get(self, key, processor, group):
+        self.requested_args[key] = processor, group
+        return None
 
-        self.__kwargs = kwargs
+
+class ProcessArgumentManager:
+    def __init__(self, unprocessed_arguments):
+        self.unprocessed_arguments = unprocessed_arguments
+
+    def get(self, key, processor, group):
+        if key in self.unprocessed_arguments:
+            r = processor.process(self.unprocessed_arguments[key])
+        else:
+            r = processor.default()
+        return r
+
+
+class HasEnvironment:
+    """Provides methods to manage the environment of an experiment (arguments,
+    devices, datasets)."""
+    def __init__(self, managers_or_parent, *args, **kwargs):
+        if isinstance(managers_or_parent, tuple):
+            self.__device_mgr = managers_or_parent[0]
+            self.__dataset_mgr = managers_or_parent[1]
+            self.__argument_mgr = managers_or_parent[2]
+        else:
+            self.__device_mgr = managers_or_parent.__device_mgr
+            self.__dataset_mgr = managers_or_parent.__dataset_mgr
+            self.__argument_mgr = managers_or_parent.__argument_mgr
+
         self.__in_build = True
-        self.build()
+        self.build(*args, **kwargs)
         self.__in_build = False
-        for key in self.__kwargs.keys():
-            if key not in self.requested_args:
-                raise TypeError("Got unexpected argument: " + key)
-        del self.__kwargs
 
     def build(self):
-        """Must be implemented by the user to request arguments.
+        """Should be implemented by the user to request arguments.
 
-        Other initialization steps such as requesting devices and parameters
-        or initializing real-time results may also be performed here.
+        Other initialization steps such as requesting devices may also be
+        performed here.
 
-        When the repository is scanned, any requested devices and parameters
-        are set to ``None``."""
-        raise NotImplementedError
+        When the repository is scanned, any requested devices and arguments
+        are set to ``None``.
 
-    def managers(self):
-        """Returns the device manager and the dataset manager, in this order.
+        Leftover positional and keyword arguments from the constructor are
+        forwarded to this method. This is intended for experiments that are
+        only meant to be executed programmatically (not from the GUI)."""
+        pass
 
-        This is the same order that the constructor takes them, allowing
-        sub-objects to be created with this idiom to pass the environment
-        around: ::
-
-            sub_object = SomeLibrary(*self.managers())
-        """
-        return self.__device_mgr, self.__dataset_mgr
-
-    def get_argument(self, key, processor=None, group=None):
+    def get_argument(self, key, processor, group=None):
         """Retrieves and returns the value of an argument.
+
+        This function should only be called from ``build``.
 
         :param key: Name of the argument.
         :param processor: A description of how to process the argument, such
@@ -199,22 +210,7 @@ class HasEnvironment:
         if not self.__in_build:
             raise TypeError("get_argument() should only "
                             "be called from build()")
-        if self.__parent is not None and key not in self.__kwargs:
-            return self.__parent.get_argument(key, processor, group)
-        if processor is None:
-            processor = PYONValue()
-        self.requested_args[key] = processor, group
-        try:
-            argval = self.__kwargs[key]
-        except KeyError:
-            try:
-                return processor.default()
-            except DefaultMissing:
-                if self.__default_arg_none:
-                    return None
-                else:
-                    raise
-        return processor.process(argval)
+        return self.__argument_mgr.get(key, processor, group)
 
     def setattr_argument(self, key, processor=None, group=None):
         """Sets an argument as attribute. The names of the argument and of the
@@ -223,16 +219,10 @@ class HasEnvironment:
 
     def get_device_db(self):
         """Returns the full contents of the device database."""
-        if self.__parent is not None:
-            return self.__parent.get_device_db()
         return self.__device_mgr.get_device_db()
 
     def get_device(self, key):
         """Creates and returns a device driver."""
-        if self.__parent is not None:
-            return self.__parent.get_device(key)
-        if self.__device_mgr is None:
-            raise ValueError("Device manager not present")
         return self.__device_mgr.get(key)
 
     def setattr_device(self, key):
@@ -254,11 +244,6 @@ class HasEnvironment:
         :param save: the data is saved into the local storage of the current
             run (archived as a HDF5 file).
         """
-        if self.__parent is not None:
-            self.__parent.set_dataset(key, value, broadcast, persist, save)
-            return
-        if self.__dataset_mgr is None:
-            raise ValueError("Dataset manager not present")
         self.__dataset_mgr.set(key, value, broadcast, persist, save)
 
     def mutate_dataset(self, key, index, value):
@@ -267,10 +252,6 @@ class HasEnvironment:
 
         If the dataset was created in broadcast mode, the modification is
         immediately transmitted."""
-        if self.__parent is not None:
-            self.__parent.mutate_dataset(key, index, value)
-        if self.__dataset_mgr is None:
-            raise ValueError("Dataset manager not present")
         self.__dataset_mgr.mutate(key, index, value)
 
     def get_dataset(self, key, default=NoDefault):
@@ -283,10 +264,6 @@ class HasEnvironment:
         If the dataset does not exist, returns the default value. If no default
         is provided, raises ``KeyError``.
         """
-        if self.__parent is not None:
-            return self.__parent.get_dataset(key, default)
-        if self.__dataset_mgr is None:
-            raise ValueError("Dataset manager not present")
         try:
             return self.__dataset_mgr.get(key)
         except KeyError:
@@ -302,7 +279,7 @@ class HasEnvironment:
 
 
 class Experiment:
-    """Base class for experiments.
+    """Base class for top-level experiments.
 
     Deriving from this class enables automatic experiment discovery in
     Python modules.
@@ -348,15 +325,15 @@ class Experiment:
 
 
 class EnvExperiment(Experiment, HasEnvironment):
-    """Base class for experiments that use the ``HasEnvironment`` environment
-    manager.
+    """Base class for top-level experiments that use the ``HasEnvironment``
+    environment manager.
 
     Most experiment should derive from this class."""
     pass
 
 
 def is_experiment(o):
-    """Checks if a Python object is an instantiable user experiment."""
+    """Checks if a Python object is a top-level experiment class."""
     return (isclass(o)
         and issubclass(o, Experiment)
         and o is not Experiment

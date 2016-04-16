@@ -36,6 +36,8 @@ unreleased [2.x]
   (i.e. grouping by day and then by hour, instead of by day and then by minute)
 * GUI tools save their state file in the user's home directory instead of the
   current directory.
+* The ``parent`` keyword argument of ``HasEnvironment`` (and ``EnvExperiment``)
+  has been replaced. Pass the parent as first argument instead.
 
 
 unreleased [1.0rc3]

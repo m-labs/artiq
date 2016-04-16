@@ -7,9 +7,6 @@ from artiq.experiment import *
 
 class Histograms(EnvExperiment):
     """Histograms demo"""
-    def build(self):
-        pass
-
     def run(self):
         nbins = 50
         npoints = 20
