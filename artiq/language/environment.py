@@ -229,6 +229,8 @@ class HasEnvironment:
         """Returns the full contents of the device database."""
         if self.__parent is not None:
             return self.__parent.get_device_db()
+        if self.__device_mgr is None:
+            raise ValueError("Device manager not present")
         return self.__device_mgr.get_device_db()
 
     def get_device(self, key):
