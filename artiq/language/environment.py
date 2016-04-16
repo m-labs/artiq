@@ -146,8 +146,8 @@ class StringValue(_SimpleArgProcessor):
 
 
 class HasEnvironment:
-    """Provides methods to manage the environment of an experiment (devices,
-    parameters, results, arguments)."""
+    """Provides methods to manage the environment of an experiment (arguments,
+    devices, datasets)."""
     def __init__(self, device_mgr=None, dataset_mgr=None, *, parent=None,
                  default_arg_none=False, enable_processors=False, **kwargs):
         self.requested_args = OrderedDict()
@@ -170,11 +170,12 @@ class HasEnvironment:
     def build(self):
         """Must be implemented by the user to request arguments.
 
-        Other initialization steps such as requesting devices and parameters
-        or initializing real-time results may also be performed here.
+        Other initialization steps such as requesting devices may also be
+        performed here.
 
-        When the repository is scanned, any requested devices and parameters
-        are set to ``None``."""
+        When the repository is scanned, any requested devices and arguments
+        are set to ``None``.
+        """
         raise NotImplementedError
 
     def managers(self):
@@ -190,6 +191,8 @@ class HasEnvironment:
 
     def get_argument(self, key, processor=None, group=None):
         """Retrieves and returns the value of an argument.
+
+        This function should only be called from ``build``.
 
         :param key: Name of the argument.
         :param processor: A description of how to process the argument, such
@@ -308,7 +311,7 @@ class HasEnvironment:
 
 
 class Experiment:
-    """Base class for experiments.
+    """Base class for top-level experiments.
 
     Deriving from this class enables automatic experiment discovery in
     Python modules.
@@ -354,15 +357,15 @@ class Experiment:
 
 
 class EnvExperiment(Experiment, HasEnvironment):
-    """Base class for experiments that use the ``HasEnvironment`` environment
-    manager.
+    """Base class for top-level experiments that use the ``HasEnvironment``
+    environment manager.
 
     Most experiment should derive from this class."""
     pass
 
 
 def is_experiment(o):
-    """Checks if a Python object is an instantiable user experiment."""
+    """Checks if a Python object is a top-level experiment class."""
     return (isclass(o)
         and issubclass(o, Experiment)
         and o is not Experiment
