@@ -13,6 +13,9 @@ unreleased [1.0rc3]
     from ARTIQ, trusting that h5py maps and converts types between HDF5 and
     python/numpy "as expected".
 
+* NumberValue now returns an integer if ``ndecimals`` = 0, ``scale`` = 1 and
+  ``step`` is integer.
+
 
 1.0rc2
 ------
