@@ -112,6 +112,10 @@ def _create_device(desc, device_mgr):
         raise ValueError("Unsupported type in device DB: " + ty)
 
 
+class DeviceError(Exception):
+    pass
+
+
 class DeviceManager:
     """Handles creation and destruction of local device drivers and controller
     RPC clients."""
@@ -141,7 +145,16 @@ class DeviceManager:
         if name in self.active_devices:
             return self.active_devices[name]
         else:
-            dev = _create_device(self.get_desc(name), self)
+            try:
+                desc = self.get_desc(name)
+            except Exception as e:
+                raise DeviceError("Failed to get description of device '{}'"
+                                  .format(name)) from e
+            try:
+                dev = _create_device(desc, self)
+            except Exception as e:
+                raise DeviceError("Failed to create device '{}'"
+                                  .format(name)) from e
             self.active_devices[name] = dev
             return dev
 
