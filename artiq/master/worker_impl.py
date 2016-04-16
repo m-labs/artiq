@@ -139,8 +139,7 @@ def examine(device_mgr, dataset_mgr, file):
                 if name[-1] == ".":
                     name = name[:-1]
             exp_inst = exp_class(device_mgr, dataset_mgr,
-                                 default_arg_none=True,
-                                 enable_processors=True)
+                                 default_arg_none=True)
             arginfo = OrderedDict(
                 (k, (proc.describe(), group))
                 for k, (proc, group) in exp_inst.requested_args.items())
@@ -215,8 +214,7 @@ def main():
                 os.makedirs(dirname, exist_ok=True)
                 os.chdir(dirname)
                 exp_inst = exp(
-                    device_mgr, dataset_mgr, enable_processors=True,
-                    **expid["arguments"])
+                    device_mgr, dataset_mgr, **expid["arguments"])
                 put_object({"action": "completed"})
             elif action == "prepare":
                 exp_inst.prepare()
