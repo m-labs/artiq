@@ -78,7 +78,12 @@ class EnumerationValue(_SimpleArgProcessor):
 
 
 class NumberValue(_SimpleArgProcessor):
-    """An argument that can take a numerical value (typically floating point).
+    """An argument that can take a numerical value.
+
+    If ndecimals = 0, scale = 1 and step is integer, then it returns
+    an integer value. Otherwise, it returns a floating point value.
+    The simplest way to represent an integer argument is
+    ``NumberValue(step=1, ndecimals=0)``.
 
     :param unit: A string representing the unit of the value, for user
         interface (UI) purposes.
@@ -94,7 +99,8 @@ class NumberValue(_SimpleArgProcessor):
                  step=None, min=None, max=None, ndecimals=2):
         if step is None:
             step = scale/10.0
-        _SimpleArgProcessor.__init__(self, default)
+        if default is not NoDefault:
+            self.default_value = default
         self.unit = unit
         self.scale = scale
         self.step = step
@@ -102,8 +108,29 @@ class NumberValue(_SimpleArgProcessor):
         self.max = max
         self.ndecimals = ndecimals
 
+    def _is_int(self):
+        return (self.ndecimals == 0
+                and int(self.step) == self.step
+                and self.scale == 1)
+
+    def default(self):
+        if not hasattr(self, "default_value"):
+            raise DefaultMissing
+        if self._is_int():
+            return int(self.default_value)
+        else:
+            return float(self.default_value)
+
+    def process(self, x):
+        if self._is_int():
+            return int(x)
+        else:
+            return float(x)
+
     def describe(self):
-        d = _SimpleArgProcessor.describe(self)
+        d = {"ty": self.__class__.__name__}
+        if hasattr(self, "default_value"):
+            d["default"] = self.default_value
         d["unit"] = self.unit
         d["scale"] = self.scale
         d["step"] = self.step
