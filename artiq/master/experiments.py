@@ -31,12 +31,14 @@ async def _get_repository_entries(entry_dict,
                            "name (%s)", name)
             name = name.replace("/", "_")
         if name in entry_dict:
-            logger.warning("Duplicate experiment name: '%s'", name)
             basename = name
             i = 1
             while name in entry_dict:
                 name = basename + str(i)
                 i += 1
+            logger.warning("Duplicate experiment name: '%s'\n"
+                           "Renaming class '%s' in '%s' to '%s'",
+                           basename, class_name, filename, name)
         entry = {
             "file": filename,
             "class_name": class_name,
