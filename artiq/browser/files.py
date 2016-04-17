@@ -7,7 +7,7 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 logger = logging.getLogger(__name__)
 
 
-class ResultIconProvider(QtWidgets.QFileIconProvider):
+class ThumbnailIconProvider(QtWidgets.QFileIconProvider):
     def icon(self, info):
         icon = self.hdf5_thumbnail(info)
         if icon is None:
@@ -30,14 +30,23 @@ class ResultIconProvider(QtWidgets.QFileIconProvider):
             try:
                 img = QtGui.QImage.fromData(t.value)
             except:
-                logger.warning("unable to read thumbnail", exc_info=True)
+                logger.warning("unable to read thumbnail from %s",
+                               info.filePath(), exc_info=True)
                 return
             pix = QtGui.QPixmap.fromImage(img)
             return QtGui.QIcon(pix)
 
 
+class DirsOnlyProxy(QtCore.QSortFilterProxyModel):
+    def filterAcceptsRow(self, row, parent):
+        idx = self.sourceModel().index(row, 0, parent)
+        if not self.sourceModel().fileInfo(idx).isDir():
+            return False
+        return QtCore.QSortFilterProxyModel.filterAcceptsRow(self, row, parent)
+
+
 class FilesDock(QtWidgets.QDockWidget):
-    def __init__(self, datasets, main_window, root=None):
+    def __init__(self, datasets, main_window, root=""):
         QtWidgets.QDockWidget.__init__(self, "Files")
         self.setObjectName("Files")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
@@ -46,24 +55,32 @@ class FilesDock(QtWidgets.QDockWidget):
         self.splitter = QtWidgets.QSplitter()
         self.setWidget(self.splitter)
 
-        if root is None:
-            root = QtCore.QDir.currentPath()
-
         self.datasets = datasets
         self.main_window = main_window
 
-        self.rt_model = QtWidgets.QFileSystemModel()
-        self.rt_model.setFilter(QtCore.QDir.NoDotAndDotDot |
-                                QtCore.QDir.AllDirs)
+        self.model = QtWidgets.QFileSystemModel()
+        self.model.setFilter(QtCore.QDir.Drives | QtCore.QDir.NoDotAndDotDot |
+                             QtCore.QDir.AllDirs | QtCore.QDir.Files)
+        self.model.setNameFilterDisables(False)
+        self.model.setIconProvider(ThumbnailIconProvider())
 
         self.rt = QtWidgets.QTreeView()
-        self.rt.setModel(self.rt_model)
-        self.rt.setRootIndex(self.rt_model.setRootPath(root))
-        self.rt.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        self.rt.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        rt_model = DirsOnlyProxy()
+        rt_model.setDynamicSortFilter(True)
+        rt_model.setSourceModel(self.model)
+        self.rt.setModel(rt_model)
+        self.model.directoryLoaded.connect(
+            lambda: self.rt.resizeColumnToContents(0))
+        self.rt.setAnimated(False)
+        self.rt.setRootIndex(rt_model.mapFromSource(
+            self.model.setRootPath(root)))
+        self.rt.setSelectionBehavior(self.rt.SelectRows)
+        self.rt.setSelectionMode(self.rt.SingleSelection)
         self.rt.selectionModel().currentChanged.connect(
             self.tree_current_changed)
         self.rt.setRootIsDecorated(False)
+        for i in range(1, 4):
+            self.rt.hideColumn(i)
         self.splitter.addWidget(self.rt)
 
         self.rl = QtWidgets.QListView()
@@ -72,29 +89,17 @@ class FilesDock(QtWidgets.QDockWidget):
         self.rl.setIconSize(QtCore.QSize(20*l, 15*l))
         self.rl.setFlow(QtWidgets.QListView.LeftToRight)
         self.rl.setWrapping(True)
-        self.tree_current_changed(self.rt.currentIndex(), None)
-        self.splitter.addWidget(self.rl)
-
-    def showEvent(self, ev):
-        self.rt.hideColumn(1)
-        self.rt.hideColumn(2)
-        self.rt.hideColumn(3)
-
-    def tree_current_changed(self, current, previous):
-        path = self.rt_model.filePath(current)
-        # create a new model for the ListView here
-        self.rl_model = QtWidgets.QFileSystemModel()
-        self.rl_model.setFilter(QtCore.QDir.Files)
-        self.rl_model.setNameFilters(["*.h5"])
-        self.rl_model.setNameFilterDisables(False)
-        self.rl_model.setIconProvider(ResultIconProvider())
-        self.rl.setModel(self.rl_model)
-        self.rl.setRootIndex(self.rl_model.setRootPath(path))
+        self.rl.setModel(self.model)
         self.rl.selectionModel().currentChanged.connect(
             self.list_current_changed)
+        self.splitter.addWidget(self.rl)
+
+    def tree_current_changed(self, current, previous):
+        idx = self.rt.model().mapToSource(current)
+        self.rl.setRootIndex(idx)
 
     def list_current_changed(self, current, previous):
-        info = self.rl_model.fileInfo(current)
+        info = self.model.fileInfo(current)
         logger.info("opening %s", info.filePath())
         if not (info.isFile() and info.isReadable() and
                 info.suffix() == "h5"):
@@ -102,7 +107,8 @@ class FilesDock(QtWidgets.QDockWidget):
         try:
             f = h5py.File(info.filePath(), "r")
         except:
-            logger.warning("unable to read HDF5 file", exc_info=True)
+            logger.warning("unable to read HDF5 file %s", info.filePath(),
+                           exc_info=True)
             return
         with f:
             rd = {}
@@ -114,24 +120,47 @@ class FilesDock(QtWidgets.QDockWidget):
                 rd[k] = True, group[k].value
             self.datasets.init(rd)
 
-    def select(self, path):
-        idx = self.rt_model.index(os.path.dirname(path))
+    def select_dir(self, path):
+        if not os.path.exists(path):
+            return
+        idx = self.model.index(path)
+        self.rl.setRootIndex(idx)
+        idx = self.rt.model().mapFromSource(idx)
         self.rt.expand(idx)
-        self.rt.scrollTo(idx)
+
+        def scroll_when_loaded(p):
+            if p != path:
+                return
+            self.model.directoryLoaded.disconnect(scroll_when_loaded)
+            QtCore.QTimer.singleShot(
+                100, lambda:
+                self.rt.scrollTo(self.rt.model().mapFromSource(
+                    self.model.index(path)), self.rt.PositionAtCenter))
+        self.model.directoryLoaded.connect(scroll_when_loaded)
         self.rt.setCurrentIndex(idx)
-        self.rl.setCurrentIndex(self.rl_model.index(path))
+
+    def select_file(self, path):
+        if not os.path.exists(path):
+            return
+        self.select_dir(os.path.dirname(path))
+        self.rl.setCurrentIndex(self.model.index(path))
 
     def save_state(self):
         return {
-            "selected": self.rl_model.filePath(self.rt.currentIndex()),
+            "dir": self.model.filePath(self.rt.model().mapToSource(
+                self.rt.currentIndex())),
+            "file": self.model.filePath(self.rl.currentIndex()),
             "header": bytes(self.rt.header().saveState()),
             "splitter": bytes(self.splitter.saveState()),
         }
 
     def restore_state(self, state):
-        selected = state.get("selected")
-        if selected:
-            self.select(selected)
+        dir = state.get("dir")
+        if dir:
+            self.select_dir(dir)
+        file = state.get("file")
+        if file:
+            self.select_file(file)
         header = state.get("header")
         if header:
             self.rt.header().restoreState(QtCore.QByteArray(header))

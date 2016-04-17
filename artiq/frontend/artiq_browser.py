@@ -71,7 +71,6 @@ class MdiArea(QtWidgets.QMdiArea):
         painter.drawPixmap(x, y, self.pixmap)
 
 
-
 def main():
     # initialize application
     args = get_argparser().parse_args()
@@ -119,14 +118,15 @@ def main():
 
     smgr.load()
 
-    if args.PATH:
-        d_files.select(args.PATH)
-
     smgr.start()
     atexit_register_coroutine(smgr.stop)
 
     # run
     main_window.show()
+
+    if args.PATH:
+        d_files.select_file(os.path.normpath(args.PATH))
+
     loop.run_until_complete(main_window.exit_request.wait())
 
 if __name__ == "__main__":
