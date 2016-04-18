@@ -4,7 +4,22 @@ import os
 import h5py
 from PyQt5 import QtCore, QtWidgets, QtGui
 
+from artiq.protocols import pyon
+
 logger = logging.getLogger(__name__)
+
+
+def open_h5(info):
+    if not (info.isFile() and info.isReadable() and
+            info.suffix() == "h5"):
+        return
+    try:
+        f = h5py.File(info.filePath(), "r")
+    except:
+        logger.warning("unable to read HDF5 file %s", info.filePath(),
+                       exc_info=True)
+        return
+    return f
 
 
 class ThumbnailIconProvider(QtWidgets.QFileIconProvider):
@@ -15,12 +30,8 @@ class ThumbnailIconProvider(QtWidgets.QFileIconProvider):
         return icon
 
     def hdf5_thumbnail(self, info):
-        if not (info.isFile() and info.isReadable() and
-                info.suffix() == "h5"):
-            return
-        try:
-            f = h5py.File(info.filePath(), "r")
-        except:
+        f = open_h5(info)
+        if not f:
             return
         with f:
             try:
@@ -92,6 +103,7 @@ class FilesDock(QtWidgets.QDockWidget):
         self.rl.setModel(self.model)
         self.rl.selectionModel().currentChanged.connect(
             self.list_current_changed)
+        self.rl.doubleClicked.connect(self.open_experiment)
         self.splitter.addWidget(self.rl)
 
     def tree_current_changed(self, current, previous):
@@ -101,14 +113,8 @@ class FilesDock(QtWidgets.QDockWidget):
     def list_current_changed(self, current, previous):
         info = self.model.fileInfo(current)
         logger.info("opening %s", info.filePath())
-        if not (info.isFile() and info.isReadable() and
-                info.suffix() == "h5"):
-            return
-        try:
-            f = h5py.File(info.filePath(), "r")
-        except:
-            logger.warning("unable to read HDF5 file %s", info.filePath(),
-                           exc_info=True)
+        f = open_h5(info)
+        if not f:
             return
         with f:
             rd = {}
@@ -119,6 +125,15 @@ class FilesDock(QtWidgets.QDockWidget):
             for k in f["datasets"]:
                 rd[k] = True, group[k].value
             self.datasets.init(rd)
+
+    def open_experiment(self, current):
+        info = self.model.fileInfo(current)
+        logger.info("loading experiment for %s", info.filePath())
+        f = open_h5(info)
+        if not f:
+            return
+        with f:
+            expid = pyon.decode(f["expid"].value)
 
     def select_dir(self, path):
         if not os.path.exists(path):
