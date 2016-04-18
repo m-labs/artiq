@@ -40,8 +40,8 @@ unreleased [2.x]
   has been replaced. Pass the parent as first argument instead.
 
 
-unreleased [1.0rc3]
--------------------
+1.0rc3
+------
 
 * The HDF5 format has changed.
 
