@@ -3,8 +3,8 @@
 Release notes
 =============
 
-unreleased [1.0rc3]
--------------------
+1.0rc3
+------
 
 * The HDF5 format has changed.
 
