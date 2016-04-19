@@ -60,8 +60,7 @@ class FilesDock(QtWidgets.QDockWidget):
     def __init__(self, datasets, main_window, root=""):
         QtWidgets.QDockWidget.__init__(self, "Files")
         self.setObjectName("Files")
-        self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
-                         QtWidgets.QDockWidget.DockWidgetFloatable)
+        self.setFeatures(self.DockWidgetMovable | self.DockWidgetFloatable)
 
         self.splitter = QtWidgets.QSplitter()
         self.setWidget(self.splitter)
@@ -95,15 +94,15 @@ class FilesDock(QtWidgets.QDockWidget):
         self.splitter.addWidget(self.rt)
 
         self.rl = QtWidgets.QListView()
-        self.rl.setViewMode(QtWidgets.QListView.IconMode)
+        self.rl.setViewMode(self.rl.IconMode)
         l = QtGui.QFontMetrics(self.font()).lineSpacing()
         self.rl.setIconSize(QtCore.QSize(20*l, 15*l))
-        self.rl.setFlow(QtWidgets.QListView.LeftToRight)
+        self.rl.setFlow(self.rl.LeftToRight)
         self.rl.setWrapping(True)
         self.rl.setModel(self.model)
         self.rl.selectionModel().currentChanged.connect(
             self.list_current_changed)
-        self.rl.doubleClicked.connect(self.open_experiment)
+        self.rl.doubleClicked.connect(self.double_clicked)
         self.splitter.addWidget(self.rl)
 
     def tree_current_changed(self, current, previous):
@@ -112,10 +111,10 @@ class FilesDock(QtWidgets.QDockWidget):
 
     def list_current_changed(self, current, previous):
         info = self.model.fileInfo(current)
-        logger.info("opening %s", info.filePath())
         f = open_h5(info)
         if not f:
             return
+        logger.info("loading datasets from %s", info.filePath())
         with f:
             rd = {}
             try:
@@ -126,12 +125,18 @@ class FilesDock(QtWidgets.QDockWidget):
                 rd[k] = True, group[k].value
             self.datasets.init(rd)
 
-    def open_experiment(self, current):
+    def double_clicked(self, current):
         info = self.model.fileInfo(current)
-        logger.info("loading experiment for %s", info.filePath())
+        if info.isDir():
+            self.rl.setRootIndex(current)
+            idx = self.rt.model().mapFromSource(current)
+            self.rt.expand(idx)
+            self.rt.setCurrentIndex(idx)
+            return
         f = open_h5(info)
         if not f:
             return
+        logger.info("loading experiment for %s", info.filePath())
         with f:
             expid = pyon.decode(f["expid"].value)
 
@@ -140,8 +145,6 @@ class FilesDock(QtWidgets.QDockWidget):
             return
         idx = self.model.index(path)
         self.rl.setRootIndex(idx)
-        idx = self.rt.model().mapFromSource(idx)
-        self.rt.expand(idx)
 
         def scroll_when_loaded(p):
             if p != path:
@@ -152,6 +155,8 @@ class FilesDock(QtWidgets.QDockWidget):
                 self.rt.scrollTo(self.rt.model().mapFromSource(
                     self.model.index(path)), self.rt.PositionAtCenter))
         self.model.directoryLoaded.connect(scroll_when_loaded)
+        idx = self.rt.model().mapFromSource(idx)
+        self.rt.expand(idx)
         self.rt.setCurrentIndex(idx)
 
     def select_file(self, path):
