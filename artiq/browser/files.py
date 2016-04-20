@@ -57,7 +57,8 @@ class DirsOnlyProxy(QtCore.QSortFilterProxyModel):
 
 
 class FilesDock(QtWidgets.QDockWidget):
-    def __init__(self, datasets, main_window, root=""):
+    def __init__(self, datasets, main_window, root="",
+                 select_file=None):
         QtWidgets.QDockWidget.__init__(self, "Files")
         self.setObjectName("Files")
         self.setFeatures(self.DockWidgetMovable | self.DockWidgetFloatable)
@@ -67,6 +68,7 @@ class FilesDock(QtWidgets.QDockWidget):
 
         self.datasets = datasets
         self.main_window = main_window
+        self.override_restore_file = select_file
 
         self.model = QtWidgets.QFileSystemModel()
         self.model.setFilter(QtCore.QDir.Drives | QtCore.QDir.NoDotAndDotDot |
@@ -180,9 +182,12 @@ class FilesDock(QtWidgets.QDockWidget):
         dir = state.get("dir")
         if dir:
             self.select_dir(dir)
-        file = state.get("file")
-        if file:
-            self.select_file(file)
+        if self.override_restore_file:
+            self.select_file(os.path.normpath(self.override_restore_file))
+        else:
+            file = state.get("file")
+            if file:
+                self.select_file(file)
         header = state.get("header")
         if header:
             self.rt.header().restoreState(QtCore.QByteArray(header))
