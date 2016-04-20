@@ -144,6 +144,8 @@ class FilesDock(QtWidgets.QDockWidget):
         if not os.path.exists(path):
             return
         idx = self.model.index(path)
+        if not idx.isValid():
+            return
         self.rl.setRootIndex(idx)
 
         def scroll_when_loaded(p):
@@ -163,12 +165,14 @@ class FilesDock(QtWidgets.QDockWidget):
         if not os.path.exists(path):
             return
         self.select_dir(os.path.dirname(path))
-        self.rl.setCurrentIndex(self.model.index(path))
+        idx = self.model.index(path)
+        if not idx.isValid():
+            return
+        self.rl.setCurrentIndex(idx)
 
     def save_state(self):
         return {
-            "dir": self.model.filePath(self.rt.model().mapToSource(
-                self.rt.currentIndex())),
+            "dir": self.model.filePath(self.rl.rootIndex()),
             "file": self.model.filePath(self.rl.currentIndex()),
             "header": bytes(self.rt.header().saveState()),
             "splitter": bytes(self.splitter.saveState()),
