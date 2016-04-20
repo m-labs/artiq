@@ -112,14 +112,15 @@ class ScanWidget(QtWidgets.QWidget):
 
     def setDecimals(self, n):
         # TODO
-        # the axis should always use compressed notation is useful
+        # the axis should always use the most compact notation
         # do not:
         # self.ticker.precision = n
         pass
 
     def setSingleStep(self, v):
         # TODO
-        # use this (and maybe decimals) to snap to "nice" values when dragging
+        # use this (and/or maybe decimals) to snap to "nice" values when
+        # dragging
         pass
 
     def setSuffix(self, v):
