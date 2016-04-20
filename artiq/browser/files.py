@@ -104,7 +104,7 @@ class FilesDock(QtWidgets.QDockWidget):
         self.rl.setModel(self.model)
         self.rl.selectionModel().currentChanged.connect(
             self.list_current_changed)
-        self.rl.doubleClicked.connect(self.double_clicked)
+        self.rl.activated.connect(self.open_experiment)
         self.splitter.addWidget(self.rl)
 
     def tree_current_changed(self, current, previous):
@@ -123,7 +123,7 @@ class FilesDock(QtWidgets.QDockWidget):
             rd = dict((k, (True, v.value)) for k, v in f["datasets"].items())
             self.datasets.init(rd)
 
-    def double_clicked(self, current):
+    def open_experiment(self, current):
         info = self.model.fileInfo(current)
         if info.isDir():
             self.rl.setRootIndex(current)
