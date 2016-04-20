@@ -179,18 +179,14 @@ class FilesDock(QtWidgets.QDockWidget):
         }
 
     def restore_state(self, state):
-        dir = state.get("dir")
-        if dir:
-            self.select_dir(dir)
         if self.override_restore_file:
-            self.select_file(os.path.normpath(self.override_restore_file))
+            f = os.path.normpath(self.override_restore_file)
+            if os.path.isdir(f):
+                self.select_dir(f)
+            else:
+                self.select_file(f)
         else:
-            file = state.get("file")
-            if file:
-                self.select_file(file)
-        header = state.get("header")
-        if header:
-            self.rt.header().restoreState(QtCore.QByteArray(header))
-        splitter = state.get("splitter")
-        if splitter:
-            self.splitter.restoreState(QtCore.QByteArray(splitter))
+            self.select_dir(state["dir"])
+            self.select_file(state["file"])
+        self.rt.header().restoreState(QtCore.QByteArray(state["header"]))
+        self.splitter.restoreState(QtCore.QByteArray(state["splitter"]))
