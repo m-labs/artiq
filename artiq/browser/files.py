@@ -116,13 +116,9 @@ class FilesDock(QtWidgets.QDockWidget):
             return
         logger.info("loading datasets from %s", info.filePath())
         with f:
-            rd = {}
-            try:
-                group = f["datasets"]
-            except KeyError:
+            if "datasets" not in f:
                 return
-            for k in f["datasets"]:
-                rd[k] = True, group[k].value
+            rd = dict((k, (True, v.value)) for k, v in f["datasets"].items())
             self.datasets.init(rd)
 
     def double_clicked(self, current):
@@ -138,6 +134,8 @@ class FilesDock(QtWidgets.QDockWidget):
             return
         logger.info("loading experiment for %s", info.filePath())
         with f:
+            if "expid" not in f:
+                return
             expid = pyon.decode(f["expid"].value)
 
     def select_dir(self, path):
