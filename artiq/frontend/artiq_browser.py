@@ -25,7 +25,7 @@ def get_argparser():
         "--db-file", default=default_db_file,
         help="database file for local browser settings "
              "(default: %(default)s)")
-    parser.add_argument("path", nargs="?", help="browse path or file")
+    parser.add_argument("PATH", nargs="?", help="browse path or file")
     verbosity_args(parser)
     return parser
 
@@ -91,7 +91,7 @@ def main():
     status_bar = QtWidgets.QStatusBar()
     main_window.setStatusBar(status_bar)
 
-    d_files = files.FilesDock(datasets_sub, main_window, args.path)
+    d_files = files.FilesDock(datasets_sub, main_window)
     smgr.register(d_files)
 
     d_applets = applets.AppletsDock(main_window, datasets_sub)
@@ -118,6 +118,9 @@ def main():
         main_window.show()
 
     smgr.load()
+
+    if args.PATH:
+        d_files.select(args.PATH)
 
     smgr.start()
     atexit_register_coroutine(smgr.stop)
