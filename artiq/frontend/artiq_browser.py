@@ -27,7 +27,8 @@ def get_argparser():
     parser.add_argument("--root", default="",
                         help="root path for directory tree "
                         "(default %(default)s)")
-    parser.add_argument("PATH", nargs="?", help="browse path or file")
+    parser.add_argument("path", metavar="PATH", nargs="?",
+                        help="browse path or file")
     verbosity_args(parser)
     return parser
 
@@ -93,7 +94,7 @@ def main():
     main_window.setStatusBar(status_bar)
 
     d_files = files.FilesDock(datasets_sub, main_window, args.root,
-                              args.PATH)
+                              args.path)
     smgr.register(d_files)
 
     d_applets = applets.AppletsDock(main_window, datasets_sub)
