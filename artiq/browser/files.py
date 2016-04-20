@@ -100,6 +100,7 @@ class FilesDock(QtWidgets.QDockWidget):
         l = QtGui.QFontMetrics(self.font()).lineSpacing()
         self.rl.setIconSize(QtCore.QSize(20*l, 15*l))
         self.rl.setFlow(self.rl.LeftToRight)
+        self.rl.setResizeMode(self.rl.Adjust)
         self.rl.setWrapping(True)
         self.rl.setModel(self.model)
         self.rl.selectionModel().currentChanged.connect(
