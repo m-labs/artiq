@@ -56,6 +56,35 @@ class DirsOnlyProxy(QtCore.QSortFilterProxyModel):
         return QtCore.QSortFilterProxyModel.filterAcceptsRow(self, row, parent)
 
 
+class ZoomIconView(QtWidgets.QListView):
+    zoom_step = 2**.25
+    aspect = 2/3
+    default_size = 15
+    min_size = 2
+    max_size = 200
+
+    def __init__(self):
+        QtWidgets.QListView.__init__(self)
+        self._char_width = QtGui.QFontMetrics(self.font()).averageCharWidth()
+        self.setViewMode(self.IconMode)
+        w = self._char_width*self.default_size
+        self.setIconSize(QtCore.QSize(w, w*self.aspect))
+        self.setFlow(self.LeftToRight)
+        self.setResizeMode(self.Adjust)
+        self.setWrapping(True)
+
+    def wheelEvent(self, ev):
+        if ev.modifiers() & QtCore.Qt.ControlModifier:
+            z = self.zoom_step**(ev.angleDelta().y()/120.)
+            a = self._char_width*self.min_size
+            b = self._char_width*self.max_size
+            w = self.iconSize().width()*z
+            if a <= w <= b:
+                self.setIconSize(QtCore.QSize(w, w*self.aspect))
+        else:
+            QtWidgets.QListView.wheelEvent(self, ev)
+
+
 class FilesDock(QtWidgets.QDockWidget):
     def __init__(self, datasets, main_window, root="",
                  select_file=None):
@@ -95,13 +124,7 @@ class FilesDock(QtWidgets.QDockWidget):
             self.rt.hideColumn(i)
         self.splitter.addWidget(self.rt)
 
-        self.rl = QtWidgets.QListView()
-        self.rl.setViewMode(self.rl.IconMode)
-        l = QtGui.QFontMetrics(self.font()).lineSpacing()
-        self.rl.setIconSize(QtCore.QSize(20*l, 15*l))
-        self.rl.setFlow(self.rl.LeftToRight)
-        self.rl.setResizeMode(self.rl.Adjust)
-        self.rl.setWrapping(True)
+        self.rl = ZoomIconView()
         self.rl.setModel(self.model)
         self.rl.selectionModel().currentChanged.connect(
             self.list_current_changed)
