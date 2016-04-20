@@ -115,7 +115,9 @@ class FilesDock(QtWidgets.QDockWidget):
             self.datasets.init(rd)
 
     def select(self, path):
-        idx = self.rt_model.index(os.path.dirname(path))
+        idx = self.rt_model.index(path)
+        if not idx.isValid():
+            return
         self.rt.expand(idx)
         self.rt.scrollTo(idx)
         self.rt.setCurrentIndex(idx)
@@ -129,12 +131,6 @@ class FilesDock(QtWidgets.QDockWidget):
         }
 
     def restore_state(self, state):
-        selected = state.get("selected")
-        if selected:
-            self.select(selected)
-        header = state.get("header")
-        if header:
-            self.rt.header().restoreState(QtCore.QByteArray(header))
-        splitter = state.get("splitter")
-        if splitter:
-            self.splitter.restoreState(QtCore.QByteArray(splitter))
+        self.select(state["selected"])
+        self.rt.header().restoreState(QtCore.QByteArray(state["header"]))
+        self.splitter.restoreState(QtCore.QByteArray(state["splitter"]))
