@@ -24,11 +24,11 @@ def get_argparser():
     parser.add_argument("--db-file", default=default_db_file,
                         help="database file for local browser settings "
                         "(default: %(default)s)")
-    parser.add_argument("--root", default="",
+    parser.add_argument("--browse-root", default="",
                         help="root path for directory tree "
                         "(default %(default)s)")
-    parser.add_argument("path", metavar="PATH", nargs="?",
-                        help="browse path or file")
+    parser.add_argument("select", metavar="SELECT", nargs="?",
+                        help="directory to browse or file to load")
     verbosity_args(parser)
     return parser
 
@@ -86,6 +86,7 @@ def main():
     smgr = state.StateManager(args.db_file)
 
     datasets_sub = models.LocalModelManager(datasets.Model)
+    datasets_sub.init({})
 
     # initialize main window
     main_window = MainWindow()
@@ -93,8 +94,8 @@ def main():
     status_bar = QtWidgets.QStatusBar()
     main_window.setStatusBar(status_bar)
 
-    d_files = files.FilesDock(datasets_sub, main_window, args.root,
-                              args.path)
+    d_files = files.FilesDock(datasets_sub, main_window, args.browse_root,
+                              select=args.select)
     smgr.register(d_files)
 
     d_applets = applets.AppletsDock(main_window, datasets_sub)

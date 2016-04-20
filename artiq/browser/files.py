@@ -59,9 +59,9 @@ class DirsOnlyProxy(QtCore.QSortFilterProxyModel):
 class ZoomIconView(QtWidgets.QListView):
     zoom_step = 2**.25
     aspect = 2/3
-    default_size = 15
-    min_size = 2
-    max_size = 200
+    default_size = 25
+    min_size = 10
+    max_size = 1000
 
     def __init__(self):
         QtWidgets.QListView.__init__(self)
@@ -75,10 +75,10 @@ class ZoomIconView(QtWidgets.QListView):
 
     def wheelEvent(self, ev):
         if ev.modifiers() & QtCore.Qt.ControlModifier:
-            z = self.zoom_step**(ev.angleDelta().y()/120.)
             a = self._char_width*self.min_size
             b = self._char_width*self.max_size
-            w = self.iconSize().width()*z
+            w = self.iconSize().width()*self.zoom_step**(
+                ev.angleDelta().y()/120.)
             if a <= w <= b:
                 self.setIconSize(QtCore.QSize(w, w*self.aspect))
         else:
@@ -86,8 +86,7 @@ class ZoomIconView(QtWidgets.QListView):
 
 
 class FilesDock(QtWidgets.QDockWidget):
-    def __init__(self, datasets, main_window, root="",
-                 select_file=None):
+    def __init__(self, datasets, main_window, browse_root="", select=None):
         QtWidgets.QDockWidget.__init__(self, "Files")
         self.setObjectName("Files")
         self.setFeatures(self.DockWidgetMovable | self.DockWidgetFloatable)
@@ -97,7 +96,6 @@ class FilesDock(QtWidgets.QDockWidget):
 
         self.datasets = datasets
         self.main_window = main_window
-        self.override_restore_file = select_file
 
         self.model = QtWidgets.QFileSystemModel()
         self.model.setFilter(QtCore.QDir.Drives | QtCore.QDir.NoDotAndDotDot |
@@ -114,7 +112,7 @@ class FilesDock(QtWidgets.QDockWidget):
             lambda: self.rt.resizeColumnToContents(0))
         self.rt.setAnimated(False)
         self.rt.setRootIndex(rt_model.mapFromSource(
-            self.model.setRootPath(root)))
+            self.model.setRootPath(os.path.abspath(browse_root))))
         self.rt.setSelectionBehavior(self.rt.SelectRows)
         self.rt.setSelectionMode(self.rt.SingleSelection)
         self.rt.selectionModel().currentChanged.connect(
@@ -130,6 +128,14 @@ class FilesDock(QtWidgets.QDockWidget):
             self.list_current_changed)
         self.rl.activated.connect(self.open_experiment)
         self.splitter.addWidget(self.rl)
+
+        self.restore_selected = select is None
+        if select is not None:
+            f = os.path.abspath(select)
+            if os.path.isdir(f):
+                self.select_dir(f)
+            else:
+                self.select_file(f)
 
     def tree_current_changed(self, current, previous):
         idx = self.rt.model().mapToSource(current)
@@ -172,14 +178,16 @@ class FilesDock(QtWidgets.QDockWidget):
             return
         self.rl.setRootIndex(idx)
 
+        # ugly, see Spyder: late indexing, late scroll
         def scroll_when_loaded(p):
             if p != path:
                 return
             self.model.directoryLoaded.disconnect(scroll_when_loaded)
             QtCore.QTimer.singleShot(
                 100, lambda:
-                self.rt.scrollTo(self.rt.model().mapFromSource(
-                    self.model.index(path)), self.rt.PositionAtCenter))
+                self.rt.scrollTo(
+                    self.rt.model().mapFromSource(self.model.index(path)),
+                    self.rt.PositionAtCenter))
         self.model.directoryLoaded.connect(scroll_when_loaded)
         idx = self.rt.model().mapFromSource(idx)
         self.rt.expand(idx)
@@ -203,13 +211,7 @@ class FilesDock(QtWidgets.QDockWidget):
         }
 
     def restore_state(self, state):
-        if self.override_restore_file:
-            f = os.path.normpath(self.override_restore_file)
-            if os.path.isdir(f):
-                self.select_dir(f)
-            else:
-                self.select_file(f)
-        else:
+        if self.restore_selected:
             self.select_dir(state["dir"])
             self.select_file(state["file"])
         self.rt.header().restoreState(QtCore.QByteArray(state["header"]))
