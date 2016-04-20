@@ -37,7 +37,7 @@ class ResultIconProvider(QtWidgets.QFileIconProvider):
 
 
 class FilesDock(QtWidgets.QDockWidget):
-    def __init__(self, datasets, main_window, root=None):
+    def __init__(self, datasets, main_window, path):
         QtWidgets.QDockWidget.__init__(self, "Files")
         self.setObjectName("Files")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
@@ -46,24 +46,23 @@ class FilesDock(QtWidgets.QDockWidget):
         self.splitter = QtWidgets.QSplitter()
         self.setWidget(self.splitter)
 
-        if root is None:
-            root = QtCore.QDir.currentPath()
-
         self.datasets = datasets
         self.main_window = main_window
 
         self.rt_model = QtWidgets.QFileSystemModel()
         self.rt_model.setFilter(QtCore.QDir.NoDotAndDotDot |
-                                QtCore.QDir.AllDirs)
+                                QtCore.QDir.AllDirs | QtCore.QDir.Drives)
 
         self.rt = QtWidgets.QTreeView()
         self.rt.setModel(self.rt_model)
-        self.rt.setRootIndex(self.rt_model.setRootPath(root))
+        self.rt.setRootIndex(self.rt_model.setRootPath(""))
         self.rt.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.rt.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.rt.selectionModel().currentChanged.connect(
             self.tree_current_changed)
-        self.rt.setRootIsDecorated(False)
+        self.rt.hideColumn(1)
+        self.rt.hideColumn(2)
+        self.rt.hideColumn(3)
         self.splitter.addWidget(self.rt)
 
         self.rl = QtWidgets.QListView()
@@ -72,13 +71,16 @@ class FilesDock(QtWidgets.QDockWidget):
         self.rl.setIconSize(QtCore.QSize(20*l, 15*l))
         self.rl.setFlow(QtWidgets.QListView.LeftToRight)
         self.rl.setWrapping(True)
+        self.rl.setResizeMode(QtWidgets.QListView.Adjust)
         self.tree_current_changed(self.rt.currentIndex(), None)
+        self.rl.activated.connect(self.open_experiment)
         self.splitter.addWidget(self.rl)
 
-    def showEvent(self, ev):
-        self.rt.hideColumn(1)
-        self.rt.hideColumn(2)
-        self.rt.hideColumn(3)
+        if path is not None:
+            self.select(path)
+            self.already_selected = True
+        else:
+            self.already_selected = False
 
     def tree_current_changed(self, current, previous):
         path = self.rt_model.filePath(current)
@@ -114,23 +116,36 @@ class FilesDock(QtWidgets.QDockWidget):
                 rd[k] = True, group[k].value
             self.datasets.init(rd)
 
-    def select(self, path):
-        idx = self.rt_model.index(path)
-        if not idx.isValid():
-            return
-        self.rt.expand(idx)
-        self.rt.scrollTo(idx)
-        self.rt.setCurrentIndex(idx)
-        self.rl.setCurrentIndex(self.rl_model.index(path))
+    def select(self, file_or_dir):
+        file_or_dir = os.path.abspath(file_or_dir)
+        if os.path.isdir(file_or_dir):
+            idx = self.rt_model.index(file_or_dir)
+            if idx.isValid():
+                self.rt.expand(idx)
+                self.rt.setCurrentIndex(idx)
+                self.rt.scrollTo(idx)
+        else:
+            idx = self.rt_model.index(os.path.dirname(file_or_dir))
+            if idx.isValid():
+                self.rt.expand(idx)
+                self.rt.setCurrentIndex(idx)
+                self.rt.scrollTo(idx)
+
+            idx = self.rl_model.index(file_or_dir)
+            if idx.isValid():
+                self.rl.setCurrentIndex(idx)
+                self.rl.scrollTo(idx)
+
+    def open_experiment(self, index):
+        print(self.rl_model.filePath(index))
 
     def save_state(self):
         return {
-            "selected": self.rl_model.filePath(self.rt.currentIndex()),
-            "header": bytes(self.rt.header().saveState()),
+            "selected": self.rl_model.filePath(self.rl.currentIndex()),
             "splitter": bytes(self.splitter.saveState()),
         }
 
     def restore_state(self, state):
-        self.select(state["selected"])
-        self.rt.header().restoreState(QtCore.QByteArray(state["header"]))
         self.splitter.restoreState(QtCore.QByteArray(state["splitter"]))
+        if not self.already_selected:
+            self.select(state["selected"])
