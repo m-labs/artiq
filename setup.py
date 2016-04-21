@@ -48,12 +48,24 @@ setup(
     name="artiq",
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
-    author="M-Labs / NIST Ion Storage Group",
-    author_email="sb@m-labs.hk",
+    author="M-Labs",
+    author_email="artiq@lists.m-labs.hk",
     url="https://m-labs.hk/artiq",
-    description="A control system for trapped-ion experiments",
+    description="Advanced Real-Time Infrastructure for Quantum physics",
     long_description=open("README.rst").read(),
-    license="GPL",
+    license="GPLv3+",
+    classifiers="""\
+Development Status :: 5 - Production/Stable
+Environment :: Console
+Environment :: X11 Applications :: Qt
+Intended Audience :: Science/Research
+License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)
+Operating System :: Microsoft :: Windows
+Operating System :: POSIX :: Linux
+Programming Language :: Python :: 3.5
+Topic :: Scientific/Engineering :: Physics
+Topic :: System :: Hardware
+""".splitlines(),
     install_requires=requirements,
     extras_require={},
     dependency_links=[
