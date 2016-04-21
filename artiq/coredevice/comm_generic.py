@@ -5,6 +5,7 @@ from enum import Enum
 from fractions import Fraction
 
 from artiq.coredevice import exceptions
+from artiq.language.core import int as wrapping_int
 from artiq import __version__ as software_version
 
 
@@ -316,9 +317,9 @@ class CommGeneric:
         elif tag == "b":
             return bool(self._read_int8())
         elif tag == "i":
-            return self._read_int32()
+            return wrapping_int(self._read_int32(), 32)
         elif tag == "I":
-            return self._read_int64()
+            return wrapping_int(self._read_int64(), 64)
         elif tag == "f":
             return self._read_float64()
         elif tag == "F":
