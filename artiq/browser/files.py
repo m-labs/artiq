@@ -111,8 +111,11 @@ class FilesDock(QtWidgets.QDockWidget):
         self.model.directoryLoaded.connect(
             lambda: self.rt.resizeColumnToContents(0))
         self.rt.setAnimated(False)
+        if browse_root != "":
+            browse_root = os.path.abspath(browse_root)
         self.rt.setRootIndex(rt_model.mapFromSource(
-            self.model.setRootPath(os.path.abspath(browse_root))))
+            self.model.setRootPath(browse_root)))
+        self.rt.setHeaderHidden(True)
         self.rt.setSelectionBehavior(self.rt.SelectRows)
         self.rt.setSelectionMode(self.rt.SingleSelection)
         self.rt.selectionModel().currentChanged.connect(
@@ -206,7 +209,6 @@ class FilesDock(QtWidgets.QDockWidget):
         return {
             "dir": self.model.filePath(self.rl.rootIndex()),
             "file": self.model.filePath(self.rl.currentIndex()),
-            "header": bytes(self.rt.header().saveState()),
             "splitter": bytes(self.splitter.saveState()),
         }
 
@@ -214,5 +216,4 @@ class FilesDock(QtWidgets.QDockWidget):
         if self.restore_selected:
             self.select_dir(state["dir"])
             self.select_file(state["file"])
-        self.rt.header().restoreState(QtCore.QByteArray(state["header"]))
         self.splitter.restoreState(QtCore.QByteArray(state["splitter"]))
