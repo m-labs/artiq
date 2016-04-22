@@ -21,7 +21,7 @@ def get_argparser():
 
     p_read = subparsers.add_parser("read",
                                    help="read key from core device config")
-    p_read.add_argument("key", type=str,
+    p_read.add_argument("key", metavar="KEY", type=str,
                         help="key to be read from core device config")
 
     p_write = subparsers.add_parser("write",
@@ -39,7 +39,7 @@ def get_argparser():
 
     p_delete = subparsers.add_parser("delete",
                                      help="delete key from core device config")
-    p_delete.add_argument("key", nargs=argparse.REMAINDER,
+    p_delete.add_argument("key", metavar="KEY", nargs=argparse.REMAINDER,
                           default=[], type=str,
                           help="key to be deleted from core device config")
 

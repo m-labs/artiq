@@ -128,9 +128,9 @@ def get_argparser(with_file=True):
                         help="write results to specified HDF5 file"
                              " (default: print them)")
     if with_file:
-        parser.add_argument("file",
+        parser.add_argument("file", metavar="FILE",
                             help="file containing the experiment to run")
-    parser.add_argument("arguments", nargs="*",
+    parser.add_argument("arguments", metavar="ARGUMENTS", nargs="*",
                         help="run arguments")
 
     return parser

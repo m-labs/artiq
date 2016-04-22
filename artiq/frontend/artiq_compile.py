@@ -25,9 +25,10 @@ def get_argparser():
 
     parser.add_argument("-o", "--output", default=None,
                         help="output file")
-    parser.add_argument("file",
+    parser.add_argument("file", metavar="FILE",
                         help="file containing the experiment to compile")
-    parser.add_argument("arguments", nargs="*", help="run arguments")
+    parser.add_argument("arguments", metavar="ARGUMENTS",
+                        nargs="*", help="run arguments")
 
     return parser
 

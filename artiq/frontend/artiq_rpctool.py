@@ -14,9 +14,9 @@ from artiq.protocols.pc_rpc import AutoTarget, Client
 def get_argparser():
     parser = argparse.ArgumentParser(
         description="ARTIQ RPC tool")
-    parser.add_argument("server",
+    parser.add_argument("server", metavar="SERVER",
                         help="hostname or IP of the controller to connect to")
-    parser.add_argument("port", type=int,
+    parser.add_argument("port", metavar="PORT", type=int,
                         help="TCP port to use to connect to the controller")
     subparsers = parser.add_subparsers(dest="action")
     subparsers.add_parser("list-targets", help="list existing targets")
@@ -25,8 +25,8 @@ def get_argparser():
     parser_list_methods.add_argument("-t", "--target", help="target name")
     parser_call = subparsers.add_parser("call", help="call a target's method")
     parser_call.add_argument("-t", "--target", help="target name")
-    parser_call.add_argument("method", help="method name")
-    parser_call.add_argument("args", nargs=argparse.REMAINDER,
+    parser_call.add_argument("method", metavar="METHOD", help="method name")
+    parser_call.add_argument("args", metavar="ARGS", nargs=argparse.REMAINDER,
                              help="arguments")
     parser_interactive = subparsers.add_parser("interactive",
                                                help="enter interactive mode "

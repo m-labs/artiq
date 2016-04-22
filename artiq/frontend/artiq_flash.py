@@ -40,7 +40,7 @@ Prerequisites:
                         help="target adapter, default: %(default)s")
     parser.add_argument("-f", "--storage", help="write file to storage area")
     parser.add_argument("-d", "--dir", help="look for files in this directory")
-    parser.add_argument("ACTION", nargs="*",
+    parser.add_argument("action", metavar="ACTION", nargs="*",
                         default="proxy gateware bios runtime start".split(),
                         help="actions to perform, default: %(default)s")
     return parser
@@ -80,7 +80,7 @@ def main():
 
     prog = []
     prog.append("init")
-    for action in opts.ACTION:
+    for action in opts.action:
         if action == "proxy":
             proxy_base = "bscan_spi_{}.bit".format(config["chip"])
             proxy = None

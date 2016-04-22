@@ -60,9 +60,9 @@ def get_argparser():
                             help="increase logging level of the experiment")
     parser_add.add_argument("-q", "--quiet", default=0, action="count",
                             help="decrease logging level of the experiment")
-    parser_add.add_argument("file",
+    parser_add.add_argument("file", metavar="FILE",
                             help="file containing the experiment to run")
-    parser_add.add_argument("arguments", nargs="*",
+    parser_add.add_argument("arguments", metavar="ARGUMENTS", nargs="*",
                             help="run arguments")
 
     parser_delete = subparsers.add_parser("delete",
@@ -70,13 +70,14 @@ def get_argparser():
                                                "from the schedule")
     parser_delete.add_argument("-g", action="store_true",
                                help="request graceful termination")
-    parser_delete.add_argument("rid", type=int,
+    parser_delete.add_argument("rid", metavar="RID", type=int,
                                help="run identifier (RID)")
 
     parser_set_dataset = subparsers.add_parser(
         "set-dataset", help="add or modify a dataset")
-    parser_set_dataset.add_argument("name", help="name of the dataset")
-    parser_set_dataset.add_argument("value",
+    parser_set_dataset.add_argument("name", metavar="NAME",
+                                    help="name of the dataset")
+    parser_set_dataset.add_argument("value", metavar="VALUE",
                                     help="value in PYON format")
     parser_set_dataset.add_argument("-p", "--persist", action="store_true",
                                     help="make the dataset persistent")
@@ -88,7 +89,7 @@ def get_argparser():
     parser_show = subparsers.add_parser(
         "show", help="show schedule, log, devices or datasets")
     parser_show.add_argument(
-        "what",
+        "what", metavar="WHAT",
         help="select object to show: schedule/log/devices/datasets")
 
     subparsers.add_parser(
@@ -98,7 +99,8 @@ def get_argparser():
         "scan-repository", help="trigger a repository (re)scan")
     parser_scan_repos.add_argument("--async", action="store_true",
                                    help="trigger scan and return immediately")
-    parser_scan_repos.add_argument("revision", default=None, nargs="?",
+    parser_scan_repos.add_argument("revision", metavar="REVISION",
+                                   default=None, nargs="?",
                                    help="use a specific repository revision "
                                         "(defaults to head)")
 
