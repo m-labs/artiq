@@ -14,14 +14,27 @@ _pyon_test_object = {
     "a": np.int8(9), "b": np.int16(-98), "c": np.int32(42), "d": np.int64(-5),
     "e": np.uint8(8), "f": np.uint16(5), "g": np.uint32(4), "h": np.uint64(9),
     "x": np.float16(9.0), "y": np.float32(9.0), "z": np.float64(9.0),
+    1j: 1-9j,
+    "q": np.complex128(1j),
 }
 
 
 class PYON(unittest.TestCase):
     def test_encdec(self):
         for enc in pyon.encode, lambda x: pyon.encode(x, True):
-            self.assertEqual(pyon.decode(enc(_pyon_test_object)),
-                             _pyon_test_object)
+            with self.subTest(enc=enc):
+                self.assertEqual(pyon.decode(enc(_pyon_test_object)),
+                                 _pyon_test_object)
+
+    def test_encdec_array(self):
+        orig = {k: (np.array(v), np.array([v]))
+                for k, v in _pyon_test_object.items()
+                if np.isscalar(v)}
+        for enc in pyon.encode, lambda x: pyon.encode(x, True):
+            result = pyon.decode(enc(orig))
+            for k in orig:
+                with self.subTest(enc=enc, k=k, v=orig[k]):
+                    np.testing.assert_equal(result[k], orig[k])
 
 
 _json_test_object = {
