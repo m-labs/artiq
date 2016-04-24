@@ -5,7 +5,7 @@ objects. Its main features are:
 * Human-readable format compatible with the Python syntax.
 * Each object is serialized on a single line, with only ASCII characters.
 * Supports all basic Python data structures: None, booleans, integers,
-  floats, strings, tuples, lists, dictionaries.
+  floats, complex numbers, strings, tuples, lists, dictionaries.
 * Those data types are accurately reconstructed (unlike JSON where e.g. tuples
   become lists, and dictionary keys are turned into strings).
 * Supports Numpy arrays.
@@ -33,6 +33,7 @@ _encode_map = {
     bool: "bool",
     int: "number",
     float: "number",
+    complex: "number",
     str: "str",
     bytes: "bytes",
     tuple: "tuple",
@@ -46,8 +47,10 @@ _encode_map = {
 }
 
 _numpy_scalar = {
-    "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64",
-    "float16", "float32", "float64"
+    "int8", "int16", "int32", "int64",
+    "uint8", "uint16", "uint32", "uint64",
+    "float16", "float32", "float64", "float128",
+    "complex64", "complex128", "complex256",
 }
 
 
@@ -132,7 +135,7 @@ class _Encoder:
                                          self.encode(x.denominator))
 
     def encode_ordereddict(self, x):
-        return "OrderedDict("+ self.encode(list(x.items())) +")"
+        return "OrderedDict(" + self.encode(list(x.items())) + ")"
 
     def encode_nparray(self, x):
         r = "nparray("
@@ -185,6 +188,7 @@ _eval_dict = {
     "nparray": _nparray,
     "npscalar": _npscalar
 }
+
 
 def decode(s):
     """Parses a string in the Python syntax, reconstructs the corresponding
