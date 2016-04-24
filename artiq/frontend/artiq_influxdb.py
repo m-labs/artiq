@@ -116,9 +116,7 @@ class DBWriter(TaskObject):
                                k, exc_info=True)
             else:
                 if response.status not in (200, 204):
-                    content = (await response.content.read()).decode()
-                    if content:
-                        content = content[:-1]  # drop \n
+                    content = (await response.content.read()).decode().strip()
                     logger.warning("got HTTP status %d "
                                    "trying to update '%s': %s",
                                    response.status, k, content)
