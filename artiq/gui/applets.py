@@ -194,6 +194,80 @@ _templates = [
 ]
 
 
+# Based on:
+# http://blog.elentok.com/2011/08/autocomplete-textbox-for-multiple.html
+
+class _AutoCompleteEdit(QtWidgets.QLineEdit):
+    def __init__(self, parent, completer):
+        QtWidgets.QLineEdit.__init__(self, parent)
+        self._completer = completer
+        self._completer.setWidget(self)
+        self._completer.activated.connect(self._insert_completion)
+
+    def _insert_completion(self, completion):
+        parents = self._completer.completionPrefix()
+        try:
+            idx = parents.rindex(".")
+        except ValueError:
+            pass
+        else:
+            parents = parents[:idx+1]
+            completion = parents + completion
+
+        text = self.text()
+        cursor = self.cursorPosition()
+
+        word_start = cursor - 1
+        while word_start >= 0 and text[word_start] != " ":
+            word_start -= 1
+        word_start += 1
+        word_end = cursor
+        while word_end < len(text) and text[word_end] != " ":
+            word_end += 1
+
+        self.setText(text[:word_start] + completion + text[word_end:])
+        self.setCursorPosition(word_start + len(completion))
+
+    def _update_completer_popup_items(self, completion_prefix):
+        self._completer.setCompletionPrefix(completion_prefix)
+        self._completer.popup().setCurrentIndex(
+            self._completer.completionModel().index(0, 0))
+
+    def _text_before_cursor(self):
+        text = self.text()
+        text_before_cursor = ""
+        i = self.cursorPosition() - 1
+        while i >= 0 and text[i] != " ":
+            text_before_cursor = text[i] + text_before_cursor
+            i -= 1
+        return text_before_cursor
+
+    def keyPressEvent(self, event):
+        QtWidgets.QLineEdit.keyPressEvent(self, event)
+        completion_prefix = self._text_before_cursor()
+        if completion_prefix != self._completer.completionPrefix():
+            self._update_completer_popup_items(completion_prefix)
+        if completion_prefix:
+            self._completer.complete()
+        else:
+            self._completer.popup().hide()
+
+
+class _CompleterDelegate(QtWidgets.QStyledItemDelegate):
+    def createEditor(self, parent, option, index):
+        completer = QtWidgets.QCompleter()
+        completer.splitPath = lambda path: path.split(".")
+        completer.setModelSorting(
+            QtWidgets.QCompleter.CaseSensitivelySortedModel)
+        completer.setCompletionRole(QtCore.Qt.DisplayRole)
+        if hasattr(self, "model"):
+            completer.setModel(self.model)
+        return _AutoCompleteEdit(parent, completer)
+
+    def set_model(self, model):
+        self.model = model
+
+
 class AppletsDock(QtWidgets.QDockWidget):
     def __init__(self, main_window, datasets_sub):
         QtWidgets.QDockWidget.__init__(self, "Applets")
@@ -218,6 +292,10 @@ class AppletsDock(QtWidgets.QDockWidget):
         self.table.verticalHeader().hide()
         self.table.setTextElideMode(QtCore.Qt.ElideNone)
         self.setWidget(self.table)
+
+        completer_delegate = _CompleterDelegate()
+        self.table.setItemDelegateForColumn(2, completer_delegate)
+        datasets_sub.add_setmodel_callback(completer_delegate.set_model)
 
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         new_action = QtWidgets.QAction("New applet", self.table)
