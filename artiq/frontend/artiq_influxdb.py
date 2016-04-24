@@ -6,6 +6,7 @@ import asyncio
 import atexit
 import fnmatch
 from functools import partial
+import time
 
 import numpy as np
 import aiohttp
@@ -95,19 +96,20 @@ class DBWriter(TaskObject):
 
     def update(self, k, v):
         try:
-            self._queue.put_nowait((k, v))
+            self._queue.put_nowait((k, v, time.time()))
         except asyncio.QueueFull:
             logger.warning("failed to update dataset '%s': "
                            "too many pending updates", k)
 
     async def _do(self):
         while True:
-            k, v = await self._queue.get()
+            k, v, t = await self._queue.get()
             url = self.base_url + "/write"
             params = {"u": self.user, "p": self.password, "db": self.database,
                       "precision": "ms"}
             fmt_ty, fmt_v = format_influxdb(v)
-            data = "{},dataset={} {}={}".format(self.table, k, fmt_ty, fmt_v)
+            data = "{},dataset={} {}={} {}".format(
+                self.table, k, fmt_ty, fmt_v, round(t*1e3))
             try:
                 response = await aiohttp.request(
                     "POST", url, params=params, data=data)
