@@ -206,11 +206,8 @@ class _AutoCompleteEdit(QtWidgets.QLineEdit):
 
     def _insert_completion(self, completion):
         parents = self._completer.completionPrefix()
-        try:
-            idx = parents.rindex(".")
-        except ValueError:
-            pass
-        else:
+        idx = max(parents.rfind("."), parents.rfind("/"))
+        if idx >= 0:
             parents = parents[:idx+1]
             completion = parents + completion
 
@@ -256,7 +253,7 @@ class _AutoCompleteEdit(QtWidgets.QLineEdit):
 class _CompleterDelegate(QtWidgets.QStyledItemDelegate):
     def createEditor(self, parent, option, index):
         completer = QtWidgets.QCompleter()
-        completer.splitPath = lambda path: path.split(".")
+        completer.splitPath = lambda path: path.replace("/", ".").split(".")
         completer.setModelSorting(
             QtWidgets.QCompleter.CaseSensitivelySortedModel)
         completer.setCompletionRole(QtCore.Qt.DisplayRole)
