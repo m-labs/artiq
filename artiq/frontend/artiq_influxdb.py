@@ -64,24 +64,16 @@ def get_argparser():
     return parser
 
 
-def influxdb_str(s):
-    return '"' + s.replace('"', '\\"') + '"'
-
-
 def format_influxdb(v):
-    if isinstance(v, bool):
-        if v:
-            return "bool", "t"
-        else:
-            return "bool", "f"
-    elif np.issubdtype(type(v), int):
-        return "int", "{}i".format(v)
-    elif np.issubdtype(type(v), float):
-        return "float", "{}".format(v)
-    elif isinstance(v, str):
-        return "str", influxdb_str(v)
-    else:
-        return "pyon", influxdb_str(pyon.encode(v))
+    if np.issubdtype(type(v), np.bool_):
+        return "bool={}".format(v)
+    if np.issubdtype(type(v), np.integer):
+        return "int={}i".format(v)
+    if np.issubdtype(type(v), np.floating):
+        return "float={}".format(v)
+    if np.issubdtype(type(v), np.str_):
+        return "str=\"{}\"".format(v.replace('"', '\\"'))
+    return "pyon=\"{}\"".format(pyon.encode(v).replace('"', '\\"'))
 
 
 class DBWriter(TaskObject):
@@ -107,9 +99,8 @@ class DBWriter(TaskObject):
             url = self.base_url + "/write"
             params = {"u": self.user, "p": self.password, "db": self.database,
                       "precision": "ms"}
-            fmt_ty, fmt_v = format_influxdb(v)
-            data = "{},dataset={} {}={} {}".format(
-                self.table, k, fmt_ty, fmt_v, round(t*1e3))
+            data = "{},dataset={} {} {}".format(
+                self.table, k, format_influxdb(v), round(t*1e3))
             try:
                 response = await aiohttp.request(
                     "POST", url, params=params, data=data)
