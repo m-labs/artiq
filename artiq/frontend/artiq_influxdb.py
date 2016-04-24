@@ -105,7 +105,7 @@ class DBWriter(TaskObject):
             k, v = await self._queue.get()
             url = self.base_url + "/write"
             params = {"u": self.user, "p": self.password, "db": self.database,
-                      "consistency": "any", "precision": "n"}
+                      "consistency": "any", "precision": "ms"}
             fmt_ty, fmt_v = format_influxdb(v)
             data = "{},dataset={} {}={}".format(self.table, k, fmt_ty, fmt_v)
             try:
