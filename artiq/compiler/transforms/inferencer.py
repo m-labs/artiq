@@ -109,17 +109,11 @@ class Inferencer(algorithm.Visitor):
                     ]
 
                 attr_type = object_type.attributes[attr_name]
-                if types.is_rpc_function(attr_type):
-                    attr_type = types.instantiate(attr_type)
-
                 self._unify(result_type, attr_type, loc, None,
                             makenotes=makenotes, when=" for attribute '{}'".format(attr_name))
             elif types.is_instance(object_type) and \
                     attr_name in object_type.constructor.attributes:
                 attr_type = object_type.constructor.attributes[attr_name].find()
-                if types.is_rpc_function(attr_type):
-                    attr_type = types.instantiate(attr_type)
-
                 if types.is_function(attr_type):
                     # Convert to a method.
                     if len(attr_type.args) < 1:
@@ -154,6 +148,10 @@ class Inferencer(algorithm.Visitor):
                                     makenotes=makenotes,
                                     when=" while inferring the type for self argument")
 
+                    attr_type = types.TMethod(object_type, attr_type)
+                elif types.is_rpc(attr_type):
+                    # Convert to a method. We don't have to bother typechecking
+                    # the self argument, since for RPCs anything goes.
                     attr_type = types.TMethod(object_type, attr_type)
 
                 if not types.is_var(attr_type):
@@ -871,6 +869,10 @@ class Inferencer(algorithm.Visitor):
             return # not enough info yet
         elif types.is_builtin(typ):
             return self.visit_builtin_call(node)
+        elif types.is_rpc(typ):
+            self._unify(node.type, typ.ret,
+                        node.loc, None)
+            return
         elif not (types.is_function(typ) or types.is_method(typ)):
             diag = diagnostic.Diagnostic("error",
                 "cannot call this expression of type {type}",
@@ -888,6 +890,10 @@ class Inferencer(algorithm.Visitor):
             typ = types.get_method_function(typ)
             if types.is_var(typ):
                 return # not enough info yet
+            elif types.is_rpc(typ):
+                self._unify(node.type, typ.ret,
+                            node.loc, None)
+                return
 
             typ_arity   = typ.arity() - 1
             typ_args    = OrderedDict(list(typ.args.items())[1:])

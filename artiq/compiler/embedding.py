@@ -428,9 +428,8 @@ class StitchingInferencer(Inferencer):
             if attr_name not in attributes:
                 # We just figured out what the type should be. Add it.
                 attributes[attr_name] = attr_value_type
-            elif not types.is_rpc_function(attr_value_type):
+            else:
                 # Does this conflict with an earlier guess?
-                # RPC function types are exempt because RPCs are dynamically typed.
                 try:
                     attributes[attr_name].unify(attr_value_type)
                 except types.UnificationError as e:
@@ -694,29 +693,22 @@ class Stitcher:
             # Let the rest of the program decide.
             return types.TVar()
 
-    def _quote_foreign_function(self, function, loc, syscall, flags):
+    def _quote_syscall(self, function, loc):
         signature = inspect.signature(function)
 
         arg_types = OrderedDict()
         optarg_types = OrderedDict()
         for param in signature.parameters.values():
-            if param.kind not in (inspect.Parameter.POSITIONAL_ONLY,
-                                  inspect.Parameter.POSITIONAL_OR_KEYWORD):
-                # We pretend we don't see *args, kwpostargs=..., **kwargs.
-                # Since every method can be still invoked without any arguments
-                # going into *args and the slots after it, this is always safe,
-                # if sometimes constraining.
-                #
-                # Accepting POSITIONAL_ONLY is OK, because the compiler
-                # desugars the keyword arguments into positional ones internally.
-                continue
+            if param.kind != inspect.Parameter.POSITIONAL_OR_KEYWORD:
+                diag = diagnostic.Diagnostic("error",
+                    "system calls must only use positional arguments; '{argument}' isn't",
+                    {"argument": param.name},
+                    self._function_loc(function),
+                    notes=self._call_site_note(loc, is_syscall=True))
+                self.engine.process(diag)
 
             if param.default is inspect.Parameter.empty:
-                arg_types[param.name] = self._type_of_param(function, loc, param,
-                                                            is_syscall=syscall is not None)
-            elif syscall is None:
-                optarg_types[param.name] = self._type_of_param(function, loc, param,
-                                                               is_syscall=False)
+                arg_types[param.name] = self._type_of_param(function, loc, param, is_syscall=True)
             else:
                 diag = diagnostic.Diagnostic("error",
                     "system call argument '{argument}' must not have a default value",
@@ -727,10 +719,8 @@ class Stitcher:
 
         if signature.return_annotation is not inspect.Signature.empty:
             ret_type = self._extract_annot(function, signature.return_annotation,
-                                           "return type", loc, is_syscall=syscall is not None)
-        elif syscall is None:
-            ret_type = builtins.TNone()
-        else: # syscall is not None
+                                           "return type", loc, is_syscall=True)
+        else:
             diag = diagnostic.Diagnostic("error",
                 "system call must have a return type annotation", {},
                 self._function_loc(function),
@@ -738,15 +728,23 @@ class Stitcher:
             self.engine.process(diag)
             ret_type = types.TVar()
 
-        if syscall is None:
-            function_type = types.TRPCFunction(arg_types, optarg_types, ret_type,
-                                               service=self.object_map.store(function))
-        else:
-            function_type = types.TCFunction(arg_types, ret_type,
-                                             name=syscall, flags=flags)
-
+        function_type = types.TCFunction(arg_types, ret_type,
+                                         name=function.artiq_embedded.syscall,
+                                         flags=function.artiq_embedded.flags)
         self.functions[function] = function_type
+        return function_type
 
+    def _quote_rpc(self, function, loc):
+        signature = inspect.signature(function)
+
+        if signature.return_annotation is not inspect.Signature.empty:
+            ret_type = self._extract_annot(function, signature.return_annotation,
+                                           "return type", loc, is_syscall=False)
+        else:
+            ret_type = builtins.TNone()
+
+        function_type = types.TRPC(ret_type, service=self.object_map.store(function))
+        self.functions[function] = function_type
         return function_type
 
     def _quote_function(self, function, loc):
@@ -780,9 +778,7 @@ class Stitcher:
                 elif function.artiq_embedded.syscall is not None:
                     # Insert a storage-less global whose type instructs the compiler
                     # to perform a system call instead of a regular call.
-                    self._quote_foreign_function(function, loc,
-                                                 syscall=function.artiq_embedded.syscall,
-                                                 flags=function.artiq_embedded.flags)
+                    self._quote_syscall(function, loc)
                 elif function.artiq_embedded.forbidden is not None:
                     diag = diagnostic.Diagnostic("fatal",
                         "this function cannot be called as an RPC", {},
@@ -792,14 +788,9 @@ class Stitcher:
                 else:
                     assert False
             else:
-                # Insert a storage-less global whose type instructs the compiler
-                # to perform an RPC instead of a regular call.
-                self._quote_foreign_function(function, loc, syscall=None, flags=None)
+                self._quote_rpc(function, loc)
 
-        function_type = self.functions[function]
-        if types.is_rpc_function(function_type):
-            function_type = types.instantiate(function_type)
-        return function_type
+        return self.functions[function]
 
     def _quote(self, value, loc):
         synthesizer = self._synthesizer(loc)

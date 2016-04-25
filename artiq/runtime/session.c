@@ -862,21 +862,16 @@ static int send_rpc_value(const char **tag, void **value)
             break;
         }
 
-        case 'o': { // option(inner='a)
-            struct { int8_t present; struct {} contents; } *option = *value;
+        case 'k': { // keyword(value='a)
+            struct { const char *name; struct {} contents; } *option = *value;
             void *contents = &option->contents;
 
-            if(!out_packet_int8(option->present))
+            if(!out_packet_string(option->name))
                 return 0;
 
-            // option never appears in composite types, so we don't have
+            // keyword never appears in composite types, so we don't have
             // to accurately advance *value.
-            if(option->present) {
-                return send_rpc_value(tag, &contents);
-            } else {
-                skip_rpc_value(tag);
-                break;
-            }
+            return send_rpc_value(tag, &contents);
         }
 
         case 'O': { // host object

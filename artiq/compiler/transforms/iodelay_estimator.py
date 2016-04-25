@@ -280,7 +280,7 @@ class IODelayEstimator(algorithm.Visitor):
                                   context="as an argument for delay_mu()")
             call_delay = value
         elif not types.is_builtin(typ):
-            if types.is_function(typ):
+            if types.is_function(typ) or types.is_rpc(typ):
                 offset = 0
             elif types.is_method(typ):
                 offset = 1
@@ -288,35 +288,38 @@ class IODelayEstimator(algorithm.Visitor):
             else:
                 assert False
 
-            delay = typ.find().delay.find()
-            if types.is_var(delay):
-                raise _UnknownDelay()
-            elif delay.is_indeterminate():
-                note = diagnostic.Diagnostic("note",
-                    "function called here", {},
-                    node.loc)
-                cause = delay.cause
-                cause = diagnostic.Diagnostic(cause.level, cause.reason, cause.arguments,
-                                              cause.location, cause.highlights,
-                                              cause.notes + [note])
-                raise _IndeterminateDelay(cause)
-            elif delay.is_fixed():
-                args = {}
-                for kw_node in node.keywords:
-                    args[kw_node.arg] = kw_node.value
-                for arg_name, arg_node in zip(list(typ.args)[offset:], node.args):
-                    args[arg_name] = arg_node
-
-                free_vars = delay.duration.free_vars()
-                node.arg_exprs = {
-                    arg: self.evaluate(args[arg], abort=abort,
-                                       context="in the expression for argument '{}' "
-                                               "that affects I/O delay".format(arg))
-                    for arg in free_vars
-                }
-                call_delay = delay.duration.fold(node.arg_exprs)
+            if types.is_rpc(typ):
+                call_delay = iodelay.Const(0)
             else:
-                assert False
+                delay = typ.find().delay.find()
+                if types.is_var(delay):
+                    raise _UnknownDelay()
+                elif delay.is_indeterminate():
+                    note = diagnostic.Diagnostic("note",
+                        "function called here", {},
+                        node.loc)
+                    cause = delay.cause
+                    cause = diagnostic.Diagnostic(cause.level, cause.reason, cause.arguments,
+                                                  cause.location, cause.highlights,
+                                                  cause.notes + [note])
+                    raise _IndeterminateDelay(cause)
+                elif delay.is_fixed():
+                    args = {}
+                    for kw_node in node.keywords:
+                        args[kw_node.arg] = kw_node.value
+                    for arg_name, arg_node in zip(list(typ.args)[offset:], node.args):
+                        args[arg_name] = arg_node
+
+                    free_vars = delay.duration.free_vars()
+                    node.arg_exprs = {
+                        arg: self.evaluate(args[arg], abort=abort,
+                                           context="in the expression for argument '{}' "
+                                                   "that affects I/O delay".format(arg))
+                        for arg in free_vars
+                    }
+                    call_delay = delay.duration.fold(node.arg_exprs)
+                else:
+                    assert False
         else:
             call_delay = iodelay.Const(0)
 

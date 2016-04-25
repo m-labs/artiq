@@ -23,11 +23,18 @@ def is_basic_block(typ):
     return isinstance(typ, TBasicBlock)
 
 class TOption(types.TMono):
-    def __init__(self, inner):
-        super().__init__("option", {"inner": inner})
+    def __init__(self, value):
+        super().__init__("option", {"value": value})
 
 def is_option(typ):
     return isinstance(typ, TOption)
+
+class TKeyword(types.TMono):
+    def __init__(self, value):
+        super().__init__("keyword", {"value": value})
+
+def is_keyword(typ):
+    return isinstance(typ, TKeyword)
 
 class TExceptionTypeInfo(types.TMono):
     def __init__(self):
@@ -678,7 +685,7 @@ class GetAttr(Instruction):
             typ = obj.type.attributes[attr]
         else:
             typ = obj.type.constructor.attributes[attr]
-            if types.is_function(typ):
+            if types.is_function(typ) or types.is_rpc(typ):
                 typ = types.TMethod(obj.type, typ)
         super().__init__([obj], typ, name)
         self.attr = attr

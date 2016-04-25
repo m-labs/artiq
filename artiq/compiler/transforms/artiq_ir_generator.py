@@ -922,9 +922,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
         if self.current_assign is None:
             return self.append(ir.GetAttr(obj, node.attr,
                                           name="{}.FLD.{}".format(_readable_name(obj), node.attr)))
-        elif types.is_rpc_function(self.current_assign.type):
-            # RPC functions are just type-level markers
-            return self.append(ir.Builtin("nop", [], builtins.TNone()))
         else:
             return self.append(ir.SetAttr(obj, node.attr, self.current_assign))
 
@@ -1719,7 +1716,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.engine.process(diag)
 
     def _user_call(self, callee, positional, keywords, arg_exprs={}):
-        if types.is_function(callee.type):
+        if types.is_function(callee.type) or types.is_rpc(callee.type):
             func     = callee
             self_arg = None
             fn_typ   = callee.type
@@ -1734,40 +1731,51 @@ class ARTIQIRGenerator(algorithm.Visitor):
         else:
             assert False
 
-        args = [None] * (len(fn_typ.args) + len(fn_typ.optargs))
-
-        for index, arg in enumerate(positional):
-            if index + offset < len(fn_typ.args):
-                args[index + offset] = arg
+        if types.is_rpc(fn_typ):
+            if self_arg is None:
+                args = positional
             else:
-                args[index + offset] = self.append(ir.Alloc([arg], ir.TOption(arg.type)))
+                args = [self_arg] + positional
 
-        for keyword in keywords:
-            arg = keywords[keyword]
-            if keyword in fn_typ.args:
-                for index, arg_name in enumerate(fn_typ.args):
-                    if keyword == arg_name:
-                        assert args[index] is None
-                        args[index] = arg
-                        break
-            elif keyword in fn_typ.optargs:
-                for index, optarg_name in enumerate(fn_typ.optargs):
-                    if keyword == optarg_name:
-                        assert args[len(fn_typ.args) + index] is None
-                        args[len(fn_typ.args) + index] = \
-                                self.append(ir.Alloc([arg], ir.TOption(arg.type)))
-                        break
+            for keyword in keywords:
+                arg = keywords[keyword]
+                args.append(self.append(ir.Alloc([ir.Constant(keyword, builtins.TStr()), arg],
+                                                 ir.TKeyword(arg.type))))
+        else:
+            args = [None] * (len(fn_typ.args) + len(fn_typ.optargs))
 
-        for index, optarg_name in enumerate(fn_typ.optargs):
-            if args[len(fn_typ.args) + index] is None:
-                args[len(fn_typ.args) + index] = \
-                        self.append(ir.Alloc([], ir.TOption(fn_typ.optargs[optarg_name])))
+            for index, arg in enumerate(positional):
+                if index + offset < len(fn_typ.args):
+                    args[index + offset] = arg
+                else:
+                    args[index + offset] = self.append(ir.Alloc([arg], ir.TOption(arg.type)))
 
-        if self_arg is not None:
-            assert args[0] is None
-            args[0] = self_arg
+            for keyword in keywords:
+                arg = keywords[keyword]
+                if keyword in fn_typ.args:
+                    for index, arg_name in enumerate(fn_typ.args):
+                        if keyword == arg_name:
+                            assert args[index] is None
+                            args[index] = arg
+                            break
+                elif keyword in fn_typ.optargs:
+                    for index, optarg_name in enumerate(fn_typ.optargs):
+                        if keyword == optarg_name:
+                            assert args[len(fn_typ.args) + index] is None
+                            args[len(fn_typ.args) + index] = \
+                                    self.append(ir.Alloc([arg], ir.TOption(arg.type)))
+                            break
 
-        assert None not in args
+            for index, optarg_name in enumerate(fn_typ.optargs):
+                if args[len(fn_typ.args) + index] is None:
+                    args[len(fn_typ.args) + index] = \
+                            self.append(ir.Alloc([], ir.TOption(fn_typ.optargs[optarg_name])))
+
+            if self_arg is not None:
+                assert args[0] is None
+                args[0] = self_arg
+
+            assert None not in args
 
         if self.unwind_target is None:
             insn = self.append(ir.Call(func, args, arg_exprs))
