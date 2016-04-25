@@ -30,7 +30,7 @@ class MonomorphismValidator(algorithm.Visitor):
         super().generic_visit(node)
 
         if isinstance(node, asttyped.commontyped):
-            if types.is_polymorphic(node.type) and not types.is_rpc_function(node.type):
+            if types.is_polymorphic(node.type):
                 note = diagnostic.Diagnostic("note",
                     "the expression has type {type}",
                     {"type": types.TypePrinter().name(node.type)},

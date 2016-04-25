@@ -177,7 +177,7 @@ class LLVMIRGenerator:
         typ = typ.find()
         if types.is_tuple(typ):
             return ll.LiteralStructType([self.llty_of_type(eltty) for eltty in typ.elts])
-        elif types.is_rpc_function(typ) or types.is_c_function(typ):
+        elif types.is_rpc(typ) or types.is_c_function(typ):
             if for_return:
                 return llvoid
             else:
@@ -229,7 +229,9 @@ class LLVMIRGenerator:
         elif ir.is_basic_block(typ):
             return llptr
         elif ir.is_option(typ):
-            return ll.LiteralStructType([lli1, self.llty_of_type(typ.params["inner"])])
+            return ll.LiteralStructType([lli1, self.llty_of_type(typ.params["value"])])
+        elif ir.is_keyword(typ):
+            return ll.LiteralStructType([llptr, self.llty_of_type(typ.params["value"])])
         elif ir.is_environment(typ):
             llty = self.llcontext.get_identified_type("env.{}".format(typ.env_name))
             if llty.elements is None:
@@ -618,7 +620,7 @@ class LLVMIRGenerator:
                                             size=llsize)
             llvalue = self.llbuilder.insert_value(llvalue, llalloc, 1, name=insn.name)
             return llvalue
-        elif not builtins.is_allocated(insn.type):
+        elif not builtins.is_allocated(insn.type) or ir.is_keyword(insn.type):
             llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
             for index, elt in enumerate(insn.operands):
                 llvalue = self.llbuilder.insert_value(llvalue, self.map(elt), index)
@@ -707,8 +709,8 @@ class LLVMIRGenerator:
     def get_global_closure(self, typ, attr):
         closure_type = typ.attributes[attr]
         assert types.is_constructor(typ)
-        assert types.is_function(closure_type)
-        if types.is_c_function(closure_type) or types.is_rpc_function(closure_type):
+        assert types.is_function(closure_type) or types.is_rpc(closure_type)
+        if types.is_c_function(closure_type) or types.is_rpc(closure_type):
             return None
 
         llty = self.llty_of_type(typ.attributes[attr])
@@ -1156,8 +1158,8 @@ class LLVMIRGenerator:
         elif builtins.is_range(typ):
             return b"r" + self._rpc_tag(builtins.get_iterable_elt(typ),
                                         error_handler)
-        elif ir.is_option(typ):
-            return b"o" + self._rpc_tag(typ.params["inner"],
+        elif ir.is_keyword(typ):
+            return b"k" + self._rpc_tag(typ.params["value"],
                                         error_handler)
         elif '__objectid__' in typ.attributes:
             return b"O"
@@ -1271,7 +1273,7 @@ class LLVMIRGenerator:
 
     def process_Call(self, insn):
         functiontyp = insn.target_function().type
-        if types.is_rpc_function(functiontyp):
+        if types.is_rpc(functiontyp):
             return self._build_rpc(insn.target_function().loc,
                                    functiontyp,
                                    insn.arguments(),
@@ -1303,7 +1305,7 @@ class LLVMIRGenerator:
         functiontyp = insn.target_function().type
         llnormalblock = self.map(insn.normal_target())
         llunwindblock = self.map(insn.exception_target())
-        if types.is_rpc_function(functiontyp):
+        if types.is_rpc(functiontyp):
             return self._build_rpc(insn.target_function().loc,
                                    functiontyp,
                                    insn.arguments(),
@@ -1392,7 +1394,7 @@ class LLVMIRGenerator:
             lleltsptr = llglobal.bitcast(lleltsary.type.element.as_pointer())
             llconst   = ll.Constant(llty, [ll.Constant(lli32, len(llelts)), lleltsptr])
             return llconst
-        elif types.is_function(typ):
+        elif types.is_rpc(typ) or types.is_function(typ):
             # RPC and C functions have no runtime representation.
             # We only get down this codepath for ARTIQ Python functions when they're
             # referenced from a constructor, and the value inside the constructor

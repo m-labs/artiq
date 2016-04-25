@@ -3,6 +3,7 @@ import logging
 import traceback
 from enum import Enum
 from fractions import Fraction
+from collections import namedtuple
 
 from artiq.coredevice import exceptions
 from artiq.language.core import int as wrapping_int
@@ -60,6 +61,9 @@ class UnsupportedDevice(Exception):
 
 class RPCReturnValueError(ValueError):
     pass
+
+
+RPCKeyword = namedtuple('RPCKeyword', ['name', 'value'])
 
 
 class CommGeneric:
@@ -229,7 +233,8 @@ class CommGeneric:
             raise UnsupportedDevice("Unsupported runtime ID: {}"
                                     .format(runtime_id))
         gateware_version = self._read_chunk(self._read_length).decode("utf-8")
-        if gateware_version != software_version:
+        if gateware_version != software_version and \
+                gateware_version + ".dirty" != software_version:
             logger.warning("Mismatch between gateware (%s) "
                            "and software (%s) versions",
                            gateware_version, software_version)
@@ -298,7 +303,6 @@ class CommGeneric:
         logger.debug("running kernel")
 
     _rpc_sentinel = object()
-    _rpc_undefined = object()
 
     # See session.c:{send,receive}_rpc_value and llvm_ir_generator.py:_rpc_tag.
     def _receive_rpc_value(self, object_map):
@@ -332,27 +336,23 @@ class CommGeneric:
             stop  = self._receive_rpc_value(object_map)
             step  = self._receive_rpc_value(object_map)
             return range(start, stop, step)
-        elif tag == "o":
-            present = self._read_int8()
-            if present:
-                return self._receive_rpc_value(object_map)
-            else:
-                return self._rpc_undefined
+        elif tag == "k":
+            name  = self._read_string()
+            value = self._receive_rpc_value(object_map)
+            return RPCKeyword(name, value)
         elif tag == "O":
             return object_map.retrieve(self._read_int32())
         else:
             raise IOError("Unknown RPC value tag: {}".format(repr(tag)))
 
     def _receive_rpc_args(self, object_map, defaults):
-        args = []
-        default_arg_num = 0
+        args, kwargs = [], {}
         while True:
             value = self._receive_rpc_value(object_map)
             if value is self._rpc_sentinel:
-                return args
-            elif value is self._rpc_undefined:
-                args.append(defaults[default_arg_num])
-                default_arg_num += 1
+                return args, kwargs
+            elif isinstance(value, RPCKeyword):
+                kwargs[value.name] = value.value
             else:
                 args.append(value)
 
@@ -443,13 +443,13 @@ class CommGeneric:
         else:
             service = object_map.retrieve(service_id)
 
-        arguments   = self._receive_rpc_args(object_map, service.__defaults__)
-        return_tags = self._read_bytes()
-        logger.debug("rpc service: [%d]%r %r -> %s", service_id, service, arguments, return_tags)
+        args, kwargs = self._receive_rpc_args(object_map, service.__defaults__)
+        return_tags  = self._read_bytes()
+        logger.debug("rpc service: [%d]%r %r %r -> %s", service_id, service, args, kwargs, return_tags)
 
         try:
-            result = service(*arguments)
-            logger.debug("rpc service: %d %r == %r", service_id, arguments, result)
+            result = service(*args, **kwargs)
+            logger.debug("rpc service: %d %r %r == %r", service_id, args, kwargs, result)
 
             if service_id != 0:
                 self._write_header(_H2DMsgType.RPC_REPLY)
@@ -457,7 +457,7 @@ class CommGeneric:
                 self._send_rpc_value(bytearray(return_tags), result, result, service)
                 self._write_flush()
         except Exception as exn:
-            logger.debug("rpc service: %d %r ! %r", service_id, arguments, exn)
+            logger.debug("rpc service: %d %r %r ! %r", service_id, args, kwargs, exn)
 
             self._write_header(_H2DMsgType.RPC_EXCEPTION)
 
@@ -486,7 +486,13 @@ class CommGeneric:
                 for index in range(3):
                     self._write_int64(0)
 
-                (_, (filename, line, function, _), ) = traceback.extract_tb(exn.__traceback__, 2)
+                tb = traceback.extract_tb(exn.__traceback__, 2)
+                if len(tb) == 2:
+                    (_, (filename, line, function, _), ) = tb
+                elif len(tb) == 1:
+                    ((filename, line, function, _), ) = tb
+                else:
+                    assert False
                 self._write_string(filename)
                 self._write_int32(line)
                 self._write_int32(-1) # column not known

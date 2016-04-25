@@ -94,9 +94,6 @@ class TVar(Type):
         else:
             return self.find().fold(accum, fn)
 
-    def map(self, fn):
-        return fn(self)
-
     def __repr__(self):
         if self.parent is self:
             return "<artiq.compiler.types.TVar %d>" % id(self)
@@ -140,21 +137,6 @@ class TMono(Type):
         for param in self.params:
             accum = self.params[param].fold(accum, fn)
         return fn(accum, self)
-
-    def map(self, fn):
-        params = OrderedDict()
-        for param in self.params:
-            params[param] = self.params[param].map(fn)
-
-        attributes = OrderedDict()
-        for attr in self.attributes:
-            attributes[attr] = self.attributes[attr].map(fn)
-
-        self_copy = self.__class__.__new__(self.__class__)
-        self_copy.name = self.name
-        self_copy.params = params
-        self_copy.attributes = attributes
-        return fn(self_copy)
 
     def __repr__(self):
         return "artiq.compiler.types.TMono(%s, %s)" % (repr(self.name), repr(self.params))
@@ -201,9 +183,6 @@ class TTuple(Type):
         for elt in self.elts:
             accum = elt.fold(accum, fn)
         return fn(accum, self)
-
-    def map(self, fn):
-        return fn(TTuple(list(map(lambda elt: elt.map(fn), self.elts))))
 
     def __repr__(self):
         return "artiq.compiler.types.TTuple(%s)" % repr(self.elts)
@@ -276,23 +255,6 @@ class TFunction(Type):
         accum = self.ret.fold(accum, fn)
         return fn(accum, self)
 
-    def _map_args(self, fn):
-        args = OrderedDict()
-        for arg in self.args:
-            args[arg] = self.args[arg].map(fn)
-
-        optargs = OrderedDict()
-        for optarg in self.optargs:
-            optargs[optarg] = self.optargs[optarg].map(fn)
-
-        return args, optargs, self.ret.map(fn)
-
-    def map(self, fn):
-        args, optargs, ret = self._map_args(fn)
-        self_copy = TFunction(args, optargs, ret)
-        self_copy.delay = self.delay.map(fn)
-        return fn(self_copy)
-
     def __repr__(self):
         return "artiq.compiler.types.TFunction({}, {}, {})".format(
             repr(self.args), repr(self.optargs), repr(self.ret))
@@ -307,35 +269,6 @@ class TFunction(Type):
 
     def __hash__(self):
         return hash((_freeze(self.args), _freeze(self.optargs), self.ret))
-
-class TRPCFunction(TFunction):
-    """
-    A function type of a remote function.
-
-    :ivar service: (int) RPC service number
-    """
-
-    attributes = OrderedDict()
-
-    def __init__(self, args, optargs, ret, service):
-        super().__init__(args, optargs, ret)
-        self.service = service
-        self.delay   = TFixedDelay(iodelay.Const(0))
-
-    def unify(self, other):
-        if isinstance(other, TRPCFunction) and \
-                self.service == other.service:
-            super().unify(other)
-        elif isinstance(other, TVar):
-            other.unify(self)
-        else:
-            raise UnificationError(self, other)
-
-    def map(self, fn):
-        args, optargs, ret = self._map_args(fn)
-        self_copy = TRPCFunction(args, optargs, ret, self.service)
-        self_copy.delay = self.delay.map(fn)
-        return fn(self_copy)
 
 class TCFunction(TFunction):
     """
@@ -368,11 +301,49 @@ class TCFunction(TFunction):
         else:
             raise UnificationError(self, other)
 
-    def map(self, fn):
-        args, _optargs, ret = self._map_args(fn)
-        self_copy = TCFunction(args, ret, self.name)
-        self_copy.delay = self.delay.map(fn)
-        return fn(self_copy)
+class TRPC(Type):
+    """
+    A type of a remote call.
+
+    :ivar ret: (:class:`Type`)
+        return type
+    :ivar service: (int) RPC service number
+    """
+
+    attributes = OrderedDict()
+
+    def __init__(self, ret, service):
+        assert isinstance(ret, Type)
+        self.ret, self.service = ret, service
+
+    def find(self):
+        return self
+
+    def unify(self, other):
+        if isinstance(other, TRPC) and \
+                self.service == other.service:
+            self.ret.unify(other.ret)
+        elif isinstance(other, TVar):
+            other.unify(self)
+        else:
+            raise UnificationError(self, other)
+
+    def fold(self, accum, fn):
+        accum = self.ret.fold(accum, fn)
+        return fn(accum, self)
+
+    def __repr__(self):
+        return "artiq.compiler.types.TRPC({})".format(repr(self.ret))
+
+    def __eq__(self, other):
+        return isinstance(other, TRPC) and \
+                self.service == other.service
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def __hash__(self):
+        return hash(self.service)
 
 class TBuiltin(Type):
     """
@@ -394,9 +365,6 @@ class TBuiltin(Type):
 
     def fold(self, accum, fn):
         return fn(accum, self)
-
-    def map(self, fn):
-        return fn(self)
 
     def __repr__(self):
         return "artiq.compiler.types.{}({})".format(type(self).__name__, repr(self.name))
@@ -490,9 +458,6 @@ class TValue(Type):
     def fold(self, accum, fn):
         return fn(accum, self)
 
-    def map(self, fn):
-        return fn(self)
-
     def __repr__(self):
         return "artiq.compiler.types.TValue(%s)" % repr(self.value)
 
@@ -543,10 +508,6 @@ class TDelay(Type):
         # delay types do not participate in folding
         pass
 
-    def map(self, fn):
-        # or mapping
-        return self
-
     def __eq__(self, other):
         return isinstance(other, TDelay) and \
                 (self.duration == other.duration and \
@@ -569,18 +530,6 @@ def TIndeterminateDelay(cause):
 def TFixedDelay(duration):
     return TDelay(duration, None)
 
-
-def instantiate(typ):
-    tvar_map = dict()
-    def mapper(typ):
-        typ = typ.find()
-        if is_var(typ):
-            if typ not in tvar_map:
-                tvar_map[typ] = TVar()
-            return tvar_map[typ]
-        return typ
-
-    return typ.map(mapper)
 
 def is_var(typ):
     return isinstance(typ.find(), TVar)
@@ -616,8 +565,8 @@ def _is_pointer(typ):
 def is_function(typ):
     return isinstance(typ.find(), TFunction)
 
-def is_rpc_function(typ):
-    return isinstance(typ.find(), TRPCFunction)
+def is_rpc(typ):
+    return isinstance(typ.find(), TRPC)
 
 def is_c_function(typ, name=None):
     typ = typ.find()
@@ -732,7 +681,7 @@ class TypePrinter(object):
                 return "(%s,)" % self.name(typ.elts[0], depth + 1)
             else:
                 return "(%s)" % ", ".join([self.name(typ, depth + 1) for typ in typ.elts])
-        elif isinstance(typ, (TFunction, TRPCFunction, TCFunction)):
+        elif isinstance(typ, (TFunction, TCFunction)):
             args = []
             args += [ "%s:%s" % (arg, self.name(typ.args[arg], depth + 1))
                      for arg in typ.args]
@@ -746,12 +695,12 @@ class TypePrinter(object):
             elif not (delay.is_fixed() and iodelay.is_zero(delay.duration)):
                 signature += " " + self.name(delay, depth + 1)
 
-            if isinstance(typ, TRPCFunction):
-                return "[rpc #{}]{}".format(typ.service, signature)
             if isinstance(typ, TCFunction):
                 return "[ffi {}]{}".format(repr(typ.name), signature)
             elif isinstance(typ, TFunction):
                 return signature
+        elif isinstance(typ, TRPC):
+            return "[rpc #{}](...)->{}".format(typ.service, self.name(typ.ret, depth + 1))
         elif isinstance(typ, TBuiltinFunction):
             return "<function {}>".format(typ.name)
         elif isinstance(typ, (TConstructor, TExceptionConstructor)):
