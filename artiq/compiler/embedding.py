@@ -5,7 +5,7 @@ the references to the host objects and translates the functions
 annotated as ``@kernel`` when they are referenced.
 """
 
-import sys, os, re, linecache, inspect, textwrap
+import sys, os, re, linecache, inspect, textwrap, types as pytypes
 from collections import OrderedDict, defaultdict
 
 from pythonparser import ast, algorithm, source, diagnostic, parse_buffer
@@ -102,7 +102,8 @@ class ASTSynthesizer:
             return asttyped.ListT(elts=elts, ctx=None, type=builtins.TList(),
                                   begin_loc=begin_loc, end_loc=end_loc,
                                   loc=begin_loc.join(end_loc))
-        elif inspect.isfunction(value) or inspect.ismethod(value):
+        elif inspect.isfunction(value) or inspect.ismethod(value) or \
+                isinstance(value, pytypes.BuiltinFunctionType):
             quote_loc   = self._add('`')
             repr_loc    = self._add(repr(value))
             unquote_loc = self._add('`')
@@ -734,17 +735,21 @@ class Stitcher:
         self.functions[function] = function_type
         return function_type
 
-    def _quote_rpc(self, function, loc):
-        signature = inspect.signature(function)
+    def _quote_rpc(self, callee, loc):
+        ret_type = builtins.TNone()
 
-        if signature.return_annotation is not inspect.Signature.empty:
-            ret_type = self._extract_annot(function, signature.return_annotation,
-                                           "return type", loc, is_syscall=False)
+        if isinstance(callee, pytypes.BuiltinFunctionType):
+            pass
+        elif isinstance(callee, pytypes.FunctionType):
+            signature = inspect.signature(callee)
+            if signature.return_annotation is not inspect.Signature.empty:
+                ret_type = self._extract_annot(callee, signature.return_annotation,
+                                               "return type", loc, is_syscall=False)
         else:
-            ret_type = builtins.TNone()
+            assert False
 
-        function_type = types.TRPC(ret_type, service=self.object_map.store(function))
-        self.functions[function] = function_type
+        function_type = types.TRPC(ret_type, service=self.object_map.store(callee))
+        self.functions[callee] = function_type
         return function_type
 
     def _quote_function(self, function, loc):

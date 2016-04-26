@@ -1,3 +1,5 @@
+from time import sleep
+
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 
@@ -97,6 +99,10 @@ class _RPC(EnvExperiment):
     def args1kwargs2(self):
         return self.kwargs("X", a="A", b=1)
 
+    @kernel
+    def builtin(self):
+        sleep(1.0)
+
 class RPCTest(ExperimentCase):
     def test_args(self):
         exp = self.create(_RPC)
@@ -107,6 +113,7 @@ class RPCTest(ExperimentCase):
         self.assertEqual(exp.kwargs1(), 1)
         self.assertEqual(exp.kwargs2(), 2)
         self.assertEqual(exp.args1kwargs2(), 2)
+        exp.builtin()
 
 
 class _Payload1MB(EnvExperiment):

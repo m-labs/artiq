@@ -412,7 +412,8 @@ class LLVMIRGenerator:
 
         for obj_id in self.object_map:
             obj_ref = self.object_map.retrieve(obj_id)
-            if isinstance(obj_ref, (pytypes.FunctionType, pytypes.MethodType)):
+            if isinstance(obj_ref, (pytypes.FunctionType, pytypes.MethodType,
+                                    pytypes.BuiltinFunctionType)):
                 continue
             elif isinstance(obj_ref, type):
                 _, typ = self.type_map[obj_ref]
