@@ -345,7 +345,7 @@ class CommGeneric:
         else:
             raise IOError("Unknown RPC value tag: {}".format(repr(tag)))
 
-    def _receive_rpc_args(self, object_map, defaults):
+    def _receive_rpc_args(self, object_map):
         args, kwargs = [], {}
         while True:
             value = self._receive_rpc_value(object_map)
@@ -443,7 +443,7 @@ class CommGeneric:
         else:
             service = object_map.retrieve(service_id)
 
-        args, kwargs = self._receive_rpc_args(object_map, service.__defaults__)
+        args, kwargs = self._receive_rpc_args(object_map)
         return_tags  = self._read_bytes()
         logger.debug("rpc service: [%d]%r %r %r -> %s", service_id, service, args, kwargs, return_tags)
 
