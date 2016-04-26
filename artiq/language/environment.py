@@ -191,6 +191,8 @@ class HasEnvironment:
         When the repository is scanned, any requested devices and arguments
         are set to ``None``.
 
+        Datasets are read-only in this method.
+
         Leftover positional and keyword arguments from the constructor are
         forwarded to this method. This is intended for experiments that are
         only meant to be executed programmatically (not from the GUI)."""
