@@ -175,6 +175,8 @@ class HasEnvironment:
 
         When the repository is scanned, any requested devices and arguments
         are set to ``None``.
+
+        Datasets are read-only in this method.
         """
         raise NotImplementedError
 
