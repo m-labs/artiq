@@ -611,10 +611,10 @@ class Stitcher:
         line     = function.__code__.co_firstlineno
         name     = function.__code__.co_name
 
-        source_line = linecache.getline(filename, line)
-        while source_line.lstrip().startswith("@"):
+        source_line = linecache.getline(filename, line).lstrip()
+        while source_line.startswith("@") or source_line == "":
             line += 1
-            source_line = linecache.getline(filename, line)
+            source_line = linecache.getline(filename, line).lstrip()
 
         if "<lambda>" in function.__qualname__:
             column = 0 # can't get column of lambda
