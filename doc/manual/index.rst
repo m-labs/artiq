@@ -10,6 +10,7 @@ Contents:
     installing
     release_notes
     getting_started_core
+    compiler
     getting_started_mgmt
     core_device
     management_system
