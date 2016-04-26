@@ -143,7 +143,7 @@ Try reducing the period of the generated waveform until the CPU cannot keep up w
 RTIO analyzer
 -------------
 
-The core device records the real-time IO waveforms into a circular buffer. It is possible to dump any Python object so that it appears alongside the waveforms using the ``rtio_log`` function, which accepts a channel name (i.e. a log target) as the first argument: ::
+The core device records the real-time I/O waveforms into a circular buffer. It is possible to dump any Python object so that it appears alongside the waveforms using the ``rtio_log`` function, which accepts a channel name (i.e. a log target) as the first argument: ::
 
     from artiq.experiment import *
 
@@ -188,3 +188,44 @@ Within a parallel block, some statements can be made sequential again using a ``
 
 .. note::
     Branches of a ``parallel`` block are executed one after another, with a reset of the internal RTIO time variable before moving to the next branch. If a branch takes a lot of CPU time, it may cause an underflow when the next branch begins its execution.
+
+Additional optimizations
+------------------------
+
+The ARTIQ compiler runs many optimizations, most of which perform well on code that has pristine Python semantics. It also contains more powerful, and more invasive, optimizations that require opt-in to activate.
+
+Fast-math flags
++++++++++++++++
+
+The compiler does not normally perform algebraically equivalent transformations on floating-point expressions, because this can dramatically change the result. However, it can be instructed to do so if all of the following is true:
+
+* Arguments and results will not be not-a-number or infinity values;
+* The sign of a zero value is insignificant;
+* Any algebraically equivalent transformations, such as reassociation or replacing division with multiplication by reciprocal, are legal to perform.
+
+If this is the case for a given kernel, a ``fast-math`` flag can be specified to enable more aggressive optimization for this specific kernel: ::
+
+    @kernel(flags={"fast-math"})
+    def calculate(x, y, z):
+        return x * z + y * z
+
+This flag particularly benefits loops with I/O delays performed in fractional seconds rather than machine units, as well as updates to DDS phase and frequency.
+
+Kernel invariants
++++++++++++++++++
+
+The compiler attempts to remove or hoist out of loops any redundant memory load operations, as well as propagate known constants into function bodies, which can enable further optimization. However, it must make conservative assumptions about code that it is unable to observe, because such code can change the value of the attribute, making the optimization invalid.
+
+When an attribute is known to never change while the kernel is running, it can be marked as a *kernel invariant* to enable more aggressive optimization for this specific attribute: ::
+
+    class Converter:
+        kernel_invariants = {"ratio"}
+
+        def __init__(self, ratio=1.0):
+            self.ratio = ratio
+
+        @kernel
+        def convert(self, value):
+            return value * self.ratio ** 2
+
+In the synthetic example above, the compiler will be able to detect that the result of evaluating ``self.ratio ** 2`` never changes and replace it with a constant, removing an expensive floating-point operation.
