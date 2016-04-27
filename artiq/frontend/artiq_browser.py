@@ -12,6 +12,7 @@ from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import verbosity_args, init_logger, atexit_register_coroutine
 from artiq.gui import state, applets, models
 from artiq.browser import datasets, files
+from artiq.dashboard import experiments
 
 
 def get_argparser():
@@ -94,7 +95,9 @@ def main():
     status_bar = QtWidgets.QStatusBar()
     main_window.setStatusBar(status_bar)
 
-    d_files = files.FilesDock(datasets_sub, main_window, args.browse_root,
+    exp_manager = experiments.SimpleExperimentManager(main_window)
+
+    d_files = files.FilesDock(datasets_sub, exp_manager, args.browse_root,
                               select=args.select)
     smgr.register(d_files)
 

@@ -84,7 +84,7 @@ class ZoomIconView(QtWidgets.QListView):
 
 
 class FilesDock(QtWidgets.QDockWidget):
-    def __init__(self, datasets, main_window, browse_root="", select=None):
+    def __init__(self, datasets, exp_manager, browse_root="", select=None):
         QtWidgets.QDockWidget.__init__(self, "Files")
         self.setObjectName("Files")
         self.setFeatures(self.DockWidgetMovable | self.DockWidgetFloatable)
@@ -93,7 +93,7 @@ class FilesDock(QtWidgets.QDockWidget):
         self.setWidget(self.splitter)
 
         self.datasets = datasets
-        self.main_window = main_window
+        self.exp_manager = exp_manager
 
         self.model = QtWidgets.QFileSystemModel()
         self.model.setFilter(QtCore.QDir.Drives | QtCore.QDir.NoDotAndDotDot |
@@ -151,7 +151,7 @@ class FilesDock(QtWidgets.QDockWidget):
         with f:
             if "datasets" not in f:
                 return
-            rd = dict((k, (True, v.value)) for k, v in f["datasets"].items())
+            rd = {k: (True, v.value) for k, v in f["datasets"].items()}
             self.datasets.init(rd)
 
     def open_experiment(self, current):
@@ -170,6 +170,9 @@ class FilesDock(QtWidgets.QDockWidget):
             if "expid" not in f:
                 return
             expid = pyon.decode(f["expid"].value)
+            expurl = "file:{}@{}".format(expid["class_name"],
+                                         expid["file"])
+            self.exp_manager.open_experiment(expurl)
 
     def select_dir(self, path):
         if not os.path.exists(path):
@@ -185,10 +188,11 @@ class FilesDock(QtWidgets.QDockWidget):
                 return
             self.model.directoryLoaded.disconnect(scroll_when_loaded)
             QtCore.QTimer.singleShot(
-                100, lambda:
-                self.rt.scrollTo(
+                100,
+                lambda: self.rt.scrollTo(
                     self.rt.model().mapFromSource(self.model.index(path)),
-                    self.rt.PositionAtCenter))
+                    self.rt.PositionAtCenter)
+            )
         self.model.directoryLoaded.connect(scroll_when_loaded)
         idx = self.rt.model().mapFromSource(idx)
         self.rt.expand(idx)
