@@ -55,6 +55,7 @@ class ASTSynthesizer:
         self.object_map, self.type_map, self.value_map = object_map, type_map, value_map
         self.quote_function = quote_function
         self.expanded_from = expanded_from
+        self.diagnostics = []
 
     def finalize(self):
         self.source_buffer.source = self.source
@@ -124,6 +125,35 @@ class ASTSynthesizer:
 
             if typ in self.type_map:
                 instance_type, constructor_type = self.type_map[typ]
+
+                if hasattr(value, 'kernel_invariants') and \
+                        value.kernel_invariants != instance_type.constant_attributes:
+                    attr_diff = value.kernel_invariants.difference(
+                                    instance_type.constant_attributes)
+                    if len(attr_diff) > 0:
+                        diag = diagnostic.Diagnostic("warning",
+                            "object {value} of type {typ} declares attribute(s) {attrs} as "
+                            "kernel invariant, but other objects of the same type do not; "
+                            "the invariant annotation on this object will be ignored",
+                            {"value": repr(value),
+                             "typ": types.TypePrinter().name(instance_type, max_depth=0),
+                             "attrs": ", ".join(["'{}'".format(attr) for attr in attr_diff])},
+                            loc)
+                        self.diagnostics.append(diag)
+                    attr_diff = instance_type.constant_attributes.difference(
+                                    value.kernel_invariants)
+                    if len(attr_diff) > 0:
+                        diag = diagnostic.Diagnostic("warning",
+                            "object {value} of type {typ} does not declare attribute(s) {attrs} as "
+                            "kernel invariant, but other objects of the same type do; "
+                            "the invariant annotation on other objects will be ignored",
+                            {"value": repr(value),
+                             "typ": types.TypePrinter().name(instance_type, max_depth=0),
+                             "attrs": ", ".join(["'{}'".format(attr) for attr in attr_diff])},
+                            loc)
+                        self.diagnostics.append(diag)
+                    value.kernel_invariants = value.kernel_invariants.intersection(
+                                        instance_type.constant_attributes)
             else:
                 if issubclass(typ, BaseException):
                     if hasattr(typ, 'artiq_builtin'):
@@ -138,15 +168,15 @@ class ASTSynthesizer:
                     instance_type = types.TInstance("{}.{}".format(typ.__module__, typ.__qualname__),
                                                     OrderedDict())
                     instance_type.attributes['__objectid__'] = builtins.TInt32()
-                    if hasattr(typ, 'kernel_invariants'):
-                        assert isinstance(typ.kernel_invariants, set)
-                        instance_type.constant_attributes = typ.kernel_invariants
-
                     constructor_type = types.TConstructor(instance_type)
                 constructor_type.attributes['__objectid__'] = builtins.TInt32()
                 instance_type.constructor = constructor_type
 
                 self.type_map[typ] = instance_type, constructor_type
+
+                if hasattr(value, 'kernel_invariants'):
+                    assert isinstance(value.kernel_invariants, set)
+                    instance_type.constant_attributes = value.kernel_invariants
 
             if isinstance(value, type):
                 self.value_map[constructor_type].append((value, loc))
@@ -801,4 +831,7 @@ class Stitcher:
         synthesizer = self._synthesizer(loc)
         node = synthesizer.quote(value)
         synthesizer.finalize()
+        if len(synthesizer.diagnostics) > 0:
+            for warning in synthesizer.diagnostics:
+                self.engine.process(warning)
         return node
