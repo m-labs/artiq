@@ -63,7 +63,7 @@ class MainWindow(QtWidgets.QMainWindow):
 class MdiArea(QtWidgets.QMdiArea):
     def __init__(self):
         QtWidgets.QMdiArea.__init__(self)
-        self.pixmap = QtGui.QPixmap(os.path.join(artiq_dir, "gui", "logo.svg"))
+        self.pixmap = QtGui.QPixmap(os.path.join(artiq_dir, "gui", "logo20.svg"))
 
     def paintEvent(self, event):
         QtWidgets.QMdiArea.paintEvent(self, event)
