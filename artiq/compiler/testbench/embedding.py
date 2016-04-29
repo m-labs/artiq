@@ -3,7 +3,13 @@ import sys, os
 from artiq.master.databases import DeviceDB
 from artiq.master.worker_db import DeviceManager
 
+import artiq.coredevice.core
 from artiq.coredevice.core import Core, CompileError
+
+def _render_diagnostic(diagnostic, colored):
+    return "\n".join(diagnostic.render(only_line=True))
+
+artiq.coredevice.core._render_diagnostic = _render_diagnostic
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "+diag":
@@ -35,7 +41,6 @@ def main():
             print(core.comm.get_log())
             core.comm.clear_log()
     except CompileError as error:
-        print("\n".join(error.__cause__.diagnostic.render(only_line=True)))
         if not diag:
             exit(1)
 
