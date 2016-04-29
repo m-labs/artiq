@@ -16,6 +16,34 @@ A number of Python features can be used inside a kernel for compilation and exec
 
 For a demonstration of some of these features, see the ``mandelbrot.py`` example.
 
+Remote procedure calls
+----------------------
+
+Kernel code can call host functions without any additional ceremony. However, such functions are assumed to return `None`, and if a value other than `None` is returned, an exception is raised. To call a host function returning a value other than `None` its return type must be annotated using the standard Python syntax, e.g.: ::
+
+    def return_four() -> TInt32:
+        return 4
+
+The Python types correspond to ARTIQ type annotations as follows:
+
++-------------+-------------------------+
+| Python      | ARTIQ                   |
++=============+=========================+
+| NoneType    | TNone                   |
++-------------+-------------------------+
+| bool        | TBool                   |
++-------------+-------------------------+
+| int         | TInt32, TInt64          |
++-------------+-------------------------+
+| float       | TFloat                  |
++-------------+-------------------------+
+| str         | TStr                    |
++-------------+-------------------------+
+| list of T   | TList(T)                |
++-------------+-------------------------+
+| range       | TRange32, TRange64      |
++-------------+-------------------------+
+
 Additional optimizations
 ------------------------
 
