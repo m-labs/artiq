@@ -3,7 +3,6 @@ import threading
 import logging
 import socket
 import struct
-from operator import itemgetter
 
 from PyQt5 import QtCore, QtWidgets, QtGui
 
@@ -141,6 +140,9 @@ class _TTLWidget(_MoninjWidget):
         finally:
             self.programmatic_change = False
 
+    def sort_key(self):
+        return self.channel
+
 
 class _DDSWidget(_MoninjWidget):
     def __init__(self, bus_channel, channel, sysclk, title):
@@ -172,6 +174,9 @@ class _DDSWidget(_MoninjWidget):
         frequency = ftw*self.sysclk()/2**32
         self.value.setText("<font size=\"5\">{:.7f} MHz</font>"
                            .format(frequency/1e6))
+
+    def sort_key(self):
+        return (self.bus_channel, self.channel)
 
 
 class _DeviceManager:
@@ -260,7 +265,7 @@ class _MonInjDock(QtWidgets.QDockWidget):
         grid_widget = QtWidgets.QWidget()
         grid_widget.setLayout(grid)
 
-        for _, w in sorted(widgets, key=itemgetter(0)):
+        for _, w in sorted(widgets, key=lambda i: i[1].sort_key()):
             grid.addWidget(w)
 
         scroll_area.setWidgetResizable(True)
