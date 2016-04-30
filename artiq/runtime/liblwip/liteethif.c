@@ -131,7 +131,7 @@ err_t liteeth_init(struct netif *netif)
     netif->name[1] = IFNAME1;
     netif->output = etharp_output;
     netif->linkoutput = liteeth_low_level_output;
-    netif->mtu = 9000;
+    netif->mtu = 1514;
 
     liteethif->ethaddr = (struct eth_addr *)&(netif->hwaddr[0]);
 
