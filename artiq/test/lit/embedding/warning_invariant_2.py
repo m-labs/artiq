@@ -12,8 +12,8 @@ class c:
     def __repr__(self):
         return "<testbench.c object>"
 
-i1 = c({'a', 'b'})
-i2 = c({'a'})
+i1 = c({"a", "b"})
+i2 = c({"a"})
 
 @kernel
 def entrypoint():
