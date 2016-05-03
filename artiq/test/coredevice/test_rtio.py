@@ -83,8 +83,6 @@ class ClockGeneratorLoopback(EnvExperiment):
 
 
 class PulseRate(EnvExperiment):
-    kernel_invariants = {"core", "ttl_out"}
-
     def build(self):
         self.setattr_device("core")
         self.setattr_device("ttl_out")
@@ -107,8 +105,6 @@ class PulseRate(EnvExperiment):
 
 
 class PulseRateDDS(EnvExperiment):
-    kernel_invariants = {"core", "core_dds", "dds0", "dds1"}
-
     def build(self):
         self.setattr_device("core")
         self.setattr_device("core_dds")

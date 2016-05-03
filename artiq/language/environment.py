@@ -227,8 +227,12 @@ class HasEnvironment:
 
     def setattr_argument(self, key, processor=None, group=None):
         """Sets an argument as attribute. The names of the argument and of the
-        attribute are the same."""
+        attribute are the same.
+
+        The key is added to the instance's kernel invariants."""
         setattr(self, key, self.get_argument(key, processor, group))
+        kernel_invariants = getattr(self, "kernel_invariants", set())
+        self.kernel_invariants = kernel_invariants | {key}
 
     def get_device_db(self):
         """Returns the full contents of the device database."""
@@ -248,8 +252,12 @@ class HasEnvironment:
 
     def setattr_device(self, key):
         """Sets a device driver as attribute. The names of the device driver
-         and of the attribute are the same."""
+         and of the attribute are the same.
+
+        The key is added to the instance's kernel invariants."""
         setattr(self, key, self.get_device(key))
+        kernel_invariants = getattr(self, "kernel_invariants", set())
+        self.kernel_invariants = kernel_invariants | {key}
 
     def set_dataset(self, key, value,
                     broadcast=False, persist=False, save=True):
