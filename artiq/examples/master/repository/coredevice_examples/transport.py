@@ -66,6 +66,7 @@ class Transport(EnvExperiment):
 
     @kernel
     def one(self):
+        delay(1*ms)
         self.cool()
         self.transport()
         return self.detect()
