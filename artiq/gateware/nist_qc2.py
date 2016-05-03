@@ -43,7 +43,7 @@ def get_fmc_adapter_io():
                 Subsignal("wr_n", FPins("FMC:LA24_P")),
                 Subsignal("rd_n", FPins("FMC:LA25_N")),
                 Subsignal("rst", FPins("FMC:LA25_P")),
-                IOStandard("LVTTL")),
+                IOStandard("LVTTL"), Misc("DRIVE=24")),
 
             ("i2c_fmc", next(i2c_fmc),
                 Subsignal("scl", FPins("FMC:IIC_SCL")),
