@@ -14,12 +14,10 @@ def open_h5(info):
             info.suffix() == "h5"):
         return
     try:
-        f = h5py.File(info.filePath(), "r")
+        return h5py.File(info.filePath(), "r")
     except:
         logger.warning("unable to read HDF5 file %s", info.filePath(),
                        exc_info=True)
-        return
-    return f
 
 
 class ThumbnailIconProvider(QtWidgets.QFileIconProvider):
