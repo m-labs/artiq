@@ -302,6 +302,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         except:
             logger.error("Could not recompute arguments of '%s'",
                          self.expurl, exc_info=True)
+            return
         self.manager.initialize_submission_arguments(self.expurl, arginfo)
 
         self.argeditor.deleteLater()
