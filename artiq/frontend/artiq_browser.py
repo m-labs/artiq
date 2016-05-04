@@ -5,6 +5,7 @@ import asyncio
 import atexit
 import os
 import logging
+from functools import partial
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from quamash import QEventLoop
@@ -65,18 +66,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.restoreState(QtCore.QByteArray(state["state"]))
 
 
-class MdiArea(QtWidgets.QMdiArea):
+class ExperimentsArea(QtWidgets.QMdiArea):
     def __init__(self, root):
         QtWidgets.QMdiArea.__init__(self)
         self.pixmap = QtGui.QPixmap(os.path.join(
             artiq_dir, "gui", "logo20.svg"))
         self.current_dir = root
         self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
+
         action = QtWidgets.QAction("&Open experiment", self)
-        # action.setShortcut(QtGui.QKeySequence("CTRL+o"))
+        action.setShortcut(QtGui.QKeySequence("CTRL+o"))
         action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         action.triggered.connect(self.open_experiment)
         self.addAction(action)
+
+        self.open_experiments = []
 
     def paintEvent(self, event):
         QtWidgets.QMdiArea.paintEvent(self, event)
@@ -86,12 +91,42 @@ class MdiArea(QtWidgets.QMdiArea):
         painter.setOpacity(0.5)
         painter.drawPixmap(x, y, self.pixmap)
 
+    def save_state(self):
+        return {"experiments": [experiment.save_state()
+                                for experiment in self.open_experiments]}
+
+    def restore_state(self, state):
+        if self.open_experiments:
+            raise NotImplementedError
+        for ex_state in state["experiments"]:
+            ex = self.load_experiment(ex_state["file"])
+            ex.restore_state(ex_state)
+
     def open_experiment(self):
         file, filter = QtWidgets.QFileDialog.getOpenFileName(
             self, "Open experiment", self.current_dir, "Experiments (*.py)")
         if not file:
             return
-        print(file)
+        logger.info("opening experiment %s", file)
+        self.load_experiment(file)
+
+    def load_experiment(self, expurl):
+        try:
+            dock = _ExperimentDock(self, expurl)
+        except:
+            logger.warning("Failed to create experiment dock for %s, "
+                           "attempting to reset arguments", expurl,
+                           exc_info=True)
+            del self.submission_arguments[expurl]
+            dock = _ExperimentDock(self, expurl)
+        self.open_experiments.append(dock)
+        self.addSubWindow(dock)
+        dock.show()
+        dock.sigClosed.connect(partial(self.on_dock_closed, expurl))
+        return dock
+
+    def on_dock_closed(self, expurl):
+        del self.open_experiments[expurl]
 
 
 def main():
@@ -114,7 +149,11 @@ def main():
     status_bar = QtWidgets.QStatusBar()
     main_window.setStatusBar(status_bar)
 
-    exp_manager = experiments.SimpleExperimentManager(main_window)
+    mdi_area = ExperimentsArea(args.browse_root)
+    mdi_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+    mdi_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+    main_window.setCentralWidget(mdi_area)
+    smgr.register(mdi_area)
 
     d_files = files.FilesDock(datasets_sub, args.browse_root,
                               select=args.select)
@@ -126,11 +165,6 @@ def main():
 
     d_datasets = datasets.DatasetsDock(datasets_sub)
     smgr.register(d_datasets)
-
-    mdi_area = MdiArea(args.browse_root)
-    mdi_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-    mdi_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-    main_window.setCentralWidget(mdi_area)
 
     main_window.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d_files)
     main_window.addDockWidget(QtCore.Qt.BottomDockWidgetArea, d_applets)
