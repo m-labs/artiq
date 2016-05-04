@@ -84,7 +84,7 @@ class ZoomIconView(QtWidgets.QListView):
 
 
 class FilesDock(QtWidgets.QDockWidget):
-    def __init__(self, datasets, exp_manager, browse_root="", select=None):
+    def __init__(self, datasets, browse_root="", select=None):
         QtWidgets.QDockWidget.__init__(self, "Files")
         self.setObjectName("Files")
         self.setFeatures(self.DockWidgetMovable | self.DockWidgetFloatable)
@@ -93,7 +93,6 @@ class FilesDock(QtWidgets.QDockWidget):
         self.setWidget(self.splitter)
 
         self.datasets = datasets
-        self.exp_manager = exp_manager
 
         self.model = QtWidgets.QFileSystemModel()
         self.model.setFilter(QtCore.QDir.Drives | QtCore.QDir.NoDotAndDotDot |
@@ -127,7 +126,6 @@ class FilesDock(QtWidgets.QDockWidget):
         self.rl.setModel(self.model)
         self.rl.selectionModel().currentChanged.connect(
             self.list_current_changed)
-        self.rl.activated.connect(self.open_experiment)
         self.splitter.addWidget(self.rl)
 
         self.restore_selected = select is None
@@ -153,26 +151,6 @@ class FilesDock(QtWidgets.QDockWidget):
                 return
             rd = {k: (True, v.value) for k, v in f["datasets"].items()}
             self.datasets.init(rd)
-
-    def open_experiment(self, current):
-        info = self.model.fileInfo(current)
-        if info.isDir():
-            self.rl.setRootIndex(current)
-            idx = self.rt.model().mapFromSource(current)
-            self.rt.expand(idx)
-            self.rt.setCurrentIndex(idx)
-            return
-        f = open_h5(info)
-        if not f:
-            return
-        logger.info("loading experiment for %s", info.filePath())
-        with f:
-            if "expid" not in f:
-                return
-            expid = pyon.decode(f["expid"].value)
-            expurl = "file:{}@{}".format(expid["class_name"],
-                                         expid["file"])
-            self.exp_manager.open_experiment(expurl)
 
     def select_dir(self, path):
         if not os.path.exists(path):

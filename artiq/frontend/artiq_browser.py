@@ -116,7 +116,7 @@ def main():
 
     exp_manager = experiments.SimpleExperimentManager(main_window)
 
-    d_files = files.FilesDock(datasets_sub, exp_manager, args.browse_root,
+    d_files = files.FilesDock(datasets_sub, args.browse_root,
                               select=args.select)
     smgr.register(d_files)
 
