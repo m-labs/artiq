@@ -120,9 +120,10 @@ class ExperimentDB:
         asyncio.ensure_future(
             exc_to_warning(self.scan_repository(new_cur_rev)))
 
-    async def examine(self, filename, use_repository=True):
+    async def examine(self, filename, use_repository=True, revision=None):
         if use_repository:
-            revision = self.cur_rev
+            if revision is None:
+                revision = self.cur_rev
             wd, _ = self.repo_backend.request_rev(revision)
             filename = os.path.join(wd, filename)
         worker = Worker(self.worker_handlers)

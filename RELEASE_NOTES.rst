@@ -38,6 +38,8 @@ unreleased [2.x]
   current directory.
 * The ``parent`` keyword argument of ``HasEnvironment`` (and ``EnvExperiment``)
   has been replaced. Pass the parent as first argument instead.
+* In the dashboard's experiment windows, partial or full argument recomputation
+  takes into account the repository revision field.
 
 
 1.0rc4 (unreleased)

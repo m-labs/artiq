@@ -1,12 +1,15 @@
 import logging
 import asyncio
+import os
 from functools import partial
 from collections import OrderedDict
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+import h5py
 
 from artiq.gui.tools import LayoutWidget, log_level_to_name
 from artiq.gui.entries import argty_to_entry
+from artiq.protocols import pyon
 
 
 logger = logging.getLogger(__name__)
@@ -83,12 +86,21 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         recompute_arguments = QtWidgets.QPushButton("Recompute all arguments")
         recompute_arguments.setIcon(QtWidgets.QApplication.style().standardIcon(
             QtWidgets.QStyle.SP_BrowserReload))
-        recompute_arguments.setSizePolicy(QtWidgets.QSizePolicy.Maximum,
-                                          QtWidgets.QSizePolicy.Maximum)
         recompute_arguments.clicked.connect(dock._recompute_arguments_clicked)
-        fix_layout = LayoutWidget()
-        fix_layout.addWidget(recompute_arguments)
-        self.setItemWidget(widget_item, 1, fix_layout)
+
+        load_hdf5 = QtWidgets.QPushButton("Load HDF5")
+        load_hdf5.setIcon(QtWidgets.QApplication.style().standardIcon(
+            QtWidgets.QStyle.SP_DialogOpenButton))
+        load_hdf5.clicked.connect(dock._load_hdf5_clicked)
+
+        buttons = LayoutWidget()
+        buttons.addWidget(recompute_arguments, 1, 1)
+        buttons.addWidget(load_hdf5, 1, 2)
+        buttons.layout.setColumnStretch(0, 1)
+        buttons.layout.setColumnStretch(1, 0)
+        buttons.layout.setColumnStretch(2, 0)
+        buttons.layout.setColumnStretch(3, 1)
+        self.setItemWidget(widget_item, 1, buttons)
 
     def _get_group(self, name):
         if name in self._groups:
@@ -141,6 +153,9 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
                 self._groups[e].setExpanded(True)
             except KeyError:
                 pass
+
+
+log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
 class _ExperimentDock(QtWidgets.QMdiSubWindow):
@@ -222,7 +237,6 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         flush.stateChanged.connect(update_flush)
 
         log_level = QtWidgets.QComboBox()
-        log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         log_level.addItems(log_levels)
         log_level.setCurrentIndex(1)
         log_level.setToolTip("Minimum level for log entry production")
@@ -236,6 +250,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         def update_log_level(index):
             options["log_level"] = getattr(logging, log_level.currentText())
         log_level.currentIndexChanged.connect(update_log_level)
+        self.log_level = log_level
 
         if "repo_rev" in options:
             repo_rev = QtWidgets.QLineEdit()
@@ -253,7 +268,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
                     options["repo_rev"] = text
                 else:
                     options["repo_rev"] = None
-            repo_rev.textEdited.connect(update_repo_rev)
+            repo_rev.textChanged.connect(update_repo_rev)
+            self.repo_rev = repo_rev
 
         submit = QtWidgets.QPushButton("Submit")
         submit.setIcon(QtWidgets.QApplication.style().standardIcon(
@@ -274,6 +290,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
                               QtWidgets.QSizePolicy.Expanding)
         self.layout.addWidget(reqterm, 3, 4)
         reqterm.clicked.connect(self.reqterm_clicked)
+
+        self.hdf5_load_directory = os.path.expanduser("~")
 
     def submit_clicked(self):
         try:
@@ -296,17 +314,58 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
     def _recompute_arguments_clicked(self):
         asyncio.ensure_future(self._recompute_arguments_task())
 
-    async def _recompute_arguments_task(self):
+    async def _recompute_arguments_task(self, overrides=dict()):
         try:
             arginfo = await self.manager.compute_arginfo(self.expurl)
         except:
             logger.error("Could not recompute arguments of '%s'",
                          self.expurl, exc_info=True)
+            return
+        for k, v in overrides.items():
+            arginfo[k][0]["default"] = v
         self.manager.initialize_submission_arguments(self.expurl, arginfo)
 
         self.argeditor.deleteLater()
         self.argeditor = _ArgumentEditor(self.manager, self, self.expurl)
         self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
+
+    def _load_hdf5_clicked(self):
+        dialog = QtWidgets.QFileDialog(self.manager.main_window,
+            "Load HDF5", self.hdf5_load_directory,
+            "HDF5 files (*.h5 *.hdf5);;All files (*.*)")
+        dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
+        def on_accept():
+            filename = dialog.selectedFiles()[0]
+            self.hdf5_load_directory = os.path.dirname(filename)
+            asyncio.ensure_future(self._load_hdf5_task(filename))
+        dialog.accepted.connect(on_accept)
+        dialog.open()
+
+    async def _load_hdf5_task(self, filename):
+        try:
+            with h5py.File(filename, "r") as f:
+                expid = f["expid"][()]
+            expid = pyon.decode(expid)
+            arguments = expid["arguments"]
+        except:
+            logger.error("Could not retrieve expid from HDF5 file",
+                         exc_info=True)
+            return
+
+        try:
+            self.log_level.setCurrentIndex(log_levels.index(
+                log_level_to_name(expid["log_level"])))
+            if ("repo_rev" in expid
+                    and expid["repo_rev"] != "N/A"
+                    and hasattr(self, "repo_rev")):
+                self.repo_rev.setText(expid["repo_rev"])
+        except:
+            logger.error("Could not set submission options from HDF5 expid",
+                         exc_info=True)
+            return
+
+        await self._recompute_arguments_task(arguments)
+
 
     def closeEvent(self, event):
         self.sigClosed.emit()
@@ -315,12 +374,14 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
     def save_state(self):
         return {
             "args": self.argeditor.save_state(),
-            "geometry": bytes(self.saveGeometry())
+            "geometry": bytes(self.saveGeometry()),
+            "hdf5_load_directory": self.hdf5_load_directory
         }
 
     def restore_state(self, state):
         self.argeditor.restore_state(state["args"])
         self.restoreGeometry(QtCore.QByteArray(state["geometry"]))
+        self.hdf5_load_directory = state["hdf5_load_directory"]
 
 
 class ExperimentManager:
@@ -490,8 +551,10 @@ class ExperimentManager:
 
     async def compute_arginfo(self, expurl):
         file, class_name, use_repository = self.resolve_expurl(expurl)
-        description = await self.experiment_db_ctl.examine(file,
-                                                           use_repository)
+        if use_repository:
+            revision = self.get_submission_options(expurl)["repo_rev"]
+        description = await self.experiment_db_ctl.examine(
+            file, use_repository, revision)
         return description[class_name]["arginfo"]
 
     async def open_file(self, file):
