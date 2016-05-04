@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import atexit
 import os
+import logging
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from quamash import QEventLoop
@@ -13,6 +14,9 @@ from artiq.tools import verbosity_args, init_logger, atexit_register_coroutine
 from artiq.gui import state, applets, models
 from artiq.browser import datasets, files
 from artiq.dashboard import experiments
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_argparser():
@@ -62,9 +66,17 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 class MdiArea(QtWidgets.QMdiArea):
-    def __init__(self):
+    def __init__(self, root):
         QtWidgets.QMdiArea.__init__(self)
-        self.pixmap = QtGui.QPixmap(os.path.join(artiq_dir, "gui", "logo20.svg"))
+        self.pixmap = QtGui.QPixmap(os.path.join(
+            artiq_dir, "gui", "logo20.svg"))
+        self.current_dir = root
+        self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        action = QtWidgets.QAction("&Open experiment", self)
+        # action.setShortcut(QtGui.QKeySequence("CTRL+o"))
+        action.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        action.triggered.connect(self.open_experiment)
+        self.addAction(action)
 
     def paintEvent(self, event):
         QtWidgets.QMdiArea.paintEvent(self, event)
@@ -73,6 +85,13 @@ class MdiArea(QtWidgets.QMdiArea):
         y = (self.height() - self.pixmap.height())//2
         painter.setOpacity(0.5)
         painter.drawPixmap(x, y, self.pixmap)
+
+    def open_experiment(self):
+        file, filter = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Open experiment", self.current_dir, "Experiments (*.py)")
+        if not file:
+            return
+        print(file)
 
 
 def main():
@@ -108,7 +127,7 @@ def main():
     d_datasets = datasets.DatasetsDock(datasets_sub)
     smgr.register(d_datasets)
 
-    mdi_area = MdiArea()
+    mdi_area = MdiArea(args.browse_root)
     mdi_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
     mdi_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
     main_window.setCentralWidget(mdi_area)
