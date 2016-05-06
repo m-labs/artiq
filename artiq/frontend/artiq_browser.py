@@ -79,7 +79,7 @@ def main():
     args = get_argparser().parse_args()
     init_logger(args)
 
-    app = QtWidgets.QApplication([])
+    app = QtWidgets.QApplication(["ARTIQ Browser"])
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
     atexit.register(loop.close)
