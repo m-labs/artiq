@@ -4,6 +4,7 @@ import os
 from functools import partial
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+import h5py
 
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.gui.tools import LayoutWidget, log_level_to_name
@@ -36,9 +37,9 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         set_resize_mode(1, QtWidgets.QHeaderView.Stretch)
         set_resize_mode(2, QtWidgets.QHeaderView.ResizeToContents)
         self.header().setVisible(False)
-        self.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
-        self.setHorizontalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
-        self.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
+        self.setSelectionMode(self.NoSelection)
+        self.setHorizontalScrollMode(self.ScrollPerPixel)
+        self.setVerticalScrollMode(self.ScrollPerPixel)
 
         self.viewport().installEventFilter(_WheelFilter(self.viewport()))
 
@@ -65,8 +66,9 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
             recompute_argument = QtWidgets.QToolButton()
             recompute_argument.setToolTip("Re-run the experiment's build "
                                           "method and take the default value")
-            recompute_argument.setIcon(QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_BrowserReload))
+            recompute_argument.setIcon(
+                QtWidgets.QApplication.style().standardIcon(
+                    QtWidgets.QStyle.SP_BrowserReload))
             recompute_argument.clicked.connect(
                 partial(self._recompute_argument_clicked, name))
             fix_layout = LayoutWidget()
@@ -76,8 +78,9 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         widget_item = QtWidgets.QTreeWidgetItem()
         self.addTopLevelItem(widget_item)
         recompute_arguments = QtWidgets.QPushButton("Recompute all arguments")
-        recompute_arguments.setIcon(QtWidgets.QApplication.style().standardIcon(
-            QtWidgets.QStyle.SP_BrowserReload))
+        recompute_arguments.setIcon(
+            QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_BrowserReload))
         recompute_arguments.clicked.connect(self._recompute_arguments_clicked)
 
         buttons = LayoutWidget()
@@ -175,7 +178,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
         self.layout.setRowStretch(0, 1)
 
-        options = self.get_submission_options()
+        self.options = {"log_level": logging.WARNING}
 
         log_level = QtWidgets.QComboBox()
         log_level.addItems(log_levels)
@@ -187,30 +190,13 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.layout.addWidget(log_level, 3, 1)
 
         log_level.setCurrentIndex(log_levels.index(
-            log_level_to_name(options["log_level"])))
+            log_level_to_name(self.options["log_level"])))
+
         def update_log_level(index):
-            options["log_level"] = getattr(logging, log_level.currentText())
+            self.options["log_level"] = getattr(logging,
+                                                log_level.currentText())
         log_level.currentIndexChanged.connect(update_log_level)
         self.log_level = log_level
-
-        if "repo_rev" in options:
-            repo_rev = QtWidgets.QLineEdit()
-            repo_rev.setPlaceholderText("current")
-            repo_rev_label = QtWidgets.QLabel("Revision:")
-            repo_rev_label.setToolTip("Experiment repository revision "
-                                      "(commit ID) to use")
-            self.layout.addWidget(repo_rev_label, 3, 2)
-            self.layout.addWidget(repo_rev, 3, 3)
-
-            if options["repo_rev"] is not None:
-                repo_rev.setText(options["repo_rev"])
-            def update_repo_rev(text):
-                if text:
-                    options["repo_rev"] = text
-                else:
-                    options["repo_rev"] = None
-            repo_rev.textChanged.connect(update_repo_rev)
-            self.repo_rev = repo_rev
 
         submit = QtWidgets.QPushButton("Submit")
         submit.setIcon(QtWidgets.QApplication.style().standardIcon(
@@ -231,9 +217,6 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
                               QtWidgets.QSizePolicy.Expanding)
         self.layout.addWidget(reqterm, 3, 4)
         reqterm.clicked.connect(self.reqterm_clicked)
-
-    def get_submission_options(self):
-        return {"log_level": 10}  # TODO
 
     def submit_clicked(self):
         try:
@@ -267,9 +250,6 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         try:
             self.log_level.setCurrentIndex(log_levels.index(
                 log_level_to_name(expid["log_level"])))
-            if ("repo_rev" in expid and expid["repo_rev"] != "N/A" and
-                    hasattr(self, "repo_rev")):
-                self.repo_rev.setText(expid["repo_rev"])
         except:
             logger.error("Could not set submission options from HDF5 expid",
                          exc_info=True)
@@ -285,15 +265,15 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         return {
             "argeditor": self.argeditor.save_state(),
             "geometry": bytes(self.saveGeometry()),
-            #"arguments": self.arguments,
-            "expurl": self.expurl
+            "expurl": self.expurl,
+            "options": self.options,
         }
 
     def restore_state(self, state):
         self.argeditor.restore_state(state["argeditor"])
         self.restoreGeometry(QtCore.QByteArray(state["geometry"]))
-        #self.arguments = state["arguments"]
         self.expurl = state["expurl"]
+        self.options = state["options"]
 
 
 class ExperimentsArea(QtWidgets.QMdiArea):
@@ -329,7 +309,7 @@ class ExperimentsArea(QtWidgets.QMdiArea):
         if self.open_experiments:
             raise NotImplementedError
         for ex_state in state["experiments"]:
-            ex = self.load_experiment(ex_state["file"])
+            ex = self.load_experiment(ex_state["expurl"])
             ex.restore_state(ex_state)
 
     def open_experiment(self):
