@@ -54,6 +54,7 @@ class PhotonHistogram(EnvExperiment):
         total = 0
 
         for i in range(self.repeats):
+            delay(0.5*ms)
             n = self.cool_detect()
             if n >= self.nbins:
                 n = self.nbins - 1
