@@ -7,10 +7,6 @@
 
 extern unsigned char macadr[];
 
-struct liteethif {
-  struct eth_addr *ethaddr;
-};
-
 void liteeth_input(struct netif *netif);
 err_t liteeth_init(struct netif *netif);
 
