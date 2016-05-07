@@ -1,6 +1,7 @@
+import asyncio
 import logging
 
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt5 import QtCore, QtWidgets
 
 
 def log_level_to_name(level):
@@ -45,3 +46,18 @@ class LayoutWidget(QtWidgets.QWidget):
 
     def addWidget(self, item, row=0, col=0, rowspan=1, colspan=1):
         self.layout.addWidget(item, row, col, rowspan, colspan)
+
+
+async def getOpenFileName(parent, caption, dir, filter):
+    """like QtWidgets.QFileDialog.getOpenFileName(), but a coroutine"""
+    dialog = QtWidgets.QFileDialog(parent, caption, dir, filter)
+    dialog.setFileMode(dialog.ExistingFile)
+    dialog.setAcceptMode(dialog.AcceptOpen)
+    fut = asyncio.Future()
+
+    def on_accept():
+        fut.set_result(dialog.selectedFiles()[0])
+    dialog.accepted.connect(on_accept)
+    dialog.rejected.connect(fut.cancel)
+    dialog.open()
+    return await fut
