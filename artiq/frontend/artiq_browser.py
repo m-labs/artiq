@@ -85,7 +85,7 @@ def main():
     status_bar = QtWidgets.QStatusBar()
     main_window.setStatusBar(status_bar)
 
-    mdi_area = experiments.ExperimentsArea(args.browse_root)
+    mdi_area = experiments.ExperimentsArea(args.browse_root, datasets_sub)
     mdi_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
     mdi_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
     main_window.setCentralWidget(mdi_area)
