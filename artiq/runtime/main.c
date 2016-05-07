@@ -56,10 +56,7 @@ static void lwip_service(void)
 {
     sys_check_timeouts();
 #ifdef CSR_ETHMAC_BASE
-    if(ethmac_sram_writer_ev_pending_read() & ETHMAC_EV_SRAM_WRITER) {
-        liteeth_input(&netif);
-        ethmac_sram_writer_ev_pending_write(ETHMAC_EV_SRAM_WRITER);
-    }
+    liteeth_input(&netif);
 #else
     if(uart_read_nonblock()) {
         u8_t c;

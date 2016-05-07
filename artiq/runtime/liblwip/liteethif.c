@@ -15,9 +15,6 @@
 #include <hw/flags.h>
 #include <hw/ethmac_mem.h>
 
-static unsigned int rxslot;
-static unsigned int rxlen;
-static char *rxbuffer;
 static char *rxbuffer0;
 static char *rxbuffer1;
 static unsigned int txslot;
@@ -28,31 +25,6 @@ static char *txbuffer1;
 
 #define IFNAME0 'e'
 #define IFNAME1 't'
-
-static void liteeth_low_level_init(struct netif *netif)
-{
-    int i;
-
-    netif->hwaddr_len = 6;
-    for(i=0;i<netif->hwaddr_len;i++)
-    netif->hwaddr[i] = macadr[i];
-    netif->mtu = 1514;
-    netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP;
-
-    ethmac_sram_reader_ev_pending_write(ETHMAC_EV_SRAM_READER);
-    ethmac_sram_writer_ev_pending_write(ETHMAC_EV_SRAM_WRITER);
-
-    rxbuffer0 = (char *)ETHMAC_RX0_BASE;
-    rxbuffer1 = (char *)ETHMAC_RX1_BASE;
-    txbuffer0 = (char *)ETHMAC_TX0_BASE;
-    txbuffer1 = (char *)ETHMAC_TX1_BASE;
-
-    rxslot = 0;
-    txslot = 0;
-
-    rxbuffer = rxbuffer0;
-    txbuffer = txbuffer0;
-}
 
 static err_t liteeth_low_level_output(struct netif *netif, struct pbuf *p)
 {
@@ -86,26 +58,36 @@ static err_t liteeth_low_level_output(struct netif *netif, struct pbuf *p)
 
 static struct pbuf *liteeth_low_level_input(struct netif *netif)
 {
+    unsigned int rxslot;
+    unsigned int rxlen;
+    char *rxbuffer;
     struct pbuf *p, *q;
 
-    rxslot = ethmac_sram_writer_slot_read();
-    rxlen = ethmac_sram_writer_length_read();
-    if(rxslot)
-        rxbuffer = rxbuffer1;
-    else
-        rxbuffer = rxbuffer0;
+    p = NULL;
 
-    p = pbuf_alloc(PBUF_RAW, rxlen, PBUF_POOL);
-    q = p;
-    while(q) {
-        memcpy(q->payload, rxbuffer, q->len);
-        rxbuffer += q->len;
-        if(q->tot_len != q->len)
-            q = q->next;
-        else
-            q = NULL;
+    if(ethmac_sram_writer_ev_pending_read() & ETHMAC_EV_SRAM_WRITER) {
+        rxslot = ethmac_sram_writer_slot_read();
+        rxlen = ethmac_sram_writer_length_read();
+        /* dest MAC + source MAC + 802.1Q + ethertype + payload (MTU) */
+        if(rxlen <= (netif->mtu + 18)) {
+            if(rxslot)
+                rxbuffer = rxbuffer1;
+            else
+                rxbuffer = rxbuffer0;
+
+            p = pbuf_alloc(PBUF_RAW, rxlen, PBUF_POOL);
+            q = p;
+            while(q) {
+                memcpy(q->payload, rxbuffer, q->len);
+                rxbuffer += q->len;
+                if(q->tot_len != q->len)
+                    q = q->next;
+                else
+                    q = NULL;
+            }
+        }
+        ethmac_sram_writer_ev_pending_write(ETHMAC_EV_SRAM_WRITER);
     }
-
     return p;
 }
 
@@ -119,23 +101,28 @@ void liteeth_input(struct netif *netif)
 
 err_t liteeth_init(struct netif *netif)
 {
-    struct liteethif *liteethif;
-
-    liteethif = mem_malloc(sizeof(struct liteethif));
-    if(liteethif == NULL)
-        return ERR_MEM;
-    netif->state = liteethif;
+    int i;
 
     netif->hwaddr_len = 6;
+    for(i=0;i<netif->hwaddr_len;i++)
+        netif->hwaddr[i] = macadr[i];
     netif->name[0] = IFNAME0;
     netif->name[1] = IFNAME1;
     netif->output = etharp_output;
     netif->linkoutput = liteeth_low_level_output;
-    netif->mtu = 1514;
+    netif->mtu = 1500;
+    netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP;
 
-    liteethif->ethaddr = (struct eth_addr *)&(netif->hwaddr[0]);
+    ethmac_sram_reader_ev_pending_write(ETHMAC_EV_SRAM_READER);
+    ethmac_sram_writer_ev_pending_write(ETHMAC_EV_SRAM_WRITER);
 
-    liteeth_low_level_init(netif);
+    rxbuffer0 = (char *)ETHMAC_RX0_BASE;
+    rxbuffer1 = (char *)ETHMAC_RX1_BASE;
+    txbuffer0 = (char *)ETHMAC_TX0_BASE;
+    txbuffer1 = (char *)ETHMAC_TX1_BASE;
+
+    txslot = 0;
+    txbuffer = txbuffer0;
 
     return ERR_OK;
 }
