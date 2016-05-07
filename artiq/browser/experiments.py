@@ -157,6 +157,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.setWindowTitle(expurl)
         self.setWindowIcon(QtWidgets.QApplication.style().standardIcon(
             QtWidgets.QStyle.SP_FileDialogContentsView))
+        self.setAcceptDrops(True)
 
         self.layout = QtWidgets.QGridLayout()
         top_widget = QtWidgets.QWidget()
@@ -213,6 +214,17 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
                               QtWidgets.QSizePolicy.Expanding)
         self.layout.addWidget(reqterm, 3, 4)
         reqterm.clicked.connect(self.reqterm_clicked)
+
+    def dragEnterEvent(self, ev):
+        if ev.mimeData().hasFormat("text/uri-list"):
+            ev.acceptProposedAction()
+
+    def dropEvent(self, ev):
+        for uri in ev.mimeData().urls():
+            if uri.scheme() == "file":
+                logger.info("loading HDF5 arguments from %s", uri.path())
+                asyncio.ensure_future(self._load_hdf5_task(uri.path()))
+        ev.acceptProposedAction()
 
     async def _recompute_arguments(self, overrides={}):
         try:
@@ -303,9 +315,10 @@ class ExperimentsArea(QtWidgets.QMdiArea):
         self.open_experiments = []
 
         self.worker_handlers = {
-            # "get_dataset": dataset_db.get,
-            # "update_dataset": dataset_db.update,
+            "get_device_db": lambda: None,
+            "get_device": lambda k: None,
             "get_dataset": lambda k: 0,  # TODO
+            "update_dataset": lambda k, v: None,
         }
 
     def paintEvent(self, event):
