@@ -152,7 +152,7 @@ log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 class _ExperimentDock(QtWidgets.QMdiSubWindow):
     sigClosed = QtCore.pyqtSignal()
 
-    def __init__(self, area, expurl, arguments, worker_handlers):
+    def __init__(self, area, expurl, arguments):
         QtWidgets.QMdiSubWindow.__init__(self)
         self.setWindowTitle(expurl)
         self.setWindowIcon(QtWidgets.QApplication.style().standardIcon(
@@ -168,7 +168,6 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
         self._area = area
         self.expurl = expurl
-        self.worker_handlers = worker_handlers
         self.arguments = arguments
 
         self.argeditor = _ArgumentEditor(self)
@@ -195,25 +194,25 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         log_level.currentIndexChanged.connect(update_log_level)
         self.log_level = log_level
 
-        submit = QtWidgets.QPushButton("Analyze")
-        submit.setIcon(QtWidgets.QApplication.style().standardIcon(
+        run = QtWidgets.QPushButton("Analyze")
+        run.setIcon(QtWidgets.QApplication.style().standardIcon(
                 QtWidgets.QStyle.SP_DialogOkButton))
-        submit.setToolTip("Run analysis stage (Ctrl+Return)")
-        submit.setShortcut("CTRL+RETURN")
-        submit.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
-                             QtWidgets.QSizePolicy.Expanding)
-        self.layout.addWidget(submit, 1, 4, 2, 1)
-        submit.clicked.connect(self.submit_clicked)
+        run.setToolTip("Run analysis stage (Ctrl+Return)")
+        run.setShortcut("CTRL+RETURN")
+        run.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
+                          QtWidgets.QSizePolicy.Expanding)
+        self.layout.addWidget(run, 1, 4, 2, 1)
+        run.clicked.connect(self.run_clicked)
 
-        reqterm = QtWidgets.QPushButton("Terminate")
-        reqterm.setIcon(QtWidgets.QApplication.style().standardIcon(
+        terminate = QtWidgets.QPushButton("Terminate")
+        terminate.setIcon(QtWidgets.QApplication.style().standardIcon(
                 QtWidgets.QStyle.SP_DialogCancelButton))
-        reqterm.setToolTip("Terminate analysis (Ctrl+Backspace)")
-        reqterm.setShortcut("CTRL+BACKSPACE")
-        reqterm.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
-                              QtWidgets.QSizePolicy.Expanding)
-        self.layout.addWidget(reqterm, 3, 4)
-        reqterm.clicked.connect(self.reqterm_clicked)
+        terminate.setToolTip("Terminate analysis (Ctrl+Backspace)")
+        terminate.setShortcut("CTRL+BACKSPACE")
+        terminate.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
+                                QtWidgets.QSizePolicy.Expanding)
+        self.layout.addWidget(terminate, 3, 4)
+        terminate.clicked.connect(self.terminate_clicked)
 
     def dragEnterEvent(self, ev):
         if ev.mimeData().hasFormat("text/uri-list"):
@@ -262,16 +261,16 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
         await self._recompute_arguments(arguments)
 
-    def submit_clicked(self):
+    def run_clicked(self):
         try:
             pass  # TODO
         except:
             # May happen when experiment has been removed
             # from repository/explist
-            logger.error("Failed to submit '%s'",
+            logger.error("Failed to run '%s'",
                          self.expurl, exc_info=True)
 
-    def reqterm_clicked(self):
+    def terminate_clicked(self):
         try:
             pass  # TODO
         except:
@@ -395,13 +394,12 @@ class ExperimentsArea(QtWidgets.QMdiArea):
 
     def open_experiment(self, expurl, arguments):
         try:
-            dock = _ExperimentDock(self, expurl, arguments,
-                                   self.worker_handlers)
+            dock = _ExperimentDock(self, expurl, arguments)
         except:
             logger.warning("Failed to create experiment dock for %s, "
                            "retrying with arguments reset", expurl,
                            exc_info=True)
-            dock = _ExperimentDock(self, expurl, {}, self.worker_handlers)
+            dock = _ExperimentDock(self, expurl, {})
             asyncio.ensure_future(dock._recompute_arguments())
         self.addSubWindow(dock)
         dock.show()
