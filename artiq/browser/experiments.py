@@ -105,7 +105,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         return group
 
     def _recompute_arguments_clicked(self):
-        asyncio.ensure_future(self._dock.recompute_arguments())
+        asyncio.ensure_future(self._dock._recompute_arguments())
 
     def _recompute_argument_clicked(self, name):
         asyncio.ensure_future(self._recompute_argument(name))
@@ -195,20 +195,20 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         log_level.currentIndexChanged.connect(update_log_level)
         self.log_level = log_level
 
-        submit = QtWidgets.QPushButton("Submit")
+        submit = QtWidgets.QPushButton("Analyze")
         submit.setIcon(QtWidgets.QApplication.style().standardIcon(
                 QtWidgets.QStyle.SP_DialogOkButton))
-        submit.setToolTip("Schedule the experiment (Ctrl+Return)")
+        submit.setToolTip("Run analysis stage (Ctrl+Return)")
         submit.setShortcut("CTRL+RETURN")
         submit.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
                              QtWidgets.QSizePolicy.Expanding)
         self.layout.addWidget(submit, 1, 4, 2, 1)
         submit.clicked.connect(self.submit_clicked)
 
-        reqterm = QtWidgets.QPushButton("Terminate instances")
+        reqterm = QtWidgets.QPushButton("Terminate")
         reqterm.setIcon(QtWidgets.QApplication.style().standardIcon(
                 QtWidgets.QStyle.SP_DialogCancelButton))
-        reqterm.setToolTip("Request termination of instances (Ctrl+Backspace)")
+        reqterm.setToolTip("Terminate analysis (Ctrl+Backspace)")
         reqterm.setShortcut("CTRL+BACKSPACE")
         reqterm.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
                               QtWidgets.QSizePolicy.Expanding)
@@ -222,7 +222,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
     def dropEvent(self, ev):
         for uri in ev.mimeData().urls():
             if uri.scheme() == "file":
-                logger.info("loading HDF5 arguments from %s", uri.path())
+                logger.info("Loading HDF5 arguments from %s", uri.path())
                 asyncio.ensure_future(self._load_hdf5_task(uri.path()))
         ev.acceptProposedAction()
 
@@ -352,7 +352,7 @@ class ExperimentsArea(QtWidgets.QMdiArea):
         except asyncio.CancelledError:
             return
         self.current_dir = os.path.dirname(file)
-        logger.info("opening experiment %s", file)
+        logger.info("Opening experiment %s", file)
         try:
             description = await self.examine(file)
         except:
