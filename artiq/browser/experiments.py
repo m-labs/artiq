@@ -353,7 +353,12 @@ class ExperimentsArea(QtWidgets.QMdiArea):
             return
         self.current_dir = os.path.dirname(file)
         logger.info("opening experiment %s", file)
-        description = await self.examine(file)
+        try:
+            description = await self.examine(file)
+        except:
+            logger.error("Could not examine experiment '%s'",
+                         file, exc_info=True)
+            return
         for class_name, class_desc in description.items():
             expurl = "{}@{}".format(class_name, file)
             arguments = self.initialize_submission_arguments(
@@ -380,7 +385,12 @@ class ExperimentsArea(QtWidgets.QMdiArea):
 
     async def compute_arginfo(self, expurl):
         class_name, file = expurl.split("@", maxsplit=1)
-        desc = await self.examine(file)
+        try:
+            desc = await self.examine(file)
+        except:
+            logger.error("Could not examine experiment '%s'",
+                         file, exc_info=True)
+            return
         return desc[class_name]["arginfo"]
 
     def open_experiment(self, expurl, arguments):
