@@ -8,7 +8,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import h5py
 
 from artiq import __artiq_dir__ as artiq_dir
-from artiq.gui.tools import LayoutWidget, log_level_to_name, getOpenFileName
+from artiq.gui.tools import LayoutWidget, log_level_to_name, get_open_file_name
 from artiq.gui.entries import argty_to_entry
 from artiq.protocols import pyon
 from artiq.master.worker import Worker
@@ -346,7 +346,7 @@ class ExperimentsArea(QtWidgets.QMdiArea):
 
     async def _select_experiment_task(self):
         try:
-            file = await getOpenFileName(
+            file = await get_open_file_name(
                 self, "Open experiment", self.current_dir,
                 "Experiments (*.py);;All files (*.*)")
         except asyncio.CancelledError:

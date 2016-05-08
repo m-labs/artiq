@@ -7,7 +7,7 @@ from collections import OrderedDict
 from PyQt5 import QtCore, QtGui, QtWidgets
 import h5py
 
-from artiq.gui.tools import LayoutWidget, log_level_to_name
+from artiq.gui.tools import LayoutWidget, log_level_to_name, get_open_file_name
 from artiq.gui.entries import argty_to_entry
 from artiq.protocols import pyon
 
@@ -330,18 +330,18 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
 
     def _load_hdf5_clicked(self):
-        dialog = QtWidgets.QFileDialog(self.manager.main_window,
-            "Load HDF5", self.hdf5_load_directory,
-            "HDF5 files (*.h5 *.hdf5);;All files (*.*)")
-        dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
-        def on_accept():
-            filename = dialog.selectedFiles()[0]
-            self.hdf5_load_directory = os.path.dirname(filename)
-            asyncio.ensure_future(self._load_hdf5_task(filename))
-        dialog.accepted.connect(on_accept)
-        dialog.open()
+        asyncio.ensure_future(self._load_hdf5_task())
 
-    async def _load_hdf5_task(self, filename):
+    async def _load_hdf5_task(self):
+        try:
+            filename = await get_open_file_name(
+                self.manager.main_window, "Load HDF5",
+                self.hdf5_load_directory,
+                "HDF5 files (*.h5 *.hdf5);;All files (*.*)")
+        except asyncio.CancelledError:
+            return
+        self.hdf5_load_directory = os.path.dirname(filename)
+
         try:
             with h5py.File(filename, "r") as f:
                 expid = f["expid"][()]

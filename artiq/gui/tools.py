@@ -48,7 +48,7 @@ class LayoutWidget(QtWidgets.QWidget):
         self.layout.addWidget(item, row, col, rowspan, colspan)
 
 
-async def getOpenFileName(parent, caption, dir, filter):
+async def get_open_file_name(parent, caption, dir, filter):
     """like QtWidgets.QFileDialog.getOpenFileName(), but a coroutine"""
     dialog = QtWidgets.QFileDialog(parent, caption, dir, filter)
     dialog.setFileMode(dialog.ExistingFile)
