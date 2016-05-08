@@ -46,9 +46,9 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         set_resize_mode(1, QtWidgets.QHeaderView.Stretch)
         set_resize_mode(2, QtWidgets.QHeaderView.ResizeToContents)
         self.header().setVisible(False)
-        self.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
-        self.setHorizontalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
-        self.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
+        self.setSelectionMode(self.NoSelection)
+        self.setHorizontalScrollMode(self.ScrollPerPixel)
+        self.setVerticalScrollMode(self.ScrollPerPixel)
 
         self.viewport().installEventFilter(_WheelFilter(self.viewport()))
 
@@ -73,8 +73,9 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
             recompute_argument = QtWidgets.QToolButton()
             recompute_argument.setToolTip("Re-run the experiment's build "
                                           "method and take the default value")
-            recompute_argument.setIcon(QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_BrowserReload))
+            recompute_argument.setIcon(
+                QtWidgets.QApplication.style().standardIcon(
+                    QtWidgets.QStyle.SP_BrowserReload))
             recompute_argument.clicked.connect(
                 partial(self._recompute_argument_clicked, name))
             fix_layout = LayoutWidget()
@@ -84,8 +85,9 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         widget_item = QtWidgets.QTreeWidgetItem()
         self.addTopLevelItem(widget_item)
         recompute_arguments = QtWidgets.QPushButton("Recompute all arguments")
-        recompute_arguments.setIcon(QtWidgets.QApplication.style().standardIcon(
-            QtWidgets.QStyle.SP_BrowserReload))
+        recompute_arguments.setIcon(
+            QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_BrowserReload))
         recompute_arguments.clicked.connect(dock._recompute_arguments_clicked)
 
         load_hdf5 = QtWidgets.QPushButton("Load HDF5")
@@ -196,10 +198,12 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
             datetime.setDateTime(QtCore.QDateTime.fromMSecsSinceEpoch(
                 scheduling["due_date"]*1000))
         datetime_en.setChecked(scheduling["due_date"] is not None)
+
         def update_datetime(dt):
             scheduling["due_date"] = dt.toMSecsSinceEpoch()/1000
             datetime_en.setChecked(True)
         datetime.dateTimeChanged.connect(update_datetime)
+
         def update_datetime_en(checked):
             if checked:
                 due_date = datetime.dateTime().toMSecsSinceEpoch()/1000
@@ -213,6 +217,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.layout.addWidget(pipeline_name, 1, 3)
 
         pipeline_name.setText(scheduling["pipeline_name"])
+
         def update_pipeline_name(text):
             scheduling["pipeline_name"] = text
         pipeline_name.textEdited.connect(update_pipeline_name)
@@ -223,6 +228,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.layout.addWidget(priority, 2, 1)
 
         priority.setValue(scheduling["priority"])
+
         def update_priority(value):
             scheduling["priority"] = value
         priority.valueChanged.connect(update_priority)
@@ -232,6 +238,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.layout.addWidget(flush, 2, 2, 1, 2)
 
         flush.setChecked(scheduling["flush"])
+
         def update_flush(checked):
             scheduling["flush"] = bool(checked)
         flush.stateChanged.connect(update_flush)
@@ -247,6 +254,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
         log_level.setCurrentIndex(log_levels.index(
             log_level_to_name(options["log_level"])))
+
         def update_log_level(index):
             options["log_level"] = getattr(logging, log_level.currentText())
         log_level.currentIndexChanged.connect(update_log_level)
@@ -263,6 +271,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
             if options["repo_rev"] is not None:
                 repo_rev.setText(options["repo_rev"])
+
             def update_repo_rev(text):
                 if text:
                     options["repo_rev"] = text
@@ -355,9 +364,9 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         try:
             self.log_level.setCurrentIndex(log_levels.index(
                 log_level_to_name(expid["log_level"])))
-            if ("repo_rev" in expid
-                    and expid["repo_rev"] != "N/A"
-                    and hasattr(self, "repo_rev")):
+            if ("repo_rev" in expid and
+                    expid["repo_rev"] != "N/A" and
+                    hasattr(self, "repo_rev")):
                 self.repo_rev.setText(expid["repo_rev"])
         except:
             logger.error("Could not set submission options from HDF5 expid",
@@ -365,7 +374,6 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
             return
 
         await self._recompute_arguments_task(arguments)
-
 
     def closeEvent(self, event):
         self.sigClosed.emit()
@@ -543,9 +551,9 @@ class ExperimentManager:
                 repo_match = "repo_rev" in expid
             else:
                 repo_match = "repo_rev" not in expid
-            if (repo_match
-                    and expid["file"] == file
-                    and expid["class_name"] == class_name):
+            if (repo_match and
+                    expid["file"] == file and
+                    expid["class_name"] == class_name):
                 rids.append(rid)
         asyncio.ensure_future(self._request_term_multiple(rids))
 
