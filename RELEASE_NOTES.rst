@@ -42,8 +42,8 @@ unreleased [2.x]
   takes into account the repository revision field.
 
 
-1.0rc4 (unreleased)
--------------------
+1.0rc4
+------
 
 * setattr_argument and setattr_device add their key to kernel_invariants.
 
