@@ -303,14 +303,7 @@ class ExperimentsArea(QtWidgets.QMdiArea):
         self.pixmap = QtGui.QPixmap(os.path.join(
             artiq_dir, "gui", "logo20.svg"))
         self.current_dir = root
-        self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        self.setFocusPolicy(QtCore.Qt.StrongFocus)
-
-        action = QtWidgets.QAction("&Open experiment", self)
-        action.setShortcut(QtGui.QKeySequence("CTRL+o"))
-        action.setShortcutContext(QtCore.Qt.WidgetShortcut)
-        action.triggered.connect(self._select_experiment)
-        self.addAction(action)
+        self.setToolTip("Click to open experiment")
 
         self.open_experiments = []
 
@@ -320,6 +313,10 @@ class ExperimentsArea(QtWidgets.QMdiArea):
             "get_dataset": lambda k: 0,  # TODO
             "update_dataset": lambda k, v: None,
         }
+
+    def mousePressEvent(self, ev):
+        if ev.button() == QtCore.Qt.LeftButton:
+            asyncio.ensure_future(self._select_experiment_task())
 
     def paintEvent(self, event):
         QtWidgets.QMdiArea.paintEvent(self, event)
