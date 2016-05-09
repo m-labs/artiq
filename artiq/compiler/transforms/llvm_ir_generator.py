@@ -1395,18 +1395,28 @@ class LLVMIRGenerator:
             lleltsptr = llglobal.bitcast(lleltsary.type.element.as_pointer())
             llconst   = ll.Constant(llty, [ll.Constant(lli32, len(llelts)), lleltsptr])
             return llconst
-        elif types.is_rpc(typ) or types.is_function(typ):
+        elif types.is_rpc(typ) or types.is_c_function(typ):
             # RPC and C functions have no runtime representation.
-            # We only get down this codepath for ARTIQ Python functions when they're
-            # referenced from a constructor, and the value inside the constructor
-            # is never used.
             return ll.Constant(llty, ll.Undefined)
+        elif types.is_function(typ):
+            llfun     = self.get_function(typ, self.function_map[value])
+            llclosure = ll.Constant(self.llty_of_type(typ), [
+                            ll.Constant(llptr, ll.Undefined),
+                            llfun
+                        ])
+            return llclosure
+        elif types.is_method(typ):
+            llclosure = self._quote(value.__func__, types.get_method_function(typ),
+                                    lambda: path() + ['__func__'])
+            llself    = self._quote(value.__self__, types.get_method_self(typ),
+                                    lambda: path() + ['__self__'])
+            return ll.Constant(llty, [llclosure, llself])
         else:
             print(typ)
             assert False
 
     def process_Quote(self, insn):
-        if insn.value in self.function_map:
+        if insn.value in self.function_map and types.is_function(insn.type):
             llfun = self.get_function(insn.type.find(), self.function_map[insn.value])
             llclosure = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
             llclosure = self.llbuilder.insert_value(llclosure, llfun, 1, name=insn.name)
