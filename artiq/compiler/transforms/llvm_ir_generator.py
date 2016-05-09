@@ -1399,7 +1399,7 @@ class LLVMIRGenerator:
             # RPC and C functions have no runtime representation.
             return ll.Constant(llty, ll.Undefined)
         elif types.is_function(typ):
-            llfun     = self.get_function(typ, self.function_map[value])
+            llfun     = self.get_function(typ.find(), self.function_map[value])
             llclosure = ll.Constant(self.llty_of_type(typ), [
                             ll.Constant(llptr, ll.Undefined),
                             llfun
