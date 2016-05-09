@@ -105,13 +105,24 @@ class ASTSynthesizer:
                                   loc=begin_loc.join(end_loc))
         elif inspect.isfunction(value) or inspect.ismethod(value) or \
                 isinstance(value, pytypes.BuiltinFunctionType):
-            quote_loc   = self._add('`')
-            repr_loc    = self._add(repr(value))
-            unquote_loc = self._add('`')
-            loc         = quote_loc.join(unquote_loc)
+            if inspect.ismethod(value):
+                quoted_self   = self.quote(value.__self__)
+                function_type = self.quote_function(value.__func__, self.expanded_from)
+                method_type   = types.TMethod(quoted_self.type, function_type)
 
-            function_type = self.quote_function(value, self.expanded_from)
-            return asttyped.QuoteT(value=value, type=function_type, loc=loc)
+                dot_loc     = self._add('.')
+                name_loc    = self._add(value.__func__.__name__)
+                loc         = quoted_self.loc.join(name_loc)
+                return asttyped.QuoteT(value=value, type=method_type,
+                                       self_loc=quoted_self.loc, loc=loc)
+            else:
+                function_type = self.quote_function(value, self.expanded_from)
+
+                quote_loc   = self._add('`')
+                repr_loc    = self._add(repr(value))
+                unquote_loc = self._add('`')
+                loc         = quote_loc.join(unquote_loc)
+                return asttyped.QuoteT(value=value, type=function_type, loc=loc)
         else:
             quote_loc   = self._add('`')
             repr_loc    = self._add(repr(value))
@@ -476,6 +487,16 @@ class StitchingInferencer(Inferencer):
 
         super()._unify_attribute(result_type, value_node, attr_name, attr_loc, loc)
 
+    def visit_QuoteT(self, node):
+        if inspect.ismethod(node.value):
+            if types.is_rpc(types.get_method_function(node.type)):
+                return
+            self._unify_method_self(method_type=node.type,
+                                    attr_name=node.value.__func__.__name__,
+                                    attr_loc=None,
+                                    loc=node.loc,
+                                    self_loc=node.self_loc)
+
 class TypedtreeHasher(algorithm.Visitor):
     def generic_visit(self, node):
         def freeze(obj):
@@ -770,8 +791,12 @@ class Stitcher:
 
         if isinstance(callee, pytypes.BuiltinFunctionType):
             pass
-        elif isinstance(callee, pytypes.FunctionType):
-            signature = inspect.signature(callee)
+        elif isinstance(callee, pytypes.FunctionType) or isinstance(callee, pytypes.MethodType):
+            if isinstance(callee, pytypes.FunctionType):
+                signature = inspect.signature(callee)
+            else:
+                # inspect bug?
+                signature = inspect.signature(callee.__func__)
             if signature.return_annotation is not inspect.Signature.empty:
                 ret_type = self._extract_annot(callee, signature.return_annotation,
                                                "return type", loc, is_syscall=False)

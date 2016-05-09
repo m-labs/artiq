@@ -92,6 +92,41 @@ class Inferencer(algorithm.Visitor):
                               attr_name=node.attr, attr_loc=node.attr_loc,
                               loc=node.loc)
 
+    def _unify_method_self(self, method_type, attr_name, attr_loc, loc, self_loc):
+        self_type     = types.get_method_self(method_type)
+        function_type = types.get_method_function(method_type)
+
+        if len(function_type.args) < 1:
+            diag = diagnostic.Diagnostic("error",
+                "function '{attr}{type}' of class '{class}' cannot accept a self argument",
+                {"attr": attr_name, "type": types.TypePrinter().name(function_type),
+                 "class": self_type.name},
+                loc)
+            self.engine.process(diag)
+        else:
+            def makenotes(printer, typea, typeb, loca, locb):
+                if attr_loc is None:
+                    msgb = "reference to an instance with a method '{attr}{typeb}'"
+                else:
+                    msgb = "reference to a method '{attr}{typeb}'"
+
+                return [
+                    diagnostic.Diagnostic("note",
+                        "expression of type {typea}",
+                        {"typea": printer.name(typea)},
+                        loca),
+                    diagnostic.Diagnostic("note",
+                        msgb,
+                        {"attr": attr_name,
+                         "typeb": printer.name(function_type)},
+                        locb)
+                ]
+
+            self._unify(self_type, list(function_type.args.values())[0],
+                        self_loc, loc,
+                        makenotes=makenotes,
+                        when=" while inferring the type for self argument")
+
     def _unify_attribute(self, result_type, value_node, attr_name, attr_loc, loc):
         object_type = value_node.type.find()
         if not types.is_var(object_type):
@@ -116,39 +151,8 @@ class Inferencer(algorithm.Visitor):
                 attr_type = object_type.constructor.attributes[attr_name].find()
                 if types.is_function(attr_type):
                     # Convert to a method.
-                    if len(attr_type.args) < 1:
-                        diag = diagnostic.Diagnostic("error",
-                            "function '{attr}{type}' of class '{class}' cannot accept a self argument",
-                            {"attr": attr_name, "type": types.TypePrinter().name(attr_type),
-                             "class": object_type.name},
-                            loc)
-                        self.engine.process(diag)
-                        return
-                    else:
-                        def makenotes(printer, typea, typeb, loca, locb):
-                            if attr_loc is None:
-                                msgb = "reference to an instance with a method '{attr}{typeb}'"
-                            else:
-                                msgb = "reference to a method '{attr}{typeb}'"
-
-                            return [
-                                diagnostic.Diagnostic("note",
-                                    "expression of type {typea}",
-                                    {"typea": printer.name(typea)},
-                                    loca),
-                                diagnostic.Diagnostic("note",
-                                    msgb,
-                                    {"attr": attr_name,
-                                     "typeb": printer.name(attr_type)},
-                                    locb)
-                            ]
-
-                        self._unify(object_type, list(attr_type.args.values())[0],
-                                    value_node.loc, loc,
-                                    makenotes=makenotes,
-                                    when=" while inferring the type for self argument")
-
                     attr_type = types.TMethod(object_type, attr_type)
+                    self._unify_method_self(attr_type, attr_name, attr_loc, loc, value_node.loc)
                 elif types.is_rpc(attr_type):
                     # Convert to a method. We don't have to bother typechecking
                     # the self argument, since for RPCs anything goes.
@@ -894,6 +898,8 @@ class Inferencer(algorithm.Visitor):
                 self._unify(node.type, typ.ret,
                             node.loc, None)
                 return
+            elif typ.arity() == 0:
+                return # error elsewhere
 
             typ_arity   = typ.arity() - 1
             typ_args    = OrderedDict(list(typ.args.items())[1:])
