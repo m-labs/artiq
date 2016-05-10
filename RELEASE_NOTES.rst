@@ -3,6 +3,12 @@
 Release notes
 =============
 
+1.0
+---
+
+No further notes.
+
+
 1.0rc4
 ------
 
