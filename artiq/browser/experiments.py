@@ -11,6 +11,7 @@ from artiq import __artiq_dir__ as artiq_dir
 from artiq.gui.tools import LayoutWidget, log_level_to_name, get_open_file_name
 from artiq.gui.entries import argty_to_entry
 from artiq.protocols import pyon
+from artiq.protocols.sync_struct import process_mod
 from artiq.master.worker import Worker
 
 logger = logging.getLogger(__name__)
@@ -262,8 +263,25 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         await self._recompute_arguments(arguments)
 
     def run_clicked(self):
+        class_name, file = self.expurl.split("@", maxsplit=1)
+        expid = {
+            "repo_rev": "N/A",
+            "file": file,
+            "class_name": class_name,
+            "log_level": self.options["log_level"],
+            "arguments": {
+                name: argty_to_entry[argument["desc"]["ty"]].state_to_value(
+                    argument["state"])
+                for name, argument in self.arguments.items()},
+        }
+        asyncio.ensure_future(self._run_task(expid))  # TODO
+
+    async def _run_task(self, expid):
+        worker = Worker(self._area.worker_handlers)
         try:
-            pass  # TODO
+            await worker.build(rid=None, pipeline_name="main", wd=".",
+                               expid=expid, priority=0)
+            await worker.analyze()
         except:
             # May happen when experiment has been removed
             # from repository/explist
@@ -296,6 +314,17 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.options = state["options"]
 
 
+class LocalDatasetDB:
+    def init(self, data):
+        self._data = data
+
+    def get(self, key):
+        return self._data[key][1]
+
+    def update(self, mod):
+        process_mod(self._data, mod)
+
+
 class ExperimentsArea(QtWidgets.QMdiArea):
     def __init__(self, root, datasets_sub):
         QtWidgets.QMdiArea.__init__(self)
@@ -306,11 +335,14 @@ class ExperimentsArea(QtWidgets.QMdiArea):
 
         self.open_experiments = []
 
+        self._ddb = LocalDatasetDB()
+        datasets_sub.add_setmodel_callback(self._ddb.init)
+
         self.worker_handlers = {
             "get_device_db": lambda: None,
             "get_device": lambda k: None,
-            "get_dataset": lambda k: 0,  # TODO
-            "update_dataset": lambda k, v: None,
+            "get_dataset": self._ddb.get,
+            "update_dataset": self._ddb.update,
         }
 
     def mousePressEvent(self, ev):
