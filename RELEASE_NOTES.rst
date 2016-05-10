@@ -42,6 +42,12 @@ unreleased [2.x]
   takes into account the repository revision field.
 
 
+1.0
+---
+
+No further notes.
+
+
 1.0rc4
 ------
 
