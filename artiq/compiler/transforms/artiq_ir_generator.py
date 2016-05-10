@@ -599,7 +599,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.append(ir.Reraise())
 
     def visit_Raise(self, node):
-        self.raise_exn(self.visit(node.exc), loc=self.current_loc)
+        if types.is_exn_constructor(node.exc.type):
+            self.raise_exn(self.alloc_exn(node.exc.type.instance), loc=self.current_loc)
+        else:
+            self.raise_exn(self.visit(node.exc), loc=self.current_loc)
 
     def visit_Try(self, node):
         dispatcher = self.add_block("try.dispatch")
