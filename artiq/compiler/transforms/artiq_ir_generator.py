@@ -599,7 +599,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.append(ir.Reraise())
 
     def visit_Raise(self, node):
-        if types.is_exn_constructor(node.exc.type):
+        if node.exc is not None and types.is_exn_constructor(node.exc.type):
             self.raise_exn(self.alloc_exn(node.exc.type.instance), loc=self.current_loc)
         else:
             self.raise_exn(self.visit(node.exc), loc=self.current_loc)
