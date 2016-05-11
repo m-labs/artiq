@@ -1,4 +1,5 @@
 #!/usr/bin/env python3.5
+# -*- coding: utf-8 -*-
 
 from setuptools import setup, find_packages
 import sys
