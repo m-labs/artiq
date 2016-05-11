@@ -13,6 +13,7 @@ Major releases
 5. Test and fix any problems found. Apply fixes to both master and release-X.
 6. If you have willing testers for release candidates, tag X.0rc1 in the release-X branch, have it build, and point testers there. Iterate over the previous points with new release candidates if necessary.
 7. Tag X.0 in the release-X branch, build it, and copy its packages to ``main`` channel.
+8. Mint a new DOI from Zenodo and update the README/introduction.
 
 Minor (bugfix) releases
 -----------------------
