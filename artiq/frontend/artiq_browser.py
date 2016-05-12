@@ -12,8 +12,7 @@ from quamash import QEventLoop
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import verbosity_args, init_logger, atexit_register_coroutine
 from artiq.gui import state, applets, models
-from artiq.browser import datasets, files
-from artiq.browser import experiments
+from artiq.browser import datasets, files, experiments
 
 
 logger = logging.getLogger(__name__)
