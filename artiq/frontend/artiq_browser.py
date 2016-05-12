@@ -107,6 +107,7 @@ def main():
     main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_datasets)
 
     toolbar = main_window.addToolBar("Experiment")
+    toolbar.setObjectName("experiment_toolbar")
     toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
 
     open_action = QtWidgets.QAction("Open Experiment", main_window)
