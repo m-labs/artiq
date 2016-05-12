@@ -1,4 +1,3 @@
-from math import sqrt, cos, pi
 import time
 import random
 
@@ -26,8 +25,8 @@ class FloppingF(EnvExperiment):
             default=LinearScan(1000, 2000, 100)))
 
         self.setattr_argument("F0", NumberValue(1500, min=1000, max=2000))
-        self.setattr_argument("noise_amplitude", NumberValue(0.1, min=0, max=100,
-                                                          step=0.01))
+        self.setattr_argument("noise_amplitude", NumberValue(
+            0.1, min=0, max=100, step=0.01))
 
         self.setattr_device("scheduler")
 
