@@ -176,6 +176,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.layout.setRowStretch(0, 1)
 
         self.options = {"log_level": logging.WARNING}
+        self._worker = None
+        self._run_task = None
 
         log_level = QtWidgets.QComboBox()
         log_level.addItems(log_levels)
@@ -263,6 +265,9 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         await self._recompute_arguments(arguments)
 
     def run_clicked(self):
+        if self._run_task is not None:
+            logger.error("Analysis already started")
+            return
         class_name, file = self.expurl.split("@", maxsplit=1)
         expid = {
             "repo_rev": "N/A",
@@ -274,23 +279,35 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
                     argument["state"])
                 for name, argument in self.arguments.items()},
         }
-        asyncio.ensure_future(self._run_task(expid))  # TODO
+        self._run_task = asyncio.ensure_future(self._get_run_task(expid))
 
-    async def _run_task(self, expid):
-        worker = Worker(self._area.worker_handlers)
+        def done(fut):
+            logger.info("Analysis done")
+            self._run_task = None
+
+        self._run_task.add_done_callback(done)
+
+    async def _get_run_task(self, expid):
+        self._worker = Worker(self._area.worker_handlers)
         try:
-            await worker.build(rid=None, pipeline_name="main", wd=".",
-                               expid=expid, priority=0)
-            await worker.analyze()
+            await self._worker.build(rid=None, pipeline_name="browser",
+                                     wd=os.path.abspath("."),
+                                     expid=expid, priority=0)
+            await self._worker.analyze()
         except:
             # May happen when experiment has been removed
             # from repository/explist
             logger.error("Failed to run '%s'",
                          self.expurl, exc_info=True)
+        finally:
+            await self._worker.close()
+            self._worker = None
 
     def terminate_clicked(self):
+        if self._run_task is None:
+            return
         try:
-            pass  # TODO
+            self._run_task.cancel()
         except:
             # May happen when experiment has been removed
             # from repository/explist
@@ -319,7 +336,7 @@ class LocalDatasetDB:
         self._data = data
 
     def get(self, key):
-        return self._data[key][1]
+        return self._data.backing_store[key][1]
 
     def update(self, mod):
         process_mod(self._data, mod)
