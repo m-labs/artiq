@@ -57,8 +57,17 @@ class FloppingF(EnvExperiment):
 
     def analyze(self):
         # Use get_dataset so that analyze can be run stand-alone.
-        frequency = self.get_dataset("flopping_f_frequency")
         brightness = self.get_dataset("flopping_f_brightness")
+        try:
+            frequency = self.get_dataset("flopping_f_frequency")
+        except KeyError:
+            # Since flopping_f_frequency is not saved, it is missing if
+            # analyze() is run on HDF5 data. But assuming that the arguments
+            # have been loaded from that same HDF5 file, we can reconstruct it.
+            frequency = np.fromiter(self.frequency_scan, np.float)
+            assert frequency.shape == brightness.shape
+            self.set_dataset("flopping_f_frequency", frequency,
+                             broadcast=True, save=False)
         popt, pcov = curve_fit(model_numpy,
                                frequency, brightness,
                                p0=[self.get_dataset("flopping_freq", 1500.0)])
