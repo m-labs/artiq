@@ -13,14 +13,9 @@ def model(x, F0):
     tpi = 0.03
     A = 80
     B = 40
-    return A+(B-A)/2/(4*tpi**2*(x-F0)**2+1)*(1-cos(pi*t/tpi*sqrt(4*tpi**2*(x-F0)**2+1)))
-
-
-def model_numpy(xdata, F0):
-    r = np.zeros(len(xdata))
-    for i, x in enumerate(xdata):
-        r[i] = model(x, F0)
-    return r
+    return A + (B - A)/2/(4*tpi**2*(x - F0)**2+1)*(
+        1 - np.cos(np.pi*t/tpi*np.sqrt(4*tpi**2*(x - F0)**2 + 1))
+    )
 
 
 class FloppingF(EnvExperiment):
@@ -68,8 +63,7 @@ class FloppingF(EnvExperiment):
             assert frequency.shape == brightness.shape
             self.set_dataset("flopping_f_frequency", frequency,
                              broadcast=True, save=False)
-        popt, pcov = curve_fit(model_numpy,
-                               frequency, brightness,
+        popt, pcov = curve_fit(model, frequency, brightness,
                                p0=[self.get_dataset("flopping_freq", 1500.0)])
         perr = np.sqrt(np.diag(pcov))
         if perr < 0.1:
