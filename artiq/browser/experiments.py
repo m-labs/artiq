@@ -348,7 +348,6 @@ class ExperimentsArea(QtWidgets.QMdiArea):
         self.pixmap = QtGui.QPixmap(os.path.join(
             artiq_dir, "gui", "logo20.svg"))
         self.current_dir = root
-        self.setToolTip("Click to open experiment")
 
         self.open_experiments = []
 
@@ -364,7 +363,7 @@ class ExperimentsArea(QtWidgets.QMdiArea):
 
     def mousePressEvent(self, ev):
         if ev.button() == QtCore.Qt.LeftButton:
-            asyncio.ensure_future(self._select_experiment_task())
+            self.select_experiment()
 
     def paintEvent(self, event):
         QtWidgets.QMdiArea.paintEvent(self, event)
@@ -389,7 +388,7 @@ class ExperimentsArea(QtWidgets.QMdiArea):
                                         ex_state["arguments"])
             dock.restore_state(ex_state["dock"])
 
-    def _select_experiment(self):
+    def select_experiment(self):
         asyncio.ensure_future(self._select_experiment_task())
 
     async def _select_experiment_task(self):

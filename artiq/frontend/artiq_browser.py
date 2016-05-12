@@ -81,6 +81,7 @@ def main():
     # initialize main window
     main_window = MainWindow()
     smgr.register(main_window)
+    main_window.setUnifiedTitleAndToolBarOnMac(True)
     status_bar = QtWidgets.QStatusBar()
     main_window.setStatusBar(status_bar)
 
@@ -104,6 +105,17 @@ def main():
     main_window.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d_files)
     main_window.addDockWidget(QtCore.Qt.BottomDockWidgetArea, d_applets)
     main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_datasets)
+
+    toolbar = main_window.addToolBar("Experiment")
+    toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
+
+    open_action = QtWidgets.QAction("Open Experiment", main_window)
+    open_action.setIcon(app.style().standardIcon(
+        QtWidgets.QStyle.SP_DialogOpenButton))
+    open_action.setShortcuts(QtGui.QKeySequence.Open)
+    open_action.setStatusTip("Open existing experiment from file")
+    open_action.triggered.connect(mdi_area.select_experiment)
+    toolbar.addAction(open_action)
 
     # load/initialize state
     if os.name == "nt":
