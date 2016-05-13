@@ -32,11 +32,13 @@ class LocalModelManager(ModelManager):
         ModelManager.__init__(self, model_factory)
         self.notify_cbs = []
 
-    def init(self, struct):
-        self._create_model(struct)
-        mod = {"action": "init", "struct": struct}
+    def update(self, mod):
         for notify_cb in self.notify_cbs:
             notify_cb(mod)
+
+    def init(self, struct):
+        self._create_model(struct)
+        self.update({"action": "init", "struct": struct})
 
 
 class _SyncSubstruct:

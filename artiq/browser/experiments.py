@@ -332,6 +332,10 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
 
 class LocalDatasetDB:
+    def __init__(self, datasets_sub):
+        self.datasets_sub = datasets_sub
+        datasets_sub.add_setmodel_callback(self.init)
+
     def init(self, data):
         self._data = data
 
@@ -339,6 +343,7 @@ class LocalDatasetDB:
         return self._data.backing_store[key][1]
 
     def update(self, mod):
+        self.datasets_sub.update(mod)
         process_mod(self._data, mod)
 
 
@@ -351,8 +356,7 @@ class ExperimentsArea(QtWidgets.QMdiArea):
 
         self.open_experiments = []
 
-        self._ddb = LocalDatasetDB()
-        datasets_sub.add_setmodel_callback(self._ddb.init)
+        self._ddb = LocalDatasetDB(datasets_sub)
 
         self.worker_handlers = {
             "get_device_db": lambda: None,

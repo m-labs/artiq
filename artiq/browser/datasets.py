@@ -36,7 +36,7 @@ class DatasetsDock(QtWidgets.QDockWidget):
             QtWidgets.QAbstractItemView.SingleSelection)
         grid.addWidget(self.table, 1, 0)
 
-        self.table_model = Model(dict())
+        self.set_model(Model(dict()))
         datasets_sub.add_setmodel_callback(self.set_model)
 
     def _search_datasets(self):
