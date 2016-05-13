@@ -82,8 +82,6 @@ def main():
     main_window = MainWindow()
     smgr.register(main_window)
     main_window.setUnifiedTitleAndToolBarOnMac(True)
-    status_bar = QtWidgets.QStatusBar()
-    main_window.setStatusBar(status_bar)
 
     mdi_area = experiments.ExperimentsArea(args.browse_root, datasets_sub)
     mdi_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
@@ -114,7 +112,6 @@ def main():
     open_action.setIcon(app.style().standardIcon(
         QtWidgets.QStyle.SP_DialogOpenButton))
     open_action.setShortcuts(QtGui.QKeySequence.Open)
-    open_action.setStatusTip("Open existing experiment from file")
     open_action.triggered.connect(mdi_area.select_experiment)
     toolbar.addAction(open_action)
 
