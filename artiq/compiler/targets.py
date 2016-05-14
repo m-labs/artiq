@@ -196,7 +196,7 @@ class Target:
         # the backtrace entry should point at.
         offset_addresses = [hex(addr - 1) for addr in addresses]
         with RunTool([self.triple + "-addr2line", "--addresses",  "--functions", "--inlines",
-                      "--exe={library}"] + offset_addresses,
+                      "--demangle", "--exe={library}"] + offset_addresses,
                      library=library) \
                 as results:
             lines = iter(results["__stdout__"].rstrip().split("\n"))
@@ -220,6 +220,10 @@ class Target:
                 # can't get column out of addr2line D:
                 backtrace.append((filename, int(line), -1, function, address))
             return backtrace
+
+    def demangle(self, names):
+        with RunTool([self.triple + "-c++filt"] + names) as results:
+            return results["__stdout__"].rstrip().split("\n")
 
 class NativeTarget(Target):
     def __init__(self):

@@ -92,7 +92,8 @@ class Core:
             stripped_library = target.strip(library)
 
             return stitcher.object_map, stripped_library, \
-                   lambda addresses: target.symbolize(library, addresses)
+                   lambda addresses: target.symbolize(library, addresses), \
+                   lambda symbols: target.demangle(symbols)
         except diagnostic.Error as error:
             raise CompileError(error.diagnostic) from error
 
@@ -102,7 +103,8 @@ class Core:
             nonlocal result
             result = new_result
 
-        object_map, kernel_library, symbolizer = self.compile(function, args, kwargs, set_result)
+        object_map, kernel_library, symbolizer, demangler = \
+            self.compile(function, args, kwargs, set_result)
 
         if self.first_run:
             self.comm.check_ident()
@@ -111,7 +113,7 @@ class Core:
 
         self.comm.load(kernel_library)
         self.comm.run()
-        self.comm.serve(object_map, symbolizer)
+        self.comm.serve(object_map, symbolizer, demangler)
 
         return result
 

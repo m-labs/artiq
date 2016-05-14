@@ -504,7 +504,7 @@ class CommGeneric:
 
             self._write_flush()
 
-    def _serve_exception(self, object_map, symbolizer):
+    def _serve_exception(self, object_map, symbolizer, demangler):
         name      = self._read_string()
         message   = self._read_string()
         params    = [self._read_int64() for _ in range(3)]
@@ -517,7 +517,7 @@ class CommGeneric:
         backtrace = [self._read_int32() for _ in range(self._read_int32())]
 
         traceback = list(reversed(symbolizer(backtrace))) + \
-                    [(filename, line, column, function, None)]
+                    [(filename, line, column, *demangler([function]), None)]
         core_exn = exceptions.CoreException(name, message, params, traceback)
 
         if core_exn.id == 0:
@@ -529,13 +529,13 @@ class CommGeneric:
         python_exn.artiq_core_exception = core_exn
         raise python_exn
 
-    def serve(self, object_map, symbolizer):
+    def serve(self, object_map, symbolizer, demangler):
         while True:
             self._read_header()
             if self._read_type == _D2HMsgType.RPC_REQUEST:
                 self._serve_rpc(object_map)
             elif self._read_type == _D2HMsgType.KERNEL_EXCEPTION:
-                self._serve_exception(object_map, symbolizer)
+                self._serve_exception(object_map, symbolizer, demangler)
             elif self._read_type == _D2HMsgType.WATCHDOG_EXPIRED:
                 raise exceptions.WatchdogExpired
             elif self._read_type == _D2HMsgType.CLOCK_FAILURE:
