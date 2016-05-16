@@ -4,8 +4,6 @@ import os
 import h5py
 from PyQt5 import QtCore, QtWidgets, QtGui
 
-from artiq.protocols import pyon
-
 logger = logging.getLogger(__name__)
 
 
