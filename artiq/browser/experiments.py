@@ -228,7 +228,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
             if uri.scheme() == "file":
                 logger.info("Loading HDF5 arguments from %s", uri.path())
                 asyncio.ensure_future(self._load_hdf5_task(uri.path()))
-        ev.acceptProposedAction()
+                break
 
     async def _recompute_arguments(self, overrides={}):
         try:
