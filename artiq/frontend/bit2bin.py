@@ -60,7 +60,8 @@ def bit2bin(bit, bin, flip=False):
             d = bitfile.read(l)
             if flip:
                 d = flip32(d)
-            open(bin, "wb").write(d)
+            with open(bin, "wb") as f:
+                f.write(d)
         else:
             d = bitfile.read(*struct.unpack(">H", bitfile.read(2)))
             print("Unexpected key: ", key, d)
