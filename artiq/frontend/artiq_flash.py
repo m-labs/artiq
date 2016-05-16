@@ -88,7 +88,7 @@ def main():
                       "/usr/local/share/migen", "/usr/share/migen"]:
                 proxy_ = os.path.join(p, proxy_base)
                 if os.access(proxy_, os.R_OK):
-                    proxy = "jtagspi_init 0 {}".format(proxy_)
+                    proxy = "jtagspi_init 0 {{{}}}".format(proxy_)
                     break
             if not proxy:
                 raise SystemExit(
@@ -100,19 +100,19 @@ def main():
                 bin_handle, bin = tempfile.mkstemp()
                 bit = os.path.join(opts.dir, "top.bit")
                 conv = True
-            prog.append("jtagspi_program {} 0x{:x}".format(
+            prog.append("jtagspi_program {{{}}} 0x{:x}".format(
                 bin, config["gateware"]))
         elif action == "bios":
-            prog.append("jtagspi_program {} 0x{:x}".format(
+            prog.append("jtagspi_program {{{}}} 0x{:x}".format(
                 os.path.join(opts.dir, "bios.bin"), config["bios"]))
         elif action == "runtime":
-            prog.append("jtagspi_program {} 0x{:x}".format(
+            prog.append("jtagspi_program {{{}}} 0x{:x}".format(
                 os.path.join(opts.dir, "runtime.fbi"), config["runtime"]))
         elif action == "storage":
-            prog.append("jtagspi_program {} 0x{:x}".format(
+            prog.append("jtagspi_program {{{}}} 0x{:x}".format(
                 opts.storage, config["storage"]))
         elif action == "load":
-            prog.append("pld load 0 {}".format(
+            prog.append("pld load 0 {{{}}}".format(
                 os.path.join(opts.dir, "top.bit")))
         elif action == "start":
             prog.append(config["start"])
