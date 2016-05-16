@@ -126,6 +126,7 @@ class FilesDock(QtWidgets.QDockWidget):
         self.rl.setModel(self.model)
         self.rl.selectionModel().currentChanged.connect(
             self.list_current_changed)
+        self.rl.activated.connect(self.list_activated)
         self.splitter.addWidget(self.rl)
 
         self.restore_selected = select is None
@@ -151,6 +152,14 @@ class FilesDock(QtWidgets.QDockWidget):
                 return
             rd = {k: (True, v.value) for k, v in f["datasets"].items()}
             self.datasets.init(rd)
+
+    def list_activated(self, idx):
+        if not self.model.fileInfo(idx).isDir():
+            return
+        self.rl.setRootIndex(idx)
+        idx = self.rt.model().mapFromSource(idx)
+        self.rt.expand(idx)
+        self.rt.setCurrentIndex(idx)
 
     def select_dir(self, path):
         if not os.path.exists(path):
