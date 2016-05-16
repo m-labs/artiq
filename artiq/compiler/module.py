@@ -18,11 +18,7 @@ class Source:
             self.engine = diagnostic.Engine(all_errors_are_fatal=True)
         else:
             self.engine = engine
-
-        self.function_map = {}
-        self.object_map = None
-        self.type_map = {}
-
+        self.embedding_map = None
         self.name, _ = os.path.splitext(os.path.basename(source_buffer.name))
 
         asttyped_rewriter = transforms.ASTTypedRewriter(engine=engine,
@@ -46,9 +42,9 @@ class Source:
 class Module:
     def __init__(self, src, ref_period=1e-6):
         self.engine = src.engine
-        self.function_map = src.function_map
-        self.object_map = src.object_map
-        self.type_map = src.type_map
+        self.embedding_map = src.embedding_map
+        self.name = src.name
+        self.globals = src.globals
 
         int_monomorphizer = transforms.IntMonomorphizer(engine=self.engine)
         inferencer = transforms.Inferencer(engine=self.engine)
@@ -65,8 +61,6 @@ class Module:
         devirtualization = analyses.Devirtualization()
         interleaver = transforms.Interleaver(engine=self.engine)
 
-        self.name = src.name
-        self.globals = src.globals
         int_monomorphizer.visit(src.typedtree)
         inferencer.visit(src.typedtree)
         monomorphism_validator.visit(src.typedtree)
@@ -84,7 +78,7 @@ class Module:
         """Compile the module to LLVM IR for the specified target."""
         llvm_ir_generator = transforms.LLVMIRGenerator(
             engine=self.engine, module_name=self.name, target=target,
-            function_map=self.function_map, object_map=self.object_map, type_map=self.type_map)
+            embedding_map=self.embedding_map)
         return llvm_ir_generator.process(self.artiq_ir, attribute_writeback=True)
 
     def entry_point(self):

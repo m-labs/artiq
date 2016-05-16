@@ -91,7 +91,7 @@ class Core:
             library = target.compile_and_link([module])
             stripped_library = target.strip(library)
 
-            return stitcher.object_map, stripped_library, \
+            return stitcher.embedding_map, stripped_library, \
                    lambda addresses: target.symbolize(library, addresses), \
                    lambda symbols: target.demangle(symbols)
         except diagnostic.Error as error:
@@ -103,7 +103,7 @@ class Core:
             nonlocal result
             result = new_result
 
-        object_map, kernel_library, symbolizer, demangler = \
+        embedding_map, kernel_library, symbolizer, demangler = \
             self.compile(function, args, kwargs, set_result)
 
         if self.first_run:
@@ -113,7 +113,7 @@ class Core:
 
         self.comm.load(kernel_library)
         self.comm.run()
-        self.comm.serve(object_map, symbolizer, demangler)
+        self.comm.serve(embedding_map, symbolizer, demangler)
 
         return result
 

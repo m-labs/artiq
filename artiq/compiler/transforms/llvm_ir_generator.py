@@ -122,12 +122,10 @@ class DebugInfoEmitter:
 
 
 class LLVMIRGenerator:
-    def __init__(self, engine, module_name, target, function_map, object_map, type_map):
+    def __init__(self, engine, module_name, target, embedding_map):
         self.engine = engine
         self.target = target
-        self.function_map = function_map
-        self.object_map = object_map
-        self.type_map = type_map
+        self.embedding_map = embedding_map
         self.llcontext = target.llcontext
         self.llmodule = ll.Module(context=self.llcontext, name=module_name)
         self.llmodule.triple = target.triple
@@ -402,7 +400,7 @@ class LLVMIRGenerator:
         if any(functions):
             self.debug_info_emitter.finalize(functions[0].loc.source_buffer)
 
-        if attribute_writeback and self.object_map is not None:
+        if attribute_writeback and self.embedding_map is not None:
             self.emit_attribute_writeback()
 
         return self.llmodule
@@ -410,15 +408,15 @@ class LLVMIRGenerator:
     def emit_attribute_writeback(self):
         llobjects = defaultdict(lambda: [])
 
-        for obj_id in self.object_map:
-            obj_ref = self.object_map.retrieve(obj_id)
+        for obj_id in self.embedding_map.iter_objects():
+            obj_ref = self.embedding_map.retrieve_object(obj_id)
             if isinstance(obj_ref, (pytypes.FunctionType, pytypes.MethodType,
                                     pytypes.BuiltinFunctionType)):
                 continue
             elif isinstance(obj_ref, type):
-                _, typ = self.type_map[obj_ref]
+                _, typ = self.embedding_map.retrieve_type(obj_ref)
             else:
-                typ, _ = self.type_map[type(obj_ref)]
+                typ, _ = self.embedding_map.retrieve_type(type(obj_ref))
 
             llobject = self.llmodule.get_global("O.{}".format(obj_id))
             if llobject is not None:
@@ -1091,8 +1089,11 @@ class LLVMIRGenerator:
         llargs    = [self.map(arg) for arg in insn.arguments()]
         llclosure = self.map(insn.target_function())
         if insn.static_target_function is None:
-            llfun = self.llbuilder.extract_value(llclosure, 1,
-                                                 name="fun.{}".format(llclosure.name))
+            if isinstance(llclosure, ll.Constant):
+                name = "fun.{}".format(llclosure.constant[1].name)
+            else:
+                name = "fun.{}".format(llclosure.name)
+            llfun = self.llbuilder.extract_value(llclosure, 1, name=name)
         else:
             llfun = self.map(insn.static_target_function)
         llenv     = self.llbuilder.extract_value(llclosure, 0, name="env.fun")
@@ -1346,7 +1347,7 @@ class LLVMIRGenerator:
             llfields = []
             for attr in typ.attributes:
                 if attr == "__objectid__":
-                    objectid = self.object_map.store(value)
+                    objectid = self.embedding_map.store_object(value)
                     llfields.append(ll.Constant(lli32, objectid))
 
                     assert llglobal is None
@@ -1399,7 +1400,7 @@ class LLVMIRGenerator:
             # RPC and C functions have no runtime representation.
             return ll.Constant(llty, ll.Undefined)
         elif types.is_function(typ):
-            llfun     = self.get_function(typ.find(), self.function_map[value])
+            llfun     = self.get_function(typ.find(), self.embedding_map.retrieve_function(value))
             llclosure = ll.Constant(self.llty_of_type(typ), [
                             ll.Constant(llptr, ll.Undefined),
                             llfun
@@ -1416,14 +1417,8 @@ class LLVMIRGenerator:
             assert False
 
     def process_Quote(self, insn):
-        if insn.value in self.function_map and types.is_function(insn.type):
-            llfun = self.get_function(insn.type.find(), self.function_map[insn.value])
-            llclosure = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
-            llclosure = self.llbuilder.insert_value(llclosure, llfun, 1, name=insn.name)
-            return llclosure
-        else:
-            assert self.object_map is not None
-            return self._quote(insn.value, insn.type, lambda: [repr(insn.value)])
+        assert self.embedding_map is not None
+        return self._quote(insn.value, insn.type, lambda: [repr(insn.value)])
 
     def process_Select(self, insn):
         return self.llbuilder.select(self.map(insn.condition()),

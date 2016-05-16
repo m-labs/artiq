@@ -14,7 +14,7 @@ class Comm:
     def run(self):
         pass
 
-    def serve(self, object_map, symbolizer):
+    def serve(self, embedding_map, symbolizer, demangler):
         pass
 
     def check_ident(self):

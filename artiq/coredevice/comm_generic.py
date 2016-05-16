@@ -309,13 +309,13 @@ class CommGeneric:
     _rpc_sentinel = object()
 
     # See session.c:{send,receive}_rpc_value and llvm_ir_generator.py:_rpc_tag.
-    def _receive_rpc_value(self, object_map):
+    def _receive_rpc_value(self, embedding_map):
         tag = chr(self._read_int8())
         if tag == "\x00":
             return self._rpc_sentinel
         elif tag == "t":
             length = self._read_int8()
-            return tuple(self._receive_rpc_value(object_map) for _ in range(length))
+            return tuple(self._receive_rpc_value(embedding_map) for _ in range(length))
         elif tag == "n":
             return None
         elif tag == "b":
@@ -334,25 +334,25 @@ class CommGeneric:
             return self._read_string()
         elif tag == "l":
             length = self._read_int32()
-            return [self._receive_rpc_value(object_map) for _ in range(length)]
+            return [self._receive_rpc_value(embedding_map) for _ in range(length)]
         elif tag == "r":
-            start = self._receive_rpc_value(object_map)
-            stop  = self._receive_rpc_value(object_map)
-            step  = self._receive_rpc_value(object_map)
+            start = self._receive_rpc_value(embedding_map)
+            stop  = self._receive_rpc_value(embedding_map)
+            step  = self._receive_rpc_value(embedding_map)
             return range(start, stop, step)
         elif tag == "k":
             name  = self._read_string()
-            value = self._receive_rpc_value(object_map)
+            value = self._receive_rpc_value(embedding_map)
             return RPCKeyword(name, value)
         elif tag == "O":
-            return object_map.retrieve(self._read_int32())
+            return embedding_map.retrieve_object(self._read_int32())
         else:
             raise IOError("Unknown RPC value tag: {}".format(repr(tag)))
 
-    def _receive_rpc_args(self, object_map):
+    def _receive_rpc_args(self, embedding_map):
         args, kwargs = [], {}
         while True:
-            value = self._receive_rpc_value(object_map)
+            value = self._receive_rpc_value(embedding_map)
             if value is self._rpc_sentinel:
                 return args, kwargs
             elif isinstance(value, RPCKeyword):
@@ -440,14 +440,14 @@ class CommGeneric:
         else:
             raise IOError("Unknown RPC value tag: {}".format(repr(tag)))
 
-    def _serve_rpc(self, object_map):
+    def _serve_rpc(self, embedding_map):
         service_id  = self._read_int32()
         if service_id == 0:
             service = lambda obj, attr, value: setattr(obj, attr, value)
         else:
-            service = object_map.retrieve(service_id)
+            service = embedding_map.retrieve_object(service_id)
 
-        args, kwargs = self._receive_rpc_args(object_map)
+        args, kwargs = self._receive_rpc_args(embedding_map)
         return_tags  = self._read_bytes()
         logger.debug("rpc service: [%d]%r %r %r -> %s", service_id, service, args, kwargs, return_tags)
 
@@ -483,7 +483,7 @@ class CommGeneric:
                         hasattr(exn, 'artiq_builtin'):
                     self._write_string("0:{}".format(exn_type.__name__))
                 else:
-                    exn_id = object_map.store(exn_type)
+                    exn_id = embedding_map.store_object(exn_type)
                     self._write_string("{}:{}.{}".format(exn_id,
                                                          exn_type.__module__, exn_type.__qualname__))
                 self._write_string(str(exn))
@@ -504,7 +504,7 @@ class CommGeneric:
 
             self._write_flush()
 
-    def _serve_exception(self, object_map, symbolizer, demangler):
+    def _serve_exception(self, embedding_map, symbolizer, demangler):
         name      = self._read_string()
         message   = self._read_string()
         params    = [self._read_int64() for _ in range(3)]
@@ -523,19 +523,19 @@ class CommGeneric:
         if core_exn.id == 0:
             python_exn_type = getattr(exceptions, core_exn.name.split('.')[-1])
         else:
-            python_exn_type = object_map.retrieve(core_exn.id)
+            python_exn_type = embedding_map.retrieve_object(core_exn.id)
 
         python_exn = python_exn_type(message.format(*params))
         python_exn.artiq_core_exception = core_exn
         raise python_exn
 
-    def serve(self, object_map, symbolizer, demangler):
+    def serve(self, embedding_map, symbolizer, demangler):
         while True:
             self._read_header()
             if self._read_type == _D2HMsgType.RPC_REQUEST:
-                self._serve_rpc(object_map)
+                self._serve_rpc(embedding_map)
             elif self._read_type == _D2HMsgType.KERNEL_EXCEPTION:
-                self._serve_exception(object_map, symbolizer, demangler)
+                self._serve_exception(embedding_map, symbolizer, demangler)
             elif self._read_type == _D2HMsgType.WATCHDOG_EXPIRED:
                 raise exceptions.WatchdogExpired
             elif self._read_type == _D2HMsgType.CLOCK_FAILURE:

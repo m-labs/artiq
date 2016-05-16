@@ -22,37 +22,61 @@ from .transforms.asttyped_rewriter import LocalExtractor
 def coredevice_print(x): print(x)
 
 
-class ObjectMap:
+class EmbeddingMap:
     def __init__(self):
-        self.current_key = 0
-        self.forward_map = {}
-        self.reverse_map = {}
+        self.object_current_key = 0
+        self.object_forward_map = {}
+        self.object_reverse_map = {}
+        self.type_map = {}
+        self.function_map = {}
 
-    def store(self, obj_ref):
+    # Types
+    def store_type(self, typ, instance_type, constructor_type):
+        self.type_map[typ] = (instance_type, constructor_type)
+
+    def retrieve_type(self, typ):
+        return self.type_map[typ]
+
+    def has_type(self, typ):
+        return typ in self.type_map
+
+    def iter_types(self):
+        return self.type_map.values()
+
+    # Functions
+    def store_function(self, function, ir_function_name):
+        self.function_map[function] = ir_function_name
+
+    def retrieve_function(self, function):
+        return self.function_map[function]
+
+    # Objects
+    def store_object(self, obj_ref):
         obj_id = id(obj_ref)
-        if obj_id in self.reverse_map:
-            return self.reverse_map[obj_id]
+        if obj_id in self.object_reverse_map:
+            return self.object_reverse_map[obj_id]
 
-        self.current_key += 1
-        self.forward_map[self.current_key] = obj_ref
-        self.reverse_map[obj_id] = self.current_key
-        return self.current_key
+        self.object_current_key += 1
+        self.object_forward_map[self.object_current_key] = obj_ref
+        self.object_reverse_map[obj_id] = self.object_current_key
+        return self.object_current_key
 
-    def retrieve(self, obj_key):
-        return self.forward_map[obj_key]
+    def retrieve_object(self, obj_key):
+        return self.object_forward_map[obj_key]
+
+    def iter_objects(self):
+        return self.object_forward_map.keys()
 
     def has_rpc(self):
         return any(filter(lambda x: inspect.isfunction(x) or inspect.ismethod(x),
-                          self.forward_map.values()))
-
-    def __iter__(self):
-        return iter(self.forward_map.keys())
+                          self.object_forward_map.values()))
 
 class ASTSynthesizer:
-    def __init__(self, object_map, type_map, value_map, quote_function=None, expanded_from=None):
+    def __init__(self, embedding_map, value_map, quote_function=None, expanded_from=None):
         self.source = ""
         self.source_buffer = source.Buffer(self.source, "<synthesized>")
-        self.object_map, self.type_map, self.value_map = object_map, type_map, value_map
+        self.embedding_map = embedding_map
+        self.value_map = value_map
         self.quote_function = quote_function
         self.expanded_from = expanded_from
         self.diagnostics = []
@@ -134,8 +158,8 @@ class ASTSynthesizer:
             else:
                 typ = type(value)
 
-            if typ in self.type_map:
-                instance_type, constructor_type = self.type_map[typ]
+            if self.embedding_map.has_type(typ):
+                instance_type, constructor_type = self.embedding_map.retrieve_type(typ)
 
                 if hasattr(value, 'kernel_invariants') and \
                         value.kernel_invariants != instance_type.constant_attributes:
@@ -170,7 +194,7 @@ class ASTSynthesizer:
                     if hasattr(typ, 'artiq_builtin'):
                         exception_id = 0
                     else:
-                        exception_id = self.object_map.store(typ)
+                        exception_id = self.embedding_map.store_object(typ)
                     instance_type = builtins.TException("{}.{}".format(typ.__module__,
                                                                        typ.__qualname__),
                                                         id=exception_id)
@@ -183,7 +207,7 @@ class ASTSynthesizer:
                 constructor_type.attributes['__objectid__'] = builtins.TInt32()
                 instance_type.constructor = constructor_type
 
-                self.type_map[typ] = instance_type, constructor_type
+                self.embedding_map.store_type(typ, instance_type, constructor_type)
 
                 if hasattr(value, 'kernel_invariants'):
                     assert isinstance(value.kernel_invariants, set)
@@ -531,9 +555,7 @@ class Stitcher:
 
         self.functions = {}
 
-        self.function_map = {}
-        self.object_map = ObjectMap()
-        self.type_map = {}
+        self.embedding_map = EmbeddingMap()
         self.value_map = defaultdict(lambda: [])
 
     def stitch_call(self, function, args, kwargs, callback=None):
@@ -562,7 +584,7 @@ class Stitcher:
 
         # For every host class we embed, fill in the function slots
         # with their corresponding closures.
-        for instance_type, constructor_type in list(self.type_map.values()):
+        for instance_type, constructor_type in self.embedding_map.iter_types():
             # Do we have any direct reference to a constructor?
             if len(self.value_map[constructor_type]) > 0:
                 # Yes, use it.
@@ -592,8 +614,7 @@ class Stitcher:
 
     def _synthesizer(self, expanded_from=None):
         return ASTSynthesizer(expanded_from=expanded_from,
-                              object_map=self.object_map,
-                              type_map=self.type_map,
+                              embedding_map=self.embedding_map,
                               value_map=self.value_map,
                               quote_function=self._quote_function)
 
@@ -635,7 +656,7 @@ class Stitcher:
 
         # Record the function in the function map so that LLVM IR generator
         # can handle quoting it.
-        self.function_map[function] = function_node.name
+        self.embedding_map.store_function(function, function_node.name)
 
         # Memoize the function type before typing it to handle recursive
         # invocations.
@@ -803,7 +824,7 @@ class Stitcher:
         else:
             assert False
 
-        function_type = types.TRPC(ret_type, service=self.object_map.store(function))
+        function_type = types.TRPC(ret_type, service=self.embedding_map.store_object(function))
         self.functions[function] = function_type
         return function_type
 

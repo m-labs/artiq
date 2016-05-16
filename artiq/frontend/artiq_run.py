@@ -16,7 +16,7 @@ from artiq.language.environment import EnvExperiment, ProcessArgumentManager
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager
 from artiq.coredevice.core import CompileError, host_only
-from artiq.compiler.embedding import ObjectMap
+from artiq.compiler.embedding import EmbeddingMap
 from artiq.compiler.targets import OR1KTarget
 from artiq.tools import *
 
@@ -29,19 +29,19 @@ class StubObject:
         pass
 
 
-class StubObjectMap:
+class StubEmbeddingMap:
     def __init__(self):
         stub_object = StubObject()
-        self.forward_map = defaultdict(lambda: stub_object)
-        self.forward_map[1] = lambda _: None # return RPC
-        self.next_id = -1
+        self.object_forward_map = defaultdict(lambda: stub_object)
+        self.object_forward_map[1] = lambda _: None # return RPC
+        self.object_current_id = -1
 
-    def retrieve(self, object_id):
-        return self.forward_map[object_id]
+    def retrieve_object(self, object_id):
+        return self.object_forward_map[object_id]
 
-    def store(self, value):
-        self.forward_map[self.next_id] = value
-        self.next_id -= 1
+    def store_object(self, value):
+        self.object_forward_map[self.object_current_id] = value
+        self.object_current_id -= 1
 
 
 class FileRunner(EnvExperiment):
@@ -55,7 +55,7 @@ class FileRunner(EnvExperiment):
 
         self.core.comm.load(kernel_library)
         self.core.comm.run()
-        self.core.comm.serve(StubObjectMap(),
+        self.core.comm.serve(StubEmbeddingMap(),
             lambda addresses: self.target.symbolize(kernel_library, addresses))
 
 
