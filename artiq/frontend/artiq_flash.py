@@ -98,7 +98,6 @@ def main():
             bin = os.path.join(opts.dir, "top.bin")
             if not os.access(bin, os.R_OK):
                 bin_handle, bin = tempfile.mkstemp()
-                bin_handle.close()
                 bit = os.path.join(opts.dir, "top.bit")
                 conv = True
             prog.append("jtagspi_program {} 0x{:x}".format(
@@ -122,7 +121,7 @@ def main():
     prog.append("exit")
     try:
         if conv:
-            bit2bin(bit, bin)
+            bit2bin(bit, bin_handle)
         subprocess.check_call([
             "openocd",
             "-f", os.path.join("board", opts.target + ".cfg"),
