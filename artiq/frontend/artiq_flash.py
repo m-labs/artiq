@@ -97,7 +97,8 @@ def main():
         elif action == "gateware":
             bin = os.path.join(opts.dir, "top.bin")
             if not os.access(bin, os.R_OK):
-                bin = tempfile.mkstemp()[1]
+                bin_handle, bin = tempfile.mkstemp()
+                bin_handle.close()
                 bit = os.path.join(opts.dir, "top.bit")
                 conv = True
             prog.append("jtagspi_program {} 0x{:x}".format(
