@@ -891,20 +891,27 @@ class Inferencer(algorithm.Visitor):
             typ_optargs = typ.optargs
             typ_ret     = typ.ret
         else:
-            typ = types.get_method_function(typ)
-            if types.is_var(typ):
+            typ_self    = types.get_method_self(typ)
+            typ_func    = types.get_method_function(typ)
+            if types.is_var(typ_func):
                 return # not enough info yet
-            elif types.is_rpc(typ):
-                self._unify(node.type, typ.ret,
+            elif types.is_rpc(typ_func):
+                self._unify(node.type, typ_func.ret,
                             node.loc, None)
                 return
-            elif typ.arity() == 0:
+            elif typ_func.arity() == 0:
                 return # error elsewhere
 
-            typ_arity   = typ.arity() - 1
-            typ_args    = OrderedDict(list(typ.args.items())[1:])
-            typ_optargs = typ.optargs
-            typ_ret     = typ.ret
+            method_args = list(typ_func.args.items())
+
+            self_arg_name, self_arg_type = method_args[0]
+            self._unify(self_arg_type, typ_self,
+                        node.loc, None)
+
+            typ_arity   = typ_func.arity() - 1
+            typ_args    = OrderedDict(method_args[1:])
+            typ_optargs = typ_func.optargs
+            typ_ret     = typ_func.ret
 
         passed_args = dict()
 

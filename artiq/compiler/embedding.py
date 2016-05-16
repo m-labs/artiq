@@ -22,6 +22,26 @@ from .transforms.asttyped_rewriter import LocalExtractor
 def coredevice_print(x): print(x)
 
 
+class SpecializedFunction:
+    def __init__(self, instance_type, host_function):
+        self.instance_type = instance_type
+        self.host_function = host_function
+
+    def __eq__(self, other):
+        if isinstance(other, tuple):
+            return (self.instance_type == other[0] or
+                    self.host_function == other[1])
+        else:
+            return (self.instance_type == other.instance_type or
+                    self.host_function == other.host_function)
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash((self.instance_type, self.host_function))
+
+
 class EmbeddingMap:
     def __init__(self):
         self.object_current_key = 0
@@ -31,17 +51,14 @@ class EmbeddingMap:
         self.function_map = {}
 
     # Types
-    def store_type(self, typ, instance_type, constructor_type):
-        self.type_map[typ] = (instance_type, constructor_type)
+    def store_type(self, host_type, instance_type, constructor_type):
+        self.type_map[host_type] = (instance_type, constructor_type)
 
-    def retrieve_type(self, typ):
-        return self.type_map[typ]
+    def retrieve_type(self, host_type):
+        return self.type_map[host_type]
 
-    def has_type(self, typ):
-        return typ in self.type_map
-
-    def iter_types(self):
-        return self.type_map.values()
+    def has_type(self, host_type):
+        return host_type in self.type_map
 
     # Functions
     def store_function(self, function, ir_function_name):
@@ -49,6 +66,9 @@ class EmbeddingMap:
 
     def retrieve_function(self, function):
         return self.function_map[function]
+
+    def specialize_function(self, instance_type, host_function):
+        return SpecializedFunction(instance_type, host_function)
 
     # Objects
     def store_object(self, obj_ref):
@@ -65,11 +85,21 @@ class EmbeddingMap:
         return self.object_forward_map[obj_key]
 
     def iter_objects(self):
-        return self.object_forward_map.keys()
+        for obj_id in self.object_forward_map.keys():
+            obj_ref = self.object_forward_map[obj_id]
+            if isinstance(obj_ref, (pytypes.FunctionType, pytypes.MethodType,
+                                    pytypes.BuiltinFunctionType, SpecializedFunction)):
+                continue
+            elif isinstance(obj_ref, type):
+                _, obj_typ = self.type_map[obj_ref]
+            else:
+                obj_typ, _ = self.type_map[type(obj_ref)]
+            yield obj_id, obj_ref, obj_typ
 
     def has_rpc(self):
         return any(filter(lambda x: inspect.isfunction(x) or inspect.ismethod(x),
                           self.object_forward_map.values()))
+
 
 class ASTSynthesizer:
     def __init__(self, embedding_map, value_map, quote_function=None, expanded_from=None):
@@ -128,7 +158,8 @@ class ASTSynthesizer:
                                   begin_loc=begin_loc, end_loc=end_loc,
                                   loc=begin_loc.join(end_loc))
         elif inspect.isfunction(value) or inspect.ismethod(value) or \
-                isinstance(value, pytypes.BuiltinFunctionType):
+                isinstance(value, pytypes.BuiltinFunctionType) or \
+                isinstance(value, SpecializedFunction):
             if inspect.ismethod(value):
                 quoted_self   = self.quote(value.__self__)
                 function_type = self.quote_function(value.__func__, self.expanded_from)
@@ -139,7 +170,7 @@ class ASTSynthesizer:
                 loc         = quoted_self.loc.join(name_loc)
                 return asttyped.QuoteT(value=value, type=method_type,
                                        self_loc=quoted_self.loc, loc=loc)
-            else:
+            else: # function
                 function_type = self.quote_function(value, self.expanded_from)
 
                 quote_loc   = self._add('`')
@@ -417,7 +448,7 @@ class StitchingInferencer(Inferencer):
             #         def f(self): pass
             # we want f to be defined on the class, not on the instance.
             attributes = object_type.constructor.attributes
-            attr_value = attr_value.__func__
+            attr_value = SpecializedFunction(object_type, attr_value.__func__)
         else:
             attributes = object_type.attributes
 
@@ -582,26 +613,6 @@ class Stitcher:
                 break
             old_typedtree_hash = typedtree_hash
 
-        # For every host class we embed, fill in the function slots
-        # with their corresponding closures.
-        for instance_type, constructor_type in self.embedding_map.iter_types():
-            # Do we have any direct reference to a constructor?
-            if len(self.value_map[constructor_type]) > 0:
-                # Yes, use it.
-                constructor, _constructor_loc = self.value_map[constructor_type][0]
-            else:
-                # No, extract one from a reference to an instance.
-                instance, _instance_loc = self.value_map[instance_type][0]
-                constructor = type(instance)
-
-            for attr in constructor_type.attributes:
-                if types.is_function(constructor_type.attributes[attr]):
-                    synthesizer = self._synthesizer()
-                    ast = synthesizer.assign_attribute(constructor, attr,
-                                                       getattr(constructor, attr))
-                    synthesizer.finalize()
-                    self._inject(ast)
-
         # After we have found all functions, synthesize a module to hold them.
         source_buffer = source.Buffer("", "<synthesized>")
         self.typedtree = asttyped.ModuleT(
@@ -619,11 +630,16 @@ class Stitcher:
                               quote_function=self._quote_function)
 
     def _quote_embedded_function(self, function, flags):
-        if not hasattr(function, "artiq_embedded"):
-            raise ValueError("{} is not an embedded function".format(repr(function)))
+        if isinstance(function, SpecializedFunction):
+            host_function = function.host_function
+        else:
+            host_function = function
+
+        if not hasattr(host_function, "artiq_embedded"):
+            raise ValueError("{} is not an embedded function".format(repr(host_function)))
 
         # Extract function source.
-        embedded_function = function.artiq_embedded.function
+        embedded_function = host_function.artiq_embedded.function
         source_code = inspect.getsource(embedded_function)
         filename = embedded_function.__code__.co_filename
         module_name = embedded_function.__globals__['__name__']
@@ -652,7 +668,13 @@ class Stitcher:
         function_node = parser.file_input().body[0]
 
         # Mangle the name, since we put everything into a single module.
-        function_node.name = "{}.{}".format(module_name, function.__qualname__)
+        full_function_name = "{}.{}".format(module_name, host_function.__qualname__)
+        if isinstance(function, SpecializedFunction):
+            instance_type = function.instance_type
+            function_node.name = "_Z{}{}I{}{}Ezz".format(len(full_function_name), full_function_name,
+                                                         len(instance_type.name), instance_type.name)
+        else:
+            function_node.name = "_Z{}{}zz".format(len(full_function_name), full_function_name)
 
         # Record the function in the function map so that LLVM IR generator
         # can handle quoting it.
@@ -808,64 +830,75 @@ class Stitcher:
         return function_type
 
     def _quote_rpc(self, function, loc):
+        if isinstance(function, SpecializedFunction):
+            host_function = function.host_function
+        else:
+            host_function = function
         ret_type = builtins.TNone()
 
-        if isinstance(function, pytypes.BuiltinFunctionType):
+        if isinstance(host_function, pytypes.BuiltinFunctionType):
             pass
-        elif isinstance(function, pytypes.FunctionType) or isinstance(function, pytypes.MethodType):
-            if isinstance(function, pytypes.FunctionType):
-                signature = inspect.signature(function)
+        elif (isinstance(host_function, pytypes.FunctionType) or \
+              isinstance(host_function, pytypes.MethodType)):
+            if isinstance(host_function, pytypes.FunctionType):
+                signature = inspect.signature(host_function)
             else:
                 # inspect bug?
-                signature = inspect.signature(function.__func__)
+                signature = inspect.signature(host_function.__func__)
             if signature.return_annotation is not inspect.Signature.empty:
-                ret_type = self._extract_annot(function, signature.return_annotation,
+                ret_type = self._extract_annot(host_function, signature.return_annotation,
                                                "return type", loc, is_syscall=False)
         else:
             assert False
 
-        function_type = types.TRPC(ret_type, service=self.embedding_map.store_object(function))
+        function_type = types.TRPC(ret_type,
+                                   service=self.embedding_map.store_object(host_function))
         self.functions[function] = function_type
         return function_type
 
     def _quote_function(self, function, loc):
+        if isinstance(function, SpecializedFunction):
+            host_function = function.host_function
+        else:
+            host_function = function
+
         if function in self.functions:
             pass
-        elif not hasattr(function, "artiq_embedded"):
+        elif not hasattr(host_function, "artiq_embedded"):
             self._quote_rpc(function, loc)
-        elif function.artiq_embedded.function is not None:
-            if function.__name__ == "<lambda>":
+        elif host_function.artiq_embedded.function is not None:
+            if host_function.__name__ == "<lambda>":
                 note = diagnostic.Diagnostic("note",
                     "lambda created here", {},
-                    self._function_loc(function.artiq_embedded.function))
+                    self._function_loc(host_function.artiq_embedded.function))
                 diag = diagnostic.Diagnostic("fatal",
                     "lambdas cannot be used as kernel functions", {},
                     loc,
                     notes=[note])
                 self.engine.process(diag)
 
-            core_name = function.artiq_embedded.core_name
+            core_name = host_function.artiq_embedded.core_name
             if core_name is not None and self.dmgr.get(core_name) != self.core:
                 note = diagnostic.Diagnostic("note",
                     "called from this function", {},
                     loc)
                 diag = diagnostic.Diagnostic("fatal",
                     "this function runs on a different core device '{name}'",
-                    {"name": function.artiq_embedded.core_name},
-                    self._function_loc(function.artiq_embedded.function),
+                    {"name": host_function.artiq_embedded.core_name},
+                    self._function_loc(host_function.artiq_embedded.function),
                     notes=[note])
                 self.engine.process(diag)
 
             self._quote_embedded_function(function,
-                                          flags=function.artiq_embedded.flags)
-        elif function.artiq_embedded.syscall is not None:
+                                          flags=host_function.artiq_embedded.flags)
+        elif host_function.artiq_embedded.syscall is not None:
             # Insert a storage-less global whose type instructs the compiler
             # to perform a system call instead of a regular call.
             self._quote_syscall(function, loc)
-        elif function.artiq_embedded.forbidden is not None:
+        elif host_function.artiq_embedded.forbidden is not None:
             diag = diagnostic.Diagnostic("fatal",
                 "this function cannot be called as an RPC", {},
-                self._function_loc(function),
+                self._function_loc(host_function),
                 notes=self._call_site_note(loc, is_syscall=True))
             self.engine.process(diag)
         else:

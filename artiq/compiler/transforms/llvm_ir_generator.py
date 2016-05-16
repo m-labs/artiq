@@ -378,10 +378,18 @@ class LLVMIRGenerator:
             llfunty = self.llty_of_type(typ, bare=True)
             llfun   = ll.Function(self.llmodule, llfunty, name)
 
-            llretty = self.llty_of_type(typ.ret, for_return=True)
+            llretty = self.llty_of_type(typ.find().ret, for_return=True)
             if self.needs_sret(llretty):
                 llfun.args[0].add_attribute('sret')
         return llfun
+
+    def get_function_with_undef_env(self, typ, name):
+        llfun     = self.get_function(typ, name)
+        llclosure = ll.Constant(self.llty_of_type(typ), [
+                        ll.Constant(llptr, ll.Undefined),
+                        llfun
+                    ])
+        return llclosure
 
     def map(self, value):
         if isinstance(value, (ir.Argument, ir.Instruction, ir.BasicBlock)):
@@ -408,19 +416,10 @@ class LLVMIRGenerator:
     def emit_attribute_writeback(self):
         llobjects = defaultdict(lambda: [])
 
-        for obj_id in self.embedding_map.iter_objects():
-            obj_ref = self.embedding_map.retrieve_object(obj_id)
-            if isinstance(obj_ref, (pytypes.FunctionType, pytypes.MethodType,
-                                    pytypes.BuiltinFunctionType)):
-                continue
-            elif isinstance(obj_ref, type):
-                _, typ = self.embedding_map.retrieve_type(obj_ref)
-            else:
-                typ, _ = self.embedding_map.retrieve_type(type(obj_ref))
-
+        for obj_id, obj_ref, obj_typ in self.embedding_map.iter_objects():
             llobject = self.llmodule.get_global("O.{}".format(obj_id))
             if llobject is not None:
-                llobjects[typ].append(llobject.bitcast(llptr))
+                llobjects[obj_typ].append(llobject.bitcast(llptr))
 
         llrpcattrty = self.llcontext.get_identified_type("A")
         llrpcattrty.elements = [lli32, llptr, llptr]
@@ -695,8 +694,8 @@ class LLVMIRGenerator:
             llglobal = self.llmodule.get_global(name)
         else:
             llglobal = ll.GlobalVariable(self.llmodule, llty, name)
+            llglobal.linkage = "private"
             if llvalue is not None:
-                llglobal.linkage = "private"
                 llglobal.initializer = llvalue
         return llglobal
 
@@ -705,7 +704,7 @@ class LLVMIRGenerator:
         llty = self.llty_of_type(typ).pointee
         return self.get_or_define_global("C.{}".format(typ.name), llty)
 
-    def get_global_closure(self, typ, attr):
+    def get_global_closure_ptr(self, typ, attr):
         closure_type = typ.attributes[attr]
         assert types.is_constructor(typ)
         assert types.is_function(closure_type) or types.is_rpc(closure_type)
@@ -713,7 +712,13 @@ class LLVMIRGenerator:
             return None
 
         llty = self.llty_of_type(typ.attributes[attr])
-        llclosureptr = self.get_or_define_global("F.{}.{}".format(typ.name, attr), llty)
+        return self.get_or_define_global("F.{}.{}".format(typ.name, attr), llty)
+
+    def get_global_closure(self, typ, attr):
+        llclosureptr = self.get_global_closure_ptr(typ, attr)
+        if llclosureptr is None:
+            return None
+
         # LLVM's GlobalOpt pass only considers for SROA the globals that
         # are used only by GEPs, so we have to do this stupid hack.
         llenvptr = self.llbuilder.gep(llclosureptr, [self.llindex(0), self.llindex(0)])
@@ -721,12 +726,12 @@ class LLVMIRGenerator:
         return [llenvptr, llfunptr]
 
     def load_closure(self, typ, attr):
-        llclosureptrs = self.get_global_closure(typ, attr)
-        if llclosureptrs is None:
+        llclosureparts = self.get_global_closure(typ, attr)
+        if llclosureparts is None:
             return ll.Constant(llunit, [])
 
         # See above.
-        llenvptr, llfunptr = llclosureptrs
+        llenvptr, llfunptr = llclosureparts
         llenv = self.llbuilder.load(llenvptr)
         llfun = self.llbuilder.load(llfunptr)
         llclosure = ll.Constant(ll.LiteralStructType([llenv.type, llfun.type]), ll.Undefined)
@@ -735,10 +740,10 @@ class LLVMIRGenerator:
         return llclosure
 
     def store_closure(self, llclosure, typ, attr):
-        llclosureptrs = self.get_global_closure(typ, attr)
-        assert llclosureptrs is not None
+        llclosureparts = self.get_global_closure(typ, attr)
+        assert llclosureparts is not None
 
-        llenvptr, llfunptr = llclosureptrs
+        llenvptr, llfunptr = llclosureparts
         llenv = self.llbuilder.extract_value(llclosure, 0)
         llfun = self.llbuilder.extract_value(llclosure, 1)
         self.llbuilder.store(llenv, llenvptr)
@@ -1343,6 +1348,12 @@ class LLVMIRGenerator:
 
         llty = self.llty_of_type(typ)
         if types.is_constructor(typ) or types.is_instance(typ):
+            if types.is_instance(typ):
+                # Make sure the class functions are quoted, as this has the side effect of
+                # initializing the global closures.
+                self._quote(type(value), typ.constructor,
+                            lambda: path() + ['__class__'])
+
             llglobal = None
             llfields = []
             for attr in typ.attributes:
@@ -1359,8 +1370,18 @@ class LLVMIRGenerator:
 
                     self.llobject_map[value_id] = llglobal
                 else:
-                    llfields.append(self._quote(getattr(value, attr), typ.attributes[attr],
-                                                lambda: path() + [attr]))
+                    attrvalue = getattr(value, attr)
+                    is_class_function = (types.is_constructor(typ) and
+                                         types.is_function(typ.attributes[attr]) and
+                                         not types.is_c_function(typ.attributes[attr]))
+                    if is_class_function:
+                        attrvalue = self.embedding_map.specialize_function(typ.instance, attrvalue)
+                    llattrvalue = self._quote(attrvalue, typ.attributes[attr],
+                                              lambda: path() + [attr])
+                    llfields.append(llattrvalue)
+                    if is_class_function:
+                        llclosureptr = self.get_global_closure_ptr(typ, attr)
+                        llclosureptr.initializer = llattrvalue
 
             llglobal.initializer = ll.Constant(llty.pointee, llfields)
             llglobal.linkage = "private"
@@ -1400,12 +1421,8 @@ class LLVMIRGenerator:
             # RPC and C functions have no runtime representation.
             return ll.Constant(llty, ll.Undefined)
         elif types.is_function(typ):
-            llfun     = self.get_function(typ.find(), self.embedding_map.retrieve_function(value))
-            llclosure = ll.Constant(self.llty_of_type(typ), [
-                            ll.Constant(llptr, ll.Undefined),
-                            llfun
-                        ])
-            return llclosure
+            return self.get_function_with_undef_env(typ.find(),
+                                                    self.embedding_map.retrieve_function(value))
         elif types.is_method(typ):
             llclosure = self._quote(value.__func__, types.get_method_function(typ),
                                     lambda: path() + ['__func__'])
