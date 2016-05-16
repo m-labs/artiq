@@ -786,69 +786,69 @@ class Stitcher:
         self.functions[function] = function_type
         return function_type
 
-    def _quote_rpc(self, callee, loc):
+    def _quote_rpc(self, function, loc):
         ret_type = builtins.TNone()
 
-        if isinstance(callee, pytypes.BuiltinFunctionType):
+        if isinstance(function, pytypes.BuiltinFunctionType):
             pass
-        elif isinstance(callee, pytypes.FunctionType) or isinstance(callee, pytypes.MethodType):
-            if isinstance(callee, pytypes.FunctionType):
-                signature = inspect.signature(callee)
+        elif isinstance(function, pytypes.FunctionType) or isinstance(function, pytypes.MethodType):
+            if isinstance(function, pytypes.FunctionType):
+                signature = inspect.signature(function)
             else:
                 # inspect bug?
-                signature = inspect.signature(callee.__func__)
+                signature = inspect.signature(function.__func__)
             if signature.return_annotation is not inspect.Signature.empty:
-                ret_type = self._extract_annot(callee, signature.return_annotation,
+                ret_type = self._extract_annot(function, signature.return_annotation,
                                                "return type", loc, is_syscall=False)
         else:
             assert False
 
-        function_type = types.TRPC(ret_type, service=self.object_map.store(callee))
-        self.functions[callee] = function_type
+        function_type = types.TRPC(ret_type, service=self.object_map.store(function))
+        self.functions[function] = function_type
         return function_type
 
     def _quote_function(self, function, loc):
-        if function not in self.functions:
-            if hasattr(function, "artiq_embedded"):
-                if function.artiq_embedded.function is not None:
-                    if function.__name__ == "<lambda>":
-                        note = diagnostic.Diagnostic("note",
-                            "lambda created here", {},
-                            self._function_loc(function.artiq_embedded.function))
-                        diag = diagnostic.Diagnostic("fatal",
-                            "lambdas cannot be used as kernel functions", {},
-                            loc,
-                            notes=[note])
-                        self.engine.process(diag)
+        if function in self.functions:
+            pass
+        elif not hasattr(function, "artiq_embedded"):
+            self._quote_rpc(function, loc)
+        elif function.artiq_embedded.function is not None:
+            if function.__name__ == "<lambda>":
+                note = diagnostic.Diagnostic("note",
+                    "lambda created here", {},
+                    self._function_loc(function.artiq_embedded.function))
+                diag = diagnostic.Diagnostic("fatal",
+                    "lambdas cannot be used as kernel functions", {},
+                    loc,
+                    notes=[note])
+                self.engine.process(diag)
 
-                    core_name = function.artiq_embedded.core_name
-                    if core_name is not None and self.dmgr.get(core_name) != self.core:
-                        note = diagnostic.Diagnostic("note",
-                            "called from this function", {},
-                            loc)
-                        diag = diagnostic.Diagnostic("fatal",
-                            "this function runs on a different core device '{name}'",
-                            {"name": function.artiq_embedded.core_name},
-                            self._function_loc(function.artiq_embedded.function),
-                            notes=[note])
-                        self.engine.process(diag)
+            core_name = function.artiq_embedded.core_name
+            if core_name is not None and self.dmgr.get(core_name) != self.core:
+                note = diagnostic.Diagnostic("note",
+                    "called from this function", {},
+                    loc)
+                diag = diagnostic.Diagnostic("fatal",
+                    "this function runs on a different core device '{name}'",
+                    {"name": function.artiq_embedded.core_name},
+                    self._function_loc(function.artiq_embedded.function),
+                    notes=[note])
+                self.engine.process(diag)
 
-                    self._quote_embedded_function(function,
-                                                  flags=function.artiq_embedded.flags)
-                elif function.artiq_embedded.syscall is not None:
-                    # Insert a storage-less global whose type instructs the compiler
-                    # to perform a system call instead of a regular call.
-                    self._quote_syscall(function, loc)
-                elif function.artiq_embedded.forbidden is not None:
-                    diag = diagnostic.Diagnostic("fatal",
-                        "this function cannot be called as an RPC", {},
-                        self._function_loc(function),
-                        notes=self._call_site_note(loc, is_syscall=True))
-                    self.engine.process(diag)
-                else:
-                    assert False
-            else:
-                self._quote_rpc(function, loc)
+            self._quote_embedded_function(function,
+                                          flags=function.artiq_embedded.flags)
+        elif function.artiq_embedded.syscall is not None:
+            # Insert a storage-less global whose type instructs the compiler
+            # to perform a system call instead of a regular call.
+            self._quote_syscall(function, loc)
+        elif function.artiq_embedded.forbidden is not None:
+            diag = diagnostic.Diagnostic("fatal",
+                "this function cannot be called as an RPC", {},
+                self._function_loc(function),
+                notes=self._call_site_note(loc, is_syscall=True))
+            self.engine.process(diag)
+        else:
+            assert False
 
         return self.functions[function]
 
