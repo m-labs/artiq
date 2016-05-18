@@ -104,16 +104,13 @@ def main():
     main_window.addDockWidget(QtCore.Qt.BottomDockWidgetArea, d_applets)
     main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_datasets)
 
-    toolbar = main_window.addToolBar("Experiment")
-    toolbar.setObjectName("experiment_toolbar")
-    toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
-
-    open_action = QtWidgets.QAction("Open Experiment", main_window)
+    open_action = QtWidgets.QAction("&Open", main_window)
     open_action.setIcon(app.style().standardIcon(
         QtWidgets.QStyle.SP_DialogOpenButton))
     open_action.setShortcuts(QtGui.QKeySequence.Open)
     open_action.triggered.connect(mdi_area.select_experiment)
-    toolbar.addAction(open_action)
+    exp_group = main_window.menuBar().addMenu("&Experiment")
+    exp_group.addAction(open_action)
 
     # load/initialize state
     if os.name == "nt":
