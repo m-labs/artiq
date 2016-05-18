@@ -11,7 +11,7 @@ from quamash import QEventLoop
 
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import verbosity_args, init_logger, atexit_register_coroutine
-from artiq.gui import state, applets, models
+from artiq.gui import state, applets, models, log
 from artiq.browser import datasets, files, experiments
 
 
@@ -100,14 +100,21 @@ def main():
     d_datasets = datasets.DatasetsDock(datasets_sub)
     smgr.register(d_datasets)
 
+    log_sub = models.LocalModelManager(log.Model)
+    d_log = log.LogDock(None, "log", log_sub)
+    d_log.setFeatures(d_log.DockWidgetMovable | d_log.DockWidgetFloatable)
+    smgr.register(d_log)
+
     main_window.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d_files)
     main_window.addDockWidget(QtCore.Qt.BottomDockWidgetArea, d_applets)
     main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_datasets)
+    main_window.addDockWidget(QtCore.Qt.BottomDockWidgetArea, d_log)
 
     open_action = QtWidgets.QAction("&Open", main_window)
     open_action.setIcon(app.style().standardIcon(
         QtWidgets.QStyle.SP_DialogOpenButton))
     open_action.setShortcuts(QtGui.QKeySequence.Open)
+    open_action.setStatusTip("Open an experiment")
     open_action.triggered.connect(mdi_area.select_experiment)
     exp_group = main_window.menuBar().addMenu("&Experiment")
     exp_group.addAction(open_action)
