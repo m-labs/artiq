@@ -188,7 +188,7 @@ class _LogFilterProxyModel(QtCore.QSortFilterProxyModel):
         self.invalidateFilter()
 
 
-class _LogDock(QDockWidgetCloseDetect):
+class LogDock(QDockWidgetCloseDetect):
     def __init__(self, manager, name, log_sub):
         QDockWidgetCloseDetect.__init__(self, "Log")
         self.setObjectName(name)
@@ -215,13 +215,14 @@ class _LogDock(QDockWidgetCloseDetect):
             QtWidgets.QStyle.SP_ArrowDown))
         grid.addWidget(scrollbottom, 0, 3)
         scrollbottom.clicked.connect(self.scroll_to_bottom)
-        newdock = QtWidgets.QToolButton()
-        newdock.setToolTip("Create new log dock")
-        newdock.setIcon(QtWidgets.QApplication.style().standardIcon(
-            QtWidgets.QStyle.SP_FileDialogNewFolder))
-        # note the lambda, the default parameter is overriden otherwise
-        newdock.clicked.connect(lambda: manager.create_new_dock())
-        grid.addWidget(newdock, 0, 4)
+        if manager:
+            newdock = QtWidgets.QToolButton()
+            newdock.setToolTip("Create new log dock")
+            newdock.setIcon(QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_FileDialogNewFolder))
+            # note the lambda, the default parameter is overriden otherwise
+            newdock.clicked.connect(lambda: manager.create_new_dock())
+            grid.addWidget(newdock, 0, 4)
         grid.layout.setColumnStretch(2, 1)
 
         self.log = QtWidgets.QTreeView()
@@ -345,7 +346,7 @@ class LogDockManager:
             n += 1
             name = "log" + str(n)
 
-        dock = _LogDock(self, name, self.log_sub)
+        dock = LogDock(self, name, self.log_sub)
         self.docks[name] = dock
         if add_to_area:
             self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
@@ -375,7 +376,7 @@ class LogDockManager:
         if self.docks:
             raise NotImplementedError
         for name, dock_state in state.items():
-            dock = _LogDock(self, name, self.log_sub)
+            dock = LogDock(self, name, self.log_sub)
             self.docks[name] = dock
             dock.restore_state(dock_state)
             self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
