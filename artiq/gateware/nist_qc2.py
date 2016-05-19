@@ -9,7 +9,7 @@ __all__ = ["fmc_adapter_io"]
 ttl_pins = [
     "LA00_CC_P", "LA02_P", "LA00_CC_N", "LA02_N", "LA01_CC_P", "LA01_CC_N", "LA06_P", "LA06_N",
     "LA05_P", "LA05_N", "LA10_P", "LA09_P", "LA10_N", "LA09_N", "LA13_P", "LA14_P",
-    "LA27_P", "LA26_P", "LA27_N", "LA26_N"
+    "LA13_N", "LA14_N", "LA17_CC_P", "LA17_CC_N"
 ]
 
 
@@ -54,17 +54,17 @@ def get_fmc_adapter_io():
                 IOStandard("LVTTL")),
 
             ("spi", next(spi),
-                Subsignal("clk", FPins("FMC:LA13_N")),
-                Subsignal("mosi", FPins("FMC:LA14_N")),
-                Subsignal("miso", FPins("FMC:LA17_CC_P")),
-                Subsignal("cs_n", FPins("FMC:LA17_CC_N")),
-                IOStandard("LVTTL")),
-
-            ("spi", next(spi),
                 Subsignal("clk", FPins("FMC:LA18_CC_P")),
                 Subsignal("mosi", FPins("FMC:LA18_CC_N")),
                 Subsignal("miso", FPins("FMC:LA23_P")),
                 Subsignal("cs_n", FPins("FMC:LA23_N")),
+                IOStandard("LVTTL")),
+
+            ("spi", next(spi),
+                Subsignal("clk", FPins("FMC:LA27_P")),
+                Subsignal("mosi", FPins("FMC:LA26_P")),
+                Subsignal("miso", FPins("FMC:LA27_N")),
+                Subsignal("cs_n", FPins("FMC:LA26_N")),
                 IOStandard("LVTTL")),
         ]
     return r

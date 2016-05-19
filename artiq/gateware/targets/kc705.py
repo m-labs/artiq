@@ -310,27 +310,22 @@ class NIST_QC2(_NIST_Ions):
 
         rtio_channels = []
         clock_generators = []
-        for backplane_offset in 0, 20:
-            # TTL0-15, 20-35 are In+Out capable
-            for i in range(16):
-                phy = ttl_serdes_7series.Inout_8X(
-                    platform.request("ttl", backplane_offset+i))
-                self.submodules += phy
-                rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
-            # TTL16-19, 36-39 are output only
-            for i in range(16, 20):
-                phy = ttl_serdes_7series.Output_8X(
-                    platform.request("ttl", backplane_offset+i))
-                self.submodules += phy
-                rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        # All TTL channels are In+Out capable
+        for i in range(40):
+            phy = ttl_serdes_7series.Inout_8X(
+                platform.request("ttl", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
         
-        # CLK0, CLK1 are for the clock generators, on backplane SMP connectors
-        for backplane_offset in range(2):        
+        # CLK0, CLK1 are for clock generators, on backplane SMP connectors
+        for i in range(2):        
             phy = ttl_simple.ClockGen(
-                platform.request("clkout", backplane_offset))
+                platform.request("clkout", i))
             self.submodules += phy
             clock_generators.append(rtio.Channel.from_phy(phy)) 
 
+        # user SMA on KC705 board
         phy = ttl_serdes_7series.Inout_8X(platform.request("user_sma_gpio_n"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
@@ -339,6 +334,7 @@ class NIST_QC2(_NIST_Ions):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
+        # AMS101 DAC on KC705 XADC header - optional
         ams101_dac = self.platform.request("ams101_dac", 0)
         phy = ttl_simple.Output(ams101_dac.ldac)
         self.submodules += phy
