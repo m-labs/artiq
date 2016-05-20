@@ -5,15 +5,16 @@ import asyncio
 import atexit
 import os
 import logging
+from functools import partial
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from quamash import QEventLoop
 
 from artiq import __artiq_dir__ as artiq_dir
-from artiq.tools import verbosity_args, init_logger, atexit_register_coroutine
+from artiq.tools import verbosity_args, atexit_register_coroutine
 from artiq.gui import state, applets, models, log
 from artiq.browser import datasets, files, experiments
-
+from artiq.protocols.logging import SourceFilter
 
 logger = logging.getLogger(__name__)
 
@@ -67,12 +68,16 @@ class MainWindow(QtWidgets.QMainWindow):
 def main():
     # initialize application
     args = get_argparser().parse_args()
-    init_logger(args)
+
+    log_sub = models.LocalModelManager(log.Model)
+    init_log(args, log_sub)
 
     app = QtWidgets.QApplication(["ARTIQ Browser"])
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
     atexit.register(loop.close)
+    loop.call_soon(partial(log_sub.init, []))
+
     smgr = state.StateManager(args.db_file)
 
     datasets_sub = models.LocalModelManager(datasets.Model)
@@ -100,7 +105,6 @@ def main():
     d_datasets = datasets.DatasetsDock(datasets_sub)
     smgr.register(d_datasets)
 
-    log_sub = models.LocalModelManager(log.Model)
     d_log = log.LogDock(None, "log", log_sub)
     d_log.setFeatures(d_log.DockWidgetMovable | d_log.DockWidgetFloatable)
     smgr.register(d_log)
@@ -135,6 +139,38 @@ def main():
     main_window.show()
 
     loop.run_until_complete(main_window.exit_request.wait())
+
+
+class LogBufferHandler(logging.Handler):
+    def __init__(self, log, *args, **kwargs):
+        logging.Handler.__init__(self, *args, **kwargs)
+        self.log = log
+        self.setFormatter(logging.Formatter("%(name)s:%(message)s"))
+
+    def emit(self, record):
+        if getattr(self.log, "model") is not None:
+            self.log.model.append((record.levelno, record.source,
+                                   record.created, self.format(record)))
+
+
+def init_log(args, log):
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.NOTSET)  # we use our custom filter only
+    flt = SourceFilter(logging.WARNING + args.quiet*10 - args.verbose*10,
+                       "browser")
+    handlers = []
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter(
+        "%(levelname)s:%(source)s:%(name)s:%(message)s"))
+    handlers.append(console_handler)
+
+    buffer_handler = LogBufferHandler(log)
+    handlers.append(buffer_handler)
+
+    for handler in handlers:
+        handler.addFilter(flt)
+        root_logger.addHandler(handler)
+
 
 if __name__ == "__main__":
     main()
