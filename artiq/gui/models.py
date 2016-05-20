@@ -1,6 +1,6 @@
 from PyQt5 import QtCore
 
-from artiq.protocols.sync_struct import Subscriber
+from artiq.protocols.sync_struct import Subscriber, process_mod
 
 
 class ModelManager:
@@ -33,12 +33,15 @@ class LocalModelManager(ModelManager):
         self.notify_cbs = []
 
     def update(self, mod):
+        process_mod(self.model, mod)
         for notify_cb in self.notify_cbs:
             notify_cb(mod)
 
     def init(self, struct):
         self._create_model(struct)
-        self.update({"action": "init", "struct": struct})
+        mod = {"action": "init", "struct": struct}
+        for notify_cb in self.notify_cbs:
+            notify_cb(mod)
 
 
 class _SyncSubstruct:

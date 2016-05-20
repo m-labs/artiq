@@ -11,7 +11,6 @@ from artiq import __artiq_dir__ as artiq_dir
 from artiq.gui.tools import LayoutWidget, log_level_to_name, get_open_file_name
 from artiq.gui.entries import argty_to_entry
 from artiq.protocols import pyon
-from artiq.protocols.sync_struct import process_mod
 from artiq.master.worker import Worker, log_worker_exception
 
 logger = logging.getLogger(__name__)
@@ -341,7 +340,6 @@ class LocalDatasetDB:
 
     def update(self, mod):
         self.datasets_sub.update(mod)
-        process_mod(self._data, mod)
 
 
 class ExperimentsArea(QtWidgets.QMdiArea):
