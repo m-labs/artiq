@@ -12,7 +12,7 @@ from artiq.gui.tools import LayoutWidget, log_level_to_name, get_open_file_name
 from artiq.gui.entries import argty_to_entry
 from artiq.protocols import pyon
 from artiq.protocols.sync_struct import process_mod
-from artiq.master.worker import Worker
+from artiq.master.worker import Worker, log_worker_exception
 
 logger = logging.getLogger(__name__)
 
@@ -297,10 +297,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
                                expid=expid, priority=0)
             await worker.analyze()
         except:
-            # May happen when experiment has been removed
-            # from repository/explist
-            logger.error("Failed to run '%s'",
-                         self.expurl, exc_info=True)
+            logger.info("Failed to run '%s'", self.expurl)
+            log_worker_exception()
         finally:
             await worker.close()
 
