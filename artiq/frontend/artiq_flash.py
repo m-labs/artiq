@@ -129,7 +129,6 @@ def main():
         ])
     finally:
         if conv:
-            os.close(bin_handle)
             os.unlink(bin)
 
 
