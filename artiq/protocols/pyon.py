@@ -140,14 +140,14 @@ class _Encoder:
     def encode_nparray(self, x):
         r = "nparray("
         r += self.encode(x.shape) + ", "
-        r += self.encode(str(x.dtype)) + ", "
+        r += self.encode(x.dtype.str) + ", "
         r += self.encode(base64.b64encode(x).decode())
         r += ")"
         return r
 
     def encode_npscalar(self, x):
         r = "npscalar("
-        r += "\"" + type(x).__name__ + "\", "
+        r += self.encode(x.dtype.str) + ", "
         r += self.encode(base64.b64encode(x).decode())
         r += ")"
         return r
