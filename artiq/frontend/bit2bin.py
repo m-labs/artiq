@@ -32,39 +32,38 @@ def flip32(data):
 
 
 def bit2bin(bit, bin, flip=False):
-    bitfile = open(bit, "rb")
+    with open(bit, "rb") as bitfile:
+        l, = struct.unpack(">H", bitfile.read(2))
+        if l != 9:
+            raise ValueError("Missing <0009> header, not a bit file")
 
-    l, = struct.unpack(">H", bitfile.read(2))
-    if l != 9:
-        raise ValueError("Missing <0009> header, not a bit file")
+        bitfile.read(l)
+        d = bitfile.read(*struct.unpack(">H", bitfile.read(2)))
+        if d != b"a":
+            raise ValueError("Missing <a> header, not a bit file")
 
-    bitfile.read(l)
-    d = bitfile.read(*struct.unpack(">H", bitfile.read(2)))
-    if d != b"a":
-        raise ValueError("Missing <a> header, not a bit file")
+        d = bitfile.read(*struct.unpack(">H", bitfile.read(2)))
+        print("Design name:", d)
 
-    d = bitfile.read(*struct.unpack(">H", bitfile.read(2)))
-    print("Design name:", d)
-
-    while True:
-        key = bitfile.read(1)
-        if not key:
-            break
-        if key in b"bcd":
-            d = bitfile.read(*struct.unpack(">H", bitfile.read(2)))
-            name = {b"b": "Partname", b"c": "Date", b"d": "Time"}[key]
-            print(name, d)
-        elif key == b"e":
-            l, = struct.unpack(">I", bitfile.read(4))
-            print("found binary data length:", l)
-            d = bitfile.read(l)
-            if flip:
-                d = flip32(d)
-            with open(bin, "wb") as f:
-                f.write(d)
-        else:
-            d = bitfile.read(*struct.unpack(">H", bitfile.read(2)))
-            print("Unexpected key: ", key, d)
+        while True:
+            key = bitfile.read(1)
+            if not key:
+                break
+            if key in b"bcd":
+                d = bitfile.read(*struct.unpack(">H", bitfile.read(2)))
+                name = {b"b": "Partname", b"c": "Date", b"d": "Time"}[key]
+                print(name, d)
+            elif key == b"e":
+                l, = struct.unpack(">I", bitfile.read(4))
+                print("found binary data length:", l)
+                d = bitfile.read(l)
+                if flip:
+                    d = flip32(d)
+                with open(bin, "wb") as f:
+                    f.write(d)
+            else:
+                d = bitfile.read(*struct.unpack(">H", bitfile.read(2)))
+                print("Unexpected key: ", key, d)
 
 
 if __name__ == "__main__":
