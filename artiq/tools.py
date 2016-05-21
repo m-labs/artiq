@@ -58,9 +58,9 @@ def short_format(v):
     if v is None:
         return "None"
     t = type(v)
-    if t is bool or np.issubdtype(t, int) or np.issubdtype(t, float):
+    if np.issubdtype(t, np.number) or np.issubdtype(t, np.bool_):
         return str(v)
-    elif t is str:
+    elif np.issubdtype(t, np.unicode_):
         return "\"" + elide(v, 50) + "\""
     else:
         r = t.__name__
