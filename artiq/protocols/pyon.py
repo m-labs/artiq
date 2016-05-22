@@ -58,6 +58,14 @@ for _t in _numpy_scalar:
     _encode_map[getattr(numpy, _t)] = "npscalar"
 
 
+_str_translation = {
+    ord("\""): "\\\"",
+    ord("\\"): "\\\\",
+    ord("\n"): "\\n",
+    ord("\r"): "\\r",
+}
+
+
 class _Encoder:
     def __init__(self, pretty):
         self.pretty = pretty
@@ -80,11 +88,7 @@ class _Encoder:
 
     def encode_str(self, x):
         # Do not use repr() for JSON compatibility.
-        tt = {
-              ord("\""): "\\\"", ord("\\"): "\\\\",
-              ord("\n"): "\\n", ord("\r"): "\\r"
-        }
-        return "\"" + x.translate(tt) + "\""
+        return "\"" + x.translate(_str_translation) + "\""
 
     def encode_bytes(self, x):
         return repr(x)
@@ -155,7 +159,8 @@ class _Encoder:
     def encode(self, x):
         ty = _encode_map.get(type(x), None)
         if ty is None:
-            raise TypeError(repr(x) + " is not PYON serializable")
+            raise TypeError("`{!r}` ({}) is not PYON serializable"
+                            .format(x, type(x)))
         return getattr(self, "encode_" + ty)(x)
 
 
