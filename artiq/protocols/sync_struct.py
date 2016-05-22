@@ -69,7 +69,7 @@ class Subscriber:
                 before_receive_cb()
             self.writer.write(_init_string)
             self.writer.write((self.notifier_name + "\n").encode())
-            self.receive_task = asyncio.Task(self._receive_cr())
+            self.receive_task = asyncio.ensure_future(self._receive_cr())
         except:
             self.writer.close()
             del self.reader
