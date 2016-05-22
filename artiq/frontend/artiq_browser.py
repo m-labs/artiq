@@ -5,7 +5,6 @@ import asyncio
 import atexit
 import os
 import logging
-from functools import partial
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from quamash import QEventLoop
@@ -69,14 +68,14 @@ def main():
     # initialize application
     args = get_argparser().parse_args()
 
-    log_sub = models.LocalModelManager(log.Model)
-    init_log(args, log_sub)
-
     app = QtWidgets.QApplication(["ARTIQ Browser"])
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
     atexit.register(loop.close)
-    loop.call_soon(partial(log_sub.init, []))
+
+    log_sub = models.LocalModelManager(log.Model)
+    init_log(args, log_sub)
+    log_sub.init([])
 
     smgr = state.StateManager(args.db_file)
 
