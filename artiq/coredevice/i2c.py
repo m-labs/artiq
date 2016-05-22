@@ -108,5 +108,10 @@ class TCA6424A:
 
         A bit set to 1 means the TTL is an output.
         """
+        outputs_le = (
+            ((outputs & 0xff0000) >> 16) |
+            (outputs & 0x00ff00) |
+            (outputs & 0x0000ff) << 16)
+
         self._write24(0x8c, 0)  # set all directions to output
-        self._write24(0x84, outputs)  # set levels
+        self._write24(0x84, outputs_le)  # set levels
