@@ -229,9 +229,12 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
                 asyncio.ensure_future(self._load_hdf5_task(uri.path()))
                 break
 
+    async def compute_arginfo(self):
+        return await self._area.compute_arginfo(self.expurl)
+
     async def _recompute_arguments(self, overrides={}):
         try:
-            arginfo = await self._area.compute_arginfo(self.expurl)
+            arginfo = await self.compute_arginfo()
         except:
             logger.error("Could not recompute arguments of '%s'",
                          self.expurl, exc_info=True)
