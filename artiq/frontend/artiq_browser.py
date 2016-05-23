@@ -147,7 +147,7 @@ class LogBufferHandler(logging.Handler):
         self.setFormatter(logging.Formatter("%(name)s:%(message)s"))
 
     def emit(self, record):
-        if getattr(self.log, "model") is not None:
+        if self.log.model is not None:
             self.log.model.append((record.levelno, record.source,
                                    record.created, self.format(record)))
 
