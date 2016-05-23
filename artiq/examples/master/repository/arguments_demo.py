@@ -5,9 +5,10 @@ from artiq.experiment import *
 
 class SubComponent1(HasEnvironment):
     def build(self):
-        self.setattr_argument("sc1_scan", Scannable(default=NoScan(3250),
-                                                    scale=1e3, unit="kHz"),
-                              "Flux capacitor")
+        self.setattr_argument("sc1_scan",
+            Scannable(default=[NoScan(3250), RandomScan(10, 20, 6)],
+                      scale=1e3, unit="kHz"),
+            "Flux capacitor")
         self.setattr_argument("sc1_enum", EnumerationValue(["1", "2", "3"]),
                               "Flux capacitor")
 

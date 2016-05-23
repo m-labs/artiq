@@ -273,20 +273,20 @@ class _ScanEntry(LayoutWidget):
             "ExplicitScan": {"sequence": []}
         }
         if "default" in procdesc:
-            default = procdesc["default"]
-            ty = default["ty"]
-            state["selected"] = ty
-            if ty == "NoScan":
-                state["NoScan"]["value"] = default["value"]
-            elif ty == "LinearScan" or ty == "RandomScan":
-                for d in state["LinearScan"], state["RandomScan"]:
-                    d["start"] = default["start"]
-                    d["stop"] = default["stop"]
-                    d["npoints"] = default["npoints"]
-            elif ty == "ExplicitScan":
-                state["ExplicitScan"]["sequence"] = default["sequence"]
-            else:
-                logger.warning("unknown default type: %s", ty)
+            defaults = procdesc["default"]
+            state["selected"] = defaults[0]["ty"]
+            for default in defaults:
+                ty = default["ty"]
+                if ty == "NoScan":
+                    state[ty]["value"] = default["value"]
+                elif ty == "LinearScan" or ty == "RandomScan":
+                    state[ty]["start"] = default["start"]
+                    state[ty]["stop"] = default["stop"]
+                    state[ty]["npoints"] = default["npoints"]
+                elif ty == "ExplicitScan":
+                    state[ty]["sequence"] = default["sequence"]
+                else:
+                    logger.warning("unknown default type: %s", ty)
         return state
 
     def _scan_type_toggled(self):

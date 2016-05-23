@@ -93,6 +93,7 @@ class RandomScan(ScanObject):
         self.start = start
         self.stop = stop
         self.npoints = npoints
+        self.seed = seed
         self.sequence = list(LinearScan(start, stop, npoints))
         if seed is None:
             rf = random.random
@@ -110,7 +111,8 @@ class RandomScan(ScanObject):
     def describe(self):
         return {"ty": "RandomScan",
                 "start": self.start, "stop": self.stop,
-                "npoints": self.npoints}
+                "npoints": self.npoints,
+                "seed": self.seed}
 
 
 class ExplicitScan(ScanObject):
@@ -141,6 +143,10 @@ class Scannable:
     """An argument (as defined in :class:`artiq.language.environment`) that
     takes a scan object.
 
+    :param default: The default scan object. This parameter can be a list of
+        scan objects, in which case the first one is used as default and the
+        others are used to configure the default values of scan types that are
+        not initially selected in the GUI.
     :param global_min: The minimum value taken by the scanned variable, common
         to all scan modes. The user interface takes this value to set the
         range of its input widgets.
@@ -160,7 +166,9 @@ class Scannable:
         if global_step is None:
             global_step = scale/10.0
         if default is not NoDefault:
-            self.default_value = default
+            if not isinstance(default, (tuple, list)):
+                default = [default]
+            self.default_values = default
         self.unit = unit
         self.scale = scale
         self.global_step = global_step
@@ -169,9 +177,9 @@ class Scannable:
         self.ndecimals = ndecimals
 
     def default(self):
-        if not hasattr(self, "default_value"):
+        if not hasattr(self, "default_values"):
             raise DefaultMissing
-        return self.default_value
+        return self.default_values[0]
 
     def process(self, x):
         cls = _ty_to_scan[x["ty"]]
@@ -183,8 +191,8 @@ class Scannable:
 
     def describe(self):
         d = {"ty": "Scannable"}
-        if hasattr(self, "default_value"):
-            d["default"] = self.default_value.describe()
+        if hasattr(self, "default_values"):
+            d["default"] = [d.describe() for d in self.default_values]
         d["unit"] = self.unit
         d["scale"] = self.scale
         d["global_step"] = self.global_step
