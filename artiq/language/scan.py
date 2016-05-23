@@ -18,7 +18,7 @@ iterators are independent from each other.
 Scan objects are supported both on the host and the core device.
 """
 
-from random import Random, shuffle
+import random
 import inspect
 
 from artiq.language.core import *
@@ -89,12 +89,16 @@ class LinearScan(ScanObject):
 class RandomScan(ScanObject):
     """A scan object that yields a fixed number of randomly ordered evenly
     spaced values in a range."""
-    def __init__(self, start, stop, npoints, seed=0):
+    def __init__(self, start, stop, npoints, seed=None):
         self.start = start
         self.stop = stop
         self.npoints = npoints
         self.sequence = list(LinearScan(start, stop, npoints))
-        shuffle(self.sequence, Random(seed).random)
+        if seed is None:
+            rf = random.random
+        else:
+            rf = Random(seed).random
+        random.shuffle(self.sequence, rf)
 
     @portable
     def __iter__(self):
