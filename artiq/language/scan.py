@@ -166,7 +166,7 @@ class Scannable:
         if global_step is None:
             global_step = scale/10.0
         if default is not NoDefault:
-            if not isinstance(default, (tuple, list)):
+            if not isinstance(default, list):
                 default = [default]
             self.default_values = default
         self.unit = unit

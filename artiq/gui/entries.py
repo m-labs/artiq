@@ -274,8 +274,10 @@ class _ScanEntry(LayoutWidget):
         }
         if "default" in procdesc:
             defaults = procdesc["default"]
+            if not isinstance(defaults, list):
+                defaults = [defaults]
             state["selected"] = defaults[0]["ty"]
-            for default in defaults:
+            for default in reversed(defaults):
                 ty = default["ty"]
                 if ty == "NoScan":
                     state[ty]["value"] = default["value"]

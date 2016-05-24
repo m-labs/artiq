@@ -23,6 +23,10 @@ class DefaultMissing(Exception):
 
 class _SimpleArgProcessor:
     def __init__(self, default=NoDefault):
+        # If default is a list, it means multiple defaults are specified, with
+        # decreasing priority.
+        if isinstance(default, list):
+            raise NotImplementedError
         if default is not NoDefault:
             self.default_value = default
 
