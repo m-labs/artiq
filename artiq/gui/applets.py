@@ -3,6 +3,7 @@ import asyncio
 import sys
 import shlex
 from functools import partial
+from itertools import count
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
@@ -217,7 +218,7 @@ class AppletsDock(QtWidgets.QDockWidget):
 
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         new_action = QtWidgets.QAction("New applet", self.table)
-        new_action.triggered.connect(self.new)
+        new_action.triggered.connect(lambda: self.new())
         self.table.addAction(new_action)
         templates_menu = QtWidgets.QMenu()
         for name, template in _templates:
@@ -286,9 +287,8 @@ class AppletsDock(QtWidgets.QDockWidget):
 
     def new(self, uid=None):
         if uid is None:
-            uid = next(iter(set(range(len(self.applet_uids) + 1))
-                            - self.applet_uids))
-        assert uid not in self.applet_uids
+            uid = next(i for i in count() if i not in self.applet_uids)
+        assert uid not in self.applet_uids, uid
         self.applet_uids.add(uid)
 
         row = self.table.rowCount()
