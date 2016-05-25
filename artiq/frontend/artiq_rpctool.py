@@ -5,7 +5,6 @@ import textwrap
 import sys
 import traceback
 import numpy as np  # Needed to use numpy in RPC call arguments on cmd line
-import readline  # This makes input() nicer
 import pprint
 
 from artiq.protocols.pc_rpc import AutoTarget, Client, RemoteError
@@ -87,6 +86,12 @@ def call_method(remote, method_name, args):
 
 
 def interactive(remote):
+    try:
+        import readline  # This makes input() nicer
+    except ImportError:
+        print("Warning: readline not available. "
+              "Install it to add line editing capabilities.")
+
     while True:
         try:
             cmd = input("({}) ".format(remote.get_selected_target()))
