@@ -240,7 +240,11 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
                          self.expurl, exc_info=True)
             return
         for k, v in overrides.items():
-            arginfo[k][0]["default"] = v
+            # Some values (e.g. scans) may have multiple defaults in a list
+            if isinstance(arginfo[k][0].get("default"), list):
+                arginfo[k][0]["default"].insert(0, v)
+            else:
+                arginfo[k][0]["default"] = v
         self.arguments = self._area.initialize_submission_arguments(arginfo)
 
         self.argeditor.deleteLater()
