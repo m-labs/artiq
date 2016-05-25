@@ -394,6 +394,8 @@ This should be done after either installation method (conda or source).
 .. note:: The reset button of the KC705 board is the "CPU_RST" labeled button.
 .. warning:: Both those instructions will result in the flash storage being wiped out. However you can use the test mode to change the IP/MAC without erasing everything if you skip the "fserase" command.
 
+* (optional) You may also want to set ``netmask`` and ``gateway`` in the same way that you set ``ip``.
+
 * (optional) Flash the idle kernel
 
 The idle kernel is the kernel (some piece of code running on the core device) which the core device runs whenever it is not connected to a PC via ethernet.
