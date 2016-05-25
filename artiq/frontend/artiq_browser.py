@@ -36,8 +36,8 @@ def get_argparser():
     return parser
 
 
-class MainWindow(QtWidgets.QMainWindow):
-    def __init__(self):
+class Browser(QtWidgets.QMainWindow):
+    def __init__(self, datasets_sub, log_sub, browse_root, select):
         QtWidgets.QMainWindow.__init__(self)
 
         icon = QtGui.QIcon(os.path.join(artiq_dir, "gui", "logo.svg"))
@@ -49,18 +49,63 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.exit_request = asyncio.Event()
 
+        self.setUnifiedTitleAndToolBarOnMac(True)
+
+        self.experiments = experiments.ExperimentsArea(
+            browse_root, datasets_sub)
+        self.experiments.setHorizontalScrollBarPolicy(
+            QtCore.Qt.ScrollBarAsNeeded)
+        self.experiments.setVerticalScrollBarPolicy(
+            QtCore.Qt.ScrollBarAsNeeded)
+        self.setCentralWidget(self.experiments)
+
+        self.files = files.FilesDock(datasets_sub, browse_root, select=select)
+
+        self.applets = applets.AppletsDock(self, datasets_sub)
+        atexit_register_coroutine(self.applets.stop)
+
+        self.datasets = datasets.DatasetsDock(datasets_sub)
+
+        self.log = log.LogDock(None, "log", log_sub)
+        self.log.setFeatures(self.log.DockWidgetMovable |
+                             self.log.DockWidgetFloatable)
+
+        self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self.files)
+        self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.applets)
+        self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.datasets)
+        self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.log)
+
+        open_action = QtWidgets.QAction("&Open", self)
+        open_action.setIcon(QtWidgets.QApplication.style().standardIcon(
+            QtWidgets.QStyle.SP_DialogOpenButton))
+        open_action.setShortcuts(QtGui.QKeySequence.Open)
+        open_action.setStatusTip("Open an experiment")
+        open_action.triggered.connect(self.experiments.select_experiment)
+        exp_group = self.menuBar().addMenu("&Experiment")
+        exp_group.addAction(open_action)
+
     def closeEvent(self, *args):
         self.exit_request.set()
 
     def save_state(self):
         return {
+            "geometry": bytes(self.saveGeometry()),
             "state": bytes(self.saveState()),
-            "geometry": bytes(self.saveGeometry())
+            "experiments": self.experiments.save_state(),
+            "files": self.files.save_state(),
+            "datasets": self.datasets.save_state(),
+            "log": self.log.save_state(),
+            "applets": self.applets.save_state(),
         }
 
     def restore_state(self, state):
-        self.restoreGeometry(QtCore.QByteArray(state["geometry"]))
+        self.applets.restore_state(state["applets"])
+        self.log.restore_state(state["log"])
+        self.datasets.restore_state(state["datasets"])
+        self.files.restore_state(state["files"])
+        self.experiments.restore_state(state["experiments"])
         self.restoreState(QtCore.QByteArray(state["state"]))
+        self.restoreGeometry(QtCore.QByteArray(state["geometry"]))
 
 
 def main():
@@ -76,66 +121,24 @@ def main():
     browser_log.init_log(args, log_sub)
     log_sub.init([])
 
-    smgr = state.StateManager(args.db_file)
-
     datasets_sub = models.LocalModelManager(datasets.Model)
     datasets_sub.init({})
 
-    # initialize main window
-    main_window = MainWindow()
+    smgr = state.StateManager(args.db_file)
+
+    main_window = Browser(datasets_sub, log_sub,
+                          args.browse_root, args.select)
     smgr.register(main_window)
-    main_window.setUnifiedTitleAndToolBarOnMac(True)
 
-    mdi_area = experiments.ExperimentsArea(args.browse_root, datasets_sub)
-    mdi_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-    mdi_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-    main_window.setCentralWidget(mdi_area)
-    smgr.register(mdi_area)
-
-    d_files = files.FilesDock(datasets_sub, args.browse_root,
-                              select=args.select)
-    smgr.register(d_files)
-
-    d_applets = applets.AppletsDock(main_window, datasets_sub)
-    atexit_register_coroutine(d_applets.stop)
-    smgr.register(d_applets)
-
-    d_datasets = datasets.DatasetsDock(datasets_sub)
-    smgr.register(d_datasets)
-
-    d_log = log.LogDock(None, "log", log_sub)
-    d_log.setFeatures(d_log.DockWidgetMovable | d_log.DockWidgetFloatable)
-    smgr.register(d_log)
-
-    main_window.addDockWidget(QtCore.Qt.LeftDockWidgetArea, d_files)
-    main_window.addDockWidget(QtCore.Qt.BottomDockWidgetArea, d_applets)
-    main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, d_datasets)
-    main_window.addDockWidget(QtCore.Qt.BottomDockWidgetArea, d_log)
-
-    open_action = QtWidgets.QAction("&Open", main_window)
-    open_action.setIcon(app.style().standardIcon(
-        QtWidgets.QStyle.SP_DialogOpenButton))
-    open_action.setShortcuts(QtGui.QKeySequence.Open)
-    open_action.setStatusTip("Open an experiment")
-    open_action.triggered.connect(mdi_area.select_experiment)
-    exp_group = main_window.menuBar().addMenu("&Experiment")
-    exp_group.addAction(open_action)
-
-    # load/initialize state
     if os.name == "nt":
         # HACK: show the main window before creating applets.
         # Otherwise, the windows of those applets that are in detached
         # QDockWidgets fail to be embedded.
         main_window.show()
-
     smgr.load()
-
     smgr.start()
     atexit_register_coroutine(smgr.stop)
-
-    # run
     main_window.show()
-
     loop.run_until_complete(main_window.exit_request.wait())
 
 
