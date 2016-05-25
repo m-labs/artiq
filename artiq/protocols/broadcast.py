@@ -52,9 +52,9 @@ class Receiver:
 
 
 class Broadcaster(AsyncioServer):
-    def __init__(self):
-        AsyncioServer.__init__(self, maxbuf=1024)
-        self._maxbuf = maxbuf
+    def __init__(self, queue_limit=1024):
+        AsyncioServer.__init__(self)
+        self._queue_limit = queue_limit
         self._recipients = dict()
 
     async def _handle_connection_cr(self, reader, writer):
@@ -68,7 +68,7 @@ class Broadcaster(AsyncioServer):
                 return
             name = line.decode()[:-1]
 
-            queue = asyncio.Queue(self._maxbuf)
+            queue = asyncio.Queue(self._queue_limit)
             if name in self._recipients:
                 self._recipients[name].add(queue)
             else:
@@ -97,5 +97,6 @@ class Broadcaster(AsyncioServer):
                 try:
                     recipient.put_nowait(line)
                 except asyncio.QueueFull:
-                    # do not log as logs may be redirected to a Broadcaster
+                    # do not log: log messages may be sent back to us
+                    # as broadcasts, and cause infinite recursion.
                     pass
