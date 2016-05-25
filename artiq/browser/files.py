@@ -1,8 +1,11 @@
 import logging
 import os
+from datetime import datetime
 
 import h5py
 from PyQt5 import QtCore, QtWidgets, QtGui
+
+from artiq.protocols import pyon
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +84,33 @@ class ZoomIconView(QtWidgets.QListView):
             QtWidgets.QListView.wheelEvent(self, ev)
 
 
+class Hdf5FileSystemModel(QtWidgets.QFileSystemModel):
+    def __init__(self):
+        QtWidgets.QFileSystemModel.__init__(self)
+        self.setFilter(QtCore.QDir.Drives | QtCore.QDir.NoDotAndDotDot |
+                       QtCore.QDir.AllDirs | QtCore.QDir.Files)
+        self.setNameFilterDisables(False)
+        self.setIconProvider(ThumbnailIconProvider())
+
+    def data(self, idx, role):
+        if role == QtCore.Qt.ToolTipRole:
+            info = self.fileInfo(idx)
+            h5 = open_h5(info)
+            if h5 is not None:
+                try:
+                    expid = pyon.decode(h5["expid"].value)
+                    rid = h5["rid"].value
+                    start_time = datetime.fromtimestamp(h5["start_time"].value)
+                    artiq_version = h5["artiq_version"].value
+                    v = "artiq: {}\nrepo: {}\nrid: {}\nstart: {}".format(
+                        artiq_version, expid["repo_rev"], rid, start_time)
+                    return v
+                except:
+                    logger.warning("unable to read metadata from %s",
+                                   info.filePath(), exc_info=True)
+        return QtWidgets.QFileSystemModel.data(self, idx, role)
+
+
 class FilesDock(QtWidgets.QDockWidget):
     def __init__(self, datasets, browse_root="", select=None):
         QtWidgets.QDockWidget.__init__(self, "Files")
@@ -92,11 +122,7 @@ class FilesDock(QtWidgets.QDockWidget):
 
         self.datasets = datasets
 
-        self.model = QtWidgets.QFileSystemModel()
-        self.model.setFilter(QtCore.QDir.Drives | QtCore.QDir.NoDotAndDotDot |
-                             QtCore.QDir.AllDirs | QtCore.QDir.Files)
-        self.model.setNameFilterDisables(False)
-        self.model.setIconProvider(ThumbnailIconProvider())
+        self.model = Hdf5FileSystemModel()
 
         self.rt = QtWidgets.QTreeView()
         rt_model = DirsOnlyProxy()
