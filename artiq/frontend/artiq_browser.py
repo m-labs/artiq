@@ -75,14 +75,24 @@ class Browser(QtWidgets.QMainWindow):
         self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.datasets)
         self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.log)
 
-        open_action = QtWidgets.QAction("&Open", self)
-        open_action.setIcon(QtWidgets.QApplication.style().standardIcon(
+        g = self.menuBar().addMenu("&Experiment")
+        a = QtWidgets.QAction("&Open", self)
+        a.setIcon(QtWidgets.QApplication.style().standardIcon(
             QtWidgets.QStyle.SP_DialogOpenButton))
-        open_action.setShortcuts(QtGui.QKeySequence.Open)
-        open_action.setStatusTip("Open an experiment")
-        open_action.triggered.connect(self.experiments.select_experiment)
-        exp_group = self.menuBar().addMenu("&Experiment")
-        exp_group.addAction(open_action)
+        a.setShortcuts(QtGui.QKeySequence.Open)
+        a.setStatusTip("Open an experiment")
+        a.triggered.connect(self.experiments.select_experiment)
+        g.addAction(a)
+
+        g = self.menuBar().addMenu("&View")
+        a = QtWidgets.QAction("Cascade", self)
+        a.setStatusTip("Cascade experiment windows")
+        a.triggered.connect(self.experiments.cascadeSubWindows)
+        g.addAction(a)
+        a = QtWidgets.QAction("Tile", self)
+        a.setStatusTip("Tile experiment windows")
+        a.triggered.connect(self.experiments.tileSubWindows)
+        g.addAction(a)
 
     def closeEvent(self, *args):
         self.exit_request.set()
