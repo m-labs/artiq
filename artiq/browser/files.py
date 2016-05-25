@@ -100,8 +100,8 @@ class Hdf5FileSystemModel(QtWidgets.QFileSystemModel):
                 try:
                     expid = pyon.decode(h5["expid"].value)
                     start_time = datetime.fromtimestamp(h5["start_time"].value)
-                    v = ("artiq: {}\nrepo: {}\nfile: {}\nclass_name: {}\n"
-                         "rid: {}\nstart: {}").format(
+                    v = ("artiq_version: {}\nrepo_rev: {}\nfile: {}\n"
+                         "class_name: {}\nrid: {}\nstart_time: {}").format(
                              h5["artiq_version"].value, expid["repo_rev"],
                              expid["file"], expid["class_name"],
                              h5["rid"].value, start_time)
