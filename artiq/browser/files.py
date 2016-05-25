@@ -99,11 +99,12 @@ class Hdf5FileSystemModel(QtWidgets.QFileSystemModel):
             if h5 is not None:
                 try:
                     expid = pyon.decode(h5["expid"].value)
-                    rid = h5["rid"].value
                     start_time = datetime.fromtimestamp(h5["start_time"].value)
-                    artiq_version = h5["artiq_version"].value
-                    v = "artiq: {}\nrepo: {}\nrid: {}\nstart: {}".format(
-                        artiq_version, expid["repo_rev"], rid, start_time)
+                    v = ("artiq: {}\nrepo: {}\nfile: {}\nclass_name: {}\n"
+                         "rid: {}\nstart: {}").format(
+                             h5["artiq_version"].value, expid["repo_rev"],
+                             expid["file"], expid["class_name"],
+                             h5["rid"].value, start_time)
                     return v
                 except:
                     logger.warning("unable to read metadata from %s",
