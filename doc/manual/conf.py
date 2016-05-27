@@ -51,6 +51,7 @@ from artiq import __version__ as artiq_version
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.mathjax',
+    'sphinx.ext.viewcode',
     'sphinxarg.ext',
 ]
 
