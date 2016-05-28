@@ -1,11 +1,15 @@
 import asyncio
 import time
 from functools import partial
+import logging
 
 from PyQt5 import QtCore, QtWidgets, QtGui
 
 from artiq.gui.models import DictSyncModel
 from artiq.tools import elide
+
+
+logger = logging.getLogger(__name__)
 
 
 class Model(DictSyncModel):
@@ -55,13 +59,12 @@ class Model(DictSyncModel):
 
 
 class ScheduleDock(QtWidgets.QDockWidget):
-    def __init__(self, status_bar, schedule_ctl, schedule_sub):
+    def __init__(self, schedule_ctl, schedule_sub):
         QtWidgets.QDockWidget.__init__(self, "Schedule")
         self.setObjectName("Schedule")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
                          QtWidgets.QDockWidget.DockWidgetFloatable)
 
-        self.status_bar = status_bar
         self.schedule_ctl = schedule_ctl
 
         self.table = QtWidgets.QTableView()
@@ -118,10 +121,9 @@ class ScheduleDock(QtWidgets.QDockWidget):
             row = idx[0].row()
             rid = self.table_model.row_to_key[row]
             if graceful:
-                msg = "Requested termination of RID {}".format(rid)
+                logger.info("Requested termination of RID %d", rid)
             else:
-                msg = "Deleted RID {}".format(rid)
-            self.status_bar.showMessage(msg)
+                logger.info("Deleted RID %d", rid)
             asyncio.ensure_future(self.delete(rid, graceful))
 
     async def request_term_multiple(self, rids):

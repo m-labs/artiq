@@ -157,7 +157,7 @@ class WaitingPanel(LayoutWidget):
 
 
 class ExplorerDock(QtWidgets.QDockWidget):
-    def __init__(self, status_bar, exp_manager, d_shortcuts,
+    def __init__(self, exp_manager, d_shortcuts,
                  explist_sub, explist_status_sub,
                  schedule_ctl, experiment_db_ctl):
         QtWidgets.QDockWidget.__init__(self, "Explorer")
@@ -168,7 +168,6 @@ class ExplorerDock(QtWidgets.QDockWidget):
         top_widget = LayoutWidget()
         self.setWidget(top_widget)
 
-        self.status_bar = status_bar
         self.exp_manager = exp_manager
         self.d_shortcuts = d_shortcuts
         self.schedule_ctl = schedule_ctl
@@ -287,8 +286,7 @@ class ExplorerDock(QtWidgets.QDockWidget):
         if expname is not None:
             expurl = "repo:" + expname
             self.d_shortcuts.set_shortcut(nr, expurl)
-            self.status_bar.showMessage("Set shortcut F{} to '{}'"
-                                        .format(nr+1, expurl))
+            logger.info("Set shortcut F%d to '%s'", nr+1, expurl)
 
     def update_scanning(self, scanning):
         if scanning:

@@ -12,7 +12,7 @@ from quamash import QEventLoop
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import verbosity_args, atexit_register_coroutine
 from artiq.gui import state, applets, models, log
-from artiq.browser import datasets, files, experiments, log as browser_log
+from artiq.browser import datasets, files, experiments
 
 logger = logging.getLogger(__name__)
 
@@ -121,13 +121,12 @@ class Browser(QtWidgets.QMainWindow):
 def main():
     # initialize application
     args = get_argparser().parse_args()
+    widget_log_handler = log.init_log(args, "browser")
 
     app = QtWidgets.QApplication(["ARTIQ Browser"])
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
     atexit.register(loop.close)
-
-    widget_log_handler = browser_log.init_log(args)
 
     datasets_sub = models.LocalModelManager(datasets.Model)
     datasets_sub.init({})
@@ -135,7 +134,7 @@ def main():
     smgr = state.StateManager(args.db_file)
 
     main_window = Browser(datasets_sub, args.browse_root, args.select)
-    widget_log_handler.log_widget = main_window.log
+    widget_log_handler.callback = main_window.log.append_message
     smgr.register(main_window)
 
     if os.name == "nt":

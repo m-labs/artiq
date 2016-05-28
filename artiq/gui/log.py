@@ -6,6 +6,7 @@ from functools import partial
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+from artiq.protocols.logging import SourceFilter
 from artiq.gui.tools import (LayoutWidget, log_level_to_name,
                              QDockWidgetCloseDetect)
 
@@ -159,10 +160,11 @@ class LogDock(QDockWidgetCloseDetect):
         grid.addWidget(QtWidgets.QLabel("Minimum level: "), 0, 0)
         self.filter_level = QtWidgets.QComboBox()
         self.filter_level.addItems(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
-        self.filter_level.setToolTip("Display entries at or above this level")
+        self.filter_level.setToolTip("Receive entries at or above this level")
         grid.addWidget(self.filter_level, 0, 1)
         self.filter_freetext = QtWidgets.QLineEdit()
         self.filter_freetext.setPlaceholderText("freetext filter...")
+        self.filter_freetext.setToolTip("Receive entries containing this text")
         grid.addWidget(self.filter_freetext, 0, 2)
 
         scrollbottom = QtWidgets.QToolButton()
@@ -340,3 +342,37 @@ class LogDockManager:
             return None
         dock = self.create_new_dock(False)
         return dock
+
+
+class LogWidgetHandler(logging.Handler):
+    def __init__(self, *args, **kwargs):
+        logging.Handler.__init__(self, *args, **kwargs)
+        self.callback = None
+        self.setFormatter(logging.Formatter("%(name)s:%(message)s"))
+
+    def emit(self, record):
+        if self.callback is not None:
+            message = self.format(record)
+            self.callback((record.levelno, record.source,
+                           record.created, message))
+
+
+def init_log(args, local_source):
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.NOTSET)  # we use our custom filter only
+    flt = SourceFilter(logging.INFO + args.quiet*10 - args.verbose*10,
+                       local_source)
+    handlers = []
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter(
+        "%(levelname)s:%(source)s:%(name)s:%(message)s"))
+    handlers.append(console_handler)
+
+    widget_handler = LogWidgetHandler()
+    handlers.append(widget_handler)
+
+    for handler in handlers:
+        handler.addFilter(flt)
+        root_logger.addHandler(handler)
+
+    return widget_handler

@@ -504,10 +504,9 @@ class ExperimentManager:
     def on_dock_closed(self, expurl):
         del self.open_experiments[expurl]
 
-    async def _submit_task(self, *args):
+    async def _submit_task(self, expurl, *args):
         rid = await self.schedule_ctl.submit(*args)
-        self.main_window.statusBar().showMessage(
-            "Submitted RID {}".format(rid))
+        logger.info("Submitted '%s', RID is %d", expurl, rid)
 
     def submit(self, expurl):
         file, class_name, _ = self.resolve_expurl(expurl)
@@ -529,6 +528,7 @@ class ExperimentManager:
         if "repo_rev" in options:
             expid["repo_rev"] = options["repo_rev"]
         asyncio.ensure_future(self._submit_task(
+            expurl,
             scheduling["pipeline_name"],
             expid,
             scheduling["priority"], scheduling["due_date"],
@@ -545,9 +545,9 @@ class ExperimentManager:
                              rid, exc_info=True)
 
     def request_inst_term(self, expurl):
-        self.main_window.statusBar().showMessage(
+        logger.info(
             "Requesting termination of all instances "
-            "of '{}'".format(expurl))
+            "of '%s'", expurl)
         file, class_name, use_repository = self.resolve_expurl(expurl)
         rids = []
         for rid, desc in self.schedule.items():

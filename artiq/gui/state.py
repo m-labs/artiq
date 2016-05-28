@@ -51,7 +51,7 @@ class StateManager(TaskObject):
         # To help address this problem, state is restored in the opposite
         # order as the stateful objects are registered.
         for name, obj in reversed(list(self.stateful_objects.items())):
-            logger.info("Restoring state of object '%s'", name)
+            logger.debug("Restoring state of object '%s'", name)
             state = data.get(name, None)
             if state is not None:
                 try:
