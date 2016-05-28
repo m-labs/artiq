@@ -10,15 +10,15 @@ from artiq.gui.tools import (LayoutWidget, log_level_to_name,
                              QDockWidgetCloseDetect)
 
 
-class ModelItem:
+class _ModelItem:
     def __init__(self, parent, row):
         self.parent = parent
         self.row = row
         self.children_by_row = []
 
 
-class Model(QtCore.QAbstractItemModel):
-    def __init__(self, init):
+class _Model(QtCore.QAbstractItemModel):
+    def __init__(self):
         QtCore.QAbstractTableModel.__init__(self)
 
         self.headers = ["Source", "Message"]
@@ -26,8 +26,6 @@ class Model(QtCore.QAbstractItemModel):
 
         self.entries = []
         self.pending_entries = []
-        for entry in init:
-            self.append(entry)
         self.depth = 1000
         timer = QtCore.QTimer(self)
         timer.timeout.connect(self.timer_tick)
@@ -57,9 +55,6 @@ class Model(QtCore.QAbstractItemModel):
     def columnCount(self, parent):
         return len(self.headers)
 
-    def __delitem__(self, k):
-        pass
-
     def append(self, v):
         severity, source, timestamp, message = v
         self.pending_entries.append((severity, source, timestamp,
@@ -75,10 +70,10 @@ class Model(QtCore.QAbstractItemModel):
         self.beginInsertRows(QtCore.QModelIndex(), nrows, nrows+len(records)-1)
         self.entries.extend(records)
         for rec in records:
-            item = ModelItem(self, len(self.children_by_row))
+            item = _ModelItem(self, len(self.children_by_row))
             self.children_by_row.append(item)
             for i in range(len(rec[3])-1):
-                item.children_by_row.append(ModelItem(item, i))
+                item.children_by_row.append(_ModelItem(item, i))
         self.endInsertRows()
 
         if len(self.entries) > self.depth:
@@ -153,43 +148,8 @@ class Model(QtCore.QAbstractItemModel):
                 time.strftime("%m/%d %H:%M:%S", time.localtime(v[2])))
 
 
-class _LogFilterProxyModel(QtCore.QSortFilterProxyModel):
-    def __init__(self, min_level, freetext):
-        QtCore.QSortFilterProxyModel.__init__(self)
-        self.min_level = min_level
-        self.freetext = freetext
-
-    def filterAcceptsRow(self, sourceRow, sourceParent):
-        model = self.sourceModel()
-        if sourceParent.isValid():
-            parent_item = sourceParent.internalPointer()
-            msgnum = parent_item.row
-        else:
-            msgnum = sourceRow
-
-        accepted_level = model.entries[msgnum][0] >= self.min_level
-
-        if self.freetext:
-            data_source = model.entries[msgnum][1]
-            data_message = model.entries[msgnum][3]
-            accepted_freetext = (self.freetext in data_source
-                or any(self.freetext in m for m in data_message))
-        else:
-            accepted_freetext = True
-
-        return accepted_level and accepted_freetext
-
-    def set_min_level(self, min_level):
-        self.min_level = min_level
-        self.invalidateFilter()
-
-    def set_freetext(self, freetext):
-        self.freetext = freetext
-        self.invalidateFilter()
-
-
 class LogDock(QDockWidgetCloseDetect):
-    def __init__(self, manager, name, log_sub):
+    def __init__(self, manager, name):
         QDockWidgetCloseDetect.__init__(self, "Log")
         self.setObjectName(name)
 
@@ -201,12 +161,8 @@ class LogDock(QDockWidgetCloseDetect):
         self.filter_level.addItems(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
         self.filter_level.setToolTip("Display entries at or above this level")
         grid.addWidget(self.filter_level, 0, 1)
-        self.filter_level.currentIndexChanged.connect(
-            self.filter_level_changed)
         self.filter_freetext = QtWidgets.QLineEdit()
         self.filter_freetext.setPlaceholderText("freetext filter...")
-        self.filter_freetext.editingFinished.connect(
-            self.filter_freetext_changed)
         grid.addWidget(self.filter_freetext, 0, 2)
 
         scrollbottom = QtWidgets.QToolButton()
@@ -244,21 +200,31 @@ class LogDock(QDockWidgetCloseDetect):
         #     lambda: self.log.header().resizeSections(QtWidgets.QHeaderView.ResizeToContents))
         # self.log.addAction(sizeheader_action)
 
-        log_sub.add_setmodel_callback(self.set_model)
-
         cw = QtGui.QFontMetrics(self.font()).averageCharWidth()
         self.log.header().resizeSection(0, 26*cw)
 
-    def filter_level_changed(self):
-        if not hasattr(self, "table_model_filter"):
-            return
-        self.table_model_filter.set_min_level(
-            getattr(logging, self.filter_level.currentText()))
+        self.model = _Model()
+        self.log.setModel(self.model)
+        self.model.rowsAboutToBeInserted.connect(self.rows_inserted_before)
+        self.model.rowsInserted.connect(self.rows_inserted_after)
+        self.model.rowsRemoved.connect(self.rows_removed)
 
-    def filter_freetext_changed(self):
-        if not hasattr(self, "table_model_filter"):
-            return
-        self.table_model_filter.set_freetext(self.filter_freetext.text())
+    def append_message(self, msg):
+        min_level = getattr(logging, self.filter_level.currentText())
+        freetext = self.filter_freetext.text()
+
+        accepted_level = msg[0] >= min_level
+
+        if freetext:
+            data_source = msg[1]
+            data_message = msg[3]
+            accepted_freetext = (freetext in data_source
+                or any(freetext in m for m in data_message))
+        else:
+            accepted_freetext = True
+
+        if accepted_level and accepted_freetext:
+            self.model.append(msg)
 
     def scroll_to_bottom(self):
         self.log.scrollToBottom()
@@ -286,19 +252,6 @@ class LogDock(QDockWidgetCloseDetect):
             scrollbar = self.log.verticalScrollBar()
             scrollbar.setValue(self.scroll_value)
 
-    def set_model(self, model):
-        self.table_model = model
-        self.table_model_filter = _LogFilterProxyModel(
-            getattr(logging, self.filter_level.currentText()),
-            self.filter_freetext.text())
-        self.table_model_filter.setSourceModel(self.table_model)
-        self.log.setModel(self.table_model_filter)
-        self.table_model_filter.rowsAboutToBeInserted.connect(self.rows_inserted_before)
-        self.table_model_filter.rowsInserted.connect(self.rows_inserted_after)
-        self.table_model_filter.rowsRemoved.connect(self.rows_removed)
-
-        asyncio.get_event_loop().call_soon(self.log.scrollToBottom)
-
     def save_state(self):
         return {
             "min_level_idx": self.filter_level.currentIndex(),
@@ -320,10 +273,6 @@ class LogDock(QDockWidgetCloseDetect):
             pass
         else:
             self.filter_freetext.setText(freetext)
-            # Note that editingFinished is not emitted when calling setText,
-            # (unlike currentIndexChanged) so we need to call the callback
-            # manually here, unlike for the combobox.
-            self.filter_freetext_changed()
 
         try:
             header = state["header"]
@@ -334,10 +283,13 @@ class LogDock(QDockWidgetCloseDetect):
 
 
 class LogDockManager:
-    def __init__(self, main_window, log_sub):
+    def __init__(self, main_window):
         self.main_window = main_window
-        self.log_sub = log_sub
         self.docks = dict()
+
+    def append_message(self, msg):
+        for dock in self.docks.values():
+            dock.append_message(msg)
 
     def create_new_dock(self, add_to_area=True):
         n = 0
@@ -346,7 +298,7 @@ class LogDockManager:
             n += 1
             name = "log" + str(n)
 
-        dock = LogDock(self, name, self.log_sub)
+        dock = LogDock(self, name)
         self.docks[name] = dock
         if add_to_area:
             self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
@@ -376,7 +328,7 @@ class LogDockManager:
         if self.docks:
             raise NotImplementedError
         for name, dock_state in state.items():
-            dock = LogDock(self, name, self.log_sub)
+            dock = LogDock(self, name)
             self.docks[name] = dock
             dock.restore_state(dock_state)
             self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)

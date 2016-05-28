@@ -5,27 +5,17 @@ from artiq.protocols.sync_struct import Notifier
 from artiq.protocols.logging import SourceFilter
 
 
-class LogBuffer:
-    def __init__(self, depth):
-        self.depth = depth
-        self.data = Notifier([])
-
-    def log(self, level, source, time, message):
-        if len(self.data.read) >= self.depth:
-            del self.data[0]
-        self.data.append((level, source, time, message))
-
-
-class LogBufferHandler(logging.Handler):
-    def __init__(self, log_buffer, *args, **kwargs):
+class LogForwarder(logging.Handler):
+    def __init__(self, *args, **kwargs):
         logging.Handler.__init__(self, *args, **kwargs)
-        self.log_buffer = log_buffer
+        self.callback = None
         self.setFormatter(logging.Formatter("%(name)s:%(message)s"))
 
     def emit(self, record):
-        message = self.format(record)
-        self.log_buffer.log(record.levelno, record.source, record.created,
-                            message)
+        if self.callback is not None:
+            message = self.format(record)
+            self.callback((record.levelno, record.source, record.created,
+                           message))
 
 
 def log_args(parser):
@@ -65,12 +55,11 @@ def init_log(args):
             "%(asctime)s %(levelname)s:%(source)s:%(name)s:%(message)s"))
         handlers.append(file_handler)
     
-    log_buffer = LogBuffer(1000)
-    buffer_handler = LogBufferHandler(log_buffer)
-    handlers.append(buffer_handler)
+    log_forwarder = LogForwarder()
+    handlers.append(log_forwarder)
 
     for handler in handlers:
         handler.addFilter(flt)
         root_logger.addHandler(handler)
 
-    return log_buffer
+    return log_forwarder

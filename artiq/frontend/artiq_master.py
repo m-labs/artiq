@@ -11,6 +11,7 @@ from artiq.tools import (simple_network_args, atexit_register_coroutine,
 from artiq.protocols.pc_rpc import Server as RPCServer
 from artiq.protocols.sync_struct import Publisher
 from artiq.protocols.logging import Server as LoggingServer
+from artiq.protocols.broadcast import Broadcaster
 from artiq.master.log import log_args, init_log
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.scheduler import Scheduler
@@ -27,7 +28,8 @@ def get_argparser():
     simple_network_args(parser, [
         ("notify", "notifications", 3250),
         ("control", "control", 3251),
-        ("logging", "remote logging", 1066)
+        ("logging", "remote logging", 1066),
+        ("broadcast", "broadcasts", 1067)
     ])
 
     group = parser.add_argument_group("databases")
@@ -51,13 +53,22 @@ def get_argparser():
 
 def main():
     args = get_argparser().parse_args()
-    log_buffer = init_log(args)
+    log_forwarder = init_log(args)
     if os.name == "nt":
         loop = asyncio.ProactorEventLoop()
         asyncio.set_event_loop(loop)
     else:
         loop = asyncio.get_event_loop()
     atexit.register(loop.close)
+    bind = bind_address_from_args(args)
+
+    server_broadcast = Broadcaster()
+    loop.run_until_complete(server_broadcast.start(
+        bind, args.port_broadcast))
+    atexit_register_coroutine(server_broadcast.stop)
+
+    log_forwarder.callback = (lambda msg:
+        server_broadcast.broadcast("log", msg))
 
     device_db = DeviceDB(args.device_db)
     dataset_db = DatasetDB(args.dataset_db)
@@ -88,8 +99,6 @@ def main():
     })
     experiment_db.scan_repository_async()
 
-    bind = bind_address_from_args(args)
-
     server_control = RPCServer({
         "master_device_db": device_db,
         "master_dataset_db": dataset_db,
@@ -105,8 +114,7 @@ def main():
         "devices": device_db.data,
         "datasets": dataset_db.data,
         "explist": experiment_db.explist,
-        "explist_status": experiment_db.status,
-        "log": log_buffer.data
+        "explist_status": experiment_db.status
     })
     loop.run_until_complete(server_notify.start(
         bind, args.port_notify))

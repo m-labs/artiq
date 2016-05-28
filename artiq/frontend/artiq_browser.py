@@ -37,7 +37,7 @@ def get_argparser():
 
 
 class Browser(QtWidgets.QMainWindow):
-    def __init__(self, datasets_sub, log_sub, browse_root, select):
+    def __init__(self, datasets_sub, browse_root, select):
         QtWidgets.QMainWindow.__init__(self)
 
         icon = QtGui.QIcon(os.path.join(artiq_dir, "gui", "logo.svg"))
@@ -66,7 +66,7 @@ class Browser(QtWidgets.QMainWindow):
 
         self.datasets = datasets.DatasetsDock(datasets_sub)
 
-        self.log = log.LogDock(None, "log", log_sub)
+        self.log = log.LogDock(None, "log")
         self.log.setFeatures(self.log.DockWidgetMovable |
                              self.log.DockWidgetFloatable)
 
@@ -127,17 +127,15 @@ def main():
     asyncio.set_event_loop(loop)
     atexit.register(loop.close)
 
-    log_sub = models.LocalModelManager(log.Model)
-    browser_log.init_log(args, log_sub)
-    log_sub.init([])
+    widget_log_handler = browser_log.init_log(args)
 
     datasets_sub = models.LocalModelManager(datasets.Model)
     datasets_sub.init({})
 
     smgr = state.StateManager(args.db_file)
 
-    main_window = Browser(datasets_sub, log_sub,
-                          args.browse_root, args.select)
+    main_window = Browser(datasets_sub, args.browse_root, args.select)
+    widget_log_handler.log_widget = main_window.log
     smgr.register(main_window)
 
     if os.name == "nt":

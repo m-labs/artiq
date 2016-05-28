@@ -11,6 +11,7 @@ from quamash import QEventLoop
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import *
 from artiq.protocols.pc_rpc import AsyncioClient
+from artiq.protocols.broadcast import Receiver
 from artiq.gui.models import ModelSubscriber
 from artiq.gui import state, applets, log
 from artiq.dashboard import (experiments, shortcuts, explorer,
@@ -33,6 +34,9 @@ def get_argparser():
     parser.add_argument(
         "--port-control", default=3251, type=int,
         help="TCP port to connect to for control")
+    parser.add_argument(
+        "--port-broadcast", default=1067, type=int,
+        help="TCP port to connect to for broadcasts")
     parser.add_argument(
         "--db-file", default=default_db_file,
         help="database file for local GUI settings "
@@ -106,13 +110,17 @@ def main():
     for notifier_name, modelf in (("explist", explorer.Model),
                                   ("explist_status", explorer.StatusUpdater),
                                   ("datasets", datasets.Model),
-                                  ("schedule", schedule.Model),
-                                  ("log", log.Model)):
+                                  ("schedule", schedule.Model)):
         subscriber = ModelSubscriber(notifier_name, modelf)
         loop.run_until_complete(subscriber.connect(
             args.server, args.port_notify))
         atexit_register_coroutine(subscriber.close)
         sub_clients[notifier_name] = subscriber
+
+    log_receiver = Receiver("log", [])
+    loop.run_until_complete(log_receiver.connect(
+        args.server, args.port_broadcast))
+    atexit_register_coroutine(log_receiver.close)
 
     # initialize main window
     main_window = MainWindow(args.server)
@@ -156,8 +164,9 @@ def main():
         status_bar, rpc_clients["schedule"], sub_clients["schedule"])
     smgr.register(d_schedule)
 
-    logmgr = log.LogDockManager(main_window, sub_clients["log"])
+    logmgr = log.LogDockManager(main_window)
     smgr.register(logmgr)
+    log_receiver.notify_cbs.append(logmgr.append_message)
 
     # lay out docks
     right_docks = [
