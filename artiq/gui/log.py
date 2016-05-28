@@ -61,6 +61,11 @@ class _Model(QtCore.QAbstractItemModel):
         self.pending_entries.append((severity, source, timestamp,
                                      message.splitlines()))
 
+    def clear(self):
+        self.beginRemoveRows(QtCore.QModelIndex(), 0, len(self.entries)-1)
+        self.entries.clear()
+        self.endRemoveRows()
+
     def timer_tick(self):
         if not self.pending_entries:
             return
@@ -173,6 +178,13 @@ class LogDock(QDockWidgetCloseDetect):
             QtWidgets.QStyle.SP_ArrowDown))
         grid.addWidget(scrollbottom, 0, 3)
         scrollbottom.clicked.connect(self.scroll_to_bottom)
+
+        clear = QtWidgets.QToolButton()
+        clear.setIcon(QtWidgets.QApplication.style().standardIcon(
+            QtWidgets.QStyle.SP_DialogResetButton))
+        grid.addWidget(clear, 0, 4)
+        clear.clicked.connect(lambda: self.model.clear())
+
         if manager:
             newdock = QtWidgets.QToolButton()
             newdock.setToolTip("Create new log dock")
@@ -180,7 +192,7 @@ class LogDock(QDockWidgetCloseDetect):
                 QtWidgets.QStyle.SP_FileDialogNewFolder))
             # note the lambda, the default parameter is overriden otherwise
             newdock.clicked.connect(lambda: manager.create_new_dock())
-            grid.addWidget(newdock, 0, 4)
+            grid.addWidget(newdock, 0, 5)
         grid.layout.setColumnStretch(2, 1)
 
         self.log = QtWidgets.QTreeView()
@@ -190,7 +202,7 @@ class LogDock(QDockWidgetCloseDetect):
         self.log.setVerticalScrollMode(
             QtWidgets.QAbstractItemView.ScrollPerPixel)
         self.log.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        grid.addWidget(self.log, 1, 0, colspan=5)
+        grid.addWidget(self.log, 1, 0, colspan=6 if manager else 5)
         self.scroll_at_bottom = False
         self.scroll_value = 0
 
