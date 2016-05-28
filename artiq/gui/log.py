@@ -64,6 +64,7 @@ class _Model(QtCore.QAbstractItemModel):
     def clear(self):
         self.beginRemoveRows(QtCore.QModelIndex(), 0, len(self.entries)-1)
         self.entries.clear()
+        self.children_by_row.clear()
         self.endRemoveRows()
 
     def timer_tick(self):
