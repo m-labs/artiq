@@ -37,8 +37,6 @@ requirements:
     - binutils-or1k-linux
   run:
     - python >=3.5.1
-    - readline # [linux]
-    - pyreadline # [win]
     - llvmlite-artiq 0.10.0.dev py35_24
     - scipy
     - numpy
