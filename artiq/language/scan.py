@@ -141,6 +141,9 @@ class Scannable:
     """An argument (as defined in :class:`artiq.language.environment`) that
     takes a scan object.
 
+    For arguments with units, use both the unit parameter (a string for
+    display) and the scale parameter (a numerical scale for experiments).
+
     :param global_min: The minimum value taken by the scanned variable, common
         to all scan modes. The user interface takes this value to set the
         range of its input widgets.
@@ -149,9 +152,9 @@ class Scannable:
         up/down buttons in a user interface. The default is the scale divided
         by 10.
     :param unit: A string representing the unit of the scanned variable, for
-        user interface (UI) purposes.
-    :param scale: The scale of value for UI purposes. The displayed value is
-        divided by the scale.
+        display purposes only.
+    :param scale: A numerical scaling factor by which the displayed values
+        are multiplied when referenced in the experiment.
     :param ndecimals: The number of decimals a UI should use.
     """
     def __init__(self, default=NoDefault, unit="", scale=1.0,
