@@ -40,6 +40,8 @@ unreleased [2.x]
   has been replaced. Pass the parent as first argument instead.
 * In the dashboard's experiment windows, partial or full argument recomputation
   takes into account the repository revision field.
+* By default, ``NumberValue`` and ``Scannable`` infer the scale from the unit
+  for common units.
 
 
 1.1 (unreleased)

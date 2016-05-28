@@ -23,6 +23,7 @@ import inspect
 
 from artiq.language.core import *
 from artiq.language.environment import NoDefault, DefaultMissing
+from artiq.language import units
 
 
 __all__ = ["ScanObject",
@@ -143,8 +144,18 @@ class Scannable:
     """An argument (as defined in :class:`artiq.language.environment`) that
     takes a scan object.
 
-    For arguments with units, use both the unit parameter (a string for
-    display) and the scale parameter (a numerical scale for experiments).
+    When ``scale`` is not specified, and the unit is a common one (i.e.
+    defined in ``artiq.language.units``), then the scale is obtained from
+    the unit using a simple string match. For example, milliseconds (``"ms"``)
+    units set the scale to 0.001. No unit (default) corresponds to a scale of
+    1.0.
+
+    For arguments with uncommon or complex units, use both the unit parameter
+    (a string for display) and the scale parameter (a numerical scale for
+    experiments).
+    For example, a scan shown between 1 xyz and 10 xyz in the GUI with
+    ``scale=0.001`` and ``unit="xyz"`` results in values between 0.001 and
+    0.01 being scanned.
 
     :param default: The default scan object. This parameter can be a list of
         scan objects, in which case the first one is used as default and the
@@ -157,15 +168,23 @@ class Scannable:
     :param global_step: The step with which the value should be modified by
         up/down buttons in a user interface. The default is the scale divided
         by 10.
-    :param unit: A string representing the unit of the scanned variable, for
-        display purposes only.
+    :param unit: A string representing the unit of the scanned variable.
     :param scale: A numerical scaling factor by which the displayed values
         are multiplied when referenced in the experiment.
     :param ndecimals: The number of decimals a UI should use.
     """
-    def __init__(self, default=NoDefault, unit="", scale=1.0,
+    def __init__(self, default=NoDefault, unit="", scale=None,
                  global_step=None, global_min=None, global_max=None,
                  ndecimals=2):
+        if scale is None:
+            if unit == "":
+                scale = 1.0
+            else:
+                try:
+                    scale = getattr(units, unit)
+                except AttributeError:
+                    raise KeyError("Unit {} is unknown, you must specify "
+                                   "the scale manually".format(unit))
         if global_step is None:
             global_step = scale/10.0
         if default is not NoDefault:

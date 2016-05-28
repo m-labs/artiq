@@ -2,6 +2,7 @@ from collections import OrderedDict
 from inspect import isclass
 
 from artiq.protocols import pyon
+from artiq.language import units
 
 
 __all__ = ["NoDefault",
@@ -79,7 +80,6 @@ class EnumerationValue(_SimpleArgProcessor):
         d["choices"] = self.choices
         return d
 
-
 class NumberValue(_SimpleArgProcessor):
     """An argument that can take a numerical value.
 
@@ -88,14 +88,20 @@ class NumberValue(_SimpleArgProcessor):
     The simplest way to represent an integer argument is
     ``NumberValue(step=1, ndecimals=0)``.
 
-    For arguments with units, use both the unit parameter (a string for
-    display) and the scale parameter (a numerical scale for experiments).
-    For example, ``NumberValue(1, unit="ms", scale=1*ms)`` will display as
-    1 ms in the GUI window because of the unit setting, and appear as the
+    When ``scale`` is not specified, and the unit is a common one (i.e.
+    defined in ``artiq.language.units``), then the scale is obtained from
+    the unit using a simple string match. For example, milliseconds (``"ms"``)
+    units set the scale to 0.001. No unit (default) corresponds to a scale of
+    1.0.
+
+    For arguments with uncommon or complex units, use both the unit parameter
+    (a string for display) and the scale parameter (a numerical scale for
+    experiments).
+    For example, ``NumberValue(1, unit="xyz", scale=0.001)`` will display as
+    1 xyz in the GUI window because of the unit setting, and appear as the
     numerical value 0.001 in the code because of the scale setting.
 
-    :param unit: A string representing the unit of the value, for display
-        purposes only.
+    :param unit: A string representing the unit of the value.
     :param scale: A numerical scaling factor by which the displayed value is
         multiplied when referenced in the experiment.
     :param step: The step with which the value should be modified by up/down
@@ -104,8 +110,17 @@ class NumberValue(_SimpleArgProcessor):
     :param max: The maximum value of the argument.
     :param ndecimals: The number of decimals a UI should use.
     """
-    def __init__(self, default=NoDefault, unit="", scale=1.0,
+    def __init__(self, default=NoDefault, unit="", scale=None,
                  step=None, min=None, max=None, ndecimals=2):
+        if scale is None:
+            if unit == "":
+                scale = 1.0
+            else:
+                try:
+                    scale = getattr(units, unit)
+                except AttributeError:
+                    raise KeyError("Unit {} is unknown, you must specify "
+                                   "the scale manually".format(unit))
         if step is None:
             step = scale/10.0
         if default is not NoDefault:

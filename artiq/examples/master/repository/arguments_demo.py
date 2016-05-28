@@ -7,7 +7,7 @@ class SubComponent1(HasEnvironment):
     def build(self):
         self.setattr_argument("sc1_scan",
             Scannable(default=[NoScan(3250), RandomScan(10, 20, 6)],
-                      scale=1e3, unit="kHz"),
+                      unit="kHz"),
             "Flux capacitor")
         self.setattr_argument("sc1_enum", EnumerationValue(["1", "2", "3"]),
                               "Flux capacitor")
@@ -43,7 +43,7 @@ class ArgumentsDemo(EnvExperiment):
         self.setattr_argument("pyon_value",
             PYONValue(self.get_dataset("foo", default=42)))
         self.setattr_argument("number", NumberValue(42e-6,
-                                                    unit="us", scale=1e-6,
+                                                    unit="us",
                                                     ndecimals=4))
         self.setattr_argument("integer", NumberValue(42,
                                                      step=1, ndecimals=0))
