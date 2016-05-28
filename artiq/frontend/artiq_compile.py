@@ -4,6 +4,7 @@ import os, sys, logging, argparse
 
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager
+from artiq.language.environment import ProcessArgumentManager
 from artiq.coredevice.core import CompileError
 from artiq.tools import *
 
@@ -44,14 +45,15 @@ def main():
         module = file_import(args.file, prefix="artiq_run_")
         exp = get_experiment(module, args.experiment)
         arguments = parse_arguments(args.arguments)
-        exp_inst = exp(device_mgr, dataset_mgr, **arguments)
+        argument_mgr = ProcessArgumentManager(arguments)
+        exp_inst = exp((device_mgr, dataset_mgr, argument_mgr))
 
         if not hasattr(exp.run, "artiq_embedded"):
             raise ValueError("Experiment entry point must be a kernel")
         core_name = exp.run.artiq_embedded.core_name
         core = getattr(exp_inst, core_name)
 
-        object_map, kernel_library, symbolizer = \
+        object_map, kernel_library, _, _ = \
             core.compile(exp.run, [exp_inst], {},
                          with_attr_writeback=False)
     except CompileError as error:
