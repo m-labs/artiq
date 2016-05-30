@@ -303,7 +303,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
                                expid=expid, priority=0)
             await worker.analyze()
         except:
-            logger.info("Failed to run '%s'", self.expurl)
+            logger.error("Failed to run '%s'", self.expurl)
             log_worker_exception()
         finally:
             await worker.close()

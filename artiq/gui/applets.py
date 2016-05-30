@@ -120,7 +120,7 @@ class _AppletDock(QDockWidgetCloseDetect):
                 python=sys.executable.replace("\\", "\\\\"),
                 ipc_address=self.ipc.get_address().replace("\\", "\\\\")
             )
-            logger.info("starting command %s for %s", command, self.applet_name)
+            logger.debug("starting command %s for %s", command, self.applet_name)
             try:
                 await self.ipc.create_subprocess(*shlex.split(command),
                                                  start_new_session=True)
