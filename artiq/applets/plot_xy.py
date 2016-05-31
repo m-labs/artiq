@@ -19,7 +19,7 @@ class XYPlot(pyqtgraph.PlotWidget):
             return
         x = data.get(self.args.x, (False, None))[1]
         if x is None:
-            x = list(range(len(y)))
+            x = np.arange(len(y))
         error = data.get(self.args.error, (False, None))[1]
         fit = data.get(self.args.fit, (False, None))[1]
 
