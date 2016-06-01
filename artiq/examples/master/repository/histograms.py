@@ -17,16 +17,15 @@ class Histograms(EnvExperiment):
 
         xs = np.empty(npoints)
         xs.fill(np.nan)
-        xs = self.set_dataset("hd_xs", xs,
-                              broadcast=True, save=False)
+        self.set_dataset("hd_xs", xs,
+                         broadcast=True, save=False)
 
-        counts = np.empty((npoints, nbins))
-        counts = self.set_dataset("hd_counts", counts, 
-                              broadcast=True, save=False)
+        self.set_dataset("hd_counts", np.empty((npoints, nbins)), 
+                         broadcast=True, save=False)
 
         for i in range(npoints):
             histogram, _ = np.histogram(np.random.normal(i, size=1000),
                                         bin_boundaries)
-            counts[i] = histogram
-            xs[i] = i % 8
+            self.mutate_dataset("hd_counts", i, histogram)
+            self.mutate_dataset("hd_xs", i, i % 8)
             sleep(0.3)
