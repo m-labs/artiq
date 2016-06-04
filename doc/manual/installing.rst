@@ -131,6 +131,8 @@ Then, you can flash the board:
 
     $ artiq_flash -t kc705 -m [qc1/clock/qc2]
 
+  The SW13 switches also need to be set to 00001.
+
 For the KC705, the next step is to flash the MAC and IP addresses to the board. See :ref:`those instructions <flash-mac-ip-addr>`.
 
 .. _install-from-sources:
