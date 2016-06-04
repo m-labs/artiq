@@ -29,6 +29,13 @@ KC705
 
 The main target board for the ARTIQ core device is the KC705 development board from Xilinx. It supports the NIST QC1 hardware via an adapter, and the NIST CLOCK and QC2 hardware (FMC).
 
+Common problems
++++++++++++++++
+
+* The SW13 switches on the board need to be set to 00001.
+* When connected, QC1 and CLOCK adapters break the JTAG chain due to TDI not being connect to TDO on the FMC mezzanine.
+* On some boards, the JTAG USB connector is not correctly soldered.
+
 NIST QC1
 ++++++++
 
