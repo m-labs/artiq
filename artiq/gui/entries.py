@@ -214,8 +214,7 @@ class _ExplicitScan(LayoutWidget):
 
         float_regexp = r"(([+-]?\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?)"
         regexp = "(float)?( +float)* *".replace("float", float_regexp)
-        self.value.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp(regexp),
-                                                       self.value))
+        self.value.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp(regexp)))
 
         self.value.setText(" ".join([str(x) for x in state["sequence"]]))
         def update(text):
