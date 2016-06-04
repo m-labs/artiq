@@ -346,9 +346,13 @@ class MonInj(TaskObject):
         ca = self.dm.get_core_addr()
         logger.debug("core device address: %s", ca)
         if ca is None:
-            logger.warning("could not find core device address")
+            logger.error("could not find core device address")
         else:
-            self.socket.sendto(data, (ca, 3250))
+            try:
+                self.socket.sendto(data, (ca, 3250))
+            except:
+                logger.error("could not send to device",
+                             exc_info=True)
 
     async def _do(self):
         while True:
