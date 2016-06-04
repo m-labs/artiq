@@ -42,4 +42,4 @@ class AluminumSpectroscopy(EnvExperiment):
                     break
             if photon_count < self.photon_limit_low:
                 state_0_count += 1
-        return state_0_count
+        print(state_0_count)
