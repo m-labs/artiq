@@ -103,23 +103,28 @@ They are all shipped in the conda packages, along with the required flash proxy 
 Installing OpenOCD
 ..................
 
-There are several tools that can be used to write the thee binaries into the core device FPGA board's flash memory.
-Xilinx ISE (impact) or Vivado work, as does xc3sprog sometimes.
-OpenOCD is the recommended and most reliable method.
-It is however not currently packaged as a conda package nor has it been tested on Windows.
+OpenOCD can be used to write the binary images into the core device FPGA board's flash memory. It can be installed using conda on both Linux and Windows::
 
-Use these commands to download, build, and install ``openocd`` from source on Debian or Ubuntu systems::
+    $ conda install openocd
 
-        $ cd ~/artiq-dev
-        $ git clone https://github.com/ntfreak/openocd.git
-        $ cd openocd
-        $ sudo apt-get install build-essential libtool libusb-1.0-0-dev libftdi-dev automake
-        $ ./bootstrap
-        $ ./configure
-        $ make
-        $ sudo make install
-        $ sudo cp contrib/99-openocd.rules /etc/udev/rules.d
-        $ sudo adduser $USER plugdev
+Some additional steps are necessary to ensure that OpenOCD can communicate with the FPGA board.
+
+On Linux, first ensure that the current user belongs to the ``plugdev`` group. If it does not, run ``sudo adduser $USER plugdev`` and relogin. Afterwards::
+
+    $ wget https://raw.githubusercontent.com/ntfreak/openocd/406f4d1c68330e3bf8d9db4e402fd8802a5c79e2/contrib/99-openocd.rules
+    $ sudo cp 99-openocd.rules /etc/udev/rules.d
+    $ sudo adduser $USER plugdev
+    $ sudo udevadm trigger
+
+On Windows, a third-party tool, `Zadig <http://zadig.akeo.ie/>`_, is necessary. Use it as follows:
+
+1. Make sure the FPGA board's JTAG USB port is connected to your computer.
+2. Activate Options → List All Devices.
+3. Select the "Digilent Adept USB Device (Interface 0)" (for KC705) or "Pipistrello LX45" (for Pipistrello) device from the drop-down list.
+4. Select WinUSB from the spinner list.
+5. Click "Install Driver" or "Replace Driver".
+
+You may need to repeat these steps every time you plug the FPGA board into a port where it has not been plugged into previously on the same system.
 
 Then, you can flash the board:
 
