@@ -5,7 +5,6 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 
 from artiq.gui.tools import LayoutWidget, disable_scroll_wheel
 from artiq.gui.scanwidget import ScanWidget
-from artiq.gui.scientific_spinbox import ScientificSpinBox
 
 
 logger = logging.getLogger(__name__)
@@ -158,7 +157,7 @@ class _RangeScan(LayoutWidget):
         disable_scroll_wheel(scanner)
         self.addWidget(scanner, 0, 0, -1, 1)
 
-        start = ScientificSpinBox()
+        start = QtWidgets.QDoubleSpinBox()
         start.setStyleSheet("QDoubleSpinBox {color:blue}")
         start.setMinimumSize(110, 0)
         start.setSizePolicy(QtWidgets.QSizePolicy(
@@ -172,7 +171,7 @@ class _RangeScan(LayoutWidget):
         disable_scroll_wheel(npoints)
         self.addWidget(npoints, 1, 1)
 
-        stop = ScientificSpinBox()
+        stop = QtWidgets.QDoubleSpinBox()
         stop.setStyleSheet("QDoubleSpinBox {color:red}")
         stop.setMinimumSize(110, 0)
         disable_scroll_wheel(stop)
