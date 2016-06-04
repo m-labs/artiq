@@ -363,7 +363,7 @@ class MonInj(TaskObject):
             try:
                 self.socket.sendto(data, (ca, 3250))
             except:
-                logger.error("could not send to device",
+                logger.debug("could not send to device",
                              exc_info=True)
 
     async def _do(self):
