@@ -61,7 +61,7 @@ class _OpenFileDialog(QtWidgets.QDialog):
         except:
             logger.error("Failed to list directory '%s'",
                          self.explorer.current_directory, exc_info=True)
-            self.explorer.current_directory = ""
+            return
         for name in sorted(contents, key=lambda x: (x[-1] not in "\\/", x)):
             if name[-1] in "\\/":
                 icon = QtWidgets.QStyle.SP_DirIcon
