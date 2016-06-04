@@ -134,7 +134,7 @@ class _DDSGeneric:
     def asf_to_amplitude(self, asf):
         """Returns the amplitude corresponding to the given amplitude scale
            factor."""
-        return round(amplitude*0x0fff)
+        return asf/0x0fff
 
     @kernel
     def init(self):
