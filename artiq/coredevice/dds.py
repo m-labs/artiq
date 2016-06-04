@@ -125,12 +125,12 @@ class _DDSGeneric:
         word."""
         return pow/2**self.pow_width
 
-    @portable
+    @portable(flags=["fast-math"])
     def amplitude_to_asf(self, amplitude):
         """Returns amplitude scale factor corresponding to given amplitude."""
         return round(amplitude*0x0fff)
 
-    @portable
+    @portable(flags=["fast-math"])
     def asf_to_amplitude(self, asf):
         """Returns the amplitude corresponding to the given amplitude scale
            factor."""
