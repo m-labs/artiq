@@ -44,7 +44,7 @@ A method or function running on the core device (which we call a "kernel") may c
 Modify the code as follows: ::
 
     def input_led_state() -> TBool:
-        return bool(input("Enter desired LED state: "))
+        return input("Enter desired LED state: ") == "1"
 
     class LED(EnvExperiment):
         def build(self):
