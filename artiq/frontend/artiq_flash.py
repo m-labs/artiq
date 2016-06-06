@@ -5,6 +5,7 @@ import argparse
 import os
 import subprocess
 import tempfile
+import site
 
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.frontend.bit2bin import bit2bin
@@ -76,6 +77,12 @@ def main():
         raise SystemExit("Binaries directory '{}' does not exist"
                          .format(opts.dir))
 
+    conda_prefix_path = site.getsitepackages()[0]
+    if os.name == "nt":
+        scripts_path = os.path.join(conda_prefix_path, "Library", "share", "openocd", "scripts")
+    else:
+        scripts_path = os.path.join(conda_prefix_path, "share", "openocd", "scripts")
+
     conv = False
 
     prog = []
@@ -124,6 +131,7 @@ def main():
             bit2bin(bit, bin_handle)
         subprocess.check_call([
             "openocd",
+            "-s", scripts_path,
             "-f", os.path.join("board", opts.target + ".cfg"),
             "-c", "; ".join(prog),
         ])
