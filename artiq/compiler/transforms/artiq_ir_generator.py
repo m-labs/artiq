@@ -1672,7 +1672,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.polymorphic_print([self.visit(prefix)],
                                    separator=" ", suffix="\x1E", as_rtio=True)
             self.polymorphic_print([self.visit(arg) for arg in args],
-                                   separator=" ", suffix="\n", as_rtio=True)
+                                   separator=" ", suffix="\n\x1D", as_rtio=True)
             return ir.Constant(None, builtins.TNone())
         elif types.is_builtin(typ, "now"):
             if len(node.args) == 0 and len(node.keywords) == 0:
