@@ -36,7 +36,7 @@ fmc_adapter_io = [
         Subsignal("wr_n", Pins("LPC:LA24_P")),
         Subsignal("rd_n", Pins("LPC:LA25_N")),
         Subsignal("rst", Pins("LPC:LA25_P")),
-        IOStandard("LVTTL")),
+        IOStandard("LVTTL"), Misc("DRIVE=24")),
 
     ("i2c_fmc", 0,
         Subsignal("scl", Pins("LPC:IIC_SCL")),
