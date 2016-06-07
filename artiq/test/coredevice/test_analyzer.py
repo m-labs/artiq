@@ -1,6 +1,7 @@
 from artiq.experiment import *
 from artiq.coredevice.analyzer import (decode_dump, StoppedMessage,
-                                       OutputMessage, InputMessage)
+                                       OutputMessage, InputMessage,
+                                       _extract_log_chars)
 from artiq.test.hardware_testbench import ExperimentCase
 
 
@@ -24,6 +25,15 @@ class CreateTTLPulse(EnvExperiment):
                 delay_mu(100)
                 self.loop_out.pulse_mu(1000)
         self.loop_in.count()
+
+
+class WriteLog(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+
+    @kernel
+    def run(self):
+        rtio_log("foo", 32)
 
 
 class AnalyzerTest(ExperimentCase):
@@ -50,3 +60,16 @@ class AnalyzerTest(ExperimentCase):
         self.assertAlmostEqual(
             abs(input_messages[0].timestamp - input_messages[1].timestamp),
             1000, delta=1)
+
+    def test_rtio_log(self):
+        comm = self.device_mgr.get("comm")
+
+        exp = self.create(WriteLog)
+        comm.get_analyzer_dump()  # clear analyzer buffer
+        exp.run()
+
+        dump = decode_dump(comm.get_analyzer_dump())
+        log  = "".join([_extract_log_chars(msg.data)
+                        for msg in dump.messages
+                        if isinstance(msg, OutputMessage) and msg.channel == dump.log_channel])
+        self.assertEqual(log, "foo\x1E32\n\x1D")

@@ -278,11 +278,9 @@ class LogHandler:
 
     def process_message(self, message):
         if isinstance(message, OutputMessage):
-            message_payload = _extract_log_chars(message.data)
-            self.current_entry += message_payload
-            if len(message_payload) < 4:
-                channel_name, log_message = \
-                    self.current_entry.split(":", maxsplit=1)
+            self.current_entry += _extract_log_chars(message.data)
+            if len(self.current_entry) > 1 and self.current_entry[-1] == "\x1D":
+                channel_name, log_message = self.current_entry[:-1].split("\x1E", maxsplit=1)
                 vcd_value = ""
                 for c in log_message:
                     vcd_value += "{:08b}".format(ord(c))
@@ -296,10 +294,9 @@ def get_vcd_log_channels(log_channel, messages):
     for message in messages:
         if (isinstance(message, OutputMessage)
                 and message.channel == log_channel):
-            message_payload = _extract_log_chars(message.data)
-            log_entry += message_payload
-            if len(message_payload) < 4:
-                channel_name, log_message = log_entry.split("\x1E", maxsplit=1)
+            log_entry += _extract_log_chars(message.data)
+            if len(log_entry) > 1 and log_entry[-1] == "\x1D":
+                channel_name, log_message = log_entry[:-1].split("\x1E", maxsplit=1)
                 l = len(log_message)
                 if channel_name in vcd_log_channels:
                     if vcd_log_channels[channel_name] < l:
