@@ -23,7 +23,8 @@ class SubComponent2(HasEnvironment):
     def build(self):
         self.setattr_argument("sc2_boolean", BooleanValue(False),
                               "Transporter")
-        self.setattr_argument("sc2_scan", Scannable(default=NoScan(325)),
+        self.setattr_argument("sc2_scan", Scannable(
+                                          default=LinearScan(200, 300, 49)),
                               "Transporter")
         self.setattr_argument("sc2_enum", EnumerationValue(["3", "4", "5"]),
                               "Transporter")

@@ -178,6 +178,10 @@ class _RangeScan(LayoutWidget):
         disable_scroll_wheel(stop)
         self.addWidget(stop, 2, 1)
 
+        apply_properties(start)
+        apply_properties(stop)
+        apply_properties(scanner)
+
         def update_start(value):
             state["start"] = value*scale
             scanner.setStart(value)
@@ -199,9 +203,6 @@ class _RangeScan(LayoutWidget):
         scanner.setStart(state["start"]/scale)
         scanner.setNum(state["npoints"])
         scanner.setStop(state["stop"]/scale)
-        apply_properties(start)
-        apply_properties(stop)
-        apply_properties(scanner)
 
 
 class _ExplicitScan(LayoutWidget):
