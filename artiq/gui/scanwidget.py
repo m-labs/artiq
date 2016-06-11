@@ -41,7 +41,7 @@ class ScanWidget(QtWidgets.QWidget):
             qfm.lineSpacing())
 
         self._start, self._stop, self._num = None, None, None
-        self._min, self._max = None, None
+        self._min, self._max = float("-inf"), float("inf")
         self._axisView = None
         self._offset, self._drag, self._rubber = None, None, None
 
@@ -73,10 +73,8 @@ class ScanWidget(QtWidgets.QWidget):
     def _clamp(self, v):
         if v is None:
             return None
-        if self._min is not None:
-            v = max(self._min, v)
-        if self._max is not None:
-            v = min(self._max, v)
+        v = max(self._min, v)
+        v = min(self._max, v)
         return v
 
     def setStart(self, val):
