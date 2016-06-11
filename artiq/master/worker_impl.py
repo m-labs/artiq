@@ -77,19 +77,12 @@ set_watchdog_factory(Watchdog)
 
 
 class Scheduler:
-    def __init__(self, device_mgr):
-        self.device_mgr = device_mgr
-
     pause_noexc = staticmethod(make_parent_action("pause"))
 
     @host_only
     def pause(self):
-        self.device_mgr.pause_devices()
-        try:
-            if self.pause_noexc():
-                raise TerminationRequested
-        finally:
-            self.device_mgr.resume_devices()
+        if self.pause_noexc():
+            raise TerminationRequested
 
     submit = staticmethod(make_parent_action("scheduler_submit"))
     delete = staticmethod(make_parent_action("scheduler_delete"))
@@ -186,8 +179,8 @@ def main():
     exp_inst = None
     repository_path = None
 
-    device_mgr = DeviceManager(ParentDeviceDB)
-    device_mgr.virtual_devices["scheduler"] = Scheduler(device_mgr)
+    device_mgr = DeviceManager(ParentDeviceDB,
+                               virtual_devices={"scheduler": Scheduler()})
     dataset_mgr = DatasetManager(ParentDatasetDB)
 
     try:
