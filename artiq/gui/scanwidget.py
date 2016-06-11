@@ -71,6 +71,8 @@ class ScanWidget(QtWidgets.QWidget):
         self._setView(left, scale)
 
     def _clamp(self, v):
+        if v is None:
+            return None
         if self._min is not None:
             v = max(self._min, v)
         if self._max is not None:
