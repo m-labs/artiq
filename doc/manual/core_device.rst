@@ -160,6 +160,8 @@ The low-cost Pipistrello FPGA board can be used as a lower-cost but slower alter
 
 .. warning:: Windows is not supported.
 
+.. warning:: The Pipistrello draws a high current over USB, and that current increases when the FPGA design is active. If you experience problems such as intermittent board freezes or USB errors, try connecting it to a self-powered USB hub.
+
 When plugged to an adapter, the NIST QC1 hardware can be used. The TTL lines are mapped to RTIO channels as follows:
 
 +--------------+------------+--------------+
