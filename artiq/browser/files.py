@@ -171,7 +171,7 @@ class FilesDock(QtWidgets.QDockWidget):
         f = open_h5(info)
         if not f:
             return
-        logger.info("loading datasets from %s", info.filePath())
+        logger.debug("loading datasets from %s", info.filePath())
         with f:
             if "datasets" not in f:
                 return

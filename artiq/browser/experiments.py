@@ -225,7 +225,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
     def dropEvent(self, ev):
         for uri in ev.mimeData().urls():
             if uri.scheme() == "file":
-                logger.info("Loading HDF5 arguments from %s", uri.path())
+                logger.debug("Loading HDF5 arguments from %s", uri.path())
                 asyncio.ensure_future(self._load_hdf5_task(uri.path()))
                 break
 
@@ -289,7 +289,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self._terminate.setEnabled(True)
 
         def done(fut):
-            logger.info("Analysis done")
+            logger.debug("Analysis done")
             self._run_task = None
             self._run.setEnabled(True)
             self._terminate.setEnabled(False)
@@ -405,7 +405,7 @@ class ExperimentsArea(QtWidgets.QMdiArea):
         except asyncio.CancelledError:
             return
         self.current_dir = os.path.dirname(file)
-        logger.info("Opening experiment %s", file)
+        logger.debug("Opening experiment %s", file)
         try:
             description = await self.examine(file)
         except:
