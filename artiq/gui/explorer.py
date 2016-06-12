@@ -296,3 +296,11 @@ class ExplorerDock(QtWidgets.QDockWidget):
 
     def update_cur_rev(self, cur_rev):
         self.revision.setText(cur_rev)
+
+    def save_state(self):
+        return {
+            "current_directory": self.current_directory
+        }
+
+    def restore_state(self, state):
+        self.current_directory = state["current_directory"]
