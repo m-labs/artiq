@@ -145,6 +145,7 @@ def main():
                                        sub_clients["explist_status"],
                                        rpc_clients["schedule"],
                                        rpc_clients["experiment_db"])
+    smgr.register(d_explorer)
 
     d_datasets = datasets.DatasetsDock(sub_clients["datasets"],
                                        rpc_clients["dataset_db"])
