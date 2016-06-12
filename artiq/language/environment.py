@@ -291,7 +291,12 @@ class HasEnvironment:
         a given position in a NumPy array)
 
         If the dataset was created in broadcast mode, the modification is
-        immediately transmitted."""
+        immediately transmitted.
+
+        If the index is a tuple of integers, it is interpreted as
+        ``slice(*index)``.
+        If the index is a tuple of tuples, each sub-tuple is interpreted
+        as ``slice(*sub_tuple)`` (multi-dimensional slicing)."""
         if self.__parent is not None:
             self.__parent.mutate_dataset(key, index, value)
         if self.__dataset_mgr is None:

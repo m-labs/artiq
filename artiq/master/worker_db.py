@@ -1,3 +1,4 @@
+from operator import setitem
 from collections import OrderedDict
 import importlib
 import logging
@@ -169,7 +170,13 @@ class DatasetManager:
             target = self.broadcast[key][1]
         if target is None:
             raise KeyError("Cannot mutate non-existing dataset")
-        target[index] = value
+
+        if isinstance(index, tuple):
+            if isinstance(index[0], tuple):
+                index = tuple(slice(*e) for e in index)
+            else:
+                index = slice(*index)
+        setitem(target, index, value)
 
     def get(self, key):
         if key in self.local:
