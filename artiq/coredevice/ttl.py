@@ -37,18 +37,26 @@ class TTLOut:
 
     @kernel
     def on(self):
-        """Sets the output to a logic high state."""
+        """Sets the output to a logic high state at the current position
+        of the time cursor.
+
+        The time cursor is not modified by this function."""
         self.set_o(True)
 
     @kernel
     def off(self):
-        """Set the output to a logic low state."""
+        """Set the output to a logic low state at the current position
+        of the time cursor.
+
+        The time cursor is not modified by this function."""
         self.set_o(False)
 
     @kernel
     def pulse_mu(self, duration):
         """Pulse the output high for the specified duration
-        (in machine units)."""
+        (in machine units).
+
+        The time cursor is advanced by the specified duration."""
         self.on()
         delay_mu(duration)
         self.off()
@@ -56,7 +64,9 @@ class TTLOut:
     @kernel
     def pulse(self, duration):
         """Pulse the output high for the specified duration
-        (in seconds)."""
+        (in seconds).
+
+        The time cursor is advanced by the specified duration."""
         self.on()
         delay(duration)
         self.off()
@@ -100,7 +110,8 @@ class TTLInOut:
 
     @kernel
     def output(self):
-        """Set the direction to output.
+        """Set the direction to output at the current position of the time
+        cursor.
 
         There must be a delay of at least one RTIO clock cycle before any
         other command can be issued."""
@@ -108,7 +119,8 @@ class TTLInOut:
 
     @kernel
     def input(self):
-        """Set the direction to input.
+        """Set the direction to input at the current position of the time
+        cursor.
 
         There must be a delay of at least one RTIO clock cycle before any
         other command can be issued."""
@@ -128,22 +140,30 @@ class TTLInOut:
 
     @kernel
     def on(self):
-        """Set the output to a logic high state.
+        """Set the output to a logic high state at the current position of the
+        time cursor.
 
-        The channel must be in output mode."""
+        The channel must be in output mode.
+
+        The time cursor is not modified by this function."""
         self.set_o(True)
 
     @kernel
     def off(self):
-        """Set the output to a logic low state.
+        """Set the output to a logic low state at the current position of the
+        time cursor.
 
-        The channel must be in output mode."""
+        The channel must be in output mode.
+
+        The time cursor is not modified by this function."""
         self.set_o(False)
 
     @kernel
     def pulse_mu(self, duration):
         """Pulses the output high for the specified duration
-        (in machine units)."""
+        (in machine units).
+
+        The time cursor is advanced by the specified duration."""
         self.on()
         delay_mu(duration)
         self.off()
@@ -151,7 +171,9 @@ class TTLInOut:
     @kernel
     def pulse(self, duration):
         """Pulses the output high for the specified duration
-        (in seconds)."""
+        (in seconds).
+
+        The time cursor is advanced by the specified duration."""
         self.on()
         delay(duration)
         self.off()
@@ -164,7 +186,9 @@ class TTLInOut:
     @kernel
     def gate_rising_mu(self, duration):
         """Register rising edge events for the specified duration
-        (in machine units)."""
+        (in machine units).
+
+        The time cursor is advanced by the specified duration."""
         self._set_sensitivity(1)
         delay_mu(duration)
         self._set_sensitivity(0)
@@ -172,7 +196,9 @@ class TTLInOut:
     @kernel
     def gate_falling_mu(self, duration):
         """Register falling edge events for the specified duration
-        (in machine units)."""
+        (in machine units).
+
+        The time cursor is advanced by the specified duration."""
         self._set_sensitivity(2)
         delay_mu(duration)
         self._set_sensitivity(0)
@@ -180,7 +206,9 @@ class TTLInOut:
     @kernel
     def gate_both_mu(self, duration):
         """Register both rising and falling edge events for the specified
-        duration (in machine units)."""
+        duration (in machine units).
+
+        The time cursor is advanced by the specified duration."""
         self._set_sensitivity(3)
         delay_mu(duration)
         self._set_sensitivity(0)
@@ -188,7 +216,9 @@ class TTLInOut:
     @kernel
     def gate_rising(self, duration):
         """Register rising edge events for the specified duration
-        (in seconds)."""
+        (in seconds).
+
+        The time cursor is advanced by the specified duration."""
         self._set_sensitivity(1)
         delay(duration)
         self._set_sensitivity(0)
@@ -196,7 +226,9 @@ class TTLInOut:
     @kernel
     def gate_falling(self, duration):
         """Register falling edge events for the specified duration
-        (in seconds)."""
+        (in seconds).
+
+        The time cursor is advanced by the specified duration."""
         self._set_sensitivity(2)
         delay(duration)
         self._set_sensitivity(0)
@@ -204,7 +236,9 @@ class TTLInOut:
     @kernel
     def gate_both(self, duration):
         """Register both rising and falling edge events for the specified
-        duration (in seconds)."""
+        duration (in seconds).
+
+        The time cursor is advanced by the specified duration."""
         self._set_sensitivity(3)
         delay(duration)
         self._set_sensitivity(0)
@@ -212,7 +246,9 @@ class TTLInOut:
     @kernel
     def count(self):
         """Poll the RTIO input during all the previously programmed gate
-        openings, and returns the number of registered events."""
+        openings, and returns the number of registered events.
+
+        This function does not interact with the time cursor."""
         count = 0
         while rtio_input_timestamp(self.i_previous_timestamp, self.channel) >= 0:
             count += 1
@@ -224,7 +260,8 @@ class TTLInOut:
         units), according to the gating.
 
         If the gate is permanently closed, returns a negative value.
-        """
+
+        This function does not interact with the time cursor."""
         return rtio_input_timestamp(self.i_previous_timestamp, self.channel)
 
 
@@ -233,6 +270,8 @@ class TTLClockGen:
 
     This should be used with TTL channels that have a clock generator
     built into the gateware (not compatible with regular TTL channels).
+
+    The time cursor is not modified by any function in this class.
 
     :param channel: channel number
     """
@@ -262,7 +301,8 @@ class TTLClockGen:
 
     @kernel
     def set_mu(self, frequency):
-        """Set the frequency of the clock, in machine units.
+        """Set the frequency of the clock, in machine units, at the current
+        position of the time cursor.
 
         This also sets the phase, as the time of the first generated rising
         edge corresponds to the time of the call.
@@ -276,8 +316,7 @@ class TTLClockGen:
 
         Due to the way the clock generator operates, frequency tuning words
         that are not powers of two cause jitter of one RTIO clock cycle at the
-        output.
-        """
+        output."""
         rtio_output(now_mu(), self.channel, 0, frequency)
         self.previous_timestamp = now_mu()
 
