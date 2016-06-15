@@ -11,7 +11,7 @@ from artiq.gui.scientific_spinbox import ScientificSpinBox
 logger = logging.getLogger(__name__)
 
 
-class _StringEntry(QtWidgets.QLineEdit):
+class StringEntry(QtWidgets.QLineEdit):
     def __init__(self, argument):
         QtWidgets.QLineEdit.__init__(self)
         self.setText(argument["state"])
@@ -28,7 +28,7 @@ class _StringEntry(QtWidgets.QLineEdit):
         return procdesc.get("default", "")
 
 
-class _BooleanEntry(QtWidgets.QCheckBox):
+class BooleanEntry(QtWidgets.QCheckBox):
     def __init__(self, argument):
         QtWidgets.QCheckBox.__init__(self)
         self.setChecked(argument["state"])
@@ -45,7 +45,7 @@ class _BooleanEntry(QtWidgets.QCheckBox):
         return procdesc.get("default", False)
 
 
-class _EnumerationEntry(QtWidgets.QComboBox):
+class EnumerationEntry(QtWidgets.QComboBox):
     def __init__(self, argument):
         QtWidgets.QComboBox.__init__(self)
         disable_scroll_wheel(self)
@@ -69,7 +69,7 @@ class _EnumerationEntry(QtWidgets.QComboBox):
             return procdesc["choices"][0]
 
 
-class _NumberEntry(QtWidgets.QDoubleSpinBox):
+class NumberEntry(QtWidgets.QDoubleSpinBox):
     def __init__(self, argument):
         QtWidgets.QDoubleSpinBox.__init__(self)
         disable_scroll_wheel(self)
@@ -224,7 +224,7 @@ class _ExplicitScan(LayoutWidget):
         self.value.textEdited.connect(update)
 
 
-class _ScanEntry(LayoutWidget):
+class ScanEntry(LayoutWidget):
     def __init__(self, argument):
         LayoutWidget.__init__(self)
         self.argument = argument
@@ -255,6 +255,9 @@ class _ScanEntry(LayoutWidget):
 
         selected = argument["state"]["selected"]
         self.radiobuttons[selected].setChecked(True)
+
+    def disable(self):
+        self.radiobuttons["NoScan"].setChecked(True)
 
     @staticmethod
     def state_to_value(state):
@@ -301,10 +304,10 @@ class _ScanEntry(LayoutWidget):
 
 
 argty_to_entry = {
-    "PYONValue": _StringEntry,
-    "BooleanValue": _BooleanEntry,
-    "EnumerationValue": _EnumerationEntry,
-    "NumberValue": _NumberEntry,
-    "StringValue": _StringEntry,
-    "Scannable": _ScanEntry
+    "PYONValue": StringEntry,
+    "BooleanValue": BooleanEntry,
+    "EnumerationValue": EnumerationEntry,
+    "NumberValue": NumberEntry,
+    "StringValue": StringEntry,
+    "Scannable": ScanEntry
 }

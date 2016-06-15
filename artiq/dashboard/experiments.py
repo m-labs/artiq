@@ -8,7 +8,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import h5py
 
 from artiq.gui.tools import LayoutWidget, log_level_to_name, get_open_file_name
-from artiq.gui.entries import argty_to_entry
+from artiq.gui.entries import argty_to_entry, ScanEntry
 from artiq.protocols import pyon
 
 
@@ -78,9 +78,24 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
                     QtWidgets.QStyle.SP_BrowserReload))
             recompute_argument.clicked.connect(
                 partial(self._recompute_argument_clicked, name))
-            fix_layout = LayoutWidget()
-            fix_layout.addWidget(recompute_argument)
-            self.setItemWidget(widget_item, 2, fix_layout)
+
+            tool_buttons = LayoutWidget()
+            tool_buttons.addWidget(recompute_argument, 1)
+
+            if isinstance(entry, ScanEntry):
+                disable_other_scans = QtWidgets.QToolButton()
+                disable_other_scans.setIcon(
+                    QtWidgets.QApplication.style().standardIcon(
+                        QtWidgets.QStyle.SP_DialogResetButton))
+                disable_other_scans.setToolTip("Disable all other scans in "
+                                               "this experiment")
+                disable_other_scans.clicked.connect(
+                    partial(self._disable_other_scans, name))
+                tool_buttons.layout.setRowStretch(0, 1)
+                tool_buttons.layout.setRowStretch(3, 1)
+                tool_buttons.addWidget(disable_other_scans, 2)
+
+            self.setItemWidget(widget_item, 2, tool_buttons)
 
         widget_item = QtWidgets.QTreeWidgetItem()
         self.addTopLevelItem(widget_item)
@@ -141,6 +156,11 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         entry = argty_to_entry[procdesc["ty"]](argument)
         self._arg_to_entry_widgetitem[name] = entry, widget_item
         self.setItemWidget(widget_item, 1, entry)
+
+    def _disable_other_scans(self, current_name):
+        for name, (entry, _) in self._arg_to_entry_widgetitem.items():
+            if name != current_name and isinstance(entry, ScanEntry):
+                entry.disable()
 
     def save_state(self):
         expanded = []

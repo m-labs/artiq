@@ -44,7 +44,7 @@ class ShortcutsDock(QtWidgets.QDockWidget):
 
             clear = QtWidgets.QToolButton()
             clear.setIcon(QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_DialogResetButton))
+                QtWidgets.QStyle.SP_DialogDiscardButton))
             layout.addWidget(clear, row, 2)
             clear.clicked.connect(partial(self.set_shortcut, i, ""))
 
