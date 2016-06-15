@@ -40,6 +40,7 @@ _encode_map = {
     list: "list",
     set: "set",
     dict: "dict",
+    slice: "slice",
     wrapping_int: "number",
     Fraction: "fraction",
     OrderedDict: "ordereddict",
@@ -134,6 +135,9 @@ class _Encoder:
         r += "}"
         return r
 
+    def encode_slice(self, x):
+        return repr(x)
+
     def encode_fraction(self, x):
         return "Fraction({}, {})".format(self.encode(x.numerator),
                                          self.encode(x.denominator))
@@ -186,6 +190,7 @@ _eval_dict = {
     "null": None,
     "false": False,
     "true": True,
+    "slice": slice,
 
     "int": wrapping_int,
     "Fraction": Fraction,
