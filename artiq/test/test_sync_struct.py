@@ -18,6 +18,7 @@ def write_test_data(test_dict):
         test_dict[key] = value
     test_dict[1.5] = 1.5
     test_dict["list"] = []
+    test_dict["list"][:] = [34, 31]
     test_dict["list"].append(42)
     test_dict["list"].insert(1, 1)
     test_dict[100] = 0

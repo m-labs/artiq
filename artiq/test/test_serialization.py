@@ -9,6 +9,7 @@ from artiq.protocols import pyon
 
 _pyon_test_object = {
     (1, 2): [(3, 4.2), (2, )],
+    "slice": slice(3),
     Fraction(3, 4): np.linspace(5, 10, 1),
     "set": {"testing", "sets"},
     "a": np.int8(9), "b": np.int16(-98), "c": np.int32(42), "d": np.int64(-5),
