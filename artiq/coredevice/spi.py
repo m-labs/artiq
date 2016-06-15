@@ -196,6 +196,7 @@ class SPIMaster:
           deasserting ``cs`` in between. Once a transfer completes,
           the previous transfer's read data is available in the
           ``data`` register.
+        * For bit alignment and bit ordering see :meth:`set_config`.
 
         This method advances the timeline by the duration of the SPI transfer.
         If a transfer is to be chained, the timeline needs to be rewound.
@@ -206,6 +207,8 @@ class SPIMaster:
     @kernel
     def read_async(self):
         """Trigger an asynchronous read from the ``data`` register.
+
+        For bit alignment and bit ordering see :meth:`set_config`.
 
         Reads always finish in two cycles.
 
