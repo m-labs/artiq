@@ -17,7 +17,8 @@ def open_h5(info):
     try:
         return h5py.File(info.filePath(), "r")
     except OSError:  # e.g. file being written (see #470)
-        return
+        logger.debug("OSError when opening HDF5 file %s", info.filePath(),
+                     exc_info=True)
     except:
         logger.warning("unable to read HDF5 file %s", info.filePath(),
                        exc_info=True)
