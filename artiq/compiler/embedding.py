@@ -613,6 +613,11 @@ class Stitcher:
                 break
             old_typedtree_hash = typedtree_hash
 
+        # When we have an excess of type information, sometimes we can infer every type
+        # in the AST without discovering every referenced attribute of host objects, so
+        # do one last pass unconditionally.
+        inferencer.visit(self.typedtree)
+
         # After we have found all functions, synthesize a module to hold them.
         source_buffer = source.Buffer("", "<synthesized>")
         self.typedtree = asttyped.ModuleT(
