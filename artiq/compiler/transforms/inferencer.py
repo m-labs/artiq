@@ -407,7 +407,7 @@ class Inferencer(algorithm.Visitor):
                 return
             elif builtins.is_list(left.type) or builtins.is_list(right.type):
                 list_, other = self._order_by_pred(builtins.is_list, left, right)
-                if not builtins.is_int(other.type):
+                if not builtins.is_int(other.type) and not types.is_var(other.type):
                     printer = types.TypePrinter()
                     note1 = diagnostic.Diagnostic("note",
                         "list operand of type {typea}",
