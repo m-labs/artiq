@@ -165,7 +165,7 @@ class DatasetsDock(QtWidgets.QDockWidget):
                     logger.error("Cannot edit dataset %s: "
                                  "type %s is not supported", key, t)
                     return
-                dialog_cls(self, self.dataset_ctl, key, value, persist).exec_()
+                dialog_cls(self, self.dataset_ctl, key, value, persist).open()
 
     def delete_clicked(self):
         idx = self.table.selectedIndexes()
