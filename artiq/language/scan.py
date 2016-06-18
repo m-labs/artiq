@@ -3,7 +3,8 @@ Implementation and management of scan objects.
 
 A scan object (e.g. :class:`artiq.language.scan.LinearScan`) represents a
 one-dimensional sweep of a numerical range. Multi-dimensional scans are
-constructed by combining several scan objects.
+constructed by combining several scan objects, for example using
+:class:`artiq.language.scan.MultiScanManager`.
 
 Iterate on a scan object to scan it, e.g. ::
 
@@ -14,12 +15,11 @@ Iterating multiple times on the same scan object is possible, with the scan
 yielding the same values each time. Iterating concurrently on the
 same scan object (e.g. via nested loops) is also supported, and the
 iterators are independent from each other.
-
-Scan objects are supported both on the host and the core device.
 """
 
 import random
 import inspect
+from itertools import product
 
 from artiq.language.core import *
 from artiq.language.environment import NoDefault, DefaultMissing
@@ -28,7 +28,7 @@ from artiq.language import units
 
 __all__ = ["ScanObject",
            "NoScan", "LinearScan", "RandomScan", "ExplicitScan",
-           "Scannable"]
+           "Scannable", "MultiScanManager"]
 
 
 class ScanObject:
@@ -222,3 +222,43 @@ class Scannable:
         d["global_max"] = self.global_max
         d["ndecimals"] = self.ndecimals
         return d
+
+
+class MultiScanManager:
+    """
+    Makes an iterator that returns elements from the first scan object until
+    it is exhausted, then proceeds to the next iterable, until all of the
+    scan objects are exhausted. Used for treating consecutive scans as a
+    single scan.
+
+    Scan objects must be passed as a list of tuples (name, scan_object).
+    Íteration produces scan points that have attributes that correspond
+    to the names of the scan objects, and have the last value yielded by
+    that scan object.
+    """
+    def __init__(self, *args):
+        self.names = [a[0] for a in args]
+        self.scan_objects = [a[1] for a in args]
+
+        class ScanPoint:
+            def __init__(self, **kwargs):
+                self.attr = set()
+                for k, v in kwargs.items():
+                    setattr(self, k, v)
+                    self.attr.add(k)
+
+            def __repr__(self):
+                return ("<ScanPoint " +
+                    " ".join("{}={}".format(k, getattr(self, k))
+                             for k in self.attr) +
+                    ">")
+
+        self.scan_point_cls = ScanPoint
+
+    def _gen(self):
+        for values in product(*self.scan_objects):
+            d = {k: v for k, v in zip(self.names, values)}
+            yield self.scan_point_cls(**d)
+
+    def __iter__(self):
+        return self._gen()
