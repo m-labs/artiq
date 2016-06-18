@@ -14,8 +14,6 @@ Iterating multiple times on the same scan object is possible, with the scan
 yielding the same values each time. Iterating concurrently on the
 same scan object (e.g. via nested loops) is also supported, and the
 iterators are independent from each other.
-
-Scan objects are supported both on the host and the core device.
 """
 
 import random
