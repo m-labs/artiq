@@ -87,6 +87,7 @@ struct msg_watchdog_clear {
 
 struct msg_rpc_send {
     int type;
+    long long int now;
     int service;
     const char *tag;
     va_list args;
