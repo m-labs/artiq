@@ -486,7 +486,8 @@ void send_rpc(int service, const char *tag, ...)
     va_end(request.args);
 }
 
-int recv_rpc(void *slot) {
+int recv_rpc(void *slot)
+{
     struct msg_rpc_recv_request request;
     struct msg_rpc_recv_reply *reply;
 
@@ -525,7 +526,8 @@ struct type_desc {
     void **objects;
 };
 
-void attribute_writeback(void *utypes) {
+void attribute_writeback(void *utypes)
+{
     struct type_desc **types = (struct type_desc **)utypes;
     while(*types) {
         struct type_desc *type = *types++;
