@@ -6,8 +6,6 @@ struct artiq_list {
     int32_t *elements;
 };
 
-long long int now_init(void);
-void now_save(long long int now);
 int watchdog_set(int ms);
 void watchdog_clear(int id);
 void send_rpc(int service, const char *tag, ...);
