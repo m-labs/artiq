@@ -368,9 +368,9 @@ int main(void)
 
         mailbox_send_and_wait(&load_reply);
 
-        now = now_init();
+        now_init();
         kernel_run();
-        now_save(now);
+        now_save();
 
         attribute_writeback(typeinfo);
 
@@ -404,11 +404,10 @@ void ksupport_abort() {
                        0, 0, 0);
 }
 
-long long int now_init(void)
+void now_init(void)
 {
     struct msg_base request;
     struct msg_now_init_reply *reply;
-    long long int now;
 
     request.type = MESSAGE_TYPE_NOW_INIT_REQUEST;
     mailbox_send_and_wait(&request);
@@ -426,11 +425,9 @@ long long int now_init(void)
         rtio_init();
         now = rtio_get_counter() + (272000 << CONFIG_RTIO_FINE_TS_WIDTH);
     }
-
-    return now;
 }
 
-void now_save(long long int now)
+void now_save(void)
 {
     struct msg_now_save request;
 
