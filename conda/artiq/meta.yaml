@@ -19,6 +19,8 @@ requirements:
   run:
     - python >=3.5.1
     - llvmlite-artiq 0.10.0.dev py35_24
+    - lit
+    - OutputCheck
     - scipy
     - numpy
     - prettytable
