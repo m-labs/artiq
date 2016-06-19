@@ -423,6 +423,8 @@ void __artiq_terminate(struct artiq_exception *artiq_exn,
 {
     struct msg_exception msg;
 
+    now_save();
+
     msg.type = MESSAGE_TYPE_EXCEPTION;
     msg.exception = artiq_exn;
     msg.backtrace = backtrace;
