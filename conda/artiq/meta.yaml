@@ -20,7 +20,7 @@ requirements:
     - python >=3.5.1
     - llvmlite-artiq 0.10.0.dev py35_24
     - lit
-    - OutputCheck
+    - outputcheck
     - scipy
     - numpy
     - prettytable
