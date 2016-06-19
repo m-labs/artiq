@@ -238,6 +238,31 @@ class Handover(EnvExperiment):
         self.k("t2")
 
 
+class DummyException(Exception):
+    pass
+
+
+class HandoverException(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+
+    @kernel
+    def k(self, var):
+        self.set_dataset(var, now_mu())
+        delay_mu(1234)
+        raise DummyException()
+
+    def run(self):
+        try:
+            self.k("t1")
+        except DummyException:
+            pass
+        try:
+            self.k("t2")
+        except DummyException:
+            pass
+
+
 class CoredeviceTest(ExperimentCase):
     def test_loopback(self):
         self.execute(Loopback)
@@ -313,6 +338,12 @@ class CoredeviceTest(ExperimentCase):
         self.execute(Handover)
         self.assertEqual(self.dataset_mgr.get("t1") + 1234,
                          self.dataset_mgr.get("t2"))
+
+    def test_handover_exception(self):
+        self.execute(HandoverException)
+        self.assertEqual(self.dataset_mgr.get("t1") + 1234,
+                         self.dataset_mgr.get("t2"))
+
 
 
 class RPCTiming(EnvExperiment):
