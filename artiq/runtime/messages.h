@@ -103,13 +103,6 @@ struct msg_rpc_recv_reply {
     struct artiq_exception *exception;
 };
 
-struct msg_rpc_batch {
-    int type;
-    int service;
-    const char *tag;
-    void *ptr;
-};
-
 struct msg_cache_get_request {
     int type;
     const char *key;
