@@ -200,7 +200,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
     def __init__(self, manager, expurl):
         QtWidgets.QMdiSubWindow.__init__(self)
-        self.resize(800, 600)
+        qfm = QtGui.QFontMetrics(self.font())
+        self.resize(90*qfm.averageCharWidth(), 30*qfm.lineSpacing())
         self.setWindowTitle(expurl)
         self.setWindowIcon(QtWidgets.QApplication.style().standardIcon(
             QtWidgets.QStyle.SP_FileDialogContentsView))
