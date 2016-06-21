@@ -425,6 +425,21 @@ class TInstance(TMono):
         return "artiq.compiler.types.TInstance({}, {})".format(
                     repr(self.name), repr(self.attributes))
 
+class TModule(TMono):
+    """
+    A type of a module.
+    """
+
+    def __init__(self, name, attributes):
+        assert isinstance(attributes, OrderedDict)
+        super().__init__(name)
+        self.attributes = attributes
+        self.constant_attributes = set()
+
+    def __repr__(self):
+        return "artiq.compiler.types.TModule({}, {})".format(
+                    repr(self.name), repr(self.attributes))
+
 class TMethod(TMono):
     """
     A type of a method.
@@ -607,6 +622,14 @@ def is_instance(typ, name=None):
             typ.name == name
     else:
         return isinstance(typ, TInstance)
+
+def is_module(typ, name=None):
+    typ = typ.find()
+    if name is not None:
+        return isinstance(typ, TModule) and \
+            typ.name == name
+    else:
+        return isinstance(typ, TModule)
 
 def is_method(typ):
     return isinstance(typ.find(), TMethod)

@@ -1345,15 +1345,9 @@ class LLVMIRGenerator:
         value_id = id(value)
         if value_id in self.llobject_map:
             return self.llobject_map[value_id]
-
         llty = self.llty_of_type(typ)
-        if types.is_constructor(typ) or types.is_instance(typ):
-            if types.is_instance(typ):
-                # Make sure the class functions are quoted, as this has the side effect of
-                # initializing the global closures.
-                self._quote(type(value), typ.constructor,
-                            lambda: path() + ['__class__'])
 
+        def _quote_attributes():
             llglobal = None
             llfields = []
             for attr in typ.attributes:
@@ -1386,6 +1380,16 @@ class LLVMIRGenerator:
             llglobal.initializer = ll.Constant(llty.pointee, llfields)
             llglobal.linkage = "private"
             return llglobal
+
+        if types.is_constructor(typ) or types.is_instance(typ):
+            if types.is_instance(typ):
+                # Make sure the class functions are quoted, as this has the side effect of
+                # initializing the global closures.
+                self._quote(type(value), typ.constructor,
+                            lambda: path() + ['__class__'])
+            return _quote_attributes()
+        elif types.is_module(typ):
+            return _quote_attributes()
         elif builtins.is_none(typ):
             assert value is None
             return ll.Constant.literal_struct([])

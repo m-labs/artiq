@@ -47,8 +47,19 @@ class EmbeddingMap:
         self.object_current_key = 0
         self.object_forward_map = {}
         self.object_reverse_map = {}
+        self.module_map = {}
         self.type_map = {}
         self.function_map = {}
+
+    # Modules
+    def store_module(self, module, module_type):
+        self.module_map[module] = module_type
+
+    def retrieve_module(self, module):
+        return self.module_map[module]
+
+    def has_module(self, module):
+        return module in self.module_map
 
     # Types
     def store_type(self, host_type, instance_type, constructor_type):
@@ -88,7 +99,8 @@ class EmbeddingMap:
         for obj_id in self.object_forward_map.keys():
             obj_ref = self.object_forward_map[obj_id]
             if isinstance(obj_ref, (pytypes.FunctionType, pytypes.MethodType,
-                                    pytypes.BuiltinFunctionType, SpecializedFunction)):
+                                    pytypes.BuiltinFunctionType, pytypes.ModuleType,
+                                    SpecializedFunction)):
                 continue
             elif isinstance(obj_ref, type):
                 _, obj_typ = self.type_map[obj_ref]
@@ -178,6 +190,21 @@ class ASTSynthesizer:
                 unquote_loc = self._add('`')
                 loc         = quote_loc.join(unquote_loc)
                 return asttyped.QuoteT(value=value, type=function_type, loc=loc)
+        elif isinstance(value, pytypes.ModuleType):
+            if self.embedding_map.has_module(value):
+                module_type = self.embedding_map.retrieve_module(value)
+            else:
+                module_type = types.TModule(value.__name__, OrderedDict())
+                module_type.attributes['__objectid__'] = builtins.TInt32()
+                self.embedding_map.store_module(value, module_type)
+
+            quote_loc   = self._add('`')
+            repr_loc    = self._add(repr(value))
+            unquote_loc = self._add('`')
+            loc         = quote_loc.join(unquote_loc)
+
+            self.value_map[module_type].append((value, loc))
+            return asttyped.QuoteT(value=value, type=module_type, loc=loc)
         else:
             quote_loc   = self._add('`')
             repr_loc    = self._add(repr(value))
@@ -409,7 +436,7 @@ class StitchingInferencer(Inferencer):
         self.quote = quote
         self.attr_type_cache = {}
 
-    def _compute_value_type(self, object_value, object_type, object_loc, attr_name, loc):
+    def _compute_attr_type(self, object_value, object_type, object_loc, attr_name, loc):
         if not hasattr(object_value, attr_name):
             if attr_name.startswith('_'):
                 names = set(filter(lambda name: not name.startswith('_'),
@@ -519,7 +546,7 @@ class StitchingInferencer(Inferencer):
                 attributes, attr_value_type = self.attr_type_cache[attr_type_key]
             except KeyError:
                 attributes, attr_value_type = \
-                    self._compute_value_type(object_value, object_type, object_loc, attr_name, loc)
+                    self._compute_attr_type(object_value, object_type, object_loc, attr_name, loc)
                 self.attr_type_cache[attr_type_key] = attributes, attr_value_type
 
             if attr_name not in attributes:
