@@ -167,15 +167,14 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.layout.setContentsMargins(5, 5, 5, 5)
 
         self._area = area
+        self._run_task = None
         self.expurl = expurl
         self.arguments = arguments
+        self.options = {"log_level": logging.WARNING}
 
         self.argeditor = _ArgumentEditor(self)
         self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
         self.layout.setRowStretch(0, 1)
-
-        self.options = {"log_level": logging.WARNING}
-        self._run_task = None
 
         log_level = QtWidgets.QComboBox()
         log_level.addItems(log_levels)
@@ -195,6 +194,15 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         log_level.currentIndexChanged.connect(update_log_level)
         self.log_level = log_level
 
+        load = QtWidgets.QPushButton("Set arguments")
+        load.setToolTip("Set arguments from currently selected HDF5 "
+                        "file (Ctrl+Space)")
+        load.setIcon(QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_DialogApplyButton))
+        load.setShortcut("CTRL+SPACE")
+        load.clicked.connect(self._load_clicked)
+        self.layout.addWidget(load, 1, 4)
+
         run = QtWidgets.QPushButton("Analyze")
         run.setIcon(QtWidgets.QApplication.style().standardIcon(
                 QtWidgets.QStyle.SP_DialogOkButton))
@@ -202,8 +210,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         run.setShortcut("CTRL+RETURN")
         run.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
                           QtWidgets.QSizePolicy.Expanding)
-        self.layout.addWidget(run, 1, 4, 2, 1)
-        run.clicked.connect(self.run_clicked)
+        self.layout.addWidget(run, 2, 4)
+        run.clicked.connect(self._run_clicked)
         self._run = run
 
         terminate = QtWidgets.QPushButton("Terminate")
@@ -214,7 +222,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         terminate.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
                                 QtWidgets.QSizePolicy.Expanding)
         self.layout.addWidget(terminate, 3, 4)
-        terminate.clicked.connect(self.terminate_clicked)
+        terminate.clicked.connect(self._terminate_clicked)
         terminate.setEnabled(False)
         self._terminate = terminate
 
@@ -226,7 +234,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         for uri in ev.mimeData().urls():
             if uri.scheme() == "file":
                 logger.debug("Loading HDF5 arguments from %s", uri.path())
-                asyncio.ensure_future(self._load_hdf5_task(uri.path()))
+                asyncio.ensure_future(self.load_hdf5_task(uri.path()))
                 break
 
     async def compute_arginfo(self):
@@ -251,7 +259,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.argeditor = _ArgumentEditor(self)
         self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
 
-    async def _load_hdf5_task(self, filename):
+    async def load_hdf5_task(self, filename):
         try:
             with h5py.File(filename, "r") as f:
                 expid = f["expid"][()]
@@ -272,7 +280,12 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
         await self._recompute_arguments(arguments)
 
-    def run_clicked(self):
+    def _load_clicked(self):
+        if self._area.dataset is None:
+            return
+        asyncio.ensure_future(self.load_hdf5_task(self._area.dataset))
+
+    def _run_clicked(self):
         class_name, file = self.expurl.split("@", maxsplit=1)
         expid = {
             "repo_rev": "N/A",
@@ -308,13 +321,11 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         finally:
             await worker.close()
 
-    def terminate_clicked(self):
+    def _terminate_clicked(self):
         try:
             self._run_task.cancel()
         except:
-            # May happen when experiment has been removed
-            # from repository/explist
-            logger.error("Failed to request termination of instances of '%s'",
+            logger.error("Unexpected failure terminating '%s'",
                          self.expurl, exc_info=True)
 
     def closeEvent(self, event):
@@ -355,6 +366,7 @@ class ExperimentsArea(QtWidgets.QMdiArea):
         self.pixmap = QtGui.QPixmap(os.path.join(
             artiq_dir, "gui", "logo20.svg"))
         self.current_dir = root
+        self.dataset = None
 
         self.open_experiments = []
 
@@ -366,6 +378,15 @@ class ExperimentsArea(QtWidgets.QMdiArea):
             "get_dataset": self._ddb.get,
             "update_dataset": self._ddb.update,
         }
+
+    def dataset_changed(self, path):
+        self.dataset = path
+
+    def dataset_activated(self, path):
+        sub = self.currentSubWindow()
+        if sub is None:
+            return
+        asyncio.ensure_future(sub.load_hdf5_task(path))
 
     def mousePressEvent(self, ev):
         if ev.button() == QtCore.Qt.LeftButton:

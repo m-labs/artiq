@@ -116,6 +116,9 @@ class Hdf5FileSystemModel(QtWidgets.QFileSystemModel):
 
 
 class FilesDock(QtWidgets.QDockWidget):
+    dataset_activated = QtCore.pyqtSignal(str)
+    dataset_changed = QtCore.pyqtSignal(str)
+
     def __init__(self, datasets, browse_root="", select=None):
         QtWidgets.QDockWidget.__init__(self, "Files")
         self.setObjectName("Files")
@@ -180,9 +183,12 @@ class FilesDock(QtWidgets.QDockWidget):
                 return
             rd = {k: (True, v.value) for k, v in f["datasets"].items()}
             self.datasets.init(rd)
+        self.dataset_changed.emit(info.filePath())
 
     def list_activated(self, idx):
-        if not self.model.fileInfo(idx).isDir():
+        info = self.model.fileInfo(idx)
+        if not info.isDir():
+            self.dataset_activated.emit(info.filePath())
             return
         self.rl.setRootIndex(idx)
         idx = self.rt.model().mapFromSource(idx)

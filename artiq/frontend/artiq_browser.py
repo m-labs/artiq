@@ -61,6 +61,11 @@ class Browser(QtWidgets.QMainWindow):
 
         self.files = files.FilesDock(datasets_sub, browse_root, select=select)
 
+        self.files.dataset_activated.connect(
+            self.experiments.dataset_activated)
+        self.files.dataset_changed.connect(
+            self.experiments.dataset_changed)
+
         self.applets = applets.AppletsDock(self, datasets_sub)
         atexit_register_coroutine(self.applets.stop)
 
