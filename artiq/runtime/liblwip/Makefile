@@ -15,6 +15,7 @@ COREFILES=core/mem.c \
 	core/raw.c \
 	core/stats.c \
 	core/sys.c \
+	core/ip.c \
 	core/tcp.c \
 	core/tcp_in.c \
 	core/tcp_out.c \
@@ -29,7 +30,8 @@ CORE4FILES=core/ipv4/icmp.c \
 	core/ipv4/ip_frag.c
 
 # NETIFFILES: Files implementing various generic network interface functions.
-NETIFFILES=netif/etharp.c
+NETIFFILES=netif/etharp.c \
+	netif/ethernet.c
 
 PPPFILES=netif/ppp/auth.c \
 	netif/ppp/fsm.c \
