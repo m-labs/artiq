@@ -1,15 +1,14 @@
-.. _install-from-sources:
+.. _install-from-source:
 
-
-Installing ARTIQ from sources
-=============================
+Installing ARTIQ from source
+============================
 
 .. note::
 	This method is only recommended for developers and advanced users. An easier way to install ARTIQ is via the Anaconda packages (see :ref:`Installing ARTIQ <install-from-conda>`).
 
 
 Preparing the build environment for the core device
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------------------------------
 
 These steps are required to generate code that can run on the core
 device. They are necessary both for building the MiSoC BIOS
@@ -59,7 +58,7 @@ and the ARTIQ kernels.
     Compilation of LLVM can take more than 30 min on some machines.
 
 Preparing the core device FPGA board
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------------------
 
 These steps are required to generate gateware bitstream (``.bit``) files, build the MiSoC BIOS and ARTIQ runtime, and flash FPGA boards. If the board is already flashed, you may skip those steps and go directly to `Installing the host-side software`.
 
@@ -164,7 +163,7 @@ to the serial device (``sudo adduser $USER dialout`` assuming standard setup).
 .. _installing-the-host-side-software:
 
 Installing the host-side software
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------------
 
 * Install the llvmlite Python bindings: ::
 
