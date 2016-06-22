@@ -8,6 +8,7 @@ Contents:
 
     introduction
     installing
+    installing_from_source
     release_notes
     getting_started_core
     compiler
