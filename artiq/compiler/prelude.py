@@ -23,6 +23,8 @@ def globals():
         # Built-in Python functions
         "len":                  builtins.fn_len(),
         "round":                builtins.fn_round(),
+        "min":                  builtins.fn_min(),
+        "max":                  builtins.fn_max(),
         "print":                builtins.fn_print(),
 
         # ARTIQ decorators

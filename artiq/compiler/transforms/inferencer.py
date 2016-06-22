@@ -789,6 +789,37 @@ class Inferencer(algorithm.Visitor):
                             node.loc, None)
             else:
                 diagnose(valid_forms())
+        elif types.is_builtin(typ, "min") or types.is_builtin(typ, "max"):
+            fn = typ.name
+
+            valid_forms = lambda: [
+                valid_form("{}(x:int(width='a), y:int(width='a)) -> int(width='a)".format(fn)),
+                valid_form("{}(x:float, y:float) -> float".format(fn))
+            ]
+
+            if len(node.args) == 2 and len(node.keywords) == 0:
+                arg0, arg1 = node.args
+
+                self._unify(arg0.type, arg1.type,
+                            arg0.loc, arg1.loc)
+
+                if builtins.is_int(arg0.type) or builtins.is_float(arg0.type):
+                    self._unify(arg0.type, node.type,
+                                arg0.loc, node.loc)
+                elif types.is_var(arg0.type):
+                    pass # undetermined yet
+                else:
+                    note = diagnostic.Diagnostic("note",
+                        "this expression has type {type}",
+                        {"type": types.TypePrinter().name(arg0.type)},
+                        arg0.loc)
+                    diag = diagnostic.Diagnostic("error",
+                        "the arguments of {fn}() must be of a numeric type",
+                        {"fn": fn},
+                        node.func.loc, notes=[note])
+                    self.engine.process(diag)
+            else:
+                diagnose(valid_forms())
         elif types.is_builtin(typ, "print"):
             valid_forms = lambda: [
                 valid_form("print(args...) -> None"),

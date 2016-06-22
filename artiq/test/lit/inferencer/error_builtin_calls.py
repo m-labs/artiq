@@ -10,3 +10,6 @@ len(1)
 
 # CHECK-L: ${LINE:+1}: error: the argument of list() must be of an iterable type
 list(1)
+
+# CHECK-L: ${LINE:+1}: error: the arguments of min() must be of a numeric type
+min([1], [1])

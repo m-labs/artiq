@@ -1667,6 +1667,20 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 return self.append(ir.Builtin("round", [arg], node.type))
             else:
                 assert False
+        elif types.is_builtin(typ, "min"):
+            if len(node.args) == 2 and len(node.keywords) == 0:
+                arg0, arg1 = map(self.visit, node.args)
+                cond = self.append(ir.Compare(ast.Lt(loc=None), arg0, arg1))
+                return self.append(ir.Select(cond, arg0, arg1))
+            else:
+                assert False
+        elif types.is_builtin(typ, "max"):
+            if len(node.args) == 2 and len(node.keywords) == 0:
+                arg0, arg1 = map(self.visit, node.args)
+                cond = self.append(ir.Compare(ast.Gt(loc=None), arg0, arg1))
+                return self.append(ir.Select(cond, arg0, arg1))
+            else:
+                assert False
         elif types.is_builtin(typ, "print"):
             self.polymorphic_print([self.visit(arg) for arg in node.args],
                                    separator=" ", suffix="\n")
