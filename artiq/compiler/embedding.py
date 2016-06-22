@@ -63,6 +63,7 @@ class EmbeddingMap:
 
     # Types
     def store_type(self, host_type, instance_type, constructor_type):
+        self._rename_type(instance_type)
         self.type_map[host_type] = (instance_type, constructor_type)
 
     def retrieve_type(self, host_type):
@@ -70,6 +71,22 @@ class EmbeddingMap:
 
     def has_type(self, host_type):
         return host_type in self.type_map
+
+    def _rename_type(self, new_instance_type):
+        # Generally, user-defined types that have exact same name (which is to say, classes
+        # defined inside functions) do not pose a problem to the compiler. The two places which
+        # cannot handle this are:
+        #  1. {TInstance,TConstructor}.__hash__
+        #  2. LLVM type names
+        # Since handling #2 requires renaming on ARTIQ side anyway, it's more straightforward
+        # to do it once when embedding (since non-embedded code cannot define classes in
+        # functions). Also, easier to debug.
+        n = 0
+        for host_type in self.type_map:
+            instance_type, constructor_type = self.type_map[host_type]
+            if instance_type.name == new_instance_type.name:
+                n += 1
+                new_instance_type.name = "{}.{}".format(new_instance_type.name, n)
 
     # Functions
     def store_function(self, function, ir_function_name):
