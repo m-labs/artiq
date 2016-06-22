@@ -690,6 +690,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             handlers.append((handler, post_handler))
 
         if any(node.finalbody):
+            # Finalize and continue after try statement.
             self.final_branch = old_final_branch
 
             finalizer = self.add_block("finally")
@@ -698,13 +699,17 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.visit(node.finalbody)
             post_finalizer = self.current_block
 
-            reraise = self.add_block('try.reraise')
-            reraise.append(ir.Reraise(self.unwind_target))
+            # Finalize and reraise. Separate from previous case to expose flow
+            # to LocalAccessValidator.
+            finalizer_reraise = self.add_block("finally.reraise")
+            self.current_block = finalizer_reraise
+
+            self.visit(node.finalbody)
+            self.terminate(ir.Reraise(self.unwind_target))
 
         self.current_block = tail = self.add_block("try.tail")
         if any(node.finalbody):
             final_targets.append(tail)
-            final_targets.append(reraise)
 
             for block in final_paths:
                 block.append(ir.Branch(finalizer))
@@ -713,8 +718,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 body.append(ir.SetLocal(final_state, "$cont", tail))
                 body.append(ir.Branch(finalizer))
 
-            cleanup.append(ir.SetLocal(final_state, "$cont", reraise))
-            cleanup.append(ir.Branch(finalizer))
+            cleanup.append(ir.Branch(finalizer_reraise))
 
             for handler, post_handler in handlers:
                 if not post_handler.is_terminated():
