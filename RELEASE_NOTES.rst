@@ -3,8 +3,8 @@
 Release notes
 =============
 
-1.1 (unreleased)
-----------------
+1.1
+---
 
 * TCA6424A.set converts the "outputs" value to little-endian before programming
   it into the registers.
