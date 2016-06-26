@@ -461,7 +461,7 @@ class CommGeneric:
 
             self._write_header(_H2DMsgType.RPC_EXCEPTION)
 
-            if hasattr(exn, 'artiq_core_exception'):
+            if hasattr(exn, "artiq_core_exception"):
                 exn = exn.artiq_core_exception
                 self._write_string(exn.name)
                 self._write_string(exn.message)
@@ -476,7 +476,7 @@ class CommGeneric:
             else:
                 exn_type = type(exn)
                 if exn_type in (ZeroDivisionError, ValueError, IndexError) or \
-                        hasattr(exn, 'artiq_builtin'):
+                        hasattr(exn, "artiq_builtin"):
                     self._write_string("0:{}".format(exn_type.__name__))
                 else:
                     exn_id = embedding_map.store_object(exn_type)
