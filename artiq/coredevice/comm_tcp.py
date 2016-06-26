@@ -57,7 +57,7 @@ class Comm(CommGeneric):
         while len(r) < length:
             rn = self.socket.recv(min(8192, length - len(r)))
             if not rn:
-                raise IOError("Connection closed")
+                raise ConnectionResetError("Connection closed")
             r += rn
         return r
 
