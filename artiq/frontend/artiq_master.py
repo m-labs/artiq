@@ -95,7 +95,8 @@ def main():
         "scheduler_submit": scheduler.submit,
         "scheduler_delete": scheduler.delete,
         "scheduler_request_termination": scheduler.request_termination,
-        "scheduler_get_status": scheduler.get_status        
+        "scheduler_get_status": scheduler.get_status,
+        "scheduler_check_pause": scheduler.check_pause
     })
     experiment_db.scan_repository_async()
 

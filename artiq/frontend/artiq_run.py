@@ -13,6 +13,7 @@ import h5py
 from llvmlite_artiq import binding as llvm
 
 from artiq.language.environment import EnvExperiment, ProcessArgumentManager
+from artiq.language.types import TBool
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager
 from artiq.coredevice.core import CompileError, host_only
@@ -106,6 +107,9 @@ class DummyScheduler:
 
     def get_status(self):
         return dict()
+
+    def check_pause(self, rid=None) -> TBool:
+        return False
 
     @host_only
     def pause(self):

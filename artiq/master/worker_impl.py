@@ -15,6 +15,7 @@ from artiq.master.worker_db import DeviceManager, DatasetManager
 from artiq.language.environment import (is_experiment, TraceArgumentManager,
                                         ProcessArgumentManager)
 from artiq.language.core import set_watchdog_factory, TerminationRequested
+from artiq.language.types import TBool
 from artiq.coredevice.core import CompileError, host_only, _render_diagnostic
 from artiq import __version__ as artiq_version
 
@@ -95,6 +96,12 @@ class Scheduler:
         self.pipeline_name = pipeline_name
         self.expid = expid
         self.priority = priority
+
+    _check_pause = staticmethod(make_parent_action("scheduler_check_pause"))
+    def check_pause(self, rid=None) -> TBool:
+        if rid is None:
+            rid = self.rid
+        return self._check_pause(rid)
 
 
 def get_exp(file, class_name):

@@ -437,3 +437,30 @@ class Scheduler:
         """Returns a dictionary containing information about the runs currently
         tracked by the scheduler."""
         return self.notifier.read
+
+    def check_pause(self, rid):
+        """Returns ``True`` if there is a condition that could make ``pause``
+        not return immediately (termination requested or higher priority run).
+
+        The typical purpose of this function is to check from a kernel
+        whether returning control to the host and pausing would have an effect,
+        in order to avoid the cost of switching kernels in the common case
+        where ``pause`` does nothing.
+        """
+        for pipeline in self._pipelines.values():
+            if rid in pipeline.pool.runs:
+                run = pipeline.pool.runs[rid]
+                if run.status != RunStatus.running:
+                    return False
+                if run.termination_requested:
+                    return True
+
+                prepared_runs = filter(lambda r: r.status == RunStatus.prepare_done,
+                                       pipeline.pool.runs.values())
+                try:
+                    r = max(prepared_runs, key=lambda r: r.priority_key())
+                except ValueError:
+                    # prepared_runs is an empty sequence
+                    return False
+                return r.priority_key() > run.priority_key()
+        raise KeyError("RID not found")
