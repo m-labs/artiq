@@ -1692,19 +1692,12 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.polymorphic_print([self.visit(arg) for arg in args],
                                    separator=" ", suffix="\n\x1D", as_rtio=True)
             return ir.Constant(None, builtins.TNone())
-        elif types.is_builtin(typ, "now"):
-            if len(node.args) == 0 and len(node.keywords) == 0:
-                now_mu = self.append(ir.Builtin("now_mu", [], builtins.TInt64()))
-                now_mu_float = self.append(ir.Coerce(now_mu, builtins.TFloat()))
-                return self.append(ir.Arith(ast.Mult(loc=None), now_mu_float, self.ref_period))
-            else:
-                assert False
-        elif types.is_builtin(typ, "delay") or types.is_builtin(typ, "at"):
+        elif types.is_builtin(typ, "delay"):
             if len(node.args) == 1 and len(node.keywords) == 0:
                 arg = self.visit(node.args[0])
                 arg_mu_float = self.append(ir.Arith(ast.Div(loc=None), arg, self.ref_period))
                 arg_mu = self.append(ir.Coerce(arg_mu_float, builtins.TInt64()))
-                return self.append(ir.Builtin(typ.name + "_mu", [arg_mu], builtins.TNone()))
+                return self.append(ir.Builtin("delay_mu", [arg_mu], builtins.TNone()))
             else:
                 assert False
         elif types.is_builtin(typ, "now_mu") or types.is_builtin(typ, "delay_mu") \

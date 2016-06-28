@@ -162,14 +162,8 @@ def obj_sequential():
 def fn_watchdog():
     return types.TBuiltinFunction("watchdog")
 
-def fn_now():
-    return types.TBuiltinFunction("now")
-
 def fn_delay():
     return types.TBuiltinFunction("delay")
-
-def fn_at():
-    return types.TBuiltinFunction("at")
 
 def fn_now_mu():
     return types.TBuiltinFunction("now_mu")

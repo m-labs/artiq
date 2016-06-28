@@ -1,10 +1,8 @@
 # RUN: %python -m artiq.compiler.testbench.jit %s
 # REQUIRES: time
 
-assert now() == 0.0
+assert now_mu() == 0
 delay(100.0)
-assert now() == 100.0
-at(12345.0)
-assert now() == 12345.0
-
+assert now_mu() == 100000000
+at_mu(12345000000)
 assert now_mu() == 12345000000
