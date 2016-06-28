@@ -983,12 +983,6 @@ static int process_kmsg(struct msg_base *umsg)
         case MESSAGE_TYPE_RPC_BATCH: {
             struct msg_rpc_send *msg = (struct msg_rpc_send *)umsg;
 
-            /*
-             * save now in case the RPC stops the kernel
-             * (e.g. pause with preemption)
-             */
-            now = msg->now;
-
             if(!send_rpc_request(msg->service, msg->tag, msg->args)) {
                 core_log("Failed to send RPC request (service %d, tag %s)\n",
                          msg->service, msg->tag);

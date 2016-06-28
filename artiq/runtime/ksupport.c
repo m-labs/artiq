@@ -475,7 +475,6 @@ void send_rpc(int service, const char *tag, ...)
 {
     struct msg_rpc_send request;
 
-    request.now = now;
     if(service != 0)
         request.type = MESSAGE_TYPE_RPC_SEND;
     else
