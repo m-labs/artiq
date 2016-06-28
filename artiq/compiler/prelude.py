@@ -36,9 +36,7 @@ def globals():
         "watchdog":             builtins.fn_watchdog(),
 
         # ARTIQ time management functions
-        "now":                  builtins.fn_now(),
         "delay":                builtins.fn_delay(),
-        "at":                   builtins.fn_at(),
         "now_mu":               builtins.fn_now_mu(),
         "delay_mu":             builtins.fn_delay_mu(),
         "at_mu":                builtins.fn_at_mu(),
