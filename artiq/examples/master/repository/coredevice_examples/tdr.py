@@ -36,6 +36,7 @@ class TDR(EnvExperiment):
         self.setattr_device("ttl2")
 
     def run(self):
+        self.core.reset()
         n = 1000  # repetitions
         latency = 50e-9  # calibrated latency without a transmission line
         pulse = 1e-6  # pulse length, larger than rtt

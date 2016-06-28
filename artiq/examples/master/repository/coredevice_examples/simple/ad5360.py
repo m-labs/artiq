@@ -9,6 +9,7 @@ class AD5360Test(EnvExperiment):
 
     @kernel
     def run(self):
+        self.core.reset()
         self.dac.setup_bus(write_div=30, read_div=40)
         self.dac.write_offsets()
         self.led.on()

@@ -12,5 +12,6 @@ class Handover(EnvExperiment):
         delay(250*ms)
 
     def run(self):
+        self.core.reset()
         while True:
             self.blink_once()

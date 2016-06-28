@@ -8,8 +8,6 @@
 #define KERNELCPU_LAST_ADDRESS    (0x4fffffff - 1024*1024)
 #define KSUPPORT_HEADER_SIZE      0x80
 
-extern long long int now;
-
 int kloader_load_library(const void *code);
 void kloader_filter_backtrace(struct artiq_backtrace_item *backtrace,
                               size_t *backtrace_size);

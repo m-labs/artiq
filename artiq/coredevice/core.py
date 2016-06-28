@@ -37,6 +37,10 @@ class CompileError(Exception):
         return "\n" + _render_diagnostic(self.diagnostic, colored=colors_supported)
 
 
+@syscall
+def rtio_init():
+    raise NotImplementedError("syscall not simulated")
+
 @syscall(flags={"nounwind", "nowrite"})
 def rtio_get_counter() -> TInt64:
     raise NotImplementedError("syscall not simulated")
@@ -122,9 +126,20 @@ class Core:
         return rtio_get_counter()
 
     @kernel
+    def reset(self):
+        """Clear RTIO FIFOs, release RTIO PHY reset, and set the time cursor
+        at the current value of the hardware RTIO counter plus a margin of
+        125000 machine units."""
+        rtio_init()
+        at_mu(rtio_get_counter() + 125000)
+
+    @kernel
     def break_realtime(self):
-        """Set the timeline to the current value of the hardware RTIO counter
-        plus a margin of 125000 machine units."""
+        """Set the time cursor after the current value of the hardware RTIO
+        counter plus a margin of 125000 machine units.
+
+        If the time cursor is already after that position, this function
+        does nothing."""
         min_now = rtio_get_counter() + 125000
         if now_mu() < min_now:
             at_mu(min_now)

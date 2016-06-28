@@ -48,6 +48,7 @@ class PhotonHistogram(EnvExperiment):
 
     @kernel
     def run(self):
+        self.core.reset()
         self.program_cooling()
 
         hist = [0 for _ in range(self.nbins)]

@@ -300,7 +300,6 @@ void session_startup_kernel(void)
 {
     struct msg_base *umsg;
 
-    now = -1;
     watchdog_init();
     if(!kloader_start_startup_kernel())
         return;
@@ -341,14 +340,12 @@ void session_start(void)
     out_packet_reset();
 
     kloader_stop();
-    now = -1;
     user_kernel_state = USER_KERNEL_NONE;
 }
 
 void session_end(void)
 {
     kloader_stop();
-    now = -1;
     watchdog_init();
     kloader_start_idle_kernel();
 }

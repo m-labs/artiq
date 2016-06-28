@@ -12,6 +12,7 @@ class _Roundtrip(EnvExperiment):
     def roundtrip(self, obj, fn):
         fn(obj)
 
+
 class RoundtripTest(ExperimentCase):
     def assertRoundtrip(self, obj):
         exp = self.create(_Roundtrip)
@@ -54,6 +55,7 @@ class _DefaultArg(EnvExperiment):
     @kernel
     def run(self):
         return self.test()
+
 
 class DefaultArgTest(ExperimentCase):
     def test_default_arg(self):
@@ -103,6 +105,7 @@ class _RPC(EnvExperiment):
     def builtin(self):
         sleep(1.0)
 
+
 class RPCTest(ExperimentCase):
     def test_args(self):
         exp = self.create(_RPC)
@@ -127,6 +130,7 @@ class _Payload1MB(EnvExperiment):
     def run(self):
         data = [0 for _ in range(1000000//4)]
         self.devnull(data)
+
 
 class LargePayloadTest(ExperimentCase):
     def test_1MB(self):

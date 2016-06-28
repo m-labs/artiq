@@ -38,6 +38,7 @@ class PDQ2Simple(EnvExperiment):
         return self.pmt.count()
 
     def run(self):
+        self.core.reset()
         offsets = np.arange(0, 3)
         for o in offsets:
             self.setup(o)

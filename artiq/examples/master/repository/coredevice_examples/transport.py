@@ -91,6 +91,7 @@ class Transport(EnvExperiment):
             self.repeat()
 
     def run(self):
+        self.core.reset()
         # scan transport endpoint
         stops = np.linspace(0, 10, 10)
         self.scan(stops)

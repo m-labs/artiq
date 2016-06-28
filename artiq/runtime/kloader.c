@@ -149,7 +149,7 @@ int kloader_is_essential_kmsg(int msgtype)
     }
 }
 
-long long int now;
+static long long int now = 0;
 
 void kloader_service_essential_kmsg(void)
 {

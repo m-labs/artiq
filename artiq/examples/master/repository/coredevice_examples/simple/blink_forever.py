@@ -8,6 +8,7 @@ class BlinkForever(EnvExperiment):
 
     @kernel
     def run(self):
+    	self.core.reset()
         while True:
             self.led.pulse(100*ms)
             delay(100*ms)

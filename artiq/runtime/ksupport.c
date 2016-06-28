@@ -111,6 +111,7 @@ static const struct symbol runtime_exports[] = {
     {"recv_rpc", &recv_rpc},
 
     /* direct syscalls */
+    {"rtio_init", &rtio_init},
     {"rtio_get_counter", &rtio_get_counter},
     {"rtio_log", &rtio_log},
     {"rtio_output", &rtio_output},
@@ -351,11 +352,6 @@ static void now_init(void)
     }
     now = reply->now;
     mailbox_acknowledge();
-
-    if(now < 0) {
-        rtio_init();
-        now = rtio_get_counter() + (272000 << CONFIG_RTIO_FINE_TS_WIDTH);
-    }
 }
 
 static void now_save(void)

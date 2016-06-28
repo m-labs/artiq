@@ -13,6 +13,7 @@ class CreateTTLPulse(EnvExperiment):
 
     @kernel
     def initialize_io(self):
+        self.core.reset()
         self.loop_in.input()
         self.loop_out.off()
 
@@ -33,6 +34,7 @@ class WriteLog(EnvExperiment):
 
     @kernel
     def run(self):
+        self.core.reset()
         rtio_log("foo", 32)
 
 

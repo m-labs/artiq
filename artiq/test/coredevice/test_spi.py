@@ -13,7 +13,7 @@ class Collision(EnvExperiment):
 
     @kernel
     def run(self):
-        self.core.break_realtime()
+        self.core.reset()
         t = now_mu()
         try:
             self.spi0.set_config_mu()
@@ -31,8 +31,8 @@ class Busy(EnvExperiment):
 
     @kernel
     def run(self):
+        self.core.reset()
         try:
-            self.core.break_realtime()
             self.spi0.set_config_mu()
             t = now_mu()
             self.spi0.set_config_mu()
@@ -54,6 +54,7 @@ class DrainErrors(EnvExperiment):
 
     @kernel
     def run(self):
+        self.core.reset()
         while True:
             try:
                 self.core.break_realtime()

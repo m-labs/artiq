@@ -24,6 +24,7 @@ class RTT(EnvExperiment):
 
     @kernel
     def run(self):
+        self.core.reset()
         self.ttl_inout.output()
         delay(1*us)
         with interleave:
@@ -48,6 +49,7 @@ class Loopback(EnvExperiment):
 
     @kernel
     def run(self):
+        self.core.reset()
         self.loop_in.input()
         self.loop_out.off()
         delay(1*us)
@@ -71,6 +73,7 @@ class ClockGeneratorLoopback(EnvExperiment):
 
     @kernel
     def run(self):
+        self.core.reset()
         self.loop_clock_in.input()
         self.loop_clock_out.stop()
         delay(1*us)
@@ -89,6 +92,7 @@ class PulseRate(EnvExperiment):
 
     @kernel
     def run(self):
+        self.core.reset()
         dt = seconds_to_mu(300*ns)
         while True:
             for i in range(10000):
@@ -113,6 +117,7 @@ class PulseRateDDS(EnvExperiment):
 
     @kernel
     def run(self):
+        self.core.reset()
         dt = seconds_to_mu(5*us)
         while True:
             delay(10*ms)
@@ -154,6 +159,7 @@ class LoopbackCount(EnvExperiment):
 
     @kernel
     def run(self):
+        self.core.reset()
         self.loop_in.input()
         self.loop_out.output()
         delay(5*us)
@@ -173,6 +179,7 @@ class Underflow(EnvExperiment):
 
     @kernel
     def run(self):
+        self.core.reset()
         while True:
             delay(25*ns)
             self.ttl_out.pulse(25*ns)
@@ -185,6 +192,7 @@ class SequenceError(EnvExperiment):
 
     @kernel
     def run(self):
+        self.core.reset()
         t = now_mu()
         self.ttl_out.pulse(25*us)
         at_mu(t)
@@ -198,6 +206,7 @@ class Collision(EnvExperiment):
 
     @kernel
     def run(self):
+        self.core.reset()
         delay(5*ms)  # make sure we won't get underflow
         for i in range(16):
             self.ttl_out_serdes.pulse_mu(1)
@@ -211,6 +220,7 @@ class AddressCollision(EnvExperiment):
 
     @kernel
     def run(self):
+        self.core.reset()
         self.loop_in.input()
         self.loop_in.pulse(10*us)
 
