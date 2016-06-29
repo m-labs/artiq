@@ -19,9 +19,6 @@ from .transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer
 from .transforms.asttyped_rewriter import LocalExtractor
 
 
-def coredevice_print(x): print(x)
-
-
 class ObjectMap:
     def __init__(self):
         self.current_key = 0
@@ -325,7 +322,7 @@ class StitchingASTTypedRewriter(ASTTypedRewriter):
         else:
             # Try to find this value in the host environment and quote it.
             if node.id == "print":
-                return self.quote(coredevice_print, node.loc)
+                return self.quote(print, node.loc)
             elif node.id in self.host_environment:
                 return self.quote(self.host_environment[node.id], node.loc)
             else:
