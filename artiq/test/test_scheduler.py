@@ -138,6 +138,7 @@ class SchedulerCase(unittest.TestCase):
 
         expect = _get_basic_steps(1, expid)
         background_running = asyncio.Event()
+        empty_ready = asyncio.Event()
         empty_completed = asyncio.Event()
         background_completed = asyncio.Event()
         expect_idx = 0
@@ -151,8 +152,13 @@ class SchedulerCase(unittest.TestCase):
             if mod == {"path": [0],
                        "value": "deleting",
                        "key": "status",
-                       "action": "setitem"}:
+                       "action": "setitem"}:    
                 background_completed.set()
+            if mod == {"path": [1],
+                       "value": "prepare_done",
+                       "key": "status",
+                       "action": "setitem"}:
+                empty_ready.set()
             if mod["path"] == [1] or (mod["path"] == [] and mod["key"] == 1):
                 self.assertEqual(mod, expect[expect_idx])
                 expect_idx += 1
@@ -163,11 +169,17 @@ class SchedulerCase(unittest.TestCase):
         scheduler.start()
         scheduler.submit("main", expid_bg, -99, None, False)
         loop.run_until_complete(background_running.wait())
+        self.assertFalse(scheduler.check_pause(0))
         scheduler.submit("main", expid, 0, None, False)
+        self.assertFalse(scheduler.check_pause(0))
+        loop.run_until_complete(empty_ready.wait())
+        self.assertTrue(scheduler.check_pause(0))
         loop.run_until_complete(empty_completed.wait())
+        self.assertFalse(scheduler.check_pause(0))
 
         self.assertFalse(termination_ok)
         scheduler.request_termination(0)
+        self.assertTrue(scheduler.check_pause(0))
         loop.run_until_complete(background_completed.wait())
         self.assertTrue(termination_ok)
 
