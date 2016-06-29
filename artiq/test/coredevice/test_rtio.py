@@ -231,6 +231,7 @@ class TimeKeepsRunning(EnvExperiment):
 
     @kernel
     def run(self):
+        self.core.reset()
         self.set_dataset("time_at_start", now_mu())
 
 
@@ -334,8 +335,6 @@ class CoredeviceTest(ExperimentCase):
     def test_time_keeps_running(self):
         self.execute(TimeKeepsRunning)
         t1 = self.dataset_mgr.get("time_at_start")
-
-        self.device_mgr.get("comm").close()  # start a new session
         self.execute(TimeKeepsRunning)
         t2 = self.dataset_mgr.get("time_at_start")
 
