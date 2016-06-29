@@ -76,7 +76,7 @@ class ClockGeneratorLoopback(EnvExperiment):
         self.core.reset()
         self.loop_clock_in.input()
         self.loop_clock_out.stop()
-        delay(1*us)
+        delay(10*us)
         with parallel:
             self.loop_clock_in.gate_rising(10*us)
             with sequential:
@@ -301,7 +301,7 @@ class CoredeviceTest(ExperimentCase):
         rate = self.dataset_mgr.get("pulse_rate")
         print(rate)
         self.assertGreater(rate, 1*us)
-        self.assertLess(rate, 6*us)
+        self.assertLess(rate, 6.2*us)
 
     def test_loopback_count(self):
         npulses = 2
