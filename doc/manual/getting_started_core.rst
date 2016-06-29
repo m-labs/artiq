@@ -18,6 +18,7 @@ As a very first step, we will turn on a LED on the core device. Create a file ``
 
         @kernel
         def run(self):
+            self.core.reset()
             self.led.on()
 
 The central part of our code is our ``LED`` class, that derives from :class:`artiq.language.environment.EnvExperiment`. Among other features, ``EnvExperiment`` calls our ``build`` method and provides the ``setattr_device`` method that interfaces to the device database to create the appropriate device drivers and make those drivers accessible as ``self.core`` and ``self.led``. The ``@kernel`` decorator tells the system that the ``run`` method must be executed on the core device (instead of the host). The decorator uses ``self.core`` internally, which is why we request the core device using ``setattr_device`` like any other.
@@ -53,6 +54,7 @@ Modify the code as follows: ::
 
         @kernel
         def run(self):
+            self.core.reset()
             s = input_led_state()
             self.core.break_realtime()
             if s:
@@ -91,6 +93,7 @@ Create a new file ``rtio.py`` containing the following: ::
 
         @kernel
         def run(self):
+            self.core.reset()
             for i in range(1000000):
                 self.ttl0.pulse(2*us)
                 delay(2*us)
@@ -119,6 +122,7 @@ Try reducing the period of the generated waveform until the CPU cannot keep up w
 
         @kernel
         def run(self):
+            self.core.reset()
             try:
                 for i in range(1000000):
                     self.ttl0.pulse(...)
@@ -141,6 +145,7 @@ The core device records the real-time I/O waveforms into a circular buffer. It i
 
         @kernel
         def run(self):
+            self.core.reset()
             for i in range(100):
                 self.ttl0.pulse(...)
                 rtio_log("ttl0", "i", i)
