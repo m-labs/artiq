@@ -38,7 +38,7 @@ class CompileError(Exception):
 
 
 @syscall
-def rtio_init():
+def rtio_init() -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 @syscall(flags={"nounwind", "nowrite"})
