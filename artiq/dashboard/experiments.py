@@ -376,8 +376,11 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
                 arginfo[k][0]["default"] = v
         self.manager.initialize_submission_arguments(self.expurl, arginfo)
 
+        argeditor_state = self.argeditor.save_state()
         self.argeditor.deleteLater()
+
         self.argeditor = _ArgumentEditor(self.manager, self, self.expurl)
+        self.argeditor.restore_state(argeditor_state)
         self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
 
     def _load_hdf5_clicked(self):
