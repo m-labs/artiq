@@ -99,7 +99,8 @@ class Browser(QtWidgets.QMainWindow):
         a.triggered.connect(self.experiments.tileSubWindows)
         g.addAction(a)
 
-    def closeEvent(self, *args):
+    def closeEvent(self, event):
+        event.ignore()
         self.exit_request.set()
 
     def save_state(self):
