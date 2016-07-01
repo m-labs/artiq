@@ -47,7 +47,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.exit_request = asyncio.Event()
 
-    def closeEvent(self, *args):
+    def closeEvent(self, event):
+        event.ignore()
         self.exit_request.set()
 
     def save_state(self):
