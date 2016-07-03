@@ -309,6 +309,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self._run_task.add_done_callback(done)
 
     async def _get_run_task(self, expid):
+        logger.info("Running '%s'...", self.expurl)
         worker = Worker(self._area.worker_handlers)
         try:
             await worker.build(rid=None, pipeline_name="browser",
@@ -318,6 +319,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         except:
             logger.error("Failed to run '%s'", self.expurl)
             log_worker_exception()
+        else:
+            logger.info("Finished running '%s'", self.expurl)
         finally:
             await worker.close()
 
