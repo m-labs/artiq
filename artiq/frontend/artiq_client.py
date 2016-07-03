@@ -81,6 +81,8 @@ def get_argparser():
                                     help="value in PYON format")
     parser_set_dataset.add_argument("-p", "--persist", action="store_true",
                                     help="make the dataset persistent")
+    parser_set_dataset.add_argument("-n", "--no-persist", action="store_true",
+                                    help="make the dataset non-persistent")
 
     parser_del_dataset = subparsers.add_parser(
         "del-dataset", help="delete a dataset")
@@ -151,7 +153,16 @@ def _action_delete(remote, args):
 
 
 def _action_set_dataset(remote, args):
-    remote.set(args.name, pyon.decode(args.value), args.persist)
+    if args.persist and args.no_persist:
+        print("Options --persist and --no-persist cannot be specified "
+              "at the same time")
+        sys.exit(1)
+    persist = None
+    if args.persist:
+        persist = True
+    if args.no_persist:
+        persist = False
+    remote.set(args.name, pyon.decode(args.value), persist)
 
 
 def _action_del_dataset(remote, args):
