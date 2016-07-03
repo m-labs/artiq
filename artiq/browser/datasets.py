@@ -1,10 +1,17 @@
+import logging
+import asyncio
+
 from PyQt5 import QtCore, QtWidgets
 
 from artiq.tools import short_format
 from artiq.gui.tools import LayoutWidget
 from artiq.gui.models import DictSyncTreeSepModel
+from artiq.protocols.pc_rpc import AsyncioClient as RPCClient
 
-# reduced read-only version of artiq.gui.datasets
+# reduced read-only version of artiq.dashboard.datasets
+
+
+logger = logging.getLogger(__name__)
 
 
 class Model(DictSyncTreeSepModel):
@@ -16,7 +23,7 @@ class Model(DictSyncTreeSepModel):
 
 
 class DatasetsDock(QtWidgets.QDockWidget):
-    def __init__(self, datasets_sub):
+    def __init__(self, datasets_sub, master_host, master_port):
         QtWidgets.QDockWidget.__init__(self, "Datasets")
         self.setObjectName("Datasets")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
@@ -36,8 +43,16 @@ class DatasetsDock(QtWidgets.QDockWidget):
             QtWidgets.QAbstractItemView.SingleSelection)
         grid.addWidget(self.table, 1, 0)
 
+        self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        upload_action = QtWidgets.QAction("Upload dataset to master", self.table)
+        upload_action.triggered.connect(self.upload_clicked)
+        self.table.addAction(upload_action)
+
         self.set_model(Model(dict()))
         datasets_sub.add_setmodel_callback(self.set_model)
+
+        self.master_host = master_host
+        self.master_port = master_port
 
     def _search_datasets(self):
         if hasattr(self, "table_model_filter"):
@@ -49,6 +64,31 @@ class DatasetsDock(QtWidgets.QDockWidget):
         self.table_model_filter = QtCore.QSortFilterProxyModel()
         self.table_model_filter.setSourceModel(self.table_model)
         self.table.setModel(self.table_model_filter)
+
+    async def _upload_dataset(self, name, value,):
+        logger.info("Uploading dataset '%s' to master...", name)
+        try:
+            remote = RPCClient()
+            await remote.connect_rpc(self.master_host, self.master_port,
+                                     "master_dataset_db")
+            try:
+                await remote.set(name, value)
+            finally:
+                remote.close_rpc()
+        except:
+            logger.error("Failed uploading dataset '%s'",
+                         name, exc_info=True)
+        else:
+            logger.info("Finished uploading dataset '%s'", name)
+
+    def upload_clicked(self):
+        idx = self.table.selectedIndexes()
+        if idx:
+            idx = self.table_model_filter.mapToSource(idx[0])
+            key = self.table_model.index_to_key(idx)
+            if key is not None:
+                persist, value = self.table_model.backing_store[key]
+                asyncio.ensure_future(self._upload_dataset(key, value))
 
     def save_state(self):
         return bytes(self.table.header().saveState())

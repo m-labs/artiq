@@ -14,6 +14,7 @@ from artiq.tools import verbosity_args, atexit_register_coroutine
 from artiq.gui import state, applets, models, log
 from artiq.browser import datasets, files, experiments
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +31,13 @@ def get_argparser():
     parser.add_argument("--browse-root", default="",
                         help="root path for directory tree "
                         "(default %(default)s)")
+    parser.add_argument(
+        "-s", "--server", default="::1",
+        help="hostname or IP of the master to connect to "
+             "when uploading datasets")
+    parser.add_argument(
+        "--port", default=3251, type=int,
+        help="TCP port to use to connect to the master")
     parser.add_argument("select", metavar="SELECT", nargs="?",
                         help="directory to browse or file to load")
     verbosity_args(parser)
@@ -37,7 +45,8 @@ def get_argparser():
 
 
 class Browser(QtWidgets.QMainWindow):
-    def __init__(self, datasets_sub, browse_root, select):
+    def __init__(self, datasets_sub, browse_root, select,
+                 master_host, master_port):
         QtWidgets.QMainWindow.__init__(self)
 
         icon = QtGui.QIcon(os.path.join(artiq_dir, "gui", "logo.svg"))
@@ -69,7 +78,8 @@ class Browser(QtWidgets.QMainWindow):
         self.applets = applets.AppletsDock(self, datasets_sub)
         atexit_register_coroutine(self.applets.stop)
 
-        self.datasets = datasets.DatasetsDock(datasets_sub)
+        self.datasets = datasets.DatasetsDock(
+            datasets_sub, master_host, master_port)
 
         self.log = log.LogDock(None, "log")
         self.log.setFeatures(self.log.DockWidgetMovable |
@@ -139,7 +149,8 @@ def main():
 
     smgr = state.StateManager(args.db_file)
 
-    main_window = Browser(datasets_sub, args.browse_root, args.select)
+    main_window = Browser(datasets_sub, args.browse_root, args.select,
+                          args.server, args.port)
     widget_log_handler.callback = main_window.log.append_message
     smgr.register(main_window)
 
