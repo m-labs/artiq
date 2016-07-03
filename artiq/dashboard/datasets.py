@@ -13,12 +13,11 @@ logger = logging.getLogger(__name__)
 
 
 class Editor(QtWidgets.QDialog):
-    def __init__(self, parent, dataset_ctl, key, value, persist):
+    def __init__(self, parent, dataset_ctl, key, value):
         QtWidgets.QDialog.__init__(self, parent=parent)
         self.dataset_ctl = dataset_ctl
         self.key = key
         self.initial_type = type(value)
-        self.persist = persist
 
         self.setWindowTitle("Edit dataset")
         grid = QtWidgets.QGridLayout()
@@ -39,8 +38,7 @@ class Editor(QtWidgets.QDialog):
 
     def accept(self):
         value = self.initial_type(self.get_edit_widget_value())
-        asyncio.ensure_future(self.dataset_ctl.set(
-            self.key, value, self.persist))
+        asyncio.ensure_future(self.dataset_ctl.set(self.key, value))
         QtWidgets.QDialog.accept(self)
 
     def get_edit_widget(self, initial_value):
@@ -165,7 +163,7 @@ class DatasetsDock(QtWidgets.QDockWidget):
                     logger.error("Cannot edit dataset %s: "
                                  "type %s is not supported", key, t)
                     return
-                dialog_cls(self, self.dataset_ctl, key, value, persist).open()
+                dialog_cls(self, self.dataset_ctl, key, value).open()
 
     def delete_clicked(self):
         idx = self.table.selectedIndexes()
