@@ -57,7 +57,12 @@ class DatasetDB(TaskObject):
         process_mod(self.data, mod)
 
     # convenience functions (update() can be used instead)
-    def set(self, key, value, persist=False):
+    def set(self, key, value, persist=None):
+        if persist is None:
+            if key in self.data.read:
+                persist = self.data.read[key][0]
+            else:
+                persist = False
         self.data[key] = (persist, value)
 
     def delete(self, key):
