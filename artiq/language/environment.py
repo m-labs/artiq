@@ -299,6 +299,7 @@ class HasEnvironment:
         as ``slice(*sub_tuple)`` (multi-dimensional slicing)."""
         if self.__parent is not None:
             self.__parent.mutate_dataset(key, index, value)
+            return
         if self.__dataset_mgr is None:
             raise ValueError("Dataset manager not present")
         self.__dataset_mgr.mutate(key, index, value)
