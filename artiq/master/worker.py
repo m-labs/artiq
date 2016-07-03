@@ -41,7 +41,7 @@ def log_worker_exception():
 
 
 class Worker:
-    def __init__(self, handlers=dict(), send_timeout=2.0):
+    def __init__(self, handlers=dict(), send_timeout=10.0):
         self.handlers = handlers
         self.send_timeout = send_timeout
 
