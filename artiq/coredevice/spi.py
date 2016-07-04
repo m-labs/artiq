@@ -38,6 +38,21 @@ class SPIMaster:
     * If desired, :meth:`write` ``data`` queuing the next
       (possibly chained) transfer.
 
+    **Notes**:
+
+    * In order to chain a transfer onto an in-flight transfer without
+      deasserting ``cs`` in between, the second :meth:`write` needs to
+      happen strictly later than ``2*ref_period_mu`` (two coarse RTIO
+      cycles) but strictly earlier than ``xfer_period_mu + write_period_mu``
+      after the first. Note that :meth:`write` already applies a delay of
+      ``xfer_period_mu + write_period_mu``.
+    * A full transfer takes ``write_period_mu + xfer_period_mu``.
+    * Chained transfers can happen every ``xfer_period_mu``.
+    * Read data is available every ``xfer_period_mu`` starting
+      a bit after xfer_period_mu (depending on ``clk_phase``).
+    * As a consequence, in order to chain transfers together, new data must
+      be written before the pending transfer's read data becomes available.
+
     :param channel: RTIO channel number of the SPI bus to control.
     """
     def __init__(self, dmgr, channel, core_device="core"):
@@ -48,13 +63,6 @@ class SPIMaster:
         self.write_period_mu = int(0, 64)
         self.read_period_mu = int(0, 64)
         self.xfer_period_mu = int(0, 64)
-        # A full transfer takes write_period_mu + xfer_period_mu.
-        # Chained transfers can happen every xfer_period_mu.
-        # The second transfer of a chain can be written 2*ref_period_mu
-        # after the first. Read data is available every xfer_period_mu starting
-        # a bit after xfer_period_mu (depending on clk_phase).
-        # To chain transfers together, new data must be written before
-        # pending transfer's read data becomes available.
 
     @portable
     def frequency_to_div(self, f):
