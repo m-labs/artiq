@@ -125,7 +125,7 @@ class SPIMachine(Module):
                     NextState("WAIT"),
                 )
             ).Else(
-                self.reg.shift.eq(1),
+                self.reg.shift.eq(~self.start),
                 NextState("SETUP"),
             )
         )
