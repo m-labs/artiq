@@ -3,7 +3,7 @@
 into LLVM intermediate representation.
 """
 
-import os, re, types as pytypes
+import os, re, types as pytypes, numpy
 from collections import defaultdict
 from pythonparser import ast, diagnostic
 from llvmlite_artiq import ir as ll, binding as llvm
@@ -1397,7 +1397,7 @@ class LLVMIRGenerator:
             assert value in (True, False)
             return ll.Constant(llty, value)
         elif builtins.is_int(typ):
-            assert isinstance(value, (int, language_core.int))
+            assert isinstance(value, (int, numpy.int32, numpy.int64))
             return ll.Constant(llty, int(value))
         elif builtins.is_float(typ):
             assert isinstance(value, float)

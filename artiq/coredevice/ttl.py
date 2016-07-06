@@ -1,3 +1,5 @@
+import numpy
+
 from artiq.language.core import *
 from artiq.language.types import *
 from artiq.coredevice.rtio import rtio_output, rtio_input_timestamp
@@ -17,7 +19,7 @@ class TTLOut:
         self.channel = channel
 
         # in RTIO cycles
-        self.o_previous_timestamp = int(0, width=64)
+        self.o_previous_timestamp = numpy.int64(0)
 
     @kernel
     def output(self):
@@ -101,8 +103,8 @@ class TTLInOut:
         self.channel = channel
 
         # in RTIO cycles
-        self.o_previous_timestamp = int(0, width=64)
-        self.i_previous_timestamp = int(0, width=64)
+        self.o_previous_timestamp = numpy.int64(0)
+        self.i_previous_timestamp = numpy.int64(0)
 
     @kernel
     def set_oe(self, oe):
@@ -282,8 +284,8 @@ class TTLClockGen:
         self.channel = channel
 
         # in RTIO cycles
-        self.previous_timestamp = int(0, width=64)
-        self.acc_width = int(24, width=64)
+        self.previous_timestamp = numpy.int64(0)
+        self.acc_width = numpy.int64(24)
 
     @portable
     def frequency_to_ftw(self, frequency):

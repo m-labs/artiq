@@ -1,12 +1,12 @@
 import struct
 import logging
 import traceback
+import numpy
 from enum import Enum
 from fractions import Fraction
 from collections import namedtuple
 
 from artiq.coredevice import exceptions
-from artiq.language.core import int as wrapping_int
 from artiq import __version__ as software_version
 
 
@@ -317,9 +317,9 @@ class CommGeneric:
         elif tag == "b":
             return bool(self._read_int8())
         elif tag == "i":
-            return wrapping_int(self._read_int32(), 32)
+            return numpy.int32(self._read_int32())
         elif tag == "I":
-            return wrapping_int(self._read_int64(), 64)
+            return numpy.int64(self._read_int64())
         elif tag == "f":
             return self._read_float64()
         elif tag == "F":

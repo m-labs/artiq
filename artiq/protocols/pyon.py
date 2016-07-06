@@ -25,8 +25,6 @@ import tempfile
 
 import numpy
 
-from ..language.core import int as wrapping_int
-
 
 _encode_map = {
     type(None): "none",
@@ -41,7 +39,6 @@ _encode_map = {
     set: "set",
     dict: "dict",
     slice: "slice",
-    wrapping_int: "number",
     Fraction: "fraction",
     OrderedDict: "ordereddict",
     numpy.ndarray: "nparray"
@@ -192,7 +189,6 @@ _eval_dict = {
     "true": True,
     "slice": slice,
 
-    "int": wrapping_int,
     "Fraction": Fraction,
     "OrderedDict": OrderedDict,
     "nparray": _nparray,

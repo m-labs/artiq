@@ -5,7 +5,7 @@ the references to the host objects and translates the functions
 annotated as ``@kernel`` when they are referenced.
 """
 
-import sys, os, re, linecache, inspect, textwrap, types as pytypes
+import sys, os, re, linecache, inspect, textwrap, types as pytypes, numpy
 from collections import OrderedDict, defaultdict
 
 from pythonparser import ast, algorithm, source, diagnostic, parse_buffer
@@ -165,8 +165,12 @@ class ASTSynthesizer:
                 typ = builtins.TFloat()
             return asttyped.NumT(n=value, ctx=None, type=typ,
                                  loc=self._add(repr(value)))
-        elif isinstance(value, language_core.int):
-            typ = builtins.TInt(width=types.TValue(value.width))
+        elif isinstance(value, numpy.int32):
+            typ = builtins.TInt32()
+            return asttyped.NumT(n=int(value), ctx=None, type=typ,
+                                 loc=self._add(repr(value)))
+        elif isinstance(value, numpy.int64):
+            typ = builtins.TInt64()
             return asttyped.NumT(n=int(value), ctx=None, type=typ,
                                  loc=self._add(repr(value)))
         elif isinstance(value, str):

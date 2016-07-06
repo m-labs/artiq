@@ -1,5 +1,7 @@
+import numpy
+
 from artiq.language.core import (kernel, portable, seconds_to_mu, now_mu,
-                                 delay_mu, int, mu_to_seconds)
+                                 delay_mu, mu_to_seconds)
 from artiq.language.units import MHz
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 
@@ -60,9 +62,9 @@ class SPIMaster:
         self.ref_period_mu = seconds_to_mu(self.core.coarse_ref_period,
                                            self.core)
         self.channel = channel
-        self.write_period_mu = int(0, 64)
-        self.read_period_mu = int(0, 64)
-        self.xfer_period_mu = int(0, 64)
+        self.write_period_mu = numpy.int64(0)
+        self.read_period_mu = numpy.int64(0)
+        self.xfer_period_mu = numpy.int64(0)
 
     @portable
     def frequency_to_div(self, f):

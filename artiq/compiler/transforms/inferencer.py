@@ -620,9 +620,9 @@ class Inferencer(algorithm.Visitor):
                         node.loc, None)
         elif types.is_builtin(typ, "int"):
             valid_forms = lambda: [
-                valid_form("int() -> int(width='a)"),
-                valid_form("int(x:'a) -> int(width='b) where 'a is numeric"),
-                valid_form("int(x:'a, width='b:<int literal>) -> int(width='b) where 'a is numeric")
+                valid_form("int() -> numpy.int?"),
+                valid_form("int(x:'a) -> numpy.int?"),
+                valid_form("int(x:'a, width=?) -> numpy.int?")
             ]
 
             self._unify(node.type, builtins.TInt(),
@@ -715,11 +715,11 @@ class Inferencer(algorithm.Visitor):
                 diagnose(valid_forms())
         elif types.is_builtin(typ, "range"):
             valid_forms = lambda: [
-                valid_form("range(max:int(width='a)) -> range(elt=int(width='a))"),
-                valid_form("range(min:int(width='a), max:int(width='a)) "
-                           "-> range(elt=int(width='a))"),
-                valid_form("range(min:int(width='a), max:int(width='a), "
-                           "step:int(width='a)) -> range(elt=int(width='a))"),
+                valid_form("range(max:numpy.int?) -> range(elt=numpy.int?)"),
+                valid_form("range(min:numpy.int?, max:numpy.int?) "
+                           "-> range(elt=numpy.int?)"),
+                valid_form("range(min:numpy.int?, max:numpy.int?, "
+                           "step:numpy.int?) -> range(elt=numpy.int?)"),
             ]
 
             range_elt = builtins.TInt(types.TVar())
@@ -734,7 +734,7 @@ class Inferencer(algorithm.Visitor):
                 diagnose(valid_forms())
         elif types.is_builtin(typ, "len"):
             valid_forms = lambda: [
-                valid_form("len(x:'a) -> int(width='b) where 'a is iterable"),
+                valid_form("len(x:'a) -> numpy.int?"),
             ]
 
             if len(node.args) == 1 and len(node.keywords) == 0:
@@ -762,8 +762,8 @@ class Inferencer(algorithm.Visitor):
                 diagnose(valid_forms())
         elif types.is_builtin(typ, "round"):
             valid_forms = lambda: [
-                valid_form("round(x:float) -> int(width='a)"),
-                valid_form("round(x:float, width='b:<int literal>) -> int(width='b)")
+                valid_form("round(x:float) -> numpy.int?"),
+                valid_form("round(x:float, width=?) -> numpy.int?")
             ]
 
             self._unify(node.type, builtins.TInt(),
@@ -793,7 +793,7 @@ class Inferencer(algorithm.Visitor):
             fn = typ.name
 
             valid_forms = lambda: [
-                valid_form("{}(x:int(width='a), y:int(width='a)) -> int(width='a)".format(fn)),
+                valid_form("{}(x:numpy.int?, y:numpy.int?) -> numpy.int?".format(fn)),
                 valid_form("{}(x:float, y:float) -> float".format(fn))
             ]
 

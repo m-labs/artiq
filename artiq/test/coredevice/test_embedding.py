@@ -1,3 +1,4 @@
+import numpy
 from time import sleep
 
 from artiq.experiment import *
@@ -28,8 +29,8 @@ class RoundtripTest(ExperimentCase):
         self.assertRoundtrip(False)
 
     def test_int(self):
-        self.assertRoundtrip(42)
-        self.assertRoundtrip(int(42, width=64))
+        self.assertRoundtrip(numpy.int32(42))
+        self.assertRoundtrip(numpy.int64(42))
 
     def test_float(self):
         self.assertRoundtrip(42.0)
