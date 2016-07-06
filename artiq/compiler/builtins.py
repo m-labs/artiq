@@ -44,12 +44,12 @@ def TInt32():
 def TInt64():
     return TInt(types.TValue(64))
 
-def _int_printer(typ, depth, max_depth):
+def _int_printer(typ, printer, depth, max_depth):
     if types.is_var(typ["width"]):
         return "numpy.int?"
     else:
         return "numpy.int{}".format(types.get_value(typ.find()["width"]))
-types.TypePrinter.custom_printers['int'] = _int_printer
+types.TypePrinter.custom_printers["int"] = _int_printer
 
 class TFloat(types.TMono):
     def __init__(self):
@@ -72,6 +72,16 @@ class TList(types.TMono):
         if elt is None:
             elt = types.TVar()
         super().__init__("list", {"elt": elt})
+
+class TArray(types.TMono):
+    def __init__(self, elt=None):
+        if elt is None:
+            elt = types.TVar()
+        super().__init__("array", {"elt": elt})
+
+def _array_printer(typ, printer, depth, max_depth):
+    return "numpy.array(elt={})".format(printer.name(typ["elt"], depth, max_depth))
+types.TypePrinter.custom_printers["array"] = _array_printer
 
 class TRange(types.TMono):
     def __init__(self, elt=None):
@@ -123,6 +133,9 @@ def fn_str():
 
 def fn_list():
     return types.TConstructor(TList())
+
+def fn_array():
+    return types.TConstructor(TArray())
 
 def fn_Exception():
     return types.TExceptionConstructor(TException("Exception"))
@@ -231,6 +244,15 @@ def is_list(typ, elt=None):
     else:
         return types.is_mono(typ, "list")
 
+def is_array(typ, elt=None):
+    if elt is not None:
+        return types.is_mono(typ, "array", elt=elt)
+    else:
+        return types.is_mono(typ, "array")
+
+def is_listish(typ, elt=None):
+    return is_list(typ, elt) or is_array(typ, elt)
+
 def is_range(typ, elt=None):
     if elt is not None:
         return types.is_mono(typ, "range", {"elt": elt})
@@ -247,7 +269,7 @@ def is_exception(typ, name=None):
 def is_iterable(typ):
     typ = typ.find()
     return isinstance(typ, types.TMono) and \
-        typ.name in ('list', 'range')
+        typ.name in ('list', 'array', 'range')
 
 def get_iterable_elt(typ):
     if is_iterable(typ):

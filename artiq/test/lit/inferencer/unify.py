@@ -57,6 +57,9 @@ lambda x, y=1: x
 k = "x"
 # CHECK-L: k:str
 
+l = array([1])
+# CHECK-L: l:numpy.array(elt=numpy.int?)
+
 IndexError()
 # CHECK-L: IndexError:<constructor IndexError {}>():IndexError
 

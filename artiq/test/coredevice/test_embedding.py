@@ -41,6 +41,9 @@ class RoundtripTest(ExperimentCase):
     def test_list(self):
         self.assertRoundtrip([10])
 
+    def test_array(self):
+        self.assertRoundtrip(numpy.array([10]))
+
     def test_object(self):
         obj = object()
         self.assertRoundtrip(obj)

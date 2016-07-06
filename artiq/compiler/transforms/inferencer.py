@@ -671,14 +671,25 @@ class Inferencer(algorithm.Visitor):
                 pass
             else:
                 diagnose(valid_forms())
-        elif types.is_builtin(typ, "list"):
-            valid_forms = lambda: [
-                valid_form("list() -> list(elt='a)"),
-                valid_form("list(x:'a) -> list(elt='b) where 'a is iterable")
-            ]
+        elif types.is_builtin(typ, "list") or types.is_builtin(typ, "array"):
+            if types.is_builtin(typ, "list"):
+                valid_forms = lambda: [
+                    valid_form("list() -> list(elt='a)"),
+                    valid_form("list(x:'a) -> list(elt='b) where 'a is iterable")
+                ]
 
-            self._unify(node.type, builtins.TList(),
-                        node.loc, None)
+                self._unify(node.type, builtins.TList(),
+                            node.loc, None)
+            elif types.is_builtin(typ, "array"):
+                valid_forms = lambda: [
+                    valid_form("array() -> array(elt='a)"),
+                    valid_form("array(x:'a) -> array(elt='b) where 'a is iterable")
+                ]
+
+                self._unify(node.type, builtins.TArray(),
+                            node.loc, None)
+            else:
+                assert False
 
             if len(node.args) == 0 and len(node.keywords) == 0:
                 pass # []
@@ -708,7 +719,8 @@ class Inferencer(algorithm.Visitor):
                         {"type": types.TypePrinter().name(arg.type)},
                         arg.loc)
                     diag = diagnostic.Diagnostic("error",
-                        "the argument of list() must be of an iterable type", {},
+                        "the argument of {builtin}() must be of an iterable type",
+                        {"builtin": typ.find().name},
                         node.func.loc, notes=[note])
                     self.engine.process(diag)
             else:
@@ -743,7 +755,7 @@ class Inferencer(algorithm.Visitor):
                 if builtins.is_range(arg.type):
                     self._unify(node.type, builtins.get_iterable_elt(arg.type),
                                 node.loc, None)
-                elif builtins.is_list(arg.type):
+                elif builtins.is_listish(arg.type):
                     # TODO: should be ssize_t-sized
                     self._unify(node.type, builtins.TInt32(),
                                 node.loc, None)

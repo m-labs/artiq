@@ -218,7 +218,7 @@ class LLVMIRGenerator:
             return lldouble
         elif builtins.is_str(typ) or ir.is_exn_typeinfo(typ):
             return llptr
-        elif builtins.is_list(typ):
+        elif builtins.is_listish(typ):
             lleltty = self.llty_of_type(builtins.get_iterable_elt(typ))
             return ll.LiteralStructType([lli32, lleltty.as_pointer()])
         elif builtins.is_range(typ):
@@ -610,7 +610,7 @@ class LLVMIRGenerator:
                                                    name=insn.name)
             else:
                 assert False
-        elif builtins.is_list(insn.type):
+        elif builtins.is_listish(insn.type):
             llsize = self.map(insn.operands[0])
             llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
             llvalue = self.llbuilder.insert_value(llvalue, llsize, 0)
@@ -1162,6 +1162,9 @@ class LLVMIRGenerator:
         elif builtins.is_list(typ):
             return b"l" + self._rpc_tag(builtins.get_iterable_elt(typ),
                                         error_handler)
+        elif builtins.is_array(typ):
+            return b"a" + self._rpc_tag(builtins.get_iterable_elt(typ),
+                                        error_handler)
         elif builtins.is_range(typ):
             return b"r" + self._rpc_tag(builtins.get_iterable_elt(typ),
                                         error_handler)
@@ -1405,13 +1408,13 @@ class LLVMIRGenerator:
         elif builtins.is_str(typ):
             assert isinstance(value, (str, bytes))
             return self.llstr_of_str(value)
-        elif builtins.is_list(typ):
-            assert isinstance(value, list)
+        elif builtins.is_listish(typ):
+            assert isinstance(value, (list, numpy.ndarray))
             elt_type  = builtins.get_iterable_elt(typ)
             llelts    = [self._quote(value[i], elt_type, lambda: path() + [str(i)])
                          for i in range(len(value))]
             lleltsary = ll.Constant(ll.ArrayType(self.llty_of_type(elt_type), len(llelts)),
-                                    llelts)
+                                    list(llelts))
 
             llglobal  = ll.GlobalVariable(self.llmodule, lleltsary.type,
                                           self.llmodule.scope.deduplicate("quoted.list"))

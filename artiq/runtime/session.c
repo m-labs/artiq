@@ -607,6 +607,7 @@ static void skip_rpc_value(const char **tag) {
         }
 
         case 'l':
+        case 'a':
             skip_rpc_value(tag);
             break;
 
@@ -650,6 +651,7 @@ static int sizeof_rpc_value(const char **tag)
             return sizeof(char *);
 
         case 'l': // list(elt='a)
+        case 'a': // array(elt='a)
             skip_rpc_value(tag);
             return sizeof(struct { int32_t length; struct {} *elements; });
 
@@ -733,7 +735,8 @@ static int receive_rpc_value(const char **tag, void **slot)
             break;
         }
 
-        case 'l': { // list(elt='a)
+        case 'l':   // list(elt='a)
+        case 'a': { // array(elt='a)
             struct { int32_t length; struct {} *elements; } *list = *slot;
             list->length = in_packet_int32();
 
@@ -824,7 +827,8 @@ static int send_rpc_value(const char **tag, void **value)
             return out_packet_string(*((*(const char***)value)++));
         }
 
-        case 'l': { // list(elt='a)
+        case 'l':   // list(elt='a)
+        case 'a': { // array(elt='a)
             struct { uint32_t length; struct {} *elements; } *list = *value;
             void *element = list->elements;
 

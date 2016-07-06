@@ -697,7 +697,7 @@ class TypePrinter(object):
                 return "<instance {} {{}}>".format(typ.name)
         elif isinstance(typ, TMono):
             if typ.name in self.custom_printers:
-                return self.custom_printers[typ.name](typ, depth + 1, max_depth)
+                return self.custom_printers[typ.name](typ, self, depth + 1, max_depth)
             elif typ.params == {}:
                 return typ.name
             else:

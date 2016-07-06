@@ -331,6 +331,9 @@ class CommGeneric:
         elif tag == "l":
             length = self._read_int32()
             return [self._receive_rpc_value(embedding_map) for _ in range(length)]
+        elif tag == "a":
+            length = self._read_int32()
+            return numpy.array([self._receive_rpc_value(embedding_map) for _ in range(length)])
         elif tag == "r":
             start = self._receive_rpc_value(embedding_map)
             stop  = self._receive_rpc_value(embedding_map)

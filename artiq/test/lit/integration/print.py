@@ -30,3 +30,6 @@ print([[1, 2], [3]])
 
 # CHECK-L: range(0, 10, 1)
 print(range(10))
+
+# CHECK-L: array([1, 2])
+print(array([1, 2]))
