@@ -2,5 +2,5 @@
 # RUN: OutputCheck %s --file-to-check=%t
 
 x = [0]
-# CHECK-L: [::int(width=32)]
+# CHECK-L: [::numpy.int32]
 x[:] = [1]

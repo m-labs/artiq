@@ -670,6 +670,8 @@ class TypePrinter(object):
     type variables sequential alphabetic names.
     """
 
+    custom_printers = {}
+
     def __init__(self):
         self.gen = genalnum()
         self.map = {}
@@ -694,7 +696,9 @@ class TypePrinter(object):
                 self.recurse_guard.add(typ)
                 return "<instance {} {{}}>".format(typ.name)
         elif isinstance(typ, TMono):
-            if typ.params == {}:
+            if typ.name in self.custom_printers:
+                return self.custom_printers[typ.name](typ, depth + 1, max_depth)
+            elif typ.params == {}:
                 return typ.name
             else:
                 return "%s(%s)" % (typ.name, ", ".join(

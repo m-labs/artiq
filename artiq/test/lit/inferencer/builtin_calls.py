@@ -7,29 +7,29 @@ bool()
 # CHECK-L: bool:<constructor bool>([]:list(elt='a)):bool
 bool([])
 
-# CHECK-L: int:<constructor int {}>():int(width='b)
+# CHECK-L: int:<constructor int {}>():numpy.int?
 int()
 
-# CHECK-L: int:<constructor int>(1.0:float):int(width='c)
+# CHECK-L: int:<constructor int>(1.0:float):numpy.int?
 int(1.0)
 
-# CHECK-L: int:<constructor int>(1.0:float, width=64:int(width='d)):int(width=64)
+# CHECK-L: int:<constructor int>(1.0:float, width=64:numpy.int?):numpy.int64
 int(1.0, width=64)
 
 # CHECK-L: float:<constructor float {}>():float
 float()
 
-# CHECK-L: float:<constructor float>(1:int(width='e)):float
+# CHECK-L: float:<constructor float>(1:numpy.int?):float
 float(1)
 
-# CHECK-L: list:<constructor list {}>():list(elt='f)
+# CHECK-L: list:<constructor list {}>():list(elt='b)
 list()
 
-# CHECK-L: len:<function len>([]:list(elt='g)):int(width=32)
+# CHECK-L: len:<function len>([]:list(elt='c)):numpy.int32
 len([])
 
-# CHECK-L: round:<function round>(1.0:float):int(width='h)
+# CHECK-L: round:<function round>(1.0:float):numpy.int?
 round(1.0)
 
-# CHECK-L: round:<function round>(1.0:float, width=64:int(width='i)):int(width=64)
+# CHECK-L: round:<function round>(1.0:float, width=64:numpy.int?):numpy.int64
 round(1.0, width=64)

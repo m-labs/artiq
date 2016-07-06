@@ -9,5 +9,5 @@ def _gcd(a, b):
         b = c
     return b
 
-# CHECK-L: _gcd:(a:int(width='a), b:int(width='a))->int(width='a)(10:int(width='a), 25:int(width='a)):int(width='a)
+# CHECK-L: _gcd:(a:numpy.int?, b:numpy.int?)->numpy.int?(10:numpy.int?, 25:numpy.int?):numpy.int?
 _gcd(10, 25)

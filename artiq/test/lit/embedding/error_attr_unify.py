@@ -9,7 +9,7 @@ class c:
 
 @kernel
 def entrypoint():
-    # CHECK-L: <synthesized>:1: error: cannot unify int(width='a) with str
+    # CHECK-L: <synthesized>:1: error: cannot unify numpy.int? with str
     # CHECK-NEXT-L: [1, 'x']
     # CHECK-L: ${LINE:+1}: note: expanded from here
     a = c

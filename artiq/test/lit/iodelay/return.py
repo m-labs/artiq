@@ -1,13 +1,13 @@
 # RUN: %python -m artiq.compiler.testbench.signature %s >%t
 # RUN: OutputCheck %s --file-to-check=%t
 
-# CHECK-L: f: ()->int(width=32) delay(30 mu)
+# CHECK-L: f: ()->numpy.int32 delay(30 mu)
 def f():
     for _ in range(10):
         delay_mu(3)
     return 10
 
-# CHECK-L: g: (x:float)->int(width=32)
+# CHECK-L: g: (x:float)->numpy.int32
 # CHECK-NOT-L: delay
 def g(x):
     if x > 1.0:

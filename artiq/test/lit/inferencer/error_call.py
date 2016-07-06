@@ -1,7 +1,7 @@
 # RUN: %python -m artiq.compiler.testbench.inferencer +diag %s >%t
 # RUN: OutputCheck %s --file-to-check=%t
 
-# CHECK-L: ${LINE:+1}: error: cannot call this expression of type int
+# CHECK-L: ${LINE:+1}: error: cannot call this expression of type numpy.int?
 (1)()
 
 def f(x, y, z=1):

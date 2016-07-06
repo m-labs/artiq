@@ -44,6 +44,13 @@ def TInt32():
 def TInt64():
     return TInt(types.TValue(64))
 
+def _int_printer(typ, depth, max_depth):
+    if types.is_var(typ["width"]):
+        return "numpy.int?"
+    else:
+        return "numpy.int{}".format(types.get_value(typ.find()["width"]))
+types.TypePrinter.custom_printers['int'] = _int_printer
+
 class TFloat(types.TMono):
     def __init__(self):
         super().__init__("float")
@@ -83,7 +90,7 @@ class TException(types.TMono):
     #    (which also serves as the EHABI type_info).
     #  * File, line and column where it was raised (str, int, int).
     #  * Message, which can contain substitutions {0}, {1} and {2} (str).
-    #  * Three 64-bit integers, parameterizing the message (int(width=64)).
+    #  * Three 64-bit integers, parameterizing the message (numpy.int64).
 
     # Keep this in sync with the function ARTIQIRGenerator.alloc_exn.
     attributes = OrderedDict([

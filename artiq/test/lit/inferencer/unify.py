@@ -2,10 +2,10 @@
 # RUN: OutputCheck %s --file-to-check=%t
 
 a = 1
-# CHECK-L: a:int(width='a)
+# CHECK-L: a:numpy.int?
 
 b = a
-# CHECK-L: b:int(width='a)
+# CHECK-L: b:numpy.int?
 
 c = True
 # CHECK-L: c:bool
@@ -20,39 +20,39 @@ f = 1.0
 # CHECK-L: f:float
 
 g = []
-# CHECK-L: g:list(elt='b)
+# CHECK-L: g:list(elt='a)
 
 h = [1]
-# CHECK-L: h:list(elt=int(width='c))
+# CHECK-L: h:list(elt=numpy.int?)
 
 i = []
 i[0] = 1
-# CHECK-L: i:list(elt=int(width='d))
+# CHECK-L: i:list(elt=numpy.int?)
 
 j = []
 j += [1.0]
 # CHECK-L: j:list(elt=float)
 
 1 if a else 2
-# CHECK-L: 1:int(width='f) if a:int(width='a) else 2:int(width='f):int(width='f)
+# CHECK-L: 1:numpy.int? if a:numpy.int? else 2:numpy.int?:numpy.int?
 
 True and False
 # CHECK-L: True:bool and False:bool:bool
 
 1 and 0
-# CHECK-L: 1:int(width='g) and 0:int(width='g):int(width='g)
+# CHECK-L: 1:numpy.int? and 0:numpy.int?:numpy.int?
 
 ~1
-# CHECK-L: 1:int(width='h):int(width='h)
+# CHECK-L: 1:numpy.int?:numpy.int?
 
 not 1
-# CHECK-L: 1:int(width='i):bool
+# CHECK-L: 1:numpy.int?:bool
 
 [x for x in [1]]
-# CHECK-L: [x:int(width='j) for x:int(width='j) in [1:int(width='j)]:list(elt=int(width='j))]:list(elt=int(width='j))
+# CHECK-L: [x:numpy.int? for x:numpy.int? in [1:numpy.int?]:list(elt=numpy.int?)]:list(elt=numpy.int?)
 
 lambda x, y=1: x
-# CHECK-L: lambda x:'k, y:int(width='l)=1:int(width='l): x:'k:(x:'k, ?y:int(width='l))->'k
+# CHECK-L: lambda x:'b, y:numpy.int?=1:numpy.int?: x:'b:(x:'b, ?y:numpy.int?)->'b
 
 k = "x"
 # CHECK-L: k:str
@@ -64,10 +64,10 @@ IndexError("x")
 # CHECK-L: IndexError:<constructor IndexError>("x":str):IndexError
 
 IndexError("x", 1)
-# CHECK-L: IndexError:<constructor IndexError>("x":str, 1:int(width=64)):IndexError
+# CHECK-L: IndexError:<constructor IndexError>("x":str, 1:numpy.int64):IndexError
 
 IndexError("x", 1, 1)
-# CHECK-L: IndexError:<constructor IndexError>("x":str, 1:int(width=64), 1:int(width=64)):IndexError
+# CHECK-L: IndexError:<constructor IndexError>("x":str, 1:numpy.int64, 1:numpy.int64):IndexError
 
 IndexError("x", 1, 1, 1)
-# CHECK-L: IndexError:<constructor IndexError>("x":str, 1:int(width=64), 1:int(width=64), 1:int(width=64)):IndexError
+# CHECK-L: IndexError:<constructor IndexError>("x":str, 1:numpy.int64, 1:numpy.int64, 1:numpy.int64):IndexError

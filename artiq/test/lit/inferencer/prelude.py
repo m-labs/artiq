@@ -6,5 +6,5 @@ x = len
 
 def f():
     global len
-    # CHECK-L: len:int(width='a) =
+    # CHECK-L: len:numpy.int? =
     len = 1

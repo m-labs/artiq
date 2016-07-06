@@ -15,7 +15,7 @@ i2.x = 1.0
 
 @kernel
 def entrypoint():
-    # CHECK-L: <synthesized>:1: error: host object has an attribute 'x' of type float, which is different from previously inferred type int(width=32) for the same attribute
+    # CHECK-L: <synthesized>:1: error: host object has an attribute 'x' of type float, which is different from previously inferred type numpy.int32 for the same attribute
     i1.x
     # CHECK-L: ${LINE:+1}: note: expanded from here
     i2.x

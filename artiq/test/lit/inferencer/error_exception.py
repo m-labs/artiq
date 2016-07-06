@@ -9,6 +9,6 @@ except 1:
 
 try:
     pass
-# CHECK-L: ${LINE:+1}: error: cannot unify int(width='a) with Exception
+# CHECK-L: ${LINE:+1}: error: cannot unify numpy.int? with Exception
 except Exception as e:
     e = 1

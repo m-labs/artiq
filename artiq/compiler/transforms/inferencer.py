@@ -579,11 +579,11 @@ class Inferencer(algorithm.Visitor):
             valid_forms = lambda: [
                 valid_form("{exn}() -> {exn}".format(exn=typ.name)),
                 valid_form("{exn}(message:str) -> {exn}".format(exn=typ.name)),
-                valid_form("{exn}(message:str, param1:int(width=64)) -> {exn}".format(exn=typ.name)),
-                valid_form("{exn}(message:str, param1:int(width=64), "
-                           "param2:int(width=64)) -> {exn}".format(exn=typ.name)),
-                valid_form("{exn}(message:str, param1:int(width=64), "
-                           "param2:int(width=64), param3:int(width=64)) "
+                valid_form("{exn}(message:str, param1:numpy.int64) -> {exn}".format(exn=typ.name)),
+                valid_form("{exn}(message:str, param1:numpy.int64, "
+                           "param2:numpy.int64) -> {exn}".format(exn=typ.name)),
+                valid_form("{exn}(message:str, param1:numpy.int64, "
+                           "param2:numpy.int64, param3:numpy.int64) "
                            "-> {exn}".format(exn=typ.name)),
             ]
 
@@ -858,19 +858,19 @@ class Inferencer(algorithm.Visitor):
             simple_form("at(time:float) -> None",
                         [builtins.TFloat()])
         elif types.is_builtin(typ, "now_mu"):
-            simple_form("now_mu() -> int(width=64)",
+            simple_form("now_mu() -> numpy.int64",
                         [], builtins.TInt64())
         elif types.is_builtin(typ, "delay_mu"):
-            simple_form("delay_mu(time_mu:int(width=64)) -> None",
+            simple_form("delay_mu(time_mu:numpy.int64) -> None",
                         [builtins.TInt64()])
         elif types.is_builtin(typ, "at_mu"):
-            simple_form("at_mu(time_mu:int(width=64)) -> None",
+            simple_form("at_mu(time_mu:numpy.int64) -> None",
                         [builtins.TInt64()])
         elif types.is_builtin(typ, "mu_to_seconds"):
-            simple_form("mu_to_seconds(time_mu:int(width=64)) -> float",
+            simple_form("mu_to_seconds(time_mu:numpy.int64) -> float",
                         [builtins.TInt64()], builtins.TFloat())
         elif types.is_builtin(typ, "seconds_to_mu"):
-            simple_form("seconds_to_mu(time:float) -> int(width=64)",
+            simple_form("seconds_to_mu(time:float) -> numpy.int64",
                         [builtins.TFloat()], builtins.TInt64())
         elif types.is_builtin(typ, "watchdog"):
             simple_form("watchdog(time:float) -> [builtin context manager]",

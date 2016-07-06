@@ -12,5 +12,5 @@ class c:
 c().f()
 
 c.g(1)
-# CHECK-L: ${LINE:+1}: error: cannot unify <instance c> with int(width='a) while inferring the type for self argument
+# CHECK-L: ${LINE:+1}: error: cannot unify <instance c> with numpy.int? while inferring the type for self argument
 c().g()

@@ -1,7 +1,7 @@
 # RUN: %python -m artiq.compiler.testbench.signature %s >%t
 # RUN: OutputCheck %s --file-to-check=%t
 
-# CHECK-L: f: (a:int(width=32), b:int(width=32), c:int(width=32), d:int(width=32), e:int(width=32))->NoneType delay(s->mu(a * b // c + d - 10 / e) mu)
+# CHECK-L: f: (a:numpy.int32, b:numpy.int32, c:numpy.int32, d:numpy.int32, e:numpy.int32)->NoneType delay(s->mu(a * b // c + d - 10 / e) mu)
 def f(a, b, c, d, e):
     delay(a * b // c + d - 10 / e)
 
