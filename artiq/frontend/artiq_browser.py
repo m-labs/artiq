@@ -45,9 +45,10 @@ def get_argparser():
 
 
 class Browser(QtWidgets.QMainWindow):
-    def __init__(self, datasets_sub, browse_root, select,
+    def __init__(self, smgr, datasets_sub, browse_root, select,
                  master_host, master_port):
         QtWidgets.QMainWindow.__init__(self)
+        smgr.register(self)
 
         icon = QtGui.QIcon(os.path.join(artiq_dir, "gui", "logo.svg"))
         self.setWindowIcon(icon)
@@ -62,6 +63,7 @@ class Browser(QtWidgets.QMainWindow):
 
         self.experiments = experiments.ExperimentsArea(
             browse_root, datasets_sub)
+        smgr.register(self.experiments)
         self.experiments.setHorizontalScrollBarPolicy(
             QtCore.Qt.ScrollBarAsNeeded)
         self.experiments.setVerticalScrollBarPolicy(
@@ -69,6 +71,7 @@ class Browser(QtWidgets.QMainWindow):
         self.setCentralWidget(self.experiments)
 
         self.files = files.FilesDock(datasets_sub, browse_root, select=select)
+        smgr.register(self.files)
 
         self.files.dataset_activated.connect(
             self.experiments.dataset_activated)
@@ -76,12 +79,15 @@ class Browser(QtWidgets.QMainWindow):
             self.experiments.dataset_changed)
 
         self.applets = applets.AppletsDock(self, datasets_sub)
+        smgr.register(self.applets)
         atexit_register_coroutine(self.applets.stop)
 
         self.datasets = datasets.DatasetsDock(
             datasets_sub, master_host, master_port)
+        smgr.register(self.datasets)
 
         self.log = log.LogDock(None, "log")
+        smgr.register(self.log)
         self.log.setFeatures(self.log.DockWidgetMovable |
                              self.log.DockWidgetFloatable)
 
@@ -117,19 +123,9 @@ class Browser(QtWidgets.QMainWindow):
         return {
             "geometry": bytes(self.saveGeometry()),
             "state": bytes(self.saveState()),
-            "experiments": self.experiments.save_state(),
-            "files": self.files.save_state(),
-            "datasets": self.datasets.save_state(),
-            "log": self.log.save_state(),
-            "applets": self.applets.save_state(),
         }
 
     def restore_state(self, state):
-        self.applets.restore_state(state["applets"])
-        self.log.restore_state(state["log"])
-        self.datasets.restore_state(state["datasets"])
-        self.files.restore_state(state["files"])
-        self.experiments.restore_state(state["experiments"])
         self.restoreState(QtCore.QByteArray(state["state"]))
         self.restoreGeometry(QtCore.QByteArray(state["geometry"]))
 
@@ -149,10 +145,9 @@ def main():
 
     smgr = state.StateManager(args.db_file)
 
-    main_window = Browser(datasets_sub, args.browse_root, args.select,
-                          args.server, args.port)
+    main_window = Browser(smgr, datasets_sub, args.browse_root,
+                          args.select, args.server, args.port)
     widget_log_handler.callback = main_window.log.append_message
-    smgr.register(main_window)
 
     if os.name == "nt":
         # HACK: show the main window before creating applets.
