@@ -1,6 +1,7 @@
 #!/usr/bin/env python3.5
 
 import argparse
+import sys
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
