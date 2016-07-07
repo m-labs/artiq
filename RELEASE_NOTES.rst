@@ -40,6 +40,7 @@ unreleased [2.x]
   takes into account the repository revision field.
 * By default, ``NumberValue`` and ``Scannable`` infer the scale from the unit
   for common units.
+* By default, artiq_client keeps the current persist flag on the master.
 
 
 1.1
