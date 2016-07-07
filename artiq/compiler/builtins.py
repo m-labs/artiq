@@ -170,6 +170,9 @@ def fn_min():
 def fn_max():
     return types.TBuiltinFunction("max")
 
+def fn_make_array():
+    return types.TBuiltinFunction("make_array")
+
 def fn_print():
     return types.TBuiltinFunction("print")
 

@@ -1681,6 +1681,21 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 return self.append(ir.Select(cond, arg0, arg1))
             else:
                 assert False
+        elif types.is_builtin(typ, "make_array"):
+            if len(node.args) == 2 and len(node.keywords) == 0:
+                arg0, arg1 = map(self.visit, node.args)
+
+                result = self.append(ir.Alloc([arg0], node.type))
+                def body_gen(index):
+                    self.append(ir.SetElem(result, index, arg1))
+                    return self.append(ir.Arith(ast.Add(loc=None), index,
+                                                ir.Constant(1, arg0.type)))
+                self._make_loop(ir.Constant(0, self._size_type),
+                                lambda index: self.append(ir.Compare(ast.Lt(loc=None), index, arg0)),
+                                body_gen)
+                return result
+            else:
+                assert False
         elif types.is_builtin(typ, "print"):
             self.polymorphic_print([self.visit(arg) for arg in node.args],
                                    separator=" ", suffix="\n")
@@ -1725,7 +1740,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         else:
             diag = diagnostic.Diagnostic("error",
                 "builtin function '{name}' cannot be used in this context",
-                {"name": typ.name},
+                {"name": typ.find().name},
                 node.loc)
             self.engine.process(diag)
 

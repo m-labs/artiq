@@ -845,6 +845,23 @@ class Inferencer(algorithm.Visitor):
                 pass
             else:
                 diagnose(valid_forms())
+        elif types.is_builtin(typ, "make_array"):
+            valid_forms = lambda: [
+                valid_form("numpy.full(count:int32, value:'a) -> numpy.array(elt='a)")
+            ]
+
+            self._unify(node.type, builtins.TArray(),
+                        node.loc, None)
+
+            if len(node.args) == 2 and len(node.keywords) == 0:
+                arg0, arg1 = node.args
+
+                self._unify(arg0.type, builtins.TInt32(),
+                            arg0.loc, None)
+                self._unify(arg1.type, node.type.find()["elt"],
+                            arg1.loc, None)
+            else:
+                diagnose(valid_forms())
         elif types.is_builtin(typ, "rtio_log"):
             valid_forms = lambda: [
                 valid_form("rtio_log(channel:str, args...) -> None"),

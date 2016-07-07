@@ -170,6 +170,10 @@ class ASTSynthesizer:
             typ = builtins.fn_array()
             return asttyped.NameConstantT(value=None, type=typ,
                                           loc=self._add("numpy.array"))
+        elif value is numpy.full:
+            typ = builtins.fn_make_array()
+            return asttyped.NameConstantT(value=None, type=typ,
+                                          loc=self._add("numpy.full"))
         elif isinstance(value, (int, float)):
             if isinstance(value, int):
                 typ = builtins.TInt()

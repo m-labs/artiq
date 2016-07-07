@@ -110,6 +110,10 @@ class _RPC(EnvExperiment):
         return (numpy.int32(10), numpy.int64(20), numpy.array([42,]))
 
     @kernel
+    def numpy_full(self):
+        return numpy.full(10, 20)
+
+    @kernel
     def builtin(self):
         sleep(1.0)
 
@@ -126,6 +130,7 @@ class RPCTest(ExperimentCase):
         self.assertEqual(exp.args1kwargs2(), 2)
         self.assertEqual(exp.numpy_things(),
                          (numpy.int32(10), numpy.int64(20), numpy.array([42,])))
+        self.assertTrue((exp.numpy_full() == numpy.full(10, 20)).all())
         exp.builtin()
 
 
