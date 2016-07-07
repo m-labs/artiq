@@ -558,7 +558,7 @@ class StitchingInferencer(Inferencer):
         if attr_value_type is None:
             # Slow path. We don't know what exactly is the attribute value,
             # so we quote it only for the error message that may possibly result.
-            ast = self.quote(attr_value, object_loc.expanded_from)
+            ast = self.quote(attr_value, loc)
 
             def proxy_diagnostic(diag):
                 note = diagnostic.Diagnostic("note",
@@ -981,7 +981,7 @@ class Stitcher:
             diag = diagnostic.Diagnostic("fatal",
                 "this function cannot be called as an RPC", {},
                 self._function_loc(host_function),
-                notes=self._call_site_note(loc, is_syscall=True))
+                notes=self._call_site_note(loc, is_syscall=False))
             self.engine.process(diag)
         else:
             assert False
