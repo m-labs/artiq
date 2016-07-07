@@ -125,6 +125,12 @@ def fn_bool():
 def fn_int():
     return types.TConstructor(TInt())
 
+def fn_int32():
+    return types.TConstructor(TInt32())
+
+def fn_int64():
+    return types.TConstructor(TInt64())
+
 def fn_float():
     return types.TConstructor(TFloat())
 

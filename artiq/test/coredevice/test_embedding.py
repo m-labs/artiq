@@ -106,6 +106,10 @@ class _RPC(EnvExperiment):
         return self.kwargs("X", a="A", b=1)
 
     @kernel
+    def numpy_things(self):
+        return (numpy.int32(10), numpy.int64(20), numpy.array([42,]))
+
+    @kernel
     def builtin(self):
         sleep(1.0)
 
@@ -120,6 +124,8 @@ class RPCTest(ExperimentCase):
         self.assertEqual(exp.kwargs1(), 1)
         self.assertEqual(exp.kwargs2(), 2)
         self.assertEqual(exp.args1kwargs2(), 2)
+        self.assertEqual(exp.numpy_things(),
+                         (numpy.int32(10), numpy.int64(20), numpy.array([42,])))
         exp.builtin()
 
 

@@ -158,6 +158,18 @@ class ASTSynthesizer:
             typ = builtins.TBool()
             return asttyped.NameConstantT(value=value, type=typ,
                                           loc=self._add(repr(value)))
+        elif value is numpy.int32:
+            typ = builtins.fn_int32()
+            return asttyped.NameConstantT(value=None, type=typ,
+                                          loc=self._add("numpy.int32"))
+        elif value is numpy.int64:
+            typ = builtins.fn_int64()
+            return asttyped.NameConstantT(value=None, type=typ,
+                                          loc=self._add("numpy.int64"))
+        elif value is numpy.array:
+            typ = builtins.fn_array()
+            return asttyped.NameConstantT(value=None, type=typ,
+                                          loc=self._add("numpy.array"))
         elif isinstance(value, (int, float)):
             if isinstance(value, int):
                 typ = builtins.TInt()
@@ -637,9 +649,13 @@ class Stitcher:
         self.name = ""
         self.typedtree = []
         self.inject_at = 0
+        self.globals = {}
+
+        # We don't want some things from the prelude as they are provided in
+        # the host Python namespace and gain special meaning when quoted.
         self.prelude = prelude.globals()
         self.prelude.pop("print")
-        self.globals = {}
+        self.prelude.pop("array")
 
         self.functions = {}
 
