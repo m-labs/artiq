@@ -34,7 +34,7 @@ class _RTIOCRG(Module, AutoCSR):
 
         # 10 MHz when using 125MHz input
         self.clock_domains.cd_ext_clkout = ClockDomain(reset_less=True)
-        ext_clkout = platform.request("user_sma_gpio_p")
+        ext_clkout = platform.request("user_sma_gpio_p_33")
         self.sync.ext_clkout += ext_clkout.eq(~ext_clkout)
 
 
@@ -78,6 +78,16 @@ class _RTIOCRG(Module, AutoCSR):
             AsyncResetSynchronizer(self.cd_rtio, ~pll_locked),
             MultiReg(pll_locked, self._pll_locked.status)
         ]
+
+
+# The default user SMA voltage on KC705 is 2.5V, and the Migen platform
+# follows this default. But since the SMAs are on the same bank as the DDS,
+# which is set to 3.3V by reprogramming the KC705 power ICs, we need to
+# redefine them here. 
+_sma33_io = [
+    ("user_sma_gpio_p_33", 0, Pins("Y23"), IOStandard("LVCMOS33")),
+    ("user_sma_gpio_n_33", 0, Pins("Y24"), IOStandard("LVCMOS33")),
+]
 
 
 _ams101_dac = [
@@ -132,6 +142,7 @@ class _NIST_Ions(MiniSoC, AMPSoC):
             self.platform.request("user_led", 0),
             self.platform.request("user_led", 1)))
 
+        self.platform.add_extension(_sma33_io)
         self.platform.add_extension(_ams101_dac)
 
         i2c = self.platform.request("i2c")
@@ -193,7 +204,7 @@ class NIST_QC1(_NIST_Ions):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        phy = ttl_serdes_7series.Inout_8X(platform.request("user_sma_gpio_n"))
+        phy = ttl_serdes_7series.Inout_8X(platform.request("user_sma_gpio_n_33"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
         phy = ttl_simple.Output(platform.request("user_led", 2))
@@ -249,7 +260,7 @@ class NIST_CLOCK(_NIST_Ions):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
 
-        phy = ttl_serdes_7series.Inout_8X(platform.request("user_sma_gpio_n"))
+        phy = ttl_serdes_7series.Inout_8X(platform.request("user_sma_gpio_n_33"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
 
@@ -327,7 +338,7 @@ class NIST_QC2(_NIST_Ions):
             clock_generators.append(rtio.Channel.from_phy(phy)) 
 
         # user SMA on KC705 board
-        phy = ttl_serdes_7series.Inout_8X(platform.request("user_sma_gpio_n"))
+        phy = ttl_serdes_7series.Inout_8X(platform.request("user_sma_gpio_n_33"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
         
