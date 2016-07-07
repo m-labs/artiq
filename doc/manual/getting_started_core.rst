@@ -31,11 +31,16 @@ Copy the file ``device_db.pyon`` (containing the device database) from the ``exa
         self.led.output()
         delay(0.1*us)
 
+.. note::
+    To obtain the examples, you can find where the ARTIQ package is installed on your machine with: ::
+
+        python3.5 -c "import artiq; print(artiq.__path__[0])"
+
 Run your code using ``artiq_run``, which is part of the ARTIQ front-end tools: ::
 
     $ artiq_run led.py
 
-The LED of the device should turn on. Congratulations! You have a basic ARTIQ system up and running.
+The process should terminate quietly and the LED of the device should turn on. Congratulations! You have a basic ARTIQ system up and running.
 
 Host/core device interaction
 ----------------------------
