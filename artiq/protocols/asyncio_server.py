@@ -1,8 +1,6 @@
 import asyncio
 from copy import copy
 
-from artiq.monkey_patches import *
-
 
 class AsyncioServer:
     """Generic TCP server based on asyncio.
