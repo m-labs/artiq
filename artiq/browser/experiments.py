@@ -376,8 +376,8 @@ class ExperimentsArea(QtWidgets.QMdiArea):
         self._ddb = LocalDatasetDB(datasets_sub)
 
         self.worker_handlers = {
-            "get_device_db": lambda: None,
-            "get_device": lambda k: None,
+            "get_device_db": lambda: {},
+            "get_device": lambda k: {"type": "dummy"},
             "get_dataset": self._ddb.get,
             "update_dataset": self._ddb.update,
         }

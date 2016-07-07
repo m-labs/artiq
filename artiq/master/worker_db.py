@@ -85,6 +85,10 @@ class RIDCounter:
         return r
 
 
+class DummyDevice:
+    pass
+
+
 def _create_device(desc, device_mgr):
     ty = desc["type"]
     if ty == "local":
@@ -109,6 +113,8 @@ def _create_device(desc, device_mgr):
         else:
             cls = Client
         return cls(controller["host"], controller["port"], desc["target_name"])
+    elif ty == "dummy":
+        return DummyDevice()
     else:
         raise ValueError("Unsupported type in device DB: " + ty)
 
