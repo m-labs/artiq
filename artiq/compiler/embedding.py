@@ -425,24 +425,18 @@ class StitchingInferencer(Inferencer):
                 attr_value_type = builtins.TList(builtins.TInt64())
 
         if attr_value_type is None:
-            # Slow path. We don't know what exactly is the attribute value,
-            # so we quote it only for the error message that may possibly result.
-            ast = self.quote(attr_value, object_loc.loc)
+            note = diagnostic.Diagnostic("note",
+                "while inferring a type for an attribute '{attr}' of a host object",
+                {"attr": attr_name},
+                loc)
 
-            def proxy_diagnostic(diag):
-                note = diagnostic.Diagnostic("note",
-                    "while inferring a type for an attribute '{attr}' of a host object",
-                    {"attr": attr_name},
-                    loc)
-                diag.notes.append(note)
-
-                self.engine.process(diag)
-
-            proxy_engine = diagnostic.Engine()
-            proxy_engine.process = proxy_diagnostic
-            Inferencer(engine=proxy_engine).visit(ast)
-            IntMonomorphizer(engine=proxy_engine).visit(ast)
-            attr_value_type = ast.type
+            with self.engine.context(note):
+                # Slow path. We don't know what exactly is the attribute value,
+                # so we quote it only for the error message that may possibly result.
+                ast = self.quote(attr_value, object_loc.expanded_from)
+                Inferencer(engine=self.engine).visit(ast)
+                IntMonomorphizer(engine=self.engine).visit(ast)
+                attr_value_type = ast.type
 
         return attributes, attr_value_type
 
@@ -716,32 +710,24 @@ class Stitcher:
                 notes=self._call_site_note(loc, is_syscall))
             self.engine.process(diag)
         elif param.default is not inspect.Parameter.empty:
-            # Try and infer the type from the default value.
-            # This is tricky, because the default value might not have
-            # a well-defined type in APython.
-            # In this case, we bail out, but mention why we do it.
-            ast = self._quote(param.default, None)
+            notes = []
+            notes.append(diagnostic.Diagnostic("note",
+                "expanded from here while trying to infer a type for an"
+                " unannotated optional argument '{argument}' from its default value",
+                {"argument": param.name},
+                self._function_loc(function)))
+            if loc is not None:
+                notes.append(self._call_site_note(loc, is_syscall))
 
-            def proxy_diagnostic(diag):
-                note = diagnostic.Diagnostic("note",
-                    "expanded from here while trying to infer a type for an"
-                    " unannotated optional argument '{argument}' from its default value",
-                    {"argument": param.name},
-                    self._function_loc(function))
-                diag.notes.append(note)
-
-                note = self._call_site_note(loc, is_syscall)
-                if note:
-                    diag.notes += note
-
-                self.engine.process(diag)
-
-            proxy_engine = diagnostic.Engine()
-            proxy_engine.process = proxy_diagnostic
-            Inferencer(engine=proxy_engine).visit(ast)
-            IntMonomorphizer(engine=proxy_engine).visit(ast)
-
-            return ast.type
+            with self.engine.context(*notes):
+                # Try and infer the type from the default value.
+                # This is tricky, because the default value might not have
+                # a well-defined type in APython.
+                # In this case, we bail out, but mention why we do it.
+                ast = self._quote(param.default, None)
+                Inferencer(engine=self.engine).visit(ast)
+                IntMonomorphizer(engine=self.engine).visit(ast)
+                return ast.type
         else:
             # Let the rest of the program decide.
             return types.TVar()
