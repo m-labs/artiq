@@ -876,7 +876,12 @@ static int send_rpc_value(const char **tag, void **value)
 
         case 'O': { // host object
             struct { uint32_t id; } **object = *value;
-            return out_packet_int32((*object)->id);
+
+            if(!out_packet_int32((*object)->id))
+                return 0;
+
+            *value = (void*)((intptr_t)(*value) + sizeof(*object));
+            break;
         }
 
         default:

@@ -43,6 +43,9 @@ class RoundtripTest(ExperimentCase):
         obj = object()
         self.assertRoundtrip(obj)
 
+    def test_object_list(self):
+        self.assertRoundtrip([object(), object()])
+
 
 class _DefaultArg(EnvExperiment):
     def build(self):
