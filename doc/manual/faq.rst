@@ -18,7 +18,9 @@ Copy the ``examples`` folder from that path into your home/user directory, and s
 prevent my first RTIO command from causing an underflow?
 --------------------------------------------------------
 
-The first RTIO event is programmed with a small timestamp above the value of the timecounter at the start of the experiment. If the kernel needs more time than this timestamp to produce the event, an underflow will occur. You can prevent it by calling ``break_realtime`` just before programming the first event, or by adding a sufficient delay.
+The first RTIO event is programmed with a small timestamp above the value of the timecounter when the core device is reset. If the kernel needs more time than this timestamp to produce the event, an underflow will occur. You can prevent it by calling ``break_realtime`` just before programming the first event, or by adding a sufficient delay.
+
+If you are not resetting the core device, the time cursor stays where the previous experiment left it.
 
 organize datasets in folders?
 -----------------------------
