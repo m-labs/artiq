@@ -22,7 +22,6 @@
 #else
 #include <netif/ppp/ppp.h>
 #include <netif/ppp/pppos.h>
-#include <lwip/sio.h>
 #endif
 
 #include "bridge_ctl.h"
@@ -149,6 +148,13 @@ static void network_init(void)
 
 static int ppp_connected;
 
+static u32_t ppp_output_cb(ppp_pcb *pcb, u8_t *data, u32_t len, void *ctx)
+{
+    for(int i = 0; i < len; i++)
+        uart_write(data[i]);
+    return len;
+}
+
 static void ppp_status_cb(ppp_pcb *pcb, int err_code, void *ctx)
 {
     if (err_code == PPPERR_NONE) {
@@ -161,21 +167,12 @@ static void ppp_status_cb(ppp_pcb *pcb, int err_code, void *ctx)
     }
 }
 
-u32_t sio_write(sio_fd_t fd, u8_t *data, u32_t len)
-{
-    int i;
-
-    for(i=0;i<len;i++)
-        uart_write(data[i]);
-    return len;
-}
-
 static void network_init(void)
 {
     lwip_init();
 
     ppp_connected = 0;
-    ppp = pppos_create(&netif, NULL, ppp_status_cb, NULL);
+    ppp = pppos_create(&netif, ppp_output_cb, ppp_status_cb, NULL);
     ppp_set_auth(ppp, PPPAUTHTYPE_NONE, "", "");
     ppp_set_default(ppp);
     ppp_connect(ppp, 0);
