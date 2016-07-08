@@ -50,7 +50,8 @@ class ControllerCase(unittest.TestCase):
             except asyncio.TimeoutError:
                 timeout -= dt
             except (ConnectionAbortedError, ConnectionError,
-                    ConnectionRefusedError, ConnectionResetError):
+                    ConnectionRefusedError, ConnectionResetError,
+                    OSError):
                 await asyncio.sleep(dt)
                 timeout -= dt
         raise asyncio.TimeoutError
