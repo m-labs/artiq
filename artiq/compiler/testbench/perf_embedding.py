@@ -1,7 +1,8 @@
 import sys, os
 from pythonparser import diagnostic
-from ...master.databases import DeviceDB
-from ...master.worker_db import DeviceManager
+from ...language.environment import ProcessArgumentManager
+from ...master.databases import DeviceDB, DatasetDB
+from ...master.worker_db import DeviceManager, DatasetManager
 from ..module import Module
 from ..embedding import Stitcher
 from ..targets import OR1KTarget
@@ -25,14 +26,19 @@ def main():
         testcase_vars = {'__name__': 'testbench'}
         exec(testcase_code, testcase_vars)
 
-    ddb_path = os.path.join(os.path.dirname(sys.argv[1]), "device_db.pyon")
-    dmgr = DeviceManager(DeviceDB(ddb_path))
+    device_db_path = os.path.join(os.path.dirname(sys.argv[1]), "device_db.pyon")
+    device_mgr = DeviceManager(DeviceDB(device_db_path))
+
+    dataset_db_path = os.path.join(os.path.dirname(sys.argv[1]), "dataset_db.pyon")
+    dataset_mgr = DatasetManager(DatasetDB(dataset_db_path))
+
+    argument_mgr = ProcessArgumentManager({})
 
     def embed():
-        experiment = testcase_vars["Benchmark"](dmgr)
+        experiment = testcase_vars["Benchmark"]((device_mgr, dataset_mgr, argument_mgr))
 
-        stitcher = Stitcher(core=experiment.core, dmgr=dmgr)
-        stitcher.stitch_call(experiment.run, (experiment,), {})
+        stitcher = Stitcher(core=experiment.core, dmgr=device_mgr)
+        stitcher.stitch_call(experiment.run, (), {})
         stitcher.finalize()
         return stitcher
 
