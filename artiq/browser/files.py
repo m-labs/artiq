@@ -161,18 +161,7 @@ class FilesDock(QtWidgets.QDockWidget):
         self.rl.activated.connect(self.list_activated)
         self.splitter.addWidget(self.rl)
 
-        self.rl.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        rev_copy = QtWidgets.QAction("Copy repo_rev (SHIFT-CTRL-C)",
-                                     self.rl)
-        rev_copy.triggered.connect(self._copy_repo_rev)
-        rev_copy.setShortcut("SHIFT-CTRL-C")
-        rev_copy.setShortcutContext(QtCore.Qt.WidgetShortcut)
-        self.rl.addAction(rev_copy)
-
         self.restore_selection = restore_selection
-
-    def _copy_repo_rev(self):
-        pass
 
     def tree_current_changed(self, current, previous):
         idx = self.rt.model().mapToSource(current)
