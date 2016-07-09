@@ -256,8 +256,10 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
                 arginfo[k][0]["default"] = v
         self.arguments = self._area.initialize_submission_arguments(arginfo)
 
+        state = self.argeditor.save_state()
         self.argeditor.deleteLater()
         self.argeditor = _ArgumentEditor(self)
+        self.argeditor.restore_state(state)
         self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
 
     async def load_hdf5_task(self, filename=None):
