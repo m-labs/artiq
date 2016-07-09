@@ -84,8 +84,17 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
                 QtWidgets.QStyle.SP_BrowserReload))
         recompute_arguments.clicked.connect(self._recompute_arguments_clicked)
 
+        load = QtWidgets.QPushButton("Set arguments from HDF5")
+        load.setToolTip("Set arguments from currently selected HDF5 "
+                        "file (Ctrl+Space)")
+        load.setIcon(QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_DialogApplyButton))
+        load.setShortcut("CTRL+SPACE")
+        load.clicked.connect(self._load_clicked)
+
         buttons = LayoutWidget()
         buttons.addWidget(recompute_arguments, 1, 1)
+        buttons.addWidget(load, 2, 1)
         for i, s in enumerate((1, 0, 0, 1)):
             buttons.layout.setColumnStretch(i, s)
         self.setItemWidget(widget_item, 1, buttons)
@@ -103,6 +112,9 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         self.addTopLevelItem(group)
         self._groups[name] = group
         return group
+
+    def _load_clicked(self):
+        asyncio.ensure_future(self._dock.load_hdf5_task())
 
     def _recompute_arguments_clicked(self):
         asyncio.ensure_future(self._dock._recompute_arguments())
@@ -194,15 +206,6 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         log_level.currentIndexChanged.connect(update_log_level)
         self.log_level = log_level
 
-        load = QtWidgets.QPushButton("Set arguments")
-        load.setToolTip("Set arguments from currently selected HDF5 "
-                        "file (Ctrl+Space)")
-        load.setIcon(QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_DialogApplyButton))
-        load.setShortcut("CTRL+SPACE")
-        load.clicked.connect(self._load_clicked)
-        self.layout.addWidget(load, 1, 4)
-
         run = QtWidgets.QPushButton("Analyze")
         run.setIcon(QtWidgets.QApplication.style().standardIcon(
                 QtWidgets.QStyle.SP_DialogOkButton))
@@ -259,7 +262,12 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.argeditor = _ArgumentEditor(self)
         self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
 
-    async def load_hdf5_task(self, filename):
+    async def load_hdf5_task(self, filename=None):
+        if filename is None:
+            if self._area.dataset is None:
+                return
+            filename = self._area.dataset
+
         try:
             with h5py.File(filename, "r") as f:
                 expid = f["expid"][()]
@@ -279,11 +287,6 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
             return
 
         await self._recompute_arguments(arguments)
-
-    def _load_clicked(self):
-        if self._area.dataset is None:
-            return
-        asyncio.ensure_future(self.load_hdf5_task(self._area.dataset))
 
     def _run_clicked(self):
         class_name, file = self.expurl.split("@", maxsplit=1)
