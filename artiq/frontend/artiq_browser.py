@@ -45,7 +45,7 @@ def get_argparser():
 
 
 class Browser(QtWidgets.QMainWindow):
-    def __init__(self, smgr, datasets_sub, browse_root, select,
+    def __init__(self, smgr, datasets_sub, browse_root, restore_selection,
                  master_host, master_port):
         QtWidgets.QMainWindow.__init__(self)
         smgr.register(self)
@@ -70,7 +70,8 @@ class Browser(QtWidgets.QMainWindow):
             QtCore.Qt.ScrollBarAsNeeded)
         self.setCentralWidget(self.experiments)
 
-        self.files = files.FilesDock(datasets_sub, browse_root, select=select)
+        self.files = files.FilesDock(datasets_sub, browse_root,
+                                     restore_selection)
         smgr.register(self.files)
 
         self.files.dataset_activated.connect(
@@ -85,6 +86,7 @@ class Browser(QtWidgets.QMainWindow):
         self.datasets = datasets.DatasetsDock(
             datasets_sub, master_host, master_port)
         smgr.register(self.datasets)
+        self.files.metadata_changed.connect(self.datasets.metadata_changed)
 
         self.log = log.LogDock(None, "log")
         smgr.register(self.log)
@@ -145,20 +147,24 @@ def main():
 
     smgr = state.StateManager(args.db_file)
 
-    main_window = Browser(smgr, datasets_sub, args.browse_root,
-                          args.select, args.server, args.port)
-    widget_log_handler.callback = main_window.log.append_message
+    browser = Browser(smgr, datasets_sub, args.browse_root,
+                      args.select is not None, args.server,
+                      args.port)
+    widget_log_handler.callback = browser.log.append_message
+
+    if args.select is not None:
+        browser.files.select(args.select)
 
     if os.name == "nt":
         # HACK: show the main window before creating applets.
         # Otherwise, the windows of those applets that are in detached
         # QDockWidgets fail to be embedded.
-        main_window.show()
+        browser.show()
     smgr.load()
     smgr.start()
     atexit_register_coroutine(smgr.stop)
-    main_window.show()
-    loop.run_until_complete(main_window.exit_request.wait())
+    browser.show()
+    loop.run_until_complete(browser.exit_request.wait())
 
 
 if __name__ == "__main__":

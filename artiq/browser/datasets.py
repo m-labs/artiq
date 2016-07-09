@@ -43,8 +43,20 @@ class DatasetsDock(QtWidgets.QDockWidget):
             QtWidgets.QAbstractItemView.SingleSelection)
         grid.addWidget(self.table, 1, 0)
 
+        metadata_grid = LayoutWidget()
+        self.metadata = {}
+        for i, label in enumerate("artiq_version repo_rev file class_name "
+                                  "rid start_time".split()):
+            metadata_grid.addWidget(QtWidgets.QLabel(label), i, 0)
+            v = QtWidgets.QLabel()
+            v.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+            metadata_grid.addWidget(v, i, 1)
+            self.metadata[label] = v
+        grid.addWidget(metadata_grid, 2, 0)
+
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        upload_action = QtWidgets.QAction("Upload dataset to master", self.table)
+        upload_action = QtWidgets.QAction("Upload dataset to master",
+                                          self.table)
         upload_action.triggered.connect(self.upload_clicked)
         self.table.addAction(upload_action)
 
@@ -58,6 +70,10 @@ class DatasetsDock(QtWidgets.QDockWidget):
         if hasattr(self, "table_model_filter"):
             self.table_model_filter.setFilterFixedString(
                 self.search.displayText())
+
+    def metadata_changed(self, new):
+        for k, v in new.items():
+            self.metadata[k].setText("{}".format(v))
 
     def set_model(self, model):
         self.table_model = model

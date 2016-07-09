@@ -118,8 +118,9 @@ class Hdf5FileSystemModel(QtWidgets.QFileSystemModel):
 class FilesDock(QtWidgets.QDockWidget):
     dataset_activated = QtCore.pyqtSignal(str)
     dataset_changed = QtCore.pyqtSignal(str)
+    metadata_changed = QtCore.pyqtSignal(dict)
 
-    def __init__(self, datasets, browse_root="", select=None):
+    def __init__(self, datasets, browse_root="", restore_selection=True):
         QtWidgets.QDockWidget.__init__(self, "Files")
         self.setObjectName("Files")
         self.setFeatures(self.DockWidgetMovable | self.DockWidgetFloatable)
@@ -168,13 +169,7 @@ class FilesDock(QtWidgets.QDockWidget):
         rev_copy.setShortcutContext(QtCore.Qt.WidgetShortcut)
         self.rl.addAction(rev_copy)
 
-        self.restore_selected = select is None
-        if select is not None:
-            f = os.path.abspath(select)
-            if os.path.isdir(f):
-                self.select_dir(f)
-            else:
-                self.select_file(f)
+        self.restore_selection = restore_selection
 
     def _copy_repo_rev(self):
         pass
@@ -190,10 +185,24 @@ class FilesDock(QtWidgets.QDockWidget):
             return
         logger.debug("loading datasets from %s", info.filePath())
         with f:
-            if "datasets" not in f:
-                return
-            rd = {k: (True, v.value) for k, v in f["datasets"].items()}
-            self.datasets.init(rd)
+            try:
+                expid = pyon.decode(f["expid"].value)
+                start_time = datetime.fromtimestamp(f["start_time"].value)
+                v = {
+                    "artiq_version": f["artiq_version"].value,
+                    "repo_rev": expid["repo_rev"],
+                    "file": expid["file"],
+                    "class_name": expid["class_name"],
+                    "rid": f["rid"].value,
+                    "start_time": start_time,
+                }
+                self.metadata_changed.emit(v)
+            except:
+                logger.warning("unable to read metadata from %s",
+                               info.filePath(), exc_info=True)
+            if "datasets" in f:
+                rd = {k: (True, v.value) for k, v in f["datasets"].items()}
+                self.datasets.init(rd)
         self.dataset_changed.emit(info.filePath())
 
     def list_activated(self, idx):
@@ -205,6 +214,13 @@ class FilesDock(QtWidgets.QDockWidget):
         idx = self.rt.model().mapFromSource(idx)
         self.rt.expand(idx)
         self.rt.setCurrentIndex(idx)
+
+    def select(self, path):
+        f = os.path.abspath(path)
+        if os.path.isdir(f):
+            self.select_dir(f)
+        else:
+            self.select_file(f)
 
     def select_dir(self, path):
         if not os.path.exists(path):
@@ -247,7 +263,7 @@ class FilesDock(QtWidgets.QDockWidget):
         }
 
     def restore_state(self, state):
-        if self.restore_selected:
+        if self.restore_selection:
             self.select_dir(state["dir"])
             self.select_file(state["file"])
         self.splitter.restoreState(QtCore.QByteArray(state["splitter"]))
