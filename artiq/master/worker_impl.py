@@ -98,6 +98,7 @@ class Scheduler:
         self.priority = priority
 
     _check_pause = staticmethod(make_parent_action("scheduler_check_pause"))
+
     def check_pause(self, rid=None) -> TBool:
         if rid is None:
             rid = self.rid
@@ -140,7 +141,7 @@ def examine(device_mgr, dataset_mgr, file):
                 if name[-1] == ".":
                     name = name[:-1]
             argument_mgr = TraceArgumentManager()
-            exp_inst = exp_class((device_mgr, dataset_mgr, argument_mgr))
+            exp_class((device_mgr, dataset_mgr, argument_mgr))
             arginfo = OrderedDict(
                 (k, (proc.describe(), group))
                 for k, (proc, group) in argument_mgr.requested_args.items())
