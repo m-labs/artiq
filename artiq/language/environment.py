@@ -213,8 +213,12 @@ class HasEnvironment:
         Other initialization steps such as requesting devices may also be
         performed here.
 
-        When the repository is scanned, any requested devices and arguments
-        are set to ``None``.
+        There are two situations where the requested devices are replaced by
+        ``DummyDevice()`` and arguments are set to their defaults (or ``None``)
+        instead: when the repository is scanned to build the list of
+        available experiments and when the dataset browser ``artiq_browser``
+        is used to open or run the analysis stage of an experiment. Do not
+        rely on being able to operate on devices or arguments in ``build()``.
 
         Datasets are read-only in this method.
 

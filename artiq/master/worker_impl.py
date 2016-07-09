@@ -11,7 +11,7 @@ import artiq
 from artiq.protocols import pipe_ipc, pyon
 from artiq.protocols.packed_exceptions import raise_packed_exc
 from artiq.tools import multiline_log_config, file_import
-from artiq.master.worker_db import DeviceManager, DatasetManager
+from artiq.master.worker_db import DeviceManager, DatasetManager, DummyDevice
 from artiq.language.environment import (is_experiment, TraceArgumentManager,
                                         ProcessArgumentManager)
 from artiq.language.core import set_watchdog_factory, TerminationRequested
@@ -124,7 +124,7 @@ class ExamineDeviceMgr:
     get_device_db = make_parent_action("get_device_db")
 
     def get(name):
-        return None
+        return DummyDevice()
 
 
 def examine(device_mgr, dataset_mgr, file):
