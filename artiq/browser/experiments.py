@@ -85,16 +85,14 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         recompute_arguments.clicked.connect(self._recompute_arguments_clicked)
 
         load = QtWidgets.QPushButton("Set arguments from HDF5")
-        load.setToolTip("Set arguments from currently selected HDF5 "
-                        "file (Ctrl+Space)")
+        load.setToolTip("Set arguments from currently selected HDF5 file")
         load.setIcon(QtWidgets.QApplication.style().standardIcon(
                 QtWidgets.QStyle.SP_DialogApplyButton))
-        load.setShortcut("CTRL+SPACE")
         load.clicked.connect(self._load_clicked)
 
         buttons = LayoutWidget()
         buttons.addWidget(recompute_arguments, 1, 1)
-        buttons.addWidget(load, 2, 1)
+        buttons.addWidget(load, 1, 2)
         for i, s in enumerate((1, 0, 0, 1)):
             buttons.layout.setColumnStretch(i, s)
         self.setItemWidget(widget_item, 1, buttons)
