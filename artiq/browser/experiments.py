@@ -42,6 +42,9 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         self.setHorizontalScrollMode(self.ScrollPerPixel)
         self.setVerticalScrollMode(self.ScrollPerPixel)
 
+        self.setStyleSheet("QTreeWidget {background: " +
+                           self.palette().midlight().color().name() + " ;}")
+
         self.viewport().installEventFilter(_WheelFilter(self.viewport()))
 
         self._groups = dict()
@@ -50,6 +53,10 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
 
         if not self._dock.arguments:
             self.addTopLevelItem(QtWidgets.QTreeWidgetItem(["No arguments"]))
+        gradient = QtGui.QLinearGradient(
+            0, 0, 0, QtGui.QFontMetrics(self.font()).lineSpacing()*2.5)
+        gradient.setColorAt(0, self.palette().base().color())
+        gradient.setColorAt(1, self.palette().midlight().color())
 
         for name, argument in self._dock.arguments.items():
             try:
@@ -59,11 +66,20 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
             widget_item = QtWidgets.QTreeWidgetItem([name])
             self._arg_to_entry_widgetitem[name] = entry, widget_item
 
+            for col in range(3):
+                widget_item.setBackground(col, gradient)
+            font = widget_item.font(0)
+            font.setBold(True)
+            widget_item.setFont(0, font)
+
             if argument["group"] is None:
                 self.addTopLevelItem(widget_item)
             else:
                 self._get_group(argument["group"]).addChild(widget_item)
-            self.setItemWidget(widget_item, 1, entry)
+            fix_layout = LayoutWidget()
+            fix_layout.addWidget(entry)
+            self.setItemWidget(widget_item, 1, fix_layout)
+
             recompute_argument = QtWidgets.QToolButton()
             recompute_argument.setToolTip("Re-run the experiment's build "
                                           "method and take the default value")
@@ -101,12 +117,12 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         if name in self._groups:
             return self._groups[name]
         group = QtWidgets.QTreeWidgetItem([name])
-        for c in 0, 1:
-            group.setBackground(c, QtGui.QBrush(QtGui.QColor(100, 100, 100)))
-            group.setForeground(c, QtGui.QBrush(QtGui.QColor(220, 220, 255)))
-            font = group.font(c)
+        for col in range(3):
+            group.setBackground(col, self.palette().mid())
+            group.setForeground(col, self.palette().brightText())
+            font = group.font(col)
             font.setBold(True)
-            group.setFont(c, font)
+            group.setFont(col, font)
         self.addTopLevelItem(group)
         self._groups[name] = group
         return group
