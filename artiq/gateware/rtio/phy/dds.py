@@ -6,7 +6,7 @@ from artiq.gateware.rtio.phy.wishbone import RT2WB
 
 class _AD9xxx(Module):
     def __init__(self, ftw_base, pads, nchannels, onehot=False, **kwargs):
-        self.submodules._ll = ClockDomainsRenamer("rio")(
+        self.submodules._ll = ClockDomainsRenamer("rio_phy")(
             ad9xxx.AD9xxx(pads, **kwargs))
         self.submodules._rt2wb = RT2WB(len(pads.a)+1, self._ll.bus)
         self.rtlink = self._rt2wb.rtlink
