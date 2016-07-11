@@ -44,6 +44,10 @@ def main():
 
     stitcher = embed()
     module = Module(stitcher)
+    target = OR1KTarget()
+    llvm_ir = target.compile(module)
+    elf_obj = target.assemble(llvm_ir)
+    elf_shlib = target.link([elf_obj], init_fn=module.entry_point())
 
     benchmark(lambda: embed(),
               "ARTIQ embedding")
@@ -51,8 +55,17 @@ def main():
     benchmark(lambda: Module(stitcher),
               "ARTIQ transforms and validators")
 
-    benchmark(lambda: OR1KTarget().compile_and_link([module]),
-              "LLVM optimization and linking")
+    benchmark(lambda: target.compile(module),
+              "LLVM optimizations")
+
+    benchmark(lambda: target.assemble(llvm_ir),
+              "LLVM machine code emission")
+
+    benchmark(lambda: target.link([elf_obj], init_fn=module.entry_point()),
+              "Linking")
+
+    benchmark(lambda: target.strip(elf_shlib),
+              "Stripping debug information")
 
 if __name__ == "__main__":
     main()
