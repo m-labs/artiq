@@ -32,7 +32,7 @@ def main():
         experiment = testcase_vars["Benchmark"](dmgr)
 
         stitcher = Stitcher(core=experiment.core, dmgr=dmgr)
-        stitcher.stitch_call(experiment.run, (experiment,), {})
+        stitcher.stitch_call(experiment.run, (), {})
         stitcher.finalize()
         return stitcher
 
