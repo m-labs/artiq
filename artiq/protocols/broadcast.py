@@ -1,5 +1,6 @@
 import asyncio
 
+from artiq.monkey_patches import *
 from artiq.protocols import pyon
 from artiq.protocols.asyncio_server import AsyncioServer
 

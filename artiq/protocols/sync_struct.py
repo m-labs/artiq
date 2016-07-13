@@ -14,6 +14,7 @@ import asyncio
 from operator import getitem
 from functools import partial
 
+from artiq.monkey_patches import *
 from artiq.protocols import pyon
 from artiq.protocols.asyncio_server import AsyncioServer
 
