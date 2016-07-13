@@ -289,7 +289,7 @@ class BestEffortClient:
         in the background.
     """
     def __init__(self, host, port, target_name,
-                 firstcon_timeout=0.5, retry=5.0):
+                 firstcon_timeout=1.0, retry=5.0):
         self.__host = host
         self.__port = port
         self.__target_name = target_name
