@@ -2,6 +2,7 @@ import asyncio
 import logging
 import re
 
+from artiq.monkey_patches import *
 from artiq.protocols.asyncio_server import AsyncioServer
 from artiq.tools import TaskObject, MultilineFormatter
 

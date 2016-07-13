@@ -20,6 +20,7 @@ import logging
 import inspect
 from operator import itemgetter
 
+from artiq.monkey_patches import *
 from artiq.protocols import pyon
 from artiq.protocols.asyncio_server import AsyncioServer as _AsyncioServer
 
