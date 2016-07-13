@@ -1325,7 +1325,7 @@ class Delay(Terminator):
     :param target: (:class:`BasicBlock`) branch target
     """
     def __init__(self, interval, decomposition, target, name=""):
-        assert isinstance(decomposition, Call) or \
+        assert isinstance(decomposition, Call) or isinstance(decomposition, Invoke) or \
             isinstance(decomposition, Builtin) and decomposition.op in ("delay", "delay_mu")
         assert isinstance(target, BasicBlock)
         super().__init__([decomposition, target], builtins.TNone(), name)
