@@ -387,4 +387,4 @@ class RPCTest(ExperimentCase):
         self.execute(RPCTiming)
         self.assertGreater(self.dataset_mgr.get("rpc_time_mean"), 100*ns)
         self.assertLess(self.dataset_mgr.get("rpc_time_mean"), 15*ms)
-        self.assertLess(self.dataset_mgr.get("rpc_time_stddev"), 1*ms)
+        self.assertLess(self.dataset_mgr.get("rpc_time_stddev"), 2*ms)
