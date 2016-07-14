@@ -3,6 +3,12 @@
 Release notes
 =============
 
+1.2
+---
+
+No further notes.
+
+
 1.1
 ---
 
