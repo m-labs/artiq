@@ -177,7 +177,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
             phy = ttl_serdes_spartan6.Inout_4X(platform.request("pmt", i),
                                                self.rtio_crg.rtiox4_stb)
             self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512,
+            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=64,
                                                        ofifo_depth=4))
 
         # the last TTL is used for ClockGen
@@ -192,7 +192,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
                 phy = ttl_simple.Output(platform.request("ttl", i))
 
             self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=256))
+            rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=64))
 
         phy = ttl_simple.Output(platform.request("ext_led", 0))
         self.submodules += phy
