@@ -43,6 +43,12 @@ unreleased [2.x]
 * By default, artiq_client keeps the current persist flag on the master.
 
 
+1.2
+---
+
+No further notes.
+
+
 1.1
 ---
 
