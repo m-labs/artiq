@@ -121,16 +121,17 @@ def simple_network_args(parser, default_port):
     group = parser.add_argument_group("network server")
     group.add_argument(
         "--bind", default=[], action="append",
-        help="add an hostname or IP address to bind to")
+        help="additional hostname or IP addresse to bind to; "
+        "use '*' to bind to all interfaces (default: %(default)s)")
     group.add_argument(
         "--no-localhost-bind", default=False, action="store_true",
-        help="do not implicitly bind to localhost addresses")
+        help="do not implicitly also bind to localhost addresses")
     if isinstance(default_port, int):
         group.add_argument("-p", "--port", default=default_port, type=int,
                            help="TCP port to listen to (default: %(default)d)")
     else:
         for name, purpose, default in default_port:
-            h = ("TCP port to listen to for {} (default: {})"
+            h = ("TCP port to listen to on for {} connections (default: {})"
                  .format(purpose, default))
             group.add_argument("--port-" + name, default=default, type=int,
                                help=h)
@@ -164,6 +165,8 @@ def init_logger(args):
 
 
 def bind_address_from_args(args):
+    if "*" in args.bind:
+        return None
     if args.no_localhost_bind:
         return args.bind
     else:
