@@ -41,6 +41,11 @@ unreleased [2.x]
 * By default, ``NumberValue`` and ``Scannable`` infer the scale from the unit
   for common units.
 * By default, artiq_client keeps the current persist flag on the master.
+* GUI state files for the browser and the dashboard are stores in "standard"
+  locations for each operating system. Those are
+  ``~/.config/artiq/2/artiq_*.pyon`` on Linux and
+  ``C:\Users\<username>\AppData\Local\m-labs\artiq\2\artiq_*.pyon`` on
+  Windows 7.
 
 
 1.2
