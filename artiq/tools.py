@@ -128,10 +128,10 @@ def simple_network_args(parser, default_port):
         help="do not implicitly also bind to localhost addresses")
     if isinstance(default_port, int):
         group.add_argument("-p", "--port", default=default_port, type=int,
-                           help="TCP port to listen to (default: %(default)d)")
+                           help="TCP port to listen on (default: %(default)d)")
     else:
         for name, purpose, default in default_port:
-            h = ("TCP port to listen to on for {} connections (default: {})"
+            h = ("TCP port to listen on for {} connections (default: {})"
                  .format(purpose, default))
             group.add_argument("--port-" + name, default=default, type=int,
                                help=h)
