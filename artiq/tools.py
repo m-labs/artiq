@@ -1,10 +1,8 @@
-from operator import itemgetter
 import importlib.machinery
 import linecache
 import logging
 import sys
 import asyncio
-import time
 import collections
 import os
 import atexit
@@ -20,10 +18,11 @@ artiq_version = get_versions()['version']
 
 
 __all__ = ["parse_arguments", "elide", "short_format", "file_import",
-           "get_experiment", "verbosity_args", "simple_network_args", "init_logger",
-           "bind_address_from_args", "atexit_register_coroutine",
-           "exc_to_warning", "asyncio_wait_or_cancel",
-           "TaskObject", "Condition", "get_windows_drives"]
+           "get_experiment", "verbosity_args", "simple_network_args",
+           "init_logger", "bind_address_from_args",
+           "atexit_register_coroutine", "exc_to_warning",
+           "asyncio_wait_or_cancel", "TaskObject", "Condition",
+           "get_windows_drives"]
 
 
 logger = logging.getLogger(__name__)
@@ -132,9 +131,10 @@ def simple_network_args(parser, default_port):
     else:
         for name, purpose, default in default_port:
             h = ("TCP port to listen to for {} (default: {})"
-                  .format(purpose, default))
+                 .format(purpose, default))
             group.add_argument("--port-" + name, default=default, type=int,
-                           help=h)
+                               help=h)
+
 
 class MultilineFormatter(logging.Formatter):
     def __init__(self):
@@ -159,7 +159,8 @@ def multiline_log_config(level):
 
 
 def init_logger(args):
-    multiline_log_config(level=logging.WARNING + args.quiet*10 - args.verbose*10)
+    multiline_log_config(
+        level=logging.WARNING + args.quiet*10 - args.verbose*10)
 
 
 def bind_address_from_args(args):
