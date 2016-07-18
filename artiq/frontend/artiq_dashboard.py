@@ -76,7 +76,8 @@ class MainWindow(QtWidgets.QMainWindow):
 class MdiArea(QtWidgets.QMdiArea):
     def __init__(self):
         QtWidgets.QMdiArea.__init__(self)
-        self.pixmap = QtGui.QPixmap(os.path.join(artiq_dir, "gui", "logo20.svg"))
+        self.pixmap = QtGui.QPixmap(os.path.join(
+            artiq_dir, "gui", "logo20.svg"))
 
     def paintEvent(self, event):
         QtWidgets.QMdiArea.paintEvent(self, event)
@@ -194,7 +195,8 @@ def main():
     if d_log0 is not None:
         main_window.tabifyDockWidget(d_schedule, d_log0)
 
-    logging.info("ARTIQ dashboard %s connected to %s", artiq_version, args.server)
+    logging.info("ARTIQ dashboard %s connected to %s",
+                 artiq_version, args.server)
 
     # run
     main_window.show()
