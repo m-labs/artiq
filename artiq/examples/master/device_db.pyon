@@ -38,7 +38,7 @@
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
         "arguments": {"channel": 0},
-        "comment": "This is a fairly long comment to test word wrapping in GUI."
+        "comment": "This is a fairly long comment, shown as tooltip."
     },
     "ttl1": {
         "type": "local",
