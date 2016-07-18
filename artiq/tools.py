@@ -22,7 +22,7 @@ __all__ = ["parse_arguments", "elide", "short_format", "file_import",
            "init_logger", "bind_address_from_args",
            "atexit_register_coroutine", "exc_to_warning",
            "asyncio_wait_or_cancel", "TaskObject", "Condition",
-           "get_windows_drives"]
+           "get_windows_drives", "get_user_config_dir"]
 
 
 logger = logging.getLogger(__name__)
