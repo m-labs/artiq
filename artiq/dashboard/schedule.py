@@ -142,8 +142,8 @@ class ScheduleDock(QtWidgets.QDockWidget):
             row = idx[0].row()
             selected_rid = self.table_model.row_to_key[row]
             pipeline = self.table_model.backing_store[selected_rid]["pipeline"]
-            self.status_bar.showMessage("Requesting termination of all "
-                "experiments in pipeline '{}'".format(pipeline))
+            logger.info("Requesting termination of all "
+                "experiments in pipeline '%s'", pipeline)
 
             rids = set()
             for rid, info in self.table_model.backing_store.items():
