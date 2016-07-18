@@ -10,7 +10,8 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from quamash import QEventLoop
 
 from artiq import __artiq_dir__ as artiq_dir, __version__ as artiq_version
-from artiq.tools import *
+from artiq.tools import (atexit_register_coroutine, verbosity_args,
+                         get_user_config_dir)
 from artiq.protocols.pc_rpc import AsyncioClient
 from artiq.protocols.broadcast import Receiver
 from artiq.gui.models import ModelSubscriber
@@ -20,10 +21,8 @@ from artiq.dashboard import (experiments, shortcuts, explorer,
 
 
 def get_argparser():
-    if os.name == "nt":
-        default_db_file = os.path.expanduser("~\\artiq_dashboard.pyon")
-    else:
-        default_db_file = os.path.expanduser("~/.artiq_dashboard.pyon")
+    default_db_file = os.path.join(get_user_config_dir(),
+                                   "artiq_dashboard.pyon")
 
     parser = argparse.ArgumentParser(description="ARTIQ Dashboard")
     parser.add_argument(

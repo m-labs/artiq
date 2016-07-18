@@ -10,7 +10,8 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from quamash import QEventLoop
 
 from artiq import __artiq_dir__ as artiq_dir
-from artiq.tools import verbosity_args, atexit_register_coroutine
+from artiq.tools import (verbosity_args, atexit_register_coroutine,
+                         get_user_config_dir)
 from artiq.gui import state, applets, models, log
 from artiq.browser import datasets, files, experiments
 
@@ -19,10 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_argparser():
-    if os.name == "nt":
-        default_db_file = os.path.expanduser("~\\artiq_browser.pyon")
-    else:
-        default_db_file = os.path.expanduser("~/.artiq_browser.pyon")
+    default_db_file = os.path.join(get_user_config_dir(), "artiq_browser.pyon")
 
     parser = argparse.ArgumentParser(description="ARTIQ Browser")
     parser.add_argument("--db-file", default=default_db_file,

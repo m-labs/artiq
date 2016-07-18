@@ -14,6 +14,9 @@ import numpy as np
 
 from artiq.language.environment import is_experiment
 from artiq.protocols import pyon
+from artiq.appdirs import user_config_dir
+from artiq._version import get_versions
+artiq_version = get_versions()['version']
 
 
 __all__ = ["parse_arguments", "elide", "short_format", "file_import",
@@ -243,3 +246,10 @@ def get_windows_drives():
             drives.append(letter)
         bitmask >>= 1
     return drives
+
+
+def get_user_config_dir():
+    major = artiq_version.split(".")[0]
+    dir = user_config_dir("artiq", "m-labs", major)
+    os.makedirs(dir, exist_ok=True)
+    return dir
