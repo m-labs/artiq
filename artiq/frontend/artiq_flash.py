@@ -39,6 +39,8 @@ Prerequisites:
                         help="target board, default: %(default)s")
     parser.add_argument("-m", "--adapter", default="nist_clock",
                         help="target adapter, default: %(default)s")
+    parser.add_argument("--target-file", default=None,
+                        help="use alternative OpenOCD target file")
     parser.add_argument("-f", "--storage", help="write file to storage area")
     parser.add_argument("-d", "--dir", help="look for files in this directory")
     parser.add_argument("action", metavar="ACTION", nargs="*",
@@ -130,10 +132,14 @@ def main():
     try:
         if conv:
             bit2bin(bit, bin_handle)
+        if opts.target_file is None:
+            target_file = os.path.join("board", opts.target + ".cfg")
+        else:
+            target_file = opts.target_file
         subprocess.check_call([
             "openocd",
             "-s", scripts_path,
-            "-f", os.path.join("board", opts.target + ".cfg"),
+            "-f", target_file,
             "-c", "; ".join(prog),
         ])
     finally:
