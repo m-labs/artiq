@@ -44,6 +44,8 @@ unreleased [2.x]
   ``~/.config/artiq/2/artiq_*.pyon`` on Linux and
   ``C:\Users\<username>\AppData\Local\m-labs\artiq\2\artiq_*.pyon`` on
   Windows 7.
+* The position of the time cursor is kept across experiments and RTIO resets
+  are manual and explicit (inter-experiment seamless handover).
 
 
 1.2
