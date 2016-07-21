@@ -28,7 +28,7 @@ and the ARTIQ kernels.
         $ cd ~/artiq-dev
         $ wget https://ftp.gnu.org/gnu/binutils/binutils-2.26.tar.bz2
         $ tar xvf binutils-2.26.tar.bz2
-        $ rm binutils-2.26.tar.bz2
+        $ cd binutils-2.26
 
         $ mkdir build
         $ cd build
@@ -96,11 +96,25 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
 * :ref:`Download and install OpenOCD <install-openocd>`.
 
+* Download and install ``asyncserial``: ::
+
+        $ cd ~/artiq-dev
+        $ git clone https://www.github.com/m-labs/asyncserial
+        $ cd asyncserial
+        $ python3.5 setup.py develop --user
+
 * Download and install MiSoC: ::
 
         $ cd ~/artiq-dev
         $ git clone --recursive https://github.com/m-labs/misoc
         $ cd misoc
+        $ python3.5 setup.py develop --user
+
+* Download and install ``pythonparser``: ::
+
+        $ cd ~/artiq-dev
+        $ git clone https://www.github.com/m-labs/pythonparser
+        $ cd pythonparser
         $ python3.5 setup.py develop --user
 
 * Download and install ARTIQ: ::
@@ -170,7 +184,7 @@ Installing the host-side software
         $ cd ~/artiq-dev
         $ git clone https://github.com/m-labs/llvmlite
         $ cd llvmlite
-        $ git checkout artiq
+        $ git checkout artiq-3.8
         $ LLVM_CONFIG=/usr/local/llvm-or1k/bin/llvm-config python3.5 setup.py install --user
 
 * Install ARTIQ: ::
