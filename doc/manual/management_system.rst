@@ -65,7 +65,10 @@ When determining what experiment to begin executing next (i.e. entering the prep
 Pauses
 ------
 
-In the run stage, an experiment may yield to the scheduler by calling the ``pause`` method. If there are other experiments with higher priority (e.g. a high-priority timed experiment has reached its due date), they are preemptively executed, and then the ``pause`` method returns. Otherwise, the ``pause`` method returns immediately.
+In the run stage, an experiment may yield to the scheduler by calling the ``pause()`` method of the scheduler.
+If there are other experiments with higher priority (e.g. a high-priority timed experiment has reached its due date), they are preemptively executed, and then ``pause()`` returns.
+Otherwise, ``pause()`` returns immediately.
+To check whether ``pause()`` would in fact *not* return immediately, use :meth:`artiq.master.scheduler.Scheduler.check_pause`.
 
 The experiment must place the hardware in a safe state and disconnect from the core device (typically, by using ``self.core.comm.close()``) before calling ``pause``.
 
