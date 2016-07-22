@@ -1,0 +1,77 @@
+# The RTIO channel numbers here are for Phaser on KC705.
+
+{
+    "comm": {
+        "type": "local",
+        "module": "artiq.coredevice.comm_tcp",
+        "class": "Comm",
+        "arguments": {"host": "kc705aux.lab.m-labs.hk"}
+    },
+    "core": {
+        "type": "local",
+        "module": "artiq.coredevice.core",
+        "class": "Core",
+        "arguments": {
+            "ref_period": 1e-9,
+            "external_clock": True
+        }
+    },
+    "core_cache": {
+        "type": "local",
+        "module": "artiq.coredevice.cache",
+        "class": "CoreCache"
+    },
+    "ad9154": {
+        "type": "local",
+        "module": "artiq.coredevice.ad9154",
+        "class": "AD9154"
+    },
+    "ttl_sma": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLInOut",
+        "arguments": {"channel": 0}
+    },
+    "led": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 1}
+    },
+    "sysref": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLInOut",
+        "arguments": {"channel": 2}
+    },
+    "sync": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLInOut",
+        "arguments": {"channel": 3}
+    },
+    "sawg0": {
+        "type": "local",
+        "module": "artiq.coredevice.sawg",
+        "class": "SAWG",
+        "arguments": {"channel_base": 4, "parallelism": 4}
+    },
+    "sawg1": {
+        "type": "local",
+        "module": "artiq.coredevice.sawg",
+        "class": "SAWG",
+        "arguments": {"channel_base": 7, "parallelism": 4}
+    },
+    "sawg2": {
+        "type": "local",
+        "module": "artiq.coredevice.sawg",
+        "class": "SAWG",
+        "arguments": {"channel_base": 10, "parallelism": 4}
+    },
+    "sawg3": {
+        "type": "local",
+        "module": "artiq.coredevice.sawg",
+        "class": "SAWG",
+        "arguments": {"channel_base": 13, "parallelism": 4}
+    }
+}

@@ -17,6 +17,7 @@
 #include "rtio.h"
 #include "dds.h"
 #include "i2c.h"
+#include "ad9154.h"
 
 double round(double x);
 double sqrt(double x);
@@ -136,6 +137,14 @@ static const struct symbol runtime_exports[] = {
 
     {"cache_get", &cache_get},
     {"cache_put", &cache_put},
+
+#ifdef CONFIG_AD9154_DAC_CS
+    {"ad9154_init", &ad9154_init},
+    {"ad9154_write", &ad9154_write},
+    {"ad9154_read", &ad9154_read},
+    {"ad9516_write", &ad9516_write},
+    {"ad9516_read", &ad9516_read},
+#endif
 
     /* end */
     {NULL, NULL}

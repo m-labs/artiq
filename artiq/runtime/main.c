@@ -34,6 +34,7 @@
 #include "session.h"
 #include "analyzer.h"
 #include "moninj.h"
+#include "ad9154.h"
 
 u32_t sys_now(void)
 {

@@ -53,3 +53,15 @@ These drivers are for the core device and the peripherals closely integrated int
 
 .. automodule:: artiq.coredevice.exceptions
     :members:
+
+:mod:`artiq.coredevice.sawg` module
+-----------------------------------
+
+.. automodule:: artiq.coredevice.sawg
+    :members:
+
+:mod:`artiq.coredevice.ad9154` module
+-----------------------------------
+
+.. automodule:: artiq.coredevice.ad9154
+    :members:

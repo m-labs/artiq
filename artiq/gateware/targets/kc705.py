@@ -9,17 +9,20 @@ from migen.build.generic_platform import *
 from migen.build.xilinx.vivado import XilinxVivadoToolchain
 from migen.build.xilinx.ise import XilinxISEToolchain
 from migen.fhdl.specials import Keep
+from migen.genlib.io import DifferentialInput
 
 from misoc.interconnect.csr import *
 from misoc.interconnect import wishbone
 from misoc.cores import gpio
+from misoc.cores import spi as spi_csr
 from misoc.integration.soc_core import mem_decoder
 from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
 from misoc.integration.builder import builder_args, builder_argdict
 
 from artiq.gateware.soc import AMPSoC, build_artiq_soc
-from artiq.gateware import rtio, nist_qc1, nist_clock, nist_qc2
-from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, dds, spi
+from artiq.gateware import rtio, nist_qc1, nist_clock, nist_qc2, phaser
+from artiq.gateware.rtio.phy import (ttl_simple, ttl_serdes_7series,
+                                     dds, spi, sawg)
 from artiq import __version__ as artiq_version
 
 
@@ -138,8 +141,8 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.register_kernel_cpu_csrdevice("i2c")
         self.config["I2C_BUS_COUNT"] = 1
 
-    def add_rtio(self, rtio_channels):
-        self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
+    def add_rtio(self, rtio_channels, crg=_RTIOCRG):
+        self.submodules.rtio_crg = crg(self.platform, self.crg.cd_sys.clk)
         self.csr_devices.append("rtio_crg")
         self.submodules.rtio = rtio.RTIO(rtio_channels)
         self.register_kernel_cpu_csrdevice("rtio")
@@ -380,6 +383,135 @@ class NIST_QC2(_NIST_Ions):
         self.config["DDS_RTIO_CLK_RATIO"] = 24 >> self.rtio.fine_ts_width
 
 
+class _PhaserCRG(Module, AutoCSR):
+    def __init__(self, platform, rtio_internal_clk):
+        rtio_internal_clk = ClockSignal("sys4x")
+
+        self._clock_sel = CSRStorage()
+        self._pll_reset = CSRStorage(reset=1)
+        self._pll_locked = CSRStatus()
+        self.clock_domains.cd_rtio = ClockDomain()
+        self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
+
+        refclk_pads = platform.request("ad9154_refclk")
+        platform.add_period_constraint(refclk_pads.p, 2.)
+        refclk = Signal()
+        refclk = Signal()
+        self.clock_domains.cd_refclk = ClockDomain()
+        self.specials += [
+            Instance("IBUFDS_GTE2", i_CEB=0,
+                     i_I=refclk_pads.p, i_IB=refclk_pads.n, o_O=refclk),
+            Instance("BUFG", i_I=refclk, o_O=self.cd_refclk.clk),
+        ]
+
+        pll_locked = Signal()
+        rtio_clk = Signal()
+        rtiox4_clk = Signal()
+        self.specials += [
+            Instance("PLLE2_ADV",
+                     p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
+
+                     p_REF_JITTER1=0.01, p_REF_JITTER2=0.01,
+                     p_CLKIN1_PERIOD=2.0, p_CLKIN2_PERIOD=2.0,
+                     i_CLKIN1=rtio_internal_clk, i_CLKIN2=self.cd_refclk.clk,
+                     # Warning: CLKINSEL=0 means CLKIN2 is selected
+                     i_CLKINSEL=~self._clock_sel.storage,
+
+                     # VCO @ 1GHz when using 500MHz input
+                     p_CLKFBOUT_MULT=8, p_DIVCLK_DIVIDE=4,
+                     i_CLKFBIN=self.cd_rtio.clk,
+                     i_RST=self._pll_reset.storage,
+
+                     o_CLKFBOUT=rtio_clk,
+
+                     p_CLKOUT0_DIVIDE=2, p_CLKOUT0_PHASE=0.0,
+                     o_CLKOUT0=rtiox4_clk,
+                     ),
+            Instance("BUFG", i_I=rtio_clk, o_O=self.cd_rtio.clk),
+            Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk),
+
+            AsyncResetSynchronizer(self.cd_rtio, ~pll_locked),
+            MultiReg(pll_locked, self._pll_locked.status)
+        ]
+
+
+class Phaser(_NIST_Ions):
+    mem_map = {"ad9154_spi": 0x18000000}
+    mem_map.update(_NIST_Ions.mem_map)
+
+    def __init__(self, cpu_type="or1k", **kwargs):
+        _NIST_Ions.__init__(self, cpu_type, **kwargs)
+
+        platform = self.platform
+        platform.add_extension(phaser.fmc_adapter_io)
+
+        sysref_pads = platform.request("ad9154_sysref")
+        #sysref = Signal()
+        #self.specials += DifferentialInput(
+        #    sysref_pads.p, sysref_pads.n, sysref)
+        sync_pads = platform.request("ad9154_sync")
+        #sync = Signal()
+        #self.specials += DifferentialInput(
+        #    sync_pads.p, sync_pads.n, sync)
+
+        #for i in range(4):
+        #    jesd_pads = platform.request("ad9154_jesd", i)
+
+        rtio_channels = []
+
+        phy = ttl_serdes_7series.Inout_8X(
+            platform.request("user_sma_gpio_n_33"))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=128))
+
+        phy = ttl_simple.Output(platform.request("user_led", 2))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        phy = ttl_serdes_7series.Input_8X(sysref_pads.p, sysref_pads.n)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
+                                                   ofifo_depth=2))
+
+        phy = ttl_serdes_7series.Input_8X(sync_pads.p, sync_pads.n)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
+                                                   ofifo_depth=2))
+
+        self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
+
+        ad9154_spi = self.platform.request("ad9154_spi")
+        self.submodules.ad9154_spi = spi_csr.SPIMaster(ad9154_spi)
+        self.register_kernel_cpu_csrdevice("ad9154_spi")
+        self.config["AD9154_DAC_CS"] = 1 << 0
+        self.config["AD9154_CLK_CS"] = 1 << 1
+        self.comb += [
+            ad9154_spi.en.eq(1),
+            self.platform.request("ad9154_txen", 0).eq(1),
+            self.platform.request("ad9154_txen", 1).eq(1),
+        ]
+
+        self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
+        sawgs = [sawg.Channel(width=16, parallelism=4) for i in range(4)]
+        self.submodules += sawgs
+
+        # TODO: dummy, hookup jesd204b phy here
+        o = Signal((16, True))
+        for ch in sawgs:  # gather up dangling outputs
+            for oi in ch.o:
+                o0, o = o, Signal.like(o)
+                self.sync += o.eq(o0 + oi)
+        self.sync.rio_phy += platform.request("user_led").eq(o[-1])
+
+        rtio_channels.extend(rtio.Channel.from_phy(phy)
+                             for sawg in sawgs
+                             for phy in sawg.phys)
+
+        self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
+        rtio_channels.append(rtio.LogChannel())
+        self.add_rtio(rtio_channels, _PhaserCRG)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="ARTIQ core device builder / KC705 "
@@ -388,7 +520,7 @@ def main():
     soc_kc705_args(parser)
     parser.add_argument("-H", "--hw-adapter", default="nist_clock",
                         help="hardware adapter type: "
-                             "nist_qc1/nist_clock/nist_qc2 "
+                             "nist_qc1/nist_clock/nist_qc2/phaser "
                              "(default: %(default)s)")
     args = parser.parse_args()
 
@@ -399,6 +531,8 @@ def main():
         cls = NIST_CLOCK
     elif hw_adapter == "nist_qc2":
         cls = NIST_QC2
+    elif hw_adapter == "phaser":
+        cls = Phaser
     else:
         raise SystemExit("Invalid hardware adapter string (-H/--hw-adapter)")
 

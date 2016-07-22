@@ -155,6 +155,38 @@ To avoid I/O contention, the startup kernel should first program the TCA6424A ex
 
 See :mod:`artiq.coredevice.i2c` for more details.
 
+
+Phaser
+++++++
+
+The Phaser adapter is an AD9154-FMC-EBZ, a 4 channel 2.4 GHz DAC on an FMC HPC card.
+
++--------------+------------+--------------+
+| RTIO channel | TTL line   | Capability   |
++==============+============+==============+
+| 0            | SMA_GPIO_N | Input+Output |
++--------------+------------+--------------+
+| 1            | LED        | Output       |
++--------------+------------+--------------+
+| 2            | SYSREF     | Input        |
++--------------+------------+--------------+
+| 3            | SYNC       | Input        |
++--------------+------------+--------------+
+
+The SAWG channels start with RTIO channel number 4, each occupying 3 channels.
+
+The board has one non-RTIO SPI bus that is accessible through
+:mod:`artiq.coredevice.ad9154`.
+
+* Setup the KC705 observing the notes above and as laid out in :ref:`configuring-core-device`.
+* A 2 GHz of roughly 10 dBm (0.2 to 3.4 V peak-to-peak into 50 Ohm) must be connected to the AD9154-FMC-EBZ J1.
+  The external RTIO clock, DAC deviceclock, FPGA deviceclock, and SYSREF are derived from this signal.
+* The ``startup_clock`` needs to be set to internal (``i``) for bootstrapping the clock distribution tree.
+  See :ref:`configuring-core-device`.
+* Compile and flash the startup kernel in ``artiq/examples/phaser/startup_kernel.py``.
+* An example ``device_db.pyon`` is provided in ``artiq/examples/phaser/device_db.pyon``.
+
+
 Pipistrello
 -----------
 
