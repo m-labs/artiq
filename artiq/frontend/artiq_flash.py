@@ -11,6 +11,14 @@ from artiq import __artiq_dir__ as artiq_dir
 from artiq.frontend.bit2bin import bit2bin
 
 
+scripts_path = ["share", "openocd", "scripts"]
+if os.name == "nt":
+    scripts_path.insert(0, "Library")
+scripts_path = os.path.abspath(os.path.join(
+    os.path.dirname(shutil.which("openocd")),
+    "..", *scripts_path))
+
+
 def get_argparser():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -78,13 +86,6 @@ def main():
     if not os.path.exists(opts.dir):
         raise SystemExit("Binaries directory '{}' does not exist"
                          .format(opts.dir))
-
-    scripts_path = ["share", "openocd", "scripts"]
-    if os.name == "nt":
-        scripts_path.insert(0, "Library")
-    scripts_path = os.path.abspath(os.path.join(
-        os.path.dirname(shutil.which("openocd")),
-        "..", *scripts_path))
 
     conv = False
 
