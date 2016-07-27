@@ -10,7 +10,9 @@
 static void rtio_output_blind(int channel, int addr, int data)
 {
     rtio_chan_sel_write(channel);
+#ifdef CSR_RTIO_O_ADDRESS_ADDR
     rtio_o_address_write(addr);
+#endif
     rtio_o_data_write(data);
     rtio_o_timestamp_write(rtio_get_counter() + TIME_BUFFER);
     rtio_o_we_write(1);

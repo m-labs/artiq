@@ -55,7 +55,9 @@ void rtio_output(long long int timestamp, int channel, unsigned int addr,
 
     rtio_chan_sel_write(channel);
     rtio_o_timestamp_write(timestamp);
+#ifdef CSR_RTIO_O_ADDRESS_ADDR
     rtio_o_address_write(addr);
+#endif
     rtio_o_data_write(data);
     rtio_o_we_write(1);
     status = rtio_o_status_read();
