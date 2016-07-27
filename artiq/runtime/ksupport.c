@@ -1,6 +1,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdio.h>
+#include <generated/csr.h>
 
 #include <link.h>
 #include <dlfcn.h>
