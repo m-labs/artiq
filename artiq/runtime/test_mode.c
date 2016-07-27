@@ -108,6 +108,8 @@ static void ttlo(char *n, char *value)
     brg_ttlo(n2, value2);
 }
 
+#if ((defined RTIO_DDS_COUNT) && (RTIO_DDS_COUNT > 0))
+
 static int bus_channel = CONFIG_RTIO_FIRST_DDS_CHANNEL;
 
 static void ddsbus(char *n)
@@ -360,6 +362,7 @@ static void ddstest(char *n, char *channel)
                 do_ddstest_one(j);
     }
 }
+#endif /* RTIO_DDS_COUNT */
 
 #if (defined CSR_SPIFLASH_BASE && defined CONFIG_SPIFLASH_PAGE_SIZE)
 static void fsread(char *key)
@@ -659,6 +662,7 @@ static void do_command(char *c)
     else if(strcmp(token, "ttloe") == 0) ttloe(get_token(&c), get_token(&c));
     else if(strcmp(token, "ttlo") == 0) ttlo(get_token(&c), get_token(&c));
 
+#if ((defined RTIO_DDS_COUNT) && (RTIO_DDS_COUNT > 0))
     else if(strcmp(token, "ddsbus") == 0) ddsbus(get_token(&c));
     else if(strcmp(token, "ddssel") == 0) ddssel(get_token(&c));
     else if(strcmp(token, "ddsw") == 0) ddsw(get_token(&c), get_token(&c));
@@ -668,6 +672,7 @@ static void do_command(char *c)
     else if(strcmp(token, "ddsfud") == 0) ddsfud();
     else if(strcmp(token, "ddsftw") == 0) ddsftw(get_token(&c), get_token(&c));
     else if(strcmp(token, "ddstest") == 0) ddstest(get_token(&c), get_token(&c));
+#endif
 
 #if (defined CSR_SPIFLASH_BASE && defined CONFIG_SPIFLASH_PAGE_SIZE)
     else if(strcmp(token, "fserase") == 0) fs_erase();

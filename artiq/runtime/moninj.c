@@ -38,13 +38,15 @@ struct monitor_reply {
     long long int ttl_overrides;
     unsigned short int dds_rtio_first_channel;
     unsigned short int dds_channels_per_bus;
+#if ((defined RTIO_DDS_COUNT) && (RTIO_DDS_COUNT > 0))
     unsigned int dds_ftws[CONFIG_RTIO_DDS_COUNT*CONFIG_DDS_CHANNELS_PER_BUS];
+#endif
 } __attribute__((packed));
 
 static void moninj_monitor(const ip_addr_t *addr, u16_t port)
 {
     struct monitor_reply reply;
-    int i, j;
+    int i;
     struct pbuf *reply_p;
 
     reply.ttl_levels = 0;
@@ -66,6 +68,9 @@ static void moninj_monitor(const ip_addr_t *addr, u16_t port)
             reply.ttl_overrides |= 1LL << i;
     }
 
+#if ((defined RTIO_DDS_COUNT) && (RTIO_DDS_COUNT > 0))
+    int j;
+
     reply.dds_rtio_first_channel = CONFIG_RTIO_FIRST_DDS_CHANNEL;
     reply.dds_channels_per_bus = CONFIG_DDS_CHANNELS_PER_BUS;
     for(j=0;j<CONFIG_RTIO_DDS_COUNT;j++) {
@@ -76,6 +81,10 @@ static void moninj_monitor(const ip_addr_t *addr, u16_t port)
             reply.dds_ftws[CONFIG_DDS_CHANNELS_PER_BUS*j+i] = rtio_moninj_mon_value_read();
         }
     }
+#else
+    reply.dds_rtio_first_channel = 0;
+    reply.dds_channels_per_bus = 0;
+#endif
 
     reply_p = pbuf_alloc(PBUF_TRANSPORT, sizeof(struct monitor_reply), PBUF_RAM);
     if(!reply_p) {

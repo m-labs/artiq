@@ -1,4 +1,7 @@
 #include <generated/csr.h>
+
+#if ((defined RTIO_DDS_COUNT) && (RTIO_DDS_COUNT > 0))
+
 #include <stdio.h>
 
 #include "artiq_personality.h"
@@ -221,3 +224,5 @@ void dds_set(long long int timestamp, int bus_channel, int channel,
                     ftw, pow, phase_mode, amplitude);
     }
 }
+
+#endif /* RTIO_DDS_COUNT */
