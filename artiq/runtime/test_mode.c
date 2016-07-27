@@ -39,6 +39,7 @@ static void leds(char *value)
 }
 #endif
 
+#ifdef CSR_RTIO_CRG_BASE
 static void clksrc(char *value)
 {
     char *c;
@@ -57,6 +58,7 @@ static void clksrc(char *value)
 
     rtio_crg_clock_sel_write(value2);
 }
+#endif
 
 static void ttloe(char *n, char *value)
 {
@@ -563,7 +565,9 @@ static void help(void)
 {
     puts("Available commands:");
     puts("help            - this message");
+#ifdef CSR_RTIO_CRG_BASE
     puts("clksrc <n>      - select RTIO clock source");
+#endif
     puts("ttloe <n> <v>   - set TTL output enable");
     puts("ttlo <n> <v>    - set TTL output value");
     puts("ddsbus <n>      - select the DDS bus RTIO channel");
@@ -648,7 +652,9 @@ static void do_command(char *c)
     else if(strcmp(token, "leds") == 0) leds(get_token(&c));
 #endif
 
+#ifdef CSR_RTIO_CRG_BASE
     else if(strcmp(token, "clksrc") == 0) clksrc(get_token(&c));
+#endif
 
     else if(strcmp(token, "ttloe") == 0) ttloe(get_token(&c), get_token(&c));
     else if(strcmp(token, "ttlo") == 0) ttlo(get_token(&c), get_token(&c));

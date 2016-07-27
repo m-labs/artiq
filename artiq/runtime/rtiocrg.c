@@ -33,7 +33,7 @@ void rtiocrg_init(void)
 
 int rtiocrg_check(void)
 {
-#ifdef CSR_RTIO_CRG_PLL_RESET_ADDR
+#if ((defined CSR_RTIO_CRG_BASE) && (defined CSR_RTIO_CRG_PLL_RESET_ADDR))
     return rtio_crg_pll_locked_read();
 #else
     return 1;
@@ -44,6 +44,7 @@ int rtiocrg_switch_clock(int clk)
 {
     int current_clk;
 
+#ifdef CSR_RTIO_CRG_BASE
     current_clk = rtio_crg_clock_sel_read();
     if(clk == current_clk) {
 #ifdef CSR_RTIO_CRG_PLL_RESET_ADDR
@@ -64,4 +65,7 @@ int rtiocrg_switch_clock(int clk)
         return 0;
 #endif
     return 1;
+#else /* CSR_RTIO_CRG_BASE */
+    return 1;
+#endif
 }
