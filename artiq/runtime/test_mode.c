@@ -18,6 +18,7 @@
 #include "clock.h"
 #include "test_mode.h"
 
+#ifdef CSR_LEDS_BASE
 static void leds(char *value)
 {
     char *c;
@@ -36,6 +37,7 @@ static void leds(char *value)
 
     leds_out_write(value2);
 }
+#endif
 
 static void clksrc(char *value)
 {
@@ -573,7 +575,9 @@ static void help(void)
     puts("ddsfud          - pulse FUD");
     puts("ddsftw <n> <d>  - write FTW");
     puts("ddstest <c> <n> - perform test sequence on DDS");
+#ifdef CSR_LEDS_BASE
     puts("leds <n>        - set LEDs");
+#endif
 #if (defined CSR_SPIFLASH_BASE && defined CONFIG_SPIFLASH_PAGE_SIZE)
     puts("fserase         - erase flash storage");
     puts("fswrite <k> <v> - write to flash storage");
@@ -640,7 +644,9 @@ static void do_command(char *c)
     token = get_token(&c);
 
     if(strcmp(token, "help") == 0) help();
+#ifdef CSR_LEDS_BASE
     else if(strcmp(token, "leds") == 0) leds(get_token(&c));
+#endif
 
     else if(strcmp(token, "clksrc") == 0) clksrc(get_token(&c));
 

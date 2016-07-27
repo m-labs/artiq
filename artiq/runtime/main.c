@@ -231,10 +231,14 @@ static void blink_led(void)
     long long int t;
 
     for(i=0;i<3;i++) {
+#ifdef CSR_LEDS_BASE
         leds_out_write(1);
+#endif
         t = clock_get_ms();
         while(clock_get_ms() < t + 250);
+#ifdef CSR_LEDS_BASE
         leds_out_write(0);
+#endif
         t = clock_get_ms();
         while(clock_get_ms() < t + 250);
     }
