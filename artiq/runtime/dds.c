@@ -1,6 +1,6 @@
 #include <generated/csr.h>
 
-#if ((defined RTIO_DDS_COUNT) && (RTIO_DDS_COUNT > 0))
+#if ((defined CONFIG_RTIO_DDS_COUNT) && (CONFIG_RTIO_DDS_COUNT > 0))
 
 #include <stdio.h>
 
@@ -225,4 +225,4 @@ void dds_set(long long int timestamp, int bus_channel, int channel,
     }
 }
 
-#endif /* RTIO_DDS_COUNT */
+#endif /* CONFIG_RTIO_DDS_COUNT */

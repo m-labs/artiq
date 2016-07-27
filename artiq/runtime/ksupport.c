@@ -119,7 +119,7 @@ static const struct symbol runtime_exports[] = {
     {"rtio_input_timestamp", &rtio_input_timestamp},
     {"rtio_input_data", &rtio_input_data},
 
-#if ((defined RTIO_DDS_COUNT) && (RTIO_DDS_COUNT > 0))
+#if ((defined CONFIG_RTIO_DDS_COUNT) && (CONFIG_RTIO_DDS_COUNT > 0))
     {"dds_init", &dds_init},
     {"dds_batch_enter", &dds_batch_enter},
     {"dds_batch_exit", &dds_batch_exit},

@@ -5,7 +5,7 @@
 #include <generated/csr.h>
 #include <generated/mem.h>
 
-#if ((defined RTIO_DDS_COUNT) && (RTIO_DDS_COUNT > 0))
+#if ((defined CONFIG_RTIO_DDS_COUNT) && (CONFIG_RTIO_DDS_COUNT > 0))
 
 /* Maximum number of commands in a batch */
 #define DDS_MAX_BATCH 16
@@ -62,6 +62,6 @@ void dds_batch_exit(void);
 void dds_set(long long int timestamp, int bus_channel, int channel,
     unsigned int ftw, unsigned int pow, int phase_mode, unsigned int amplitude);
 
-#endif /* RTIO_DDS_COUNT */
+#endif /* CONFIG_RTIO_DDS_COUNT */
 
 #endif /* __DDS_H */
