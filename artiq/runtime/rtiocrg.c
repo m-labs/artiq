@@ -42,9 +42,9 @@ int rtiocrg_check(void)
 
 int rtiocrg_switch_clock(int clk)
 {
+#ifdef CSR_RTIO_CRG_BASE
     int current_clk;
 
-#ifdef CSR_RTIO_CRG_BASE
     current_clk = rtio_crg_clock_sel_read();
     if(clk == current_clk) {
 #ifdef CSR_RTIO_CRG_PLL_RESET_ADDR
