@@ -303,9 +303,6 @@ class SPIMaster(Module):
         data_write = Signal.like(spi.reg.data)
 
         self.comb += [
-            bus.dat_r.eq(
-                Array([data_read, xfer.raw_bits(), config.raw_bits()
-                       ])[bus.adr]),
             spi.start.eq(pending & (~spi.cs | spi.done)),
             spi.clk_phase.eq(config.clk_phase),
             spi.reg.lsb.eq(config.lsb_first),
@@ -330,6 +327,11 @@ class SPIMaster(Module):
             # d) writing to data register and pending and swapping buffers
             bus.ack.eq(bus.cyc & bus.stb &
                        (~bus.we | (bus.adr != 0) | ~pending | spi.done)),
+            If(bus.cyc & bus.stb,
+                bus.dat_r.eq(
+                    Array([data_read, xfer.raw_bits(), config.raw_bits()
+                           ])[bus.adr]),
+            ),
             If(bus.ack,
                 bus.ack.eq(0),
                 If(bus.we,
