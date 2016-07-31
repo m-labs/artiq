@@ -120,7 +120,7 @@ class FilesDock(QtWidgets.QDockWidget):
     dataset_changed = QtCore.pyqtSignal(str)
     metadata_changed = QtCore.pyqtSignal(dict)
 
-    def __init__(self, datasets, browse_root="", restore_selection=True):
+    def __init__(self, datasets, browse_root=""):
         QtWidgets.QDockWidget.__init__(self, "Files")
         self.setObjectName("Files")
         self.setFeatures(self.DockWidgetMovable | self.DockWidgetFloatable)
@@ -160,8 +160,6 @@ class FilesDock(QtWidgets.QDockWidget):
             self.list_current_changed)
         self.rl.activated.connect(self.list_activated)
         self.splitter.addWidget(self.rl)
-
-        self.restore_selection = restore_selection
 
     def tree_current_changed(self, current, previous):
         idx = self.rt.model().mapToSource(current)
@@ -213,9 +211,11 @@ class FilesDock(QtWidgets.QDockWidget):
 
     def select_dir(self, path):
         if not os.path.exists(path):
+            logger.warning("directory does not exist %s", path)
             return
         idx = self.model.index(path)
         if not idx.isValid():
+            logger.warning("directory invalid %s", path)
             return
         self.rl.setRootIndex(idx)
 
@@ -237,22 +237,29 @@ class FilesDock(QtWidgets.QDockWidget):
 
     def select_file(self, path):
         if not os.path.exists(path):
+            logger.warning("file does not exist %s", path)
             return
         self.select_dir(os.path.dirname(path))
         idx = self.model.index(path)
         if not idx.isValid():
+            logger.warning("file invalid %s", path)
             return
         self.rl.setCurrentIndex(idx)
 
     def save_state(self):
-        return {
+        state = {
             "dir": self.model.filePath(self.rl.rootIndex()),
-            "file": self.model.filePath(self.rl.currentIndex()),
             "splitter": bytes(self.splitter.saveState()),
         }
+        idx = self.rl.currentIndex()
+        if idx.isValid():
+            state["file"] = self.model.filePath(idx)
+        else:
+            state["file"] = None
+        return state
 
     def restore_state(self, state):
-        if self.restore_selection:
-            self.select_dir(state["dir"])
-            self.select_file(state["file"])
         self.splitter.restoreState(QtCore.QByteArray(state["splitter"]))
+        self.select_dir(state["dir"])
+        if state["file"] is not None:
+            self.select_file(state["file"])
