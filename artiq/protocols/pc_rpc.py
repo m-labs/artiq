@@ -94,6 +94,8 @@ class Client:
         in the middle of a RPC can break subsequent RPCs (from the same
         client).
     """
+    kernel_invariants = set()
+
     def __init__(self, host, port, target_name=AutoTarget, timeout=None):
         self.__socket = socket.create_connection((host, port), timeout)
 
@@ -185,6 +187,8 @@ class AsyncioClient:
     Concurrent access from different asyncio tasks is supported; all calls
     use a single lock.
     """
+    kernel_invariants = set()
+
     def __init__(self):
         self.__lock = asyncio.Lock()
         self.__reader = None
@@ -288,6 +292,8 @@ class BestEffortClient:
     :param retry: Amount of time to wait between retries when reconnecting
         in the background.
     """
+    kernel_invariants = set()
+
     def __init__(self, host, port, target_name,
                  firstcon_timeout=1.0, retry=5.0):
         self.__host = host
