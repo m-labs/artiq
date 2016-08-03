@@ -442,7 +442,7 @@ class LLVMIRGenerator:
                     print(typ)
                     assert False
 
-                if not (types.is_function(typ) or types.is_method(typ) or
+                if not (types.is_function(typ) or types.is_method(typ) or types.is_rpc(typ) or
                         name == "__objectid__"):
                     rpctag   = b"Os" + self._rpc_tag(typ, error_handler=rpc_tag_error) + b":n\x00"
                     llrpctag = self.llstr_of_str(rpctag)
