@@ -12,9 +12,12 @@ A number of Python features can be used inside a kernel for compilation and exec
 * 32-bit signed integers (default size)
 * 64-bit signed integers (use ``int(n, width=64)`` to convert)
 * Double-precision floating point numbers
-* Lists of the above types.
+* Lists of any supported types
+* User-defined classes, with attributes of any supported types (attributes that are not used anywhere in the kernel are ignored)
 
 For a demonstration of some of these features, see the ``mandelbrot.py`` example.
+
+When several instances of a user-defined class are referenced from the same kernel, every attribute must have the same type in every instance of the class.
 
 Remote procedure calls
 ----------------------
