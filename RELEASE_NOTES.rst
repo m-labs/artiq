@@ -46,6 +46,9 @@ unreleased [2.x]
   Windows 7.
 * The position of the time cursor is kept across experiments and RTIO resets
   are manual and explicit (inter-experiment seamless handover).
+* All integers manipulated by kernels are numpy integers (numpy.int32,
+  numpy.int64). If you pass an integer as a RPC argument, the target function
+  receives a numpy type.
 
 
 1.2
