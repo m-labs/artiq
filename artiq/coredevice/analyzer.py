@@ -109,8 +109,8 @@ class VCDManager:
         self.codes = vcd_codes()
         self.current_time = None
 
-    def set_timescale_ns(self, timescale):
-        self.out.write("$timescale {}ns $end\n".format(timescale))
+    def set_timescale_ps(self, timescale):
+        self.out.write("$timescale {}ps $end\n".format(round(timescale)))
 
     def get_channel(self, name, width):
         code = next(self.codes)
@@ -367,7 +367,7 @@ def decoded_dump_to_vcd(fileobj, devices, dump):
     vcd_manager = VCDManager(fileobj)
     ref_period = get_ref_period(devices)
     if ref_period is not None:
-        vcd_manager.set_timescale_ns(ref_period*1e9)
+        vcd_manager.set_timescale_ps(ref_period*1e12)
     else:
         logger.warning("unable to determine core device ref_period")
         ref_period = 1e-9  # guess
