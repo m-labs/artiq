@@ -3,12 +3,15 @@ import asyncio
 import sys
 import string
 import shlex
+import os
+import subprocess
 from functools import partial
 from itertools import count
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 from artiq.protocols.pipe_ipc import AsyncioParentComm
+from artiq.protocols.logging import LogParser
 from artiq.protocols import pyon
 from artiq.gui.tools import QDockWidgetCloseDetect
 
@@ -106,6 +109,9 @@ class _AppletDock(QDockWidgetCloseDetect):
         self.applet_name = name
         self.setWindowTitle("Applet: " + name)
 
+    def _get_log_source(self):
+        return "applet({})".format(self.applet_name)
+
     async def start(self):
         if self.starting_stopping:
             return
@@ -121,12 +127,22 @@ class _AppletDock(QDockWidgetCloseDetect):
                 ipc_address=self.ipc.get_address().replace("\\", "\\\\")
             )
             logger.debug("starting command %s for %s", command, self.applet_name)
+            env = os.environ.copy()
+            env["PYTHONUNBUFFERED"] = "1"
             try:
-                await self.ipc.create_subprocess(*shlex.split(command),
-                                                 start_new_session=True)
+                await self.ipc.create_subprocess(
+                    *shlex.split(command),
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    env=env, start_new_session=True)
             except:
                 logger.warning("Applet %s failed to start", self.applet_name,
                                exc_info=True)
+            asyncio.ensure_future(
+                LogParser(self._get_log_source).stream_task(
+                    self.ipc.process.stdout))
+            asyncio.ensure_future(
+                LogParser(self._get_log_source).stream_task(
+                    self.ipc.process.stderr))
             self.ipc.start(self.embed, self.fix_initial_size)
         finally:
             self.starting_stopping = False
