@@ -184,18 +184,24 @@ class _RangeScan(LayoutWidget):
         def update_start(value):
             state["start"] = value*scale
             scanner.setStart(value)
+            if start.value() != value:
+                start.setValue(value)
 
         def update_stop(value):
             state["stop"] = value*scale
             scanner.setStop(value)
+            if stop.value() != value:
+                stop.setValue(value)
 
         def update_npoints(value):
             state["npoints"] = value
             scanner.setNum(value)
+            if npoints.value() != value:
+                npoints.setValue(value)
 
-        scanner.startChanged.connect(start.setValue)
-        scanner.numChanged.connect(npoints.setValue)
-        scanner.stopChanged.connect(stop.setValue)
+        scanner.startChanged.connect(update_start)
+        scanner.numChanged.connect(update_npoints)
+        scanner.stopChanged.connect(update_stop)
         start.valueChanged.connect(update_start)
         npoints.valueChanged.connect(update_npoints)
         stop.valueChanged.connect(update_stop)
