@@ -12,8 +12,7 @@ import numpy as np
 from artiq.language.environment import is_experiment
 from artiq.protocols import pyon
 from artiq.appdirs import user_config_dir
-from artiq._version import get_versions
-artiq_version = get_versions()['version']
+from artiq import __version__ as artiq_version
 
 
 __all__ = ["parse_arguments", "elide", "short_format", "file_import",
