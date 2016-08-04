@@ -1,5 +1,4 @@
 import importlib.machinery
-import linecache
 import logging
 import sys
 import asyncio
@@ -74,8 +73,6 @@ def short_format(v):
 
 
 def file_import(filename, prefix="file_import_"):
-    linecache.checkcache(filename)
-
     modname = filename
     i = modname.rfind("/")
     if i > 0:
