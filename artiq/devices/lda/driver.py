@@ -73,7 +73,7 @@ class Lda:
     or by installing the libhidapi-libusb0 binary package on Debian-like OS.
 
     On Windows you should put hidapi.dll shared library in the
-    artiq\/devices\/lda folder.
+    artiq\\\\devices\\\\lda folder.
 
     """
     _vendor_id = 0x041f
