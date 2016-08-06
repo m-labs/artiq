@@ -16,6 +16,7 @@ from artiq.language.environment import (is_experiment, TraceArgumentManager,
                                         ProcessArgumentManager)
 from artiq.language.core import set_watchdog_factory, TerminationRequested
 from artiq.language.types import TBool
+from artiq.compiler import import_cache
 from artiq.coredevice.core import CompileError, host_only, _render_diagnostic
 from artiq import __version__ as artiq_version
 
@@ -190,6 +191,8 @@ def main():
     device_mgr = DeviceManager(ParentDeviceDB,
                                virtual_devices={"scheduler": Scheduler()})
     dataset_mgr = DatasetManager(ParentDatasetDB)
+
+    import_cache.install_hook()
 
     try:
         while True:

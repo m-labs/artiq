@@ -19,6 +19,7 @@ from artiq.master.worker_db import DeviceManager, DatasetManager
 from artiq.coredevice.core import CompileError, host_only
 from artiq.compiler.embedding import EmbeddingMap
 from artiq.compiler.targets import OR1KTarget
+from artiq.compiler import import_cache
 from artiq.tools import *
 
 
@@ -158,6 +159,7 @@ def _build_experiment(device_mgr, dataset_mgr, args):
         elif is_bc:
             return LLVMBitcodeRunner(device_mgr, dataset_mgr, file=args.file)
         else:
+            import_cache.install_hook()
             module = file_import(args.file, prefix="artiq_run_")
         file = args.file
     else:

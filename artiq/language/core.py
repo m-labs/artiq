@@ -43,6 +43,9 @@ def kernel(arg=None, flags={}):
 
     The decorator takes an optional parameter that defaults to ``core`` and
     specifies the name of the attribute to use as core device driver.
+
+    This decorator must be present in the global namespace of all modules using
+    it for the import cache to work properly.
     """
     if isinstance(arg, str):
         def inner_decorator(function):
@@ -70,6 +73,9 @@ def portable(arg=None, flags={}):
     host will be executed on the host (no compilation and execution on the
     core device). A decorated function called from a kernel will be executed
     on the core device (no RPC).
+
+    This decorator must be present in the global namespace of all modules using
+    it for the import cache to work properly.
     """
     if arg is None:
         def inner_decorator(function):
