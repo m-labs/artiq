@@ -275,7 +275,21 @@ class _CompleterDelegate(QtWidgets.QStyledItemDelegate):
             QtWidgets.QCompleter.CaseSensitivelySortedModel)
         completer.setCompletionRole(QtCore.Qt.DisplayRole)
         if hasattr(self, "model"):
-            completer.setModel(self.model)
+            # "TODO: Optimize updates in the source model"
+            #    - Qt (qcompleter.cpp), never ceasing to disappoint.
+            # HACK:
+            # In the meantime, block dataChanged signals from the model.
+            # dataChanged never changes the content of the QCompleter in our
+            # case, but causes unnecessary flickering and trashing of the user
+            # selection when datasets are modified due to Qt's naive handler.
+            # Doing this is of course convoluted due to Qt's arrogance
+            # about private fields and not letting users knows what
+            # slots are connected to signals, but thanks to the complicated
+            # model system there is a short dirty hack in this particular case.
+            nodatachanged_model = QtCore.QIdentityProxyModel()
+            nodatachanged_model.setSourceModel(self.model)
+            completer.setModel(nodatachanged_model)
+            nodatachanged_model.dataChanged.disconnect()
         return _AutoCompleteEdit(parent, completer)
 
     def set_model(self, model):
