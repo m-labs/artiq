@@ -307,8 +307,14 @@ class ASTTypedRewriter(algorithm.Transformer):
             self.in_class = old_in_class
 
     def visit_arg(self, node):
+        if node.annotation is not None:
+            diag = diagnostic.Diagnostic("fatal",
+                "type annotations are not supported here", {},
+                node.annotation.loc)
+            self.engine.process(diag)
+
         return asttyped.argT(type=self._find_name(node.arg, node.loc),
-                             arg=node.arg, annotation=self.visit(node.annotation),
+                             arg=node.arg, annotation=None,
                              arg_loc=node.arg_loc, colon_loc=node.colon_loc, loc=node.loc)
 
     def visit_Num(self, node):

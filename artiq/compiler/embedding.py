@@ -415,6 +415,53 @@ class StitchingASTTypedRewriter(ASTTypedRewriter):
         self.host_environment = host_environment
         self.quote = quote
 
+    def match_annotation(self, annot):
+        if isinstance(annot, ast.Name):
+            if annot.id == "TNone":
+                return builtins.TNone()
+            if annot.id == "TBool":
+                return builtins.TBool()
+            if annot.id == "TInt32":
+                return builtins.TInt(types.TValue(32))
+            if annot.id == "TInt64":
+                return builtins.TInt(types.TValue(64))
+            if annot.id == "TFloat":
+                return builtins.TFloat()
+            if annot.id == "TStr":
+                return builtins.TStr()
+            if annot.id == "TRange32":
+                return builtins.TRange(builtins.TInt(types.TValue(32)))
+            if annot.id == "TRange64":
+                return builtins.TRange(builtins.TInt(types.TValue(64)))
+            if annot.id == "TVar":
+                return types.TVar()
+        elif (isinstance(annot, ast.Call) and
+              annot.keywords is None and
+              annot.starargs is None and
+              annot.kwargs is None and
+              isinstance(annot.func, ast.Name)):
+            if annot.func.id == "TList" and len(annot.args) == 1:
+                elttyp = self.match_annotation(annot.args[0])
+                if elttyp is not None:
+                    return builtins.TList()
+                else:
+                    return None
+
+        if annot is not None:
+            diag = diagnostic.Diagnostic("error",
+                "unrecognized type annotation", {},
+                annot.loc)
+            self.engine.process(diag)
+
+    def visit_arg(self, node):
+        typ = self._find_name(node.arg, node.loc)
+        annottyp = self.match_annotation(node.annotation)
+        if annottyp is not None:
+            typ.unify(annottyp)
+        return asttyped.argT(type=typ,
+                             arg=node.arg, annotation=None,
+                             arg_loc=node.arg_loc, colon_loc=node.colon_loc, loc=node.loc)
+
     def visit_quoted_function(self, node, function):
         extractor = LocalExtractor(env_stack=self.env_stack, engine=self.engine)
         extractor.visit(node)

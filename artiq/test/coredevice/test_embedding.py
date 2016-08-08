@@ -137,6 +137,21 @@ class RPCTest(ExperimentCase):
         exp.builtin()
 
 
+class _Annotation(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+
+    @kernel
+    def overflow(self, x: TInt64) -> TBool:
+        return (x << 32) != 0
+
+
+class AnnotationTest(ExperimentCase):
+    def test_annotation(self):
+        exp = self.create(_Annotation)
+        self.assertEqual(exp.overflow(1), True)
+
+
 class _Payload1MB(EnvExperiment):
     def build(self):
         self.setattr_device("core")
