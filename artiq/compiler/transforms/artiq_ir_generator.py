@@ -478,8 +478,12 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
     def iterable_len(self, value, typ=_size_type):
         if builtins.is_listish(value.type):
+            if isinstance(value, ir.Constant):
+                name = None
+            else:
+                name = "{}.len".format(value.name)
             return self.append(ir.Builtin("len", [value], typ,
-                                          name="{}.len".format(value.name)))
+                                          name=name))
         elif builtins.is_range(value.type):
             start  = self.append(ir.GetAttr(value, "start"))
             stop   = self.append(ir.GetAttr(value, "stop"))
@@ -1313,7 +1317,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     loc=node.right.loc)
 
             return self.append(ir.Arith(node.op, lhs, rhs))
-        elif isinstance(node.op, ast.Add): # list + list, tuple + tuple
+        elif isinstance(node.op, ast.Add): # list + list, tuple + tuple, str + str
             lhs, rhs = self.visit(node.left), self.visit(node.right)
             if types.is_tuple(node.left.type) and types.is_tuple(node.right.type):
                 elts = []
@@ -1327,6 +1331,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 rhs_length = self.iterable_len(rhs)
 
                 result_length = self.append(ir.Arith(ast.Add(loc=None), lhs_length, rhs_length))
+                if builtins.is_str(node.left.type):
+                    result_last   = result_length
+                    result_length = self.append(ir.Arith(ast.Add(loc=None), result_length,
+                                                         ir.Constant(1, self._size_type)))
                 result = self.append(ir.Alloc([result_length], node.type))
 
                 # Copy lhs
@@ -1349,6 +1357,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self._make_loop(ir.Constant(0, self._size_type),
                     lambda index: self.append(ir.Compare(ast.Lt(loc=None), index, rhs_length)),
                     body_gen)
+
+                if builtins.is_str(node.left.type):
+                    self.append(ir.SetElem(result, result_last,
+                                           ir.Constant(0, builtins.TInt(types.TValue(8)))))
 
                 return result
             else:

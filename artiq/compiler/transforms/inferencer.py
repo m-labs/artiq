@@ -394,6 +394,10 @@ class Inferencer(algorithm.Visitor):
                     self._unify(left.type, right.type,
                                 left.loc, right.loc)
                     return left.type, left.type, right.type
+            elif builtins.is_str(left.type) or builtins.is_str(right.type):
+                self._unify(left.type, right.type,
+                            left.loc, right.loc)
+                return left.type, left.type, right.type
             else:
                 return self._coerce_numeric((left, right), lambda typ: (typ, typ, typ))
         elif isinstance(op, ast.Mult):

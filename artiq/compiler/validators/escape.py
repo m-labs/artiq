@@ -351,6 +351,6 @@ class EscapeValidator(algorithm.Visitor):
                 {"type": types.TypePrinter().name(node.value.type)},
                 node.value.loc)
             diag = diagnostic.Diagnostic("error",
-                "cannot return a mutable value that does not live forever", {},
+                "cannot return an allocated value that does not live forever", {},
                 node.value.loc, notes=self._diagnostics_for(region, node.value.loc) + [note])
             self.engine.process(diag)

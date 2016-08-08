@@ -260,7 +260,7 @@ def is_array(typ, elt=None):
         return types.is_mono(typ, "array")
 
 def is_listish(typ, elt=None):
-    return is_list(typ, elt) or is_array(typ, elt)
+    return is_list(typ, elt) or is_array(typ, elt) or (elt is None and is_str(typ))
 
 def is_range(typ, elt=None):
     if elt is not None:
@@ -283,6 +283,10 @@ def is_iterable(typ):
 def get_iterable_elt(typ):
     if is_iterable(typ):
         return typ.find()["elt"].find()
+    elif is_str(typ):
+        return TInt(types.TValue(8))
+    else:
+        assert False
 
 def is_collection(typ):
     typ = typ.find()

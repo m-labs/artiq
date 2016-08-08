@@ -344,6 +344,8 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(llvoid, [self.llty_of_type(builtins.TException())])
         elif name == "__artiq_reraise":
             llty = ll.FunctionType(llvoid, [])
+        elif name == "strlen":
+            llty = ll.FunctionType(lli32, [llptr])
         elif name == "strcmp":
             llty = ll.FunctionType(lli32, [llptr, llptr])
         elif name == "send_rpc":
@@ -610,6 +612,10 @@ class LLVMIRGenerator:
                                                    name=insn.name)
             else:
                 assert False
+        elif builtins.is_str(insn.type):
+            llsize = self.map(insn.operands[0])
+            llvalue = self.llbuilder.alloca(lli8, size=llsize)
+            return llvalue
         elif builtins.is_listish(insn.type):
             llsize = self.map(insn.operands[0])
             llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
@@ -818,18 +824,27 @@ class LLVMIRGenerator:
             return self.llbuilder.store(llvalue, llptr)
 
     def process_GetElem(self, insn):
-        llelts = self.llbuilder.extract_value(self.map(insn.list()), 1)
-        llelt = self.llbuilder.gep(llelts, [self.map(insn.index())],
-                                   inbounds=True)
-        llvalue = self.llbuilder.load(llelt)
+        lst, idx = insn.list(), insn.index()
+        lllst, llidx = map(self.map, (lst, idx))
+        if builtins.is_str(lst.type):
+            llelt = self.llbuilder.gep(lllst, [llidx], inbounds=True)
+            llvalue = self.llbuilder.load(llelt)
+        else:
+            llelts = self.llbuilder.extract_value(lllst, 1)
+            llelt = self.llbuilder.gep(llelts, [llidx], inbounds=True)
+            llvalue = self.llbuilder.load(llelt)
         if isinstance(llvalue.type, ll.PointerType):
             self.mark_dereferenceable(llvalue)
         return llvalue
 
     def process_SetElem(self, insn):
-        llelts = self.llbuilder.extract_value(self.map(insn.list()), 1)
-        llelt = self.llbuilder.gep(llelts, [self.map(insn.index())],
-                                   inbounds=True)
+        lst, idx = insn.list(), insn.index()
+        lllst, llidx = map(self.map, (lst, idx))
+        if builtins.is_str(lst.type):
+            llelt = self.llbuilder.gep(lllst, [llidx], inbounds=True)
+        else:
+            llelts = self.llbuilder.extract_value(lllst, 1)
+            llelt = self.llbuilder.gep(llelts, [llidx], inbounds=True)
         return self.llbuilder.store(self.map(insn.value()), llelt)
 
     def process_Coerce(self, insn):
@@ -1045,8 +1060,11 @@ class LLVMIRGenerator:
             env, = insn.operands
             return get_outer(self.map(env), env.type)
         elif insn.op == "len":
-            lst, = insn.operands
-            return self.llbuilder.extract_value(self.map(lst), 0)
+            collection, = insn.operands
+            if builtins.is_str(collection.type):
+                return self.llbuilder.call(self.llbuiltin("strlen"), [self.map(collection)])
+            else:
+                return self.llbuilder.extract_value(self.map(collection), 0)
         elif insn.op in ("printf", "rtio_log"):
             # We only get integers, floats, pointers and strings here.
             llargs = map(self.map, insn.operands)
