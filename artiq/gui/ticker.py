@@ -96,13 +96,15 @@ class Ticker:
         """
         # this is after the matplotlib ScalarFormatter
         # without any i18n
-        significand, exponent = "{:1.10e}".format(v).split("e")
-        significand = significand.rstrip("0").rstrip(".")
-        exponent_sign = exponent[0].replace("+", "")
+        v = "{:.15e}".format(v)
+        if "e" not in v:
+            return v  # short number, inf, NaN, -inf
+        mantissa, exponent = v.split("e")
+        mantissa = mantissa.rstrip("0").rstrip(".")
+        exponent_sign = exponent[0].lstrip("+")
         exponent = exponent[1:].lstrip("0")
-        s = "{:s}e{:s}{:s}".format(significand, exponent_sign,
-                                   exponent).rstrip("e")
-        return self.fix_minus(s)
+        return "{:s}e{:s}{:s}".format(mantissa, exponent_sign,
+                                      exponent).rstrip("e")
 
     def prefix(self, offset, magnitude):
         """
@@ -115,7 +117,7 @@ class Ticker:
             prefix += self.compact_exponential(offset) + " + "
         if magnitude != 1.:
             prefix += self.compact_exponential(magnitude) + " × "
-        return prefix
+        return self.fix_minus(prefix)
 
     def __call__(self, a, b):
         """
