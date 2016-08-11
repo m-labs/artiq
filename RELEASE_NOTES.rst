@@ -50,6 +50,11 @@ unreleased [2.x]
   numpy.int64). If you pass an integer as a RPC argument, the target function
   receives a numpy type.
 
+1.3
+---
+
+No further notes.
+
 
 1.2
 ---
