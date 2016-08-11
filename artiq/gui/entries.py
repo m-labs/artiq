@@ -179,7 +179,11 @@ class _RangeScan(LayoutWidget):
         self.addWidget(stop, 2, 1)
 
         apply_properties(start)
+        start.setPrecision()
+        start.setRelativeStep()
         apply_properties(stop)
+        stop.setPrecision()
+        stop.setRelativeStep()
         apply_properties(scanner)
 
         def update_start(value):
