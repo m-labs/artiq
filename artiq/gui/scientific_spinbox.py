@@ -1,71 +1,74 @@
 import re
-from PyQt5 import QtGui, QtWidgets
-
-# after
-# http://jdreaver.com/posts/2014-07-28-scientific-notation-spin-box-pyside.html
+from math import inf, copysign
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-_inf = float("inf")
-# Regular expression to find floats. Match groups are the whole string, the
-# whole coefficient, the decimal part of the coefficient, and the exponent
-# part.
-_float_re = re.compile(r"(([+-]?\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?)")
-
-
-def valid_float_string(string):
-    match = _float_re.search(string)
-    if match:
-        return match.groups()[0] == string
-    return False
-
-
-class FloatValidator(QtGui.QValidator):
-    def validate(self, string, position):
-        if valid_float_string(string):
-            return self.Acceptable, string, position
-        if string == "" or string[position-1] in "eE.-+":
-            return self.Intermediate, string, position
-        return self.Invalid, string, position
-
-    def fixup(self, text):
-        match = _float_re.search(text)
-        if match:
-            return match.groups()[0]
-        return ""
+_float_acceptable = re.compile(
+    r"([-+]?\d*(?:\d|\.\d|\d\.)\d*)(?:[eE]([-+]?\d+))?",
+)
+_float_intermediate = re.compile(
+    r"[-+]?\d*\.?\d*(?:(?:(?<=\d)|(?<=\d\.))[eE][-+]?\d*)?",
+)
+_exp_shorten = re.compile(r"e\+?0*")
 
 
 class ScientificSpinBox(QtWidgets.QDoubleSpinBox):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.setMinimum(-_inf)
-        self.setMaximum(_inf)
-        self.validator = FloatValidator()
-        self.setDecimals(20)
+        self.setGroupSeparatorShown(False)
+        self.setInputMethodHints(QtCore.Qt.ImhNone)
+        self.setCorrectionMode(self.CorrectToPreviousValue)
+        # singleStep: resolution for step, buttons, accelerators
+        # decimals: absolute rounding granularity
+        # precision: number of significant digits shown, %g precision
+        self.setPrecision()
+        self.setRelativeStep()
+        self.setRange(-inf, inf)
+        self.setValue(0)
+        # self.setKeyboardTracking(False)
 
-    def validate(self, text, position):
-        return self.validator.validate(text, position)
+    def setPrecision(self, d=None):
+        if d is None:
+            d = self.decimals() + 3
+        self._precision = max(1, int(d))
+        self._fmt = "{{:.{}g}}".format(self._precision)
 
-    def fixup(self, text):
-        return self.validator.fixup(text)
+    def precision(self):
+        return self._precision
+
+    def setRelativeStep(self, s=None):
+        if s is None:
+            s = 1 + self.singleStep()
+        self._relative_step = max(1 + 10**-self.decimals(), float(s))
+
+    def relativeStep(self):
+        return self._relative_step
+
+    def setGroupSeparatorShown(self, s):
+        if s:
+            raise NotImplementedError
+
+    def textFromValue(self, v):
+        t = self._fmt.format(v)
+        t = re.sub(_exp_shorten, "e", t, 1)
+        return t
 
     def valueFromText(self, text):
-        return float(text)
+        return round(float(text), self.decimals())
 
-    def textFromValue(self, value):
-        return format_float(value)
+    def validate(self, text, pos):
+        try:
+            float(text)  # faster than matching
+            return QtGui.QValidator.Acceptable, text, pos
+        except ValueError:
+            if re.fullmatch(_float_intermediate, text):
+                return QtGui.QValidator.Intermediate, text, pos
+            return QtGui.QValidator.Invalid, text, pos
 
-    def stepBy(self, steps):
-        text = self.cleanText()
-        groups = _float_re.search(text).groups()
-        decimal = float(groups[1])
-        decimal += steps
-        new_string = "{:g}".format(decimal) + (groups[3] if groups[3] else "")
-        self.lineEdit().setText(new_string)
-
-
-def format_float(value):
-    """Modified form of the 'g' format specifier."""
-    string = "{:g}".format(value)
-    string = string.replace("e+", "e")
-    string = re.sub("e(-?)0*(\d+)", r"e\1\2", string)
-    return string
+    def stepBy(self, s):
+        if abs(s) < 10:  # unaccelerated buttons, keys, wheel/trackpad
+            super().stepBy(s)
+        else:  # accelerated PageUp/Down or CTRL-wheel
+            v = self.value()
+            v *= self._relative_step**(s/copysign(10., v))
+            self.setValue(v)
