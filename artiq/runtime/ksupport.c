@@ -121,6 +121,7 @@ static const struct symbol runtime_exports[] = {
 
 #if ((defined CONFIG_RTIO_DDS_COUNT) && (CONFIG_RTIO_DDS_COUNT > 0))
     {"dds_init", &dds_init},
+    {"dds_init_sync", &dds_init_sync},
     {"dds_batch_enter", &dds_batch_enter},
     {"dds_batch_exit", &dds_batch_exit},
     {"dds_set", &dds_set},

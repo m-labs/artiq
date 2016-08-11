@@ -22,6 +22,7 @@
 #define DURATION_DAC_CAL (147000 << CONFIG_RTIO_FINE_TS_WIDTH)
 /* not counting final FUD */
 #define DURATION_INIT (8*DURATION_WRITE + DURATION_DAC_CAL)
+#define DURATION_INIT_SYNC (16*DURATION_WRITE + 2*DURATION_DAC_CAL)
 #define DURATION_PROGRAM (6*DURATION_WRITE) /* not counting FUD */
 
 #else
@@ -79,6 +80,41 @@ void dds_init(long long int timestamp, int bus_channel, int channel)
     DDS_WRITE(DDS_FUD, 0);
     now += DURATION_DAC_CAL;
     DDS_WRITE(DDS_CFR4H, 0x0005); /* Disable DAC calibration */
+    DDS_WRITE(DDS_FUD, 0);
+#endif
+}
+
+void dds_init_sync(long long int timestamp, int bus_channel, int channel, int sync_delay)
+{
+    long long int now;
+
+    now = timestamp - DURATION_INIT_SYNC;
+
+#ifdef CONFIG_DDS_ONEHOT_SEL
+    channel = 1 << channel;
+#endif
+    channel <<= 1;
+    DDS_WRITE(DDS_GPIO, channel);
+
+#ifdef CONFIG_DDS_AD9914
+    DDS_WRITE(DDS_CFR4H, 0x0105); /* Enable DAC calibration */
+    DDS_WRITE(DDS_FUD, 0);
+    now += DURATION_DAC_CAL;
+    DDS_WRITE(DDS_CFR4H, 0x0005); /* Disable DAC calibration */
+    DDS_WRITE(DDS_FUD, 0);
+    DDS_WRITE(DDS_CFR2L, 0x8b00); /* Enable matched latency and sync_out*/
+    DDS_WRITE(DDS_FUD, 0);
+    /* Set cal with sync and set sync_out and sync_in delay */
+    DDS_WRITE(DDS_USR0, 0x0840 | (sync_delay & 0x3f));
+    DDS_WRITE(DDS_FUD, 0);
+    DDS_WRITE(DDS_CFR4H, 0x0105); /* Enable DAC calibration */
+    DDS_WRITE(DDS_FUD, 0);
+    now += DURATION_DAC_CAL;
+    DDS_WRITE(DDS_CFR4H, 0x0005); /* Disable DAC calibration */
+    DDS_WRITE(DDS_FUD, 0);
+    DDS_WRITE(DDS_CFR1H, 0x0000); /* Enable cosine output */
+    DDS_WRITE(DDS_CFR2H, 0x0080); /* Enable profile mode */
+    DDS_WRITE(DDS_ASF, 0x0fff); /* Set amplitude to maximum */
     DDS_WRITE(DDS_FUD, 0);
 #endif
 }
