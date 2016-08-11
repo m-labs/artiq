@@ -151,7 +151,13 @@ Modify the ``run()`` method of the experiment as follows: ::
 
 .. note:: You need to import the ``time`` module, and the ``numpy`` module as ``np``.
 
-Commit, push and submit the experiment as before. While it is running, go to the "Datasets" dock of the GUI and create a new XY plot showing the new result (you need to edit the applet command line so that it retrieves the ``parabola`` dataset). Observe how the points are added one by one to the plot.
+Commit, push and submit the experiment as before. Go to the "Datasets" dock of the GUI and observe that a new dataset has been created. We will now create a new XY plot showing this new result.
+
+Plotting in the ARTIQ dashboard is achieved by programs called "applets". Applets are independent programs that add simple GUI features and are run as separate processes (to achieve goals of modularity and resilience against poorly written applets). Users may write their own applets, or use those supplied with ARTIQ (in the ``artiq.applets`` module) that cover basic plotting.
+
+Applets are configured through their command line to select parameters such as the names of the datasets to plot. The list of command-line options can be retrieved using the ``-h`` option; for example you can run ``python3.5 -m artiq.applets.plot_xy -h`` in a terminal.
+
+In our case, create a new applet from the XY template by right-clicking on the applet list, and edit the applet command line so that it retrieves the ``parabola`` dataset. Run the experiment again, and observe how the points are added one by one to the plot.
 
 After the experiment has finished executing, the results are written to a HDF5 file that resides in ``~/artiq-master/results/<date>/<hour>-<minute>``. Open that file with HDFView or h5dump, and observe the data we just generated as well as the Git commit ID of the experiment (a hexadecimal hash such as ``947acb1f90ae1b8862efb489a9cc29f7d4e0c645`` that represents the data at a particular time in the Git repository). The list of Git commit IDs can be found using the ``git log`` command in ``~/artiq-work``.
 
