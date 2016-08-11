@@ -69,14 +69,16 @@ class EnumerationEntry(QtWidgets.QComboBox):
             return procdesc["choices"][0]
 
 
-class NumberEntry(QtWidgets.QDoubleSpinBox):
+class NumberEntry(ScientificSpinBox):
     def __init__(self, argument):
-        QtWidgets.QDoubleSpinBox.__init__(self)
+        ScientificSpinBox.__init__(self)
         disable_scroll_wheel(self)
         procdesc = argument["desc"]
         scale = procdesc["scale"]
         self.setDecimals(procdesc["ndecimals"])
+        self.setPrecision()
         self.setSingleStep(procdesc["step"]/scale)
+        self.setRelativeStep()
         if procdesc["min"] is not None:
             self.setMinimum(procdesc["min"]/scale)
         else:
@@ -110,9 +112,10 @@ class _NoScan(LayoutWidget):
         LayoutWidget.__init__(self)
 
         scale = procdesc["scale"]
-        self.value = QtWidgets.QDoubleSpinBox()
+        self.value = ScientificSpinBox()
         disable_scroll_wheel(self.value)
         self.value.setDecimals(procdesc["ndecimals"])
+        self.value.setPrecision()
         if procdesc["global_min"] is not None:
             self.value.setMinimum(procdesc["global_min"]/scale)
         else:
@@ -122,6 +125,7 @@ class _NoScan(LayoutWidget):
         else:
             self.value.setMaximum(float("inf"))
         self.value.setSingleStep(procdesc["global_step"]/scale)
+        self.value.setRelativeStep()
         if procdesc["unit"]:
             self.value.setSuffix(" " + procdesc["unit"])
         self.addWidget(QtWidgets.QLabel("Value:"), 0, 0)
