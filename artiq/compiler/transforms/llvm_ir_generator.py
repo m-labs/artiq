@@ -36,15 +36,8 @@ def memoize(generator):
 class DebugInfoEmitter:
     def __init__(self, llmodule):
         self.llmodule = llmodule
-        self.llcompileunit = None
+        self.llsubprograms = []
         self.cache = {}
-
-        llident = self.llmodule.add_named_metadata('llvm.ident')
-        llident.add(self.emit_metadata(["ARTIQ"]))
-
-        llflags = self.llmodule.add_named_metadata('llvm.module.flags')
-        llflags.add(self.emit_metadata([2, "Debug Info Version", 3]))
-        llflags.add(self.emit_metadata([2, "Dwarf Version", 4]))
 
     def emit_metadata(self, operands):
         def map_operand(operand):
@@ -73,13 +66,14 @@ class DebugInfoEmitter:
         })
 
     @memoize
-    def emit_compile_unit(self, source_buffer):
+    def emit_compile_unit(self, source_buffer, llsubprograms):
         return self.emit_debug_info("DICompileUnit", {
             "language":        ll.DIToken("DW_LANG_Python"),
             "file":            self.emit_file(source_buffer),
             "producer":        "ARTIQ",
             "runtimeVersion":  0,
             "emissionKind":    2, # full=1, lines only=2
+            "subprograms":     self.emit_metadata(llsubprograms)
         }, is_distinct=True)
 
     @memoize
@@ -91,26 +85,21 @@ class DebugInfoEmitter:
     @memoize
     def emit_subprogram(self, func, llfunc):
         source_buffer = func.loc.source_buffer
-
-        if self.llcompileunit is None:
-            self.llcompileunit = self.emit_compile_unit(source_buffer)
-            llcompileunits = self.llmodule.add_named_metadata('llvm.dbg.cu')
-            llcompileunits.add(self.llcompileunit)
-
         display_name = "{}{}".format(func.name, types.TypePrinter().name(func.type))
-        return self.emit_debug_info("DISubprogram", {
+        llsubprogram = self.emit_debug_info("DISubprogram", {
             "name":            func.name,
             "linkageName":     llfunc.name,
             "type":            self.emit_subroutine_type(func.type),
             "file":            self.emit_file(source_buffer),
             "line":            func.loc.line(),
-            "unit":            self.llcompileunit,
             "scope":           self.emit_file(source_buffer),
             "scopeLine":       func.loc.line(),
             "isLocal":         func.is_internal,
             "isDefinition":    True,
             "variables":       self.emit_metadata([])
         }, is_distinct=True)
+        self.llsubprograms.append(llsubprogram)
+        return llsubprogram
 
     @memoize
     def emit_loc(self, loc, scope):
@@ -119,6 +108,18 @@ class DebugInfoEmitter:
             "column":          loc.column(),
             "scope":           scope
         })
+
+    def finalize(self, source_buffer):
+        llident = self.llmodule.add_named_metadata('llvm.ident')
+        llident.add(self.emit_metadata(["ARTIQ"]))
+
+        llflags = self.llmodule.add_named_metadata('llvm.module.flags')
+        llflags.add(self.emit_metadata([2, "Debug Info Version", 3]))
+        llflags.add(self.emit_metadata([2, "Dwarf Version", 4]))
+
+        llcompile_units = self.llmodule.add_named_metadata('llvm.dbg.cu')
+        llcompile_units.add(self.emit_compile_unit(source_buffer, tuple(self.llsubprograms)))
+
 
 class LLVMIRGenerator:
     def __init__(self, engine, module_name, target, embedding_map):
@@ -405,6 +406,9 @@ class LLVMIRGenerator:
     def process(self, functions, attribute_writeback):
         for func in functions:
             self.process_function(func)
+
+        if any(functions):
+            self.debug_info_emitter.finalize(functions[0].loc.source_buffer)
 
         if attribute_writeback and self.embedding_map is not None:
             self.emit_attribute_writeback()

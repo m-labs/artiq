@@ -86,11 +86,14 @@ class Target:
         llmachine = lltarget.create_target_machine(
                         features=",".join(["+{}".format(f) for f in self.features]),
                         reloc="pic", codemodel="default")
-        llmachine.set_asm_verbosity(True)
+        llmachine.set_verbose(True)
         return llmachine
 
     def optimize(self, llmodule):
+        llmachine = self.target_machine()
         llpassmgr = llvm.create_module_pass_manager()
+        llmachine.target_data.add_pass(llpassmgr)
+        llmachine.add_analysis_passes(llpassmgr)
 
         # Register our alias analysis passes.
         llpassmgr.add_basic_alias_analysis_pass()
