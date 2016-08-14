@@ -61,3 +61,21 @@ async def get_open_file_name(parent, caption, dir, filter):
     dialog.rejected.connect(fut.cancel)
     dialog.open()
     return await fut
+
+
+# Based on:
+# http://stackoverflow.com/questions/250890/using-qsortfilterproxymodel-with-a-tree-model
+class QRecursiveFilterProxyModel(QtCore.QSortFilterProxyModel):
+    def filterAcceptsRow(self, source_row, source_parent):
+        regexp = self.filterRegExp()
+        if not regexp.isEmpty():
+            source_index = self.sourceModel().index(
+                source_row, self.filterKeyColumn(), source_parent)
+            if source_index.isValid():
+                for i in range(self.sourceModel().rowCount(source_index)):
+                    if self.filterAcceptsRow(i, source_index):
+                        return True
+                key = self.sourceModel().data(source_index, self.filterRole())
+                return regexp.indexIn(key) != -1
+        return QtCore.QSortFilterProxyModel.filterAcceptsRow(
+            self, source_row, source_parent)

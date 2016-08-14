@@ -4,7 +4,7 @@ import asyncio
 from PyQt5 import QtCore, QtWidgets
 
 from artiq.tools import short_format
-from artiq.gui.tools import LayoutWidget
+from artiq.gui.tools import LayoutWidget, QRecursiveFilterProxyModel
 from artiq.gui.models import DictSyncTreeSepModel
 from artiq.protocols.pc_rpc import AsyncioClient as RPCClient
 
@@ -77,7 +77,7 @@ class DatasetsDock(QtWidgets.QDockWidget):
 
     def set_model(self, model):
         self.table_model = model
-        self.table_model_filter = QtCore.QSortFilterProxyModel()
+        self.table_model_filter = QRecursiveFilterProxyModel()
         self.table_model_filter.setSourceModel(self.table_model)
         self.table.setModel(self.table_model_filter)
 
