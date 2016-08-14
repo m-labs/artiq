@@ -54,14 +54,24 @@ class ScientificSpinBox(QtWidgets.QDoubleSpinBox):
         return t
 
     def valueFromText(self, text):
-        return round(float(text), self.decimals())
+        clean = text
+        if self.prefix():
+            clean = clean.split(self.prefix(), 1)[-1]
+        if self.suffix():
+            clean = clean.rsplit(self.suffix(), 1)[0]
+        return round(float(clean), self.decimals())
 
     def validate(self, text, pos):
+        clean = text
+        if self.prefix():
+            clean = clean.split(self.prefix(), 1)[-1]
+        if self.suffix():
+            clean = clean.rsplit(self.suffix(), 1)[0]
         try:
-            float(text)  # faster than matching
+            float(clean)  # faster than matching
             return QtGui.QValidator.Acceptable, text, pos
         except ValueError:
-            if re.fullmatch(_float_intermediate, text):
+            if re.fullmatch(_float_intermediate, clean):
                 return QtGui.QValidator.Intermediate, text, pos
             return QtGui.QValidator.Invalid, text, pos
 
