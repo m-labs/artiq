@@ -110,6 +110,16 @@ class _Model(QtCore.QAbstractItemModel):
         else:
             return QtCore.QModelIndex()
 
+    def full_entry(self, index):
+        if not index.isValid():
+            return
+        item = index.internalPointer()
+        if item.parent is self:
+            msgnum = item.row
+        else:
+            msgnum = item.parent.row
+        return self.entries[msgnum][3]
+
     def data(self, index, role):
         if not index.isValid():
             return
@@ -197,7 +207,6 @@ class LogDock(QDockWidgetCloseDetect):
         grid.layout.setColumnStretch(2, 1)
 
         self.log = QtWidgets.QTreeView()
-        self.log.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
         self.log.setHorizontalScrollMode(
             QtWidgets.QAbstractItemView.ScrollPerPixel)
         self.log.setVerticalScrollMode(
@@ -207,9 +216,16 @@ class LogDock(QDockWidgetCloseDetect):
         self.scroll_at_bottom = False
         self.scroll_value = 0
 
+        self.log.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        copy_action = QtWidgets.QAction("Copy entry to clipboard", self.log)
+        copy_action.triggered.connect(self.copy_to_clipboard)
+        self.log.addAction(copy_action)
+        clear_action = QtWidgets.QAction("Clear", self.log)
+        clear_action.triggered.connect(lambda: self.model.clear())
+        self.log.addAction(clear_action)
+
         # If Qt worked correctly, this would be nice to have. Alas, resizeSections
         # is broken when the horizontal scrollbar is enabled.
-        # self.log.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         # sizeheader_action = QtWidgets.QAction("Resize header", self.log)
         # sizeheader_action.triggered.connect(
         #     lambda: self.log.header().resizeSections(QtWidgets.QHeaderView.ResizeToContents))
@@ -266,6 +282,12 @@ class LogDock(QDockWidgetCloseDetect):
         else:
             scrollbar = self.log.verticalScrollBar()
             scrollbar.setValue(self.scroll_value)
+
+    def copy_to_clipboard(self):
+        idx = self.log.selectedIndexes()
+        if idx:
+            entry = "\n".join(self.model.full_entry(idx[0]))
+            QtWidgets.QApplication.clipboard().setText(entry)
 
     def save_state(self):
         return {
