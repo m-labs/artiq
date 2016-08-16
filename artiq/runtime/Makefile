@@ -33,12 +33,12 @@ runtime.elf: $(OBJECTS)
 		-N -o $@ \
 		../libbase/crt0-$(CPU).o \
 		$(OBJECTS) \
-		-L../libcompiler_rt \
+		-L../libcompiler-rt \
 		-L../libbase \
 		-L../libm \
 		-L../liballoc \
 		-L../liblwip \
-		-lbase -lm -lcompiler_rt -lalloc -llwip
+		-lbase -lm -lcompiler-rt -lalloc -llwip
 	@chmod -x $@
 
 ksupport.elf: $(OBJECTS_KSUPPORT)
@@ -49,10 +49,10 @@ ksupport.elf: $(OBJECTS_KSUPPORT)
 		../libbase/crt0-$(CPU).o \
 		$^ \
 		-L../libbase \
-		-L../libcompiler_rt \
+		-L../libcompiler-rt \
 		-L../libunwind \
 		-L../libdyld \
-		-lbase-nofloat -lcompiler_rt -ldyld -lunwind
+		-lbase-nofloat -lcompiler-rt -ldyld -lunwind
 	@chmod -x $@
 
 ksupport_data.o: ksupport.elf
