@@ -233,6 +233,7 @@ class AD9914(_DDSGeneric):
         sequentially with a delay between the calls. 10ms provides a good
         timing margin.
 
-        :param sync_delay: integer from 0 to 0x3f that sets value of
-        SYNC_OUT (bits 3-5) and SYNC_IN (bits 0-2) delay ADJ bits."""
+        :param sync_delay: integer from 0 to 0x3f that sets the value of
+            SYNC_OUT (bits 3-5) and SYNC_IN (bits 0-2) delay ADJ bits.
+        """
         dds_init_sync(now_mu(), self.bus_channel, self.channel, sync_delay)
