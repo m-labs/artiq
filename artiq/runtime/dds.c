@@ -86,6 +86,7 @@ void dds_init(long long int timestamp, int bus_channel, int channel)
 
 void dds_init_sync(long long int timestamp, int bus_channel, int channel, int sync_delay)
 {
+#ifdef CONFIG_DDS_AD9914
     long long int now;
 
     now = timestamp - DURATION_INIT_SYNC;
@@ -96,7 +97,6 @@ void dds_init_sync(long long int timestamp, int bus_channel, int channel, int sy
     channel <<= 1;
     DDS_WRITE(DDS_GPIO, channel);
 
-#ifdef CONFIG_DDS_AD9914
     DDS_WRITE(DDS_CFR4H, 0x0105); /* Enable DAC calibration */
     DDS_WRITE(DDS_FUD, 0);
     now += DURATION_DAC_CAL;
