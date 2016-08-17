@@ -47,9 +47,9 @@ class StubEmbeddingMap:
 
 
 class FileRunner(EnvExperiment):
-    def build(self):
+    def build(self, file):
         self.setattr_device("core")
-        self.setattr_argument("file")
+        self.file = file
         self.target = OR1KTarget()
 
     def run(self):
@@ -58,7 +58,8 @@ class FileRunner(EnvExperiment):
         self.core.comm.load(kernel_library)
         self.core.comm.run()
         self.core.comm.serve(StubEmbeddingMap(),
-            lambda addresses: self.target.symbolize(kernel_library, addresses))
+            lambda addresses: self.target.symbolize(kernel_library, addresses), \
+            lambda symbols: self.target.demangle(symbols))
 
 
 class ELFRunner(FileRunner):
@@ -142,6 +143,9 @@ def get_argparser(with_file=True):
 
 
 def _build_experiment(device_mgr, dataset_mgr, args):
+    arguments = parse_arguments(args.arguments)
+    argument_mgr = ProcessArgumentManager(arguments)
+    managers = (device_mgr, dataset_mgr, argument_mgr)
     if hasattr(args, "file"):
         is_elf = args.file.endswith(".elf")
         is_ll  = args.file.endswith(".ll")
@@ -153,11 +157,11 @@ def _build_experiment(device_mgr, dataset_mgr, args):
                 raise ValueError("experiment-by-name not supported "
                                  "for precompiled kernels")
         if is_elf:
-            return ELFRunner(device_mgr, dataset_mgr, file=args.file)
+            return ELFRunner(managers, file=args.file)
         elif is_ll:
-            return LLVMIRRunner(device_mgr, dataset_mgr, file=args.file)
+            return LLVMIRRunner(managers, file=args.file)
         elif is_bc:
-            return LLVMBitcodeRunner(device_mgr, dataset_mgr, file=args.file)
+            return LLVMBitcodeRunner(managers, file=args.file)
         else:
             import_cache.install_hook()
             module = file_import(args.file, prefix="artiq_run_")
@@ -165,16 +169,13 @@ def _build_experiment(device_mgr, dataset_mgr, args):
     else:
         module = sys.modules["__main__"]
         file = getattr(module, "__file__")
-    exp = get_experiment(module, args.experiment)
-    arguments = parse_arguments(args.arguments)
     expid = {
         "file": file,
         "experiment": args.experiment,
         "arguments": arguments
     }
     device_mgr.virtual_devices["scheduler"].expid = expid
-    argument_mgr = ProcessArgumentManager(arguments)
-    return exp((device_mgr, dataset_mgr, argument_mgr))
+    return get_experiment(module, args.experiment)(managers)
 
 
 def run(with_file=False):
