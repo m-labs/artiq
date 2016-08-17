@@ -1,0 +1,18 @@
+[root]
+name = "runtime"
+version = "0.0.0"
+dependencies = [
+ "std_artiq 0.0.0",
+]
+
+[[package]]
+name = "alloc_artiq"
+version = "0.0.0"
+
+[[package]]
+name = "std_artiq"
+version = "0.0.0"
+dependencies = [
+ "alloc_artiq 0.0.0",
+]
+

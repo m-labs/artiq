@@ -1,0 +1,8 @@
+[package]
+authors = ["The ARTIQ Project Developers"]
+name = "alloc_artiq"
+version = "0.0.0"
+
+[lib]
+name = "alloc_artiq"
+path = "lib.rs"
