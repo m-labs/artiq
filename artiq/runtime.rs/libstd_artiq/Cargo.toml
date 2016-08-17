@@ -1,0 +1,11 @@
+[package]
+authors = ["The ARTIQ Project Developers"]
+name = "std_artiq"
+version = "0.0.0"
+
+[lib]
+name = "std_artiq"
+path = "lib.rs"
+
+[dependencies]
+alloc_artiq = { path = "../liballoc_artiq" }

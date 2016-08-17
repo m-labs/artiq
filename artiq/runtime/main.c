@@ -262,6 +262,8 @@ static int check_test_mode(void)
 
 extern void _fheap, _eheap;
 
+extern void rust_main();
+
 int main(void)
 {
     irq_setmask(0);
@@ -275,6 +277,9 @@ int main(void)
     rtiocrg_init();
     puts("Press 't' to enter test mode...");
     blink_led();
+
+    puts("Calling Rust...");
+    rust_main();
 
     if(check_test_mode()) {
         puts("Entering test mode.");

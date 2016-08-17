@@ -1,0 +1,16 @@
+[package]
+authors = ["The ARTIQ Project Developers"]
+name = "runtime"
+version = "0.0.0"
+
+[lib]
+name = "artiq_rust"
+crate-type = ["staticlib"]
+path = "src/lib.rs"
+
+[dependencies]
+std_artiq = { path = "libstd_artiq" }
+
+[profile.dev]
+panic = 'abort'
+opt-level = 2

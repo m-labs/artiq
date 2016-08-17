@@ -171,7 +171,7 @@ class Target:
                 as results:
             library = results["output"].read()
 
-            _dump(os.getenv("ARTIQ_DUMP_ELF"), "Shared library", ".so",
+            _dump(os.getenv("ARTIQ_DUMP_ELF"), "Shared library", ".elf",
                   lambda: library)
 
             return library
