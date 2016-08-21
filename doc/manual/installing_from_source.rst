@@ -30,9 +30,10 @@ and the ARTIQ kernels.
 * Install OpenRISC binutils (or1k-linux-...): ::
 
         $ cd ~/artiq-dev
-        $ wget https://ftp.gnu.org/gnu/binutils/binutils-2.26.tar.bz2
-        $ tar xvf binutils-2.26.tar.bz2
-        $ cd binutils-2.26
+        $ wget https://ftp.gnu.org/gnu/binutils/binutils-2.27.tar.bz2
+        $ tar xvf binutils-2.27.tar.bz2
+        $ cd binutils-2.27
+        $ curl -L 'https://github.com/m-labs/conda-recipes/blob/ece4cefbcce5548c5bd7fd4740d71ecd6930065e/conda/binutils-or1k-linux/fix-R_OR1K_GOTOFF-relocations.patch' | patch -p1
 
         $ mkdir build
         $ cd build
