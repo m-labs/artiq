@@ -14,6 +14,10 @@ These steps are required to generate code that can run on the core
 device. They are necessary both for building the MiSoC BIOS
 and the ARTIQ kernels.
 
+* Install required host packages: ::
+
+        $ sudo apt-get install python3.5 pip3 build-essential cmake cargo
+
 * Create a development directory: ::
 
         $ mkdir ~/artiq-dev
@@ -43,9 +47,11 @@ and the ARTIQ kernels.
 * Install LLVM and Clang: ::
 
         $ cd ~/artiq-dev
-        $ git clone https://github.com/openrisc/llvm-or1k
+        $ git clone https://github.com/m-labs/llvm-or1k
+        $ git checkout artiq-3.8
         $ cd llvm-or1k/tools
-        $ git clone https://github.com/openrisc/clang-or1k clang
+        $ git clone https://github.com/m-labs/clang-or1k clang
+        $ git checkout artiq-3.8
         $ cd ..
 
         $ mkdir build
@@ -54,8 +60,25 @@ and the ARTIQ kernels.
         $ make -j4
         $ sudo make install
 
+* Install Rust: ::
+
+        $ cd ~/artiq-dev
+        $ git clone https://github.com/m-labs/rust
+        $ git checkout artiq
+        $ mkdir build
+        $ cd build
+        $ ../configure --prefix=/usr/local/rust-or1k --llvm-root=/usr/local/llvm-or1k/bin/llvm-config --disable-manage-submodules
+        $ sudo make install -j4
+        $ libs="libcore liballoc librustc_unicode libcollections liblibc_mini libunwind libpanic_unwind"
+
+        $ mkdir ../build-or1k
+        $ cd ../build-or1k
+        $ for lib in ${libs}; do /usr/local/rust-or1k/bin/rustc src/${lib}/lib.rs; done
+        $ /usr/local/rust-or1k/bin/rustc -Cpanic=abort src/libpanic_abort/lib.rs
+        $ sudo cp * /usr/local/rust-or1k/lib/rustlib/or1k-unknown-none/lib/
+
 .. note::
-    Compilation of LLVM can take more than 30 min on some machines.
+    Compilation of LLVM can take more than 30 min on some machines. Compilation of Rust can take more than two hours.
 
 Preparing the core device FPGA board
 ------------------------------------
@@ -209,6 +232,10 @@ Installing the host-side software
     On Ubuntu 15.04 and 15.10::
 
         $ python3.5 `which pip3` install --user pygit2==0.22.1
+
+    On Ubuntu 16.04::
+
+        $ python3.5 `which pip3` install --user pygit2==0.24.1
 
     The rationale behind this is that pygit2 and libgit2 must have the same
     major.minor version numbers.
