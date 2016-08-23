@@ -10,6 +10,7 @@ Contents:
     installing
     installing_from_source
     release_notes
+    rtio
     getting_started_core
     compiler
     getting_started_mgmt
