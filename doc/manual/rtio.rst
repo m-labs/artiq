@@ -40,7 +40,7 @@ When computing the difference of absolute timestamps, use ``mu_to_seconds(t2-t1)
 When accumulating time, do it in machine units and not in SI units, so that rounding errors do not accumulate.
 
 The following basic example shows how to place output events on the timeline.
-It emits a precisely timed 2 µs pulse:::
+It emits a precisely timed 2 µs pulse::
 
   ttl.on()
   delay(2*us)
@@ -62,9 +62,9 @@ The following diagram shows what is going on at the different levels of the soft
       {},
       {name: 'slack', wave: 'x2x.2x', data: ['4400', '5800']},
       {},
-      {name: 'rtio_counter', wave: 'x2x|2x|2x2x', data: ['2600', '3200', '7000', '9000'], node: '        V.W'},
-      {name: 'ttl', wave: 'x1.0', node: ' R.S', phase: -7.5},
-      {                           node: ' T.U', phase: -7.5}
+      {name: 'rtio_counter', wave: 'x2x|2x|2x2x', data: ['2600', '3200', '7000', '9000'], node: '       V.W'},
+      {name: 'ttl', wave: 'x1.0', node: ' R.S', phase: -6.5},
+      {                           node: ' T.U', phase: -6.5}
     ],
     edge: [
       'A~>R', 'P~>R', 'V~>R', 'B~>S', 'Q~>S', 'W~>S',
@@ -72,7 +72,7 @@ The following diagram shows what is going on at the different levels of the soft
     ],
   }
 
-The sequence is exactly equivalent to:::
+The sequence is exactly equivalent to::
 
   ttl.pulse(2*us)
 
@@ -85,7 +85,7 @@ An RTIO event must always be programmed with a timestamp in the future.
 In other words, the timeline cursor ``now`` must be after the current wall clock ``rtio_counter``: the past can not be altered.
 The following example tries to place an rising edge event on the timeline.
 If the current cursor is in the past, an :class:`artiq.coredevice.exceptions.RTIOUnderflow` exception is thrown.
-The experiment attempts to handle the exception by moving the cursor forward and repeating the programming of the rising edge.::
+The experiment attempts to handle the exception by moving the cursor forward and repeating the programming of the rising edge::
 
   try:
       ttl.on()
@@ -122,7 +122,7 @@ Input channels and events
 
 Input channels detect events, timestamp them, and place them in a buffer for the experiment to read out.
 The following example counts the rising edges occurring during a precisely timed 500 ns interval.
-If more than 20 rising edges were received it outputs a pulse.::
+If more than 20 rising edges were received it outputs a pulse::
 
   input.gate_rising(500*ns)
   if input.count() > 20:
@@ -136,12 +136,12 @@ In these situations where ``count()`` leads to a synchronization of timeline cur
 .. wavedrom::
   {
     signal: [
-      {name: 'kernel', wave: '3..5|..2.3..x..', data: ['gate_rising()', 'count()', 'delay()', 'pulse()'], node: '.A.B...C.ZD.E'},
-      {name: 'now_mu', wave: '2.2.|....2.2.', node: '.P.Q.....XV.W'},
+      {name: 'kernel', wave: '3..5.|2.3..x..', data: ['gate_rising()', 'count()', 'delay()', 'pulse()'], node: '.A.B..C.ZD.E'},
+      {name: 'now_mu', wave: '2.2..|..2.2.', node: '.P.Q....XV.W'},
       {},
       {},
-      {name: 'input gate', wave: 'x1.0', node: '.T.U', phase: -3.5},
-      {name: 'output', wave: 'x1.0', node: '.R.S', phase: -11.5}
+      {name: 'input gate', wave: 'x1.0', node: '.T.U', phase: -2.5},
+      {name: 'output', wave: 'x1.0', node: '.R.S', phase: -10.5}
     ],
     edge: [
       'A~>T', 'P~>T', 'B~>U', 'Q~>U', 'U~>C', 'D~>R', 'E~>S', 'V~>R', 'W~>S'
@@ -160,7 +160,7 @@ Seamless handover
 -----------------
 
 The timeline cursor persists across kernel invocations.
-This is demonstrated in the following example where a pulse is split across two kernels:::
+This is demonstrated in the following example where a pulse is split across two kernels::
 
   def run():
     k1()
@@ -181,12 +181,12 @@ Here, ``run()`` calls ``k1()`` which exits leaving the cursor one second after t
   {
     signal: [
       {name: 'kernel', wave: '3.2..2..|3.', data: ['k1: on()', 'k1: delay(dt)', 'k1->k2 swap', 'k2: off()'], node: '..A........B'},
-      {name: 'now', wave: '2....2...|.', data: ['t0', 't0+dt'], node: '..P........Q'},
+      {name: 'now', wave: '2....2...|.', data: ['t', 't+dt'], node: '..P........Q'},
       {},
       {},
-      {name: 'rtio_counter', wave: 'x.........|2x|2', data: ['t0', 't0+dt'], node: '...........V..W'},
-      {name: 'ttl', wave: 'x1..0', node: '.R..S', phase: -10.5},
-      {                            node: ' T..U', phase: -10.5}
+      {name: 'rtio_counter', wave: 'x......|2xx|2', data: ['t', 't+dt'], node: '........V...W'},
+      {name: 'ttl', wave: 'x1...0', node: '.R...S', phase: -7.5},
+      {                             node: ' T...U', phase: -7.5}
     ],
     edge: [
       'A~>R', 'P~>R', 'V~>R', 'B~>S', 'Q~>S', 'W~>S',
