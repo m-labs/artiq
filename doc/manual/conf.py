@@ -53,7 +53,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinxarg.ext',
-    'sphinxcontrib.wavedrom',
+    'sphinxcontrib.wavedrom',  # see also below for config
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -291,3 +291,7 @@ texinfo_documents = [
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 #texinfo_no_detailmenu = False
+
+# -- Options for sphinxcontrib-wavedrom -----------------------------------
+offline_skin_js_path = 'static/default.js'
+offline_wavedrom_js_path = 'static/WaveDrom.js'

@@ -71,8 +71,6 @@ The following diagram shows what is going on at the different levels of the soft
     ],
   }
 
-
-
 The sequence is exactly equivalent to:::
 
   ttl.pulse(2*us)
