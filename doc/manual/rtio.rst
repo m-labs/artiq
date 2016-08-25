@@ -52,7 +52,7 @@ The :meth:`artiq.coredevice.ttl.TTLOut.on` method places an rising edge on the t
 Then the cursor is moved forward 2 µs and a falling edge event is placed at the new cursor position.
 Then later, when the wall clock reaches the respective timestamps the RTIO gateware executes the two events.
 
-The following diagram shows what is going on at the different levels of the software and gateware stack:
+The following diagram shows what is going on at the different levels of the software and gateware stack (assuming one machine unit of time is 1 ns):
 
 .. wavedrom::
   {
@@ -144,13 +144,33 @@ This is demonstrated in the following example where a pulse is split across two 
 
 ``kernel1()`` exits leaving the cursor one second after the rising edge and ``kernel2()`` then submits a falling edge at that position.
 
-RTIO reset
------------
+Synchronization
+---------------
 
 The seamless handover of the timeline (cursor and events) across kernels and experiments implies that a kernel can exit long before the events it has submitted have been executed.
 If a previous kernel sets timeline cursor far in the future this effectively locks the system.
-It also means that a kernel is not guaranteed to always be executed with positive slack.
+When a kernel should wait until all the events on a particular channel have been executed, use the :meth:`artiq.coredevice.ttl.TTLOut.sync` method of a channel:
 
+.. wavedrom::
+  {
+    signal: [
+      {name: 'kernel', wave: 'x2x.|2.|x', data: ['on()', 'sync()'], node: '..A.....Y'},
+      {name: 'now_mu', wave: '2..', data: ['7000'], node: '..P'},
+      {},
+      {},
+      {name: 'rtio_counter', wave: 'x2x.|..2x', data: ['2000', '7000'], node: '   ....V'},
+      {name: 'ttl', wave: 'x1', node: ' R', phase: -6.5},
+    ],
+    edge: [
+          'A~>R', 'P~>R', 'V~>R', 'V~>Y'
+    ],
+  }
+
+RTIO reset
+-----------
+
+The seamless handover also means that a kernel is not guaranteed to always be executed with positive slack.
+An experiment can face any of these circumstances (large positive slack, full FIFOs, or negative slack).
 Therefore, when switching experiments it can be adequate to clear the RTIO FIFOs and initialize the timeline cursor to "sometime in the near future" using :meth:`artiq.coredevice.core.Core.reset`.
 The example idle kernel implements this mechanism.
 Since it never waits for any input, it will rapidly fill the output FIFOs and would produce a large positive slack.
