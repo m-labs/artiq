@@ -132,5 +132,6 @@ If a previous kernel sets timeline cursor far in the future this effectively loc
 It also means that a kernel is not guaranteed to always be executed with positive slack.
 
 Therefore, when switching experiments it can be adequate to clear the RTIO FIFOs and initialize the timeline cursor to "sometime in the near future" using :meth:`artiq.coredevice.core.Core.reset`.
-
-To accommodate for seamless handover the idle kernel is is only executed when no other experiment is pending and when there is significant negative slack.
+The example idle kernel implements this mechanism.
+Since it never waits for any input, it will rapidly fill the output FIFOs and would produce a large positive slack.
+To avoid large positive slack and to accommodate for seamless handover the idle kernel will only run when no other experiment is pending and the example will wait before submitting events until there is significant negative slack.
