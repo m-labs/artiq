@@ -1,0 +1,14 @@
+{% extends "!layout.html" %}
+
+{# since sphinx_rtd_theme moves scripts to the end, hook up WaveDrom again #}
+{%- block footer %}
+{{ super() }}
+<script>(function(){
+	window.addEventListener(
+			"load",
+			(function(){ try {
+				WaveDrom.ProcessAll();
+			} catch(e) {} }),
+			false);
+})();</script>
+{% endblock %}
