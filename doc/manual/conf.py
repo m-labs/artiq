@@ -16,6 +16,7 @@
 import sys
 import os
 
+import sphinx_rtd_theme
 from unittest.mock import MagicMock
 
 
@@ -124,24 +125,18 @@ pygments_style = 'sphinx'
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'classic'
+html_theme = 'sphinx_rtd_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-	'sidebarbgcolor': '#171814',
-	'sidebarlinkcolor': '#7389ae',
-	'sidebartextcolor': '#b3b3bb',
-	'footerbgcolor': '#171814',
-	'footertextcolor': '#b3b3bb',
-	'relbarbgcolor': '#171814',
-	'relbarlinkcolor': '#7389ae',
-	'relbartextcolor': '#b3b3bb',
+  'analytics_id': 'UA-75602447-2',
 }
 
 # Add any paths that contain custom themes here, relative to this directory.
 #html_theme_path = []
+html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
@@ -152,7 +147,7 @@ html_theme_options = {
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = "../logo/artiq_white.png"
+html_logo = '../logo/artiq_white.png'
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -293,5 +288,5 @@ texinfo_documents = [
 #texinfo_no_detailmenu = False
 
 # -- Options for sphinxcontrib-wavedrom -----------------------------------
-offline_skin_js_path = 'static/default.js'
-offline_wavedrom_js_path = 'static/WaveDrom.js'
+offline_skin_js_path = '_static/default.js'
+offline_wavedrom_js_path = '_static/WaveDrom.js'
