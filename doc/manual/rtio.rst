@@ -93,6 +93,23 @@ The experiment attempts to handle the exception by moving the cursor forward and
       delay(16.6667*ms)
       ttl.on()
 
+.. wavedrom::
+  {
+    signal: [
+      {name: 'kernel', wave: 'x34..2.3x', data: ['on()', 'RTIOUnderflow', 'delay(dt)', 'on()'], node: '..AB....C', phase: -3},
+      {name: 'now_mu', wave: '2.....2', data: ['t0', 't0+dt'], node: '.D.....E', phase: -4},
+      {},
+      {name: 'slack', wave: '2x....2', data: ['< 0', '> 0'], node: '.T', phase: -4},
+      {},
+      {name: 'rtio_counter', wave: 'x2x.........2x', data: ['t0', 't0+dt'], node: '............P'},
+      {name: 'tll', wave: 'x...........1', node: '.R..........S', phase: -.5}
+    ],
+    edge: [
+      'A-~>R forbidden', 'D-~>R', 'T-~B exception',
+      'C~>S allowed', 'E~>S', 'P~>S'
+    ]
+  }
+
 To track down ``RTIOUnderflows`` in an experiment there are a few approaches:
 
   * Exception backtraces show where underflow has occurred while executing the
