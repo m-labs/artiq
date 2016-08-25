@@ -27,6 +27,7 @@ requirements:
     - asyncserial
     - sphinx
     - sphinx-argparse
+    - sphinxcontrib-wavedrom
     - h5py
     - dateutil
     - pyqt5

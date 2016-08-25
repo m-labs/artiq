@@ -40,22 +40,44 @@ When computing the difference of absolute timestamps, use ``mu_to_seconds(t2-t1)
 When accumulating time, do it in machine units and not in SI units, so that rounding errors do not accumulate.
 
 The following basic example shows how to place output events on the timeline.
-It emits a precisely timed 10 µs pulse:::
+It emits a precisely timed 2 µs pulse:::
 
   ttl.on()
-  delay(10*us)
+  delay(2*us)
   ttl.off()
 
 The device ``ttl`` represents a single digital output channel
 (:class:`artiq.coredevice.ttl.TTLOut`).
 The :meth:`artiq.coredevice.ttl.TTLOut.on` method places an rising edge on the timeline at the current cursor position (``now``).
-Then the cursor is moved forward 10 µs and a falling edge event is placed at the new cursor position.
+Then the cursor is moved forward 2 µs and a falling edge event is placed at the new cursor position.
+Then later, when the wall clock reaches the respective timestamps the RTIO gateware executes the two events.
+
+The following diagram shows what is going on at the different levels of the software and gateware stack:
+
+.. wavedrom::
+  {
+    signal: [
+      {name: 'kernel', wave: 'x22.2x', data: ['on()', 'delay(2*us)', 'off()'], node: '..A.XB'},
+      {name: 'now_mu', wave: '2...2.', data: ['7000', '9000'], node: '..P..Q'},
+      {name: 'slack', wave: 'x2x.2x', data: ['4400', '5800']},
+      {},
+      {name: 'rtio_counter', wave: 'x2x|2x|2x2x', data: ['2600', '3200', '7000', '9000'], node: '        V.W'},
+      {name: 'ttl', wave: 'x1.0', node: ' R.S', phase: -7.5},
+      {                           node: ' T.U', phase: -7.5}
+    ],
+    edge: [
+      'A~>R', 'P~>R', 'V~>R', 'B~>S', 'Q~>S', 'W~>S',
+      'R-T', 'S-U', 'T<->U 2µs'
+    ],
+  }
+
+
+
 The sequence is exactly equivalent to:::
 
-  ttl.pulse(10*us)
+  ttl.pulse(2*us)
 
 The :meth:`artiq.coredevice.ttl.TTLOut.pulse` method advances the timeline cursor (using ``delay()``) while other methods such as :meth:`artiq.coredevice.ttl.TTLOut.on`, :meth:`artiq.coredevice.ttl.TTLOut.off`, :meth:`artiq.coredevice.dds._DDSGeneric.set`, or the ``set_*()`` methods of :class:`artiq.coredevice.spi.SPIMaster` do not. The latter are called *zero-duration* methods.
-
 
 Underflow exceptions
 --------------------
