@@ -57,9 +57,10 @@ The following diagram shows what is going on at the different levels of the soft
 .. wavedrom::
   {
     signal: [
-      {name: 'kernel', wave: 'x32.4x', data: ['on()', 'delay(2*us)', 'off()'], node: '..A.XB'},
+      {name: 'kernel', wave: 'x32.3x', data: ['on()', 'delay(2*us)', 'off()'], node: '..A.XB'},
       {name: 'now', wave: '2...2.', data: ['7000', '9000'], node: '..P..Q'},
-      {name: 'slack', wave: 'x3x.4x', data: ['4400', '5800']},
+      {},
+      {name: 'slack', wave: 'x2x.2x', data: ['4400', '5800']},
       {},
       {name: 'rtio_counter', wave: 'x2x|2x|2x2x', data: ['2600', '3200', '7000', '9000'], node: '        V.W'},
       {name: 'ttl', wave: 'x1.0', node: ' R.S', phase: -7.5},
@@ -135,7 +136,7 @@ In these situations where ``count()`` leads to a synchronization of timeline cur
 .. wavedrom::
   {
     signal: [
-      {name: 'kernel', wave: '3..4|..2.5..x..', data: ['gate_rising()', 'count()', 'delay()', 'pulse()'], node: '.A.B...C.ZD.E'},
+      {name: 'kernel', wave: '3..5|..2.3..x..', data: ['gate_rising()', 'count()', 'delay()', 'pulse()'], node: '.A.B...C.ZD.E'},
       {name: 'now_mu', wave: '2.2.|....2.2.', node: '.P.Q.....XV.W'},
       {},
       {},
@@ -179,15 +180,17 @@ Here, ``run()`` calls ``k1()`` which exits leaving the cursor one second after t
 .. wavedrom::
   {
     signal: [
-      {name: 'kernel', wave: '3.3..5..|4.', data: ['k1: on()', 'k1: delay(dt)', 'k1->k2 swap', 'k2: off()'], node: '..A........B'},
+      {name: 'kernel', wave: '3.2..2..|3.', data: ['k1: on()', 'k1: delay(dt)', 'k1->k2 swap', 'k2: off()'], node: '..A........B'},
       {name: 'now', wave: '2....2...|.', data: ['t0', 't0+dt'], node: '..P........Q'},
       {},
       {},
       {name: 'rtio_counter', wave: 'x.........|2x|2', data: ['t0', 't0+dt'], node: '...........V..W'},
       {name: 'ttl', wave: 'x1..0', node: '.R..S', phase: -10.5},
+      {                            node: ' T..U', phase: -10.5}
     ],
     edge: [
-          'A~>R', 'P~>R', 'V~>R', 'B~>S', 'Q~>S', 'W~>S'
+      'A~>R', 'P~>R', 'V~>R', 'B~>S', 'Q~>S', 'W~>S',
+      'R-T', 'S-U', 'T<->U dt'
     ],
   }
 
@@ -202,7 +205,7 @@ When a kernel should wait until all the events on a particular channel have been
 .. wavedrom::
   {
     signal: [
-      {name: 'kernel', wave: 'x3x.|2.|x', data: ['on()', 'sync()'], node: '..A.....Y'},
+      {name: 'kernel', wave: 'x3x.|5.|x', data: ['on()', 'sync()'], node: '..A.....Y'},
       {name: 'now', wave: '2..', data: ['7000'], node: '..P'},
       {},
       {},
