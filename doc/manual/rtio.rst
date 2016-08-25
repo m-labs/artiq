@@ -96,12 +96,12 @@ The experiment attempts to handle the exception by moving the cursor forward and
 .. wavedrom::
   {
     signal: [
-      {name: 'kernel', wave: 'x34..2.3x', data: ['on()', 'RTIOUnderflow', 'delay(dt)', 'on()'], node: '..AB....C', phase: -3},
-      {name: 'now_mu', wave: '2.....2', data: ['t0', 't0+dt'], node: '.D.....E', phase: -4},
+      {name: 'kernel', wave: 'x34..2.3x', data: ['on()', 'RTIOUnderflow', 'delay()', 'on()'], node: '..AB....C', phase: -3},
+      {name: 'now_mu', wave: '2.....2', data: ['t0', 't1'], node: '.D.....E', phase: -4},
       {},
       {name: 'slack', wave: '2x....2', data: ['< 0', '> 0'], node: '.T', phase: -4},
       {},
-      {name: 'rtio_counter', wave: 'x2x.........2x', data: ['t0', 't0+dt'], node: '............P'},
+      {name: 'rtio_counter', wave: 'x2x.2x....2x2', data: ['t0', '> t0', '< t1', 't1'], node: '............P'},
       {name: 'tll', wave: 'x...........1', node: '.R..........S', phase: -.5}
     ],
     edge: [
