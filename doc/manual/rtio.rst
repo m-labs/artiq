@@ -115,6 +115,21 @@ The :meth:`artiq.coredevice.ttl.TTLInOut.count` method of an input channel can l
 The :meth:`artiq.coredevice.ttl.TTLInOut.gate_rising` method leaves the timeline cursor at the closure time of the gate and ``count()`` must necessarily wait until the gate closing event has actually been executed which is sometime with ``rtio_counter > now``.
 In these situations where ``count()`` leads to a synchronization of timeline cursor and wall clock, a ``delay()`` is necessary to reestablish positive slack so that output events can be placed.
 
+.. wavedrom::
+  {
+    signal: [
+      {name: 'kernel', wave: '3..4|..2.5..x..', data: ['gate_rising()', 'count()', 'delay()', 'pulse()'], node: '.A.B...C.ZD.E'},
+      {name: 'now_mu', wave: '2.2.|....2.2.', node: '.P.Q.....XV.W'},
+      {},
+      {},
+      {name: 'input gate', wave: 'x1.0', node: '.T.U', phase: -3.5},
+      {name: 'output', wave: 'x1.0', node: '.R.S', phase: -11.5}
+    ],
+    edge: [
+      'A~>T', 'P~>T', 'B~>U', 'Q~>U', 'U~>C', 'D~>R', 'E~>S', 'V~>R', 'W~>S'
+    ]
+  }
+
 Overflow exceptions
 -------------------
 
