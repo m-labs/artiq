@@ -58,7 +58,7 @@ The following diagram shows what is going on at the different levels of the soft
   {
     signal: [
       {name: 'kernel', wave: 'x32.4x', data: ['on()', 'delay(2*us)', 'off()'], node: '..A.XB'},
-      {name: 'now_mu', wave: '2...2.', data: ['7000', '9000'], node: '..P..Q'},
+      {name: 'now', wave: '2...2.', data: ['7000', '9000'], node: '..P..Q'},
       {name: 'slack', wave: 'x3x.4x', data: ['4400', '5800']},
       {},
       {name: 'rtio_counter', wave: 'x2x|2x|2x2x', data: ['2600', '3200', '7000', '9000'], node: '        V.W'},
@@ -148,7 +148,7 @@ Here, ``run()`` calls ``k1()`` which exits leaving the cursor one second after t
   {
     signal: [
       {name: 'kernel', wave: '3.3..5..|4.', data: ['k1: on()', 'k1: delay(dt)', 'k1->k2 swap', 'k2: off()'], node: '..A........B'},
-      {name: 'now_mu', wave: '2....2...|.', data: ['t0', 't0+dt'], node: '..P........Q'},
+      {name: 'now', wave: '2....2...|.', data: ['t0', 't0+dt'], node: '..P........Q'},
       {},
       {},
       {name: 'rtio_counter', wave: 'x.........|2x|2', data: ['t0', 't0+dt'], node: '...........V..W'},
@@ -171,7 +171,7 @@ When a kernel should wait until all the events on a particular channel have been
   {
     signal: [
       {name: 'kernel', wave: 'x3x.|2.|x', data: ['on()', 'sync()'], node: '..A.....Y'},
-      {name: 'now_mu', wave: '2..', data: ['7000'], node: '..P'},
+      {name: 'now', wave: '2..', data: ['7000'], node: '..P'},
       {},
       {},
       {name: 'rtio_counter', wave: 'x2x.|..2x', data: ['2000', '7000'], node: '   ....V'},
