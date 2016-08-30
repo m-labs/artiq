@@ -26,6 +26,16 @@ SECTIONS
 		_etext = .;
 	} > runtime
 
+	/* https://sourceware.org/bugzilla/show_bug.cgi?id=20475 */
+	.got : {
+		_GLOBAL_OFFSET_TABLE_ = .;
+		*(.got)
+	} > runtime
+
+	.got.plt : {
+		*(.got.plt)
+	} > runtime
+
 	.rodata :
 	{
 		. = ALIGN(4);

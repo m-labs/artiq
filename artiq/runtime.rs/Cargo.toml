@@ -11,6 +11,11 @@ path = "src/lib.rs"
 [dependencies]
 std_artiq = { path = "libstd_artiq" }
 
+[dependencies.fringe]
+git = "https://github.com/whitequark/libfringe"
+default-features = false
+features = ["alloc"]
+
 [profile.dev]
 panic = 'abort'
 opt-level = 2
