@@ -34,6 +34,8 @@ unreleased [2.x]
   (i.e. grouping by day and then by hour, instead of by day and then by minute)
 * The ``parent`` keyword argument of ``HasEnvironment`` (and ``EnvExperiment``)
   has been replaced. Pass the parent as first argument instead.
+* During experiment examination (and a fortiori repository scan), the values of
+  all arguments are set to ``None`` regardless of any default values supplied.
 * In the dashboard's experiment windows, partial or full argument recomputation
   takes into account the repository revision field.
 * By default, ``NumberValue`` and ``Scannable`` infer the scale from the unit
