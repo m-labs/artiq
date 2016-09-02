@@ -48,7 +48,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         self.viewport().installEventFilter(_WheelFilter(self.viewport()))
 
         self._groups = dict()
-        self._arg_to_entry_widgetitem = dict()
+        self._arg_to_widgets = dict()
         self._dock = dock
 
         if not self._dock.arguments:
@@ -59,12 +59,13 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         gradient.setColorAt(1, self.palette().midlight().color())
 
         for name, argument in self._dock.arguments.items():
-            try:
-                entry = argty_to_entry[argument["desc"]["ty"]](argument)
-            except:
-                print(name, argument)
+            widgets = dict()
+            self._arg_to_widgets[name] = widgets
+
+            entry = argty_to_entry[argument["desc"]["ty"]](argument)
             widget_item = QtWidgets.QTreeWidgetItem([name])
-            self._arg_to_entry_widgetitem[name] = entry, widget_item
+            widgets["entry"] = entry
+            widgets["widget_item"] = widget_item
 
             for col in range(3):
                 widget_item.setBackground(col, gradient)
@@ -77,6 +78,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
             else:
                 self._get_group(argument["group"]).addChild(widget_item)
             fix_layout = LayoutWidget()
+            widgets["fix_layout"] = fix_layout
             fix_layout.addWidget(entry)
             self.setItemWidget(widget_item, 1, fix_layout)
 
@@ -150,12 +152,14 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         argument["desc"] = procdesc
         argument["state"] = state
 
-        old_entry, widget_item = self._arg_to_entry_widgetitem[name]
-        old_entry.deleteLater()
+        widgets = self._arg_to_widgets[name]
 
-        entry = argty_to_entry[procdesc["ty"]](argument)
-        self._arg_to_entry_widgetitem[name] = entry, widget_item
-        self.setItemWidget(widget_item, 1, entry)
+        widgets["entry"].deleteLater()
+        widgets["entry"] = argty_to_entry[procdesc["ty"]](argument)
+        widgets["fix_layout"] = LayoutWidget()
+        widgets["fix_layout"].addWidget(widgets["entry"])
+        self.setItemWidget(widgets["widget_item"], 1, widgets["fix_layout"])
+        self.updateGeometries()
 
     def save_state(self):
         expanded = []
