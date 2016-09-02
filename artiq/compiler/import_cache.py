@@ -29,7 +29,10 @@ def hook_exec_module(self, module):
         fn = module.__file__
         try:
             with tokenize.open(fn) as fp:
-                cache[fn] = fp.readlines()
+                lines = fp.readlines()
+            if lines and not lines[-1].endswith("\n"):
+                lines[-1] += "\n"
+            cache[fn] = lines
         except:
             logger.warning("failed to add '%s' to cache", fn, exc_info=True)
         else:
