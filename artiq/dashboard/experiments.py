@@ -56,7 +56,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         self.viewport().installEventFilter(_WheelFilter(self.viewport()))
 
         self._groups = dict()
-        self._arg_to_entry_widgetitem = dict()
+        self._arg_to_widgets = dict()
 
         arguments = self.manager.get_submission_arguments(self.expurl)
 
@@ -68,9 +68,13 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         gradient.setColorAt(0, self.palette().base().color())
         gradient.setColorAt(1, self.palette().midlight().color())
         for name, argument in arguments.items():
+            widgets = dict()
+            self._arg_to_widgets[name] = widgets
+
             entry = argty_to_entry[argument["desc"]["ty"]](argument)
             widget_item = QtWidgets.QTreeWidgetItem([name])
-            self._arg_to_entry_widgetitem[name] = entry, widget_item
+            widgets["entry"] = entry
+            widgets["widget_item"] = widget_item
 
             for col in range(3):
                 widget_item.setBackground(col, gradient)
@@ -83,6 +87,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
             else:
                 self._get_group(argument["group"]).addChild(widget_item)
             fix_layout = LayoutWidget()
+            widgets["fix_layout"] = fix_layout
             fix_layout.addWidget(entry)
             self.setItemWidget(widget_item, 1, fix_layout)
             recompute_argument = QtWidgets.QToolButton()
@@ -97,18 +102,20 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
             tool_buttons = LayoutWidget()
             tool_buttons.addWidget(recompute_argument, 1)
 
-            if isinstance(entry, ScanEntry):
-                disable_other_scans = QtWidgets.QToolButton()
-                disable_other_scans.setIcon(
-                    QtWidgets.QApplication.style().standardIcon(
-                        QtWidgets.QStyle.SP_DialogResetButton))
-                disable_other_scans.setToolTip("Disable all other scans in "
-                                               "this experiment")
-                disable_other_scans.clicked.connect(
-                    partial(self._disable_other_scans, name))
-                tool_buttons.layout.setRowStretch(0, 1)
-                tool_buttons.layout.setRowStretch(3, 1)
-                tool_buttons.addWidget(disable_other_scans, 2)
+            disable_other_scans = QtWidgets.QToolButton()
+            widgets["disable_other_scans"] = disable_other_scans
+            disable_other_scans.setIcon(
+                QtWidgets.QApplication.style().standardIcon(
+                    QtWidgets.QStyle.SP_DialogResetButton))
+            disable_other_scans.setToolTip("Disable all other scans in "
+                                           "this experiment")
+            disable_other_scans.clicked.connect(
+                partial(self._disable_other_scans, name))
+            tool_buttons.layout.setRowStretch(0, 1)
+            tool_buttons.layout.setRowStretch(3, 1)
+            tool_buttons.addWidget(disable_other_scans, 2)
+            if not isinstance(entry, ScanEntry):
+                disable_other_scans.setVisible(False)
 
             self.setItemWidget(widget_item, 2, tool_buttons)
 
@@ -165,16 +172,26 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         argument["desc"] = procdesc
         argument["state"] = state
 
-        old_entry, widget_item = self._arg_to_entry_widgetitem[name]
-        old_entry.deleteLater()
+        # Qt needs a setItemWidget() to handle layout correctly,
+        # simply replacing the entry inside the LayoutWidget
+        # results in a bug.
 
-        entry = argty_to_entry[procdesc["ty"]](argument)
-        self._arg_to_entry_widgetitem[name] = entry, widget_item
-        self.setItemWidget(widget_item, 1, entry)
+        widgets = self._arg_to_widgets[name]
+
+        widgets["entry"].deleteLater()
+        widgets["entry"] = argty_to_entry[procdesc["ty"]](argument)
+        widgets["disable_other_scans"].setVisible(
+            isinstance(widgets["entry"], ScanEntry))
+        widgets["fix_layout"].deleteLater()
+        widgets["fix_layout"] = LayoutWidget()
+        widgets["fix_layout"].addWidget(widgets["entry"])
+        self.setItemWidget(widgets["widget_item"], 1, widgets["fix_layout"])
+        self.updateGeometries()
 
     def _disable_other_scans(self, current_name):
-        for name, (entry, _) in self._arg_to_entry_widgetitem.items():
-            if name != current_name and isinstance(entry, ScanEntry):
+        for name, widgets in self._arg_to_widgets.items():
+            if (name != current_name
+                    and isinstance(widgets["entry"], ScanEntry)):
                 entry.disable()
 
     def save_state(self):
