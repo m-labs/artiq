@@ -606,6 +606,8 @@ class ExperimentManager:
         file, class_name, use_repository = self.resolve_expurl(expurl)
         if use_repository:
             revision = self.get_submission_options(expurl)["repo_rev"]
+        else:
+            revision = None
         description = await self.experiment_db_ctl.examine(
             file, use_repository, revision)
         return description[class_name]["arginfo"]
