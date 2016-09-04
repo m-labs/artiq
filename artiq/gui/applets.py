@@ -305,20 +305,25 @@ class AppletsDock(QtWidgets.QDockWidget):
 
         self.main_window = main_window
         self.datasets_sub = datasets_sub
-        self.dock_to_checkbox = dict()
+        self.dock_to_item = dict()
         self.applet_uids = set()
 
-        self.table = QtWidgets.QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["Enable", "Name", "Command"])
+        self.table = QtWidgets.QTreeWidget()
+        self.table.setColumnCount(3)
+        self.table.setHeaderLabels(["Enable", "Name", "Command"])
         self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.horizontalHeader().setSectionResizeMode(
+
+        self.table.header().setStretchLastSection(True)
+        self.table.header().setSectionResizeMode(
             QtWidgets.QHeaderView.ResizeToContents)
-        self.table.verticalHeader().setSectionResizeMode(
-            QtWidgets.QHeaderView.ResizeToContents)
-        self.table.verticalHeader().hide()
         self.table.setTextElideMode(QtCore.Qt.ElideNone)
+
+        self.table.setDragEnabled(True)
+        self.table.viewport().setAcceptDrops(True)
+        self.table.setDropIndicatorShown(True)
+        self.table.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
+
         self.setWidget(self.table)
 
         completer_delegate = _CompleterDelegate()
@@ -327,28 +332,32 @@ class AppletsDock(QtWidgets.QDockWidget):
 
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         new_action = QtWidgets.QAction("New applet", self.table)
-        new_action.triggered.connect(lambda: self.new())
+        new_action.triggered.connect(partial(self.new_with_parent, self.new))
         self.table.addAction(new_action)
         templates_menu = QtWidgets.QMenu()
         for name, template in _templates:
             action = QtWidgets.QAction(name, self.table)
-            action.triggered.connect(partial(self.new_template, template))
+            action.triggered.connect(partial(
+                self.new_with_parent, self.new, command=template))
             templates_menu.addAction(action)
         restart_action = QtWidgets.QAction("New applet from template", self.table)
         restart_action.setMenu(templates_menu)
         self.table.addAction(restart_action)
-        restart_action = QtWidgets.QAction("Restart selected applet", self.table)
+        restart_action = QtWidgets.QAction("Restart selected applet or group", self.table)
         restart_action.setShortcut("CTRL+R")
         restart_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         restart_action.triggered.connect(self.restart)
         self.table.addAction(restart_action)
-        delete_action = QtWidgets.QAction("Delete selected applet", self.table)
+        delete_action = QtWidgets.QAction("Delete selected applet or group", self.table)
         delete_action.setShortcut("DELETE")
         delete_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         delete_action.triggered.connect(self.delete)
         self.table.addAction(delete_action)
+        new_group_action = QtWidgets.QAction("New group", self.table)
+        new_group_action.triggered.connect(partial(self.new_with_parent, self.new_group))
+        self.table.addAction(new_group_action)
 
-        self.table.cellChanged.connect(self.cell_changed)
+        self.table.itemChanged.connect(self.item_changed)
 
     def create(self, uid, name, command):
         dock = _AppletDock(self.datasets_sub, uid, name, command)
@@ -358,122 +367,218 @@ class AppletsDock(QtWidgets.QDockWidget):
         dock.sigClosed.connect(partial(self.on_dock_closed, dock))
         return dock
 
-    def cell_changed(self, row, column):
-        if column == 0:
-            item = self.table.item(row, column)
-            if item.checkState() == QtCore.Qt.Checked:
-                command = self.table.item(row, 2)
-                if command:
-                    command = command.text()
-                    name = self.table.item(row, 1)
-                    if name is None:
-                        name = ""
-                    else:
-                        name = name.text()
-                    dock = self.create(item.applet_uid, name, command)
-                    item.applet_dock = dock
-                    if item.applet_geometry is not None:
-                        dock.restoreGeometry(item.applet_geometry)
-                        # geometry is now handled by main window state
-                        item.applet_geometry = None
-                    self.dock_to_checkbox[dock] = item
-            else:
+    def item_changed(self, item, column):
+        if item.ty == "applet":
+            if column == 0:
+                if item.checkState(0) == QtCore.Qt.Checked:
+                    command = item.text(2)
+                    if command:
+                        name = item.text(1)
+                        dock = self.create(item.applet_uid, name, command)
+                        item.applet_dock = dock
+                        if item.applet_geometry is not None:
+                            dock.restoreGeometry(item.applet_geometry)
+                            # geometry is now handled by main window state
+                            item.applet_geometry = None
+                        self.dock_to_item[dock] = item
+                else:
+                    dock = item.applet_dock
+                    if dock is not None:
+                        # This calls self.on_dock_closed
+                        dock.close()
+            elif column == 1 or column == 2:
+                new_value = item.text(column)
                 dock = item.applet_dock
                 if dock is not None:
-                    # This calls self.on_dock_closed
-                    dock.close()
-        elif column == 1 or column == 2:
-            new_value = self.table.item(row, column).text()
-            dock = self.table.item(row, 0).applet_dock
-            if dock is not None:
-                if column == 1:
-                    dock.rename(new_value)
-                else:
-                    dock.command = new_value
+                    if column == 1:
+                        dock.rename(new_value)
+                    else:
+                        dock.command = new_value
+        elif item.ty == "group":
+            # To Qt's credit, it already does everything for us here.
+            pass
+        else:
+            raise ValueError
 
     def on_dock_closed(self, dock):
-        checkbox_item = self.dock_to_checkbox[dock]
-        checkbox_item.applet_dock = None
-        checkbox_item.applet_geometry = dock.saveGeometry()
+        item = self.dock_to_item[dock]
+        item.applet_dock = None
+        item.applet_geometry = dock.saveGeometry()
         asyncio.ensure_future(dock.terminate())
-        del self.dock_to_checkbox[dock]
-        checkbox_item.setCheckState(QtCore.Qt.Unchecked)
+        del self.dock_to_item[dock]
+        item.setCheckState(0, QtCore.Qt.Unchecked)
 
-    def new(self, uid=None):
+    def get_untitled(self):
+        existing_names = set()
+        def walk(wi):
+            for i in range(wi.childCount()):
+                cwi = wi.child(i)
+                existing_names.add(cwi.text(1))
+                walk(cwi)
+        walk(self.table.invisibleRootItem())
+
+        i = 1
+        name = "untitled"
+        while name in existing_names:
+            i += 1
+            name = "untitled " + str(i)
+        return name
+
+    def new(self, uid=None, name=None, command="", parent=None):
         if uid is None:
             uid = next(i for i in count() if i not in self.applet_uids)
         assert uid not in self.applet_uids, uid
         self.applet_uids.add(uid)
 
-        row = self.table.rowCount()
-        self.table.insertRow(row)
-        checkbox = QtWidgets.QTableWidgetItem()
-        checkbox.setFlags(QtCore.Qt.ItemIsSelectable |
-                          QtCore.Qt.ItemIsUserCheckable |
-                          QtCore.Qt.ItemIsEnabled)
-        checkbox.setCheckState(QtCore.Qt.Unchecked)
-        checkbox.applet_uid = uid
-        checkbox.applet_dock = None
-        checkbox.applet_geometry = None
-        self.table.setItem(row, 0, checkbox)
-        self.table.setItem(row, 1, QtWidgets.QTableWidgetItem())
-        self.table.setItem(row, 2, QtWidgets.QTableWidgetItem())
-        return row
+        if name is None:
+            name = self.get_untitled()
+        item = QtWidgets.QTreeWidgetItem(["", name, command])
+        item.ty = "applet"
+        item.setFlags(QtCore.Qt.ItemIsSelectable |
+                      QtCore.Qt.ItemIsUserCheckable |
+                      QtCore.Qt.ItemIsEditable |
+                      QtCore.Qt.ItemIsDragEnabled |
+                      QtCore.Qt.ItemNeverHasChildren |
+                      QtCore.Qt.ItemIsEnabled)
+        item.setCheckState(0, QtCore.Qt.Unchecked)
+        item.applet_uid = uid
+        item.applet_dock = None
+        item.applet_geometry = None
+        item.setIcon(0, QtWidgets.QApplication.style().standardIcon(
+            QtWidgets.QStyle.SP_ComputerIcon))
+        if parent is None:
+            self.table.addTopLevelItem(item)
+        else:
+            parent.addChild(item)
+        return item
 
-    def new_template(self, template):
-        row = self.new()
-        self.table.item(row, 2).setText(template)
+    def new_group(self, name=None, parent=None):
+        if name is None:
+            name = self.get_untitled()
+        item = QtWidgets.QTreeWidgetItem(["", name])
+        item.ty = "group"
+        item.setFlags(QtCore.Qt.ItemIsSelectable |
+            QtCore.Qt.ItemIsEditable |
+            QtCore.Qt.ItemIsUserCheckable |
+            QtCore.Qt.ItemIsAutoTristate |
+            QtCore.Qt.ItemIsDragEnabled |
+            QtCore.Qt.ItemIsDropEnabled |
+            QtCore.Qt.ItemIsEnabled)
+        item.setIcon(0, QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_DirIcon))
+        if parent is None:
+            self.table.addTopLevelItem(item)
+        else:
+            parent.addChild(item)
+        return item
+
+    def new_with_parent(self, cb, **kwargs):
+        parent = None
+        selection = self.table.selectedItems()
+        if selection:
+            parent = selection[0]
+            if parent.ty == "applet":
+                parent = parent.parent()
+        if parent is not None:
+            parent.setExpanded(True)
+        cb(parent=parent, **kwargs)
 
     def restart(self):
-        selection = self.table.selectedRanges()
+        selection = self.table.selectedItems()
         if selection:
-            row = selection[0].topRow()
-            dock = self.table.item(row, 0).applet_dock
-            if dock is not None:
-                asyncio.ensure_future(dock.restart())
+            item = selection[0]
+            def walk(wi):
+                if wi.ty == "applet":
+                    dock = wi.applet_dock
+                    if dock is not None:
+                        asyncio.ensure_future(dock.restart())
+                elif wi.ty == "group":
+                    for i in range(wi.childCount()):
+                        walk(wi.child(i))
+                else:
+                    raise ValueError
+            walk(item)
 
     def delete(self):
-        selection = self.table.selectedRanges()
+        selection = self.table.selectedItems()
         if selection:
-            row = selection[0].topRow()
-            item = self.table.item(row, 0)
-            dock = item.applet_dock
-            if dock is not None:
-                # This calls self.on_dock_closed
-                dock.close()
-            self.applet_uids.remove(item.applet_uid)
-            self.table.removeRow(row)
+            item = selection[0]
+
+            def recursive_delete(wi):
+                if wi.ty == "applet":
+                    dock = wi.applet_dock
+                    if dock is not None:
+                        # This calls self.on_dock_closed
+                        dock.close()
+                    self.applet_uids.remove(wi.applet_uid)
+                elif wi.ty == "group":
+                    for i in range(wi.childCount()):
+                        recursive_delete(wi.child(i))
+                else:
+                    raise ValueError
+            recursive_delete(item)
+
+            parent = item.parent()
+            if parent is None:
+                parent = self.table.invisibleRootItem()
+            parent.removeChild(item)
 
     async def stop(self):
-        for row in range(self.table.rowCount()):
-            dock = self.table.item(row, 0).applet_dock
-            if dock is not None:
-                await dock.terminate()
+        async def walk(wi):
+            for row in range(wi.childCount()):
+                cwi = wi.child(row)
+                if cwi.ty == "applet":
+                    dock = cwi.applet_dock
+                    if dock is not None:
+                        await dock.terminate()
+                elif cwi.ty == "group":
+                    await walk(cwi)
+                else:
+                    raise ValueError
+        await walk(self.table.invisibleRootItem())
 
-    def save_state(self):
+    def save_state_item(self, wi):
         state = []
-        for row in range(self.table.rowCount()):
-            uid = self.table.item(row, 0).applet_uid
-            enabled = self.table.item(row, 0).checkState() == QtCore.Qt.Checked
-            name = self.table.item(row, 1).text()
-            command = self.table.item(row, 2).text()
-            geometry = self.table.item(row, 0).applet_geometry
-            if geometry is not None:
-                geometry = bytes(geometry)
-            state.append((uid, enabled, name, command, geometry))
+        for row in range(wi.childCount()):
+            cwi = wi.child(row)
+            if cwi.ty == "applet":
+                uid = cwi.applet_uid
+                enabled = cwi.checkState(0) == QtCore.Qt.Checked
+                name = cwi.text(1)
+                command = cwi.text(2)
+                geometry = cwi.applet_geometry
+                if geometry is not None:
+                    geometry = bytes(geometry)
+                state.append(("applet", uid, enabled, name, command, geometry))
+            elif cwi.ty == "group":
+                name = cwi.text(1)
+                expanded = cwi.isExpanded()
+                state_child = self.save_state_item(cwi)
+                state.append(("group", name, expanded, state_child))
+            else:
+                raise ValueError
         return state
 
+    def save_state(self):
+        return self.save_state_item(self.table.invisibleRootItem())
+
+    def restore_state_item(self, state, parent):
+        for wis in state:
+            if wis[0] == "applet":
+                _, uid, enabled, name, command, geometry = wis
+                item = self.new(uid, name, command, parent=parent)
+                if geometry is not None:
+                    geometry = QtCore.QByteArray(geometry)
+                    item.applet_geometry = geometry
+                if enabled:
+                    item.setCheckState(0, QtCore.Qt.Checked)
+            elif wis[0] == "group":
+                _, name, expanded, state_child = wis
+                item = self.new_group(name, parent=parent)
+                item.setExpanded(expanded)
+                self.restore_state_item(state_child, item)
+            else:
+                raise ValueError("Invalid item state: " + str(wis[0]))
+
     def restore_state(self, state):
-        for uid, enabled, name, command, geometry in state:
-            row = self.new(uid)
-            item = QtWidgets.QTableWidgetItem()
-            item.setText(name)
-            self.table.setItem(row, 1, item)
-            item = QtWidgets.QTableWidgetItem()
-            item.setText(command)
-            self.table.setItem(row, 2, item)
-            if geometry is not None:
-                geometry = QtCore.QByteArray(geometry)
-                self.table.item(row, 0).applet_geometry = geometry
-            if enabled:
-                self.table.item(row, 0).setCheckState(QtCore.Qt.Checked)
+        self.restore_state_item(state, None)
