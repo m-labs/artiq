@@ -3,8 +3,8 @@
 Release notes
 =============
 
-unreleased [2.x]
-----------------
+2.0rc1
+------
 
 * The format of the influxdb pattern file is simplified. The procedure to
   edit patterns is also changed to modifying the pattern file and calling:
