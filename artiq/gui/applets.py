@@ -118,17 +118,16 @@ class _AppletDock(QDockWidgetCloseDetect):
         self.starting_stopping = True
         try:
             self.ipc = AppletIPCServer(self.datasets_sub)
-            if "$ipc_address" not in self.command:
-                logger.warning("IPC address missing from command for %s",
-                               self.applet_name)
             command_tpl = string.Template(self.command)
+            python = sys.executable.replace("\\", "\\\\")
             command = command_tpl.safe_substitute(
-                python=sys.executable.replace("\\", "\\\\"),
-                ipc_address=self.ipc.get_address().replace("\\", "\\\\")
+                python=python,
+                artiq_applet=python + " -m artiq.applets."
             )
             logger.debug("starting command %s for %s", command, self.applet_name)
             env = os.environ.copy()
             env["PYTHONUNBUFFERED"] = "1"
+            env["ARTIQ_APPLET_EMBED"] = self.ipc.get_address()
             try:
                 await self.ipc.create_subprocess(
                     *shlex.split(command),
@@ -194,20 +193,19 @@ class _AppletDock(QDockWidgetCloseDetect):
 
 
 _templates = [
-    ("Big number", "$python -m artiq.applets.big_number "
-                   "--embed $ipc_address NUMBER_DATASET"),
-    ("Histogram", "$python -m artiq.applets.plot_hist "
-                  "--embed $ipc_address COUNTS_DATASET "
+    ("Big number", "${artiq_applet}big_number "
+                   "NUMBER_DATASET"),
+    ("Histogram", "${artiq_applet}plot_hist "
+                  "COUNTS_DATASET "
                   "--x BIN_BOUNDARIES_DATASET"),
-    ("XY", "$python -m artiq.applets.plot_xy "
-           "--embed $ipc_address Y_DATASET --x X_DATASET "
+    ("XY", "${artiq_applet}plot_xy "
+           "Y_DATASET --x X_DATASET "
            "--error ERROR_DATASET --fit FIT_DATASET"),
-    ("XY + Histogram", "$python -m artiq.applets.plot_xy_hist "
-                       "--embed $ipc_address X_DATASET "
+    ("XY + Histogram", "${artiq_applet}plot_xy_hist "
+                       "X_DATASET "
                        "HIST_BIN_BOUNDARIES_DATASET "
                        "HISTS_COUNTS_DATASET"),
-    ("Image", "$python -m artiq.applets.image "
-                  "--embed $ipc_address IMG_DATASET"),
+    ("Image", "${artiq_applet}image IMG_DATASET"),
 ]
 
 

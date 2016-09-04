@@ -94,10 +94,6 @@ class SimpleApplet:
             "--port", default=3250, type=int,
             help="TCP port to connect to")
 
-        self.argparser.add_argument(
-            "--embed", default=None, help="embed into GUI",
-            metavar="IPC_ADDRESS")
-
         self._arggroup_datasets = self.argparser.add_argument_group("datasets")
 
         self.dataset_args = set()
@@ -114,6 +110,7 @@ class SimpleApplet:
 
     def args_init(self):
         self.args = self.argparser.parse_args()
+        self.embed = os.getenv("ARTIQ_APPLET_EMBED")
         self.datasets = {getattr(self.args, arg.replace("-", "_"))
                          for arg in self.dataset_args}
 
@@ -123,17 +120,17 @@ class SimpleApplet:
         asyncio.set_event_loop(self.loop)
 
     def ipc_init(self):
-        if self.args.embed is not None:
-            self.ipc = AppletIPCClient(self.args.embed)
+        if self.embed is not None:
+            self.ipc = AppletIPCClient(self.embed)
             self.loop.run_until_complete(self.ipc.connect())
 
     def ipc_close(self):
-        if self.args.embed is not None:
+        if self.embed is not None:
             self.ipc.close()
 
     def create_main_widget(self):
         self.main_widget = self.main_widget_class(self.args)
-        if self.args.embed is not None:
+        if self.embed is not None:
             self.ipc.set_close_cb(self.main_widget.close)
             if os.name == "nt":
                 # HACK: if the window has a frame, there will be garbage
@@ -166,7 +163,7 @@ class SimpleApplet:
         return data
 
     def filter_mod(self, mod):
-        if self.args.embed is not None:
+        if self.embed is not None:
             # the parent already filters for us
             return True
 
@@ -201,7 +198,7 @@ class SimpleApplet:
             self.emit_data_changed(self.data, [mod])
 
     def subscribe(self):
-        if self.args.embed is None:
+        if self.embed is None:
             self.subscriber = Subscriber("datasets",
                                          self.sub_init, self.sub_mod)
             self.loop.run_until_complete(self.subscriber.connect(
@@ -210,7 +207,7 @@ class SimpleApplet:
             self.ipc.subscribe(self.datasets, self.sub_init, self.sub_mod)
 
     def unsubscribe(self):
-        if self.args.embed is None:
+        if self.embed is None:
             self.loop.run_until_complete(self.subscriber.close())
 
     def run(self):
