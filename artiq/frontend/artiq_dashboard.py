@@ -15,9 +15,9 @@ from artiq.tools import (atexit_register_coroutine, verbosity_args,
 from artiq.protocols.pc_rpc import AsyncioClient
 from artiq.protocols.broadcast import Receiver
 from artiq.gui.models import ModelSubscriber
-from artiq.gui import state, applets, log
+from artiq.gui import state, log
 from artiq.dashboard import (experiments, shortcuts, explorer,
-                             moninj, datasets, schedule)
+                             moninj, datasets, schedule, applets_ccb)
 
 
 def get_argparser():
@@ -119,10 +119,13 @@ def main():
         atexit_register_coroutine(subscriber.close)
         sub_clients[notifier_name] = subscriber
 
-    log_receiver = Receiver("log", [])
-    loop.run_until_complete(log_receiver.connect(
-        args.server, args.port_broadcast))
-    atexit_register_coroutine(log_receiver.close)
+    broadcast_clients = dict()
+    for target in "log", "ccb":
+        client = Receiver(target, [])
+        loop.run_until_complete(client.connect(
+            args.server, args.port_broadcast))
+        atexit_register_coroutine(client.close)
+        broadcast_clients[target] = client
 
     # initialize main window
     main_window = MainWindow(args.server)
@@ -152,9 +155,10 @@ def main():
                                        rpc_clients["dataset_db"])
     smgr.register(d_datasets)
 
-    d_applets = applets.AppletsDock(main_window, sub_clients["datasets"])
+    d_applets = applets_ccb.AppletsCCBDock(main_window, sub_clients["datasets"])
     atexit_register_coroutine(d_applets.stop)
     smgr.register(d_applets)
+    broadcast_clients["ccb"].notify_cbs.append(d_applets.ccb_notify)
 
     d_ttl_dds = moninj.MonInj()
     loop.run_until_complete(d_ttl_dds.start(args.server, args.port_notify))
@@ -166,7 +170,7 @@ def main():
 
     logmgr = log.LogDockManager(main_window)
     smgr.register(logmgr)
-    log_receiver.notify_cbs.append(logmgr.append_message)
+    broadcast_clients["log"].notify_cbs.append(logmgr.append_message)
     widget_log_handler.callback = logmgr.append_message
 
     # lay out docks

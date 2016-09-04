@@ -29,6 +29,7 @@ class FloppingF(EnvExperiment):
             0.1, min=0, max=100, step=0.01))
 
         self.setattr_device("scheduler")
+        self.setattr_device("ccb")
 
     def run(self):
         l = len(self.frequency_scan)
@@ -40,6 +41,11 @@ class FloppingF(EnvExperiment):
                          broadcast=True)
         self.set_dataset("flopping_f_fit", np.full(l, np.nan),
                          broadcast=True, save=False)
+
+        self.ccb.issue("create_applet", "flopping_f",
+           "${artiq_applet}plot_xy "
+           "flopping_f_brightness --x flopping_f_frequency "
+           "--fit flopping_f_fit")
 
         for i, f in enumerate(self.frequency_scan):
             m_brightness = model(f, self.F0) + self.noise_amplitude*random.random()

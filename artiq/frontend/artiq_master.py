@@ -69,6 +69,13 @@ def main():
 
     log_forwarder.callback = (lambda msg:
         server_broadcast.broadcast("log", msg))
+    def ccb_issue(service, *args, **kwargs):
+        msg = {
+            "service": service,
+            "args": args,
+            "kwargs": kwargs
+        }
+        server_broadcast.broadcast("ccb", msg)
 
     device_db = DeviceDB(args.device_db)
     dataset_db = DatasetDB(args.dataset_db)
@@ -96,7 +103,8 @@ def main():
         "scheduler_delete": scheduler.delete,
         "scheduler_request_termination": scheduler.request_termination,
         "scheduler_get_status": scheduler.get_status,
-        "scheduler_check_pause": scheduler.check_pause
+        "scheduler_check_pause": scheduler.check_pause,
+        "ccb_issue": ccb_issue,
     })
     experiment_db.scan_repository_async()
 

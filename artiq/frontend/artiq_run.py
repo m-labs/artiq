@@ -118,6 +118,12 @@ class DummyScheduler:
         pass
 
 
+class DummyCCB:
+    def issue(self, service, *args, **kwargs):
+        logger.info("CCB for service '%s' (args %s, kwargs %s)",
+                    service, args, kwargs)
+
+
 def get_argparser(with_file=True):
     parser = argparse.ArgumentParser(
         description="Local experiment running tool")
@@ -183,7 +189,8 @@ def run(with_file=False):
     init_logger(args)
 
     device_mgr = DeviceManager(DeviceDB(args.device_db),
-                               virtual_devices={"scheduler": DummyScheduler()})
+                               virtual_devices={"scheduler": DummyScheduler(),
+                                                "ccb": DummyCCB()})
     dataset_db = DatasetDB(args.dataset_db)
     dataset_mgr = DatasetManager(dataset_db)
 

@@ -106,6 +106,10 @@ class Scheduler:
         return self._check_pause(rid)
 
 
+class CCB:
+    issue = staticmethod(make_parent_action("ccb_issue"))
+
+
 def get_exp(file, class_name):
     module = file_import(file, prefix="artiq_worker_")
     if class_name is None:
@@ -189,7 +193,8 @@ def main():
     repository_path = None
 
     device_mgr = DeviceManager(ParentDeviceDB,
-                               virtual_devices={"scheduler": Scheduler()})
+                               virtual_devices={"scheduler": Scheduler(),
+                                                "ccb": CCB()})
     dataset_mgr = DatasetManager(ParentDatasetDB)
 
     import_cache.install_hook()
