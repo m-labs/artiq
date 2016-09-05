@@ -392,7 +392,7 @@ class ExperimentsArea(QtWidgets.QMdiArea):
     def __init__(self, root, datasets_sub):
         QtWidgets.QMdiArea.__init__(self)
         self.pixmap = QtGui.QPixmap(os.path.join(
-            artiq_dir, "gui", "logo20.svg"))
+            artiq_dir, "gui", "logo_ver.svg"))
         self.current_dir = root
         self.dataset = None
 
