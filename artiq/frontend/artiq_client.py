@@ -274,6 +274,16 @@ def _show_log(args):
     _run_subscriber(args.server, port, subscriber)
 
 
+def _show_ccb(args):
+    subscriber = Receiver("ccb", [
+        lambda d: print(d["service"],
+                        "args:", d["args"],
+                        "kwargs:", d["kwargs"])
+    ])
+    port = 1067 if args.port is None else args.port
+    _run_subscriber(args.server, port, subscriber)
+
+
 def main():
     args = get_argparser().parse_args()
     action = args.action.replace("-", "_")
@@ -282,6 +292,8 @@ def main():
             _show_dict(args, "schedule", _show_schedule)
         elif args.what == "log":
             _show_log(args)
+        elif args.what == "ccb":
+            _show_ccb(args)
         elif args.what == "devices":
             _show_dict(args, "devices", _show_devices)
         elif args.what == "datasets":
