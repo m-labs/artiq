@@ -1,18 +1,18 @@
 extern crate fringe;
 
-use std::prelude::v1::*;
+use std::vec::Vec;
 use std::time::{Instant, Duration};
 use self::fringe::OwnedStack;
 use self::fringe::generator::{Generator, Yielder};
 
 #[derive(Debug)]
-pub struct WaitRequest {
+struct WaitRequest {
     timeout: Option<Instant>,
     event:   Option<WaitEvent>
 }
 
 #[derive(Debug)]
-pub enum WaitResult {
+enum WaitResult {
     Completed,
     TimedOut,
     Interrupted
@@ -36,11 +36,11 @@ impl Scheduler {
         Scheduler { threads: Vec::new(), index: 0 }
     }
 
-    pub unsafe fn spawn<F: FnOnce(Io) + Send>(&mut self, stack_size: usize, f: F) {
+    pub unsafe fn spawn<F: FnOnce(Waiter) + Send>(&mut self, stack_size: usize, f: F) {
         let stack = OwnedStack::new(stack_size);
         let thread = Thread {
             generator:   Generator::unsafe_new(stack, move |yielder, _| {
-                f(Io(yielder))
+                f(Waiter(yielder))
             }),
             waiting_for: WaitRequest {
                 timeout: None,
@@ -102,7 +102,7 @@ impl Scheduler {
 }
 
 #[derive(Debug)]
-pub enum WaitEvent {}
+enum WaitEvent {}
 
 impl WaitEvent {
     fn completed(&self) -> bool {
@@ -110,13 +110,13 @@ impl WaitEvent {
     }
 }
 
-pub type IoResult<T> = Result<T, ()>;
+pub type Result<T> = ::std::result::Result<T, ()>;
 
 #[derive(Debug)]
-pub struct Io<'a>(&'a mut Yielder<WaitResult, WaitRequest, OwnedStack>);
+pub struct Waiter<'a>(&'a mut Yielder<WaitResult, WaitRequest, OwnedStack>);
 
-impl<'a> Io<'a> {
-    pub fn sleep(&mut self, duration: Duration) -> IoResult<()> {
+impl<'a> Waiter<'a> {
+    pub fn sleep(&mut self, duration: Duration) -> Result<()> {
         let request = WaitRequest {
             timeout: Some(Instant::now() + duration),
             event:   None

@@ -51,7 +51,7 @@ static struct netif netif;
 static ppp_pcb *ppp;
 #endif
 
-static void lwip_service(void)
+void lwip_service(void)
 {
     sys_check_timeouts();
 #ifdef CSR_ETHMAC_BASE
@@ -126,7 +126,7 @@ static void fsip_or_default(struct ip4_addr *d, char *key, int i1, int i2, int i
 #endif
 }
 
-static void network_init(void)
+void network_init(void)
 {
     struct ip4_addr local_ip;
     struct ip4_addr netmask;
@@ -167,7 +167,7 @@ static void ppp_status_cb(ppp_pcb *pcb, int err_code, void *ctx)
     }
 }
 
-static void network_init(void)
+void network_init(void)
 {
     lwip_init();
 
@@ -264,6 +264,10 @@ extern void _fheap, _eheap;
 
 extern void rust_main();
 
+u16_t tcp_sndbuf_(struct tcp_pcb *pcb) {
+    return tcp_sndbuf(pcb);
+}
+
 int main(void)
 {
     irq_setmask(0);
@@ -278,14 +282,12 @@ int main(void)
     puts("Press 't' to enter test mode...");
     blink_led();
 
-    puts("Calling Rust...");
-    rust_main();
-
     if(check_test_mode()) {
         puts("Entering test mode.");
         test_main();
     } else {
         puts("Entering regular mode.");
+        // rust_main();
         session_startup_kernel();
         regular_main();
     }

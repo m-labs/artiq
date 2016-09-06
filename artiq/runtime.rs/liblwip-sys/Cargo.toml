@@ -1,0 +1,8 @@
+[package]
+authors = ["The ARTIQ Project Developers"]
+name = "lwip-sys"
+version = "0.0.0"
+
+[lib]
+name = "lwip_sys"
+path = "lib.rs"

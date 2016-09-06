@@ -1,10 +1,18 @@
-#![feature(lang_items, asm, collections, libc, needs_panic_runtime)]
+#![feature(lang_items, asm, alloc, collections, libc, needs_panic_runtime)]
 #![no_std]
 #![needs_panic_runtime]
 
 extern crate alloc_artiq;
+extern crate alloc;
 extern crate collections;
 extern crate libc;
+
+pub use core::{any, cell, clone, cmp, convert, default, hash, iter, marker, mem, num,
+    ops, option, ptr, result, sync,
+    char, i16, i32, i64, i8, isize, u16, u32, u64, u8, usize, f32, f64};
+pub use alloc::{arc, rc, oom, raw_vec};
+pub use collections::{binary_heap, borrow, boxed, btree_map, btree_set, fmt, linked_list, slice,
+    str, string, vec, vec_deque};
 
 pub mod prelude {
     pub mod v1 {
