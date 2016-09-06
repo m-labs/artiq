@@ -130,6 +130,7 @@ class _AppletDock(QDockWidgetCloseDetect):
             except:
                 logger.warning("Applet %s failed to start", self.applet_name,
                                exc_info=True)
+                return
             if stdin is not None:
                 self.ipc.process.stdin.write(stdin.encode())
                 self.ipc.process.stdin.write_eof()
