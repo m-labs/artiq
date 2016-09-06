@@ -91,7 +91,7 @@ class AppletIPCServer(AsyncioParentComm):
 
 
 class _AppletDock(QDockWidgetCloseDetect):
-    def __init__(self, datasets_sub, uid, name, command):
+    def __init__(self, datasets_sub, uid, name, spec):
         QDockWidgetCloseDetect.__init__(self, "Applet: " + name)
         self.setObjectName("applet" + str(uid))
 
@@ -101,7 +101,7 @@ class _AppletDock(QDockWidgetCloseDetect):
 
         self.datasets_sub = datasets_sub
         self.applet_name = name
-        self.command = command
+        self.spec = spec
 
         self.starting_stopping = False
 
@@ -112,30 +112,27 @@ class _AppletDock(QDockWidgetCloseDetect):
     def _get_log_source(self):
         return "applet({})".format(self.applet_name)
 
-    async def start(self):
+    async def start_process(self, args, stdin):
         if self.starting_stopping:
             return
         self.starting_stopping = True
         try:
             self.ipc = AppletIPCServer(self.datasets_sub)
-            command_tpl = string.Template(self.command)
-            python = sys.executable.replace("\\", "\\\\")
-            command = command_tpl.safe_substitute(
-                python=python,
-                artiq_applet=python + " -m artiq.applets."
-            )
-            logger.debug("starting command %s for %s", command, self.applet_name)
             env = os.environ.copy()
             env["PYTHONUNBUFFERED"] = "1"
             env["ARTIQ_APPLET_EMBED"] = self.ipc.get_address()
             try:
                 await self.ipc.create_subprocess(
-                    *shlex.split(command),
+                    *args,
+                    stdin=None if stdin is None else subprocess.PIPE,
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     env=env, start_new_session=True)
             except:
                 logger.warning("Applet %s failed to start", self.applet_name,
                                exc_info=True)
+            if stdin is not None:
+                self.ipc.process.stdin.write(stdin.encode())
+                self.ipc.process.stdin.write_eof()
             asyncio.ensure_future(
                 LogParser(self._get_log_source).stream_task(
                     self.ipc.process.stdout))
@@ -145,6 +142,21 @@ class _AppletDock(QDockWidgetCloseDetect):
             self.ipc.start(self.embed, self.fix_initial_size)
         finally:
             self.starting_stopping = False
+
+    async def start(self):
+        if self.spec["ty"] == "command":
+            command_tpl = string.Template(self.spec["command"])
+            python = sys.executable.replace("\\", "\\\\")
+            command = command_tpl.safe_substitute(
+                python=python,
+                artiq_applet=python + " -m artiq.applets."
+            )
+            logger.debug("starting command %s for %s", command, self.applet_name)
+            await self.start_process(shlex.split(command), None)
+        elif self.spec["ty"] == "code":
+            await self.start_process([sys.executable], self.spec["code"])
+        else:
+            raise ValueError
 
     def embed(self, win_id):
         logger.debug("capturing window 0x%x for %s", win_id, self.applet_name)
@@ -334,9 +346,10 @@ class AppletsDock(QtWidgets.QDockWidget):
         self.table.addAction(new_action)
         templates_menu = QtWidgets.QMenu()
         for name, template in _templates:
+            spec = {"ty": "command", "command": template}
             action = QtWidgets.QAction(name, self.table)
             action.triggered.connect(partial(
-                self.new_with_parent, self.new, command=template))
+                self.new_with_parent, self.new, spec=spec))
             templates_menu.addAction(action)
         restart_action = QtWidgets.QAction("New applet from template", self.table)
         restart_action.setMenu(templates_menu)
@@ -357,8 +370,38 @@ class AppletsDock(QtWidgets.QDockWidget):
 
         self.table.itemChanged.connect(self.item_changed)
 
-    def create(self, uid, name, command):
-        dock = _AppletDock(self.datasets_sub, uid, name, command)
+    def get_spec(self, item):
+        if item.applet_spec_ty == "command":
+            return {"ty": "command", "command": item.text(2)}
+        elif item.applet_spec_ty == "code":
+            return {"ty": "code", "code": item.applet_code}
+        else:
+            raise ValueError
+
+    def set_spec(self, item, spec):
+        self.table.itemChanged.disconnect()
+        try:
+            item.applet_spec_ty = spec["ty"]
+            if spec["ty"] == "command":
+                item.setText(2, spec["command"])
+                item.setIcon(2, QtGui.QIcon())
+                if hasattr(item, "applet_code"):
+                    del item.applet_code
+            elif spec["ty"] == "code":
+                item.setText(2, "(code)")
+                item.setIcon(2, QtWidgets.QApplication.style().standardIcon(
+                    QtWidgets.QStyle.SP_FileIcon))
+                item.applet_code = spec["code"]
+            else:
+                raise ValueError
+            dock = item.applet_dock
+            if dock is not None:
+                dock.spec = spec
+        finally:
+            self.table.itemChanged.connect(self.item_changed)
+
+    def create(self, uid, name, spec):
+        dock = _AppletDock(self.datasets_sub, uid, name, spec)
         self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
         dock.setFloating(True)
         asyncio.ensure_future(dock.start())
@@ -369,16 +412,15 @@ class AppletsDock(QtWidgets.QDockWidget):
         if item.ty == "applet":
             if column == 0:
                 if item.checkState(0) == QtCore.Qt.Checked:
-                    command = item.text(2)
-                    if command:
-                        name = item.text(1)
-                        dock = self.create(item.applet_uid, name, command)
-                        item.applet_dock = dock
-                        if item.applet_geometry is not None:
-                            dock.restoreGeometry(item.applet_geometry)
-                            # geometry is now handled by main window state
-                            item.applet_geometry = None
-                        self.dock_to_item[dock] = item
+                    name = item.text(1)
+                    spec = self.get_spec(item)
+                    dock = self.create(item.applet_uid, name, spec)
+                    item.applet_dock = dock
+                    if item.applet_geometry is not None:
+                        dock.restoreGeometry(item.applet_geometry)
+                        # geometry is now handled by main window state
+                        item.applet_geometry = None
+                    self.dock_to_item[dock] = item
                 else:
                     dock = item.applet_dock
                     if dock is not None:
@@ -391,7 +433,8 @@ class AppletsDock(QtWidgets.QDockWidget):
                     if column == 1:
                         dock.rename(new_value)
                     else:
-                        dock.command = new_value
+                        self.set_spec(
+                            item, {"ty": "command", "command": new_value})
         elif item.ty == "group":
             # To Qt's credit, it already does everything for us here.
             pass
@@ -422,15 +465,17 @@ class AppletsDock(QtWidgets.QDockWidget):
             name = "untitled " + str(i)
         return name
 
-    def new(self, uid=None, name=None, command="", parent=None):
+    def new(self, uid=None, name=None, spec=None, parent=None):
         if uid is None:
             uid = next(i for i in count() if i not in self.applet_uids)
+        if spec is None:
+            spec = {"ty": "command", "command": ""}
         assert uid not in self.applet_uids, uid
         self.applet_uids.add(uid)
 
         if name is None:
             name = self.get_untitled()
-        item = QtWidgets.QTreeWidgetItem(["", name, command])
+        item = QtWidgets.QTreeWidgetItem(["", name, ""])
         item.ty = "applet"
         item.setFlags(QtCore.Qt.ItemIsSelectable |
                       QtCore.Qt.ItemIsUserCheckable |
@@ -444,6 +489,7 @@ class AppletsDock(QtWidgets.QDockWidget):
         item.applet_geometry = None
         item.setIcon(0, QtWidgets.QApplication.style().standardIcon(
             QtWidgets.QStyle.SP_ComputerIcon))
+        self.set_spec(item, spec)
         if parent is None:
             self.table.addTopLevelItem(item)
         else:
@@ -543,11 +589,11 @@ class AppletsDock(QtWidgets.QDockWidget):
                 uid = cwi.applet_uid
                 enabled = cwi.checkState(0) == QtCore.Qt.Checked
                 name = cwi.text(1)
-                command = cwi.text(2)
+                spec = self.get_spec(cwi)
                 geometry = cwi.applet_geometry
                 if geometry is not None:
                     geometry = bytes(geometry)
-                state.append(("applet", uid, enabled, name, command, geometry))
+                state.append(("applet", uid, enabled, name, spec, geometry))
             elif cwi.ty == "group":
                 name = cwi.text(1)
                 expanded = cwi.isExpanded()
@@ -563,8 +609,11 @@ class AppletsDock(QtWidgets.QDockWidget):
     def restore_state_item(self, state, parent):
         for wis in state:
             if wis[0] == "applet":
-                _, uid, enabled, name, command, geometry = wis
-                item = self.new(uid, name, command, parent=parent)
+                _, uid, enabled, name, spec, geometry = wis
+                if spec["ty"] not in {"command", "code"}:
+                    raise ValueError("Invalid applet spec type: "
+                                     + str(spec["ty"]))
+                item = self.new(uid, name, spec, parent=parent)
                 if geometry is not None:
                     geometry = QtCore.QByteArray(geometry)
                     item.applet_geometry = geometry

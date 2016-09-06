@@ -53,10 +53,14 @@ class AppletsCCBDock(applets.AppletsDock):
         if not self.listen_action.isChecked():
             return
         parent, applet = self.locate_applet(name, group, True)
-        if applet is None:
-            applet = self.new(name=name, command=command_or_code, parent=parent)
+        if is_code:
+            spec = {"ty": "code", "code": command_or_code}
         else:
-            applet.setText(2, command_or_code)
+            spec = {"ty": "command", "command": command_or_code}
+        if applet is None:
+            applet = self.new(name=name, spec=spec, parent=parent)
+        else:
+            self.set_spec(applet, spec)
         applet.setCheckState(0, QtCore.Qt.Checked)
 
     def ccb_disable_applet(self, name, group=None):
