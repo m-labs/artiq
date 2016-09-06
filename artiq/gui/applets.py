@@ -81,13 +81,14 @@ class AppletIPCServer(AsyncioParentComm):
         finally:
             self.datasets_sub.notify_cbs.remove(self._on_mod)
 
-    def start(self, embed_cb, fix_initial_size_cb):
+    def start_server(self, embed_cb, fix_initial_size_cb):
         self.server_task = asyncio.ensure_future(
             self.serve(embed_cb, fix_initial_size_cb))
 
-    async def stop(self):
-        self.server_task.cancel()
-        await asyncio.wait([self.server_task])
+    async def stop_server(self):
+        if hasattr(self, "server_task"):
+            self.server_task.cancel()
+            await asyncio.wait([self.server_task])
 
 
 class _AppletDock(QDockWidgetCloseDetect):
@@ -144,7 +145,7 @@ class _AppletDock(QDockWidgetCloseDetect):
             asyncio.ensure_future(
                 LogParser(self._get_log_source).stream_task(
                     self.ipc.process.stderr))
-            self.ipc.start(self.embed, self.fix_initial_size)
+            self.ipc.start_server(self.embed, self.fix_initial_size)
         finally:
             self.starting_stopping = False
 
@@ -166,18 +167,19 @@ class _AppletDock(QDockWidgetCloseDetect):
         self.starting_stopping = True
 
         if hasattr(self, "ipc"):
-            await self.ipc.stop()
-            self.ipc.write_pyon({"action": "terminate"})
-            try:
-                await asyncio.wait_for(self.ipc.process.wait(), 2.0)
-            except:
-                logger.warning("Applet %s failed to exit, killing",
-                               self.applet_name)
+            await self.ipc.stop_server()
+            if hasattr(self.ipc, "process"):
+                self.ipc.write_pyon({"action": "terminate"})
                 try:
-                    self.ipc.process.kill()
-                except ProcessLookupError:
-                    pass
-                await self.ipc.process.wait()
+                    await asyncio.wait_for(self.ipc.process.wait(), 2.0)
+                except:
+                    logger.warning("Applet %s failed to exit, killing",
+                                   self.applet_name)
+                    try:
+                        self.ipc.process.kill()
+                    except ProcessLookupError:
+                        pass
+                    await self.ipc.process.wait()
             del self.ipc
 
         if hasattr(self, "embed_widget"):
