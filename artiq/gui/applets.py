@@ -137,6 +137,7 @@ class _AppletDock(QDockWidgetCloseDetect):
             except:
                 logger.warning("Applet %s failed to start", self.applet_name,
                                exc_info=True)
+                return
             asyncio.ensure_future(
                 LogParser(self._get_log_source).stream_task(
                     self.ipc.process.stdout))
