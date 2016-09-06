@@ -192,7 +192,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         for name, widgets in self._arg_to_widgets.items():
             if (name != current_name
                     and isinstance(widgets["entry"], ScanEntry)):
-                entry.disable()
+                widgets["entry"].disable()
 
     def save_state(self):
         expanded = []
