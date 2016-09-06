@@ -49,14 +49,14 @@ class AppletsCCBDock(applets.AppletsDock):
                 break
         return parent, applet
 
-    def ccb_create_applet(self, name, command_or_code, group=None, is_code=False):
+    def ccb_create_applet(self, name, command, group=None, code=None):
         if not self.listen_action.isChecked():
             return
         parent, applet = self.locate_applet(name, group, True)
-        if is_code:
-            spec = {"ty": "code", "code": command_or_code}
+        if code is None:
+            spec = {"ty": "command", "command": command}
         else:
-            spec = {"ty": "command", "command": command_or_code}
+            spec = {"ty": "code", "code": code, "command": command}
         if applet is None:
             applet = self.new(name=name, spec=spec, parent=parent)
         else:

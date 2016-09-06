@@ -156,7 +156,10 @@ class _AppletDock(QDockWidgetCloseDetect):
             logger.debug("starting command %s for %s", command, self.applet_name)
             await self.start_process(shlex.split(command), None)
         elif self.spec["ty"] == "code":
-            await self.start_process([sys.executable], self.spec["code"])
+            args = [sys.executable, "-"]
+            args += shlex.split(self.spec["command"])
+            logger.debug("starting code applet %s", self.applet_name)
+            await self.start_process(args, self.spec["code"])
         else:
             raise ValueError
 
@@ -377,7 +380,8 @@ class AppletsDock(QtWidgets.QDockWidget):
         if item.applet_spec_ty == "command":
             return {"ty": "command", "command": item.text(2)}
         elif item.applet_spec_ty == "code":
-            return {"ty": "code", "code": item.applet_code}
+            return {"ty": "code", "code": item.applet_code,
+                    "command": item.text(2)}
         else:
             raise ValueError
 
@@ -385,13 +389,12 @@ class AppletsDock(QtWidgets.QDockWidget):
         self.table.itemChanged.disconnect()
         try:
             item.applet_spec_ty = spec["ty"]
+            item.setText(2, spec["command"])
             if spec["ty"] == "command":
-                item.setText(2, spec["command"])
                 item.setIcon(2, QtGui.QIcon())
                 if hasattr(item, "applet_code"):
                     del item.applet_code
             elif spec["ty"] == "code":
-                item.setText(2, "(code)")
                 item.setIcon(2, QtWidgets.QApplication.style().standardIcon(
                     QtWidgets.QStyle.SP_FileIcon))
                 item.applet_code = spec["code"]
@@ -436,8 +439,7 @@ class AppletsDock(QtWidgets.QDockWidget):
                     if column == 1:
                         dock.rename(new_value)
                     else:
-                        self.set_spec(
-                            item, {"ty": "command", "command": new_value})
+                        dock.spec = self.get_spec(item)
         elif item.ty == "group":
             # To Qt's credit, it already does everything for us here.
             pass
