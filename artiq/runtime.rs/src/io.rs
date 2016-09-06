@@ -1,4 +1,5 @@
 extern crate fringe;
+extern crate lwip;
 
 use std::vec::Vec;
 use std::time::{Instant, Duration};
@@ -102,15 +103,38 @@ impl Scheduler {
 }
 
 #[derive(Debug)]
-enum WaitEvent {}
+enum WaitEvent {
+    UdpReadable(*const lwip::UdpSocketState),
+    TcpAcceptable(*const lwip::TcpListenerState),
+    TcpWriteable(*const lwip::TcpStreamState),
+    TcpReadable(*const lwip::TcpStreamState),
+}
 
 impl WaitEvent {
     fn completed(&self) -> bool {
-        match *self {}
+        match *self {
+            WaitEvent::UdpReadable(state) =>
+                unsafe { (*state).readable() },
+            WaitEvent::TcpAcceptable(state) =>
+                unsafe { (*state).acceptable() },
+            WaitEvent::TcpWriteable(state) =>
+                unsafe { (*state).writeable() },
+            WaitEvent::TcpReadable(state) =>
+                unsafe { (*state).readable() },
+        }
     }
 }
 
-pub type Result<T> = ::std::result::Result<T, ()>;
+unsafe impl Send for WaitEvent {}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum Error {
+    Lwip(lwip::Error),
+    TimedOut,
+    Interrupted
+}
+
+pub type Result<T> = ::std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub struct Waiter<'a>(&'a mut Yielder<WaitResult, WaitRequest, OwnedStack>);
@@ -124,8 +148,44 @@ impl<'a> Waiter<'a> {
 
         match self.0.suspend(request) {
             WaitResult::TimedOut => Ok(()),
-            WaitResult::Interrupted => Err(()),
+            WaitResult::Interrupted => Err(Error::Interrupted),
             _ => unreachable!()
         }
+    }
+
+    fn suspend(&mut self, request: WaitRequest) -> Result<()> {
+        match self.0.suspend(request) {
+            WaitResult::Completed => Ok(()),
+            WaitResult::TimedOut => Err(Error::TimedOut),
+            WaitResult::Interrupted => Err(Error::Interrupted)
+        }
+    }
+
+    pub fn udp_readable(&mut self, socket: &lwip::UdpSocket) -> Result<()> {
+        self.suspend(WaitRequest {
+            timeout: None,
+            event:   Some(WaitEvent::UdpReadable(socket.state()))
+        })
+    }
+
+    pub fn tcp_acceptable(&mut self, socket: &lwip::TcpListener) -> Result<()> {
+        self.suspend(WaitRequest {
+            timeout: None,
+            event:   Some(WaitEvent::TcpAcceptable(socket.state()))
+        })
+    }
+
+    pub fn tcp_writeable(&mut self, socket: &lwip::TcpStream) -> Result<()> {
+        self.suspend(WaitRequest {
+            timeout: None,
+            event:   Some(WaitEvent::TcpWriteable(socket.state()))
+        })
+    }
+
+    pub fn tcp_readable(&mut self, socket: &lwip::TcpStream) -> Result<()> {
+        self.suspend(WaitRequest {
+            timeout: None,
+            event:   Some(WaitEvent::TcpReadable(socket.state()))
+        })
     }
 }
