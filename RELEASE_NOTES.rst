@@ -7,7 +7,8 @@ Release notes
 ----------------
 
 * The --embed option of applets is replaced with the environment variable
-  ARTIQ_APPLET_EMBED.
+  ARTIQ_APPLET_EMBED. The GUI sets this enviroment variable itself and the
+  user simply needs to remove the --embed argument.
 * EnvExperiment's prepare calls prepare for all its children.
 
 
