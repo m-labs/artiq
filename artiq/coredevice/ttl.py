@@ -2,7 +2,9 @@ import numpy
 
 from artiq.language.core import *
 from artiq.language.types import *
-from artiq.coredevice.rtio import rtio_output, rtio_input_timestamp
+from artiq.coredevice.rtio import (rtio_output, rtio_input_timestamp,
+                                   rtio_input_data)
+from artiq.coredevice.exceptions import RTIOOverflow
 
 
 # RTIO TTL address map:
