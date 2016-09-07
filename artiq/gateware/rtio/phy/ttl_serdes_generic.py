@@ -90,14 +90,21 @@ class Inout(Module):
 
         # Input
         sensitivity = Signal(2)
-        self.sync.rio += If(self.rtlink.o.stb & (self.rtlink.o.address == 2),
-            sensitivity.eq(self.rtlink.o.data))
+        sample = Signal()
+        self.sync.rio += [
+            sample.eq(0),
+            If(self.rtlink.o.stb & self.rtlink.o.address[1],
+                sensitivity.eq(self.rtlink.o.data),
+                If(self.rtlink.o.address[0], sample.eq(1))
+            )
+        ]
 
         i = serdes.i[-1]
         i_d = Signal()
         self.sync.rio_phy += [
             i_d.eq(i),
             self.rtlink.i.stb.eq(
+                sample |
                 (sensitivity[0] & ( i & ~i_d)) |
                 (sensitivity[1] & (~i &  i_d))
             ),

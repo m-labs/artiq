@@ -59,8 +59,14 @@ class Inout(Module):
                 ts.oe.eq(oe_k)
             )
         ]
-        self.sync.rio += If(self.rtlink.o.stb & (self.rtlink.o.address == 2),
-            sensitivity.eq(self.rtlink.o.data))
+        sample = Signal()
+        self.sync.rio += [
+            sample.eq(0),
+            If(self.rtlink.o.stb & self.rtlink.o.address[1],
+                sensitivity.eq(self.rtlink.o.data),
+                If(self.rtlink.o.address[0], sample.eq(1))
+            )
+        ]
         
         i = Signal()
         i_d = Signal()
@@ -68,6 +74,7 @@ class Inout(Module):
         self.sync.rio_phy += i_d.eq(i)
         self.comb += [
             self.rtlink.i.stb.eq(
+                sample |
                 (sensitivity[0] & ( i & ~i_d)) |
                 (sensitivity[1] & (~i &  i_d))
             ),
