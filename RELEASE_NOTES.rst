@@ -8,6 +8,8 @@ Release notes
 
 * The --embed option of applets is replaced with the environment variable
   ARTIQ_APPLET_EMBED.
+* EnvExperiment's prepare calls prepare for all its children.
+
 
 2.0rc1
 ------
