@@ -172,6 +172,65 @@ class LoopbackCount(EnvExperiment):
         self.set_dataset("count", self.loop_in.count())
 
 
+class IncorrectLevel(Exception):
+    pass
+
+
+class Level(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.setattr_device("loop_in")
+        self.setattr_device("loop_out")
+
+    @kernel
+    def run(self):
+        self.core.reset()
+        self.loop_in.input()
+        self.loop_out.output()
+        delay(5*us)
+
+        self.loop_out.off()
+        delay(5*us)
+        if self.loop_in.sample_get_nonrt():
+            raise IncorrectLevel
+
+        self.loop_out.on()
+        delay(5*us)
+        if not self.loop_in.sample_get_nonrt():
+            raise IncorrectLevel
+
+
+class Watch(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.setattr_device("loop_in")
+        self.setattr_device("loop_out")
+
+    @kernel
+    def run(self):
+        self.core.reset()
+        self.loop_in.input()
+        self.loop_out.output()
+        delay(5*us)
+
+        self.loop_out.off()
+        delay(5*us)
+        if not self.loop_in.watch_stay_off():
+            raise IncorrectLevel
+        delay(10*us)
+        if not self.loop_in.watch_done():
+            raise IncorrectLevel
+
+        delay(10*us)
+        if not self.loop_in.watch_stay_off():
+            raise IncorrectLevel
+        delay(3*us)
+        self.loop_out.on()
+        delay(10*us)
+        if self.loop_in.watch_done():
+            raise IncorrectLevel
+
+
 class Underflow(EnvExperiment):
     def build(self):
         self.setattr_device("core")
@@ -308,6 +367,12 @@ class CoredeviceTest(ExperimentCase):
         self.execute(LoopbackCount, npulses=npulses)
         count = self.dataset_mgr.get("count")
         self.assertEqual(count, npulses)
+
+    def test_level(self):
+        self.execute(Level)
+
+    def test_watch(self):
+        self.execute(Watch)
 
     def test_underflow(self):
         with self.assertRaises(RTIOUnderflow):
