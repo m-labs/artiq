@@ -36,23 +36,27 @@ class ScanObject:
 
 
 class NoScan(ScanObject):
-    """A scan object that yields a single value."""
-    def __init__(self, value):
+    """A scan object that yields a single value for a specified number
+    of repetitions."""
+    def __init__(self, value, repetitions):
         self.value = value
+        self.repetitions = repetitions
 
     @portable
     def _gen(self):
-        yield self.value
+        for i in range(self.repetitions):
+            yield self.value
 
     @portable
     def __iter__(self):
         return self._gen()
 
     def __len__(self):
-        return 1
+        return self.repetitions
 
     def describe(self):
-        return {"ty": "NoScan", "value": self.value}
+        return {"ty": "NoScan", "value": self.value,
+                "repetitions": self.repetitions}
 
 
 class LinearScan(ScanObject):

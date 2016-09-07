@@ -136,6 +136,18 @@ class _NoScan(LayoutWidget):
             state["value"] = value*scale
         self.value.valueChanged.connect(update)
 
+        self.repetitions = QtWidgets.QSpinBox()
+        self.repetitions.setMinimum(1)
+        self.repetitions.setMaximum((1 << 31) - 1)
+        disable_scroll_wheel(self.repetitions)
+        self.addWidget(QtWidgets.QLabel("Repetitions:"), 1, 0)
+        self.addWidget(self.repetitions, 1, 1)
+
+        self.repetitions.setValue(state["repetitions"])
+
+        def update_repetitions(value):
+            state["repetitions"] = value
+        self.repetitions.valueChanged.connect(update_repetitions)
 
 class _RangeScan(LayoutWidget):
     def __init__(self, procdesc, state):
@@ -272,6 +284,7 @@ class ScanEntry(LayoutWidget):
 
     def disable(self):
         self.radiobuttons["NoScan"].setChecked(True)
+        self.widgets["NoScan"].repetitions.setValue(1)
 
     @staticmethod
     def state_to_value(state):
@@ -285,7 +298,7 @@ class ScanEntry(LayoutWidget):
         scale = procdesc["scale"]
         state = {
             "selected": "NoScan",
-            "NoScan": {"value": 0.0},
+            "NoScan": {"value": 0.0, "repetitions": 1},
             "LinearScan": {"start": 0.0, "stop": 100.0*scale, "npoints": 10},
             "RandomScan": {"start": 0.0, "stop": 100.0*scale, "npoints": 10},
             "ExplicitScan": {"sequence": []}
@@ -299,6 +312,7 @@ class ScanEntry(LayoutWidget):
                 ty = default["ty"]
                 if ty == "NoScan":
                     state[ty]["value"] = default["value"]
+                    state[ty]["repetitions"] = default["repetitions"]
                 elif ty == "LinearScan" or ty == "RandomScan":
                     state[ty]["start"] = default["start"]
                     state[ty]["stop"] = default["stop"]
