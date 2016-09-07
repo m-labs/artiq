@@ -5,6 +5,13 @@ from artiq.language.types import *
 from artiq.coredevice.rtio import rtio_output, rtio_input_timestamp
 
 
+# RTIO TTL address map:
+# 0 Output level
+# 1 Output enable
+# 2 Set input sensitivity
+# 3 Set input sensitivity and sample
+
+
 class TTLOut:
     """RTIO TTL output driver.
 
@@ -94,6 +101,10 @@ class TTLInOut:
     the time in your setup, it is a good idea to call ``output`` in the
     startup kernel.
 
+    There are three input APIs: gating, sampling and watching. When one
+    API is active (e.g. the gate is open, or the input events have not been
+    fully read out), another API must not be used simultaneously.
+
     :param channel: channel number
     """
     kernel_invariants = {"core", "channel"}
@@ -105,6 +116,7 @@ class TTLInOut:
         # in RTIO cycles
         self.o_previous_timestamp = numpy.int64(0)
         self.i_previous_timestamp = numpy.int64(0)
+        self.queued_samples = 0
 
     @kernel
     def set_oe(self, oe):
@@ -180,6 +192,7 @@ class TTLInOut:
         delay(duration)
         self.off()
 
+    # Input API: gating
     @kernel
     def _set_sensitivity(self, value):
         rtio_output(now_mu(), self.channel, 2, value)
@@ -265,6 +278,78 @@ class TTLInOut:
 
         This function does not interact with the time cursor."""
         return rtio_input_timestamp(self.i_previous_timestamp, self.channel)
+
+    # Input API: sampling
+    @kernel
+    def sample_input(self):
+        """Instructs the RTIO core to read the value of the TTL input at the
+        position of the time cursor.
+
+        The time cursor is not modified by this function."""
+        rtio_output(now_mu(), self.channel, 3, 0)
+
+    @kernel
+    def sample_get(self):
+        """Returns the value of a sample previously obtained with
+        ``sample_input``.
+
+        Multiple samples may be queued (using multiple calls to
+        ``sample_input``) into the RTIO FIFOs and subsequently read out using
+        multiple calls to this function.
+
+        This function does not interact with the time cursor."""
+        return rtio_input_data(self.channel)
+
+    @kernel
+    def sample_get_nonrt(self):
+        """Convenience function that obtains the value of a sample
+        at the position of the time cursor, breaks realtime, and
+        returns the sample value."""
+        self.sample_input()
+        r = self.sample_get()
+        self.core.break_realtime()
+        return r
+
+    # Input API: watching
+    @kernel
+    def watch_stay_on(self):
+        """Checks that the input is at a high level at the position
+        of the time cursor and keep checking until ``watch_done``
+        is called.
+
+        Returns ``True`` if the input is high. A call to this function
+        must always be followed by an eventual call to ``watch_done``
+        (use e.g. a try/finally construct to ensure this).
+
+        The time cursor is not modified by this function.
+        """
+        rtio_output(now_mu(), self.channel, 3, 2)  # gate falling
+        return rtio_input_data(self.channel) == 1
+
+    @kernel
+    def watch_stay_off(self):
+        """Like ``watch_stay_on``, but for low levels."""
+        rtio_output(now_mu(), self.channel, 3, 1)  # gate rising
+        return rtio_input_data(self.channel) == 0
+
+    @kernel
+    def watch_done(self):
+        """Stop watching the input at the position of the time cursor.
+
+        Returns ``True`` if the input has not changed state while it
+        was being watched.
+
+        The time cursor is not modified by this function. This function
+        always makes the slack negative.
+        """
+        rtio_output(now_mu(), self.channel, 2, 0)
+        success = True
+        try:
+            while rtio_input_timestamp(now_mu(), self.channel) != -1:
+                success = False
+        except RTIOOverflow:
+            success = False
+        return success
 
 
 class TTLClockGen:
