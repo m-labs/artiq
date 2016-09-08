@@ -38,7 +38,7 @@ class ScanObject:
 class NoScan(ScanObject):
     """A scan object that yields a single value for a specified number
     of repetitions."""
-    def __init__(self, value, repetitions):
+    def __init__(self, value, repetitions=1):
         self.value = value
         self.repetitions = repetitions
 
