@@ -380,9 +380,10 @@ class EnvExperiment(Experiment, HasEnvironment):
     Most experiment should derive from this class."""
     def prepare(self):
         """The default prepare method calls prepare for all children, in the
-        order of instantiation."""
+        order of instantiation, if the child has a prepare method."""
         for child in self.children:
-            child.prepare()
+            if hasattr(child, "prepare"):
+                child.prepare()
 
 
 def is_experiment(o):
