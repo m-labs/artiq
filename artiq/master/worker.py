@@ -76,6 +76,8 @@ class Worker:
         return "worker({},{})".format(self.rid, self.filename)
 
     async def _create_process(self, log_level):
+        if self.ipc is not None:
+            return  # process already exists, recycle
         await self.io_lock.acquire()
         try:
             if self.closed.is_set():
