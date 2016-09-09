@@ -396,11 +396,13 @@ class CommGeneric:
                   lambda: "bool")
             self._write_int8(value)
         elif tag == "i":
-            check(isinstance(value, int) and (-2**31 < value < 2**31-1),
+            check(isinstance(value, (int, numpy.int32)) and
+                  (-2**31 < value < 2**31-1),
                   lambda: "32-bit int")
             self._write_int32(value)
         elif tag == "I":
-            check(isinstance(value, int) and (-2**63 < value < 2**63-1),
+            check(isinstance(value, (int, numpy.int32, numpy.int64)) and
+                  (-2**63 < value < 2**63-1),
                   lambda: "64-bit int")
             self._write_int64(value)
         elif tag == "f":
