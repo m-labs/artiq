@@ -58,7 +58,7 @@ class AppletsCCBDock(applets.AppletsDock):
             new_parent = None
             for i in range(parent.childCount()):
                 child = parent.child(i)
-                if child.ty == "group" and child.text(1) == g:
+                if child.ty == "group" and child.text(0) == g:
                     new_parent = child
                     break
             if new_parent is None:
@@ -71,7 +71,7 @@ class AppletsCCBDock(applets.AppletsDock):
         applet = None
         for i in range(parent.childCount()):
             child = parent.child(i)
-            if child.ty == "applet" and child.text(1) == name:
+            if child.ty == "applet" and child.text(0) == name:
                 applet = child
                 break
         return parent, applet
