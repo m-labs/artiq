@@ -502,7 +502,7 @@ class AppletsDock(QtWidgets.QDockWidget):
             parent.addChild(item)
         return item
 
-    def new_group(self, name=None, parent=None):
+    def new_group(self, name=None, attr="", parent=None):
         if name is None:
             name = self.get_untitled()
         item = QtWidgets.QTreeWidgetItem([name])
@@ -522,7 +522,7 @@ class AppletsDock(QtWidgets.QDockWidget):
             parent.addChild(item)
         # HACK: make the cell non-editable. Qt doesn't even provide
         # a clean API for such a basic feature.
-        self.table.setItemWidget(item, 1, QtWidgets.QLabel())
+        self.table.setItemWidget(item, 1, QtWidgets.QLabel(attr))
         return item
 
     def new_with_parent(self, cb, **kwargs):
@@ -605,9 +605,10 @@ class AppletsDock(QtWidgets.QDockWidget):
                 state.append(("applet", uid, enabled, name, spec, geometry))
             elif cwi.ty == "group":
                 name = cwi.text(0)
+                attr = self.table.itemWidget(cwi, 1).text()
                 expanded = cwi.isExpanded()
                 state_child = self.save_state_item(cwi)
-                state.append(("group", name, expanded, state_child))
+                state.append(("group", name, attr, expanded, state_child))
             else:
                 raise ValueError
         return state
@@ -629,8 +630,8 @@ class AppletsDock(QtWidgets.QDockWidget):
                 if enabled:
                     item.setCheckState(0, QtCore.Qt.Checked)
             elif wis[0] == "group":
-                _, name, expanded, state_child = wis
-                item = self.new_group(name, parent=parent)
+                _, name, attr, expanded, state_child = wis
+                item = self.new_group(name, attr, parent=parent)
                 item.setExpanded(expanded)
                 self.restore_state_item(state_child, item)
             else:
