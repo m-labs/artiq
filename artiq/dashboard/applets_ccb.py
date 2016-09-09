@@ -99,10 +99,6 @@ class AppletsCCBDock(applets.AppletsDock):
             return "enable"
 
     def get_ccpb(self, group):
-        if group is None:
-            group = []
-        elif isinstance(group, str):
-            group = [group]
         ccbp = self.get_ccpb_global()
         parent = self.table.invisibleRootItem()
         for g in group:
@@ -122,11 +118,6 @@ class AppletsCCBDock(applets.AppletsDock):
         return ccbp
 
     def locate_applet(self, name, group, create_groups):
-        if group is None:
-            group = []
-        elif isinstance(group, str):
-            group = [group]
-
         parent = self.table.invisibleRootItem()
         for g in group:
             new_parent = None
@@ -151,6 +142,11 @@ class AppletsCCBDock(applets.AppletsDock):
         return parent, applet
 
     def ccb_create_applet(self, name, command, group=None, code=None):
+        if group is None:
+            group = []
+        elif isinstance(group, str):
+            group = [group]
+
         ccbp = self.get_ccpb(group)
         if ccbp == "ignore":
             return
@@ -167,12 +163,40 @@ class AppletsCCBDock(applets.AppletsDock):
             applet.setCheckState(0, QtCore.Qt.Checked)
 
     def ccb_disable_applet(self, name, group=None):
+        if group is None:
+            group = []
+        elif isinstance(group, str):
+            group = [group]
+
         ccbp = self.get_ccpb(group)
-        if ccbp != "create":
+        if ccbp != "enable":
             return
         parent, applet = self.locate_applet(name, group, False)
         if applet is not None:
             applet.setCheckState(0, QtCore.Qt.Unchecked)
+
+    def ccb_disable_applet_group(self, group):
+        if isinstance(group, str):
+            group = [group]
+
+        ccbp = self.get_ccpb(group)
+        if ccbp != "enable":
+            return
+        if not group:
+            return
+        wi = self.table.invisibleRootItem()
+        for g in group:
+            nwi = None
+            for i in range(wi.childCount()):
+                child = wi.child(i)
+                if child.ty == "group" and child.text(0) == g:
+                    nwi = child
+                    break
+            if nwi is None:
+                return
+            else:
+                wi = nwi
+        wi.setCheckState(0, QtCore.Qt.Unchecked)
 
     def ccb_notify(self, message):
         try:
@@ -183,6 +207,8 @@ class AppletsCCBDock(applets.AppletsDock):
                 self.ccb_create_applet(*args, **kwargs)
             elif service == "disable_applet":
                 self.ccb_disable_applet(*args, **kwargs)
+            elif service == "disable_applet_group":
+                self.ccb_disable_applet_group(*args, **kwargs)
         except:
             logger.error("failed to process CCB", exc_info=True)
 
