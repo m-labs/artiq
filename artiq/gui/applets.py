@@ -13,7 +13,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from artiq.protocols.pipe_ipc import AsyncioParentComm
 from artiq.protocols.logging import LogParser
 from artiq.protocols import pyon
-from artiq.gui.tools import QDockWidgetCloseDetect
+from artiq.gui.tools import QDockWidgetCloseDetect, LayoutWidget
 
 
 logger = logging.getLogger(__name__)
@@ -325,8 +325,8 @@ class AppletsDock(QtWidgets.QDockWidget):
         self.applet_uids = set()
 
         self.table = QtWidgets.QTreeWidget()
-        self.table.setColumnCount(3)
-        self.table.setHeaderLabels(["Enable", "Name", "Command"])
+        self.table.setColumnCount(2)
+        self.table.setHeaderLabels(["Name", "Command"])
         self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
 
@@ -343,7 +343,7 @@ class AppletsDock(QtWidgets.QDockWidget):
         self.setWidget(self.table)
 
         completer_delegate = _CompleterDelegate()
-        self.table.setItemDelegateForColumn(2, completer_delegate)
+        self.table.setItemDelegateForColumn(1, completer_delegate)
         datasets_sub.add_setmodel_callback(completer_delegate.set_model)
 
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
@@ -378,10 +378,10 @@ class AppletsDock(QtWidgets.QDockWidget):
 
     def get_spec(self, item):
         if item.applet_spec_ty == "command":
-            return {"ty": "command", "command": item.text(2)}
+            return {"ty": "command", "command": item.text(1)}
         elif item.applet_spec_ty == "code":
             return {"ty": "code", "code": item.applet_code,
-                    "command": item.text(2)}
+                    "command": item.text(1)}
         else:
             raise ValueError
 
@@ -389,13 +389,13 @@ class AppletsDock(QtWidgets.QDockWidget):
         self.table.itemChanged.disconnect()
         try:
             item.applet_spec_ty = spec["ty"]
-            item.setText(2, spec["command"])
+            item.setText(1, spec["command"])
             if spec["ty"] == "command":
-                item.setIcon(2, QtGui.QIcon())
+                item.setIcon(1, QtGui.QIcon())
                 if hasattr(item, "applet_code"):
                     del item.applet_code
             elif spec["ty"] == "code":
-                item.setIcon(2, QtWidgets.QApplication.style().standardIcon(
+                item.setIcon(1, QtWidgets.QApplication.style().standardIcon(
                     QtWidgets.QStyle.SP_FileIcon))
                 item.applet_code = spec["code"]
             else:
@@ -416,30 +416,31 @@ class AppletsDock(QtWidgets.QDockWidget):
 
     def item_changed(self, item, column):
         if item.ty == "applet":
+            new_value = item.text(column)
+            dock = item.applet_dock
+            if dock is not None:
+                if column == 0:
+                    dock.rename(new_value)
+                else:
+                    dock.spec = self.get_spec(item)
+
             if column == 0:
                 if item.checkState(0) == QtCore.Qt.Checked:
-                    name = item.text(1)
-                    spec = self.get_spec(item)
-                    dock = self.create(item.applet_uid, name, spec)
-                    item.applet_dock = dock
-                    if item.applet_geometry is not None:
-                        dock.restoreGeometry(item.applet_geometry)
-                        # geometry is now handled by main window state
-                        item.applet_geometry = None
-                    self.dock_to_item[dock] = item
+                    if item.applet_dock is None:
+                        name = item.text(0)
+                        spec = self.get_spec(item)
+                        dock = self.create(item.applet_uid, name, spec)
+                        item.applet_dock = dock
+                        if item.applet_geometry is not None:
+                            dock.restoreGeometry(item.applet_geometry)
+                            # geometry is now handled by main window state
+                            item.applet_geometry = None
+                        self.dock_to_item[dock] = item
                 else:
                     dock = item.applet_dock
                     if dock is not None:
                         # This calls self.on_dock_closed
                         dock.close()
-            elif column == 1 or column == 2:
-                new_value = item.text(column)
-                dock = item.applet_dock
-                if dock is not None:
-                    if column == 1:
-                        dock.rename(new_value)
-                    else:
-                        dock.spec = self.get_spec(item)
         elif item.ty == "group":
             # To Qt's credit, it already does everything for us here.
             pass
@@ -459,7 +460,7 @@ class AppletsDock(QtWidgets.QDockWidget):
         def walk(wi):
             for i in range(wi.childCount()):
                 cwi = wi.child(i)
-                existing_names.add(cwi.text(1))
+                existing_names.add(cwi.text(0))
                 walk(cwi)
         walk(self.table.invisibleRootItem())
 
@@ -480,7 +481,7 @@ class AppletsDock(QtWidgets.QDockWidget):
 
         if name is None:
             name = self.get_untitled()
-        item = QtWidgets.QTreeWidgetItem(["", name, ""])
+        item = QtWidgets.QTreeWidgetItem([name, ""])
         item.ty = "applet"
         item.setFlags(QtCore.Qt.ItemIsSelectable |
                       QtCore.Qt.ItemIsUserCheckable |
@@ -504,7 +505,7 @@ class AppletsDock(QtWidgets.QDockWidget):
     def new_group(self, name=None, parent=None):
         if name is None:
             name = self.get_untitled()
-        item = QtWidgets.QTreeWidgetItem(["", name])
+        item = QtWidgets.QTreeWidgetItem([name])
         item.ty = "group"
         item.setFlags(QtCore.Qt.ItemIsSelectable |
             QtCore.Qt.ItemIsEditable |
@@ -519,6 +520,9 @@ class AppletsDock(QtWidgets.QDockWidget):
             self.table.addTopLevelItem(item)
         else:
             parent.addChild(item)
+        # HACK: make the cell non-editable. Qt doesn't even provide
+        # a clean API for such a basic feature.
+        self.table.setItemWidget(item, 1, QtWidgets.QLabel())
         return item
 
     def new_with_parent(self, cb, **kwargs):
@@ -593,14 +597,14 @@ class AppletsDock(QtWidgets.QDockWidget):
             if cwi.ty == "applet":
                 uid = cwi.applet_uid
                 enabled = cwi.checkState(0) == QtCore.Qt.Checked
-                name = cwi.text(1)
+                name = cwi.text(0)
                 spec = self.get_spec(cwi)
                 geometry = cwi.applet_geometry
                 if geometry is not None:
                     geometry = bytes(geometry)
                 state.append(("applet", uid, enabled, name, spec, geometry))
             elif cwi.ty == "group":
-                name = cwi.text(1)
+                name = cwi.text(0)
                 expanded = cwi.isExpanded()
                 state_child = self.save_state_item(cwi)
                 state.append(("group", name, expanded, state_child))
