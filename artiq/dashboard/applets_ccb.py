@@ -15,10 +15,37 @@ class AppletsCCBDock(applets.AppletsDock):
         sep = QtWidgets.QAction(self.table)
         sep.setSeparator(True)
         self.table.addAction(sep)
-        self.listen_action = QtWidgets.QAction(
-            "Listen to client control broadcasts", self.table)
-        self.listen_action.setCheckable(True)
-        self.table.addAction(self.listen_action)
+
+        ccbp_global_menu = QtWidgets.QMenu()
+        actiongroup = QtWidgets.QActionGroup(self.table)
+        actiongroup.setExclusive(True)
+        self.ccbp_global_ignore = QtWidgets.QAction("Ignore requests", self.table)
+        self.ccbp_global_ignore.setCheckable(True)
+        ccbp_global_menu.addAction(self.ccbp_global_ignore)
+        actiongroup.addAction(self.ccbp_global_ignore)
+        self.ccbp_global_create = QtWidgets.QAction("Create applets", self.table)
+        self.ccbp_global_create.setCheckable(True)
+        self.ccbp_global_create.setChecked(True)
+        ccbp_global_menu.addAction(self.ccbp_global_create)
+        actiongroup.addAction(self.ccbp_global_create)
+        self.ccbp_global_enable = QtWidgets.QAction("Create and enable applets",
+                                                    self.table)
+        self.ccbp_global_enable.setCheckable(True)
+        ccbp_global_menu.addAction(self.ccbp_global_enable)
+        actiongroup.addAction(self.ccbp_global_enable)
+
+        ccbp_global_action = QtWidgets.QAction(
+            "Client control broadcast policy (global)", self.table)
+        ccbp_global_action.setMenu(ccbp_global_menu)
+        self.table.addAction(ccbp_global_action)
+
+    def get_ccpb_global(self):
+        if self.ccbp_global_ignore.isChecked():
+            return "ignore"
+        if self.ccbp_global_create.isChecked():
+            return "create"
+        if self.ccbp_global_enable.isChecked():
+            return "enable"
 
     def locate_applet(self, name, group, create_groups):
         if group is None:
@@ -50,7 +77,8 @@ class AppletsCCBDock(applets.AppletsDock):
         return parent, applet
 
     def ccb_create_applet(self, name, command, group=None, code=None):
-        if not self.listen_action.isChecked():
+        ccbp = self.get_ccpb_global()
+        if ccbp == "ignore":
             return
         parent, applet = self.locate_applet(name, group, True)
         if code is None:
@@ -61,10 +89,12 @@ class AppletsCCBDock(applets.AppletsDock):
             applet = self.new(name=name, spec=spec, parent=parent)
         else:
             self.set_spec(applet, spec)
-        applet.setCheckState(0, QtCore.Qt.Checked)
+        if ccbp == "enable":
+            applet.setCheckState(0, QtCore.Qt.Checked)
 
     def ccb_disable_applet(self, name, group=None):
-        if not self.listen_action.isChecked():
+        ccbp = self.get_ccpb_global()
+        if ccbp != "create":
             return
         parent, applet = self.locate_applet(name, group, False)
         if applet is not None:
@@ -85,9 +115,9 @@ class AppletsCCBDock(applets.AppletsDock):
     def save_state(self):
         return {
             "applets": applets.AppletsDock.save_state(self),
-            "listen": self.listen_action.isChecked()
+            "ccbp_global": self.get_ccpb_global()
         }
 
     def restore_state(self, state):
         applets.AppletsDock.restore_state(self, state["applets"])
-        self.listen_action.setChecked(state["listen"])
+        getattr(self, "ccbp_global_" + state["ccbp_global"]).setChecked(True)
