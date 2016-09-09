@@ -376,6 +376,14 @@ class AppletsDock(QtWidgets.QDockWidget):
 
         self.table.itemChanged.connect(self.item_changed)
 
+        # HACK
+        self.table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        self.table.itemDoubleClicked.connect(self.open_editor)
+
+    def open_editor(self, item, column):
+        if column != 1 or item.ty != "group":
+            self.table.editItem(item, column)
+
     def get_spec(self, item):
         if item.applet_spec_ty == "command":
             return {"ty": "command", "command": item.text(1)}
@@ -505,7 +513,7 @@ class AppletsDock(QtWidgets.QDockWidget):
     def new_group(self, name=None, attr="", parent=None):
         if name is None:
             name = self.get_untitled()
-        item = QtWidgets.QTreeWidgetItem([name])
+        item = QtWidgets.QTreeWidgetItem([name, attr])
         item.ty = "group"
         item.setFlags(QtCore.Qt.ItemIsSelectable |
             QtCore.Qt.ItemIsEditable |
@@ -520,9 +528,6 @@ class AppletsDock(QtWidgets.QDockWidget):
             self.table.addTopLevelItem(item)
         else:
             parent.addChild(item)
-        # HACK: make the cell non-editable. Qt doesn't even provide
-        # a clean API for such a basic feature.
-        self.table.setItemWidget(item, 1, QtWidgets.QLabel(attr))
         return item
 
     def new_with_parent(self, cb, **kwargs):
@@ -605,7 +610,7 @@ class AppletsDock(QtWidgets.QDockWidget):
                 state.append(("applet", uid, enabled, name, spec, geometry))
             elif cwi.ty == "group":
                 name = cwi.text(0)
-                attr = self.table.itemWidget(cwi, 1).text()
+                attr = cwi.text(1)
                 expanded = cwi.isExpanded()
                 state_child = self.save_state_item(cwi)
                 state.append(("group", name, attr, expanded, state_child))

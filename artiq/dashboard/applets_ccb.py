@@ -76,8 +76,7 @@ class AppletsCCBDock(applets.AppletsDock):
                 self.ccbp_group_action.setEnabled(False)
             else:
                 self.ccbp_group_action.setEnabled(True)
-                print(item, item.ty)
-                ccbp = self.table.itemWidget(item, 1).text()
+                ccbp = item.text(1)
                 if ccbp == "":
                     self.ccbp_group_none.setChecked(True)
                 else:
@@ -89,7 +88,7 @@ class AppletsCCBDock(applets.AppletsDock):
         item = self.table.selectedItems()[0]
         if item.ty == "applet":
             item = item.parent()
-        self.table.itemWidget(item, 1).setText(ccbp)
+        item.setText(1, ccbp)
 
     def get_ccpb_global(self):
         if self.ccbp_global_ignore.isChecked():
