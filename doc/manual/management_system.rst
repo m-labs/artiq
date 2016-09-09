@@ -124,6 +124,16 @@ The scheduler virtual device also contains the attributes ``rid``, ``pipeline_na
 .. autoclass:: artiq.master.scheduler.Scheduler
    :members:
 
+Client control broadcasts (CCBs)
+********************************
+
+Client control broadcasts are requests made by experiments for clients to perform some action. Experiments do so by requesting the ``ccb`` virtual device and calling its ``issue`` method. The first argument of the issue method is the name of the broadcast, and any further positional and keyword arguments are passed to the broadcast.
+
+CCBs are used by experiments to configure applets in the dashboard, for example for plotting purposes.
+
+.. autoclass:: artiq.dashboard.applets_ccb.AppletsCCBDock
+   :members:
+
 Front-end tool reference
 ************************
 

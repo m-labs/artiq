@@ -142,6 +142,31 @@ class AppletsCCBDock(applets.AppletsDock):
         return parent, applet
 
     def ccb_create_applet(self, name, command, group=None, code=None):
+        """Requests the creation of a new applet.
+
+        An applet is identified by its name and an optional list of groups that
+        represent a path (nested groups). If ``group`` is a string, it
+        corresponds to a single group. If ``group`` is ``None`` or an empty
+        list, it corresponds to the root.
+
+        ``command`` gives the command line used to run the applet, as if it
+        was started from a shell. The dashboard substitutes variables such as
+        ``$python`` that gives the complete file name of the Python
+        interpreter running the dashboard.
+
+        If the name already exists (after following any specified groups), the
+        command or code of the existing applet with that name is replaced, and
+        the applet is shown at its previous position. If not, a new applet
+        entry is created and the applet is shown at any position on the screen.
+
+        If the group(s) do not exist, they are created.
+
+        If ``code`` is not ``None``, it should be a string that contains the
+        full source code of the applet. In this case, ``command`` is used to
+        specify (optional) command-line arguments to the applet.
+
+        This function is called when a CCB ``create_applet`` is issued.
+        """
         if group is None:
             group = []
         elif isinstance(group, str):
@@ -163,6 +188,13 @@ class AppletsCCBDock(applets.AppletsDock):
             applet.setCheckState(0, QtCore.Qt.Checked)
 
     def ccb_disable_applet(self, name, group=None):
+        """Disables an applet.
+
+        The applet is identified by its name, after following any specified
+        groups.
+
+        This function is called when a CCB ``disable_applet`` is issued.
+        """
         if group is None:
             group = []
         elif isinstance(group, str):
@@ -176,6 +208,13 @@ class AppletsCCBDock(applets.AppletsDock):
             applet.setCheckState(0, QtCore.Qt.Unchecked)
 
     def ccb_disable_applet_group(self, group):
+        """Disables all the applets in a group.
+
+        If the group is nested, ``group`` should be a list, with the names
+        of the parents preceding the name of the group to disable.
+
+        This function is called when a CCB ``disable_applet_group`` is issued.
+        """
         if isinstance(group, str):
             group = [group]
 
