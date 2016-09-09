@@ -110,7 +110,7 @@ class AppletsCCBDock(applets.AppletsDock):
             for i in range(parent.childCount()):
                 child = parent.child(i)
                 if child.ty == "group" and child.text(0) == g:
-                    c_ccbp = self.table.itemWidget(child, 1).text()
+                    c_ccbp = child.text(1)
                     if c_ccbp:
                         ccbp = c_ccbp
                     new_parent = child
@@ -137,7 +137,7 @@ class AppletsCCBDock(applets.AppletsDock):
                     break
             if new_parent is None:
                 if create_groups:
-                    new_parent = self.new_group(g, parent)
+                    new_parent = self.new_group(g, parent=parent)
                 else:
                     return None, None
             parent = new_parent
