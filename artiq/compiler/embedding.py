@@ -740,6 +740,10 @@ class Stitcher:
         # specifications refers to ones we didn't encounter.
         for host_type in self.embedding_map.type_map:
             instance_type, constructor_type = self.embedding_map.type_map[host_type]
+            if not hasattr(instance_type, "constant_attributes"):
+                # Exceptions lack user-definable attributes.
+                continue
+
             for attribute in instance_type.constant_attributes:
                 if attribute in instance_type.attributes:
                     # Fast path; if the ARTIQ Python type has the attribute, then every observed
