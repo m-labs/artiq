@@ -736,6 +736,30 @@ class Stitcher:
         # do one last pass unconditionally.
         inferencer.visit(self.typedtree)
 
+        # After we've discovered every referenced attribute, check if any kernel_invariant
+        # specifications refers to ones we didn't encounter.
+        for host_type in self.embedding_map.type_map:
+            instance_type, constructor_type = self.embedding_map.type_map[host_type]
+            for attribute in instance_type.constant_attributes:
+                if attribute in instance_type.attributes:
+                    # Fast path; if the ARTIQ Python type has the attribute, then every observed
+                    # value is guaranteed to have it too.
+                    continue
+
+                for value, loc in self.value_map[instance_type]:
+                    if hasattr(value, attribute):
+                        continue
+
+                    diag = diagnostic.Diagnostic("warning",
+                        "object {value} of type {typ} declares attribute '{attr}' as "
+                        "kernel invariant, but the instance referenced here does not "
+                        "have this attribute",
+                        {"value": repr(value),
+                         "typ": types.TypePrinter().name(instance_type, max_depth=0),
+                         "attr": attribute},
+                        loc)
+                    self.engine.process(diag)
+
         # After we have found all functions, synthesize a module to hold them.
         source_buffer = source.Buffer("", "<synthesized>")
         self.typedtree = asttyped.ModuleT(
