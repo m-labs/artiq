@@ -263,7 +263,7 @@ def _extract_log_chars(data):
         n = data >> 24
         data = (data << 8) & 0xffffffff
         if not n:
-            return r
+            continue
         r += chr(n)
     return r
 
