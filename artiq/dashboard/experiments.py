@@ -199,7 +199,10 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         for k, v in self._groups.items():
             if v.isExpanded():
                 expanded.append(k)
-        return {"expanded": expanded}
+        return {
+            "expanded": expanded,
+            "scroll": self.verticalScrollBar().value()
+        }
 
     def restore_state(self, state):
         for e in state["expanded"]:
@@ -207,6 +210,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
                 self._groups[e].setExpanded(True)
             except KeyError:
                 pass
+        self.verticalScrollBar().setValue(state["scroll"])
 
 
 log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -650,15 +654,16 @@ class ExperimentManager:
             "scheduling": self.submission_scheduling,
             "options": self.submission_options,
             "arguments": self.submission_arguments,
-            "docks": self.dock_states
+            "docks": self.dock_states,
+            "open_docks": set(self.open_experiments.keys())
         }
 
     def restore_state(self, state):
         if self.open_experiments:
             raise NotImplementedError
+        self.dock_states = state["docks"]
         self.submission_scheduling = state["scheduling"]
         self.submission_options = state["options"]
         self.submission_arguments = state["arguments"]
-        for expurl, dock_state in state["docks"].items():
-            dock = self.open_experiment(expurl)
-            dock.restore_state(dock_state)
+        for expurl in state["open_docks"]:
+            self.open_experiment(expurl)
