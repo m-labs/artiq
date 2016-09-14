@@ -462,6 +462,7 @@ class ExperimentManager:
         self.schedule_ctl = schedule_ctl
         self.experiment_db_ctl = experiment_db_ctl
 
+        self.dock_states = dict()
         self.submission_scheduling = dict()
         self.submission_options = dict()
         self.submission_arguments = dict()
@@ -556,9 +557,13 @@ class ExperimentManager:
         self.main_window.centralWidget().addSubWindow(dock)
         dock.show()
         dock.sigClosed.connect(partial(self.on_dock_closed, expurl))
+        if expurl in self.dock_states:
+            dock.restore_state(self.dock_states[expurl])
         return dock
 
     def on_dock_closed(self, expurl):
+        dock = self.open_experiments[expurl]
+        self.dock_states[expurl] = dock.save_state()
         del self.open_experiments[expurl]
 
     async def _submit_task(self, expurl, *args):
@@ -639,13 +644,13 @@ class ExperimentManager:
             self.open_experiment(expurl)
 
     def save_state(self):
-        docks = {expurl: dock.save_state()
-                 for expurl, dock in self.open_experiments.items()}
+        for expurl, dock in self.open_experiments.items():
+            self.dock_states[expurl] = dock.save_state()
         return {
             "scheduling": self.submission_scheduling,
             "options": self.submission_options,
             "arguments": self.submission_arguments,
-            "docks": docks
+            "docks": self.dock_states
         }
 
     def restore_state(self, state):
