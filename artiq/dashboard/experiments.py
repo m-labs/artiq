@@ -8,7 +8,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import h5py
 
 from artiq.gui.tools import LayoutWidget, log_level_to_name, get_open_file_name
-from artiq.gui.entries import argty_to_entry, ScanEntry
+from artiq.gui.entries import procdesc_to_entry, ScanEntry
 from artiq.protocols import pyon
 
 
@@ -71,7 +71,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
             widgets = dict()
             self._arg_to_widgets[name] = widgets
 
-            entry = argty_to_entry[argument["desc"]["ty"]](argument)
+            entry = procdesc_to_entry(argument["desc"])(argument)
             widget_item = QtWidgets.QTreeWidgetItem([name])
             widgets["entry"] = entry
             widgets["widget_item"] = widget_item
@@ -168,7 +168,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         argument = self.manager.get_submission_arguments(self.expurl)[name]
 
         procdesc = arginfo[name][0]
-        state = argty_to_entry[procdesc["ty"]].default_state(procdesc)
+        state = procdesc_to_entry(procdesc).default_state(procdesc)
         argument["desc"] = procdesc
         argument["state"] = state
 
@@ -179,7 +179,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         widgets = self._arg_to_widgets[name]
 
         widgets["entry"].deleteLater()
-        widgets["entry"] = argty_to_entry[procdesc["ty"]](argument)
+        widgets["entry"] = procdesc_to_entry(procdesc)(argument)
         widgets["disable_other_scans"].setVisible(
             isinstance(widgets["entry"], ScanEntry))
         widgets["fix_layout"].deleteLater()
@@ -519,7 +519,7 @@ class ExperimentManager:
     def initialize_submission_arguments(self, expurl, arginfo):
         arguments = OrderedDict()
         for name, (procdesc, group) in arginfo.items():
-            state = argty_to_entry[procdesc["ty"]].default_state(procdesc)
+            state = procdesc_to_entry(procdesc).default_state(procdesc)
             arguments[name] = {
                 "desc": procdesc,
                 "group": group,
@@ -573,7 +573,7 @@ class ExperimentManager:
 
         argument_values = dict()
         for name, argument in arguments.items():
-            entry_cls = argty_to_entry[argument["desc"]["ty"]]
+            entry_cls = procdesc_to_entry(argument["desc"])
             argument_values[name] = entry_cls.state_to_value(argument["state"])
 
         expid = {
