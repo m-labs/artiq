@@ -69,7 +69,41 @@ class EnumerationEntry(QtWidgets.QComboBox):
             return procdesc["choices"][0]
 
 
-class NumberEntry(ScientificSpinBox):
+class NumberEntryInt(QtWidgets.QSpinBox):
+    def __init__(self, argument):
+        QtWidgets.QSpinBox.__init__(self)
+        disable_scroll_wheel(self)
+        procdesc = argument["desc"]
+        self.setSingleStep(procdesc["step"])
+        if procdesc["min"] is not None:
+            self.setMinimum(procdesc["min"])
+        else:
+            self.setMinimum(-((1 << 31) - 1))
+        if procdesc["max"] is not None:
+            self.setMaximum(procdesc["max"])
+        else:
+            self.setMaximum((1 << 31) - 1)
+        if procdesc["unit"]:
+            self.setSuffix(" " + procdesc["unit"])
+
+        self.setValue(argument["state"])
+        def update(value):
+            argument["state"] = value
+        self.valueChanged.connect(update)
+
+    @staticmethod
+    def state_to_value(state):
+        return state
+
+    @staticmethod
+    def default_state(procdesc):
+        if "default" in procdesc:
+            return procdesc["default"]
+        else:
+            return 0
+
+
+class NumberEntryFloat(ScientificSpinBox):
     def __init__(self, argument):
         ScientificSpinBox.__init__(self)
         disable_scroll_wheel(self)
@@ -148,6 +182,7 @@ class _NoScan(LayoutWidget):
         def update_repetitions(value):
             state["repetitions"] = value
         self.repetitions.valueChanged.connect(update_repetitions)
+
 
 class _RangeScan(LayoutWidget):
     def __init__(self, procdesc, state):
@@ -331,11 +366,21 @@ class ScanEntry(LayoutWidget):
                 break
 
 
-argty_to_entry = {
-    "PYONValue": StringEntry,
-    "BooleanValue": BooleanEntry,
-    "EnumerationValue": EnumerationEntry,
-    "NumberValue": NumberEntry,
-    "StringValue": StringEntry,
-    "Scannable": ScanEntry
-}
+def procdesc_to_entry(procdesc):
+    ty = procdesc["ty"]
+    if ty == "NumberValue":
+        is_int = (procdesc["ndecimals"] == 0
+                  and int(procdesc["step"]) == procdesc["step"]
+                  and procdesc["scale"] == 1)
+        if is_int:
+            return NumberEntryInt
+        else:
+            return NumberEntryFloat
+    else:
+        return {
+            "PYONValue": StringEntry,
+            "BooleanValue": BooleanEntry,
+            "EnumerationValue": EnumerationEntry,
+            "StringValue": StringEntry,
+            "Scannable": ScanEntry
+        }[ty]

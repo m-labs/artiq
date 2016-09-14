@@ -9,7 +9,7 @@ import h5py
 
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.gui.tools import LayoutWidget, log_level_to_name, get_open_file_name
-from artiq.gui.entries import argty_to_entry
+from artiq.gui.entries import procdesc_to_entry
 from artiq.protocols import pyon
 from artiq.master.worker import Worker, log_worker_exception
 
@@ -62,7 +62,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
             widgets = dict()
             self._arg_to_widgets[name] = widgets
 
-            entry = argty_to_entry[argument["desc"]["ty"]](argument)
+            entry = procdesc_to_entry(argument["desc"])(argument)
             widget_item = QtWidgets.QTreeWidgetItem([name])
             widgets["entry"] = entry
             widgets["widget_item"] = widget_item
@@ -148,14 +148,14 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         argument = self._dock.arguments[name]
 
         procdesc = arginfo[name][0]
-        state = argty_to_entry[procdesc["ty"]].default_state(procdesc)
+        state = procdesc_to_entry(procdesc).default_state(procdesc)
         argument["desc"] = procdesc
         argument["state"] = state
 
         widgets = self._arg_to_widgets[name]
 
         widgets["entry"].deleteLater()
-        widgets["entry"] = argty_to_entry[procdesc["ty"]](argument)
+        widgets["entry"] = procdesc_to_entry(procdesc)(argument)
         widgets["fix_layout"] = LayoutWidget()
         widgets["fix_layout"].addWidget(widgets["entry"])
         self.setItemWidget(widgets["widget_item"], 1, widgets["fix_layout"])
@@ -318,7 +318,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
             "class_name": class_name,
             "log_level": self.options["log_level"],
             "arguments": {
-                name: argty_to_entry[argument["desc"]["ty"]].state_to_value(
+                name: procdesc_to_entry(argument["desc"]).state_to_value(
                     argument["state"])
                 for name, argument in self.arguments.items()},
         }
@@ -470,7 +470,7 @@ class ExperimentsArea(QtWidgets.QMdiArea):
     def initialize_submission_arguments(self, arginfo):
         arguments = OrderedDict()
         for name, (procdesc, group) in arginfo.items():
-            state = argty_to_entry[procdesc["ty"]].default_state(procdesc)
+            state = procdesc_to_entry(procdesc).default_state(procdesc)
             arguments[name] = {
                 "desc": procdesc,
                 "group": group,
