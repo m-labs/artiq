@@ -1,5 +1,6 @@
 import threading
 import logging
+import inspect
 
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,9 @@ class FFProxy:
     """
     def __init__(self, target):
         self.target = target
+
+        valid_methods = inspect.getmembers(target, inspect.ismethod)
+        self._valid_methods = {m[0] for m in valid_methods}
         self._thread = None
 
     def ff_join(self):
@@ -28,6 +32,8 @@ class FFProxy:
             self._thread.join()
 
     def __getattr__(self, k):
+        if k not in self._valid_methods:
+            raise AttributeError
         def run_in_thread(*args, **kwargs):
             if self._thread is not None and self._thread.is_alive():
                 logger.warning("skipping fire-and-forget call to %r.%s as "

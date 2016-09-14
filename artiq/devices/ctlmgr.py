@@ -41,7 +41,7 @@ class Controller:
         await remote.connect_rpc(self.host, self.port, None)
         try:
             targets, _ = remote.get_rpc_id()
-            remote.select_rpc_target(targets[0])
+            await remote.select_rpc_target(targets[0])
             r = await getattr(remote, method)(*args, **kwargs)
         finally:
             remote.close_rpc()

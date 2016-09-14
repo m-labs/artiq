@@ -33,7 +33,7 @@ class ControllerCase(unittest.TestCase):
         remote = AsyncioClient()
         await remote.connect_rpc(host, port, None)
         targets, _ = remote.get_rpc_id()
-        remote.select_rpc_target(targets[0])
+        await remote.select_rpc_target(targets[0])
         self.addCleanup(remote.close_rpc)
         return remote
 

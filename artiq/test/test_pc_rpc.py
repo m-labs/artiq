@@ -46,7 +46,7 @@ class RPCCase(unittest.TestCase):
             test_object_back = remote.async_echo(test_object)
             self.assertEqual(test_object, test_object_back)
             with self.assertRaises(AttributeError):
-                remote.non_existing_method()
+                remote.non_existing_method
             remote.terminate()
         finally:
             remote.close_rpc()
@@ -73,7 +73,7 @@ class RPCCase(unittest.TestCase):
             test_object_back = await remote.async_echo(test_object)
             self.assertEqual(test_object, test_object_back)
             with self.assertRaises(AttributeError):
-                await remote.non_existing_method()
+                await remote.non_existing_method
             await remote.terminate()
         finally:
             remote.close_rpc()
@@ -101,6 +101,8 @@ class FireAndForgetCase(unittest.TestCase):
         self.ok = False
         p = fire_and_forget.FFProxy(self)
         p._set_ok()
+        with self.assertRaises(AttributeError):
+            p.non_existing_method
         p.ff_join()
         self.assertTrue(self.ok)
 
