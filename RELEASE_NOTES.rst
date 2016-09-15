@@ -15,6 +15,12 @@ Release notes
   members.
 
 
+2.0rc2
+------
+
+No further notes.
+
+
 2.0rc1
 ------
 
@@ -63,6 +69,7 @@ Release notes
 * All integers manipulated by kernels are numpy integers (numpy.int32,
   numpy.int64). If you pass an integer as a RPC argument, the target function
   receives a numpy type.
+
 
 1.3
 ---
