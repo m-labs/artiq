@@ -2,7 +2,7 @@
 name = "runtime"
 version = "0.0.0"
 dependencies = [
- "fringe 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fringe 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lwip 0.0.0",
  "std_artiq 0.0.0",
 ]
@@ -13,7 +13,7 @@ version = "0.0.0"
 
 [[package]]
 name = "fringe"
-version = "1.0.5"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -44,5 +44,5 @@ dependencies = [
 ]
 
 [metadata]
-"checksum fringe 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "c5257685076edffc8f1a85a382135cdf27ba915ac74e47ae55aba19945c17955"
+"checksum fringe 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "987689dcfad85eee8d76b477865641ec483e63fb86d52966bfc350c4a647d78a"
 "checksum libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)" = "23e3757828fa702a20072c37ff47938e9dd331b92fac6e223d26d4b7a55f7ee2"

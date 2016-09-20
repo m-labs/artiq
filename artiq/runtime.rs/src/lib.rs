@@ -2,8 +2,6 @@
 
 #[macro_use]
 extern crate std_artiq as std;
-extern crate fringe;
-extern crate lwip;
 
 use std::prelude::v1::*;
 
@@ -14,21 +12,23 @@ extern {
     fn lwip_service();
 }
 
-fn timer(mut waiter: io::Waiter) {
+fn timer(waiter: io::Waiter) {
     loop {
         println!("tick");
         waiter.sleep(std::time::Duration::from_millis(1000)).unwrap();
     }
 }
 
-fn echo(mut waiter: io::Waiter) {
-    let mut socket = lwip::UdpSocket::new().unwrap();
-    socket.bind(lwip::SocketAddr::new(lwip::IP_ANY, 1234)).unwrap();
+fn echo(waiter: io::Waiter) {
+    let addr = io::SocketAddr::new(io::IP_ANY, 1234);
+    let listener = io::TcpListener::bind(waiter, addr).unwrap();
     loop {
-        waiter.udp_readable(&socket).unwrap();
-        let (addr, pbuf) = socket.try_recv().unwrap();
-        println!("{:?}", core::str::from_utf8(pbuf.as_slice()));
-        socket.send_to(addr, pbuf).unwrap();
+        let (mut stream, _addr) = listener.accept().unwrap();
+        loop {
+            let mut buf = [0];
+            stream.read(&mut buf).unwrap();
+            stream.write(&buf).unwrap();
+        }
     }
 }
 

@@ -5,8 +5,10 @@ extern crate alloc;
 extern crate collections;
 extern crate libc;
 extern crate lwip_sys;
+extern crate std_artiq as std;
 
 use core::marker::PhantomData;
+use core::cell::RefCell;
 use alloc::boxed::Box;
 use collections::LinkedList;
 use libc::c_void;
@@ -29,6 +31,47 @@ pub enum Error {
     ConnectionReset,
     ConnectionClosed,
     IllegalArgument,
+}
+
+impl Error {
+    fn as_str(&self) -> &str {
+        match *self {
+            Error::OutOfMemory => "out of memory error",
+            Error::Buffer => "buffer error",
+            Error::Timeout => "timeout",
+            Error::Routing => "routing error",
+            Error::InProgress => "operation in progress",
+            Error::IllegalValue => "illegal value",
+            Error::WouldBlock => "operation would block",
+            Error::AddressInUse => "address in use",
+            Error::AlreadyConnecting => "already connecting",
+            Error::AlreadyConnected => "already connected",
+            Error::NotConnected => "not connected",
+            Error::Interface => "low-level netif error",
+            Error::ConnectionAborted => "connection aborted",
+            Error::ConnectionReset => "connection reset",
+            Error::ConnectionClosed => "connection closed",
+            Error::IllegalArgument => "illegal argument",
+        }
+    }
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl std::error::Error for Error {
+    fn description(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl From<Error> for std::io::Error {
+    fn from(lower: Error) -> std::io::Error {
+        std::io::Error::new(std::io::ErrorKind::Other, lower)
+    }
 }
 
 pub type Result<T> = core::result::Result<T, Error>;
@@ -165,6 +208,10 @@ impl<'payload> Pbuf<'payload> {
         Self::from_slice_with_type(slice, lwip_sys::PBUF_ROM)
     }
 
+    pub fn len(&self) -> usize {
+        unsafe { (*self.raw).len as usize }
+    }
+
     pub fn as_slice(&self) -> &'payload [u8] {
         unsafe {
             core::slice::from_raw_parts((*self.raw).payload as *const u8,
@@ -196,7 +243,7 @@ impl<'a> Drop for Pbuf<'a> {
 
 #[derive(Debug)]
 pub struct UdpSocketState {
-    recv_buffer: LinkedList<(SocketAddr, Pbuf<'static>)>
+    recv_buffer: LinkedList<(Pbuf<'static>, SocketAddr)>
 }
 
 impl UdpSocketState {
@@ -208,7 +255,7 @@ impl UdpSocketState {
 #[derive(Debug)]
 pub struct UdpSocket {
     raw:   *mut lwip_sys::udp_pcb,
-    state: Box<UdpSocketState>
+    state: Box<RefCell<UdpSocketState>>
 }
 
 impl UdpSocket {
@@ -217,9 +264,9 @@ impl UdpSocket {
                        pbuf: *mut lwip_sys::pbuf,
                        addr: *mut lwip_sys::ip_addr, port: u16) {
             unsafe {
-                let state = arg as *mut UdpSocketState;
+                let state = arg as *mut RefCell<UdpSocketState>;
                 let socket_addr = SocketAddr { ip: IpAddr::from_raw(addr), port: port };
-                (*state).recv_buffer.push_back((socket_addr, Pbuf::from_raw(pbuf)));
+                (*state).borrow_mut().recv_buffer.push_back((Pbuf::from_raw(pbuf), socket_addr));
             }
         }
 
@@ -227,54 +274,52 @@ impl UdpSocket {
             let raw = lwip_sys::udp_new();
             if raw.is_null() { return Err(Error::OutOfMemory) }
 
-            let mut state = Box::new(UdpSocketState { recv_buffer: LinkedList::new() });
-            let arg = &mut *state as *mut UdpSocketState as *mut _;
+            let mut state = Box::new(RefCell::new(UdpSocketState {
+                recv_buffer: LinkedList::new()
+            }));
+            let arg = &mut *state as *mut RefCell<UdpSocketState> as *mut _;
             lwip_sys::udp_recv(raw, recv, arg);
             Ok(UdpSocket { raw: raw, state: state })
         }
     }
 
-    pub fn state(&self) -> *const UdpSocketState {
+    pub fn state(&self) -> *const RefCell<UdpSocketState> {
         &*self.state
     }
 
-    pub fn bind(&mut self, addr: SocketAddr) -> Result<()> {
+    pub fn bind(&self, addr: SocketAddr) -> Result<()> {
         result_from(unsafe {
             lwip_sys::udp_bind(self.raw, &mut addr.ip.into_raw(), addr.port)
         }, || ())
     }
 
-    pub fn connect(&mut self, addr: SocketAddr) -> Result<()> {
+    pub fn connect(&self, addr: SocketAddr) -> Result<()> {
         result_from(unsafe {
             lwip_sys::udp_connect(self.raw, &mut addr.ip.into_raw(), addr.port)
         }, || ())
     }
 
-    pub fn disconnect(&mut self) -> Result<()> {
+    pub fn disconnect(&self) -> Result<()> {
         result_from(unsafe {
             lwip_sys::udp_disconnect(self.raw)
         }, || ())
     }
 
-    pub fn send<'a>(&'a mut self, pbuf: Pbuf<'a>) -> Result<()> {
+    pub fn send<'a>(&'a self, pbuf: Pbuf<'a>) -> Result<()> {
         result_from(unsafe {
             lwip_sys::udp_send(self.raw, pbuf.as_raw())
         }, || ())
     }
 
-    pub fn send_to<'a>(&'a mut self, addr: SocketAddr, pbuf: Pbuf<'a>) -> Result<()> {
+    pub fn send_to<'a>(&'a self, pbuf: Pbuf<'a>, addr: SocketAddr) -> Result<()> {
         result_from(unsafe {
             lwip_sys::udp_sendto(self.raw, pbuf.as_raw(),
                                  &mut addr.ip.into_raw(), addr.port)
         }, || ())
     }
 
-    pub fn try_recv(&mut self) -> Option<(SocketAddr, Pbuf<'static>)> {
-        self.state.recv_buffer.pop_front()
-    }
-
-    pub fn close(self) {
-        // just drop
+    pub fn try_recv(&self) -> Option<(Pbuf<'static>, SocketAddr)> {
+        self.state.borrow_mut().recv_buffer.pop_front()
     }
 }
 
@@ -298,7 +343,7 @@ impl TcpListenerState {
 #[derive(Debug)]
 pub struct TcpListener {
     raw:   *mut lwip_sys::tcp_pcb,
-    state: Box<TcpListenerState>
+    state: Box<RefCell<TcpListenerState>>
 }
 
 impl TcpListener {
@@ -307,8 +352,8 @@ impl TcpListener {
                          err: lwip_sys::err) -> lwip_sys::err {
             if err != lwip_sys::ERR_OK { return err }
             unsafe {
-                let state = arg as *mut TcpListenerState;
-                (*state).backlog.push_back(TcpStream::from_raw(newpcb));
+                let state = arg as *mut RefCell<TcpListenerState>;
+                (*state).borrow_mut().backlog.push_back(TcpStream::from_raw(newpcb));
             }
             lwip_sys::ERR_OK
         }
@@ -325,26 +370,22 @@ impl TcpListener {
                 return Err(Error::OutOfMemory)
             }
 
-            let mut state = Box::new(TcpListenerState {
+            let mut state = Box::new(RefCell::new(TcpListenerState {
                 backlog: LinkedList::new()
-            });
-            let arg = &mut *state as *mut TcpListenerState as *mut _;
+            }));
+            let arg = &mut *state as *mut RefCell<TcpListenerState> as *mut _;
             lwip_sys::tcp_arg(raw, arg);
             lwip_sys::tcp_accept(raw2, accept);
             Ok(TcpListener { raw: raw2, state: state })
         }
     }
 
-    pub fn state(&self) -> *const TcpListenerState {
+    pub fn state(&self) -> *const RefCell<TcpListenerState> {
         &*self.state
     }
 
-    pub fn try_accept(&mut self) -> Option<TcpStream> {
-        self.state.backlog.pop_front()
-    }
-
-    pub fn close(self) {
-        // just drop
+    pub fn try_accept(&self) -> Option<TcpStream> {
+        self.state.borrow_mut().backlog.pop_front()
     }
 }
 
@@ -383,7 +424,7 @@ impl TcpStreamState {
 #[derive(Debug)]
 pub struct TcpStream {
     raw:   *mut lwip_sys::tcp_pcb,
-    state: Box<TcpStreamState>
+    state: Box<RefCell<TcpStreamState>>
 }
 
 impl TcpStream {
@@ -392,11 +433,11 @@ impl TcpStream {
                        pbuf: *mut lwip_sys::pbuf, err: lwip_sys::err) -> lwip_sys::err {
             if err != lwip_sys::ERR_OK { return err }
             unsafe {
-                let state = arg as *mut TcpStreamState;
+                let state = arg as *mut RefCell<TcpStreamState>;
                 if pbuf.is_null() {
-                    (*state).recv_buffer.push_back(Err(Error::ConnectionClosed))
+                    (*state).borrow_mut().recv_buffer.push_back(Err(Error::ConnectionClosed))
                 } else {
-                    (*state).recv_buffer.push_back(Ok(Pbuf::from_raw(pbuf)))
+                    (*state).borrow_mut().recv_buffer.push_back(Ok(Pbuf::from_raw(pbuf)))
                 }
             }
             lwip_sys::ERR_OK
@@ -405,25 +446,25 @@ impl TcpStream {
         extern fn sent(arg: *mut c_void, raw: *mut lwip_sys::tcp_pcb,
                        _len: u16) -> lwip_sys::err {
             unsafe {
-                let state = arg as *mut TcpStreamState;
-                (*state).send_avail = lwip_sys::tcp_sndbuf_(raw) as usize;
+                let state = arg as *mut RefCell<TcpStreamState>;
+                (*state).borrow_mut().send_avail = lwip_sys::tcp_sndbuf_(raw) as usize;
             }
             lwip_sys::ERR_OK
         }
 
         extern fn err(arg: *mut c_void, err: lwip_sys::err) {
             unsafe {
-                let state = arg as *mut TcpStreamState;
-                (*state).recv_buffer.push_back(result_from(err, || unreachable!()))
+                let state = arg as *mut RefCell<TcpStreamState>;
+                (*state).borrow_mut().recv_buffer.push_back(result_from(err, || unreachable!()))
             }
         }
 
         unsafe {
-            let mut state = Box::new(TcpStreamState {
+            let mut state = Box::new(RefCell::new(TcpStreamState {
                 recv_buffer: LinkedList::new(),
                 send_avail:  lwip_sys::tcp_sndbuf_(raw) as usize
-            });
-            let arg = &mut *state as *mut TcpStreamState as *mut _;
+            }));
+            let arg = &mut *state as *mut RefCell<TcpStreamState> as *mut _;
             lwip_sys::tcp_arg(raw, arg);
             lwip_sys::tcp_recv(raw, recv);
             lwip_sys::tcp_sent(raw, sent);
@@ -432,34 +473,43 @@ impl TcpStream {
         }
     }
 
-    pub fn state(&self) -> *const TcpStreamState {
+    pub fn state(&self) -> *const RefCell<TcpStreamState> {
         &*self.state
     }
 
-    pub fn write(&mut self, data: &[u8]) -> Result<usize> {
+    pub fn write(&self, data: &[u8]) -> Result<usize> {
         let sndbuf = unsafe { lwip_sys::tcp_sndbuf_(self.raw) } as usize;
         let len = if data.len() < sndbuf { data.len() } else { sndbuf };
         let result = result_from(unsafe {
             lwip_sys::tcp_write(self.raw, data as *const [u8] as *const _, len as u16,
-                                lwip_sys::TCP_WRITE_FLAG_COPY)
+                                lwip_sys::TCP_WRITE_FLAG_COPY |
+                                lwip_sys::TCP_WRITE_FLAG_MORE)
         }, || len);
-        self.state.send_avail = unsafe { lwip_sys::tcp_sndbuf_(self.raw) } as usize;
+        self.state.borrow_mut().send_avail = unsafe { lwip_sys::tcp_sndbuf_(self.raw) } as usize;
         result
     }
 
-    pub fn try_read(&mut self) -> Result<Option<Pbuf<'static>>> {
-        match self.state.recv_buffer.front() {
+    pub fn flush(&self) -> Result<()> {
+        const EMPTY_DATA: [u8; 0] = [];
+        result_from(unsafe {
+            lwip_sys::tcp_write(self.raw, &EMPTY_DATA as *const [u8] as *const _, 0, 0)
+        }, || ())
+    }
+
+    pub fn try_read(&self) -> Result<Option<Pbuf<'static>>> {
+        let mut state = self.state.borrow_mut();
+        match state.recv_buffer.front() {
             None => return Ok(None),
             Some(&Err(err)) => return Err(err),
             Some(_) => ()
         }
-        match self.state.recv_buffer.pop_front() {
+        match state.recv_buffer.pop_front() {
             Some(Ok(pbuf)) => return Ok(Some(pbuf)),
             _ => unreachable!()
         }
     }
 
-    pub fn shutdown(&mut self, how: Shutdown) -> Result<()> {
+    pub fn shutdown(&self, how: Shutdown) -> Result<()> {
         let (shut_rx, shut_tx) = match how {
             Shutdown::Read  => (1, 0),
             Shutdown::Write => (0, 1),
