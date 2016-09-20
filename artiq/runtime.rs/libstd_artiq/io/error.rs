@@ -14,7 +14,7 @@ use core::fmt;
 use core::marker::{Send, Sync};
 use core::option::Option::{self, Some, None};
 use core::result;
- use collections::string::String;
+use error;
 
 /// A specialized [`Result`](../result/enum.Result.html) type for I/O
 /// operations.
@@ -68,7 +68,7 @@ enum Repr {
 #[derive(Debug)]
 struct Custom {
     kind: ErrorKind,
-    error: String,
+    error: Box<error::Error+Send+Sync>,
 }
 
 /// A list specifying general categories of I/O error.
@@ -163,12 +163,12 @@ impl Error {
     /// let custom_error2 = Error::new(ErrorKind::Interrupted, custom_error);
     /// ```
     pub fn new<E>(kind: ErrorKind, error: E) -> Error
-        where E: Into<String>
+        where E: Into<Box<error::Error+Send+Sync>>
     {
         Self::_new(kind, error.into())
     }
 
-    fn _new(kind: ErrorKind, error: String) -> Error {
+    fn _new(kind: ErrorKind, error: Box<error::Error+Send+Sync>) -> Error {
         Error {
             repr: Repr::Custom(Box::new(Custom {
                 kind: kind,
@@ -198,10 +198,10 @@ impl Error {
     ///
     /// If this `Error` was constructed via `new` then this function will
     /// return `Some`, otherwise it will return `None`.
-    pub fn get_ref(&self) -> Option<&String> {
+    pub fn get_ref(&self) -> Option<&(error::Error+Send+Sync+'static)> {
         match self.repr {
             Repr::Os(..) => None,
-            Repr::Custom(ref c) => Some(&c.error),
+            Repr::Custom(ref c) => Some(&*c.error),
         }
     }
 
@@ -210,10 +210,10 @@ impl Error {
     ///
     /// If this `Error` was constructed via `new` then this function will
     /// return `Some`, otherwise it will return `None`.
-    pub fn get_mut(&mut self) -> Option<&mut String> {
+    pub fn get_mut(&mut self) -> Option<&mut (error::Error+Send+Sync+'static)> {
         match self.repr {
             Repr::Os(..) => None,
-            Repr::Custom(ref mut c) => Some(&mut c.error),
+            Repr::Custom(ref mut c) => Some(&mut *c.error),
         }
     }
 
@@ -221,7 +221,7 @@ impl Error {
     ///
     /// If this `Error` was constructed via `new` then this function will
     /// return `Some`, otherwise it will return `None`.
-    pub fn into_inner(self) -> Option<String> {
+    pub fn into_inner(self) -> Option<Box<error::Error+Send+Sync>> {
         match self.repr {
             Repr::Os(..) => None,
             Repr::Custom(c) => Some(c.error)
@@ -254,6 +254,42 @@ impl fmt::Display for Error {
                 write!(fmt, "os error {}", code)
             }
             Repr::Custom(ref c) => c.error.fmt(fmt),
+        }
+    }
+}
+
+impl error::Error for Error {
+    fn description(&self) -> &str {
+        match self.repr {
+            Repr::Os(..) => match self.kind() {
+                ErrorKind::NotFound => "entity not found",
+                ErrorKind::PermissionDenied => "permission denied",
+                ErrorKind::ConnectionRefused => "connection refused",
+                ErrorKind::ConnectionReset => "connection reset",
+                ErrorKind::ConnectionAborted => "connection aborted",
+                ErrorKind::NotConnected => "not connected",
+                ErrorKind::AddrInUse => "address in use",
+                ErrorKind::AddrNotAvailable => "address not available",
+                ErrorKind::BrokenPipe => "broken pipe",
+                ErrorKind::AlreadyExists => "entity already exists",
+                ErrorKind::WouldBlock => "operation would block",
+                ErrorKind::InvalidInput => "invalid input parameter",
+                ErrorKind::InvalidData => "invalid data",
+                ErrorKind::TimedOut => "timed out",
+                ErrorKind::WriteZero => "write zero",
+                ErrorKind::Interrupted => "operation interrupted",
+                ErrorKind::Other => "other os error",
+                ErrorKind::UnexpectedEof => "unexpected end of file",
+                ErrorKind::__Nonexhaustive => unreachable!()
+            },
+            Repr::Custom(ref c) => c.error.description(),
+        }
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        match self.repr {
+            Repr::Os(..) => None,
+            Repr::Custom(ref c) => c.error.cause(),
         }
     }
 }

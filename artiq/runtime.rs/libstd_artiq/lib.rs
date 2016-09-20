@@ -1,5 +1,6 @@
 #![feature(lang_items, asm, alloc, collections, libc, needs_panic_runtime,
-           question_mark, unicode)]
+           question_mark, unicode, reflect_marker, raw, int_error_internals,
+           try_from, try_borrow)]
 #![no_std]
 #![needs_panic_runtime]
 
@@ -27,6 +28,7 @@ pub mod prelude {
 }
 
 pub mod time;
+pub mod error;
 pub mod io;
 
 use core::fmt::Write;
