@@ -1,9 +1,12 @@
-#![feature(lang_items, asm, alloc, collections, libc, needs_panic_runtime)]
+#![feature(lang_items, asm, alloc, collections, libc, needs_panic_runtime,
+           question_mark, unicode)]
 #![no_std]
 #![needs_panic_runtime]
 
+extern crate rustc_unicode;
 extern crate alloc_artiq;
 extern crate alloc;
+#[macro_use]
 extern crate collections;
 extern crate libc;
 
@@ -18,10 +21,13 @@ pub mod prelude {
     pub mod v1 {
         pub use core::prelude::v1::*;
         pub use collections::*;
+        pub use io::{Read, Write, Seek};
+        pub use io::BufRead;
     }
 }
 
 pub mod time;
+pub mod io;
 
 use core::fmt::Write;
 
