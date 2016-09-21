@@ -176,7 +176,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
             phy = ttl_serdes_spartan6.Inout_4X(platform.request("pmt", i),
                                                self.rtio_crg.rtiox4_stb)
             self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=256,
+            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=128,
                                                        ofifo_depth=4))
 
         # the last TTL is used for ClockGen
@@ -223,7 +223,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         phy = dds.AD9858(dds_pins, 8)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,
-                                                   ofifo_depth=256,
+                                                   ofifo_depth=128,
                                                    ififo_depth=4))
 
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
