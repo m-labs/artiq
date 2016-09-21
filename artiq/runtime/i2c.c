@@ -1,7 +1,6 @@
 #include <generated/csr.h>
 
 #include "artiq_personality.h"
-#include "rtio.h"
 #include "i2c.h"
 
 
