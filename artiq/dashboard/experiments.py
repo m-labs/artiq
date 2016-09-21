@@ -562,7 +562,12 @@ class ExperimentManager:
         dock.show()
         dock.sigClosed.connect(partial(self.on_dock_closed, expurl))
         if expurl in self.dock_states:
-            dock.restore_state(self.dock_states[expurl])
+            try:
+                dock.restore_state(self.dock_states[expurl])
+            except:
+                logger.warning("Failed to restore dock state when opening "
+                               "experiment %s", expurl,
+                               exc_info=True)
         return dock
 
     def on_dock_closed(self, expurl):
