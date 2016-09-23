@@ -375,7 +375,7 @@ impl TcpListener {
                 backlog: LinkedList::new()
             }));
             let arg = &mut *state as *mut RefCell<TcpListenerState> as *mut _;
-            lwip_sys::tcp_arg(raw, arg);
+            lwip_sys::tcp_arg(raw2, arg);
             lwip_sys::tcp_accept(raw2, accept);
             Ok(TcpListener { raw: raw2, state: state })
         }

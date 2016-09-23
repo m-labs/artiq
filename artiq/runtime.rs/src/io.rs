@@ -257,7 +257,6 @@ impl<'a> TcpListener<'a> {
 
     pub fn accept(&self) -> Result<(TcpStream, SocketAddr)> {
         try!(self.waiter.tcp_acceptable(&self.lower));
-        loop {}
         let stream_lower = self.lower.try_accept().unwrap();
         let addr = SocketAddr::new(IP_ANY, 0); // FIXME: coax lwip into giving real addr here
         Ok((TcpStream {
