@@ -15,6 +15,12 @@ Release notes
   members.
 
 
+2.0
+---
+
+No further notes.
+
+
 2.0rc2
 ------
 
