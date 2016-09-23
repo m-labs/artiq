@@ -21,9 +21,10 @@ pub use collections::{binary_heap, borrow, boxed, btree_map, btree_set, fmt, lin
 pub mod prelude {
     pub mod v1 {
         pub use core::prelude::v1::*;
-        pub use collections::*;
-        pub use io::{Read, Write, Seek};
-        pub use io::BufRead;
+        pub use collections::boxed::Box;
+        pub use collections::borrow::ToOwned;
+        pub use collections::string::{String, ToString};
+        pub use collections::vec::Vec;
     }
 }
 
