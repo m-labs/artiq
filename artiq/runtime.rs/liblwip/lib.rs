@@ -12,6 +12,7 @@ use core::cell::RefCell;
 use alloc::boxed::Box;
 use collections::LinkedList;
 use libc::c_void;
+use std::error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
@@ -56,13 +57,13 @@ impl Error {
     }
 }
 
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl core::fmt::Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(f, "{}", self.as_str())
     }
 }
 
-impl std::error::Error for Error {
+impl error::Error for Error {
     fn description(&self) -> &str {
         self.as_str()
     }
