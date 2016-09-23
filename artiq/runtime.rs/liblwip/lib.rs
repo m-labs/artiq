@@ -505,7 +505,10 @@ impl TcpStream {
             Some(_) => ()
         }
         match state.recv_buffer.pop_front() {
-            Some(Ok(pbuf)) => return Ok(Some(pbuf)),
+            Some(Ok(pbuf)) => {
+                unsafe { lwip_sys::tcp_recved(self.raw, pbuf.len() as u16) }
+                return Ok(Some(pbuf))
+            },
             _ => unreachable!()
         }
     }
