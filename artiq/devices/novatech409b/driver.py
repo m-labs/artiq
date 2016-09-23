@@ -177,7 +177,8 @@ class Novatech409B:
                     "00989680 2000 01F5 0000 00000000 00000000 000301",
                     "80 BC0000 0000 0102 21"]
         else:
-            self.port.reset_input_buffer()
+            self.port.ser.reset_input_buffer()
+            result = []
             await self.port.write(("QUE" + "\r\n").encode())
             for i in range(5):
                 m = (await self._ser_readline()).rstrip().decode()
