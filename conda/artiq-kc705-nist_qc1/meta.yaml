@@ -12,7 +12,7 @@ build:
 
 requirements:
   build:
-    - migen 0.2
+    - migen 0.4
     - misoc 0.3
     - llvm-or1k
     - binutils-or1k-linux >=2.27
