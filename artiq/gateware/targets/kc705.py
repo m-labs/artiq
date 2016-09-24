@@ -101,18 +101,6 @@ _ams101_dac = [
 
 
 class _NIST_Ions(MiniSoC, AMPSoC):
-    csr_map = {
-        # mapped on Wishbone instead
-        "timer_kernel": None,
-        "rtio": None,
-        "i2c": None,
-
-        "rtio_crg": 13,
-        "kernel_cpu": 14,
-        "rtio_moninj": 15,
-        "rtio_analyzer": 16
-    }
-    csr_map.update(MiniSoC.csr_map)
     mem_map = {
         "timer_kernel":  0x10000000, # (shadow @0x90000000)
         "rtio":          0x20000000, # (shadow @0xa0000000)
@@ -140,6 +128,7 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.submodules.leds = gpio.GPIOOut(Cat(
             self.platform.request("user_led", 0),
             self.platform.request("user_led", 1)))
+        self.csr_devices.append("leds")
 
         self.platform.add_extension(_sma33_io)
         self.platform.add_extension(_ams101_dac)
@@ -151,10 +140,12 @@ class _NIST_Ions(MiniSoC, AMPSoC):
 
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
+        self.csr_devices.append("rtio_crg")
         self.submodules.rtio = rtio.RTIO(rtio_channels)
         self.register_kernel_cpu_csrdevice("rtio")
         self.config["RTIO_FINE_TS_WIDTH"] = self.rtio.fine_ts_width
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
+        self.csr_devices.append("rtio_moninj")
 
         self.specials += [
             Keep(self.rtio.cd_rsys.clk),
@@ -175,6 +166,7 @@ class _NIST_Ions(MiniSoC, AMPSoC):
 
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio,
             self.get_native_sdram_if())
+        self.csr_devices.append("rtio_analyzer")
 
 
 class NIST_QC1(_NIST_Ions):

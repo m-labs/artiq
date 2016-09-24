@@ -125,15 +125,6 @@ TIMESPEC "TSfix_ise4" = FROM "GRPsys_clk" TO "GRPrtio_clk" TIG;
 
 
 class NIST_QC1(BaseSoC, AMPSoC):
-    csr_map = {
-        "timer_kernel": None,  # mapped on Wishbone instead
-        "rtio": None,  # mapped on Wishbone instead
-        "rtio_crg": 10,
-        "kernel_cpu": 11,
-        "rtio_moninj": 12,
-        "rtio_analyzer": 13
-    }
-    csr_map.update(BaseSoC.csr_map)
     mem_map = {
         "timer_kernel":  0x10000000,  # (shadow @0x90000000)
         "rtio":          0x20000000,  # (shadow @0xa0000000)
@@ -168,6 +159,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         ]
 
         self.submodules.rtio_crg = _RTIOCRG(platform, self.clk_freq)
+        self.csr_devices.append("rtio_crg")
 
         # RTIO channels
         rtio_channels = []
@@ -235,8 +227,10 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         self.config["RTIO_FINE_TS_WIDTH"] = self.rtio.fine_ts_width
         self.config["DDS_RTIO_CLK_RATIO"] = 8 >> self.rtio.fine_ts_width
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
+        self.csr_devices.append("rtio_moninj")
         self.submodules.rtio_analyzer = rtio.Analyzer(
             self.rtio, self.get_native_sdram_if())
+        self.csr_devices.append("rtio_analyzer")
 
 
 def main():

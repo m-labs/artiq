@@ -26,6 +26,7 @@ class AMPSoC:
 
         self.submodules.kernel_cpu = amp.KernelCPU(self.platform)
         self.add_cpulevel_sdram_if(self.kernel_cpu.wb_sdram)
+        self.csr_devices.append("kernel_cpu")
 
         self.submodules.mailbox = amp.Mailbox()
         self.add_wb_slave(mem_decoder(self.mem_map["mailbox"]),
@@ -39,9 +40,6 @@ class AMPSoC:
         self.register_kernel_cpu_csrdevice("timer_kernel")
 
     def register_kernel_cpu_csrdevice(self, name):
-        # make sure the device is not getting connected to the comms-CPU already
-        assert self.csr_map[name] is None
-
         csrs = getattr(self, name).get_csrs()
         bank = wishbone.CSRBank(csrs)
         self.submodules += bank
