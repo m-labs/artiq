@@ -1,4 +1,43 @@
+from functools import reduce
+from operator import xor
+
 from migen import *
+
+
+class Scrambler(Module):
+    def __init__(self, n_io, n_state=23, taps=[17, 22]):
+        self.i = Signal(n_io)
+        self.o = Signal(n_io)
+
+        # # #
+
+        state = Signal(n_state, reset=1)
+        curval = [state[i] for i in range(n_state)]
+        for i in reversed(range(n_io)):
+            out = self.i[i] ^ reduce(xor, [curval[tap] for tap in taps])
+            self.sync += self.o[i].eq(out)
+            curval.insert(0, out)
+            curval.pop()
+
+        self.sync += state.eq(Cat(*curval[:n_state]))
+
+
+class Descrambler(Module):
+    def __init__(self, n_io, n_state=23, taps=[17, 22]):
+        self.i = Signal(n_io)
+        self.o = Signal(n_io)
+
+        # # #
+
+        state = Signal(n_state, reset=1)
+        curval = [state[i] for i in range(n_state)]
+        for i in reversed(range(n_io)):
+            flip = reduce(xor, [curval[tap] for tap in taps])
+            self.sync += self.o[i].eq(self.i[i] ^ flip)
+            curval.insert(0, self.i[i])
+            curval.pop()
+
+        self.sync += state.eq(Cat(*curval[:n_state]))
 
 
 def K(x, y):
@@ -33,7 +72,7 @@ class LinkLayerTX(Module):
         # the following meanings:
         #   100 idle/auxiliary framing
         #   0AB 2 bits of auxiliary data
-        aux_scrambler = Scrambler(3*nwords)
+        aux_scrambler = CEInserter()(Scrambler(3*nwords))
         self.submodules += aux_scrambler
         aux_data_ctl = []
         for i in range(nwords):
