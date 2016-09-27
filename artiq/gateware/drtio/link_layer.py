@@ -206,3 +206,59 @@ class LinkLayerRX(Module):
                 self.remote_rx_ready.eq(0)
             )
         ]
+
+
+class LinkLayer(Module):
+    def __init__(self, encoder, decoders):
+        self.reset = Signal()
+        self.ready = Signal()
+
+        # pulsed to reset receiver, rx_ready must immediately go low
+        self.rx_reset = Signal()
+        # receiver locked including comma alignment
+        self.rx_ready = Signal()
+
+        tx = LinkLayerTX(encoder)
+        rx = LinkLayerRX(decoders)
+        self.submodules += tx, rx
+
+        self.tx_aux_frame = tx.aux_frame
+        self.tx_aux_data = tx.aux_data
+        self.tx_aux_ack = tx.aux_ack
+        self.tx_rt_frame = tx.rt_frame
+        self.tx_rt_data = tx.rt_data
+
+        self.rx_aux_stb = rx.aux_stb
+        self.rx_aux_frame = rx.aux_frame
+        self.rx_aux_data = rx.aux_data
+        self.rx_rt_frame = rx.rt_frame
+        self.rx_rt_data = rx.rt_data
+
+        # # #
+
+        fsm = ResetInserter()(FSM(reset_state="RESET_RX"))
+        self.submodules += fsm
+
+        self.comb += fsm.reset.eq(self.reset)
+
+        fsm.act("RESET_RX",
+            tx.link_init.eq(1),
+            self.rx_reset.eq(1),
+            NextState("WAIT_LOCAL_RX_READY")
+        )
+        fsm.act("WAIT_LOCAL_RX_READY",
+            tx.link_init.eq(1),
+            If(self.rx_ready,
+                NextState("WAIT_REMOTE_RX_READY")
+            )
+        )
+        fsm.act("WAIT_REMOTE_RX_READY",
+            tx.link_init.eq(1),
+            tx.signal_rx_ready.eq(1),
+            If(rx.remote_rx_ready,
+                NextState("READY")
+            )
+        )
+        fsm.act("READY",
+            self.ready.eq(1)
+        )
