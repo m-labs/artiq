@@ -1,5 +1,5 @@
 from functools import reduce
-from operator import xor
+from operator import xor, or_
 
 from migen import *
 
@@ -59,8 +59,6 @@ class LinkLayerTX(Module):
         self.rt_frame = Signal()
         self.rt_data = Signal(8*nwords)
 
-        self.transceiver_data = Signal(10*nwords)
-
         # # #
 
         # Idle and auxiliary traffic use special characters excluding
@@ -88,7 +86,7 @@ class LinkLayerTX(Module):
             self.aux_ack.eq(~self.rt_frame)
         ]
         for i in range(nwords):
-            scrambled_ctl = scrambler.o[i*3:i*3+3]
+            scrambled_ctl = aux_scrambler.o[i*3:i*3+3]
             self.sync += [
                 encoder.k[i].eq(1),
                 If(scrambled_ctl == 7,
@@ -100,15 +98,18 @@ class LinkLayerTX(Module):
 
         # Real-time traffic uses data characters and is framed by the special
         # characters of auxiliary traffic. RT traffic is also scrambled.
-        rt_scrambler = Scrambler(8*nwords)
+        rt_scrambler = CEInserter()(Scrambler(8*nwords))
         self.submodules += rt_scrambler
-        self.comb += rt_scrambler.i.eq(self.rt_data)
+        self.comb += [
+            rt_scrambler.i.eq(self.rt_data),
+            rt_scrambler.ce.eq(self.rt_frame)
+        ]
         rt_frame_r = Signal()
         self.sync += [
             rt_frame_r.eq(self.rt_frame),
             If(rt_frame_r,
                 [k.eq(0) for k in encoder.k],
-                [d.eq(self.rt_data[i*8:i*8+8]) for i, d in enumerate(encoder.d)]
+                [d.eq(rt_scrambler.o[i*8:i*8+8]) for i, d in enumerate(encoder.d)]
             )
         ]
 
@@ -133,4 +134,52 @@ class LinkLayerTX(Module):
             ).Else(
                 link_init_counter.eq(0)
             )
+        ]
+
+
+class LinkLayerRX(Module):
+    def __init__(self, decoders):
+        nwords = len(decoders)
+        # nwords must be a power of 2
+        assert nwords & (nwords - 1) == 0
+
+        self.link_init = Signal()
+
+        self.aux_frame = Signal()
+        self.aux_data = Signal(2*nwords)
+
+        self.rt_frame = Signal()
+        self.rt_data = Signal(8*nwords)
+
+        # # #
+
+        aux_descrambler = CEInserter()(Descrambler(2*nwords))
+        rt_descrambler = CEInserter()(Descrambler(8*nwords))
+        self.submodules += aux_descrambler, rt_descrambler
+        self.comb += [
+            self.aux_frame.eq(~aux_descrambler.o[2]),
+            self.aux_data.eq(
+                Cat(*[aux_descrambler.o[3*i:3*i+2] for i in range(nwords)])),
+            self.rt_data.eq(rt_descrambler.o),
+        ]
+
+        link_init_d = Signal()
+        rt_frame_d = Signal()
+        self.sync += [
+            self.link_init.eq(link_init_d),
+            self.rt_frame.eq(rt_frame_d)
+        ]
+
+        self.comb += [
+            If(decoders[0].k,
+                If((decoders[0].d == K(28, 7)) | (decoders[0].d == K(29, 7)),
+                    link_init_d.eq(1)
+                ),
+                aux_descrambler.ce.eq(1)
+            ).Else(
+                rt_frame_d.eq(1),
+                rt_descrambler.ce.eq(1)
+            ),
+            aux_descrambler.i.eq(Cat(*[d.d >> 5 for d in decoders])),
+            rt_descrambler.i.eq(Cat(*[d.d for d in decoders]))
         ]
