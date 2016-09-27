@@ -2,6 +2,7 @@
 name = "runtime"
 version = "0.0.0"
 dependencies = [
+ "byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "fringe 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lwip 0.0.0",
  "std_artiq 0.0.0",
@@ -10,6 +11,11 @@ dependencies = [
 [[package]]
 name = "alloc_artiq"
 version = "0.0.0"
+
+[[package]]
+name = "byteorder"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "fringe"
@@ -44,5 +50,6 @@ dependencies = [
 ]
 
 [metadata]
+"checksum byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)" = "0fc10e8cc6b2580fda3f36eb6dc5316657f812a3df879a44a66fc9f0fdbc4855"
 "checksum fringe 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "987689dcfad85eee8d76b477865641ec483e63fb86d52966bfc350c4a647d78a"
 "checksum libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)" = "23e3757828fa702a20072c37ff47938e9dd331b92fac6e223d26d4b7a55f7ee2"

@@ -10,8 +10,9 @@ path = "src/lib.rs"
 
 [dependencies]
 std_artiq = { path = "libstd_artiq" }
-fringe = { version = "= 1.1.0", default-features = false, features = ["alloc"] }
 lwip = { path = "liblwip" }
+fringe = { version = "= 1.1.0", default-features = false, features = ["alloc"] }
+byteorder = { version = "0.5", default-features = false }
 
 [profile.dev]
 panic = 'abort'

@@ -1,6 +1,6 @@
 #![feature(lang_items, asm, alloc, collections, libc, needs_panic_runtime,
            question_mark, unicode, reflect_marker, raw, int_error_internals,
-           try_from, try_borrow)]
+           try_from, try_borrow, macro_reexport, allow_internal_unstable)]
 #![no_std]
 #![needs_panic_runtime]
 
@@ -8,6 +8,7 @@ extern crate rustc_unicode;
 extern crate alloc_artiq;
 extern crate alloc;
 #[macro_use]
+#[macro_reexport(vec)]
 extern crate collections;
 extern crate libc;
 
