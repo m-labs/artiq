@@ -14,27 +14,9 @@ class Scrambler(Module):
         state = Signal(n_state, reset=1)
         curval = [state[i] for i in range(n_state)]
         for i in reversed(range(n_io)):
-            out = self.i[i] ^ reduce(xor, [curval[tap] for tap in taps])
-            self.sync += self.o[i].eq(out)
-            curval.insert(0, out)
-            curval.pop()
-
-        self.sync += state.eq(Cat(*curval[:n_state]))
-
-
-class Descrambler(Module):
-    def __init__(self, n_io, n_state=23, taps=[17, 22]):
-        self.i = Signal(n_io)
-        self.o = Signal(n_io)
-
-        # # #
-
-        state = Signal(n_state, reset=1)
-        curval = [state[i] for i in range(n_state)]
-        for i in reversed(range(n_io)):
             flip = reduce(xor, [curval[tap] for tap in taps])
-            self.sync += self.o[i].eq(self.i[i] ^ flip)
-            curval.insert(0, self.i[i])
+            self.sync += self.o[i].eq(flip ^ self.i[i])
+            curval.insert(0, flip)
             curval.pop()
 
         self.sync += state.eq(Cat(*curval[:n_state]))
@@ -70,7 +52,7 @@ class LinkLayerTX(Module):
         # the following meanings:
         #   100 idle/auxiliary framing
         #   0AB 2 bits of auxiliary data
-        aux_scrambler = CEInserter()(Scrambler(3*nwords))
+        aux_scrambler = ResetInserter()(CEInserter()(Scrambler(3*nwords)))
         self.submodules += aux_scrambler
         aux_data_ctl = []
         for i in range(nwords):
@@ -82,6 +64,7 @@ class LinkLayerTX(Module):
             ).Else(
                 aux_scrambler.i.eq(Replicate(0b100, nwords))
             ),
+            aux_scrambler.reset.eq(self.link_init),
             aux_scrambler.ce.eq(~self.rt_frame),
             self.aux_ack.eq(~self.rt_frame)
         ]
@@ -98,10 +81,11 @@ class LinkLayerTX(Module):
 
         # Real-time traffic uses data characters and is framed by the special
         # characters of auxiliary traffic. RT traffic is also scrambled.
-        rt_scrambler = CEInserter()(Scrambler(8*nwords))
+        rt_scrambler = ResetInserter()(CEInserter()(Scrambler(8*nwords)))
         self.submodules += rt_scrambler
         self.comb += [
             rt_scrambler.i.eq(self.rt_data),
+            rt_scrambler.reset.eq(self.link_init),
             rt_scrambler.ce.eq(self.rt_frame)
         ]
         rt_frame_r = Signal()
@@ -153,8 +137,8 @@ class LinkLayerRX(Module):
 
         # # #
 
-        aux_descrambler = CEInserter()(Descrambler(2*nwords))
-        rt_descrambler = CEInserter()(Descrambler(8*nwords))
+        aux_descrambler = ResetInserter()(CEInserter()(Scrambler(2*nwords)))
+        rt_descrambler = ResetInserter()(CEInserter()(Scrambler(8*nwords)))
         self.submodules += aux_descrambler, rt_descrambler
         self.comb += [
             self.aux_frame.eq(~aux_descrambler.o[2]),
@@ -173,7 +157,9 @@ class LinkLayerRX(Module):
         self.comb += [
             If(decoders[0].k,
                 If((decoders[0].d == K(28, 7)) | (decoders[0].d == K(29, 7)),
-                    link_init_d.eq(1)
+                    link_init_d.eq(1),
+                    aux_descrambler.reset.eq(1),
+                    rt_descrambler.reset.eq(1)
                 ),
                 aux_descrambler.ce.eq(1)
             ).Else(

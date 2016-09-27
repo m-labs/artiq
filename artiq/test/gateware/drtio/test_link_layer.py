@@ -6,7 +6,8 @@ from migen import *
 from artiq.gateware.drtio.link_layer import *
 
 
-def process(dut, seq):
+def process(seq):
+    dut = Scrambler(8)
     rseq = []
     def pump():
         yield dut.i.eq(seq[0])
@@ -24,16 +25,10 @@ def process(dut, seq):
 class TestScrambler(unittest.TestCase):
     def test_roundtrip(self):
         seq = list(range(256))*3
-        scrambled_seq = process(Scrambler(8), seq)
-        descrambled_seq = process(Descrambler(8), scrambled_seq)
+        scrambled_seq = process(seq)
+        descrambled_seq = process(scrambled_seq)
         self.assertNotEqual(seq, scrambled_seq)
         self.assertEqual(seq, descrambled_seq)
-
-    def test_resync(self):
-        seq = list(range(256))
-        scrambled_seq = process(Scrambler(8), seq)
-        descrambled_seq = process(Descrambler(8), scrambled_seq[20:])
-        self.assertEqual(seq[100:], descrambled_seq[80:])
 
 
 class Loopback(Module):
@@ -50,12 +45,24 @@ class TestLinkLayer(unittest.TestCase):
     def test_packets(self):
         dut = Loopback(4)
 
+        def link_init():
+            yield dut.tx.link_init.eq(1)
+            yield
+            yield
+            yield dut.tx.link_init.eq(0)
+            yield
+
         rt_packets = [
             [0x12459970, 0x9938cdef, 0x12340000],
             [0xabcdef00, 0x12345678],
             [0xeeeeeeee, 0xffffffff, 0x01020304, 0x11223344]
         ]
         def transmit_rt_packets():
+            while not (yield dut.tx.link_init):
+                yield
+            while (yield dut.tx.link_init):
+                yield
+
             for packet in rt_packets:
                 yield dut.tx.rt_frame.eq(1)
                 for data in packet:
@@ -70,6 +77,11 @@ class TestLinkLayer(unittest.TestCase):
         rx_rt_packets = []
         @passive
         def receive_rt_packets():
+            while not (yield dut.tx.link_init):
+                yield
+            while (yield dut.tx.link_init):
+                yield
+
             while True:
                 packet = []
                 rx_rt_packets.append(packet)
@@ -78,7 +90,9 @@ class TestLinkLayer(unittest.TestCase):
                 while (yield dut.rx.rt_frame):
                     packet.append((yield dut.rx.rt_data))
                     yield
-        run_simulation(dut, [transmit_rt_packets(), receive_rt_packets()])
+
+        run_simulation(dut, [link_init(),
+                             transmit_rt_packets(), receive_rt_packets()])
 
         for packet in rx_rt_packets:
             print(" ".join("{:08x}".format(x) for x in packet))
