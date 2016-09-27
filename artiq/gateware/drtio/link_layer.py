@@ -56,7 +56,7 @@ class LinkLayerTX(Module):
         self.submodules += aux_scrambler
         aux_data_ctl = []
         for i in range(nwords):
-            aux_data_ctl.append(self.aux_data[i*2:i*2+1])
+            aux_data_ctl.append(self.aux_data[i*2:i*2+2])
             aux_data_ctl.append(0)
         self.comb += [
             If(self.aux_frame,
@@ -129,6 +129,7 @@ class LinkLayerRX(Module):
 
         self.link_init = Signal()
 
+        self.aux_stb = Signal()
         self.aux_frame = Signal()
         self.aux_data = Signal(2*nwords)
 
@@ -137,7 +138,7 @@ class LinkLayerRX(Module):
 
         # # #
 
-        aux_descrambler = ResetInserter()(CEInserter()(Scrambler(2*nwords)))
+        aux_descrambler = ResetInserter()(CEInserter()(Scrambler(3*nwords)))
         rt_descrambler = ResetInserter()(CEInserter()(Scrambler(8*nwords)))
         self.submodules += aux_descrambler, rt_descrambler
         self.comb += [
@@ -148,9 +149,11 @@ class LinkLayerRX(Module):
         ]
 
         link_init_d = Signal()
+        aux_stb_d = Signal()
         rt_frame_d = Signal()
         self.sync += [
             self.link_init.eq(link_init_d),
+            self.aux_stb.eq(aux_stb_d),
             self.rt_frame.eq(rt_frame_d)
         ]
 
@@ -160,12 +163,14 @@ class LinkLayerRX(Module):
                     link_init_d.eq(1),
                     aux_descrambler.reset.eq(1),
                     rt_descrambler.reset.eq(1)
+                ).Else(
+                    aux_stb_d.eq(1)
                 ),
                 aux_descrambler.ce.eq(1)
             ).Else(
                 rt_frame_d.eq(1),
                 rt_descrambler.ce.eq(1)
             ),
-            aux_descrambler.i.eq(Cat(*[d.d >> 5 for d in decoders])),
+            aux_descrambler.i.eq(Cat(*[d.d[5:] for d in decoders])),
             rt_descrambler.i.eq(Cat(*[d.d for d in decoders]))
         ]
