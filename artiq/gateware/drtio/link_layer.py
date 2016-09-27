@@ -2,6 +2,7 @@ from functools import reduce
 from operator import xor, or_
 
 from migen import *
+from migen.genlib.fsm import *
 
 
 class Scrambler(Module):
@@ -33,6 +34,7 @@ class LinkLayerTX(Module):
         assert nwords & (nwords - 1) == 0
 
         self.link_init = Signal()
+        self.signal_rx_ready = Signal()
 
         self.aux_frame = Signal()
         self.aux_data = Signal(2*nwords)
@@ -43,8 +45,8 @@ class LinkLayerTX(Module):
 
         # # #
 
-        # Idle and auxiliary traffic use special characters excluding
-        # K.28.7 and K.29.7 in order to easily separate the link initialization
+        # Idle and auxiliary traffic use special characters excluding K.28.7,
+        # K.29.7 and K.30.7 in order to easily separate the link initialization
         # phase (K.28.7 is additionally excluded as we cannot guarantee its
         # non-repetition here).
         # A set of 8 special characters is chosen using a 3-bit control word.
@@ -97,11 +99,14 @@ class LinkLayerTX(Module):
             )
         ]
 
-        # During link init, send a series of 1*K.28.7 (comma) + 31*K.29.7
+        # During link init, send a series of 1*K.28.7 (comma) + 31*K.29.7/K.30.7
         # The receiving end configures its transceiver to also place the comma
         # on its LSB, achieving fixed (or known) latency and alignment of
         # packet starts.
-        # K.29.7 is chosen to avoid comma alignment issues arising from K.28.7.
+        # K.29.7 and K.30.7 are chosen to avoid comma alignment issues arising
+        # from K.28.7.
+        # K.30.7 is sent instead of K.29.7 to signal the alignment of the local
+        # receiver, thus the remote can end its link initialization pattern.
         link_init_r = Signal()
         link_init_counter = Signal(max=32//nwords)
         self.sync += [
@@ -109,11 +114,19 @@ class LinkLayerTX(Module):
             If(link_init_r,
                 link_init_counter.eq(link_init_counter + 1),
                 [k.eq(1) for k in encoder.k],
-                [d.eq(K(29, 7)) for d in encoder.d[1:]],
+                If(self.signal_rx_ready,
+                    [d.eq(K(30, 7)) for d in encoder.d[1:]]
+                ).Else(
+                    [d.eq(K(29, 7)) for d in encoder.d[1:]]
+                ),
                 If(link_init_counter == 0,
                     encoder.d[0].eq(K(28, 7)),
                 ).Else(
-                    encoder.d[0].eq(K(29, 7)),
+                    If(self.signal_rx_ready,
+                        encoder.d[0].eq(K(30, 7))
+                    ).Else(
+                        encoder.d[0].eq(K(29, 7))
+                    )
                 )
             ).Else(
                 link_init_counter.eq(0)
@@ -128,6 +141,7 @@ class LinkLayerRX(Module):
         assert nwords & (nwords - 1) == 0
 
         self.link_init = Signal()
+        self.remote_rx_ready = Signal()
 
         self.aux_stb = Signal()
         self.aux_frame = Signal()
@@ -148,19 +162,21 @@ class LinkLayerRX(Module):
             self.rt_data.eq(rt_descrambler.o),
         ]
 
-        link_init_d = Signal()
         aux_stb_d = Signal()
         rt_frame_d = Signal()
         self.sync += [
-            self.link_init.eq(link_init_d),
             self.aux_stb.eq(aux_stb_d),
             self.rt_frame.eq(rt_frame_d)
         ]
 
+        link_init_char = Signal()
         self.comb += [
+            link_init_char.eq(
+                (decoders[0].d == K(28, 7)) |
+                (decoders[0].d == K(29, 7)) |
+                (decoders[0].d == K(30, 7))),
             If(decoders[0].k,
-                If((decoders[0].d == K(28, 7)) | (decoders[0].d == K(29, 7)),
-                    link_init_d.eq(1),
+                If(link_init_char,
                     aux_descrambler.reset.eq(1),
                     rt_descrambler.reset.eq(1)
                 ).Else(
@@ -173,4 +189,20 @@ class LinkLayerRX(Module):
             ),
             aux_descrambler.i.eq(Cat(*[d.d[5:] for d in decoders])),
             rt_descrambler.i.eq(Cat(*[d.d for d in decoders]))
+        ]
+        self.sync += [
+            self.link_init.eq(0),
+            If(decoders[0].k,
+                If(link_init_char, self.link_init.eq(1)),
+                If(decoders[0].d == K(30, 7),
+                    self.remote_rx_ready.eq(1)
+                ).Elif(decoders[0].d != K(28, 7),
+                    self.remote_rx_ready.eq(0)
+                ),
+                If(decoders[0].d == K(30, 7),
+                    self.remote_rx_ready.eq(1)
+                ) if len(decoders) > 1 else None
+            ).Else(
+                self.remote_rx_ready.eq(0)
+            )
         ]
