@@ -39,7 +39,7 @@ impl Scheduler {
         Scheduler { threads: Vec::new(), index: 0 }
     }
 
-    pub unsafe fn spawn<F: FnOnce(Waiter) + Send + 'static>(&mut self, stack_size: usize, f: F) {
+    pub unsafe fn spawn<F: FnOnce(Waiter) + Send>(&mut self, stack_size: usize, f: F) {
         let stack = OwnedStack::new(stack_size);
         let thread = Thread {
             generator:   Generator::unsafe_new(stack, move |yielder, _| {
@@ -286,8 +286,12 @@ impl<'a> Read for TcpStream<'a> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         if self.buffer.is_none() {
             try!(self.waiter.tcp_readable(&self.lower));
-            let pbuf = try!(self.lower.try_read()).unwrap();
-            self.buffer = Some((pbuf, 0))
+            match self.lower.try_read() {
+                Ok(Some(pbuf)) => self.buffer = Some((pbuf, 0)),
+                Ok(None) => unreachable!(),
+                Err(lwip::Error::ConnectionClosed) => return Ok(0),
+                Err(err) => return Err(Error::from(err))
+            }
         }
 
         let (pbuf, pos) = self.buffer.take().unwrap();

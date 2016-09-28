@@ -177,7 +177,7 @@ impl Request {
 pub enum Reply<'a> {
     Log(&'a str),
 
-    Ident(&'a [u8]),
+    Ident(&'a str),
     ClockSwitchCompleted,
     ClockSwitchFailed,
 
@@ -213,7 +213,7 @@ impl<'a> Reply<'a> {
             Reply::Ident(ident) => {
                 try!(write_u8(&mut buf, 2));
                 try!(buf.write(b"AROR"));
-                try!(buf.write(ident));
+                try!(buf.write(ident.as_bytes()));
             },
             Reply::ClockSwitchCompleted => {
                 try!(write_u8(&mut buf, 3));

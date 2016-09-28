@@ -1,5 +1,6 @@
 use std::prelude::v1::*;
-use std::io::{self, Read};
+use std::str;
+use std::io::{self, Read, ErrorKind};
 use self::protocol::*;
 
 mod protocol;
@@ -52,15 +53,16 @@ fn check_magic(stream: &mut ::io::TcpStream) -> io::Result<()> {
     }
 }
 
-fn handle_request(stream: &mut ::io::TcpStream) -> io::Result<()> {
+fn handle_request(stream: &mut ::io::TcpStream,
+                  logger: &::buffer_logger::BufferLogger) -> io::Result<()> {
     fn read_request(stream: &mut ::io::TcpStream) -> io::Result<Request> {
         let request = try!(Request::read_from(stream));
-        println!("comm<-host {:?}", request);
+        trace!("comm<-host {:?}", request);
         Ok(request)
     }
 
     fn write_reply(stream: &mut ::io::TcpStream, reply: Reply) -> io::Result<()> {
-        println!("comm->host {:?}", reply);
+        trace!("comm->host {:?}", reply);
         reply.write_to(stream)
     }
 
@@ -75,28 +77,50 @@ fn handle_request(stream: &mut ::io::TcpStream) -> io::Result<()> {
                 &ident[..ident.iter().position(|&c| c == 0).unwrap()]
             };
 
-            write_reply(stream, Reply::Ident(ident))
-        },
+            write_reply(stream, Reply::Ident(str::from_utf8(ident).unwrap()))
+        }
+
+        Request::Log => {
+            // Logging the packet with the log is inadvisable
+            trace!("comm->host Log(...)");
+            logger.extract(move |log| {
+                Reply::Log(log).write_to(stream)
+            })
+        }
+
+        Request::LogClear => {
+            logger.clear();
+            write_reply(stream, Reply::Log(""))
+        }
+
         _ => unreachable!()
     }
 }
 
-fn handle_requests(stream: &mut ::io::TcpStream) -> io::Result<()> {
+fn handle_requests(stream: &mut ::io::TcpStream,
+                   logger: &::buffer_logger::BufferLogger) -> io::Result<()> {
     try!(check_magic(stream));
     loop {
-        try!(handle_request(stream))
+        try!(handle_request(stream, logger))
     }
 }
 
-pub fn handler(waiter: ::io::Waiter) {
+pub fn handler(waiter: ::io::Waiter,
+               logger: &::buffer_logger::BufferLogger) {
     let addr = ::io::SocketAddr::new(::io::IP_ANY, 1381);
     let listener = ::io::TcpListener::bind(waiter, addr).unwrap();
     loop {
-        let (mut stream, _addr) = listener.accept().unwrap();
-        match handle_requests(&mut stream) {
+        let (mut stream, addr) = listener.accept().unwrap();
+        info!("new connection from {:?}", addr);
+
+        match handle_requests(&mut stream, logger) {
             Ok(()) => (),
             Err(err) => {
-                println!("cannot handle network request: {:?}", err);
+                if err.kind() == ErrorKind::UnexpectedEof {
+                    info!("connection closed");
+                } else {
+                    error!("cannot handle network request: {:?}", err);
+                }
             }
         }
     }
