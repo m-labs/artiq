@@ -48,9 +48,9 @@ impl Log for BufferLogger {
     fn log(&self, record: &LogRecord) {
         if self.enabled(record.metadata()) {
             use core::fmt::Write;
-            writeln!(self.buffer.borrow_mut(), "{}({}): {}",
+            writeln!(self.buffer.borrow_mut(), "{:>5}({}): {}",
                      record.level(), record.location().module_path(), record.args()).unwrap();
-            println!("{}({}): {}",
+            println!("{:>5}({}): {}",
                      record.level(), record.location().module_path(), record.args());
         }
     }

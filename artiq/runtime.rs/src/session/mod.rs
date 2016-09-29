@@ -68,16 +68,7 @@ fn handle_request(stream: &mut ::io::TcpStream,
 
     match try!(read_request(stream)) {
         Request::Ident => {
-            let mut ident: [u8; 256];
-            let ident = unsafe {
-                extern { fn get_ident(ident: *mut u8); }
-
-                ident = ::core::mem::uninitialized();
-                get_ident(ident.as_mut_ptr());
-                &ident[..ident.iter().position(|&c| c == 0).unwrap()]
-            };
-
-            write_reply(stream, Reply::Ident(str::from_utf8(ident).unwrap()))
+            write_reply(stream, Reply::Ident(::board::ident(&mut [0; 64])))
         }
 
         Request::Log => {

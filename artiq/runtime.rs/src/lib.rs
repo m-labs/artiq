@@ -11,6 +11,7 @@ extern crate byteorder;
 use std::prelude::v1::*;
 use buffer_logger::BufferLogger;
 
+pub mod board;
 pub mod io;
 pub mod buffer_logger;
 pub mod session;
