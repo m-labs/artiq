@@ -2,9 +2,9 @@ use std::prelude::v1::*;
 use std::str;
 use std::io::{self, Read, ErrorKind};
 use {config, rtio_crg};
-use self::protocol::*;
-
-mod protocol;
+use logger::BufferLogger;
+use sched::{Waiter, TcpListener, TcpStream, SocketAddr, IP_ANY};
+use session_proto::*;
 
 #[derive(Debug, Clone, Copy)]
 enum KernelState {
@@ -51,7 +51,7 @@ impl Drop for Session {
     }
 }
 
-fn check_magic(stream: &mut ::io::TcpStream) -> io::Result<()> {
+fn check_magic(stream: &mut TcpStream) -> io::Result<()> {
     const MAGIC: &'static [u8] = b"ARTIQ coredev\n";
 
     let mut magic: [u8; 14] = [0; 14];
@@ -63,10 +63,10 @@ fn check_magic(stream: &mut ::io::TcpStream) -> io::Result<()> {
     }
 }
 
-fn handle_request(stream: &mut ::io::TcpStream,
-                  logger: &::buffer_logger::BufferLogger,
+fn handle_request(stream: &mut TcpStream,
+                  logger: &BufferLogger,
                   session: &mut Session) -> io::Result<()> {
-    fn read_request(stream: &mut ::io::TcpStream) -> io::Result<Request> {
+    fn read_request(stream: &mut TcpStream) -> io::Result<Request> {
         let request = try!(Request::read_from(stream));
         match &request {
             &Request::LoadLibrary(_) => trace!("comm<-host LoadLibrary(...)"),
@@ -75,7 +75,7 @@ fn handle_request(stream: &mut ::io::TcpStream,
         Ok(request)
     }
 
-    fn write_reply(stream: &mut ::io::TcpStream, reply: Reply) -> io::Result<()> {
+    fn write_reply(stream: &mut TcpStream, reply: Reply) -> io::Result<()> {
         trace!("comm->host {:?}", reply);
         reply.write_to(stream)
     }
@@ -139,8 +139,8 @@ fn handle_request(stream: &mut ::io::TcpStream,
     }
 }
 
-fn handle_requests(stream: &mut ::io::TcpStream,
-                   logger: &::buffer_logger::BufferLogger) -> io::Result<()> {
+fn handle_requests(stream: &mut TcpStream,
+                   logger: &BufferLogger) -> io::Result<()> {
     try!(check_magic(stream));
 
     let mut session = Session::new();
@@ -149,10 +149,10 @@ fn handle_requests(stream: &mut ::io::TcpStream,
     }
 }
 
-pub fn handler(waiter: ::io::Waiter,
-               logger: &::buffer_logger::BufferLogger) {
-    let addr = ::io::SocketAddr::new(::io::IP_ANY, 1381);
-    let listener = ::io::TcpListener::bind(waiter, addr).unwrap();
+pub fn handler(waiter: Waiter,
+               logger: &BufferLogger) {
+    let addr = SocketAddr::new(IP_ANY, 1381);
+    let listener = TcpListener::bind(waiter, addr).unwrap();
     info!("accepting network sessions in Rust");
 
     loop {

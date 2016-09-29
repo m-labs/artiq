@@ -9,16 +9,18 @@ extern crate log;
 extern crate log_buffer;
 extern crate byteorder;
 
-use std::prelude::v1::*;
-use buffer_logger::BufferLogger;
+use logger::BufferLogger;
 
-pub mod board;
-pub mod io;
-pub mod config;
-pub mod clock;
-pub mod rtio_crg;
-pub mod buffer_logger;
-pub mod session;
+mod board;
+mod sched;
+mod config;
+mod clock;
+mod rtio_crg;
+
+mod logger;
+
+mod session_proto;
+mod session;
 
 extern {
     fn network_init();
@@ -34,7 +36,7 @@ pub unsafe extern fn rust_main() {
         rtio_crg::init();
         network_init();
 
-        let mut scheduler = io::Scheduler::new();
+        let mut scheduler = sched::Scheduler::new();
         scheduler.spawn(4096, move |waiter| {
             session::handler(waiter, logger)
         });
