@@ -27,11 +27,15 @@ extern {
     fn lwip_service();
 }
 
+include!(concat!(env!("OUT_DIR"), "/git_info.rs"));
+
 #[no_mangle]
 pub unsafe extern fn rust_main() {
     static mut log_buffer: [u8; 4096] = [0; 4096];
     BufferLogger::new(&mut log_buffer[..])
                  .register(move |logger| {
+        info!("booting ARTIQ runtime ({})", GIT_COMMIT);
+
         clock::init();
         rtio_crg::init();
         network_init();

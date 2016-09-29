@@ -206,6 +206,8 @@ static struct net_server_instance analyzer_inst = {
 
 static void regular_main(void)
 {
+    puts("ARTIQ runtime built "__DATE__" "__TIME__"\n");
+
     clock_init();
     rtiocrg_init();
     session_startup_kernel();
@@ -240,8 +242,6 @@ int main(void)
     irq_setmask(0);
     irq_setie(1);
     uart_init();
-
-    puts("ARTIQ runtime built "__DATE__" "__TIME__"\n");
 
     alloc_give(&_fheap, &_eheap - &_fheap);
 
