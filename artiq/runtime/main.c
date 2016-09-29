@@ -206,6 +206,8 @@ static struct net_server_instance analyzer_inst = {
 
 static void regular_main(void)
 {
+    clock_init();
+    rtiocrg_init();
     session_startup_kernel();
 
     puts("Accepting network sessions.");
@@ -242,11 +244,9 @@ int main(void)
     puts("ARTIQ runtime built "__DATE__" "__TIME__"\n");
 
     alloc_give(&_fheap, &_eheap - &_fheap);
-    clock_init();
-    rtiocrg_init();
 
-    rust_main();
-    // regular_main();
+    // rust_main();
+    regular_main();
 
     return 0;
 }

@@ -15,6 +15,8 @@ use buffer_logger::BufferLogger;
 pub mod board;
 pub mod io;
 pub mod config;
+pub mod clock;
+pub mod rtio_crg;
 pub mod buffer_logger;
 pub mod session;
 
@@ -28,7 +30,8 @@ pub unsafe extern fn rust_main() {
     static mut log_buffer: [u8; 4096] = [0; 4096];
     BufferLogger::new(&mut log_buffer[..])
                  .register(move |logger| {
-        info!("Accepting network sessions in Rust.");
+        clock::init();
+        rtio_crg::init();
         network_init();
 
         let mut scheduler = io::Scheduler::new();

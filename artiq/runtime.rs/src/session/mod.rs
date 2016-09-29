@@ -1,7 +1,7 @@
 use std::prelude::v1::*;
 use std::str;
 use std::io::{self, Read, ErrorKind};
-use config;
+use {config, rtio_crg};
 use self::protocol::*;
 
 mod protocol;
@@ -26,14 +26,23 @@ extern {
 }
 
 impl Session {
-    pub fn start() -> Session {
+    pub fn new() -> Session {
         unsafe { kloader_stop(); }
         Session {
             kernel_state: KernelState::Absent
         }
     }
 
-    pub fn end(self) {
+    pub fn running(&self) -> bool {
+        match self.kernel_state {
+            KernelState::Absent  | KernelState::Loaded  => false,
+            KernelState::Running | KernelState::RpcWait => true
+        }
+    }
+}
+
+impl Drop for Session {
+    fn drop(&mut self) {
         unsafe {
             kloader_stop();
             watchdog_init();
@@ -55,10 +64,14 @@ fn check_magic(stream: &mut ::io::TcpStream) -> io::Result<()> {
 }
 
 fn handle_request(stream: &mut ::io::TcpStream,
-                  logger: &::buffer_logger::BufferLogger) -> io::Result<()> {
+                  logger: &::buffer_logger::BufferLogger,
+                  session: &mut Session) -> io::Result<()> {
     fn read_request(stream: &mut ::io::TcpStream) -> io::Result<Request> {
         let request = try!(Request::read_from(stream));
-        trace!("comm<-host {:?}", request);
+        match &request {
+            &Request::LoadLibrary(_) => trace!("comm<-host LoadLibrary(...)"),
+            _ => trace!("comm<-host {:?}", request)
+        }
         Ok(request)
     }
 
@@ -71,6 +84,7 @@ fn handle_request(stream: &mut ::io::TcpStream,
         Request::Ident =>
             write_reply(stream, Reply::Ident(::board::ident(&mut [0; 64]))),
 
+        // artiq_corelog
         Request::Log => {
             // Logging the packet with the log is inadvisable
             trace!("comm->host Log(...)");
@@ -84,6 +98,7 @@ fn handle_request(stream: &mut ::io::TcpStream,
             write_reply(stream, Reply::Log(""))
         }
 
+        // artiq_coreconfig
         Request::FlashRead { ref key } => {
             let value = config::read_to_end(key);
             write_reply(stream, Reply::FlashRead(&value))
@@ -106,6 +121,20 @@ fn handle_request(stream: &mut ::io::TcpStream,
             write_reply(stream, Reply::FlashOk)
         }
 
+        // artiq_run/artiq_master
+        Request::SwitchClock(clk) => {
+            if session.running() {
+                error!("attempted to switch RTIO clock while kernel was running");
+                write_reply(stream, Reply::ClockSwitchFailed)
+            } else {
+                if rtio_crg::switch_clock(clk) {
+                    write_reply(stream, Reply::ClockSwitchCompleted)
+                } else {
+                    write_reply(stream, Reply::ClockSwitchFailed)
+                }
+            }
+        }
+
         _ => unreachable!()
     }
 }
@@ -113,8 +142,10 @@ fn handle_request(stream: &mut ::io::TcpStream,
 fn handle_requests(stream: &mut ::io::TcpStream,
                    logger: &::buffer_logger::BufferLogger) -> io::Result<()> {
     try!(check_magic(stream));
+
+    let mut session = Session::new();
     loop {
-        try!(handle_request(stream, logger))
+        try!(handle_request(stream, logger, &mut session))
     }
 }
 
@@ -122,6 +153,8 @@ pub fn handler(waiter: ::io::Waiter,
                logger: &::buffer_logger::BufferLogger) {
     let addr = ::io::SocketAddr::new(::io::IP_ANY, 1381);
     let listener = ::io::TcpListener::bind(waiter, addr).unwrap();
+    info!("accepting network sessions in Rust");
+
     loop {
         let (mut stream, addr) = listener.accept().unwrap();
         info!("new connection from {:?}", addr);
