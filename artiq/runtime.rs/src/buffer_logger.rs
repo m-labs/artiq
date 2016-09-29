@@ -1,4 +1,3 @@
-use core::mem;
 use core::cell::RefCell;
 use log::{self, Log, LogMetadata, LogRecord, LogLevelFilter};
 use log_buffer::LogBuffer;
@@ -41,7 +40,7 @@ impl BufferLogger {
 }
 
 impl Log for BufferLogger {
-    fn enabled(&self, _metadata: &log::LogMetadata) -> bool {
+    fn enabled(&self, _metadata: &LogMetadata) -> bool {
         true
     }
 

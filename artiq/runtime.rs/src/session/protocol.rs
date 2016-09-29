@@ -51,7 +51,9 @@ fn write_bytes(writer: &mut Write, value: &[u8]) -> io::Result<()> {
 }
 
 fn read_string(reader: &mut Read) -> io::Result<String> {
-    let bytes = try!(read_bytes(reader));
+    let mut bytes = try!(read_bytes(reader));
+    let len = bytes.len() - 1; // length without trailing \0
+    bytes.resize(len, 0);      // FIXME: don't send \0 in the first place
     String::from_utf8(bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
 }
 
@@ -128,8 +130,8 @@ pub enum Request {
 
     FlashRead   { key: String },
     FlashWrite  { key: String, value: Vec<u8> },
-    FlashErase  { key: String },
     FlashRemove { key: String },
+    FlashErase,
 }
 
 impl Request {
@@ -162,9 +164,7 @@ impl Request {
                 key:   try!(read_string(reader)),
                 value: try!(read_bytes(reader))
             },
-            11 => Request::FlashErase {
-                key: try!(read_string(reader))
-            },
+            11 => Request::FlashErase,
             12 => Request::FlashRemove {
                 key: try!(read_string(reader))
             },

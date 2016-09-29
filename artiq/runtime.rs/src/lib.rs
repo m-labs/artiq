@@ -1,8 +1,9 @@
 #![no_std]
-#![feature(const_fn)]
+#![feature(libc)]
 
 #[macro_use]
 extern crate std_artiq as std;
+extern crate libc;
 #[macro_use]
 extern crate log;
 extern crate log_buffer;
@@ -13,6 +14,7 @@ use buffer_logger::BufferLogger;
 
 pub mod board;
 pub mod io;
+pub mod config;
 pub mod buffer_logger;
 pub mod session;
 

@@ -1,6 +1,7 @@
 use std::prelude::v1::*;
 use std::str;
 use std::io::{self, Read, ErrorKind};
+use config;
 use self::protocol::*;
 
 mod protocol;
@@ -67,9 +68,8 @@ fn handle_request(stream: &mut ::io::TcpStream,
     }
 
     match try!(read_request(stream)) {
-        Request::Ident => {
-            write_reply(stream, Reply::Ident(::board::ident(&mut [0; 64])))
-        }
+        Request::Ident =>
+            write_reply(stream, Reply::Ident(::board::ident(&mut [0; 64]))),
 
         Request::Log => {
             // Logging the packet with the log is inadvisable
@@ -82,6 +82,28 @@ fn handle_request(stream: &mut ::io::TcpStream,
         Request::LogClear => {
             logger.clear();
             write_reply(stream, Reply::Log(""))
+        }
+
+        Request::FlashRead { ref key } => {
+            let value = config::read_to_end(key);
+            write_reply(stream, Reply::FlashRead(&value))
+        }
+
+        Request::FlashWrite { ref key, ref value } => {
+            match config::write(key, value) {
+                Ok(_)  => write_reply(stream, Reply::FlashOk),
+                Err(_) => write_reply(stream, Reply::FlashError)
+            }
+        }
+
+        Request::FlashRemove { ref key } => {
+            config::remove(key);
+            write_reply(stream, Reply::FlashOk)
+        }
+
+        Request::FlashErase => {
+            config::erase();
+            write_reply(stream, Reply::FlashOk)
         }
 
         _ => unreachable!()

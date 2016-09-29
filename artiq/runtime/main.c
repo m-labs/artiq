@@ -245,8 +245,8 @@ int main(void)
     clock_init();
     rtiocrg_init();
 
-    // rust_main();
-    regular_main();
+    rust_main();
+    // regular_main();
 
     return 0;
 }
