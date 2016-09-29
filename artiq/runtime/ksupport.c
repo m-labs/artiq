@@ -12,7 +12,6 @@
 #include "kloader.h"
 #include "mailbox.h"
 #include "messages.h"
-#include "bridge.h"
 #include "artiq_personality.h"
 #include "rtio.h"
 #include "dds.h"
@@ -376,11 +375,6 @@ int main(void)
         .type = MESSAGE_TYPE_LOAD_REPLY,
         .error = NULL
     };
-
-    if(request == NULL) {
-        bridge_main();
-        while(1);
-    }
 
     if(request->library != NULL) {
         if(!dyld_load(request->library, KERNELCPU_PAYLOAD_ADDRESS,

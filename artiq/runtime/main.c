@@ -24,12 +24,10 @@
 #include <netif/ppp/pppos.h>
 #endif
 
-#include "bridge_ctl.h"
 #include "kloader.h"
 #include "flash_storage.h"
 #include "clock.h"
 #include "rtiocrg.h"
-#include "test_mode.h"
 #include "net_server.h"
 #include "session.h"
 #include "analyzer.h"
@@ -208,6 +206,8 @@ static struct net_server_instance analyzer_inst = {
 
 static void regular_main(void)
 {
+    session_startup_kernel();
+
     puts("Accepting network sessions.");
     network_init();
     net_server_init(&session_inst);
@@ -223,41 +223,6 @@ static void regular_main(void)
         kloader_service_essential_kmsg();
         net_server_service();
     }
-}
-
-static void blink_led(void)
-{
-    int i;
-    long long int t;
-
-    for(i=0;i<3;i++) {
-#ifdef CSR_LEDS_BASE
-        leds_out_write(1);
-#endif
-        t = clock_get_ms();
-        while(clock_get_ms() < t + 250);
-#ifdef CSR_LEDS_BASE
-        leds_out_write(0);
-#endif
-        t = clock_get_ms();
-        while(clock_get_ms() < t + 250);
-    }
-}
-
-static int check_test_mode(void)
-{
-    char c;
-    long long int t;
-
-    t = clock_get_ms();
-    while(clock_get_ms() < t + 1000) {
-        if(readchar_nonblock()) {
-            c = readchar();
-            if((c == 't')||(c == 'T'))
-                return 1;
-        }
-    }
-    return 0;
 }
 
 extern void _fheap, _eheap;
@@ -279,17 +244,9 @@ int main(void)
     alloc_give(&_fheap, &_eheap - &_fheap);
     clock_init();
     rtiocrg_init();
-    puts("Press 't' to enter test mode...");
-    blink_led();
 
-    if(check_test_mode()) {
-        puts("Entering test mode.");
-        test_main();
-    } else {
-        puts("Entering regular mode.");
-        // rust_main();
-        session_startup_kernel();
-        regular_main();
-    }
+    // rust_main();
+    regular_main();
+
     return 0;
 }

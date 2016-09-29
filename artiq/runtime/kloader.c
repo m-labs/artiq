@@ -26,11 +26,6 @@ static void start_kernel_cpu(struct msg_load_request *msg)
     kernel_cpu_reset_write(0);
 }
 
-void kloader_start_bridge()
-{
-    start_kernel_cpu(NULL);
-}
-
 static int load_or_start_kernel(const void *library, int run_kernel)
 {
     static struct dyld_info library_info;

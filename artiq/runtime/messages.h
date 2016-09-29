@@ -24,16 +24,6 @@ enum {
     MESSAGE_TYPE_CACHE_PUT_REQUEST,
     MESSAGE_TYPE_CACHE_PUT_REPLY,
     MESSAGE_TYPE_LOG,
-
-    MESSAGE_TYPE_BRG_READY,
-    MESSAGE_TYPE_BRG_TTL_O,
-    MESSAGE_TYPE_BRG_TTL_OE,
-    MESSAGE_TYPE_BRG_DDS_SEL,
-    MESSAGE_TYPE_BRG_DDS_RESET,
-    MESSAGE_TYPE_BRG_DDS_READ_REQUEST,
-    MESSAGE_TYPE_BRG_DDS_READ_REPLY,
-    MESSAGE_TYPE_BRG_DDS_WRITE,
-    MESSAGE_TYPE_BRG_DDS_FUD,
 };
 
 struct msg_base {
@@ -130,50 +120,6 @@ struct msg_log {
     int type;
     const char *fmt;
     va_list args;
-};
-
-/* bridge messages */
-
-struct msg_brg_ttl_out {
-    /* used for OE and O */
-    int type;
-    int channel;
-    int value;
-};
-
-struct msg_brg_dds_sel {
-    int type;
-    int bus_channel;
-    int channel;
-};
-
-struct msg_brg_dds_reset {
-    int type;
-    int bus_channel;
-};
-
-struct msg_brg_dds_read_request {
-    int type;
-    int bus_channel;
-    unsigned int address;
-};
-
-struct msg_brg_dds_read_reply {
-    int type;
-    int bus_channel;
-    unsigned int data;
-};
-
-struct msg_brg_dds_write {
-    int type;
-    int bus_channel;
-    unsigned int address;
-    unsigned int data;
-};
-
-struct msg_brg_dds_fud {
-    int type;
-    int bus_channel;
 };
 
 #endif /* __MESSAGES_H */
