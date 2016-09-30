@@ -370,43 +370,39 @@ static void now_save(void)
 int main(void);
 int main(void)
 {
-    struct msg_load_request *request = mailbox_receive();
+    static struct dyld_info library_info;
+
+    struct msg_load_request *request = mailbox_wait_and_receive();
     struct msg_load_reply load_reply = {
         .type = MESSAGE_TYPE_LOAD_REPLY,
         .error = NULL
     };
 
-    if(request->library != NULL) {
-        if(!dyld_load(request->library, KERNELCPU_PAYLOAD_ADDRESS,
-                      resolve_runtime_export, request->library_info,
-                      &load_reply.error)) {
-            mailbox_send(&load_reply);
-            while(1);
-        }
-
-        void *__bss_start = dyld_lookup("__bss_start", request->library_info);
-        void *_end = dyld_lookup("_end", request->library_info);
-        memset(__bss_start, 0, _end - __bss_start);
-    }
-
-    if(request->run_kernel) {
-        void (*kernel_run)() = request->library_info->init;
-        void *typeinfo = dyld_lookup("typeinfo", request->library_info);
-
-        mailbox_send_and_wait(&load_reply);
-
-        now_init();
-        kernel_run();
-        now_save();
-
-        attribute_writeback(typeinfo);
-
-        struct msg_base finished_reply;
-        finished_reply.type = MESSAGE_TYPE_FINISHED;
-        mailbox_send_and_wait(&finished_reply);
-    } else {
+    if(!dyld_load(request->library, KERNELCPU_PAYLOAD_ADDRESS,
+                  resolve_runtime_export, &library_info,
+                  &load_reply.error)) {
         mailbox_send(&load_reply);
+        while(1);
     }
+
+    void *__bss_start = dyld_lookup("__bss_start", &library_info);
+    void *_end = dyld_lookup("_end", &library_info);
+    memset(__bss_start, 0, _end - __bss_start);
+
+    void (*kernel_run)() = library_info.init;
+    void *typeinfo = dyld_lookup("typeinfo", &library_info);
+
+    mailbox_send_and_wait(&load_reply);
+
+    now_init();
+    kernel_run();
+    now_save();
+
+    attribute_writeback(typeinfo);
+
+    struct msg_base finished_reply;
+    finished_reply.type = MESSAGE_TYPE_FINISHED;
+    mailbox_send_and_wait(&finished_reply);
 
     while(1);
 }

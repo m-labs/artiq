@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 enum {
+    MESSAGE_TYPE_LOAD_REQUEST,
     MESSAGE_TYPE_LOAD_REPLY,
     MESSAGE_TYPE_NOW_INIT_REQUEST,
     MESSAGE_TYPE_NOW_INIT_REPLY,
@@ -33,9 +34,8 @@ struct msg_base {
 /* kernel messages */
 
 struct msg_load_request {
+    int type;
     const void *library;
-    struct dyld_info *library_info;
-    int run_kernel;
 };
 
 struct msg_load_reply {

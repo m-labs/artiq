@@ -1,8 +1,6 @@
 #include <string.h>
 #include <generated/csr.h>
 
-#include <dyld.h>
-
 #include "kloader.h"
 #include "log.h"
 #include "clock.h"
@@ -10,8 +8,13 @@
 #include "mailbox.h"
 #include "messages.h"
 
-static void start_kernel_cpu(struct msg_load_request *msg)
+int kloader_load_library(const void *library)
 {
+    if(!kernel_cpu_reset_read()) {
+        core_log("BUG: attempted to load kernel library while kernel CPU is running\n");
+        return 0;
+    }
+
     // Stop kernel CPU before messing with its code.
     kernel_cpu_reset_write(1);
 
@@ -22,22 +25,15 @@ static void start_kernel_cpu(struct msg_load_request *msg)
            &_binary_ksupport_elf_end - &_binary_ksupport_elf_start);
 
     // Start kernel CPU.
-    mailbox_send(msg);
     kernel_cpu_reset_write(0);
-}
 
-static int load_or_start_kernel(const void *library, int run_kernel)
-{
-    static struct dyld_info library_info;
     struct msg_load_request request = {
-        .library      = library,
-        .library_info = &library_info,
-        .run_kernel   = run_kernel,
+        .type    = MESSAGE_TYPE_LOAD_REQUEST,
+        .library = library,
     };
-    start_kernel_cpu(&request);
+    mailbox_send(&request);
 
     struct msg_load_reply *reply = mailbox_wait_and_receive();
-    mailbox_acknowledge();
 
     if(reply->type != MESSAGE_TYPE_LOAD_REPLY) {
         core_log("BUG: unexpected reply to load/run request\n");
@@ -52,14 +48,14 @@ static int load_or_start_kernel(const void *library, int run_kernel)
     return 1;
 }
 
-int kloader_load_library(const void *library)
+void kloader_start_kernel()
 {
-    if(!kernel_cpu_reset_read()) {
-        core_log("BUG: attempted to load kernel library while kernel CPU is running\n");
-        return 0;
+    if(kernel_cpu_reset_read()) {
+        core_log("BUG: attempted to load kernel library while kernel CPU is stopped\n");
+        return;
     }
 
-    return load_or_start_kernel(library, 0);
+    mailbox_acknowledge();
 }
 
 void kloader_filter_backtrace(struct artiq_backtrace_item *backtrace,
@@ -78,11 +74,6 @@ void kloader_filter_backtrace(struct artiq_backtrace_item *backtrace,
     *backtrace_size = cursor - backtrace;
 }
 
-void kloader_start_kernel()
-{
-    load_or_start_kernel(NULL, 1);
-}
-
 static int kloader_start_flash_kernel(char *key)
 {
 #if (defined CSR_SPIFLASH_BASE && defined CONFIG_SPIFLASH_PAGE_SIZE)
@@ -98,7 +89,10 @@ static int kloader_start_flash_kernel(char *key)
         return 0;
     }
 
-    return load_or_start_kernel(buffer, 1);
+    if(!kloader_load_library(buffer))
+        return 0;
+    kloader_start_kernel();
+    return 1;
 #else
     return 0;
 #endif

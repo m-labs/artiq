@@ -929,6 +929,11 @@ static int process_kmsg(struct msg_base *umsg)
         return 0;
     if(kloader_is_essential_kmsg(umsg->type))
         return 1; /* handled elsewhere */
+    if(user_kernel_state == USER_KERNEL_LOADED &&
+       umsg->type == MESSAGE_TYPE_LOAD_REPLY) {
+        // Kernel standing by.
+        return 1;
+    }
     if(user_kernel_state == USER_KERNEL_WAIT_RPC &&
        umsg->type == MESSAGE_TYPE_RPC_RECV_REQUEST) {
         // Handled and acknowledged when we receive
