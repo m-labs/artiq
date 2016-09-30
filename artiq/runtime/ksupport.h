@@ -8,7 +8,7 @@ struct artiq_list {
 
 int watchdog_set(int ms);
 void watchdog_clear(int id);
-void send_rpc(int service, const char *tag, ...);
+void send_rpc(int service, const char *tag, void **data);
 int recv_rpc(void *slot);
 struct artiq_list cache_get(const char *key);
 void cache_put(const char *key, struct artiq_list value);

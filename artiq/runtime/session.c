@@ -893,13 +893,13 @@ static int send_rpc_value(const char **tag, void **value)
     return 1;
 }
 
-static int send_rpc_request(int service, const char *tag, va_list args)
+static int send_rpc_request(int service, const char *tag, void **data)
 {
     out_packet_start(REMOTEMSG_TYPE_RPC_REQUEST);
     out_packet_int32(service);
 
     while(*tag != ':') {
-        void *value = va_arg(args, void*);
+        void *value = *data++;
         if(!kloader_validate_kpointer(value))
             return 0;
         if(!send_rpc_value(&tag, &value))
@@ -994,7 +994,7 @@ static int process_kmsg(struct msg_base *umsg)
         case MESSAGE_TYPE_RPC_BATCH: {
             struct msg_rpc_send *msg = (struct msg_rpc_send *)umsg;
 
-            if(!send_rpc_request(msg->service, msg->tag, msg->args)) {
+            if(!send_rpc_request(msg->service, msg->tag, msg->data)) {
                 core_log("Failed to send RPC request (service %d, tag %s)\n",
                          msg->service, msg->tag);
                 return 0; // restart session

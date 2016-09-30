@@ -79,7 +79,7 @@ struct msg_rpc_send {
     int type;
     int service;
     const char *tag;
-    va_list args;
+    void **data;
 };
 
 struct msg_rpc_recv_request {
@@ -118,8 +118,8 @@ struct msg_cache_put_reply {
 
 struct msg_log {
     int type;
-    const char *fmt;
-    va_list args;
+    const char *buf;
+    size_t len;
 };
 
 #endif /* __MESSAGES_H */

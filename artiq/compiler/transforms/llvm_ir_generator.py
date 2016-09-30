@@ -19,6 +19,7 @@ lli32      = ll.IntType(32)
 lli64      = ll.IntType(64)
 lldouble   = ll.DoubleType()
 llptr      = ll.IntType(8).as_pointer()
+llptrptr   = ll.IntType(8).as_pointer().as_pointer()
 llmetadata = ll.MetaData()
 
 
@@ -349,8 +350,7 @@ class LLVMIRGenerator:
         elif name == "strcmp":
             llty = ll.FunctionType(lli32, [llptr, llptr])
         elif name == "send_rpc":
-            llty = ll.FunctionType(llvoid, [lli32, llptr],
-                                   var_arg=True)
+            llty = ll.FunctionType(llvoid, [lli32, llptr, llptrptr])
         elif name == "recv_rpc":
             llty = ll.FunctionType(lli32, [llptr])
         elif name == "now":
@@ -1233,7 +1233,8 @@ class LLVMIRGenerator:
         llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
                                          name="rpc.stack")
 
-        llargs = []
+        llargs = self.llbuilder.alloca(llptr, ll.Constant(lli32, len(args)),
+                                       name="rpc.args")
         for index, arg in enumerate(args):
             if builtins.is_none(arg.type):
                 llargslot = self.llbuilder.alloca(ll.LiteralStructType([]),
@@ -1243,10 +1244,13 @@ class LLVMIRGenerator:
                 llargslot = self.llbuilder.alloca(llarg.type,
                                                   name="rpc.arg{}".format(index))
                 self.llbuilder.store(llarg, llargslot)
-            llargs.append(llargslot)
+            llargslot = self.llbuilder.bitcast(llargslot, llptr)
+
+            llargptr = self.llbuilder.gep(llargs, [ll.Constant(lli32, index)])
+            self.llbuilder.store(llargslot, llargptr)
 
         self.llbuilder.call(self.llbuiltin("send_rpc"),
-                            [llservice, lltag] + llargs)
+                            [llservice, lltag, llargs])
 
         # Don't waste stack space on saved arguments.
         self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])

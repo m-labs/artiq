@@ -272,13 +272,19 @@ double sqrt(double x)
 /* called by libunwind */
 int fprintf(FILE *stream, const char *fmt, ...)
 {
-    struct msg_log request;
+    va_list args;
+    va_start(args, fmt);
 
+    char buf[256];
+    int len = vscnprintf(buf, sizeof(buf), fmt, args);
+
+    va_end(args);
+
+    struct msg_log request;
     request.type = MESSAGE_TYPE_LOG;
-    request.fmt = fmt;
-    va_start(request.args, fmt);
+    request.buf = buf;
+    request.len = len;
     mailbox_send_and_wait(&request);
-    va_end(request.args);
 
     return 0;
 }
@@ -462,7 +468,7 @@ void watchdog_clear(int id)
     mailbox_send_and_wait(&request);
 }
 
-void send_rpc(int service, const char *tag, ...)
+void send_rpc(int service, const char *tag, void **data)
 {
     struct msg_rpc_send request;
 
@@ -472,9 +478,8 @@ void send_rpc(int service, const char *tag, ...)
         request.type = MESSAGE_TYPE_RPC_BATCH;
     request.service = service;
     request.tag = tag;
-    va_start(request.args, tag);
+    request.data = data;
     mailbox_send_and_wait(&request);
-    va_end(request.args);
 }
 
 int recv_rpc(void *slot)
@@ -537,7 +542,12 @@ void attribute_writeback(void *utypes)
 
                 if(attr->tag) {
                     uintptr_t value = (uintptr_t)object + attr->offset;
-                    send_rpc(0, attr->tag, &object, &attr->name, value);
+                    void *args[] = {
+                        &object,
+                        &attr->name,
+                        (void*)value
+                    };
+                    send_rpc(0, attr->tag, args);
                 }
             }
         }
@@ -590,11 +600,17 @@ void cache_put(const char *key, struct artiq_list value)
 
 void core_log(const char *fmt, ...)
 {
-    struct msg_log request;
+    va_list args;
+    va_start(args, fmt);
 
+    char buf[256];
+    int len = vscnprintf(buf, sizeof(buf), fmt, args);
+
+    va_end(args);
+
+    struct msg_log request;
     request.type = MESSAGE_TYPE_LOG;
-    request.fmt = fmt;
-    va_start(request.args, fmt);
+    request.buf = buf;
+    request.len = len;
     mailbox_send_and_wait(&request);
-    va_end(request.args);
 }
