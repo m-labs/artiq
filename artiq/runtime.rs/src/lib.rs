@@ -16,6 +16,7 @@ mod sched;
 mod config;
 mod clock;
 mod rtio_crg;
+mod mailbox;
 
 mod logger;
 

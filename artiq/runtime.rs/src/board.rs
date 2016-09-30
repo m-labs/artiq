@@ -3,6 +3,10 @@ use core::{cmp, ptr, str};
 include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/mem.rs"));
 include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/csr.rs"));
 
+extern {
+    pub fn flush_cpu_dcache();
+}
+
 pub fn ident(buf: &mut [u8]) -> &str {
     unsafe {
         let len = ptr::read_volatile(csr::IDENTIFIER_MEM_BASE);
