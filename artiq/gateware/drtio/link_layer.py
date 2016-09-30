@@ -256,9 +256,13 @@ class LinkLayer(Module):
             tx.link_init.eq(1),
             tx.signal_rx_ready.eq(1),
             If(rx.remote_rx_ready,
-                NextState("READY")
+                NextState("WAIT_REMOTE_LINK_UP")
             )
         )
+        fsm.act("WAIT_REMOTE_LINK_UP",
+            If(~rx.link_init, NextState("READY"))
+        )
         fsm.act("READY",
+            If(rx.link_init, NextState("RESET_RX")),
             self.ready.eq(1)
         )
