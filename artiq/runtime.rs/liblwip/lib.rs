@@ -279,12 +279,12 @@ impl UdpSocket {
                 recv_buffer: LinkedList::new()
             }));
             let arg = &mut *state as *mut RefCell<UdpSocketState> as *mut _;
-            lwip_sys::udp_recv(raw, recv, arg);
+            lwip_sys::udp_recv(raw, Some(recv), arg);
             Ok(UdpSocket { raw: raw, state: state })
         }
     }
 
-    pub fn state(&self) -> *const RefCell<UdpSocketState> {
+    pub fn state(&self) -> &RefCell<UdpSocketState> {
         &*self.state
     }
 
@@ -376,12 +376,12 @@ impl TcpListener {
             }));
             let arg = &mut *state as *mut RefCell<TcpListenerState> as *mut _;
             lwip_sys::tcp_arg(raw2, arg);
-            lwip_sys::tcp_accept(raw2, accept);
+            lwip_sys::tcp_accept(raw2, Some(accept));
             Ok(TcpListener { raw: raw2, state: state })
         }
     }
 
-    pub fn state(&self) -> *const RefCell<TcpListenerState> {
+    pub fn state(&self) -> &RefCell<TcpListenerState> {
         &*self.state
     }
 
@@ -467,14 +467,14 @@ impl TcpStream {
             }));
             let arg = &mut *state as *mut RefCell<TcpStreamState> as *mut _;
             lwip_sys::tcp_arg(raw, arg);
-            lwip_sys::tcp_recv(raw, recv);
-            lwip_sys::tcp_sent(raw, sent);
-            lwip_sys::tcp_err(raw, err);
+            lwip_sys::tcp_recv(raw, Some(recv));
+            lwip_sys::tcp_sent(raw, Some(sent));
+            lwip_sys::tcp_err(raw, Some(err));
             TcpStream { raw: raw, state: state }
         }
     }
 
-    pub fn state(&self) -> *const RefCell<TcpStreamState> {
+    pub fn state(&self) -> &RefCell<TcpStreamState> {
         &*self.state
     }
 
@@ -536,6 +536,11 @@ impl TcpStream {
 impl Drop for TcpStream {
     fn drop(&mut self) {
         unsafe {
+            // lwip *will* try to call back after tcp_close
+            lwip_sys::tcp_recv(self.raw, None);
+            lwip_sys::tcp_sent(self.raw, None);
+            lwip_sys::tcp_err(self.raw, None);
+
             // tcp_close can fail here, but in drop() we don't care
             let _ = lwip_sys::tcp_close(self.raw);
         }

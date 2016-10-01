@@ -8,7 +8,7 @@ build = "build.rs"
 walkdir = "0.1"
 
 [lib]
-name = "artiq_rust"
+name = "runtime"
 crate-type = ["staticlib"]
 path = "src/lib.rs"
 

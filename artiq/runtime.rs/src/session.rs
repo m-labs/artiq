@@ -1,12 +1,23 @@
 use std::prelude::v1::*;
 use std::str;
-use std::io::{self, Read, ErrorKind};
-use {config, rtio_crg};
+use std::io::{self, Read};
+use {config, rtio_crg, clock, mailbox, kernel};
 use logger::BufferLogger;
 use sched::{Waiter, TcpListener, TcpStream, SocketAddr, IP_ANY};
-use session_proto::*;
 
-#[derive(Debug, Clone, Copy)]
+use session_proto as host;
+use kernel_proto as kern;
+
+macro_rules! unexpected {
+    ($($arg:tt)*) => {
+        {
+            error!($($arg)*);
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "protocol error"))
+        }
+    };
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum KernelState {
     Absent,
     Loaded,
@@ -17,19 +28,16 @@ enum KernelState {
 #[derive(Debug)]
 pub struct Session {
     kernel_state: KernelState,
-}
-
-extern {
-    fn kloader_stop();
-    fn watchdog_init();
-    fn kloader_start_idle_kernel();
+    watchdog_set: clock::WatchdogSet,
+    now: u64
 }
 
 impl Session {
     pub fn new() -> Session {
-        unsafe { kloader_stop(); }
         Session {
-            kernel_state: KernelState::Absent
+            kernel_state: KernelState::Absent,
+            watchdog_set: clock::WatchdogSet::new(),
+            now: 0
         }
     }
 
@@ -37,16 +45,6 @@ impl Session {
         match self.kernel_state {
             KernelState::Absent  | KernelState::Loaded  => false,
             KernelState::Running | KernelState::RpcWait => true
-        }
-    }
-}
-
-impl Drop for Session {
-    fn drop(&mut self) {
-        unsafe {
-            kloader_stop();
-            watchdog_init();
-            kloader_start_idle_kernel();
         }
     }
 }
@@ -63,89 +61,203 @@ fn check_magic(stream: &mut TcpStream) -> io::Result<()> {
     }
 }
 
-fn handle_request(stream: &mut TcpStream,
-                  logger: &BufferLogger,
-                  session: &mut Session) -> io::Result<()> {
-    fn read_request(stream: &mut TcpStream) -> io::Result<Request> {
-        let request = try!(Request::read_from(stream));
-        match &request {
-            &Request::LoadLibrary(_) => trace!("comm<-host LoadLibrary(...)"),
-            _ => trace!("comm<-host {:?}", request)
-        }
-        Ok(request)
+fn host_read(stream: &mut TcpStream) -> io::Result<host::Request> {
+    let request = try!(host::Request::read_from(stream));
+    match &request {
+        &host::Request::LoadLibrary(_) => trace!("comm<-host LoadLibrary(...)"),
+        _ => trace!("comm<-host {:?}", request)
     }
+    Ok(request)
+}
 
-    fn write_reply(stream: &mut TcpStream, reply: Reply) -> io::Result<()> {
-        trace!("comm->host {:?}", reply);
-        reply.write_to(stream)
+fn host_write(stream: &mut TcpStream, reply: host::Reply) -> io::Result<()> {
+    trace!("comm->host {:?}", reply);
+    reply.write_to(stream)
+}
+
+fn kern_send<'a>(waiter: Waiter, request: kern::Message<'a>) -> io::Result<()> {
+    match &request {
+        &kern::LoadRequest(_) => trace!("comm->kern LoadRequest(...)"),
+        _ => trace!("comm->kern {:?}", request)
     }
+    request.send_and_wait(waiter)
+}
 
-    match try!(read_request(stream)) {
-        Request::Ident =>
-            write_reply(stream, Reply::Ident(::board::ident(&mut [0; 64]))),
+fn kern_recv<R, F>(waiter: Waiter, f: F) -> io::Result<R>
+        where F: FnOnce(kern::Message) -> io::Result<R> {
+    kern::Message::wait_and_receive(waiter, |reply| {
+        trace!("comm<-kern {:?}", reply);
+        f(reply)
+    })
+}
+
+fn kern_acknowledge() -> io::Result<()> {
+    kern::Message::acknowledge();
+    Ok(())
+}
+
+fn comm_handle(waiter: Waiter,
+               stream: &mut TcpStream,
+               logger: &BufferLogger,
+               session: &mut Session) -> io::Result<()> {
+    match try!(host_read(stream)) {
+        host::Request::Ident =>
+            host_write(stream, host::Reply::Ident(::board::ident(&mut [0; 64]))),
 
         // artiq_corelog
-        Request::Log => {
+        host::Request::Log => {
             // Logging the packet with the log is inadvisable
             trace!("comm->host Log(...)");
             logger.extract(move |log| {
-                Reply::Log(log).write_to(stream)
+                host::Reply::Log(log).write_to(stream)
             })
         }
 
-        Request::LogClear => {
+        host::Request::LogClear => {
             logger.clear();
-            write_reply(stream, Reply::Log(""))
+            host_write(stream, host::Reply::Log(""))
         }
 
         // artiq_coreconfig
-        Request::FlashRead { ref key } => {
+        host::Request::FlashRead { ref key } => {
             let value = config::read_to_end(key);
-            write_reply(stream, Reply::FlashRead(&value))
+            host_write(stream, host::Reply::FlashRead(&value))
         }
 
-        Request::FlashWrite { ref key, ref value } => {
+        host::Request::FlashWrite { ref key, ref value } => {
             match config::write(key, value) {
-                Ok(_)  => write_reply(stream, Reply::FlashOk),
-                Err(_) => write_reply(stream, Reply::FlashError)
+                Ok(_)  => host_write(stream, host::Reply::FlashOk),
+                Err(_) => host_write(stream, host::Reply::FlashError)
             }
         }
 
-        Request::FlashRemove { ref key } => {
+        host::Request::FlashRemove { ref key } => {
             config::remove(key);
-            write_reply(stream, Reply::FlashOk)
+            host_write(stream, host::Reply::FlashOk)
         }
 
-        Request::FlashErase => {
+        host::Request::FlashErase => {
             config::erase();
-            write_reply(stream, Reply::FlashOk)
+            host_write(stream, host::Reply::FlashOk)
         }
 
         // artiq_run/artiq_master
-        Request::SwitchClock(clk) => {
+        host::Request::SwitchClock(clk) => {
             if session.running() {
-                error!("attempted to switch RTIO clock while kernel was running");
-                write_reply(stream, Reply::ClockSwitchFailed)
+                error!("attempted to switch RTIO clock while a kernel was running");
+                return host_write(stream, host::Reply::ClockSwitchFailed)
+            }
+
+            if rtio_crg::switch_clock(clk) {
+                host_write(stream, host::Reply::ClockSwitchCompleted)
             } else {
-                if rtio_crg::switch_clock(clk) {
-                    write_reply(stream, Reply::ClockSwitchCompleted)
-                } else {
-                    write_reply(stream, Reply::ClockSwitchFailed)
-                }
+                host_write(stream, host::Reply::ClockSwitchFailed)
             }
         }
 
-        _ => unreachable!()
+        host::Request::LoadLibrary(library) => {
+            if session.running() {
+                error!("attempted to load a new kernel while a kernel was running");
+                return host_write(stream, host::Reply::LoadFailed)
+            }
+
+            unsafe { kernel::start() }
+
+            try!(kern_send(waiter, kern::LoadRequest(&library)));
+            kern_recv(waiter, |reply| {
+                match reply {
+                    kern::LoadReply { error: None } => {
+                        session.kernel_state = KernelState::Loaded;
+                        host_write(stream, host::Reply::LoadCompleted)
+                    }
+                    kern::LoadReply { error: Some(cause) } => {
+                        error!("cannot load kernel: {}", cause);
+                        host_write(stream, host::Reply::LoadFailed)
+                    }
+                    other => unexpected!("unexpected reply from kernel CPU: {:?}", other)
+                }
+            })
+        }
+
+        host::Request::RunKernel => {
+            if session.kernel_state != KernelState::Loaded {
+                error!("attempted to run a kernel while not in Loaded state");
+                return host_write(stream, host::Reply::KernelStartupFailed)
+            }
+
+            session.kernel_state = KernelState::Running;
+            kern_acknowledge()
+        }
+
+        request => unexpected!("unexpected {:?}", request)
     }
 }
 
-fn handle_requests(stream: &mut TcpStream,
-                   logger: &BufferLogger) -> io::Result<()> {
+fn kern_handle(waiter: Waiter,
+               stream: &mut TcpStream,
+               session: &mut Session) -> io::Result<()> {
+    kern::Message::wait_and_receive(waiter, |request| {
+        match (&request, session.kernel_state) {
+            (&kern::LoadReply { .. }, KernelState::Loaded) |
+            (&kern::RpcRecvRequest { .. }, KernelState::RpcWait) => {
+                // We're standing by; ignore the message.
+                return Ok(())
+            }
+            (_, KernelState::Running) => (),
+            _ => {
+                unexpected!("unexpected request {:?} from kernel CPU in {:?} state",
+                            request, session.kernel_state)
+            }
+        }
+
+        trace!("comm<-kern {:?}", request);
+        match request {
+            kern::Log(log) => {
+                info!(target: "kernel", "{}", log);
+                kern_acknowledge()
+            }
+
+            kern::NowInitRequest =>
+                kern_send(waiter, kern::NowInitReply(session.now)),
+
+            kern::NowSave(now) => {
+                session.now = now;
+                kern_acknowledge()
+            }
+
+            request => unexpected!("unexpected {:?}", request)
+        }
+    })
+}
+
+fn handle(waiter: Waiter,
+          stream: &mut TcpStream,
+          logger: &BufferLogger) -> io::Result<()> {
     try!(check_magic(stream));
 
     let mut session = Session::new();
     loop {
-        try!(handle_request(stream, logger, &mut session))
+        if stream.readable() {
+            try!(comm_handle(waiter, stream, logger, &mut session))
+        }
+
+        if mailbox::receive() != 0 {
+            try!(kern_handle(waiter, stream, &mut session))
+        }
+
+        if session.kernel_state == KernelState::Running {
+            if session.watchdog_set.expired() {
+                try!(host_write(stream, host::Reply::WatchdogExpired));
+                return Err(io::Error::new(io::ErrorKind::Other, "watchdog expired"))
+            }
+
+            if !rtio_crg::check() {
+                try!(host_write(stream, host::Reply::ClockFailure));
+                return Err(io::Error::new(io::ErrorKind::Other, "RTIO clock failure"))
+            }
+        }
+
+        waiter.relinquish()
     }
 }
 
@@ -159,13 +271,13 @@ pub fn handler(waiter: Waiter,
         let (mut stream, addr) = listener.accept().unwrap();
         info!("new connection from {:?}", addr);
 
-        match handle_requests(&mut stream, logger) {
+        match handle(waiter, &mut stream, logger) {
             Ok(()) => (),
             Err(err) => {
-                if err.kind() == ErrorKind::UnexpectedEof {
+                if err.kind() == io::ErrorKind::UnexpectedEof {
                     info!("connection closed");
                 } else {
-                    error!("cannot handle network request: {:?}", err);
+                    error!("session aborted: {:?}", err);
                 }
             }
         }

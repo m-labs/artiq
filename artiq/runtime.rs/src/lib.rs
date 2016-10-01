@@ -20,7 +20,10 @@ mod mailbox;
 
 mod logger;
 
+mod kernel_proto;
 mod session_proto;
+
+mod kernel;
 mod session;
 
 extern {
@@ -42,9 +45,10 @@ pub unsafe extern fn rust_main() {
         network_init();
 
         let mut scheduler = sched::Scheduler::new();
-        scheduler.spawn(4096, move |waiter| {
+        scheduler.spawn(8192, move |waiter| {
             session::handler(waiter, logger)
         });
+
         loop {
             lwip_service();
             scheduler.run()

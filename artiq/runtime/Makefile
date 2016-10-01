@@ -27,7 +27,7 @@ all: runtime.bin runtime.fbi
 %.fbi: %.bin
 	@echo " MSCIMG  " $@ && $(PYTHON) -m misoc.tools.mkmscimg -f -o $@ $<
 
-runtime.elf: $(OBJECTS) libartiq_rust.a
+runtime.elf: $(OBJECTS) libruntime.a
 	$(LD) $(LDFLAGS) \
 		--gc-sections \
 		-T $(RUNTIME_DIRECTORY)/runtime.ld \
@@ -40,7 +40,7 @@ runtime.elf: $(OBJECTS) libartiq_rust.a
 		-L../liballoc \
 		-L../liblwip \
 		-Lcargo/or1k-unknown-none/debug/ \
-		-lartiq_rust -lbase -lm -lcompiler-rt -lalloc -llwip
+		-lruntime -lbase -lm -lcompiler-rt -lalloc -llwip
 	@chmod -x $@
 
 ksupport.elf: $(OBJECTS_KSUPPORT)
@@ -60,7 +60,7 @@ ksupport.elf: $(OBJECTS_KSUPPORT)
 ksupport_data.o: ksupport.elf
 	$(LD) -r -b binary -o $@ $<
 
-libartiq_rust.a:
+libruntime.a:
 	CARGO_TARGET_DIR="./cargo" \
 		cargo rustc --verbose \
 			--manifest-path $(RUNTIME_DIRECTORY)/../runtime.rs/Cargo.toml \

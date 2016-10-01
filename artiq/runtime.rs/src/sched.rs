@@ -104,8 +104,8 @@ impl Scheduler {
     }
 }
 
-#[derive(Debug)]
 enum WaitEvent {
+    Completion(*const (Fn() -> bool + 'static)),
     UdpReadable(*const RefCell<lwip::UdpSocketState>),
     TcpAcceptable(*const RefCell<lwip::TcpListenerState>),
     TcpWriteable(*const RefCell<lwip::TcpStreamState>),
@@ -115,6 +115,8 @@ enum WaitEvent {
 impl WaitEvent {
     fn completed(&self) -> bool {
         match *self {
+            WaitEvent::Completion(f) =>
+                unsafe { (*f)() },
             WaitEvent::UdpReadable(state) =>
                 unsafe { (*state).borrow().readable() },
             WaitEvent::TcpAcceptable(state) =>
@@ -127,12 +129,27 @@ impl WaitEvent {
     }
 }
 
+// *const DST doesn't have impl Debug
+impl ::core::fmt::Debug for WaitEvent {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) ->
+            ::core::result::Result<(), ::core::fmt::Error> {
+        write!(f, "WaitEvent...")
+    }
+}
+
 unsafe impl Send for WaitEvent {}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Waiter<'a>(&'a Yielder<WaitResult, WaitRequest, OwnedStack>);
 
 impl<'a> Waiter<'a> {
+    pub fn relinquish(&self) {
+        self.0.suspend(WaitRequest {
+            timeout: None,
+            event:   None
+        });
+    }
+
     pub fn sleep(&self, duration: Duration) -> Result<()> {
         let request = WaitRequest {
             timeout: Some(Instant::now() + duration),
@@ -152,6 +169,13 @@ impl<'a> Waiter<'a> {
             WaitResult::TimedOut => Err(Error::new(ErrorKind::TimedOut, "")),
             WaitResult::Interrupted => Err(Error::new(ErrorKind::Interrupted, ""))
         }
+    }
+
+    pub fn until<F: Fn() -> bool + 'static>(&self, f: F) -> Result<()> {
+        self.suspend(WaitRequest {
+            timeout: None,
+            event:   Some(WaitEvent::Completion(&f as *const _))
+        })
     }
 
     pub fn udp_readable(&self, socket: &lwip::UdpSocket) -> Result<()> {
@@ -239,6 +263,10 @@ impl<'a> UdpSocket<'a> {
         (&mut buf[..len]).copy_from_slice(&pbuf.as_slice()[..len]);
         Ok(len)
     }
+
+    pub fn readable(&self) -> bool {
+        self.lower.state().borrow().readable()
+    }
 }
 
 #[derive(Debug)]
@@ -265,6 +293,10 @@ impl<'a> TcpListener<'a> {
             buffer: None
         }, addr))
     }
+
+    pub fn acceptable(&self) -> bool {
+        self.lower.state().borrow().acceptable()
+    }
 }
 
 pub use self::lwip::Shutdown;
@@ -279,6 +311,14 @@ pub struct TcpStream<'a> {
 impl<'a> TcpStream<'a> {
     pub fn shutdown(&self, how: Shutdown) -> Result<()> {
         Ok(try!(self.lower.shutdown(how)))
+    }
+
+    pub fn readable(&self) -> bool {
+        self.buffer.is_some() || self.lower.state().borrow().readable()
+    }
+
+    pub fn writeable(&self) -> bool {
+        self.lower.state().borrow().writeable()
     }
 }
 

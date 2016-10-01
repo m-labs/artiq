@@ -1,14 +1,12 @@
 use core::ptr::{read_volatile, write_volatile};
 use board;
 
-const MAILBOX: *mut u32 = board::mem::MAILBOX_BASE as *mut u32;
-static mut last: u32 = 0;
+const MAILBOX: *mut usize = board::mem::MAILBOX_BASE as *mut usize;
+static mut last: usize = 0;
 
-pub fn send(data: u32) {
-    unsafe {
-        last = data;
-        write_volatile(MAILBOX, data)
-    }
+pub unsafe fn send(data: usize) {
+    last = data;
+    write_volatile(MAILBOX, data)
 }
 
 pub fn acknowledged() -> bool {
@@ -18,12 +16,7 @@ pub fn acknowledged() -> bool {
     }
 }
 
-pub fn send_and_wait(data: u32) {
-    send(data);
-    while !acknowledged() {}
-}
-
-pub fn receive() -> u32 {
+pub fn receive() -> usize {
     unsafe {
         let data = read_volatile(MAILBOX);
         if data == last {
@@ -33,15 +26,6 @@ pub fn receive() -> u32 {
                 board::flush_cpu_dcache()
             }
             data
-        }
-    }
-}
-
-pub fn wait_and_receive() -> u32 {
-    loop {
-        let data = receive();
-        if data != 0 {
-            return data
         }
     }
 }
