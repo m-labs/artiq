@@ -19,6 +19,7 @@ mod rtio_crg;
 mod mailbox;
 
 mod logger;
+mod cache;
 
 mod kernel_proto;
 mod session_proto;

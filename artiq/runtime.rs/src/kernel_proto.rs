@@ -249,6 +249,7 @@ mod c {
 
     #[repr(u32)]
     #[derive(Debug)]
+    #[allow(dead_code)]
     pub enum Type {
         LoadRequest,
         LoadReply,

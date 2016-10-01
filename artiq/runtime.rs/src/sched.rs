@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 extern crate fringe;
 extern crate lwip;
 
