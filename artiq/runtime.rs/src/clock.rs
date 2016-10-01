@@ -1,30 +1,30 @@
-use board::csr::timer0;
+use board::csr;
 
 const INIT: u64 = ::core::i64::MAX as u64;
 const FREQ: u64 = ::board::csr::CONFIG_CLOCK_FREQUENCY as u64;
 
 pub fn init() {
     unsafe {
-        timer0::en_write(0);
-        timer0::load_write(INIT);
-        timer0::reload_write(INIT);
-        timer0::en_write(1);
+        csr::timer0::en_write(0);
+        csr::timer0::load_write(INIT);
+        csr::timer0::reload_write(INIT);
+        csr::timer0::en_write(1);
     }
 }
 
 pub fn get_ms() -> u64 {
     unsafe {
-        timer0::update_value_write(1);
-        (INIT - timer0::value_read()) / (FREQ / 1_000)
+        csr::timer0::update_value_write(1);
+        (INIT - csr::timer0::value_read()) / (FREQ / 1_000)
     }
 }
 
 pub fn spin_us(interval: u64) {
     unsafe {
-        timer0::update_value_write(1);
-        let threshold = timer0::value_read() - interval * (FREQ / 1_000_000);
-        while timer0::value_read() > threshold {
-            timer0::update_value_write(1)
+        csr::timer0::update_value_write(1);
+        let threshold = csr::timer0::value_read() - interval * (FREQ / 1_000_000);
+        while csr::timer0::value_read() > threshold {
+            csr::timer0::update_value_write(1)
         }
     }
 }

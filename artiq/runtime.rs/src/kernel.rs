@@ -1,5 +1,5 @@
 use core::ptr;
-use board::csr::kernel_cpu;
+use board::csr;
 use mailbox;
 
 const KERNELCPU_EXEC_ADDRESS:    usize = 0x42000000;
@@ -8,7 +8,7 @@ const KERNELCPU_LAST_ADDRESS:    usize = (0x4fffffff - 1024*1024);
 const KSUPPORT_HEADER_SIZE:      usize = 0x80;
 
 pub unsafe fn start() {
-    if kernel_cpu::reset_read() == 0 {
+    if csr::kernel_cpu::reset_read() == 0 {
         panic!("attempted to start kernel CPU when it is already running")
     }
 
@@ -24,11 +24,11 @@ pub unsafe fn start() {
                              (KERNELCPU_EXEC_ADDRESS - KSUPPORT_HEADER_SIZE) as *mut u8,
                              ksupport_end - ksupport_start);
 
-    kernel_cpu::reset_write(0);
+    csr::kernel_cpu::reset_write(0);
 }
 
 pub fn stop() {
-    unsafe { kernel_cpu::reset_write(1) }
+    unsafe { csr::kernel_cpu::reset_write(1) }
     mailbox::acknowledge();
 }
 
