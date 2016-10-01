@@ -17,6 +17,10 @@ macro_rules! unexpected {
     };
 }
 
+fn io_error(msg: &str) -> io::Error {
+    io::Error::new(io::ErrorKind::Other, msg)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum KernelState {
     Absent,
@@ -46,6 +50,12 @@ impl Session {
             KernelState::Absent  | KernelState::Loaded  => false,
             KernelState::Running | KernelState::RpcWait => true
         }
+    }
+}
+
+impl Drop for Session {
+    fn drop(&mut self) {
+        kernel::stop()
     }
 }
 
@@ -226,6 +236,17 @@ fn kern_handle(waiter: Waiter,
                 kern_acknowledge()
             }
 
+            kern::WatchdogSetRequest { ms } => {
+                let id = try!(session.watchdog_set.set_ms(ms)
+                                .map_err(|()| io_error("out of watchdogs")));
+                kern_send(waiter, kern::WatchdogSetReply { id: id })
+            }
+
+            kern::WatchdogClear { id } => {
+                session.watchdog_set.clear(id);
+                kern_acknowledge()
+            }
+
             request => unexpected!("unexpected request {:?} from kernel CPU", request)
         }
     })
@@ -249,12 +270,12 @@ fn handle(waiter: Waiter,
         if session.kernel_state == KernelState::Running {
             if session.watchdog_set.expired() {
                 try!(host_write(stream, host::Reply::WatchdogExpired));
-                return Err(io::Error::new(io::ErrorKind::Other, "watchdog expired"))
+                return Err(io_error("watchdog expired"))
             }
 
             if !rtio_crg::check() {
                 try!(host_write(stream, host::Reply::ClockFailure));
-                return Err(io::Error::new(io::ErrorKind::Other, "RTIO clock failure"))
+                return Err(io_error("RTIO clock failure"))
             }
         }
 

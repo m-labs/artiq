@@ -58,7 +58,6 @@ impl WatchdogSet {
             }
         }
 
-        warn!("cannot add watchdog; all {} watchdogs used", MAX_WATCHDOGS);
         Err(())
     }
 
