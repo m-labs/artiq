@@ -1,3 +1,5 @@
+use core::{ptr, mem, slice};
+use std::string::String;
 use std::io;
 use mailbox;
 use kernel;
@@ -76,6 +78,60 @@ impl<'a> Message<'a> {
                 f(&msg as *const _ as *const _)
             }
 
+            Message::WatchdogSetReply { id } => {
+                let msg = c::WatchdogSetReply {
+                    ty: c::Type::WatchdogSetReply,
+                    id: id as _
+                };
+                f(&msg as *const _ as *const _)
+            }
+
+            Message::RpcRecvReply { alloc_size, exception } => {
+                let exn = exception.map(|exception| {
+                    // FIXME: disgusting
+                    let name = String::from(exception.name) + "\0";
+                    let file = String::from(exception.file) + "\0";
+                    let function = String::from(exception.function) + "\0";
+                    let message = String::from(exception.message) + "\0";
+                    let exn = c::Exception {
+                        name: name.as_ptr() as *const _,
+                        file: file.as_ptr() as *const _,
+                        line: exception.line,
+                        column: exception.column,
+                        function: function.as_ptr() as *const _,
+                        message: message.as_ptr() as *const _,
+                        param: exception.param,
+                    };
+                    mem::forget(name);
+                    mem::forget(file);
+                    mem::forget(function);
+                    mem::forget(message);
+                    exn
+                });
+                let msg = c::RpcRecvReply {
+                    ty: c::Type::RpcRecvReply,
+                    alloc_size: alloc_size as _,
+                    exception: exn.map_or(ptr::null(), |exn| &exn as *const _)
+                };
+                f(&msg as *const _ as *const _)
+            }
+
+            Message::CacheGetReply { value } => {
+                let msg = c::CacheGetReply {
+                    ty: c::Type::CacheGetReply,
+                    length: value.len(),
+                    elements: value.as_ptr()
+                };
+                f(&msg as *const _ as *const _)
+            }
+            Message::CachePutReply { succeeded } => {
+                let msg = c::CachePutReply {
+                    ty: c::Type::CachePutReply,
+                    succeeded: succeeded as _
+                };
+                f(&msg as *const _ as *const _)
+            }
+
             other => panic!("Message::into_lower: {:?} unimplemented", other)
         }
     }
@@ -100,6 +156,57 @@ impl<'a> Message<'a> {
             }
 
             c::Type::RunFinished => Message::RunFinished,
+            c::Type::RunException => {
+                let msg = ptr as *const c::RunException;
+                let exc = (*msg).exception;
+                Message::RunException {
+                    exception: Exception {
+                        name: c::from_c_str((*exc).name),
+                        file: c::from_c_str((*exc).file),
+                        line: (*exc).line,
+                        column: (*exc).column,
+                        function: c::from_c_str((*exc).function),
+                        message: c::from_c_str((*exc).message),
+                        param: (*exc).param,
+                    },
+                    backtrace: slice::from_raw_parts((*msg).backtrace, (*msg).backtrace_size)
+                }
+            }
+
+            c::Type::WatchdogSetRequest => {
+                let msg = ptr as *const c::WatchdogSetRequest;
+                Message::WatchdogSetRequest { ms: (*msg).ms as u64 }
+            },
+            c::Type::WatchdogClear => {
+                let msg = ptr as *const c::WatchdogClear;
+                Message::WatchdogClear { id: (*msg).id as usize }
+            }
+
+            c::Type::RpcSend => {
+                let msg = ptr as *const c::RpcSend;
+                Message::RpcSend {
+                    service: (*msg).service as _,
+                    tag: slice::from_raw_parts((*msg).tag as *const _,
+                                               c::strlen((*msg).tag) as usize),
+                    data: (*msg).data as *const _
+                }
+            }
+            c::Type::RpcRecvRequest => {
+                let msg = ptr as *const c::RpcRecvRequest;
+                Message::RpcRecvRequest { slot: (*msg).slot as *mut _ }
+            }
+
+            c::Type::CacheGetRequest => {
+                let msg = ptr as *const c::CacheGetRequest;
+                let key = c::from_c_str((*msg).key);
+                Message::CacheGetRequest { key: key }
+            }
+            c::Type::CachePutRequest => {
+                let msg = ptr as *const c::CachePutRequest;
+                let key = c::from_c_str((*msg).key);
+                let value = slice::from_raw_parts((*msg).elements, (*msg).length);
+                Message::CachePutRequest { key: key, value: value }
+            }
 
             c::Type::Log => {
                 let msg = ptr as *const c::Log;
@@ -129,13 +236,16 @@ impl<'a> Message<'a> {
     }
 
     pub fn acknowledge() {
-        unsafe { mailbox::acknowledge() }
+        mailbox::acknowledge()
     }
 }
 
 // Low-level representation, compatible with the C code in ksupport
 mod c {
     use libc::{c_void, c_int, c_char, size_t};
+    use core::{str, slice};
+
+    extern { pub fn strlen(ptr: *const c_char) -> size_t; }
 
     #[repr(u32)]
     #[derive(Debug)]
@@ -312,12 +422,10 @@ mod c {
     }
 
     pub unsafe fn from_c_str_len<'a>(ptr: *const c_char, len: size_t) -> &'a str {
-        use core::{str, slice};
         str::from_utf8_unchecked(slice::from_raw_parts(ptr as *const u8, len))
     }
 
     pub unsafe fn from_c_str<'a>(ptr: *const c_char) -> &'a str {
-        extern { fn strlen(cs: *const c_char) -> size_t; }
         from_c_str_len(ptr, strlen(ptr))
     }
 }

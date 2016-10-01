@@ -186,10 +186,11 @@ fn comm_handle(waiter: Waiter,
             }
 
             session.kernel_state = KernelState::Running;
+            // TODO: make this a separate request
             kern_acknowledge()
         }
 
-        request => unexpected!("unexpected {:?}", request)
+        request => unexpected!("unexpected request {:?} from host machine", request)
     }
 }
 
@@ -225,7 +226,7 @@ fn kern_handle(waiter: Waiter,
                 kern_acknowledge()
             }
 
-            request => unexpected!("unexpected {:?}", request)
+            request => unexpected!("unexpected request {:?} from kernel CPU", request)
         }
     })
 }
