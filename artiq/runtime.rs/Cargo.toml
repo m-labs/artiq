@@ -14,7 +14,7 @@ path = "src/lib.rs"
 
 [dependencies]
 std_artiq = { path = "libstd_artiq" }
-lwip = { path = "liblwip" }
+lwip = { path = "liblwip", default-features = false }
 fringe = { version = "= 1.1.0", default-features = false, features = ["alloc"] }
 log = { version = "0.3", default-features = false }
 log_buffer = { version = "1.0" }

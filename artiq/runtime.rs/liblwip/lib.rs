@@ -175,6 +175,9 @@ pub struct Pbuf<'payload> {
     phantom: PhantomData<&'payload [u8]>
 }
 
+#[cfg(not(feature = "preemption"))]
+unsafe impl<'payload> Send for Pbuf<'payload> {}
+
 impl<'payload> Pbuf<'payload> {
     unsafe fn from_raw(raw: *mut lwip_sys::pbuf) -> Pbuf<'payload> {
         Pbuf { raw: raw, phantom: PhantomData }
@@ -258,6 +261,9 @@ pub struct UdpSocket {
     raw:   *mut lwip_sys::udp_pcb,
     state: Box<RefCell<UdpSocketState>>
 }
+
+#[cfg(not(feature = "preemption"))]
+unsafe impl Send for UdpSocket {}
 
 impl UdpSocket {
     pub fn new() -> Result<UdpSocket> {
@@ -347,6 +353,9 @@ pub struct TcpListener {
     state: Box<RefCell<TcpListenerState>>
 }
 
+#[cfg(not(feature = "preemption"))]
+unsafe impl Send for TcpListener {}
+
 impl TcpListener {
     pub fn bind(addr: SocketAddr) -> Result<TcpListener> {
         extern fn accept(arg: *mut c_void, newpcb: *mut lwip_sys::tcp_pcb,
@@ -427,6 +436,9 @@ pub struct TcpStream {
     raw:   *mut lwip_sys::tcp_pcb,
     state: Box<RefCell<TcpStreamState>>
 }
+
+#[cfg(not(feature = "preemption"))]
+unsafe impl Send for TcpStream {}
 
 impl TcpStream {
     fn from_raw(raw: *mut lwip_sys::tcp_pcb) -> TcpStream {

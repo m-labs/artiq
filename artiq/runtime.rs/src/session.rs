@@ -1,11 +1,13 @@
 use std::prelude::v1::*;
-use std::mem;
-use std::str;
+use std::{mem, str};
+use std::cell::RefCell;
 use std::io::{self, Read};
 use {config, rtio_crg, clock, mailbox, kernel};
 use logger::BufferLogger;
 use cache::Cache;
-use sched::{Waiter, TcpListener, TcpStream, SocketAddr, IP_ANY};
+use urc::Urc;
+use sched::{ThreadHandle, Waiter, Spawner};
+use sched::{TcpListener, TcpStream, SocketAddr, IP_ANY};
 
 use session_proto as host;
 use kernel_proto as kern;
@@ -49,14 +51,16 @@ enum KernelState {
 
 // Per-connection state
 #[derive(Debug)]
-struct Session {
+struct Session<'a> {
+    congress: &'a mut Congress,
     kernel_state: KernelState,
     watchdog_set: clock::WatchdogSet
 }
 
-impl Session {
-    fn new() -> Session {
+impl<'a> Session<'a> {
+    fn new(congress: &mut Congress) -> Session {
         Session {
+            congress: congress,
             kernel_state: KernelState::Absent,
             watchdog_set: clock::WatchdogSet::new()
         }
@@ -70,7 +74,7 @@ impl Session {
     }
 }
 
-impl Drop for Session {
+impl<'a> Drop for Session<'a> {
     fn drop(&mut self) {
         kernel::stop()
     }
@@ -123,10 +127,9 @@ fn kern_acknowledge() -> io::Result<()> {
     Ok(())
 }
 
-fn comm_handle(logger: &BufferLogger,
-               waiter: Waiter,
-               stream: &mut TcpStream,
-               session: &mut Session) -> io::Result<()> {
+fn process_host_message(waiter: Waiter,
+                        stream: &mut TcpStream,
+                        session: &mut Session) -> io::Result<()> {
     match try!(host_read(stream)) {
         host::Request::Ident =>
             host_write(stream, host::Reply::Ident(::board::ident(&mut [0; 64]))),
@@ -135,13 +138,15 @@ fn comm_handle(logger: &BufferLogger,
         host::Request::Log => {
             // Logging the packet with the log is inadvisable
             trace!("comm->host Log(...)");
-            logger.extract(move |log| {
-                host::Reply::Log(log).write_to(stream)
+            BufferLogger::with_instance(|logger| {
+                logger.extract(|log| {
+                    host::Reply::Log(log).write_to(stream)
+                })
             })
         }
 
         host::Request::LogClear => {
-            logger.clear();
+            BufferLogger::with_instance(|logger| logger.clear());
             host_write(stream, host::Reply::Log(""))
         }
 
@@ -221,9 +226,8 @@ fn comm_handle(logger: &BufferLogger,
     }
 }
 
-fn kern_handle(waiter: Waiter,
-               congress: &mut Congress,
-               session: &mut Session) -> io::Result<()> {
+fn process_kern_message(waiter: Waiter,
+                        session: &mut Session) -> io::Result<()> {
     kern::Message::wait_and_receive(waiter, |request| {
         match (&request, session.kernel_state) {
             (&kern::LoadReply { .. }, KernelState::Loaded) |
@@ -246,10 +250,10 @@ fn kern_handle(waiter: Waiter,
             }
 
             kern::NowInitRequest =>
-                kern_send(waiter, kern::NowInitReply(congress.now)),
+                kern_send(waiter, kern::NowInitReply(session.congress.now)),
 
             kern::NowSave(now) => {
-                congress.now = now;
+                session.congress.now = now;
                 kern_acknowledge()
             }
 
@@ -265,14 +269,14 @@ fn kern_handle(waiter: Waiter,
             }
 
             kern::CacheGetRequest { key } => {
-                let value = congress.cache.get(key);
+                let value = session.congress.cache.get(key);
                 kern_send(waiter, kern::CacheGetReply {
                     value: unsafe { mem::transmute::<*const [u32], &'static [u32]>(value) }
                 })
             }
 
             kern::CachePutRequest { key, value } => {
-                let succeeded = congress.cache.put(key, value).is_ok();
+                let succeeded = session.congress.cache.put(key, value).is_ok();
                 kern_send(waiter, kern::CachePutReply { succeeded: succeeded })
             }
 
@@ -281,20 +285,17 @@ fn kern_handle(waiter: Waiter,
     })
 }
 
-fn handle(logger: &BufferLogger,
-          waiter: Waiter,
-          stream: &mut TcpStream,
-          congress: &mut Congress) -> io::Result<()> {
-    try!(check_magic(stream));
-
-    let mut session = Session::new();
+fn host_kernel_worker(waiter: Waiter,
+                      stream: &mut TcpStream,
+                      congress: &mut Congress) -> io::Result<()> {
+    let mut session = Session::new(congress);
     loop {
         if stream.readable() {
-            try!(comm_handle(logger, waiter, stream, &mut session))
+            try!(process_host_message(waiter, stream, &mut session));
         }
 
         if mailbox::receive() != 0 {
-            try!(kern_handle(waiter, congress, &mut session))
+            try!(process_kern_message(waiter, &mut session))
         }
 
         if session.kernel_state == KernelState::Running {
@@ -313,27 +314,79 @@ fn handle(logger: &BufferLogger,
     }
 }
 
-pub fn handler(waiter: Waiter,
-               logger: &BufferLogger) {
-    let mut congress = Congress::new();
+fn flash_kernel_worker(waiter: Waiter,
+                       congress: &mut Congress) -> io::Result<()> {
+    let mut session = Session::new(congress);
+    loop {
+        try!(process_kern_message(waiter, &mut session))
+    }
+}
+
+fn respawn<F>(spawner: Spawner, waiter: Waiter,
+              handle: &mut Option<ThreadHandle>,
+              f: F) where F: 'static + FnOnce(Waiter, Spawner) + Send {
+    match handle.take() {
+        None => (),
+        Some(handle) => {
+            info!("terminating running kernel");
+            handle.interrupt();
+            waiter.join(handle).expect("cannot join interrupt thread")
+        }
+    }
+
+    *handle = Some(spawner.spawn(8192, f))
+}
+
+pub fn handler(waiter: Waiter, spawner: Spawner) {
+    let congress = Urc::new(RefCell::new(Congress::new()));
 
     let addr = SocketAddr::new(IP_ANY, 1381);
-    let listener = TcpListener::bind(waiter, addr).unwrap();
+    let listener = TcpListener::bind(waiter, addr).expect("cannot bind socket");
     info!("accepting network sessions in Rust");
 
+    let mut kernel_thread = None;
     loop {
-        let (mut stream, addr) = listener.accept().unwrap();
-        info!("new connection from {:?}", addr);
-
-        match handle(logger, waiter, &mut stream, &mut congress) {
-            Ok(()) => (),
-            Err(err) => {
-                if err.kind() == io::ErrorKind::UnexpectedEof {
-                    info!("connection closed");
-                } else {
-                    error!("session aborted: {:?}", err);
-                }
+        if listener.acceptable() {
+            let (mut stream, addr) = listener.accept().expect("cannot accept client");
+            match check_magic(&mut stream) {
+                Ok(()) => (),
+                Err(_) => continue
             }
+            info!("new connection from {:?}", addr);
+
+            let stream = stream.into_lower();
+            let congress = congress.clone();
+            respawn(spawner.clone(), waiter, &mut kernel_thread, move |waiter, _spawner| {
+                let mut stream = TcpStream::from_lower(waiter, stream);
+                let mut congress = congress.borrow_mut();
+                match host_kernel_worker(waiter, &mut stream, &mut congress) {
+                    Ok(()) => (),
+                    Err(err) => {
+                        if err.kind() == io::ErrorKind::UnexpectedEof {
+                            info!("connection closed");
+                        } else {
+                            error!("session aborted: {:?}", err);
+                        }
+                    }
+                }
+            })
         }
+
+        if kernel_thread.is_none() {
+            info!("no connection, starting idle kernel");
+            let congress = congress.clone();
+            respawn(spawner.clone(), waiter, &mut kernel_thread, move |waiter, _spawner| {
+                let mut congress = congress.borrow_mut();
+                match flash_kernel_worker(waiter, &mut congress) {
+                    Ok(()) =>
+                        info!("idle kernel finished, standing by"),
+                    Err(err) => {
+                        error!("idle kernel aborted: {:?}", err);
+                    }
+                }
+            })
+        }
+
+        waiter.relinquish()
     }
 }

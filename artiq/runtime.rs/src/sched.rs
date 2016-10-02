@@ -1,14 +1,14 @@
 #![allow(dead_code)]
 
-extern crate fringe;
-extern crate lwip;
-
-use std::cell::RefCell;
+use std::cell::{RefCell, BorrowState};
 use std::vec::Vec;
+use std::rc::Rc;
 use std::time::{Instant, Duration};
 use std::io::{Read, Write, Result, Error, ErrorKind};
-use self::fringe::OwnedStack;
-use self::fringe::generator::{Generator, Yielder};
+use fringe::OwnedStack;
+use fringe::generator::{Generator, Yielder, State as GeneratorState};
+use lwip;
+use urc::Urc;
 
 #[derive(Debug)]
 struct WaitRequest {
@@ -25,38 +25,87 @@ enum WaitResult {
 
 #[derive(Debug)]
 struct Thread {
-    generator:   Generator<WaitResult, WaitRequest, OwnedStack>,
+    generator: Generator<WaitResult, WaitRequest, OwnedStack>,
     waiting_for: WaitRequest,
     interrupted: bool
 }
 
-#[derive(Debug)]
-pub struct Scheduler {
-    threads: Vec<Thread>,
-    index:   usize
-}
-
-impl Scheduler {
-    pub fn new() -> Scheduler {
-        Scheduler { threads: Vec::new(), index: 0 }
-    }
-
-    pub unsafe fn spawn<F: FnOnce(Waiter) + Send>(&mut self, stack_size: usize, f: F) {
+impl Thread {
+    unsafe fn new<F>(spawner: Spawner, stack_size: usize, f: F) -> ThreadHandle
+            where F: 'static + FnOnce(Waiter, Spawner) + Send {
         let stack = OwnedStack::new(stack_size);
-        let thread = Thread {
-            generator:   Generator::unsafe_new(stack, move |yielder, _| {
-                f(Waiter(yielder))
+        ThreadHandle::new(Thread {
+            generator: Generator::unsafe_new(stack, |yielder, _| {
+                f(Waiter(yielder), spawner)
             }),
             waiting_for: WaitRequest {
                 timeout: None,
                 event:   None
             },
             interrupted: false
-        };
-        self.threads.push(thread)
+        })
+    }
+
+    pub fn terminated(&self) -> bool {
+        // FIXME: https://github.com/nathan7/libfringe/pull/56
+        match self.generator.state() {
+            GeneratorState::Unavailable => true,
+            GeneratorState::Runnable => false
+        }
+    }
+
+    pub fn interrupt(&mut self) {
+        self.interrupted = true
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ThreadHandle(Urc<RefCell<Thread>>);
+
+impl ThreadHandle {
+    fn new(thread: Thread) -> ThreadHandle {
+        ThreadHandle(Urc::new(RefCell::new(thread)))
+    }
+
+    pub fn terminated(&self) -> bool {
+        match self.0.borrow_state() {
+            BorrowState::Unused => self.0.borrow().terminated(),
+            _ => false // the running thread hasn't terminated
+        }
+    }
+
+    pub fn interrupt(&self) {
+        // FIXME: use try_borrow() instead once it's available
+        match self.0.borrow_state() {
+            BorrowState::Unused => self.0.borrow_mut().interrupt(),
+            _ => panic!("cannot interrupt the running thread")
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Scheduler {
+    threads: Vec<ThreadHandle>,
+    index: usize,
+    spawner: Spawner
+}
+
+impl Scheduler {
+    pub fn new() -> Scheduler {
+        Scheduler {
+            threads: Vec::new(),
+            index: 0,
+            spawner: Spawner::new()
+        }
+    }
+
+    pub fn spawner(&self) -> &Spawner {
+        &self.spawner
     }
 
     pub fn run(&mut self) {
+        self.threads.append(&mut *self.spawner.queue.borrow_mut());
+
         if self.threads.len() == 0 { return }
 
         let now = Instant::now();
@@ -66,7 +115,7 @@ impl Scheduler {
             self.index = (self.index + 1) % self.threads.len();
 
             let result = {
-                let thread = &mut self.threads[self.index];
+                let thread = &mut *self.threads[self.index].0.borrow_mut();
                 match thread.waiting_for {
                     _ if thread.interrupted => {
                         thread.interrupted = false;
@@ -97,7 +146,8 @@ impl Scheduler {
                 },
                 Some(wait_request) => {
                     // The thread has suspended itself.
-                    self.threads[self.index].waiting_for = wait_request
+                    let thread = &mut *self.threads[self.index].0.borrow_mut();
+                    thread.waiting_for = wait_request
                 }
             }
 
@@ -106,8 +156,27 @@ impl Scheduler {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Spawner {
+    queue: Urc<RefCell<Vec<ThreadHandle>>>
+}
+
+impl Spawner {
+    fn new() -> Spawner {
+        Spawner { queue: Urc::new(RefCell::new(Vec::new())) }
+    }
+
+    pub fn spawn<F>(&self, stack_size: usize, f: F) -> ThreadHandle
+            where F: 'static + FnOnce(Waiter, Spawner) + Send {
+        let handle = unsafe { Thread::new(self.clone(), stack_size, f) };
+        self.queue.borrow_mut().push(handle.clone());
+        handle
+    }
+}
+
 enum WaitEvent {
     Completion(*const (Fn() -> bool + 'static)),
+    Termination(*const RefCell<Thread>),
     UdpReadable(*const RefCell<lwip::UdpSocketState>),
     TcpAcceptable(*const RefCell<lwip::TcpListenerState>),
     TcpWriteable(*const RefCell<lwip::TcpStreamState>),
@@ -119,6 +188,8 @@ impl WaitEvent {
         match *self {
             WaitEvent::Completion(f) =>
                 unsafe { (*f)() },
+            WaitEvent::Termination(thread) =>
+                unsafe { (*thread).borrow().terminated() },
             WaitEvent::UdpReadable(state) =>
                 unsafe { (*state).borrow().readable() },
             WaitEvent::TcpAcceptable(state) =>
@@ -173,6 +244,13 @@ impl<'a> Waiter<'a> {
         }
     }
 
+    pub fn join(&self, thread: ThreadHandle) -> Result<()> {
+        self.suspend(WaitRequest {
+            timeout: None,
+            event:   Some(WaitEvent::Termination(&*thread.0))
+        })
+    }
+
     pub fn until<F: Fn() -> bool + 'static>(&self, f: F) -> Result<()> {
         self.suspend(WaitRequest {
             timeout: None,
@@ -211,7 +289,7 @@ impl<'a> Waiter<'a> {
 
 // Wrappers around lwip
 
-pub use self::lwip::{IpAddr, IP4_ANY, IP6_ANY, IP_ANY, SocketAddr};
+pub use lwip::{IpAddr, IP4_ANY, IP6_ANY, IP_ANY, SocketAddr};
 
 #[derive(Debug)]
 pub struct UdpSocket<'a> {
@@ -225,6 +303,14 @@ impl<'a> UdpSocket<'a> {
             waiter: waiter,
             lower:  try!(lwip::UdpSocket::new())
         })
+    }
+
+    pub fn into_lower(self) -> lwip::UdpSocket {
+        self.lower
+    }
+
+    pub fn from_lower(waiter: Waiter<'a>, inner: lwip::UdpSocket) -> UdpSocket {
+        UdpSocket { waiter: waiter, lower: inner }
     }
 
     pub fn bind(&self, addr: SocketAddr) -> Result<()> {
@@ -285,6 +371,14 @@ impl<'a> TcpListener<'a> {
         })
     }
 
+    pub fn into_lower(self) -> lwip::TcpListener {
+        self.lower
+    }
+
+    pub fn from_lower(waiter: Waiter<'a>, inner: lwip::TcpListener) -> TcpListener {
+        TcpListener { waiter: waiter, lower: inner }
+    }
+
     pub fn accept(&self) -> Result<(TcpStream, SocketAddr)> {
         try!(self.waiter.tcp_acceptable(&self.lower));
         let stream_lower = self.lower.try_accept().unwrap();
@@ -301,7 +395,9 @@ impl<'a> TcpListener<'a> {
     }
 }
 
-pub use self::lwip::Shutdown;
+pub use lwip::Shutdown;
+
+pub struct TcpStreamInner(lwip::TcpStream, Option<(lwip::Pbuf<'static>, usize)>);
 
 #[derive(Debug)]
 pub struct TcpStream<'a> {
@@ -311,6 +407,14 @@ pub struct TcpStream<'a> {
 }
 
 impl<'a> TcpStream<'a> {
+    pub fn into_lower(self) -> TcpStreamInner {
+        TcpStreamInner(self.lower, self.buffer)
+    }
+
+    pub fn from_lower(waiter: Waiter<'a>, inner: TcpStreamInner) -> TcpStream {
+        TcpStream { waiter: waiter, lower: inner.0, buffer: inner.1 }
+    }
+
     pub fn shutdown(&self, how: Shutdown) -> Result<()> {
         Ok(try!(self.lower.shutdown(how)))
     }
