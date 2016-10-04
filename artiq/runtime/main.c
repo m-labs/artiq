@@ -237,6 +237,10 @@ u16_t tcp_sndbuf_(struct tcp_pcb *pcb) {
     return tcp_sndbuf(pcb);
 }
 
+u8_t* tcp_so_options_(struct tcp_pcb *pcb) {
+    return &pcb->so_options;
+}
+
 int main(void)
 {
     irq_setmask(0);

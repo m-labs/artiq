@@ -103,6 +103,10 @@ pub struct udp_pcb {
 pub const TCP_WRITE_FLAG_COPY: u8 = 0x01;
 pub const TCP_WRITE_FLAG_MORE: u8 = 0x02;
 
+pub const SOF_REUSEADDR: u8 = 0x04;
+pub const SOF_KEEPALIVE: u8 = 0x08;
+pub const SOF_BROADCAST: u8 = 0x20;
+
 extern {
     pub fn pbuf_alloc(l: pbuf_layer, length: u16, type_: pbuf_type) -> *mut pbuf;
     pub fn pbuf_realloc(p: *mut pbuf, length: u16);
@@ -144,6 +148,7 @@ extern {
 
     // nonstandard
     pub fn tcp_sndbuf_(pcb: *mut tcp_pcb) -> u16;
+    pub fn tcp_so_options_(pcb: *mut tcp_pcb) -> *mut u8;
 
     pub fn udp_new() -> *mut udp_pcb;
     pub fn udp_new_ip_type(type_: ip_addr_type) -> *mut udp_pcb;

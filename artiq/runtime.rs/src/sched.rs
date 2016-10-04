@@ -391,6 +391,14 @@ impl<'a> TcpListener<'a> {
     pub fn acceptable(&self) -> bool {
         self.lower.state().borrow().acceptable()
     }
+
+    pub fn keepalive(&self) -> bool {
+        self.lower.keepalive()
+    }
+
+    pub fn set_keepalive(&self, keepalive: bool) {
+        self.lower.set_keepalive(keepalive)
+    }
 }
 
 pub use lwip::Shutdown;

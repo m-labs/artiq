@@ -397,6 +397,18 @@ impl TcpListener {
     pub fn try_accept(&self) -> Option<TcpStream> {
         self.state.borrow_mut().backlog.pop_front()
     }
+
+    pub fn keepalive(&self) -> bool {
+        unsafe { *lwip_sys::tcp_so_options_(self.raw) & lwip_sys::SOF_KEEPALIVE != 0 }
+    }
+
+    pub fn set_keepalive(&self, keepalive: bool) {
+        if keepalive {
+            unsafe { *lwip_sys::tcp_so_options_(self.raw) |= lwip_sys::SOF_KEEPALIVE }
+        } else {
+            unsafe { *lwip_sys::tcp_so_options_(self.raw) &= !lwip_sys::SOF_KEEPALIVE }
+        }
+    }
 }
 
 impl Drop for TcpListener {
