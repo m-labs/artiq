@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(libc, borrow_state, const_fn, try_borrow)]
+#![feature(libc, const_fn, try_borrow)]
 
 #[macro_use]
 extern crate std_artiq as std;

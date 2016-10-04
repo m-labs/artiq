@@ -122,7 +122,7 @@ pub enum Request {
     Ident,
     SwitchClock(u8),
 
-    LoadLibrary(Vec<u8>),
+    LoadKernel(Vec<u8>),
     RunKernel,
 
     RpcReply { tag: String }, // FIXME
@@ -150,7 +150,7 @@ impl Request {
             5  => {
                 let mut code = vec![0; length - HEADER_SIZE];
                 try!(reader.read_exact(&mut code));
-                Request::LoadLibrary(code)
+                Request::LoadKernel(code)
             },
             6  => Request::RunKernel,
             7  => Request::RpcReply {

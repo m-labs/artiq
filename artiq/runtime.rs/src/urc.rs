@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 use std::fmt;
 
 pub struct Urc<T: ?Sized>(Rc<T>);

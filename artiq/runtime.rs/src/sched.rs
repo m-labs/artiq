@@ -1,8 +1,7 @@
 #![allow(dead_code)]
 
-use std::cell::{RefCell, BorrowState};
+use std::cell::RefCell;
 use std::vec::Vec;
-use std::rc::Rc;
 use std::time::{Instant, Duration};
 use std::io::{Read, Write, Result, Error, ErrorKind};
 use fringe::OwnedStack;
