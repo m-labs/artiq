@@ -65,6 +65,7 @@ libruntime.a:
 		cargo rustc --verbose \
 			--manifest-path $(RUNTIME_DIRECTORY)/../runtime.rs/Cargo.toml \
 			--target=or1k-unknown-none -- \
+			$(shell cat $(BUILDINC_DIRECTORY)/generated/rust-cfg) \
 			-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s \
 			-L../libcompiler-rt
 
