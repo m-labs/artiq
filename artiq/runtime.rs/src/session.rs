@@ -208,8 +208,7 @@ fn process_host_message(waiter: Waiter,
         // artiq_run/artiq_master
         host::Request::SwitchClock(clk) => {
             if session.running() {
-                error!("attempted to switch RTIO clock while a kernel was running");
-                return host_write(stream, host::Reply::ClockSwitchFailed)
+                unexpected!("attempted to switch RTIO clock while a kernel was running")
             }
 
             if rtio_crg::switch_clock(clk) {
@@ -236,13 +235,13 @@ fn process_host_message(waiter: Waiter,
 }
 
 fn process_kern_message(waiter: Waiter,
-                        session: &mut Session) -> io::Result<()> {
+                        session: &mut Session) -> io::Result<bool> {
     kern::Message::wait_and_receive(waiter, |request| {
         match (&request, session.kernel_state) {
             (&kern::LoadReply { .. }, KernelState::Loaded) |
             (&kern::RpcRecvRequest { .. }, KernelState::RpcWait) => {
                 // We're standing by; ignore the message.
-                return Ok(())
+                return Ok(false)
             }
             (_, KernelState::Running) => (),
             _ => {
@@ -289,8 +288,13 @@ fn process_kern_message(waiter: Waiter,
                 kern_send(waiter, kern::CachePutReply { succeeded: succeeded })
             }
 
+            kern::RunFinished => {
+                session.kernel_state = KernelState::Absent;
+                return Ok(true)
+            }
+
             request => unexpected!("unexpected request {:?} from kernel CPU", request)
-        }
+        }.and(Ok(false))
     })
 }
 
@@ -305,7 +309,9 @@ fn host_kernel_worker(waiter: Waiter,
         }
 
         if mailbox::receive() != 0 {
-            try!(process_kern_message(waiter, &mut session))
+            if try!(process_kern_message(waiter, &mut session)) {
+                try!(host_write(stream, host::Reply::KernelFinished))
+            }
         }
 
         if session.kernel_state == KernelState::Running {
@@ -331,17 +337,28 @@ fn flash_kernel_worker(waiter: Waiter,
 
     let kernel = config::read_to_end(config_key);
     if kernel.len() == 0 {
-        info!("no kernel present in config key {}", config_key);
-        loop {
-            try!(waiter.relinquish())
-        }
+        return Err(io::Error::new(io::ErrorKind::NotFound, "kernel not found"))
     }
 
     try!(unsafe { kern_load(waiter, &mut session, &kernel) });
     try!(kern_run(&mut session));
 
     loop {
-        try!(process_kern_message(waiter, &mut session))
+        if mailbox::receive() != 0 {
+            if try!(process_kern_message(waiter, &mut session)) {
+                return Ok(())
+            }
+        }
+
+        if session.watchdog_set.expired() {
+            return Err(io_error("watchdog expired"))
+        }
+
+        if !rtio_crg::check() {
+            return Err(io_error("RTIO clock failure"))
+        }
+
+        try!(waiter.relinquish())
     }
 }
 
@@ -362,8 +379,20 @@ fn respawn<F>(spawner: Spawner, waiter: Waiter,
     *handle = Some(spawner.spawn(8192, f))
 }
 
-pub fn handler(waiter: Waiter, spawner: Spawner) {
+pub fn thread(waiter: Waiter, spawner: Spawner) {
     let congress = Urc::new(RefCell::new(Congress::new()));
+
+    info!("running startup kernel");
+    match flash_kernel_worker(waiter, &mut congress.borrow_mut(), "startup_kernel") {
+        Ok(()) => info!("startup kernel finished"),
+        Err(err) => {
+            if err.kind() == io::ErrorKind::NotFound {
+                info!("no startup kernel found")
+            } else {
+                error!("startup kernel aborted: {}", err);
+            }
+        }
+    }
 
     let addr = SocketAddr::new(IP_ANY, 1381);
     let listener = TcpListener::bind(waiter, addr).expect("cannot bind socket");
@@ -390,7 +419,7 @@ pub fn handler(waiter: Waiter, spawner: Spawner) {
                         if err.kind() == io::ErrorKind::UnexpectedEof {
                             info!("connection closed");
                         } else {
-                            error!("session aborted: {:?}", err);
+                            error!("session aborted: {}", err);
                         }
                     }
                 }
@@ -409,8 +438,11 @@ pub fn handler(waiter: Waiter, spawner: Spawner) {
                     Err(err) => {
                         if err.kind() == io::ErrorKind::Interrupted {
                             info!("idle kernel interrupted");
+                        } else if err.kind() == io::ErrorKind::NotFound {
+                            info!("no idle kernel found");
+                            while waiter.relinquish().is_ok() {}
                         } else {
-                            error!("idle kernel aborted: {:?}", err);
+                            error!("idle kernel aborted: {}", err);
                         }
                     }
                 }

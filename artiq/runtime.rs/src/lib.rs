@@ -42,14 +42,16 @@ pub unsafe extern fn rust_main() {
     static mut LOG_BUFFER: [u8; 4096] = [0; 4096];
     BufferLogger::new(&mut LOG_BUFFER[..])
                  .register(move || {
-        info!("booting ARTIQ runtime ({})", GIT_COMMIT);
+        info!("booting ARTIQ...");
+        info!("software version {}", GIT_COMMIT);
+        info!("gateware version {}", ::board::ident(&mut [0; 64]));
 
         clock::init();
         rtio_crg::init();
         network_init();
 
         let mut scheduler = sched::Scheduler::new();
-        scheduler.spawner().spawn(8192, session::handler);
+        scheduler.spawner().spawn(8192, session::thread);
 
         loop {
             scheduler.run();
