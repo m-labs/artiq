@@ -68,17 +68,16 @@ impl ThreadHandle {
     }
 
     pub fn terminated(&self) -> bool {
-        match self.0.borrow_state() {
-            BorrowState::Unused => self.0.borrow().terminated(),
-            _ => false // the running thread hasn't terminated
+        match self.0.try_borrow() {
+            Ok(thread) => thread.terminated(),
+            Err(_) => false // the running thread hasn't terminated
         }
     }
 
     pub fn interrupt(&self) {
-        // FIXME: use try_borrow() instead once it's available
-        match self.0.borrow_state() {
-            BorrowState::Unused => self.0.borrow_mut().interrupt(),
-            _ => panic!("cannot interrupt the running thread")
+        match self.0.try_borrow_mut() {
+            Ok(mut thread) => thread.interrupt(),
+            Err(_) => panic!("cannot interrupt the running thread")
         }
     }
 }
