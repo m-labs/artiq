@@ -1,42 +1,6 @@
 use std::prelude::v1::*;
 use std::io::{self, Read, Write};
-use byteorder::{ByteOrder, NetworkEndian};
-
-// FIXME: replace these with byteorder core io traits once those are in
-fn read_u8(reader: &mut Read) -> io::Result<u8> {
-    let mut bytes = [0; 1];
-    try!(reader.read_exact(&mut bytes));
-    Ok(bytes[0])
-}
-
-fn write_u8(writer: &mut Write, value: u8) -> io::Result<()> {
-    let bytes = [value; 1];
-    writer.write_all(&bytes)
-}
-
-fn read_u32(reader: &mut Read) -> io::Result<u32> {
-    let mut bytes = [0; 4];
-    try!(reader.read_exact(&mut bytes));
-    Ok(NetworkEndian::read_u32(&bytes))
-}
-
-fn write_u32(writer: &mut Write, value: u32) -> io::Result<()> {
-    let mut bytes = [0; 4];
-    NetworkEndian::write_u32(&mut bytes, value);
-    writer.write_all(&bytes)
-}
-
-fn read_u64(reader: &mut Read) -> io::Result<u64> {
-    let mut bytes = [0; 4];
-    try!(reader.read_exact(&mut bytes));
-    Ok(NetworkEndian::read_u64(&bytes))
-}
-
-fn write_u64(writer: &mut Write, value: u64) -> io::Result<()> {
-    let mut bytes = [0; 4];
-    NetworkEndian::write_u64(&mut bytes, value);
-    writer.write_all(&bytes)
-}
+use proto::*;
 
 fn read_bytes(reader: &mut Read) -> io::Result<Vec<u8>> {
     let length = try!(read_u32(reader));
@@ -140,9 +104,9 @@ impl Request {
 
         try!(read_sync(reader));
         let length = try!(read_u32(reader)) as usize;
-        let type_  = try!(read_u8(reader));
+        let ty = try!(read_u8(reader));
 
-        Ok(match type_ {
+        Ok(match ty {
             1  => Request::Log,
             2  => Request::LogClear,
             3  => Request::Ident,
@@ -168,7 +132,7 @@ impl Request {
             12 => Request::FlashRemove {
                 key: try!(read_string(reader))
             },
-            _  => unreachable!()
+            _  => return Err(io::Error::new(io::ErrorKind::InvalidData, "unknown request type"))
         })
     }
 }

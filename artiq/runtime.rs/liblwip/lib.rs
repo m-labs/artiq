@@ -9,6 +9,7 @@ extern crate std_artiq as std;
 
 use core::marker::PhantomData;
 use core::cell::RefCell;
+use core::fmt;
 use alloc::boxed::Box;
 use collections::LinkedList;
 use libc::c_void;
@@ -102,19 +103,54 @@ fn result_from<T, F>(err: lwip_sys::err, f: F) -> Result<T>
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum IpAddr {
-    Ip4([u8;  4]),
-    Ip6([u16; 8]),
-    IpAny
+    V4([u8;  4]),
+    V6([u16; 8]),
+    Any
 }
 
-pub const IP4_ANY: IpAddr = IpAddr::Ip4([0, 0, 0, 0]);
-pub const IP6_ANY: IpAddr = IpAddr::Ip6([0, 0, 0, 0, 0, 0, 0, 0]);
-pub const IP_ANY: IpAddr = IpAddr::IpAny;
+pub const IP4_ANY: IpAddr = IpAddr::V4([0, 0, 0, 0]);
+pub const IP6_ANY: IpAddr = IpAddr::V6([0, 0, 0, 0, 0, 0, 0, 0]);
+pub const IP_ANY: IpAddr = IpAddr::Any;
+
+impl fmt::Display for IpAddr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            IpAddr::V4(ref octets) =>
+                write!(f, "{}.{}.{}.{}", octets[0], octets[1], octets[2], octets[3]),
+
+            IpAddr::V6(ref segments) => {
+                #[derive(Clone, Copy, PartialEq, Eq)]
+                enum State { Head, Skip, Tail };
+
+                let mut state = State::Head;
+                for (idx, &segment) in segments.iter().enumerate() {
+                    match state {
+                        State::Head | State::Skip if segment == 0 =>
+                            state = State::Skip,
+                        State::Skip if segment != 0 => {
+                            state = State::Tail;
+                            try!(write!(f, ":{:x}", segment))
+                        }
+                        _ => try!(write!(f, "{:x}", segment))
+                    }
+
+                    if state != State::Skip && idx != 15 {
+                        try!(write!(f, ":"))
+                    }
+                }
+                Ok(())
+            },
+
+            IpAddr::Any =>
+                write!(f, "*")
+        }
+    }
+}
 
 impl IpAddr {
     fn into_raw(self) -> lwip_sys::ip_addr {
         match self {
-            IpAddr::Ip4(ref octets) =>
+            IpAddr::V4(octets) =>
                 lwip_sys::ip_addr {
                     data:  [(octets[0] as u32) << 24 |
                             (octets[1] as u32) << 16 |
@@ -123,7 +159,7 @@ impl IpAddr {
                             0, 0, 0],
                     type_: lwip_sys::IPADDR_TYPE_V4
                 },
-            IpAddr::Ip6(ref segments) =>
+            IpAddr::V6(segments) =>
                 lwip_sys::ip_addr {
                     data:  [(segments[0] as u32) << 16 | (segments[1] as u32),
                             (segments[2] as u32) << 16 | (segments[3] as u32),
@@ -131,7 +167,7 @@ impl IpAddr {
                             (segments[6] as u32) << 16 | (segments[7] as u32)],
                     type_: lwip_sys::IPADDR_TYPE_V6
                 },
-            IpAddr::IpAny =>
+            IpAddr::Any =>
                 lwip_sys::ip_addr {
                     data:  [0; 4],
                     type_: lwip_sys::IPADDR_TYPE_ANY
@@ -142,17 +178,17 @@ impl IpAddr {
     unsafe fn from_raw(raw: *mut lwip_sys::ip_addr) -> IpAddr {
         match *raw {
             lwip_sys::ip_addr { type_: lwip_sys::IPADDR_TYPE_V4, data } =>
-                IpAddr::Ip4([(data[0] >> 24) as u8,
+                IpAddr::V4([(data[0] >> 24) as u8,
                              (data[0] >> 16) as u8,
                              (data[0] >>  8) as u8,
                              (data[0] >>  0) as u8]),
             lwip_sys::ip_addr { type_: lwip_sys::IPADDR_TYPE_V6, data } =>
-                IpAddr::Ip6([(data[0] >> 16) as u16, data[0] as u16,
+                IpAddr::V6([(data[0] >> 16) as u16, data[0] as u16,
                              (data[1] >> 16) as u16, data[1] as u16,
                              (data[2] >> 16) as u16, data[2] as u16,
                              (data[3] >> 16) as u16, data[3] as u16]),
             lwip_sys::ip_addr { type_: lwip_sys::IPADDR_TYPE_ANY, .. } =>
-                IpAddr::IpAny
+                IpAddr::Any
         }
     }
 }
@@ -161,6 +197,12 @@ impl IpAddr {
 pub struct SocketAddr {
     pub ip:   IpAddr,
     pub port: u16
+}
+
+impl fmt::Display for SocketAddr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}:{}", self.ip, self.port)
+    }
 }
 
 impl SocketAddr {

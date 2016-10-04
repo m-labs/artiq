@@ -328,12 +328,12 @@ impl<'a> UdpSocket<'a> {
         Ok(buf.len())
     }
 
-    pub fn recv_from(&self, buf: &mut [u8]) -> Result<(usize, SocketAddr)> {
+    pub fn recv_from(&self, buf: &mut Vec<u8>) -> Result<SocketAddr> {
         try!(self.waiter.udp_readable(&self.lower));
         let (pbuf, addr) = self.lower.try_recv().unwrap();
-        let len = ::std::cmp::min(buf.len(), pbuf.len());
-        (&mut buf[..len]).copy_from_slice(&pbuf.as_slice()[..len]);
-        Ok((len, addr))
+        buf.clear();
+        buf.extend_from_slice(&pbuf.as_slice());
+        Ok(addr)
     }
 
     pub fn send(&self, buf: &[u8]) -> Result<usize> {
