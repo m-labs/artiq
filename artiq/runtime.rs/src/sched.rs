@@ -214,13 +214,6 @@ unsafe impl Send for WaitEvent {}
 pub struct Waiter<'a>(&'a Yielder<WaitResult, WaitRequest, OwnedStack>);
 
 impl<'a> Waiter<'a> {
-    pub fn relinquish(&self) {
-        self.0.suspend(WaitRequest {
-            timeout: None,
-            event:   None
-        });
-    }
-
     pub fn sleep(&self, duration: Duration) -> Result<()> {
         let request = WaitRequest {
             timeout: Some(Instant::now() + duration),
@@ -240,6 +233,13 @@ impl<'a> Waiter<'a> {
             WaitResult::TimedOut => Err(Error::new(ErrorKind::TimedOut, "")),
             WaitResult::Interrupted => Err(Error::new(ErrorKind::Interrupted, ""))
         }
+    }
+
+    pub fn relinquish(&self) -> Result<()> {
+        self.suspend(WaitRequest {
+            timeout: None,
+            event:   None
+        })
     }
 
     pub fn join(&self, thread: ThreadHandle) -> Result<()> {

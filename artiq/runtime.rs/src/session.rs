@@ -320,7 +320,7 @@ fn host_kernel_worker(waiter: Waiter,
             }
         }
 
-        waiter.relinquish()
+        try!(waiter.relinquish())
     }
 }
 
@@ -330,6 +330,13 @@ fn flash_kernel_worker(waiter: Waiter,
     let mut session = Session::new(congress);
 
     let kernel = config::read_to_end(config_key);
+    if kernel.len() == 0 {
+        info!("no kernel present in config key {}", config_key);
+        loop {
+            try!(waiter.relinquish())
+        }
+    }
+
     try!(unsafe { kern_load(waiter, &mut session, &kernel) });
     try!(kern_run(&mut session));
 
@@ -410,6 +417,6 @@ pub fn handler(waiter: Waiter, spawner: Spawner) {
             })
         }
 
-        waiter.relinquish()
+        let _ = waiter.relinquish();
     }
 }
