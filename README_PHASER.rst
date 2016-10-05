@@ -9,26 +9,26 @@ The hardware required is a KC705 with an AD9154-FMC-EBZ plugged into the HPC con
 
 Features:
 
-  * 4 channels
-  * 500 MHz data rate per channel (KC705 limitation)
-  * 4x interpolation to 2 GHz DAC sample rate
-  * Real-time control over amplitude, frequency, phase through ARTIQ RTIO
-    channels
-  * Full configurability of the AD9154 and AD9516 through SPI with ARTIQ kernel
-    support
-  * All SPI registers and register bits exposed as human readable names
-  * Parametrized JESD204B core (also capable of operation with eight lanes)
-  * The code can be reconfigured, e.g. to support 2 channels at 1 GHz datarate or to support 4 channels at 300 MHz data rate, no interpolation, and using mix mode to stress the second and third Nyquist zones (150-300 MHz and 300-450 MHz).
+* 4 channels
+* 500 MHz data rate per channel (KC705 limitation)
+* 4x interpolation to 2 GHz DAC sample rate
+* Real-time control over amplitude, frequency, phase through ARTIQ RTIO
+  channels
+* Full configurability of the AD9154 and AD9516 through SPI with ARTIQ kernel
+  support
+* All SPI registers and register bits exposed as human readable names
+* Parametrized JESD204B core (also capable of operation with eight lanes)
+* The code can be reconfigured, e.g. to support 2 channels at 1 GHz datarate or to support 4 channels at 300 MHz data rate, no interpolation, and using mix mode to stress the second and third Nyquist zones (150-300 MHz and 300-450 MHz).
 
 This work was supported by the Army Research Lab.
 
 The additions and modifications to ARTIQ that were implemented for this project are:
 
-  * In ARTIQ, the SAWG and Phaser code: https://github.com/m-labs/artiq/compare/phaser
-  * The CORDIC core has been reused from the PDQ2 gateware
-    https://github.com/m-labs/pdq2
-  * The Migen/MiSoC JESD204B core: https://github.com/enjoy-digital/litejesd204b
-:
+* In ARTIQ, the SAWG and Phaser code: https://github.com/m-labs/artiq/compare/phaser
+* The CORDIC core has been reused from the PDQ2 gateware
+  https://github.com/m-labs/pdq2
+* The Migen/MiSoC JESD204B core: https://github.com/enjoy-digital/litejesd204b
+
 
 Installation
 ------------
@@ -38,7 +38,8 @@ Please refer to the manual for more details:
 https://m-labs.hk/artiq/manual-release-2/index.html
 
 * Set up a new conda environment and activate it.
-* Checkout the ARTIQ phaser branch::
+* Checkout the ARTIQ phaser branch: ::
+
     git clone -b phaser https://github.com/m-labs/artiq.git
 
 * Install the standard ARTIQ runtime/install dependencies.
@@ -69,10 +70,12 @@ Setup
   - on XP1, between pin 5 and 6 (will keep the PIC in reset)
   - on JP3 (will force output enable on FXLA108)
 
-* Compile the ARTIQ Phaser bitstream, bios, and runtime (c.f. ARTIQ manual):::
+* Compile the ARTIQ Phaser bitstream, bios, and runtime (c.f. ARTIQ manual): ::
+
     python -m artiq.gateware.targets.kc705 -H phaser --toolchain vivado
 
-* Run the following OpenOCD commands to flash the ARTIQ transmitter design:::
+* Run the following OpenOCD commands to flash the ARTIQ transmitter design: ::
+
     init
     jtagspi_init 0 bscan_spi_xc7k325t.bit
     jtagspi_program misoc_phaser_kc705/gateware/top.bin 0x000000
