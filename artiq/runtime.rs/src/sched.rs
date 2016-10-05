@@ -460,7 +460,9 @@ impl<'a> Read for TcpStream<'a> {
 impl<'a> Write for TcpStream<'a> {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
         try!(self.waiter.tcp_writeable(&self.lower));
-        Ok(try!(self.lower.write(buf)))
+        Ok(try!(self.lower.write_in_place(buf,
+                    || self.waiter.relinquish()
+                                  .map_err(|_| lwip::Error::Interrupted))))
     }
 
     fn flush(&mut self) -> Result<()> {

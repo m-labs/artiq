@@ -407,7 +407,7 @@ pub fn thread(waiter: Waiter, spawner: Spawner) {
                 Ok(()) => (),
                 Err(_) => continue
             }
-            info!("new connection from {:?}", addr);
+            info!("new connection from {}", addr);
 
             let stream = stream.into_lower();
             let congress = congress.clone();

@@ -8,6 +8,7 @@ extern crate lwip_sys;
 extern crate std_artiq as std;
 
 use core::marker::PhantomData;
+use core::ptr;
 use core::cell::RefCell;
 use core::fmt;
 use alloc::boxed::Box;
@@ -33,6 +34,8 @@ pub enum Error {
     ConnectionReset,
     ConnectionClosed,
     IllegalArgument,
+    // Not used by lwip; added for building blocking interfaces.
+    Interrupted
 }
 
 impl Error {
@@ -54,6 +57,7 @@ impl Error {
             Error::ConnectionReset => "connection reset",
             Error::ConnectionClosed => "connection closed",
             Error::IllegalArgument => "illegal argument",
+            Error::Interrupted => "interrupted"
         }
     }
 }
@@ -72,7 +76,12 @@ impl error::Error for Error {
 
 impl From<Error> for std::io::Error {
     fn from(lower: Error) -> std::io::Error {
-        std::io::Error::new(std::io::ErrorKind::Other, lower)
+        use std::io;
+
+        match lower {
+            Error::Interrupted => io::Error::new(io::ErrorKind::Interrupted, "interrupted"),
+            err => io::Error::new(io::ErrorKind::Other, err)
+        }
     }
 }
 
@@ -472,7 +481,8 @@ pub enum Shutdown {
 #[derive(Debug)]
 pub struct TcpStreamState {
     recv_buffer: LinkedList<Result<Pbuf<'static>>>,
-    send_avail:  usize
+    send_avail:  usize,
+    total_sent:  usize
 }
 
 impl TcpStreamState {
@@ -511,10 +521,12 @@ impl TcpStream {
         }
 
         extern fn sent(arg: *mut c_void, raw: *mut lwip_sys::tcp_pcb,
-                       _len: u16) -> lwip_sys::err {
+                       len: u16) -> lwip_sys::err {
             unsafe {
                 let state = arg as *mut RefCell<TcpStreamState>;
-                (*state).borrow_mut().send_avail = lwip_sys::tcp_sndbuf_(raw) as usize;
+                let mut state = (*state).borrow_mut();
+                state.send_avail = lwip_sys::tcp_sndbuf_(raw) as usize;
+                state.total_sent = state.total_sent.wrapping_add(len as usize);
             }
             lwip_sys::ERR_OK
         }
@@ -529,7 +541,8 @@ impl TcpStream {
         unsafe {
             let mut state = Box::new(RefCell::new(TcpStreamState {
                 recv_buffer: LinkedList::new(),
-                send_avail:  lwip_sys::tcp_sndbuf_(raw) as usize
+                send_avail: lwip_sys::tcp_sndbuf_(raw) as usize,
+                total_sent: 0
             }));
             let arg = &mut *state as *mut RefCell<TcpStreamState> as *mut _;
             lwip_sys::tcp_arg(raw, arg);
@@ -544,22 +557,39 @@ impl TcpStream {
         &*self.state
     }
 
-    pub fn write(&self, data: &[u8]) -> Result<usize> {
-        let sndbuf = unsafe { lwip_sys::tcp_sndbuf_(self.raw) } as usize;
+    unsafe fn write_common(&self, data: &[u8], copy: bool) -> Result<usize> {
+        let sndbuf = lwip_sys::tcp_sndbuf_(self.raw) as usize;
         let len = if data.len() < sndbuf { data.len() } else { sndbuf };
-        let result = result_from(unsafe {
+        let result = result_from({
             lwip_sys::tcp_write(self.raw, data as *const [u8] as *const _, len as u16,
-                                lwip_sys::TCP_WRITE_FLAG_COPY |
-                                lwip_sys::TCP_WRITE_FLAG_MORE)
+                                lwip_sys::TCP_WRITE_FLAG_MORE |
+                                if copy { lwip_sys::TCP_WRITE_FLAG_COPY } else { 0 })
         }, || len);
-        self.state.borrow_mut().send_avail = unsafe { lwip_sys::tcp_sndbuf_(self.raw) } as usize;
+        self.state.borrow_mut().send_avail = lwip_sys::tcp_sndbuf_(self.raw) as usize;
         result
     }
 
+    pub fn write(&self, data: &[u8]) -> Result<usize> {
+        unsafe { self.write_common(data, true) }
+    }
+
+    pub fn write_in_place<F>(&self, data: &[u8], mut relinquish: F) -> Result<usize>
+            where F: FnMut() -> Result<()> {
+        let cursor = self.state.borrow().total_sent;
+        let written = try!(unsafe { self.write_common(data, false) });
+        loop {
+            let cursor_now = self.state.borrow().total_sent;
+            if cursor_now >= cursor.wrapping_add(written) {
+                return Ok(written)
+            } else {
+                try!(relinquish())
+            }
+        }
+    }
+
     pub fn flush(&self) -> Result<()> {
-        const EMPTY_DATA: [u8; 0] = [];
         result_from(unsafe {
-            lwip_sys::tcp_write(self.raw, &EMPTY_DATA as *const [u8] as *const _, 0, 0)
+            lwip_sys::tcp_write(self.raw, ptr::null(), 0, 0)
         }, || ())
     }
 

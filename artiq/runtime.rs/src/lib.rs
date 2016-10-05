@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(libc, const_fn, try_borrow, stmt_expr_attributes)]
+#![feature(libc, const_fn, try_borrow, stmt_expr_attributes, repr_simd)]
 
 #[macro_use]
 extern crate std_artiq as std;
@@ -28,10 +28,13 @@ mod proto;
 mod kernel_proto;
 mod session_proto;
 mod moninj_proto;
+mod analyzer_proto;
 
 mod kernel;
 mod session;
 mod moninj;
+#[cfg(has_rtio_analyzer)]
+mod analyzer;
 
 extern {
     fn network_init();
@@ -56,6 +59,8 @@ pub unsafe extern fn rust_main() {
         let mut scheduler = sched::Scheduler::new();
         scheduler.spawner().spawn(8192, session::thread);
         scheduler.spawner().spawn(4096, moninj::thread);
+        #[cfg(has_rtio_analyzer)]
+        scheduler.spawner().spawn(4096, analyzer::thread);
 
         loop {
             scheduler.run();

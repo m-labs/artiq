@@ -5,6 +5,7 @@ include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/csr.rs"));
 
 extern {
     pub fn flush_cpu_dcache();
+    pub fn flush_l2_cache();
 }
 
 pub fn ident(buf: &mut [u8]) -> &str {
