@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::io::{self, Read, Write};
+use std::vec::Vec;
 use byteorder::{ByteOrder, NetworkEndian};
 
 // FIXME: replace these with byteorder core io traits once those are in
@@ -49,4 +50,16 @@ pub fn write_u64(writer: &mut Write, value: u64) -> io::Result<()> {
     let mut bytes = [0; 8];
     NetworkEndian::write_u64(&mut bytes, value);
     writer.write_all(&bytes)
+}
+
+pub fn read_bytes(reader: &mut Read) -> io::Result<Vec<u8>> {
+    let length = try!(read_u32(reader));
+    let mut value = vec![0; length as usize];
+    try!(reader.read_exact(&mut value));
+    Ok(value)
+}
+
+pub fn write_bytes(writer: &mut Write, value: &[u8]) -> io::Result<()> {
+    try!(write_u32(writer, value.len() as u32));
+    writer.write_all(value)
 }

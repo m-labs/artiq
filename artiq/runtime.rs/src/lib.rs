@@ -31,6 +31,7 @@ mod moninj_proto;
 mod analyzer_proto;
 
 mod kernel;
+mod rpc;
 mod session;
 mod moninj;
 #[cfg(has_rtio_analyzer)]
@@ -57,7 +58,7 @@ pub unsafe extern fn rust_main() {
         network_init();
 
         let mut scheduler = sched::Scheduler::new();
-        scheduler.spawner().spawn(8192, session::thread);
+        scheduler.spawner().spawn(16384, session::thread);
         scheduler.spawner().spawn(4096, moninj::thread);
         #[cfg(has_rtio_analyzer)]
         scheduler.spawner().spawn(4096, analyzer::thread);

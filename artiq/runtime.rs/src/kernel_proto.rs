@@ -38,6 +38,7 @@ pub enum Message<'a> {
 
     RpcSend {
         service: u32,
+        batch: bool,
         tag: &'a [u8],
         data: *const *const ()
     },
@@ -182,10 +183,11 @@ impl<'a> Message<'a> {
                 Message::WatchdogClear { id: (*msg).id as usize }
             }
 
-            c::Type::RpcSend => {
+            c::Type::RpcSend | c::Type::RpcBatch => {
                 let msg = ptr as *const c::RpcSend;
                 Message::RpcSend {
                     service: (*msg).service as _,
+                    batch: (*msg).ty == c::Type::RpcBatch,
                     tag: slice::from_raw_parts((*msg).tag as *const _,
                                                c::strlen((*msg).tag) as usize),
                     data: (*msg).data as *const _
@@ -248,7 +250,7 @@ mod c {
     extern { pub fn strlen(ptr: *const c_char) -> size_t; }
 
     #[repr(u32)]
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq, Eq)]
     #[allow(dead_code)]
     pub enum Type {
         LoadRequest,

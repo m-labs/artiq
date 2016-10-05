@@ -9,6 +9,7 @@ use urc::Urc;
 use sched::{ThreadHandle, Waiter, Spawner};
 use sched::{TcpListener, TcpStream, SocketAddr, IP_ANY};
 
+use rpc;
 use session_proto as host;
 use kernel_proto as kern;
 
@@ -230,11 +231,33 @@ fn process_host_message(waiter: Waiter,
                 Err(_) => host_write(stream, host::Reply::KernelStartupFailed)
             },
 
+        host::Request::RpcReply { tag, data } => {
+            if session.kernel_state != KernelState::RpcWait {
+                unexpected!("unsolicited RPC reply")
+            }
+
+            try!(kern_recv(waiter, |reply| {
+                match reply {
+                    kern::RpcRecvRequest { slot } => {
+                        let mut data = io::Cursor::new(data);
+                        rpc::recv_return(&mut data, &tag, slot)
+                    }
+                    other =>
+                        unexpected!("unexpected reply from kernel CPU: {:?}", other)
+                }
+            }));
+            try!(kern_send(waiter, kern::RpcRecvReply { alloc_size: 0, exception: None }));
+
+            session.kernel_state = KernelState::Running;
+            Ok(())
+        }
+
         request => unexpected!("unexpected request {:?} from host machine", request)
     }
 }
 
 fn process_kern_message(waiter: Waiter,
+                        mut stream: Option<&mut TcpStream>,
                         session: &mut Session) -> io::Result<bool> {
     kern::Message::wait_and_receive(waiter, |request| {
         match (&request, session.kernel_state) {
@@ -276,6 +299,24 @@ fn process_kern_message(waiter: Waiter,
                 kern_acknowledge()
             }
 
+            kern::RpcSend { service, batch, tag, data } => {
+                match stream {
+                    None => unexpected!("unexpected RPC in flash kernel"),
+                    Some(ref mut stream) => {
+                        let mut buf = Vec::new();
+                        try!(rpc::send_args(&mut buf, tag, data));
+                        try!(host_write(stream, host::Reply::RpcRequest {
+                            service: service,
+                            data: &buf[..]
+                        }));
+                        if !batch {
+                            session.kernel_state = KernelState::RpcWait
+                        }
+                        kern_acknowledge()
+                    }
+                }
+            }
+
             kern::CacheGetRequest { key } => {
                 let value = session.congress.cache.get(key);
                 kern_send(waiter, kern::CacheGetReply {
@@ -289,6 +330,7 @@ fn process_kern_message(waiter: Waiter,
             }
 
             kern::RunFinished => {
+                try!(kern_acknowledge());
                 session.kernel_state = KernelState::Absent;
                 return Ok(true)
             }
@@ -309,7 +351,7 @@ fn host_kernel_worker(waiter: Waiter,
         }
 
         if mailbox::receive() != 0 {
-            if try!(process_kern_message(waiter, &mut session)) {
+            if try!(process_kern_message(waiter, Some(stream), &mut session)) {
                 try!(host_write(stream, host::Reply::KernelFinished))
             }
         }
@@ -345,7 +387,7 @@ fn flash_kernel_worker(waiter: Waiter,
 
     loop {
         if mailbox::receive() != 0 {
-            if try!(process_kern_message(waiter, &mut session)) {
+            if try!(process_kern_message(waiter, None, &mut session)) {
                 return Ok(())
             }
         }
@@ -376,7 +418,7 @@ fn respawn<F>(spawner: Spawner, waiter: Waiter,
         }
     }
 
-    *handle = Some(spawner.spawn(8192, f))
+    *handle = Some(spawner.spawn(16384, f))
 }
 
 pub fn thread(waiter: Waiter, spawner: Spawner) {

@@ -2,18 +2,6 @@ use std::prelude::v1::*;
 use std::io::{self, Read, Write};
 use proto::*;
 
-fn read_bytes(reader: &mut Read) -> io::Result<Vec<u8>> {
-    let length = try!(read_u32(reader));
-    let mut value = vec![0; length as usize];
-    try!(reader.read_exact(&mut value));
-    Ok(value)
-}
-
-fn write_bytes(writer: &mut Write, value: &[u8]) -> io::Result<()> {
-    try!(write_u32(writer, value.len() as u32));
-    writer.write_all(value)
-}
-
 fn read_string(reader: &mut Read) -> io::Result<String> {
     let mut bytes = try!(read_bytes(reader));
     let len = bytes.len() - 1; // length without trailing \0
@@ -89,7 +77,7 @@ pub enum Request {
     LoadKernel(Vec<u8>),
     RunKernel,
 
-    RpcReply { tag: String }, // FIXME
+    RpcReply { tag: Vec<u8>, data: Vec<u8> },
     RpcException(Exception),
 
     FlashRead   { key: String },
@@ -115,11 +103,14 @@ impl Request {
                 let mut code = vec![0; length - HEADER_SIZE];
                 try!(reader.read_exact(&mut code));
                 Request::LoadKernel(code)
-            },
+            }
             6  => Request::RunKernel,
-            7  => Request::RpcReply {
-                tag: try!(read_string(reader))
-            },
+            7  => {
+                let tag = try!(read_bytes(reader));
+                let mut data = vec![0; length - HEADER_SIZE - 4 - tag.len()];
+                try!(reader.read_exact(&mut data));
+                Request::RpcReply { tag: tag, data: data }
+            }
             8  => Request::RpcException(try!(Exception::read_from(reader))),
             9  => Request::FlashRead {
                 key: try!(read_string(reader))
@@ -152,7 +143,7 @@ pub enum Reply<'a> {
     KernelStartupFailed,
     KernelException(Exception),
 
-    RpcRequest { service: u32 },
+    RpcRequest { service: u32, data: &'a [u8] },
 
     FlashRead(&'a [u8]),
     FlashOk,
@@ -204,9 +195,10 @@ impl<'a> Reply<'a> {
                 try!(exception.write_to(writer));
             },
 
-            Reply::RpcRequest { service } => {
+            Reply::RpcRequest { service, data } => {
                 try!(write_u8(&mut buf, 10));
                 try!(write_u32(&mut buf, service));
+                try!(buf.write(data));
             },
 
             Reply::FlashRead(ref bytes) => {
