@@ -1,5 +1,5 @@
 use std::slice;
-use std::io::{self, Read, Write};
+use std::io::{self, Read, Write, BufWriter};
 use proto::*;
 use self::tag::{Tag, TagIterator, split_tag};
 
@@ -98,6 +98,7 @@ unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::
         })
     }
 
+    let writer = &mut BufWriter::new(writer);
     try!(write_u8(writer, tag.as_u8()));
     match tag {
         Tag::None => Ok(()),
