@@ -2,17 +2,6 @@ use std::prelude::v1::*;
 use std::io::{self, Read, Write};
 use proto::*;
 
-fn read_string(reader: &mut Read) -> io::Result<String> {
-    let mut bytes = try!(read_bytes(reader));
-    let len = bytes.len() - 1; // length without trailing \0
-    bytes.resize(len, 0);      // FIXME: don't send \0 in the first place
-    String::from_utf8(bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-}
-
-fn write_string(writer: &mut Write, value: &str) -> io::Result<()> {
-    write_bytes(writer, value.as_bytes())
-}
-
 fn read_sync(reader: &mut Read) -> io::Result<()> {
     let mut sync = [0; 4];
     for i in 0.. {
