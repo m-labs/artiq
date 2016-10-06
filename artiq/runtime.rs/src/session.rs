@@ -264,7 +264,36 @@ fn process_host_message(waiter: Waiter,
             Ok(())
         }
 
-        request => unexpected!("unexpected request {:?} from host machine", request)
+        host::Request::RpcException {
+            name, message, param, file, line, column, function
+        } => {
+            if session.kernel_state != KernelState::RpcWait {
+                unexpected!("unsolicited RPC reply")
+            }
+
+            try!(kern_recv(waiter, |reply| {
+                match reply {
+                    kern::RpcRecvRequest { .. } => Ok(()),
+                    other =>
+                        unexpected!("unexpected reply from kernel CPU: {:?}", other)
+                }
+            }));
+            try!(kern_send(waiter, kern::RpcRecvReply {
+                alloc_size: 0,
+                exception: Some(kern::Exception {
+                    name: &name,
+                    message: &message,
+                    param: param,
+                    file: &file,
+                    line: line,
+                    column: column,
+                    function: &function
+                })
+            }));
+
+            session.kernel_state = KernelState::Running;
+            Ok(())
+        }
     }
 }
 

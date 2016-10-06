@@ -110,7 +110,7 @@ impl<'a> Message<'a> {
                 let msg = c::RpcRecvReply {
                     ty: c::Type::RpcRecvReply,
                     alloc_size: alloc_size as _,
-                    exception: exn.map_or(ptr::null(), |exn| &exn as *const _)
+                    exception: exn.as_ref().map_or(ptr::null(), |exn| exn as *const _)
                 };
                 f(&msg as *const _ as *const _)
             }
