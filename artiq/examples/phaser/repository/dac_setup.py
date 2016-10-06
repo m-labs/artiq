@@ -38,18 +38,26 @@ class DACSetup(EnvExperiment):
         self.ad9154.init()
         self.dac_setup()
         self.ad9154.jesd_prbs(0)
-        t = now_mu() + seconds_to_mu(.1*s)
+        self.busywait_us(200000)
+        self.ad9154.jesd_enable(1)
+        while not self.ad9154.jesd_ready():
+            pass
+
+    @kernel
+    def busywait_us(self, t):
+        t = now_mu() + seconds_to_mu(t*us)
         while self.core.get_rtio_counter_mu() < t:
             pass
-        self.ad9154.jesd_enable(1)
 
     @kernel
     def dac_setup(self):
         # reset
         self.ad9154.dac_write(AD9154_SPI_INTFCONFA, AD9154_SOFTRESET_SET(1) |
                 AD9154_LSBFIRST_SET(0) | AD9154_SDOACTIVE_SET(1))
+        self.busywait_us(100)
         self.ad9154.dac_write(AD9154_SPI_INTFCONFA,
                 AD9154_LSBFIRST_SET(0) | AD9154_SDOACTIVE_SET(1))
+        self.busywait_us(100)
         if ((self.ad9154.dac_read(AD9154_PRODIDH) << 8) |
                 self.ad9154.dac_read(AD9154_PRODIDL) != 0x9154):
             return
@@ -58,6 +66,7 @@ class DACSetup(EnvExperiment):
                 AD9154_PD_DAC0_SET(0) | AD9154_PD_DAC1_SET(0) |
                 AD9154_PD_DAC2_SET(0) | AD9154_PD_DAC3_SET(0) |
                 AD9154_PD_BG_SET(0))
+        self.busywait_us(100)
         self.ad9154.dac_write(AD9154_TXENMASK1, AD9154_DACA_MASK_SET(0) |
                 AD9154_DACB_MASK_SET(0))  # TX not controlled by TXEN pins
         self.ad9154.dac_write(AD9154_CLKCFG0,
@@ -228,8 +237,8 @@ class DACSetup(EnvExperiment):
         self.ad9154.dac_write(AD9154_VCO_VARACTOR_CTRL_1,
                 AD9154_SPI_VCO_VARACTOR_REF_SET(0x6))
         # ensure link is txing
-        self.ad9154.dac_write(AD9154_SERDESPLL_ENABLE_CNTRL,
-                AD9154_ENABLE_SERDESPLL_SET(1) | AD9154_RECAL_SERDESPLL_SET(1))
+        #self.ad9154.dac_write(AD9154_SERDESPLL_ENABLE_CNTRL,
+        #        AD9154_ENABLE_SERDESPLL_SET(1) | AD9154_RECAL_SERDESPLL_SET(1))
         self.ad9154.dac_write(AD9154_SERDESPLL_ENABLE_CNTRL,
                 AD9154_ENABLE_SERDESPLL_SET(1) | AD9154_RECAL_SERDESPLL_SET(0))
         self.ad9154.dac_write(AD9154_EQ_BIAS_REG, AD9154_EQ_BIAS_RESERVED_SET(0x22) |

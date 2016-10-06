@@ -97,7 +97,8 @@ Usage
 -----
 
 * An example device database, several status and test scripts are provided in ``artiq/examples/phaser/``.
-* run ``artiq_run sawg.py`` for an example that sets up amplitudes, frequencies,
+* After each boot, run the ``dac_setup.py`` experiment to establish and align the data link (``artiq_run repository/dac_setup.py``).
+* run ``artiq_run repository/sawg.py`` for an example that sets up amplitudes, frequencies,
   and phases on all four DDS channels.
 * Implement your own experiments using the SAWG channels.
 * Verify clock stability between the 2 GHz reference clock and the DAC outputs.
