@@ -70,7 +70,73 @@ class DefaultArgTest(ExperimentCase):
         self.assertEqual(exp.run(), 42)
 
 
-class _RPC(EnvExperiment):
+class _RPCTypes(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.setattr_device("led")
+
+    def return_bool(self) -> TBool:
+        return True
+
+    def return_int32(self) -> TInt32:
+        return 1
+
+    def return_int64(self) -> TInt64:
+        return 0x100000000
+
+    def return_float(self) -> TFloat:
+        return 1.0
+
+    def return_str(self) -> TStr:
+        return "foo"
+
+    def return_tuple(self) -> TTuple([TInt32, TInt32]):
+        return (1, 2)
+
+    def return_list(self) -> TList(TInt32):
+        return [2, 3]
+
+    def return_range(self) -> TRange32:
+        return range(10)
+
+    @kernel
+    def run_recv(self):
+        core_log(self.return_bool())
+        core_log(self.return_int32())
+        core_log(self.return_int64())
+        core_log(self.return_float())
+        core_log(self.return_str())
+        core_log(self.return_tuple())
+        core_log(self.return_list())
+        core_log(self.return_range())
+
+    def accept(self, value):
+        pass
+
+    @kernel
+    def run_send(self):
+        self.accept(True)
+        self.accept(1)
+        self.accept(0x100000000)
+        self.accept(1.0)
+        self.accept("foo")
+        self.accept((2, 3))
+        self.accept([1, 2])
+        self.accept(range(10))
+        self.accept(self)
+
+    def run(self):
+        self.run_send()
+        self.run_recv()
+
+
+class RPCTypesTest(ExperimentCase):
+    def test_args(self):
+        exp = self.create(_RPCTypes)
+        exp.run()
+
+
+class _RPCCalls(EnvExperiment):
     def build(self):
         self.setattr_device("core")
 
@@ -121,9 +187,9 @@ class _RPC(EnvExperiment):
         sleep(1.0)
 
 
-class RPCTest(ExperimentCase):
+class RPCCallsTest(ExperimentCase):
     def test_args(self):
-        exp = self.create(_RPC)
+        exp = self.create(_RPCCalls)
         self.assertEqual(exp.args0(), 0)
         self.assertEqual(exp.args1(), 1)
         self.assertEqual(exp.args2(), 2)
