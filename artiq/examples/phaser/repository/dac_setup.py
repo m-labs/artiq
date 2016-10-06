@@ -80,6 +80,13 @@ class DACSetup(EnvExperiment):
                 AD9154_HYS_CNTRL1_SET(0) | AD9154_SYSREF_RISE_SET(0) |
                 AD9154_HYS_ON_SET(0) | AD9154_PD_SYSREF_BUFFER_SET(0))
 
+        self.ad9154.dac_write(AD9154_IRQEN_STATUSMODE0,
+                AD9154_IRQEN_SMODE_LANEFIFOERR_SET(1) |
+                AD9154_IRQEN_SMODE_SERPLLLOCK_SET(1) |
+                AD9154_IRQEN_SMODE_SERPLLLOST_SET(1) |
+                AD9154_IRQEN_SMODE_DACPLLLOCK_SET(1) |
+                AD9154_IRQEN_SMODE_DACPLLLOST_SET(1))
+
         self.ad9154.dac_write(AD9154_DEVICE_CONFIG_REG_0, 0x8b) # magic
         self.ad9154.dac_write(AD9154_DEVICE_CONFIG_REG_1, 0x01) # magic
         self.ad9154.dac_write(AD9154_DEVICE_CONFIG_REG_2, 0x01) # magic
