@@ -381,6 +381,7 @@ fn process_kern_message(waiter: Waiter,
             kern::RunFinished => {
                 kernel::stop();
                 session.kernel_state = KernelState::Absent;
+                unsafe { session.congress.cache.unborrow() }
 
                 match stream {
                     None => return Ok(true),
@@ -392,6 +393,7 @@ fn process_kern_message(waiter: Waiter,
             kern::RunException { exception: ref exn, backtrace } => {
                 kernel::stop();
                 session.kernel_state = KernelState::Absent;
+                unsafe { session.congress.cache.unborrow() }
 
                 match stream {
                     None => {

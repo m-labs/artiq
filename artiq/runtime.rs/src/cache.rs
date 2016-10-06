@@ -44,4 +44,10 @@ impl Cache {
         });
         Ok(())
     }
+
+    pub unsafe fn unborrow(&mut self) {
+        for (_key, entry) in self.entries.iter_mut() {
+            entry.borrowed = false;
+        }
+    }
 }
