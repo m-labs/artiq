@@ -233,30 +233,28 @@ fn process_host_message(waiter: Waiter,
                 Err(_) => host_write(stream, host::Reply::KernelStartupFailed)
             },
 
-        host::Request::RpcReply { tag, data } => {
+        host::Request::RpcReply { tag } => {
             if session.kernel_state != KernelState::RpcWait {
                 unexpected!("unsolicited RPC reply")
             }
 
-            try!(kern_recv(waiter, |reply| {
+            let slot = try!(kern_recv(waiter, |reply| {
                 match reply {
-                    kern::RpcRecvRequest { slot } => {
-                        let mut data = io::Cursor::new(data);
-                        rpc::recv_return(&mut data, &tag, slot, &|size| {
-                            try!(kern_send(waiter, kern::RpcRecvReply {
-                                alloc_size: size, exception: None
-                            }));
-                            kern_recv(waiter, |reply| {
-                                match reply {
-                                    kern::RpcRecvRequest { slot } => Ok(slot),
-                                    _ => unreachable!()
-                                }
-                            })
-                        })
-                    }
+                    kern::RpcRecvRequest { slot } => Ok(slot),
                     other =>
                         unexpected!("unexpected reply from kernel CPU: {:?}", other)
                 }
+            }));
+            try!(rpc::recv_return(stream, &tag, slot, &|size| {
+                try!(kern_send(waiter, kern::RpcRecvReply {
+                    alloc_size: size, exception: None
+                }));
+                kern_recv(waiter, |reply| {
+                    match reply {
+                        kern::RpcRecvRequest { slot } => Ok(slot),
+                        _ => unreachable!()
+                    }
+                })
             }));
             try!(kern_send(waiter, kern::RpcRecvReply { alloc_size: 0, exception: None }));
 
@@ -352,12 +350,10 @@ fn process_kern_message(waiter: Waiter,
                 match stream {
                     None => unexpected!("unexpected RPC in flash kernel"),
                     Some(ref mut stream) => {
-                        let mut buf = Vec::new();
-                        try!(rpc::send_args(&mut buf, tag, data));
                         try!(host_write(stream, host::Reply::RpcRequest {
-                            service: service,
-                            data: &buf[..]
+                            service: service
                         }));
+                        try!(rpc::send_args(stream, tag, data));
                         if !batch {
                             session.kernel_state = KernelState::RpcWait
                         }

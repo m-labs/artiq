@@ -26,7 +26,7 @@ pub enum Request {
     LoadKernel(Vec<u8>),
     RunKernel,
 
-    RpcReply { tag: Vec<u8>, data: Vec<u8> },
+    RpcReply { tag: Vec<u8> },
     RpcException {
         name:     String,
         message:  String,
@@ -45,29 +45,17 @@ pub enum Request {
 
 impl Request {
     pub fn read_from(reader: &mut Read) -> io::Result<Request> {
-        const HEADER_SIZE: usize = 9;
-
         try!(read_sync(reader));
-        let length = try!(read_u32(reader)) as usize;
-        let ty = try!(read_u8(reader));
-
-        Ok(match ty {
+        Ok(match try!(read_u8(reader)) {
             1  => Request::Log,
             2  => Request::LogClear,
             3  => Request::Ident,
             4  => Request::SwitchClock(try!(read_u8(reader))),
-            5  => {
-                let mut code = vec![0; length - HEADER_SIZE];
-                try!(reader.read_exact(&mut code));
-                Request::LoadKernel(code)
-            }
+            5  => Request::LoadKernel(try!(read_bytes(reader))),
             6  => Request::RunKernel,
-            7  => {
-                let tag = try!(read_bytes(reader));
-                let mut data = vec![0; length - HEADER_SIZE - 4 - tag.len()];
-                try!(reader.read_exact(&mut data));
-                Request::RpcReply { tag: tag, data: data }
-            }
+            7  => Request::RpcReply {
+                tag: try!(read_bytes(reader))
+            },
             8  => Request::RpcException {
                 name:     try!(read_string(reader)),
                 message:  try!(read_string(reader)),
@@ -119,7 +107,7 @@ pub enum Reply<'a> {
         backtrace: &'a [usize]
     },
 
-    RpcRequest { service: u32, data: &'a [u8] },
+    RpcRequest { service: u32 },
 
     FlashRead(&'a [u8]),
     FlashOk,
@@ -131,88 +119,80 @@ pub enum Reply<'a> {
 
 impl<'a> Reply<'a> {
     pub fn write_to(&self, writer: &mut Write) -> io::Result<()> {
-        let mut buf = Vec::new();
-        try!(write_sync(&mut buf));
-        try!(write_u32(&mut buf, 0)); // length placeholder
-
+        try!(write_sync(writer));
         match *self {
             Reply::Log(ref log) => {
-                try!(write_u8(&mut buf, 1));
-                try!(buf.write(log.as_bytes()));
+                try!(write_u8(writer, 1));
+                try!(write_string(writer, log));
             },
 
             Reply::Ident(ident) => {
-                try!(write_u8(&mut buf, 2));
-                try!(buf.write(b"AROR"));
-                try!(buf.write(ident.as_bytes()));
+                try!(write_u8(writer, 2));
+                try!(writer.write(b"AROR"));
+                try!(write_string(writer, ident));
             },
             Reply::ClockSwitchCompleted => {
-                try!(write_u8(&mut buf, 3));
+                try!(write_u8(writer, 3));
             },
             Reply::ClockSwitchFailed => {
-                try!(write_u8(&mut buf, 4));
+                try!(write_u8(writer, 4));
             },
 
             Reply::LoadCompleted => {
-                try!(write_u8(&mut buf, 5));
+                try!(write_u8(writer, 5));
             },
             Reply::LoadFailed => {
-                try!(write_u8(&mut buf, 6));
+                try!(write_u8(writer, 6));
             },
 
             Reply::KernelFinished => {
-                try!(write_u8(&mut buf, 7));
+                try!(write_u8(writer, 7));
             },
             Reply::KernelStartupFailed => {
-                try!(write_u8(&mut buf, 8));
+                try!(write_u8(writer, 8));
             },
             Reply::KernelException {
                 name, message, param, file, line, column, function, backtrace
             } => {
-                try!(write_u8(&mut buf, 9));
-                try!(write_string(&mut buf, name));
-                try!(write_string(&mut buf, message));
-                try!(write_u64(&mut buf, param[0]));
-                try!(write_u64(&mut buf, param[1]));
-                try!(write_u64(&mut buf, param[2]));
-                try!(write_string(&mut buf, file));
-                try!(write_u32(&mut buf, line));
-                try!(write_u32(&mut buf, column));
-                try!(write_string(&mut buf, function));
-                try!(write_u32(&mut buf, backtrace.len() as u32));
+                try!(write_u8(writer, 9));
+                try!(write_string(writer, name));
+                try!(write_string(writer, message));
+                try!(write_u64(writer, param[0]));
+                try!(write_u64(writer, param[1]));
+                try!(write_u64(writer, param[2]));
+                try!(write_string(writer, file));
+                try!(write_u32(writer, line));
+                try!(write_u32(writer, column));
+                try!(write_string(writer, function));
+                try!(write_u32(writer, backtrace.len() as u32));
                 for &addr in backtrace {
-                    try!(write_u32(&mut buf, addr as u32))
+                    try!(write_u32(writer, addr as u32))
                 }
             },
 
-            Reply::RpcRequest { service, data } => {
-                try!(write_u8(&mut buf, 10));
-                try!(write_u32(&mut buf, service));
-                try!(buf.write(data));
+            Reply::RpcRequest { service } => {
+                try!(write_u8(writer, 10));
+                try!(write_u32(writer, service));
             },
 
             Reply::FlashRead(ref bytes) => {
-                try!(write_u8(&mut buf, 11));
-                try!(buf.write(bytes));
+                try!(write_u8(writer, 11));
+                try!(write_bytes(writer, bytes));
             },
             Reply::FlashOk => {
-                try!(write_u8(&mut buf, 12));
+                try!(write_u8(writer, 12));
             },
             Reply::FlashError => {
-                try!(write_u8(&mut buf, 13));
+                try!(write_u8(writer, 13));
             },
 
             Reply::WatchdogExpired => {
-                try!(write_u8(&mut buf, 14));
+                try!(write_u8(writer, 14));
             },
             Reply::ClockFailure => {
-                try!(write_u8(&mut buf, 15));
+                try!(write_u8(writer, 15));
             },
         }
-
-        let len = buf.len();
-        try!(write_u32(&mut &mut buf[4..8], len as u32));
-
-        writer.write_all(&buf)
+        Ok(())
     }
 }
