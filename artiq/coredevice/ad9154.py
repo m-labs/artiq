@@ -28,17 +28,17 @@ def ad9516_read(addr: TInt32) -> TInt32:
 
 
 @syscall(flags={"nounwind", "nowrite"})
-def jesd_enable(en: TInt32) -> TNone:
+def ad9154_jesd_enable(en: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 
 @syscall(flags={"nounwind", "nowrite"})
-def jesd_ready() -> TInt32:
+def ad9154_jesd_ready() -> TInt32:
     raise NotImplementedError("syscall not simulated")
 
 
 @syscall(flags={"nounwind", "nowrite"})
-def jesd_prbs(prbs: TInt32) -> TNone:
+def ad9154_jesd_prbs(prbs: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 
@@ -85,13 +85,13 @@ class AD9154:
     @kernel
     def jesd_enable(self, en):
         """Enables the JESD204B core startup sequence."""
-        jesd_enable(en)
+        ad9154_jesd_enable(en)
 
     @kernel
     def jesd_ready(self):
         """Returns `True` if the JESD links are up."""
-        return jesd_ready()
+        return ad9154_jesd_ready()
 
     @kernel
     def jesd_prbs(self, prbs):
-        jesd_prbs(prbs)
+        ad9154_jesd_prbs(prbs)

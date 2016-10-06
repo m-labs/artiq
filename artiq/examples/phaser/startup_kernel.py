@@ -11,7 +11,6 @@ ps = JESD204BPhysicalSettings(
     m=4,            # converters
     n=16,           # bits/converter
     np=16,          # bits/sample
-    sc=250*1e6,     # data clock, unused: FIXME
 )
 ts = JESD204BTransportSettings(
     f=2,            # octets/(lane and frame)
@@ -21,8 +20,6 @@ ts = JESD204BTransportSettings(
 )
 jesd_settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
 jesd_checksum = jesd_settings.get_configuration_data()[-1]
-jesd_data_freq = 250e6
-jesd_linerate = 5e9
 # external clk=2000MHz
 # pclock=250MHz
 # deviceclock_fpga=500MHz

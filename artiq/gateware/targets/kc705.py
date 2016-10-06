@@ -441,10 +441,48 @@ class _PhaserCRG(Module, AutoCSR):
         ]
 
 
+class AD9154(Module, AutoCSR):
+    def __init__(self, platform, rtio_crg):
+        ad9154_spi = platform.request("ad9154_spi")
+        self.submodules.spi = spi_csr.SPIMaster(ad9154_spi)
+        self.comb += [
+            ad9154_spi.en.eq(1),
+            platform.request("ad9154_txen", 0).eq(1),
+            platform.request("ad9154_txen", 1).eq(1),
+        ]
+
+        sync_pads = platform.request("ad9154_sync")
+        jesd_sync = Signal()
+        self.specials += DifferentialInput(
+            sync_pads.p, sync_pads.n, jesd_sync)
+
+        ps = JESD204BPhysicalSettings(l=4, m=4, n=16, np=16)
+        ts = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
+        jesd_settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
+        jesd_linerate = 5e9
+        jesd_refclk_freq = 500e6
+        rtio_freq = 125*1000*1000
+        jesd_phys = [JESD204BPhyTX(
+            rtio_crg.refclk, jesd_refclk_freq,
+            platform.request("ad9154_jesd", i),
+            jesd_linerate, rtio_freq, i) for i in range(4)]
+        self.submodules += jesd_phys
+        for jesd_phy in jesd_phys:
+            platform.add_period_constraint(
+                jesd_phy.gtx.cd_tx.clk,
+                40/jesd_linerate*1e9)
+            platform.add_false_path_constraints(
+                rtio_crg.cd_rtio.clk,
+                jesd_phy.gtx.cd_tx.clk)
+        self.submodules.jesd_core = JESD204BCoreTX(
+            jesd_phys, jesd_settings, converter_data_width=32)
+        self.comb += self.jesd_core.start.eq(jesd_sync)
+        self.submodules.jesd_control = JESD204BCoreTXControl(self.jesd_core)
+
+
 class Phaser(_NIST_Ions):
     mem_map = {
-        "ad9154_spi":   0x50000000,
-        "jesd_control": 0x40000000,
+        "ad9154":   0x50000000,
     }
     mem_map.update(_NIST_Ions.mem_map)
 
@@ -474,17 +512,6 @@ class Phaser(_NIST_Ions):
 
         self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
-        ad9154_spi = self.platform.request("ad9154_spi")
-        self.submodules.ad9154_spi = spi_csr.SPIMaster(ad9154_spi)
-        self.register_kernel_cpu_csrdevice("ad9154_spi")
-        self.config["AD9154_DAC_CS"] = 1 << 0
-        self.config["AD9154_CLK_CS"] = 1 << 1
-        self.comb += [
-            ad9154_spi.en.eq(1),
-            self.platform.request("ad9154_txen", 0).eq(1),
-            self.platform.request("ad9154_txen", 1).eq(1),
-        ]
-
         self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
         sawgs = [sawg.Channel(width=16, parallelism=4) for i in range(4)]
         self.submodules += sawgs
@@ -500,36 +527,13 @@ class Phaser(_NIST_Ions):
         # jesd_sysref = Signal()
         # self.specials += DifferentialInput(
         #     sysref_pads.p, sysref_pads.n, jesd_sysref)
-        sync_pads = platform.request("ad9154_sync")
-        jesd_sync = Signal()
-        self.specials += DifferentialInput(
-            sync_pads.p, sync_pads.n, jesd_sync)
-
-        ps = JESD204BPhysicalSettings(l=4, m=4, n=16, np=16, sc=250*1e6)
-        ts = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
-        jesd_settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
-        jesd_linerate = 5e9
-        jesd_refclk_freq = 500e6
-        rtio_freq = 125*1000*1000
-        jesd_phys = [JESD204BPhyTX(
-            self.rtio_crg.refclk, jesd_refclk_freq,
-            platform.request("ad9154_jesd", i),
-            jesd_linerate, rtio_freq, i) for i in range(4)]
-        self.submodules += jesd_phys
-        for jesd_phy in jesd_phys:
-            platform.add_period_constraint(
-                jesd_phy.gtx.cd_tx.clk,
-                40/jesd_linerate*1e9)
-            self.platform.add_false_path_constraints(
-                self.rtio_crg.cd_rtio.clk,
-                jesd_phy.gtx.cd_tx.clk)
-        self.submodules.jesd_core = JESD204BCoreTX(
-            jesd_phys, jesd_settings, converter_data_width=32)
-        self.comb += self.jesd_core.start.eq(jesd_sync)
-        self.submodules.jesd_control = JESD204BCoreTXControl(self.jesd_core)
-        self.register_kernel_cpu_csrdevice("jesd_control")
+        to_rtio = ClockDomainsRenamer({"sys": "rtio"})
+        self.submodules.ad9154 = to_rtio(AD9154(platform, self.rtio_crg))
+        self.register_kernel_cpu_csrdevice("ad9154")
+        self.config["AD9154_DAC_CS"] = 1 << 0
+        self.config["AD9154_CLK_CS"] = 1 << 1
         for i, ch in enumerate(sawgs):
-            conv = getattr(self.jesd_core.transport.sink,
+            conv = getattr(self.ad9154.jesd_core.transport.sink,
                            "converter{}".format(i))
             # while at 5 GBps, take every second sample... FIXME
             self.comb += conv.eq(Cat(ch.o[::2]))
