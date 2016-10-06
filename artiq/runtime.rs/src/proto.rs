@@ -66,14 +66,10 @@ pub fn write_bytes(writer: &mut Write, value: &[u8]) -> io::Result<()> {
 }
 
 pub fn read_string(reader: &mut Read) -> io::Result<String> {
-    let mut bytes = try!(read_bytes(reader));
-    let len = bytes.len() - 1; // length without trailing \0
-    bytes.resize(len, 0);      // FIXME: don't send \0 in the first place
+    let bytes = try!(read_bytes(reader));
     String::from_utf8(bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
 }
 
 pub fn write_string(writer: &mut Write, value: &str) -> io::Result<()> {
-    try!(write_u32(writer, (value.len() + 1) as u32));
-    try!(writer.write_all(value.as_bytes()));
-    write_u8(writer, 0)
+    write_bytes(writer, value.as_bytes())
 }

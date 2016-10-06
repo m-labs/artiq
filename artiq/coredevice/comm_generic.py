@@ -166,7 +166,7 @@ class CommGeneric:
         return self._read_chunk(self._read_int32())
 
     def _read_string(self):
-        return self._read_bytes()[:-1].decode("utf-8")
+        return self._read_bytes().decode("utf-8")
 
     #
     # Writer interface
@@ -214,7 +214,7 @@ class CommGeneric:
         self._write_buffer.append(value)
 
     def _write_string(self, value):
-        self._write_bytes(value.encode("utf-8") + b"\0")
+        self._write_bytes(value.encode("utf-8"))
 
     #
     # Exported APIs
