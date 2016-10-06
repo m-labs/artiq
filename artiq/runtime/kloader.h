@@ -1,16 +1,12 @@
 #ifndef __KLOADER_H
 #define __KLOADER_H
 
-#include "artiq_personality.h"
-
 #define KERNELCPU_EXEC_ADDRESS    0x42000000
 #define KERNELCPU_PAYLOAD_ADDRESS 0x42020000
 #define KERNELCPU_LAST_ADDRESS    (0x4fffffff - 1024*1024)
 #define KSUPPORT_HEADER_SIZE      0x80
 
 int kloader_load_library(const void *code);
-void kloader_filter_backtrace(struct artiq_backtrace_item *backtrace,
-                              size_t *backtrace_size);
 
 int kloader_start_startup_kernel(void);
 int kloader_start_idle_kernel(void);

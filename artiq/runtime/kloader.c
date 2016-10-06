@@ -58,22 +58,6 @@ void kloader_start_kernel()
     mailbox_acknowledge();
 }
 
-void kloader_filter_backtrace(struct artiq_backtrace_item *backtrace,
-                              size_t *backtrace_size) {
-    struct artiq_backtrace_item *cursor = backtrace;
-
-    // Remove all backtrace items belonging to ksupport and subtract
-    // shared object base from the addresses.
-    for(int i = 0; i < *backtrace_size; i++) {
-        if(backtrace[i].function > KERNELCPU_PAYLOAD_ADDRESS) {
-            backtrace[i].function -= KERNELCPU_PAYLOAD_ADDRESS;
-            *cursor++ = backtrace[i];
-        }
-    }
-
-    *backtrace_size = cursor - backtrace;
-}
-
 static int kloader_start_flash_kernel(char *key)
 {
 #if (defined CSR_SPIFLASH_BASE && defined CONFIG_SPIFLASH_PAGE_SIZE)

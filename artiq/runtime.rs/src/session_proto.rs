@@ -16,46 +16,6 @@ fn write_sync(writer: &mut Write) -> io::Result<()> {
 }
 
 #[derive(Debug)]
-pub struct Exception {
-    name:     String,
-    message:  String,
-    param:    [u64; 3],
-    file:     String,
-    line:     u32,
-    column:   u32,
-    function: String,
-}
-
-impl Exception {
-    pub fn read_from(reader: &mut Read) -> io::Result<Exception> {
-        Ok(Exception {
-            name:     try!(read_string(reader)),
-            message:  try!(read_string(reader)),
-            param:    [try!(read_u64(reader)),
-                       try!(read_u64(reader)),
-                       try!(read_u64(reader))],
-            file:     try!(read_string(reader)),
-            line:     try!(read_u32(reader)),
-            column:   try!(read_u32(reader)),
-            function: try!(read_string(reader))
-        })
-    }
-
-    pub fn write_to(&self, writer: &mut Write) -> io::Result<()> {
-        try!(write_string(writer, &self.name));
-        try!(write_string(writer, &self.message));
-        try!(write_u64(writer, self.param[0]));
-        try!(write_u64(writer, self.param[1]));
-        try!(write_u64(writer, self.param[2]));
-        try!(write_string(writer, &self.file));
-        try!(write_u32(writer, self.line));
-        try!(write_u32(writer, self.column));
-        try!(write_string(writer, &self.function));
-        Ok(())
-    }
-}
-
-#[derive(Debug)]
 pub enum Request {
     Log,
     LogClear,
@@ -67,7 +27,15 @@ pub enum Request {
     RunKernel,
 
     RpcReply { tag: Vec<u8>, data: Vec<u8> },
-    RpcException(Exception),
+    RpcException {
+        name:     String,
+        message:  String,
+        param:    [u64; 3],
+        file:     String,
+        line:     u32,
+        column:   u32,
+        function: String,
+    },
 
     FlashRead   { key: String },
     FlashWrite  { key: String, value: Vec<u8> },
@@ -100,7 +68,17 @@ impl Request {
                 try!(reader.read_exact(&mut data));
                 Request::RpcReply { tag: tag, data: data }
             }
-            8  => Request::RpcException(try!(Exception::read_from(reader))),
+            8  => Request::RpcException {
+                name:     try!(read_string(reader)),
+                message:  try!(read_string(reader)),
+                param:    [try!(read_u64(reader)),
+                           try!(read_u64(reader)),
+                           try!(read_u64(reader))],
+                file:     try!(read_string(reader)),
+                line:     try!(read_u32(reader)),
+                column:   try!(read_u32(reader)),
+                function: try!(read_string(reader))
+            },
             9  => Request::FlashRead {
                 key: try!(read_string(reader))
             },
@@ -130,7 +108,16 @@ pub enum Reply<'a> {
 
     KernelFinished,
     KernelStartupFailed,
-    KernelException(Exception),
+    KernelException {
+        name:      &'a str,
+        message:   &'a str,
+        param:     [u64; 3],
+        file:      &'a str,
+        line:      u32,
+        column:    u32,
+        function:  &'a str,
+        backtrace: &'a [usize]
+    },
 
     RpcRequest { service: u32, data: &'a [u8] },
 
@@ -179,9 +166,23 @@ impl<'a> Reply<'a> {
             Reply::KernelStartupFailed => {
                 try!(write_u8(&mut buf, 8));
             },
-            Reply::KernelException(ref exception) => {
+            Reply::KernelException {
+                name, message, param, file, line, column, function, backtrace
+            } => {
                 try!(write_u8(&mut buf, 9));
-                try!(exception.write_to(writer));
+                try!(write_string(&mut buf, name));
+                try!(write_string(&mut buf, message));
+                try!(write_u64(&mut buf, param[0]));
+                try!(write_u64(&mut buf, param[1]));
+                try!(write_u64(&mut buf, param[2]));
+                try!(write_string(&mut buf, file));
+                try!(write_u32(&mut buf, line));
+                try!(write_u32(&mut buf, column));
+                try!(write_string(&mut buf, function));
+                try!(write_u32(&mut buf, backtrace.len() as u32));
+                for &addr in backtrace {
+                    try!(write_u32(&mut buf, addr as u32))
+                }
             },
 
             Reply::RpcRequest { service, data } => {

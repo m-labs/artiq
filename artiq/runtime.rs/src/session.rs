@@ -350,12 +350,39 @@ fn process_kern_message(waiter: Waiter,
             }
 
             kern::RunFinished => {
-                try!(kern_acknowledge());
-
                 kernel::stop();
                 session.kernel_state = KernelState::Absent;
 
-                return Ok(true)
+                match stream {
+                    None => return Ok(true),
+                    Some(ref mut stream) =>
+                        host_write(stream, host::Reply::KernelFinished)
+                }
+            }
+
+            kern::RunException { exception: ref exn, backtrace } => {
+                kernel::stop();
+                session.kernel_state = KernelState::Absent;
+
+                match stream {
+                    None => {
+                        error!("exception in flash kernel");
+                        error!("{}: {} {:?}", exn.name, exn.message, exn.param);
+                        error!("at {}:{}:{} in {}", exn.file, exn.line, exn.column, exn.function);
+                        return Ok(true)
+                    },
+                    Some(ref mut stream) =>
+                        host_write(stream, host::Reply::KernelException {
+                            name: exn.name,
+                            message: exn.message,
+                            param: exn.param,
+                            file: exn.file,
+                            line: exn.line,
+                            column: exn.column,
+                            function: exn.function,
+                            backtrace: backtrace
+                        })
+                }
             }
 
             request => unexpected!("unexpected request {:?} from kernel CPU", request)
@@ -374,9 +401,7 @@ fn host_kernel_worker(waiter: Waiter,
         }
 
         if mailbox::receive() != 0 {
-            if try!(process_kern_message(waiter, Some(stream), &mut session)) {
-                try!(host_write(stream, host::Reply::KernelFinished))
-            }
+            try!(process_kern_message(waiter, Some(stream), &mut session));
         }
 
         if session.kernel_state == KernelState::Running {

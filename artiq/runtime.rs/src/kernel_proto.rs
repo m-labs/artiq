@@ -15,8 +15,6 @@ pub struct Exception<'a> {
     pub param:    [u64; 3],
 }
 
-pub use self::c::BacktraceItem;
-
 #[derive(Debug)]
 pub enum Message<'a> {
     LoadRequest(&'a [u8]),
@@ -29,7 +27,7 @@ pub enum Message<'a> {
     RunFinished,
     RunException {
         exception: Exception<'a>,
-        backtrace: &'a [BacktraceItem]
+        backtrace: &'a [usize]
     },
 
     WatchdogSetRequest { ms: u64 },
@@ -315,7 +313,7 @@ mod c {
     pub struct RunException {
         pub ty: Type,
         pub exception: *const Exception,
-        pub backtrace: *const BacktraceItem,
+        pub backtrace: *const usize,
         pub backtrace_size: size_t
     }
 
@@ -415,13 +413,6 @@ mod c {
         pub function: *const c_char,
         pub message:  *const c_char,
         pub param:    [u64; 3],
-    }
-
-    #[repr(C)]
-    #[derive(Debug)]
-    pub struct BacktraceItem {
-        pub function: usize,
-        pub offset: usize
     }
 
     pub unsafe fn from_c_str_len<'a>(ptr: *const c_char, len: size_t) -> &'a str {

@@ -973,13 +973,9 @@ static int process_kmsg(struct msg_base *umsg)
             out_packet_int32(msg->exception->column);
             out_packet_string(msg->exception->function);
 
-            kloader_filter_backtrace(msg->backtrace,
-                                     &msg->backtrace_size);
-
             out_packet_int32(msg->backtrace_size);
             for(int i = 0; i < msg->backtrace_size; i++) {
-                struct artiq_backtrace_item *item = &msg->backtrace[i];
-                out_packet_int32(item->function + item->offset);
+                out_packet_int32(msg->backtrace[i]);
             }
 
             out_packet_finish();

@@ -56,7 +56,7 @@ struct msg_now_save {
 struct msg_exception {
     int type;
     struct artiq_exception *exception;
-    struct artiq_backtrace_item *backtrace;
+    uintptr_t *backtrace;
     size_t backtrace_size;
 };
 

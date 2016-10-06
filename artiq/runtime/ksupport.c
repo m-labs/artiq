@@ -415,12 +415,25 @@ int main(void)
 
 /* called from __artiq_personality */
 void __artiq_terminate(struct artiq_exception *artiq_exn,
-                       struct artiq_backtrace_item *backtrace,
+                       uintptr_t *backtrace,
                        size_t backtrace_size)
 {
     struct msg_exception msg;
 
     now_save();
+
+    uintptr_t *cursor = backtrace;
+
+    // Remove all backtrace items belonging to ksupport and subtract
+    // shared object base from the addresses.
+    for(int i = 0; i < backtrace_size; i++) {
+        if(backtrace[i] > KERNELCPU_PAYLOAD_ADDRESS) {
+            backtrace[i] -= KERNELCPU_PAYLOAD_ADDRESS;
+            *cursor++ = backtrace[i];
+        }
+    }
+
+    backtrace_size = cursor - backtrace;
 
     msg.type = MESSAGE_TYPE_EXCEPTION;
     msg.exception = artiq_exn;
