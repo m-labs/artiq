@@ -11,6 +11,13 @@ from migen.build.xilinx.ise import XilinxISEToolchain
 from migen.fhdl.specials import Keep
 from migen.genlib.io import DifferentialInput
 
+from jesd204b.common import (JESD204BTransportSettings,
+                            JESD204BPhysicalSettings,
+                            JESD204BSettings)
+from jesd204b.phy import JESD204BPhyTX
+from jesd204b.core import JESD204BCoreTX
+from jesd204b.core import JESD204BCoreTXControl
+
 from misoc.interconnect.csr import *
 from misoc.interconnect import wishbone
 from misoc.cores import gpio
@@ -395,13 +402,12 @@ class _PhaserCRG(Module, AutoCSR):
 
         refclk_pads = platform.request("ad9154_refclk")
         platform.add_period_constraint(refclk_pads.p, 2.)
-        refclk = Signal()
-        refclk = Signal()
+        self.refclk = Signal()
         self.clock_domains.cd_refclk = ClockDomain()
         self.specials += [
             Instance("IBUFDS_GTE2", i_CEB=0,
-                     i_I=refclk_pads.p, i_IB=refclk_pads.n, o_O=refclk),
-            Instance("BUFG", i_I=refclk, o_O=self.cd_refclk.clk),
+                     i_I=refclk_pads.p, i_IB=refclk_pads.n, o_O=self.refclk),
+            Instance("BUFG", i_I=self.refclk, o_O=self.cd_refclk.clk),
         ]
 
         pll_locked = Signal()
@@ -436,7 +442,10 @@ class _PhaserCRG(Module, AutoCSR):
 
 
 class Phaser(_NIST_Ions):
-    mem_map = {"ad9154_spi": 0x18000000}
+    mem_map = {
+        "ad9154_spi":   0x50000000,
+        "jesd_control": 0x40000000,
+    }
     mem_map.update(_NIST_Ions.mem_map)
 
     def __init__(self, cpu_type="or1k", **kwargs):
@@ -446,16 +455,6 @@ class Phaser(_NIST_Ions):
         platform.add_extension(phaser.fmc_adapter_io)
 
         sysref_pads = platform.request("ad9154_sysref")
-        #sysref = Signal()
-        #self.specials += DifferentialInput(
-        #    sysref_pads.p, sysref_pads.n, sysref)
-        sync_pads = platform.request("ad9154_sync")
-        #sync = Signal()
-        #self.specials += DifferentialInput(
-        #    sync_pads.p, sync_pads.n, sync)
-
-        #for i in range(4):
-        #    jesd_pads = platform.request("ad9154_jesd", i)
 
         rtio_channels = []
 
@@ -469,11 +468,6 @@ class Phaser(_NIST_Ions):
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
         phy = ttl_serdes_7series.Input_8X(sysref_pads.p, sysref_pads.n)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
-                                                   ofifo_depth=2))
-
-        phy = ttl_serdes_7series.Input_8X(sync_pads.p, sync_pads.n)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
                                                    ofifo_depth=2))
@@ -495,14 +489,6 @@ class Phaser(_NIST_Ions):
         sawgs = [sawg.Channel(width=16, parallelism=4) for i in range(4)]
         self.submodules += sawgs
 
-        # TODO: dummy, hookup jesd204b phy here
-        o = Signal((16, True))
-        for ch in sawgs:  # gather up dangling outputs
-            for oi in ch.o:
-                o0, o = o, Signal.like(o)
-                self.sync += o.eq(o0 + oi)
-        self.sync.rio_phy += platform.request("user_led").eq(o[-1])
-
         rtio_channels.extend(rtio.Channel.from_phy(phy)
                              for sawg in sawgs
                              for phy in sawg.phys)
@@ -510,6 +496,43 @@ class Phaser(_NIST_Ions):
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.LogChannel())
         self.add_rtio(rtio_channels, _PhaserCRG)
+
+        # jesd_sysref = Signal()
+        # self.specials += DifferentialInput(
+        #     sysref_pads.p, sysref_pads.n, jesd_sysref)
+        sync_pads = platform.request("ad9154_sync")
+        jesd_sync = Signal()
+        self.specials += DifferentialInput(
+            sync_pads.p, sync_pads.n, jesd_sync)
+
+        ps = JESD204BPhysicalSettings(l=4, m=4, n=16, np=16, sc=250*1e6)
+        ts = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
+        jesd_settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
+        jesd_linerate = 5e9
+        jesd_refclk_freq = 500e6
+        rtio_freq = 125*1000*1000
+        jesd_phys = [JESD204BPhyTX(
+            self.rtio_crg.refclk, jesd_refclk_freq,
+            platform.request("ad9154_jesd", i),
+            jesd_linerate, rtio_freq, i) for i in range(4)]
+        self.submodules += jesd_phys
+        for jesd_phy in jesd_phys:
+            platform.add_period_constraint(
+                jesd_phy.gtx.cd_tx.clk,
+                40/jesd_linerate*1e9)
+            self.platform.add_false_path_constraints(
+                self.rtio_crg.cd_rtio.clk,
+                jesd_phy.gtx.cd_tx.clk)
+        self.submodules.jesd_core = JESD204BCoreTX(
+            jesd_phys, jesd_settings, converter_data_width=32)
+        self.comb += self.jesd_core.start.eq(jesd_sync)
+        self.submodules.jesd_control = JESD204BCoreTXControl(self.jesd_core)
+        self.register_kernel_cpu_csrdevice("jesd_control")
+        for i, ch in enumerate(sawgs):
+            conv = getattr(self.jesd_core.transport.sink,
+                           "converter{}".format(i))
+            # while at 5 GBps, take every second sample... FIXME
+            self.comb += conv.eq(Cat(ch.o[::2]))
 
 
 def main():

@@ -27,7 +27,7 @@ The additions and modifications to ARTIQ that were implemented for this project 
 * In ARTIQ, the SAWG and Phaser code: https://github.com/m-labs/artiq/compare/phaser
 * The CORDIC core has been reused from the PDQ2 gateware
   https://github.com/m-labs/pdq2
-* The Migen/MiSoC JESD204B core: https://github.com/m-labs/jesd204
+* The Migen/MiSoC JESD204B core: https://github.com/m-labs/jesd204b
 
 
 Installation

@@ -10,5 +10,9 @@ uint8_t ad9154_read(uint16_t addr);
 void ad9516_write(uint16_t addr, uint8_t data);
 uint8_t ad9516_read(uint16_t addr);
 
+void jesd_enable(int en);
+int jesd_ready(void);
+void jesd_prbs(int p);
+
 #endif
 #endif

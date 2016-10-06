@@ -54,4 +54,19 @@ uint8_t ad9516_read(uint16_t addr)
     return ad9154_spi_data_read_read();
 }
 
+void jesd_enable(int en)
+{
+    jesd_control_enable_write(en);
+}
+
+int jesd_ready(void)
+{
+    return jesd_control_ready_read();
+}
+
+void jesd_prbs(int p)
+{
+    jesd_control_prbs_config_write(p);
+}
+
 #endif /* CONFIG_AD9154_DAC_CS */

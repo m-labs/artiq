@@ -1,6 +1,32 @@
+from jesd204b.common import (JESD204BPhysicalSettings,
+                             JESD204BTransportSettings,
+                             JESD204BSettings)
 from artiq.experiment import *
 from artiq.coredevice.ad9516_reg import *
 from artiq.coredevice.ad9154_reg import *
+
+# ad9154 mode 2:
+ps = JESD204BPhysicalSettings(
+    l=4,            # lanes
+    m=4,            # converters
+    n=16,           # bits/converter
+    np=16,          # bits/sample
+    sc=250*1e6,     # data clock, unused: FIXME
+)
+ts = JESD204BTransportSettings(
+    f=2,            # octets/(lane and frame)
+    s=1,            # samples/(converter and frame)
+    k=16,           # frames/multiframe
+    cs=1,           #
+)
+jesd_settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
+jesd_checksum = jesd_settings.get_configuration_data()[-1]
+jesd_data_freq = 250e6
+jesd_linerate = 5e9
+# external clk=2000MHz
+# pclock=250MHz
+# deviceclock_fpga=500MHz
+# deviceclock_dac=2000MHz
 
 
 class StartupKernel(EnvExperiment):
@@ -11,26 +37,16 @@ class StartupKernel(EnvExperiment):
 
     @kernel
     def run(self):
-        # ad9154 mode 2:
-        # M=4 converters
-        # L=4 lanes
-        # S=1 samples/converter and /frame
-        # F=2 octets/lane and /frame
-        # K=16 frames/multiframe (or 32)
-        # HD=0 high density
-        # N=16 bits/converter
-        # NB=16 bits/sample
-        #
-        # external clk=2000MHz
-        # pclock=250MHz
-        # fdata=500MHz
-        # fline=10GHz
-        # deviceclock_fpga=500MHz
-        # deviceclock_dac=2000MHz
         self.core.reset()
+        self.ad9154.jesd_enable(0)
         self.ad9154.init()
         self.clock_setup()
         self.dac_setup()
+        self.ad9154.jesd_prbs(0)
+        t = now_mu() + seconds_to_mu(.1*s)
+        while self.core.get_rtio_counter_mu() < t:
+            pass
+        self.ad9154.jesd_enable(1)
 
     @kernel
     def clock_setup(self):
@@ -123,7 +139,7 @@ class StartupKernel(EnvExperiment):
 
         self.ad9154.dac_write(AD9154_SPI_PAGEINDX, 0x3) # A and B dual
 
-        self.ad9154.dac_write(AD9154_INTERP_MODE, 3) # 4x
+        self.ad9154.dac_write(AD9154_INTERP_MODE, 4) # 8x
         self.ad9154.dac_write(AD9154_MIX_MODE, 0)
         self.ad9154.dac_write(AD9154_DATA_FORMAT, AD9154_BINARY_FORMAT_SET(0)) # s16
         self.ad9154.dac_write(AD9154_DATAPATH_CTRL,
@@ -160,24 +176,28 @@ class StartupKernel(EnvExperiment):
         self.ad9154.dac_write(AD9154_GENERAL_JRX_CTRL_0,
                 AD9154_LINK_EN_SET(0x0) | AD9154_LINK_PAGE_SET(0) |
                 AD9154_LINK_MODE_SET(0) | AD9154_CHECKSUM_MODE_SET(0))
-        self.ad9154.dac_write(AD9154_ILS_DID, 0x00) # device id
-        self.ad9154.dac_write(AD9154_ILS_BID, 0x00) # band id
+        self.ad9154.dac_write(AD9154_ILS_DID, jesd_settings.did)
+        self.ad9154.dac_write(AD9154_ILS_BID, jesd_settings.bid)
         self.ad9154.dac_write(AD9154_ILS_LID0, 0x00) # lane id
-        self.ad9154.dac_write(AD9154_ILS_SCR_L, AD9154_L_1_SET(4 - 1) | AD9154_SCR_SET(1))
-        self.ad9154.dac_write(AD9154_ILS_F, 2 - 1)
-        self.ad9154.dac_write(AD9154_ILS_K, 16 - 1)
-        self.ad9154.dac_write(AD9154_ILS_M, 4 - 1)
-        self.ad9154.dac_write(AD9154_ILS_CS_N, AD9154_N_1_SET(16 - 1) | AD9154_CS_SET(0))
-        self.ad9154.dac_write(AD9154_ILS_NP, AD9154_NP_1_SET(16 - 1) |
-                AD9154_SUBCLASSV_SET(1))
-        self.ad9154.dac_write(AD9154_ILS_S, AD9154_S_1_SET(1 - 1) | AD9154_JESDV_SET(1))
-        self.ad9154.dac_write(AD9154_ILS_HD_CF, AD9154_HD_SET(0) | AD9154_CF_SET(0))
-        self.ad9154.dac_write(AD9154_ILS_CHECKSUM,
-                0x00 + 0x00 + 0x00 + 1 + (4 - 1) + # DID BID LID SCR L
-                (2 - 1) + (16 - 1) + (4 - 1) + (16 - 1) + # F K M N
-                1 + (16 - 1) + 1 + (1 - 1) + 0 # SUBC NP JESDV S HD
-                     )
-        self.ad9154.dac_write(AD9154_LANEDESKEW, 0xf0)
+        self.ad9154.dac_write(AD9154_ILS_SCR_L,
+                              AD9154_L_1_SET(jesd_settings.phy.l - 1) |
+                              AD9154_SCR_SET(1))
+        self.ad9154.dac_write(AD9154_ILS_F, jesd_settings.transport.f - 1)
+        self.ad9154.dac_write(AD9154_ILS_K, jesd_settings.transport.k - 1)
+        self.ad9154.dac_write(AD9154_ILS_M, jesd_settings.phy.m - 1)
+        self.ad9154.dac_write(AD9154_ILS_CS_N,
+                              AD9154_N_1_SET(jesd_settings.phy.n - 1) |
+                              AD9154_CS_SET(0))
+        self.ad9154.dac_write(AD9154_ILS_NP,
+                              AD9154_NP_1_SET(jesd_settings.phy.np - 1) |
+                              AD9154_SUBCLASSV_SET(jesd_settings.phy.subclassv))
+        self.ad9154.dac_write(AD9154_ILS_S,
+                              AD9154_S_1_SET(jesd_settings.transport.s - 1) |
+                              AD9154_JESDV_SET(jesd_settings.phy.jesdv))
+        self.ad9154.dac_write(AD9154_ILS_HD_CF,
+                              AD9154_HD_SET(0) | AD9154_CF_SET(0))
+        self.ad9154.dac_write(AD9154_ILS_CHECKSUM, jesd_checksum)
+        self.ad9154.dac_write(AD9154_LANEDESKEW, 0x0f)
         for i in range(8):
             self.ad9154.dac_write(AD9154_BADDISPARITY, AD9154_RST_IRQ_DIS_SET(0) |
                     AD9154_DISABLE_ERR_CNTR_DIS_SET(0) |
@@ -197,22 +217,22 @@ class StartupKernel(EnvExperiment):
             self.ad9154.dac_write(AD9154_BADDISPARITY, AD9154_RST_IRQ_UCC_SET(0) |
                     AD9154_DISABLE_ERR_CNTR_UCC_SET(0) |
                     AD9154_RST_ERR_CNTR_UCC_SET(0) | AD9154_LANE_ADDR_UCC_SET(i))
-        self.ad9154.dac_write(AD9154_CTRLREG1, 2) # F
+        self.ad9154.dac_write(AD9154_CTRLREG1, jesd_settings.transport.f)
         self.ad9154.dac_write(AD9154_CTRLREG2, AD9154_ILAS_MODE_SET(0) |
                 AD9154_THRESHOLD_MASK_EN_SET(0))
-        self.ad9154.dac_write(AD9154_KVAL, 1) # 4*K multiframes during ILAS
-        self.ad9154.dac_write(AD9154_LANEENABLE, 0xf0)
+        self.ad9154.dac_write(AD9154_KVAL, 1) # *4*K multiframes during ILAS
+        self.ad9154.dac_write(AD9154_LANEENABLE, 0x0f)
 
         self.ad9154.dac_write(AD9154_TERM_BLK1_CTRLREG0, 1)
         self.ad9154.dac_write(AD9154_TERM_BLK2_CTRLREG0, 1)
         self.ad9154.dac_write(AD9154_SERDES_SPI_REG, 1)
         self.ad9154.dac_write(AD9154_CDR_OPERATING_MODE_REG_0,
                 AD9154_CDR_OVERSAMP_SET(0) | AD9154_CDR_RESERVED_SET(0x2) |
-                AD9154_ENHALFRATE_SET(1))
+                AD9154_ENHALFRATE_SET(0))
         self.ad9154.dac_write(AD9154_CDR_RESET, 0)
         self.ad9154.dac_write(AD9154_CDR_RESET, 1)
         self.ad9154.dac_write(AD9154_REF_CLK_DIVIDER_LDO,
-                AD9154_SPI_CDR_OVERSAMP_SET(0x0) |
+                AD9154_SPI_CDR_OVERSAMP_SET(0x1) |
                 AD9154_SPI_LDO_BYPASS_FILT_SET(1) |
                 AD9154_SPI_LDO_REF_SEL_SET(0))
         self.ad9154.dac_write(AD9154_LDO_FILTER_1, 0x62) # magic

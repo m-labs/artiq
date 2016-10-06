@@ -27,6 +27,21 @@ def ad9516_read(addr: TInt32) -> TInt32:
     raise NotImplementedError("syscall not simulated")
 
 
+@syscall(flags={"nounwind", "nowrite"})
+def jesd_enable(en: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+
+@syscall(flags={"nounwind", "nowrite"})
+def jesd_ready() -> TInt32:
+    raise NotImplementedError("syscall not simulated")
+
+
+@syscall(flags={"nounwind", "nowrite"})
+def jesd_prbs(prbs: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+
 class AD9154:
     """AD9154-FMC-EBZ SPI support
 
@@ -66,3 +81,17 @@ class AD9154:
     def clock_read(self, addr):
         """Read AD9516 SPI register at `addr`."""
         return ad9516_read(addr)
+
+    @kernel
+    def jesd_enable(self, en):
+        """Enables the JESD204B core startup sequence."""
+        jesd_enable(en)
+
+    @kernel
+    def jesd_ready(self):
+        """Returns `True` if the JESD links are up."""
+        return jesd_ready()
+
+    @kernel
+    def jesd_prbs(self, prbs):
+        jesd_prbs(prbs)
