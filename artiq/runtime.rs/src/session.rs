@@ -240,7 +240,17 @@ fn process_host_message(waiter: Waiter,
                 match reply {
                     kern::RpcRecvRequest { slot } => {
                         let mut data = io::Cursor::new(data);
-                        rpc::recv_return(&mut data, &tag, slot)
+                        rpc::recv_return(&mut data, &tag, slot, &|size| {
+                            try!(kern_send(waiter, kern::RpcRecvReply {
+                                alloc_size: size, exception: None
+                            }));
+                            kern_recv(waiter, |reply| {
+                                match reply {
+                                    kern::RpcRecvRequest { slot } => Ok(slot),
+                                    _ => unreachable!()
+                                }
+                            })
+                        })
                     }
                     other =>
                         unexpected!("unexpected reply from kernel CPU: {:?}", other)
