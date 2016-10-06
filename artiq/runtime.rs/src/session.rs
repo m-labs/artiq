@@ -55,7 +55,8 @@ enum KernelState {
 struct Session<'a> {
     congress: &'a mut Congress,
     kernel_state: KernelState,
-    watchdog_set: clock::WatchdogSet
+    watchdog_set: clock::WatchdogSet,
+    log_buffer: String
 }
 
 impl<'a> Session<'a> {
@@ -63,7 +64,8 @@ impl<'a> Session<'a> {
         Session {
             congress: congress,
             kernel_state: KernelState::Absent,
-            watchdog_set: clock::WatchdogSet::new()
+            watchdog_set: clock::WatchdogSet::new(),
+            log_buffer: String::new()
         }
     }
 
@@ -286,8 +288,16 @@ fn process_kern_message(waiter: Waiter,
         trace!("comm<-kern {:?}", request);
         match request {
             kern::Log(log) => {
-                info!(target: "kernel", "{}", log);
-                kern_acknowledge()
+                session.log_buffer += log;
+                try!(kern_acknowledge());
+
+                if &log[log.len() - 1..] == "\n" {
+                    for line in session.log_buffer.lines() {
+                        info!(target: "kernel", "{}", line);
+                    }
+                    session.log_buffer.clear()
+                }
+                Ok(())
             }
 
             kern::NowInitRequest =>
