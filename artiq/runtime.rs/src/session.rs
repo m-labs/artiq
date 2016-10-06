@@ -351,7 +351,10 @@ fn process_kern_message(waiter: Waiter,
 
             kern::RunFinished => {
                 try!(kern_acknowledge());
+
+                kernel::stop();
                 session.kernel_state = KernelState::Absent;
+
                 return Ok(true)
             }
 
