@@ -7,75 +7,78 @@ INCLUDE generated/regions.ld
  * ld does not allow this expression here.
  */
 MEMORY {
-	runtime : ORIGIN = 0x40000000, LENGTH = 0x2000000 /* 32M */
+    runtime (RWX) : ORIGIN = 0x40000000, LENGTH = 0x400000 /* 4M */
 }
-
-/* Kernel memory space start right after the runtime,
- * and ends before the runtime stack.
- * Runtime stack is always at the end of main_ram.
- * This stack is shared with the kernel on UP systems.
- */
-PROVIDE(_fstack = 0x40000000 + LENGTH(main_ram) - 4);
 
 SECTIONS
 {
-	.text :
-	{
-		_ftext = .;
-		*(.text .stub .text.* .gnu.linkonce.t.*)
-		_etext = .;
-	} > runtime
+    .text :
+    {
+        _ftext = .;
+        *(.text .stub .text.* .gnu.linkonce.t.*)
+        _etext = .;
+    } > runtime
 
-	/* https://sourceware.org/bugzilla/show_bug.cgi?id=20475 */
-	.got : {
-		_GLOBAL_OFFSET_TABLE_ = .;
-		*(.got)
-	} > runtime
+    /* https://sourceware.org/bugzilla/show_bug.cgi?id=20475 */
+    .got : {
+        _GLOBAL_OFFSET_TABLE_ = .;
+        *(.got)
+    } > runtime
 
-	.got.plt : {
-		*(.got.plt)
-	} > runtime
+    .got.plt : {
+        *(.got.plt)
+    } > runtime
 
-	.rodata :
-	{
-		. = ALIGN(4);
-		_frodata = .;
-		*(.rodata .rodata.* .gnu.linkonce.r.*)
-		*(.rodata1)
-		_erodata = .;
-	} > runtime
+    .rodata :
+    {
+        . = ALIGN(4);
+        _frodata = .;
+        *(.rodata .rodata.* .gnu.linkonce.r.*)
+        *(.rodata1)
+        _erodata = .;
+    } > runtime
 
-	.data :
-	{
-		. = ALIGN(4);
-		_fdata = .;
-		*(.data .data.* .gnu.linkonce.d.*)
-		*(.data1)
-		*(.sdata .sdata.* .gnu.linkonce.s.*)
-		_edata = .;
-	} > runtime
+    .data :
+    {
+        . = ALIGN(4);
+        _fdata = .;
+        *(.data .data.* .gnu.linkonce.d.*)
+        *(.data1)
+        *(.sdata .sdata.* .gnu.linkonce.s.*)
+        _edata = .;
+    } > runtime
 
-	.bss :
-	{
-		. = ALIGN(4);
-		_fbss = .;
-		*(.dynsbss)
-		*(.sbss .sbss.* .gnu.linkonce.sb.*)
-		*(.scommon)
-		*(.dynbss)
-		*(.bss .bss.* .gnu.linkonce.b.*)
-		*(COMMON)
-		. = ALIGN(4);
-		_ebss = .;
-		. = ALIGN(8);
-	} > runtime
+    .bss :
+    {
+        . = ALIGN(4);
+        _fbss = .;
+        *(.dynsbss)
+        *(.sbss .sbss.* .gnu.linkonce.sb.*)
+        *(.scommon)
+        *(.dynbss)
+        *(.bss .bss.* .gnu.linkonce.b.*)
+        *(COMMON)
+        . = ALIGN(4);
+        _ebss = .;
+    } > runtime
 
-	/DISCARD/ :
-	{
-		*(.eh_frame)
-	}
+    .stack :
+    {
+        . = ALIGN(0x1000);
+        _estack = .;
+        . += 0x4000;
+        _fstack = . - 4;
+    } > runtime
 
-	_fheap = .;
-	. += 0x1800000;
-	_eheap = .;
+    .heap :
+    {
+        _fheap = .;
+        . = ORIGIN(runtime) + LENGTH(runtime) - 0x1000;
+        _eheap = .;
+    } > runtime
+
+    /DISCARD/ :
+    {
+        *(.eh_frame)
+    }
 }

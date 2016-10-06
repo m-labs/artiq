@@ -3,18 +3,16 @@ ENTRY(_start)
 
 INCLUDE generated/regions.ld
 
-/* First 32M of main memory are reserved for runtime
+/* First 4M of main memory are reserved for runtime
  * code/data/heap, then comes kernel memory.
  * First 128K of kernel memory are for support code.
  */
 MEMORY {
-    ksupport (RWX) : ORIGIN = 0x42000000, LENGTH = 0x20000
+    ksupport (RWX) : ORIGIN = 0x40400000, LENGTH = 0x20000
 }
 
-/* On AMP systems, kernel stack is at the end of main RAM,
- * before the runtime stack. Leave 1M for runtime stack.
- */
-PROVIDE(_fstack = 0x40000000 + LENGTH(main_ram) - 1024*1024 - 4);
+/* Kernel stack is at the end of main RAM. */
+PROVIDE(_fstack = ORIGIN(main_ram) + LENGTH(main_ram) - 4);
 
 /* Force ld to make the ELF header as loadable. */
 PHDRS
@@ -73,7 +71,5 @@ SECTIONS
         *(COMMON)
         . = ALIGN(4);
         _ebss = .;
-        . = ALIGN(8);
-        _heapstart = .;
     }
 }
