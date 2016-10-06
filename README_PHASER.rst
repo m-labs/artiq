@@ -27,7 +27,7 @@ The additions and modifications to ARTIQ that were implemented for this project 
 * In ARTIQ, the SAWG and Phaser code: https://github.com/m-labs/artiq/compare/phaser
 * The CORDIC core has been reused from the PDQ2 gateware
   https://github.com/m-labs/pdq2
-* The Migen/MiSoC JESD204B core: https://github.com/enjoy-digital/litejesd204b
+* The Migen/MiSoC JESD204B core: https://github.com/m-labs/jesd204
 
 
 Installation
@@ -40,7 +40,7 @@ https://m-labs.hk/artiq/manual-release-2/index.html
 * Set up a new conda environment and activate it.
 * Checkout the ARTIQ phaser branch: ::
 
-    git clone -b phaser https://github.com/m-labs/artiq.git
+    git clone --recursive -b phaser https://github.com/m-labs/artiq.git
 
 * Install the standard ARTIQ runtime/install dependencies.
   See ``conda/artiq/meta.yaml`` for a list.
