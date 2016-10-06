@@ -9,13 +9,17 @@
 #include <unwind.h>
 
 #include "ksupport.h"
-#include "kloader.h"
 #include "mailbox.h"
 #include "messages.h"
 #include "artiq_personality.h"
 #include "rtio.h"
 #include "dds.h"
 #include "i2c.h"
+
+#define KERNELCPU_EXEC_ADDRESS    0x42000000
+#define KERNELCPU_PAYLOAD_ADDRESS 0x42020000
+#define KERNELCPU_LAST_ADDRESS    (0x4fffffff - 1024*1024)
+#define KSUPPORT_HEADER_SIZE      0x80
 
 double round(double x);
 double sqrt(double x);

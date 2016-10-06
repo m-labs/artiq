@@ -69,3 +69,13 @@ pub unsafe extern fn rust_main() {
         }
     })
 }
+
+#[no_mangle]
+pub fn sys_now() -> u32 {
+    clock::get_ms() as u32
+}
+
+#[no_mangle]
+pub fn sys_jiffies() -> u32 {
+    clock::get_ms() as u32
+}

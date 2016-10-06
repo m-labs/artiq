@@ -2,16 +2,16 @@
 
 use std::cell::RefCell;
 use std::vec::Vec;
-use std::time::{Instant, Duration};
 use std::io::{Read, Write, Result, Error, ErrorKind};
 use fringe::OwnedStack;
 use fringe::generator::{Generator, Yielder, State as GeneratorState};
 use lwip;
+use clock;
 use urc::Urc;
 
 #[derive(Debug)]
 struct WaitRequest {
-    timeout: Option<Instant>,
+    timeout: Option<u64>,
     event:   Option<WaitEvent>
 }
 
@@ -106,7 +106,7 @@ impl Scheduler {
 
         if self.threads.len() == 0 { return }
 
-        let now = Instant::now();
+        let now = clock::get_ms();
 
         let start_index = self.index;
         loop {
@@ -214,9 +214,9 @@ unsafe impl Send for WaitEvent {}
 pub struct Waiter<'a>(&'a Yielder<WaitResult, WaitRequest, OwnedStack>);
 
 impl<'a> Waiter<'a> {
-    pub fn sleep(&self, duration: Duration) -> Result<()> {
+    pub fn sleep(&self, duration_ms: u64) -> Result<()> {
         let request = WaitRequest {
-            timeout: Some(Instant::now() + duration),
+            timeout: Some(clock::get_ms() + duration_ms),
             event:   None
         };
 

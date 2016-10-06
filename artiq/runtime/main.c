@@ -24,24 +24,7 @@
 #include <netif/ppp/pppos.h>
 #endif
 
-#include "kloader.h"
 #include "flash_storage.h"
-#include "clock.h"
-#include "rtiocrg.h"
-#include "net_server.h"
-#include "session.h"
-#include "analyzer.h"
-#include "moninj.h"
-
-u32_t sys_now(void)
-{
-    return clock_get_ms();
-}
-
-u32_t sys_jiffies(void)
-{
-    return clock_get_ms();
-}
 
 static struct netif netif;
 
@@ -182,53 +165,6 @@ void network_init(void)
 #endif /* CSR_ETHMAC_BASE */
 
 
-static struct net_server_instance session_inst = {
-    .port = 1381,
-    .start = session_start,
-    .end = session_end,
-    .input = session_input,
-    .poll = session_poll,
-    .ack_consumed = session_ack_consumed,
-    .ack_sent = session_ack_sent
-};
-
-#ifdef CSR_RTIO_ANALYZER_BASE
-static struct net_server_instance analyzer_inst = {
-    .port = 1382,
-    .start = analyzer_start,
-    .end = analyzer_end,
-    .input = analyzer_input,
-    .poll = analyzer_poll,
-    .ack_consumed = analyzer_ack_consumed,
-    .ack_sent = analyzer_ack_sent
-};
-#endif
-
-static void regular_main(void)
-{
-    puts("ARTIQ runtime built "__DATE__" "__TIME__"\n");
-
-    clock_init();
-    rtiocrg_init();
-    session_startup_kernel();
-
-    puts("Accepting network sessions.");
-    network_init();
-    net_server_init(&session_inst);
-#ifdef CSR_RTIO_ANALYZER_BASE
-    analyzer_init();
-    net_server_init(&analyzer_inst);
-#endif
-    moninj_init();
-
-    session_end();
-    while(1) {
-        lwip_service();
-        kloader_service_essential_kmsg();
-        net_server_service();
-    }
-}
-
 extern void _fheap, _eheap;
 
 extern void rust_main();
@@ -249,8 +185,7 @@ int main(void)
 
     alloc_give(&_fheap, &_eheap - &_fheap);
 
-    // rust_main();
-    regular_main();
+    rust_main();
 
     return 0;
 }

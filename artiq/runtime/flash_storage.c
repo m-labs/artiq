@@ -9,7 +9,6 @@
 #include <generated/mem.h>
 #include <generated/csr.h>
 
-#include "log.h"
 #include "flash_storage.h"
 
 #if (defined CSR_SPIFLASH_BASE && defined CONFIG_SPIFLASH_PAGE_SIZE)
@@ -63,24 +62,24 @@ static int record_iter_next(struct iter_state *is, struct record *record, int *f
         return 0;
 
     if(record->size < 6) {
-        core_log("flash_storage might be corrupted: record size is %u (<6) at address %08x\n",
-                 record->size, record->raw_record);
+        // core_log("flash_storage might be corrupted: record size is %u (<6) at address %08x\n",
+        //          record->size, record->raw_record);
         if(fatal)
             *fatal = 1;
         return 0;
     }
 
     if(is->seek > is->buf_len - sizeof(record->size) - 2) { /* 2 is the minimum key length */
-        core_log("flash_storage might be corrupted: END_MARKER missing at the end of "
-                 "the storage sector\n");
+        // core_log("flash_storage might be corrupted: END_MARKER missing at the end of "
+        //          "the storage sector\n");
         if(fatal)
             *fatal = 1;
         return 0;
     }
 
     if(record->size > is->buf_len - is->seek) {
-        core_log("flash_storage might be corrupted: invalid record_size %d at address %08x\n",
-                 record->size, record->raw_record);
+        // core_log("flash_storage might be corrupted: invalid record_size %d at address %08x\n",
+        //          record->size, record->raw_record);
         if(fatal)
             *fatal = 1;
         return 0;
@@ -90,8 +89,8 @@ static int record_iter_next(struct iter_state *is, struct record *record, int *f
     record->key_len = strnlen(record->key, record->size - sizeof(record->size)) + 1;
 
     if(record->key_len == record->size - sizeof(record->size) + 1) {
-        core_log("flash_storage might be corrupted: invalid key length at address %08x\n",
-                 record->raw_record);
+        // core_log("flash_storage might be corrupted: invalid key length at address %08x\n",
+        //          record->raw_record);
         if(fatal)
             *fatal = 1;
         return 0;
@@ -265,7 +264,7 @@ int fs_write(const char *key, const void *buffer, unsigned int buf_len)
         return 0; // Storage is definitely full.
 
 fatal_error:
-    core_log("fatal error: flash storage might be corrupted\n");
+    // core_log("fatal error: flash storage might be corrupted\n");
     return 0;
 }
 
@@ -295,8 +294,8 @@ unsigned int fs_read(const char *key, void *buffer, unsigned int buf_len, unsign
         }
     }
 
-    if(fatal)
-        core_log("fatal error: flash storage might be corrupted\n");
+    // if(fatal)
+    //     core_log("fatal error: flash storage might be corrupted\n");
 
     return read_length;
 }
