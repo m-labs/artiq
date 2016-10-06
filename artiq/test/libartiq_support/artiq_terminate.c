@@ -17,7 +17,7 @@ void __artiq_terminate(struct artiq_exception *exn,
          exn->file, exn->line, exn->column + 1);
 
   for(size_t i = 0; i < backtrace_size; i++) {
-    printf("at %p\n", backtrace[i]);
+    printf("at %"PRIxPTR"\n", backtrace[i]);
   }
 
   exit(1);
