@@ -91,3 +91,25 @@ class TestSatellite(unittest.TestCase):
                 self.assertEqual(trailer, [])
                 completed = True
             run_simulation(dut, [send(), pr.receive(receive)])
+
+    def test_set_time(self):
+        for nwords in range(1, 8):
+            dut = RTPacketSatellite(nwords)
+            pt = PacketInterface("m2s", dut.rx_rt_frame, dut.rx_rt_data)
+            tx_times = [0x12345678aabbccdd, 0x0102030405060708,
+                        0xaabbccddeeff1122]
+            def send():
+                for t in tx_times:
+                    yield from pt.send("set_time", timestamp=t)
+                # flush
+                for i in range(10):
+                    yield
+            rx_times = []
+            @passive
+            def receive():
+                while True:
+                    if (yield dut.tsc_load):
+                        rx_times.append((yield dut.tsc_value))
+                    yield
+            run_simulation(dut, [send(), receive()], vcd_name="foo.vcd")
+            self.assertEqual(tx_times, rx_times)
