@@ -18,7 +18,7 @@
 
 #define KERNELCPU_EXEC_ADDRESS    0x40400000
 #define KERNELCPU_PAYLOAD_ADDRESS 0x40420000
-#define KERNELCPU_LAST_ADDRESS    (0x4fffffff - 1024*1024)
+#define KERNELCPU_LAST_ADDRESS    0x4fffffff
 #define KSUPPORT_HEADER_SIZE      0x80
 
 double round(double x);
