@@ -33,11 +33,11 @@ class DACSetup(EnvExperiment):
 
     @kernel
     def run(self):
-        self.core.reset()
+        self.core.break_realtime()
         self.ad9154.jesd_enable(0)
+        self.ad9154.jesd_prbs(0)
         self.ad9154.init()
         self.dac_setup()
-        self.ad9154.jesd_prbs(0)
         self.busywait_us(200000)
         self.ad9154.jesd_enable(1)
         while not self.ad9154.jesd_ready():
@@ -60,7 +60,7 @@ class DACSetup(EnvExperiment):
         self.busywait_us(100)
         if ((self.ad9154.dac_read(AD9154_PRODIDH) << 8) |
                 self.ad9154.dac_read(AD9154_PRODIDL) != 0x9154):
-            return
+            raise ValueError("AD9154 not found")
 
         self.ad9154.dac_write(AD9154_PWRCNTRL0,
                 AD9154_PD_DAC0_SET(0) | AD9154_PD_DAC1_SET(0) |
@@ -79,13 +79,6 @@ class DACSetup(EnvExperiment):
         self.ad9154.dac_write(AD9154_SYSREF_ACTRL0, # jesd204b subclass 1
                 AD9154_HYS_CNTRL1_SET(0) | AD9154_SYSREF_RISE_SET(0) |
                 AD9154_HYS_ON_SET(0) | AD9154_PD_SYSREF_BUFFER_SET(0))
-
-        self.ad9154.dac_write(AD9154_IRQEN_STATUSMODE0,
-                AD9154_IRQEN_SMODE_LANEFIFOERR_SET(1) |
-                AD9154_IRQEN_SMODE_SERPLLLOCK_SET(1) |
-                AD9154_IRQEN_SMODE_SERPLLLOST_SET(1) |
-                AD9154_IRQEN_SMODE_DACPLLLOCK_SET(1) |
-                AD9154_IRQEN_SMODE_DACPLLLOST_SET(1))
 
         self.ad9154.dac_write(AD9154_DEVICE_CONFIG_REG_0, 0x8b) # magic
         self.ad9154.dac_write(AD9154_DEVICE_CONFIG_REG_1, 0x01) # magic
@@ -258,14 +251,21 @@ class DACSetup(EnvExperiment):
         self.ad9154.dac_write(AD9154_LMFC_VAR_1, 0x0a)
         self.ad9154.dac_write(AD9154_SYNC_ERRWINDOW, 0) # +- 1/2 DAC clock
         self.ad9154.dac_write(AD9154_SYNC_CONTROL,
-                AD9154_SYNCMODE_SET(1) | AD9154_SYNCENABLE_SET(0) |
-                AD9154_SYNCARM_SET(0))
+                AD9154_SYNCMODE_SET(0x9) | AD9154_SYNCENABLE_SET(0) |
+                AD9154_SYNCARM_SET(0) | AD9154_SYNCCLRSTKY_SET(1) |
+                AD9154_SYNCCLRLAST_SET(1))
         self.ad9154.dac_write(AD9154_SYNC_CONTROL,
-                AD9154_SYNCMODE_SET(1) | AD9154_SYNCENABLE_SET(1) |
-                AD9154_SYNCARM_SET(0))
+                AD9154_SYNCMODE_SET(0x9) | AD9154_SYNCENABLE_SET(1) |
+                AD9154_SYNCARM_SET(0) | AD9154_SYNCCLRSTKY_SET(1) |
+                AD9154_SYNCCLRLAST_SET(1))
         self.ad9154.dac_write(AD9154_SYNC_CONTROL,
-                AD9154_SYNCMODE_SET(1) | AD9154_SYNCENABLE_SET(1) |
-                AD9154_SYNCARM_SET(1))
+                AD9154_SYNCMODE_SET(0x9) | AD9154_SYNCENABLE_SET(1) |
+                AD9154_SYNCARM_SET(1) | AD9154_SYNCCLRSTKY_SET(0) |
+                AD9154_SYNCCLRLAST_SET(0))
+        self.busywait_us(1000)  # ensure at leas one sysref edge
+        if not AD9154_SYNC_LOCK_GET(self.ad9154.dac_read(AD9154_SYNC_STATUS)):
+            pass
+        #    raise ValueError("no sync lock")
         self.ad9154.dac_write(AD9154_XBAR_LN_0_1,
                 AD9154_LOGICAL_LANE0_SRC_SET(7) | AD9154_LOGICAL_LANE1_SRC_SET(6))
         self.ad9154.dac_write(AD9154_XBAR_LN_2_3,
@@ -278,3 +278,46 @@ class DACSetup(EnvExperiment):
         self.ad9154.dac_write(AD9154_GENERAL_JRX_CTRL_0,
                 AD9154_LINK_EN_SET(0x1) | AD9154_LINK_PAGE_SET(0) |
                 AD9154_LINK_MODE_SET(0) | AD9154_CHECKSUM_MODE_SET(0))
+
+        self.busywait_us(1000)
+
+        self.ad9154.dac_write(AD9154_IRQ_STATUS0, 0x00)
+        self.ad9154.dac_write(AD9154_IRQ_STATUS1, 0x00)
+        self.ad9154.dac_write(AD9154_IRQ_STATUS2, 0x00)
+        self.ad9154.dac_write(AD9154_IRQ_STATUS3, 0x00)
+
+        self.ad9154.dac_write(AD9154_IRQEN_STATUSMODE0,
+                AD9154_IRQEN_SMODE_LANEFIFOERR_SET(1) |
+                AD9154_IRQEN_SMODE_SERPLLLOCK_SET(1) |
+                AD9154_IRQEN_SMODE_SERPLLLOST_SET(1) |
+                AD9154_IRQEN_SMODE_DACPLLLOCK_SET(1) |
+                AD9154_IRQEN_SMODE_DACPLLLOST_SET(1))
+
+        self.ad9154.dac_write(AD9154_IRQEN_STATUSMODE1,
+                AD9154_IRQEN_SMODE_PRBS0_SET(1) |
+                AD9154_IRQEN_SMODE_PRBS1_SET(1) |
+                AD9154_IRQEN_SMODE_PRBS2_SET(1) |
+                AD9154_IRQEN_SMODE_PRBS3_SET(1))
+
+        self.ad9154.dac_write(AD9154_IRQEN_STATUSMODE2,
+                AD9154_IRQEN_SMODE_SYNC_TRIP0_SET(1) |
+                AD9154_IRQEN_SMODE_SYNC_WLIM0_SET(1) |
+                AD9154_IRQEN_SMODE_SYNC_ROTATE0_SET(1) |
+                AD9154_IRQEN_SMODE_SYNC_LOCK0_SET(1) |
+                AD9154_IRQEN_SMODE_NCO_ALIGN0_SET(1) |
+                AD9154_IRQEN_SMODE_BLNKDONE0_SET(1) |
+                AD9154_IRQEN_SMODE_PDPERR0_SET(1))
+
+        self.ad9154.dac_write(AD9154_IRQEN_STATUSMODE3,
+                AD9154_IRQEN_SMODE_SYNC_TRIP1_SET(1) |
+                AD9154_IRQEN_SMODE_SYNC_WLIM1_SET(1) |
+                AD9154_IRQEN_SMODE_SYNC_ROTATE1_SET(1) |
+                AD9154_IRQEN_SMODE_SYNC_LOCK1_SET(1) |
+                AD9154_IRQEN_SMODE_NCO_ALIGN1_SET(1) |
+                AD9154_IRQEN_SMODE_BLNKDONE1_SET(1) |
+                AD9154_IRQEN_SMODE_PDPERR1_SET(1))
+
+        self.ad9154.dac_write(AD9154_IRQ_STATUS0, 0x00)
+        self.ad9154.dac_write(AD9154_IRQ_STATUS1, 0x00)
+        self.ad9154.dac_write(AD9154_IRQ_STATUS2, 0x00)
+        self.ad9154.dac_write(AD9154_IRQ_STATUS3, 0x00)
