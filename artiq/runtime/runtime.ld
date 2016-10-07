@@ -80,5 +80,6 @@ SECTIONS
     /DISCARD/ :
     {
         *(.eh_frame)
+        *(.gcc_except_table)
     }
 }
