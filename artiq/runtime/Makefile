@@ -3,7 +3,7 @@ include $(MISOC_DIRECTORY)/software/common.mak
 
 PYTHON ?= python3.5
 
-OBJECTS := isr.o flash_storage.o ksupport_data.o main.o
+OBJECTS := flash_storage.o ksupport_data.o main.o
 OBJECTS_KSUPPORT := ksupport.o artiq_personality.o mailbox.o \
 	rtio.o dds.o i2c.o
 

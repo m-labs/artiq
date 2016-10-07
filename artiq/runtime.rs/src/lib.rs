@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(libc, const_fn, try_borrow, stmt_expr_attributes, repr_simd)]
+#![feature(libc, const_fn, try_borrow, stmt_expr_attributes, repr_simd, asm)]
 
 #[macro_use]
 extern crate std_artiq as std;
@@ -68,6 +68,17 @@ pub unsafe extern fn rust_main() {
             lwip_service();
         }
     })
+}
+
+#[no_mangle]
+pub unsafe extern fn isr() {
+    use board::{irq, csr};
+    extern { fn uart_isr(); }
+
+    let irqs = irq::pending() & irq::get_mask();
+    if irqs & (1 << csr::UART_INTERRUPT) != 0 {
+        uart_isr()
+    }
 }
 
 #[no_mangle]
