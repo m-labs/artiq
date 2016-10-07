@@ -1,4 +1,4 @@
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 use board::{self, csr};
 use sched::{Waiter, Spawner};
 use sched::{TcpListener, TcpStream, SocketAddr, IP_ANY};
@@ -68,19 +68,6 @@ fn worker(mut stream: TcpStream) -> io::Result<()> {
     Ok(())
 }
 
-// TODO: remove this, it's pointless in analyzer
-fn check_magic(stream: &mut TcpStream) -> io::Result<()> {
-    const MAGIC: &'static [u8] = b"ARTIQ coredev\n";
-
-    let mut magic: [u8; 14] = [0; 14];
-    try!(stream.read_exact(&mut magic));
-    if magic != MAGIC {
-        Err(io::Error::new(io::ErrorKind::InvalidData, "unrecognized magic"))
-    } else {
-        Ok(())
-    }
-}
-
 pub fn thread(waiter: Waiter, _spawner: Spawner) {
     // verify that the hack above works
     assert!(::core::mem::align_of::<Buffer>() == 64);
@@ -92,11 +79,7 @@ pub fn thread(waiter: Waiter, _spawner: Spawner) {
     loop {
         arm();
 
-        let (mut stream, addr) = listener.accept().expect("cannot accept client");
-        match check_magic(&mut stream) {
-            Ok(()) => (),
-            Err(_) => continue
-        }
+        let (stream, addr) = listener.accept().expect("cannot accept client");
         info!("connection from {}", addr);
 
         disarm();
