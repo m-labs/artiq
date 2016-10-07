@@ -26,7 +26,7 @@ class StartupKernel(EnvExperiment):
                 AD9516_LONG_INSTRUCTION | AD9516_LONG_INSTRUCTION_MIRRORED |
                 AD9516_SDO_ACTIVE | AD9516_SDO_ACTIVE_MIRRORED)
         if self.ad9154.clock_read(AD9516_PART_ID) != 0x41:
-            return
+            raise ValueError("AD9516 not found")
 
         # use clk input, dclk=clk/4
         self.ad9154.clock_write(AD9516_PFD_AND_CHARGE_PUMP, 1*AD9516_PLL_POWER_DOWN |
