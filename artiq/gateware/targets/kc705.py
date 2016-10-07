@@ -392,8 +392,6 @@ class NIST_QC2(_NIST_Ions):
 
 class _PhaserCRG(Module, AutoCSR):
     def __init__(self, platform, rtio_internal_clk):
-        rtio_internal_clk = ClockSignal("sys4x")
-
         self._clock_sel = CSRStorage()
         self._pll_reset = CSRStorage(reset=1)
         self._pll_locked = CSRStatus()
@@ -401,7 +399,7 @@ class _PhaserCRG(Module, AutoCSR):
         self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
 
         refclk_pads = platform.request("ad9154_refclk")
-        platform.add_period_constraint(refclk_pads.p, 2.)
+        platform.add_period_constraint(refclk_pads.p, 5.)
         self.refclk = Signal()
         self.clock_domains.cd_refclk = ClockDomain()
         self.specials += [
@@ -419,12 +417,12 @@ class _PhaserCRG(Module, AutoCSR):
 
                      p_REF_JITTER1=0.01, p_REF_JITTER2=0.01,
                      p_CLKIN1_PERIOD=2.0, p_CLKIN2_PERIOD=2.0,
-                     i_CLKIN1=rtio_internal_clk, i_CLKIN2=self.cd_refclk.clk,
+                     i_CLKIN1=rtio_internal_clk, i_CLKIN2=self.refclk,
                      # Warning: CLKINSEL=0 means CLKIN2 is selected
                      i_CLKINSEL=~self._clock_sel.storage,
 
-                     # VCO @ 1GHz when using 500MHz input
-                     p_CLKFBOUT_MULT=8, p_DIVCLK_DIVIDE=4,
+                     # VCO @ 1GHz when using 125MHz input
+                     p_CLKFBOUT_MULT=8, p_DIVCLK_DIVIDE=1,
                      i_CLKFBIN=self.cd_rtio.clk,
                      i_RST=self._pll_reset.storage,
 
