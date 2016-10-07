@@ -416,8 +416,8 @@ class _PhaserCRG(Module, AutoCSR):
                      p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
 
                      p_REF_JITTER1=0.01, p_REF_JITTER2=0.01,
-                     p_CLKIN1_PERIOD=2.0, p_CLKIN2_PERIOD=2.0,
-                     i_CLKIN1=rtio_internal_clk, i_CLKIN2=self.refclk,
+                     p_CLKIN1_PERIOD=5.0, p_CLKIN2_PERIOD=5.0,
+                     i_CLKIN1=rtio_internal_clk, i_CLKIN2=self.cd_refclk.clk,
                      # Warning: CLKINSEL=0 means CLKIN2 is selected
                      i_CLKINSEL=~self._clock_sel.storage,
 
