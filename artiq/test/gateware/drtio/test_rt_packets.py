@@ -48,7 +48,27 @@ class PacketInterface:
             if frame:
                 frame_words.append((yield self.data))
             if previous_frame and not frame:
-                callback(frame_words)
+                packet_type = self.plm.type_names[frame_words[0] & 0xff]
+                packet_nwords = layout_len(self.plm.layouts[packet_type]) \
+                                //len(self.data)
+                packet, trailer = frame_words[:packet_nwords], \
+                                  frame_words[packet_nwords:]
+
+                n = 0
+                packet_int = 0
+                for w in packet:
+                    packet_int |= (w << n)
+                    n += len(self.data)
+
+                field_dict = dict()
+                idx = 0
+                for field_name, field_size in self.plm.layouts[packet_type]:
+                    v = (packet_int >> idx) & (2**field_size - 1)
+                    field_dict[field_name] = v
+                    idx += field_size
+
+                callback(packet_type, field_dict, trailer)
+
                 frame_words = []
             previous_frame = frame
             yield
@@ -56,12 +76,18 @@ class PacketInterface:
 
 class TestSatellite(unittest.TestCase):
     def test_echo(self):
-        nwords = 4
-        dut = RTPacketSatellite(nwords)
-        pt = PacketInterface("m2s", dut.rx_rt_frame, dut.rx_rt_data)
-        pr = PacketInterface("s2m", dut.tx_rt_frame, dut.tx_rt_data)
-        def send():
-            yield from pt.send("echo_request")
-            for i in range(40):
-                yield
-        run_simulation(dut, [send(), pr.receive(print)])
+        for nwords in range(1, 8):
+            dut = RTPacketSatellite(nwords)
+            pt = PacketInterface("m2s", dut.rx_rt_frame, dut.rx_rt_data)
+            pr = PacketInterface("s2m", dut.tx_rt_frame, dut.tx_rt_data)
+            completed = False
+            def send():
+                yield from pt.send("echo_request")
+                while not completed:
+                    yield
+            def receive(packet_type, field_dict, trailer):
+                nonlocal completed
+                self.assertEqual(packet_type, "echo_reply")
+                self.assertEqual(trailer, [])
+                completed = True
+            run_simulation(dut, [send(), pr.receive(receive)])
