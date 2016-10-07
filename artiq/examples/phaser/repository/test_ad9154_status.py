@@ -80,6 +80,11 @@ class Test(EnvExperiment):
         self.p("GOODCHECKSUM: 0x%02x", self.ad9154.dac_read(AD9154_GOODCHKSUMFLG))
         self.p("INITIALLANESYNC: 0x%02x", self.ad9154.dac_read(AD9154_INITLANESYNCFLG))
 
+        x = self.ad9154.dac_read(AD9154_SYNC_CURRERR_H)
+        self.p("SYNC_CURRERR: 0x%04x", self.ad9154.dac_read(AD9154_SYNC_CURRERR_L) |
+                    (AD9154_CURRERROR_H_GET(x) << 8))
+        self.p("SYNC_CURROVER: %d, SYNC_CURRUNDER: %d",
+                AD9154_CURROVER_GET(x), AD9154_CURRUNDER_GET(x))
         x = self.ad9154.dac_read(AD9154_SYNC_LASTERR_H)
         self.p("SYNC_LASTERR: 0x%04x", self.ad9154.dac_read(AD9154_SYNC_LASTERR_L) |
                     (AD9154_LASTERROR_H_GET(x) << 8))
@@ -124,3 +129,7 @@ class Test(EnvExperiment):
         self.p("BADDISPARITY: 0x%02x", self.ad9154.dac_read(AD9154_BADDISPARITY))
         self.p("NITDISPARITY: 0x%02x", self.ad9154.dac_read(AD9154_NIT_W))
         self.p("UNEXPECTEDCONTROL: 0x%02x", self.ad9154.dac_read(AD9154_UNEXPECTEDCONTROL_W))
+        self.p("DYN_LINK_LATENCY_0: 0x%02x",
+               self.ad9154.dac_read(AD9154_DYN_LINK_LATENCY_0))
+        self.p("DYN_LINK_LATENCY_1: 0x%02x",
+               self.ad9154.dac_read(AD9154_DYN_LINK_LATENCY_1))
