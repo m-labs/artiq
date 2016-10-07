@@ -49,7 +49,7 @@ class StartupKernel(EnvExperiment):
 
         # FPGA deviceclk, dclk/4
         self.ad9154.clock_write(AD9516_DIVIDER_4_3, AD9516_DIVIDER_4_BYPASS_2)
-        self.ad9154.clock_write(AD9516_DIVIDER_0_0,
+        self.ad9154.clock_write(AD9516_DIVIDER_4_0,
             (4//2-1)*AD9516_DIVIDER_0_HIGH_CYCLES |
             (4//2-1)*AD9516_DIVIDER_0_LOW_CYCLES)
         self.ad9154.clock_write(AD9516_DIVIDER_4_4, 1*AD9516_DIVIDER_4_DCCOFF)
