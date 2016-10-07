@@ -1,3 +1,5 @@
+from math import ceil
+
 from artiq.experiment import *
 from artiq.coredevice.ad9516_reg import *
 
@@ -47,9 +49,11 @@ class StartupKernel(EnvExperiment):
         self.ad9154.clock_write(AD9516_OUT1, 0*AD9516_OUT1_POWER_DOWN |
                 2*AD9516_OUT1_LVPECLDIFFERENTIAL_VOLTAGE)
 
-        # FPGA deviceclk, dclk/1
-        self.ad9154.clock_write(AD9516_DIVIDER_4_3, AD9516_DIVIDER_4_BYPASS_1 |
-                AD9516_DIVIDER_4_BYPASS_2)
+        # FPGA deviceclk, dclk/4
+        self.ad9154.clock_write(AD9516_DIVIDER_4_3, AD9516_DIVIDER_4_BYPASS_2)
+        self.ad9154.clock_write(AD9516_DIVIDER_0_0,
+            (ceil(4/2)-1)*AD9516_DIVIDER_0_HIGH_CYCLES |
+            (4//2-1)*AD9516_DIVIDER_0_LOW_CYCLES)
         self.ad9154.clock_write(AD9516_DIVIDER_4_4, 1*AD9516_DIVIDER_4_DCCOFF)
         self.ad9154.clock_write(AD9516_OUT9, 1*AD9516_OUT9_LVDS_OUTPUT_CURRENT |
                 2*AD9516_OUT9_LVDS_CMOS_OUTPUT_POLARITY |

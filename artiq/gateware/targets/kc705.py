@@ -460,7 +460,7 @@ class AD9154(Module, AutoCSR):
         ts = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
         jesd_settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
         jesd_linerate = 5e9
-        jesd_refclk_freq = 500e6
+        jesd_refclk_freq = 125e6
         rtio_freq = 125*1000*1000
         jesd_phys = [JESD204BPhyTX(
             rtio_crg.refclk, jesd_refclk_freq,
