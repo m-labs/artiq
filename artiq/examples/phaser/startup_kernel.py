@@ -52,7 +52,7 @@ class StartupKernel(EnvExperiment):
         self.ad9154.clock_write(AD9516_DIVIDER_4_0,
             (4//2-1)*AD9516_DIVIDER_0_HIGH_CYCLES |
             (4//2-1)*AD9516_DIVIDER_0_LOW_CYCLES)
-        self.ad9154.clock_write(AD9516_DIVIDER_4_4, 1*AD9516_DIVIDER_4_DCCOFF)
+        self.ad9154.clock_write(AD9516_DIVIDER_4_4, 0*AD9516_DIVIDER_4_DCCOFF)
         self.ad9154.clock_write(AD9516_OUT9, 1*AD9516_OUT9_LVDS_OUTPUT_CURRENT |
                 2*AD9516_OUT9_LVDS_CMOS_OUTPUT_POLARITY |
                 0*AD9516_OUT9_SELECT_LVDS_CMOS)
@@ -66,7 +66,7 @@ class StartupKernel(EnvExperiment):
                 (2//2-1)*AD9516_DIVIDER_3_LOW_CYCLES_2)
         self.ad9154.clock_write(AD9516_DIVIDER_3_3, 0*AD9516_DIVIDER_3_NOSYNC |
                 0*AD9516_DIVIDER_3_BYPASS_1 | 0*AD9516_DIVIDER_3_BYPASS_2)
-        self.ad9154.clock_write(AD9516_DIVIDER_3_4, 1*AD9516_DIVIDER_3_DCCOFF)
+        self.ad9154.clock_write(AD9516_DIVIDER_3_4, 0*AD9516_DIVIDER_3_DCCOFF)
         self.ad9154.clock_write(AD9516_OUT6, 1*AD9516_OUT6_LVDS_OUTPUT_CURRENT |
                 2*AD9516_OUT6_LVDS_CMOS_OUTPUT_POLARITY |
                 0*AD9516_OUT6_SELECT_LVDS_CMOS)
