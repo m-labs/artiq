@@ -48,8 +48,12 @@ def get_s2m_layouts(alignment):
 
 
 error_codes = {
-    "frame_missed": 0,
-    "unknown_type": 1
+    "unknown_type": 0,
+    # The transmitter is normally responsible for avoiding
+    # overflows and underflows. Those error reports are only
+    # for diagnosing internal ARTIQ bugs.
+    "write_overflow": 1,
+    "write_underflow": 2
 }
 
 
@@ -181,6 +185,21 @@ class RTPacketSatellite(Module):
         # I/O Timer interface
         self.tsc_load = Signal()
         self.tsc_value = Signal(64)
+        
+        self.fifo_level_channel = Signal(16)
+        self.fifo_level_update = Signal()
+        self.fifo_level = Signal(24)
+        
+        self.write_stb = Signal()
+        self.write_timestamp = Signal(64)
+        self.write_channel = Signal(16)
+        self.write_address = Signal(16)
+        self.write_data = Signal(256)
+        self.write_overflow = Signal()
+        self.write_overflow_ack = Signal()
+        self.write_underflow = Signal()
+        self.write_underflow_ack = Signal()
+
 
         # # #
 
@@ -200,55 +219,108 @@ class RTPacketSatellite(Module):
             self.tx_rt_data.eq(tx_dp.data)
         ]
 
-        # glue
-        self.comb += [
-            self.tsc_value.eq(rx_dp.packet_as["set_time"].timestamp)
-        ]
-
-        # main control FSM
-        fsm = FSM(reset_state="WAIT_INPUT")
-        self.submodules += fsm
-
-        continuation = Signal()
-        continuation_r = Signal()
-        frame_r_r = Signal()
+        # RX->TX
+        echo_req = Signal()
+        err_set = Signal()
+        err_req = Signal()
+        err_ack = Signal()
+        fifo_level_set = Signal()
+        fifo_level_req = Signal()
+        fifo_level_ack = Signal()
         self.sync += [
-            continuation_r.eq(continuation),
-            frame_r_r.eq(rx_dp.frame_r)
+            If(err_ack, err_req.eq(0)),
+            If(err_set, err_req.eq(1)),
+            If(fifo_level_ack, fifo_level_req.eq(0)),
+            If(fifo_level_set, fifo_level_req.eq(1)),
         ]
-        fsm.act("WAIT_INPUT",
+        err_code = Signal(max=len(error_codes)+1)
+
+        # RX FSM
+        self.comb += [
+            self.tsc_value.eq(
+                rx_dp.packet_as["set_time"].timestamp),
+            self.fifo_level_channel.eq(
+                rx_dp.packet_as["fifo_level_request"].channel),
+            self.write_timestamp.eq(
+                rx_dp.packet_as["write"].timestamp),
+            self.write_channel.eq(
+                rx_dp.packet_as["write"].channel),
+            self.write_address.eq(
+                rx_dp.packet_as["write"].address),
+            self.write_data.eq(
+                rx_dp.packet_as["write"].short_data)
+        ]
+
+        rx_fsm = FSM(reset_state="INPUT")
+        self.submodules += rx_fsm
+
+        rx_fsm.act("INPUT",
             If(rx_dp.frame_r,
-                If(~frame_r_r | continuation_r,
-                    continuation.eq(1),
-                    rx_dp.packet_buffer_load.eq(1),
-                    If(rx_dp.packet_last,
-                        Case(rx_dp.packet_type, {
-                            rx_plm.types["echo_request"]: NextState("ECHO"),
-                            rx_plm.types["set_time"]: NextState("SET_TIME"),
-                            "default": NextState("ERROR_UNKNOWN_TYPE")
-                        })
-                    )
-                ).Else(
-                    NextState("ERROR_FRAME_MISSED")
+                rx_dp.packet_buffer_load.eq(1),
+                If(rx_dp.packet_last,
+                    Case(rx_dp.packet_type, {
+                        rx_plm.types["echo_request"]: echo_req.eq(1),
+                        rx_plm.types["set_time"]: NextState("SET_TIME"),
+                        rx_plm.types["write"]: NextState("WRITE"),
+                        rx_plm.types["fifo_level_request"]: NextState("FIFO_LEVEL"),
+                        "default": [
+                            err_set.eq(1),
+                            NextValue(err_code, error_codes["unknown_type"])]
+                    })
                 )
             )
         )
-        fsm.act("ECHO",
+        rx_fsm.act("SET_TIME",
+            self.tsc_load.eq(1),
+            NextState("INPUT")
+        )
+        rx_fsm.act("WRITE",
+            self.write_stb.eq(1),
+            NextState("INPUT")
+        )
+        rx_fsm.act("FIFO_LEVEL",
+            fifo_level_set.eq(1),
+            self.fifo_level_update.eq(1),
+            NextState("INPUT")
+        )
+
+        # TX FSM
+        tx_fsm = FSM(reset_state="IDLE")
+        self.submodules += tx_fsm
+
+        tx_fsm.act("IDLE",
+            If(echo_req, NextState("ECHO")),
+            If(fifo_level_req, NextState("FIFO_LEVEL")),
+            If(self.write_overflow, NextState("ERROR_WRITE_OVERFLOW")),
+            If(self.write_underflow, NextState("ERROR_WRITE_UNDERFLOW")),
+            If(err_req, NextState("ERROR"))
+        )
+        tx_fsm.act("ECHO",
             tx_dp.send("echo_reply"),
             tx_dp.stb.eq(1),
-            If(tx_dp.done, NextState("WAIT_INPUT"))
+            If(tx_dp.done, NextState("IDLE"))
         )
-        fsm.act("SET_TIME",
-            self.tsc_load.eq(1),
-            NextState("WAIT_INPUT")
-        )
-        fsm.act("ERROR_FRAME_MISSED",
-            tx_dp.send("error", code=error_codes["frame_missed"]),
+        tx_fsm.act("FIFO_LEVEL",
+            fifo_level_ack.eq(1),
+            tx_dp.send("fifo_level_reply", level=self.fifo_level),
             tx_dp.stb.eq(1),
-            If(tx_dp.done, NextState("WAIT_INPUT"))
+            If(tx_dp.done, NextState("IDLE"))
         )
-        fsm.act("ERROR_UNKNOWN_TYPE",
-            tx_dp.send("error", code=error_codes["unknown_type"]),
+        tx_fsm.act("ERROR_WRITE_OVERFLOW",
+            self.write_overflow_ack.eq(1),
+            tx_dp.send("error", code=error_codes["write_overflow"]),
             tx_dp.stb.eq(1),
-            If(tx_dp.done, NextState("WAIT_INPUT"))
+            If(tx_dp.done, NextState("IDLE"))
+        )
+        tx_fsm.act("ERROR_WRITE_UNDERFLOW",
+            self.write_underflow_ack.eq(1),
+            tx_dp.send("error", code=error_codes["write_underflow"]),
+            tx_dp.stb.eq(1),
+            If(tx_dp.done, NextState("IDLE"))
+        )
+        tx_fsm.act("ERROR",
+            err_ack.eq(1),
+            tx_dp.send("error", code=err_code),
+            tx_dp.stb.eq(1),
+            If(tx_dp.done, NextState("IDLE"))
         )
