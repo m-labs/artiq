@@ -10,12 +10,15 @@ class Test(EnvExperiment):
         self.setattr_device("ad9154")
 
     def run(self):
-        self.prbs(2, 100)  # prbs31
+        for i in range(3):  # prbs7, prbs15, prbs31
+            self.prbs(i, 100)
 
     def p(self, f, *a):
         print(f % a)
 
-    def prbs(self, p, t):
+    def prbs(self, p, t, inject_errors=0):
+        self.ad9154.jesd_prbs((1 << p) | (inject_errors << 3))
+
         self.ad9154.dac_write(AD9154_PHY_PRBS_TEST_CTRL,
                 AD9154_PHY_PRBS_PAT_SEL_SET(p))
         self.ad9154.dac_write(AD9154_PHY_PRBS_TEST_EN, 0xff)
