@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 
 from migen import *
 
@@ -6,15 +7,15 @@ from artiq.gateware.drtio.rt_packets import *
 
 
 class PacketInterface:
-    def __init__(self, direction, frame, data):
+    def __init__(self, direction, ws):
         if direction == "m2s":
-            self.plm = get_m2s_layouts(len(data))
+            self.plm = get_m2s_layouts(ws)
         elif direction == "s2m":
-            self.plm = get_s2m_layouts(len(data))
+            self.plm = get_s2m_layouts(ws)
         else:
             raise ValueError
-        self.frame = frame
-        self.data = data
+        self.frame = Signal()
+        self.data = Signal(ws)
 
     def send(self, ty, **kwargs):
         idx = 8
@@ -75,11 +76,17 @@ class PacketInterface:
 
 
 class TestSatellite(unittest.TestCase):
+    def create_dut(self, nwords):
+        pt = PacketInterface("m2s", nwords*8)
+        pr = PacketInterface("s2m", nwords*8)
+        dut = RTPacketSatellite(SimpleNamespace(
+            rx_rt_frame=pt.frame, rx_rt_data=pt.data,
+            tx_rt_frame=pr.frame, tx_rt_data=pr.data))
+        return pt, pr, dut
+
     def test_echo(self):
         for nwords in range(1, 8):
-            dut = RTPacketSatellite(nwords)
-            pt = PacketInterface("m2s", dut.rx_rt_frame, dut.rx_rt_data)
-            pr = PacketInterface("s2m", dut.tx_rt_frame, dut.tx_rt_data)
+            pt, pr, dut = self.create_dut(nwords)
             completed = False
             def send():
                 yield from pt.send("echo_request")
@@ -94,8 +101,7 @@ class TestSatellite(unittest.TestCase):
 
     def test_set_time(self):
         for nwords in range(1, 8):
-            dut = RTPacketSatellite(nwords)
-            pt = PacketInterface("m2s", dut.rx_rt_frame, dut.rx_rt_data)
+            pt, _, dut = self.create_dut(nwords)
             tx_times = [0x12345678aabbccdd, 0x0102030405060708,
                         0xaabbccddeeff1122]
             def send():
@@ -111,5 +117,5 @@ class TestSatellite(unittest.TestCase):
                     if (yield dut.tsc_load):
                         rx_times.append((yield dut.tsc_value))
                     yield
-            run_simulation(dut, [send(), receive()], vcd_name="foo.vcd")
+            run_simulation(dut, [send(), receive()])
             self.assertEqual(tx_times, rx_times)
