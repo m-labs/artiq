@@ -14,6 +14,7 @@ from migen.genlib.io import DifferentialInput
 from jesd204b.common import (JESD204BTransportSettings,
                             JESD204BPhysicalSettings,
                             JESD204BSettings)
+from jesd204b.phy.gtx import GTXQuadPLL
 from jesd204b.phy import JESD204BPhyTX
 from jesd204b.core import JESD204BCoreTX
 from jesd204b.core import JESD204BCoreTXControl
@@ -460,11 +461,12 @@ class AD9154(Module, AutoCSR):
         jesd_linerate = 5e9
         jesd_refclk_freq = 125e6
         rtio_freq = 125*1000*1000
+        jesd_qpll = GTXQuadPLL(
+            rtio_crg.refclk, jesd_refclk_freq, jesd_linerate)
         jesd_phys = [JESD204BPhyTX(
-            rtio_crg.refclk, jesd_refclk_freq,
-            platform.request("ad9154_jesd", i),
-            jesd_linerate, rtio_freq, i) for i in range(4)]
-        self.submodules += jesd_phys
+            jesd_qpll, platform.request("ad9154_jesd", i),
+            rtio_freq, i) for i in range(4)]
+        self.submodules += jesd_qpll, jesd_phys
         for jesd_phy in jesd_phys:
             platform.add_period_constraint(
                 jesd_phy.gtx.cd_tx.clk,
