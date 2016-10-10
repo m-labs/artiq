@@ -149,8 +149,10 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.register_kernel_cpu_csrdevice("i2c")
         self.config["I2C_BUS_COUNT"] = 1
 
-    def add_rtio(self, rtio_channels, crg=_RTIOCRG):
-        self.submodules.rtio_crg = crg(self.platform, self.crg.cd_sys.clk)
+    def add_rtio(self, rtio_channels, rtio_crg=None):
+        if rtio_crg is None:
+            rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
+        self.submodules.rtio_crg = rtio_crg
         self.csr_devices.append("rtio_crg")
         self.submodules.rtio = rtio.RTIO(rtio_channels)
         self.register_kernel_cpu_csrdevice("rtio")
@@ -454,6 +456,7 @@ class AD9154(Module, AutoCSR):
         jesd_sync = Signal()
         self.specials += DifferentialInput(
             sync_pads.p, sync_pads.n, jesd_sync)
+        self.jesd_sync = jesd_sync
 
         ps = JESD204BPhysicalSettings(l=4, m=4, n=16, np=16)
         ts = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
@@ -510,6 +513,12 @@ class Phaser(_NIST_Ions):
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
                                                    ofifo_depth=2))
 
+        jesd_sync = Signal()
+        phy = ttl_simple.Input(jesd_sync)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
+                                                   ofifo_depth=2))
+
         self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
         self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
@@ -522,11 +531,8 @@ class Phaser(_NIST_Ions):
 
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.LogChannel())
-        self.add_rtio(rtio_channels, _PhaserCRG)
+        self.add_rtio(rtio_channels, _PhaserCRG(platform, self.crg.cd_sys.clk))
 
-        # jesd_sysref = Signal()
-        # self.specials += DifferentialInput(
-        #     sysref_pads.p, sysref_pads.n, jesd_sysref)
         to_rtio = ClockDomainsRenamer({"sys": "rtio"})
         self.submodules.ad9154 = to_rtio(AD9154(platform, self.rtio_crg))
         self.register_kernel_cpu_csrdevice("ad9154")
@@ -537,6 +543,7 @@ class Phaser(_NIST_Ions):
                            "converter{}".format(i))
             # while at 5 GBps, take every second sample... FIXME
             self.comb += conv.eq(Cat(ch.o[::2]))
+        self.comb += jesd_sync.eq(self.ad9154.jesd_sync)
 
 
 def main():

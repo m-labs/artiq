@@ -44,28 +44,34 @@
         "class": "TTLInOut",
         "arguments": {"channel": 2}
     },
+    "sync": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLInOut",
+        "arguments": {"channel": 3}
+    },
     "sawg0": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 3, "parallelism": 4}
+        "arguments": {"channel_base": 4, "parallelism": 4}
     },
     "sawg1": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 6, "parallelism": 4}
+        "arguments": {"channel_base": 7, "parallelism": 4}
     },
     "sawg2": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 9, "parallelism": 4}
+        "arguments": {"channel_base": 10, "parallelism": 4}
     },
     "sawg3": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 12, "parallelism": 4}
+        "arguments": {"channel_base": 13, "parallelism": 4}
     }
 }
