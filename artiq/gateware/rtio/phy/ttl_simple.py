@@ -27,6 +27,43 @@ class Output(Module):
         ]
 
 
+class Input(Module):
+    def __init__(self, pad):
+        self.rtlink = rtlink.Interface(
+            rtlink.OInterface(2, 2),
+            rtlink.IInterface(1))
+        self.overrides = []
+        self.probes = []
+
+        # # #
+
+        sensitivity = Signal(2)
+
+        sample = Signal()
+        self.sync.rio += [
+            sample.eq(0),
+            If(self.rtlink.o.stb & self.rtlink.o.address[1],
+                sensitivity.eq(self.rtlink.o.data),
+                If(self.rtlink.o.address[0], sample.eq(1))
+            )
+        ]
+
+        i = Signal()
+        i_d = Signal()
+        self.specials += MultiReg(pad, i, "rio_phy")
+        self.sync.rio_phy += i_d.eq(i)
+        self.comb += [
+            self.rtlink.i.stb.eq(
+                sample |
+                (sensitivity[0] & ( i & ~i_d)) |
+                (sensitivity[1] & (~i &  i_d))
+            ),
+            self.rtlink.i.data.eq(i)
+        ]
+
+        self.probes += [i]
+
+
 class Inout(Module):
     def __init__(self, pad):
         self.rtlink = rtlink.Interface(
