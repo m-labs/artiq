@@ -38,9 +38,15 @@ Please refer to the manual for more details:
 https://m-labs.hk/artiq/manual-release-2/index.html
 
 * Set up a new conda environment and activate it.
-* Checkout the ARTIQ phaser branch: ::
+* Checkout the ARTIQ phaser branch and the JESD204B core: ::
 
+    mkdir ~/src
+    cd ~/src
     git clone --recursive -b phaser https://github.com/m-labs/artiq.git
+    git clone https://github.com/m-labs/jesd204b.git
+    cd jesd204b
+    python setup.py develop
+    cd ../artiq
 
 * Install the standard ARTIQ runtime/install dependencies.
   See ``conda/artiq/meta.yaml`` for a list.
