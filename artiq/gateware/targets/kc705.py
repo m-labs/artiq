@@ -543,6 +543,15 @@ class Phaser(_NIST_Ions):
                            "converter{}".format(i))
             # while at 5 GBps, take every second sample... FIXME
             self.comb += conv.eq(Cat(ch.o[::2]))
+
+        # short transport layer test pattern
+        self.comb += [
+            self.ad9154.jesd_core.transport.sink.converter0.eq(0x01230123),
+            self.ad9154.jesd_core.transport.sink.converter1.eq(0x45674567),
+            self.ad9154.jesd_core.transport.sink.converter2.eq(0x89ab89ab),
+            self.ad9154.jesd_core.transport.sink.converter3.eq(0xcdefcdef)
+        ]
+
         self.comb += jesd_sync.eq(self.ad9154.jesd_sync)
 
 
