@@ -402,7 +402,7 @@ class _PhaserCRG(Module, AutoCSR):
         self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
 
         refclk_pads = platform.request("ad9154_refclk")
-        platform.add_period_constraint(refclk_pads.p, 5.)
+        platform.add_period_constraint(refclk_pads.p, 8.)
         self.refclk = Signal()
         self.clock_domains.cd_refclk = ClockDomain()
         self.specials += [
@@ -419,7 +419,7 @@ class _PhaserCRG(Module, AutoCSR):
                      p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
 
                      p_REF_JITTER1=0.01, p_REF_JITTER2=0.01,
-                     p_CLKIN1_PERIOD=5.0, p_CLKIN2_PERIOD=5.0,
+                     p_CLKIN1_PERIOD=8.0, p_CLKIN2_PERIOD=8.0,
                      i_CLKIN1=rtio_internal_clk, i_CLKIN2=self.cd_refclk.clk,
                      # Warning: CLKINSEL=0 means CLKIN2 is selected
                      i_CLKINSEL=~self._clock_sel.storage,
