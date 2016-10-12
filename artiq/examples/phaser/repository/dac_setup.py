@@ -106,7 +106,7 @@ class DACSetup(EnvExperiment):
         self.ad9154.dac_write(AD9154_DATAPATH_CTRL,
                 AD9154_I_TO_Q_SET(0) | AD9154_SEL_SIDEBAND_SET(0) |
                 AD9154_MODULATION_TYPE_SET(0) | AD9154_PHASE_ADJ_ENABLE_SET(0) |
-                AD9154_DIG_GAIN_ENABLE_SET(0) | AD9154_INVSINC_ENABLE_SET(0))
+                AD9154_DIG_GAIN_ENABLE_SET(1) | AD9154_INVSINC_ENABLE_SET(0))
         self.ad9154.dac_write(AD9154_IDAC_DIG_GAIN0, 0x00)
         self.ad9154.dac_write(AD9154_IDAC_DIG_GAIN1, 0x8)
         self.ad9154.dac_write(AD9154_QDAC_DIG_GAIN0, 0x00)
@@ -181,8 +181,8 @@ class DACSetup(EnvExperiment):
         self.ad9154.dac_write(AD9154_CTRLREG1, jesd_settings.transport.f)
         self.ad9154.dac_write(AD9154_CTRLREG2, AD9154_ILAS_MODE_SET(0) |
                 AD9154_THRESHOLD_MASK_EN_SET(0))
-        self.ad9154.dac_write(AD9154_KVAL, 1) # *4*K multiframes during ILAS
-        self.ad9154.dac_write(AD9154_LANEENABLE, 0x0f)
+        self.ad9154.dac_write(AD9154_KVAL, 1)  # *4*K multiframes during ILAS
+        self.ad9154.dac_write(AD9154_LANEENABLE, 0x0f)  # CGS _after_ this
 
         self.ad9154.dac_write(AD9154_TERM_BLK1_CTRLREG0, 1)
         self.ad9154.dac_write(AD9154_TERM_BLK2_CTRLREG0, 1)

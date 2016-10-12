@@ -748,7 +748,7 @@ def AD9154_GROUPCOMP_BYPI_GET(x: TInt32) -> TInt32:
     return (x >> 1) & 0x1
 
 
-AD9154_MIX_MODE =                       0x047
+AD9154_MIX_MODE =                       0x04a
 
 AD9154_NCOALIGN_MODE =                  0x050
 # default: 0x00, access: R/W
