@@ -40,14 +40,14 @@ https://m-labs.hk/artiq/manual-release-2/index.html
   They are all packaged as conda packages in ``m-labs/main``.
 
 * Install the standard ARTIQ build dependencies.
-  They are all available as conda packages in m-labs/main at least for linux-64:
+  They are all available as conda packages in m-labs/main or m-labs/dev for linux-64:
 
-  - migen 0.4
-  - misoc 0.3
-  - llvm-or1k
+  - migen =0.4
+  - misoc =0.4
+  - llvm-or1k =3.8
   - rust-core-or1k
   - cargo
-  - binutils-or1k-linux
+  - binutils-or1k-linux >=2.27
 
 * Install a recent version of Vivado (tested and developed with 2016.2).
 * Checkout the ARTIQ phaser branch and the JESD204B core: ::
@@ -76,7 +76,7 @@ Setup
 
     python -m artiq.gateware.targets.kc705 -H phaser --toolchain vivado
 
-* Run the following OpenOCD command to flash the ARTIQ transmitter design: ::
+* Run the following OpenOCD command to flash the ARTIQ phaser design: ::
 
     openocd -f board/kc705.cfg -c "init; jtagspi_init 0 bscan_spi_xc7k325t.bit; jtagspi_program misoc_phaser_kc705/gateware/top.bin 0x000000; jtagspi_program misoc_phaser_kc705/software/bios/bios.bin 0xaf0000; jtagspi_program misoc_phaser_kc705/software/runtime/runtime.fbi 0xb00000; xc7_program xc7.tap; exit"
 
