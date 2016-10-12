@@ -27,8 +27,8 @@ class Test(EnvExperiment):
             AD9154_SHORT_TPL_DAC_SEL_SET(i) |
             AD9154_SHORT_TPL_SP_SEL_SET(0))
         # set expected value
-        self.ad9154.dac_write(AD9154_SHORT_TPL_TEST_2, data & 0xff)
-        self.ad9154.dac_write(AD9154_SHORT_TPL_TEST_1, (data & 0xff00) >> 8)
+        self.ad9154.dac_write(AD9154_SHORT_TPL_TEST_1, data & 0xff)
+        self.ad9154.dac_write(AD9154_SHORT_TPL_TEST_2, (data & 0xff00) >> 8)
         # enable stpl
         self.ad9154.dac_write(AD9154_SHORT_TPL_TEST_0,
             AD9154_SHORT_TPL_TEST_EN_SET(1) |
