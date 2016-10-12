@@ -40,7 +40,7 @@ class DACSetup(EnvExperiment):
         self.busywait_us(10000)
         self.ad9154.init()
         self.dac_setup()
-        self.busywait_us(10000)
+        self.busywait_us(200000)
         self.ad9154.jesd_enable(1)
         while not self.ad9154.jesd_ready():
             pass
