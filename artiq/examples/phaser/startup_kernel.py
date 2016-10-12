@@ -42,10 +42,14 @@ class StartupKernel(EnvExperiment):
         self.ad9154.clock_write(AD9516_OUT5, 2*AD9516_OUT5_POWER_DOWN)
         self.ad9154.clock_write(AD9516_OUT8, 1*AD9516_OUT8_POWER_DOWN)
 
-        # DAC deviceclk, clk/1
-        self.ad9154.clock_write(AD9516_DIVIDER_0_2, AD9516_DIVIDER_0_DIRECT_TO_OUTPUT)
-        self.ad9154.clock_write(AD9516_OUT1, 0*AD9516_OUT1_POWER_DOWN |
-                2*AD9516_OUT1_LVPECLDIFFERENTIAL_VOLTAGE)
+        # DAC deviceclk, dclk/1
+        self.ad9154.clock_write(AD9516_DIVIDER_0_1, AD9516_DIVIDER_0_BYPASS)
+        self.ad9154.clock_write(AD9516_DIVIDER_0_2,
+                                0*AD9516_DIVIDER_0_DIRECT_TO_OUTPUT |
+                                0*AD9516_DIVIDER_0_DCCOFF)
+        self.ad9154.clock_write(AD9516_OUT1,
+                                0*AD9516_OUT1_POWER_DOWN |
+                                2*AD9516_OUT1_LVPECLDIFFERENTIAL_VOLTAGE)
 
         # FPGA deviceclk, dclk/4
         self.ad9154.clock_write(AD9516_DIVIDER_4_3, AD9516_DIVIDER_4_BYPASS_2)
