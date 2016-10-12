@@ -37,11 +37,14 @@ class DACSetup(EnvExperiment):
         self.core.break_realtime()
         self.ad9154.jesd_enable(0)
         self.ad9154.jesd_prbs(0)
+        self.busywait_us(10000)
         self.ad9154.init()
         self.dac_setup()
+        self.busywait_us(10000)
         self.ad9154.jesd_enable(1)
         while not self.ad9154.jesd_ready():
             pass
+        self.monitor()
         if self.ad9154.dac_read(AD9154_CODEGRPSYNCFLG) != 0x0f:
             raise ValueError("no CODEGRPSYNCFLG")
         self.core.break_realtime()
@@ -53,7 +56,6 @@ class DACSetup(EnvExperiment):
             raise ValueError("no GOODCHECKSUMFLG")
         if self.ad9154.dac_read(AD9154_INITLANESYNCFLG) != 0x0f:
             raise ValueError("no INITLANESYNCFLG")
-        self.monitor()
 
     @kernel
     def busywait_us(self, t):
