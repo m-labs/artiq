@@ -30,6 +30,7 @@ class DACSetup(EnvExperiment):
         self.setattr_device("core")
         self.setattr_device("led")
         self.setattr_device("ad9154")
+        self.setattr_device("sync")
 
     @kernel
     def run(self):
@@ -38,10 +39,21 @@ class DACSetup(EnvExperiment):
         self.ad9154.jesd_prbs(0)
         self.ad9154.init()
         self.dac_setup()
-        self.busywait_us(200000)
         self.ad9154.jesd_enable(1)
         while not self.ad9154.jesd_ready():
             pass
+        if self.ad9154.dac_read(AD9154_CODEGRPSYNCFLG) != 0x0f:
+            raise ValueError("no CODEGRPSYNCFLG")
+        self.core.break_realtime()
+        if not self.sync.sample_get_nonrt():
+            pass #raise ValueError("SYNC still low")
+        if self.ad9154.dac_read(AD9154_FRAMESYNCFLG) != 0x0f:
+            raise ValueError("no FRAMESYNCFLG")
+        if self.ad9154.dac_read(AD9154_GOODCHKSUMFLG) != 0x0f:
+            raise ValueError("no GOODCHECKSUMFLG")
+        if self.ad9154.dac_read(AD9154_INITLANESYNCFLG) != 0x0f:
+            raise ValueError("no INITLANESYNCFLG")
+        self.monitor()
 
     @kernel
     def busywait_us(self, t):
@@ -241,6 +253,9 @@ class DACSetup(EnvExperiment):
         #        AD9154_ENABLE_SERDESPLL_SET(1) | AD9154_RECAL_SERDESPLL_SET(1))
         self.ad9154.dac_write(AD9154_SERDESPLL_ENABLE_CNTRL,
                 AD9154_ENABLE_SERDESPLL_SET(1) | AD9154_RECAL_SERDESPLL_SET(0))
+        while not AD9154_SERDES_PLL_LOCK_RB_GET(self.ad9154.dac_read(AD9154_PLL_STATUS)):
+            pass
+
         self.ad9154.dac_write(AD9154_EQ_BIAS_REG, AD9154_EQ_BIAS_RESERVED_SET(0x22) |
                 AD9154_EQ_POWER_MODE_SET(1))
 
@@ -279,8 +294,8 @@ class DACSetup(EnvExperiment):
                 AD9154_LINK_EN_SET(0x1) | AD9154_LINK_PAGE_SET(0) |
                 AD9154_LINK_MODE_SET(0) | AD9154_CHECKSUM_MODE_SET(0))
 
-        self.busywait_us(1000)
-
+    @kernel
+    def monitor(self):
         self.ad9154.dac_write(AD9154_IRQ_STATUS0, 0x00)
         self.ad9154.dac_write(AD9154_IRQ_STATUS1, 0x00)
         self.ad9154.dac_write(AD9154_IRQ_STATUS2, 0x00)
