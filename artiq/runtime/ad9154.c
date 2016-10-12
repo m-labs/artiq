@@ -16,8 +16,8 @@ void ad9154_init(void)
     ad9154_spi_clk_phase_write(0);
     ad9154_spi_lsb_first_write(0);
     ad9154_spi_half_duplex_write(0);
-    ad9154_spi_clk_div_write_write(11);
-    ad9154_spi_clk_div_read_write(11);
+    ad9154_spi_clk_div_write_write(16);
+    ad9154_spi_clk_div_read_write(16);
     ad9154_spi_xfer_len_write_write(24);
     ad9154_spi_xfer_len_read_write(0);
     ad9154_spi_cs_write(CONFIG_AD9154_DAC_CS);
