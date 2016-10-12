@@ -13,6 +13,7 @@ uint8_t ad9516_read(uint16_t addr);
 void ad9154_jesd_enable(int en);
 int ad9154_jesd_ready(void);
 void ad9154_jesd_prbs(int p);
+void ad9154_jesd_stpl(int en);
 
 #endif
 #endif

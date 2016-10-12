@@ -147,6 +147,7 @@ static const struct symbol runtime_exports[] = {
     {"ad9154_jesd_enable", &ad9154_jesd_enable},
     {"ad9154_jesd_ready", &ad9154_jesd_ready},
     {"ad9154_jesd_prbs", &ad9154_jesd_prbs},
+    {"ad9154_jesd_stpl", &ad9154_jesd_stpl},
 #endif
 
     /* end */

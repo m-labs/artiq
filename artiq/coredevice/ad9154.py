@@ -42,6 +42,11 @@ def ad9154_jesd_prbs(prbs: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 
+@syscall(flags={"nounwind", "nowrite"})
+def ad9154_jesd_stpl(prbs: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+
 class AD9154:
     """AD9154-FMC-EBZ SPI support
 
@@ -95,3 +100,7 @@ class AD9154:
     @kernel
     def jesd_prbs(self, prbs):
         ad9154_jesd_prbs(prbs)
+
+    @kernel
+    def jesd_stpl(self, enable):
+        ad9154_jesd_stpl(enable)

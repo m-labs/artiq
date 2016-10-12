@@ -69,4 +69,9 @@ void ad9154_jesd_prbs(int p)
     ad9154_jesd_control_prbs_config_write(p);
 }
 
+void ad9154_jesd_stpl(int en)
+{
+    ad9154_jesd_control_stpl_enable_write(en);
+}
+
 #endif /* CONFIG_AD9154_DAC_CS */
