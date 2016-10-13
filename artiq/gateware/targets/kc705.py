@@ -469,8 +469,9 @@ class AD9154(Module, AutoCSR):
         self.submodules += jesd_qpll
         jesd_phys = []
         for i in range(4):
-            jesd_phy = [JESD204BPhyTX(jesd_qpll,
-                platform.request("ad9154_jesd", i), rtio_freq)
+            jesd_phy = JESD204BPhyTX(
+                jesd_qpll, platform.request("ad9154_jesd", i),
+                rtio_freq)
             jesd_phys.append(jesd_phy)
             setattr(self.submodules, "jesd_phy"+str(i), jesd_phy)
         for jesd_phy in jesd_phys:
