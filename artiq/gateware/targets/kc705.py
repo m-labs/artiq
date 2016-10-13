@@ -483,7 +483,21 @@ class AD9154(Module, AutoCSR):
         self.submodules.jesd_core = JESD204BCoreTX(
             jesd_phys, jesd_settings, converter_data_width=32)
         self.comb += self.jesd_core.start.eq(jesd_sync)
+        self.comb += platform.request("user_led", 3).eq(jesd_sync)
         self.submodules.jesd_control = JESD204BCoreTXControl(self.jesd_core)
+
+        # blinking leds for transceiver reset status
+        for i in range(4):
+            led = platform.request("user_led", 4 + i)
+            counter = Signal(32)
+            sync = getattr(self.sync, "phy" + str(i))
+            sync += \
+                If(counter == 0,
+                    led.eq(~led),
+                    counter.eq(rtio_freq//2)
+                ).Else(
+                    counter.eq(counter-1)
+                )
 
 
 class Phaser(_NIST_Ions):
