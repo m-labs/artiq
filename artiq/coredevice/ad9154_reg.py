@@ -39,22 +39,38 @@ def AD9154_SDOACTIVE_SET(x: TInt32) -> TInt32:
 def AD9154_SDOACTIVE_GET(x: TInt32) -> TInt32:
     return (x >> 3) & 0x1
 
-# default: 0x00, access: R
+# default: 0x00, access: R/W
+@portable
+def AD9154_SDOACTIVE_M_SET(x: TInt32) -> TInt32:
+    return (x & 0x1) << 4
+
 @portable
 def AD9154_SDOACTIVE_M_GET(x: TInt32) -> TInt32:
     return (x >> 4) & 0x1
 
-# default: 0x00, access: R
+# default: 0x00, access: R/W
+@portable
+def AD9154_ADDRINC_M_SET(x: TInt32) -> TInt32:
+    return (x & 0x1) << 5
+
 @portable
 def AD9154_ADDRINC_M_GET(x: TInt32) -> TInt32:
     return (x >> 5) & 0x1
 
-# default: 0x00, access: R
+# default: 0x00, access: R/W
+@portable
+def AD9154_LSBFIRST_M_SET(x: TInt32) -> TInt32:
+    return (x & 0x1) << 6
+
 @portable
 def AD9154_LSBFIRST_M_GET(x: TInt32) -> TInt32:
     return (x >> 6) & 0x1
 
-# default: 0x00, access: R
+# default: 0x00, access: R/W
+@portable
+def AD9154_SOFTRESET_M_SET(x: TInt32) -> TInt32:
+    return (x & 0x1) << 7
+
 @portable
 def AD9154_SOFTRESET_M_GET(x: TInt32) -> TInt32:
     return (x >> 7) & 0x1
