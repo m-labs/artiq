@@ -472,15 +472,14 @@ class AD9154(Module, AutoCSR):
             jesd_phy = JESD204BPhyTX(
                 jesd_qpll, platform.request("ad9154_jesd", i),
                 rtio_freq)
-            jesd_phys.append(jesd_phy)
-            setattr(self.submodules, "jesd_phy"+str(i), jesd_phy)
-        for jesd_phy in jesd_phys:
             platform.add_period_constraint(
                 jesd_phy.gtx.cd_tx.clk,
                 40/jesd_linerate*1e9)
             platform.add_false_path_constraints(
                 rtio_crg.cd_rtio.clk,
                 jesd_phy.gtx.cd_tx.clk)
+            jesd_phys.append(jesd_phy)
+            setattr(self.submodules, "jesd_phy"+str(i), jesd_phy)
         self.submodules.jesd_core = JESD204BCoreTX(
             jesd_phys, jesd_settings, converter_data_width=32)
         self.comb += self.jesd_core.start.eq(jesd_sync)
