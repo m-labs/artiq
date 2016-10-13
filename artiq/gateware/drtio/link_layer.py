@@ -3,6 +3,7 @@ from operator import xor, or_
 
 from migen import *
 from migen.genlib.fsm import *
+from migen.genlib.cdc import MultiReg
 
 
 class Scrambler(Module):
@@ -210,24 +211,26 @@ class LinkLayerRX(Module):
 
 class LinkLayer(Module):
     def __init__(self, encoder, decoders):
+        # control signals, in rtio clock domain
         self.reset = Signal()
         self.ready = Signal()
-
         # pulsed to reset receiver, rx_ready must immediately go low
         self.rx_reset = Signal()
         # receiver locked including comma alignment
         self.rx_ready = Signal()
 
-        tx = LinkLayerTX(encoder)
-        rx = LinkLayerRX(decoders)
+        tx = ClockDomainsRenamer("rtio")(LinkLayerTX(encoder))
+        rx = ClockDomainsRenamer("rtio_rx")(LinkLayerRX(decoders))
         self.submodules += tx, rx
 
+        # in rtio clock domain
         self.tx_aux_frame = tx.aux_frame
         self.tx_aux_data = tx.aux_data
         self.tx_aux_ack = tx.aux_ack
         self.tx_rt_frame = tx.rt_frame
         self.tx_rt_data = tx.rt_data
 
+        # in rtio_rx clock domain
         self.rx_aux_stb = rx.aux_stb
         self.rx_aux_frame = rx.aux_frame
         self.rx_aux_data = rx.aux_data
@@ -236,10 +239,18 @@ class LinkLayer(Module):
 
         # # #
 
-        fsm = ResetInserter()(FSM(reset_state="RESET_RX"))
+        fsm = ClockDomainsRenamer("rtio")(
+            ResetInserter()(FSM(reset_state="RESET_RX")))
         self.submodules += fsm
 
         self.comb += fsm.reset.eq(self.reset)
+
+        rx_remote_rx_ready = Signal()
+        rx_link_init = Signal()
+        self.specials += [
+            MultiReg(rx.remote_rx_ready, rx_remote_rx_ready, "rtio"),
+            MultiReg(rx.link_init, rx_link_init, "rtio")
+        ]
 
         fsm.act("RESET_RX",
             tx.link_init.eq(1),
@@ -255,14 +266,14 @@ class LinkLayer(Module):
         fsm.act("WAIT_REMOTE_RX_READY",
             tx.link_init.eq(1),
             tx.signal_rx_ready.eq(1),
-            If(rx.remote_rx_ready,
+            If(rx_remote_rx_ready,
                 NextState("WAIT_REMOTE_LINK_UP")
             )
         )
         fsm.act("WAIT_REMOTE_LINK_UP",
-            If(~rx.link_init, NextState("READY"))
+            If(~rx_link_init, NextState("READY"))
         )
         fsm.act("READY",
-            If(rx.link_init, NextState("RESET_RX")),
+            If(rx_link_init, NextState("RESET_RX")),
             self.ready.eq(1)
         )
