@@ -34,28 +34,31 @@ class DACSetup(EnvExperiment):
 
     @kernel
     def run(self):
-        self.core.break_realtime()
+        self.core.reset()
         self.ad9154.jesd_enable(0)
         self.ad9154.jesd_prbs(0)
+        self.ad9154.jesd_stpl(0)
         self.busywait_us(10000)
+        self.ad9154.jesd_enable(1)
         self.ad9154.init()
         self.dac_setup()
-        self.busywait_us(200000)
+        self.ad9154.jesd_enable(0)
+        self.busywait_us(10000)
         self.ad9154.jesd_enable(1)
+        self.monitor()
         while not self.ad9154.jesd_ready():
             pass
-        self.monitor()
         if self.ad9154.dac_read(AD9154_CODEGRPSYNCFLG) != 0x0f:
-            raise ValueError("no CODEGRPSYNCFLG")
+            raise ValueError("bad CODEGRPSYNCFLG")
         self.core.break_realtime()
         if not self.sync.sample_get_nonrt():
-            pass #raise ValueError("SYNC still low")
+            raise ValueError("bad SYNC")
         if self.ad9154.dac_read(AD9154_FRAMESYNCFLG) != 0x0f:
-            raise ValueError("no FRAMESYNCFLG")
+            raise ValueError("bad FRAMESYNCFLG")
         if self.ad9154.dac_read(AD9154_GOODCHKSUMFLG) != 0x0f:
-            raise ValueError("no GOODCHECKSUMFLG")
+            raise ValueError("bad GOODCHECKSUMFLG")
         if self.ad9154.dac_read(AD9154_INITLANESYNCFLG) != 0x0f:
-            raise ValueError("no INITLANESYNCFLG")
+            raise ValueError("bad INITLANESYNCFLG")
 
     @kernel
     def busywait_us(self, t):
@@ -66,11 +69,17 @@ class DACSetup(EnvExperiment):
     @kernel
     def dac_setup(self):
         # reset
-        self.ad9154.dac_write(AD9154_SPI_INTFCONFA, AD9154_SOFTRESET_SET(1) |
-                AD9154_LSBFIRST_SET(0) | AD9154_SDOACTIVE_SET(1))
+        self.ad9154.dac_write(AD9154_SPI_INTFCONFA,
+                AD9154_SOFTRESET_M_SET(1) | AD9154_SOFTRESET_SET(1) |
+                AD9154_LSBFIRST_M_SET(0) | AD9154_LSBFIRST_SET(0) |
+                AD9154_ADDRINC_M_SET(0) | AD9154_ADDRINC_SET(0) |
+                AD9154_SDOACTIVE_M_SET(1) | AD9154_SDOACTIVE_SET(1))
         self.busywait_us(100)
         self.ad9154.dac_write(AD9154_SPI_INTFCONFA,
-                AD9154_LSBFIRST_SET(0) | AD9154_SDOACTIVE_SET(1))
+                AD9154_SOFTRESET_M_SET(0) | AD9154_SOFTRESET_SET(0) |
+                AD9154_LSBFIRST_M_SET(0) | AD9154_LSBFIRST_SET(0) |
+                AD9154_ADDRINC_M_SET(0) | AD9154_ADDRINC_SET(0) |
+                AD9154_SDOACTIVE_M_SET(1) | AD9154_SDOACTIVE_SET(1))
         self.busywait_us(100)
         if ((self.ad9154.dac_read(AD9154_PRODIDH) << 8) |
                 self.ad9154.dac_read(AD9154_PRODIDL) != 0x9154):
@@ -281,8 +290,7 @@ class DACSetup(EnvExperiment):
                 AD9154_SYNCCLRLAST_SET(0))
         self.busywait_us(1000)  # ensure at leas one sysref edge
         if not AD9154_SYNC_LOCK_GET(self.ad9154.dac_read(AD9154_SYNC_STATUS)):
-            pass
-        #    raise ValueError("no sync lock")
+            raise ValueError("no sync lock")
         self.ad9154.dac_write(AD9154_XBAR_LN_0_1,
                 AD9154_LOGICAL_LANE0_SRC_SET(7) | AD9154_LOGICAL_LANE1_SRC_SET(6))
         self.ad9154.dac_write(AD9154_XBAR_LN_2_3,
