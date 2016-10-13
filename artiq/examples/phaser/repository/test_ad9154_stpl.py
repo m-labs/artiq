@@ -10,7 +10,7 @@ class Test(EnvExperiment):
         self.setattr_device("ad9154")
 
     def run(self):
-        self.ad9154.jesd_stpl(0)
+        self.ad9154.jesd_stpl(1)
         # short transport layer test
         for i in range(4):
             data = seed_to_data(i << 8, True)
