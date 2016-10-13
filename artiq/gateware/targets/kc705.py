@@ -466,6 +466,7 @@ class AD9154JESD(Module, AutoCSR):
             phy = JESD204BPhyTX(
                 qpll, platform.request("ad9154_jesd", i), fabric_freq)
             platform.add_period_constraint(phy.gtx.cd_tx.clk, 40*1e9/linerate)
+            self.comb += phy.gtx.gtx_init.bypass_phalign.eq(1)  # TODO
             platform.add_false_path_constraints(
                 self.cd_jesd.clk,
                 phy.gtx.cd_tx.clk)
