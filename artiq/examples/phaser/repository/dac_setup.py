@@ -109,7 +109,7 @@ class DACSetup(EnvExperiment):
 
         self.ad9154.dac_write(AD9154_SPI_PAGEINDX, 0x3) # A and B dual
 
-        self.ad9154.dac_write(AD9154_INTERP_MODE, 4) # 8x
+        self.ad9154.dac_write(AD9154_INTERP_MODE, 3) # 4x
         self.ad9154.dac_write(AD9154_MIX_MODE, 0)
         self.ad9154.dac_write(AD9154_DATA_FORMAT, AD9154_BINARY_FORMAT_SET(0)) # s16
         self.ad9154.dac_write(AD9154_DATAPATH_CTRL,
@@ -198,11 +198,11 @@ class DACSetup(EnvExperiment):
         self.ad9154.dac_write(AD9154_SERDES_SPI_REG, 1)
         self.ad9154.dac_write(AD9154_CDR_OPERATING_MODE_REG_0,
                 AD9154_CDR_OVERSAMP_SET(0) | AD9154_CDR_RESERVED_SET(0x2) |
-                AD9154_ENHALFRATE_SET(0))
+                AD9154_ENHALFRATE_SET(1))
         self.ad9154.dac_write(AD9154_CDR_RESET, 0)
         self.ad9154.dac_write(AD9154_CDR_RESET, 1)
         self.ad9154.dac_write(AD9154_REF_CLK_DIVIDER_LDO,
-                AD9154_SPI_CDR_OVERSAMP_SET(0x1) |
+                AD9154_SPI_CDR_OVERSAMP_SET(0x0) |
                 AD9154_SPI_LDO_BYPASS_FILT_SET(1) |
                 AD9154_SPI_LDO_REF_SEL_SET(0))
         self.ad9154.dac_write(AD9154_LDO_FILTER_1, 0x62) # magic

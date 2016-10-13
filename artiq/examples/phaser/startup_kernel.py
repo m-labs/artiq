@@ -47,17 +47,17 @@ class StartupKernel(EnvExperiment):
         self.ad9154.clock_write(AD9516_OUT1, 0*AD9516_OUT1_POWER_DOWN |
                 2*AD9516_OUT1_LVPECLDIFFERENTIAL_VOLTAGE)
 
-        # FPGA deviceclk, dclk/4
+        # FPGA deviceclk, dclk/2
         self.ad9154.clock_write(AD9516_DIVIDER_4_3, AD9516_DIVIDER_4_BYPASS_2)
         self.ad9154.clock_write(AD9516_DIVIDER_4_0,
-            (4//2-1)*AD9516_DIVIDER_0_HIGH_CYCLES |
-            (4//2-1)*AD9516_DIVIDER_0_LOW_CYCLES)
+            (2//2-1)*AD9516_DIVIDER_0_HIGH_CYCLES |
+            (2//2-1)*AD9516_DIVIDER_0_LOW_CYCLES)
         self.ad9154.clock_write(AD9516_DIVIDER_4_4, 0*AD9516_DIVIDER_4_DCCOFF)
         self.ad9154.clock_write(AD9516_OUT9, 1*AD9516_OUT9_LVDS_OUTPUT_CURRENT |
                 2*AD9516_OUT9_LVDS_CMOS_OUTPUT_POLARITY |
                 0*AD9516_OUT9_SELECT_LVDS_CMOS)
 
-        # sysref f_data*S/(K*F), dclk/64
+        # sysref f_data*S/(K*F), dclk/32
         self.ad9154.clock_write(AD9516_DIVIDER_3_0, (32//2-1)*AD9516_DIVIDER_3_HIGH_CYCLES_1 |
                 (32//2-1)*AD9516_DIVIDER_3_LOW_CYCLES_1)
         self.ad9154.clock_write(AD9516_DIVIDER_3_1, 0*AD9516_DIVIDER_3_PHASE_OFFSET_1 |

@@ -398,18 +398,9 @@ class _PhaserCRG(Module, AutoCSR):
         self._clock_sel = CSRStorage()
         self._pll_reset = CSRStorage(reset=1)
         self._pll_locked = CSRStatus()
+        self.refclk = Signal()
         self.clock_domains.cd_rtio = ClockDomain()
         self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
-
-        refclk_pads = platform.request("ad9154_refclk")
-        platform.add_period_constraint(refclk_pads.p, 8.)
-        self.refclk = Signal()
-        self.clock_domains.cd_refclk = ClockDomain()
-        self.specials += [
-            Instance("IBUFDS_GTE2", i_CEB=0,
-                     i_I=refclk_pads.p, i_IB=refclk_pads.n, o_O=self.refclk),
-            Instance("BUFG", i_I=self.refclk, o_O=self.cd_refclk.clk),
-        ]
 
         pll_locked = Signal()
         rtio_clk = Signal()
@@ -419,13 +410,13 @@ class _PhaserCRG(Module, AutoCSR):
                      p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
 
                      p_REF_JITTER1=0.01, p_REF_JITTER2=0.01,
-                     p_CLKIN1_PERIOD=8.0, p_CLKIN2_PERIOD=8.0,
-                     i_CLKIN1=rtio_internal_clk, i_CLKIN2=self.cd_refclk.clk,
+                     p_CLKIN1_PERIOD=4.0, p_CLKIN2_PERIOD=4.0,
+                     i_CLKIN1=0, i_CLKIN2=self.refclk,
                      # Warning: CLKINSEL=0 means CLKIN2 is selected
                      i_CLKINSEL=~self._clock_sel.storage,
 
                      # VCO @ 1GHz when using 125MHz input
-                     p_CLKFBOUT_MULT=8, p_DIVCLK_DIVIDE=1,
+                     p_CLKFBOUT_MULT=8, p_DIVCLK_DIVIDE=2,
                      i_CLKFBIN=self.cd_rtio.clk,
                      i_RST=self._pll_reset.storage,
 
@@ -436,68 +427,93 @@ class _PhaserCRG(Module, AutoCSR):
                      ),
             Instance("BUFG", i_I=rtio_clk, o_O=self.cd_rtio.clk),
             Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk),
-
             AsyncResetSynchronizer(self.cd_rtio, ~pll_locked),
-            MultiReg(pll_locked, self._pll_locked.status)
+            MultiReg(pll_locked | ~self._clock_sel.storage,
+                     self._pll_locked.status)
         ]
 
 
-class AD9154(Module, AutoCSR):
-    def __init__(self, platform, rtio_crg):
-        ad9154_spi = platform.request("ad9154_spi")
-        self.submodules.spi = spi_csr.SPIMaster(ad9154_spi)
-        self.comb += [
-            ad9154_spi.en.eq(1),
-            platform.request("ad9154_txen", 0).eq(1),
-            platform.request("ad9154_txen", 1).eq(1),
-        ]
-
-        sync_pads = platform.request("ad9154_sync")
-        jesd_sync = Signal()
-        self.specials += DifferentialInput(
-            sync_pads.p, sync_pads.n, jesd_sync)
-        self.jesd_sync = jesd_sync
-
+class AD9154JESD(Module, AutoCSR):
+    def __init__(self, platform):
         ps = JESD204BPhysicalSettings(l=4, m=4, n=16, np=16)
         ts = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
-        jesd_settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
-        jesd_linerate = 5e9
-        jesd_refclk_freq = 125e6
-        rtio_freq = 125*1000*1000
-        jesd_qpll = GTXQuadPLL(
-            rtio_crg.refclk, jesd_refclk_freq, jesd_linerate)
-        self.submodules += jesd_qpll
-        jesd_phys = []
+        settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
+        linerate = 10e9
+        refclk_freq = 250e6
+        fabric_freq = 250*1000*1000
+
+        sync_pads = platform.request("ad9154_sync")
+        self.jsync = Signal()
+        self.refclk = Signal()
+        self.specials += DifferentialInput(
+            sync_pads.p, sync_pads.n, self.jsync)
+
+        self.clock_domains.cd_jesd = ClockDomain()
+        refclk_pads = platform.request("ad9154_refclk")
+        platform.add_period_constraint(refclk_pads.p, 1e9/refclk_freq)
+
+        self.specials += [
+            Instance("IBUFDS_GTE2", i_CEB=0,
+                     i_I=refclk_pads.p, i_IB=refclk_pads.n, o_O=self.refclk),
+            Instance("BUFR", i_I=self.refclk, o_O=self.cd_jesd.clk),
+            AsyncResetSynchronizer(self.cd_jesd, ResetSignal("rio_phy")),
+        ]
+
+        qpll = GTXQuadPLL(self.refclk, refclk_freq, linerate)
+        self.submodules += qpll
+        phys = []
         for i in range(4):
-            jesd_phy = JESD204BPhyTX(
-                jesd_qpll, platform.request("ad9154_jesd", i),
-                rtio_freq)
-            platform.add_period_constraint(
-                jesd_phy.gtx.cd_tx.clk,
-                40/jesd_linerate*1e9)
+            phy = JESD204BPhyTX(
+                qpll, platform.request("ad9154_jesd", i), fabric_freq)
+            platform.add_period_constraint(phy.gtx.cd_tx.clk, 40*1e9/linerate)
             platform.add_false_path_constraints(
-                rtio_crg.cd_rtio.clk,
-                jesd_phy.gtx.cd_tx.clk)
-            jesd_phys.append(jesd_phy)
-            setattr(self.submodules, "jesd_phy"+str(i), jesd_phy)
-        self.submodules.jesd_core = JESD204BCoreTX(
-            jesd_phys, jesd_settings, converter_data_width=32)
-        self.comb += self.jesd_core.start.eq(jesd_sync)
-        self.comb += platform.request("user_led", 3).eq(jesd_sync)
-        self.submodules.jesd_control = JESD204BCoreTXControl(self.jesd_core)
+                self.cd_jesd.clk,
+                phy.gtx.cd_tx.clk)
+            phys.append(phy)
+        to_jesd = ClockDomainsRenamer("jesd")
+        self.submodules.core = to_jesd(JESD204BCoreTX(phys, settings,
+                                                      converter_data_width=32))
+        self.submodules.control = to_jesd(JESD204BCoreTXControl(self.core))
+
+        self.comb += [
+            platform.request("ad9154_txen", 0).eq(1),
+            platform.request("ad9154_txen", 1).eq(1),
+            self.core.start.eq(self.jsync),
+            platform.request("user_led", 3).eq(self.jsync),
+        ]
 
         # blinking leds for transceiver reset status
         for i in range(4):
             led = platform.request("user_led", 4 + i)
-            counter = Signal(32)
-            sync = getattr(self.sync, "phy" + str(i))
+            counter = Signal(max=fabric_freq//2 + 1)
+            sync = getattr(self.sync, "phy{}_tx".format(i))
             sync += \
                 If(counter == 0,
                     led.eq(~led),
-                    counter.eq(rtio_freq//2)
+                    counter.eq(fabric_freq//2)
                 ).Else(
-                    counter.eq(counter-1)
+                    counter.eq(counter - 1)
                 )
+
+
+class AD9154(Module, AutoCSR):
+    def __init__(self, platform):
+        ad9154_spi = platform.request("ad9154_spi")
+        self.comb += ad9154_spi.en.eq(1)
+
+        self.submodules.spi = spi_csr.SPIMaster(ad9154_spi)
+
+        self.submodules.jesd = AD9154JESD(platform)
+
+        self.sawgs = [sawg.Channel(width=16, parallelism=4) for i in range(4)]
+        self.submodules += self.sawgs
+
+        x = Signal()
+        y = Signal()
+        self.sync.jesd += x.eq(~x)
+        self.sync.rio_phy += y.eq(x)
+        for conv, ch in zip(self.jesd.core.sink.flatten(), self.sawgs):
+            self.comb += conv.eq(Mux(x != y, Cat(ch.o[:2]), Cat(ch.o[2:])))
 
 
 class Phaser(_NIST_Ions):
@@ -512,7 +528,10 @@ class Phaser(_NIST_Ions):
         platform = self.platform
         platform.add_extension(phaser.fmc_adapter_io)
 
-        sysref_pads = platform.request("ad9154_sysref")
+        self.submodules.ad9154 = AD9154(platform)
+        self.register_kernel_cpu_csrdevice("ad9154")
+        self.config["AD9154_DAC_CS"] = 1 << 0
+        self.config["AD9154_CLK_CS"] = 1 << 1
 
         rtio_channels = []
 
@@ -525,13 +544,13 @@ class Phaser(_NIST_Ions):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
+        sysref_pads = platform.request("ad9154_sysref")
         phy = ttl_serdes_7series.Input_8X(sysref_pads.p, sysref_pads.n)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
                                                    ofifo_depth=2))
 
-        jesd_sync = Signal()
-        phy = ttl_simple.Input(jesd_sync)
+        phy = ttl_simple.Input(self.ad9154.jesd.jsync)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
                                                    ofifo_depth=2))
@@ -539,29 +558,15 @@ class Phaser(_NIST_Ions):
         self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
         self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
-        sawgs = [sawg.Channel(width=16, parallelism=4) for i in range(4)]
-        self.submodules += sawgs
-
         rtio_channels.extend(rtio.Channel.from_phy(phy)
-                             for sawg in sawgs
+                             for sawg in self.ad9154.sawgs
                              for phy in sawg.phys)
 
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.LogChannel())
         self.add_rtio(rtio_channels, _PhaserCRG(platform, self.crg.cd_sys.clk))
 
-        to_rtio = ClockDomainsRenamer({"sys": "rtio"})
-        self.submodules.ad9154 = to_rtio(AD9154(platform, self.rtio_crg))
-        self.register_kernel_cpu_csrdevice("ad9154")
-        self.config["AD9154_DAC_CS"] = 1 << 0
-        self.config["AD9154_CLK_CS"] = 1 << 1
-        for i, ch in enumerate(sawgs):
-            conv = getattr(self.ad9154.jesd_core.sink,
-                           "converter{}".format(i))
-            # while at 5 GBps, take every second sample... FIXME
-            self.comb += conv.eq(Cat(ch.o[::2]))
-
-        self.comb += jesd_sync.eq(self.ad9154.jesd_sync)
+        self.comb += self.rtio_crg.refclk.eq(self.ad9154.jesd.refclk)
 
 
 def main():
