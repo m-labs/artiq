@@ -542,7 +542,7 @@ class Phaser(_NIST_Ions):
         self.config["AD9154_DAC_CS"] = 1 << 0
         self.config["AD9154_CLK_CS"] = 1 << 1
         for i, ch in enumerate(sawgs):
-            conv = getattr(self.ad9154.jesd_core.transport.sink,
+            conv = getattr(self.ad9154.jesd_core.sink,
                            "converter{}".format(i))
             # while at 5 GBps, take every second sample... FIXME
             self.comb += conv.eq(Cat(ch.o[::2]))
