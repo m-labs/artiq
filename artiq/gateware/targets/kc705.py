@@ -455,7 +455,7 @@ class AD9154JESD(Module, AutoCSR):
         self.specials += [
             Instance("IBUFDS_GTE2", i_CEB=0,
                      i_I=refclk_pads.p, i_IB=refclk_pads.n, o_O=self.refclk),
-            Instance("BUFR", i_I=self.refclk, o_O=self.cd_jesd.clk),
+            Instance("BUFG", i_I=self.refclk, o_O=self.cd_jesd.clk),
             AsyncResetSynchronizer(self.cd_jesd, ResetSignal("rio_phy")),
         ]
 
