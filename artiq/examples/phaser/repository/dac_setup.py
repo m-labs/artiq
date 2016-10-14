@@ -62,7 +62,7 @@ class DACSetup(EnvExperiment):
 
     @kernel
     def busywait_us(self, t):
-        t = now_mu() + seconds_to_mu(t*us)
+        t = self.core.get_rtio_counter_mu() + seconds_to_mu(t*us)
         while self.core.get_rtio_counter_mu() < t:
             pass
 
