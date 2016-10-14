@@ -93,7 +93,7 @@ class _RTIOCRG(Module, AutoCSR):
 # The default user SMA voltage on KC705 is 2.5V, and the Migen platform
 # follows this default. But since the SMAs are on the same bank as the DDS,
 # which is set to 3.3V by reprogramming the KC705 power ICs, we need to
-# redefine them here. 
+# redefine them here.
 _sma33_io = [
     ("user_sma_gpio_p_33", 0, Pins("Y23"), IOStandard("LVCMOS33")),
     ("user_sma_gpio_n_33", 0, Pins("Y24"), IOStandard("LVCMOS33")),
@@ -316,7 +316,7 @@ class NIST_CLOCK(_NIST_Ions):
 class NIST_QC2(_NIST_Ions):
     """
     NIST QC2 hardware, as used in Quantum I and Quantum II, with new backplane
-    and 24 DDS channels.  Two backplanes are used.  
+    and 24 DDS channels.  Two backplanes are used.
     """
     def __init__(self, cpu_type="or1k", **kwargs):
         _NIST_Ions.__init__(self, cpu_type, **kwargs)
@@ -333,19 +333,19 @@ class NIST_QC2(_NIST_Ions):
                 platform.request("ttl", i))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
-        
+
         # CLK0, CLK1 are for clock generators, on backplane SMP connectors
-        for i in range(2):        
+        for i in range(2):
             phy = ttl_simple.ClockGen(
                 platform.request("clkout", i))
             self.submodules += phy
-            clock_generators.append(rtio.Channel.from_phy(phy)) 
+            clock_generators.append(rtio.Channel.from_phy(phy))
 
         # user SMA on KC705 board
         phy = ttl_serdes_7series.Inout_8X(platform.request("user_sma_gpio_n_33"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
-        
+
         phy = ttl_simple.Output(platform.request("user_led", 2))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
@@ -467,7 +467,6 @@ class AD9154JESD(Module, AutoCSR):
             phy = JESD204BPhyTX(
                 qpll, platform.request("ad9154_jesd", i), fabric_freq)
             platform.add_period_constraint(phy.gtx.cd_tx.clk, 40*1e9/linerate)
-            self.comb += phy.gtx.gtx_init.bypass_phalign.eq(1)  # TODO
             platform.add_false_path_constraints(self.cd_jesd.clk,
                                                 phy.gtx.cd_tx.clk)
             phys.append(phy)
