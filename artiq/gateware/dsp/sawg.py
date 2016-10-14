@@ -37,8 +37,10 @@ class DDSFast(Module):
             If(self.f.stb,
                 eqh(q.i.f, self.f.f)
             ),
+            q.i.clr.eq(0),
             If(self.p.stb,
-                eqh(q.i.p, self.p.p)
+                eqh(q.i.p, self.p.p),
+                q.i.clr.eq(1)
             ),
             q.i.stb.eq(self.f.stb | self.p.stb),
         ]
@@ -47,7 +49,6 @@ class DDSFast(Module):
             self.f.ack.eq(1),
             self.p.ack.eq(1),
             q.o.ack.eq(1),
-            q.i.clr.eq(0),
         ]
 
         c = []
