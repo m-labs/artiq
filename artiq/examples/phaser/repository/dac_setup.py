@@ -21,7 +21,7 @@ jesd_settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
 jesd_checksum = jesd_settings.get_configuration_checksum()
 # external clk=2000MHz
 # pclock=250MHz
-# deviceclock_fpga=500MHz
+# deviceclock_fpga=250MHz
 # deviceclock_dac=2000MHz
 
 
