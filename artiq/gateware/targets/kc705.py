@@ -567,7 +567,7 @@ class Phaser(_NIST_Ions):
         rtio_channels.append(rtio.LogChannel())
         self.add_rtio(rtio_channels, _PhaserCRG(platform, self.crg.cd_sys.clk))
 
-        self.comb += self.rtio_crg.refclk.eq(self.ad9154.jesd.refclk)
+        self.comb += self.rtio_crg.refclk.eq(self.ad9154.jesd.cd_jesd.clk)
 
 
 def main():
