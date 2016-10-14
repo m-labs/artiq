@@ -7,6 +7,7 @@ class Test(EnvExperiment):
         self.setattr_device("core")
         self.setattr_device("ad9154")
 
+    @kernel
     def run(self):
         self.print_status()
         self.print_temp()
@@ -14,6 +15,7 @@ class Test(EnvExperiment):
     def p(self, f, *a):
         print(f % a)
 
+    @kernel
     def print_temp(self):
         self.ad9154.dac_write(AD9154_DIE_TEMP_CTRL0, AD9154_AUXADC_RESERVED_SET(0x10) |
                 AD9154_AUXADC_ENABLE_SET(1))
@@ -23,6 +25,7 @@ class Test(EnvExperiment):
         self.ad9154.dac_write(AD9154_DIE_TEMP_CTRL0, AD9154_AUXADC_RESERVED_SET(0x10) |
                 AD9154_AUXADC_ENABLE_SET(0))
 
+    @kernel
     def print_status(self):
         x = self.ad9154.dac_read(AD9154_IRQ_STATUS0)
         self.p("LANEFIFOERR: %d, SERPLLLOCK: %d, SERPLLLOST: %d, "
