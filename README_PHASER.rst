@@ -92,18 +92,28 @@ Setup
   If the board was running stock ARTIQ before, the settings will be kept.
 * A 2 GHz of roughly 10 dBm (0.2 to 3.4 V peak-to-peak into 50 Ohm) must be connected to the AD9154-FMC-EBZ J1.
   The external RTIO clock, DAC deviceclock, FPGA deviceclock, and SYSREF are derived from this signal.
+* An example device database, several status and test scripts are provided in ``artiq/examples/phaser/``. ::
+
+    cd artiq/examples/phaser
+
+* Edit ``device_db.pyon`` to match the hostname or IP address of the core device.
 * The ``startup_clock`` needs to be set to internal (``i``) for bootstrapping the clock distribution tree.
 * Compile and flash the startup kernel in ``artiq/examples/phaser/startup_kernel.py``.
+* Erase any possible idle kernels.
+* Use ``ping`` and ``flterm`` to verify that the core device starts up and boots correctly.
 
 Usage
 -----
 
-* An example device database, several status and test scripts are provided in ``artiq/examples/phaser/``.
 * After each boot, run the ``dac_setup.py`` experiment to establish the JESD204B links (``artiq_run repository/dac_setup.py``).
+* Run ``artiq_run repository/ad9154_test_status.py`` to retrieve and print several status registers from the AD9154 DAC.
+* Run ``artiq_run repository/ad9154_test_prbs.py`` to test the JESD204B PHY layer for bit errors. Reboot the core device afterwards.
+* Run ``artiq_run repository/ad9154_test_stpl.py`` to executes a JESD204B short transport layer test.
 * Run ``artiq_run repository/sawg.py`` for an example that sets up amplitudes, frequencies, and phases on all four DDS channels.
+* Run ``artiq_run repository/demo.py`` for an example that exercises several different use cases of synchronized phase, amplitude, and frequency updates.
+  for an example that exercises several different use cases of synchronized phase, amplitude, and frequency updates.
 * Implement your own experiments using the SAWG channels.
 * Verify clock stability between the 2 GHz reference clock and the DAC outputs.
-* Verify phase alignment between the DAC channels.
 * Changes to the AD9154 configuration can also be performed at runtime in experiments.
   See the example ``dac_setup.py``.
   This can e.g. be used to enable and evaluate mix mode without having to change any other code (bitstream/bios/runtime/startup_kernel).
