@@ -458,6 +458,7 @@ class AD9154JESD(Module, AutoCSR):
             Instance("BUFG", i_I=self.refclk, o_O=self.cd_jesd.clk),
             AsyncResetSynchronizer(self.cd_jesd, ResetSignal("rio_phy")),
         ]
+        platform.add_period_constraint(self.cd_jesd.clk, 1e9/refclk_freq)
 
         qpll = GTXQuadPLL(self.refclk, refclk_freq, linerate)
         self.submodules += qpll
@@ -467,8 +468,8 @@ class AD9154JESD(Module, AutoCSR):
                 qpll, platform.request("ad9154_jesd", i), fabric_freq)
             platform.add_period_constraint(phy.gtx.cd_tx.clk, 40*1e9/linerate)
             self.comb += phy.gtx.gtx_init.bypass_phalign.eq(1)  # TODO
-            for clk in self.cd_jesd.clk, refclk_pads.p, self.refclk:
-                platform.add_false_path_constraints(clk, phy.gtx.cd_tx.clk)
+            platform.add_false_path_constraints(self.cd_jesd.clk,
+                                                phy.gtx.cd_tx.clk)
             phys.append(phy)
         to_jesd = ClockDomainsRenamer("jesd")
         self.submodules.core = to_jesd(JESD204BCoreTX(phys, settings,
