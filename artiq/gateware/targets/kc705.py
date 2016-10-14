@@ -511,10 +511,11 @@ class AD9154(Module, AutoCSR):
 
         x = Signal()
         y = Signal()
-        self.sync.jesd += x.eq(~x)
+        z = Signal()
+        self.sync.jesd += x.eq(~x), z.eq(x == y)
         self.sync.rio_phy += y.eq(x)
         for conv, ch in zip(self.jesd.core.sink.flatten(), self.sawgs):
-            self.comb += conv.eq(Mux(x != y, Cat(ch.o[:2]), Cat(ch.o[2:])))
+            self.sync.jesd += conv.eq(Mux(z, Cat(ch.o[:2]), Cat(ch.o[2:])))
 
 
 class Phaser(_NIST_Ions):
