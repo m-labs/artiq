@@ -164,7 +164,15 @@ class GTX_1000BASE_BX10(Module):
             self.decoders[0].input.eq(rxdata[:10]),
             self.decoders[1].input.eq(rxdata[10:])
         ]
-        # TODO: clock aligner, reset/ready
+
+        clock_aligner = BruteforceClockAligner(0b0011111000, 62.5e6)
+        self.submodules += clock_aligner
+        self.comb += [
+            clock_aligner.rxdata.eq(rxdata),
+            rx_init.restart.eq(clock_aligner.restart),
+            clock_aligner.reset.eq(self.rx_reset),
+            self.rx_ready.eq(clock_aligner.ready)
+        ]
 
 
 class RXSynchronizer(Module):

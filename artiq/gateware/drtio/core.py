@@ -9,6 +9,11 @@ class DRTIOSatellite(Module):
     def __init__(self, transceiver, rx_synchronizer, channels, fine_ts_width=3, full_ts_width=63):
         self.submodules.link_layer = link_layer.LinkLayer(
             transceiver.encoder, transceiver.decoders)
+        self.comb += [
+            transceiver.rx_reset.eq(self.link_layer.rx_reset),
+            self.link_layer.rx_ready.eq(transceiver.rx_ready)
+        ]
+
         link_layer_sync = SimpleNamespace(
             tx_aux_frame=self.link_layer.tx.aux_frame,
             tx_aux_data=self.link_layer.tx_aux_data,
@@ -24,6 +29,7 @@ class DRTIOSatellite(Module):
         )
         self.submodules.rt_packets = ClockDomainsRenamer("rtio")(
             rt_packets.RTPacketSatellite(link_layer_sync))
+
         self.submodules.iot = ClockDomainsRenamer("rtio")(
             iot.IOT(self.rt_packets, channels, fine_ts_width, full_ts_width))
 

@@ -131,20 +131,25 @@ class GTXInit(Module):
 # Those design flaws make RXSLIDE_MODE=PMA yet another broken and useless
 # transceiver "feature".
 class BruteforceClockAligner(Module):
-    def __init__(self, comma, sys_clk_freq, check_period=6e-3):
+    def __init__(self, comma, rtio_clk_freq, check_period=6e-3, ready_time=50e-3):
         self.rxdata = Signal(20)
         self.restart = Signal()
 
-        check_max_val = ceil(check_period*sys_clk_freq)
+        self.reset = Signal()
+        self.ready = Signal()
+
+        check_max_val = ceil(check_period*rtio_clk_freq)
         check_counter = Signal(max=check_max_val+1)
         check = Signal()
-        self.sync += [
+        self.sync.rtio += [
             check.eq(0),
-            If(check_counter == 0,
-                check.eq(1),
-                check_counter.eq(check_max_val)
-            ).Else(
-                check_counter.eq(check_counter-1)
+            If(~self.ready,
+                If(check_counter == 0,
+                    check.eq(1),
+                    check_counter.eq(check_max_val)
+                ).Else(
+                    check_counter.eq(check_counter-1)
+                )
             )
         ]
 
@@ -154,7 +159,7 @@ class BruteforceClockAligner(Module):
         self.specials += MultiReg(comma_seen_rxclk, comma_seen)
         comma_seen_reset = PulseSynchronizer("sys", "rx")
         self.submodules += comma_seen_reset
-        self.sync.rx += \
+        self.sync.rtio_rx += \
             If(comma_seen_reset.o,
                 comma_seen_rxclk.eq(0)
             ).Elif((self.rxdata[:10] == comma) | (self.rxdata[:10] == comma_n),
@@ -166,3 +171,18 @@ class BruteforceClockAligner(Module):
                 If(~comma_seen, self.restart.eq(1)),
                 comma_seen_reset.i.eq(1)
             )
+
+        ready_counts = ceil(ready_time/check_period)
+        assert ready_counts > 1
+        ready_counter = Signal(max=ready_counts+1, reset=ready_counts)
+        self.sync.rtio += [
+            If(check,
+                If(comma_seen,
+                    If(ready_counter != 0, ready_counter.eq(ready_counter-1))
+                ).Else(
+                    ready_counter.eq(ready_counts)
+                )
+            ),
+            If(self.reset, ready_counter.eq(ready_counts))
+        ]
+        self.comb += self.ready.eq(ready_counter == 0)
