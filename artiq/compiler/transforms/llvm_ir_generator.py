@@ -323,8 +323,6 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(llvoid, [])
         elif name == "llvm.floor.f64":
             llty = ll.FunctionType(lldouble, [lldouble])
-        elif name == "llvm.round.f64":
-            llty = ll.FunctionType(lldouble, [lldouble])
         elif name == "llvm.pow.f64":
             llty = ll.FunctionType(lldouble, [lldouble, lldouble])
         elif name == "llvm.powi.f64":
@@ -349,6 +347,8 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(lli32, [llptr])
         elif name == "strcmp":
             llty = ll.FunctionType(lli32, [llptr, llptr])
+        elif name == "lround":
+            llty = ll.FunctionType(lli32, [lldouble])
         elif name == "send_rpc":
             llty = ll.FunctionType(llvoid, [lli32, llptr, llptrptr])
         elif name == "recv_rpc":
@@ -1041,9 +1041,8 @@ class LLVMIRGenerator:
                                          name=insn.name)
         elif insn.op == "round":
             llarg = self.map(insn.operands[0])
-            llvalue = self.llbuilder.call(self.llbuiltin("llvm.round.f64"), [llarg])
-            return self.llbuilder.fptosi(llvalue, self.llty_of_type(insn.type),
-                                         name=insn.name)
+            return self.llbuilder.call(self.llbuiltin("lround"), [llarg],
+                                       name=insn.name)
         elif insn.op == "globalenv":
             def get_outer(llenv, env_ty):
                 if "$outer" in env_ty.params:

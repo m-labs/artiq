@@ -1,6 +1,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
 #include <generated/csr.h>
 
 #include <link.h>
@@ -21,8 +22,7 @@
 #define KERNELCPU_LAST_ADDRESS    0x4fffffff
 #define KSUPPORT_HEADER_SIZE      0x80
 
-double round(double x);
-double sqrt(double x);
+long lround(double x);
 
 void ksupport_abort(void);
 static void attribute_writeback(void *);
@@ -91,8 +91,8 @@ static const struct symbol runtime_exports[] = {
     {"__powidf2", &__powidf2},
 
     /* libm */
-    {"round", &round},
     {"sqrt", &sqrt},
+    {"lround", &lround},
 
     /* exceptions */
     {"_Unwind_Resume", &_Unwind_Resume},
@@ -144,133 +144,9 @@ static const struct symbol runtime_exports[] = {
     {NULL, NULL}
 };
 
-double round(double x)
+long lround(double x)
 {
-    union {double f; uint64_t i;} u = {x};
-    int e = u.i >> 52 & 0x7ff;
-    double y;
-
-    if (e >= 0x3ff+52)
-        return x;
-    if (u.i >> 63)
-        x = -x;
-    if (e < 0x3ff-1) {
-        /* we don't do it in ARTIQ */
-        /* raise inexact if x!=0 */
-        // FORCE_EVAL(x + 0x1p52);
-        return 0*u.f;
-    }
-    y = (double)(x + 0x1p52) - 0x1p52 - x;
-    if (y > 0.5)
-        y = y + x - 1;
-    else if (y <= -0.5)
-        y = y + x + 1;
-    else
-        y = y + x;
-    if (u.i >> 63)
-        y = -y;
-    return y;
-}
-
-double sqrt(double x)
-{
-    static const double one = 1.0, tiny = 1.0e-300;
-    double z;
-    int32_t sign = (int)0x80000000;
-    int32_t ix0,s0,q,m,t,i;
-    uint32_t r,t1,s1,ix1,q1;
-
-    union {double f; struct{uint32_t msw; uint32_t lsw;};} u = {x};
-    ix0 = u.msw;
-    ix1 = u.lsw;
-
-    /* take care of Inf and NaN */
-    if((ix0&0x7ff00000)==0x7ff00000) {
-        return x*x+x;       /* sqrt(NaN)=NaN, sqrt(+inf)=+inf
-                       sqrt(-inf)=sNaN */
-    }
-    /* take care of zero */
-    if(ix0<=0) {
-        if(((ix0&(~sign))|ix1)==0) return x;/* sqrt(+-0) = +-0 */
-        else if(ix0<0)
-        return (x-x)/(x-x);     /* sqrt(-ve) = sNaN */
-    }
-    /* normalize x */
-    m = (ix0>>20);
-    if(m==0) {              /* subnormal x */
-        while(ix0==0) {
-        m -= 21;
-        ix0 |= (ix1>>11); ix1 <<= 21;
-        }
-        for(i=0;(ix0&0x00100000)==0;i++) ix0<<=1;
-        m -= i-1;
-        ix0 |= (ix1>>(32-i));
-        ix1 <<= i;
-    }
-    m -= 1023;  /* unbias exponent */
-    ix0 = (ix0&0x000fffff)|0x00100000;
-    if(m&1){    /* odd m, double x to make it even */
-        ix0 += ix0 + ((ix1&sign)>>31);
-        ix1 += ix1;
-    }
-    m >>= 1;    /* m = [m/2] */
-
-    /* generate sqrt(x) bit by bit */
-    ix0 += ix0 + ((ix1&sign)>>31);
-    ix1 += ix1;
-    q = q1 = s0 = s1 = 0;   /* [q,q1] = sqrt(x) */
-    r = 0x00200000;     /* r = moving bit from right to left */
-
-    while(r!=0) {
-        t = s0+r;
-        if(t<=ix0) {
-        s0   = t+r;
-        ix0 -= t;
-        q   += r;
-        }
-        ix0 += ix0 + ((ix1&sign)>>31);
-        ix1 += ix1;
-        r>>=1;
-    }
-
-    r = sign;
-    while(r!=0) {
-        t1 = s1+r;
-        t  = s0;
-        if((t<ix0)||((t==ix0)&&(t1<=ix1))) {
-        s1  = t1+r;
-        if(((t1&sign)==sign)&&(s1&sign)==0) s0 += 1;
-        ix0 -= t;
-        if (ix1 < t1) ix0 -= 1;
-        ix1 -= t1;
-        q1  += r;
-        }
-        ix0 += ix0 + ((ix1&sign)>>31);
-        ix1 += ix1;
-        r>>=1;
-    }
-
-    /* use floating add to find out rounding direction */
-    if((ix0|ix1)!=0) {
-        z = one-tiny; /* trigger inexact flag */
-        if (z>=one) {
-            z = one+tiny;
-            if (q1==(uint32_t)0xffffffff) { q1=0; q += 1;}
-        else if (z>one) {
-            if (q1==(uint32_t)0xfffffffe) q+=1;
-            q1+=2;
-        } else
-                q1 += (q1&1);
-        }
-    }
-    ix0 = (q>>1)+0x3fe00000;
-    ix1 =  q1>>1;
-    if ((q&1)==1) ix1 |= sign;
-    ix0 += (m <<20);
-
-    u.msw = ix0;
-    u.lsw = ix1;
-    return u.f;
+    return x < 0 ? floor(x) : ceil(x);
 }
 
 /* called by libunwind */
