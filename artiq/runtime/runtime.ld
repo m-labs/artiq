@@ -1,4 +1,5 @@
 INCLUDE generated/output_format.ld
+STARTUP(crt0-or1k.o)
 ENTRY(_start)
 
 INCLUDE generated/regions.ld
@@ -73,7 +74,9 @@ SECTIONS
     .heap :
     {
         _fheap = .;
-        . = ORIGIN(runtime) + LENGTH(runtime) - 0x1000;
+        . = ORIGIN(runtime) + LENGTH(runtime)
+        /* Leave room for ksupport headers. */
+            - 0x1000;
         _eheap = .;
     } > runtime
 

@@ -65,9 +65,8 @@ pub fn print_fmt(args: self::core::fmt::Arguments) {
 
 #[lang = "panic_fmt"]
 extern fn panic_fmt(args: self::core::fmt::Arguments, file: &'static str, line: u32) -> ! {
-    let _ = write!(Console, "panic at {}:{}: ", file, line);
-    let _ = Console.write_fmt(args);
-    let _ = write!(Console, "\nwaiting for debugger...\n");
+    let _ = write!(Console, "panic at {}:{}: {}\n", file, line, args);
+    let _ = write!(Console, "waiting for debugger...\n");
     unsafe {
         let _ = readchar();
         loop { asm!("l.trap 0") }

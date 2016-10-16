@@ -81,13 +81,6 @@ class Module:
             embedding_map=self.embedding_map)
         return llvm_ir_generator.process(self.artiq_ir, attribute_writeback=True)
 
-    def entry_point(self):
-        """Return the name of the function that is the entry point of this module."""
-        if self.name != "":
-            return self.name + ".__modinit__"
-        else:
-            return "__modinit__"
-
     def __repr__(self):
         printer = types.TypePrinter()
         globals = ["%s: %s" % (var, printer.name(self.globals[var])) for var in self.globals]

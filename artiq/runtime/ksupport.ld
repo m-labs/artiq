@@ -1,14 +1,15 @@
 INCLUDE generated/output_format.ld
+STARTUP(crt0-or1k.o)
 ENTRY(_start)
 
 INCLUDE generated/regions.ld
 
 /* First 4M of main memory are reserved for runtime
  * code/data/heap, then comes kernel memory.
- * First 128K of kernel memory are for support code.
+ * First 256K of kernel memory are for support code.
  */
 MEMORY {
-    ksupport (RWX) : ORIGIN = 0x40400000, LENGTH = 0x20000
+    ksupport (RWX) : ORIGIN = 0x40400000, LENGTH = 0x40000
 }
 
 /* Kernel stack is at the end of main RAM. */
@@ -30,6 +31,16 @@ SECTIONS
         _etext = .;
     } :text
 
+    /* https://sourceware.org/bugzilla/show_bug.cgi?id=20475 */
+    .got : {
+        _GLOBAL_OFFSET_TABLE_ = .;
+        *(.got)
+    } :text
+
+    .got.plt : {
+        *(.got.plt)
+    } :text
+
     .rodata :
     {
         . = ALIGN(4);
@@ -41,12 +52,12 @@ SECTIONS
 
     .eh_frame :
     {
-        *(.eh_frame)
+        KEEP(*(.eh_frame))
     } :text
 
     .eh_frame_hdr :
     {
-        *(.eh_frame_hdr)
+        KEEP(*(.eh_frame_hdr))
     } :text :eh_frame
 
     .data :
@@ -71,5 +82,10 @@ SECTIONS
         *(COMMON)
         . = ALIGN(4);
         _ebss = .;
+    }
+
+    /DISCARD/ :
+    {
+        *(.debug*)
     }
 }

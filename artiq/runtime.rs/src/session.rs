@@ -1,6 +1,7 @@
 use std::prelude::v1::*;
 use std::{mem, str};
 use std::cell::RefCell;
+use std::fmt::Write;
 use std::io::{self, Read};
 use {config, rtio_crg, clock, mailbox, kernel};
 use logger::BufferLogger;
@@ -75,6 +76,15 @@ impl<'a> Session<'a> {
             KernelState::Running | KernelState::RpcWait => true
         }
     }
+
+    fn flush_log_buffer(&mut self) {
+        if &self.log_buffer[self.log_buffer.len() - 1..] == "\n" {
+            for line in self.log_buffer.lines() {
+                info!(target: "kernel", "{}", line);
+            }
+            self.log_buffer.clear()
+        }
+    }
 }
 
 impl<'a> Drop for Session<'a> {
@@ -109,24 +119,44 @@ fn host_write(stream: &mut TcpStream, reply: host::Reply) -> io::Result<()> {
     reply.write_to(stream)
 }
 
-fn kern_send<'a>(waiter: Waiter, request: kern::Message<'a>) -> io::Result<()> {
-    match &request {
+fn kern_send(waiter: Waiter, request: &kern::Message) -> io::Result<()> {
+    match request {
         &kern::LoadRequest(_) => trace!("comm->kern LoadRequest(...)"),
         _ => trace!("comm->kern {:?}", request)
     }
-    request.send_and_wait(waiter)
+    unsafe { mailbox::send(request as *const _ as usize) }
+    waiter.until(mailbox::acknowledged)
 }
 
+fn kern_recv_notrace<R, F>(waiter: Waiter, f: F) -> io::Result<R>
+        where F: FnOnce(&kern::Message) -> io::Result<R> {
+    try!(waiter.until(|| mailbox::receive() != 0));
+    if !kernel::validate(mailbox::receive()) {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid kernel CPU pointer"))
+    }
+
+    f(unsafe { mem::transmute::<usize, &kern::Message>(mailbox::receive()) })
+}
+
+fn kern_recv_dotrace(reply: &kern::Message) {
+    match reply {
+        &kern::Log(_) => trace!("comm<-kern Log(...)"),
+        &kern::LogSlice(_) => trace!("comm<-kern LogSlice(...)"),
+        _ => trace!("comm<-kern {:?}", reply)
+    }
+}
+
+#[inline(always)]
 fn kern_recv<R, F>(waiter: Waiter, f: F) -> io::Result<R>
-        where F: FnOnce(kern::Message) -> io::Result<R> {
-    kern::Message::wait_and_receive(waiter, |reply| {
-        trace!("comm<-kern {:?}", reply);
+        where F: FnOnce(&kern::Message) -> io::Result<R> {
+    kern_recv_notrace(waiter, |reply| {
+        kern_recv_dotrace(reply);
         f(reply)
     })
 }
 
 fn kern_acknowledge() -> io::Result<()> {
-    kern::Message::acknowledge();
+    mailbox::acknowledge();
     Ok(())
 }
 
@@ -137,15 +167,15 @@ unsafe fn kern_load(waiter: Waiter, session: &mut Session, library: &[u8]) -> io
 
     kernel::start();
 
-    try!(kern_send(waiter, kern::LoadRequest(&library)));
+    try!(kern_send(waiter, &kern::LoadRequest(&library)));
     kern_recv(waiter, |reply| {
         match reply {
-            kern::LoadReply { error: None } => {
+            &kern::LoadReply(Ok(())) => {
                 session.kernel_state = KernelState::Loaded;
                 Ok(())
             }
-            kern::LoadReply { error: Some(cause) } =>
-                unexpected!("cannot load kernel: {}", cause),
+            &kern::LoadReply(Err(error)) =>
+                unexpected!("cannot load kernel: {}", error),
             other =>
                 unexpected!("unexpected reply from kernel CPU: {:?}", other)
         }
@@ -224,7 +254,10 @@ fn process_host_message(waiter: Waiter,
         host::Request::LoadKernel(kernel) =>
             match unsafe { kern_load(waiter, session, &kernel) } {
                 Ok(()) => host_write(stream, host::Reply::LoadCompleted),
-                Err(_) => host_write(stream, host::Reply::LoadFailed)
+                Err(_) => {
+                    try!(kern_acknowledge());
+                    host_write(stream, host::Reply::LoadFailed)
+                }
             },
 
         host::Request::RunKernel =>
@@ -240,23 +273,20 @@ fn process_host_message(waiter: Waiter,
 
             let slot = try!(kern_recv(waiter, |reply| {
                 match reply {
-                    kern::RpcRecvRequest { slot } => Ok(slot),
-                    other =>
-                        unexpected!("unexpected reply from kernel CPU: {:?}", other)
+                    &kern::RpcRecvRequest(slot) => Ok(slot),
+                    other => unexpected!("unexpected reply from kernel CPU: {:?}", other)
                 }
             }));
             try!(rpc::recv_return(stream, &tag, slot, &|size| {
-                try!(kern_send(waiter, kern::RpcRecvReply {
-                    alloc_size: size, exception: None
-                }));
+                try!(kern_send(waiter, &kern::RpcRecvReply(Ok(size))));
                 kern_recv(waiter, |reply| {
                     match reply {
-                        kern::RpcRecvRequest { slot } => Ok(slot),
-                        _ => unreachable!()
+                        &kern::RpcRecvRequest(slot) => Ok(slot),
+                        other => unexpected!("unexpected reply from kernel CPU: {:?}", other)
                     }
                 })
             }));
-            try!(kern_send(waiter, kern::RpcRecvReply { alloc_size: 0, exception: None }));
+            try!(kern_send(waiter, &kern::RpcRecvReply(Ok(0))));
 
             session.kernel_state = KernelState::Running;
             Ok(())
@@ -271,23 +301,30 @@ fn process_host_message(waiter: Waiter,
 
             try!(kern_recv(waiter, |reply| {
                 match reply {
-                    kern::RpcRecvRequest { .. } => Ok(()),
+                    &kern::RpcRecvRequest(_) => Ok(()),
                     other =>
                         unexpected!("unexpected reply from kernel CPU: {:?}", other)
                 }
             }));
-            try!(kern_send(waiter, kern::RpcRecvReply {
-                alloc_size: 0,
-                exception: Some(kern::Exception {
-                    name: &name,
-                    message: &message,
-                    param: param,
-                    file: &file,
-                    line: line,
-                    column: column,
-                    function: &function
-                })
-            }));
+
+            // FIXME: gross.
+            fn into_c_str(s: String) -> *const u8 {
+                let s = s + "\0";
+                let p = s.as_bytes().as_ptr();
+                mem::forget(s);
+                p
+            }
+            let exn = kern::Exception {
+                name: into_c_str(name),
+                message: into_c_str(message),
+                param: param,
+                file: into_c_str(file),
+                line: line,
+                column: column,
+                function: into_c_str(function),
+                phantom: ::core::marker::PhantomData
+            };
+            try!(kern_send(waiter, &kern::RpcRecvReply(Err(exn))));
 
             session.kernel_state = KernelState::Running;
             Ok(())
@@ -298,10 +335,10 @@ fn process_host_message(waiter: Waiter,
 fn process_kern_message(waiter: Waiter,
                         mut stream: Option<&mut TcpStream>,
                         session: &mut Session) -> io::Result<bool> {
-    kern::Message::wait_and_receive(waiter, |request| {
-        match (&request, session.kernel_state) {
-            (&kern::LoadReply { .. }, KernelState::Loaded) |
-            (&kern::RpcRecvRequest { .. }, KernelState::RpcWait) => {
+    kern_recv_notrace(waiter, |request| {
+        match (request, session.kernel_state) {
+            (&kern::LoadReply(_), KernelState::Loaded) |
+            (&kern::RpcRecvRequest(_), KernelState::RpcWait) => {
                 // We're standing by; ignore the message.
                 return Ok(false)
             }
@@ -312,41 +349,41 @@ fn process_kern_message(waiter: Waiter,
             }
         }
 
-        trace!("comm<-kern {:?}", request);
+        kern_recv_dotrace(request);
         match request {
-            kern::Log(log) => {
-                session.log_buffer += log;
-                try!(kern_acknowledge());
-
-                if &log[log.len() - 1..] == "\n" {
-                    for line in session.log_buffer.lines() {
-                        info!(target: "kernel", "{}", line);
-                    }
-                    session.log_buffer.clear()
-                }
-                Ok(())
+            &kern::Log(args) => {
+                try!(session.log_buffer.write_fmt(args)
+                        .map_err(|_| io_error("cannot append to session log buffer")));
+                session.flush_log_buffer();
+                kern_acknowledge()
             }
 
-            kern::NowInitRequest =>
-                kern_send(waiter, kern::NowInitReply(session.congress.now)),
+            &kern::LogSlice(arg) => {
+                session.log_buffer += arg;
+                session.flush_log_buffer();
+                kern_acknowledge()
+            }
 
-            kern::NowSave(now) => {
+            &kern::NowInitRequest =>
+                kern_send(waiter, &kern::NowInitReply(session.congress.now)),
+
+            &kern::NowSave(now) => {
                 session.congress.now = now;
                 kern_acknowledge()
             }
 
-            kern::WatchdogSetRequest { ms } => {
+            &kern::WatchdogSetRequest { ms } => {
                 let id = try!(session.watchdog_set.set_ms(ms)
                                 .map_err(|()| io_error("out of watchdogs")));
-                kern_send(waiter, kern::WatchdogSetReply { id: id })
+                kern_send(waiter, &kern::WatchdogSetReply { id: id })
             }
 
-            kern::WatchdogClear { id } => {
+            &kern::WatchdogClear { id } => {
                 session.watchdog_set.clear(id);
                 kern_acknowledge()
             }
 
-            kern::RpcSend { service, batch, tag, data } => {
+            &kern::RpcSend { service, batch, tag, data } => {
                 match stream {
                     None => unexpected!("unexpected RPC in flash kernel"),
                     Some(ref mut stream) => {
@@ -362,19 +399,19 @@ fn process_kern_message(waiter: Waiter,
                 }
             }
 
-            kern::CacheGetRequest { key } => {
+            &kern::CacheGetRequest { key } => {
                 let value = session.congress.cache.get(key);
-                kern_send(waiter, kern::CacheGetReply {
+                kern_send(waiter, &kern::CacheGetReply {
                     value: unsafe { mem::transmute::<*const [u32], &'static [u32]>(value) }
                 })
             }
 
-            kern::CachePutRequest { key, value } => {
+            &kern::CachePutRequest { key, value } => {
                 let succeeded = session.congress.cache.put(key, value).is_ok();
-                kern_send(waiter, kern::CachePutReply { succeeded: succeeded })
+                kern_send(waiter, &kern::CachePutReply { succeeded: succeeded })
             }
 
-            kern::RunFinished => {
+            &kern::RunFinished => {
                 kernel::stop();
                 session.kernel_state = KernelState::Absent;
                 unsafe { session.congress.cache.unborrow() }
@@ -386,27 +423,38 @@ fn process_kern_message(waiter: Waiter,
                 }
             }
 
-            kern::RunException { exception: ref exn, backtrace } => {
+            &kern::RunException { exception: ref exn, backtrace } => {
                 kernel::stop();
                 session.kernel_state = KernelState::Absent;
                 unsafe { session.congress.cache.unborrow() }
 
+                unsafe fn from_c_str<'a>(s: *const u8) -> &'a str {
+                    use ::libc::{c_char, size_t};
+                    use core::slice;
+                    extern { fn strlen(s: *const c_char) -> size_t; }
+                    let s = slice::from_raw_parts(s, strlen(s as *const c_char));
+                    str::from_utf8_unchecked(s)
+                }
+                let name = unsafe { from_c_str(exn.name) };
+                let message = unsafe { from_c_str(exn.message) };
+                let file = unsafe { from_c_str(exn.file) };
+                let function = unsafe { from_c_str(exn.function) };
                 match stream {
                     None => {
                         error!("exception in flash kernel");
-                        error!("{}: {} {:?}", exn.name, exn.message, exn.param);
-                        error!("at {}:{}:{} in {}", exn.file, exn.line, exn.column, exn.function);
+                        error!("{}: {} {:?}", name, message, exn.param);
+                        error!("at {}:{}:{} in {}", file, exn.line, exn.column, function);
                         return Ok(true)
                     },
                     Some(ref mut stream) =>
                         host_write(stream, host::Reply::KernelException {
-                            name: exn.name,
-                            message: exn.message,
+                            name: name,
+                            message: message,
                             param: exn.param,
-                            file: exn.file,
+                            file: file,
                             line: exn.line,
                             column: exn.column,
-                            function: exn.function,
+                            function: function,
                             backtrace: backtrace
                         })
                 }

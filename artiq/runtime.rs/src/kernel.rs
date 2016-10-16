@@ -2,9 +2,7 @@ use core::ptr;
 use board::csr;
 use mailbox;
 
-const KERNELCPU_EXEC_ADDRESS:    usize = 0x40400000;
-const KERNELCPU_LAST_ADDRESS:    usize = 0x4fffffff;
-const KSUPPORT_HEADER_SIZE:      usize = 0x80;
+use kernel_proto::{KERNELCPU_EXEC_ADDRESS, KERNELCPU_LAST_ADDRESS, KSUPPORT_HEADER_SIZE};
 
 pub unsafe fn start() {
     if csr::kernel_cpu::reset_read() == 0 {
@@ -13,15 +11,9 @@ pub unsafe fn start() {
 
     stop();
 
-    extern {
-        static _binary_ksupport_elf_start: u8;
-        static _binary_ksupport_elf_end: u8;
-    }
-    let ksupport_start = &_binary_ksupport_elf_start as *const _;
-    let ksupport_end   = &_binary_ksupport_elf_end as *const _;
-    ptr::copy_nonoverlapping(ksupport_start,
-                             (KERNELCPU_EXEC_ADDRESS - KSUPPORT_HEADER_SIZE) as *mut u8,
-                             ksupport_end as usize - ksupport_start as usize);
+    let ksupport_image = include_bytes!(concat!(env!("CARGO_TARGET_DIR"), "/../ksupport.elf"));
+    let ksupport_addr = (KERNELCPU_EXEC_ADDRESS - KSUPPORT_HEADER_SIZE) as *mut u8;
+    ptr::copy_nonoverlapping(ksupport_image.as_ptr(), ksupport_addr, ksupport_image.len());
 
     csr::kernel_cpu::reset_write(0);
 }
