@@ -821,7 +821,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 timeout        = self.visit(context_expr_node.args[0])
                 timeout_ms     = self.append(ir.Arith(ast.Mult(loc=None), timeout,
                                                       ir.Constant(1000, builtins.TFloat())))
-                timeout_ms_int = self.append(ir.Coerce(timeout_ms, builtins.TInt32()))
+                timeout_ms_int = self.append(ir.Coerce(timeout_ms, builtins.TInt64()))
 
                 watchdog_id = self.append(ir.Builtin("watchdog_set", [timeout_ms_int],
                                                      builtins.TInt32()))

@@ -142,8 +142,11 @@ pub extern fn __artiq_terminate(exception: *const kernel_proto::Exception,
     loop {}
 }
 
-extern fn watchdog_set(ms: i32) -> usize {
-    // FIXME: fix ms
+extern fn watchdog_set(ms: i64) -> usize {
+    if ms < 0 {
+        artiq_raise!("ValueError", "cannot set a watchdog with a negative timeout")
+    }
+
     send(&WatchdogSetRequest { ms: ms as u64 });
     recv!(&WatchdogSetReply { id } => id)
 }

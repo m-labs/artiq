@@ -356,7 +356,7 @@ class LLVMIRGenerator:
         elif name == "now":
             llty = lli64
         elif name == "watchdog_set":
-            llty = ll.FunctionType(lli32, [lli32])
+            llty = ll.FunctionType(lli32, [lli64])
         elif name == "watchdog_clear":
             llty = ll.FunctionType(llvoid, [lli32])
         else:
