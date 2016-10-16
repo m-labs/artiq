@@ -2,6 +2,7 @@ from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from misoc.cores.code_8b10b import Encoder, Decoder
+from misoc.interconnect.csr import *
 
 from artiq.gateware.drtio.transceiver.gtx_7series_init import *
 
@@ -175,7 +176,7 @@ class GTX_1000BASE_BX10(Module):
         ]
 
 
-class RXSynchronizer(Module):
+class RXSynchronizer(Module, AutoCSR):
     """Delays the data received in the rtio_rx by a configurable amount
     so that it meets s/h in the rtio domain, and recapture it in the rtio
     domain. This has fixed latency.
@@ -188,9 +189,42 @@ class RXSynchronizer(Module):
     Xilinx scriptures (when existent) and should be constant for a given design
     placement.
     """
-    def __init__(self):
-        self.cd_rtio_delayed = ClockDomain()
-        # TODO
+    def __init__(self, rtio_clk_freq):
+        self.phase_shift = CSR()
+        self.phase_shift_done = CSRStatus()
+
+        self.cd_rtio_delayed = ClockDomain(reset_less=True)
+
+        mmcm_output = Signal()
+        mmcm_fb = Signal()
+        # maximize VCO frequency to maximize phase shift resolution
+        mmcm_mult = 1200e9//rtio_clk_freq
+        self.specials += [
+            Instance("MMCME2_ADV",
+                p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
+                i_CLKIN1=ClockSignal("rtio_rx"),
+                i_CLKINSEL=1,  # yes, 1=CLKIN1 0=CLKIN2
+
+                p_CLKFBOUT_MULT_F=mmcm_mult,
+                p_CLKOUT0_DIVIDE_F=mmcm_mult,
+                p_DIVCLK_DIVIDE=1,
+
+                # According to Xilinx, there is no guarantee of input/output
+                # phase relationship when using internal feedback. We assume
+                # here that the input/ouput skew is constant to save BUFGs.
+                o_CLKFBOUT=mmcm_fb,
+                i_CLKFBIN=mmcm_fb,
+
+                p_CLKOUT0_USE_FINE_PS="TRUE",
+                o_CLKOUT0=mmcm_output,
+
+                i_PSCLK=ClockSignal(),
+                i_PSEN=self.phase_shift.re,
+                i_PSINCDEC=self.phase_shift.r,
+                o_PSDONE=self.phase_shift_done.status,
+            ),
+            Instance("BUFR", i_I=mmcm_output, o_O=self.cd_rtio_delayed.clk)
+        ]
 
     def sync(self, signal):
         delayed = Signal.like(signal, related=signal)
