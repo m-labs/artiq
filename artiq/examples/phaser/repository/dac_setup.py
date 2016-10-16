@@ -34,6 +34,19 @@ class DACSetup(EnvExperiment):
 
     @kernel
     def run(self):
+        # TODO; remove when
+        # https://github.com/m-labs/jesd204b/issues/6
+        # is resolved
+        for i in range(99):
+            try:
+                self.cfg()
+                return
+            except:
+                pass
+        self.cfg()
+
+    @kernel
+    def cfg(self):
         self.core.reset()
         self.ad9154.jesd_enable(0)
         self.ad9154.jesd_prbs(0)
@@ -48,6 +61,7 @@ class DACSetup(EnvExperiment):
         self.monitor()
         while not self.ad9154.jesd_ready():
             pass
+        self.busywait_us(10000)
         if self.ad9154.dac_read(AD9154_CODEGRPSYNCFLG) != 0x0f:
             raise ValueError("bad CODEGRPSYNCFLG")
         self.core.break_realtime()
