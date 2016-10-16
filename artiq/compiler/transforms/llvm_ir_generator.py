@@ -1289,6 +1289,7 @@ class LLVMIRGenerator:
 
         self.llbuilder.position_at_end(llalloc)
         llalloca = self.llbuilder.alloca(lli8, llsize, name="rpc.alloc")
+        llalloca.align = 4 # maximum alignment required by OR1K ABI
         llphi.add_incoming(llalloca, llalloc)
         self.llbuilder.branch(llhead)
 
