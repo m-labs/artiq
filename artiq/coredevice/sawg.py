@@ -10,7 +10,7 @@ class SAWG:
         Frequency and Phase are then assumed to be successive channels.
     """
     kernel_invariants = {"amplitude_scale", "frequency_scale", "phase_scale",
-                         "channel_base"}
+                         "channel_base", "core"}
 
     def __init__(self, dmgr, channel_base, parallelism=4, core_device="core"):
         self.core = dmgr.get(core_device)
