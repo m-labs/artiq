@@ -446,6 +446,9 @@ class Scheduler:
         whether returning control to the host and pausing would have an effect,
         in order to avoid the cost of switching kernels in the common case
         where ``pause`` does nothing.
+
+        This function does not have side effects, and does not have to be
+        followed by a call to ``pause``.
         """
         for pipeline in self._pipelines.values():
             if rid in pipeline.pool.runs:
