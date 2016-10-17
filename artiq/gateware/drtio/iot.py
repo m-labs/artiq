@@ -16,9 +16,10 @@ class IOT(Module):
             )
 
         for n, channel in enumerate(channels):
-            data_width = rtlink.get_data_width(channel.interface)
-            address_width = rtlink.get_address_width(channel.interface)
-            fine_ts_width = rtlink.get_fine_ts_width(channel.interface)
+            interface = channel.interface.o
+            data_width = rtlink.get_data_width(interface)
+            address_width = rtlink.get_address_width(interface)
+            fine_ts_width = rtlink.get_fine_ts_width(interface)
             assert fine_ts_width <= max_fine_ts_width
 
             # FIFO
@@ -47,7 +48,7 @@ class IOT(Module):
                     If(~fifo.writable, rt_packets.write_overflow.eq(1)),
                     If(rt_packets.write_underflow_ack,
                         rt_packets.write_underflow.eq(0)),
-                    If(rt_packets.timestamp[max_fine_ts_width:] < (tsc + 4),
+                    If(rt_packets.write_timestamp[max_fine_ts_width:] < (tsc + 4),
                         rt_packets.write_underflow.eq(1)
                     )
                 )
@@ -56,7 +57,7 @@ class IOT(Module):
             if address_width:
                 self.comb += fifo_in.address.eq(rt_packets.write_address)
             self.comb += fifo_in.timestamp.eq(
-                rt_packets.timestamp[max_fine_ts_width-fine_ts_width:])
+                rt_packets.write_timestamp[max_fine_ts_width-fine_ts_width:])
 
             # FIFO read
             self.sync += [

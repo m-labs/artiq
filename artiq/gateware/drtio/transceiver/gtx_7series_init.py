@@ -157,7 +157,7 @@ class BruteforceClockAligner(Module):
         comma_seen_rxclk = Signal()
         comma_seen = Signal()
         self.specials += MultiReg(comma_seen_rxclk, comma_seen)
-        comma_seen_reset = PulseSynchronizer("sys", "rx")
+        comma_seen_reset = PulseSynchronizer("rtio", "rtio_rx")
         self.submodules += comma_seen_reset
         self.sync.rtio_rx += \
             If(comma_seen_reset.o,

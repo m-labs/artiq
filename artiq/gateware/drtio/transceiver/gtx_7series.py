@@ -8,6 +8,8 @@ from artiq.gateware.drtio.transceiver.gtx_7series_init import *
 
 
 class GTX_1000BASE_BX10(Module):
+    rtio_clk_freq = 62.5e6
+
     def __init__(self, clock_pads, tx_pads, rx_pads, sys_clk_freq):
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
@@ -33,7 +35,7 @@ class GTX_1000BASE_BX10(Module):
         tx_init = GTXInit(sys_clk_freq, False)
         # RX receives restart commands from RTIO domain
         rx_init = ClockDomainsRenamer("rtio")(
-            GTXInit(62.5e6, True))
+            GTXInit(self.rtio_clk_freq, True))
         self.submodules += tx_init, rx_init
         self.comb += tx_init.cplllock.eq(cplllock), \
                      rx_init.cplllock.eq(cplllock), \
@@ -166,7 +168,7 @@ class GTX_1000BASE_BX10(Module):
             self.decoders[1].input.eq(rxdata[10:])
         ]
 
-        clock_aligner = BruteforceClockAligner(0b0011111000, 62.5e6)
+        clock_aligner = BruteforceClockAligner(0b0011111000, self.rtio_clk_freq)
         self.submodules += clock_aligner
         self.comb += [
             clock_aligner.rxdata.eq(rxdata),
@@ -193,7 +195,7 @@ class RXSynchronizer(Module, AutoCSR):
         self.phase_shift = CSR()
         self.phase_shift_done = CSRStatus()
 
-        self.cd_rtio_delayed = ClockDomain(reset_less=True)
+        self.clock_domains.cd_rtio_delayed = ClockDomain(reset_less=True)
 
         mmcm_output = Signal()
         mmcm_fb = Signal()
@@ -226,7 +228,7 @@ class RXSynchronizer(Module, AutoCSR):
             Instance("BUFR", i_I=mmcm_output, o_O=self.cd_rtio_delayed.clk)
         ]
 
-    def sync(self, signal):
+    def resync(self, signal):
         delayed = Signal.like(signal, related=signal)
         synchronized = Signal.like(signal, related=signal)
         self.sync.rtio_delayed += delayed.eq(signal)

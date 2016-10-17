@@ -15,23 +15,33 @@ class DRTIOSatellite(Module):
         ]
 
         link_layer_sync = SimpleNamespace(
-            tx_aux_frame=self.link_layer.tx.aux_frame,
+            tx_aux_frame=self.link_layer.tx_aux_frame,
             tx_aux_data=self.link_layer.tx_aux_data,
             tx_aux_ack=self.link_layer.tx_aux_ack,
             tx_rt_frame=self.link_layer.tx_rt_frame,
             tx_rt_data=self.link_layer.tx_rt_data,
 
-            rx_aux_stb=rx_synchronizer.sync(self.link_layer.rx_aux_stb),
-            rx_aux_frame=rx_synchronizer.sync(self.link_layer.rx_aux_frame),
-            rx_aux_data=rx_synchronizer.sync(self.link_layer.rx_aux_data),
-            rx_rt_frame=rx_synchronizer.sync(self.link_layer.rx_rt_frame),
-            rx_rt_data=rx_synchronizer.sync(self.link_layer.rx_rt_data)
+            rx_aux_stb=rx_synchronizer.resync(self.link_layer.rx_aux_stb),
+            rx_aux_frame=rx_synchronizer.resync(self.link_layer.rx_aux_frame),
+            rx_aux_data=rx_synchronizer.resync(self.link_layer.rx_aux_data),
+            rx_rt_frame=rx_synchronizer.resync(self.link_layer.rx_rt_frame),
+            rx_rt_data=rx_synchronizer.resync(self.link_layer.rx_rt_data)
         )
         self.submodules.rt_packets = ClockDomainsRenamer("rtio")(
             rt_packets.RTPacketSatellite(link_layer_sync))
 
         self.submodules.iot = ClockDomainsRenamer("rtio")(
             iot.IOT(self.rt_packets, channels, fine_ts_width, full_ts_width))
+
+        # TODO: remote resets
+        self.clock_domains.cd_rio = ClockDomain()
+        self.clock_domains.cd_rio_phy = ClockDomain()
+        self.comb += [
+            self.cd_rio.clk.eq(ClockSignal("rtio")),
+            self.cd_rio.rst.eq(ResetSignal("rtio")),
+            self.cd_rio_phy.clk.eq(ClockSignal("rtio")),
+            self.cd_rio_phy.rst.eq(ResetSignal("rtio")),
+        ]
 
 
 class DRTIOMaster(Module):
