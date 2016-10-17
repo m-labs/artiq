@@ -31,7 +31,7 @@ all: runtime.bin runtime.fbi
 
 .PHONY: $(RUSTOUT_DIRECTORY)/libruntime.a
 $(RUSTOUT_DIRECTORY)/libruntime.a: ksupport.elf
-	CARGO_TARGET_DIR=$(realpath ./cargo) \
+	CARGO_TARGET_DIR=$(realpath .)/cargo \
 		cargo rustc --verbose \
 			--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../runtime.rs/Cargo.toml) \
 			--target=or1k-unknown-none -- \
@@ -49,7 +49,7 @@ runtime.elf: $(OBJECTS) $(RUSTOUT_DIRECTORY)/libruntime.a
 
 .PHONY: $(RUSTOUT_DIRECTORY)/libksupport.a
 $(RUSTOUT_DIRECTORY)/libksupport.a:
-	CARGO_TARGET_DIR=$(realpath ./cargo) \
+	CARGO_TARGET_DIR=$(realpath .)/cargo \
 		cargo rustc --verbose \
 			--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../runtime.rs/libksupport/Cargo.toml) \
 			--target=or1k-unknown-none -- \
