@@ -72,7 +72,9 @@ To check whether ``pause()`` would in fact *not* return immediately, use :meth:`
 
 The experiment must place the hardware in a safe state and disconnect from the core device (typically, by using ``self.core.comm.close()``) before calling ``pause``.
 
-Accessing the ``pause`` method is done through a virtual device called ``scheduler`` that is accessible to all experiments. The scheduler virtual device is requested like regular devices using ``get_device`` or ``attr_device``.
+Accessing the ``pause`` and ``check_pause`` methods is done through a virtual device called ``scheduler`` that is accessible to all experiments. The scheduler virtual device is requested like regular devices using ``get_device`` or ``attr_device``.
+
+``check_pause`` can be called (via RPC) from a kernel, but ``pause`` must not.
 
 Multiple pipelines
 ------------------
