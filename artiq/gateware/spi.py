@@ -2,7 +2,7 @@ from itertools import product
 
 from migen import *
 from misoc.interconnect import wishbone
-from misoc.cores.spi.core import SPIMachine
+from misoc.cores.spi import SPIMachine
 
 
 class SPIMaster(Module):
