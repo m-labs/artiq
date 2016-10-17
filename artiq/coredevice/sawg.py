@@ -32,13 +32,13 @@ class SAWG:
         """
         rtio_output(now_mu(), self.channel_base, 0, amplitude)
 
-    @kernel
+    @kernel(flags=["fast-math"])
     def set_amplitude(self, amplitude: TFloat):
         """Set DDS amplitude.
 
         :param amplitude: DDS amplitude relative to full-scale.
         """
-        self.set_amplitude_mu(int(amplitude*self.amplitude_scale))
+        self.set_amplitude_mu(int(round(amplitude*self.amplitude_scale)))
 
     @kernel
     def set_frequency_mu(self, frequency: TInt32):
@@ -48,13 +48,13 @@ class SAWG:
         """
         rtio_output(now_mu(), self.channel_base + 1, 0, frequency)
 
-    @kernel
+    @kernel(flags=["fast-math"])
     def set_frequency(self, frequency: TFloat):
         """Set DDS frequency.
 
         :param frequency: DDS frequency in Hz.
         """
-        self.set_frequency_mu(int(frequency*self.frequency_scale))
+        self.set_frequency_mu(int(round(frequency*self.frequency_scale)))
 
     @kernel
     def set_phase_mu(self, phase: TInt32):
@@ -64,10 +64,10 @@ class SAWG:
         """
         rtio_output(now_mu(), self.channel_base + 2, 0, phase)
 
-    @kernel
+    @kernel(flags=["fast-math"])
     def set_phase(self, phase: TFloat):
         """Set DDS phase.
 
         :param phase: DDS phase relative in turns.
         """
-        self.set_phase_mu(int(phase*self.phase_scale))
+        self.set_phase_mu(int(round(phase*self.phase_scale)))
