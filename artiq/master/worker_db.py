@@ -196,8 +196,12 @@ class DatasetManager:
             broadcast = True
         if broadcast:
             self.broadcast[key] = persist, value
+        elif key in self.broadcast.read:
+            del self.broadcast[key]
         if save:
             self.local[key] = value
+        elif key in self.local:
+            del self.local[key]
 
     def mutate(self, key, index, value):
         target = None
