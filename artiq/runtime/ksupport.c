@@ -409,7 +409,7 @@ int main(void)
     }
 
     if(request->run_kernel) {
-        void (*kernel_run)() = request->library_info->init;
+        void (*kernel_run)() = dyld_lookup("__modinit__", request->library_info);
         void *typeinfo = dyld_lookup("typeinfo", request->library_info);
 
         mailbox_send_and_wait(&load_reply);
