@@ -200,7 +200,7 @@ class RXSynchronizer(Module, AutoCSR):
         mmcm_output = Signal()
         mmcm_fb = Signal()
         # maximize VCO frequency to maximize phase shift resolution
-        mmcm_mult = 1200e9//rtio_clk_freq
+        mmcm_mult = 1200e6//rtio_clk_freq
         self.specials += [
             Instance("MMCME2_ADV",
                 p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
