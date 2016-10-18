@@ -181,11 +181,17 @@ class DatasetManager:
     def __init__(self, ddb):
         self.broadcast = Notifier(dict())
         self.local = dict()
+        self.archive = dict()
 
         self.ddb = ddb
         self.broadcast.publish = ddb.update
 
     def set(self, key, value, broadcast=False, persist=False, save=True):
+        if key in self.archive:
+            logger.warning("Modifying dataset '%s' which is in archive, "
+                           "archive will remain untouched",
+                           key, stack_info=True)
+
         if persist:
             broadcast = True
         if broadcast:
@@ -211,12 +217,22 @@ class DatasetManager:
                 index = slice(*index)
         setitem(target, index, value)
 
-    def get(self, key):
+    def get(self, key, archive):
         if key in self.local:
             return self.local[key]
         else:
-            return self.ddb.get(key)
+            data = self.ddb.get(key)
+            if archive:
+                if key in self.archive:
+                    logger.warning("Dataset '%s' is already in archive, "
+                                   "overwriting", key, stack_info=True)
+                self.archive[key] = data
+            return data
 
     def write_hdf5(self, f):
+        datasets_group = f.create_group("datasets")
         for k, v in self.local.items():
-            f[k] = v
+            datasets_group[k] = v
+        archive_group = f.create_group("archive")
+        for k, v in self.archive.items():
+            archive_group[k] = v

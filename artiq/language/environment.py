@@ -303,7 +303,7 @@ class HasEnvironment:
         as ``slice(*sub_tuple)`` (multi-dimensional slicing)."""
         self.__dataset_mgr.mutate(key, index, value)
 
-    def get_dataset(self, key, default=NoDefault):
+    def get_dataset(self, key, default=NoDefault, archive=True):
         """Returns the contents of a dataset.
 
         The local storage is searched first, followed by the master storage
@@ -312,19 +312,25 @@ class HasEnvironment:
 
         If the dataset does not exist, returns the default value. If no default
         is provided, raises ``KeyError``.
+
+        By default, datasets obtained by this method are archived into the output
+        HDF5 file of the experiment. If an archived dataset is requested more
+        than one time (and therefore its value has potentially changed) or is
+        modified, a warning is emitted. Archival can be turned off by setting
+        the ``archive`` argument to ``False``.
         """
         try:
-            return self.__dataset_mgr.get(key)
+            return self.__dataset_mgr.get(key, archive)
         except KeyError:
             if default is NoDefault:
                 raise
             else:
                 return default
 
-    def setattr_dataset(self, key, default=NoDefault):
+    def setattr_dataset(self, key, default=NoDefault, archive=True):
         """Sets the contents of a dataset as attribute. The names of the
         dataset and of the attribute are the same."""
-        setattr(self, key, self.get_dataset(key, default))
+        setattr(self, key, self.get_dataset(key, default, archive))
 
 
 class Experiment:

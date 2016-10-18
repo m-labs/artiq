@@ -245,7 +245,7 @@ def main():
             elif action == "write_results":
                 filename = "{:09}-{}.h5".format(rid, exp.__name__)
                 with h5py.File(filename, "w") as f:
-                    dataset_mgr.write_hdf5(f.create_group("datasets"))
+                    dataset_mgr.write_hdf5(f)
                     f["artiq_version"] = artiq_version
                     f["rid"] = rid
                     f["start_time"] = int(time.mktime(start_time))

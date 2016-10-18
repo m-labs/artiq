@@ -58,7 +58,7 @@ class FloppingF(EnvExperiment):
         # Use get_dataset so that analyze can be run stand-alone.
         brightness = self.get_dataset("flopping_f_brightness")
         try:
-            frequency = self.get_dataset("flopping_f_frequency")
+            frequency = self.get_dataset("flopping_f_frequency", archive=False)
         except KeyError:
             # Since flopping_f_frequency is not saved, it is missing if
             # analyze() is run on HDF5 data. But assuming that the arguments
@@ -68,7 +68,8 @@ class FloppingF(EnvExperiment):
             self.set_dataset("flopping_f_frequency", frequency,
                              broadcast=True, save=False)
         popt, pcov = curve_fit(model, frequency, brightness,
-                               p0=[self.get_dataset("flopping_freq", 1500.0)])
+                               p0=[self.get_dataset("flopping_freq", 1500.0,
+                                                    archive=False)])
         perr = np.sqrt(np.diag(pcov))
         if perr < 0.1:
             F0 = float(popt)
