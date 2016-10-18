@@ -198,6 +198,8 @@ class DatasetManager:
         if key in self.local:
             target = self.local[key]
         if key in self.broadcast.read:
+            if target is not None:
+                assert target is self.broadcast.read[key][1]
             target = self.broadcast[key][1]
         if target is None:
             raise KeyError("Cannot mutate non-existing dataset")
