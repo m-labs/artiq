@@ -333,7 +333,8 @@ int dl_iterate_phdr (int (*callback)(struct dl_phdr_info *, size_t, void *), voi
     return retval;
 }
 
-static Elf32_Addr resolve_runtime_export(const char *name)
+static Elf32_Addr resolve_runtime_export(void *resolve_data,
+        const char *name)
 {
     const struct symbol *sym = runtime_exports;
     while(sym->name) {
@@ -397,7 +398,7 @@ int main(void)
 
     if(request->library != NULL) {
         if(!dyld_load(request->library, KERNELCPU_PAYLOAD_ADDRESS,
-                      resolve_runtime_export, request->library_info,
+                      resolve_runtime_export, NULL, request->library_info,
                       &load_reply.error)) {
             mailbox_send(&load_reply);
             while(1);
