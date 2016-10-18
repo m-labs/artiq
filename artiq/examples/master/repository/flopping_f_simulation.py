@@ -52,8 +52,7 @@ class FloppingF(EnvExperiment):
             self.mutate_dataset("flopping_f_frequency", i, f)
             self.mutate_dataset("flopping_f_brightness", i, m_brightness)
             time.sleep(0.1)
-        self.scheduler.submit(self.scheduler.pipeline_name, self.scheduler.expid,
-                              self.scheduler.priority, time.time() + 20, False)
+        self.scheduler.submit(due_date=time.time() + 20)
 
     def analyze(self):
         # Use get_dataset so that analyze can be run stand-alone.
