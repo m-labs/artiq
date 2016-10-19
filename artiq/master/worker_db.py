@@ -221,7 +221,7 @@ class DatasetManager:
                 index = slice(*index)
         setitem(target, index, value)
 
-    def get(self, key, archive):
+    def get(self, key, archive=False):
         if key in self.local:
             return self.local[key]
         else:
