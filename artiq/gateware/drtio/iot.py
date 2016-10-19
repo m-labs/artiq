@@ -39,6 +39,12 @@ class IOT(Module):
                 fifo_out.raw_bits().eq(fifo.dout)
             ]
 
+            # FIFO level
+            self.sync += \
+                If(rt_packets.fifo_level_update &
+                   (rt_packets.fifo_level_channel == n),
+                    rt_packets.fifo_level.eq(fifo.level))
+
             # FIFO write
             self.comb += fifo.we.eq(rt_packets.write_stb)
             self.sync += \
