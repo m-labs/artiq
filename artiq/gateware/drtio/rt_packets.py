@@ -2,6 +2,8 @@ from types import SimpleNamespace
 
 from migen import *
 from migen.genlib.fsm import *
+from migen.genlib.fifo import AsyncFIFO
+from migen.genlib.cdc import PulseSynchronizer, NoRetiming
 
 
 def layout_len(l):
@@ -311,3 +313,34 @@ class RTPacketSatellite(Module):
             tx_dp.stb.eq(1),
             If(tx_dp.done, NextState("IDLE"))
         )
+
+
+class _CrossDomainRequest(Module):
+    def __init__(self, domain,
+                 req_stb, req_ack, req_data,
+                 srv_stb, srv_ack, srv_data):
+        dsync = getattr(self.sync, domain)
+
+        request = PulseSynchronizer("sys", domain)
+        reply = PulseSynchronizer(domain, "sys")
+        self.submodules += request, reply
+
+        ongoing = Signal()
+        self.comb += request.i.eq(~ongoing & req_stb)
+        self.sync += [
+            req_ack.eq(reply.o),
+            If(req_stb, ongoing.eq(1)),
+            If(req_ack, ongoing.eq(0))
+        ]
+        if req_data is not None:
+            srv_data_r = Signal.like(srv_data)
+            dsync += If(srv_stb & srv_ack, srv_data_r.eq(srv_data))
+            self.specials += NoRetiming(srv_data_r)
+            self.sync += If(reply.o, req_data.eq(srv_data_r))
+        dsync += [
+            If(request.o, srv_stb.eq(1)),
+            If(srv_ack, srv_stb.eq(0))
+        ]
+        self.comb += reply.i.eq(srv_stb & srv_ack)
+
+

@@ -1,9 +1,11 @@
 import unittest
 from types import SimpleNamespace
+import random
 
 from migen import *
 
 from artiq.gateware.drtio.rt_packets import *
+from artiq.gateware.drtio.rt_packets import _CrossDomainRequest
 
 
 class PacketInterface:
@@ -119,3 +121,50 @@ class TestSatellite(unittest.TestCase):
                     yield
             run_simulation(dut, [send(), receive()])
             self.assertEqual(tx_times, rx_times)
+
+
+class TestCrossDomainRequest(unittest.TestCase):
+    def test_cross_domain_request(self):
+        for sys_freq in 3, 6, 11:
+            for srv_freq in 3, 6, 11:
+                prng = random.Random(1)
+
+                req_stb = Signal()
+                req_ack = Signal()
+                req_data = Signal(8)
+                srv_stb = Signal()
+                srv_ack = Signal()
+                srv_data = Signal(8)
+                test_seq = [93, 92, 19, 39, 91, 30, 12, 91, 38, 42]
+                received_seq = []
+
+                def requester():
+                    for i in range(len(test_seq)):
+                        yield req_stb.eq(1)
+                        yield
+                        while not (yield req_ack):
+                            yield
+                        received_seq.append((yield req_data))
+                        yield req_stb.eq(0)
+                        for j in range(prng.randrange(0, 10)):
+                            yield
+
+                def server():
+                    for data in test_seq:
+                        while not (yield srv_stb):
+                            yield
+                        for j in range(prng.randrange(0, 10)):
+                            yield
+                        yield srv_data.eq(data)
+                        yield srv_ack.eq(1)
+                        yield
+                        yield srv_ack.eq(0)
+                        yield
+
+                dut = _CrossDomainRequest("srv",
+                         req_stb, req_ack, req_data,
+                         srv_stb, srv_ack, srv_data)
+                run_simulation(dut,
+                    {"sys": requester(), "srv": server()},
+                    {"sys": sys_freq, "srv": srv_freq})
+                self.assertEqual(test_seq, received_seq)
