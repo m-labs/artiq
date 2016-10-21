@@ -125,10 +125,9 @@ class TestSatellite(unittest.TestCase):
 
 class TestCrossDomainRequest(unittest.TestCase):
     def test_cross_domain_request(self):
+        prng = random.Random(1)
         for sys_freq in 3, 6, 11:
             for srv_freq in 3, 6, 11:
-                prng = random.Random(1)
-
                 req_stb = Signal()
                 req_ack = Signal()
                 req_data = Signal(8)
@@ -139,23 +138,23 @@ class TestCrossDomainRequest(unittest.TestCase):
                 received_seq = []
 
                 def requester():
-                    for i in range(len(test_seq)):
+                    for data in test_seq:
+                        yield req_data.eq(data)
                         yield req_stb.eq(1)
                         yield
                         while not (yield req_ack):
                             yield
-                        received_seq.append((yield req_data))
                         yield req_stb.eq(0)
                         for j in range(prng.randrange(0, 10)):
                             yield
 
                 def server():
-                    for data in test_seq:
+                    for i in range(len(test_seq)):
                         while not (yield srv_stb):
                             yield
+                        received_seq.append((yield srv_data))
                         for j in range(prng.randrange(0, 10)):
                             yield
-                        yield srv_data.eq(data)
                         yield srv_ack.eq(1)
                         yield
                         yield srv_ack.eq(0)

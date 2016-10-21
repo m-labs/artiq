@@ -333,14 +333,15 @@ class _CrossDomainRequest(Module):
             If(req_ack, ongoing.eq(0))
         ]
         if req_data is not None:
-            srv_data_r = Signal.like(srv_data)
-            dsync += If(srv_stb & srv_ack, srv_data_r.eq(srv_data))
-            self.specials += NoRetiming(srv_data_r)
-            self.sync += If(reply.o, req_data.eq(srv_data_r))
+            req_data_r = Signal.like(req_data)
+            self.specials += NoRetiming(req_data_r)
+            self.sync += If(req_stb, req_data_r.eq(req_data))
         dsync += [
             If(request.o, srv_stb.eq(1)),
             If(srv_ack, srv_stb.eq(0))
         ]
+        if req_data is not None:
+            dsync += If(request.o, srv_data.eq(req_data_r))
         self.comb += reply.i.eq(srv_stb & srv_ack)
 
 
