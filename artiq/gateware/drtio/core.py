@@ -45,5 +45,11 @@ class DRTIOSatellite(Module):
 
 
 class DRTIOMaster(Module):
-    def __init__(self):
-        pass
+    def __init__(self, transceiver):
+        self.submodules.link_layer = link_layer.LinkLayer(
+            transceiver.encoder, transceiver.decoders)
+        self.comb += [
+            transceiver.rx_reset.eq(self.link_layer.rx_reset),
+            self.link_layer.rx_ready.eq(transceiver.rx_ready)
+        ]
+        self.submodules.rt_packets = rt_packets.RTPacketMaster(self.link_layer)

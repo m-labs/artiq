@@ -45,7 +45,7 @@ def get_s2m_layouts(alignment):
     plm = PacketLayoutManager(alignment)
     plm.add_type("error", ("code", 8))
     plm.add_type("echo_reply")
-    plm.add_type("fifo_level_reply", ("level", 24))
+    plm.add_type("fifo_level_reply", ("level", 16))
     return plm
 
 
@@ -178,7 +178,7 @@ class RTPacketSatellite(Module):
         
         self.fifo_level_channel = Signal(16)
         self.fifo_level_update = Signal()
-        self.fifo_level = Signal(24)
+        self.fifo_level = Signal(16)
         
         self.write_stb = Signal()
         self.write_timestamp = Signal(64)
@@ -365,3 +365,146 @@ class _CrossDomainNotification(Module):
             )
         ]
 
+
+class RTPacketMaster(Module):
+    def __init__(self, link_layer, write_fifo_depth=4):
+        # all interface signals in sys domain unless otherwise specified
+
+        # write interface, optimized for throughput
+        self.write_stb = Signal()
+        self.write_ack = Signal()
+        self.write_timestamp = Signal(64)
+        self.write_channel = Signal(16)
+        self.write_address = Signal(16)
+        self.write_data = Signal(256)
+
+        # fifo level interface
+        # write with timestamp[48:] == 0xffff to make a fifo level request
+        # (level requests have to be ordered wrt writes)
+        self.fifo_level_not = Signal()
+        self.fifo_level_not_ack = Signal()
+        self.fifo_level = Signal(16)
+
+        # echo interface
+        self.echo_stb = Signal()
+        self.echo_ack = Signal()
+        self.echo_sent_now = Signal()  # in rtio domain
+        self.echo_received_now = Signal()  # in rtio_rx domain
+
+        # set_time interface
+        self.set_time_stb = Signal()
+        self.set_time_ack = Signal()
+        self.tsc_value = Signal(64)  # in rtio domain, must be valid all time
+
+        # errors
+        self.error_not = Signal()
+        self.error_not_ack = Signal()
+        self.error_code = Signal(8)
+
+        # # #
+
+        # CDC
+        wfifo = AsyncFIFO(64+16+16+256, write_fifo_depth)
+        self.submodules += wfifo
+        write_timestamp = Signal(64)
+        write_channel = Signal(16)
+        write_address = Signal(16)
+        write_data = Signal(256)
+        self.comb += [
+            wfifo.we.eq(self.write_stb),
+            self.write_ack.eq(wfifo.writable),
+            wfifo.din.eq(Cat(self.write_timestamp, self.write_channel,
+                             self.write_address, self.write_data)),
+            Cat(write_timestamp, write_channel,
+                write_address, write_data).eq(fifo.dout)
+        ]
+
+        fifo_level_not = Signal()
+        fifo_level = Signal(16)
+        self.submodules += _CrossDomainNotification("rtio_rx",
+            fifo_level_not, fifo_level,
+            self.fifo_level_not, self.fifo_level_not_ack, self.fifo_level)
+
+        set_time_stb = Signal()
+        set_time_ack = Signal()
+        self.submodules += _CrossDomainRequest("rtio",
+            self.set_time_stb, self.set_time_ack, None,
+            set_time_stb, set_time_ack, None)
+
+        echo_stb = Signal()
+        echo_ack = Signal()
+        self.submodules += _CrossDomainRequest("rtio",
+            self.echo_stb, self.echo_ack, None,
+            echo_stb, echo_ack, None)
+
+        error_not = Signal()
+        error_code = Signal(8)
+        self.submodules += _CrossDomainNotification("rtio_rx",
+            error_not, error_code,
+            self.error_not, self.error_not_ack, self.error_code)
+
+        # RX/TX datapath
+        assert len(link_layer.tx_rt_data) == len(link_layer.rx_rt_data)
+        assert len(link_layer.tx_rt_data) % 8 == 0
+        ws = len(link_layer.tx_rt_data)
+        tx_plm = get_m2s_layouts(ws)
+        tx_dp = ClockDomainsRenamer("rtio")(TransmitDatapath(
+            link_layer.tx_rt_frame, link_layer.tx_rt_data, tx_plm))
+        self.submodules += tx_dp
+        rx_plm = get_s2m_layouts(ws)
+        rx_dp = ClockDomainsRenamer("rtio_rx")(ReceiveDatapath(
+            link_layer.rx_rt_frame, link_layer.rx_rt_data, rx_plm))
+        self.submodules += rx_dp
+
+        # TX FSM
+        tx_fsm = ClockDomainsRenamer("rtio")(FSM(reset_state="IDLE_WRITE"))
+        self.submodules += tx_fsm
+
+        echo_sent_now = Signal()
+        self.sync.rtio += self.echo_sent_now.eq(echo_sent_now)
+        tsc_value = Signal(64)
+        tsc_value_load = Signal()
+        self.sync.rtio += If(tsc_value_load, tsc_value.eq(self.tsc_value))
+
+        tx_fsm.act("IDLE_WRITE",
+            tx_dp.send("write",
+                timestamp=write_timestamp,
+                channel=write_channel,
+                address=write_address,
+                short_data=write_data),
+            If(wfifo.readable,
+                If(write_timestamp[48:] == 0xffff,
+                    NextState("FIFO_LEVEL")
+                ).Else(
+                    tx_dp.stb.eq(1),
+                    wfifo.re.eq(tx_dp.done)
+                )
+            ).Else(
+                If(echo_stb,
+                    echo_sent_now.eq(1),
+                    NextState("ECHO")
+                ).Elif(set_time_stb,
+                    tsc_value_load.eq(1),
+                    NextState("SET_TIME")
+                )
+            )
+        )
+        tx_fsm.act("FIFO_LEVEL",
+            tx_dp.send("fifo_level_request", channel=write_channel),
+            tx_dp.stb.eq(1),
+            If(tx_dp.done, NextState("IDLE_WRITE"))
+        )
+        tx_fsm.act("ECHO",
+            tx_dp.send("echo_request"),
+            tx_dp.stb.eq(1),
+            If(tx_dp.done, NextState("IDLE_WRITE"))
+        )
+        tx_fsm.act("SET_TIME",
+            tx_dp.send("set_time", timestamp=tsc_value),
+            tx_dp.stb.eq(1),
+            If(tx_dp.done, NextState("IDLE_WRITE"))
+        )
+
+        # RX FSM
+        rx_fsm = ClockDomainsRenamer("rtio_rx")(FSM())
+        self.submodules += rx_fsm
