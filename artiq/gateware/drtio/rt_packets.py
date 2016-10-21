@@ -345,3 +345,23 @@ class _CrossDomainRequest(Module):
         self.comb += reply.i.eq(srv_stb & srv_ack)
 
 
+class _CrossDomainNotification(Module):
+    def __init__(self, domain,
+                 emi_stb, emi_data,
+                 rec_stb, rec_ack, rec_data):
+        emi_data_r = Signal.like(emi_data)
+        self.specials += NoRetiming(emi_data_r)
+        dsync = getattr(self.sync, domain)
+        dsync += If(emi_stb, emi_data_r.eq(emi_data))
+
+        ps = PulseSynchronizer(domain, "sys")
+        self.submodules += ps
+        self.comb += ps.i.eq(emi_stb)
+        self.sync += [
+            If(rec_ack, rec_stb.eq(0)),
+            If(ps.o,
+                rec_data.eq(emi_data_r),
+                rec_stb.eq(1)
+            )
+        ]
+

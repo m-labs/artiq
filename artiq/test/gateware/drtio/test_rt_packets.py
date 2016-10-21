@@ -5,7 +5,8 @@ import random
 from migen import *
 
 from artiq.gateware.drtio.rt_packets import *
-from artiq.gateware.drtio.rt_packets import _CrossDomainRequest
+from artiq.gateware.drtio.rt_packets import (_CrossDomainRequest,
+                                             _CrossDomainNotification)
 
 
 class PacketInterface:
@@ -123,7 +124,7 @@ class TestSatellite(unittest.TestCase):
             self.assertEqual(tx_times, rx_times)
 
 
-class TestCrossDomainRequest(unittest.TestCase):
+class TestCDC(unittest.TestCase):
     def test_cross_domain_request(self):
         prng = random.Random(1)
         for sys_freq in 3, 6, 11:
@@ -167,3 +168,45 @@ class TestCrossDomainRequest(unittest.TestCase):
                     {"sys": requester(), "srv": server()},
                     {"sys": sys_freq, "srv": srv_freq})
                 self.assertEqual(test_seq, received_seq)
+
+    def test_cross_domain_notification(self):
+        prng = random.Random(1)
+
+        emi_stb = Signal()
+        emi_data = Signal(8)
+        rec_stb = Signal()
+        rec_ack = Signal()
+        rec_data = Signal(8)
+
+        test_seq = [23, 12, 8, 3, 28]
+        received_seq = []
+
+        def emitter():
+            for data in test_seq:
+                yield emi_stb.eq(1)
+                yield emi_data.eq(data)
+                yield
+                yield emi_stb.eq(0)
+                yield
+                for j in range(prng.randrange(0, 3)):
+                    yield
+
+        def receiver():
+            for i in range(len(test_seq)):
+                while not (yield rec_stb):
+                    yield
+                received_seq.append((yield rec_data))
+                yield rec_ack.eq(1)
+                yield
+                yield rec_ack.eq(0)
+                yield
+                for j in range(prng.randrange(0, 3)):
+                    yield
+
+        dut = _CrossDomainNotification("emi",
+            emi_stb, emi_data,
+            rec_stb, rec_ack, rec_data)
+        run_simulation(dut,
+            {"emi": emitter(), "sys": receiver()},
+            {"emi": 13, "sys": 3})
+        self.assertEqual(test_seq, received_seq)
