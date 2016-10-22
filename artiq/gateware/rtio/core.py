@@ -3,75 +3,12 @@ from operator import and_
 
 from migen import *
 from migen.genlib.record import Record
-from migen.genlib.cdc import *
 from migen.genlib.fifo import AsyncFIFO
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from misoc.interconnect.csr import *
 
 from artiq.gateware.rtio import rtlink
-
-
-# note: transfer is in rtio/sys domains and not affected by the reset CSRs
-class _GrayCodeTransfer(Module):
-    def __init__(self, width):
-        self.i = Signal(width)  # in rtio domain
-        self.o = Signal(width)  # in sys domain
-
-        # # #
-
-        # convert to Gray code
-        value_gray_rtio = Signal(width)
-        self.sync.rtio += value_gray_rtio.eq(self.i ^ self.i[1:])
-        # transfer to system clock domain
-        value_gray_sys = Signal(width)
-        self.specials += [
-            NoRetiming(value_gray_rtio),
-            MultiReg(value_gray_rtio, value_gray_sys)
-        ]
-        # convert back to binary
-        value_sys = Signal(width)
-        self.comb += value_sys[-1].eq(value_gray_sys[-1])
-        for i in reversed(range(width-1)):
-            self.comb += value_sys[i].eq(value_sys[i+1] ^ value_gray_sys[i])
-        self.sync += self.o.eq(value_sys)
-
-
-class _RTIOCounter(Module):
-    def __init__(self, width):
-        self.width = width
-        # Timestamp counter in RTIO domain
-        self.value_rtio = Signal(width)
-        # Timestamp counter resynchronized to sys domain
-        # Lags behind value_rtio, monotonic and glitch-free
-        self.value_sys = Signal(width)
-
-        # # #
-
-        # note: counter is in rtio domain and never affected by the reset CSRs
-        self.sync.rtio += self.value_rtio.eq(self.value_rtio + 1)
-        gt = _GrayCodeTransfer(width)
-        self.submodules += gt
-        self.comb += gt.i.eq(self.value_rtio), self.value_sys.eq(gt.o)
-
-
-class _BlindTransfer(Module):
-    def __init__(self):
-        self.i = Signal()
-        self.o = Signal()
-
-        ps = PulseSynchronizer("rio", "rsys")
-        ps_ack = PulseSynchronizer("rsys", "rio")
-        self.submodules += ps, ps_ack
-        blind = Signal()
-        self.sync.rio += [
-            If(self.i, blind.eq(1)),
-            If(ps_ack.o, blind.eq(0))
-        ]
-        self.comb += [
-            ps.i.eq(self.i & ~blind),
-            ps_ack.i.eq(ps.o),
-            self.o.eq(ps.o)
-        ]
+from artiq.gateware.rtio.cdc import *
 
 
 # CHOOSING A GUARD TIME
@@ -229,7 +166,7 @@ class _OutputManager(Module):
             interface.stb.eq(dout_stb & dout_ack)
         ]
 
-        busy_transfer = _BlindTransfer()
+        busy_transfer = BlindTransfer()
         self.submodules += busy_transfer
         self.comb += [
             busy_transfer.i.eq(interface.stb & interface.busy),
@@ -291,7 +228,7 @@ class _InputManager(Module):
             fifo.re.eq(self.re)
         ]
 
-        overflow_transfer = _BlindTransfer()
+        overflow_transfer = BlindTransfer()
         self.submodules += overflow_transfer
         self.comb += [
             overflow_transfer.i.eq(fifo.we & ~fifo.writable),
@@ -398,7 +335,7 @@ class RTIO(Module):
                                                        allow_reset_less=True))
 
         # Managers
-        self.submodules.counter = _RTIOCounter(full_ts_width - fine_ts_width)
+        self.submodules.counter = RTIOCounter(full_ts_width - fine_ts_width)
 
         i_datas, i_timestamps = [], []
         o_statuses, i_statuses = [], []
