@@ -509,8 +509,8 @@ class RTPacketMaster(Module):
         rx_fsm = ClockDomainsRenamer("rtio_rx")(FSM(reset_state="INPUT"))
         self.submodules += rx_fsm
 
-        echo_reply_now = Signal()
-        self.sync.rtio_rx += self.echo_reply_now.eq(echo_reply_now)
+        echo_received_now = Signal()
+        self.sync.rtio_rx += self.echo_received_now.eq(echo_received_now)
 
         rx_fsm.act("INPUT",
             If(rx_dp.frame_r,
@@ -518,7 +518,7 @@ class RTPacketMaster(Module):
                 If(rx_dp.packet_last,
                     Case(rx_dp.packet_type, {
                         rx_plm.types["error"]: NextState("ERROR"),
-                        rx_plm.types["echo_reply"]: echo_reply_now.eq(1),
+                        rx_plm.types["echo_reply"]: echo_received_now.eq(1),
                         rx_plm.types["fifo_level_reply"]: NextState("FIFO_LEVEL"),
                         "default": [
                             error_not.eq(1),
