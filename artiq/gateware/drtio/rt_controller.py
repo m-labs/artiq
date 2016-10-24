@@ -81,6 +81,14 @@ class RTController(Module):
         status_sequence_error = Signal()
         self.comb += self.kcsrs.o_status.status.eq(Cat(
             status_wait, status_underflow, status_sequence_error))
+        sequence_error_set = Signal()
+        underflow_set = Signal()
+        self.sync += [
+            If(self.kcsrs.o_underflow_reset.re, status_underflow.eq(0)),
+            If(self.kcsrs.o_sequence_error_reset, status_sequence_error.eq(0)),
+            If(underflow_set, status_underflow.eq(1)),
+            If(sequence_error_set, status_sequence_error.eq(1)),
+        ]
 
         # TODO: collision, replace, busy
         cond_sequence_error = self.o_timestamp.storage < last_timestamps.dat_r
