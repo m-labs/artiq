@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 from migen import *
 
-from artiq.gateware.drtio import link_layer, rt_packets, iot
+from artiq.gateware.drtio import link_layer, rt_packets, iot, bus_interface
 
 
 class DRTIOSatellite(Module):
@@ -53,3 +53,7 @@ class DRTIOMaster(Module):
             self.link_layer.rx_ready.eq(transceiver.rx_ready)
         ]
         self.submodules.rt_packets = rt_packets.RTPacketMaster(self.link_layer)
+        self.submodules.rt_controller = rt_controller.RTController(self.rt_packets)
+
+    def get_csrs(self):
+        return self.rt_controller.get_csrs()
