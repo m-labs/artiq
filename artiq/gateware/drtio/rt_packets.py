@@ -418,7 +418,7 @@ class RTPacketMaster(Module):
             wfifo.din.eq(Cat(self.write_timestamp, self.write_channel,
                              self.write_address, self.write_data)),
             Cat(write_timestamp, write_channel,
-                write_address, write_data).eq(fifo.dout)
+                write_address, write_data).eq(wfifo.dout)
         ]
 
         fifo_space_not = Signal()

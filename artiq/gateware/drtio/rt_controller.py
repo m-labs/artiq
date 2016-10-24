@@ -1,4 +1,5 @@
 from migen import *
+from migen.genlib.cdc import MultiReg
 
 from misoc.interconnect.csr import *
 
@@ -40,15 +41,15 @@ class RTController(Module):
         self.sync += If(self.kcsrs.counter_update.re, 
                         self.kcsrs.counter.status.eq(self.counter.value_sys))
         tsc_correction = Signal(64)
-        self.specials += MultiReg(self.tsc_correction.storage, tsc_correction)
+        self.specials += MultiReg(self.kcsrs.tsc_correction.storage, tsc_correction)
         self.comb += [ 
             rt_packets.tsc_value.eq(
                 self.counter.value_rtio + tsc_correction),
-            self.set_time.value.eq(rt_packets.set_time_stb)
+            self.kcsrs.set_time.r.eq(rt_packets.set_time_stb)
         ]
         self.sync += [
             If(rt_packets.set_time_ack, rt_packets.set_time_stb.eq(0)),
-            If(self.set_time_stb.re, rt_packets.set_time_stb.eq(1))
+            If(self.kcsrs.set_time.re, rt_packets.set_time_stb.eq(1))
         ]
 
         fifo_spaces_mem = Memory(16, channel_count)
@@ -62,14 +63,14 @@ class RTController(Module):
         self.comb += [
             fifo_spaces.adr.eq(self.kcsrs.chan_sel.storage),
             last_timestamps.adr.eq(self.kcsrs.chan_sel.storage),
-            last_timestamps.dat_w.eq(self.kcsrs.timestamp.storage),
+            last_timestamps.dat_w.eq(self.kcsrs.o_timestamp.storage),
             rt_packets.write_channel.eq(self.kcsrs.chan_sel.storage),
             rt_packets.write_address.eq(self.kcsrs.o_address.storage),
             rt_packets.write_data.eq(self.kcsrs.o_data.storage),
             If(rt_packets_fifo_request,
                 rt_packets.write_timestamp.eq(0xffff000000000000)
             ).Else(
-                rt_packets.write_timestamp.eq(self.o_timestamp.storage)
+                rt_packets.write_timestamp.eq(self.kcsrs.o_timestamp.storage)
             )
         ]
 
@@ -85,21 +86,21 @@ class RTController(Module):
         underflow_set = Signal()
         self.sync += [
             If(self.kcsrs.o_underflow_reset.re, status_underflow.eq(0)),
-            If(self.kcsrs.o_sequence_error_reset, status_sequence_error.eq(0)),
+            If(self.kcsrs.o_sequence_error_reset.re, status_sequence_error.eq(0)),
             If(underflow_set, status_underflow.eq(1)),
             If(sequence_error_set, status_sequence_error.eq(1)),
         ]
 
         # TODO: collision, replace, busy
-        cond_sequence_error = self.o_timestamp.storage < last_timestamps.dat_r
-        cond_underflow = (self.o_timestamp.storage - self.kcsrs.underflow_margin.storage
+        cond_sequence_error = self.kcsrs.o_timestamp.storage < last_timestamps.dat_r
+        cond_underflow = (self.kcsrs.o_timestamp.storage - self.kcsrs.underflow_margin.storage
                           < self.counter.value_sys)
         cond_fifo_emptied = ((last_timestamps.dat_r
                               < self.counter.value_sys - self.kcsrs.underflow_margin.storage)
                              & (last_timestamps.dat_r != 0))
 
         fsm.act("IDLE",
-            If(self.o_we.re,
+            If(self.kcsrs.o_we.re,
                 If(cond_sequence_error,
                     sequence_error_set.eq(1)
                 ).Elif(cond_underflow,
@@ -108,7 +109,7 @@ class RTController(Module):
                     NextState("WRITE")
                 )
             ),
-            If(self.get_fifo_space.re,
+            If(self.kcsrs.get_fifo_space.re,
                 NextState("GET_FIFO_SPACE")
             )
         )
@@ -142,9 +143,9 @@ class RTController(Module):
             status_wait.eq(1),
             fifo_spaces.dat_w.eq(rt_packets.fifo_space),
             fifo_spaces.we.eq(1),
-            fifo_space_not_ack.eq(1),
+            rt_packets.fifo_space_not_ack.eq(1),
             If(rt_packets.fifo_space_not,
-                If(rt_packets.fifo_spaces > 0,
+                If(rt_packets.fifo_space > 0,
                     NextState("IDLE")
                 ).Else(
                     NextState("GET_FIFO_SPACE")

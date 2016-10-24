@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 from migen import *
 
-from artiq.gateware.drtio import link_layer, rt_packets, iot, bus_interface
+from artiq.gateware.drtio import link_layer, rt_packets, iot, rt_controller
 
 
 class DRTIOSatellite(Module):
