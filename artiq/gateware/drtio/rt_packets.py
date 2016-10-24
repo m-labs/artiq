@@ -37,7 +37,7 @@ def get_m2s_layouts(alignment):
                           ("address", 16),
                           ("data_len", 8),
                           ("short_data", 8))
-    plm.add_type("fifo_level_request", ("channel", 16))
+    plm.add_type("fifo_space_request", ("channel", 16))
     return plm
 
 
@@ -45,7 +45,7 @@ def get_s2m_layouts(alignment):
     plm = PacketLayoutManager(alignment)
     plm.add_type("error", ("code", 8))
     plm.add_type("echo_reply")
-    plm.add_type("fifo_level_reply", ("level", 16))
+    plm.add_type("fifo_space_reply", ("space", 16))
     return plm
 
 
@@ -176,9 +176,9 @@ class RTPacketSatellite(Module):
         self.tsc_load = Signal()
         self.tsc_value = Signal(64)
         
-        self.fifo_level_channel = Signal(16)
-        self.fifo_level_update = Signal()
-        self.fifo_level = Signal(16)
+        self.fifo_space_channel = Signal(16)
+        self.fifo_space_update = Signal()
+        self.fifo_space = Signal(16)
         
         self.write_stb = Signal()
         self.write_timestamp = Signal(64)
@@ -210,14 +210,14 @@ class RTPacketSatellite(Module):
         err_set = Signal()
         err_req = Signal()
         err_ack = Signal()
-        fifo_level_set = Signal()
-        fifo_level_req = Signal()
-        fifo_level_ack = Signal()
+        fifo_space_set = Signal()
+        fifo_space_req = Signal()
+        fifo_space_ack = Signal()
         self.sync += [
             If(err_ack, err_req.eq(0)),
             If(err_set, err_req.eq(1)),
-            If(fifo_level_ack, fifo_level_req.eq(0)),
-            If(fifo_level_set, fifo_level_req.eq(1)),
+            If(fifo_space_ack, fifo_space_req.eq(0)),
+            If(fifo_space_set, fifo_space_req.eq(1)),
         ]
         err_code = Signal(max=len(error_codes)+1)
 
@@ -225,8 +225,8 @@ class RTPacketSatellite(Module):
         self.comb += [
             self.tsc_value.eq(
                 rx_dp.packet_as["set_time"].timestamp),
-            self.fifo_level_channel.eq(
-                rx_dp.packet_as["fifo_level_request"].channel),
+            self.fifo_space_channel.eq(
+                rx_dp.packet_as["fifo_space_request"].channel),
             self.write_timestamp.eq(
                 rx_dp.packet_as["write"].timestamp),
             self.write_channel.eq(
@@ -250,8 +250,8 @@ class RTPacketSatellite(Module):
                         rx_plm.types["echo_request"]: echo_req.eq(1),
                         rx_plm.types["set_time"]: NextState("SET_TIME"),
                         rx_plm.types["write"]: NextState("WRITE"),
-                        rx_plm.types["fifo_level_request"]:
-                            NextState("FIFO_LEVEL"),
+                        rx_plm.types["fifo_space_request"]:
+                            NextState("FIFO_SPACE"),
                         "default": [
                             err_set.eq(1),
                             NextValue(err_code, error_codes["unknown_type"])]
@@ -267,9 +267,9 @@ class RTPacketSatellite(Module):
             self.write_stb.eq(1),
             NextState("INPUT")
         )
-        rx_fsm.act("FIFO_LEVEL",
-            fifo_level_set.eq(1),
-            self.fifo_level_update.eq(1),
+        rx_fsm.act("FIFO_SPACE",
+            fifo_space_set.eq(1),
+            self.fifo_space_update.eq(1),
             NextState("INPUT")
         )
 
@@ -279,7 +279,7 @@ class RTPacketSatellite(Module):
 
         tx_fsm.act("IDLE",
             If(echo_req, NextState("ECHO")),
-            If(fifo_level_req, NextState("FIFO_LEVEL")),
+            If(fifo_space_req, NextState("FIFO_SPACE")),
             If(self.write_overflow, NextState("ERROR_WRITE_OVERFLOW")),
             If(self.write_underflow, NextState("ERROR_WRITE_UNDERFLOW")),
             If(err_req, NextState("ERROR"))
@@ -289,9 +289,9 @@ class RTPacketSatellite(Module):
             tx_dp.stb.eq(1),
             If(tx_dp.done, NextState("IDLE"))
         )
-        tx_fsm.act("FIFO_LEVEL",
-            fifo_level_ack.eq(1),
-            tx_dp.send("fifo_level_reply", level=self.fifo_level),
+        tx_fsm.act("FIFO_SPACE",
+            fifo_space_ack.eq(1),
+            tx_dp.send("fifo_space_reply", space=self.fifo_space),
             tx_dp.stb.eq(1),
             If(tx_dp.done, NextState("IDLE"))
         )
@@ -378,12 +378,12 @@ class RTPacketMaster(Module):
         self.write_address = Signal(16)
         self.write_data = Signal(256)
 
-        # fifo level interface
-        # write with timestamp[48:] == 0xffff to make a fifo level request
-        # (level requests have to be ordered wrt writes)
-        self.fifo_level_not = Signal()
-        self.fifo_level_not_ack = Signal()
-        self.fifo_level = Signal(16)
+        # fifo space interface
+        # write with timestamp[48:] == 0xffff to make a fifo space request
+        # (space requests have to be ordered wrt writes)
+        self.fifo_space_not = Signal()
+        self.fifo_space_not_ack = Signal()
+        self.fifo_space = Signal(16)
 
         # echo interface
         self.echo_stb = Signal()
@@ -394,7 +394,9 @@ class RTPacketMaster(Module):
         # set_time interface
         self.set_time_stb = Signal()
         self.set_time_ack = Signal()
-        self.tsc_value = Signal(64)  # in rtio domain, must be valid all time
+        # in rtio domain, must be valid all time while there is
+        # a set_time request pending
+        self.tsc_value = Signal(64)
 
         # errors
         self.error_not = Signal()
@@ -419,11 +421,11 @@ class RTPacketMaster(Module):
                 write_address, write_data).eq(fifo.dout)
         ]
 
-        fifo_level_not = Signal()
-        fifo_level = Signal(16)
+        fifo_space_not = Signal()
+        fifo_space = Signal(16)
         self.submodules += _CrossDomainNotification("rtio_rx",
-            fifo_level_not, fifo_level,
-            self.fifo_level_not, self.fifo_level_not_ack, self.fifo_level)
+            fifo_space_not, fifo_space,
+            self.fifo_space_not, self.fifo_space_not_ack, self.fifo_space)
 
         set_time_stb = Signal()
         set_time_ack = Signal()
@@ -474,7 +476,7 @@ class RTPacketMaster(Module):
                 short_data=write_data),
             If(wfifo.readable,
                 If(write_timestamp[48:] == 0xffff,
-                    NextState("FIFO_LEVEL")
+                    NextState("FIFO_SPACE")
                 ).Else(
                     tx_dp.stb.eq(1),
                     wfifo.re.eq(tx_dp.done)
@@ -489,8 +491,8 @@ class RTPacketMaster(Module):
                 )
             )
         )
-        tx_fsm.act("FIFO_LEVEL",
-            tx_dp.send("fifo_level_request", channel=write_channel),
+        tx_fsm.act("FIFO_SPACE",
+            tx_dp.send("fifo_space_request", channel=write_channel),
             tx_dp.stb.eq(1),
             If(tx_dp.done, NextState("IDLE_WRITE"))
         )
@@ -519,7 +521,7 @@ class RTPacketMaster(Module):
                     Case(rx_dp.packet_type, {
                         rx_plm.types["error"]: NextState("ERROR"),
                         rx_plm.types["echo_reply"]: echo_received_now.eq(1),
-                        rx_plm.types["fifo_level_reply"]: NextState("FIFO_LEVEL"),
+                        rx_plm.types["fifo_space_reply"]: NextState("FIFO_SPACE"),
                         "default": [
                             error_not.eq(1),
                             error_code.eq(error_codes["unknown_type"])
@@ -533,8 +535,8 @@ class RTPacketMaster(Module):
             error_code.eq(rx_dp.packet_as["error"].code),
             NextState("INPUT")
         )
-        rx_fsm.act("FIFO_LEVEL",
-            fifo_level_not.eq(1),
-            fifo_level.eq(rx_dp.packet_as["fifo_level_reply"].level),
+        rx_fsm.act("FIFO_SPACE",
+            fifo_space_not.eq(1),
+            fifo_space.eq(rx_dp.packet_as["fifo_space_reply"].space),
             NextState("INPUT")
         )

@@ -41,9 +41,9 @@ class IOT(Module):
 
             # FIFO level
             self.sync += \
-                If(rt_packets.fifo_level_update &
-                   (rt_packets.fifo_level_channel == n),
-                    rt_packets.fifo_level.eq(fifo.level))
+                If(rt_packets.fifo_space_update &
+                   (rt_packets.fifo_space_channel == n),
+                    rt_packets.fifo_space.eq(channel.ofifo_depth - fifo.level))
 
             # FIFO write
             self.comb += fifo.we.eq(rt_packets.write_stb)
