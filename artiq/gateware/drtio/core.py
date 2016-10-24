@@ -38,9 +38,9 @@ class DRTIOSatellite(Module):
         self.clock_domains.cd_rio_phy = ClockDomain()
         self.comb += [
             self.cd_rio.clk.eq(ClockSignal("rtio")),
-            self.cd_rio.rst.eq(ResetSignal("rtio")),
+            self.cd_rio.rst.eq(ResetSignal("rtio", allow_reset_less=True)),
             self.cd_rio_phy.clk.eq(ClockSignal("rtio")),
-            self.cd_rio_phy.rst.eq(ResetSignal("rtio")),
+            self.cd_rio_phy.rst.eq(ResetSignal("rtio", allow_reset_less=True)),
         ]
 
 

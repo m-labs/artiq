@@ -406,7 +406,8 @@ class RTPacketMaster(Module):
         # # #
 
         # CDC
-        wfifo = AsyncFIFO(64+16+16+256, write_fifo_depth)
+        wfifo = ClockDomainsRenamer({"write": "sys", "read": "rtio"})(
+            AsyncFIFO(64+16+16+256, write_fifo_depth))
         self.submodules += wfifo
         write_timestamp = Signal(64)
         write_channel = Signal(16)
