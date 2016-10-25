@@ -25,16 +25,16 @@ class _KernelCSRs(AutoCSR):
 
         self.tsc_correction = CSRStorage(64)
         self.set_time = CSR()
-        self.underflow_margin = CSRStorage(16, reset=50)
+        self.underflow_margin = CSRStorage(16, reset=200)
 
-        self.get_fifo_space = CSR()
-        self.dbg_fifo_space = CSRStatus(16)
-        self.dbg_last_timestamp = CSRStatus(64)
-        self.reset_channel_status = CSR()
+        self.o_get_fifo_space = CSR()
+        self.o_dbg_fifo_space = CSRStatus(16)
+        self.o_dbg_last_timestamp = CSRStatus(64)
+        self.o_reset_channel_status = CSR()
 
 
 class RTController(Module):
-    def __init__(self, rt_packets, channel_count=1024):
+    def __init__(self, rt_packets, channel_count, fine_ts_width):
         self.kcsrs = _KernelCSRs()
 
         self.submodules.counter = RTIOCounter(64)
@@ -93,8 +93,8 @@ class RTController(Module):
 
         # TODO: collision, replace, busy
         cond_sequence_error = self.kcsrs.o_timestamp.storage < last_timestamps.dat_r
-        cond_underflow = (self.kcsrs.o_timestamp.storage - self.kcsrs.underflow_margin.storage
-                          < self.counter.value_sys)
+        cond_underflow = ((self.kcsrs.o_timestamp.storage - self.kcsrs.underflow_margin.storage
+                           >> fine_ts_width) < self.counter.value_sys)
         cond_fifo_emptied = ((last_timestamps.dat_r
                               < self.counter.value_sys - self.kcsrs.underflow_margin.storage)
                              & (last_timestamps.dat_r != 0))
@@ -109,7 +109,7 @@ class RTController(Module):
                     NextState("WRITE")
                 )
             ),
-            If(self.kcsrs.get_fifo_space.re,
+            If(self.kcsrs.o_get_fifo_space.re,
                 NextState("GET_FIFO_SPACE")
             )
         )
@@ -154,9 +154,9 @@ class RTController(Module):
         )
 
         self.comb += [
-            self.kcsrs.dbg_fifo_space.status.eq(fifo_spaces.dat_r),
-            self.kcsrs.dbg_last_timestamp.status.eq(last_timestamps.dat_r),
-            If(self.kcsrs.reset_channel_status.re,
+            self.kcsrs.o_dbg_fifo_space.status.eq(fifo_spaces.dat_r),
+            self.kcsrs.o_dbg_last_timestamp.status.eq(last_timestamps.dat_r),
+            If(self.kcsrs.o_reset_channel_status.re,
                 fifo_spaces.dat_w.eq(0),
                 fifo_spaces.we.eq(1),
                 last_timestamps.dat_w.eq(0),

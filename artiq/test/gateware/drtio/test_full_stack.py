@@ -37,7 +37,7 @@ class DummyRXSynchronizer:
 class DUT(Module):
     def __init__(self, nwords):
         self.ttl = Signal()
-        self.transceivers = DummyTransceiverPair(2)
+        self.transceivers = DummyTransceiverPair(nwords)
         
         self.submodules.master = DRTIOMaster(self.transceivers.alice)
 
@@ -52,10 +52,36 @@ class TestFullStack(unittest.TestCase):
         dut = DUT(2)
         kcsrs = dut.master.rt_controller.kcsrs    
 
-        def get_fifo_level():
-            for i in range(8):
-                yield from kcsrs.counter_update.write(1)
-                print((yield from kcsrs.counter.read()))
+        def get_fifo_space():
+            yield from kcsrs.o_get_fifo_space.write(1)
+            yield
+            while (yield from kcsrs.o_status.read()) & 1:
+                yield
+            return (yield from kcsrs.o_dbg_fifo_space.read())
 
-        run_simulation(dut, get_fifo_level(),
-            {"sys": 8, "rtio": 5, "rtio_rx": 5})
+        def test():
+            print((yield from get_fifo_space()))
+            yield from kcsrs.o_timestamp.write(550)
+            yield from kcsrs.o_data.write(1)
+            yield from kcsrs.o_we.write(1)
+            yield
+            status = 1
+            while status:
+                status = yield from kcsrs.o_status.read()
+                print("status after write:", status)
+                yield
+            yield from kcsrs.o_timestamp.write(600)
+            yield from kcsrs.o_data.write(0)
+            yield from kcsrs.o_we.write(1)
+            yield
+            status = 1
+            while status:
+                status = yield from kcsrs.o_status.read()
+                print("status after write:", status)
+                yield
+            for i in range(40):
+                yield
+            #print((yield from get_fifo_space()))
+
+        run_simulation(dut, test(),
+            {"sys": 8, "rtio": 5, "rtio_rx": 5, "rio": 5, "rio_phy": 5}, vcd_name="foo.vcd")

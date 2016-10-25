@@ -495,7 +495,10 @@ class RTPacketMaster(Module):
         tx_fsm.act("FIFO_SPACE",
             tx_dp.send("fifo_space_request", channel=write_channel),
             tx_dp.stb.eq(1),
-            If(tx_dp.done, NextState("IDLE_WRITE"))
+            If(tx_dp.done,
+                wfifo.re.eq(1),
+                NextState("IDLE_WRITE")
+            )
         )
         tx_fsm.act("ECHO",
             tx_dp.send("echo_request"),

@@ -45,7 +45,7 @@ class DRTIOSatellite(Module):
 
 
 class DRTIOMaster(Module):
-    def __init__(self, transceiver):
+    def __init__(self, transceiver, channel_count=1024, fine_ts_width=3):
         self.submodules.link_layer = link_layer.LinkLayer(
             transceiver.encoder, transceiver.decoders)
         self.comb += [
@@ -53,7 +53,8 @@ class DRTIOMaster(Module):
             self.link_layer.rx_ready.eq(transceiver.rx_ready)
         ]
         self.submodules.rt_packets = rt_packets.RTPacketMaster(self.link_layer)
-        self.submodules.rt_controller = rt_controller.RTController(self.rt_packets)
+        self.submodules.rt_controller = rt_controller.RTController(
+            self.rt_packets, channel_count, fine_ts_width)
 
     def get_csrs(self):
         return self.rt_controller.get_csrs()
