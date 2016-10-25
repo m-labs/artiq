@@ -46,9 +46,10 @@ class IOT(Module):
                     rt_packets.fifo_space.eq(channel.ofifo_depth - fifo.level))
 
             # FIFO write
-            self.comb += fifo.we.eq(rt_packets.write_stb)
+            self.comb += fifo.we.eq(rt_packets.write_stb
+                                    & (rt_packets.write_channel == n))
             self.sync += \
-                If(rt_packets.write_stb,
+                If(fifo.we,
                     If(rt_packets.write_overflow_ack,
                         rt_packets.write_overflow.eq(0)),
                     If(~fifo.writable, rt_packets.write_overflow.eq(1)),
