@@ -32,6 +32,9 @@ class _KernelCSRs(AutoCSR):
         self.o_dbg_last_timestamp = CSRStatus(64)
         self.o_reset_channel_status = CSR()
 
+        self.err_present = CSR()
+        self.err_code = CSRStatus(8)
+
 
 class RTController(Module):
     def __init__(self, rt_packets, channel_count, fine_ts_width):
@@ -162,6 +165,12 @@ class RTController(Module):
                 last_timestamps.dat_w.eq(0),
                 last_timestamps.we.eq(1)
             )
+        ]
+
+        self.comb += [
+            self.kcsrs.err_present.w.eq(rt_packets.error_not),
+            rt_packets.error_not_ack.eq(self.kcsrs.err_present.re),
+            self.kcsrs.err_code.status.eq(rt_packets.error_code)
         ]
 
     def get_csrs(self):
