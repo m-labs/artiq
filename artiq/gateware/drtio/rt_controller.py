@@ -48,7 +48,7 @@ class RTController(Module):
         self.comb += [ 
             rt_packets.tsc_value.eq(
                 self.counter.value_rtio + tsc_correction),
-            self.kcsrs.set_time.r.eq(rt_packets.set_time_stb)
+            self.kcsrs.set_time.w.eq(rt_packets.set_time_stb)
         ]
         self.sync += [
             If(rt_packets.set_time_ack, rt_packets.set_time_stb.eq(0)),
@@ -98,8 +98,7 @@ class RTController(Module):
         cond_sequence_error = self.kcsrs.o_timestamp.storage < last_timestamps.dat_r
         cond_underflow = ((self.kcsrs.o_timestamp.storage[fine_ts_width:]
                            - self.kcsrs.underflow_margin.storage[fine_ts_width:]) < self.counter.value_sys)
-        cond_fifo_emptied = ((last_timestamps.dat_r[fine_ts_width:]
-                              < self.counter.value_sys - self.kcsrs.underflow_margin.storage[fine_ts_width:])
+        cond_fifo_emptied = ((last_timestamps.dat_r[fine_ts_width:] < self.counter.value_sys)
                              & (last_timestamps.dat_r != 0))
 
         fsm.act("IDLE",

@@ -48,17 +48,18 @@ class IOT(Module):
             # FIFO write
             self.comb += fifo.we.eq(rt_packets.write_stb
                                     & (rt_packets.write_channel == n))
-            self.sync += \
+            self.sync += [
+                If(rt_packets.write_overflow_ack,
+                    rt_packets.write_overflow.eq(0)),
+                If(rt_packets.write_underflow_ack,
+                    rt_packets.write_underflow.eq(0)),
                 If(fifo.we,
-                    If(rt_packets.write_overflow_ack,
-                        rt_packets.write_overflow.eq(0)),
                     If(~fifo.writable, rt_packets.write_overflow.eq(1)),
-                    If(rt_packets.write_underflow_ack,
-                        rt_packets.write_underflow.eq(0)),
                     If(rt_packets.write_timestamp[max_fine_ts_width:] < (tsc + 4),
                         rt_packets.write_underflow.eq(1)
                     )
                 )
+            ]
             if data_width:
                 self.comb += fifo_in.data.eq(rt_packets.write_data)
             if address_width:
