@@ -47,8 +47,8 @@ class DUT(Module):
         self.submodules.phy0 = ttl_simple.Output(self.ttl0)
         self.submodules.phy1 = ttl_simple.Output(self.ttl1)
         rtio_channels = [
-            rtio.Channel.from_phy(self.phy0),
-            rtio.Channel.from_phy(self.phy1)
+            rtio.Channel.from_phy(self.phy0, ofifo_depth=4),
+            rtio.Channel.from_phy(self.phy1, ofifo_depth=4)
         ]
         self.submodules.satellite = DRTIOSatellite(
             self.transceivers.bob, rx_synchronizer, rtio_channels)
@@ -79,6 +79,7 @@ class TestFullStack(unittest.TestCase):
             yield from kcsrs.o_we.write(1)
             yield
             status = 1
+            wlen = 0
             while status:
                 status = yield from kcsrs.o_status.read()
                 if status & 2:
@@ -88,6 +89,8 @@ class TestFullStack(unittest.TestCase):
                     yield from kcsrs.o_sequence_error_reset.write(1)
                     raise RTIOSequenceError
                 yield
+                wlen += 1
+            return wlen
 
         def test():
             yield from get_fifo_space(0)
@@ -109,8 +112,27 @@ class TestFullStack(unittest.TestCase):
                 yield from write(0, 1)
             delay(200*8)
 
-            for _ in range(50):
+            delay(200*8)
+            max_wlen = 0
+            for _ in range(3):
+                wlen = yield from write(0, 1)
+                max_wlen = max(max_wlen, wlen)
+                delay(40*8)
+                wlen = yield from write(0, 0)
+                max_wlen = max(max_wlen, wlen)
+                delay(40*8)
+            # check that some writes caused FIFO space requests
+            self.assertGreater(max_wlen, 5)
+
+            # wait for all TTL events to execute
+            for _ in range(40):
                 yield
+
+            # check "last timestamp passed" FIFO empty condition
+            delay(1000*8)
+            wlen = yield from write(0, 1)
+            self.assertEqual(wlen, 2)
+
 
         ttl_changes = []
         @passive
@@ -128,10 +150,17 @@ class TestFullStack(unittest.TestCase):
 
         run_simulation(dut, 
             {"sys": test(), "rtio": check_ttls()},
-            {"sys": 8, "rtio": 5, "rtio_rx": 5, "rio": 5, "rio_phy": 5}, vcd_name="foo.vcd")
+            {"sys": 8, "rtio": 5, "rtio_rx": 5, "rio": 5, "rio_phy": 5})
         self.assertEqual(ttl_changes, [
             (203, 0),
             (208, 0),
             (208, 1),
-            (214, 1)
+            (214, 1),
+
+            (414, 0),
+            (454, 0),
+            (494, 0),
+            (534, 0),
+            (574, 0),
+            (614, 0)
         ])

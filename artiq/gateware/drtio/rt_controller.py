@@ -37,7 +37,7 @@ class RTController(Module):
     def __init__(self, rt_packets, channel_count, fine_ts_width):
         self.kcsrs = _KernelCSRs()
 
-        self.submodules.counter = RTIOCounter(64)
+        self.submodules.counter = RTIOCounter(64-fine_ts_width)
         self.sync += If(self.kcsrs.counter_update.re, 
                         self.kcsrs.counter.status.eq(self.counter.value_sys))
         tsc_correction = Signal(64)
@@ -93,10 +93,10 @@ class RTController(Module):
 
         # TODO: collision, replace, busy
         cond_sequence_error = self.kcsrs.o_timestamp.storage < last_timestamps.dat_r
-        cond_underflow = ((self.kcsrs.o_timestamp.storage - self.kcsrs.underflow_margin.storage
-                           >> fine_ts_width) < self.counter.value_sys)
-        cond_fifo_emptied = ((last_timestamps.dat_r
-                              < self.counter.value_sys - self.kcsrs.underflow_margin.storage)
+        cond_underflow = ((self.kcsrs.o_timestamp.storage[fine_ts_width:]
+                           - self.kcsrs.underflow_margin.storage[fine_ts_width:]) < self.counter.value_sys)
+        cond_fifo_emptied = ((last_timestamps.dat_r[fine_ts_width:]
+                              < self.counter.value_sys - self.kcsrs.underflow_margin.storage[fine_ts_width:])
                              & (last_timestamps.dat_r != 0))
 
         fsm.act("IDLE",
@@ -124,7 +124,7 @@ class RTController(Module):
                     fifo_spaces.dat_w.eq(fifo_spaces.dat_r - 1)
                 ),
                 last_timestamps.we.eq(1),
-                If(fifo_spaces.dat_r <= 1,
+                If(~cond_fifo_emptied & (fifo_spaces.dat_r <= 1),
                     NextState("GET_FIFO_SPACE")
                 ).Else(
                     NextState("IDLE")
