@@ -59,6 +59,21 @@ class TestFullStack(unittest.TestCase):
         dut = DUT(2)
         kcsrs = dut.master.rt_controller.kcsrs
 
+        ttl_changes = []
+        correct_ttl_changes = [
+            (203, 0),
+            (208, 0),
+            (208, 1),
+            (214, 1),
+
+            (414, 0),
+            (454, 0),
+            (494, 0),
+            (534, 0),
+            (574, 0),
+            (614, 0)
+        ]
+
         now = 0
         def delay(dt):
             nonlocal now
@@ -92,13 +107,15 @@ class TestFullStack(unittest.TestCase):
                 wlen += 1
             return wlen
 
-        def test():
+        def test_init():
             yield from get_fifo_space(0)
             yield from get_fifo_space(1)
 
+        def test_underflow():
             with self.assertRaises(RTIOUnderflow):
                 yield from write(0, 0)
-            
+
+        def test_pulses():
             delay(200*8)
             yield from write(0, 1)
             delay(5*8)
@@ -107,11 +124,13 @@ class TestFullStack(unittest.TestCase):
             delay(6*8)
             yield from write(1, 0)
 
+        def test_sequence_error():
             delay(-200*8)
             with self.assertRaises(RTIOSequenceError):
                 yield from write(0, 1)
             delay(200*8)
 
+        def test_fifo_space():
             delay(200*8)
             max_wlen = 0
             for _ in range(3):
@@ -124,17 +143,44 @@ class TestFullStack(unittest.TestCase):
             # check that some writes caused FIFO space requests
             self.assertGreater(max_wlen, 5)
 
+        def test_fifo_emptied():
             # wait for all TTL events to execute
-            for _ in range(40):
+            while len(ttl_changes) < len(correct_ttl_changes):
                 yield
-
             # check "last timestamp passed" FIFO empty condition
             delay(1000*8)
             wlen = yield from write(0, 1)
             self.assertEqual(wlen, 2)
 
+        def test_tsc_error():
+            err_present = yield from kcsrs.err_present.read()
+            self.assertEqual(err_present, 0)
+            yield from kcsrs.tsc_correction.write(10000000)
+            yield from kcsrs.set_time.write(1)
+            for i in range(5):
+               yield
+            delay(10000)
+            yield from write(0, 1)
+            for i in range(10):
+               yield
+            err_present = yield from kcsrs.err_present.read()
+            err_code = yield from kcsrs.err_code.read()
+            self.assertEqual(err_present, 1)
+            self.assertEqual(err_code, 2)
+            yield from kcsrs.err_present.write(1)
+            yield
+            err_present = yield from kcsrs.err_present.read()
+            self.assertEqual(err_present, 0)
 
-        ttl_changes = []
+        def test():
+            yield from test_init()
+            yield from test_underflow()
+            yield from test_pulses()
+            yield from test_sequence_error()
+            yield from test_fifo_space()
+            yield from test_fifo_emptied()
+            yield from test_tsc_error()
+
         @passive
         def check_ttls():
             cycle = 0
@@ -150,17 +196,5 @@ class TestFullStack(unittest.TestCase):
 
         run_simulation(dut, 
             {"sys": test(), "rtio": check_ttls()},
-            {"sys": 8, "rtio": 5, "rtio_rx": 5, "rio": 5, "rio_phy": 5})
-        self.assertEqual(ttl_changes, [
-            (203, 0),
-            (208, 0),
-            (208, 1),
-            (214, 1),
-
-            (414, 0),
-            (454, 0),
-            (494, 0),
-            (534, 0),
-            (574, 0),
-            (614, 0)
-        ])
+            {"sys": 8, "rtio": 5, "rtio_rx": 5, "rio": 5, "rio_phy": 5}, vcd_name="foo.vcd")
+        self.assertEqual(ttl_changes, correct_ttl_changes)
