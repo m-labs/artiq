@@ -29,7 +29,6 @@ def initialize_connection(host, port):
     sock.settimeout(None)
     set_keepalive(sock, 3, 2, 3)
     logger.debug("connected to host %s on port %d", host, port)
-    sock.sendall(b"ARTIQ coredev\n")
     return sock
 
 
@@ -44,6 +43,7 @@ class Comm(CommGeneric):
         if hasattr(self, "socket"):
             return
         self.socket = initialize_connection(self.host, self.port)
+        self.socket.sendall(b"ARTIQ coredev\n")
 
     def close(self):
         if not hasattr(self, "socket"):

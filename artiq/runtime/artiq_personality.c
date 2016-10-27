@@ -233,7 +233,7 @@ struct artiq_raised_exception {
   struct _Unwind_Exception unwind;
   struct artiq_exception artiq;
   int handled;
-  struct artiq_backtrace_item backtrace[1024];
+  uintptr_t backtrace[1024];
   size_t backtrace_size;
 };
 
@@ -303,8 +303,7 @@ static _Unwind_Reason_Code __artiq_uncaught_exception(
   uintptr_t pcOffset = pc - funcStart;
   EH_LOG("===> uncaught (pc=%p+%p)", (void*)funcStart, (void*)pcOffset);
 
-  inflight->backtrace[inflight->backtrace_size].function = funcStart;
-  inflight->backtrace[inflight->backtrace_size].offset = pcOffset;
+  inflight->backtrace[inflight->backtrace_size] = funcStart + pcOffset;
   ++inflight->backtrace_size;
 
   if(actions & _UA_END_OF_STACK) {

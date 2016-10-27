@@ -3,9 +3,9 @@
 
 int64_t now = 0;
 
-int watchdog_set(int ms)
+int watchdog_set(long long ms)
 {
-  printf("watchdog_set %d\n", ms);
+  printf("watchdog_set %lld\n", ms);
   return ms;
 }
 

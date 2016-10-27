@@ -95,7 +95,7 @@ class DummyScheduler:
 
         self._next_rid = 1
 
-    def submit(self, pipeline_name, expid, priority, due_date, flush):
+    def submit(self, pipeline_name=None, expid=None, priority=None, due_date=None, flush=False):
         rid = self._next_rid
         self._next_rid += 1
         logger.info("Submitting: %s, RID=%s", expid, rid)

@@ -1,6 +1,6 @@
 #![feature(lang_items, asm, alloc, collections, libc, needs_panic_runtime,
            question_mark, unicode, reflect_marker, raw, int_error_internals,
-           try_from, try_borrow)]
+           try_from, try_borrow, macro_reexport, allow_internal_unstable)]
 #![no_std]
 #![needs_panic_runtime]
 
@@ -8,6 +8,7 @@ extern crate rustc_unicode;
 extern crate alloc_artiq;
 extern crate alloc;
 #[macro_use]
+#[macro_reexport(vec)]
 extern crate collections;
 extern crate libc;
 
@@ -21,13 +22,13 @@ pub use collections::{binary_heap, borrow, boxed, btree_map, btree_set, fmt, lin
 pub mod prelude {
     pub mod v1 {
         pub use core::prelude::v1::*;
-        pub use collections::*;
-        pub use io::{Read, Write, Seek};
-        pub use io::BufRead;
+        pub use collections::boxed::Box;
+        pub use collections::borrow::ToOwned;
+        pub use collections::string::{String, ToString};
+        pub use collections::vec::Vec;
     }
 }
 
-pub mod time;
 pub mod error;
 pub mod io;
 
@@ -64,9 +65,8 @@ pub fn print_fmt(args: self::core::fmt::Arguments) {
 
 #[lang = "panic_fmt"]
 extern fn panic_fmt(args: self::core::fmt::Arguments, file: &'static str, line: u32) -> ! {
-    let _ = write!(Console, "panic at {}:{}: ", file, line);
-    let _ = Console.write_fmt(args);
-    let _ = write!(Console, "\nwaiting for debugger...\n");
+    let _ = write!(Console, "panic at {}:{}: {}\n", file, line, args);
+    let _ = write!(Console, "waiting for debugger...\n");
     unsafe {
         let _ = readchar();
         loop { asm!("l.trap 0") }

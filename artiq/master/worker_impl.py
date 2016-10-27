@@ -79,31 +79,38 @@ set_watchdog_factory(Watchdog)
 
 
 class Scheduler:
-    pause_noexc = staticmethod(make_parent_action("pause"))
-
-    @host_only
-    def pause(self):
-        if self.pause_noexc():
-            raise TerminationRequested
-
-    submit = staticmethod(make_parent_action("scheduler_submit"))
-    delete = staticmethod(make_parent_action("scheduler_delete"))
-    request_termination = staticmethod(
-        make_parent_action("scheduler_request_termination"))
-    get_status = staticmethod(make_parent_action("scheduler_get_status"))
-
     def set_run_info(self, rid, pipeline_name, expid, priority):
         self.rid = rid
         self.pipeline_name = pipeline_name
         self.expid = expid
         self.priority = priority
 
-    _check_pause = staticmethod(make_parent_action("scheduler_check_pause"))
+    pause_noexc = staticmethod(make_parent_action("pause"))
+    @host_only
+    def pause(self):
+        if self.pause_noexc():
+            raise TerminationRequested
 
+    _check_pause = staticmethod(make_parent_action("scheduler_check_pause"))
     def check_pause(self, rid=None) -> TBool:
         if rid is None:
             rid = self.rid
         return self._check_pause(rid)
+
+    _submit = staticmethod(make_parent_action("scheduler_submit"))
+    def submit(self, pipeline_name=None, expid=None, priority=None, due_date=None, flush=False):
+        if pipeline_name is None:
+            pipeline_name = self.pipeline_name
+        if expid is None:
+            expid = self.expid
+        if priority is None:
+            priority = self.priority
+        return self._submit(pipeline_name, expid, priority, due_date, flush)
+
+    delete = staticmethod(make_parent_action("scheduler_delete"))
+    request_termination = staticmethod(
+        make_parent_action("scheduler_request_termination"))
+    get_status = staticmethod(make_parent_action("scheduler_get_status"))
 
 
 class CCB:
@@ -238,7 +245,7 @@ def main():
             elif action == "write_results":
                 filename = "{:09}-{}.h5".format(rid, exp.__name__)
                 with h5py.File(filename, "w") as f:
-                    dataset_mgr.write_hdf5(f.create_group("datasets"))
+                    dataset_mgr.write_hdf5(f)
                     f["artiq_version"] = artiq_version
                     f["rid"] = rid
                     f["start_time"] = int(time.mktime(start_time))

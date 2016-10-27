@@ -1,0 +1,13 @@
+[package]
+authors = ["The ARTIQ Project Developers"]
+name = "ksupport"
+version = "0.0.0"
+
+[lib]
+name = "ksupport"
+path = "lib.rs"
+crate-type = ["staticlib"]
+
+[profile.dev]
+panic = 'unwind'
+opt-level = 2
