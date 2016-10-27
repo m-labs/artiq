@@ -18,7 +18,7 @@ fn worker(socket: &mut UdpSocket) -> io::Result<()> {
 
         match request {
             Request::Monitor => {
-                let mut dds_ftws = [0; (csr::CONFIG_RTIO_DDS_COUNT as usize *
+                let mut dds_ftws = [0u32; (csr::CONFIG_RTIO_DDS_COUNT as usize *
                                         csr::CONFIG_DDS_CHANNELS_PER_BUS as usize)];
                 let mut reply = Reply::default();
 
@@ -54,7 +54,7 @@ fn worker(socket: &mut UdpSocket) -> io::Result<()> {
                             csr::rtio_moninj::mon_probe_sel_write(i as u8);
                             csr::rtio_moninj::mon_value_update_write(1);
                             dds_ftws[(csr::CONFIG_DDS_CHANNELS_PER_BUS * j + i) as usize] =
-                                csr::rtio_moninj::mon_value_read();
+                                csr::rtio_moninj::mon_value_read() as u32;
                         }
                     }
                 }
