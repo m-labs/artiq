@@ -565,6 +565,15 @@ class Phaser(_NIST_Ions):
 
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.LogChannel())
+
+        # FIXME: dummy
+        self.config["RTIO_FIRST_DDS_CHANNEL"] = 0
+        self.config["RTIO_DDS_COUNT"] = 1
+        self.config["DDS_CHANNELS_PER_BUS"] = 1
+        self.config["DDS_AD9914"] = True
+        self.config["DDS_ONEHOT_SEL"] = True
+        self.config["DDS_RTIO_CLK_RATIO"] = 3
+
         self.add_rtio(rtio_channels, _PhaserCRG(platform, self.crg.cd_sys.clk))
 
         self.comb += self.rtio_crg.refclk.eq(self.ad9154.jesd.cd_jesd.clk)
