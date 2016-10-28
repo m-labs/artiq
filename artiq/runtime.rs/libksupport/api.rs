@@ -117,4 +117,18 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(i2c_stop),
     api!(i2c_write),
     api!(i2c_read),
+
+// #if (defined CONFIG_AD9154_CS)
+    api!(ad9154_init),
+    api!(ad9154_write),
+    api!(ad9154_read),
+
+    api!(ad9516_write),
+    api!(ad9516_read),
+
+    api!(ad9154_jesd_enable),
+    api!(ad9154_jesd_ready),
+    api!(ad9154_jesd_prbs),
+    api!(ad9154_jesd_stpl),
+// #endif
 ];
