@@ -173,6 +173,9 @@ class TestFullStack(unittest.TestCase):
             self.assertEqual(err_present, 0)
 
         def test():
+            while not (yield dut.master.link_layer.ready):
+                yield
+
             yield from test_init()
             yield from test_underflow()
             yield from test_pulses()

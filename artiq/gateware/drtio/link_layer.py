@@ -232,10 +232,22 @@ class LinkLayer(Module):
 
         # in rtio_rx clock domain
         self.rx_aux_stb = rx.aux_stb
-        self.rx_aux_frame = rx.aux_frame
+        self.rx_aux_frame = Signal()
         self.rx_aux_data = rx.aux_data
-        self.rx_rt_frame = rx.rt_frame
+        self.rx_rt_frame = Signal()
         self.rx_rt_data = rx.rt_data
+
+        ready_r = Signal()
+        ready_rx = Signal()
+        self.sync.rtio += ready_r.eq(self.ready)
+        self.specials += [
+            NoRetiming(ready_r),
+            MultiReg(ready_r, ready_rx, "rtio_rx")
+        ]
+        self.comb += [
+            self.rx_aux_frame.eq(rx.aux_frame & ready_rx),
+            self.rx_rt_frame.eq(rx.rt_frame & ready_rx),
+        ]
 
         # # #
 
