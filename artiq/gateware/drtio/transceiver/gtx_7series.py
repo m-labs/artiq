@@ -10,7 +10,10 @@ from artiq.gateware.drtio.transceiver.gtx_7series_init import *
 class GTX_1000BASE_BX10(Module):
     rtio_clk_freq = 62.5e6
 
-    def __init__(self, clock_pads, tx_pads, rx_pads, sys_clk_freq):
+    # The transceiver clock on clock_pads must be 62.5MHz
+    # when clock_div2=False, and 125MHz when clock_div2=True.
+    def __init__(self, clock_pads, tx_pads, rx_pads, sys_clk_freq,
+                 clock_div2=False):
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
         self.decoders = [ClockDomainsRenamer("rtio_rx")(
@@ -23,12 +26,20 @@ class GTX_1000BASE_BX10(Module):
         # # #
 
         refclk = Signal()
-        self.specials += Instance("IBUFDS_GTE2",
-            i_CEB=0,
-            i_I=clock_pads.p,
-            i_IB=clock_pads.n,
-            o_O=refclk
-        )
+        if clock_div2:
+            self.specials += Instance("IBUFDS_GTE2",
+                i_CEB=0,
+                i_I=clock_pads.p,
+                i_IB=clock_pads.n,
+                o_ODIV2=refclk
+            )
+        else:
+            self.specials += Instance("IBUFDS_GTE2",
+                i_CEB=0,
+                i_I=clock_pads.p,
+                i_IB=clock_pads.n,
+                o_O=refclk
+            )
 
         cplllock = Signal()
         # TX generates RTIO clock, init must be in system domain
