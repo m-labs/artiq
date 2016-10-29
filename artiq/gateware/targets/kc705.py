@@ -146,20 +146,11 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
-        self.rtio.cd_rsys.clk.attr.add("keep")
         self.rtio_crg.cd_rtio.clk.attr.add("keep")
-        self.ethphy.crg.cd_eth_rx.clk.attr.add("keep")
-        self.ethphy.crg.cd_eth_tx.clk.attr.add("keep")
-
-        self.platform.add_period_constraint(self.rtio.cd_rsys.clk, 8.)
         self.platform.add_period_constraint(self.rtio_crg.cd_rtio.clk, 8.)
-        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 8.)
-        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 8.)
         self.platform.add_false_path_constraints(
             self.rtio.cd_rsys.clk,
-            self.rtio_crg.cd_rtio.clk,
-            self.ethphy.crg.cd_eth_rx.clk,
-            self.ethphy.crg.cd_eth_tx.clk)
+            self.rtio_crg.cd_rtio.clk)
 
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio,
             self.get_native_sdram_if())
