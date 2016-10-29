@@ -1,24 +1,50 @@
-#![feature(lang_items, needs_panic_runtime, asm, libc, core_slice_ext)]
+#![feature(lang_items, needs_panic_runtime, asm, libc, stmt_expr_attributes)]
 
 #![no_std]
 #![needs_panic_runtime]
 
+#[macro_use]
+extern crate std_artiq as std;
 extern crate libc;
+extern crate byteorder;
 
 #[path = "../src/board.rs"]
 mod board;
 #[path = "../src/mailbox.rs"]
 mod mailbox;
+#[path = "../src/rpc_queue.rs"]
+mod rpc_queue;
+
+#[path = "../src/proto.rs"]
+mod proto;
 #[path = "../src/kernel_proto.rs"]
 mod kernel_proto;
+#[path = "../src/rpc_proto.rs"]
+mod rpc_proto;
 
 mod dyld;
 mod api;
 
 use core::{mem, ptr, slice, str};
+use std::io::Cursor;
 use libc::{c_char, size_t};
 use kernel_proto::*;
 use dyld::Library;
+
+#[no_mangle]
+pub extern "C" fn malloc(_size: usize) -> *mut libc::c_void {
+    unimplemented!()
+}
+
+#[no_mangle]
+pub extern "C" fn realloc(_ptr: *mut libc::c_void, _size: usize) -> *mut libc::c_void {
+    unimplemented!()
+}
+
+#[no_mangle]
+pub extern "C" fn free(_ptr: *mut libc::c_void) {
+    unimplemented!()
+}
 
 fn send(request: &Message) {
     unsafe { mailbox::send(request as *const _ as usize) }
@@ -81,10 +107,34 @@ extern fn send_rpc(service: u32, tag: *const u8, data: *const *const ()) {
     let tag = unsafe { slice::from_raw_parts(tag, strlen(tag as *const c_char)) };
 
     send(&RpcSend {
-        service: service as u32,
-        batch:   service == 0,
+        async:   false,
+        service: service,
         tag:     tag,
         data:    data
+    })
+}
+
+extern fn send_async_rpc(service: u32, tag: *const u8, data: *const *const ()) {
+    extern { fn strlen(s: *const c_char) -> size_t; }
+    let tag = unsafe { slice::from_raw_parts(tag, strlen(tag as *const c_char)) };
+
+    while rpc_queue::full() {}
+    rpc_queue::enqueue(|mut slice| {
+        let length = {
+            let mut writer = Cursor::new(&mut slice[4..]);
+            try!(rpc_proto::send_args(&mut writer, service, tag, data));
+            writer.position()
+        };
+        proto::write_u32(&mut slice, length as u32)
+    }).unwrap_or_else(|err| {
+        assert!(err.kind() == std::io::ErrorKind::UnexpectedEof);
+
+        send(&RpcSend {
+            async:   true,
+            service: service,
+            tag:     tag,
+            data:    data
+        })
     })
 }
 
@@ -206,7 +256,7 @@ unsafe fn attribute_writeback(typeinfo: *const ()) {
                 attributes = attributes.offset(1);
 
                 if !(*attribute).tag.is_null() {
-                    send_rpc(0, (*attribute).tag, [
+                    send_async_rpc(0, (*attribute).tag, [
                         &object as *const _ as *const (),
                         &(*attribute).name as *const _ as *const (),
                         (object as usize + (*attribute).offset) as *const ()

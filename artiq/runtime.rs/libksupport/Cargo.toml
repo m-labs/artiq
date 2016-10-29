@@ -8,6 +8,10 @@ name = "ksupport"
 path = "lib.rs"
 crate-type = ["staticlib"]
 
+[dependencies]
+std_artiq = { path = "../libstd_artiq" }
+byteorder = { version = "0.5", default-features = false }
+
 [profile.dev]
 panic = 'unwind'
 opt-level = 2

@@ -7,6 +7,8 @@ OBJECTS := flash_storage.o main.o
 OBJECTS_KSUPPORT := ksupport_glue.o artiq_personality.o rtio.o dds.o i2c.o
 
 RUSTOUT_DIRECTORY := cargo/or1k-unknown-none/debug
+CORE_IO_COMMIT := d40c593f42fafbac1ff3d827f6df96338b5b7d8b
+export CORE_IO_COMMIT
 
 CFLAGS += \
 	-I$(LIBALLOC_DIRECTORY) \
@@ -54,6 +56,7 @@ $(RUSTOUT_DIRECTORY)/libksupport.a:
 			--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../runtime.rs/libksupport/Cargo.toml) \
 			--target=or1k-unknown-none -- \
 			$(shell cat $(BUILDINC_DIRECTORY)/generated/rust-cfg) \
+			--cfg ksupport \
 			-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s \
 			-L../libcompiler-rt
 

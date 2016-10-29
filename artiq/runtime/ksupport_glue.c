@@ -8,8 +8,8 @@
 
 void send_to_log(const char *ptr, size_t length);
 
-#define KERNELCPU_EXEC_ADDRESS    0x40400000
-#define KERNELCPU_PAYLOAD_ADDRESS 0x40440000
+#define KERNELCPU_EXEC_ADDRESS    0x40800080
+#define KERNELCPU_PAYLOAD_ADDRESS 0x40840000
 #define KERNELCPU_LAST_ADDRESS    0x4fffffff
 #define KSUPPORT_HEADER_SIZE      0x80
 

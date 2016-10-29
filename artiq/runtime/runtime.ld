@@ -74,9 +74,7 @@ SECTIONS
     .heap :
     {
         _fheap = .;
-        . = ORIGIN(runtime) + LENGTH(runtime)
-        /* Leave room for ksupport headers. */
-            - 0x1000;
+        . = ORIGIN(runtime) + LENGTH(runtime);
         _eheap = .;
     } > runtime
 

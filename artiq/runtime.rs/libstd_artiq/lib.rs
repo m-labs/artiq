@@ -8,7 +8,7 @@ extern crate rustc_unicode;
 extern crate alloc_artiq;
 extern crate alloc;
 #[macro_use]
-#[macro_reexport(vec)]
+#[macro_reexport(vec, format)]
 extern crate collections;
 extern crate libc;
 
@@ -31,52 +31,3 @@ pub mod prelude {
 
 pub mod error;
 pub mod io;
-
-use core::fmt::Write;
-
-#[macro_export]
-macro_rules! print {
-    ($($arg:tt)*) => ($crate::print_fmt(format_args!($($arg)*)));
-}
-
-#[macro_export]
-macro_rules! println {
-    ($fmt:expr) => (print!(concat!($fmt, "\n")));
-    ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
-}
-
-extern {
-    fn putchar(c: libc::c_int) -> libc::c_int;
-    fn readchar() -> libc::c_char;
-}
-
-pub struct Console;
-
-impl core::fmt::Write for Console {
-    fn write_str(&mut self, s: &str) -> Result<(), core::fmt::Error> {
-        for c in s.bytes() { unsafe { putchar(c as i32); } }
-        Ok(())
-    }
-}
-
-pub fn print_fmt(args: self::core::fmt::Arguments) {
-    let _ = Console.write_fmt(args);
-}
-
-#[lang = "panic_fmt"]
-extern fn panic_fmt(args: self::core::fmt::Arguments, file: &'static str, line: u32) -> ! {
-    let _ = write!(Console, "panic at {}:{}: {}\n", file, line, args);
-    let _ = write!(Console, "waiting for debugger...\n");
-    unsafe {
-        let _ = readchar();
-        loop { asm!("l.trap 0") }
-    }
-}
-
-// Allow linking with crates that are built as -Cpanic=unwind even when the root crate
-// is built with -Cpanic=abort.
-#[allow(non_snake_case)]
-#[no_mangle]
-pub extern "C" fn _Unwind_Resume() -> ! {
-    loop {}
-}

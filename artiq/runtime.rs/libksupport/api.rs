@@ -91,6 +91,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(watchdog_clear = ::watchdog_clear),
 
     api!(send_rpc = ::send_rpc),
+    api!(send_async_rpc = ::send_async_rpc),
     api!(recv_rpc = ::recv_rpc),
 
     api!(cache_get = ::cache_get),
