@@ -47,6 +47,19 @@ The Python types correspond to ARTIQ type annotations as follows:
 | range       | TRange32, TRange64      |
 +-------------+-------------------------+
 
+Asynchronous RPCs
+-----------------
+
+If an RPC returns no value, it can be invoked in a way that does not block until the RPC finishes
+execution, but only until it is queued. (Submitting asynchronous RPCs too rapidly, as well as
+submitting asynchronous RPCs with arguments that are too large, can still block until completion.)
+
+To define an asynchronous RPC, use the ``@rpc`` annotation with a flag:
+
+    @rpc(flags={"async"})
+    def record_result(x):
+        self.results.append(x)
+
 Additional optimizations
 ------------------------
 

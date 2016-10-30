@@ -351,6 +351,8 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(lli32, [lldouble])
         elif name == "send_rpc":
             llty = ll.FunctionType(llvoid, [lli32, llptr, llptrptr])
+        elif name == "send_async_rpc":
+            llty = ll.FunctionType(llvoid, [lli32, llptr, llptrptr])
         elif name == "recv_rpc":
             llty = ll.FunctionType(lli32, [llptr])
         elif name == "now":
@@ -366,7 +368,8 @@ class LLVMIRGenerator:
             llglobal = ll.Function(self.llmodule, llty, name)
             if name in ("__artiq_raise", "__artiq_reraise", "llvm.trap"):
                 llglobal.attributes.add("noreturn")
-            if name in ("rtio_log", "send_rpc", "watchdog_set", "watchdog_clear",
+            if name in ("rtio_log", "send_rpc", "send_async_rpc",
+                        "watchdog_set", "watchdog_clear",
                         self.target.print_function):
                 llglobal.attributes.add("nounwind")
         else:
@@ -1248,11 +1251,18 @@ class LLVMIRGenerator:
             llargptr = self.llbuilder.gep(llargs, [ll.Constant(lli32, index)])
             self.llbuilder.store(llargslot, llargptr)
 
-        self.llbuilder.call(self.llbuiltin("send_rpc"),
-                            [llservice, lltag, llargs])
+        if fun_type.async:
+            self.llbuilder.call(self.llbuiltin("send_async_rpc"),
+                                [llservice, lltag, llargs])
+        else:
+            self.llbuilder.call(self.llbuiltin("send_rpc"),
+                                [llservice, lltag, llargs])
 
         # Don't waste stack space on saved arguments.
         self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
+
+        if fun_type.async:
+            return ll.Undefined
 
         # T result = {
         #   void *ptr = NULL;

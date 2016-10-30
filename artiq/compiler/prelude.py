@@ -31,6 +31,7 @@ def globals():
         # ARTIQ decorators
         "kernel":               builtins.fn_kernel(),
         "portable":             builtins.fn_kernel(),
+        "rpc":                  builtins.fn_kernel(),
 
         # ARTIQ context managers
         "parallel":             builtins.obj_parallel(),
