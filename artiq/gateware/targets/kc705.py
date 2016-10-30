@@ -149,7 +149,7 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.rtio_crg.cd_rtio.clk.attr.add("keep")
         self.platform.add_period_constraint(self.rtio_crg.cd_rtio.clk, 8.)
         self.platform.add_false_path_constraints(
-            self.rtio.cd_rsys.clk,
+            self.crg.cd_sys.clk,
             self.rtio_crg.cd_rtio.clk)
 
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio,
