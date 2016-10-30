@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from migen import *
 from migen.genlib.fsm import *
 from migen.genlib.fifo import AsyncFIFO
-from migen.genlib.cdc import PulseSynchronizer, NoRetiming
+from migen.genlib.cdc import PulseSynchronizer
 
 
 def layout_len(l):
@@ -334,7 +334,7 @@ class _CrossDomainRequest(Module):
         ]
         if req_data is not None:
             req_data_r = Signal.like(req_data)
-            self.specials += NoRetiming(req_data_r)
+            req_data_r.attr.add("no_retiming")
             self.sync += If(req_stb, req_data_r.eq(req_data))
         dsync += [
             If(request.o, srv_stb.eq(1)),
@@ -350,7 +350,7 @@ class _CrossDomainNotification(Module):
                  emi_stb, emi_data,
                  rec_stb, rec_ack, rec_data):
         emi_data_r = Signal.like(emi_data)
-        self.specials += NoRetiming(emi_data_r)
+        emi_data_r.attr.add("no_retiming")
         dsync = getattr(self.sync, domain)
         dsync += If(emi_stb, emi_data_r.eq(emi_data))
 

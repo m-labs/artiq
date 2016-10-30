@@ -3,7 +3,7 @@ from operator import xor, or_
 
 from migen import *
 from migen.genlib.fsm import *
-from migen.genlib.cdc import MultiReg, NoRetiming
+from migen.genlib.cdc import MultiReg
 
 
 class Scrambler(Module):
@@ -240,10 +240,8 @@ class LinkLayer(Module):
         ready_r = Signal()
         ready_rx = Signal()
         self.sync.rtio += ready_r.eq(self.ready)
-        self.specials += [
-            NoRetiming(ready_r),
-            MultiReg(ready_r, ready_rx, "rtio_rx")
-        ]
+        ready_r.attr.add("no_retiming")
+        self.specials += MultiReg(ready_r, ready_rx, "rtio_rx")
         self.comb += [
             self.rx_aux_frame.eq(rx.aux_frame & ready_rx),
             self.rx_rt_frame.eq(rx.rt_frame & ready_rx),
@@ -259,10 +257,10 @@ class LinkLayer(Module):
 
         rx_remote_rx_ready = Signal()
         rx_link_init = Signal()
+        rx.remote_rx_ready.attr.add("no_retiming")
+        rx.link_init.attr.add("no_retiming")
         self.specials += [
-            NoRetiming(rx.remote_rx_ready),
             MultiReg(rx.remote_rx_ready, rx_remote_rx_ready, "rtio"),
-            NoRetiming(rx.link_init),
             MultiReg(rx.link_init, rx_link_init, "rtio")
         ]
 

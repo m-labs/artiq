@@ -1,5 +1,5 @@
 from migen import *
-from migen.genlib.cdc import MultiReg, NoRetiming
+from migen.genlib.cdc import MultiReg
 
 from misoc.interconnect.csr import *
 
@@ -44,10 +44,8 @@ class RTController(Module):
         self.sync += If(self.kcsrs.counter_update.re, 
                         self.kcsrs.counter.status.eq(self.counter.value_sys))
         tsc_correction = Signal(64)
-        self.specials += [
-            NoRetiming(self.kcsrs.tsc_correction.storage),
-            MultiReg(self.kcsrs.tsc_correction.storage, tsc_correction)
-        ]
+        self.kcsrs.tsc_correction.storage.attr.add("no_retiming")
+        self.specials += MultiReg(self.kcsrs.tsc_correction.storage, tsc_correction)
         self.comb += [ 
             rt_packets.tsc_value.eq(
                 self.counter.value_rtio + tsc_correction),

@@ -3,7 +3,6 @@
 import argparse
 
 from migen import *
-from migen.fhdl.specials import Keep
 
 from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
 from misoc.integration.builder import builder_args, builder_argdict
@@ -43,17 +42,6 @@ class Master(MiniSoC, AMPSoC):
             clock_div2=True)
         self.submodules.drtio = DRTIOMaster(self.transceiver)
         self.register_kernel_cpu_csrdevice("drtio")
-
-        self.specials += [
-            Keep(self.ethphy.crg.cd_eth_rx.clk),
-            Keep(self.ethphy.crg.cd_eth_tx.clk),
-        ]
-
-        platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 8.)
-        platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 8.)
-        platform.add_false_path_constraints(
-            self.ethphy.crg.cd_eth_rx.clk,
-            self.ethphy.crg.cd_eth_tx.clk)
 
 
 def main():
