@@ -13,7 +13,7 @@ INCLUDE generated/regions.ld
  * are also loaded.
  */
 MEMORY {
-    ksupport (RWX) : ORIGIN = 0x40800080, LENGTH = 0x40000
+    ksupport (RWX) : ORIGIN = 0x40800000, LENGTH = 0x40000
 }
 
 /* Kernel stack is at the end of main RAM. */

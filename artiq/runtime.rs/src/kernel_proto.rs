@@ -3,7 +3,7 @@
 use core::marker::PhantomData;
 use core::fmt;
 
-pub const KERNELCPU_EXEC_ADDRESS:    usize = 0x40800080;
+pub const KERNELCPU_EXEC_ADDRESS:    usize = 0x40800000;
 pub const KERNELCPU_PAYLOAD_ADDRESS: usize = 0x40840000;
 pub const KERNELCPU_LAST_ADDRESS:    usize = 0x4fffffff;
 pub const KSUPPORT_HEADER_SIZE:      usize = 0x80;

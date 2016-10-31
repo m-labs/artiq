@@ -8,7 +8,7 @@ const SEND_MAILBOX: *mut usize = (board::mem::MAILBOX_BASE + 4) as *mut usize;
 const RECV_MAILBOX: *mut usize = (board::mem::MAILBOX_BASE + 8) as *mut usize;
 
 const QUEUE_BEGIN: usize = 0x40400000;
-const QUEUE_END:   usize = 0x40800000;
+const QUEUE_END:   usize = 0x407fff80;
 const QUEUE_CHUNK: usize = 0x1000;
 
 pub unsafe fn init() {
@@ -21,7 +21,7 @@ fn next(mut addr: usize) -> usize {
     debug_assert!(addr >= QUEUE_BEGIN && addr < QUEUE_END);
 
     addr += QUEUE_CHUNK;
-    if addr == QUEUE_END { addr = QUEUE_BEGIN }
+    if addr >= QUEUE_END { addr = QUEUE_BEGIN }
     addr
 }
 
