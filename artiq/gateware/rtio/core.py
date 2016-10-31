@@ -5,9 +5,9 @@ from migen import *
 from migen.genlib.record import Record
 from migen.genlib.fifo import AsyncFIFO
 from migen.genlib.resetsync import AsyncResetSynchronizer
-from misoc.interconnect.csr import *
 
 from artiq.gateware.rtio import rtlink
+from artiq.gateware.rtio.kernel_csrs import KernelCSRs
 from artiq.gateware.rtio.cdc import *
 
 
@@ -265,36 +265,6 @@ class LogChannel:
         self.overrides = []
 
 
-class _KernelCSRs(AutoCSR):
-    def __init__(self, chan_sel_width,
-                 data_width, address_width, full_ts_width):
-        self.reset = CSRStorage(reset=1)
-        self.reset_phy = CSRStorage(reset=1)
-        self.chan_sel = CSRStorage(chan_sel_width)
-
-        if data_width:
-            self.o_data = CSRStorage(data_width)
-        if address_width:
-            self.o_address = CSRStorage(address_width)
-        self.o_timestamp = CSRStorage(full_ts_width)
-        self.o_we = CSR()
-        self.o_status = CSRStatus(5)
-        self.o_underflow_reset = CSR()
-        self.o_sequence_error_reset = CSR()
-        self.o_collision_reset = CSR()
-        self.o_busy_reset = CSR()
-
-        if data_width:
-            self.i_data = CSRStatus(data_width)
-        self.i_timestamp = CSRStatus(full_ts_width)
-        self.i_re = CSR()
-        self.i_status = CSRStatus(2)
-        self.i_overflow_reset = CSR()
-
-        self.counter = CSRStatus(full_ts_width)
-        self.counter_update = CSR()
-
-
 class RTIO(Module):
     def __init__(self, channels, full_ts_width=63, guard_io_cycles=20):
         data_width = max(rtlink.get_data_width(c.interface)
@@ -308,10 +278,7 @@ class RTIO(Module):
         self.address_width = address_width
         self.fine_ts_width = fine_ts_width
 
-        # CSRs
-        self.kcsrs = _KernelCSRs(bits_for(len(channels)-1),
-                                 data_width, address_width,
-                                 full_ts_width)
+        self.kcsrs = KernelCSRs()
 
         # Clocking/Reset
         # Create rsys, rio and rio_phy domains based on sys and rtio

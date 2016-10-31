@@ -4,24 +4,7 @@ from migen.genlib.cdc import MultiReg
 from misoc.interconnect.csr import *
 
 from artiq.gateware.rtio.cdc import RTIOCounter
-
-
-class _KernelCSRs(AutoCSR):
-    def __init__(self):
-        # chan_sel must be written at least 1 cycle before we
-        # and held stable until the transaction is complete.
-        # timestamp must be written at least 1 cycle before we.
-        self.chan_sel = CSRStorage(16)
-        self.o_data = CSRStorage(64)
-        self.o_address = CSRStorage(16)
-        self.o_timestamp = CSRStorage(64)
-        self.o_we = CSR()
-        self.o_status = CSRStatus(3)
-        self.o_underflow_reset = CSR()
-        self.o_sequence_error_reset = CSR()
-
-        self.counter = CSRStatus(64)
-        self.counter_update = CSR()
+from artiq.gateware.rtio.kernel_csrs import KernelCSRs
 
 
 class _CSRs(AutoCSR):
@@ -45,7 +28,7 @@ class _CSRs(AutoCSR):
 
 class RTController(Module):
     def __init__(self, rt_packets, channel_count, fine_ts_width):
-        self.kcsrs = _KernelCSRs()
+        self.kcsrs = KernelCSRs()
         self.csrs = _CSRs()
 
         chan_sel = Signal(16)
