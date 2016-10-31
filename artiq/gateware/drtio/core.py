@@ -56,5 +56,8 @@ class DRTIOMaster(Module):
         self.submodules.rt_controller = rt_controller.RTController(
             self.rt_packets, channel_count, fine_ts_width)
 
+    def get_kernel_csrs(self):
+        return self.rt_controller.get_kernel_csrs()
+
     def get_csrs(self):
         return self.rt_controller.get_csrs()

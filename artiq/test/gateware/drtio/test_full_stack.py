@@ -58,6 +58,7 @@ class TestFullStack(unittest.TestCase):
     def test_full_stack(self):
         dut = DUT(2)
         kcsrs = dut.master.rt_controller.kcsrs
+        csrs = dut.master.rt_controller.csrs
 
         ttl_changes = []
         correct_ttl_changes = [
@@ -80,12 +81,15 @@ class TestFullStack(unittest.TestCase):
             now += dt
 
         def get_fifo_space(channel):
-            yield from kcsrs.chan_sel.write(channel)
-            yield from kcsrs.o_get_fifo_space.write(1)
+            yield from csrs.chan_sel_override_en.write(1)
+            yield from csrs.chan_sel_override.write(channel)
+            yield from csrs.o_get_fifo_space.write(1)
             yield
-            while (yield from kcsrs.o_status.read()) & 1:
+            while (yield from csrs.o_wait.read()):
                 yield
-            return (yield from kcsrs.o_dbg_fifo_space.read())
+            r = (yield from csrs.o_dbg_fifo_space.read())
+            yield from csrs.chan_sel_override_en.write(0)
+            return r
 
         def write(channel, data):
             yield from kcsrs.chan_sel.write(channel)
@@ -153,23 +157,23 @@ class TestFullStack(unittest.TestCase):
             self.assertEqual(wlen, 2)
 
         def test_tsc_error():
-            err_present = yield from kcsrs.err_present.read()
+            err_present = yield from csrs.err_present.read()
             self.assertEqual(err_present, 0)
-            yield from kcsrs.tsc_correction.write(10000000)
-            yield from kcsrs.set_time.write(1)
+            yield from csrs.tsc_correction.write(10000000)
+            yield from csrs.set_time.write(1)
             for i in range(5):
                yield
             delay(10000)
             yield from write(0, 1)
             for i in range(10):
                yield
-            err_present = yield from kcsrs.err_present.read()
-            err_code = yield from kcsrs.err_code.read()
+            err_present = yield from csrs.err_present.read()
+            err_code = yield from csrs.err_code.read()
             self.assertEqual(err_present, 1)
             self.assertEqual(err_code, 2)
-            yield from kcsrs.err_present.write(1)
+            yield from csrs.err_present.write(1)
             yield
-            err_present = yield from kcsrs.err_present.read()
+            err_present = yield from csrs.err_present.read()
             self.assertEqual(err_present, 0)
 
         def test():

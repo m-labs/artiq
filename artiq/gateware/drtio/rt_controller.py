@@ -23,6 +23,12 @@ class _KernelCSRs(AutoCSR):
         self.counter = CSRStatus(64)
         self.counter_update = CSR()
 
+
+class _CSRs(AutoCSR):
+    def __init__(self):
+        self.chan_sel_override = CSRStorage(16)
+        self.chan_sel_override_en = CSRStorage()
+
         self.tsc_correction = CSRStorage(64)
         self.set_time = CSR()
         self.underflow_margin = CSRStorage(16, reset=200)
@@ -31,6 +37,7 @@ class _KernelCSRs(AutoCSR):
         self.o_dbg_fifo_space = CSRStatus(16)
         self.o_dbg_last_timestamp = CSRStatus(64)
         self.o_reset_channel_status = CSR()
+        self.o_wait = CSRStatus()
 
         self.err_present = CSR()
         self.err_code = CSRStatus(8)
@@ -39,21 +46,28 @@ class _KernelCSRs(AutoCSR):
 class RTController(Module):
     def __init__(self, rt_packets, channel_count, fine_ts_width):
         self.kcsrs = _KernelCSRs()
+        self.csrs = _CSRs()
+
+        chan_sel = Signal(16)
+        self.comb += chan_sel.eq(
+            Mux(self.csrs.chan_sel_override_en.storage,
+                self.csrs.chan_sel_override.storage,
+                self.kcsrs.chan_sel.storage))
 
         self.submodules.counter = RTIOCounter(64-fine_ts_width)
         self.sync += If(self.kcsrs.counter_update.re, 
                         self.kcsrs.counter.status.eq(self.counter.value_sys))
         tsc_correction = Signal(64)
-        self.kcsrs.tsc_correction.storage.attr.add("no_retiming")
-        self.specials += MultiReg(self.kcsrs.tsc_correction.storage, tsc_correction)
+        self.csrs.tsc_correction.storage.attr.add("no_retiming")
+        self.specials += MultiReg(self.csrs.tsc_correction.storage, tsc_correction)
         self.comb += [ 
             rt_packets.tsc_value.eq(
                 self.counter.value_rtio + tsc_correction),
-            self.kcsrs.set_time.w.eq(rt_packets.set_time_stb)
+            self.csrs.set_time.w.eq(rt_packets.set_time_stb)
         ]
         self.sync += [
             If(rt_packets.set_time_ack, rt_packets.set_time_stb.eq(0)),
-            If(self.kcsrs.set_time.re, rt_packets.set_time_stb.eq(1))
+            If(self.csrs.set_time.re, rt_packets.set_time_stb.eq(1))
         ]
 
         fifo_spaces_mem = Memory(16, channel_count)
@@ -65,10 +79,10 @@ class RTController(Module):
 
         rt_packets_fifo_request = Signal()
         self.comb += [
-            fifo_spaces.adr.eq(self.kcsrs.chan_sel.storage),
-            last_timestamps.adr.eq(self.kcsrs.chan_sel.storage),
+            fifo_spaces.adr.eq(chan_sel),
+            last_timestamps.adr.eq(chan_sel),
             last_timestamps.dat_w.eq(self.kcsrs.o_timestamp.storage),
-            rt_packets.write_channel.eq(self.kcsrs.chan_sel.storage),
+            rt_packets.write_channel.eq(chan_sel),
             rt_packets.write_address.eq(self.kcsrs.o_address.storage),
             rt_packets.write_data.eq(self.kcsrs.o_data.storage),
             If(rt_packets_fifo_request,
@@ -84,8 +98,11 @@ class RTController(Module):
         status_wait = Signal()
         status_underflow = Signal()
         status_sequence_error = Signal()
-        self.comb += self.kcsrs.o_status.status.eq(Cat(
-            status_wait, status_underflow, status_sequence_error))
+        self.comb += [
+            self.kcsrs.o_status.status.eq(Cat(
+                status_wait, status_underflow, status_sequence_error)),
+            self.csrs.o_wait.status.eq(status_wait)
+        ]
         sequence_error_set = Signal()
         underflow_set = Signal()
         self.sync += [
@@ -98,7 +115,7 @@ class RTController(Module):
         # TODO: collision, replace, busy
         cond_sequence_error = self.kcsrs.o_timestamp.storage < last_timestamps.dat_r
         cond_underflow = ((self.kcsrs.o_timestamp.storage[fine_ts_width:]
-                           - self.kcsrs.underflow_margin.storage[fine_ts_width:]) < self.counter.value_sys)
+                           - self.csrs.underflow_margin.storage[fine_ts_width:]) < self.counter.value_sys)
         cond_fifo_emptied = ((last_timestamps.dat_r[fine_ts_width:] < self.counter.value_sys)
                              & (last_timestamps.dat_r != 0))
 
@@ -112,7 +129,7 @@ class RTController(Module):
                     NextState("WRITE")
                 )
             ),
-            If(self.kcsrs.o_get_fifo_space.re,
+            If(self.csrs.o_get_fifo_space.re,
                 NextState("GET_FIFO_SPACE")
             )
         )
@@ -157,9 +174,9 @@ class RTController(Module):
         )
 
         self.comb += [
-            self.kcsrs.o_dbg_fifo_space.status.eq(fifo_spaces.dat_r),
-            self.kcsrs.o_dbg_last_timestamp.status.eq(last_timestamps.dat_r),
-            If(self.kcsrs.o_reset_channel_status.re,
+            self.csrs.o_dbg_fifo_space.status.eq(fifo_spaces.dat_r),
+            self.csrs.o_dbg_last_timestamp.status.eq(last_timestamps.dat_r),
+            If(self.csrs.o_reset_channel_status.re,
                 fifo_spaces.dat_w.eq(0),
                 fifo_spaces.we.eq(1),
                 last_timestamps.dat_w.eq(0),
@@ -168,10 +185,13 @@ class RTController(Module):
         ]
 
         self.comb += [
-            self.kcsrs.err_present.w.eq(rt_packets.error_not),
-            rt_packets.error_not_ack.eq(self.kcsrs.err_present.re),
-            self.kcsrs.err_code.status.eq(rt_packets.error_code)
+            self.csrs.err_present.w.eq(rt_packets.error_not),
+            rt_packets.error_not_ack.eq(self.csrs.err_present.re),
+            self.csrs.err_code.status.eq(rt_packets.error_code)
         ]
 
-    def get_csrs(self):
+    def get_kernel_csrs(self):
         return self.kcsrs.get_csrs()
+
+    def get_csrs(self):
+        return self.csrs.get_csrs()
