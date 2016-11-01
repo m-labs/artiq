@@ -127,7 +127,7 @@ extern fn send_async_rpc(service: u32, tag: *const u8, data: *const *const ()) {
         };
         proto::write_u32(&mut slice, length as u32)
     }).unwrap_or_else(|err| {
-        assert!(err.kind() == std::io::ErrorKind::UnexpectedEof);
+        assert!(err.kind() == std::io::ErrorKind::WriteZero);
 
         send(&RpcSend {
             async:   true,

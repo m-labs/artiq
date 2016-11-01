@@ -1,6 +1,7 @@
 #![feature(lang_items, asm, alloc, collections, libc, needs_panic_runtime,
            question_mark, unicode, reflect_marker, raw, int_error_internals,
-           try_from, try_borrow, macro_reexport, allow_internal_unstable)]
+           try_from, try_borrow, macro_reexport, allow_internal_unstable,
+           stmt_expr_attributes)]
 #![no_std]
 #![needs_panic_runtime]
 
@@ -31,3 +32,13 @@ pub mod prelude {
 
 pub mod error;
 pub mod io;
+
+// Provide Box::new wrapper
+#[cfg(not(feature="alloc"))]
+struct FakeBox<T>(core::marker::PhantomData<T>);
+#[cfg(not(feature="alloc"))]
+impl<T> FakeBox<T> {
+    fn new(val: T) -> T {
+        val
+    }
+}

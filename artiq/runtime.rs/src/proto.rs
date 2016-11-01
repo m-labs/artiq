@@ -67,7 +67,8 @@ pub fn write_bytes(writer: &mut Write, value: &[u8]) -> io::Result<()> {
 
 pub fn read_string(reader: &mut Read) -> io::Result<String> {
     let bytes = try!(read_bytes(reader));
-    String::from_utf8(bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+    String::from_utf8(bytes)
+           .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "invalid UTF-8"))
 }
 
 pub fn write_string(writer: &mut Write, value: &str) -> io::Result<()> {
