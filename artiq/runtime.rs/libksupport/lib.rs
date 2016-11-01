@@ -107,6 +107,7 @@ extern fn send_rpc(service: u32, tag: *const u8, data: *const *const ()) {
     extern { fn strlen(s: *const c_char) -> size_t; }
     let tag = unsafe { slice::from_raw_parts(tag, strlen(tag as *const c_char)) };
 
+    while !rpc_queue::empty() {}
     send(&RpcSend {
         async:   false,
         service: service,
@@ -130,6 +131,7 @@ extern fn send_async_rpc(service: u32, tag: *const u8, data: *const *const ()) {
     }).unwrap_or_else(|err| {
         assert!(err.kind() == std::io::ErrorKind::WriteZero);
 
+        while !rpc_queue::empty() {}
         send(&RpcSend {
             async:   true,
             service: service,
