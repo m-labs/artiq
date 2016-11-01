@@ -13,7 +13,7 @@ const QUEUE_CHUNK: usize = 0x1000;
 
 pub unsafe fn init() {
     write_volatile(SEND_MAILBOX, QUEUE_BEGIN);
-    write_volatile(RECV_MAILBOX, QUEUE_END);
+    write_volatile(RECV_MAILBOX, QUEUE_BEGIN);
 }
 
 fn next(mut addr: usize) -> usize {

@@ -389,7 +389,7 @@ fn process_kern_message(waiter: Waiter,
                 match stream {
                     None => unexpected!("unexpected RPC in flash kernel"),
                     Some(ref mut stream) => {
-                        try!(host_write(stream, host::Reply::RpcRequest));
+                        try!(host_write(stream, host::Reply::RpcRequest { async: async }));
                         try!(rpc::send_args(&mut BufWriter::new(stream), service, tag, data));
                         if !async {
                             session.kernel_state = KernelState::RpcWait
@@ -470,7 +470,7 @@ fn process_kern_queued_rpc(stream: &mut TcpStream,
     rpc_queue::dequeue(|slice| {
         trace!("comm<-kern (async RPC)");
         let length = NetworkEndian::read_u32(slice) as usize;
-        try!(host_write(stream, host::Reply::RpcRequest));
+        try!(host_write(stream, host::Reply::RpcRequest { async: true }));
         try!(stream.write(&slice[4..][..length]));
         Ok(())
     })

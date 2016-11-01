@@ -1,6 +1,7 @@
 use core::ptr;
 use board::csr;
 use mailbox;
+use rpc_queue;
 
 use kernel_proto::{KERNELCPU_EXEC_ADDRESS, KERNELCPU_LAST_ADDRESS, KSUPPORT_HEADER_SIZE};
 
@@ -16,6 +17,8 @@ pub unsafe fn start() {
     ptr::copy_nonoverlapping(ksupport_image.as_ptr(), ksupport_addr, ksupport_image.len());
 
     csr::kernel_cpu::reset_write(0);
+
+    rpc_queue::init();
 }
 
 pub fn stop() {
