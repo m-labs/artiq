@@ -18,18 +18,22 @@ def get_i2c_program(sys_clk_freq):
     # into registers. They have to be mapped; see the datasheet.
     # DSPLLsim reports the logical parameters in the design summary, not
     # the physical register values (but those are present separately).
-    N1_HS  = 0   # 4
-    NC1_LS = 19  # 20
-    N2_HS  = 1   # 5
-    N2_LS  = 511 # 512
-    N31    = 31  # 32
+    N1_HS  = 6     # 10
+    NC1_LS = 7     # 8
+    N2_HS  = 6     # 10
+    N2_LS  = 20111 # 20112
+    N31    = 2513  # 2514
+    N32    = 4596  # 4597
 
     i2c_sequence = [
         # PCA9548: select channel 7
         [(0x74 << 1), 1 << 7],
         # Si5324: configure
+        [(0x68 << 1), 0,   0b01010000],        # FREE_RUN=1
+        [(0x68 << 1), 1,   0b11100100],        # CK_PRIOR2=1 CK_PRIOR1=0
         [(0x68 << 1), 2,   0b0010 | (4 << 4)], # BWSEL=4
         [(0x68 << 1), 3,   0b0101 | 0x10],     # SQ_ICAL=1
+        [(0x68 << 1), 4,   0b10010010],        # AUTOSEL_REG=b10
         [(0x68 << 1), 6,            0x07],     # SFOUT1_REG=b111
         [(0x68 << 1), 25,  (N1_HS  << 5 ) & 0xff],
         [(0x68 << 1), 31,  (NC1_LS >> 16) & 0xff],
