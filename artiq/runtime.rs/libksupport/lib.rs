@@ -12,8 +12,6 @@ extern crate byteorder;
 mod board;
 #[path = "../src/mailbox.rs"]
 mod mailbox;
-#[path = "../src/rpc_queue.rs"]
-mod rpc_queue;
 
 #[path = "../src/proto.rs"]
 mod proto;
@@ -72,13 +70,16 @@ macro_rules! recv {
 }
 
 macro_rules! print {
-    ($($arg:tt)*) => ($crate::send(&Log(format_args!($($arg)*))));
+    ($($arg:tt)*) => ($crate::send(&$crate::kernel_proto::Log(format_args!($($arg)*))));
 }
 
 macro_rules! println {
     ($fmt:expr) => (print!(concat!($fmt, "\n")));
     ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
 }
+
+#[path = "../src/rpc_queue.rs"]
+mod rpc_queue;
 
 #[lang = "panic_fmt"]
 extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -> ! {

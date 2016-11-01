@@ -217,6 +217,27 @@ class AnnotationTest(ExperimentCase):
         exp = self.create(_Annotation)
         self.assertEqual(exp.overflow(1), True)
 
+class _Async(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+
+    @rpc(flags={"async"})
+    def recv_async(self, data):
+        pass
+
+    @kernel
+    def run(self):
+        # fast async path
+        self.recv_async([0]*128)
+        # slow async path
+        self.recv_async([0]*4096)
+
+
+class AsyncTest(ExperimentCase):
+    def test_args(self):
+        exp = self.create(_RPCTypes)
+        exp.run()
+
 
 class _Payload1MB(EnvExperiment):
     def build(self):

@@ -471,6 +471,7 @@ fn process_kern_queued_rpc(stream: &mut TcpStream,
         trace!("comm<-kern (async RPC)");
         let length = NetworkEndian::read_u32(slice) as usize;
         try!(host_write(stream, host::Reply::RpcRequest { async: true }));
+        trace!("{:?}" ,&slice[4..][..length]);
         try!(stream.write(&slice[4..][..length]));
         Ok(())
     })
@@ -482,7 +483,7 @@ fn host_kernel_worker(waiter: Waiter,
     let mut session = Session::new(congress);
 
     loop {
-        if !rpc_queue::empty() {
+        while !rpc_queue::empty() {
             try!(process_kern_queued_rpc(stream, &mut session))
         }
 

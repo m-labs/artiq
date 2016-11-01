@@ -413,23 +413,27 @@ class CommGeneric:
     def _serve_rpc(self, embedding_map):
         async        = self._read_bool()
         service_id   = self._read_int32()
-        service      = embedding_map.retrieve_object(service_id)
         args, kwargs = self._receive_rpc_args(embedding_map)
         return_tags  = self._read_bytes()
+
+        if service_id is 0:
+            service  = lambda obj, attr, value: setattr(obj, attr, value)
+        else:
+            service  = embedding_map.retrieve_object(service_id)
         logger.debug("rpc service: [%d]%r%s %r %r -> %s", service_id, service,
                      (" (async)" if async else ""), args, kwargs, return_tags)
 
+        if async:
+            service(*args, **kwargs)
+            return
+
         try:
             result = service(*args, **kwargs)
-            if async:
-                return
-            else:
-                self._write_header(_H2DMsgType.RPC_REPLY)
-                self._write_bytes(return_tags)
-                self._send_rpc_value(bytearray(return_tags), result, result, service)
-
             logger.debug("rpc service: %d %r %r = %r", service_id, args, kwargs, result)
 
+            self._write_header(_H2DMsgType.RPC_REPLY)
+            self._write_bytes(return_tags)
+            self._send_rpc_value(bytearray(return_tags), result, result, service)
         except Exception as exn:
             logger.debug("rpc service: %d %r %r ! %r", service_id, args, kwargs, exn)
 
