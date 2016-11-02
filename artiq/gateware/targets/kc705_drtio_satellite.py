@@ -12,7 +12,6 @@ from artiq.gateware.drtio.transceiver import gtx_7series
 from artiq.gateware.drtio import DRTIOSatellite
 
 
-# TODO: program Si5324 free-run mode, with automatic switching
 def get_i2c_program(sys_clk_freq):
     # NOTE: the logical parameters DO NOT MAP to physical values written
     # into registers. They have to be mapped; see the datasheet.
