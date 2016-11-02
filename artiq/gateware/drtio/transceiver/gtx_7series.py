@@ -162,15 +162,21 @@ class GTX_1000BASE_BX10(Module):
                 o_GTXTXN=tx_pads.n,
             )
 
+        tx_reset_deglitched = Signal()
+        tx_reset_deglitched.attr.add("no_retiming")
+        self.sync += tx_reset_deglitched.eq(~tx_init.done)
         self.clock_domains.cd_rtio = ClockDomain()
         self.specials += [
             Instance("BUFG", i_I=txoutclk, o_O=self.cd_rtio.clk),
-            AsyncResetSynchronizer(self.cd_rtio, ~tx_init.done)
+            AsyncResetSynchronizer(self.cd_rtio, tx_reset_deglitched)
         ]
+        rx_reset_deglitched = Signal()
+        rx_reset_deglitched.attr.add("no_retiming")
+        self.sync.rtio += rx_reset_deglitched.eq(~rx_init.done)
         self.clock_domains.cd_rtio_rx = ClockDomain()
         self.specials += [
             Instance("BUFG", i_I=rxoutclk, o_O=self.cd_rtio_rx.clk),
-            AsyncResetSynchronizer(self.cd_rtio_rx, ~rx_init.done)
+            AsyncResetSynchronizer(self.cd_rtio_rx, rx_reset_deglitched)
         ]
 
         self.comb += [
