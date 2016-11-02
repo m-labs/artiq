@@ -3,7 +3,9 @@ from operator import xor, or_
 
 from migen import *
 from migen.genlib.fsm import *
-from migen.genlib.cdc import MultiReg
+from migen.genlib.cdc import MultiReg, BusSynchronizer
+
+from misoc.interconnect.csr import *
 
 
 class Scrambler(Module):
@@ -209,8 +211,10 @@ class LinkLayerRX(Module):
         ]
 
 
-class LinkLayer(Module):
+class LinkLayer(Module, AutoCSR):
     def __init__(self, encoder, decoders):
+        self.link_status = CSRStatus(3)
+
         # control signals, in rtio clock domain
         self.reset = Signal()
         self.ready = Signal()
@@ -264,18 +268,25 @@ class LinkLayer(Module):
             MultiReg(rx.link_init, rx_link_init, "rtio")
         ]
 
+        link_status = BusSynchronizer(3, "rtio", "sys")
+        self.submodules += link_status
+        self.comb += self.link_status.status.eq(link_status.o)
+
         fsm.act("RESET_RX",
+            link_status.i.eq(0),
             tx.link_init.eq(1),
             self.rx_reset.eq(1),
             NextState("WAIT_LOCAL_RX_READY")
         )
         fsm.act("WAIT_LOCAL_RX_READY",
+            link_status.i.eq(1),
             tx.link_init.eq(1),
             If(self.rx_ready,
                 NextState("WAIT_REMOTE_RX_READY")
             )
         )
         fsm.act("WAIT_REMOTE_RX_READY",
+            link_status.i.eq(2),
             tx.link_init.eq(1),
             tx.signal_rx_ready.eq(1),
             If(rx_remote_rx_ready,
@@ -283,9 +294,11 @@ class LinkLayer(Module):
             )
         )
         fsm.act("WAIT_REMOTE_LINK_UP",
+            link_status.i.eq(3),
             If(~rx_link_init, NextState("READY"))
         )
         fsm.act("READY",
+            link_status.i.eq(4),
             If(rx_link_init, NextState("RESET_RX")),
             self.ready.eq(1)
         )

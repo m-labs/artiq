@@ -60,4 +60,4 @@ class DRTIOMaster(Module):
         return self.rt_controller.get_kernel_csrs()
 
     def get_csrs(self):
-        return self.rt_controller.get_csrs()
+        return self.link_layer.get_csrs() + self.rt_controller.get_csrs()
