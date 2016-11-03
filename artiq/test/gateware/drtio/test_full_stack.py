@@ -203,5 +203,5 @@ class TestFullStack(unittest.TestCase):
 
         run_simulation(dut, 
             {"sys": test(), "rtio": check_ttls()},
-            {"sys": 8, "rtio": 5, "rtio_rx": 5, "rio": 5, "rio_phy": 5}, vcd_name="foo.vcd")
+            {"sys": 8, "rtio": 5, "rtio_rx": 5, "rio": 5, "rio_phy": 5})
         self.assertEqual(ttl_changes, correct_ttl_changes)
