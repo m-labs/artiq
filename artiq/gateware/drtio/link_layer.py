@@ -202,7 +202,7 @@ class LinkLayerRX(Module):
                 ).Elif(decoders[0].d != K(28, 7),
                     self.remote_rx_ready.eq(0)
                 ),
-                If(decoders[0].d == K(30, 7),
+                If(decoders[1].d == K(30, 7),
                     self.remote_rx_ready.eq(1)
                 ) if len(decoders) > 1 else None
             ).Else(
