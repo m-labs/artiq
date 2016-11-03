@@ -62,6 +62,7 @@ and the ARTIQ kernels.
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/m-labs/rust
+        $ cd rust
         $ git checkout artiq
         $ mkdir build
         $ cd build
