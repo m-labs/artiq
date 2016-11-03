@@ -118,7 +118,7 @@ class GTXInit(Module):
 
 
 # Changes the phase of the transceiver RX clock to align the comma to
-# the MSBs of RXDATA, fixing the latency.
+# the LSBs of RXDATA, fixing the latency.
 #
 # This is implemented by repeatedly resetting the transceiver until it
 # gives out the correct phase. Each reset gives a random phase.
@@ -130,6 +130,9 @@ class GTXInit(Module):
 #  * RXSLIDE_MODE=PMA cannot be used with the RX buffer bypassed.
 # Those design flaws make RXSLIDE_MODE=PMA yet another broken and useless
 # transceiver "feature".
+#
+# Warning: Xilinx transceivers are LSB first, and comma needs to be flipped
+# compared to the usual 8b10b binary representation.
 class BruteforceClockAligner(Module):
     def __init__(self, comma, rtio_clk_freq, check_period=6e-3, ready_time=50e-3):
         self.rxdata = Signal(20)
@@ -156,6 +159,7 @@ class BruteforceClockAligner(Module):
         comma_n = ~comma & 0b1111111111
         comma_seen_rxclk = Signal()
         comma_seen = Signal()
+        comma_seen_rxclk.attr.add("no_retiming")
         self.specials += MultiReg(comma_seen_rxclk, comma_seen)
         comma_seen_reset = PulseSynchronizer("rtio", "rtio_rx")
         self.submodules += comma_seen_reset
