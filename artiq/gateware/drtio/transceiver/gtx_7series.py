@@ -223,6 +223,7 @@ class RXSynchronizer(Module, AutoCSR):
             Instance("MMCME2_ADV",
                 p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
                 i_CLKIN1=ClockSignal("rtio_rx"),
+                i_RST=ResetSignal("rtio_rx"),
                 i_CLKINSEL=1,  # yes, 1=CLKIN1 0=CLKIN2
 
                 p_CLKFBOUT_MULT_F=mmcm_mult,
@@ -237,6 +238,7 @@ class RXSynchronizer(Module, AutoCSR):
 
                 p_CLKOUT0_USE_FINE_PS="TRUE",
                 o_CLKOUT0=mmcm_output,
+                o_LOCKED=mmcm_locked,
 
                 i_PSCLK=ClockSignal(),
                 i_PSEN=self.phase_shift.re,
