@@ -71,7 +71,7 @@ and the ARTIQ kernels.
         $ sudo make install -j4
 
         $ libs="libcore liballoc librustc_unicode libcollections liblibc_mini libunwind"
-        $ rustc="/usr/local/rust-or1k/bin/rustc --target or1k-unknown-none -g -C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s"
+        $ rustc="/usr/local/rust-or1k/bin/rustc --target or1k-unknown-none -g -C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -L ."
         $ destdir="/usr/local/rust-or1k/lib/rustlib/or1k-unknown-none/lib/"
         $ mkdir ../build-or1k
         $ cd ../build-or1k
