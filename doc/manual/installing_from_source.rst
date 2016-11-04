@@ -64,17 +64,22 @@ and the ARTIQ kernels.
         $ git clone https://github.com/m-labs/rust
         $ cd rust
         $ git checkout artiq
+        $ git submodule update --init
         $ mkdir build
         $ cd build
-        $ ../configure --prefix=/usr/local/rust-or1k --llvm-root=/usr/local/llvm-or1k/bin/llvm-config --disable-manage-submodules
+        $ ../configure --prefix=/usr/local/rust-or1k --llvm-root=/usr/local/llvm-or1k --disable-manage-submodules
         $ sudo make install -j4
-        $ libs="libcore liballoc librustc_unicode libcollections liblibc_mini libunwind libpanic_unwind"
 
+        $ libs="libcore liballoc librustc_unicode libcollections liblibc_mini libunwind"
+        $ rustc="/usr/local/rust-or1k/bin/rustc --target or1k-unknown-none -g -C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s"
+        $ destdir="/usr/local/rust-or1k/lib/rustlib/or1k-unknown-none/lib/"
         $ mkdir ../build-or1k
         $ cd ../build-or1k
-        $ for lib in ${libs}; do /usr/local/rust-or1k/bin/rustc src/${lib}/lib.rs; done
-        $ /usr/local/rust-or1k/bin/rustc -Cpanic=abort src/libpanic_abort/lib.rs
-        $ sudo cp * /usr/local/rust-or1k/lib/rustlib/or1k-unknown-none/lib/
+        $ for lib in ${libs}; do ${rustc} ../src/${lib}/lib.rs; done
+        $ ${rustc} -Cpanic=abort ../src/libpanic_abort/lib.rs
+        $ ${rustc} -Cpanic=unwind ../src/libpanic_unwind/lib.rs --cfg llvm_libunwind
+        $ sudo mkdir -p ${destdir}
+        $ sudo cp *.rlib ${destdir}
 
 .. note::
     Compilation of LLVM can take more than 30 min on some machines. Compilation of Rust can take more than two hours.
