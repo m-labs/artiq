@@ -50,12 +50,13 @@ def get_s2m_layouts(alignment):
 
 
 error_codes = {
-    "unknown_type": 0,
+    "unknown_type_local": 0,
+    "unknown_type_remote": 1,
     # The transmitter is normally responsible for avoiding
     # overflows and underflows. Those error reports are only
     # for diagnosing internal ARTIQ bugs.
-    "write_overflow": 1,
-    "write_underflow": 2
+    "write_overflow": 2,
+    "write_underflow": 3
 }
 
 
@@ -254,7 +255,7 @@ class RTPacketSatellite(Module):
                             NextState("FIFO_SPACE"),
                         "default": [
                             err_set.eq(1),
-                            NextValue(err_code, error_codes["unknown_type"])]
+                            NextValue(err_code, error_codes["unknown_type_remote"])]
                     })
                 )
             )
@@ -528,7 +529,7 @@ class RTPacketMaster(Module):
                         rx_plm.types["fifo_space_reply"]: NextState("FIFO_SPACE"),
                         "default": [
                             error_not.eq(1),
-                            error_code.eq(error_codes["unknown_type"])
+                            error_code.eq(error_codes["unknown_type_local"])
                         ]
                     })
                 )

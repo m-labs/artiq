@@ -170,7 +170,7 @@ class TestFullStack(unittest.TestCase):
             err_present = yield from csrs.err_present.read()
             err_code = yield from csrs.err_code.read()
             self.assertEqual(err_present, 1)
-            self.assertEqual(err_code, 2)
+            self.assertEqual(err_code, 3)
             yield from csrs.err_present.write(1)
             yield
             err_present = yield from csrs.err_present.read()
