@@ -212,10 +212,11 @@ class RXSynchronizer(Module, AutoCSR):
         self.phase_shift = CSR()
         self.phase_shift_done = CSRStatus()
 
-        self.clock_domains.cd_rtio_delayed = ClockDomain(reset_less=True)
+        self.clock_domains.cd_rtio_delayed = ClockDomain()
 
         mmcm_output = Signal()
         mmcm_fb = Signal()
+        mmcm_locked = Signal()
         # maximize VCO frequency to maximize phase shift resolution
         mmcm_mult = 1200e6//rtio_clk_freq
         self.specials += [
@@ -242,7 +243,8 @@ class RXSynchronizer(Module, AutoCSR):
                 i_PSINCDEC=self.phase_shift.r,
                 o_PSDONE=self.phase_shift_done.status,
             ),
-            Instance("BUFR", i_I=mmcm_output, o_O=self.cd_rtio_delayed.clk)
+            Instance("BUFR", i_I=mmcm_output, o_O=self.cd_rtio_delayed.clk),
+            AsyncResetSynchronizer(self.cd_rtio_delayed, ~mmcm_locked)
         ]
 
     def resync(self, signal):
