@@ -5,6 +5,8 @@ from migen.genlib.fsm import *
 from migen.genlib.fifo import AsyncFIFO
 from migen.genlib.cdc import PulseSynchronizer
 
+from artiq.gateware.rtio.cdc import GrayCodeTransfer
+
 
 def layout_len(l):
     return sum(e[1] for e in l)
@@ -404,6 +406,10 @@ class RTPacketMaster(Module):
         self.error_not_ack = Signal()
         self.error_code = Signal(8)
 
+        # packet counters
+        self.packet_cnt_tx = Signal(32)
+        self.packet_cnt_rx = Signal(32)
+
         # # #
 
         # CDC
@@ -545,3 +551,33 @@ class RTPacketMaster(Module):
             fifo_space.eq(rx_dp.packet_as["fifo_space_reply"].space),
             NextState("INPUT")
         )
+
+        # packet counters
+        tx_frame_r = Signal()
+        packet_cnt_tx = Signal(32)
+        self.sync.rtio += [
+            tx_frame_r.eq(link_layer.tx_rt_frame),
+            If(link_layer.tx_rt_frame & ~tx_frame_r,
+                packet_cnt_tx.eq(packet_cnt_tx + 1))
+        ]
+        cdc_packet_cnt_tx = GrayCodeTransfer(32)
+        self.submodules += cdc_packet_cnt_tx
+        self.comb += [
+            cdc_packet_cnt_tx.i.eq(packet_cnt_tx),
+            self.packet_cnt_tx.eq(cdc_packet_cnt_tx.o)
+        ]
+
+        rx_frame_r = Signal()
+        packet_cnt_rx = Signal(32)
+        self.sync.rtio_rx += [
+            rx_frame_r.eq(link_layer.rx_rt_frame),
+            If(link_layer.rx_rt_frame & ~rx_frame_r,
+                packet_cnt_rx.eq(packet_cnt_rx + 1))
+        ]
+        cdc_packet_cnt_rx = ClockDomainsRenamer({"rtio": "rtio_rx"})(
+            GrayCodeTransfer(32))
+        self.submodules += cdc_packet_cnt_rx
+        self.comb += [
+            cdc_packet_cnt_rx.i.eq(packet_cnt_rx),
+            self.packet_cnt_rx.eq(cdc_packet_cnt_rx.o)
+        ]
