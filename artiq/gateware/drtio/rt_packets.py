@@ -510,12 +510,18 @@ class RTPacketMaster(Module):
         tx_fsm.act("ECHO",
             tx_dp.send("echo_request"),
             tx_dp.stb.eq(1),
-            If(tx_dp.done, NextState("IDLE_WRITE"))
+            If(tx_dp.done,
+                echo_ack.eq(1),
+                NextState("IDLE_WRITE")
+            )
         )
         tx_fsm.act("SET_TIME",
             tx_dp.send("set_time", timestamp=tsc_value),
             tx_dp.stb.eq(1),
-            If(tx_dp.done, NextState("IDLE_WRITE"))
+            If(tx_dp.done,
+                set_time_ack.eq(1),
+                NextState("IDLE_WRITE")
+            )
         )
 
         # RX FSM
