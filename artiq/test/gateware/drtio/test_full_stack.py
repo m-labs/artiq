@@ -55,7 +55,9 @@ class DUT(Module):
         
 
 class TestFullStack(unittest.TestCase):
-    def test_full_stack(self):
+    clocks = {"sys": 8, "rtio": 5, "rtio_rx": 5, "rio": 5, "rio_phy": 5}
+
+    def test_controller(self):
         dut = DUT(2)
         kcsrs = dut.master.rt_controller.kcsrs
         csrs = dut.master.rt_controller.csrs
@@ -203,6 +205,31 @@ class TestFullStack(unittest.TestCase):
                 cycle += 1
 
         run_simulation(dut, 
-            {"sys": test(), "rtio": check_ttls()},
-            {"sys": 8, "rtio": 5, "rtio_rx": 5, "rio": 5, "rio_phy": 5})
+            {"sys": test(), "rtio": check_ttls()}, self.clocks)
         self.assertEqual(ttl_changes, correct_ttl_changes)
+
+    def test_echo(self):
+        dut = DUT(2)
+        csrs = dut.master.rt_controller.csrs
+        mgr = dut.master.rt_manager
+
+        def test():
+            while not (yield dut.master.link_layer.ready):
+                yield
+
+            yield from mgr.update_packet_cnt.write(1)
+            yield
+            self.assertEqual((yield from mgr.packet_cnt_tx.read()), 0)
+            self.assertEqual((yield from mgr.packet_cnt_rx.read()), 0)
+
+            yield from mgr.request_echo.write(1)
+
+            for i in range(15):
+                yield
+
+            yield from mgr.update_packet_cnt.write(1)
+            yield
+            self.assertEqual((yield from mgr.packet_cnt_tx.read()), 1)
+            self.assertEqual((yield from mgr.packet_cnt_rx.read()), 1)
+
+        run_simulation(dut, test(), self.clocks)
