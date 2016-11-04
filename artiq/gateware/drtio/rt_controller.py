@@ -22,25 +22,20 @@ class _CSRs(AutoCSR):
         self.o_reset_channel_status = CSR()
         self.o_wait = CSRStatus()
 
-        self.err_present = CSR()
-        self.err_code = CSRStatus(8)
-
-        self.dbg_update_packet_cnt = CSR()
-        self.dbg_packet_cnt_tx = CSRStatus(32)
-        self.dbg_packet_cnt_rx = CSRStatus(32)
-
 
 class RTController(Module):
     def __init__(self, rt_packets, channel_count, fine_ts_width):
         self.kcsrs = KernelCSRs()
         self.csrs = _CSRs()
 
+        # channel selection
         chan_sel = Signal(16)
         self.comb += chan_sel.eq(
             Mux(self.csrs.chan_sel_override_en.storage,
                 self.csrs.chan_sel_override.storage,
                 self.kcsrs.chan_sel.storage))
 
+        # master RTIO counter and counter synchronization
         self.submodules.counter = RTIOCounter(64-fine_ts_width)
         self.sync += If(self.kcsrs.counter_update.re, 
                         self.kcsrs.counter.status.eq(self.counter.value_sys))
@@ -57,6 +52,7 @@ class RTController(Module):
             If(self.csrs.set_time.re, rt_packets.set_time_stb.eq(1))
         ]
 
+        # remote channel status cache
         fifo_spaces_mem = Memory(16, channel_count)
         fifo_spaces = fifo_spaces_mem.get_port(write_capable=True)
         self.specials += fifo_spaces_mem, fifo_spaces
@@ -64,6 +60,7 @@ class RTController(Module):
         last_timestamps = last_timestamps_mem.get_port(write_capable=True)
         self.specials += last_timestamps_mem, last_timestamps
 
+        # common packet fields
         rt_packets_fifo_request = Signal()
         self.comb += [
             fifo_spaces.adr.eq(chan_sel),
@@ -172,22 +169,40 @@ class RTController(Module):
             )
         ]
 
-        # errors
-        self.comb += [
-            self.csrs.err_present.w.eq(rt_packets.error_not),
-            rt_packets.error_not_ack.eq(self.csrs.err_present.re),
-            self.csrs.err_code.status.eq(rt_packets.error_code)
-        ]
-
-        # packet counters
-        self.sync += \
-            If(self.csrs.dbg_update_packet_cnt.re,
-                self.csrs.dbg_packet_cnt_tx.status.eq(rt_packets.packet_cnt_tx),
-                self.csrs.dbg_packet_cnt_rx.status.eq(rt_packets.packet_cnt_rx)
-            )
-
     def get_kernel_csrs(self):
         return self.kcsrs.get_csrs()
 
     def get_csrs(self):
         return self.csrs.get_csrs()
+
+
+class RTManager(Module, AutoCSR):
+    def __init__(self, rt_packets):
+        self.request_echo = CSR()
+
+        self.err_present = CSR()
+        self.err_code = CSRStatus(8)
+
+        self.update_packet_cnt = CSR()
+        self.packet_cnt_tx = CSRStatus(32)
+        self.packet_cnt_rx = CSRStatus(32)
+
+        # # #
+
+        self.comb += self.request_echo.w.eq(rt_packets.echo_stb)
+        self.sync += [
+            If(rt_packets.echo_ack, rt_packets.echo_stb.eq(0)),
+            If(self.request_echo.re, rt_packets.echo_stb.eq(1))
+        ]
+
+        self.comb += [
+            self.err_present.w.eq(rt_packets.error_not),
+            rt_packets.error_not_ack.eq(self.err_present.re),
+            self.err_code.status.eq(rt_packets.error_code)
+        ]
+
+        self.sync += \
+            If(self.update_packet_cnt.re,
+                self.packet_cnt_tx.status.eq(rt_packets.packet_cnt_tx),
+                self.packet_cnt_rx.status.eq(rt_packets.packet_cnt_rx)
+            )

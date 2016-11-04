@@ -59,6 +59,7 @@ class TestFullStack(unittest.TestCase):
         dut = DUT(2)
         kcsrs = dut.master.rt_controller.kcsrs
         csrs = dut.master.rt_controller.csrs
+        mgr = dut.master.rt_manager
 
         ttl_changes = []
         correct_ttl_changes = [
@@ -157,7 +158,7 @@ class TestFullStack(unittest.TestCase):
             self.assertEqual(wlen, 2)
 
         def test_tsc_error():
-            err_present = yield from csrs.err_present.read()
+            err_present = yield from mgr.err_present.read()
             self.assertEqual(err_present, 0)
             yield from csrs.tsc_correction.write(10000000)
             yield from csrs.set_time.write(1)
@@ -167,13 +168,13 @@ class TestFullStack(unittest.TestCase):
             yield from write(0, 1)
             for i in range(10):
                yield
-            err_present = yield from csrs.err_present.read()
-            err_code = yield from csrs.err_code.read()
+            err_present = yield from mgr.err_present.read()
+            err_code = yield from mgr.err_code.read()
             self.assertEqual(err_present, 1)
             self.assertEqual(err_code, 3)
-            yield from csrs.err_present.write(1)
+            yield from mgr.err_present.write(1)
             yield
-            err_present = yield from csrs.err_present.read()
+            err_present = yield from mgr.err_present.read()
             self.assertEqual(err_present, 0)
 
         def test():

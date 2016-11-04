@@ -55,9 +55,12 @@ class DRTIOMaster(Module):
         self.submodules.rt_packets = rt_packets.RTPacketMaster(self.link_layer)
         self.submodules.rt_controller = rt_controller.RTController(
             self.rt_packets, channel_count, fine_ts_width)
+        self.submodules.rt_manager = rt_controller.RTManager(self.rt_packets)
 
     def get_kernel_csrs(self):
         return self.rt_controller.get_kernel_csrs()
 
     def get_csrs(self):
-        return self.link_layer.get_csrs() + self.rt_controller.get_csrs()
+        return (self.link_layer.get_csrs() +
+                self.rt_controller.get_csrs() +
+                self.rt_manager.get_csrs())
