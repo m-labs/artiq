@@ -207,6 +207,10 @@ class _DeviceManager:
                 widget = None
                 if v["module"] == "artiq.coredevice.ttl":
                     channel = v["arguments"]["channel"]
+                    if channel > 63:
+                        # The moninj protocol is limited to 64 channels; ignore
+                        # any beyond that for now to avoid confusion.
+                        return
                     force_out = v["class"] == "TTLOut"
                     widget = _TTLWidget(
                         channel, self.send_to_device, force_out, k)
