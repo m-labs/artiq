@@ -160,10 +160,13 @@ def main():
     parser = argparse.ArgumentParser(description="KC705 DRTIO satellite")
     parser.add_argument("--toolchain", default="vivado",
                         help="FPGA toolchain to use: ise, vivado")
+    parser.add_argument("--output-dir", default="drtiosat_kc705",
+                        help="output directory for generated "
+                             "source files and binaries")
     args = parser.parse_args()
 
     top = Satellite(args.toolchain)
-    top.build()
+    top.build(build_dir=args.output_dir)
 
 if __name__ == "__main__":
     main()
