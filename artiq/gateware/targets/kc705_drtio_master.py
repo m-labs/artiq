@@ -16,7 +16,7 @@ from artiq import __version__ as artiq_version
 class Master(MiniSoC, AMPSoC):
     mem_map = {
         "timer_kernel":  0x10000000, # (shadow @0x90000000)
-        "kdrtio":        0x20000000, # (shadow @0xa0000000)
+        "rtio":          0x20000000, # (shadow @0xa0000000)
         "mailbox":       0x70000000  # (shadow @0xf0000000)
     }
     mem_map.update(MiniSoC.mem_map)
@@ -41,7 +41,7 @@ class Master(MiniSoC, AMPSoC):
             sys_clk_freq=self.clk_freq,
             clock_div2=True)
         self.submodules.drtio = DRTIOMaster(self.transceiver)
-        self.register_kernel_cpu_csrdevice("kdrtio", self.drtio.get_kernel_csrs())
+        self.register_kernel_cpu_csrdevice("rtio", self.drtio.get_kernel_csrs())
         self.csr_devices.append("drtio")
 
 
