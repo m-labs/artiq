@@ -452,29 +452,29 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.current_block = body
             self.visit(node.body)
             post_body = self.current_block
-
-            if any(node.orelse):
-                else_tail = self.add_block("while.else")
-                self.current_block = else_tail
-                self.visit(node.orelse)
-                post_else_tail = self.current_block
-
-            tail = self.add_block("while.tail")
-            self.current_block = tail
-
-            if any(node.orelse):
-                if not post_else_tail.is_terminated():
-                    post_else_tail.append(ir.Branch(tail))
-            else:
-                else_tail = tail
-
-            post_head.append(ir.BranchIf(cond, body, else_tail))
-            if not post_body.is_terminated():
-                post_body.append(ir.Branch(head))
-            break_block.append(ir.Branch(tail))
         finally:
             self.break_target = old_break
             self.continue_target = old_continue
+
+        if any(node.orelse):
+            else_tail = self.add_block("while.else")
+            self.current_block = else_tail
+            self.visit(node.orelse)
+            post_else_tail = self.current_block
+
+        tail = self.add_block("while.tail")
+        self.current_block = tail
+
+        if any(node.orelse):
+            if not post_else_tail.is_terminated():
+                post_else_tail.append(ir.Branch(tail))
+        else:
+            else_tail = tail
+
+        post_head.append(ir.BranchIf(cond, body, else_tail))
+        if not post_body.is_terminated():
+            post_body.append(ir.Branch(head))
+        break_block.append(ir.Branch(tail))
 
     def iterable_len(self, value, typ=_size_type):
         if builtins.is_listish(value.type):
@@ -541,32 +541,32 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.current_assign = None
             self.visit(node.body)
             post_body = self.current_block
-
-            if any(node.orelse):
-                else_tail = self.add_block("for.else")
-                self.current_block = else_tail
-                self.visit(node.orelse)
-                post_else_tail = self.current_block
-
-            tail = self.add_block("for.tail")
-            self.current_block = tail
-
-            if any(node.orelse):
-                if not post_else_tail.is_terminated():
-                    post_else_tail.append(ir.Branch(tail))
-            else:
-                else_tail = tail
-
-            if node.trip_count is not None:
-                head.append(ir.Loop(node.trip_count, phi, cond, body, else_tail))
-            else:
-                head.append(ir.BranchIf(cond, body, else_tail))
-            if not post_body.is_terminated():
-                post_body.append(ir.Branch(continue_block))
-            break_block.append(ir.Branch(tail))
         finally:
             self.break_target = old_break
             self.continue_target = old_continue
+
+        if any(node.orelse):
+            else_tail = self.add_block("for.else")
+            self.current_block = else_tail
+            self.visit(node.orelse)
+            post_else_tail = self.current_block
+
+        tail = self.add_block("for.tail")
+        self.current_block = tail
+
+        if any(node.orelse):
+            if not post_else_tail.is_terminated():
+                post_else_tail.append(ir.Branch(tail))
+        else:
+            else_tail = tail
+
+        if node.trip_count is not None:
+            head.append(ir.Loop(node.trip_count, phi, cond, body, else_tail))
+        else:
+            head.append(ir.BranchIf(cond, body, else_tail))
+        if not post_body.is_terminated():
+            post_body.append(ir.Branch(continue_block))
+        break_block.append(ir.Branch(tail))
 
     def visit_Break(self, node):
         self.append(ir.Branch(self.break_target))

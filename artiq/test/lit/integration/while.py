@@ -29,3 +29,27 @@ while cond:
     cond = False
     continue
     assert False
+
+# Verify continue target is reset in else block.
+cond = False
+while True:
+    if cond:
+        break
+    cond = True
+    while False:
+        assert False
+    else:
+        continue
+    assert False
+else:
+    assert False
+
+# Verify break target is reset in else block.
+while True:
+    while False:
+        assert False
+    else:
+        break
+    assert False
+else:
+    assert False
