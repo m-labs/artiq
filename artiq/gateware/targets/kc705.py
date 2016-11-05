@@ -415,7 +415,7 @@ class _PhaserCRG(Module, AutoCSR):
                      # Warning: CLKINSEL=0 means CLKIN2 is selected
                      i_CLKINSEL=~self._clock_sel.storage,
 
-                     # VCO @ 1GHz when using 125MHz input
+                     # VCO @ 1GHz when using 250MHz input
                      p_CLKFBOUT_MULT=8, p_DIVCLK_DIVIDE=2,
                      i_CLKFBIN=self.cd_rtio.clk,
                      i_RST=self._pll_reset.storage,
