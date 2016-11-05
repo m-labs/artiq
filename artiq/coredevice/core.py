@@ -103,6 +103,7 @@ class Core:
 
     def run(self, function, args, kwargs):
         result = None
+        @rpc(flags={"async"})
         def set_result(new_result):
             nonlocal result
             result = new_result

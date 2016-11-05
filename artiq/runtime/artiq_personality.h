@@ -17,11 +17,6 @@ struct artiq_exception {
   int64_t param[3];
 };
 
-struct artiq_backtrace_item {
-  intptr_t function;
-  intptr_t offset;
-};
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -48,7 +43,7 @@ void __artiq_reraise(void)
 
 /* Called by the runtime */
 void __artiq_terminate(struct artiq_exception *artiq_exn,
-                       struct artiq_backtrace_item *backtrace,
+                       uintptr_t *backtrace,
                        size_t backtrace_size)
         __attribute__((noreturn));
 

@@ -28,7 +28,7 @@ class AMPSoC:
         self.add_cpulevel_sdram_if(self.kernel_cpu.wb_sdram)
         self.csr_devices.append("kernel_cpu")
 
-        self.submodules.mailbox = amp.Mailbox()
+        self.submodules.mailbox = amp.Mailbox(size=3)
         self.add_wb_slave(mem_decoder(self.mem_map["mailbox"]),
                           self.mailbox.i1)
         self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["mailbox"]),

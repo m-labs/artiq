@@ -161,9 +161,9 @@ class Target:
 
         return llmachine.emit_object(llmodule)
 
-    def link(self, objects, init_fn):
+    def link(self, objects):
         """Link the relocatable objects into a shared library for this target."""
-        with RunTool([self.triple + "-ld", "-shared", "--eh-frame-hdr", "-init", init_fn] +
+        with RunTool([self.triple + "-ld", "-shared", "--eh-frame-hdr"] +
                      ["{{obj{}}}".format(index) for index in range(len(objects))] +
                      ["-o", "{output}"],
                      output=b"",
@@ -177,8 +177,7 @@ class Target:
             return library
 
     def compile_and_link(self, modules):
-        return self.link([self.assemble(self.compile(module)) for module in modules],
-                         init_fn=modules[0].entry_point())
+        return self.link([self.assemble(self.compile(module)) for module in modules])
 
     def strip(self, library):
         with RunTool([self.triple + "-strip", "--strip-debug", "{library}", "-o", "{output}"],

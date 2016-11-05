@@ -1,4 +1,5 @@
 graft artiq/runtime
+graft artiq/runtime.rs
 graft artiq/examples
 include artiq/gui/logo*.svg
 include versioneer.py

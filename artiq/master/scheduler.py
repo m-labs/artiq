@@ -402,8 +402,12 @@ class Scheduler:
         if self._pipelines:
             logger.warning("some pipelines were not garbage-collected")
 
-    def submit(self, pipeline_name, expid, priority, due_date, flush):
-        """Submits a new run."""
+    def submit(self, pipeline_name, expid, priority=0, due_date=None, flush=False):
+        """Submits a new run.
+
+        When called through an experiment, the default values of
+        ``pipeline_name``, ``expid`` and ``priority`` correspond to those of
+        the current run."""
         # mutates expid to insert head repository revision if None
         if self._terminated:
             return
@@ -446,6 +450,9 @@ class Scheduler:
         whether returning control to the host and pausing would have an effect,
         in order to avoid the cost of switching kernels in the common case
         where ``pause`` does nothing.
+
+        This function does not have side effects, and does not have to be
+        followed by a call to ``pause``.
         """
         for pipeline in self._pipelines.values():
             if rid in pipeline.pool.runs:

@@ -509,7 +509,7 @@ class ASTTypedRewriter(algorithm.Transformer):
     visit_DictComp = visit_unsupported
     visit_Ellipsis = visit_unsupported
     visit_GeneratorExp = visit_unsupported
-    visit_Set = visit_unsupported
+    # visit_Set = visit_unsupported
     visit_SetComp = visit_unsupported
     visit_Starred = visit_unsupported
     visit_Yield = visit_unsupported

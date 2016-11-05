@@ -308,20 +308,22 @@ class TRPC(Type):
     :ivar ret: (:class:`Type`)
         return type
     :ivar service: (int) RPC service number
+    :ivar async: (bool) whether the RPC blocks until return
     """
 
     attributes = OrderedDict()
 
-    def __init__(self, ret, service):
+    def __init__(self, ret, service, async=False):
         assert isinstance(ret, Type)
-        self.ret, self.service = ret, service
+        self.ret, self.service, self.async = ret, service, async
 
     def find(self):
         return self
 
     def unify(self, other):
         if isinstance(other, TRPC) and \
-                self.service == other.service:
+                self.service == other.service and \
+                self.async == other.async:
             self.ret.unify(other.ret)
         elif isinstance(other, TVar):
             other.unify(self)
@@ -337,7 +339,8 @@ class TRPC(Type):
 
     def __eq__(self, other):
         return isinstance(other, TRPC) and \
-                self.service == other.service
+                self.service == other.service and \
+                self.async == other.async
 
     def __ne__(self, other):
         return not (self == other)
@@ -727,7 +730,9 @@ class TypePrinter(object):
             elif isinstance(typ, TFunction):
                 return signature
         elif isinstance(typ, TRPC):
-            return "[rpc #{}](...)->{}".format(typ.service, self.name(typ.ret, depth + 1))
+            return "[rpc{} #{}](...)->{}".format(typ.service,
+                                                 " async" if typ.async else "",
+                                                 self.name(typ.ret, depth + 1))
         elif isinstance(typ, TBuiltinFunction):
             return "<function {}>".format(typ.name)
         elif isinstance(typ, (TConstructor, TExceptionConstructor)):

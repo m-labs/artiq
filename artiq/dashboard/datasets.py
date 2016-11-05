@@ -7,6 +7,7 @@ from PyQt5 import QtCore, QtWidgets
 from artiq.tools import short_format
 from artiq.gui.tools import LayoutWidget, QRecursiveFilterProxyModel
 from artiq.gui.models import DictSyncTreeSepModel
+from artiq.gui.scientific_spinbox import ScientificSpinBox
 
 
 logger = logging.getLogger(__name__)
@@ -50,10 +51,10 @@ class Editor(QtWidgets.QDialog):
 
 class NumberEditor(Editor):
     def get_edit_widget(self, initial_value):
-        self.edit_widget = QtWidgets.QDoubleSpinBox()
-        self.edit_widget.setMinimum(float("-inf"))
-        self.edit_widget.setMaximum(float("+inf"))
-        self.edit_widget.setDecimals(8)
+        self.edit_widget = ScientificSpinBox()
+        self.edit_widget.setDecimals(13)
+        self.edit_widget.setPrecision()
+        self.edit_widget.setRelativeStep()
         self.edit_widget.setValue(float(initial_value))
         return self.edit_widget
 

@@ -19,6 +19,7 @@ lli32      = ll.IntType(32)
 lli64      = ll.IntType(64)
 lldouble   = ll.DoubleType()
 llptr      = ll.IntType(8).as_pointer()
+llptrptr   = ll.IntType(8).as_pointer().as_pointer()
 llmetadata = ll.MetaData()
 
 
@@ -322,8 +323,6 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(llvoid, [])
         elif name == "llvm.floor.f64":
             llty = ll.FunctionType(lldouble, [lldouble])
-        elif name == "llvm.round.f64":
-            llty = ll.FunctionType(lldouble, [lldouble])
         elif name == "llvm.pow.f64":
             llty = ll.FunctionType(lldouble, [lldouble, lldouble])
         elif name == "llvm.powi.f64":
@@ -348,15 +347,18 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(lli32, [llptr])
         elif name == "strcmp":
             llty = ll.FunctionType(lli32, [llptr, llptr])
+        elif name == "lround":
+            llty = ll.FunctionType(lli32, [lldouble])
         elif name == "send_rpc":
-            llty = ll.FunctionType(llvoid, [lli32, llptr],
-                                   var_arg=True)
+            llty = ll.FunctionType(llvoid, [lli32, llptr, llptrptr])
+        elif name == "send_async_rpc":
+            llty = ll.FunctionType(llvoid, [lli32, llptr, llptrptr])
         elif name == "recv_rpc":
             llty = ll.FunctionType(lli32, [llptr])
         elif name == "now":
             llty = lli64
         elif name == "watchdog_set":
-            llty = ll.FunctionType(lli32, [lli32])
+            llty = ll.FunctionType(lli32, [lli64])
         elif name == "watchdog_clear":
             llty = ll.FunctionType(llvoid, [lli32])
         else:
@@ -366,7 +368,8 @@ class LLVMIRGenerator:
             llglobal = ll.Function(self.llmodule, llty, name)
             if name in ("__artiq_raise", "__artiq_reraise", "llvm.trap"):
                 llglobal.attributes.add("noreturn")
-            if name in ("rtio_log", "send_rpc", "watchdog_set", "watchdog_clear",
+            if name in ("rtio_log", "send_rpc", "send_async_rpc",
+                        "watchdog_set", "watchdog_clear",
                         self.target.print_function):
                 llglobal.attributes.add("nounwind")
         else:
@@ -1041,9 +1044,8 @@ class LLVMIRGenerator:
                                          name=insn.name)
         elif insn.op == "round":
             llarg = self.map(insn.operands[0])
-            llvalue = self.llbuilder.call(self.llbuiltin("llvm.round.f64"), [llarg])
-            return self.llbuilder.fptosi(llvalue, self.llty_of_type(insn.type),
-                                         name=insn.name)
+            return self.llbuilder.call(self.llbuiltin("lround"), [llarg],
+                                       name=insn.name)
         elif insn.op == "globalenv":
             def get_outer(llenv, env_ty):
                 if "$outer" in env_ty.params:
@@ -1233,7 +1235,8 @@ class LLVMIRGenerator:
         llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
                                          name="rpc.stack")
 
-        llargs = []
+        llargs = self.llbuilder.alloca(llptr, ll.Constant(lli32, len(args)),
+                                       name="rpc.args")
         for index, arg in enumerate(args):
             if builtins.is_none(arg.type):
                 llargslot = self.llbuilder.alloca(ll.LiteralStructType([]),
@@ -1243,13 +1246,23 @@ class LLVMIRGenerator:
                 llargslot = self.llbuilder.alloca(llarg.type,
                                                   name="rpc.arg{}".format(index))
                 self.llbuilder.store(llarg, llargslot)
-            llargs.append(llargslot)
+            llargslot = self.llbuilder.bitcast(llargslot, llptr)
 
-        self.llbuilder.call(self.llbuiltin("send_rpc"),
-                            [llservice, lltag] + llargs)
+            llargptr = self.llbuilder.gep(llargs, [ll.Constant(lli32, index)])
+            self.llbuilder.store(llargslot, llargptr)
+
+        if fun_type.async:
+            self.llbuilder.call(self.llbuiltin("send_async_rpc"),
+                                [llservice, lltag, llargs])
+        else:
+            self.llbuilder.call(self.llbuiltin("send_rpc"),
+                                [llservice, lltag, llargs])
 
         # Don't waste stack space on saved arguments.
         self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
+
+        if fun_type.async:
+            return ll.Undefined
 
         # T result = {
         #   void *ptr = NULL;
@@ -1286,6 +1299,7 @@ class LLVMIRGenerator:
 
         self.llbuilder.position_at_end(llalloc)
         llalloca = self.llbuilder.alloca(lli8, llsize, name="rpc.alloc")
+        llalloca.align = 4 # maximum alignment required by OR1K ABI
         llphi.add_incoming(llalloca, llalloc)
         self.llbuilder.branch(llhead)
 

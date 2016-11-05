@@ -994,8 +994,24 @@ class Stitcher:
         else:
             assert False
 
+        is_async = False
+        if hasattr(host_function, "artiq_embedded") and \
+                "async" in host_function.artiq_embedded.flags:
+            is_async = True
+
+        if not builtins.is_none(ret_type) and is_async:
+            note = diagnostic.Diagnostic("note",
+                "function called here", {},
+                loc)
+            diag = diagnostic.Diagnostic("fatal",
+                "functions that return a value cannot be defined as async RPCs", {},
+                self._function_loc(host_function.artiq_embedded.function),
+                notes=[note])
+            self.engine.process(diag)
+
         function_type = types.TRPC(ret_type,
-                                   service=self.embedding_map.store_object(host_function))
+                                   service=self.embedding_map.store_object(host_function),
+                                   async=is_async)
         self.functions[function] = function_type
         return function_type
 
@@ -1007,7 +1023,11 @@ class Stitcher:
 
         if function in self.functions:
             pass
-        elif not hasattr(host_function, "artiq_embedded"):
+        elif not hasattr(host_function, "artiq_embedded") or \
+                (host_function.artiq_embedded.core_name is None and
+                 host_function.artiq_embedded.portable is False and
+                 host_function.artiq_embedded.syscall is None and
+                 host_function.artiq_embedded.forbidden is False):
             self._quote_rpc(function, loc)
         elif host_function.artiq_embedded.function is not None:
             if host_function.__name__ == "<lambda>":

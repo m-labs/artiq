@@ -20,7 +20,7 @@ class _H2DMsgType(Enum):
     IDENT_REQUEST = 3
     SWITCH_CLOCK = 4
 
-    LOAD_LIBRARY = 5
+    LOAD_KERNEL = 5
     RUN_KERNEL = 6
 
     RPC_REPLY = 7
@@ -68,9 +68,7 @@ RPCKeyword = namedtuple('RPCKeyword', ['name', 'value'])
 
 class CommGeneric:
     def __init__(self):
-        self._read_type = self._write_type = None
-        self._read_length = 0
-        self._write_buffer = []
+        self._read_type = None
 
     def open(self):
         """Opens the communication channel.
@@ -99,10 +97,6 @@ class CommGeneric:
     def _read_header(self):
         self.open()
 
-        if self._read_length > 0:
-            raise IOError("Read underrun ({} bytes remaining)".
-                          format(self._read_length))
-
         # Wait for a synchronization sequence, 5a 5a 5a 5a.
         sync_count = 0
         while sync_count < 4:
@@ -113,20 +107,11 @@ class CommGeneric:
                 sync_count = 0
 
         # Read message header.
-        (self._read_length, ) = struct.unpack(">l", self.read(4))
-        if not self._read_length:  # inband connection close
-            raise OSError("Connection closed")
-
         (raw_type, ) = struct.unpack("B", self.read(1))
         self._read_type = _D2HMsgType(raw_type)
 
-        if self._read_length < 9:
-            raise IOError("Read overrun in message header ({} remaining)".
-                          format(self._read_length))
-        self._read_length -= 9
-
-        logger.debug("receiving message: type=%r length=%d",
-                     self._read_type, self._read_length)
+        logger.debug("receiving message: type=%r",
+                     self._read_type)
 
     def _read_expect(self, ty):
         if self._read_type != ty:
@@ -138,12 +123,6 @@ class CommGeneric:
         self._read_expect(ty)
 
     def _read_chunk(self, length):
-        if self._read_length < length:
-            raise IOError("Read overrun while trying to read {} bytes ({} remaining)"
-                          " in packet {}".
-                          format(length, self._read_length, self._read_type))
-
-        self._read_length -= length
         return self.read(length)
 
     def _read_int8(self):
@@ -162,11 +141,14 @@ class CommGeneric:
         (value, ) = struct.unpack(">d", self._read_chunk(8))
         return value
 
+    def _read_bool(self):
+        return True if self._read_int8() else False
+
     def _read_bytes(self):
         return self._read_chunk(self._read_int32())
 
     def _read_string(self):
-        return self._read_bytes()[:-1].decode("utf-8")
+        return self._read_bytes().decode("utf-8")
 
     #
     # Writer interface
@@ -175,46 +157,38 @@ class CommGeneric:
     def _write_header(self, ty):
         self.open()
 
-        logger.debug("preparing to send message: type=%r", ty)
-        self._write_type   = ty
-        self._write_buffer = []
+        logger.debug("sending message: type=%r", ty)
 
-    def _write_flush(self):
-        # Calculate message size.
-        length = sum([len(chunk) for chunk in self._write_buffer])
-        logger.debug("sending message: type=%r length=%d", self._write_type, length)
-
-        # Write synchronization sequence, header and body.
-        self.write(struct.pack(">llB", 0x5a5a5a5a,
-                                       9 + length, self._write_type.value))
-        for chunk in self._write_buffer:
-            self.write(chunk)
+        # Write synchronization sequence and header.
+        self.write(struct.pack(">lB", 0x5a5a5a5a, ty.value))
 
     def _write_empty(self, ty):
         self._write_header(ty)
-        self._write_flush()
 
     def _write_chunk(self, chunk):
-        self._write_buffer.append(chunk)
+        self.write(chunk)
 
     def _write_int8(self, value):
-        self._write_buffer.append(struct.pack("B", value))
+        self.write(struct.pack("B", value))
 
     def _write_int32(self, value):
-        self._write_buffer.append(struct.pack(">l", value))
+        self.write(struct.pack(">l", value))
 
     def _write_int64(self, value):
-        self._write_buffer.append(struct.pack(">q", value))
+        self.write(struct.pack(">q", value))
 
     def _write_float64(self, value):
-        self._write_buffer.append(struct.pack(">d", value))
+        self.write(struct.pack(">d", value))
+
+    def _write_bool(self, value):
+        self.write(struct.pack("B", value))
 
     def _write_bytes(self, value):
         self._write_int32(len(value))
-        self._write_buffer.append(value)
+        self.write(value)
 
     def _write_string(self, value):
-        self._write_bytes(value.encode("utf-8") + b"\0")
+        self._write_bytes(value.encode("utf-8"))
 
     #
     # Exported APIs
@@ -232,7 +206,7 @@ class CommGeneric:
         if runtime_id != b"AROR":
             raise UnsupportedDevice("Unsupported runtime ID: {}"
                                     .format(runtime_id))
-        gateware_version = self._read_chunk(self._read_length).decode("utf-8")
+        gateware_version = self._read_string()
         if gateware_version != software_version and \
                 gateware_version + ".dirty" != software_version:
             logger.warning("Mismatch between gateware (%s) "
@@ -242,7 +216,6 @@ class CommGeneric:
     def switch_clock(self, external):
         self._write_header(_H2DMsgType.SWITCH_CLOCK)
         self._write_int8(external)
-        self._write_flush()
 
         self._read_empty(_D2HMsgType.CLOCK_SWITCH_COMPLETED)
 
@@ -251,7 +224,7 @@ class CommGeneric:
 
         self._read_header()
         self._read_expect(_D2HMsgType.LOG_REPLY)
-        return self._read_chunk(self._read_length).decode("utf-8", "replace")
+        return self._read_string()
 
     def clear_log(self):
         self._write_empty(_H2DMsgType.LOG_CLEAR)
@@ -261,17 +234,15 @@ class CommGeneric:
     def flash_storage_read(self, key):
         self._write_header(_H2DMsgType.FLASH_READ_REQUEST)
         self._write_string(key)
-        self._write_flush()
 
         self._read_header()
         self._read_expect(_D2HMsgType.FLASH_READ_REPLY)
-        return self._read_chunk(self._read_length)
+        return self._read_string()
 
     def flash_storage_write(self, key, value):
         self._write_header(_H2DMsgType.FLASH_WRITE_REQUEST)
         self._write_string(key)
         self._write_bytes(value)
-        self._write_flush()
 
         self._read_header()
         if self._read_type == _D2HMsgType.FLASH_ERROR_REPLY:
@@ -287,14 +258,12 @@ class CommGeneric:
     def flash_storage_remove(self, key):
         self._write_header(_H2DMsgType.FLASH_REMOVE_REQUEST)
         self._write_string(key)
-        self._write_flush()
 
         self._read_empty(_D2HMsgType.FLASH_OK_REPLY)
 
     def load(self, kernel_library):
-        self._write_header(_H2DMsgType.LOAD_LIBRARY)
-        self._write_chunk(kernel_library)
-        self._write_flush()
+        self._write_header(_H2DMsgType.LOAD_KERNEL)
+        self._write_bytes(kernel_library)
 
         self._read_empty(_D2HMsgType.LOAD_COMPLETED)
 
@@ -442,25 +411,29 @@ class CommGeneric:
             raise IOError("Unknown RPC value tag: {}".format(repr(tag)))
 
     def _serve_rpc(self, embedding_map):
-        service_id  = self._read_int32()
-        if service_id == 0:
-            service = lambda obj, attr, value: setattr(obj, attr, value)
-        else:
-            service = embedding_map.retrieve_object(service_id)
-
+        async        = self._read_bool()
+        service_id   = self._read_int32()
         args, kwargs = self._receive_rpc_args(embedding_map)
         return_tags  = self._read_bytes()
-        logger.debug("rpc service: [%d]%r %r %r -> %s", service_id, service, args, kwargs, return_tags)
+
+        if service_id is 0:
+            service  = lambda obj, attr, value: setattr(obj, attr, value)
+        else:
+            service  = embedding_map.retrieve_object(service_id)
+        logger.debug("rpc service: [%d]%r%s %r %r -> %s", service_id, service,
+                     (" (async)" if async else ""), args, kwargs, return_tags)
+
+        if async:
+            service(*args, **kwargs)
+            return
 
         try:
             result = service(*args, **kwargs)
-            logger.debug("rpc service: %d %r %r == %r", service_id, args, kwargs, result)
+            logger.debug("rpc service: %d %r %r = %r", service_id, args, kwargs, result)
 
-            if service_id != 0:
-                self._write_header(_H2DMsgType.RPC_REPLY)
-                self._write_bytes(return_tags)
-                self._send_rpc_value(bytearray(return_tags), result, result, service)
-                self._write_flush()
+            self._write_header(_H2DMsgType.RPC_REPLY)
+            self._write_bytes(return_tags)
+            self._send_rpc_value(bytearray(return_tags), result, result, service)
         except Exception as exn:
             logger.debug("rpc service: %d %r %r ! %r", service_id, args, kwargs, exn)
 
@@ -502,8 +475,6 @@ class CommGeneric:
                 self._write_int32(line)
                 self._write_int32(-1) # column not known
                 self._write_string(function)
-
-            self._write_flush()
 
     def _serve_exception(self, embedding_map, symbolizer, demangler):
         name      = self._read_string()
