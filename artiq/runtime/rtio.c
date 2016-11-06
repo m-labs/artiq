@@ -124,6 +124,7 @@ unsigned int rtio_input_data(int channel)
 
 void rtio_log_va(long long int timestamp, const char *fmt, va_list args)
 {
+#ifdef CONFIG_RTIO_LOG_CHANNEL
     // This executes on the kernel CPU's stack, which is specifically designed
     // for allocation of this kind of massive buffers.
     int   len = vsnprintf(NULL, 0, fmt, args);
@@ -152,6 +153,7 @@ void rtio_log_va(long long int timestamp, const char *fmt, va_list args)
             i = 0;
         }
     }
+#endif
 }
 
 void rtio_log(long long int timestamp, const char *fmt, ...)
