@@ -75,6 +75,7 @@ mod rpc_proto;
 
 mod kernel;
 mod session;
+#[cfg(has_rtio_moninj)]
 mod moninj;
 #[cfg(has_rtio_analyzer)]
 mod analyzer;
@@ -109,6 +110,7 @@ pub unsafe extern fn rust_main() {
 
         let mut scheduler = sched::Scheduler::new();
         scheduler.spawner().spawn(16384, session::thread);
+        #[cfg(has_rtio_moninj)]
         scheduler.spawner().spawn(4096, moninj::thread);
         #[cfg(has_rtio_analyzer)]
         scheduler.spawner().spawn(4096, analyzer::thread);
