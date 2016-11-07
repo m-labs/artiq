@@ -79,6 +79,8 @@ mod session;
 mod moninj;
 #[cfg(has_rtio_analyzer)]
 mod analyzer;
+#[cfg(has_drtio)]
+mod drtio;
 
 extern {
     fn network_init();
@@ -114,6 +116,11 @@ pub unsafe extern fn rust_main() {
         scheduler.spawner().spawn(4096, moninj::thread);
         #[cfg(has_rtio_analyzer)]
         scheduler.spawner().spawn(4096, analyzer::thread);
+        #[cfg(has_drtio)]
+        {
+            scheduler.spawner().spawn(4096, drtio::link_thread);
+            scheduler.spawner().spawn(4096, drtio::error_thread);
+        }
 
         loop {
             scheduler.run();
