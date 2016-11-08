@@ -70,10 +70,33 @@ int dl_iterate_phdr (int (*callback)(struct dl_phdr_info *, size_t, void *), voi
 }
 
 /* called by kernel */
-long lround(double x);
-long lround(double x)
+double round(double x);
+double round(double x)
 {
-    return x < 0 ? floor(x) : ceil(x);
+    union {double f; uint64_t i;} u = {x};
+    int e = u.i >> 52 & 0x7ff;
+    double y;
+
+    if (e >= 0x3ff+52)
+        return x;
+    if (u.i >> 63)
+        x = -x;
+    if (e < 0x3ff-1) {
+        /* we don't do it in ARTIQ */
+        /* raise inexact if x!=0 */
+        // FORCE_EVAL(x + 0x1p52);
+        return 0*u.f;
+    }
+    y = (double)(x + 0x1p52) - 0x1p52 - x;
+    if (y > 0.5)
+        y = y + x - 1;
+    else if (y <= -0.5)
+        y = y + x + 1;
+    else
+        y = y + x;
+    if (u.i >> 63)
+        y = -y;
+    return y;
 }
 
 /* called by kernel */

@@ -74,7 +74,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
 
     /* libm */
     api!(sqrt),
-    api!(lround),
+    api!(round),
 
     /* exceptions */
     api!(_Unwind_Resume),
