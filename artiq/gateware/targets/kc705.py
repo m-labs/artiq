@@ -137,6 +137,8 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.register_kernel_cpu_csrdevice("i2c")
         self.config["I2C_BUS_COUNT"] = 1
 
+        self.config["HAS_DDS"] = None
+
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
         self.csr_devices.append("rtio_crg")
@@ -198,7 +200,7 @@ class NIST_QC1(_NIST_Ions):
         self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
         self.config["RTIO_DDS_COUNT"] = 1
         self.config["DDS_CHANNELS_PER_BUS"] = 8
-        self.config["DDS_AD9858"] = True
+        self.config["DDS_AD9858"] = None
         phy = dds.AD9858(platform.request("dds"), 8)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,
@@ -272,8 +274,8 @@ class NIST_CLOCK(_NIST_Ions):
         self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
         self.config["RTIO_DDS_COUNT"] = 1
         self.config["DDS_CHANNELS_PER_BUS"] = 11
-        self.config["DDS_AD9914"] = True
-        self.config["DDS_ONEHOT_SEL"] = True
+        self.config["DDS_AD9914"] = None
+        self.config["DDS_ONEHOT_SEL"] = None
         phy = dds.AD9914(platform.request("dds"), 11, onehot=True)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,
@@ -350,8 +352,8 @@ class NIST_QC2(_NIST_Ions):
         self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
         self.config["RTIO_DDS_COUNT"] = 2
         self.config["DDS_CHANNELS_PER_BUS"] = 12
-        self.config["DDS_AD9914"] = True
-        self.config["DDS_ONEHOT_SEL"] = True
+        self.config["DDS_AD9914"] = None
+        self.config["DDS_ONEHOT_SEL"] = None
         for backplane_offset in range(2):
             phy = dds.AD9914(
                 platform.request("dds", backplane_offset), 12, onehot=True)
