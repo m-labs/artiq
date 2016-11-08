@@ -1384,6 +1384,7 @@ class LLVMIRGenerator:
         def _quote_attributes():
             llglobal = None
             llfields = []
+            emit_as_constant = True
             for attr in typ.attributes:
                 if attr == "__objectid__":
                     objectid = self.embedding_map.store_object(value)
@@ -1404,6 +1405,8 @@ class LLVMIRGenerator:
                                          not types.is_c_function(typ.attributes[attr]))
                     if is_class_function:
                         attrvalue = self.embedding_map.specialize_function(typ.instance, attrvalue)
+                    if not (types.is_instance(typ) and attr in typ.constant_attributes):
+                        emit_as_constant = False
                     llattrvalue = self._quote(attrvalue, typ.attributes[attr],
                                               lambda: path() + [attr])
                     llfields.append(llattrvalue)
@@ -1411,6 +1414,7 @@ class LLVMIRGenerator:
                         llclosureptr = self.get_global_closure_ptr(typ, attr)
                         llclosureptr.initializer = llattrvalue
 
+            llglobal.global_constant = emit_as_constant
             llglobal.initializer = ll.Constant(llty.pointee, llfields)
             llglobal.linkage = "private"
             return llglobal
