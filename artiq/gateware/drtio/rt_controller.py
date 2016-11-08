@@ -38,7 +38,7 @@ class RTController(Module):
         # master RTIO counter and counter synchronization
         self.submodules.counter = RTIOCounter(64-fine_ts_width)
         self.sync += If(self.kcsrs.counter_update.re, 
-                        self.kcsrs.counter.status.eq(self.counter.value_sys))
+            self.kcsrs.counter.status.eq(self.counter.value_sys << fine_ts_width))
         tsc_correction = Signal(64)
         self.csrs.tsc_correction.storage.attr.add("no_retiming")
         self.specials += MultiReg(self.csrs.tsc_correction.storage, tsc_correction)
