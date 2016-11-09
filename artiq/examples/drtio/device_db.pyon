@@ -13,7 +13,7 @@
         "type": "local",
         "module": "artiq.coredevice.core",
         "class": "Core",
-        "arguments": {"ref_period": 16e-9}
+        "arguments": {"ref_period": 2e-9}
     },
     "core_cache": {
         "type": "local",
