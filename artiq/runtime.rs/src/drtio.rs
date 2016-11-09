@@ -3,7 +3,7 @@ use sched::{Waiter, Spawner};
 
 fn drtio_link_is_up() -> bool {
     unsafe {
-        csr::drtio::link_status_read() == 4
+        csr::drtio::link_status_read() == 5
     }
 }
 

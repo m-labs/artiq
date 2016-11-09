@@ -4,6 +4,7 @@ from operator import xor, or_
 from migen import *
 from migen.genlib.fsm import *
 from migen.genlib.cdc import MultiReg, BusSynchronizer
+from migen.genlib.misc import WaitTimer
 
 from misoc.interconnect.csr import *
 
@@ -212,7 +213,7 @@ class LinkLayerRX(Module):
 
 
 class LinkLayer(Module, AutoCSR):
-    def __init__(self, encoder, decoders):
+    def __init__(self, encoder, decoders, rx_ready_confirm_cycles):
         self.link_status = CSRStatus(3)
 
         # control signals, in rtio clock domain
@@ -272,6 +273,12 @@ class LinkLayer(Module, AutoCSR):
         self.submodules += link_status
         self.comb += self.link_status.status.eq(link_status.o)
 
+        wait_confirm = ClockDomainsRenamer("rtio")(
+            WaitTimer(rx_ready_confirm_cycles))
+        self.submodules += wait_confirm
+        signal_rx_ready_margin = ClockDomainsRenamer("rtio")(WaitTimer(15))
+        self.submodules += signal_rx_ready_margin
+
         fsm.act("RESET_RX",
             link_status.i.eq(0),
             tx.link_init.eq(1),
@@ -281,24 +288,40 @@ class LinkLayer(Module, AutoCSR):
         fsm.act("WAIT_LOCAL_RX_READY",
             link_status.i.eq(1),
             tx.link_init.eq(1),
-            If(self.rx_ready,
-                NextState("WAIT_REMOTE_RX_READY")
-            )
+            If(self.rx_ready, NextState("CONFIRM_LOCAL_RX_READY"))
         )
-        fsm.act("WAIT_REMOTE_RX_READY",
+        fsm.act("CONFIRM_LOCAL_RX_READY",
             link_status.i.eq(2),
             tx.link_init.eq(1),
+            wait_confirm.wait.eq(1),
+            If(wait_confirm.done, NextState("WAIT_REMOTE_RX_READY")),
+            If(~rx_link_init, NextState("RESET_RX"))
+        )
+        fsm.act("WAIT_REMOTE_RX_READY",
+            link_status.i.eq(3),
+            tx.link_init.eq(1),
             tx.signal_rx_ready.eq(1),
-            If(rx_remote_rx_ready,
-                NextState("WAIT_REMOTE_LINK_UP")
-            )
+            If(rx_remote_rx_ready, NextState("ENSURE_SIGNAL_RX_READY"))
+        )
+        # If the transceiver transmits one character per RTIO cycle,
+        # we may be unlucky and signal_rx_ready will transmit a comma
+        # on the first cycle instead of a "RX ready" character.
+        # Further, we need to ensure the rx.remote_rx_ready
+        # gets through MultiReg to rx_remote_rx_ready at the receiver.
+        # So transmit the "RX ready" pattern for several cycles.
+        fsm.act("ENSURE_SIGNAL_RX_READY",
+            link_status.i.eq(3),
+            tx.link_init.eq(1),
+            tx.signal_rx_ready.eq(1),
+            signal_rx_ready_margin.wait.eq(1),
+            If(signal_rx_ready_margin.done, NextState("WAIT_REMOTE_LINK_UP"))
         )
         fsm.act("WAIT_REMOTE_LINK_UP",
-            link_status.i.eq(3),
+            link_status.i.eq(4),
             If(~rx_link_init, NextState("READY"))
         )
         fsm.act("READY",
-            link_status.i.eq(4),
-            If(rx_link_init, NextState("RESET_RX")),
+            link_status.i.eq(5),
+            If(rx_link_init, NextState("RESET_RX")),  # TODO: remove this, link deinit should be detected at upper layer
             self.ready.eq(1)
         )

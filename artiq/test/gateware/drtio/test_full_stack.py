@@ -41,7 +41,8 @@ class DUT(Module):
         self.ttl1 = Signal()
         self.transceivers = DummyTransceiverPair(nwords)
         
-        self.submodules.master = DRTIOMaster(self.transceivers.alice)
+        self.submodules.master = DRTIOMaster(self.transceivers.alice,
+                                             ll_rx_ready_confirm=15)
 
         rx_synchronizer = DummyRXSynchronizer()
         self.submodules.phy0 = ttl_simple.Output(self.ttl0)
@@ -51,7 +52,8 @@ class DUT(Module):
             rtio.Channel.from_phy(self.phy1, ofifo_depth=4)
         ]
         self.submodules.satellite = DRTIOSatellite(
-            self.transceivers.bob, rx_synchronizer, rtio_channels)
+            self.transceivers.bob, rx_synchronizer, rtio_channels,
+            ll_rx_ready_confirm=15)
         
 
 class TestFullStack(unittest.TestCase):

@@ -6,9 +6,10 @@ from artiq.gateware.drtio import link_layer, rt_packets, iot, rt_controller
 
 
 class DRTIOSatellite(Module):
-    def __init__(self, transceiver, rx_synchronizer, channels, fine_ts_width=3, full_ts_width=63):
+    def __init__(self, transceiver, rx_synchronizer, channels, fine_ts_width=3, full_ts_width=63,
+                 ll_rx_ready_confirm=1000):
         self.submodules.link_layer = link_layer.LinkLayer(
-            transceiver.encoder, transceiver.decoders)
+            transceiver.encoder, transceiver.decoders, ll_rx_ready_confirm)
         self.comb += [
             transceiver.rx_reset.eq(self.link_layer.rx_reset),
             self.link_layer.rx_ready.eq(transceiver.rx_ready)
@@ -45,9 +46,9 @@ class DRTIOSatellite(Module):
 
 
 class DRTIOMaster(Module):
-    def __init__(self, transceiver, channel_count=1024, fine_ts_width=3):
+    def __init__(self, transceiver, channel_count=1024, fine_ts_width=3, ll_rx_ready_confirm=1000):
         self.submodules.link_layer = link_layer.LinkLayer(
-            transceiver.encoder, transceiver.decoders)
+            transceiver.encoder, transceiver.decoders, ll_rx_ready_confirm)
         self.comb += [
             transceiver.rx_reset.eq(self.link_layer.rx_reset),
             self.link_layer.rx_ready.eq(transceiver.rx_ready)
