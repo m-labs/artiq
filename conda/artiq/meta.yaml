@@ -37,7 +37,7 @@ requirements:
     - pygit2
     - aiohttp
     - binutils-or1k-linux
-    - pythonparser
+    - pythonparser 0.0 py_6
     - levenshtein
 
 test:
