@@ -228,7 +228,7 @@ class RXSynchronizer(Module, AutoCSR):
 
                 p_CLKFBOUT_MULT_F=mmcm_mult,
                 p_CLKOUT0_DIVIDE_F=mmcm_mult,
-                p_CLKOUT0_PHASE=intial_phase,
+                p_CLKOUT0_PHASE=initial_phase,
                 p_DIVCLK_DIVIDE=1,
 
                 # According to Xilinx, there is no guarantee of input/output
