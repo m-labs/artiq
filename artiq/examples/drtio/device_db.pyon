@@ -32,7 +32,42 @@
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
         "arguments": {"channel": 1},
-        "comment": "Hello World"
+    },
+    "rled2": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 2},
+    },
+    "rled3": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 3},
+    },
+    "rled4": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 4},
+    },
+    "rled5": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 5},
+    },
+    "rled6": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 6},
+    },
+    "rled7": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 7},
     },
 
     "rsmap": {
