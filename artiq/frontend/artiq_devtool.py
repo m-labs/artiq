@@ -105,6 +105,7 @@ def main():
         elif action == "connect":
             def forwarder(port):
                 listener = socket.socket()
+                listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 listener.bind(('localhost', port))
                 listener.listen(1)
                 while True:
@@ -114,17 +115,22 @@ def main():
                     remote_stream = get_ssh().get_transport() \
                         .open_channel('direct-tcpip', (args.ip, port), peer_addr)
                     while True:
-                        r, w, x = select.select([local_stream, remote_stream], [], [])
-                        if local_stream in r:
-                            data = local_stream.recv(1024)
-                            if data == b"":
-                                break
-                            remote_stream.send(data)
-                        if remote_stream in r:
-                            data = remote_stream.recv(1024)
-                            if data == b"":
-                                break
-                            local_stream.send(data)
+                        try:
+                            r, w, x = select.select([local_stream, remote_stream], [], [])
+                            if local_stream in r:
+                                data = local_stream.recv(1024)
+                                if data == b"":
+                                    break
+                                remote_stream.send(data)
+                            if remote_stream in r:
+                                data = remote_stream.recv(1024)
+                                if data == b"":
+                                    break
+                                local_stream.send(data)
+                        except Exception as e:
+                            logger.exception("Forward error on port %s", port)
+                    local_stream.close()
+                    remote_stream.close()
 
             for port in (1381, 1382):
                 thread = threading.Thread(target=forwarder, args=(port,),
