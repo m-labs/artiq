@@ -40,7 +40,8 @@ class Source:
             return cls(source.Buffer(f.read(), filename, 1), engine=engine)
 
 class Module:
-    def __init__(self, src, ref_period=1e-6):
+    def __init__(self, src, ref_period=1e-6, attribute_writeback=True):
+        self.attribute_writeback = attribute_writeback
         self.engine = src.engine
         self.embedding_map = src.embedding_map
         self.name = src.name
@@ -79,7 +80,8 @@ class Module:
         llvm_ir_generator = transforms.LLVMIRGenerator(
             engine=self.engine, module_name=self.name, target=target,
             embedding_map=self.embedding_map)
-        return llvm_ir_generator.process(self.artiq_ir, attribute_writeback=True)
+        return llvm_ir_generator.process(self.artiq_ir,
+            attribute_writeback=self.attribute_writeback)
 
     def entry_point(self):
         """Return the name of the function that is the entry point of this module."""
