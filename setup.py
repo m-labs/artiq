@@ -18,7 +18,6 @@ requirements = [
     "quamash", "pyqtgraph", "pygit2", "aiohttp",
     "llvmlite_artiq", "pythonparser", "python-Levenshtein",
     "lit", "OutputCheck",
-    "paramiko"
 ]
 
 console_scripts = [
