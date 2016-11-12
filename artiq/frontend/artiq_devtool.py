@@ -83,10 +83,14 @@ def main():
     for action in args.actions:
         if action == "build":
             logger.info("Building runtime")
-            subprocess.call(["python3", "-m", "artiq.gateware.targets.kc705",
-                                        "-H", "nist_clock",
-                                        "--no-compile-gateware",
-                                        "--output-dir", "/tmp/kc705"])
+            try:
+                subprocess.check_call(["python3", "-m", "artiq.gateware.targets.kc705",
+                                            "-H", "nist_clock",
+                                            "--no-compile-gateware",
+                                            "--output-dir", "/tmp/kc705"])
+            except subprocess.CalledProcessError:
+                logger.error("Build failed")
+                sys.exit(1)
 
         elif action == "boot":
             logger.info("Uploading runtime")
