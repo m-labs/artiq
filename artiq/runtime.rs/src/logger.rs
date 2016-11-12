@@ -2,6 +2,7 @@ use core::{mem, ptr};
 use core::cell::RefCell;
 use log::{self, Log, LogMetadata, LogRecord, LogLevelFilter};
 use log_buffer::LogBuffer;
+use clock;
 
 pub struct BufferLogger {
     buffer: RefCell<LogBuffer<&'static mut [u8]>>
@@ -57,10 +58,11 @@ impl Log for BufferLogger {
     fn log(&self, record: &LogRecord) {
         if self.enabled(record.metadata()) {
             use core::fmt::Write;
-            writeln!(self.buffer.borrow_mut(), "{:>5}({}): {}",
-                     record.level(), record.target(), record.args()).unwrap();
-            println!("{:>5}({}): {}",
-                     record.level(), record.target(), record.args());
+            writeln!(self.buffer.borrow_mut(),
+                     "[{:12}us] {:>5}({}): {}",
+                     clock::get_us(), record.level(), record.target(), record.args()).unwrap();
+            println!("[{:12}us] {:>5}({}): {}",
+                     clock::get_us(), record.level(), record.target(), record.args());
         }
     }
 }
