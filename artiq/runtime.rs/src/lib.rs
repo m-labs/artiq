@@ -97,7 +97,7 @@ pub extern "C" fn _Unwind_Resume() -> ! {
 
 #[no_mangle]
 pub unsafe extern fn rust_main() {
-    static mut LOG_BUFFER: [u8; 4096] = [0; 4096];
+    static mut LOG_BUFFER: [u8; 65536] = [0; 65536];
     BufferLogger::new(&mut LOG_BUFFER[..])
                  .register(move || {
         info!("booting ARTIQ...");

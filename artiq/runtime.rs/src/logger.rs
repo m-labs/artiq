@@ -1,6 +1,6 @@
 use core::{mem, ptr};
 use core::cell::RefCell;
-use log::{self, Log, LogMetadata, LogRecord, LogLevelFilter};
+use log::{self, Log, LogLevel, LogMetadata, LogRecord, LogLevelFilter};
 use log_buffer::LogBuffer;
 use clock;
 
@@ -61,8 +61,10 @@ impl Log for BufferLogger {
             writeln!(self.buffer.borrow_mut(),
                      "[{:12}us] {:>5}({}): {}",
                      clock::get_us(), record.level(), record.target(), record.args()).unwrap();
-            println!("[{:12}us] {:>5}({}): {}",
-                     clock::get_us(), record.level(), record.target(), record.args());
+            if record.level() <= LogLevel::Info {
+                println!("[{:12}us] {:>5}({}): {}",
+                         clock::get_us(), record.level(), record.target(), record.args());
+            }
         }
     }
 }
