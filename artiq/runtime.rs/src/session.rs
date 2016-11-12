@@ -114,7 +114,7 @@ fn host_read(stream: &mut TcpStream) -> io::Result<host::Request> {
     Ok(request)
 }
 
-fn host_write(stream: &mut TcpStream, reply: host::Reply) -> io::Result<()> {
+fn host_write(stream: &mut Write, reply: host::Reply) -> io::Result<()> {
     trace!("comm->host {:?}", reply);
     reply.write_to(stream)
 }
@@ -389,8 +389,9 @@ fn process_kern_message(waiter: Waiter,
                 match stream {
                     None => unexpected!("unexpected RPC in flash kernel"),
                     Some(ref mut stream) => {
-                        try!(host_write(stream, host::Reply::RpcRequest { async: async }));
-                        try!(rpc::send_args(&mut BufWriter::new(stream), service, tag, data));
+                        let writer = &mut BufWriter::new(stream);
+                        try!(host_write(writer, host::Reply::RpcRequest { async: async }));
+                        try!(rpc::send_args(writer, service, tag, data));
                         if !async {
                             session.kernel_state = KernelState::RpcWait
                         }
