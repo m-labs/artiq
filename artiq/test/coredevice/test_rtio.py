@@ -450,6 +450,8 @@ class RPCTest(ExperimentCase):
                          "timings are dependent on CPU load and network conditions")
     def test_rpc_timing(self):
         self.execute(RPCTiming)
-        self.assertGreater(self.dataset_mgr.get("rpc_time_mean"), 100*ns)
-        self.assertLess(self.dataset_mgr.get("rpc_time_mean"), 15*ms)
-        self.assertLess(self.dataset_mgr.get("rpc_time_stddev"), 2*ms)
+        rpc_time_mean = self.dataset_mgr.get("rpc_time_mean")
+        print(rpc_time_mean)
+        self.assertGreater(rpc_time_mean, 100*ns)
+        self.assertLess(rpc_time_mean, 2*ms)
+        self.assertLess(self.dataset_mgr.get("rpc_time_stddev"), 1*ms)

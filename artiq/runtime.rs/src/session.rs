@@ -1,16 +1,16 @@
 use std::prelude::v1::*;
 use std::{mem, str};
 use std::cell::RefCell;
-use std::fmt::Write;
-use std::io::{self, Read};
-use {config, rtio_crg, clock, mailbox, kernel};
+use std::io::{self, Read, Write, BufWriter};
+use {config, rtio_crg, clock, mailbox, rpc_queue, kernel};
 use logger::BufferLogger;
 use cache::Cache;
 use urc::Urc;
 use sched::{ThreadHandle, Waiter, Spawner};
 use sched::{TcpListener, TcpStream, SocketAddr, IP_ANY};
+use byteorder::{ByteOrder, NetworkEndian};
 
-use rpc;
+use rpc_proto as rpc;
 use session_proto as host;
 use kernel_proto as kern;
 
@@ -114,7 +114,7 @@ fn host_read(stream: &mut TcpStream) -> io::Result<host::Request> {
     Ok(request)
 }
 
-fn host_write(stream: &mut TcpStream, reply: host::Reply) -> io::Result<()> {
+fn host_write(stream: &mut Write, reply: host::Reply) -> io::Result<()> {
     trace!("comm->host {:?}", reply);
     reply.write_to(stream)
 }
@@ -132,7 +132,8 @@ fn kern_recv_notrace<R, F>(waiter: Waiter, f: F) -> io::Result<R>
         where F: FnOnce(&kern::Message) -> io::Result<R> {
     try!(waiter.until(|| mailbox::receive() != 0));
     if !kernel::validate(mailbox::receive()) {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid kernel CPU pointer"))
+        let message = format!("invalid kernel CPU pointer 0x{:x}", mailbox::receive());
+        return Err(io::Error::new(io::ErrorKind::InvalidData, message))
     }
 
     f(unsafe { mem::transmute::<usize, &kern::Message>(mailbox::receive()) })
@@ -352,6 +353,7 @@ fn process_kern_message(waiter: Waiter,
         kern_recv_dotrace(request);
         match request {
             &kern::Log(args) => {
+                use std::fmt::Write;
                 try!(session.log_buffer.write_fmt(args)
                         .map_err(|_| io_error("cannot append to session log buffer")));
                 session.flush_log_buffer();
@@ -383,15 +385,14 @@ fn process_kern_message(waiter: Waiter,
                 kern_acknowledge()
             }
 
-            &kern::RpcSend { service, batch, tag, data } => {
+            &kern::RpcSend { async, service, tag, data } => {
                 match stream {
                     None => unexpected!("unexpected RPC in flash kernel"),
                     Some(ref mut stream) => {
-                        try!(host_write(stream, host::Reply::RpcRequest {
-                            service: service
-                        }));
-                        try!(rpc::send_args(stream, tag, data));
-                        if !batch {
+                        let writer = &mut BufWriter::new(stream);
+                        try!(host_write(writer, host::Reply::RpcRequest { async: async }));
+                        try!(rpc::send_args(writer, service, tag, data));
+                        if !async {
                             session.kernel_state = KernelState::RpcWait
                         }
                         kern_acknowledge()
@@ -465,12 +466,28 @@ fn process_kern_message(waiter: Waiter,
     })
 }
 
+fn process_kern_queued_rpc(stream: &mut TcpStream,
+                           session: &mut Session) -> io::Result<()> {
+    rpc_queue::dequeue(|slice| {
+        trace!("comm<-kern (async RPC)");
+        let length = NetworkEndian::read_u32(slice) as usize;
+        try!(host_write(stream, host::Reply::RpcRequest { async: true }));
+        trace!("{:?}" ,&slice[4..][..length]);
+        try!(stream.write(&slice[4..][..length]));
+        Ok(())
+    })
+}
+
 fn host_kernel_worker(waiter: Waiter,
                       stream: &mut TcpStream,
                       congress: &mut Congress) -> io::Result<()> {
     let mut session = Session::new(congress);
 
     loop {
+        while !rpc_queue::empty() {
+            try!(process_kern_queued_rpc(stream, &mut session))
+        }
+
         if stream.readable() {
             try!(process_host_message(waiter, stream, &mut session));
         }
@@ -509,6 +526,10 @@ fn flash_kernel_worker(waiter: Waiter,
     try!(kern_run(&mut session));
 
     loop {
+        if !rpc_queue::empty() {
+            return Err(io_error("unexpected background RPC in flash kernel"))
+        }
+
         if mailbox::receive() != 0 {
             if try!(process_kern_message(waiter, None, &mut session)) {
                 return Ok(())

@@ -74,7 +74,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
 
     /* libm */
     api!(sqrt),
-    api!(lround),
+    api!(round),
 
     /* exceptions */
     api!(_Unwind_Resume),
@@ -91,6 +91,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(watchdog_clear = ::watchdog_clear),
 
     api!(send_rpc = ::send_rpc),
+    api!(send_async_rpc = ::send_async_rpc),
     api!(recv_rpc = ::recv_rpc),
 
     api!(cache_get = ::cache_get),
@@ -104,13 +105,16 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(rtio_input_timestamp),
     api!(rtio_input_data),
 
-// #if ((defined CONFIG_RTIO_DDS_COUNT) && (CONFIG_RTIO_DDS_COUNT > 0))
+    #[cfg(has_dds)]
     api!(dds_init),
+    #[cfg(has_dds)]
     api!(dds_init_sync),
+    #[cfg(has_dds)]
     api!(dds_batch_enter),
+    #[cfg(has_dds)]
     api!(dds_batch_exit),
+    #[cfg(has_dds)]
     api!(dds_set),
-// #endif
 
     api!(i2c_init),
     api!(i2c_start),

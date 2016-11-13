@@ -23,35 +23,26 @@ _mode_enc = {
 }
 
 
-class _MoninjWidget(QtWidgets.QFrame):
-    def __init__(self):
-        QtWidgets.QFrame.__init__(self)
-        qfm = QtGui.QFontMetrics(self.font())
-        self._size = QtCore.QSize(
-            18*qfm.averageCharWidth(),
-            6*qfm.lineSpacing())
-        self.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-
-        self.setFrameShape(QtWidgets.QFrame.Box)
-        self.setFrameShadow(QtWidgets.QFrame.Raised)
-
-    def sizeHint(self):
-        return self._size
-
-
-class _TTLWidget(_MoninjWidget):
+class _TTLWidget(QtWidgets.QFrame):
     def __init__(self, channel, send_to_device, force_out, title):
+        QtWidgets.QFrame.__init__(self)
+
         self.channel = channel
         self.send_to_device = send_to_device
         self.force_out = force_out
 
-        _MoninjWidget.__init__(self)
+        self.setFrameShape(QtWidgets.QFrame.Box)
+        self.setFrameShadow(QtWidgets.QFrame.Raised)
 
         grid = QtWidgets.QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(0)
+        grid.setVerticalSpacing(0)
         self.setLayout(grid)
         label = QtWidgets.QLabel(title)
         label.setAlignment(QtCore.Qt.AlignCenter)
-        label.setWordWrap(True)
+        label.setSizePolicy(QtWidgets.QSizePolicy.Ignored,
+                            QtWidgets.QSizePolicy.Preferred)
         grid.addWidget(label, 1, 1)
 
         self.stack = QtWidgets.QStackedWidget()
@@ -62,9 +53,18 @@ class _TTLWidget(_MoninjWidget):
         self.stack.addWidget(self.direction)
 
         grid_cb = LayoutWidget()
-        self.override = QtWidgets.QCheckBox("Override")
+        grid_cb.layout.setContentsMargins(0, 0, 0, 0)
+        grid_cb.layout.setHorizontalSpacing(0)
+        grid_cb.layout.setVerticalSpacing(0)
+        self.override = QtWidgets.QToolButton()
+        self.override.setText("OVR")
+        self.override.setCheckable(True)
+        self.override.setToolTip("Override")
         grid_cb.addWidget(self.override, 3, 1)
-        self.level = QtWidgets.QCheckBox("Level")
+        self.level = QtWidgets.QToolButton()
+        self.level.setText("LVL")
+        self.level.setCheckable(True)
+        self.level.setToolTip("Level")
         grid_cb.addWidget(self.level, 3, 2)
         self.stack.addWidget(grid_cb)
 
@@ -78,19 +78,19 @@ class _TTLWidget(_MoninjWidget):
         grid.setRowStretch(4, 1)
 
         self.programmatic_change = False
-        self.override.stateChanged.connect(self.override_toggled)
-        self.level.stateChanged.connect(self.level_toggled)
+        self.override.clicked.connect(self.override_toggled)
+        self.level.clicked.connect(self.level_toggled)
 
         self.set_value(0, False, False)
 
     def enterEvent(self, event):
         self.stack.setCurrentIndex(1)
-        _MoninjWidget.enterEvent(self, event)
+        QtWidgets.QFrame.enterEvent(self, event)
 
     def leaveEvent(self, event):
         if not self.override.isChecked():
             self.stack.setCurrentIndex(0)
-        _MoninjWidget.leaveEvent(self, event)
+        QtWidgets.QFrame.leaveEvent(self, event)
 
     def override_toggled(self, override):
         if self.programmatic_change:
@@ -125,11 +125,11 @@ class _TTLWidget(_MoninjWidget):
             color = " color=\"red\""
         else:
             color = ""
-        self.value.setText("<font size=\"9\"{}>{}</font>".format(
+        self.value.setText("<font size=\"5\"{}>{}</font>".format(
                             color, value_s))
         oe = oe or self.force_out
         direction = "OUT" if oe else "IN"
-        self.direction.setText("<font size=\"1\">" + direction + "</font>")
+        self.direction.setText("<font size=\"2\">" + direction + "</font>")
 
         self.programmatic_change = True
         try:
@@ -144,24 +144,30 @@ class _TTLWidget(_MoninjWidget):
         return self.channel
 
 
-class _DDSWidget(_MoninjWidget):
+class _DDSWidget(QtWidgets.QFrame):
     def __init__(self, bus_channel, channel, sysclk, title):
+        QtWidgets.QFrame.__init__(self)
+
         self.bus_channel = bus_channel
         self.channel = channel
         self.sysclk = sysclk
 
-        _MoninjWidget.__init__(self)
+        self.setFrameShape(QtWidgets.QFrame.Box)
+        self.setFrameShadow(QtWidgets.QFrame.Raised)
 
         grid = QtWidgets.QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(0)
+        grid.setVerticalSpacing(0)
         self.setLayout(grid)
         label = QtWidgets.QLabel(title)
         label.setAlignment(QtCore.Qt.AlignCenter)
-        label.setWordWrap(True)
+        label.setSizePolicy(QtWidgets.QSizePolicy.Ignored,
+                    QtWidgets.QSizePolicy.Preferred)
         grid.addWidget(label, 1, 1)
 
         self.value = QtWidgets.QLabel()
         self.value.setAlignment(QtCore.Qt.AlignCenter)
-        self.value.setWordWrap(True)
         grid.addWidget(self.value, 2, 1, 6, 1)
 
         grid.setRowStretch(1, 1)
@@ -172,7 +178,7 @@ class _DDSWidget(_MoninjWidget):
 
     def set_value(self, ftw):
         frequency = ftw*self.sysclk()/2**32
-        self.value.setText("<font size=\"5\">{:.7f} MHz</font>"
+        self.value.setText("<font size=\"4\">{:.7f}</font><font size=\"2\"> MHz</font>"
                            .format(frequency/1e6))
 
     def sort_key(self):

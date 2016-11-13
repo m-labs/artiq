@@ -3,6 +3,7 @@ from inspect import isclass
 
 from artiq.protocols import pyon
 from artiq.language import units
+from artiq.language.core import rpc
 
 
 __all__ = ["NoDefault",
@@ -274,6 +275,7 @@ class HasEnvironment:
         kernel_invariants = getattr(self, "kernel_invariants", set())
         self.kernel_invariants = kernel_invariants | {key}
 
+    @rpc(flags={"async"})
     def set_dataset(self, key, value,
                     broadcast=False, persist=False, save=True):
         """Sets the contents and handling modes of a dataset.
@@ -290,6 +292,7 @@ class HasEnvironment:
         """
         self.__dataset_mgr.set(key, value, broadcast, persist, save)
 
+    @rpc(flags={"async"})
     def mutate_dataset(self, key, index, value):
         """Mutate an existing dataset at the given index (e.g. set a value at
         a given position in a NumPy array)

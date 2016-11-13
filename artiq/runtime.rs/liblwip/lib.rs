@@ -549,6 +549,7 @@ impl TcpStream {
             lwip_sys::tcp_recv(raw, Some(recv));
             lwip_sys::tcp_sent(raw, Some(sent));
             lwip_sys::tcp_err(raw, Some(err));
+            lwip_sys::tcp_nagle_disable_(raw);
             TcpStream { raw: raw, state: state }
         }
     }

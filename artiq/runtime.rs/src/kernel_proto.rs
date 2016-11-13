@@ -3,8 +3,8 @@
 use core::marker::PhantomData;
 use core::fmt;
 
-pub const KERNELCPU_EXEC_ADDRESS:    usize = 0x40400000;
-pub const KERNELCPU_PAYLOAD_ADDRESS: usize = 0x40440000;
+pub const KERNELCPU_EXEC_ADDRESS:    usize = 0x40800000;
+pub const KERNELCPU_PAYLOAD_ADDRESS: usize = 0x40840000;
 pub const KERNELCPU_LAST_ADDRESS:    usize = 0x4fffffff;
 pub const KSUPPORT_HEADER_SIZE:      usize = 0x80;
 
@@ -42,8 +42,8 @@ pub enum Message<'a> {
     WatchdogClear      { id: usize },
 
     RpcSend {
+        async: bool,
         service: u32,
-        batch: bool,
         tag: &'a [u8],
         data: *const *const ()
     },

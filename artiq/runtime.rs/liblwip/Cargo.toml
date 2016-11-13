@@ -9,7 +9,7 @@ path = "lib.rs"
 
 [dependencies]
 lwip-sys = { path = "../liblwip-sys" }
-std_artiq = { path = "../libstd_artiq" }
+std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
 
 [features]
 default = ["preemption"]

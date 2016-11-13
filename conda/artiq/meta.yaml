@@ -18,7 +18,7 @@ requirements:
     - binutils-or1k-linux
   run:
     - python >=3.5.2
-    - llvmlite-artiq 0.10.0.dev py35_24
+    - llvmlite-artiq 0.12.0.dev py35_29
     - lit
     - outputcheck
     - scipy
@@ -37,7 +37,7 @@ requirements:
     - pygit2
     - aiohttp
     - binutils-or1k-linux
-    - pythonparser
+    - pythonparser 1.0
     - levenshtein
 
 test:

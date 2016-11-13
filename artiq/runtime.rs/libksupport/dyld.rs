@@ -1,5 +1,4 @@
 use core::{ptr, slice, str};
-use core::slice::SliceExt;
 use libc::{c_void, c_char, c_int, size_t};
 
 #[allow(non_camel_case_types)]

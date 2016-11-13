@@ -33,7 +33,7 @@ and the ARTIQ kernels.
         $ wget https://ftp.gnu.org/gnu/binutils/binutils-2.27.tar.bz2
         $ tar xvf binutils-2.27.tar.bz2
         $ cd binutils-2.27
-        $ curl -L 'https://github.com/m-labs/conda-recipes/blob/ece4cefbcce5548c5bd7fd4740d71ecd6930065e/conda/binutils-or1k-linux/fix-R_OR1K_GOTOFF-relocations.patch' | patch -p1
+        $ curl -L https://raw.githubusercontent.com/m-labs/conda-recipes/ece4cefbcce5548c5bd7fd4740d71ecd6930065e/conda/binutils-or1k-linux/fix-R_OR1K_GOTOFF-relocations.patch' | patch -p1
 
         $ mkdir build
         $ cd build
@@ -62,18 +62,24 @@ and the ARTIQ kernels.
 
         $ cd ~/artiq-dev
         $ git clone https://github.com/m-labs/rust
+        $ cd rust
         $ git checkout artiq
+        $ git submodule update --init
         $ mkdir build
         $ cd build
-        $ ../configure --prefix=/usr/local/rust-or1k --llvm-root=/usr/local/llvm-or1k/bin/llvm-config --disable-manage-submodules
+        $ ../configure --prefix=/usr/local/rust-or1k --llvm-root=/usr/local/llvm-or1k --disable-manage-submodules
         $ sudo make install -j4
-        $ libs="libcore liballoc librustc_unicode libcollections liblibc_mini libunwind libpanic_unwind"
 
+        $ libs="libcore liballoc librustc_unicode libcollections liblibc_mini libunwind"
+        $ rustc="/usr/local/rust-or1k/bin/rustc --target or1k-unknown-none -g -C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -L ."
+        $ destdir="/usr/local/rust-or1k/lib/rustlib/or1k-unknown-none/lib/"
         $ mkdir ../build-or1k
         $ cd ../build-or1k
-        $ for lib in ${libs}; do /usr/local/rust-or1k/bin/rustc src/${lib}/lib.rs; done
-        $ /usr/local/rust-or1k/bin/rustc -Cpanic=abort src/libpanic_abort/lib.rs
-        $ sudo cp * /usr/local/rust-or1k/lib/rustlib/or1k-unknown-none/lib/
+        $ for lib in ${libs}; do ${rustc} ../src/${lib}/lib.rs; done
+        $ ${rustc} -Cpanic=abort ../src/libpanic_abort/lib.rs
+        $ ${rustc} -Cpanic=unwind ../src/libpanic_unwind/lib.rs --cfg llvm_libunwind
+        $ sudo mkdir -p ${destdir}
+        $ sudo cp *.rlib ${destdir}
 
 .. note::
     Compilation of LLVM can take more than 30 min on some machines. Compilation of Rust can take more than two hours.
@@ -167,7 +173,7 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
         $ python3.5 -m artiq.gateware.targets.kc705 -H nist_qc1  # or nist_qc2
 
-    .. note:: Add ``--toolchain vivado`` if you wish to use Vivado instead of ISE.
+    .. note:: Add ``--toolchain ise`` if you wish to use ISE instead of Vivado.
 
 * Then, gather the binaries and flash them: ::
 

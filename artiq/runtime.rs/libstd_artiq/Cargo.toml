@@ -9,3 +9,6 @@ path = "lib.rs"
 
 [dependencies]
 alloc_artiq = { path = "../liballoc_artiq" }
+
+[features]
+alloc = []

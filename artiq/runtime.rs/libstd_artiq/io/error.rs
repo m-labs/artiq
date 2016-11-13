@@ -8,7 +8,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
- use alloc::boxed::Box;
+#[cfg(feature="alloc")] use alloc::boxed::Box;
+#[cfg(not(feature="alloc"))] use ::FakeBox as Box;
 use core::convert::Into;
 use core::fmt;
 use core::marker::{Send, Sync};
@@ -62,13 +63,19 @@ pub struct Error {
 enum Repr {
     Os(i32),
 
+    #[cfg(feature="alloc")]
     Custom(Box<Custom>),
+    #[cfg(not(feature="alloc"))]
+    Custom(Custom),
 }
 
 #[derive(Debug)]
 struct Custom {
     kind: ErrorKind,
+    #[cfg(feature="alloc")]
     error: Box<error::Error+Send+Sync>,
+    #[cfg(not(feature="alloc"))]
+    error: &'static str
 }
 
 /// A list specifying general categories of I/O error.
@@ -162,13 +169,32 @@ impl Error {
     /// // errors can also be created from other errors
     /// let custom_error2 = Error::new(ErrorKind::Interrupted, custom_error);
     /// ```
+    #[cfg(feature="alloc")]
     pub fn new<E>(kind: ErrorKind, error: E) -> Error
         where E: Into<Box<error::Error+Send+Sync>>
     {
         Self::_new(kind, error.into())
     }
 
+    #[cfg(not(feature="alloc"))]
+    pub fn new<E>(kind: ErrorKind, error: E) -> Error
+        where E: Into<&'static str>
+    {
+        Self::_new(kind, error.into())
+    }
+
+    #[cfg(feature="alloc")]
     fn _new(kind: ErrorKind, error: Box<error::Error+Send+Sync>) -> Error {
+        Error {
+            repr: Repr::Custom(Box::new(Custom {
+                kind: kind,
+                error: error,
+            }))
+        }
+    }
+
+    #[cfg(not(feature="alloc"))]
+    fn _new(kind: ErrorKind, error: &'static str) -> Error {
         Error {
             repr: Repr::Custom(Box::new(Custom {
                 kind: kind,
@@ -198,6 +224,7 @@ impl Error {
     ///
     /// If this `Error` was constructed via `new` then this function will
     /// return `Some`, otherwise it will return `None`.
+    #[cfg(feature="alloc")]
     pub fn get_ref(&self) -> Option<&(error::Error+Send+Sync+'static)> {
         match self.repr {
             Repr::Os(..) => None,
@@ -210,6 +237,7 @@ impl Error {
     ///
     /// If this `Error` was constructed via `new` then this function will
     /// return `Some`, otherwise it will return `None`.
+    #[cfg(feature="alloc")]
     pub fn get_mut(&mut self) -> Option<&mut (error::Error+Send+Sync+'static)> {
         match self.repr {
             Repr::Os(..) => None,
@@ -221,6 +249,7 @@ impl Error {
     ///
     /// If this `Error` was constructed via `new` then this function will
     /// return `Some`, otherwise it will return `None`.
+    #[cfg(feature="alloc")]
     pub fn into_inner(self) -> Option<Box<error::Error+Send+Sync>> {
         match self.repr {
             Repr::Os(..) => None,
@@ -282,14 +311,24 @@ impl error::Error for Error {
                 ErrorKind::UnexpectedEof => "unexpected end of file",
                 ErrorKind::__Nonexhaustive => unreachable!()
             },
-            Repr::Custom(ref c) => c.error.description(),
+            Repr::Custom(ref c) => {
+                #[cfg(feature="alloc")]
+                { c.error.description() }
+                #[cfg(not(feature="alloc"))]
+                { c.error }
+            },
         }
     }
 
     fn cause(&self) -> Option<&error::Error> {
         match self.repr {
             Repr::Os(..) => None,
-            Repr::Custom(ref c) => c.error.cause(),
+            Repr::Custom(ref _c) => {
+                #[cfg(feature="alloc")]
+                { _c.error.cause() }
+                #[cfg(not(feature="alloc"))]
+                { None }
+            }
         }
     }
 }

@@ -141,6 +141,9 @@ class CommGeneric:
         (value, ) = struct.unpack(">d", self._read_chunk(8))
         return value
 
+    def _read_bool(self):
+        return True if self._read_int8() else False
+
     def _read_bytes(self):
         return self._read_chunk(self._read_int32())
 
@@ -176,6 +179,9 @@ class CommGeneric:
 
     def _write_float64(self, value):
         self.write(struct.pack(">d", value))
+
+    def _write_bool(self, value):
+        self.write(struct.pack("B", value))
 
     def _write_bytes(self, value):
         self._write_int32(len(value))
@@ -405,24 +411,29 @@ class CommGeneric:
             raise IOError("Unknown RPC value tag: {}".format(repr(tag)))
 
     def _serve_rpc(self, embedding_map):
-        service_id  = self._read_int32()
-        if service_id == 0:
-            service = lambda obj, attr, value: setattr(obj, attr, value)
-        else:
-            service = embedding_map.retrieve_object(service_id)
-
+        async        = self._read_bool()
+        service_id   = self._read_int32()
         args, kwargs = self._receive_rpc_args(embedding_map)
         return_tags  = self._read_bytes()
-        logger.debug("rpc service: [%d]%r %r %r -> %s", service_id, service, args, kwargs, return_tags)
+
+        if service_id is 0:
+            service  = lambda obj, attr, value: setattr(obj, attr, value)
+        else:
+            service  = embedding_map.retrieve_object(service_id)
+        logger.debug("rpc service: [%d]%r%s %r %r -> %s", service_id, service,
+                     (" (async)" if async else ""), args, kwargs, return_tags)
+
+        if async:
+            service(*args, **kwargs)
+            return
 
         try:
             result = service(*args, **kwargs)
-            logger.debug("rpc service: %d %r %r == %r", service_id, args, kwargs, result)
+            logger.debug("rpc service: %d %r %r = %r", service_id, args, kwargs, result)
 
-            if service_id != 0:
-                self._write_header(_H2DMsgType.RPC_REPLY)
-                self._write_bytes(return_tags)
-                self._send_rpc_value(bytearray(return_tags), result, result, service)
+            self._write_header(_H2DMsgType.RPC_REPLY)
+            self._write_bytes(return_tags)
+            self._send_rpc_value(bytearray(return_tags), result, result, service)
         except Exception as exn:
             logger.debug("rpc service: %d %r %r ! %r", service_id, args, kwargs, exn)
 

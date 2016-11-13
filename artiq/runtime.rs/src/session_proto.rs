@@ -107,7 +107,7 @@ pub enum Reply<'a> {
         backtrace: &'a [usize]
     },
 
-    RpcRequest { service: u32 },
+    RpcRequest { async: bool },
 
     FlashRead(&'a [u8]),
     FlashOk,
@@ -170,9 +170,9 @@ impl<'a> Reply<'a> {
                 }
             },
 
-            Reply::RpcRequest { service } => {
+            Reply::RpcRequest { async } => {
                 try!(write_u8(writer, 10));
-                try!(write_u32(writer, service));
+                try!(write_u8(writer, async as u8));
             },
 
             Reply::FlashRead(ref bytes) => {

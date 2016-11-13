@@ -1,5 +1,7 @@
-use std::slice;
-use std::io::{self, Read, Write, BufWriter};
+#![allow(dead_code)]
+
+use core::slice;
+use std::io::{self, Read, Write};
 use proto::*;
 use self::tag::{Tag, TagIterator, split_tag};
 
@@ -74,6 +76,7 @@ unsafe fn recv_value(reader: &mut Read, tag: Tag, data: &mut *mut (),
 pub fn recv_return(reader: &mut Read, tag_bytes: &[u8], data: *mut (),
                    alloc: &Fn(usize) -> io::Result<*mut ()>) -> io::Result<()> {
     let mut it = TagIterator::new(tag_bytes);
+    #[cfg(not(ksupport))]
     trace!("recv ...->{}", it);
 
     let tag = it.next().expect("truncated tag");
@@ -98,7 +101,6 @@ unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::
         })
     }
 
-    let writer = &mut BufWriter::new(writer);
     try!(write_u8(writer, tag.as_u8()));
     match tag {
         Tag::None => Ok(()),
@@ -161,14 +163,16 @@ unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::
     }
 }
 
-pub fn send_args(writer: &mut Write, tag_bytes: &[u8],
+pub fn send_args(writer: &mut Write, service: u32, tag_bytes: &[u8],
                  data: *const *const ()) -> io::Result<()> {
     let (arg_tags_bytes, return_tag_bytes) = split_tag(tag_bytes);
 
     let mut args_it = TagIterator::new(arg_tags_bytes);
     let return_it = TagIterator::new(return_tag_bytes);
-    trace!("send ({})->{}", args_it, return_it);
+    #[cfg(not(ksupport))]
+    trace!("send<{}>({})->{}", service, args_it, return_it);
 
+    try!(write_u32(writer, service));
     for index in 0.. {
         if let Some(arg_tag) = args_it.next() {
             let mut data = unsafe { *data.offset(index) };

@@ -8,7 +8,6 @@ from migen.genlib.cdc import MultiReg
 from migen.build.generic_platform import *
 from migen.build.xilinx.vivado import XilinxVivadoToolchain
 from migen.build.xilinx.ise import XilinxISEToolchain
-from migen.fhdl.specials import Keep
 from migen.genlib.io import DifferentialInput
 
 from jesd204b.common import (JESD204BTransportSettings,
@@ -149,10 +148,10 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.register_kernel_cpu_csrdevice("i2c")
         self.config["I2C_BUS_COUNT"] = 1
 
-    def add_rtio(self, rtio_channels, rtio_crg=None):
-        if rtio_crg is None:
-            rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
-        self.submodules.rtio_crg = rtio_crg
+        self.config["HAS_DDS"] = None
+
+    def add_rtio(self, rtio_channels):
+        self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
         self.csr_devices.append("rtio_crg")
         self.submodules.rtio = rtio.RTIO(rtio_channels)
         self.register_kernel_cpu_csrdevice("rtio")
@@ -160,22 +159,11 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
-        self.specials += [
-            Keep(self.rtio.cd_rsys.clk),
-            Keep(self.rtio_crg.cd_rtio.clk),
-            Keep(self.ethphy.crg.cd_eth_rx.clk),
-            Keep(self.ethphy.crg.cd_eth_tx.clk),
-        ]
-
-        self.platform.add_period_constraint(self.rtio.cd_rsys.clk, 8.)
+        self.rtio_crg.cd_rtio.clk.attr.add("keep")
         self.platform.add_period_constraint(self.rtio_crg.cd_rtio.clk, 8.)
-        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 8.)
-        self.platform.add_period_constraint(self.ethphy.crg.cd_eth_tx.clk, 8.)
         self.platform.add_false_path_constraints(
-            self.rtio.cd_rsys.clk,
-            self.rtio_crg.cd_rtio.clk,
-            self.ethphy.crg.cd_eth_rx.clk,
-            self.ethphy.crg.cd_eth_tx.clk)
+            self.crg.cd_sys.clk,
+            self.rtio_crg.cd_rtio.clk)
 
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio,
             self.get_native_sdram_if())
@@ -223,7 +211,7 @@ class NIST_QC1(_NIST_Ions):
         self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
         self.config["RTIO_DDS_COUNT"] = 1
         self.config["DDS_CHANNELS_PER_BUS"] = 8
-        self.config["DDS_AD9858"] = True
+        self.config["DDS_AD9858"] = None
         phy = dds.AD9858(platform.request("dds"), 8)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,
@@ -297,8 +285,8 @@ class NIST_CLOCK(_NIST_Ions):
         self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
         self.config["RTIO_DDS_COUNT"] = 1
         self.config["DDS_CHANNELS_PER_BUS"] = 11
-        self.config["DDS_AD9914"] = True
-        self.config["DDS_ONEHOT_SEL"] = True
+        self.config["DDS_AD9914"] = None
+        self.config["DDS_ONEHOT_SEL"] = None
         phy = dds.AD9914(platform.request("dds"), 11, onehot=True)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,
@@ -375,8 +363,8 @@ class NIST_QC2(_NIST_Ions):
         self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
         self.config["RTIO_DDS_COUNT"] = 2
         self.config["DDS_CHANNELS_PER_BUS"] = 12
-        self.config["DDS_AD9914"] = True
-        self.config["DDS_ONEHOT_SEL"] = True
+        self.config["DDS_AD9914"] = None
+        self.config["DDS_ONEHOT_SEL"] = None
         for backplane_offset in range(2):
             phy = dds.AD9914(
                 platform.request("dds", backplane_offset), 12, onehot=True)
@@ -394,11 +382,10 @@ class NIST_QC2(_NIST_Ions):
 
 
 class _PhaserCRG(Module, AutoCSR):
-    def __init__(self, platform, rtio_internal_clk):
+    def __init__(self, platform, refclk):
         self._clock_sel = CSRStorage()
         self._pll_reset = CSRStorage(reset=1)
         self._pll_locked = CSRStatus()
-        self.refclk = Signal()
         self.clock_domains.cd_rtio = ClockDomain()
         self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
 
@@ -411,7 +398,7 @@ class _PhaserCRG(Module, AutoCSR):
 
                      p_REF_JITTER1=0.01, p_REF_JITTER2=0.01,
                      p_CLKIN1_PERIOD=4.0, p_CLKIN2_PERIOD=4.0,
-                     i_CLKIN1=0, i_CLKIN2=self.refclk,
+                     i_CLKIN1=0, i_CLKIN2=refclk,
                      # Warning: CLKINSEL=0 means CLKIN2 is selected
                      i_CLKINSEL=~self._clock_sel.storage,
 
@@ -431,6 +418,8 @@ class _PhaserCRG(Module, AutoCSR):
             MultiReg(pll_locked | ~self._clock_sel.storage,
                      self._pll_locked.status)
         ]
+        self.cd_rtio.clk.attr.add("keep")
+        platform.add_period_constraint(self.cd_rtio.clk, 8.)
 
 
 class AD9154JESD(Module, AutoCSR):
@@ -444,28 +433,29 @@ class AD9154JESD(Module, AutoCSR):
 
         sync_pads = platform.request("ad9154_sync")
         self.jsync = Signal()
-        self.refclk = Signal()
         self.specials += DifferentialInput(
             sync_pads.p, sync_pads.n, self.jsync)
 
+        refclk = Signal()
         self.clock_domains.cd_jesd = ClockDomain()
         refclk_pads = platform.request("ad9154_refclk")
-        platform.add_period_constraint(refclk_pads.p, 1e9/refclk_freq)
 
         self.specials += [
             Instance("IBUFDS_GTE2", i_CEB=0,
-                     i_I=refclk_pads.p, i_IB=refclk_pads.n, o_O=self.refclk),
-            Instance("BUFG", i_I=self.refclk, o_O=self.cd_jesd.clk),
+                     i_I=refclk_pads.p, i_IB=refclk_pads.n, o_O=refclk),
+            Instance("BUFG", i_I=refclk, o_O=self.cd_jesd.clk),
             AsyncResetSynchronizer(self.cd_jesd, ResetSignal("rio_phy")),
         ]
+        self.cd_jesd.clk.attr.add("keep")
         platform.add_period_constraint(self.cd_jesd.clk, 1e9/refclk_freq)
 
-        qpll = GTXQuadPLL(self.refclk, refclk_freq, linerate)
+        qpll = GTXQuadPLL(refclk, refclk_freq, linerate)
         self.submodules += qpll
         phys = []
         for i in range(4):
             phy = JESD204BPhyTX(
                 qpll, platform.request("ad9154_jesd", i), fabric_freq)
+            phy.gtx.cd_tx.clk.attr.add("keep")
             platform.add_period_constraint(phy.gtx.cd_tx.clk, 40*1e9/linerate)
             platform.add_false_path_constraints(self.cd_jesd.clk,
                                                 phy.gtx.cd_tx.clk)
@@ -484,16 +474,15 @@ class AD9154JESD(Module, AutoCSR):
 
         # blinking leds for transceiver reset status
         for i in range(4):
-            led = platform.request("user_led", 4 + i)
-            counter = Signal(max=fabric_freq//2 + 1)
+            counter = Signal(max=fabric_freq)
+            self.comb += platform.request("user_led", 4 + i).eq(counter[-1])
             sync = getattr(self.sync, "phy{}_tx".format(i))
-            sync += \
+            sync += [
+                counter.eq(counter - 1),
                 If(counter == 0,
-                    led.eq(~led),
-                    counter.eq(fabric_freq//2)
-                ).Else(
-                    counter.eq(counter - 1)
+                    counter.eq(fabric_freq - 1)
                 )
+            ]
 
 
 class AD9154(Module, AutoCSR):
@@ -517,17 +506,42 @@ class AD9154(Module, AutoCSR):
             self.sync.jesd += conv.eq(Mux(z, Cat(ch.o[:2]), Cat(ch.o[2:])))
 
 
-class Phaser(_NIST_Ions):
+class Phaser(MiniSoC, AMPSoC):
     mem_map = {
-        "ad9154":   0x50000000,
+        "timer_kernel":  0x10000000, # (shadow @0x90000000)
+        "rtio":          0x20000000, # (shadow @0xa0000000)
+        "i2c":           0x30000000, # (shadow @0xb0000000)
+        "mailbox":       0x70000000, # (shadow @0xf0000000)
+        "ad9154":        0x50000000,
     }
-    mem_map.update(_NIST_Ions.mem_map)
+    mem_map.update(MiniSoC.mem_map)
 
     def __init__(self, cpu_type="or1k", **kwargs):
-        _NIST_Ions.__init__(self, cpu_type, **kwargs)
+        MiniSoC.__init__(self,
+                         cpu_type=cpu_type,
+                         sdram_controller_type="minicon",
+                         l2_size=128*1024,
+                         with_timer=False,
+                         ident=artiq_version,
+                         **kwargs)
+        AMPSoC.__init__(self)
+        self.platform.toolchain.bitstream_commands.extend([
+            "set_property BITSTREAM.GENERAL.COMPRESS True [current_design]",
+        ])
 
         platform = self.platform
+        platform.add_extension(_ams101_dac)
         platform.add_extension(phaser.fmc_adapter_io)
+
+        self.submodules.leds = gpio.GPIOOut(Cat(
+            platform.request("user_led", 0),
+            platform.request("user_led", 1)))
+        self.csr_devices.append("leds")
+
+        i2c = platform.request("i2c")
+        self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
+        self.register_kernel_cpu_csrdevice("i2c")
+        self.config["I2C_BUS_COUNT"] = 1
 
         self.submodules.ad9154 = AD9154(platform)
         self.register_kernel_cpu_csrdevice("ad9154")
@@ -566,17 +580,25 @@ class Phaser(_NIST_Ions):
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.LogChannel())
 
-        # FIXME: dummy
         self.config["RTIO_FIRST_DDS_CHANNEL"] = 0
         self.config["RTIO_DDS_COUNT"] = 1
         self.config["DDS_CHANNELS_PER_BUS"] = 1
-        self.config["DDS_AD9914"] = True
-        self.config["DDS_ONEHOT_SEL"] = True
-        self.config["DDS_RTIO_CLK_RATIO"] = 3
+        self.config["DDS_ONEHOT_SEL"] = 1
+        self.config["DDS_RTIO_CLK_RATIO"] = 8
 
-        self.add_rtio(rtio_channels, _PhaserCRG(platform, self.crg.cd_sys.clk))
+        self.submodules.rtio_crg = _PhaserCRG(platform, self.ad9154.jesd.cd_jesd.clk)
+        self.csr_devices.append("rtio_crg")
+        self.submodules.rtio = rtio.RTIO(rtio_channels)
+        self.register_kernel_cpu_csrdevice("rtio")
+        self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
+        self.csr_devices.append("rtio_moninj")
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio,
+            self.get_native_sdram_if())
+        self.csr_devices.append("rtio_analyzer")
 
-        self.comb += self.rtio_crg.refclk.eq(self.ad9154.jesd.cd_jesd.clk)
+        platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            self.rtio_crg.cd_rtio.clk)
 
 
 def main():
