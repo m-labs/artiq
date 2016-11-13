@@ -1,7 +1,7 @@
 from migen import *
 from misoc.interconnect.stream import Endpoint
+from misoc.cores.cordic import Cordic
 
-from .cordic import Cordic
 from .accu import PhasedAccu
 from .tools import eqh
 
