@@ -580,22 +580,25 @@ class Phaser(MiniSoC, AMPSoC):
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.LogChannel())
 
-        self.config["RTIO_FIRST_DDS_CHANNEL"] = 0
+        self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
         self.config["RTIO_DDS_COUNT"] = 1
         self.config["DDS_CHANNELS_PER_BUS"] = 1
-        self.config["DDS_ONEHOT_SEL"] = 1
+        self.config["DDS_AD9914"] = None
+        self.config["DDS_ONEHOT_SEL"] = None
         self.config["DDS_RTIO_CLK_RATIO"] = 8
 
-        self.submodules.rtio_crg = _PhaserCRG(platform, self.ad9154.jesd.cd_jesd.clk)
+        self.submodules.rtio_crg = _PhaserCRG(
+            platform, self.ad9154.jesd.cd_jesd.clk)
         self.csr_devices.append("rtio_crg")
         self.submodules.rtio = rtio.RTIO(rtio_channels)
         self.register_kernel_cpu_csrdevice("rtio")
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
-        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio,
-            self.get_native_sdram_if())
+        self.submodules.rtio_analyzer = rtio.Analyzer(
+            self.rtio, self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
 
+        self.config["RTIO_FINE_TS_WIDTH"] = self.rtio.fine_ts_width
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             self.rtio_crg.cd_rtio.clk)
