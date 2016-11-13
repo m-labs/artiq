@@ -47,6 +47,19 @@ The Python types correspond to ARTIQ type annotations as follows:
 | range       | TRange32, TRange64      |
 +-------------+-------------------------+
 
+Asynchronous RPCs
+-----------------
+
+If an RPC returns no value, it can be invoked in a way that does not block until the RPC finishes
+execution, but only until it is queued. (Submitting asynchronous RPCs too rapidly, as well as
+submitting asynchronous RPCs with arguments that are too large, can still block until completion.)
+
+To define an asynchronous RPC, use the ``@rpc`` annotation with a flag: ::
+
+    @rpc(flags={"async"})
+    def record_result(x):
+        self.results.append(x)
+
 Additional optimizations
 ------------------------
 
@@ -74,7 +87,7 @@ Kernel invariants
 
 The compiler attempts to remove or hoist out of loops any redundant memory load operations, as well as propagate known constants into function bodies, which can enable further optimization. However, it must make conservative assumptions about code that it is unable to observe, because such code can change the value of the attribute, making the optimization invalid.
 
-When an attribute is known to never change while the kernel is running, it can be marked as a *kernel invariant* to enable more aggressive optimization for this specific attribute: ::
+When an attribute is known to never change while the kernel is running, it can be marked as a *kernel invariant* to enable more aggressive optimization for this specific attribute. ::
 
     class Converter:
         kernel_invariants = {"ratio"}
@@ -86,4 +99,32 @@ When an attribute is known to never change while the kernel is running, it can b
         def convert(self, value):
             return value * self.ratio ** 2
 
-In the synthetic example above, the compiler will be able to detect that the result of evaluating ``self.ratio ** 2`` never changes and replace it with a constant, removing an expensive floating-point operation.
+In the synthetic example above, the compiler will be able to detect that the result of evaluating ``self.ratio ** 2`` never changes and replace it with a constant, removing an expensive floating-point operation. ::
+
+    class Worker:
+        kernel_invariants = {"interval"}
+
+        def __init__(self, interval=1.0*us):
+            self.interval = interval
+
+        def work(self):
+            # something useful
+
+    class Looper:
+        def __init__(self, worker):
+            self.worker = worker
+
+        @kernel
+        def loop(self):
+            for _ in range(100):
+                delay(self.worker.interval / 5.0)
+                self.worker.work()
+
+In the synthetic example above, the compiler will be able to detect that the result of evaluating ``self.interval / 5.0`` never changes, even though it neither knows the value of ``self.worker.interval`` beforehand nor can it see through the ``self.worker.work()`` function call, and hoist the expensive floating-point division out of the loop, transforming the code for ``loop`` into an equivalent of the following: ::
+
+        @kernel
+        def loop(self):
+            precomputed_delay_mu = seconds_to_mu(self.worker.interval / 5.0)
+            for _ in range(100):
+                delay_mu(precomputed_delay_mu)
+                self.worker.work()

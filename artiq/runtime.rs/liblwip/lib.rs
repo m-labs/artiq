@@ -8,7 +8,9 @@ extern crate lwip_sys;
 extern crate std_artiq as std;
 
 use core::marker::PhantomData;
+use core::ptr;
 use core::cell::RefCell;
+use core::fmt;
 use alloc::boxed::Box;
 use collections::LinkedList;
 use libc::c_void;
@@ -32,6 +34,8 @@ pub enum Error {
     ConnectionReset,
     ConnectionClosed,
     IllegalArgument,
+    // Not used by lwip; added for building blocking interfaces.
+    Interrupted
 }
 
 impl Error {
@@ -53,6 +57,7 @@ impl Error {
             Error::ConnectionReset => "connection reset",
             Error::ConnectionClosed => "connection closed",
             Error::IllegalArgument => "illegal argument",
+            Error::Interrupted => "interrupted"
         }
     }
 }
@@ -71,7 +76,12 @@ impl error::Error for Error {
 
 impl From<Error> for std::io::Error {
     fn from(lower: Error) -> std::io::Error {
-        std::io::Error::new(std::io::ErrorKind::Other, lower)
+        use std::io;
+
+        match lower {
+            Error::Interrupted => io::Error::new(io::ErrorKind::Interrupted, "interrupted"),
+            err => io::Error::new(io::ErrorKind::Other, err)
+        }
     }
 }
 
@@ -102,19 +112,54 @@ fn result_from<T, F>(err: lwip_sys::err, f: F) -> Result<T>
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum IpAddr {
-    Ip4([u8;  4]),
-    Ip6([u16; 8]),
-    IpAny
+    V4([u8;  4]),
+    V6([u16; 8]),
+    Any
 }
 
-pub const IP4_ANY: IpAddr = IpAddr::Ip4([0, 0, 0, 0]);
-pub const IP6_ANY: IpAddr = IpAddr::Ip6([0, 0, 0, 0, 0, 0, 0, 0]);
-pub const IP_ANY: IpAddr = IpAddr::IpAny;
+pub const IP4_ANY: IpAddr = IpAddr::V4([0, 0, 0, 0]);
+pub const IP6_ANY: IpAddr = IpAddr::V6([0, 0, 0, 0, 0, 0, 0, 0]);
+pub const IP_ANY: IpAddr = IpAddr::Any;
+
+impl fmt::Display for IpAddr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            IpAddr::V4(ref octets) =>
+                write!(f, "{}.{}.{}.{}", octets[0], octets[1], octets[2], octets[3]),
+
+            IpAddr::V6(ref segments) => {
+                #[derive(Clone, Copy, PartialEq, Eq)]
+                enum State { Head, Skip, Tail };
+
+                let mut state = State::Head;
+                for (idx, &segment) in segments.iter().enumerate() {
+                    match state {
+                        State::Head | State::Skip if segment == 0 =>
+                            state = State::Skip,
+                        State::Skip if segment != 0 => {
+                            state = State::Tail;
+                            try!(write!(f, ":{:x}", segment))
+                        }
+                        _ => try!(write!(f, "{:x}", segment))
+                    }
+
+                    if state != State::Skip && idx != 15 {
+                        try!(write!(f, ":"))
+                    }
+                }
+                Ok(())
+            },
+
+            IpAddr::Any =>
+                write!(f, "*")
+        }
+    }
+}
 
 impl IpAddr {
     fn into_raw(self) -> lwip_sys::ip_addr {
         match self {
-            IpAddr::Ip4(ref octets) =>
+            IpAddr::V4(octets) =>
                 lwip_sys::ip_addr {
                     data:  [(octets[0] as u32) << 24 |
                             (octets[1] as u32) << 16 |
@@ -123,7 +168,7 @@ impl IpAddr {
                             0, 0, 0],
                     type_: lwip_sys::IPADDR_TYPE_V4
                 },
-            IpAddr::Ip6(ref segments) =>
+            IpAddr::V6(segments) =>
                 lwip_sys::ip_addr {
                     data:  [(segments[0] as u32) << 16 | (segments[1] as u32),
                             (segments[2] as u32) << 16 | (segments[3] as u32),
@@ -131,7 +176,7 @@ impl IpAddr {
                             (segments[6] as u32) << 16 | (segments[7] as u32)],
                     type_: lwip_sys::IPADDR_TYPE_V6
                 },
-            IpAddr::IpAny =>
+            IpAddr::Any =>
                 lwip_sys::ip_addr {
                     data:  [0; 4],
                     type_: lwip_sys::IPADDR_TYPE_ANY
@@ -142,17 +187,17 @@ impl IpAddr {
     unsafe fn from_raw(raw: *mut lwip_sys::ip_addr) -> IpAddr {
         match *raw {
             lwip_sys::ip_addr { type_: lwip_sys::IPADDR_TYPE_V4, data } =>
-                IpAddr::Ip4([(data[0] >> 24) as u8,
+                IpAddr::V4([(data[0] >> 24) as u8,
                              (data[0] >> 16) as u8,
                              (data[0] >>  8) as u8,
                              (data[0] >>  0) as u8]),
             lwip_sys::ip_addr { type_: lwip_sys::IPADDR_TYPE_V6, data } =>
-                IpAddr::Ip6([(data[0] >> 16) as u16, data[0] as u16,
+                IpAddr::V6([(data[0] >> 16) as u16, data[0] as u16,
                              (data[1] >> 16) as u16, data[1] as u16,
                              (data[2] >> 16) as u16, data[2] as u16,
                              (data[3] >> 16) as u16, data[3] as u16]),
             lwip_sys::ip_addr { type_: lwip_sys::IPADDR_TYPE_ANY, .. } =>
-                IpAddr::IpAny
+                IpAddr::Any
         }
     }
 }
@@ -161,6 +206,12 @@ impl IpAddr {
 pub struct SocketAddr {
     pub ip:   IpAddr,
     pub port: u16
+}
+
+impl fmt::Display for SocketAddr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}:{}", self.ip, self.port)
+    }
 }
 
 impl SocketAddr {
@@ -174,6 +225,9 @@ pub struct Pbuf<'payload> {
     raw:     *mut lwip_sys::pbuf,
     phantom: PhantomData<&'payload [u8]>
 }
+
+#[cfg(not(feature = "preemption"))]
+unsafe impl<'payload> Send for Pbuf<'payload> {}
 
 impl<'payload> Pbuf<'payload> {
     unsafe fn from_raw(raw: *mut lwip_sys::pbuf) -> Pbuf<'payload> {
@@ -259,6 +313,9 @@ pub struct UdpSocket {
     state: Box<RefCell<UdpSocketState>>
 }
 
+#[cfg(not(feature = "preemption"))]
+unsafe impl Send for UdpSocket {}
+
 impl UdpSocket {
     pub fn new() -> Result<UdpSocket> {
         extern fn recv(arg: *mut c_void, _pcb: *mut lwip_sys::udp_pcb,
@@ -279,12 +336,12 @@ impl UdpSocket {
                 recv_buffer: LinkedList::new()
             }));
             let arg = &mut *state as *mut RefCell<UdpSocketState> as *mut _;
-            lwip_sys::udp_recv(raw, recv, arg);
+            lwip_sys::udp_recv(raw, Some(recv), arg);
             Ok(UdpSocket { raw: raw, state: state })
         }
     }
 
-    pub fn state(&self) -> *const RefCell<UdpSocketState> {
+    pub fn state(&self) -> &RefCell<UdpSocketState> {
         &*self.state
     }
 
@@ -347,6 +404,9 @@ pub struct TcpListener {
     state: Box<RefCell<TcpListenerState>>
 }
 
+#[cfg(not(feature = "preemption"))]
+unsafe impl Send for TcpListener {}
+
 impl TcpListener {
     pub fn bind(addr: SocketAddr) -> Result<TcpListener> {
         extern fn accept(arg: *mut c_void, newpcb: *mut lwip_sys::tcp_pcb,
@@ -376,17 +436,29 @@ impl TcpListener {
             }));
             let arg = &mut *state as *mut RefCell<TcpListenerState> as *mut _;
             lwip_sys::tcp_arg(raw2, arg);
-            lwip_sys::tcp_accept(raw2, accept);
+            lwip_sys::tcp_accept(raw2, Some(accept));
             Ok(TcpListener { raw: raw2, state: state })
         }
     }
 
-    pub fn state(&self) -> *const RefCell<TcpListenerState> {
+    pub fn state(&self) -> &RefCell<TcpListenerState> {
         &*self.state
     }
 
     pub fn try_accept(&self) -> Option<TcpStream> {
         self.state.borrow_mut().backlog.pop_front()
+    }
+
+    pub fn keepalive(&self) -> bool {
+        unsafe { *lwip_sys::tcp_so_options_(self.raw) & lwip_sys::SOF_KEEPALIVE != 0 }
+    }
+
+    pub fn set_keepalive(&self, keepalive: bool) {
+        if keepalive {
+            unsafe { *lwip_sys::tcp_so_options_(self.raw) |= lwip_sys::SOF_KEEPALIVE }
+        } else {
+            unsafe { *lwip_sys::tcp_so_options_(self.raw) &= !lwip_sys::SOF_KEEPALIVE }
+        }
     }
 }
 
@@ -409,7 +481,8 @@ pub enum Shutdown {
 #[derive(Debug)]
 pub struct TcpStreamState {
     recv_buffer: LinkedList<Result<Pbuf<'static>>>,
-    send_avail:  usize
+    send_avail:  usize,
+    total_sent:  usize
 }
 
 impl TcpStreamState {
@@ -428,6 +501,9 @@ pub struct TcpStream {
     state: Box<RefCell<TcpStreamState>>
 }
 
+#[cfg(not(feature = "preemption"))]
+unsafe impl Send for TcpStream {}
+
 impl TcpStream {
     fn from_raw(raw: *mut lwip_sys::tcp_pcb) -> TcpStream {
         extern fn recv(arg: *mut c_void, _raw: *mut lwip_sys::tcp_pcb,
@@ -445,10 +521,12 @@ impl TcpStream {
         }
 
         extern fn sent(arg: *mut c_void, raw: *mut lwip_sys::tcp_pcb,
-                       _len: u16) -> lwip_sys::err {
+                       len: u16) -> lwip_sys::err {
             unsafe {
                 let state = arg as *mut RefCell<TcpStreamState>;
-                (*state).borrow_mut().send_avail = lwip_sys::tcp_sndbuf_(raw) as usize;
+                let mut state = (*state).borrow_mut();
+                state.send_avail = lwip_sys::tcp_sndbuf_(raw) as usize;
+                state.total_sent = state.total_sent.wrapping_add(len as usize);
             }
             lwip_sys::ERR_OK
         }
@@ -463,37 +541,56 @@ impl TcpStream {
         unsafe {
             let mut state = Box::new(RefCell::new(TcpStreamState {
                 recv_buffer: LinkedList::new(),
-                send_avail:  lwip_sys::tcp_sndbuf_(raw) as usize
+                send_avail: lwip_sys::tcp_sndbuf_(raw) as usize,
+                total_sent: 0
             }));
             let arg = &mut *state as *mut RefCell<TcpStreamState> as *mut _;
             lwip_sys::tcp_arg(raw, arg);
-            lwip_sys::tcp_recv(raw, recv);
-            lwip_sys::tcp_sent(raw, sent);
-            lwip_sys::tcp_err(raw, err);
+            lwip_sys::tcp_recv(raw, Some(recv));
+            lwip_sys::tcp_sent(raw, Some(sent));
+            lwip_sys::tcp_err(raw, Some(err));
+            lwip_sys::tcp_nagle_disable_(raw);
             TcpStream { raw: raw, state: state }
         }
     }
 
-    pub fn state(&self) -> *const RefCell<TcpStreamState> {
+    pub fn state(&self) -> &RefCell<TcpStreamState> {
         &*self.state
     }
 
-    pub fn write(&self, data: &[u8]) -> Result<usize> {
-        let sndbuf = unsafe { lwip_sys::tcp_sndbuf_(self.raw) } as usize;
+    unsafe fn write_common(&self, data: &[u8], copy: bool) -> Result<usize> {
+        let sndbuf = lwip_sys::tcp_sndbuf_(self.raw) as usize;
         let len = if data.len() < sndbuf { data.len() } else { sndbuf };
-        let result = result_from(unsafe {
+        let result = result_from({
             lwip_sys::tcp_write(self.raw, data as *const [u8] as *const _, len as u16,
-                                lwip_sys::TCP_WRITE_FLAG_COPY |
-                                lwip_sys::TCP_WRITE_FLAG_MORE)
+                                lwip_sys::TCP_WRITE_FLAG_MORE |
+                                if copy { lwip_sys::TCP_WRITE_FLAG_COPY } else { 0 })
         }, || len);
-        self.state.borrow_mut().send_avail = unsafe { lwip_sys::tcp_sndbuf_(self.raw) } as usize;
+        self.state.borrow_mut().send_avail = lwip_sys::tcp_sndbuf_(self.raw) as usize;
         result
     }
 
+    pub fn write(&self, data: &[u8]) -> Result<usize> {
+        unsafe { self.write_common(data, true) }
+    }
+
+    pub fn write_in_place<F>(&self, data: &[u8], mut relinquish: F) -> Result<usize>
+            where F: FnMut() -> Result<()> {
+        let cursor = self.state.borrow().total_sent;
+        let written = try!(unsafe { self.write_common(data, false) });
+        loop {
+            let cursor_now = self.state.borrow().total_sent;
+            if cursor_now >= cursor.wrapping_add(written) {
+                return Ok(written)
+            } else {
+                try!(relinquish())
+            }
+        }
+    }
+
     pub fn flush(&self) -> Result<()> {
-        const EMPTY_DATA: [u8; 0] = [];
         result_from(unsafe {
-            lwip_sys::tcp_write(self.raw, &EMPTY_DATA as *const [u8] as *const _, 0, 0)
+            lwip_sys::tcp_write(self.raw, ptr::null(), 0, 0)
         }, || ())
     }
 
@@ -505,7 +602,10 @@ impl TcpStream {
             Some(_) => ()
         }
         match state.recv_buffer.pop_front() {
-            Some(Ok(pbuf)) => return Ok(Some(pbuf)),
+            Some(Ok(pbuf)) => {
+                unsafe { lwip_sys::tcp_recved(self.raw, pbuf.len() as u16) }
+                return Ok(Some(pbuf))
+            },
             _ => unreachable!()
         }
     }
@@ -533,6 +633,11 @@ impl TcpStream {
 impl Drop for TcpStream {
     fn drop(&mut self) {
         unsafe {
+            // lwip *will* try to call back after tcp_close
+            lwip_sys::tcp_recv(self.raw, None);
+            lwip_sys::tcp_sent(self.raw, None);
+            lwip_sys::tcp_err(self.raw, None);
+
             // tcp_close can fail here, but in drop() we don't care
             let _ = lwip_sys::tcp_close(self.raw);
         }

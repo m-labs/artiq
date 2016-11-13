@@ -24,10 +24,8 @@ class _GrayCodeTransfer(Module):
         self.sync.rtio += value_gray_rtio.eq(self.i ^ self.i[1:])
         # transfer to system clock domain
         value_gray_sys = Signal(width)
-        self.specials += [
-            NoRetiming(value_gray_rtio),
-            MultiReg(value_gray_rtio, value_gray_sys)
-        ]
+        value_gray_rtio.attr.add("no_retiming")
+        self.specials += MultiReg(value_gray_rtio, value_gray_sys)
         # convert back to binary
         value_sys = Signal(width)
         self.comb += value_sys[-1].eq(value_gray_sys[-1])

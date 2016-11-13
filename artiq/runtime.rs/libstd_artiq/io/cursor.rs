@@ -13,6 +13,8 @@ use io::prelude::*;
 
 use core::cmp;
 use io::{self, SeekFrom, Error, ErrorKind};
+use alloc::boxed::Box;
+use collections::vec::Vec;
 
 /// A `Cursor` wraps another type and provides it with a
 /// [`Seek`](trait.Seek.html) implementation.

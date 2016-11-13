@@ -1,7 +1,7 @@
 from migen import *
 from misoc.interconnect.stream import Endpoint
-
 from misoc.cores.cordic import Cordic
+
 from .accu import PhasedAccu, Accu
 from .tools import eqh, Delay
 from .spline import Spline

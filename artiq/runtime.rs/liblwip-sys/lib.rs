@@ -103,6 +103,10 @@ pub struct udp_pcb {
 pub const TCP_WRITE_FLAG_COPY: u8 = 0x01;
 pub const TCP_WRITE_FLAG_MORE: u8 = 0x02;
 
+pub const SOF_REUSEADDR: u8 = 0x04;
+pub const SOF_KEEPALIVE: u8 = 0x08;
+pub const SOF_BROADCAST: u8 = 0x20;
+
 extern {
     pub fn pbuf_alloc(l: pbuf_layer, length: u16, type_: pbuf_type) -> *mut pbuf;
     pub fn pbuf_realloc(p: *mut pbuf, length: u16);
@@ -122,28 +126,30 @@ extern {
     pub fn tcp_bind(pcb: *mut tcp_pcb, ipaddr: *mut ip_addr, port: u16) -> err;
     pub fn tcp_listen_with_backlog(pcb: *mut tcp_pcb, backlog: u8) -> *mut tcp_pcb;
     pub fn tcp_accept(pcb: *mut tcp_pcb,
-                      accept: extern fn(arg: *mut c_void, newpcb: *mut tcp_pcb,
-                                        err: err) -> err);
+                      accept: Option<extern fn(arg: *mut c_void, newpcb: *mut tcp_pcb,
+                                               err: err) -> err>);
     pub fn tcp_connect(pcb: *mut tcp_pcb, ipaddr: *mut ip_addr, port: u16,
                        connected: extern fn(arg: *mut c_void, tcb: *mut tcp_pcb, err: err)) -> err;
     pub fn tcp_write(pcb: *mut tcp_pcb, dataptr: *const c_void, len: u16, apiflags: u8) -> err;
     pub fn tcp_sent(pcb: *mut tcp_pcb,
-                    sent: extern fn(arg: *mut c_void, tcb: *mut tcp_pcb, len: u16) -> err);
+                    sent: Option<extern fn(arg: *mut c_void, tcb: *mut tcp_pcb, len: u16) -> err>);
     pub fn tcp_recv(pcb: *mut tcp_pcb,
-                    recv: extern fn(arg: *mut c_void, tcb: *mut tcp_pcb, p: *mut pbuf,
-                                    err: err) -> err);
+                    recv: Option<extern fn(arg: *mut c_void, tcb: *mut tcp_pcb, p: *mut pbuf,
+                                           err: err) -> err>);
     pub fn tcp_recved(pcb: *mut tcp_pcb, len: u16);
     pub fn tcp_poll(pcb: *mut tcp_pcb,
-                    poll: extern fn(arg: *mut c_void, tcb: *mut tcp_pcb),
+                    poll: Option<extern fn(arg: *mut c_void, tcb: *mut tcp_pcb)>,
                     interval: u8);
     pub fn tcp_shutdown(pcb: *mut tcp_pcb, shut_rx: c_int, shut_tx: c_int) -> err;
     pub fn tcp_close(pcb: *mut tcp_pcb) -> err;
     pub fn tcp_abort(pcb: *mut tcp_pcb);
     pub fn tcp_err(pcb: *mut tcp_pcb,
-                   err: extern fn(arg: *mut c_void, err: err));
+                   err: Option<extern fn(arg: *mut c_void, err: err)>);
 
     // nonstandard
     pub fn tcp_sndbuf_(pcb: *mut tcp_pcb) -> u16;
+    pub fn tcp_so_options_(pcb: *mut tcp_pcb) -> *mut u8;
+    pub fn tcp_nagle_disable_(pcb: *mut tcp_pcb);
 
     pub fn udp_new() -> *mut udp_pcb;
     pub fn udp_new_ip_type(type_: ip_addr_type) -> *mut udp_pcb;
@@ -154,7 +160,7 @@ extern {
     pub fn udp_send(pcb: *mut udp_pcb, p: *mut pbuf) -> err;
     pub fn udp_sendto(pcb: *mut udp_pcb, p: *mut pbuf, ipaddr: *mut ip_addr, port: u16) -> err;
     pub fn udp_recv(pcb: *mut udp_pcb,
-                    recv: extern fn(arg: *mut c_void, upcb: *mut udp_pcb, p: *mut pbuf,
-                                    addr: *mut ip_addr, port: u16),
+                    recv: Option<extern fn(arg: *mut c_void, upcb: *mut udp_pcb, p: *mut pbuf,
+                                           addr: *mut ip_addr, port: u16)>,
                     recv_arg: *mut c_void);
 }

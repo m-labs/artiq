@@ -7,7 +7,7 @@ from misoc.integration.soc_core import mem_decoder
 
 class KernelCPU(Module):
     def __init__(self, platform,
-                 exec_address=0x42000000,
+                 exec_address=0x40800000,
                  main_mem_origin=0x40000000,
                  l2_size=8192):
         self._reset = CSRStorage(reset=1)

@@ -81,7 +81,7 @@ class Core:
         self.core = self
         self.comm.core = self
 
-    def compile(self, function, args, kwargs, set_result=None, with_attr_writeback=True):
+    def compile(self, function, args, kwargs, set_result=None, attribute_writeback=True):
         try:
             engine = _DiagnosticEngine(all_errors_are_fatal=True)
 
@@ -89,7 +89,9 @@ class Core:
             stitcher.stitch_call(function, args, kwargs, set_result)
             stitcher.finalize()
 
-            module = Module(stitcher, ref_period=self.ref_period)
+            module = Module(stitcher,
+                ref_period=self.ref_period,
+                attribute_writeback=attribute_writeback)
             target = OR1KTarget()
 
             library = target.compile_and_link([module])
@@ -103,6 +105,7 @@ class Core:
 
     def run(self, function, args, kwargs):
         result = None
+        @rpc(flags={"async"})
         def set_result(new_result):
             nonlocal result
             result = new_result

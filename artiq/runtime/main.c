@@ -24,27 +24,7 @@
 #include <netif/ppp/pppos.h>
 #endif
 
-#include "bridge_ctl.h"
-#include "kloader.h"
 #include "flash_storage.h"
-#include "clock.h"
-#include "rtiocrg.h"
-#include "test_mode.h"
-#include "net_server.h"
-#include "session.h"
-#include "analyzer.h"
-#include "moninj.h"
-#include "ad9154.h"
-
-u32_t sys_now(void)
-{
-    return clock_get_ms();
-}
-
-u32_t sys_jiffies(void)
-{
-    return clock_get_ms();
-}
 
 static struct netif netif;
 
@@ -185,82 +165,6 @@ void network_init(void)
 #endif /* CSR_ETHMAC_BASE */
 
 
-static struct net_server_instance session_inst = {
-    .port = 1381,
-    .start = session_start,
-    .end = session_end,
-    .input = session_input,
-    .poll = session_poll,
-    .ack_consumed = session_ack_consumed,
-    .ack_sent = session_ack_sent
-};
-
-#ifdef CSR_RTIO_ANALYZER_BASE
-static struct net_server_instance analyzer_inst = {
-    .port = 1382,
-    .start = analyzer_start,
-    .end = analyzer_end,
-    .input = analyzer_input,
-    .poll = analyzer_poll,
-    .ack_consumed = analyzer_ack_consumed,
-    .ack_sent = analyzer_ack_sent
-};
-#endif
-
-static void regular_main(void)
-{
-    puts("Accepting network sessions.");
-    network_init();
-    net_server_init(&session_inst);
-#ifdef CSR_RTIO_ANALYZER_BASE
-    analyzer_init();
-    net_server_init(&analyzer_inst);
-#endif
-    moninj_init();
-
-    session_end();
-    while(1) {
-        lwip_service();
-        kloader_service_essential_kmsg();
-        net_server_service();
-    }
-}
-
-static void blink_led(void)
-{
-    int i;
-    long long int t;
-
-    for(i=0;i<3;i++) {
-#ifdef CSR_LEDS_BASE
-        leds_out_write(1);
-#endif
-        t = clock_get_ms();
-        while(clock_get_ms() < t + 250);
-#ifdef CSR_LEDS_BASE
-        leds_out_write(0);
-#endif
-        t = clock_get_ms();
-        while(clock_get_ms() < t + 250);
-    }
-}
-
-static int check_test_mode(void)
-{
-    char c;
-    long long int t;
-
-    t = clock_get_ms();
-    while(clock_get_ms() < t + 1000) {
-        if(readchar_nonblock()) {
-            c = readchar();
-            if((c == 't')||(c == 'T'))
-                return 1;
-        }
-    }
-    return 0;
-}
-
 extern void _fheap, _eheap;
 
 extern void rust_main();
@@ -269,28 +173,23 @@ u16_t tcp_sndbuf_(struct tcp_pcb *pcb) {
     return tcp_sndbuf(pcb);
 }
 
+u8_t* tcp_so_options_(struct tcp_pcb *pcb) {
+    return &pcb->so_options;
+}
+
+void tcp_nagle_disable_(struct tcp_pcb *pcb) {
+    tcp_nagle_disable(pcb);
+}
+
 int main(void)
 {
     irq_setmask(0);
     irq_setie(1);
     uart_init();
 
-    puts("ARTIQ runtime built "__DATE__" "__TIME__"\n");
-
     alloc_give(&_fheap, &_eheap - &_fheap);
-    clock_init();
-    rtiocrg_init();
-    puts("Press 't' to enter test mode...");
-    blink_led();
 
-    if(check_test_mode()) {
-        puts("Entering test mode.");
-        test_main();
-    } else {
-        puts("Entering regular mode.");
-        // rust_main();
-        session_startup_kernel();
-        regular_main();
-    }
+    rust_main();
+
     return 0;
 }

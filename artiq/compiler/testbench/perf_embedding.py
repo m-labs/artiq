@@ -47,7 +47,7 @@ def main():
     target = OR1KTarget()
     llvm_ir = target.compile(module)
     elf_obj = target.assemble(llvm_ir)
-    elf_shlib = target.link([elf_obj], init_fn=module.entry_point())
+    elf_shlib = target.link([elf_obj])
 
     benchmark(lambda: embed(),
               "ARTIQ embedding")
@@ -61,7 +61,7 @@ def main():
     benchmark(lambda: target.assemble(llvm_ir),
               "LLVM machine code emission")
 
-    benchmark(lambda: target.link([elf_obj], init_fn=module.entry_point()),
+    benchmark(lambda: target.link([elf_obj]),
               "Linking")
 
     benchmark(lambda: target.strip(elf_shlib),

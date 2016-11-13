@@ -13,6 +13,9 @@ Release notes
 * Dynamic __getattr__'s returning RPC target methods are not supported anymore.
   Controller driver classes must define all their methods intended for RPC as
   members.
+* Datasets requested by experiments are by default archived into their HDF5
+  output. If this behavior is undesirable, turn it off by passing
+  ``archive=False`` to ``get_dataset``.
 
 
 2.0

@@ -19,6 +19,7 @@ lli32      = ll.IntType(32)
 lli64      = ll.IntType(64)
 lldouble   = ll.DoubleType()
 llptr      = ll.IntType(8).as_pointer()
+llptrptr   = ll.IntType(8).as_pointer().as_pointer()
 llmetadata = ll.MetaData()
 
 
@@ -36,8 +37,15 @@ def memoize(generator):
 class DebugInfoEmitter:
     def __init__(self, llmodule):
         self.llmodule = llmodule
-        self.llsubprograms = []
+        self.llcompileunit = None
         self.cache = {}
+
+        llident = self.llmodule.add_named_metadata('llvm.ident')
+        llident.add(self.emit_metadata(["ARTIQ"]))
+
+        llflags = self.llmodule.add_named_metadata('llvm.module.flags')
+        llflags.add(self.emit_metadata([2, "Debug Info Version", 3]))
+        llflags.add(self.emit_metadata([2, "Dwarf Version", 4]))
 
     def emit_metadata(self, operands):
         def map_operand(operand):
@@ -66,14 +74,13 @@ class DebugInfoEmitter:
         })
 
     @memoize
-    def emit_compile_unit(self, source_buffer, llsubprograms):
+    def emit_compile_unit(self, source_buffer):
         return self.emit_debug_info("DICompileUnit", {
             "language":        ll.DIToken("DW_LANG_Python"),
             "file":            self.emit_file(source_buffer),
             "producer":        "ARTIQ",
             "runtimeVersion":  0,
             "emissionKind":    2, # full=1, lines only=2
-            "subprograms":     self.emit_metadata(llsubprograms)
         }, is_distinct=True)
 
     @memoize
@@ -85,21 +92,26 @@ class DebugInfoEmitter:
     @memoize
     def emit_subprogram(self, func, llfunc):
         source_buffer = func.loc.source_buffer
+
+        if self.llcompileunit is None:
+            self.llcompileunit = self.emit_compile_unit(source_buffer)
+            llcompileunits = self.llmodule.add_named_metadata('llvm.dbg.cu')
+            llcompileunits.add(self.llcompileunit)
+
         display_name = "{}{}".format(func.name, types.TypePrinter().name(func.type))
-        llsubprogram = self.emit_debug_info("DISubprogram", {
+        return self.emit_debug_info("DISubprogram", {
             "name":            func.name,
             "linkageName":     llfunc.name,
             "type":            self.emit_subroutine_type(func.type),
             "file":            self.emit_file(source_buffer),
             "line":            func.loc.line(),
+            "unit":            self.llcompileunit,
             "scope":           self.emit_file(source_buffer),
             "scopeLine":       func.loc.line(),
             "isLocal":         func.is_internal,
             "isDefinition":    True,
             "variables":       self.emit_metadata([])
         }, is_distinct=True)
-        self.llsubprograms.append(llsubprogram)
-        return llsubprogram
 
     @memoize
     def emit_loc(self, loc, scope):
@@ -108,18 +120,6 @@ class DebugInfoEmitter:
             "column":          loc.column(),
             "scope":           scope
         })
-
-    def finalize(self, source_buffer):
-        llident = self.llmodule.add_named_metadata('llvm.ident')
-        llident.add(self.emit_metadata(["ARTIQ"]))
-
-        llflags = self.llmodule.add_named_metadata('llvm.module.flags')
-        llflags.add(self.emit_metadata([2, "Debug Info Version", 3]))
-        llflags.add(self.emit_metadata([2, "Dwarf Version", 4]))
-
-        llcompile_units = self.llmodule.add_named_metadata('llvm.dbg.cu')
-        llcompile_units.add(self.emit_compile_unit(source_buffer, tuple(self.llsubprograms)))
-
 
 class LLVMIRGenerator:
     def __init__(self, engine, module_name, target, embedding_map):
@@ -349,14 +349,15 @@ class LLVMIRGenerator:
         elif name == "strcmp":
             llty = ll.FunctionType(lli32, [llptr, llptr])
         elif name == "send_rpc":
-            llty = ll.FunctionType(llvoid, [lli32, llptr],
-                                   var_arg=True)
+            llty = ll.FunctionType(llvoid, [lli32, llptr, llptrptr])
+        elif name == "send_async_rpc":
+            llty = ll.FunctionType(llvoid, [lli32, llptr, llptrptr])
         elif name == "recv_rpc":
             llty = ll.FunctionType(lli32, [llptr])
         elif name == "now":
             llty = lli64
         elif name == "watchdog_set":
-            llty = ll.FunctionType(lli32, [lli32])
+            llty = ll.FunctionType(lli32, [lli64])
         elif name == "watchdog_clear":
             llty = ll.FunctionType(llvoid, [lli32])
         else:
@@ -366,7 +367,8 @@ class LLVMIRGenerator:
             llglobal = ll.Function(self.llmodule, llty, name)
             if name in ("__artiq_raise", "__artiq_reraise", "llvm.trap"):
                 llglobal.attributes.add("noreturn")
-            if name in ("rtio_log", "send_rpc", "watchdog_set", "watchdog_clear",
+            if name in ("rtio_log", "send_rpc", "send_async_rpc",
+                        "watchdog_set", "watchdog_clear",
                         self.target.print_function):
                 llglobal.attributes.add("nounwind")
         else:
@@ -406,9 +408,6 @@ class LLVMIRGenerator:
     def process(self, functions, attribute_writeback):
         for func in functions:
             self.process_function(func)
-
-        if any(functions):
-            self.debug_info_emitter.finalize(functions[0].loc.source_buffer)
 
         if attribute_writeback and self.embedding_map is not None:
             self.emit_attribute_writeback()
@@ -652,7 +651,7 @@ class LLVMIRGenerator:
             llptr = self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(outer_index)],
                                        inbounds=True)
             llouterenv = self.llbuilder.load(llptr)
-            llouterenv.set_metadata('invariant.load', self.empty_metadata)
+            llouterenv.set_metadata('unconditionally.invariant.load', self.empty_metadata)
             llouterenv.set_metadata('nonnull', self.empty_metadata)
             return self.llptr_to_var(llouterenv, env_ty.params["$outer"], var_name)
 
@@ -796,7 +795,7 @@ class LLVMIRGenerator:
                                            inbounds=True, name="ptr.{}".format(insn.name))
                 llvalue = self.llbuilder.load(llptr, name="val.{}".format(insn.name))
                 if types.is_instance(typ) and attr in typ.constant_attributes:
-                    llvalue.set_metadata('invariant.load', self.empty_metadata)
+                    llvalue.set_metadata('unconditionally.invariant.load', self.empty_metadata)
                 if isinstance(llvalue.type, ll.PointerType):
                     self.mark_dereferenceable(llvalue)
                 return llvalue
@@ -1051,7 +1050,7 @@ class LLVMIRGenerator:
                     llptr = self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(outer_index)],
                                                inbounds=True)
                     llouterenv = self.llbuilder.load(llptr)
-                    llouterenv.set_metadata('invariant.load', self.empty_metadata)
+                    llouterenv.set_metadata('unconditionally.invariant.load', self.empty_metadata)
                     llouterenv.set_metadata('nonnull', self.empty_metadata)
                     return self.llptr_to_var(llouterenv, env_ty.params["$outer"], var_name)
                 else:
@@ -1233,7 +1232,8 @@ class LLVMIRGenerator:
         llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
                                          name="rpc.stack")
 
-        llargs = []
+        llargs = self.llbuilder.alloca(llptr, ll.Constant(lli32, len(args)),
+                                       name="rpc.args")
         for index, arg in enumerate(args):
             if builtins.is_none(arg.type):
                 llargslot = self.llbuilder.alloca(ll.LiteralStructType([]),
@@ -1243,19 +1243,31 @@ class LLVMIRGenerator:
                 llargslot = self.llbuilder.alloca(llarg.type,
                                                   name="rpc.arg{}".format(index))
                 self.llbuilder.store(llarg, llargslot)
-            llargs.append(llargslot)
+            llargslot = self.llbuilder.bitcast(llargslot, llptr)
 
-        self.llbuilder.call(self.llbuiltin("send_rpc"),
-                            [llservice, lltag] + llargs)
+            llargptr = self.llbuilder.gep(llargs, [ll.Constant(lli32, index)])
+            self.llbuilder.store(llargslot, llargptr)
+
+        if fun_type.async:
+            self.llbuilder.call(self.llbuiltin("send_async_rpc"),
+                                [llservice, lltag, llargs])
+        else:
+            self.llbuilder.call(self.llbuiltin("send_rpc"),
+                                [llservice, lltag, llargs])
 
         # Don't waste stack space on saved arguments.
         self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
 
+        if fun_type.async:
+            return ll.Undefined
+
         # T result = {
-        #   void *ptr = NULL;
-        #   loop: int size = rpc_recv("tag", ptr);
+        #   void *ret_ptr = alloca(sizeof(T));
+        #   void *ptr = ret_ptr;
+        #   loop: int size = recv_rpc(ptr);
+        #   // Non-zero: Provide `size` bytes of extra storage for variable-length data.
         #   if(size) { ptr = alloca(size); goto loop; }
-        #   else *(T*)ptr
+        #   else *(T*)ret_ptr
         # }
         llprehead   = self.llbuilder.basic_block
         llhead      = self.llbuilder.append_basic_block(name="rpc.head")
@@ -1270,7 +1282,7 @@ class LLVMIRGenerator:
         self.llbuilder.branch(llhead)
 
         self.llbuilder.position_at_end(llhead)
-        llphi = self.llbuilder.phi(llslotgen.type, name="rpc.size")
+        llphi = self.llbuilder.phi(llslotgen.type, name="rpc.ptr")
         llphi.add_incoming(llslotgen, llprehead)
         if llunwindblock:
             llsize = self.llbuilder.invoke(self.llbuiltin("recv_rpc"), [llphi],
@@ -1286,6 +1298,7 @@ class LLVMIRGenerator:
 
         self.llbuilder.position_at_end(llalloc)
         llalloca = self.llbuilder.alloca(lli8, llsize, name="rpc.alloc")
+        llalloca.align = 4 # maximum alignment required by OR1K ABI
         llphi.add_incoming(llalloca, llalloc)
         self.llbuilder.branch(llhead)
 
@@ -1371,6 +1384,7 @@ class LLVMIRGenerator:
         def _quote_attributes():
             llglobal = None
             llfields = []
+            emit_as_constant = True
             for attr in typ.attributes:
                 if attr == "__objectid__":
                     objectid = self.embedding_map.store_object(value)
@@ -1391,6 +1405,8 @@ class LLVMIRGenerator:
                                          not types.is_c_function(typ.attributes[attr]))
                     if is_class_function:
                         attrvalue = self.embedding_map.specialize_function(typ.instance, attrvalue)
+                    if not (types.is_instance(typ) and attr in typ.constant_attributes):
+                        emit_as_constant = False
                     llattrvalue = self._quote(attrvalue, typ.attributes[attr],
                                               lambda: path() + [attr])
                     llfields.append(llattrvalue)
@@ -1398,6 +1414,7 @@ class LLVMIRGenerator:
                         llclosureptr = self.get_global_closure_ptr(typ, attr)
                         llclosureptr.initializer = llattrvalue
 
+            llglobal.global_constant = emit_as_constant
             llglobal.initializer = ll.Constant(llty.pointee, llfields)
             llglobal.linkage = "private"
             return llglobal

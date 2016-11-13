@@ -6,7 +6,6 @@
 
 #include "artiq_personality.h"
 #include "rtio.h"
-#include "log.h"
 #include "dds.h"
 
 #define DURATION_WRITE (5 << CONFIG_RTIO_FINE_TS_WIDTH)

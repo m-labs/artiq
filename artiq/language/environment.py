@@ -3,6 +3,7 @@ from inspect import isclass
 
 from artiq.protocols import pyon
 from artiq.language import units
+from artiq.language.core import rpc
 
 
 __all__ = ["NoDefault",
@@ -274,6 +275,7 @@ class HasEnvironment:
         kernel_invariants = getattr(self, "kernel_invariants", set())
         self.kernel_invariants = kernel_invariants | {key}
 
+    @rpc(flags={"async"})
     def set_dataset(self, key, value,
                     broadcast=False, persist=False, save=True):
         """Sets the contents and handling modes of a dataset.
@@ -290,6 +292,7 @@ class HasEnvironment:
         """
         self.__dataset_mgr.set(key, value, broadcast, persist, save)
 
+    @rpc(flags={"async"})
     def mutate_dataset(self, key, index, value):
         """Mutate an existing dataset at the given index (e.g. set a value at
         a given position in a NumPy array)
@@ -303,7 +306,7 @@ class HasEnvironment:
         as ``slice(*sub_tuple)`` (multi-dimensional slicing)."""
         self.__dataset_mgr.mutate(key, index, value)
 
-    def get_dataset(self, key, default=NoDefault):
+    def get_dataset(self, key, default=NoDefault, archive=True):
         """Returns the contents of a dataset.
 
         The local storage is searched first, followed by the master storage
@@ -312,19 +315,25 @@ class HasEnvironment:
 
         If the dataset does not exist, returns the default value. If no default
         is provided, raises ``KeyError``.
+
+        By default, datasets obtained by this method are archived into the output
+        HDF5 file of the experiment. If an archived dataset is requested more
+        than one time (and therefore its value has potentially changed) or is
+        modified, a warning is emitted. Archival can be turned off by setting
+        the ``archive`` argument to ``False``.
         """
         try:
-            return self.__dataset_mgr.get(key)
+            return self.__dataset_mgr.get(key, archive)
         except KeyError:
             if default is NoDefault:
                 raise
             else:
                 return default
 
-    def setattr_dataset(self, key, default=NoDefault):
+    def setattr_dataset(self, key, default=NoDefault, archive=True):
         """Sets the contents of a dataset as attribute. The names of the
         dataset and of the attribute are the same."""
-        setattr(self, key, self.get_dataset(key, default))
+        setattr(self, key, self.get_dataset(key, default, archive))
 
 
 class Experiment:
