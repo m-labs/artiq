@@ -149,6 +149,7 @@ extern {
     // nonstandard
     pub fn tcp_sndbuf_(pcb: *mut tcp_pcb) -> u16;
     pub fn tcp_so_options_(pcb: *mut tcp_pcb) -> *mut u8;
+    pub fn tcp_nagle_disable_(pcb: *mut tcp_pcb);
 
     pub fn udp_new() -> *mut udp_pcb;
     pub fn udp_new_ip_type(type_: ip_addr_type) -> *mut udp_pcb;

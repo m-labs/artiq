@@ -177,6 +177,10 @@ u8_t* tcp_so_options_(struct tcp_pcb *pcb) {
     return &pcb->so_options;
 }
 
+void tcp_nagle_disable_(struct tcp_pcb *pcb) {
+    tcp_nagle_disable(pcb);
+}
+
 int main(void)
 {
     irq_setmask(0);
