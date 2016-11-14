@@ -1,5 +1,6 @@
 from migen import *
 from migen.fhdl.simplify import FullMemoryWE
+from migen.genlib.cdc import MultiReg, PulseSynchronizer
 
 from misoc.interconnect.csr import *
 from misoc.interconnect import stream 
@@ -50,7 +51,7 @@ class Transmitter(Module, AutoCSR):
         frame_counter = Signal(frame_counter_nbits)
         frame_counter_next = Signal(frame_counter_nbits)
         frame_counter_ce = Signal()
-        frame_counter_rst = Signal(),
+        frame_counter_rst = Signal()
         self.comb += [
             frame_counter_next.eq(frame_counter),
             If(frame_counter_rst,
@@ -68,7 +69,7 @@ class Transmitter(Module, AutoCSR):
         self.submodules += start_tx, tx_done
         self.comb += start_tx.i.eq(self.aux_tx.re)
         self.sync += [
-            If(tx_done.o, self.aux_tx_w.eq(0)),
+            If(tx_done.o, self.aux_tx.w.eq(0)),
             If(self.aux_tx.re, self.aux_tx.w.eq(1))
         ]
 
@@ -108,7 +109,7 @@ class Receiver(Module, AutoCSR):
 
         # when continuously drained, the Converter accepts data continuously
         self.sync.rtio_rx += [
-            converter.sink.stb.eq(converter.rx_aux_stb),
+            converter.sink.stb.eq(link_layer.rx_aux_stb),
             converter.sink.data.eq(link_layer.rx_aux_data)
         ]
         self.comb += converter.sink.eop.eq(link_layer.rx_aux_stb & ~link_layer.rx_aux_frame)
@@ -127,7 +128,7 @@ class Receiver(Module, AutoCSR):
         frame_counter.attr.add("no_retiming")
         frame_counter_sys = Signal(frame_counter_nbits)
         self.specials += MultiReg(frame_counter, frame_counter_sys)
-        self.comb += aux_rx_length.status.eq(frame_counter_sys << log2_int(mem_dw//8))
+        self.comb += self.aux_rx_length.status.eq(frame_counter_sys << log2_int(mem_dw//8))
 
         signal_frame = PulseSynchronizer("rtio_rx", "sys")
         frame_ack = PulseSynchronizer("sys", "rtio_rx")
@@ -137,7 +138,7 @@ class Receiver(Module, AutoCSR):
             If(self.aux_rx_present.re, self.aux_rx_present.w.eq(0)),
             If(signal_frame.o, self.aux_rx_present.w.eq(1)),
             If(self.aux_rx_error.re, self.aux_rx_error.w.eq(0)),
-            If(signal_error.o, self.aux_rx_error.eq(1))
+            If(signal_error.o, self.aux_rx_error.w.eq(1))
         ]
         self.comb += frame_ack.i.eq(self.aux_rx_present.re)
 
@@ -202,12 +203,12 @@ class AuxController(Module):
         self.submodules.receiver = Receiver(link_layer, len(self.bus.dat_w))
 
         # TODO: FullMemoryWE should be applied by migen.build
-        tx_sdram_if = FullMemoryWE()(self.transmitter.mem, read_only=False)
+        tx_sdram_if = FullMemoryWE()(wishbone.SRAM(self.transmitter.mem, read_only=False))
         rx_sdram_if = wishbone.SRAM(self.receiver.mem, read_only=True)
         wsb = log2_int(len(self.bus.dat_w)//8)
         decoder = wishbone.Decoder(self.bus,
-            [(lambda a: a[log2_int(max_packet)-wsb] == 0, tx_sdram_if)
-             (lambda a: a[log2_int(max_packet)-wsb] == 1, rx_sdram_if)],
+            [(lambda a: a[log2_int(max_packet)-wsb] == 0, tx_sdram_if.bus),
+             (lambda a: a[log2_int(max_packet)-wsb] == 1, rx_sdram_if.bus)],
             register=True)
         self.submodules += tx_sdram_if, rx_sdram_if, decoder
 
