@@ -8,9 +8,89 @@ from misoc.interconnect import wishbone
 
 max_packet = 1024
 
+
 class Transmitter(Module, AutoCSR):
     def __init__(self, link_layer, min_mem_dw):
-        # TODO
+        self.aux_tx_length = CSRStorage(bits_for(max_packet))
+        self.aux_tx = CSR()
+
+        ll_dw = len(link_layer.tx_aux_data)
+        mem_dw = max(min_mem_dw, ll_dw)
+        self.specials.mem = Memory(mem_dw, max_packet//(mem_dw//8))
+
+        converter = stream.Converter(mem_dw, ll_dw)
+        self.submodules += converter
+
+        # when continuously fed, the Converter outputs data continuously
+        self.comb += [
+            converter.source.ack.eq(link_layer.tx_aux_ack),
+            link_layer.tx_aux_frame.eq(converter.source.stb),
+            link_layer.tx_aux_data.eq(converter.source.data)
+        ]
+
+        seen_eop_rst = Signal()
+        frame_r = Signal()
+        seen_eop = Signal()
+        self.sync.rtio += [
+            If(link_layer.tx_aux_ack,
+                frame_r.eq(link_layer.tx_aux_frame),
+                If(frame_r & ~link_layer.tx_aux_frame, seen_eop.eq(1))
+            ),
+            If(seen_eop_rst, seen_eop.eq(0))
+        ]
+
+        mem_port = self.mem.get_port(clock_domain="rtio")
+        self.specials += mem_port
+
+        self.aux_tx_length.storage.attr.add("no_retiming")
+        tx_length = Signal(bits_for(max_packet))
+        self.specials += MultiReg(self.aux_tx_length.storage, tx_length, "rtio")
+
+        frame_counter_nbits = bits_for(max_packet) - log2_int(mem_dw//8)
+        frame_counter = Signal(frame_counter_nbits)
+        frame_counter_next = Signal(frame_counter_nbits)
+        frame_counter_ce = Signal()
+        frame_counter_rst = Signal(),
+        self.comb += [
+            frame_counter_next.eq(frame_counter),
+            If(frame_counter_rst,
+                frame_counter_next.eq(0)
+            ).Elif(frame_counter_ce,
+                frame_counter_next.eq(frame_counter + 1)
+            ),
+            mem_port.adr.eq(frame_counter_next),
+            converter.sink.data.eq(mem_port.dat_r)
+        ]
+        self.sync.rtio += frame_counter.eq(frame_counter_next)
+
+        start_tx = PulseSynchronizer("sys", "rtio")
+        tx_done = PulseSynchronizer("rtio", "sys")
+        self.submodules += start_tx, tx_done
+        self.comb += start_tx.i.eq(self.aux_tx.re)
+        self.sync += [
+            If(tx_done.o, self.aux_tx_w.eq(0)),
+            If(self.aux_tx.re, self.aux_tx.w.eq(1))
+        ]
+
+        fsm = ClockDomainsRenamer("rtio")(FSM(reset_state="IDLE"))
+        self.submodules += fsm
+
+        fsm.act("IDLE",
+            frame_counter_rst.eq(1),
+            seen_eop_rst.eq(1),
+            If(start_tx.o, NextState("TRANSMIT"))
+        )
+        fsm.act("TRANSMIT",
+            converter.sink.stb.eq(1),
+            frame_counter_ce.eq(1),
+            If(frame_counter_next == tx_length, NextState("WAIT_INTERFRAME"))
+        )
+        fsm.act("WAIT_INTERFRAME",
+            If(seen_eop,
+                tx_done.i.eq(1),
+                NextState("IDLE")
+            )
+        )
 
 
 class Receiver(Module, AutoCSR):
@@ -26,11 +106,12 @@ class Receiver(Module, AutoCSR):
         converter = stream.Converter(ll_dw, mem_dw)
         self.submodules += converter
 
+        # when continuously drained, the Converter accepts data continuously
         self.sync.rtio_rx += [
-            converter.sink.stb.eq(link_layer.rx_aux_frame),
+            converter.sink.stb.eq(converter.rx_aux_stb),
             converter.sink.data.eq(link_layer.rx_aux_data)
         ]
-        self.comb += converter.sink.eop.eq(~link_layer.rx_aux_frame)
+        self.comb += converter.sink.eop.eq(link_layer.rx_aux_stb & ~link_layer.rx_aux_frame)
 
         mem_port = self.mem.get_port(write_capable=True, clock_domain="rtio_rx")
         self.specials += mem_port
@@ -39,7 +120,8 @@ class Receiver(Module, AutoCSR):
         frame_counter = Signal(frame_counter_nbits)
         self.comb += [
             mem_port.adr.eq(frame_counter),
-            mem_port.dat_w.eq(link_layer.rx_aux_data)
+            mem_port.dat_w.eq(converter.source.data),
+            converter.source.ack.eq(1)
         ]
 
         frame_counter.attr.add("no_retiming")
@@ -62,38 +144,54 @@ class Receiver(Module, AutoCSR):
         fsm = ClockDomainsRenamer("rtio_rx")(FSM(reset_state="IDLE"))
         self.submodules += fsm
 
-        rx_aux_frame_r = Signal()
-        self.sync.rtio_rx += rx_aux_frame_r.eq(link_layer.rx_aux_frame)
+        sop = Signal()
+        self.sync.rtio_rx += \
+            If(converter.source.stb,
+                If(converter.source.eop,
+                    sop.eq(1)
+                ).Else(
+                    sop.eq(0)
+                )
+            )
 
         fsm.act("IDLE",
-            If(link_layer.rx_aux_frame & ~rx_aux_frame_r,
+            If(converter.source.stb & sop,
                 NextValue(frame_counter, frame_counter + 1),
                 mem_port.we.eq(1),
-                NextState("FRAME")
+                If(converter.source.eop,
+                    NextState("SIGNAL_FRAME")
+                ).Else(
+                    NextState("FRAME")
+                )
             ).Else(
                 NextValue(frame_counter, 0)
             )
         )
         fsm.act("FRAME",
-            If(link_layer.rx_aux_frame,
+            If(converter.source.stb,
                 NextValue(frame_counter, frame_counter + 1),
                 mem_port.we.eq(1),
                 If(frame_counter == max_packet,
                     mem_port.we.eq(0),
                     signal_error.i.eq(1),
-                    NextState("IDLE")  # remainder of the frame discarded
+                    NextState("IDLE")  # discard the rest of the frame
+                ),
+                If(converter.source.eop,
+                    NextState("SIGNAL_FRAME")
                 )
-            ).Else(
-                signal_frame.i.eq(1),
-                NextState("WAIT_ACK")
             )
+        )
+        fsm.act("SIGNAL_FRAME",
+            signal_frame.i.eq(1),
+            NextState("WAIT_ACK"),
+            If(converter.source.stb, signal_error.i.eq(1))
         )
         fsm.act("WAIT_ACK",
             If(frame_ack.o,
                 NextValue(frame_counter, 0), 
                 NextState("IDLE")
             ),
-            If(link_layer.rx_aux_frame, signal_error.i.eq(1))
+            If(converter.source.stb, signal_error.i.eq(1))
         )
 
 
