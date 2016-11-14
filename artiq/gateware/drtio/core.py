@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 from migen import *
 
-from artiq.gateware.drtio import link_layer, rt_packets, iot, rt_controller
+from artiq.gateware.drtio import link_layer, rt_packets, iot, rt_controller, aux_controller
 
 
 class DRTIOSatellite(Module):
@@ -44,6 +44,12 @@ class DRTIOSatellite(Module):
             self.cd_rio_phy.rst.eq(ResetSignal("rtio", allow_reset_less=True)),
         ]
 
+        self.submodules.aux_controller = aux_controller.AuxController(
+            self.link_layer)
+
+    def get_csrs(self):
+        return self.aux_controller.get_csrs()
+
 
 class DRTIOMaster(Module):
     def __init__(self, transceiver, channel_count=1024, fine_ts_width=3, ll_rx_ready_confirm=1000):
@@ -58,10 +64,14 @@ class DRTIOMaster(Module):
             self.rt_packets, channel_count, fine_ts_width)
         self.submodules.rt_manager = rt_controller.RTManager(self.rt_packets)
 
+        self.submodules.aux_controller = aux_controller.AuxController(
+            self.link_layer)
+
     def get_kernel_csrs(self):
         return self.rt_controller.get_kernel_csrs()
 
     def get_csrs(self):
         return (self.link_layer.get_csrs() +
                 self.rt_controller.get_csrs() +
-                self.rt_manager.get_csrs())
+                self.rt_manager.get_csrs() +
+                self.aux_controller.get_csrs())
