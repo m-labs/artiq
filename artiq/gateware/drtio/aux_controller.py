@@ -12,11 +12,12 @@ max_packet = 1024
 
 class Transmitter(Module, AutoCSR):
     def __init__(self, link_layer, min_mem_dw):
-        self.aux_tx_length = CSRStorage(bits_for(max_packet))
-        self.aux_tx = CSR()
-
         ll_dw = len(link_layer.tx_aux_data)
         mem_dw = max(min_mem_dw, ll_dw)
+
+        self.aux_tx_length = CSRStorage(bits_for(max_packet),
+                                        alignment_bits=log2_int(mem_dw//8))
+        self.aux_tx = CSR()
         self.specials.mem = Memory(mem_dw, max_packet//(mem_dw//8))
 
         converter = stream.Converter(mem_dw, ll_dw)
@@ -83,7 +84,9 @@ class Transmitter(Module, AutoCSR):
         )
         fsm.act("TRANSMIT",
             converter.sink.stb.eq(1),
-            frame_counter_ce.eq(1),
+            If(converter.sink.ack,
+                frame_counter_ce.eq(1)
+            ),
             If(frame_counter_next == tx_length, NextState("WAIT_INTERFRAME"))
         )
         fsm.act("WAIT_INTERFRAME",
@@ -109,7 +112,7 @@ class Receiver(Module, AutoCSR):
 
         # when continuously drained, the Converter accepts data continuously
         self.sync.rtio_rx += [
-            converter.sink.stb.eq(link_layer.rx_aux_stb),
+            converter.sink.stb.eq(link_layer.rx_aux_stb & link_layer.rx_aux_frame),
             converter.sink.data.eq(link_layer.rx_aux_data)
         ]
         self.comb += converter.sink.eop.eq(link_layer.rx_aux_stb & ~link_layer.rx_aux_frame)
@@ -145,7 +148,7 @@ class Receiver(Module, AutoCSR):
         fsm = ClockDomainsRenamer("rtio_rx")(FSM(reset_state="IDLE"))
         self.submodules += fsm
 
-        sop = Signal()
+        sop = Signal(reset=1)
         self.sync.rtio_rx += \
             If(converter.source.stb,
                 If(converter.source.eop,
