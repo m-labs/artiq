@@ -111,11 +111,17 @@ class Receiver(Module, AutoCSR):
         self.submodules += converter
 
         # when continuously drained, the Converter accepts data continuously
+        frame_r = Signal()
         self.sync.rtio_rx += [
-            converter.sink.stb.eq(link_layer.rx_aux_stb & link_layer.rx_aux_frame),
-            converter.sink.data.eq(link_layer.rx_aux_data)
+            If(link_layer.rx_aux_stb,
+                frame_r.eq(link_layer.rx_aux_frame),
+                converter.sink.data.eq(link_layer.rx_aux_data)
+            )
         ]
-        self.comb += converter.sink.eop.eq(link_layer.rx_aux_stb & ~link_layer.rx_aux_frame)
+        self.comb += [
+            converter.sink.stb.eq(link_layer.rx_aux_stb & frame_r),
+            converter.sink.eop.eq(converter.sink.stb & ~link_layer.rx_aux_frame)
+        ]
 
         mem_port = self.mem.get_port(write_capable=True, clock_domain="rtio_rx")
         self.specials += mem_port
@@ -136,7 +142,7 @@ class Receiver(Module, AutoCSR):
         signal_frame = PulseSynchronizer("rtio_rx", "sys")
         frame_ack = PulseSynchronizer("sys", "rtio_rx")
         signal_error = PulseSynchronizer("rtio_rx", "sys")
-        self.submodules += signal_frame, signal_error
+        self.submodules += signal_frame, frame_ack, signal_error
         self.sync += [
             If(self.aux_rx_present.re, self.aux_rx_present.w.eq(0)),
             If(signal_frame.o, self.aux_rx_present.w.eq(1)),
