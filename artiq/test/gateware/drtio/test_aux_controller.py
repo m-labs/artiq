@@ -1,4 +1,5 @@
 import unittest
+import random
 from types import SimpleNamespace
 
 from migen import *
@@ -42,7 +43,7 @@ class TestAuxController(unittest.TestCase):
     def test_aux_controller(self):
         dut = TB(4)
 
-        def gen():
+        def link_init():
             yield dut.link_layer.tx.link_init.eq(1)
             yield
             yield
@@ -52,16 +53,49 @@ class TestAuxController(unittest.TestCase):
             while (yield dut.link_layer.rx.link_init):
                 yield
             yield dut.link_layer.ready.eq(1)
-            yield
 
-            yield from dut.aux_controller.bus.write(0, 0x42)
-            yield from dut.aux_controller.bus.write(1, 0x23)
-            yield from dut.aux_controller.transmitter.aux_tx_length.write(8)
+        def send_packet(packet):
+            for i, d in enumerate(packet):
+                yield from dut.aux_controller.bus.write(i, d)
+            yield from dut.aux_controller.transmitter.aux_tx_length.write(len(packet)*4)
             yield from dut.aux_controller.transmitter.aux_tx.write(1)
-            for i in range(40):
+            yield
+            while (yield from dut.aux_controller.transmitter.aux_tx.read()):
                 yield
-            print(hex((yield from dut.aux_controller.bus.read(256))))
-            print(hex((yield from dut.aux_controller.bus.read(257))))
-            print((yield from dut.aux_controller.receiver.aux_rx_length.read()))
 
-        run_simulation(dut, gen(), vcd_name="foo.vcd")
+        def receive_packet():
+            while not (yield from dut.aux_controller.receiver.aux_rx_present.read()):
+                yield
+            length = yield from dut.aux_controller.receiver.aux_rx_length.read()
+            r = []
+            for i in range(length//4):
+                r.append((yield from dut.aux_controller.bus.read(256+i)))
+            yield from dut.aux_controller.receiver.aux_rx_present.write(1)
+            return r
+
+        prng = random.Random(0)
+
+        def send_and_check_packet():
+            data = [prng.randrange(2**32-1) for _ in range(prng.randrange(1, 16))]
+            yield from send_packet(data)
+            received = yield from receive_packet()
+            self.assertEqual(data, received)
+
+        def sim():
+            yield from link_init()
+            for i in range(8):
+                yield from send_and_check_packet()
+
+        @passive
+        def rt_traffic():
+            while True:
+                while prng.randrange(4):
+                    yield
+                yield dut.link_layer.tx_rt_frame.eq(1)
+                yield
+                while prng.randrange(4):
+                    yield
+                yield dut.link_layer.tx_rt_frame.eq(0)
+                yield
+
+        run_simulation(dut, [sim(), rt_traffic()])
