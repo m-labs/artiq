@@ -4,7 +4,7 @@ from migen import *
 from migen.fhdl.verilog import convert
 
 from artiq.gateware.dsp.sawg import DDSFast
-from artiq.gateware.dsp.tools import xfer
+from .tools import xfer
 
 
 def _test_gen_dds(dut, o):

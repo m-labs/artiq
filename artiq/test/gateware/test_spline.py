@@ -4,7 +4,7 @@ from migen import *
 from migen.fhdl.verilog import convert
 
 from artiq.gateware.dsp.spline import Spline
-from artiq.gateware.dsp.tools import xfer
+from .tools import xfer
 
 
 def _test_gen_spline(dut, o):

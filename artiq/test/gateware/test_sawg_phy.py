@@ -4,7 +4,7 @@ from migen import *
 from migen.fhdl.verilog import convert
 
 from artiq.gateware.rtio.phy.sawg import Channel
-from artiq.gateware.dsp.tools import xfer, szip
+from .tools import xfer, szip
 
 
 def rtio_xfer(dut, **kwargs):
