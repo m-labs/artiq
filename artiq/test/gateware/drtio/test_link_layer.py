@@ -22,15 +22,6 @@ def process(seq):
     return rseq
 
 
-class TestScrambler(unittest.TestCase):
-    def test_roundtrip(self):
-        seq = list(range(256))*3
-        scrambled_seq = process(seq)
-        descrambled_seq = process(scrambled_seq)
-        self.assertNotEqual(seq, scrambled_seq)
-        self.assertEqual(seq, descrambled_seq)
-
-
 class Loopback(Module):
     def __init__(self, nwords):
         ks = [Signal() for k in range(nwords)]
@@ -45,12 +36,9 @@ class TestLinkLayer(unittest.TestCase):
     def test_packets(self):
         dut = Loopback(4)
 
-        def link_init():
-            yield dut.tx.link_init.eq(1)
-            yield
-            yield
-            yield dut.tx.link_init.eq(0)
-            yield
+        def scrambler_sync():
+            for i in range(8):
+                yield
 
         rt_packets = [
             [0x12459970, 0x9938cdef, 0x12340000],
@@ -59,10 +47,7 @@ class TestLinkLayer(unittest.TestCase):
             [0x88277475, 0x19883332, 0x19837662, 0x81726668, 0x81876261]
         ]
         def transmit_rt_packets():
-            while not (yield dut.tx.link_init):
-                yield
-            while (yield dut.tx.link_init):
-                yield
+            yield from scrambler_sync()
 
             for packet in rt_packets:
                 yield dut.tx.rt_frame.eq(1)
@@ -78,10 +63,7 @@ class TestLinkLayer(unittest.TestCase):
         rx_rt_packets = []
         @passive
         def receive_rt_packets():
-            while not (yield dut.rx.link_init):
-                yield
-            while (yield dut.rx.link_init):
-                yield
+            yield from scrambler_sync()
 
             previous_frame = 0
             while True:
@@ -100,10 +82,7 @@ class TestLinkLayer(unittest.TestCase):
             [0xbb, 0xaa, 0xdd, 0xcc, 0x00, 0xff, 0xee]
         ]
         def transmit_aux_packets():
-            while not (yield dut.tx.link_init):
-                yield
-            while (yield dut.tx.link_init):
-                yield
+            yield from scrambler_sync()
 
             for packet in aux_packets:
                 yield dut.tx.aux_frame.eq(1)
@@ -123,10 +102,7 @@ class TestLinkLayer(unittest.TestCase):
         rx_aux_packets = []
         @passive
         def receive_aux_packets():
-            while not (yield dut.rx.link_init):
-                yield
-            while (yield dut.rx.link_init):
-                yield
+            yield from scrambler_sync()
 
             previous_frame = 0
             while True:
@@ -140,8 +116,7 @@ class TestLinkLayer(unittest.TestCase):
                         packet.append((yield dut.rx.aux_data))
                 yield
 
-        run_simulation(dut, [link_init(),
-                             transmit_rt_packets(), receive_rt_packets(),
+        run_simulation(dut, [transmit_rt_packets(), receive_rt_packets(),
                              transmit_aux_packets(), receive_aux_packets()])
 
         # print("RT:")

@@ -44,13 +44,7 @@ class TestAuxController(unittest.TestCase):
         dut = TB(4)
 
         def link_init():
-            yield dut.link_layer.tx.link_init.eq(1)
-            yield
-            yield
-            yield dut.link_layer.tx.link_init.eq(0)
-            while not (yield dut.link_layer.rx.link_init):
-                yield
-            while (yield dut.link_layer.rx.link_init):
+            for i in range(8):
                 yield
             yield dut.link_layer.ready.eq(1)
 

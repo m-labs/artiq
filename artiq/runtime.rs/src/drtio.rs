@@ -3,7 +3,7 @@ use sched::{Waiter, Spawner};
 
 fn drtio_link_is_up() -> bool {
     unsafe {
-        csr::drtio::link_status_read() == 5
+        csr::drtio::link_status_read() == 1
     }
 }
 
@@ -31,7 +31,10 @@ fn drtio_init_channel(channel: u16) {
 pub fn link_thread(waiter: Waiter, _spawner: Spawner) {
     loop {
         waiter.until(drtio_link_is_up).unwrap();
-        info!("link is up");
+        info!("link RX is up");
+
+        waiter.sleep(300);
+        info!("wait for remote side done");
 
         drtio_sync_tsc();
         info!("TSC synced");
