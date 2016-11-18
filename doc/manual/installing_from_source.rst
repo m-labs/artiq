@@ -48,9 +48,9 @@ and the ARTIQ kernels.
 * Install LLVM and Clang: ::
 
         $ cd ~/artiq-dev
-        $ git clone -b artiq-3.8 https://github.com/m-labs/llvm-or1k
+        $ git clone -b artiq-3.9 https://github.com/m-labs/llvm-or1k
         $ cd llvm-or1k
-        $ git clone -b artiq-3.8 https://github.com/m-labs/clang-or1k tools/clang
+        $ git clone -b artiq-3.9 https://github.com/m-labs/clang-or1k tools/clang
 
         $ mkdir build
         $ cd build
