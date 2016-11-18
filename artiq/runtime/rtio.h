@@ -11,12 +11,21 @@
 #define RTIO_I_STATUS_EMPTY 1
 #define RTIO_I_STATUS_OVERFLOW 2
 
+
+struct artiq_list {
+    int32_t length;
+    int32_t *elements;
+};
+
+
 void rtio_init(void);
 long long int rtio_get_counter(void);
 void rtio_log(long long int timestamp, const char *format, ...);
 void rtio_log_va(long long int timestamp, const char *format, va_list args);
 void rtio_output(long long int timestamp, int channel, unsigned int address,
         unsigned int data);
+void rtio_output_list(long long int timestamp, int channel,
+        unsigned int addr, struct artiq_list data);
 
 /*
  * Waits at least until timeout and returns the timestamp of the first

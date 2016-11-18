@@ -58,7 +58,27 @@ void rtio_output(long long int timestamp, int channel, unsigned int addr,
 #ifdef CSR_RTIO_O_ADDRESS_ADDR
     rtio_o_address_write(addr);
 #endif
-    rtio_o_data_write(data);
+    MMPTR(CSR_RTIO_O_DATA_ADDR) = data;
+    rtio_o_we_write(1);
+    status = rtio_o_status_read();
+    if(status)
+        rtio_process_exceptional_status(timestamp, channel, status);
+}
+
+
+void rtio_output_list(long long int timestamp, int channel,
+        unsigned int addr, struct artiq_list data)
+{
+    int status, i;
+    volatile unsigned int *p = &MMPTR(CSR_RTIO_O_DATA_ADDR);
+
+    rtio_chan_sel_write(channel);
+    rtio_o_timestamp_write(timestamp);
+#ifdef CSR_RTIO_O_ADDRESS_ADDR
+    rtio_o_address_write(addr);
+#endif
+    for(i=0;i<data.length;i++)
+        *p++ = *data.elements++;
     rtio_o_we_write(1);
     status = rtio_o_status_read();
     if(status)
@@ -116,7 +136,7 @@ unsigned int rtio_input_data(int channel)
         }
     }
 
-    data = rtio_i_data_read();
+    data = MMPTR(CSR_RTIO_I_DATA_ADDR);
     rtio_i_re_write(1);
     return data;
 }
@@ -140,14 +160,14 @@ void rtio_log_va(long long int timestamp, const char *fmt, va_list args)
         word <<= 8;
         word |= *buf & 0xff;
         if(*buf == 0) {
-            rtio_o_data_write(word);
+            MMPTR(CSR_RTIO_O_DATA_ADDR) = word;
             rtio_o_we_write(1);
             break;
         }
         buf++;
         i++;
         if(i == 4) {
-            rtio_o_data_write(word);
+            MMPTR(CSR_RTIO_O_DATA_ADDR) = word;
             rtio_o_we_write(1);
             word = 0;
             i = 0;
