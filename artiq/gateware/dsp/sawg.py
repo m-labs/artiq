@@ -58,7 +58,7 @@ class SplineParallelDUC(ParallelDDS):
         self.submodules += p, f
         self.ce = Signal(reset=1)
         self.clr = Signal()
-        super().__init__(widths._replace(p=len(self.f.a0), f=len(self.f.a0)),
+        super().__init__(widths._replace(p=len(self.p.a0), f=len(self.f.a0)),
                          **kwargs)
         self.latency += f.latency
 
@@ -146,7 +146,8 @@ class Channel(Module, SatAddMixin):
         self.submodules.a1 = a1 = SplineParallelDDS(widths, orders)
         self.submodules.a2 = a2 = SplineParallelDDS(widths, orders)
         self.submodules.b = b = SplineParallelDUC(
-            widths, orders, parallelism=parallelism, a_delay=-a1.latency)
+            widths._replace(a=len(a1.xo[0])), orders,
+            parallelism=parallelism, a_delay=-a1.latency)
         cfg = Config(widths.a)
         u = Spline(width=widths.a, order=orders.a)
         du = Delay(widths.a, a1.latency + b.latency - u.latency)
