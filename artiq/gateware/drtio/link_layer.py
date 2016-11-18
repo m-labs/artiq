@@ -288,7 +288,7 @@ class LinkLayer(Module, AutoCSR):
             If(wait_scrambler.done,
                 done_ps.i.eq(1),
                 NextState("READY")
-            ),
+            )
         )
         fsm.act("READY",
             If(reset_ps.o, NextState("RESET_RX"))

@@ -1,4 +1,6 @@
 from math import ceil
+from functools import reduce
+from operator import add
 
 from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
@@ -134,7 +136,7 @@ class GTXInit(Module):
 # Warning: Xilinx transceivers are LSB first, and comma needs to be flipped
 # compared to the usual 8b10b binary representation.
 class BruteforceClockAligner(Module):
-    def __init__(self, comma, rtio_clk_freq, check_period=6e-3, ready_time=50e-3):
+    def __init__(self, comma, rtio_clk_freq, check_period=6e-3):
         self.rxdata = Signal(20)
         self.restart = Signal()
 
@@ -144,9 +146,12 @@ class BruteforceClockAligner(Module):
         check_max_val = ceil(check_period*rtio_clk_freq)
         check_counter = Signal(max=check_max_val+1)
         check = Signal()
+        reset_check_counter = Signal()
         self.sync.rtio += [
             check.eq(0),
-            If(~self.ready,
+            If(reset_check_counter,
+                check_counter.eq(check_max_val)
+            ).Else(
                 If(check_counter == 0,
                     check.eq(1),
                     check_counter.eq(check_max_val)
@@ -156,37 +161,67 @@ class BruteforceClockAligner(Module):
             )
         ]
 
+        checks_reset = PulseSynchronizer("rtio", "rtio_rx")
+        self.submodules += checks_reset
+
         comma_n = ~comma & 0b1111111111
         comma_seen_rxclk = Signal()
         comma_seen = Signal()
         comma_seen_rxclk.attr.add("no_retiming")
         self.specials += MultiReg(comma_seen_rxclk, comma_seen)
-        comma_seen_reset = PulseSynchronizer("rtio", "rtio_rx")
-        self.submodules += comma_seen_reset
         self.sync.rtio_rx += \
-            If(comma_seen_reset.o,
+            If(checks_reset.o,
                 comma_seen_rxclk.eq(0)
             ).Elif((self.rxdata[:10] == comma) | (self.rxdata[:10] == comma_n),
                 comma_seen_rxclk.eq(1)
             )
 
-        self.comb += \
-            If(check,
-                If(~comma_seen, self.restart.eq(1)),
-                comma_seen_reset.i.eq(1)
+        error_seen_rxclk = Signal()
+        error_seen = Signal()
+        error_seen_rxclk.attr.add("no_retiming")
+        self.specials += MultiReg(error_seen_rxclk, error_seen)
+        rx1cnt = Signal(max=11)
+        self.sync.rtio_rx += [
+            rx1cnt.eq(reduce(add, [self.rxdata[i] for i in range(10)])),
+            If(checks_reset.o,
+                error_seen_rxclk.eq(0)
+            ).Elif((rx1cnt != 4) & (rx1cnt != 5) & (rx1cnt != 6),
+                error_seen_rxclk.eq(1)
             )
-
-        ready_counts = ceil(ready_time/check_period)
-        assert ready_counts > 1
-        ready_counter = Signal(max=ready_counts+1, reset=ready_counts)
-        self.sync.rtio += [
-            If(check,
-                If(comma_seen,
-                    If(ready_counter != 0, ready_counter.eq(ready_counter-1))
-                ).Else(
-                    ready_counter.eq(ready_counts)
-                )
-            ),
-            If(self.reset, ready_counter.eq(ready_counts))
         ]
-        self.comb += self.ready.eq(ready_counter == 0)
+
+        fsm = ClockDomainsRenamer("rtio")(FSM(reset_state="WAIT_COMMA"))
+        self.submodules += fsm
+
+        fsm.act("WAIT_COMMA",
+            If(check,
+                # Errors are still OK at this stage, as the transceiver
+                # has just been reset and may output garbage data.
+                If(comma_seen,
+                    NextState("WAIT_NOERROR")
+                ).Else(
+                    self.restart.eq(1)
+                ),
+                checks_reset.i.eq(1)
+            )
+        )
+        fsm.act("WAIT_NOERROR",
+            If(check,
+                If(comma_seen & ~error_seen,
+                    NextState("READY")
+                ).Else(
+                    self.restart.eq(1),
+                    NextState("WAIT_COMMA")
+                ),
+                checks_reset.i.eq(1)
+            )
+        )
+        fsm.act("READY",
+            reset_check_counter.eq(1),
+            self.ready.eq(1),
+            If(self.reset,
+                checks_reset.i.eq(1),
+                self.restart.eq(1),
+                NextState("WAIT_COMMA")
+            )
+        )
