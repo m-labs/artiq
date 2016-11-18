@@ -1,25 +1,32 @@
 import numpy as np
+from operator import or_
 
 from migen import *
 from migen.fhdl.verilog import convert
 
 from artiq.gateware.rtio.phy.sawg import Channel
-from .tools import xfer, szip
+from .tools import rtio_xfer
 
 
-def rtio_xfer(dut, **kwargs):
-    yield from szip(*(
-        xfer(dut.phys_names[k].rtlink, o={"data": v})
-        for k, v in kwargs.items()))
+def pack_tri(port, *v):
+    r = 0
+    w = 0
+    for vi, p in zip(v, port.payload.flatten()):
+        w += len(p)
+        r |= int(vi*(1 << w))
+    return r
 
 
 def gen_rtio(dut):
-    width = dut.width
     yield
     yield from rtio_xfer(
-        dut, a=int(.1 * (1 << width)),
-        f=int(.01234567 * (1 << 2*width)),
-        p=0)
+        dut,
+        a1=pack_tri(dut.a1.a, .1),
+        f0=pack_tri(dut.b.f, .01234567),
+        f1=pack_tri(dut.a1.f, .01234567),
+        a2=pack_tri(dut.a1.a, .05),
+        f2=pack_tri(dut.a1.f, .00534567),
+    )
 
 
 def gen_log(dut, o, n):
@@ -28,10 +35,12 @@ def gen_log(dut, o, n):
     for i in range(n):
         yield
         o.append((yield from [(yield _) for _ in dut.o]))
+        #o.append([(yield dut.a1.xo[0])])
 
 
 def _test_channel():
     width = 16
+
     dut = ClockDomainsRenamer({"rio_phy": "sys"})(
         Channel(width=width, parallelism=4)
     )
@@ -43,8 +52,8 @@ def _test_channel():
     o = []
     run_simulation(
         dut,
-        [gen_rtio(dut), gen_log(dut, o, 256 * 2)],
-    )  # vcd_name="dds.vcd")
+        [gen_rtio(dut), gen_log(dut, o, 128)],
+        vcd_name="dds.vcd")
     o = np.array(o)/(1 << (width - 1))
     o = o.ravel()
     np.savez_compressed("dds.npz", o=o)

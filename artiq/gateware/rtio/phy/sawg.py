@@ -16,14 +16,12 @@ class Channel(_ChannelPHY):
         _ChannelPHY.__init__(self, *args, **kwargs)
         self.phys = []
         for i in self.i:
-            rl = rtlink.Interface(rtlink.OInterface(
-                min(32, len(i.payload))))  # TODO: test/expand
+            rl = rtlink.Interface(rtlink.OInterface(len(i.payload)))
             self.comb += [
                 i.stb.eq(rl.o.stb),
                 rl.o.busy.eq(~i.ack),
-                Cat(i.payload.flatten()).eq(rl.o.data),
+                i.payload.raw_bits().eq(rl.o.data),
             ]
-            # no probes, overrides
+            # TODO probes, overrides
             self.phys.append(_Phy(rl, [], []))
-        self.phys_names = dict(zip("cfg f0 p0 a1 f1 p1 a2 f2 p2".split(),
-                                   self.phys))
+        self.phys_named = dict(zip(self.i_names, self.phys))

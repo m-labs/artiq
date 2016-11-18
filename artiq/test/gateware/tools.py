@@ -41,3 +41,9 @@ def szip(*iters):
         val = (yield None)
         for it in active:
             active[it] = val
+
+
+def rtio_xfer(dut, **kwargs):
+    yield from szip(*(
+        xfer(dut.phys_named[k].rtlink, o={"data": v})
+        for k, v in kwargs.items()))

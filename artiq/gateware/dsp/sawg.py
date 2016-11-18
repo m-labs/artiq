@@ -36,8 +36,8 @@ class ParallelDDS(Module):
 
         self.comb += [
             xy_delay.i.eq(Cat(self.i.x, self.i.y)),
-            z_delay.i.eq(Cat([zi[-widths.p:]
-                              for zi in accu.o.payload.flatten()])),
+            z_delay.i.eq(Cat(zi[-widths.p:]
+                             for zi in accu.o.payload.flatten())),
             eqh(accu.i.p, self.i.p),
             accu.i.f.eq(self.i.f),
             accu.i.clr.eq(self.i.clr),
@@ -45,7 +45,7 @@ class ParallelDDS(Module):
             self.i.ack.eq(accu.i.ack),
             accu.o.ack.eq(1),
             [Cat(c.xi, c.yi).eq(xy_delay.o) for c in cordic],
-            Cat([c.zi for c in cordic]).eq(z_delay.o),
+            Cat(c.zi for c in cordic).eq(z_delay.o),
         ]
 
 
@@ -71,8 +71,15 @@ class SplineParallelDUC(ParallelDDS):
             f.o.ack.eq(self.ce),
             eqh(self.i.f, f.o.a0),
             eqh(self.i.p, p.o.a0),
-            self.i.clr.eq(self.clr),
-            self.i.stb.eq(p.o.stb & f.o.stb),
+            self.i.stb.eq(p.o.stb | f.o.stb),
+        ]
+
+        assert p.latency == 1
+        self.sync += [
+            self.i.clr.eq(0),
+            If(p.i.stb,
+                self.i.clr.eq(self.clr),
+            ),
         ]
 
 
@@ -94,20 +101,24 @@ class SplineParallelDDS(SplineParallelDUC):
 
 
 class Config(Module):
-    def __init__(self):
-        self.clr = Signal(4)
-        self.iq_en = Signal(2)
-        limit = [Signal((16, True)) for i in range(2*2)]
-        self.limit = [limit[i:i + 2] for i in range(0, len(limit), 2)]
-        self.i = Endpoint([("addr", bits_for(len(limit) + 2)), ("data", 16)])
+    def __init__(self, width):
+        self.clr = Signal(4, reset=0b1111)
+        self.iq_en = Signal(2, reset=0b01)
+        self.limit = [[Signal((width, True), reset=-(1 << width - 1)),
+                       Signal((width, True), reset=(1 << width - 1) - 1)]
+                      for i in range(2)]
+        self.i = Endpoint([("addr", bits_for(4 + 2*len(self.limit))),
+                           ("data", 16)])
         self.ce = Signal()
 
         ###
 
-        div = Signal(16)
+        div = Signal(16, reset=0)
         n = Signal.like(div)
+        pad = Signal()
 
-        reg = Array([Cat(self.clr, self.iq_en), Cat(div, n)] + self.limit)
+        reg = Array([Cat(div, n), self.clr, self.iq_en, pad] +
+                    sum(self.limit, []))
 
         self.comb += [
             self.i.ack.eq(1),
@@ -130,22 +141,22 @@ class Channel(Module, SatAddMixin):
             orders = _Orders(a=4, f=2, p=1)
         if widths is None:
             widths = _Widths(t=width, a=orders.a*width, p=orders.p*width,
-                             f=3*width + (orders.f - 1)*width)
+                             f=(orders.f + 2)*width)
 
-        cfg = Config()
-        a1 = SplineParallelDDS(widths, orders)
-        a2 = SplineParallelDDS(widths, orders)
-        b = SplineParallelDUC(widths, orders, parallelism=parallelism,
-                              a_delay=-a1.latency)
+        self.submodules.a1 = a1 = SplineParallelDDS(widths, orders)
+        self.submodules.a2 = a2 = SplineParallelDDS(widths, orders)
+        self.submodules.b = b = SplineParallelDUC(
+            widths, orders, parallelism=parallelism, a_delay=-a1.latency)
+        cfg = Config(widths.a)
         u = Spline(width=widths.a, order=orders.a)
         du = Delay(widths.a, a1.latency + b.latency - u.latency)
-        self.submodules += cfg, a1, a2, b, u, du
-        self.cfg = cfg.i
+        self.submodules += cfg, u, du
         self.u = u.tri(widths.t)
-        self.i = [self.cfg, self.u, a1.a, a1.f, a1.p, a2.a, a2.f, a2.p, b.f, b.p]
-        self.y_in = [Signal((width, True)) for i in range(b.parallelism)]
-        self.y_out = b.yo
-        self.o = [Signal((width, True)) for i in range(b.parallelism)]
+        self.i = [cfg.i, self.u, a1.a, a1.f, a1.p, a2.a, a2.f, a2.p, b.f, b.p]
+        self.i_names = "cfg u a1 f1 p1 a2 f2 p2 f0 p0".split()
+        self.i_named = dict(zip(self.i_names, self.i))
+        self.y_in = [Signal((width, True)) for i in range(parallelism)]
+        self.o = [Signal((width, True)) for i in range(parallelism)]
         self.widths = widths
         self.orders = orders
         self.parallelism = parallelism
@@ -167,10 +178,11 @@ class Channel(Module, SatAddMixin):
         # wire up outputs and q_{i,o} exchange
         for o, x, y in zip(self.o, b.xo, self.y_in):
             self.sync += [
-                o.eq(self.sat_add([du.o,
+                o.eq(self.sat_add([
+                    du.o,
                     Mux(cfg.iq_en[0], x, 0),
                     Mux(cfg.iq_en[1], y, 0)])),
             ]
 
-    def connect_q_from(self, buddy):
-        self.comb += Cat(self.y_in).eq(Cat(buddy.y_out))
+    def connect_y(self, buddy):
+        self.comb += Cat(buddy.y_in).eq(Cat(self.b.yo))
