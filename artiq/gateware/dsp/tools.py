@@ -7,13 +7,13 @@ from migen import *
 class Delay(Module):
     def __init__(self, i, delay, o=None):
         if isinstance(i, (int, tuple)):
-            z = [Signal(i, reset_less=True) for j in range(delay + 1)]
+            z = [Signal(i) for j in range(delay + 1)]
         elif isinstance(i, list):
             z = [Record(i) for j in range(delay + 1)]
         elif isinstance(i, Record):
             z = [Record(i.layout) for j in range(delay + 1)]
         else:
-            z = [Signal.like(i, reset_less=True) for j in range(delay + 1)]
+            z = [Signal.like(i) for j in range(delay + 1)]
         self.i = z[0]
         self.o = z[-1]
         if not isinstance(i, (int, list, tuple)):
