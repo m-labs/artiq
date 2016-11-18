@@ -16,7 +16,8 @@ class Channel(_ChannelPHY):
         _ChannelPHY.__init__(self, *args, **kwargs)
         self.phys = []
         for i in self.i:
-            rl = rtlink.Interface(rtlink.OInterface(len(i.payload)))
+            rl = rtlink.Interface(rtlink.OInterface(
+                min(64, len(i.payload))))  # FIXME
             self.comb += [
                 i.stb.eq(rl.o.stb),
                 rl.o.busy.eq(~i.ack),
