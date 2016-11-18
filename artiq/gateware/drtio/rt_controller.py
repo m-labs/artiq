@@ -1,5 +1,6 @@
 from migen import *
 from migen.genlib.cdc import MultiReg
+from migen.genlib.misc import WaitTimer
 
 from misoc.interconnect.csr import *
 
@@ -21,6 +22,7 @@ class _CSRs(AutoCSR):
         self.o_dbg_last_timestamp = CSRStatus(64)
         self.o_reset_channel_status = CSR()
         self.o_wait = CSRStatus()
+        self.o_fifo_space_timeout = CSR()
 
 
 class RTController(Module):
@@ -96,6 +98,14 @@ class RTController(Module):
             If(sequence_error_set, status_sequence_error.eq(1)),
         ]
 
+        signal_fifo_space_timeout = Signal()
+        self.sync += [
+            If(self.csrs.o_fifo_space_timeout.re, self.csrs.o_fifo_space_timeout.w.eq(0)),
+            If(signal_fifo_space_timeout, self.csrs.o_fifo_space_timeout.w.eq(1))
+        ]
+        timeout_counter = WaitTimer(8191)
+        self.submodules += timeout_counter
+
         # TODO: collision, replace, busy
         cond_sequence_error = self.kcsrs.o_timestamp.storage < last_timestamps.dat_r
         cond_underflow = ((self.kcsrs.o_timestamp.storage[fine_ts_width:]
@@ -154,6 +164,11 @@ class RTController(Module):
                 ).Else(
                     NextState("GET_FIFO_SPACE")
                 )
+            ),
+            timeout_counter.wait.eq(1),
+            If(timeout_counter.done,
+                signal_fifo_space_timeout.eq(1),
+                NextState("IDLE")
             )
         )
 
@@ -180,8 +195,8 @@ class RTManager(Module, AutoCSR):
     def __init__(self, rt_packets):
         self.request_echo = CSR()
 
-        self.err_present = CSR()
-        self.err_code = CSRStatus(8)
+        self.packet_err_present = CSR()
+        self.packet_err_code = CSRStatus(8)
 
         self.update_packet_cnt = CSR()
         self.packet_cnt_tx = CSRStatus(32)
@@ -196,9 +211,9 @@ class RTManager(Module, AutoCSR):
         ]
 
         self.comb += [
-            self.err_present.w.eq(rt_packets.error_not),
-            rt_packets.error_not_ack.eq(self.err_present.re),
-            self.err_code.status.eq(rt_packets.error_code)
+            self.packet_err_present.w.eq(rt_packets.error_not),
+            rt_packets.error_not_ack.eq(self.packet_err_present.re),
+            self.packet_err_code.status.eq(rt_packets.error_code)
         ]
 
         self.sync += \
