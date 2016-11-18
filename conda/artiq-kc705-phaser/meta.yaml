@@ -14,7 +14,7 @@ requirements:
   build:
     - migen 0.4
     - misoc 0.4
-    - jesd204b 0.1
+    - jesd204b 0.2
     - llvm-or1k
     - binutils-or1k-linux >=2.27
     - rust-core-or1k
