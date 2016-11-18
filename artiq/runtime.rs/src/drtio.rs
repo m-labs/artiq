@@ -7,6 +7,12 @@ fn drtio_link_is_up() -> bool {
     }
 }
 
+fn drtio_reset_link() {
+    unsafe {
+        csr::drtio::link_reset_write(1)
+    }
+}
+
 fn drtio_sync_tsc() {
     unsafe {
         csr::drtio::set_time_write(1);
@@ -33,7 +39,7 @@ pub fn link_thread(waiter: Waiter, _spawner: Spawner) {
         waiter.until(drtio_link_is_up).unwrap();
         info!("link RX is up");
 
-        waiter.sleep(300);
+        waiter.sleep(300).unwrap();
         info!("wait for remote side done");
 
         drtio_sync_tsc();
@@ -48,23 +54,24 @@ pub fn link_thread(waiter: Waiter, _spawner: Spawner) {
     }
 }
 
-fn drtio_error_present() -> bool {
+fn drtio_packet_error_present() -> bool {
     unsafe {
-        csr::drtio::err_present_read() != 0
+        csr::drtio::packet_err_present_read() != 0
     }
 }
 
-fn drtio_get_error() -> u8 {
+fn drtio_get_packet_error() -> u8 {
     unsafe {
-        let err = csr::drtio::err_code_read();
-        csr::drtio::err_present_write(1);
+        let err = csr::drtio::packet_err_code_read();
+        csr::drtio::packet_err_present_write(1);
         err
     }
 }
 
 pub fn error_thread(waiter: Waiter, _spawner: Spawner) {
     loop {
-        waiter.until(drtio_error_present).unwrap();
-        error!("DRTIO error {}", drtio_get_error());   
+        waiter.until(drtio_packet_error_present).unwrap();
+        error!("DRTIO packet error {}", drtio_get_packet_error());
+        drtio_reset_link();
     }
 }

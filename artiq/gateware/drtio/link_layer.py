@@ -3,7 +3,7 @@ from operator import xor, or_
 
 from migen import *
 from migen.genlib.fsm import *
-from migen.genlib.cdc import MultiReg
+from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.genlib.misc import WaitTimer
 
 from misoc.interconnect.csr import *
@@ -223,10 +223,8 @@ class LinkLayerRX(Module):
 class LinkLayer(Module, AutoCSR):
     def __init__(self, encoder, decoders):
         self.link_status = CSRStatus()
+        self.link_reset = CSR()
 
-        # control signals, in rtio clock domain
-        self.reset = Signal()
-        self.ready = Signal()
         # pulsed to reset receiver, rx_ready must immediately go low
         self.rx_reset = Signal()
         # receiver locked including comma alignment
@@ -252,37 +250,46 @@ class LinkLayer(Module, AutoCSR):
 
         # # #
 
-        ready_r = Signal()
+        ready = Signal()
+        reset_ps = PulseSynchronizer("sys", "rtio")
+        done_ps = PulseSynchronizer("rtio", "sys")
+        self.submodules += reset_ps, done_ps
+        self.comb += reset_ps.i.eq(self.link_reset.re)
+        self.sync += [
+            If(done_ps.o, ready.eq(1)),
+            If(reset_ps.i, ready.eq(0)),
+        ]
+        self.comb += self.link_status.status.eq(ready)
+
         ready_rx = Signal()
-        self.sync.rtio += ready_r.eq(self.ready)
-        ready_r.attr.add("no_retiming")
-        self.specials += MultiReg(ready_r, ready_rx, "rtio_rx")
+        ready.attr.add("no_retiming")
+        self.specials += MultiReg(ready, ready_rx, "rtio_rx")
         self.comb += [
             self.rx_aux_frame.eq(rx.aux_frame & ready_rx),
             self.rx_rt_frame.eq(rx.rt_frame & ready_rx),
         ]
-        self.specials += MultiReg(ready_r, self.link_status.status)
 
-        wait_scrambler = WaitTimer(15)
+        wait_scrambler = ClockDomainsRenamer("rtio")(WaitTimer(15))
         self.submodules += wait_scrambler
 
-        fsm = ClockDomainsRenamer("rtio")(
-            ResetInserter()(FSM(reset_state="RESET_RX")))
+        fsm = ClockDomainsRenamer("rtio")(FSM(reset_state="RESET_RX"))
         self.submodules += fsm
-
-        self.comb += fsm.reset.eq(self.reset)
 
         fsm.act("RESET_RX",
             self.rx_reset.eq(1),
             NextState("WAIT_RX_READY")
         )
         fsm.act("WAIT_RX_READY",
-            If(self.rx_ready, NextState("WAIT_SCRAMBLER_SYNC"))
+            If(self.rx_ready, NextState("WAIT_SCRAMBLER_SYNC")),
+            If(reset_ps.o, NextState("RESET_RX"))
         )
         fsm.act("WAIT_SCRAMBLER_SYNC",
             wait_scrambler.wait.eq(1),
-            If(wait_scrambler.done, NextState("READY")),
+            If(wait_scrambler.done,
+                done_ps.i.eq(1),
+                NextState("READY")
+            ),
         )
         fsm.act("READY",
-            self.ready.eq(1)
+            If(reset_ps.o, NextState("RESET_RX"))
         )
