@@ -273,5 +273,6 @@ class LinkLayer(Module, AutoCSR):
             If(wait_scrambler.done, NextState("READY"))
         )
         fsm.act("READY",
-            ready.eq(1)
+            ready.eq(1),
+            If(~self.rx_ready, NextState("WAIT_RX_READY"))
         )
