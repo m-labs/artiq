@@ -104,10 +104,11 @@ class Config(Module):
     def __init__(self, width):
         self.clr = Signal(4, reset=0b1111)
         self.iq_en = Signal(2, reset=0b01)
-        self.limit = [[Signal((width, True), reset=-(1 << width - 1)),
+        self.limits = [[Signal((width, True), reset=-(1 << width - 1)),
                        Signal((width, True), reset=(1 << width - 1) - 1)]
-                      for i in range(2)]
-        self.i = Endpoint([("addr", bits_for(4 + 2*len(self.limit))),
+                      for i in range(3)]
+        self.clipped = [Signal(2) for i in range(3)]  # TODO
+        self.i = Endpoint([("addr", bits_for(4 + len(self.limits))),
                            ("data", 16)])
         self.ce = Signal()
 
@@ -118,7 +119,7 @@ class Config(Module):
         pad = Signal()
 
         reg = Array([Cat(div, n), self.clr, self.iq_en, pad] +
-                    sum(self.limit, []))
+                    [Cat(*l) for l in self.limits])
 
         self.comb += [
             self.i.ack.eq(1),
@@ -161,7 +162,7 @@ class Channel(Module, SatAddMixin):
         self.widths = widths
         self.orders = orders
         self.parallelism = parallelism
-        self.latency = a1.latency + b.latency + 1
+        self.latency = a1.latency + b.latency + 2
         self.cordic_gain = a1.gain*b.gain
 
         ###
@@ -172,17 +173,22 @@ class Channel(Module, SatAddMixin):
             b.ce.eq(cfg.ce),
             u.o.ack.eq(cfg.ce),
             Cat(a1.clr, a2.clr, b.clr).eq(cfg.clr),
-            b.i.x.eq(self.sat_add([a1.xo[0], a2.xo[0]])),
-            b.i.y.eq(self.sat_add([a1.yo[0], a2.yo[0]])),
+        ]
+        self.sync += [
+            b.i.x.eq(self.sat_add(a1.xo[0], a2.xo[0],
+                                  limits=cfg.limits[0],
+                                  clipped=cfg.clipped[0])),
+            b.i.y.eq(self.sat_add(a1.yo[0], a2.yo[0],
+                                  limits=cfg.limits[1],
+                                  clipped=cfg.clipped[1])),
             eqh(du.i, u.o.a0),
         ]
         # wire up outputs and q_{i,o} exchange
         for o, x, y in zip(self.o, b.xo, self.y_in):
             self.sync += [
-                o.eq(self.sat_add([
-                    du.o,
-                    Mux(cfg.iq_en[0], x, 0),
-                    Mux(cfg.iq_en[1], y, 0)])),
+                o.eq(self.sat_add(
+                    du.o, Mux(cfg.iq_en[0], x, 0), Mux(cfg.iq_en[1], y, 0),
+                    limits=cfg.limits[2], clipped=cfg.clipped[2])),
             ]
 
     def connect_y(self, buddy):
