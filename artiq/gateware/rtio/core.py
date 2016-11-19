@@ -334,9 +334,9 @@ class _KernelCSRs(AutoCSR):
         self.chan_sel = CSRStorage(chan_sel_width)
 
         if data_width:
-            self.o_data = CSRStorage(data_width)
+            self.o_data = CSRStorage(data_width, write_from_dev=True)
         if address_width:
-            self.o_address = CSRStorage(address_width)
+            self.o_address = CSRStorage(address_width, write_from_dev=True)
         self.o_timestamp = CSRStorage(full_ts_width)
         self.o_we = CSR()
         self.o_status = CSRStatus(5)
@@ -497,6 +497,14 @@ class RTIO(Module):
                self.kcsrs.counter.status.eq(self.counter.value_sys
                                                 << fine_ts_width)
            )
+
+        # Auto clear/zero pad event data
+        self.comb += [
+            self.kcsrs.o_data.dat_w.eq(0),
+            self.kcsrs.o_data.we.eq(self.kcsrs.o_timestamp.re),
+            self.kcsrs.o_address.dat_w.eq(0),
+            self.kcsrs.o_address.we.eq(self.kcsrs.o_timestamp.re),
+        ]
 
     def get_csrs(self):
         return self.kcsrs.get_csrs()
