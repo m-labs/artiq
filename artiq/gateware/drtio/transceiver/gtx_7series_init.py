@@ -140,7 +140,6 @@ class BruteforceClockAligner(Module):
         self.rxdata = Signal(20)
         self.restart = Signal()
 
-        self.reset = Signal()
         self.ready = Signal()
 
         check_max_val = ceil(check_period*rtio_clk_freq)
@@ -219,7 +218,7 @@ class BruteforceClockAligner(Module):
         fsm.act("READY",
             reset_check_counter.eq(1),
             self.ready.eq(1),
-            If(self.reset,
+            If(error_seen,
                 checks_reset.i.eq(1),
                 self.restart.eq(1),
                 NextState("WAIT_COMMA")

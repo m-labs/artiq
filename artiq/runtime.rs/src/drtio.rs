@@ -7,12 +7,6 @@ fn drtio_link_is_up() -> bool {
     }
 }
 
-fn drtio_reset_link() {
-    unsafe {
-        csr::drtio::link_reset_write(1)
-    }
-}
-
 fn drtio_sync_tsc() {
     unsafe {
         csr::drtio::set_time_write(1);
@@ -72,6 +66,5 @@ pub fn error_thread(waiter: Waiter, _spawner: Spawner) {
     loop {
         waiter.until(drtio_packet_error_present).unwrap();
         error!("DRTIO packet error {}", drtio_get_packet_error());
-        drtio_reset_link();
     }
 }

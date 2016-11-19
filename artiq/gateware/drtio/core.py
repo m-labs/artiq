@@ -9,10 +9,7 @@ class DRTIOSatellite(Module):
     def __init__(self, transceiver, rx_synchronizer, channels, fine_ts_width=3, full_ts_width=63):
         self.submodules.link_layer = link_layer.LinkLayer(
             transceiver.encoder, transceiver.decoders)
-        self.comb += [
-            transceiver.rx_reset.eq(self.link_layer.rx_reset),
-            self.link_layer.rx_ready.eq(transceiver.rx_ready)
-        ]
+        self.comb += self.link_layer.rx_ready.eq(transceiver.rx_ready)
 
         link_layer_sync = SimpleNamespace(
             tx_aux_frame=self.link_layer.tx_aux_frame,
@@ -54,10 +51,8 @@ class DRTIOMaster(Module):
     def __init__(self, transceiver, channel_count=1024, fine_ts_width=3):
         self.submodules.link_layer = link_layer.LinkLayer(
             transceiver.encoder, transceiver.decoders)
-        self.comb += [
-            transceiver.rx_reset.eq(self.link_layer.rx_reset),
-            self.link_layer.rx_ready.eq(transceiver.rx_ready)
-        ]
+        self.comb += self.link_layer.rx_ready.eq(transceiver.rx_ready)
+
         self.submodules.rt_packets = rt_packets.RTPacketMaster(self.link_layer)
         self.submodules.rt_controller = rt_controller.RTController(
             self.rt_packets, channel_count, fine_ts_width)

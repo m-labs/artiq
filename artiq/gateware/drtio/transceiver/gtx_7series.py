@@ -20,7 +20,6 @@ class GTX_1000BASE_BX10(Module):
             Decoder(True)) for _ in range(2)]
         self.submodules += self.decoders
 
-        self.rx_reset = Signal()
         self.rx_ready = Signal()
 
         # # #
@@ -49,8 +48,7 @@ class GTX_1000BASE_BX10(Module):
             GTXInit(self.rtio_clk_freq, True))
         self.submodules += tx_init, rx_init
         self.comb += tx_init.cplllock.eq(cplllock), \
-                     rx_init.cplllock.eq(cplllock), \
-                     rx_init.restart.eq(self.rx_reset)
+                     rx_init.cplllock.eq(cplllock)
 
         txoutclk = Signal()
         txdata = Signal(20)
@@ -190,7 +188,6 @@ class GTX_1000BASE_BX10(Module):
         self.comb += [
             clock_aligner.rxdata.eq(rxdata),
             rx_init.restart.eq(clock_aligner.restart),
-            clock_aligner.reset.eq(self.rx_reset),
             self.rx_ready.eq(clock_aligner.ready)
         ]
 
