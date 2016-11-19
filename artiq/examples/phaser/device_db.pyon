@@ -12,7 +12,7 @@
         "module": "artiq.coredevice.core",
         "class": "Core",
         "arguments": {
-            "ref_period": 1e-9,
+            "ref_period": 5/6,
             "external_clock": True
         }
     },
@@ -54,24 +54,24 @@
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 4, "parallelism": 4}
+        "arguments": {"channel_base": 4, "parallelism": 2}
     },
     "sawg1": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 7, "parallelism": 4}
+        "arguments": {"channel_base": 7, "parallelism": 2}
     },
     "sawg2": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 10, "parallelism": 4}
+        "arguments": {"channel_base": 10, "parallelism": 2}
     },
     "sawg3": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 13, "parallelism": 4}
+        "arguments": {"channel_base": 13, "parallelism": 2}
     }
 }

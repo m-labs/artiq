@@ -397,13 +397,13 @@ class _PhaserCRG(Module, AutoCSR):
                      p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
 
                      p_REF_JITTER1=0.01, p_REF_JITTER2=0.01,
-                     p_CLKIN1_PERIOD=4.0, p_CLKIN2_PERIOD=4.0,
+                     p_CLKIN1_PERIOD=20/3, p_CLKIN2_PERIOD=20/3,
                      i_CLKIN1=0, i_CLKIN2=refclk,
                      # Warning: CLKINSEL=0 means CLKIN2 is selected
                      i_CLKINSEL=~self._clock_sel.storage,
 
-                     # VCO @ 1GHz when using 250MHz input
-                     p_CLKFBOUT_MULT=8, p_DIVCLK_DIVIDE=2,
+                     # VCO @ 1.2GHz when using 150MHz input
+                     p_CLKFBOUT_MULT=8, p_DIVCLK_DIVIDE=1,
                      i_CLKFBIN=self.cd_rtio.clk,
                      i_RST=self._pll_reset.storage,
 
@@ -419,7 +419,7 @@ class _PhaserCRG(Module, AutoCSR):
                      self._pll_locked.status)
         ]
         self.cd_rtio.clk.attr.add("keep")
-        platform.add_period_constraint(self.cd_rtio.clk, 8.)
+        platform.add_period_constraint(self.cd_rtio.clk, 20/3)
 
 
 class AD9154JESD(Module, AutoCSR):
@@ -427,9 +427,9 @@ class AD9154JESD(Module, AutoCSR):
         ps = JESD204BPhysicalSettings(l=4, m=4, n=16, np=16)
         ts = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
         settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
-        linerate = 10e9
-        refclk_freq = 250e6
-        fabric_freq = 250*1000*1000
+        linerate = 6e9
+        refclk_freq = 150e6
+        fabric_freq = 150*1000*1000
 
         sync_pads = platform.request("ad9154_sync")
         self.jsync = Signal()
@@ -494,16 +494,11 @@ class AD9154(Module, AutoCSR):
 
         self.submodules.jesd = AD9154JESD(platform)
 
-        self.sawgs = [sawg.Channel(width=16, parallelism=4) for i in range(4)]
+        self.sawgs = [sawg.Channel(width=16, parallelism=2) for i in range(4)]
         self.submodules += self.sawgs
 
-        x = Signal()
-        y = Signal()
-        z = Signal()
-        self.sync.jesd += x.eq(~x), z.eq(x == y)
-        self.sync.rio_phy += y.eq(x)
         for conv, ch in zip(self.jesd.core.sink.flatten(), self.sawgs):
-            self.sync.jesd += conv.eq(Mux(z, Cat(ch.o[:2]), Cat(ch.o[2:])))
+            self.sync.jesd += conv.eq(Cat(ch.o))
 
 
 class Phaser(MiniSoC, AMPSoC):
