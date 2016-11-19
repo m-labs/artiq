@@ -33,7 +33,7 @@ pub fn link_thread(waiter: Waiter, _spawner: Spawner) {
         waiter.until(drtio_link_is_up).unwrap();
         info!("link RX is up");
 
-        waiter.sleep(300).unwrap();
+        waiter.sleep(500).unwrap();
         info!("wait for remote side done");
 
         drtio_sync_tsc();
