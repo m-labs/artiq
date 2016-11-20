@@ -1,6 +1,7 @@
 from artiq.language.core import *
 from artiq.language.types import *
 from artiq.language.units import *
+from numpy import int64
 
 
 _PHASE_MODE_DEFAULT = -1
@@ -111,14 +112,14 @@ class _DDSGeneric:
         """Returns the frequency tuning word corresponding to the given
         frequency.
         """
-        return round(int(2, width=64)**32*frequency/self.core_dds.sysclk)
+        return round(int64(2)**32*frequency/self.core_dds.sysclk)
 
     @portable(flags=["fast-math"])
     def ftw_to_frequency(self, ftw):
         """Returns the frequency corresponding to the given frequency tuning
         word.
         """
-        return ftw*self.core_dds.sysclk/int(2, width=64)**32
+        return ftw*self.core_dds.sysclk/int64(2)**32
 
     @portable(flags=["fast-math"])
     def turns_to_pow(self, turns):
