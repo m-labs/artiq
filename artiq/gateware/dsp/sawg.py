@@ -151,7 +151,7 @@ class Channel(Module, SatAddMixin):
             parallelism=parallelism, a_delay=-a1.latency)
         cfg = Config(widths.a)
         u = Spline(width=widths.a, order=orders.a)
-        du = Delay(widths.a, a1.latency + b.latency - u.latency)
+        du = Delay(width, a1.latency + b.latency - u.latency)
         self.submodules += cfg, u, du
         self.u = u.tri(widths.t)
         self.i = [cfg.i, self.u, a1.a, a1.f, a1.p, a2.a, a2.f, a2.p, b.f, b.p]
