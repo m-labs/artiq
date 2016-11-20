@@ -12,8 +12,8 @@ build:
 
 requirements:
   build:
-    - migen 0.4
-    - misoc 0.4
+    - migen 0.5.dev
+    - misoc 0.5.dev
     - llvm-or1k
     - binutils-or1k-linux >=2.27
     - rust-core-or1k
