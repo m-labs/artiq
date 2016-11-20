@@ -248,16 +248,16 @@ class NIST_CLOCK(_NIST_Ions):
             if i % 4 == 3:
                 phy = ttl_serdes_7series.Inout_8X(platform.request("ttl", i))
                 self.submodules += phy
-                rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
+                rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=1024))
             else:
                 phy = ttl_serdes_7series.Output_8X(platform.request("ttl", i))
                 self.submodules += phy
-                rtio_channels.append(rtio.Channel.from_phy(phy))
+                rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=1024))
 
         for i in range(2):
             phy = ttl_serdes_7series.Inout_8X(platform.request("pmt", i))
             self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
+            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=16384))
 
         phy = ttl_serdes_7series.Inout_8X(platform.request("user_sma_gpio_n_33"))
         self.submodules += phy
@@ -297,7 +297,7 @@ class NIST_CLOCK(_NIST_Ions):
         phy = dds.AD9914(platform.request("dds"), 11, onehot=True)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,
-                                                   ofifo_depth=512,
+                                                   ofifo_depth=16384,
                                                    ififo_depth=4))
 
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
