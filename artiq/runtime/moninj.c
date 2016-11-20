@@ -12,6 +12,8 @@
 #include "log.h"
 #include "moninj.h"
 
+#define min(a, b) (a>b?b:a)
+
 enum {
     MONINJ_REQ_MONITOR = 1,
     MONINJ_REQ_TTLSET = 2
