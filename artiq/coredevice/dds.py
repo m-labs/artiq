@@ -112,7 +112,7 @@ class _DDSGeneric:
         """Returns the frequency tuning word corresponding to the given
         frequency.
         """
-        return round(int64(2)**32*frequency/self.core_dds.sysclk)
+        return round(float(int64(2)**32*frequency/self.core_dds.sysclk))
 
     @portable(flags=["fast-math"])
     def ftw_to_frequency(self, ftw):
@@ -125,7 +125,7 @@ class _DDSGeneric:
     def turns_to_pow(self, turns):
         """Returns the phase offset word corresponding to the given phase
         in turns."""
-        return round(turns*2**self.pow_width)
+        return round(float(turns*2**self.pow_width))
 
     @portable(flags=["fast-math"])
     def pow_to_turns(self, pow):
@@ -136,7 +136,7 @@ class _DDSGeneric:
     @portable(flags=["fast-math"])
     def amplitude_to_asf(self, amplitude):
         """Returns amplitude scale factor corresponding to given amplitude."""
-        return round(amplitude*0x0fff)
+        return round(float(amplitude*0x0fff))
 
     @portable(flags=["fast-math"])
     def asf_to_amplitude(self, asf):
