@@ -1151,8 +1151,12 @@ class LLVMIRGenerator:
                 byvals = [i + 1 for i in byvals]
             for i in byvals:
                 llfun.args[i].add_attribute('byval')
-            if 'nounwind' in insn.target_function().type.flags:
+
+            flags = insn.target_function().type.flags
+            if 'nounwind' in flags:
                 llfun.attributes.add('nounwind')
+            if 'nowrite' in flags:
+                llfun.attributes.add('inaccessiblememonly')
 
         return llfun, list(llargs)
 
