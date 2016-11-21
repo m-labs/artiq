@@ -23,6 +23,35 @@ mod rpc_proto;
 mod dyld;
 mod api;
 
+#[allow(improper_ctypes)]
+extern {
+    fn __artiq_raise(exn: *const ::kernel_proto::Exception) -> !;
+}
+
+macro_rules! artiq_raise {
+    ($name:expr, $message:expr, $param0:expr, $param1:expr, $param2:expr) => ({
+        let exn = $crate::kernel_proto::Exception {
+            name:     concat!("0:artiq.coredevice.exceptions.", $name, "\0").as_bytes().as_ptr(),
+            file:     concat!(file!(), "\0").as_bytes().as_ptr(),
+            line:     line!(),
+            column:   column!(),
+            // https://github.com/rust-lang/rfcs/pull/1719
+            function: "(Rust function)\0".as_bytes().as_ptr(),
+            message:  concat!($message, "\0").as_bytes().as_ptr(),
+            param:    [$param0, $param1, $param2],
+            phantom:  ::core::marker::PhantomData
+        };
+        #[allow(unused_unsafe)]
+        unsafe { $crate::__artiq_raise(&exn as *const _) }
+    });
+    ($name:expr, $message:expr) => ({
+        artiq_raise!($name, $message, 0, 0, 0)
+    });
+}
+
+mod rtio;
+mod i2c;
+
 use core::{mem, ptr, slice, str};
 use std::io::Cursor;
 use libc::{c_char, size_t};
@@ -91,10 +120,15 @@ extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -
 static mut NOW: u64 = 0;
 
 #[no_mangle]
-pub extern fn send_to_log(ptr: *const u8, len: usize) {
+pub extern fn send_to_core_log(ptr: *const u8, len: usize) {
     send(&LogSlice(unsafe {
         str::from_utf8_unchecked(slice::from_raw_parts(ptr, len))
     }))
+}
+
+#[no_mangle]
+pub extern fn send_to_rtio_log(timestamp: i64, ptr: *const u8, len: usize) {
+    rtio::log(timestamp, unsafe { slice::from_raw_parts(ptr, len) })
 }
 
 extern fn abort() -> ! {
@@ -148,28 +182,6 @@ extern fn recv_rpc(slot: *mut ()) -> usize {
             &Ok(alloc_size) => alloc_size,
             &Err(ref exception) => unsafe { __artiq_raise(exception as *const _) }
         }
-    })
-}
-
-#[allow(improper_ctypes)]
-extern {
-    fn __artiq_raise(exn: *const ::kernel_proto::Exception) -> !;
-}
-
-macro_rules! artiq_raise {
-    ($name:expr, $message:expr) => ({
-        let exn = Exception {
-            name:     concat!("0:artiq.coredevice.exceptions.", $name, "\0").as_bytes().as_ptr(),
-            file:     concat!(file!(), "\0").as_bytes().as_ptr(),
-            line:     line!(),
-            column:   column!(),
-            // https://github.com/rust-lang/rfcs/pull/1719
-            function: "(Rust function)\0".as_bytes().as_ptr(),
-            message:  concat!($message, "\0").as_bytes().as_ptr(),
-            param:    [0; 3],
-            phantom:  ::core::marker::PhantomData
-        };
-        unsafe { __artiq_raise(&exn as *const _) }
     })
 }
 

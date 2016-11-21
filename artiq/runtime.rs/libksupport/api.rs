@@ -98,18 +98,18 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(cache_put = ::cache_put),
 
     /* direct syscalls */
-    api!(rtio_init),
-    api!(rtio_get_counter),
+    api!(rtio_init = ::rtio::init),
+    api!(rtio_get_counter = ::rtio::get_counter),
     api!(rtio_log),
-    api!(rtio_output),
-    api!(rtio_input_timestamp),
-    api!(rtio_input_data),
+    api!(rtio_output = ::rtio::output),
+    api!(rtio_input_timestamp = ::rtio::input_timestamp),
+    api!(rtio_input_data = ::rtio::input_data),
 
-    api!(i2c_init),
-    api!(i2c_start),
-    api!(i2c_stop),
-    api!(i2c_write),
-    api!(i2c_read),
+    api!(i2c_init = ::i2c::init),
+    api!(i2c_start = ::i2c::start),
+    api!(i2c_stop = ::i2c::stop),
+    api!(i2c_write = ::i2c::write),
+    api!(i2c_read = ::i2c::read),
 
 // #if (defined CONFIG_AD9154_CS)
     api!(ad9154_init),

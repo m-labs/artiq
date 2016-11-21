@@ -17,7 +17,7 @@ pub struct Exception<'a> {
     pub column:   u32,
     pub function: *const u8,
     pub message:  *const u8,
-    pub param:    [u64; 3],
+    pub param:    [i64; 3],
     pub phantom:  PhantomData<&'a str>
 }
 
