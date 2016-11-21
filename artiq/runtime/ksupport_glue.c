@@ -6,7 +6,8 @@
 #include <link.h>
 #include <dlfcn.h>
 
-void send_to_log(const char *ptr, size_t length);
+void send_to_core_log(const char *ptr, size_t length);
+void send_to_rtio_log(long long int timestamp, const char *ptr, size_t length);
 
 #define KERNELCPU_EXEC_ADDRESS    0x40800000
 #define KERNELCPU_PAYLOAD_ADDRESS 0x40840000
@@ -16,20 +17,18 @@ void send_to_log(const char *ptr, size_t length);
 /* called by libunwind */
 int fprintf(FILE *stream, const char *fmt, ...)
 {
-    size_t size;
-    char *buf;
     va_list args;
 
     va_start(args, fmt);
-    size = vsnprintf(NULL, 0, fmt, args);
-    buf = __builtin_alloca(size + 1);
+    size_t size = vsnprintf(NULL, 0, fmt, args);
+    char *buf = __builtin_alloca(size + 1);
     va_end(args);
 
     va_start(args, fmt);
     vsnprintf(buf, size + 1, fmt, args);
     va_end(args);
 
-    send_to_log(buf, size);
+    send_to_core_log(buf, size);
     return 0;
 }
 
@@ -103,19 +102,35 @@ double round(double x)
 int core_log(const char *fmt, ...);
 int core_log(const char *fmt, ...)
 {
-    size_t size;
-    char *buf;
     va_list args;
 
     va_start(args, fmt);
-    size = vsnprintf(NULL, 0, fmt, args);
-    buf = __builtin_alloca(size + 1);
+    size_t size = vsnprintf(NULL, 0, fmt, args);
+    char *buf = __builtin_alloca(size + 1);
     va_end(args);
 
     va_start(args, fmt);
     vsnprintf(buf, size + 1, fmt, args);
     va_end(args);
 
-    send_to_log(buf, size);
+    send_to_core_log(buf, size);
     return 0;
+}
+
+/* called by kernel */
+void rtio_log(long long int timestamp, const char *fmt, ...);
+void rtio_log(long long int timestamp, const char *fmt, ...)
+{
+    va_list args;
+
+    va_start(args, fmt);
+    size_t size = vsnprintf(NULL, 0, fmt, args);
+    char *buf = __builtin_alloca(size + 1);
+    va_end(args);
+
+    va_start(args, fmt);
+    vsnprintf(buf, size + 1, fmt, args);
+    va_end(args);
+
+    send_to_rtio_log(timestamp, buf, size);
 }
