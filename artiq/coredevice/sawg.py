@@ -107,7 +107,7 @@ class SAWG:
     """
     kernel_invariants = {"channel_base", "core",
                          "amplitude1", "frequency1", "phase1",
-                         "amplitude2", "frequency2", "phase2"
+                         "amplitude2", "frequency2", "phase2",
                          "frequency0", "phase0", "offset"}
 
     def __init__(self, dmgr, channel_base, parallelism, core_device="core"):
