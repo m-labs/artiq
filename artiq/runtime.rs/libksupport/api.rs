@@ -105,9 +105,9 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(rtio_input_timestamp = ::rtio::input_timestamp),
     api!(rtio_input_data = ::rtio::input_data),
 
-    api!(i2c_init),
-    api!(i2c_start),
-    api!(i2c_stop),
-    api!(i2c_write),
-    api!(i2c_read),
+    api!(i2c_init = ::i2c::init),
+    api!(i2c_start = ::i2c::start),
+    api!(i2c_stop = ::i2c::stop),
+    api!(i2c_write = ::i2c::write),
+    api!(i2c_read = ::i2c::read),
 ];

@@ -50,6 +50,7 @@ macro_rules! artiq_raise {
 }
 
 mod rtio;
+mod i2c;
 
 use core::{mem, ptr, slice, str};
 use std::io::Cursor;
