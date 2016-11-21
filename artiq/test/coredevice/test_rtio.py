@@ -403,7 +403,7 @@ class CoredeviceTest(ExperimentCase):
         self.execute(TimeKeepsRunning)
         t2 = self.dataset_mgr.get("time_at_start")
 
-        dead_time = self.core.mu_to_seconds(t2 - t1, self.device_mgr.get("core"))
+        dead_time = self.device_mgr.get("core").mu_to_seconds(t2 - t1)
         print(dead_time)
         self.assertGreater(dead_time, 1*ms)
         self.assertLess(dead_time, 2500*ms)
