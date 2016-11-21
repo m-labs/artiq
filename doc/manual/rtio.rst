@@ -36,7 +36,7 @@ The wall clock keeps running across experiments.
 Absolute timestamps can be large numbers.
 They are represented internally as 64-bit integers with a resolution of typically a nanosecond and a range of hundreds of years.
 Conversions between such a large integer number and a floating point representation can cause loss of precision through cancellation.
-When computing the difference of absolute timestamps, use ``mu_to_seconds(t2-t1)``, not ``mu_to_seconds(t2)-mu_to_seconds(t1)`` (see :meth:`artiq.language.core.mu_to_seconds`).
+When computing the difference of absolute timestamps, use ``self.core.mu_to_seconds(t2-t1)``, not ``self.core.mu_to_seconds(t2)-self.core.mu_to_seconds(t1)`` (see :meth:`artiq.coredevice.Core.mu_to_seconds`).
 When accumulating time, do it in machine units and not in SI units, so that rounding errors do not accumulate.
 
 The following basic example shows how to place output events on the timeline.

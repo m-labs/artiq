@@ -1731,20 +1731,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 or types.is_builtin(typ, "at_mu"):
             return self.append(ir.Builtin(typ.name,
                                           [self.visit(arg) for arg in node.args], node.type))
-        elif types.is_builtin(typ, "mu_to_seconds"):
-            if len(node.args) == 1 and len(node.keywords) == 0:
-                arg = self.visit(node.args[0])
-                arg_float = self.append(ir.Coerce(arg, builtins.TFloat()))
-                return self.append(ir.Arith(ast.Mult(loc=None), arg_float, self.ref_period))
-            else:
-                assert False
-        elif types.is_builtin(typ, "seconds_to_mu"):
-            if len(node.args) == 1 and len(node.keywords) == 0:
-                arg = self.visit(node.args[0])
-                arg_mu = self.append(ir.Arith(ast.Div(loc=None), arg, self.ref_period))
-                return self.append(ir.Coerce(arg_mu, builtins.TInt64()))
-            else:
-                assert False
         elif types.is_exn_constructor(typ):
             return self.alloc_exn(node.type, *[self.visit(arg_node) for arg_node in node.args])
         elif types.is_constructor(typ):

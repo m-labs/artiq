@@ -899,12 +899,6 @@ class Inferencer(algorithm.Visitor):
         elif types.is_builtin(typ, "at_mu"):
             simple_form("at_mu(time_mu:numpy.int64) -> None",
                         [builtins.TInt64()])
-        elif types.is_builtin(typ, "mu_to_seconds"):
-            simple_form("mu_to_seconds(time_mu:numpy.int64) -> float",
-                        [builtins.TInt64()], builtins.TFloat())
-        elif types.is_builtin(typ, "seconds_to_mu"):
-            simple_form("seconds_to_mu(time:float) -> numpy.int64",
-                        [builtins.TFloat()], builtins.TInt64())
         elif types.is_builtin(typ, "watchdog"):
             simple_form("watchdog(time:float) -> [builtin context manager]",
                         [builtins.TFloat()], builtins.TNone())

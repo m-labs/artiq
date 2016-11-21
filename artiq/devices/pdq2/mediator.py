@@ -94,7 +94,7 @@ class _Frame:
 
     def _arm(self):
         self.segment_delays = [
-            seconds_to_mu(s.duration*delay_margin_factor, self.core)
+            self.core.seconds_to_mu(s.duration*delay_margin_factor)
             for s in self.segments]
 
     def _invalidate(self):
@@ -125,7 +125,7 @@ class _Frame:
             raise ArmError()
 
         call_t = now_mu()
-        trigger_start_t = call_t - seconds_to_mu(trigger_duration/2)
+        trigger_start_t = call_t - self.core.seconds_to_mu(trigger_duration/2)
 
         if self.pdq.current_frame >= 0:
             # PDQ is in the middle of a frame. Check it is us.
@@ -136,7 +136,7 @@ class _Frame:
             # to play our first segment.
             self.pdq.current_frame = self.frame_number
             self.pdq.next_segment = 0
-            at_mu(trigger_start_t - seconds_to_mu(frame_setup))
+            at_mu(trigger_start_t - self.core.seconds_to_mu(frame_setup))
             self.pdq.frame0.set_o(bool(self.frame_number & 1))
             self.pdq.frame1.set_o(bool((self.frame_number & 2) >> 1))
             self.pdq.frame2.set_o(bool((self.frame_number & 4) >> 2))

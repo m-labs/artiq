@@ -83,7 +83,7 @@ class _PulseLogger(EnvExperiment):
         if not hasattr(self.parent_test, "first_timestamp"):
             self.parent_test.first_timestamp = t
         origin = self.parent_test.first_timestamp
-        t_usec = round(mu_to_seconds(t-origin, self.core)*1000000)
+        t_usec = round(self.core.mu_to_seconds(t-origin)*1000000)
         self.parent_test.output_list.append((self.name, t_usec, l, f))
 
     def on(self, t, f):

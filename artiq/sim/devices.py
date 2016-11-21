@@ -1,4 +1,5 @@
 from random import Random
+import numpy
 
 from artiq.language.core import delay, at_mu, kernel
 from artiq.sim import time
@@ -17,6 +18,12 @@ class Core:
             print(time.manager.format_timeline())
             time.manager.timeline.clear()
         return r
+
+    def seconds_to_mu(self, seconds):
+        return numpy.int64(seconds//self.ref_period)
+
+    def mu_to_seconds(self, mu):
+        return mu*self.ref_period
 
 
 class Input:

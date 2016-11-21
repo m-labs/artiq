@@ -151,7 +151,7 @@ In the synthetic example above, the compiler will be able to detect that the res
 
         @kernel
         def loop(self):
-            precomputed_delay_mu = seconds_to_mu(self.worker.interval / 5.0)
+            precomputed_delay_mu = self.core.seconds_to_mu(self.worker.interval / 5.0)
             for _ in range(100):
                 delay_mu(precomputed_delay_mu)
                 self.worker.work()
