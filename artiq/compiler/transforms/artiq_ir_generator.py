@@ -1599,7 +1599,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 return self.coerce_to_bool(arg)
             else:
                 assert False
-        elif types.is_builtin(typ, "int"):
+        elif types.is_builtin(typ, "int") or \
+                types.is_builtin(typ, "int32") or types.is_builtin(typ, "int64"):
             if len(node.args) == 0 and len(node.keywords) == 0:
                 return ir.Constant(0, node.type)
             elif len(node.args) == 1 and \
