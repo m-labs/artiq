@@ -7,16 +7,16 @@ Ultimately it will be the basis for the ARTIQ Sayma Smart Arbitrary Waveform Gen
 
 *Features*:
 
-* 4 channels
-* 500 MHz data rate per channel (KC705 limitation)
-* 4x interpolation to 2 GHz DAC sample rate
+* up to 4 channels
+* up to 500 MHz data rate per channel (KC705 limitation)
+* up to 8x interpolation to 2.4 GHz DAC sample rate
 * Real-time control over amplitude, frequency, phase of each channel through ARTIQ RTIO commands
 * Full configurability of the AD9154 and AD9516 through SPI with ARTIQ kernel support
 * All SPI registers and register bits exposed as human readable names
 * Parametrized JESD204B core (also capable of operation with eight lanes)
 * The code can be reconfigured. Possible example configurations are: support 2 channels at 1 GHz datarate, support 4 channels at 300 MHz data rate, no interpolation, and using mix mode to stress the second and third Nyquist zones (150-300 MHz and 300-450 MHz).
 
-The hardware required to use the ARTIQ phaser branch is a KC705 with an AD9154-FMC-EBZ plugged into the HPC connector and a low-noise 2 GHz reference clock.
+The hardware required to use the ARTIQ phaser branch is a KC705 with an AD9154-FMC-EBZ plugged into the HPC connector and a low-noise sample rate reference clock.
 
 This work was supported by the Army Research Lab.
 
@@ -90,7 +90,7 @@ Setup
 
 * Refer to the ARTIQ documentation to configure an IP address and other settings for the transmitter device.
   If the board was running stock ARTIQ before, the settings will be kept.
-* A 2 GHz of roughly 10 dBm (0.2 to 3.4 V peak-to-peak into 50 Ohm) must be connected to the AD9154-FMC-EBZ J1.
+* A 300 MHz clock of roughly 10 dBm (0.2 to 3.4 V peak-to-peak into 50 Ohm) must be connected to the AD9154-FMC-EBZ J1.
   The external RTIO clock, DAC deviceclock, FPGA deviceclock, and SYSREF are derived from this signal.
 * An example device database, several status and test scripts are provided in ``artiq/examples/phaser/``. ::
 
@@ -113,7 +113,7 @@ Usage
 * Run ``artiq_run repository/demo.py`` for an example that exercises several different use cases of synchronized phase, amplitude, and frequency updates.
   for an example that exercises several different use cases of synchronized phase, amplitude, and frequency updates.
 * Implement your own experiments using the SAWG channels.
-* Verify clock stability between the 2 GHz reference clock and the DAC outputs.
+* Verify clock stability between the sample rate reference clock and the DAC outputs.
 * Changes to the AD9154 configuration can also be performed at runtime in experiments.
   See the example ``dac_setup.py``.
   This can e.g. be used to enable and evaluate mix mode without having to change any other code (bitstream/bios/runtime/startup_kernel).

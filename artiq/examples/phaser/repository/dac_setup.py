@@ -19,10 +19,10 @@ ts = JESD204BTransportSettings(
 )
 jesd_settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
 jesd_checksum = jesd_settings.get_configuration_checksum()
-# external clk=2000MHz
-# pclock=250MHz
-# deviceclock_fpga=250MHz
-# deviceclock_dac=2000MHz
+# external clk=300MHz
+# pclock=150MHz
+# deviceclock_fpga=150MHz
+# deviceclock_dac=300MHz
 
 
 class DACSetup(EnvExperiment):
@@ -123,7 +123,7 @@ class DACSetup(EnvExperiment):
 
         self.ad9154.dac_write(AD9154_SPI_PAGEINDX, 0x3) # A and B dual
 
-        self.ad9154.dac_write(AD9154_INTERP_MODE, 3) # 4x
+        self.ad9154.dac_write(AD9154_INTERP_MODE, 0) # 1x
         self.ad9154.dac_write(AD9154_MIX_MODE, 0)
         self.ad9154.dac_write(AD9154_DATA_FORMAT, AD9154_BINARY_FORMAT_SET(0)) # s16
         self.ad9154.dac_write(AD9154_DATAPATH_CTRL,
