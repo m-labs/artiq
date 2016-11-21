@@ -622,14 +622,28 @@ class Inferencer(algorithm.Visitor):
 
             self._unify(node.type, builtins.TBool(),
                         node.loc, None)
-        elif types.is_builtin(typ, "int"):
-            valid_forms = lambda: [
-                valid_form("int() -> numpy.int?"),
-                valid_form("int(x:'a) -> numpy.int?"),
-                valid_form("int(x:'a, width=?) -> numpy.int?")
-            ]
+        elif types.is_builtin(typ, "int") or \
+                types.is_builtin(typ, "int32") or types.is_builtin(typ, "int64"):
+            if types.is_builtin(typ, "int"):
+                valid_forms = lambda: [
+                    valid_form("int() -> numpy.int?"),
+                    valid_form("int(x:'a) -> numpy.int? where 'a is numeric")
+                ]
+                result_typ = builtins.TInt()
+            elif types.is_builtin(typ, "int32"):
+                valid_forms = lambda: [
+                    valid_form("numpy.int32() -> numpy.int32"),
+                    valid_form("numpy.int32(x:'a) -> numpy.int32 where 'a is numeric")
+                ]
+                result_typ = builtins.TInt32()
+            elif types.is_builtin(typ, "int64"):
+                valid_forms = lambda: [
+                    valid_form("numpy.int64() -> numpy.int64"),
+                    valid_form("numpy.int64(x:'a) -> numpy.int64 where 'a is numeric")
+                ]
+                result_typ = builtins.TInt64()
 
-            self._unify(node.type, builtins.TInt(),
+            self._unify(node.type, result_typ,
                         node.loc, None)
 
             if len(node.args) == 0 and len(node.keywords) == 0:
@@ -639,20 +653,7 @@ class Inferencer(algorithm.Visitor):
                 pass # undetermined yet
             elif len(node.args) == 1 and len(node.keywords) == 0 and \
                     builtins.is_numeric(node.args[0].type):
-                self._unify(node.type, builtins.TInt(),
-                            node.loc, None)
-            elif len(node.args) == 1 and len(node.keywords) == 1 and \
-                    builtins.is_numeric(node.args[0].type) and \
-                    node.keywords[0].arg == 'width':
-                width = node.keywords[0].value
-                if not (isinstance(width, asttyped.NumT) and isinstance(width.n, int)):
-                    diag = diagnostic.Diagnostic("error",
-                        "the width argument of int() must be an integer literal", {},
-                        node.keywords[0].loc)
-                    self.engine.process(diag)
-                    return
-
-                self._unify(node.type, builtins.TInt(types.TValue(width.n)),
+                self._unify(node.type, result_typ,
                             node.loc, None)
             else:
                 diagnose(valid_forms())

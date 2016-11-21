@@ -14,6 +14,8 @@ def globals():
         "list":                 builtins.fn_list(),
         "array":                builtins.fn_array(),
         "range":                builtins.fn_range(),
+        "int32":                builtins.fn_int32(),
+        "int64":                builtins.fn_int64(),
 
         # Exception constructors
         "Exception":            builtins.fn_Exception(),
