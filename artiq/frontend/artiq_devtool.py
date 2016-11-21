@@ -78,7 +78,7 @@ def main():
             char = chan.read(1)
             if char == b"":
                 break
-            sys.stderr.write(char.decode("utf-8"))
+            sys.stderr.write(char.decode("utf-8", errors='replace'))
 
     for action in args.actions:
         if action == "build":
