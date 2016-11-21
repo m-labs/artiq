@@ -849,6 +849,8 @@ class LLVMIRGenerator:
 
     def process_Coerce(self, insn):
         typ, value_typ = insn.type, insn.value().type
+        if typ == value_typ:
+            return self.map(insn.value())
         if builtins.is_int(typ) and builtins.is_float(value_typ):
             return self.llbuilder.fptosi(self.map(insn.value()), self.llty_of_type(typ),
                                          name=insn.name)
