@@ -451,7 +451,7 @@ class AD9154JESD(Module, AutoCSR):
 
         qpll = GTXQuadPLL(refclk, refclk_freq, linerate)
         self.submodules += qpll
-        phys = []
+        self.phys = []
         for i in range(4):
             phy = JESD204BPhyTX(
                 qpll, platform.request("ad9154_jesd", i), fabric_freq)
@@ -459,9 +459,9 @@ class AD9154JESD(Module, AutoCSR):
             platform.add_period_constraint(phy.gtx.cd_tx.clk, 40*1e9/linerate)
             platform.add_false_path_constraints(self.cd_jesd.clk,
                                                 phy.gtx.cd_tx.clk)
-            phys.append(phy)
+            self.phys.append(phy)
         to_jesd = ClockDomainsRenamer("jesd")
-        self.submodules.core = to_jesd(JESD204BCoreTX(phys, settings,
+        self.submodules.core = to_jesd(JESD204BCoreTX(self.phys, settings,
                                                       converter_data_width=32))
         self.submodules.control = to_jesd(JESD204BCoreTXControl(self.core))
 
@@ -595,8 +595,12 @@ class Phaser(MiniSoC, AMPSoC):
 
         self.config["RTIO_FINE_TS_WIDTH"] = self.rtio.fine_ts_width
         platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            self.rtio_crg.cd_rtio.clk)
+            self.crg.cd_sys.clk, self.rtio_crg.cd_rtio.clk)
+        platform.add_false_path_constraints(
+            self.crg.cd_sys.clk, self.ad9154.jesd.cd_jesd.clk)
+        for phy in self.ad9154.jesd.phys:
+            platform.add_false_path_constraints(
+                self.crg.cd_sys.clk, phy.gtx.cd_tx.clk)
 
 
 def main():
