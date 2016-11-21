@@ -144,7 +144,6 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.csr_devices.append("rtio_crg")
         self.submodules.rtio = rtio.RTIO(rtio_channels)
         self.register_kernel_cpu_csrdevice("rtio")
-        self.config["RTIO_FINE_TS_WIDTH"] = self.rtio.fine_ts_width
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 

@@ -219,10 +219,10 @@ class _DeviceManager:
                     self.ttl_widgets[k] = widget
                     self.ttl_cb()
                 if (v["module"] == "artiq.coredevice.dds"
-                        and v["class"] == "CoreDDS"):
+                        and v["class"] == "DDSGroupAD9914"):
                     self.dds_sysclk = v["arguments"]["sysclk"]
                 if (v["module"] == "artiq.coredevice.dds"
-                        and v["class"] in {"AD9858", "AD9914"}):
+                        and v["class"] in {"DDSChannelAD9914"}):
                     bus_channel = v["arguments"]["bus_channel"]
                     channel = v["arguments"]["channel"]
                     widget = _DDSWidget(
