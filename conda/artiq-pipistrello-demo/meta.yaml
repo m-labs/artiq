@@ -1,5 +1,5 @@
 package:
-  name: artiq-pipistrello-nist_qc1
+  name: artiq-pipistrello-demo
   version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}
 
 source:
@@ -24,4 +24,4 @@ requirements:
 about:
   home: http://m-labs.hk/artiq
   license: GPL
-  summary: 'Bitstream, BIOS and runtime for NIST_QC1 on the Pipistrello board'
+  summary: 'Bitstream, BIOS and runtime for the Pipistrello board'

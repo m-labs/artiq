@@ -141,33 +141,25 @@ The low-cost Pipistrello FPGA board can be used as a lower-cost but slower alter
 
 .. warning:: The Pipistrello draws a high current over USB, and that current increases when the FPGA design is active. If you experience problems such as intermittent board freezes or USB errors, try connecting it to a self-powered USB hub.
 
-When plugged to an adapter, the NIST QC1 hardware can be used. The TTL lines are mapped to RTIO channels as follows:
+The TTL lines are mapped to RTIO channels as follows:
 
 +--------------+------------+--------------+
 | RTIO channel | TTL line   | Capability   |
 +==============+============+==============+
-| 0            | PMT0       | Input        |
+| 0-14         | B0-14      | Output       |
 +--------------+------------+--------------+
-| 1            | PMT1       | Input        |
+| 15           | USER_LED_1 | Output       |
 +--------------+------------+--------------+
-| 2-16         | TTL0-14    | Output       |
+| 16           | USER_LED_2 | Output       |
 +--------------+------------+--------------+
-| 17           | EXT_LED    | Output       |
+| 17           | USER_LED_3 | Output       |
 +--------------+------------+--------------+
-| 18           | USER_LED_1 | Output       |
+| 18           | USER_LED_4 | Output       |
 +--------------+------------+--------------+
-| 19           | USER_LED_2 | Output       |
-+--------------+------------+--------------+
-| 20           | USER_LED_3 | Output       |
-+--------------+------------+--------------+
-| 21           | USER_LED_4 | Output       |
-+--------------+------------+--------------+
-| 22           | TTL15      | Clock        |
+| 19           | B15        | Clock        |
 +--------------+------------+--------------+
 
-The input only limitation on channels 0 and 1 comes from the QC-DAQ adapter. When the adapter is not used (and physically unplugged from the Pipistrello board), the corresponding pins on the Pipistrello can be used as outputs. Do not configure these channels as outputs when the adapter is plugged, as this would cause electrical contention.
-
-The board can accept an external RTIO clock connected to PMT2. If the DDS box does not drive the PMT2 pair, use XTRIG and patch the XTRIG transceiver output on the adapter board onto C:15 disconnecting PMT2.
+The board can accept an external RTIO clock connected to C15.
 
 The board has one RTIO SPI bus on the PMOD connector, compliant to PMOD
 Interface Type 2 (SPI) and 2A (expanded SPI):
@@ -175,5 +167,5 @@ Interface Type 2 (SPI) and 2A (expanded SPI):
 +--------------+--------+--------+--------+--------+
 | RTIO channel | CS_N   | MOSI   | MISO   | CLK    |
 +==============+========+========+========+========+
-| 23           | PMOD_0 | PMOD_1 | PMOD_2 | PMOD_3 |
+| 16           | PMOD_0 | PMOD_1 | PMOD_2 | PMOD_3 |
 +--------------+--------+--------+--------+--------+
