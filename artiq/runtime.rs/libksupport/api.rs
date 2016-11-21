@@ -105,17 +105,6 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(rtio_input_timestamp),
     api!(rtio_input_data),
 
-    #[cfg(has_dds)]
-    api!(dds_init),
-    #[cfg(has_dds)]
-    api!(dds_init_sync),
-    #[cfg(has_dds)]
-    api!(dds_batch_enter),
-    #[cfg(has_dds)]
-    api!(dds_batch_exit),
-    #[cfg(has_dds)]
-    api!(dds_set),
-
     api!(i2c_init),
     api!(i2c_start),
     api!(i2c_stop),

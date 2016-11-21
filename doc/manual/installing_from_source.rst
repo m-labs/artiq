@@ -171,7 +171,7 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
     * For KC705::
 
-        $ python3.5 -m artiq.gateware.targets.kc705 -H nist_qc1  # or nist_qc2
+        $ python3.5 -m artiq.gateware.targets.kc705 -H nist_clock # or nist_qc2
 
     .. note:: Add ``--toolchain ise`` if you wish to use ISE instead of Vivado.
 

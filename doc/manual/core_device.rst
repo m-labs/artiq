@@ -29,13 +29,13 @@ All boards have a serial interface running at 115200bps 8-N-1 that can be used f
 KC705
 -----
 
-The main target board for the ARTIQ core device is the KC705 development board from Xilinx. It supports the NIST QC1 hardware via an adapter, and the NIST CLOCK and QC2 hardware (FMC).
+The main target board for the ARTIQ core device is the KC705 development board from Xilinx. It supports the NIST CLOCK and QC2 hardware (FMC).
 
 Common problems
 +++++++++++++++
 
 * The SW13 switches on the board need to be set to 00001.
-* When connected, QC1 and CLOCK adapters break the JTAG chain due to TDI not being connect to TDO on the FMC mezzanine.
+* When connected, CLOCK adapter breaks the JTAG chain due to TDI not being connect to TDO on the FMC mezzanine.
 * On some boards, the JTAG USB connector is not correctly soldered.
 
 VADJ
@@ -43,31 +43,6 @@ VADJ
 
 With the NIST CLOCK and QC2 adapters, for safe operation of the DDS buses (to prevent damage to the IO banks of the FPGA), the FMC VADJ rail of the KC705 should be changed to 3.3V. Plug the Texas Instruments USB-TO-GPIO PMBus adapter into the PMBus connector in the corner of the KC705 and use the Fusion Digital Power Designer software to configure (requires Windows). Write to chip number U55 (address 52), channel 4, which is the VADJ rail, to make it 3.3V instead of 2.5V.  Power cycle the KC705 board to check that the startup voltage on the VADJ rail is now 3.3V.
 
-
-NIST QC1
-++++++++
-
-With the QC1 hardware, the TTL lines are mapped as follows:
-
-+--------------+------------+--------------+
-| RTIO channel | TTL line   | Capability   |
-+==============+============+==============+
-| 0            | PMT0       | Input        |
-+--------------+------------+--------------+
-| 1            | PMT1       | Input        |
-+--------------+------------+--------------+
-| 2-16         | TTL0-14    | Output       |
-+--------------+------------+--------------+
-| 17           | SMA_GPIO_N | Input+Output |
-+--------------+------------+--------------+
-| 18           | LED        | Output       |
-+--------------+------------+--------------+
-| 19           | TTL15      | Clock        |
-+--------------+------------+--------------+
-
-There are no SPI channels.
-
-The DDS bus is on channel 20.
 
 NIST CLOCK
 ++++++++++
@@ -202,5 +177,3 @@ Interface Type 2 (SPI) and 2A (expanded SPI):
 +==============+========+========+========+========+
 | 23           | PMOD_0 | PMOD_1 | PMOD_2 | PMOD_3 |
 +--------------+--------+--------+--------+--------+
-
-The DDS bus is on channel 24.
