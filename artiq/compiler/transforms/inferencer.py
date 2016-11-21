@@ -1043,22 +1043,10 @@ class Inferencer(algorithm.Visitor):
         if coerced:
             return_type, target_type, value_type = coerced
 
-            try:
-                node.target.type.unify(target_type)
-            except types.UnificationError as e:
-                printer = types.TypePrinter()
-                note = diagnostic.Diagnostic("note",
-                    "expression of type {typec}",
-                    {"typec": printer.name(node.value.type)},
-                    node.value.loc)
-                diag = diagnostic.Diagnostic("error",
-                    "expression of type {typea} has to be coerced to {typeb}, "
-                    "which makes assignment invalid",
-                    {"typea": printer.name(node.target.type),
-                     "typeb": printer.name(target_type)},
-                    node.op.loc, [node.target.loc], [note])
-                self.engine.process(diag)
-                return
+            if isinstance(node.value, asttyped.CoerceT):
+                orig_value_type = node.value.value.type
+            else:
+                orig_value_type = node.value.type
 
             try:
                 node.target.type.unify(return_type)
@@ -1066,13 +1054,30 @@ class Inferencer(algorithm.Visitor):
                 printer = types.TypePrinter()
                 note = diagnostic.Diagnostic("note",
                     "expression of type {typec}",
-                    {"typec": printer.name(node.value.type)},
+                    {"typec": printer.name(orig_value_type)},
                     node.value.loc)
                 diag = diagnostic.Diagnostic("error",
                     "the result of this operation has type {typeb}, "
-                    "which makes assignment to a slot of type {typea} invalid",
+                    "which cannot be assigned to a left-hand side of type {typea}",
                     {"typea": printer.name(node.target.type),
                      "typeb": printer.name(return_type)},
+                    node.op.loc, [node.target.loc], [note])
+                self.engine.process(diag)
+                return
+
+            try:
+                node.target.type.unify(target_type)
+            except types.UnificationError as e:
+                printer = types.TypePrinter()
+                note = diagnostic.Diagnostic("note",
+                    "expression of type {typec}",
+                    {"typec": printer.name(orig_value_type)},
+                    node.value.loc)
+                diag = diagnostic.Diagnostic("error",
+                    "this operation requires the left-hand side of type {typea} "
+                    "to be coerced to {typeb}, which cannot be done",
+                    {"typea": printer.name(node.target.type),
+                     "typeb": printer.name(target_type)},
                     node.op.loc, [node.target.loc], [note])
                 self.engine.process(diag)
                 return

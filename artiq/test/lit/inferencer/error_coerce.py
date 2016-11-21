@@ -28,10 +28,10 @@
 # CHECK-L: ${LINE:+1}: error: cannot coerce list(elt='a) to a numeric type
 [] - 1.0
 
-# CHECK-L: ${LINE:+2}: error: expression of type numpy.int? has to be coerced to float, which makes assignment invalid
+# CHECK-L: ${LINE:+2}: error: the result of this operation has type float, which cannot be assigned to a left-hand side of type numpy.int?
 # CHECK-L: ${LINE:+1}: note: expression of type float
 a = 1; a += 1.0
 
-# CHECK-L: ${LINE:+2}: error: the result of this operation has type (numpy.int?, float), which makes assignment to a slot of type (numpy.int?,) invalid
+# CHECK-L: ${LINE:+2}: error: the result of this operation has type (numpy.int?, float), which cannot be assigned to a left-hand side of type (numpy.int?,)
 # CHECK-L: ${LINE:+1}: note: expression of type (float,)
 b = (1,); b += (1.0,)
