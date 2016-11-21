@@ -26,7 +26,7 @@ class Spline:
     @portable(flags=["fast-math"])
     def to_mu64(self, value: TFloat) -> TList(TInt32):
         v = int(round(value*self.scale), width=64)
-        return [int(v >> 32, width=32), int(v, width=32)]
+        return [int(v, width=32), int(v >> 32, width=32)]
 
     @kernel
     def set_mu(self, value: TInt32):
@@ -73,7 +73,6 @@ class Spline:
                 wi = (vi >> k) & 0xffff
                 v[j//2] += wi << (16 * ((j + 1)//2 - j//2))
                 j += 1
-            v.append(vi)
         return v
 
     @kernel
