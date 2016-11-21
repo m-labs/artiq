@@ -78,7 +78,7 @@ def main():
             char = chan.read(1)
             if char == b"":
                 break
-            sys.stderr.write(char.decode("utf-8"))
+            sys.stderr.write(char.decode("utf-8", errors='replace'))
 
     for action in args.actions:
         if action == "build":
@@ -116,6 +116,10 @@ def main():
                     local_stream, peer_addr = listener.accept()
                     logger.info("Accepting %s:%s and opening SSH channel to %s:%s",
                                 *peer_addr, args.ip, port)
+                    if get_ssh().get_transport() is None:
+                        logger.error("Trying to open a channel before the transport is ready!")
+                        continue
+
                     remote_stream = get_ssh().get_transport() \
                         .open_channel('direct-tcpip', (args.ip, port), peer_addr)
                     while True:

@@ -182,10 +182,7 @@ class DDSHandler:
             self.vcd_manager.get_channel("dds/" + name + "/frequency", 64)
         dds_channel["vcd_phase"] = \
             self.vcd_manager.get_channel("dds/" + name + "/phase", 64)
-        if self.dds_type == "AD9858":
-            dds_channel["ftw"] = [None, None, None, None]
-            dds_channel["pow"] = [None, None]
-        elif self.dds_type == "AD9914":
+        if self.dds_type == "DDSChannelAD9914":
             dds_channel["ftw"] = [None, None]
             dds_channel["pow"] = None
         self.dds_channels[dds_channel_nr] = dds_channel
@@ -204,26 +201,6 @@ class DDSHandler:
             return r
         else:
             return {gpio}
-
-    def _decode_ad9858_write(self, message):
-        if message.address == 0x41:
-            self.selected_dds_channels = self._gpio_to_channels(message.data)
-        for dds_channel_nr in self.selected_dds_channels:
-            dds_channel = self.dds_channels[dds_channel_nr]
-            if message.address in range(0x0a, 0x0e):
-                dds_channel["ftw"][message.address - 0x0a] = message.data
-            elif message.address in range(0x0e, 0x10):
-                dds_channel["pow"][message.address - 0x0e] = message.data
-            elif message.address == 0x40:  # FUD
-                if None not in dds_channel["ftw"]:
-                    ftw = sum(x << i*8
-                              for i, x in enumerate(dds_channel["ftw"]))
-                    frequency = ftw*self.sysclk/2**32
-                    dds_channel["vcd_frequency"].set_value_double(frequency)
-                if None not in dds_channel["pow"]:
-                    pow = dds_channel["pow"][0] | (dds_channel["pow"][1] & 0x3f) << 8
-                    phase = pow/2**14
-                    dds_channel["vcd_phase"].set_value_double(phase)
 
     def _decode_ad9914_write(self, message):
         if message.address == 0x81:
@@ -251,9 +228,7 @@ class DDSHandler:
             logger.debug("DDS write @%d 0x%04x to 0x%02x, selected channels: %s",
                          message.timestamp, message.data, message.address,
                          self.selected_dds_channels)
-            if self.dds_type == "AD9858":
-                self._decode_ad9858_write(message)
-            elif self.dds_type == "AD9914":
+            if self.dds_type == "DDSChannelAD9914":
                 self._decode_ad9914_write(message)
 
 
@@ -312,7 +287,7 @@ def get_single_device_argument(devices, module, cls, argument):
     for desc in devices.values():
         if isinstance(desc, dict) and desc["type"] == "local":
             if (desc["module"] == module
-                    and desc["class"] == cls):
+                    and desc["class"] in cls):
                 if ref_period is None:
                     ref_period = desc["arguments"][argument]
                 else:
@@ -322,12 +297,12 @@ def get_single_device_argument(devices, module, cls, argument):
 
 def get_ref_period(devices):
     return get_single_device_argument(devices, "artiq.coredevice.core",
-                                      "Core", "ref_period")
+                                      ("Core",), "ref_period")
 
 
 def get_dds_sysclk(devices):
     return get_single_device_argument(devices, "artiq.coredevice.dds",
-                                      "CoreDDS", "sysclk")
+                                      ("DDSGroupAD9914",), "sysclk")
 
 
 def create_channel_handlers(vcd_manager, devices, ref_period,
@@ -344,7 +319,7 @@ def create_channel_handlers(vcd_manager, devices, ref_period,
                 channel = desc["arguments"]["channel"]
                 channel_handlers[channel] = TTLClockGenHandler(vcd_manager, name, ref_period)
             if (desc["module"] == "artiq.coredevice.dds"
-                    and desc["class"] in {"AD9858", "AD9914"}):
+                    and desc["class"] in {"DDSChannelAD9914"}):
                 dds_bus_channel = desc["arguments"]["bus_channel"]
                 dds_channel = desc["arguments"]["channel"]
                 if dds_bus_channel in channel_handlers:

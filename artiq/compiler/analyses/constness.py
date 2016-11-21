@@ -17,6 +17,12 @@ class Constness(algorithm.Visitor):
         self.visit(node.targets)
         self.in_assign = False
 
+    def visit_SubscriptT(self, node):
+        old_in_assign, self.in_assign = self.in_assign, False
+        self.visit(node.value)
+        self.visit(node.slice)
+        self.in_assign = old_in_assign
+
     def visit_AttributeT(self, node):
         self.generic_visit(node)
         if self.in_assign:

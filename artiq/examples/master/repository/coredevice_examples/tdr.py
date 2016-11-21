@@ -42,7 +42,7 @@ class TDR(EnvExperiment):
         pulse = 1e-6  # pulse length, larger than rtt
         self.t = [0 for i in range(2)]
         try:
-            self.many(n, seconds_to_mu(pulse, self.core))
+            self.many(n, self.core.seconds_to_mu(pulse))
         except PulseNotReceivedError:
             print("to few edges: cable too long or wiring bad")
         else:

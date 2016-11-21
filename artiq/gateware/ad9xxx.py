@@ -24,13 +24,6 @@ class AD9xxx(Module):
 
     Design:
     All IO pads are registered.
-
-    With QC1 adapter:
-    LVDS driver/receiver propagation delays are 3.6+4.5 ns max
-    LVDS state transition delays are 20, 15 ns max
-    Schmitt trigger delays are 6.4ns max
-    Round-trip addr A setup (> RX, RD, D to Z), RD prop, D valid (< D
-    valid), D prop is ~15 + 10 + 20 + 10 = 55ns
     """
     def __init__(self, pads,
                  read_wait_cycles=10, hiz_wait_cycles=3,

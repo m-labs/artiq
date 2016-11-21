@@ -38,7 +38,7 @@ class RTT(EnvExperiment):
         t1 = self.ttl_inout.timestamp_mu()
         if t1 < 0:
             raise PulseNotReceived()
-        self.set_dataset("rtt", mu_to_seconds(t1 - t0))
+        self.set_dataset("rtt", self.core.mu_to_seconds(t1 - t0))
 
 
 class Loopback(EnvExperiment):
@@ -62,7 +62,7 @@ class Loopback(EnvExperiment):
         t1 = self.loop_in.timestamp_mu()
         if t1 < 0:
             raise PulseNotReceived()
-        self.set_dataset("rtt", mu_to_seconds(t1 - t0))
+        self.set_dataset("rtt", self.core.mu_to_seconds(t1 - t0))
 
 
 class ClockGeneratorLoopback(EnvExperiment):
@@ -93,7 +93,7 @@ class PulseRate(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
-        dt = seconds_to_mu(300*ns)
+        dt = self.core.seconds_to_mu(300*ns)
         while True:
             for i in range(10000):
                 try:
@@ -104,7 +104,7 @@ class PulseRate(EnvExperiment):
                     self.core.break_realtime()
                     break
             else:
-                self.set_dataset("pulse_rate", mu_to_seconds(dt))
+                self.set_dataset("pulse_rate", self.core.mu_to_seconds(dt))
                 return
 
 
@@ -118,7 +118,7 @@ class PulseRateDDS(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
-        dt = seconds_to_mu(5*us)
+        dt = self.core.seconds_to_mu(5*us)
         while True:
             delay(10*ms)
             for i in range(1250):
@@ -132,7 +132,7 @@ class PulseRateDDS(EnvExperiment):
                     self.core.break_realtime()
                     break
             else:
-                self.set_dataset("pulse_rate", mu_to_seconds(dt//2))
+                self.set_dataset("pulse_rate", self.core.mu_to_seconds(dt//2))
                 return
 
 
@@ -403,7 +403,7 @@ class CoredeviceTest(ExperimentCase):
         self.execute(TimeKeepsRunning)
         t2 = self.dataset_mgr.get("time_at_start")
 
-        dead_time = mu_to_seconds(t2 - t1, self.device_mgr.get("core"))
+        dead_time = self.device_mgr.get("core").mu_to_seconds(t2 - t1)
         print(dead_time)
         self.assertGreater(dead_time, 1*ms)
         self.assertLess(dead_time, 2500*ms)
@@ -434,7 +434,7 @@ class RPCTiming(EnvExperiment):
             t1 = self.core.get_rtio_counter_mu()
             self.nop()
             t2 = self.core.get_rtio_counter_mu()
-            self.ts[i] = mu_to_seconds(t2 - t1)
+            self.ts[i] = self.core.mu_to_seconds(t2 - t1)
 
     def run(self):
         self.ts = [0. for _ in range(self.repeats)]

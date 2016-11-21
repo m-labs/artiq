@@ -1,4 +1,5 @@
 import os, sys
+import numpy
 
 from pythonparser import diagnostic
 
@@ -123,6 +124,23 @@ class Core:
         self.comm.serve(embedding_map, symbolizer, demangler)
 
         return result
+
+    @portable
+    def seconds_to_mu(self, seconds):
+        """Converts seconds to the corresponding number of machine units
+        (RTIO cycles).
+
+        :param seconds: time (in seconds) to convert.
+        """
+        return numpy.int64(seconds//self.ref_period)
+
+    @portable
+    def mu_to_seconds(self, mu):
+        """Converts machine units (RTIO cycles) to seconds.
+
+        :param mu: cycle count to convert.
+        """
+        return mu*self.ref_period
 
     @kernel
     def get_rtio_counter_mu(self):
