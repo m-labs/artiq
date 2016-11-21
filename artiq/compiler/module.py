@@ -40,7 +40,7 @@ class Source:
             return cls(source.Buffer(f.read(), filename, 1), engine=engine)
 
 class Module:
-    def __init__(self, src, ref_period=1e-6, attribute_writeback=True, remarks=True):
+    def __init__(self, src, ref_period=1e-6, attribute_writeback=True, remarks=False):
         self.attribute_writeback = attribute_writeback
         self.engine = src.engine
         self.embedding_map = src.embedding_map

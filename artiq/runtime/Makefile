@@ -4,7 +4,7 @@ include $(MISOC_DIRECTORY)/software/common.mak
 PYTHON ?= python3.5
 
 OBJECTS := flash_storage.o main.o
-OBJECTS_KSUPPORT := ksupport_glue.o artiq_personality.o rtio.o i2c.o ad9154.o
+OBJECTS_KSUPPORT := ksupport_glue.o artiq_personality.o ad9154.o
 
 RUSTOUT_DIRECTORY := cargo/or1k-unknown-none/debug
 CORE_IO_COMMIT := d40c593f42fafbac1ff3d827f6df96338b5b7d8b
