@@ -29,13 +29,13 @@ All boards have a serial interface running at 115200bps 8-N-1 that can be used f
 KC705
 -----
 
-The main target board for the ARTIQ core device is the KC705 development board from Xilinx. It supports the NIST QC1 hardware via an adapter, and the NIST CLOCK and QC2 hardware (FMC).
+The main target board for the ARTIQ core device is the KC705 development board from Xilinx. It supports the NIST CLOCK and QC2 hardware (FMC).
 
 Common problems
 +++++++++++++++
 
 * The SW13 switches on the board need to be set to 00001.
-* When connected, QC1 and CLOCK adapters break the JTAG chain due to TDI not being connect to TDO on the FMC mezzanine.
+* When connected, CLOCK adapter breaks the JTAG chain due to TDI not being connect to TDO on the FMC mezzanine.
 * On some boards, the JTAG USB connector is not correctly soldered.
 
 VADJ
@@ -43,31 +43,6 @@ VADJ
 
 With the NIST CLOCK and QC2 adapters, for safe operation of the DDS buses (to prevent damage to the IO banks of the FPGA), the FMC VADJ rail of the KC705 should be changed to 3.3V. Plug the Texas Instruments USB-TO-GPIO PMBus adapter into the PMBus connector in the corner of the KC705 and use the Fusion Digital Power Designer software to configure (requires Windows). Write to chip number U55 (address 52), channel 4, which is the VADJ rail, to make it 3.3V instead of 2.5V.  Power cycle the KC705 board to check that the startup voltage on the VADJ rail is now 3.3V.
 
-
-NIST QC1
-++++++++
-
-With the QC1 hardware, the TTL lines are mapped as follows:
-
-+--------------+------------+--------------+
-| RTIO channel | TTL line   | Capability   |
-+==============+============+==============+
-| 0            | PMT0       | Input        |
-+--------------+------------+--------------+
-| 1            | PMT1       | Input        |
-+--------------+------------+--------------+
-| 2-16         | TTL0-14    | Output       |
-+--------------+------------+--------------+
-| 17           | SMA_GPIO_N | Input+Output |
-+--------------+------------+--------------+
-| 18           | LED        | Output       |
-+--------------+------------+--------------+
-| 19           | TTL15      | Clock        |
-+--------------+------------+--------------+
-
-There are no SPI channels.
-
-The DDS bus is on channel 20.
 
 NIST CLOCK
 ++++++++++
@@ -190,33 +165,27 @@ The low-cost Pipistrello FPGA board can be used as a lower-cost but slower alter
 
 .. warning:: The Pipistrello draws a high current over USB, and that current increases when the FPGA design is active. If you experience problems such as intermittent board freezes or USB errors, try connecting it to a self-powered USB hub.
 
-When plugged to an adapter, the NIST QC1 hardware can be used. The TTL lines are mapped to RTIO channels as follows:
+The TTL lines are mapped to RTIO channels as follows:
 
 +--------------+------------+--------------+
 | RTIO channel | TTL line   | Capability   |
 +==============+============+==============+
-| 0            | PMT0       | Input        |
+| 0-1          | B0-1       | Input+Output |
 +--------------+------------+--------------+
-| 1            | PMT1       | Input        |
+| 2-14         | B2-14      | Output       |
 +--------------+------------+--------------+
-| 2-16         | TTL0-14    | Output       |
+| 15           | USER_LED_1 | Output       |
 +--------------+------------+--------------+
-| 17           | EXT_LED    | Output       |
+| 16           | USER_LED_2 | Output       |
 +--------------+------------+--------------+
-| 18           | USER_LED_1 | Output       |
+| 17           | USER_LED_3 | Output       |
 +--------------+------------+--------------+
-| 19           | USER_LED_2 | Output       |
+| 18           | USER_LED_4 | Output       |
 +--------------+------------+--------------+
-| 20           | USER_LED_3 | Output       |
-+--------------+------------+--------------+
-| 21           | USER_LED_4 | Output       |
-+--------------+------------+--------------+
-| 22           | TTL15      | Clock        |
+| 19           | B15        | Clock        |
 +--------------+------------+--------------+
 
-The input only limitation on channels 0 and 1 comes from the QC-DAQ adapter. When the adapter is not used (and physically unplugged from the Pipistrello board), the corresponding pins on the Pipistrello can be used as outputs. Do not configure these channels as outputs when the adapter is plugged, as this would cause electrical contention.
-
-The board can accept an external RTIO clock connected to PMT2. If the DDS box does not drive the PMT2 pair, use XTRIG and patch the XTRIG transceiver output on the adapter board onto C:15 disconnecting PMT2.
+The board can accept an external RTIO clock connected to C15.
 
 The board has one RTIO SPI bus on the PMOD connector, compliant to PMOD
 Interface Type 2 (SPI) and 2A (expanded SPI):
@@ -224,7 +193,5 @@ Interface Type 2 (SPI) and 2A (expanded SPI):
 +--------------+--------+--------+--------+--------+
 | RTIO channel | CS_N   | MOSI   | MISO   | CLK    |
 +==============+========+========+========+========+
-| 23           | PMOD_0 | PMOD_1 | PMOD_2 | PMOD_3 |
+| 16           | PMOD_0 | PMOD_1 | PMOD_2 | PMOD_3 |
 +--------------+--------+--------+--------+--------+
-
-The DDS bus is on channel 24.

@@ -1,5 +1,5 @@
 package:
-  name: artiq-pipistrello-nist_qc1
+  name: artiq-pipistrello-demo
   version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}
 
 source:
@@ -12,8 +12,8 @@ build:
 
 requirements:
   build:
-    - migen 0.4
-    - misoc 0.4
+    - migen 0.5.dev
+    - misoc 0.5.dev
     - llvm-or1k
     - binutils-or1k-linux >=2.27
     - rust-core-or1k
@@ -24,4 +24,4 @@ requirements:
 about:
   home: http://m-labs.hk/artiq
   license: GPL
-  summary: 'Bitstream, BIOS and runtime for NIST_QC1 on the Pipistrello board'
+  summary: 'Bitstream, BIOS and runtime for the Pipistrello board'

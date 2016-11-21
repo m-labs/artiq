@@ -15,7 +15,7 @@ class DDSSetter(EnvExperiment):
             if (isinstance(v, dict)
                     and v["type"] == "local"
                     and v["module"] == "artiq.coredevice.dds"
-                    and v["class"] in {"AD9858", "AD9914"}):
+                    and v["class"] in {"DDSChannelAD9914"}):
                 self.dds[k] = {
                     "driver": self.get_device(k),
                     "frequency": self.get_argument(

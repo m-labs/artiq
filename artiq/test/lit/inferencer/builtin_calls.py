@@ -13,8 +13,8 @@ int()
 # CHECK-L: int:<constructor int>(1.0:float):numpy.int?
 int(1.0)
 
-# CHECK-L: int:<constructor int>(1.0:float, width=64:numpy.int?):numpy.int64
-int(1.0, width=64)
+# CHECK-L: int64:<function int64>(1.0:float):numpy.int64
+int64(1.0)
 
 # CHECK-L: float:<constructor float {}>():float
 float()

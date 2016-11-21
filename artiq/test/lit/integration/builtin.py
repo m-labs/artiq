@@ -7,7 +7,7 @@ assert bool() is False
 
 assert int() is 0
 assert int(1.0) is 1
-#ARTIQ#assert int(1, width=64) << 40 is 1099511627776
+#ARTIQ#assert int64(1) << 40 is 1099511627776
 
 #ARTIQ#assert float() is 0.0
 #ARTIQ#assert float(1) is 1.0
