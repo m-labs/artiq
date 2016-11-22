@@ -30,7 +30,7 @@ pub enum Request {
     RpcException {
         name:     String,
         message:  String,
-        param:    [u64; 3],
+        param:    [i64; 3],
         file:     String,
         line:     u32,
         column:   u32,
@@ -59,9 +59,9 @@ impl Request {
             8  => Request::RpcException {
                 name:     try!(read_string(reader)),
                 message:  try!(read_string(reader)),
-                param:    [try!(read_u64(reader)),
-                           try!(read_u64(reader)),
-                           try!(read_u64(reader))],
+                param:    [try!(read_u64(reader).map(|x| x as i64)),
+                           try!(read_u64(reader).map(|x| x as i64)),
+                           try!(read_u64(reader).map(|x| x as i64))],
                 file:     try!(read_string(reader)),
                 line:     try!(read_u32(reader)),
                 column:   try!(read_u32(reader)),
@@ -99,7 +99,7 @@ pub enum Reply<'a> {
     KernelException {
         name:      &'a str,
         message:   &'a str,
-        param:     [u64; 3],
+        param:     [i64; 3],
         file:      &'a str,
         line:      u32,
         column:    u32,
@@ -157,9 +157,9 @@ impl<'a> Reply<'a> {
                 try!(write_u8(writer, 9));
                 try!(write_string(writer, name));
                 try!(write_string(writer, message));
-                try!(write_u64(writer, param[0]));
-                try!(write_u64(writer, param[1]));
-                try!(write_u64(writer, param[2]));
+                try!(write_u64(writer, param[0] as u64));
+                try!(write_u64(writer, param[1] as u64));
+                try!(write_u64(writer, param[2] as u64));
                 try!(write_string(writer, file));
                 try!(write_u32(writer, line));
                 try!(write_u32(writer, column));

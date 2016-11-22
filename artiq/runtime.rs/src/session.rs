@@ -2,6 +2,7 @@ use std::prelude::v1::*;
 use std::{mem, str};
 use std::cell::RefCell;
 use std::io::{self, Read, Write, BufWriter};
+use std::btree_set::BTreeSet;
 use {config, rtio_crg, clock, mailbox, rpc_queue, kernel};
 use logger::BufferLogger;
 use cache::Cache;
@@ -57,7 +58,8 @@ struct Session<'a> {
     congress: &'a mut Congress,
     kernel_state: KernelState,
     watchdog_set: clock::WatchdogSet,
-    log_buffer: String
+    log_buffer: String,
+    interner: BTreeSet<String>
 }
 
 impl<'a> Session<'a> {
@@ -66,7 +68,8 @@ impl<'a> Session<'a> {
             congress: congress,
             kernel_state: KernelState::Absent,
             watchdog_set: clock::WatchdogSet::new(),
-            log_buffer: String::new()
+            log_buffer: String::new(),
+            interner: BTreeSet::new()
         }
     }
 
@@ -309,20 +312,20 @@ fn process_host_message(waiter: Waiter,
             }));
 
             // FIXME: gross.
-            fn into_c_str(s: String) -> *const u8 {
+            fn into_c_str(interner: &mut BTreeSet<String>, s: String) -> *const u8 {
                 let s = s + "\0";
-                let p = s.as_bytes().as_ptr();
-                mem::forget(s);
+                interner.insert(s.clone());
+                let p = interner.get(&s).unwrap().as_bytes().as_ptr();
                 p
             }
             let exn = kern::Exception {
-                name: into_c_str(name),
-                message: into_c_str(message),
+                name: into_c_str(&mut session.interner, name),
+                message: into_c_str(&mut session.interner, message),
                 param: param,
-                file: into_c_str(file),
+                file: into_c_str(&mut session.interner, file),
                 line: line,
                 column: column,
-                function: into_c_str(function),
+                function: into_c_str(&mut session.interner, function),
                 phantom: ::core::marker::PhantomData
             };
             try!(kern_send(waiter, &kern::RpcRecvReply(Err(exn))));
