@@ -1,5 +1,4 @@
-from artiq.language.core import (kernel, portable, delay_mu, delay,
-                                 seconds_to_mu)
+from artiq.language.core import (kernel, portable, delay_mu, delay)
 from artiq.language.units import ns, us
 from artiq.coredevice import spi
 
@@ -166,10 +165,10 @@ class AD5360:
                                self.bus.write_period_mu +
                                self.bus.ref_period_mu) -
                  3*self.bus.ref_period_mu -
-                 seconds_to_mu(1.5*us))
+                 self.core.seconds_to_mu(1.5*us))
         for i in range(len(values)):
             self.write_channel(i, values[i], op)
         delay_mu(3*self.bus.ref_period_mu +  # latency alignment ttl to spi
-                 seconds_to_mu(1.5*us))  # t10 max busy low for one channel
+                 self.core.seconds_to_mu(1.5*us))  # t10 max busy low for one channel
         self.load()
         delay_mu(-2*self.bus.ref_period_mu)  # load(), t13

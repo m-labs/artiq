@@ -56,11 +56,6 @@ class _AD9xxx(Module):
             for c, (probe, ftw) in enumerate(zip(self.probes, ftws))])
 
 
-class AD9858(_AD9xxx):
-    def __init__(self, *args, **kwargs):
-        _AD9xxx.__init__(self, 0x0a, *args, **kwargs)
-
-
 class AD9914(_AD9xxx):
     def __init__(self, *args, **kwargs):
         _AD9xxx.__init__(self, 0x2d, *args, **kwargs)

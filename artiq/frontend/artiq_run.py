@@ -73,8 +73,7 @@ class LLVMIRRunner(FileRunner):
         with open(self.file, "r") as f:
             llmodule = llvm.parse_assembly(f.read())
         llmodule.verify()
-        return self.target.link([self.target.assemble(llmodule)],
-                                init_fn="__modinit__")
+        return self.target.link([self.target.assemble(llmodule)])
 
 
 class LLVMBitcodeRunner(FileRunner):
@@ -82,8 +81,7 @@ class LLVMBitcodeRunner(FileRunner):
         with open(self.file, "rb") as f:
             llmodule = llvm.parse_bitcode(f.read())
         llmodule.verify()
-        return self.target.link([self.target.assemble(llmodule)],
-                                init_fn="__modinit__")
+        return self.target.link([self.target.assemble(llmodule)])
 
 
 class DummyScheduler:

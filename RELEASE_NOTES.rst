@@ -16,6 +16,12 @@ Release notes
 * Datasets requested by experiments are by default archived into their HDF5
   output. If this behavior is undesirable, turn it off by passing
   ``archive=False`` to ``get_dataset``.
+* ``seconds_to_mu`` and ``mu_to_seconds`` have become methods of the core
+  device driver (use e.g. ``self.core.seconds_to_mu()``).
+* AD9858 DDSes and NIST QC1 hardware are no longer supported.
+* The Pipistrello port now has exclusively TTLs.
+* The DDS class names and setup options have changed, this requires an update of
+  the device database.
 
 
 2.0

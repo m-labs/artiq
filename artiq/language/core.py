@@ -15,7 +15,6 @@ __all__ = ["kernel", "portable", "rpc", "syscall", "host_only",
 kernel_globals = (
     "sequential", "parallel", "interleave",
     "delay_mu", "now_mu", "at_mu", "delay",
-    "seconds_to_mu", "mu_to_seconds",
     "watchdog"
 )
 __all__.extend(kernel_globals)
@@ -211,31 +210,6 @@ def at_mu(time):
 def delay(duration):
     """Increases the RTIO time by the given amount (in seconds)."""
     _time_manager.take_time(duration)
-
-
-def seconds_to_mu(seconds, core=None):
-    """Converts seconds to the corresponding number of machine units
-    (RTIO cycles).
-
-    :param seconds: time (in seconds) to convert.
-    :param core: core device for which to perform the conversion. Specify only
-        when running in the interpreter (not in kernel).
-    """
-    if core is None:
-        raise ValueError("Core device must be specified for time conversion")
-    return numpy.int64(seconds//core.ref_period)
-
-
-def mu_to_seconds(mu, core=None):
-    """Converts machine units (RTIO cycles) to seconds.
-
-    :param mu: cycle count to convert.
-    :param core: core device for which to perform the conversion. Specify only
-        when running in the interpreter (not in kernel).
-    """
-    if core is None:
-        raise ValueError("Core device must be specified for time conversion")
-    return mu*core.ref_period
 
 
 class _DummyWatchdog:

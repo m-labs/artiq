@@ -13,8 +13,10 @@ fn main() {
     let dest_path = Path::new(&out_dir).join("git_info.rs");
     let mut f = File::create(&dest_path).unwrap();
 
-    writeln!(f, "const GIT_COMMIT: &'static str = {:?};",
-                git_describe().unwrap()).unwrap();
+    let id = git_describe().unwrap();
+    let id = id.split("-").collect::<Vec<_>>();
+    let id = format!("{}+{}.{}", id[0], id[1], id[2]);
+    writeln!(f, "const GIT_COMMIT: &'static str = {:?};", id).unwrap();
 
     println!("cargo:rerun-if-changed=../../.git/HEAD");
     for entry in WalkDir::new("../../.git/refs") {

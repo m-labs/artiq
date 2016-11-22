@@ -125,7 +125,6 @@ class DDSError(Exception):
     when too many commands are batched, and when DDS channel settings are
     incorrect.
     """
-    artiq_builtin = True
 
 class I2CError(Exception):
     """Raised with a I2C transaction fails."""

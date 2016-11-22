@@ -14,6 +14,8 @@ def globals():
         "list":                 builtins.fn_list(),
         "array":                builtins.fn_array(),
         "range":                builtins.fn_range(),
+        "int32":                builtins.fn_int32(),
+        "int64":                builtins.fn_int64(),
 
         # Exception constructors
         "Exception":            builtins.fn_Exception(),
@@ -44,8 +46,6 @@ def globals():
         "now_mu":               builtins.fn_now_mu(),
         "delay_mu":             builtins.fn_delay_mu(),
         "at_mu":                builtins.fn_at_mu(),
-        "mu_to_seconds":        builtins.fn_mu_to_seconds(),
-        "seconds_to_mu":        builtins.fn_seconds_to_mu(),
 
         # ARTIQ utility functions
         "rtio_log":             builtins.fn_rtio_log(),

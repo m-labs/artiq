@@ -622,14 +622,28 @@ class Inferencer(algorithm.Visitor):
 
             self._unify(node.type, builtins.TBool(),
                         node.loc, None)
-        elif types.is_builtin(typ, "int"):
-            valid_forms = lambda: [
-                valid_form("int() -> numpy.int?"),
-                valid_form("int(x:'a) -> numpy.int?"),
-                valid_form("int(x:'a, width=?) -> numpy.int?")
-            ]
+        elif types.is_builtin(typ, "int") or \
+                types.is_builtin(typ, "int32") or types.is_builtin(typ, "int64"):
+            if types.is_builtin(typ, "int"):
+                valid_forms = lambda: [
+                    valid_form("int() -> numpy.int?"),
+                    valid_form("int(x:'a) -> numpy.int? where 'a is numeric")
+                ]
+                result_typ = builtins.TInt()
+            elif types.is_builtin(typ, "int32"):
+                valid_forms = lambda: [
+                    valid_form("numpy.int32() -> numpy.int32"),
+                    valid_form("numpy.int32(x:'a) -> numpy.int32 where 'a is numeric")
+                ]
+                result_typ = builtins.TInt32()
+            elif types.is_builtin(typ, "int64"):
+                valid_forms = lambda: [
+                    valid_form("numpy.int64() -> numpy.int64"),
+                    valid_form("numpy.int64(x:'a) -> numpy.int64 where 'a is numeric")
+                ]
+                result_typ = builtins.TInt64()
 
-            self._unify(node.type, builtins.TInt(),
+            self._unify(node.type, result_typ,
                         node.loc, None)
 
             if len(node.args) == 0 and len(node.keywords) == 0:
@@ -639,20 +653,7 @@ class Inferencer(algorithm.Visitor):
                 pass # undetermined yet
             elif len(node.args) == 1 and len(node.keywords) == 0 and \
                     builtins.is_numeric(node.args[0].type):
-                self._unify(node.type, builtins.TInt(),
-                            node.loc, None)
-            elif len(node.args) == 1 and len(node.keywords) == 1 and \
-                    builtins.is_numeric(node.args[0].type) and \
-                    node.keywords[0].arg == 'width':
-                width = node.keywords[0].value
-                if not (isinstance(width, asttyped.NumT) and isinstance(width.n, int)):
-                    diag = diagnostic.Diagnostic("error",
-                        "the width argument of int() must be an integer literal", {},
-                        node.keywords[0].loc)
-                    self.engine.process(diag)
-                    return
-
-                self._unify(node.type, builtins.TInt(types.TValue(width.n)),
+                self._unify(node.type, result_typ,
                             node.loc, None)
             else:
                 diagnose(valid_forms())
@@ -899,12 +900,6 @@ class Inferencer(algorithm.Visitor):
         elif types.is_builtin(typ, "at_mu"):
             simple_form("at_mu(time_mu:numpy.int64) -> None",
                         [builtins.TInt64()])
-        elif types.is_builtin(typ, "mu_to_seconds"):
-            simple_form("mu_to_seconds(time_mu:numpy.int64) -> float",
-                        [builtins.TInt64()], builtins.TFloat())
-        elif types.is_builtin(typ, "seconds_to_mu"):
-            simple_form("seconds_to_mu(time:float) -> numpy.int64",
-                        [builtins.TFloat()], builtins.TInt64())
         elif types.is_builtin(typ, "watchdog"):
             simple_form("watchdog(time:float) -> [builtin context manager]",
                         [builtins.TFloat()], builtins.TNone())
@@ -1049,22 +1044,10 @@ class Inferencer(algorithm.Visitor):
         if coerced:
             return_type, target_type, value_type = coerced
 
-            try:
-                node.target.type.unify(target_type)
-            except types.UnificationError as e:
-                printer = types.TypePrinter()
-                note = diagnostic.Diagnostic("note",
-                    "expression of type {typec}",
-                    {"typec": printer.name(node.value.type)},
-                    node.value.loc)
-                diag = diagnostic.Diagnostic("error",
-                    "expression of type {typea} has to be coerced to {typeb}, "
-                    "which makes assignment invalid",
-                    {"typea": printer.name(node.target.type),
-                     "typeb": printer.name(target_type)},
-                    node.op.loc, [node.target.loc], [note])
-                self.engine.process(diag)
-                return
+            if isinstance(node.value, asttyped.CoerceT):
+                orig_value_type = node.value.value.type
+            else:
+                orig_value_type = node.value.type
 
             try:
                 node.target.type.unify(return_type)
@@ -1072,13 +1055,30 @@ class Inferencer(algorithm.Visitor):
                 printer = types.TypePrinter()
                 note = diagnostic.Diagnostic("note",
                     "expression of type {typec}",
-                    {"typec": printer.name(node.value.type)},
+                    {"typec": printer.name(orig_value_type)},
                     node.value.loc)
                 diag = diagnostic.Diagnostic("error",
                     "the result of this operation has type {typeb}, "
-                    "which makes assignment to a slot of type {typea} invalid",
+                    "which cannot be assigned to a left-hand side of type {typea}",
                     {"typea": printer.name(node.target.type),
                      "typeb": printer.name(return_type)},
+                    node.op.loc, [node.target.loc], [note])
+                self.engine.process(diag)
+                return
+
+            try:
+                node.target.type.unify(target_type)
+            except types.UnificationError as e:
+                printer = types.TypePrinter()
+                note = diagnostic.Diagnostic("note",
+                    "expression of type {typec}",
+                    {"typec": printer.name(orig_value_type)},
+                    node.value.loc)
+                diag = diagnostic.Diagnostic("error",
+                    "this operation requires the left-hand side of type {typea} "
+                    "to be coerced to {typeb}, which cannot be done",
+                    {"typea": printer.name(node.target.type),
+                     "typeb": printer.name(target_type)},
                     node.op.loc, [node.target.loc], [note])
                 self.engine.process(diag)
                 return

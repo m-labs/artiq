@@ -10,7 +10,7 @@ A number of Python features can be used inside a kernel for compilation and exec
 
 * Booleans
 * 32-bit signed integers (default size)
-* 64-bit signed integers (use ``int(n, width=64)`` to convert)
+* 64-bit signed integers (use ``numpy.int64`` to convert)
 * Double-precision floating point numbers
 * Lists of any supported types
 * User-defined classes, with attributes of any supported types (attributes that are not used anywhere in the kernel are ignored)
@@ -36,7 +36,7 @@ The Python types correspond to ARTIQ type annotations as follows:
 +-------------+-------------------------+
 | bool        | TBool                   |
 +-------------+-------------------------+
-| int         | TInt32, TInt64          |
+| int         | TInt32 or TInt64        |
 +-------------+-------------------------+
 | float       | TFloat                  |
 +-------------+-------------------------+
@@ -46,6 +46,33 @@ The Python types correspond to ARTIQ type annotations as follows:
 +-------------+-------------------------+
 | range       | TRange32, TRange64      |
 +-------------+-------------------------+
+| numpy.int32 | TInt32                  |
++-------------+-------------------------+
+| numpy.int64 | TInt64                  |
++-------------+-------------------------+
+| numpy.float64 | TFloat                |
++-------------+-------------------------+
+
+Pitfalls
+--------
+
+The ARTIQ compiler accepts *nearly* a strict subset of Python 3. However, by necessity there
+is a number of differences that can lead to bugs.
+
+Arbitrary-length integers are not supported at all on the core device; all integers are
+either 32-bit or 64-bit. This especially affects calculations that result in a 32-bit signed
+overflow; if the compiler detects a constant that doesn't fit into 32 bits, the entire expression
+will be upgraded to 64-bit arithmetics, however if all constants are small, 32-bit arithmetics
+will be used even if the result will overflow. Overflows are not detected.
+
+The result of calling the builtin ``round`` function is different when used with
+the builtin ``float`` type and the ``numpy.float64`` type on the host interpreter; ``round(1.0)``
+returns an integer value 1, whereas ``round(numpy.float64(1.0))`` returns a floating point value
+``numpy.float64(1.0)``. Since both ``float`` and ``numpy.float64`` are mapped to
+the builtin ``float`` type on the core device, this can lead to problems in functions marked
+``@portable``; the workaround is to explicitly cast the argument of ``round`` to ``float``:
+``round(float(numpy.float64(1.0)))`` returns an integer on the core device as well as on the host
+interpreter.
 
 Asynchronous RPCs
 -----------------
@@ -54,7 +81,7 @@ If an RPC returns no value, it can be invoked in a way that does not block until
 execution, but only until it is queued. (Submitting asynchronous RPCs too rapidly, as well as
 submitting asynchronous RPCs with arguments that are too large, can still block until completion.)
 
-To define an asynchronous RPC, use the ``@rpc`` annotation with a flag:
+To define an asynchronous RPC, use the ``@rpc`` annotation with a flag: ::
 
     @rpc(flags={"async"})
     def record_result(x):
@@ -87,7 +114,7 @@ Kernel invariants
 
 The compiler attempts to remove or hoist out of loops any redundant memory load operations, as well as propagate known constants into function bodies, which can enable further optimization. However, it must make conservative assumptions about code that it is unable to observe, because such code can change the value of the attribute, making the optimization invalid.
 
-When an attribute is known to never change while the kernel is running, it can be marked as a *kernel invariant* to enable more aggressive optimization for this specific attribute: ::
+When an attribute is known to never change while the kernel is running, it can be marked as a *kernel invariant* to enable more aggressive optimization for this specific attribute. ::
 
     class Converter:
         kernel_invariants = {"ratio"}
@@ -99,4 +126,32 @@ When an attribute is known to never change while the kernel is running, it can b
         def convert(self, value):
             return value * self.ratio ** 2
 
-In the synthetic example above, the compiler will be able to detect that the result of evaluating ``self.ratio ** 2`` never changes and replace it with a constant, removing an expensive floating-point operation.
+In the synthetic example above, the compiler will be able to detect that the result of evaluating ``self.ratio ** 2`` never changes and replace it with a constant, removing an expensive floating-point operation. ::
+
+    class Worker:
+        kernel_invariants = {"interval"}
+
+        def __init__(self, interval=1.0*us):
+            self.interval = interval
+
+        def work(self):
+            # something useful
+
+    class Looper:
+        def __init__(self, worker):
+            self.worker = worker
+
+        @kernel
+        def loop(self):
+            for _ in range(100):
+                delay(self.worker.interval / 5.0)
+                self.worker.work()
+
+In the synthetic example above, the compiler will be able to detect that the result of evaluating ``self.interval / 5.0`` never changes, even though it neither knows the value of ``self.worker.interval`` beforehand nor can it see through the ``self.worker.work()`` function call, and hoist the expensive floating-point division out of the loop, transforming the code for ``loop`` into an equivalent of the following: ::
+
+        @kernel
+        def loop(self):
+            precomputed_delay_mu = self.core.seconds_to_mu(self.worker.interval / 5.0)
+            for _ in range(100):
+                delay_mu(precomputed_delay_mu)
+                self.worker.work()

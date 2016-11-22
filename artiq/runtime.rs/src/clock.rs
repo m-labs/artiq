@@ -12,6 +12,13 @@ pub fn init() {
     }
 }
 
+pub fn get_us() -> u64 {
+    unsafe {
+        csr::timer0::update_value_write(1);
+        (INIT - csr::timer0::value_read()) / (FREQ / 1_000_000)
+    }
+}
+
 pub fn get_ms() -> u64 {
     unsafe {
         csr::timer0::update_value_write(1);

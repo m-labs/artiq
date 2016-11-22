@@ -17,7 +17,7 @@ from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
 from misoc.integration.builder import builder_args, builder_argdict
 
 from artiq.gateware.soc import AMPSoC, build_artiq_soc
-from artiq.gateware import rtio, nist_qc1, nist_clock, nist_qc2
+from artiq.gateware import rtio, nist_clock, nist_qc2
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, dds, spi
 from artiq import __version__ as artiq_version
 
@@ -81,7 +81,7 @@ class _RTIOCRG(Module, AutoCSR):
 # The default user SMA voltage on KC705 is 2.5V, and the Migen platform
 # follows this default. But since the SMAs are on the same bank as the DDS,
 # which is set to 3.3V by reprogramming the KC705 power ICs, we need to
-# redefine them here. 
+# redefine them here.
 _sma33_io = [
     ("user_sma_gpio_p_33", 0, Pins("Y23"), IOStandard("LVCMOS33")),
     ("user_sma_gpio_n_33", 0, Pins("Y24"), IOStandard("LVCMOS33")),
@@ -137,12 +137,13 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.register_kernel_cpu_csrdevice("i2c")
         self.config["I2C_BUS_COUNT"] = 1
 
+        self.config["HAS_DDS"] = None
+
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
         self.csr_devices.append("rtio_crg")
         self.submodules.rtio = rtio.RTIO(rtio_channels)
         self.register_kernel_cpu_csrdevice("rtio")
-        self.config["RTIO_FINE_TS_WIDTH"] = self.rtio.fine_ts_width
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
@@ -155,62 +156,6 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio,
             self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
-
-
-class NIST_QC1(_NIST_Ions):
-    """
-    NIST QC1 hardware, as used in the Penning lab, with FMC to SCSI cables
-    adapter.
-    """
-    def __init__(self, cpu_type="or1k", **kwargs):
-        _NIST_Ions.__init__(self, cpu_type, **kwargs)
-
-        platform = self.platform
-        platform.add_extension(nist_qc1.fmc_adapter_io)
-
-        self.comb += [
-            platform.request("ttl_l_tx_en").eq(1),
-            platform.request("ttl_h_tx_en").eq(1)
-        ]
-
-        rtio_channels = []
-        for i in range(2):
-            phy = ttl_serdes_7series.Inout_8X(platform.request("pmt", i))
-            self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
-        for i in range(15):
-            phy = ttl_serdes_7series.Output_8X(platform.request("ttl", i))
-            self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy))
-
-        phy = ttl_serdes_7series.Inout_8X(platform.request("user_sma_gpio_n_33"))
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
-        phy = ttl_simple.Output(platform.request("user_led", 2))
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
-        self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
-
-        phy = ttl_simple.ClockGen(platform.request("ttl", 15))
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
-
-        self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
-        self.config["RTIO_DDS_COUNT"] = 1
-        self.config["DDS_CHANNELS_PER_BUS"] = 8
-        self.config["DDS_AD9858"] = True
-        phy = dds.AD9858(platform.request("dds"), 8)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy,
-                                                   ofifo_depth=512,
-                                                   ififo_depth=4))
-
-        self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
-        rtio_channels.append(rtio.LogChannel())
-
-        self.add_rtio(rtio_channels)
-        assert self.rtio.fine_ts_width <= 3
-        self.config["DDS_RTIO_CLK_RATIO"] = 8 >> self.rtio.fine_ts_width
 
 
 class NIST_CLOCK(_NIST_Ions):
@@ -272,8 +217,8 @@ class NIST_CLOCK(_NIST_Ions):
         self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
         self.config["RTIO_DDS_COUNT"] = 1
         self.config["DDS_CHANNELS_PER_BUS"] = 11
-        self.config["DDS_AD9914"] = True
-        self.config["DDS_ONEHOT_SEL"] = True
+        self.config["DDS_AD9914"] = None
+        self.config["DDS_ONEHOT_SEL"] = None
         phy = dds.AD9914(platform.request("dds"), 11, onehot=True)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,
@@ -291,7 +236,7 @@ class NIST_CLOCK(_NIST_Ions):
 class NIST_QC2(_NIST_Ions):
     """
     NIST QC2 hardware, as used in Quantum I and Quantum II, with new backplane
-    and 24 DDS channels.  Two backplanes are used.  
+    and 24 DDS channels.  Two backplanes are used.
     """
     def __init__(self, cpu_type="or1k", **kwargs):
         _NIST_Ions.__init__(self, cpu_type, **kwargs)
@@ -308,19 +253,19 @@ class NIST_QC2(_NIST_Ions):
                 platform.request("ttl", i))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
-        
+
         # CLK0, CLK1 are for clock generators, on backplane SMP connectors
-        for i in range(2):        
+        for i in range(2):
             phy = ttl_simple.ClockGen(
                 platform.request("clkout", i))
             self.submodules += phy
-            clock_generators.append(rtio.Channel.from_phy(phy)) 
+            clock_generators.append(rtio.Channel.from_phy(phy))
 
         # user SMA on KC705 board
         phy = ttl_serdes_7series.Inout_8X(platform.request("user_sma_gpio_n_33"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
-        
+
         phy = ttl_simple.Output(platform.request("user_led", 2))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
@@ -350,8 +295,8 @@ class NIST_QC2(_NIST_Ions):
         self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
         self.config["RTIO_DDS_COUNT"] = 2
         self.config["DDS_CHANNELS_PER_BUS"] = 12
-        self.config["DDS_AD9914"] = True
-        self.config["DDS_ONEHOT_SEL"] = True
+        self.config["DDS_AD9914"] = None
+        self.config["DDS_ONEHOT_SEL"] = None
         for backplane_offset in range(2):
             phy = dds.AD9914(
                 platform.request("dds", backplane_offset), 12, onehot=True)
@@ -371,19 +316,17 @@ class NIST_QC2(_NIST_Ions):
 def main():
     parser = argparse.ArgumentParser(
         description="ARTIQ core device builder / KC705 "
-                    "+ NIST Ions QC1/CLOCK/QC2 hardware adapters")
+                    "+ NIST Ions CLOCK/QC2 hardware adapters")
     builder_args(parser)
     soc_kc705_args(parser)
     parser.add_argument("-H", "--hw-adapter", default="nist_clock",
                         help="hardware adapter type: "
-                             "nist_qc1/nist_clock/nist_qc2 "
+                             "nist_clock/nist_qc2 "
                              "(default: %(default)s)")
     args = parser.parse_args()
 
     hw_adapter = args.hw_adapter.lower()
-    if hw_adapter == "nist_qc1":
-        cls = NIST_QC1
-    elif hw_adapter == "nist_clock":
+    if hw_adapter == "nist_clock":
         cls = NIST_CLOCK
     elif hw_adapter == "nist_qc2":
         cls = NIST_QC2
