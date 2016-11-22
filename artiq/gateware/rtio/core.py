@@ -400,4 +400,4 @@ class Core(Module):
             self.cri.i_status.eq(Array(i_statuses)[sel])
         ]
 
-        self.cri.counter.eq(self.counter.value_sys << fine_ts_width)
+        self.comb += self.cri.counter.eq(self.counter.value_sys << fine_ts_width)
