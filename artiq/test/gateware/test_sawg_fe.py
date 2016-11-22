@@ -1,5 +1,6 @@
 import unittest
 import numpy as np
+from numpy import int32, int64
 
 import migen as mg
 
@@ -19,18 +20,10 @@ class RTIOManager:
     def rtio_output_list(self, *args, **kwargs):
         self.rtio_output(*args, **kwargs)
 
-    def int(self, value, width=32):
-        if width == 32:
-            return np.int32(value)
-        elif width == 64:
-            return np.int64(value)
-        else:
-            raise ValueError(width)
-
     def patch(self, mod):
         assert not getattr(mod, "_saved", None)
         mod._saved = {}
-        for name in "rtio_output rtio_output_list int".split():
+        for name in "rtio_output rtio_output_list".split():
             mod._saved[name] = getattr(mod, name, None)
             setattr(mod, name, getattr(self, name))
 
@@ -47,7 +40,7 @@ class SAWGTest(unittest.TestCase):
         self.core = sim_devices.Core({})
         self.core.coarse_ref_period = 8
         self.channel = mg.ClockDomainsRenamer({"rio_phy": "sys"})(
-            Channel(width=16, parallelism=4))
+            Channel(width=16, parallelism=2))
         self.driver = sawg.SAWG({"core": self.core}, channel_base=0,
                                 parallelism=self.channel.parallelism)
 
@@ -68,9 +61,9 @@ class SAWGTest(unittest.TestCase):
             self.rtio_manager.outputs, [
                 (0, 1, 0, int(round(
                     (1 << self.driver.offset.width - 1)*.9))),
-                (2*8, 8, 0, [0, int(round(
-                    (1 << self.driver.frequency0.width - 1) *
-                    self.channel.parallelism*.1))]),
+                (2*8, 8, 0, [int(round(
+                    (1 << self.driver.frequency0.width) /
+                    self.channel.parallelism*.1)), 0]),
                 (4*8, 1, 0, 0),
             ])
 

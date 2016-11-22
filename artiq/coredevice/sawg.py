@@ -1,3 +1,4 @@
+from numpy import int32, int64
 from artiq.language.core import kernel, now_mu, portable
 from artiq.coredevice.rtio import rtio_output, rtio_output_list
 from artiq.language.types import TInt32, TInt64, TFloat, TList
@@ -25,8 +26,8 @@ class Spline:
 
     @portable(flags=["fast-math"])
     def to_mu64(self, value: TFloat) -> TList(TInt32):
-        v = int(round(value*self.scale), width=64)
-        return [int(v, width=32), int(v >> 32, width=32)]
+        v = int64(round(value*self.scale))
+        return [int32(v), int32(v >> 32)]
 
     @kernel
     def set_mu(self, value: TInt32):
@@ -68,7 +69,7 @@ class Spline:
         j = 0
         for i, vi in enumerate(value):
             w = self.width + i*self.time_width
-            vi = int(round(vi*(self.scale*self.time_scale**i)), width=64)
+            vi = int64(round(vi*(self.scale*self.time_scale**i)))
             for k in range(0, w, 16):
                 wi = (vi >> k) & 0xffff
                 v[j//2] += wi << (16 * ((j + 1)//2 - j//2))
