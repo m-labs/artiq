@@ -6,8 +6,7 @@ from migen.genlib.record import Record
 from migen.genlib.fifo import AsyncFIFO
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from artiq.gateware.rtio import rtlink
-from artiq.gateware.rtio.kernel_csrs import KernelCSRs
+from artiq.gateware.rtio import cri, rtlink
 from artiq.gateware.rtio.cdc import *
 
 
@@ -265,7 +264,7 @@ class LogChannel:
         self.overrides = []
 
 
-class RTIO(Module):
+class Core(Module):
     def __init__(self, channels, full_ts_width=63, guard_io_cycles=20):
         data_width = max(rtlink.get_data_width(c.interface)
                          for c in channels)
@@ -278,35 +277,43 @@ class RTIO(Module):
         self.address_width = address_width
         self.fine_ts_width = fine_ts_width
 
-        self.kcsrs = KernelCSRs()
+        self.cri = cri.Interface()
+        self.comb += self.cri.arb_gnt.eq(1)
 
         # Clocking/Reset
         # Create rsys, rio and rio_phy domains based on sys and rtio
-        # with reset controlled by CSR.
+        # with reset controlled by CRI.
+        cmd_reset = Signal(reset=1)
+        cmd_reset_phy = Signal(reset=1)
+        self.sync += [
+            cmd_reset.eq(self.cri.cmd == cri.commands["reset"]),
+            cmd_reset_phy.eq(self.cri.cmd == cri.commands["reset_phy"])
+        ]
+        cmd_reset.attr.add("no_retiming")
+        cmd_reset_phy.attr.add("no_retiming")
+
         self.clock_domains.cd_rsys = ClockDomain()
         self.clock_domains.cd_rio = ClockDomain()
         self.clock_domains.cd_rio_phy = ClockDomain()
         self.comb += [
             self.cd_rsys.clk.eq(ClockSignal()),
-            self.cd_rsys.rst.eq(self.kcsrs.reset.storage)
+            self.cd_rsys.rst.eq(cmd_reset)
         ]
         self.comb += self.cd_rio.clk.eq(ClockSignal("rtio"))
         self.specials += AsyncResetSynchronizer(
             self.cd_rio,
-            self.kcsrs.reset.storage | ResetSignal("rtio",
-                                                   allow_reset_less=True))
+            cmd_reset | ResetSignal("rtio", allow_reset_less=True))
         self.comb += self.cd_rio_phy.clk.eq(ClockSignal("rtio"))
         self.specials += AsyncResetSynchronizer(
             self.cd_rio_phy,
-            self.kcsrs.reset_phy.storage | ResetSignal("rtio",
-                                                       allow_reset_less=True))
+            cmd_reset_phy | ResetSignal("rtio", allow_reset_less=True))
 
         # Managers
         self.submodules.counter = RTIOCounter(full_ts_width - fine_ts_width)
 
         i_datas, i_timestamps = [], []
         o_statuses, i_statuses = [], []
-        sel = self.kcsrs.chan_sel.storage
+        sel = self.cri.chan_sel[:16]
         for n, channel in enumerate(channels):
             if isinstance(channel, LogChannel):
                 i_datas.append(0)
@@ -322,30 +329,27 @@ class RTIO(Module):
             self.submodules += o_manager
 
             if hasattr(o_manager.ev, "data"):
-                self.comb += o_manager.ev.data.eq(
-                    self.kcsrs.o_data.storage)
+                self.comb += o_manager.ev.data.eq(self.cri.o_data)
             if hasattr(o_manager.ev, "address"):
-                self.comb += o_manager.ev.address.eq(
-                    self.kcsrs.o_address.storage)
-            ts_shift = (len(self.kcsrs.o_timestamp.storage)
-                        - len(o_manager.ev.timestamp))
-            self.comb += o_manager.ev.timestamp.eq(
-                self.kcsrs.o_timestamp.storage[ts_shift:])
+                self.comb += o_manager.ev.address.eq(self.cri.o_address)
+            ts_shift = len(self.cri.o_timestamp) - len(o_manager.ev.timestamp)
+            self.comb += o_manager.ev.timestamp.eq(self.cri.o_timestamp[ts_shift:])
 
-            self.comb += o_manager.we.eq(selected & self.kcsrs.o_we.re)
+            self.comb += o_manager.we.eq(selected &
+                (self.cri.cmd == cri.commands["write"]))
 
             underflow = Signal()
             sequence_error = Signal()
             collision = Signal()
             busy = Signal()
             self.sync.rsys += [
-                If(selected & self.kcsrs.o_underflow_reset.re,
+                If(selected & (self.cri.cmd == cri.commands["o_underflow_reset"]),
                    underflow.eq(0)),
-                If(selected & self.kcsrs.o_sequence_error_reset.re,
+                If(selected & (self.cri.cmd == cri.commands["o_sequence_error_reset"]),
                    sequence_error.eq(0)),
-                If(selected & self.kcsrs.o_collision_reset.re,
+                If(selected & (self.cri.cmd == cri.commands["o_collision_reset"]),
                    collision.eq(0)),
-                If(selected & self.kcsrs.o_busy_reset.re,
+                If(selected & (self.cri.cmd == cri.commands["o_busy_reset"]),
                    busy.eq(0)),
                 If(o_manager.underflow, underflow.eq(1)),
                 If(o_manager.sequence_error, sequence_error.eq(1)),
@@ -368,17 +372,17 @@ class RTIO(Module):
                 else:
                     i_datas.append(0)
                 if channel.interface.i.timestamped:
-                    ts_shift = (len(self.kcsrs.i_timestamp.status)
+                    ts_shift = (len(self.cri.i_timestamp)
                                 - len(i_manager.ev.timestamp))
                     i_timestamps.append(i_manager.ev.timestamp << ts_shift)
                 else:
                     i_timestamps.append(0)
 
-                self.comb += i_manager.re.eq(selected & self.kcsrs.i_re.re)
+                self.comb += i_manager.re.eq(selected & (self.cri.cmd == cri.commands["read"]))
 
                 overflow = Signal()
                 self.sync.rsys += [
-                    If(selected & self.kcsrs.i_overflow_reset.re,
+                    If(selected & (self.cri.cmd == cri.commands["i_overflow_reset"]),
                        overflow.eq(0)),
                     If(i_manager.overflow,
                        overflow.eq(1))
@@ -389,20 +393,11 @@ class RTIO(Module):
                 i_datas.append(0)
                 i_timestamps.append(0)
                 i_statuses.append(0)
-        if data_width:
-            self.comb += self.kcsrs.i_data.status.eq(Array(i_datas)[sel])
         self.comb += [
-            self.kcsrs.i_timestamp.status.eq(Array(i_timestamps)[sel]),
-            self.kcsrs.o_status.status.eq(Array(o_statuses)[sel]),
-            self.kcsrs.i_status.status.eq(Array(i_statuses)[sel])
+            self.cri.i_data.eq(Array(i_datas)[sel]),
+            self.cri.i_timestamp.eq(Array(i_timestamps)[sel]),
+            self.cri.o_status.eq(Array(o_statuses)[sel]),
+            self.cri.i_status.eq(Array(i_statuses)[sel])
         ]
 
-        # Counter access
-        self.sync += \
-           If(self.kcsrs.counter_update.re,
-               self.kcsrs.counter.status.eq(self.counter.value_sys
-                                                << fine_ts_width)
-           )
-
-    def get_csrs(self):
-        return self.kcsrs.get_csrs()
+        self.cri.counter.eq(self.counter.value_sys << fine_ts_width)

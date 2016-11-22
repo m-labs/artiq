@@ -8,6 +8,7 @@ from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
 from misoc.integration.builder import builder_args, builder_argdict
 
 from artiq.gateware.soc import AMPSoC, build_artiq_soc
+from artiq.gateware import rtio
 from artiq.gateware.drtio.transceiver import gtx_7series
 from artiq.gateware.drtio import DRTIOMaster
 from artiq import __version__ as artiq_version
@@ -41,7 +42,8 @@ class Master(MiniSoC, AMPSoC):
             sys_clk_freq=self.clk_freq,
             clock_div2=True)
         self.submodules.drtio = DRTIOMaster(self.transceiver)
-        self.register_kernel_cpu_csrdevice("rtio", self.drtio.get_kernel_csrs())
+        self.submodules.rtio = rtio.KernelInitiator(self.drtio.cri)
+        self.register_kernel_cpu_csrdevice("rtio")
         self.csr_devices.append("drtio")
 
 

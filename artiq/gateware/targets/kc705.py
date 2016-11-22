@@ -142,7 +142,8 @@ class _NIST_Ions(MiniSoC, AMPSoC):
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
         self.csr_devices.append("rtio_crg")
-        self.submodules.rtio = rtio.RTIO(rtio_channels)
+        self.submodules.rtio_core = rtio.Core(rtio_channels)
+        self.submodules.rtio = rtio.KernelInitiator(self.rtio_core.cri)
         self.register_kernel_cpu_csrdevice("rtio")
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
@@ -153,8 +154,8 @@ class _NIST_Ions(MiniSoC, AMPSoC):
             self.crg.cd_sys.clk,
             self.rtio_crg.cd_rtio.clk)
 
-        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio,
-            self.get_native_sdram_if())
+        self.submodules.rtio_analyzer = rtio.Analyzer(
+            self.rtio, self.rtio_core.cri.counter, self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
 
 

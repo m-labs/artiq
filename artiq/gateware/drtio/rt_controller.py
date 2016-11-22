@@ -5,7 +5,7 @@ from migen.genlib.misc import WaitTimer
 from misoc.interconnect.csr import *
 
 from artiq.gateware.rtio.cdc import RTIOCounter
-from artiq.gateware.rtio.kernel_csrs import KernelCSRs
+from artiq.gateware.rtio import cri
 
 
 class _CSRs(AutoCSR):
@@ -27,20 +27,20 @@ class _CSRs(AutoCSR):
 
 class RTController(Module):
     def __init__(self, rt_packets, channel_count, fine_ts_width):
-        self.kcsrs = KernelCSRs()
         self.csrs = _CSRs()
+        self.cri = cri.Interface()
+        self.comb += self.cri.arb_gnt.eq(1)
 
         # channel selection
         chan_sel = Signal(16)
         self.comb += chan_sel.eq(
             Mux(self.csrs.chan_sel_override_en.storage,
                 self.csrs.chan_sel_override.storage,
-                self.kcsrs.chan_sel.storage))
+                self.cri.chan_sel[:16]))
 
         # master RTIO counter and counter synchronization
         self.submodules.counter = RTIOCounter(64-fine_ts_width)
-        self.sync += If(self.kcsrs.counter_update.re, 
-            self.kcsrs.counter.status.eq(self.counter.value_sys << fine_ts_width))
+        self.comb += self.cri.counter.eq(self.counter.value_sys << fine_ts_width)
         tsc_correction = Signal(64)
         self.csrs.tsc_correction.storage.attr.add("no_retiming")
         self.specials += MultiReg(self.csrs.tsc_correction.storage, tsc_correction)
@@ -67,14 +67,14 @@ class RTController(Module):
         self.comb += [
             fifo_spaces.adr.eq(chan_sel),
             last_timestamps.adr.eq(chan_sel),
-            last_timestamps.dat_w.eq(self.kcsrs.o_timestamp.storage),
+            last_timestamps.dat_w.eq(self.cri.o_timestamp),
             rt_packets.write_channel.eq(chan_sel),
-            rt_packets.write_address.eq(self.kcsrs.o_address.storage),
-            rt_packets.write_data.eq(self.kcsrs.o_data.storage),
+            rt_packets.write_address.eq(self.cri.o_address),
+            rt_packets.write_data.eq(self.cri.o_data),
             If(rt_packets_fifo_request,
                 rt_packets.write_timestamp.eq(0xffff000000000000)
             ).Else(
-                rt_packets.write_timestamp.eq(self.kcsrs.o_timestamp.storage)
+                rt_packets.write_timestamp.eq(self.cri.o_timestamp)
             )
         ]
 
@@ -85,15 +85,15 @@ class RTController(Module):
         status_underflow = Signal()
         status_sequence_error = Signal()
         self.comb += [
-            self.kcsrs.o_status.status.eq(Cat(
+            self.cri.o_status.eq(Cat(
                 status_wait, status_underflow, status_sequence_error)),
             self.csrs.o_wait.status.eq(status_wait)
         ]
         sequence_error_set = Signal()
         underflow_set = Signal()
         self.sync += [
-            If(self.kcsrs.o_underflow_reset.re, status_underflow.eq(0)),
-            If(self.kcsrs.o_sequence_error_reset.re, status_sequence_error.eq(0)),
+            If(self.cri.cmd == cri.commands["o_underflow_reset"], status_underflow.eq(0)),
+            If(self.cri.cmd == cri.commands["o_sequence_error_reset"], status_sequence_error.eq(0)),
             If(underflow_set, status_underflow.eq(1)),
             If(sequence_error_set, status_sequence_error.eq(1)),
         ]
@@ -107,14 +107,14 @@ class RTController(Module):
         self.submodules += timeout_counter
 
         # TODO: collision, replace, busy
-        cond_sequence_error = self.kcsrs.o_timestamp.storage < last_timestamps.dat_r
-        cond_underflow = ((self.kcsrs.o_timestamp.storage[fine_ts_width:]
+        cond_sequence_error = self.cri.o_timestamp < last_timestamps.dat_r
+        cond_underflow = ((self.cri.o_timestamp[fine_ts_width:]
                            - self.csrs.underflow_margin.storage[fine_ts_width:]) < self.counter.value_sys)
         cond_fifo_emptied = ((last_timestamps.dat_r[fine_ts_width:] < self.counter.value_sys)
                              & (last_timestamps.dat_r != 0))
 
         fsm.act("IDLE",
-            If(self.kcsrs.o_we.re,
+            If(self.cri.cmd == cri.commands["write"],
                 If(cond_sequence_error,
                     sequence_error_set.eq(1)
                 ).Elif(cond_underflow,
@@ -183,9 +183,6 @@ class RTController(Module):
                 last_timestamps.we.eq(1)
             )
         ]
-
-    def get_kernel_csrs(self):
-        return self.kcsrs.get_csrs()
 
     def get_csrs(self):
         return self.csrs.get_csrs()

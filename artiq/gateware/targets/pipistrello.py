@@ -216,12 +216,13 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         rtio_channels.append(rtio.LogChannel())
 
         # RTIO logic
-        self.submodules.rtio = rtio.RTIO(rtio_channels)
+        self.submodules.rtio_core = rtio.Core(rtio_channels)
+        self.submodules.rtio = rtio.KernelInitiator(self.rtio_core.cri)
         self.register_kernel_cpu_csrdevice("rtio")
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
         self.submodules.rtio_analyzer = rtio.Analyzer(
-            self.rtio, self.get_native_sdram_if())
+            self.rtio, self.rtio_core.cri.counter, self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
 
 

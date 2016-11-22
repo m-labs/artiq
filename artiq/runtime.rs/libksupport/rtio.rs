@@ -11,8 +11,6 @@ const RTIO_I_STATUS_OVERFLOW:       u32 = 2;
 pub extern fn init() {
     unsafe {
         csr::rtio::reset_write(1);
-        csr::rtio::reset_write(0);
-        csr::rtio::reset_phy_write(0);
     }
 }
 
