@@ -116,9 +116,3 @@ class KernelInitiator(Module, AutoCSR):
             self.o_data.we.eq(self.o_timestamp.re),
         ]
         self.sync += If(self.counter_update.re, self.counter.status.eq(self.cri.counter))
-
-    def get_csrs(self):
-        return []
-
-    def get_kernel_csrs(self):
-        return AutoCSR.get_csrs(self)
