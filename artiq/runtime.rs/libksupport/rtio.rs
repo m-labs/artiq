@@ -1,6 +1,5 @@
 use board::csr;
 use core::ptr::{read_volatile, write_volatile};
-use core::slice;
 use ::ArtiqList;
 
 const RTIO_O_STATUS_FULL:           u32 = 1;
@@ -27,16 +26,16 @@ pub extern fn get_counter() -> i64 {
 }
 
 #[inline(always)]
-pub unsafe fn rtio_o_data_write(w: u32) {
+pub unsafe fn rtio_o_data_write(offset: usize, data: u32) {
     write_volatile(
-        csr::rtio::O_DATA_ADDR.offset((csr::rtio::O_DATA_SIZE - 1) as isize),
-        w);
+        csr::rtio::O_DATA_ADDR.offset((csr::rtio::O_DATA_SIZE - 1 - offset) as isize),
+        data);
 }
 
 #[inline(always)]
-pub unsafe fn rtio_i_data_read() -> u32 {
+pub unsafe fn rtio_i_data_read(offset: usize) -> u32 {
     read_volatile(
-        csr::rtio::I_DATA_ADDR.offset((csr::rtio::I_DATA_SIZE - 1) as isize))
+        csr::rtio::I_DATA_ADDR.offset((csr::rtio::I_DATA_SIZE - 1 - offset) as isize))
 }
 
 #[inline(never)]
@@ -75,7 +74,7 @@ pub extern fn output(timestamp: i64, channel: u32, addr: u32, data: u32) {
         csr::rtio::chan_sel_write(channel);
         csr::rtio::o_timestamp_write(timestamp as u64);
         csr::rtio::o_address_write(addr);
-        rtio_o_data_write(data);
+        rtio_o_data_write(0, data);
         csr::rtio::o_we_write(1);
         let status = csr::rtio::o_status_read();
         if status != 0 {
@@ -84,16 +83,14 @@ pub extern fn output(timestamp: i64, channel: u32, addr: u32, data: u32) {
     }
 }
 
-pub extern fn output_list(timestamp: i64, channel: u32, addr: u32, list: ArtiqList<i32>) {
+pub extern fn output_wide(timestamp: i64, channel: u32, addr: u32, list: ArtiqList<i32>) {
     unsafe {
         csr::rtio::chan_sel_write(channel);
         csr::rtio::o_timestamp_write(timestamp as u64);
         csr::rtio::o_address_write(addr);
         let data = list.as_slice();
         for i in 0..data.len() {
-            write_volatile(
-                csr::rtio::O_DATA_ADDR.offset((csr::rtio::O_DATA_SIZE - 1 - i) as isize),
-                data[i] as u32);
+            rtio_o_data_write(i, data[i] as u32)
         }
         csr::rtio::o_we_write(1);
         let status = csr::rtio::o_status_read();
@@ -154,7 +151,7 @@ pub extern fn input_data(channel: u32) -> u32 {
             }
         }
 
-        let data = rtio_i_data_read();
+        let data = rtio_i_data_read(0);
         csr::rtio::i_re_write(1);
         data
     }
@@ -171,14 +168,14 @@ pub fn log(timestamp: i64, data: &[u8]) {
             word <<= 8;
             word |= data[i] as u32;
             if i % 4 == 0 {
-                rtio_o_data_write(word);
+                rtio_o_data_write(0, word);
                 csr::rtio::o_we_write(1);
                 word = 0;
             }
         }
 
         word <<= 8;
-        rtio_o_data_write(word);
+        rtio_o_data_write(0, word);
         csr::rtio::o_we_write(1);
     }
 }

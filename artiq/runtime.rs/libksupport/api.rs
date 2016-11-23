@@ -102,7 +102,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(rtio_get_counter = ::rtio::get_counter),
     api!(rtio_log),
     api!(rtio_output = ::rtio::output),
-    api!(rtio_output_list = ::rtio::output_list),
+    api!(rtio_output_wide = ::rtio::output_wide),
     api!(rtio_input_timestamp = ::rtio::input_timestamp),
     api!(rtio_input_data = ::rtio::input_data),
 
