@@ -123,6 +123,7 @@ pub extern fn input_data(channel: u32) -> u32 {
     }
 }
 
+#[cfg(has_rtio_log)]
 pub fn log(timestamp: i64, data: &[u8]) {
     unsafe {
         csr::rtio::chan_sel_write(csr::CONFIG_RTIO_LOG_CHANNEL);
@@ -144,3 +145,6 @@ pub fn log(timestamp: i64, data: &[u8]) {
         csr::rtio::o_we_write(1);
     }
 }
+
+#[cfg(not(has_rtio_log))]
+pub fn log(timestamp: i64, data: &[u8]) {}

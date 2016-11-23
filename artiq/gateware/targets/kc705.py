@@ -226,6 +226,7 @@ class NIST_CLOCK(_NIST_Ions):
                                                    ofifo_depth=512,
                                                    ififo_depth=4))
 
+        self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.LogChannel())
 
@@ -304,6 +305,7 @@ class NIST_QC2(_NIST_Ions):
                                                        ofifo_depth=512,
                                                        ififo_depth=4))
 
+        self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.LogChannel())
 
