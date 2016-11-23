@@ -18,6 +18,7 @@ use logger::BufferLogger;
 extern {
     fn putchar(c: libc::c_int) -> libc::c_int;
     fn readchar() -> libc::c_char;
+    fn readchar_nonblock() -> libc::c_int;
 }
 
 #[macro_export]
@@ -102,11 +103,23 @@ pub unsafe extern fn rust_main() {
     static mut LOG_BUFFER: [u8; 65536] = [0; 65536];
     BufferLogger::new(&mut LOG_BUFFER[..])
                  .register(move || {
-        info!("booting ARTIQ...");
+        clock::init();
+        info!("booting ARTIQ");
         info!("software version {}", GIT_COMMIT);
         info!("gateware version {}", ::board::ident(&mut [0; 64]));
 
-        clock::init();
+        let t = clock::get_ms();
+        info!("press 'e' to erase startup and idle kernels...");
+        while clock::get_ms() < t + 1000 {
+            if readchar_nonblock() != 0 && readchar() == b'e' as libc::c_char {
+                config::remove("startup_kernel");
+                config::remove("idle_kernel");
+                info!("startup and idle kernels erased");
+                break
+            }
+        }
+        info!("continuing boot");
+
         rtio_crg::init();
         network_init();
 
