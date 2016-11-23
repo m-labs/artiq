@@ -50,6 +50,7 @@ macro_rules! artiq_raise {
 }
 
 mod rtio;
+#[cfg(has_i2c)]
 mod i2c;
 
 use core::{mem, ptr, slice, str};
