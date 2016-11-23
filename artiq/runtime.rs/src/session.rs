@@ -406,7 +406,7 @@ fn process_kern_message(waiter: Waiter,
             &kern::CacheGetRequest { key } => {
                 let value = session.congress.cache.get(key);
                 kern_send(waiter, &kern::CacheGetReply {
-                    value: unsafe { mem::transmute::<*const [u32], &'static [u32]>(value) }
+                    value: unsafe { mem::transmute::<*const [i32], &'static [i32]>(value) }
                 })
             }
 
@@ -470,7 +470,7 @@ fn process_kern_message(waiter: Waiter,
 }
 
 fn process_kern_queued_rpc(stream: &mut TcpStream,
-                           session: &mut Session) -> io::Result<()> {
+                           _session: &mut Session) -> io::Result<()> {
     rpc_queue::dequeue(|slice| {
         trace!("comm<-kern (async RPC)");
         let length = NetworkEndian::read_u32(slice) as usize;

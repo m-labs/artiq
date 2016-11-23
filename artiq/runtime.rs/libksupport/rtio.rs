@@ -1,6 +1,7 @@
 use board::csr;
 use core::ptr::{read_volatile, write_volatile};
 use core::slice;
+use ::ArtiqList;
 
 const RTIO_O_STATUS_FULL:           u32 = 1;
 const RTIO_O_STATUS_UNDERFLOW:      u32 = 2;
@@ -83,17 +84,16 @@ pub extern fn output(timestamp: i64, channel: u32, addr: u32, data: u32) {
     }
 }
 
-pub extern fn output_list(timestamp: i64, channel: u32, addr: u32,
-                          &(len, ptr): &(usize, *const u32)) {
+pub extern fn output_list(timestamp: i64, channel: u32, addr: u32, list: ArtiqList<i32>) {
     unsafe {
         csr::rtio::chan_sel_write(channel);
         csr::rtio::o_timestamp_write(timestamp as u64);
         csr::rtio::o_address_write(addr);
-        let data = slice::from_raw_parts(ptr, len);
+        let data = list.as_slice();
         for i in 0..data.len() {
             write_volatile(
                 csr::rtio::O_DATA_ADDR.offset((csr::rtio::O_DATA_SIZE - 1 - i) as isize),
-                data[i]);
+                data[i] as u32);
         }
         csr::rtio::o_we_write(1);
         let status = csr::rtio::o_status_read();
