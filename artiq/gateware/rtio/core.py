@@ -265,7 +265,7 @@ class LogChannel:
 
 
 class Core(Module):
-    def __init__(self, channels, full_ts_width=63, guard_io_cycles=20):
+    def __init__(self, channels, guard_io_cycles=20):
         data_width = max(rtlink.get_data_width(c.interface)
                          for c in channels)
         address_width = max(rtlink.get_address_width(c.interface)
@@ -309,7 +309,7 @@ class Core(Module):
             cmd_reset_phy | ResetSignal("rtio", allow_reset_less=True))
 
         # Managers
-        self.submodules.counter = RTIOCounter(full_ts_width - fine_ts_width)
+        self.submodules.counter = RTIOCounter(len(self.cri.o_timestamp) - fine_ts_width)
 
         i_datas, i_timestamps = [], []
         o_statuses, i_statuses = [], []
@@ -333,10 +333,10 @@ class Core(Module):
             if hasattr(o_manager.ev, "address"):
                 self.comb += o_manager.ev.address.eq(self.cri.o_address)
             ts_shift = len(self.cri.o_timestamp) - len(o_manager.ev.timestamp)
+            print(n, ts_shift, channel)
             self.comb += o_manager.ev.timestamp.eq(self.cri.o_timestamp[ts_shift:])
 
-            self.comb += o_manager.we.eq(selected &
-                (self.cri.cmd == cri.commands["write"]))
+            self.comb += o_manager.we.eq(selected & (self.cri.cmd == cri.commands["write"]))
 
             underflow = Signal()
             sequence_error = Signal()
@@ -372,8 +372,7 @@ class Core(Module):
                 else:
                     i_datas.append(0)
                 if channel.interface.i.timestamped:
-                    ts_shift = (len(self.cri.i_timestamp)
-                                - len(i_manager.ev.timestamp))
+                    ts_shift = (len(self.cri.i_timestamp) - len(i_manager.ev.timestamp))
                     i_timestamps.append(i_manager.ev.timestamp << ts_shift)
                 else:
                     i_timestamps.append(0)
