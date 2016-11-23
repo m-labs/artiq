@@ -333,7 +333,6 @@ class Core(Module):
             if hasattr(o_manager.ev, "address"):
                 self.comb += o_manager.ev.address.eq(self.cri.o_address)
             ts_shift = len(self.cri.o_timestamp) - len(o_manager.ev.timestamp)
-            print(n, ts_shift, channel)
             self.comb += o_manager.ev.timestamp.eq(self.cri.o_timestamp[ts_shift:])
 
             self.comb += o_manager.we.eq(selected & (self.cri.cmd == cri.commands["write"]))
