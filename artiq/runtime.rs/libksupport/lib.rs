@@ -50,6 +50,7 @@ macro_rules! artiq_raise {
 }
 
 mod rtio;
+#[cfg(has_i2c)]
 mod i2c;
 
 use core::{mem, ptr, slice, str};
@@ -306,7 +307,10 @@ pub unsafe fn main() {
     (mem::transmute::<usize, fn()>(library.lookup("__modinit__")))();
     send(&NowSave(NOW));
 
-    attribute_writeback(library.lookup("typeinfo") as *const ());
+    let typeinfo = library.lookup("typeinfo");
+    if typeinfo != 0 {
+        attribute_writeback(typeinfo as *const ())
+    }
 
     send(&RunFinished);
 

@@ -236,12 +236,11 @@ class NIST_CLOCK(_NIST_Ions):
                                                    ofifo_depth=512,
                                                    ififo_depth=4))
 
+        self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.LogChannel())
 
         self.add_rtio(rtio_channels)
-        assert self.rtio.fine_ts_width <= 3
-        self.config["DDS_RTIO_CLK_RATIO"] = 24 >> self.rtio.fine_ts_width
 
 
 class NIST_QC2(_NIST_Ions):
@@ -316,12 +315,11 @@ class NIST_QC2(_NIST_Ions):
                                                        ofifo_depth=512,
                                                        ififo_depth=4))
 
+        self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.LogChannel())
 
         self.add_rtio(rtio_channels)
-        assert self.rtio.fine_ts_width <= 3
-        self.config["DDS_RTIO_CLK_RATIO"] = 24 >> self.rtio.fine_ts_width
 
 
 class _PhaserCRG(Module, AutoCSR):
