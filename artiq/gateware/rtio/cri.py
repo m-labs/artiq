@@ -61,7 +61,7 @@ class KernelInitiator(Module, AutoCSR):
         self.reset_phy = CSR()
         self.chan_sel = CSRStorage(24)
 
-        self.o_data = CSRStorage(32, write_from_dev=True)  # XXX -> 512
+        self.o_data = CSRStorage(512, write_from_dev=True)
         self.o_address = CSRStorage(16)
         self.o_timestamp = CSRStorage(64)
         self.o_we = CSR()
