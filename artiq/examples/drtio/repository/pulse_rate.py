@@ -11,7 +11,7 @@ class PulseRate(EnvExperiment):
         #self.core.reset()
         self.core.break_realtime()
 
-        dt = seconds_to_mu(300*ns)
+        dt = self.core.seconds_to_mu(300*ns)
         while True:
             for i in range(10000):
                 try:
@@ -22,5 +22,5 @@ class PulseRate(EnvExperiment):
                     self.core.break_realtime()
                     break
             else:
-                print(mu_to_seconds(dt))
+                print(self.core.mu_to_seconds(dt))
                 return
