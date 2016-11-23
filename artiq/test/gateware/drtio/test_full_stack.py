@@ -40,8 +40,9 @@ class DUT(Module):
         self.ttl0 = Signal()
         self.ttl1 = Signal()
         self.transceivers = DummyTransceiverPair(nwords)
-        
+
         self.submodules.master = DRTIOMaster(self.transceivers.alice)
+        self.submodules.master_ki = rtio.KernelInitiator(self.master.cri)
 
         rx_synchronizer = DummyRXSynchronizer()
         self.submodules.phy0 = ttl_simple.Output(self.ttl0)
@@ -59,7 +60,7 @@ class TestFullStack(unittest.TestCase):
 
     def test_controller(self):
         dut = DUT(2)
-        kcsrs = dut.master.rt_controller.kcsrs
+        kcsrs = dut.master_ki
         csrs = dut.master.rt_controller.csrs
         mgr = dut.master.rt_manager
 
@@ -160,7 +161,7 @@ class TestFullStack(unittest.TestCase):
             self.assertEqual(wlen, 2)
 
         def test_tsc_error():
-            err_present = yield from mgr.err_present.read()
+            err_present = yield from mgr.packet_err_present.read()
             self.assertEqual(err_present, 0)
             yield from csrs.tsc_correction.write(10000000)
             yield from csrs.set_time.write(1)
@@ -170,17 +171,17 @@ class TestFullStack(unittest.TestCase):
             yield from write(0, 1)
             for i in range(10):
                yield
-            err_present = yield from mgr.err_present.read()
-            err_code = yield from mgr.err_code.read()
+            err_present = yield from mgr.packet_err_present.read()
+            err_code = yield from mgr.packet_err_code.read()
             self.assertEqual(err_present, 1)
             self.assertEqual(err_code, 3)
-            yield from mgr.err_present.write(1)
+            yield from mgr.packet_err_present.write(1)
             yield
-            err_present = yield from mgr.err_present.read()
+            err_present = yield from mgr.packet_err_present.read()
             self.assertEqual(err_present, 0)
 
         def test():
-            while not (yield dut.master.link_layer.ready):
+            while not (yield from dut.master.link_layer.link_status.read()):
                 yield
 
             yield from test_init()
@@ -214,7 +215,7 @@ class TestFullStack(unittest.TestCase):
         mgr = dut.master.rt_manager
 
         def test():
-            while not (yield dut.master.link_layer.ready):
+            while not (yield from dut.master.link_layer.link_status.read()):
                 yield
 
             yield from mgr.update_packet_cnt.write(1)
