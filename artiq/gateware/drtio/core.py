@@ -27,8 +27,8 @@ class DRTIOSatellite(Module):
         self.submodules.rt_packets = ClockDomainsRenamer("rtio")(
             rt_packets.RTPacketSatellite(link_layer_sync))
 
-        self.submodules.iot = ClockDomainsRenamer("rio")(
-            iot.IOT(self.rt_packets, channels, fine_ts_width, full_ts_width))
+        self.submodules.iot = iot.IOT(
+            self.rt_packets, channels, fine_ts_width, full_ts_width)
 
         self.clock_domains.cd_rio = ClockDomain()
         self.clock_domains.cd_rio_phy = ClockDomain()

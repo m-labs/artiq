@@ -8,7 +8,7 @@ from artiq.gateware.rtio import rtlink
 class IOT(Module):
     def __init__(self, rt_packets, channels, max_fine_ts_width, full_ts_width):
         tsc = Signal(full_ts_width - max_fine_ts_width)
-        self.sync += \
+        self.sync.rtio += \
             If(rt_packets.tsc_load,
                 tsc.eq(rt_packets.tsc_value)
             ).Else(
@@ -30,7 +30,8 @@ class IOT(Module):
                 ev_layout.append(("address", address_width))
             ev_layout.append(("timestamp", len(tsc) + fine_ts_width))
 
-            fifo = SyncFIFOBuffered(layout_len(ev_layout), channel.ofifo_depth)
+            fifo = ClockDomainsRenamer("rio")(
+                SyncFIFOBuffered(layout_len(ev_layout), channel.ofifo_depth))
             self.submodules += fifo
             fifo_in = Record(ev_layout)
             fifo_out = Record(ev_layout)
@@ -40,7 +41,7 @@ class IOT(Module):
             ]
 
             # FIFO level
-            self.sync += \
+            self.sync.rio += \
                 If(rt_packets.fifo_space_update &
                    (rt_packets.fifo_space_channel == n),
                     rt_packets.fifo_space.eq(channel.ofifo_depth - fifo.level))
@@ -48,7 +49,7 @@ class IOT(Module):
             # FIFO write
             self.comb += fifo.we.eq(rt_packets.write_stb
                                     & (rt_packets.write_channel == n))
-            self.sync += [
+            self.sync.rio += [
                 If(rt_packets.write_overflow_ack,
                     rt_packets.write_overflow.eq(0)),
                 If(rt_packets.write_underflow_ack,
@@ -68,7 +69,7 @@ class IOT(Module):
                 rt_packets.write_timestamp[max_fine_ts_width-fine_ts_width:])
 
             # FIFO read
-            self.sync += [
+            self.sync.rio += [
                 fifo.re.eq(0),
                 interface.stb.eq(0),
                 If(fifo.readable &
@@ -78,8 +79,8 @@ class IOT(Module):
                 )
             ]
             if data_width:
-                self.sync += interface.data.eq(fifo_out.data)
+                self.sync.rio += interface.data.eq(fifo_out.data)
             if address_width:
-                self.sync += interface.address.eq(fifo_out.address)
+                self.sync.rio += interface.address.eq(fifo_out.address)
             if fine_ts_width:
-                self.sync += interface.fine_ts.eq(fifo_out.timestamp[:fine_ts_width])
+                self.sync.rio += interface.fine_ts.eq(fifo_out.timestamp[:fine_ts_width])
