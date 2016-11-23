@@ -54,6 +54,19 @@ class RTController(Module):
             If(self.csrs.set_time.re, rt_packets.set_time_stb.eq(1))
         ]
 
+        # reset
+        self.sync += [
+            If(rt_packets.reset_ack, rt_packets.reset_stb.eq(0)),
+            If(self.cri.cmd == cri.commands["reset"],
+                rt_packets.reset_stb.eq(1),
+                rt_packets.reset_phy.eq(0)
+            ),
+            If(self.cri.cmd == cri.commands["reset_phy"],
+                rt_packets.reset_stb.eq(1),
+                rt_packets.reset_phy.eq(1)
+            ),
+        ]
+
         # remote channel status cache
         fifo_spaces_mem = Memory(16, channel_count)
         fifo_spaces = fifo_spaces_mem.get_port(write_capable=True)

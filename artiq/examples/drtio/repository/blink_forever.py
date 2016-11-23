@@ -8,8 +8,7 @@ class BlinkForever(EnvExperiment):
 
     @kernel
     def run(self):
-        #self.core.reset()
-        self.core.break_realtime()
+        self.core.reset()
 
         while True:
             for led in self.leds:

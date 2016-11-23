@@ -8,8 +8,7 @@ class PulseRate(EnvExperiment):
 
     @kernel
     def run(self):
-        #self.core.reset()
-        self.core.break_realtime()
+        self.core.reset()
 
         dt = self.core.seconds_to_mu(300*ns)
         while True:

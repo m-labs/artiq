@@ -34,6 +34,7 @@ def get_m2s_layouts(alignment):
     plm = PacketLayoutManager(alignment)
     plm.add_type("echo_request")
     plm.add_type("set_time", ("timestamp", 64))
+    plm.add_type("reset", ("phy", 1))
     plm.add_type("write", ("timestamp", 64),
                           ("channel", 16),
                           ("address", 16),
@@ -178,7 +179,10 @@ class RTPacketSatellite(Module):
     def __init__(self, link_layer):
         self.tsc_load = Signal()
         self.tsc_value = Signal(64)
-        
+
+        self.reset = Signal(reset=1)
+        self.reset_phy = Signal(reset=1)
+
         self.fifo_space_channel = Signal(16)
         self.fifo_space_update = Signal()
         self.fifo_space = Signal(16)
@@ -240,6 +244,13 @@ class RTPacketSatellite(Module):
                 rx_dp.packet_as["write"].short_data)
         ]
 
+        reset = Signal()
+        reset_phy = Signal()
+        self.sync += [
+            self.reset.eq(reset),
+            self.reset_phy.eq(reset_phy)
+        ]
+
         rx_fsm = FSM(reset_state="INPUT")
         self.submodules += rx_fsm
 
@@ -252,6 +263,7 @@ class RTPacketSatellite(Module):
                         # mechanism
                         rx_plm.types["echo_request"]: echo_req.eq(1),
                         rx_plm.types["set_time"]: NextState("SET_TIME"),
+                        rx_plm.types["reset"]: NextState("RESET"),
                         rx_plm.types["write"]: NextState("WRITE"),
                         rx_plm.types["fifo_space_request"]:
                             NextState("FIFO_SPACE"),
@@ -264,6 +276,14 @@ class RTPacketSatellite(Module):
         )
         rx_fsm.act("SET_TIME",
             self.tsc_load.eq(1),
+            NextState("INPUT")
+        )
+        rx_fsm.act("RESET",
+            If(rx_dp.packet_as["reset"].phy,
+                reset_phy.eq(1)
+            ).Else(
+                reset.eq(1)
+            ),
             NextState("INPUT")
         )
         rx_fsm.act("WRITE",
@@ -401,6 +421,11 @@ class RTPacketMaster(Module):
         # a set_time request pending
         self.tsc_value = Signal(64)
 
+        # reset interface
+        self.reset_stb = Signal()
+        self.reset_ack = Signal()
+        self.reset_phy = Signal()
+
         # errors
         self.error_not = Signal()
         self.error_not_ack = Signal()
@@ -440,6 +465,13 @@ class RTPacketMaster(Module):
         self.submodules += _CrossDomainRequest("rtio",
             self.set_time_stb, self.set_time_ack, None,
             set_time_stb, set_time_ack, None)
+
+        reset_stb = Signal()
+        reset_ack = Signal()
+        reset_phy = Signal()
+        self.submodules += _CrossDomainRequest("rtio",
+            self.reset_stb, self.reset_ack, self.reset_phy,
+            reset_stb, reset_ack, reset_phy)
 
         echo_stb = Signal()
         echo_ack = Signal()
@@ -496,6 +528,8 @@ class RTPacketMaster(Module):
                 ).Elif(set_time_stb,
                     tsc_value_load.eq(1),
                     NextState("SET_TIME")
+                ).Elif(reset_stb,
+                    NextState("RESET")
                 )
             )
         )
@@ -520,6 +554,14 @@ class RTPacketMaster(Module):
             tx_dp.stb.eq(1),
             If(tx_dp.done,
                 set_time_ack.eq(1),
+                NextState("IDLE_WRITE")
+            )
+        )
+        tx_fsm.act("RESET",
+            tx_dp.send("reset", phy=reset_phy),
+            tx_dp.stb.eq(1),
+            If(tx_dp.done,
+                reset_ack.eq(1),
                 NextState("IDLE_WRITE")
             )
         )

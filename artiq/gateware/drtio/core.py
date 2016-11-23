@@ -27,17 +27,16 @@ class DRTIOSatellite(Module):
         self.submodules.rt_packets = ClockDomainsRenamer("rtio")(
             rt_packets.RTPacketSatellite(link_layer_sync))
 
-        self.submodules.iot = ClockDomainsRenamer("rtio")(
+        self.submodules.iot = ClockDomainsRenamer("rio")(
             iot.IOT(self.rt_packets, channels, fine_ts_width, full_ts_width))
 
-        # TODO: remote resets
         self.clock_domains.cd_rio = ClockDomain()
         self.clock_domains.cd_rio_phy = ClockDomain()
         self.comb += [
             self.cd_rio.clk.eq(ClockSignal("rtio")),
-            self.cd_rio.rst.eq(ResetSignal("rtio", allow_reset_less=True)),
+            self.cd_rio.rst.eq(self.rt_packets.reset),
             self.cd_rio_phy.clk.eq(ClockSignal("rtio")),
-            self.cd_rio_phy.rst.eq(ResetSignal("rtio", allow_reset_less=True)),
+            self.cd_rio_phy.rst.eq(self.rt_packets.reset_phy),
         ]
 
         self.submodules.aux_controller = aux_controller.AuxController(
