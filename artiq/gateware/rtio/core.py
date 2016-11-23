@@ -301,12 +301,10 @@ class Core(Module):
         ]
         self.comb += self.cd_rio.clk.eq(ClockSignal("rtio"))
         self.specials += AsyncResetSynchronizer(
-            self.cd_rio,
-            cmd_reset | ResetSignal("rtio", allow_reset_less=True))
+            self.cd_rio, cmd_reset)
         self.comb += self.cd_rio_phy.clk.eq(ClockSignal("rtio"))
         self.specials += AsyncResetSynchronizer(
-            self.cd_rio_phy,
-            cmd_reset_phy | ResetSignal("rtio", allow_reset_less=True))
+            self.cd_rio_phy, cmd_reset_phy)
 
         # Managers
         self.submodules.counter = RTIOCounter(len(self.cri.o_timestamp) - fine_ts_width)
