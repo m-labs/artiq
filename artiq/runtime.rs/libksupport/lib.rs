@@ -224,26 +224,26 @@ pub extern fn __artiq_terminate(exception: *const kernel_proto::Exception,
     loop {}
 }
 
-extern fn watchdog_set(ms: i64) -> usize {
+extern fn watchdog_set(ms: i64) -> i32 {
     if ms < 0 {
         artiq_raise!("ValueError", "cannot set a watchdog with a negative timeout")
     }
 
     send(&WatchdogSetRequest { ms: ms as u64 });
-    recv!(&WatchdogSetReply { id } => id)
+    recv!(&WatchdogSetReply { id } => id) as i32
 }
 
-extern fn watchdog_clear(id: usize) {
-    send(&WatchdogClear { id: id })
+extern fn watchdog_clear(id: i32) {
+    send(&WatchdogClear { id: id as usize })
 }
 
-extern fn cache_get(key: *const u8) -> (usize, *const i32) {
+extern fn cache_get(key: *const u8) -> ArtiqList<i32> {
     extern { fn strlen(s: *const c_char) -> size_t; }
     let key = unsafe { slice::from_raw_parts(key, strlen(key as *const c_char)) };
     let key = unsafe { str::from_utf8_unchecked(key) };
 
     send(&CacheGetRequest { key: key });
-    recv!(&CacheGetReply { value } => (value.len(), value.as_ptr()))
+    recv!(&CacheGetReply { value } => ArtiqList::from_slice(value))
 }
 
 extern fn cache_put(key: *const u8, list: ArtiqList<i32>) {
