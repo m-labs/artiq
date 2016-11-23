@@ -35,10 +35,8 @@ pub unsafe fn rtio_o_data_write(w: u32) {
 #[inline(always)]
 pub unsafe fn rtio_i_data_read() -> u32 {
     read_volatile(
-        csr::rtio::I_DATA_ADDR.offset((csr::rtio::I_DATA_SIZE - 1) as isize)
-        )
+        csr::rtio::I_DATA_ADDR.offset((csr::rtio::I_DATA_SIZE - 1) as isize))
 }
-
 
 #[inline(never)]
 unsafe fn process_exceptional_status(timestamp: i64, channel: u32, status: u32) {
