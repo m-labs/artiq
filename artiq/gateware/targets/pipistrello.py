@@ -212,6 +212,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ofifo_depth=64, ififo_depth=64))
 
+        self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.LogChannel())
 
