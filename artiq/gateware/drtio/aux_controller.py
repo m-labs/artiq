@@ -205,14 +205,15 @@ class Receiver(Module, AutoCSR):
         )
 
 
+# TODO: FullMemoryWE should be applied by migen.build
+@FullMemoryWE()
 class AuxController(Module):
     def __init__(self, link_layer):
         self.bus = wishbone.Interface()
         self.submodules.transmitter = Transmitter(link_layer, len(self.bus.dat_w))
         self.submodules.receiver = Receiver(link_layer, len(self.bus.dat_w))
 
-        # TODO: FullMemoryWE should be applied by migen.build
-        tx_sdram_if = FullMemoryWE()(wishbone.SRAM(self.transmitter.mem, read_only=False))
+        tx_sdram_if = wishbone.SRAM(self.transmitter.mem, read_only=False)
         rx_sdram_if = wishbone.SRAM(self.receiver.mem, read_only=True)
         wsb = log2_int(len(self.bus.dat_w)//8)
         decoder = wishbone.Decoder(self.bus,
