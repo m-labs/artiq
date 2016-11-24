@@ -74,7 +74,7 @@ Setup
 
 * Compile the ARTIQ Phaser bitstream, bios, and runtime (c.f. ARTIQ manual): ::
 
-    python -m artiq.gateware.targets.kc705 -H phaser --toolchain vivado
+    python -m artiq.gateware.targets.phaser --toolchain vivado
 
 * Run the following OpenOCD command to flash the ARTIQ phaser design: ::
 
