@@ -206,7 +206,7 @@ class Phaser(MiniSoC, AMPSoC):
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
                                                    ofifo_depth=2))
 
-        phy = ttl_serdes_7series.Inout_8X(self.ad9154.jesd.jsync)
+        phy = ttl_simple.Input(self.ad9154.jesd.jsync)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
                                                    ofifo_depth=2))
