@@ -107,6 +107,7 @@ class Inout_8X(ttl_serdes_generic.Inout):
         self.submodules += serdes
         ttl_serdes_generic.Inout.__init__(self, serdes)
 
+
 class Input_8X(ttl_serdes_generic.Inout):
     def __init__(self, pad, pad_n=None):
         serdes = _ISERDESE2_8X(pad, pad_n)

@@ -22,6 +22,7 @@ Release notes
 * The Pipistrello port now has exclusively TTLs.
 * The DDS class names and setup options have changed, this requires an update of
   the device database.
+* ``int(a, width=b)`` has been removed. Use ``int32(a)`` and ``int64(a)``.
 
 
 2.0
