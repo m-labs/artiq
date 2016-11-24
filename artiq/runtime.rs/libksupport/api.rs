@@ -117,17 +117,22 @@ static mut API: &'static [(&'static str, *const ())] = &[
     #[cfg(has_i2c)]
     api!(i2c_read = ::i2c::read),
 
-// #if (defined CONFIG_AD9154_CS)
-    api!(ad9154_init),
-    api!(ad9154_write),
-    api!(ad9154_read),
-
-    api!(ad9516_write),
-    api!(ad9516_read),
-
-    api!(ad9154_jesd_enable),
-    api!(ad9154_jesd_ready),
-    api!(ad9154_jesd_prbs),
-    api!(ad9154_jesd_stpl),
-// #endif
+    #[cfg(has_ad9154)]
+    api!(ad9154_init = ::ad9154::init),
+    #[cfg(has_ad9154)]
+    api!(ad9154_write = ::ad9154::dac_write),
+    #[cfg(has_ad9154)]
+    api!(ad9154_read = ::ad9154::dac_read),
+    #[cfg(has_ad9154)]
+    api!(ad9516_write = ::ad9154::clk_write),
+    #[cfg(has_ad9154)]
+    api!(ad9516_read = ::ad9154::clk_read),
+    #[cfg(has_ad9154)]
+    api!(ad9154_jesd_enable = ::ad9154::jesd_enable),
+    #[cfg(has_ad9154)]
+    api!(ad9154_jesd_ready = ::ad9154::jesd_ready),
+    #[cfg(has_ad9154)]
+    api!(ad9154_jesd_prbs = ::ad9154::jesd_prbs),
+    #[cfg(has_ad9154)]
+    api!(ad9154_jesd_stpl = ::ad9154::jesd_stpl),
 ];
