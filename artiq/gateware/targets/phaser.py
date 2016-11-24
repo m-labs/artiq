@@ -201,12 +201,12 @@ class Phaser(MiniSoC, AMPSoC):
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
         sysref_pads = platform.request("ad9154_sysref")
-        phy = ttl_serdes_7series.Input_8X(sysref_pads.p, sysref_pads.n)
+        phy = ttl_serdes_7series.Inout_8X(sysref_pads.p, sysref_pads.n)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
                                                    ofifo_depth=2))
 
-        phy = ttl_simple.Input(self.ad9154.jesd.jsync)
+        phy = ttl_serdes_7series.Inout_8X(self.ad9154.jesd.jsync)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
                                                    ofifo_depth=2))
