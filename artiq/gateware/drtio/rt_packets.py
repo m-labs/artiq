@@ -29,8 +29,20 @@ class PacketLayoutManager:
             layout.append(("packet_pad", self.alignment - misalignment))
         self.layouts[name] = layout
 
+    def field_length(self, type_name, field_name):
+        layout = self.layouts[type_name]
+        for name, length in layout:
+            if name == field_name:
+                return length
+        raise KeyError
+
 
 def get_m2s_layouts(alignment):
+    if alignment > 128:
+        short_data_len = alignment - 128 + 16
+    else:
+        short_data_len = 16
+
     plm = PacketLayoutManager(alignment)
     plm.add_type("echo_request")
     plm.add_type("set_time", ("timestamp", 64))
@@ -38,8 +50,8 @@ def get_m2s_layouts(alignment):
     plm.add_type("write", ("timestamp", 64),
                           ("channel", 16),
                           ("address", 16),
-                          ("data_len", 8),
-                          ("short_data", 8))
+                          ("extra_data_cnt", 8),
+                          ("short_data", short_data_len))
     plm.add_type("fifo_space_request", ("channel", 16))
     return plm
 
@@ -125,34 +137,33 @@ class TransmitDatapath(Module):
         self.ws = ws
         self.plm = plm
 
-        # inputs
         self.packet_buffer = Signal(max(layout_len(l)
                                         for l in plm.layouts.values()))
         w_in_packet = len(self.packet_buffer)//ws
-        self.packet_len = Signal(max=w_in_packet+1)
+        self.packet_last_n = Signal(max=w_in_packet)
+        self.packet_stb = Signal()
+        self.packet_last = Signal()
 
-        # control
-        self.stb = Signal()
-        self.done = Signal()
+        self.raw_stb = Signal()
+        self.raw_data = Signal(ws)
 
         # # #
 
-        packet_buffer_count = Signal(max=w_in_packet+1)
+        packet_buffer_count = Signal(max=w_in_packet)
+        self.comb += self.packet_last.eq(packet_buffer_count == self.packet_last_n)
         self.sync += [
-            self.done.eq(0),
             frame.eq(0),
             packet_buffer_count.eq(0),
-
-            If(self.stb & ~self.done,
-                If(packet_buffer_count == self.packet_len,
-                    self.done.eq(1)
-                ).Else(
-                    frame.eq(1),
-                    Case(packet_buffer_count, 
-                         {i: data.eq(self.packet_buffer[i*ws:(i+1)*ws])
-                          for i in range(w_in_packet)}),
-                    packet_buffer_count.eq(packet_buffer_count + 1)
-                )
+            If(self.packet_stb,
+                frame.eq(1),
+                Case(packet_buffer_count,
+                     {i: data.eq(self.packet_buffer[i*ws:(i+1)*ws])
+                      for i in range(w_in_packet)}),
+                packet_buffer_count.eq(packet_buffer_count + 1)
+            ),
+            If(self.raw_stb,
+                frame.eq(1),
+                data.eq(self.raw_data)
             )
         ]
 
@@ -170,8 +181,9 @@ class TransmitDatapath(Module):
         if kwargs:
             raise ValueError
         return [
+            self.packet_stb.eq(1),
             self.packet_buffer.eq(value),
-            self.packet_len.eq(idx//self.ws)
+            self.packet_last_n.eq(idx//self.ws-1)
         ]
 
 
@@ -191,7 +203,7 @@ class RTPacketSatellite(Module):
         self.write_timestamp = Signal(64)
         self.write_channel = Signal(16)
         self.write_address = Signal(16)
-        self.write_data = Signal(256)
+        self.write_data = Signal(512)
         self.write_overflow = Signal()
         self.write_overflow_ack = Signal()
         self.write_underflow = Signal()
@@ -211,6 +223,20 @@ class RTPacketSatellite(Module):
         tx_dp = TransmitDatapath(
             link_layer.tx_rt_frame, link_layer.tx_rt_data, tx_plm)
         self.submodules += tx_dp
+
+        # RX write data buffer
+        write_data_buffer_load = Signal()
+        write_data_buffer_cnt = Signal(max=512//ws+1)
+        write_data_buffer = Signal(512)
+        self.sync += \
+            If(write_data_buffer_load,
+                Case(write_data_buffer_cnt,
+                     {i: write_data_buffer[i*ws:(i+1)*ws].eq(link_layer.rx_rt_data)
+                      for i in range(512//ws)}),
+                write_data_buffer_cnt.eq(write_data_buffer_cnt + 1)
+            ).Else(
+                write_data_buffer_cnt.eq(0)
+            )
 
         # RX->TX
         echo_req = Signal()
@@ -241,7 +267,7 @@ class RTPacketSatellite(Module):
             self.write_address.eq(
                 rx_dp.packet_as["write"].address),
             self.write_data.eq(
-                rx_dp.packet_as["write"].short_data)
+                Cat(rx_dp.packet_as["write"].short_data, write_data_buffer))
         ]
 
         reset = Signal()
@@ -287,8 +313,11 @@ class RTPacketSatellite(Module):
             NextState("INPUT")
         )
         rx_fsm.act("WRITE",
-            self.write_stb.eq(1),
-            NextState("INPUT")
+            write_data_buffer_load.eq(1),
+            If(write_data_buffer_cnt == rx_dp.packet_as["write"].extra_data_cnt,
+                self.write_stb.eq(1),
+                NextState("INPUT")
+            )
         )
         rx_fsm.act("FIFO_SPACE",
             fifo_space_set.eq(1),
@@ -309,32 +338,27 @@ class RTPacketSatellite(Module):
         )
         tx_fsm.act("ECHO",
             tx_dp.send("echo_reply"),
-            tx_dp.stb.eq(1),
-            If(tx_dp.done, NextState("IDLE"))
+            If(tx_dp.packet_last, NextState("IDLE"))
         )
         tx_fsm.act("FIFO_SPACE",
             fifo_space_ack.eq(1),
             tx_dp.send("fifo_space_reply", space=self.fifo_space),
-            tx_dp.stb.eq(1),
-            If(tx_dp.done, NextState("IDLE"))
+            If(tx_dp.packet_last, NextState("IDLE"))
         )
         tx_fsm.act("ERROR_WRITE_OVERFLOW",
             self.write_overflow_ack.eq(1),
             tx_dp.send("error", code=error_codes["write_overflow"]),
-            tx_dp.stb.eq(1),
-            If(tx_dp.done, NextState("IDLE"))
+            If(tx_dp.packet_last, NextState("IDLE"))
         )
         tx_fsm.act("ERROR_WRITE_UNDERFLOW",
             self.write_underflow_ack.eq(1),
             tx_dp.send("error", code=error_codes["write_underflow"]),
-            tx_dp.stb.eq(1),
-            If(tx_dp.done, NextState("IDLE"))
+            If(tx_dp.packet_last, NextState("IDLE"))
         )
         tx_fsm.act("ERROR",
             err_ack.eq(1),
             tx_dp.send("error", code=err_code),
-            tx_dp.stb.eq(1),
-            If(tx_dp.done, NextState("IDLE"))
+            If(tx_dp.packet_last, NextState("IDLE"))
         )
 
 
@@ -399,7 +423,7 @@ class RTPacketMaster(Module):
         self.write_timestamp = Signal(64)
         self.write_channel = Signal(16)
         self.write_address = Signal(16)
-        self.write_data = Signal(256)
+        self.write_data = Signal(512)
 
         # fifo space interface
         # write with timestamp[48:] == 0xffff to make a fifo space request
@@ -437,23 +461,83 @@ class RTPacketMaster(Module):
 
         # # #
 
-        # CDC
+        # RX/TX datapath
+        assert len(link_layer.tx_rt_data) == len(link_layer.rx_rt_data)
+        assert len(link_layer.tx_rt_data) % 8 == 0
+        ws = len(link_layer.tx_rt_data)
+        tx_plm = get_m2s_layouts(ws)
+        tx_dp = ClockDomainsRenamer("rtio")(TransmitDatapath(
+            link_layer.tx_rt_frame, link_layer.tx_rt_data, tx_plm))
+        self.submodules += tx_dp
+        rx_plm = get_s2m_layouts(ws)
+        rx_dp = ClockDomainsRenamer("rtio_rx")(ReceiveDatapath(
+            link_layer.rx_rt_frame, link_layer.rx_rt_data, rx_plm))
+        self.submodules += rx_dp
+
+        # Write FIFO and extra data count
         wfifo = ClockDomainsRenamer({"write": "sys", "read": "rtio"})(
-            AsyncFIFO(64+16+16+256, write_fifo_depth))
+            AsyncFIFO(64+16+16+512, write_fifo_depth))
         self.submodules += wfifo
-        write_timestamp = Signal(64)
-        write_channel = Signal(16)
-        write_address = Signal(16)
-        write_data = Signal(256)
+        write_timestamp_d = Signal(64)
+        write_channel_d = Signal(16)
+        write_address_d = Signal(16)
+        write_data_d = Signal(512)
         self.comb += [
             wfifo.we.eq(self.write_stb),
             self.write_ack.eq(wfifo.writable),
             wfifo.din.eq(Cat(self.write_timestamp, self.write_channel,
                              self.write_address, self.write_data)),
-            Cat(write_timestamp, write_channel,
-                write_address, write_data).eq(wfifo.dout)
+            Cat(write_timestamp_d, write_channel_d,
+                write_address_d, write_data_d).eq(wfifo.dout)
         ]
 
+        wfb_readable = Signal()
+        wfb_re = Signal()
+
+        self.comb += wfifo.re.eq(wfifo.readable & (~wfb_readable | wfb_re))
+        self.sync.rtio += \
+            If(wfifo.re,
+                wfb_readable.eq(1),
+            ).Elif(wfb_re,
+                wfb_readable.eq(0),
+            )
+
+        write_timestamp = Signal(64)
+        write_channel = Signal(16)
+        write_address = Signal(16)
+        write_extra_data_cnt = Signal(8)
+        write_data = Signal(512)
+
+        self.sync.rtio += If(wfifo.re,
+            write_timestamp.eq(write_timestamp_d),
+            write_channel.eq(write_channel_d),
+            write_address.eq(write_address_d),
+            write_data.eq(write_data_d))
+
+        short_data_len = tx_plm.field_length("write", "short_data")
+        write_extra_data = Signal(512)
+        self.comb += write_extra_data.eq(write_data[short_data_len:])
+        for i in range(512//ws):
+            self.sync.rtio += If(wfifo.re,
+                If(write_extra_data[ws*i:ws*(i+1)] != 0, write_extra_data_cnt.eq(i+1)))
+
+        extra_data_ce = Signal()
+        extra_data_last = Signal()
+        extra_data_counter = Signal(max=512//ws+1)
+        self.comb += [
+            Case(extra_data_counter, 
+                {i+1: tx_dp.raw_data.eq(write_extra_data[i*ws:(i+1)*ws])
+                 for i in range(512//ws)}),
+            extra_data_last.eq(extra_data_counter == write_extra_data_cnt)
+        ]
+        self.sync.rtio += \
+            If(extra_data_ce,
+                extra_data_counter.eq(extra_data_counter + 1),
+            ).Else(
+                extra_data_counter.eq(1)
+            )
+
+        # CDC
         fifo_space_not = Signal()
         fifo_space = Signal(16)
         self.submodules += _CrossDomainNotification("rtio_rx",
@@ -485,21 +569,8 @@ class RTPacketMaster(Module):
             error_not, error_code,
             self.error_not, self.error_not_ack, self.error_code)
 
-        # RX/TX datapath
-        assert len(link_layer.tx_rt_data) == len(link_layer.rx_rt_data)
-        assert len(link_layer.tx_rt_data) % 8 == 0
-        ws = len(link_layer.tx_rt_data)
-        tx_plm = get_m2s_layouts(ws)
-        tx_dp = ClockDomainsRenamer("rtio")(TransmitDatapath(
-            link_layer.tx_rt_frame, link_layer.tx_rt_data, tx_plm))
-        self.submodules += tx_dp
-        rx_plm = get_s2m_layouts(ws)
-        rx_dp = ClockDomainsRenamer("rtio_rx")(ReceiveDatapath(
-            link_layer.rx_rt_frame, link_layer.rx_rt_data, rx_plm))
-        self.submodules += rx_dp
-
         # TX FSM
-        tx_fsm = ClockDomainsRenamer("rtio")(FSM(reset_state="IDLE_WRITE"))
+        tx_fsm = ClockDomainsRenamer("rtio")(FSM(reset_state="IDLE"))
         self.submodules += tx_fsm
 
         echo_sent_now = Signal()
@@ -508,18 +579,12 @@ class RTPacketMaster(Module):
         tsc_value_load = Signal()
         self.sync.rtio += If(tsc_value_load, tsc_value.eq(self.tsc_value))
 
-        tx_fsm.act("IDLE_WRITE",
-            tx_dp.send("write",
-                timestamp=write_timestamp,
-                channel=write_channel,
-                address=write_address,
-                short_data=write_data),
-            If(wfifo.readable,
+        tx_fsm.act("IDLE",
+            If(wfb_readable,
                 If(write_timestamp[48:] == 0xffff,
                     NextState("FIFO_SPACE")
                 ).Else(
-                    tx_dp.stb.eq(1),
-                    wfifo.re.eq(tx_dp.done)
+                    NextState("WRITE")
                 )
             ).Else(
                 If(echo_stb,
@@ -533,36 +598,56 @@ class RTPacketMaster(Module):
                 )
             )
         )
+        tx_fsm.act("WRITE",
+            tx_dp.send("write",
+                timestamp=write_timestamp,
+                channel=write_channel,
+                address=write_address,
+                extra_data_cnt=write_extra_data_cnt,
+                short_data=write_data[:short_data_len]),
+            If(tx_dp.packet_last,
+                If(write_extra_data_cnt == 0,
+                    wfb_re.eq(1),
+                    NextState("IDLE")
+                ).Else(
+                    NextState("WRITE_EXTRA")
+                )
+            )
+        )
+        tx_fsm.act("WRITE_EXTRA",
+            tx_dp.raw_stb.eq(1),
+            extra_data_ce.eq(1),
+            If(extra_data_last,
+                wfb_re.eq(1),
+                NextState("IDLE")
+            )
+        )
         tx_fsm.act("FIFO_SPACE",
             tx_dp.send("fifo_space_request", channel=write_channel),
-            tx_dp.stb.eq(1),
-            If(tx_dp.done,
-                wfifo.re.eq(1),
-                NextState("IDLE_WRITE")
+            If(tx_dp.packet_last,
+                wfb_re.eq(1),
+                NextState("IDLE")
             )
         )
         tx_fsm.act("ECHO",
             tx_dp.send("echo_request"),
-            tx_dp.stb.eq(1),
-            If(tx_dp.done,
+            If(tx_dp.packet_last,
                 echo_ack.eq(1),
-                NextState("IDLE_WRITE")
+                NextState("IDLE")
             )
         )
         tx_fsm.act("SET_TIME",
             tx_dp.send("set_time", timestamp=tsc_value),
-            tx_dp.stb.eq(1),
-            If(tx_dp.done,
+            If(tx_dp.packet_last,
                 set_time_ack.eq(1),
-                NextState("IDLE_WRITE")
+                NextState("IDLE")
             )
         )
         tx_fsm.act("RESET",
             tx_dp.send("reset", phy=reset_phy),
-            tx_dp.stb.eq(1),
-            If(tx_dp.done,
+            If(tx_dp.packet_last,
                 reset_ack.eq(1),
-                NextState("IDLE_WRITE")
+                NextState("IDLE")
             )
         )
 
