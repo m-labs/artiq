@@ -19,13 +19,11 @@ class DummyTransceiverPair:
         self.alice = SimpleNamespace(
             encoder=SimpleNamespace(k=a2b_k, d=a2b_d),
             decoders=[SimpleNamespace(k=k, d=d) for k, d in zip(b2a_k, b2a_d)],
-            rx_reset=Signal(),
             rx_ready=1
         )
         self.bob = SimpleNamespace(
             encoder=SimpleNamespace(k=b2a_k, d=b2a_d),
             decoders=[SimpleNamespace(k=k, d=d) for k, d in zip(a2b_k, a2b_d)],
-            rx_reset=Signal(),
             rx_ready=1
         )
 
