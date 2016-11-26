@@ -231,7 +231,7 @@ class RTPacketSatellite(Module):
         self.sync += \
             If(write_data_buffer_load,
                 Case(write_data_buffer_cnt,
-                     {i: write_data_buffer[i*ws:(i+1)*ws].eq(link_layer.rx_rt_data)
+                     {i: write_data_buffer[i*ws:(i+1)*ws].eq(rx_dp.data_r)
                       for i in range(512//ws)}),
                 write_data_buffer_cnt.eq(write_data_buffer_cnt + 1)
             ).Else(
@@ -515,11 +515,14 @@ class RTPacketMaster(Module):
             write_data.eq(write_data_d))
 
         short_data_len = tx_plm.field_length("write", "short_data")
-        write_extra_data = Signal(512)
-        self.comb += write_extra_data.eq(write_data[short_data_len:])
+        write_extra_data_d = Signal(512)
+        self.comb += write_extra_data_d.eq(write_data_d[short_data_len:])
         for i in range(512//ws):
             self.sync.rtio += If(wfifo.re,
-                If(write_extra_data[ws*i:ws*(i+1)] != 0, write_extra_data_cnt.eq(i+1)))
+                If(write_extra_data_d[ws*i:ws*(i+1)] != 0, write_extra_data_cnt.eq(i+1)))
+
+        write_extra_data = Signal(512)
+        self.sync.rtio += If(wfifo.re, write_extra_data.eq(write_extra_data_d))
 
         extra_data_ce = Signal()
         extra_data_last = Signal()
