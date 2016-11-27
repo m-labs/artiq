@@ -140,7 +140,7 @@ class TransmitDatapath(Module):
         self.packet_buffer = Signal(max(layout_len(l)
                                         for l in plm.layouts.values()))
         w_in_packet = len(self.packet_buffer)//ws
-        self.packet_last_n = Signal(max=w_in_packet)
+        self.packet_last_n = Signal(max=max(w_in_packet, 2))
         self.packet_stb = Signal()
         self.packet_last = Signal()
 
@@ -149,18 +149,30 @@ class TransmitDatapath(Module):
 
         # # #
 
-        packet_buffer_count = Signal(max=w_in_packet)
-        self.comb += self.packet_last.eq(packet_buffer_count == self.packet_last_n)
+        self.sync += frame.eq(0)
+
+        if w_in_packet > 1:
+            packet_buffer_count = Signal(max=w_in_packet)
+            self.comb += self.packet_last.eq(packet_buffer_count == self.packet_last_n)
+            self.sync += [
+                packet_buffer_count.eq(0),
+                If(self.packet_stb,
+                    frame.eq(1),
+                    Case(packet_buffer_count,
+                         {i: data.eq(self.packet_buffer[i*ws:(i+1)*ws])
+                          for i in range(w_in_packet)}),
+                    packet_buffer_count.eq(packet_buffer_count + 1)
+                )
+            ]
+        else:
+            self.comb += self.packet_last.eq(1)
+            self.sync += \
+                If(self.packet_stb,
+                    frame.eq(1),
+                    data.eq(self.packet_buffer)
+                )
+
         self.sync += [
-            frame.eq(0),
-            packet_buffer_count.eq(0),
-            If(self.packet_stb,
-                frame.eq(1),
-                Case(packet_buffer_count,
-                     {i: data.eq(self.packet_buffer[i*ws:(i+1)*ws])
-                      for i in range(w_in_packet)}),
-                packet_buffer_count.eq(packet_buffer_count + 1)
-            ),
             If(self.raw_stb,
                 frame.eq(1),
                 data.eq(self.raw_data)
