@@ -265,17 +265,10 @@ class LogChannel:
 
 
 class Core(Module):
-    def __init__(self, channels, guard_io_cycles=20):
-        data_width = max(rtlink.get_data_width(c.interface)
-                         for c in channels)
-        address_width = max(rtlink.get_address_width(c.interface)
-                            for c in channels)
-        fine_ts_width = max(rtlink.get_fine_ts_width(c.interface)
-                            for c in channels)
-
-        self.data_width = data_width
-        self.address_width = address_width
-        self.fine_ts_width = fine_ts_width
+    def __init__(self, channels, fine_ts_width=None, guard_io_cycles=20):
+        if fine_ts_width is None:
+            fine_ts_width = max(rtlink.get_fine_ts_width(c.interface)
+                                for c in channels)
 
         self.cri = cri.Interface()
         self.comb += self.cri.arb_gnt.eq(1)
