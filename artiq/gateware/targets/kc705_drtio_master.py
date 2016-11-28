@@ -57,7 +57,7 @@ class Master(MiniSoC, AMPSoC):
         self.submodules.rtio_core = rtio.Core(rtio_channels)
 
         self.submodules.cridec = rtio.CRIDecoder([self.drtio.cri, self.rtio_core.cri])
-        self.submodules.rtio = rtio.KernelInitiator(self.cridec.cri)
+        self.submodules.rtio = rtio.KernelInitiator(self.cridec.master)
         self.register_kernel_cpu_csrdevice("rtio")
 
 
