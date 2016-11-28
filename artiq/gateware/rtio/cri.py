@@ -143,7 +143,7 @@ class CRIDecoder(Module):
         cases = dict()
         for n, slave in enumerate(slaves):
             cases[n] = []
-            for name, size, direction in _layout:
+            for name, size, direction in layout:
                 if direction == DIR_S_TO_M:
                     cases[n].append(getattr(master, name).eq(getattr(slave, name)))
         self.comb += Case(selected, cases)
