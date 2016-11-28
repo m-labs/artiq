@@ -134,7 +134,7 @@ class CRIDecoder(Module):
 
         # master -> slave
         for n, slave in enumerate(slaves):
-            for name, size, direction in _layout:
+            for name, size, direction in layout:
                 if direction == DIR_M_TO_S and name != "cmd":
                     self.comb += getattr(slave, name).eq(getattr(master, name))
             self.comb += If(selected == n, slave.cmd.eq(master.cmd))
