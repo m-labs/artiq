@@ -21,7 +21,7 @@ fn drtio_init_channel(channel: u16) {
         
         csr::drtio::o_reset_channel_status_write(1);
         csr::drtio::o_get_fifo_space_write(1);
-        while csr::drtio::o_wait_read() == 1 {}  // TODO: timeout
+        while csr::drtio::o_wait_read() == 1 {}
         info!("FIFO space on channel {} is {}", channel, csr::drtio::o_dbg_fifo_space_read());
 
         csr::drtio::chan_sel_override_en_write(0);
@@ -33,7 +33,7 @@ pub fn link_thread(waiter: Waiter, _spawner: Spawner) {
         waiter.until(drtio_link_is_up).unwrap();
         info!("link RX is up");
 
-        waiter.sleep(500).unwrap();
+        waiter.sleep(600).unwrap();
         info!("wait for remote side done");
 
         drtio_sync_tsc();
