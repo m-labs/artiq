@@ -116,3 +116,34 @@ class KernelInitiator(Module, AutoCSR):
             self.o_data.we.eq(self.o_timestamp.re),
         ]
         self.sync += If(self.counter_update.re, self.counter.status.eq(self.cri.counter))
+
+
+class CRIDecoder(Module):
+    def __init__(self, slaves=2, master=None):
+        if isinstance(slaves, int):
+            slaves = [Interface() for _ in range(slaves)]
+        if master is None:
+            master = Interface()
+        self.slaves = slaves
+        self.master = master
+
+        # # #
+
+        selected = Signal(8)
+        self.sync += selected.eq(self.master.chan_sel[16:])
+
+        # master -> slave
+        for n, slave in enumerate(slaves):
+            for name, size, direction in _layout:
+                if direction == DIR_M_TO_S and name != "cmd":
+                    self.comb += getattr(slave, name).eq(getattr(master, name))
+            self.comb += If(selected == n, slave.cmd.eq(master.cmd))
+
+        # slave -> master
+        cases = dict()
+        for n, slave in enumerate(slaves):
+            cases[n] = []
+            for name, size, direction in _layout:
+                if direction == DIR_S_TO_M:
+                    cases[n].append(getattr(master, name).eq(getattr(slave, name)))
+        self.comb += Case(selected, cases)

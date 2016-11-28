@@ -9,6 +9,7 @@ from misoc.integration.builder import builder_args, builder_argdict
 
 from artiq.gateware.soc import AMPSoC, build_artiq_soc
 from artiq.gateware import rtio
+from artiq.gateware.rtio.phy import ttl_simple
 from artiq.gateware.drtio.transceiver import gtx_7series
 from artiq.gateware.drtio import DRTIOMaster
 from artiq import __version__ as artiq_version
@@ -42,9 +43,22 @@ class Master(MiniSoC, AMPSoC):
             sys_clk_freq=self.clk_freq,
             clock_div2=True)
         self.submodules.drtio = DRTIOMaster(self.transceiver)
-        self.submodules.rtio = rtio.KernelInitiator(self.drtio.cri)
-        self.register_kernel_cpu_csrdevice("rtio")
         self.csr_devices.append("drtio")
+
+        rtio_channels = []
+        for i in range(8):
+            phy = ttl_simple.Output(platform.request("user_led", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+        for sma in "user_sma_gpio_p", "user_sma_gpio_n":
+            phy = ttl_simple.Inout(platform.request(sma))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+        self.submodules.rtio_core = rtio.Core(rtio_channels)
+
+        self.submodules.cridec = rtio.CRIDecoder([self.drtio.cri, self.rtio_core.cri])
+        self.submodules.rtio = rtio.KernelInitiator(self.cridec.cri)
+        self.register_kernel_cpu_csrdevice("rtio")
 
 
 def main():
