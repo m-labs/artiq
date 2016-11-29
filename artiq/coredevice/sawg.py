@@ -62,44 +62,36 @@ class Spline:
         rtio_output_list(now_mu(), self.channel, 0, value)
 
     @portable(flags={"fast-math"})
-    def pack_coeff_mu(self, coeff) -> TList(TInt32):
-        n = len(coeff)
-        width = n*self.width + (n - 1)*n//2*self.time_width
-        packed = [int32(0)] * ((width + 31)//32)
+    def pack_coeff_mu(self, coeff, packed):
         pos = 0
-        for i in range(n):
+        for i in range(len(coeff)):
             wi = self.width + i*self.time_width
             ci = coeff[i]
-            while wi:
+            while wi != 0:
                 j = pos//32
                 used = pos - 32*j
                 avail = 32 - used
                 if avail > wi:
                     avail = wi
-                packed[j] |= (ci & ((1 << avail) - 1)) << used
+                packed[j] |= int32(ci & ((1 << avail) - 1)) << used
                 ci >>= avail
                 wi -= avail
                 pos += avail
-        return packed
 
     @portable(flags={"fast-math"})
-    def coeff_to_mu(self, coeff) -> TList(TInt32):
-        n = len(coeff)
-        coeff64 = [int64(0)] * n
-        for i in range(n):
+    def coeff_to_mu(self, coeff, coeff64):
+        for i in range(len(coeff)):
             vi = coeff[i] * self.scale
             for j in range(i):
                 vi *= self.time_scale
             ci = int(round(vi))
             coeff64[i] = ci
             # artiq.wavesynth.coefficients.discrete_compensate:
-            continue
             if i == 2:
                 coeff64[1] += ci >> (self.time_width + 1)
             elif i == 3:
                 coeff64[2] += ci >> self.time_width
                 coeff64[1] += (ci // 3) >> (2*self.time_width + 1)
-        return self.pack_coeff_mu(coeff64)
 
     @kernel
     def set_list(self, value):
@@ -108,7 +100,13 @@ class Spline:
         :param value: List of floating point spline knot coefficients,
             lowest order (constant) coefficient first.
         """
-        self.set_list_mu(self.coeff_to_mu(value))
+        n = len(value)
+        width = n*self.width + (n - 1)*n//2*self.time_width
+        coeff64 = [int64(0)] * n
+        packed = [int32(0)] * ((width + 31)//32)
+        self.coeff_to_mu(value, coeff64)
+        self.pack_coeff_mu(coeff64, packed)
+        self.set_list_mu(packed)
 
     @kernel(flags={"fast-math"})
     def smooth(self, start: TFloat, stop: TFloat, duration: TFloat,
