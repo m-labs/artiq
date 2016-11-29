@@ -12,8 +12,8 @@ build:
 
 requirements:
   build:
-    - migen 0.4
-    - misoc 0.4
+    - migen 0.5.dev
+    - misoc 0.5.dev
     - jesd204b 0.2
     - llvm-or1k
     - binutils-or1k-linux >=2.27
