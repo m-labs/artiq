@@ -16,13 +16,13 @@ class RTIOManager:
     def rtio_output(self, now, channel, addr, data):
         self.outputs.append((now, channel, addr, data))
 
-    def rtio_output_list(self, *args, **kwargs):
+    def rtio_output_wide(self, *args, **kwargs):
         self.rtio_output(*args, **kwargs)
 
     def patch(self, mod):
         assert not hasattr(mod, "_saved")
         mod._saved = {}
-        for name in "rtio_output rtio_output_list".split():
+        for name in "rtio_output rtio_output_wide".split():
             mod._saved[name] = getattr(mod, name, None)
             setattr(mod, name, getattr(self, name))
 
@@ -130,9 +130,9 @@ class SAWGTest(unittest.TestCase):
 
     def test_linear(self):
         d = self.driver
-        d.offset.set_list_mu([100, 10])
+        d.offset.set_coeff_mu([100, 10])
         delay_mu(10*8)
-        d.offset.set_list([0])
+        d.offset.set_coeff([0])
         delay_mu(1*8)
         out = self.run_channel(self.rtio_manager.outputs)
         for i in range(len(out)//2):
