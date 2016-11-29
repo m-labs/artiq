@@ -88,8 +88,7 @@ class SplineParallelDDS(SplineParallelDUC):
         a = Spline(order=orders.a, width=widths.a)
         self.a = a.tri(widths.t)
         self.submodules += a
-        super().__init__(widths._replace(a=len(self.a.a0)),
-                         orders, **kwargs)
+        super().__init__(widths._replace(a=len(self.a.a0)), orders, **kwargs)
 
         ###
 

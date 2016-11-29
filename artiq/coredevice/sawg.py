@@ -89,10 +89,10 @@ class Spline:
             coeff64[i] = ci
             # artiq.wavesynth.coefficients.discrete_compensate:
             if i == 2:
-                coeff64[1] += ci >> (self.time_width + 1)
+                coeff64[1] += ci >> self.time_width + 1
             elif i == 3:
                 coeff64[2] += ci >> self.time_width
-                coeff64[1] += (ci // 3) >> (2*self.time_width + 1)
+                coeff64[1] += ci // 6 >> 2*self.time_width
 
     @kernel
     def set_coeff(self, value):
