@@ -110,13 +110,9 @@ class SAWGTest(unittest.TestCase):
         # [.1, .01, -.00001], [.1, .01, .00001, -.000000001]
         for v in [-.1], [.1, -.01]:
             ch = self.driver.offset
-            q = [0] * len(v)
-            ch.coeff_to_mu(v, q)
-            n = len(v)
+            p = ch.coeff_as_packed(v)
             t = ch.time_width
             w = ch.width
-            p = [0] * ((n*w + (n - 1)*n//2*t + 31)//32)
-            ch.pack_coeff_mu(q, p)
             p = [_ & 0xffffffff for _ in p]
             p0 = [int(round(vi*ch.scale*ch.time_scale**i))
                   for i, vi in enumerate(v)]
@@ -143,30 +139,19 @@ class SAWGTest(unittest.TestCase):
                 self.assertEqual(out[i], [v, v])
         self.assertEqual(out[-1], [0, 0])
 
-    def pack(self, v):
-        n = len(v)
-        ch = self.driver.offset
-        t = ch.time_width
-        w = ch.width
-        p = [0] * ((n*w + (n - 1)*n//2*t + 31)//32)
-        ch.pack_coeff_mu(v, p)
-        p = [_ & 0xffffffff for _ in p]
-        return p
-
     def test_pack(self):
-        self.assertEqual(self.pack([1]), [1])
-        self.assertEqual(self.pack([1, 1 << 16]), [1, 1])
-        self.assertEqual(self.pack([1, 1 << 32]), [1, 0])
-        self.assertEqual(self.pack([0x1234, 0xa5a5a5a5]),
+        ch = self.driver.offset
+        self.assertEqual(ch.coeff_as_packed_mu([1]), [1])
+        self.assertEqual(ch.coeff_as_packed_mu([1, 1 << 16]), [1, 1])
+        self.assertEqual(ch.coeff_as_packed_mu([1, 1 << 32]), [1, 0])
+        self.assertEqual(ch.coeff_as_packed_mu([0x1234, 0xa5a5a5a5]),
                          [0xa5a51234, 0xa5a5])
-        self.assertEqual(self.pack([1, 2, 3, 4]),
+        self.assertEqual(ch.coeff_as_packed_mu([1, 2, 3, 4]),
                          [0x20001, 0x30000, 0, 4, 0])
-        self.assertEqual(self.pack([-1, -2, -3, -4]),
-                         [0xfffeffff, 0xfffdffff, 0xffffffff,
-                          0xfffffffc, 0xffffffff])
-        self.assertEqual(self.pack([0, -1, 0, -1]),
-                         [0xffff0000, 0x0000ffff, 0,
-                          0xffffffff, 0xffffffff])
+        self.assertEqual(ch.coeff_as_packed_mu([-1, -2, -3, -4]),
+                         [0xfffeffff, 0xfffdffff, -1, -4, -1])
+        self.assertEqual(ch.coeff_as_packed_mu([0, -1, 0, -1]),
+                         [0xffff0000, 0x0000ffff, 0, -1, -1])
 
     def test_smooth_linear(self):
         ch = self.driver.offset
@@ -190,11 +175,13 @@ class SAWGTest(unittest.TestCase):
         delay_mu(1)
         out = self.run_channel(self.rtio_manager.outputs)
         out = sum(out, [])
-        # import matplotlib.pyplot as plt
-        # plt.plot(out)
-        # plt.show()
+        if False:
+            import matplotlib.pyplot as plt
+            plt.plot(out)
+            plt.show()
 
-    @unittest.skip("needs sim.time.TimeManager tweak for timeline jumps")
+    # @unittest.skip("needs artiq.sim.time.TimeManager tweak for "
+    #                "reverse timeline jumps")
     def test_demo_2tone(self):
         MHz = 1e-3
         ns = 1.
@@ -227,6 +214,7 @@ class SAWGTest(unittest.TestCase):
 
         out = self.run_channel(self.rtio_manager.outputs)
         out = sum(out, [])
-        # import matplotlib.pyplot as plt
-        # plt.plot(out)
-        # plt.show()
+        if True:
+            import matplotlib.pyplot as plt
+            plt.plot(out)
+            plt.show()
