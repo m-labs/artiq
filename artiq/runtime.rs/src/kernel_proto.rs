@@ -51,8 +51,8 @@ pub enum Message<'a> {
     RpcRecvReply(Result<usize, Exception<'a>>),
 
     CacheGetRequest { key: &'a str },
-    CacheGetReply   { value: &'static [u32] },
-    CachePutRequest { key: &'a str, value: &'static [u32] },
+    CacheGetReply   { value: &'static [i32] },
+    CachePutRequest { key: &'a str, value: &'a [i32] },
     CachePutReply   { succeeded: bool },
 
     Log(fmt::Arguments<'a>),

@@ -120,6 +120,22 @@ extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -
     loop {}
 }
 
+#[repr(C)]
+pub struct ArtiqList<T> {
+    len: usize,
+    ptr: *const T
+}
+
+impl<T> ArtiqList<T> {
+    pub fn from_slice(slice: &'static [T]) -> ArtiqList<T> {
+        ArtiqList { ptr: slice.as_ptr(), len: slice.len() }
+    }
+
+    pub unsafe fn as_slice(&self) -> &[T] {
+        slice::from_raw_parts(self.ptr, self.len)
+    }
+}
+
 static mut NOW: u64 = 0;
 
 #[no_mangle]
@@ -210,35 +226,34 @@ pub extern fn __artiq_terminate(exception: *const kernel_proto::Exception,
     loop {}
 }
 
-extern fn watchdog_set(ms: i64) -> usize {
+extern fn watchdog_set(ms: i64) -> i32 {
     if ms < 0 {
         artiq_raise!("ValueError", "cannot set a watchdog with a negative timeout")
     }
 
     send(&WatchdogSetRequest { ms: ms as u64 });
-    recv!(&WatchdogSetReply { id } => id)
+    recv!(&WatchdogSetReply { id } => id) as i32
 }
 
-extern fn watchdog_clear(id: usize) {
-    send(&WatchdogClear { id: id })
+extern fn watchdog_clear(id: i32) {
+    send(&WatchdogClear { id: id as usize })
 }
 
-extern fn cache_get(key: *const u8) -> (usize, *const u32) {
+extern fn cache_get(key: *const u8) -> ArtiqList<i32> {
     extern { fn strlen(s: *const c_char) -> size_t; }
     let key = unsafe { slice::from_raw_parts(key, strlen(key as *const c_char)) };
     let key = unsafe { str::from_utf8_unchecked(key) };
 
     send(&CacheGetRequest { key: key });
-    recv!(&CacheGetReply { value } => (value.len(), value.as_ptr()))
+    recv!(&CacheGetReply { value } => ArtiqList::from_slice(value))
 }
 
-extern fn cache_put(key: *const u8, &(len, ptr): &(usize, *const u32)) {
+extern fn cache_put(key: *const u8, list: ArtiqList<i32>) {
     extern { fn strlen(s: *const c_char) -> size_t; }
     let key = unsafe { slice::from_raw_parts(key, strlen(key as *const c_char)) };
     let key = unsafe { str::from_utf8_unchecked(key) };
 
-    let value = unsafe { slice::from_raw_parts(ptr, len) };
-    send(&CachePutRequest { key: key, value: value });
+    send(&CachePutRequest { key: key, value: unsafe { list.as_slice() } });
     recv!(&CachePutReply { succeeded } => {
         if !succeeded {
             artiq_raise!("CacheError", "cannot put into a busy cache row")

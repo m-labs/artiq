@@ -518,7 +518,7 @@ class AppletsDock(QtWidgets.QDockWidget):
         item.setFlags(QtCore.Qt.ItemIsSelectable |
             QtCore.Qt.ItemIsEditable |
             QtCore.Qt.ItemIsUserCheckable |
-            QtCore.Qt.ItemIsAutoTristate |
+            QtCore.Qt.ItemIsTristate |
             QtCore.Qt.ItemIsDragEnabled |
             QtCore.Qt.ItemIsDropEnabled |
             QtCore.Qt.ItemIsEnabled)

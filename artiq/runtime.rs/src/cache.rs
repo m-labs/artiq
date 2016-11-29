@@ -4,7 +4,7 @@ use std::btree_map::BTreeMap;
 
 #[derive(Debug)]
 struct Entry {
-    data: Vec<u32>,
+    data: Vec<i32>,
     borrowed: bool
 }
 
@@ -18,7 +18,7 @@ impl Cache {
         Cache { entries: BTreeMap::new() }
     }
 
-    pub fn get(&mut self, key: &str) -> *const [u32] {
+    pub fn get(&mut self, key: &str) -> *const [i32] {
         match self.entries.get_mut(key) {
             None => &[],
             Some(ref mut entry) => {
@@ -28,7 +28,7 @@ impl Cache {
         }
     }
 
-    pub fn put(&mut self, key: &str, data: &[u32]) -> Result<(), ()> {
+    pub fn put(&mut self, key: &str, data: &[i32]) -> Result<(), ()> {
         match self.entries.get_mut(key) {
             None => (),
             Some(ref mut entry) => {

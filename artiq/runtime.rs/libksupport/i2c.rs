@@ -75,7 +75,9 @@ mod imp {
 
 use self::imp::*;
 
-pub extern fn init(busno: u32) {
+pub extern fn init(busno: i32) {
+    let busno = busno as u32;
+
     // Set SCL as output, and high level
     scl_o(busno, true);
     scl_oe(busno, true);
@@ -92,7 +94,9 @@ pub extern fn init(busno: u32) {
     }
 }
 
-pub extern fn start(busno: u32) {
+pub extern fn start(busno: i32) {
+    let busno = busno as u32;
+
     // Set SCL high then SDA low
     scl_o(busno, true);
     half_period();
@@ -100,7 +104,9 @@ pub extern fn start(busno: u32) {
     half_period();
 }
 
-pub extern fn stop(busno: u32) {
+pub extern fn stop(busno: i32) {
+    let busno = busno as u32;
+
     // First, make sure SCL is low, so that the target releases the SDA line
     scl_o(busno, false);
     half_period();
@@ -112,7 +118,9 @@ pub extern fn stop(busno: u32) {
     half_period();
 }
 
-pub extern fn write(busno: u32, data: u8) -> bool {
+pub extern fn write(busno: i32, data: i8) -> bool {
+    let (busno, data) = (busno as u32, data as u8);
+
     // MSB first
     for bit in (0..8).rev() {
         // Set SCL low and set our bit on SDA
@@ -135,7 +143,9 @@ pub extern fn write(busno: u32, data: u8) -> bool {
     !sda_i(busno)
 }
 
-pub extern fn read(busno: u32, ack: bool) -> u8 {
+pub extern fn read(busno: i32, ack: bool) -> i8 {
+    let busno = busno as u32;
+
     // Set SCL low first, otherwise setting SDA as input may cause a transition
     // on SDA with SCL high which will be interpreted as START/STOP condition.
     scl_o(busno, false);
@@ -162,5 +172,5 @@ pub extern fn read(busno: u32, ack: bool) -> u8 {
     scl_o(busno, true);
     half_period();
 
-    data
+    data as i8
 }
