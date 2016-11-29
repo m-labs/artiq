@@ -22,13 +22,13 @@ def get_argparser():
 
     verbosity_args(parser)
 
-    parser.add_argument("--host", nargs=1, metavar="HOST",
+    parser.add_argument("--host", metavar="HOST",
                         type=str, default="lab.m-labs.hk",
                         help="SSH host where the development board is located")
-    parser.add_argument("--serial", nargs=1, metavar="SERIAL",
+    parser.add_argument("--serial", metavar="SERIAL",
                         type=str, default="/dev/ttyUSB0",
                         help="TTY device corresponding to the development board")
-    parser.add_argument("--ip", nargs=1, metavar="IP",
+    parser.add_argument("--ip", metavar="IP",
                         type=str, default="kc705.lab.m-labs.hk",
                         help="IP address corresponding to the development board")
 
