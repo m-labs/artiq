@@ -1,6 +1,6 @@
 from numpy import int32, int64
 from artiq.language.core import kernel, now_mu, portable, delay
-from artiq.coredevice.rtio import rtio_output, rtio_output_list
+from artiq.coredevice.rtio import rtio_output, rtio_output_wide
 from artiq.language.types import TInt32, TInt64, TFloat, TList
 
 
@@ -51,15 +51,15 @@ class Spline:
 
         :param value: Spline value relative to full-scale.
         """
-        rtio_output_list(now_mu(), self.channel, 0, self.to_mu64(value))
+        rtio_output_wide(now_mu(), self.channel, 0, self.to_mu64(value))
 
     @kernel
-    def set_list_mu(self, value):
+    def set_coeff_mu(self, value):
         """Set spline raw values.
 
         :param value: Spline packed raw values.
         """
-        rtio_output_list(now_mu(), self.channel, 0, value)
+        rtio_output_wide(now_mu(), self.channel, 0, value)
 
     @portable(flags={"fast-math"})
     def pack_coeff_mu(self, coeff, packed):
@@ -94,7 +94,7 @@ class Spline:
                 coeff64[1] += (ci // 3) >> (2*self.time_width + 1)
 
     @kernel
-    def set_list(self, value):
+    def set_coeff(self, value):
         """Set spline coefficients.
 
         :param value: List of floating point spline knot coefficients,
@@ -106,7 +106,7 @@ class Spline:
         packed = [int32(0)] * ((width + 31)//32)
         self.coeff_to_mu(value, coeff64)
         self.pack_coeff_mu(coeff64, packed)
-        self.set_list_mu(packed)
+        self.set_coeff_mu(packed)
 
     @kernel(flags={"fast-math"})
     def smooth(self, start: TFloat, stop: TFloat, duration: TFloat,
@@ -132,14 +132,14 @@ class Spline:
         """
         if order == 0:
             delay(duration/2)
-            self.set_list([stop])
+            self.set_coeff([stop])
             delay(duration/2)
         elif order == 1:
-            self.set_list([start, (stop - start)/duration])
+            self.set_coeff([start, (stop - start)/duration])
             delay(duration)
         elif order == 3:
             v2 = 6*(stop - start)/(duration*duration)
-            self.set_list([start, 0., v2, -2*v2/duration])
+            self.set_coeff([start, 0., v2, -2*v2/duration])
             delay(duration)
         else:
             raise ValueError("Invalid interpolation order. "
