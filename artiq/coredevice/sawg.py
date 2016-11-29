@@ -88,7 +88,6 @@ class Spline:
             ci = int64(round(vi))
             coeff64[i] = ci
             # artiq.wavesynth.coefficients.discrete_compensate:
-            continue
             if i == 2:
                 coeff64[1] += ci >> self.time_width + 1
             elif i == 3:
