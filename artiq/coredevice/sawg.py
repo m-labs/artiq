@@ -90,15 +90,15 @@ class Spline:
             vi = coeff[i] * self.scale
             for j in range(i):
                 vi *= self.time_scale
-            vi = int(round(vi))
-            coeff64[i] = vi
+            ci = int(round(vi))
+            coeff64[i] = ci
             # artiq.wavesynth.coefficients.discrete_compensate:
             continue
             if i == 2:
-                coeff64[1] += vi >> (self.time_width + 1)
+                coeff64[1] += ci >> (self.time_width + 1)
             elif i == 3:
-                coeff64[2] += vi >> self.time_width
-                coeff64[1] += (vi // 3) >> (2*self.time_width + 1)
+                coeff64[2] += ci >> self.time_width
+                coeff64[1] += (ci // 3) >> (2*self.time_width + 1)
         return self.pack_coeff_mu(coeff64)
 
     @kernel
@@ -111,7 +111,8 @@ class Spline:
         self.set_list_mu(self.coeff_to_mu(value))
 
     @kernel(flags={"fast-math"})
-    def smooth(self, start, stop, duration, order):
+    def smooth(self, start: TFloat, stop: TFloat, duration: TFloat,
+               order: TInt32):
         """Initiate an interpolated value change.
 
         The third order interpolation is constrained to have zero first
