@@ -54,7 +54,7 @@ class Master(MiniSoC, AMPSoC):
             phy = ttl_simple.Inout(platform.request(sma))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
-        self.submodules.rtio_core = rtio.Core(rtio_channels, 2)
+        self.submodules.rtio_core = rtio.Core(rtio_channels, 3)
 
         self.submodules.cridec = rtio.CRIDecoder([self.drtio.cri, self.rtio_core.cri])
         self.submodules.rtio = rtio.KernelInitiator(self.cridec.master)
