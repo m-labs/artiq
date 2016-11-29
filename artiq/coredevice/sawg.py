@@ -54,7 +54,7 @@ class Spline:
         rtio_output_list(now_mu(), self.channel, 0, self.to_mu64(value))
 
     @kernel
-    def set_list_mu(self, value: TList(TInt32)):
+    def set_list_mu(self, value):
         """Set spline raw values.
 
         :param value: Spline packed raw values.
@@ -62,7 +62,7 @@ class Spline:
         rtio_output_list(now_mu(), self.channel, 0, value)
 
     @portable(flags={"fast-math"})
-    def pack_coeff_mu(self, coeff: TList(TInt64)) -> TList(TInt32):
+    def pack_coeff_mu(self, coeff) -> TList(TInt32):
         n = len(coeff)
         width = n*self.width + (n - 1)*n//2*self.time_width
         packed = [int32(0)] * ((width + 31)//32)
@@ -83,7 +83,7 @@ class Spline:
         return packed
 
     @portable(flags={"fast-math"})
-    def coeff_to_mu(self, coeff: TList(TFloat)) -> TList(TInt32):
+    def coeff_to_mu(self, coeff) -> TList(TInt32):
         n = len(coeff)
         coeff64 = [int64(0)] * n
         for i in range(n):
@@ -102,7 +102,7 @@ class Spline:
         return self.pack_coeff_mu(coeff64)
 
     @kernel
-    def set_list(self, value: TList(TFloat)):
+    def set_list(self, value):
         """Set spline coefficients.
 
         :param value: List of floating point spline knot coefficients,
