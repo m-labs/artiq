@@ -22,7 +22,8 @@ from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
 from misoc.integration.builder import builder_args, builder_argdict
 
 from artiq.gateware.soc import AMPSoC, build_artiq_soc
-from artiq.gateware import rtio, phaser
+from artiq.gateware import rtio
+from artiq.gateware.phaser import fmc_adapter_io
 from artiq.gateware.rtio.phy import (ttl_simple, ttl_serdes_7series,
                                      sawg)
 from artiq import __version__ as artiq_version
@@ -172,7 +173,7 @@ class Phaser(MiniSoC, AMPSoC):
         ])
 
         platform = self.platform
-        platform.add_extension(phaser.fmc_adapter_io)
+        platform.add_extension(fmc_adapter_io)
 
         self.submodules.leds = gpio.GPIOOut(Cat(
             platform.request("user_led", 0),
@@ -201,7 +202,7 @@ class Phaser(MiniSoC, AMPSoC):
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
         sysref_pads = platform.request("ad9154_sysref")
-        phy = ttl_serdes_7series.Inout_8X(sysref_pads.p, sysref_pads.n)
+        phy = ttl_serdes_7series.Input_8X(sysref_pads.p, sysref_pads.n)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
                                                    ofifo_depth=2))
