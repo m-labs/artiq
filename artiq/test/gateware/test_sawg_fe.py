@@ -1,10 +1,10 @@
 import unittest
-from numpy import int32, int64
 
 import migen as mg
 
 from artiq.coredevice import sawg
-from artiq.language import delay_mu, core as core_language
+from artiq.language import (at_mu, now_mu, delay_mu, delay,
+                            core as core_language)
 from artiq.gateware.rtio.phy.sawg import Channel
 from artiq.sim import devices as sim_devices, time as sim_time
 
@@ -37,7 +37,7 @@ class SAWGTest(unittest.TestCase):
         self.rtio_manager = RTIOManager()
         self.rtio_manager.patch(sawg)
         self.core = sim_devices.Core({})
-        self.core.coarse_ref_period = 8
+        self.core.coarse_ref_period = 1
         self.channel = mg.ClockDomainsRenamer({"rio_phy": "sys"})(
             Channel(width=16, parallelism=2))
         self.driver = sawg.SAWG({"core": self.core}, channel_base=0,
@@ -52,19 +52,19 @@ class SAWGTest(unittest.TestCase):
     def test_make_events(self):
         d = self.driver
         d.offset.set(.9)
-        delay_mu(2*8)
+        delay_mu(2)
         d.frequency0.set64(.1)
-        delay_mu(2*8)
+        delay_mu(2)
         d.offset.set(0)
         self.assertEqual(
             self.rtio_manager.outputs, [
                 (0, 1, 0, int(round(
                     (1 << self.driver.offset.width - 1)*.9))),
-                (2*8, 8, 0, [int(round(
+                (2, 8, 0, [int(round(
                     (1 << self.driver.frequency0.width) /
-                    self.channel.parallelism*d.core.coarse_ref_period*.1)),
+                    self.channel.parallelism*.1)),
                             0]),
-                (4*8, 1, 0, 0),
+                (4, 1, 0, 0),
             ])
 
     def run_channel(self, events):
@@ -83,6 +83,7 @@ class SAWGTest(unittest.TestCase):
                 yield rt.data.eq(int(data))
                 yield rt.stb.eq(1)
                 assert not (yield rt.busy)
+                # print("{}: set ch {} to {}".format(time, channel, hex(data)))
 
         def log(dut, data, n):
             for i in range(dut.latency):
@@ -92,15 +93,16 @@ class SAWGTest(unittest.TestCase):
                 data.append((yield from [(yield _) for _ in dut.o]))
 
         data = []
+        # print(int(events[-1][0]) + 1)
         mg.run_simulation(self.channel, [
             gen(self.channel, events),
-            log(self.channel, data, int(events[-1][0]//8) + 1)],
+            log(self.channel, data, int(events[-1][0]) + 1)],
                           vcd_name="dds.vcd")
-        return sum(data, [])
+        return data
 
     def test_run_channel(self):
         self.test_make_events()
-        out = self.run_channel(self.rtio_manager.outputs)
+        self.run_channel(self.rtio_manager.outputs)
 
     def test_coeff(self):
         import struct
@@ -131,15 +133,15 @@ class SAWGTest(unittest.TestCase):
     def test_linear(self):
         d = self.driver
         d.offset.set_coeff_mu([100, 10])
-        delay_mu(10*8)
+        delay_mu(10)
         d.offset.set_coeff([0])
-        delay_mu(1*8)
+        delay_mu(1)
         out = self.run_channel(self.rtio_manager.outputs)
-        for i in range(len(out)//2):
+        for i in range(len(out) - 1):
             with self.subTest(i):
                 v = 100 + i*10
-                self.assertEqual(out[2*i], v)
-                self.assertEqual(out[2*i+1], v)
+                self.assertEqual(out[i], [v, v])
+        self.assertEqual(out[-1], [0, 0])
 
     def pack(self, v):
         n = len(v)
@@ -168,24 +170,63 @@ class SAWGTest(unittest.TestCase):
 
     def test_smooth_linear(self):
         ch = self.driver.offset
-        ch.smooth(.1, .2, 13*ch.core.coarse_ref_period, 1)
+        ch.smooth(.1, .2, 13, 1)
         ch.set(.2)
-        delay_mu(1*8)
+        delay_mu(1)
         out = self.run_channel(self.rtio_manager.outputs)
         a = int(round(.1*ch.scale))
         da = a//13
-        for i in range(len(out)//2):
+        for i in range(len(out) - 1):
             with self.subTest(i):
                 v = a + i*da
-                self.assertEqual(out[2*i], v)
-                self.assertEqual(out[2*i+1], v)
+                self.assertEqual(out[i], [v, v])
+        a = int(round(.2*ch.scale))
+        self.assertEqual(out[-1], [a, a])
 
     def test_smooth_cubic(self):
         ch = self.driver.offset
-        ch.smooth(.1, .2, 13*ch.core.coarse_ref_period, 3)
+        ch.smooth(.1, .2, 13, 3)
         ch.set(.2)
-        delay_mu(1*8)
+        delay_mu(1)
         out = self.run_channel(self.rtio_manager.outputs)
+        out = sum(out, [])
+        # import matplotlib.pyplot as plt
+        # plt.plot(out)
+        # plt.show()
+
+    @unittest.skip("needs sim.time.TimeManager tweak for timeline jumps")
+    def test_demo_2tone(self):
+        MHz = 1e-3
+        ns = 1.
+        self.sawg0 = self.driver
+
+        t_up = t_hold = t_down = 400*ns
+        a1 = .3
+        a2 = .4
+        order = 3
+
+        self.sawg0.frequency0.set(10*MHz)
+        self.sawg0.phase0.set(0.)
+        self.sawg0.frequency1.set64(1*MHz)
+        self.sawg0.phase1.set(0.)
+        self.sawg0.frequency2.set64(13*MHz)
+        self.sawg0.phase2.set(0.)
+        t = now_mu()
+        self.sawg0.amplitude1.smooth(.0, a1, t_up, order)
+        at_mu(t)
+        self.sawg0.amplitude2.smooth(.0, a2, t_up, order)
+        self.sawg0.amplitude1.set(a1)
+        self.sawg0.amplitude2.set(a2)
+        delay(t_hold)
+        t = now_mu()
+        self.sawg0.amplitude1.smooth(a1, .0, t_down, order)
+        at_mu(t)
+        self.sawg0.amplitude2.smooth(a2, .0, t_down, order)
+        self.sawg0.amplitude1.set(.0)
+        self.sawg0.amplitude2.set(.0)
+
+        out = self.run_channel(self.rtio_manager.outputs)
+        out = sum(out, [])
         # import matplotlib.pyplot as plt
         # plt.plot(out)
         # plt.show()
