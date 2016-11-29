@@ -92,7 +92,7 @@ impl<'a> Session<'a> {
 
 impl<'a> Drop for Session<'a> {
     fn drop(&mut self) {
-        kernel::stop()
+        unsafe { kernel::stop() }
     }
 }
 
@@ -416,7 +416,7 @@ fn process_kern_message(waiter: Waiter,
             }
 
             &kern::RunFinished => {
-                kernel::stop();
+                unsafe { kernel::stop() }
                 session.kernel_state = KernelState::Absent;
                 unsafe { session.congress.cache.unborrow() }
 
@@ -428,7 +428,7 @@ fn process_kern_message(waiter: Waiter,
             }
 
             &kern::RunException { exception: ref exn, backtrace } => {
-                kernel::stop();
+                unsafe { kernel::stop() }
                 session.kernel_state = KernelState::Absent;
                 unsafe { session.congress.cache.unborrow() }
 
