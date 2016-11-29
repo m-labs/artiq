@@ -18,16 +18,15 @@ class Spline:
 
     @portable(flags={"fast-math"})
     def to_mu(self, value: TFloat) -> TInt32:
-        return int(round(value*self.scale))
+        return int32(round(value*self.scale))
 
     @portable(flags={"fast-math"})
     def from_mu(self, value: TInt32) -> TFloat:
         return value/self.scale
 
     @portable(flags={"fast-math"})
-    def to_mu64(self, value: TFloat) -> TList(TInt32):
-        v = int64(round(value*self.scale))
-        return [int32(v), int32((v >> 32) & 0xffffffff)]
+    def to_mu64(self, value: TFloat) -> TInt64:
+        return int64(round(value*self.scale))
 
     @kernel
     def set_mu(self, value: TInt32):
@@ -51,7 +50,9 @@ class Spline:
 
         :param value: Spline value relative to full-scale.
         """
-        rtio_output_wide(now_mu(), self.channel, 0, self.to_mu64(value))
+        v = self.to_mu64(value)
+        l = [int32(v), int32(v >> 32)]
+        rtio_output_wide(now_mu(), self.channel, 0, l)
 
     @kernel
     def set_coeff_mu(self, value):
@@ -84,7 +85,7 @@ class Spline:
             vi = coeff[i] * self.scale
             for j in range(i):
                 vi *= self.time_scale
-            ci = int(round(vi))
+            ci = int64(round(vi))
             coeff64[i] = ci
             # artiq.wavesynth.coefficients.discrete_compensate:
             if i == 2:
