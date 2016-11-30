@@ -1,6 +1,7 @@
 import unittest
 
 import migen as mg
+from numpy import int32
 
 from artiq.coredevice import sawg
 from artiq.language import (at_mu, now_mu, delay_mu, delay,
@@ -54,17 +55,20 @@ class SAWGTest(unittest.TestCase):
         d.offset.set(.9)
         delay_mu(2)
         d.frequency0.set64(.1)
+        d.frequency1.set64(.1)
         delay_mu(2)
         d.offset.set(0)
+        v = int(round((1 << 48) * .1))
         self.assertEqual(
             self.rtio_manager.outputs, [
-                (0, 1, 0, int(round(
+                (0., 1, 0, int(round(
                     (1 << self.driver.offset.width - 1)*.9))),
-                (2, 8, 0, [int(round(
+                (2., 8, 0, [int(round(
                     (1 << self.driver.frequency0.width) /
                     self.channel.parallelism*.1)),
                             0]),
-                (4, 1, 0, 0),
+                (2., 3, 0, [int32(v), int32(v >> 32)]),
+                (4., 1, 0, 0),
             ])
 
     def run_channel(self, events):
