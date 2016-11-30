@@ -180,8 +180,8 @@ class SAWGTest(unittest.TestCase):
             plt.plot(out)
             plt.show()
 
-    # @unittest.skip("needs artiq.sim.time.TimeManager tweak for "
-    #                "reverse timeline jumps")
+    @unittest.skip("needs artiq.sim.time.TimeManager tweak for "
+                   "reverse timeline jumps")
     def test_demo_2tone(self):
         MHz = 1e-3
         ns = 1.
