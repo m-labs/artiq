@@ -55,8 +55,8 @@ class SAWGTest(unittest.TestCase):
         d = self.driver
         d.offset.set(.9)
         delay(2*self.t)
-        d.frequency0.set64(.1)
-        d.frequency1.set64(.1)
+        d.frequency0.set(.1)
+        d.frequency1.set(.1)
         delay(2*self.t)
         d.offset.set(0)
         v = int(round((1 << 48) * .1 * self.t))
@@ -64,10 +64,9 @@ class SAWGTest(unittest.TestCase):
             self.rtio_manager.outputs, [
                 (0., 1, 0, int(round(
                     (1 << self.driver.offset.width - 1)*.9))),
-                (2.*self.t, 8, 0, [int(round(
+                (2.*self.t, 8, 0, int(round(
                     (1 << self.driver.frequency0.width) *
-                    self.t/self.channel.parallelism*.1)),
-                            0]),
+                    self.t/self.channel.parallelism*.1))),
                 (2.*self.t, 3, 0, [int32(v), int32(v >> 32)]),
                 (4.*self.t, 1, 0, 0),
             ])
@@ -200,9 +199,9 @@ class SAWGTest(unittest.TestCase):
 
         self.sawg0.frequency0.set(10*MHz)
         self.sawg0.phase0.set(0.)
-        self.sawg0.frequency1.set64(1*MHz)
+        self.sawg0.frequency1.set(1*MHz)
         self.sawg0.phase1.set(0.)
-        self.sawg0.frequency2.set64(13*MHz)
+        self.sawg0.frequency2.set(13*MHz)
         self.sawg0.phase2.set(0.)
         t = now_mu()
         self.sawg0.amplitude1.smooth(.0, a1, t_up, order)

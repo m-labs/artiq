@@ -36,23 +36,18 @@ class Spline:
         """
         rtio_output(now_mu(), self.channel, 0, value)
 
-    @kernel
+    @kernel(flags={"fast-math"})
     def set(self, value: TFloat):
         """Set spline value.
 
         :param value: Spline value relative to full-scale.
         """
-        rtio_output(now_mu(), self.channel, 0, self.to_mu(value))
-
-    @kernel(flags={"fast-math"})
-    def set64(self, value: TFloat):
-        """Set spline value.
-
-        :param value: Spline value relative to full-scale.
-        """
-        l = [int32(0)] * 2
-        self.pack_coeff_mu([self.to_mu64(value)], l)
-        rtio_output_wide(now_mu(), self.channel, 0, l)
+        if self.width > 32:
+            l = [int32(0)] * 2
+            self.pack_coeff_mu([self.to_mu64(value)], l)
+            rtio_output_wide(now_mu(), self.channel, 0, l)
+        else:
+            rtio_output(now_mu(), self.channel, 0, self.to_mu(value))
 
     @kernel
     def set_coeff_mu(self, value):  # TList(TInt32)
