@@ -147,3 +147,47 @@ class CRIDecoder(Module):
                 if direction == DIR_S_TO_M:
                     cases[n].append(getattr(master, name).eq(getattr(slave, name)))
         self.comb += Case(selected, cases)
+
+
+class CRIArbiter(Module):
+    def __init__(self, masters=2, slave=None):
+        if isinstance(masters, int):
+            masters = [Interface() for _ in range(masters)]
+        if slave is None:
+            slave = Interface()
+        self.masters = masters
+        self.slave = slave
+
+        # # #
+
+        selected = Signal(max=len(masters))
+
+        # mux master->slave signals
+        for name, size, direction in layout:
+            if direction == DIR_M_TO_S:
+                choices = Array(getattr(m, name) for m in masters)
+                self.comb += getattr(slave, name).eq(choices[selected])
+
+        # connect slave->master signals
+        for name, size, direction in layout:
+            if direction == DIR_S_TO_M:
+                source = getattr(slave, name)
+                for i, m in enumerate(masters):
+                    dest = getattr(m, name)
+                    if name == "arb_gnt":
+                        self.comb += dest.eq(source & (selected == i))
+                    else:
+                        self.comb += dest.eq(source)
+
+        # select master
+        self.sync += \
+            If(~slave.arb_req,
+                [If(m.arb_req, selected.eq(i)) for i, m in enumerate(masters)]
+            )
+
+
+class CRIInterconnectShared(Module):
+    def __init__(self, masters=2, slaves=2):
+        shared = Interface()
+        self.submodules.arbiter = CRIArbiter(masters, shared)
+        self.submodules.decoder = CRIDecoder(slaves, shared)
