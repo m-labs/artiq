@@ -194,8 +194,8 @@ class TimeOffset(Module, AutoCSR):
         pipe_ce = Signal()
         self.sync += \
             If(pipe_ce,
-                self.source.payload.connect(self.sink.payload,
-                                            leave_out={"timestamp"}),
+                self.sink.payload.connect(self.source.payload,
+                                          leave_out={"timestamp"}),
                 self.source.payload.timestamp.eq(self.sink.payload.timestamp
                                                  + self.time_offset.storage),
                 self.source.stb.eq(self.sink.stb)
