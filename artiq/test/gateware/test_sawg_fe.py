@@ -4,7 +4,7 @@ import migen as mg
 from numpy import int32
 
 from artiq.coredevice import sawg
-from artiq.language import (at_mu, now_mu, delay_mu, delay,
+from artiq.language import (at_mu, now_mu, delay,
                             core as core_language)
 from artiq.gateware.rtio.phy.sawg import Channel
 from artiq.sim import devices as sim_devices, time as sim_time
@@ -38,7 +38,8 @@ class SAWGTest(unittest.TestCase):
         self.rtio_manager = RTIOManager()
         self.rtio_manager.patch(sawg)
         self.core = sim_devices.Core({})
-        self.core.coarse_ref_period = 1
+        self.core.coarse_ref_period = 6.66666
+        self.t = self.core.coarse_ref_period
         self.channel = mg.ClockDomainsRenamer({"rio_phy": "sys"})(
             Channel(width=16, parallelism=2))
         self.driver = sawg.SAWG({"core": self.core}, channel_base=0,
@@ -53,28 +54,29 @@ class SAWGTest(unittest.TestCase):
     def test_make_events(self):
         d = self.driver
         d.offset.set(.9)
-        delay_mu(2)
+        delay(2*self.t)
         d.frequency0.set64(.1)
         d.frequency1.set64(.1)
-        delay_mu(2)
+        delay(2*self.t)
         d.offset.set(0)
-        v = int(round((1 << 48) * .1))
+        v = int(round((1 << 48) * .1 * self.t))
         self.assertEqual(
             self.rtio_manager.outputs, [
                 (0., 1, 0, int(round(
                     (1 << self.driver.offset.width - 1)*.9))),
-                (2., 8, 0, [int(round(
-                    (1 << self.driver.frequency0.width) /
-                    self.channel.parallelism*.1)),
+                (2.*self.t, 8, 0, [int(round(
+                    (1 << self.driver.frequency0.width) *
+                    self.t/self.channel.parallelism*.1)),
                             0]),
-                (2., 3, 0, [int32(v), int32(v >> 32)]),
-                (4., 1, 0, 0),
+                (2.*self.t, 3, 0, [int32(v), int32(v >> 32)]),
+                (4.*self.t, 1, 0, 0),
             ])
 
     def run_channel(self, events):
         def gen(dut, events):
             c = 0
             for time, channel, address, data in events:
+                time //= self.t
                 assert c <= time
                 while c < time:
                     yield
@@ -100,7 +102,7 @@ class SAWGTest(unittest.TestCase):
         # print(int(events[-1][0]) + 1)
         mg.run_simulation(self.channel, [
             gen(self.channel, events),
-            log(self.channel, data, int(events[-1][0]) + 1)],
+            log(self.channel, data, int(events[-1][0]//self.t) + 1)],
                           vcd_name="dds.vcd")
         return data
 
@@ -133,9 +135,9 @@ class SAWGTest(unittest.TestCase):
     def test_linear(self):
         d = self.driver
         d.offset.set_coeff_mu([100, 10])
-        delay_mu(10)
+        delay(10*self.t)
         d.offset.set_coeff([0])
-        delay_mu(1)
+        delay(1*self.t)
         out = self.run_channel(self.rtio_manager.outputs)
         for i in range(len(out) - 1):
             with self.subTest(i):
@@ -159,15 +161,15 @@ class SAWGTest(unittest.TestCase):
 
     def test_smooth_linear(self):
         ch = self.driver.offset
-        ch.smooth(.1, .2, 13, 1)
+        ch.smooth(.1, .2, 13*self.t, 1)
         ch.set(.2)
-        delay_mu(1)
+        delay(1*self.t)
         out = self.run_channel(self.rtio_manager.outputs)
         a = int(round(.1*ch.scale))
-        da = a//13
+        da = int(round(.1*ch.scale*(1 << ch.width)//13))
         for i in range(len(out) - 1):
             with self.subTest(i):
-                v = a + i*da
+                v = a + (i*da >> ch.width)
                 self.assertEqual(out[i], [v, v])
         a = int(round(.2*ch.scale))
         self.assertEqual(out[-1], [a, a])
@@ -176,7 +178,7 @@ class SAWGTest(unittest.TestCase):
         ch = self.driver.offset
         ch.smooth(.1, .2, 13, 3)
         ch.set(.2)
-        delay_mu(1)
+        delay(1*self.t)
         out = self.run_channel(self.rtio_manager.outputs)
         out = sum(out, [])
         if False:
