@@ -17,9 +17,10 @@ from artiq import __version__ as artiq_version
 
 class Master(MiniSoC, AMPSoC):
     mem_map = {
-        "timer_kernel":  0x10000000, # (shadow @0x90000000)
-        "rtio":          0x20000000, # (shadow @0xa0000000)
-        "mailbox":       0x70000000  # (shadow @0xf0000000)
+        "timer_kernel":  0x10000000,
+        "rtio":          0x20000000,
+        "rtio_dma":      0x30000000,
+        "mailbox":       0x70000000
     }
     mem_map.update(MiniSoC.mem_map)
 
@@ -56,9 +57,13 @@ class Master(MiniSoC, AMPSoC):
             rtio_channels.append(rtio.Channel.from_phy(phy))
         self.submodules.rtio_core = rtio.Core(rtio_channels, 3)
 
-        self.submodules.cridec = rtio.CRIDecoder([self.drtio.cri, self.rtio_core.cri])
-        self.submodules.rtio = rtio.KernelInitiator(self.cridec.master)
+        self.submodules.rtio = rtio.KernelInitiator()
+        self.submodules.rtio_dma = rtio.DMA(self.get_native_sdram_if())
         self.register_kernel_cpu_csrdevice("rtio")
+        self.register_kernel_cpu_csrdevice("rtio_dma")
+        self.submodules.cri_con = rtio.CRIInterconnectShared(
+            [self.rtio.cri, self.rtio_dma.cri],
+            [self.drtio.cri, self.rtio_core.cri])
 
 
 def main():
