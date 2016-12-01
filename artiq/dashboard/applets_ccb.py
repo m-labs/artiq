@@ -34,7 +34,7 @@ class AppletsCCBDock(applets.AppletsDock):
         self.ccbp_group_create.triggered.connect(lambda: self.set_ccbp("create"))
         ccbp_group_menu.addAction(self.ccbp_group_create)
         actiongroup.addAction(self.ccbp_group_create)
-        self.ccbp_group_enable = QtWidgets.QAction("Create and enable applets",
+        self.ccbp_group_enable = QtWidgets.QAction("Create and enable/disable applets",
                                                     self.table)
         self.ccbp_group_enable.setCheckable(True)
         self.ccbp_group_enable.triggered.connect(lambda: self.set_ccbp("enable"))
@@ -57,7 +57,7 @@ class AppletsCCBDock(applets.AppletsDock):
         self.ccbp_global_create.setChecked(True)
         ccbp_global_menu.addAction(self.ccbp_global_create)
         actiongroup.addAction(self.ccbp_global_create)
-        self.ccbp_global_enable = QtWidgets.QAction("Create and enable applets",
+        self.ccbp_global_enable = QtWidgets.QAction("Create and enable/disable applets",
                                                     self.table)
         self.ccbp_global_enable.setCheckable(True)
         ccbp_global_menu.addAction(self.ccbp_global_enable)
