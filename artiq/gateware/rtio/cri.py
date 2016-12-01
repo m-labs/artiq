@@ -160,30 +160,33 @@ class CRIArbiter(Module):
 
         # # #
 
-        selected = Signal(max=len(masters))
+        if len(masters) == 1:
+            self.comb += masters[0].connect(slave)
+        else:
+            selected = Signal(max=len(masters))
 
-        # mux master->slave signals
-        for name, size, direction in layout:
-            if direction == DIR_M_TO_S:
-                choices = Array(getattr(m, name) for m in masters)
-                self.comb += getattr(slave, name).eq(choices[selected])
+            # mux master->slave signals
+            for name, size, direction in layout:
+                if direction == DIR_M_TO_S:
+                    choices = Array(getattr(m, name) for m in masters)
+                    self.comb += getattr(slave, name).eq(choices[selected])
 
-        # connect slave->master signals
-        for name, size, direction in layout:
-            if direction == DIR_S_TO_M:
-                source = getattr(slave, name)
-                for i, m in enumerate(masters):
-                    dest = getattr(m, name)
-                    if name == "arb_gnt":
-                        self.comb += dest.eq(source & (selected == i))
-                    else:
-                        self.comb += dest.eq(source)
+            # connect slave->master signals
+            for name, size, direction in layout:
+                if direction == DIR_S_TO_M:
+                    source = getattr(slave, name)
+                    for i, m in enumerate(masters):
+                        dest = getattr(m, name)
+                        if name == "arb_gnt":
+                            self.comb += dest.eq(source & (selected == i))
+                        else:
+                            self.comb += dest.eq(source)
 
-        # select master
-        self.sync += \
-            If(~slave.arb_req,
-                [If(m.arb_req, selected.eq(i)) for i, m in enumerate(masters)]
-            )
+            # select master
+            self.sync += \
+                If(~slave.arb_req,
+                    [If(m.arb_req, selected.eq(i)) for i, m in enumerate(masters)]
+                )
 
 
 class CRIInterconnectShared(Module):
