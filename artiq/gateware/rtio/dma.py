@@ -15,8 +15,8 @@ class WishboneReader(Module):
 
         aw = len(bus.adr)
         dw = len(bus.dat_w)        
-        self.sink = stream.Endpoint(["address", aw])
-        self.source = stream.Endpoint(["data", dw])
+        self.sink = stream.Endpoint([("address", aw)])
+        self.source = stream.Endpoint([("data", dw)])
 
         # # #
 
@@ -150,16 +150,16 @@ class RecordConverter(Module):
     def __init__(self, stream_slicer):
         self.source = stream.Endpoint(record_layout)
 
-        hdrlen = layout_len(header_layout) - 512
+        hdrlen = layout_len(record_layout) - 512
         record_raw = Record(record_layout)
         self.comb += [
             record_raw.raw_bits().eq(stream_slicer.source),
 
-            record.channel.eq(record_raw.channel),
-            record.timestamp.eq(record_raw.timestamp),
-            record.address.eq(record_raw.address),
+            self.source.channel.eq(record_raw.channel),
+            self.source.timestamp.eq(record_raw.timestamp),
+            self.source.address.eq(record_raw.address),
             Case(record_raw.length,
-                 {hdrlen+i*8: self.cri.o_data.eq(header.data[:])
+                 {hdrlen+i*8: self.source.data.eq(record_raw.data[:])
                   for i in range(512//8)}),
 
             self.source.stb.eq(stream_slicer.source_stb),
@@ -195,14 +195,14 @@ class TimeOffset(Module, AutoCSR):
         self.sync += \
             If(pipe_ce,
                 self.source.payload.connect(self.sink.payload,
-                                            exclude={"timestamp"}),
+                                            leave_out={"timestamp"}),
                 self.source.payload.timestamp.eq(self.sink.payload.timestamp
                                                  + self.time_offset.storage),
                 self.source.stb.eq(self.sink.stb)
             )
         self.comb += [
-            self.pipe_ce.eq(self.source.ack | ~self.source.stb),
-            self.sink.ack.eq(self.pipe_ce)
+            pipe_ce.eq(self.source.ack | ~self.source.stb),
+            self.sink.ack.eq(pipe_ce)
         ]
 
 
@@ -239,12 +239,12 @@ class CRIMaster(Module, AutoCSR):
             bit = i + 1
             self.sync += [
                 If(error_set[i],
-                    self.error_status[bit].eq(1),
+                    self.error_status.status[bit].eq(1),
                     self.error_channel.status.eq(self.sink.channel),
                     self.error_timestamp.status.eq(self.sink.timestamp),
                     self.error_address.status.eq(self.sink.address)
                 ),
-                If(rcsr.re, self.error_status[bit].eq(0))
+                If(rcsr.re, self.error_status.status[bit].eq(0))
             ]
 
         self.comb += [
@@ -301,6 +301,7 @@ class DMA(Module):
         self.submodules.slicer = RecordSlicer(len(membus.dat_w))
         self.submodules.time_offset = TimeOffset()
         self.submodules.cri_master = CRIMaster()
+        self.cri = self.cri_master.cri
 
         self.comb += [
             self.dma.source.connect(self.slicer.sink),
