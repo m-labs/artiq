@@ -21,9 +21,11 @@ pub unsafe fn start() {
     rpc_queue::init();
 }
 
-pub fn stop() {
-    unsafe { csr::kernel_cpu::reset_write(1) }
+pub unsafe fn stop() {
+    csr::kernel_cpu::reset_write(1);
+
     mailbox::acknowledge();
+    rpc_queue::init();
 }
 
 pub fn validate(ptr: usize) -> bool {
