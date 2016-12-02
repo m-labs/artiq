@@ -23,7 +23,7 @@ from misoc.integration.builder import builder_args, builder_argdict
 
 from artiq.gateware.soc import AMPSoC, build_artiq_soc
 from artiq.gateware import rtio
-from artiq.gateware.phaser import fmc_adapter_io
+from artiq.gateware.ad9154_fmc_ebz import ad9154_fmc_ebz
 from artiq.gateware.rtio.phy import (ttl_simple, ttl_serdes_7series,
                                      sawg)
 from artiq import __version__ as artiq_version
@@ -173,7 +173,7 @@ class Phaser(MiniSoC, AMPSoC):
         ])
 
         platform = self.platform
-        platform.add_extension(fmc_adapter_io)
+        platform.add_extension(ad9154_fmc_ebz)
 
         self.submodules.leds = gpio.GPIOOut(Cat(
             platform.request("user_led", 0),

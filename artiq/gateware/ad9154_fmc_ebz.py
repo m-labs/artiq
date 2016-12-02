@@ -1,7 +1,7 @@
 from migen.build.generic_platform import *
 
 
-fmc_adapter_io = [
+ad9154_fmc_ebz = [
     ("ad9154_spi", 0,
         # AD9154 should give control of SPI to FMC when USB cable is unplugged,
         # It's the case, but the PIC18F24J50 is introducing noise on SPI SCK
