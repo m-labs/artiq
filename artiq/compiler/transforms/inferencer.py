@@ -780,7 +780,6 @@ class Inferencer(algorithm.Visitor):
         elif types.is_builtin(typ, "round"):
             valid_forms = lambda: [
                 valid_form("round(x:float) -> numpy.int?"),
-                valid_form("round(x:float, width=?) -> numpy.int?")
             ]
 
             self._unify(node.type, builtins.TInt(),
@@ -791,19 +790,6 @@ class Inferencer(algorithm.Visitor):
 
                 self._unify(arg.type, builtins.TFloat(),
                             arg.loc, None)
-            elif len(node.args) == 1 and len(node.keywords) == 1 and \
-                    builtins.is_numeric(node.args[0].type) and \
-                    node.keywords[0].arg == 'width':
-                width = node.keywords[0].value
-                if not (isinstance(width, asttyped.NumT) and isinstance(width.n, int)):
-                    diag = diagnostic.Diagnostic("error",
-                        "the width argument of round() must be an integer literal", {},
-                        node.keywords[0].loc)
-                    self.engine.process(diag)
-                    return
-
-                self._unify(node.type, builtins.TInt(types.TValue(width.n)),
-                            node.loc, None)
             else:
                 diagnose(valid_forms())
         elif types.is_builtin(typ, "min") or types.is_builtin(typ, "max"):

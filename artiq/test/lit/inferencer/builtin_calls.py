@@ -30,6 +30,3 @@ len([])
 
 # CHECK-L: round:<function round>(1.0:float):numpy.int?
 round(1.0)
-
-# CHECK-L: round:<function round>(1.0:float, width=64:numpy.int?):numpy.int64
-round(1.0, width=64)

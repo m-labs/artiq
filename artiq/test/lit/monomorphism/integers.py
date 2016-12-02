@@ -6,6 +6,3 @@ x = 1
 
 y = int(1)
 # CHECK-L: y: numpy.int32
-
-z = round(1.0)
-# CHECK-L: z: numpy.int32
