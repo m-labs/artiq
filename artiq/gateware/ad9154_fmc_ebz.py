@@ -39,35 +39,35 @@ ad9154_fmc_ebz = [
         IOStandard("LVDS_25"),
         Misc("DIFF_TERM=TRUE"),
     ),
-    ("ad9154_jesd", 0, # AD9154's SERIND7
+    ("ad9154_jesd", 0, # AD9154's SERDIN7
         Subsignal("txp", Pins("HPC:DP0_C2M_P")),
         Subsignal("txn", Pins("HPC:DP0_C2M_N"))
     ),
-    ("ad9154_jesd", 1, # AD9154's SERIND6
+    ("ad9154_jesd", 1, # AD9154's SERDIN6
         Subsignal("txp", Pins("HPC:DP1_C2M_P")),
         Subsignal("txn", Pins("HPC:DP1_C2M_N"))
     ),
-    ("ad9154_jesd", 2, # AD9154's SERIND5
+    ("ad9154_jesd", 2, # AD9154's SERDIN5
         Subsignal("txp", Pins("HPC:DP2_C2M_P")),
         Subsignal("txn", Pins("HPC:DP2_C2M_N"))
     ),
-    ("ad9154_jesd", 3, # AD9154's SERIND4
+    ("ad9154_jesd", 3, # AD9154's SERDIN4
         Subsignal("txp", Pins("HPC:DP3_C2M_P")),
         Subsignal("txn", Pins("HPC:DP3_C2M_N"))
     ),
-    ("ad9154_jesd", 4, # AD9154's SERIND2
+    ("ad9154_jesd", 4, # AD9154's SERDIN2
         Subsignal("txp", Pins("HPC:DP4_C2M_P")),
         Subsignal("txn", Pins("HPC:DP4_C2M_N"))
     ),
-    ("ad9154_jesd", 5, # AD9154's SERIND0
+    ("ad9154_jesd", 5, # AD9154's SERDIN0
         Subsignal("txp", Pins("HPC:DP5_C2M_P")),
         Subsignal("txn", Pins("HPC:DP5_C2M_N"))
     ),
-    ("ad9154_jesd", 6, # AD9154's SERIND1
+    ("ad9154_jesd", 6, # AD9154's SERDIN1
         Subsignal("txp", Pins("HPC:DP6_C2M_P")),
         Subsignal("txn", Pins("HPC:DP6_C2M_N"))
     ),
-    ("ad9154_jesd", 7, # AD9154's SERIND3
+    ("ad9154_jesd", 7, # AD9154's SERDIN3
         Subsignal("txp", Pins("HPC:DP7_C2M_P")),
         Subsignal("txn", Pins("HPC:DP7_C2M_N"))
     ),
