@@ -1,6 +1,7 @@
 import argparse
 
 from migen import *
+from migen.build.generic_platform import *
 from migen.build.platforms import kc705
 
 from misoc.cores.i2c import *
@@ -12,6 +13,7 @@ from artiq.gateware.drtio.transceiver import gtx_7series
 from artiq.gateware.drtio import DRTIOSatellite
 
 
+# TODO: parameters for sawg_3g
 def get_i2c_program(sys_clk_freq):
     # NOTE: the logical parameters DO NOT MAP to physical values written
     # into registers. They have to be mapped; see the datasheet.
@@ -111,8 +113,16 @@ class Si5324ResetClock(Module):
             )
 
 
+fmc_clock_io = [
+    ("ad9154_refclk", 0,
+        Subsignal("p", Pins("HPC:GBTCLK0_M2C_P")),
+        Subsignal("n", Pins("HPC:GBTCLK0_M2C_N")),
+    )
+]
+
+
 class Satellite(Module):
-    def __init__(self, toolchain="vivado"):
+    def __init__(self, cfg, medium, toolchain):
         self.platform = platform = kc705.Platform(toolchain=toolchain)
 
         rtio_channels = []
@@ -141,12 +151,36 @@ class Satellite(Module):
             sequencer.reset.eq(si5324_reset_clock.si5324_not_ready)
         ]
 
-        self.comb += platform.request("sfp_tx_disable_n").eq(1)
-        self.submodules.transceiver = gtx_7series.GTX_1000BASE_BX10(
-            clock_pads=platform.request("si5324_clkout"),
-            tx_pads=platform.request("sfp_tx"),
-            rx_pads=platform.request("sfp_rx"),
-            sys_clk_freq=sys_clk_freq)
+        if medium == "sfp":
+            self.comb += platform.request("sfp_tx_disable_n").eq(1)
+            tx_pads = platform.request("sfp_tx")
+            rx_pads = platform.request("sfp_rx")
+        elif medium == "sma":
+            tx_pads = platform.request("user_sma_mgt_tx")
+            rx_pads = platform.request("user_sma_mgt_rx")
+        else:
+            raise ValueError
+
+        if cfg == "simple_gbe":
+            # GTX_1000BASE_BX10 Ethernet compatible, 62.5MHz RTIO clock
+            # simple TTLs
+            self.submodules.transceiver = gtx_7series.GTX_1000BASE_BX10(
+                clock_pads=platform.request("sgmii_clock"),
+                tx_pads=tx_pads,
+                rx_pads=rx_pads,
+                sys_clk_freq=sys_clk_freq,
+                clock_div2=True)
+        elif cfg == "sawg_3g":
+            # 3Gb link, 150MHz RTIO clock
+            # with SAWG on local RTIO and AD9154-FMC-EBZ
+            platform.register_extension(fmc_clock_io)
+            self.submodules.transceiver = gtx_7series.GTX_3G(
+                clock_pads=platform.request("ad9154_refclk"),
+                tx_pads=tx_pads,
+                rx_pads=rx_pads,
+                sys_clk_freq=sys_clk_freq)
+        else:
+            raise ValueError
         self.submodules.rx_synchronizer = gtx_7series.RXSynchronizer(
             self.transceiver.rtio_clk_freq)
         self.submodules.drtio = DRTIOSatellite(
@@ -163,9 +197,15 @@ def main():
     parser.add_argument("--output-dir", default="drtiosat_kc705",
                         help="output directory for generated "
                              "source files and binaries")
+    parser.add_argument("-c", "--config", default="simple_gbe",
+                        help="configuration: simple_gbe/sawg_3g "
+                             "(default: %(default)s)")
+    parser.add_argument("--medium", default="sfp",
+                        help="medium to use for transceiver link: sfp/sma "
+                             "(default: %(default)s)")
     args = parser.parse_args()
 
-    top = Satellite(args.toolchain)
+    top = Satellite(args.config, args.medium, args.toolchain)
     top.build(build_dir=args.output_dir)
 
 if __name__ == "__main__":

@@ -7,11 +7,10 @@ from misoc.interconnect.csr import *
 from artiq.gateware.drtio.transceiver.gtx_7series_init import *
 
 
-class GTX_1000BASE_BX10(Module):
-    rtio_clk_freq = 62.5e6
-
-    # The transceiver clock on clock_pads must be 62.5MHz
-    # when clock_div2=False, and 125MHz when clock_div2=True.
+class GTX_20X(Module):
+    # The transceiver clock on clock_pads must be at the RTIO clock
+    # frequency when clock_div2=False, and 2x that frequency when
+    # clock_div2=True.
     def __init__(self, clock_pads, tx_pads, rx_pads, sys_clk_freq,
                  clock_div2=False):
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
@@ -190,6 +189,14 @@ class GTX_1000BASE_BX10(Module):
             rx_init.restart.eq(clock_aligner.restart),
             self.rx_ready.eq(clock_aligner.ready)
         ]
+
+
+class GTX_1000BASE_BX10(GTX_20X):
+    rtio_clk_freq = 62.5e6
+
+
+class GTX_3G(GTX_20X):
+    rtio_clk_freq = 150e6
 
 
 class RXSynchronizer(Module, AutoCSR):
