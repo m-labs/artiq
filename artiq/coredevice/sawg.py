@@ -12,9 +12,10 @@ class Spline:
         self.core = core_device
         self.channel = channel
         self.width = width
-        self.scale = (1 << width) * scale
+        self.scale = float((int64(1) << width) * scale)
         self.time_width = time_width
-        self.time_scale = (1 << time_width) * core_device.coarse_ref_period
+        self.time_scale = float((1 << time_width) *
+                                core_device.coarse_ref_period)
 
     @portable(flags={"fast-math"})
     def to_mu(self, value: TFloat) -> TInt32:
