@@ -48,6 +48,7 @@ class Module:
         self.globals = src.globals
 
         int_monomorphizer = transforms.IntMonomorphizer(engine=self.engine)
+        cast_monomorphizer = transforms.CastMonomorphizer(engine=self.engine)
         inferencer = transforms.Inferencer(engine=self.engine)
         monomorphism_validator = validators.MonomorphismValidator(engine=self.engine)
         escape_validator = validators.EscapeValidator(engine=self.engine)
@@ -63,6 +64,7 @@ class Module:
         interleaver = transforms.Interleaver(engine=self.engine)
         invariant_detection = analyses.InvariantDetection(engine=self.engine)
 
+        cast_monomorphizer.visit(src.typedtree)
         int_monomorphizer.visit(src.typedtree)
         inferencer.visit(src.typedtree)
         monomorphism_validator.visit(src.typedtree)

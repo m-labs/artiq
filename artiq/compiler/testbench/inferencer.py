@@ -1,7 +1,7 @@
 import sys, fileinput, os
 from pythonparser import source, diagnostic, algorithm, parse_buffer
 from .. import prelude, types
-from ..transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer
+from ..transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer, CastMonomorphizer
 from ..transforms import IODelayEstimator
 
 class Printer(algorithm.Visitor):
@@ -84,6 +84,7 @@ def main():
     typed = ASTTypedRewriter(engine=engine, prelude=prelude.globals()).visit(parsed)
     Inferencer(engine=engine).visit(typed)
     if monomorphize:
+        CastMonomorphizer(engine=engine).visit(typed)
         IntMonomorphizer(engine=engine).visit(typed)
         Inferencer(engine=engine).visit(typed)
     if iodelay:
