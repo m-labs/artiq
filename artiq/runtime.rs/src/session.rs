@@ -588,7 +588,7 @@ pub fn thread(waiter: Waiter, spawner: Spawner) {
     let addr = SocketAddr::new(IP_ANY, 1381);
     let listener = TcpListener::bind(waiter, addr).expect("cannot bind socket");
     listener.set_keepalive(true);
-    info!("accepting network sessions in Rust");
+    info!("accepting network sessions");
 
     let mut kernel_thread = None;
     loop {
