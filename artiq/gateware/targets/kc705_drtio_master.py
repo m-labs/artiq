@@ -59,7 +59,6 @@ class Master(MiniSoC, AMPSoC):
             # GTX_1000BASE_BX10 Ethernet compatible, 62.5MHz RTIO clock
             # simple TTLs
             self.submodules.transceiver = gtx_7series.GTX_1000BASE_BX10(
-                platform=platform,
                 clock_pads=platform.request("sgmii_clock"),
                 tx_pads=tx_pads,
                 rx_pads=rx_pads,
@@ -70,7 +69,6 @@ class Master(MiniSoC, AMPSoC):
             # with SAWG on local RTIO and AD9154-FMC-EBZ
             platform.register_extension(fmc_clock_io)
             self.submodules.transceiver = gtx_7series.GTX_3G(
-                platform=platform,
                 clock_pads=platform.request("ad9154_refclk"),
                 tx_pads=tx_pads,
                 rx_pads=rx_pads,
@@ -79,6 +77,13 @@ class Master(MiniSoC, AMPSoC):
             raise ValueError
         self.submodules.drtio = DRTIOMaster(self.transceiver)
         self.csr_devices.append("drtio")
+
+        rtio_clk_period = 1e9/self.transceiver.rtio_clk_freq
+        platform.add_period_constraint(self.transceiver.txoutclk, rtio_clk_period)
+        platform.add_period_constraint(self.transceiver.rxoutclk, rtio_clk_period)
+        platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            self.transceiver.txoutclk, self.transceiver.rxoutclk)
 
         rtio_channels = []
         for i in range(8):

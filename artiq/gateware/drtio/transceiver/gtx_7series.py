@@ -11,9 +11,8 @@ class GTX_20X(Module):
     # The transceiver clock on clock_pads must be at the RTIO clock
     # frequency when clock_div2=False, and 2x that frequency when
     # clock_div2=True.
-    def __init__(self, platform,
-                 clock_pads, tx_pads, rx_pads,
-                 sys_clk_freq, clock_div2=False):
+    def __init__(self, clock_pads, tx_pads, rx_pads, sys_clk_freq,
+                 clock_div2=False):
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
         self.decoders = [ClockDomainsRenamer("rtio_rx")(
@@ -21,6 +20,11 @@ class GTX_20X(Module):
         self.submodules += self.decoders
 
         self.rx_ready = Signal()
+
+        # transceiver direct clock outputs
+        # useful to specify clock constraints in a way palatable to Vivado
+        self.txoutclk = Signal()
+        self.rxoutclk = Signal()
 
         # # #
 
@@ -50,9 +54,7 @@ class GTX_20X(Module):
         self.comb += tx_init.cplllock.eq(cplllock), \
                      rx_init.cplllock.eq(cplllock)
 
-        txoutclk = Signal()
         txdata = Signal(20)
-        rxoutclk = Signal()
         rxdata = Signal(20)
         self.specials += \
             Instance("GTXE2_CHANNEL",
@@ -88,7 +90,7 @@ class GTX_20X(Module):
                 # TX clock
                 p_TXBUF_EN="FALSE",
                 p_TX_XCLK_SEL="TXUSR",
-                o_TXOUTCLK=txoutclk,
+                o_TXOUTCLK=self.txoutclk,
                 i_TXSYSCLKSEL=0b00,
                 i_TXOUTCLKSEL=0b11,
 
@@ -134,7 +136,7 @@ class GTX_20X(Module):
                 i_RXDDIEN=1,
                 i_RXSYSCLKSEL=0b00,
                 i_RXOUTCLKSEL=0b010,
-                o_RXOUTCLK=rxoutclk,
+                o_RXOUTCLK=self.rxoutclk,
                 i_RXUSRCLK=ClockSignal("rtio_rx"),
                 i_RXUSRCLK2=ClockSignal("rtio_rx"),
                 p_RXCDR_CFG=0x03000023FF10100020,
@@ -165,7 +167,7 @@ class GTX_20X(Module):
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
         self.clock_domains.cd_rtio = ClockDomain()
         self.specials += [
-            Instance("BUFG", i_I=txoutclk, o_O=self.cd_rtio.clk),
+            Instance("BUFG", i_I=self.txoutclk, o_O=self.cd_rtio.clk),
             AsyncResetSynchronizer(self.cd_rtio, tx_reset_deglitched)
         ]
         rx_reset_deglitched = Signal()
@@ -173,12 +175,9 @@ class GTX_20X(Module):
         self.sync.rtio += rx_reset_deglitched.eq(~rx_init.done)
         self.clock_domains.cd_rtio_rx = ClockDomain()
         self.specials += [
-            Instance("BUFG", i_I=rxoutclk, o_O=self.cd_rtio_rx.clk),
+            Instance("BUFG", i_I=self.rxoutclk, o_O=self.cd_rtio_rx.clk),
             AsyncResetSynchronizer(self.cd_rtio_rx, rx_reset_deglitched)
         ]
-        platform.add_period_constraint(txoutclk, 1e9/self.rtio_clk_freq)
-        platform.add_period_constraint(rxoutclk, 1e9/self.rtio_clk_freq)
-        platform.add_false_path_constraints(txoutclk, rxoutclk)
 
         self.comb += [
             txdata.eq(Cat(self.encoder.output[0], self.encoder.output[1])),
