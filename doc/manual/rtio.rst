@@ -133,6 +133,8 @@ The :meth:`artiq.coredevice.ttl.TTLInOut.count` method of an input channel can l
 The :meth:`artiq.coredevice.ttl.TTLInOut.gate_rising` method leaves the timeline cursor at the closure time of the gate and ``count()`` must necessarily wait until the gate closing event has actually been executed which is sometime with ``rtio_counter > now``.
 In these situations where ``count()`` leads to a synchronization of timeline cursor and wall clock, a ``delay()`` is necessary to reestablish positive slack so that output events can be placed.
 
+Similar situations arise with methods such as :meth:`artiq.coredevice.ttl.TTLInOut.sample_get` and :meth:`artiq.coredevice.ttl.TTLInOut.watch_done`.
+
 .. wavedrom::
   {
     signal: [
@@ -151,10 +153,10 @@ In these situations where ``count()`` leads to a synchronization of timeline cur
 Overflow exceptions
 -------------------
 
-The RTIO input channels buffer input events received while an input gate is open.
-The events are kept in a FIFO until the CPU reads them out via ``count()`` (or :meth:`artiq.coredevice.ttl.TTLInOut.timestamp_mu`).
+The RTIO input channels buffer input events received while an input gate is open, or at certain points in time when using the sampling API (:meth:`artiq.coredevice.ttl.TTLInOut.sample_input`).
+The events are kept in a FIFO until the CPU reads them out via e.g. :meth:`artiq.coredevice.ttl.TTLInOut.count`, :meth:`artiq.coredevice.ttl.TTLInOut.timestamp_mu` or :meth:`artiq.coredevice.ttl.TTLInOut.sample_get`.
 If the FIFO is full and another event is coming in, this causes an overflow condition.
-The condition is converted into an :class:`artiq.coredevice.exceptions.RTIOOverflow` exception that is raised on a subsequent invocation of one of the readout methods (``count()`` or ``timestamp_mu()``).
+The condition is converted into an :class:`artiq.coredevice.exceptions.RTIOOverflow` exception that is raised on a subsequent invocation of one of the readout methods (e.g. ``count()``, ``timestamp_mu()``, ``sample_get()``).
 
 Seamless handover
 -----------------
