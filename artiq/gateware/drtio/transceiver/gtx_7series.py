@@ -11,8 +11,9 @@ class GTX_20X(Module):
     # The transceiver clock on clock_pads must be at the RTIO clock
     # frequency when clock_div2=False, and 2x that frequency when
     # clock_div2=True.
-    def __init__(self, clock_pads, tx_pads, rx_pads, sys_clk_freq,
-                 clock_div2=False):
+    def __init__(self, platform,
+                 clock_pads, tx_pads, rx_pads,
+                 sys_clk_freq, clock_div2=False):
         self.submodules.encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
         self.decoders = [ClockDomainsRenamer("rtio_rx")(
@@ -175,6 +176,9 @@ class GTX_20X(Module):
             Instance("BUFG", i_I=rxoutclk, o_O=self.cd_rtio_rx.clk),
             AsyncResetSynchronizer(self.cd_rtio_rx, rx_reset_deglitched)
         ]
+        platform.add_period_constraint(txoutclk, 1e9/self.rtio_clk_freq)
+        platform.add_period_constraint(rxoutclk, 1e9/self.rtio_clk_freq)
+        platform.add_false_path_constraints(txoutclk, rxoutclk)
 
         self.comb += [
             txdata.eq(Cat(self.encoder.output[0], self.encoder.output[1])),

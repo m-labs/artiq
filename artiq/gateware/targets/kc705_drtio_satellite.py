@@ -165,6 +165,7 @@ class Satellite(Module):
             # GTX_1000BASE_BX10 Ethernet compatible, 62.5MHz RTIO clock
             # simple TTLs
             self.submodules.transceiver = gtx_7series.GTX_1000BASE_BX10(
+                platform=platform,
                 clock_pads=platform.request("sgmii_clock"),
                 tx_pads=tx_pads,
                 rx_pads=rx_pads,
@@ -175,6 +176,7 @@ class Satellite(Module):
             # with SAWG on local RTIO and AD9154-FMC-EBZ
             platform.register_extension(fmc_clock_io)
             self.submodules.transceiver = gtx_7series.GTX_3G(
+                platform=platform,
                 clock_pads=platform.request("ad9154_refclk"),
                 tx_pads=tx_pads,
                 rx_pads=rx_pads,
