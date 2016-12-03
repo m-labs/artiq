@@ -101,10 +101,11 @@ _ams101_dac = [
 
 class _NIST_Ions(MiniSoC, AMPSoC):
     mem_map = {
-        "timer_kernel":  0x10000000, # (shadow @0x90000000)
-        "rtio":          0x20000000, # (shadow @0xa0000000)
-        "i2c":           0x30000000, # (shadow @0xb0000000)
-        "mailbox":       0x70000000  # (shadow @0xf0000000)
+        "timer_kernel":  0x10000000,
+        "rtio":          0x20000000,
+        "rtio_dma":      0x30000000,
+        "i2c":           0x50000000,
+        "mailbox":       0x70000000
     }
     mem_map.update(MiniSoC.mem_map)
 
@@ -142,8 +143,14 @@ class _NIST_Ions(MiniSoC, AMPSoC):
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
         self.csr_devices.append("rtio_crg")
-        self.submodules.rtio = rtio.RTIO(rtio_channels)
+        self.submodules.rtio_core = rtio.Core(rtio_channels)
+        self.submodules.rtio = rtio.KernelInitiator()
+        self.submodules.rtio_dma = rtio.DMA(self.get_native_sdram_if())
         self.register_kernel_cpu_csrdevice("rtio")
+        self.register_kernel_cpu_csrdevice("rtio_dma")
+        self.submodules.cri_con = rtio.CRIInterconnectShared(
+            [self.rtio.cri, self.rtio_dma.cri],
+            [self.rtio_core.cri])
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
@@ -153,8 +160,8 @@ class _NIST_Ions(MiniSoC, AMPSoC):
             self.crg.cd_sys.clk,
             self.rtio_crg.cd_rtio.clk)
 
-        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio,
-            self.get_native_sdram_if())
+        self.submodules.rtio_analyzer = rtio.Analyzer(
+            self.rtio, self.rtio_core.cri.counter, self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
 
 

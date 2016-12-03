@@ -42,7 +42,7 @@ assert layout_len(stopped_layout) == message_len
 
 
 class MessageEncoder(Module, AutoCSR):
-    def __init__(self, rtio_core, enable):
+    def __init__(self, kcsrs, rtio_counter, enable):
         self.source = stream.Endpoint([("data", message_len)])
 
         self.overflow = CSRStatus()
@@ -50,27 +50,15 @@ class MessageEncoder(Module, AutoCSR):
 
         # # #
 
-        kcsrs = rtio_core.kcsrs
-
         input_output_stb = Signal()
         input_output = Record(input_output_layout)
-        if hasattr(kcsrs, "o_data"):
-            o_data = kcsrs.o_data.storage
-        else:
-            o_data = 0
-        if hasattr(kcsrs, "o_address"):
-            o_address = kcsrs.o_address.storage
-        else:
-            o_address = 0
-        if hasattr(kcsrs, "i_data"):
-            i_data = kcsrs.i_data.status
-        else:
-            i_data = 0
+        o_data = kcsrs.o_data.storage
+        o_address = kcsrs.o_address.storage
+        i_data = kcsrs.i_data.status
         self.comb += [
             input_output.channel.eq(kcsrs.chan_sel.storage),
             input_output.address_padding.eq(o_address),
-            input_output.rtio_counter.eq(
-                rtio_core.counter.value_sys << rtio_core.fine_ts_width),
+            input_output.rtio_counter.eq(rtio_counter),
             If(kcsrs.o_we.re,
                 input_output.message_type.eq(MessageType.output.value),
                 input_output.timestamp.eq(kcsrs.o_timestamp.storage),
@@ -88,10 +76,10 @@ class MessageEncoder(Module, AutoCSR):
         self.comb += [
             exception.message_type.eq(MessageType.exception.value),
             exception.channel.eq(kcsrs.chan_sel.storage),
-            exception.rtio_counter.eq(
-                rtio_core.counter.value_sys << rtio_core.fine_ts_width),
+            exception.rtio_counter.eq(rtio_counter),
         ]
-        for ename in ("o_underflow_reset", "o_sequence_error_reset",
+        for ename in ("reset", "reset_phy",
+                      "o_underflow_reset", "o_sequence_error_reset",
                       "o_collision_reset", "i_overflow_reset"):
             self.comb += \
                 If(getattr(kcsrs, ename).re,
@@ -99,28 +87,11 @@ class MessageEncoder(Module, AutoCSR):
                     exception.exception_type.eq(
                         getattr(ExceptionType, ename).value)
                 )
-        for rname in "reset", "reset_phy":
-            r_d = Signal(reset=1)
-            r = getattr(kcsrs, rname).storage
-            self.sync += r_d.eq(r)
-            self.comb += [
-                If(r & ~r_d,
-                    exception_stb.eq(1),
-                    exception.exception_type.eq(
-                        getattr(ExceptionType, rname+"_rising").value)
-                ),
-                If(~r & r_d,
-                    exception_stb.eq(1),
-                    exception.exception_type.eq(
-                        getattr(ExceptionType, rname+"_falling").value)
-                )
-            ]
 
         stopped = Record(stopped_layout)
         self.comb += [
             stopped.message_type.eq(MessageType.stopped.value),
-            stopped.rtio_counter.eq(
-                rtio_core.counter.value_sys << rtio_core.fine_ts_width),
+            stopped.rtio_counter.eq(rtio_counter),
         ]
 
         enable_r = Signal()
@@ -210,13 +181,13 @@ class DMAWriter(Module, AutoCSR):
 
 
 class Analyzer(Module, AutoCSR):
-    def __init__(self, rtio_core, membus, fifo_depth=128):
+    def __init__(self, kcsrs, rtio_counter, membus, fifo_depth=128):
         # shutdown procedure: set enable to 0, wait until busy=0
         self.enable = CSRStorage()
         self.busy = CSRStatus()
 
         self.submodules.message_encoder = MessageEncoder(
-            rtio_core, self.enable.storage)
+            kcsrs, rtio_counter, self.enable.storage)
         self.submodules.fifo = stream.SyncFIFO(
             [("data", message_len)], fifo_depth, True)
         self.submodules.converter = stream.Converter(

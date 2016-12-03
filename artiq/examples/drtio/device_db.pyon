@@ -1,0 +1,148 @@
+# This is an example device database that needs to be adapted to your setup.
+# The RTIO channel numbers here are for NIST CLOCK on KC705.
+# The list of devices here is not exhaustive.
+
+{
+    "comm": {
+        "type": "local",
+        "module": "artiq.coredevice.comm_tcp",
+        "class": "Comm",
+        "arguments": {"host": "kc705.lab.m-labs.hk"}
+    },
+    "core": {
+        "type": "local",
+        "module": "artiq.coredevice.core",
+        "class": "Core",
+        "arguments": {"ref_period": 2e-9}
+    },
+    "core_cache": {
+        "type": "local",
+        "module": "artiq.coredevice.cache",
+        "class": "CoreCache"
+    },
+
+    "rled0": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 0},
+    },
+    "rled1": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 1},
+    },
+    "rled2": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 2},
+    },
+    "rled3": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 3},
+    },
+    "rled4": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 4},
+    },
+    "rled5": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 5},
+    },
+    "rled6": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 6},
+    },
+    "rled7": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 7},
+    },
+
+    "rsmap": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 8}
+    },
+    "rsman": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 9}
+    },
+
+    "led0": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 0x010000},
+    },
+    "led1": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 0x010001},
+    },
+    "led2": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 0x010002},
+    },
+    "led3": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 0x010003},
+    },
+    "led4": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 0x010004},
+    },
+    "led5": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 0x010005},
+    },
+    "led6": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 0x010006},
+    },
+    "led7": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 0x010007},
+    },
+
+    "smap": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 0x010008}
+    },
+    "sman": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 0x010009}
+    },
+
+}

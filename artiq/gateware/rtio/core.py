@@ -3,73 +3,11 @@ from operator import and_
 
 from migen import *
 from migen.genlib.record import Record
-from migen.genlib.cdc import *
 from migen.genlib.fifo import AsyncFIFO
 from migen.genlib.resetsync import AsyncResetSynchronizer
-from misoc.interconnect.csr import *
 
-from artiq.gateware.rtio import rtlink
-
-
-# note: transfer is in rtio/sys domains and not affected by the reset CSRs
-class _GrayCodeTransfer(Module):
-    def __init__(self, width):
-        self.i = Signal(width)  # in rtio domain
-        self.o = Signal(width)  # in sys domain
-
-        # # #
-
-        # convert to Gray code
-        value_gray_rtio = Signal(width)
-        self.sync.rtio += value_gray_rtio.eq(self.i ^ self.i[1:])
-        # transfer to system clock domain
-        value_gray_sys = Signal(width)
-        value_gray_rtio.attr.add("no_retiming")
-        self.specials += MultiReg(value_gray_rtio, value_gray_sys)
-        # convert back to binary
-        value_sys = Signal(width)
-        self.comb += value_sys[-1].eq(value_gray_sys[-1])
-        for i in reversed(range(width-1)):
-            self.comb += value_sys[i].eq(value_sys[i+1] ^ value_gray_sys[i])
-        self.sync += self.o.eq(value_sys)
-
-
-class _RTIOCounter(Module):
-    def __init__(self, width):
-        self.width = width
-        # Timestamp counter in RTIO domain
-        self.value_rtio = Signal(width)
-        # Timestamp counter resynchronized to sys domain
-        # Lags behind value_rtio, monotonic and glitch-free
-        self.value_sys = Signal(width)
-
-        # # #
-
-        # note: counter is in rtio domain and never affected by the reset CSRs
-        self.sync.rtio += self.value_rtio.eq(self.value_rtio + 1)
-        gt = _GrayCodeTransfer(width)
-        self.submodules += gt
-        self.comb += gt.i.eq(self.value_rtio), self.value_sys.eq(gt.o)
-
-
-class _BlindTransfer(Module):
-    def __init__(self):
-        self.i = Signal()
-        self.o = Signal()
-
-        ps = PulseSynchronizer("rio", "rsys")
-        ps_ack = PulseSynchronizer("rsys", "rio")
-        self.submodules += ps, ps_ack
-        blind = Signal()
-        self.sync.rio += [
-            If(self.i, blind.eq(1)),
-            If(ps_ack.o, blind.eq(0))
-        ]
-        self.comb += [
-            ps.i.eq(self.i & ~blind),
-            ps_ack.i.eq(ps.o),
-            self.o.eq(ps.o)
-        ]
+from artiq.gateware.rtio import cri, rtlink
+from artiq.gateware.rtio.cdc import *
 
 
 # CHOOSING A GUARD TIME
@@ -227,7 +165,7 @@ class _OutputManager(Module):
             interface.stb.eq(dout_stb & dout_ack)
         ]
 
-        busy_transfer = _BlindTransfer()
+        busy_transfer = BlindTransfer()
         self.submodules += busy_transfer
         self.comb += [
             busy_transfer.i.eq(interface.stb & interface.busy),
@@ -289,7 +227,7 @@ class _InputManager(Module):
             fifo.re.eq(self.re)
         ]
 
-        overflow_transfer = _BlindTransfer()
+        overflow_transfer = BlindTransfer()
         self.submodules += overflow_transfer
         self.comb += [
             overflow_transfer.i.eq(fifo.we & ~fifo.writable),
@@ -326,81 +264,47 @@ class LogChannel:
         self.overrides = []
 
 
-class _KernelCSRs(AutoCSR):
-    def __init__(self, chan_sel_width,
-                 data_width, address_width, full_ts_width):
-        self.reset = CSRStorage(reset=1)
-        self.reset_phy = CSRStorage(reset=1)
-        self.chan_sel = CSRStorage(chan_sel_width)
+class Core(Module):
+    def __init__(self, channels, fine_ts_width=None, guard_io_cycles=20):
+        if fine_ts_width is None:
+            fine_ts_width = max(rtlink.get_fine_ts_width(c.interface)
+                                for c in channels)
 
-        if data_width:
-            self.o_data = CSRStorage(data_width, write_from_dev=True)
-        if address_width:
-            self.o_address = CSRStorage(address_width, write_from_dev=True)
-        self.o_timestamp = CSRStorage(full_ts_width)
-        self.o_we = CSR()
-        self.o_status = CSRStatus(5)
-        self.o_underflow_reset = CSR()
-        self.o_sequence_error_reset = CSR()
-        self.o_collision_reset = CSR()
-        self.o_busy_reset = CSR()
-
-        if data_width:
-            self.i_data = CSRStatus(data_width)
-        self.i_timestamp = CSRStatus(full_ts_width)
-        self.i_re = CSR()
-        self.i_status = CSRStatus(2)
-        self.i_overflow_reset = CSR()
-
-        self.counter = CSRStatus(full_ts_width)
-        self.counter_update = CSR()
-
-
-class RTIO(Module):
-    def __init__(self, channels, full_ts_width=63, guard_io_cycles=20):
-        data_width = max(rtlink.get_data_width(c.interface)
-                         for c in channels)
-        address_width = max(rtlink.get_address_width(c.interface)
-                            for c in channels)
-        fine_ts_width = max(rtlink.get_fine_ts_width(c.interface)
-                            for c in channels)
-
-        self.data_width = data_width
-        self.address_width = address_width
-        self.fine_ts_width = fine_ts_width
-
-        # CSRs
-        self.kcsrs = _KernelCSRs(bits_for(len(channels)-1),
-                                 data_width, address_width,
-                                 full_ts_width)
+        self.cri = cri.Interface()
+        self.comb += self.cri.arb_gnt.eq(1)
 
         # Clocking/Reset
         # Create rsys, rio and rio_phy domains based on sys and rtio
-        # with reset controlled by CSR.
+        # with reset controlled by CRI.
+        cmd_reset = Signal(reset=1)
+        cmd_reset_phy = Signal(reset=1)
+        self.sync += [
+            cmd_reset.eq(self.cri.cmd == cri.commands["reset"]),
+            cmd_reset_phy.eq(self.cri.cmd == cri.commands["reset_phy"])
+        ]
+        cmd_reset.attr.add("no_retiming")
+        cmd_reset_phy.attr.add("no_retiming")
+
         self.clock_domains.cd_rsys = ClockDomain()
         self.clock_domains.cd_rio = ClockDomain()
         self.clock_domains.cd_rio_phy = ClockDomain()
         self.comb += [
             self.cd_rsys.clk.eq(ClockSignal()),
-            self.cd_rsys.rst.eq(self.kcsrs.reset.storage)
+            self.cd_rsys.rst.eq(cmd_reset)
         ]
         self.comb += self.cd_rio.clk.eq(ClockSignal("rtio"))
         self.specials += AsyncResetSynchronizer(
-            self.cd_rio,
-            self.kcsrs.reset.storage | ResetSignal("rtio",
-                                                   allow_reset_less=True))
+            self.cd_rio, cmd_reset)
         self.comb += self.cd_rio_phy.clk.eq(ClockSignal("rtio"))
         self.specials += AsyncResetSynchronizer(
-            self.cd_rio_phy,
-            self.kcsrs.reset_phy.storage | ResetSignal("rtio",
-                                                       allow_reset_less=True))
+            self.cd_rio_phy, cmd_reset_phy)
 
         # Managers
-        self.submodules.counter = _RTIOCounter(full_ts_width - fine_ts_width)
+        self.submodules.counter = RTIOCounter(len(self.cri.o_timestamp) - fine_ts_width)
 
         i_datas, i_timestamps = [], []
         o_statuses, i_statuses = [], []
-        sel = self.kcsrs.chan_sel.storage
+        sel = self.cri.chan_sel[:16]
         for n, channel in enumerate(channels):
             if isinstance(channel, LogChannel):
                 i_datas.append(0)
@@ -416,30 +320,26 @@ class RTIO(Module):
             self.submodules += o_manager
 
             if hasattr(o_manager.ev, "data"):
-                self.comb += o_manager.ev.data.eq(
-                    self.kcsrs.o_data.storage)
+                self.comb += o_manager.ev.data.eq(self.cri.o_data)
             if hasattr(o_manager.ev, "address"):
-                self.comb += o_manager.ev.address.eq(
-                    self.kcsrs.o_address.storage)
-            ts_shift = (len(self.kcsrs.o_timestamp.storage)
-                        - len(o_manager.ev.timestamp))
-            self.comb += o_manager.ev.timestamp.eq(
-                self.kcsrs.o_timestamp.storage[ts_shift:])
+                self.comb += o_manager.ev.address.eq(self.cri.o_address)
+            ts_shift = len(self.cri.o_timestamp) - len(o_manager.ev.timestamp)
+            self.comb += o_manager.ev.timestamp.eq(self.cri.o_timestamp[ts_shift:])
 
-            self.comb += o_manager.we.eq(selected & self.kcsrs.o_we.re)
+            self.comb += o_manager.we.eq(selected & (self.cri.cmd == cri.commands["write"]))
 
             underflow = Signal()
             sequence_error = Signal()
             collision = Signal()
             busy = Signal()
             self.sync.rsys += [
-                If(selected & self.kcsrs.o_underflow_reset.re,
+                If(selected & (self.cri.cmd == cri.commands["o_underflow_reset"]),
                    underflow.eq(0)),
-                If(selected & self.kcsrs.o_sequence_error_reset.re,
+                If(selected & (self.cri.cmd == cri.commands["o_sequence_error_reset"]),
                    sequence_error.eq(0)),
-                If(selected & self.kcsrs.o_collision_reset.re,
+                If(selected & (self.cri.cmd == cri.commands["o_collision_reset"]),
                    collision.eq(0)),
-                If(selected & self.kcsrs.o_busy_reset.re,
+                If(selected & (self.cri.cmd == cri.commands["o_busy_reset"]),
                    busy.eq(0)),
                 If(o_manager.underflow, underflow.eq(1)),
                 If(o_manager.sequence_error, sequence_error.eq(1)),
@@ -462,17 +362,16 @@ class RTIO(Module):
                 else:
                     i_datas.append(0)
                 if channel.interface.i.timestamped:
-                    ts_shift = (len(self.kcsrs.i_timestamp.status)
-                                - len(i_manager.ev.timestamp))
+                    ts_shift = (len(self.cri.i_timestamp) - len(i_manager.ev.timestamp))
                     i_timestamps.append(i_manager.ev.timestamp << ts_shift)
                 else:
                     i_timestamps.append(0)
 
-                self.comb += i_manager.re.eq(selected & self.kcsrs.i_re.re)
+                self.comb += i_manager.re.eq(selected & (self.cri.cmd == cri.commands["read"]))
 
                 overflow = Signal()
                 self.sync.rsys += [
-                    If(selected & self.kcsrs.i_overflow_reset.re,
+                    If(selected & (self.cri.cmd == cri.commands["i_overflow_reset"]),
                        overflow.eq(0)),
                     If(i_manager.overflow,
                        overflow.eq(1))
@@ -483,28 +382,11 @@ class RTIO(Module):
                 i_datas.append(0)
                 i_timestamps.append(0)
                 i_statuses.append(0)
-        if data_width:
-            self.comb += self.kcsrs.i_data.status.eq(Array(i_datas)[sel])
         self.comb += [
-            self.kcsrs.i_timestamp.status.eq(Array(i_timestamps)[sel]),
-            self.kcsrs.o_status.status.eq(Array(o_statuses)[sel]),
-            self.kcsrs.i_status.status.eq(Array(i_statuses)[sel])
+            self.cri.i_data.eq(Array(i_datas)[sel]),
+            self.cri.i_timestamp.eq(Array(i_timestamps)[sel]),
+            self.cri.o_status.eq(Array(o_statuses)[sel]),
+            self.cri.i_status.eq(Array(i_statuses)[sel])
         ]
 
-        # Counter access
-        self.sync += \
-           If(self.kcsrs.counter_update.re,
-               self.kcsrs.counter.status.eq(self.counter.value_sys
-                                                << fine_ts_width)
-           )
-
-        # Auto clear/zero pad event data
-        self.comb += [
-            self.kcsrs.o_data.dat_w.eq(0),
-            self.kcsrs.o_data.we.eq(self.kcsrs.o_timestamp.re),
-            self.kcsrs.o_address.dat_w.eq(0),
-            self.kcsrs.o_address.we.eq(self.kcsrs.o_timestamp.re),
-        ]
-
-    def get_csrs(self):
-        return self.kcsrs.get_csrs()
+        self.comb += self.cri.counter.eq(self.counter.value_sys << fine_ts_width)

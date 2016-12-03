@@ -1,12 +1,11 @@
 use core::{mem, ptr};
-use core::cell::{Cell, RefCell};
+use core::cell::RefCell;
 use log::{self, Log, LogLevel, LogMetadata, LogRecord, LogLevelFilter};
 use log_buffer::LogBuffer;
 use clock;
 
 pub struct BufferLogger {
-    buffer: RefCell<LogBuffer<&'static mut [u8]>>,
-    trace_to_uart: Cell<bool>
+    buffer: RefCell<LogBuffer<&'static mut [u8]>>
 }
 
 unsafe impl Sync for BufferLogger {}
@@ -16,8 +15,7 @@ static mut LOGGER: *const BufferLogger = ptr::null();
 impl BufferLogger {
     pub fn new(buffer: &'static mut [u8]) -> BufferLogger {
         BufferLogger {
-            buffer: RefCell::new(LogBuffer::new(buffer)),
-            trace_to_uart: Cell::new(true)
+            buffer: RefCell::new(LogBuffer::new(buffer))
         }
     }
 
@@ -50,14 +48,6 @@ impl BufferLogger {
     pub fn extract<R, F: FnOnce(&str) -> R>(&self, f: F) -> R {
         f(self.buffer.borrow_mut().extract())
     }
-
-    pub fn disable_trace_to_uart(&self) {
-        if self.trace_to_uart.get() {
-            trace!("disabling tracing to UART; all further trace messages \
-                    are sent to core log only");
-            self.trace_to_uart.set(false)
-        }
-    }
 }
 
 impl Log for BufferLogger {
@@ -71,10 +61,7 @@ impl Log for BufferLogger {
             writeln!(self.buffer.borrow_mut(),
                      "[{:12}us] {:>5}({}): {}",
                      clock::get_us(), record.level(), record.target(), record.args()).unwrap();
-
-            // Printing to UART is really slow, so avoid doing that when we have an alternative
-            // route to retrieve the debug messages.
-            if self.trace_to_uart.get() || record.level() <= LogLevel::Info {
+            if record.level() <= LogLevel::Info {
                 println!("[{:12}us] {:>5}({}): {}",
                          clock::get_us(), record.level(), record.target(), record.args());
             }

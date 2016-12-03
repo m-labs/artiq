@@ -583,8 +583,6 @@ pub fn thread(waiter: Waiter, spawner: Spawner) {
         }
     }
 
-    BufferLogger::with_instance(|logger| logger.disable_trace_to_uart());
-
     let addr = SocketAddr::new(IP_ANY, 1381);
     let listener = TcpListener::bind(waiter, addr).expect("cannot bind socket");
     listener.set_keepalive(true);

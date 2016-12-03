@@ -39,8 +39,9 @@ class AMPSoC:
         self.submodules.timer_kernel = timer.Timer()
         self.register_kernel_cpu_csrdevice("timer_kernel")
 
-    def register_kernel_cpu_csrdevice(self, name):
-        csrs = getattr(self, name).get_csrs()
+    def register_kernel_cpu_csrdevice(self, name, csrs=None):
+        if csrs is None:
+            csrs = getattr(self, name).get_csrs()
         bank = wishbone.CSRBank(csrs)
         self.submodules += bank
         self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map[name]),
