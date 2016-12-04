@@ -64,7 +64,10 @@ class DMAReader(Module, AutoCSR):
             If(enable & ~enable_r,
                 address.address.eq(self.base_address.storage),
                 address.eop.eq(0),
-                address.stb.eq(1)
+                address.stb.eq(1),
+                If(self.base_address.storage == self.last_address.storage,
+                    address.eop.eq(1)
+                )
             ),
             If(address.stb & address.ack,
                 If(address.eop,
@@ -94,7 +97,7 @@ class RawSlicer(Module):
         #          <data being shifted out>   <new incoming word>   <EOP marker>   
         buf_size =       out_size - 1       +       in_size       +      1
         buf = Signal(buf_size*g)
-        self.comb += self.source.eq(buf[:out_size])
+        self.comb += self.source.eq(buf[:out_size*8])
 
         level = Signal(max=buf_size+1)
         next_level = Signal(max=buf_size+1)
@@ -158,9 +161,7 @@ class RecordConverter(Module):
             self.source.channel.eq(record_raw.channel),
             self.source.timestamp.eq(record_raw.timestamp),
             self.source.address.eq(record_raw.address),
-            Case(record_raw.length,
-                 {hdrlen+i*8: self.source.data.eq(record_raw.data[:])
-                  for i in range(512//8)}),
+            self.source.data.eq(record_raw.data),
 
             self.source.stb.eq(stream_slicer.source_stb),
             self.source.eop.eq(record_raw.length == 0),
@@ -177,7 +178,7 @@ class RecordConverter(Module):
 class RecordSlicer(Module):
     def __init__(self, in_size):
         self.submodules.raw_slicer = RawSlicer(
-            in_size, layout_len(record_layout)//8, 8)
+            in_size//8, layout_len(record_layout)//8, 8)
         self.submodules.record_converter = RecordConverter(self.raw_slicer)
         self.sink = self.raw_slicer.sink
         self.source = self.record_converter.source
@@ -251,6 +252,7 @@ class CRIMaster(Module, AutoCSR):
             self.cri.chan_sel.eq(self.sink.channel),
             self.cri.o_timestamp.eq(self.sink.timestamp),
             self.cri.o_address.eq(self.sink.address),
+            self.cri.o_data.eq(self.sink.data)
         ]
 
         fsm = FSM(reset_state="IDLE")
