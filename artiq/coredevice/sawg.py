@@ -5,6 +5,18 @@ from artiq.language.types import TInt32, TInt64, TFloat
 
 
 class Spline:
+    """Spline interpolating RTIO channel.
+
+    One knot of a polynomial basis spline (B-spline) :math:`u(t)`
+    is defined by the coefficients :math:`u_n` up to order :math:`n = k`.
+    If the knot is evaluated starting at time :math:`t_0`, the output
+    :math:`u(t)` for :math:`t > t_0, t_0` is:
+
+    .. math::
+        u(t) = \sum_{n=0}^k \frac{u_n}{n!} (t - t_0)^n
+        = u_0 + u_1 (t - t_0) + \frac{u_2}{2} (t - t_0)^2 + \dots
+    """
+
     kernel_invariants = {"channel", "core", "scale", "width",
                          "time_width", "time_scale"}
 
@@ -19,14 +31,20 @@ class Spline:
 
     @portable(flags={"fast-math"})
     def to_mu(self, value: TFloat) -> TInt32:
+        """Convert floating point `value` from physical units to 32 bit
+        integer machine units."""
         return int32(round(value*self.scale))
 
     @portable(flags={"fast-math"})
     def from_mu(self, value: TInt32) -> TFloat:
+        """Convert 32 bit integer `value` from machine units to floating point
+        physical units."""
         return value/self.scale
 
     @portable(flags={"fast-math"})
     def to_mu64(self, value: TFloat) -> TInt64:
+        """Convert floating point `value` from physical units to 64 bit
+        integer machine units."""
         return int64(round(value*self.scale))
 
     @kernel
@@ -60,6 +78,15 @@ class Spline:
 
     @portable(flags={"fast-math"})
     def pack_coeff_mu(self, coeff, packed):  # TList(TInt64), TList(TInt32)
+        """Pack coefficients into RTIO data
+
+        :param coeff: TList(TInt64) list of machine units spline coefficients.
+            Lowest (zeroth) order first. The coefficient list is zero-extended
+            by the RTIO gateware.
+        :param packed: TList(TInt32) list for packed RTIO data. Must be
+            pre-allocated. Length in bits is
+            `n*width + (n - 1)*n//2*time_width`
+        """
         pos = 0
         for i in range(len(coeff)):
             wi = self.width + i*self.time_width
@@ -80,6 +107,13 @@ class Spline:
 
     @portable(flags={"fast-math"})
     def coeff_to_mu(self, coeff, coeff64):  # TList(TFloat), TList(TInt64)
+        """Convert a floating point list of coefficients into a 64 bit
+        integer (preallocated).
+
+        :param coeff: TList(TFloat) list of coefficients in physical units.
+        :param coeff64: TList(TInt64) preallocated list of coefficients in
+            machine units.
+        """
         for i in range(len(coeff)):
             vi = coeff[i] * self.scale
             for j in range(i):
@@ -94,6 +128,12 @@ class Spline:
                 coeff64[1] += ci // 6 >> 2*self.time_width
 
     def coeff_as_packed_mu(self, coeff64):
+        """Pack 64 bit integer machine units coefficients into 32 bit integer
+        RTIO data list.
+
+        This is a host-only method that can be used to generate packed
+        spline knot data to be frozen into kernels at compile time.
+        """
         n = len(coeff64)
         width = n*self.width + (n - 1)*n//2*self.time_width
         packed = [int32(0)] * ((width + 31)//32)
@@ -101,6 +141,12 @@ class Spline:
         return packed
 
     def coeff_as_packed(self, coeff):
+        """Convert floating point spline coefficients into 32 bit integer
+        packed data.
+
+        This is a host-only method that can be used to generate packed
+        spline knot data to be frozen into kernels at compile time.
+        """
         coeff64 = [int64(0)] * len(coeff)
         self.coeff_to_mu(coeff, coeff64)
         return self.coeff_as_packed_mu(coeff64)
@@ -108,6 +154,12 @@ class Spline:
     @kernel(flags={"fast-math"})
     def set_coeff(self, coeff):  # TList(TFloat)
         """Set spline coefficients.
+
+        Missing coefficients (high order) are zero-extended byt the RTIO
+        gateware.
+
+        If more coefficients are supplied than the gateware supports the extra
+        coefficients are ignored.
 
         :param value: List of floating point spline knot coefficients,
             lowest order (constant) coefficient first. Units are the
@@ -126,10 +178,14 @@ class Spline:
                order: TInt32):
         """Initiate an interpolated value change.
 
-        The third order interpolation is constrained to have zero first
-        order derivative at both start and stop.
+        For zeroth order (step) interpolation, the step is at
+        `start + duration/2`.
 
-        For zeroth order (step) interpolation, the step is at duration/2.
+        First order interpolation corresponds to a linear value ramp from
+        `start` to `stop` over `duration`.
+
+        The third order interpolation is constrained to have zero first
+        order derivative at both `start` and `stop`.
 
         For first order and third order interpolation (linear and cubic)
         the interpolator needs to be stopped (or fed a new spline knot)
@@ -137,9 +193,9 @@ class Spline:
 
         This method advances the timeline by `duration`.
 
-        :param start: Initial value of the change.
-        :param stop: Final value of the change.
-        :param duration: Duration of the interpolation.
+        :param start: Initial value of the change. In physical units.
+        :param stop: Final value of the change. In physical units.
+        :param duration: Duration of the interpolation. In physical units.
         :param order: Order of the interpolation. Only 0, 1,
             and 3 are valid: step, linear, cubic.
         """
