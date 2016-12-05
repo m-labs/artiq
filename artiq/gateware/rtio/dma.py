@@ -52,8 +52,6 @@ class DMAReader(Module, AutoCSR):
         # All numbers in bytes
         self.base_address = CSRStorage(aw + data_alignment,
                                        alignment_bits=data_alignment)
-        self.last_address = CSRStorage(aw + data_alignment,
-                                       alignment_bits=data_alignment)
 
         # # #
 
@@ -65,18 +63,13 @@ class DMAReader(Module, AutoCSR):
                 address.address.eq(self.base_address.storage),
                 address.eop.eq(0),
                 address.stb.eq(1),
-                If(self.base_address.storage == self.last_address.storage,
-                    address.eop.eq(1)
-                )
             ),
             If(address.stb & address.ack,
                 If(address.eop,
                     address.stb.eq(0)
                 ).Else(
                     address.address.eq(address.address + 1),
-                    If(~enable | (address.address == self.last_address.storage),
-                        address.eop.eq(1)
-                    )
+                    If(~enable, address.eop.eq(1))
                 )
             )
         ]
@@ -90,12 +83,14 @@ class RawSlicer(Module):
         self.source = Signal(out_size*g)
         self.source_stb = Signal()
         self.source_consume = Signal(max=out_size+1)
+        self.flush = Signal()
+        self.flush_done = Signal()
 
         # # #
 
         # worst-case buffer space required (when loading):
-        #          <data being shifted out>   <new incoming word>   <EOP marker>   
-        buf_size =       out_size - 1       +       in_size       +      1
+        #          <data being shifted out>   <new incoming word>
+        buf_size =       out_size - 1       +       in_size
         buf = Signal(buf_size*g)
         self.comb += self.source.eq(buf[:out_size*8])
 
@@ -109,9 +104,7 @@ class RawSlicer(Module):
 
         self.sync += [
             If(load_buf, Case(level,
-                # note how the MSBs of the buffer are set to 0
-                # (including the EOP marker position) 
-                {i: buf[i*g:].eq(self.sink.data)
+                {i: buf[i*g:(i+in_size)*g].eq(self.sink.data)
                  for i in range(out_size)})),
             If(shift_buf, buf.eq(buf >> self.source_consume*g))
         ]
@@ -123,12 +116,7 @@ class RawSlicer(Module):
             self.sink.ack.eq(1),
             load_buf.eq(1),
             If(self.sink.stb,
-                If(self.sink.eop,
-                    # insert <granularity> bits of 0 to mark EOP
-                    next_level.eq(level + in_size + 1)
-                ).Else(
-                    next_level.eq(level + in_size)
-                )
+                next_level.eq(level + in_size)
             ),
             If(next_level >= out_size, NextState("OUTPUT"))
         )
@@ -136,10 +124,20 @@ class RawSlicer(Module):
             self.source_stb.eq(1),
             shift_buf.eq(1),
             next_level.eq(level - self.source_consume),
-            If(next_level < out_size, NextState("FETCH"))
+            If(next_level < out_size, NextState("FETCH")),
+            If(self.flush, NextState("FLUSH"))
+        )
+        fsm.act("FLUSH",
+            next_level.eq(0),
+            self.sink.ack.eq(1),
+            If(self.sink.stb & self.sink.eop,
+                self.flush_done.eq(1),
+                NextState("FETCH")
+            )
         )
 
 
+# end marker is a record with length=0
 record_layout = [
     ("length", 8),  # of whole record (header+data)
     ("channel", 24),
@@ -152,34 +150,61 @@ record_layout = [
 class RecordConverter(Module):
     def __init__(self, stream_slicer):
         self.source = stream.Endpoint(record_layout)
+        self.end_marker_found = Signal()
+        self.flush = Signal()
 
-        hdrlen = layout_len(record_layout) - 512
         record_raw = Record(record_layout)
         self.comb += [
             record_raw.raw_bits().eq(stream_slicer.source),
-
             self.source.channel.eq(record_raw.channel),
             self.source.timestamp.eq(record_raw.timestamp),
             self.source.address.eq(record_raw.address),
-            self.source.data.eq(record_raw.data),
-
-            self.source.stb.eq(stream_slicer.source_stb),
-            self.source.eop.eq(record_raw.length == 0),
-            If(self.source.ack,
-                If(record_raw.length == 0,
-                    stream_slicer.source_consume.eq(1)
-                ).Else(
-                    stream_slicer.source_consume.eq(record_raw.length)
-                )
-            )
+            self.source.data.eq(record_raw.data)
         ]
+
+        fsm = FSM(reset_state="FLOWING")
+        self.submodules += fsm
+
+        fsm.act("FLOWING",
+            If(stream_slicer.source_stb,
+                If(record_raw.length == 0,
+                    NextState("END_MARKER_FOUND")
+                ).Else(
+                    self.source.stb.eq(1)
+                )
+            ),
+            If(self.source.ack,
+                stream_slicer.source_consume.eq(record_raw.length)
+            )
+        )
+        fsm.act("END_MARKER_FOUND",
+            self.end_marker_found.eq(1),
+            If(self.flush,
+                stream_slicer.flush.eq(1),
+                NextState("WAIT_FLUSH")
+            )
+        )
+        fsm.act("WAIT_FLUSH",
+            If(stream_slicer.flush_done,
+                NextState("SEND_EOP")
+            )
+        )
+        fsm.act("SEND_EOP",
+            self.source.eop.eq(1),
+            self.source.stb.eq(1),
+            If(self.source.ack, NextState("FLOWING"))
+        )
 
 
 class RecordSlicer(Module):
     def __init__(self, in_size):
-        self.submodules.raw_slicer = RawSlicer(
-            in_size//8, layout_len(record_layout)//8, 8)
+        self.submodules.raw_slicer = ResetInserter()(RawSlicer(
+            in_size//8, layout_len(record_layout)//8, 8))
         self.submodules.record_converter = RecordConverter(self.raw_slicer)
+
+        self.end_marker_found = self.record_converter.end_marker_found
+        self.flush = self.record_converter.flush
+
         self.sink = self.raw_slicer.sink
         self.source = self.record_converter.source
 
@@ -199,6 +224,7 @@ class TimeOffset(Module, AutoCSR):
                                           leave_out={"timestamp"}),
                 self.source.payload.timestamp.eq(self.sink.payload.timestamp
                                                  + self.time_offset.storage),
+                self.source.eop.eq(self.sink.eop),
                 self.source.stb.eq(self.sink.stb)
             )
         self.comb += [
@@ -260,7 +286,14 @@ class CRIMaster(Module, AutoCSR):
 
         fsm.act("IDLE",
             If(self.error_status.status == 0,
-                If(self.sink.stb, NextState("WRITE"))
+                If(self.sink.stb,
+                    If(self.sink.eop,
+                        # last packet contains dummy data, discard it
+                        self.sink.ack.eq(1)
+                    ).Else(
+                        NextState("WRITE")
+                    )
+                )
             ).Else(
                 # discard all data until errors are acked
                 self.sink.ack.eq(1)
@@ -295,9 +328,7 @@ class CRIMaster(Module, AutoCSR):
 
 class DMA(Module):
     def __init__(self, membus):
-        # shutdown procedure: set enable to 0, wait until busy=0
-        self.enable = CSRStorage()
-        self.busy = CSRStatus()
+        self.enable = CSRStorage(write_from_dev=True)
 
         self.submodules.dma = DMAReader(membus, self.enable.storage)
         self.submodules.slicer = RecordSlicer(len(membus.dat_w))
@@ -314,17 +345,24 @@ class DMA(Module):
         fsm = FSM(reset_state="IDLE")
         self.submodules += fsm
 
+        self.comb += self.enable.dat_w.eq(0)
+
         fsm.act("IDLE",
             If(self.enable.storage, NextState("FLOWING"))
         )
         fsm.act("FLOWING",
-            self.busy.status.eq(1),
+            If(self.slicer.end_marker_found, self.enable.we.eq(1)),
+            If(~self.enable.storage,
+                self.slicer.flush.eq(1),
+                NextState("WAIT_EOP")
+            )
+        )
+        fsm.act("WAIT_EOP",
             If(self.cri_master.sink.stb & self.cri_master.sink.ack & self.cri_master.sink.eop,
                 NextState("WAIT_CRI_MASTER")
             )
         )
         fsm.act("WAIT_CRI_MASTER",
-            self.busy.status.eq(1),
             If(~self.cri_master.busy, NextState("IDLE"))
         )
 
