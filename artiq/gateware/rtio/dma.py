@@ -350,12 +350,12 @@ class DMA(Module):
         self.submodules += fsm
 
         fsm.act("IDLE",
-            If(self.enable.re & self.enable.r, NextState("FLOWING"))
+            If(self.enable.re, NextState("FLOWING"))
         )
         fsm.act("FLOWING",
             self.enable.w.eq(1),
             flow_enable.eq(1),
-            If(self.slicer.end_marker_found | (self.enable.re & ~self.enable.r),
+            If(self.slicer.end_marker_found,
                 NextState("FLUSH")
             )
         )
