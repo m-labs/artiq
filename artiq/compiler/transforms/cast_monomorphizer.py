@@ -4,7 +4,7 @@ expressions of undetermined integer type to either 32 or 64 bits.
 """
 
 from pythonparser import algorithm, diagnostic
-from .. import types, builtins
+from .. import types, builtins, asttyped
 
 class CastMonomorphizer(algorithm.Visitor):
     def __init__(self, engine):
@@ -20,5 +20,12 @@ class CastMonomorphizer(algorithm.Visitor):
             if (not types.is_var(typ["width"]) and
                     builtins.is_int(node.args[0].type) and
                     types.is_var(node.args[0].type.find()["width"])):
+                if isinstance(node.args[0], asttyped.BinOpT):
+                    # Binary operations are a bit special: they can widen, and so their
+                    # return type is indeterminate until both argument types are fully known.
+                    # In case we first monomorphize the return type, and then some argument type,
+                    # and argument type is wider than return type, we'll introduce a conflict.
+                    return
+
                 node.args[0].type.unify(typ)
 
