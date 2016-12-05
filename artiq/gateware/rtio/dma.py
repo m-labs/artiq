@@ -153,13 +153,16 @@ class RecordConverter(Module):
         self.end_marker_found = Signal()
         self.flush = Signal()
 
+        hdrlen = (layout_len(record_layout) - 512)//8
         record_raw = Record(record_layout)
         self.comb += [
             record_raw.raw_bits().eq(stream_slicer.source),
             self.source.channel.eq(record_raw.channel),
             self.source.timestamp.eq(record_raw.timestamp),
             self.source.address.eq(record_raw.address),
-            self.source.data.eq(record_raw.data)
+            Case(record_raw.length,
+                {hdrlen+i: self.source.data.eq(record_raw.data[:i*8])
+                 for i in range(1, 512//8+1)}),
         ]
 
         fsm = FSM(reset_state="FLOWING")
@@ -328,9 +331,10 @@ class CRIMaster(Module, AutoCSR):
 
 class DMA(Module):
     def __init__(self, membus):
-        self.enable = CSRStorage(write_from_dev=True)
+        self.enable = CSR()
 
-        self.submodules.dma = DMAReader(membus, self.enable.storage)
+        flow_enable = Signal()
+        self.submodules.dma = DMAReader(membus, flow_enable)
         self.submodules.slicer = RecordSlicer(len(membus.dat_w))
         self.submodules.time_offset = TimeOffset()
         self.submodules.cri_master = CRIMaster()
@@ -345,24 +349,29 @@ class DMA(Module):
         fsm = FSM(reset_state="IDLE")
         self.submodules += fsm
 
-        self.comb += self.enable.dat_w.eq(0)
-
         fsm.act("IDLE",
-            If(self.enable.storage, NextState("FLOWING"))
+            If(self.enable.re & self.enable.r, NextState("FLOWING"))
         )
         fsm.act("FLOWING",
-            If(self.slicer.end_marker_found, self.enable.we.eq(1)),
-            If(~self.enable.storage,
-                self.slicer.flush.eq(1),
-                NextState("WAIT_EOP")
+            self.enable.w.eq(1),
+            flow_enable.eq(1),
+            If(self.slicer.end_marker_found | (self.enable.re & ~self.enable.r),
+                NextState("FLUSH")
             )
         )
+        fsm.act("FLUSH",
+            self.enable.w.eq(1),
+            self.slicer.flush.eq(1),
+            NextState("WAIT_EOP")
+        )
         fsm.act("WAIT_EOP",
+            self.enable.w.eq(1),
             If(self.cri_master.sink.stb & self.cri_master.sink.ack & self.cri_master.sink.eop,
                 NextState("WAIT_CRI_MASTER")
             )
         )
         fsm.act("WAIT_CRI_MASTER",
+            self.enable.w.eq(1),
             If(~self.cri_master.busy, NextState("IDLE"))
         )
 

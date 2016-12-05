@@ -3,7 +3,7 @@ import unittest
 from migen import *
 from misoc.interconnect import wishbone
 
-from artiq.gateware.rtio import dma
+from artiq.gateware.rtio import dma, cri
 
 
 def encode_n(n, min_length, max_length):
@@ -36,34 +36,54 @@ def pack(x, size):
     return r
 
 
+test_writes = [
+    (0x01, 0x23, 0x12, 0x33),
+    (0x901, 0x902, 0x911, 0xeeeeeeeeeeeeeefffffffffffffffffffffffffffffff28888177772736646717738388488),
+    (0x81, 0x288, 0x88, 0x8888)
+]
+
+
 class TB(Module):
     def __init__(self, ws):
-        sequence = []
-        sequence += encode_record(0x01, 0x23, 0x12, 0x33)
-        sequence += encode_record(0x901, 0x902, 0x911, 0xeeeeeeeeeeeeeefffffffffffffffffffffffffffffff28888177772736646717738388488)
-        sequence += encode_record(0x81, 0x288, 0x88, 0x8888)
+        sequence = [b for write in test_writes for b in encode_record(*write)]
         sequence.append(0)
-        self.sequence = pack(sequence, ws)
+        sequence = pack(sequence, ws)
 
         bus = wishbone.Interface(ws*8)
         self.submodules.memory = wishbone.SRAM(
-            1024, init=self.sequence, bus=bus)
+            1024, init=sequence, bus=bus)
         self.submodules.dut = dma.DMA(bus)
-
-        # TODO: remove this hack when misoc supports csr write_from_dev simulation
-        self.sync += If(self.dut.enable.we, self.dut.enable.storage.eq(self.dut.enable.dat_w))
 
 
 class TestDMA(unittest.TestCase):
-    def test_dma(self):
+    def test_dma_noerror(self):
         ws = 64
         tb = TB(ws)
 
-        def gen():
+        def do_dma():
             for i in range(2):
                 yield from tb.dut.enable.write(1)
-                for i in range(30):
-                    print((yield from tb.dut.enable.read()))
+                yield
+                while ((yield from tb.dut.enable.read())):
                     yield
 
-        run_simulation(tb, gen(), vcd_name="foo.vcd")
+        received = []
+        @passive
+        def rtio_sim():
+            dut_cri = tb.dut.cri
+            while True:
+                cmd = yield dut_cri.cmd
+                if cmd == cri.commands["nop"]:
+                    pass
+                elif cmd == cri.commands["write"]:
+                    channel = yield dut_cri.chan_sel
+                    timestamp = yield dut_cri.o_timestamp
+                    address = yield dut_cri.o_address
+                    data = yield dut_cri.o_data
+                    received.append((channel, timestamp, address, data))
+                else:
+                    self.fail("unexpected RTIO command")
+                yield
+
+        run_simulation(tb, [do_dma(), rtio_sim()])
+        self.assertEqual(received, test_writes*2)
