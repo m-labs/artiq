@@ -447,10 +447,10 @@ impl<'a> Read for TcpStream<'a> {
         }
 
         let (pbuf, pos) = self.buffer.take().unwrap();
-        let slice = &pbuf.as_slice()[pos..];
-        let len = ::std::cmp::min(buf.len(), slice.len());
-        buf[..len].copy_from_slice(&slice[..len]);
-        if len < slice.len() {
+        let remaining = pbuf.len() - pos;
+        let len = ::std::cmp::min(buf.len(), remaining);
+        buf[..len].copy_from_slice(&pbuf.as_slice()[pos..pos + len]);
+        if len < remaining {
             self.buffer = Some((pbuf, pos + len))
         }
         Ok(len)

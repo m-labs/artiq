@@ -267,14 +267,14 @@ impl<'payload> Pbuf<'payload> {
         unsafe { (*self.raw).len as usize }
     }
 
-    pub fn as_slice(&self) -> &'payload [u8] {
+    pub fn as_slice(&self) -> &[u8] {
         unsafe {
             core::slice::from_raw_parts((*self.raw).payload as *const u8,
                                         (*self.raw).len as usize)
         }
     }
 
-    pub fn as_mut_slice(&mut self) -> &'payload mut [u8] {
+    pub fn as_mut_slice(&mut self) -> &mut [u8] {
         unsafe {
             core::slice::from_raw_parts_mut((*self.raw).payload as *mut u8,
                                             (*self.raw).len as usize)
