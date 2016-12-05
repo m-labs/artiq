@@ -376,6 +376,6 @@ class DMA(Module):
         )
 
     def get_csrs(self):
-        return ([self.enable, self.busy] +
+        return ([self.enable] +
                 self.dma.get_csrs() + self.time_offset.get_csrs() +
                 self.cri_master.get_csrs())
