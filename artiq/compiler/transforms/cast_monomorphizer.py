@@ -13,10 +13,9 @@ class CastMonomorphizer(algorithm.Visitor):
     def visit_CallT(self, node):
         self.generic_visit(node)
 
-        if ((types.is_builtin(node.func.type, "int") or
-                    types.is_builtin(node.func.type, "int32") or
-                    types.is_builtin(node.func.type, "int64")) and
-                types.is_var(node.type)):
+        if (types.is_builtin(node.func.type, "int") or
+                types.is_builtin(node.func.type, "int32") or
+                types.is_builtin(node.func.type, "int64")):
             typ = node.type.find()
             if (not types.is_var(typ["width"]) and
                     builtins.is_int(node.args[0].type) and
