@@ -436,14 +436,14 @@ class StitchingASTTypedRewriter(ASTTypedRewriter):
             if annot.id == "TVar":
                 return types.TVar()
         elif (isinstance(annot, ast.Call) and
-              annot.keywords is None and
+              annot.keywords == [] and
               annot.starargs is None and
               annot.kwargs is None and
               isinstance(annot.func, ast.Name)):
             if annot.func.id == "TList" and len(annot.args) == 1:
                 elttyp = self.match_annotation(annot.args[0])
                 if elttyp is not None:
-                    return builtins.TList()
+                    return builtins.TList(elttyp)
                 else:
                     return None
 

@@ -211,11 +211,16 @@ class _Annotation(EnvExperiment):
     def overflow(self, x: TInt64) -> TBool:
         return (x << 32) != 0
 
+    @kernel
+    def monomorphize(self, x: TList(TInt32)):
+        pass
+
 
 class AnnotationTest(ExperimentCase):
     def test_annotation(self):
         exp = self.create(_Annotation)
         self.assertEqual(exp.overflow(1), True)
+        exp.monomorphize([])
 
 class _Async(EnvExperiment):
     def build(self):
