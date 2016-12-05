@@ -21,17 +21,17 @@ COREFILES=core/mem.c \
 	core/tcp_out.c \
 	core/udp.c \
 	core/inet_chksum.c \
-	core/timers.c \
+	core/timeouts.c \
 	core/init.c
 
-CORE4FILES=core/ipv4/icmp.c \
+CORE4FILES=core/ipv4/etharp.c \
+	core/ipv4/icmp.c \
 	core/ipv4/ip4.c \
 	core/ipv4/ip4_addr.c \
-	core/ipv4/ip_frag.c
+	core/ipv4/ip4_frag.c
 
 # NETIFFILES: Files implementing various generic network interface functions.
-NETIFFILES=netif/etharp.c \
-	netif/ethernet.c
+NETIFFILES=netif/ethernet.c
 
 PPPFILES=netif/ppp/auth.c \
 	netif/ppp/fsm.c \

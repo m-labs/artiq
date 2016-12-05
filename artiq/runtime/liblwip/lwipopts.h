@@ -40,6 +40,8 @@
 
 #define LWIP_CALLBACK_API 1
 
+#define SYS_LIGHTWEIGHT_PROT    0
+
 /* -------- TCP Timer Intervals ------- */
 #define TCP_TMR_INTERVAL       1    /* The TCP timer interval in
                                        milliseconds. */

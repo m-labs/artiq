@@ -6,32 +6,7 @@
 #define __ARCH_CC_H__
 
 /* Include some files for defining library routines */
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
 #define BYTE_ORDER BIG_ENDIAN
-
-/* Define generic types */
-typedef unsigned   char    u8_t;
-typedef signed     char    s8_t;
-typedef unsigned   short   u16_t;
-typedef signed     short   s16_t;
-typedef unsigned   long    u32_t;
-typedef signed     long    s32_t;
-
-typedef u32_t mem_ptr_t;
-
-/* Define (sn)printf formatters for these types */
-#define U8_F "c"
-#define S8_F "c"
-#define X8_F "x"
-#define U16_F "u"
-#define S16_F "d"
-#define X16_F "x"
-#define U32_F "u"
-#define S32_F "d"
-#define X32_F "x"
 
 /* Compiler hints for packing structures */
 #define PACK_STRUCT_FIELD(x) x

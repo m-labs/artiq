@@ -9,13 +9,10 @@
 #include <hw/flags.h>
 
 #include <lwip/init.h>
-#include <lwip/memp.h>
 #include <lwip/ip4_addr.h>
-#include <lwip/ip4.h>
 #include <lwip/netif.h>
-#include <lwip/sys.h>
+#include <lwip/timeouts.h>
 #include <lwip/tcp.h>
-#include <lwip/timers.h>
 #ifdef CSR_ETHMAC_BASE
 #include <netif/etharp.h>
 #include <liteethif.h>
@@ -32,6 +29,7 @@ static struct netif netif;
 static ppp_pcb *ppp;
 #endif
 
+void lwip_service(void);
 void lwip_service(void)
 {
     sys_check_timeouts();
@@ -107,6 +105,7 @@ static void fsip_or_default(struct ip4_addr *d, char *key, int i1, int i2, int i
 #endif
 }
 
+void network_init(void);
 void network_init(void)
 {
     struct ip4_addr local_ip;
@@ -169,14 +168,17 @@ extern void _fheap, _eheap;
 
 extern void rust_main();
 
+u16_t tcp_sndbuf_(struct tcp_pcb *pcb);
 u16_t tcp_sndbuf_(struct tcp_pcb *pcb) {
     return tcp_sndbuf(pcb);
 }
 
+u8_t* tcp_so_options_(struct tcp_pcb *pcb);
 u8_t* tcp_so_options_(struct tcp_pcb *pcb) {
     return &pcb->so_options;
 }
 
+void tcp_nagle_disable_(struct tcp_pcb *pcb);
 void tcp_nagle_disable_(struct tcp_pcb *pcb) {
     tcp_nagle_disable(pcb);
 }
