@@ -309,7 +309,7 @@ class CRIMaster(Module, AutoCSR):
         )
         fsm.act("CHECK_STATE",
             self.busy.eq(1),
-            If(~self.cri.o_status,
+            If(self.cri.o_status == 0,
                 self.sink.ack.eq(1),
                 NextState("IDLE")
             ),
