@@ -1,4 +1,5 @@
 import unittest
+import random
 
 from migen import *
 from misoc.interconnect import wishbone
@@ -57,6 +58,7 @@ class TB(Module):
 
 class TestDMA(unittest.TestCase):
     def test_dma_noerror(self):
+        prng = random.Random(0)
         ws = 64
         tb = TB(ws)
 
@@ -81,6 +83,11 @@ class TestDMA(unittest.TestCase):
                     address = yield dut_cri.o_address
                     data = yield dut_cri.o_data
                     received.append((channel, timestamp, address, data))
+
+                    yield dut_cri.o_status.eq(1)
+                    for i in range(prng.randrange(10)):
+                        yield
+                    yield dut_cri.o_status.eq(0)
                 else:
                     self.fail("unexpected RTIO command")
                 yield
