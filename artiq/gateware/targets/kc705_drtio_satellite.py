@@ -126,7 +126,7 @@ fmc_clock_io = [
 
 class Satellite(BaseSoC):
     mem_map = {
-        "drtio_aux": 0x60000000,
+        "drtio_aux": 0x50000000,
     }
     mem_map.update(BaseSoC.mem_map)
 

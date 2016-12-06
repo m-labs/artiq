@@ -30,7 +30,7 @@ class Master(MiniSoC, AMPSoC):
         "timer_kernel":  0x10000000,
         "rtio":          0x20000000,
         "rtio_dma":      0x30000000,
-        "drtio_aux":     0x60000000,
+        "drtio_aux":     0x50000000,
         "mailbox":       0x70000000
     }
     mem_map.update(MiniSoC.mem_map)
