@@ -10,7 +10,7 @@ These drivers are for the core device and the peripherals closely integrated int
     :members:
 
 :mod:`artiq.coredevice.ttl` module
------------------------------------
+----------------------------------
 
 .. automodule:: artiq.coredevice.ttl
     :members:
@@ -43,7 +43,7 @@ These drivers are for the core device and the peripherals closely integrated int
     :members:
 
 :mod:`artiq.coredevice.cache` module
------------------------------------------
+------------------------------------
 
 .. automodule:: artiq.coredevice.cache
     :members:
@@ -54,6 +54,12 @@ These drivers are for the core device and the peripherals closely integrated int
 .. automodule:: artiq.coredevice.exceptions
     :members:
 
+:mod:`artiq.coredevice.spline` module
+-------------------------------------
+
+.. automodule:: artiq.coredevice.spline
+    :members:
+
 :mod:`artiq.coredevice.sawg` module
 -----------------------------------
 
@@ -61,7 +67,7 @@ These drivers are for the core device and the peripherals closely integrated int
     :members:
 
 :mod:`artiq.coredevice.ad9154` module
------------------------------------
+-------------------------------------
 
 .. automodule:: artiq.coredevice.ad9154
     :members:

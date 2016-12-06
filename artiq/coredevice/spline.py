@@ -5,7 +5,7 @@ from artiq.language.types import TInt32, TInt64, TFloat
 
 
 class Spline:
-    """Spline interpolating RTIO channel.
+    r"""Spline interpolating RTIO channel.
 
     One knot of a polynomial basis spline (B-spline) :math:`u(t)`
     is defined by the coefficients :math:`u_n` up to order :math:`n = k`.
@@ -13,8 +13,15 @@ class Spline:
     :math:`u(t)` for :math:`t > t_0, t_0` is:
 
     .. math::
-        u(t) = \sum_{n=0}^k \frac{u_n}{n!} (t - t_0)^n
-        = u_0 + u_1 (t - t_0) + \frac{u_2}{2} (t - t_0)^2 + \dots
+        u(t) &= \sum_{n=0}^k \frac{u_n}{n!} (t - t_0)^n \\
+             &= u_0 + u_1 (t - t_0) + \frac{u_2}{2} (t - t_0)^2 + \dots
+
+    :param width: Width in bits of the quantity that this spline controls
+    :param time_width: Width in bits of the time counter of this spline
+    :param channel: RTIO channel number
+    :param core_device: Core device that this spline is attached to
+    :param scale: Scale for conversion between machine units and physical
+        units; to be given as the "full scale physical value".
     """
 
     kernel_invariants = {"channel", "core", "scale", "width",
@@ -24,7 +31,7 @@ class Spline:
         self.core = core_device
         self.channel = channel
         self.width = width
-        self.scale = float((int64(1) << width) * scale)
+        self.scale = float((int64(1) << width) / scale)
         self.time_width = time_width
         self.time_scale = float((1 << time_width) *
                                 core_device.coarse_ref_period)
