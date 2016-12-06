@@ -6,6 +6,7 @@ from migen import *
 from migen.build.generic_platform import *
 
 from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
+from misoc.integration.soc_core import mem_decoder
 from misoc.integration.builder import builder_args, builder_argdict
 
 from artiq.gateware.soc import AMPSoC, build_artiq_soc
@@ -29,6 +30,7 @@ class Master(MiniSoC, AMPSoC):
         "timer_kernel":  0x10000000,
         "rtio":          0x20000000,
         "rtio_dma":      0x30000000,
+        "drtio_aux":     0x60000000,
         "mailbox":       0x70000000
     }
     mem_map.update(MiniSoC.mem_map)
@@ -77,6 +79,9 @@ class Master(MiniSoC, AMPSoC):
             raise ValueError
         self.submodules.drtio = DRTIOMaster(self.transceiver)
         self.csr_devices.append("drtio")
+        self.add_wb_slave(mem_decoder(self.mem_map["drtio_aux"]),
+                          self.drtio.aux_controller.bus)
+        self.add_memory_region("drtio_aux", self.mem_map["drtio_aux"] | self.shadow_base, 0x800)
 
         rtio_clk_period = 1e9/self.transceiver.rtio_clk_freq
         platform.add_period_constraint(self.transceiver.txoutclk, rtio_clk_period)
