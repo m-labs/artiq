@@ -20,10 +20,13 @@ class DRTIOSatellite(Module):
 
             rx_aux_stb=rx_synchronizer.resync(self.link_layer.rx_aux_stb),
             rx_aux_frame=rx_synchronizer.resync(self.link_layer.rx_aux_frame),
+            rx_aux_frame_perm=rx_synchronizer.resync(self.link_layer.rx_aux_frame_perm),
             rx_aux_data=rx_synchronizer.resync(self.link_layer.rx_aux_data),
             rx_rt_frame=rx_synchronizer.resync(self.link_layer.rx_rt_frame),
+            rx_rt_frame_perm=rx_synchronizer.resync(self.link_layer.rx_rt_frame_perm),
             rx_rt_data=rx_synchronizer.resync(self.link_layer.rx_rt_data)
         )
+        self.submodules.link_stats = link_layer.LinkLayerStats(link_layer_sync, "rtio")
         self.submodules.rt_packets = ClockDomainsRenamer("rtio")(
             rt_packets.RTPacketSatellite(link_layer_sync))
 
@@ -43,7 +46,8 @@ class DRTIOSatellite(Module):
             self.link_layer)
 
     def get_csrs(self):
-        return self.aux_controller.get_csrs()
+        return (self.link_layer.get_csrs() + self.link_stats.get_csrs() +
+                self.aux_controller.get_csrs())
 
 
 class DRTIOMaster(Module):
@@ -52,6 +56,7 @@ class DRTIOMaster(Module):
             transceiver.encoder, transceiver.decoders)
         self.comb += self.link_layer.rx_ready.eq(transceiver.rx_ready)
 
+        self.submodules.link_stats = link_layer.LinkLayerStats(self.link_layer, "rtio_rx")
         self.submodules.rt_packets = rt_packets.RTPacketMaster(self.link_layer)
         self.submodules.rt_controller = rt_controller.RTController(
             self.rt_packets, channel_count, fine_ts_width)
@@ -63,6 +68,7 @@ class DRTIOMaster(Module):
 
     def get_csrs(self):
         return (self.link_layer.get_csrs() +
+                self.link_stats.get_csrs() +
                 self.rt_controller.get_csrs() +
                 self.rt_manager.get_csrs() +
                 self.aux_controller.get_csrs())
