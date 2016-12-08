@@ -166,7 +166,7 @@ class Channel(Module, SatAddMixin):
         self.widths = widths
         self.orders = orders
         self.parallelism = parallelism
-        self.latency = a1.latency + b.latency + 2
+        self.latency = a1.latency + hbf[0].latency + b.latency + 2
         self.cordic_gain = a1.gain*b.gain
 
         ###
