@@ -47,7 +47,7 @@ class FIR(Module):
         self.i = Signal((width, True))
         self.o = Signal((width, True))
         n = len(coefficients)
-        self.latency = (n + 1)//2 + 1
+        self.latency = (n + 1)//2 + 2
 
         ###
 
@@ -55,18 +55,22 @@ class FIR(Module):
         x = [Signal((width, True)) for _ in range(n)]
         self.sync += [xi.eq(xj) for xi, xj in zip(x, [self.i] + x)]
 
-        # Wire up output
+        if shift is None:
+            shift = width - 1
+
+        # Make products
         o = []
         for i, c in enumerate(coefficients):
             # simplify for halfband and symmetric filters
             if c == 0 or c in coefficients[i + 1:]:
                 continue
-            o.append(c*reduce(add, [
+            m = Signal((width + shift, True))
+            self.sync += m.eq(c*reduce(add, [
                 xj for xj, cj in zip(x[::-1], coefficients) if cj == c
             ]))
+            o.append(m)
 
-        if shift is None:
-            shift = width - 1
+        # Make sum
         self.sync += self.o.eq(reduce(add, o) >> shift)
 
 
@@ -85,7 +89,7 @@ class ParallelFIR(Module):
         # input and output: old to young, decreasing delay
         self.i = [Signal((width, True)) for i in range(p)]
         self.o = [Signal((width, True)) for i in range(p)]
-        self.latency = (n + 1)//2//parallelism + 2  # minus .5
+        self.latency = (n + 1)//2//parallelism + 3  # minus one sample
 
         ###
 
@@ -96,16 +100,19 @@ class ParallelFIR(Module):
         if shift is None:
             shift = width - 1
 
-        # wire up each output
         for j in range(p):
+            # Make products
             o = []
             for i, c in enumerate(coefficients):
                 # simplify for halfband and symmetric filters
                 if c == 0 or c in coefficients[i + 1:]:
                     continue
-                o.append(c*reduce(add, [
+                m = Signal((width + shift, True))
+                self.sync += m.eq(c*reduce(add, [
                     xj for xj, cj in zip(x[-1 - j::-1], coefficients) if cj == c
                 ]))
+                o.append(m)
+            # Make sum
             self.sync += self.o[j].eq(reduce(add, o) >> shift)
 
 
