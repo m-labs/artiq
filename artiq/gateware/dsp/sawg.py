@@ -177,6 +177,8 @@ class Channel(Module, SatAddMixin):
             b.ce.eq(cfg.ce),
             u.o.ack.eq(cfg.ce),
             Cat(a1.clr, a2.clr, b.clr).eq(cfg.clr),
+            b.i.x.eq(hbf[0].o[0]),  # FIXME: rip up
+            b.i.y.eq(hbf[1].o[0]),
         ]
         self.sync += [
             hbf[0].i.eq(self.sat_add(a1.xo[0], a2.xo[0],
@@ -185,8 +187,6 @@ class Channel(Module, SatAddMixin):
             hbf[1].i.eq(self.sat_add(a1.yo[0], a2.yo[0],
                                      limits=cfg.limits[1],
                                      clipped=cfg.clipped[1])),
-            b.i.x.eq(hbf[0].o[0]),  # FIXME: rip up
-            b.i.y.eq(hbf[1].o[0]),
             eqh(du.i, u.o.a0),
         ]
         # wire up outputs and q_{i,o} exchange
