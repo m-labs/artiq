@@ -3,7 +3,7 @@ import unittest
 import migen as mg
 from numpy import int32
 
-from artiq.coredevice import sawg
+from artiq.coredevice import sawg, spline
 from artiq.language import (at_mu, now_mu, delay,
                             core as core_language)
 from artiq.gateware.rtio.phy.sawg import Channel
@@ -36,7 +36,7 @@ class SAWGTest(unittest.TestCase):
     def setUp(self):
         core_language.set_time_manager(sim_time.Manager())
         self.rtio_manager = RTIOManager()
-        self.rtio_manager.patch(sawg)
+        self.rtio_manager.patch(spline)
         self.core = sim_devices.Core({})
         self.core.coarse_ref_period = 6.66666
         self.t = self.core.coarse_ref_period
@@ -46,7 +46,7 @@ class SAWGTest(unittest.TestCase):
                                 parallelism=self.channel.parallelism)
 
     def tearDown(self):
-        self.rtio_manager.unpatch(sawg)
+        self.rtio_manager.unpatch(spline)
 
     def test_instantiate(self):
         pass
