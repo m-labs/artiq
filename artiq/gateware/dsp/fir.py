@@ -4,12 +4,13 @@ import numpy as np
 from migen import *
 
 
-def halfgen4(up, n):
+def halfgen4(width, n):
     """
     http://recycle.lbl.gov/~ldoolitt/halfband
 
     params:
-        * `up` is the stopband width, as a fraction of input sampling rate
+        * `up` is the passband/stopband width, as a fraction of
+          input sampling rate
         * `n is the order of half-band filter to generate
     returns:
         * `a` is the full set of FIR coefficients, `4*n-1` long.
@@ -17,7 +18,7 @@ def halfgen4(up, n):
     """
 
     npt = n*40
-    wmax = 2*np.pi*up
+    wmax = 2*np.pi*width
     wfit = (1 - np.linspace(0, 1, npt)[:, None]**2)*wmax
 
     target = .5*np.ones_like(wfit)
@@ -106,3 +107,44 @@ class ParallelFIR(Module):
                     xj for xj, cj in zip(x[-1 - j::-1], coefficients) if cj == c
                 ]))
             self.sync += self.o[j].eq(reduce(add, o) >> shift)
+
+
+def halfgen4_cascade(rate, width, order=None):
+    """Generate coefficients for cascaded half-band filters.
+
+    :param rate: upsampling rate. power of two
+    :param width: passband/stopband width in units of input sampling rate.
+    :param order: highest order, defaults to :param:`rate`"""
+    if order is None:
+        order = rate
+    coeff = []
+    p = 1
+    while p < rate:
+        p *= 2
+        coeff.append(halfgen4(width*p/rate/2, order*p//rate))
+    return coeff
+
+
+class ParallelHBFUpsampler(Module):
+    """Parallel, power-of-two, half-band, cascading upsampler.
+
+    Coefficients should be normalized to overall gain of 2
+    (highest/center coefficient being 1)."""
+    def __init__(self, coefficients, width=16, **kwargs):
+        self.parallelism = 1
+        self.latency = 0
+        self.width = width
+        self.i = Signal((width, True))
+
+        ###
+
+        i = [self.i]
+        for coeff in coefficients:
+            self.parallelism *= 2
+            # assert coeff[len(coeff)//2 + 1] == 1
+            hbf = ParallelFIR(coeff, self.parallelism, width, **kwargs)
+            self.submodules += hbf
+            self.comb += [a.eq(b) for a, b in zip(hbf.i[::2], i)]
+            i = hbf.o
+            self.latency += hbf.latency
+        self.o = i

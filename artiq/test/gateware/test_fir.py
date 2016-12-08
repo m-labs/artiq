@@ -81,13 +81,19 @@ def _main():
     coeff = fir.halfgen4(.4/2, 8)
     coeff_int = [int(round(c * (1 << 16 - 1))) for c in coeff]
     if False:
-        dut = fir.FIR(coeff_int, width=16)
-        # print(verilog.convert(dut, ios={dut.i, dut.o}))
-        tb = Transfer(dut)
-    else:
+        coeff = [[int(round((1 << 26) * ci)) for ci in c]
+                 for c in fir.halfgen4_cascade(8, width=.4, order=8)]
+        dut = fir.ParallelHBFUpsampler(coeff, width=16, shift=25)
+        print(verilog.convert(dut, ios=set([dut.i] + dut.o)))
+    elif True:
         dut = fir.ParallelFIR(coeff_int, parallelism=4, width=16)
         # print(verilog.convert(dut, ios=set(dut.i + dut.o)))
         tb = ParallelTransfer(dut)
+    else:
+        dut = fir.FIR(coeff_int, width=16)
+        # print(verilog.convert(dut, ios={dut.i, dut.o}))
+        tb = Transfer(dut)
+
     x, y = tb.run(samples=1 << 10, amplitude=.8)
     tb.analyze(x, y)
     plt.show()
