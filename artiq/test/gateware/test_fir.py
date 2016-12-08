@@ -19,8 +19,8 @@ class Transfer(Module):
         for i in range(self.dut.latency):
             yield
         for i in range(len(y)):
-            y[i] = (yield self.dut.o)
             yield
+            y[i] = (yield self.dut.o)
 
     def run(self, samples, amplitude=1.):
         w = 2**(self.dut.width - 1) - 1
@@ -63,12 +63,31 @@ class Transfer(Module):
         return fig
 
 
+class ParallelTransfer(Transfer):
+    def drive(self, x):
+        for xi in x.reshape(-1, self.dut.parallelism):
+            yield [ij.eq(int(xj)) for ij, xj in zip(self.dut.i, xi)]
+            yield
+
+    def record(self, y):
+        for i in range(self.dut.latency):
+            yield
+        for yi in y.reshape(-1, self.dut.parallelism):
+            yield
+            yi[:] = (yield from [(yield o) for o in self.dut.o])
+
+
 def _main():
     coeff = fir.halfgen4(.4/2, 8)
     coeff_int = [int(round(c * (1 << 16 - 1))) for c in coeff]
-    dut = fir.FIR(coeff_int, width=16)
-    # print(verilog.convert(dut, ios={dut.i, dut.o}))
-    tb = Transfer(dut)
+    if False:
+        dut = fir.FIR(coeff_int, width=16)
+        # print(verilog.convert(dut, ios={dut.i, dut.o}))
+        tb = Transfer(dut)
+    else:
+        dut = fir.ParallelFIR(coeff_int, parallelism=4, width=16)
+        # print(verilog.convert(dut, ios=set(dut.i + dut.o)))
+        tb = ParallelTransfer(dut)
     x, y = tb.run(samples=1 << 10, amplitude=.8)
     tb.analyze(x, y)
     plt.show()

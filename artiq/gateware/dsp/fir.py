@@ -45,24 +45,64 @@ class FIR(Module):
         self.width = width
         self.i = Signal((width, True))
         self.o = Signal((width, True))
-        self.latency = (len(coefficients) + 1)//2 + 1
+        n = len(coefficients)
+        self.latency = (n + 1)//2 + 1
 
         ###
 
-        n = len(coefficients)
+        # Delay line: increasing delay
         x = [Signal((width, True)) for _ in range(n)]
-        self.comb += x[0].eq(self.i)
-        self.sync += [x[i + 1].eq(x[i]) for i in range(n - 1)]
+        self.sync += [xi.eq(xj) for xi, xj in zip(x, [self.i] + x)]
 
+        # Wire up output
         o = []
         for i, c in enumerate(coefficients):
             # simplify for halfband and symmetric filters
-            if c == 0 or c in coefficients[:i]:
+            if c == 0 or c in coefficients[i + 1:]:
                 continue
             o.append(c*reduce(add, [
-                xj for xj, cj in zip(x, coefficients) if cj == c
+                xj for xj, cj in zip(x[::-1], coefficients) if cj == c
             ]))
 
         if shift is None:
             shift = width - 1
         self.sync += self.o.eq(reduce(add, o) >> shift)
+
+
+class ParallelFIR(Module):
+    """Full-rate parallelized finite impulse response filter.
+
+    :param coefficients: integer taps.
+    :param parallelism: number of samples per cycle.
+    :param width: bit width of input and output.
+    :param shift: scale factor (as power of two).
+    """
+    def __init__(self, coefficients, parallelism, width=16, shift=None):
+        self.width = width
+        self.parallelism = p = parallelism
+        n = len(coefficients)
+        # input and output: old to young, decreasing delay
+        self.i = [Signal((width, True)) for i in range(p)]
+        self.o = [Signal((width, True)) for i in range(p)]
+        self.latency = (n + 1)//2//parallelism + 2  # minus .5
+
+        ###
+
+        # Delay line: young to old, increasing delay
+        x = [Signal((width, True)) for _ in range(n + p - 1)]
+        self.sync += [xi.eq(xj) for xi, xj in zip(x, self.i[::-1] + x)]
+
+        if shift is None:
+            shift = width - 1
+
+        # wire up each output
+        for j in range(p):
+            o = []
+            for i, c in enumerate(coefficients):
+                # simplify for halfband and symmetric filters
+                if c == 0 or c in coefficients[i + 1:]:
+                    continue
+                o.append(c*reduce(add, [
+                    xj for xj, cj in zip(x[-1 - j::-1], coefficients) if cj == c
+                ]))
+            self.sync += self.o[j].eq(reduce(add, o) >> shift)
