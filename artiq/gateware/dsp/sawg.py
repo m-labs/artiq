@@ -146,9 +146,9 @@ class Channel(Module, SatAddMixin):
 
         self.submodules.a1 = a1 = SplineParallelDDS(widths, orders)
         self.submodules.a2 = a2 = SplineParallelDDS(widths, orders)
-        coeff = [[int(round((1 << 26) * ci)) for ci in c]
+        coeff = [[int(round((1 << 18)*ci)) for ci in c]
                  for c in halfgen4_cascade(parallelism, width=.4, order=8)]
-        hbf = [ParallelHBFUpsampler(coeff, width=width, shift=25)
+        hbf = [ParallelHBFUpsampler(coeff, width=width, shift=17)
                for i in range(2)]
         self.submodules.b = b = SplineParallelDUC(
             widths._replace(a=len(a1.xo[0]), f=widths.f - width), orders,
