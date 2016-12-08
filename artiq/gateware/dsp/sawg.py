@@ -4,9 +4,10 @@ from migen import *
 from misoc.interconnect.stream import Endpoint
 from misoc.cores.cordic import Cordic
 
-from .accu import PhasedAccu, Accu
+from .accu import PhasedAccu
 from .tools import eqh, Delay, SatAddMixin
 from .spline import Spline
+from .fir import ParallelHBFUpsampler, halfgen4_cascade
 
 
 _Widths = namedtuple("_Widths", "t a p f")
@@ -145,13 +146,17 @@ class Channel(Module, SatAddMixin):
 
         self.submodules.a1 = a1 = SplineParallelDDS(widths, orders)
         self.submodules.a2 = a2 = SplineParallelDDS(widths, orders)
+        coeff = [[int(round((1 << 26) * ci)) for ci in c]
+                 for c in halfgen4_cascade(parallelism, width=.4, order=8)]
+        hbf = [ParallelHBFUpsampler(coeff, width=width, shift=25)
+               for i in range(2)]
         self.submodules.b = b = SplineParallelDUC(
             widths._replace(a=len(a1.xo[0]), f=widths.f - width), orders,
-            parallelism=parallelism, a_delay=-a1.latency)
+            parallelism=parallelism, a_delay=-a1.latency-hbf[0].latency)
         cfg = Config(widths.a)
         u = Spline(width=widths.a, order=orders.a)
-        du = Delay(width, a1.latency + b.latency - u.latency)
-        self.submodules += cfg, u, du
+        du = Delay(width, a1.latency + hbf[0].latency + b.latency - u.latency)
+        self.submodules += cfg, u, du, hbf
         self.u = u.tri(widths.t)
         self.i = [cfg.i, self.u, a1.a, a1.f, a1.p, a2.a, a2.f, a2.p, b.f, b.p]
         self.i_names = "cfg u a1 f1 p1 a2 f2 p2 f0 p0".split()
@@ -174,12 +179,14 @@ class Channel(Module, SatAddMixin):
             Cat(a1.clr, a2.clr, b.clr).eq(cfg.clr),
         ]
         self.sync += [
-            b.i.x.eq(self.sat_add(a1.xo[0], a2.xo[0],
-                                  limits=cfg.limits[0],
-                                  clipped=cfg.clipped[0])),
-            b.i.y.eq(self.sat_add(a1.yo[0], a2.yo[0],
-                                  limits=cfg.limits[1],
-                                  clipped=cfg.clipped[1])),
+            hbf[0].i.eq(self.sat_add(a1.xo[0], a2.xo[0],
+                                     limits=cfg.limits[0],
+                                     clipped=cfg.clipped[0])),
+            hbf[1].i.eq(self.sat_add(a1.yo[0], a2.yo[0],
+                                     limits=cfg.limits[1],
+                                     clipped=cfg.clipped[1])),
+            b.i.x.eq(hbf[0].o[0]),  # FIXME: rip up
+            b.i.y.eq(hbf[1].o[0]),
             eqh(du.i, u.o.a0),
         ]
         # wire up outputs and q_{i,o} exchange
