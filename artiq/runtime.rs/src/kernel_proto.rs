@@ -30,6 +30,8 @@ pub enum Message<'a> {
     NowInitReply(u64),
     NowSave(u64),
 
+    RTIOInitRequest,
+
     RunFinished,
     RunException {
         exception: Exception<'a>,

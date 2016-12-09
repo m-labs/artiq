@@ -78,8 +78,7 @@ class MessageEncoder(Module, AutoCSR):
             exception.channel.eq(kcsrs.chan_sel.storage),
             exception.rtio_counter.eq(rtio_counter),
         ]
-        for ename in ("reset", "reset_phy",
-                      "o_underflow_reset", "o_sequence_error_reset",
+        for ename in ("o_underflow_reset", "o_sequence_error_reset",
                       "o_collision_reset", "i_overflow_reset"):
             self.comb += \
                 If(getattr(kcsrs, ename).re,

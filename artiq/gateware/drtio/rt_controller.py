@@ -17,6 +17,9 @@ class _CSRs(AutoCSR):
         self.set_time = CSR()
         self.underflow_margin = CSRStorage(16, reset=200)
 
+        self.reset = CSR()
+        self.reset_phy = CSR()
+
         self.o_get_fifo_space = CSR()
         self.o_dbg_fifo_space = CSRStatus(16)
         self.o_dbg_last_timestamp = CSRStatus(64)
@@ -57,11 +60,11 @@ class RTController(Module):
         # reset
         self.sync += [
             If(rt_packets.reset_ack, rt_packets.reset_stb.eq(0)),
-            If(self.cri.cmd == cri.commands["reset"],
+            If(self.csrs.reset.re,
                 rt_packets.reset_stb.eq(1),
                 rt_packets.reset_phy.eq(0)
             ),
-            If(self.cri.cmd == cri.commands["reset_phy"],
+            If(self.csrs.reset_phy.re,
                 rt_packets.reset_stb.eq(1),
                 rt_packets.reset_phy.eq(1)
             ),

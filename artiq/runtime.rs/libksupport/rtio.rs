@@ -1,6 +1,11 @@
+#[path = "../src/kernel_proto.rs"]
+mod kernel_proto;
+
 use board::csr;
 use core::ptr::{read_volatile, write_volatile};
 use ::ArtiqList;
+use ::send;
+use kernel_proto::*;
 
 const RTIO_O_STATUS_FULL:           u32 = 1;
 const RTIO_O_STATUS_UNDERFLOW:      u32 = 2;
@@ -11,9 +16,7 @@ const RTIO_I_STATUS_EMPTY:          u32 = 1;
 const RTIO_I_STATUS_OVERFLOW:       u32 = 2;
 
 pub extern fn init() {
-    unsafe {
-        csr::rtio::reset_write(1);
-    }
+    send(&RTIOInitRequest);
 }
 
 pub extern fn get_counter() -> i64 {

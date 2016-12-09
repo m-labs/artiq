@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::io::{self, Read, Write, BufWriter};
 use std::btree_set::BTreeSet;
 use {config, rtio_crg, clock, mailbox, rpc_queue, kernel};
+use board::csr;  // TODO: centralize (D)RTIO management
 use logger::BufferLogger;
 use cache::Cache;
 use urc::Urc;
@@ -374,6 +375,14 @@ fn process_kern_message(waiter: Waiter,
 
             &kern::NowSave(now) => {
                 session.congress.now = now;
+                kern_acknowledge()
+            }
+
+            &kern::RTIOInitRequest => {
+                info!("resetting RTIO");
+                unsafe {
+                    csr::rtio_core::reset_write(1);
+                }
                 kern_acknowledge()
             }
 

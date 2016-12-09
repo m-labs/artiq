@@ -9,9 +9,9 @@ class MessageType(Enum):
 
 
 class ExceptionType(Enum):
-    reset = 0b000000
+    legacy_reset = 0b000000
     legacy_reset_falling = 0b000001
-    reset_phy = 0b000010
+    legacy_reset_phy = 0b000010
     legacy_reset_phy_falling = 0b000011
 
     o_underflow_reset = 0b010000

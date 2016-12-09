@@ -8,17 +8,15 @@ from misoc.interconnect.csr import *
 
 commands = {
     "nop": 0,
-    "reset": 1,
-    "reset_phy": 2,
 
-    "write": 3,
-    "read": 4,
+    "write": 1,
+    "read": 2,
 
-    "o_underflow_reset": 5,
-    "o_sequence_error_reset": 6,
-    "o_collision_reset": 7,
-    "o_busy_reset": 8,
-    "i_overflow_reset": 9
+    "o_underflow_reset": 3,
+    "o_sequence_error_reset": 4,
+    "o_collision_reset": 5,
+    "o_busy_reset": 6,
+    "i_overflow_reset": 7
 }
 
 
@@ -57,8 +55,6 @@ class KernelInitiator(Module, AutoCSR):
         self.arb_req = CSRStorage()
         self.arb_gnt = CSRStatus()
 
-        self.reset = CSR()
-        self.reset_phy = CSR()
         self.chan_sel = CSRStorage(24)
 
         self.o_data = CSRStorage(512, write_from_dev=True)
@@ -91,8 +87,6 @@ class KernelInitiator(Module, AutoCSR):
             self.arb_gnt.status.eq(self.cri.arb_gnt),
 
             self.cri.cmd.eq(commands["nop"]),
-            If(self.reset.re, self.cri.cmd.eq(commands["reset"])),
-            If(self.reset_phy.re, self.cri.cmd.eq(commands["reset_phy"])),
             If(self.o_we.re, self.cri.cmd.eq(commands["write"])),
             If(self.i_re.re, self.cri.cmd.eq(commands["read"])),
             If(self.o_underflow_reset.re, self.cri.cmd.eq(commands["o_underflow_reset"])),

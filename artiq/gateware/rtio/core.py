@@ -5,6 +5,7 @@ from migen import *
 from migen.genlib.record import Record
 from migen.genlib.fifo import AsyncFIFO
 from migen.genlib.resetsync import AsyncResetSynchronizer
+from misoc.interconnect.csr import *
 
 from artiq.gateware.rtio import cri, rtlink
 from artiq.gateware.rtio.cdc import *
@@ -264,13 +265,15 @@ class LogChannel:
         self.overrides = []
 
 
-class Core(Module):
+class Core(Module, AutoCSR):
     def __init__(self, channels, fine_ts_width=None, guard_io_cycles=20):
         if fine_ts_width is None:
             fine_ts_width = max(rtlink.get_fine_ts_width(c.interface)
                                 for c in channels)
 
         self.cri = cri.Interface()
+        self.reset = CSR()
+        self.reset_phy = CSR()
         self.comb += self.cri.arb_gnt.eq(1)
 
         # Clocking/Reset
@@ -279,8 +282,8 @@ class Core(Module):
         cmd_reset = Signal(reset=1)
         cmd_reset_phy = Signal(reset=1)
         self.sync += [
-            cmd_reset.eq(self.cri.cmd == cri.commands["reset"]),
-            cmd_reset_phy.eq(self.cri.cmd == cri.commands["reset_phy"])
+            cmd_reset.eq(self.reset.re),
+            cmd_reset_phy.eq(self.reset_phy.re)
         ]
         cmd_reset.attr.add("no_retiming")
         cmd_reset_phy.attr.add("no_retiming")
