@@ -182,4 +182,4 @@ pub fn log(timestamp: i64, data: &[u8]) {
 }
 
 #[cfg(not(has_rtio_log))]
-pub fn log(timestamp: i64, data: &[u8]) {}
+pub fn log(_timestamp: i64, _data: &[u8]) {}
