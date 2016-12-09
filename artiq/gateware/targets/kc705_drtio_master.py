@@ -100,6 +100,7 @@ class Master(MiniSoC, AMPSoC):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
         self.submodules.rtio_core = rtio.Core(rtio_channels, 3)
+        self.csr_devices.append("rtio_core")
 
         self.submodules.rtio = rtio.KernelInitiator()
         self.submodules.rtio_dma = rtio.DMA(self.get_native_sdram_if())
