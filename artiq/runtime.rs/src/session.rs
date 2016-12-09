@@ -3,8 +3,7 @@ use std::{mem, str};
 use std::cell::RefCell;
 use std::io::{self, Read, Write, BufWriter};
 use std::btree_set::BTreeSet;
-use {config, rtio_crg, clock, mailbox, rpc_queue, kernel};
-use board::csr;  // TODO: centralize (D)RTIO management
+use {config, rtio_mgt, clock, mailbox, rpc_queue, kernel};
 use logger::BufferLogger;
 use cache::Cache;
 use urc::Urc;
@@ -249,7 +248,7 @@ fn process_host_message(waiter: Waiter,
                 unexpected!("attempted to switch RTIO clock while a kernel was running")
             }
 
-            if rtio_crg::switch_clock(clk) {
+            if rtio_mgt::crg::switch_clock(clk) {
                 host_write(stream, host::Reply::ClockSwitchCompleted)
             } else {
                 host_write(stream, host::Reply::ClockSwitchFailed)
@@ -380,9 +379,7 @@ fn process_kern_message(waiter: Waiter,
 
             &kern::RTIOInitRequest => {
                 info!("resetting RTIO");
-                unsafe {
-                    csr::rtio_core::reset_write(1);
-                }
+                rtio_mgt::init_core();
                 kern_acknowledge()
             }
 
@@ -514,7 +511,7 @@ fn host_kernel_worker(waiter: Waiter,
                 return Err(io_error("watchdog expired"))
             }
 
-            if !rtio_crg::check() {
+            if !rtio_mgt::crg::check() {
                 try!(host_write(stream, host::Reply::ClockFailure));
                 return Err(io_error("RTIO clock failure"))
             }
@@ -552,7 +549,7 @@ fn flash_kernel_worker(waiter: Waiter,
             return Err(io_error("watchdog expired"))
         }
 
-        if !rtio_crg::check() {
+        if !rtio_mgt::crg::check() {
             return Err(io_error("RTIO clock failure"))
         }
 

@@ -58,7 +58,7 @@ extern fn panic_fmt(args: self::core::fmt::Arguments, file: &'static str, line: 
 mod board;
 mod config;
 mod clock;
-mod rtio_crg;
+mod rtio_mgt;
 mod mailbox;
 mod rpc_queue;
 
@@ -80,8 +80,6 @@ mod session;
 mod moninj;
 #[cfg(has_rtio_analyzer)]
 mod analyzer;
-#[cfg(has_drtio)]
-mod drtio;
 
 extern {
     fn network_init();
@@ -120,20 +118,15 @@ pub unsafe extern fn rust_main() {
         }
         info!("continuing boot");
 
-        rtio_crg::init();
         network_init();
 
         let mut scheduler = sched::Scheduler::new();
+        rtio_mgt::startup(&scheduler);
         scheduler.spawner().spawn(16384, session::thread);
         #[cfg(has_rtio_moninj)]
         scheduler.spawner().spawn(4096, moninj::thread);
         #[cfg(has_rtio_analyzer)]
         scheduler.spawner().spawn(4096, analyzer::thread);
-        #[cfg(has_drtio)]
-        {
-            scheduler.spawner().spawn(4096, drtio::link_thread);
-            scheduler.spawner().spawn(4096, drtio::error_thread);
-        }
 
         loop {
             scheduler.run();
