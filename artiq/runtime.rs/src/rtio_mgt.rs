@@ -42,7 +42,7 @@ mod drtio {
     use board::csr;
     use sched::{Scheduler, Waiter, Spawner};
 
-    pub fn init(scheduler: &Scheduler) {
+    pub fn startup(scheduler: &Scheduler) {
         scheduler.spawner().spawn(4096, link_thread);
         scheduler.spawner().spawn(4096, error_thread);
     }
@@ -64,13 +64,25 @@ mod drtio {
         unsafe {
             csr::drtio::chan_sel_override_write(channel);
             csr::drtio::chan_sel_override_en_write(1);
-            
+
             csr::drtio::o_reset_channel_status_write(1);
             csr::drtio::o_get_fifo_space_write(1);
             while csr::drtio::o_wait_read() == 1 {}
             info!("FIFO space on channel {} is {}", channel, csr::drtio::o_dbg_fifo_space_read());
 
             csr::drtio::chan_sel_override_en_write(0);
+        }
+    }
+
+    pub fn init() {
+        if link_is_up() {
+            unsafe {
+                csr::drtio::reset_write(1);
+                while csr::drtio::o_wait_read() == 1 {}
+            }
+            for channel in 0..16 {
+                init_channel(channel);
+            }
         }
     }
 
@@ -84,9 +96,7 @@ mod drtio {
 
             sync_tsc();
             info!("TSC synced");
-            for channel in 0..16 {
-                init_channel(channel);
-            }
+            init();
             info!("link initialization completed");
 
             waiter.until(|| !link_is_up()).unwrap();
@@ -121,7 +131,8 @@ mod drtio {
 mod drtio {
     use sched::Scheduler;
 
-    pub fn init(_scheduler: &Scheduler) {}
+    pub fn startup(_scheduler: &Scheduler) {}
+    pub fn init() {}
 }
 
 pub fn startup(scheduler: &Scheduler) {
@@ -150,7 +161,7 @@ pub fn startup(scheduler: &Scheduler) {
         warn!("fix clocking and reset the device");
     }
 
-    drtio::init(scheduler);
+    drtio::startup(scheduler);
     init_core()
 }
 
@@ -158,4 +169,5 @@ pub fn init_core() {
     unsafe {
         csr::rtio_core::reset_write(1);
     }
+    drtio::init()
 }
