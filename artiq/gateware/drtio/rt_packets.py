@@ -487,7 +487,7 @@ class RTPacketMaster(Module):
         self.submodules += rx_dp
 
         # Write FIFO and extra data count
-        wfifo = ClockDomainsRenamer({"write": "sys", "read": "rtio"})(
+        wfifo = ClockDomainsRenamer({"write": "rsys", "read": "rio"})(
             AsyncFIFO(64+16+16+512, write_fifo_depth))
         self.submodules += wfifo
         write_timestamp_d = Signal(64)

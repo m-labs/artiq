@@ -1,6 +1,7 @@
 from migen import *
 from migen.genlib.cdc import MultiReg
 from migen.genlib.misc import WaitTimer
+from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from misoc.interconnect.csr import *
 
@@ -70,6 +71,18 @@ class RTController(Module):
             ),
         ]
 
+        local_reset = Signal(reset=1)
+        self.sync += local_reset.eq(self.csrs.reset.re)
+        local_reset.attr.add("no_retiming")
+        self.clock_domains.cd_rsys = ClockDomain()
+        self.clock_domains.cd_rio = ClockDomain()
+        self.comb += [
+            self.cd_rsys.clk.eq(ClockSignal()),
+            self.cd_rsys.rst.eq(local_reset)
+        ]
+        self.comb += self.cd_rio.clk.eq(ClockSignal("rtio"))
+        self.specials += AsyncResetSynchronizer(self.cd_rio, local_reset)
+
         # remote channel status cache
         fifo_spaces_mem = Memory(16, channel_count)
         fifo_spaces = fifo_spaces_mem.get_port(write_capable=True)
@@ -94,7 +107,7 @@ class RTController(Module):
             )
         ]
 
-        fsm = FSM()
+        fsm = ClockDomainsRenamer("rsys")(FSM())
         self.submodules += fsm
 
         status_wait = Signal()
@@ -107,15 +120,11 @@ class RTController(Module):
         ]
         sequence_error_set = Signal()
         underflow_set = Signal()
-        self.sync += [
+        self.sync.rio += [
             If(self.cri.cmd == cri.commands["o_underflow_reset"], status_underflow.eq(0)),
             If(self.cri.cmd == cri.commands["o_sequence_error_reset"], status_sequence_error.eq(0)),
             If(underflow_set, status_underflow.eq(1)),
-            If(sequence_error_set, status_sequence_error.eq(1)),
-            If(self.csrs.reset.re,
-                status_underflow.eq(0),
-                status_sequence_error.eq(0)
-            )
+            If(sequence_error_set, status_sequence_error.eq(1))
         ]
 
         signal_fifo_space_timeout = Signal()

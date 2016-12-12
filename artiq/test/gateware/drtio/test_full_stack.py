@@ -66,7 +66,8 @@ class DUT(Module):
         
 
 class TestFullStack(unittest.TestCase):
-    clocks = {"sys": 8, "rtio": 5, "rtio_rx": 5, "rio": 5, "rio_phy": 5}
+    clocks = {"sys": 8, "rtio": 5, "rtio_rx": 5,
+              "rsys": 8, "rio": 5, "rio_phy": 5}
 
     def test_controller(self):
         dut = DUT(2)
