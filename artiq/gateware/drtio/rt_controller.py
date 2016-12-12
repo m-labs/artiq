@@ -169,6 +169,7 @@ class RTController(Module):
             status_wait.eq(1),
             rt_packets_fifo_request.eq(1),
             rt_packets.write_stb.eq(1),
+            rt_packets.fifo_space_not_ack.eq(1),
             If(rt_packets.write_ack,
                 NextState("GET_FIFO_SPACE_REPLY")
             )
