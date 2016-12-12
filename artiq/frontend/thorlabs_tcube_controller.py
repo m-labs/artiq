@@ -2,6 +2,8 @@
 
 import argparse
 import sys
+import os
+import asyncio
 
 from artiq.devices.thorlabs_tcube.driver import Tdc, Tpz, TdcSim, TpzSim
 from artiq.protocols.pc_rpc import simple_server_loop
@@ -27,6 +29,9 @@ def get_argparser():
 def main():
     args = get_argparser().parse_args()
     init_logger(args)
+
+    if os.name == "nt":
+        asyncio.set_event_loop(asyncio.ProactorEventLoop())
 
     if not args.simulation and args.device is None:
         print("You need to specify either --simulation or -d/--device "

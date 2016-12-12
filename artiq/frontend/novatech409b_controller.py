@@ -5,6 +5,7 @@
 import argparse
 import logging
 import sys
+import os
 import asyncio
 
 from artiq.devices.novatech409b.driver import Novatech409B
@@ -32,6 +33,9 @@ def get_argparser():
 def main():
     args = get_argparser().parse_args()
     init_logger(args)
+
+    if os.name == "nt":
+        asyncio.set_event_loop(asyncio.ProactorEventLoop())
 
     if not args.simulation and args.device is None:
         print("You need to specify either --simulation or -d/--device "
