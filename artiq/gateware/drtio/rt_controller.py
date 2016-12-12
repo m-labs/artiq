@@ -105,6 +105,10 @@ class RTController(Module):
             If(self.cri.cmd == cri.commands["o_sequence_error_reset"], status_sequence_error.eq(0)),
             If(underflow_set, status_underflow.eq(1)),
             If(sequence_error_set, status_sequence_error.eq(1)),
+            If(self.csrs.reset.re,
+                status_underflow.eq(0),
+                status_sequence_error.eq(0)
+            )
         ]
 
         signal_fifo_space_timeout = Signal()
