@@ -151,10 +151,11 @@ class AD9154(Module, AutoCSR):
 
 class Phaser(MiniSoC, AMPSoC):
     mem_map = {
-        "timer_kernel":  0x10000000, # (shadow @0x90000000)
-        "rtio":          0x20000000, # (shadow @0xa0000000)
-        "i2c":           0x30000000, # (shadow @0xb0000000)
-        "mailbox":       0x70000000, # (shadow @0xf0000000)
+        "timer_kernel":  0x10000000,
+        "rtio":          0x20000000,
+        # "rtio_dma":      0x30000000,
+        "i2c":           0x30000000,
+        "mailbox":       0x70000000,
         "ad9154":        0x50000000,
     }
     mem_map.update(MiniSoC.mem_map)
@@ -219,6 +220,7 @@ class Phaser(MiniSoC, AMPSoC):
                              for sawg in self.ad9154.sawgs
                              for phy in sawg.phys)
 
+        self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.LogChannel())
 
@@ -227,20 +229,25 @@ class Phaser(MiniSoC, AMPSoC):
         self.config["DDS_CHANNELS_PER_BUS"] = 1
         self.config["DDS_AD9914"] = None
         self.config["DDS_ONEHOT_SEL"] = None
-        self.config["DDS_RTIO_CLK_RATIO"] = 8
 
         self.submodules.rtio_crg = _PhaserCRG(
             platform, self.ad9154.jesd.cd_jesd.clk)
         self.csr_devices.append("rtio_crg")
-        self.submodules.rtio = rtio.RTIO(rtio_channels)
+        self.submodules.rtio_core = rtio.Core(rtio_channels)
+        self.csr_devices.append("rtio_core")
+        self.submodules.rtio = rtio.KernelInitiator()
+        # self.submodules.rtio_dma = rtio.DMA(self.get_native_sdram_if())
         self.register_kernel_cpu_csrdevice("rtio")
+        # self.register_kernel_cpu_csrdevice("rtio_dma")
+        self.submodules.cri_con = rtio.CRIInterconnectShared(
+            [self.rtio.cri],  # , self.rtio_dma.cri],
+            [self.rtio_core.cri])
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
         self.submodules.rtio_analyzer = rtio.Analyzer(
-            self.rtio, self.get_native_sdram_if())
+            self.rtio, self.rtio_core.cri.counter, self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
 
-        self.config["RTIO_FINE_TS_WIDTH"] = self.rtio.fine_ts_width
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk, self.rtio_crg.cd_rtio.clk)
         platform.add_false_path_constraints(
