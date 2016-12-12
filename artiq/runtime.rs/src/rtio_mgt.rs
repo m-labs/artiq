@@ -53,6 +53,13 @@ mod drtio {
         }
     }
 
+    fn reset_phy() {
+        unsafe {
+            csr::drtio::reset_phy_write(1);
+            while csr::drtio::o_wait_read() == 1 {}
+        }
+    }
+
     fn sync_tsc() {
         unsafe {
             csr::drtio::set_time_write(1);
@@ -94,9 +101,9 @@ mod drtio {
             waiter.sleep(600).unwrap();
             info!("wait for remote side done");
 
+            init();  // clear all FIFOs first
+            reset_phy();
             sync_tsc();
-            info!("TSC synced");
-            init();
             info!("link initialization completed");
 
             waiter.until(|| !link_is_up()).unwrap();
