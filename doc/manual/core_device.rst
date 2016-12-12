@@ -130,6 +130,30 @@ To avoid I/O contention, the startup kernel should first program the TCA6424A ex
 
 See :mod:`artiq.coredevice.i2c` for more details.
 
+
+Phaser
+++++++
+
+The Phaser adapter is an AD9154-FMC-EBZ, a 4 channel 2.4 GHz DAC on an FMC HPC card.
+
++--------------+------------+--------------+
+| RTIO channel | TTL line   | Capability   |
++==============+============+==============+
+| 0            | SMA_GPIO_N | Input+Output |
++--------------+------------+--------------+
+| 1            | LED        | Output       |
++--------------+------------+--------------+
+| 2            | SYSREF     | Input        |
++--------------+------------+--------------+
+| 3            | SYNC       | Input        |
++--------------+------------+--------------+
+
+The SAWG channels start with RTIO channel number 4, each occupying 3 channels.
+
+The board has one non-RTIO SPI bus that is accessible through
+:mod:`artiq.coredevice.ad9154`.
+
+
 Pipistrello
 -----------
 

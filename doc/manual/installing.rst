@@ -141,6 +141,7 @@ Then, you can flash the board:
 
 For the KC705, the next step is to flash the MAC and IP addresses to the board. See :ref:`those instructions <flash-mac-ip-addr>`.
 
+.. _configuring-core-device:
 
 Configuring the core device
 ---------------------------

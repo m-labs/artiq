@@ -10,15 +10,14 @@ from migen.build.xilinx.vivado import XilinxVivadoToolchain
 from migen.build.xilinx.ise import XilinxISEToolchain
 
 from misoc.interconnect.csr import *
-from misoc.interconnect import wishbone
 from misoc.cores import gpio
-from misoc.integration.soc_core import mem_decoder
 from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
 from misoc.integration.builder import builder_args, builder_argdict
 
 from artiq.gateware.soc import AMPSoC, build_artiq_soc
 from artiq.gateware import rtio, nist_clock, nist_qc2
-from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, dds, spi
+from artiq.gateware.rtio.phy import (ttl_simple, ttl_serdes_7series,
+                                     dds, spi)
 from artiq import __version__ as artiq_version
 
 
