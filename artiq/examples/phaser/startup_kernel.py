@@ -10,7 +10,6 @@ class StartupKernel(EnvExperiment):
 
     @kernel
     def run(self):
-        self.core.reset()
         self.ad9154.jesd_enable(0)
         self.ad9154.init()
         self.clock_setup()
