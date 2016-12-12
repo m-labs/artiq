@@ -336,13 +336,13 @@ class Core(Module, AutoCSR):
             collision = Signal()
             busy = Signal()
             self.sync.rsys += [
-                If(selected & (self.cri.cmd == cri.commands["o_underflow_reset"]),
+                If(self.cri.cmd == cri.commands["o_underflow_reset"],
                    underflow.eq(0)),
-                If(selected & (self.cri.cmd == cri.commands["o_sequence_error_reset"]),
+                If(self.cri.cmd == cri.commands["o_sequence_error_reset"],
                    sequence_error.eq(0)),
-                If(selected & (self.cri.cmd == cri.commands["o_collision_reset"]),
+                If(self.cri.cmd == cri.commands["o_collision_reset"],
                    collision.eq(0)),
-                If(selected & (self.cri.cmd == cri.commands["o_busy_reset"]),
+                If(self.cri.cmd == cri.commands["o_busy_reset"],
                    busy.eq(0)),
                 If(o_manager.underflow, underflow.eq(1)),
                 If(o_manager.sequence_error, sequence_error.eq(1)),
