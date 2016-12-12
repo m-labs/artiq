@@ -57,6 +57,19 @@ class RTController(Module):
             If(self.csrs.set_time.re, rt_packets.set_time_stb.eq(1))
         ]
 
+        # reset
+        self.sync += [
+            If(rt_packets.reset_ack, rt_packets.reset_stb.eq(0)),
+            If(self.csrs.reset.re,
+                rt_packets.reset_stb.eq(1),
+                rt_packets.reset_phy.eq(0)
+            ),
+            If(self.csrs.reset_phy.re,
+                rt_packets.reset_stb.eq(1),
+                rt_packets.reset_phy.eq(1)
+            ),
+        ]
+
         # remote channel status cache
         fifo_spaces_mem = Memory(16, channel_count)
         fifo_spaces = fifo_spaces_mem.get_port(write_capable=True)
@@ -67,8 +80,6 @@ class RTController(Module):
 
         # common packet fields
         rt_packets_fifo_request = Signal()
-        rt_packets_reset_request = Signal()
-        rt_packets_reset_phy_request = Signal()
         self.comb += [
             fifo_spaces.adr.eq(chan_sel),
             last_timestamps.adr.eq(chan_sel),
@@ -78,10 +89,6 @@ class RTController(Module):
             rt_packets.write_data.eq(self.cri.o_data),
             If(rt_packets_fifo_request,
                 rt_packets.write_timestamp.eq(0xffff000000000000)
-            ).Elif(rt_packets_reset_request,
-                rt_packets.write_timestamp.eq(0xffff000000000001)
-            ).Elif(rt_packets_reset_phy_request,
-                rt_packets.write_timestamp.eq(0xffff000000000003)
             ).Else(
                 rt_packets.write_timestamp.eq(self.cri.o_timestamp)
             )
@@ -138,12 +145,6 @@ class RTController(Module):
             ),
             If(self.csrs.o_get_fifo_space.re,
                 NextState("GET_FIFO_SPACE")
-            ),
-            If(self.csrs.reset.re,
-                NextState("RESET")
-            ),
-            If(self.csrs.reset_phy.re,
-                NextState("RESET_PHY")
             )
         )
         fsm.act("WRITE",
@@ -187,22 +188,6 @@ class RTController(Module):
             timeout_counter.wait.eq(1),
             If(timeout_counter.done,
                 signal_fifo_space_timeout.eq(1),
-                NextState("IDLE")
-            )
-        )
-        fsm.act("RESET",
-            status_wait.eq(1),
-            rt_packets_reset_request.eq(1),
-            rt_packets.write_stb.eq(1),
-            If(rt_packets.write_ack,
-                NextState("IDLE")
-            )
-        )
-        fsm.act("RESET_PHY",
-            status_wait.eq(1),
-            rt_packets_reset_phy_request.eq(1),
-            rt_packets.write_stb.eq(1),
-            If(rt_packets.write_ack,
                 NextState("IDLE")
             )
         )

@@ -430,8 +430,6 @@ class RTPacketMaster(Module):
         # all interface signals in sys domain unless otherwise specified
 
         # write interface, optimized for throughput
-        # writes, fifo space requests, and reset requests need to be ordered
-        # and all use the same FIFO.
         self.write_stb = Signal()
         self.write_ack = Signal()
         self.write_timestamp = Signal(64)
@@ -440,15 +438,11 @@ class RTPacketMaster(Module):
         self.write_data = Signal(512)
 
         # fifo space interface
-        # write with timestamp[48:] == 0xffff and timestamp[0] == 0
-        # to make a fifo space request
+        # write with timestamp[48:] == 0xffff to make a fifo space request
+        # (space requests have to be ordered wrt writes)
         self.fifo_space_not = Signal()
         self.fifo_space_not_ack = Signal()
         self.fifo_space = Signal(16)
-
-        # reset interface
-        # write with timestamp[48:] == 0xffff, timestamp[0] == 1,
-        # and timestamp[1] == phy to make a reset request
 
         # echo interface
         self.echo_stb = Signal()
@@ -462,6 +456,11 @@ class RTPacketMaster(Module):
         # in rtio domain, must be valid all time while there is
         # a set_time request pending
         self.tsc_value = Signal(64)
+
+        # reset interface
+        self.reset_stb = Signal()
+        self.reset_ack = Signal()
+        self.reset_phy = Signal()
 
         # errors
         self.error_not = Signal()
@@ -566,6 +565,13 @@ class RTPacketMaster(Module):
             self.set_time_stb, self.set_time_ack, None,
             set_time_stb, set_time_ack, None)
 
+        reset_stb = Signal()
+        reset_ack = Signal()
+        reset_phy = Signal()
+        self.submodules += _CrossDomainRequest("rtio",
+            self.reset_stb, self.reset_ack, self.reset_phy,
+            reset_stb, reset_ack, reset_phy)
+
         echo_stb = Signal()
         echo_ack = Signal()
         self.submodules += _CrossDomainRequest("rtio",
@@ -591,11 +597,7 @@ class RTPacketMaster(Module):
         tx_fsm.act("IDLE",
             If(wfb_readable,
                 If(write_timestamp[48:] == 0xffff,
-                    If(write_timestamp[0] == 0,
-                        NextState("FIFO_SPACE")
-                    ).Else(
-                        NextState("RESET")
-                    )
+                    NextState("FIFO_SPACE")
                 ).Else(
                     NextState("WRITE")
                 )
@@ -606,6 +608,8 @@ class RTPacketMaster(Module):
                 ).Elif(set_time_stb,
                     tsc_value_load.eq(1),
                     NextState("SET_TIME")
+                ).Elif(reset_stb,
+                    NextState("RESET")
                 )
             )
         )
@@ -655,9 +659,9 @@ class RTPacketMaster(Module):
             )
         )
         tx_fsm.act("RESET",
-            tx_dp.send("reset", phy=write_timestamp[1]),
+            tx_dp.send("reset", phy=reset_phy),
             If(tx_dp.packet_last,
-                wfb_re.eq(1),
+                reset_ack.eq(1),
                 NextState("IDLE")
             )
         )
