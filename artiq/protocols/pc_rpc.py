@@ -11,7 +11,6 @@ client passes a list as a parameter of an RPC method, and that method
 client's list.
 """
 
-import os
 import socket
 import asyncio
 import threading
@@ -581,11 +580,7 @@ def simple_server_loop(targets, host, port, description=None):
 
     See ``Server`` for a description of the parameters.
     """
-    if os.name == "nt":
-        loop = asyncio.ProactorEventLoop()
-        asyncio.set_event_loop(loop)
-    else:
-        loop = asyncio.get_event_loop()
+    loop = asyncio.get_event_loop()
     try:
         server = Server(targets, description, True)
         loop.run_until_complete(server.start(host, port))
