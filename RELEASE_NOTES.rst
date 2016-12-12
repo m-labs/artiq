@@ -25,6 +25,12 @@ Release notes
 * ``int(a, width=b)`` has been removed. Use ``int32(a)`` and ``int64(a)``.
 
 
+2.1
+---
+
+No further notes.
+
+
 2.0
 ---
 
