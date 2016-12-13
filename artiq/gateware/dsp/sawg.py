@@ -108,7 +108,7 @@ class Config(Module):
                        Signal((width, True), reset=(1 << width - 1) - 1)]
                       for i in range(3)]
         self.clipped = [Signal(2) for i in range(3)]  # TODO
-        self.i = Endpoint([("addr", bits_for(4 + len(self.limits))),
+        self.i = Endpoint([("addr", bits_for(1 + 4 + len(self.limits))),
                            ("data", 16)])
         self.ce = Signal()
 
@@ -119,7 +119,7 @@ class Config(Module):
         pad = Signal()
 
         reg = Array([Cat(div, n), self.clr, self.iq_en, pad] +
-                    [Cat(*l) for l in self.limits])
+                    sum(self.limits, []))
 
         self.comb += [
             self.i.ack.eq(1),
