@@ -74,14 +74,14 @@ class RTController(Module):
         local_reset = Signal(reset=1)
         self.sync += local_reset.eq(self.csrs.reset.re)
         local_reset.attr.add("no_retiming")
-        self.clock_domains.cd_rsys = ClockDomain()
-        self.clock_domains.cd_rio = ClockDomain()
+        self.clock_domains.cd_sys_with_rst = ClockDomain()
+        self.clock_domains.cd_rtio_with_rst = ClockDomain()
         self.comb += [
-            self.cd_rsys.clk.eq(ClockSignal()),
-            self.cd_rsys.rst.eq(local_reset)
+            self.cd_sys_with_rst.clk.eq(ClockSignal()),
+            self.cd_sys_with_rst.rst.eq(local_reset)
         ]
-        self.comb += self.cd_rio.clk.eq(ClockSignal("rtio"))
-        self.specials += AsyncResetSynchronizer(self.cd_rio, local_reset)
+        self.comb += self.cd_rtio_with_rst.clk.eq(ClockSignal("rtio"))
+        self.specials += AsyncResetSynchronizer(self.cd_rtio_with_rst, local_reset)
 
         # remote channel status cache
         fifo_spaces_mem = Memory(16, channel_count)
@@ -107,7 +107,7 @@ class RTController(Module):
             )
         ]
 
-        fsm = ClockDomainsRenamer("rsys")(FSM())
+        fsm = ClockDomainsRenamer("sys_with_rst")(FSM())
         self.submodules += fsm
 
         status_wait = Signal()
@@ -120,7 +120,7 @@ class RTController(Module):
         ]
         sequence_error_set = Signal()
         underflow_set = Signal()
-        self.sync.rio += [
+        self.sync.sys_with_rst += [
             If(self.cri.cmd == cri.commands["o_underflow_reset"], status_underflow.eq(0)),
             If(self.cri.cmd == cri.commands["o_sequence_error_reset"], status_sequence_error.eq(0)),
             If(underflow_set, status_underflow.eq(1)),
@@ -128,7 +128,7 @@ class RTController(Module):
         ]
 
         signal_fifo_space_timeout = Signal()
-        self.sync += [
+        self.sync.sys_with_rst += [
             If(self.csrs.o_fifo_space_timeout.re, self.csrs.o_fifo_space_timeout.w.eq(0)),
             If(signal_fifo_space_timeout, self.csrs.o_fifo_space_timeout.w.eq(1))
         ]
