@@ -102,18 +102,19 @@ class ParallelFIR(Module):
 
         for j in range(p):
             # Make products
-            o = []
+            o = Signal((width + shift, True))
             for i, c in enumerate(coefficients):
                 # simplify for halfband and symmetric filters
                 if c == 0 or c in coefficients[i + 1:]:
                     continue
-                m = Signal((width + shift, True))
+                m = Signal.like(o)
                 self.sync += m.eq(c*reduce(add, [
                     xj for xj, cj in zip(x[-1 - j::-1], coefficients) if cj == c
                 ]))
-                o.append(m)
+                o0, o = o, Signal.like(o)
+                self.comb += o.eq(o0 + m)
             # Make sum
-            self.sync += self.o[j].eq(reduce(add, o) >> shift)
+            self.sync += self.o[j].eq(o >> shift)
 
 
 def halfgen4_cascade(rate, width, order=None):
