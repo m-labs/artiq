@@ -77,14 +77,31 @@ class ParallelTransfer(Transfer):
             yi[:] = (yield from [(yield o) for o in self.dut.o])
 
 
+class UpTransfer(ParallelTransfer):
+    def drive(self, x):
+        x = x.reshape(-1, len(self.dut.o))
+        x[:, 1:] = 0
+        for xi in x:
+            yield self.dut.i.eq(int(xi[0]))
+            yield
+
+    def record(self, y):
+        for i in range(self.dut.latency):
+            yield
+        for yi in y.reshape(-1, len(self.dut.o)):
+            yield
+            yi[:] = (yield from [(yield o) for o in self.dut.o])
+
+
 def _main():
     coeff = fir.halfgen4(.4/2, 8)
     coeff_int = [int(round(c * (1 << 16 - 1))) for c in coeff]
     if False:
-        coeff = [[int(round((1 << 26) * ci)) for ci in c]
+        coeff = [[int(round((1 << 19) * ci)) for ci in c]
                  for c in fir.halfgen4_cascade(8, width=.4, order=8)]
-        dut = fir.ParallelHBFUpsampler(coeff, width=16, shift=25)
-        print(verilog.convert(dut, ios=set([dut.i] + dut.o)))
+        dut = fir.ParallelHBFUpsampler(coeff, width=16, shift=18)
+        # print(verilog.convert(dut, ios=set([dut.i] + dut.o)))
+        tb = UpTransfer(dut)
     elif True:
         dut = fir.ParallelFIR(coeff_int, parallelism=4, width=16)
         # print(verilog.convert(dut, ios=set(dut.i + dut.o)))
@@ -94,7 +111,7 @@ def _main():
         # print(verilog.convert(dut, ios={dut.i, dut.o}))
         tb = Transfer(dut)
 
-    x, y = tb.run(samples=1 << 10, amplitude=.8)
+    x, y = tb.run(samples=1 << 10, amplitude=.5)
     tb.analyze(x, y)
     plt.show()
 
