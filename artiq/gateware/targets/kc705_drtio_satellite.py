@@ -8,6 +8,7 @@ from misoc.integration.builder import *
 from misoc.integration.soc_core import mem_decoder
 from misoc.targets.kc705 import BaseSoC, soc_kc705_args, soc_kc705_argdict
 
+from artiq.gateware.ad9154_fmc_ebz import ad9154_fmc_ebz
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple
 from artiq.gateware.drtio.transceiver import gtx_7series
@@ -116,14 +117,6 @@ class Si5324ResetClock(Module):
             )
 
 
-fmc_clock_io = [
-    ("ad9154_refclk", 0,
-        Subsignal("p", Pins("HPC:GBTCLK0_M2C_P")),
-        Subsignal("n", Pins("HPC:GBTCLK0_M2C_N")),
-    )
-]
-
-
 class Satellite(BaseSoC):
     mem_map = {
         "drtio_aux": 0x50000000,
@@ -181,7 +174,7 @@ class Satellite(BaseSoC):
         elif cfg == "sawg_3g":
             # 3Gb link, 150MHz RTIO clock
             # with SAWG on local RTIO and AD9154-FMC-EBZ
-            platform.register_extension(fmc_clock_io)
+            platform.register_extension(ad9154_fmc_ebz)
             self.submodules.transceiver = gtx_7series.GTX_3G(
                 clock_pads=platform.request("ad9154_refclk"),
                 tx_pads=tx_pads,
