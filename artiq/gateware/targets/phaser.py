@@ -169,6 +169,9 @@ class Phaser(MiniSoC, AMPSoC):
                          ident=artiq_version,
                          **kwargs)
         AMPSoC.__init__(self)
+        self.platform.toolchain.attr_translate["use_multiplier"] = \
+            ("use_dsp48", "yes")
+
         self.platform.toolchain.bitstream_commands.extend([
             "set_property BITSTREAM.GENERAL.COMPRESS True [current_design]",
         ])
