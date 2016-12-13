@@ -159,10 +159,18 @@ class _OutputManager(Module):
             )
         self.comb += fifo.re.eq(fifo.readable & (~dout_stb | dout_ack))
 
+        # latency compensation
+        if interface.delay:
+            counter_rtio = Signal.like(counter.value_rtio)
+            self.sync.rio += counter_rtio.eq(counter.value_rtio -
+                                             interface.delay + 1)
+        else:
+            counter_rtio = counter.value_rtio
+
         # FIFO read through buffer
         self.comb += [
             dout_ack.eq(
-                dout.timestamp[fine_ts_width:] == counter.value_rtio),
+                dout.timestamp[fine_ts_width:] == counter_rtio),
             interface.stb.eq(dout_stb & dout_ack)
         ]
 
@@ -210,14 +218,22 @@ class _InputManager(Module):
             fifo_out.raw_bits().eq(fifo.dout)
         ]
 
+        # latency compensation
+        if interface.delay:
+            counter_rtio = Signal.like(counter.value_rtio)
+            self.sync.rio += counter_rtio.eq(counter.value_rtio -
+                                             interface.delay + 1)
+        else:
+            counter_rtio = counter.value_rtio
+
         # FIFO write
         if data_width:
             self.comb += fifo_in.data.eq(interface.data)
         if interface.timestamped:
             if fine_ts_width:
-                full_ts = Cat(interface.fine_ts, counter.value_rtio)
+                full_ts = Cat(interface.fine_ts, counter_rtio)
             else:
-                full_ts = counter.value_rtio
+                full_ts = counter_rtio
             self.comb += fifo_in.timestamp.eq(full_ts)
         self.comb += fifo.we.eq(interface.stb)
 

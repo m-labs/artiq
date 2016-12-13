@@ -3,7 +3,8 @@ from migen import *
 
 class OInterface:
     def __init__(self, data_width, address_width=0,
-                 fine_ts_width=0, enable_replace=True):
+                 fine_ts_width=0, enable_replace=True,
+                 delay=0):
         self.stb = Signal()
         self.busy = Signal()
 
@@ -16,17 +17,22 @@ class OInterface:
 
         self.enable_replace = enable_replace
 
+        if delay < 0:
+            raise ValueError("only positive delays allowed", delay)
+        self.delay = delay
+
     @classmethod
     def like(cls, other):
         return cls(get_data_width(other),
                    get_address_width(other),
                    get_fine_ts_width(other),
-                   other.enable_replace)
+                   other.enable_replace,
+                   other.delay)
 
 
 class IInterface:
     def __init__(self, data_width,
-                 timestamped=True, fine_ts_width=0):
+                 timestamped=True, fine_ts_width=0, delay=0):
         self.stb = Signal()
 
         if data_width:
@@ -34,14 +40,18 @@ class IInterface:
         if fine_ts_width:
             self.fine_ts = Signal(fine_ts_width)
 
-        self.timestamped = timestamped
         assert(not fine_ts_width or timestamped)
+        self.timestamped = timestamped
+        if delay < 0:
+            raise ValueError("only positive delays")
+        self.delay = delay
 
     @classmethod
     def like(cls, other):
         return cls(get_data_width(other),
                    other.timestamped,
-                   get_fine_ts_width(other))
+                   get_fine_ts_width(other),
+                   delay)
 
 
 class Interface:
