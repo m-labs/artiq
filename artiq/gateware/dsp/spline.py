@@ -37,6 +37,7 @@ class Spline(Module):
                   enumerate(self.i.payload.layout[::-1])]
         layout.reverse()
         i = Endpoint(layout)
+        i.latency = self.latency
         self.comb += [
             self.i.stb.eq(i.stb),
             i.ack.eq(self.i.ack),
