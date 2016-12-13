@@ -65,7 +65,6 @@ class FIR(Module):
             if c == 0 or c in coefficients[i + 1:]:
                 continue
             m = Signal((width + shift, True))
-            m.attr.add("use_multiplier")
             self.sync += m.eq(c*reduce(add, [
                 xj for xj, cj in zip(x[::-1], coefficients) if cj == c
             ]))
@@ -109,7 +108,6 @@ class ParallelFIR(Module):
                 if c == 0 or c in coefficients[i + 1:]:
                     continue
                 m = Signal((width + shift, True))
-                m.attr.add("use_multiplier")
                 self.sync += m.eq(c*reduce(add, [
                     xj for xj, cj in zip(x[-1 - j::-1], coefficients) if cj == c
                 ]))
