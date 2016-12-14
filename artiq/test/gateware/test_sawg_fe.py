@@ -91,9 +91,7 @@ class SAWGTest(unittest.TestCase):
                 # print("{}: set ch {} to {}".format(time, channel, hex(data)))
 
         def log(dut, data, n):
-            for i in range(dut.latency):
-                yield
-            for i in range(n):
+            for i in range(n + dut.latency):
                 yield
                 data.append((yield from [(yield _) for _ in dut.o]))
 
@@ -138,6 +136,7 @@ class SAWGTest(unittest.TestCase):
         d.offset.set_coeff([0])
         delay(1*self.t)
         out = self.run_channel(self.rtio_manager.outputs)
+        out = out[self.channel.latency + self.channel.u.latency:][:11]
         for i in range(len(out) - 1):
             with self.subTest(i):
                 v = 100 + i*10
@@ -164,6 +163,7 @@ class SAWGTest(unittest.TestCase):
         ch.set(.2)
         delay(1*self.t)
         out = self.run_channel(self.rtio_manager.outputs)
+        out = out[self.channel.latency + self.channel.u.latency:][:14]
         a = int(round(.1*ch.scale))
         da = int(round(.1*ch.scale*(1 << ch.width)//13))
         for i in range(len(out) - 1):
