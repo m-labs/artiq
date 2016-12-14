@@ -20,7 +20,8 @@ class Transmitter(Module, AutoCSR):
         self.aux_tx = CSR()
         self.specials.mem = Memory(mem_dw, max_packet//(mem_dw//8))
 
-        converter = stream.Converter(mem_dw, ll_dw)
+        converter = ClockDomainsRenamer("rtio")(
+            stream.Converter(mem_dw, ll_dw))
         self.submodules += converter
 
         # when continuously fed, the Converter outputs data continuously
@@ -107,7 +108,8 @@ class Receiver(Module, AutoCSR):
         mem_dw = max(min_mem_dw, ll_dw)
         self.specials.mem = Memory(mem_dw, max_packet//(mem_dw//8))
 
-        converter = stream.Converter(ll_dw, mem_dw)
+        converter = ClockDomainsRenamer("rtio_rx")(
+            stream.Converter(ll_dw, mem_dw))
         self.submodules += converter
 
         # when continuously drained, the Converter accepts data continuously
