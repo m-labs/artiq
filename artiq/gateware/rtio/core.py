@@ -162,8 +162,8 @@ class _OutputManager(Module):
         # latency compensation
         if interface.delay:
             counter_rtio = Signal.like(counter.value_rtio)
-            self.sync.rio += counter_rtio.eq(counter.value_rtio -
-                                             interface.delay + 1)
+            self.sync.rtio += counter_rtio.eq(counter.value_rtio -
+                                              interface.delay + 1)
         else:
             counter_rtio = counter.value_rtio
 
@@ -221,8 +221,8 @@ class _InputManager(Module):
         # latency compensation
         if interface.delay:
             counter_rtio = Signal.like(counter.value_rtio)
-            self.sync.rio += counter_rtio.eq(counter.value_rtio -
-                                             interface.delay + 1)
+            self.sync.rtio += counter_rtio.eq(counter.value_rtio -
+                                              interface.delay + 1)
         else:
             counter_rtio = counter.value_rtio
 
