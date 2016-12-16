@@ -55,6 +55,7 @@ extern fn panic_fmt(args: self::core::fmt::Arguments, file: &'static str, line: 
     }
 }
 
+#[path = "../libbsp/board.rs"]
 mod board;
 mod config;
 mod clock;

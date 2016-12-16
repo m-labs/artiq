@@ -35,7 +35,7 @@ all: runtime.bin runtime.fbi
 $(RUSTOUT_DIRECTORY)/libruntime.a: ksupport.elf
 	CARGO_TARGET_DIR=$(realpath .)/cargo \
 		cargo rustc --verbose \
-			--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../runtime.rs/Cargo.toml) \
+			--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../firmware/runtime/Cargo.toml) \
 			--target=or1k-unknown-none -- \
 			$(shell cat $(BUILDINC_DIRECTORY)/generated/rust-cfg) \
 			-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s \
@@ -53,7 +53,7 @@ runtime.elf: $(OBJECTS) $(RUSTOUT_DIRECTORY)/libruntime.a
 $(RUSTOUT_DIRECTORY)/libksupport.a:
 	CARGO_TARGET_DIR=$(realpath .)/cargo \
 		cargo rustc --verbose \
-			--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../runtime.rs/libksupport/Cargo.toml) \
+			--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../firmware/libksupport/Cargo.toml) \
 			--target=or1k-unknown-none -- \
 			$(shell cat $(BUILDINC_DIRECTORY)/generated/rust-cfg) \
 			--cfg ksupport \

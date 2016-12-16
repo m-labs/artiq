@@ -1,4 +1,4 @@
-#[path = "../src/kernel_proto.rs"]
+#[path = "../runtime/kernel_proto.rs"]
 mod kernel_proto;
 
 use board::csr;

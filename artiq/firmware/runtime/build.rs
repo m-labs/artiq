@@ -18,8 +18,8 @@ fn main() {
     let id = format!("{}+{}.{}", id[0], id[1], id[2]);
     writeln!(f, "const GIT_COMMIT: &'static str = {:?};", id).unwrap();
 
-    println!("cargo:rerun-if-changed=../../.git/HEAD");
-    for entry in WalkDir::new("../../.git/refs") {
+    println!("cargo:rerun-if-changed=../../../.git/HEAD");
+    for entry in WalkDir::new("../../../.git/refs") {
         let entry = entry.unwrap();
         println!("cargo:rerun-if-changed={}", entry.path().display());
     }

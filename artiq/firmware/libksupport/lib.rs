@@ -8,16 +8,16 @@ extern crate std_artiq as std;
 extern crate libc;
 extern crate byteorder;
 
-#[path = "../src/board.rs"]
+#[path = "../libbsp/board.rs"]
 mod board;
-#[path = "../src/mailbox.rs"]
+#[path = "../runtime/mailbox.rs"]
 mod mailbox;
 
-#[path = "../src/proto.rs"]
+#[path = "../runtime/proto.rs"]
 mod proto;
-#[path = "../src/kernel_proto.rs"]
+#[path = "../runtime/kernel_proto.rs"]
 mod kernel_proto;
-#[path = "../src/rpc_proto.rs"]
+#[path = "../runtime/rpc_proto.rs"]
 mod rpc_proto;
 
 mod dyld;
@@ -110,7 +110,7 @@ macro_rules! println {
     ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
 }
 
-#[path = "../src/rpc_queue.rs"]
+#[path = "../runtime/rpc_queue.rs"]
 mod rpc_queue;
 
 #[lang = "panic_fmt"]

@@ -1,5 +1,5 @@
 [package]
-authors = ["The ARTIQ Project Developers"]
+authors = ["M-Labs"]
 name = "runtime"
 version = "0.0.0"
 build = "build.rs"
@@ -10,11 +10,11 @@ walkdir = "0.1"
 [lib]
 name = "runtime"
 crate-type = ["staticlib"]
-path = "src/lib.rs"
+path = "lib.rs"
 
 [dependencies]
-std_artiq = { path = "libstd_artiq", features = ["alloc"] }
-lwip = { path = "liblwip", default-features = false }
+std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
+lwip = { path = "../liblwip", default-features = false }
 fringe = { version = "= 1.1.0", default-features = false, features = ["alloc"] }
 log = { version = "0.3", default-features = false, features = ["max_level_debug"] }
 log_buffer = { version = "1.0" }
