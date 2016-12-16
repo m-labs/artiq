@@ -10,6 +10,7 @@ crate-type = ["staticlib"]
 
 [dependencies]
 std_artiq = { path = "../libstd_artiq" }
+bsp = { path = "../libbsp" }
 byteorder = { version = "0.5", default-features = false }
 
 [profile.dev]

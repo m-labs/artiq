@@ -11,6 +11,7 @@ extern crate log_buffer;
 extern crate byteorder;
 extern crate fringe;
 extern crate lwip;
+extern crate bsp;
 
 use core::fmt::Write;
 use logger::BufferLogger;
@@ -55,8 +56,6 @@ extern fn panic_fmt(args: self::core::fmt::Arguments, file: &'static str, line: 
     }
 }
 
-#[path = "../libbsp/board.rs"]
-mod board;
 mod config;
 mod clock;
 mod rtio_mgt;
@@ -105,7 +104,7 @@ pub unsafe extern fn rust_main() {
         clock::init();
         info!("booting ARTIQ");
         info!("software version {}", GIT_COMMIT);
-        info!("gateware version {}", ::board::ident(&mut [0; 64]));
+        info!("gateware version {}", bsp::board::ident(&mut [0; 64]));
 
         let t = clock::get_ms();
         info!("press 'e' to erase startup and idle kernels...");
@@ -138,7 +137,7 @@ pub unsafe extern fn rust_main() {
 
 #[no_mangle]
 pub unsafe extern fn isr() {
-    use board::{irq, csr};
+    use bsp::board::{irq, csr};
     extern { fn uart_isr(); }
 
     let irqs = irq::pending() & irq::get_mask();

@@ -10,6 +10,7 @@ use urc::Urc;
 use sched::{ThreadHandle, Waiter, Spawner};
 use sched::{TcpListener, TcpStream, SocketAddr, IP_ANY};
 use byteorder::{ByteOrder, NetworkEndian};
+use bsp::board;
 
 use rpc_proto as rpc;
 use session_proto as host;
@@ -201,7 +202,7 @@ fn process_host_message(waiter: Waiter,
                         session: &mut Session) -> io::Result<()> {
     match try!(host_read(stream)) {
         host::Request::Ident =>
-            host_write(stream, host::Reply::Ident(::board::ident(&mut [0; 64]))),
+            host_write(stream, host::Reply::Ident(board::ident(&mut [0; 64]))),
 
         // artiq_corelog
         host::Request::Log => {

@@ -1,7 +1,7 @@
 #[path = "../runtime/kernel_proto.rs"]
 mod kernel_proto;
 
-use board::csr;
+use bsp::board::csr;
 use core::ptr::{read_volatile, write_volatile};
 use ::ArtiqList;
 use ::send;

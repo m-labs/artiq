@@ -1,5 +1,5 @@
 use std::io::{self, Write};
-use board::{self, csr};
+use bsp::board::{self, csr};
 use sched::{Waiter, Spawner};
 use sched::{TcpListener, TcpStream, SocketAddr, IP_ANY};
 use analyzer_proto::*;

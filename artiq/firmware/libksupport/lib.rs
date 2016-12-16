@@ -7,9 +7,8 @@
 extern crate std_artiq as std;
 extern crate libc;
 extern crate byteorder;
+extern crate bsp;
 
-#[path = "../libbsp/board.rs"]
-mod board;
 #[path = "../runtime/mailbox.rs"]
 mod mailbox;
 

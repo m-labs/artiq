@@ -1,6 +1,6 @@
 use std::vec::Vec;
 use std::io;
-use board::csr;
+use bsp::board::csr;
 use sched::{Waiter, Spawner};
 use sched::{UdpSocket, SocketAddr, IP_ANY};
 use moninj_proto::*;

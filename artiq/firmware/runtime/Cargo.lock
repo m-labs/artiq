@@ -2,6 +2,7 @@
 name = "runtime"
 version = "0.0.0"
 dependencies = [
+ "bsp 0.0.0",
  "byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "fringe 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -13,6 +14,10 @@ dependencies = [
 
 [[package]]
 name = "alloc_artiq"
+version = "0.0.0"
+
+[[package]]
+name = "bsp"
 version = "0.0.0"
 
 [[package]]

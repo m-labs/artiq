@@ -1,7 +1,7 @@
-use board::csr;
+use bsp::board::csr;
 
 const INIT: u64 = ::core::i64::MAX as u64;
-const FREQ: u64 = ::board::csr::CONFIG_CLOCK_FREQUENCY as u64;
+const FREQ: u64 = csr::CONFIG_CLOCK_FREQUENCY as u64;
 
 pub fn init() {
     unsafe {

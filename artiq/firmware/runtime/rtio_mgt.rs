@@ -1,11 +1,11 @@
 use config;
-use board::csr;
+use bsp::board::csr;
 use sched::Scheduler;
 
 #[cfg(has_rtio_crg)]
 pub mod crg {
     use clock;
-    use board::csr;
+    use bsp::board::csr;
 
     pub fn init() {
         unsafe { csr::rtio_crg::pll_reset_write(0) }
@@ -39,7 +39,7 @@ pub mod crg {
 
 #[cfg(has_drtio)]
 mod drtio {
-    use board::csr;
+    use bsp::board::csr;
     use sched::{Scheduler, Waiter, Spawner};
 
     pub fn startup(scheduler: &Scheduler) {

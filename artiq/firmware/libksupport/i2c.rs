@@ -1,4 +1,4 @@
-use board::csr;
+use bsp::board::csr;
 
 fn half_period() {
     unsafe {
@@ -16,7 +16,7 @@ fn half_period() {
 
 #[cfg(has_i2c)]
 mod imp {
-    use board::csr;
+    use bsp::board::csr;
 
     fn sda_bit(busno: u32) -> u32 { 1 << (2 * busno + 1) }
     fn scl_bit(busno: u32) -> u32 { 1 << (2 * busno) }
