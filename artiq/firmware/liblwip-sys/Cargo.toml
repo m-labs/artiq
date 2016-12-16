@@ -1,5 +1,5 @@
 [package]
-authors = ["The ARTIQ Project Developers"]
+authors = ["M-Labs"]
 name = "lwip-sys"
 version = "0.0.0"
 
