@@ -1,11 +1,10 @@
 from operator import add
 from functools import reduce
-from collections import namedtuple
 import numpy as np
 from migen import *
 
 
-def halfgen4(width, n):
+def halfgen4(width, n, df=1e-3):
     """
     http://recycle.lbl.gov/~ldoolitt/halfband
 
@@ -24,13 +23,18 @@ def halfgen4(width, n):
 
     target = .5*np.ones_like(wfit)
     basis = np.cos(wfit*np.arange(1, 2*n, 2))
-    l = np.linalg.pinv(basis)@target
-
     weight = np.ones_like(wfit)
+
+    f0 = None
+
     for i in range(40):
-        err = np.fabs(basis@l - .5)
-        weight[err > .99*np.max(err)] *= 1 + 1.5/(i + 11)
         l = np.linalg.pinv(basis*weight)@(target*weight)
+        err = np.fabs(basis@l - .5)
+        f = np.max(err)/np.mean(err)
+        if f0 and (f0 - f)/(f0 + f) < df/2:
+            break
+        f0 = f
+        weight[err > (1 - df)*np.max(err)] *= 1 + 1.5/(i + 11)
     a = np.c_[l, np.zeros_like(l)].ravel()[:-1]
     a = np.r_[a[::-1], 1, a]/2
     return a
