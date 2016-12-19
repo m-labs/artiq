@@ -5,7 +5,6 @@ import asyncio
 import asyncserial
 
 logger = logging.getLogger(__name__)
-logger.setLevel(-10)
 
 
 class UnexpectedResponse(Exception):
