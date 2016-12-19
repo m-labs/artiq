@@ -47,9 +47,12 @@ class KoradKA3005P:
         return r
 
     async def _ser_write(self, cmd):
-        logger.debug("_write %s: ", cmd)
-        await asyncio.sleep(0.1)
-        await self.port.write(cmd.encode('ascii'))
+        if self.simulation:
+            logger.info("simulation _ser_write(\"%s\")", cmd)
+        else:
+            logger.debug("_ser_write(\"%s\")", cmd)
+            await asyncio.sleep(0.1)
+            await self.port.write(cmd.encode("ascii"))
 
     async def setup(self):
         """Configure in known state."""
