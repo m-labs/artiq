@@ -272,6 +272,9 @@ unsafe fn attribute_writeback(typeinfo: *const ()) {
         objects:    *const *const ()
     }
 
+    // artiq_compile'd kernels don't include type information
+    if typeinfo.is_null() { return }
+
     let mut tys = typeinfo as *const *const Type;
     while !(*tys).is_null() {
         let ty = *tys;
