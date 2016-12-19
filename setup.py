@@ -36,6 +36,7 @@ console_scripts = [
     "artiq_flash=artiq.frontend.artiq_flash:main",
     "lda_controller=artiq.frontend.lda_controller:main",
     "novatech409b_controller=artiq.frontend.novatech409b_controller:main",
+    "korad_ka3005p_controller=artiq.frontend.korad_ka3005p_controller:main",
     "pdq2_client=artiq.frontend.pdq2_client:main",
     "pdq2_controller=artiq.frontend.pdq2_controller:main",
     "thorlabs_tcube_controller=artiq.frontend.thorlabs_tcube_controller:main",
