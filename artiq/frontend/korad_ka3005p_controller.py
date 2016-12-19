@@ -6,6 +6,7 @@ import argparse
 import logging
 import sys
 import asyncio
+import os
 
 from artiq.devices.korad_ka3005p.driver import KoradKA3005P
 from artiq.protocols.pc_rpc import simple_server_loop
@@ -32,6 +33,9 @@ def get_argparser():
 def main():
     args = get_argparser().parse_args()
     init_logger(args)
+
+    if os.name == "nt":
+        asyncio.set_event_loop(asyncio.ProactorEventLoop())
 
     if not args.simulation and args.device is None:
         print("You need to specify either --simulation or -d/--device "
