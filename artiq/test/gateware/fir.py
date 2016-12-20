@@ -11,16 +11,16 @@ class Transfer(Module):
         self.submodules.dut = dut
 
     def drive(self, x):
-        for xi in x:
-            yield self.dut.i.eq(int(xi))
+        for xi in x.reshape(-1, self.dut.parallelism):
+            yield [ij.eq(int(xj)) for ij, xj in zip(self.dut.i, xi)]
             yield
 
     def record(self, y):
         for i in range(self.dut.latency):
             yield
-        for i in range(len(y)):
+        for yi in y.reshape(-1, self.dut.parallelism):
             yield
-            y[i] = (yield self.dut.o)
+            yi[:] = (yield from [(yield o) for o in self.dut.o])
 
     def run(self, samples, amplitude=1.):
         w = 2**(self.dut.width - 1) - 1
@@ -63,21 +63,7 @@ class Transfer(Module):
         return fig
 
 
-class ParallelTransfer(Transfer):
-    def drive(self, x):
-        for xi in x.reshape(-1, self.dut.parallelism):
-            yield [ij.eq(int(xj)) for ij, xj in zip(self.dut.i, xi)]
-            yield
-
-    def record(self, y):
-        for i in range(self.dut.latency):
-            yield
-        for yi in y.reshape(-1, self.dut.parallelism):
-            yield
-            yi[:] = (yield from [(yield o) for o in self.dut.o])
-
-
-class UpTransfer(ParallelTransfer):
+class UpTransfer(Transfer):
     def drive(self, x):
         x = x.reshape(-1, len(self.dut.o))
         x[:, 1:] = 0
@@ -94,21 +80,15 @@ class UpTransfer(ParallelTransfer):
 
 
 def _main():
-    coeff = fir.halfgen4(.4/2, 8)
-    coeff_int = [int(round(c * (1 << 16 - 1))) for c in coeff]
-    if False:
-        coeff = [[int(round((1 << 19) * ci)) for ci in c]
-                 for c in fir.halfgen4_cascade(8, width=.4, order=8)]
-        dut = fir.ParallelHBFUpsampler(coeff, width=16, shift=18)
+    if True:
+        coeff = fir.halfgen4_cascade(8, width=.4, order=8)
+        dut = fir.ParallelHBFUpsampler(coeff, width=16)
         # print(verilog.convert(dut, ios=set([dut.i] + dut.o)))
         tb = UpTransfer(dut)
-    elif True:
-        dut = fir.ParallelFIR(coeff_int, parallelism=4, width=16)
-        # print(verilog.convert(dut, ios=set(dut.i + dut.o)))
-        tb = ParallelTransfer(dut)
     else:
-        dut = fir.FIR(coeff_int, width=16)
-        # print(verilog.convert(dut, ios={dut.i, dut.o}))
+        coeff = fir.halfgen4(.4/2, 8)
+        dut = fir.ParallelFIR(coeff, parallelism=4, width=16)
+        # print(verilog.convert(dut, ios=set(dut.i + dut.o)))
         tb = Transfer(dut)
 
     x, y = tb.run(samples=1 << 10, amplitude=.5)
