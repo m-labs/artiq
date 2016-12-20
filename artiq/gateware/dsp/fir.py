@@ -83,7 +83,10 @@ class FIR(Module):
             else:
                 self.comb += o0.eq(o + m)
             assert js[0] - delay >= 0
-            self.sync += m.eq(c*reduce(add, [x[j - delay] for j in js]))
+            xs = [x[j - delay] for j in js]
+            s = Signal((bits_for(len(xs)) - 1 + len(xs[0]), True))
+            self.comb += s.eq(sum(xs))
+            self.sync += m.eq(c*s)
         # symmetric rounding
         if shift:
             self.comb += o.eq((1 << shift - 1) - 1)
@@ -136,7 +139,10 @@ class ParallelFIR(Module):
                 else:
                     self.comb += o0.eq(o + m)
                 assert js[0] - delay >= 0
-                self.sync += m.eq(c*reduce(add, [x[j - delay] for j in js]))
+                xs = [x[j - delay] for j in js]
+                s = Signal((bits_for(len(xs)) - 1 + len(xs[0]), True))
+                self.comb += s.eq(sum(xs))
+                self.sync += m.eq(c*s)
             # symmetric rounding
             if shift:
                 self.comb += o.eq((1 << shift - 1) - 1)
