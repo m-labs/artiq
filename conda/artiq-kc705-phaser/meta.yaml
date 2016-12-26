@@ -17,7 +17,7 @@ requirements:
     - jesd204b 0.2
     - llvm-or1k
     - binutils-or1k-linux >=2.27
-    - rust-core-or1k
+    - rust-core-or1k 1.16.0 11
     - cargo
     - numpy
   run:

@@ -112,8 +112,9 @@ macro_rules! println {
 #[path = "../runtime/rpc_queue.rs"]
 mod rpc_queue;
 
+#[no_mangle]
 #[lang = "panic_fmt"]
-extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
+pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
     println!("panic at {}:{}: {}", file, line, args);
     send(&RunAborted);
     loop {}

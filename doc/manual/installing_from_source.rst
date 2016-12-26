@@ -61,7 +61,7 @@ and the ARTIQ kernels.
 * Install Rust: ::
 
         $ cd ~/artiq-dev
-        $ git clone https://github.com/m-labs/rust
+        $ git clone -b artiq-1.16.0 https://github.com/m-labs/rust
         $ cd rust
         $ git checkout artiq
         $ git submodule update --init
@@ -70,7 +70,7 @@ and the ARTIQ kernels.
         $ ../configure --prefix=/usr/local/rust-or1k --llvm-root=/usr/local/llvm-or1k --disable-manage-submodules
         $ sudo make install -j4
 
-        $ libs="libcore liballoc librustc_unicode libcollections liblibc_mini libunwind"
+        $ libs="libcore liballoc libstd_unicode libcollections liblibc_mini libunwind"
         $ rustc="/usr/local/rust-or1k/bin/rustc --target or1k-unknown-none -g -C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -L ."
         $ destdir="/usr/local/rust-or1k/lib/rustlib/or1k-unknown-none/lib/"
         $ mkdir ../build-or1k

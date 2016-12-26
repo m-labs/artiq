@@ -2,24 +2,24 @@ use core::ptr::{read_volatile, write_volatile};
 use bsp::board;
 
 const MAILBOX: *mut usize = board::mem::MAILBOX_BASE as *mut usize;
-static mut last: usize = 0;
+static mut LAST: usize = 0;
 
 pub unsafe fn send(data: usize) {
-    last = data;
+    LAST = data;
     write_volatile(MAILBOX, data)
 }
 
 pub fn acknowledged() -> bool {
     unsafe {
         let data = read_volatile(MAILBOX);
-        data == 0 || data != last
+        data == 0 || data != LAST
     }
 }
 
 pub fn receive() -> usize {
     unsafe {
         let data = read_volatile(MAILBOX);
-        if data == last {
+        if data == LAST {
             0
         } else {
             if data != 0 {

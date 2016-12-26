@@ -1,11 +1,10 @@
 #![feature(lang_items, asm, alloc, collections, libc, needs_panic_runtime,
-           question_mark, unicode, reflect_marker, raw, int_error_internals,
-           try_from, try_borrow, macro_reexport, allow_internal_unstable,
-           stmt_expr_attributes)]
+           unicode, raw, int_error_internals, try_from, macro_reexport,
+           allow_internal_unstable, stmt_expr_attributes)]
 #![no_std]
 #![needs_panic_runtime]
 
-extern crate rustc_unicode;
+extern crate std_unicode;
 extern crate alloc_artiq;
 extern crate alloc;
 #[macro_use]

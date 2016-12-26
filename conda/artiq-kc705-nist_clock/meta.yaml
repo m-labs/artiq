@@ -16,7 +16,7 @@ requirements:
     - misoc 0.5.dev
     - llvm-or1k
     - binutils-or1k-linux >=2.27
-    - rust-core-or1k
+    - rust-core-or1k 1.16.0 11
     - cargo
   run:
     - artiq {{ "{tag} py_{number}+git{hash}".format(tag=environ.get("GIT_DESCRIBE_TAG"), number=environ.get("GIT_DESCRIBE_NUMBER"), hash=environ.get("GIT_DESCRIBE_HASH")[1:]) if "GIT_DESCRIBE_TAG" in environ else "" }}

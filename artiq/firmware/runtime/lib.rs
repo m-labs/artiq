@@ -1,6 +1,5 @@
 #![no_std]
-#![feature(libc, const_fn, try_borrow, stmt_expr_attributes, repr_simd, asm,
-           lang_items)]
+#![feature(libc, const_fn, stmt_expr_attributes, repr_simd, asm, lang_items)]
 
 #[macro_use]
 extern crate std_artiq as std;
@@ -46,8 +45,9 @@ pub fn print_fmt(args: self::core::fmt::Arguments) {
     let _ = Console.write_fmt(args);
 }
 
+#[no_mangle]
 #[lang = "panic_fmt"]
-extern fn panic_fmt(args: self::core::fmt::Arguments, file: &'static str, line: u32) -> ! {
+pub extern fn panic_fmt(args: self::core::fmt::Arguments, file: &'static str, line: u32) -> ! {
     let _ = write!(Console, "panic at {}:{}: {}\n", file, line, args);
     let _ = write!(Console, "waiting for debugger...\n");
     unsafe {

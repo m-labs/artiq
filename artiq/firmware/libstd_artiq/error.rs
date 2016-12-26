@@ -49,7 +49,7 @@ use any::TypeId;
 use boxed::Box;
 use cell;
 use fmt::{self, Debug, Display};
-use marker::{Send, Sync, Reflect};
+use marker::{Send, Sync};
 use mem::transmute;
 use num;
 use core::raw::TraitObject;
@@ -57,7 +57,7 @@ use str;
 use string::{self, String};
 
 /// Base functionality for all errors in Rust.
-pub trait Error: Debug + Display + Reflect {
+pub trait Error: Debug + Display {
     /// A short description of the error.
     ///
     /// The description should not contain newlines or sentence-ending
@@ -258,13 +258,13 @@ impl Error for fmt::Error {
     }
 }
 
-impl<'a, T: ?Sized + Reflect> Error for cell::BorrowError<'a, T> {
+impl Error for cell::BorrowError {
     fn description(&self) -> &str {
         "already mutably borrowed"
     }
 }
 
-impl<'a, T: ?Sized + Reflect> Error for cell::BorrowMutError<'a, T> {
+impl Error for cell::BorrowMutError {
     fn description(&self) -> &str {
         "already borrowed"
     }

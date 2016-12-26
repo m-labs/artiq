@@ -248,7 +248,7 @@
 //! time and may call fewer or more syscalls/library functions.
 
 use core::cmp;
-use rustc_unicode::str as core_str;
+use std_unicode::str as core_str;
 use core::fmt;
 use core::iter::{Iterator};
 use core::marker::Sized;
