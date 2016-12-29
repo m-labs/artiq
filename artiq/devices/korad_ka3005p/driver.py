@@ -38,12 +38,16 @@ class KoradKA3005P:
     async def _ser_read(self, fixed_length=None):
         """ strings returned by firmware are zero-terminated or fixed length
         """
-        c = (await self.port.read(1)).decode()
-        r = c
-        while len(c) > 0 and ord(c) != 0 and not len(r) == fixed_length:
+        r = ""
+        if self.simulation:
+            logger.info("simulation _ser_read()")
+        else:
             c = (await self.port.read(1)).decode()
-            r += c
-        logger.debug("_read %s: ", r)
+            r = c
+            while len(c) > 0 and ord(c) != 0 and not len(r) == fixed_length:
+                c = (await self.port.read(1)).decode().rstrip('\0')
+                r += c
+            logger.debug("_read %s: ", r)
         return r
 
     async def _ser_write(self, cmd):
@@ -106,21 +110,19 @@ class KoradKA3005P:
 
     async def get_i(self):
         """Request the current as set by the user. """
-
-        # ISET1? replies with a sixth byte on many models (all?)
-        # which is the sixth character from *IDN?
-        # reply if *IDN? was queried before (during same power cycle).
-        # This byte is read and discarded.
+        # Expected behavior of ISET1? is to return 5 bytes.
+        # However, if *IDN? has been previously called, ISET1? replies
+        # with a sixth byte 'K' which should be discarded. For consistency,
+        # always call *IDN? before calling ISET1?.
+        self.get_id()
         await self._ser_write("ISET1?")
-        r = await self._ser_read(fixed_length=5)
-        if r[0] == "K":
-            r = r[1:-1]
+        r = (await self._ser_read(fixed_length=6)).rstrip('K')
         return float(r)
 
     async def measure_i(self):
         """Request the actual output current."""
         await self._ser_write("IOUT1?")
-        r = await self._ser_read(fixed_length=6)
+        r = await self._ser_read(fixed_length=5)
         if r[0] == "K":
             r = r[1:-1]
         return float(r)
