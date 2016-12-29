@@ -38,7 +38,7 @@ $(RUSTOUT_DIRECTORY)/libruntime.a: ksupport.elf
 			--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../firmware/runtime/Cargo.toml) \
 			--target=or1k-unknown-none -- \
 			$(shell cat $(BUILDINC_DIRECTORY)/generated/rust-cfg) \
-			-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s \
+			-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -Cpanic=abort \
 			-L../libcompiler-rt
 
 runtime.elf: $(OBJECTS) $(RUSTOUT_DIRECTORY)/libruntime.a
@@ -57,7 +57,7 @@ $(RUSTOUT_DIRECTORY)/libksupport.a:
 			--target=or1k-unknown-none -- \
 			$(shell cat $(BUILDINC_DIRECTORY)/generated/rust-cfg) \
 			--cfg ksupport \
-			-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s \
+			-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -Cpanic=unwind \
 			-L../libcompiler-rt
 
 ksupport.elf: $(OBJECTS_KSUPPORT) $(RUSTOUT_DIRECTORY)/libksupport.a
