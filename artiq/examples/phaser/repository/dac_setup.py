@@ -302,7 +302,7 @@ class DACSetup(EnvExperiment):
                 AD9154_SYNCMODE_SET(0x9) | AD9154_SYNCENABLE_SET(1) |
                 AD9154_SYNCARM_SET(1) | AD9154_SYNCCLRSTKY_SET(0) |
                 AD9154_SYNCCLRLAST_SET(0))
-        self.busywait_us(1000)  # ensure at leas one sysref edge
+        self.busywait_us(1000)  # ensure at least one sysref edge
         if not AD9154_SYNC_LOCK_GET(self.ad9154.dac_read(AD9154_SYNC_STATUS)):
             raise ValueError("no sync lock")
         self.ad9154.dac_write(AD9154_XBAR_LN_0_1,
