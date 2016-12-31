@@ -11,7 +11,7 @@ extern crate log_buffer;
 extern crate byteorder;
 extern crate fringe;
 extern crate lwip;
-extern crate bsp;
+extern crate board;
 
 use core::fmt::Write;
 use logger::BufferLogger;
@@ -105,7 +105,7 @@ pub unsafe extern fn rust_main() {
         clock::init();
         info!("booting ARTIQ");
         info!("software version {}", GIT_COMMIT);
-        info!("gateware version {}", bsp::board::ident(&mut [0; 64]));
+        info!("gateware version {}", board::ident(&mut [0; 64]));
 
         let t = clock::get_ms();
         info!("press 'e' to erase startup and idle kernels...");
@@ -138,7 +138,7 @@ pub unsafe extern fn rust_main() {
 
 #[no_mangle]
 pub unsafe extern fn isr() {
-    use bsp::board::{irq, csr};
+    use board::{irq, csr};
     extern { fn uart_isr(); }
 
     let irqs = irq::pending() & irq::get_mask();

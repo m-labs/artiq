@@ -10,7 +10,7 @@ use urc::Urc;
 use sched::{ThreadHandle, Waiter, Spawner};
 use sched::{TcpListener, TcpStream, SocketAddr, IP_ANY};
 use byteorder::{ByteOrder, NetworkEndian};
-use bsp::board;
+use board;
 
 use rpc_proto as rpc;
 use session_proto as host;

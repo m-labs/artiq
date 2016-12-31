@@ -2,7 +2,7 @@
 
 use core::ptr::{read_volatile, write_volatile};
 use core::slice;
-use bsp::board;
+use board;
 
 const SEND_MAILBOX: *mut usize = (board::mem::MAILBOX_BASE + 4) as *mut usize;
 const RECV_MAILBOX: *mut usize = (board::mem::MAILBOX_BASE + 8) as *mut usize;

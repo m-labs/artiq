@@ -1,4 +1,4 @@
-use bsp::board::csr;
+use board::csr;
 
 pub extern fn init() {
     unsafe {

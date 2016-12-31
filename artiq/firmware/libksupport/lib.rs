@@ -8,7 +8,7 @@ extern crate alloc_none;
 extern crate std_artiq as std;
 extern crate libc;
 extern crate byteorder;
-extern crate bsp;
+extern crate board;
 
 #[path = "../runtime/mailbox.rs"]
 mod mailbox;

@@ -16,7 +16,7 @@ path = "lib.rs"
 alloc_artiq = { path = "../liballoc_artiq" }
 std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
 lwip = { path = "../liblwip", default-features = false }
-bsp = { path = "../libbsp" }
+board = { path = "../libboard" }
 fringe = { version = "= 1.1.0", default-features = false, features = ["alloc"] }
 log = { version = "0.3", default-features = false }
 log_buffer = { version = "1.0" }

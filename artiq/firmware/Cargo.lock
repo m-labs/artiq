@@ -11,7 +11,7 @@ name = "alloc_none"
 version = "0.0.0"
 
 [[package]]
-name = "bsp"
+name = "board"
 version = "0.0.0"
 
 [[package]]
@@ -41,7 +41,7 @@ name = "ksupport"
 version = "0.0.0"
 dependencies = [
  "alloc_none 0.0.0",
- "bsp 0.0.0",
+ "board 0.0.0",
  "byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "std_artiq 0.0.0",
 ]
@@ -78,7 +78,7 @@ name = "runtime"
 version = "0.0.0"
 dependencies = [
  "alloc_artiq 0.0.0",
- "bsp 0.0.0",
+ "board 0.0.0",
  "byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "fringe 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",

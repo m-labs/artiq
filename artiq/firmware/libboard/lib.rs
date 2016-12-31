@@ -1,4 +1,5 @@
-#![allow(dead_code)]
+#![feature(asm)]
+#![no_std]
 
 use core::{cmp, ptr, str};
 
