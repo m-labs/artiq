@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(libc, const_fn, stmt_expr_attributes, repr_simd, asm, lang_items)]
+#![feature(libc, const_fn, repr_simd, asm, lang_items)]
 
 extern crate alloc_artiq;
 #[macro_use]

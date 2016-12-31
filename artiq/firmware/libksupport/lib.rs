@@ -1,7 +1,5 @@
-#![feature(lang_items, needs_panic_runtime, asm, libc, stmt_expr_attributes)]
-
+#![feature(lang_items, asm, libc)]
 #![no_std]
-#![needs_panic_runtime]
 
 extern crate alloc_none;
 #[macro_use]
