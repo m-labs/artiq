@@ -1,5 +1,4 @@
-use std::result;
-use bsp::board::csr;
+use csr;
 use ad9516_reg::reg;
 
 fn spi_setup() {

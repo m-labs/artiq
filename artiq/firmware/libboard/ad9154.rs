@@ -1,5 +1,4 @@
-use std::result;
-use bsp::board::csr;
+use csr;
 use ad9154_reg::reg;
 
 fn spi_setup() {
@@ -94,7 +93,7 @@ fn jesd_checksum(settings: &JESDSettings) -> u8 {
     for field in [
         settings.did,
         settings.bid,
-        settings.l - 1,  
+        settings.l - 1,
         settings.f - 1,
         settings.k - 1,
         settings.m - 1,
