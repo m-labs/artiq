@@ -14,6 +14,7 @@ __pycache__/
 /.coverage
 /artiq/test/lit/*/Output/
 /artiq/binaries
+/artiq/firmware/target/
 /misoc_*/
 
 /artiq/test/results
@@ -26,8 +27,9 @@ __pycache__/
 # recommended location for testbed
 /run
 # alternatively, when testing ad-hoc experiments at the root:
+/repository/
 /results
 /last_rid.pyon
 /dataset_db.pyon
-/device_db.pyon
+/device_db*.pyon
 /test*.py
