@@ -1,11 +1,8 @@
 [package]
 authors = ["M-Labs"]
-name = "std_artiq"
+name = "alloc_none"
 version = "0.0.0"
 
 [lib]
-name = "std_artiq"
+name = "alloc_none"
 path = "lib.rs"
-
-[features]
-alloc = []

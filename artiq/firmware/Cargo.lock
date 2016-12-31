@@ -1,19 +1,13 @@
 [root]
-name = "runtime"
+name = "std_artiq"
 version = "0.0.0"
-dependencies = [
- "bsp 0.0.0",
- "byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "fringe 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "log_buffer 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "lwip 0.0.0",
- "std_artiq 0.0.0",
- "walkdir 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
 [[package]]
 name = "alloc_artiq"
+version = "0.0.0"
+
+[[package]]
+name = "alloc_none"
 version = "0.0.0"
 
 [[package]]
@@ -30,7 +24,7 @@ name = "fringe"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -43,8 +37,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ksupport"
+version = "0.0.0"
+dependencies = [
+ "alloc_none 0.0.0",
+ "bsp 0.0.0",
+ "byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "std_artiq 0.0.0",
+]
+
+[[package]]
 name = "libc"
-version = "0.2.15"
+version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -70,15 +74,23 @@ name = "lwip-sys"
 version = "0.0.0"
 
 [[package]]
-name = "std_artiq"
+name = "runtime"
 version = "0.0.0"
 dependencies = [
  "alloc_artiq 0.0.0",
+ "bsp 0.0.0",
+ "byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fringe 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log_buffer 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lwip 0.0.0",
+ "std_artiq 0.0.0",
+ "walkdir 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "walkdir"
-version = "0.1.8"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -99,9 +111,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)" = "0fc10e8cc6b2580fda3f36eb6dc5316657f812a3df879a44a66fc9f0fdbc4855"
 "checksum fringe 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "987689dcfad85eee8d76b477865641ec483e63fb86d52966bfc350c4a647d78a"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
-"checksum libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)" = "23e3757828fa702a20072c37ff47938e9dd331b92fac6e223d26d4b7a55f7ee2"
+"checksum libc 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)" = "a51822fc847e7a8101514d1d44e354ba2ffa7d4c194dcab48870740e327cac70"
 "checksum log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "ab83497bf8bf4ed2a74259c1c802351fcd67a65baa86394b6ba73c36f4838054"
 "checksum log_buffer 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ec57723b84bbe7bdf76aa93169c9b59e67473317c6de3a83cb2a0f8ccb2aa493"
-"checksum walkdir 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "c66c0b9792f0a765345452775f3adbd28dde9d33f30d13e5dcc5ae17cf6f3780"
+"checksum walkdir 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "dd7c16466ecc507c7cb5988db03e6eab4aaeab89a5c37a29251fcfd3ac9b7afe"
 "checksum winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "167dc9d6949a9b857f3451275e911c3f44255842c1f7a76f33c55103a909087a"
 "checksum winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"

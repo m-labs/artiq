@@ -5,7 +5,6 @@
 #![needs_panic_runtime]
 
 extern crate std_unicode;
-extern crate alloc_artiq;
 extern crate alloc;
 #[macro_use]
 #[macro_reexport(vec, format)]

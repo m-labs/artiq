@@ -3,6 +3,7 @@
 #![no_std]
 #![needs_panic_runtime]
 
+extern crate alloc_none;
 #[macro_use]
 extern crate std_artiq as std;
 extern crate libc;
@@ -59,21 +60,6 @@ use std::io::Cursor;
 use libc::{c_char, size_t};
 use kernel_proto::*;
 use dyld::Library;
-
-#[no_mangle]
-pub extern "C" fn malloc(_size: usize) -> *mut libc::c_void {
-    unimplemented!()
-}
-
-#[no_mangle]
-pub extern "C" fn realloc(_ptr: *mut libc::c_void, _size: usize) -> *mut libc::c_void {
-    unimplemented!()
-}
-
-#[no_mangle]
-pub extern "C" fn free(_ptr: *mut libc::c_void) {
-    unimplemented!()
-}
 
 fn send(request: &Message) {
     unsafe { mailbox::send(request as *const _ as usize) }

@@ -9,6 +9,7 @@ path = "lib.rs"
 crate-type = ["staticlib"]
 
 [dependencies]
+alloc_none = { path = "../liballoc_none" }
 std_artiq = { path = "../libstd_artiq" }
 bsp = { path = "../libbsp" }
 byteorder = { version = "0.5", default-features = false }

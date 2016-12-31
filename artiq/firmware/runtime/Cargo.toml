@@ -13,6 +13,7 @@ crate-type = ["staticlib"]
 path = "lib.rs"
 
 [dependencies]
+alloc_artiq = { path = "../liballoc_artiq" }
 std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
 lwip = { path = "../liblwip", default-features = false }
 bsp = { path = "../libbsp" }
