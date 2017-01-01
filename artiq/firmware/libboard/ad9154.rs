@@ -1,5 +1,5 @@
 use csr;
-use ad9154_reg::reg;
+mod ad9154_reg;
 
 fn spi_setup() {
     unsafe {
