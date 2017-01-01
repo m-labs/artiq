@@ -3,7 +3,7 @@ use std::{mem, str};
 use std::cell::RefCell;
 use std::io::{self, Read, Write, BufWriter};
 use std::btree_set::BTreeSet;
-use {config, rtio_mgt, clock, mailbox, rpc_queue, kernel};
+use {config, rtio_mgt, mailbox, rpc_queue, kernel};
 use logger::BufferLogger;
 use cache::Cache;
 use urc::Urc;
@@ -58,7 +58,7 @@ enum KernelState {
 struct Session<'a> {
     congress: &'a mut Congress,
     kernel_state: KernelState,
-    watchdog_set: clock::WatchdogSet,
+    watchdog_set: board::clock::WatchdogSet,
     log_buffer: String,
     interner: BTreeSet<String>
 }
@@ -68,7 +68,7 @@ impl<'a> Session<'a> {
         Session {
             congress: congress,
             kernel_state: KernelState::Absent,
-            watchdog_set: clock::WatchdogSet::new(),
+            watchdog_set: board::clock::WatchdogSet::new(),
             log_buffer: String::new(),
             interner: BTreeSet::new()
         }

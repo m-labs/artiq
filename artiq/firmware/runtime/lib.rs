@@ -58,7 +58,6 @@ pub extern fn panic_fmt(args: self::core::fmt::Arguments, file: &'static str, li
 }
 
 mod config;
-mod clock;
 mod rtio_mgt;
 mod mailbox;
 mod rpc_queue;
@@ -102,14 +101,14 @@ pub unsafe extern fn rust_main() {
     static mut LOG_BUFFER: [u8; 65536] = [0; 65536];
     BufferLogger::new(&mut LOG_BUFFER[..])
                  .register(move || {
-        clock::init();
+        board::clock::init();
         info!("booting ARTIQ");
         info!("software version {}", GIT_COMMIT);
         info!("gateware version {}", board::ident(&mut [0; 64]));
 
-        let t = clock::get_ms();
+        let t = board::clock::get_ms();
         info!("press 'e' to erase startup and idle kernels...");
-        while clock::get_ms() < t + 1000 {
+        while board::clock::get_ms() < t + 1000 {
             if readchar_nonblock() != 0 && readchar() == b'e' as libc::c_char {
                 config::remove("startup_kernel");
                 config::remove("idle_kernel");
@@ -149,10 +148,10 @@ pub unsafe extern fn isr() {
 
 #[no_mangle]
 pub fn sys_now() -> u32 {
-    clock::get_ms() as u32
+    board::clock::get_ms() as u32
 }
 
 #[no_mangle]
 pub fn sys_jiffies() -> u32 {
-    clock::get_ms() as u32
+    board::clock::get_ms() as u32
 }

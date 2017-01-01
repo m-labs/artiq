@@ -1,4 +1,5 @@
 use csr;
+use clock;
 mod ad9154_reg;
 
 fn spi_setup() {
@@ -133,13 +134,13 @@ fn dac_setup() -> Result<(), &'static str> {
             0*ad9154_reg::LSBFIRST_M | 0*ad9154_reg::LSBFIRST |
             0*ad9154_reg::ADDRINC_M | 0*ad9154_reg::ADDRINC |
             1*ad9154_reg::SDOACTIVE_M | 1*ad9154_reg::SDOACTIVE);
-    busywait_us(100);
+    clock::spin_us(100);
     write(ad9154_reg::SPI_INTFCONFA,
             0*ad9154_reg::SOFTRESET_M | 0*ad9154_reg::SOFTRESET |
             0*ad9154_reg::LSBFIRST_M | 0*ad9154_reg::LSBFIRST |
             0*ad9154_reg::ADDRINC_M | 0*ad9154_reg::ADDRINC |
             1*ad9154_reg::SDOACTIVE_M | 1*ad9154_reg::SDOACTIVE);
-    busywait_us(100);
+    clock::spin_us(100);
     if read(ad9154_reg::PRODIDH) as u16 << 8 |
             read(ad9154_reg::PRODIDL) as u16 != 0x9154 {
         return Err("AD9154 not found")
@@ -149,7 +150,7 @@ fn dac_setup() -> Result<(), &'static str> {
             0*ad9154_reg::PD_DAC0 | 0*ad9154_reg::PD_DAC1 |
             0*ad9154_reg::PD_DAC2 | 0*ad9154_reg::PD_DAC3 |
             0*ad9154_reg::PD_BG);
-    busywait_us(100);
+    clock::spin_us(100);
     write(ad9154_reg::TXENMASK1, 0*ad9154_reg::DACA_MASK |
             0*ad9154_reg::DACB_MASK); // TX not controlled by TXEN pins
     write(ad9154_reg::CLKCFG0,
@@ -348,7 +349,7 @@ fn dac_setup() -> Result<(), &'static str> {
             0x9*ad9154_reg::SYNCMODE | 1*ad9154_reg::SYNCENABLE |
             1*ad9154_reg::SYNCARM | 0*ad9154_reg::SYNCCLRSTKY |
             0*ad9154_reg::SYNCCLRLAST);
-    busywait_us(1000); // ensure at least one sysref edge
+    clock::spin_us(1000); // ensure at least one sysref edge
     if read(ad9154_reg::SYNC_STATUS) & ad9154_reg::SYNC_LOCK == 0:
         return Err("no sync lock")
     write(ad9154_reg::XBAR_LN_0_1,
@@ -413,15 +414,15 @@ fn cfg() -> Result<(), &'static str> {
     jesd_enable(false);
     jesd_prbs(false);
     jesd_stpl(false);
-    busywait_us(10000);
+    clock::spin_us(10000);
     jesd_enable(true);
     dac_setup();
     jesd_enable(false);
-    busywait_us(10000);
+    clock::spin_us(10000);
     jesd_enable(true);
     monitor();
     while !jesd_ready() {}
-    busywait_us(10000);
+    clock::spin_us(10000);
     if read(ad9154_reg::CODEGRPSYNCFLG) != 0x0f {
         return Err("bad CODEGRPSYNCFLG")
     }

@@ -7,6 +7,7 @@ include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/mem.rs"));
 include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/csr.rs"));
 pub mod spr;
 pub mod irq;
+pub mod clock;
 
 extern {
     pub fn flush_cpu_dcache();

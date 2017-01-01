@@ -1,4 +1,4 @@
-use board::csr;
+use csr;
 
 const INIT: u64 = ::core::i64::MAX as u64;
 const FREQ: u64 = csr::CONFIG_CLOCK_FREQUENCY as u64;

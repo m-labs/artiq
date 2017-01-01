@@ -2,7 +2,7 @@ use core::{mem, ptr};
 use core::cell::{Cell, RefCell};
 use log::{self, Log, LogLevel, LogMetadata, LogRecord, LogLevelFilter};
 use log_buffer::LogBuffer;
-use clock;
+use board;
 
 pub struct BufferLogger {
     buffer: RefCell<LogBuffer<&'static mut [u8]>>,
@@ -70,13 +70,13 @@ impl Log for BufferLogger {
             use core::fmt::Write;
             writeln!(self.buffer.borrow_mut(),
                      "[{:12}us] {:>5}({}): {}",
-                     clock::get_us(), record.level(), record.target(), record.args()).unwrap();
+                     board::clock::get_us(), record.level(), record.target(), record.args()).unwrap();
 
             // Printing to UART is really slow, so avoid doing that when we have an alternative
             // route to retrieve the debug messages.
             if self.trace_to_uart.get() || record.level() <= LogLevel::Info {
                 println!("[{:12}us] {:>5}({}): {}",
-                         clock::get_us(), record.level(), record.target(), record.args());
+                         board::clock::get_us(), record.level(), record.target(), record.args());
             }
         }
     }

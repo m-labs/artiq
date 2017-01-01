@@ -4,8 +4,7 @@ use sched::Scheduler;
 
 #[cfg(has_rtio_crg)]
 pub mod crg {
-    use clock;
-    use board::csr;
+    use board::{clock, csr};
 
     pub fn init() {
         unsafe { csr::rtio_crg::pll_reset_write(0) }

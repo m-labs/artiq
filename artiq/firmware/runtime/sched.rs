@@ -6,7 +6,7 @@ use std::io::{Read, Write, Result, Error, ErrorKind};
 use fringe::OwnedStack;
 use fringe::generator::{Generator, Yielder, State as GeneratorState};
 use lwip;
-use clock;
+use board;
 use urc::Urc;
 
 #[derive(Debug)]
@@ -106,7 +106,7 @@ impl Scheduler {
 
         if self.threads.len() == 0 { return }
 
-        let now = clock::get_ms();
+        let now = board::clock::get_ms();
 
         let start_index = self.index;
         loop {
@@ -216,7 +216,7 @@ pub struct Waiter<'a>(&'a Yielder<WaitResult, WaitRequest, OwnedStack>);
 impl<'a> Waiter<'a> {
     pub fn sleep(&self, duration_ms: u64) -> Result<()> {
         let request = WaitRequest {
-            timeout: Some(clock::get_ms() + duration_ms),
+            timeout: Some(board::clock::get_ms() + duration_ms),
             event:   None
         };
 
