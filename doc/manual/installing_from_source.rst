@@ -63,7 +63,6 @@ and the ARTIQ kernels.
         $ cd ~/artiq-dev
         $ git clone -b artiq-1.16.0 https://github.com/m-labs/rust
         $ cd rust
-        $ git checkout artiq
         $ git submodule update --init
         $ mkdir build
         $ cd build
