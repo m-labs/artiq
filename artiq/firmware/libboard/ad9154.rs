@@ -1,6 +1,6 @@
 use csr;
 use clock;
-mod ad9154_reg;
+use ad9154_reg;
 
 fn spi_setup() {
     unsafe {
@@ -14,7 +14,7 @@ fn spi_setup() {
         csr::converter_spi::clk_div_read_write(16);
         csr::converter_spi::xfer_len_write_write(24);
         csr::converter_spi::xfer_len_read_write(0);
-        csr::converter_spi::cs_write(csr::CONFIG_CONVERTER_SPI_DAC_CS);
+        csr::converter_spi::cs_write(1 << csr::CONFIG_CONVERTER_SPI_DAC_CS);
         csr::converter_spi::offline_write(0);
     }
 }
@@ -41,7 +41,7 @@ fn jesd_enable(en: bool) {
     }
 }
 
-fn jesd_ready() {
+fn jesd_ready() -> bool {
     unsafe {
         csr::ad9154::jesd_control_ready_read() != 0
     }
@@ -59,7 +59,7 @@ fn jesd_stpl(en: bool) {
     }
 }
 
-fn jesd_jsync() {
+fn jesd_jsync() -> bool {
     unsafe {
         csr::ad9154::jesd_jsync_read() != 0
     }
@@ -141,8 +141,7 @@ fn dac_setup() -> Result<(), &'static str> {
             0*ad9154_reg::ADDRINC_M | 0*ad9154_reg::ADDRINC |
             1*ad9154_reg::SDOACTIVE_M | 1*ad9154_reg::SDOACTIVE);
     clock::spin_us(100);
-    if read(ad9154_reg::PRODIDH) as u16 << 8 |
-            read(ad9154_reg::PRODIDL) as u16 != 0x9154 {
+    if (read(ad9154_reg::PRODIDH) as u16) << 8 | (read(ad9154_reg::PRODIDL) as u16) != 0x9154 {
         return Err("AD9154 not found")
     }
 
@@ -227,7 +226,7 @@ fn dac_setup() -> Result<(), &'static str> {
             JESD_SETTINGS.jesdv*ad9154_reg::JESDV);
     write(ad9154_reg::ILS_HD_CF,
             0*ad9154_reg::HD | 0*ad9154_reg::CF);
-    write(ad9154_reg::ILS_CHECKSUM, jesd_checksum(JESD_SETTINGS));
+    write(ad9154_reg::ILS_CHECKSUM, jesd_checksum(&JESD_SETTINGS));
     write(ad9154_reg::LANEDESKEW, 0x0f);
     for i in 0..8 {
         write(ad9154_reg::BADDISPARITY, 0*ad9154_reg::RST_IRQ_DIS |
@@ -350,8 +349,9 @@ fn dac_setup() -> Result<(), &'static str> {
             1*ad9154_reg::SYNCARM | 0*ad9154_reg::SYNCCLRSTKY |
             0*ad9154_reg::SYNCCLRLAST);
     clock::spin_us(1000); // ensure at least one sysref edge
-    if read(ad9154_reg::SYNC_STATUS) & ad9154_reg::SYNC_LOCK == 0:
+    if read(ad9154_reg::SYNC_STATUS) & ad9154_reg::SYNC_LOCK == 0 {
         return Err("no sync lock")
+    }
     write(ad9154_reg::XBAR_LN_0_1,
             7*ad9154_reg::LOGICAL_LANE0_SRC | 6*ad9154_reg::LOGICAL_LANE1_SRC);
     write(ad9154_reg::XBAR_LN_2_3,
@@ -416,7 +416,7 @@ fn cfg() -> Result<(), &'static str> {
     jesd_stpl(false);
     clock::spin_us(10000);
     jesd_enable(true);
-    dac_setup();
+    dac_setup()?;
     jesd_enable(false);
     clock::spin_us(10000);
     jesd_enable(true);
@@ -444,7 +444,7 @@ fn cfg() -> Result<(), &'static str> {
 pub fn init() -> Result<(), &'static str> {
     spi_setup();
 
-    for i in 0..99 {
+    for _ in 0..99 {
         let outcome = cfg();
         if outcome.is_ok() {
             return outcome

@@ -27,7 +27,7 @@ pub const A_COUNTER                         : u16 = 0x013;
 pub const B_COUNTER_LSB                     : u16 = 0x014;
 pub const B_COUNTER_MSB                     : u16 = 0x015;
 
-pub const PLL_CONTROL_1                     : u16 = 0x016
+pub const PLL_CONTROL_1                     : u16 = 0x016;
 pub const PRESCALER_P                       : u8 = 1 << 0;
 pub const B_COUNTER_BYPASS                  : u8 = 1 << 3;
 pub const RESET_ALL_COUNTERS                : u8 = 1 << 4;
