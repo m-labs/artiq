@@ -138,7 +138,7 @@ class SPIMaster(Module):
         assert len(xfer) <= len(bus.dat_w)
 
         self.submodules.spi = spi = SPIMachine(
-            data_width=len(bus.dat_w),
+            data_width=len(bus.dat_w) + 1,
             clock_width=len(config.div_read),
             bits_width=len(xfer.read_length))
 
@@ -156,13 +156,18 @@ class SPIMaster(Module):
         ]
         self.sync += [
             If(spi.done,
-                data_read.eq(spi.reg.data),
+                data_read.eq(
+                    Mux(spi.reg.lsb, spi.reg.data[1:], spi.reg.data[:-1])),
             ),
             If(spi.start,
                 cs.eq(xfer.cs),
                 spi.bits.n_write.eq(xfer.write_length),
                 spi.bits.n_read.eq(xfer.read_length),
-                spi.reg.data.eq(data_write),
+                If(spi.reg.lsb,
+                    spi.reg.data[:-1].eq(data_write),
+                ).Else(
+                    spi.reg.data[1:].eq(data_write),
+                ),
                 pending.eq(0),
             ),
             # wb.ack a transaction if any of the following:
