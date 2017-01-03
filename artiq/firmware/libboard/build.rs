@@ -12,6 +12,4 @@ fn main() {
     for line in f.lines() {
         println!("cargo:rustc-cfg={}", line.unwrap());
     }
-
-    println!("cargo:rustc-cfg={}", "board");
 }
