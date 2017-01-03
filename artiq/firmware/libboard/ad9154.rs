@@ -325,7 +325,12 @@ fn dac_setup() -> Result<(), &'static str> {
     //        1*ad9154_reg::ENABLE_SERDESPLL | 1*ad9154_reg::RECAL_SERDESPLL)
     write(ad9154_reg::SERDESPLL_ENABLE_CNTRL,
             1*ad9154_reg::ENABLE_SERDESPLL | 0*ad9154_reg::RECAL_SERDESPLL);
-    while read(ad9154_reg::PLL_STATUS) & ad9154_reg::SERDES_PLL_LOCK_RB == 0 {}
+    let t = clock::get_ms();
+    while read(ad9154_reg::PLL_STATUS) & ad9154_reg::SERDES_PLL_LOCK_RB == 0 {
+        if clock::get_ms() > t + 200 {
+            return Err("SERDES PLL lock timeout");
+        }
+    }
 
     write(ad9154_reg::EQ_BIAS_REG, 0x22*ad9154_reg::EQ_BIAS_RESERVED |
             1*ad9154_reg::EQ_POWER_MODE);
@@ -421,7 +426,12 @@ fn cfg() -> Result<(), &'static str> {
     clock::spin_us(10000);
     jesd_enable(true);
     monitor();
-    while !jesd_ready() {}
+    let t = clock::get_ms();
+    while !jesd_ready() {
+        if clock::get_ms() > t + 200 {
+            return Err("JESD ready timeout");
+        }
+    }
     clock::spin_us(10000);
     if read(ad9154_reg::CODEGRPSYNCFLG) != 0x0f {
         return Err("bad CODEGRPSYNCFLG")
@@ -444,10 +454,11 @@ fn cfg() -> Result<(), &'static str> {
 pub fn init() -> Result<(), &'static str> {
     spi_setup();
 
-    for _ in 0..99 {
+    for i in 0..99 {
         let outcome = cfg();
-        if outcome.is_ok() {
-            return outcome
+        match outcome {
+            Ok(_) => return outcome,
+            Err(e) => warn!("config attempt #{} failed ({}), retrying", i, e)
         }
     }
     cfg()

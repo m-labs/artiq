@@ -13,6 +13,9 @@ version = "0.0.0"
 [[package]]
 name = "board"
 version = "0.0.0"
+dependencies = [
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "byteorder"

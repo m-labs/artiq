@@ -1,6 +1,9 @@
 #![feature(asm)]
 #![no_std]
 
+#[macro_use]
+extern crate log;
+
 use core::{cmp, ptr, str};
 
 include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/mem.rs"));
