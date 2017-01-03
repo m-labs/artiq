@@ -12,19 +12,13 @@
         "module": "artiq.coredevice.core",
         "class": "Core",
         "arguments": {
-            "ref_period": 5e-9/6,
-            "external_clock": True
+            "ref_period": 5e-9/6
         }
     },
     "core_cache": {
         "type": "local",
         "module": "artiq.coredevice.cache",
         "class": "CoreCache"
-    },
-    "ad9154": {
-        "type": "local",
-        "module": "artiq.coredevice.ad9154",
-        "class": "AD9154"
     },
     "ttl_sma": {
         "type": "local",

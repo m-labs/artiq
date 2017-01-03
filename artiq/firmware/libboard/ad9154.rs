@@ -35,6 +35,12 @@ fn read(addr: u16) -> u8 {
     }
 }
 
+fn jesd_reset(rst: bool) {
+    unsafe {
+        csr::ad9154::jesd_jreset_write(if rst {1} else {0})
+    }
+}
+
 fn jesd_enable(en: bool) {
     unsafe {
         csr::ad9154::jesd_control_enable_write(if en {1} else {0})
@@ -453,6 +459,10 @@ fn cfg() -> Result<(), &'static str> {
 
 pub fn init() -> Result<(), &'static str> {
     spi_setup();
+
+    // Release the JESD clock domain reset late, as we need to 
+    // set up clock chips before.
+    jesd_reset(false);
 
     for i in 0..99 {
         let outcome = cfg();

@@ -1,7 +1,7 @@
 ARTIQ Phaser
 ============
 
-This ARTIQ branch contains a proof-of-concept design of a GHz-datarate, multi-channel, interpolating, multi-tone, direct digital synthesizer (DDS) compatible with ARTIQ's RTIO channels.
+ARTIQ contains a proof-of-concept design of a GHz-datarate, multi-channel, interpolating, multi-tone, direct digital synthesizer (DDS) compatible with ARTIQ's RTIO channels.
 Ultimately it will be the basis for the ARTIQ Sayma Smart Arbitrary Waveform Generator project. See https://github.com/m-labs/sinara and https://github.com/m-labs/artiq-hardware.
 
 *Features*:
@@ -15,13 +15,13 @@ Ultimately it will be the basis for the ARTIQ Sayma Smart Arbitrary Waveform Gen
 * Parametrized JESD204B core (also capable of operation with eight lanes)
 * The code can be reconfigured. Possible example configurations are: support 2 channels at 1 GHz datarate, support 4 channels at 300 MHz data rate, no interpolation, and using mix mode to stress the second and third Nyquist zones (150-300 MHz and 300-450 MHz).
 
-The hardware required to use the ARTIQ phaser branch is a KC705 with an AD9154-FMC-EBZ plugged into the HPC connector and a low-noise sample rate reference clock.
+The hardware required is a KC705 with an AD9154-FMC-EBZ plugged into the HPC connector and a low-noise sample rate reference clock.
 
 This work was supported by the Army Research Lab and the University of Maryland.
 
 The code that was developed for this project is located in several repositories:
 
-* In ARTIQ, the SAWG and Phaser code: https://github.com/m-labs/artiq/compare/phaser2
+* In ARTIQ, the SAWG and Phaser code: https://github.com/m-labs/artiq
 * The Migen/MiSoC JESD204B core: https://github.com/m-labs/jesd204b
 
 
@@ -49,11 +49,11 @@ https://m-labs.hk/artiq/manual-master/index.html
   - binutils-or1k-linux
 
 * Install a recent version of Vivado (tested and developed with 2016.2).
-* Do a checkout of the ARTIQ phaser2 branch: ::
+* Do a checkout of ARTIQ: ::
 
     mkdir ~/src
     cd ~/src
-    git clone --recursive -b phaser2 https://github.com/m-labs/artiq.git
+    git clone --recursive https://github.com/m-labs/artiq.git
     cd ../artiq
     python setup.py develop
 
@@ -89,29 +89,19 @@ Setup
 * Refer to the ARTIQ documentation to configure an IP address and other settings for the transmitter device.
   If the board was running stock ARTIQ before, the settings will be kept.
 * A 300 MHz clock of roughly 10 dBm (0.2 to 3.4 V peak-to-peak into 50 Ohm) must be connected to the AD9154-FMC-EBZ J1.
-  The external RTIO clock, DAC deviceclock, FPGA deviceclock, and SYSREF are derived from this signal. There is no internal RTIO clock.
+  The RTIO clock, DAC deviceclock, FPGA deviceclock, and SYSREF are derived from this signal.
 * An example device database, several status and test scripts are provided in ``artiq/examples/phaser/``. ::
 
     cd artiq/examples/phaser
 
 * Edit ``device_db.pyon`` to match the hostname or IP address of the core device.
-* The ``startup_clock`` needs to be set to internal (``i``) for bootstrapping the clock distribution tree.
-* Compile and flash the startup kernel in ``artiq/examples/phaser/startup_kernel.py``.
-* Erase any possible idle kernels.
 * Use ``ping`` and ``flterm`` to verify that the core device starts up and boots correctly.
 
 Usage
 -----
 
-* After each boot, run the ``dac_setup.py`` experiment to establish the JESD204B links (``artiq_run repository/dac_setup.py``).
-* Run ``artiq_run repository/ad9154_test_status.py`` to retrieve and print several status registers from the AD9154 DAC.
-* Run ``artiq_run repository/ad9154_test_prbs.py`` to test the JESD204B PHY layer for bit errors. Reboot the core device afterwards.
-* Run ``artiq_run repository/ad9154_test_stpl.py`` to executes a JESD204B short transport layer test.
 * Run ``artiq_run repository/demo.py`` for an example that exercises several different use cases of synchronized phase, amplitude, and frequency updates.
   for an example that exercises several different use cases of synchronized phase, amplitude, and frequency updates.
 * Run ``artiq_run repository/demo_2tone.py`` for an example that emits a shaped two-tone pulse.
 * Implement your own experiments using the SAWG channels.
 * Verify clock stability between the sample rate reference clock and the DAC outputs.
-* Changes to the AD9154 configuration can also be performed at runtime in experiments.
-  See the example ``dac_setup.py``.
-  This can e.g. be used to enable and evaluate mix mode without having to change any other code (bitstream/bios/runtime/startup_kernel).

@@ -1,3 +1,5 @@
+# TODO: move to firmware
+
 from artiq.coredevice.ad9154_reg import *
 from artiq.experiment import *
 
