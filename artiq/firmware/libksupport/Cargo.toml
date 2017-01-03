@@ -2,6 +2,7 @@
 authors = ["M-Labs"]
 name = "ksupport"
 version = "0.0.0"
+build = "build.rs"
 
 [lib]
 name = "ksupport"

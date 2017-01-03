@@ -6,9 +6,8 @@ PYTHON ?= python3.5
 OBJECTS := flash_storage.o main.o
 OBJECTS_KSUPPORT := ksupport_glue.o artiq_personality.o
 
-RUSTOUT_DIRECTORY := cargo/or1k-unknown-none/debug
-CORE_IO_COMMIT := d40c593f42fafbac1ff3d827f6df96338b5b7d8b
-export CORE_IO_COMMIT
+RUSTOUT := cargo/or1k-unknown-none/debug
+RUSTOUT_KSUPPORT := cargo-ksupport/or1k-unknown-none/debug
 
 CFLAGS += \
 	-I$(LIBALLOC_DIRECTORY) \
@@ -31,17 +30,14 @@ LDFLAGS += --gc-sections \
 
 all: runtime.bin runtime.fbi
 
-.PHONY: $(RUSTOUT_DIRECTORY)/libruntime.a
-$(RUSTOUT_DIRECTORY)/libruntime.a: ksupport.elf
+.PHONY: $(RUSTOUT)/libruntime.a
+$(RUSTOUT)/libruntime.a: ksupport.elf
+	RUSTFLAGS="-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -Cpanic=abort" \
 	CARGO_TARGET_DIR=$(realpath .)/cargo \
-		cargo rustc --verbose \
-			--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../firmware/runtime/Cargo.toml) \
-			--target=or1k-unknown-none -- \
-			$(shell cat $(BUILDINC_DIRECTORY)/generated/rust-cfg) \
-			-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -Cpanic=abort \
-			-L../libcompiler-rt
+		cargo build --target=or1k-unknown-none \
+			--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../firmware/runtime/Cargo.toml)
 
-runtime.elf: $(OBJECTS) $(RUSTOUT_DIRECTORY)/libruntime.a
+runtime.elf: $(OBJECTS) $(RUSTOUT)/libruntime.a
 	$(LD) $(LDFLAGS) \
 		-T $(RUNTIME_DIRECTORY)/runtime.ld \
 		-o $@ \
@@ -49,18 +45,14 @@ runtime.elf: $(OBJECTS) $(RUSTOUT_DIRECTORY)/libruntime.a
 		-lbase-nofloat -lcompiler-rt -lalloc -llwip
 	@chmod -x $@
 
-.PHONY: $(RUSTOUT_DIRECTORY)/libksupport.a
-$(RUSTOUT_DIRECTORY)/libksupport.a:
-	CARGO_TARGET_DIR=$(realpath .)/cargo \
-		cargo rustc --verbose \
-			--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../firmware/libksupport/Cargo.toml) \
-			--target=or1k-unknown-none -- \
-			$(shell cat $(BUILDINC_DIRECTORY)/generated/rust-cfg) \
-			--cfg ksupport \
-			-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -Cpanic=unwind \
-			-L../libcompiler-rt
+.PHONY: $(RUSTOUT_KSUPPORT)/libksupport.a
+$(RUSTOUT_KSUPPORT)/libksupport.a:
+	RUSTFLAGS="-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -Cpanic=unwind" \
+	CARGO_TARGET_DIR=$(realpath .)/cargo-ksupport \
+		cargo build --target=or1k-unknown-none \
+			--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../firmware/libksupport/Cargo.toml)
 
-ksupport.elf: $(OBJECTS_KSUPPORT) $(RUSTOUT_DIRECTORY)/libksupport.a
+ksupport.elf: $(OBJECTS_KSUPPORT) $(RUSTOUT_KSUPPORT)/libksupport.a
 	$(LD) $(LDFLAGS) \
 		--eh-frame-hdr \
 		-T $(RUNTIME_DIRECTORY)/ksupport.ld \
