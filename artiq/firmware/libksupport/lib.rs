@@ -50,8 +50,6 @@ macro_rules! artiq_raise {
 mod rtio;
 #[cfg(has_i2c)]
 mod i2c;
-#[cfg(has_ad9154)]
-mod ad9154;
 
 use core::{mem, ptr, slice, str};
 use std::io::Cursor;

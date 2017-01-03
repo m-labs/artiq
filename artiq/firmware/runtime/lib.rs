@@ -118,6 +118,10 @@ pub unsafe extern fn rust_main() {
         }
         info!("continuing boot");
 
+        #[cfg(has_ad9516)]
+        board::ad9516::init().unwrap();
+        #[cfg(has_converter_spi)]
+        board::ad9154::init().unwrap();
         network_init();
 
         let mut scheduler = sched::Scheduler::new();

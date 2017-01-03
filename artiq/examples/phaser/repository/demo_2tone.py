@@ -14,7 +14,7 @@ class SAWGTest(EnvExperiment):
 
     @kernel
     def run(self):
-        self.core.break_realtime()
+        self.core.reset()
         self.ttl_sma.output()
 
         while True:

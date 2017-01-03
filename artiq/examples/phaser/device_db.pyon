@@ -12,19 +12,13 @@
         "module": "artiq.coredevice.core",
         "class": "Core",
         "arguments": {
-            "ref_period": 5e-9/6,
-            "external_clock": True
+            "ref_period": 5e-9/6
         }
     },
     "core_cache": {
         "type": "local",
         "module": "artiq.coredevice.cache",
         "class": "CoreCache"
-    },
-    "ad9154": {
-        "type": "local",
-        "module": "artiq.coredevice.ad9154",
-        "class": "AD9154"
     },
     "ttl_sma": {
         "type": "local",
@@ -44,34 +38,28 @@
         "class": "TTLInOut",
         "arguments": {"channel": 2}
     },
-    "sync": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLInOut",
-        "arguments": {"channel": 3}
-    },
     "sawg0": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 4, "parallelism": 2}
+        "arguments": {"channel_base": 3, "parallelism": 2}
     },
     "sawg1": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 14, "parallelism": 2}
+        "arguments": {"channel_base": 13, "parallelism": 2}
     },
     "sawg2": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 24, "parallelism": 2}
+        "arguments": {"channel_base": 23, "parallelism": 2}
     },
     "sawg3": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 34, "parallelism": 2}
+        "arguments": {"channel_base": 33, "parallelism": 2}
     }
 }

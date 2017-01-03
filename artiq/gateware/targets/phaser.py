@@ -37,6 +37,13 @@ class _PhaserCRG(Module, AutoCSR):
         self.clock_domains.cd_rtio = ClockDomain()
         self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
 
+        external_clk = Signal()
+        user_sma_clock = platform.request("user_sma_clock")
+        platform.add_period_constraint(user_sma_clock.p, 20/3)
+        self.specials += Instance("IBUFDS",
+                                  i_I=user_sma_clock.p, i_IB=user_sma_clock.n,
+                                  o_O=external_clk)
+
         pll_locked = Signal()
         rtio_clk = Signal()
         rtiox4_clk = Signal()
@@ -46,7 +53,7 @@ class _PhaserCRG(Module, AutoCSR):
 
                      p_REF_JITTER1=0.01, p_REF_JITTER2=0.01,
                      p_CLKIN1_PERIOD=20/3, p_CLKIN2_PERIOD=20/3,
-                     i_CLKIN1=0, i_CLKIN2=refclk,
+                     i_CLKIN1=refclk, i_CLKIN2=external_clk,
                      # Warning: CLKINSEL=0 means CLKIN2 is selected
                      i_CLKINSEL=~self._clock_sel.storage,
 
@@ -58,13 +65,11 @@ class _PhaserCRG(Module, AutoCSR):
                      o_CLKFBOUT=rtio_clk,
 
                      p_CLKOUT0_DIVIDE=2, p_CLKOUT0_PHASE=0.0,
-                     o_CLKOUT0=rtiox4_clk,
-                     ),
+                     o_CLKOUT0=rtiox4_clk),
             Instance("BUFG", i_I=rtio_clk, o_O=self.cd_rtio.clk),
             Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk),
             AsyncResetSynchronizer(self.cd_rtio, ~pll_locked),
-            MultiReg(pll_locked | ~self._clock_sel.storage,
-                     self._pll_locked.status)
+            MultiReg(pll_locked, self._pll_locked.status)
         ]
         self.cd_rtio.clk.attr.add("keep")
         platform.add_period_constraint(self.cd_rtio.clk, 20/3)
@@ -72,17 +77,15 @@ class _PhaserCRG(Module, AutoCSR):
 
 class AD9154JESD(Module, AutoCSR):
     def __init__(self, platform):
+        self.jreset = CSRStorage(reset=1)
+        self.jsync = CSRStatus()
+
         ps = JESD204BPhysicalSettings(l=4, m=4, n=16, np=16)
         ts = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
         settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
         linerate = 6e9
         refclk_freq = 150e6
         fabric_freq = 150*1000*1000
-
-        sync_pads = platform.request("ad9154_sync")
-        self.jsync = Signal()
-        self.specials += DifferentialInput(
-            sync_pads.p, sync_pads.n, self.jsync)
 
         refclk = Signal()
         self.clock_domains.cd_jesd = ClockDomain()
@@ -92,7 +95,7 @@ class AD9154JESD(Module, AutoCSR):
             Instance("IBUFDS_GTE2", i_CEB=0,
                      i_I=refclk_pads.p, i_IB=refclk_pads.n, o_O=refclk),
             Instance("BUFG", i_I=refclk, o_O=self.cd_jesd.clk),
-            AsyncResetSynchronizer(self.cd_jesd, ResetSignal("rio_phy")),
+            AsyncResetSynchronizer(self.cd_jesd, self.jreset.storage),
         ]
         self.cd_jesd.clk.attr.add("keep")
         platform.add_period_constraint(self.cd_jesd.clk, 1e9/refclk_freq)
@@ -113,11 +116,18 @@ class AD9154JESD(Module, AutoCSR):
                                                       converter_data_width=32))
         self.submodules.control = to_jesd(JESD204BCoreTXControl(self.core))
 
+        sync_pads = platform.request("ad9154_sync")
+        jsync = Signal()
+        self.specials += [
+            DifferentialInput(sync_pads.p, sync_pads.n, jsync),
+            MultiReg(jsync, self.jsync.status)
+        ]
+
         self.comb += [
             platform.request("ad9154_txen", 0).eq(1),
             platform.request("ad9154_txen", 1).eq(1),
-            self.core.start.eq(self.jsync),
-            platform.request("user_led", 3).eq(self.jsync),
+            self.core.start.eq(jsync),
+            platform.request("user_led", 3).eq(jsync),
         ]
 
         # blinking leds for transceiver reset status
@@ -135,11 +145,6 @@ class AD9154JESD(Module, AutoCSR):
 
 class AD9154(Module, AutoCSR):
     def __init__(self, platform):
-        ad9154_spi = platform.request("ad9154_spi")
-        self.comb += ad9154_spi.en.eq(1)
-
-        self.submodules.spi = spi_csr.SPIMaster(ad9154_spi)
-
         self.submodules.jesd = AD9154JESD(platform)
 
         self.sawgs = [sawg.Channel(width=16, parallelism=2) for i in range(4)]
@@ -186,10 +191,16 @@ class Phaser(MiniSoC, AMPSoC):
         self.register_kernel_cpu_csrdevice("i2c")
         self.config["I2C_BUS_COUNT"] = 1
 
+        ad9154_spi = platform.request("ad9154_spi")
+        self.comb += ad9154_spi.en.eq(1)
+        self.submodules.converter_spi = spi_csr.SPIMaster(ad9154_spi)
+        self.csr_devices.append("converter_spi")
+        self.config["CONVERTER_SPI_DAC_CS"] = 0
+        self.config["CONVERTER_SPI_CLK_CS"] = 1
+        self.config["HAS_AD9516"] = None
+
         self.submodules.ad9154 = AD9154(platform)
-        self.register_kernel_cpu_csrdevice("ad9154")
-        self.config["AD9154_DAC_CS"] = 1 << 0
-        self.config["AD9154_CLK_CS"] = 1 << 1
+        self.csr_devices.append("ad9154")
 
         rtio_channels = []
 
@@ -204,11 +215,6 @@ class Phaser(MiniSoC, AMPSoC):
 
         sysref_pads = platform.request("ad9154_sysref")
         phy = ttl_serdes_7series.Input_8X(sysref_pads.p, sysref_pads.n)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
-                                                   ofifo_depth=2))
-
-        phy = ttl_simple.Input(self.ad9154.jesd.jsync)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
                                                    ofifo_depth=2))

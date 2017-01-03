@@ -1,3 +1,5 @@
+# TODO: move to firmware
+
 from jesd204b.transport import seed_to_data
 
 from artiq.coredevice.ad9154_reg import *
