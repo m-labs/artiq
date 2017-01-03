@@ -53,7 +53,7 @@ fn worker(mut stream: TcpStream) -> io::Result<()> {
         sent_bytes: if wraparound { BUFFER_SIZE as u32 } else { total_byte_count as u32 },
         overflow_occurred: overflow_occurred,
         log_channel: csr::CONFIG_RTIO_LOG_CHANNEL as u8,
-        dds_onehot_sel: csr::CONFIG_DDS_ONEHOT_SEL != 0
+        dds_onehot_sel: true  // kept for backward compatibility of analyzer dumps
     };
     trace!("{:?}", header);
 

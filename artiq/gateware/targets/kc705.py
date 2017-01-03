@@ -224,8 +224,6 @@ class NIST_CLOCK(_NIST_Ions):
         self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
         self.config["RTIO_DDS_COUNT"] = 1
         self.config["DDS_CHANNELS_PER_BUS"] = 11
-        self.config["DDS_AD9914"] = None
-        self.config["DDS_ONEHOT_SEL"] = None
         phy = dds.AD9914(platform.request("dds"), 11, onehot=True)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,
@@ -301,8 +299,6 @@ class NIST_QC2(_NIST_Ions):
         self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
         self.config["RTIO_DDS_COUNT"] = 2
         self.config["DDS_CHANNELS_PER_BUS"] = 12
-        self.config["DDS_AD9914"] = None
-        self.config["DDS_ONEHOT_SEL"] = None
         for backplane_offset in range(2):
             phy = dds.AD9914(
                 platform.request("dds", backplane_offset), 12, onehot=True)

@@ -235,8 +235,6 @@ class Phaser(MiniSoC, AMPSoC):
         self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
         self.config["RTIO_DDS_COUNT"] = 1
         self.config["DDS_CHANNELS_PER_BUS"] = 1
-        self.config["DDS_AD9914"] = None
-        self.config["DDS_ONEHOT_SEL"] = None
 
         self.submodules.rtio_crg = _PhaserCRG(
             platform, self.ad9154.jesd.cd_jesd.clk)
