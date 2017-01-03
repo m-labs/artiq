@@ -11,15 +11,15 @@ include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/csr.rs"));
 pub mod spr;
 pub mod irq;
 pub mod clock;
-// XXX #[cfg(has_ad9516)]
+#[cfg(has_ad9516)]
 #[allow(dead_code)]
 mod ad9516_reg;
-// XXX #[cfg(has_ad9516)]
+#[cfg(has_ad9516)]
 pub mod ad9516;
-// XXX #[cfg(has_converter_spi)]
+#[cfg(has_converter_spi)]
 #[allow(dead_code)]
 mod ad9154_reg;
-// XXX #[cfg(has_converter_spi)]
+#[cfg(has_converter_spi)]
 pub mod ad9154;
 
 extern {
