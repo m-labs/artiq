@@ -18,6 +18,7 @@ fn worker(socket: &mut UdpSocket) -> io::Result<()> {
 
         match request {
             Request::Monitor => {
+                #[cfg(has_dds)]
                 let mut dds_ftws = [0u32; (csr::CONFIG_RTIO_DDS_COUNT as usize *
                                         csr::CONFIG_DDS_CHANNELS_PER_BUS as usize)];
                 let mut reply = Reply::default();
@@ -43,22 +44,25 @@ fn worker(socket: &mut UdpSocket) -> io::Result<()> {
                     }
                 }
 
-                reply.dds_rtio_first_channel = csr::CONFIG_RTIO_FIRST_DDS_CHANNEL as u16;
-                reply.dds_channels_per_bus = csr::CONFIG_DDS_CHANNELS_PER_BUS as u16;
+                #[cfg(has_dds)]
+                {
+                    reply.dds_rtio_first_channel = csr::CONFIG_RTIO_FIRST_DDS_CHANNEL as u16;
+                    reply.dds_channels_per_bus = csr::CONFIG_DDS_CHANNELS_PER_BUS as u16;
 
-                for j in 0..csr::CONFIG_RTIO_DDS_COUNT {
-                    unsafe {
-                        csr::rtio_moninj::mon_chan_sel_write(
-                            (csr::CONFIG_RTIO_FIRST_DDS_CHANNEL + j) as u8);
-                        for i in 0..csr::CONFIG_DDS_CHANNELS_PER_BUS {
-                            csr::rtio_moninj::mon_probe_sel_write(i as u8);
-                            csr::rtio_moninj::mon_value_update_write(1);
-                            dds_ftws[(csr::CONFIG_DDS_CHANNELS_PER_BUS * j + i) as usize] =
-                                csr::rtio_moninj::mon_value_read() as u32;
+                    for j in 0..csr::CONFIG_RTIO_DDS_COUNT {
+                        unsafe {
+                            csr::rtio_moninj::mon_chan_sel_write(
+                                (csr::CONFIG_RTIO_FIRST_DDS_CHANNEL + j) as u8);
+                            for i in 0..csr::CONFIG_DDS_CHANNELS_PER_BUS {
+                                csr::rtio_moninj::mon_probe_sel_write(i as u8);
+                                csr::rtio_moninj::mon_value_update_write(1);
+                                dds_ftws[(csr::CONFIG_DDS_CHANNELS_PER_BUS * j + i) as usize] =
+                                    csr::rtio_moninj::mon_value_read() as u32;
+                            }
                         }
                     }
+                    reply.dds_ftws = &dds_ftws;
                 }
-                reply.dds_ftws = &dds_ftws;
 
                 trace!("{} <- {:?}", addr, reply);
                 buf.clear();

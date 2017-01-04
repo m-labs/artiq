@@ -230,12 +230,6 @@ class Phaser(MiniSoC, AMPSoC):
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.LogChannel())
 
-        # TODO: get rid of those bogus DDS defines
-        # currently moninj in the runtime requires them
-        self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
-        self.config["RTIO_DDS_COUNT"] = 1
-        self.config["DDS_CHANNELS_PER_BUS"] = 1
-
         self.submodules.rtio_crg = _PhaserCRG(
             platform, self.ad9154.jesd.cd_jesd.clk)
         self.csr_devices.append("rtio_crg")
