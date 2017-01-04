@@ -422,6 +422,44 @@ fn process_kern_message(waiter: Waiter,
                 kern_send(waiter, &kern::CachePutReply { succeeded: succeeded })
             }
 
+            #[cfg(has_i2c)]
+            &kern::I2CStartRequest { busno } => {
+                board::i2c::start(busno);
+                kern_acknowledge()
+            }
+            #[cfg(has_i2c)]
+            &kern::I2CStopRequest { busno } => {
+                board::i2c::stop(busno);
+                kern_acknowledge()
+            }
+            #[cfg(has_i2c)]
+            &kern::I2CWriteRequest { busno, data } => {
+                let ack = board::i2c::write(busno, data);
+                kern_send(waiter, &kern::I2CWriteReply { ack: ack })
+            }
+            #[cfg(has_i2c)]
+            &kern::I2CReadRequest { busno, ack } => {
+                let data = board::i2c::read(busno, ack);
+                kern_send(waiter, &kern::I2CReadReply { data: data })
+            }
+
+            #[cfg(not(has_i2c))]
+            &kern::I2CStartRequest { .. } => {
+                kern_acknowledge()
+            }
+            #[cfg(not(has_i2c))]
+            &kern::I2CStopRequest { .. } => {
+                kern_acknowledge()
+            }
+            #[cfg(not(has_i2c))]
+            &kern::I2CWriteRequest { .. } => {
+                kern_send(waiter, &kern::I2CWriteReply { ack: false })
+            }
+            #[cfg(not(has_i2c))]
+            &kern::I2CReadRequest { .. } => {
+                kern_send(waiter, &kern::I2CReadReply { data: 0xff })
+            }
+
             &kern::RunFinished => {
                 unsafe { kernel::stop() }
                 session.kernel_state = KernelState::Absent;

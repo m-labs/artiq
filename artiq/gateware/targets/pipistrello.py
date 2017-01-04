@@ -149,7 +149,6 @@ _ttl_io = [
 
 class Demo(BaseSoC, AMPSoC):
     mem_map = {
-        "timer_kernel":  0x10000000,  # (shadow @0x90000000)
         "rtio":          0x20000000,  # (shadow @0xa0000000)
         "mailbox":       0x70000000   # (shadow @0xf0000000)
     }

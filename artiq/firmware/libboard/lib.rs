@@ -11,6 +11,8 @@ include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/csr.rs"));
 pub mod spr;
 pub mod irq;
 pub mod clock;
+#[cfg(has_i2c)]
+pub mod i2c;
 #[cfg(has_ad9516)]
 #[allow(dead_code)]
 mod ad9516_reg;

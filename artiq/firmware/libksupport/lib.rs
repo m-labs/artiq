@@ -48,8 +48,6 @@ macro_rules! artiq_raise {
 }
 
 mod rtio;
-#[cfg(has_i2c)]
-mod i2c;
 
 use core::{mem, ptr, slice, str};
 use std::io::Cursor;
@@ -241,6 +239,24 @@ extern fn cache_put(key: *const u8, list: ArtiqList<i32>) {
             artiq_raise!("CacheError", "cannot put into a busy cache row")
         }
     })
+}
+
+extern fn i2c_start(busno: i32) {
+    send(&I2CStartRequest { busno: busno as u32 });
+}
+
+extern fn i2c_stop(busno: i32) {
+    send(&I2CStopRequest { busno: busno as u32 });
+}
+
+extern fn i2c_write(busno: i32, data: i8) -> bool {
+    send(&I2CWriteRequest { busno: busno as u32, data: data as u8 });
+    recv!(&I2CWriteReply { ack } => ack)
+}
+
+extern fn i2c_read(busno: i32, ack: bool) -> i8 {
+    send(&I2CReadRequest { busno: busno as u32, ack: ack });
+    recv!(&I2CReadReply { data } => data) as i8
 }
 
 unsafe fn attribute_writeback(typeinfo: *const ()) {

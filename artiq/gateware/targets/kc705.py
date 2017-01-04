@@ -100,10 +100,8 @@ _ams101_dac = [
 
 class _NIST_Ions(MiniSoC, AMPSoC):
     mem_map = {
-        "timer_kernel":  0x10000000,
         "rtio":          0x20000000,
         "rtio_dma":      0x30000000,
-        "i2c":           0x50000000,
         "mailbox":       0x70000000
     }
     mem_map.update(MiniSoC.mem_map)
@@ -134,7 +132,7 @@ class _NIST_Ions(MiniSoC, AMPSoC):
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
-        self.register_kernel_cpu_csrdevice("i2c")
+        self.csr_devices.append("i2c")
         self.config["I2C_BUS_COUNT"] = 1
 
         self.config["HAS_DDS"] = None

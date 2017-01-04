@@ -126,10 +126,6 @@ class DDSError(Exception):
     incorrect.
     """
 
-class I2CError(Exception):
-    """Raised with a I2C transaction fails."""
-    artiq_builtin = True
-
 class WatchdogExpired(Exception):
     """Raised when a watchdog expires."""
 

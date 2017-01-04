@@ -57,6 +57,13 @@ pub enum Message<'a> {
     CachePutRequest { key: &'a str, value: &'a [i32] },
     CachePutReply   { succeeded: bool },
 
+    I2CStartRequest { busno: u32 },
+    I2CStopRequest { busno: u32 },
+    I2CWriteRequest { busno: u32, data: u8 },
+    I2CWriteReply { ack: bool },
+    I2CReadRequest { busno: u32, ack: bool },
+    I2CReadReply { data: u8 },
+
     Log(fmt::Arguments<'a>),
     LogSlice(&'a str)
 }

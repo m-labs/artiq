@@ -1,11 +1,10 @@
 from artiq.language.core import syscall, kernel
 from artiq.language.types import TBool, TInt32, TNone
-from artiq.coredevice.exceptions import I2CError
 
 
-@syscall(flags={"nowrite"})
-def i2c_init(busno: TInt32) -> TNone:
-    raise NotImplementedError("syscall not simulated")
+class I2CError(Exception):
+    """Raised with a I2C transaction fails."""
+    pass
 
 
 @syscall(flags={"nounwind", "nowrite"})
@@ -48,7 +47,6 @@ class PCA9548:
 
         :param channel: channel number (0-7)
         """
-        i2c_init(self.busno)
         i2c_start(self.busno)
         try:
             if not i2c_write(self.busno, self.address):
@@ -60,7 +58,6 @@ class PCA9548:
 
     @kernel
     def readback(self):
-        i2c_init(self.busno)
         i2c_start(self.busno)
         r = 0
         try:
@@ -84,7 +81,6 @@ class TCA6424A:
 
     @kernel
     def _write24(self, command, value):
-        i2c_init(self.busno)
         i2c_start(self.busno)
         try:
             if not i2c_write(self.busno, self.address):

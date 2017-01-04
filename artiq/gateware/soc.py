@@ -36,9 +36,6 @@ class AMPSoC:
         self.add_memory_region("mailbox",
                                self.mem_map["mailbox"] | 0x80000000, 4)
 
-        self.submodules.timer_kernel = timer.Timer()
-        self.register_kernel_cpu_csrdevice("timer_kernel")
-
     def register_kernel_cpu_csrdevice(self, name, csrs=None):
         if csrs is None:
             csrs = getattr(self, name).get_csrs()

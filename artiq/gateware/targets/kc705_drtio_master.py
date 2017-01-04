@@ -20,7 +20,6 @@ from artiq import __version__ as artiq_version
 
 class Master(MiniSoC, AMPSoC):
     mem_map = {
-        "timer_kernel":  0x10000000,
         "rtio":          0x20000000,
         "rtio_dma":      0x30000000,
         "drtio_aux":     0x50000000,

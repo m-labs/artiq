@@ -120,6 +120,8 @@ pub unsafe extern fn rust_main() {
         }
         info!("continuing boot");
 
+        #[cfg(has_i2c)]
+        board::i2c::init();
         #[cfg(has_ad9516)]
         board::ad9516::init().unwrap();
         #[cfg(has_converter_spi)]
