@@ -70,7 +70,9 @@ mod cache;
 mod proto;
 mod kernel_proto;
 mod session_proto;
+#[cfg(has_rtio_moninj)]
 mod moninj_proto;
+#[cfg(has_rtio_analyzer)]
 mod analyzer_proto;
 mod rpc_proto;
 
