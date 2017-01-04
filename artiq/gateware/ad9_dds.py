@@ -4,7 +4,7 @@ from migen.genlib.misc import WaitTimer
 from misoc.interconnect import wishbone
 
 
-class AD9xxx(Module):
+class AD9_DDS(Module):
     """Wishbone interface to the AD9858 and AD9914 DDS chips.
 
     Addresses 0-2**len(pads.a)-1 map the AD9xxx registers.
@@ -178,5 +178,5 @@ class _TestPads:
 
 if __name__ == "__main__":
     pads = _TestPads()
-    dut = AD9xxx(pads)
-    run_simulation(dut, _test_gen(dut.bus), vcd_name="ad9xxx.vcd")
+    dut = AD9_DDS(pads)
+    run_simulation(dut, _test_gen(dut.bus), vcd_name="ad9_dds.vcd")

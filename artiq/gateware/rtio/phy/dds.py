@@ -1,13 +1,13 @@
 from migen import *
 
-from artiq.gateware import ad9xxx
+from artiq.gateware import ad9_dds
 from artiq.gateware.rtio.phy.wishbone import RT2WB
 
 
-class _AD9xxx(Module):
+class _AD9_DDS(Module):
     def __init__(self, ftw_base, pads, nchannels, onehot=False, **kwargs):
         self.submodules._ll = ClockDomainsRenamer("rio_phy")(
-            ad9xxx.AD9xxx(pads, **kwargs))
+            ad9_dds.AD9_DDS(pads, **kwargs))
         self.submodules._rt2wb = RT2WB(len(pads.a)+1, self._ll.bus)
         self.rtlink = self._rt2wb.rtlink
         self.probes = [Signal(32) for i in range(nchannels)]
@@ -56,6 +56,6 @@ class _AD9xxx(Module):
             for c, (probe, ftw) in enumerate(zip(self.probes, ftws))])
 
 
-class AD9914(_AD9xxx):
+class AD9914(_AD9_DDS):
     def __init__(self, *args, **kwargs):
-        _AD9xxx.__init__(self, 0x2d, *args, **kwargs)
+        _AD9_DDS.__init__(self, 0x2d, *args, **kwargs)
