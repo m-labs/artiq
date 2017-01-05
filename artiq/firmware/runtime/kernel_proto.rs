@@ -57,11 +57,11 @@ pub enum Message<'a> {
     CachePutRequest { key: &'a str, value: &'a [i32] },
     CachePutReply   { succeeded: bool },
 
-    I2CStartRequest { busno: u32 },
-    I2CStopRequest { busno: u32 },
-    I2CWriteRequest { busno: u32, data: u8 },
+    I2CStartRequest { busno: u8 },
+    I2CStopRequest { busno: u8 },
+    I2CWriteRequest { busno: u8, data: u8 },
     I2CWriteReply { ack: bool },
-    I2CReadRequest { busno: u32, ack: bool },
+    I2CReadRequest { busno: u8, ack: bool },
     I2CReadReply { data: u8 },
 
     Log(fmt::Arguments<'a>),

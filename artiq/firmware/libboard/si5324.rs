@@ -1,7 +1,7 @@
 use i2c;
 use clock;
 
-const BUSNO: u32 = 0;
+const BUSNO: u8 = 0;
 const ADDRESS: u8 = 0x68;
 
 #[cfg(soc_platform = "kc705")]

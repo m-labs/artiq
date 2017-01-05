@@ -2,16 +2,16 @@ use csr;
 use clock;
 
 fn half_period() { clock::spin_us(100) }
-fn sda_bit(busno: u32) -> u8 { 1 << (2 * busno + 1) }
-fn scl_bit(busno: u32) -> u8 { 1 << (2 * busno) }
+fn sda_bit(busno: u8) -> u8 { 1 << (2 * busno + 1) }
+fn scl_bit(busno: u8) -> u8 { 1 << (2 * busno) }
 
-fn sda_i(busno: u32) -> bool {
+fn sda_i(busno: u8) -> bool {
     unsafe {
         csr::i2c::in_read() & sda_bit(busno) != 0
     }
 }
 
-fn sda_oe(busno: u32, oe: bool) {
+fn sda_oe(busno: u8, oe: bool) {
     unsafe {
         let reg = csr::i2c::oe_read();
         let reg = if oe { reg | sda_bit(busno) } else { reg & !sda_bit(busno) };
@@ -19,7 +19,7 @@ fn sda_oe(busno: u32, oe: bool) {
     }
 }
 
-fn sda_o(busno: u32, o: bool) {
+fn sda_o(busno: u8, o: bool) {
     unsafe {
         let reg = csr::i2c::out_read();
         let reg = if o  { reg | sda_bit(busno) } else { reg & !sda_bit(busno) };
@@ -27,7 +27,7 @@ fn sda_o(busno: u32, o: bool) {
     }
 }
 
-fn scl_oe(busno: u32, oe: bool) {
+fn scl_oe(busno: u8, oe: bool) {
     unsafe {
         let reg = csr::i2c::oe_read();
         let reg = if oe { reg | scl_bit(busno) } else { reg & !scl_bit(busno) };
@@ -35,7 +35,7 @@ fn scl_oe(busno: u32, oe: bool) {
     }
 }
 
-fn scl_o(busno: u32, o: bool) {
+fn scl_o(busno: u8, o: bool) {
     unsafe {
         let reg = csr::i2c::out_read();
         let reg = if o  { reg | scl_bit(busno) } else { reg & !scl_bit(busno) };
@@ -45,6 +45,7 @@ fn scl_o(busno: u32, o: bool) {
 
 pub fn init() {
     for busno in 0..csr::CONFIG_I2C_BUS_COUNT {
+        let busno = busno as u8;
         // Set SCL as output, and high level
         scl_o(busno, true);
         scl_oe(busno, true);
@@ -62,7 +63,7 @@ pub fn init() {
     }
 }
 
-pub fn start(busno: u32) {
+pub fn start(busno: u8) {
     // Set SCL high then SDA low
     scl_o(busno, true);
     half_period();
@@ -70,7 +71,7 @@ pub fn start(busno: u32) {
     half_period();
 }
 
-pub fn restart(busno: u32) {
+pub fn restart(busno: u8) {
     // Set SCL low then SDA high */
     scl_o(busno, false);
     half_period();
@@ -80,7 +81,7 @@ pub fn restart(busno: u32) {
     start(busno);
 }
 
-pub fn stop(busno: u32) {
+pub fn stop(busno: u8) {
     // First, make sure SCL is low, so that the target releases the SDA line
     scl_o(busno, false);
     half_period();
@@ -92,7 +93,7 @@ pub fn stop(busno: u32) {
     half_period();
 }
 
-pub fn write(busno: u32, data: u8) -> bool {
+pub fn write(busno: u8, data: u8) -> bool {
     // MSB first
     for bit in (0..8).rev() {
         // Set SCL low and set our bit on SDA
@@ -115,7 +116,7 @@ pub fn write(busno: u32, data: u8) -> bool {
     !sda_i(busno)
 }
 
-pub fn read(busno: u32, ack: bool) -> u8 {
+pub fn read(busno: u8, ack: bool) -> u8 {
     // Set SCL low first, otherwise setting SDA as input may cause a transition
     // on SDA with SCL high which will be interpreted as START/STOP condition.
     scl_o(busno, false);
