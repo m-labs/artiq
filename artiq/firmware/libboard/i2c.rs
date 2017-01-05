@@ -70,6 +70,16 @@ pub fn start(busno: u32) {
     half_period();
 }
 
+pub fn restart(busno: u32) {
+    // Set SCL low then SDA high */
+    scl_o(busno, false);
+    half_period();
+    sda_oe(busno, false);
+    half_period();
+    // Do a regular start
+    start(busno);
+}
+
 pub fn stop(busno: u32) {
     // First, make sure SCL is low, so that the target releases the SDA line
     scl_o(busno, false);
