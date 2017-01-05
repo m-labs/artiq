@@ -6,7 +6,7 @@ BUILD_SETTINGS_FILE=$HOME/.m-labs/build_settings.sh
 SOC_PREFIX=$PREFIX/lib/python3.5/site-packages/artiq/binaries/kc705-nist_qc2
 mkdir -p $SOC_PREFIX
 
-$PYTHON -m artiq.gateware.targets.kc705 -H nist_qc2 --toolchain vivado $MISOC_EXTRA_VIVADO_CMDLINE
+$PYTHON -m artiq.gateware.targets.kc705_dds -H nist_qc2 --toolchain vivado $MISOC_EXTRA_VIVADO_CMDLINE
 cp misoc_nist_qc2_kc705/gateware/top.bit $SOC_PREFIX
 cp misoc_nist_qc2_kc705/software/bios/bios.bin $SOC_PREFIX
 cp misoc_nist_qc2_kc705/software/runtime/runtime.fbi $SOC_PREFIX

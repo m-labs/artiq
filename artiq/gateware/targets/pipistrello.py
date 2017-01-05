@@ -229,7 +229,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
 
 def main():
     parser = argparse.ArgumentParser(
-        description="ARTIQ core device builder / Pipistrello demo")
+        description="ARTIQ device binary builder / Pipistrello demo")
     builder_args(parser)
     soc_pipistrello_args(parser)
     args = parser.parse_args()

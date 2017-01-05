@@ -202,7 +202,7 @@ class Satellite(BaseSoC):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="ARTIQ with DRTIO on KC705 - Satellite")
+        description="ARTIQ device binary builder / KC705 DRTIO satellite")
     builder_args(parser)
     soc_kc705_args(parser)
     parser.add_argument("-c", "--config", default="simple_gbe",

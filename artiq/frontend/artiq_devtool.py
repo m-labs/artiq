@@ -84,7 +84,7 @@ def main():
         if action == "build":
             logger.info("Building runtime")
             try:
-                subprocess.check_call(["python3", "-m", "artiq.gateware.targets.kc705",
+                subprocess.check_call(["python3", "-m", "artiq.gateware.targets.kc705_dds",
                                             "-H", "nist_clock",
                                             "--no-compile-gateware",
                                             "--output-dir", "/tmp/kc705"])

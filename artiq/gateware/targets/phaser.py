@@ -257,8 +257,7 @@ class Phaser(MiniSoC, AMPSoC):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="ARTIQ core device builder for "
-                    "KC705+AD9154 hardware")
+        description="ARTIQ device binary builder / KC705 phaser demo")
     builder_args(parser)
     soc_kc705_args(parser)
     args = parser.parse_args()

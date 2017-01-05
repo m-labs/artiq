@@ -314,8 +314,8 @@ class NIST_QC2(_NIST_Ions):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="ARTIQ core device builder / KC705 "
-                    "+ NIST Ions CLOCK/QC2 hardware adapters")
+        description="ARTIQ device binary builder / single-FPGA KC705-based "
+                    "systems with AD9 DDS (NIST Ions hardware)")
     builder_args(parser)
     soc_kc705_args(parser)
     parser.add_argument("-H", "--hw-adapter", default="nist_clock",

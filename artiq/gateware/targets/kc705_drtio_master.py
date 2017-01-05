@@ -105,7 +105,7 @@ class Master(MiniSoC, AMPSoC):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="ARTIQ with DRTIO on KC705 - Master")
+        description="ARTIQ device binary builder / KC705 DRTIO master")
     builder_args(parser)
     soc_kc705_args(parser)
     parser.add_argument("-c", "--config", default="simple_gbe",
