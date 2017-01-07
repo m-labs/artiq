@@ -136,8 +136,19 @@ register_experiment = make_parent_action("register_experiment")
 class ExamineDeviceMgr:
     get_device_db = make_parent_action("get_device_db")
 
+    @staticmethod
     def get(name):
         return DummyDevice()
+
+
+class ExamineDatasetMgr:
+    @staticmethod
+    def get(key, archive=False):
+        return ParentDatasetDB.get(key)
+
+    @staticmethod
+    def update(self, mod):
+        pass
 
 
 def examine(device_mgr, dataset_mgr, file):
@@ -252,7 +263,7 @@ def main():
                     f["expid"] = pyon.encode(expid)
                 put_object({"action": "completed"})
             elif action == "examine":
-                examine(ExamineDeviceMgr, ParentDatasetDB, obj["file"])
+                examine(ExamineDeviceMgr, ExamineDatasetMgr, obj["file"])
                 put_object({"action": "completed"})
             elif action == "terminate":
                 break
