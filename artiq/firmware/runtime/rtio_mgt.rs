@@ -177,3 +177,55 @@ pub fn init_core() {
     }
     drtio::init()
 }
+
+#[cfg(has_drtio)]
+pub mod drtio_dbg {
+    use board::csr;
+
+    pub fn get_channel_state(channel: u32) -> (u16, u64) {
+        unsafe {
+            csr::drtio::chan_sel_override_write(channel as u16);
+            csr::drtio::chan_sel_override_en_write(1);
+            let fifo_space = csr::drtio::o_dbg_fifo_space_read();
+            let last_timestamp = csr::drtio::o_dbg_last_timestamp_read();
+            csr::drtio::chan_sel_override_en_write(0);
+            (fifo_space, last_timestamp)
+        }
+    }
+
+    pub fn reset_channel_state(channel: u32) {
+        unsafe {
+            csr::drtio::chan_sel_override_write(channel as u16);
+            csr::drtio::chan_sel_override_en_write(1);
+            csr::drtio::o_reset_channel_status_write(1);
+            csr::drtio::chan_sel_override_en_write(0);
+        }
+    }
+
+    pub fn get_fifo_space(channel: u32) {
+        unsafe {
+            csr::drtio::chan_sel_override_write(channel as u16);
+            csr::drtio::chan_sel_override_en_write(1);
+            csr::drtio::o_get_fifo_space_write(1);
+            csr::drtio::chan_sel_override_en_write(0);
+        }
+    }
+
+    pub fn get_packet_counts() -> (u32, u32) {
+        unsafe {
+            csr::drtio::update_packet_cnt_write(1);
+            (csr::drtio::packet_cnt_tx_read(), csr::drtio::packet_cnt_rx_read())
+        }
+    }
+}
+
+#[cfg(not(has_drtio))]
+pub mod drtio_dbg {
+    pub fn get_channel_state(_channel: u32) -> (u16, u64) { (0, 0) }
+
+    pub fn reset_channel_state(_channel: u32) {}
+
+    pub fn get_fifo_space(_channel: u32) {}
+
+    pub fn get_packet_counts() -> (u32, u32) { (0, 0) }
+}

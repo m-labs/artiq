@@ -47,8 +47,6 @@ macro_rules! artiq_raise {
     });
 }
 
-mod rtio;
-
 use core::{mem, ptr, slice, str};
 use std::io::Cursor;
 use libc::{c_char, size_t};
@@ -91,6 +89,7 @@ macro_rules! println {
 
 #[path = "../runtime/rpc_queue.rs"]
 mod rpc_queue;
+mod rtio;
 
 #[no_mangle]
 #[lang = "panic_fmt"]

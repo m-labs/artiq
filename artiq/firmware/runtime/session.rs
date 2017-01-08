@@ -384,6 +384,24 @@ fn process_kern_message(waiter: Waiter,
                 kern_acknowledge()
             }
 
+            &kern::DRTIOChannelStateRequest { channel } => {
+                let (fifo_space, last_timestamp) = rtio_mgt::drtio_dbg::get_channel_state(channel);
+                kern_send(waiter, &kern::DRTIOChannelStateReply { fifo_space: fifo_space,
+                                                                  last_timestamp: last_timestamp })
+            }
+            &kern::DRTIOResetChannelStateRequest { channel } => {
+                rtio_mgt::drtio_dbg::reset_channel_state(channel);
+                kern_acknowledge()
+            }
+            &kern::DRTIOGetFIFOSpaceRequest { channel } => {
+                rtio_mgt::drtio_dbg::get_fifo_space(channel);
+                kern_acknowledge()
+            }
+            &kern::DRTIOPacketCountRequest => {
+                let (tx_cnt, rx_cnt) = rtio_mgt::drtio_dbg::get_packet_counts();
+                kern_send(waiter, &kern::DRTIOPacketCountReply { tx_cnt: tx_cnt, rx_cnt: rx_cnt })
+            }
+
             &kern::WatchdogSetRequest { ms } => {
                 let id = try!(session.watchdog_set.set_ms(ms)
                                 .map_err(|()| io_error("out of watchdogs")));

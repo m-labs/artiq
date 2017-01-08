@@ -32,6 +32,13 @@ pub enum Message<'a> {
 
     RTIOInitRequest,
 
+    DRTIOChannelStateRequest { channel: u32 },
+    DRTIOChannelStateReply { fifo_space: u16, last_timestamp: u64 },
+    DRTIOResetChannelStateRequest { channel: u32 },
+    DRTIOGetFIFOSpaceRequest { channel: u32 },
+    DRTIOPacketCountRequest,
+    DRTIOPacketCountReply { tx_cnt: u32, rx_cnt: u32 },
+
     RunFinished,
     RunException {
         exception: Exception<'a>,

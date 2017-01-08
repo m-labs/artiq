@@ -183,3 +183,36 @@ pub fn log(timestamp: i64, data: &[u8]) {
 
 #[cfg(not(has_rtio_log))]
 pub fn log(_timestamp: i64, _data: &[u8]) {}
+
+pub mod drtio_dbg {
+    use ::send;
+    use ::recv;
+    use kernel_proto::*;
+
+
+    #[repr(C)]
+    pub struct ChannelState(i32, i64);
+
+    pub extern fn get_channel_state(channel: i32) -> ChannelState {
+        send(&DRTIOChannelStateRequest { channel: channel as u32 });
+        recv!(&DRTIOChannelStateReply { fifo_space, last_timestamp }
+              => ChannelState(fifo_space as i32, last_timestamp as i64))
+    }
+
+    pub extern fn reset_channel_state(channel: i32) {
+        send(&DRTIOResetChannelStateRequest { channel: channel as u32 })
+    }
+
+    pub extern fn get_fifo_space(channel: i32) {
+        send(&DRTIOGetFIFOSpaceRequest { channel: channel as u32 })
+    }
+
+    #[repr(C)]
+    pub struct PacketCounts(i32, i32);
+
+    pub extern fn get_packet_counts() -> PacketCounts {
+        send(&DRTIOPacketCountRequest);
+        recv!(&DRTIOPacketCountReply { tx_cnt, rx_cnt }
+              => PacketCounts(tx_cnt as i32, rx_cnt as i32))
+    }
+}
