@@ -3,7 +3,7 @@ from artiq.language.types import TBool, TInt32, TNone
 
 
 class I2CError(Exception):
-    """Raised with a I2C transaction fails."""
+    """Raised when a I2C transaction fails."""
     pass
 
 
