@@ -110,25 +110,23 @@ mod drtio {
         }
     }
 
-    fn packet_error_present() -> bool {
+    fn poll_errors() -> bool {
         unsafe {
-            csr::drtio::packet_err_present_read() != 0
+            if csr::drtio::packet_err_present_read() != 0 {
+                error!("packet error {}", csr::drtio::packet_err_code_read());
+                csr::drtio::packet_err_present_write(1)
+            }
+            if csr::drtio::o_fifo_space_timeout_read() != 0 {
+                error!("timeout attempting to get remote FIFO space");
+                csr::drtio::o_fifo_space_timeout_write(1)
+            }
         }
-    }
-
-    fn get_packet_error() -> u8 {
-        unsafe {
-            let err = csr::drtio::packet_err_code_read();
-            csr::drtio::packet_err_present_write(1);
-            err
-        }
+        false
     }
 
     pub fn error_thread(waiter: Waiter, _spawner: Spawner) {
-        loop {
-            waiter.until(packet_error_present).unwrap();
-            error!("DRTIO packet error {}", get_packet_error());
-        }
+        // HACK
+        waiter.until(poll_errors).unwrap();
     }
 
 }
