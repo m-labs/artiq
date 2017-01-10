@@ -183,7 +183,7 @@ class Satellite(BaseSoC):
         else:
             raise ValueError
         self.submodules.rx_synchronizer = gtx_7series.RXSynchronizer(
-            self.transceiver.rtio_clk_freq)
+            self.transceiver.rtio_clk_freq, initial_phase=180.0)
         self.submodules.drtio = DRTIOSatellite(
             self.transceiver, self.rx_synchronizer, rtio_channels)
         self.csr_devices.append("rx_synchronizer")
