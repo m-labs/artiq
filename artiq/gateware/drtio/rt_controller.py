@@ -192,7 +192,7 @@ class RTController(Module):
             timeout_counter.wait.eq(1),
             If(timeout_counter.done,
                 signal_fifo_space_timeout.eq(1),
-                NextState("IDLE")
+                NextState("GET_FIFO_SPACE")
             )
         )
 
