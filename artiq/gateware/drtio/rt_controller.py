@@ -139,8 +139,6 @@ class RTController(Module):
         cond_sequence_error = self.cri.o_timestamp < last_timestamps.dat_r
         cond_underflow = ((self.cri.o_timestamp[fine_ts_width:]
                            - self.csrs.underflow_margin.storage[fine_ts_width:]) < self.counter.value_sys)
-        cond_fifo_emptied = ((last_timestamps.dat_r[fine_ts_width:] < self.counter.value_sys)
-                             & (last_timestamps.dat_r != 0))
 
         fsm.act("IDLE",
             If(self.cri.cmd == cri.commands["write"],
@@ -161,13 +159,9 @@ class RTController(Module):
             rt_packets.write_stb.eq(1),
             If(rt_packets.write_ack,
                 fifo_spaces.we.eq(1),
-                If(cond_fifo_emptied,
-                    fifo_spaces.dat_w.eq(1),
-                ).Else(
-                    fifo_spaces.dat_w.eq(fifo_spaces.dat_r - 1)
-                ),
+                fifo_spaces.dat_w.eq(fifo_spaces.dat_r - 1),
                 last_timestamps.we.eq(1),
-                If(~cond_fifo_emptied & (fifo_spaces.dat_r <= 1),
+                If(fifo_spaces.dat_r <= 1,
                     NextState("GET_FIFO_SPACE")
                 ).Else(
                     NextState("IDLE")
@@ -189,7 +183,7 @@ class RTController(Module):
             fifo_spaces.we.eq(1),
             rt_packets.fifo_space_not_ack.eq(1),
             If(rt_packets.fifo_space_not,
-                If(rt_packets.fifo_space > 0,
+                If(rt_packets.fifo_space != 0,
                     NextState("IDLE")
                 ).Else(
                     NextState("GET_FIFO_SPACE")

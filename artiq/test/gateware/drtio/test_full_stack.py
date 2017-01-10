@@ -174,15 +174,6 @@ class TestFullStack(unittest.TestCase):
             # check that some writes caused FIFO space requests
             self.assertGreater(max_wlen, 5)
 
-        def test_fifo_emptied():
-            # wait for all TTL events to execute
-            while len(ttl_changes) < len(correct_ttl_changes):
-                yield
-            # check "last timestamp passed" FIFO empty condition
-            delay(1000*8)
-            wlen = yield from write(0, 1)
-            self.assertEqual(wlen, 2)
-
         def test_tsc_error():
             err_present = yield from mgr.packet_err_present.read()
             self.assertEqual(err_present, 0)
@@ -203,6 +194,10 @@ class TestFullStack(unittest.TestCase):
             err_present = yield from mgr.packet_err_present.read()
             self.assertEqual(err_present, 0)
 
+        def wait_ttl_events():
+            while len(ttl_changes) < len(correct_ttl_changes):
+                yield
+
         def test():
             while not (yield from dut.master.link_layer.link_status.read()):
                 yield
@@ -213,8 +208,8 @@ class TestFullStack(unittest.TestCase):
             yield from test_sequence_error()
             yield from test_fifo_space()
             yield from test_large_data()
-            yield from test_fifo_emptied()
             yield from test_tsc_error()
+            yield from wait_ttl_events()
 
         @passive
         def check_ttls():
