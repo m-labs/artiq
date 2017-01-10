@@ -129,7 +129,7 @@ pub unsafe extern fn rust_main() {
         network_init();
 
         let mut scheduler = sched::Scheduler::new();
-        rtio_mgt::startup(&scheduler);
+        rtio_mgt::startup(scheduler.spawner());
         scheduler.spawner().spawn(16384, session::thread);
         #[cfg(has_rtio_moninj)]
         scheduler.spawner().spawn(4096, moninj::thread);

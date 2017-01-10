@@ -1,6 +1,6 @@
 use config;
 use board::csr;
-use sched::Scheduler;
+use sched::Spawner;
 
 #[cfg(has_rtio_crg)]
 pub mod crg {
@@ -39,11 +39,11 @@ pub mod crg {
 #[cfg(has_drtio)]
 mod drtio {
     use board::csr;
-    use sched::{Scheduler, Waiter, Spawner};
+    use sched::{Waiter, Spawner};
 
-    pub fn startup(scheduler: &Scheduler) {
-        scheduler.spawner().spawn(4096, link_thread);
-        scheduler.spawner().spawn(4096, error_thread);
+    pub fn startup(spawner: &Spawner) {
+        spawner.spawn(4096, link_thread);
+        spawner.spawn(4096, error_thread);
     }
 
     fn link_is_up() -> bool {
@@ -133,13 +133,13 @@ mod drtio {
 
 #[cfg(not(has_drtio))]
 mod drtio {
-    use sched::Scheduler;
+    use sched::Spawner;
 
-    pub fn startup(_scheduler: &Scheduler) {}
+    pub fn startup(_spawner: &Spawner) {}
     pub fn init() {}
 }
 
-pub fn startup(scheduler: &Scheduler) {
+pub fn startup(spawner: &Spawner) {
     crg::init();
 
     let mut opt = [b'i'];
@@ -165,7 +165,7 @@ pub fn startup(scheduler: &Scheduler) {
         warn!("fix clocking and reset the device");
     }
 
-    drtio::startup(scheduler);
+    drtio::startup(spawner);
     init_core()
 }
 
