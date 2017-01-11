@@ -24,6 +24,8 @@ class SAWGTest(EnvExperiment):
             order = 3
 
             delay(20*ms)
+            self.led.on()
+            self.ttl_sma.on()
             self.sawg0.frequency0.set(10*MHz)
             self.sawg0.phase0.set(0.)
             self.sawg0.frequency1.set(1*MHz)
@@ -44,3 +46,5 @@ class SAWGTest(EnvExperiment):
 
             self.sawg1.amplitude1.set(.0)
             self.sawg1.amplitude2.set(.0)
+            self.ttl_sma.off()
+            self.led.off()
