@@ -215,4 +215,10 @@ pub mod drtio_dbg {
         recv!(&DRTIOPacketCountReply { tx_cnt, rx_cnt }
               => PacketCounts(tx_cnt as i32, rx_cnt as i32))
     }
+
+    pub extern fn get_fifo_space_req_count() -> i32 {
+        send(&DRTIOFIFOSpaceReqCountRequest);
+        recv!(&DRTIOFIFOSpaceReqCountReply { cnt }
+              => cnt as i32)
+    }
 }

@@ -38,6 +38,8 @@ pub enum Message<'a> {
     DRTIOGetFIFOSpaceRequest { channel: u32 },
     DRTIOPacketCountRequest,
     DRTIOPacketCountReply { tx_cnt: u32, rx_cnt: u32 },
+    DRTIOFIFOSpaceReqCountRequest,
+    DRTIOFIFOSpaceReqCountReply { cnt: u32 },
 
     RunFinished,
     RunException {

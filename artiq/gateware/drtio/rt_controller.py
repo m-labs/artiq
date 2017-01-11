@@ -24,6 +24,7 @@ class _CSRs(AutoCSR):
         self.o_get_fifo_space = CSR()
         self.o_dbg_fifo_space = CSRStatus(16)
         self.o_dbg_last_timestamp = CSRStatus(64)
+        self.o_dbg_fifo_space_req_cnt = CSRStatus(32)
         self.o_reset_channel_status = CSR()
         self.o_wait = CSRStatus()
         self.o_fifo_space_timeout = CSR()
@@ -207,6 +208,11 @@ class RTController(Module):
                 last_timestamps.we.eq(1)
             )
         ]
+        self.sync += \
+            If((rt_packets.write_stb & rt_packets.write_ack & rt_packets_fifo_request),
+                self.csrs.o_dbg_fifo_space_req_cnt.status.eq(
+                    self.csrs.o_dbg_fifo_space_req_cnt.status + 1)
+            )
 
     def get_csrs(self):
         return self.csrs.get_csrs()

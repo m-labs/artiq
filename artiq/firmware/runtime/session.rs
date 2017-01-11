@@ -401,6 +401,10 @@ fn process_kern_message(waiter: Waiter,
                 let (tx_cnt, rx_cnt) = rtio_mgt::drtio_dbg::get_packet_counts();
                 kern_send(waiter, &kern::DRTIOPacketCountReply { tx_cnt: tx_cnt, rx_cnt: rx_cnt })
             }
+            &kern::DRTIOFIFOSpaceReqCountRequest => {
+                let cnt = rtio_mgt::drtio_dbg::get_fifo_space_req_count();
+                kern_send(waiter, &kern::DRTIOFIFOSpaceReqCountReply { cnt: cnt })
+            }
 
             &kern::WatchdogSetRequest { ms } => {
                 let id = try!(session.watchdog_set.set_ms(ms)

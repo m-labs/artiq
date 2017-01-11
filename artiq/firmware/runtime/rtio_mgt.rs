@@ -227,6 +227,12 @@ pub mod drtio_dbg {
             (csr::drtio::packet_cnt_tx_read(), csr::drtio::packet_cnt_rx_read())
         }
     }
+
+    pub fn get_fifo_space_req_count() -> u32 {
+        unsafe {
+            csr::drtio::o_dbg_fifo_space_req_cnt_read()
+        }
+    }
 }
 
 #[cfg(not(has_drtio))]
@@ -238,4 +244,6 @@ pub mod drtio_dbg {
     pub fn get_fifo_space(_channel: u32) {}
 
     pub fn get_packet_counts() -> (u32, u32) { (0, 0) }
+
+    pub fn get_fifo_space_req_count() -> u32 { 0 }
 }
