@@ -64,6 +64,7 @@ def get_s2m_layouts(alignment):
     return plm
 
 
+# keep this in sync with str_packet_error in rtio_mgt.rs
 error_codes = {
     "unknown_type_local": 0,
     "unknown_type_remote": 1,

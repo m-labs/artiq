@@ -110,10 +110,22 @@ mod drtio {
         }
     }
 
+    // keep this in sync with error_codes in rt_packets.py
+    fn str_packet_error(err_code: u8) -> &'static str {
+        match err_code {
+            0 => "Received packet of an unknown type",
+            1 => "Satellite reported reception of a packet of an unknown type",
+            2 => "Satellite reported write overflow",
+            3 => "Satellite reported write underflow",
+            _ => "Unknown error code"
+        }
+    }
+
     fn poll_errors() -> bool {
         unsafe {
             if csr::drtio::packet_err_present_read() != 0 {
-                error!("packet error {}", csr::drtio::packet_err_code_read());
+                let err_code = csr::drtio::packet_err_code_read();
+                error!("packet error {} ({})", err_code, str_packet_error(err_code));
                 csr::drtio::packet_err_present_write(1)
             }
             if csr::drtio::o_fifo_space_timeout_read() != 0 {
