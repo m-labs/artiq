@@ -115,8 +115,10 @@ mod drtio {
         match err_code {
             0 => "Received packet of an unknown type",
             1 => "Satellite reported reception of a packet of an unknown type",
-            2 => "Satellite reported write overflow",
-            3 => "Satellite reported write underflow",
+            2 => "Received truncated packet",
+            3 => "Satellite reported reception of a truncated packet",
+            4 => "Satellite reported write overflow",
+            5 => "Satellite reported write underflow",
             _ => "Unknown error code"
         }
     }

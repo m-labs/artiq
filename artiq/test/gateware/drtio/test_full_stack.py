@@ -5,6 +5,7 @@ import random
 from migen import *
 
 from artiq.gateware.drtio import *
+from artiq.gateware.drtio import rt_packets
 from artiq.gateware import rtio
 from artiq.gateware.rtio import rtlink
 from artiq.gateware.rtio.phy import ttl_simple
@@ -188,7 +189,7 @@ class TestFullStack(unittest.TestCase):
             err_present = yield from mgr.packet_err_present.read()
             err_code = yield from mgr.packet_err_code.read()
             self.assertEqual(err_present, 1)
-            self.assertEqual(err_code, 3)
+            self.assertEqual(err_code, rt_packets.error_codes["write_underflow"])
             yield from mgr.packet_err_present.write(1)
             yield
             err_present = yield from mgr.packet_err_present.read()

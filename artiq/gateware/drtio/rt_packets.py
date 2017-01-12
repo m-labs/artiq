@@ -68,11 +68,13 @@ def get_s2m_layouts(alignment):
 error_codes = {
     "unknown_type_local": 0,
     "unknown_type_remote": 1,
+    "truncated_local": 2,
+    "truncated_remote": 3,
     # The transmitter is normally responsible for avoiding
     # overflows and underflows. Those error reports are only
     # for diagnosing internal ARTIQ bugs.
-    "write_overflow": 2,
-    "write_underflow": 3
+    "write_overflow": 4,
+    "write_underflow": 5
 }
 
 
@@ -293,6 +295,10 @@ class RTPacketSatellite(Module):
         rx_fsm = FSM(reset_state="INPUT")
         self.submodules += rx_fsm
 
+        ongoing_packet_next = Signal()
+        ongoing_packet = Signal()
+        self.sync.rtio_rx += ongoing_packet.eq(ongoing_packet_next)
+
         rx_fsm.act("INPUT",
             If(rx_dp.frame_r,
                 rx_dp.packet_buffer_load.eq(1),
@@ -310,6 +316,12 @@ class RTPacketSatellite(Module):
                             err_set.eq(1),
                             NextValue(err_code, error_codes["unknown_type_remote"])]
                     })
+                ).Else(
+                    ongoing_packet_next.eq(1)
+                ),
+                If(~rx_dp.frame_r & ongoing_packet,
+                    err_set.eq(1),
+                    NextValue(err_code, error_codes["truncated_remote"])
                 )
             )
         )
@@ -326,10 +338,16 @@ class RTPacketSatellite(Module):
             NextState("INPUT")
         )
         rx_fsm.act("WRITE",
-            write_data_buffer_load.eq(1),
             If(write_data_buffer_cnt == rx_dp.packet_as["write"].extra_data_cnt,
                 self.write_stb.eq(1),
                 NextState("INPUT")
+            ).Else(
+                write_data_buffer_load.eq(1),
+                If(~rx_dp.frame_r,
+                    err_set.eq(1),
+                    NextValue(err_code, error_codes["truncated_remote"]),
+                    NextState("INPUT")
+                )
             )
         )
         rx_fsm.act("FIFO_SPACE",
@@ -671,6 +689,10 @@ class RTPacketMaster(Module):
         rx_fsm = ClockDomainsRenamer("rtio_rx")(FSM(reset_state="INPUT"))
         self.submodules += rx_fsm
 
+        ongoing_packet_next = Signal()
+        ongoing_packet = Signal()
+        self.sync.rtio_rx += ongoing_packet.eq(ongoing_packet_next)
+
         echo_received_now = Signal()
         self.sync.rtio_rx += self.echo_received_now.eq(echo_received_now)
 
@@ -687,7 +709,13 @@ class RTPacketMaster(Module):
                             error_code.eq(error_codes["unknown_type_local"])
                         ]
                     })
+                ).Else(
+                    ongoing_packet_next.eq(1)
                 )
+            ),
+            If(~rx_dp.frame_r & ongoing_packet,
+                error_not.eq(1),
+                error_code.eq(error_codes["truncated_local"])
             )
         )
         rx_fsm.act("ERROR",
