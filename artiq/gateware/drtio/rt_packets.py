@@ -297,7 +297,7 @@ class RTPacketSatellite(Module):
 
         ongoing_packet_next = Signal()
         ongoing_packet = Signal()
-        self.sync.rtio_rx += ongoing_packet.eq(ongoing_packet_next)
+        self.sync += ongoing_packet.eq(ongoing_packet_next)
 
         rx_fsm.act("INPUT",
             If(rx_dp.frame_r,
