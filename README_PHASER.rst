@@ -89,7 +89,7 @@ Setup
 * Refer to the ARTIQ documentation to configure an IP address and other settings for the transmitter device.
   If the board was running stock ARTIQ before, the settings will be kept.
 * A 300 MHz clock of roughly 10 dBm (0.2 to 3.4 V peak-to-peak into 50 Ohm) must be connected to the AD9154-FMC-EBZ J1. The input is 50 Ohm terminated. The RTIO clock, DAC deviceclock, FPGA deviceclock, and SYSREF are derived from this signal.
-* Configure an oscilliscope to trigger at 0.5 V on rising edge of ttl_sma (user_gpio_n on the KC705 board). Monitor DAC0 (J17) on the oscilloscope set for 100 mV/div and 200 ns/div.
+* Configure an oscilloscope to trigger at 0.5 V on rising edge of ttl_sma (user_gpio_n on the KC705 board). Monitor DAC0 (J17) on the oscilloscope set for 100 mV/div and 200 ns/div.
 * An example device database, several status and test scripts are provided in ``artiq/examples/phaser/``. ::
 
     cd artiq/examples/phaser
