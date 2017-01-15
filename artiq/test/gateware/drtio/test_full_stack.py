@@ -63,7 +63,7 @@ class DUT(Module):
             rtio.Channel.from_phy(self.phy2, ofifo_depth=4),
         ]
         self.submodules.satellite = DRTIOSatellite(
-            self.transceivers.bob, rx_synchronizer, rtio_channels)
+            self.transceivers.bob, rtio_channels, rx_synchronizer)
         
 
 class TestFullStack(unittest.TestCase):
