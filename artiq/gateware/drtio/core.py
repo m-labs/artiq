@@ -1,12 +1,40 @@
 from types import SimpleNamespace
 
 from migen import *
+from migen.genlib.cdc import ElasticBuffer
 
 from artiq.gateware.drtio import link_layer, rt_packets, iot, rt_controller, aux_controller
 
 
+class GenericRXSynchronizer(Module):
+    """Simple RX synchronizer based on the portable Migen elastic buffer.
+
+    Introduces timing non-determinism in the satellite -> master path,
+    (and in the echo_request/echo_reply RTT) but useful for testing.
+    """
+    def __init__(self):
+        self.signals = []
+
+    def resync(self, signal):
+        synchronized = Signal.like(signal, related=signal)
+        self.signals.append((signal, synchronized))
+        return synchronized
+
+    def do_finalize(self):
+        eb = ElasticBuffer(sum(len(s[0]) for s in self.signals), 4, "rtio_rx", "rtio")
+        self.submodules += eb
+        self.comb += [
+            eb.din.eq(Cat(*[s[0] for s in self.signals])),
+            Cat(*[s[1] for s in self.signals]).eq(eb.dout)
+        ]
+
+
 class DRTIOSatellite(Module):
-    def __init__(self, transceiver, rx_synchronizer, channels, fine_ts_width=3, full_ts_width=63):
+    def __init__(self, transceiver, channels, rx_synchronizer=None, fine_ts_width=3, full_ts_width=63):
+        if rx_synchronizer is None:
+            rx_synchronizer = GenericRXSynchronizer()
+            self.submodules += rx_synchronizer
+
         self.submodules.link_layer = link_layer.LinkLayer(
             transceiver.encoder, transceiver.decoders)
         self.comb += self.link_layer.rx_ready.eq(transceiver.rx_ready)

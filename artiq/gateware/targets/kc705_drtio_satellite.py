@@ -185,7 +185,7 @@ class Satellite(BaseSoC):
         self.submodules.rx_synchronizer = gtx_7series.RXSynchronizer(
             self.transceiver.rtio_clk_freq, initial_phase=180.0)
         self.submodules.drtio = DRTIOSatellite(
-            self.transceiver, self.rx_synchronizer, rtio_channels)
+            self.transceiver, rtio_channels, self.rx_synchronizer)
         self.csr_devices.append("rx_synchronizer")
         self.csr_devices.append("drtio")
         self.add_wb_slave(mem_decoder(self.mem_map["drtio_aux"]),
