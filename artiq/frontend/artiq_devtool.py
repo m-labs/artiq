@@ -34,7 +34,7 @@ def get_argparser():
 
     parser.add_argument("actions", metavar="ACTION",
                         type=str, default=[], nargs="+",
-                        help="actions to perform (sequence of: build boot connect)")
+                        help="actions to perform (sequence of: build boot boot+log connect)")
 
     return parser
 
@@ -92,7 +92,7 @@ def main():
                 logger.error("Build failed")
                 sys.exit(1)
 
-        elif action == "boot":
+        elif action == "boot" or action == "boot+log":
             logger.info("Uploading runtime")
             get_sftp().mkdir("/tmp/{tmp}".format(tmp=tmp))
             get_sftp().put("/tmp/kc705/software/runtime/runtime.bin",
@@ -101,7 +101,8 @@ def main():
             logger.info("Booting runtime")
             flterm = run_command(
                 "{env} python3 flterm.py {serial} " +
-                "--kernel /tmp/{tmp}/runtime.bin --upload-only")
+                "--kernel /tmp/{tmp}/runtime.bin " +
+                ("--upload-only" if action == "boot" else "--output-only"))
             artiq_flash = run_command(
                 "{env} artiq_flash start")
             drain(flterm)
@@ -120,8 +121,11 @@ def main():
                         logger.error("Trying to open a channel before the transport is ready!")
                         continue
 
-                    remote_stream = get_ssh().get_transport() \
-                        .open_channel('direct-tcpip', (args.ip, port), peer_addr)
+                    try:
+                        remote_stream = get_ssh().get_transport() \
+                            .open_channel('direct-tcpip', (args.ip, port), peer_addr)
+                    except Exception as e:
+                        logger.exception("Cannot open channel on port %s", port)
                     while True:
                         try:
                             r, w, x = select.select([local_stream, remote_stream], [], [])
