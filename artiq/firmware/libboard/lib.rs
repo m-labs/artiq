@@ -11,6 +11,7 @@ include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/csr.rs"));
 pub mod spr;
 pub mod irq;
 pub mod clock;
+pub mod uart;
 
 #[cfg(has_i2c)]
 pub mod i2c;

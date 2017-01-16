@@ -66,11 +66,11 @@ def main():
     tmp = "artiq" + "".join([rng.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(6)])
     env = "bash -c 'export PATH=$HOME/miniconda/bin:$PATH; exec $0 $*' "
 
-    def run_command(cmd):
+    def run_command(cmd, **kws):
         logger.info("Executing {}".format(cmd))
         chan = get_ssh().get_transport().open_session()
         chan.set_combine_stderr(True)
-        chan.exec_command(cmd.format(tmp=tmp, env=env, serial=args.serial, ip=args.ip))
+        chan.exec_command(cmd.format(tmp=tmp, env=env, serial=args.serial, ip=args.ip, **kws))
         return chan.makefile()
 
     def drain(chan):
@@ -151,7 +151,7 @@ def main():
 
             logger.info("Connecting to device")
             flterm = run_command(
-                "{env} python3 flterm.py {serial} --output-only")
+                "{env} python3 flterm.py {serial} --speed 921600 --output-only")
             drain(flterm)
 
         else:
