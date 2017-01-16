@@ -1,8 +1,0 @@
-[package]
-authors = ["M-Labs"]
-name = "lwip-sys"
-version = "0.0.0"
-
-[lib]
-name = "lwip_sys"
-path = "lib.rs"

@@ -7,13 +7,9 @@ RUSTOUT := cargo/or1k-unknown-none/debug
 RUSTOUT_KSUPPORT := cargo-ksupport/or1k-unknown-none/debug
 
 CFLAGS += \
-	-I$(LIBALLOC_DIRECTORY) \
-	-I$(MISOC_DIRECTORY)/software/include/dyld \
-	-I$(LIBDYLD_DIRECTORY)/include \
 	-I$(LIBUNWIND_DIRECTORY) \
 	-I$(LIBUNWIND_DIRECTORY)/../unwinder/include \
-	-I$(LIBLWIP_DIRECTORY)/../lwip/src/include \
-	-I$(LIBLWIP_DIRECTORY)
+	-I$(MISOC_DIRECTORY)/software/include/dyld
 CFLAGS += -DNDEBUG
 
 LDFLAGS += --gc-sections \
@@ -22,8 +18,7 @@ LDFLAGS += --gc-sections \
 	-L../libm \
 	-L../liballoc \
 	-L../libunwind \
-	-L../libdyld \
-	-L../liblwip
+	-L../libdyld
 
 all: runtime.bin runtime.fbi
 
@@ -34,12 +29,12 @@ $(RUSTOUT)/libruntime.a:
 		cargo build --target=or1k-unknown-none \
 			--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../firmware/runtime/Cargo.toml)
 
-runtime.elf: $(RUSTOUT)/libruntime.a flash_storage.o main.o ksupport_data.o
+runtime.elf: $(RUSTOUT)/libruntime.a flash_storage.o ksupport_data.o
 	$(LD) $(LDFLAGS) \
 		-T $(RUNTIME_DIRECTORY)/runtime.ld \
 		-o $@ \
 		$^ \
-		-lbase-nofloat -lcompiler-rt -lalloc -llwip
+		-lbase-nofloat -lcompiler-rt -lalloc
 	@chmod -x $@
 
 .PHONY: $(RUSTOUT_KSUPPORT)/libksupport.a

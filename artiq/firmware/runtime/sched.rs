@@ -1,19 +1,27 @@
 #![allow(dead_code)]
 
-use std::cell::RefCell;
+use std::mem;
+use std::cell::{RefCell, RefMut};
 use std::vec::Vec;
 use std::io::{Read, Write, Result, Error, ErrorKind};
 use fringe::OwnedStack;
 use fringe::generator::{Generator, Yielder, State as GeneratorState};
-use lwip;
+
+use smoltcp::wire::IpEndpoint;
+use smoltcp::socket::AsSocket;
+use smoltcp::socket::SocketHandle;
+type SocketSet = ::smoltcp::socket::SocketSet<'static, 'static, 'static>;
+
 use board;
 use urc::Urc;
 
 #[derive(Debug)]
 struct WaitRequest {
-    timeout: Option<u64>,
-    event:   Option<WaitEvent>
+    event:   Option<*const (Fn() -> bool + 'static)>,
+    timeout: Option<u64>
 }
+
+unsafe impl Send for WaitRequest {}
 
 #[derive(Debug)]
 enum WaitResult {
@@ -24,22 +32,29 @@ enum WaitResult {
 
 #[derive(Debug)]
 struct Thread {
-    generator: Generator<WaitResult, WaitRequest, OwnedStack>,
+    generator:   Generator<WaitResult, WaitRequest, OwnedStack>,
     waiting_for: WaitRequest,
     interrupted: bool
 }
 
 impl Thread {
-    unsafe fn new<F>(spawner: Spawner, stack_size: usize, f: F) -> ThreadHandle
-            where F: 'static + FnOnce(Waiter, Spawner) + Send {
+    unsafe fn new<F>(io: &Io, stack_size: usize, f: F) -> ThreadHandle
+            where F: 'static + FnOnce(Io) + Send {
+        let spawned = io.spawned.clone();
+        let sockets = io.sockets.clone();
+
         let stack = OwnedStack::new(stack_size);
         ThreadHandle::new(Thread {
             generator: Generator::unsafe_new(stack, |yielder, _| {
-                f(Waiter(yielder), spawner)
+                f(Io {
+                    yielder: Some(yielder),
+                    spawned: spawned,
+                    sockets: sockets
+                })
             }),
             waiting_for: WaitRequest {
-                timeout: None,
-                event:   None
+                event:   None,
+                timeout: None
             },
             interrupted: false
         })
@@ -58,7 +73,7 @@ impl Thread {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ThreadHandle(Urc<RefCell<Thread>>);
 
 impl ThreadHandle {
@@ -81,52 +96,59 @@ impl ThreadHandle {
     }
 }
 
-#[derive(Debug)]
 pub struct Scheduler {
     threads: Vec<ThreadHandle>,
-    index: usize,
-    spawner: Spawner
+    spawned: Urc<RefCell<Vec<ThreadHandle>>>,
+    sockets: Urc<RefCell<SocketSet>>,
+    run_idx: usize,
 }
 
 impl Scheduler {
     pub fn new() -> Scheduler {
         Scheduler {
             threads: Vec::new(),
-            index: 0,
-            spawner: Spawner::new()
+            spawned: Urc::new(RefCell::new(Vec::new())),
+            sockets: Urc::new(RefCell::new(SocketSet::new(Vec::new()))),
+            run_idx: 0,
         }
     }
 
-    pub fn spawner(&self) -> &Spawner {
-        &self.spawner
+    pub fn io(&self) -> Io<'static> {
+        Io {
+            yielder: None,
+            spawned: self.spawned.clone(),
+            sockets: self.sockets.clone()
+        }
     }
 
     pub fn run(&mut self) {
-        self.threads.append(&mut *self.spawner.queue.borrow_mut());
+        self.sockets.borrow_mut().prune();
 
+        self.threads.append(&mut *borrow_mut!(self.spawned));
         if self.threads.len() == 0 { return }
 
         let now = board::clock::get_ms();
-
-        let start_index = self.index;
+        let start_idx = self.run_idx;
         loop {
-            self.index = (self.index + 1) % self.threads.len();
+            self.run_idx = (self.run_idx + 1) % self.threads.len();
 
             let result = {
-                let thread = &mut *self.threads[self.index].0.borrow_mut();
+                let mut thread = borrow_mut!(self.threads[self.run_idx].0);
                 match thread.waiting_for {
                     _ if thread.interrupted => {
                         thread.interrupted = false;
                         thread.generator.resume(WaitResult::Interrupted)
                     }
-                    WaitRequest { timeout: Some(instant), .. } if now >= instant =>
+                    WaitRequest { event: Some(_), timeout: Some(instant) } if now >= instant =>
                         thread.generator.resume(WaitResult::TimedOut),
-                    WaitRequest { event: Some(ref event), .. } if event.completed() =>
+                    WaitRequest { event: None, timeout: Some(instant) } if now >= instant =>
                         thread.generator.resume(WaitResult::Completed),
-                    WaitRequest { timeout: None, event: None } =>
+                    WaitRequest { event: Some(event), timeout: _ } if unsafe { (*event)() } =>
+                        thread.generator.resume(WaitResult::Completed),
+                    WaitRequest { event: None, timeout: None } =>
                         thread.generator.resume(WaitResult::Completed),
                     _ => {
-                        if self.index == start_index {
+                        if self.run_idx == start_idx {
                             // We've checked every thread and none of them are runnable.
                             break
                         } else {
@@ -139,12 +161,12 @@ impl Scheduler {
             match result {
                 None => {
                     // The thread has terminated.
-                    self.threads.remove(self.index);
-                    self.index = 0
+                    self.threads.remove(self.run_idx);
+                    self.run_idx = 0
                 },
                 Some(wait_request) => {
                     // The thread has suspended itself.
-                    let thread = &mut *self.threads[self.index].0.borrow_mut();
+                    let mut thread = borrow_mut!(self.threads[self.run_idx].0);
                     thread.waiting_for = wait_request
                 }
             }
@@ -152,75 +174,38 @@ impl Scheduler {
             break
         }
     }
-}
 
-#[derive(Debug, Clone)]
-pub struct Spawner {
-    queue: Urc<RefCell<Vec<ThreadHandle>>>
-}
-
-impl Spawner {
-    fn new() -> Spawner {
-        Spawner { queue: Urc::new(RefCell::new(Vec::new())) }
+    pub fn sockets(&self) -> &RefCell<SocketSet> {
+        &*self.sockets
     }
+}
 
+#[derive(Clone)]
+pub struct Io<'a> {
+    yielder: Option<&'a Yielder<WaitResult, WaitRequest, OwnedStack>>,
+    spawned: Urc<RefCell<Vec<ThreadHandle>>>,
+    sockets: Urc<RefCell<SocketSet>>,
+}
+
+impl<'a> Io<'a> {
     pub fn spawn<F>(&self, stack_size: usize, f: F) -> ThreadHandle
-            where F: 'static + FnOnce(Waiter, Spawner) + Send {
-        let handle = unsafe { Thread::new(self.clone(), stack_size, f) };
-        self.queue.borrow_mut().push(handle.clone());
+            where F: 'static + FnOnce(Io) + Send {
+        let handle = unsafe { Thread::new(self, stack_size, f) };
+        borrow_mut!(self.spawned).push(handle.clone());
         handle
     }
-}
 
-enum WaitEvent {
-    Completion(*const (Fn() -> bool + 'static)),
-    Termination(*const RefCell<Thread>),
-    UdpReadable(*const RefCell<lwip::UdpSocketState>),
-    TcpAcceptable(*const RefCell<lwip::TcpListenerState>),
-    TcpWriteable(*const RefCell<lwip::TcpStreamState>),
-    TcpReadable(*const RefCell<lwip::TcpStreamState>),
-}
-
-impl WaitEvent {
-    fn completed(&self) -> bool {
-        match *self {
-            WaitEvent::Completion(f) =>
-                unsafe { (*f)() },
-            WaitEvent::Termination(thread) =>
-                unsafe { (*thread).borrow().terminated() },
-            WaitEvent::UdpReadable(state) =>
-                unsafe { (*state).borrow().readable() },
-            WaitEvent::TcpAcceptable(state) =>
-                unsafe { (*state).borrow().acceptable() },
-            WaitEvent::TcpWriteable(state) =>
-                unsafe { (*state).borrow().writeable() },
-            WaitEvent::TcpReadable(state) =>
-                unsafe { (*state).borrow().readable() },
-        }
+    fn yielder(&self) -> &'a Yielder<WaitResult, WaitRequest, OwnedStack> {
+        self.yielder.expect("cannot suspend the scheduler thread")
     }
-}
 
-// *const DST doesn't have impl Debug
-impl ::core::fmt::Debug for WaitEvent {
-    fn fmt(&self, f: &mut ::core::fmt::Formatter) ->
-            ::core::result::Result<(), ::core::fmt::Error> {
-        write!(f, "WaitEvent...")
-    }
-}
-
-unsafe impl Send for WaitEvent {}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Waiter<'a>(&'a Yielder<WaitResult, WaitRequest, OwnedStack>);
-
-impl<'a> Waiter<'a> {
     pub fn sleep(&self, duration_ms: u64) -> Result<()> {
         let request = WaitRequest {
             timeout: Some(board::clock::get_ms() + duration_ms),
             event:   None
         };
 
-        match self.0.suspend(request) {
+        match self.yielder().suspend(request) {
             WaitResult::TimedOut => Ok(()),
             WaitResult::Interrupted => Err(Error::new(ErrorKind::Interrupted, "")),
             _ => unreachable!()
@@ -228,7 +213,7 @@ impl<'a> Waiter<'a> {
     }
 
     fn suspend(&self, request: WaitRequest) -> Result<()> {
-        match self.0.suspend(request) {
+        match self.yielder().suspend(request) {
             WaitResult::Completed => Ok(()),
             WaitResult::TimedOut => Err(Error::new(ErrorKind::TimedOut, "")),
             WaitResult::Interrupted => Err(Error::new(ErrorKind::Interrupted, ""))
@@ -242,230 +227,251 @@ impl<'a> Waiter<'a> {
         })
     }
 
-    pub fn join(&self, thread: ThreadHandle) -> Result<()> {
-        self.suspend(WaitRequest {
-            timeout: None,
-            event:   Some(WaitEvent::Termination(&*thread.0))
-        })
-    }
-
     pub fn until<F: Fn() -> bool + 'static>(&self, f: F) -> Result<()> {
         self.suspend(WaitRequest {
             timeout: None,
-            event:   Some(WaitEvent::Completion(&f as *const _))
+            event:   Some(&f as *const _)
         })
     }
 
-    pub fn udp_readable(&self, socket: &lwip::UdpSocket) -> Result<()> {
-        self.suspend(WaitRequest {
-            timeout: None,
-            event:   Some(WaitEvent::UdpReadable(socket.state()))
-        })
-    }
-
-    pub fn tcp_acceptable(&self, socket: &lwip::TcpListener) -> Result<()> {
-        self.suspend(WaitRequest {
-            timeout: None,
-            event:   Some(WaitEvent::TcpAcceptable(socket.state()))
-        })
-    }
-
-    pub fn tcp_writeable(&self, socket: &lwip::TcpStream) -> Result<()> {
-        self.suspend(WaitRequest {
-            timeout: None,
-            event:   Some(WaitEvent::TcpWriteable(socket.state()))
-        })
-    }
-
-    pub fn tcp_readable(&self, socket: &lwip::TcpStream) -> Result<()> {
-        self.suspend(WaitRequest {
-            timeout: None,
-            event:   Some(WaitEvent::TcpReadable(socket.state()))
-        })
+    pub fn join(&self, handle: ThreadHandle) -> Result<()> {
+        self.until(move || handle.terminated())
     }
 }
 
-// Wrappers around lwip
+macro_rules! until {
+    ($socket:expr, $ty:ty, |$var:ident| $cond:expr) => ({
+        let (sockets, handle) = ($socket.io.sockets.clone(), $socket.handle);
+        $socket.io.until(move || {
+            let mut sockets = borrow_mut!(sockets);
+            let $var = sockets.get_mut(handle).as_socket() as &mut $ty;
+            $cond
+        })
+    })
+}
 
-pub use lwip::{IpAddr, IP4_ANY, IP6_ANY, IP_ANY, SocketAddr};
+type UdpPacketBuffer = ::smoltcp::socket::UdpPacketBuffer<'static>;
+type UdpSocketBuffer = ::smoltcp::socket::UdpSocketBuffer<'static, 'static>;
+type UdpSocketLower  = ::smoltcp::socket::UdpSocket<'static, 'static>;
 
-#[derive(Debug)]
 pub struct UdpSocket<'a> {
-    waiter: Waiter<'a>,
-    lower:  lwip::UdpSocket
+    io:     &'a Io<'a>,
+    handle: SocketHandle
 }
 
 impl<'a> UdpSocket<'a> {
-    pub fn new(waiter: Waiter<'a>) -> Result<UdpSocket> {
-        Ok(UdpSocket {
-            waiter: waiter,
-            lower:  try!(lwip::UdpSocket::new())
-        })
+    pub fn new(io: &'a Io<'a>, rx_buffer: UdpSocketBuffer, tx_buffer: UdpSocketBuffer) ->
+            UdpSocket<'a> {
+        let handle = borrow_mut!(io.sockets)
+            .add(UdpSocketLower::new(rx_buffer, tx_buffer));
+        UdpSocket {
+            io:     io,
+            handle: handle
+        }
     }
 
-    pub fn into_lower(self) -> lwip::UdpSocket {
-        self.lower
+    pub fn with_buffer_size(io: &'a Io<'a>, buffer_depth: usize, buffer_width: usize) ->
+            UdpSocket<'a> {
+        let mut rx_buffer = vec![];
+        let mut tx_buffer = vec![];
+        for _ in 0..buffer_depth {
+            rx_buffer.push(UdpPacketBuffer::new(vec![0; buffer_width]));
+            tx_buffer.push(UdpPacketBuffer::new(vec![0; buffer_width]));
+        }
+        Self::new(io,
+            UdpSocketBuffer::new(rx_buffer),
+            UdpSocketBuffer::new(tx_buffer))
     }
 
-    pub fn from_lower(waiter: Waiter<'a>, inner: lwip::UdpSocket) -> UdpSocket {
-        UdpSocket { waiter: waiter, lower: inner }
+    fn as_lower<'b>(&'b self) -> RefMut<'b, UdpSocketLower> {
+        RefMut::map(borrow_mut!(self.io.sockets),
+                    |sockets| sockets.get_mut(self.handle).as_socket())
     }
 
-    pub fn bind(&self, addr: SocketAddr) -> Result<()> {
-        Ok(try!(self.lower.bind(addr)))
+    pub fn bind<T: Into<IpEndpoint>>(&self, endpoint: T) {
+        self.as_lower().bind(endpoint)
     }
 
-    pub fn connect(&self, addr: SocketAddr) -> Result<()> {
-        Ok(try!(self.lower.connect(addr)))
-    }
-
-    pub fn disconnect(&self) -> Result<()> {
-        Ok(try!(self.lower.disconnect()))
-    }
-
-    pub fn send_to(&self, buf: &[u8], addr: SocketAddr) -> Result<usize> {
-        try!(self.lower.send_to(lwip::Pbuf::from_slice(buf), addr));
-        Ok(buf.len())
-    }
-
-    pub fn recv_from(&self, buf: &mut Vec<u8>) -> Result<SocketAddr> {
-        try!(self.waiter.udp_readable(&self.lower));
-        let (pbuf, addr) = self.lower.try_recv().unwrap();
-        buf.clear();
-        buf.extend_from_slice(&pbuf.as_slice());
-        Ok(addr)
-    }
-
-    pub fn send(&self, buf: &[u8]) -> Result<usize> {
-        try!(self.lower.send(lwip::Pbuf::from_slice(buf)));
-        Ok(buf.len())
-    }
-
-    pub fn recv(&self, buf: &mut [u8]) -> Result<usize> {
-        try!(self.waiter.udp_readable(&self.lower));
-        let (pbuf, _addr) = self.lower.try_recv().unwrap();
-        // lwip checks that addr matches the bind/connect call
-        let len = ::std::cmp::min(buf.len(), pbuf.len());
-        (&mut buf[..len]).copy_from_slice(&pbuf.as_slice()[..len]);
-        Ok(len)
-    }
-
-    pub fn readable(&self) -> bool {
-        self.lower.state().borrow().readable()
-    }
-}
-
-#[derive(Debug)]
-pub struct TcpListener<'a> {
-    waiter: Waiter<'a>,
-    lower:  lwip::TcpListener
-}
-
-impl<'a> TcpListener<'a> {
-    pub fn bind(waiter: Waiter<'a>, addr: SocketAddr) -> Result<TcpListener> {
-        Ok(TcpListener {
-            waiter: waiter,
-            lower:  try!(lwip::TcpListener::bind(addr))
-        })
-    }
-
-    pub fn into_lower(self) -> lwip::TcpListener {
-        self.lower
-    }
-
-    pub fn from_lower(waiter: Waiter<'a>, inner: lwip::TcpListener) -> TcpListener {
-        TcpListener { waiter: waiter, lower: inner }
-    }
-
-    pub fn accept(&self) -> Result<(TcpStream, SocketAddr)> {
-        try!(self.waiter.tcp_acceptable(&self.lower));
-        let stream_lower = self.lower.try_accept().unwrap();
-        let addr = SocketAddr::new(IP_ANY, 0); // FIXME: coax lwip into giving real addr here
-        Ok((TcpStream {
-            waiter: self.waiter,
-            lower:  stream_lower,
-            buffer: None
-        }, addr))
-    }
-
-    pub fn acceptable(&self) -> bool {
-        self.lower.state().borrow().acceptable()
-    }
-
-    pub fn keepalive(&self) -> bool {
-        self.lower.keepalive()
-    }
-
-    pub fn set_keepalive(&self, keepalive: bool) {
-        self.lower.set_keepalive(keepalive)
-    }
-}
-
-pub use lwip::Shutdown;
-
-pub struct TcpStreamInner(lwip::TcpStream, Option<(lwip::Pbuf<'static>, usize)>);
-
-#[derive(Debug)]
-pub struct TcpStream<'a> {
-    waiter: Waiter<'a>,
-    lower:  lwip::TcpStream,
-    buffer: Option<(lwip::Pbuf<'static>, usize)>
-}
-
-impl<'a> TcpStream<'a> {
-    pub fn into_lower(self) -> TcpStreamInner {
-        TcpStreamInner(self.lower, self.buffer)
-    }
-
-    pub fn from_lower(waiter: Waiter<'a>, inner: TcpStreamInner) -> TcpStream {
-        TcpStream { waiter: waiter, lower: inner.0, buffer: inner.1 }
-    }
-
-    pub fn shutdown(&self, how: Shutdown) -> Result<()> {
-        Ok(try!(self.lower.shutdown(how)))
-    }
-
-    pub fn readable(&self) -> bool {
-        self.buffer.is_some() || self.lower.state().borrow().readable()
-    }
-
-    pub fn writeable(&self) -> bool {
-        self.lower.state().borrow().writeable()
-    }
-}
-
-impl<'a> Read for TcpStream<'a> {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-        if self.buffer.is_none() {
-            try!(self.waiter.tcp_readable(&self.lower));
-            match self.lower.try_read() {
-                Ok(Some(pbuf)) => self.buffer = Some((pbuf, 0)),
-                Ok(None) => unreachable!(),
-                Err(lwip::Error::ConnectionClosed) => return Ok(0),
-                Err(err) => return Err(Error::from(err))
+    pub fn recv_from(&self, buf: &mut [u8]) -> Result<(usize, IpEndpoint)> {
+        try!(until!(self, UdpSocketLower, |s| s.can_recv()));
+        match self.as_lower().recv_slice(buf) {
+            Ok(r) => Ok(r),
+            Err(()) => {
+                // No data in the buffer--should never happen after the wait above.
+                unreachable!()
             }
         }
+    }
 
-        let (pbuf, pos) = self.buffer.take().unwrap();
-        let remaining = pbuf.len() - pos;
-        let len = ::std::cmp::min(buf.len(), remaining);
-        buf[..len].copy_from_slice(&pbuf.as_slice()[pos..pos + len]);
-        if len < remaining {
-            self.buffer = Some((pbuf, pos + len))
+    pub fn send_to(&self, buf: &[u8], addr: IpEndpoint) -> Result<usize> {
+        try!(until!(self, UdpSocketLower, |s| s.can_send()));
+        match self.as_lower().send_slice(buf, addr) {
+            Ok(r) => Ok(r),
+            Err(()) => {
+                // No space in the buffer--should never happen after the wait above.
+                unreachable!()
+            }
         }
-        Ok(len)
     }
 }
 
-impl<'a> Write for TcpStream<'a> {
+impl<'a> Drop for UdpSocket<'a> {
+    fn drop(&mut self) {
+        borrow_mut!(self.io.sockets).release(self.handle)
+    }
+}
+
+type TcpSocketBuffer = ::smoltcp::socket::TcpSocketBuffer<'static>;
+type TcpSocketLower  = ::smoltcp::socket::TcpSocket<'static>;
+
+pub struct TcpSocketHandle(SocketHandle);
+
+pub struct TcpSocket<'a> {
+    io:     &'a Io<'a>,
+    handle: SocketHandle
+}
+
+impl<'a> TcpSocket<'a> {
+    pub fn new(io: &'a Io<'a>, rx_buffer: TcpSocketBuffer, tx_buffer: TcpSocketBuffer) ->
+            TcpSocket<'a> {
+        let handle = borrow_mut!(io.sockets)
+            .add(TcpSocketLower::new(rx_buffer, tx_buffer));
+        TcpSocket {
+            io:     io,
+            handle: handle
+        }
+    }
+
+    pub fn with_buffer_size(io: &'a Io<'a>, buffer_size: usize) -> TcpSocket<'a> {
+        let rx_buffer = vec![0; buffer_size];
+        let tx_buffer = vec![0; buffer_size];
+        Self::new(io,
+            TcpSocketBuffer::new(rx_buffer),
+            TcpSocketBuffer::new(tx_buffer))
+    }
+
+    pub fn into_handle(self) -> TcpSocketHandle {
+        let handle = self.handle;
+        mem::forget(self);
+        TcpSocketHandle(handle)
+    }
+
+    pub fn from_handle(io: &'a Io<'a>, handle: TcpSocketHandle) -> TcpSocket<'a> {
+        TcpSocket {
+            io:     io,
+            handle: handle.0
+        }
+    }
+
+    fn as_lower<'b>(&'b self) -> RefMut<'b, TcpSocketLower> {
+        RefMut::map(borrow_mut!(self.io.sockets),
+                    |sockets| sockets.get_mut(self.handle).as_socket())
+    }
+
+    pub fn is_open(&self) -> bool {
+        self.as_lower().is_open()
+    }
+
+    pub fn is_listening(&self) -> bool {
+        self.as_lower().is_listening()
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.as_lower().is_active()
+    }
+
+    pub fn may_send(&self) -> bool {
+        self.as_lower().may_send()
+    }
+
+    pub fn may_recv(&self) -> bool {
+        self.as_lower().may_recv()
+    }
+
+    pub fn can_send(&self) -> bool {
+        self.as_lower().can_send()
+    }
+
+    pub fn can_recv(&self) -> bool {
+        self.as_lower().can_recv()
+    }
+
+    pub fn local_endpoint(&self) -> IpEndpoint {
+        self.as_lower().local_endpoint()
+    }
+
+    pub fn remote_endpoint(&self) -> IpEndpoint {
+        self.as_lower().remote_endpoint()
+    }
+
+    pub fn listen<T: Into<IpEndpoint>>(&self, endpoint: T) -> Result<()> {
+        self.as_lower().listen(endpoint)
+            .map_err(|()| Error::new(ErrorKind::Other,
+                                     "cannot listen: already connected"))
+    }
+
+    pub fn accept(&self) -> Result<()> {
+        // We're waiting until at least one half of the connection becomes open.
+        // This handles the case where a remote socket immediately sends a FIN--
+        // that still counts as accepting even though nothing may be sent.
+        until!(self, TcpSocketLower, |s| s.may_send() || s.may_recv())
+    }
+
+    pub fn close(&self) -> Result<()> {
+        self.as_lower().close();
+        try!(until!(self, TcpSocketLower, |s| !s.is_open()));
+        // right now the socket may be in TIME-WAIT state. if we don't give it a chance to send
+        // a packet, and the user code executes a loop { s.listen(); s.read(); s.close(); }
+        // then the last ACK will never be sent.
+        self.io.relinquish()
+    }
+}
+
+impl<'a> Read for TcpSocket<'a> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+        // fast path
+        let result = self.as_lower().recv_slice(buf);
+        match result {
+            Ok(0) | Err(()) => {
+                // slow path
+                if !self.as_lower().may_recv() { return Ok(0) }
+                try!(until!(self, TcpSocketLower, |s| s.can_recv()));
+                Ok(self.as_lower().recv_slice(buf)
+                       .expect("may_recv implies that data was available"))
+            }
+            Ok(length) => Ok(length)
+        }
+    }
+}
+
+impl<'a> Write for TcpSocket<'a> {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
-        try!(self.waiter.tcp_writeable(&self.lower));
-        Ok(try!(self.lower.write_in_place(buf,
-                    || self.waiter.relinquish()
-                                  .map_err(|_| lwip::Error::Interrupted))))
+        // fast path
+        let result = self.as_lower().send_slice(buf);
+        match result {
+            Ok(0) | Err(()) => {
+                // slow path
+                if !self.as_lower().may_send() { return Ok(0) }
+                try!(until!(self, TcpSocketLower, |s| s.can_send()));
+                Ok(self.as_lower().send_slice(buf)
+                       .expect("may_send implies that data was available"))
+            }
+            Ok(length) => Ok(length)
+        }
     }
 
     fn flush(&mut self) -> Result<()> {
-        Ok(try!(self.lower.flush()))
+        // smoltcp always sends all available data when it's possible; nothing to do
+        Ok(())
+    }
+}
+
+impl<'a> Drop for TcpSocket<'a> {
+    fn drop(&mut self) {
+        if self.is_open() {
+            // scheduler will remove any closed sockets with zero references.
+            self.as_lower().close()
+        }
+        borrow_mut!(self.io.sockets).release(self.handle)
     }
 }

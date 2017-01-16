@@ -13,4 +13,4 @@ crate-type = ["staticlib"]
 alloc_none = { path = "../liballoc_none" }
 std_artiq = { path = "../libstd_artiq" }
 board = { path = "../libboard" }
-byteorder = { version = "0.5", default-features = false }
+byteorder = { version = "1.0", default-features = false }

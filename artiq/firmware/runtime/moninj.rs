@@ -1,8 +1,6 @@
-use std::vec::Vec;
 use std::io;
 use board::csr;
-use sched::{Waiter, Spawner};
-use sched::{UdpSocket, SocketAddr, IP_ANY};
+use sched::{Io, UdpSocket};
 use moninj_proto::*;
 
 const MONINJ_TTL_OVERRIDE_ENABLE: u8 = 0;
@@ -10,17 +8,17 @@ const MONINJ_TTL_OVERRIDE_O: u8 = 1;
 const MONINJ_TTL_OVERRIDE_OE: u8 = 2;
 
 fn worker(socket: &mut UdpSocket) -> io::Result<()> {
-    let mut buf = Vec::new();
+    let mut buf = vec![0; 512];
     loop {
-        let addr = try!(socket.recv_from(&mut buf));
-        let request = try!(Request::read_from(&mut io::Cursor::new(&buf)));
+        let (size, addr) = try!(socket.recv_from(&mut buf));
+        let request = try!(Request::read_from(&mut io::Cursor::new(&buf[..size])));
         trace!("{} -> {:?}", addr, request);
 
         match request {
             Request::Monitor => {
                 #[cfg(has_dds)]
                 let mut dds_ftws = [0u32; (csr::CONFIG_RTIO_DDS_COUNT as usize *
-                                        csr::CONFIG_DDS_CHANNELS_PER_BUS as usize)];
+                                           csr::CONFIG_DDS_CHANNELS_PER_BUS as usize)];
                 let mut reply = Reply::default();
 
                 for i in 0..csr::CONFIG_RTIO_REGULAR_TTL_COUNT as u8 {
@@ -115,9 +113,9 @@ fn worker(socket: &mut UdpSocket) -> io::Result<()> {
     }
 }
 
-pub fn thread(waiter: Waiter, _spawner: Spawner) {
-    let mut socket = UdpSocket::new(waiter).expect("cannot create socket");
-    socket.bind(SocketAddr::new(IP_ANY, 3250)).expect("cannot bind socket");
+pub fn thread(io: Io) {
+    let mut socket = UdpSocket::with_buffer_size(&io, 1, 512);
+    socket.bind(3250);
 
     loop {
         match worker(&mut socket) {

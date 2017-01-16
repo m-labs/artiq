@@ -44,11 +44,11 @@ impl BufferLogger {
     }
 
     pub fn clear(&self) {
-        self.buffer.borrow_mut().clear()
+        borrow_mut!(self.buffer).clear()
     }
 
     pub fn extract<R, F: FnOnce(&str) -> R>(&self, f: F) -> R {
-        f(self.buffer.borrow_mut().extract())
+        f(borrow_mut!(self.buffer).extract())
     }
 
     pub fn disable_trace_to_uart(&self) {
@@ -67,14 +67,24 @@ impl Log for BufferLogger {
 
     fn log(&self, record: &LogRecord) {
         if self.enabled(record.metadata()) {
-            use core::fmt::Write;
-            writeln!(self.buffer.borrow_mut(),
-                     "[{:12}us] {:>5}({}): {}",
-                     board::clock::get_us(), record.level(), record.target(), record.args()).unwrap();
+            let force_uart = match self.buffer.try_borrow_mut() {
+                Ok(mut buffer) => {
+                    use core::fmt::Write;
+                    writeln!(buffer, "[{:12}us] {:>5}({}): {}",
+                             board::clock::get_us(), record.level(),
+                             record.target(), record.args()).unwrap();
+                    false
+                }
+                Err(_) => {
+                    // we're trying to log something while sending the log somewhere,
+                    // probably over the network. just let it go to UART.
+                    true
+                }
+            };
 
             // Printing to UART is really slow, so avoid doing that when we have an alternative
             // route to retrieve the debug messages.
-            if self.trace_to_uart.get() || record.level() <= LogLevel::Info {
+            if self.trace_to_uart.get() || record.level() <= LogLevel::Info || force_uart {
                 println!("[{:12}us] {:>5}({}): {}",
                          board::clock::get_us(), record.level(), record.target(), record.args());
             }

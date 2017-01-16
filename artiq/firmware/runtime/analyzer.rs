@@ -1,7 +1,6 @@
 use std::io::{self, Write};
 use board::{self, csr};
-use sched::{Waiter, Spawner};
-use sched::{TcpListener, TcpStream, SocketAddr, IP_ANY};
+use sched::{Io, TcpSocket};
 use analyzer_proto::*;
 
 const BUFFER_SIZE: usize = 512 * 1024;
@@ -41,7 +40,7 @@ fn disarm() {
     }
 }
 
-fn worker(mut stream: TcpStream) -> io::Result<()> {
+fn worker(socket: &mut TcpSocket) -> io::Result<()> {
     let data = unsafe { &BUFFER.data[..] };
     let overflow_occurred = unsafe { csr::rtio_analyzer::message_encoder_overflow_read() != 0 };
     let total_byte_count = unsafe { csr::rtio_analyzer::dma_byte_count_read() };
@@ -57,36 +56,35 @@ fn worker(mut stream: TcpStream) -> io::Result<()> {
     };
     trace!("{:?}", header);
 
-    try!(header.write_to(&mut stream));
+    try!(header.write_to(socket));
     if wraparound {
-        try!(stream.write(&data[pointer..]));
-        try!(stream.write(&data[..pointer]));
+        try!(socket.write_all(&data[pointer..]));
+        try!(socket.write_all(&data[..pointer]));
     } else {
-        try!(stream.write(&data[..pointer]));
+        try!(socket.write_all(&data[..pointer]));
     }
 
     Ok(())
 }
 
-pub fn thread(waiter: Waiter, _spawner: Spawner) {
+pub fn thread(io: Io) {
     // verify that the hack above works
     assert!(::core::mem::align_of::<Buffer>() == 64);
 
-    let addr = SocketAddr::new(IP_ANY, 1382);
-    let listener = TcpListener::bind(waiter, addr).expect("cannot bind socket");
-    listener.set_keepalive(true);
-
+    let mut socket = TcpSocket::with_buffer_size(&io, 65535);
     loop {
         arm();
 
-        let (stream, addr) = listener.accept().expect("cannot accept client");
-        info!("connection from {}", addr);
+        socket.listen(1382).expect("analyzer: cannot listen");
+        socket.accept().expect("analyzer: cannot accept");
+        info!("connection from {}", socket.remote_endpoint());
 
         disarm();
 
-        match worker(stream) {
+        match worker(&mut socket) {
             Ok(())   => (),
             Err(err) => error!("analyzer aborted: {}", err)
         }
+        socket.close().expect("analyzer: cannot close");
     }
 }

@@ -1,4 +1,0 @@
-[submodule "artiq/runtime/lwip"]
-	path = artiq/runtime/lwip
-	url = https://github.com/m-labs/lwip
-	ignore = untracked

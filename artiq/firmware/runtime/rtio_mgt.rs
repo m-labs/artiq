@@ -1,6 +1,6 @@
 use config;
 use board::csr;
-use sched::Spawner;
+use sched::Io;
 
 #[cfg(has_rtio_crg)]
 pub mod crg {
@@ -38,12 +38,11 @@ pub mod crg {
 
 #[cfg(has_drtio)]
 mod drtio {
-    use board::csr;
-    use sched::{Waiter, Spawner};
+    use super::*;
 
-    pub fn startup(spawner: &Spawner) {
-        spawner.spawn(4096, link_thread);
-        spawner.spawn(4096, error_thread);
+    pub fn startup(io: &Io) {
+        io.spawn(4096, link_thread);
+        io.spawn(4096, error_thread);
     }
 
     fn link_is_up() -> bool {
@@ -92,12 +91,12 @@ mod drtio {
         }
     }
 
-    pub fn link_thread(waiter: Waiter, _spawner: Spawner) {
+    pub fn link_thread(io: Io) {
         loop {
-            waiter.until(link_is_up).unwrap();
+            io.until(link_is_up).unwrap();
             info!("link RX is up");
 
-            waiter.sleep(600).unwrap();
+            io.sleep(600).unwrap();
             info!("wait for remote side done");
 
             init();  // clear all FIFOs first
@@ -105,7 +104,7 @@ mod drtio {
             sync_tsc();
             info!("link initialization completed");
 
-            waiter.until(|| !link_is_up()).unwrap();
+            io.until(|| !link_is_up()).unwrap();
             info!("link is down");
         }
     }
@@ -138,22 +137,21 @@ mod drtio {
         false
     }
 
-    pub fn error_thread(waiter: Waiter, _spawner: Spawner) {
+    pub fn error_thread(io: Io) {
         // HACK
-        waiter.until(poll_errors).unwrap();
+        io.until(poll_errors).unwrap();
     }
-
 }
 
 #[cfg(not(has_drtio))]
 mod drtio {
-    use sched::Spawner;
+    use super::*;
 
-    pub fn startup(_spawner: &Spawner) {}
+    pub fn startup(_io: &Io) {}
     pub fn init() {}
 }
 
-pub fn startup(spawner: &Spawner) {
+pub fn startup(io: &Io) {
     crg::init();
 
     let mut opt = [b'i'];
@@ -179,7 +177,7 @@ pub fn startup(spawner: &Spawner) {
         warn!("fix clocking and reset the device");
     }
 
-    drtio::startup(spawner);
+    drtio::startup(io);
     init_core()
 }
 

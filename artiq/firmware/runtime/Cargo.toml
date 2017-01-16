@@ -15,9 +15,14 @@ path = "lib.rs"
 [dependencies]
 alloc_artiq = { path = "../liballoc_artiq" }
 std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
-lwip = { path = "../liblwip", default-features = false }
 board = { path = "../libboard" }
 fringe = { version = "= 1.1.0", default-features = false, features = ["alloc"] }
-log = { version = "0.3", default-features = false }
+log = { version = "0.3", default-features = false, features = [] }
 log_buffer = { version = "1.0" }
-byteorder = { version = "0.5", default-features = false }
+byteorder = { version = "1.0", default-features = false }
+
+[dependencies.smoltcp]
+git = "https://github.com/m-labs/smoltcp"
+rev = "d57b42c"
+default-features = false
+features = ["use_alloc", "use_collections", "use_log"]#, "verbose"]
