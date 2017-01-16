@@ -13,6 +13,7 @@ A number of Python features can be used inside a kernel for compilation and exec
 * 64-bit signed integers (use ``numpy.int64`` to convert)
 * Double-precision floating point numbers
 * Lists of any supported types
+* String constants
 * User-defined classes, with attributes of any supported types (attributes that are not used anywhere in the kernel are ignored)
 
 For a demonstration of some of these features, see the ``mandelbrot.py`` example.
@@ -29,29 +30,29 @@ Kernel code can call host functions without any additional ceremony. However, su
 
 The Python types correspond to ARTIQ type annotations as follows:
 
-+-------------+-------------------------+
-| Python      | ARTIQ                   |
-+=============+=========================+
-| NoneType    | TNone                   |
-+-------------+-------------------------+
-| bool        | TBool                   |
-+-------------+-------------------------+
-| int         | TInt32 or TInt64        |
-+-------------+-------------------------+
-| float       | TFloat                  |
-+-------------+-------------------------+
-| str         | TStr                    |
-+-------------+-------------------------+
-| list of T   | TList(T)                |
-+-------------+-------------------------+
-| range       | TRange32, TRange64      |
-+-------------+-------------------------+
-| numpy.int32 | TInt32                  |
-+-------------+-------------------------+
-| numpy.int64 | TInt64                  |
-+-------------+-------------------------+
-| numpy.float64 | TFloat                |
-+-------------+-------------------------+
++---------------+-------------------------+
+| Python        | ARTIQ                   |
++===============+=========================+
+| NoneType      | TNone                   |
++-------------+---------------------------+
+| bool          | TBool                   |
++-------------+---------------------------+
+| int           | TInt32 or TInt64        |
++-------------+---------------------------+
+| float         | TFloat                  |
++-------------+---------------------------+
+| str           | TStr                    |
++-------------+---------------------------+
+| list of T     | TList(T)                |
++-------------+---------------------------+
+| range         | TRange32, TRange64      |
++-------------+---------------------------+
+| numpy.int32   | TInt32                  |
++-------------+---------------------------+
+| numpy.int64   | TInt64                  |
++-------------+---------------------------+
+| numpy.float64 | TFloat                  |
++-------------+---------------------------+
 
 Pitfalls
 --------
