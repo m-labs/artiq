@@ -12,9 +12,15 @@ pub unsafe fn start() {
 
     stop();
 
-    let ksupport_image = include_bytes!(concat!(env!("CARGO_TARGET_DIR"), "/../ksupport.elf"));
-    let ksupport_addr = (KERNELCPU_EXEC_ADDRESS - KSUPPORT_HEADER_SIZE) as *mut u8;
-    ptr::copy_nonoverlapping(ksupport_image.as_ptr(), ksupport_addr, ksupport_image.len());
+    extern {
+        static _binary_ksupport_elf_start: u8;
+        static _binary_ksupport_elf_end: u8;
+    }
+    let ksupport_start = &_binary_ksupport_elf_start as *const _;
+    let ksupport_end   = &_binary_ksupport_elf_end as *const _;
+    ptr::copy_nonoverlapping(ksupport_start,
+                             (KERNELCPU_EXEC_ADDRESS - KSUPPORT_HEADER_SIZE) as *mut u8,
+                             ksupport_end as usize - ksupport_start as usize);
 
     csr::kernel_cpu::reset_write(0);
 
