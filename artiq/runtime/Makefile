@@ -3,6 +3,15 @@ include $(MISOC_DIRECTORY)/software/common.mak
 
 PYTHON ?= python3.5
 
+CARGO_normal := env
+CARGO_quiet   = @echo " CARGO   " $@ && $(CARGO_normal)
+
+ifeq ($(V),1)
+	CARGO = $(CARGO_normal)
+else
+	CARGO = $(CARGO_quiet)
+endif
+
 RUSTOUT := cargo/or1k-unknown-none/debug
 RUSTOUT_KSUPPORT := cargo-ksupport/or1k-unknown-none/debug
 
@@ -24,10 +33,11 @@ all: runtime.bin runtime.fbi
 
 .PHONY: $(RUSTOUT)/libruntime.a
 $(RUSTOUT)/libruntime.a:
-	RUSTFLAGS="-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -Cpanic=abort" \
-	CARGO_TARGET_DIR=$(realpath .)/cargo \
-		cargo build --target=or1k-unknown-none \
-			--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../firmware/runtime/Cargo.toml)
+	$(CARGO) \
+		RUSTFLAGS="-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -Cpanic=abort" \
+		CARGO_TARGET_DIR=$(realpath .)/cargo \
+			cargo build --target=or1k-unknown-none \
+				--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../firmware/runtime/Cargo.toml)
 
 runtime.elf: $(RUSTOUT)/libruntime.a flash_storage.o ksupport_data.o
 	$(LD) $(LDFLAGS) \
@@ -39,10 +49,11 @@ runtime.elf: $(RUSTOUT)/libruntime.a flash_storage.o ksupport_data.o
 
 .PHONY: $(RUSTOUT_KSUPPORT)/libksupport.a
 $(RUSTOUT_KSUPPORT)/libksupport.a:
-	RUSTFLAGS="-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -Cpanic=unwind" \
-	CARGO_TARGET_DIR=$(realpath .)/cargo-ksupport \
-		cargo build --target=or1k-unknown-none \
-			--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../firmware/libksupport/Cargo.toml)
+	$(CARGO) \
+		RUSTFLAGS="-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -Cpanic=unwind" \
+		CARGO_TARGET_DIR=$(realpath .)/cargo-ksupport \
+			cargo build --target=or1k-unknown-none \
+				--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../firmware/libksupport/Cargo.toml)
 
 ksupport.elf: $(RUSTOUT_KSUPPORT)/libksupport.a ksupport_glue.o artiq_personality.o
 	$(LD) $(LDFLAGS) \
