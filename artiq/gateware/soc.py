@@ -10,19 +10,13 @@ from artiq import __artiq_dir__ as artiq_dir
 
 
 class AMPSoC:
-    """Contains timer, kernel CPU and mailbox for ARTIQ SoCs.
+    """Contains kernel CPU and mailbox for ARTIQ SoCs.
 
-    Users must disable the timer from the platform SoC and provide
-    a "mailbox" entry in the memory map.
+    Users must provide a "mailbox" entry in the memory map.
     """
     def __init__(self):
         if not hasattr(self, "cpu"):
             raise ValueError("Platform SoC must be initialized first")
-        if hasattr(self, "timer0"):
-            raise ValueError("Timer already exists. "
-                             "Initialize platform SoC using with_timer=False")
-
-        self.submodules.timer0 = timer.Timer(width=64)
 
         self.submodules.kernel_cpu = amp.KernelCPU(self.platform)
         self.add_cpulevel_sdram_if(self.kernel_cpu.wb_sdram)
