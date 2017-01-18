@@ -32,7 +32,6 @@ class Master(MiniSoC, AMPSoC):
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
-                         with_timer=False,
                          ident=artiq_version,
                          **kwargs)
         AMPSoC.__init__(self)

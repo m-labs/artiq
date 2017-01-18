@@ -158,7 +158,6 @@ class Demo(BaseSoC, AMPSoC):
         BaseSoC.__init__(self,
                          cpu_type=cpu_type,
                          l2_size=64*1024,
-                         with_timer=False,
                          ident=artiq_version,
                          clk_freq=75*1000*1000,
                          **kwargs)
