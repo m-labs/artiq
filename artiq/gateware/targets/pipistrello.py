@@ -17,7 +17,7 @@ from misoc.targets.pipistrello import (BaseSoC, soc_pipistrello_args,
                                        soc_pipistrello_argdict)
 from misoc.integration.builder import builder_args, builder_argdict
 
-from artiq.gateware.soc import AMPSoC, build_artiq_soc
+from artiq.gateware.amp import AMPSoC, build_artiq_soc
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_spartan6, dds, spi
 from artiq import __version__ as artiq_version

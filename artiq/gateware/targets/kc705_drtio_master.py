@@ -10,7 +10,7 @@ from misoc.integration.soc_core import mem_decoder
 from misoc.integration.builder import builder_args, builder_argdict
 
 from artiq.gateware.ad9154_fmc_ebz import ad9154_fmc_ebz
-from artiq.gateware.soc import AMPSoC, build_artiq_soc
+from artiq.gateware.amp import AMPSoC, build_artiq_soc
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple
 from artiq.gateware.drtio.transceiver import gtx_7series

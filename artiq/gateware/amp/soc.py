@@ -5,7 +5,8 @@ from misoc.cores import timer
 from misoc.interconnect import wishbone
 from misoc.integration.builder import *
 
-from artiq.gateware import amp
+from artiq.gateware.amp.kernel_cpu import KernelCPU
+from artiq.gateware.amp.mailbox import Mailbox
 from artiq import __artiq_dir__ as artiq_dir
 
 
@@ -18,11 +19,11 @@ class AMPSoC:
         if not hasattr(self, "cpu"):
             raise ValueError("Platform SoC must be initialized first")
 
-        self.submodules.kernel_cpu = amp.KernelCPU(self.platform)
+        self.submodules.kernel_cpu = KernelCPU(self.platform)
         self.add_cpulevel_sdram_if(self.kernel_cpu.wb_sdram)
         self.csr_devices.append("kernel_cpu")
 
-        self.submodules.mailbox = amp.Mailbox(size=3)
+        self.submodules.mailbox = Mailbox(size=3)
         self.add_wb_slave(mem_decoder(self.mem_map["mailbox"]),
                           self.mailbox.i1)
         self.kernel_cpu.add_wb_slave(mem_decoder(self.mem_map["mailbox"]),

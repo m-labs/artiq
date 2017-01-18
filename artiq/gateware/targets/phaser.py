@@ -21,7 +21,7 @@ from misoc.cores import spi as spi_csr
 from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
 from misoc.integration.builder import builder_args, builder_argdict
 
-from artiq.gateware.soc import AMPSoC, build_artiq_soc
+from artiq.gateware.amp import AMPSoC, build_artiq_soc
 from artiq.gateware import rtio
 from artiq.gateware.ad9154_fmc_ebz import ad9154_fmc_ebz
 from artiq.gateware.rtio.phy import (ttl_simple, ttl_serdes_7series,
