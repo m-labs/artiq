@@ -1,2 +1,2 @@
 [workspace]
-members = ["runtime", "libksupport"]
+members = ["runtime", "libksupport", "satman"]

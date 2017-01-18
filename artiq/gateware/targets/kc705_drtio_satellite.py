@@ -1,4 +1,5 @@
 import argparse
+import os
 
 from migen import *
 from migen.build.generic_platform import *
@@ -14,6 +15,7 @@ from artiq.gateware.rtio.phy import ttl_simple
 from artiq.gateware.drtio.transceiver import gtx_7series
 from artiq.gateware.drtio import DRTIOSatellite
 from artiq import __version__ as artiq_version
+from artiq import __artiq_dir__ as artiq_dir
 
 
 # TODO: parameters for sawg_3g
@@ -215,6 +217,8 @@ def main():
 
     soc = Satellite(args.config, args.medium, **soc_kc705_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
+    builder.add_software_package("liballoc")
+    builder.add_software_package("satman", os.path.join(artiq_dir, "firmware", "satman"))
     builder.build()
 
 

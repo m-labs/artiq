@@ -8,9 +8,6 @@ extern crate libc;
 #[macro_use]
 extern crate log;
 extern crate log_buffer;
-extern crate byteorder;
-extern crate fringe;
-extern crate lwip;
 extern crate board;
 
 use core::fmt::Write;
@@ -57,36 +54,7 @@ pub extern fn panic_fmt(args: self::core::fmt::Arguments, file: &'static str, li
     }
 }
 
-mod config;
-mod rtio_mgt;
-mod mailbox;
-mod rpc_queue;
-
-mod urc;
-mod sched;
 mod logger;
-mod cache;
-
-mod proto;
-mod kernel_proto;
-mod session_proto;
-#[cfg(has_rtio_moninj)]
-mod moninj_proto;
-#[cfg(has_rtio_analyzer)]
-mod analyzer_proto;
-mod rpc_proto;
-
-mod kernel;
-mod session;
-#[cfg(has_rtio_moninj)]
-mod moninj;
-#[cfg(has_rtio_analyzer)]
-mod analyzer;
-
-extern {
-    fn network_init();
-    fn lwip_service();
-}
 
 include!(concat!(env!("OUT_DIR"), "/git_info.rs"));
 
@@ -104,41 +72,11 @@ pub unsafe extern fn rust_main() {
     BufferLogger::new(&mut LOG_BUFFER[..])
                  .register(move || {
         board::clock::init();
-        info!("ARTIQ runtime starting...");
+        info!("ARTIQ satellite manager starting...");
         info!("software version {}", GIT_COMMIT);
         info!("gateware version {}", board::ident(&mut [0; 64]));
 
-        let t = board::clock::get_ms();
-        info!("press 'e' to erase startup and idle kernels...");
-        while board::clock::get_ms() < t + 1000 {
-            if readchar_nonblock() != 0 && readchar() == b'e' as libc::c_char {
-                config::remove("startup_kernel");
-                config::remove("idle_kernel");
-                info!("startup and idle kernels erased");
-                break
-            }
-        }
-        info!("continuing boot");
-
-        #[cfg(has_i2c)]
-        board::i2c::init();
-        #[cfg(has_ad9516)]
-        board::ad9516::init().unwrap();
-        #[cfg(has_converter_spi)]
-        board::ad9154::init().unwrap();
-        network_init();
-
-        let mut scheduler = sched::Scheduler::new();
-        rtio_mgt::startup(scheduler.spawner());
-        scheduler.spawner().spawn(16384, session::thread);
-        #[cfg(has_rtio_moninj)]
-        scheduler.spawner().spawn(4096, moninj::thread);
-        #[cfg(has_rtio_analyzer)]
-        scheduler.spawner().spawn(4096, analyzer::thread);
-
         loop {
-            scheduler.run();
-            lwip_service();
         }
     })
 }
@@ -152,14 +90,4 @@ pub unsafe extern fn isr() {
     if irqs & (1 << csr::UART_INTERRUPT) != 0 {
         uart_isr()
     }
-}
-
-#[no_mangle]
-pub fn sys_now() -> u32 {
-    board::clock::get_ms() as u32
-}
-
-#[no_mangle]
-pub fn sys_jiffies() -> u32 {
-    board::clock::get_ms() as u32
 }

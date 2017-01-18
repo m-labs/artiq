@@ -92,6 +92,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "satman"
+version = "0.0.0"
+dependencies = [
+ "alloc_artiq 0.0.0",
+ "board 0.0.0",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log_buffer 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "std_artiq 0.0.0",
+ "walkdir 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "walkdir"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
