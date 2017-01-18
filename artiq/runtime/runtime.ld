@@ -21,12 +21,14 @@ SECTIONS
     } > runtime
 
     /* https://sourceware.org/bugzilla/show_bug.cgi?id=20475 */
-    .got : {
+    .got :
+    {
         _GLOBAL_OFFSET_TABLE_ = .;
         *(.got)
     } > runtime
 
-    .got.plt : {
+    .got.plt :
+    {
         *(.got.plt)
     } > runtime
 
