@@ -4,13 +4,6 @@ ENTRY(_start)
 
 INCLUDE generated/regions.ld
 
-/* Assume ORIGIN(main_ram) = 0x40000000. Unfortunately,
- * ld does not allow this expression here.
- */
-MEMORY {
-    runtime (RWX) : ORIGIN = 0x40000000, LENGTH = 0x400000 /* 4M */
-}
-
 SECTIONS
 {
     .text :
@@ -18,17 +11,19 @@ SECTIONS
         _ftext = .;
         *(.text .stub .text.* .gnu.linkonce.t.*)
         _etext = .;
-    } > runtime
+    } > main_ram
 
     /* https://sourceware.org/bugzilla/show_bug.cgi?id=20475 */
-    .got : {
+    .got :
+    {
         _GLOBAL_OFFSET_TABLE_ = .;
         *(.got)
-    } > runtime
+    } > main_ram
 
-    .got.plt : {
+    .got.plt :
+    {
         *(.got.plt)
-    } > runtime
+    } > main_ram
 
     .rodata :
     {
@@ -37,7 +32,7 @@ SECTIONS
         *(.rodata .rodata.* .gnu.linkonce.r.*)
         *(.rodata1)
         _erodata = .;
-    } > runtime
+    } > main_ram
 
     .data :
     {
@@ -47,7 +42,7 @@ SECTIONS
         *(.data1)
         *(.sdata .sdata.* .gnu.linkonce.s.*)
         _edata = .;
-    } > runtime
+    } > main_ram
 
     .bss :
     {
@@ -61,7 +56,7 @@ SECTIONS
         *(COMMON)
         . = ALIGN(4);
         _ebss = .;
-    } > runtime
+    } > main_ram
 
     .stack :
     {
@@ -69,14 +64,14 @@ SECTIONS
         _estack = .;
         . += 0x4000;
         _fstack = . - 4;
-    } > runtime
+    } > main_ram
 
     .heap :
     {
         _fheap = .;
-        . = ORIGIN(runtime) + LENGTH(runtime);
+        . = ORIGIN(main_ram) + LENGTH(main_ram);
         _eheap = .;
-    } > runtime
+    } > main_ram
 
     /DISCARD/ :
     {
