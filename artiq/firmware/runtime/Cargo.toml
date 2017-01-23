@@ -23,6 +23,6 @@ byteorder = { version = "1.0", default-features = false }
 
 [dependencies.smoltcp]
 git = "https://github.com/m-labs/smoltcp"
-rev = "d57b42c"
+rev = "b90495f"
 default-features = false
 features = ["use_alloc", "use_collections", "use_log"]#, "verbose"]
