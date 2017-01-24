@@ -4,13 +4,13 @@ name = "runtime"
 version = "0.0.0"
 build = "build.rs"
 
-[build-dependencies]
-walkdir = "1.0"
-
 [lib]
 name = "runtime"
 crate-type = ["staticlib"]
 path = "lib.rs"
+
+[build-dependencies]
+build_artiq = { path = "../libbuild_artiq" }
 
 [dependencies]
 alloc_artiq = { path = "../liballoc_artiq" }

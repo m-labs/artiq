@@ -56,8 +56,6 @@ pub extern fn panic_fmt(args: self::core::fmt::Arguments, file: &'static str, li
 
 mod logger;
 
-include!(concat!(env!("OUT_DIR"), "/git_info.rs"));
-
 // Allow linking with crates that are built as -Cpanic=unwind even if we use -Cpanic=abort.
 // This is never called.
 #[allow(non_snake_case)]
@@ -73,7 +71,7 @@ pub unsafe extern fn rust_main() {
                  .register(move || {
         board::clock::init();
         info!("ARTIQ satellite manager starting...");
-        info!("software version {}", GIT_COMMIT);
+        info!("software version {}", cfg!(git_describe));
         info!("gateware version {}", board::ident(&mut [0; 64]));
 
         loop {

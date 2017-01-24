@@ -18,6 +18,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "build_artiq"
+version = "0.0.0"
+dependencies = [
+ "walkdir 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "byteorder"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -75,13 +82,13 @@ version = "0.0.0"
 dependencies = [
  "alloc_artiq 0.0.0",
  "board 0.0.0",
+ "build_artiq 0.0.0",
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fringe 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "log_buffer 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "smoltcp 0.2.0 (git+https://github.com/m-labs/smoltcp?rev=b90495f)",
  "std_artiq 0.0.0",
- "walkdir 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -90,10 +97,10 @@ version = "0.0.0"
 dependencies = [
  "alloc_artiq 0.0.0",
  "board 0.0.0",
+ "build_artiq 0.0.0",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "log_buffer 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "std_artiq 0.0.0",
- "walkdir 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

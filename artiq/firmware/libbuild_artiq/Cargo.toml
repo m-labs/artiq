@@ -1,0 +1,11 @@
+[package]
+authors = ["M-Labs"]
+name = "build_artiq"
+version = "0.0.0"
+
+[lib]
+name = "build_artiq"
+path = "lib.rs"
+
+[dependencies]
+walkdir = "1.0"
