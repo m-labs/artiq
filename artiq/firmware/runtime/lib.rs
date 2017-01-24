@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(libc, const_fn, repr_simd, asm, lang_items)]
+#![feature(libc, repr_simd)]
 
 extern crate alloc_artiq;
 #[macro_use]
@@ -7,54 +7,18 @@ extern crate std_artiq as std;
 extern crate libc;
 #[macro_use]
 extern crate log;
-extern crate log_buffer;
+extern crate logger_artiq;
 extern crate byteorder;
 extern crate fringe;
 extern crate smoltcp;
+#[macro_use]
 extern crate board;
 
-use core::fmt::Write;
 use std::boxed::Box;
 
 extern {
-    fn putchar(c: libc::c_int) -> libc::c_int;
     fn readchar() -> libc::c_char;
     fn readchar_nonblock() -> libc::c_int;
-}
-
-#[macro_export]
-macro_rules! print {
-    ($($arg:tt)*) => ($crate::print_fmt(format_args!($($arg)*)));
-}
-
-#[macro_export]
-macro_rules! println {
-    ($fmt:expr) => (print!(concat!($fmt, "\n")));
-    ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
-}
-
-pub struct Console;
-
-impl core::fmt::Write for Console {
-    fn write_str(&mut self, s: &str) -> Result<(), core::fmt::Error> {
-        for c in s.bytes() { unsafe { putchar(c as i32); } }
-        Ok(())
-    }
-}
-
-pub fn print_fmt(args: self::core::fmt::Arguments) {
-    let _ = Console.write_fmt(args);
-}
-
-#[no_mangle]
-#[lang = "panic_fmt"]
-pub extern fn panic_fmt(args: self::core::fmt::Arguments, file: &'static str, line: u32) -> ! {
-    let _ = write!(Console, "panic at {}:{}: {}\n", file, line, args);
-    let _ = write!(Console, "waiting for debugger...\n");
-    unsafe {
-        let _ = readchar();
-        loop { asm!("l.trap 0") }
-    }
 }
 
 macro_rules! borrow_mut {
@@ -74,7 +38,6 @@ mod rpc_queue;
 
 mod urc;
 mod sched;
-mod logger;
 mod cache;
 
 mod proto;
@@ -96,7 +59,7 @@ mod analyzer;
 fn startup() {
     board::uart::set_speed(921600);
     board::clock::init();
-    info!("booting ARTIQ");
+    info!("ARTIQ runtime starting...");
     info!("software version {}", cfg!(git_describe));
     info!("gateware version {}", board::ident(&mut [0; 64]));
 
@@ -176,7 +139,7 @@ pub unsafe extern fn main() -> i32 {
                &_eheap as *const u8 as usize - &_fheap as *const u8 as usize);
 
     static mut LOG_BUFFER: [u8; 65536] = [0; 65536];
-    logger::BufferLogger::new(&mut LOG_BUFFER[..]).register(startup);
+    logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(startup);
     0
 }
 

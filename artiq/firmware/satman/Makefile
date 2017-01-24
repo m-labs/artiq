@@ -7,8 +7,6 @@ OBJECTS := main.o
 
 RUSTOUT := cargo/or1k-unknown-none/debug
 
-CFLAGS += -I$(LIBALLOC_DIRECTORY)
-
 LDFLAGS += --gc-sections \
 	-L../libcompiler-rt \
 	-L../libbase \

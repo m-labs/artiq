@@ -1,4 +1,4 @@
-#![feature(asm)]
+#![feature(asm, lang_items)]
 #![no_std]
 
 #[macro_use]
@@ -12,6 +12,8 @@ pub mod spr;
 pub mod irq;
 pub mod clock;
 pub mod uart;
+#[cfg(feature = "uart_console")]
+pub mod uart_console;
 
 #[cfg(has_i2c)]
 pub mod i2c;
@@ -28,6 +30,9 @@ pub mod ad9516;
 mod ad9154_reg;
 #[cfg(has_converter_spi)]
 pub mod ad9154;
+
+#[cfg(feature = "uart_console")]
+pub use uart_console::Console;
 
 extern {
     pub fn flush_cpu_dcache();

@@ -72,6 +72,15 @@ version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "logger_artiq"
+version = "0.0.0"
+dependencies = [
+ "board 0.0.0",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log_buffer 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "managed"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -86,7 +95,7 @@ dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fringe 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "log_buffer 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "logger_artiq 0.0.0",
  "smoltcp 0.2.0 (git+https://github.com/m-labs/smoltcp?rev=b90495f)",
  "std_artiq 0.0.0",
 ]
@@ -99,7 +108,7 @@ dependencies = [
  "board 0.0.0",
  "build_artiq 0.0.0",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "log_buffer 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "logger_artiq 0.0.0",
  "std_artiq 0.0.0",
 ]
 

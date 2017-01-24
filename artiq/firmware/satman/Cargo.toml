@@ -15,6 +15,6 @@ build_artiq = { path = "../libbuild_artiq" }
 [dependencies]
 alloc_artiq = { path = "../liballoc_artiq" }
 std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
+logger_artiq = { path = "../liblogger_artiq" }
 board = { path = "../libboard" }
 log = { version = "0.3", default-features = false }
-log_buffer = { version = "1.0" }

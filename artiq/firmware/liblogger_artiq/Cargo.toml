@@ -1,0 +1,13 @@
+[package]
+authors = ["M-Labs"]
+name = "logger_artiq"
+version = "0.0.0"
+
+[lib]
+name = "logger_artiq"
+path = "lib.rs"
+
+[dependencies]
+log = { version = "0.3", default-features = false, features = [] }
+log_buffer = { version = "1.0" }
+board = { path = "../libboard" }

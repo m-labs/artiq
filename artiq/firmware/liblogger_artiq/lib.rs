@@ -1,17 +1,23 @@
+#![no_std]
+
+#[macro_use]
+extern crate log;
+extern crate log_buffer;
+extern crate board;
+
 use core::{mem, ptr};
 use core::cell::{Cell, RefCell};
-use log::{self, Log, LogLevel, LogMetadata, LogRecord, LogLevelFilter};
+use core::fmt::Write;
+use log::{Log, LogLevel, LogMetadata, LogRecord, LogLevelFilter};
 use log_buffer::LogBuffer;
-use board;
+use board::{Console, clock};
 
 pub struct BufferLogger {
-    buffer: RefCell<LogBuffer<&'static mut [u8]>>,
+    buffer:        RefCell<LogBuffer<&'static mut [u8]>>,
     trace_to_uart: Cell<bool>
 }
 
-unsafe impl Sync for BufferLogger {}
-
-static mut LOGGER: *const BufferLogger = ptr::null();
+static mut LOGGER: *const BufferLogger = 0 as *const _;
 
 impl BufferLogger {
     pub fn new(buffer: &'static mut [u8]) -> BufferLogger {
@@ -60,6 +66,9 @@ impl BufferLogger {
     }
 }
 
+// required for impl Log
+unsafe impl Sync for BufferLogger {}
+
 impl Log for BufferLogger {
     fn enabled(&self, _metadata: &LogMetadata) -> bool {
         true
@@ -67,16 +76,26 @@ impl Log for BufferLogger {
 
     fn log(&self, record: &LogRecord) {
         if self.enabled(record.metadata()) {
-            use core::fmt::Write;
-            writeln!(self.buffer.borrow_mut(),
-                     "[{:12}us] {:>5}({}): {}",
-                     board::clock::get_us(), record.level(), record.target(), record.args()).unwrap();
+            let force_uart = match self.buffer.try_borrow_mut() {
+                Ok(mut buffer) => {
+                    writeln!(buffer, "[{:12}us] {:>5}({}): {}",
+                             clock::get_us(), record.level(),
+                             record.target(), record.args()).unwrap();
+                    false
+                }
+                Err(_) => {
+                    // we're trying to log something while sending the log somewhere,
+                    // probably over the network. just let it go to UART.
+                    true
+                }
+            };
 
             // Printing to UART is really slow, so avoid doing that when we have an alternative
             // route to retrieve the debug messages.
-            if self.trace_to_uart.get() || record.level() <= LogLevel::Info {
-                println!("[{:12}us] {:>5}({}): {}",
-                         board::clock::get_us(), record.level(), record.target(), record.args());
+            if self.trace_to_uart.get() || record.level() <= LogLevel::Info || force_uart {
+                writeln!(Console, "[{:12}us] {:>5}({}): {}",
+                         clock::get_us(), record.level(),
+                         record.target(), record.args()).unwrap();
             }
         }
     }

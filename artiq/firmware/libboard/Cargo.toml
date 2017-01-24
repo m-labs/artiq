@@ -10,3 +10,6 @@ path = "lib.rs"
 
 [dependencies]
 log = { version = "0.3", default-features = false }
+
+[features]
+uart_console = []

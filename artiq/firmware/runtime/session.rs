@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::io::{self, Read, Write};
 use std::btree_set::BTreeSet;
 use {config, rtio_mgt, mailbox, rpc_queue, kernel};
-use logger::BufferLogger;
+use logger_artiq::BufferLogger;
 use cache::Cache;
 use urc::Urc;
 use sched::{ThreadHandle, Io};
