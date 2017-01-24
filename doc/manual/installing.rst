@@ -150,55 +150,14 @@ This should be done after either installation method (conda or source).
 
 .. _flash-mac-ip-addr:
 
-* Set the MAC and IP address in the :ref:`core device configuration flash storage <core-device-flash-storage>`:
+* Set the MAC and IP address in the :ref:`core device configuration flash storage <core-device-flash-storage>`: ::
 
-    * You can set it through JTAG by generating a flash storage image and then flashing it: ::
-
-        $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
-        $ artiq_flash -f flash_storage.img proxy storage start
-
-    * Or, if you have a serial connection ready, you can set it via the runtime test mode command line
-
-        * Boot the board.
-
-        * Quickly run flterm (in ``path/to/misoc/tools``) to access the serial console.
-
-        * If you weren't quick enough to see anything in the serial console, press the reset button.
-
-        * Wait for "Press 't' to enter test mode..." to appear and hit the ``t`` key.
-
-        * Enter the following commands (which will erase the flash storage content).
-
-            ::
-
-                test> fserase
-                test> fswrite ip xx.xx.xx.xx
-                test> fswrite mac xx:xx:xx:xx:xx:xx
-
-        * Then reboot.
-
-        You should see something like this in the serial console: ::
-
-            $ ./tools/flterm --port /dev/ttyUSB1
-            [FLTERM] Starting...
-
-            MiSoC BIOS   http://m-labs.hk
-            (c) Copyright 2007-2014 Sebastien Bourdeauducq
-            [...]
-            Press 't' to enter test mode...
-            Entering test mode.
-            test> fserase
-            test> fswrite ip 192.168.10.2
-            test> fswrite mac 11:22:33:44:55:66
-
-.. note:: The reset button of the KC705 board is the "CPU_RST" labeled button.
-.. warning:: Both those instructions will result in the flash storage being wiped out. However you can use the test mode to change the IP/MAC without erasing everything if you skip the "fserase" command.
-
-* (optional) You may also want to set ``netmask`` and ``gateway`` in the same way that you set ``ip``.
+    $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
+    $ artiq_flash -f flash_storage.img proxy storage start
 
 * (optional) Flash the idle kernel
 
-The idle kernel is the kernel (some piece of code running on the core device) which the core device runs whenever it is not connected to a PC via ethernet.
+The idle kernel is the kernel (some piece of code running on the core device) which the core device runs whenever it is not connected to a PC via Ethernet.
 This kernel is therefore stored in the :ref:`core device configuration flash storage <core-device-flash-storage>`.
 To flash the idle kernel:
 
