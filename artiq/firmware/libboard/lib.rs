@@ -10,6 +10,7 @@ include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/mem.rs"));
 include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/csr.rs"));
 pub mod spr;
 pub mod irq;
+pub mod cache;
 pub mod clock;
 pub mod uart;
 #[cfg(feature = "uart_console")]
@@ -33,11 +34,6 @@ pub mod ad9154;
 
 #[cfg(feature = "uart_console")]
 pub use uart_console::Console;
-
-extern {
-    pub fn flush_cpu_dcache();
-    pub fn flush_l2_cache();
-}
 
 pub fn ident(buf: &mut [u8]) -> &str {
     unsafe {

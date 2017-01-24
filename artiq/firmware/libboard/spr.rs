@@ -57,6 +57,28 @@ pub const SPR_ESR_BASE:     u32 = SPRGROUP_SYS + 64;
 pub const SPR_ESR_LAST:     u32 = SPRGROUP_SYS + 79;
 pub const SPR_GPR_BASE:     u32 = SPRGROUP_SYS + 1024;
 
+/* Data MMU group */
+pub const SPR_DMMUCR:       u32 = SPRGROUP_DMMU + 0;
+pub const SPR_DTLBEIR:      u32 = SPRGROUP_DMMU + 2;
+
+/* Instruction MMU group */
+pub const SPR_IMMUCR:       u32 = SPRGROUP_IMMU + 0;
+pub const SPR_ITLBEIR:      u32 = SPRGROUP_IMMU + 2;
+
+/* Data cache group */
+pub const SPR_DCCR:         u32 = SPRGROUP_DC + 0;
+pub const SPR_DCBPR:        u32 = SPRGROUP_DC + 1;
+pub const SPR_DCBFR:        u32 = SPRGROUP_DC + 2;
+pub const SPR_DCBIR:        u32 = SPRGROUP_DC + 3;
+pub const SPR_DCBWR:        u32 = SPRGROUP_DC + 4;
+pub const SPR_DCBLR:        u32 = SPRGROUP_DC + 5;
+
+/* Instruction cache group */
+pub const SPR_ICCR:         u32 = SPRGROUP_IC + 0;
+pub const SPR_ICBPR:        u32 = SPRGROUP_IC + 1;
+pub const SPR_ICBIR:        u32 = SPRGROUP_IC + 2;
+pub const SPR_ICBLR:        u32 = SPRGROUP_IC + 3;
+
 // [snip]
 
 /* PIC group */
@@ -89,3 +111,80 @@ pub const SPR_SR_FO:        u32 = 0x00008000;  /* Fixed one */
 pub const SPR_SR_SUMRA:     u32 = 0x00010000;  /* Supervisor SPR read access */
 pub const SPR_SR_RES:       u32 = 0x0ffe0000;  /* Reserved */
 pub const SPR_SR_CID:       u32 = 0xf0000000;  /* Context ID */
+
+/*
+ * Bit definitions for Data Cache Control register
+ *
+ */
+pub const SPR_DCCR_EW:      u32 = 0x000000ff;  /* Enable ways */
+
+/*
+ * Bit definitions for Insn Cache Control register
+ *
+ */
+pub const SPR_ICCR_EW:      u32 = 0x000000ff;  /* Enable ways */
+
+/*
+ * Bit definitions for Data Cache Configuration Register
+ *
+ */
+pub const SPR_DCCFGR_NCW:       u32 = 0x00000007;
+pub const SPR_DCCFGR_NCS:       u32 = 0x00000078;
+pub const SPR_DCCFGR_CBS:       u32 = 0x00000080;
+pub const SPR_DCCFGR_CWS:       u32 = 0x00000100;
+pub const SPR_DCCFGR_CCRI:      u32 = 0x00000200;
+pub const SPR_DCCFGR_CBIRI:     u32 = 0x00000400;
+pub const SPR_DCCFGR_CBPRI:     u32 = 0x00000800;
+pub const SPR_DCCFGR_CBLRI:     u32 = 0x00001000;
+pub const SPR_DCCFGR_CBFRI:     u32 = 0x00002000;
+pub const SPR_DCCFGR_CBWBRI:    u32 = 0x00004000;
+
+pub const SPR_DCCFGR_NCW_OFF:   u32 = 0;
+pub const SPR_DCCFGR_NCS_OFF:   u32 = 3;
+pub const SPR_DCCFGR_CBS_OFF:   u32 = 7;
+
+/*
+ * Bit definitions for Instruction Cache Configuration Register
+ *
+ */
+pub const SPR_ICCFGR_NCW:       u32 = 0x00000007;
+pub const SPR_ICCFGR_NCS:       u32 = 0x00000078;
+pub const SPR_ICCFGR_CBS:       u32 = 0x00000080;
+pub const SPR_ICCFGR_CCRI:      u32 = 0x00000200;
+pub const SPR_ICCFGR_CBIRI:     u32 = 0x00000400;
+pub const SPR_ICCFGR_CBPRI:     u32 = 0x00000800;
+pub const SPR_ICCFGR_CBLRI:     u32 = 0x00001000;
+
+pub const SPR_ICCFGR_NCW_OFF:   u32 = 0;
+pub const SPR_ICCFGR_NCS_OFF:   u32 = 3;
+pub const SPR_ICCFGR_CBS_OFF:   u32 = 7;
+
+/*
+ * Bit definitions for Data MMU Configuration Register
+ *
+ */
+pub const SPR_DMMUCFGR_NTW:     u32 = 0x00000003;
+pub const SPR_DMMUCFGR_NTS:     u32 = 0x0000001C;
+pub const SPR_DMMUCFGR_NAE:     u32 = 0x000000E0;
+pub const SPR_DMMUCFGR_CRI:     u32 = 0x00000100;
+pub const SPR_DMMUCFGR_PRI:     u32 = 0x00000200;
+pub const SPR_DMMUCFGR_TEIRI:   u32 = 0x00000400;
+pub const SPR_DMMUCFGR_HTR:     u32 = 0x00000800;
+
+pub const SPR_DMMUCFGR_NTW_OFF: u32 = 0;
+pub const SPR_DMMUCFGR_NTS_OFF: u32 = 2;
+
+/*
+ * Bit definitions for Instruction MMU Configuration Register
+ *
+ */
+pub const SPR_IMMUCFGR_NTW:     u32 = 0x00000003;
+pub const SPR_IMMUCFGR_NTS:     u32 = 0x0000001C;
+pub const SPR_IMMUCFGR_NAE:     u32 = 0x000000E0;
+pub const SPR_IMMUCFGR_CRI:     u32 = 0x00000100;
+pub const SPR_IMMUCFGR_PRI:     u32 = 0x00000200;
+pub const SPR_IMMUCFGR_TEIRI:   u32 = 0x00000400;
+pub const SPR_IMMUCFGR_HTR:     u32 = 0x00000800;
+
+pub const SPR_IMMUCFGR_NTW_OFF: u32 = 0;
+pub const SPR_IMMUCFGR_NTS_OFF: u32 = 2;

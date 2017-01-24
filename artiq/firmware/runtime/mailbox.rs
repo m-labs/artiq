@@ -1,7 +1,7 @@
 use core::ptr::{read_volatile, write_volatile};
-use board;
+use board::{mem, cache};
 
-const MAILBOX: *mut usize = board::mem::MAILBOX_BASE as *mut usize;
+const MAILBOX: *mut usize = mem::MAILBOX_BASE as *mut usize;
 static mut LAST: usize = 0;
 
 pub unsafe fn send(data: usize) {
@@ -23,7 +23,7 @@ pub fn receive() -> usize {
             0
         } else {
             if data != 0 {
-                board::flush_cpu_dcache()
+                cache::flush_cpu_dcache()
             }
             data
         }

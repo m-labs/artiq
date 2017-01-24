@@ -1,5 +1,5 @@
 use std::io::{self, Write};
-use board::{self, csr};
+use board::{csr, cache};
 use sched::{Io, TcpSocket};
 use analyzer_proto::*;
 
@@ -35,8 +35,8 @@ fn disarm() {
     unsafe {
         csr::rtio_analyzer::enable_write(0);
         while csr::rtio_analyzer::busy_read() != 0 {}
-        board::flush_cpu_dcache();
-        board::flush_l2_cache();
+        cache::flush_cpu_dcache();
+        cache::flush_l2_cache();
     }
 }
 

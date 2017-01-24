@@ -2,10 +2,10 @@
 
 use core::ptr::{read_volatile, write_volatile};
 use core::slice;
-use board;
+use board::{mem, cache};
 
-const SEND_MAILBOX: *mut usize = (board::mem::MAILBOX_BASE + 4) as *mut usize;
-const RECV_MAILBOX: *mut usize = (board::mem::MAILBOX_BASE + 8) as *mut usize;
+const SEND_MAILBOX: *mut usize = (mem::MAILBOX_BASE + 4) as *mut usize;
+const RECV_MAILBOX: *mut usize = (mem::MAILBOX_BASE + 8) as *mut usize;
 
 const QUEUE_BEGIN: usize = 0x40400000;
 const QUEUE_END:   usize = 0x407fff80;
@@ -51,7 +51,7 @@ pub fn dequeue<T, E, F>(f: F) -> Result<T, E>
     debug_assert!(!empty());
 
     unsafe {
-        board::flush_cpu_dcache();
+        cache::flush_cpu_dcache();
         let slice = slice::from_raw_parts_mut(read_volatile(RECV_MAILBOX) as *mut u8, QUEUE_CHUNK);
         f(slice).and_then(|x| {
             write_volatile(RECV_MAILBOX, next(read_volatile(RECV_MAILBOX)));
