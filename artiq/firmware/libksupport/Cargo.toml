@@ -9,6 +9,9 @@ name = "ksupport"
 path = "lib.rs"
 crate-type = ["staticlib"]
 
+[build-dependencies]
+build_artiq = { path = "../libbuild_artiq" }
+
 [dependencies]
 alloc_none = { path = "../liballoc_none" }
 std_artiq = { path = "../libstd_artiq" }

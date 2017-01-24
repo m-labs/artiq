@@ -52,6 +52,7 @@ version = "0.0.0"
 dependencies = [
  "alloc_none 0.0.0",
  "board 0.0.0",
+ "build_artiq 0.0.0",
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "std_artiq 0.0.0",
 ]
