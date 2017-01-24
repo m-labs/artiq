@@ -57,7 +57,6 @@ mod moninj;
 mod analyzer;
 
 fn startup() {
-    board::uart::set_speed(921600);
     board::clock::init();
     info!("ARTIQ runtime starting...");
     info!("software version {}", cfg!(git_describe));

@@ -131,6 +131,7 @@ class Satellite(BaseSoC):
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
                  ident=artiq_version,
+                 uart_baudrate=921600,
                  **kwargs)
 
         platform = self.platform
