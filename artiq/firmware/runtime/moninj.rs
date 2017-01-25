@@ -114,7 +114,7 @@ fn worker(socket: &mut UdpSocket) -> io::Result<()> {
 }
 
 pub fn thread(io: Io) {
-    let mut socket = UdpSocket::with_buffer_size(&io, 1, 512);
+    let mut socket = UdpSocket::new(&io, 1, 512);
     socket.bind(3250);
 
     loop {

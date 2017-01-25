@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 use board::{csr, cache};
-use sched::{Io, TcpSocket};
+use sched::{Io, TcpListener, TcpStream};
 use analyzer_proto::*;
 
 const BUFFER_SIZE: usize = 512 * 1024;
@@ -40,7 +40,7 @@ fn disarm() {
     }
 }
 
-fn worker(socket: &mut TcpSocket) -> io::Result<()> {
+fn worker(stream: &mut TcpStream) -> io::Result<()> {
     let data = unsafe { &BUFFER.data[..] };
     let overflow_occurred = unsafe { csr::rtio_analyzer::message_encoder_overflow_read() != 0 };
     let total_byte_count = unsafe { csr::rtio_analyzer::dma_byte_count_read() };
@@ -56,12 +56,12 @@ fn worker(socket: &mut TcpSocket) -> io::Result<()> {
     };
     trace!("{:?}", header);
 
-    try!(header.write_to(socket));
+    try!(header.write_to(stream));
     if wraparound {
-        try!(socket.write_all(&data[pointer..]));
-        try!(socket.write_all(&data[..pointer]));
+        try!(stream.write_all(&data[pointer..]));
+        try!(stream.write_all(&data[..pointer]));
     } else {
-        try!(socket.write_all(&data[..pointer]));
+        try!(stream.write_all(&data[..pointer]));
     }
 
     Ok(())
@@ -71,20 +71,21 @@ pub fn thread(io: Io) {
     // verify that the hack above works
     assert!(::core::mem::align_of::<Buffer>() == 64);
 
-    let mut socket = TcpSocket::with_buffer_size(&io, 65535);
+    let listener = TcpListener::new(&io, 65535);
+    listener.listen(1382).expect("analyzer: cannot listen");
+
     loop {
         arm();
 
-        socket.listen(1382).expect("analyzer: cannot listen");
-        socket.accept().expect("analyzer: cannot accept");
-        info!("connection from {}", socket.remote_endpoint());
+        let mut stream = listener.accept().expect("analyzer: cannot accept");
+        info!("connection from {}", stream.remote_endpoint());
 
         disarm();
 
-        match worker(&mut socket) {
+        match worker(&mut stream) {
             Ok(())   => (),
             Err(err) => error!("analyzer aborted: {}", err)
         }
-        socket.close().expect("analyzer: cannot close");
+        stream.close().expect("analyzer: cannot close");
     }
 }

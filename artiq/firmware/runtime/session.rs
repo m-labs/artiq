@@ -8,7 +8,7 @@ use logger_artiq::BufferLogger;
 use cache::Cache;
 use urc::Urc;
 use sched::{ThreadHandle, Io};
-use sched::{TcpSocket};
+use sched::{TcpListener, TcpStream};
 use byteorder::{ByteOrder, NetworkEndian};
 use board;
 
@@ -97,7 +97,7 @@ impl<'a> Drop for Session<'a> {
     }
 }
 
-fn check_magic(stream: &mut TcpSocket) -> io::Result<()> {
+fn check_magic(stream: &mut TcpStream) -> io::Result<()> {
     const MAGIC: &'static [u8] = b"ARTIQ coredev\n";
 
     let mut magic: [u8; 14] = [0; 14];
@@ -109,7 +109,7 @@ fn check_magic(stream: &mut TcpSocket) -> io::Result<()> {
     }
 }
 
-fn host_read(stream: &mut TcpSocket) -> io::Result<host::Request> {
+fn host_read(stream: &mut TcpStream) -> io::Result<host::Request> {
     let request = try!(host::Request::read_from(stream));
     match &request {
         &host::Request::LoadKernel(_) => trace!("comm<-host LoadLibrary(...)"),
@@ -198,7 +198,7 @@ fn kern_run(session: &mut Session) -> io::Result<()> {
 }
 
 fn process_host_message(io: &Io,
-                        stream: &mut TcpSocket,
+                        stream: &mut TcpStream,
                         session: &mut Session) -> io::Result<()> {
     match try!(host_read(stream)) {
         host::Request::Ident =>
@@ -338,7 +338,7 @@ fn process_host_message(io: &Io,
 }
 
 fn process_kern_message(io: &Io,
-                        mut stream: Option<&mut TcpSocket>,
+                        mut stream: Option<&mut TcpStream>,
                         session: &mut Session) -> io::Result<bool> {
     kern_recv_notrace(io, |request| {
         match (request, session.kernel_state) {
@@ -535,7 +535,7 @@ fn process_kern_message(io: &Io,
     })
 }
 
-fn process_kern_queued_rpc(stream: &mut TcpSocket,
+fn process_kern_queued_rpc(stream: &mut TcpStream,
                            _session: &mut Session) -> io::Result<()> {
     rpc_queue::dequeue(|slice| {
         trace!("comm<-kern (async RPC)");
@@ -548,7 +548,7 @@ fn process_kern_queued_rpc(stream: &mut TcpSocket,
 }
 
 fn host_kernel_worker(io: &Io,
-                      stream: &mut TcpSocket,
+                      stream: &mut TcpStream,
                       congress: &mut Congress) -> io::Result<()> {
     let mut session = Session::new(congress);
 
@@ -652,36 +652,30 @@ pub fn thread(io: Io) {
 
     BufferLogger::with_instance(|logger| logger.disable_trace_to_uart());
 
-    const BUFFER_SIZE: usize = 65535;
-    let mut listener = TcpSocket::with_buffer_size(&io, BUFFER_SIZE);
+    let listener = TcpListener::new(&io, 65535);
+    listener.listen(1381).expect("session: cannot listen");
     info!("accepting network sessions");
 
     let mut kernel_thread = None;
     loop {
-        if !listener.is_open() {
-            listener.listen(1381).expect("session: cannot listen")
-        }
-
-        if listener.is_active() {
-            listener.accept().expect("session: cannot accept");
-            match check_magic(&mut listener) {
+        if listener.can_accept() {
+            let mut stream = listener.accept().expect("session: cannot accept");
+            match check_magic(&mut stream) {
                 Ok(()) => (),
                 Err(_) => {
-                    warn!("wrong magic from {}", listener.remote_endpoint());
-                    listener.close().expect("session: cannot close");
+                    warn!("wrong magic from {}", stream.remote_endpoint());
+                    stream.close().expect("session: cannot close");
                     continue
                 }
             }
-            info!("new connection from {}", listener.remote_endpoint());
-
-            let socket = listener.into_handle();
-            listener = TcpSocket::with_buffer_size(&io, BUFFER_SIZE);
+            info!("new connection from {}", stream.remote_endpoint());
 
             let congress = congress.clone();
+            let stream = stream.into_handle();
             respawn(&io, &mut kernel_thread, move |io| {
                 let mut congress = borrow_mut!(congress);
-                let mut socket = TcpSocket::from_handle(&io, socket);
-                match host_kernel_worker(&io, &mut socket, &mut *congress) {
+                let mut stream = TcpStream::from_handle(&io, stream);
+                match host_kernel_worker(&io, &mut stream, &mut *congress) {
                     Ok(()) => (),
                     Err(err) => {
                         if err.kind() == io::ErrorKind::UnexpectedEof {

@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use std::mem;
-use std::cell::{RefCell, RefMut};
+use std::cell::{Cell, RefCell, RefMut};
 use std::vec::Vec;
 use std::io::{Read, Write, Result, Error, ErrorKind};
 use fringe::OwnedStack;
@@ -244,7 +244,7 @@ macro_rules! until {
         let (sockets, handle) = ($socket.io.sockets.clone(), $socket.handle);
         $socket.io.until(move || {
             let mut sockets = borrow_mut!(sockets);
-            let $var = sockets.get_mut(handle).as_socket() as &mut $ty;
+            let $var: &mut $ty = sockets.get_mut(handle).as_socket();
             $cond
         })
     })
@@ -260,27 +260,21 @@ pub struct UdpSocket<'a> {
 }
 
 impl<'a> UdpSocket<'a> {
-    pub fn new(io: &'a Io<'a>, rx_buffer: UdpSocketBuffer, tx_buffer: UdpSocketBuffer) ->
-            UdpSocket<'a> {
-        let handle = borrow_mut!(io.sockets)
-            .add(UdpSocketLower::new(rx_buffer, tx_buffer));
-        UdpSocket {
-            io:     io,
-            handle: handle
-        }
-    }
-
-    pub fn with_buffer_size(io: &'a Io<'a>, buffer_depth: usize, buffer_width: usize) ->
-            UdpSocket<'a> {
+    pub fn new(io: &'a Io<'a>, buffer_depth: usize, buffer_width: usize) -> UdpSocket<'a> {
         let mut rx_buffer = vec![];
         let mut tx_buffer = vec![];
         for _ in 0..buffer_depth {
             rx_buffer.push(UdpPacketBuffer::new(vec![0; buffer_width]));
             tx_buffer.push(UdpPacketBuffer::new(vec![0; buffer_width]));
         }
-        Self::new(io,
-            UdpSocketBuffer::new(rx_buffer),
-            UdpSocketBuffer::new(tx_buffer))
+        let handle = borrow_mut!(io.sockets)
+                        .add(UdpSocketLower::new(
+                                UdpSocketBuffer::new(rx_buffer),
+                                UdpSocketBuffer::new(tx_buffer)));
+        UdpSocket {
+            io:     io,
+            handle: handle
+        }
     }
 
     fn as_lower<'b>(&'b self) -> RefMut<'b, UdpSocketLower> {
@@ -326,38 +320,104 @@ type TcpSocketLower  = ::smoltcp::socket::TcpSocket<'static>;
 
 pub struct TcpSocketHandle(SocketHandle);
 
-pub struct TcpSocket<'a> {
+pub struct TcpListener<'a> {
+    io:          &'a Io<'a>,
+    handle:      Cell<SocketHandle>,
+    buffer_size: Cell<usize>,
+    endpoint:    Cell<IpEndpoint>
+}
+
+impl<'a> TcpListener<'a> {
+    fn new_lower(io: &'a Io<'a>, buffer_size: usize) -> SocketHandle {
+        let rx_buffer = vec![0; buffer_size];
+        let tx_buffer = vec![0; buffer_size];
+        borrow_mut!(io.sockets)
+            .add(TcpSocketLower::new(
+                TcpSocketBuffer::new(rx_buffer),
+                TcpSocketBuffer::new(tx_buffer)))
+    }
+
+    pub fn new(io: &'a Io<'a>, buffer_size: usize) -> TcpListener<'a> {
+        TcpListener {
+            io:          io,
+            handle:      Cell::new(Self::new_lower(io, buffer_size)),
+            buffer_size: Cell::new(buffer_size),
+            endpoint:    Cell::new(IpEndpoint::default())
+        }
+    }
+
+    fn as_lower<'b>(&'b self) -> RefMut<'b, TcpSocketLower> {
+        RefMut::map(borrow_mut!(self.io.sockets),
+                    |sockets| sockets.get_mut(self.handle.get()).as_socket())
+    }
+
+    pub fn is_open(&self) -> bool {
+        self.as_lower().is_open()
+    }
+
+    pub fn can_accept(&self) -> bool {
+        self.as_lower().is_active()
+    }
+
+    pub fn local_endpoint(&self) -> IpEndpoint {
+        self.as_lower().local_endpoint()
+    }
+
+    pub fn listen<T: Into<IpEndpoint>>(&self, endpoint: T) -> Result<()> {
+        let endpoint = endpoint.into();
+        try!(self.as_lower().listen(endpoint)
+                 .map_err(|()| Error::new(ErrorKind::Other,
+                                          "cannot listen: already connected")));
+        self.endpoint.set(endpoint);
+        Ok(())
+    }
+
+    pub fn accept(&self) -> Result<TcpStream<'a>> {
+        // We're waiting until at least one half of the connection becomes open.
+        // This handles the case where a remote socket immediately sends a FIN--
+        // that still counts as accepting even though nothing may be sent.
+        let (sockets, handle) = (self.io.sockets.clone(), self.handle.get());
+        try!(self.io.until(move || {
+            let mut sockets = borrow_mut!(sockets);
+            let socket: &mut TcpSocketLower = sockets.get_mut(handle).as_socket();
+            socket.may_send() || socket.may_recv()
+        }));
+
+        let accepted = self.handle.get();
+        self.handle.set(Self::new_lower(self.io, self.buffer_size.get()));
+        self.listen(self.endpoint.get()).unwrap();
+        Ok(TcpStream {
+            io:     self.io,
+            handle: accepted
+        })
+    }
+
+    pub fn close(&self) {
+        self.as_lower().close()
+    }
+}
+
+impl<'a> Drop for TcpListener<'a> {
+    fn drop(&mut self) {
+        self.as_lower().close();
+        borrow_mut!(self.io.sockets).release(self.handle.get())
+    }
+}
+
+pub struct TcpStream<'a> {
     io:     &'a Io<'a>,
     handle: SocketHandle
 }
 
-impl<'a> TcpSocket<'a> {
-    pub fn new(io: &'a Io<'a>, rx_buffer: TcpSocketBuffer, tx_buffer: TcpSocketBuffer) ->
-            TcpSocket<'a> {
-        let handle = borrow_mut!(io.sockets)
-            .add(TcpSocketLower::new(rx_buffer, tx_buffer));
-        TcpSocket {
-            io:     io,
-            handle: handle
-        }
-    }
-
-    pub fn with_buffer_size(io: &'a Io<'a>, buffer_size: usize) -> TcpSocket<'a> {
-        let rx_buffer = vec![0; buffer_size];
-        let tx_buffer = vec![0; buffer_size];
-        Self::new(io,
-            TcpSocketBuffer::new(rx_buffer),
-            TcpSocketBuffer::new(tx_buffer))
-    }
-
+impl<'a> TcpStream<'a> {
     pub fn into_handle(self) -> TcpSocketHandle {
         let handle = self.handle;
         mem::forget(self);
         TcpSocketHandle(handle)
     }
 
-    pub fn from_handle(io: &'a Io<'a>, handle: TcpSocketHandle) -> TcpSocket<'a> {
-        TcpSocket {
+    pub fn from_handle(io: &'a Io<'a>, handle: TcpSocketHandle) -> TcpStream<'a> {
+        TcpStream {
             io:     io,
             handle: handle.0
         }
@@ -370,14 +430,6 @@ impl<'a> TcpSocket<'a> {
 
     pub fn is_open(&self) -> bool {
         self.as_lower().is_open()
-    }
-
-    pub fn is_listening(&self) -> bool {
-        self.as_lower().is_listening()
-    }
-
-    pub fn is_active(&self) -> bool {
-        self.as_lower().is_active()
     }
 
     pub fn may_send(&self) -> bool {
@@ -404,19 +456,6 @@ impl<'a> TcpSocket<'a> {
         self.as_lower().remote_endpoint()
     }
 
-    pub fn listen<T: Into<IpEndpoint>>(&self, endpoint: T) -> Result<()> {
-        self.as_lower().listen(endpoint)
-            .map_err(|()| Error::new(ErrorKind::Other,
-                                     "cannot listen: already connected"))
-    }
-
-    pub fn accept(&self) -> Result<()> {
-        // We're waiting until at least one half of the connection becomes open.
-        // This handles the case where a remote socket immediately sends a FIN--
-        // that still counts as accepting even though nothing may be sent.
-        until!(self, TcpSocketLower, |s| s.may_send() || s.may_recv())
-    }
-
     pub fn close(&self) -> Result<()> {
         self.as_lower().close();
         try!(until!(self, TcpSocketLower, |s| !s.is_open()));
@@ -427,7 +466,7 @@ impl<'a> TcpSocket<'a> {
     }
 }
 
-impl<'a> Read for TcpSocket<'a> {
+impl<'a> Read for TcpStream<'a> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         // fast path
         let result = self.as_lower().recv_slice(buf);
@@ -444,7 +483,7 @@ impl<'a> Read for TcpSocket<'a> {
     }
 }
 
-impl<'a> Write for TcpSocket<'a> {
+impl<'a> Write for TcpStream<'a> {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
         // fast path
         let result = self.as_lower().send_slice(buf);
@@ -466,12 +505,9 @@ impl<'a> Write for TcpSocket<'a> {
     }
 }
 
-impl<'a> Drop for TcpSocket<'a> {
+impl<'a> Drop for TcpStream<'a> {
     fn drop(&mut self) {
-        if self.is_open() {
-            // scheduler will remove any closed sockets with zero references.
-            self.as_lower().close()
-        }
+        self.as_lower().close();
         borrow_mut!(self.io.sockets).release(self.handle)
     }
 }
