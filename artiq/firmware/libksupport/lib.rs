@@ -248,14 +248,14 @@ extern fn i2c_stop(busno: i32) {
     send(&I2CStopRequest { busno: busno as u8 });
 }
 
-extern fn i2c_write(busno: i32, data: i8) -> bool {
+extern fn i2c_write(busno: i32, data: i32) -> bool {
     send(&I2CWriteRequest { busno: busno as u8, data: data as u8 });
     recv!(&I2CWriteReply { ack } => ack)
 }
 
-extern fn i2c_read(busno: i32, ack: bool) -> i8 {
+extern fn i2c_read(busno: i32, ack: bool) -> i32 {
     send(&I2CReadRequest { busno: busno as u8, ack: ack });
-    recv!(&I2CReadReply { data } => data) as i8
+    recv!(&I2CReadReply { data } => data) as i32
 }
 
 unsafe fn attribute_writeback(typeinfo: *const ()) {
