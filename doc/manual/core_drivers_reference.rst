@@ -18,9 +18,6 @@ These drivers are for the core device and the peripherals closely integrated int
 :mod:`artiq.coredevice.dds` module
 ----------------------------------
 
-.. autoclass:: artiq.coredevice.dds._DDSGeneric
-    :members:
-
 .. automodule:: artiq.coredevice.dds
     :members:
 
@@ -64,10 +61,4 @@ These drivers are for the core device and the peripherals closely integrated int
 -----------------------------------
 
 .. automodule:: artiq.coredevice.sawg
-    :members:
-
-:mod:`artiq.coredevice.ad9154` module
--------------------------------------
-
-.. automodule:: artiq.coredevice.ad9154
     :members:
