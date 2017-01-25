@@ -97,7 +97,7 @@ dependencies = [
  "fringe 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "logger_artiq 0.0.0",
- "smoltcp 0.2.0 (git+https://github.com/m-labs/smoltcp?rev=b90495f)",
+ "smoltcp 0.2.0 (git+https://github.com/m-labs/smoltcp?rev=5f3296c)",
  "std_artiq 0.0.0",
 ]
 
@@ -116,7 +116,7 @@ dependencies = [
 [[package]]
 name = "smoltcp"
 version = "0.2.0"
-source = "git+https://github.com/m-labs/smoltcp?rev=b90495f#b90495fe8a85c5b95f9708336897d9914ace5a7f"
+source = "git+https://github.com/m-labs/smoltcp?rev=5f3296c#5f3296c5c5707198254c8ca395536fa604bc9bab"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -150,7 +150,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "ab83497bf8bf4ed2a74259c1c802351fcd67a65baa86394b6ba73c36f4838054"
 "checksum log_buffer 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ec57723b84bbe7bdf76aa93169c9b59e67473317c6de3a83cb2a0f8ccb2aa493"
 "checksum managed 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "5981b4c6de5ce272aaf2caaa56adb8f6fd24a73206b38302db572ab9374aab10"
-"checksum smoltcp 0.2.0 (git+https://github.com/m-labs/smoltcp?rev=b90495f)" = "<none>"
+"checksum smoltcp 0.2.0 (git+https://github.com/m-labs/smoltcp?rev=5f3296c)" = "<none>"
 "checksum walkdir 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "dd7c16466ecc507c7cb5988db03e6eab4aaeab89a5c37a29251fcfd3ac9b7afe"
 "checksum winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "167dc9d6949a9b857f3451275e911c3f44255842c1f7a76f33c55103a909087a"
 "checksum winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
