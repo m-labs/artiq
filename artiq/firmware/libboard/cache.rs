@@ -38,7 +38,7 @@ pub fn flush_l2_cache() {
     unsafe {
         for i in 0..2 * (csr::CONFIG_L2_SIZE as usize) / 4 {
             let addr = mem::MAIN_RAM_BASE + i * 4;
-            asm!("l.lwz r0, 0($1)"::"r"(addr):"r0":"volatile")
+            asm!("l.lwz r13, 0(${0})"::"r"(addr):"r13":"volatile")
         }
     }
 }
