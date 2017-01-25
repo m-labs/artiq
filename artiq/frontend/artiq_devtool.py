@@ -100,7 +100,7 @@ def main():
 
             logger.info("Booting runtime")
             flterm = run_command(
-                "{env} python3 flterm.py {serial} --speed 921600" +
+                "{env} python3 flterm.py {serial} " +
                 "--kernel /tmp/{tmp}/runtime.bin " +
                 ("--upload-only" if action == "boot" else "--output-only"))
             artiq_flash = run_command(
@@ -151,7 +151,7 @@ def main():
 
             logger.info("Connecting to device")
             flterm = run_command(
-                "{env} python3 flterm.py {serial} --speed 921600 --output-only")
+                "{env} python3 flterm.py {serial} --output-only")
             drain(flterm)
 
         else:

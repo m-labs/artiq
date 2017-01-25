@@ -187,7 +187,7 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
 * Check that the board boots by running a serial terminal program (you may need to press its FPGA reconfiguration button or power-cycle it to load the gateware bitstream that was newly written into the flash): ::
 
-        $ flterm /dev/ttyUSB1 --speed 921600
+        $ flterm /dev/ttyUSB1
         MiSoC BIOS   http://m-labs.hk
         [...]
         Booting from flash...
@@ -197,7 +197,7 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
 .. note:: flterm is part of MiSoC. If you installed MiSoC with ``setup.py develop --user``, the flterm launcher is in ``~/.local/bin``.
 
-The communication parameters are 921600 8-N-1. Ensure that your user has access
+The communication parameters are 115200 8-N-1. Ensure that your user has access
 to the serial device (``sudo adduser $USER dialout`` assuming standard setup).
 
 .. _installing-the-host-side-software:

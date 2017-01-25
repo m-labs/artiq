@@ -160,7 +160,6 @@ class Demo(BaseSoC, AMPSoC):
                          l2_size=64*1024,
                          ident=artiq_version,
                          clk_freq=75*1000*1000,
-                         uart_baudrate=921600,
                          **kwargs)
         AMPSoC.__init__(self)
 
