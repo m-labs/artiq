@@ -532,6 +532,10 @@ class LLVMIRGenerator:
             if func.is_cold:
                 self.llfunction.attributes.add('cold')
                 self.llfunction.attributes.add('noinline')
+            if 'inline' in func.flags:
+                self.llfunction.attributes.add('inlinehint')
+            if 'forceinline' in func.flags:
+                self.llfunction.attributes.add('alwaysinline')
 
             self.llfunction.attributes.add('uwtable')
             self.llfunction.attributes.personality = self.llbuiltin("__artiq_personality")
