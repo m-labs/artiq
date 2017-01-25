@@ -53,6 +53,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
+    'sphinx.ext.napoleon',
     'sphinxarg.ext',
     'sphinxcontrib.wavedrom',  # see also below for config
 ]
