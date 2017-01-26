@@ -28,7 +28,13 @@ class Mock(MagicMock):
         return Mock()
 
 
-mock_modules = ["artiq.gui.moninj", "quamash", "pyqtgraph", "matplotlib"]
+mock_modules = ["artiq.gui.moninj",
+                "artiq.gui.waitingspinnerwidget",
+                "artiq.gui.flowlayout",
+                "quamash", "pyqtgraph", "matplotlib",
+                "numpy", "dateutil", "dateutil.parser", "prettytable", "PyQt5",
+                "h5py", "serial", "scipy", "scipy.interpolate", "asyncserial",
+                "llvmlite_artiq", "Levenshtein", "aiohttp"]
 
 for module in mock_modules:
     sys.modules[module] = Mock()
