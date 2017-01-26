@@ -6,9 +6,9 @@ channels:
   - m-labs/label/main
   - defaults
 dependencies:
-  - python 3.5.2
-  - sphinx 1.4.8
+  - python=3.5.2
+  - sphinx=1.4.8
   - sphinx-argparse
   - sphinxcontrib-wavedrom
   - sphinx_rtd_theme
-  - pythonparser 1.0
+  - pythonparser=1.0
