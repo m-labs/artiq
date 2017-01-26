@@ -62,7 +62,7 @@ Development Status :: 5 - Production/Stable
 Environment :: Console
 Environment :: X11 Applications :: Qt
 Intended Audience :: Science/Research
-License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)
+License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)
 Operating System :: Microsoft :: Windows
 Operating System :: POSIX :: Linux
 Programming Language :: Python :: 3.5
