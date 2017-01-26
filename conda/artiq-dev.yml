@@ -1,0 +1,35 @@
+# conda description for an environment to build and develop artiq
+# $ conda env create -f conda/artiq-dev.yml
+name: artiq-dev
+channels:
+  - m-labs/label/main
+  - m-labs/label/dev
+  - defaults
+dependencies:
+  - python=3.5.2
+  - setuptools
+  - llvmlite-artiq=0.12.0.dev=py35_29
+  - lit
+  - outputcheck
+  - scipy
+  - numpy
+  - prettytable
+  - asyncserial
+  - sphinx=1.4.8
+  - sphinx-argparse
+  - sphinxcontrib-wavedrom
+  - sphinx_rtd_theme
+  - h5py
+  - dateutil
+  - pyqt5
+  - quamash
+  - pyqtgraph
+  - pygit2
+  - aiohttp
+  - binutils-or1k-linux>=2.27
+  - pythonparser=1.0
+  - levenshtein
+  - migen=0.5.dev
+  - misoc=0.5.dev
+  - rust-core-or1k=1.16.0=11
+  - cargo
