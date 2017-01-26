@@ -15,6 +15,7 @@ extern crate smoltcp;
 extern crate board;
 
 use std::boxed::Box;
+use smoltcp::wire::{EthernetAddress, IpAddress};
 
 extern {
     fn readchar() -> libc::c_char;
@@ -81,6 +82,30 @@ fn startup() {
     #[cfg(has_converter_spi)]
     board::ad9154::init().expect("cannot initialize ad9154");
 
+    let hardware_addr;
+    match EthernetAddress::parse(&config::read_string("mac")) {
+        Err(()) => {
+            hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]);
+            warn!("using default MAC address {}; consider changing it", hardware_addr);
+        }
+        Ok(addr) => {
+            hardware_addr = addr;
+            info!("using MAC address {}", hardware_addr);
+        }
+    }
+
+    let protocol_addr;
+    match IpAddress::parse(&config::read_string("ip")) {
+        Err(()) | Ok(IpAddress::Unspecified) => {
+            protocol_addr = IpAddress::v4(192, 168, 1, 50);
+            info!("using default IP address {}", protocol_addr);
+        }
+        Ok(addr) => {
+            protocol_addr = addr;
+            info!("using IP address {}", protocol_addr);
+        }
+    }
+
     fn _net_trace_writer<U>(printer: smoltcp::wire::PrettyPrinter<U>)
             where U: smoltcp::wire::pretty_print::PrettyPrint {
         print!("\x1b[37m{}\x1b[0m", printer)
@@ -90,11 +115,9 @@ fn startup() {
     // let net_device = smoltcp::phy::Tracer::<_, smoltcp::wire::EthernetFrame<&[u8]>>
     //                                      ::new(net_device, _net_trace_writer);
     let arp_cache  = smoltcp::iface::SliceArpCache::new([Default::default(); 8]);
-    let hardware_addr  = smoltcp::wire::EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]);
-    let protocol_addrs = [smoltcp::wire::IpAddress::v4(192, 168, 1, 50)];
     let mut interface  = smoltcp::iface::EthernetInterface::new(
         Box::new(net_device), Box::new(arp_cache) as Box<smoltcp::iface::ArpCache>,
-        hardware_addr, protocol_addrs);
+        hardware_addr, [protocol_addr]);
 
     let mut scheduler = sched::Scheduler::new();
     let io = scheduler.io();

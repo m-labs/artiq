@@ -1,5 +1,6 @@
 use std::cmp;
 use std::vec::Vec;
+use std::string::String;
 use libc::{c_void, c_char, c_int, c_uint};
 
 extern {
@@ -42,6 +43,10 @@ pub fn read_to_end(key: &str) -> Vec<u8> {
         }
     }
     value
+}
+
+pub fn read_string(key: &str) -> String {
+    String::from_utf8(read_to_end(key)).unwrap()
 }
 
 pub fn write(key: &str, buf: &[u8]) -> Result<(), ()> {
