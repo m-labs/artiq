@@ -1,0 +1,4 @@
+sphinx_rtd_theme
+sphinx-argparse
+sphinxcontrib-wavedrom
+pythonparser
