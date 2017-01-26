@@ -11,12 +11,13 @@ from artiq import __artiq_dir__ as artiq_dir
 from artiq.frontend.bit2bin import bit2bin
 
 
-scripts_path = ["share", "openocd", "scripts"]
-if os.name == "nt":
-    scripts_path.insert(0, "Library")
-scripts_path = os.path.abspath(os.path.join(
-    os.path.dirname(shutil.which("openocd")),
-    "..", *scripts_path))
+def scripts_path():
+    scripts_path = ["share", "openocd", "scripts"]
+    if os.name == "nt":
+        scripts_path.insert(0, "Library")
+    scripts_path = os.path.abspath(os.path.join(
+        os.path.dirname(shutil.which("openocd")),
+        "..", *scripts_path))
 
 
 def get_argparser():
@@ -139,7 +140,7 @@ def main():
             target_file = opts.target_file
         subprocess.check_call([
             "openocd",
-            "-s", scripts_path,
+            "-s", scripts_path(),
             "-f", target_file,
             "-c", "; ".join(prog),
         ])
