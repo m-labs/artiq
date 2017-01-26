@@ -1,0 +1,14 @@
+# conda description for an environment to build artiq documentation
+# $ conda env create -f conda/artiq-doc.yml
+name: artiq-doc
+channels:
+  - m-labs/label/dev
+  - m-labs/label/main
+  - defaults
+dependencies:
+  - python 3.5.2
+  - sphinx 1.4.8
+  - sphinx-argparse
+  - sphinxcontrib-wavedrom
+  - sphinx_rtd_theme
+  - pythonparser 1.0
