@@ -60,7 +60,7 @@ mod analyzer;
 fn startup() {
     board::clock::init();
     info!("ARTIQ runtime starting...");
-    info!("software version {}", cfg!(git_describe));
+    info!("software version {}", include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
     info!("gateware version {}", board::ident(&mut [0; 64]));
 
     let t = board::clock::get_ms();

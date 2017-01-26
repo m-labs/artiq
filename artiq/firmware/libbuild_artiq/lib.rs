@@ -2,7 +2,7 @@ extern crate walkdir;
 
 use std::env;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{Write, BufRead, BufReader};
 use std::path::Path;
 use std::process::Command;
 
@@ -27,6 +27,12 @@ pub fn git_describe() {
                 .unwrap();
     let id = id.split("-").collect::<Vec<_>>();
     let id = format!("{}+{}.{}", id[0], id[1], id[2]);
+
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let dest_path = Path::new(&out_dir).join("git-describe");
+    let mut f = File::create(&dest_path).unwrap();
+    f.write(id.as_bytes()).unwrap();
+
     println!("cargo:rust-cfg=git_describe={:?}", id);
 
     println!("cargo:rerun-if-changed=../../../.git/HEAD");
