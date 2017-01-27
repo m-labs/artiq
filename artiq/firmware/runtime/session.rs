@@ -2,6 +2,7 @@ use std::prelude::v1::*;
 use std::{mem, str};
 use std::cell::RefCell;
 use std::io::{self, Read, Write};
+use std::error::Error;
 use std::btree_set::BTreeSet;
 use {config, rtio_mgt, mailbox, rpc_queue, kernel};
 use logger_artiq::BufferLogger;
@@ -179,8 +180,10 @@ unsafe fn kern_load(io: &Io, session: &mut Session, library: &[u8]) -> io::Resul
                 session.kernel_state = KernelState::Loaded;
                 Ok(())
             }
-            &kern::LoadReply(Err(error)) =>
-                unexpected!("cannot load kernel: {}", error),
+            &kern::LoadReply(Err(error)) => {
+                Err(io::Error::new(io::ErrorKind::Other,
+                                   format!("cannot load kernel: {}", error)))
+            }
             other =>
                 unexpected!("unexpected reply from kernel CPU: {:?}", other)
         }
@@ -259,9 +262,9 @@ fn process_host_message(io: &Io,
         host::Request::LoadKernel(kernel) =>
             match unsafe { kern_load(io, session, &kernel) } {
                 Ok(()) => host_write(stream, host::Reply::LoadCompleted),
-                Err(_) => {
-                    try!(kern_acknowledge());
-                    host_write(stream, host::Reply::LoadFailed)
+                Err(error) => {
+                    host_write(stream, host::Reply::LoadFailed(error.description()));
+                    kern_acknowledge()
                 }
             },
 

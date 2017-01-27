@@ -92,7 +92,7 @@ pub enum Reply<'a> {
     ClockSwitchFailed,
 
     LoadCompleted,
-    LoadFailed,
+    LoadFailed(&'a str),
 
     KernelFinished,
     KernelStartupFailed,
@@ -141,8 +141,9 @@ impl<'a> Reply<'a> {
             Reply::LoadCompleted => {
                 try!(write_u8(writer, 5));
             },
-            Reply::LoadFailed => {
+            Reply::LoadFailed(reason) => {
                 try!(write_u8(writer, 6));
+                try!(write_string(writer, reason));
             },
 
             Reply::KernelFinished => {

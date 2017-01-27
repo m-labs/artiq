@@ -59,6 +59,9 @@ class _D2HMsgType(Enum):
 class UnsupportedDevice(Exception):
     pass
 
+class LoadError(Exception):
+    pass
+
 class RPCReturnValueError(ValueError):
     pass
 
@@ -265,7 +268,11 @@ class CommGeneric:
         self._write_header(_H2DMsgType.LOAD_KERNEL)
         self._write_bytes(kernel_library)
 
-        self._read_empty(_D2HMsgType.LOAD_COMPLETED)
+        self._read_header()
+        if self._read_type == _D2HMsgType.LOAD_FAILED:
+            raise LoadError(self._read_string())
+        else:
+            self._read_expect(_D2HMsgType.LOAD_COMPLETED)
 
     def run(self):
         self._write_empty(_H2DMsgType.RUN_KERNEL)
