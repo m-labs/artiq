@@ -125,7 +125,7 @@ class Satellite(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, cfg, medium, **kwargs):
+    def __init__(self, cfg, **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="or1k",
                  sdram_controller_type="minicon",
@@ -154,16 +154,9 @@ class Satellite(BaseSoC):
             sequencer.reset.eq(si5324_reset_clock.si5324_not_ready)
         ]
 
-        if medium == "sfp":
-            self.comb += platform.request("sfp_tx_disable_n").eq(1)
-            tx_pads = platform.request("sfp_tx")
-            rx_pads = platform.request("sfp_rx")
-        elif medium == "sma":
-            tx_pads = platform.request("user_sma_mgt_tx")
-            rx_pads = platform.request("user_sma_mgt_rx")
-        else:
-            raise ValueError
-
+        self.comb += platform.request("sfp_tx_disable_n").eq(1)
+        tx_pads = platform.request("sfp_tx")
+        rx_pads = platform.request("sfp_rx")
         if cfg == "simple_gbe":
             # GTX_1000BASE_BX10 Ethernet compatible, 62.5MHz RTIO clock
             # simple TTLs
@@ -210,12 +203,9 @@ def main():
     parser.add_argument("-c", "--config", default="simple_gbe",
                         help="configuration: simple_gbe/sawg_3g "
                              "(default: %(default)s)")
-    parser.add_argument("--medium", default="sfp",
-                        help="medium to use for transceiver link: sfp/sma "
-                             "(default: %(default)s)")
     args = parser.parse_args()
 
-    soc = Satellite(args.config, args.medium, **soc_kc705_argdict(args))
+    soc = Satellite(args.config, **soc_kc705_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.add_software_package("liballoc")
     builder.add_software_package("satman", os.path.join(artiq_dir, "firmware", "satman"))

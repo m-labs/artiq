@@ -27,7 +27,7 @@ class Master(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, cfg, medium, **kwargs):
+    def __init__(self, cfg, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
@@ -38,16 +38,9 @@ class Master(MiniSoC, AMPSoC):
 
         platform = self.platform
 
-        if medium == "sfp":
-            self.comb += platform.request("sfp_tx_disable_n").eq(1)
-            tx_pads = platform.request("sfp_tx")
-            rx_pads = platform.request("sfp_rx")
-        elif medium == "sma":
-            tx_pads = platform.request("user_sma_mgt_tx")
-            rx_pads = platform.request("user_sma_mgt_rx")
-        else:
-            raise ValueError
-
+        self.comb += platform.request("sfp_tx_disable_n").eq(1)
+        tx_pads = platform.request("sfp_tx")
+        rx_pads = platform.request("sfp_rx")
         if cfg == "simple_gbe":
             # GTX_1000BASE_BX10 Ethernet compatible, 62.5MHz RTIO clock
             # simple TTLs
@@ -110,12 +103,9 @@ def main():
     parser.add_argument("-c", "--config", default="simple_gbe",
                         help="configuration: simple_gbe/sawg_3g "
                              "(default: %(default)s)")
-    parser.add_argument("--medium", default="sfp",
-                        help="medium to use for transceiver link: sfp/sma "
-                             "(default: %(default)s)")
     args = parser.parse_args()
 
-    soc = Master(args.config, args.medium, **soc_kc705_argdict(args))
+    soc = Master(args.config, **soc_kc705_argdict(args))
     build_artiq_soc(soc, builder_argdict(args))
 
 
