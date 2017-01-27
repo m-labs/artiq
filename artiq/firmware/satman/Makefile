@@ -3,8 +3,6 @@ include $(MISOC_DIRECTORY)/software/common.mak
 
 PYTHON ?= python3.5
 
-OBJECTS := main.o
-
 RUSTOUT := cargo/or1k-unknown-none/debug
 
 LDFLAGS += --gc-sections \
@@ -21,7 +19,7 @@ $(RUSTOUT)/libsatman.a:
 		cargo build --target=or1k-unknown-none \
 			--manifest-path $(realpath $(SATMAN_DIRECTORY))/Cargo.toml
 
-satman.elf: $(OBJECTS) $(RUSTOUT)/libsatman.a
+satman.elf: $(RUSTOUT)/libsatman.a
 	$(LD) $(LDFLAGS) \
 		-T $(SATMAN_DIRECTORY)/satman.ld \
 		-o $@ \
@@ -40,7 +38,6 @@ satman.elf: $(OBJECTS) $(RUSTOUT)/libsatman.a
 	@echo " MSCIMG  " $@ && $(PYTHON) -m misoc.tools.mkmscimg -f -o $@ $<
 
 clean:
-	$(RM) $(OBJECTS)
 	$(RM) satman.elf satman.bin satman.fbi .*~ *~
 	$(RM) -rf cargo
 
