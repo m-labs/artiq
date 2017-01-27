@@ -639,27 +639,33 @@ fn respawn<F>(io: &Io, handle: &mut Option<ThreadHandle>, f: F)
 }
 
 pub fn thread(io: Io) {
-    let congress = Urc::new(RefCell::new(Congress::new()));
-
-    info!("running startup kernel");
-    match flash_kernel_worker(&io, &mut *borrow_mut!(congress), "startup_kernel") {
-        Ok(()) => info!("startup kernel finished"),
-        Err(err) => {
-            if err.kind() == io::ErrorKind::NotFound {
-                info!("no startup kernel found")
-            } else {
-                error!("startup kernel aborted: {}", err);
-            }
-        }
-    }
-
-    BufferLogger::with_instance(|logger| logger.disable_trace_to_uart());
-
     let listener = TcpListener::new(&io, 65535);
     listener.listen(1381).expect("session: cannot listen");
     info!("accepting network sessions");
 
+    BufferLogger::with_instance(|logger| logger.disable_trace_to_uart());
+
+    let congress = Urc::new(RefCell::new(Congress::new()));
+
     let mut kernel_thread = None;
+    {
+        let congress = congress.clone();
+        respawn(&io, &mut kernel_thread, move |io| {
+            let mut congress = borrow_mut!(congress);
+            info!("running startup kernel");
+            match flash_kernel_worker(&io, &mut congress, "startup_kernel") {
+                Ok(()) => info!("startup kernel finished"),
+                Err(err) => {
+                    if err.kind() == io::ErrorKind::NotFound {
+                        info!("no startup kernel found")
+                    } else {
+                        error!("startup kernel aborted: {}", err);
+                    }
+                }
+            }
+        })
+    }
+
     loop {
         if listener.can_accept() {
             let mut stream = listener.accept().expect("session: cannot accept");
