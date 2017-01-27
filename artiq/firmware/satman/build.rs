@@ -1,6 +1,6 @@
-extern crate artiq_build;
+extern crate build_artiq;
 
 fn main() {
-    artiq_build::git_describe();
-    artiq_build::misoc_registers();
+    build_artiq::git_describe();
+    build_artiq::misoc_registers();
 }
