@@ -139,13 +139,11 @@ impl Scheduler {
                         thread.interrupted = false;
                         thread.generator.resume(WaitResult::Interrupted)
                     }
-                    WaitRequest { event: Some(_), timeout: Some(instant) } if now >= instant =>
-                        thread.generator.resume(WaitResult::TimedOut),
-                    WaitRequest { event: None, timeout: Some(instant) } if now >= instant =>
-                        thread.generator.resume(WaitResult::Completed),
-                    WaitRequest { event: Some(event), timeout: _ } if unsafe { (*event)() } =>
-                        thread.generator.resume(WaitResult::Completed),
                     WaitRequest { event: None, timeout: None } =>
+                        thread.generator.resume(WaitResult::Completed),
+                    WaitRequest { timeout: Some(instant), .. } if now >= instant =>
+                        thread.generator.resume(WaitResult::TimedOut),
+                    WaitRequest { event: Some(event), .. } if unsafe { (*event)() } =>
                         thread.generator.resume(WaitResult::Completed),
                     _ => {
                         if self.run_idx == start_idx {
