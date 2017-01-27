@@ -263,7 +263,7 @@ fn process_host_message(io: &Io,
             match unsafe { kern_load(io, session, &kernel) } {
                 Ok(()) => host_write(stream, host::Reply::LoadCompleted),
                 Err(error) => {
-                    host_write(stream, host::Reply::LoadFailed(error.description()));
+                    try!(host_write(stream, host::Reply::LoadFailed(error.description())));
                     kern_acknowledge()
                 }
             },
