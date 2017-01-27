@@ -42,7 +42,7 @@ pub fn git_describe() {
     }
 }
 
-pub fn misoc_registers() {
+pub fn misoc_cfg() {
     let out_dir = env::var("BUILDINC_DIRECTORY").unwrap();
     let cfg_path = Path::new(&out_dir).join("generated").join("rust-cfg");
     println!("cargo:rerun-if-changed={}", cfg_path.to_str().unwrap());
