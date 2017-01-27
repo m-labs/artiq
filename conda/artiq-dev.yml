@@ -29,7 +29,7 @@ dependencies:
   - binutils-or1k-linux>=2.27
   - pythonparser=1.0
   - levenshtein
-  - migen=0.5.dev
-  - misoc=0.5.dev
+  - migen=0.5.dev=py_51+gite93d060
+  - misoc=0.6.dev=py_0+gitc8d5fd3
   - rust-core-or1k=1.16.0=11
   - cargo
