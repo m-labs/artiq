@@ -45,7 +45,7 @@ def _mk_worker_method(name):
 
 class Run:
     def __init__(self, rid, pipeline_name,
-                 wd, expid, priority, due_date, flush,
+                 wd, repo_path, expid, priority, due_date, flush,
                  pool, **kwargs):
         # called through pool
         self.rid = rid
@@ -56,7 +56,7 @@ class Run:
         self.due_date = due_date
         self.flush = flush
 
-        self.worker = Worker(pool.worker_handlers)
+        self.worker = Worker(pool.worker_handlers, repo_path=repo_path)
         self.termination_requested = False
 
         self._status = RunStatus.pending
@@ -135,10 +135,12 @@ class RunPool:
                 expid["repo_rev"] = self.experiment_db.cur_rev
             wd, repo_msg = self.experiment_db.repo_backend.request_rev(
                 expid["repo_rev"])
+            repo_path = wd
         else:
             wd, repo_msg = None, None
-        run = Run(rid, pipeline_name, wd, expid, priority, due_date, flush,
-                  self, repo_msg=repo_msg)
+            repo_path = self.experiment_db.repo_backend.request_rev(None)
+        run = Run(rid, pipeline_name, wd, repo_path, expid, priority, due_date, 
+                  flush, self, repo_msg=repo_msg)
         self.runs[rid] = run
         self.state_changed.notify()
         return rid
