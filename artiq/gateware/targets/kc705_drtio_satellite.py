@@ -19,20 +19,32 @@ from artiq import __version__ as artiq_version
 from artiq import __artiq_dir__ as artiq_dir
 
 
-# TODO: parameters for sawg_3g
-# TODO: move I2C programming to softcore CPU
-def get_i2c_program(sys_clk_freq):
-    # NOTE: the logical parameters DO NOT MAP to physical values written
-    # into registers. They have to be mapped; see the datasheet.
-    # DSPLLsim reports the logical parameters in the design summary, not
-    # the physical register values (but those are present separately).
-    N1_HS  = 6     # 10
-    NC1_LS = 7     # 8
-    N2_HS  = 6     # 10
-    N2_LS  = 20111 # 20112
-    N31    = 2513  # 2514
-    N32    = 4596  # 4597
+# NOTE: the logical parameters DO NOT MAP to physical values written
+# into registers. They have to be mapped; see the datasheet.
+# DSPLLsim reports the logical parameters in the design summary, not
+# the physical register values.
 
+pll_dividers_62_5 = {
+    "N1_HS"  : 6,     # 10
+    "NC1_LS" : 7,     # 8
+    "N2_HS"  : 6,     # 10
+    "N2_LS"  : 20111, # 20112
+    "N31"    : 2513,  # 2514
+    "N32"    : 4596   # 4597
+}
+
+pll_dividers_150 = {
+    "N1_HS"  : 5,     # 9
+    "NC1_LS" : 3,     # 4
+    "N2_HS"  : 6,     # 10
+    "N2_LS"  : 33731, # 33732
+    "N31"    : 9369,  # 9370
+    "N32"    : 7138   # 7139
+}
+
+
+# TODO: move I2C programming to softcore CPU
+def get_i2c_program(d, sys_clk_freq):
     i2c_sequence = [
         # PCA9548: select channel 7
         [(0x74 << 1), 1 << 7],
@@ -43,20 +55,20 @@ def get_i2c_program(sys_clk_freq):
         [(0x68 << 1), 3,   0b0101 | 0x10],     # SQ_ICAL=1
         [(0x68 << 1), 4,   0b10010010],        # AUTOSEL_REG=b10
         [(0x68 << 1), 6,            0x07],     # SFOUT1_REG=b111
-        [(0x68 << 1), 25,  (N1_HS  << 5 ) & 0xff],
-        [(0x68 << 1), 31,  (NC1_LS >> 16) & 0xff],
-        [(0x68 << 1), 32,  (NC1_LS >> 8 ) & 0xff],
-        [(0x68 << 1), 33,  (NC1_LS)       & 0xff],
-        [(0x68 << 1), 40,  (N2_HS  << 5 ) & 0xff |
-                           (N2_LS  >> 16) & 0xff],
-        [(0x68 << 1), 41,  (N2_LS  >> 8 ) & 0xff],
-        [(0x68 << 1), 42,  (N2_LS)        & 0xff],
-        [(0x68 << 1), 43,  (N31    >> 16) & 0xff],
-        [(0x68 << 1), 44,  (N31    >> 8)  & 0xff],
-        [(0x68 << 1), 45,  (N31)          & 0xff],
-        [(0x68 << 1), 46,  (N32    >> 16) & 0xff],
-        [(0x68 << 1), 47,  (N32    >> 8)  & 0xff],
-        [(0x68 << 1), 48,  (N32)          & 0xff],
+        [(0x68 << 1), 25,  (d["N1_HS"]  << 5 ) & 0xff],
+        [(0x68 << 1), 31,  (d["NC1_LS"] >> 16) & 0xff],
+        [(0x68 << 1), 32,  (d["NC1_LS"] >> 8 ) & 0xff],
+        [(0x68 << 1), 33,  (d["NC1_LS"])       & 0xff],
+        [(0x68 << 1), 40,  (d["N2_HS"]  << 5 ) & 0xff |
+                           (d["N2_LS"]  >> 16) & 0xff],
+        [(0x68 << 1), 41,  (d["N2_LS"]  >> 8 ) & 0xff],
+        [(0x68 << 1), 42,  (d["N2_LS"])        & 0xff],
+        [(0x68 << 1), 43,  (d["N31"]    >> 16) & 0xff],
+        [(0x68 << 1), 44,  (d["N31"]    >> 8)  & 0xff],
+        [(0x68 << 1), 45,  (d["N31"])          & 0xff],
+        [(0x68 << 1), 46,  (d["N32"]    >> 16) & 0xff],
+        [(0x68 << 1), 47,  (d["N32"]    >> 8)  & 0xff],
+        [(0x68 << 1), 48,  (d["N32"])          & 0xff],
         [(0x68 << 1), 137,          0x01],     # FASTLOCK=1
         [(0x68 << 1), 136,          0x40],     # ICAL=1
     ]
@@ -146,8 +158,15 @@ class Satellite(BaseSoC):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
+        if cfg == "simple_gbe":
+            pll_dividers = pll_dividers_62_5
+        elif cfg == "sawg_3g":
+            pll_dividers = pll_dividers_150
+        else:
+            raise ValueError
         i2c_master = I2CMaster(platform.request("i2c"))
-        sequencer = ResetInserter()(Sequencer(get_i2c_program(self.clk_freq)))
+        sequencer = ResetInserter()(
+            Sequencer(get_i2c_program(pll_dividers, self.clk_freq)))
         si5324_reset_clock = Si5324ResetClock(platform, self.clk_freq)
         self.submodules += i2c_master, sequencer, si5324_reset_clock
         self.comb += [
