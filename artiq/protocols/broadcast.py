@@ -9,11 +9,12 @@ _init_string = b"ARTIQ broadcast\n"
 
 
 class Receiver:
-    def __init__(self, name, notify_cb):
+    def __init__(self, name, notify_cb, disconnect_cb=None):
         self.name = name
         if not isinstance(notify_cb, list):
             notify_cb = [notify_cb]
         self.notify_cbs = notify_cb
+        self.disconnect_cb = disconnect_cb
 
     async def connect(self, host, port):
         self.reader, self.writer = \
@@ -29,6 +30,7 @@ class Receiver:
             raise
 
     async def close(self):
+        self.disconnect_cb = None
         try:
             self.receive_task.cancel()
             try:
@@ -41,15 +43,19 @@ class Receiver:
             del self.writer
 
     async def _receive_cr(self):
-        target = None
-        while True:
-            line = await self.reader.readline()
-            if not line:
-                return
-            obj = pyon.decode(line.decode())
+        try:
+            target = None
+            while True:
+                line = await self.reader.readline()
+                if not line:
+                    return
+                obj = pyon.decode(line.decode())
 
-            for notify_cb in self.notify_cbs:
-                notify_cb(obj)
+                for notify_cb in self.notify_cbs:
+                    notify_cb(obj)
+        finally:
+            if self.disconnect_cb is not None:
+                self.disconnect_cb()
 
 
 class Broadcaster(AsyncioServer):
