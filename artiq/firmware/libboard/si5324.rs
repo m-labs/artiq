@@ -1,11 +1,14 @@
+use core::result;
 use i2c;
 use clock;
+
+type Result<T> = result::Result<T, &'static str>;
 
 const BUSNO: u8 = 0;
 const ADDRESS: u8 = 0x68;
 
 #[cfg(soc_platform = "kc705")]
-fn pca9548_select(channel: u8) -> Result<(), &'static str> {
+fn pca9548_select(channel: u8) -> Result<()> {
     i2c::start(BUSNO);
     if !i2c::write(BUSNO, (0x74 << 1)) {
         return Err("PCA9548 failed to ack write address")
@@ -30,7 +33,7 @@ pub struct FrequencySettings {
     n32: u32
 }
 
-fn map_frequency_settings(settings: &FrequencySettings) -> Result<FrequencySettings, &'static str> {
+fn map_frequency_settings(settings: &FrequencySettings) -> Result<FrequencySettings> {
     if settings.nc1_ls != 0 && (settings.nc1_ls % 2) == 1 {
         return Err("NC1_LS must be 0 or even")
     }
@@ -80,7 +83,7 @@ fn map_frequency_settings(settings: &FrequencySettings) -> Result<FrequencySetti
     Ok(r)
 }
 
-fn write(reg: u8, val: u8) -> Result<(), &'static str> {
+fn write(reg: u8, val: u8) -> Result<()> {
     i2c::start(BUSNO);
     if !i2c::write(BUSNO, (ADDRESS << 1)) {
         return Err("Si5324 failed to ack write address")
@@ -95,7 +98,7 @@ fn write(reg: u8, val: u8) -> Result<(), &'static str> {
     Ok(())
 }
 
-fn read(reg: u8) -> Result<u8, &'static str> {
+fn read(reg: u8) -> Result<u8> {
     i2c::start(BUSNO);
     if !i2c::write(BUSNO, (ADDRESS << 1)) {
         return Err("Si5324 failed to ack write address")
@@ -112,15 +115,15 @@ fn read(reg: u8) -> Result<u8, &'static str> {
     Ok(val)
 }
 
-fn ident() -> Result<u16, &'static str> {
+fn ident() -> Result<u16> {
     Ok(((read(134)? as u16) << 8) | (read(135)? as u16))
 }
 
-fn locked() -> Result<bool, &'static str> {
+fn locked() -> Result<bool> {
     Ok((read(130)? & 0x01) == 0) // LOL_INT=1
 }
 
-pub fn setup_hitless_clock_switching(settings: &FrequencySettings) -> Result<(), &'static str> {
+pub fn setup_hitless_clock_switching(settings: &FrequencySettings) -> Result<()> {
     let s = map_frequency_settings(settings)?;
 
     #[cfg(soc_platform = "kc705")]
