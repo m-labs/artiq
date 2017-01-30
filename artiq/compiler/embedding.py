@@ -561,7 +561,11 @@ class StitchingInferencer(Inferencer):
         # of having the host-to-ARTIQ mapping code in only one place and
         # also immediately getting proper diagnostics on type errors.
         attr_value = getattr(object_value, attr_name)
-        if inspect.ismethod(attr_value) and types.is_instance(object_type):
+        if (inspect.ismethod(attr_value) and
+                types.is_instance(object_type) and
+                # Check that the method is indeed defined on the class,
+                # and not just this instance.
+                hasattr(type(attr_value), attr_name)):
             # In cases like:
             #     class c:
             #         @kernel
