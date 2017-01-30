@@ -175,6 +175,14 @@ class Satellite(BaseSoC):
                 tx_pads=tx_pads,
                 rx_pads=rx_pads,
                 sys_clk_freq=self.clk_freq)
+
+                ad9154_spi = platform.request("ad9154_spi")
+                self.comb += ad9154_spi.en.eq(1)
+                self.submodules.converter_spi = spi_csr.SPIMaster(ad9154_spi)
+                self.csr_devices.append("converter_spi")
+                self.config["CONVERTER_SPI_DAC_CS"] = 0
+                self.config["CONVERTER_SPI_CLK_CS"] = 1
+                self.config["HAS_AD9516"] = None
         else:
             raise ValueError
         self.submodules.rx_synchronizer = gtx_7series.RXSynchronizer(

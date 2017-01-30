@@ -5,6 +5,7 @@ import argparse
 from migen import *
 from migen.build.generic_platform import *
 
+from misoc.cores import spi as spi_csr
 from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
 from misoc.integration.soc_core import mem_decoder
 from misoc.integration.builder import builder_args, builder_argdict
@@ -59,6 +60,14 @@ class Master(MiniSoC, AMPSoC):
                 tx_pads=tx_pads,
                 rx_pads=rx_pads,
                 sys_clk_freq=self.clk_freq)
+
+            ad9154_spi = platform.request("ad9154_spi")
+            self.comb += ad9154_spi.en.eq(1)
+            self.submodules.converter_spi = spi_csr.SPIMaster(ad9154_spi)
+            self.csr_devices.append("converter_spi")
+            self.config["CONVERTER_SPI_DAC_CS"] = 0
+            self.config["CONVERTER_SPI_CLK_CS"] = 1
+            self.config["HAS_AD9516"] = None
         else:
             raise ValueError
         self.submodules.drtio = DRTIOMaster(self.transceiver)

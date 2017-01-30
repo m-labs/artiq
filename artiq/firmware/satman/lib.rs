@@ -14,6 +14,9 @@ fn startup() {
     info!("software version {}", include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
     info!("gateware version {}", board::ident(&mut [0; 64]));
 
+    #[cfg(has_ad9516)]
+    board::ad9516::init().expect("cannot initialize ad9516");
+
     loop {}
 }
 
