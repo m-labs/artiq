@@ -22,9 +22,11 @@ class ModelManager:
 
 
 class ModelSubscriber(ModelManager, Subscriber):
-    def __init__(self, notifier_name, model_factory):
+    def __init__(self, notifier_name, model_factory,
+                 disconnect_cb=None):
         ModelManager.__init__(self, model_factory)
-        Subscriber.__init__(self, notifier_name, self._create_model)
+        Subscriber.__init__(self, notifier_name, self._create_model,
+                            disconnect_cb=disconnect_cb)
 
 
 class LocalModelManager(ModelManager):

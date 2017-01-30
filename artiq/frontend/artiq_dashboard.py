@@ -108,12 +108,21 @@ def main():
         atexit.register(client.close_rpc)
         rpc_clients[target] = client
 
+    disconnect_reported = False
+    def report_disconnect():
+        nonlocal disconnect_reported
+        if not disconnect_reported:
+            logging.error("connection to master lost, "
+                          "restart dashboard to reconnect")
+        disconnect_reported = True
+
     sub_clients = dict()
     for notifier_name, modelf in (("explist", explorer.Model),
                                   ("explist_status", explorer.StatusUpdater),
                                   ("datasets", datasets.Model),
                                   ("schedule", schedule.Model)):
-        subscriber = ModelSubscriber(notifier_name, modelf)
+        subscriber = ModelSubscriber(notifier_name, modelf,
+            report_disconnect)
         loop.run_until_complete(subscriber.connect(
             args.server, args.port_notify))
         atexit_register_coroutine(subscriber.close)
@@ -121,7 +130,7 @@ def main():
 
     broadcast_clients = dict()
     for target in "log", "ccb":
-        client = Receiver(target, [])
+        client = Receiver(target, [], report_disconnect)
         loop.run_until_complete(client.connect(
             args.server, args.port_broadcast))
         atexit_register_coroutine(client.close)
