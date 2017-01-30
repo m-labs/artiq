@@ -79,7 +79,7 @@ fn startup() {
     board::i2c::init();
     #[cfg(has_ad9516)]
     board::ad9516::init().expect("cannot initialize ad9516");
-    #[cfg(has_converter_spi)]
+    #[cfg(has_ad9154)]
     board::ad9154::init().expect("cannot initialize ad9154");
 
     let hardware_addr;

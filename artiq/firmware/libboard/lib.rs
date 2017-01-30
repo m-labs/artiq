@@ -26,10 +26,10 @@ pub mod si5324;
 mod ad9516_reg;
 #[cfg(has_ad9516)]
 pub mod ad9516;
-#[cfg(has_converter_spi)]
+#[cfg(has_ad9154)]
 #[allow(dead_code)]
 mod ad9154_reg;
-#[cfg(has_converter_spi)]
+#[cfg(has_ad9154)]
 pub mod ad9154;
 
 #[cfg(feature = "uart_console")]
