@@ -169,7 +169,7 @@ class Satellite(BaseSoC):
         elif cfg == "sawg_3g":
             # 3Gb link, 150MHz RTIO clock
             # with SAWG on local RTIO and AD9154-FMC-EBZ
-            platform.register_extension(ad9154_fmc_ebz)
+            platform.add_extension(ad9154_fmc_ebz)
             self.submodules.transceiver = gtx_7series.GTX_3G(
                 clock_pads=platform.request("ad9154_refclk"),
                 tx_pads=tx_pads,
