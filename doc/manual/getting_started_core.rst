@@ -28,7 +28,7 @@ Copy the file ``device_db.pyon`` (containing the device database) from the ``exa
 .. note::
     To obtain the examples, you can find where the ARTIQ package is installed on your machine with: ::
 
-        python3.5 -c "import artiq; print(artiq.__path__[0])"
+        python3 -c "import artiq; print(artiq.__path__[0])"
 
 Run your code using ``artiq_run``, which is part of the ARTIQ front-end tools: ::
 

@@ -155,7 +155,7 @@ Commit, push and submit the experiment as before. Go to the "Datasets" dock of t
 
 Plotting in the ARTIQ dashboard is achieved by programs called "applets". Applets are independent programs that add simple GUI features and are run as separate processes (to achieve goals of modularity and resilience against poorly written applets). Users may write their own applets, or use those supplied with ARTIQ (in the ``artiq.applets`` module) that cover basic plotting.
 
-Applets are configured through their command line to select parameters such as the names of the datasets to plot. The list of command-line options can be retrieved using the ``-h`` option; for example you can run ``python3.5 -m artiq.applets.plot_xy -h`` in a terminal.
+Applets are configured through their command line to select parameters such as the names of the datasets to plot. The list of command-line options can be retrieved using the ``-h`` option; for example you can run ``python3 -m artiq.applets.plot_xy -h`` in a terminal.
 
 In our case, create a new applet from the XY template by right-clicking on the applet list, and edit the applet command line so that it retrieves the ``parabola`` dataset. Run the experiment again, and observe how the points are added one by one to the plot.
 

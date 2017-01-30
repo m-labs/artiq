@@ -11,7 +11,7 @@ find ARTIQ examples?
 
 The examples are installed in the ``examples`` folder of the ARTIQ package. You can find where the ARTIQ package is installed on your machine with: ::
 
-  python3.5 -c "import artiq; print(artiq.__path__[0])"
+  python3 -c "import artiq; print(artiq.__path__[0])"
 
 Copy the ``examples`` folder from that path into your home/user directory, and start experimenting!
 
@@ -75,7 +75,7 @@ determine the pyserial URL to attach to a device by its serial number?
 You can list your system's serial devices and print their vendor/product
 id and serial number by running::
 
-    $ python3.5 -m serial.tools.list_ports -v
+    $ python3 -m serial.tools.list_ports -v
 
 It will give you the ``/dev/ttyUSBxx`` (or the ``COMxx`` for Windows) device
 names.
@@ -93,7 +93,7 @@ See the :ref:`TDC001 documentation <tdc001-controller-usage-example>` for an exa
 run unit tests?
 ---------------
 
-The unit tests assume that the Python environment has been set up in such a way that ``import artiq`` will import the code being tested, and that this is still true for any subprocess created. This is not the way setuptools operates as it adds the path to ARTIQ to ``sys.path`` which is not passed to subprocesses; as a result, running the tests via ``setup.py`` is not supported. The user must first install the package or set ``PYTHONPATH``, and then run the tests with e.g. ``python3.5 -m unittest discover`` in the ``artiq/test`` folder and ``lit .`` in the ``artiq/test/lit`` folder.
+The unit tests assume that the Python environment has been set up in such a way that ``import artiq`` will import the code being tested, and that this is still true for any subprocess created. This is not the way setuptools operates as it adds the path to ARTIQ to ``sys.path`` which is not passed to subprocesses; as a result, running the tests via ``setup.py`` is not supported. The user must first install the package or set ``PYTHONPATH``, and then run the tests with e.g. ``python3 -m unittest discover`` in the ``artiq/test`` folder and ``lit .`` in the ``artiq/test/lit`` folder.
 
 For the hardware-in-the-loop unit tests, set the ``ARTIQ_ROOT`` environment variable to the path to a device database containing the relevant devices.
 

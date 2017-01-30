@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.5
+#!/usr/bin/env python3
 # Copyright 2014-2017 Robert Jordens <jordens@gmail.com>
 # after
 # https://github.com/mfischer/fpgadev-zynq/blob/master/top/python/bit_to_zynq_bin.py

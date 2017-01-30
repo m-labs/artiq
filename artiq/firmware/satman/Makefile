@@ -1,7 +1,7 @@
 include ../include/generated/variables.mak
 include $(MISOC_DIRECTORY)/software/common.mak
 
-PYTHON ?= python3.5
+PYTHON ?= python3
 
 RUSTOUT := cargo/or1k-unknown-none/debug
 

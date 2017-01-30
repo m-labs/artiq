@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.5
+#!/usr/bin/env python3
 
 # Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
 # Copyright (C) 2014, 2015 M-Labs Limited

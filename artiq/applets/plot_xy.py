@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.5
+#!/usr/bin/env python3
 
 import numpy as np
 import PyQt5  # make sure pyqtgraph imports Qt5

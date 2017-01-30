@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.5
+#!/usr/bin/env python3
 
 # This script makes the following assumptions:
 #  * miniconda is installed remotely at ~/miniconda
