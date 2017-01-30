@@ -564,8 +564,10 @@ class StitchingInferencer(Inferencer):
         if (inspect.ismethod(attr_value) and
                 types.is_instance(object_type) and
                 # Check that the method is indeed defined on the class,
-                # and not just this instance.
-                hasattr(type(attr_value), attr_name)):
+                # and not just this instance. The check is written in
+                # the inverted form and not as hasattr(type(attr_value))
+                # since the method may as well be defined on a superclass.
+                attr_name not in object_value.__dict__):
             # In cases like:
             #     class c:
             #         @kernel
