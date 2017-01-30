@@ -112,6 +112,8 @@ class _NIST_Ions(MiniSoC, AMPSoC):
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
                          ident=artiq_version,
+                         ethmac_nrxslots=4,
+                         ethmac_ntxslots=4,
                          **kwargs)
         AMPSoC.__init__(self)
         if isinstance(self.platform.toolchain, XilinxVivadoToolchain):

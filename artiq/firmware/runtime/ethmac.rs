@@ -5,11 +5,17 @@ use smoltcp::phy::Device;
 
 const RX0_BASE: usize = mem::ETHMAC_BASE + 0x0000;
 const RX1_BASE: usize = mem::ETHMAC_BASE + 0x0800;
-const TX0_BASE: usize = mem::ETHMAC_BASE + 0x1000;
-const TX1_BASE: usize = mem::ETHMAC_BASE + 0x1800;
+const RX2_BASE: usize = mem::ETHMAC_BASE + 0x1000;
+const RX3_BASE: usize = mem::ETHMAC_BASE + 0x1800;
+const TX0_BASE: usize = mem::ETHMAC_BASE + 0x2000;
+const TX1_BASE: usize = mem::ETHMAC_BASE + 0x2800;
+const TX2_BASE: usize = mem::ETHMAC_BASE + 0x3000;
+const TX3_BASE: usize = mem::ETHMAC_BASE + 0x3800;
 
-const RX_BUFFERS: [*mut u8; 2] = [RX0_BASE as *mut u8, RX1_BASE as *mut u8];
-const TX_BUFFERS: [*mut u8; 2] = [TX0_BASE as *mut u8, TX1_BASE as *mut u8];
+const RX_BUFFERS: [*mut u8; 4] = [RX0_BASE as *mut u8, RX1_BASE as *mut u8,
+                                  RX2_BASE as *mut u8, RX3_BASE as *mut u8];
+const TX_BUFFERS: [*mut u8; 4] = [TX0_BASE as *mut u8, TX1_BASE as *mut u8,
+                                  TX2_BASE as *mut u8, TX3_BASE as *mut u8];
 
 pub struct EthernetDevice;
 
