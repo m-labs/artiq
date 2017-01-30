@@ -12,7 +12,7 @@ build:
 
 requirements:
   build:
-    - migen 0.5.dev py_51+gite93d060
+    - migen 0.5.dev py_54+git58e8f45
     - misoc 0.6.dev py_0+gitc8d5fd3
     - llvm-or1k
     - binutils-or1k-linux >=2.27
