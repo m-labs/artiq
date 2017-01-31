@@ -168,9 +168,11 @@ pub fn send_args(writer: &mut Write, service: u32, tag_bytes: &[u8],
     let (arg_tags_bytes, return_tag_bytes) = split_tag(tag_bytes);
 
     let mut args_it = TagIterator::new(arg_tags_bytes);
-    let return_it = TagIterator::new(return_tag_bytes);
     #[cfg(not(ksupport))]
-    trace!("send<{}>({})->{}", service, args_it, return_it);
+    {
+        let return_it = TagIterator::new(return_tag_bytes);
+        trace!("send<{}>({})->{}", service, args_it, return_it);
+    }
 
     write_u32(writer, service)?;
     for index in 0.. {
