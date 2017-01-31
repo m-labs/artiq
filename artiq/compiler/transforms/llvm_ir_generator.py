@@ -220,7 +220,7 @@ class LLVMIRGenerator:
             return llptr
         elif builtins.is_listish(typ):
             lleltty = self.llty_of_type(builtins.get_iterable_elt(typ))
-            return ll.LiteralStructType([lli32, lleltty.as_pointer()])
+            return ll.LiteralStructType([lleltty.as_pointer(), lli32])
         elif builtins.is_range(typ):
             lleltty = self.llty_of_type(builtins.get_iterable_elt(typ))
             return ll.LiteralStructType([lleltty, lleltty, lleltty])
@@ -621,11 +621,11 @@ class LLVMIRGenerator:
             return llvalue
         elif builtins.is_listish(insn.type):
             llsize = self.map(insn.operands[0])
+            lleltty = self.llty_of_type(builtins.get_iterable_elt(insn.type))
+            llalloc = self.llbuilder.alloca(lleltty, size=llsize)
             llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
-            llvalue = self.llbuilder.insert_value(llvalue, llsize, 0)
-            llalloc = self.llbuilder.alloca(self.llty_of_type(builtins.get_iterable_elt(insn.type)),
-                                            size=llsize)
-            llvalue = self.llbuilder.insert_value(llvalue, llalloc, 1, name=insn.name)
+            llvalue = self.llbuilder.insert_value(llvalue, llalloc, 0, name=insn.name)
+            llvalue = self.llbuilder.insert_value(llvalue, llsize, 1)
             return llvalue
         elif not builtins.is_allocated(insn.type) or ir.is_keyword(insn.type):
             llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
@@ -833,7 +833,7 @@ class LLVMIRGenerator:
             llelt = self.llbuilder.gep(lllst, [llidx], inbounds=True)
             llvalue = self.llbuilder.load(llelt)
         else:
-            llelts = self.llbuilder.extract_value(lllst, 1)
+            llelts = self.llbuilder.extract_value(lllst, 0)
             llelt = self.llbuilder.gep(llelts, [llidx], inbounds=True)
             llvalue = self.llbuilder.load(llelt)
         if isinstance(llvalue.type, ll.PointerType):
@@ -846,7 +846,7 @@ class LLVMIRGenerator:
         if builtins.is_str(lst.type):
             llelt = self.llbuilder.gep(lllst, [llidx], inbounds=True)
         else:
-            llelts = self.llbuilder.extract_value(lllst, 1)
+            llelts = self.llbuilder.extract_value(lllst, 0)
             llelt = self.llbuilder.gep(llelts, [llidx], inbounds=True)
         return self.llbuilder.store(self.map(insn.value()), llelt)
 
@@ -1069,7 +1069,7 @@ class LLVMIRGenerator:
             if builtins.is_str(collection.type):
                 return self.llbuilder.call(self.llbuiltin("strlen"), [self.map(collection)])
             else:
-                return self.llbuilder.extract_value(self.map(collection), 0)
+                return self.llbuilder.extract_value(self.map(collection), 1)
         elif insn.op in ("printf", "rtio_log"):
             # We only get integers, floats, pointers and strings here.
             llargs = map(self.map, insn.operands)
@@ -1463,7 +1463,7 @@ class LLVMIRGenerator:
             llglobal.linkage = "private"
 
             lleltsptr = llglobal.bitcast(lleltsary.type.element.as_pointer())
-            llconst   = ll.Constant(llty, [ll.Constant(lli32, len(llelts)), lleltsptr])
+            llconst   = ll.Constant(llty, [lleltsptr, ll.Constant(lli32, len(llelts))])
             return llconst
         elif types.is_rpc(typ) or types.is_c_function(typ):
             # RPC and C functions have no runtime representation.

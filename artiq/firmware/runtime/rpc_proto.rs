@@ -47,7 +47,7 @@ unsafe fn recv_value(reader: &mut Read, tag: Tag, data: &mut *mut (),
             Ok(())
         }
         Tag::List(it) | Tag::Array(it) => {
-            struct List { length: u32, elements: *mut () };
+            struct List { elements: *mut (), length: u32 };
             consume_value!(List, |ptr| {
                 (*ptr).length = try!(read_u32(reader));
 
@@ -126,7 +126,7 @@ unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::
             Ok(())
         }
         Tag::List(it) | Tag::Array(it) => {
-            struct List { length: u32, elements: *const () };
+            struct List { elements: *const (), length: u32 };
             consume_value!(List, |ptr| {
                 try!(write_u32(writer, (*ptr).length));
                 let tag = it.clone().next().expect("truncated tag");

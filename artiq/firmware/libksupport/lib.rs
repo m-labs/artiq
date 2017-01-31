@@ -101,8 +101,8 @@ pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u3
 
 #[repr(C)]
 pub struct ArtiqList<T> {
-    len: usize,
-    ptr: *const T
+    ptr: *const T,
+    len: usize
 }
 
 impl<T> ArtiqList<T> {
