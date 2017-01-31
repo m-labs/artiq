@@ -1,6 +1,6 @@
 use std::prelude::v1::*;
 use std::{mem, str};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::io::{self, Read, Write};
 use std::error::Error;
 use std::btree_set::BTreeSet;
@@ -34,14 +34,16 @@ fn io_error(msg: &str) -> io::Error {
 #[derive(Debug)]
 struct Congress {
     now: u64,
-    cache: Cache
+    cache: Cache,
+    finished_cleanly: Cell<bool>
 }
 
 impl Congress {
     fn new() -> Congress {
         Congress {
             now: 0,
-            cache: Cache::new()
+            cache: Cache::new(),
+            finished_cleanly: Cell::new(true)
         }
     }
 }
@@ -204,8 +206,14 @@ fn process_host_message(io: &Io,
                         stream: &mut TcpStream,
                         session: &mut Session) -> io::Result<()> {
     match host_read(stream)? {
-        host::Request::Ident =>
-            host_write(stream, host::Reply::Ident(board::ident(&mut [0; 64]))),
+        host::Request::SystemInfo => {
+            host_write(stream, host::Reply::SystemInfo {
+                ident: board::ident(&mut [0; 64]),
+                finished_cleanly: session.congress.finished_cleanly.get()
+            })?;
+            session.congress.finished_cleanly.set(true);
+            Ok(())
+        }
 
         // artiq_corelog
         host::Request::Log => {
@@ -628,7 +636,6 @@ fn respawn<F>(io: &Io, handle: &mut Option<ThreadHandle>, f: F)
         None => (),
         Some(handle) => {
             if !handle.terminated() {
-                info!("terminating running kernel");
                 handle.interrupt();
                 io.join(handle).expect("cannot join interrupt thread")
             }
@@ -659,6 +666,7 @@ pub fn thread(io: Io) {
                     if err.kind() == io::ErrorKind::NotFound {
                         info!("no startup kernel found")
                     } else {
+                        congress.finished_cleanly.set(false);
                         error!("startup kernel aborted: {}", err);
                     }
                 }
@@ -690,6 +698,7 @@ pub fn thread(io: Io) {
                         if err.kind() == io::ErrorKind::UnexpectedEof {
                             info!("connection closed");
                         } else {
+                            congress.finished_cleanly.set(false);
                             error!("session aborted: {}", err);
                         }
                     }

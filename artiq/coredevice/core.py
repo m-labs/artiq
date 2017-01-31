@@ -115,7 +115,7 @@ class Core:
             self.compile(function, args, kwargs, set_result)
 
         if self.first_run:
-            self.comm.check_ident()
+            self.comm.check_system_info()
             self.comm.switch_clock(self.external_clock)
             self.first_run = False
 

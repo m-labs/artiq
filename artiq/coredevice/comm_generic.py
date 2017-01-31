@@ -17,7 +17,7 @@ class _H2DMsgType(Enum):
     LOG_REQUEST = 1
     LOG_CLEAR = 2
 
-    IDENT_REQUEST = 3
+    SYSTEM_INFO_REQUEST = 3
     SWITCH_CLOCK = 4
 
     LOAD_KERNEL = 5
@@ -35,7 +35,7 @@ class _H2DMsgType(Enum):
 class _D2HMsgType(Enum):
     LOG_REPLY = 1
 
-    IDENT_REPLY = 2
+    SYSTEM_INFO_REPLY = 2
     CLOCK_SWITCH_COMPLETED = 3
     CLOCK_SWITCH_FAILED = 4
 
@@ -200,11 +200,11 @@ class CommGeneric:
     def reset_session(self):
         self.write(struct.pack(">ll", 0x5a5a5a5a, 0))
 
-    def check_ident(self):
-        self._write_empty(_H2DMsgType.IDENT_REQUEST)
+    def check_system_info(self):
+        self._write_empty(_H2DMsgType.SYSTEM_INFO_REQUEST)
 
         self._read_header()
-        self._read_expect(_D2HMsgType.IDENT_REPLY)
+        self._read_expect(_D2HMsgType.SYSTEM_INFO_REPLY)
         runtime_id = self._read_chunk(4)
         if runtime_id != b"AROR":
             raise UnsupportedDevice("Unsupported runtime ID: {}"
@@ -215,6 +215,9 @@ class CommGeneric:
             logger.warning("Mismatch between gateware (%s) "
                            "and software (%s) versions",
                            gateware_version, software_version)
+        finished_cleanly = self._read_bool()
+        if not finished_cleanly:
+            logger.warning("Interrupted a running kernel")
 
     def switch_clock(self, external):
         self._write_header(_H2DMsgType.SWITCH_CLOCK)

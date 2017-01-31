@@ -20,7 +20,7 @@ pub enum Request {
     Log,
     LogClear,
 
-    Ident,
+    SystemInfo,
     SwitchClock(u8),
 
     LoadKernel(Vec<u8>),
@@ -49,7 +49,7 @@ impl Request {
         Ok(match read_u8(reader)? {
             1  => Request::Log,
             2  => Request::LogClear,
-            3  => Request::Ident,
+            3  => Request::SystemInfo,
             4  => Request::SwitchClock(read_u8(reader)?),
             5  => Request::LoadKernel(read_bytes(reader)?),
             6  => Request::RunKernel,
@@ -87,7 +87,10 @@ impl Request {
 pub enum Reply<'a> {
     Log(&'a str),
 
-    Ident(&'a str),
+    SystemInfo {
+        ident: &'a str,
+        finished_cleanly: bool
+    },
     ClockSwitchCompleted,
     ClockSwitchFailed,
 
@@ -126,10 +129,11 @@ impl<'a> Reply<'a> {
                 write_string(writer, log)?;
             },
 
-            Reply::Ident(ident) => {
+            Reply::SystemInfo { ident, finished_cleanly } => {
                 write_u8(writer, 2)?;
                 writer.write(b"AROR")?;
                 write_string(writer, ident)?;
+                write_u8(writer, finished_cleanly as u8)?;
             },
             Reply::ClockSwitchCompleted => {
                 write_u8(writer, 3)?;

@@ -22,7 +22,7 @@ def main():
     device_mgr = DeviceManager(DeviceDB(args.device_db))
     try:
         comm = device_mgr.get("comm")
-        comm.check_ident()
+        comm.check_system_info()
         print(comm.get_log(), end="")
     finally:
         device_mgr.close_devices()
