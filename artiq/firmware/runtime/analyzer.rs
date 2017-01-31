@@ -56,12 +56,12 @@ fn worker(stream: &mut TcpStream) -> io::Result<()> {
     };
     trace!("{:?}", header);
 
-    try!(header.write_to(stream));
+    header.write_to(stream)?;
     if wraparound {
-        try!(stream.write_all(&data[pointer..]));
-        try!(stream.write_all(&data[..pointer]));
+        stream.write_all(&data[pointer..])?;
+        stream.write_all(&data[..pointer])?;
     } else {
-        try!(stream.write_all(&data[..pointer]));
+        stream.write_all(&data[..pointer])?;
     }
 
     Ok(())

@@ -285,7 +285,7 @@ impl<'a> UdpSocket<'a> {
     }
 
     pub fn recv_from(&self, buf: &mut [u8]) -> Result<(usize, IpEndpoint)> {
-        try!(until!(self, UdpSocketLower, |s| s.can_recv()));
+        until!(self, UdpSocketLower, |s| s.can_recv())?;
         match self.as_lower().recv_slice(buf) {
             Ok(r) => Ok(r),
             Err(()) => {
@@ -296,7 +296,7 @@ impl<'a> UdpSocket<'a> {
     }
 
     pub fn send_to(&self, buf: &[u8], addr: IpEndpoint) -> Result<usize> {
-        try!(until!(self, UdpSocketLower, |s| s.can_send()));
+        until!(self, UdpSocketLower, |s| s.can_send())?;
         match self.as_lower().send_slice(buf, addr) {
             Ok(r) => Ok(r),
             Err(()) => {
@@ -363,9 +363,9 @@ impl<'a> TcpListener<'a> {
 
     pub fn listen<T: Into<IpEndpoint>>(&self, endpoint: T) -> Result<()> {
         let endpoint = endpoint.into();
-        try!(self.as_lower().listen(endpoint)
-                 .map_err(|()| Error::new(ErrorKind::Other,
-                                          "cannot listen: already connected")));
+        self.as_lower().listen(endpoint)
+            .map_err(|()| Error::new(ErrorKind::Other,
+                                     "cannot listen: already connected"))?;
         self.endpoint.set(endpoint);
         Ok(())
     }
@@ -375,11 +375,11 @@ impl<'a> TcpListener<'a> {
         // This handles the case where a remote socket immediately sends a FIN--
         // that still counts as accepting even though nothing may be sent.
         let (sockets, handle) = (self.io.sockets.clone(), self.handle.get());
-        try!(self.io.until(move || {
+        self.io.until(move || {
             let mut sockets = borrow_mut!(sockets);
             let socket: &mut TcpSocketLower = sockets.get_mut(handle).as_socket();
             socket.may_send() || socket.may_recv()
-        }));
+        })?;
 
         let accepted = self.handle.get();
         self.handle.set(Self::new_lower(self.io, self.buffer_size.get()));
@@ -456,7 +456,7 @@ impl<'a> TcpStream<'a> {
 
     pub fn close(&self) -> Result<()> {
         self.as_lower().close();
-        try!(until!(self, TcpSocketLower, |s| !s.is_open()));
+        until!(self, TcpSocketLower, |s| !s.is_open())?;
         // right now the socket may be in TIME-WAIT state. if we don't give it a chance to send
         // a packet, and the user code executes a loop { s.listen(); s.read(); s.close(); }
         // then the last ACK will never be sent.
@@ -472,7 +472,7 @@ impl<'a> Read for TcpStream<'a> {
             Ok(0) | Err(()) => {
                 // slow path
                 if !self.as_lower().may_recv() { return Ok(0) }
-                try!(until!(self, TcpSocketLower, |s| s.can_recv()));
+                until!(self, TcpSocketLower, |s| s.can_recv())?;
                 Ok(self.as_lower().recv_slice(buf)
                        .expect("may_recv implies that data was available"))
             }
@@ -489,7 +489,7 @@ impl<'a> Write for TcpStream<'a> {
             Ok(0) | Err(()) => {
                 // slow path
                 if !self.as_lower().may_send() { return Ok(0) }
-                try!(until!(self, TcpSocketLower, |s| s.can_send()));
+                until!(self, TcpSocketLower, |s| s.can_send())?;
                 Ok(self.as_lower().send_slice(buf)
                        .expect("may_send implies that data was available"))
             }

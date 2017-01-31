@@ -10,8 +10,8 @@ const MONINJ_TTL_OVERRIDE_OE: u8 = 2;
 fn worker(socket: &mut UdpSocket) -> io::Result<()> {
     let mut buf = vec![0; 512];
     loop {
-        let (size, addr) = try!(socket.recv_from(&mut buf));
-        let request = try!(Request::read_from(&mut io::Cursor::new(&buf[..size])));
+        let (size, addr) = socket.recv_from(&mut buf)?;
+        let request = Request::read_from(&mut io::Cursor::new(&buf[..size]))?;
         trace!("{} -> {:?}", addr, request);
 
         match request {
@@ -64,8 +64,8 @@ fn worker(socket: &mut UdpSocket) -> io::Result<()> {
 
                 trace!("{} <- {:?}", addr, reply);
                 buf.clear();
-                try!(reply.write_to(&mut buf));
-                try!(socket.send_to(&buf, addr));
+                reply.write_to(&mut buf)?;
+                socket.send_to(&buf, addr)?;
             },
 
             Request::TtlSet { channel, mode: TtlMode::Experiment } => {

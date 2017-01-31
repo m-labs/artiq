@@ -19,22 +19,22 @@ unsafe fn recv_value(reader: &mut Read, tag: Tag, data: &mut *mut (),
         Tag::None => Ok(()),
         Tag::Bool =>
             consume_value!(u8, |ptr| {
-                *ptr = try!(read_u8(reader)); Ok(())
+                *ptr = read_u8(reader)?; Ok(())
             }),
         Tag::Int32 =>
             consume_value!(u32, |ptr| {
-                *ptr = try!(read_u32(reader)); Ok(())
+                *ptr = read_u32(reader)?; Ok(())
             }),
         Tag::Int64 | Tag::Float64 =>
             consume_value!(u64, |ptr| {
-                *ptr = try!(read_u64(reader)); Ok(())
+                *ptr = read_u64(reader)?; Ok(())
             }),
         Tag::String => {
             consume_value!(*mut u8, |ptr| {
-                let length = try!(read_u32(reader));
+                let length = read_u32(reader)?;
                 // NB: the received string includes a trailing \0
-                *ptr = try!(alloc(length as usize)) as *mut u8;
-                try!(reader.read_exact(slice::from_raw_parts_mut(*ptr, length as usize)));
+                *ptr = alloc(length as usize)? as *mut u8;
+                reader.read_exact(slice::from_raw_parts_mut(*ptr, length as usize))?;
                 Ok(())
             })
         }
@@ -42,30 +42,30 @@ unsafe fn recv_value(reader: &mut Read, tag: Tag, data: &mut *mut (),
             let mut it = it.clone();
             for _ in 0..arity {
                 let tag = it.next().expect("truncated tag");
-                try!(recv_value(reader, tag, data, alloc))
+                recv_value(reader, tag, data, alloc)?
             }
             Ok(())
         }
         Tag::List(it) | Tag::Array(it) => {
             struct List { elements: *mut (), length: u32 };
             consume_value!(List, |ptr| {
-                (*ptr).length = try!(read_u32(reader));
+                (*ptr).length = read_u32(reader)?;
 
                 let tag = it.clone().next().expect("truncated tag");
-                (*ptr).elements = try!(alloc(tag.size() * (*ptr).length as usize));
+                (*ptr).elements = alloc(tag.size() * (*ptr).length as usize)?;
 
                 let mut data = (*ptr).elements;
                 for _ in 0..(*ptr).length as usize {
-                    try!(recv_value(reader, tag, &mut data, alloc));
+                    recv_value(reader, tag, &mut data, alloc)?
                 }
                 Ok(())
             })
         }
         Tag::Range(it) => {
             let tag = it.clone().next().expect("truncated tag");
-            try!(recv_value(reader, tag, data, alloc));
-            try!(recv_value(reader, tag, data, alloc));
-            try!(recv_value(reader, tag, data, alloc));
+            recv_value(reader, tag, data, alloc)?;
+            recv_value(reader, tag, data, alloc)?;
+            recv_value(reader, tag, data, alloc)?;
             Ok(())
         }
         Tag::Keyword(_) => unreachable!(),
@@ -81,7 +81,7 @@ pub fn recv_return(reader: &mut Read, tag_bytes: &[u8], data: *mut (),
 
     let tag = it.next().expect("truncated tag");
     let mut data = data;
-    try!(unsafe { recv_value(reader, tag, &mut data, alloc) });
+    unsafe { recv_value(reader, tag, &mut data, alloc)? };
 
     Ok(())
 }
@@ -101,7 +101,7 @@ unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::
         })
     }
 
-    try!(write_u8(writer, tag.as_u8()));
+    write_u8(writer, tag.as_u8())?;
     match tag {
         Tag::None => Ok(()),
         Tag::Bool =>
@@ -118,36 +118,36 @@ unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::
                 write_string(writer, from_c_str(*ptr))),
         Tag::Tuple(it, arity) => {
             let mut it = it.clone();
-            try!(write_u8(writer, arity));
+            write_u8(writer, arity)?;
             for _ in 0..arity {
                 let tag = it.next().expect("truncated tag");
-                try!(send_value(writer, tag, data))
+                send_value(writer, tag, data)?
             }
             Ok(())
         }
         Tag::List(it) | Tag::Array(it) => {
             struct List { elements: *const (), length: u32 };
             consume_value!(List, |ptr| {
-                try!(write_u32(writer, (*ptr).length));
+                write_u32(writer, (*ptr).length)?;
                 let tag = it.clone().next().expect("truncated tag");
                 let mut data = (*ptr).elements;
                 for _ in 0..(*ptr).length as usize {
-                    try!(send_value(writer, tag, &mut data));
+                    send_value(writer, tag, &mut data)?;
                 }
                 Ok(())
             })
         }
         Tag::Range(it) => {
             let tag = it.clone().next().expect("truncated tag");
-            try!(send_value(writer, tag, data));
-            try!(send_value(writer, tag, data));
-            try!(send_value(writer, tag, data));
+            send_value(writer, tag, data)?;
+            send_value(writer, tag, data)?;
+            send_value(writer, tag, data)?;
             Ok(())
         }
         Tag::Keyword(it) => {
             struct Keyword { name: *const u8, contents: () };
             consume_value!(Keyword, |ptr| {
-                try!(write_string(writer, from_c_str((*ptr).name)));
+                write_string(writer, from_c_str((*ptr).name))?;
                 let tag = it.clone().next().expect("truncated tag");
                 let mut data = &(*ptr).contents as *const ();
                 send_value(writer, tag, &mut data)
@@ -172,17 +172,17 @@ pub fn send_args(writer: &mut Write, service: u32, tag_bytes: &[u8],
     #[cfg(not(ksupport))]
     trace!("send<{}>({})->{}", service, args_it, return_it);
 
-    try!(write_u32(writer, service));
+    write_u32(writer, service)?;
     for index in 0.. {
         if let Some(arg_tag) = args_it.next() {
             let mut data = unsafe { *data.offset(index) };
-            try!(unsafe { send_value(writer, arg_tag, &mut data) });
+            unsafe { send_value(writer, arg_tag, &mut data)? };
         } else {
             break
         }
     }
-    try!(write_u8(writer, 0));
-    try!(write_bytes(writer, return_tag_bytes));
+    write_u8(writer, 0)?;
+    write_bytes(writer, return_tag_bytes)?;
 
     Ok(())
 }
@@ -317,49 +317,49 @@ mod tag {
                 if first {
                     first = false
                 } else {
-                    try!(write!(f, ", "))
+                    write!(f, ", ")?
                 }
 
                 match tag {
                     Tag::None =>
-                        try!(write!(f, "None")),
+                        write!(f, "None")?,
                     Tag::Bool =>
-                        try!(write!(f, "Bool")),
+                        write!(f, "Bool")?,
                     Tag::Int32 =>
-                        try!(write!(f, "Int32")),
+                        write!(f, "Int32")?,
                     Tag::Int64 =>
-                        try!(write!(f, "Int64")),
+                        write!(f, "Int64")?,
                     Tag::Float64 =>
-                        try!(write!(f, "Float64")),
+                        write!(f, "Float64")?,
                     Tag::String =>
-                        try!(write!(f, "String")),
+                        write!(f, "String")?,
                     Tag::Tuple(it, _) => {
-                        try!(write!(f, "Tuple("));
-                        try!(it.fmt(f));
-                        try!(write!(f, ")"))
+                        write!(f, "Tuple(")?;
+                        it.fmt(f)?;
+                        write!(f, ")")?;
                     }
                     Tag::List(it) => {
-                        try!(write!(f, "List("));
-                        try!(it.fmt(f));
-                        try!(write!(f, ")"))
+                        write!(f, "List(")?;
+                        it.fmt(f)?;
+                        write!(f, ")")?;
                     }
                     Tag::Array(it) => {
-                        try!(write!(f, "Array("));
-                        try!(it.fmt(f));
-                        try!(write!(f, ")"))
+                        write!(f, "Array(")?;
+                        it.fmt(f)?;
+                        write!(f, ")")?;
                     }
                     Tag::Range(it) => {
-                        try!(write!(f, "Range("));
-                        try!(it.fmt(f));
-                        try!(write!(f, ")"))
+                        write!(f, "Range(")?;
+                        it.fmt(f)?;
+                        write!(f, ")")?;
                     }
                     Tag::Keyword(it) => {
-                        try!(write!(f, "Keyword("));
-                        try!(it.fmt(f));
-                        try!(write!(f, ")"))
+                        write!(f, "Keyword(")?;
+                        it.fmt(f)?;
+                        write!(f, ")")?;
                     }
                     Tag::Object =>
-                        try!(write!(f, "Object"))
+                        write!(f, "Object")?,
                 }
             }
 

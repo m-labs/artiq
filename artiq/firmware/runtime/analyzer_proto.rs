@@ -12,11 +12,11 @@ pub struct Header {
 
 impl Header {
     pub fn write_to(&self, writer: &mut Write) -> io::Result<()> {
-        try!(write_u32(writer, self.sent_bytes));
-        try!(write_u64(writer, self.total_byte_count));
-        try!(write_u8(writer, self.overflow_occurred as u8));
-        try!(write_u8(writer, self.log_channel));
-        try!(write_u8(writer, self.dds_onehot_sel as u8));
+        write_u32(writer, self.sent_bytes)?;
+        write_u64(writer, self.total_byte_count)?;
+        write_u8(writer, self.overflow_occurred as u8)?;
+        write_u8(writer, self.log_channel)?;
+        write_u8(writer, self.dds_onehot_sel as u8)?;
         Ok(())
     }
 }

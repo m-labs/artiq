@@ -11,7 +11,7 @@ pub enum TtlMode {
 
 impl TtlMode {
     pub fn read_from(reader: &mut Read) -> io::Result<TtlMode> {
-        Ok(match try!(read_u8(reader)) {
+        Ok(match read_u8(reader)? {
             0 => TtlMode::Experiment,
             1 => TtlMode::High,
             2 => TtlMode::Low,
@@ -29,11 +29,11 @@ pub enum Request {
 
 impl Request {
     pub fn read_from(reader: &mut Read) -> io::Result<Request> {
-        Ok(match try!(read_u8(reader)) {
+        Ok(match read_u8(reader)? {
             1 => Request::Monitor,
             2 => Request::TtlSet {
-                channel: try!(read_u8(reader)),
-                mode: try!(TtlMode::read_from(reader))
+                channel: read_u8(reader)?,
+                mode: TtlMode::read_from(reader)?
             },
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, "unknown request type"))
         })
@@ -52,13 +52,13 @@ pub struct Reply<'a> {
 
 impl<'a> Reply<'a> {
     pub fn write_to(&self, writer: &mut Write) -> io::Result<()> {
-        try!(write_u64(writer, self.ttl_levels));
-        try!(write_u64(writer, self.ttl_oes));
-        try!(write_u64(writer, self.ttl_overrides));
-        try!(write_u16(writer, self.dds_rtio_first_channel));
-        try!(write_u16(writer, self.dds_channels_per_bus));
+        write_u64(writer, self.ttl_levels)?;
+        write_u64(writer, self.ttl_oes)?;
+        write_u64(writer, self.ttl_overrides)?;
+        write_u16(writer, self.dds_rtio_first_channel)?;
+        write_u16(writer, self.dds_channels_per_bus)?;
         for dds_ftw in self.dds_ftws {
-            try!(write_u32(writer, *dds_ftw));
+            write_u32(writer, *dds_ftw)?;
         }
         Ok(())
     }

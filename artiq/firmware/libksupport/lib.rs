@@ -156,7 +156,7 @@ extern fn send_async_rpc(service: u32, tag: *const u8, data: *const *const ()) {
     rpc_queue::enqueue(|mut slice| {
         let length = {
             let mut writer = Cursor::new(&mut slice[4..]);
-            try!(rpc_proto::send_args(&mut writer, service, tag, data));
+            rpc_proto::send_args(&mut writer, service, tag, data)?;
             writer.position()
         };
         proto::write_u32(&mut slice, length as u32)
