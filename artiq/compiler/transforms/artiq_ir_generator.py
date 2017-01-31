@@ -482,8 +482,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 name = None
             else:
                 name = "{}.len".format(value.name)
-            return self.append(ir.Builtin("len", [value], typ,
-                                          name=name))
+            len = self.append(ir.Builtin("len", [value], builtins.TInt32(),
+                                         name=name))
+            return self.append(ir.Coerce(len, typ))
         elif builtins.is_range(value.type):
             start  = self.append(ir.GetAttr(value, "start"))
             stop   = self.append(ir.GetAttr(value, "stop"))
