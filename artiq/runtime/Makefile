@@ -48,7 +48,7 @@ runtime.elf: $(RUSTOUT)/libruntime.a flash_storage.o ksupport_data.o
 	@chmod -x $@
 
 .PHONY: $(RUSTOUT_KSUPPORT)/libksupport.a
-$(RUSTOUT_KSUPPORT)/ksupport.a:
+$(RUSTOUT_KSUPPORT)/libksupport.a:
 	$(CARGO) \
 		RUSTFLAGS="-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -Cpanic=unwind" \
 		CARGO_TARGET_DIR=$(realpath .)/cargo-ksupport \
