@@ -24,6 +24,7 @@ requirements:
     - cargo
     - lit
     - outputcheck
+    - coverage
     - scipy
     - numpy
     - prettytable

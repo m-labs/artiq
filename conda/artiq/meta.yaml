@@ -17,16 +17,14 @@ requirements:
   run:
     - python >=3.5.2
     - llvmlite-artiq 0.12.0.dev py35_30
+    - binutils-or1k-linux
+    - pythonparser 1.0
     - lit
     - outputcheck
     - scipy
     - numpy
     - prettytable
     - asyncserial
-    - sphinx 1.4.8
-    - sphinx-argparse
-    - sphinxcontrib-wavedrom
-    - sphinx_rtd_theme
     - h5py
     - dateutil
     - pyqt5
@@ -34,8 +32,6 @@ requirements:
     - pyqtgraph
     - pygit2
     - aiohttp
-    - binutils-or1k-linux
-    - pythonparser 1.0
     - levenshtein
 
 test:
