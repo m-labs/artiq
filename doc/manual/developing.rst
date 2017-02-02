@@ -21,13 +21,16 @@ ARTIQ Anaconda development environment
 
     1. Install ``git`` as recommended for your operating system and distribution.
     2. Obtain ARTIQ::
+
            $ git clone --recursive https://github.com/m-labs/artiq ~/artiq-dev/artiq
            $ cd ~/artiq-dev/artiq
     3. :ref:`Install Anaconda or Miniconda <install-anaconda>`
     4. Create and activate a conda environment named ``artiq-dev`` and install the ``artiq-dev`` package which pulls in all the packages required to develop ARTIQ::
+
            $ conda env create -f conda/artiq-dev.yaml
            $ source activate artiq-dev
     5. Add the ARTIQ source tree to the environment's search path::
+
            $ python setup.py develop
     6. :ref:`Install Xilinx ISE or Vivado <install-xilinx>`
     7. :ref:`Obtain and install the JTAG SPI flash proxy bitstream <install-bscan-spi>`
