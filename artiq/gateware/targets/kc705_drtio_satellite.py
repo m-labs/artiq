@@ -3,9 +3,8 @@ import os
 
 from migen import *
 from migen.build.generic_platform import *
-from misoc.cores.i2c import *
-from misoc.cores.sequencer import *
 from misoc.cores import spi as spi_csr
+from misoc.cores import gpio
 from misoc.integration.builder import *
 from misoc.integration.soc_core import mem_decoder
 from misoc.targets.kc705 import BaseSoC, soc_kc705_args, soc_kc705_argdict
@@ -17,119 +16,6 @@ from artiq.gateware.drtio.transceiver import gtx_7series
 from artiq.gateware.drtio import DRTIOSatellite
 from artiq import __version__ as artiq_version
 from artiq import __artiq_dir__ as artiq_dir
-
-
-# NOTE: the logical parameters DO NOT MAP to physical values written
-# into registers. They have to be mapped; see the datasheet.
-# DSPLLsim reports the logical parameters in the design summary, not
-# the physical register values.
-
-pll_dividers_62_5 = {
-    "N1_HS"  : 6,     # 10
-    "NC1_LS" : 7,     # 8
-    "N2_HS"  : 6,     # 10
-    "N2_LS"  : 20111, # 20112
-    "N31"    : 2513,  # 2514
-    "N32"    : 4596   # 4597
-}
-
-pll_dividers_150 = {
-    "N1_HS"  : 5,     # 9
-    "NC1_LS" : 3,     # 4
-    "N2_HS"  : 6,     # 10
-    "N2_LS"  : 33731, # 33732
-    "N31"    : 9369,  # 9370
-    "N32"    : 7138   # 7139
-}
-
-
-# TODO: move I2C programming to softcore CPU
-def get_i2c_program(d, sys_clk_freq):
-    i2c_sequence = [
-        # PCA9548: select channel 7
-        [(0x74 << 1), 1 << 7],
-        # Si5324: configure
-        [(0x68 << 1), 0,   0b01010000],        # FREE_RUN=1
-        [(0x68 << 1), 1,   0b11100100],        # CK_PRIOR2=1 CK_PRIOR1=0
-        [(0x68 << 1), 2,   0b0010 | (4 << 4)], # BWSEL=4
-        [(0x68 << 1), 3,   0b0101 | 0x10],     # SQ_ICAL=1
-        [(0x68 << 1), 4,   0b10010010],        # AUTOSEL_REG=b10
-        [(0x68 << 1), 6,            0x07],     # SFOUT1_REG=b111
-        [(0x68 << 1), 25,  (d["N1_HS"]  << 5 ) & 0xff],
-        [(0x68 << 1), 31,  (d["NC1_LS"] >> 16) & 0xff],
-        [(0x68 << 1), 32,  (d["NC1_LS"] >> 8 ) & 0xff],
-        [(0x68 << 1), 33,  (d["NC1_LS"])       & 0xff],
-        [(0x68 << 1), 40,  (d["N2_HS"]  << 5 ) & 0xff |
-                           (d["N2_LS"]  >> 16) & 0xff],
-        [(0x68 << 1), 41,  (d["N2_LS"]  >> 8 ) & 0xff],
-        [(0x68 << 1), 42,  (d["N2_LS"])        & 0xff],
-        [(0x68 << 1), 43,  (d["N31"]    >> 16) & 0xff],
-        [(0x68 << 1), 44,  (d["N31"]    >> 8)  & 0xff],
-        [(0x68 << 1), 45,  (d["N31"])          & 0xff],
-        [(0x68 << 1), 46,  (d["N32"]    >> 16) & 0xff],
-        [(0x68 << 1), 47,  (d["N32"]    >> 8)  & 0xff],
-        [(0x68 << 1), 48,  (d["N32"])          & 0xff],
-        [(0x68 << 1), 137,          0x01],     # FASTLOCK=1
-        [(0x68 << 1), 136,          0x40],     # ICAL=1
-    ]
-
-    program = [
-        InstWrite(I2C_CONFIG_ADDR, int(sys_clk_freq/1e3)),
-    ]
-    for subseq in i2c_sequence:
-        program += [
-            InstWrite(I2C_XFER_ADDR, I2C_START),
-            InstWait(I2C_XFER_ADDR, I2C_IDLE),
-        ]
-        for octet in subseq:
-            program += [
-                InstWrite(I2C_XFER_ADDR, I2C_WRITE | octet),
-                InstWait(I2C_XFER_ADDR, I2C_IDLE),
-            ]
-        program += [
-            InstWrite(I2C_XFER_ADDR, I2C_STOP),
-            InstWait(I2C_XFER_ADDR, I2C_IDLE),
-        ]
-    program += [
-        InstEnd(),
-    ]
-    return program
-
-
-class Si5324ResetClock(Module):
-    def __init__(self, platform, sys_clk_freq):
-        self.si5324_not_ready = Signal(reset=1)
-
-        # minimum reset pulse 1us
-        reset_done = Signal()
-        si5324_rst_n = platform.request("si5324").rst_n
-        reset_val = int(sys_clk_freq*1.1e-6)
-        reset_ctr = Signal(max=reset_val+1, reset=reset_val)
-        self.sync += \
-            If(reset_ctr != 0,
-                reset_ctr.eq(reset_ctr - 1)
-            ).Else(
-                si5324_rst_n.eq(1),
-                reset_done.eq(1)
-            )
-        # 10ms after reset to microprocessor access ready
-        ready_val = int(sys_clk_freq*11e-3)
-        ready_ctr = Signal(max=ready_val+1, reset=ready_val)
-        self.sync += \
-            If(reset_done,
-                If(ready_ctr != 0,
-                    ready_ctr.eq(ready_ctr - 1)
-                ).Else(
-                    self.si5324_not_ready.eq(0)
-                )
-            )
-
-        si5324_clkin = platform.request("si5324_clkin")
-        self.specials += \
-            Instance("OBUFDS",
-                i_I=ClockSignal("rtio_rx"),
-                o_O=si5324_clkin.p, o_OB=si5324_clkin.n
-            )
 
 
 class Satellite(BaseSoC):
@@ -157,22 +43,6 @@ class Satellite(BaseSoC):
             phy = ttl_simple.Inout(platform.request(sma))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
-
-        if cfg == "simple_gbe":
-            pll_dividers = pll_dividers_62_5
-        elif cfg == "sawg_3g":
-            pll_dividers = pll_dividers_150
-        else:
-            raise ValueError
-        i2c_master = I2CMaster(platform.request("i2c"))
-        sequencer = ResetInserter()(
-            Sequencer(get_i2c_program(pll_dividers, self.clk_freq)))
-        si5324_reset_clock = Si5324ResetClock(platform, self.clk_freq)
-        self.submodules += i2c_master, sequencer, si5324_reset_clock
-        self.comb += [
-            sequencer.bus.connect(i2c_master.bus),
-            sequencer.reset.eq(si5324_reset_clock.si5324_not_ready)
-        ]
 
         self.comb += platform.request("sfp_tx_disable_n").eq(1)
         tx_pads = platform.request("sfp_tx")
@@ -214,6 +84,19 @@ class Satellite(BaseSoC):
         self.add_wb_slave(mem_decoder(self.mem_map["drtio_aux"]),
                           self.drtio.aux_controller.bus)
         self.add_memory_region("drtio_aux", self.mem_map["drtio_aux"] | self.shadow_base, 0x800)
+
+        self.config["RTIO_FREQUENCY"] = str(self.transceiver.rtio_clk_freq/1e6)
+        si5324_clkin = platform.request("si5324_clkin")
+        self.specials += \
+            Instance("OBUFDS",
+                i_I=ClockSignal("rtio_rx"),
+                o_O=si5324_clkin.p, o_OB=si5324_clkin.n
+            )
+        self.comb += platform.request("si5324").rst_n.eq(1)
+        i2c = self.platform.request("i2c")
+        self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
+        self.csr_devices.append("i2c")
+        self.config["I2C_BUS_COUNT"] = 1
 
         rtio_clk_period = 1e9/self.transceiver.rtio_clk_freq
         platform.add_period_constraint(self.transceiver.txoutclk, rtio_clk_period)
