@@ -16,6 +16,9 @@ pub mod uart;
 #[cfg(feature = "uart_console")]
 pub mod uart_console;
 
+#[cfg(has_spiflash)]
+pub mod spiflash;
+
 #[cfg(has_i2c)]
 pub mod i2c;
 #[cfg(has_i2c)]

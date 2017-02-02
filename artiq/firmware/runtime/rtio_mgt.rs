@@ -154,24 +154,25 @@ mod drtio {
 pub fn startup(io: &Io) {
     crg::init();
 
-    let mut opt = [b'i'];
-    let clk;
-    match config::read("startup_clock", &mut opt) {
-        Ok(0) | Ok(1) if &opt == b"i" => {
-            info!("startup RTIO clock: internal");
-            clk = 0
-        }
-        Ok(1) if &opt == b"e" => {
-            info!("startup RTIO clock: external");
-            clk = 1
-        }
-        _ => {
-            error!("unrecognized startup_clock configuration entry");
-            clk = 0
-        }
+    #[derive(Debug)]
+    enum RtioClock {
+        Internal = 0,
+        External = 1
     };
 
-    if !crg::switch_clock(clk) {
+    let clk = config::read("startup_clock", |result| {
+        match result {
+            Ok(b"i") => RtioClock::Internal,
+            Ok(b"e") => RtioClock::External,
+            _ => {
+                error!("unrecognized startup_clock configuration entry");
+                RtioClock::Internal
+            }
+        }
+    });
+
+    info!("startup RTIO clock: {:?}", clk);
+    if !crg::switch_clock(clk as u8) {
         error!("startup RTIO clock failed");
         warn!("this may cause the system initialization to fail");
         warn!("fix clocking and reset the device");

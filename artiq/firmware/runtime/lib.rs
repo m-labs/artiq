@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(libc, repr_simd)]
+#![feature(libc, repr_simd, const_fn)]
 
 extern crate alloc_artiq;
 #[macro_use]
@@ -67,8 +67,8 @@ fn startup() {
     info!("press 'e' to erase startup and idle kernels...");
     while board::clock::get_ms() < t + 1000 {
         if unsafe { readchar_nonblock() != 0 && readchar() == b'e' as libc::c_char } {
-            config::remove("startup_kernel");
-            config::remove("idle_kernel");
+            config::remove("startup_kernel").unwrap();
+            config::remove("idle_kernel").unwrap();
             info!("startup and idle kernels erased");
             break
         }
@@ -83,7 +83,7 @@ fn startup() {
     board::ad9154::init().expect("cannot initialize ad9154");
 
     let hardware_addr;
-    match EthernetAddress::parse(&config::read_string("mac")) {
+    match config::read_str("mac", |r| r.and_then(|s| EthernetAddress::parse(s))) {
         Err(()) => {
             hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]);
             warn!("using default MAC address {}; consider changing it", hardware_addr);
@@ -95,7 +95,7 @@ fn startup() {
     }
 
     let protocol_addr;
-    match IpAddress::parse(&config::read_string("ip")) {
+    match config::read_str("ip", |r| r.and_then(|s| IpAddress::parse(s))) {
         Err(()) | Ok(IpAddress::Unspecified) => {
             protocol_addr = IpAddress::v4(192, 168, 1, 50);
             info!("using default IP address {}", protocol_addr);

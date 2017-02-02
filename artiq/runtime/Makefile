@@ -39,7 +39,7 @@ $(RUSTOUT)/libruntime.a:
 			cargo build --target=or1k-unknown-none \
 				--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../firmware/runtime/Cargo.toml)
 
-runtime.elf: $(RUSTOUT)/libruntime.a flash_storage.o ksupport_data.o
+runtime.elf: $(RUSTOUT)/libruntime.a ksupport_data.o
 	$(LD) $(LDFLAGS) \
 		-T $(RUNTIME_DIRECTORY)/runtime.ld \
 		-o $@ \

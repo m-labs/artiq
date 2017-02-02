@@ -233,8 +233,12 @@ fn process_host_message(io: &Io,
 
         // artiq_coreconfig
         host::Request::FlashRead { ref key } => {
-            let value = config::read_to_end(key);
-            host_write(stream, host::Reply::FlashRead(&value))
+            config::read(key, |result| {
+                match result {
+                    Ok(value) => host_write(stream, host::Reply::FlashRead(&value)),
+                    Err(())   => host_write(stream, host::Reply::FlashError)
+                }
+            })
         }
 
         host::Request::FlashWrite { ref key, ref value } => {
@@ -245,13 +249,18 @@ fn process_host_message(io: &Io,
         }
 
         host::Request::FlashRemove { ref key } => {
-            config::remove(key);
-            host_write(stream, host::Reply::FlashOk)
+            match config::remove(key) {
+                Ok(()) => host_write(stream, host::Reply::FlashOk),
+                Err(_) => host_write(stream, host::Reply::FlashError),
+            }
+
         }
 
         host::Request::FlashErase => {
-            config::erase();
-            host_write(stream, host::Reply::FlashOk)
+            match config::erase() {
+                Ok(()) => host_write(stream, host::Reply::FlashOk),
+                Err(_) => host_write(stream, host::Reply::FlashError),
+            }
         }
 
         // artiq_run/artiq_master
@@ -599,12 +608,12 @@ fn flash_kernel_worker(io: &Io,
                        config_key: &str) -> io::Result<()> {
     let mut session = Session::new(congress);
 
-    let kernel = config::read_to_end(config_key);
-    if kernel.len() == 0 {
-        return Err(io::Error::new(io::ErrorKind::NotFound, "kernel not found"))
-    }
-
-    unsafe { kern_load(io, &mut session, &kernel)? };
+    config::read(config_key, |result| {
+        match result {
+            Ok(kernel) if kernel.len() > 0 => unsafe { kern_load(io, &mut session, &kernel) },
+            _ => Err(io::Error::new(io::ErrorKind::NotFound, "kernel not found")),
+        }
+    })?;
     kern_run(&mut session)?;
 
     loop {
