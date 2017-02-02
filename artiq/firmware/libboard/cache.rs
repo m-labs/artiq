@@ -1,3 +1,4 @@
+use core::ptr;
 use spr::{self, mfspr, mtspr};
 use csr;
 use mem;
@@ -38,7 +39,7 @@ pub fn flush_l2_cache() {
     unsafe {
         for i in 0..2 * (csr::CONFIG_L2_SIZE as usize) / 4 {
             let addr = mem::MAIN_RAM_BASE + i * 4;
-            asm!("l.lwz r13, 0(${0})"::"r"(addr):"r13":"volatile")
+            ptr::read_volatile(addr as *const usize);
         }
     }
 }
