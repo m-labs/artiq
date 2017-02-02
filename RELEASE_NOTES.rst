@@ -26,6 +26,12 @@ Release notes
 * The kc705 gateware target has been renamed kc705_dds.
 
 
+2.2
+---
+
+No further notes.
+
+
 2.1
 ---
 
