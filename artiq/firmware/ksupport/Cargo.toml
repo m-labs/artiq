@@ -17,3 +17,4 @@ alloc_none = { path = "../liballoc_none" }
 std_artiq = { path = "../libstd_artiq" }
 board = { path = "../libboard" }
 byteorder = { version = "1.0", default-features = false }
+cslice = { version = "0.3" }

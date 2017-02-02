@@ -7,6 +7,7 @@ extern crate std_artiq as std;
 extern crate libc;
 extern crate byteorder;
 extern crate board;
+extern crate cslice;
 
 #[path = "../runtime/mailbox.rs"]
 mod mailbox;
@@ -50,6 +51,7 @@ macro_rules! artiq_raise {
 use core::{mem, ptr, slice, str};
 use std::io::Cursor;
 use libc::{c_char, size_t};
+use cslice::{CSlice, CMutSlice, AsCSlice};
 use kernel_proto::*;
 use dyld::Library;
 
@@ -99,34 +101,22 @@ pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u3
     loop {}
 }
 
-#[repr(C)]
-pub struct ArtiqList<T> {
-    ptr: *const T,
-    len: usize
-}
-
-impl<T> ArtiqList<T> {
-    pub fn from_slice(slice: &'static [T]) -> ArtiqList<T> {
-        ArtiqList { ptr: slice.as_ptr(), len: slice.len() }
-    }
-
-    pub unsafe fn as_slice(&self) -> &[T] {
-        slice::from_raw_parts(self.ptr, self.len)
-    }
-}
-
 static mut NOW: u64 = 0;
 
 #[no_mangle]
-pub extern fn send_to_core_log(ptr: *const u8, len: usize) {
-    send(&LogSlice(unsafe {
-        str::from_utf8_unchecked(slice::from_raw_parts(ptr, len))
-    }))
+pub extern fn send_to_core_log(text: CSlice<u8>) {
+    match str::from_utf8(text.as_ref()) {
+        Ok(s) => send(&LogSlice(s)),
+        Err(e) => {
+            send(&LogSlice(str::from_utf8(&text.as_ref()[..e.valid_up_to()]).unwrap()));
+            send(&LogSlice("(invalid utf-8)\n"));
+        }
+    }
 }
 
 #[no_mangle]
-pub extern fn send_to_rtio_log(timestamp: i64, ptr: *const u8, len: usize) {
-    rtio::log(timestamp, unsafe { slice::from_raw_parts(ptr, len) })
+pub extern fn send_to_rtio_log(timestamp: i64, text: CSlice<u8>) {
+    rtio::log(timestamp, text.as_ref())
 }
 
 extern fn abort() -> ! {
@@ -185,9 +175,7 @@ extern fn recv_rpc(slot: *mut ()) -> usize {
 
 #[no_mangle]
 pub extern fn __artiq_terminate(exception: *const kernel_proto::Exception,
-                            backtrace_data: *mut usize,
-                            backtrace_size: usize) -> ! {
-    let backtrace = unsafe { slice::from_raw_parts_mut(backtrace_data, backtrace_size) };
+                                mut backtrace: CMutSlice<usize>) -> ! {
     let mut cursor = 0;
     for index in 0..backtrace.len() {
         if backtrace[index] > kernel_proto::KERNELCPU_PAYLOAD_ADDRESS {
@@ -195,7 +183,7 @@ pub extern fn __artiq_terminate(exception: *const kernel_proto::Exception,
             cursor += 1;
         }
     }
-    let backtrace = &mut backtrace[0..cursor];
+    let backtrace = &mut backtrace.as_mut()[0..cursor];
 
     send(&NowSave(unsafe { NOW }));
     send(&RunException {
@@ -218,21 +206,21 @@ extern fn watchdog_clear(id: i32) {
     send(&WatchdogClear { id: id as usize })
 }
 
-extern fn cache_get(key: *const u8) -> ArtiqList<i32> {
+extern fn cache_get(key: *const u8) -> CSlice<'static, i32> {
     extern { fn strlen(s: *const c_char) -> size_t; }
     let key = unsafe { slice::from_raw_parts(key, strlen(key as *const c_char)) };
     let key = unsafe { str::from_utf8_unchecked(key) };
 
     send(&CacheGetRequest { key: key });
-    recv!(&CacheGetReply { value } => ArtiqList::from_slice(value))
+    recv!(&CacheGetReply { value } => value.as_c_slice())
 }
 
-extern fn cache_put(key: *const u8, list: ArtiqList<i32>) {
+extern fn cache_put(key: *const u8, list: CSlice<i32>) {
     extern { fn strlen(s: *const c_char) -> size_t; }
     let key = unsafe { slice::from_raw_parts(key, strlen(key as *const c_char)) };
     let key = unsafe { str::from_utf8_unchecked(key) };
 
-    send(&CachePutRequest { key: key, value: unsafe { list.as_slice() } });
+    send(&CachePutRequest { key: key, value: list.as_ref() });
     recv!(&CachePutReply { succeeded } => {
         if !succeeded {
             artiq_raise!("CacheError", "cannot put into a busy cache row")

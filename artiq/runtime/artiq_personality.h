@@ -4,6 +4,11 @@
 #include <stdint.h>
 #include <stddef.h>
 
+struct slice {
+    void   *ptr;
+    size_t  len;
+};
+
 struct artiq_exception {
   union {
     uintptr_t typeinfo;
@@ -43,8 +48,7 @@ void __artiq_reraise(void)
 
 /* Called by the runtime */
 void __artiq_terminate(struct artiq_exception *artiq_exn,
-                       uintptr_t *backtrace,
-                       size_t backtrace_size)
+                       struct slice backtrace)
         __attribute__((noreturn));
 
 #ifdef __cplusplus

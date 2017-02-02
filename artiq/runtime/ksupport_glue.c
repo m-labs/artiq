@@ -6,8 +6,13 @@
 #include <link.h>
 #include <dlfcn.h>
 
-void send_to_core_log(const char *ptr, size_t length);
-void send_to_rtio_log(long long int timestamp, const char *ptr, size_t length);
+struct slice {
+    void   *ptr;
+    size_t  len;
+};
+
+void send_to_core_log(struct slice str);
+void send_to_rtio_log(long long int timestamp, struct slice data);
 
 #define KERNELCPU_EXEC_ADDRESS    0x40800000
 #define KERNELCPU_PAYLOAD_ADDRESS 0x40840000
@@ -28,7 +33,8 @@ int fprintf(FILE *stream, const char *fmt, ...)
     vsnprintf(buf, size + 1, fmt, args);
     va_end(args);
 
-    send_to_core_log(buf, size);
+    struct slice str = { buf, size };
+    send_to_core_log(str);
     return 0;
 }
 
@@ -113,7 +119,8 @@ int core_log(const char *fmt, ...)
     vsnprintf(buf, size + 1, fmt, args);
     va_end(args);
 
-    send_to_core_log(buf, size);
+    struct slice str = { buf, size };
+    send_to_core_log(str);
     return 0;
 }
 
@@ -132,5 +139,6 @@ void rtio_log(long long int timestamp, const char *fmt, ...)
     vsnprintf(buf, size + 1, fmt, args);
     va_end(args);
 
-    send_to_rtio_log(timestamp, buf, size);
+    struct slice str = { buf, size };
+    send_to_rtio_log(timestamp, str);
 }

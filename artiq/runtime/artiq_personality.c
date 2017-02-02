@@ -308,7 +308,8 @@ static _Unwind_Reason_Code __artiq_uncaught_exception(
 
   if(actions & _UA_END_OF_STACK) {
     EH_LOG0("end of stack");
-    __artiq_terminate(&inflight->artiq, inflight->backtrace, inflight->backtrace_size);
+    struct slice backtrace = { inflight->backtrace, inflight->backtrace_size };
+    __artiq_terminate(&inflight->artiq, backtrace);
   } else {
     EH_LOG0("continue");
     return _URC_NO_REASON;

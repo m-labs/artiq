@@ -1,9 +1,9 @@
 #[path = "../runtime/kernel_proto.rs"]
 mod kernel_proto;
 
-use board::csr;
 use core::ptr::{read_volatile, write_volatile};
-use ::ArtiqList;
+use cslice::CSlice;
+use board::csr;
 use ::send;
 use kernel_proto::*;
 
@@ -84,12 +84,11 @@ pub extern fn output(timestamp: i64, channel: i32, addr: i32, data: i32) {
     }
 }
 
-pub extern fn output_wide(timestamp: i64, channel: i32, addr: i32, list: ArtiqList<i32>) {
+pub extern fn output_wide(timestamp: i64, channel: i32, addr: i32, data: CSlice<i32>) {
     unsafe {
         csr::rtio::chan_sel_write(channel as u32);
         csr::rtio::o_timestamp_write(timestamp as u64);
         csr::rtio::o_address_write(addr as u32);
-        let data = list.as_slice();
         for i in 0..data.len() {
             rtio_o_data_write(i, data[i] as u32)
         }
