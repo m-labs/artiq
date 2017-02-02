@@ -146,7 +146,6 @@ extern {
     fn uart_init();
     fn uart_isr();
 
-    fn alloc_give(ptr: *mut u8, length: usize);
     static mut _fheap: u8;
     static mut _eheap: u8;
 }
@@ -157,8 +156,8 @@ pub unsafe extern fn main() -> i32 {
     irq::set_ie(true);
     uart_init();
 
-    alloc_give(&mut _fheap as *mut u8,
-               &_eheap as *const u8 as usize - &_fheap as *const u8 as usize);
+    alloc_artiq::seed(&mut _fheap as *mut u8,
+                      &_eheap as *const u8 as usize - &_fheap as *const u8 as usize);
 
     static mut LOG_BUFFER: [u8; 65536] = [0; 65536];
     logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(startup);

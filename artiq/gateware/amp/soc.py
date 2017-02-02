@@ -45,6 +45,8 @@ class AMPSoC:
 
 def build_artiq_soc(soc, argdict):
     builder = Builder(soc, **argdict)
-    builder.add_extra_software_packages()
+    builder.add_software_package("libm")
+    builder.add_software_package("libdyld")
+    builder.add_software_package("libunwind")
     builder.add_software_package("runtime", os.path.join(artiq_dir, "runtime"))
     builder.build()

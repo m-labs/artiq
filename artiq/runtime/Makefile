@@ -25,7 +25,6 @@ LDFLAGS += --gc-sections \
 	-L../libcompiler-rt \
 	-L../libbase \
 	-L../libm \
-	-L../liballoc \
 	-L../libunwind \
 	-L../libdyld
 
@@ -44,7 +43,7 @@ runtime.elf: $(RUSTOUT)/libruntime.a ksupport_data.o
 		-T $(RUNTIME_DIRECTORY)/runtime.ld \
 		-o $@ \
 		$^ \
-		-lbase-nofloat -lcompiler-rt -lalloc
+		-lbase-nofloat -lcompiler-rt
 	@chmod -x $@
 
 .PHONY: $(RUSTOUT_KSUPPORT)/libksupport.a

@@ -118,7 +118,6 @@ def main():
 
     soc = Satellite(args.config, **soc_kc705_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
-    builder.add_software_package("liballoc")
     builder.add_software_package("satman", os.path.join(artiq_dir, "firmware", "satman"))
     builder.build()
 
