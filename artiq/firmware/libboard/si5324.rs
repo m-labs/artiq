@@ -120,7 +120,7 @@ fn ident() -> Result<u16> {
 }
 
 fn locked() -> Result<bool> {
-    Ok((read(130)? & 0x01) == 0) // LOL_INT=1
+    Ok((read(130)? & 0x01) == 0) // LOL_INT=0
 }
 
 pub fn setup_hitless_clock_switching(settings: &FrequencySettings) -> Result<()> {
