@@ -43,7 +43,7 @@ runtime.elf: $(RUSTOUT)/libruntime.a ksupport_data.o
 		-T $(RUNTIME_DIRECTORY)/runtime.ld \
 		-o $@ \
 		$^ \
-		-lbase-nofloat -lcompiler-rt
+		-lbase-nofloat
 	@chmod -x $@
 
 .PHONY: $(RUSTOUT_KSUPPORT)/libksupport.a

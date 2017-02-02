@@ -1,6 +1,7 @@
 #![no_std]
-#![feature(libc, repr_simd, const_fn)]
+#![feature(compiler_builtins_lib, libc, repr_simd, const_fn)]
 
+extern crate compiler_builtins;
 extern crate alloc_artiq;
 #[macro_use]
 extern crate std_artiq as std;

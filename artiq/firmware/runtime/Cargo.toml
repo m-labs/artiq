@@ -13,6 +13,7 @@ path = "lib.rs"
 build_artiq = { path = "../libbuild_artiq" }
 
 [dependencies]
+compiler_builtins = { git = "https://github.com/rust-lang-nursery/compiler-builtins" }
 alloc_artiq = { path = "../liballoc_artiq" }
 std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
 logger_artiq = { path = "../liblogger_artiq" }
