@@ -133,7 +133,7 @@ pub fn setup_hitless_clock_switching(settings: &FrequencySettings) -> Result<()>
         return Err("Si5324 does not have expected product number");
     }
 
-    write(0,   0b01010000)?;        // FREE_RUN=1
+    write(0,   0b01010100)?;        // FREE_RUN=1
     write(1,   0b11100100)?;        // CK_PRIOR2=1 CK_PRIOR1=0
     write(2,   0b0010 | (4 << 4))?; // BWSEL=4
     write(3,   0b0101 | 0x10)?;     // SQ_ICAL=1
