@@ -28,12 +28,18 @@ LDFLAGS += --gc-sections \
 	-L../libunwind \
 	-L../libdyld
 
+RUSTFLAGS = \
+	-C target-feature=+mul,+div,+ffl1,+cmov,+addc \
+	-C relocation-model=static \
+	-C opt-level=s \
+	-Cpanic=abort
+export RUSTFLAGS
+
 all: runtime.bin runtime.fbi
 
 .PHONY: $(RUSTOUT)/libruntime.a
 $(RUSTOUT)/libruntime.a:
 	$(CARGO) \
-		RUSTFLAGS="-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -Cpanic=abort" \
 		CARGO_TARGET_DIR=$(realpath .)/cargo \
 			cargo build --target=or1k-unknown-none \
 				--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../firmware/runtime/Cargo.toml)
@@ -49,7 +55,6 @@ runtime.elf: $(RUSTOUT)/libruntime.a ksupport_data.o
 .PHONY: $(RUSTOUT_KSUPPORT)/libksupport.a
 $(RUSTOUT_KSUPPORT)/libksupport.a:
 	$(CARGO) \
-		RUSTFLAGS="-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -Cpanic=unwind" \
 		CARGO_TARGET_DIR=$(realpath .)/cargo-ksupport \
 			cargo build --target=or1k-unknown-none \
 				--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../firmware/ksupport/Cargo.toml)

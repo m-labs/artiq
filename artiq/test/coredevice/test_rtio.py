@@ -356,7 +356,6 @@ class CoredeviceTest(ExperimentCase):
         self.assertGreater(rate, 100*ns)
         self.assertLess(rate, 700*ns)
 
-    @unittest.skip("fails on CI for unknown reasons")
     def test_pulse_rate_dds(self):
         """Minimum interval for sustained DDS frequency switching"""
         self.execute(PulseRateDDS)
