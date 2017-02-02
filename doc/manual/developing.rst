@@ -201,6 +201,7 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
     .. note:: Make sure that ``/usr/local/llvm-or1k/bin`` is first in your ``PATH``, so that the ``clang`` command you just built is found instead of the system one, if any.
 
 .. _build-target-binaries:
+
     * For Pipistrello::
 
         $ python3 -m artiq.gateware.targets.pipistrello
