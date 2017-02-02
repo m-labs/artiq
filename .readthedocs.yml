@@ -2,4 +2,4 @@ python:
   version: 3
   pip_install: false
 conda:
-  file: conda/artiq-doc.yml
+  file: conda/artiq-doc.yaml

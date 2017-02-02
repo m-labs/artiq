@@ -1,11 +1,43 @@
+Developing ARTIQ
+^^^^^^^^^^^^^^^^
+
+We describe two different approaches to creating a development environment for ARTIQ.
+
+The first method uses existing pre-compiled Anaconda packages for the development environment.
+This is fast and convenient because it avoids compiling the entire toolchain but developing individual components within the toolchain requires extra care.
+It is completely sufficient to develop and tweak the ARTIQ code and to build
+bitstreams.
+Some ARTIQ developers as well as the buildbot employs this method for continuous integration to build the ``artiq`` Anaconda packages and the bitstreams.
+
+The second method builds most components in the toolchain from their sources.
+This takes time and and care to reproduce precisely but it gives absolute control over the components and an immediate handle at developing them.
+Some ARTIQ developers use this method.
+It is only recommended for developers and advanced users.
+
+.. _develop-from-conda:
+
+ARTIQ Anaconda development environment
+======================================
+
+    1. Install ``git`` as recommended for your operating system and distribution.
+    2. Obtain ARTIQ::
+           $ git clone --recursive https://github.com/m-labs/artiq ~/artiq-dev/artiq
+           $ cd ~/artiq-dev/artiq
+    3. :ref:`Install Anaconda or Miniconda <install-anaconda>`
+    4. Create and activate a conda environment named ``artiq-dev`` and install the ``artiq-dev`` package which pulls in all the packages required to develop ARTIQ::
+           $ conda env create -f conda/artiq-dev.yaml
+           $ source activate artiq-dev
+    5. Add the ARTIQ source tree to the environment's search path::
+           $ python setup.py develop
+    6. :ref:`Install Xilinx ISE or Vivado <install-xilinx>`
+    7. :ref:`Obtain and install the JTAG SPI flash proxy bitstream <install-bscan-spi>`
+    8. :ref:`Configure OpenOCD <setup-openocd>`
+    9. :ref:`Build target binaries <build-target-binaries>`
+
 .. _install-from-source:
 
 Installing ARTIQ from source
 ============================
-
-.. note::
-	This method is only recommended for developers and advanced users. An easier way to install ARTIQ is via the Anaconda packages (see :ref:`Installing ARTIQ <install-from-conda>`).
-
 
 Preparing the build environment for the core device
 ---------------------------------------------------
@@ -88,6 +120,8 @@ Preparing the core device FPGA board
 
 These steps are required to generate gateware bitstream (``.bit``) files, build the MiSoC BIOS and ARTIQ runtime, and flash FPGA boards. If the board is already flashed, you may skip those steps and go directly to `Installing the host-side software`.
 
+.. _install-xilinx:
+
 * Install the FPGA vendor tools (i.e. Xilinx ISE and/or Vivado):
 
     * Get Xilinx tools from http://www.xilinx.com/support/download/index.htm. ISE can build gateware bitstreams both for boards using the Spartan-6 (Pipistrello) and 7-series devices (KC705), while Vivado supports only boards using 7-series devices.
@@ -105,6 +139,8 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
 .. note::
     The options ``develop`` and ``--user`` are for setup.py to install Migen in ``~/.local/lib/python3.5``.
+
+.. _install-bscan-spi:
 
 * Install the required flash proxy gateware bitstreams:
 
@@ -164,6 +200,7 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
     .. note:: Make sure that ``/usr/local/llvm-or1k/bin`` is first in your ``PATH``, so that the ``clang`` command you just built is found instead of the system one, if any.
 
+.. _build-target-binaries:
     * For Pipistrello::
 
         $ python3 -m artiq.gateware.targets.pipistrello

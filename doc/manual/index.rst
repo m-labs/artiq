@@ -8,7 +8,7 @@ Contents:
 
     introduction
     installing
-    installing_from_source
+    developing
     release_notes
     rtio
     getting_started_core

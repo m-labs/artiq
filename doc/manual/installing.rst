@@ -16,6 +16,7 @@ The conda package contains pre-built binaries that you can directly flash to you
     Conda packages are supported for Linux (64-bit) and Windows (32- and 64-bit).
     Users of other operating systems (32-bit Linux, BSD, OSX ...) should and can :ref:`install from source <install-from-source>`.
 
+.. _install-anaconda:
 
 Installing Anaconda or Miniconda
 --------------------------------
@@ -104,9 +105,12 @@ They are all shipped in the conda packages, along with the required flash proxy 
 Installing OpenOCD
 ^^^^^^^^^^^^^^^^^^
 
-OpenOCD can be used to write the binary images into the core device FPGA board's flash memory. It can be installed using conda on both Linux and Windows::
+OpenOCD can be used to write the binary images into the core device FPGA board's flash memory.
+The ``artiq`` or ``artiq-dev`` conda packages install ``openocd`` automatically but it can also be installed explicitly using conda on both Linux and Windows::
 
     $ conda install openocd
+
+.. _setup-openocd:
 
 Some additional steps are necessary to ensure that OpenOCD can communicate with the FPGA board.
 
@@ -126,6 +130,11 @@ On Windows, a third-party tool, `Zadig <http://zadig.akeo.ie/>`_, is necessary. 
 5. Click "Install Driver" or "Replace Driver".
 
 You may need to repeat these steps every time you plug the FPGA board into a port where it has not been plugged into previously on the same system.
+
+.. _flashing-core-device:
+
+Flashing the core device
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Then, you can flash the board:
 
