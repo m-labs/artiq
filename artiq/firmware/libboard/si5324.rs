@@ -23,14 +23,14 @@ fn pca9548_select(channel: u8) -> Result<()> {
 // NOTE: the logical parameters DO NOT MAP to physical values written
 // into registers. They have to be mapped; see the datasheet.
 // DSPLLsim reports the logical parameters in the design summary, not
-// the physical register values (but those are present separately).
+// the physical register values.
 pub struct FrequencySettings {
-    n1_hs: u8,
-    nc1_ls: u32,
-    n2_hs: u8,
-    n2_ls: u32,
-    n31: u32,
-    n32: u32
+    pub n1_hs: u8,
+    pub nc1_ls: u32,
+    pub n2_hs: u8,
+    pub n2_ls: u32,
+    pub n31: u32,
+    pub n32: u32
 }
 
 fn map_frequency_settings(settings: &FrequencySettings) -> Result<FrequencySettings> {
@@ -62,7 +62,7 @@ fn map_frequency_settings(settings: &FrequencySettings) -> Result<FrequencySetti
             9  => 0b101,
             10 => 0b110,
             11 => 0b111,
-            _  => return Err("n1_hs has an invalid value")
+            _  => return Err("N1_HS has an invalid value")
         },
         nc1_ls: settings.nc1_ls - 1,
         n2_hs: match settings.n2_hs {
@@ -74,7 +74,7 @@ fn map_frequency_settings(settings: &FrequencySettings) -> Result<FrequencySetti
             9  => 0b101,
             10 => 0b110,
             11 => 0b111,
-            _  => return Err("n2_hs has an invalid value")
+            _  => return Err("N2_HS has an invalid value")
         },
         n2_ls: settings.n2_ls - 1,
         n31: settings.n31 - 1,
