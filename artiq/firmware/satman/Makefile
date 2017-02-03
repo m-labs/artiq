@@ -7,8 +7,7 @@ RUSTOUT := cargo/or1k-unknown-none/debug
 
 LDFLAGS += --gc-sections \
 	-L../libcompiler-rt \
-	-L../libbase \
-	-L../liballoc
+	-L../libbase
 
 all: satman.bin satman.fbi
 
@@ -24,7 +23,7 @@ satman.elf: $(RUSTOUT)/libsatman.a
 		-T $(SATMAN_DIRECTORY)/satman.ld \
 		-o $@ \
 		$^ \
-		-lbase-nofloat -lcompiler-rt -lalloc
+		-lbase-nofloat -lcompiler-rt
 	@chmod -x $@
 
 %.o: $(SATMAN_DIRECTORY)/%.c
