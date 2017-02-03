@@ -13,11 +13,11 @@ pub unsafe fn start() {
     stop();
 
     extern {
-        static _binary_ksupport_elf_start: u8;
-        static _binary_ksupport_elf_end: u8;
+        static _binary____ksupport_ksupport_elf_start: u8;
+        static _binary____ksupport_ksupport_elf_end: u8;
     }
-    let ksupport_start = &_binary_ksupport_elf_start as *const _;
-    let ksupport_end   = &_binary_ksupport_elf_end as *const _;
+    let ksupport_start = &_binary____ksupport_ksupport_elf_start as *const _;
+    let ksupport_end   = &_binary____ksupport_ksupport_elf_end as *const _;
     ptr::copy_nonoverlapping(ksupport_start,
                              (KERNELCPU_EXEC_ADDRESS - KSUPPORT_HEADER_SIZE) as *mut u8,
                              ksupport_end as usize - ksupport_start as usize);
