@@ -21,7 +21,7 @@ pub mod spiflash;
 
 #[cfg(has_i2c)]
 pub mod i2c;
-#[cfg(has_i2c)]
+#[cfg(has_si5324)]
 pub mod si5324;
 
 #[cfg(has_ad9516)]

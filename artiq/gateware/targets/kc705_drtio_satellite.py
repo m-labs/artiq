@@ -98,6 +98,7 @@ class Satellite(BaseSoC):
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
         self.csr_devices.append("i2c")
         self.config["I2C_BUS_COUNT"] = 1
+        self.config["HAS_SI5324"] = None
 
         self.comb += [
             platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx")),
