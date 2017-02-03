@@ -1,6 +1,7 @@
 use core::result;
 use i2c;
 use clock;
+use csr;
 
 type Result<T> = result::Result<T, &'static str>;
 
@@ -18,6 +19,12 @@ fn pca9548_select(channel: u8) -> Result<()> {
     }
     i2c::stop(BUSNO);
     Ok(())
+}
+
+fn reset(en: bool) {
+    unsafe {
+        csr::si5324_rst_n::out_write(if en { 0 } else { 1 })
+    }
 }
 
 // NOTE: the logical parameters DO NOT MAP to physical values written
@@ -125,6 +132,11 @@ fn locked() -> Result<bool> {
 
 pub fn setup_hitless_clock_switching(settings: &FrequencySettings) -> Result<()> {
     let s = map_frequency_settings(settings)?;
+
+    reset(true);
+    clock::spin_us(1_000);
+    reset(false);
+    clock::spin_us(10_000);
 
     #[cfg(soc_platform = "kc705")]
     pca9548_select(7)?;

@@ -92,7 +92,8 @@ class Satellite(BaseSoC):
                 i_I=ClockSignal("rtio_rx"),
                 o_O=si5324_clkin.p, o_OB=si5324_clkin.n
             )
-        self.comb += platform.request("si5324").rst_n.eq(1)
+        self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
+        self.csr_devices.append("si5324_rst_n")
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
         self.csr_devices.append("i2c")
