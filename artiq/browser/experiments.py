@@ -64,7 +64,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
 
             entry = procdesc_to_entry(argument["desc"])(argument)
             widget_item = QtWidgets.QTreeWidgetItem([name])
-            if argument.get("tooltip", None):
+            if argument["tooltip"]:
                 widget_item.setToolTip(0, argument["tooltip"])
             widgets["entry"] = entry
             widgets["widget_item"] = widget_item
