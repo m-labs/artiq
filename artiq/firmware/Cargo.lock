@@ -134,6 +134,7 @@ dependencies = [
  "alloc_artiq 0.0.0",
  "board 0.0.0",
  "build_artiq 0.0.0",
+ "compiler_builtins 0.1.0 (git+https://github.com/rust-lang-nursery/compiler-builtins)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "logger_artiq 0.0.0",
  "std_artiq 0.0.0",

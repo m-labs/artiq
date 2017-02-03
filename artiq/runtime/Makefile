@@ -32,7 +32,7 @@ RUSTFLAGS = \
 	-C target-feature=+mul,+div,+ffl1,+cmov,+addc \
 	-C relocation-model=static \
 	-C opt-level=s \
-	-Cpanic=abort
+	-C panic=abort
 export RUSTFLAGS
 
 all: runtime.bin runtime.fbi

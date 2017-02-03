@@ -1,5 +1,7 @@
+#![feature(compiler_builtins_lib)]
 #![no_std]
 
+extern crate compiler_builtins;
 extern crate alloc_artiq;
 #[macro_use]
 extern crate std_artiq as std;

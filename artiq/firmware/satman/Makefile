@@ -6,14 +6,18 @@ PYTHON ?= python3
 RUSTOUT := cargo/or1k-unknown-none/debug
 
 LDFLAGS += --gc-sections \
-	-L../libcompiler-rt \
 	-L../libbase
+
+RUSTFLAGS = \
+	-C target-feature=+mul,+div,+ffl1,+cmov,+addc \
+	-C opt-level=s \
+	-C panic=abort
+export RUSTFLAGS
 
 all: satman.bin satman.fbi
 
 .PHONY: $(RUSTOUT)/libsatman.a
 $(RUSTOUT)/libsatman.a:
-	RUSTFLAGS="-C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -Cpanic=abort" \
 	CARGO_TARGET_DIR=$(realpath .)/cargo \
 		cargo build --target=or1k-unknown-none \
 			--manifest-path $(realpath $(SATMAN_DIRECTORY))/Cargo.toml
@@ -23,11 +27,8 @@ satman.elf: $(RUSTOUT)/libsatman.a
 		-T $(SATMAN_DIRECTORY)/satman.ld \
 		-o $@ \
 		$^ \
-		-lbase-nofloat -lcompiler-rt
+		-lbase-nofloat
 	@chmod -x $@
-
-%.o: $(SATMAN_DIRECTORY)/%.c
-	$(compile)
 
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
