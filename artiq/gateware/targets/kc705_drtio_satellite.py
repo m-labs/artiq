@@ -98,6 +98,11 @@ class Satellite(BaseSoC):
         self.csr_devices.append("i2c")
         self.config["I2C_BUS_COUNT"] = 1
 
+        self.comb += [
+            platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx")),
+            platform.request("user_sma_clock_n").eq(ClockSignal("rtio"))
+        ]
+
         rtio_clk_period = 1e9/self.transceiver.rtio_clk_freq
         platform.add_period_constraint(self.transceiver.txoutclk, rtio_clk_period)
         platform.add_period_constraint(self.transceiver.rxoutclk, rtio_clk_period)
