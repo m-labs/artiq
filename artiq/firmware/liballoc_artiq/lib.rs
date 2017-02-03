@@ -1,5 +1,3 @@
-#![allow(dead_code)] // FIXME
-
 #![feature(allocator)]
 #![no_std]
 #![allocator]

@@ -36,13 +36,6 @@ class TKeyword(types.TMono):
 def is_keyword(typ):
     return isinstance(typ, TKeyword)
 
-class TExceptionTypeInfo(types.TMono):
-    def __init__(self):
-        super().__init__("exntypeinfo")
-
-def is_exn_typeinfo(typ):
-    return isinstance(typ, TExceptionTypeInfo)
-
 class Value:
     """
     An SSA value that keeps track of its uses.

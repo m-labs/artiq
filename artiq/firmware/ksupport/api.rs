@@ -1,8 +1,6 @@
-use libc::{c_void, c_char, size_t};
-
 macro_rules! api {
     ($i:ident) => ({
-        extern { static $i: c_void; }
+        extern { static $i: u8; }
         api!($i = &$i as *const _)
     });
     ($i:ident, $d:item) => ({
@@ -68,9 +66,8 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(__powidf2),
 
     /* libc */
-    api!(strcmp),
-    api!(strlen, extern { fn strlen(s: *const c_char) -> size_t; }),
     api!(abort = ::abort),
+    api!(memcmp, extern { fn memcmp(a: *const u8, b: *mut u8, size: usize); }),
 
     /* libm */
     api!(sqrt),

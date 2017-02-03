@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-use core::marker::PhantomData;
 use core::fmt;
 
 pub const KERNELCPU_EXEC_ADDRESS:    usize = 0x40800000;
@@ -11,14 +10,13 @@ pub const KSUPPORT_HEADER_SIZE:      usize = 0x80;
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct Exception<'a> {
-    pub name:     *const u8,
-    pub file:     *const u8,
+    pub name:     &'a str,
+    pub file:     &'a str,
     pub line:     u32,
     pub column:   u32,
-    pub function: *const u8,
-    pub message:  *const u8,
-    pub param:    [i64; 3],
-    pub phantom:  PhantomData<&'a str>
+    pub function: &'a str,
+    pub message:  &'a str,
+    pub param:    [i64; 3]
 }
 
 #[derive(Debug)]

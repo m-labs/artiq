@@ -62,8 +62,7 @@ struct Session<'a> {
     congress: &'a mut Congress,
     kernel_state: KernelState,
     watchdog_set: board::clock::WatchdogSet,
-    log_buffer: String,
-    interner: BTreeSet<String>
+    log_buffer: String
 }
 
 impl<'a> Session<'a> {
@@ -72,8 +71,7 @@ impl<'a> Session<'a> {
             congress: congress,
             kernel_state: KernelState::Absent,
             watchdog_set: board::clock::WatchdogSet::new(),
-            log_buffer: String::new(),
-            interner: BTreeSet::new()
+            log_buffer: String::new()
         }
     }
 
@@ -183,6 +181,7 @@ unsafe fn kern_load(io: &Io, session: &mut Session, library: &[u8]) -> io::Resul
                 Ok(())
             }
             &kern::LoadReply(Err(error)) => {
+                kernel::stop();
                 Err(io::Error::new(io::ErrorKind::Other,
                                    format!("cannot load kernel: {}", error)))
             }
@@ -332,22 +331,14 @@ fn process_host_message(io: &Io,
                 }
             })?;
 
-            // FIXME: gross.
-            fn into_c_str(interner: &mut BTreeSet<String>, s: String) -> *const u8 {
-                let s = s + "\0";
-                interner.insert(s.clone());
-                let p = interner.get(&s).unwrap().as_bytes().as_ptr();
-                p
-            }
             let exn = kern::Exception {
-                name: into_c_str(&mut session.interner, name),
-                message: into_c_str(&mut session.interner, message),
-                param: param,
-                file: into_c_str(&mut session.interner, file),
-                line: line,
-                column: column,
-                function: into_c_str(&mut session.interner, function),
-                phantom: ::core::marker::PhantomData
+                name:     name.as_ref(),
+                message:  message.as_ref(),
+                param:    param,
+                file:     file.as_ref(),
+                line:     line,
+                column:   column,
+                function: function.as_ref()
             };
             kern_send(io, &kern::RpcRecvReply(Err(exn)))?;
 
@@ -513,40 +504,33 @@ fn process_kern_message(io: &Io,
                 }
             }
 
-            &kern::RunException { exception: ref exn, backtrace } => {
+            &kern::RunException {
+                exception: kern::Exception { name, message, param, file, line, column, function },
+                backtrace
+            } => {
                 unsafe { kernel::stop() }
                 session.kernel_state = KernelState::Absent;
                 unsafe { session.congress.cache.unborrow() }
 
-                unsafe fn from_c_str<'a>(s: *const u8) -> &'a str {
-                    use ::libc::{c_char, size_t};
-                    use core::slice;
-                    extern { fn strlen(s: *const c_char) -> size_t; }
-                    let s = slice::from_raw_parts(s, strlen(s as *const c_char));
-                    str::from_utf8_unchecked(s)
-                }
-                let name = unsafe { from_c_str(exn.name) };
-                let message = unsafe { from_c_str(exn.message) };
-                let file = unsafe { from_c_str(exn.file) };
-                let function = unsafe { from_c_str(exn.function) };
                 match stream {
                     None => {
                         error!("exception in flash kernel");
-                        error!("{}: {} {:?}", name, message, exn.param);
-                        error!("at {}:{}:{} in {}", file, exn.line, exn.column, function);
+                        error!("{}: {} {:?}", name, message, param);
+                        error!("at {}:{}:{} in {}", file, line, column, function);
                         return Ok(true)
                     },
-                    Some(ref mut stream) =>
+                    Some(ref mut stream) => {
                         host_write(stream, host::Reply::KernelException {
-                            name: name,
-                            message: message,
-                            param: exn.param,
-                            file: file,
-                            line: exn.line,
-                            column: exn.column,
-                            function: function,
+                            name:      name,
+                            message:   message,
+                            param:     param,
+                            file:      file,
+                            line:      line,
+                            column:    column,
+                            function:  function,
                             backtrace: backtrace
                         })
+                    }
                 }
             }
 

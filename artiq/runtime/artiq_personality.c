@@ -230,18 +230,19 @@ static _Unwind_Reason_Code __artiq_uncaught_exception(
         void *stop_parameter);
 
 struct artiq_raised_exception {
-  struct _Unwind_Exception unwind;
-  struct artiq_exception artiq;
-  int handled;
+  struct    _Unwind_Exception unwind;
+  struct    artiq_exception artiq;
+  int       handled;
   uintptr_t backtrace[1024];
-  size_t backtrace_size;
+  size_t    backtrace_size;
 };
 
 static struct artiq_raised_exception inflight;
 
 void __artiq_raise(struct artiq_exception *artiq_exn) {
-  EH_LOG("===> raise (name=%s, msg=%s, params=[%lld,%lld,%lld])",
-         artiq_exn->name, artiq_exn->message,
+  EH_LOG("===> raise (name=%.*s, msg=%.*s, params=[%lld,%lld,%lld])",
+         (int)artiq_exn->name.len, (const char*)artiq_exn->name.ptr,
+         (int)artiq_exn->name.len, (const char*)artiq_exn->message.ptr,
          (long long int)artiq_exn->param[0],
          (long long int)artiq_exn->param[1],
          (long long int)artiq_exn->param[2]);
@@ -269,8 +270,6 @@ void __artiq_reraise() {
     __artiq_raise(&inflight.artiq);
   } else {
     EH_LOG0("===> resume");
-    EH_ASSERT((inflight.artiq.typeinfo != 0) &&
-              "Need an exception to reraise");
     _Unwind_Resume(&inflight.unwind);
     abort();
   }
@@ -333,8 +332,8 @@ _Unwind_Reason_Code __artiq_personality(
 
   struct artiq_raised_exception *inflight =
           (struct artiq_raised_exception*)exceptionObject;
-  EH_LOG("=> exception name=%s",
-         inflight->artiq.name);
+  EH_LOG("=> exception name=%.*s",
+         (int)inflight->artiq.name.len, (const char*)inflight->artiq.name.ptr);
 
   // Get a pointer to LSDA. If there's no LSDA, this function doesn't
   // actually handle any exceptions.
@@ -418,13 +417,17 @@ _Unwind_Reason_Code __artiq_personality(
           if(typeInfoOffset > 0) {
             unsigned encodingSize = getEncodingSize(ttypeEncoding);
             const uint8_t *typeInfoPtrPtr = classInfo - typeInfoOffset * encodingSize;
-            uintptr_t typeInfoPtr = readEncodedPointer(&typeInfoPtrPtr, ttypeEncoding);
+            const struct slice *typeInfoPtr =
+              (const struct slice *)readEncodedPointer(&typeInfoPtrPtr, ttypeEncoding);
             EH_LOG("encodingSize=%u typeInfoPtrPtr=%p typeInfoPtr=%p",
                    encodingSize, typeInfoPtrPtr, (void*)typeInfoPtr);
-            EH_LOG("typeInfo=%s", (char*)typeInfoPtr);
+            if(typeInfoPtr != NULL) {
+              EH_LOG("typeInfo=%.*s", (int)typeInfoPtr->len, (const char *)typeInfoPtr->ptr);
+            }
 
-            if(typeInfoPtr == 0 || !strcmp((char*)inflight->artiq.typeinfo,
-                                           (char*)typeInfoPtr)) {
+            if(typeInfoPtr == NULL ||
+                  (inflight->artiq.name.len == typeInfoPtr->len &&
+                  !memcmp(inflight->artiq.name.ptr, typeInfoPtr->ptr, typeInfoPtr->len))) {
               EH_LOG0("matching action found");
               exceptionMatched = 1;
               break;

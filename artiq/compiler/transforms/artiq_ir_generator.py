@@ -1332,10 +1332,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 rhs_length = self.iterable_len(rhs)
 
                 result_length = self.append(ir.Arith(ast.Add(loc=None), lhs_length, rhs_length))
-                if builtins.is_str(node.left.type):
-                    result_last   = result_length
-                    result_length = self.append(ir.Arith(ast.Add(loc=None), result_length,
-                                                         ir.Constant(1, self._size_type)))
                 result = self.append(ir.Alloc([result_length], node.type))
 
                 # Copy lhs
@@ -1358,10 +1354,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self._make_loop(ir.Constant(0, self._size_type),
                     lambda index: self.append(ir.Compare(ast.Lt(loc=None), index, rhs_length)),
                     body_gen)
-
-                if builtins.is_str(node.left.type):
-                    self.append(ir.SetElem(result, result_last,
-                                           ir.Constant(0, builtins.TInt(types.TValue(8)))))
 
                 return result
             else:
@@ -1564,13 +1556,13 @@ class ARTIQIRGenerator(algorithm.Visitor):
     # Keep this function with builtins.TException.attributes.
     def alloc_exn(self, typ, message=None, param0=None, param1=None, param2=None):
         typ = typ.find()
+        name = "{}:{}".format(typ.id, typ.name)
         attributes = [
-            ir.Constant("{}:{}".format(typ.id, typ.name),
-                        ir.TExceptionTypeInfo()),         # typeinfo
-            ir.Constant("<not thrown>", builtins.TStr()), # file
-            ir.Constant(0, builtins.TInt32()),            # line
-            ir.Constant(0, builtins.TInt32()),            # column
-            ir.Constant("<not thrown>", builtins.TStr()), # function
+            ir.Constant(name,           builtins.TStr()),   # typeinfo
+            ir.Constant("<not thrown>", builtins.TStr()),   # file
+            ir.Constant(0,              builtins.TInt32()), # line
+            ir.Constant(0,              builtins.TInt32()), # column
+            ir.Constant("<not thrown>", builtins.TStr()),   # function
         ]
 
         if message is None:
@@ -1892,7 +1884,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         else:
             explanation = node.loc.source()
         self.append(ir.Builtin("printf", [
-                ir.Constant("assertion failed at %s: %s\n", builtins.TStr()),
+                ir.Constant("assertion failed at %.*s: %.*s\n\x00", builtins.TStr()),
                 ir.Constant(str(node.loc.begin()), builtins.TStr()),
                 ir.Constant(str(explanation), builtins.TStr()),
             ], builtins.TNone()))
@@ -1905,7 +1897,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             subexpr_body = self.current_block = self.add_block("assert.subexpr.body")
             self.append(ir.Builtin("printf", [
-                    ir.Constant("  (%s) = ", builtins.TStr()),
+                    ir.Constant("  (%.*s) = \x00", builtins.TStr()),
                     ir.Constant(subexpr_node.loc.source(), builtins.TStr())
                 ], builtins.TNone()))
             subexpr_value = self.append(ir.Builtin("unwrap", [subexpr_value_opt],
@@ -1937,7 +1929,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         def flush():
             nonlocal format_string, args
             if format_string != "":
-                printf(format_string, *args)
+                printf(format_string + "\x00", *args)
                 format_string = ""
                 args = []
 
@@ -1961,7 +1953,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             elif builtins.is_none(value.type):
                 format_string += "None"
             elif builtins.is_bool(value.type):
-                format_string += "%s"
+                format_string += "%.*s"
                 args.append(self.append(ir.Select(value,
                                                   ir.Constant("True", builtins.TStr()),
                                                   ir.Constant("False", builtins.TStr()))))
@@ -1979,9 +1971,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 args.append(value)
             elif builtins.is_str(value.type):
                 if as_repr:
-                    format_string += "\"%s\""
+                    format_string += "\"%.*s\""
                 else:
-                    format_string += "%s"
+                    format_string += "%.*s"
                 args.append(value)
             elif builtins.is_listish(value.type):
                 if builtins.is_list(value.type):
@@ -2000,7 +1992,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     head = self.current_block
 
                     if_last = self.current_block = self.add_block("print.comma")
-                    printf(", ")
+                    printf(", \x00")
 
                     tail = self.current_block = self.add_block("print.tail")
                     if_last.append(ir.Branch(tail))
@@ -2032,7 +2024,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 param2  = self.append(ir.GetAttr(value, "__param1__"))
                 param3  = self.append(ir.GetAttr(value, "__param2__"))
 
-                format_string += "%s(%s, %lld, %lld, %lld)"
+                format_string += "%.*s(%.*s, %lld, %lld, %lld)"
                 args += [name, message, param1, param2, param3]
             else:
                 assert False

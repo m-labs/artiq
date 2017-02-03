@@ -6,6 +6,7 @@ extern crate alloc_artiq;
 #[macro_use]
 extern crate std_artiq as std;
 extern crate libc;
+extern crate cslice;
 #[macro_use]
 extern crate log;
 extern crate logger_artiq;

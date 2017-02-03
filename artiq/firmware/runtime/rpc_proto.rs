@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 
-use core::slice;
+use core::str;
 use std::io::{self, Read, Write};
+use cslice::{CSlice, CMutSlice};
 use proto::*;
 use self::tag::{Tag, TagIterator, split_tag};
 
@@ -30,11 +31,10 @@ unsafe fn recv_value(reader: &mut Read, tag: Tag, data: &mut *mut (),
                 *ptr = read_u64(reader)?; Ok(())
             }),
         Tag::String => {
-            consume_value!(*mut u8, |ptr| {
-                let length = read_u32(reader)?;
-                // NB: the received string includes a trailing \0
-                *ptr = alloc(length as usize)? as *mut u8;
-                reader.read_exact(slice::from_raw_parts_mut(*ptr, length as usize))?;
+            consume_value!(CMutSlice<u8>, |ptr| {
+                let length = read_u32(reader)? as usize;
+                *ptr = CMutSlice::new(alloc(length)? as *mut u8, length);
+                reader.read_exact((*ptr).as_mut())?;
                 Ok(())
             })
         }
@@ -86,12 +86,6 @@ pub fn recv_return(reader: &mut Read, tag_bytes: &[u8], data: *mut (),
     Ok(())
 }
 
-pub unsafe fn from_c_str<'a>(ptr: *const u8) -> &'a str {
-    use core::{str, slice};
-    extern { fn strlen(ptr: *const u8) -> usize; }
-    str::from_utf8_unchecked(slice::from_raw_parts(ptr as *const u8, strlen(ptr)))
-}
-
 unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::Result<()> {
     macro_rules! consume_value {
         ($ty:ty, |$ptr:ident| $map:expr) => ({
@@ -114,8 +108,8 @@ unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::
             consume_value!(u64, |ptr|
                 write_u64(writer, *ptr)),
         Tag::String =>
-            consume_value!(*const u8, |ptr|
-                write_string(writer, from_c_str(*ptr))),
+            consume_value!(CSlice<u8>, |ptr|
+                write_string(writer, str::from_utf8_unchecked((*ptr).as_ref()))),
         Tag::Tuple(it, arity) => {
             let mut it = it.clone();
             write_u8(writer, arity)?;
@@ -145,9 +139,9 @@ unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::
             Ok(())
         }
         Tag::Keyword(it) => {
-            struct Keyword { name: *const u8, contents: () };
+            struct Keyword<'a> { name: CSlice<'a, u8>, contents: () };
             consume_value!(Keyword, |ptr| {
-                write_string(writer, from_c_str((*ptr).name))?;
+                write_string(writer, str::from_utf8_unchecked((*ptr).name.as_ref()))?;
                 let tag = it.clone().next().expect("truncated tag");
                 let mut data = &(*ptr).contents as *const ();
                 send_value(writer, tag, &mut data)

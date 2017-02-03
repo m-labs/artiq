@@ -30,15 +30,14 @@ extern {
 macro_rules! artiq_raise {
     ($name:expr, $message:expr, $param0:expr, $param1:expr, $param2:expr) => ({
         let exn = $crate::kernel_proto::Exception {
-            name:     concat!("0:artiq.coredevice.exceptions.", $name, "\0").as_bytes().as_ptr(),
-            file:     concat!(file!(), "\0").as_bytes().as_ptr(),
+            name:     concat!("0:artiq.coredevice.exceptions.", $name),
+            file:     file!(),
             line:     line!(),
             column:   column!(),
             // https://github.com/rust-lang/rfcs/pull/1719
-            function: "(Rust function)\0".as_bytes().as_ptr(),
-            message:  concat!($message, "\0").as_bytes().as_ptr(),
-            param:    [$param0, $param1, $param2],
-            phantom:  ::core::marker::PhantomData
+            function: "(Rust function)",
+            message:  $message,
+            param:    [$param0, $param1, $param2]
         };
         #[allow(unused_unsafe)]
         unsafe { $crate::__artiq_raise(&exn as *const _) }
@@ -48,9 +47,8 @@ macro_rules! artiq_raise {
     });
 }
 
-use core::{mem, ptr, slice, str};
+use core::{mem, ptr, str};
 use std::io::Cursor;
-use libc::{c_char, size_t};
 use cslice::{CSlice, CMutSlice, AsCSlice};
 use kernel_proto::*;
 use dyld::Library;
@@ -125,28 +123,22 @@ extern fn abort() -> ! {
     loop {}
 }
 
-extern fn send_rpc(service: u32, tag: *const u8, data: *const *const ()) {
-    extern { fn strlen(s: *const c_char) -> size_t; }
-    let tag = unsafe { slice::from_raw_parts(tag, strlen(tag as *const c_char)) };
-
+extern fn send_rpc(service: u32, tag: CSlice<u8>, data: *const *const ()) {
     while !rpc_queue::empty() {}
     send(&RpcSend {
         async:   false,
         service: service,
-        tag:     tag,
+        tag:     tag.as_ref(),
         data:    data
     })
 }
 
-extern fn send_async_rpc(service: u32, tag: *const u8, data: *const *const ()) {
-    extern { fn strlen(s: *const c_char) -> size_t; }
-    let tag = unsafe { slice::from_raw_parts(tag, strlen(tag as *const c_char)) };
-
+extern fn send_async_rpc(service: u32, tag: CSlice<u8>, data: *const *const ()) {
     while rpc_queue::full() {}
     rpc_queue::enqueue(|mut slice| {
         let length = {
             let mut writer = Cursor::new(&mut slice[4..]);
-            rpc_proto::send_args(&mut writer, service, tag, data)?;
+            rpc_proto::send_args(&mut writer, service, tag.as_ref(), data)?;
             writer.position()
         };
         proto::write_u32(&mut slice, length as u32)
@@ -157,7 +149,7 @@ extern fn send_async_rpc(service: u32, tag: *const u8, data: *const *const ()) {
         send(&RpcSend {
             async:   true,
             service: service,
-            tag:     tag,
+            tag:     tag.as_ref(),
             data:    data
         })
     })
@@ -206,21 +198,18 @@ extern fn watchdog_clear(id: i32) {
     send(&WatchdogClear { id: id as usize })
 }
 
-extern fn cache_get(key: *const u8) -> CSlice<'static, i32> {
-    extern { fn strlen(s: *const c_char) -> size_t; }
-    let key = unsafe { slice::from_raw_parts(key, strlen(key as *const c_char)) };
-    let key = unsafe { str::from_utf8_unchecked(key) };
-
-    send(&CacheGetRequest { key: key });
+extern fn cache_get(key: CSlice<u8>) -> CSlice<'static, i32> {
+    send(&CacheGetRequest {
+        key:   str::from_utf8(key.as_ref()).unwrap()
+    });
     recv!(&CacheGetReply { value } => value.as_c_slice())
 }
 
-extern fn cache_put(key: *const u8, list: CSlice<i32>) {
-    extern { fn strlen(s: *const c_char) -> size_t; }
-    let key = unsafe { slice::from_raw_parts(key, strlen(key as *const c_char)) };
-    let key = unsafe { str::from_utf8_unchecked(key) };
-
-    send(&CachePutRequest { key: key, value: list.as_ref() });
+extern fn cache_put(key: CSlice<u8>, list: CSlice<i32>) {
+    send(&CachePutRequest {
+        key:   str::from_utf8(key.as_ref()).unwrap(),
+        value: list.as_ref()
+    });
     recv!(&CachePutReply { succeeded } => {
         if !succeeded {
             artiq_raise!("CacheError", "cannot put into a busy cache row")
@@ -249,8 +238,8 @@ extern fn i2c_read(busno: i32, ack: bool) -> i32 {
 unsafe fn attribute_writeback(typeinfo: *const ()) {
     struct Attr {
         offset: usize,
-        tag:    *const u8,
-        name:   *const u8
+        tag:    CSlice<'static, u8>,
+        name:   CSlice<'static, u8>
     }
 
     struct Type {
@@ -276,7 +265,7 @@ unsafe fn attribute_writeback(typeinfo: *const ()) {
                 let attribute = *attributes;
                 attributes = attributes.offset(1);
 
-                if !(*attribute).tag.is_null() {
+                if (*attribute).tag.len() > 0 {
                     send_async_rpc(0, (*attribute).tag, [
                         &object as *const _ as *const (),
                         &(*attribute).name as *const _ as *const (),

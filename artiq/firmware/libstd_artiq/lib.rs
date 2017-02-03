@@ -1,4 +1,4 @@
-#![feature(lang_items, asm, alloc, collections, libc, needs_panic_runtime,
+#![feature(lang_items, asm, alloc, collections, needs_panic_runtime,
            unicode, raw, int_error_internals, try_from, macro_reexport,
            allow_internal_unstable, stmt_expr_attributes)]
 #![no_std]
@@ -9,7 +9,6 @@ extern crate alloc;
 #[macro_use]
 #[macro_reexport(vec, format)]
 extern crate collections;
-extern crate libc;
 
 pub use core::{any, cell, clone, cmp, convert, default, hash, iter, marker, mem, num,
     ops, option, ptr, result, sync,
