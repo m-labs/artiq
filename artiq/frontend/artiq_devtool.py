@@ -25,12 +25,15 @@ def get_argparser():
     parser.add_argument("--host", metavar="HOST",
                         type=str, default="lab.m-labs.hk",
                         help="SSH host where the development board is located")
-    parser.add_argument("--serial", metavar="SERIAL",
+    parser.add_argument("-s", "--serial", metavar="SERIAL",
                         type=str, default="/dev/ttyUSB0",
                         help="TTY device corresponding to the development board")
-    parser.add_argument("--ip", metavar="IP",
+    parser.add_argument("-i", "--ip", metavar="IP",
                         type=str, default="kc705.lab.m-labs.hk",
                         help="IP address corresponding to the development board")
+    parser.add_argument("-t", "--target", metavar="TARGET",
+                        type=str, default="kc705_dds",
+                        help="Target to build (one of: kc705_dds kc705_drtio_satellite)")
 
     parser.add_argument("actions", metavar="ACTION",
                         type=str, default=[], nargs="+",
@@ -42,6 +45,13 @@ def get_argparser():
 def main():
     args = get_argparser().parse_args()
     init_logger(args)
+
+    if args.target == "kc705_dds":
+        firmware = "runtime"
+    elif args.target == "kc705_drtio_satellite":
+        firmware = "satman"
+    else:
+        raise NotImplementedError("unknown target {}".format(args.target))
 
     ssh = None
     def get_ssh():
@@ -70,7 +80,8 @@ def main():
         logger.info("Executing {}".format(cmd))
         chan = get_ssh().get_transport().open_session()
         chan.set_combine_stderr(True)
-        chan.exec_command(cmd.format(tmp=tmp, env=env, serial=args.serial, ip=args.ip, **kws))
+        chan.exec_command(cmd.format(tmp=tmp, env=env, serial=args.serial, ip=args.ip,
+                                     firmware=firmware, **kws))
         return chan.makefile()
 
     def drain(chan):
@@ -82,26 +93,28 @@ def main():
 
     for action in args.actions:
         if action == "build":
-            logger.info("Building runtime")
+            logger.info("Building firmware")
             try:
-                subprocess.check_call(["python3", "-m", "artiq.gateware.targets.kc705_dds",
-                                            "-H", "nist_clock",
-                                            "--no-compile-gateware",
-                                            "--output-dir", "/tmp/kc705"])
+                subprocess.check_call(["python3",
+                                        "-m", "artiq.gateware.targets." + args.target,
+                                        "--no-compile-gateware",
+                                        "--output-dir",
+                                        "/tmp/{target}".format(target=args.target)])
             except subprocess.CalledProcessError:
                 logger.error("Build failed")
                 sys.exit(1)
 
         elif action == "boot" or action == "boot+log":
-            logger.info("Uploading runtime")
+            logger.info("Uploading firmware")
             get_sftp().mkdir("/tmp/{tmp}".format(tmp=tmp))
-            get_sftp().put("/tmp/kc705/software/runtime/runtime.bin",
-                           "/tmp/{tmp}/runtime.bin".format(tmp=tmp))
+            get_sftp().put("/tmp/{target}/software/{firmware}/{firmware}.bin"
+                                .format(target=args.target, firmware=firmware),
+                           "/tmp/{tmp}/{firmware}.bin".format(tmp=tmp, firmware=firmware))
 
-            logger.info("Booting runtime")
+            logger.info("Booting firmware")
             flterm = run_command(
                 "{env} python3 flterm.py {serial} " +
-                "--kernel /tmp/{tmp}/runtime.bin " +
+                "--kernel /tmp/{tmp}/{firmware}.bin " +
                 ("--upload-only" if action == "boot" else "--output-only"))
             artiq_flash = run_command(
                 "{env} artiq_flash start")
