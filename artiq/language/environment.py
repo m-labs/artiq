@@ -174,8 +174,8 @@ class TraceArgumentManager:
     def __init__(self):
         self.requested_args = OrderedDict()
 
-    def get(self, key, processor, group):
-        self.requested_args[key] = processor, group
+    def get(self, key, processor, group, tooltip):
+        self.requested_args[key] = processor, group, tooltip
         return None
 
 
@@ -183,7 +183,7 @@ class ProcessArgumentManager:
     def __init__(self, unprocessed_arguments):
         self.unprocessed_arguments = unprocessed_arguments
 
-    def get(self, key, processor, group):
+    def get(self, key, processor, group, tooltip):
         if key in self.unprocessed_arguments:
             r = processor.process(self.unprocessed_arguments[key])
         else:
@@ -233,7 +233,7 @@ class HasEnvironment:
         only meant to be executed programmatically (not from the GUI)."""
         pass
 
-    def get_argument(self, key, processor, group=None):
+    def get_argument(self, key, processor, group=None, tooltip=None):
         """Retrieves and returns the value of an argument.
 
         This function should only be called from ``build``.
@@ -243,18 +243,21 @@ class HasEnvironment:
             as instances of ``BooleanValue`` and ``NumberValue``.
         :param group: An optional string that defines what group the argument
             belongs to, for user interface purposes.
+        :param tooltip: An optional string to describe the argument in more
+            detail, applied as a tooltip to the argument name in the user
+            interface.
         """
         if not self.__in_build:
             raise TypeError("get_argument() should only "
                             "be called from build()")
-        return self.__argument_mgr.get(key, processor, group)
+        return self.__argument_mgr.get(key, processor, group, tooltip)
 
-    def setattr_argument(self, key, processor=None, group=None):
+    def setattr_argument(self, key, processor=None, group=None, tooltip=None):
         """Sets an argument as attribute. The names of the argument and of the
         attribute are the same.
 
         The key is added to the instance's kernel invariants."""
-        setattr(self, key, self.get_argument(key, processor, group))
+        setattr(self, key, self.get_argument(key, processor, group, tooltip))
         kernel_invariants = getattr(self, "kernel_invariants", set())
         self.kernel_invariants = kernel_invariants | {key}
 

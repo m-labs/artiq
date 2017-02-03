@@ -166,8 +166,8 @@ def examine(device_mgr, dataset_mgr, file):
             argument_mgr = TraceArgumentManager()
             exp_class((device_mgr, dataset_mgr, argument_mgr))
             arginfo = OrderedDict(
-                (k, (proc.describe(), group))
-                for k, (proc, group) in argument_mgr.requested_args.items())
+                (k, (proc.describe(), group, tooltip))
+                for k, (proc, group, tooltip) in argument_mgr.requested_args.items())
             register_experiment(class_name, name, arginfo)
 
 
