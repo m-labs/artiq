@@ -13,7 +13,6 @@ path = "lib.rs"
 build_artiq = { path = "../libbuild_artiq" }
 
 [dependencies]
-compiler_builtins = { git = "https://github.com/rust-lang-nursery/compiler-builtins" }
 alloc_artiq = { path = "../liballoc_artiq" }
 std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
 logger_artiq = { path = "../liblogger_artiq" }
@@ -22,6 +21,10 @@ log = { version = "0.3", default-features = false, features = ["max_level_debug"
 board = { path = "../libboard", features = ["uart_console"] }
 fringe = { version = "= 1.1.0", default-features = false, features = ["alloc"] }
 byteorder = { version = "1.0", default-features = false }
+
+[dependencies.compiler_builtins]
+git = "https://github.com/rust-lang-nursery/compiler-builtins"
+features = ["mem"]
 
 [dependencies.smoltcp]
 git = "https://github.com/m-labs/smoltcp"

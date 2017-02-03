@@ -45,11 +45,7 @@ $(RUSTOUT)/libruntime.a:
 				--manifest-path $(realpath $(RUNTIME_DIRECTORY)/../firmware/runtime/Cargo.toml)
 
 runtime.elf: $(RUSTOUT)/libruntime.a ksupport_data.o
-	$(LD) $(LDFLAGS) \
-		-T $(RUNTIME_DIRECTORY)/runtime.ld \
-		-o $@ \
-		$^ \
-		-lbase-nofloat
+	$(LD) $(LDFLAGS) -T $(RUNTIME_DIRECTORY)/runtime.ld -o $@ $^
 	@chmod -x $@
 
 .PHONY: $(RUSTOUT_KSUPPORT)/libksupport.a

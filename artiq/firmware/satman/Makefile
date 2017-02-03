@@ -23,11 +23,7 @@ $(RUSTOUT)/libsatman.a:
 			--manifest-path $(realpath $(SATMAN_DIRECTORY))/Cargo.toml
 
 satman.elf: $(RUSTOUT)/libsatman.a
-	$(LD) $(LDFLAGS) \
-		-T $(SATMAN_DIRECTORY)/satman.ld \
-		-o $@ \
-		$^ \
-		-lbase-nofloat
+	$(LD) $(LDFLAGS) -T $(SATMAN_DIRECTORY)/satman.ld -o $@ $^
 	@chmod -x $@
 
 %.bin: %.elf

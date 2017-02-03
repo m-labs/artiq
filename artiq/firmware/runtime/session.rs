@@ -3,7 +3,6 @@ use std::{mem, str};
 use std::cell::{Cell, RefCell};
 use std::io::{self, Read, Write};
 use std::error::Error;
-use std::btree_set::BTreeSet;
 use {config, rtio_mgt, mailbox, rpc_queue, kernel};
 use logger_artiq::BufferLogger;
 use cache::Cache;

@@ -1,11 +1,10 @@
 #![no_std]
-#![feature(compiler_builtins_lib, libc, repr_simd, const_fn)]
+#![feature(compiler_builtins_lib, repr_simd, const_fn)]
 
 extern crate compiler_builtins;
 extern crate alloc_artiq;
 #[macro_use]
 extern crate std_artiq as std;
-extern crate libc;
 extern crate cslice;
 #[macro_use]
 extern crate log;
@@ -18,11 +17,6 @@ extern crate board;
 
 use std::boxed::Box;
 use smoltcp::wire::{EthernetAddress, IpAddress};
-
-extern {
-    fn readchar() -> libc::c_char;
-    fn readchar_nonblock() -> libc::c_int;
-}
 
 macro_rules! borrow_mut {
     ($x:expr) => ({
@@ -68,7 +62,7 @@ fn startup() {
     let t = board::clock::get_ms();
     info!("press 'e' to erase startup and idle kernels...");
     while board::clock::get_ms() < t + 1000 {
-        if unsafe { readchar_nonblock() != 0 && readchar() == b'e' as libc::c_char } {
+        if unsafe { board::csr::uart::rxtx_read() == b'e' } {
             config::remove("startup_kernel").unwrap();
             config::remove("idle_kernel").unwrap();
             info!("startup and idle kernels erased");
@@ -143,41 +137,36 @@ fn startup() {
     }
 }
 
-use board::{irq, csr};
-extern {
-    fn uart_init();
-    fn uart_isr();
-
-    static mut _fheap: u8;
-    static mut _eheap: u8;
-}
-
 #[no_mangle]
-pub unsafe extern fn main() -> i32 {
-    irq::set_mask(0);
-    irq::set_ie(true);
-    uart_init();
+pub extern fn main() -> i32 {
+    unsafe {
+        extern {
+            static mut _fheap: u8;
+            static mut _eheap: u8;
+        }
+        alloc_artiq::seed(&mut _fheap as *mut u8,
+                          &_eheap as *const u8 as usize - &_fheap as *const u8 as usize);
 
-    alloc_artiq::seed(&mut _fheap as *mut u8,
-                      &_eheap as *const u8 as usize - &_fheap as *const u8 as usize);
-
-    static mut LOG_BUFFER: [u8; 65536] = [0; 65536];
-    logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(startup);
-    0
-}
-
-#[no_mangle]
-pub unsafe extern fn isr() {
-    let irqs = irq::pending() & irq::get_mask();
-    if irqs & (1 << csr::UART_INTERRUPT) != 0 {
-        uart_isr()
+        static mut LOG_BUFFER: [u8; 65536] = [0; 65536];
+        logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(startup);
+        0
     }
+}
+
+#[no_mangle]
+pub extern fn exception_handler(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
+    panic!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea)
+}
+
+#[no_mangle]
+pub extern fn abort() {
+    panic!("aborted")
 }
 
 // Allow linking with crates that are built as -Cpanic=unwind even if we use -Cpanic=abort.
 // This is never called.
 #[allow(non_snake_case)]
 #[no_mangle]
-pub extern "C" fn _Unwind_Resume() -> ! {
+pub extern fn _Unwind_Resume() -> ! {
     loop {}
 }

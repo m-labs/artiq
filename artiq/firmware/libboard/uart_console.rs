@@ -1,11 +1,16 @@
 use core::fmt;
+use csr;
 
 pub struct Console;
 
 impl fmt::Write for Console {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
-        extern { fn putchar(c: i32) -> i32; }
-        for c in s.bytes() { unsafe { putchar(c as i32); } }
+        for c in s.bytes() {
+            unsafe {
+                while csr::uart::txfull_read() != 0 {}
+                csr::uart::rxtx_write(c)
+            }
+        }
         Ok(())
     }
 }

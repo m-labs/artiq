@@ -309,7 +309,7 @@ pub unsafe fn main() {
 }
 
 #[no_mangle]
-pub fn exception_handler(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
+pub extern fn exception_handler(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
     println!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea);
     send(&RunAborted)
 }
