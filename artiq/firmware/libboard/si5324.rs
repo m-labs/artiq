@@ -169,7 +169,7 @@ pub fn setup_hitless_clock_switching(settings: &FrequencySettings) -> Result<()>
 
     let t = clock::get_ms();
     while !locked()? {
-        if clock::get_ms() > t + 1000 {
+        if clock::get_ms() > t + 3000 {
             return Err("Si5324 lock timeout");
         }
     }
