@@ -1,9 +1,10 @@
-#![feature(lang_items, asm, libc)]
+#![feature(lang_items, asm, libc, panic_unwind)]
 #![no_std]
 
 extern crate alloc_none;
 #[macro_use]
 extern crate std_artiq as std;
+extern crate unwind;
 extern crate libc;
 extern crate byteorder;
 extern crate board;
@@ -22,36 +23,32 @@ mod rpc_proto;
 mod dyld;
 mod api;
 
-#[allow(improper_ctypes)]
-extern {
-    fn __artiq_raise(exn: *const ::kernel_proto::Exception) -> !;
-}
+use core::{mem, ptr, str};
+use std::io::Cursor;
+use cslice::{CSlice, AsCSlice};
+use kernel_proto::*;
+use dyld::Library;
 
 macro_rules! artiq_raise {
     ($name:expr, $message:expr, $param0:expr, $param1:expr, $param2:expr) => ({
-        let exn = $crate::kernel_proto::Exception {
-            name:     concat!("0:artiq.coredevice.exceptions.", $name),
-            file:     file!(),
+        use cslice::AsCSlice;
+        let exn = $crate::eh::Exception {
+            name:     concat!("0:artiq.coredevice.exceptions.", $name).as_bytes().as_c_slice(),
+            file:     file!().as_bytes().as_c_slice(),
             line:     line!(),
             column:   column!(),
             // https://github.com/rust-lang/rfcs/pull/1719
-            function: "(Rust function)",
-            message:  $message,
+            function: "(Rust function)".as_bytes().as_c_slice(),
+            message:  $message.as_bytes().as_c_slice(),
             param:    [$param0, $param1, $param2]
         };
         #[allow(unused_unsafe)]
-        unsafe { $crate::__artiq_raise(&exn as *const _) }
+        unsafe { $crate::eh::raise(&exn) }
     });
     ($name:expr, $message:expr) => ({
         artiq_raise!($name, $message, 0, 0, 0)
     });
 }
-
-use core::{mem, ptr, str};
-use std::io::Cursor;
-use cslice::{CSlice, CMutSlice, AsCSlice};
-use kernel_proto::*;
-use dyld::Library;
 
 fn send(request: &Message) {
     unsafe { mailbox::send(request as *const _ as usize) }
@@ -90,6 +87,7 @@ macro_rules! println {
 #[path = "../runtime/rpc_queue.rs"]
 mod rpc_queue;
 mod rtio;
+mod eh;
 
 #[no_mangle]
 #[lang = "panic_fmt"]
@@ -160,14 +158,23 @@ extern fn recv_rpc(slot: *mut ()) -> usize {
     recv!(&RpcRecvReply(ref result) => {
         match result {
             &Ok(alloc_size) => alloc_size,
-            &Err(ref exception) => unsafe { __artiq_raise(exception as *const _) }
+            &Err(ref exception) =>
+            unsafe {
+                eh::raise(&eh::Exception {
+                    name:     exception.name.as_bytes().as_c_slice(),
+                    file:     exception.file.as_bytes().as_c_slice(),
+                    line:     exception.line,
+                    column:   exception.column,
+                    function: exception.function.as_bytes().as_c_slice(),
+                    message:  exception.message.as_bytes().as_c_slice(),
+                    param:    exception.param
+                })
+            }
         }
     })
 }
 
-#[no_mangle]
-pub extern fn __artiq_terminate(exception: *const kernel_proto::Exception,
-                                mut backtrace: CMutSlice<usize>) -> ! {
+fn terminate(exception: &eh::Exception, mut backtrace: &mut [usize]) -> ! {
     let mut cursor = 0;
     for index in 0..backtrace.len() {
         if backtrace[index] > kernel_proto::KERNELCPU_PAYLOAD_ADDRESS {
@@ -179,7 +186,15 @@ pub extern fn __artiq_terminate(exception: *const kernel_proto::Exception,
 
     send(&NowSave(unsafe { NOW }));
     send(&RunException {
-        exception: unsafe { (*exception).clone() },
+        exception: kernel_proto::Exception {
+            name:     str::from_utf8(exception.name.as_ref()).unwrap(),
+            file:     str::from_utf8(exception.file.as_ref()).unwrap(),
+            line:     exception.line,
+            column:   exception.column,
+            function: str::from_utf8(exception.function.as_ref()).unwrap(),
+            message:  str::from_utf8(exception.message.as_ref()).unwrap(),
+            param:    exception.param,
+        },
         backtrace: backtrace
     });
     loop {}

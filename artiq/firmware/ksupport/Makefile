@@ -22,7 +22,7 @@ all: ksupport.elf
 $(RUSTOUT)/libksupport.a:
 	$(cargo) --manifest-path $(KSUPPORT_DIRECTORY)/Cargo.toml
 
-ksupport.elf: $(RUSTOUT)/libksupport.a glue.o artiq_personality.o
+ksupport.elf: $(RUSTOUT)/libksupport.a glue.o
 	$(LD) $(LDFLAGS) -T $(KSUPPORT_DIRECTORY)/ksupport.ld -o $@ $^ \
 		-lbase -lm -lcompiler-rt -ldyld -lunwind
 	@chmod -x $@

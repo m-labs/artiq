@@ -109,7 +109,7 @@ unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::
                 write_u64(writer, *ptr)),
         Tag::String =>
             consume_value!(CSlice<u8>, |ptr|
-                write_string(writer, str::from_utf8_unchecked((*ptr).as_ref()))),
+                write_string(writer, str::from_utf8((*ptr).as_ref()).unwrap())),
         Tag::Tuple(it, arity) => {
             let mut it = it.clone();
             write_u8(writer, arity)?;
@@ -141,7 +141,7 @@ unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::
         Tag::Keyword(it) => {
             struct Keyword<'a> { name: CSlice<'a, u8>, contents: () };
             consume_value!(Keyword, |ptr| {
-                write_string(writer, str::from_utf8_unchecked((*ptr).name.as_ref()))?;
+                write_string(writer, str::from_utf8((*ptr).name.as_ref()).unwrap())?;
                 let tag = it.clone().next().expect("truncated tag");
                 let mut data = &(*ptr).contents as *const ();
                 send_value(writer, tag, &mut data)

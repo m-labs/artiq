@@ -1540,21 +1540,20 @@ class LLVMIRGenerator:
 
         for target, typ in insn.clauses():
             if typ is None:
-                llclauseexnnameptr = ll.Constant(
-                    self.llty_of_type(builtins.TStr()).as_pointer(), None)
+                exnname = "" # see the comment in ksupport/eh.rs
             else:
                 exnname = "{}:{}".format(typ.id, typ.name)
-                llclauseexnname = self.llconst_of_const(
-                    ir.Constant(exnname, builtins.TStr()))
 
-                llclauseexnnameptr = self.llmodule.get_global("exn.{}".format(exnname))
-                if llclauseexnnameptr is None:
-                    llclauseexnnameptr = ll.GlobalVariable(self.llmodule, llclauseexnname.type,
-                                                           name="exn.{}".format(exnname))
-                    llclauseexnnameptr.global_constant = True
-                    llclauseexnnameptr.initializer = llclauseexnname
-                    llclauseexnnameptr.linkage = "private"
-                    llclauseexnnameptr.unnamed_addr = True
+            llclauseexnname = self.llconst_of_const(
+                ir.Constant(exnname, builtins.TStr()))
+            llclauseexnnameptr = self.llmodule.get_global("exn.{}".format(exnname))
+            if llclauseexnnameptr is None:
+                llclauseexnnameptr = ll.GlobalVariable(self.llmodule, llclauseexnname.type,
+                                                       name="exn.{}".format(exnname))
+                llclauseexnnameptr.global_constant = True
+                llclauseexnnameptr.initializer = llclauseexnname
+                llclauseexnnameptr.linkage = "private"
+                llclauseexnnameptr.unnamed_addr = True
             lllandingpad.add_clause(ll.CatchClause(llclauseexnnameptr))
 
             if typ is None:
