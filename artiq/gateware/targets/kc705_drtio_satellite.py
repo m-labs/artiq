@@ -45,26 +45,14 @@ class Satellite(BaseSoC):
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.comb += platform.request("sfp_tx_disable_n").eq(1)
-        tx_pads = platform.request("sfp_tx")
-        rx_pads = platform.request("sfp_rx")
         if cfg == "simple_gbe":
             # GTX_1000BASE_BX10 Ethernet compatible, 62.5MHz RTIO clock
             # simple TTLs
-            self.submodules.transceiver = gtx_7series.GTX_1000BASE_BX10(
-                clock_pads=platform.request("sgmii_clock"),
-                tx_pads=tx_pads,
-                rx_pads=rx_pads,
-                sys_clk_freq=self.clk_freq,
-                clock_div2=True)
+            transceiver = gtx_7series.GTX_1000BASE_BX10
         elif cfg == "sawg_3g":
             # 3Gb link, 150MHz RTIO clock
             # with SAWG on local RTIO and AD9154-FMC-EBZ
             platform.add_extension(ad9154_fmc_ebz)
-            self.submodules.transceiver = gtx_7series.GTX_3G(
-                clock_pads=platform.request("ad9154_refclk"),
-                tx_pads=tx_pads,
-                rx_pads=rx_pads,
-                sys_clk_freq=self.clk_freq)
 
             ad9154_spi = platform.request("ad9154_spi")
             self.comb += ad9154_spi.en.eq(1)
@@ -73,8 +61,16 @@ class Satellite(BaseSoC):
             self.config["CONVERTER_SPI_DAC_CS"] = 0
             self.config["CONVERTER_SPI_CLK_CS"] = 1
             self.config["HAS_AD9516"] = None
+
+            transceiver = gtx_7series.GTX_3G
         else:
             raise ValueError
+
+        self.submodules.transceiver = transceiver(
+            clock_pads=platform.request("si5324_clkout"),
+            tx_pads=platform.request("sfp_tx"),
+            rx_pads=platform.request("sfp_rx"),
+            sys_clk_freq=self.clk_freq)
         self.submodules.rx_synchronizer = gtx_7series.RXSynchronizer(
             self.transceiver.rtio_clk_freq, initial_phase=180.0)
         self.submodules.drtio = DRTIOSatellite(
