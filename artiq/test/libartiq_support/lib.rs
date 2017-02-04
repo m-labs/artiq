@@ -21,6 +21,12 @@ mod cslice {
         phantom: PhantomData<&'a ()>
     }
 
+    impl<'a, T> CSlice<'a, T> {
+        pub fn len(&self) -> usize {
+            self.len as usize
+        }
+    }
+
     impl<'a, T> AsRef<[T]> for CSlice<'a, T> {
         fn as_ref(&self) -> &[T] {
             unsafe {
