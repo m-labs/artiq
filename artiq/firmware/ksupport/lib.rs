@@ -1,4 +1,4 @@
-#![feature(lang_items, asm, libc, panic_unwind)]
+#![feature(lang_items, asm, libc, panic_unwind, unwind_attributes)]
 #![no_std]
 
 extern crate alloc_none;

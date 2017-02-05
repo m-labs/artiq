@@ -407,6 +407,7 @@ static mut INFLIGHT: ExceptionInfo = ExceptionInfo {
 };
 
 #[export_name="__artiq_raise"]
+#[unwind]
 pub unsafe extern fn raise(exception: *const Exception) -> ! {
     // Zing! The Exception<'a> as Exception<'static> cast is not really sound in case
     // the exception is ever captured. Fortunately, they currently aren't, and we save
@@ -424,6 +425,7 @@ pub unsafe extern fn raise(exception: *const Exception) -> ! {
 }
 
 #[export_name="__artiq_reraise"]
+#[unwind]
 pub unsafe extern fn reraise() -> ! {
     if INFLIGHT.handled {
         raise(&INFLIGHT.exception.unwrap())
