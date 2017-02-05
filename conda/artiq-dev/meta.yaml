@@ -20,7 +20,7 @@ requirements:
     - binutils-or1k-linux >=2.27
     - llvm-or1k
     - llvmlite-artiq 0.12.0.dev py35_30
-    - rust-core-or1k 1.16.0 11
+    - rust-core-or1k 1.17.0 12
     - cargo
     - openocd >=0.10
     - lit
