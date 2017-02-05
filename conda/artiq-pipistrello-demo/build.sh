@@ -6,7 +6,7 @@ BUILD_SETTINGS_FILE=$HOME/.m-labs/build_settings.sh
 SOC_PREFIX=$PREFIX/lib/python3.5/site-packages/artiq/binaries/pipistrello-demo
 mkdir -p $SOC_PREFIX
 
-$PYTHON -m artiq.gateware.targets.pipistrello $MISOC_EXTRA_ISE_CMDLINE
+V=1 $PYTHON -m artiq.gateware.targets.pipistrello $MISOC_EXTRA_ISE_CMDLINE
 cp misoc_demo_pipistrello/gateware/top.bit $SOC_PREFIX
 cp misoc_demo_pipistrello/software/bios/bios.bin $SOC_PREFIX
 cp misoc_demo_pipistrello/software/runtime/runtime.fbi $SOC_PREFIX
