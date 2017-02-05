@@ -21,7 +21,7 @@ requirements:
     - llvm-or1k
     - llvmlite-artiq 0.12.0.dev py35_30
     - rust-core-or1k 1.17.0 12
-    - cargo >=0.16.0
+    - cargo =0.11.0
     - openocd >=0.10
     - lit
     - outputcheck
