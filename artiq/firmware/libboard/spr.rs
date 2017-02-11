@@ -81,6 +81,24 @@ pub const SPR_ICBLR:        u32 = SPRGROUP_IC + 3;
 
 // [snip]
 
+/* Performance counters group */
+pub const SPR_PCCR0:        u32 = SPRGROUP_PC + 0;
+pub const SPR_PCCR1:        u32 = SPRGROUP_PC + 1;
+pub const SPR_PCCR2:        u32 = SPRGROUP_PC + 2;
+pub const SPR_PCCR3:        u32 = SPRGROUP_PC + 3;
+pub const SPR_PCCR4:        u32 = SPRGROUP_PC + 4;
+pub const SPR_PCCR5:        u32 = SPRGROUP_PC + 5;
+pub const SPR_PCCR6:        u32 = SPRGROUP_PC + 6;
+pub const SPR_PCCR7:        u32 = SPRGROUP_PC + 7;
+pub const SPR_PCMR0:        u32 = SPRGROUP_PC + 8;
+pub const SPR_PCMR1:        u32 = SPRGROUP_PC + 9;
+pub const SPR_PCMR2:        u32 = SPRGROUP_PC + 10;
+pub const SPR_PCMR3:        u32 = SPRGROUP_PC + 11;
+pub const SPR_PCMR4:        u32 = SPRGROUP_PC + 12;
+pub const SPR_PCMR5:        u32 = SPRGROUP_PC + 13;
+pub const SPR_PCMR6:        u32 = SPRGROUP_PC + 14;
+pub const SPR_PCMR7:        u32 = SPRGROUP_PC + 15;
+
 /* PIC group */
 pub const SPR_PICMR:        u32 = SPRGROUP_PIC + 0;
 pub const SPR_PICPR:        u32 = SPRGROUP_PIC + 1;
@@ -188,3 +206,24 @@ pub const SPR_IMMUCFGR_HTR:     u32 = 0x00000800;
 
 pub const SPR_IMMUCFGR_NTW_OFF: u32 = 0;
 pub const SPR_IMMUCFGR_NTS_OFF: u32 = 2;
+
+/*
+ * Bit definitions for Performance counters mode registers
+ *
+ */
+pub const SPR_PCMR_CP:    u32 = 0x00000001;  /* Counter present */
+pub const SPR_PCMR_UMRA:  u32 = 0x00000002;  /* User mode read access */
+pub const SPR_PCMR_CISM:  u32 = 0x00000004;  /* Count in supervisor mode */
+pub const SPR_PCMR_CIUM:  u32 = 0x00000008;  /* Count in user mode */
+pub const SPR_PCMR_LA:    u32 = 0x00000010;  /* Load access event */
+pub const SPR_PCMR_SA:    u32 = 0x00000020;  /* Store access event */
+pub const SPR_PCMR_IF:    u32 = 0x00000040;  /* Instruction fetch event*/
+pub const SPR_PCMR_DCM:   u32 = 0x00000080;  /* Data cache miss event */
+pub const SPR_PCMR_ICM:   u32 = 0x00000100;  /* Insn cache miss event */
+pub const SPR_PCMR_IFS:   u32 = 0x00000200;  /* Insn fetch stall event */
+pub const SPR_PCMR_LSUS:  u32 = 0x00000400;  /* LSU stall event */
+pub const SPR_PCMR_BS:    u32 = 0x00000800;  /* Branch stall event */
+pub const SPR_PCMR_DTLBM: u32 = 0x00001000;  /* DTLB miss event */
+pub const SPR_PCMR_ITLBM: u32 = 0x00002000;  /* ITLB miss event */
+pub const SPR_PCMR_DDS:   u32 = 0x00004000;  /* Data dependency stall event */
+pub const SPR_PCMR_WPE:   u32 = 0x03ff8000;  /* Watchpoint events */
