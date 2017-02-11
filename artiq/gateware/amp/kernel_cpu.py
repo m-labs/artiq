@@ -23,7 +23,11 @@ class KernelCPU(Module):
             self.cd_sys_kernel.rst.eq(self._reset.storage)
         ]
         self.submodules.cpu = ClockDomainsRenamer("sys_kernel")(
-            mor1kx.MOR1KX(platform, exec_address))
+            mor1kx.MOR1KX(
+                platform,
+                OPTION_RESET_PC=exec_address,
+                FEATURE_PERFCOUNTERS="ENABLED",
+                OPTION_PERFCOUNTERS_NUM=7))
 
         # DRAM access
         self.wb_sdram = wishbone.Interface()
