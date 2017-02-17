@@ -64,7 +64,7 @@ class Subscriber:
 
     async def connect(self, host, port, before_receive_cb=None):
         self.reader, self.writer = \
-            await asyncio.open_connection(host, port, limit=4*1024*1024)
+            await asyncio.open_connection(host, port, limit=100*1024*1024)
         try:
             if before_receive_cb is not None:
                 before_receive_cb()
