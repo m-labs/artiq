@@ -232,6 +232,69 @@ class DDSHandler:
                 self._decode_ad9914_write(message)
 
 
+class WishboneHandlerMixin:
+    def __init__(self, read_bit):
+        self._reads = []
+        self._read_bit = read_bit
+
+    def process_message(self, message):
+        if isinstance(message, OutputMessage):
+            logger.debug("Wishbone out @%d adr=0x%02x data=0x%08x",
+                         message.timestamp, message.address, message.data)
+            if message.address & self._read_bit:
+                read = self._reads.pop(0)
+                self.process_read(
+                        message.address & ~self._read_bit,
+                        read.data,
+                        read.rtio_counter - message.timestamp)
+            else:
+                self.process_write(message.address,
+                        message.data)
+        if isinstance(message, InputMessage):
+            logger.debug("Wishbone in @%d data=0x%08x",
+                         message.rtio_counter, message.data)
+            self._reads.append(message)
+
+    def process_write(self, address, data):
+        raise NotImplementedError
+
+    def process_read(self, address, data, read_slack):
+        raise NotImplementedError
+
+
+class SPIMasterHandler(WishboneHandlerMixin):
+    def __init__(self, vcd_manager, name):
+        super().__init__(read_bit=0b100)
+        self.channels = {}
+        for reg_name, reg_width in [
+                ("config", 32),
+                ("chip_select", 16), ("write_length", 8), ("read_length", 8),
+                ("write", 32), ("read", 32)]:
+            self.channels[reg_name] = vcd_manager.get_channel(
+                    "/".join((name, reg_name)), reg_width)
+
+    def process_write(self, address, data):
+        if address == 0:
+            self.channels["write"].set_value("{:032b}".format(data))
+        elif address == 1:
+            self.channels["chip_select"].set_value(
+                    "{:08b}".format(data & 0xffff))
+            self.channels["write_length"].set_value(
+                    "{:08b}".format(data >> 16 & 0xff))
+            self.channels["read_length"].set_value(
+                    "{:08b}".format(data >> 24 & 0xff))
+        elif address == 2:
+            self.channels["config"].set_value("{:032b}".format(data))
+        else:
+            raise ValueError("bad address %d", address)
+
+    def process_read(self, address, data, read_slack):
+        if address == 0:
+            self.channels["read"].set_value("{:032b}".format(data))
+        else:
+            raise ValueError("bad address %d", address)
+
+
 def _extract_log_chars(data):
     r = ""
     for i in range(4):
@@ -331,6 +394,11 @@ def create_channel_handlers(vcd_manager, devices, ref_period,
                         dds_onehot_sel, dds_sysclk)
                     channel_handlers[dds_bus_channel] = dds_handler
                 dds_handler.add_dds_channel(name, dds_channel)
+            if (desc["module"] == "artiq.coredevice.spi" and
+                    desc["class"] == "SPIMaster"):
+                channel = desc["arguments"]["channel"]
+                channel_handlers[channel] = SPIMasterHandler(
+                        vcd_manager, name)
     return channel_handlers
 
 
