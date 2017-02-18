@@ -37,7 +37,8 @@ pub struct FrequencySettings {
     pub n2_hs: u8,
     pub n2_ls: u32,
     pub n31: u32,
-    pub n32: u32
+    pub n32: u32,
+    pub bwsel: u8
 }
 
 fn map_frequency_settings(settings: &FrequencySettings) -> Result<FrequencySettings> {
@@ -85,7 +86,8 @@ fn map_frequency_settings(settings: &FrequencySettings) -> Result<FrequencySetti
         },
         n2_ls: settings.n2_ls - 1,
         n31: settings.n31 - 1,
-        n32: settings.n32 - 1
+        n32: settings.n32 - 1,
+        bwsel: settings.bwsel
     };
     Ok(r)
 }
@@ -146,7 +148,7 @@ pub fn setup(settings: &FrequencySettings) -> Result<()> {
     }
 
     write(0,   read(0)? | 0x40)?;                         // FREE_RUN=1
-    write(2,   (read(2)? & 0x0f) | (4 << 4))?;            // BWSEL=4
+    write(2,   (read(2)? & 0x0f) | (s.bwsel << 4))?;
     write(21,  read(21)? & 0xfe);                         // CKSEL_PIN=0
     write(3,   (read(3)? & 0x3f) | (0b01 << 6) | 0x10)?;  // CKSEL_REG=b01 SQ_ICAL=1
     write(4,   (read(4)? & 0x3f) | (0b00 << 6))?;         // AUTOSEL_REG=b00

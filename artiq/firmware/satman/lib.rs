@@ -18,7 +18,8 @@ const SI5324_SETTINGS: board::si5324::FrequencySettings
     n2_hs  : 10,
     n2_ls  : 20112,
     n31    : 2514,
-    n32    : 4597
+    n32    : 4597,
+    bwsel  : 4
 };
 
 #[cfg(rtio_frequency = "150.0")]
@@ -29,7 +30,8 @@ const SI5324_SETTINGS: board::si5324::FrequencySettings
     n2_hs  : 10,
     n2_ls  : 33732,
     n31    : 9370,
-    n32    : 7139
+    n32    : 7139,
+    bwsel  : 3
 };
 
 fn drtio_link_is_up() -> bool {
