@@ -1,6 +1,7 @@
 from operator import itemgetter
 from collections import namedtuple
 from itertools import count
+from contextlib import contextmanager
 import struct
 import logging
 
@@ -118,6 +119,12 @@ class VCDManager:
                        .format(name=name, code=code, width=width))
         return VCDChannel(self.out, code)
 
+    @contextmanager
+    def scope(self, name):
+        self.out.write("$scope module {} $end\n".format(name))
+        yield
+        self.out.write("$upscope $end\n")
+
     def set_time(self, time):
         if time != self.current_time:
             self.out.write("#{}\n".format(time))
@@ -178,10 +185,11 @@ class DDSHandler:
 
     def add_dds_channel(self, name, dds_channel_nr):
         dds_channel = dict()
-        dds_channel["vcd_frequency"] = \
-            self.vcd_manager.get_channel("dds/" + name + "/frequency", 64)
-        dds_channel["vcd_phase"] = \
-            self.vcd_manager.get_channel("dds/" + name + "/phase", 64)
+        with self.vcd_manager.scope("dds/{}".format(name)):
+            dds_channel["vcd_frequency"] = \
+                self.vcd_manager.get_channel(name + "/frequency", 64)
+            dds_channel["vcd_phase"] = \
+                self.vcd_manager.get_channel(name + "/phase", 64)
         if self.dds_type == "DDSChannelAD9914":
             dds_channel["ftw"] = [None, None]
             dds_channel["pow"] = None
@@ -266,12 +274,13 @@ class SPIMasterHandler(WishboneHandlerMixin):
     def __init__(self, vcd_manager, name):
         super().__init__(read_bit=0b100)
         self.channels = {}
-        for reg_name, reg_width in [
-                ("config", 32),
-                ("chip_select", 16), ("write_length", 8), ("read_length", 8),
-                ("write", 32), ("read", 32)]:
-            self.channels[reg_name] = vcd_manager.get_channel(
-                    "/".join((name, reg_name)), reg_width)
+        with vcd_manager.scope("spi/{}".format(name)):
+            for reg_name, reg_width in [
+                    ("config", 32), ("chip_select", 16),
+                    ("write_length", 8), ("read_length", 8),
+                    ("write", 32), ("read", 32)]:
+                self.channels[reg_name] = vcd_manager.get_channel(
+                        "{}/{}".format(name, reg_name), reg_width)
 
     def process_write(self, address, data):
         if address == 0:
