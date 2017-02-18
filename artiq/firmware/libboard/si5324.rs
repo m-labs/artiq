@@ -149,7 +149,7 @@ pub fn setup(settings: &FrequencySettings) -> Result<()> {
 
     write(0,   read(0)? | 0x40)?;                         // FREE_RUN=1
     write(2,   (read(2)? & 0x0f) | (s.bwsel << 4))?;
-    write(21,  read(21)? & 0xfe);                         // CKSEL_PIN=0
+    write(21,  read(21)? & 0xfe)?;                        // CKSEL_PIN=0
     write(3,   (read(3)? & 0x3f) | (0b01 << 6) | 0x10)?;  // CKSEL_REG=b01 SQ_ICAL=1
     write(4,   (read(4)? & 0x3f) | (0b00 << 6))?;         // AUTOSEL_REG=b00
     write(6,   (read(6)? & 0xc0) | 0b001111)?;            // SFOUT2_REG=b001 SFOUT1_REG=b111
