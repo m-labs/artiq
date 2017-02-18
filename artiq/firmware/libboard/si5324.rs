@@ -128,8 +128,28 @@ fn ident() -> Result<u16> {
     Ok(((read(134)? as u16) << 8) | (read(135)? as u16))
 }
 
+fn has_xtal() -> Result<bool> {
+    Ok((read(129)? & 0x01) == 0)  // LOSX_INT=0
+}
+
+fn has_clkin2() -> Result<bool> {
+    Ok((read(129)? & 0x04) == 0)  // LOS2_INT=0
+}
+
 fn locked() -> Result<bool> {
-    Ok((read(130)? & 0x01) == 0) // LOL_INT=0
+    Ok((read(130)? & 0x01) == 0)  // LOL_INT=0
+}
+
+fn monitor_lock() -> Result<()> {
+    let t = clock::get_ms();
+    while !locked()? {
+        // Yes, lock can be really slow.
+        if clock::get_ms() > t + 20000 {
+            return Err("Si5324 lock timeout");
+        }
+    }
+    info!("Si5324 is locked");
+    Ok(())
 }
 
 pub fn setup(settings: &FrequencySettings) -> Result<()> {
@@ -169,12 +189,13 @@ pub fn setup(settings: &FrequencySettings) -> Result<()> {
     write(137, read(137)? | 0x01)?;                       // FASTLOCK=1
     write(136, read(136)? | 0x40)?;                       // ICAL=1
 
-    let t = clock::get_ms();
-    while !locked()? {
-        if clock::get_ms() > t + 3000 {
-            return Err("Si5324 lock timeout");
-        }
+    if !has_xtal()? {
+        return Err("Si5324 misses XA/XB signal");
     }
+    if !has_clkin2()? {
+        return Err("Si5324 misses CLKIN2 signal");
+    }
+    monitor_lock()?;
 
     Ok(())
 }
@@ -185,5 +206,6 @@ pub fn select_ext_input(external: bool) -> Result<()> {
     } else {
         write(3,   (read(3)? & 0x3f) | (0b01 << 6))?;  // CKSEL_REG=b01
     }
+    monitor_lock()?;
     Ok(())
 }

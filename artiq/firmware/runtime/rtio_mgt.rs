@@ -96,7 +96,7 @@ mod drtio {
             io.until(link_is_up).unwrap();
             info!("link RX is up");
 
-            io.sleep(600).unwrap();
+            io.sleep(10000).unwrap();
             info!("wait for remote side done");
 
             init();  // clear all FIFOs first
