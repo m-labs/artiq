@@ -32,6 +32,12 @@ const SI5324_SETTINGS: board::si5324::FrequencySettings
     n32    : 7139
 };
 
+fn drtio_link_is_up() -> bool {
+    unsafe {
+        board::csr::drtio::link_status_read() == 1
+    }
+}
+
 fn startup() {
     board::clock::init();
     info!("ARTIQ satellite manager starting...");
@@ -41,10 +47,16 @@ fn startup() {
     #[cfg(has_ad9516)]
     board::ad9516::init().expect("cannot initialize ad9516");
     board::i2c::init();
-    board::si5324::setup_hitless_clock_switching(&SI5324_SETTINGS)
-                  .expect("cannot initialize si5324");
+    board::si5324::setup(&SI5324_SETTINGS).expect("cannot initialize si5324");
 
-    loop {}
+    loop {
+        while !drtio_link_is_up() {}
+        info!("link is up, switching to recovered clock");
+        board::si5324::select_ext_input(true).expect("failed to switch clocks");
+        while drtio_link_is_up() {}
+        info!("link is down, switching to local crystal clock");
+        board::si5324::select_ext_input(false).expect("failed to switch clocks");
+    }
 }
 
 #[no_mangle]

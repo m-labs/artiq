@@ -130,7 +130,7 @@ fn locked() -> Result<bool> {
     Ok((read(130)? & 0x01) == 0) // LOL_INT=0
 }
 
-pub fn setup_hitless_clock_switching(settings: &FrequencySettings) -> Result<()> {
+pub fn setup(settings: &FrequencySettings) -> Result<()> {
     let s = map_frequency_settings(settings)?;
 
     reset(true);
@@ -145,12 +145,12 @@ pub fn setup_hitless_clock_switching(settings: &FrequencySettings) -> Result<()>
         return Err("Si5324 does not have expected product number");
     }
 
-    write(0,   read(0)? | 0x40)?;                 // FREE_RUN=1
-    write(1,   (read(1)? & 0xf0) | 0b0100)?;      // CK_PRIOR2=1 CK_PRIOR1=0
-    write(2,   (read(2)? & 0x0f) | (4 << 4))?;    // BWSEL=4
-    write(3,   read(3)? | 0x10)?;                 // SQ_ICAL=1
-    write(4,   (read(4)? & 0x3f) | (0b10 << 6))?; // AUTOSEL_REG=b10
-    write(6,   (read(6)? & 0xc0) | 0b001111)?;    // SFOUT2_REG=b001 SFOUT1_REG=b111
+    write(0,   read(0)? | 0x40)?;                         // FREE_RUN=1
+    write(2,   (read(2)? & 0x0f) | (4 << 4))?;            // BWSEL=4
+    write(21,  read(21)? & 0xfe);                         // CKSEL_PIN=0
+    write(3,   (read(3)? & 0x3f) | (0b01 << 6) | 0x10)?;  // CKSEL_REG=b01 SQ_ICAL=1
+    write(4,   (read(4)? & 0x3f) | (0b00 << 6))?;         // AUTOSEL_REG=b00
+    write(6,   (read(6)? & 0xc0) | 0b001111)?;            // SFOUT2_REG=b001 SFOUT1_REG=b111
     write(25,  (s.n1_hs  << 5 ) as u8)?;
     write(31,  (s.nc1_ls >> 16) as u8)?;
     write(32,  (s.nc1_ls >> 8 ) as u8)?;
@@ -164,8 +164,8 @@ pub fn setup_hitless_clock_switching(settings: &FrequencySettings) -> Result<()>
     write(46,  (s.n32    >> 16) as u8)?;
     write(47,  (s.n32    >> 8)  as u8)?;
     write(48,  (s.n32)          as u8)?;
-    write(137, read(137)? | 0x01)?;               // FASTLOCK=1
-    write(136, read(136)? | 0x40)?;               // ICAL=1
+    write(137, read(137)? | 0x01)?;                       // FASTLOCK=1
+    write(136, read(136)? | 0x40)?;                       // ICAL=1
 
     let t = clock::get_ms();
     while !locked()? {
@@ -174,5 +174,14 @@ pub fn setup_hitless_clock_switching(settings: &FrequencySettings) -> Result<()>
         }
     }
 
+    Ok(())
+}
+
+pub fn select_ext_input(external: bool) -> Result<()> {
+    if external {
+        write(3,   (read(3)? & 0x3f) | (0b00 << 6))?;  // CKSEL_REG=b00
+    } else {
+        write(3,   (read(3)? & 0x3f) | (0b01 << 6))?;  // CKSEL_REG=b01
+    }
     Ok(())
 }
