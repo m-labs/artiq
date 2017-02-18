@@ -240,12 +240,15 @@ class DDSHandler:
                 self._decode_ad9914_write(message)
 
 
-class WishboneHandlerMixin:
-    def __init__(self, read_bit):
+class WishboneHandler:
+    def __init__(self, vcd_manager, name, read_bit):
         self._reads = []
         self._read_bit = read_bit
+        self.stb = vcd_manager.get_channel("{}/{}".format(name, "stb"), 1)
 
     def process_message(self, message):
+        self.stb.set_value("1")
+        self.stb.set_value("0")
         if isinstance(message, OutputMessage):
             logger.debug("Wishbone out @%d adr=0x%02x data=0x%08x",
                          message.timestamp, message.address, message.data)
@@ -270,11 +273,11 @@ class WishboneHandlerMixin:
         raise NotImplementedError
 
 
-class SPIMasterHandler(WishboneHandlerMixin):
+class SPIMasterHandler(WishboneHandler):
     def __init__(self, vcd_manager, name):
-        super().__init__(read_bit=0b100)
         self.channels = {}
         with vcd_manager.scope("spi/{}".format(name)):
+            super().__init__(vcd_manager, name, read_bit=0b100)
             for reg_name, reg_width in [
                     ("config", 32), ("chip_select", 16),
                     ("write_length", 8), ("read_length", 8),
