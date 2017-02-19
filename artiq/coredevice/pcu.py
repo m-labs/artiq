@@ -31,42 +31,47 @@ def _PCMR(n):
     return _SPRGROUP_PC + 8 + n
 
 
-@kernel
-def pc_start():
-    """
-    Configure and clear the kernel CPU performance counters.
+class CorePCU:
+    """Core device performance counter unit (PCU) access"""
+    def __init__(self, dmgr, core_device="core"):
+        self.core = dmgr.get(core_device)
 
-    The eight counters are configures to count the folloging events:
-        * Load or store
-        * Instruction fetch
-        * Data cache miss
-        * Instruction cache miss
-        * Instruction fetch stall
-        * Load-store-unit stall
-        * Branch stall
-        * Data dependency stall
-    """
-    for i in range(8):
-        if not mfspr(_PCMR(i)) & _SPR_PCMR_CP:
-            raise ValueError("counter not present")
-        mtspr(_PCMR(i), 0)
-        mtspr(_PCCR(i), 0)
-    mtspr(_PCMR(0), _SPR_PCMR_CISM | _SPR_PCMR_LA | _SPR_PCMR_SA)
-    mtspr(_PCMR(1), _SPR_PCMR_CISM | _SPR_PCMR_IF)
-    mtspr(_PCMR(2), _SPR_PCMR_CISM | _SPR_PCMR_DCM)
-    mtspr(_PCMR(3), _SPR_PCMR_CISM | _SPR_PCMR_ICM)
-    mtspr(_PCMR(4), _SPR_PCMR_CISM | _SPR_PCMR_IFS)
-    mtspr(_PCMR(5), _SPR_PCMR_CISM | _SPR_PCMR_LSUS)
-    mtspr(_PCMR(6), _SPR_PCMR_CISM | _SPR_PCMR_BS)
-    mtspr(_PCMR(7), _SPR_PCMR_CISM | _SPR_PCMR_DDS)
+    @kernel
+    def start(self):
+        """
+        Configure and clear the kernel CPU performance counters.
 
+        The eight counters are configures to count the folloging events:
+            * Load or store
+            * Instruction fetch
+            * Data cache miss
+            * Instruction cache miss
+            * Instruction fetch stall
+            * Load-store-unit stall
+            * Branch stall
+            * Data dependency stall
+        """
+        for i in range(8):
+            if not mfspr(_PCMR(i)) & _SPR_PCMR_CP:
+                raise ValueError("counter not present")
+            mtspr(_PCMR(i), 0)
+            mtspr(_PCCR(i), 0)
+        mtspr(_PCMR(0), _SPR_PCMR_CISM | _SPR_PCMR_LA | _SPR_PCMR_SA)
+        mtspr(_PCMR(1), _SPR_PCMR_CISM | _SPR_PCMR_IF)
+        mtspr(_PCMR(2), _SPR_PCMR_CISM | _SPR_PCMR_DCM)
+        mtspr(_PCMR(3), _SPR_PCMR_CISM | _SPR_PCMR_ICM)
+        mtspr(_PCMR(4), _SPR_PCMR_CISM | _SPR_PCMR_IFS)
+        mtspr(_PCMR(5), _SPR_PCMR_CISM | _SPR_PCMR_LSUS)
+        mtspr(_PCMR(6), _SPR_PCMR_CISM | _SPR_PCMR_BS)
+        mtspr(_PCMR(7), _SPR_PCMR_CISM | _SPR_PCMR_DDS)
 
-@kernel
-def pc_get(r):
-    """
-    Read the performance counters and store the counts in the array provided.
+    @kernel
+    def get(self, r):
+        """
+        Read the performance counters and store the counts in the
+        array provided.
 
-    :param list[int] r: array to store the counter values
-    """
-    for i in range(8):
-        r[i] = mfspr(_PCCR(i))
+        :param list[int] r: array to store the counter values
+        """
+        for i in range(8):
+            r[i] = mfspr(_PCCR(i))
