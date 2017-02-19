@@ -447,6 +447,7 @@ def decoded_dump_to_vcd(fileobj, devices, dump):
     slack = vcd_manager.get_channel("rtio_slack", 64)
 
     vcd_manager.set_time(0)
+    start_time = 0
     for m in messages:
         start_time = get_message_time(m)
         if start_time:
