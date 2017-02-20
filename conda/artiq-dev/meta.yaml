@@ -14,7 +14,7 @@ requirements:
   run:
     - python 3.5.2
     - setuptools
-    - migen 0.5.dev py_54+git58e8f45
+    - migen 0.5.dev py_57+gitd4afdeb
     - misoc 0.6.dev py_9+gite52727a
     - jesd204b 0.2
     - binutils-or1k-linux >=2.27
