@@ -20,7 +20,7 @@ class Monitor(Module, AutoCSR):
         for cp in chan_probes:
             cp_sys = []
             for p in cp:
-                vs = BusSynchronizer(len(p), "rio", "rsys")
+                vs = BusSynchronizer(len(p), "rio", "sys")
                 self.submodules += vs
                 self.comb += vs.i.eq(p)
                 cp_sys.append(vs.o)
