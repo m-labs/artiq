@@ -11,6 +11,8 @@ import socket
 import select
 import threading
 import paramiko
+import os
+import shutil
 
 from artiq.tools import verbosity_args, init_logger, logger
 from random import Random
@@ -33,11 +35,16 @@ def get_argparser():
                         help="IP address corresponding to the development board")
     parser.add_argument("-t", "--target", metavar="TARGET",
                         type=str, default="kc705_dds",
-                        help="Target to build (one of: kc705_dds kc705_drtio_satellite)")
+                        help="Target to build, one of: "
+                             "kc705_dds kc705_drtio_satellite")
+    parser.add_argument("-c", "--config", metavar="TARGET_CFG",
+                        type=str, default=None,
+                        help="OpenOCD configuration file corresponding to the development board")
 
     parser.add_argument("actions", metavar="ACTION",
                         type=str, default=[], nargs="+",
-                        help="actions to perform (sequence of: build boot boot+log connect)")
+                        help="actions to perform, sequence of: "
+                             "build boot boot+log connect clean")
 
     return parser
 
@@ -104,6 +111,12 @@ def main():
                 logger.error("Build failed")
                 sys.exit(1)
 
+        elif action == "clean":
+            logger.info("Cleaning build directory")
+            target_dir = "/tmp/{target}".format(target=args.target)
+            if os.path.isdir(target_dir):
+                shutil.rmtree(target_dir)
+
         elif action == "boot" or action == "boot+log":
             logger.info("Uploading firmware")
             get_sftp().mkdir("/tmp/{tmp}".format(tmp=tmp))
@@ -117,7 +130,8 @@ def main():
                 "--kernel /tmp/{tmp}/{firmware}.bin " +
                 ("--upload-only" if action == "boot" else "--output-only"))
             artiq_flash = run_command(
-                "{env} artiq_flash start")
+                "{env} artiq_flash start" +
+                (" --target-file " + args.config if args.config else ""))
             drain(flterm)
 
         elif action == "connect":
