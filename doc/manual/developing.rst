@@ -68,7 +68,7 @@ and the ARTIQ kernels.
         $ wget https://ftp.gnu.org/gnu/binutils/binutils-2.27.tar.bz2
         $ tar xvf binutils-2.27.tar.bz2
         $ cd binutils-2.27
-        $ curl -L 'https://raw.githubusercontent.com/m-labs/conda-recipes/ece4cefbcce5548c5bd7fd4740d71ecd6930065e/conda/binutils-or1k-linux/fix-R_OR1K_GOTOFF-relocations.patch' | patch -p1
+        $ curl -L 'https://raw.githubusercontent.com/m-labs/conda-recipes/c3effbc26e96c6e246d6e8035f8a07bc52d8ded1/conda/binutils-or1k-linux/fix-R_OR1K_GOTOFF-relocations.patch' | patch -p1
 
         $ mkdir build
         $ cd build
