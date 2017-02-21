@@ -99,6 +99,11 @@ class Master(MiniSoC, AMPSoC):
             phy = ttl_simple.Inout(platform.request(sma))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
+        self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
+        self.csr_devices.append("rtio_moninj")
+
         self.submodules.rtio_core = rtio.Core(rtio_channels, 3)
         self.csr_devices.append("rtio_core")
 

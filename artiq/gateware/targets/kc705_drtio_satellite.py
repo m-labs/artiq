@@ -44,6 +44,9 @@ class Satellite(BaseSoC):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
+        self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
+        self.csr_devices.append("rtio_moninj")
+
         self.comb += platform.request("sfp_tx_disable_n").eq(1)
         if cfg == "simple_gbe":
             # GTX_1000BASE_BX10 Ethernet compatible, 62.5MHz RTIO clock
