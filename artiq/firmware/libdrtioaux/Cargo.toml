@@ -1,0 +1,14 @@
+[package]
+authors = ["M-Labs"]
+name = "drtioaux"
+version = "0.0.0"
+
+[lib]
+name = "drtioaux"
+path = "lib.rs"
+
+[dependencies]
+log = { version = "0.3", default-features = false }
+std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
+board = { path = "../libboard" }
+byteorder = { version = "1.0", default-features = false }
