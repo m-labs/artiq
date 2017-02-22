@@ -17,6 +17,7 @@ alloc_artiq = { path = "../liballoc_artiq" }
 std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
 logger_artiq = { path = "../liblogger_artiq" }
 board = { path = "../libboard", features = ["uart_console"] }
+drtioaux = { path = "../libdrtioaux" }
 log = { version = "0.3", default-features = false }
 
 [dependencies.compiler_builtins]

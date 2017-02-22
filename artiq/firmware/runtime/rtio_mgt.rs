@@ -39,10 +39,25 @@ pub mod crg {
 #[cfg(has_drtio)]
 mod drtio {
     use super::*;
+    use drtioaux;
 
     pub fn startup(io: &Io) {
         io.spawn(4096, link_thread);
         io.spawn(4096, error_thread);
+    }
+
+    static mut LINK_RUNNING: bool = false;
+
+    fn link_set_running(running: bool) {
+        unsafe {
+            LINK_RUNNING = running
+        }
+    }
+
+    fn link_is_running() -> bool {
+        unsafe {
+            LINK_RUNNING
+        }
     }
 
     fn link_is_up() -> bool {
@@ -80,7 +95,7 @@ mod drtio {
     }
 
     pub fn init() {
-        if link_is_up() {
+        if link_is_running() {
             unsafe {
                 csr::drtio::reset_write(1);
                 while csr::drtio::o_wait_read() == 1 {}
@@ -91,20 +106,40 @@ mod drtio {
         }
     }
 
+    fn ping_remote(io: &Io) -> u32 {
+        let mut count = 0;
+        loop {
+            if !link_is_up() {
+                return 0
+            }
+            count += 1;
+            drtioaux::send_packet(&drtioaux::Packet::EchoRequest).unwrap();
+            io.sleep(100).unwrap();
+            let pr = drtioaux::recv_packet();
+            match pr {
+                Ok(Some(drtioaux::Packet::EchoReply)) => return count,
+                _ => {}
+            }
+        }
+    }
+
     pub fn link_thread(io: Io) {
         loop {
             io.until(link_is_up).unwrap();
-            info!("link RX is up");
+            info!("link RX is up, pinging");
 
-            io.sleep(10000).unwrap();
-            info!("wait for remote side done");
-
-            init();  // clear all FIFOs first
-            reset_phy();
-            sync_tsc();
-            info!("link initialization completed");
+            let ping_count = ping_remote(&io);
+            if ping_count > 0 {
+                info!("remote replied after {} packets", ping_count);
+                link_set_running(true);
+                init();  // clear all FIFOs first
+                reset_phy();
+                sync_tsc();
+                info!("link initialization completed");
+            }
 
             io.until(|| !link_is_up()).unwrap();
+            link_set_running(false);
             info!("link is down");
         }
     }

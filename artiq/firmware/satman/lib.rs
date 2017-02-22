@@ -9,6 +9,26 @@ extern crate std_artiq as std;
 extern crate log;
 extern crate logger_artiq;
 extern crate board;
+extern crate drtioaux;
+
+
+fn process_aux_packet(p: drtioaux::Packet) {
+    match p {
+        drtioaux::Packet::EchoRequest => drtioaux::send_packet(&drtioaux::Packet::EchoReply).unwrap(),
+        _ => warn!("received unexpected aux packet {:?}", p)
+    }
+}
+
+
+fn process_aux_packets() {
+    let pr = drtioaux::recv_packet();
+    match pr {
+        Ok(None) => {},
+        Ok(Some(p)) => process_aux_packet(p),
+        Err(e) => warn!("aux packet error ({})", e)
+    }
+}
+
 
 #[cfg(rtio_frequency = "62.5")]
 const SI5324_SETTINGS: board::si5324::FrequencySettings
@@ -55,7 +75,9 @@ fn startup() {
         while !drtio_link_is_up() {}
         info!("link is up, switching to recovered clock");
         board::si5324::select_ext_input(true).expect("failed to switch clocks");
-        while drtio_link_is_up() {}
+        while drtio_link_is_up() {
+            process_aux_packets();
+        }
         info!("link is down, switching to local crystal clock");
         board::si5324::select_ext_input(false).expect("failed to switch clocks");
     }
