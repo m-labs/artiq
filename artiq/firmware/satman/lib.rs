@@ -14,14 +14,13 @@ extern crate drtioaux;
 
 fn process_aux_packet(p: drtioaux::Packet) {
     match p {
-        drtioaux::Packet::EchoRequest => drtioaux::send_packet(&drtioaux::Packet::EchoReply).unwrap(),
+        drtioaux::Packet::EchoRequest => drtioaux::hw::send(&drtioaux::Packet::EchoReply).unwrap(),
         _ => warn!("received unexpected aux packet {:?}", p)
     }
 }
 
-
 fn process_aux_packets() {
-    let pr = drtioaux::recv_packet();
+    let pr = drtioaux::hw::recv();
     match pr {
         Ok(None) => {},
         Ok(Some(p)) => process_aux_packet(p),

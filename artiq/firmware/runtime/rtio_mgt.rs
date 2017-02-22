@@ -113,9 +113,9 @@ mod drtio {
                 return 0
             }
             count += 1;
-            drtioaux::send_packet(&drtioaux::Packet::EchoRequest).unwrap();
+            drtioaux::hw::send(&drtioaux::Packet::EchoRequest).unwrap();
             io.sleep(100).unwrap();
-            let pr = drtioaux::recv_packet();
+            let pr = drtioaux::hw::recv();
             match pr {
                 Ok(Some(drtioaux::Packet::EchoReply)) => return count,
                 _ => {}

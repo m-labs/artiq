@@ -10,7 +10,7 @@ extern crate byteorder;
 mod proto;
 mod crc32;
 
-use std::io::{self, Cursor, Read, Write};
+use std::io::{self, Read, Write};
 use core::slice;
 use proto::*;
 
@@ -40,108 +40,114 @@ impl Packet {
     }
 }
 
-const AUX_TX_BASE: usize = board::mem::DRTIO_AUX_BASE;
-const AUX_TX_SIZE: usize = board::mem::DRTIO_AUX_SIZE/2;
-const AUX_RX_BASE: usize = AUX_TX_BASE + AUX_TX_SIZE;
+#[cfg(has_drtio)]
+pub mod hw {
+    use super::*;
+    use std::io::Cursor;
 
-fn rx_has_error() -> bool {
-    unsafe {
-        let error = board::csr::drtio::aux_rx_error_read() != 0;
-        if error {
-            board::csr::drtio::aux_rx_error_write(1)
-        }
-        error
-    }
-}
+    const AUX_TX_BASE: usize = board::mem::DRTIO_AUX_BASE;
+    const AUX_TX_SIZE: usize = board::mem::DRTIO_AUX_SIZE/2;
+    const AUX_RX_BASE: usize = AUX_TX_BASE + AUX_TX_SIZE;
 
-pub struct RxBuffer(&'static [u8]);
-
-impl Drop for RxBuffer {
-    fn drop(&mut self) {
+    fn rx_has_error() -> bool {
         unsafe {
-            board::csr::drtio::aux_rx_present_write(1);
+            let error = board::csr::drtio::aux_rx_error_read() != 0;
+            if error {
+                board::csr::drtio::aux_rx_error_write(1)
+            }
+            error
         }
     }
-}
 
-fn rx_get_buffer() -> Option<RxBuffer> {
-    unsafe {
-        if board::csr::drtio::aux_rx_present_read() == 1 {
-            let length = board::csr::drtio::aux_rx_length_read();
-            let sl = slice::from_raw_parts(AUX_RX_BASE as *mut u8, length as usize);
-            Some(RxBuffer(sl))
-        } else {
-            None
-        }
-    }
-}
+    struct RxBuffer(&'static [u8]);
 
-pub fn recv_packet() -> io::Result<Option<Packet>> {
-    if rx_has_error() {
-        return Err(io::Error::new(io::ErrorKind::Other, "gateware reported error"))
-    }
-    let buffer = rx_get_buffer();
-    match buffer {
-        Some(rxb) => {
-            let slice = rxb.0;
-            let mut reader = Cursor::new(slice);
-
-            let len = slice.len();
-            if len < 8 {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, "packet too short"))
-            }
-            let computed_crc = crc32::checksum_ieee(&reader.get_ref()[0..len-4]);
-            reader.set_position((len-4) as u64);
-            let crc = read_u32(&mut reader)?;
-            if crc != computed_crc {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, "packet CRC failed"))
-            }
-            reader.set_position(0);
-
-            let packet_r = Packet::read_from(&mut reader);
-            match packet_r {
-                Ok(packet) => Ok(Some(packet)),
-                Err(e) => Err(e)
+    impl Drop for RxBuffer {
+        fn drop(&mut self) {
+            unsafe {
+                board::csr::drtio::aux_rx_present_write(1);
             }
         }
-        None => Ok(None)
     }
-}
 
-fn tx_get_buffer() -> &'static mut [u8] {
-    unsafe {
-        while board::csr::drtio::aux_tx_read() != 0 {}
-        slice::from_raw_parts_mut(AUX_TX_BASE as *mut u8, AUX_TX_SIZE)
-    }
-}
-
-fn tx_ack_buffer(length: u16) {
-    unsafe {
-        board::csr::drtio::aux_tx_length_write(length);
-        board::csr::drtio::aux_tx_write(1)
-    }
-}
-
-pub fn send_packet(packet: &Packet) -> io::Result<()> {
-    let sl = tx_get_buffer();
-
-    let mut writer = Cursor::new(sl);
-    packet.write_to(&mut writer)?;
-    let mut len = writer.position();
-
-    let padding = 4 - (len % 4);
-    if padding != 4 {
-        for _ in 0..padding {
-            write_u8(&mut writer, 0)?;
+    fn rx_get_buffer() -> Option<RxBuffer> {
+        unsafe {
+            if board::csr::drtio::aux_rx_present_read() == 1 {
+                let length = board::csr::drtio::aux_rx_length_read();
+                let sl = slice::from_raw_parts(AUX_RX_BASE as *mut u8, length as usize);
+                Some(RxBuffer(sl))
+            } else {
+                None
+            }
         }
-        len += padding;
     }
 
-    let crc = crc32::checksum_ieee(&writer.get_ref()[0..len as usize]);
-    write_u32(&mut writer, crc)?;
-    len += 4;
+    pub fn recv() -> io::Result<Option<Packet>> {
+        if rx_has_error() {
+            return Err(io::Error::new(io::ErrorKind::Other, "gateware reported error"))
+        }
+        let buffer = rx_get_buffer();
+        match buffer {
+            Some(rxb) => {
+                let slice = rxb.0;
+                let mut reader = Cursor::new(slice);
 
-    tx_ack_buffer(len as u16);
+                let len = slice.len();
+                if len < 8 {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, "packet too short"))
+                }
+                let computed_crc = crc32::checksum_ieee(&reader.get_ref()[0..len-4]);
+                reader.set_position((len-4) as u64);
+                let crc = read_u32(&mut reader)?;
+                if crc != computed_crc {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, "packet CRC failed"))
+                }
+                reader.set_position(0);
 
-    Ok(())
+                let packet_r = Packet::read_from(&mut reader);
+                match packet_r {
+                    Ok(packet) => Ok(Some(packet)),
+                    Err(e) => Err(e)
+                }
+            }
+            None => Ok(None)
+        }
+    }
+
+    fn tx_get_buffer() -> &'static mut [u8] {
+        unsafe {
+            while board::csr::drtio::aux_tx_read() != 0 {}
+            slice::from_raw_parts_mut(AUX_TX_BASE as *mut u8, AUX_TX_SIZE)
+        }
+    }
+
+    fn tx_ack_buffer(length: u16) {
+        unsafe {
+            board::csr::drtio::aux_tx_length_write(length);
+            board::csr::drtio::aux_tx_write(1)
+        }
+    }
+
+    pub fn send(packet: &Packet) -> io::Result<()> {
+        let sl = tx_get_buffer();
+
+        let mut writer = Cursor::new(sl);
+        packet.write_to(&mut writer)?;
+        let mut len = writer.position();
+
+        let padding = 4 - (len % 4);
+        if padding != 4 {
+            for _ in 0..padding {
+                write_u8(&mut writer, 0)?;
+            }
+            len += padding;
+        }
+
+        let crc = crc32::checksum_ieee(&writer.get_ref()[0..len as usize]);
+        write_u32(&mut writer, crc)?;
+        len += 4;
+
+        tx_ack_buffer(len as u16);
+
+        Ok(())
+    }
 }

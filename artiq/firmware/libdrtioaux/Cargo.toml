@@ -2,6 +2,7 @@
 authors = ["M-Labs"]
 name = "drtioaux"
 version = "0.0.0"
+build = "build.rs"
 
 [lib]
 name = "drtioaux"
