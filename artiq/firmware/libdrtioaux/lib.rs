@@ -18,8 +18,11 @@ use proto::*;
 pub enum Packet {
     EchoRequest,
     EchoReply,
-    //MonitorRequest,
-    //MonitorReply
+    MonitorRequest { channel: u16, probe: u8 },
+    MonitorReply { value: u32 },
+    InjectionRequest { channel: u16, overrd: u8, value: u8 },
+    InjectionStatusRequest { channel: u16, overrd: u8 },
+    InjectionStatusReply { value: u8 }
 }
 
 impl Packet {
@@ -27,6 +30,25 @@ impl Packet {
         Ok(match read_u8(reader)? {
             0 => Packet::EchoRequest,
             1 => Packet::EchoReply,
+            2 => Packet::MonitorRequest {
+                channel: read_u16(reader)?,
+                probe: read_u8(reader)?
+            },
+            3 => Packet::MonitorReply {
+                value: read_u32(reader)?
+            },
+            4 => Packet::InjectionRequest {
+                channel: read_u16(reader)?,
+                overrd: read_u8(reader)?,
+                value: read_u8(reader)?
+            },
+            5 => Packet::InjectionStatusRequest {
+                channel: read_u16(reader)?,
+                overrd: read_u8(reader)?
+            },
+            6 => Packet::InjectionStatusReply {
+                value: read_u8(reader)?
+            },
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, "unknown packet type"))
         })
     }
@@ -34,7 +56,31 @@ impl Packet {
     pub fn write_to(&self, writer: &mut Write) -> io::Result<()> {
         match *self {
             Packet::EchoRequest => write_u8(writer, 0)?,
-            Packet::EchoReply => write_u8(writer, 1)?
+            Packet::EchoReply => write_u8(writer, 1)?,
+            Packet::MonitorRequest { channel, probe } => {
+                write_u8(writer, 2)?;
+                write_u16(writer, channel)?;
+                write_u8(writer, probe)?;
+            },
+            Packet::MonitorReply { value } => {
+                write_u8(writer, 3)?;
+                write_u32(writer, value)?;
+            },
+            Packet::InjectionRequest { channel, overrd, value } => {
+                write_u8(writer, 4)?;
+                write_u16(writer, channel)?;
+                write_u8(writer, overrd)?;
+                write_u8(writer, value)?;
+            },
+            Packet::InjectionStatusRequest { channel, overrd } => {
+                write_u8(writer, 5)?;
+                write_u16(writer, channel)?;
+                write_u8(writer, overrd)?;
+            },
+            Packet::InjectionStatusReply { value } => {
+                write_u8(writer, 6)?;
+                write_u8(writer, value)?;
+            }
         }
         Ok(())
     }
