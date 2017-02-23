@@ -11,35 +11,16 @@ extern crate logger_artiq;
 extern crate board;
 extern crate drtioaux;
 
-// FIXME: is there a better way of doing this?
-trait FromU16 {
-    fn from_u16(v: u16) -> Self;
-}
-
-impl FromU16 for u16 {
-    fn from_u16(v: u16) -> u16 {
-        v
-    }
-}
-
-impl FromU16 for u8 {
-    fn from_u16(v: u16) -> u8 {
-        v as u8
-    }
-}
-
-fn u8_or_u16<T: FromU16>(v: u16) -> T {
-    FromU16::from_u16(v)
-}
-
 fn process_aux_packet(p: &drtioaux::Packet) {
+    // In the code below, *_chan_sel_write takes an u8 if there are fewer than 256 channels,
+    // and u16 otherwise; hence the `as _` conversion.
     match *p {
         drtioaux::Packet::EchoRequest => drtioaux::hw::send(&drtioaux::Packet::EchoReply).unwrap(),
         drtioaux::Packet::MonitorRequest { channel, probe } => {
             let value;
             #[cfg(has_rtio_moninj)]
             unsafe {
-                board::csr::rtio_moninj::mon_chan_sel_write(u8_or_u16(channel));
+                board::csr::rtio_moninj::mon_chan_sel_write(channel as _);
                 board::csr::rtio_moninj::mon_probe_sel_write(probe);
                 board::csr::rtio_moninj::mon_value_update_write(1);
                 value = board::csr::rtio_moninj::mon_value_read();
@@ -54,7 +35,7 @@ fn process_aux_packet(p: &drtioaux::Packet) {
         drtioaux::Packet::InjectionRequest { channel, overrd, value } => {
             #[cfg(has_rtio_moninj)]
             unsafe {
-                board::csr::rtio_moninj::inj_chan_sel_write(u8_or_u16(channel));
+                board::csr::rtio_moninj::inj_chan_sel_write(channel as _);
                 board::csr::rtio_moninj::inj_override_sel_write(overrd);
                 board::csr::rtio_moninj::inj_value_write(value);
             }
@@ -63,7 +44,7 @@ fn process_aux_packet(p: &drtioaux::Packet) {
             let value;
             #[cfg(has_rtio_moninj)]
             unsafe {
-                board::csr::rtio_moninj::inj_chan_sel_write(u8_or_u16(channel));
+                board::csr::rtio_moninj::inj_chan_sel_write(channel as _);
                 board::csr::rtio_moninj::inj_override_sel_write(overrd);
                 value = board::csr::rtio_moninj::inj_value_read();
             }
