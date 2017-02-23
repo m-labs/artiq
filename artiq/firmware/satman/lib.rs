@@ -11,10 +11,69 @@ extern crate logger_artiq;
 extern crate board;
 extern crate drtioaux;
 
+// FIXME: is there a better way of doing this?
+trait FromU16 {
+    fn from_u16(v: u16) -> Self;
+}
 
-fn process_aux_packet(p: drtioaux::Packet) {
-    match p {
+impl FromU16 for u16 {
+    fn from_u16(v: u16) -> u16 {
+        v
+    }
+}
+
+impl FromU16 for u8 {
+    fn from_u16(v: u16) -> u8 {
+        v as u8
+    }
+}
+
+fn u8_or_u16<T: FromU16>(v: u16) -> T {
+    FromU16::from_u16(v)
+}
+
+fn process_aux_packet(p: &drtioaux::Packet) {
+    match *p {
         drtioaux::Packet::EchoRequest => drtioaux::hw::send(&drtioaux::Packet::EchoReply).unwrap(),
+        drtioaux::Packet::MonitorRequest { channel, probe } => {
+            let value;
+            #[cfg(has_rtio_moninj)]
+            unsafe {
+                board::csr::rtio_moninj::mon_chan_sel_write(u8_or_u16(channel));
+                board::csr::rtio_moninj::mon_probe_sel_write(probe);
+                board::csr::rtio_moninj::mon_value_update_write(1);
+                value = board::csr::rtio_moninj::mon_value_read();
+            }
+            #[cfg(not(has_rtio_moninj))]
+            {
+                value = 0;
+            }
+            let reply = drtioaux::Packet::MonitorReply { value: value as u32 };
+            drtioaux::hw::send(&reply).unwrap();
+        },
+        drtioaux::Packet::InjectionRequest { channel, overrd, value } => {
+            #[cfg(has_rtio_moninj)]
+            unsafe {
+                board::csr::rtio_moninj::inj_chan_sel_write(u8_or_u16(channel));
+                board::csr::rtio_moninj::inj_override_sel_write(overrd);
+                board::csr::rtio_moninj::inj_value_write(value);
+            }
+        },
+        drtioaux::Packet::InjectionStatusRequest { channel, overrd } => {
+            let value;
+            #[cfg(has_rtio_moninj)]
+            unsafe {
+                board::csr::rtio_moninj::inj_chan_sel_write(u8_or_u16(channel));
+                board::csr::rtio_moninj::inj_override_sel_write(overrd);
+                value = board::csr::rtio_moninj::inj_value_read();
+            }
+            #[cfg(not(has_rtio_moninj))]
+            {
+                value = 0;
+            }
+            let reply = drtioaux::Packet::InjectionStatusReply { value: value };
+            drtioaux::hw::send(&reply).unwrap();
+        },
         _ => warn!("received unexpected aux packet {:?}", p)
     }
 }
@@ -23,7 +82,7 @@ fn process_aux_packets() {
     let pr = drtioaux::hw::recv();
     match pr {
         Ok(None) => {},
-        Ok(Some(p)) => process_aux_packet(p),
+        Ok(Some(p)) => process_aux_packet(&p),
         Err(e) => warn!("aux packet error ({})", e)
     }
 }
