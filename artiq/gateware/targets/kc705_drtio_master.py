@@ -113,7 +113,7 @@ class Master(MiniSoC, AMPSoC):
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
             [self.rtio.cri, self.rtio_dma.cri],
-            [self.drtio.cri, self.rtio_core.cri])
+            [self.rtio_core.cri, self.drtio.cri])
 
 
 def main():
