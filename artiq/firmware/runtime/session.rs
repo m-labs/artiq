@@ -179,7 +179,7 @@ unsafe fn kern_load(io: &Io, session: &mut Session, library: &[u8]) -> io::Resul
                 session.kernel_state = KernelState::Loaded;
                 Ok(())
             }
-            &kern::LoadReply(Err(error)) => {
+            &kern::LoadReply(Err(ref error)) => {
                 kernel::stop();
                 Err(io::Error::new(io::ErrorKind::Other,
                                    format!("cannot load kernel: {}", error)))

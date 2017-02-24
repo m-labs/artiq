@@ -63,6 +63,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "dyld"
+version = "0.0.0"
+
+[[package]]
 name = "fringe"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -93,6 +97,7 @@ dependencies = [
  "build_artiq 0.0.0",
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "dyld 0.0.0",
  "std_artiq 0.0.0",
 ]
 
@@ -136,6 +141,7 @@ dependencies = [
  "compiler_builtins 0.1.0 (git+https://github.com/rust-lang-nursery/compiler-builtins?rev=631b568)",
  "cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "drtioaux 0.0.0",
+ "dyld 0.0.0",
  "fringe 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "logger_artiq 0.0.0",

@@ -9,6 +9,7 @@ extern crate libc;
 extern crate byteorder;
 extern crate board;
 extern crate cslice;
+extern crate dyld;
 
 #[path = "../runtime/mailbox.rs"]
 mod mailbox;
@@ -20,10 +21,9 @@ mod kernel_proto;
 #[path = "../runtime/rpc_proto.rs"]
 mod rpc_proto;
 
-mod dyld;
 mod api;
 
-use core::{mem, ptr, str};
+use core::{mem, ptr, slice, str};
 use std::io::Cursor;
 use cslice::{CSlice, AsCSlice};
 use kernel_proto::*;
@@ -294,8 +294,12 @@ unsafe fn attribute_writeback(typeinfo: *const ()) {
 
 #[no_mangle]
 pub unsafe fn main() {
+    let image = slice::from_raw_parts_mut(kernel_proto::KERNELCPU_PAYLOAD_ADDRESS as *mut u8,
+                                          kernel_proto::KERNELCPU_LAST_ADDRESS -
+                                          kernel_proto::KERNELCPU_PAYLOAD_ADDRESS);
+
     let library = recv!(&LoadRequest(library) => {
-        match Library::load(library, kernel_proto::KERNELCPU_PAYLOAD_ADDRESS, api::resolve) {
+        match Library::load(library, image, &api::resolve) {
             Err(error) => {
                 send(&LoadReply(Err(error)));
                 loop {}
@@ -307,16 +311,16 @@ pub unsafe fn main() {
         }
     });
 
-    let __bss_start = library.lookup("__bss_start");
-    let _end = library.lookup("_end");
-    ptr::write_bytes(__bss_start as *mut u8, 0, _end - __bss_start);
+    let __bss_start = library.lookup(b"__bss_start").unwrap();
+    let _end = library.lookup(b"_end").unwrap();
+    ptr::write_bytes(__bss_start as *mut u8, 0, (_end - __bss_start) as usize);
 
     send(&NowInitRequest);
     recv!(&NowInitReply(now) => NOW = now);
-    (mem::transmute::<usize, fn()>(library.lookup("__modinit__")))();
+    (mem::transmute::<u32, fn()>(library.lookup(b"__modinit__").unwrap()))();
     send(&NowSave(NOW));
 
-    attribute_writeback(library.lookup("typeinfo") as *const ());
+    attribute_writeback(library.lookup(b"typeinfo").unwrap_or(0) as *const ());
 
     send(&RunFinished);
 

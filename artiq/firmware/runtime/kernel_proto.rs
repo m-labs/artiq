@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use core::fmt;
+use dyld;
 
 pub const KERNELCPU_EXEC_ADDRESS:    usize = 0x40800000;
 pub const KERNELCPU_PAYLOAD_ADDRESS: usize = 0x40840000;
@@ -22,7 +23,7 @@ pub struct Exception<'a> {
 #[derive(Debug)]
 pub enum Message<'a> {
     LoadRequest(&'a [u8]),
-    LoadReply(Result<(), &'a str>),
+    LoadReply(Result<(), dyld::Error<'a>>),
 
     NowInitRequest,
     NowInitReply(u64),

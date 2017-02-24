@@ -12,12 +12,11 @@ macro_rules! api {
     }
 }
 
-pub fn resolve(required: &str) -> usize {
+pub fn resolve(required: &[u8]) -> Option<u32> {
     unsafe {
         API.iter()
-           .find(|&&(exported, _)| exported == required)
-           .map(|&(_, ptr)| ptr as usize)
-           .unwrap_or(0)
+           .find(|&&(exported, _)| exported.as_bytes() == required)
+           .map(|&(_, ptr)| ptr as u32)
     }
 }
 

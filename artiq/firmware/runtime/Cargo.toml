@@ -19,6 +19,7 @@ logger_artiq = { path = "../liblogger_artiq" }
 cslice = { version = "0.3" }
 log = { version = "0.3", default-features = false, features = ["max_level_debug"] }
 board = { path = "../libboard", features = ["uart_console"] }
+dyld = { path = "../libdyld" }
 drtioaux = { path = "../libdrtioaux" }
 fringe = { version = "= 1.1.0", default-features = false, features = ["alloc"] }
 byteorder = { version = "1.0", default-features = false }

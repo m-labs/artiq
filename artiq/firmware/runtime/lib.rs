@@ -16,6 +16,7 @@ extern crate smoltcp;
 extern crate board;
 #[cfg(has_drtio)]
 extern crate drtioaux;
+extern crate dyld;
 
 use std::boxed::Box;
 use smoltcp::wire::{EthernetAddress, IpAddress};
