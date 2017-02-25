@@ -37,7 +37,7 @@ pub mod crg {
 }
 
 #[cfg(has_drtio)]
-mod drtio {
+pub mod drtio {
     use super::*;
     use drtioaux;
 
@@ -54,7 +54,7 @@ mod drtio {
         }
     }
 
-    fn link_is_running() -> bool {
+    pub fn link_is_running() -> bool {
         unsafe {
             LINK_RUNNING
         }
