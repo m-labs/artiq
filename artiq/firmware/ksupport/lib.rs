@@ -121,7 +121,7 @@ extern fn abort() -> ! {
     loop {}
 }
 
-extern fn send_rpc(service: u32, tag: CSlice<u8>, data: *const *const ()) {
+extern fn rpc_send(service: u32, tag: CSlice<u8>, data: *const *const ()) {
     while !rpc_queue::empty() {}
     send(&RpcSend {
         async:   false,
@@ -131,7 +131,7 @@ extern fn send_rpc(service: u32, tag: CSlice<u8>, data: *const *const ()) {
     })
 }
 
-extern fn send_async_rpc(service: u32, tag: CSlice<u8>, data: *const *const ()) {
+extern fn rpc_send_async(service: u32, tag: CSlice<u8>, data: *const *const ()) {
     while rpc_queue::full() {}
     rpc_queue::enqueue(|mut slice| {
         let length = {
@@ -153,7 +153,7 @@ extern fn send_async_rpc(service: u32, tag: CSlice<u8>, data: *const *const ()) 
     })
 }
 
-extern fn recv_rpc(slot: *mut ()) -> usize {
+extern fn rpc_recv(slot: *mut ()) -> usize {
     send(&RpcRecvRequest(slot));
     recv!(&RpcRecvReply(ref result) => {
         match result {
@@ -281,7 +281,7 @@ unsafe fn attribute_writeback(typeinfo: *const ()) {
                 attributes = attributes.offset(1);
 
                 if (*attribute).tag.len() > 0 {
-                    send_async_rpc(0, (*attribute).tag, [
+                    rpc_send_async(0, (*attribute).tag, [
                         &object as *const _ as *const (),
                         &(*attribute).name as *const _ as *const (),
                         (object as usize + (*attribute).offset) as *const ()
