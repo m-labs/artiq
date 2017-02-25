@@ -8,9 +8,11 @@ extern crate board;
 extern crate byteorder;
 
 mod proto;
+#[cfg(has_drtio)]
 mod crc32;
 
 use std::io::{self, Read, Write};
+#[cfg(has_drtio)]
 use core::slice;
 use proto::*;
 
