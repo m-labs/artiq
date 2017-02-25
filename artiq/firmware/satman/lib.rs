@@ -62,7 +62,7 @@ fn process_aux_packet(p: &drtioaux::Packet) {
 fn process_aux_packets() {
     let pr = drtioaux::hw::recv();
     match pr {
-        Ok(None) => {},
+        Ok(None) => (),
         Ok(Some(p)) => process_aux_packet(&p),
         Err(e) => warn!("aux packet error ({})", e)
     }
