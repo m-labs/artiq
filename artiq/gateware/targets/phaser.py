@@ -218,8 +218,6 @@ class Phaser(MiniSoC, AMPSoC):
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
                                                    ofifo_depth=2))
 
-        self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
-
         self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
         rtio_channels.extend(rtio.Channel.from_phy(phy)
                              for sawg in self.ad9154.sawgs

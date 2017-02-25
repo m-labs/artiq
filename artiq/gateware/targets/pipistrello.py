@@ -198,15 +198,12 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy, ofifo_depth=4))
 
-        self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
-
         phy = ttl_simple.ClockGen(platform.request("ttl", 15))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
         phy = spi.SPIMaster(self.platform.request("pmod_extended_spi", 0))
         self.submodules += phy
-        self.config["RTIO_FIRST_SPI_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ofifo_depth=64, ififo_depth=64))
 

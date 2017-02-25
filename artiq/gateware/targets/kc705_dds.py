@@ -202,7 +202,6 @@ class NIST_CLOCK(_NIST_Ions):
         phy = ttl_simple.Output(ams101_dac.ldac)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
-        self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
         phy = ttl_simple.ClockGen(platform.request("la32_p"))
         self.submodules += phy
@@ -210,7 +209,6 @@ class NIST_CLOCK(_NIST_Ions):
 
         phy = spi.SPIMaster(ams101_dac)
         self.submodules += phy
-        self.config["RTIO_FIRST_SPI_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ofifo_depth=4, ififo_depth=4))
 
@@ -220,9 +218,6 @@ class NIST_CLOCK(_NIST_Ions):
             rtio_channels.append(rtio.Channel.from_phy(
                 phy, ofifo_depth=128, ififo_depth=128))
 
-        self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
-        self.config["RTIO_DDS_COUNT"] = 1
-        self.config["DDS_CHANNELS_PER_BUS"] = 11
         phy = dds.AD9914(platform.request("dds"), 11, onehot=True)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,
@@ -278,14 +273,12 @@ class NIST_QC2(_NIST_Ions):
         phy = ttl_simple.Output(ams101_dac.ldac)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
-        self.config["RTIO_REGULAR_TTL_COUNT"] = len(rtio_channels)
 
-        # add clock generators after RTIO_REGULAR_TTL_COUNT
+        # add clock generators after TTLs
         rtio_channels += clock_generators
 
         phy = spi.SPIMaster(ams101_dac)
         self.submodules += phy
-        self.config["RTIO_FIRST_SPI_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ofifo_depth=4, ififo_depth=4))
 
@@ -295,9 +288,6 @@ class NIST_QC2(_NIST_Ions):
             rtio_channels.append(rtio.Channel.from_phy(
                 phy, ofifo_depth=128, ififo_depth=128))
 
-        self.config["RTIO_FIRST_DDS_CHANNEL"] = len(rtio_channels)
-        self.config["RTIO_DDS_COUNT"] = 2
-        self.config["DDS_CHANNELS_PER_BUS"] = 12
         for backplane_offset in range(2):
             phy = dds.AD9914(
                 platform.request("dds", backplane_offset), 12, onehot=True)
