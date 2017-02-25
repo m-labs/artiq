@@ -81,6 +81,8 @@ pub struct Library<'a> {
     image_sz:    usize,
     strtab:      &'a [u8],
     symtab:      &'a [Elf32_Sym],
+    rela:        &'a [Elf32_Rela],
+    pltrel:      &'a [Elf32_Rela],
     hash_bucket: &'a [Elf32_Word],
     hash_chain:  &'a [Elf32_Word],
 }
@@ -114,7 +116,43 @@ impl<'a> Library<'a> {
         }
     }
 
-    fn fixup_rela(&self, rela: &Elf32_Rela, resolve: &Fn(&[u8]) -> Option<Elf32_Word>)
+    fn name_starting_at(&self, offset: usize) -> Result<&'a [u8], Error<'a>> {
+        let size = self.strtab.iter().skip(offset).position(|&x| x == 0)
+                              .ok_or("symbol in symbol table not null-terminated")?;
+        Ok(self.strtab.get(offset..offset + size)
+                      .ok_or("cannot read symbol name")?)
+    }
+
+    fn update_rela(&self, rela: &Elf32_Rela, value: Elf32_Word) -> Result<(), Error<'a>> {
+        if rela.r_offset as usize + mem::size_of::<Elf32_Addr>() > self.image_sz {
+            return Err("relocation out of image bounds")?
+        }
+
+        let ptr = (self.image_off + rela.r_offset) as *mut Elf32_Addr;
+        Ok(unsafe { *ptr = value })
+    }
+
+    pub fn rebind(&self, name: &[u8], addr: Elf32_Word) -> Result<(), Error<'a>> {
+        for rela in self.rela.iter().chain(self.pltrel.iter()) {
+            match ELF32_R_TYPE(rela.r_info) {
+                R_OR1K_32 | R_OR1K_GLOB_DAT | R_OR1K_JMP_SLOT => {
+                    let sym = self.symtab.get(ELF32_R_SYM(rela.r_info) as usize)
+                                         .ok_or("symbol out of bounds of symbol table")?;
+                    let sym_name = self.name_starting_at(sym.st_name as usize)?;
+
+                    if sym_name == name {
+                        self.update_rela(rela, addr)?
+                    }
+                }
+
+                // No associated symbols for other relocation types.
+                _ => ()
+            }
+        }
+        Ok(())
+    }
+
+    fn resolve_rela(&self, rela: &Elf32_Rela, resolve: &Fn(&[u8]) -> Option<Elf32_Word>)
             -> Result<(), Error<'a>> {
         let sym;
         if ELF32_R_SYM(rela.r_info) == 0 {
@@ -134,14 +172,7 @@ impl<'a> Library<'a> {
 
             R_OR1K_32 | R_OR1K_GLOB_DAT | R_OR1K_JMP_SLOT => {
                 let sym = sym.ok_or("relocation requires an associated symbol")?;
-
-                let sym_name_off = sym.st_name as usize;
-                let sym_name_end =
-                    self.strtab.iter().skip(sym_name_off).position(|&x| x == 0)
-                               .ok_or("symbol in symbol table not null-terminated")?;
-                let sym_name =
-                    self.strtab.get(sym_name_off..sym_name_off + sym_name_end)
-                               .ok_or("cannot read symbol name")?;
+                let sym_name = self.name_starting_at(sym.st_name as usize)?;
 
                 // First, try to resolve against itself.
                 match self.lookup(sym_name) {
@@ -162,14 +193,7 @@ impl<'a> Library<'a> {
             _ => return Err("unsupported relocation type")?
         }
 
-        if rela.r_offset as usize + mem::size_of::<Elf32_Addr>() > self.image_sz {
-            return Err("relocation out of image bounds")?
-        }
-
-        let ptr = (self.image_off + rela.r_offset) as *mut Elf32_Addr;
-        unsafe { *ptr = value }
-
-        Ok(())
+        self.update_rela(rela, value)
     }
 
     pub fn load(data: &[u8], image: &'a mut [u8], resolve: &Fn(&[u8]) -> Option<Elf32_Word>)
@@ -291,6 +315,8 @@ impl<'a> Library<'a> {
             image_sz:    image.len(),
             strtab:      strtab,
             symtab:      symtab,
+            rela:        rela,
+            pltrel:      pltrel,
             hash_bucket: &hash[..nbucket],
             hash_chain:  &hash[nbucket..nbucket + nchain],
         };
@@ -305,8 +331,9 @@ impl<'a> Library<'a> {
         // we never write to the memory they refer to, so it's safe.
         mem::drop(image);
 
-        for r in rela   { library.fixup_rela(r, resolve)? }
-        for r in pltrel { library.fixup_rela(r, resolve)? }
+        for r in rela.iter().chain(pltrel.iter()) {
+            library.resolve_rela(r, resolve)?
+        }
 
         Ok(library)
     }
