@@ -27,16 +27,16 @@ pub enum Message<'a> {
     NowInitReply(u64),
     NowSave(u64),
 
-    RTIOInitRequest,
+    RtioInitRequest,
 
-    DRTIOChannelStateRequest { channel: u32 },
-    DRTIOChannelStateReply { fifo_space: u16, last_timestamp: u64 },
-    DRTIOResetChannelStateRequest { channel: u32 },
-    DRTIOGetFIFOSpaceRequest { channel: u32 },
-    DRTIOPacketCountRequest,
-    DRTIOPacketCountReply { tx_cnt: u32, rx_cnt: u32 },
-    DRTIOFIFOSpaceReqCountRequest,
-    DRTIOFIFOSpaceReqCountReply { cnt: u32 },
+    DrtioChannelStateRequest { channel: u32 },
+    DrtioChannelStateReply { fifo_space: u16, last_timestamp: u64 },
+    DrtioResetChannelStateRequest { channel: u32 },
+    DrtioGetFifoSpaceRequest { channel: u32 },
+    DrtioPacketCountRequest,
+    DrtioPacketCountReply { tx_cnt: u32, rx_cnt: u32 },
+    DrtioFifoSpaceReqCountRequest,
+    DrtioFifoSpaceReqCountReply { cnt: u32 },
 
     RunFinished,
     RunException {
@@ -63,12 +63,12 @@ pub enum Message<'a> {
     CachePutRequest { key: &'a str, value: &'a [i32] },
     CachePutReply   { succeeded: bool },
 
-    I2CStartRequest { busno: u8 },
-    I2CStopRequest { busno: u8 },
-    I2CWriteRequest { busno: u8, data: u8 },
-    I2CWriteReply { ack: bool },
-    I2CReadRequest { busno: u8, ack: bool },
-    I2CReadReply { data: u8 },
+    I2cStartRequest { busno: u8 },
+    I2cStopRequest { busno: u8 },
+    I2cWriteRequest { busno: u8, data: u8 },
+    I2cWriteReply { ack: bool },
+    I2cReadRequest { busno: u8, ack: bool },
+    I2cReadReply { data: u8 },
 
     Log(fmt::Arguments<'a>),
     LogSlice(&'a str)

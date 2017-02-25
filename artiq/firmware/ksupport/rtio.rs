@@ -13,7 +13,7 @@ const RTIO_I_STATUS_EMPTY:          u32 = 1;
 const RTIO_I_STATUS_OVERFLOW:       u32 = 2;
 
 pub extern fn init() {
-    send(&RTIOInitRequest);
+    send(&RtioInitRequest);
 }
 
 pub extern fn get_counter() -> i64 {
@@ -190,31 +190,31 @@ pub mod drtio_dbg {
     pub struct ChannelState(i32, i64);
 
     pub extern fn get_channel_state(channel: i32) -> ChannelState {
-        send(&DRTIOChannelStateRequest { channel: channel as u32 });
-        recv!(&DRTIOChannelStateReply { fifo_space, last_timestamp }
+        send(&DrtioChannelStateRequest { channel: channel as u32 });
+        recv!(&DrtioChannelStateReply { fifo_space, last_timestamp }
               => ChannelState(fifo_space as i32, last_timestamp as i64))
     }
 
     pub extern fn reset_channel_state(channel: i32) {
-        send(&DRTIOResetChannelStateRequest { channel: channel as u32 })
+        send(&DrtioResetChannelStateRequest { channel: channel as u32 })
     }
 
     pub extern fn get_fifo_space(channel: i32) {
-        send(&DRTIOGetFIFOSpaceRequest { channel: channel as u32 })
+        send(&DrtioGetFifoSpaceRequest { channel: channel as u32 })
     }
 
     #[repr(C)]
     pub struct PacketCounts(i32, i32);
 
     pub extern fn get_packet_counts() -> PacketCounts {
-        send(&DRTIOPacketCountRequest);
-        recv!(&DRTIOPacketCountReply { tx_cnt, rx_cnt }
+        send(&DrtioPacketCountRequest);
+        recv!(&DrtioPacketCountReply { tx_cnt, rx_cnt }
               => PacketCounts(tx_cnt as i32, rx_cnt as i32))
     }
 
     pub extern fn get_fifo_space_req_count() -> i32 {
-        send(&DRTIOFIFOSpaceReqCountRequest);
-        recv!(&DRTIOFIFOSpaceReqCountReply { cnt }
+        send(&DrtioFifoSpaceReqCountRequest);
+        recv!(&DrtioFifoSpaceReqCountReply { cnt }
               => cnt as i32)
     }
 }

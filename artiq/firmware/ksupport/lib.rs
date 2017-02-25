@@ -219,21 +219,21 @@ extern fn cache_put(key: CSlice<u8>, list: CSlice<i32>) {
 }
 
 extern fn i2c_start(busno: i32) {
-    send(&I2CStartRequest { busno: busno as u8 });
+    send(&I2cStartRequest { busno: busno as u8 });
 }
 
 extern fn i2c_stop(busno: i32) {
-    send(&I2CStopRequest { busno: busno as u8 });
+    send(&I2cStopRequest { busno: busno as u8 });
 }
 
 extern fn i2c_write(busno: i32, data: i32) -> bool {
-    send(&I2CWriteRequest { busno: busno as u8, data: data as u8 });
-    recv!(&I2CWriteReply { ack } => ack)
+    send(&I2cWriteRequest { busno: busno as u8, data: data as u8 });
+    recv!(&I2cWriteReply { ack } => ack)
 }
 
 extern fn i2c_read(busno: i32, ack: bool) -> i32 {
-    send(&I2CReadRequest { busno: busno as u8, ack: ack });
-    recv!(&I2CReadReply { data } => data) as i32
+    send(&I2cReadRequest { busno: busno as u8, ack: ack });
+    recv!(&I2cReadReply { data } => data) as i32
 }
 
 unsafe fn attribute_writeback(typeinfo: *const ()) {
