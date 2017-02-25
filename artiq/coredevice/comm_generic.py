@@ -209,12 +209,21 @@ class CommGeneric:
         if runtime_id != b"AROR":
             raise UnsupportedDevice("Unsupported runtime ID: {}"
                                     .format(runtime_id))
+
         gateware_version = self._read_string()
-        if gateware_version != software_version and \
-                gateware_version + ".dirty" != software_version:
+        if gateware_version.endswith(".dirty"):
+            gateware_version_clean = gateware_version[:-6]
+        else:
+            gateware_version_clean = gateware_version
+        if software_version.endswith(".dirty"):
+            software_version_clean = software_version[:-6]
+        else:
+            software_version_clean = software_version
+        if gateware_version_clean != software_version_clean:
             logger.warning("Mismatch between gateware (%s) "
                            "and software (%s) versions",
                            gateware_version, software_version)
+
         finished_cleanly = self._read_bool()
         if not finished_cleanly:
             logger.warning("Interrupted a running kernel")
