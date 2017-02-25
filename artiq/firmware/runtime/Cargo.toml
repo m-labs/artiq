@@ -13,16 +13,17 @@ path = "lib.rs"
 build_artiq = { path = "../libbuild_artiq" }
 
 [dependencies]
+byteorder = { version = "1.0", default-features = false }
+cslice = { version = "0.3" }
+log = { version = "0.3", default-features = false, features = ["max_level_debug"] }
+fringe = { version = "= 1.1.0", default-features = false, features = ["alloc"] }
 alloc_artiq = { path = "../liballoc_artiq" }
 std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
 logger_artiq = { path = "../liblogger_artiq" }
-cslice = { version = "0.3" }
-log = { version = "0.3", default-features = false, features = ["max_level_debug"] }
 board = { path = "../libboard", features = ["uart_console"] }
-dyld = { path = "../libdyld" }
+proto = { path = "../libproto", features = ["log"] }
+amp = { path = "../libamp" }
 drtioaux = { path = "../libdrtioaux" }
-fringe = { version = "= 1.1.0", default-features = false, features = ["alloc"] }
-byteorder = { version = "1.0", default-features = false }
 
 [dependencies.compiler_builtins]
 git = "https://github.com/rust-lang-nursery/compiler-builtins"

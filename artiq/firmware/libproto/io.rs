@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::io::{self, Read, Write};
 use std::vec::Vec;
 use std::string::String;
@@ -55,7 +53,8 @@ pub fn write_u64(writer: &mut Write, value: u64) -> io::Result<()> {
 
 pub fn read_bytes(reader: &mut Read) -> io::Result<Vec<u8>> {
     let length = read_u32(reader)?;
-    let mut value = vec![0; length as usize];
+    let mut value = Vec::new();
+    value.resize(length as usize, 0);
     reader.read_exact(&mut value)?;
     Ok(value)
 }

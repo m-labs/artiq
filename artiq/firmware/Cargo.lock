@@ -11,6 +11,13 @@ name = "alloc_none"
 version = "0.0.0"
 
 [[package]]
+name = "amp"
+version = "0.0.0"
+dependencies = [
+ "board 0.0.0",
+]
+
+[[package]]
 name = "board"
 version = "0.0.0"
 dependencies = [
@@ -93,11 +100,13 @@ name = "ksupport"
 version = "0.0.0"
 dependencies = [
  "alloc_none 0.0.0",
+ "amp 0.0.0",
  "board 0.0.0",
  "build_artiq 0.0.0",
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dyld 0.0.0",
+ "proto 0.0.0",
  "std_artiq 0.0.0",
 ]
 
@@ -131,20 +140,32 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "proto"
+version = "0.0.0"
+dependencies = [
+ "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "dyld 0.0.0",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "std_artiq 0.0.0",
+]
+
+[[package]]
 name = "runtime"
 version = "0.0.0"
 dependencies = [
  "alloc_artiq 0.0.0",
+ "amp 0.0.0",
  "board 0.0.0",
  "build_artiq 0.0.0",
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "compiler_builtins 0.1.0 (git+https://github.com/rust-lang-nursery/compiler-builtins?rev=631b568)",
  "cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "drtioaux 0.0.0",
- "dyld 0.0.0",
  "fringe 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "logger_artiq 0.0.0",
+ "proto 0.0.0",
  "smoltcp 0.2.1 (git+https://github.com/m-labs/smoltcp?rev=e8ece3e)",
  "std_artiq 0.0.0",
 ]

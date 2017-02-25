@@ -1,54 +1,26 @@
 #![feature(lang_items, asm, libc, panic_unwind, unwind_attributes)]
 #![no_std]
 
-extern crate alloc_none;
-#[macro_use]
-extern crate std_artiq as std;
 extern crate unwind;
 extern crate libc;
 extern crate byteorder;
-extern crate board;
 extern crate cslice;
+
+extern crate alloc_none;
+extern crate std_artiq as std;
+
+extern crate board;
 extern crate dyld;
-
-#[path = "../runtime/mailbox.rs"]
-mod mailbox;
-
-#[path = "../runtime/proto.rs"]
-mod proto;
-#[path = "../runtime/kernel_proto.rs"]
-mod kernel_proto;
-#[path = "../runtime/rpc_proto.rs"]
-mod rpc_proto;
-
-mod api;
+extern crate proto;
+extern crate amp;
 
 use core::{mem, ptr, slice, str};
 use std::io::Cursor;
 use cslice::{CSlice, AsCSlice};
-use kernel_proto::*;
 use dyld::Library;
-
-macro_rules! artiq_raise {
-    ($name:expr, $message:expr, $param0:expr, $param1:expr, $param2:expr) => ({
-        use cslice::AsCSlice;
-        let exn = $crate::eh::Exception {
-            name:     concat!("0:artiq.coredevice.exceptions.", $name).as_bytes().as_c_slice(),
-            file:     file!().as_bytes().as_c_slice(),
-            line:     line!(),
-            column:   column!(),
-            // https://github.com/rust-lang/rfcs/pull/1719
-            function: "(Rust function)".as_bytes().as_c_slice(),
-            message:  $message.as_bytes().as_c_slice(),
-            param:    [$param0, $param1, $param2]
-        };
-        #[allow(unused_unsafe)]
-        unsafe { $crate::eh::raise(&exn) }
-    });
-    ($name:expr, $message:expr) => ({
-        artiq_raise!($name, $message, 0, 0, 0)
-    });
-}
+use proto::{kernel_proto, rpc_proto};
+use proto::kernel_proto::*;
+use amp::{mailbox, rpc_queue};
 
 fn send(request: &Message) {
     unsafe { mailbox::send(request as *const _ as usize) }
@@ -75,6 +47,14 @@ macro_rules! recv {
     }
 }
 
+#[no_mangle]
+#[lang = "panic_fmt"]
+pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
+    send(&Log(format_args!("panic at {}:{}: {}", file, line, args)));
+    send(&RunAborted);
+    loop {}
+}
+
 macro_rules! print {
     ($($arg:tt)*) => ($crate::send(&$crate::kernel_proto::Log(format_args!($($arg)*))));
 }
@@ -84,18 +64,30 @@ macro_rules! println {
     ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
 }
 
-#[path = "../runtime/rpc_queue.rs"]
-mod rpc_queue;
-mod rtio;
-mod eh;
-
-#[no_mangle]
-#[lang = "panic_fmt"]
-pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
-    println!("panic at {}:{}: {}", file, line, args);
-    send(&RunAborted);
-    loop {}
+macro_rules! raise {
+    ($name:expr, $message:expr, $param0:expr, $param1:expr, $param2:expr) => ({
+        use cslice::AsCSlice;
+        let exn = $crate::eh::Exception {
+            name:     concat!("0:artiq.coredevice.exceptions.", $name).as_bytes().as_c_slice(),
+            file:     file!().as_bytes().as_c_slice(),
+            line:     line!(),
+            column:   column!(),
+            // https://github.com/rust-lang/rfcs/pull/1719
+            function: "(Rust function)".as_bytes().as_c_slice(),
+            message:  $message.as_bytes().as_c_slice(),
+            param:    [$param0, $param1, $param2]
+        };
+        #[allow(unused_unsafe)]
+        unsafe { $crate::eh::raise(&exn) }
+    });
+    ($name:expr, $message:expr) => ({
+        raise!($name, $message, 0, 0, 0)
+    });
 }
+
+pub mod eh;
+mod api;
+mod rtio;
 
 static mut NOW: u64 = 0;
 
@@ -113,12 +105,6 @@ pub extern fn send_to_core_log(text: CSlice<u8>) {
 #[no_mangle]
 pub extern fn send_to_rtio_log(timestamp: i64, text: CSlice<u8>) {
     rtio::log(timestamp, text.as_ref())
-}
-
-extern fn abort() -> ! {
-    println!("kernel called abort()");
-    send(&RunAborted);
-    loop {}
 }
 
 extern fn rpc_send(service: u32, tag: CSlice<u8>, data: *const *const ()) {
@@ -139,7 +125,7 @@ extern fn rpc_send_async(service: u32, tag: CSlice<u8>, data: *const *const ()) 
             rpc_proto::send_args(&mut writer, service, tag.as_ref(), data)?;
             writer.position()
         };
-        proto::write_u32(&mut slice, length as u32)
+        proto::io::write_u32(&mut slice, length as u32)
     }).unwrap_or_else(|err| {
         assert!(err.kind() == std::io::ErrorKind::WriteZero);
 
@@ -202,7 +188,7 @@ fn terminate(exception: &eh::Exception, mut backtrace: &mut [usize]) -> ! {
 
 extern fn watchdog_set(ms: i64) -> i32 {
     if ms < 0 {
-        artiq_raise!("ValueError", "cannot set a watchdog with a negative timeout")
+        raise!("ValueError", "cannot set a watchdog with a negative timeout")
     }
 
     send(&WatchdogSetRequest { ms: ms as u64 });
@@ -227,7 +213,7 @@ extern fn cache_put(key: CSlice<u8>, list: CSlice<i32>) {
     });
     recv!(&CachePutReply { succeeded } => {
         if !succeeded {
-            artiq_raise!("CacheError", "cannot put into a busy cache row")
+            raise!("CacheError", "cannot put into a busy cache row")
         }
     })
 }
@@ -329,6 +315,11 @@ pub unsafe fn main() {
 
 #[no_mangle]
 pub extern fn exception_handler(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
-    println!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea);
-    send(&RunAborted)
+    panic!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea)
+}
+
+// We don't export this because libbase does.
+// #[no_mangle]
+pub extern fn abort() {
+    panic!("aborted")
 }

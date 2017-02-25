@@ -23,7 +23,7 @@ $(RUSTOUT)/libksupport.a:
 
 ksupport.elf: $(RUSTOUT)/libksupport.a glue.o
 	$(LD) $(LDFLAGS) -T $(KSUPPORT_DIRECTORY)/ksupport.ld -o $@ $^ \
-		-lbase -lm -lcompiler-rt -lunwind
+		-lunwind -lcompiler-rt -lbase -lm
 	@chmod -x $@
 
 %.o: $(KSUPPORT_DIRECTORY)/%.c

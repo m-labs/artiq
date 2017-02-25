@@ -1,9 +1,7 @@
-#![allow(dead_code)]
-
-use core::str;
 use std::io::{self, Read, Write};
+use std::str;
 use cslice::{CSlice, CMutSlice};
-use proto::*;
+use io::*;
 use self::tag::{Tag, TagIterator, split_tag};
 
 unsafe fn recv_value(reader: &mut Read, tag: Tag, data: &mut *mut (),
@@ -76,7 +74,7 @@ unsafe fn recv_value(reader: &mut Read, tag: Tag, data: &mut *mut (),
 pub fn recv_return(reader: &mut Read, tag_bytes: &[u8], data: *mut (),
                    alloc: &Fn(usize) -> io::Result<*mut ()>) -> io::Result<()> {
     let mut it = TagIterator::new(tag_bytes);
-    #[cfg(not(ksupport))]
+    #[cfg(feature = "log")]
     trace!("recv ...->{}", it);
 
     let tag = it.next().expect("truncated tag");
@@ -162,7 +160,7 @@ pub fn send_args(writer: &mut Write, service: u32, tag_bytes: &[u8],
     let (arg_tags_bytes, return_tag_bytes) = split_tag(tag_bytes);
 
     let mut args_it = TagIterator::new(arg_tags_bytes);
-    #[cfg(not(ksupport))]
+    #[cfg(feature = "log")]
     {
         let return_it = TagIterator::new(return_tag_bytes);
         trace!("send<{}>({})->{}", service, args_it, return_it);

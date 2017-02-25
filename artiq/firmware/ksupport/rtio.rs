@@ -1,6 +1,3 @@
-#[path = "../runtime/kernel_proto.rs"]
-mod kernel_proto;
-
 use core::ptr::{read_volatile, write_volatile};
 use cslice::CSlice;
 use board::csr;
@@ -46,25 +43,25 @@ unsafe fn process_exceptional_status(timestamp: i64, channel: i32, status: u32) 
     }
     if status & RTIO_O_STATUS_UNDERFLOW != 0 {
         csr::rtio::o_underflow_reset_write(1);
-        artiq_raise!("RTIOUnderflow",
+        raise!("RTIOUnderflow",
             "RTIO underflow at {0} mu, channel {1}, slack {2} mu",
             timestamp, channel as i64, timestamp - get_counter())
     }
     if status & RTIO_O_STATUS_SEQUENCE_ERROR != 0 {
         csr::rtio::o_sequence_error_reset_write(1);
-        artiq_raise!("RTIOSequenceError",
+        raise!("RTIOSequenceError",
             "RTIO sequence error at {0} mu, channel {1}",
             timestamp, channel as i64, 0)
     }
     if status & RTIO_O_STATUS_COLLISION != 0 {
         csr::rtio::o_collision_reset_write(1);
-        artiq_raise!("RTIOCollision",
+        raise!("RTIOCollision",
             "RTIO collision at {0} mu, channel {1}",
             timestamp, channel as i64, 0)
     }
     if status & RTIO_O_STATUS_BUSY != 0 {
         csr::rtio::o_busy_reset_write(1);
-        artiq_raise!("RTIOBusy",
+        raise!("RTIOBusy",
             "RTIO busy on channel {0}",
             channel as i64, 0, 0)
     }
@@ -122,7 +119,7 @@ pub extern fn input_timestamp(timeout: i64, channel: i32) -> u64 {
         }
 
         if status & RTIO_I_STATUS_OVERFLOW != 0 {
-            artiq_raise!("RTIOOverflow",
+            raise!("RTIOOverflow",
                 "RTIO input overflow on channel {0}",
                 channel as i64, 0, 0);
         }
@@ -145,7 +142,7 @@ pub extern fn input_data(channel: i32) -> i32 {
 
             if status & RTIO_I_STATUS_OVERFLOW != 0 {
                 csr::rtio::i_overflow_reset_write(1);
-                artiq_raise!("RTIOOverflow",
+                raise!("RTIOOverflow",
                     "RTIO input overflow on channel {0}",
                     channel as i64, 0, 0);
             }

@@ -13,9 +13,11 @@ crate-type = ["staticlib"]
 build_artiq = { path = "../libbuild_artiq" }
 
 [dependencies]
-alloc_none = { path = "../liballoc_none" }
-std_artiq = { path = "../libstd_artiq" }
-board = { path = "../libboard" }
-dyld = { path = "../libdyld" }
 byteorder = { version = "1.0", default-features = false }
 cslice = { version = "0.3" }
+alloc_none = { path = "../liballoc_none" }
+std_artiq = { path = "../libstd_artiq" }
+dyld = { path = "../libdyld" }
+board = { path = "../libboard" }
+proto = { path = "../libproto" }
+amp = { path = "../libamp" }
