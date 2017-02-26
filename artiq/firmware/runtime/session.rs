@@ -6,6 +6,7 @@ use std::error::Error;
 use {config, rtio_mgt, mailbox, rpc_queue, kernel};
 use logger_artiq::BufferLogger;
 use cache::Cache;
+use rtio_dma::Manager as DmaManager;
 use urc::Urc;
 use sched::{ThreadHandle, Io};
 use sched::{TcpListener, TcpStream};
@@ -34,6 +35,7 @@ fn io_error(msg: &str) -> io::Error {
 struct Congress {
     now: u64,
     cache: Cache,
+    dma_manager: DmaManager,
     finished_cleanly: Cell<bool>
 }
 
@@ -42,6 +44,7 @@ impl Congress {
         Congress {
             now: 0,
             cache: Cache::new(),
+            dma_manager: DmaManager::new(),
             finished_cleanly: Cell::new(true)
         }
     }
@@ -347,8 +350,7 @@ fn process_host_message(io: &Io,
     }
 }
 
-fn process_kern_message(io: &Io,
-                        mut stream: Option<&mut TcpStream>,
+fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
                         session: &mut Session) -> io::Result<bool> {
     kern_recv_notrace(io, |request| {
         match (request, session.kernel_state) {
@@ -391,6 +393,19 @@ fn process_kern_message(io: &Io,
             &kern::RtioInitRequest => {
                 info!("resetting RTIO");
                 rtio_mgt::init_core();
+                kern_acknowledge()
+            }
+
+            &kern::DmaRecordStart => {
+                session.congress.dma_manager.record_start();
+                kern_acknowledge()
+            }
+            &kern::DmaRecordAppend { timestamp, channel, address, data } => {
+                session.congress.dma_manager.record_append(timestamp, channel, address, data);
+                kern_acknowledge()
+            }
+            &kern::DmaRecordStop(name) => {
+                session.congress.dma_manager.record_stop(name);
                 kern_acknowledge()
             }
 

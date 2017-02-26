@@ -81,7 +81,6 @@ pub struct Library<'a> {
     image_sz:    usize,
     strtab:      &'a [u8],
     symtab:      &'a [Elf32_Sym],
-    rela:        &'a [Elf32_Rela],
     pltrel:      &'a [Elf32_Rela],
     hash_bucket: &'a [Elf32_Word],
     hash_chain:  &'a [Elf32_Word],
@@ -132,8 +131,9 @@ impl<'a> Library<'a> {
         Ok(unsafe { *ptr = value })
     }
 
-    pub fn rebind(&self, name: &[u8], addr: Elf32_Word) -> Result<(), Error<'a>> {
-        for rela in self.rela.iter().chain(self.pltrel.iter()) {
+    // This is unsafe because it mutates global data (the PLT).
+    pub unsafe fn rebind(&self, name: &[u8], addr: Elf32_Word) -> Result<(), Error<'a>> {
+        for rela in self.pltrel.iter() {
             match ELF32_R_TYPE(rela.r_info) {
                 R_OR1K_32 | R_OR1K_GLOB_DAT | R_OR1K_JMP_SLOT => {
                     let sym = self.symtab.get(ELF32_R_SYM(rela.r_info) as usize)
@@ -315,7 +315,6 @@ impl<'a> Library<'a> {
             image_sz:    image.len(),
             strtab:      strtab,
             symtab:      symtab,
-            rela:        rela,
             pltrel:      pltrel,
             hash_bucket: &hash[..nbucket],
             hash_chain:  &hash[nbucket..nbucket + nchain],
@@ -331,9 +330,8 @@ impl<'a> Library<'a> {
         // we never write to the memory they refer to, so it's safe.
         mem::drop(image);
 
-        for r in rela.iter().chain(pltrel.iter()) {
-            library.resolve_rela(r, resolve)?
-        }
+        for r in rela   { library.resolve_rela(r, resolve)? }
+        for r in pltrel { library.resolve_rela(r, resolve)? }
 
         Ok(library)
     }

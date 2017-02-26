@@ -120,6 +120,10 @@ class RTIOOverflow(Exception):
     """
     artiq_builtin = True
 
+class DMAError(Exception):
+    """Raised when performing an invalid DMA operation."""
+    artiq_builtin = True
+
 class DDSError(Exception):
     """Raised when attempting to start a DDS batch while already in a batch,
     when too many commands are batched, and when DDS channel settings are

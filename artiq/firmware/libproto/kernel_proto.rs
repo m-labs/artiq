@@ -29,6 +29,15 @@ pub enum Message<'a> {
 
     RtioInitRequest,
 
+    DmaRecordStart,
+    DmaRecordAppend {
+        timestamp: u64,
+        channel:   u32,
+        address:   u32,
+        data:      &'a [u32]
+    },
+    DmaRecordStop(&'a str),
+
     DrtioChannelStateRequest { channel: u32 },
     DrtioChannelStateReply { fifo_space: u16, last_timestamp: u64 },
     DrtioResetChannelStateRequest { channel: u32 },

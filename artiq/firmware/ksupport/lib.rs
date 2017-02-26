@@ -36,11 +36,11 @@ fn recv<R, F: FnOnce(&Message) -> R>(f: F) -> R {
 
 macro_rules! recv {
     ($p:pat => $e:expr) => {
-        recv(|request| {
+        recv(move |request| {
             if let $p = request {
                 $e
             } else {
-                send(&Log(format_args!("unexpected reply: {:?}", request)));
+                send(&Log(format_args!("unexpected reply: {:?}\n", request)));
                 loop {}
             }
         })
@@ -50,7 +50,7 @@ macro_rules! recv {
 #[no_mangle]
 #[lang = "panic_fmt"]
 pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
-    send(&Log(format_args!("panic at {}:{}: {}", file, line, args)));
+    send(&Log(format_args!("panic at {}:{}: {}\n", file, line, args)));
     send(&RunAborted);
     loop {}
 }
@@ -90,6 +90,7 @@ mod api;
 mod rtio;
 
 static mut NOW: u64 = 0;
+static mut LIBRARY: Option<Library<'static>> = None;
 
 #[no_mangle]
 pub extern fn send_to_core_log(text: CSlice<u8>) {
@@ -236,6 +237,61 @@ extern fn i2c_read(busno: i32, ack: bool) -> i32 {
     recv!(&I2cReadReply { data } => data) as i32
 }
 
+static mut DMA_RECORDING: bool = false;
+
+extern fn dma_record_start() {
+    unsafe {
+        if DMA_RECORDING {
+            raise!("DMAError", "DMA is already recording")
+        }
+
+        let library = LIBRARY.as_ref().unwrap();
+        library.rebind(b"rtio_output",
+                       dma_record_output as *const () as u32).unwrap();
+        library.rebind(b"rtio_output_wide",
+                       dma_record_output_wide as *const () as u32).unwrap();
+
+        DMA_RECORDING = true;
+        send(&DmaRecordStart);
+    }
+}
+
+extern fn dma_record_stop(name: CSlice<u8>) {
+    unsafe {
+        if !DMA_RECORDING {
+            raise!("DMAError", "DMA is not recording")
+        }
+
+        let library = LIBRARY.as_ref().unwrap();
+        library.rebind(b"rtio_output",
+                       rtio::output as *const () as u32).unwrap();
+        library.rebind(b"rtio_output_wide",
+                       rtio::output_wide as *const () as u32).unwrap();
+
+        DMA_RECORDING = false;
+        send(&DmaRecordStop(str::from_utf8(name.as_ref()).unwrap()));
+    }
+}
+
+extern fn dma_record_output(timestamp: i64, channel: i32, address: i32, data: i32) {
+    send(&DmaRecordAppend {
+        timestamp: timestamp as u64,
+        channel:   channel as u32,
+        address:   address as u32,
+        data:      &[data as u32]
+    })
+}
+
+extern fn dma_record_output_wide(timestamp: i64, channel: i32, address: i32, data: CSlice<i32>) {
+    assert!(data.len() <= 16); // enforce the hardware limit
+    send(&DmaRecordAppend {
+        timestamp: timestamp as u64,
+        channel:   channel as u32,
+        address:   address as u32,
+        data:      unsafe { mem::transmute::<&[i32], &[u32]>(data.as_ref()) }
+    })
+}
+
 unsafe fn attribute_writeback(typeinfo: *const ()) {
     struct Attr {
         offset: usize,
@@ -247,9 +303,6 @@ unsafe fn attribute_writeback(typeinfo: *const ()) {
         attributes: *const *const Attr,
         objects:    *const *const ()
     }
-
-    // artiq_compile'd kernels don't include type information
-    if typeinfo.is_null() { return }
 
     let mut tys = typeinfo as *const *const Type;
     while !(*tys).is_null() {
@@ -299,14 +352,21 @@ pub unsafe fn main() {
 
     let __bss_start = library.lookup(b"__bss_start").unwrap();
     let _end = library.lookup(b"_end").unwrap();
+    let __modinit__ = library.lookup(b"__modinit__").unwrap();
+    let typeinfo = library.lookup(b"typeinfo");
+
+    LIBRARY = Some(library);
+
     ptr::write_bytes(__bss_start as *mut u8, 0, (_end - __bss_start) as usize);
 
     send(&NowInitRequest);
     recv!(&NowInitReply(now) => NOW = now);
-    (mem::transmute::<u32, fn()>(library.lookup(b"__modinit__").unwrap()))();
+    (mem::transmute::<u32, fn()>(__modinit__))();
     send(&NowSave(NOW));
 
-    attribute_writeback(library.lookup(b"typeinfo").unwrap_or(0) as *const ());
+    if let Some(typeinfo) = typeinfo {
+        attribute_writeback(typeinfo as *const ());
+    }
 
     send(&RunFinished);
 

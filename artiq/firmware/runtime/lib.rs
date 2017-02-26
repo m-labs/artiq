@@ -41,6 +41,7 @@ mod rtio_mgt;
 mod urc;
 mod sched;
 mod cache;
+mod rtio_dma;
 
 mod kernel;
 mod session;
