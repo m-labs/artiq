@@ -156,6 +156,9 @@ class Target:
         _dump(os.getenv("ARTIQ_DUMP_ASM"), "Assembly", ".s",
               lambda: llmachine.emit_assembly(llmodule))
 
+        _dump(os.getenv("ARTIQ_DUMP_OBJ"), "Object file", ".o",
+              lambda: llmachine.emit_object(llmodule))
+
         return llmachine.emit_object(llmodule)
 
     def link(self, objects):
