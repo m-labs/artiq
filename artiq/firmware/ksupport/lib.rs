@@ -126,7 +126,7 @@ extern fn rpc_send_async(service: u32, tag: CSlice<u8>, data: *const *const ()) 
             rpc_proto::send_args(&mut writer, service, tag.as_ref(), data)?;
             writer.position()
         };
-        proto::io::write_u32(&mut slice, length as u32)
+        proto::WriteExt::write_u32(&mut slice, length as u32)
     }).unwrap_or_else(|err| {
         assert!(err.kind() == std::io::ErrorKind::WriteZero);
 

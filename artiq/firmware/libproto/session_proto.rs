@@ -1,12 +1,12 @@
 use std::io::{self, Read, Write};
 use std::vec::Vec;
 use std::string::String;
-use io::*;
+use {ReadExt, WriteExt};
 
 fn read_sync(reader: &mut Read) -> io::Result<()> {
     let mut sync = [0; 4];
     for i in 0.. {
-        sync[i % 4] = read_u8(reader)?;
+        sync[i % 4] = reader.read_u8()?;
         if sync == [0x5a; 4] { break }
     }
     Ok(())
@@ -47,37 +47,37 @@ pub enum Request {
 impl Request {
     pub fn read_from(reader: &mut Read) -> io::Result<Request> {
         read_sync(reader)?;
-        Ok(match read_u8(reader)? {
+        Ok(match reader.read_u8()? {
             1  => Request::Log,
             2  => Request::LogClear,
             3  => Request::SystemInfo,
-            4  => Request::SwitchClock(read_u8(reader)?),
-            5  => Request::LoadKernel(read_bytes(reader)?),
+            4  => Request::SwitchClock(reader.read_u8()?),
+            5  => Request::LoadKernel(reader.read_bytes()?),
             6  => Request::RunKernel,
             7  => Request::RpcReply {
-                tag: read_bytes(reader)?
+                tag: reader.read_bytes()?
             },
             8  => Request::RpcException {
-                name:     read_string(reader)?,
-                message:  read_string(reader)?,
-                param:    [read_u64(reader)? as i64,
-                           read_u64(reader)? as i64,
-                           read_u64(reader)? as i64],
-                file:     read_string(reader)?,
-                line:     read_u32(reader)?,
-                column:   read_u32(reader)?,
-                function: read_string(reader)?
+                name:     reader.read_string()?,
+                message:  reader.read_string()?,
+                param:    [reader.read_u64()? as i64,
+                           reader.read_u64()? as i64,
+                           reader.read_u64()? as i64],
+                file:     reader.read_string()?,
+                line:     reader.read_u32()?,
+                column:   reader.read_u32()?,
+                function: reader.read_string()?
             },
             9  => Request::FlashRead {
-                key: read_string(reader)?
+                key: reader.read_string()?
             },
             10 => Request::FlashWrite {
-                key:   read_string(reader)?,
-                value: read_bytes(reader)?
+                key:   reader.read_string()?,
+                value: reader.read_bytes()?
             },
             11 => Request::FlashErase,
             12 => Request::FlashRemove {
-                key: read_string(reader)?
+                key: reader.read_string()?
             },
             _  => return Err(io::Error::new(io::ErrorKind::InvalidData, "unknown request type"))
         })
@@ -126,77 +126,77 @@ impl<'a> Reply<'a> {
         write_sync(writer)?;
         match *self {
             Reply::Log(ref log) => {
-                write_u8(writer, 1)?;
-                write_string(writer, log)?;
+                writer.write_u8(1)?;
+                writer.write_string(log)?;
             },
 
             Reply::SystemInfo { ident, finished_cleanly } => {
-                write_u8(writer, 2)?;
+                writer.write_u8(2)?;
                 writer.write(b"AROR")?;
-                write_string(writer, ident)?;
-                write_u8(writer, finished_cleanly as u8)?;
+                writer.write_string(ident)?;
+                writer.write_u8(finished_cleanly as u8)?;
             },
             Reply::ClockSwitchCompleted => {
-                write_u8(writer, 3)?;
+                writer.write_u8(3)?;
             },
             Reply::ClockSwitchFailed => {
-                write_u8(writer, 4)?;
+                writer.write_u8(4)?;
             },
 
             Reply::LoadCompleted => {
-                write_u8(writer, 5)?;
+                writer.write_u8(5)?;
             },
             Reply::LoadFailed(reason) => {
-                write_u8(writer, 6)?;
-                write_string(writer, reason)?;
+                writer.write_u8(6)?;
+                writer.write_string(reason)?;
             },
 
             Reply::KernelFinished => {
-                write_u8(writer, 7)?;
+                writer.write_u8(7)?;
             },
             Reply::KernelStartupFailed => {
-                write_u8(writer, 8)?;
+                writer.write_u8(8)?;
             },
             Reply::KernelException {
                 name, message, param, file, line, column, function, backtrace
             } => {
-                write_u8(writer, 9)?;
-                write_string(writer, name)?;
-                write_string(writer, message)?;
-                write_u64(writer, param[0] as u64)?;
-                write_u64(writer, param[1] as u64)?;
-                write_u64(writer, param[2] as u64)?;
-                write_string(writer, file)?;
-                write_u32(writer, line)?;
-                write_u32(writer, column)?;
-                write_string(writer, function)?;
-                write_u32(writer, backtrace.len() as u32)?;
+                writer.write_u8(9)?;
+                writer.write_string(name)?;
+                writer.write_string(message)?;
+                writer.write_u64(param[0] as u64)?;
+                writer.write_u64(param[1] as u64)?;
+                writer.write_u64(param[2] as u64)?;
+                writer.write_string(file)?;
+                writer.write_u32(line)?;
+                writer.write_u32(column)?;
+                writer.write_string(function)?;
+                writer.write_u32(backtrace.len() as u32)?;
                 for &addr in backtrace {
-                    write_u32(writer, addr as u32)?
+                    writer.write_u32(addr as u32)?
                 }
             },
 
             Reply::RpcRequest { async } => {
-                write_u8(writer, 10)?;
-                write_u8(writer, async as u8)?;
+                writer.write_u8(10)?;
+                writer.write_u8(async as u8)?;
             },
 
             Reply::FlashRead(ref bytes) => {
-                write_u8(writer, 11)?;
-                write_bytes(writer, bytes)?;
+                writer.write_u8(11)?;
+                writer.write_bytes(bytes)?;
             },
             Reply::FlashOk => {
-                write_u8(writer, 12)?;
+                writer.write_u8(12)?;
             },
             Reply::FlashError => {
-                write_u8(writer, 13)?;
+                writer.write_u8(13)?;
             },
 
             Reply::WatchdogExpired => {
-                write_u8(writer, 14)?;
+                writer.write_u8(14)?;
             },
             Reply::ClockFailure => {
-                write_u8(writer, 15)?;
+                writer.write_u8(15)?;
             },
         }
         Ok(())

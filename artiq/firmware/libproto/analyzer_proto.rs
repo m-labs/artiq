@@ -1,5 +1,5 @@
 use std::io::{self, Write};
-use io::*;
+use WriteExt;
 
 #[derive(Debug)]
 pub struct Header {
@@ -12,11 +12,11 @@ pub struct Header {
 
 impl Header {
     pub fn write_to(&self, writer: &mut Write) -> io::Result<()> {
-        write_u32(writer, self.sent_bytes)?;
-        write_u64(writer, self.total_byte_count)?;
-        write_u8(writer, self.overflow_occurred as u8)?;
-        write_u8(writer, self.log_channel)?;
-        write_u8(writer, self.dds_onehot_sel as u8)?;
+        writer.write_u32(self.sent_bytes)?;
+        writer.write_u64(self.total_byte_count)?;
+        writer.write_u8(self.overflow_occurred as u8)?;
+        writer.write_u8(self.log_channel)?;
+        writer.write_u8(self.dds_onehot_sel as u8)?;
         Ok(())
     }
 }

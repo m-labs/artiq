@@ -1,5 +1,5 @@
 use std::io::{self, Read, Write};
-use io::*;
+use {ReadExt, WriteExt};
 
 #[derive(Debug)]
 pub enum HostMessage {
@@ -16,20 +16,20 @@ pub enum DeviceMessage {
 
 impl HostMessage {
     pub fn read_from(reader: &mut Read) -> io::Result<HostMessage> {
-        Ok(match read_u8(reader)? {
+        Ok(match reader.read_u8()? {
             0 => HostMessage::Monitor {
-                enable: if read_u8(reader)? == 0 { false } else { true },
-                channel: read_u32(reader)?,
-                probe: read_u8(reader)?
+                enable: if reader.read_u8()? == 0 { false } else { true },
+                channel: reader.read_u32()?,
+                probe: reader.read_u8()?
             },
             1 => HostMessage::Inject {
-                channel: read_u32(reader)?,
-                overrd: read_u8(reader)?,
-                value: read_u8(reader)?
+                channel: reader.read_u32()?,
+                overrd: reader.read_u8()?,
+                value: reader.read_u8()?
             },
             2 => HostMessage::GetInjectionStatus {
-                channel: read_u32(reader)?,
-                overrd: read_u8(reader)?
+                channel: reader.read_u32()?,
+                overrd: reader.read_u8()?
             },
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, "unknown packet type"))
         })
@@ -40,16 +40,16 @@ impl DeviceMessage {
     pub fn write_to(&self, writer: &mut Write) -> io::Result<()> {
         match *self {
             DeviceMessage::MonitorStatus { channel, probe, value } => {
-                write_u8(writer, 0)?;
-                write_u32(writer, channel)?;
-                write_u8(writer, probe)?;
-                write_u32(writer, value)?;
+                writer.write_u8(0)?;
+                writer.write_u32(channel)?;
+                writer.write_u8(probe)?;
+                writer.write_u32(value)?;
             },
             DeviceMessage::InjectionStatus { channel, overrd, value } => {
-                write_u8(writer, 1)?;
-                write_u32(writer, channel)?;
-                write_u8(writer, overrd)?;
-                write_u8(writer, value)?;
+                writer.write_u8(1)?;
+                writer.write_u32(channel)?;
+                writer.write_u8(overrd)?;
+                writer.write_u8(value)?;
             }
         }
         Ok(())

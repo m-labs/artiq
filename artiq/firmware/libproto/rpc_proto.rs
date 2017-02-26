@@ -1,7 +1,7 @@
 use std::io::{self, Read, Write};
 use std::str;
 use cslice::{CSlice, CMutSlice};
-use io::*;
+use {ReadExt, WriteExt};
 use self::tag::{Tag, TagIterator, split_tag};
 
 unsafe fn recv_value(reader: &mut Read, tag: Tag, data: &mut *mut (),
@@ -18,19 +18,19 @@ unsafe fn recv_value(reader: &mut Read, tag: Tag, data: &mut *mut (),
         Tag::None => Ok(()),
         Tag::Bool =>
             consume_value!(u8, |ptr| {
-                *ptr = read_u8(reader)?; Ok(())
+                *ptr = reader.read_u8()?; Ok(())
             }),
         Tag::Int32 =>
             consume_value!(u32, |ptr| {
-                *ptr = read_u32(reader)?; Ok(())
+                *ptr = reader.read_u32()?; Ok(())
             }),
         Tag::Int64 | Tag::Float64 =>
             consume_value!(u64, |ptr| {
-                *ptr = read_u64(reader)?; Ok(())
+                *ptr = reader.read_u64()?; Ok(())
             }),
         Tag::String => {
             consume_value!(CMutSlice<u8>, |ptr| {
-                let length = read_u32(reader)? as usize;
+                let length = reader.read_u32()? as usize;
                 *ptr = CMutSlice::new(alloc(length)? as *mut u8, length);
                 reader.read_exact((*ptr).as_mut())?;
                 Ok(())
@@ -47,7 +47,7 @@ unsafe fn recv_value(reader: &mut Read, tag: Tag, data: &mut *mut (),
         Tag::List(it) | Tag::Array(it) => {
             struct List { elements: *mut (), length: u32 };
             consume_value!(List, |ptr| {
-                (*ptr).length = read_u32(reader)?;
+                (*ptr).length = reader.read_u32()?;
 
                 let tag = it.clone().next().expect("truncated tag");
                 (*ptr).elements = alloc(tag.size() * (*ptr).length as usize)?;
@@ -93,24 +93,24 @@ unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::
         })
     }
 
-    write_u8(writer, tag.as_u8())?;
+    writer.write_u8(tag.as_u8())?;
     match tag {
         Tag::None => Ok(()),
         Tag::Bool =>
             consume_value!(u8, |ptr|
-                write_u8(writer, *ptr)),
+                writer.write_u8(*ptr)),
         Tag::Int32 =>
             consume_value!(u32, |ptr|
-                write_u32(writer, *ptr)),
+                writer.write_u32(*ptr)),
         Tag::Int64 | Tag::Float64 =>
             consume_value!(u64, |ptr|
-                write_u64(writer, *ptr)),
+                writer.write_u64(*ptr)),
         Tag::String =>
             consume_value!(CSlice<u8>, |ptr|
-                write_string(writer, str::from_utf8((*ptr).as_ref()).unwrap())),
+                writer.write_string(str::from_utf8((*ptr).as_ref()).unwrap())),
         Tag::Tuple(it, arity) => {
             let mut it = it.clone();
-            write_u8(writer, arity)?;
+            writer.write_u8(arity)?;
             for _ in 0..arity {
                 let tag = it.next().expect("truncated tag");
                 send_value(writer, tag, data)?
@@ -120,7 +120,7 @@ unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::
         Tag::List(it) | Tag::Array(it) => {
             struct List { elements: *const (), length: u32 };
             consume_value!(List, |ptr| {
-                write_u32(writer, (*ptr).length)?;
+                writer.write_u32((*ptr).length)?;
                 let tag = it.clone().next().expect("truncated tag");
                 let mut data = (*ptr).elements;
                 for _ in 0..(*ptr).length as usize {
@@ -139,7 +139,7 @@ unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::
         Tag::Keyword(it) => {
             struct Keyword<'a> { name: CSlice<'a, u8>, contents: () };
             consume_value!(Keyword, |ptr| {
-                write_string(writer, str::from_utf8((*ptr).name.as_ref()).unwrap())?;
+                writer.write_string(str::from_utf8((*ptr).name.as_ref()).unwrap())?;
                 let tag = it.clone().next().expect("truncated tag");
                 let mut data = &(*ptr).contents as *const ();
                 send_value(writer, tag, &mut data)
@@ -150,7 +150,7 @@ unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::
         Tag::Object => {
             struct Object { id: u32 };
             consume_value!(*const Object, |ptr|
-                write_u32(writer, (**ptr).id))
+                writer.write_u32((**ptr).id))
         }
     }
 }
@@ -166,7 +166,7 @@ pub fn send_args(writer: &mut Write, service: u32, tag_bytes: &[u8],
         trace!("send<{}>({})->{}", service, args_it, return_it);
     }
 
-    write_u32(writer, service)?;
+    writer.write_u32(service)?;
     for index in 0.. {
         if let Some(arg_tag) = args_it.next() {
             let mut data = unsafe { *data.offset(index) };
@@ -175,8 +175,8 @@ pub fn send_args(writer: &mut Write, service: u32, tag_bytes: &[u8],
             break
         }
     }
-    write_u8(writer, 0)?;
-    write_bytes(writer, return_tag_bytes)?;
+    writer.write_u8(0)?;
+    writer.write_bytes(return_tag_bytes)?;
 
     Ok(())
 }
