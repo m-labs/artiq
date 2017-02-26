@@ -1,35 +1,70 @@
 #![feature(lang_items, asm, libc, panic_unwind, unwind_attributes)]
 #![no_std]
 
-extern crate alloc_none;
-#[macro_use]
-extern crate std_artiq as std;
 extern crate unwind;
 extern crate libc;
 extern crate byteorder;
-extern crate board;
 extern crate cslice;
 
-#[path = "../runtime/mailbox.rs"]
-mod mailbox;
+extern crate alloc_none;
+extern crate std_artiq as std;
 
-#[path = "../runtime/proto.rs"]
-mod proto;
-#[path = "../runtime/kernel_proto.rs"]
-mod kernel_proto;
-#[path = "../runtime/rpc_proto.rs"]
-mod rpc_proto;
+extern crate board;
+extern crate dyld;
+extern crate proto;
+extern crate amp;
 
-mod dyld;
-mod api;
-
-use core::{mem, ptr, str};
+use core::{mem, ptr, slice, str};
 use std::io::Cursor;
 use cslice::{CSlice, AsCSlice};
-use kernel_proto::*;
 use dyld::Library;
+use proto::{kernel_proto, rpc_proto};
+use proto::kernel_proto::*;
+use amp::{mailbox, rpc_queue};
 
-macro_rules! artiq_raise {
+fn send(request: &Message) {
+    unsafe { mailbox::send(request as *const _ as usize) }
+    while !mailbox::acknowledged() {}
+}
+
+fn recv<R, F: FnOnce(&Message) -> R>(f: F) -> R {
+    while mailbox::receive() == 0 {}
+    let result = f(unsafe { mem::transmute::<usize, &Message>(mailbox::receive()) });
+    mailbox::acknowledge();
+    result
+}
+
+macro_rules! recv {
+    ($p:pat => $e:expr) => {
+        recv(move |request| {
+            if let $p = request {
+                $e
+            } else {
+                send(&Log(format_args!("unexpected reply: {:?}\n", request)));
+                loop {}
+            }
+        })
+    }
+}
+
+#[no_mangle]
+#[lang = "panic_fmt"]
+pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
+    send(&Log(format_args!("panic at {}:{}: {}\n", file, line, args)));
+    send(&RunAborted);
+    loop {}
+}
+
+macro_rules! print {
+    ($($arg:tt)*) => ($crate::send(&$crate::kernel_proto::Log(format_args!($($arg)*))));
+}
+
+macro_rules! println {
+    ($fmt:expr) => (print!(concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
+}
+
+macro_rules! raise {
     ($name:expr, $message:expr, $param0:expr, $param1:expr, $param2:expr) => ({
         use cslice::AsCSlice;
         let exn = $crate::eh::Exception {
@@ -46,58 +81,16 @@ macro_rules! artiq_raise {
         unsafe { $crate::eh::raise(&exn) }
     });
     ($name:expr, $message:expr) => ({
-        artiq_raise!($name, $message, 0, 0, 0)
+        raise!($name, $message, 0, 0, 0)
     });
 }
 
-fn send(request: &Message) {
-    unsafe { mailbox::send(request as *const _ as usize) }
-    while !mailbox::acknowledged() {}
-}
-
-fn recv<R, F: FnOnce(&Message) -> R>(f: F) -> R {
-    while mailbox::receive() == 0 {}
-    let result = f(unsafe { mem::transmute::<usize, &Message>(mailbox::receive()) });
-    mailbox::acknowledge();
-    result
-}
-
-macro_rules! recv {
-    ($p:pat => $e:expr) => {
-        recv(|request| {
-            if let $p = request {
-                $e
-            } else {
-                send(&Log(format_args!("unexpected reply: {:?}", request)));
-                loop {}
-            }
-        })
-    }
-}
-
-macro_rules! print {
-    ($($arg:tt)*) => ($crate::send(&$crate::kernel_proto::Log(format_args!($($arg)*))));
-}
-
-macro_rules! println {
-    ($fmt:expr) => (print!(concat!($fmt, "\n")));
-    ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
-}
-
-#[path = "../runtime/rpc_queue.rs"]
-mod rpc_queue;
+pub mod eh;
+mod api;
 mod rtio;
-mod eh;
-
-#[no_mangle]
-#[lang = "panic_fmt"]
-pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
-    println!("panic at {}:{}: {}", file, line, args);
-    send(&RunAborted);
-    loop {}
-}
 
 static mut NOW: u64 = 0;
+static mut LIBRARY: Option<Library<'static>> = None;
 
 #[no_mangle]
 pub extern fn send_to_core_log(text: CSlice<u8>) {
@@ -115,13 +108,7 @@ pub extern fn send_to_rtio_log(timestamp: i64, text: CSlice<u8>) {
     rtio::log(timestamp, text.as_ref())
 }
 
-extern fn abort() -> ! {
-    println!("kernel called abort()");
-    send(&RunAborted);
-    loop {}
-}
-
-extern fn send_rpc(service: u32, tag: CSlice<u8>, data: *const *const ()) {
+extern fn rpc_send(service: u32, tag: CSlice<u8>, data: *const *const ()) {
     while !rpc_queue::empty() {}
     send(&RpcSend {
         async:   false,
@@ -131,7 +118,7 @@ extern fn send_rpc(service: u32, tag: CSlice<u8>, data: *const *const ()) {
     })
 }
 
-extern fn send_async_rpc(service: u32, tag: CSlice<u8>, data: *const *const ()) {
+extern fn rpc_send_async(service: u32, tag: CSlice<u8>, data: *const *const ()) {
     while rpc_queue::full() {}
     rpc_queue::enqueue(|mut slice| {
         let length = {
@@ -139,7 +126,7 @@ extern fn send_async_rpc(service: u32, tag: CSlice<u8>, data: *const *const ()) 
             rpc_proto::send_args(&mut writer, service, tag.as_ref(), data)?;
             writer.position()
         };
-        proto::write_u32(&mut slice, length as u32)
+        proto::io::write_u32(&mut slice, length as u32)
     }).unwrap_or_else(|err| {
         assert!(err.kind() == std::io::ErrorKind::WriteZero);
 
@@ -153,7 +140,7 @@ extern fn send_async_rpc(service: u32, tag: CSlice<u8>, data: *const *const ()) 
     })
 }
 
-extern fn recv_rpc(slot: *mut ()) -> usize {
+extern fn rpc_recv(slot: *mut ()) -> usize {
     send(&RpcRecvRequest(slot));
     recv!(&RpcRecvReply(ref result) => {
         match result {
@@ -202,7 +189,7 @@ fn terminate(exception: &eh::Exception, mut backtrace: &mut [usize]) -> ! {
 
 extern fn watchdog_set(ms: i64) -> i32 {
     if ms < 0 {
-        artiq_raise!("ValueError", "cannot set a watchdog with a negative timeout")
+        raise!("ValueError", "cannot set a watchdog with a negative timeout")
     }
 
     send(&WatchdogSetRequest { ms: ms as u64 });
@@ -227,27 +214,82 @@ extern fn cache_put(key: CSlice<u8>, list: CSlice<i32>) {
     });
     recv!(&CachePutReply { succeeded } => {
         if !succeeded {
-            artiq_raise!("CacheError", "cannot put into a busy cache row")
+            raise!("CacheError", "cannot put into a busy cache row")
         }
     })
 }
 
 extern fn i2c_start(busno: i32) {
-    send(&I2CStartRequest { busno: busno as u8 });
+    send(&I2cStartRequest { busno: busno as u8 });
 }
 
 extern fn i2c_stop(busno: i32) {
-    send(&I2CStopRequest { busno: busno as u8 });
+    send(&I2cStopRequest { busno: busno as u8 });
 }
 
 extern fn i2c_write(busno: i32, data: i32) -> bool {
-    send(&I2CWriteRequest { busno: busno as u8, data: data as u8 });
-    recv!(&I2CWriteReply { ack } => ack)
+    send(&I2cWriteRequest { busno: busno as u8, data: data as u8 });
+    recv!(&I2cWriteReply { ack } => ack)
 }
 
 extern fn i2c_read(busno: i32, ack: bool) -> i32 {
-    send(&I2CReadRequest { busno: busno as u8, ack: ack });
-    recv!(&I2CReadReply { data } => data) as i32
+    send(&I2cReadRequest { busno: busno as u8, ack: ack });
+    recv!(&I2cReadReply { data } => data) as i32
+}
+
+static mut DMA_RECORDING: bool = false;
+
+extern fn dma_record_start() {
+    unsafe {
+        if DMA_RECORDING {
+            raise!("DMAError", "DMA is already recording")
+        }
+
+        let library = LIBRARY.as_ref().unwrap();
+        library.rebind(b"rtio_output",
+                       dma_record_output as *const () as u32).unwrap();
+        library.rebind(b"rtio_output_wide",
+                       dma_record_output_wide as *const () as u32).unwrap();
+
+        DMA_RECORDING = true;
+        send(&DmaRecordStart);
+    }
+}
+
+extern fn dma_record_stop(name: CSlice<u8>) {
+    unsafe {
+        if !DMA_RECORDING {
+            raise!("DMAError", "DMA is not recording")
+        }
+
+        let library = LIBRARY.as_ref().unwrap();
+        library.rebind(b"rtio_output",
+                       rtio::output as *const () as u32).unwrap();
+        library.rebind(b"rtio_output_wide",
+                       rtio::output_wide as *const () as u32).unwrap();
+
+        DMA_RECORDING = false;
+        send(&DmaRecordStop(str::from_utf8(name.as_ref()).unwrap()));
+    }
+}
+
+extern fn dma_record_output(timestamp: i64, channel: i32, address: i32, data: i32) {
+    send(&DmaRecordAppend {
+        timestamp: timestamp as u64,
+        channel:   channel as u32,
+        address:   address as u32,
+        data:      &[data as u32]
+    })
+}
+
+extern fn dma_record_output_wide(timestamp: i64, channel: i32, address: i32, data: CSlice<i32>) {
+    assert!(data.len() <= 16); // enforce the hardware limit
+    send(&DmaRecordAppend {
+        timestamp: timestamp as u64,
+        channel:   channel as u32,
+        address:   address as u32,
+        data:      unsafe { mem::transmute::<&[i32], &[u32]>(data.as_ref()) }
+    })
 }
 
 unsafe fn attribute_writeback(typeinfo: *const ()) {
@@ -261,9 +303,6 @@ unsafe fn attribute_writeback(typeinfo: *const ()) {
         attributes: *const *const Attr,
         objects:    *const *const ()
     }
-
-    // artiq_compile'd kernels don't include type information
-    if typeinfo.is_null() { return }
 
     let mut tys = typeinfo as *const *const Type;
     while !(*tys).is_null() {
@@ -281,7 +320,7 @@ unsafe fn attribute_writeback(typeinfo: *const ()) {
                 attributes = attributes.offset(1);
 
                 if (*attribute).tag.len() > 0 {
-                    send_async_rpc(0, (*attribute).tag, [
+                    rpc_send_async(0, (*attribute).tag, [
                         &object as *const _ as *const (),
                         &(*attribute).name as *const _ as *const (),
                         (object as usize + (*attribute).offset) as *const ()
@@ -294,8 +333,12 @@ unsafe fn attribute_writeback(typeinfo: *const ()) {
 
 #[no_mangle]
 pub unsafe fn main() {
+    let image = slice::from_raw_parts_mut(kernel_proto::KERNELCPU_PAYLOAD_ADDRESS as *mut u8,
+                                          kernel_proto::KERNELCPU_LAST_ADDRESS -
+                                          kernel_proto::KERNELCPU_PAYLOAD_ADDRESS);
+
     let library = recv!(&LoadRequest(library) => {
-        match Library::load(library, kernel_proto::KERNELCPU_PAYLOAD_ADDRESS, api::resolve) {
+        match Library::load(library, image, &api::resolve) {
             Err(error) => {
                 send(&LoadReply(Err(error)));
                 loop {}
@@ -307,16 +350,23 @@ pub unsafe fn main() {
         }
     });
 
-    let __bss_start = library.lookup("__bss_start");
-    let _end = library.lookup("_end");
-    ptr::write_bytes(__bss_start as *mut u8, 0, _end - __bss_start);
+    let __bss_start = library.lookup(b"__bss_start").unwrap();
+    let _end = library.lookup(b"_end").unwrap();
+    let __modinit__ = library.lookup(b"__modinit__").unwrap();
+    let typeinfo = library.lookup(b"typeinfo");
+
+    LIBRARY = Some(library);
+
+    ptr::write_bytes(__bss_start as *mut u8, 0, (_end - __bss_start) as usize);
 
     send(&NowInitRequest);
     recv!(&NowInitReply(now) => NOW = now);
-    (mem::transmute::<usize, fn()>(library.lookup("__modinit__")))();
+    (mem::transmute::<u32, fn()>(__modinit__))();
     send(&NowSave(NOW));
 
-    attribute_writeback(library.lookup("typeinfo") as *const ());
+    if let Some(typeinfo) = typeinfo {
+        attribute_writeback(typeinfo as *const ());
+    }
 
     send(&RunFinished);
 
@@ -325,6 +375,11 @@ pub unsafe fn main() {
 
 #[no_mangle]
 pub extern fn exception_handler(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
-    println!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea);
-    send(&RunAborted)
+    panic!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea)
+}
+
+// We don't export this because libbase does.
+// #[no_mangle]
+pub extern fn abort() {
+    panic!("aborted")
 }

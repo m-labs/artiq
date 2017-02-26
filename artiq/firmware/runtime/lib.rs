@@ -2,23 +2,28 @@
 #![feature(compiler_builtins_lib, repr_simd, const_fn)]
 
 extern crate compiler_builtins;
-extern crate alloc_artiq;
-#[macro_use]
-extern crate std_artiq as std;
 extern crate cslice;
 #[macro_use]
 extern crate log;
-extern crate logger_artiq;
 extern crate byteorder;
 extern crate fringe;
 extern crate smoltcp;
+
+extern crate alloc_artiq;
+#[macro_use]
+extern crate std_artiq as std;
+extern crate logger_artiq;
 #[macro_use]
 extern crate board;
+extern crate proto;
+extern crate amp;
 #[cfg(has_drtio)]
 extern crate drtioaux;
 
 use std::boxed::Box;
 use smoltcp::wire::{EthernetAddress, IpAddress};
+use proto::{analyzer_proto, moninj_proto, rpc_proto, session_proto, kernel_proto};
+use amp::{mailbox, rpc_queue};
 
 macro_rules! borrow_mut {
     ($x:expr) => ({
@@ -32,21 +37,11 @@ macro_rules! borrow_mut {
 mod config;
 mod ethmac;
 mod rtio_mgt;
-mod mailbox;
-mod rpc_queue;
 
 mod urc;
 mod sched;
 mod cache;
-
-mod proto;
-mod kernel_proto;
-mod session_proto;
-#[cfg(any(has_rtio_moninj, has_drtio))]
-mod moninj_proto;
-#[cfg(has_rtio_analyzer)]
-mod analyzer_proto;
-mod rpc_proto;
+mod rtio_dma;
 
 mod kernel;
 mod session;

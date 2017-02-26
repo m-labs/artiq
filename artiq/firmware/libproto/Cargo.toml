@@ -1,0 +1,15 @@
+[package]
+authors = ["M-Labs"]
+name = "proto"
+version = "0.0.0"
+
+[lib]
+name = "proto"
+path = "lib.rs"
+
+[dependencies]
+byteorder = { version = "1.0", default-features = false }
+cslice = { version = "0.3" }
+log = { version = "0.3", default-features = false, optional = true }
+std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
+dyld = { path = "../libdyld" }

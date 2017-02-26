@@ -1,5 +1,5 @@
 use std::io::{self, Write};
-use proto::*;
+use io::*;
 
 #[derive(Debug)]
 pub struct Header {

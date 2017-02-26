@@ -11,8 +11,7 @@ LDFLAGS += --eh-frame-hdr \
 	-L../libcompiler-rt \
 	-L../libbase \
 	-L../libm \
-	-L../libunwind \
-	-L../libdyld
+	-L../libunwind
 
 RUSTFLAGS += -Cpanic=unwind
 
@@ -24,7 +23,7 @@ $(RUSTOUT)/libksupport.a:
 
 ksupport.elf: $(RUSTOUT)/libksupport.a glue.o
 	$(LD) $(LDFLAGS) -T $(KSUPPORT_DIRECTORY)/ksupport.ld -o $@ $^ \
-		-lbase -lm -lcompiler-rt -ldyld -lunwind
+		-lunwind -lcompiler-rt -lbase -lm
 	@chmod -x $@
 
 %.o: $(KSUPPORT_DIRECTORY)/%.c

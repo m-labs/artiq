@@ -4,7 +4,7 @@
 from artiq.language.core import *
 from artiq.language.types import *
 
-# CHECK: call void @send_async_rpc
+# CHECK: call void @rpc_send_async
 
 @rpc(flags={"async"})
 def foo():

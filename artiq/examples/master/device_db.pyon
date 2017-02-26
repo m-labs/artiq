@@ -20,6 +20,11 @@
         "module": "artiq.coredevice.cache",
         "class": "CoreCache"
     },
+    "core_dma": {
+        "type": "local",
+        "module": "artiq.coredevice.dma",
+        "class": "CoreDMA"
+    },
     "core_dds": {
         "type": "local",
         "module": "artiq.coredevice.dds",

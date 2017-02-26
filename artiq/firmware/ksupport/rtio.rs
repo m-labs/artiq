@@ -1,6 +1,3 @@
-#[path = "../runtime/kernel_proto.rs"]
-mod kernel_proto;
-
 use core::ptr::{read_volatile, write_volatile};
 use cslice::CSlice;
 use board::csr;
@@ -16,7 +13,7 @@ const RTIO_I_STATUS_EMPTY:          u32 = 1;
 const RTIO_I_STATUS_OVERFLOW:       u32 = 2;
 
 pub extern fn init() {
-    send(&RTIOInitRequest);
+    send(&RtioInitRequest);
 }
 
 pub extern fn get_counter() -> i64 {
@@ -46,25 +43,25 @@ unsafe fn process_exceptional_status(timestamp: i64, channel: i32, status: u32) 
     }
     if status & RTIO_O_STATUS_UNDERFLOW != 0 {
         csr::rtio::o_underflow_reset_write(1);
-        artiq_raise!("RTIOUnderflow",
+        raise!("RTIOUnderflow",
             "RTIO underflow at {0} mu, channel {1}, slack {2} mu",
             timestamp, channel as i64, timestamp - get_counter())
     }
     if status & RTIO_O_STATUS_SEQUENCE_ERROR != 0 {
         csr::rtio::o_sequence_error_reset_write(1);
-        artiq_raise!("RTIOSequenceError",
+        raise!("RTIOSequenceError",
             "RTIO sequence error at {0} mu, channel {1}",
             timestamp, channel as i64, 0)
     }
     if status & RTIO_O_STATUS_COLLISION != 0 {
         csr::rtio::o_collision_reset_write(1);
-        artiq_raise!("RTIOCollision",
+        raise!("RTIOCollision",
             "RTIO collision at {0} mu, channel {1}",
             timestamp, channel as i64, 0)
     }
     if status & RTIO_O_STATUS_BUSY != 0 {
         csr::rtio::o_busy_reset_write(1);
-        artiq_raise!("RTIOBusy",
+        raise!("RTIOBusy",
             "RTIO busy on channel {0}",
             channel as i64, 0, 0)
     }
@@ -122,7 +119,7 @@ pub extern fn input_timestamp(timeout: i64, channel: i32) -> u64 {
         }
 
         if status & RTIO_I_STATUS_OVERFLOW != 0 {
-            artiq_raise!("RTIOOverflow",
+            raise!("RTIOOverflow",
                 "RTIO input overflow on channel {0}",
                 channel as i64, 0, 0);
         }
@@ -145,7 +142,7 @@ pub extern fn input_data(channel: i32) -> i32 {
 
             if status & RTIO_I_STATUS_OVERFLOW != 0 {
                 csr::rtio::i_overflow_reset_write(1);
-                artiq_raise!("RTIOOverflow",
+                raise!("RTIOOverflow",
                     "RTIO input overflow on channel {0}",
                     channel as i64, 0, 0);
             }
@@ -193,31 +190,31 @@ pub mod drtio_dbg {
     pub struct ChannelState(i32, i64);
 
     pub extern fn get_channel_state(channel: i32) -> ChannelState {
-        send(&DRTIOChannelStateRequest { channel: channel as u32 });
-        recv!(&DRTIOChannelStateReply { fifo_space, last_timestamp }
+        send(&DrtioChannelStateRequest { channel: channel as u32 });
+        recv!(&DrtioChannelStateReply { fifo_space, last_timestamp }
               => ChannelState(fifo_space as i32, last_timestamp as i64))
     }
 
     pub extern fn reset_channel_state(channel: i32) {
-        send(&DRTIOResetChannelStateRequest { channel: channel as u32 })
+        send(&DrtioResetChannelStateRequest { channel: channel as u32 })
     }
 
     pub extern fn get_fifo_space(channel: i32) {
-        send(&DRTIOGetFIFOSpaceRequest { channel: channel as u32 })
+        send(&DrtioGetFifoSpaceRequest { channel: channel as u32 })
     }
 
     #[repr(C)]
     pub struct PacketCounts(i32, i32);
 
     pub extern fn get_packet_counts() -> PacketCounts {
-        send(&DRTIOPacketCountRequest);
-        recv!(&DRTIOPacketCountReply { tx_cnt, rx_cnt }
+        send(&DrtioPacketCountRequest);
+        recv!(&DrtioPacketCountReply { tx_cnt, rx_cnt }
               => PacketCounts(tx_cnt as i32, rx_cnt as i32))
     }
 
     pub extern fn get_fifo_space_req_count() -> i32 {
-        send(&DRTIOFIFOSpaceReqCountRequest);
-        recv!(&DRTIOFIFOSpaceReqCountReply { cnt }
+        send(&DrtioFifoSpaceReqCountRequest);
+        recv!(&DrtioFifoSpaceReqCountReply { cnt }
               => cnt as i32)
     }
 }

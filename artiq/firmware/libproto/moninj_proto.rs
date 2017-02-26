@@ -1,5 +1,5 @@
 use std::io::{self, Read, Write};
-use proto::*;
+use io::*;
 
 #[derive(Debug)]
 pub enum HostMessage {

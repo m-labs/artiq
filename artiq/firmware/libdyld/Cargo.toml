@@ -1,0 +1,8 @@
+[package]
+authors = ["M-Labs"]
+name = "dyld"
+version = "0.0.0"
+
+[lib]
+name = "dyld"
+path = "lib.rs"

@@ -433,3 +433,28 @@ pub unsafe extern fn reraise() -> ! {
         uw::_Unwind_Resume(&mut INFLIGHT.uw_exception)
     }
 }
+
+// Stub implementations for the functions the panic_unwind crate expects to be provided.
+// These all do nothing in libunwind, but aren't built for OR1K.
+pub mod stubs {
+    #![allow(bad_style, unused_variables)]
+
+    use super::{uw, c_int};
+
+    #[export_name="_Unwind_GetIPInfo"]
+    pub unsafe extern fn _Unwind_GetIPInfo(ctx: *mut uw::_Unwind_Context,
+                                           ip_before_insn: *mut c_int) -> uw::_Unwind_Word {
+        *ip_before_insn = 0;
+        uw::_Unwind_GetIP(ctx)
+    }
+
+    #[export_name="_Unwind_GetTextRelBase"]
+    pub unsafe extern fn _Unwind_GetTextRelBase(ctx: *mut uw::_Unwind_Context) -> uw::_Unwind_Ptr {
+        unimplemented!()
+    }
+
+    #[export_name="_Unwind_GetDataRelBase"]
+    pub unsafe extern fn _Unwind_GetDataRelBase(ctx: *mut uw::_Unwind_Context) -> uw::_Unwind_Ptr {
+        unimplemented!()
+    }
+}

@@ -340,11 +340,11 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(llvoid, [])
         elif name == "memcmp":
             llty = ll.FunctionType(lli32, [llptr, llptr, lli32])
-        elif name == "send_rpc":
+        elif name == "rpc_send":
             llty = ll.FunctionType(llvoid, [lli32, llsliceptr, llptrptr])
-        elif name == "send_async_rpc":
+        elif name == "rpc_send_async":
             llty = ll.FunctionType(llvoid, [lli32, llsliceptr, llptrptr])
-        elif name == "recv_rpc":
+        elif name == "rpc_recv":
             llty = ll.FunctionType(lli32, [llptr])
         elif name == "now":
             llty = lli64
@@ -359,7 +359,7 @@ class LLVMIRGenerator:
             llglobal = ll.Function(self.llmodule, llty, name)
             if name in ("__artiq_raise", "__artiq_reraise", "llvm.trap"):
                 llglobal.attributes.add("noreturn")
-            if name in ("rtio_log", "send_rpc", "send_async_rpc",
+            if name in ("rtio_log", "rpc_send", "rpc_send_async",
                         "watchdog_set", "watchdog_clear",
                         self.target.print_function):
                 llglobal.attributes.add("nounwind")
@@ -1242,10 +1242,10 @@ class LLVMIRGenerator:
             self.llbuilder.store(llargslot, llargptr)
 
         if fun_type.async:
-            self.llbuilder.call(self.llbuiltin("send_async_rpc"),
+            self.llbuilder.call(self.llbuiltin("rpc_send_async"),
                                 [llservice, lltagptr, llargs])
         else:
-            self.llbuilder.call(self.llbuiltin("send_rpc"),
+            self.llbuilder.call(self.llbuiltin("rpc_send"),
                                 [llservice, lltagptr, llargs])
 
         # Don't waste stack space on saved arguments.
@@ -1257,7 +1257,7 @@ class LLVMIRGenerator:
         # T result = {
         #   void *ret_ptr = alloca(sizeof(T));
         #   void *ptr = ret_ptr;
-        #   loop: int size = recv_rpc(ptr);
+        #   loop: int size = rpc_recv(ptr);
         #   // Non-zero: Provide `size` bytes of extra storage for variable-length data.
         #   if(size) { ptr = alloca(size); goto loop; }
         #   else *(T*)ret_ptr
@@ -1278,12 +1278,12 @@ class LLVMIRGenerator:
         llphi = self.llbuilder.phi(llslotgen.type, name="rpc.ptr")
         llphi.add_incoming(llslotgen, llprehead)
         if llunwindblock:
-            llsize = self.llbuilder.invoke(self.llbuiltin("recv_rpc"), [llphi],
+            llsize = self.llbuilder.invoke(self.llbuiltin("rpc_recv"), [llphi],
                                            llheadu, llunwindblock,
                                            name="rpc.size.next")
             self.llbuilder.position_at_end(llheadu)
         else:
-            llsize = self.llbuilder.call(self.llbuiltin("recv_rpc"), [llphi],
+            llsize = self.llbuilder.call(self.llbuiltin("rpc_recv"), [llphi],
                                          name="rpc.size.next")
         lldone = self.llbuilder.icmp_unsigned('==', llsize, ll.Constant(llsize.type, 0),
                                               name="rpc.done")

@@ -12,12 +12,11 @@ macro_rules! api {
     }
 }
 
-pub fn resolve(required: &str) -> usize {
+pub fn resolve(required: &[u8]) -> Option<u32> {
     unsafe {
         API.iter()
-           .find(|&&(exported, _)| exported == required)
-           .map(|&(_, ptr)| ptr as usize)
-           .unwrap_or(0)
+           .find(|&&(exported, _)| exported.as_bytes() == required)
+           .map(|&(_, ptr)| ptr as u32)
     }
 }
 
@@ -87,9 +86,9 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(watchdog_set = ::watchdog_set),
     api!(watchdog_clear = ::watchdog_clear),
 
-    api!(send_rpc = ::send_rpc),
-    api!(send_async_rpc = ::send_async_rpc),
-    api!(recv_rpc = ::recv_rpc),
+    api!(rpc_send = ::rpc_send),
+    api!(rpc_send_async = ::rpc_send_async),
+    api!(rpc_recv = ::rpc_recv),
 
     api!(cache_get = ::cache_get),
     api!(cache_put = ::cache_put),
@@ -105,6 +104,9 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(rtio_output_wide = ::rtio::output_wide),
     api!(rtio_input_timestamp = ::rtio::input_timestamp),
     api!(rtio_input_data = ::rtio::input_data),
+
+    api!(dma_record_start = ::dma_record_start),
+    api!(dma_record_stop = ::dma_record_stop),
 
     api!(drtio_get_channel_state = ::rtio::drtio_dbg::get_channel_state),
     api!(drtio_reset_channel_state = ::rtio::drtio_dbg::reset_channel_state),

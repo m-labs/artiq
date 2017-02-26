@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use core::ptr::{read_volatile, write_volatile};
 use core::slice;
 use board::{mem, cache};

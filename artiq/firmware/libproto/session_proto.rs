@@ -1,6 +1,7 @@
-use std::prelude::v1::*;
 use std::io::{self, Read, Write};
-use proto::*;
+use std::vec::Vec;
+use std::string::String;
+use io::*;
 
 fn read_sync(reader: &mut Read) -> io::Result<()> {
     let mut sync = [0; 4];
