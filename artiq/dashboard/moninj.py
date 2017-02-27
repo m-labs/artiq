@@ -247,11 +247,13 @@ class _DeviceManager:
             widget = self.ttl_widgets_by_channel[channel]
             if mode == "0":
                 widget.cur_override = True
+                widget.cur_level = False
                 self.core_connection.inject(channel, TTLOverride.level.value, 0)
                 self.core_connection.inject(channel, TTLOverride.oe.value, 1)
                 self.core_connection.inject(channel, TTLOverride.en.value, 1)
             elif mode == "1":
                 widget.cur_override = True
+                widget.cur_level = True
                 self.core_connection.inject(channel, TTLOverride.level.value, 1)
                 self.core_connection.inject(channel, TTLOverride.oe.value, 1)
                 self.core_connection.inject(channel, TTLOverride.en.value, 1)
@@ -260,6 +262,8 @@ class _DeviceManager:
                 self.core_connection.inject(channel, TTLOverride.en.value, 0)
             else:
                 raise ValueError
+        # override state may have changed
+        widget.refresh_display()
 
     def setup_ttl_monitoring(self, enable, channel):
         if self.core_connection is not None:
