@@ -18,6 +18,7 @@ class DDSTest(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
+        delay(200*us)
         with self.core_dds.batch:
             self.dds1.set(120*MHz)
             self.dds2.set(200*MHz)
