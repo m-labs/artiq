@@ -225,7 +225,7 @@ fn connection_worker(io: &Io, mut stream: &mut TcpStream) -> io::Result<()> {
 }
 
 pub fn thread(io: Io) {
-    let listener = TcpListener::new(&io, 65535);
+    let listener = TcpListener::new(&io, 2047);
     listener.listen(1383).expect("moninj: cannot listen");
 
     loop {
