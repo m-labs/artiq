@@ -1,9 +1,24 @@
 import asyncio
 import logging
 import struct
+from enum import Enum
+
+
+__all__ = ["TTLProbe", "TTLOverride", "MonInjComm"]
 
 
 logger = logging.getLogger(__name__)
+
+
+class TTLProbe(Enum):
+    level = 0
+    oe = 1
+
+
+class TTLOverride(Enum):
+    en = 0
+    level = 1
+    oe = 2
 
 
 class MonInjComm:

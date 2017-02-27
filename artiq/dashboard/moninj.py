@@ -4,7 +4,7 @@ import logging
 from PyQt5 import QtCore, QtWidgets, QtGui
 
 from artiq.protocols.sync_struct import Subscriber
-from artiq.coredevice.moninj import MonInjComm
+from artiq.coredevice.moninj import *
 from artiq.gui.tools import LayoutWidget
 from artiq.gui.flowlayout import FlowLayout
 
@@ -170,13 +170,6 @@ class _DDSWidget(QtWidgets.QFrame):
         return (self.bus_channel, self.channel)
 
 
-TTL_PROBE_LEVEL = 0
-TTL_PROBE_OE = 1
-
-TTL_OVERRIDE_EN = 0
-TTL_OVERRIDE_LEVEL = 1
-TTL_OVERRIDE_OE = 2
-
 class _DeviceManager:
     def __init__(self, init):
         self.core_addr = None
@@ -254,26 +247,26 @@ class _DeviceManager:
             widget = self.ttl_widgets_by_channel[channel]
             if mode == "0":
                 widget.cur_override = True
-                self.core_connection.inject(channel, TTL_OVERRIDE_LEVEL, 0)
-                self.core_connection.inject(channel, TTL_OVERRIDE_OE, 1)
-                self.core_connection.inject(channel, TTL_OVERRIDE_EN, 1)
+                self.core_connection.inject(channel, TTLOverride.level.value, 0)
+                self.core_connection.inject(channel, TTLOverride.oe.value, 1)
+                self.core_connection.inject(channel, TTLOverride.en.value, 1)
             elif mode == "1":
                 widget.cur_override = True
-                self.core_connection.inject(channel, TTL_OVERRIDE_LEVEL, 1)
-                self.core_connection.inject(channel, TTL_OVERRIDE_OE, 1)
-                self.core_connection.inject(channel, TTL_OVERRIDE_EN, 1)
+                self.core_connection.inject(channel, TTLOverride.level.value, 1)
+                self.core_connection.inject(channel, TTLOverride.oe.value, 1)
+                self.core_connection.inject(channel, TTLOverride.en.value, 1)
             elif mode == "exp":
                 widget.cur_override = False
-                self.core_connection.inject(channel, TTL_OVERRIDE_EN, 0)
+                self.core_connection.inject(channel, TTLOverride.en.value, 0)
             else:
                 raise ValueError
 
     def setup_ttl_monitoring(self, enable, channel):
         if self.core_connection is not None:
-            self.core_connection.monitor(enable, channel, TTL_PROBE_LEVEL)
-            self.core_connection.monitor(enable, channel, TTL_PROBE_OE)
+            self.core_connection.monitor(enable, channel, TTLProbe.level.value)
+            self.core_connection.monitor(enable, channel, TTLProbe.oe.value)
             if enable:
-                self.core_connection.get_injection_status(channel, TTL_OVERRIDE_EN)
+                self.core_connection.get_injection_status(channel, TTLOverride.en.value)
 
     def setup_dds_monitoring(self, enable, bus_channel, channel):
         if self.core_connection is not None:
@@ -282,9 +275,9 @@ class _DeviceManager:
     def monitor_cb(self, channel, probe, value):
         if channel in self.ttl_widgets_by_channel:
             widget = self.ttl_widgets_by_channel[channel]
-            if probe == TTL_PROBE_LEVEL:
+            if probe == TTLProbe.level.value:
                 widget.cur_level = bool(value)
-            elif probe == TTL_PROBE_OE:
+            elif probe == TTLProbe.oe.value:
                 widget.cur_oe = bool(value)
             widget.refresh_display()
         if (channel, probe) in self.dds_widgets_by_channel:
