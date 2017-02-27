@@ -45,7 +45,7 @@
         "class": "TTLOut",
         "arguments": {"channel": 3},
     },
-    "rled4": {
+    "led4": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
