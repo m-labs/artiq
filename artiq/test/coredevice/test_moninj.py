@@ -1,6 +1,6 @@
 import asyncio
 
-from artiq.coredevice.moninj import *
+from artiq.coredevice.comm_moninj import *
 from artiq.test.hardware_testbench import ExperimentCase
 
 
