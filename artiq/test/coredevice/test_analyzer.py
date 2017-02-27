@@ -1,7 +1,7 @@
 from artiq.experiment import *
-from artiq.coredevice.analyzer import (decode_dump, StoppedMessage,
-                                       OutputMessage, InputMessage,
-                                       _extract_log_chars)
+from artiq.coredevice.comm_analyzer import (decode_dump, StoppedMessage,
+                                            OutputMessage, InputMessage,
+                                           _extract_log_chars)
 from artiq.test.hardware_testbench import ExperimentCase
 
 

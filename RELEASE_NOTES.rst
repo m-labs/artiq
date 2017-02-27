@@ -24,6 +24,8 @@ Release notes
   the device database.
 * ``int(a, width=b)`` has been removed. Use ``int32(a)`` and ``int64(a)``.
 * The kc705 gateware target has been renamed kc705_dds.
+* ``artiq.coredevice.comm_tcp`` has been renamed ``artiq.coredevice.comm_kernel``,
+  and ``Comm`` has been renamed ``CommKernel``.
 
 
 2.2

@@ -3,7 +3,7 @@ from migen.genlib.record import Record, layout_len
 from misoc.interconnect.csr import *
 from misoc.interconnect import stream
 
-from artiq.protocols.analyzer import MessageType, ExceptionType
+from artiq.coredevice.comm_analyzer import MessageType, ExceptionType
 
 
 __all__ = ["Analyzer"]

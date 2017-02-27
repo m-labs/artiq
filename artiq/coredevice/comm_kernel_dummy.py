@@ -1,7 +1,7 @@
 from operator import itemgetter
 
 
-class Comm:
+class CommKernel:
     def __init__(self, dmgr):
         super().__init__()
 

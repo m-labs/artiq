@@ -6,7 +6,8 @@ import sys
 from artiq.tools import verbosity_args, init_logger
 from artiq.master.databases import DeviceDB
 from artiq.master.worker_db import DeviceManager
-from artiq.coredevice.analyzer import decode_dump, decoded_dump_to_vcd
+from artiq.coredevice.comm_analyzer import (get_analyzer_dump,
+                                            decode_dump, decoded_dump_to_vcd)
 
 
 def get_argparser():
@@ -38,28 +39,25 @@ def main():
         sys.exit(1)
 
     device_mgr = DeviceManager(DeviceDB(args.device_db))
-    try:
-        if args.read_dump:
-            with open(args.read_dump, "rb") as f:
-                dump = f.read()
-        else:
-            comm = device_mgr.get("comm")
-            dump = comm.get_analyzer_dump()
-        decoded_dump = decode_dump(dump)
-        if args.print_decoded:
-            print("Log channel:", decoded_dump.log_channel)
-            print("DDS one-hot:", decoded_dump.dds_onehot_sel)
-            for message in decoded_dump.messages:
-                print(message)
-        if args.write_vcd:
-            with open(args.write_vcd, "w") as f:
-                decoded_dump_to_vcd(f, device_mgr.get_device_db(),
-                                    decoded_dump)
-        if args.write_dump:
-            with open(args.write_dump, "wb") as f:
-                f.write(dump)
-    finally:
-        device_mgr.close_devices()        
+    if args.read_dump:
+        with open(args.read_dump, "rb") as f:
+            dump = f.read()
+    else:
+        core_addr = device_mgr.get_desc("comm")["arguments"]["host"]
+        dump = get_analyzer_dump(core_addr)
+    decoded_dump = decode_dump(dump)
+    if args.print_decoded:
+        print("Log channel:", decoded_dump.log_channel)
+        print("DDS one-hot:", decoded_dump.dds_onehot_sel)
+        for message in decoded_dump.messages:
+            print(message)
+    if args.write_vcd:
+        with open(args.write_vcd, "w") as f:
+            decoded_dump_to_vcd(f, device_mgr.get_device_db(),
+                                decoded_dump)
+    if args.write_dump:
+        with open(args.write_dump, "wb") as f:
+            f.write(dump)
 
 
 if __name__ == "__main__":

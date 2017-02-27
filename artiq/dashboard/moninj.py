@@ -4,7 +4,7 @@ import logging
 from PyQt5 import QtCore, QtWidgets, QtGui
 
 from artiq.protocols.sync_struct import Subscriber
-from artiq.coredevice.moninj import *
+from artiq.coredevice.comm_moninj import *
 from artiq.gui.tools import LayoutWidget
 from artiq.gui.flowlayout import FlowLayout
 
@@ -197,7 +197,7 @@ class _DeviceManager:
         try:
             if v["type"] == "local":
                 widget = None
-                if v["module"] == "artiq.coredevice.comm_tcp":
+                if k == "comm":
                     self.core_addr = v["arguments"]["host"]
                     self.new_core_addr.set()
                 elif v["module"] == "artiq.coredevice.ttl":
@@ -300,7 +300,7 @@ class _DeviceManager:
             if self.core_connection is not None:
                 await self.core_connection.close()
                 self.core_connection = None
-            new_core_connection = MonInjComm(self.monitor_cb, self.injection_status_cb,
+            new_core_connection = CommMonInj(self.monitor_cb, self.injection_status_cb,
                     lambda: logger.error("lost connection to core device moninj"))
             try:
                 await new_core_connection.connect(self.core_addr, 1383)

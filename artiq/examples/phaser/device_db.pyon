@@ -3,8 +3,8 @@
 {
     "comm": {
         "type": "local",
-        "module": "artiq.coredevice.comm_tcp",
-        "class": "Comm",
+        "module": "artiq.coredevice.comm_kernel",
+        "class": "CommKernel",
         "arguments": {"host": "kc705aux.lab.m-labs.hk"}
     },
     "core": {

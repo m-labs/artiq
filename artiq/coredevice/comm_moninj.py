@@ -4,7 +4,7 @@ import struct
 from enum import Enum
 
 
-__all__ = ["TTLProbe", "TTLOverride", "MonInjComm"]
+__all__ = ["TTLProbe", "TTLOverride", "CommMonInj"]
 
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ class TTLOverride(Enum):
     oe = 2
 
 
-class MonInjComm:
+class CommMonInj:
     def __init__(self, monitor_cb, injection_status_cb, disconnect_cb=None):
         self.monitor_cb = monitor_cb
         self.injection_status_cb = injection_status_cb

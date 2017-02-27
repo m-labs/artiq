@@ -21,7 +21,7 @@ class MonInjTest(ExperimentCase):
 
         loop = asyncio.get_event_loop()
         try:
-            moninj_comm = MonInjComm(monitor_cb, injection_status_cb)
+            moninj_comm = CommMonInj(monitor_cb, injection_status_cb)
             loop.run_until_complete(moninj_comm.connect(core_host))
             try:
                 moninj_comm.get_injection_status(loop_out_channel, TTLOverride.en.value)
