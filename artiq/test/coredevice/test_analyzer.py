@@ -1,7 +1,7 @@
 from artiq.experiment import *
 from artiq.coredevice.comm_analyzer import (decode_dump, StoppedMessage,
                                             OutputMessage, InputMessage,
-                                           _extract_log_chars)
+                                           _extract_log_chars, get_analyzer_dump)
 from artiq.test.hardware_testbench import ExperimentCase
 
 
@@ -40,14 +40,14 @@ class WriteLog(EnvExperiment):
 
 class AnalyzerTest(ExperimentCase):
     def test_ttl_pulse(self):
-        comm = self.device_mgr.get("comm")
+        core_host = self.device_mgr.get_desc("comm")["arguments"]["host"]
 
         exp = self.create(CreateTTLPulse)
         exp.initialize_io()
-        comm.get_analyzer_dump()  # clear analyzer buffer
+        get_analyzer_dump(core_host)  # clear analyzer buffer
         exp.run()
 
-        dump = decode_dump(comm.get_analyzer_dump())
+        dump = decode_dump(get_analyzer_dump(core_host))
         self.assertIsInstance(dump.messages[-1], StoppedMessage)
         output_messages = [msg for msg in dump.messages
                            if isinstance(msg, OutputMessage)
@@ -64,13 +64,13 @@ class AnalyzerTest(ExperimentCase):
             1000, delta=1)
 
     def test_rtio_log(self):
-        comm = self.device_mgr.get("comm")
+        core_host = self.device_mgr.get_desc("comm")["arguments"]["host"]
 
         exp = self.create(WriteLog)
-        comm.get_analyzer_dump()  # clear analyzer buffer
+        get_analyzer_dump(core_host)  # clear analyzer buffer
         exp.run()
 
-        dump = decode_dump(comm.get_analyzer_dump())
+        dump = decode_dump(get_analyzer_dump(core_host))
         log  = "".join([_extract_log_chars(msg.data)
                         for msg in dump.messages
                         if isinstance(msg, OutputMessage) and msg.channel == dump.log_channel])
