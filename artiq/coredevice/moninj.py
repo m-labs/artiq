@@ -51,15 +51,15 @@ class MonInjComm:
     async def _receive_cr(self):
         try:
             while True:
-                ty = await self.reader.read(1)
+                ty = await self._reader.read(1)
                 if not ty:
                     return
-                if ty == "\x00":
-                    payload = await self.reader.read(9)
+                if ty == b"\x00":
+                    payload = await self._reader.read(9)
                     channel, probe, value = struct.unpack(">lbl", payload)
                     self.monitor_cb(channel, probe, value)
-                elif ty == "\x01":
-                    payload = await self.reader.read(6)
+                elif ty == b"\x01":
+                    payload = await self._reader.read(6)
                     channel, override, value = struct.unpack(">lbb", payload)
                     self.injection_status_cb(channel, override, value)
                 else:

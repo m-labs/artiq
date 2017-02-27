@@ -70,7 +70,7 @@ class _TTLWidget(QtWidgets.QFrame):
         self.override.clicked.connect(self.override_toggled)
         self.level.clicked.connect(self.level_toggled)
 
-        self.cur_value = False
+        self.cur_level = False
         self.cur_oe = False
         self.cur_override = False
         self.refresh_display()
@@ -105,7 +105,7 @@ class _TTLWidget(QtWidgets.QFrame):
                 self.set_mode(self.channel, "0")
 
     def refresh_display(self):
-        value_s = "1" if self.cur_value else "0"
+        value_s = "1" if self.cur_level else "0"
         if self.cur_override:
             value_s = "<b>" + value_s + "</b>"
             color = " color=\"red\""
@@ -122,7 +122,7 @@ class _TTLWidget(QtWidgets.QFrame):
             self.override.setChecked(self.cur_override)
             if self.cur_override:
                 self.stack.setCurrentIndex(1)
-                self.level.setChecked(self.cur_value)
+                self.level.setChecked(self.cur_level)
         finally:
             self.programmatic_change = False
 
@@ -173,7 +173,7 @@ class _DDSWidget(QtWidgets.QFrame):
 TTL_PROBE_LEVEL = 0
 TTL_PROBE_OE = 1
 
-TTL_OVERRIDE_ENABLE = 0
+TTL_OVERRIDE_EN = 0
 TTL_OVERRIDE_LEVEL = 1
 TTL_OVERRIDE_OE = 2
 
@@ -272,6 +272,8 @@ class _DeviceManager:
         if self.core_connection is not None:
             self.core_connection.monitor(enable, channel, TTL_PROBE_LEVEL)
             self.core_connection.monitor(enable, channel, TTL_PROBE_OE)
+            if enable:
+                self.core_connection.get_injection_status(channel, TTL_OVERRIDE_EN)
 
     def setup_dds_monitoring(self, enable, bus_channel, channel):
         if self.core_connection is not None:
@@ -285,7 +287,7 @@ class _DeviceManager:
             elif probe == TTL_PROBE_OE:
                 widget.cur_oe = bool(value)
             widget.refresh_display()
-        if (bus_channel, channel) in self.dds_widgets_by_channel:
+        if (channel, probe) in self.dds_widgets_by_channel:
             widget = self.dds_widgets_by_channel[(channel, probe)]
             widget.cur_frequency = value*self.dds_sysclk/2**32
             widget.refresh_display()
