@@ -28,7 +28,7 @@ requirements:
     - asyncserial
     - h5py
     - dateutil
-    - pyqt
+    - pyqt >=5.5
     - quamash
     - pyqtgraph
     - pygit2
