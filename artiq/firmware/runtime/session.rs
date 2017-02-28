@@ -408,6 +408,15 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
                 session.congress.dma_manager.record_stop(name);
                 kern_acknowledge()
             }
+            &kern::DmaEraseRequest(name) => {
+                session.congress.dma_manager.erase(name);
+                kern_acknowledge()
+            }
+            &kern::DmaPlaybackRequest(name) => {
+                session.congress.dma_manager.with_trace(name, |trace| {
+                    kern_send(io, &kern::DmaPlaybackReply(trace))
+                })
+            }
 
             &kern::DrtioChannelStateRequest { channel } => {
                 let (fifo_space, last_timestamp) = rtio_mgt::drtio_dbg::get_channel_state(channel);

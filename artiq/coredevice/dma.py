@@ -1,5 +1,5 @@
 from artiq.language.core import syscall, kernel
-from artiq.language.types import TStr, TNone
+from artiq.language.types import TInt64, TStr, TNone
 
 from numpy import int64
 
@@ -8,9 +8,16 @@ from numpy import int64
 def dma_record_start() -> TNone:
     raise NotImplementedError("syscall not simulated")
 
-
 @syscall
 def dma_record_stop(name: TStr) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+@syscall
+def dma_erase(name: TStr) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+@syscall
+def dma_playback(timestamp: TInt64, name: TStr) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 
@@ -50,6 +57,19 @@ class CoreDMA:
 
     @kernel
     def record(self, name):
-        """Returns a context manager that will record a DMA trace called ``name``."""
+        """Returns a context manager that will record a DMA trace called ``name``.
+        Any previously recorded trace with the same name is overwritten.
+        The trace will persist across kernel switches."""
         self.recorder.name = name
         return self.recorder
+
+    @kernel
+    def erase(self, name):
+        """Removes the DMA trace with the given name from storage."""
+        dma_erase(name)
+
+    @kernel
+    def replay(self, name):
+        """Replays a previously recorded DMA trace. This function blocks until
+        the entire trace is submitted to the RTIO FIFOs."""
+        dma_playback(now_mu(), name)

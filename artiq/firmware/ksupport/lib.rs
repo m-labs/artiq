@@ -17,6 +17,7 @@ extern crate amp;
 use core::{mem, ptr, slice, str};
 use std::io::Cursor;
 use cslice::{CSlice, AsCSlice};
+use board::csr;
 use dyld::Library;
 use proto::{kernel_proto, rpc_proto};
 use proto::kernel_proto::*;
@@ -257,6 +258,8 @@ extern fn dma_record_start() {
 }
 
 extern fn dma_record_stop(name: CSlice<u8>) {
+    let name = str::from_utf8(name.as_ref()).unwrap();
+
     unsafe {
         if !DMA_RECORDING {
             raise!("DMAError", "DMA is not recording")
@@ -269,7 +272,7 @@ extern fn dma_record_stop(name: CSlice<u8>) {
                        rtio::output_wide as *const () as u32).unwrap();
 
         DMA_RECORDING = false;
-        send(&DmaRecordStop(str::from_utf8(name.as_ref()).unwrap()));
+        send(&DmaRecordStop(name));
     }
 }
 
@@ -290,6 +293,64 @@ extern fn dma_record_output_wide(timestamp: i64, channel: i32, address: i32, dat
         address:   address as u32,
         data:      unsafe { mem::transmute::<&[i32], &[u32]>(data.as_ref()) }
     })
+}
+
+extern fn dma_erase(name: CSlice<u8>) {
+    let name = str::from_utf8(name.as_ref()).unwrap();
+
+    send(&DmaEraseRequest(name));
+}
+
+extern fn dma_playback(timestamp: i64, name: CSlice<u8>) {
+    let name = str::from_utf8(name.as_ref()).unwrap();
+
+    send(&DmaPlaybackRequest(name));
+    let succeeded = recv!(&DmaPlaybackReply(data) => unsafe {
+        // Here, we take advantage of the fact that DmaPlaybackReply always refers
+        // to an entire heap allocation, which is 4-byte-aligned.
+        let data = match data { Some(bytes) => bytes, None => return false };
+        csr::rtio_dma::base_address_write(data.as_ptr() as u64);
+
+        csr::rtio_dma::time_offset_write(timestamp as u64);
+        csr::rtio_dma::enable_write(1);
+        while csr::rtio_dma::enable_read() != 0 {}
+
+        let status = csr::rtio_dma::error_status_read();
+        let timestamp = csr::rtio_dma::error_timestamp_read();
+        let channel = csr::rtio_dma::error_channel_read();
+        if status & rtio::RTIO_O_STATUS_UNDERFLOW != 0 {
+            csr::rtio_dma::error_underflow_reset_write(1);
+            raise!("RTIOUnderflow",
+                "RTIO underflow at {0} mu, channel {1}",
+                timestamp as i64, channel as i64, 0)
+        }
+        if status & rtio::RTIO_O_STATUS_SEQUENCE_ERROR != 0 {
+            csr::rtio_dma::error_sequence_error_reset_write(1);
+            raise!("RTIOSequenceError",
+                "RTIO sequence error at {0} mu, channel {1}",
+                timestamp as i64, channel as i64, 0)
+        }
+        if status & rtio::RTIO_O_STATUS_COLLISION != 0 {
+            csr::rtio_dma::error_collision_reset_write(1);
+            raise!("RTIOCollision",
+                "RTIO collision at {0} mu, channel {1}",
+                timestamp as i64, channel as i64, 0)
+        }
+        if status & rtio::RTIO_O_STATUS_BUSY != 0 {
+            csr::rtio_dma::error_busy_reset_write(1);
+            raise!("RTIOBusy",
+                "RTIO busy on channel {0}",
+                channel as i64, 0, 0)
+        }
+
+        true
+    });
+
+    if !succeeded {
+        println!("DMA trace called {:?} not found", name);
+        raise!("DMAError",
+            "DMA trace not found");
+    }
 }
 
 unsafe fn attribute_writeback(typeinfo: *const ()) {

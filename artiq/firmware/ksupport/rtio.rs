@@ -4,13 +4,13 @@ use board::csr;
 use ::send;
 use kernel_proto::*;
 
-const RTIO_O_STATUS_FULL:           u32 = 1;
-const RTIO_O_STATUS_UNDERFLOW:      u32 = 2;
-const RTIO_O_STATUS_SEQUENCE_ERROR: u32 = 4;
-const RTIO_O_STATUS_COLLISION:      u32 = 8;
-const RTIO_O_STATUS_BUSY:           u32 = 16;
-const RTIO_I_STATUS_EMPTY:          u32 = 1;
-const RTIO_I_STATUS_OVERFLOW:       u32 = 2;
+pub const RTIO_O_STATUS_FULL:           u32 = 1;
+pub const RTIO_O_STATUS_UNDERFLOW:      u32 = 2;
+pub const RTIO_O_STATUS_SEQUENCE_ERROR: u32 = 4;
+pub const RTIO_O_STATUS_COLLISION:      u32 = 8;
+pub const RTIO_O_STATUS_BUSY:           u32 = 16;
+pub const RTIO_I_STATUS_EMPTY:          u32 = 1;
+pub const RTIO_I_STATUS_OVERFLOW:       u32 = 2;
 
 pub extern fn init() {
     send(&RtioInitRequest);

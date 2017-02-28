@@ -457,3 +457,51 @@ class RPCTest(ExperimentCase):
         self.assertGreater(rpc_time_mean, 100*ns)
         self.assertLess(rpc_time_mean, 2*ms)
         self.assertLess(self.dataset_mgr.get("rpc_time_stddev"), 1*ms)
+
+
+class _DMA(EnvExperiment):
+    def build(self, trace_name="foobar"):
+        self.setattr_device("core")
+        self.setattr_device("core_dma")
+        self.setattr_device("ttl0")
+        self.trace_name = trace_name
+
+    @kernel
+    def record(self):
+        with self.core_dma.record(self.trace_name):
+            delay(100*ns)
+            self.ttl0.on()
+            delay(100*ns)
+            self.ttl0.off()
+
+    @kernel
+    def replay(self):
+        self.core_dma.replay(self.trace_name)
+
+    @kernel
+    def erase(self):
+        self.core_dma.erase(self.trace_name)
+
+    @kernel
+    def nested(self):
+        with self.core_dma.record(self.trace_name):
+            with self.core_dma.record(self.trace_name):
+                pass
+
+
+class DMATest(ExperimentCase):
+    def test_dma_storage(self):
+        exp = self.create(_DMA)
+        exp.record()
+        exp.record() # overwrite
+        exp.replay()
+        exp.erase()
+        with self.assertRaises(exceptions.DMAError):
+            exp.replay()
+
+    def test_dma_nested(self):
+        exp = self.create(_DMA)
+        with self.assertRaises(exceptions.DMAError):
+            exp.nested()
+
+    # TODO: check replay against analyzer

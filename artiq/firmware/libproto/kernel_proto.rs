@@ -38,6 +38,11 @@ pub enum Message<'a> {
     },
     DmaRecordStop(&'a str),
 
+    DmaEraseRequest(&'a str),
+
+    DmaPlaybackRequest(&'a str),
+    DmaPlaybackReply(Option<&'a [u8]>),
+
     DrtioChannelStateRequest { channel: u32 },
     DrtioChannelStateReply { fifo_space: u16, last_timestamp: u64 },
     DrtioResetChannelStateRequest { channel: u32 },
