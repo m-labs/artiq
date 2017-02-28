@@ -85,6 +85,14 @@ class EmbeddingMap:
                 n += 1
                 new_instance_type.name = "{}.{}".format(new_instance_type.name, n)
 
+    def attribute_count(self):
+        count = 0
+        for host_type in self.type_map:
+            instance_type, constructor_type = self.type_map[host_type]
+            count += len(instance_type.attributes)
+            count += len(constructor_type.attributes)
+        return count
+
     # Functions
     def store_function(self, function, ir_function_name):
         self.function_map[function] = ir_function_name
@@ -725,22 +733,20 @@ class Stitcher:
         inferencer = StitchingInferencer(engine=self.engine,
                                          value_map=self.value_map,
                                          quote=self._quote)
-        hasher = TypedtreeHasher()
+        typedtree_hasher = TypedtreeHasher()
 
         # Iterate inference to fixed point.
         old_typedtree_hash = None
+        old_attr_count = None
         while True:
             inferencer.visit(self.typedtree)
-            typedtree_hash = hasher.visit(self.typedtree)
+            typedtree_hash = typedtree_hasher.visit(self.typedtree)
+            attr_count = self.embedding_map.attribute_count()
 
-            if old_typedtree_hash == typedtree_hash:
+            if old_typedtree_hash == typedtree_hash and old_attr_count == attr_count:
                 break
             old_typedtree_hash = typedtree_hash
-
-        # When we have an excess of type information, sometimes we can infer every type
-        # in the AST without discovering every referenced attribute of host objects, so
-        # do one last pass unconditionally.
-        inferencer.visit(self.typedtree)
+            old_attr_count = attr_count
 
         # After we've discovered every referenced attribute, check if any kernel_invariant
         # specifications refers to ones we didn't encounter.
