@@ -4,7 +4,7 @@ import sys
 __all__ = []
 
 
-if sys.version_info[:2] == (3, 5) and sys.version_info[2] in (2, 3):
+if sys.version_info[:2] >= (3, 5, 2):
     import asyncio
 
     # See https://github.com/m-labs/artiq/issues/506
