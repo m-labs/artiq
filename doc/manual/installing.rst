@@ -64,12 +64,6 @@ On Windows::
 This activation has to be performed in every new shell you open to make the ARTIQ tools from that environment available.
 
 .. note::
-    [Linux] The ``qt5`` package requires libraries not packaged under the ``m-labs`` conda labels.
-    Those need to be installed through the Linux distribution's mechanism.
-    If GUI programs do not start because they ``could not find or load the Qt platform plugin "xcb"``, install the various ``libxcb-*`` packages through your distribution's preferred mechanism.
-    The names of the libraries missing can be obtained from the output of a command like ``ldd [path-to-conda-installation]/envs/artiq-main/lib/qt5/plugins/platform/libqxcb.so``.
-
-.. note::
     Some ARTIQ examples also require matplotlib and numba, and they must be installed manually for running those examples. They are available in conda.
 
 
