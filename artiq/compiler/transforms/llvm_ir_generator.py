@@ -1412,6 +1412,7 @@ class LLVMIRGenerator:
             llglobal.linkage = "private"
             return llglobal
 
+        fail_msg = "at " + ".".join(path())
         if types.is_constructor(typ) or types.is_instance(typ):
             if types.is_instance(typ):
                 # Make sure the class functions are quoted, as this has the side effect of
@@ -1422,19 +1423,29 @@ class LLVMIRGenerator:
         elif types.is_module(typ):
             return _quote_attributes()
         elif builtins.is_none(typ):
-            assert value is None
+            assert value is None, fail_msg
             return ll.Constant.literal_struct([])
         elif builtins.is_bool(typ):
-            assert value in (True, False)
+            assert value in (True, False), fail_msg
             return ll.Constant(llty, value)
         elif builtins.is_int(typ):
-            assert isinstance(value, (int, numpy.int32, numpy.int64))
+            assert isinstance(value, (int, numpy.int32, numpy.int64)), fail_msg
             return ll.Constant(llty, int(value))
         elif builtins.is_float(typ):
-            assert isinstance(value, float)
+            assert isinstance(value, float), fail_msg
             return ll.Constant(llty, value)
+        elif builtins.is_str(typ):
+            assert isinstance(value, (str, bytes)), fail_msg
+            if isinstance(value, str):
+                as_bytes = value.encode("utf-8")
+            else:
+                as_bytes = value
+
+            llstr     = self.llstr_of_str(as_bytes)
+            llconst   = ll.Constant(llty, [llstr, ll.Constant(lli32, len(as_bytes))])
+            return llconst
         elif builtins.is_listish(typ):
-            assert isinstance(value, (str, bytes, list, numpy.ndarray))
+            assert isinstance(value, (list, numpy.ndarray)), fail_msg
             elt_type  = builtins.get_iterable_elt(typ)
             llelts    = [self._quote(value[i], elt_type, lambda: path() + [str(i)])
                          for i in range(len(value))]
@@ -1463,7 +1474,7 @@ class LLVMIRGenerator:
             return ll.Constant(llty, [llclosure, llself])
         else:
             print(typ)
-            assert False
+            assert False, fail_msg
 
     def process_Quote(self, insn):
         assert self.embedding_map is not None
