@@ -301,6 +301,18 @@ extern fn dma_erase(name: CSlice<u8>) {
     send(&DmaEraseRequest(name));
 }
 
+unsafe fn rtio_arb_dma() {
+    csr::rtio::arb_req_write(0);
+    csr::rtio_dma::arb_req_write(1);
+    while csr::rtio_dma::arb_gnt_read() == 0 {}
+}
+
+unsafe fn rtio_arb_regular() {
+    csr::rtio_dma::arb_req_write(0);
+    csr::rtio::arb_req_write(1);
+    while csr::rtio::arb_gnt_read() == 0 {}
+}
+
 extern fn dma_playback(timestamp: i64, name: CSlice<u8>) {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
@@ -312,8 +324,10 @@ extern fn dma_playback(timestamp: i64, name: CSlice<u8>) {
         csr::rtio_dma::base_address_write(data.as_ptr() as u64);
 
         csr::rtio_dma::time_offset_write(timestamp as u64);
+        rtio_arb_dma();
         csr::rtio_dma::enable_write(1);
         while csr::rtio_dma::enable_read() != 0 {}
+        rtio_arb_regular();
 
         let status = csr::rtio_dma::error_status_read();
         let timestamp = csr::rtio_dma::error_timestamp_read();
