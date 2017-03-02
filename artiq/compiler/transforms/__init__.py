@@ -6,3 +6,4 @@ from .artiq_ir_generator import ARTIQIRGenerator
 from .dead_code_eliminator import DeadCodeEliminator
 from .llvm_ir_generator import LLVMIRGenerator
 from .interleaver import Interleaver
+from .typedtree_printer import TypedtreePrinter
