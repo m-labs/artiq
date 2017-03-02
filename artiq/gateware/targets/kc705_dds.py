@@ -159,8 +159,8 @@ class _NIST_Ions(MiniSoC, AMPSoC):
             self.crg.cd_sys.clk,
             self.rtio_crg.cd_rtio.clk)
 
-        self.submodules.rtio_analyzer = rtio.Analyzer(
-            self.rtio, self.rtio_core.cri.counter, self.get_native_sdram_if())
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_core.cri,
+                                                      self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
 
 

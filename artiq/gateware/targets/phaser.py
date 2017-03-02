@@ -241,8 +241,8 @@ class Phaser(MiniSoC, AMPSoC):
             [self.rtio_core.cri])
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
-        self.submodules.rtio_analyzer = rtio.Analyzer(
-            self.rtio, self.rtio_core.cri.counter, self.get_native_sdram_if())
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_core.cri,
+                                                      self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
 
         platform.add_false_path_constraints(

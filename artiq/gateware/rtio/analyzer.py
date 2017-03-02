@@ -3,6 +3,7 @@ from migen.genlib.record import Record, layout_len
 from misoc.interconnect.csr import *
 from misoc.interconnect import stream
 
+from artiq.gateware.rtio.cri import commands as cri_commands
 from artiq.coredevice.comm_analyzer import MessageType, ExceptionType
 
 
@@ -42,7 +43,7 @@ assert layout_len(stopped_layout) == message_len
 
 
 class MessageEncoder(Module, AutoCSR):
-    def __init__(self, kcsrs, rtio_counter, enable):
+    def __init__(self, cri, enable):
         self.source = stream.Endpoint([("data", message_len)])
 
         self.overflow = CSRStatus()
@@ -52,36 +53,34 @@ class MessageEncoder(Module, AutoCSR):
 
         input_output_stb = Signal()
         input_output = Record(input_output_layout)
-        o_data = kcsrs.o_data.storage
-        o_address = kcsrs.o_address.storage
-        i_data = kcsrs.i_data.status
         self.comb += [
-            input_output.channel.eq(kcsrs.chan_sel.storage),
-            input_output.address_padding.eq(o_address),
-            input_output.rtio_counter.eq(rtio_counter),
-            If(kcsrs.o_we.re,
+            input_output.channel.eq(cri.chan_sel),
+            input_output.address_padding.eq(cri.o_address),
+            input_output.rtio_counter.eq(cri.counter),
+            If(cri.cmd == cri_commands["write"],
                 input_output.message_type.eq(MessageType.output.value),
-                input_output.timestamp.eq(kcsrs.o_timestamp.storage),
-                input_output.data.eq(o_data)
+                input_output.timestamp.eq(cri.o_timestamp),
+                input_output.data.eq(cri.o_data)
             ).Else(
                 input_output.message_type.eq(MessageType.input.value),
-                input_output.timestamp.eq(kcsrs.i_timestamp.status),
-                input_output.data.eq(i_data)
+                input_output.timestamp.eq(cri.i_timestamp),
+                input_output.data.eq(cri.i_data)
             ),
-            input_output_stb.eq(kcsrs.o_we.re | kcsrs.i_re.re)
+            input_output_stb.eq((cri.cmd == cri_commands["write"]) |
+                                (cri.cmd == cri_commands["read"]))
         ]
 
         exception_stb = Signal()
         exception = Record(exception_layout)
         self.comb += [
             exception.message_type.eq(MessageType.exception.value),
-            exception.channel.eq(kcsrs.chan_sel.storage),
-            exception.rtio_counter.eq(rtio_counter),
+            exception.channel.eq(cri.chan_sel),
+            exception.rtio_counter.eq(cri.counter),
         ]
         for ename in ("o_underflow_reset", "o_sequence_error_reset",
                       "o_collision_reset", "i_overflow_reset"):
             self.comb += \
-                If(getattr(kcsrs, ename).re,
+                If(cri.cmd == cri_commands[ename],
                     exception_stb.eq(1),
                     exception.exception_type.eq(
                         getattr(ExceptionType, ename).value)
@@ -90,7 +89,7 @@ class MessageEncoder(Module, AutoCSR):
         stopped = Record(stopped_layout)
         self.comb += [
             stopped.message_type.eq(MessageType.stopped.value),
-            stopped.rtio_counter.eq(rtio_counter),
+            stopped.rtio_counter.eq(cri.counter),
         ]
 
         enable_r = Signal()
@@ -180,13 +179,13 @@ class DMAWriter(Module, AutoCSR):
 
 
 class Analyzer(Module, AutoCSR):
-    def __init__(self, kcsrs, rtio_counter, membus, fifo_depth=128):
+    def __init__(self, cri, membus, fifo_depth=128):
         # shutdown procedure: set enable to 0, wait until busy=0
         self.enable = CSRStorage()
         self.busy = CSRStatus()
 
         self.submodules.message_encoder = MessageEncoder(
-            kcsrs, rtio_counter, self.enable.storage)
+            cri, self.enable.storage)
         self.submodules.fifo = stream.SyncFIFO(
             [("data", message_len)], fifo_depth, True)
         self.submodules.converter = stream.Converter(
