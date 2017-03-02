@@ -293,7 +293,8 @@ class Inferencer(algorithm.Visitor):
             return coerced_node
         elif isinstance(coerced_node, asttyped.CoerceT):
             node = coerced_node
-            node.type, node.other_value = typ, other_node
+            node.type.unify(typ)
+            node.other_value = other_node
         else:
             node = asttyped.CoerceT(type=typ, value=coerced_node, other_value=other_node,
                                     loc=coerced_node.loc)
