@@ -15,7 +15,7 @@ from Levenshtein import ratio as similarity, jaro_winkler
 
 from ..language import core as language_core
 from . import types, builtins, asttyped, prelude
-from .transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer
+from .transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer, TypedtreePrinter
 from .transforms.asttyped_rewriter import LocalExtractor
 
 
@@ -685,6 +685,8 @@ class TypedtreeHasher(algorithm.Visitor):
         def freeze(obj):
             if isinstance(obj, ast.AST):
                 return self.visit(obj)
+            elif isinstance(obj, list):
+                return hash(tuple(freeze(elem) for elem in obj))
             elif isinstance(obj, types.Type):
                 return hash(obj.find())
             else:
