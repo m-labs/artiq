@@ -4,9 +4,12 @@ use std::string::String;
 use std::btree_map::BTreeMap;
 use std::io::Write;
 
+const ALIGNMENT: usize = 64;
+
 #[derive(Debug)]
 struct Entry {
-    data: Vec<u8>
+    data: Vec<u8>,
+    padding: usize
 }
 
 #[derive(Debug)]
@@ -24,7 +27,7 @@ impl Manager {
     }
 
     pub fn record_start(&mut self) {
-        self.recording.clear();
+        self.recording = Vec::new();
     }
 
     pub fn record_append(&mut self, timestamp: u64, channel: u32,
@@ -63,12 +66,23 @@ impl Manager {
         let mut recorded = Vec::new();
         mem::swap(&mut self.recording, &mut recorded);
         recorded.push(0);
-        recorded.shrink_to_fit();
+        let data_len = recorded.len();
 
-        info!("recorded DMA data: {:?}", recorded);
+        // Realign.
+        recorded.reserve(ALIGNMENT - 1);
+        let padding = ALIGNMENT - recorded.as_ptr() as usize % ALIGNMENT;
+        let padding = if padding == ALIGNMENT { 0 } else { padding };
+        for _ in 0..padding {
+            // Vec guarantees that this will not reallocate
+            recorded.push(0)
+        }
+        for i in 1..data_len + 1 {
+            recorded[data_len + padding - i] = recorded[data_len - i]
+        }
 
         self.entries.insert(String::from(name), Entry {
-            data: recorded
+            data: recorded,
+            padding: padding,
         });
     }
 
@@ -77,6 +91,8 @@ impl Manager {
     }
 
     pub fn with_trace<F: FnOnce(Option<&[u8]>) -> R, R>(&self, name: &str, f: F) -> R {
-        f(self.entries.get(name).map(|entry| &entry.data[..]))
+        f(self.entries
+              .get(name)
+              .map(|entry| &entry.data[entry.padding..]))
     }
 }

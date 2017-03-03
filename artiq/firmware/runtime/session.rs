@@ -410,6 +410,8 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
             }
             &kern::DmaRecordStop(name) => {
                 session.congress.dma_manager.record_stop(name);
+                board::cache::flush_cpu_dcache();
+                board::cache::flush_l2_cache();
                 kern_acknowledge()
             }
             &kern::DmaEraseRequest(name) => {

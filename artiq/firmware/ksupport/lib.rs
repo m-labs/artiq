@@ -320,9 +320,10 @@ extern fn dma_playback(timestamp: i64, name: CSlice<u8>) {
     let succeeded = recv!(&DmaPlaybackReply(data) => unsafe {
         match data {
             Some(bytes) => {
-                // Here, we take advantage of the fact that DmaPlaybackReply always refers
-                // to an entire heap allocation, which is 4-byte-aligned.
-                csr::rtio_dma::base_address_write(bytes.as_ptr() as u64);
+                let ptr = bytes.as_ptr() as usize;
+                assert!(ptr % 64 == 0);
+
+                csr::rtio_dma::base_address_write(ptr as u64);
                 csr::rtio_dma::time_offset_write(timestamp as u64);
 
                 rtio_arb_dma();
