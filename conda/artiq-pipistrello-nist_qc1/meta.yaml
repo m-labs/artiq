@@ -12,10 +12,7 @@ build:
 
 requirements:
   build:
-    - migen 0.4
-    - misoc 0.3
-    - llvm-or1k
-    - binutils-or1k-linux
+    - artiq-dev {{ "{tag} py_{number}+git{hash}".format(tag=environ.get("GIT_DESCRIBE_TAG"), number=environ.get("GIT_DESCRIBE_NUMBER"), hash=environ.get("GIT_DESCRIBE_HASH")[1:]) if "GIT_DESCRIBE_TAG" in environ else "" }}
   run:
     - artiq {{ "{tag} py_{number}+git{hash}".format(tag=environ.get("GIT_DESCRIBE_TAG"), number=environ.get("GIT_DESCRIBE_NUMBER"), hash=environ.get("GIT_DESCRIBE_HASH")[1:]) if "GIT_DESCRIBE_TAG" in environ else "" }}
 

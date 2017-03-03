@@ -1,5 +1,5 @@
 package:
-  name: artiq
+  name: artiq-dev
   version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}
 
 source:
@@ -11,21 +11,26 @@ build:
   string: py_{{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}+git{{ environ.get("GIT_DESCRIBE_HASH", "")[1:] }}
 
 requirements:
-  build:
-    - python 3.5.2
-    - setuptools
   run:
     - python 3.5.2
-    - llvmlite-artiq 0.10.0.dev py35_24
+    - setuptools
+    - migen 0.4
+    - misoc 0.3
     - binutils-or1k-linux
-    - pythonparser 1.0
+    - llvm-or1k
+    - llvmlite-artiq 0.10.0.dev py35_24
     - openocd >=0.10
     - lit
     - outputcheck
+    - coverage
     - scipy
     - numpy
     - prettytable
     - asyncserial
+    - sphinx 1.4.8
+    - sphinx-argparse
+    - sphinxcontrib-wavedrom
+    - sphinx_rtd_theme
     - h5py
     - dateutil
     - pyqt >=5.5
@@ -33,13 +38,10 @@ requirements:
     - pyqtgraph
     - pygit2
     - aiohttp
+    - pythonparser 1.0
     - levenshtein
-
-test:
-  imports:
-    - artiq
 
 about:
   home: https://m-labs.hk/artiq
   license: GPL
-  summary: 'ARTIQ (Advanced Real-Time Infrastructure for Quantum physics) is a next-generation control system for quantum information experiments. It is being developed in partnership with the Ion Storage Group at NIST, and its applicability reaches beyond ion trapping.'
+  summary: 'ARTIQ development metapackage'
