@@ -8,12 +8,13 @@ extern crate board;
 use core::{mem, ptr};
 use core::cell::{Cell, RefCell};
 use core::fmt::Write;
-use log::{Log, LogLevel, LogMetadata, LogRecord, LogLevelFilter};
+use log::{Log, LogLevel, LogMetadata, LogRecord, LogLevelFilter, MaxLogLevelFilter};
 use log_buffer::LogBuffer;
 use board::{Console, clock};
 
 pub struct BufferLogger {
     buffer:        RefCell<LogBuffer<&'static mut [u8]>>,
+    filter:        RefCell<Option<MaxLogLevelFilter>>,
     trace_to_uart: Cell<bool>
 }
 
@@ -23,6 +24,7 @@ impl BufferLogger {
     pub fn new(buffer: &'static mut [u8]) -> BufferLogger {
         BufferLogger {
             buffer: RefCell::new(LogBuffer::new(buffer)),
+            filter: RefCell::new(None),
             trace_to_uart: Cell::new(true)
         }
     }
@@ -33,7 +35,8 @@ impl BufferLogger {
         // before log::shutdown_logger_raw is called).
         unsafe {
             log::set_logger_raw(|max_log_level| {
-                max_log_level.set(LogLevelFilter::Trace);
+                max_log_level.set(LogLevelFilter::Info);
+                *self.filter.borrow_mut() = Some(max_log_level);
                 self as *const Log
             }).expect("global logger can only be initialized once");
             LOGGER = self;
@@ -55,6 +58,14 @@ impl BufferLogger {
 
     pub fn extract<R, F: FnOnce(&str) -> R>(&self, f: F) -> R {
         f(self.buffer.borrow_mut().extract())
+    }
+
+    pub fn set_max_log_level(&self, max_level: LogLevelFilter) {
+        self.filter
+            .borrow()
+            .as_ref()
+            .expect("register the logger before setting maximum log level")
+            .set(max_level)
     }
 
     pub fn disable_trace_to_uart(&self) {

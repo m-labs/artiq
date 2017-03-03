@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 class _H2DMsgType(Enum):
     LOG_REQUEST = 1
     LOG_CLEAR = 2
+    LOG_FILTER = 13
 
     SYSTEM_INFO_REQUEST = 3
     SWITCH_CLOCK = 4
@@ -56,6 +57,15 @@ class _D2HMsgType(Enum):
 
     WATCHDOG_EXPIRED = 14
     CLOCK_FAILURE = 15
+
+
+class _LogLevel(Enum):
+    OFF = 0
+    ERROR = 1
+    WARN = 2
+    INFO = 3
+    DEBUG = 4
+    TRACE = 5
 
 
 class UnsupportedDevice(Exception):
@@ -278,6 +288,13 @@ class CommKernel:
         self._write_empty(_H2DMsgType.LOG_CLEAR)
 
         self._read_empty(_D2HMsgType.LOG_REPLY)
+
+    def set_log_level(self, level):
+        if level not in _LogLevel.__members__:
+            raise ValueError("invalid log level {}".format(level))
+
+        self._write_header(_H2DMsgType.LOG_FILTER)
+        self._write_int8(getattr(_LogLevel, level).value)
 
     def flash_storage_read(self, key):
         self._write_header(_H2DMsgType.FLASH_READ_REQUEST)

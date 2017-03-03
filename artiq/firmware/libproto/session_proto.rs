@@ -1,6 +1,8 @@
 use std::io::{self, Read, Write};
 use std::vec::Vec;
 use std::string::String;
+#[cfg(feature = "log")]
+use log::LogLevelFilter;
 use {ReadExt, WriteExt};
 
 fn read_sync(reader: &mut Read) -> io::Result<()> {
@@ -20,6 +22,8 @@ fn write_sync(writer: &mut Write) -> io::Result<()> {
 pub enum Request {
     Log,
     LogClear,
+    #[cfg(feature = "log")]
+    LogFilter(LogLevelFilter),
 
     SystemInfo,
     SwitchClock(u8),
@@ -50,6 +54,20 @@ impl Request {
         Ok(match reader.read_u8()? {
             1  => Request::Log,
             2  => Request::LogClear,
+            #[cfg(feature = "log")]
+            13 => {
+                let level = match reader.read_u8()? {
+                    0 => LogLevelFilter::Off,
+                    1 => LogLevelFilter::Error,
+                    2 => LogLevelFilter::Warn,
+                    3 => LogLevelFilter::Info,
+                    4 => LogLevelFilter::Debug,
+                    5 => LogLevelFilter::Trace,
+                    _ => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                                                   "invalid log level"))
+                };
+                Request::LogFilter(level)
+            }
             3  => Request::SystemInfo,
             4  => Request::SwitchClock(reader.read_u8()?),
             5  => Request::LoadKernel(reader.read_bytes()?),

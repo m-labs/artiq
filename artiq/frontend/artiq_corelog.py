@@ -13,6 +13,14 @@ def get_argparser():
     verbosity_args(parser)
     parser.add_argument("--device-db", default="device_db.pyon",
                        help="device database file (default: '%(default)s')")
+
+    subparsers = parser.add_subparsers(dest="action")
+
+    p_set_level = subparsers.add_parser("set_level",
+                                        help="set minimum level for messages to be logged")
+    p_set_level.add_argument("level", metavar="LEVEL", type=str,
+                             help="log level (one of: OFF ERROR WARN INFO DEBUG TRACE)")
+
     return parser
 
 
@@ -23,7 +31,10 @@ def main():
     try:
         comm = device_mgr.get("comm")
         comm.check_system_info()
-        print(comm.get_log(), end="")
+        if args.action == "set_level":
+            comm.set_log_level(args.level)
+        else:
+            print(comm.get_log(), end="")
     finally:
         device_mgr.close_devices()
 

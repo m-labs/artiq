@@ -226,10 +226,14 @@ fn process_host_message(io: &Io,
                 })
             })
         }
-
         host::Request::LogClear => {
             BufferLogger::with_instance(|logger| logger.clear());
             host_write(stream, host::Reply::Log(""))
+        }
+        host::Request::LogFilter(filter) => {
+            info!("changing log level to {}", filter);
+            BufferLogger::with_instance(|logger| logger.set_max_log_level(filter));
+            Ok(())
         }
 
         // artiq_coreconfig
