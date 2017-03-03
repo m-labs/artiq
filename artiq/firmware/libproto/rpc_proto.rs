@@ -75,7 +75,7 @@ pub fn recv_return(reader: &mut Read, tag_bytes: &[u8], data: *mut (),
                    alloc: &Fn(usize) -> io::Result<*mut ()>) -> io::Result<()> {
     let mut it = TagIterator::new(tag_bytes);
     #[cfg(feature = "log")]
-    trace!("recv ...->{}", it);
+    debug!("recv ...->{}", it);
 
     let tag = it.next().expect("truncated tag");
     let mut data = data;
@@ -163,7 +163,7 @@ pub fn send_args(writer: &mut Write, service: u32, tag_bytes: &[u8],
     #[cfg(feature = "log")]
     {
         let return_it = TagIterator::new(return_tag_bytes);
-        trace!("send<{}>({})->{}", service, args_it, return_it);
+        debug!("send<{}>({})->{}", service, args_it, return_it);
     }
 
     writer.write_u32(service)?;

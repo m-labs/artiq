@@ -115,21 +115,21 @@ fn check_magic(stream: &mut TcpStream) -> io::Result<()> {
 fn host_read(stream: &mut TcpStream) -> io::Result<host::Request> {
     let request = host::Request::read_from(stream)?;
     match &request {
-        &host::Request::LoadKernel(_) => trace!("comm<-host LoadLibrary(...)"),
-        _ => trace!("comm<-host {:?}", request)
+        &host::Request::LoadKernel(_) => debug!("comm<-host LoadLibrary(...)"),
+        _ => debug!("comm<-host {:?}", request)
     }
     Ok(request)
 }
 
 fn host_write(stream: &mut Write, reply: host::Reply) -> io::Result<()> {
-    trace!("comm->host {:?}", reply);
+    debug!("comm->host {:?}", reply);
     reply.write_to(stream)
 }
 
 fn kern_send(io: &Io, request: &kern::Message) -> io::Result<()> {
     match request {
-        &kern::LoadRequest(_) => trace!("comm->kern LoadRequest(...)"),
-        _ => trace!("comm->kern {:?}", request)
+        &kern::LoadRequest(_) => debug!("comm->kern LoadRequest(...)"),
+        _ => debug!("comm->kern {:?}", request)
     }
     unsafe { mailbox::send(request as *const _ as usize) }
     io.until(mailbox::acknowledged)
@@ -148,9 +148,9 @@ fn kern_recv_notrace<R, F>(io: &Io, f: F) -> io::Result<R>
 
 fn kern_recv_dotrace(reply: &kern::Message) {
     match reply {
-        &kern::Log(_) => trace!("comm<-kern Log(...)"),
-        &kern::LogSlice(_) => trace!("comm<-kern LogSlice(...)"),
-        _ => trace!("comm<-kern {:?}", reply)
+        &kern::Log(_) => debug!("comm<-kern Log(...)"),
+        &kern::LogSlice(_) => debug!("comm<-kern LogSlice(...)"),
+        _ => debug!("comm<-kern {:?}", reply)
     }
 }
 
@@ -219,7 +219,7 @@ fn process_host_message(io: &Io,
         // artiq_corelog
         host::Request::Log => {
             // Logging the packet with the log is inadvisable
-            trace!("comm->host Log(...)");
+            debug!("comm->host Log(...)");
             BufferLogger::with_instance(|logger| {
                 logger.extract(|log| {
                     host::Reply::Log(log).write_to(stream)
@@ -569,10 +569,10 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
 fn process_kern_queued_rpc(stream: &mut TcpStream,
                            _session: &mut Session) -> io::Result<()> {
     rpc_queue::dequeue(|slice| {
-        trace!("comm<-kern (async RPC)");
+        debug!("comm<-kern (async RPC)");
         let length = NetworkEndian::read_u32(slice) as usize;
         host_write(stream, host::Reply::RpcRequest { async: true })?;
-        trace!("{:?}" ,&slice[4..][..length]);
+        debug!("{:?}", &slice[4..][..length]);
         stream.write(&slice[4..][..length])?;
         Ok(())
     })
@@ -670,7 +670,7 @@ pub fn thread(io: Io) {
     listener.listen(1381).expect("session: cannot listen");
     info!("accepting network sessions");
 
-    BufferLogger::with_instance(|logger| logger.disable_trace_to_uart());
+    BufferLogger::with_instance(|logger| logger.enable_concise_uart());
 
     let congress = Urc::new(RefCell::new(Congress::new()));
 

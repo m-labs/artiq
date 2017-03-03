@@ -13,9 +13,9 @@ use log_buffer::LogBuffer;
 use board::{Console, clock};
 
 pub struct BufferLogger {
-    buffer:        RefCell<LogBuffer<&'static mut [u8]>>,
-    filter:        RefCell<Option<MaxLogLevelFilter>>,
-    trace_to_uart: Cell<bool>
+    buffer:       RefCell<LogBuffer<&'static mut [u8]>>,
+    filter:       RefCell<Option<MaxLogLevelFilter>>,
+    concise_uart: Cell<bool>
 }
 
 static mut LOGGER: *const BufferLogger = 0 as *const _;
@@ -25,7 +25,7 @@ impl BufferLogger {
         BufferLogger {
             buffer: RefCell::new(LogBuffer::new(buffer)),
             filter: RefCell::new(None),
-            trace_to_uart: Cell::new(true)
+            concise_uart: Cell::new(true)
         }
     }
 
@@ -68,11 +68,11 @@ impl BufferLogger {
             .set(max_level)
     }
 
-    pub fn disable_trace_to_uart(&self) {
-        if self.trace_to_uart.get() {
+    pub fn enable_concise_uart(&self) {
+        if self.concise_uart.get() {
             trace!("disabling tracing to UART; all further trace messages \
                     are sent to core log only");
-            self.trace_to_uart.set(false)
+            self.concise_uart.set(false)
         }
     }
 }
@@ -103,7 +103,7 @@ impl Log for BufferLogger {
 
             // Printing to UART is really slow, so avoid doing that when we have an alternative
             // route to retrieve the debug messages.
-            if self.trace_to_uart.get() || record.level() <= LogLevel::Info || force_uart {
+            if self.concise_uart.get() || record.level() <= LogLevel::Info || force_uart {
                 writeln!(Console, "[{:12}us] {:>5}({}): {}",
                          clock::get_us(), record.level(),
                          record.target(), record.args()).unwrap();
