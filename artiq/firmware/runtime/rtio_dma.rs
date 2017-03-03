@@ -51,13 +51,19 @@ impl Manager {
             (address   >>  8) as u8,
         ]).unwrap();
         for &word in data {
-            writer.write_u32(word).unwrap();
+            writer.write_all(&[
+                (word >>  0) as u8,
+                (word >>  8) as u8,
+                (word >> 16) as u8,
+                (word >> 24) as u8,
+            ]).unwrap();
         }
     }
 
     pub fn record_stop(&mut self, name: &str) {
         let mut recorded = Vec::new();
         mem::swap(&mut self.recording, &mut recorded);
+        recorded.push(0);
         recorded.shrink_to_fit();
 
         info!("recorded DMA data: {:?}", recorded);
