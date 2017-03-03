@@ -318,17 +318,31 @@ extern fn dma_playback(timestamp: i64, name: CSlice<u8>) {
 
     send(&DmaPlaybackRequest(name));
     let succeeded = recv!(&DmaPlaybackReply(data) => unsafe {
-        // Here, we take advantage of the fact that DmaPlaybackReply always refers
-        // to an entire heap allocation, which is 4-byte-aligned.
-        let data = match data { Some(bytes) => bytes, None => return false };
-        csr::rtio_dma::base_address_write(data.as_ptr() as u64);
+        match data {
+            Some(bytes) => {
+                // Here, we take advantage of the fact that DmaPlaybackReply always refers
+                // to an entire heap allocation, which is 4-byte-aligned.
+                csr::rtio_dma::base_address_write(bytes.as_ptr() as u64);
+                csr::rtio_dma::time_offset_write(timestamp as u64);
 
-        csr::rtio_dma::time_offset_write(timestamp as u64);
-        rtio_arb_dma();
-        csr::rtio_dma::enable_write(1);
-        while csr::rtio_dma::enable_read() != 0 {}
-        rtio_arb_regular();
+                rtio_arb_dma();
+                csr::rtio_dma::enable_write(1);
+                while csr::rtio_dma::enable_read() != 0 {}
+                rtio_arb_regular();
 
+                true
+            }
+            None => false
+        }
+    });
+
+    if !succeeded {
+        println!("DMA trace called {:?} not found", name);
+        raise!("DMAError",
+            "DMA trace not found");
+    }
+
+    unsafe {
         let status = csr::rtio_dma::error_status_read();
         let timestamp = csr::rtio_dma::error_timestamp_read();
         let channel = csr::rtio_dma::error_channel_read();
@@ -356,14 +370,6 @@ extern fn dma_playback(timestamp: i64, name: CSlice<u8>) {
                 "RTIO busy on channel {0}",
                 channel as i64, 0, 0)
         }
-
-        true
-    });
-
-    if !succeeded {
-        println!("DMA trace called {:?} not found", name);
-        raise!("DMAError",
-            "DMA trace not found");
     }
 }
 
