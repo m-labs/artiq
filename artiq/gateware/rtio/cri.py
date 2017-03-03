@@ -10,13 +10,17 @@ commands = {
     "nop": 0,
 
     "write": 1,
-    "read": 2,
+    # i_status should have the "wait for status" bit set until
+    # an event is available, or timestamp is reached.
+    "read_request": 2,
+    # consume the read event
+    "read": 3,
 
-    "o_underflow_reset": 3,
-    "o_sequence_error_reset": 4,
-    "o_collision_reset": 5,
-    "o_busy_reset": 6,
-    "i_overflow_reset": 7
+    "o_underflow_reset": 4,
+    "o_sequence_error_reset": 5,
+    "o_collision_reset": 6,
+    "o_busy_reset": 7,
+    "i_overflow_reset": 8
 }
 
 
@@ -27,10 +31,10 @@ layout = [
     ("cmd", 4, DIR_M_TO_S),
     # 8 MSBs of chan_sel are used to select core
     ("chan_sel", 24, DIR_M_TO_S),
+    ("timestamp", 64, DIR_M_TO_S),
 
     ("o_data", 512, DIR_M_TO_S),
     ("o_address", 16, DIR_M_TO_S),
-    ("o_timestamp", 64, DIR_M_TO_S),
     # o_status bits:
     # <0:wait> <1:underflow> <2:sequence_error> <3:collision> <4:busy>
     ("o_status", 5, DIR_S_TO_M),
@@ -38,8 +42,8 @@ layout = [
     ("i_data", 32, DIR_S_TO_M),
     ("i_timestamp", 64, DIR_S_TO_M),
     # i_status bits:
-    # <0:wait> <1:overflow>
-    ("i_status", 2, DIR_S_TO_M),
+    # <0:wait for event> <1:overflow> <2:wait for status>
+    ("i_status", 3, DIR_S_TO_M),
 
     ("counter", 64, DIR_S_TO_M)
 ]
@@ -56,10 +60,11 @@ class KernelInitiator(Module, AutoCSR):
         self.arb_gnt = CSRStatus()
 
         self.chan_sel = CSRStorage(24)
+        self.timestamp = CSRStorage(64)
 
+        # writing timestamp set o_data to 0
         self.o_data = CSRStorage(512, write_from_dev=True)
         self.o_address = CSRStorage(16)
-        self.o_timestamp = CSRStorage(64)
         self.o_we = CSR()
         self.o_status = CSRStatus(5)
         self.o_underflow_reset = CSR()
@@ -69,8 +74,9 @@ class KernelInitiator(Module, AutoCSR):
 
         self.i_data = CSRStatus(32)
         self.i_timestamp = CSRStatus(64)
+        self.i_request = CSR()
         self.i_re = CSR()
-        self.i_status = CSRStatus(2)
+        self.i_status = CSRStatus(3)
         self.i_overflow_reset = CSR()
 
         self.counter = CSRStatus(64)
@@ -88,6 +94,7 @@ class KernelInitiator(Module, AutoCSR):
 
             self.cri.cmd.eq(commands["nop"]),
             If(self.o_we.re, self.cri.cmd.eq(commands["write"])),
+            If(self.i_request.re, self.cri.cmd.eq(commands["read_request"])),
             If(self.i_re.re, self.cri.cmd.eq(commands["read"])),
             If(self.o_underflow_reset.re, self.cri.cmd.eq(commands["o_underflow_reset"])),
             If(self.o_sequence_error_reset.re, self.cri.cmd.eq(commands["o_sequence_error_reset"])),
@@ -96,10 +103,10 @@ class KernelInitiator(Module, AutoCSR):
             If(self.i_overflow_reset.re, self.cri.cmd.eq(commands["i_overflow_reset"])),
 
             self.cri.chan_sel.eq(self.chan_sel.storage),
+            self.cri.timestamp.eq(self.timestamp.storage),
 
             self.cri.o_data.eq(self.o_data.storage),
             self.cri.o_address.eq(self.o_address.storage),
-            self.cri.o_timestamp.eq(self.o_timestamp.storage),
             self.o_status.status.eq(self.cri.o_status),
 
             self.i_data.status.eq(self.cri.i_data),
@@ -107,7 +114,7 @@ class KernelInitiator(Module, AutoCSR):
             self.i_status.status.eq(self.cri.i_status),
 
             self.o_data.dat_w.eq(0),
-            self.o_data.we.eq(self.o_timestamp.re),
+            self.o_data.we.eq(self.timestamp.re),
         ]
         self.sync += If(self.counter_update.re, self.counter.status.eq(self.cri.counter))
 

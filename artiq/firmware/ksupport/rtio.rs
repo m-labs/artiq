@@ -4,13 +4,14 @@ use board::csr;
 use ::send;
 use kernel_proto::*;
 
-pub const RTIO_O_STATUS_FULL:           u32 = 1;
+pub const RTIO_O_STATUS_WAIT:           u32 = 1;
 pub const RTIO_O_STATUS_UNDERFLOW:      u32 = 2;
 pub const RTIO_O_STATUS_SEQUENCE_ERROR: u32 = 4;
 pub const RTIO_O_STATUS_COLLISION:      u32 = 8;
 pub const RTIO_O_STATUS_BUSY:           u32 = 16;
-pub const RTIO_I_STATUS_EMPTY:          u32 = 1;
+pub const RTIO_I_STATUS_WAIT_EVENT:     u32 = 1;
 pub const RTIO_I_STATUS_OVERFLOW:       u32 = 2;
+pub const RTIO_I_STATUS_WAIT_STATUS:    u32 = 4;
 
 pub extern fn init() {
     send(&RtioInitRequest);
@@ -38,8 +39,8 @@ pub unsafe fn rtio_i_data_read(offset: usize) -> u32 {
 
 #[inline(never)]
 unsafe fn process_exceptional_status(timestamp: i64, channel: i32, status: u32) {
-    if status & RTIO_O_STATUS_FULL != 0 {
-        while csr::rtio::o_status_read() & RTIO_O_STATUS_FULL != 0 {}
+    if status & RTIO_O_STATUS_WAIT != 0 {
+        while csr::rtio::o_status_read() & RTIO_O_STATUS_WAIT != 0 {}
     }
     if status & RTIO_O_STATUS_UNDERFLOW != 0 {
         csr::rtio::o_underflow_reset_write(1);
@@ -70,7 +71,7 @@ unsafe fn process_exceptional_status(timestamp: i64, channel: i32, status: u32) 
 pub extern fn output(timestamp: i64, channel: i32, addr: i32, data: i32) {
     unsafe {
         csr::rtio::chan_sel_write(channel as u32);
-        csr::rtio::o_timestamp_write(timestamp as u64);
+        csr::rtio::timestamp_write(timestamp as u64);
         csr::rtio::o_address_write(addr as u32);
         rtio_o_data_write(0, data as u32);
         csr::rtio::o_we_write(1);
@@ -84,7 +85,7 @@ pub extern fn output(timestamp: i64, channel: i32, addr: i32, data: i32) {
 pub extern fn output_wide(timestamp: i64, channel: i32, addr: i32, data: CSlice<i32>) {
     unsafe {
         csr::rtio::chan_sel_write(channel as u32);
-        csr::rtio::o_timestamp_write(timestamp as u64);
+        csr::rtio::timestamp_write(timestamp as u64);
         csr::rtio::o_address_write(addr as u32);
         for i in 0..data.len() {
             rtio_o_data_write(i, data[i] as u32)
@@ -100,22 +101,12 @@ pub extern fn output_wide(timestamp: i64, channel: i32, addr: i32, data: CSlice<
 pub extern fn input_timestamp(timeout: i64, channel: i32) -> u64 {
     unsafe {
         csr::rtio::chan_sel_write(channel as u32);
-        let mut status;
-        loop {
-            status = csr::rtio::i_status_read();
-            if status == 0 { break }
+        csr::rtio::timestamp_write(timeout as u64);
+        csr::rtio::i_request_write(1);
 
-            if status & RTIO_I_STATUS_OVERFLOW != 0 {
-                csr::rtio::i_overflow_reset_write(1);
-                break
-            }
-            if get_counter() >= timeout {
-                // check empty flag again to prevent race condition.
-                // now we are sure that the time limit has been exceeded.
-                let status = csr::rtio::i_status_read();
-                if status & RTIO_I_STATUS_EMPTY != 0 { break }
-            }
-            // input FIFO is empty - keep waiting
+        let mut status = RTIO_I_STATUS_WAIT_STATUS;
+        while status & RTIO_I_STATUS_WAIT_STATUS != 0 {
+            status = csr::rtio::i_status_read();
         }
 
         if status & RTIO_I_STATUS_OVERFLOW != 0 {
@@ -123,7 +114,7 @@ pub extern fn input_timestamp(timeout: i64, channel: i32) -> u64 {
                 "RTIO input overflow on channel {0}",
                 channel as i64, 0, 0);
         }
-        if status & RTIO_I_STATUS_EMPTY != 0 {
+        if status & RTIO_I_STATUS_WAIT_EVENT != 0 {
             return !0
         }
 
@@ -136,16 +127,19 @@ pub extern fn input_timestamp(timeout: i64, channel: i32) -> u64 {
 pub extern fn input_data(channel: i32) -> i32 {
     unsafe {
         csr::rtio::chan_sel_write(channel as u32);
-        loop {
-            let status = csr::rtio::i_status_read();
-            if status == 0 { break }
+        csr::rtio::timestamp_write(0xffffffff_ffffffff);
+        csr::rtio::i_request_write(1);
 
-            if status & RTIO_I_STATUS_OVERFLOW != 0 {
-                csr::rtio::i_overflow_reset_write(1);
-                raise!("RTIOOverflow",
-                    "RTIO input overflow on channel {0}",
-                    channel as i64, 0, 0);
-            }
+        let mut status = RTIO_I_STATUS_WAIT_STATUS;
+        while status & RTIO_I_STATUS_WAIT_STATUS != 0 {
+            status = csr::rtio::i_status_read();
+        }
+
+        if status & RTIO_I_STATUS_OVERFLOW != 0 {
+            csr::rtio::i_overflow_reset_write(1);
+            raise!("RTIOOverflow",
+                "RTIO input overflow on channel {0}",
+                channel as i64, 0, 0);
         }
 
         let data = rtio_i_data_read(0);
@@ -158,7 +152,7 @@ pub extern fn input_data(channel: i32) -> i32 {
 pub fn log(timestamp: i64, data: &[u8]) {
     unsafe {
         csr::rtio::chan_sel_write(csr::CONFIG_RTIO_LOG_CHANNEL);
-        csr::rtio::o_timestamp_write(timestamp as u64);
+        csr::rtio::timestamp_write(timestamp as u64);
 
         let mut word: u32 = 0;
         for i in 0..data.len() {

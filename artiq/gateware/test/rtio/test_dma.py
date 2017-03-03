@@ -79,7 +79,7 @@ class TestDMA(unittest.TestCase):
                     pass
                 elif cmd == cri.commands["write"]:
                     channel = yield dut_cri.chan_sel
-                    timestamp = yield dut_cri.o_timestamp
+                    timestamp = yield dut_cri.timestamp
                     address = yield dut_cri.o_address
                     data = yield dut_cri.o_data
                     received.append((channel, timestamp, address, data))

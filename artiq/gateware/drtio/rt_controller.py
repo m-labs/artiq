@@ -97,14 +97,14 @@ class RTController(Module):
         self.comb += [
             fifo_spaces.adr.eq(chan_sel),
             last_timestamps.adr.eq(chan_sel),
-            last_timestamps.dat_w.eq(self.cri.o_timestamp),
+            last_timestamps.dat_w.eq(self.cri.timestamp),
             rt_packets.write_channel.eq(chan_sel),
             rt_packets.write_address.eq(self.cri.o_address),
             rt_packets.write_data.eq(self.cri.o_data),
             If(rt_packets_fifo_request,
                 rt_packets.write_timestamp.eq(0xffff000000000000)
             ).Else(
-                rt_packets.write_timestamp.eq(self.cri.o_timestamp)
+                rt_packets.write_timestamp.eq(self.cri.timestamp)
             )
         ]
 
@@ -137,8 +137,8 @@ class RTController(Module):
         self.submodules += timeout_counter
 
         # TODO: collision, replace, busy
-        cond_sequence_error = self.cri.o_timestamp < last_timestamps.dat_r
-        cond_underflow = ((self.cri.o_timestamp[fine_ts_width:]
+        cond_sequence_error = self.cri.timestamp < last_timestamps.dat_r
+        cond_underflow = ((self.cri.timestamp[fine_ts_width:]
                            - self.csrs.underflow_margin.storage[fine_ts_width:]) < self.counter.value_sys)
 
         fsm.act("IDLE",

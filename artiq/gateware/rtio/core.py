@@ -319,7 +319,7 @@ class Core(Module, AutoCSR):
             self.cd_rio_phy, cmd_reset_phy)
 
         # Managers
-        self.submodules.counter = RTIOCounter(len(self.cri.o_timestamp) - fine_ts_width)
+        self.submodules.counter = RTIOCounter(len(self.cri.timestamp) - fine_ts_width)
 
         i_datas, i_timestamps = [], []
         o_statuses, i_statuses = [], []
@@ -342,8 +342,8 @@ class Core(Module, AutoCSR):
                 self.comb += o_manager.ev.data.eq(self.cri.o_data)
             if hasattr(o_manager.ev, "address"):
                 self.comb += o_manager.ev.address.eq(self.cri.o_address)
-            ts_shift = len(self.cri.o_timestamp) - len(o_manager.ev.timestamp)
-            self.comb += o_manager.ev.timestamp.eq(self.cri.o_timestamp[ts_shift:])
+            ts_shift = len(self.cri.timestamp) - len(o_manager.ev.timestamp)
+            self.comb += o_manager.ev.timestamp.eq(self.cri.timestamp[ts_shift:])
 
             self.comb += o_manager.we.eq(selected & (self.cri.cmd == cri.commands["write"]))
 
@@ -395,17 +395,33 @@ class Core(Module, AutoCSR):
                     If(i_manager.overflow,
                        overflow.eq(1))
                 ]
-                i_statuses.append(Cat(~i_manager.readable, overflow))
+                i_statuses.append(Cat(i_manager.readable, overflow))
 
             else:
                 i_datas.append(0)
                 i_timestamps.append(0)
                 i_statuses.append(0)
+
+        i_status_raw = Signal(2)
+        self.sync.rsys += i_status_raw.eq(Array(i_statuses)[sel])
+
+        input_timeout = Signal.like(self.cri.timestamp)
+        input_pending = Signal()
+        self.sync.rsys += [
+            If((self.cri.counter >= input_timeout) | (i_status_raw != 0),
+                input_pending.eq(0)
+            ),
+            If(self.cri.cmd == cri.commands["read_request"],
+                input_timeout.eq(self.cri.timestamp),
+                input_pending.eq(1)
+            )
+        ]
+
         self.comb += [
             self.cri.i_data.eq(Array(i_datas)[sel]),
             self.cri.i_timestamp.eq(Array(i_timestamps)[sel]),
             self.cri.o_status.eq(Array(o_statuses)[sel]),
-            self.cri.i_status.eq(Array(i_statuses)[sel])
+            self.cri.i_status.eq(Cat(~i_status_raw[0], i_status_raw[1], input_pending)),
+            self.cri.counter.eq(self.counter.value_sys << fine_ts_width)
         ]
 
-        self.comb += self.cri.counter.eq(self.counter.value_sys << fine_ts_width)

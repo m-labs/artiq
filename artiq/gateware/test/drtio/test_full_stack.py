@@ -112,7 +112,7 @@ class TestFullStack(unittest.TestCase):
 
         def write(channel, data):
             yield from kcsrs.chan_sel.write(channel)
-            yield from kcsrs.o_timestamp.write(now)
+            yield from kcsrs.timestamp.write(now)
             yield from kcsrs.o_data.write(data)
             yield from kcsrs.o_we.write(1)
             yield
