@@ -153,6 +153,7 @@ def main():
                             .open_channel('direct-tcpip', (args.ip, port), peer_addr)
                     except Exception as e:
                         logger.exception("Cannot open channel on port %s", port)
+                        continue
                     while True:
                         try:
                             r, w, x = select.select([local_stream, remote_stream], [], [])
