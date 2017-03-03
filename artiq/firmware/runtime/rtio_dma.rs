@@ -3,7 +3,6 @@ use std::vec::Vec;
 use std::string::String;
 use std::btree_map::BTreeMap;
 use std::io::Write;
-use proto::WriteExt;
 
 #[derive(Debug)]
 struct Entry {
