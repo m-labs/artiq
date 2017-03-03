@@ -1,0 +1,9 @@
+# conda description for an environment to build and develop artiq
+# $ conda env create -f conda/artiq-dev.yml
+name: artiq-dev
+channels:
+  - m-labs/label/main
+  - m-labs/label/dev
+  - defaults
+dependencies:
+  - artiq-dev
