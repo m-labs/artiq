@@ -1,3 +1,5 @@
+"""Auxiliary controller, common to satellite and master"""
+
 from migen import *
 from migen.fhdl.simplify import FullMemoryWE
 from migen.genlib.cdc import MultiReg, PulseSynchronizer

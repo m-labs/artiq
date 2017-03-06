@@ -1,3 +1,5 @@
+"""Real-time controller for master"""
+
 from migen import *
 from migen.genlib.cdc import MultiReg
 from migen.genlib.misc import WaitTimer

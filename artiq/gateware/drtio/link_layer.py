@@ -1,3 +1,5 @@
+"""Link layer, common to satellite and master"""
+
 from functools import reduce
 from operator import xor, or_
 

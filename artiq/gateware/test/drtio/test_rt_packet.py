@@ -4,9 +4,10 @@ import random
 
 from migen import *
 
-from artiq.gateware.drtio.rt_packets import *
-from artiq.gateware.drtio.rt_packets import (_CrossDomainRequest,
-                                             _CrossDomainNotification)
+from artiq.gateware.drtio.rt_serializer import *
+from artiq.gateware.drtio.rt_packet_satellite import RTPacketSatellite
+from artiq.gateware.drtio.rt_packet_master import (_CrossDomainRequest,
+                                                   _CrossDomainNotification)
 
 
 class PacketInterface:
@@ -118,7 +119,7 @@ class TestSatellite(unittest.TestCase):
             def receive():
                 while True:
                     if (yield dut.tsc_load):
-                        rx_times.append((yield dut.tsc_value))
+                        rx_times.append((yield dut.tsc_load_value))
                     yield
             run_simulation(dut, [send(), receive()])
             self.assertEqual(tx_times, rx_times)
