@@ -34,6 +34,8 @@ class _H2DMsgType(Enum):
     FLASH_ERASE_REQUEST = 11
     FLASH_REMOVE_REQUEST = 12
 
+    HOTSWAP = 14
+
 
 class _D2HMsgType(Enum):
     LOG_REPLY = 1
@@ -325,6 +327,10 @@ class CommKernel:
         self._write_string(key)
 
         self._read_empty(_D2HMsgType.FLASH_OK_REPLY)
+
+    def hotswap(self, image):
+        self._write_header(_H2DMsgType.HOTSWAP)
+        self._write_bytes(image)
 
     def load(self, kernel_library):
         self._write_header(_H2DMsgType.LOAD_KERNEL)

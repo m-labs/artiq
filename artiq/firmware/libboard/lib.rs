@@ -35,6 +35,8 @@ mod ad9154_reg;
 #[cfg(has_ad9154)]
 pub mod ad9154;
 
+pub mod hotswap;
+
 #[cfg(feature = "uart_console")]
 pub use uart_console::Console;
 

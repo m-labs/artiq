@@ -46,6 +46,8 @@ pub enum Request {
     FlashWrite  { key: String, value: Vec<u8> },
     FlashRemove { key: String },
     FlashErase,
+
+    Hotswap(Vec<u8>),
 }
 
 impl Request {
@@ -97,6 +99,7 @@ impl Request {
             12 => Request::FlashRemove {
                 key: reader.read_string()?
             },
+            14 => Request::Hotswap(reader.read_bytes()?),
             _  => return Err(io::Error::new(io::ErrorKind::InvalidData, "unknown request type"))
         })
     }

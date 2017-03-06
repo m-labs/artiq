@@ -268,6 +268,10 @@ fn process_host_message(io: &Io,
             }
         }
 
+        // artiq_coreboot
+        host::Request::Hotswap(binary) =>
+            unsafe { board::hotswap::run(&binary) },
+
         // artiq_run/artiq_master
         host::Request::SwitchClock(clk) => {
             if session.running() {
