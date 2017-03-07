@@ -85,7 +85,7 @@ fn startup() {
     board::ad9154::init().expect("cannot initialize ad9154");
 
     let hardware_addr;
-    match config::read_str("mac", |r| r.and_then(|s| EthernetAddress::parse(s))) {
+    match config::read_str("mac", |r| r?.parse()) {
         Err(()) => {
             hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]);
             warn!("using default MAC address {}; consider changing it", hardware_addr);
@@ -97,7 +97,7 @@ fn startup() {
     }
 
     let protocol_addr;
-    match config::read_str("ip", |r| r.and_then(|s| IpAddress::parse(s))) {
+    match config::read_str("ip", |r| r?.parse()) {
         Err(()) | Ok(IpAddress::Unspecified) => {
             protocol_addr = IpAddress::v4(192, 168, 1, 50);
             info!("using default IP address {}", protocol_addr);
