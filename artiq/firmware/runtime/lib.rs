@@ -68,6 +68,15 @@ fn startup() {
     }
     info!("continuing boot");
 
+    match config::read_str("log_level", |r| r?.parse()) {
+        Err(()) => (),
+        Ok(log_level_filter) => {
+            info!("log level set to {} in configuration", log_level_filter);
+            logger_artiq::BufferLogger::with_instance(|logger|
+                logger.set_max_log_level(log_level_filter));
+        }
+    }
+
     #[cfg(has_i2c)]
     board::i2c::init();
     #[cfg(has_ad9516)]
