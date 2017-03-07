@@ -44,7 +44,7 @@ def get_argparser():
     parser.add_argument("actions", metavar="ACTION",
                         type=str, default=[], nargs="+",
                         help="actions to perform, sequence of: "
-                             "build boot boot+log connect hotswap clean")
+                             "build reset boot boot+log connect hotswap clean")
 
     return parser
 
@@ -116,6 +116,13 @@ def main():
             target_dir = "/tmp/{target}".format(target=args.target)
             if os.path.isdir(target_dir):
                 shutil.rmtree(target_dir)
+
+        elif action == "reset":
+            logger.info("Resetting device")
+            artiq_flash = run_command(
+                "{env} artiq_flash start" +
+                (" --target-file " + args.config if args.config else ""))
+            drain(artiq_flash)
 
         elif action == "boot" or action == "boot+log":
             logger.info("Uploading firmware")
