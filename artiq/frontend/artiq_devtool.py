@@ -44,7 +44,7 @@ def get_argparser():
     parser.add_argument("actions", metavar="ACTION",
                         type=str, default=[], nargs="+",
                         help="actions to perform, sequence of: "
-                             "build boot boot+log connect clean")
+                             "build boot boot+log connect hotswap clean")
 
     return parser
 
@@ -181,6 +181,17 @@ def main():
             flterm = run_command(
                 "{env} python3 flterm.py {serial} --output-only")
             drain(flterm)
+
+        elif action == "hotswap":
+            logger.info("Hotswapping firmware")
+            try:
+                subprocess.check_call(["python3",
+                    "-m", "artiq.frontend.artiq_coreboot",
+                    "/tmp/{target}/software/{firmware}/{firmware}.bin"
+                        .format(target=args.target, firmware=firmware)])
+            except subprocess.CalledProcessError:
+                logger.error("Build failed")
+                sys.exit(1)
 
         else:
             logger.error("Unknown action {}".format(action))
