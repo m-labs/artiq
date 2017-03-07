@@ -140,6 +140,8 @@ pub enum Reply<'a> {
 
     WatchdogExpired,
     ClockFailure,
+
+    HotswapImminent,
 }
 
 impl<'a> Reply<'a> {
@@ -219,6 +221,9 @@ impl<'a> Reply<'a> {
             Reply::ClockFailure => {
                 writer.write_u8(15)?;
             },
+            Reply::HotswapImminent => {
+                writer.write_u8(16)?;
+            }
         }
         Ok(())
     }

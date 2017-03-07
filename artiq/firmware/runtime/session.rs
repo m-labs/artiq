@@ -116,6 +116,7 @@ fn host_read(stream: &mut TcpStream) -> io::Result<host::Request> {
     let request = host::Request::read_from(stream)?;
     match &request {
         &host::Request::LoadKernel(_) => debug!("comm<-host LoadLibrary(...)"),
+        &host::Request::Hotswap(_) => debug!("comm<-host Hotswap(...)"),
         _ => debug!("comm<-host {:?}", request)
     }
     Ok(request)
@@ -269,8 +270,12 @@ fn process_host_message(io: &Io,
         }
 
         // artiq_coreboot
-        host::Request::Hotswap(binary) =>
-            unsafe { board::hotswap::run(&binary) },
+        host::Request::Hotswap(binary) => {
+            host_write(stream, host::Reply::HotswapImminent)?;
+            stream.close()?;
+            warn!("hotswapping firmware");
+            unsafe { board::hotswap::run(&binary) }
+        }
 
         // artiq_run/artiq_master
         host::Request::SwitchClock(clk) => {

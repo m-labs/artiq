@@ -60,6 +60,8 @@ class _D2HMsgType(Enum):
     WATCHDOG_EXPIRED = 14
     CLOCK_FAILURE = 15
 
+    HOTSWAP_IMMINENT = 16
+
 
 class _LogLevel(Enum):
     OFF = 0
@@ -331,6 +333,8 @@ class CommKernel:
     def hotswap(self, image):
         self._write_header(_H2DMsgType.HOTSWAP)
         self._write_bytes(image)
+
+        self._read_empty(_D2HMsgType.HOTSWAP_IMMINENT)
 
     def load(self, kernel_library):
         self._write_header(_H2DMsgType.LOAD_KERNEL)
