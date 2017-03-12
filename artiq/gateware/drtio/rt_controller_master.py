@@ -100,13 +100,13 @@ class RTController(Module):
             fifo_spaces.adr.eq(chan_sel),
             last_timestamps.adr.eq(chan_sel),
             last_timestamps.dat_w.eq(self.cri.timestamp),
-            rt_packets.write_channel.eq(chan_sel),
-            rt_packets.write_address.eq(self.cri.o_address),
-            rt_packets.write_data.eq(self.cri.o_data),
+            rt_packets.sr_channel.eq(chan_sel),
+            rt_packets.sr_address.eq(self.cri.o_address),
+            rt_packets.sr_data.eq(self.cri.o_data),
+            rt_packets.sr_timestamp.eq(self.cri.timestamp),
             If(rt_packets_fifo_request,
-                rt_packets.write_timestamp.eq(0xffff000000000000)
-            ).Else(
-                rt_packets.write_timestamp.eq(self.cri.timestamp)
+                rt_packets.sr_notwrite.eq(1),
+                rt_packets.sr_address.eq(0)
             )
         ]
 
@@ -159,8 +159,8 @@ class RTController(Module):
         )
         fsm.act("WRITE",
             status_wait.eq(1),
-            rt_packets.write_stb.eq(1),
-            If(rt_packets.write_ack,
+            rt_packets.sr_stb.eq(1),
+            If(rt_packets.sr_ack,
                 fifo_spaces.we.eq(1),
                 fifo_spaces.dat_w.eq(fifo_spaces.dat_r - 1),
                 last_timestamps.we.eq(1),
@@ -174,9 +174,9 @@ class RTController(Module):
         fsm.act("GET_FIFO_SPACE",
             status_wait.eq(1),
             rt_packets_fifo_request.eq(1),
-            rt_packets.write_stb.eq(1),
+            rt_packets.sr_stb.eq(1),
             rt_packets.fifo_space_not_ack.eq(1),
-            If(rt_packets.write_ack,
+            If(rt_packets.sr_ack,
                 NextState("GET_FIFO_SPACE_REPLY")
             )
         )
@@ -211,7 +211,7 @@ class RTController(Module):
             )
         ]
         self.sync += \
-            If((rt_packets.write_stb & rt_packets.write_ack & rt_packets_fifo_request),
+            If((rt_packets.sr_stb & rt_packets.sr_ack & rt_packets_fifo_request),
                 self.csrs.o_dbg_fifo_space_req_cnt.status.eq(
                     self.csrs.o_dbg_fifo_space_req_cnt.status + 1)
             )

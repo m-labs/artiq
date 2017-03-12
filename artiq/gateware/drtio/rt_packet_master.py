@@ -61,20 +61,28 @@ class _CrossDomainNotification(Module):
 
 
 class RTPacketMaster(Module):
-    def __init__(self, link_layer, write_fifo_depth=4):
+    def __init__(self, link_layer, sr_fifo_depth=4):
         # all interface signals in sys domain unless otherwise specified
 
-        # write interface, optimized for throughput
-        self.write_stb = Signal()
-        self.write_ack = Signal()
-        self.write_timestamp = Signal(64)
-        self.write_channel = Signal(16)
-        self.write_address = Signal(16)
-        self.write_data = Signal(512)
+        # standard request interface
+        #
+        # notwrite=1 address=0  FIFO space request <channel>
+        # notwrite=1 address=1  read request <channel, timestamp>
+        # notwrite=1 address=2  read consume
+        #
+        # optimized for write throughput
+        # requests are performed on the DRTIO link preserving their order of issue
+        # this is important for FIFO space requests, which have to be ordered
+        # wrt writes.
+        self.sr_stb = Signal()
+        self.sr_ack = Signal()
+        self.sr_notwrite = Signal()
+        self.sr_timestamp = Signal(64)
+        self.sr_channel = Signal(16)
+        self.sr_address = Signal(16)
+        self.sr_data = Signal(512)
 
-        # fifo space interface
-        # write with timestamp[48:] == 0xffff to make a fifo space request
-        # (space requests have to be ordered wrt writes)
+        # fifo space reply interface
         self.fifo_space_not = Signal()
         self.fifo_space_not_ack = Signal()
         self.fifo_space = Signal(16)
@@ -122,63 +130,66 @@ class RTPacketMaster(Module):
         self.submodules += rx_dp
 
         # Write FIFO and extra data count
-        wfifo = ClockDomainsRenamer({"write": "sys_with_rst", "read": "rtio_with_rst"})(
-            AsyncFIFO(64+16+16+512, write_fifo_depth))
-        self.submodules += wfifo
-        write_timestamp_d = Signal(64)
-        write_channel_d = Signal(16)
-        write_address_d = Signal(16)
-        write_data_d = Signal(512)
+        sr_fifo = ClockDomainsRenamer({"write": "sys_with_rst", "read": "rtio_with_rst"})(
+            AsyncFIFO(1+64+16+16+512, sr_fifo_depth))
+        self.submodules += sr_fifo
+        sr_notwrite_d = Signal()
+        sr_timestamp_d = Signal(64)
+        sr_channel_d = Signal(16)
+        sr_address_d = Signal(16)
+        sr_data_d = Signal(512)
         self.comb += [
-            wfifo.we.eq(self.write_stb),
-            self.write_ack.eq(wfifo.writable),
-            wfifo.din.eq(Cat(self.write_timestamp, self.write_channel,
-                             self.write_address, self.write_data)),
-            Cat(write_timestamp_d, write_channel_d,
-                write_address_d, write_data_d).eq(wfifo.dout)
+            sr_fifo.we.eq(self.sr_stb),
+            self.sr_ack.eq(sr_fifo.writable),
+            sr_fifo.din.eq(Cat(self.sr_notwrite, self.sr_timestamp, self.sr_channel,
+                               self.sr_address, self.sr_data)),
+            Cat(sr_notwrite_d, sr_timestamp_d, sr_channel_d,
+                sr_address_d, sr_data_d).eq(sr_fifo.dout)
         ]
 
-        wfb_readable = Signal()
-        wfb_re = Signal()
+        sr_buf_readable = Signal()
+        sr_buf_re = Signal()
 
-        self.comb += wfifo.re.eq(wfifo.readable & (~wfb_readable | wfb_re))
+        self.comb += sr_fifo.re.eq(sr_fifo.readable & (~sr_buf_readable | sr_buf_re))
         self.sync.rtio += \
-            If(wfifo.re,
-                wfb_readable.eq(1),
-            ).Elif(wfb_re,
-                wfb_readable.eq(0),
+            If(sr_fifo.re,
+                sr_buf_readable.eq(1),
+            ).Elif(sr_buf_re,
+                sr_buf_readable.eq(0),
             )
 
-        write_timestamp = Signal(64)
-        write_channel = Signal(16)
-        write_address = Signal(16)
-        write_extra_data_cnt = Signal(8)
-        write_data = Signal(512)
+        sr_notwrite = Signal()
+        sr_timestamp = Signal(64)
+        sr_channel = Signal(16)
+        sr_address = Signal(16)
+        sr_extra_data_cnt = Signal(8)
+        sr_data = Signal(512)
 
-        self.sync.rtio += If(wfifo.re,
-            write_timestamp.eq(write_timestamp_d),
-            write_channel.eq(write_channel_d),
-            write_address.eq(write_address_d),
-            write_data.eq(write_data_d))
+        self.sync.rtio += If(sr_fifo.re,
+            sr_notwrite.eq(sr_notwrite_d),
+            sr_timestamp.eq(sr_timestamp_d),
+            sr_channel.eq(sr_channel_d),
+            sr_address.eq(sr_address_d),
+            sr_data.eq(sr_data_d))
 
         short_data_len = tx_plm.field_length("write", "short_data")
-        write_extra_data_d = Signal(512)
-        self.comb += write_extra_data_d.eq(write_data_d[short_data_len:])
+        sr_extra_data_d = Signal(512)
+        self.comb += sr_extra_data_d.eq(sr_data_d[short_data_len:])
         for i in range(512//ws):
-            self.sync.rtio += If(wfifo.re,
-                If(write_extra_data_d[ws*i:ws*(i+1)] != 0, write_extra_data_cnt.eq(i+1)))
+            self.sync.rtio += If(sr_fifo.re,
+                If(sr_extra_data_d[ws*i:ws*(i+1)] != 0, sr_extra_data_cnt.eq(i+1)))
 
-        write_extra_data = Signal(512)
-        self.sync.rtio += If(wfifo.re, write_extra_data.eq(write_extra_data_d))
+        sr_extra_data = Signal(512)
+        self.sync.rtio += If(sr_fifo.re, sr_extra_data.eq(sr_extra_data_d))
 
         extra_data_ce = Signal()
         extra_data_last = Signal()
         extra_data_counter = Signal(max=512//ws+1)
         self.comb += [
             Case(extra_data_counter, 
-                {i+1: tx_dp.raw_data.eq(write_extra_data[i*ws:(i+1)*ws])
+                {i+1: tx_dp.raw_data.eq(sr_extra_data[i*ws:(i+1)*ws])
                  for i in range(512//ws)}),
-            extra_data_last.eq(extra_data_counter == write_extra_data_cnt)
+            extra_data_last.eq(extra_data_counter == sr_extra_data_cnt)
         ]
         self.sync.rtio += \
             If(extra_data_ce,
@@ -230,8 +241,9 @@ class RTPacketMaster(Module):
         self.sync.rtio += If(tsc_value_load, tsc_value.eq(self.tsc_value))
 
         tx_fsm.act("IDLE",
-            If(wfb_readable,
-                If(write_timestamp[48:] == 0xffff,
+            If(sr_buf_readable,
+                If(sr_notwrite,
+                    # TODO: sr_address
                     NextState("FIFO_SPACE")
                 ).Else(
                     NextState("WRITE")
@@ -250,14 +262,14 @@ class RTPacketMaster(Module):
         )
         tx_fsm.act("WRITE",
             tx_dp.send("write",
-                timestamp=write_timestamp,
-                channel=write_channel,
-                address=write_address,
-                extra_data_cnt=write_extra_data_cnt,
-                short_data=write_data[:short_data_len]),
+                timestamp=sr_timestamp,
+                channel=sr_channel,
+                address=sr_address,
+                extra_data_cnt=sr_extra_data_cnt,
+                short_data=sr_data[:short_data_len]),
             If(tx_dp.packet_last,
-                If(write_extra_data_cnt == 0,
-                    wfb_re.eq(1),
+                If(sr_extra_data_cnt == 0,
+                    sr_buf_re.eq(1),
                     NextState("IDLE")
                 ).Else(
                     NextState("WRITE_EXTRA")
@@ -268,14 +280,14 @@ class RTPacketMaster(Module):
             tx_dp.raw_stb.eq(1),
             extra_data_ce.eq(1),
             If(extra_data_last,
-                wfb_re.eq(1),
+                sr_buf_re.eq(1),
                 NextState("IDLE")
             )
         )
         tx_fsm.act("FIFO_SPACE",
-            tx_dp.send("fifo_space_request", channel=write_channel),
+            tx_dp.send("fifo_space_request", channel=sr_channel),
             If(tx_dp.packet_last,
-                wfb_re.eq(1),
+                sr_buf_re.eq(1),
                 NextState("IDLE")
             )
         )
