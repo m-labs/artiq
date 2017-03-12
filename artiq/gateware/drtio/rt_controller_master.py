@@ -33,7 +33,7 @@ class _CSRs(AutoCSR):
 
 
 class RTController(Module):
-    def __init__(self, rt_packets, channel_count, fine_ts_width):
+    def __init__(self, rt_packet, channel_count, fine_ts_width):
         self.csrs = _CSRs()
         self.cri = cri.Interface()
         self.comb += self.cri.arb_gnt.eq(1)
@@ -52,25 +52,25 @@ class RTController(Module):
         self.csrs.tsc_correction.storage.attr.add("no_retiming")
         self.specials += MultiReg(self.csrs.tsc_correction.storage, tsc_correction)
         self.comb += [ 
-            rt_packets.tsc_value.eq(
+            rt_packet.tsc_value.eq(
                 self.counter.value_rtio + tsc_correction),
-            self.csrs.set_time.w.eq(rt_packets.set_time_stb)
+            self.csrs.set_time.w.eq(rt_packet.set_time_stb)
         ]
         self.sync += [
-            If(rt_packets.set_time_ack, rt_packets.set_time_stb.eq(0)),
-            If(self.csrs.set_time.re, rt_packets.set_time_stb.eq(1))
+            If(rt_packet.set_time_ack, rt_packet.set_time_stb.eq(0)),
+            If(self.csrs.set_time.re, rt_packet.set_time_stb.eq(1))
         ]
 
         # reset
         self.sync += [
-            If(rt_packets.reset_ack, rt_packets.reset_stb.eq(0)),
+            If(rt_packet.reset_ack, rt_packet.reset_stb.eq(0)),
             If(self.csrs.reset.re,
-                rt_packets.reset_stb.eq(1),
-                rt_packets.reset_phy.eq(0)
+                rt_packet.reset_stb.eq(1),
+                rt_packet.reset_phy.eq(0)
             ),
             If(self.csrs.reset_phy.re,
-                rt_packets.reset_stb.eq(1),
-                rt_packets.reset_phy.eq(1)
+                rt_packet.reset_stb.eq(1),
+                rt_packet.reset_phy.eq(1)
             ),
         ]
 
@@ -95,18 +95,18 @@ class RTController(Module):
         self.specials += last_timestamps_mem, last_timestamps
 
         # common packet fields
-        rt_packets_fifo_request = Signal()
+        rt_packet_fifo_request = Signal()
         self.comb += [
             fifo_spaces.adr.eq(chan_sel),
             last_timestamps.adr.eq(chan_sel),
             last_timestamps.dat_w.eq(self.cri.timestamp),
-            rt_packets.sr_channel.eq(chan_sel),
-            rt_packets.sr_address.eq(self.cri.o_address),
-            rt_packets.sr_data.eq(self.cri.o_data),
-            rt_packets.sr_timestamp.eq(self.cri.timestamp),
-            If(rt_packets_fifo_request,
-                rt_packets.sr_notwrite.eq(1),
-                rt_packets.sr_address.eq(0)
+            rt_packet.sr_channel.eq(chan_sel),
+            rt_packet.sr_address.eq(self.cri.o_address),
+            rt_packet.sr_data.eq(self.cri.o_data),
+            rt_packet.sr_timestamp.eq(self.cri.timestamp),
+            If(rt_packet_fifo_request,
+                rt_packet.sr_notwrite.eq(1),
+                rt_packet.sr_address.eq(0)
             )
         ]
 
@@ -159,8 +159,8 @@ class RTController(Module):
         )
         fsm.act("WRITE",
             status_wait.eq(1),
-            rt_packets.sr_stb.eq(1),
-            If(rt_packets.sr_ack,
+            rt_packet.sr_stb.eq(1),
+            If(rt_packet.sr_ack,
                 fifo_spaces.we.eq(1),
                 fifo_spaces.dat_w.eq(fifo_spaces.dat_r - 1),
                 last_timestamps.we.eq(1),
@@ -173,20 +173,20 @@ class RTController(Module):
         )
         fsm.act("GET_FIFO_SPACE",
             status_wait.eq(1),
-            rt_packets_fifo_request.eq(1),
-            rt_packets.sr_stb.eq(1),
-            rt_packets.fifo_space_not_ack.eq(1),
-            If(rt_packets.sr_ack,
+            rt_packet_fifo_request.eq(1),
+            rt_packet.sr_stb.eq(1),
+            rt_packet.fifo_space_not_ack.eq(1),
+            If(rt_packet.sr_ack,
                 NextState("GET_FIFO_SPACE_REPLY")
             )
         )
         fsm.act("GET_FIFO_SPACE_REPLY",
             status_wait.eq(1),
-            fifo_spaces.dat_w.eq(rt_packets.fifo_space),
+            fifo_spaces.dat_w.eq(rt_packet.fifo_space),
             fifo_spaces.we.eq(1),
-            rt_packets.fifo_space_not_ack.eq(1),
-            If(rt_packets.fifo_space_not,
-                If(rt_packets.fifo_space != 0,
+            rt_packet.fifo_space_not_ack.eq(1),
+            If(rt_packet.fifo_space_not,
+                If(rt_packet.fifo_space != 0,
                     NextState("IDLE")
                 ).Else(
                     NextState("GET_FIFO_SPACE")
@@ -211,7 +211,7 @@ class RTController(Module):
             )
         ]
         self.sync += \
-            If((rt_packets.sr_stb & rt_packets.sr_ack & rt_packets_fifo_request),
+            If((rt_packet.sr_stb & rt_packet.sr_ack & rt_packet_fifo_request),
                 self.csrs.o_dbg_fifo_space_req_cnt.status.eq(
                     self.csrs.o_dbg_fifo_space_req_cnt.status + 1)
             )
@@ -221,7 +221,7 @@ class RTController(Module):
 
 
 class RTManager(Module, AutoCSR):
-    def __init__(self, rt_packets):
+    def __init__(self, rt_packet):
         self.request_echo = CSR()
 
         self.packet_err_present = CSR()
@@ -233,20 +233,20 @@ class RTManager(Module, AutoCSR):
 
         # # #
 
-        self.comb += self.request_echo.w.eq(rt_packets.echo_stb)
+        self.comb += self.request_echo.w.eq(rt_packet.echo_stb)
         self.sync += [
-            If(rt_packets.echo_ack, rt_packets.echo_stb.eq(0)),
-            If(self.request_echo.re, rt_packets.echo_stb.eq(1))
+            If(rt_packet.echo_ack, rt_packet.echo_stb.eq(0)),
+            If(self.request_echo.re, rt_packet.echo_stb.eq(1))
         ]
 
         self.comb += [
-            self.packet_err_present.w.eq(rt_packets.error_not),
-            rt_packets.error_not_ack.eq(self.packet_err_present.re),
-            self.packet_err_code.status.eq(rt_packets.error_code)
+            self.packet_err_present.w.eq(rt_packet.error_not),
+            rt_packet.error_not_ack.eq(self.packet_err_present.re),
+            self.packet_err_code.status.eq(rt_packet.error_code)
         ]
 
         self.sync += \
             If(self.update_packet_cnt.re,
-                self.packet_cnt_tx.status.eq(rt_packets.packet_cnt_tx),
-                self.packet_cnt_rx.status.eq(rt_packets.packet_cnt_rx)
+                self.packet_cnt_tx.status.eq(rt_packet.packet_cnt_tx),
+                self.packet_cnt_rx.status.eq(rt_packet.packet_cnt_rx)
             )
