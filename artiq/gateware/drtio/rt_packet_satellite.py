@@ -111,7 +111,7 @@ class RTPacketSatellite(Module):
         read_request_timeout = Signal()
         read_request_wait = Signal()  # 1 cycle latency channel→(data,overflow) and time_limit→timeout
         self.sync += [
-            If(clear_read_request,
+            If(clear_read_request | self.reset,
                 read_request_pending.eq(0)
             ),
             read_request_wait.eq(0),
