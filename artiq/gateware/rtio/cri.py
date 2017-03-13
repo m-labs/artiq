@@ -42,7 +42,7 @@ layout = [
     ("i_data", 32, DIR_S_TO_M),
     ("i_timestamp", 64, DIR_S_TO_M),
     # i_status bits:
-    # <0:wait for event> <1:overflow> <2:wait for status>
+    # <0:wait for event (command timeout)> <1:overflow> <2:wait for status>
     ("i_status", 3, DIR_S_TO_M),
 
     ("counter", 64, DIR_S_TO_M)

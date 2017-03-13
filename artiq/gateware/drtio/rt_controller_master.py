@@ -96,6 +96,7 @@ class RTController(Module):
 
         # common packet fields
         rt_packet_fifo_request = Signal()
+        rt_packet_read_request = Signal()
         self.comb += [
             fifo_spaces.adr.eq(chan_sel),
             last_timestamps.adr.eq(chan_sel),
@@ -107,27 +108,29 @@ class RTController(Module):
             If(rt_packet_fifo_request,
                 rt_packet.sr_notwrite.eq(1),
                 rt_packet.sr_address.eq(0)
+            ),
+            If(rt_packet_read_request,
+                rt_packet.sr_notwrite.eq(1),
+                rt_packet.sr_address.eq(1)
             )
         ]
 
-        fsm = ClockDomainsRenamer("sys_with_rst")(FSM())
-        self.submodules += fsm
-
-        status_wait = Signal()
-        status_underflow = Signal()
-        status_sequence_error = Signal()
+        # output status
+        o_status_wait = Signal()
+        o_status_underflow = Signal()
+        o_status_sequence_error = Signal()
         self.comb += [
             self.cri.o_status.eq(Cat(
-                status_wait, status_underflow, status_sequence_error)),
-            self.csrs.o_wait.status.eq(status_wait)
+                o_status_wait, o_status_underflow, o_status_sequence_error)),
+            self.csrs.o_wait.status.eq(o_status_wait)
         ]
-        sequence_error_set = Signal()
-        underflow_set = Signal()
+        o_sequence_error_set = Signal()
+        o_underflow_set = Signal()
         self.sync.sys_with_rst += [
-            If(self.cri.cmd == cri.commands["o_underflow_reset"], status_underflow.eq(0)),
-            If(self.cri.cmd == cri.commands["o_sequence_error_reset"], status_sequence_error.eq(0)),
-            If(underflow_set, status_underflow.eq(1)),
-            If(sequence_error_set, status_sequence_error.eq(1))
+            If(self.cri.cmd == cri.commands["o_underflow_reset"], o_status_underflow.eq(0)),
+            If(self.cri.cmd == cri.commands["o_sequence_error_reset"], o_status_sequence_error.eq(0)),
+            If(o_underflow_set, o_status_underflow.eq(1)),
+            If(o_sequence_error_set, o_status_sequence_error.eq(1))
         ]
 
         signal_fifo_space_timeout = Signal()
@@ -143,22 +146,49 @@ class RTController(Module):
         cond_underflow = ((self.cri.timestamp[fine_ts_width:]
                            - self.csrs.underflow_margin.storage[fine_ts_width:]) < self.counter.value_sys)
 
+        # input status
+        i_status_wait_event = Signal()
+        i_status_overflow = Signal()
+        i_status_wait_status = Signal()
+        self.comb += self.cri.i_status.eq(Cat(
+            i_status_wait_event, i_status_overflow, i_status_wait_status))
+
+        load_read_reply = Signal()
+        self.sync.sys_with_rst += [
+            If(load_read_reply,
+                i_status_wait_event.eq(0),
+                i_status_overflow.eq(0),
+                If(rt_packet.read_no_event,
+                    If(rt_packet.read_is_overflow,
+                        i_status_overflow.eq(1)
+                    ).Else(
+                        i_status_wait_event.eq(1)
+                    )
+                ),
+                self.cri.i_data.eq(rt_packet.read_data),
+                self.cri.i_timestamp.eq(rt_packet.read_timestamp)
+            )
+        ]
+
+        # FSM
+        fsm = ClockDomainsRenamer("sys_with_rst")(FSM())
+        self.submodules += fsm
+
         fsm.act("IDLE",
             If(self.cri.cmd == cri.commands["write"],
                 If(cond_sequence_error,
-                    sequence_error_set.eq(1)
+                    o_sequence_error_set.eq(1)
                 ).Elif(cond_underflow,
-                    underflow_set.eq(1)
+                    o_underflow_set.eq(1)
                 ).Else(
                     NextState("WRITE")
                 )
             ),
-            If(self.csrs.o_get_fifo_space.re,
-                NextState("GET_FIFO_SPACE")
-            )
+            If(self.cri.cmd == cri.commands["read_request"], NextState("READ")),
+            If(self.csrs.o_get_fifo_space.re, NextState("GET_FIFO_SPACE"))
         )
         fsm.act("WRITE",
-            status_wait.eq(1),
+            o_status_wait.eq(1),
             rt_packet.sr_stb.eq(1),
             If(rt_packet.sr_ack,
                 fifo_spaces.we.eq(1),
@@ -172,16 +202,16 @@ class RTController(Module):
             )
         )
         fsm.act("GET_FIFO_SPACE",
-            status_wait.eq(1),
+            o_status_wait.eq(1),
+            rt_packet.fifo_space_not_ack.eq(1),
             rt_packet_fifo_request.eq(1),
             rt_packet.sr_stb.eq(1),
-            rt_packet.fifo_space_not_ack.eq(1),
             If(rt_packet.sr_ack,
                 NextState("GET_FIFO_SPACE_REPLY")
             )
         )
         fsm.act("GET_FIFO_SPACE_REPLY",
-            status_wait.eq(1),
+            o_status_wait.eq(1),
             fifo_spaces.dat_w.eq(rt_packet.fifo_space),
             fifo_spaces.we.eq(1),
             rt_packet.fifo_space_not_ack.eq(1),
@@ -196,6 +226,21 @@ class RTController(Module):
             If(timeout_counter.done,
                 signal_fifo_space_timeout.eq(1),
                 NextState("GET_FIFO_SPACE")
+            )
+        )
+        fsm.act("READ",
+            i_status_wait_status.eq(1),
+            rt_packet_read_request.eq(1),
+            rt_packet.sr_stb.eq(1),
+            If(rt_packet.sr_ack,
+                NextState("GET_READ_REPLY")
+            )
+        )
+        fsm.act("GET_READ_REPLY",
+            i_status_wait_status.eq(1),
+            If(rt_packet.read_not,
+                load_read_reply.eq(1),
+                NextState("IDLE")
             )
         )
 

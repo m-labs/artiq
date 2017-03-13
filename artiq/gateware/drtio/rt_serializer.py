@@ -57,7 +57,6 @@ def get_m2s_layouts(alignment):
     plm.add_type("fifo_space_request", ("channel", 16))
 
     plm.add_type("read_request", ("channel", 16), ("timeout", 64))
-    plm.add_type("read_consume")  # channel is specified in the last read_request packet
 
     return plm
 

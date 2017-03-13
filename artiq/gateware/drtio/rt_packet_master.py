@@ -43,7 +43,7 @@ class _CrossDomainNotification(Module):
     def __init__(self, domain,
                  emi_stb, emi_data,
                  rec_stb, rec_ack, rec_data):
-        emi_data_r = Signal.like(emi_data)
+        emi_data_r = Signal(len(emi_data))
         emi_data_r.attr.add("no_retiming")
         dsync = getattr(self.sync, domain)
         dsync += If(emi_stb, emi_data_r.eq(emi_data))
@@ -68,7 +68,6 @@ class RTPacketMaster(Module):
         #
         # notwrite=1 address=0  FIFO space request <channel>
         # notwrite=1 address=1  read request <channel, timestamp>
-        # notwrite=1 address=2  read consume
         #
         # optimized for write throughput
         # requests are performed on the DRTIO link preserving their order of issue
@@ -86,6 +85,18 @@ class RTPacketMaster(Module):
         self.fifo_space_not = Signal()
         self.fifo_space_not_ack = Signal()
         self.fifo_space = Signal(16)
+
+        # read reply interface
+        self.read_not = Signal()
+        self.read_not_ack = Signal()
+        #  no_event   is_overflow
+        #     0            X       event
+        #     1            0       timeout
+        #     1            1       overflow
+        self.read_no_event = Signal()
+        self.read_is_overflow = Signal()
+        self.read_data = Signal(32)
+        self.read_timestamp = Signal(64)
 
         # echo interface
         self.echo_stb = Signal()
@@ -230,6 +241,24 @@ class RTPacketMaster(Module):
             error_not, error_code,
             self.error_not, self.error_not_ack, self.error_code)
 
+        read_not = Signal()
+        read_no_event = Signal()
+        read_is_overflow = Signal()
+        read_data = Signal(32)
+        read_timestamp = Signal(64)
+        self.submodules += _CrossDomainNotification("rtio_rx",
+            read_not,
+            Cat(read_no_event, read_is_overflow, read_data, read_timestamp),
+
+            self.read_not, self.read_not_ack,
+            Cat(self.read_no_event, self.read_is_overflow,
+                self.read_data, self.read_timestamp))
+        self.comb += [
+            read_is_overflow.eq(rx_dp.packet_as["read_reply_noevent"].overflow),
+            read_data.eq(rx_dp.packet_as["read_reply"].data),
+            read_timestamp.eq(rx_dp.packet_as["read_reply"].timestamp)
+        ]
+
         # TX FSM
         tx_fsm = ClockDomainsRenamer("rtio")(FSM(reset_state="IDLE"))
         self.submodules += tx_fsm
@@ -243,8 +272,10 @@ class RTPacketMaster(Module):
         tx_fsm.act("IDLE",
             If(sr_buf_readable,
                 If(sr_notwrite,
-                    # TODO: sr_address
-                    NextState("FIFO_SPACE")
+                    Case(sr_address[0], {
+                        0: NextState("FIFO_SPACE"),
+                        1: NextState("READ")
+                    }),
                 ).Else(
                     NextState("WRITE")
                 )
@@ -291,6 +322,13 @@ class RTPacketMaster(Module):
                 NextState("IDLE")
             )
         )
+        tx_fsm.act("READ",
+            tx_dp.send("read_request", channel=sr_channel, timeout=sr_timestamp),
+            If(tx_dp.packet_last,
+                sr_buf_re.eq(1),
+                NextState("IDLE")
+            )
+        )
         tx_fsm.act("ECHO",
             tx_dp.send("echo_request"),
             If(tx_dp.packet_last,
@@ -332,6 +370,8 @@ class RTPacketMaster(Module):
                         rx_plm.types["error"]: NextState("ERROR"),
                         rx_plm.types["echo_reply"]: echo_received_now.eq(1),
                         rx_plm.types["fifo_space_reply"]: NextState("FIFO_SPACE"),
+                        rx_plm.types["read_reply"]: NextState("READ_REPLY"),
+                        rx_plm.types["read_reply_noevent"]: NextState("READ_REPLY_NOEVENT"),
                         "default": [
                             error_not.eq(1),
                             error_code.eq(error_codes["unknown_type_local"])
@@ -354,6 +394,16 @@ class RTPacketMaster(Module):
         rx_fsm.act("FIFO_SPACE",
             fifo_space_not.eq(1),
             fifo_space.eq(rx_dp.packet_as["fifo_space_reply"].space),
+            NextState("INPUT")
+        )
+        rx_fsm.act("READ_REPLY",
+            read_not.eq(1),
+            read_no_event.eq(0),
+            NextState("INPUT")
+        )
+        rx_fsm.act("READ_REPLY_NOEVENT",
+            read_not.eq(1),
+            read_no_event.eq(1),
             NextState("INPUT")
         )
 

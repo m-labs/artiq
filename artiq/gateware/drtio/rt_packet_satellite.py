@@ -32,9 +32,10 @@ class RTPacketSatellite(Module):
         self.read_channel = Signal(16)
         self.read_readable = Signal()
         self.read_consume = Signal()
-        self.read_timestamp = Signal(64)
         self.read_data = Signal(32)
+        self.read_timestamp = Signal(64)
         self.read_overflow = Signal()
+        self.read_overflow_ack = Signal()
 
         # # #
 
@@ -144,7 +145,6 @@ class RTPacketSatellite(Module):
                         rx_plm.types["write"]: NextState("WRITE"),
                         rx_plm.types["fifo_space_request"]: NextState("FIFO_SPACE"),
                         rx_plm.types["read_request"]: NextState("READ_REQUEST"),
-                        rx_plm.types["read_consume"]: NextState("READ_CONSUME"),
                         "default": [
                             err_set.eq(1),
                             NextValue(err_code, error_codes["unknown_type_remote"])]
@@ -194,10 +194,6 @@ class RTPacketSatellite(Module):
             load_read_request.eq(1),
             NextState("INPUT")
         )
-        rx_fsm.act("READ_CONSUME",
-            self.read_consume.eq(1),
-            NextState("INPUT")
-        )
 
         # TX FSM
         tx_fsm = FSM(reset_state="IDLE")
@@ -245,14 +241,20 @@ class RTPacketSatellite(Module):
         tx_fsm.act("READ_OVERFLOW",
             tx_dp.send("read_reply_noevent", overflow=1),
             clear_read_request.eq(1),
-            If(tx_dp.packet_last, NextState("IDLE"))
+            If(tx_dp.packet_last,
+                self.read_overflow_ack.eq(1),
+                NextState("IDLE")
+            )
         )
         tx_fsm.act("READ",
             tx_dp.send("read_reply",
                        timestamp=self.read_timestamp,
                        data=self.read_data),
             clear_read_request.eq(1),
-            If(tx_dp.packet_last, NextState("IDLE"))
+            If(tx_dp.packet_last,
+                self.read_consume.eq(1),
+                NextState("IDLE")
+            )
         )
 
         tx_fsm.act("ERROR",
