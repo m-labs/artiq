@@ -35,6 +35,13 @@ class IOS(Module):
         fine_ts_width = rtlink.get_fine_ts_width(interface)
         assert fine_ts_width <= max_fine_ts_width
 
+        # latency compensation
+        if interface.delay:
+            tsc_comp = Signal.like(self.tsc)
+            self.sync.rtio += tsc_comp.eq(self.tsc - interface.delay + 1)
+        else:
+            tsc_comp = self.tsc
+
         # FIFO
         ev_layout = []
         if data_width:
@@ -69,7 +76,7 @@ class IOS(Module):
                 rt_packet.write_underflow.eq(0)),
             If(fifo.we,
                 If(~fifo.writable, rt_packet.write_overflow.eq(1)),
-                If(rt_packet.write_timestamp[max_fine_ts_width:] < (self.tsc + 4),
+                If(rt_packet.write_timestamp[max_fine_ts_width:] < (tsc_comp + 4),
                     rt_packet.write_underflow.eq(1)
                 )
             )
@@ -86,7 +93,7 @@ class IOS(Module):
             fifo.re.eq(0),
             interface.stb.eq(0),
             If(fifo.readable &
-               (fifo_out.timestamp[fine_ts_width:] == self.tsc),
+               (fifo_out.timestamp[fine_ts_width:] == tsc_comp),
                 fifo.re.eq(1),
                 interface.stb.eq(1)
             )
@@ -107,6 +114,13 @@ class IOS(Module):
 
         selected = Signal()
         self.comb += selected.eq(rt_packet.read_channel == n)
+
+        # latency compensation
+        if interface.delay:
+            tsc_comp = Signal.like(self.tsc)
+            self.sync.rtio += tsc_comp.eq(self.tsc - interface.delay + 1)
+        else:
+            tsc_comp = self.tsc
 
         # FIFO
         ev_layout = []
@@ -130,9 +144,9 @@ class IOS(Module):
             self.comb += fifo_in.data.eq(interface.data)
         if interface.timestamped:
             if fine_ts_width:
-                full_ts = Cat(interface.fine_ts, self.tsc)
+                full_ts = Cat(interface.fine_ts, tsc_comp)
             else:
-                full_ts = self.tsc
+                full_ts = tsc_comp
             self.comb += fifo_in.timestamp.eq(full_ts)
         self.comb += fifo.we.eq(interface.stb)
 
