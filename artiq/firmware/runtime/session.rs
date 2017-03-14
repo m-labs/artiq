@@ -274,7 +274,7 @@ fn process_host_message(io: &Io,
             host_write(stream, host::Reply::HotswapImminent)?;
             stream.close()?;
             warn!("hotswapping firmware");
-            unsafe { board::hotswap::run(&binary) }
+            unsafe { board::boot::hotswap(&binary) }
         }
 
         // artiq_run/artiq_master

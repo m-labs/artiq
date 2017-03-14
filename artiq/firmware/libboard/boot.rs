@@ -1,6 +1,16 @@
 use irq;
 
-pub unsafe fn run(new_code: &[u8]) -> ! {
+pub unsafe fn reboot() -> ! {
+    irq::set_ie(false);
+    #[cfg(target_arch="or1k")]
+    asm!(r#"
+        l.j        _ftext
+        l.nop
+    "# : : : : "volatile");
+    loop {}
+}
+
+pub unsafe fn hotswap(new_code: &[u8]) -> ! {
     irq::set_ie(false);
     #[cfg(target_arch="or1k")]
     asm!(r#"
