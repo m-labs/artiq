@@ -39,6 +39,11 @@ int fprintf(FILE *stream, const char *fmt, ...)
 }
 
 /* called by libunwind */
+int fflush(FILE *stream)
+{
+}
+
+/* called by libunwind */
 int dladdr (const void *address, Dl_info *info)
 {
     /* we don't try to resolve names */
