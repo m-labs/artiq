@@ -73,13 +73,13 @@
     "smap": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
+        "class": "TTLInOut",
         "arguments": {"channel": 8}
     },
     "sman": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
+        "class": "TTLInOut",
         "arguments": {"channel": 9}
     },
 
@@ -135,13 +135,13 @@
     "rsmap": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
+        "class": "TTLInOut",
         "arguments": {"channel": 0x010008}
     },
     "rsman": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
+        "class": "TTLInOut",
         "arguments": {"channel": 0x010009}
     },
 
