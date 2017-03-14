@@ -106,6 +106,8 @@ class IOS(Module):
             self.sync.rio += interface.fine_ts.eq(fifo_out.timestamp[:fine_ts_width])
 
     def add_input(self, n, channel):
+        rt_packet = self.rt_packet
+
         interface = channel.interface.i
         if interface is None:
             return

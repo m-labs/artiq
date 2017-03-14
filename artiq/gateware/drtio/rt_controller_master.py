@@ -230,6 +230,7 @@ class RTController(Module):
         )
         fsm.act("READ",
             i_status_wait_status.eq(1),
+            rt_packet.read_not_ack.eq(1),
             rt_packet_read_request.eq(1),
             rt_packet.sr_stb.eq(1),
             If(rt_packet.sr_ack,
@@ -238,6 +239,7 @@ class RTController(Module):
         )
         fsm.act("GET_READ_REPLY",
             i_status_wait_status.eq(1),
+            rt_packet.read_not_ack.eq(1),
             If(rt_packet.read_not,
                 load_read_reply.eq(1),
                 NextState("IDLE")
