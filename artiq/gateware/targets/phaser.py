@@ -203,7 +203,7 @@ class Phaser(MiniSoC, AMPSoC):
 
         rtio_channels = []
 
-        phy = ttl_serdes_7series.Inout_8X(
+        phy = ttl_serdes_7series.InOut_8X(
             platform.request("user_sma_gpio_n"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=128))

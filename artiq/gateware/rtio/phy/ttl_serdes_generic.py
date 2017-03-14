@@ -54,7 +54,7 @@ class Output(Module):
             override_en, override_o)
 
 
-class Inout(Module):
+class InOut(Module):
     def __init__(self, serdes):
         serdes_width = len(serdes.o)
         assert len(serdes.i) == serdes_width
@@ -150,10 +150,10 @@ class _OutputTB(Module):
             yield
 
 
-class _InoutTB(Module):
+class _InOutTB(Module):
     def __init__(self):
         self.serdes = _FakeSerdes()
-        self.submodules.dut = RenameClockDomains(Inout(self.serdes),
+        self.submodules.dut = RenameClockDomains(InOut(self.serdes),
                                                  {"rio_phy": "sys",
                                                   "rio": "sys"})
 
@@ -273,7 +273,7 @@ if __name__ == "__main__":
 
     cls = {
         "output": _OutputTB,
-        "inout": _InoutTB
+        "inout": _InOutTB
     }[sys.argv[1]]
 
     with Simulator(cls(), TopLevel("top.vcd", clk_period=int(1/0.125))) as s:

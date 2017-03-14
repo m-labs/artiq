@@ -84,11 +84,11 @@ class Output_8X(ttl_serdes_generic.Output):
         ttl_serdes_generic.Output.__init__(self, serdes)
 
 
-class Inout_8X(ttl_serdes_generic.Inout):
+class InOut_8X(ttl_serdes_generic.InOut):
     def __init__(self, pad, stb):
         serdes = _IOSERDES2_8X(pad, stb)
         self.submodules += serdes
-        ttl_serdes_generic.Inout.__init__(self, serdes)
+        ttl_serdes_generic.InOut.__init__(self, serdes)
 
 
 class _OSERDES2_4X(Module):
@@ -149,8 +149,8 @@ class Output_4X(ttl_serdes_generic.Output):
         ttl_serdes_generic.Output.__init__(self, serdes)
 
 
-class Inout_4X(ttl_serdes_generic.Inout):
+class InOut_4X(ttl_serdes_generic.InOut):
     def __init__(self, pad, stb):
         serdes = _IOSERDES2_4X(pad, stb)
         self.submodules += serdes
-        ttl_serdes_generic.Inout.__init__(self, serdes)
+        ttl_serdes_generic.InOut.__init__(self, serdes)

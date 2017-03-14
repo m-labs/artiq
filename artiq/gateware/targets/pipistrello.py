@@ -182,7 +182,7 @@ trce -v 12 -fastpaths -tsi {build_name}.tsi -o {build_name}.twr {build_name}.ncd
         # the last TTL is used for ClockGen
         for i in range(15):
             if i in (0, 1):
-                phy = ttl_serdes_spartan6.Inout_4X(platform.request("ttl", i),
+                phy = ttl_serdes_spartan6.InOut_4X(platform.request("ttl", i),
                                                    self.rtio_crg.rtiox4_stb)
             elif i in (2,):
                 phy = ttl_serdes_spartan6.Output_8X(platform.request("ttl", i),

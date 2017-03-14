@@ -40,7 +40,7 @@ class Satellite(BaseSoC):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
         for sma in "user_sma_gpio_p", "user_sma_gpio_n":
-            phy = ttl_simple.Inout(platform.request(sma))
+            phy = ttl_simple.InOut(platform.request(sma))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
