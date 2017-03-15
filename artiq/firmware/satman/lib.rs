@@ -1,13 +1,13 @@
-#![feature(compiler_builtins_lib)]
+#![feature(compiler_builtins_lib, lang_items)]
 #![no_std]
 
 extern crate compiler_builtins;
 extern crate alloc_artiq;
-#[macro_use]
 extern crate std_artiq as std;
 #[macro_use]
 extern crate log;
 extern crate logger_artiq;
+#[macro_use]
 extern crate board;
 extern crate drtioaux;
 
@@ -146,6 +146,13 @@ pub extern fn exception_handler(vect: u32, _regs: *const u32, pc: u32, ea: u32) 
 #[no_mangle]
 pub extern fn abort() {
     panic!("aborted")
+}
+
+#[no_mangle]
+#[lang = "panic_fmt"]
+pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
+    println!("panic at {}:{}: {}", file, line, args);
+    loop {}
 }
 
 // Allow linking with crates that are built as -Cpanic=unwind even if we use -Cpanic=abort.
