@@ -14,7 +14,7 @@ class WishboneReader(Module):
         self.bus = bus
 
         aw = len(bus.adr)
-        dw = len(bus.dat_w)        
+        dw = len(bus.dat_w)
         self.sink = stream.Endpoint([("address", aw)])
         self.source = stream.Endpoint([("data", dw)])
 
@@ -106,7 +106,9 @@ class RawSlicer(Module):
             If(load_buf, Case(level,
                 {i: buf[i*g:(i+in_size)*g].eq(self.sink.data)
                  for i in range(out_size)})),
-            If(shift_buf, buf.eq(buf >> self.source_consume*g))
+            If(shift_buf, Case(self.source_consume,
+                {i: buf.eq(buf[i*g:])
+                 for i in range(out_size)})),
         ]
 
         fsm = FSM(reset_state="FETCH")
