@@ -476,6 +476,7 @@ class _DMA(EnvExperiment):
 
     @kernel
     def replay(self):
+        self.break_realtime()
         self.core_dma.replay(self.trace_name)
 
     @kernel
