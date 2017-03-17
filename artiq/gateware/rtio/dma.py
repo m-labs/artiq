@@ -7,8 +7,8 @@ from misoc.interconnect import stream, wishbone
 from artiq.gateware.rtio import cri
 
 
-def _reverse_signal(s):
-    return Cat(s[i] for i in reversed(range(len(s))))
+def _reverse_bytes(s, g):
+    return Cat(reversed(list(s[i*g:(i+1)*g] for i in range(len(s)//g))))
 
 
 class WishboneReader(Module):
@@ -39,7 +39,7 @@ class WishboneReader(Module):
             If(self.source.ack, data_reg_loaded.eq(0)),
             If(bus.ack,
                 data_reg_loaded.eq(1),
-                self.source.data.eq(_reverse_signal(bus.dat_r)),
+                self.source.data.eq(bus.dat_r),
                 self.source.eop.eq(self.sink.eop)
             )
         ]
@@ -96,7 +96,7 @@ class RawSlicer(Module):
         #          <data being shifted out>   <new incoming word>
         buf_size =       out_size - 1       +       in_size
         buf = Signal(buf_size*g)
-        self.comb += self.source.eq(buf[:out_size*8])
+        self.comb += self.source.eq(buf[:out_size*g])
 
         level = Signal(max=buf_size+1)
         next_level = Signal(max=buf_size+1)
@@ -108,7 +108,7 @@ class RawSlicer(Module):
 
         self.sync += [
             If(load_buf, Case(level,
-                {i: buf[i*g:(i+in_size)*g].eq(self.sink.data)
+                {i: buf[i*g:(i+in_size)*g].eq(_reverse_bytes(self.sink.data, g))
                  for i in range(out_size)})),
             If(shift_buf, Case(self.source_consume,
                 {i: buf.eq(buf[i*g:])

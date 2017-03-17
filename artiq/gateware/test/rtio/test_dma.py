@@ -31,14 +31,14 @@ def pack(x, size):
     r = []
     for i in range((len(x)+size-1)//size):
         n = 0
-        for j, w in enumerate(x[i*size:(i+1)*size]):
-            n |= w << j*8
-        nr = 0
-        for i in range(size*8):
-            if (n >> i) & 1: nr |= 1 << (size*8 - 1 - i)
-        # print("{:064x}".format(n))
-        # print("{:064x}".format(nr))
-        r.append(nr)
+        for j in range(i*size, (i+1)*size):
+            n <<= 8
+            try:
+                n |= x[j]
+            except IndexError:
+                pass
+        # print("{:0128x}".format(n))
+        r.append(n)
     return r
 
 
