@@ -362,7 +362,7 @@ class CoredeviceTest(ExperimentCase):
         rate = self.dataset_mgr.get("pulse_rate")
         print(rate)
         self.assertGreater(rate, 1*us)
-        self.assertLess(rate, 8*us)
+        self.assertLess(rate, 16*us)
 
     def test_loopback_count(self):
         npulses = 2
