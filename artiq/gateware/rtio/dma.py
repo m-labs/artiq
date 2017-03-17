@@ -7,6 +7,10 @@ from misoc.interconnect import stream, wishbone
 from artiq.gateware.rtio import cri
 
 
+def _reverse_signal(s):
+    return Cat(s[i] for i in reversed(range(len(s))))
+
+
 class WishboneReader(Module):
     def __init__(self, bus=None):
         if bus is None:
@@ -35,7 +39,7 @@ class WishboneReader(Module):
             If(self.source.ack, data_reg_loaded.eq(0)),
             If(bus.ack,
                 data_reg_loaded.eq(1),
-                self.source.data.eq(bus.dat_r),
+                self.source.data.eq(_reverse_signal(bus.dat_r)),
                 self.source.eop.eq(self.sink.eop)
             )
         ]

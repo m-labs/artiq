@@ -23,7 +23,7 @@ def encode_record(channel, timestamp, address, data):
     r += encode_n(channel, 3, 3)
     r += encode_n(timestamp, 8, 8)
     r += encode_n(address, 2, 2)
-    r += encode_n(data, 1, 64)
+    r += encode_n(data, 4, 64)
     return encode_n(len(r)+1, 1, 1) + r
 
 
@@ -33,7 +33,12 @@ def pack(x, size):
         n = 0
         for j, w in enumerate(x[i*size:(i+1)*size]):
             n |= w << j*8
-        r.append(n)
+        nr = 0
+        for i in range(size*8):
+            if (n >> i) & 1: nr |= 1 << (size*8 - 1 - i)
+        # print("{:064x}".format(n))
+        # print("{:064x}".format(nr))
+        r.append(nr)
     return r
 
 
@@ -48,6 +53,7 @@ class TB(Module):
     def __init__(self, ws):
         sequence = [b for write in test_writes for b in encode_record(*write)]
         sequence.append(0)
+        # print(sequence)
         sequence = pack(sequence, ws)
 
         bus = wishbone.Interface(ws*8)
