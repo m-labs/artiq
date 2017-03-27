@@ -186,6 +186,22 @@ mod drtio {
     pub fn init() {}
 }
 
+fn async_error_thread(io: Io) {
+    loop {
+        unsafe {
+            io.until(|| csr::rtio_core::async_error_read() != 0).unwrap();
+            let errors = csr::rtio_core::async_error_read();
+            if errors & 1 != 0 {
+                error!("RTIO collision");
+            }
+            if errors & 2 != 0 {
+                error!("RTIO busy");
+            }
+            csr::rtio_core::async_error_write(errors);
+        }
+    }
+}
+
 pub fn startup(io: &Io) {
     crg::init();
 
@@ -214,7 +230,8 @@ pub fn startup(io: &Io) {
     }
 
     drtio::startup(io);
-    init_core()
+    init_core();
+    io.spawn(4096, async_error_thread);
 }
 
 pub fn init_core() {
