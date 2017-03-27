@@ -7,8 +7,6 @@ use kernel_proto::*;
 pub const RTIO_O_STATUS_WAIT:           u32 = 1;
 pub const RTIO_O_STATUS_UNDERFLOW:      u32 = 2;
 pub const RTIO_O_STATUS_SEQUENCE_ERROR: u32 = 4;
-pub const RTIO_O_STATUS_COLLISION:      u32 = 8;
-pub const RTIO_O_STATUS_BUSY:           u32 = 16;
 pub const RTIO_I_STATUS_WAIT_EVENT:     u32 = 1;
 pub const RTIO_I_STATUS_OVERFLOW:       u32 = 2;
 pub const RTIO_I_STATUS_WAIT_STATUS:    u32 = 4;
@@ -43,28 +41,14 @@ unsafe fn process_exceptional_status(timestamp: i64, channel: i32, status: u32) 
         while csr::rtio::o_status_read() & RTIO_O_STATUS_WAIT != 0 {}
     }
     if status & RTIO_O_STATUS_UNDERFLOW != 0 {
-        csr::rtio::o_underflow_reset_write(1);
         raise!("RTIOUnderflow",
             "RTIO underflow at {0} mu, channel {1}, slack {2} mu",
             timestamp, channel as i64, timestamp - get_counter())
     }
     if status & RTIO_O_STATUS_SEQUENCE_ERROR != 0 {
-        csr::rtio::o_sequence_error_reset_write(1);
         raise!("RTIOSequenceError",
             "RTIO sequence error at {0} mu, channel {1}",
             timestamp, channel as i64, 0)
-    }
-    if status & RTIO_O_STATUS_COLLISION != 0 {
-        csr::rtio::o_collision_reset_write(1);
-        raise!("RTIOCollision",
-            "RTIO collision at {0} mu, channel {1}",
-            timestamp, channel as i64, 0)
-    }
-    if status & RTIO_O_STATUS_BUSY != 0 {
-        csr::rtio::o_busy_reset_write(1);
-        raise!("RTIOBusy",
-            "RTIO busy on channel {0}",
-            channel as i64, 0, 0)
     }
 }
 
@@ -118,9 +102,7 @@ pub extern fn input_timestamp(timeout: i64, channel: i32) -> u64 {
             return !0
         }
 
-        let timestamp = csr::rtio::i_timestamp_read();
-        csr::rtio::i_re_write(1);
-        timestamp
+        csr::rtio::i_timestamp_read()
     }
 }
 
@@ -142,9 +124,7 @@ pub extern fn input_data(channel: i32) -> i32 {
                 channel as i64, 0, 0);
         }
 
-        let data = rtio_i_data_read(0);
-        csr::rtio::i_re_write(1);
-        data as i32
+        rtio_i_data_read(0) as i32
     }
 }
 

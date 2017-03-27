@@ -127,8 +127,10 @@ class RTController(Module):
         o_sequence_error_set = Signal()
         o_underflow_set = Signal()
         self.sync.sys_with_rst += [
-            If(self.cri.cmd == cri.commands["o_underflow_reset"], o_status_underflow.eq(0)),
-            If(self.cri.cmd == cri.commands["o_sequence_error_reset"], o_status_sequence_error.eq(0)),
+            If(self.cri.cmd == cri.commands["write"],
+                o_status_underflow.eq(0),
+                o_status_sequence_error.eq(0),
+            ),
             If(o_underflow_set, o_status_underflow.eq(1)),
             If(o_sequence_error_set, o_status_sequence_error.eq(1))
         ]
@@ -184,7 +186,7 @@ class RTController(Module):
                     NextState("WRITE")
                 )
             ),
-            If(self.cri.cmd == cri.commands["read_request"], NextState("READ")),
+            If(self.cri.cmd == cri.commands["read"], NextState("READ")),
             If(self.csrs.o_get_fifo_space.re, NextState("GET_FIFO_SPACE"))
         )
         fsm.act("WRITE",

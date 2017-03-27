@@ -384,13 +384,14 @@ class CoredeviceTest(ExperimentCase):
         with self.assertRaises(RTIOSequenceError):
             self.execute(SequenceError)
 
-    def test_collision(self):
-        with self.assertRaises(RTIOCollision):
-            self.execute(Collision)
+    # TODO: capture core device log
+    # def test_collision(self):
+    #     with self.assertRaises(RTIOCollision):
+    #         self.execute(Collision)
 
-    def test_address_collision(self):
-        with self.assertRaises(RTIOCollision):
-            self.execute(AddressCollision)
+    # def test_address_collision(self):
+    #     with self.assertRaises(RTIOCollision):
+    #         self.execute(AddressCollision)
 
     def test_watchdog(self):
         # watchdog only works on the device

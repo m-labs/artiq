@@ -359,18 +359,6 @@ extern fn dma_playback(timestamp: i64, name: CSlice<u8>) {
                 "RTIO sequence error at {0} mu, channel {1}",
                 timestamp as i64, channel as i64, 0)
         }
-        if status & rtio::RTIO_O_STATUS_COLLISION != 0 {
-            csr::rtio_dma::error_collision_reset_write(1);
-            raise!("RTIOCollision",
-                "RTIO collision at {0} mu, channel {1}",
-                timestamp as i64, channel as i64, 0)
-        }
-        if status & rtio::RTIO_O_STATUS_BUSY != 0 {
-            csr::rtio_dma::error_busy_reset_write(1);
-            raise!("RTIOBusy",
-                "RTIO busy on channel {0}",
-                channel as i64, 0, 0)
-        }
     }
 }
 

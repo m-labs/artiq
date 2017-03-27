@@ -12,15 +12,7 @@ commands = {
     "write": 1,
     # i_status should have the "wait for status" bit set until
     # an event is available, or timestamp is reached.
-    "read_request": 2,
-    # consume the read event
-    "read": 3,
-
-    "o_underflow_reset": 4,
-    "o_sequence_error_reset": 5,
-    "o_collision_reset": 6,
-    "o_busy_reset": 7,
-    "i_overflow_reset": 8
+    "read": 2
 }
 
 
@@ -28,7 +20,7 @@ layout = [
     ("arb_req", 1, DIR_M_TO_S),
     ("arb_gnt", 1, DIR_S_TO_M),
 
-    ("cmd", 4, DIR_M_TO_S),
+    ("cmd", 2, DIR_M_TO_S),
     # 8 MSBs of chan_sel are used to select core
     ("chan_sel", 24, DIR_M_TO_S),
     ("timestamp", 64, DIR_M_TO_S),
@@ -36,13 +28,14 @@ layout = [
     ("o_data", 512, DIR_M_TO_S),
     ("o_address", 16, DIR_M_TO_S),
     # o_status bits:
-    # <0:wait> <1:underflow> <2:sequence_error> <3:collision> <4:busy>
-    ("o_status", 5, DIR_S_TO_M),
+    # <0:wait> <1:underflow> <2:sequence_error>
+    ("o_status", 3, DIR_S_TO_M),
 
     ("i_data", 32, DIR_S_TO_M),
     ("i_timestamp", 64, DIR_S_TO_M),
     # i_status bits:
     # <0:wait for event (command timeout)> <1:overflow> <2:wait for status>
+    # <0> and <1> are mutually exclusive. <1> has higher priority.
     ("i_status", 3, DIR_S_TO_M),
 
     ("counter", 64, DIR_S_TO_M)
@@ -66,16 +59,11 @@ class KernelInitiator(Module, AutoCSR):
         self.o_data = CSRStorage(512, write_from_dev=True)
         self.o_address = CSRStorage(16)
         self.o_we = CSR()
-        self.o_status = CSRStatus(5)
-        self.o_underflow_reset = CSR()
-        self.o_sequence_error_reset = CSR()
-        self.o_collision_reset = CSR()
-        self.o_busy_reset = CSR()
+        self.o_status = CSRStatus(3)
 
         self.i_data = CSRStatus(32)
         self.i_timestamp = CSRStatus(64)
         self.i_request = CSR()
-        self.i_re = CSR()
         self.i_status = CSRStatus(3)
         self.i_overflow_reset = CSR()
 
@@ -94,13 +82,7 @@ class KernelInitiator(Module, AutoCSR):
 
             self.cri.cmd.eq(commands["nop"]),
             If(self.o_we.re, self.cri.cmd.eq(commands["write"])),
-            If(self.i_request.re, self.cri.cmd.eq(commands["read_request"])),
-            If(self.i_re.re, self.cri.cmd.eq(commands["read"])),
-            If(self.o_underflow_reset.re, self.cri.cmd.eq(commands["o_underflow_reset"])),
-            If(self.o_sequence_error_reset.re, self.cri.cmd.eq(commands["o_sequence_error_reset"])),
-            If(self.o_collision_reset.re, self.cri.cmd.eq(commands["o_collision_reset"])),
-            If(self.o_busy_reset.re, self.cri.cmd.eq(commands["o_busy_reset"])),
-            If(self.i_overflow_reset.re, self.cri.cmd.eq(commands["i_overflow_reset"])),
+            If(self.i_request.re, self.cri.cmd.eq(commands["read"])),
 
             self.cri.chan_sel.eq(self.chan_sel.storage),
             self.cri.timestamp.eq(self.timestamp.storage),

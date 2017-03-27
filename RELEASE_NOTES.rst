@@ -26,6 +26,8 @@ Release notes
 * The kc705 gateware target has been renamed kc705_dds.
 * ``artiq.coredevice.comm_tcp`` has been renamed ``artiq.coredevice.comm_kernel``,
   and ``Comm`` has been renamed ``CommKernel``.
+* The "collision" and "busy" RTIO errors are reported through the log instead of
+  raising exceptions.
 
 
 2.2

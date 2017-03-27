@@ -51,6 +51,17 @@ class MessageEncoder(Module, AutoCSR):
 
         # # #
 
+        read_wait_event = cri.i_status[2]
+        read_wait_event_r = Signal()
+        read_done = Signal()
+        read_overflow = Signal()
+        self.sync += read_wait_event_r.eq(read_wait_event)
+        self.comb += \
+            If(read_wait_event_r & ~read_wait_event,
+                If(~cri.i_status[0], read_done.eq(1)),
+                If(cri.i_status[1], read_overflow.eq(1))
+            )
+
         input_output_stb = Signal()
         input_output = Record(input_output_layout)
         self.comb += [
@@ -66,8 +77,7 @@ class MessageEncoder(Module, AutoCSR):
                 input_output.timestamp.eq(cri.i_timestamp),
                 input_output.data.eq(cri.i_data)
             ),
-            input_output_stb.eq((cri.cmd == cri_commands["write"]) |
-                                (cri.cmd == cri_commands["read"]))
+            input_output_stb.eq((cri.cmd == cri_commands["write"]) | read_done)
         ]
 
         exception_stb = Signal()
@@ -77,14 +87,22 @@ class MessageEncoder(Module, AutoCSR):
             exception.channel.eq(cri.chan_sel),
             exception.rtio_counter.eq(cri.counter),
         ]
-        for ename in ("o_underflow_reset", "o_sequence_error_reset",
-                      "o_collision_reset", "i_overflow_reset"):
-            self.comb += \
-                If(cri.cmd == cri_commands[ename],
-                    exception_stb.eq(1),
-                    exception.exception_type.eq(
-                        getattr(ExceptionType, ename).value)
-                )
+        just_written = Signal()
+        self.sync += just_written.eq(cri.cmd == cri_commands["write"])
+        self.comb += [
+            If(just_written & cri.o_status[1],
+                exception_stb.eq(1),
+                exception.exception_type.eq(ExceptionType.o_underflow.value)
+            ),
+            If(just_written & cri.o_status[2],
+                exception_stb.eq(1),
+                exception.exception_type.eq(ExceptionType.o_sequence_error.value)
+            ),
+            If(read_overflow,
+                exception_stb.eq(1),
+                exception.exception_type.eq(ExceptionType.i_overflow.value)
+            )
+        ]
 
         stopped = Record(stopped_layout)
         self.comb += [

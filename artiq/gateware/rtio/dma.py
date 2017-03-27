@@ -247,11 +247,9 @@ class CRIMaster(Module, AutoCSR):
         self.arb_req = CSRStorage()
         self.arb_gnt = CSRStatus()
 
-        self.error_status = CSRStatus(5)  # same encoding as RTIO status
+        self.error_status = CSRStatus(3)  # same encoding as RTIO status
         self.error_underflow_reset = CSR()
         self.error_sequence_error_reset = CSR()
-        self.error_collision_reset = CSR()
-        self.error_busy_reset = CSR()
 
         self.error_channel = CSRStatus(24)
         self.error_timestamp = CSRStatus(64)
@@ -268,9 +266,8 @@ class CRIMaster(Module, AutoCSR):
             self.arb_gnt.status.eq(self.cri.arb_gnt)
         ]
 
-        error_set = Signal(4)
-        for i, rcsr in enumerate([self.error_underflow_reset, self.error_sequence_error_reset,
-                                  self.error_collision_reset, self.error_busy_reset]):
+        error_set = Signal(2)
+        for i, rcsr in enumerate([self.error_underflow_reset, self.error_sequence_error_reset]):
             # bit 0 is RTIO wait and always 0 here
             bit = i + 1
             self.sync += [
@@ -320,16 +317,12 @@ class CRIMaster(Module, AutoCSR):
                 NextState("IDLE")
             ),
             If(self.cri.o_status[1], NextState("UNDERFLOW")),
-            If(self.cri.o_status[2], NextState("SEQUENCE_ERROR")),
-            If(self.cri.o_status[3], NextState("COLLISION")),
-            If(self.cri.o_status[4], NextState("BUSY"))
+            If(self.cri.o_status[2], NextState("SEQUENCE_ERROR"))
         )
-        for n, name in enumerate(["UNDERFLOW", "SEQUENCE_ERROR",
-                                  "COLLISION", "BUSY"]):
+        for n, name in enumerate(["UNDERFLOW", "SEQUENCE_ERROR"]):
             fsm.act(name,
                 self.busy.eq(1),
                 error_set.eq(1 << n),
-                self.cri.cmd.eq(cri.commands["o_" + name.lower() + "_reset"]),
                 self.sink.ack.eq(1),
                 NextState("IDLE")
             )
