@@ -1,3 +1,10 @@
+"""Direct Memory Access (DMA) extension.
+
+This feature allows storing pre-defined sequences of output RTIO events into
+the core device's SDRAM, and playing them back at higher speeds than the CPU
+alone could achieve.
+"""
+
 from artiq.language.core import syscall, kernel
 from artiq.language.types import TInt64, TStr, TNone
 
@@ -22,23 +29,28 @@ def dma_playback(timestamp: TInt64, name: TStr) -> TNone:
 
 
 class DMARecordContextManager:
+    """Context manager returned by ``CoreDMA.record()``.
+
+    Upon entering, starts recording a DMA trace. All RTIO operations are
+    redirected to a newly created DMA buffer after this call, and ``now``
+    is reset to zero.
+
+    Upon leaving, stops recording a DMA trace. All recorded RTIO operations
+    are stored in a newly created trace, and ``now`` is restored to the value
+    it had before the context manager was entered.
+    """
     def __init__(self):
         self.name = ""
         self.saved_now_mu = int64(0)
 
     @kernel
     def __enter__(self):
-        """Starts recording a DMA trace. All RTIO operations are redirected to
-        a newly created DMA buffer after this call, and ``now`` is reset to zero."""
         dma_record_start() # this may raise, so do it before altering now
         self.saved_now_mu = now_mu()
         at_mu(0)
 
     @kernel
     def __exit__(self, type, value, traceback):
-        """Stops recording a DMA trace. All recorded RTIO operations are stored
-        in a newly created trace called ``self.name``, and ``now`` is restored
-        to the value it had before ``__enter__`` was called."""
         dma_record_stop(self.name) # see above
         at_mu(self.saved_now_mu)
 
