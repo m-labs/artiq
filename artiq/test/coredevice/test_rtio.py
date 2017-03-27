@@ -421,7 +421,6 @@ class CoredeviceTest(ExperimentCase):
                          self.dataset_mgr.get("t2"))
 
 
-
 class RPCTiming(EnvExperiment):
     def build(self, repeats=100):
         self.setattr_device("core")
@@ -476,7 +475,7 @@ class _DMA(EnvExperiment):
 
     @kernel
     def replay(self):
-        self.break_realtime()
+        self.core.break_realtime()
         self.core_dma.replay(self.trace_name)
 
     @kernel
