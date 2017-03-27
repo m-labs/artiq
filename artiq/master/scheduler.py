@@ -305,14 +305,16 @@ class AnalyzeStage(TaskObject):
             run.status = RunStatus.analyzing
             try:
                 await run.analyze()
+            except:
+                logger.error("got worker exception in analyze stage of RID %d."
+                             " Results will still be saved.", run.rid)
+                log_worker_exception()
+            try:
                 await run.write_results()
             except:
-                logger.error("got worker exception in analyze stage, "
-                             "deleting RID %d", run.rid)
+                logger.error("failed to write results of RID %d.", run.rid)
                 log_worker_exception()
-                self.delete_cb(run.rid)
-            else:
-                self.delete_cb(run.rid)
+            self.delete_cb(run.rid)
 
 
 class Pipeline:

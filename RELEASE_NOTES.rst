@@ -28,6 +28,7 @@ Release notes
   and ``Comm`` has been renamed ``CommKernel``.
 * The "collision" and "busy" RTIO errors are reported through the log instead of
   raising exceptions.
+* Results are still saved when ``analyze`` raises an exception.
 
 
 2.2
