@@ -342,7 +342,6 @@ class CoredeviceTest(ExperimentCase):
         self.assertGreater(rtt, 0*ns)
         self.assertLess(rtt, 60*ns)
 
-    @unittest.skip("fails on CI for unknown reasons")
     def test_clock_generator_loopback(self):
         self.execute(ClockGeneratorLoopback)
         count = self.dataset_mgr.get("count")
