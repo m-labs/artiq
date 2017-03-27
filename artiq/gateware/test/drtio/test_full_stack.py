@@ -123,10 +123,8 @@ class TestFullStack(unittest.TestCase):
             while status:
                 status = yield from kcsrs.o_status.read()
                 if status & 2:
-                    yield from kcsrs.o_underflow_reset.write(1)
                     raise RTIOUnderflow
                 if status & 4:
-                    yield from kcsrs.o_sequence_error_reset.write(1)
                     raise RTIOSequenceError
                 yield
                 wlen += 1
