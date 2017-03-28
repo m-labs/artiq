@@ -62,9 +62,45 @@ class PDQ2:
         delay_mu(self.bus.ref_period_mu)  # get to 20ns min cs high
 
     @kernel
+    def write_reg(self, adr, data, board):
+        self.write((_PDQ2_CMD(board, 0, adr, 1) << 24) | (data << 16))
+
+    @kernel
+    def read_reg(self, adr, board):
+        self.bus.set_xfer(self.chip_select, 16, 8)
+        self.write(_PDQ2_CMD(board, 0, adr, 0) << 24)
+        self.bus.read_async()
+        self.bus.set_xfer(self.chip_select, 16, 0)
+        return self.bus.input_async() & 0xff
+
+    @kernel
     def write_config(self, config, board=0xf):
-        board &= 0xf
-        self.write(
-                (_PDQ2_CMD(board, 0, _PDQ2_ADR_CONFIG, 1) << 24) |
-                (config << 16)
-                )
+        self.write_reg(_PDQ2_ADR_CONFIG, config, board)
+
+    @kernel
+    def read_config(self, board=0xf):
+        return self.read_reg(_PDQ2_ADR_CONFIG, board)
+
+    @kernel
+    def write_crc(self, crc, board=0xf):
+        self.write_reg(_PDQ2_ADR_CRC, crc, board)
+
+    @kernel
+    def read_crc(self, board=0xf):
+        return self.read_reg(_PDQ2_ADR_CRC, board)
+
+    @kernel
+    def write_frame(self, frame, board=0xf):
+        self.write_reg(_PDQ2_ADR_FRAME, frame, board)
+
+    @kernel
+    def read_frame(self, board=0xf):
+        return self.read_reg(_PDQ2_ADR_FRAME, board)
+
+    @kernel
+    def write_mem(self, mem, adr, data, board=0xf):
+        pass
+
+    @kernel
+    def read_mem(self, mem, adr, data, board=0xf):
+        pass
