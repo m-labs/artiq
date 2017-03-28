@@ -273,7 +273,7 @@ class CommKernel:
 
         finished_cleanly = self._read_bool()
         if not finished_cleanly:
-            logger.warning("Interrupted a running kernel")
+            logger.warning("Previous kernel did not cleanly finish")
 
     def switch_clock(self, external):
         self._write_header(_H2DMsgType.SWITCH_CLOCK)
