@@ -698,6 +698,8 @@ pub fn thread(io: Io) {
                     Err(err) => {
                         if err.kind() == io::ErrorKind::UnexpectedEof {
                             info!("connection closed");
+                        } else if err.kind() == io::ErrorKind::Interrupted {
+                            info!("kernel interrupted");
                         } else {
                             congress.finished_cleanly.set(false);
                             error!("session aborted: {}", err);
