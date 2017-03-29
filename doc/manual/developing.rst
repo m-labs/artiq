@@ -24,6 +24,7 @@ ARTIQ Anaconda development environment
 
            $ git clone --recursive https://github.com/m-labs/artiq ~/artiq-dev/artiq
            $ cd ~/artiq-dev/artiq
+       Add ``-b release-X`` to the ``git clone`` command if you are building a stable branch of ARTIQ (the default will fetch the development ``master`` branch).
     3. :ref:`Install Anaconda or Miniconda <install-anaconda>`
     4. Create and activate a conda environment named ``artiq-dev`` and install the ``artiq-dev`` package which pulls in all the packages required to develop ARTIQ::
 
@@ -61,6 +62,8 @@ and the ARTIQ kernels.
 
         $ cd ~/artiq-dev
         $ git clone --recursive https://github.com/m-labs/artiq
+    
+    Add ``-b release-X`` to the ``git clone`` command if you are building a stable branch of ARTIQ (the default will fetch the development ``master`` branch).
 
 * Install OpenRISC binutils (or1k-linux-...): ::
 
