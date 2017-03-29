@@ -1,8 +1,6 @@
 use std::io::{self, Read, Write};
 use std::vec::Vec;
 use std::string::String;
-#[cfg(feature = "log")]
-use log::LogLevelFilter;
 use {ReadExt, WriteExt};
 
 fn read_sync(reader: &mut Read) -> io::Result<()> {
@@ -20,11 +18,6 @@ fn write_sync(writer: &mut Write) -> io::Result<()> {
 
 #[derive(Debug)]
 pub enum Request {
-    Log,
-    LogClear,
-    #[cfg(feature = "log")]
-    LogFilter(LogLevelFilter),
-
     SystemInfo,
     SwitchClock(u8),
 
@@ -46,30 +39,12 @@ pub enum Request {
     FlashWrite  { key: String, value: Vec<u8> },
     FlashRemove { key: String },
     FlashErase,
-
-    Hotswap(Vec<u8>),
 }
 
 impl Request {
     pub fn read_from(reader: &mut Read) -> io::Result<Request> {
         read_sync(reader)?;
         Ok(match reader.read_u8()? {
-            1  => Request::Log,
-            2  => Request::LogClear,
-            #[cfg(feature = "log")]
-            13 => {
-                let level = match reader.read_u8()? {
-                    0 => LogLevelFilter::Off,
-                    1 => LogLevelFilter::Error,
-                    2 => LogLevelFilter::Warn,
-                    3 => LogLevelFilter::Info,
-                    4 => LogLevelFilter::Debug,
-                    5 => LogLevelFilter::Trace,
-                    _ => return Err(io::Error::new(io::ErrorKind::InvalidData,
-                                                   "invalid log level"))
-                };
-                Request::LogFilter(level)
-            }
             3  => Request::SystemInfo,
             4  => Request::SwitchClock(reader.read_u8()?),
             5  => Request::LoadKernel(reader.read_bytes()?),
@@ -99,7 +74,6 @@ impl Request {
             12 => Request::FlashRemove {
                 key: reader.read_string()?
             },
-            14 => Request::Hotswap(reader.read_bytes()?),
             _  => return Err(io::Error::new(io::ErrorKind::InvalidData, "unknown request type"))
         })
     }
@@ -107,8 +81,6 @@ impl Request {
 
 #[derive(Debug)]
 pub enum Reply<'a> {
-    Log(&'a str),
-
     SystemInfo {
         ident: &'a str,
         finished_cleanly: bool
@@ -140,19 +112,12 @@ pub enum Reply<'a> {
 
     WatchdogExpired,
     ClockFailure,
-
-    HotswapImminent,
 }
 
 impl<'a> Reply<'a> {
     pub fn write_to(&self, writer: &mut Write) -> io::Result<()> {
         write_sync(writer)?;
         match *self {
-            Reply::Log(ref log) => {
-                writer.write_u8(1)?;
-                writer.write_string(log)?;
-            },
-
             Reply::SystemInfo { ident, finished_cleanly } => {
                 writer.write_u8(2)?;
                 writer.write(b"AROR")?;
@@ -221,9 +186,6 @@ impl<'a> Reply<'a> {
             Reply::ClockFailure => {
                 writer.write_u8(15)?;
             },
-            Reply::HotswapImminent => {
-                writer.write_u8(16)?;
-            }
         }
         Ok(())
     }

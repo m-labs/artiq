@@ -6,6 +6,7 @@ import struct
 from artiq.tools import verbosity_args, init_logger
 from artiq.master.databases import DeviceDB
 from artiq.master.worker_db import DeviceManager
+from artiq.coredevice.comm_mgmt import CommMgmt
 
 
 def get_argparser():
@@ -26,9 +27,9 @@ def main():
     init_logger(args)
     device_mgr = DeviceManager(DeviceDB(args.device_db))
     try:
-        comm = device_mgr.get("comm")
-        comm.check_system_info()
-        comm.hotswap(args.image.read())
+        core_addr = device_mgr.get_desc("comm")["arguments"]["host"]
+        mgmt = CommMgmt(device_mgr, core_addr)
+        mgmt.hotswap(args.image.read())
     finally:
         device_mgr.close_devices()
 

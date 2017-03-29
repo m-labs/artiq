@@ -22,7 +22,7 @@ extern crate drtioaux;
 
 use std::boxed::Box;
 use smoltcp::wire::{EthernetAddress, IpAddress};
-use proto::{analyzer_proto, moninj_proto, rpc_proto, session_proto, kernel_proto};
+use proto::{mgmt_proto, analyzer_proto, moninj_proto, rpc_proto, session_proto, kernel_proto};
 use amp::{mailbox, rpc_queue};
 
 macro_rules! borrow_mut {
@@ -43,6 +43,7 @@ mod sched;
 mod cache;
 mod rtio_dma;
 
+mod mgmt;
 mod kernel;
 mod session;
 #[cfg(any(has_rtio_moninj, has_drtio))]
@@ -124,6 +125,7 @@ fn startup() {
     let mut scheduler = sched::Scheduler::new();
     let io = scheduler.io();
     rtio_mgt::startup(&io);
+    io.spawn(4096, mgmt::thread);
     io.spawn(16384, session::thread);
     #[cfg(any(has_rtio_moninj, has_drtio))]
     io.spawn(4096, moninj::thread);

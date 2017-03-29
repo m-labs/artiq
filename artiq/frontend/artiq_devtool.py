@@ -179,7 +179,7 @@ def main():
                     local_stream.close()
                     remote_stream.close()
 
-            for port in (1381, 1382):
+            for port in (1380, 1381, 1382):
                 thread = threading.Thread(target=forwarder, args=(port,),
                                           name="port-{}".format(port), daemon=True)
                 thread.start()

@@ -116,7 +116,6 @@ fn host_read(stream: &mut TcpStream) -> io::Result<host::Request> {
     let request = host::Request::read_from(stream)?;
     match &request {
         &host::Request::LoadKernel(_) => debug!("comm<-host LoadLibrary(...)"),
-        &host::Request::Hotswap(_) => debug!("comm<-host Hotswap(...)"),
         _ => debug!("comm<-host {:?}", request)
     }
     Ok(request)
@@ -217,26 +216,6 @@ fn process_host_message(io: &Io,
             Ok(())
         }
 
-        // artiq_corelog
-        host::Request::Log => {
-            // Logging the packet with the log is inadvisable
-            debug!("comm->host Log(...)");
-            BufferLogger::with_instance(|logger| {
-                logger.extract(|log| {
-                    host::Reply::Log(log).write_to(stream)
-                })
-            })
-        }
-        host::Request::LogClear => {
-            BufferLogger::with_instance(|logger| logger.clear());
-            host_write(stream, host::Reply::Log(""))
-        }
-        host::Request::LogFilter(filter) => {
-            info!("changing log level to {}", filter);
-            BufferLogger::with_instance(|logger| logger.set_max_log_level(filter));
-            Ok(())
-        }
-
         // artiq_coreconfig
         host::Request::FlashRead { ref key } => {
             config::read(key, |result| {
@@ -267,14 +246,6 @@ fn process_host_message(io: &Io,
                 Ok(()) => host_write(stream, host::Reply::FlashOk),
                 Err(_) => host_write(stream, host::Reply::FlashError),
             }
-        }
-
-        // artiq_coreboot
-        host::Request::Hotswap(binary) => {
-            host_write(stream, host::Reply::HotswapImminent)?;
-            stream.close()?;
-            warn!("hotswapping firmware");
-            unsafe { board::boot::hotswap(&binary) }
         }
 
         // artiq_run/artiq_master

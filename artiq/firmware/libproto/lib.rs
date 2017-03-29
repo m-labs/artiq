@@ -13,6 +13,7 @@ extern crate std_artiq as std;
 pub mod kernel_proto;
 
 // External protocols.
+pub mod mgmt_proto;
 pub mod analyzer_proto;
 pub mod moninj_proto;
 pub mod session_proto;

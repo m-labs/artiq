@@ -281,25 +281,6 @@ class CommKernel:
 
         self._read_empty(_D2HMsgType.CLOCK_SWITCH_COMPLETED)
 
-    def get_log(self):
-        self._write_empty(_H2DMsgType.LOG_REQUEST)
-
-        self._read_header()
-        self._read_expect(_D2HMsgType.LOG_REPLY)
-        return self._read_string()
-
-    def clear_log(self):
-        self._write_empty(_H2DMsgType.LOG_CLEAR)
-
-        self._read_empty(_D2HMsgType.LOG_REPLY)
-
-    def set_log_level(self, level):
-        if level not in _LogLevel.__members__:
-            raise ValueError("invalid log level {}".format(level))
-
-        self._write_header(_H2DMsgType.LOG_FILTER)
-        self._write_int8(getattr(_LogLevel, level).value)
-
     def flash_storage_read(self, key):
         self._write_header(_H2DMsgType.FLASH_READ_REQUEST)
         self._write_string(key)
@@ -329,12 +310,6 @@ class CommKernel:
         self._write_string(key)
 
         self._read_empty(_D2HMsgType.FLASH_OK_REPLY)
-
-    def hotswap(self, image):
-        self._write_header(_H2DMsgType.HOTSWAP)
-        self._write_bytes(image)
-
-        self._read_empty(_D2HMsgType.HOTSWAP_IMMINENT)
 
     def load(self, kernel_library):
         self._write_header(_H2DMsgType.LOAD_KERNEL)
