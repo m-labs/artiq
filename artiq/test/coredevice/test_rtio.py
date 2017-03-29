@@ -8,6 +8,7 @@ from math import sqrt
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 from artiq.coredevice import exceptions
+from artiq.coredevice.comm_mgmt import CommMgmt
 from artiq.coredevice.comm_analyzer import (StoppedMessage, OutputMessage, InputMessage,
                                             decode_dump, get_analyzer_dump)
 
@@ -387,18 +388,22 @@ class CoredeviceTest(ExperimentCase):
             self.execute(SequenceError)
 
     def test_collision(self):
-        comm = self.device_mgr.get("core").comm
-        comm.clear_log()
+        core_addr = self.device_mgr.get_desc("comm")["arguments"]["host"]
+        mgmt = CommMgmt(self.device_mgr, core_addr)
+        mgmt.clear_log()
         self.execute(Collision)
-        log = comm.get_log()
+        log = mgmt.get_log()
         self.assertIn("RTIO collision", log)
+        mgmt.close()
 
     def test_address_collision(self):
-        comm = self.device_mgr.get("core").comm
-        comm.clear_log()
+        core_addr = self.device_mgr.get_desc("comm")["arguments"]["host"]
+        mgmt = CommMgmt(self.device_mgr, core_addr)
+        mgmt.clear_log()
         self.execute(AddressCollision)
-        log = comm.get_log()
+        log = mgmt.get_log()
         self.assertIn("RTIO collision", log)
+        mgmt.close()
 
     def test_watchdog(self):
         # watchdog only works on the device
