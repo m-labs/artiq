@@ -13,6 +13,7 @@ from artiq.coredevice.comm_analyzer import (StoppedMessage, OutputMessage, Input
 
 
 artiq_low_latency = os.getenv("ARTIQ_LOW_LATENCY")
+artiq_in_devel = os.getenv("ARTIQ_IN_DEVEL")
 
 
 class PulseNotReceived(Exception):
@@ -497,6 +498,7 @@ class _DMA(EnvExperiment):
                 pass
 
 
+@unittest.skipUnless(artiq_in_devel, "feature still in development")
 class DMATest(ExperimentCase):
     def test_dma_storage(self):
         exp = self.create(_DMA)
