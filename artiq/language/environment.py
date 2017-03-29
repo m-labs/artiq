@@ -49,6 +49,12 @@ class _SimpleArgProcessor:
 
 class PYONValue(_SimpleArgProcessor):
     """An argument that can be any PYON-serializable value."""
+    def __init__(self, default=NoDefault):
+        # Override the _SimpleArgProcessor init, as list defaults are valid
+        # PYON values
+        if default is not NoDefault:
+            self.default_value = default
+
     def process(self, x):
         return pyon.decode(x)
 
