@@ -144,7 +144,8 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.submodules.rtio_core = rtio.Core(rtio_channels)
         self.csr_devices.append("rtio_core")
         self.submodules.rtio = rtio.KernelInitiator()
-        self.submodules.rtio_dma = rtio.DMA(self.get_native_sdram_if())
+        self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
+            rtio.DMA(self.get_native_sdram_if()))
         self.register_kernel_cpu_csrdevice("rtio")
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
