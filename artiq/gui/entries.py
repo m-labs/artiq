@@ -260,8 +260,7 @@ class _RangeScan(LayoutWidget):
 
         def update_randomize(value):
             state["randomize"] = value
-            if randomize.isChecked() != value:
-                randomize.setChecked(value)
+            randomize.setChecked(value)
 
         scanner.startChanged.connect(update_start)
         scanner.numChanged.connect(update_npoints)
