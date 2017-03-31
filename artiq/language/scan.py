@@ -103,7 +103,7 @@ class RandomScan(ScanObject):
         if seed is None:
             rf = random.random
         else:
-            rf = Random(seed).random
+            rf = random.Random(seed).random
         random.shuffle(self.sequence, rf)
 
     @portable
