@@ -361,6 +361,7 @@ class ScanEntry(LayoutWidget):
                     state[ty]["stop"] = default["stop"]
                     state[ty]["npoints"] = default["npoints"]
                     state[ty]["randomize"] = default["randomize"]
+                    state[ty]["seed"] = default["seed"]
                 elif ty == "ExplicitScan":
                     state[ty]["sequence"] = default["sequence"]
                 else:

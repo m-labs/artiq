@@ -78,9 +78,8 @@ class RangeScan(ScanObject):
             self.sequence = [i*dx + start for i in range(npoints)]
 
         if randomize:
-            if seed is not None:
-                random.seed(seed)
-            random.shuffle(self.sequence)
+            rng = random.Random(seed)
+            random.shuffle(self.sequence, rng.random)
 
     @portable
     def __iter__(self):
