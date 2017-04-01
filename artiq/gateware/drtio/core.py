@@ -4,7 +4,8 @@ from migen import *
 from migen.genlib.cdc import ElasticBuffer
 
 from artiq.gateware.drtio import (link_layer, aux_controller,
-                                  rt_packet_satellite, rt_ios_satellite, 
+                                  rt_packet_satellite, rt_ios_satellite,
+                                  rt_errors_satellite,
                                   rt_packet_master, rt_controller_master) 
 
 
@@ -63,6 +64,9 @@ class DRTIOSatellite(Module):
         self.submodules.ios = rt_ios_satellite.IOS(
             self.rt_packet, channels, fine_ts_width, full_ts_width)
 
+        self.submodules.rt_errors = rt_errors_satellite.RTErrorsSatellite(
+            self.rt_packet, self.ios)
+
         self.clock_domains.cd_rio = ClockDomain()
         self.clock_domains.cd_rio_phy = ClockDomain()
         self.comb += [
@@ -77,7 +81,7 @@ class DRTIOSatellite(Module):
 
     def get_csrs(self):
         return (self.link_layer.get_csrs() + self.link_stats.get_csrs() +
-                self.aux_controller.get_csrs())
+                self.rt_errors.get_csrs() + self.aux_controller.get_csrs())
 
 
 class DRTIOMaster(Module):

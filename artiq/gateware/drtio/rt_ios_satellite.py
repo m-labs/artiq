@@ -9,6 +9,9 @@ from artiq.gateware.rtio import rtlink
 
 class IOS(Module):
     def __init__(self, rt_packet, channels, max_fine_ts_width, full_ts_width):
+        self.write_underflow = Signal()
+        self.write_overflow = Signal()
+
         self.rt_packet = rt_packet
         self.max_fine_ts_width = max_fine_ts_width
 
@@ -21,6 +24,10 @@ class IOS(Module):
             )
         self.comb += rt_packet.tsc_input.eq(self.tsc)
 
+        self.sync.rio += [
+            self.write_underflow.eq(0),
+            self.write_overflow.eq(0)
+        ]
         for n, channel in enumerate(channels):
             self.add_output(n, channel)
             self.add_input(n, channel)
@@ -70,15 +77,11 @@ class IOS(Module):
         self.comb += fifo.we.eq(rt_packet.write_stb
                                 & (rt_packet.write_channel == n))
         self.sync.rio += [
-            If(rt_packet.write_overflow_ack,
-                rt_packet.write_overflow.eq(0)),
-            If(rt_packet.write_underflow_ack,
-                rt_packet.write_underflow.eq(0)),
             If(fifo.we,
-                If(~fifo.writable, rt_packet.write_overflow.eq(1)),
                 If(rt_packet.write_timestamp[max_fine_ts_width:] < (tsc_comp + 4),
-                    rt_packet.write_underflow.eq(1)
-                )
+                    self.write_underflow.eq(1)
+                ),
+                If(~fifo.writable, self.write_overflow.eq(1))
             )
         ]
         if data_width:

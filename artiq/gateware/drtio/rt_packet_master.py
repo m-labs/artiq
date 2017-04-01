@@ -116,10 +116,9 @@ class RTPacketMaster(Module):
         self.reset_ack = Signal()
         self.reset_phy = Signal()
 
-        # errors
-        self.error_not = Signal()
-        self.error_not_ack = Signal()
-        self.error_code = Signal(8)
+        # rx errors
+        self.err_unknown_packet_type = Signal()
+        self.err_packet_truncated = Signal()
 
         # packet counters
         self.packet_cnt_tx = Signal(32)
@@ -235,12 +234,6 @@ class RTPacketMaster(Module):
             self.echo_stb, self.echo_ack, None,
             echo_stb, echo_ack, None)
 
-        error_not = Signal()
-        error_code = Signal(8)
-        self.submodules += _CrossDomainNotification("rtio_rx",
-            error_not, error_code,
-            self.error_not, self.error_not_ack, self.error_code)
-
         read_not = Signal()
         read_no_event = Signal()
         read_is_overflow = Signal()
@@ -257,6 +250,14 @@ class RTPacketMaster(Module):
             read_is_overflow.eq(rx_dp.packet_as["read_reply_noevent"].overflow),
             read_data.eq(rx_dp.packet_as["read_reply"].data),
             read_timestamp.eq(rx_dp.packet_as["read_reply"].timestamp)
+        ]
+
+        err_unknown_packet_type = PulseSynchronizer("rtio_rx", "sys")
+        err_packet_truncated = PulseSynchronizer("rtio_rx", "sys")
+        self.submodules += err_unknown_packet_type, err_packet_truncated
+        self.comb += [
+            self.err_unknown_packet_type.eq(err_unknown_packet_type.o),
+            self.err_packet_truncated.eq(err_packet_truncated.o)
         ]
 
         # TX FSM
@@ -367,29 +368,19 @@ class RTPacketMaster(Module):
                 rx_dp.packet_buffer_load.eq(1),
                 If(rx_dp.packet_last,
                     Case(rx_dp.packet_type, {
-                        rx_plm.types["error"]: NextState("ERROR"),
                         rx_plm.types["echo_reply"]: echo_received_now.eq(1),
                         rx_plm.types["fifo_space_reply"]: NextState("FIFO_SPACE"),
                         rx_plm.types["read_reply"]: NextState("READ_REPLY"),
                         rx_plm.types["read_reply_noevent"]: NextState("READ_REPLY_NOEVENT"),
-                        "default": [
-                            error_not.eq(1),
-                            error_code.eq(error_codes["unknown_type_local"])
-                        ]
+                        "default": err_unknown_packet_type.i.eq(1)
                     })
                 ).Else(
                     ongoing_packet_next.eq(1)
                 )
             ),
             If(~rx_dp.frame_r & ongoing_packet,
-                error_not.eq(1),
-                error_code.eq(error_codes["truncated_local"])
+                err_packet_truncated.i.eq(1)
             )
-        )
-        rx_fsm.act("ERROR",
-            error_not.eq(1),
-            error_code.eq(rx_dp.packet_as["error"].code),
-            NextState("INPUT")
         )
         rx_fsm.act("FIFO_SPACE",
             fifo_space_not.eq(1),

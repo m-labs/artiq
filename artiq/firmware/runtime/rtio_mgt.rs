@@ -144,37 +144,23 @@ pub mod drtio {
         }
     }
 
-    // keep this in sync with error_codes in rt_packets.py
-    fn str_packet_error(err_code: u8) -> &'static str {
-        match err_code {
-            0 => "Received packet of an unknown type",
-            1 => "Satellite reported reception of a packet of an unknown type",
-            2 => "Received truncated packet",
-            3 => "Satellite reported reception of a truncated packet",
-            4 => "Satellite reported write overflow",
-            5 => "Satellite reported write underflow",
-            _ => "Unknown error code"
-        }
-    }
-
-    fn poll_errors() -> bool {
-        unsafe {
-            if csr::drtio::packet_err_present_read() != 0 {
-                let err_code = csr::drtio::packet_err_code_read();
-                error!("packet error {} ({})", err_code, str_packet_error(err_code));
-                csr::drtio::packet_err_present_write(1)
-            }
-            if csr::drtio::o_fifo_space_timeout_read() != 0 {
-                error!("timeout attempting to get remote FIFO space");
-                csr::drtio::o_fifo_space_timeout_write(1)
-            }
-        }
-        false
-    }
-
     pub fn error_thread(io: Io) {
-        // HACK
-        io.until(poll_errors).unwrap();
+        loop {
+            unsafe {
+                io.until(|| csr::drtio::protocol_error_read() != 0).unwrap();
+                let errors = csr::drtio::protocol_error_read();
+                if errors & 1 != 0 {
+                    error!("received packet of an unknown type");
+                }
+                if errors & 2 != 0 {
+                    error!("received truncated packet");
+                }
+                if errors & 4 != 0 {
+                    error!("timeout attempting to get remote FIFO space");
+                }
+                csr::drtio::protocol_error_write(errors);
+            }
+        }
     }
 }
 

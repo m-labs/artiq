@@ -78,6 +78,7 @@ class TestFullStack(unittest.TestCase):
         kcsrs = dut.master_ki
         csrs = dut.master.rt_controller.csrs
         mgr = dut.master.rt_manager
+        saterr = dut.satellite.rt_errors
 
         ttl_changes = []
         correct_ttl_changes = [
@@ -176,24 +177,22 @@ class TestFullStack(unittest.TestCase):
             self.assertGreater(max_wlen, 5)
 
         def test_tsc_error():
-            err_present = yield from mgr.packet_err_present.read()
-            self.assertEqual(err_present, 0)
+            errors = yield from saterr.protocol_error.read()
+            self.assertEqual(errors, 0)
             yield from csrs.tsc_correction.write(100000000)
             yield from csrs.set_time.write(1)
             for i in range(15):
                yield
             delay(10000*8)
             yield from write(0, 1)
-            for i in range(10):
+            for i in range(12):
                yield
-            err_present = yield from mgr.packet_err_present.read()
-            err_code = yield from mgr.packet_err_code.read()
-            self.assertEqual(err_present, 1)
-            self.assertEqual(err_code, rt_serializer.error_codes["write_underflow"])
-            yield from mgr.packet_err_present.write(1)
+            errors = yield from saterr.protocol_error.read()
+            self.assertEqual(errors, 4)  # write underflow
+            yield from saterr.protocol_error.write(errors)
             yield
-            err_present = yield from mgr.packet_err_present.read()
-            self.assertEqual(err_present, 0)
+            errors = yield from saterr.protocol_error.read()
+            self.assertEqual(errors, 0)
 
         def wait_ttl_events():
             while len(ttl_changes) < len(correct_ttl_changes):

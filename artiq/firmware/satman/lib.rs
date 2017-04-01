@@ -69,6 +69,27 @@ fn process_aux_packets() {
 }
 
 
+fn process_errors() {
+    let errors;
+    unsafe {
+        errors = board::csr::drtio::protocol_error_read();
+        board::csr::drtio::protocol_error_write(errors);
+    }
+    if errors & 1 != 0 {
+        error!("received packet of an unknown type");
+    }
+    if errors & 2 != 0 {
+        error!("received truncated packet");
+    }
+    if errors & 4 != 0 {
+        error!("write underflow");
+    }
+    if errors & 8 != 0 {
+        error!("write overflow");
+    }
+}
+
+
 #[cfg(rtio_frequency = "62.5")]
 const SI5324_SETTINGS: board::si5324::FrequencySettings
         = board::si5324::FrequencySettings {
@@ -111,10 +132,13 @@ fn startup() {
     board::si5324::setup(&SI5324_SETTINGS).expect("cannot initialize si5324");
 
     loop {
-        while !drtio_link_is_up() {}
+        while !drtio_link_is_up() {
+            process_errors();
+        }
         info!("link is up, switching to recovered clock");
         board::si5324::select_ext_input(true).expect("failed to switch clocks");
         while drtio_link_is_up() {
+            process_errors();
             process_aux_packets();
         }
         info!("link is down, switching to local crystal clock");

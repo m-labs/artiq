@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from migen import *
 
-__all__ = ["ReceiveDatapath", "TransmitDatapath", "error_codes",
+__all__ = ["ReceiveDatapath", "TransmitDatapath",
            "get_m2s_layouts", "get_s2m_layouts"]
 
 
@@ -64,7 +64,6 @@ def get_m2s_layouts(alignment):
 def get_s2m_layouts(alignment):
     plm = PacketLayoutManager(alignment)
 
-    plm.add_type("error", ("code", 8))
     plm.add_type("echo_reply")
 
     plm.add_type("fifo_space_reply", ("space", 16))
@@ -73,20 +72,6 @@ def get_s2m_layouts(alignment):
     plm.add_type("read_reply_noevent", ("overflow", 1))  # overflow=0→timeout
 
     return plm
-
-
-# keep this in sync with str_packet_error in rtio_mgt.rs
-error_codes = {
-    "unknown_type_local": 0,
-    "unknown_type_remote": 1,
-    "truncated_local": 2,
-    "truncated_remote": 3,
-    # The transmitter is normally responsible for avoiding
-    # overflows and underflows. Those error reports are only
-    # for diagnosing internal ARTIQ bugs.
-    "write_overflow": 4,
-    "write_underflow": 5
-}
 
 
 class ReceiveDatapath(Module):

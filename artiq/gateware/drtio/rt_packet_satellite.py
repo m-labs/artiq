@@ -8,6 +8,9 @@ from artiq.gateware.drtio.rt_serializer import *
 
 class RTPacketSatellite(Module):
     def __init__(self, link_layer):
+        self.unknown_packet_type = Signal()
+        self.packet_truncated = Signal()
+
         self.tsc_load = Signal()
         self.tsc_load_value = Signal(64)
         self.tsc_input = Signal(64)
@@ -25,9 +28,7 @@ class RTPacketSatellite(Module):
         self.write_address = Signal(16)
         self.write_data = Signal(512)
         self.write_overflow = Signal()
-        self.write_overflow_ack = Signal()
         self.write_underflow = Signal()
-        self.write_underflow_ack = Signal()
 
         self.read_channel = Signal(16)
         self.read_readable = Signal()
@@ -68,19 +69,13 @@ class RTPacketSatellite(Module):
 
         # RX->TX
         echo_req = Signal()
-        err_set = Signal()
-        err_req = Signal()
-        err_ack = Signal()
         fifo_space_set = Signal()
         fifo_space_req = Signal()
         fifo_space_ack = Signal()
         self.sync += [
-            If(err_ack, err_req.eq(0)),
-            If(err_set, err_req.eq(1)),
             If(fifo_space_ack, fifo_space_req.eq(0)),
             If(fifo_space_set, fifo_space_req.eq(1)),
         ]
-        err_code = Signal(max=len(error_codes)+1)
 
         # RX FSM
         self.comb += [
@@ -145,16 +140,13 @@ class RTPacketSatellite(Module):
                         rx_plm.types["write"]: NextState("WRITE"),
                         rx_plm.types["fifo_space_request"]: NextState("FIFO_SPACE"),
                         rx_plm.types["read_request"]: NextState("READ_REQUEST"),
-                        "default": [
-                            err_set.eq(1),
-                            NextValue(err_code, error_codes["unknown_type_remote"])]
+                        "default": self.unknown_packet_type.eq(1)
                     })
                 ).Else(
                     ongoing_packet_next.eq(1)
                 ),
                 If(~rx_dp.frame_r & ongoing_packet,
-                    err_set.eq(1),
-                    NextValue(err_code, error_codes["truncated_remote"])
+                    self.packet_truncated.eq(1)
                 )
             )
         )
@@ -178,8 +170,7 @@ class RTPacketSatellite(Module):
             ).Else(
                 write_data_buffer_load.eq(1),
                 If(~rx_dp.frame_r,
-                    err_set.eq(1),
-                    NextValue(err_code, error_codes["truncated_remote"]),
+                    self.packet_truncated.eq(1),
                     NextState("INPUT")
                 )
             )
@@ -202,14 +193,11 @@ class RTPacketSatellite(Module):
         tx_fsm.act("IDLE",
             If(echo_req, NextState("ECHO")),
             If(fifo_space_req, NextState("FIFO_SPACE")),
-            If(self.write_overflow, NextState("ERROR_WRITE_OVERFLOW")),
-            If(self.write_underflow, NextState("ERROR_WRITE_UNDERFLOW")),
             If(~read_request_wait & read_request_pending,
                 If(read_request_timeout, NextState("READ_TIMEOUT")),
                 If(self.read_overflow, NextState("READ_OVERFLOW")),
                 If(self.read_readable, NextState("READ"))
-            ),
-            If(err_req, NextState("ERROR"))
+            )
         )
 
         tx_fsm.act("ECHO",
@@ -220,16 +208,6 @@ class RTPacketSatellite(Module):
         tx_fsm.act("FIFO_SPACE",
             fifo_space_ack.eq(1),
             tx_dp.send("fifo_space_reply", space=self.fifo_space),
-            If(tx_dp.packet_last, NextState("IDLE"))
-        )
-        tx_fsm.act("ERROR_WRITE_OVERFLOW",
-            self.write_overflow_ack.eq(1),
-            tx_dp.send("error", code=error_codes["write_overflow"]),
-            If(tx_dp.packet_last, NextState("IDLE"))
-        )
-        tx_fsm.act("ERROR_WRITE_UNDERFLOW",
-            self.write_underflow_ack.eq(1),
-            tx_dp.send("error", code=error_codes["write_underflow"]),
             If(tx_dp.packet_last, NextState("IDLE"))
         )
 
@@ -255,10 +233,4 @@ class RTPacketSatellite(Module):
                 self.read_consume.eq(1),
                 NextState("IDLE")
             )
-        )
-
-        tx_fsm.act("ERROR",
-            err_ack.eq(1),
-            tx_dp.send("error", code=err_code),
-            If(tx_dp.packet_last, NextState("IDLE"))
         )

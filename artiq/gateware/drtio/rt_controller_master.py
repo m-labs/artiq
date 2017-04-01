@@ -13,6 +13,8 @@ from artiq.gateware.rtio import cri
 
 class _CSRs(AutoCSR):
     def __init__(self):
+        self.protocol_error = CSR(3)
+
         self.chan_sel_override = CSRStorage(16)
         self.chan_sel_override_en = CSRStorage()
 
@@ -29,7 +31,6 @@ class _CSRs(AutoCSR):
         self.o_dbg_fifo_space_req_cnt = CSRStatus(32)
         self.o_reset_channel_status = CSR()
         self.o_wait = CSRStatus()
-        self.o_fifo_space_timeout = CSR()
 
 
 class RTController(Module):
@@ -37,6 +38,24 @@ class RTController(Module):
         self.csrs = _CSRs()
         self.cri = cri.Interface()
         self.comb += self.cri.arb_gnt.eq(1)
+
+        # protocol errors
+        err_unknown_packet_type = Signal()
+        err_packet_truncated = Signal()
+        signal_fifo_space_timeout = Signal()
+        err_fifo_space_timeout = Signal()
+        self.sync.sys_with_rst += [
+            If(self.csrs.protocol_error.re, 
+                If(self.csrs.protocol_error.r[0], err_unknown_packet_type.eq(0)),
+                If(self.csrs.protocol_error.r[1], err_packet_truncated.eq(0)),
+                If(self.csrs.protocol_error.r[2], err_fifo_space_timeout.eq(0))
+            ),
+            If(rt_packet.err_unknown_packet_type, err_unknown_packet_type.eq(1)),
+            If(rt_packet.err_packet_truncated, err_packet_truncated.eq(1)),
+            If(signal_fifo_space_timeout, err_fifo_space_timeout.eq(1))
+        ]
+        self.comb += self.csrs.protocol_error.w.eq(
+            Cat(err_unknown_packet_type, err_packet_truncated, err_fifo_space_timeout))
 
         # channel selection
         chan_sel = Signal(16)
@@ -135,11 +154,6 @@ class RTController(Module):
             If(o_sequence_error_set, o_status_sequence_error.eq(1))
         ]
 
-        signal_fifo_space_timeout = Signal()
-        self.sync.sys_with_rst += [
-            If(self.csrs.o_fifo_space_timeout.re, self.csrs.o_fifo_space_timeout.w.eq(0)),
-            If(signal_fifo_space_timeout, self.csrs.o_fifo_space_timeout.w.eq(1))
-        ]
         timeout_counter = WaitTimer(8191)
         self.submodules += timeout_counter
 
@@ -273,9 +287,6 @@ class RTManager(Module, AutoCSR):
     def __init__(self, rt_packet):
         self.request_echo = CSR()
 
-        self.packet_err_present = CSR()
-        self.packet_err_code = CSRStatus(8)
-
         self.update_packet_cnt = CSR()
         self.packet_cnt_tx = CSRStatus(32)
         self.packet_cnt_rx = CSRStatus(32)
@@ -286,12 +297,6 @@ class RTManager(Module, AutoCSR):
         self.sync += [
             If(rt_packet.echo_ack, rt_packet.echo_stb.eq(0)),
             If(self.request_echo.re, rt_packet.echo_stb.eq(1))
-        ]
-
-        self.comb += [
-            self.packet_err_present.w.eq(rt_packet.error_not),
-            rt_packet.error_not_ack.eq(self.packet_err_present.re),
-            self.packet_err_code.status.eq(rt_packet.error_code)
         ]
 
         self.sync += \
