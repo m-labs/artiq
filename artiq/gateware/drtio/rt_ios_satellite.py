@@ -112,6 +112,8 @@ class IOS(Module):
         if fine_ts_width:
             self.sync.rio += interface.fine_ts.eq(fifo_out.timestamp[:fine_ts_width])
 
+        self.sync.rio += If(interface.stb & interface.busy, self.busy.eq(1))
+
     def add_input(self, n, channel):
         rt_packet = self.rt_packet
 
