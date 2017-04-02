@@ -11,6 +11,8 @@ class IOS(Module):
     def __init__(self, rt_packet, channels, max_fine_ts_width, full_ts_width):
         self.write_underflow = Signal()
         self.write_overflow = Signal()
+        self.collision = Signal()
+        self.busy = Signal()
 
         self.rt_packet = rt_packet
         self.max_fine_ts_width = max_fine_ts_width
@@ -26,7 +28,9 @@ class IOS(Module):
 
         self.sync.rio += [
             self.write_underflow.eq(0),
-            self.write_overflow.eq(0)
+            self.write_overflow.eq(0),
+            self.collision.eq(0),
+            self.busy.eq(0)
         ]
         for n, channel in enumerate(channels):
             self.add_output(n, channel)

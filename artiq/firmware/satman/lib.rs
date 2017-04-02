@@ -16,6 +16,27 @@ fn process_aux_packet(p: &drtioaux::Packet) {
     // and u16 otherwise; hence the `as _` conversion.
     match *p {
         drtioaux::Packet::EchoRequest => drtioaux::hw::send(&drtioaux::Packet::EchoReply).unwrap(),
+
+        drtioaux::Packet::RtioErrorRequest => {
+            let errors;
+            unsafe {
+                errors = board::csr::drtio::rtio_error_read();
+            }
+            if errors & 1 != 0 {
+                unsafe {
+                    board::csr::drtio::rtio_error_write(1);
+                }
+                drtioaux::hw::send(&drtioaux::Packet::RtioErrorCollisionReply).unwrap();
+            } else if errors & 2 != 0 {
+                unsafe {
+                    board::csr::drtio::rtio_error_write(2);
+                }
+                drtioaux::hw::send(&drtioaux::Packet::RtioErrorBusyReply).unwrap();
+            } else {
+                drtioaux::hw::send(&drtioaux::Packet::RtioNoErrorReply).unwrap();
+            }
+        }
+
         drtioaux::Packet::MonitorRequest { channel, probe } => {
             let value;
             #[cfg(has_rtio_moninj)]

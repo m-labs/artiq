@@ -20,6 +20,12 @@ use proto::*;
 pub enum Packet {
     EchoRequest,
     EchoReply,
+
+    RtioErrorRequest,
+    RtioNoErrorReply,
+    RtioErrorCollisionReply,
+    RtioErrorBusyReply,
+
     MonitorRequest { channel: u16, probe: u8 },
     MonitorReply { value: u32 },
     InjectionRequest { channel: u16, overrd: u8, value: u8 },
@@ -30,25 +36,31 @@ pub enum Packet {
 impl Packet {
     pub fn read_from(reader: &mut Read) -> io::Result<Packet> {
         Ok(match read_u8(reader)? {
-            0 => Packet::EchoRequest,
-            1 => Packet::EchoReply,
-            2 => Packet::MonitorRequest {
+            0x00 => Packet::EchoRequest,
+            0x01 => Packet::EchoReply,
+
+            0x20 => Packet::RtioErrorRequest,
+            0x21 => Packet::RtioNoErrorReply,
+            0x22 => Packet::RtioErrorCollisionReply,
+            0x23 => Packet::RtioErrorBusyReply,
+
+            0x40 => Packet::MonitorRequest {
                 channel: read_u16(reader)?,
                 probe: read_u8(reader)?
             },
-            3 => Packet::MonitorReply {
+            0x41 => Packet::MonitorReply {
                 value: read_u32(reader)?
             },
-            4 => Packet::InjectionRequest {
+            0x50 => Packet::InjectionRequest {
                 channel: read_u16(reader)?,
                 overrd: read_u8(reader)?,
                 value: read_u8(reader)?
             },
-            5 => Packet::InjectionStatusRequest {
+            0x51 => Packet::InjectionStatusRequest {
                 channel: read_u16(reader)?,
                 overrd: read_u8(reader)?
             },
-            6 => Packet::InjectionStatusReply {
+            0x52 => Packet::InjectionStatusReply {
                 value: read_u8(reader)?
             },
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, "unknown packet type"))
@@ -57,30 +69,36 @@ impl Packet {
 
     pub fn write_to(&self, writer: &mut Write) -> io::Result<()> {
         match *self {
-            Packet::EchoRequest => write_u8(writer, 0)?,
-            Packet::EchoReply => write_u8(writer, 1)?,
+            Packet::EchoRequest => write_u8(writer, 0x00)?,
+            Packet::EchoReply => write_u8(writer, 0x01)?,
+
+            Packet::RtioErrorRequest => write_u8(writer, 0x20)?,
+            Packet::RtioNoErrorReply => write_u8(writer, 0x21)?,
+            Packet::RtioErrorCollisionReply => write_u8(writer, 0x22)?,
+            Packet::RtioErrorBusyReply => write_u8(writer, 0x23)?,
+
             Packet::MonitorRequest { channel, probe } => {
-                write_u8(writer, 2)?;
+                write_u8(writer, 0x40)?;
                 write_u16(writer, channel)?;
                 write_u8(writer, probe)?;
             },
             Packet::MonitorReply { value } => {
-                write_u8(writer, 3)?;
+                write_u8(writer, 0x41)?;
                 write_u32(writer, value)?;
             },
             Packet::InjectionRequest { channel, overrd, value } => {
-                write_u8(writer, 4)?;
+                write_u8(writer, 0x50)?;
                 write_u16(writer, channel)?;
                 write_u8(writer, overrd)?;
                 write_u8(writer, value)?;
             },
             Packet::InjectionStatusRequest { channel, overrd } => {
-                write_u8(writer, 5)?;
+                write_u8(writer, 0x51)?;
                 write_u16(writer, channel)?;
                 write_u8(writer, overrd)?;
             },
             Packet::InjectionStatusReply { value } => {
-                write_u8(writer, 6)?;
+                write_u8(writer, 0x52)?;
                 write_u8(writer, value)?;
             }
         }
@@ -159,6 +177,18 @@ pub mod hw {
             }
             None => Ok(None)
         }
+    }
+
+    pub fn recv_timeout(timeout_ms: u64) -> io::Result<Packet> {
+        let limit = board::clock::get_ms() + timeout_ms;
+        while board::clock::get_ms() < limit {
+            match recv() {
+                Ok(None) => (),
+                Ok(Some(packet)) => return Ok(packet),
+                Err(e) => return Err(e)
+            }
+        }
+        return Err(io::Error::new(io::ErrorKind::TimedOut, "timed out waiting for data"))
     }
 
     fn tx_get_buffer() -> &'static mut [u8] {

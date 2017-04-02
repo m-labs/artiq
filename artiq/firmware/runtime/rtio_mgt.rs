@@ -43,7 +43,8 @@ pub mod drtio {
 
     pub fn startup(io: &Io) {
         io.spawn(4096, link_thread);
-        io.spawn(4096, error_thread);
+        io.spawn(4096, local_error_thread);
+        io.spawn(4096, aux_error_thread);
     }
 
     static mut LINK_RUNNING: bool = false;
@@ -144,7 +145,7 @@ pub mod drtio {
         }
     }
 
-    pub fn error_thread(io: Io) {
+    pub fn local_error_thread(io: Io) {
         loop {
             unsafe {
                 io.until(|| csr::drtio::protocol_error_read() != 0).unwrap();
@@ -159,6 +160,22 @@ pub mod drtio {
                     error!("timeout attempting to get remote FIFO space");
                 }
                 csr::drtio::protocol_error_write(errors);
+            }
+        }
+    }
+
+    pub fn aux_error_thread(io: Io) {
+        loop {
+            io.sleep(200).unwrap();
+            if link_is_running() {
+                drtioaux::hw::send(&drtioaux::Packet::RtioErrorRequest).unwrap();
+                match drtioaux::hw::recv_timeout(10) {
+                    Ok(drtioaux::Packet::RtioNoErrorReply) => (),
+                    Ok(drtioaux::Packet::RtioErrorCollisionReply) => error!("RTIO collision (in satellite)"),
+                    Ok(drtioaux::Packet::RtioErrorBusyReply) => error!("RTIO busy (in satellite)"),
+                    Ok(_) => error!("received unexpected aux packet"),
+                    Err(e) => error!("aux packet error ({})", e)
+                }
             }
         }
     }

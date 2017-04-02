@@ -35,32 +35,22 @@ fn read_probe_local(channel: u16, probe: u8) -> u32 {
 }
 
 #[cfg(has_drtio)]
-fn read_probe_drtio(io: &Io, channel: u16, probe: u8) -> u32 {
+fn read_probe_drtio(channel: u16, probe: u8) -> u32 {
     if rtio_mgt::drtio::link_is_running() {
         let request = drtioaux::Packet::MonitorRequest { channel: channel, probe: probe };
         drtioaux::hw::send(&request).unwrap();
-
-        let timeout = clock::get_ms() + 20;
-        while clock::get_ms() < timeout {
-            if !rtio_mgt::drtio::link_is_running() {
-                return 0
-            }
-            match drtioaux::hw::recv() {
-                Ok(None) => (),
-                Ok(Some(drtioaux::Packet::MonitorReply { value })) => return value,
-                Ok(Some(_)) => warn!("received unexpected aux packet"),
-                Err(e) => warn!("aux packet error ({})", e)
-            }
-            io.relinquish().unwrap();
+        match drtioaux::hw::recv_timeout(10) {
+            Ok(drtioaux::Packet::MonitorReply { value }) => return value,
+            Ok(_) => error!("received unexpected aux packet"),
+            Err(e) => error!("aux packet error ({})", e)
         }
-        warn!("aux packet timeout");
         0
     } else {
         0
     }
 }
 
-fn read_probe(_io: &Io, channel: u32, probe: u8) -> u32 {
+fn read_probe(channel: u32, probe: u8) -> u32 {
     #[cfg(has_rtio_moninj)]
     {
         if channel & 0xff0000 == 0 {
@@ -70,7 +60,7 @@ fn read_probe(_io: &Io, channel: u32, probe: u8) -> u32 {
     #[cfg(has_drtio)]
     {
         if channel & 0xff0000 != 0 {
-            return read_probe_drtio(_io, channel as u16, probe)
+            return read_probe_drtio(channel as u16, probe)
         }
     }
     error!("read_probe: unrecognized channel number {}", channel);
@@ -126,35 +116,25 @@ fn read_injection_status_local(channel: u16, overrd: u8) -> u8 {
 }
 
 #[cfg(has_drtio)]
-fn read_injection_status_drtio(io: &Io, channel: u16, overrd: u8) -> u8 {
+fn read_injection_status_drtio(channel: u16, overrd: u8) -> u8 {
     if rtio_mgt::drtio::link_is_running() {
         let request = drtioaux::Packet::InjectionStatusRequest {
             channel: channel,
             overrd: overrd
         };
         drtioaux::hw::send(&request).unwrap();
-
-        let timeout = clock::get_ms() + 20;
-        while clock::get_ms() < timeout {
-            if !rtio_mgt::drtio::link_is_running() {
-                return 0
-            }
-            match drtioaux::hw::recv() {
-                Ok(None) => (),
-                Ok(Some(drtioaux::Packet::InjectionStatusReply { value })) => return value,
-                Ok(Some(_)) => warn!("received unexpected aux packet"),
-                Err(e) => warn!("aux packet error ({})", e)
-            }
-            io.relinquish().unwrap();
+        match drtioaux::hw::recv_timeout(10) {
+            Ok(drtioaux::Packet::InjectionStatusReply { value }) => return value,
+            Ok(_) => error!("received unexpected aux packet"),
+            Err(e) => error!("aux packet error ({})", e)
         }
-        warn!("aux packet timeout");
         0
     } else {
         0
     }
 }
 
-fn read_injection_status(_io: &Io, channel: u32, probe: u8) -> u8 {
+fn read_injection_status(channel: u32, probe: u8) -> u8 {
     #[cfg(has_rtio_moninj)]
     {
         if channel & 0xff0000 == 0 {
@@ -164,7 +144,7 @@ fn read_injection_status(_io: &Io, channel: u32, probe: u8) -> u8 {
     #[cfg(has_drtio)]
     {
         if channel & 0xff0000 != 0 {
-            return read_injection_status_drtio(_io, channel as u16, probe)
+            return read_injection_status_drtio(channel as u16, probe)
         }
     }
     error!("read_injection_status: unrecognized channel number {}", channel);
@@ -191,7 +171,7 @@ fn connection_worker(io: &Io, mut stream: &mut TcpStream) -> io::Result<()> {
                 },
                 HostMessage::Inject { channel, overrd, value } => inject(channel, overrd, value),
                 HostMessage::GetInjectionStatus { channel, overrd } => {
-                    let value = read_injection_status(io, channel, overrd);
+                    let value = read_injection_status(channel, overrd);
                     let reply = DeviceMessage::InjectionStatus {
                         channel: channel,
                         overrd: overrd,
@@ -206,7 +186,7 @@ fn connection_worker(io: &Io, mut stream: &mut TcpStream) -> io::Result<()> {
 
         if clock::get_ms() > next_check {
             for (&(channel, probe), previous) in watch_list.iter_mut() {
-                let current = read_probe(io, channel, probe);
+                let current = read_probe(channel, probe);
                 if previous.is_none() || (previous.unwrap() != current) {
                     let message = DeviceMessage::MonitorStatus {
                         channel: channel,
