@@ -333,7 +333,9 @@ class Core(Module, AutoCSR):
             If(self.cri.cmd == cri.commands["write"],
                 o_underflow.eq(0),
                 o_sequence_error.eq(0),
-            ),
+            )
+        ]
+        self.sync += [
             If(self.async_error.re,
                 If(self.async_error.r[0], o_collision.eq(0)),
                 If(self.async_error.r[1], o_busy.eq(0)),
@@ -370,7 +372,9 @@ class Core(Module, AutoCSR):
 
             self.sync.rsys += [
                 If(o_manager.underflow, o_underflow.eq(1)),
-                If(o_manager.sequence_error, o_sequence_error.eq(1)),
+                If(o_manager.sequence_error, o_sequence_error.eq(1))
+            ]
+            self.sync += [
                 If(o_manager.collision, o_collision.eq(1)),
                 If(o_manager.busy, o_busy.eq(1))
             ]
