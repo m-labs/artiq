@@ -1,8 +1,9 @@
 """Protocol error reporting for satellites."""
 
 from migen import *
-from migen.genlib.cdc import PulseSynchronizer
 from misoc.interconnect.csr import *
+
+from artiq.gateware.rtio.cdc import BlindTransfer
 
 
 class RTErrorsSatellite(Module, AutoCSR):
@@ -13,12 +14,12 @@ class RTErrorsSatellite(Module, AutoCSR):
         def error_csr(csr, *sources):
             for n, source in enumerate(sources):
                 pending = Signal(related=source)
-                ps = PulseSynchronizer("rtio", "sys")
-                self.submodules += ps
-                self.comb += ps.i.eq(source)
+                xfer = BlindTransfer(odomain="sys")
+                self.submodules += xfer
+                self.comb += xfer.i.eq(source)
                 self.sync += [
                     If(csr.re & csr.r[n], pending.eq(0)),
-                    If(ps.o, pending.eq(1))
+                    If(xfer.o, pending.eq(1))
                 ]
                 self.comb += csr.w[n].eq(pending)
 

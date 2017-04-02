@@ -5,7 +5,7 @@ from migen.genlib.fsm import *
 from migen.genlib.fifo import AsyncFIFO
 from migen.genlib.cdc import PulseSynchronizer
 
-from artiq.gateware.rtio.cdc import GrayCodeTransfer
+from artiq.gateware.rtio.cdc import GrayCodeTransfer, BlindTransfer
 from artiq.gateware.drtio.rt_serializer import *
 
 
@@ -252,8 +252,8 @@ class RTPacketMaster(Module):
             read_timestamp.eq(rx_dp.packet_as["read_reply"].timestamp)
         ]
 
-        err_unknown_packet_type = PulseSynchronizer("rtio_rx", "sys")
-        err_packet_truncated = PulseSynchronizer("rtio_rx", "sys")
+        err_unknown_packet_type = BlindTransfer("rtio_rx", "sys")
+        err_packet_truncated = BlindTransfer("rtio_rx", "sys")
         self.submodules += err_unknown_packet_type, err_packet_truncated
         self.comb += [
             self.err_unknown_packet_type.eq(err_unknown_packet_type.o),
