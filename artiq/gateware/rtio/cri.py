@@ -17,9 +17,6 @@ commands = {
 
 
 layout = [
-    ("arb_req", 1, DIR_M_TO_S),
-    ("arb_gnt", 1, DIR_S_TO_M),
-
     ("cmd", 2, DIR_M_TO_S),
     # 8 MSBs of chan_sel are used to select core
     ("chan_sel", 24, DIR_M_TO_S),
@@ -49,9 +46,6 @@ class Interface(Record):
 
 class KernelInitiator(Module, AutoCSR):
     def __init__(self, cri=None):
-        self.arb_req = CSRStorage()
-        self.arb_gnt = CSRStatus()
-
         self.chan_sel = CSRStorage(24)
         self.timestamp = CSRStorage(64)
 
@@ -77,9 +71,6 @@ class KernelInitiator(Module, AutoCSR):
         # # #
 
         self.comb += [
-            self.cri.arb_req.eq(self.arb_req.storage),
-            self.arb_gnt.status.eq(self.cri.arb_gnt),
-
             self.cri.cmd.eq(commands["nop"]),
             If(self.o_we.re, self.cri.cmd.eq(commands["write"])),
             If(self.i_request.re, self.cri.cmd.eq(commands["read"])),
@@ -132,7 +123,7 @@ class CRIDecoder(Module):
         self.comb += Case(selected, cases)
 
 
-class CRIArbiter(Module):
+class CRIArbiter(Module, AutoCSR):
     def __init__(self, masters=2, slave=None):
         if isinstance(masters, int):
             masters = [Interface() for _ in range(masters)]
@@ -141,18 +132,18 @@ class CRIArbiter(Module):
         self.masters = masters
         self.slave = slave
 
+        self.selected = CSRStorage(len(masters).bit_length())
+
         # # #
 
         if len(masters) == 1:
             self.comb += masters[0].connect(slave)
         else:
-            selected = Signal(max=len(masters))
-
             # mux master->slave signals
             for name, size, direction in layout:
                 if direction == DIR_M_TO_S:
                     choices = Array(getattr(m, name) for m in masters)
-                    self.comb += getattr(slave, name).eq(choices[selected])
+                    self.comb += getattr(slave, name).eq(choices[self.selected.storage])
 
             # connect slave->master signals
             for name, size, direction in layout:
@@ -160,20 +151,13 @@ class CRIArbiter(Module):
                     source = getattr(slave, name)
                     for i, m in enumerate(masters):
                         dest = getattr(m, name)
-                        if name == "arb_gnt":
-                            self.comb += dest.eq(source & (selected == i))
-                        else:
-                            self.comb += dest.eq(source)
-
-            # select master
-            self.sync += \
-                If(~slave.arb_req,
-                    [If(m.arb_req, selected.eq(i)) for i, m in enumerate(masters)]
-                )
-
+                        self.comb += dest.eq(source)
 
 class CRIInterconnectShared(Module):
     def __init__(self, masters=2, slaves=2):
         shared = Interface()
         self.submodules.arbiter = CRIArbiter(masters, shared)
         self.submodules.decoder = CRIDecoder(slaves, shared)
+
+    def get_csrs(self):
+        return self.arbiter.get_csrs()

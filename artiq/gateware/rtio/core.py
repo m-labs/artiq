@@ -291,7 +291,6 @@ class Core(Module, AutoCSR):
         self.reset = CSR()
         self.reset_phy = CSR()
         self.async_error = CSR(2)
-        self.comb += self.cri.arb_gnt.eq(1)
 
         # Clocking/Reset
         # Create rsys, rio and rio_phy domains based on sys and rtio

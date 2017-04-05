@@ -151,6 +151,7 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.submodules.cri_con = rtio.CRIInterconnectShared(
             [self.rtio.cri, self.rtio_dma.cri],
             [self.rtio_core.cri])
+        self.csr_devices.append("cri_con")
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 

@@ -244,9 +244,6 @@ class TimeOffset(Module, AutoCSR):
 
 class CRIMaster(Module, AutoCSR):
     def __init__(self):
-        self.arb_req = CSRStorage()
-        self.arb_gnt = CSRStatus()
-
         self.error_status = CSRStatus(3)  # same encoding as RTIO status
         self.error_underflow_reset = CSR()
         self.error_sequence_error_reset = CSR()
@@ -260,11 +257,6 @@ class CRIMaster(Module, AutoCSR):
         self.busy = Signal()
 
         # # #
-
-        self.comb += [
-            self.cri.arb_req.eq(self.arb_req.storage),
-            self.arb_gnt.status.eq(self.cri.arb_gnt)
-        ]
 
         error_set = Signal(2)
         for i, rcsr in enumerate([self.error_underflow_reset, self.error_sequence_error_reset]):
