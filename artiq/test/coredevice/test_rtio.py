@@ -503,7 +503,6 @@ class _DMA(EnvExperiment):
                 pass
 
 
-@unittest.skipUnless(artiq_in_devel, "feature still in development")
 class DMATest(ExperimentCase):
     def test_dma_storage(self):
         exp = self.create(_DMA)
