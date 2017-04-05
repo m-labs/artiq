@@ -123,7 +123,7 @@ class CRIDecoder(Module):
         self.comb += Case(selected, cases)
 
 
-class CRIArbiter(Module, AutoCSR):
+class CRISwitch(Module, AutoCSR):
     def __init__(self, masters=2, slave=None):
         if isinstance(masters, int):
             masters = [Interface() for _ in range(masters)]
@@ -156,8 +156,8 @@ class CRIArbiter(Module, AutoCSR):
 class CRIInterconnectShared(Module):
     def __init__(self, masters=2, slaves=2):
         shared = Interface()
-        self.submodules.arbiter = CRIArbiter(masters, shared)
+        self.submodules.switch = CRISwitch(masters, shared)
         self.submodules.decoder = CRIDecoder(slaves, shared)
 
     def get_csrs(self):
-        return self.arbiter.get_csrs()
+        return self.switch.get_csrs()
