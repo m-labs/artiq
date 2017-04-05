@@ -388,18 +388,21 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
                 session.congress.dma_manager.record_append(timestamp, channel, address, data);
                 kern_acknowledge()
             }
-            &kern::DmaRecordStop(name) => {
-                session.congress.dma_manager.record_stop(name);
+            &kern::DmaRecordStop { name, duration } => {
+                session.congress.dma_manager.record_stop(name, duration);
                 board::cache::flush_l2_cache();
                 kern_acknowledge()
             }
-            &kern::DmaEraseRequest(name) => {
+            &kern::DmaEraseRequest { name } => {
                 session.congress.dma_manager.erase(name);
                 kern_acknowledge()
             }
-            &kern::DmaPlaybackRequest(name) => {
-                session.congress.dma_manager.with_trace(name, |trace| {
-                    kern_send(io, &kern::DmaPlaybackReply(trace))
+            &kern::DmaPlaybackRequest { name } => {
+                session.congress.dma_manager.with_trace(name, |trace, duration| {
+                    kern_send(io, &kern::DmaPlaybackReply {
+                        trace:    trace,
+                        duration: duration
+                    })
                 })
             }
 

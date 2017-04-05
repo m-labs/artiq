@@ -2,6 +2,7 @@
 # Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
 
 import os, unittest
+import numpy as np
 
 from math import sqrt
 
@@ -477,6 +478,7 @@ class _DMA(EnvExperiment):
         self.setattr_device("core_dma")
         self.setattr_device("ttl1")
         self.trace_name = trace_name
+        self.delta = np.int64(0)
 
     @kernel
     def record(self):
@@ -491,6 +493,14 @@ class _DMA(EnvExperiment):
         self.core.break_realtime()
         delay(100*ms)
         self.core_dma.replay(self.trace_name)
+
+    @kernel
+    def replay_delta(self):
+        self.core.break_realtime()
+        delay(100*ms)
+        start = now_mu()
+        self.core_dma.replay(self.trace_name)
+        self.delta = now_mu() - start
 
     @kernel
     def erase(self):
@@ -539,3 +549,9 @@ class DMATest(ExperimentCase):
         self.assertEqual(dump.messages[1].data, 0)
         self.assertEqual(dump.messages[1].timestamp -
                          dump.messages[0].timestamp, 100)
+
+    def test_dma_delta(self):
+        exp = self.create(_DMA)
+        exp.record()
+        exp.replay_delta()
+        self.assertEqual(exp.delta, 200)

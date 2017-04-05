@@ -257,7 +257,7 @@ extern fn dma_record_start() {
     }
 }
 
-extern fn dma_record_stop(name: CSlice<u8>) {
+extern fn dma_record_stop(name: CSlice<u8>, duration: i64) {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
     unsafe {
@@ -272,7 +272,10 @@ extern fn dma_record_stop(name: CSlice<u8>) {
                        rtio::output_wide as *const () as u32).unwrap();
 
         DMA_RECORDING = false;
-        send(&DmaRecordStop(name));
+        send(&DmaRecordStop {
+            name:     name,
+            duration: duration as u64
+        });
     }
 }
 
@@ -298,15 +301,16 @@ extern fn dma_record_output_wide(timestamp: i64, channel: i32, address: i32, dat
 extern fn dma_erase(name: CSlice<u8>) {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
-    send(&DmaEraseRequest(name));
+    send(&DmaEraseRequest { name: name });
 }
 
 extern fn dma_playback(timestamp: i64, name: CSlice<u8>) {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
-    send(&DmaPlaybackRequest(name));
-    let succeeded = recv!(&DmaPlaybackReply(data) => unsafe {
-        match data {
+    send(&DmaPlaybackRequest { name: name });
+    let (succeeded, now_advance) =
+            recv!(&DmaPlaybackReply { trace, duration } => unsafe {
+        match trace {
             Some(bytes) => {
                 let ptr = bytes.as_ptr() as usize;
                 assert!(ptr % 64 == 0);
@@ -319,9 +323,10 @@ extern fn dma_playback(timestamp: i64, name: CSlice<u8>) {
                 while csr::rtio_dma::enable_read() != 0 {}
                 csr::cri_con::selected_write(0);
 
-                true
+                (true, duration)
             }
-            None => false
+            None =>
+                (false, 0)
         }
     });
 
@@ -347,6 +352,8 @@ extern fn dma_playback(timestamp: i64, name: CSlice<u8>) {
                 "RTIO sequence error at {0} mu, channel {1}",
                 timestamp as i64, channel as i64, 0)
         }
+
+        NOW += now_advance;
     }
 }
 

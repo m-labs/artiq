@@ -16,7 +16,7 @@ def dma_record_start() -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 @syscall
-def dma_record_stop(name: TStr) -> TNone:
+def dma_record_stop(name: TStr, duration: TInt64) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 @syscall
@@ -51,7 +51,7 @@ class DMARecordContextManager:
 
     @kernel
     def __exit__(self, type, value, traceback):
-        dma_record_stop(self.name) # see above
+        dma_record_stop(self.name, now_mu()) # see above
         at_mu(self.saved_now_mu)
 
 

@@ -9,7 +9,8 @@ const ALIGNMENT: usize = 64;
 #[derive(Debug)]
 struct Entry {
     data: Vec<u8>,
-    padding: usize
+    padding: usize,
+    duration: u64
 }
 
 #[derive(Debug)]
@@ -62,7 +63,7 @@ impl Manager {
         }
     }
 
-    pub fn record_stop(&mut self, name: &str) {
+    pub fn record_stop(&mut self, name: &str, duration: u64) {
         let mut recorded = Vec::new();
         mem::swap(&mut self.recording, &mut recorded);
         recorded.push(0);
@@ -83,6 +84,7 @@ impl Manager {
         self.entries.insert(String::from(name), Entry {
             data: recorded,
             padding: padding,
+            duration: duration
         });
     }
 
@@ -90,9 +92,11 @@ impl Manager {
         self.entries.remove(name);
     }
 
-    pub fn with_trace<F: FnOnce(Option<&[u8]>) -> R, R>(&self, name: &str, f: F) -> R {
-        f(self.entries
-              .get(name)
-              .map(|entry| &entry.data[entry.padding..]))
+    pub fn with_trace<F, R>(&self, name: &str, f: F) -> R
+            where F: FnOnce(Option<&[u8]>, u64) -> R {
+        match self.entries.get(name) {
+            Some(entry) => f(Some(&entry.data[entry.padding..]), entry.duration),
+            None => f(None, 0)
+        }
     }
 }

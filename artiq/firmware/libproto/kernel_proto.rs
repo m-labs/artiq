@@ -36,12 +36,22 @@ pub enum Message<'a> {
         address:   u32,
         data:      &'a [u32]
     },
-    DmaRecordStop(&'a str),
+    DmaRecordStop {
+        name:      &'a str,
+        duration:  u64
+    },
 
-    DmaEraseRequest(&'a str),
+    DmaEraseRequest {
+        name: &'a str
+    },
 
-    DmaPlaybackRequest(&'a str),
-    DmaPlaybackReply(Option<&'a [u8]>),
+    DmaPlaybackRequest {
+        name: &'a str
+    },
+    DmaPlaybackReply {
+        trace:    Option<&'a [u8]>,
+        duration: u64
+    },
 
     DrtioChannelStateRequest { channel: u32 },
     DrtioChannelStateReply { fifo_space: u16, last_timestamp: u64 },
