@@ -22,6 +22,8 @@ class RTPacketSatellite(Module):
         self.fifo_space_update = Signal()
         self.fifo_space = Signal(16)
 
+        # write parameters are stable one cycle before stb is asserted,
+        # and when stb is asserted.
         self.write_stb = Signal()
         self.write_timestamp = Signal(64)
         self.write_channel = Signal(16)

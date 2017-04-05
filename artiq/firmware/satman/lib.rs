@@ -108,6 +108,9 @@ fn process_errors() {
     if errors & 8 != 0 {
         error!("write overflow");
     }
+    if errors & 16 != 0 {
+        error!("write sequence error");
+    }
 }
 
 

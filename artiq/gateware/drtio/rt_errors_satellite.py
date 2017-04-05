@@ -8,7 +8,7 @@ from artiq.gateware.rtio.cdc import BlindTransfer
 
 class RTErrorsSatellite(Module, AutoCSR):
     def __init__(self, rt_packet, ios):
-        self.protocol_error = CSR(4)
+        self.protocol_error = CSR(5)
         self.rtio_error = CSR(2)
 
         def error_csr(csr, *sources):
@@ -23,14 +23,15 @@ class RTErrorsSatellite(Module, AutoCSR):
                 ]
                 self.comb += csr.w[n].eq(pending)
 
-        # The master is normally responsible for avoiding output overflows and
-        # output underflows. 
+        # The master is normally responsible for avoiding output overflows,
+        # output underflows, and sequence errors.
         # Error reports here are only for diagnosing internal ARTIQ bugs.
         error_csr(self.protocol_error, 
                   rt_packet.unknown_packet_type,
                   rt_packet.packet_truncated,
                   ios.write_underflow,
-                  ios.write_overflow)
+                  ios.write_overflow,
+                  ios.write_sequence_error)
         error_csr(self.rtio_error,
                   ios.collision,
                   ios.busy)

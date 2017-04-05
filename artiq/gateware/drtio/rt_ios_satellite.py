@@ -11,6 +11,7 @@ class IOS(Module):
     def __init__(self, rt_packet, channels, max_fine_ts_width, full_ts_width):
         self.write_underflow = Signal()
         self.write_overflow = Signal()
+        self.write_sequence_error = Signal()
         self.collision = Signal()
         self.busy = Signal()
 
@@ -46,6 +47,10 @@ class IOS(Module):
         fine_ts_width = rtlink.get_fine_ts_width(interface)
         assert fine_ts_width <= max_fine_ts_width
 
+        we = Signal()
+        self.comb += we.eq(rt_packet.write_stb
+                           & (rt_packet.write_channel == n))
+
         # latency compensation
         if interface.delay:
             tsc_comp = Signal.like(self.tsc)
@@ -71,29 +76,85 @@ class IOS(Module):
             fifo_out.raw_bits().eq(fifo.dout)
         ]
 
+        # Buffer
+        buf_pending = Signal()
+        buf = Record(ev_layout)
+        buf_just_written = Signal()
+
+        # Special cases
+        replace = Signal()
+        sequence_error = Signal()
+        collision = Signal()
+        any_error = Signal()
+        if interface.enable_replace:
+            # Note: replace may be asserted at the same time as collision
+            # when addresses are different. In that case, it is a collision.
+            self.sync.rio += replace.eq(rt_packet.write_timestamp == buf.timestamp)
+            # Detect sequence errors on coarse timestamps only
+            # so that they are mutually exclusive with collision errors.
+        self.sync.rio += sequence_error.eq(rt_packet.write_timestamp[fine_ts_width:] <
+                                            buf.timestamp[fine_ts_width:])
+        if interface.enable_replace:
+            if address_width:
+                different_addresses = rt_packet.write_address != buf.address
+            else:
+                different_addresses = 0
+            if fine_ts_width:
+                self.sync.rio += collision.eq(
+                    (rt_packet.write_timestamp[fine_ts_width:] == buf.timestamp[fine_ts_width:])
+                    & ((rt_packet.write_timestamp[:fine_ts_width] != buf.timestamp[:fine_ts_width])
+                       |different_addresses))
+        else:
+            self.sync.rio += collision.eq(
+                rt_packet.write_timestamp[fine_ts_width:] == buf.timestamp[fine_ts_width:])
+        self.comb += any_error.eq(sequence_error | collision)
+        self.sync.rio += [
+            If(we & sequence_error, self.write_sequence_error.eq(1)),
+            If(we & collision, self.collision.eq(1))
+        ]
+
+        # Buffer read and FIFO write
+        self.comb += fifo_in.eq(buf)
+        in_guard_time = Signal()
+        self.comb += in_guard_time.eq(
+            buf.timestamp[fine_ts_width:] < tsc_comp + 4)
+        self.sync.rio += If(in_guard_time, buf_pending.eq(0))
+        report_underflow = Signal()
+        self.comb += \
+            If(buf_pending,
+                If(in_guard_time,
+                    If(buf_just_written,
+                        report_underflow.eq(1)
+                    ).Else(
+                        fifo.we.eq(1)
+                    )
+                ),
+                If(we & ~replace & ~any_error,
+                   fifo.we.eq(1)
+                )
+            )
+        self.sync.rio += If(report_underflow, self.write_underflow.eq(1))
+
+        # Buffer write
+        # Must come after read to handle concurrent read+write properly
+        self.sync.rio += [
+            buf_just_written.eq(0),
+            If(we & ~any_error,
+                buf_just_written.eq(1),
+                buf_pending.eq(1),
+                buf.timestamp.eq(
+                    rt_packet.write_timestamp[max_fine_ts_width-fine_ts_width:]),
+                buf.data.eq(rt_packet.write_data) if data_width else [],
+                buf.address.eq(rt_packet.write_address) if address_width else [],
+            ),
+            If(we & ~fifo.writable, self.write_overflow.eq(1))
+        ]
+
         # FIFO level
         self.sync.rio += \
             If(rt_packet.fifo_space_update &
                (rt_packet.fifo_space_channel == n),
                 rt_packet.fifo_space.eq(channel.ofifo_depth - fifo.level))
-
-        # FIFO write
-        self.comb += fifo.we.eq(rt_packet.write_stb
-                                & (rt_packet.write_channel == n))
-        self.sync.rio += [
-            If(fifo.we,
-                If(rt_packet.write_timestamp[max_fine_ts_width:] < (tsc_comp + 4),
-                    self.write_underflow.eq(1)
-                ),
-                If(~fifo.writable, self.write_overflow.eq(1))
-            )
-        ]
-        if data_width:
-            self.comb += fifo_in.data.eq(rt_packet.write_data)
-        if address_width:
-            self.comb += fifo_in.address.eq(rt_packet.write_address)
-        self.comb += fifo_in.timestamp.eq(
-            rt_packet.write_timestamp[max_fine_ts_width-fine_ts_width:])
 
         # FIFO read
         self.sync.rio += [
