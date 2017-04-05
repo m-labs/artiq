@@ -37,7 +37,6 @@ class RTController(Module):
     def __init__(self, rt_packet, channel_count, fine_ts_width):
         self.csrs = _CSRs()
         self.cri = cri.Interface()
-        self.comb += self.cri.arb_gnt.eq(1)
 
         # protocol errors
         err_unknown_packet_type = Signal()
@@ -45,7 +44,7 @@ class RTController(Module):
         signal_fifo_space_timeout = Signal()
         err_fifo_space_timeout = Signal()
         self.sync.sys_with_rst += [
-            If(self.csrs.protocol_error.re, 
+            If(self.csrs.protocol_error.re,
                 If(self.csrs.protocol_error.r[0], err_unknown_packet_type.eq(0)),
                 If(self.csrs.protocol_error.r[1], err_packet_truncated.eq(0)),
                 If(self.csrs.protocol_error.r[2], err_fifo_space_timeout.eq(0))
@@ -70,7 +69,7 @@ class RTController(Module):
         tsc_correction = Signal(64)
         self.csrs.tsc_correction.storage.attr.add("no_retiming")
         self.specials += MultiReg(self.csrs.tsc_correction.storage, tsc_correction)
-        self.comb += [ 
+        self.comb += [
             rt_packet.tsc_value.eq(
                 self.counter.value_rtio + tsc_correction),
             self.csrs.set_time.w.eq(rt_packet.set_time_stb)
