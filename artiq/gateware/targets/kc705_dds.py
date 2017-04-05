@@ -102,6 +102,7 @@ class _NIST_Ions(MiniSoC, AMPSoC):
     mem_map = {
         "rtio":          0x20000000,
         "rtio_dma":      0x30000000,
+        "cri_con":       0x50000000,
         "mailbox":       0x70000000
     }
     mem_map.update(MiniSoC.mem_map)
@@ -151,7 +152,7 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.submodules.cri_con = rtio.CRIInterconnectShared(
             [self.rtio.cri, self.rtio_dma.cri],
             [self.rtio_core.cri])
-        self.csr_devices.append("cri_con")
+        self.register_kernel_cpu_csrdevice("cri_con")
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
