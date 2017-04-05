@@ -100,9 +100,9 @@ _ams101_dac = [
 
 class _NIST_Ions(MiniSoC, AMPSoC):
     mem_map = {
+        "cri_con":       0x10000000,
         "rtio":          0x20000000,
         "rtio_dma":      0x30000000,
-        "cri_con":       0x50000000,
         "mailbox":       0x70000000
     }
     mem_map.update(MiniSoC.mem_map)

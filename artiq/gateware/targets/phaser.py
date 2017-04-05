@@ -156,6 +156,7 @@ class AD9154(Module, AutoCSR):
 
 class Phaser(MiniSoC, AMPSoC):
     mem_map = {
+        "cri_con":       0x10000000,
         "rtio":          0x20000000,
         # "rtio_dma":      0x30000000,
         "mailbox":       0x70000000,
@@ -240,6 +241,7 @@ class Phaser(MiniSoC, AMPSoC):
         self.submodules.cri_con = rtio.CRIInterconnectShared(
             [self.rtio.cri],  # , self.rtio_dma.cri],
             [self.rtio_core.cri])
+        self.register_kernel_cpu_csrdevice("cri_con")
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_core.cri,
