@@ -104,6 +104,9 @@ class _OutputManager(Module):
                     (self.ev.timestamp[fine_ts_width:] == buf.timestamp[fine_ts_width:])
                     & ((self.ev.timestamp[:fine_ts_width] != buf.timestamp[:fine_ts_width])
                        |different_addresses))
+            else:
+                self.sync.rsys += collision.eq(
+                    (self.ev.timestamp == buf.timestamp) & different_addresses)
         else:
             self.sync.rsys += collision.eq(
                 self.ev.timestamp[fine_ts_width:] == buf.timestamp[fine_ts_width:])
