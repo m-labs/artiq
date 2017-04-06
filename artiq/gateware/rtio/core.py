@@ -90,8 +90,8 @@ class _OutputManager(Module):
             # Note: replace may be asserted at the same time as collision
             # when addresses are different. In that case, it is a collision.
             self.sync.rsys += replace.eq(self.ev.timestamp == buf.timestamp)
-            # Detect sequence errors on coarse timestamps only
-            # so that they are mutually exclusive with collision errors.
+        # Detect sequence errors on coarse timestamps only
+        # so that they are mutually exclusive with collision errors.
         self.sync.rsys += sequence_error.eq(self.ev.timestamp[fine_ts_width:] <
                                             buf.timestamp[fine_ts_width:])
         if interface.enable_replace:
