@@ -143,7 +143,8 @@ class TestFullStack(unittest.TestCase):
             delay(200*8)
             yield from write(0, 1)
             delay(5*8)
-            yield from write(0, 0)
+            yield from write(0, 1)
+            yield from write(0, 0)  # replace
             yield from write(1, 1)
             delay(6*8)
             yield from write(1, 0)
@@ -159,7 +160,7 @@ class TestFullStack(unittest.TestCase):
             self.assertNotEqual((yield dut.phy2.received_data), correct_large_data)
             delay(10*8)
             yield from write(2, correct_large_data)
-            for i in range(40):
+            for i in range(45):
                 yield
             self.assertEqual((yield dut.phy2.received_data), correct_large_data)
 
