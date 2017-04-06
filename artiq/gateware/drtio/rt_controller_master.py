@@ -156,7 +156,6 @@ class RTController(Module):
         timeout_counter = WaitTimer(8191)
         self.submodules += timeout_counter
 
-        # TODO: collision, replace, busy
         cond_sequence_error = self.cri.timestamp < last_timestamps.dat_r
         cond_underflow = ((self.cri.timestamp[fine_ts_width:]
                            - self.csrs.underflow_margin.storage[fine_ts_width:]) < self.counter.value_sys)
