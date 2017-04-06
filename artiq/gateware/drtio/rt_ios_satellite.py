@@ -50,6 +50,9 @@ class IOS(Module):
         we = Signal()
         self.comb += we.eq(rt_packet.write_stb
                            & (rt_packet.write_channel == n))
+        write_timestamp = rt_packet.write_timestamp[max_fine_ts_width-fine_ts_width:]
+        write_timestamp_coarse = rt_packet.write_timestamp[max_fine_ts_width:]
+        write_timestamp_fine = rt_packet.write_timestamp[max_fine_ts_width-fine_ts_width:max_fine_ts_width]
 
         # latency compensation
         if interface.delay:
@@ -89,11 +92,10 @@ class IOS(Module):
         if interface.enable_replace:
             # Note: replace may be asserted at the same time as collision
             # when addresses are different. In that case, it is a collision.
-            self.sync.rio += replace.eq(rt_packet.write_timestamp == buf.timestamp)
-            # Detect sequence errors on coarse timestamps only
-            # so that they are mutually exclusive with collision errors.
-        self.sync.rio += sequence_error.eq(rt_packet.write_timestamp[fine_ts_width:] <
-                                            buf.timestamp[fine_ts_width:])
+            self.sync.rio += replace.eq(write_timestamp == buf.timestamp)
+        # Detect sequence errors on coarse timestamps only
+        # so that they are mutually exclusive with collision errors.
+        self.sync.rio += sequence_error.eq(write_timestamp_coarse < buf.timestamp[fine_ts_width:])
         if interface.enable_replace:
             if address_width:
                 different_addresses = rt_packet.write_address != buf.address
@@ -101,12 +103,15 @@ class IOS(Module):
                 different_addresses = 0
             if fine_ts_width:
                 self.sync.rio += collision.eq(
-                    (rt_packet.write_timestamp[fine_ts_width:] == buf.timestamp[fine_ts_width:])
-                    & ((rt_packet.write_timestamp[:fine_ts_width] != buf.timestamp[:fine_ts_width])
+                    (write_timestamp_coarse == buf.timestamp[fine_ts_width:])
+                    & ((write_timestamp_fine != buf.timestamp[:fine_ts_width])
                        |different_addresses))
+            else:
+                self.sync.rio += collision.eq(
+                    (write_timestamp == buf.timestamp) & different_addresses)
         else:
             self.sync.rio += collision.eq(
-                rt_packet.write_timestamp[fine_ts_width:] == buf.timestamp[fine_ts_width:])
+                write_timestamp_coarse == buf.timestamp[fine_ts_width:])
         self.comb += any_error.eq(sequence_error | collision)
         self.sync.rio += [
             If(we & sequence_error, self.write_sequence_error.eq(1)),
@@ -142,8 +147,7 @@ class IOS(Module):
             If(we & ~any_error,
                 buf_just_written.eq(1),
                 buf_pending.eq(1),
-                buf.timestamp.eq(
-                    rt_packet.write_timestamp[max_fine_ts_width-fine_ts_width:]),
+                buf.timestamp.eq(write_timestamp),
                 buf.data.eq(rt_packet.write_data) if data_width else [],
                 buf.address.eq(rt_packet.write_address) if address_width else [],
             ),
