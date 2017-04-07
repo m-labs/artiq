@@ -75,7 +75,7 @@ _sma_spi = [
         Subsignal("cs_n", Pins("Y24")),  # user_sma_gpio_n
         Subsignal("mosi", Pins("L25")),  # user_sma_clk_p
         Subsignal("miso", Pins("K25")),  # user_sma_clk_n
-        IOStandard("LVCMOS33")),
+        IOStandard("LVCMOS25")),
 ]
 
 
