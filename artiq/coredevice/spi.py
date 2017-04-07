@@ -56,9 +56,14 @@ class SPIMaster:
 
     :param channel: RTIO channel number of the SPI bus to control.
     """
+
+    kernel_invariants = {"core", "ref_period_mu", "channel"}
+
     def __init__(self, dmgr, channel, core_device="core"):
         self.core = dmgr.get(core_device)
-        self.ref_period_mu = self.core.seconds_to_mu(self.core.coarse_ref_period)
+        self.ref_period_mu = self.core.seconds_to_mu(
+                self.core.coarse_ref_period)
+        assert self.ref_period_mu == self.core.ref_multiplier
         self.channel = channel
         self.write_period_mu = numpy.int64(0)
         self.read_period_mu = numpy.int64(0)
