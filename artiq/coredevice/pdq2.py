@@ -52,23 +52,15 @@ class PDQ2:
         self.bus.set_xfer(self.chip_select, 16, 0)
 
     @kernel
-    def write(self, data):
-        """Write 16 bits of data.
-
-        This method advances the timeline by the duration of the SPI transfer
-        and the required CS high time.
-        """
-        self.bus.write(data << 16)
-        delay_mu(self.bus.ref_period_mu)  # get to 20ns min cs high
-
-    @kernel
     def write_reg(self, adr, data, board):
-        self.write((_PDQ2_CMD(board, 0, adr, 1) << 24) | (data << 16))
+        self.bus.write((_PDQ2_CMD(board, 0, adr, 1) << 24) | (data << 16))
+        delay_mu(self.bus.ref_period_mu)  # get to 20ns min cs high
 
     @kernel
     def read_reg(self, adr, board):
         self.bus.set_xfer(self.chip_select, 16, 8)
-        self.write(_PDQ2_CMD(board, 0, adr, 0) << 24)
+        self.bus.write(_PDQ2_CMD(board, 0, adr, 0) << 24)
+        delay_mu(self.bus.ref_period_mu)  # get to 20ns min cs high
         self.bus.read_async()
         self.bus.set_xfer(self.chip_select, 16, 0)
         return self.bus.input_async() & 0xff
@@ -99,7 +91,17 @@ class PDQ2:
 
     @kernel
     def write_mem(self, mem, adr, data, board=0xf):
-        pass
+        self.bus.set_xfer(self.chip_select, 24, 0)
+        self.bus.write((_PDQ2_CMD(board, 1, mem, 1) << 24) |
+                       ((adr & 0x00ff) << 16) | (adr & 0xff00))
+        delay_mu(3*self.bus.ref_period_mu - self.bus.xfer_period_mu -
+                 self.bus.write_period_mu)
+        self.bus.set_xfer(self.chip_select, 16, 0)
+        for i in len(data)//2:
+            self.bus.write((data[2*i] << 24) | (data[2*i + 1] << 16))
+            delay_mu(-self.bus.write_period_mu)
+        delay_mu(self.bus.write_period_mu + self.bus.ref_period_mu)
+        # get to 20ns min cs high
 
     @kernel
     def read_mem(self, mem, adr, data, board=0xf):
