@@ -1,5 +1,4 @@
-from artiq.language.core import (kernel, portable, delay_mu, delay)
-from artiq.language.units import ns, us
+from artiq.language.core import kernel, portable, delay_mu
 from artiq.coredevice import spi
 
 
@@ -27,6 +26,8 @@ class PDQ2:
     :param chip_select: Value to drive on the chip select lines
       during transactions.
     """
+
+    kernel_invariants = {"core", "chip_select", "bus"}
 
     def __init__(self, dmgr, spi_device, chip_select=1):
         self.core = dmgr.get("core")
@@ -66,7 +67,10 @@ class PDQ2:
         return self.bus.input_async() & 0xff
 
     @kernel
-    def write_config(self, config, board=0xf):
+    def write_config(self, reset=0, clk2x=0, enable=1,
+                     trigger=0, aux_miso=0, aux_dac=0b111, board=0xf):
+        config = ((reset << 0) | (clk2x << 1) | (enable << 2) |
+                  (trigger << 3) | (aux_miso << 4) | (aux_dac << 5))
         self.write_reg(_PDQ2_ADR_CONFIG, config, board)
 
     @kernel
@@ -97,7 +101,7 @@ class PDQ2:
         delay_mu(3*self.bus.ref_period_mu - self.bus.xfer_period_mu -
                  self.bus.write_period_mu)
         self.bus.set_xfer(self.chip_select, 16, 0)
-        for i in len(data)//2:
+        for i in range(len(data)//2):
             self.bus.write((data[2*i] << 24) | (data[2*i + 1] << 16))
             delay_mu(-self.bus.write_period_mu)
         delay_mu(self.bus.write_period_mu + self.bus.ref_period_mu)
