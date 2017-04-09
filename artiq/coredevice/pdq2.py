@@ -98,8 +98,7 @@ class PDQ2:
         self.bus.set_xfer(self.chip_select, 24, 0)
         self.bus.write((_PDQ2_CMD(board, 1, mem, 1) << 24) |
                        ((adr & 0x00ff) << 16) | (adr & 0xff00))
-        delay_mu(3*self.bus.ref_period_mu - self.bus.xfer_period_mu -
-                 self.bus.write_period_mu)
+        delay_mu(-self.bus.write_period_mu-3*self.bus.ref_period_mu)
         self.bus.set_xfer(self.chip_select, 16, 0)
         for i in range(len(data)//2):
             self.bus.write((data[2*i] << 24) | (data[2*i + 1] << 16))
