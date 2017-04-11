@@ -699,7 +699,7 @@ class TypedtreeHasher(algorithm.Visitor):
         return hash(tuple(freeze(getattr(node, field_name)) for field_name in fields))
 
 class Stitcher:
-    def __init__(self, core, dmgr, engine=None):
+    def __init__(self, core, dmgr, engine=None, print_as_rpc=True):
         self.core = core
         self.dmgr = dmgr
         if engine is None:
@@ -715,7 +715,8 @@ class Stitcher:
         # We don't want some things from the prelude as they are provided in
         # the host Python namespace and gain special meaning when quoted.
         self.prelude = prelude.globals()
-        self.prelude.pop("print")
+        if print_as_rpc:
+            self.prelude.pop("print")
         self.prelude.pop("array")
 
         self.functions = {}

@@ -55,7 +55,7 @@ def main():
 
         object_map, kernel_library, _, _ = \
             core.compile(exp.run, [exp_inst], {},
-                         attribute_writeback=False)
+                         attribute_writeback=False, print_as_rpc=False)
     except CompileError as error:
         return
     finally:
