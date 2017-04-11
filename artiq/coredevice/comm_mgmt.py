@@ -13,6 +13,7 @@ class Request(Enum):
     SetLogFilter = 3
 
     Hotswap = 4
+    Reboot = 5
 
 
 class Reply(Enum):
@@ -20,7 +21,7 @@ class Reply(Enum):
 
     LogContent = 2
 
-    HotswapImminent = 3
+    RebootImminent = 3
 
 
 class LogLevel(Enum):
@@ -130,4 +131,8 @@ class CommMgmt:
     def hotswap(self, firmware):
         self._write_header(Request.Hotswap)
         self._write_bytes(firmware)
-        self._read_expect(Reply.HotswapImminent)
+        self._read_expect(Reply.RebootImminent)
+
+    def reboot(self):
+        self._write_header(Request.Reboot)
+        self._read_expect(Reply.RebootImminent)

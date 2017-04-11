@@ -12,6 +12,7 @@ pub enum Request {
     SetLogFilter(LogLevelFilter),
 
     Hotswap(Vec<u8>),
+    Reboot,
 }
 
 pub enum Reply<'a> {
@@ -19,7 +20,7 @@ pub enum Reply<'a> {
 
     LogContent(&'a str),
 
-    HotswapImminent,
+    RebootImminent,
 }
 
 impl Request {
@@ -42,6 +43,7 @@ impl Request {
                 Request::SetLogFilter(level)
             }
             4 => Request::Hotswap(reader.read_bytes()?),
+            5 => Request::Reboot,
             _  => return Err(io::Error::new(io::ErrorKind::InvalidData, "unknown request type"))
         })
     }
@@ -59,7 +61,7 @@ impl<'a> Reply<'a> {
                 writer.write_string(log)?;
             },
 
-            Reply::HotswapImminent => {
+            Reply::RebootImminent => {
                 writer.write_u8(3)?;
             },
         }

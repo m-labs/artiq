@@ -45,11 +45,18 @@ fn worker(mut stream: &mut TcpStream) -> io::Result<()> {
             },
 
             Request::Hotswap(firmware) => {
-                Reply::HotswapImminent.write_to(stream)?;
+                Reply::RebootImminent.write_to(stream)?;
                 stream.close()?;
                 warn!("hotswapping firmware");
                 unsafe { board::boot::hotswap(&firmware) }
             },
+
+            Request::Reboot => {
+                Reply::RebootImminent.write_to(stream)?;
+                stream.close()?;
+                warn!("rebooting");
+                unsafe { board::boot::reboot() }
+            }
         };
     }
 }

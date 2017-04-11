@@ -193,7 +193,7 @@ def main():
             logger.info("Hotswapping firmware")
             try:
                 subprocess.check_call(["python3",
-                    "-m", "artiq.frontend.artiq_coreboot",
+                    "-m", "artiq.frontend.artiq_coreboot", "hotswap",
                     "/tmp/{target}/software/{firmware}/{firmware}.bin"
                         .format(target=args.target, firmware=firmware)])
             except subprocess.CalledProcessError:
