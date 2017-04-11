@@ -197,3 +197,39 @@ The core device records the real-time I/O waveforms into a circular buffer. It i
                 delay(...)
 
 Afterwards, the recorded data can be extracted and written to a VCD file using ``artiq_coreanalyzer -w rtio.vcd`` (see: :ref:`core-device-rtio-analyzer-tool`). VCD files can be viewed using third-party tools such as GtkWave.
+
+
+DMA
+---
+
+DMA allows you to store fixed sequences of pulses in system memory, and have the DMA core in the FPGA play them back at high speed. Pulse sequences that are too fast for the CPU (i.e. would cause RTIO underflows) can still be generated using DMA. The only modification of the sequence that the DMA core supports is shifting it in time (so it can be played back at any position of the timeline), everything else is fixed at the time of recording the sequence.
+
+Try this: ::
+
+    from artiq.experiment import *
+
+
+    class DMAPulses(EnvExperiment):
+        def build(self):
+            self.setattr_device("core")
+            self.setattr_device("core_dma")
+            self.setattr_device("ttl0")
+
+        @kernel
+        def record(self):
+            with self.core_dma.record("pulses"):
+                # all RTIO operations now go to the "pulses"
+                # DMA buffer, instead of being executed immediately.
+                for i in range(100):
+                    self.ttl0.pulse(100*ns)
+                    delay(100*ns)
+
+        @kernel
+        def run(self):
+            self.core.reset()
+            self.record()
+            self.core.break_realtime()
+            while True:
+                # execute RTIO operations in the DMA buffer
+                # each replay advances the timeline by 50*(100+100) ns
+                self.core_dma.replay("pulses")
