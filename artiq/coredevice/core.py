@@ -81,11 +81,13 @@ class Core:
         self.core = self
         self.comm.core = self
 
-    def compile(self, function, args, kwargs, set_result=None, attribute_writeback=True):
+    def compile(self, function, args, kwargs, set_result=None,
+                attribute_writeback=True, print_as_rpc=True):
         try:
             engine = _DiagnosticEngine(all_errors_are_fatal=True)
 
-            stitcher = Stitcher(engine=engine, core=self, dmgr=self.dmgr)
+            stitcher = Stitcher(engine=engine, core=self, dmgr=self.dmgr,
+                                print_as_rpc=print_as_rpc)
             stitcher.stitch_call(function, args, kwargs, set_result)
             stitcher.finalize()
 
