@@ -32,7 +32,11 @@ Executing just ``conda`` should print the help of the ``conda`` command [1]_.
 Installing the ARTIQ packages
 -----------------------------
 
-Add the M-Labs ``main`` Anaconda package repository containing stable releases and release candidates to your conda configuration::
+First add the conda-forge repository containing ARTIQ dependencies to your conda configuration::
+
+    $ conda config --add channels http://conda.anaconda.org/conda-forge/label/main
+
+Then add the M-Labs ``main`` Anaconda package repository containing stable releases and release candidates::
 
     $ conda config --add channels http://conda.anaconda.org/m-labs/label/main
 

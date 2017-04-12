@@ -32,6 +32,12 @@ Release notes
 * LinearScan and RandomScan have been consolidated into RangeScan.
 
 
+2.3
+---
+
+* When using conda, add the conda-forge channel before installing ARTIQ.
+
+
 2.2
 ---
 
