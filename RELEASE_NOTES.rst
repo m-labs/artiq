@@ -3,6 +3,12 @@
 Release notes
 =============
 
+2.3
+---
+
+* When using conda, add the conda-forge channel before installing ARTIQ.
+
+
 2.2
 ---
 

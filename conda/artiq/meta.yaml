@@ -30,7 +30,7 @@ requirements:
     - dateutil
     - pyqt >=5.5
     - quamash
-    - pyqtgraph
+    - pyqtgraph 0.10.0
     - pygit2
     - aiohttp
     - levenshtein
