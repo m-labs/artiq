@@ -5,6 +5,7 @@
 from collections import OrderedDict
 from pythonparser import algorithm, diagnostic, ast
 from .. import asttyped, types, builtins
+from .typedtree_printer import TypedtreePrinter
 
 class Inferencer(algorithm.Visitor):
     """
