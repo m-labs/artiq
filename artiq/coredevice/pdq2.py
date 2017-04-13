@@ -100,29 +100,32 @@ class PDQ2:
                        ((adr & 0x00ff) << 16) | (adr & 0xff00))
         delay_mu(-self.bus.write_period_mu-3*self.bus.ref_period_mu)
         self.bus.set_xfer(self.chip_select, 16, 0)
-        for i in range(len(data)//2):
-            self.bus.write((data[2*i] << 24) | (data[2*i + 1] << 16))
+        for i in data:
+            self.bus.write(i << 16)
             delay_mu(-self.bus.write_period_mu)
         delay_mu(self.bus.write_period_mu + self.bus.ref_period_mu)
         # get to 20ns min cs high
 
     @kernel
-    def read_mem(self, mem, adr, data, board=0xf):
+    def read_mem(self, mem, adr, data, board=0xf, buffer=8):
+        n = len(data)
+        if not n:
+            return
         self.bus.set_xfer(self.chip_select, 24, 8)
         self.bus.write((_PDQ2_CMD(board, 1, mem, 0) << 24) |
                        ((adr & 0x00ff) << 16) | (adr & 0xff00))
         delay_mu(-self.bus.write_period_mu-3*self.bus.ref_period_mu)
         self.bus.set_xfer(self.chip_select, 0, 16)
-        for i in range(len(data)//2):
+        for i in range(n):
             self.bus.write(0)
-            delay_mu(-self.bus.write_period_mu-3*self.bus.ref_period_mu)
-            self.bus.read_async()
-            d = self.bus.input_async()
-            data[2*i] = (d >> 8) & 0xff
-            data[2*i + 1] = d & 0xff
-            return int(self.bus.input_async() & 0xff)  # FIXME: m-labs/artiq#713
-        delay_mu(self.bus.write_period_mu + self.bus.ref_period_mu)
-        # get to 20ns min cs high
+            delay_mu(-self.bus.write_period_mu)
+            if i > 0:
+                delay_mu(-3*self.bus.ref_period_mu)
+                self.bus.read_async()
+            if i > buffer:
+                data[i - 1 - buffer] = self.bus.input_async() & 0xffff
+        delay_mu(self.bus.write_period_mu)
         self.bus.set_xfer(self.chip_select, 16, 0)
-
-       pass
+        self.bus.read_async()
+        for i in range(max(0, n - buffer - 1), n):
+            data[i] = self.bus.input_async() & 0xffff
