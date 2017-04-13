@@ -28,7 +28,7 @@ def get_argparser():
                         type=str, default="lab.m-labs.hk",
                         help="SSH host where the development board is located")
     parser.add_argument("-s", "--serial", metavar="SERIAL",
-                        type=str, default="/dev/ttyUSB0",
+                        type=str, default="/dev/ttyUSB_kc705",
                         help="TTY device corresponding to the development board")
     parser.add_argument("-i", "--ip", metavar="IP",
                         type=str, default="kc705.lab.m-labs.hk",
@@ -38,7 +38,7 @@ def get_argparser():
                         help="Target to build, one of: "
                              "kc705_dds kc705_drtio_satellite")
     parser.add_argument("-c", "--config", metavar="TARGET_CFG",
-                        type=str, default=None,
+                        type=str, default="openocd-kc705.cfg",
                         help="OpenOCD configuration file corresponding to the development board")
 
     parser.add_argument("actions", metavar="ACTION",
