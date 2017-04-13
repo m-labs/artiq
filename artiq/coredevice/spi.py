@@ -1,6 +1,6 @@
 import numpy
 
-from artiq.language.core import (kernel, portable, now_mu, delay_mu)
+from artiq.language.core import kernel, portable, now_mu, delay_mu
 from artiq.language.units import MHz
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 
