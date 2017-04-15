@@ -4,7 +4,6 @@ use std::cell::{Cell, RefCell};
 use std::io::{self, Read, Write};
 use std::error::Error;
 use {config, rtio_mgt, mailbox, rpc_queue, kernel};
-use logger_artiq::BufferLogger;
 use cache::Cache;
 use rtio_dma::Manager as DmaManager;
 use urc::Urc;
@@ -667,8 +666,6 @@ pub fn thread(io: Io) {
     let listener = TcpListener::new(&io, 65535);
     listener.listen(1381).expect("session: cannot listen");
     info!("accepting network sessions");
-
-    BufferLogger::with_instance(|logger| logger.enable_concise_uart());
 
     let congress = Urc::new(RefCell::new(Congress::new()));
 

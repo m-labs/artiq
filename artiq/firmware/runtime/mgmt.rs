@@ -44,6 +44,13 @@ fn worker(mut stream: &mut TcpStream) -> io::Result<()> {
                 Reply::Success.write_to(stream)?;
             },
 
+            Request::SetUartLogFilter(level) => {
+                info!("changing UART log level to {}", level);
+                BufferLogger::with_instance(|logger|
+                    logger.set_uart_log_level(level));
+                Reply::Success.write_to(stream)?;
+            },
+
             Request::Hotswap(firmware) => {
                 Reply::RebootImminent.write_to(stream)?;
                 stream.close()?;

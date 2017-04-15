@@ -11,6 +11,7 @@ class Request(Enum):
     GetLog = 1
     ClearLog = 2
     SetLogFilter = 3
+    SetUartLogFilter = 6
 
     Hotswap = 4
     Reboot = 5
@@ -125,6 +126,14 @@ class CommMgmt:
             raise ValueError("invalid log level {}".format(level))
 
         self._write_header(Request.SetLogFilter)
+        self._write_int8(getattr(LogLevel, level).value)
+        self._read_expect(Reply.Success)
+
+    def set_uart_log_level(self, level):
+        if level not in LogLevel.__members__:
+            raise ValueError("invalid log level {}".format(level))
+
+        self._write_header(Request.SetUartLogFilter)
         self._write_int8(getattr(LogLevel, level).value)
         self._read_expect(Reply.Success)
 

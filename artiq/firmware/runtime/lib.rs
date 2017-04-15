@@ -69,15 +69,6 @@ fn startup() {
     }
     info!("continuing boot");
 
-    match config::read_str("log_level", |r| r?.parse()) {
-        Err(()) => (),
-        Ok(log_level_filter) => {
-            info!("log level set to {} in configuration", log_level_filter);
-            logger_artiq::BufferLogger::with_instance(|logger|
-                logger.set_max_log_level(log_level_filter));
-        }
-    }
-
     #[cfg(has_i2c)]
     board::i2c::init();
     #[cfg(has_ad9516)]
@@ -131,6 +122,28 @@ fn startup() {
     io.spawn(4096, moninj::thread);
     #[cfg(has_rtio_analyzer)]
     io.spawn(4096, analyzer::thread);
+
+    match config::read_str("log_level", |r| r?.parse()) {
+        Err(()) => (),
+        Ok(log_level_filter) => {
+            info!("log level set to {} by `log_level` config key",
+                  log_level_filter);
+            logger_artiq::BufferLogger::with_instance(|logger|
+                logger.set_max_log_level(log_level_filter));
+        }
+    }
+
+    match config::read_str("uart_log_level", |r| r?.parse()) {
+        Err(()) => {
+            info!("UART log level set to INFO by default");
+        },
+        Ok(uart_log_level_filter) => {
+            info!("UART log level set to {} by `uart_log_level` config key",
+                  uart_log_level_filter);
+            logger_artiq::BufferLogger::with_instance(|logger|
+                logger.set_uart_log_level(uart_log_level_filter));
+        }
+    }
 
     loop {
         scheduler.run();

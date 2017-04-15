@@ -1,6 +1,5 @@
 #![no_std]
 
-#[macro_use]
 extern crate log;
 extern crate log_buffer;
 extern crate board;
@@ -8,14 +7,14 @@ extern crate board;
 use core::{mem, ptr};
 use core::cell::{Cell, RefCell};
 use core::fmt::Write;
-use log::{Log, LogLevel, LogMetadata, LogRecord, LogLevelFilter, MaxLogLevelFilter};
+use log::{Log, LogMetadata, LogRecord, LogLevelFilter, MaxLogLevelFilter};
 use log_buffer::LogBuffer;
 use board::{Console, clock};
 
 pub struct BufferLogger {
-    buffer:       RefCell<LogBuffer<&'static mut [u8]>>,
-    filter:       RefCell<Option<MaxLogLevelFilter>>,
-    concise_uart: Cell<bool>
+    buffer:      RefCell<LogBuffer<&'static mut [u8]>>,
+    filter:      RefCell<Option<MaxLogLevelFilter>>,
+    uart_filter: Cell<LogLevelFilter>
 }
 
 static mut LOGGER: *const BufferLogger = 0 as *const _;
@@ -25,7 +24,7 @@ impl BufferLogger {
         BufferLogger {
             buffer: RefCell::new(LogBuffer::new(buffer)),
             filter: RefCell::new(None),
-            concise_uart: Cell::new(true)
+            uart_filter: Cell::new(LogLevelFilter::Info),
         }
     }
 
@@ -68,12 +67,8 @@ impl BufferLogger {
             .set(max_level)
     }
 
-    pub fn enable_concise_uart(&self) {
-        if self.concise_uart.get() {
-            trace!("disabling tracing to UART; all further trace messages \
-                    are sent to core log only");
-            self.concise_uart.set(false)
-        }
+    pub fn set_uart_log_level(&self, max_level: LogLevelFilter) {
+        self.uart_filter.set(max_level)
     }
 }
 
@@ -101,9 +96,7 @@ impl Log for BufferLogger {
                 }
             };
 
-            // Printing to UART is really slow, so avoid doing that when we have an alternative
-            // route to retrieve the debug messages.
-            if self.concise_uart.get() || record.level() <= LogLevel::Info || force_uart {
+            if record.level() <= self.uart_filter.get() || force_uart {
                 writeln!(Console, "[{:12}us] {:>5}({}): {}",
                          clock::get_us(), record.level(),
                          record.target(), record.args()).unwrap();

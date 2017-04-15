@@ -25,6 +25,12 @@ def get_argparser():
     p_set_level.add_argument("level", metavar="LEVEL", type=str,
                              help="log level (one of: OFF ERROR WARN INFO DEBUG TRACE)")
 
+    p_set_uart_level = subparsers.add_parser("set_uart_level",
+                                             help="set minimum level for messages to be logged "
+                                                  "to UART")
+    p_set_uart_level.add_argument("level", metavar="LEVEL", type=str,
+                                  help="log level (one of: OFF ERROR WARN INFO DEBUG TRACE)")
+
     return parser
 
 
@@ -37,6 +43,8 @@ def main():
         mgmt = CommMgmt(device_mgr, core_addr)
         if args.action == "set_level":
             mgmt.set_log_level(args.level)
+        elif args.action == "set_uart_level":
+            mgmt.set_uart_log_level(args.level)
         elif args.action == "clear":
             mgmt.clear_log()
         else:
