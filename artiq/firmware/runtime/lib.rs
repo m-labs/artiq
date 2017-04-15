@@ -180,6 +180,8 @@ pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u3
         println!("rebooting...");
         unsafe { board::boot::reboot() }
     } else {
+        println!("halting.");
+        println!("use `artiq_coreconfig write -s panic_reboot 1` to reboot instead");
         loop {}
     }
 }
