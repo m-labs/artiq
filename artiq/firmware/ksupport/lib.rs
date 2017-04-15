@@ -238,11 +238,33 @@ extern fn i2c_read(busno: i32, ack: bool) -> i32 {
     recv!(&I2cReadReply { data } => data) as i32
 }
 
-static mut DMA_RECORDING: bool = false;
+const DMA_BUFFER_SIZE: usize = 64 * 1024;
+
+struct DmaRecorder {
+    active:   bool,
+    #[allow(dead_code)]
+    padding:  [u8; 3], //https://github.com/rust-lang/rust/issues/41315
+    data_len: usize,
+    buffer:   [u8; DMA_BUFFER_SIZE],
+}
+
+static mut DMA_RECORDER: DmaRecorder = DmaRecorder {
+    active:   false,
+    padding:  [0; 3],
+    data_len: 0,
+    buffer:   [0; DMA_BUFFER_SIZE],
+};
+
+fn dma_record_flush() {
+    unsafe {
+        send(&DmaRecordAppend(&DMA_RECORDER.buffer[..DMA_RECORDER.data_len]));
+        DMA_RECORDER.data_len = 0;
+    }
+}
 
 extern fn dma_record_start() {
     unsafe {
-        if DMA_RECORDING {
+        if DMA_RECORDER.active {
             raise!("DMAError", "DMA is already recording")
         }
 
@@ -252,7 +274,7 @@ extern fn dma_record_start() {
         library.rebind(b"rtio_output_wide",
                        dma_record_output_wide as *const () as u32).unwrap();
 
-        DMA_RECORDING = true;
+        DMA_RECORDER.active = true;
         send(&DmaRecordStart);
     }
 }
@@ -261,7 +283,9 @@ extern fn dma_record_stop(name: CSlice<u8>, duration: i64) {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
     unsafe {
-        if !DMA_RECORDING {
+        dma_record_flush();
+
+        if !DMA_RECORDER.active {
             raise!("DMAError", "DMA is not recording")
         }
 
@@ -271,7 +295,7 @@ extern fn dma_record_stop(name: CSlice<u8>, duration: i64) {
         library.rebind(b"rtio_output_wide",
                        rtio::output_wide as *const () as u32).unwrap();
 
-        DMA_RECORDING = false;
+        DMA_RECORDER.active = false;
         send(&DmaRecordStop {
             name:     name,
             duration: duration as u64
@@ -279,23 +303,56 @@ extern fn dma_record_stop(name: CSlice<u8>, duration: i64) {
     }
 }
 
-extern fn dma_record_output(timestamp: i64, channel: i32, address: i32, data: i32) {
-    send(&DmaRecordAppend {
-        timestamp: timestamp as u64,
-        channel:   channel as u32,
-        address:   address as u32,
-        data:      &[data as u32]
-    })
+extern fn dma_record_output(timestamp: i64, channel: i32, address: i32, word: i32) {
+    dma_record_output_wide(timestamp, channel, address, [word].as_c_slice())
 }
 
-extern fn dma_record_output_wide(timestamp: i64, channel: i32, address: i32, data: CSlice<i32>) {
-    assert!(data.len() <= 16); // enforce the hardware limit
-    send(&DmaRecordAppend {
-        timestamp: timestamp as u64,
-        channel:   channel as u32,
-        address:   address as u32,
-        data:      unsafe { mem::transmute::<&[i32], &[u32]>(data.as_ref()) }
-    })
+extern fn dma_record_output_wide(timestamp: i64, channel: i32, address: i32, words: CSlice<i32>) {
+    assert!(words.len() <= 16); // enforce the hardware limit
+
+    // See gateware/rtio/dma.py.
+    let header_length = /*length*/1 + /*channel*/3 + /*timestamp*/8 + /*address*/2;
+    let length = header_length + /*data*/words.len() * 4;
+
+    let header = [
+        (length    >>  0) as u8,
+        (channel   >>  0) as u8,
+        (channel   >>  8) as u8,
+        (channel   >> 16) as u8,
+        (timestamp >>  0) as u8,
+        (timestamp >>  8) as u8,
+        (timestamp >> 16) as u8,
+        (timestamp >> 24) as u8,
+        (timestamp >> 32) as u8,
+        (timestamp >> 40) as u8,
+        (timestamp >> 48) as u8,
+        (timestamp >> 56) as u8,
+        (address   >>  0) as u8,
+        (address   >>  8) as u8,
+    ];
+
+    let mut data = [0; 16 * 4];
+    for (i, &word) in words.as_ref().iter().enumerate() {
+        let part = [
+            (word >>  0) as u8,
+            (word >>  8) as u8,
+            (word >> 16) as u8,
+            (word >> 24) as u8,
+        ];
+        data[i * 4..(i + 1) * 4].copy_from_slice(&part[..]);
+    }
+    let data = &data[..words.len() * 4];
+
+    unsafe {
+        if DMA_RECORDER.buffer.len() - DMA_RECORDER.data_len < length {
+            dma_record_flush()
+        }
+        let mut dst = &mut DMA_RECORDER.buffer[DMA_RECORDER.data_len..
+                                               DMA_RECORDER.data_len + length];
+        dst[..header_length].copy_from_slice(&header[..]);
+        dst[header_length..].copy_from_slice(&data[..]);
+        DMA_RECORDER.data_len += length;
+    }
 }
 
 extern fn dma_erase(name: CSlice<u8>) {

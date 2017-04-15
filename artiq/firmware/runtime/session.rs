@@ -129,6 +129,13 @@ fn host_write(stream: &mut Write, reply: host::Reply) -> io::Result<()> {
 fn kern_send(io: &Io, request: &kern::Message) -> io::Result<()> {
     match request {
         &kern::LoadRequest(_) => debug!("comm->kern LoadRequest(...)"),
+        &kern::DmaPlaybackReply { trace, duration } => {
+            if trace.map(|data| data.len() > 100).unwrap_or(false) {
+                debug!("comm->kern DmaPlaybackReply {{ trace: ..., duration: {:?} }}", duration)
+            } else {
+                debug!("comm->kern {:?}", request)
+            }
+        }
         _ => debug!("comm->kern {:?}", request)
     }
     unsafe { mailbox::send(request as *const _ as usize) }
@@ -150,6 +157,13 @@ fn kern_recv_dotrace(reply: &kern::Message) {
     match reply {
         &kern::Log(_) => debug!("comm<-kern Log(...)"),
         &kern::LogSlice(_) => debug!("comm<-kern LogSlice(...)"),
+        &kern::DmaRecordAppend(data) => {
+            if data.len() > 100 {
+                debug!("comm<-kern DmaRecordAppend(...)")
+            } else {
+                debug!("comm<-kern {:?}", reply)
+            }
+        }
         _ => debug!("comm<-kern {:?}", reply)
     }
 }
@@ -384,8 +398,8 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
                 session.congress.dma_manager.record_start();
                 kern_acknowledge()
             }
-            &kern::DmaRecordAppend { timestamp, channel, address, data } => {
-                session.congress.dma_manager.record_append(timestamp, channel, address, data);
+            &kern::DmaRecordAppend(data) => {
+                session.congress.dma_manager.record_append(data);
                 kern_acknowledge()
             }
             &kern::DmaRecordStop { name, duration } => {

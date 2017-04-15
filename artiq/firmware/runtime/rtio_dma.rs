@@ -31,36 +31,8 @@ impl Manager {
         self.recording = Vec::new();
     }
 
-    pub fn record_append(&mut self, timestamp: u64, channel: u32,
-                         address: u32, data: &[u32]) {
-        let writer = &mut self.recording;
-        // See gateware/rtio/dma.py.
-        let length = /*length*/1 + /*channel*/3 + /*timestamp*/8 + /*address*/2 +
-                     /*data*/data.len() * 4;
-        writer.write_all(&[
-            (length    >>  0) as u8,
-            (channel   >>  0) as u8,
-            (channel   >>  8) as u8,
-            (channel   >> 16) as u8,
-            (timestamp >>  0) as u8,
-            (timestamp >>  8) as u8,
-            (timestamp >> 16) as u8,
-            (timestamp >> 24) as u8,
-            (timestamp >> 32) as u8,
-            (timestamp >> 40) as u8,
-            (timestamp >> 48) as u8,
-            (timestamp >> 56) as u8,
-            (address   >>  0) as u8,
-            (address   >>  8) as u8,
-        ]).unwrap();
-        for &word in data {
-            writer.write_all(&[
-                (word >>  0) as u8,
-                (word >>  8) as u8,
-                (word >> 16) as u8,
-                (word >> 24) as u8,
-            ]).unwrap();
-        }
+    pub fn record_append(&mut self, data: &[u8]) {
+        self.recording.write_all(data).unwrap();
     }
 
     pub fn record_stop(&mut self, name: &str, duration: u64) {

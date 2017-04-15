@@ -6,7 +6,6 @@ pub const KERNELCPU_PAYLOAD_ADDRESS: usize = 0x40840000;
 pub const KERNELCPU_LAST_ADDRESS:    usize = 0x4fffffff;
 pub const KSUPPORT_HEADER_SIZE:      usize = 0x80;
 
-#[repr(C)]
 #[derive(Debug, Clone)]
 pub struct Exception<'a> {
     pub name:     &'a str,
@@ -30,12 +29,7 @@ pub enum Message<'a> {
     RtioInitRequest,
 
     DmaRecordStart,
-    DmaRecordAppend {
-        timestamp: u64,
-        channel:   u32,
-        address:   u32,
-        data:      &'a [u32]
-    },
+    DmaRecordAppend(&'a [u8]),
     DmaRecordStop {
         name:      &'a str,
         duration:  u64

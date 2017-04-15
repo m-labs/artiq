@@ -489,6 +489,18 @@ class _DMA(EnvExperiment):
             self.ttl1.off()
 
     @kernel
+    def record_many(self, n):
+        t1 = self.core.get_rtio_counter_mu()
+        with self.core_dma.record(self.trace_name):
+            for i in range(n//2):
+                delay(100*ns)
+                self.ttl1.on()
+                delay(100*ns)
+                self.ttl1.off()
+        t2 = self.core.get_rtio_counter_mu()
+        self.set_dataset("dma_record_time", self.core.mu_to_seconds(t2 - t1))
+
+    @kernel
     def replay(self):
         self.core.break_realtime()
         delay(100*ms)
@@ -555,3 +567,11 @@ class DMATest(ExperimentCase):
         exp.record()
         exp.replay_delta()
         self.assertEqual(exp.delta, 200)
+
+    def test_dma_record_time(self):
+        exp = self.create(_DMA)
+        count = 20000
+        exp.record_many(count)
+        dt = self.dataset_mgr.get("dma_record_time")
+        print("dt={}, dt/count={}".format(dt, dt/count))
+        self.assertLess(dt/count, 15*us)
