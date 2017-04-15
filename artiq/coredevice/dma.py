@@ -12,11 +12,11 @@ from numpy import int64
 
 
 @syscall
-def dma_record_start() -> TNone:
+def dma_record_start(name: TStr) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 @syscall
-def dma_record_stop(name: TStr, duration: TInt64) -> TNone:
+def dma_record_stop(duration: TInt64) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 @syscall
@@ -45,13 +45,13 @@ class DMARecordContextManager:
 
     @kernel
     def __enter__(self):
-        dma_record_start() # this may raise, so do it before altering now
+        dma_record_start(self.name) # this may raise, so do it before altering now
         self.saved_now_mu = now_mu()
         at_mu(0)
 
     @kernel
     def __exit__(self, type, value, traceback):
-        dma_record_stop(self.name, now_mu()) # see above
+        dma_record_stop(now_mu()) # see above
         at_mu(self.saved_now_mu)
 
 

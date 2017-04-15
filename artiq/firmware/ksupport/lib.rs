@@ -262,7 +262,9 @@ fn dma_record_flush() {
     }
 }
 
-extern fn dma_record_start() {
+extern fn dma_record_start(name: CSlice<u8>) {
+    let name = str::from_utf8(name.as_ref()).unwrap();
+
     unsafe {
         if DMA_RECORDER.active {
             raise!("DMAError", "DMA is already recording")
@@ -275,13 +277,11 @@ extern fn dma_record_start() {
                        dma_record_output_wide as *const () as u32).unwrap();
 
         DMA_RECORDER.active = true;
-        send(&DmaRecordStart);
+        send(&DmaRecordStart(name));
     }
 }
 
-extern fn dma_record_stop(name: CSlice<u8>, duration: i64) {
-    let name = str::from_utf8(name.as_ref()).unwrap();
-
+extern fn dma_record_stop(duration: i64) {
     unsafe {
         dma_record_flush();
 
@@ -297,7 +297,6 @@ extern fn dma_record_stop(name: CSlice<u8>, duration: i64) {
 
         DMA_RECORDER.active = false;
         send(&DmaRecordStop {
-            name:     name,
             duration: duration as u64
         });
     }

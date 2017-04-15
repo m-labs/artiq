@@ -28,10 +28,9 @@ pub enum Message<'a> {
 
     RtioInitRequest,
 
-    DmaRecordStart,
+    DmaRecordStart(&'a str),
     DmaRecordAppend(&'a [u8]),
     DmaRecordStop {
-        name:      &'a str,
         duration:  u64
     },
 

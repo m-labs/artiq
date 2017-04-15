@@ -394,16 +394,16 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
                 kern_acknowledge()
             }
 
-            &kern::DmaRecordStart => {
-                session.congress.dma_manager.record_start();
+            &kern::DmaRecordStart(name) => {
+                session.congress.dma_manager.record_start(name);
                 kern_acknowledge()
             }
             &kern::DmaRecordAppend(data) => {
                 session.congress.dma_manager.record_append(data);
                 kern_acknowledge()
             }
-            &kern::DmaRecordStop { name, duration } => {
-                session.congress.dma_manager.record_stop(name, duration);
+            &kern::DmaRecordStop { duration } => {
+                session.congress.dma_manager.record_stop(duration);
                 board::cache::flush_l2_cache();
                 kern_acknowledge()
             }
