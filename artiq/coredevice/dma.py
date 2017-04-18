@@ -6,7 +6,8 @@ alone could achieve.
 """
 
 from artiq.language.core import syscall, kernel
-from artiq.language.types import TInt64, TStr, TNone
+from artiq.language.types import TInt32, TInt64, TStr, TNone, TTuple
+from artiq.coredevice.exceptions import DMAError
 
 from numpy import int64
 
@@ -24,7 +25,11 @@ def dma_erase(name: TStr) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 @syscall
-def dma_playback(timestamp: TInt64, name: TStr) -> TNone:
+def dma_retrieve(name: TStr) -> TTuple([TInt64, TInt32]):
+    raise NotImplementedError("syscall not simulated")
+
+@syscall
+def dma_playback(timestamp: TInt64, ptr: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 
@@ -66,22 +71,45 @@ class CoreDMA:
     def __init__(self, dmgr, core_device="core"):
         self.core     = dmgr.get(core_device)
         self.recorder = DMARecordContextManager()
+        self.epoch    = 0
 
     @kernel
     def record(self, name):
         """Returns a context manager that will record a DMA trace called ``name``.
         Any previously recorded trace with the same name is overwritten.
         The trace will persist across kernel switches."""
+        self.epoch += 1
         self.recorder.name = name
         return self.recorder
 
     @kernel
     def erase(self, name):
         """Removes the DMA trace with the given name from storage."""
+        self.epoch += 1
         dma_erase(name)
 
     @kernel
-    def replay(self, name):
+    def playback(self, name):
         """Replays a previously recorded DMA trace. This function blocks until
         the entire trace is submitted to the RTIO FIFOs."""
-        dma_playback(now_mu(), name)
+        (advance_mu, ptr) = dma_retrieve(name)
+        dma_playback(now_mu(), ptr)
+        delay_mu(advance_mu)
+
+    @kernel
+    def get_handle(self, name):
+        """Returns a handle to a previously recorded DMA trace. The returned handle
+        is only valid until the next call to :meth:`record` or :meth:`erase`."""
+        (advance_mu, ptr) = dma_retrieve(name)
+        return (self.epoch, advance_mu, ptr)
+
+    @kernel
+    def playback_handle(self, handle):
+        """Replays a handle obtained with :meth:`get_handle`. Using this function
+        is much faster than :meth:`playback` for replaying a set of traces repeatedly,
+        but incurs the overhead of managing the handles onto the programmer."""
+        (epoch, advance_mu, ptr) = handle
+        if self.epoch != epoch:
+            raise DMAError("Invalid handle")
+        dma_playback(now_mu(), ptr)
+        delay_mu(advance_mu)

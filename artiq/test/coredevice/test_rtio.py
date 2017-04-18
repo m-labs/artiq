@@ -501,18 +501,27 @@ class _DMA(EnvExperiment):
         self.set_dataset("dma_record_time", self.core.mu_to_seconds(t2 - t1))
 
     @kernel
-    def replay(self):
-        self.core.break_realtime()
-        delay(100*ms)
-        self.core_dma.replay(self.trace_name)
-
-    @kernel
-    def replay_delta(self):
+    def playback(self, use_handle=False):
         self.core.break_realtime()
         delay(100*ms)
         start = now_mu()
-        self.core_dma.replay(self.trace_name)
+        if use_handle:
+            handle = self.core_dma.get_handle(self.trace_name)
+            self.core_dma.playback_handle(handle)
+        else:
+            self.core_dma.playback(self.trace_name)
         self.delta = now_mu() - start
+
+    @kernel
+    def playback_many(self, n):
+        self.core.break_realtime()
+        delay(100*ms)
+        handle = self.core_dma.get_handle(self.trace_name)
+        t1 = self.core.get_rtio_counter_mu()
+        for i in range(n):
+            self.core_dma.playback_handle(handle)
+        t2 = self.core.get_rtio_counter_mu()
+        self.set_dataset("dma_playback_time", self.core.mu_to_seconds(t2 - t1))
 
     @kernel
     def erase(self):
@@ -524,16 +533,26 @@ class _DMA(EnvExperiment):
             with self.core_dma.record(self.trace_name):
                 pass
 
+    @kernel
+    def invalidate(self, mode):
+        self.record()
+        handle = self.core_dma.get_handle(self.trace_name)
+        if mode == 0:
+            self.record()
+        elif mode == 1:
+            self.erase()
+        self.core_dma.playback_handle(handle)
+
 
 class DMATest(ExperimentCase):
     def test_dma_storage(self):
         exp = self.create(_DMA)
         exp.record()
         exp.record() # overwrite
-        exp.replay()
+        exp.playback()
         exp.erase()
         with self.assertRaises(exceptions.DMAError):
-            exp.replay()
+            exp.playback()
 
     def test_dma_nested(self):
         exp = self.create(_DMA)
@@ -545,28 +564,32 @@ class DMATest(ExperimentCase):
 
         exp = self.create(_DMA)
         exp.record()
-        get_analyzer_dump(core_host)  # clear analyzer buffer
-        exp.replay()
 
-        dump = decode_dump(get_analyzer_dump(core_host))
-        self.assertEqual(len(dump.messages), 3)
-        self.assertIsInstance(dump.messages[-1], StoppedMessage)
-        self.assertIsInstance(dump.messages[0], OutputMessage)
-        self.assertEqual(dump.messages[0].channel, 1)
-        self.assertEqual(dump.messages[0].address, 0)
-        self.assertEqual(dump.messages[0].data, 1)
-        self.assertIsInstance(dump.messages[1], OutputMessage)
-        self.assertEqual(dump.messages[1].channel, 1)
-        self.assertEqual(dump.messages[1].address, 0)
-        self.assertEqual(dump.messages[1].data, 0)
-        self.assertEqual(dump.messages[1].timestamp -
-                         dump.messages[0].timestamp, 100)
+        for use_handle in [False, True]:
+            get_analyzer_dump(core_host)  # clear analyzer buffer
+            exp.playback(use_handle)
+
+            dump = decode_dump(get_analyzer_dump(core_host))
+            self.assertEqual(len(dump.messages), 3)
+            self.assertIsInstance(dump.messages[-1], StoppedMessage)
+            self.assertIsInstance(dump.messages[0], OutputMessage)
+            self.assertEqual(dump.messages[0].channel, 1)
+            self.assertEqual(dump.messages[0].address, 0)
+            self.assertEqual(dump.messages[0].data, 1)
+            self.assertIsInstance(dump.messages[1], OutputMessage)
+            self.assertEqual(dump.messages[1].channel, 1)
+            self.assertEqual(dump.messages[1].address, 0)
+            self.assertEqual(dump.messages[1].data, 0)
+            self.assertEqual(dump.messages[1].timestamp -
+                             dump.messages[0].timestamp, 100)
 
     def test_dma_delta(self):
         exp = self.create(_DMA)
         exp.record()
-        exp.replay_delta()
-        self.assertEqual(exp.delta, 200)
+
+        for use_handle in [False, True]:
+            exp.playback(use_handle)
+            self.assertEqual(exp.delta, 200)
 
     def test_dma_record_time(self):
         exp = self.create(_DMA)
@@ -574,4 +597,18 @@ class DMATest(ExperimentCase):
         exp.record_many(count)
         dt = self.dataset_mgr.get("dma_record_time")
         print("dt={}, dt/count={}".format(dt, dt/count))
-        self.assertLess(dt/count, 15*us)
+        self.assertLess(dt/count, 16*us)
+
+    def test_dma_playback_time(self):
+        exp = self.create(_DMA)
+        count = 20000
+        exp.playback_many(count)
+        dt = self.dataset_mgr.get("dma_playback_time")
+        print("dt={}, dt/count={}".format(dt, dt/count))
+        self.assertLess(dt/count, 7*us)
+
+    def test_handle_invalidation(self):
+        exp = self.create(_DMA)
+        for mode in [0, 1]:
+            with self.assertRaises(exceptions.DMAError):
+                exp.invalidate(mode)

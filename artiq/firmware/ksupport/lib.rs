@@ -360,39 +360,43 @@ extern fn dma_erase(name: CSlice<u8>) {
     send(&DmaEraseRequest { name: name });
 }
 
-extern fn dma_playback(timestamp: i64, name: CSlice<u8>) {
+#[repr(C)]
+struct DmaTrace {
+    duration: i64,
+    address:  i32,
+}
+
+extern fn dma_retrieve(name: CSlice<u8>) -> DmaTrace {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
     send(&DmaPlaybackRequest { name: name });
-    let (succeeded, now_advance) =
-            recv!(&DmaPlaybackReply { trace, duration } => unsafe {
+    recv!(&DmaPlaybackReply { trace, duration } => {
         match trace {
-            Some(bytes) => {
-                let ptr = bytes.as_ptr() as usize;
-                assert!(ptr % 64 == 0);
-
-                csr::rtio_dma::base_address_write(ptr as u64);
-                csr::rtio_dma::time_offset_write(timestamp as u64);
-
-                csr::cri_con::selected_write(1);
-                csr::rtio_dma::enable_write(1);
-                while csr::rtio_dma::enable_read() != 0 {}
-                csr::cri_con::selected_write(0);
-
-                (true, duration)
-            }
-            None =>
-                (false, 0)
+            Some(bytes) => Ok(DmaTrace {
+                address:  bytes.as_ptr() as i32,
+                duration: duration as i64
+            }),
+            None => Err(())
         }
-    });
-
-    if !succeeded {
+    }).unwrap_or_else(|()| {
         println!("DMA trace called {:?} not found", name);
         raise!("DMAError",
             "DMA trace not found");
-    }
+    })
+}
+
+extern fn dma_playback(timestamp: i64, ptr: i32) {
+    assert!(ptr % 64 == 0);
 
     unsafe {
+        csr::rtio_dma::base_address_write(ptr as u64);
+        csr::rtio_dma::time_offset_write(timestamp as u64);
+
+        csr::cri_con::selected_write(1);
+        csr::rtio_dma::enable_write(1);
+        while csr::rtio_dma::enable_read() != 0 {}
+        csr::cri_con::selected_write(0);
+
         let status = csr::rtio_dma::error_status_read();
         let timestamp = csr::rtio_dma::error_timestamp_read();
         let channel = csr::rtio_dma::error_channel_read();
@@ -408,8 +412,6 @@ extern fn dma_playback(timestamp: i64, name: CSlice<u8>) {
                 "RTIO sequence error at {0} mu, channel {1}",
                 timestamp as i64, channel as i64, 0)
         }
-
-        NOW += now_advance;
     }
 }
 
