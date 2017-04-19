@@ -82,6 +82,13 @@ pub extern fn __rust_allocate(mut size: usize, align: usize) -> *mut u8 {
 }
 
 #[no_mangle]
+pub extern fn __rust_allocate_zeroed(size: usize, align: usize) -> *mut u8 {
+    let ptr = __rust_allocate(size, align);
+    unsafe { ptr::write_bytes(ptr, 0, size); }
+    ptr
+}
+
+#[no_mangle]
 pub extern fn __rust_deallocate(ptr: *mut u8, _old_size: usize, _align: usize) {
     unsafe {
         let curr = (ptr as *mut Header).offset(-1);

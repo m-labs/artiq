@@ -1,6 +1,6 @@
 #![feature(lang_items, asm, alloc, collections, needs_panic_runtime,
            unicode, raw, int_error_internals, try_from, macro_reexport,
-           allow_internal_unstable, stmt_expr_attributes)]
+           allow_internal_unstable, stmt_expr_attributes, str_internals)]
 #![no_std]
 #![needs_panic_runtime]
 

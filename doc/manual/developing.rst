@@ -62,7 +62,7 @@ and the ARTIQ kernels.
 
         $ cd ~/artiq-dev
         $ git clone --recursive https://github.com/m-labs/artiq
-    
+
     Add ``-b release-X`` to the ``git clone`` command if you are building a stable branch of ARTIQ (the default will fetch the development ``master`` branch).
 
 * Install OpenRISC binutils (or1k-linux-...): ::
@@ -99,13 +99,15 @@ and the ARTIQ kernels.
 * Install Rust: ::
 
         $ cd ~/artiq-dev
-        $ git clone -b artiq-1.16.0 https://github.com/m-labs/rust
+        $ git clone -b artiq-1.18.0 https://github.com/m-labs/rust
         $ cd rust
         $ git submodule update --init
         $ mkdir build
         $ cd build
         $ ../configure --prefix=/usr/local/rust-or1k --llvm-root=/usr/local/llvm-or1k --disable-manage-submodules
-        $ sudo make install -j4
+        $ sudo mkdir /usr/local/rust-or1k
+        $ sudo chown $USER.$USER /usr/local/rust-or1k
+        $ make install
 
         $ libs="libcore liballoc libstd_unicode libcollections liblibc_mini libunwind"
         $ rustc="/usr/local/rust-or1k/bin/rustc --target or1k-unknown-none -g -C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -L ."

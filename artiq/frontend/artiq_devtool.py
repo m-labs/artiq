@@ -36,7 +36,7 @@ def get_argparser():
     parser.add_argument("-t", "--target", metavar="TARGET",
                         type=str, default="kc705_dds",
                         help="Target to build, one of: "
-                             "kc705_dds kc705_drtio_satellite")
+                             "kc705_dds kc705_drtio_master kc705_drtio_satellite")
     parser.add_argument("-c", "--config", metavar="TARGET_CFG",
                         type=str, default="openocd-kc705.cfg",
                         help="OpenOCD configuration file corresponding to the development board")
@@ -53,7 +53,7 @@ def main():
     args = get_argparser().parse_args()
     init_logger(args)
 
-    if args.target == "kc705_dds":
+    if args.target == "kc705_dds" or args.target == "kc705_drtio_master":
         firmware = "runtime"
     elif args.target == "kc705_drtio_satellite":
         firmware = "satman"

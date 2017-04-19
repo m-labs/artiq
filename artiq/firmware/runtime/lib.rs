@@ -1,7 +1,8 @@
 #![no_std]
-#![feature(compiler_builtins_lib, repr_simd, lang_items, const_fn)]
+#![feature(compiler_builtins_lib, alloc, oom, repr_simd, lang_items, const_fn)]
 
 extern crate compiler_builtins;
+extern crate alloc;
 extern crate cslice;
 #[macro_use]
 extern crate log;
@@ -167,6 +168,9 @@ pub extern fn main() -> i32 {
         }
         alloc_artiq::seed(&mut _fheap as *mut u8,
                           &_eheap as *const u8 as usize - &_fheap as *const u8 as usize);
+
+        fn oom() -> ! { panic!("out of memory") }
+        alloc::oom::set_oom_handler(oom);
 
         static mut LOG_BUFFER: [u8; 65536] = [0; 65536];
         logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(startup);

@@ -2,8 +2,6 @@
 
 #[macro_use]
 extern crate std_artiq as std;
-#[macro_use]
-extern crate log;
 extern crate board;
 extern crate byteorder;
 
