@@ -38,10 +38,10 @@ pub enum Message<'a> {
         name: &'a str
     },
 
-    DmaPlaybackRequest {
+    DmaRetrieveRequest {
         name: &'a str
     },
-    DmaPlaybackReply {
+    DmaRetrieveReply {
         trace:    Option<&'a [u8]>,
         duration: u64
     },

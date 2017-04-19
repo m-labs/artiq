@@ -128,9 +128,9 @@ fn host_write(stream: &mut Write, reply: host::Reply) -> io::Result<()> {
 fn kern_send(io: &Io, request: &kern::Message) -> io::Result<()> {
     match request {
         &kern::LoadRequest(_) => debug!("comm->kern LoadRequest(...)"),
-        &kern::DmaPlaybackReply { trace, duration } => {
+        &kern::DmaRetrieveReply { trace, duration } => {
             if trace.map(|data| data.len() > 100).unwrap_or(false) {
-                debug!("comm->kern DmaPlaybackReply {{ trace: ..., duration: {:?} }}", duration)
+                debug!("comm->kern DmaRetrieveReply {{ trace: ..., duration: {:?} }}", duration)
             } else {
                 debug!("comm->kern {:?}", request)
             }
@@ -410,9 +410,9 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
                 session.congress.dma_manager.erase(name);
                 kern_acknowledge()
             }
-            &kern::DmaPlaybackRequest { name } => {
+            &kern::DmaRetrieveRequest { name } => {
                 session.congress.dma_manager.with_trace(name, |trace, duration| {
-                    kern_send(io, &kern::DmaPlaybackReply {
+                    kern_send(io, &kern::DmaRetrieveReply {
                         trace:    trace,
                         duration: duration
                     })

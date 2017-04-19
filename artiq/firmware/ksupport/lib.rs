@@ -369,8 +369,8 @@ struct DmaTrace {
 extern fn dma_retrieve(name: CSlice<u8>) -> DmaTrace {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
-    send(&DmaPlaybackRequest { name: name });
-    recv!(&DmaPlaybackReply { trace, duration } => {
+    send(&DmaRetrieveRequest { name: name });
+    recv!(&DmaRetrieveReply { trace, duration } => {
         match trace {
             Some(bytes) => Ok(DmaTrace {
                 address:  bytes.as_ptr() as i32,
