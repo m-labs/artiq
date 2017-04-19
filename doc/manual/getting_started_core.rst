@@ -228,8 +228,11 @@ Try this: ::
         def run(self):
             self.core.reset()
             self.record()
+            # prefetch the address of the DMA buffer
+            # for faster playback trigger
+            pulses_handle = self.core_dma.get_handle("pulses")
             self.core.break_realtime()
             while True:
                 # execute RTIO operations in the DMA buffer
-                # each replay advances the timeline by 50*(100+100) ns
-                self.core_dma.replay("pulses")
+                # each playback advances the timeline by 50*(100+100) ns
+                self.core_dma.playback_handle(pulses_handle)
