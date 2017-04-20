@@ -503,7 +503,6 @@ class _DMA(EnvExperiment):
     @kernel
     def playback(self, use_handle=False):
         self.core.break_realtime()
-        delay(100*ms)
         start = now_mu()
         if use_handle:
             handle = self.core_dma.get_handle(self.trace_name)
@@ -515,7 +514,6 @@ class _DMA(EnvExperiment):
     @kernel
     def playback_many(self, n):
         self.core.break_realtime()
-        delay(100*ms)
         handle = self.core_dma.get_handle(self.trace_name)
         t1 = self.core.get_rtio_counter_mu()
         for i in range(n):
@@ -597,11 +595,12 @@ class DMATest(ExperimentCase):
         exp.record_many(count)
         dt = self.dataset_mgr.get("dma_record_time")
         print("dt={}, dt/count={}".format(dt, dt/count))
-        self.assertLess(dt/count, 16*us)
+        self.assertLess(dt/count, 18*us)
 
     def test_dma_playback_time(self):
         exp = self.create(_DMA)
         count = 20000
+        exp.record()
         exp.playback_many(count)
         dt = self.dataset_mgr.get("dma_playback_time")
         print("dt={}, dt/count={}".format(dt, dt/count))
