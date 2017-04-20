@@ -12,9 +12,9 @@ build:
 
 requirements:
   build:
-    - artiq-dev {{ "{tag} py_{number}+git{hash}".format(tag=environ.get("GIT_DESCRIBE_TAG"), number=environ.get("GIT_DESCRIBE_NUMBER"), hash=environ.get("GIT_DESCRIBE_HASH")[1:]) if "GIT_DESCRIBE_TAG" in environ else "" }}
+    - artiq-dev {{ "{tag} py_{number}+git{hash}".format(tag=environ.get("GIT_DESCRIBE_TAG"), number=environ.get("GIT_DESCRIBE_NUMBER"), hash=environ.get("GIT_DESCRIBE_HASH")[1:9]) if "GIT_DESCRIBE_TAG" in environ else "" }}
   run:
-    - artiq {{ "{tag} py_{number}+git{hash}".format(tag=environ.get("GIT_DESCRIBE_TAG"), number=environ.get("GIT_DESCRIBE_NUMBER"), hash=environ.get("GIT_DESCRIBE_HASH")[1:]) if "GIT_DESCRIBE_TAG" in environ else "" }}
+    - artiq {{ "{tag} py_{number}+git{hash}".format(tag=environ.get("GIT_DESCRIBE_TAG"), number=environ.get("GIT_DESCRIBE_NUMBER"), hash=environ.get("GIT_DESCRIBE_HASH")[1:9]) if "GIT_DESCRIBE_TAG" in environ else "" }}
 
 about:
   home: https://m-labs.hk/artiq
