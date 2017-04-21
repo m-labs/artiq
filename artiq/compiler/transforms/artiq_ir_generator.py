@@ -317,7 +317,15 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     self.current_block.append(ir.Return(ir.Constant(None, builtins.TNone())))
             else:
                 if not self.current_block.is_terminated():
+                    if len(self.current_block.predecessors()) != 0:
+                        diag = diagnostic.Diagnostic("error",
+                            "this function must return a value of type {typ} explicitly",
+                            {"typ": types.TypePrinter().name(typ.ret)},
+                            node.keyword_loc)
+                        self.engine.process(diag)
+
                     self.current_block.append(ir.Unreachable())
+
         finally:
             self.name = old_name
             self.current_args = old_args
