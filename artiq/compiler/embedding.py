@@ -390,23 +390,6 @@ class ASTSynthesizer:
 
         return node
 
-    def assign_attribute(self, obj, attr_name, value):
-        obj_node   = self.quote(obj)
-        dot_loc    = self._add(".")
-        name_loc   = self._add(attr_name)
-        _          = self._add(" ")
-        equals_loc = self._add("=")
-        _          = self._add(" ")
-        value_node = self.quote(value)
-
-        attr_node  = asttyped.AttributeT(value=obj_node, attr=attr_name, ctx=None,
-                                         type=value_node.type,
-                                         dot_loc=dot_loc, attr_loc=name_loc,
-                                         loc=obj_node.loc.join(name_loc))
-
-        return ast.Assign(targets=[attr_node], value=value_node,
-                          op_locs=[equals_loc], loc=name_loc.join(value_node.loc))
-
 
 def suggest_identifier(id, names):
     sorted_names = sorted(names, key=lambda other: jaro_winkler(id, other), reverse=True)
