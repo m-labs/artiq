@@ -249,6 +249,19 @@ class Handover(EnvExperiment):
         self.k("t2")
 
 
+class Rounding(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+
+    @kernel
+    def run(self):
+        self.core.reset()
+        t1 = now_mu()
+        delay(8*us)
+        t2 = now_mu()
+        self.set_dataset("delta", t2 - t1)
+
+
 class DummyException(Exception):
     pass
 
@@ -352,6 +365,11 @@ class CoredeviceTest(ExperimentCase):
         self.execute(HandoverException)
         self.assertEqual(self.dataset_mgr.get("t1") + 1234,
                          self.dataset_mgr.get("t2"))
+
+    def test_rounding(self):
+        self.execute(Rounding)
+        dt = self.dataset_mgr.get("delta")
+        self.assertEqual(dt, 8000)
 
 
 

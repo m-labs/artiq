@@ -1725,7 +1725,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             if len(node.args) == 1 and len(node.keywords) == 0:
                 arg = self.visit(node.args[0])
                 arg_mu_float = self.append(ir.Arith(ast.Div(loc=None), arg, self.ref_period))
-                arg_mu = self.append(ir.Coerce(arg_mu_float, builtins.TInt64()))
+                arg_mu = self.append(ir.Builtin("round", [arg_mu_float], builtins.TInt64()))
                 return self.append(ir.Builtin("delay_mu", [arg_mu], builtins.TNone()))
             else:
                 assert False
