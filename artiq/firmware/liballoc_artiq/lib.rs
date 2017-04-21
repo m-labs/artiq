@@ -2,7 +2,7 @@
 #![no_std]
 #![allocator]
 
-use core::{mem, ptr, cmp};
+use core::{mem, ptr, cmp, fmt};
 
 // The minimum alignment guaranteed by the architecture.
 const MIN_ALIGN: usize = 4;
@@ -121,4 +121,38 @@ pub extern fn __rust_reallocate_inplace(_ptr: *mut u8, old_size: usize, _size: u
 #[no_mangle]
 pub extern fn __rust_usable_size(size: usize, _align: usize) -> usize {
     size
+}
+
+pub fn debug_dump(f: &mut fmt::Write) -> fmt::Result {
+    unsafe {
+        let mut total_busy = 0;
+        let mut total_idle = 0;
+        let mut total_meta = 0;
+
+        write!(f, "Heap view:\n")?;
+
+        let mut curr = ROOT;
+        while !curr.is_null() {
+            total_meta += mem::size_of::<Header>();
+
+            let desc = match (*curr).magic {
+                MAGIC_FREE => { total_idle += (*curr).size; "IDLE" },
+                MAGIC_BUSY => { total_busy += (*curr).size; "BUSY" },
+                _ => "!!!!"
+            };
+
+            write!(f, "{} {:p} + {:#x} + {:#x} -> {:p}\n",
+                   desc, curr, mem::size_of::<Header>(), (*curr).size, (*curr).next)?;
+            match (*curr).magic {
+                MAGIC_FREE | MAGIC_BUSY => (),
+                _ => break
+            }
+
+            curr = (*curr).next;
+        }
+
+        write!(f, " === busy: {:#x} idle: {:#x} meta: {:#x} total: {:#x}\n",
+               total_busy, total_idle, total_meta,
+               total_busy + total_idle + total_meta)
+    }
 }

@@ -158,7 +158,7 @@ fn kern_recv_dotrace(reply: &kern::Message) {
         &kern::LogSlice(_) => debug!("comm<-kern LogSlice(...)"),
         &kern::DmaRecordAppend(data) => {
             if data.len() > 100 {
-                debug!("comm<-kern DmaRecordAppend(...)")
+                debug!("comm<-kern DmaRecordAppend([_; {:#x}])", data.len())
             } else {
                 debug!("comm<-kern {:?}", reply)
             }
