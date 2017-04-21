@@ -18,7 +18,7 @@ cslice = { version = "0.3" }
 log = { version = "0.3", default-features = false }
 fringe = { version = "= 1.1.0", default-features = false, features = ["alloc"] }
 alloc_artiq = { path = "../liballoc_artiq" }
-std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
+std_artiq = { path = "../libstd_artiq", features = ["alloc", "io_error_alloc"] }
 logger_artiq = { path = "../liblogger_artiq" }
 board = { path = "../libboard", features = ["uart_console"] }
 proto = { path = "../libproto", features = ["log"] }

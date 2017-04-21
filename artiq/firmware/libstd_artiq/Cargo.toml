@@ -9,3 +9,4 @@ path = "lib.rs"
 
 [features]
 alloc = []
+io_error_alloc = []
