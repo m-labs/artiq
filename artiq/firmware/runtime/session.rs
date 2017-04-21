@@ -618,7 +618,11 @@ fn flash_kernel_worker(io: &Io,
 
     config::read(config_key, |result| {
         match result {
-            Ok(kernel) if kernel.len() > 0 => unsafe { kern_load(io, &mut session, &kernel) },
+            Ok(kernel) if kernel.len() > 0 => unsafe {
+                // kernel CPU cannot access the SPI flash address space directly,
+                // so make a copy.
+                kern_load(io, &mut session, Vec::from(kernel).as_ref())
+            },
             _ => Err(io::Error::new(io::ErrorKind::NotFound, "kernel not found")),
         }
     })?;
