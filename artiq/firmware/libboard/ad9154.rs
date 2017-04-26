@@ -67,7 +67,7 @@ fn jesd_stpl(en: bool) {
 
 fn jesd_jsync() -> bool {
     unsafe {
-        csr::ad9154::jesd_jsync_read() != 0
+        csr::ad9154::jesd_control_jsync_read() != 0
     }
 }
 

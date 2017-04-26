@@ -5,7 +5,6 @@ import argparse
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.cdc import MultiReg
-from migen.genlib.io import DifferentialInput
 
 from jesd204b.common import (JESD204BTransportSettings,
                              JESD204BPhysicalSettings,
@@ -78,7 +77,6 @@ class _PhaserCRG(Module, AutoCSR):
 class AD9154JESD(Module, AutoCSR):
     def __init__(self, platform):
         self.jreset = CSRStorage(reset=1)
-        self.jsync = CSRStatus()
 
         ps = JESD204BPhysicalSettings(l=4, m=4, n=16, np=16)
         ts = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
@@ -115,19 +113,12 @@ class AD9154JESD(Module, AutoCSR):
         self.submodules.core = to_jesd(JESD204BCoreTX(self.phys, settings,
                                                       converter_data_width=32))
         self.submodules.control = to_jesd(JESD204BCoreTXControl(self.core))
-
-        sync_pads = platform.request("ad9154_sync")
-        jsync = Signal()
-        self.specials += [
-            DifferentialInput(sync_pads.p, sync_pads.n, jsync),
-            MultiReg(jsync, self.jsync.status)
-        ]
+        self.core.register_jsync(platform.request("ad9154_sync"))
 
         self.comb += [
             platform.request("ad9154_txen", 0).eq(1),
             platform.request("ad9154_txen", 1).eq(1),
-            self.core.jsync.eq(jsync),
-            platform.request("user_led", 3).eq(jsync),
+            platform.request("user_led", 3).eq(self.core.jsync),
         ]
 
         # blinking leds for transceiver reset status
