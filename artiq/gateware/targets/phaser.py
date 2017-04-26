@@ -126,7 +126,7 @@ class AD9154JESD(Module, AutoCSR):
         self.comb += [
             platform.request("ad9154_txen", 0).eq(1),
             platform.request("ad9154_txen", 1).eq(1),
-            self.core.start.eq(jsync),
+            self.core.jsync.eq(jsync),
             platform.request("user_led", 3).eq(jsync),
         ]
 
