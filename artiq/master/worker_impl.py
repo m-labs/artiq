@@ -223,6 +223,7 @@ def main():
     ipc = pipe_ipc.ChildComm(sys.argv[1])
 
     start_time = None
+    run_time = None
     rid = None
     expid = None
     exp = None
@@ -267,6 +268,7 @@ def main():
                 exp_inst.prepare()
                 put_object({"action": "completed"})
             elif action == "run":
+                run_time = time.localtime()
                 exp_inst.run()
                 put_object({"action": "completed"})
             elif action == "analyze":
@@ -285,6 +287,7 @@ def main():
                     f["artiq_version"] = artiq_version
                     f["rid"] = rid
                     f["start_time"] = int(time.mktime(start_time))
+                    f["run_time"] = int(time.mktime(run_time))
                     f["expid"] = pyon.encode(expid)
                 put_object({"action": "completed"})
             elif action == "examine":
