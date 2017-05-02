@@ -69,8 +69,8 @@ These drivers are for the core device and the peripherals closely integrated int
 .. automodule:: artiq.coredevice.sawg
     :members:
 
-:mod:`artiq.coredevice.pdq2` module
+:mod:`artiq.coredevice.pdq` module
 -----------------------------------
 
-.. automodule:: artiq.coredevice.pdq2
+.. automodule:: artiq.coredevice.pdq
     :members:
