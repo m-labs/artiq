@@ -7,7 +7,7 @@ import fastentrypoints
 import versioneer
 
 
-if not (3, 5, 2) >= sys.version_info[:3] < (3, 6, 0):
+if not (3, 5, 2) <= sys.version_info[:3] < (3, 6, 0):
     raise Exception("You need Python 3.5.2+")
 
 
