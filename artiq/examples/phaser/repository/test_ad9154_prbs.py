@@ -11,9 +11,8 @@ class Test(EnvExperiment):
 
     @kernel
     def run(self):
-        for e in range(2):
-            for i in range(3):  # prbs7, prbs15, prbs31
-                self.prbs(i, 10, e)
+        for i in range(1, 4):  # prbs7, prbs15, prbs31
+            self.prbs(i, 10)
 
     @kernel
     def busywait_us(self, t):
@@ -25,10 +24,9 @@ class Test(EnvExperiment):
         print(f.format(*a))
 
     @kernel
-    def prbs(self, p, t, inject_errors):
-        self.p("---\nprbs sequence {}, threshold {}, inject_errors {}:",
-               p, t, inject_errors)
-        self.ad9154.jesd_prbs((1 << p) | (inject_errors << 3))
+    def prbs(self, p, t):
+        self.p("---\nprbs sequence {}, threshold {}:", p, t)
+        self.ad9154.jesd_prbs(p)
 
         self.ad9154.dac_write(AD9154_PHY_PRBS_TEST_CTRL,
                 AD9154_PHY_PRBS_PAT_SEL_SET(p))
