@@ -134,7 +134,7 @@ def main():
         bind, args.port_logging))
     atexit_register_coroutine(server_logging.stop)
 
-    logger.info("running, bound to %s", bind)
+    print("ARTIQ master is now ready.")
     loop.run_forever()
 
 if __name__ == "__main__":

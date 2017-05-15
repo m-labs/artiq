@@ -31,6 +31,7 @@ console_scripts = [
     "artiq_influxdb=artiq.frontend.artiq_influxdb:main",
     "artiq_master=artiq.frontend.artiq_master:main",
     "artiq_mkfs=artiq.frontend.artiq_mkfs:main",
+    "artiq_session=artiq.frontend.artiq_session:main",
     "artiq_rpctool=artiq.frontend.artiq_rpctool:main",
     "artiq_run=artiq.frontend.artiq_run:main",
     "artiq_flash=artiq.frontend.artiq_flash:main",
