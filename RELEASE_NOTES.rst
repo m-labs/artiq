@@ -28,7 +28,7 @@ Release notes
 * The "collision" and "busy" RTIO errors are reported through the log instead of
   raising exceptions.
 * Results are still saved when ``analyze`` raises an exception.
-* LinearScan and RandomScan have been consolidated into RangeScan.
+* ``LinearScan`` and ``RandomScan`` have been consolidated into RangeScan.
 * The Pipistrello is no longer supported. For a low-cost ARTIQ setup, use either
   ARTIQ 2.x with Pipistrello, or the future ARTIQ 4.x with Kasli.
 
