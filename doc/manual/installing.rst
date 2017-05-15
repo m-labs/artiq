@@ -48,13 +48,12 @@ Then prepare to create a new conda environment with the ARTIQ package and the ma
 choose a suitable name for the environment, for example ``artiq-main`` if you intend to track the main label or ``artiq-2016-04-01`` if you consider the environment a snapshot of ARTIQ on 2016-04-01.
 Choose the package containing the binaries for your hardware:
 
-    * ``artiq-pipistrello-demo`` for the `Pipistrello <http://pipistrello.saanlima.com/>`_ board.
     * ``artiq-kc705-nist_clock`` for the KC705 board with the NIST "clock" FMC backplane and AD9914 DDS chips.
     * ``artiq-kc705-nist_qc2`` for the KC705 board with the NIST QC2 FMC backplane and AD9914 DDS chips.
 
 Conda will create the environment, automatically resolve, download, and install the necessary dependencies and install the packages you select::
 
-    $ conda create -n artiq-main artiq-pipistrello-demo
+    $ conda create -n artiq-main artiq-kc705-nist_clock
 
 After the installation, activate the newly created environment by name.
 On Unix::
@@ -78,7 +77,7 @@ When upgrading ARTIQ or when testing different versions it is recommended that n
 Keep previous environments around until you are certain that they are not needed anymore and a new environment is known to work correctly.
 You can create a new conda environment specifically to test a certain version of ARTIQ::
 
-    $ conda create -n artiq-test-1.0rc2 artiq-pipistrello-demo=1.0rc2
+    $ conda create -n artiq-test-1.0rc2 artiq-kc705-nist_clock=1.0rc2
 
 Switching between conda environments using ``$ source deactivate artiq-1.0rc2`` and ``$ source activate artiq-1.0rc1`` is the recommended way to roll back to previous versions of ARTIQ.
 You can list the environments you have created using::
@@ -123,7 +122,7 @@ On Windows, a third-party tool, `Zadig <http://zadig.akeo.ie/>`_, is necessary. 
 
 1. Make sure the FPGA board's JTAG USB port is connected to your computer.
 2. Activate Options → List All Devices.
-3. Select the "Digilent Adept USB Device (Interface 0)" (for KC705) or "Pipistrello LX45" (for Pipistrello) device from the drop-down list.
+3. Select the "Digilent Adept USB Device (Interface 0)" device from the drop-down list.
 4. Select WinUSB from the spinner list.
 5. Click "Install Driver" or "Replace Driver".
 
@@ -136,17 +135,13 @@ Flashing the core device
 
 Then, you can flash the board:
 
-* For the Pipistrello board::
-
-    $ artiq_flash -t pipistrello -m demo
-
 * For the KC705 board (selecting the appropriate hardware peripheral)::
 
     $ artiq_flash -t kc705 -m [nist_clock/nist_qc2]
 
   The SW13 switches also need to be set to 00001.
 
-For the KC705, the next step is to flash the MAC and IP addresses to the board. See :ref:`those instructions <flash-mac-ip-addr>`.
+The next step is to flash the MAC and IP addresses to the board. See :ref:`those instructions <flash-mac-ip-addr>`.
 
 .. _configuring-core-device:
 

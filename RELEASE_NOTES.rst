@@ -19,7 +19,6 @@ Release notes
 * ``seconds_to_mu`` and ``mu_to_seconds`` have become methods of the core
   device driver (use e.g. ``self.core.seconds_to_mu()``).
 * AD9858 DDSes and NIST QC1 hardware are no longer supported.
-* The Pipistrello port now has exclusively TTLs.
 * The DDS class names and setup options have changed, this requires an update of
   the device database.
 * ``int(a, width=b)`` has been removed. Use ``int32(a)`` and ``int64(a)``.
@@ -30,6 +29,8 @@ Release notes
   raising exceptions.
 * Results are still saved when ``analyze`` raises an exception.
 * LinearScan and RandomScan have been consolidated into RangeScan.
+* The Pipistrello is no longer supported. For a low-cost ARTIQ setup, use either
+  ARTIQ 2.x with Pipistrello, or the future ARTIQ 4.x with Kasli.
 
 
 2.3

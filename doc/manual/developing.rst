@@ -33,7 +33,7 @@ ARTIQ Anaconda development environment
     5. Add the ARTIQ source tree to the environment's search path::
 
            $ python setup.py develop
-    6. :ref:`Install Xilinx ISE or Vivado <install-xilinx>`
+    6. :ref:`Install Vivado <install-xilinx>`
     7. :ref:`Obtain and install the JTAG SPI flash proxy bitstream <install-bscan-spi>`
     8. :ref:`Configure OpenOCD <setup-openocd>`
     9. :ref:`Build target binaries <build-target-binaries>`
@@ -130,13 +130,11 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
 .. _install-xilinx:
 
-* Install the FPGA vendor tools (i.e. Xilinx ISE and/or Vivado):
+* Install the FPGA vendor tools (i.e. Vivado):
 
-    * Get Xilinx tools from http://www.xilinx.com/support/download/index.htm. ISE can build gateware bitstreams both for boards using the Spartan-6 (Pipistrello) and 7-series devices (KC705), while Vivado supports only boards using 7-series devices.
+    * Get Vivado from http://www.xilinx.com/support/download/index.htm.
 
-    * The Pipistrello is supported by Webpack, the KC705 is not.
-
-    * During the Xilinx toolchain installation, uncheck ``Install cable drivers`` (they are not required as we use better and open source alternatives).
+    * During the Vivado installation, uncheck ``Install cable drivers`` (they are not required as we use better and open source alternatives).
 
 * Install Migen: ::
 
@@ -154,7 +152,7 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
     The purpose of the flash proxy gateware bitstream is to give programming software fast JTAG access to the flash connected to the FPGA.
 
-    * Pipistrello and KC705:
+    * KC705:
 
         ::
 
@@ -210,15 +208,11 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
 .. _build-target-binaries:
 
-    * For Pipistrello::
-
-        $ python3 -m artiq.gateware.targets.pipistrello
-
     * For KC705::
 
         $ python3 -m artiq.gateware.targets.kc705_dds -H nist_clock # or nist_qc2
 
-    .. note:: Add ``--toolchain ise`` if you wish to use ISE instead of Vivado.
+    .. note:: Add ``--toolchain ise`` if you wish to use ISE instead of Vivado. ISE needs a separate installation step.
 
 * Then, gather the binaries and flash them: ::
 
@@ -227,9 +221,7 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
         $ cp misoc_nist_qcX_<board>/software/bios/bios.bin binaries
         $ cp misoc_nist_qcX_<board>/software/runtime/runtime.fbi binaries
         $ cd binaries
-        $ artiq_flash -d . -t <board>
-
-.. note:: The `-t` option specifies the board your are targeting. Available options are ``kc705`` and ``pipistrello``.
+        $ artiq_flash -d .
 
 * Check that the board boots by running a serial terminal program (you may need to press its FPGA reconfiguration button or power-cycle it to load the gateware bitstream that was newly written into the flash): ::
 
