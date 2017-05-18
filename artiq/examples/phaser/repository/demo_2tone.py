@@ -1,7 +1,7 @@
 from artiq.experiment import *
 
 
-class SAWGTest(EnvExperiment):
+class SAWGTestTwoTone(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.setattr_device("led")
