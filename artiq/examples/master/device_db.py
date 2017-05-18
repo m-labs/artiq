@@ -2,7 +2,7 @@
 # The RTIO channel numbers here are for NIST CLOCK on KC705.
 # The list of devices here is not exhaustive.
 
-{
+device_db = {
     "comm": {
         "type": "local",
         "module": "artiq.coredevice.comm_kernel",
@@ -203,7 +203,7 @@
 
     "lda": {
         "type": "controller",
-        "best_effort": true,
+        "best_effort": True,
         "host": "::1",
         "port": 3253,
         "command": "lda_controller -p {port} --bind {bind} --simulation"

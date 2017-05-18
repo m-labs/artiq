@@ -5,13 +5,20 @@ from artiq.protocols import pyon
 from artiq.tools import TaskObject
 
 
+def device_db_from_file(filename):
+    glbs = dict()
+    with open(filename, "r") as f:
+        exec(f.read(), glbs)
+    return glbs["device_db"]
+
+
 class DeviceDB:
     def __init__(self, backing_file):
         self.backing_file = backing_file
-        self.data = Notifier(pyon.load_file(self.backing_file))
+        self.data = Notifier(device_db_from_file(self.backing_file))
 
     def scan(self):
-        new_data = pyon.load_file(self.backing_file)
+        new_data = device_db_from_file(self.backing_file)
 
         for k in list(self.data.read.keys()):
             if k not in new_data:

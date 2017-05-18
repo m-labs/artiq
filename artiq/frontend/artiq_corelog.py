@@ -12,7 +12,7 @@ def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ core device "
                                                  "log download tool")
     verbosity_args(parser)
-    parser.add_argument("--device-db", default="device_db.pyon",
+    parser.add_argument("--device-db", default="device_db.py",
                        help="device database file (default: '%(default)s')")
 
     subparsers = parser.add_subparsers(dest="action")

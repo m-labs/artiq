@@ -24,7 +24,7 @@ def main():
     else:
         compile_only = False
 
-    ddb_path = os.path.join(os.path.dirname(sys.argv[1]), "device_db.pyon")
+    ddb_path = os.path.join(os.path.dirname(sys.argv[1]), "device_db.py")
     dmgr = DeviceManager(DeviceDB(ddb_path))
 
     with open(sys.argv[1]) as f:

@@ -2,7 +2,7 @@
 # The RTIO channel numbers here are for NIST CLOCK on KC705.
 # The list of devices here is not exhaustive.
 
-{
+device_db = {
     "comm": {
         "type": "local",
         "module": "artiq.coredevice.comm_kernel",
@@ -144,5 +144,4 @@
         "class": "TTLInOut",
         "arguments": {"channel": 0x010009}
     },
-
 }

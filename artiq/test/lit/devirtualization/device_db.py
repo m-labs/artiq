@@ -1,4 +1,4 @@
-{
+device_db = {
     "comm": {
         "type": "local",
         "module": "artiq.coredevice.comm_kernel_dummy",

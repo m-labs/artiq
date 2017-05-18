@@ -94,7 +94,7 @@ Setup
 
     cd artiq/examples/phaser
 
-* Edit ``device_db.pyon`` to match the hostname or IP address of the core device.
+* Edit ``device_db.py`` to match the hostname or IP address of the core device.
 * Use ``ping`` and ``flterm`` to verify that the core device starts up and boots correctly.
 
 Usage

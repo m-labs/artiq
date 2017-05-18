@@ -92,13 +92,13 @@ class GenericControllerCase(unittest.TestCase):
 @unittest.skipUnless(artiq_root, "no ARTIQ_ROOT")
 class ControllerCase(GenericControllerCase):
     def get_device_db(self):
-        return DeviceDB(os.path.join(artiq_root, "device_db.pyon"))
+        return DeviceDB(os.path.join(artiq_root, "device_db.py"))
 
 
 @unittest.skipUnless(artiq_root, "no ARTIQ_ROOT")
 class ExperimentCase(unittest.TestCase):
     def setUp(self):
-        self.device_db = DeviceDB(os.path.join(artiq_root, "device_db.pyon"))
+        self.device_db = DeviceDB(os.path.join(artiq_root, "device_db.py"))
         self.dataset_db = DatasetDB(
             os.path.join(artiq_root, "dataset_db.pyon"))
         self.device_mgr = DeviceManager(

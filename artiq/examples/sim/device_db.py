@@ -1,4 +1,4 @@
-{
+device_db = {
     "core": {
         "type": "local",
         "module": "artiq.sim.devices",

@@ -14,7 +14,7 @@ def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ core device boot tool")
 
     verbosity_args(parser)
-    parser.add_argument("--device-db", default="device_db.pyon",
+    parser.add_argument("--device-db", default="device_db.py",
                        help="device database file (default: '%(default)s')")
 
     subparsers = parser.add_subparsers(dest="action")
@@ -25,7 +25,7 @@ def get_argparser():
     p_hotswap = subparsers.add_parser("hotswap",
                                       help="load the specified firmware in RAM")
 
-    p_hotswap.add_argument("image", metavar="IMAGE", type=argparse.FileType('rb'),
+    p_hotswap.add_argument("image", metavar="IMAGE", type=argparse.FileType("rb"),
                            help="runtime image to be executed")
 
     return parser

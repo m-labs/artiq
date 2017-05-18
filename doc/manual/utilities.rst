@@ -111,7 +111,7 @@ Core device configuration tool
 
 The artiq_coreconfig utility gives remote access to the :ref:`core-device-flash-storage`.
 
-To use this tool, you need to specify a ``device_db.pyon`` device database file which contains a ``comm`` device (an example is provided in ``examples/master/device_db.pyon``). This tells the tool how to connect to the core device and with which parameters (e.g. IP address, TCP port). When not specified, the artiq_coreconfig utility will assume that there is a file named ``device_db.pyon`` in the current directory.
+To use this tool, you need to specify a ``device_db.py`` device database file which contains a ``comm`` device (an example is provided in ``examples/master/device_db.py``). This tells the tool how to connect to the core device and with which parameters (e.g. IP address, TCP port). When not specified, the artiq_coreconfig utility will assume that there is a file named ``device_db.py`` in the current directory.
 
 To read the record whose key is ``mac``::
 
