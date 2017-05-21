@@ -21,15 +21,15 @@ Controller
 ++++++++++
 
 .. argparse::
-   :ref: artiq.frontend.pdq2_controller.get_argparser
-   :prog: pdq2_controller
+   :ref: artiq.frontend.aqctl_pdq2.get_argparser
+   :prog: aqctl_pdq2
 
 Client
 ++++++
 
 .. argparse::
-   :ref: artiq.frontend.pdq2_client.get_argparser
-   :prog: pdq2_client
+   :ref: artiq.frontend.aqcli_pdq2.get_argparser
+   :prog: aqcli_pdq2
 
 Lab Brick Digital Attenuator (LDA)
 ----------------------------------
@@ -58,7 +58,7 @@ You must also unplug/replug your device if it was already plugged in.
 
 Then, to run the Lab Brick Digital Attenuator (LDA) controller::
 
-    $ lda_controller -d SN:xxxxx
+    $ aqctl_lda -d SN:xxxxx
 
 The serial number must contain exactly 5 digits, prepend it with the necessary number of 0s.
 Also, the ``SN:`` prefix is mandatory.
@@ -66,8 +66,8 @@ Also, the ``SN:`` prefix is mandatory.
 You can choose the LDA model with the ``-P`` parameter. The default is LDA-102.
 
 .. argparse::
-   :ref: artiq.frontend.lda_controller.get_argparser
-   :prog: lda_controller
+   :ref: artiq.frontend.aqctl_lda.get_argparser
+   :prog: aqctl_lda
 
 Korad KA3005P
 -------------
@@ -82,8 +82,8 @@ Controller
 ++++++++++
 
 .. argparse::
-   :ref: artiq.frontend.korad_ka3005p_controller.get_argparser
-   :prog: korad_ka3005p_controller
+   :ref: artiq.frontend.aqctl_korad_ka3005p.get_argparser
+   :prog: aqctl_korad_ka3005p
 
 Novatech 409B
 -------------
@@ -98,8 +98,8 @@ Controller
 ++++++++++
 
 .. argparse::
-   :ref: artiq.frontend.novatech409b_controller.get_argparser
-   :prog: novatech409b_controller
+   :ref: artiq.frontend.aqctl_novatech409b.get_argparser
+   :prog: aqctl_novatech409b
 
 Thorlabs T-Cube
 ---------------
@@ -123,8 +123,8 @@ Controller
 ++++++++++
 
 .. argparse::
-    :ref: artiq.frontend.thorlabs_tcube_controller.get_argparser
-    :prog: thorlabs_controller
+    :ref: artiq.frontend.aqctl_thorlabs_tcube.get_argparser
+    :prog: aqctl_thorlabs
 
 .. _tdc001-controller-usage-example:
 
@@ -133,7 +133,7 @@ TDC001 controller usage example
 
 First, run the TDC001 controller::
 
-    $ thorlabs_tcube_controller -P TDC001 -d /dev/ttyUSBx
+    $ aqctl_thorlabs_tcube -P TDC001 -d /dev/ttyUSBx
 
 .. note::
     On Windows the serial port (the ``-d`` argument) will be of the form ``COMx``.
@@ -166,7 +166,7 @@ TPZ001 controller usage example
 
 First, run the TPZ001 controller::
 
-    $ thorlabs_tcube_controller -P TPZ001 -d /dev/ttyUSBx
+    $ aqctl_thorlabs_tcube -P TPZ001 -d /dev/ttyUSBx
 
 .. note::
     On Windows the serial port (the ``-d`` argument) will be of the form ``COMx``.

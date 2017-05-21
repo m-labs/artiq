@@ -146,7 +146,7 @@ class TestTdcSim(GenericControllerCase, GenericTdcTest):
                 "host": "::1",
                 "port": 3255,
                 "command": (sys.executable.replace("\\", "\\\\")
-                            + " -m artiq.frontend.thorlabs_tcube_controller "
+                            + " -m artiq.frontend.aqctl_thorlabs_tcube "
                             + "-p {port} -P tdc001 --simulation")
             }
         }
@@ -172,7 +172,7 @@ class TestTpzSim(GenericControllerCase, GenericTpzTest):
                 "host": "::1",
                 "port": 3255,
                 "command": (sys.executable.replace("\\", "\\\\")
-                            + " -m artiq.frontend.thorlabs_tcube_controller "
+                            + " -m artiq.frontend.aqctl_thorlabs_tcube "
                             + "-p {port} -P tpz001 --simulation")
             }
         }

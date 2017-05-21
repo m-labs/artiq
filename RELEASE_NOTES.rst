@@ -35,6 +35,7 @@ Release notes
   an existing database, add ``device_db = `` at the beginning, and replace any PYON
   identifiers (``true``, ``null``, ...) with their Python equivalents
   (``True``, ``None` ...).
+* Controllers are now named ``aqctl_XXX`` instead of ``XXX_controller``.
 
 
 2.3

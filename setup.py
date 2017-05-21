@@ -35,12 +35,14 @@ console_scripts = [
     "artiq_rpctool=artiq.frontend.artiq_rpctool:main",
     "artiq_run=artiq.frontend.artiq_run:main",
     "artiq_flash=artiq.frontend.artiq_flash:main",
-    "lda_controller=artiq.frontend.lda_controller:main",
-    "novatech409b_controller=artiq.frontend.novatech409b_controller:main",
-    "korad_ka3005p_controller=artiq.frontend.korad_ka3005p_controller:main",
-    "pdq2_client=artiq.frontend.pdq2_client:main",
-    "pdq2_controller=artiq.frontend.pdq2_controller:main",
-    "thorlabs_tcube_controller=artiq.frontend.thorlabs_tcube_controller:main",
+
+    "aqctl_lda=artiq.frontend.aqctl_lda:main",
+    "aqctl_novatech409b=artiq.frontend.aqctl_novatech409b:main",
+    "aqctl_korad_ka3005p=artiq.frontend.aqctl_korad_ka3005p:main",
+    "aqctl_pdq2=artiq.frontend.aqctl_pdq2:main",
+    "aqctl_thorlabs_tcube=artiq.frontend.aqctl_thorlabs_tcube:main",
+
+    "aqcli_pdq2=artiq.frontend.aqcli_pdq2:main",
 ]
 
 gui_scripts = [

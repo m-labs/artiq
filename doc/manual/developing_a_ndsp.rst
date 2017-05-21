@@ -14,8 +14,8 @@ Certain devices (such as the PDQ2) may still perform real-time operations by hav
 A network device support package (NDSP) is composed of several parts:
 
 1. The `driver`, which contains the Python API functions to be called over the network, and performs the I/O to the device. The top-level module of the driver is called ``artiq.devices.XXX.driver``.
-2. The `controller`, which instantiates, initializes and terminates the driver, and sets up the RPC server. The controller is a front-end command-line tool to the user and is called ``artiq.frontend.XXX_controller``. A ``setup.py`` entry must also be created to install it.
-3. An optional `client`, which connects to the controller and exposes the functions of the driver as a command-line interface. Clients are front-end tools (called ``artiq.frontend.XXX_client``) that have ``setup.py`` entries. In most cases, a custom client is not needed and the generic ``artiq_rpctool`` utility can be used instead. Custom clients are only required when large amounts of data must be transferred over the network API, that would be unwieldy to pass as ``artiq_rpctool`` command-line parameters.
+2. The `controller`, which instantiates, initializes and terminates the driver, and sets up the RPC server. The controller is a front-end command-line tool to the user and is called ``artiq.frontend.aqctl_XXX``. A ``setup.py`` entry must also be created to install it.
+3. An optional `client`, which connects to the controller and exposes the functions of the driver as a command-line interface. Clients are front-end tools (called ``artiq.frontend.aqcli_XXX``) that have ``setup.py`` entries. In most cases, a custom client is not needed and the generic ``artiq_rpctool`` utility can be used instead. Custom clients are only required when large amounts of data must be transferred over the network API, that would be unwieldy to pass as ``artiq_rpctool`` command-line parameters.
 4. An optional `mediator`, which is code executed on the client that supplements the network API. A mediator may contain kernels that control real-time signals such as TTL lines connected to the device. Simple devices use the network API directly and do not have a mediator. Mediator modules are called ``artiq.devices.XXX.mediator`` and their public classes are exported at the ``artiq.devices.XXX`` level (via ``__init__.py``) for direct import and use by the experiments.
 
 The driver and controller
@@ -51,13 +51,13 @@ The parameters ``::1`` and ``3249`` are respectively the address to bind the ser
 
     #!/usr/bin/env python3
 
-at the beginning of the file, save it to ``hello_controller.py`` and set its execution permissions: ::
+at the beginning of the file, save it to ``aqctl_hello.py`` and set its execution permissions: ::
 
-    $ chmod 755 hello_controller.py
+    $ chmod 755 aqctl_hello.py
 
 Run it as: ::
 
-    $ ./hello_controller.py
+    $ ./aqctl_hello.py
 
 and verify that you can connect to the TCP port: ::
 
@@ -81,7 +81,7 @@ Clients are small command-line utilities that expose certain functionalities of 
     $ artiq_rpctool ::1 3249 list-methods
     $ artiq_rpctool ::1 3249 call message test
 
-In case you are developing a NDSP that is complex enough to need a custom client, we will see how to develop one. Create a ``hello_client.py`` file with the following contents: ::
+In case you are developing a NDSP that is complex enough to need a custom client, we will see how to develop one. Create a ``aqcli_hello.py`` file with the following contents: ::
 
     #!/usr/bin/env python3
 
@@ -100,7 +100,7 @@ In case you are developing a NDSP that is complex enough to need a custom client
 
 Run it as before, while the controller is running. You should see the message appearing on the controller's terminal: ::
 
-    $ ./hello_controller.py
+    $ ./aqctl_hello.py
     message: Hello World!
 
 When using the driver in an experiment, the ``Client`` instance can be returned by the environment mechanism (via the ``get_device`` and ``attr_device`` methods of :class:`artiq.language.environment.HasEnvironment`) and used normally as a device.

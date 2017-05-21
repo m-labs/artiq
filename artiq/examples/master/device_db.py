@@ -170,25 +170,25 @@ device_db = {
         # that it always resolves to a network-visible IP address (see documentation).
         "host": "::1",
         "port": 4000,
-        "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_0.bin"
+        "command": "aqctl_pdq2 -p {port} --bind {bind} --simulation --dump qc_q1_0.bin"
     },
     "qc_q1_1": {
         "type": "controller",
         "host": "::1",
         "port": 4001,
-        "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_1.bin"
+        "command": "aqctl_pdq2 -p {port} --bind {bind} --simulation --dump qc_q1_1.bin"
     },
     "qc_q1_2": {
         "type": "controller",
         "host": "::1",
         "port": 4002,
-        "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_2.bin"
+        "command": "aqctl_pdq2 -p {port} --bind {bind} --simulation --dump qc_q1_2.bin"
     },
     "qc_q1_3": {
         "type": "controller",
         "host": "::1",
         "port": 4003,
-        "command": "pdq2_controller -p {port} --bind {bind} --simulation --dump qc_q1_3.bin"
+        "command": "aqctl_pdq2 -p {port} --bind {bind} --simulation --dump qc_q1_3.bin"
     },
     "electrodes": {
         "type": "local",
@@ -206,7 +206,7 @@ device_db = {
         "best_effort": True,
         "host": "::1",
         "port": 3253,
-        "command": "lda_controller -p {port} --bind {bind} --simulation"
+        "command": "aqctl_lda -p {port} --bind {bind} --simulation"
     },
 
     "camera_sim": {
