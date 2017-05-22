@@ -1,4 +1,4 @@
-from artiq.language.types import TInt32, TBool
+from artiq.language.types import TInt32
 from artiq.language.core import kernel, now_mu
 from artiq.coredevice.spline import Spline
 from artiq.coredevice.rtio import rtio_output
@@ -46,7 +46,7 @@ class Config:
         rtio_output(now_mu(), self.channel, _SAWG_DIV, div | (n << 16))
 
     @kernel
-    def set_clr(self, clr0: TBool, clr1: TBool, clr2: TBool):
+    def set_clr(self, clr0: TInt32, clr1: TInt32, clr2: TInt32):
         """Set the phase clear mode for the three phase accumulators.
 
         When the ``clr`` bit for a given phase accumulator is
@@ -65,11 +65,11 @@ class Config:
         :param clr2: Auto-clear phase accumulator of the ``phase2``/
           ``frequency2`` DDS. Default: ``True``
         """
-        rtio_output(now_mu(), self.channel, _SAWG_CLR, int(clr1) |
-                (int(clr2) << 1) | (int(clr0) << 2))
+        rtio_output(now_mu(), self.channel, _SAWG_CLR, clr1 |
+                (clr2 << 1) | (clr0 << 2))
 
     @kernel
-    def set_iq_en(self, i_enable: TBool, q_enable: TBool):
+    def set_iq_en(self, i_enable: TInt32, q_enable: TInt32):
         """Enable I/Q data on this DAC channel.
 
         Every pair of SAWG channels forms a buddy pair.
@@ -86,8 +86,8 @@ class Config:
               DUC-DDS data of this SAWG's *buddy* channel to *this* DAC
               channel. Default: ``0``.
         """
-        rtio_output(now_mu(), self.channel, _SAWG_IQ_EN, int(i_enable) |
-                (int(q_enable) << 1))
+        rtio_output(now_mu(), self.channel, _SAWG_IQ_EN, i_enable |
+                (q_enable << 1))
 
     @kernel
     def set_duc_i_max(self, limit: TInt32):
