@@ -38,6 +38,11 @@ Release notes
 * Controllers are now named ``aqctl_XXX`` instead of ``XXX_controller``.
 * In the device database, the "comm" device has been folded into the "core" device.
   Move the "host" argument into the "core" device, and remove the "comm" device.
+* The core device log now contains important information about events such as
+  RTIO collisions. A new controller ``aqctl_corelog`` must be running to forward
+  those logs to the master. See the example device databases to see how to
+  instantiate this controller. Using ``artiq_session`` ensures that a controller
+  manager is running simultaneously with the master.
 
 
 2.3

@@ -2,12 +2,20 @@
 # The RTIO channel numbers here are for NIST CLOCK on KC705.
 # The list of devices here is not exhaustive.
 
+core_addr = "kc705.lab.m-labs.hk"
+
 device_db = {
     "core": {
         "type": "local",
         "module": "artiq.coredevice.core",
         "class": "Core",
-        "arguments": {"host": "kc705.lab.m-labs.hk", "ref_period": 2e-9}
+        "arguments": {"host": core_addr, "ref_period": 2e-9}
+    },
+    "core_log": {
+        "type": "controller",
+        "host": "::1",
+        "port": 1068,
+        "command": "aqctl_corelog -p {port} --bind {bind} " + core_addr
     },
     "core_cache": {
         "type": "local",

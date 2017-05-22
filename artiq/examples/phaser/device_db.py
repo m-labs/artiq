@@ -1,14 +1,19 @@
 # The RTIO channel numbers here are for Phaser on KC705.
 
+core_addr = "kc705aux.lab.m-labs.hk"
+
 device_db = {
     "core": {
         "type": "local",
         "module": "artiq.coredevice.core",
         "class": "Core",
-        "arguments": {
-            "host": "kc705aux.lab.m-labs.hk",
-            "ref_period": 5e-9/6
-        }
+        "arguments": {"host": core_addr, "ref_period": 5e-9/6}
+    },
+    "core_log": {
+        "type": "controller",
+        "host": "::1",
+        "port": 1068,
+        "command": "aqctl_corelog -p {port} --bind {bind} " + core_addr
     },
     "core_cache": {
         "type": "local",
