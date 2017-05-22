@@ -41,8 +41,6 @@ console_scripts = [
     "aqctl_korad_ka3005p=artiq.frontend.aqctl_korad_ka3005p:main",
     "aqctl_pdq2=artiq.frontend.aqctl_pdq2:main",
     "aqctl_thorlabs_tcube=artiq.frontend.aqctl_thorlabs_tcube:main",
-
-    "aqcli_pdq2=artiq.frontend.aqcli_pdq2:main",
 ]
 
 gui_scripts = [
