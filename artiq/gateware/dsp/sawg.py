@@ -84,7 +84,7 @@ class SplineParallelDDS(SplineParallelDUC):
 
 class Config(Module):
     def __init__(self, width):
-        self.clr = Signal(4, reset=0b1111)
+        self.clr = Signal(3, reset=0b111)
         self.iq_en = Signal(2, reset=0b01)
         self.limits = [[Signal((width, True), reset=-(1 << width - 1)),
                        Signal((width, True), reset=(1 << width - 1) - 1)]
