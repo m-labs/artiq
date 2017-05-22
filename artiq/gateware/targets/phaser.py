@@ -149,7 +149,7 @@ class Phaser(MiniSoC, AMPSoC):
     mem_map = {
         "cri_con":       0x10000000,
         "rtio":          0x20000000,
-        # "rtio_dma":      0x30000000,
+        "rtio_dma":      0x30000000,
         "mailbox":       0x70000000,
         "ad9154":        0x50000000,
     }
@@ -225,12 +225,12 @@ class Phaser(MiniSoC, AMPSoC):
         self.submodules.rtio_core = rtio.Core(rtio_channels)
         self.csr_devices.append("rtio_core")
         self.submodules.rtio = rtio.KernelInitiator()
-        # self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
-        #     rtio.DMA(self.get_native_sdram_if()))
+        self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
+            rtio.DMA(self.get_native_sdram_if()))
         self.register_kernel_cpu_csrdevice("rtio")
-        # self.register_kernel_cpu_csrdevice("rtio_dma")
+        self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
-            [self.rtio.cri],  # , self.rtio_dma.cri],
+            [self.rtio.cri, self.rtio_dma.cri],
             [self.rtio_core.cri])
         self.register_kernel_cpu_csrdevice("cri_con")
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
