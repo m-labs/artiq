@@ -204,6 +204,7 @@ class PrepareStage(TaskObject):
                     run.status = RunStatus.flushing
                     while not all(r.status in (RunStatus.pending,
                                                RunStatus.deleting)
+                                  or r.priority < run.priority
                                   or r is run
                                   for r in self.pool.runs.values()):
                         ev = [self.pool.state_changed.wait(),

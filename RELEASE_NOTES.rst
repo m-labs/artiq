@@ -43,6 +43,9 @@ Release notes
   those logs to the master. See the example device databases to see how to
   instantiate this controller. Using ``artiq_session`` ensures that a controller
   manager is running simultaneously with the master.
+* Experiments scheduled with the "flush pipeline" option now proceed when there
+  are lower-priority experiments in the pipeline. Only experiments at the current
+  (or higher) priority level are flushed.
 
 
 2.3
