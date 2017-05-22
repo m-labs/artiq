@@ -402,7 +402,7 @@ class CoredeviceTest(ExperimentCase):
             self.execute(SequenceError)
 
     def test_collision(self):
-        core_addr = self.device_mgr.get_desc("comm")["arguments"]["host"]
+        core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
         mgmt = CommMgmt(self.device_mgr, core_addr)
         mgmt.clear_log()
         self.execute(Collision)
@@ -411,7 +411,7 @@ class CoredeviceTest(ExperimentCase):
         mgmt.close()
 
     def test_address_collision(self):
-        core_addr = self.device_mgr.get_desc("comm")["arguments"]["host"]
+        core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
         mgmt = CommMgmt(self.device_mgr, core_addr)
         mgmt.clear_log()
         self.execute(AddressCollision)
@@ -576,7 +576,7 @@ class DMATest(ExperimentCase):
             exp.nested()
 
     def test_dma_trace(self):
-        core_host = self.device_mgr.get_desc("comm")["arguments"]["host"]
+        core_host = self.device_mgr.get_desc("core")["arguments"]["host"]
 
         exp = self.create(_DMA)
         exp.record()

@@ -36,6 +36,8 @@ Release notes
   identifiers (``true``, ``null``, ...) with their Python equivalents
   (``True``, ``None` ...).
 * Controllers are now named ``aqctl_XXX`` instead of ``XXX_controller``.
+* In the device database, the "comm" device has been folded into the "core" device.
+  Move the "host" argument into the "core" device, and remove the "comm" device.
 
 
 2.3

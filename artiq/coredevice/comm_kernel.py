@@ -109,8 +109,34 @@ def initialize_connection(host, port):
     return sock
 
 
+class CommKernelDummy:
+    def __init__(self):
+        pass
+
+    def switch_clock(self, external):
+        pass
+
+    def load(self, kernel_library):
+        pass
+
+    def run(self):
+        pass
+
+    def serve(self, embedding_map, symbolizer, demangler):
+        pass
+
+    def check_system_info(self):
+        pass
+
+    def get_log(self):
+        return ""
+
+    def clear_log(self):
+        pass
+
+
 class CommKernel:
-    def __init__(self, dmgr, host, port=1381):
+    def __init__(self, host, port=1381):
         self._read_type = None
         self.host = host
         self.port = port

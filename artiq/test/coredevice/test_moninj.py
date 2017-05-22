@@ -6,7 +6,7 @@ from artiq.test.hardware_testbench import ExperimentCase
 
 class MonInjTest(ExperimentCase):
     def test_moninj(self):
-        core_host = self.device_mgr.get_desc("comm")["arguments"]["host"]
+        core_host = self.device_mgr.get_desc("core")["arguments"]["host"]
         loop_out_channel = self.device_mgr.get_desc("loop_out")["arguments"]["channel"]
         loop_in_channel = self.device_mgr.get_desc("loop_in")["arguments"]["channel"]
 

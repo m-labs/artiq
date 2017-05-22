@@ -1,17 +1,12 @@
 # The RTIO channel numbers here are for Phaser on KC705.
 
 device_db = {
-    "comm": {
-        "type": "local",
-        "module": "artiq.coredevice.comm_kernel",
-        "class": "CommKernel",
-        "arguments": {"host": "kc705aux.lab.m-labs.hk"}
-    },
     "core": {
         "type": "local",
         "module": "artiq.coredevice.core",
         "class": "Core",
         "arguments": {
+            "host": "kc705aux.lab.m-labs.hk",
             "ref_period": 5e-9/6
         }
     },

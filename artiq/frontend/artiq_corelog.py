@@ -37,7 +37,7 @@ def main():
     args = get_argparser().parse_args()
     init_logger(args)
 
-    core_addr = DeviceDB(args.device_db).get("comm")["arguments"]["host"]
+    core_addr = DeviceDB(args.device_db).get("core")["arguments"]["host"]
     mgmt = CommMgmt(None, core_addr)
     try:
         if args.action == "set_level":

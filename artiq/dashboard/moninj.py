@@ -197,7 +197,7 @@ class _DeviceManager:
         try:
             if v["type"] == "local":
                 widget = None
-                if k == "comm":
+                if k == "core":
                     self.core_addr = v["arguments"]["host"]
                     self.new_core_addr.set()
                 elif v["module"] == "artiq.coredevice.ttl":

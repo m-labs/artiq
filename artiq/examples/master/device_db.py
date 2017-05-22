@@ -3,17 +3,11 @@
 # The list of devices here is not exhaustive.
 
 device_db = {
-    "comm": {
-        "type": "local",
-        "module": "artiq.coredevice.comm_kernel",
-        "class": "CommKernel",
-        "arguments": {"host": "kc705.lab.m-labs.hk"}
-    },
     "core": {
         "type": "local",
         "module": "artiq.coredevice.core",
         "class": "Core",
-        "arguments": {"ref_period": 1e-9}
+        "arguments": {"host": "kc705.lab.m-labs.hk", "ref_period": 1e-9}
     },
     "core_cache": {
         "type": "local",

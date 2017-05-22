@@ -40,7 +40,7 @@ class WriteLog(EnvExperiment):
 
 class AnalyzerTest(ExperimentCase):
     def test_ttl_pulse(self):
-        core_host = self.device_mgr.get_desc("comm")["arguments"]["host"]
+        core_host = self.device_mgr.get_desc("core")["arguments"]["host"]
 
         exp = self.create(CreateTTLPulse)
         exp.initialize_io()
@@ -64,7 +64,7 @@ class AnalyzerTest(ExperimentCase):
             1000, delta=1)
 
     def test_rtio_log(self):
-        core_host = self.device_mgr.get_desc("comm")["arguments"]["host"]
+        core_host = self.device_mgr.get_desc("core")["arguments"]["host"]
 
         exp = self.create(WriteLog)
         get_analyzer_dump(core_host)  # clear analyzer buffer

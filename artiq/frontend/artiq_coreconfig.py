@@ -52,7 +52,7 @@ def main():
     init_logger(args)
     device_mgr = DeviceManager(DeviceDB(args.device_db))
     try:
-        comm = device_mgr.get("comm")
+        comm = device_mgr.get("core").comm
         comm.check_system_info()
 
         if args.action == "read":

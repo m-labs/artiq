@@ -42,7 +42,7 @@ def initialize_connection(host, port):
 
 
 class CommMgmt:
-    def __init__(self, dmgr, host, port=1380):
+    def __init__(self, host, port=1380):
         self.host = host
         self.port = port
 

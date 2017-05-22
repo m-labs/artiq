@@ -1,14 +1,8 @@
 device_db = {
-    "comm": {
-        "type": "local",
-        "module": "artiq.coredevice.comm_kernel_dummy",
-        "class": "CommKernel",
-        "arguments": {}
-    },
     "core": {
         "type": "local",
         "module": "artiq.coredevice.core",
         "class": "Core",
-        "arguments": {"ref_period": 1e-9}
+        "arguments": {"host": None, "ref_period": 1e-9}
     }
 }

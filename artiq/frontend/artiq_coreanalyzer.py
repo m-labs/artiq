@@ -43,7 +43,7 @@ def main():
         with open(args.read_dump, "rb") as f:
             dump = f.read()
     else:
-        core_addr = device_mgr.get_desc("comm")["arguments"]["host"]
+        core_addr = device_mgr.get_desc("core")["arguments"]["host"]
         dump = get_analyzer_dump(core_addr)
     decoded_dump = decode_dump(dump)
     if args.print_decoded:

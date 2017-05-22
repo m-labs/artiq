@@ -36,7 +36,7 @@ def main():
     init_logger(args)
     device_mgr = DeviceManager(DeviceDB(args.device_db))
     try:
-        core_addr = device_mgr.get_desc("comm")["arguments"]["host"]
+        core_addr = device_mgr.get_desc("core")["arguments"]["host"]
         mgmt = CommMgmt(device_mgr, core_addr)
         if args.action == "reboot":
             mgmt.reboot()
