@@ -24,13 +24,6 @@ Controller
    :ref: artiq.frontend.pdq2_controller.get_argparser
    :prog: pdq2_controller
 
-Client
-++++++
-
-.. argparse::
-   :ref: artiq.frontend.pdq2_client.get_argparser
-   :prog: pdq2_client
-
 Lab Brick Digital Attenuator (LDA)
 ----------------------------------
 
