@@ -403,7 +403,7 @@ class CoredeviceTest(ExperimentCase):
 
     def test_collision(self):
         core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
-        mgmt = CommMgmt(self.device_mgr, core_addr)
+        mgmt = CommMgmt(core_addr)
         mgmt.clear_log()
         self.execute(Collision)
         log = mgmt.get_log()
@@ -412,7 +412,7 @@ class CoredeviceTest(ExperimentCase):
 
     def test_address_collision(self):
         core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
-        mgmt = CommMgmt(self.device_mgr, core_addr)
+        mgmt = CommMgmt(core_addr)
         mgmt.clear_log()
         self.execute(AddressCollision)
         log = mgmt.get_log()

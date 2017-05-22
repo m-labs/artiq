@@ -6,7 +6,6 @@ import struct
 
 from artiq.tools import verbosity_args, init_logger
 from artiq.master.databases import DeviceDB
-from artiq.master.worker_db import DeviceManager
 from artiq.coredevice.comm_mgmt import CommMgmt
 
 
@@ -34,10 +33,10 @@ def get_argparser():
 def main():
     args = get_argparser().parse_args()
     init_logger(args)
-    device_mgr = DeviceManager(DeviceDB(args.device_db))
+
+    core_addr = DeviceDB(args.device_db).get("core")["arguments"]["host"]
+    mgmt = CommMgmt(core_addr)
     try:
-        core_addr = device_mgr.get_desc("core")["arguments"]["host"]
-        mgmt = CommMgmt(device_mgr, core_addr)
         if args.action == "reboot":
             mgmt.reboot()
         elif args.action == "hotswap":
@@ -46,7 +45,7 @@ def main():
             print("An action needs to be specified.", file=sys.stderr)
             sys.exit(1)
     finally:
-        device_mgr.close_devices()
+        mgmt.close()
 
 if __name__ == "__main__":
     main()

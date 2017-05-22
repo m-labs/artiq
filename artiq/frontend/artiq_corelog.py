@@ -38,7 +38,7 @@ def main():
     init_logger(args)
 
     core_addr = DeviceDB(args.device_db).get("core")["arguments"]["host"]
-    mgmt = CommMgmt(None, core_addr)
+    mgmt = CommMgmt(core_addr)
     try:
         if args.action == "set_level":
             mgmt.set_log_level(args.level)
