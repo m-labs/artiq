@@ -91,7 +91,8 @@ class Config:
 
     @kernel
     def set_duc_i_max(self, limit: TInt32):
-        """Set the DUC I data summing junction upper limit.
+        """Set the digital up-converter (DUC) I data summing junction upper
+        limit.
 
         Each of the three summing junctions has a saturating adder with
         configurable upper and lower limits. The three summing junctions are:
@@ -168,6 +169,14 @@ class SAWG:
         output = (offset +
             i_enable*Re(oscillators) +
             q_enable*Im(buddy_oscillators))
+
+    This parametrization can be viewed as two complex (quadrature) oscillators
+    (``frequency1``/``phase1`` and ``frequency2``/``phase2``) followed by
+    a complex digital up-converter (DUC, ``frequency0``/``phase0``) on top of a
+    (real/in-phase) ``offset``. The ``i_enable``/``q_enable`` switches
+    enable emission of quadrature signals for later analog quadrature mixing
+    distinguishing upper and lower sidebands and thus doubling the bandwidth.
+    They can also be used to emit four-tone signals.
 
     The configuration channel and the nine spline interpolators are accessible
     as attributes:
