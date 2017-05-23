@@ -178,8 +178,9 @@ class SAWG:
     distinguishing upper and lower sidebands and thus doubling the bandwidth.
     They can also be used to emit four-tone signals.
 
-    The configuration channel and the nine spline interpolators are accessible
-    as attributes:
+    The configuration channel and the nine
+    :class:`artiq.coredevice.spline.Spline` interpolators are accessible as
+    attributes:
 
     * :attr:`config`: :class:`Config`
     * :attr:`offset`, :attr:`amplitude1`, :attr:`amplitude2`: in units
