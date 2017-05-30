@@ -154,10 +154,10 @@ class _Frame:
             self.pdq.next_segment = -1
 
 
-class CompoundPDQ2:
-    def __init__(self, dmgr, pdq2_devices, trigger_device, frame_devices):
+class CompoundPDQ:
+    def __init__(self, dmgr, pdq_devices, trigger_device, frame_devices):
         self.core = dmgr.get("core")
-        self.pdq2s = [dmgr.get(d) for d in pdq2_devices]
+        self.pdqs = [dmgr.get(d) for d in pdq_devices]
         self.trigger = dmgr.get(trigger_device)
         self.frame0 = dmgr.get(frame_devices[0])
         self.frame1 = dmgr.get(frame_devices[1])
@@ -172,7 +172,7 @@ class CompoundPDQ2:
         for frame in self.frames:
             frame._invalidate()
         self.frames.clear()
-        for dev in self.pdq2s:
+        for dev in self.pdqs:
             dev.park()
         self.armed = False
 
@@ -187,8 +187,8 @@ class CompoundPDQ2:
 
         full_program = self.get_program()
         n = 0
-        for pdq2 in self.pdq2s:
-            dn = pdq2.get_num_channels()
+        for pdq in self.pdqs:
+            dn = pdq.get_num_channels()
             program = []
             for full_frame_program in full_program:
                 frame_program = []
@@ -201,10 +201,10 @@ class CompoundPDQ2:
                     }
                     frame_program.append(line)
                 program.append(frame_program)
-            pdq2.program(program)
+            pdq.program(program)
             n += dn
-        for pdq2 in self.pdq2s:
-            pdq2.unpark()
+        for pdq in self.pdqs:
+            pdq.unpark()
         self.armed = True
 
     def create_frame(self):

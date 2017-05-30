@@ -39,7 +39,7 @@ console_scripts = [
     "aqctl_lda=artiq.frontend.aqctl_lda:main",
     "aqctl_novatech409b=artiq.frontend.aqctl_novatech409b:main",
     "aqctl_korad_ka3005p=artiq.frontend.aqctl_korad_ka3005p:main",
-    "aqctl_pdq2=artiq.frontend.aqctl_pdq2:main",
+    "aqctl_pdq=artiq.frontend.aqctl_pdq:main",
     "aqctl_thorlabs_tcube=artiq.frontend.aqctl_thorlabs_tcube:main",
 ]
 

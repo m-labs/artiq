@@ -4,18 +4,18 @@ import argparse
 import sys
 import time
 
-from artiq.devices.pdq2.driver import Pdq2
+from artiq.devices.pdq.driver import Pdq
 from artiq.protocols.pc_rpc import simple_server_loop
 from artiq.tools import *
 
 
 def get_argparser():
-    parser = argparse.ArgumentParser(description="PDQ2 controller")
+    parser = argparse.ArgumentParser(description="PDQ controller")
     simple_network_args(parser, 3252)
     parser.add_argument("-d", "--device", default=None, help="serial port")
     parser.add_argument("--simulation", action="store_true",
                         help="do not open any device but dump data")
-    parser.add_argument("--dump", default="pdq2_dump.bin",
+    parser.add_argument("--dump", default="pdq_dump.bin",
                         help="file to dump simulation data into")
     parser.add_argument("-r", "--reset", default=False,
                         action="store_true", help="reset device [%(default)s]")
@@ -37,16 +37,17 @@ def main():
 
     if args.simulation:
         port = open(args.dump, "wb")
-    dev = Pdq2(url=args.device, dev=port, num_boards=args.boards)
+    dev = Pdq(url=args.device, dev=port, num_boards=args.boards)
     try:
         if args.reset:
-            dev.write(b"\x00\x00")  # flush any escape
-            dev.cmd("RESET", True)
-            dev.flush()
+            dev.write(b"")  # flush eop
+            dev.set_config(reset=True)
             time.sleep(.1)
-        dev.cmd("ARM", True)
-        dev.park()
-        simple_server_loop({"pdq2": dev}, bind_address_from_args(args),
+
+        dev.set_checksum(0)
+        dev.checksum = 0
+
+        simple_server_loop({"pdq": dev}, bind_address_from_args(args),
                            args.port, description="device=" + str(args.device))
     finally:
         dev.close()

@@ -172,30 +172,30 @@ device_db = {
         # that it always resolves to a network-visible IP address (see documentation).
         "host": "::1",
         "port": 4000,
-        "command": "aqctl_pdq2 -p {port} --bind {bind} --simulation --dump qc_q1_0.bin"
+        "command": "aqctl_pdq -p {port} --bind {bind} --simulation --dump qc_q1_0.bin"
     },
     "qc_q1_1": {
         "type": "controller",
         "host": "::1",
         "port": 4001,
-        "command": "aqctl_pdq2 -p {port} --bind {bind} --simulation --dump qc_q1_1.bin"
+        "command": "aqctl_pdq -p {port} --bind {bind} --simulation --dump qc_q1_1.bin"
     },
     "qc_q1_2": {
         "type": "controller",
         "host": "::1",
         "port": 4002,
-        "command": "aqctl_pdq2 -p {port} --bind {bind} --simulation --dump qc_q1_2.bin"
+        "command": "aqctl_pdq -p {port} --bind {bind} --simulation --dump qc_q1_2.bin"
     },
     "qc_q1_3": {
         "type": "controller",
         "host": "::1",
         "port": 4003,
-        "command": "aqctl_pdq2 -p {port} --bind {bind} --simulation --dump qc_q1_3.bin"
+        "command": "aqctl_pdq -p {port} --bind {bind} --simulation --dump qc_q1_3.bin"
     },
     "electrodes": {
         "type": "local",
-        "module": "artiq.devices.pdq2",
-        "class": "CompoundPDQ2",
+        "module": "artiq.devices.pdq",
+        "class": "CompoundPDQ",
         "arguments": {
             "pdq2_devices": ["qc_q1_0", "qc_q1_1", "qc_q1_2", "qc_q1_3"],
             "trigger_device": "ttl2",

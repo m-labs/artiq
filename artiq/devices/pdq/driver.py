@@ -1,4 +1,19 @@
-# Copyright (C) 2012-2015 Robert Jordens <jordens@gmail.com>
+# Copyright 2013-2017 Robert Jordens <jordens@gmail.com>
+#
+# This file is part of pdq.
+#
+# pdq is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pdq is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with pdq.  If not, see <http://www.gnu.org/licenses/>.
 
 from math import log, sqrt
 import logging
@@ -10,6 +25,65 @@ from artiq.wavesynth.coefficients import discrete_compensate
 
 
 logger = logging.getLogger(__name__)
+
+
+def discrete_compensate(c):
+    """Compensate spline coefficients for discrete accumulators.
+
+    Given continuous-time b-spline coefficients, this function
+    compensates for the effect of discrete time steps in the
+    target devices.
+
+    The compensation is performed in-place.
+    """
+    l = len(c)
+    if l > 2:
+        c[1] += c[2]/2.
+    if l > 3:
+        c[1] += c[3]/6.
+        c[2] += c[3]
+    if l > 4:
+        raise ValueError("Only splines up to cubic order are supported.")
+
+
+class CRC:
+    """Generic and simple table driven CRC calculator.
+
+    This implementation is:
+
+        * MSB first data
+        * "un-reversed" full polynomial (i.e. starts with 0x1)
+        * no initial complement
+        * no final complement
+
+    Handle any variation on those details outside this class.
+
+    >>> r = CRC(0x1814141AB)(b"123456789")  # crc-32q
+    >>> assert r == 0x3010BF7F, hex(r)
+    """
+    def __init__(self, poly, data_width=8):
+        self.poly = poly
+        self.crc_width = poly.bit_length() - 1
+        self.data_width = data_width
+        self._table = [self._one(i << self.crc_width - data_width)
+                       for i in range(1 << data_width)]
+
+    def _one(self, i):
+        for j in range(self.data_width):
+            i <<= 1
+            if i & 1 << self.crc_width:
+                i ^= self.poly
+        return i
+
+    def __call__(self, msg, crc=0):
+        for data in msg:
+            p = data ^ crc >> self.crc_width - self.data_width
+            q = crc << self.data_width & (1 << self.crc_width) - 1
+            crc = self._table[p] ^ q
+        return crc
+
+
+crc8 = CRC(0x107)
 
 
 class Segment:
@@ -49,6 +123,8 @@ class Segment:
                 this line.
             silence (bool): Disable DAC clocks for the duration of this line.
             aux (bool): Assert the AUX (F5 TTL) output during this line.
+                The corresponding global AUX routing setting determines which
+                channels control AUX.
             shift (int): Duration and spline evolution exponent.
             jump (bool): Return to the frame address table after this line.
             clear (bool): Clear the DDS phase accumulator when starting to
@@ -134,17 +210,16 @@ class Segment:
 
 
 class Channel:
-    """PDQ2 Channel.
+    """PDQ Channel.
 
     Attributes:
         num_frames (int): Number of frames supported.
         max_data (int): Number of 16 bit data words per channel.
         segments (list[Segment]): Segments added to this channel.
     """
-    num_frames = 8
-    max_data = 4*(1 << 10)  # 8kx16 8kx16 4kx16
-
-    def __init__(self):
+    def __init__(self, max_data, num_frames):
+        self.max_data = max_data
+        self.num_frames = num_frames
         self.segments = []
 
     def clear(self):
@@ -220,38 +295,39 @@ class Channel:
         return self.table(entry) + data
 
 
-class Pdq2:
+class PdqBase:
     """
     PDQ stack.
 
-    Args:
-        url (str): Pyserial device URL. Can be ``hwgrep://`` style
-            (search for serial number, bus topology, USB VID:PID combination),
-            ``COM15`` for a Windows COM port number,
-            ``/dev/ttyUSB0`` for a Linux serial port.
-        dev (file-like): File handle to use as device. If passed, ``url`` is
-            ignored.
-        num_boards (int): Number of boards in this stack.
-
     Attributes:
-        num_dacs (int): Number of DAC outputs per board.
+        checksum (int): Running checksum of data written.
         num_channels (int): Number of channels in this stack.
         num_boards (int): Number of boards in this stack.
+        num_dacs (int): Number of DAC outputs per board.
+        num_frames (int): Number of frames supported.
         channels (list[Channel]): List of :class:`Channel` in this stack.
     """
-    num_dacs = 3
     freq = 50e6
 
-    _escape = b"\xa5"
-    _commands = "RESET TRIGGER ARM DCM START".split()
+    _mem_sizes = [None, (20,), (10, 10), (8, 6, 6)]  # 10kx16 units
 
-    def __init__(self, url=None, dev=None, num_boards=3):
-        if dev is None:
-            dev = serial.serial_for_url(url)
-        self.dev = dev
+    def __init__(self, num_boards=3, num_dacs=3, num_frames=32):
+        """Initialize PDQ stack.
+
+        Args:
+            num_boards (int): Number of boards in this stack.
+            num_dacs (int): Number of DAC outputs per board.
+            num_frames (int): Number of frames supported.
+        """
+        self.checksum = 0
         self.num_boards = num_boards
+        self.num_dacs = num_dacs
+        self.num_frames = num_frames
         self.num_channels = self.num_dacs * self.num_boards
-        self.channels = [Channel() for i in range(self.num_channels)]
+        m = self._mem_sizes[num_dacs]
+        self.channels = [Channel(m[j] << 11, num_frames)
+                         for i in range(num_boards)
+                         for j in range(num_dacs)]
 
     def get_num_boards(self):
         return self.num_boards
@@ -259,41 +335,71 @@ class Pdq2:
     def get_num_channels(self):
         return self.num_channels
 
+    def get_num_frames(self):
+        return self.num_frames
+
     def get_freq(self):
         return self.freq
 
     def set_freq(self, freq):
         self.freq = float(freq)
 
-    def close(self):
-        """Close the USB device handle."""
-        self.dev.close()
-        del self.dev
+    def _cmd(self, board, is_mem, adr, we):
+        return (adr << 0) | (is_mem << 2) | (board << 3) | (we << 7)
 
     def write(self, data):
-        """Write data to the PDQ2 board.
+        raise NotImplementedError
+
+    def write_reg(self, board, adr, data):
+        """Write to a configuration register.
 
         Args:
-            data (bytes): Data to write.
+            board (int): Board to write to (0-0xe), 0xf for all boards.
+            adr (int): Register address to write to (0-3).
+            data (int): Data to write (1 byte)
         """
-        logger.debug("> %r", data)
-        written = self.dev.write(data)
-        if isinstance(written, int):
-            assert written == len(data)
+        self.write(struct.pack(
+            "<BB", self._cmd(board, False, adr, True), data))
 
-    def cmd(self, cmd, enable):
-        """Execute a command.
+    def set_config(self, reset=False, clk2x=False, enable=True,
+                   trigger=False, aux_miso=False, aux_dac=0b111, board=0xf):
+        """Set the configuration register.
 
         Args:
-            cmd (str): Command to execute. One of (``RESET``, ``TRIGGER``,
-                ``ARM``, ``DCM``, ``START``).
-            enable (bool): Enable (``True``) or disable (``False``) the
-                feature.
+            reset (bool): Reset the board. Memory is not reset. Self-clearing.
+            clk2x (bool): Enable the clock multiplier (100 MHz instead of 50
+                MHz)
+            enable (bool): Enable the channel data parsers and spline
+                interpolators.
+            trigger (bool): Soft trigger. Logical or with the hardware trigger.
+            aux_miso (bool): Drive SPI MISO on the AUX/F5 ttl port of each
+                board. If `False`, drive the masked logical or of the DAC
+                channels' aux data.
+            aux_dac (int): Mask for AUX/F5. Each bit represents one channel.
+                AUX/F5 is: `aux_miso ? spi_miso :
+                (aux_dac & Cat(_.aux for _ in channels) != 0)`
+            board (int): Board to write to (0-0xe), 0xf for all boards.
         """
-        cmd = self._commands.index(cmd) << 1
-        if not enable:
-            cmd |= 1
-        self.write(struct.pack("cb", self._escape, cmd))
+        self.write_reg(board, 0, (reset << 0) | (clk2x << 1) | (enable << 2) |
+                       (trigger << 3) | (aux_miso << 4) | (aux_dac << 5))
+
+    def set_checksum(self, crc=0, board=0xf):
+        """Set/reset the checksum register.
+
+        Args:
+            crc (int): Checksum value to write.
+            board (int): Board to write to (0-0xe), 0xf for all boards.
+        """
+        self.write_reg(board, 1, crc)
+
+    def set_frame(self, frame, board=0xf):
+        """Set the current frame.
+
+        Args:
+            frame (int): Frame to select.
+            board (int): Board to write to (0-0xe), 0xf for all boards.
+        """
+        self.write_reg(board, 2, frame)
 
     def write_mem(self, channel, data, start_addr=0):
         """Write to channel memory.
@@ -305,10 +411,8 @@ class Pdq2:
             start_addr (int): Start address to write data to.
         """
         board, dac = divmod(channel, self.num_dacs)
-        data = struct.pack("<HHH", (board << 4) | dac, start_addr,
-                           start_addr + len(data)//2 - 1) + data
-        data = data.replace(self._escape, self._escape + self._escape)
-        self.write(data)
+        self.write(struct.pack("<BH", self._cmd(board, True, dac, True),
+                               start_addr) + data)
 
     def program_segments(self, segments, data):
         """Append the wavesynth lines to the given segments.
@@ -372,18 +476,83 @@ class Pdq2:
         for channel, ch in zip(channels, chs):
             self.write_mem(channel, ch.serialize())
 
-    def flush(self):
-        self.dev.flush()
-
-    def park(self):
-        self.cmd("START", False)
-        self.cmd("TRIGGER", True)
+    def disable(self, **kwargs):
+        """Disable the device."""
+        self.set_config(enable=False, **kwargs)
         self.flush()
 
-    def unpark(self):
-        self.cmd("TRIGGER", False)
-        self.cmd("START", True)
+    def enable(self, **kwargs):
+        """Enable the device."""
+        self.set_config(enable=True, **kwargs)
         self.flush()
 
     def ping(self):
+        """Ping method returning True. Required for ARTIQ remote
+        controller."""
         return True
+
+
+class Pdq(PdqBase):
+    def __init__(self, url=None, dev=None, **kwargs):
+        """Initialize PDQ USB/Parallel device stack.
+
+        Args:
+            url (str): Pyserial device URL. Can be ``hwgrep://`` style
+                (search for serial number, bus topology, USB VID:PID
+                combination), ``COM15`` for a Windows COM port number,
+                ``/dev/ttyUSB0`` for a Linux serial port.
+            dev (file-like): File handle to use as device. If passed, ``url``
+                is ignored.
+            **kwargs: See :class:`PdqBase` .
+        """
+        if dev is None:
+            dev = serial.serial_for_url(url)
+        self.dev = dev
+        PdqBase.__init__(self, **kwargs)
+
+    def write(self, data):
+        """Write data to the PDQ board over USB/parallel.
+
+        SOF/EOF control sequences are appended/prepended to
+        the (escaped) data. The running checksum is updated.
+
+        Args:
+            data (bytes): Data to write.
+        """
+        logger.debug("> %r", data)
+        msg = b"\xa5\x02" + data.replace(b"\xa5", b"\xa5\xa5") + b"\xa5\x03"
+        written = self.dev.write(msg)
+        if isinstance(written, int):
+            assert written == len(msg), (written, len(msg))
+        self.checksum = crc8(data, self.checksum)
+
+    def close(self):
+        """Close the USB device handle."""
+        self.dev.close()
+        del self.dev
+
+    def flush(self):
+        """Flush pending data."""
+        self.dev.flush()
+
+
+class PdqSPI(PdqBase):
+    def __init__(self, dev=None, **kwargs):
+        """Initialize PDQ SPI device stack."""
+        self.dev = dev
+        PdqBase.__init__(self, **kwargs)
+
+    def write(self, data):
+        """Write data to the PDQ board over USB/parallel.
+
+        SOF/EOF control sequences are appended/prepended to
+        the (escaped) data. The running checksum is updated.
+
+        Args:
+            data (bytes): Data to write.
+        """
+        logger.debug("> %r", data)
+        written = self.dev.write(data)
+        if isinstance(written, int):
+            assert written == len(data), (written, len(data))
+        self.checksum = crc8(data, self.checksum)

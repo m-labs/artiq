@@ -4,34 +4,31 @@ import unittest
 import os
 import io
 
-from artiq.devices.pdq2.driver import Pdq2
+from artiq.devices.pdq.driver import Pdq
 from artiq.wavesynth.compute_samples import Synthesizer
 
 
-pdq2_gateware = os.getenv("ARTIQ_PDQ2_GATEWARE")
+pdq_gateware = os.getenv("ARTIQ_PDQ_GATEWARE")
 
 
-class TestPdq2(unittest.TestCase):
+class TestPdq(unittest.TestCase):
     def setUp(self):
-        self.dev = Pdq2(dev=io.BytesIO())
+        self.dev = Pdq(dev=io.BytesIO())
         self.synth = Synthesizer(3, _test_program)
 
     def test_reset(self):
-        self.dev.cmd("RESET", True)
+        self.dev.set_config(reset=True)
         buf = self.dev.dev.getvalue()
-        self.assertEqual(buf, b"\xa5\x00")
+        self.assertEqual(buf, b"\xa5\x02\xf8\xe5\xa5\x03")
 
     def test_program(self):
         # about 0.14 ms
         self.dev.program(_test_program)
 
     def test_cmd_program(self):
-        self.dev.cmd("ARM", False)
-        self.dev.cmd("START", False)
+        self.dev.set_config(enable=False)
         self.dev.program(_test_program)
-        self.dev.cmd("START", True)
-        self.dev.cmd("ARM", True)
-        # self.dev.cmd("TRIGGER", True)
+        self.dev.set_config(enable=True, trigger=True)
         return self.dev.dev.getvalue()
 
     def test_synth(self):
@@ -42,12 +39,12 @@ class TestPdq2(unittest.TestCase):
 
     def run_gateware(self):
         import sys
-        sys.path.append(pdq2_gateware)
-        from gateware.pdq2 import Pdq2Sim
-        from migen.sim.generic import run_simulation
+        sys.path.append(pdq_gateware)
+        from gateware.pdq import PdqSim
+        from migen import run_simulation
 
         buf = self.test_cmd_program()
-        tb = Pdq2Sim(buf)
+        tb = PdqSim()
         tb.ctrl_pads.trigger.reset = 1
         run_simulation(tb, ncycles=len(buf) + 250)
         delays = 7, 10, 30
@@ -57,7 +54,7 @@ class TestPdq2(unittest.TestCase):
         self.assertEqual(len(y[0]), 3)
         return y
 
-    @unittest.skipUnless(pdq2_gateware, "no pdq2 gateware")
+    @unittest.skipUnless(pdq_gateware, "no PDQ gateware")
     def test_run_compare(self):
         y_ref = self.test_synth()
         y = self.run_gateware()
@@ -70,7 +67,7 @@ class TestPdq2(unittest.TestCase):
                 self.assertAlmostEqual(yij, yij_ref, 2, "disagreement at "
                                        "t={}, c={}".format(i, j))
 
-    @unittest.skipUnless(pdq2_gateware, "no pdq2 gateware")
+    @unittest.skipUnless(pdq_gateware, "no PDQ gateware")
     @unittest.skip("manual/visual test")
     def test_run_plot(self):
         from matplotlib import pyplot as plt
