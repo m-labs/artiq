@@ -14,21 +14,21 @@ PDQ2
 Driver
 ++++++
 
-.. automodule:: artiq.devices.pdq2.driver
+.. automodule:: artiq.devices.pdq.driver
     :members:
 
 Mediator
 ++++++++
 
-.. automodule:: artiq.devices.pdq2.mediator
+.. automodule:: artiq.devices.pdq.mediator
     :members:
 
 Controller
 ++++++++++
 
 .. argparse::
-   :ref: artiq.frontend.aqctl_pdq2.get_argparser
-   :prog: aqctl_pdq2
+   :ref: artiq.frontend.aqctl_pdq.get_argparser
+   :prog: aqctl_pdq
 
 
 Lab Brick Digital Attenuator (LDA)
