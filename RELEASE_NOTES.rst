@@ -46,6 +46,7 @@ Release notes
 * Experiments scheduled with the "flush pipeline" option now proceed when there
   are lower-priority experiments in the pipeline. Only experiments at the current
   (or higher) priority level are flushed.
+* "pdq2" has been renamed "pdq" (in controller and module names).
 
 
 2.3
