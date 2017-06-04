@@ -6,8 +6,8 @@ import sys
 import versioneer
 
 
-if not (3, 5, 2) <= sys.version_info[:3] < (3, 6, 0):
-    raise Exception("You need Python 3.5.2+ (but not 3.6)")
+if not (3, 5, 3) <= sys.version_info[:3] < (3, 6, 0):
+    raise Exception("You need Python 3.5.3+ (but not 3.6+)")
 
 
 # Depends on PyQt5, but setuptools cannot check for it.
