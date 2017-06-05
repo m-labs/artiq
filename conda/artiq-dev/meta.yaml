@@ -35,7 +35,7 @@ requirements:
     - sphinxcontrib-wavedrom
     - sphinx_rtd_theme
     - h5py
-    - dateutil
+    - python-dateutil
     - pyqt >=5.5
     - quamash
     - pyqtgraph

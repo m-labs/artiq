@@ -27,7 +27,7 @@ requirements:
     - prettytable
     - asyncserial
     - h5py
-    - dateutil
+    - python-dateutil
     - pyqt >=5.5
     - quamash
     - pyqtgraph 0.10.0
