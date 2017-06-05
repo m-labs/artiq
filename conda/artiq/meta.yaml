@@ -13,7 +13,7 @@ build:
 requirements:
   build:
     - python >=3.5.3,<3.6
-    - setuptools
+    - setuptools 33.1.1
   run:
     - python >=3.5.3,<3.6
     - llvmlite-artiq 0.10.0.dev py35_24
