@@ -233,8 +233,9 @@ class CommGeneric:
             raise UnsupportedDevice("Unsupported runtime ID: {}"
                                     .format(runtime_id))
         gateware_version = self._read_chunk(self._read_length).decode("utf-8")
-        if gateware_version != software_version and \
-                gateware_version + ".dirty" != software_version:
+        gateware_release = gateware_version.split("+")[0]
+        software_release = software_version.split("+")[0]
+        if gateware_release != software_release:
             logger.warning("Mismatch between gateware (%s) "
                            "and software (%s) versions",
                            gateware_version, software_version)
