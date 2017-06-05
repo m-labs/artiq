@@ -86,6 +86,9 @@ class Core:
         self.core = self
         self.comm.core = self
 
+    def close(self):
+        self.comm.close()
+
     def compile(self, function, args, kwargs, set_result=None,
                 attribute_writeback=True, print_as_rpc=True):
         try:
