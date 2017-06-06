@@ -284,9 +284,7 @@ class CommKernel:
                                     .format(runtime_id))
 
         gateware_version = self._read_string()
-        gateware_release = gateware_version.split("+")[0]
-        software_release = software_version.split("+")[0]
-        if gateware_release != software_release:
+        if gateware_version != software_version:
             logger.warning("Mismatch between gateware (%s) "
                            "and software (%s) versions",
                            gateware_version, software_version)
