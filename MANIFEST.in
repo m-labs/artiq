@@ -2,5 +2,4 @@ graft artiq/firmware
 graft artiq/examples
 include artiq/gui/logo*.svg
 include versioneer.py
-include fastentrypoints.py
 include artiq/_version.py
