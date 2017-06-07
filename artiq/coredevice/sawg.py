@@ -82,6 +82,10 @@ class Config:
         Refer to the documentation of :class:`SAWG` for a mathematical
         description of ``i_enable`` and ``q_enable``.
 
+        .. note:: Quadrature data from the buddy channel is currently
+            ignored in the SAWG gateware and not added to the DAC output.
+            This is equivalent to the ``q_enable`` switch always being ``0``.
+
         :param i_enable: Controls adding the in-phase
               DUC-DDS data of *this* SAWG channel to *this* DAC channel.
               Default: ``1``.
@@ -220,6 +224,10 @@ class SAWG:
     enable emission of quadrature signals for later analog quadrature mixing
     distinguishing upper and lower sidebands and thus doubling the bandwidth.
     They can also be used to emit four-tone signals.
+
+    .. note:: Quadrature data from the buddy channel is currently
+       ignored in the SAWG gateware and not added to the DAC output.
+       This is equivalent to the ``q_enable`` switch always being ``0``.
 
     The configuration channel and the nine
     :class:`artiq.coredevice.spline.Spline` interpolators are accessible as
