@@ -1,4 +1,5 @@
-from artiq.language.types import TInt32
+from artiq.language.types import TInt32, TFloat
+from numpy import int32
 from artiq.language.core import kernel, now_mu
 from artiq.coredevice.spline import Spline
 from artiq.coredevice.rtio import rtio_output
@@ -25,11 +26,13 @@ class Config:
     :param channel: RTIO channel number of the channel.
     :param core: Core device.
     """
-    kernel_invariants = {"channel", "core"}
+    kernel_invariants = {"channel", "core", "_out_scale", "_duc_scale"}
 
-    def __init__(self, channel, core):
+    def __init__(self, channel, core, cordic_gain=1.):
         self.channel = channel
         self.core = core
+        self._out_scale = (1 << 15) - 1.
+        self._duc_scale = self._out_scale/cordic_gain
 
     @kernel
     def set_div(self, div: TInt32, n: TInt32=0):
@@ -90,7 +93,45 @@ class Config:
                 (q_enable << 1))
 
     @kernel
-    def set_duc_i_max(self, limit: TInt32):
+    def set_duc_i_max_mu(self, limit: TInt32):
+        """Set the digital up-converter (DUC) I data summing junction upper
+        limit. In machine units.
+
+        The default limits are the full range of signed 16 bit data.
+
+        For a description of the limiter functions in normalized units see:
+
+        .. seealso:: :meth:`set_duc_i_max`
+        """
+        rtio_output(now_mu(), self.channel, _SAWG_DUC_I_MAX, limit)
+
+    @kernel
+    def set_duc_i_min_mu(self, limit: TInt32):
+        """.. seealso:: :meth:`set_duc_i_max_mu`"""
+        rtio_output(now_mu(), self.channel, _SAWG_DUC_I_MIN, limit)
+
+    @kernel
+    def set_duc_q_max_mu(self, limit: TInt32):
+        """.. seealso:: :meth:`set_duc_i_max_mu`"""
+        rtio_output(now_mu(), self.channel, _SAWG_DUC_Q_MAX, limit)
+
+    @kernel
+    def set_duc_q_min_mu(self, limit: TInt32):
+        """.. seealso:: :meth:`set_duc_i_max_mu`"""
+        rtio_output(now_mu(), self.channel, _SAWG_DUC_Q_MIN, limit)
+
+    @kernel
+    def set_out_max_mu(self, limit: TInt32):
+        """.. seealso:: :meth:`set_duc_i_max_mu`"""
+        rtio_output(now_mu(), self.channel, _SAWG_OUT_MAX, limit)
+
+    @kernel
+    def set_out_min_mu(self, limit: TInt32):
+        """.. seealso:: :meth:`set_duc_i_max_mu`"""
+        rtio_output(now_mu(), self.channel, _SAWG_OUT_MIN, limit)
+
+    @kernel
+    def set_duc_i_max(self, limit: TFloat):
         """Set the digital up-converter (DUC) I data summing junction upper
         limit.
 
@@ -116,7 +157,9 @@ class Config:
         Refer to the documentation of :class:`SAWG` for a mathematical
         description of the summing junctions.
 
-        The default limits are the full range of signed 16 bit data.
+        :param limit: Limit value ``[-1, 1]``. The output of the limiter will
+            never exceed this limit. The default limits are the full range
+            ``[-1, 1]``.
 
         .. seealso::
             * :meth:`set_duc_i_max`: Upper limit of the in-phase input to
@@ -130,32 +173,32 @@ class Config:
             * :meth:`set_out_max`: Upper limit of the DAC output.
             * :meth:`set_out_min`: Lower limit of the DAC output.
         """
-        rtio_output(now_mu(), self.channel, _SAWG_DUC_I_MAX, limit)
+        self.set_duc_i_max_mu(int32(round(limit*self._duc_scale)))
 
     @kernel
-    def set_duc_i_min(self, limit: TInt32):
+    def set_duc_i_min(self, limit: TFloat):
         """.. seealso:: :meth:`set_duc_i_max`"""
-        rtio_output(now_mu(), self.channel, _SAWG_DUC_I_MIN, limit)
+        self.set_duc_i_min_mu(int32(round(limit*self._duc_scale)))
 
     @kernel
-    def set_duc_q_max(self, limit: TInt32):
+    def set_duc_q_max(self, limit: TFloat):
         """.. seealso:: :meth:`set_duc_i_max`"""
-        rtio_output(now_mu(), self.channel, _SAWG_DUC_Q_MAX, limit)
+        self.set_duc_q_max_mu(int32(round(limit*self._duc_scale)))
 
     @kernel
-    def set_duc_q_min(self, limit: TInt32):
+    def set_duc_q_min(self, limit: TFloat):
         """.. seealso:: :meth:`set_duc_i_max`"""
-        rtio_output(now_mu(), self.channel, _SAWG_DUC_Q_MIN, limit)
+        self.set_duc_q_min_mu(int32(round(limit*self._duc_scale)))
 
     @kernel
-    def set_out_max(self, limit: TInt32):
+    def set_out_max(self, limit: TFloat):
         """.. seealso:: :meth:`set_duc_i_max`"""
-        rtio_output(now_mu(), self.channel, _SAWG_OUT_MAX, limit)
+        self.set_out_max_mu(int32(round(limit*self._out_scale)))
 
     @kernel
-    def set_out_min(self, limit: TInt32):
+    def set_out_min(self, limit: TFloat):
         """.. seealso:: :meth:`set_duc_i_max`"""
-        rtio_output(now_mu(), self.channel, _SAWG_OUT_MIN, limit)
+        self.set_out_min_mu(int32(round(limit*self._out_scale)))
 
 
 class SAWG:
@@ -206,7 +249,7 @@ class SAWG:
         width = 16
         time_width = 16
         cordic_gain = 1.646760258057163  # Cordic(width=16, guard=None).gain
-        self.config = Config(channel_base, self.core)
+        self.config = Config(channel_base, self.core, cordic_gain)
         self.offset = Spline(width, time_width, channel_base + 1,
                              self.core, 2.)
         self.amplitude1 = Spline(width, time_width, channel_base + 2,
