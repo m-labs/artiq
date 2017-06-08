@@ -64,7 +64,7 @@ class _RepoScanner:
                         exc_info=not isinstance(exc, WorkerInternalException))
                     # restart worker
                     await self.worker.close()
-                    self.worker = Worker(self.worker_handlers)
+                    self.worker = self._create_worker()
             if de.is_dir():
                 subentries = await self._scan(
                     root, os.path.join(subdir, de.name))
@@ -72,10 +72,12 @@ class _RepoScanner:
                 entry_dict.update(entries)
         return entry_dict
 
-    async def scan(self, root):
-        self.worker = Worker(self.worker_handlers)
+    async def scan(self, repo_path):
+        self._create_worker = lambda:  Worker(self.worker_handlers,
+                                              repo_path=repo_path)
+        self.worker = self._create_worker()
         try:
-            r = await self._scan(root)
+            r = await self._scan(repo_path)
         finally:
             await self.worker.close()
         return r
@@ -96,7 +98,7 @@ class ExperimentDB:
         self.worker_handlers = worker_handlers
 
         self.cur_rev = self.repo_backend.get_head_rev()
-        self.repo_backend.request_rev(self.cur_rev)
+        self.repo_path, _ = self.repo_backend.request_rev(self.cur_rev)
         self.explist = Notifier(dict())
         self._scanning = False
 
@@ -140,7 +142,10 @@ class ExperimentDB:
                 revision = self.cur_rev
             wd, _ = self.repo_backend.request_rev(revision)
             filename = os.path.join(wd, filename)
-        worker = Worker(self.worker_handlers)
+            repo_path = wd
+        else:
+            repo_path = self.repo_path
+        worker = Worker(self.worker_handlers, repo_path=repo_path)
         try:
             description = await worker.examine("examine", filename)
         finally:
@@ -183,7 +188,12 @@ class FilesystemBackend:
 
 class _GitCheckout:
     def __init__(self, git, rev):
-        self.path = tempfile.mkdtemp()
+        parent_path = tempfile.mkdtemp()
+        # Checkout into a subdirectory 'repository' of our temp dir to ensure
+        # that there are no other modules unintentionally added to the python
+        # path
+        self.path = parent_path+os.path.sep+'repository'
+        os.mkdir(self.path)
         commit = git.get(rev)
         git.checkout_tree(commit, directory=self.path)
         self.message = commit.message.strip()

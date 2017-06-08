@@ -41,7 +41,7 @@ def log_worker_exception():
 
 
 class Worker:
-    def __init__(self, handlers=dict(), send_timeout=10.0):
+    def __init__(self, handlers=dict(), send_timeout=10.0, repo_path=None):
         self.handlers = handlers
         self.send_timeout = send_timeout
 
@@ -49,6 +49,7 @@ class Worker:
         self.filename = None
         self.ipc = None
         self.watchdogs = dict()  # wid -> expiration (using time.monotonic)
+        self.repo_path = repo_path
 
         self.io_lock = asyncio.Lock()
         self.closed = asyncio.Event()
@@ -85,6 +86,13 @@ class Worker:
             self.ipc = pipe_ipc.AsyncioParentComm()
             env = os.environ.copy()
             env["PYTHONUNBUFFERED"] = "1"
+            if self.repo_path:
+                # Add parent of repository directory to PYTHONPATH
+                repo_parent_path = os.path.dirname(self.repo_path)
+                if "PYTHONPATH" in env:
+                    env["PYTHONPATH"] += os.pathsep+repo_parent_path
+                else:
+                    env["PYTHONPATH"] = repo_parent_path
             await self.ipc.create_subprocess(
                 sys.executable, "-m", "artiq.master.worker_impl",
                 self.ipc.get_address(), str(log_level),
