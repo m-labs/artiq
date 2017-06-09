@@ -1170,6 +1170,8 @@ class LLVMIRGenerator:
             return b"s"
         elif builtins.is_bytes(typ):
             return b"B"
+        elif builtins.is_bytearray(typ):
+            return b"A"
         elif builtins.is_list(typ):
             return b"l" + self._rpc_tag(builtins.get_iterable_elt(typ),
                                         error_handler)

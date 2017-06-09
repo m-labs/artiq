@@ -371,6 +371,8 @@ class CommKernel:
             return self._read_string()
         elif tag == "B":
             return self._read_bytes()
+        elif tag == "A":
+            return self._read_bytes()
         elif tag == "l":
             length = self._read_int32()
             return [self._receive_rpc_value(embedding_map) for _ in range(length)]
@@ -466,6 +468,10 @@ class CommKernel:
         elif tag == "B":
             check(isinstance(value, bytes),
                   lambda: "bytes")
+            self._write_bytes(value)
+        elif tag == "A":
+            check(isinstance(value, bytearray),
+                  lambda: "bytearray")
             self._write_bytes(value)
         elif tag == "l":
             check(isinstance(value, list),
