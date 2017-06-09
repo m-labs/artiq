@@ -285,15 +285,13 @@ def is_exception(typ, name=None):
             typ.name == name
 
 def is_iterable(typ):
-    typ = typ.find()
-    return isinstance(typ, types.TMono) and \
-        typ.name in ('list', 'array', 'range')
+    return is_listish(typ) or is_range(typ)
 
 def get_iterable_elt(typ):
-    if is_iterable(typ):
-        return typ.find()["elt"].find()
-    elif is_str(typ) or is_bytes(typ):
+    if is_str(typ) or is_bytes(typ):
         return TInt(types.TValue(8))
+    elif is_iterable(typ):
+        return typ.find()["elt"].find()
     else:
         assert False
 

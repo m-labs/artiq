@@ -180,7 +180,10 @@ class Inferencer(algorithm.Visitor):
                 self.engine.process(diag)
 
     def _unify_iterable(self, element, collection):
-        if builtins.is_iterable(collection.type):
+        if builtins.is_bytes(collection.type):
+            self._unify(element.type, builtins.TInt(),
+                        element.loc, None)
+        elif builtins.is_iterable(collection.type):
             rhs_type = collection.type.find()
             rhs_wrapped_lhs_type = types.TMono(rhs_type.name, {"elt": element.type})
             self._unify(rhs_wrapped_lhs_type, rhs_type,

@@ -17,3 +17,7 @@ assert lst[0:3:2] == [0, 2]
 lst = [0, 0, 0, 0, 0]
 lst[0:5:2] = [1, 2, 3]
 assert lst == [1, 0, 2, 0, 3]
+
+byt = b"abc"
+assert byt[0] == 97
+assert byt[1] == 98
