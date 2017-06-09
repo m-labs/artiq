@@ -396,7 +396,8 @@ class Inferencer(algorithm.Visitor):
                     self._unify(left.type, right.type,
                                 left.loc, right.loc)
                     return left.type, left.type, right.type
-            elif builtins.is_str(left.type) or builtins.is_str(right.type):
+            elif (builtins.is_str(left.type) or builtins.is_str(right.type) or
+                  builtins.is_bytes(left.type) or builtins.is_bytes(right.type)):
                 self._unify(left.type, right.type,
                             left.loc, right.loc)
                 return left.type, left.type, right.type
