@@ -39,8 +39,11 @@ class Config:
         """Set the spline evolution divider and current counter value.
 
         The divider and the spline evolution are synchronized across all
-        spline channels within a SAWG channel. The phase accumulator always
-        evolves at full speed.
+        spline channels within a SAWG channel. The DDS/DUC phase accumulators
+        always evolves at full speed.
+
+        .. note:: The spline evolution divider has not been tested extensively
+            and is currently considered a technological preview only.
 
         :param div: Spline evolution divider, such that
             ``t_sawg_spline/t_rtio_coarse = div + 1``. Default: ``0``.
@@ -50,16 +53,32 @@ class Config:
 
     @kernel
     def set_clr(self, clr0: TInt32, clr1: TInt32, clr2: TInt32):
-        """Set the phase clear mode for the three phase accumulators.
+        """Set the accumulator clear mode for the three phase accumulators.
 
-        When the ``clr`` bit for a given phase accumulator is
-        set, that phase accumulator will be cleared with every phase RTIO
-        command and the output phase will be exactly the phase RTIO value
-        ("absolute phase update mode").
+        When the ``clr`` bit for a given DDS/DUC phase accumulator is
+        set, that phase accumulator will be cleared with every phase offset
+        RTIO command and the output phase of the DDS/DUC will be
+        exactly the phase RTIO value ("absolute phase update mode").
 
-        In turn, when the bit is cleared, the phase RTIO channels only
-        provide a phase offset to the current value of the phase
-        accumulator ("relative phase update mode").
+        .. math::
+            q^\prime(t) = p^\prime + (t - t^\prime) f^\prime
+
+        In turn, when the bit is cleared, the phase RTIO channels
+        determine a phase offset to the current (carrier-) value of the
+        DDS/DUC phase accumulator. This "relative phase update mode" is
+        sometimes also called “continuous phase mode”.
+
+        .. math::
+            q^\prime(t) = q(t^\prime) + (p^\prime - p) +
+                (t - t^\prime) f^\prime
+
+        Where:
+
+            * :math:`q`, :math:`q^\prime`: old/new phase accumulator
+            * :math:`p`, :math:`p^\prime`: old/new phase offset
+            * :math:`f^\prime`: new frequency
+            * :math:`t^\prime`: timestamp of setting new :math:`p`, :math:`f`
+            * :math:`t`: running time
 
         :param clr0: Auto-clear phase accumulator of the ``phase0``/
           ``frequency0`` DUC. Default: ``True``
@@ -83,7 +102,8 @@ class Config:
         description of ``i_enable`` and ``q_enable``.
 
         .. note:: Quadrature data from the buddy channel is currently
-            ignored in the SAWG gateware and not added to the DAC output.
+            a technological preview only. The data is ignored in the SAWG
+            gateware and not added to the DAC output.
             This is equivalent to the ``q_enable`` switch always being ``0``.
 
         :param i_enable: Controls adding the in-phase
