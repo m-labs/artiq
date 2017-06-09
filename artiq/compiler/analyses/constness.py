@@ -4,7 +4,7 @@ as constant is ever set.
 """
 
 from pythonparser import algorithm, diagnostic
-from .. import types
+from .. import types, builtins
 
 class Constness(algorithm.Visitor):
     def __init__(self, engine):
@@ -22,6 +22,13 @@ class Constness(algorithm.Visitor):
         self.visit(node.value)
         self.visit(node.slice)
         self.in_assign = old_in_assign
+
+        if self.in_assign and builtins.is_bytes(node.value.type):
+            diag = diagnostic.Diagnostic("error",
+                "type {typ} is not mutable",
+                {"typ": "bytes"},
+                node.loc)
+            self.engine.process(diag)
 
     def visit_AttributeT(self, node):
         old_in_assign, self.in_assign = self.in_assign, False
