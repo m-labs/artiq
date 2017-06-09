@@ -18,7 +18,14 @@ __pycache__/
 /misoc_*/
 
 /artiq/test/results
-
 /artiq/examples/*/results
 /artiq/examples/*/last_rid.pyon
 /artiq/examples/*/dataset_db.pyon
+
+# when testing ad-hoc experiments at the root:
+/repository/
+/results
+/last_rid.pyon
+/dataset_db.pyon
+/device_db*.py
+/test*
