@@ -1989,6 +1989,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     format_string += "["; flush()
                 elif builtins.is_bytes(value.type):
                     format_string += "bytes(["; flush()
+                elif builtins.is_bytearray(value.type):
+                    format_string += "bytearray(["; flush()
                 elif builtins.is_array(value.type):
                     format_string += "array(["; flush()
                 else:
@@ -2017,7 +2019,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
                 if builtins.is_list(value.type):
                     format_string += "]"
-                elif builtins.is_array(value.type) or builtins.is_bytes(value.type):
+                elif (builtins.is_bytes(value.type) or builtins.is_bytearray(value.type) or
+                      builtins.is_array(value.type)):
                     format_string += "])"
             elif builtins.is_range(value.type):
                 format_string += "range("; flush()

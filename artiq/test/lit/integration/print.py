@@ -36,3 +36,6 @@ print(array([1, 2]))
 
 # CHECK-L: bytes([97, 98])
 print(b"ab")
+
+# CHECK-L: bytearray([97, 98])
+print(bytearray(b"ab"))
