@@ -1,12 +1,12 @@
 """
-:class:`Constness` checks that no attribute marked
+:class:`ConstnessValidator` checks that no attribute marked
 as constant is ever set.
 """
 
 from pythonparser import algorithm, diagnostic
 from .. import types, builtins
 
-class Constness(algorithm.Visitor):
+class ConstnessValidator(algorithm.Visitor):
     def __init__(self, engine):
         self.engine = engine
         self.in_assign = False
