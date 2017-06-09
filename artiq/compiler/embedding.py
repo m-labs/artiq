@@ -200,6 +200,9 @@ class ASTSynthesizer:
         elif isinstance(value, str):
             return asttyped.StrT(s=value, ctx=None, type=builtins.TStr(),
                                  loc=self._add(repr(value)))
+        elif isinstance(value, bytes):
+            return asttyped.StrT(s=value, ctx=None, type=builtins.TBytes(),
+                                 loc=self._add(repr(value)))
         elif isinstance(value, list):
             begin_loc = self._add("[")
             elts = []

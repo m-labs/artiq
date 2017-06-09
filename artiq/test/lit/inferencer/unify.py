@@ -57,6 +57,9 @@ lambda x, y=1: x
 k = "x"
 # CHECK-L: k:str
 
+ka = b"x"
+# CHECK-L: ka:bytes
+
 l = array([1])
 # CHECK-L: l:numpy.array(elt=numpy.int?)
 

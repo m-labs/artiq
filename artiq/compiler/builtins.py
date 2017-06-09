@@ -67,6 +67,10 @@ class TStr(types.TMono):
     def __init__(self):
         super().__init__("str")
 
+class TBytes(types.TMono):
+    def __init__(self):
+        super().__init__("bytes")
+
 class TList(types.TMono):
     def __init__(self, elt=None):
         if elt is None:
@@ -136,6 +140,9 @@ def fn_float():
 
 def fn_str():
     return types.TConstructor(TStr())
+
+def fn_bytes():
+    return types.TConstructor(TBytes())
 
 def fn_list():
     return types.TConstructor(TList())
@@ -236,6 +243,9 @@ def is_float(typ):
 def is_str(typ):
     return types.is_mono(typ, "str")
 
+def is_bytes(typ):
+    return types.is_mono(typ, "bytes")
+
 def is_numeric(typ):
     typ = typ.find()
     return isinstance(typ, types.TMono) and \
@@ -254,7 +264,12 @@ def is_array(typ, elt=None):
         return types.is_mono(typ, "array")
 
 def is_listish(typ, elt=None):
-    return is_list(typ, elt) or is_array(typ, elt) or (elt is None and is_str(typ))
+    if is_list(typ, elt) or is_array(typ, elt):
+        return True
+    elif elt is None:
+        return is_str(typ) or is_bytes(typ)
+    else:
+        return False
 
 def is_range(typ, elt=None):
     if elt is not None:
@@ -277,7 +292,7 @@ def is_iterable(typ):
 def get_iterable_elt(typ):
     if is_iterable(typ):
         return typ.find()["elt"].find()
-    elif is_str(typ):
+    elif is_str(typ) or is_bytes(typ):
         return TInt(types.TValue(8))
     else:
         assert False
