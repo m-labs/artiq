@@ -17,6 +17,12 @@ class ConstnessValidator(algorithm.Visitor):
         self.visit(node.targets)
         self.in_assign = False
 
+    def visit_AugAssign(self, node):
+        self.visit(node.value)
+        self.in_assign = True
+        self.visit(node.target)
+        self.in_assign = False
+
     def visit_SubscriptT(self, node):
         old_in_assign, self.in_assign = self.in_assign, False
         self.visit(node.value)
