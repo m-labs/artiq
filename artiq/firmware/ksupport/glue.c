@@ -41,6 +41,7 @@ int fprintf(FILE *stream, const char *fmt, ...)
 /* called by libunwind */
 int fflush(FILE *stream)
 {
+    return 0;
 }
 
 /* called by libunwind */
