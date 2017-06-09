@@ -13,6 +13,7 @@ def globals():
         "float":                builtins.fn_float(),
         "str":                  builtins.fn_str(),
         "bytes":                builtins.fn_bytes(),
+        "bytearray":            builtins.fn_bytearray(),
         "list":                 builtins.fn_list(),
         "array":                builtins.fn_array(),
         "range":                builtins.fn_range(),

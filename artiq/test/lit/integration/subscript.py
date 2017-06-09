@@ -21,3 +21,7 @@ assert lst == [1, 0, 2, 0, 3]
 byt = b"abc"
 assert byt[0] == 97
 assert byt[1] == 98
+
+barr = bytearray(b"abc")
+assert barr[0] == 97
+assert barr[1] == 98

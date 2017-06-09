@@ -1436,8 +1436,8 @@ class LLVMIRGenerator:
         elif builtins.is_float(typ):
             assert isinstance(value, float), fail_msg
             return ll.Constant(llty, value)
-        elif builtins.is_str(typ) or builtins.is_bytes(typ):
-            assert isinstance(value, (str, bytes)), fail_msg
+        elif builtins.is_str(typ) or builtins.is_bytes(typ) or builtins.is_bytearray(typ):
+            assert isinstance(value, (str, bytes, bytearray)), fail_msg
             if isinstance(value, str):
                 as_bytes = value.encode("utf-8")
             else:

@@ -60,6 +60,9 @@ k = "x"
 ka = b"x"
 # CHECK-L: ka:bytes
 
+kb = bytearray(b"x")
+# CHECK-L: kb:bytearray
+
 l = array([1])
 # CHECK-L: l:numpy.array(elt=numpy.int?)
 

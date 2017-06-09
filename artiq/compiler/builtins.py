@@ -71,6 +71,10 @@ class TBytes(types.TMono):
     def __init__(self):
         super().__init__("bytes")
 
+class TByteArray(types.TMono):
+    def __init__(self):
+        super().__init__("bytearray")
+
 class TList(types.TMono):
     def __init__(self, elt=None):
         if elt is None:
@@ -143,6 +147,9 @@ def fn_str():
 
 def fn_bytes():
     return types.TConstructor(TBytes())
+
+def fn_bytearray():
+    return types.TConstructor(TByteArray())
 
 def fn_list():
     return types.TConstructor(TList())
@@ -246,6 +253,9 @@ def is_str(typ):
 def is_bytes(typ):
     return types.is_mono(typ, "bytes")
 
+def is_bytearray(typ):
+    return types.is_mono(typ, "bytearray")
+
 def is_numeric(typ):
     typ = typ.find()
     return isinstance(typ, types.TMono) and \
@@ -267,7 +277,7 @@ def is_listish(typ, elt=None):
     if is_list(typ, elt) or is_array(typ, elt):
         return True
     elif elt is None:
-        return is_str(typ) or is_bytes(typ)
+        return is_str(typ) or is_bytes(typ) or is_bytearray(typ)
     else:
         return False
 
@@ -288,7 +298,7 @@ def is_iterable(typ):
     return is_listish(typ) or is_range(typ)
 
 def get_iterable_elt(typ):
-    if is_str(typ) or is_bytes(typ):
+    if is_str(typ) or is_bytes(typ) or is_bytearray(typ):
         return TInt(types.TValue(8))
     elif is_iterable(typ):
         return typ.find()["elt"].find()

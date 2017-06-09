@@ -1620,7 +1620,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 return self.append(ir.Coerce(arg, node.type))
             else:
                 assert False
-        elif types.is_builtin(typ, "list") or types.is_builtin(typ, "array"):
+        elif (types.is_builtin(typ, "list") or types.is_builtin(typ, "array") or
+              types.is_builtin(typ, "bytearray")):
             if len(node.args) == 0 and len(node.keywords) == 0:
                 length = ir.Constant(0, builtins.TInt32())
                 return self.append(ir.Alloc([length], node.type))

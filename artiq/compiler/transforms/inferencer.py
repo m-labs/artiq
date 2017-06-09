@@ -180,8 +180,8 @@ class Inferencer(algorithm.Visitor):
                 self.engine.process(diag)
 
     def _unify_iterable(self, element, collection):
-        if builtins.is_bytes(collection.type):
-            self._unify(element.type, builtins.TInt(),
+        if builtins.is_bytes(collection.type) or builtins.is_bytearray(collection.type):
+            self._unify(element.type, builtins.get_iterable_elt(collection.type),
                         element.loc, None)
         elif builtins.is_iterable(collection.type):
             rhs_type = collection.type.find()
