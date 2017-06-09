@@ -38,6 +38,9 @@ class RoundtripTest(ExperimentCase):
     def test_str(self):
         self.assertRoundtrip("foo")
 
+    def test_bytes(self):
+        self.assertRoundtrip(b"foo")
+
     def test_list(self):
         self.assertRoundtrip([10])
 

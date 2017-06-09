@@ -369,6 +369,8 @@ class CommKernel:
             return Fraction(numerator, denominator)
         elif tag == "s":
             return self._read_string()
+        elif tag == "B":
+            return self._read_bytes()
         elif tag == "l":
             length = self._read_int32()
             return [self._receive_rpc_value(embedding_map) for _ in range(length)]
@@ -461,6 +463,10 @@ class CommKernel:
             check(isinstance(value, str) and "\x00" not in value,
                   lambda: "str")
             self._write_string(value)
+        elif tag == "B":
+            check(isinstance(value, bytes),
+                  lambda: "bytes")
+            self._write_bytes(value)
         elif tag == "l":
             check(isinstance(value, list),
                   lambda: "list")

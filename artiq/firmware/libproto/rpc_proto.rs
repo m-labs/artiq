@@ -28,7 +28,7 @@ unsafe fn recv_value(reader: &mut Read, tag: Tag, data: &mut *mut (),
             consume_value!(u64, |ptr| {
                 *ptr = reader.read_u64()?; Ok(())
             }),
-        Tag::String => {
+        Tag::String | Tag::Bytes => {
             consume_value!(CMutSlice<u8>, |ptr| {
                 let length = reader.read_u32()? as usize;
                 *ptr = CMutSlice::new(alloc(length)? as *mut u8, length);
@@ -108,6 +108,9 @@ unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::
         Tag::String =>
             consume_value!(CSlice<u8>, |ptr|
                 writer.write_string(str::from_utf8((*ptr).as_ref()).unwrap())),
+        Tag::Bytes =>
+            consume_value!(CSlice<u8>, |ptr|
+                writer.write_bytes((*ptr).as_ref())),
         Tag::Tuple(it, arity) => {
             let mut it = it.clone();
             writer.write_u8(arity)?;
@@ -202,6 +205,7 @@ mod tag {
         Int64,
         Float64,
         String,
+        Bytes,
         Tuple(TagIterator<'a>, u8),
         List(TagIterator<'a>),
         Array(TagIterator<'a>),
@@ -219,6 +223,7 @@ mod tag {
                 Tag::Int64 => b'I',
                 Tag::Float64 => b'f',
                 Tag::String => b's',
+                Tag::Bytes => b'B',
                 Tag::Tuple(_, _) => b't',
                 Tag::List(_) => b'l',
                 Tag::Array(_) => b'a',
@@ -236,6 +241,7 @@ mod tag {
                 Tag::Int64 => 8,
                 Tag::Float64 => 8,
                 Tag::String => 4,
+                Tag::Bytes => 4,
                 Tag::Tuple(it, arity) => {
                     let mut size = 0;
                     for _ in 0..arity {
@@ -280,6 +286,7 @@ mod tag {
                 b'I' => Tag::Int64,
                 b'f' => Tag::Float64,
                 b's' => Tag::String,
+                b'B' => Tag::Bytes,
                 b't' => {
                     let count = self.data[0];
                     self.data = &self.data[1..];
@@ -327,6 +334,8 @@ mod tag {
                         write!(f, "Float64")?,
                     Tag::String =>
                         write!(f, "String")?,
+                    Tag::Bytes =>
+                        write!(f, "Bytes")?,
                     Tag::Tuple(it, _) => {
                         write!(f, "Tuple(")?;
                         it.fmt(f)?;
