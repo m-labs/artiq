@@ -33,3 +33,6 @@ print(range(10))
 
 # CHECK-L: array([1, 2])
 print(array([1, 2]))
+
+# CHECK-L: bytes([97, 98])
+print(b"ab")
