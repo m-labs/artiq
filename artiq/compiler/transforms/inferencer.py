@@ -183,7 +183,7 @@ class Inferencer(algorithm.Visitor):
         if builtins.is_bytes(collection.type) or builtins.is_bytearray(collection.type):
             self._unify(element.type, builtins.get_iterable_elt(collection.type),
                         element.loc, None)
-        elif builtins.is_iterable(collection.type):
+        elif builtins.is_iterable(collection.type) and not builtins.is_str(collection.type):
             rhs_type = collection.type.find()
             rhs_wrapped_lhs_type = types.TMono(rhs_type.name, {"elt": element.type})
             self._unify(rhs_wrapped_lhs_type, rhs_type,
