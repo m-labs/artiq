@@ -11,6 +11,12 @@ Core device logging controller
 PDQ2
 ----
 
+Protocol
+++++++++
+
+.. automodule:: artiq.devices.pdq.protocol
+    :members:
+
 Driver
 ++++++
 

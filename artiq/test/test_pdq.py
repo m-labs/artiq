@@ -4,7 +4,7 @@ import unittest
 import os
 import io
 
-from artiq.devices.pdq.driver import Pdq
+from artiq.devices.pdq.driver import PDQ
 from artiq.wavesynth.compute_samples import Synthesizer
 
 
@@ -13,11 +13,11 @@ pdq_gateware = os.getenv("ARTIQ_PDQ_GATEWARE")
 
 class TestPdq(unittest.TestCase):
     def setUp(self):
-        self.dev = Pdq(dev=io.BytesIO())
+        self.dev = PDQ(dev=io.BytesIO())
         self.synth = Synthesizer(3, _test_program)
 
     def test_reset(self):
-        self.dev.set_config(reset=True)
+        self.dev.write_config(reset=True)
         buf = self.dev.dev.getvalue()
         self.assertEqual(buf, b"\xa5\x02\xf8\xe5\xa5\x03")
 
@@ -26,9 +26,9 @@ class TestPdq(unittest.TestCase):
         self.dev.program(_test_program)
 
     def test_cmd_program(self):
-        self.dev.set_config(enable=False)
+        self.dev.write_config(enable=False)
         self.dev.program(_test_program)
-        self.dev.set_config(enable=True, trigger=True)
+        self.dev.write_config(enable=True, trigger=True)
         return self.dev.dev.getvalue()
 
     def test_synth(self):
@@ -43,10 +43,14 @@ class TestPdq(unittest.TestCase):
         from gateware.pdq import PdqSim
         from migen import run_simulation
 
+        def ncycles(n):
+            for i in range(n):
+                yield
+
         buf = self.test_cmd_program()
         tb = PdqSim()
         tb.ctrl_pads.trigger.reset = 1
-        run_simulation(tb, ncycles=len(buf) + 250)
+        run_simulation(tb, [ncycles(len(buf) + 250)])
         delays = 7, 10, 30
         y = list(zip(*tb.outputs[len(buf) + 130:]))
         y = list(zip(*(yi[di:] for yi, di in zip(y, delays))))

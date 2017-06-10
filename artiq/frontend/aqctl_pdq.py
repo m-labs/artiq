@@ -4,13 +4,15 @@ import argparse
 import sys
 import time
 
-from artiq.devices.pdq.driver import Pdq
+from artiq.devices.pdq.driver import PDQ
 from artiq.protocols.pc_rpc import simple_server_loop
 from artiq.tools import *
 
 
 def get_argparser():
-    parser = argparse.ArgumentParser(description="PDQ controller")
+    parser = argparse.ArgumentParser(description="""PDQ controller.
+
+    Use this controller for PDQ stacks that are connected via USB.""")
     simple_network_args(parser, 3252)
     parser.add_argument("-d", "--device", default=None, help="serial port")
     parser.add_argument("--simulation", action="store_true",
@@ -37,14 +39,14 @@ def main():
 
     if args.simulation:
         port = open(args.dump, "wb")
-    dev = Pdq(url=args.device, dev=port, num_boards=args.boards)
+    dev = PDQ(url=args.device, dev=port, num_boards=args.boards)
     try:
         if args.reset:
             dev.write(b"")  # flush eop
-            dev.set_config(reset=True)
+            dev.write_config(reset=True)
             time.sleep(.1)
 
-        dev.set_checksum(0)
+        dev.write_crc(0)
         dev.checksum = 0
 
         simple_server_loop({"pdq": dev}, bind_address_from_args(args),

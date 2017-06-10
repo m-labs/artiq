@@ -1,5 +1,6 @@
 from artiq.language.core import kernel, portable, delay_mu
 from artiq.coredevice import spi
+from artiq.devices.pdq.protocol import PDQBase, PDQ_CMD
 
 
 _PDQ_SPI_CONFIG = (
@@ -9,27 +10,8 @@ _PDQ_SPI_CONFIG = (
         )
 
 
-@portable
-def _PDQ_CMD(board, is_mem, adr, we):
-    """Pack PDQ command fields into command byte.
 
-    :param board: Board address, 0 to 15, with ``15 = 0xf`` denoting broadcast
-        to all boards connected.
-    :param is_mem: If ``1``, ``adr`` denote the address of the memory to access
-        (0 to 2). Otherwise ``adr`` denotes the register to access.
-    :param adr: Address of the register or memory to access.
-        (``_PDQ_ADR_CONFIG``, ``_PDQ_ADR_FRAME``, ``_PDQ_ADR_CRC``).
-    :param we: If ``1`` then write, otherwise read.
-    """
-    return (adr << 0) | (is_mem << 2) | (board << 3) | (we << 7)
-
-
-_PDQ_ADR_CONFIG = 0
-_PDQ_ADR_CRC = 1
-_PDQ_ADR_FRAME = 2
-
-
-class PDQ:
+class PDQ(PDQBase):
     """PDQ smart arbitrary waveform generator stack.
 
     Provides access to a stack of PDQ boards connected via SPI using PDQ
@@ -50,10 +32,11 @@ class PDQ:
 
     kernel_invariants = {"core", "chip_select", "bus"}
 
-    def __init__(self, dmgr, spi_device, chip_select=1):
+    def __init__(self, dmgr, spi_device, chip_select=1, **kwargs):
         self.core = dmgr.get("core")
         self.bus = dmgr.get(spi_device)
         self.chip_select = chip_select
+        PDQBase.__init__(self, **kwargs)
 
     @kernel
     def setup_bus(self, write_div=24, read_div=64):
@@ -82,7 +65,7 @@ class PDQ:
         :param data: Register data (8 bit).
         :param board: Board to access, ``0xf`` to write to all boards.
         """
-        self.bus.write((_PDQ_CMD(board, 0, adr, 1) << 24) | (data << 16))
+        self.bus.write((PDQ_CMD(board, 0, adr, 1) << 24) | (data << 16))
         delay_mu(self.bus.ref_period_mu)  # get to 20ns min cs high
 
     @kernel
@@ -96,56 +79,11 @@ class PDQ:
         :return: Register data (8 bit).
         """
         self.bus.set_xfer(self.chip_select, 16, 8)
-        self.bus.write(_PDQ_CMD(board, 0, adr, 0) << 24)
+        self.bus.write(PDQ_CMD(board, 0, adr, 0) << 24)
         delay_mu(self.bus.ref_period_mu)  # get to 20ns min cs high
         self.bus.read_async()
         self.bus.set_xfer(self.chip_select, 16, 0)
         return int(self.bus.input_async() & 0xff)  # FIXME: m-labs/artiq#713
-
-    @kernel
-    def write_config(self, reset=0, clk2x=0, enable=1,
-                     trigger=0, aux_miso=0, aux_dac=0b111, board=0xf):
-        """Set configuration register.
-
-        :param reset: Reset board (auto-clear).
-        :param clk2x: Enable clock double (100 MHz).
-        :param enable: Enable the reading and execution of waveform data from
-            memory.
-        :param trigger: Software trigger, logical OR with ``F1 TTL Input
-            Trigger``.
-        :param aux_miso: Use ``F5 OUT`` for ``MISO``. If ``0``, use the
-            masked logical OR of the DAC channels.
-        :param aux_dac: DAC channel mask to for AUX (``F5 OUT``) output.
-        :param board: Boards to address, ``0xf`` to write to all boards.
-        """
-        config = ((reset << 0) | (clk2x << 1) | (enable << 2) |
-                  (trigger << 3) | (aux_miso << 4) | (aux_dac << 5))
-        self.write_reg(_PDQ_ADR_CONFIG, config, board)
-
-    @kernel
-    def read_config(self, board=0xf):
-        """Read configuration register."""
-        return self.read_reg(_PDQ_ADR_CONFIG, board)
-
-    @kernel
-    def write_crc(self, crc, board=0xf):
-        """Write checksum register."""
-        self.write_reg(_PDQ_ADR_CRC, crc, board)
-
-    @kernel
-    def read_crc(self, board=0xf):
-        """Read checksum register."""
-        return self.read_reg(_PDQ_ADR_CRC, board)
-
-    @kernel
-    def write_frame(self, frame, board=0xf):
-        """Write frame selection register."""
-        self.write_reg(_PDQ_ADR_FRAME, frame, board)
-
-    @kernel
-    def read_frame(self, board=0xf):
-        """Read frame selection register."""
-        return self.read_reg(_PDQ_ADR_FRAME, board)
 
     @kernel
     def write_mem(self, mem, adr, data, board=0xf):  # FIXME: m-labs/artiq#714
@@ -158,7 +96,7 @@ class PDQ:
             to all boards.
         """
         self.bus.set_xfer(self.chip_select, 24, 0)
-        self.bus.write((_PDQ_CMD(board, 1, mem, 1) << 24) |
+        self.bus.write((PDQ_CMD(board, 1, mem, 1) << 24) |
                        ((adr & 0x00ff) << 16) | (adr & 0xff00))
         delay_mu(-self.bus.write_period_mu-3*self.bus.ref_period_mu)
         self.bus.set_xfer(self.chip_select, 16, 0)
@@ -182,7 +120,7 @@ class PDQ:
         if not n:
             return
         self.bus.set_xfer(self.chip_select, 24, 8)
-        self.bus.write((_PDQ_CMD(board, 1, mem, 0) << 24) |
+        self.bus.write((PDQ_CMD(board, 1, mem, 0) << 24) |
                        ((adr & 0x00ff) << 16) | (adr & 0xff00))
         delay_mu(-self.bus.write_period_mu-3*self.bus.ref_period_mu)
         self.bus.set_xfer(self.chip_select, 0, 16)
