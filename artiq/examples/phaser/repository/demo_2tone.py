@@ -19,17 +19,9 @@ class SAWGTestTwoTone(EnvExperiment):
 
         self.sawg0.config.set_clr(1, 1, 1)
         delay(10*us)
-        self.sawg0.config.set_duc_i_max(0x7fff)
+        self.sawg0.config.set_out_max(1.)
         delay(10*us)
-        self.sawg0.config.set_duc_i_min(-0x8000)
-        delay(10*us)
-        self.sawg0.config.set_duc_q_max(0x7fff)
-        delay(10*us)
-        self.sawg0.config.set_duc_q_min(-0x8000)
-        delay(10*us)
-        self.sawg0.config.set_out_max(0x7fff)
-        delay(10*us)
-        self.sawg0.config.set_out_min(-0x8000)
+        self.sawg0.config.set_out_min(-1.)
         delay(10*us)
 
         while True:
