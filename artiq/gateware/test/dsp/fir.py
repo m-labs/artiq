@@ -22,16 +22,22 @@ class Transfer(Module):
             yield
             yi[:] = (yield from [(yield o) for o in self.dut.o])
 
-    def run(self, samples, amplitude=1.):
+    def run(self, samples, amplitude=1., seed=None):
+        if seed is not None:
+            np.random.seed(seed)
         w = 2**(self.dut.width - 1) - 1
         x = np.round(np.random.uniform(
             -amplitude*w, amplitude*w, samples))
-        y = np.empty_like(x)
-        run_simulation(self, [self.drive(x), self.record(y)],
-                       vcd_name="fir.vcd")
+        y = self.run_data(x)
         x /= w
         y /= w
         return x, y
+
+    def run_data(self, x):
+        y = np.empty_like(x)
+        run_simulation(self, [self.drive(x), self.record(y)],
+                       vcd_name="fir.vcd")
+        return y
 
     def analyze(self, x, y):
         fig, ax = plt.subplots(3)
@@ -81,7 +87,7 @@ class UpTransfer(Transfer):
 
 def _main():
     if True:
-        coeff = fir.halfgen4_cascade(8, width=.4, order=8)
+        coeff = fir.halfgen4_cascade(2, width=.4, order=8)
         dut = fir.ParallelHBFUpsampler(coeff, width=16)
         # print(verilog.convert(dut, ios=set([dut.i] + dut.o)))
         tb = UpTransfer(dut)
@@ -91,7 +97,13 @@ def _main():
         # print(verilog.convert(dut, ios=set(dut.i + dut.o)))
         tb = Transfer(dut)
 
-    x, y = tb.run(samples=1 << 10, amplitude=.5)
+    if True:
+        x, y = tb.run(samples=1 << 10, amplitude=.5, seed=0x1234567)
+    else:
+        x = np.zeros(100)
+        x[:50] = 1 << 8
+        x[50:] = 1 << 13
+        y = tb.run_data(x)
     tb.analyze(x, y)
     plt.show()
 
