@@ -172,7 +172,7 @@ class Channel(Module, SatAddMixin):
             Cat(a1.clr, a2.clr, b.clr).eq(cfg.clr),
         ]
         for i in range(parallelism):
-            self.comb += [
+            self.sync += [
                 b.xi[i].eq(self.sat_add(hbf[0].o[i],
                                      limits=cfg.limits[0],
                                      clipped=cfg.clipped[0])),
