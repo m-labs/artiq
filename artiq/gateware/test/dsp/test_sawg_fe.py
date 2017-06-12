@@ -37,6 +37,7 @@ class SAWGTest(unittest.TestCase):
         core_language.set_time_manager(sim_time.Manager())
         self.rtio_manager = RTIOManager()
         self.rtio_manager.patch(spline)
+        self.rtio_manager.patch(sawg)
         self.core = sim_devices.Core({})
         self.core.coarse_ref_period = 6.66666
         self.t = self.core.coarse_ref_period
@@ -47,6 +48,7 @@ class SAWGTest(unittest.TestCase):
 
     def tearDown(self):
         self.rtio_manager.unpatch(spline)
+        self.rtio_manager.unpatch(sawg)
 
     def test_instantiate(self):
         pass
@@ -220,6 +222,27 @@ class SAWGTest(unittest.TestCase):
         out = self.run_channel(self.rtio_manager.outputs)
         out = sum(out, [])
         if True:
+            import matplotlib.pyplot as plt
+            plt.plot(out)
+            plt.show()
+
+    def test_fir_overflow(self):
+        MHz = 1e-3
+        ns = 1.
+        f1 = self.driver.frequency1
+        a1 = self.driver.amplitude1
+        p1 = self.driver.phase1
+        cfg = self.driver.config
+        f1.set(1*MHz)
+        a1.set(.99)
+        delay(100*ns)
+        p1.set(.5)
+        delay(100*ns)
+        a1.set(0)
+
+        out = self.run_channel(self.rtio_manager.outputs)
+        out = sum(out, [])
+        if False:
             import matplotlib.pyplot as plt
             plt.plot(out)
             plt.show()
