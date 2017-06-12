@@ -129,11 +129,11 @@ class Channel(Module, SatAddMixin):
         self.submodules.a1 = a1 = SplineParallelDDS(widths, orders)
         self.submodules.a2 = a2 = SplineParallelDDS(widths, orders)
         coeff = halfgen4_cascade(parallelism, width=.4, order=8)
-        hbf = [ParallelHBFUpsampler(coeff, width=width) for i in range(2)]
+        hbf = [ParallelHBFUpsampler(coeff, width=width + 1) for i in range(2)]
         self.submodules.b = b = SplineParallelDUC(
             widths._replace(a=len(hbf[0].o[0]), f=widths.f - width), orders,
             parallelism=parallelism)
-        cfg = Config(widths.a)
+        cfg = Config(width)
         u = Spline(width=widths.a, order=orders.a)
         self.submodules += cfg, u, hbf
         self.u = u.tri(widths.t)
@@ -170,16 +170,24 @@ class Channel(Module, SatAddMixin):
             b.ce.eq(cfg.ce),
             u.o.ack.eq(cfg.ce),
             Cat(a1.clr, a2.clr, b.clr).eq(cfg.clr),
-            Cat(b.xi).eq(Cat(hbf[0].o)),
-            Cat(b.yi).eq(Cat(hbf[1].o)),
         ]
-        self.sync += [
-            hbf[0].i.eq(self.sat_add(a1.xo[0], a2.xo[0],
+        for i in range(parallelism):
+            self.comb += [
+                b.xi[i].eq(self.sat_add(hbf[0].o[i],
                                      limits=cfg.limits[0],
                                      clipped=cfg.clipped[0])),
-            hbf[1].i.eq(self.sat_add(a1.yo[0], a2.yo[0],
+                b.yi[i].eq(self.sat_add(hbf[1].o[i],
                                      limits=cfg.limits[1],
                                      clipped=cfg.clipped[1])),
+            ]
+        for i in range(2):
+            for j in range(2):
+                # correct pre-DUC limiter by cordic gain
+                v = cfg.limits[i][j].reset.value
+                cfg.limits[i][j].reset.value = int(v / b.gain)
+        self.comb += [
+            hbf[0].i.eq(a1.xo[0] + a2.xo[0]),
+            hbf[1].i.eq(a1.yo[0] + a2.yo[0])
         ]
         # wire up outputs and q_{i,o} exchange
         for o, x, y in zip(self.o, b.xo, self.y_in):
