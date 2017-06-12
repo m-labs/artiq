@@ -156,7 +156,7 @@ class ParallelHBFUpsampler(Module):
         i = [self.i]
         for coeff in coefficients:
             self.parallelism *= 2
-            hbf = ParallelFIR(coeff, self.parallelism, width, **kwargs)
+            hbf = ParallelFIR(coeff, self.parallelism, width + 1, **kwargs)
             self.submodules += hbf
             self.comb += [a.eq(b) for a, b in zip(hbf.i[::2], i)]
             i = hbf.o
