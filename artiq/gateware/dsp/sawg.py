@@ -150,7 +150,7 @@ class Channel(Module, SatAddMixin):
         self.u.latency += 1
         b.p.latency += 2
         b.f.latency += 2
-        a_latency_delta = hbf[0].latency + b.latency + 2
+        a_latency_delta = hbf[0].latency + b.latency + 3
         for a in a1, a2:
             a.a.latency += a_latency_delta
             a.p.latency += a_latency_delta
@@ -185,7 +185,7 @@ class Channel(Module, SatAddMixin):
                 # correct pre-DUC limiter by cordic gain
                 v = cfg.limits[i][j].reset.value
                 cfg.limits[i][j].reset.value = int(v / b.gain)
-        self.comb += [
+        self.sync += [
             hbf[0].i.eq(a1.xo[0] + a2.xo[0]),
             hbf[1].i.eq(a1.yo[0] + a2.yo[0])
         ]
