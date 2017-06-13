@@ -121,7 +121,8 @@ class Config:
         """Set the digital up-converter (DUC) I data summing junction upper
         limit. In machine units.
 
-        The default limits are the full range of signed 16 bit data.
+        The default limits are chosen to reach maximum and minimum DAC output
+        amplitude.
 
         For a description of the limiter functions in normalized units see:
 
@@ -163,11 +164,9 @@ class Config:
         configurable upper and lower limits. The three summing junctions are:
 
             * At the in-phase input to the ``phase0``/``frequency0`` fast DUC,
-              where the in-phase outputs of the two slow DDS (1 and 2) are
-              added together.
+              after the anti-aliasing FIR filter.
             * At the quadrature input to the ``phase0``/``frequency0``
-              fast DUC, where the quadrature outputs of the two slow DDS
-              (1 and 2) are added together.
+              fast DUC, after the anti-aliasing FIR filter.
             * Before the DAC, where the following three data streams
               are added together:
 
@@ -238,12 +237,32 @@ class SAWG:
             q_enable*Im(buddy_oscillators))
 
     This parametrization can be viewed as two complex (quadrature) oscillators
-    (``frequency1``/``phase1`` and ``frequency2``/``phase2``) followed by
-    a complex digital up-converter (DUC, ``frequency0``/``phase0``) on top of a
-    (real/in-phase) ``offset``. The ``i_enable``/``q_enable`` switches
-    enable emission of quadrature signals for later analog quadrature mixing
-    distinguishing upper and lower sidebands and thus doubling the bandwidth.
-    They can also be used to emit four-tone signals.
+    (``frequency1``/``phase1`` and ``frequency2``/``phase2``) that are
+    executing and sampling at the coarse RTIO frequency. They can represent
+    frequencies within their first Nyquist zone from ``-f_RTIO/2`` to
+    ``f_RTIO/2``.
+
+    The sum of their outputs is then interpolated by a factor of
+    :attr:`parallelism` (2, 4, 8 depending on the bitstream) using a
+    finite-impulse-response (FIR) anti-aliasing filter (more accurately
+    a half-band filter).
+
+    The filter is followed by a configurable saturating limiter.
+
+    After the limiter, the data is shifted in frequency using a complex
+    digital up-converter (DUC, ``frequency0``/``phase0``) running at
+    :attr:`parallelism` times the coarse RTIO frequency. The first Nyquist zone
+    of the DUC extends from ``-f_RTIO*parallelism/2`` to
+    ``f_RTIO*parallelism/2``. Other Nyquist zones are usable depending on the
+    interpolation/modulation options configured in the DAC.
+
+    The real/in-phase data after digital up-conversion can be offset using
+    another spline interpolator ``offset``.
+
+    The ``i_enable``/``q_enable`` switches enable emission of quadrature
+    signals for later analog quadrature mixing distinguishing upper and lower
+    sidebands and thus doubling the bandwidth. They can also be used to emit
+    four-tone signals.
 
     .. note:: Quadrature data from the buddy channel is currently
        ignored in the SAWG gateware and not added to the DAC output.
@@ -266,7 +285,7 @@ class SAWG:
     :param parallelism: Number of output samples per coarse RTIO clock cycle.
     :param core_device: Name of the core device that this SAWG is on.
     """
-    kernel_invariants = {"channel_base", "core",
+    kernel_invariants = {"channel_base", "core", "parallelism",
                          "amplitude1", "frequency1", "phase1",
                          "amplitude2", "frequency2", "phase2",
                          "frequency0", "phase0", "offset"}
@@ -274,6 +293,7 @@ class SAWG:
     def __init__(self, dmgr, channel_base, parallelism, core_device="core"):
         self.core = dmgr.get(core_device)
         self.channel_base = channel_base
+        self.parallelism = parallelism
         width = 16
         time_width = 16
         cordic_gain = 1.646760258057163  # Cordic(width=16, guard=None).gain
