@@ -41,7 +41,7 @@ requirements:
     - pyqtgraph
     - pygit2
     - aiohttp
-    - pythonparser 1.0
+    - pythonparser >=1.1
     - levenshtein
 
 about:

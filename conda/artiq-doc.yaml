@@ -12,4 +12,4 @@ dependencies:
   - sphinx-argparse
   - sphinxcontrib-wavedrom
   - sphinx_rtd_theme
-  - pythonparser=1.0
+  - pythonparser>=1.1
