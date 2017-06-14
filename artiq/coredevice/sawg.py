@@ -239,8 +239,12 @@ class SAWG:
     This parametrization can be viewed as two complex (quadrature) oscillators
     (``frequency1``/``phase1`` and ``frequency2``/``phase2``) that are
     executing and sampling at the coarse RTIO frequency. They can represent
-    frequencies within their first Nyquist zone from ``-f_RTIO/2`` to
-    ``f_RTIO/2``.
+    frequencies within the first Nyquist zone from ``-f_rtio_coarse/2`` to
+    ``f_rtio_coarse/2``.
+
+    .. note:: The coarse RTIO frequency ``f_rtio_coarse`` is the inverse of
+      ``ref_period*multiplier``. Both are arguments of the ``Core`` device,
+      specified in the device database ``device_db.py``.
 
     The sum of their outputs is then interpolated by a factor of
     :attr:`parallelism` (2, 4, 8 depending on the bitstream) using a
@@ -251,10 +255,10 @@ class SAWG:
 
     After the limiter, the data is shifted in frequency using a complex
     digital up-converter (DUC, ``frequency0``/``phase0``) running at
-    :attr:`parallelism` times the coarse RTIO frequency. The first Nyquist zone
-    of the DUC extends from ``-f_RTIO*parallelism/2`` to
-    ``f_RTIO*parallelism/2``. Other Nyquist zones are usable depending on the
-    interpolation/modulation options configured in the DAC.
+    :attr:`parallelism` times the coarse RTIO frequency. The first Nyquist
+    zone of the DUC extends from ``-f_rtio_coarse*parallelism/2`` to
+    ``f_rtio_coarse*parallelism/2``. Other Nyquist zones are usable depending
+    on the interpolation/modulation options configured in the DAC.
 
     The real/in-phase data after digital up-conversion can be offset using
     another spline interpolator ``offset``.
