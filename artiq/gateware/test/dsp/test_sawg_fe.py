@@ -40,6 +40,7 @@ class SAWGTest(unittest.TestCase):
         self.rtio_manager.patch(sawg)
         self.core = sim_devices.Core({})
         self.core.coarse_ref_period = 6.66666
+        self.core.ref_multiplier = 1
         self.t = self.core.coarse_ref_period
         self.channel = mg.ClockDomainsRenamer({"rio_phy": "sys"})(
             Channel(width=16, parallelism=2))
