@@ -55,6 +55,7 @@ unsafe fn process_exceptional_status(timestamp: i64, channel: i32, status: u32) 
 pub extern fn output(timestamp: i64, channel: i32, addr: i32, data: i32) {
     unsafe {
         csr::rtio::chan_sel_write(channel as u32);
+        // writing timestamp clears o_data
         csr::rtio::timestamp_write(timestamp as u64);
         csr::rtio::o_address_write(addr as u32);
         rtio_o_data_write(0, data as u32);
@@ -69,6 +70,7 @@ pub extern fn output(timestamp: i64, channel: i32, addr: i32, data: i32) {
 pub extern fn output_wide(timestamp: i64, channel: i32, addr: i32, data: CSlice<i32>) {
     unsafe {
         csr::rtio::chan_sel_write(channel as u32);
+        // writing timestamp clears o_data
         csr::rtio::timestamp_write(timestamp as u64);
         csr::rtio::o_address_write(addr as u32);
         for i in 0..data.len() {

@@ -49,7 +49,9 @@ class KernelInitiator(Module, AutoCSR):
         self.chan_sel = CSRStorage(24)
         self.timestamp = CSRStorage(64)
 
-        # writing timestamp set o_data to 0
+        # Writing timestamp clears o_data. This implements automatic
+        # zero-extension of output event data by the gateware. When staging an
+        # output event, always write timestamp before o_data.
         self.o_data = CSRStorage(512, write_from_dev=True)
         self.o_address = CSRStorage(16)
         self.o_we = CSR()
