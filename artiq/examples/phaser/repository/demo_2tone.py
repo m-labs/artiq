@@ -17,6 +17,11 @@ class SAWGTestTwoTone(EnvExperiment):
         self.core.reset()
         self.ttl_sma.output()
 
+        self.sawg0.reset()
+        self.sawg1.reset()
+        self.sawg2.reset()
+        self.sawg3.reset()
+
         self.sawg0.config.set_clr(1, 1, 1)
         delay(10*us)
         self.sawg0.config.set_out_max(1.)

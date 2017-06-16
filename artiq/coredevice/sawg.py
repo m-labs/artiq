@@ -1,5 +1,5 @@
 from artiq.language.types import TInt32, TFloat
-from numpy import int32
+from numpy import int32, int64
 from artiq.language.core import kernel, now_mu
 from artiq.coredevice.spline import Spline
 from artiq.coredevice.rtio import rtio_output
@@ -26,13 +26,18 @@ class Config:
     :param channel: RTIO channel number of the channel.
     :param core: Core device.
     """
-    kernel_invariants = {"channel", "core", "_out_scale", "_duc_scale"}
+    kernel_invariants = {"channel", "core", "_out_scale", "_duc_scale",
+            "_rtio_interval"}
 
     def __init__(self, channel, core, cordic_gain=1.):
         self.channel = channel
         self.core = core
+        # normalized DAC output
         self._out_scale = (1 << 15) - 1.
+        # normalized DAC output including DUC cordic gain
         self._duc_scale = self._out_scale/cordic_gain
+        # configuration channel access interval
+        self._rtio_interval = int64(3*self.core.ref_multiplier)
 
     @kernel
     def set_div(self, div: TInt32, n: TInt32=0):
@@ -321,3 +326,39 @@ class SAWG:
                                  parallelism/self.core.coarse_ref_period)
         self.phase0 = Spline(width, time_width, channel_base + 9,
                              self.core, 1.)
+
+    @kernel
+    def reset(self):
+        """Re-establish initial conditions.
+
+        This clears all spline interpolators, accumulators and configuration
+        settings.
+
+        This method advances the timeline by the time required to perform all
+        eight writes to the configuration channel.
+        """
+        self.frequency0.set_mu(0)
+        self.frequency1.set_mu(0)
+        self.frequency2.set_mu(0)
+        self.phase0.set_mu(0)
+        self.phase1.set_mu(0)
+        self.phase2.set_mu(0)
+        self.amplitude1.set_mu(0)
+        self.amplitude2.set_mu(0)
+        self.offset.set_mu(0)
+        self.config.set_clr(1, 1, 1)
+        delay_mu(self.config._rtio_interval)
+        self.config.set_iq_en(1, 0)
+        delay_mu(self.config._rtio_interval)
+        self.config.set_duc_i_min(-1.)
+        delay_mu(self.config._rtio_interval)
+        self.config.set_duc_i_max(1.)
+        delay_mu(self.config._rtio_interval)
+        self.config.set_duc_q_min(-1.)
+        delay_mu(self.config._rtio_interval)
+        self.config.set_duc_q_max(1.)
+        delay_mu(self.config._rtio_interval)
+        self.config.set_out_min(-1.)
+        delay_mu(self.config._rtio_interval)
+        self.config.set_out_max(1.)
+        delay_mu(self.config._rtio_interval)
