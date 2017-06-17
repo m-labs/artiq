@@ -308,18 +308,28 @@ class Core(Module, AutoCSR):
         cmd_reset_phy.attr.add("no_retiming")
 
         self.clock_domains.cd_rsys = ClockDomain()
+        self.clock_domains.cd_rio_rst = ClockDomain()
+        self.clock_domains.cd_rio_phy_rst = ClockDomain()
+        self.clock_domains.cd_rio_no_rst = ClockDomain()
         self.clock_domains.cd_rio = ClockDomain()
         self.clock_domains.cd_rio_phy = ClockDomain()
         self.comb += [
             self.cd_rsys.clk.eq(ClockSignal()),
-            self.cd_rsys.rst.eq(cmd_reset)
+            self.cd_rsys.rst.eq(cmd_reset),
+            self.cd_rio_rst.clk.eq(ClockSignal("rtio")),
+            self.cd_rio_phy_rst.clk.eq(ClockSignal("rtio")),
+            self.cd_rio_no_rst.clk.eq(ClockSignal("rtio")),
+            self.cd_rio.clk.eq(ClockSignal("rtio")),
+            self.cd_rio_phy.clk.eq(ClockSignal("rtio"))
         ]
-        self.comb += self.cd_rio.clk.eq(ClockSignal("rtio"))
-        self.specials += AsyncResetSynchronizer(
-            self.cd_rio, cmd_reset)
-        self.comb += self.cd_rio_phy.clk.eq(ClockSignal("rtio"))
-        self.specials += AsyncResetSynchronizer(
-            self.cd_rio_phy, cmd_reset_phy)
+        self.specials += [
+            AsyncResetSynchronizer(self.cd_rio_rst, cmd_reset),
+            AsyncResetSynchronizer(self.cd_rio_phy_rst, cmd_reset_phy),
+        ]
+        self.sync.rio_no_rst += [
+            self.cd_rio.rst.eq(self.cd_rio_rst.rst),
+            self.cd_rio_phy.rst.eq(self.cd_rio_phy_rst.rst),
+        ]
 
         # Managers
         self.submodules.counter = RTIOCounter(len(self.cri.timestamp) - fine_ts_width)
