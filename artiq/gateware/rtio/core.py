@@ -298,6 +298,14 @@ class Core(Module, AutoCSR):
         # Clocking/Reset
         # Create rsys, rio and rio_phy domains based on sys and rtio
         # with reset controlled by CRI.
+        #
+        # The `rio` CD contains logic that is reset with `core.reset()`.
+        # That's state that could unduly affect subsequent experiments,
+        # i.e. input overflows caused by input gates left open, FIFO events far
+        # in the future blocking the experiment, pending RTIO or
+        # wishbone bus transactions, etc.
+        # The `rio_phy` CD contains state that is maintained across
+        # `core.reset()`, i.e. TTL output state, OE, DDS state.
         cmd_reset = Signal(reset=1)
         cmd_reset_phy = Signal(reset=1)
         self.sync += [
