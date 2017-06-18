@@ -284,6 +284,18 @@ class LogChannel:
         self.overrides = []
 
 
+class _RelaxedAsyncResetSynchronizer(Module):
+    def __init__(self, cd, async_reset):
+        self.clock_domains.cd_rst = ClockDomain()
+        self.clock_domains.cd_no_rst = ClockDomain(reset_less=True)
+        self.specials += AsyncResetSynchronizer(self.cd_rst, async_reset)
+        self.comb += [
+            self.cd_rst.clk.eq(cd.clk),
+            self.cd_no_rst.clk.eq(cd.clk),
+        ]
+        self.sync.no_rst += cd.rst.eq(self.cd_rst.rst)
+
+
 class Core(Module, AutoCSR):
     def __init__(self, channels, fine_ts_width=None, guard_io_cycles=20):
         if fine_ts_width is None:
@@ -316,28 +328,18 @@ class Core(Module, AutoCSR):
         cmd_reset_phy.attr.add("no_retiming")
 
         self.clock_domains.cd_rsys = ClockDomain()
-        self.clock_domains.cd_rio_rst = ClockDomain()
-        self.clock_domains.cd_rio_phy_rst = ClockDomain()
-        self.clock_domains.cd_rio_no_rst = ClockDomain()
         self.clock_domains.cd_rio = ClockDomain()
         self.clock_domains.cd_rio_phy = ClockDomain()
         self.comb += [
             self.cd_rsys.clk.eq(ClockSignal()),
             self.cd_rsys.rst.eq(cmd_reset),
-            self.cd_rio_rst.clk.eq(ClockSignal("rtio")),
-            self.cd_rio_phy_rst.clk.eq(ClockSignal("rtio")),
-            self.cd_rio_no_rst.clk.eq(ClockSignal("rtio")),
             self.cd_rio.clk.eq(ClockSignal("rtio")),
             self.cd_rio_phy.clk.eq(ClockSignal("rtio"))
         ]
-        self.specials += [
-            AsyncResetSynchronizer(self.cd_rio_rst, cmd_reset),
-            AsyncResetSynchronizer(self.cd_rio_phy_rst, cmd_reset_phy),
-        ]
-        self.sync.rio_no_rst += [
-            self.cd_rio.rst.eq(self.cd_rio_rst.rst),
-            self.cd_rio_phy.rst.eq(self.cd_rio_phy_rst.rst),
-        ]
+        self.submodules.rars_rio = _RelaxedAsyncResetSynchronizer(
+                self.cd_rio, cmd_reset)
+        self.submodules.rars_rio_phy = _RelaxedAsyncResetSynchronizer(
+                self.cd_rio_phy, cmd_reset_phy)
 
         # Managers
         self.submodules.counter = RTIOCounter(len(self.cri.timestamp) - fine_ts_width)
