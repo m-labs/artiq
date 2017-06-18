@@ -47,6 +47,7 @@ mod rtio_dma;
 
 mod mgmt;
 mod kernel;
+mod kern_hwreq;
 mod session;
 #[cfg(any(has_rtio_moninj, has_drtio))]
 mod moninj;

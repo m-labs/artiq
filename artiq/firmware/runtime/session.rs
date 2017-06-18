@@ -15,6 +15,7 @@ use board;
 use rpc_proto as rpc;
 use session_proto as host;
 use kernel_proto as kern;
+use kern_hwreq;
 
 macro_rules! unexpected {
     ($($arg:tt)*) => {
@@ -125,7 +126,7 @@ fn host_write(stream: &mut Write, reply: host::Reply) -> io::Result<()> {
     reply.write_to(stream)
 }
 
-fn kern_send(io: &Io, request: &kern::Message) -> io::Result<()> {
+pub fn kern_send(io: &Io, request: &kern::Message) -> io::Result<()> {
     match request {
         &kern::LoadRequest(_) => debug!("comm->kern LoadRequest(...)"),
         &kern::DmaRetrieveReply { trace, duration } => {
@@ -176,7 +177,7 @@ fn kern_recv<R, F>(io: &Io, f: F) -> io::Result<R>
     })
 }
 
-fn kern_acknowledge() -> io::Result<()> {
+pub fn kern_acknowledge() -> io::Result<()> {
     mailbox::acknowledge();
     Ok(())
 }
@@ -364,6 +365,9 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
         }
 
         kern_recv_dotrace(request);
+        if kern_hwreq::process_kern_hwreq(io, request)? {
+            return Ok(false)
+        }
         match request {
             &kern::Log(args) => {
                 use std::fmt::Write;
@@ -384,12 +388,6 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
 
             &kern::NowSave(now) => {
                 session.congress.now = now;
-                kern_acknowledge()
-            }
-
-            &kern::RtioInitRequest => {
-                info!("resetting RTIO");
-                rtio_mgt::init_core();
                 kern_acknowledge()
             }
 
@@ -417,28 +415,6 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
                         duration: duration
                     })
                 })
-            }
-
-            &kern::DrtioChannelStateRequest { channel } => {
-                let (fifo_space, last_timestamp) = rtio_mgt::drtio_dbg::get_channel_state(channel);
-                kern_send(io, &kern::DrtioChannelStateReply { fifo_space: fifo_space,
-                                                                  last_timestamp: last_timestamp })
-            }
-            &kern::DrtioResetChannelStateRequest { channel } => {
-                rtio_mgt::drtio_dbg::reset_channel_state(channel);
-                kern_acknowledge()
-            }
-            &kern::DrtioGetFifoSpaceRequest { channel } => {
-                rtio_mgt::drtio_dbg::get_fifo_space(channel);
-                kern_acknowledge()
-            }
-            &kern::DrtioPacketCountRequest => {
-                let (tx_cnt, rx_cnt) = rtio_mgt::drtio_dbg::get_packet_counts();
-                kern_send(io, &kern::DrtioPacketCountReply { tx_cnt: tx_cnt, rx_cnt: rx_cnt })
-            }
-            &kern::DrtioFifoSpaceReqCountRequest => {
-                let cnt = rtio_mgt::drtio_dbg::get_fifo_space_req_count();
-                kern_send(io, &kern::DrtioFifoSpaceReqCountReply { cnt: cnt })
             }
 
             &kern::WatchdogSetRequest { ms } => {
@@ -476,44 +452,6 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
             &kern::CachePutRequest { key, value } => {
                 let succeeded = session.congress.cache.put(key, value).is_ok();
                 kern_send(io, &kern::CachePutReply { succeeded: succeeded })
-            }
-
-            #[cfg(has_i2c)]
-            &kern::I2cStartRequest { busno } => {
-                board::i2c::start(busno);
-                kern_acknowledge()
-            }
-            #[cfg(has_i2c)]
-            &kern::I2cStopRequest { busno } => {
-                board::i2c::stop(busno);
-                kern_acknowledge()
-            }
-            #[cfg(has_i2c)]
-            &kern::I2cWriteRequest { busno, data } => {
-                let ack = board::i2c::write(busno, data);
-                kern_send(io, &kern::I2cWriteReply { ack: ack })
-            }
-            #[cfg(has_i2c)]
-            &kern::I2cReadRequest { busno, ack } => {
-                let data = board::i2c::read(busno, ack);
-                kern_send(io, &kern::I2cReadReply { data: data })
-            }
-
-            #[cfg(not(has_i2c))]
-            &kern::I2cStartRequest { .. } => {
-                kern_acknowledge()
-            }
-            #[cfg(not(has_i2c))]
-            &kern::I2cStopRequest { .. } => {
-                kern_acknowledge()
-            }
-            #[cfg(not(has_i2c))]
-            &kern::I2cWriteRequest { .. } => {
-                kern_send(io, &kern::I2cWriteReply { ack: false })
-            }
-            #[cfg(not(has_i2c))]
-            &kern::I2cReadRequest { .. } => {
-                kern_send(io, &kern::I2cReadReply { data: 0xff })
             }
 
             &kern::RunFinished => {

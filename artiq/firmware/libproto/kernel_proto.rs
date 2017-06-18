@@ -87,6 +87,12 @@ pub enum Message<'a> {
     I2cReadRequest { busno: u8, ack: bool },
     I2cReadReply { data: u8 },
 
+    SpiSetConfigRequest { busno: u32, flags: u8, write_div: u8, read_div: u8 },
+    SpiSetXferRequest { busno: u32, chip_select: u16, write_length: u8, read_length: u8 },
+    SpiWriteRequest { busno: u32, data: u32 },
+    SpiReadRequest { busno: u32 },
+    SpiReadReply { data: u32 },
+
     Log(fmt::Arguments<'a>),
     LogSlice(&'a str)
 }

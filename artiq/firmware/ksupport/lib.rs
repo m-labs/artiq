@@ -89,6 +89,7 @@ macro_rules! raise {
 pub mod eh;
 mod api;
 mod rtio;
+mod nrt_bus;
 
 static mut NOW: u64 = 0;
 static mut LIBRARY: Option<Library<'static>> = None;
@@ -218,24 +219,6 @@ extern fn cache_put(key: CSlice<u8>, list: CSlice<i32>) {
             raise!("CacheError", "cannot put into a busy cache row")
         }
     })
-}
-
-extern fn i2c_start(busno: i32) {
-    send(&I2cStartRequest { busno: busno as u8 });
-}
-
-extern fn i2c_stop(busno: i32) {
-    send(&I2cStopRequest { busno: busno as u8 });
-}
-
-extern fn i2c_write(busno: i32, data: i32) -> bool {
-    send(&I2cWriteRequest { busno: busno as u8, data: data as u8 });
-    recv!(&I2cWriteReply { ack } => ack)
-}
-
-extern fn i2c_read(busno: i32, ack: bool) -> i32 {
-    send(&I2cReadRequest { busno: busno as u8, ack: ack });
-    recv!(&I2cReadReply { data } => data) as i32
 }
 
 const DMA_BUFFER_SIZE: usize = 64 * 1024;
