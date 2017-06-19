@@ -1,10 +1,6 @@
 from artiq.language.core import syscall, kernel
 from artiq.language.types import TBool, TInt32, TNone
-
-
-class I2CError(Exception):
-    """Raised when a I2C transaction fails."""
-    pass
+from artiq.coredevice.exceptions import I2CError
 
 
 @syscall(flags={"nounwind", "nowrite"})

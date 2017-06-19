@@ -5,49 +5,63 @@ use kernel_proto as kern;
 use std::io;
 use sched::Io;
 
-// TODO
 mod drtio_spi {
-    pub fn set_config(_busno: u32, _flags: u8, _write_div: u8, _read_div: u8) {}
-    pub fn set_xfer(_busno: u32, _chip_select: u16, _write_length: u8, _read_length: u8) {}
-    pub fn write(_busno: u32, _data: u32) {}
-    pub fn read(_busno: u32) -> u32 { 0 }
+    pub fn set_config(_busno: u32, _flags: u8, _write_div: u8, _read_div: u8) -> Result<(), ()> {
+        Err(())
+    }
+
+    pub fn set_xfer(_busno: u32, _chip_select: u16, _write_length: u8, _read_length: u8) -> Result<(), ()> {
+        Err(())
+    }
+
+    pub fn write(_busno: u32, _data: u32) -> Result<(), ()> {
+        Err(())
+    }
+
+    pub fn read(_busno: u32) -> Result<u32, ()> {
+        Err(())
+    }
 }
 
 mod spi {
     use board;
     use super::drtio_spi;
 
-    pub fn set_config(busno: u32, flags: u8, write_div: u8, read_div: u8) {
+    pub fn set_config(busno: u32, flags: u8, write_div: u8, read_div: u8) -> Result<(), ()> {
         let drtio = busno >> 16;
+        let dev_busno = busno as u8;
         if drtio == 0 {
-            board::spi::set_config(flags, write_div, read_div)
+            board::spi::set_config(dev_busno, flags, write_div, read_div)
         } else {
             drtio_spi::set_config(busno, flags, write_div, read_div)
         }
     }
 
-    pub fn set_xfer(busno: u32, chip_select: u16, write_length: u8, read_length: u8) {
+    pub fn set_xfer(busno: u32, chip_select: u16, write_length: u8, read_length: u8) -> Result<(), ()> {
         let drtio = busno >> 16;
+        let dev_busno = busno as u8;
         if drtio == 0 {
-            board::spi::set_xfer(chip_select, write_length, read_length)
+            board::spi::set_xfer(dev_busno, chip_select, write_length, read_length)
         } else {
             drtio_spi::set_xfer(busno, chip_select, write_length, read_length)
         }
     }
 
-    pub fn write(busno: u32, data: u32) {
+    pub fn write(busno: u32, data: u32) -> Result<(), ()> {
         let drtio = busno >> 16;
+        let dev_busno = busno as u8;
         if drtio == 0 {
-            board::spi::write(data)
+            board::spi::write(dev_busno, data)
         } else {
             drtio_spi::write(busno, data)
         }
     }
 
-    pub fn read(busno: u32) -> u32 {
+    pub fn read(busno: u32) -> Result<u32, ()> {
         let drtio = busno >> 16;
+        let dev_busno = busno as u8;
         if drtio == 0 {
-            board::spi::read()
+            board::spi::read(dev_busno)
         } else {
             drtio_spi::read(busno)
         }
@@ -85,37 +99,43 @@ pub fn process_kern_hwreq(io: &Io, request: &kern::Message) -> io::Result<bool> 
         }
 
         &kern::I2cStartRequest { busno } => {
-            board::i2c::start(busno);
-            kern_acknowledge()
+            let succeeded = board::i2c::start(busno).is_ok();
+            kern_send(io, &kern::I2cBasicReply { succeeded: succeeded })
         }
         &kern::I2cStopRequest { busno } => {
-            board::i2c::stop(busno);
-            kern_acknowledge()
+            let succeeded = board::i2c::stop(busno).is_ok();
+            kern_send(io, &kern::I2cBasicReply { succeeded: succeeded })
         }
         &kern::I2cWriteRequest { busno, data } => {
-            let ack = board::i2c::write(busno, data);
-            kern_send(io, &kern::I2cWriteReply { ack: ack })
+            match board::i2c::write(busno, data) {
+                Ok(ack) => kern_send(io, &kern::I2cWriteReply { succeeded: true, ack: ack }),
+                Err(_) => kern_send(io, &kern::I2cWriteReply { succeeded: false, ack: false })
+            }
         }
         &kern::I2cReadRequest { busno, ack } => {
-            let data = board::i2c::read(busno, ack);
-            kern_send(io, &kern::I2cReadReply { data: data })
+            match board::i2c::read(busno, ack) {
+                Ok(data) => kern_send(io, &kern::I2cReadReply { succeeded: true, data: data }),
+                Err(_) => kern_send(io, &kern::I2cReadReply { succeeded: false, data: 0xff })
+            }
         },
 
         &kern::SpiSetConfigRequest { busno, flags, write_div, read_div } => {
-            spi::set_config(busno, flags, write_div, read_div);
-            kern_acknowledge()
+            let succeeded = spi::set_config(busno, flags, write_div, read_div).is_ok();
+            kern_send(io, &kern::SpiBasicReply { succeeded: succeeded })
         },
         &kern::SpiSetXferRequest { busno, chip_select, write_length, read_length } => {
-            spi::set_xfer(busno, chip_select, write_length, read_length);
-            kern_acknowledge()
+            let succeeded = spi::set_xfer(busno, chip_select, write_length, read_length).is_ok();
+            kern_send(io, &kern::SpiBasicReply { succeeded: succeeded })
         }
         &kern::SpiWriteRequest { busno, data } => {
-            spi::write(busno, data);
-            kern_acknowledge()
+            let succeeded = spi::write(busno, data).is_ok();
+            kern_send(io, &kern::SpiBasicReply { succeeded: succeeded })
         }
         &kern::SpiReadRequest { busno } => {
-            let data = spi::read(busno);
-            kern_send(io, &kern::SpiReadReply { data: data })
+            match spi::read(busno) {
+                Ok(data) => kern_send(io, &kern::SpiReadReply { succeeded: true, data: data }),
+                Err(_) => kern_send(io, &kern::SpiReadReply { succeeded: false, data: 0 })
+            }
         },
 
         _ => return Ok(false)

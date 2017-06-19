@@ -111,3 +111,11 @@ class WatchdogExpired(Exception):
 
 class ClockFailure(Exception):
     """Raised when RTIO PLL has lost lock."""
+
+class I2CError(Exception):
+    """Raised when a I2C transaction fails."""
+    pass
+
+class SPIError(Exception):
+    """Raised when a I2C transaction fails."""
+    pass

@@ -10,14 +10,14 @@ const ADDRESS: u8 = 0x68;
 
 #[cfg(soc_platform = "kc705")]
 fn pca9548_select(channel: u8) -> Result<()> {
-    i2c::start(BUSNO);
-    if !i2c::write(BUSNO, (0x74 << 1)) {
+    i2c::start(BUSNO).unwrap();
+    if !i2c::write(BUSNO, (0x74 << 1)).unwrap() {
         return Err("PCA9548 failed to ack write address")
     }
-    if !i2c::write(BUSNO, 1 << channel) {
+    if !i2c::write(BUSNO, 1 << channel).unwrap() {
         return Err("PCA9548 failed to ack control word")
     }
-    i2c::stop(BUSNO);
+    i2c::stop(BUSNO).unwrap();
     Ok(())
 }
 
@@ -93,34 +93,34 @@ fn map_frequency_settings(settings: &FrequencySettings) -> Result<FrequencySetti
 }
 
 fn write(reg: u8, val: u8) -> Result<()> {
-    i2c::start(BUSNO);
-    if !i2c::write(BUSNO, (ADDRESS << 1)) {
+    i2c::start(BUSNO).unwrap();
+    if !i2c::write(BUSNO, (ADDRESS << 1)).unwrap() {
         return Err("Si5324 failed to ack write address")
     }
-    if !i2c::write(BUSNO, reg) {
+    if !i2c::write(BUSNO, reg).unwrap() {
         return Err("Si5324 failed to ack register")
     }
-    if !i2c::write(BUSNO, val) {
+    if !i2c::write(BUSNO, val).unwrap() {
         return Err("Si5324 failed to ack value")
     }
-    i2c::stop(BUSNO);
+    i2c::stop(BUSNO).unwrap();
     Ok(())
 }
 
 fn read(reg: u8) -> Result<u8> {
-    i2c::start(BUSNO);
-    if !i2c::write(BUSNO, (ADDRESS << 1)) {
+    i2c::start(BUSNO).unwrap();
+    if !i2c::write(BUSNO, (ADDRESS << 1)).unwrap() {
         return Err("Si5324 failed to ack write address")
     }
-    if !i2c::write(BUSNO, reg) {
+    if !i2c::write(BUSNO, reg).unwrap() {
         return Err("Si5324 failed to ack register")
     }
-    i2c::restart(BUSNO);
-    if !i2c::write(BUSNO, (ADDRESS << 1) | 1) {
+    i2c::restart(BUSNO).unwrap();
+    if !i2c::write(BUSNO, (ADDRESS << 1) | 1).unwrap() {
         return Err("Si5324 failed to ack read address")
     }
-    let val = i2c::read(BUSNO, false);
-    i2c::stop(BUSNO);
+    let val = i2c::read(BUSNO, false).unwrap();
+    i2c::stop(BUSNO).unwrap();
     Ok(val)
 }
 

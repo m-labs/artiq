@@ -70,27 +70,38 @@ pub fn init() {
 }
 
 #[cfg(has_i2c)]
-pub fn start(busno: u8) {
+pub fn start(busno: u8) -> Result<(), ()> {
+    if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
+        return Err(())
+    }
     // Set SCL high then SDA low
     io::scl_o(busno, true);
     io::half_period();
     io::sda_oe(busno, true);
     io::half_period();
+    Ok(())
 }
 
 #[cfg(has_i2c)]
-pub fn restart(busno: u8) {
+pub fn restart(busno: u8) -> Result<(), ()> {
+    if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
+        return Err(())
+    }
     // Set SCL low then SDA high */
     io::scl_o(busno, false);
     io::half_period();
     io::sda_oe(busno, false);
     io::half_period();
     // Do a regular start
-    start(busno);
+    start(busno)?;
+    Ok(())
 }
 
 #[cfg(has_i2c)]
-pub fn stop(busno: u8) {
+pub fn stop(busno: u8) -> Result<(), ()> {
+    if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
+        return Err(())
+    }
     // First, make sure SCL is low, so that the target releases the SDA line
     io::scl_o(busno, false);
     io::half_period();
@@ -100,10 +111,14 @@ pub fn stop(busno: u8) {
     io::half_period();
     io::sda_oe(busno, false);
     io::half_period();
+    Ok(())
 }
 
 #[cfg(has_i2c)]
-pub fn write(busno: u8, data: u8) -> bool {
+pub fn write(busno: u8, data: u8) -> Result<bool, ()> {
+    if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
+        return Err(())
+    }
     // MSB first
     for bit in (0..8).rev() {
         // Set SCL low and set our bit on SDA
@@ -123,11 +138,14 @@ pub fn write(busno: u8, data: u8) -> bool {
     io::scl_o(busno, true);
     io::half_period();
     // returns true if acked (I2C target pulled SDA low)
-    !io::sda_i(busno)
+    Ok(!io::sda_i(busno))
 }
 
 #[cfg(has_i2c)]
-pub fn read(busno: u8, ack: bool) -> u8 {
+pub fn read(busno: u8, ack: bool) -> Result<u8, ()> {
+    if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
+        return Err(())
+    }
     // Set SCL low first, otherwise setting SDA as input may cause a transition
     // on SDA with SCL high which will be interpreted as START/STOP condition.
     io::scl_o(busno, false);
@@ -154,18 +172,18 @@ pub fn read(busno: u8, ack: bool) -> u8 {
     io::scl_o(busno, true);
     io::half_period();
 
-    data
+    Ok(data)
 }
 
 #[cfg(not(has_i2c))]
 pub fn init() {}
 #[cfg(not(has_i2c))]
-pub fn start(_busno: u8) {}
+pub fn start(_busno: u8) -> Result<(), ()> { Err(()) }
 #[cfg(not(has_i2c))]
-pub fn restart(_busno: u8) {}
+pub fn restart(_busno: u8) -> Result<(), ()> { Err(()) }
 #[cfg(not(has_i2c))]
-pub fn stop(_busno: u8) {}
+pub fn stop(_busno: u8) -> Result<(), ()> { Err(()) }
 #[cfg(not(has_i2c))]
-pub fn write(_busno: u8, _data: u8) -> bool { false }
+pub fn write(_busno: u8, _data: u8) -> Result<bool, ()> { Err(()) }
 #[cfg(not(has_i2c))]
-pub fn read(_busno: u8, _ack: bool) { 0xff }
+pub fn read(_busno: u8, _ack: bool) -> Result<u8, ()> { Err(()) }
