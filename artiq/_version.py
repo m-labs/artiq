@@ -235,7 +235,7 @@ def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
     # if there is a tag matching tag_prefix, this yields TAG-NUM-gHEX[-dirty]
     # if there isn't one, this yields HEX[-dirty] (no NUM)
     describe_out, rc = run_command(GITS, ["describe", "--tags", "--dirty",
-                                          "--always", "--long",
+                                          "--always", "--long", "--abbrev=8",
                                           "--match", "%s*" % tag_prefix],
                                    cwd=root)
     # --long was added in git-1.5.5
@@ -249,7 +249,7 @@ def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
 
     pieces = {}
     pieces["long"] = full_out
-    pieces["short"] = full_out[:7]  # maybe improved later
+    pieces["short"] = full_out[:8]  # maybe improved later
     pieces["error"] = None
 
     # parse describe_out. It will be like TAG-NUM-gHEX[-dirty] or HEX[-dirty]
