@@ -117,5 +117,5 @@ class I2CError(Exception):
     pass
 
 class SPIError(Exception):
-    """Raised when a I2C transaction fails."""
+    """Raised when a SPI transaction fails."""
     pass
