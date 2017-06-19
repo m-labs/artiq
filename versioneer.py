@@ -1061,7 +1061,7 @@ def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
 
     pieces = {}
     pieces["long"] = full_out
-    pieces["short"] = full_out[:7]  # maybe improved later
+    pieces["short"] = full_out[:8]  # maybe improved later
     pieces["error"] = None
 
     # parse describe_out. It will be like TAG-NUM-gHEX[-dirty] or HEX[-dirty]
