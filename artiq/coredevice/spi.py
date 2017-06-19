@@ -7,11 +7,11 @@ from artiq.coredevice.rtio import rtio_output, rtio_input_data
 
 
 __all__ = [
-  "SPI_DATA_ADDR", "SPI_XFER_ADDR", "SPI_CONFIG_ADDR",
-  "SPI_OFFLINE", "SPI_ACTIVE", "SPI_PENDING",
-  "SPI_CS_POLARITY", "SPI_CLK_POLARITY", "SPI_CLK_PHASE",
-  "SPI_LSB_FIRST", "SPI_HALF_DUPLEX",
-  "SPIMaster", "NRTSPIMaster"
+   "SPI_DATA_ADDR", "SPI_XFER_ADDR", "SPI_CONFIG_ADDR",
+    "SPI_OFFLINE", "SPI_ACTIVE", "SPI_PENDING",
+    "SPI_CS_POLARITY", "SPI_CLK_POLARITY", "SPI_CLK_PHASE",
+    "SPI_LSB_FIRST", "SPI_HALF_DUPLEX",
+    "SPIMaster", "NRTSPIMaster"
 ]
 
 
