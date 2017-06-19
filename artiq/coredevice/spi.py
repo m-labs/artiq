@@ -306,7 +306,7 @@ class NRTSPIMaster:
 
     See :class:`SPIMaster` for a description of the methods.
     """
-    def __init__(self, dmgr, busno, core_device="core"):
+    def __init__(self, dmgr, busno=0, core_device="core"):
         self.core = dmgr.get(core_device)
         self.busno = busno
 
