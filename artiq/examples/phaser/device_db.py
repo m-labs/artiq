@@ -38,6 +38,17 @@ device_db = {
         "class": "TTLInOut",
         "arguments": {"channel": 2}
     },
+    "converter_spi": {
+        "type": "local",
+        "module": "artiq.coredevice.spi",
+        "class": "NRTSPIMaster",
+    },
+    "ad9154_spi": {
+        "type": "local",
+        "module": "artiq.coredevice.ad9154_spi",
+        "class": "AD9154",
+        "arguments": {"spi_device": "converter_spi", "chip_select": 1}
+    },
     "sawg0": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
