@@ -118,6 +118,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(drtio_get_fifo_space_req_count = ::rtio::drtio_dbg::get_fifo_space_req_count),
 
     api!(i2c_start = ::nrt_bus::i2c::start),
+    api!(i2c_restart = ::nrt_bus::i2c::restart),
     api!(i2c_stop = ::nrt_bus::i2c::stop),
     api!(i2c_write = ::nrt_bus::i2c::write),
     api!(i2c_read = ::nrt_bus::i2c::read),

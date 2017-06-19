@@ -4,21 +4,28 @@ pub mod i2c {
     use kernel_proto::*;
 
     pub extern fn start(busno: i32) {
-        send(&I2cStartRequest { busno: busno as u8 });
+        send(&I2cStartRequest { busno: busno as u32 });
+        recv!(&I2cBasicReply { succeeded } => if !succeeded {
+            raise!("I2CError", "I2C bus could not be accessed");
+        });
+    }
+
+    pub extern fn restart(busno: i32) {
+        send(&I2cRestartRequest { busno: busno as u32 });
         recv!(&I2cBasicReply { succeeded } => if !succeeded {
             raise!("I2CError", "I2C bus could not be accessed");
         });
     }
 
     pub extern fn stop(busno: i32) {
-        send(&I2cStopRequest { busno: busno as u8 });
+        send(&I2cStopRequest { busno: busno as u32 });
         recv!(&I2cBasicReply { succeeded } => if !succeeded {
             raise!("I2CError", "I2C bus could not be accessed");
         });
     }
 
     pub extern fn write(busno: i32, data: i32) -> bool {
-        send(&I2cWriteRequest { busno: busno as u8, data: data as u8 });
+        send(&I2cWriteRequest { busno: busno as u32, data: data as u8 });
         recv!(&I2cWriteReply { succeeded, ack } => {
             if !succeeded {
                 raise!("I2CError", "I2C bus could not be accessed");
@@ -28,7 +35,7 @@ pub mod i2c {
     }
 
     pub extern fn read(busno: i32, ack: bool) -> i32 {
-        send(&I2cReadRequest { busno: busno as u8, ack: ack });
+        send(&I2cReadRequest { busno: busno as u32, ack: ack });
         recv!(&I2cReadReply { succeeded, data } => {
             if !succeeded {
                 raise!("I2CError", "I2C bus could not be accessed");

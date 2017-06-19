@@ -1,10 +1,132 @@
 use session::{kern_acknowledge, kern_send};
 use rtio_mgt;
-use board;
 use kernel_proto as kern;
 use std::io;
 use sched::Io;
 
+// TODO
+#[cfg(has_drtio)]
+mod drtio_i2c {
+    pub fn start(_busno: u32) -> Result<(), ()> {
+        Err(())
+    }
+
+    pub fn restart(_busno: u32) -> Result<(), ()> {
+        Err(())
+    }
+
+    pub fn stop(_busno: u32) -> Result<(), ()> {
+        Err(())
+    }
+
+    pub fn write(_busno: u32, _data: u8) -> Result<bool, ()> {
+        Err(())
+    }
+
+    pub fn read(_busno: u32, _ack: bool) -> Result<u8, ()> {
+        Err(())
+    }
+}
+
+#[cfg(not(has_drtio))]
+mod drtio_i2c {
+    pub fn start(_busno: u32) -> Result<(), ()> {
+        Err(())
+    }
+
+    pub fn restart(_busno: u32) -> Result<(), ()> {
+        Err(())
+    }
+
+    pub fn stop(_busno: u32) -> Result<(), ()> {
+        Err(())
+    }
+
+    pub fn write(_busno: u32, _data: u8) -> Result<bool, ()> {
+        Err(())
+    }
+
+    pub fn read(_busno: u32, _ack: bool) -> Result<u8, ()> {
+        Err(())
+    }
+}
+
+mod i2c {
+    use board;
+    use super::drtio_i2c;
+
+    pub fn start(busno: u32) -> Result<(), ()> {
+        let drtio = busno >> 16;
+        let dev_busno = busno as u8;
+        if drtio == 0 {
+            board::i2c::start(dev_busno)
+        } else {
+            drtio_i2c::start(busno)
+        }
+    }
+
+    pub fn restart(busno: u32) -> Result<(), ()> {
+        let drtio = busno >> 16;
+        let dev_busno = busno as u8;
+        if drtio == 0 {
+            board::i2c::restart(dev_busno)
+        } else {
+            drtio_i2c::restart(busno)
+        }
+    }
+
+    pub fn stop(busno: u32) -> Result<(), ()> {
+        let drtio = busno >> 16;
+        let dev_busno = busno as u8;
+        if drtio == 0 {
+            board::i2c::stop(dev_busno)
+        } else {
+            drtio_i2c::stop(busno)
+        }
+    }
+
+    pub fn write(busno: u32, data: u8) -> Result<bool, ()> {
+        let drtio = busno >> 16;
+        let dev_busno = busno as u8;
+        if drtio == 0 {
+            board::i2c::write(dev_busno, data)
+        } else {
+            drtio_i2c::write(busno, data)
+        }
+    }
+
+    pub fn read(busno: u32, ack: bool) -> Result<u8, ()> {
+        let drtio = busno >> 16;
+        let dev_busno = busno as u8;
+        if drtio == 0 {
+            board::i2c::read(dev_busno, ack)
+        } else {
+            drtio_i2c::read(busno, ack)
+        }
+    }
+}
+
+// TODO
+#[cfg(has_drtio)]
+mod drtio_spi {
+    pub fn set_config(_busno: u32, _flags: u8, _write_div: u8, _read_div: u8) -> Result<(), ()> {
+        Err(())
+    }
+
+    pub fn set_xfer(_busno: u32, _chip_select: u16, _write_length: u8, _read_length: u8) -> Result<(), ()> {
+        Err(())
+    }
+
+    pub fn write(_busno: u32, _data: u32) -> Result<(), ()> {
+        Err(())
+    }
+
+    pub fn read(_busno: u32) -> Result<u32, ()> {
+        Err(())
+    }
+}
+
+#[cfg(not(has_drtio))]
 mod drtio_spi {
     pub fn set_config(_busno: u32, _flags: u8, _write_div: u8, _read_div: u8) -> Result<(), ()> {
         Err(())
@@ -99,25 +221,29 @@ pub fn process_kern_hwreq(io: &Io, request: &kern::Message) -> io::Result<bool> 
         }
 
         &kern::I2cStartRequest { busno } => {
-            let succeeded = board::i2c::start(busno).is_ok();
+            let succeeded = i2c::start(busno).is_ok();
+            kern_send(io, &kern::I2cBasicReply { succeeded: succeeded })
+        }
+        &kern::I2cRestartRequest { busno } => {
+            let succeeded = i2c::restart(busno).is_ok();
             kern_send(io, &kern::I2cBasicReply { succeeded: succeeded })
         }
         &kern::I2cStopRequest { busno } => {
-            let succeeded = board::i2c::stop(busno).is_ok();
+            let succeeded = i2c::stop(busno).is_ok();
             kern_send(io, &kern::I2cBasicReply { succeeded: succeeded })
         }
         &kern::I2cWriteRequest { busno, data } => {
-            match board::i2c::write(busno, data) {
+            match i2c::write(busno, data) {
                 Ok(ack) => kern_send(io, &kern::I2cWriteReply { succeeded: true, ack: ack }),
                 Err(_) => kern_send(io, &kern::I2cWriteReply { succeeded: false, ack: false })
             }
         }
         &kern::I2cReadRequest { busno, ack } => {
-            match board::i2c::read(busno, ack) {
+            match i2c::read(busno, ack) {
                 Ok(data) => kern_send(io, &kern::I2cReadReply { succeeded: true, data: data }),
                 Err(_) => kern_send(io, &kern::I2cReadReply { succeeded: false, data: 0xff })
             }
-        },
+        }
 
         &kern::SpiSetConfigRequest { busno, flags, write_div, read_div } => {
             let succeeded = spi::set_config(busno, flags, write_div, read_div).is_ok();
@@ -136,7 +262,7 @@ pub fn process_kern_hwreq(io: &Io, request: &kern::Message) -> io::Result<bool> 
                 Ok(data) => kern_send(io, &kern::SpiReadReply { succeeded: true, data: data }),
                 Err(_) => kern_send(io, &kern::SpiReadReply { succeeded: false, data: 0 })
             }
-        },
+        }
 
         _ => return Ok(false)
     }.and(Ok(true))

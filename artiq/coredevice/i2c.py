@@ -9,6 +9,11 @@ def i2c_start(busno: TInt32) -> TNone:
 
 
 @syscall(flags={"nounwind", "nowrite"})
+def i2c_restart(busno: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+
+@syscall(flags={"nounwind", "nowrite"})
 def i2c_stop(busno: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 

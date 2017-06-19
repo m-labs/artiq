@@ -80,11 +80,12 @@ pub enum Message<'a> {
     CachePutRequest { key: &'a str, value: &'a [i32] },
     CachePutReply   { succeeded: bool },
 
-    I2cStartRequest { busno: u8 },
-    I2cStopRequest { busno: u8 },
-    I2cWriteRequest { busno: u8, data: u8 },
+    I2cStartRequest { busno: u32 },
+    I2cRestartRequest { busno: u32 },
+    I2cStopRequest { busno: u32 },
+    I2cWriteRequest { busno: u32, data: u8 },
     I2cWriteReply { succeeded: bool, ack: bool },
-    I2cReadRequest { busno: u8, ack: bool },
+    I2cReadRequest { busno: u32, ack: bool },
     I2cReadReply { succeeded: bool, data: u8 },
     I2cBasicReply { succeeded: bool },
 
