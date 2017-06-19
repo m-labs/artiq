@@ -1,3 +1,4 @@
+#[cfg(has_i2c)]
 use csr;
 
 #[cfg(has_i2c)]
