@@ -89,10 +89,12 @@ class Config(Module):
         self.limits = [[Signal((width, True)), Signal((width, True))]
                 for i in range(2)]
         limit = 1 << width - 1
-        self.limits[0][0].reset = -limit
-        self.limits[0][1].reset = limit - 1
-        self.limits[1][0].reset = int(-limit/cordic_gain)
-        self.limits[1][1].reset = int((limit - 1)/cordic_gain)
+        self.limits[0][0].reset = Constant(-limit, (width, True))
+        self.limits[0][1].reset = Constant(limit - 1, (width, True))
+        self.limits[1][0].reset = Constant(int(-limit/cordic_gain),
+                (width, True))
+        self.limits[1][1].reset = Constant(int((limit - 1)/cordic_gain),
+                (width, True))
         # TODO make persistent, add read-out/notification/clear
         self.clipped = [Signal(2) for i in range(2)]
         self.i = Endpoint([("addr", bits_for(4 + 2*len(self.limits) - 1)),
@@ -139,7 +141,7 @@ class Channel(Module, SatAddMixin):
         coeff = halfgen4_cascade(parallelism, width=.4, order=8)
         hbf = [ParallelHBFUpsampler(coeff, width=width + 1) for i in range(2)]
         self.submodules.b = b = SplineParallelDUC(
-            widths._replace(a=width + 1, f=widths.f - width), orders,
+            widths._replace(a=len(hbf[0].o[0]), f=widths.f - width), orders,
             parallelism=parallelism)
         cfg = Config(width, b.gain)
         u = Spline(width=widths.a, order=orders.a)
@@ -178,6 +180,8 @@ class Channel(Module, SatAddMixin):
             b.ce.eq(cfg.ce),
             u.o.ack.eq(cfg.ce),
             Cat(b.clr, a1.clr, a2.clr).eq(cfg.clr),
+            Cat(b.xi).eq(Cat(hbf[0].o)),
+            Cat(b.yi).eq(Cat(hbf[1].o)),
         ]
         self.sync += [
             hbf[0].i.eq(self.sat_add(a1.xo[0], a2.xo[0],
@@ -185,11 +189,6 @@ class Channel(Module, SatAddMixin):
             hbf[1].i.eq(self.sat_add(a1.yo[0], a2.yo[0],
                 limits=cfg.limits[1], clipped=None)),  # ignore Q clip data
         ]
-        for i in range(parallelism):
-            self.comb += [
-                b.xi[i].eq(hbf[0].o[i]),
-                b.yi[i].eq(hbf[1].o[i]),
-            ]
         # wire up outputs and q_{i,o} exchange
         for o, x, y in zip(self.o, b.xo, self.y_in):
             self.sync += [
