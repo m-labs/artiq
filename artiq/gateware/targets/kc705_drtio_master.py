@@ -29,7 +29,7 @@ class Master(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, cfg, **kwargs):
+    def __init__(self, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
@@ -45,39 +45,26 @@ class Master(MiniSoC, AMPSoC):
         self.comb += platform.request("sfp_tx_disable_n").eq(1)
         tx_pads = platform.request("sfp_tx")
         rx_pads = platform.request("sfp_rx")
-        if cfg == "simple_gbe":
-            # GTX_1000BASE_BX10 Ethernet compatible, 62.5MHz RTIO clock
-            # simple TTLs
-            self.submodules.transceiver = gtx_7series.GTX_1000BASE_BX10(
-                clock_pads=platform.request("sgmii_clock"),
-                tx_pads=tx_pads,
-                rx_pads=rx_pads,
-                sys_clk_freq=self.clk_freq,
-                clock_div2=True)
-        elif cfg == "sawg_3g":
-            # 3Gb link, 150MHz RTIO clock
-            # with SAWG on local RTIO and AD9154-FMC-EBZ
-            platform.add_extension(ad9154_fmc_ebz)
-            self.submodules.transceiver = gtx_7series.GTX_3G(
-                clock_pads=platform.request("ad9154_refclk"),
-                tx_pads=tx_pads,
-                rx_pads=rx_pads,
-                sys_clk_freq=self.clk_freq)
 
-            ad9154_spi = platform.request("ad9154_spi")
-            self.comb += ad9154_spi.en.eq(1)
-            self.submodules.converter_spi = spi_csr.SPIMaster(ad9154_spi)
-            self.csr_devices.append("converter_spi")
-            self.config["CONVERTER_SPI_DAC_CS"] = 0
-            self.config["CONVERTER_SPI_CLK_CS"] = 1
-            self.config["HAS_AD9516"] = None
-        else:
-            raise ValueError
+        # 1000BASE_BX10 Ethernet compatible, 62.5MHz RTIO clock
+        self.submodules.transceiver = gtx_7series.GTX_1000BASE_BX10(
+            clock_pads=platform.request("sgmii_clock"),
+            tx_pads=tx_pads,
+            rx_pads=rx_pads,
+            sys_clk_freq=self.clk_freq,
+            clock_div2=True)
+
         self.submodules.drtio = DRTIOMaster(self.transceiver)
         self.csr_devices.append("drtio")
         self.add_wb_slave(mem_decoder(self.mem_map["drtio_aux"]),
                           self.drtio.aux_controller.bus)
         self.add_memory_region("drtio_aux", self.mem_map["drtio_aux"] | self.shadow_base, 0x800)
+
+        platform.add_extension(ad9154_fmc_ebz)
+        ad9154_spi = platform.request("ad9154_spi")
+        self.comb += ad9154_spi.en.eq(1)
+        self.submodules.converter_spi = spi_csr.SPIMaster(ad9154_spi)
+        self.csr_devices.append("converter_spi")
 
         self.comb += [
             platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx")),
@@ -123,12 +110,9 @@ def main():
         description="ARTIQ device binary builder / KC705 DRTIO master")
     builder_args(parser)
     soc_kc705_args(parser)
-    parser.add_argument("-c", "--config", default="simple_gbe",
-                        help="configuration: simple_gbe/sawg_3g "
-                             "(default: %(default)s)")
     args = parser.parse_args()
 
-    soc = Master(args.config, **soc_kc705_argdict(args))
+    soc = Master(**soc_kc705_argdict(args))
     build_artiq_soc(soc, builder_argdict(args))
 
 
