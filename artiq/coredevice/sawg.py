@@ -10,12 +10,10 @@ _SAWG_DIV = 0
 _SAWG_CLR = 1
 _SAWG_IQ_EN = 2
 # _SAWF_PAD = 3  # reserved
-_SAWG_DUC_I_MIN = 4
-_SAWG_DUC_I_MAX = 5
-_SAWG_DUC_Q_MIN = 6
-_SAWG_DUC_Q_MAX = 7
-_SAWG_OUT_MIN = 8
-_SAWG_OUT_MAX = 9
+_SAWG_OUT_MIN = 4
+_SAWG_OUT_MAX = 5
+_SAWG_DUC_MIN = 6
+_SAWG_DUC_MAX = 7
 
 
 class Config:
@@ -92,8 +90,8 @@ class Config:
         :param clr2: Auto-clear phase accumulator of the ``phase2``/
           ``frequency2`` DDS. Default: ``True``
         """
-        rtio_output(now_mu(), self.channel, _SAWG_CLR, clr1 |
-                (clr2 << 1) | (clr0 << 2))
+        rtio_output(now_mu(), self.channel, _SAWG_CLR, clr0 |
+                (clr1 << 1) | (clr2 << 2))
 
     @kernel
     def set_iq_en(self, i_enable: TInt32, q_enable: TInt32):
@@ -122,48 +120,38 @@ class Config:
                 (q_enable << 1))
 
     @kernel
-    def set_duc_i_max_mu(self, limit: TInt32):
-        """Set the digital up-converter (DUC) I data summing junction upper
-        limit. In machine units.
+    def set_duc_max_mu(self, limit: TInt32):
+        """Set the digital up-converter (DUC) I and Q data summing junctions
+        upper limit. In machine units.
 
         The default limits are chosen to reach maximum and minimum DAC output
         amplitude.
 
         For a description of the limiter functions in normalized units see:
 
-        .. seealso:: :meth:`set_duc_i_max`
+        .. seealso:: :meth:`set_duc_max`
         """
-        rtio_output(now_mu(), self.channel, _SAWG_DUC_I_MAX, limit)
+        rtio_output(now_mu(), self.channel, _SAWG_DUC_MAX, limit)
 
     @kernel
-    def set_duc_i_min_mu(self, limit: TInt32):
-        """.. seealso:: :meth:`set_duc_i_max_mu`"""
-        rtio_output(now_mu(), self.channel, _SAWG_DUC_I_MIN, limit)
-
-    @kernel
-    def set_duc_q_max_mu(self, limit: TInt32):
-        """.. seealso:: :meth:`set_duc_i_max_mu`"""
-        rtio_output(now_mu(), self.channel, _SAWG_DUC_Q_MAX, limit)
-
-    @kernel
-    def set_duc_q_min_mu(self, limit: TInt32):
-        """.. seealso:: :meth:`set_duc_i_max_mu`"""
-        rtio_output(now_mu(), self.channel, _SAWG_DUC_Q_MIN, limit)
+    def set_duc_min_mu(self, limit: TInt32):
+        """.. seealso:: :meth:`set_duc_max_mu`"""
+        rtio_output(now_mu(), self.channel, _SAWG_DUC_MIN, limit)
 
     @kernel
     def set_out_max_mu(self, limit: TInt32):
-        """.. seealso:: :meth:`set_duc_i_max_mu`"""
+        """.. seealso:: :meth:`set_duc_max_mu`"""
         rtio_output(now_mu(), self.channel, _SAWG_OUT_MAX, limit)
 
     @kernel
     def set_out_min_mu(self, limit: TInt32):
-        """.. seealso:: :meth:`set_duc_i_max_mu`"""
+        """.. seealso:: :meth:`set_duc_max_mu`"""
         rtio_output(now_mu(), self.channel, _SAWG_OUT_MIN, limit)
 
     @kernel
-    def set_duc_i_max(self, limit: TFloat):
-        """Set the digital up-converter (DUC) I data summing junction upper
-        limit.
+    def set_duc_max(self, limit: TFloat):
+        """Set the digital up-converter (DUC) I and Q data summing junctions
+        upper limit.
 
         Each of the three summing junctions has a saturating adder with
         configurable upper and lower limits. The three summing junctions are:
@@ -171,7 +159,8 @@ class Config:
             * At the in-phase input to the ``phase0``/``frequency0`` fast DUC,
               after the anti-aliasing FIR filter.
             * At the quadrature input to the ``phase0``/``frequency0``
-              fast DUC, after the anti-aliasing FIR filter.
+              fast DUC, after the anti-aliasing FIR filter. The in-phase and
+              quadrature data paths both use the same limits.
             * Before the DAC, where the following three data streams
               are added together:
 
@@ -190,42 +179,28 @@ class Config:
             ``[-1, 1]``.
 
         .. seealso::
-            * :meth:`set_duc_i_max`: Upper limit of the in-phase input to
-              the DUC.
-            * :meth:`set_duc_i_min`: Lower limit of the in-phase input to
-              the DUC.
-            * :meth:`set_duc_q_max`: Upper limit of the quadrature input to
-              the DUC.
-            * :meth:`set_duc_q_min`: Lower limit of the quadrature input to
-              the DUC.
+            * :meth:`set_duc_max`: Upper limit of the in-phase and quadrature
+              inputs to the DUC.
+            * :meth:`set_duc_min`: Lower limit of the in-phase and quadrature
+              inputs to the DUC.
             * :meth:`set_out_max`: Upper limit of the DAC output.
             * :meth:`set_out_min`: Lower limit of the DAC output.
         """
-        self.set_duc_i_max_mu(int32(round(limit*self._duc_scale)))
+        self.set_duc_max_mu(int32(round(limit*self._duc_scale)))
 
     @kernel
-    def set_duc_i_min(self, limit: TFloat):
-        """.. seealso:: :meth:`set_duc_i_max`"""
-        self.set_duc_i_min_mu(int32(round(limit*self._duc_scale)))
-
-    @kernel
-    def set_duc_q_max(self, limit: TFloat):
-        """.. seealso:: :meth:`set_duc_i_max`"""
-        self.set_duc_q_max_mu(int32(round(limit*self._duc_scale)))
-
-    @kernel
-    def set_duc_q_min(self, limit: TFloat):
-        """.. seealso:: :meth:`set_duc_i_max`"""
-        self.set_duc_q_min_mu(int32(round(limit*self._duc_scale)))
+    def set_duc_min(self, limit: TFloat):
+        """.. seealso:: :meth:`set_duc_max`"""
+        self.set_duc_min_mu(int32(round(limit*self._duc_scale)))
 
     @kernel
     def set_out_max(self, limit: TFloat):
-        """.. seealso:: :meth:`set_duc_i_max`"""
+        """.. seealso:: :meth:`set_duc_max`"""
         self.set_out_max_mu(int32(round(limit*self._out_scale)))
 
     @kernel
     def set_out_min(self, limit: TFloat):
-        """.. seealso:: :meth:`set_duc_i_max`"""
+        """.. seealso:: :meth:`set_duc_max`"""
         self.set_out_min_mu(int32(round(limit*self._out_scale)))
 
 
@@ -306,6 +281,7 @@ class SAWG:
         width = 16
         time_width = 16
         cordic_gain = 1.646760258057163  # Cordic(width=16, guard=None).gain
+        cordic_gain *= 1.01  # leave a bit of headroom
         self.config = Config(channel_base, self.core, cordic_gain)
         self.offset = Spline(width, time_width, channel_base + 1,
                              self.core, 2.)
@@ -335,7 +311,7 @@ class SAWG:
         settings.
 
         This method advances the timeline by the time required to perform all
-        eight writes to the configuration channel.
+        six writes to the configuration channel.
         """
         self.frequency0.set_mu(0)
         self.frequency1.set_mu(0)
@@ -350,13 +326,9 @@ class SAWG:
         delay_mu(self.config._rtio_interval)
         self.config.set_iq_en(1, 0)
         delay_mu(self.config._rtio_interval)
-        self.config.set_duc_i_min(-1.)
+        self.config.set_duc_min(-1.)
         delay_mu(self.config._rtio_interval)
-        self.config.set_duc_i_max(1.)
-        delay_mu(self.config._rtio_interval)
-        self.config.set_duc_q_min(-1.)
-        delay_mu(self.config._rtio_interval)
-        self.config.set_duc_q_max(1.)
+        self.config.set_duc_max(1.)
         delay_mu(self.config._rtio_interval)
         self.config.set_out_min(-1.)
         delay_mu(self.config._rtio_interval)

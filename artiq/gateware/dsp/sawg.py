@@ -83,35 +83,43 @@ class SplineParallelDDS(SplineParallelDUC):
 
 
 class Config(Module):
-    def __init__(self, width):
+    def __init__(self, width, cordic_gain):
         self.clr = Signal(3, reset=0b111)
         self.iq_en = Signal(2, reset=0b01)
-        self.limits = [[Signal((width, True), reset=-(1 << width - 1)),
-                       Signal((width, True), reset=(1 << width - 1) - 1)]
-                      for i in range(3)]
-        self.clipped = [Signal(2) for i in range(3)]  # TODO
-        self.i = Endpoint([("addr", bits_for(4 + 2*len(self.limits))),
-                           ("data", 16)])
+        self.limits = [[Signal((width, True)), Signal((width, True))]
+                for i in range(2)]
+        limit = 1 << width - 1
+        self.limits[0][0].reset = -limit
+        self.limits[0][1].reset = limit - 1
+        self.limits[1][0].reset = int(-limit/cordic_gain)
+        self.limits[1][1].reset = int((limit - 1)/cordic_gain)
+        # TODO make persistent, add read-out/notification/clear
+        self.clipped = [Signal(2) for i in range(2)]
+        self.i = Endpoint([("addr", bits_for(4 + 2*len(self.limits) - 1)),
+                           ("data", width)])
+        assert len(self.i.addr) == 3
         self.ce = Signal()
 
         ###
 
         div = Signal(16, reset=0)
         n = Signal.like(div)
-        pad = Signal()
 
-        reg = Array([Cat(div, n), self.clr, self.iq_en, pad] +
-                    sum(self.limits, []))
-
-        self.comb += [
-            self.i.ack.eq(1),
-            self.ce.eq(n == 0),
-        ]
+        self.comb += self.ce.eq(n == 0)
         self.sync += [
             n.eq(n - 1),
             If(self.ce,
                 n.eq(div),
-            ),
+            )
+        ]
+
+        pad = Signal()
+
+        reg = Array(sum(self.limits,
+            [Cat(div, n), self.clr, self.iq_en, pad]))
+
+        self.comb += self.i.ack.eq(1)
+        self.sync += [
             If(self.i.stb,
                 reg[self.i.addr].eq(self.i.data),
             ),
@@ -131,26 +139,26 @@ class Channel(Module, SatAddMixin):
         coeff = halfgen4_cascade(parallelism, width=.4, order=8)
         hbf = [ParallelHBFUpsampler(coeff, width=width + 1) for i in range(2)]
         self.submodules.b = b = SplineParallelDUC(
-            widths._replace(a=len(hbf[0].o[0]), f=widths.f - width), orders,
+            widths._replace(a=width + 1, f=widths.f - width), orders,
             parallelism=parallelism)
-        cfg = Config(width)
+        cfg = Config(width, b.gain)
         u = Spline(width=widths.a, order=orders.a)
         self.submodules += cfg, u, hbf
         self.u = u.tri(widths.t)
         self.i = [cfg.i, self.u, a1.a, a1.f, a1.p, a2.a, a2.f, a2.p, b.f, b.p]
         self.i_names = "cfg u a1 f1 p1 a2 f2 p2 f0 p0".split()
         self.i_named = dict(zip(self.i_names, self.i))
-        self.y_in = [Signal((width, True)) for i in range(parallelism)]
+        self.y_in = [Signal.like(b.yo[0]) for i in range(parallelism)]
         self.o = [Signal((width, True)) for i in range(parallelism)]
         self.widths = widths
         self.orders = orders
         self.parallelism = parallelism
-        self.cordic_gain = a1.gain*b.gain
+        self.cordic_gain = a2.gain*b.gain
 
         self.u.latency += 1
         b.p.latency += 2
         b.f.latency += 2
-        a_latency_delta = hbf[0].latency + b.latency + 3
+        a_latency_delta = hbf[0].latency + b.latency + 2
         for a in a1, a2:
             a.a.latency += a_latency_delta
             a.p.latency += a_latency_delta
@@ -169,26 +177,19 @@ class Channel(Module, SatAddMixin):
             a2.ce.eq(cfg.ce),
             b.ce.eq(cfg.ce),
             u.o.ack.eq(cfg.ce),
-            Cat(a1.clr, a2.clr, b.clr).eq(cfg.clr),
+            Cat(b.clr, a1.clr, a2.clr).eq(cfg.clr),
+        ]
+        self.sync += [
+            hbf[0].i.eq(self.sat_add(a1.xo[0], a2.xo[0],
+                limits=cfg.limits[1], clipped=cfg.clipped[1])),
+            hbf[1].i.eq(self.sat_add(a1.yo[0], a2.yo[0],
+                limits=cfg.limits[1], clipped=None)),  # ignore Q clip data
         ]
         for i in range(parallelism):
-            self.sync += [
-                b.xi[i].eq(self.sat_add(hbf[0].o[i],
-                                     limits=cfg.limits[0],
-                                     clipped=cfg.clipped[0])),
-                b.yi[i].eq(self.sat_add(hbf[1].o[i],
-                                     limits=cfg.limits[1],
-                                     clipped=cfg.clipped[1])),
+            self.comb += [
+                b.xi[i].eq(hbf[0].o[i]),
+                b.yi[i].eq(hbf[1].o[i]),
             ]
-        for i in range(2):
-            for j in range(2):
-                # correct pre-DUC limiter by cordic gain
-                v = cfg.limits[i][j].reset.value
-                cfg.limits[i][j].reset.value = int(v / b.gain)
-        self.sync += [
-            hbf[0].i.eq(a1.xo[0] + a2.xo[0]),
-            hbf[1].i.eq(a1.yo[0] + a2.yo[0])
-        ]
         # wire up outputs and q_{i,o} exchange
         for o, x, y in zip(self.o, b.xo, self.y_in):
             self.sync += [
@@ -196,8 +197,8 @@ class Channel(Module, SatAddMixin):
                     u.o.a0[-len(o):],
                     Mux(cfg.iq_en[0], x, 0),
                     Mux(cfg.iq_en[1], y, 0),
-                    limits=cfg.limits[2],
-                    clipped=cfg.clipped[2])),
+                    limits=cfg.limits[0],
+                    clipped=cfg.clipped[0])),
             ]
 
     def connect_y(self, buddy):
