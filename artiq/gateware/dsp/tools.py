@@ -44,13 +44,15 @@ class SatAddMixin:
             full.eq(reduce(add, a)),
         ]
         if limits is None:
+            sign = Signal()
             self.comb += [
-                If(full[-1-carry:] == Replicate(full[-1], carry + 1),
+                sign.eq(full[-1]),
+                If(full[-1-carry:] == Replicate(sign, carry + 1),
                     clip.eq(0),
                     limited.eq(full),
                 ).Else(
-                    clip.eq(Cat(full[-1], ~full[-1])),
-                    limited.eq(Cat(Replicate(~full[-1], length - 1), full[-1])),
+                    clip.eq(Cat(sign, ~sign)),
+                    limited.eq(Cat(Replicate(~sign, length - 1), sign)),
                 )
             ]
         else:
