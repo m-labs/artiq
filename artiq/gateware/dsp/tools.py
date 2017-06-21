@@ -37,9 +37,8 @@ class SatAddMixin:
         carry = log2_int(len(a), need_pow2=False)
         full = Signal((length + carry, True))
         limited = Signal((length, True))
-        clip = Signal(2)
-        if clipped is not None:
-            clipped.eq(clip)
+        if clipped is None:
+            clipped = Signal(2)
         self.comb += [
             full.eq(reduce(add, a)),
         ]
@@ -47,15 +46,19 @@ class SatAddMixin:
             self.comb += [
                 If(full[-1-carry:] == Replicate(full[-1], carry + 1),
                     limited.eq(full),
-                    clip.eq(0),
+                    clipped.eq(0),
                 ).Else(
                     limited.eq(Cat(Replicate(~full[-1], length - 1), full[-1])),
-                    clip.eq(Cat(full[-1], ~full[-1])),
+                    clipped.eq(Cat(full[-1], ~full[-1])),
                 )
             ]
         else:
             self.comb += [
                 clip.eq(Cat(full < limits[0], full > limits[1])),
-                limited.eq(Array([full, limits[0], limits[1], 0])[clip]),
+                Case(clip, {
+                    0b01, limited.eq(limits[0]),
+                    0b10, limited.eq(limits[1]),
+                    "default": limited.eq(full),
+                })
             ]
         return limited
