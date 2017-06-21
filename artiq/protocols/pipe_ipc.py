@@ -22,7 +22,7 @@ class _BaseIO:
 
 if os.name != "nt":
     async def _fds_to_asyncio(rfd, wfd, loop):
-        reader = asyncio.StreamReader(loop=loop, limit=4*1024*1024)
+        reader = asyncio.StreamReader(loop=loop, limit=100*1024*1024)
         reader_protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
         rf = open(rfd, "rb", 0)
         rt, _ = await loop.connect_read_pipe(lambda: reader_protocol, rf)
@@ -128,7 +128,7 @@ else:  # windows
             loop = asyncio.get_event_loop()
 
             def factory():
-                reader = asyncio.StreamReader(loop=loop, limit=4*1024*1024)
+                reader = asyncio.StreamReader(loop=loop, limit=100*1024*1024)
                 protocol = asyncio.StreamReaderProtocol(reader,
                                                 self._child_connected,
                                                 loop=loop)
@@ -189,7 +189,7 @@ else:  # windows
 
         async def connect(self):
             loop = asyncio.get_event_loop()
-            self.reader = asyncio.StreamReader(loop=loop, limit=4*1024*1024)
+            self.reader = asyncio.StreamReader(loop=loop, limit=100*1024*1024)
             reader_protocol = asyncio.StreamReaderProtocol(
                 self.reader, loop=loop)
             transport, _ = await loop.create_pipe_connection(
