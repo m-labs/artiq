@@ -39,7 +39,7 @@ fn read_probe_drtio(channel: u16, probe: u8) -> u32 {
     if rtio_mgt::drtio::link_is_running() {
         let request = drtioaux::Packet::MonitorRequest { channel: channel, probe: probe };
         drtioaux::hw::send(&request).unwrap();
-        match drtioaux::hw::recv_timeout(10) {
+        match drtioaux::hw::recv_timeout(None) {
             Ok(drtioaux::Packet::MonitorReply { value }) => return value,
             Ok(_) => error!("received unexpected aux packet"),
             Err(e) => error!("aux packet error ({})", e)
@@ -123,7 +123,7 @@ fn read_injection_status_drtio(channel: u16, overrd: u8) -> u8 {
             overrd: overrd
         };
         drtioaux::hw::send(&request).unwrap();
-        match drtioaux::hw::recv_timeout(10) {
+        match drtioaux::hw::recv_timeout(None) {
             Ok(drtioaux::Packet::InjectionStatusReply { value }) => return value,
             Ok(_) => error!("received unexpected aux packet"),
             Err(e) => error!("aux packet error ({})", e)

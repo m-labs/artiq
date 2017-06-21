@@ -169,7 +169,7 @@ pub mod drtio {
             io.sleep(200).unwrap();
             if link_is_running() {
                 drtioaux::hw::send(&drtioaux::Packet::RtioErrorRequest).unwrap();
-                match drtioaux::hw::recv_timeout(10) {
+                match drtioaux::hw::recv_timeout(None) {
                     Ok(drtioaux::Packet::RtioNoErrorReply) => (),
                     Ok(drtioaux::Packet::RtioErrorCollisionReply) => error!("RTIO collision (in satellite)"),
                     Ok(drtioaux::Packet::RtioErrorBusyReply) => error!("RTIO busy (in satellite)"),

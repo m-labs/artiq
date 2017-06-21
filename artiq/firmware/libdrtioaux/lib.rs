@@ -320,7 +320,8 @@ pub mod hw {
         }
     }
 
-    pub fn recv_timeout(timeout_ms: u64) -> io::Result<Packet> {
+    pub fn recv_timeout(timeout_ms: Option<u64>) -> io::Result<Packet> {
+        let timeout_ms = timeout_ms.unwrap_or(10);
         let limit = board::clock::get_ms() + timeout_ms;
         while board::clock::get_ms() < limit {
             match recv() {
