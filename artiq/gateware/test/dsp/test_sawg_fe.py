@@ -89,6 +89,8 @@ class SAWGTest(unittest.TestCase):
                 if isinstance(data, list):
                     data = sum(int(d) << (i*32) for i, d in enumerate(data))
                 yield rt.data.eq(int(data))
+                if hasattr(rt, "address"):
+                    yield rt.address.eq(address)
                 yield rt.stb.eq(1)
                 assert not (yield rt.busy)
                 # print("{}: set ch {} to {}".format(time, channel, hex(data)))
