@@ -20,10 +20,13 @@ class RTIOManager:
     def rtio_output_wide(self, *args, **kwargs):
         self.rtio_output(*args, **kwargs)
 
+    def delay_mu(self, t):
+        delay(t)
+
     def patch(self, mod):
         assert not hasattr(mod, "_saved")
         mod._saved = {}
-        for name in "rtio_output rtio_output_wide".split():
+        for name in "rtio_output rtio_output_wide delay_mu".split():
             mod._saved[name] = getattr(mod, name, None)
             setattr(mod, name, getattr(self, name))
 
