@@ -1,7 +1,3 @@
-# This is an example device database that needs to be adapted to your setup.
-# The RTIO channel numbers here are for NIST CLOCK on KC705.
-# The list of devices here is not exhaustive.
-
 core_addr = "kc705.lab.m-labs.hk"
 
 device_db = {
