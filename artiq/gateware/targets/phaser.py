@@ -142,6 +142,11 @@ class AD9154(Module, AutoCSR):
         self.sawgs = [sawg.Channel(width=16, parallelism=2) for i in range(4)]
         self.submodules += self.sawgs
 
+        # self.sawgs[0].connect_y(self.sawgs[1])
+        # self.sawgs[1].connect_y(self.sawgs[0])
+        # self.sawgs[2].connect_y(self.sawgs[3])
+        # self.sawgs[3].connect_y(self.sawgs[2])
+
         for conv, ch in zip(self.jesd.core.sink.flatten(), self.sawgs):
             self.sync.jesd += conv.eq(Cat(ch.o))
 
