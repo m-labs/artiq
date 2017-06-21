@@ -146,4 +146,28 @@ device_db = {
         "class": "TTLInOut",
         "arguments": {"channel": 0x010009}
     },
+
+    "converter_spi": {
+        "type": "local",
+        "module": "artiq.coredevice.spi",
+        "class": "NRTSPIMaster",
+    },
+    "ad9154_spi": {
+        "type": "local",
+        "module": "artiq.coredevice.ad9154_spi",
+        "class": "AD9154",
+        "arguments": {"spi_device": "converter_spi", "chip_select": 1}
+    },
+    "rconverter_spi": {
+        "type": "local",
+        "module": "artiq.coredevice.spi",
+        "class": "NRTSPIMaster",
+        "arguments": {"busno": 0x010000}
+    },
+    "rad9154_spi": {
+        "type": "local",
+        "module": "artiq.coredevice.ad9154_spi",
+        "class": "AD9154",
+        "arguments": {"spi_device": "rconverter_spi", "chip_select": 1}
+    },
 }
