@@ -15,6 +15,8 @@ class SAWGTestTwoTone(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
+        delay(1*ms)
+
         self.ttl_sma.output()
 
         self.sawg0.reset()
