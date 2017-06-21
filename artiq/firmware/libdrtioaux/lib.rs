@@ -28,7 +28,23 @@ pub enum Packet {
     MonitorReply { value: u32 },
     InjectionRequest { channel: u16, overrd: u8, value: u8 },
     InjectionStatusRequest { channel: u16, overrd: u8 },
-    InjectionStatusReply { value: u8 }
+    InjectionStatusReply { value: u8 },
+
+    I2cStartRequest { busno: u8 },
+    I2cRestartRequest { busno: u8 },
+    I2cStopRequest { busno: u8 },
+    I2cWriteRequest { busno: u8, data: u8 },
+    I2cWriteReply { succeeded: bool, ack: bool },
+    I2cReadRequest { busno: u8, ack: bool },
+    I2cReadReply { succeeded: bool, data: u8 },
+    I2cBasicReply { succeeded: bool },
+
+    SpiSetConfigRequest { busno: u8, flags: u8, write_div: u8, read_div: u8 },
+    SpiSetXferRequest { busno: u8, chip_select: u16, write_length: u8, read_length: u8 },
+    SpiWriteRequest { busno: u8, data: u32 },
+    SpiReadRequest { busno: u8 },
+    SpiReadReply { succeeded: bool, data: u32 },
+    SpiBasicReply { succeeded: bool },
 }
 
 impl Packet {
@@ -61,6 +77,63 @@ impl Packet {
             0x52 => Packet::InjectionStatusReply {
                 value: read_u8(reader)?
             },
+
+            0x80 => Packet::I2cStartRequest {
+                busno: read_u8(reader)?
+            },
+            0x81 => Packet::I2cRestartRequest {
+                busno: read_u8(reader)?
+            },
+            0x82 => Packet::I2cStopRequest {
+                busno: read_u8(reader)?
+            },
+            0x83 => Packet::I2cWriteRequest {
+                busno: read_u8(reader)?,
+                data: read_u8(reader)?
+            },
+            0x84 => Packet::I2cWriteReply {
+                succeeded: read_bool(reader)?,
+                ack: read_bool(reader)?
+            },
+            0x85 => Packet::I2cReadRequest {
+                busno: read_u8(reader)?,
+                ack: read_bool(reader)?
+            },
+            0x86 => Packet::I2cReadReply {
+                succeeded: read_bool(reader)?,
+                data: read_u8(reader)?
+            },
+            0x87 => Packet::I2cBasicReply {
+                succeeded: read_bool(reader)?
+            },
+
+            0x90 => Packet::SpiSetConfigRequest {
+                busno: read_u8(reader)?,
+                flags: read_u8(reader)?,
+                write_div: read_u8(reader)?,
+                read_div: read_u8(reader)?
+            },
+            0x91 => Packet::SpiSetXferRequest {
+                busno: read_u8(reader)?,
+                chip_select: read_u16(reader)?,
+                write_length: read_u8(reader)?,
+                read_length: read_u8(reader)?
+            },
+            0x92 => Packet::SpiWriteRequest {
+                busno: read_u8(reader)?,
+                data: read_u32(reader)?
+            },
+            0x93 => Packet::SpiReadRequest {
+                busno: read_u8(reader)?
+            },
+            0x94 => Packet::SpiReadReply {
+                succeeded: read_bool(reader)?,
+                data: read_u32(reader)?
+            },
+            0x95 => Packet::SpiBasicReply {
+                succeeded: read_bool(reader)?
+            },
+
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, "unknown packet type"))
         })
     }
@@ -98,7 +171,77 @@ impl Packet {
             Packet::InjectionStatusReply { value } => {
                 write_u8(writer, 0x52)?;
                 write_u8(writer, value)?;
-            }
+            },
+
+            Packet::I2cStartRequest { busno } => {
+                write_u8(writer, 0x80)?;
+                write_u8(writer, busno)?;
+            },
+            Packet::I2cRestartRequest { busno } => {
+                write_u8(writer, 0x81)?;
+                write_u8(writer, busno)?;
+            },
+            Packet::I2cStopRequest { busno } => {
+                write_u8(writer, 0x82)?;
+                write_u8(writer, busno)?;
+            },
+            Packet::I2cWriteRequest { busno, data } => {
+                write_u8(writer, 0x83)?;
+                write_u8(writer, busno)?;
+                write_u8(writer, data)?;
+            },
+            Packet::I2cWriteReply { succeeded, ack } => {
+                write_u8(writer, 0x84)?;
+                write_bool(writer, succeeded)?;
+                write_bool(writer, ack)?;
+            },
+            Packet::I2cReadRequest { busno, ack } => {
+                write_u8(writer, 0x85)?;
+                write_u8(writer, busno)?;
+                write_bool(writer, ack)?;
+            },
+            Packet::I2cReadReply { succeeded, data } => {
+                write_u8(writer, 0x86)?;
+                write_bool(writer, succeeded)?;
+                write_u8(writer, data)?;
+            },
+            Packet::I2cBasicReply { succeeded } => {
+                write_u8(writer, 0x87)?;
+                write_bool(writer, succeeded)?;
+            },
+
+            Packet::SpiSetConfigRequest { busno, flags, write_div, read_div } => {
+                write_u8(writer, 0x90)?;
+                write_u8(writer, busno)?;
+                write_u8(writer, flags)?;
+                write_u8(writer, write_div)?;
+                write_u8(writer, read_div)?;
+            },
+            Packet::SpiSetXferRequest { busno, chip_select, write_length, read_length } => {
+                write_u8(writer, 0x91)?;
+                write_u8(writer, busno)?;
+                write_u16(writer, chip_select)?;
+                write_u8(writer, write_length)?;
+                write_u8(writer, read_length)?;
+            },
+            Packet::SpiWriteRequest { busno, data } => {
+                write_u8(writer, 0x92)?;
+                write_u8(writer, busno)?;
+                write_u32(writer, data)?;
+            },
+            Packet::SpiReadRequest { busno } => {
+                write_u8(writer, 0x93)?;
+                write_u8(writer, busno)?;
+            },
+            Packet::SpiReadReply { succeeded, data } => {
+                write_u8(writer, 0x94)?;
+                write_bool(writer, succeeded)?;
+                write_u32(writer, data)?;
+            },
+            Packet::SpiBasicReply { succeeded } => {
+                write_u8(writer, 0x95)?;
+                write_bool(writer, succeeded)?;
+            },
         }
         Ok(())
     }
