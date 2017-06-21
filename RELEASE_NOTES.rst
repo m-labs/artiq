@@ -51,6 +51,13 @@ Release notes
 * "pdq2" has been renamed "pdq" (in controller and module names).
 
 
+2.4
+---
+
+No further notes.
+
+
+
 2.3
 ---
 
