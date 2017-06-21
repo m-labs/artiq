@@ -76,6 +76,51 @@ fn process_aux_packet(p: &drtioaux::Packet) {
             let reply = drtioaux::Packet::InjectionStatusReply { value: value };
             drtioaux::hw::send(&reply).unwrap();
         },
+
+        drtioaux::Packet::I2cStartRequest { busno } => {
+            let succeeded = board::i2c::start(busno).is_ok();
+            drtioaux::hw::send(&drtioaux::Packet::I2cBasicReply { succeeded: succeeded }).unwrap();
+        }
+        drtioaux::Packet::I2cRestartRequest { busno } => {
+            let succeeded = board::i2c::restart(busno).is_ok();
+            drtioaux::hw::send(&drtioaux::Packet::I2cBasicReply { succeeded: succeeded }).unwrap();
+        }
+        drtioaux::Packet::I2cStopRequest { busno } => {
+            let succeeded = board::i2c::stop(busno).is_ok();
+            drtioaux::hw::send(&drtioaux::Packet::I2cBasicReply { succeeded: succeeded }).unwrap();
+        }
+        drtioaux::Packet::I2cWriteRequest { busno, data } => {
+            match board::i2c::write(busno, data) {
+                Ok(ack) => drtioaux::hw::send(&drtioaux::Packet::I2cWriteReply { succeeded: true, ack: ack }).unwrap(),
+                Err(_) => drtioaux::hw::send(&drtioaux::Packet::I2cWriteReply { succeeded: false, ack: false }).unwrap()
+            };
+        }
+        drtioaux::Packet::I2cReadRequest { busno, ack } => {
+            match board::i2c::read(busno, ack) {
+                Ok(data) => drtioaux::hw::send(&drtioaux::Packet::I2cReadReply { succeeded: true, data: data }).unwrap(),
+                Err(_) => drtioaux::hw::send(&drtioaux::Packet::I2cReadReply { succeeded: false, data: 0xff }).unwrap()
+            };
+        }
+
+        drtioaux::Packet::SpiSetConfigRequest { busno, flags, write_div, read_div } => {
+            let succeeded = board::spi::set_config(busno, flags, write_div, read_div).is_ok();
+            drtioaux::hw::send(&drtioaux::Packet::SpiBasicReply { succeeded: succeeded }).unwrap();
+        },
+        drtioaux::Packet::SpiSetXferRequest { busno, chip_select, write_length, read_length } => {
+            let succeeded = board::spi::set_xfer(busno, chip_select, write_length, read_length).is_ok();
+            drtioaux::hw::send(&drtioaux::Packet::SpiBasicReply { succeeded: succeeded }).unwrap();
+        }
+        drtioaux::Packet::SpiWriteRequest { busno, data } => {
+            let succeeded = board::spi::write(busno, data).is_ok();
+            drtioaux::hw::send(&drtioaux::Packet::SpiBasicReply { succeeded: succeeded }).unwrap();
+        }
+        drtioaux::Packet::SpiReadRequest { busno } => {
+            match board::spi::read(busno) {
+                Ok(data) => drtioaux::hw::send(&drtioaux::Packet::SpiReadReply { succeeded: true, data: data }).unwrap(),
+                Err(_) => drtioaux::hw::send(&drtioaux::Packet::SpiReadReply { succeeded: false, data: 0 }).unwrap()
+            };
+        }
+
         _ => warn!("received unexpected aux packet {:?}", p)
     }
 }

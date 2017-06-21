@@ -4,27 +4,84 @@ use kernel_proto as kern;
 use std::io;
 use sched::Io;
 
-// TODO
 #[cfg(has_drtio)]
 mod drtio_i2c {
-    pub fn start(_busno: u32) -> Result<(), ()> {
-        Err(())
+    use drtioaux;
+
+    fn basic_reply() -> Result<(), ()> {
+        match drtioaux::hw::recv_timeout(None) {
+            Ok(drtioaux::Packet::I2cBasicReply { succeeded }) => {
+                if succeeded { Ok(()) } else { Err(()) }
+            }
+            Ok(_) => {
+                error!("received unexpected aux packet");
+                Err(())
+            }
+            Err(e) => {
+                error!("aux packet error ({})", e);
+                Err(())
+            }
+        }
     }
 
-    pub fn restart(_busno: u32) -> Result<(), ()> {
-        Err(())
+    pub fn start(busno: u32) -> Result<(), ()> {
+        let request = drtioaux::Packet::I2cStartRequest { busno: busno as u8 };
+        drtioaux::hw::send(&request).unwrap();
+        basic_reply()
     }
 
-    pub fn stop(_busno: u32) -> Result<(), ()> {
-        Err(())
+    pub fn restart(busno: u32) -> Result<(), ()> {
+        let request = drtioaux::Packet::I2cRestartRequest { busno: busno as u8 };
+        drtioaux::hw::send(&request).unwrap();
+        basic_reply()
     }
 
-    pub fn write(_busno: u32, _data: u8) -> Result<bool, ()> {
-        Err(())
+    pub fn stop(busno: u32) -> Result<(), ()> {
+        let request = drtioaux::Packet::I2cStopRequest { busno: busno as u8 };
+        drtioaux::hw::send(&request).unwrap();
+        basic_reply()
     }
 
-    pub fn read(_busno: u32, _ack: bool) -> Result<u8, ()> {
-        Err(())
+    pub fn write(busno: u32, data: u8) -> Result<bool, ()> {
+        let request = drtioaux::Packet::I2cWriteRequest {
+            busno: busno as u8,
+            data: data
+        };
+        drtioaux::hw::send(&request).unwrap();
+        match drtioaux::hw::recv_timeout(None) {
+            Ok(drtioaux::Packet::I2cWriteReply { succeeded, ack }) => {
+                if succeeded { Ok(ack) } else { Err(()) }
+            }
+            Ok(_) => {
+                error!("received unexpected aux packet");
+                Err(())
+            }
+            Err(e) => {
+                error!("aux packet error ({})", e);
+                Err(())
+            }
+        }
+    }
+
+    pub fn read(busno: u32, ack: bool) -> Result<u8, ()> {
+        let request = drtioaux::Packet::I2cReadRequest {
+            busno: busno as u8,
+            ack: ack
+        };
+        drtioaux::hw::send(&request).unwrap();
+        match drtioaux::hw::recv_timeout(None) {
+            Ok(drtioaux::Packet::I2cReadReply { succeeded, data }) => {
+                if succeeded { Ok(data) } else { Err(()) }
+            }
+            Ok(_) => {
+                error!("received unexpected aux packet");
+                Err(())
+            }
+            Err(e) => {
+                error!("aux packet error ({})", e);
+                Err(())
+            }
+        }
     }
 }
 
@@ -106,23 +163,73 @@ mod i2c {
     }
 }
 
-// TODO
 #[cfg(has_drtio)]
 mod drtio_spi {
-    pub fn set_config(_busno: u32, _flags: u8, _write_div: u8, _read_div: u8) -> Result<(), ()> {
-        Err(())
+    use drtioaux;
+
+    fn basic_reply() -> Result<(), ()> {
+        match drtioaux::hw::recv_timeout(None) {
+            Ok(drtioaux::Packet::SpiBasicReply { succeeded }) => {
+                if succeeded { Ok(()) } else { Err(()) }
+            }
+            Ok(_) => {
+                error!("received unexpected aux packet");
+                Err(())
+            }
+            Err(e) => {
+                error!("aux packet error ({})", e);
+                Err(())
+            }
+        }
     }
 
-    pub fn set_xfer(_busno: u32, _chip_select: u16, _write_length: u8, _read_length: u8) -> Result<(), ()> {
-        Err(())
+    pub fn set_config(busno: u32, flags: u8, write_div: u8, read_div: u8) -> Result<(), ()> {
+        let request = drtioaux::Packet::SpiSetConfigRequest {
+            busno: busno as u8,
+            flags: flags,
+            write_div: write_div,
+            read_div: read_div
+        };
+        drtioaux::hw::send(&request).unwrap();
+        basic_reply()
     }
 
-    pub fn write(_busno: u32, _data: u32) -> Result<(), ()> {
-        Err(())
+    pub fn set_xfer(busno: u32, chip_select: u16, write_length: u8, read_length: u8) -> Result<(), ()> {
+        let request = drtioaux::Packet::SpiSetXferRequest {
+            busno: busno as u8,
+            chip_select: chip_select,
+            write_length: write_length,
+            read_length: read_length
+        };
+        drtioaux::hw::send(&request).unwrap();
+        basic_reply()
     }
 
-    pub fn read(_busno: u32) -> Result<u32, ()> {
-        Err(())
+    pub fn write(busno: u32, data: u32) -> Result<(), ()> {
+        let request = drtioaux::Packet::SpiWriteRequest {
+            busno: busno as u8,
+            data: data
+        };
+        drtioaux::hw::send(&request).unwrap();
+        basic_reply()
+    }
+
+    pub fn read(busno: u32) -> Result<u32, ()> {
+        let request = drtioaux::Packet::SpiReadRequest { busno: busno as u8 };
+        drtioaux::hw::send(&request).unwrap();
+        match drtioaux::hw::recv_timeout(None) {
+            Ok(drtioaux::Packet::SpiReadReply { succeeded, data }) => {
+                if succeeded { Ok(data) } else { Err(()) }
+            }
+            Ok(_) => {
+                error!("received unexpected aux packet");
+                Err(())
+            }
+            Err(e) => {
+                error!("aux packet error ({})", e);
+                Err(())
+            }
+        }
     }
 }
 
