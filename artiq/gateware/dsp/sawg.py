@@ -88,13 +88,12 @@ class Config(Module):
         self.iq_en = Signal(2, reset=0b01)
         self.limits = [[Signal((width, True)), Signal((width, True))]
                 for i in range(2)]
-        limit = 1 << width - 1
+        limit = (1 << width - 1) - 1
+        limit_cordic = int(limit/cordic_gain)
         self.limits[0][0].reset = Constant(-limit, (width, True))
-        self.limits[0][1].reset = Constant(limit - 1, (width, True))
-        self.limits[1][0].reset = Constant(int(-limit/cordic_gain),
-                (width, True))
-        self.limits[1][1].reset = Constant(int((limit - 1)/cordic_gain),
-                (width, True))
+        self.limits[0][1].reset = Constant(limit, (width, True))
+        self.limits[1][0].reset = Constant(-limit_cordic, (width, True))
+        self.limits[1][1].reset = Constant(limit_cordic, (width, True))
         # TODO make persistent, add read-out/notification/clear
         self.clipped = [Signal(2) for i in range(2)]
         self.i = Endpoint([("addr", bits_for(4 + 2*len(self.limits) - 1)),
@@ -187,15 +186,20 @@ class Channel(Module, SatAddMixin):
             hbf[0].i.eq(self.sat_add(a1.xo[0], a2.xo[0],
                 limits=cfg.limits[1], clipped=cfg.clipped[1])),
             hbf[1].i.eq(self.sat_add(a1.yo[0], a2.yo[0],
-                limits=cfg.limits[1], clipped=None)),  # ignore Q clip data
+                limits=cfg.limits[1], clipped=cfg.clipped[1])),
         ]
         # wire up outputs and q_{i,o} exchange
         for o, x, y in zip(self.o, b.xo, self.y_in):
+            o_offset = Signal.like(o)
+            o_x = Signal.like(x)
+            o_y = Signal.like(y)
+            self.comb += [
+                o_offset.eq(u.o.a0[-len(o):]),
+                o_x.eq(Mux(cfg.iq_en[0], x, 0)),
+                o_y.eq(Mux(cfg.iq_en[1], y, 0)),
+            ]
             self.sync += [
-                o.eq(self.sat_add(
-                    u.o.a0[-len(o):],
-                    Mux(cfg.iq_en[0], x, 0),
-                    Mux(cfg.iq_en[1], y, 0),
+                o.eq(self.sat_add(o_offset, o_x, o_y,
                     limits=cfg.limits[0],
                     clipped=cfg.clipped[0])),
             ]
