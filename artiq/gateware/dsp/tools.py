@@ -66,4 +66,5 @@ class SatAddMixin:
                     limited.eq(limits[1]),
                 )
             ]
+        self.comb += limited.eq(full)
         return limited
