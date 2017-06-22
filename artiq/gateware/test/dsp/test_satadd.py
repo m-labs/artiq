@@ -58,11 +58,9 @@ class SatAddTest(unittest.TestCase):
     def test_inst(self):
         pass
 
-    @unittest.skip("limiter disabled")
     def test_run(self):
         self._sweep()
 
-    @unittest.skip("limiter disabled")
     def test_limits(self):
         for l0 in -8, 0, 1, 7:
             for l1 in -8, 0, 1, 7:
