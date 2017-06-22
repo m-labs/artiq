@@ -184,8 +184,10 @@ class Channel(Module, SatAddMixin):
         ]
         self.sync += [
             hbf[0].i.eq(self.sat_add((a1.xo[0], a2.xo[0]),
+                width=len(hbf[0].i),
                 limits=cfg.limits[1], clipped=cfg.clipped[1])),
             hbf[1].i.eq(self.sat_add((a1.yo[0], a2.yo[0]),
+                width=len(hbf[1].i),
                 limits=cfg.limits[1], clipped=cfg.clipped[1])),
         ]
         # wire up outputs and q_{i,o} exchange
@@ -200,6 +202,7 @@ class Channel(Module, SatAddMixin):
             ]
             self.sync += [
                 o.eq(self.sat_add((o_offset, o_x, o_y),
+                    width=len(o),
                     limits=cfg.limits[0], clipped=cfg.clipped[0])),
             ]
 

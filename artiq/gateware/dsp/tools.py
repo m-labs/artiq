@@ -30,14 +30,15 @@ def eqh(a, b):
 
 class SatAddMixin:
     """Signed saturating addition mixin"""
-    def sat_add(self, a, *, width=None, limits=None, clipped=None):
+    def sat_add(self, a, width, limits=None, clipped=None):
         a = list(a)
         # assert all(value_bits_sign(ai)[1] for ai in a)
-        if width is None:
-            width = max(value_bits_sign(ai)[0] for ai in a)
+        max_width = max(value_bits_sign(ai)[0] for ai in a)
         carry = log2_int(len(a), need_pow2=False)
-        full = Signal((width + carry, True))
+        full = Signal((max_width + carry, True))
         limited = Signal((width, True))
+        carry = len(full) - width
+        assert carry >= 0
         clip = Signal(2)
         sign = Signal()
         if clipped is not None:
