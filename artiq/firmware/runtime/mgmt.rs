@@ -69,7 +69,7 @@ fn worker(mut stream: &mut TcpStream) -> io::Result<()> {
 }
 
 pub fn thread(io: Io) {
-    let listener = TcpListener::new(&io, 4096);
+    let listener = TcpListener::new(&io, 65535);
     listener.listen(1380).expect("mgmt: cannot listen");
     info!("management interface active");
 
