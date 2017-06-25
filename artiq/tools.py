@@ -9,7 +9,6 @@ import string
 import random
 
 import numpy as np
-import paramiko
 
 from artiq.language.environment import is_experiment
 from artiq.protocols import pyon
@@ -269,6 +268,7 @@ class SSHClient:
 
     def get_ssh(self):
         if self.ssh is None:
+            import paramiko
             self.ssh = paramiko.SSHClient()
             self.ssh.load_system_host_keys()
             self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
