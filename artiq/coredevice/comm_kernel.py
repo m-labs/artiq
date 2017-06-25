@@ -524,6 +524,8 @@ class CommKernel:
             self._write_header(_H2DMsgType.RPC_REPLY)
             self._write_bytes(return_tags)
             self._send_rpc_value(bytearray(return_tags), result, result, service)
+        except RPCReturnValueError as exn:
+            raise
         except Exception as exn:
             logger.debug("rpc service: %d %r %r ! %r", service_id, args, kwargs, exn)
 
