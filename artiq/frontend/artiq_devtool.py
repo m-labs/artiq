@@ -176,6 +176,7 @@ def main():
                                 local_stream.send(data)
                         except Exception as e:
                             logger.exception("Forward error on port %s", port)
+                            break
                     local_stream.close()
                     remote_stream.close()
 
