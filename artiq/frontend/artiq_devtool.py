@@ -10,12 +10,10 @@ import subprocess
 import socket
 import select
 import threading
-import paramiko
 import os
 import shutil
 
-from artiq.tools import verbosity_args, init_logger, logger
-from random import Random
+from artiq.tools import verbosity_args, init_logger, logger, SSHClient
 
 
 def get_argparser():
@@ -60,43 +58,13 @@ def main():
     else:
         raise NotImplementedError("unknown target {}".format(args.target))
 
-    ssh = None
-    def get_ssh():
-        nonlocal ssh
-        if ssh is not None:
-            return ssh
-        ssh = paramiko.SSHClient()
-        ssh.load_system_host_keys()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(args.host)
-        return ssh
-
-    sftp = None
-    def get_sftp():
-        nonlocal sftp
-        if sftp is not None:
-            return sftp
-        sftp = get_ssh().open_sftp()
-        return sftp
-
-    rng = Random()
-    tmp = "artiq" + "".join([rng.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(6)])
-    env = "bash -c 'export PATH=$HOME/miniconda/bin:$PATH; exec $0 $*' "
-
-    def run_command(cmd, **kws):
-        logger.info("Executing {}".format(cmd))
-        chan = get_ssh().get_transport().open_session()
-        chan.set_combine_stderr(True)
-        chan.exec_command(cmd.format(tmp=tmp, env=env, serial=args.serial, ip=args.ip,
-                                     firmware=firmware, **kws))
-        return chan.makefile()
-
-    def drain(chan):
-        while True:
-            char = chan.read(1)
-            if char == b"":
-                break
-            sys.stderr.write(char.decode("utf-8", errors='replace'))
+    client = SSHClient(args.host)
+    substs = {
+        "env":      "bash -c 'export PATH=$HOME/miniconda/bin:$PATH; exec $0 $*' ",
+        "serial":   args.serial,
+        "ip":       args.ip,
+        "firmware": firmware,
+    }
 
     for action in args.actions:
         if action == "build":
@@ -119,27 +87,29 @@ def main():
 
         elif action == "reset":
             logger.info("Resetting device")
-            artiq_flash = run_command(
+            client.run_command(
                 "{env} artiq_flash start" +
-                (" --target-file " + args.config if args.config else ""))
-            drain(artiq_flash)
+                (" --target-file " + args.config if args.config else ""),
+                **substs)
 
         elif action == "boot" or action == "boot+log":
             logger.info("Uploading firmware")
-            get_sftp().mkdir("/tmp/{tmp}".format(tmp=tmp))
-            get_sftp().put("/tmp/{target}/software/{firmware}/{firmware}.bin"
-                                .format(target=args.target, firmware=firmware),
-                           "/tmp/{tmp}/{firmware}.bin".format(tmp=tmp, firmware=firmware))
+            client.get_sftp().put("/tmp/{target}/software/{firmware}/{firmware}.bin"
+                                      .format(target=args.target, firmware=firmware),
+                                  "{tmp}/{firmware}.bin"
+                                      .format(tmp=client.tmp, firmware=firmware))
 
             logger.info("Booting firmware")
-            flterm = run_command(
+            flterm = client.spawn_command(
                 "{env} python3 flterm.py {serial} " +
-                "--kernel /tmp/{tmp}/{firmware}.bin " +
-                ("--upload-only" if action == "boot" else "--output-only"))
-            artiq_flash = run_command(
+                "--kernel {tmp}/{firmware}.bin " +
+                ("--upload-only" if action == "boot" else "--output-only"),
+                **substs)
+            artiq_flash = client.spawn_command(
                 "{env} artiq_flash start" +
-                (" --target-file " + args.config if args.config else ""))
-            drain(flterm)
+                (" --target-file " + args.config if args.config else ""),
+                **substs)
+            client.drain(flterm)
 
         elif action == "connect":
             def forwarder(port):
@@ -151,12 +121,12 @@ def main():
                     local_stream, peer_addr = listener.accept()
                     logger.info("Accepting %s:%s and opening SSH channel to %s:%s",
                                 *peer_addr, args.ip, port)
-                    if get_ssh().get_transport() is None:
+                    if client.get_transport() is None:
                         logger.error("Trying to open a channel before the transport is ready!")
                         continue
 
                     try:
-                        remote_stream = get_ssh().get_transport() \
+                        remote_stream = client.get_transport() \
                             .open_channel('direct-tcpip', (args.ip, port), peer_addr)
                     except Exception as e:
                         logger.exception("Cannot open channel on port %s", port)
@@ -186,9 +156,9 @@ def main():
                 thread.start()
 
             logger.info("Connecting to device")
-            flterm = run_command(
-                "{env} python3 flterm.py {serial} --output-only")
-            drain(flterm)
+            client.run_command(
+                "{env} python3 flterm.py {serial} --output-only",
+                **substs)
 
         elif action == "hotswap":
             logger.info("Hotswapping firmware")
