@@ -269,7 +269,7 @@ class _Async(EnvExperiment):
 
 class AsyncTest(ExperimentCase):
     def test_args(self):
-        exp = self.create(_RPCTypes)
+        exp = self.create(_Async)
         exp.run()
 
 
