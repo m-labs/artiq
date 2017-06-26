@@ -16,12 +16,12 @@ def get_argparser():
 
     verbosity_args(parser)
 
-    parser.add_argument("--host", metavar="HOST",
+    parser.add_argument("-H", "--host", metavar="HOST",
                         type=str, default="lab.m-labs.hk",
                         help="SSH host where the development board is located")
-    parser.add_argument("-i", "--ip", metavar="IP",
+    parser.add_argument("-D", "--device", metavar="DEVICE",
                         type=str, default="kc705.lab.m-labs.hk",
-                        help="IP address corresponding to the development board")
+                        help="address or domain corresponding to the development board")
     parser.add_argument("-f", "--file", metavar="PCAP_FILE",
                         type=str, default="coredevice.pcap",
                         help="Location to retrieve the pcap file into")
@@ -41,8 +41,8 @@ def main():
 
     sftp = client.get_sftp()
     tcpdump = client.spawn_command(
-        "/usr/sbin/tcpdump host {ip} -w {tmp}/trace.pcap", get_pty=True,
-        ip=args.ip)
+        "/usr/sbin/tcpdump host {device} -w {tmp}/trace.pcap", get_pty=True,
+        device=args.device)
 
     try:
         subprocess.check_call(args.command)

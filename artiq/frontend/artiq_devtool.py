@@ -22,15 +22,15 @@ def get_argparser():
 
     verbosity_args(parser)
 
-    parser.add_argument("--host", metavar="HOST",
+    parser.add_argument("-H", "--host", metavar="HOST",
                         type=str, default="lab.m-labs.hk",
                         help="SSH host where the development board is located")
+    parser.add_argument("-D", "--device", metavar="DEVICE",
+                        type=str, default="kc705.lab.m-labs.hk",
+                        help="address or domain corresponding to the development board")
     parser.add_argument("-s", "--serial", metavar="SERIAL",
                         type=str, default="/dev/ttyUSB_kc705",
                         help="TTY device corresponding to the development board")
-    parser.add_argument("-i", "--ip", metavar="IP",
-                        type=str, default="kc705.lab.m-labs.hk",
-                        help="IP address corresponding to the development board")
     parser.add_argument("-t", "--target", metavar="TARGET",
                         type=str, default="kc705_dds",
                         help="Target to build, one of: "
@@ -62,7 +62,6 @@ def main():
     substs = {
         "env":      "bash -c 'export PATH=$HOME/miniconda/bin:$PATH; exec $0 $*' ",
         "serial":   args.serial,
-        "ip":       args.ip,
         "firmware": firmware,
     }
 
@@ -120,14 +119,14 @@ def main():
                 while True:
                     local_stream, peer_addr = listener.accept()
                     logger.info("Accepting %s:%s and opening SSH channel to %s:%s",
-                                *peer_addr, args.ip, port)
+                                *peer_addr, args.device, port)
                     if client.get_transport() is None:
                         logger.error("Trying to open a channel before the transport is ready!")
                         continue
 
                     try:
                         remote_stream = client.get_transport() \
-                            .open_channel('direct-tcpip', (args.ip, port), peer_addr)
+                            .open_channel('direct-tcpip', (args.device, port), peer_addr)
                     except Exception as e:
                         logger.exception("Cannot open channel on port %s", port)
                         continue
