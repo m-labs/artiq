@@ -5,6 +5,7 @@
 #    use # setcap cap_net_raw+eip /usr/sbin/tcpdump
 
 import argparse
+import os
 import subprocess
 
 from artiq.tools import verbosity_args, init_logger, logger, SSHClient
@@ -27,7 +28,7 @@ def get_argparser():
                         help="Location to retrieve the pcap file into")
 
     parser.add_argument("command", metavar="COMMAND",
-                        type=str, default=[], nargs="+",
+                        type=str, default=[], nargs=argparse.REMAINDER,
                         help="command to execute while capturing")
 
     return parser
@@ -52,5 +53,6 @@ def main():
 
     tcpdump.close()
     sftp.get("{tmp}/trace.pcap".format(tmp=client.tmp),
-             args.file)
+             args.file + ".new")
+    os.rename(args.file + ".new", args.file)
     logger.info("Pcap file {file} retrieved".format(file=args.file))
