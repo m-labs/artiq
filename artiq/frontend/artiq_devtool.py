@@ -134,12 +134,12 @@ def main():
                         try:
                             r, w, x = select.select([local_stream, remote_stream], [], [])
                             if local_stream in r:
-                                data = local_stream.recv(1024)
+                                data = local_stream.recv(65535)
                                 if data == b"":
                                     break
                                 remote_stream.send(data)
                             if remote_stream in r:
-                                data = remote_stream.recv(1024)
+                                data = remote_stream.recv(65535)
                                 if data == b"":
                                     break
                                 local_stream.send(data)
