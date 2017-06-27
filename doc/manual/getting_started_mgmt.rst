@@ -10,7 +10,7 @@ Starting your first experiment with the master
 
 In the previous tutorial, we used the ``artiq_run`` utility to execute our experiments, which is a simple stand-alone tool that bypasses the ARTIQ management system. We will now see how to run an experiment using the master (the central program in the management system that schedules and executes experiments) and the dashboard (that connects to the master and controls it).
 
-First, create a folder ``~/artiq-master`` and copy the file ``device_db.pyon`` (containing the device database) found in the ``examples/master`` directory from the ARTIQ sources. The master uses those files in the same way as ``artiq_run``.
+First, create a folder ``~/artiq-master`` and copy the file ``device_db.py`` (containing the device database) found in the ``examples/master`` directory from the ARTIQ sources. The master uses those files in the same way as ``artiq_run``.
 
 Then create a ``~/artiq-master/repository`` sub-folder to contain experiments. The master scans this ``repository`` folder to determine what experiments are available (the name of the folder can be changed using ``-r``).
 

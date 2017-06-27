@@ -35,7 +35,7 @@ class TestNovatech409BSim(GenericNovatech409BTest, GenericControllerCase):
                 "host": "::1",
                 "port": 3254,
                 "command": (sys.executable.replace("\\", "\\\\")
-                            + " -m artiq.frontend.novatech409b_controller "
+                            + " -m artiq.frontend.aqctl_novatech409b "
                             + "-p {port} --simulation")
             }
         }

@@ -22,7 +22,7 @@ class FloppingF(EnvExperiment):
 
     def build(self):
         self.setattr_argument("frequency_scan", Scannable(
-            default=LinearScan(1000, 2000, 100)))
+            default=RangeScan(1000, 2000, 100)))
 
         self.setattr_argument("F0", NumberValue(1500, min=1000, max=2000))
         self.setattr_argument("noise_amplitude", NumberValue(

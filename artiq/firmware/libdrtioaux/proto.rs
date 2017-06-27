@@ -17,6 +17,22 @@ pub fn write_u8(writer: &mut Write, value: u8) -> io::Result<()> {
     writer.write_all(&bytes)
 }
 
+pub fn read_bool(reader: &mut Read) -> io::Result<bool> {
+    if read_u8(reader)? == 0 {
+        Ok(false)
+    } else {
+        Ok(true)
+    }
+}
+
+pub fn write_bool(writer: &mut Write, value: bool) -> io::Result<()> {
+    if value {
+        write_u8(writer, 1)
+    } else {
+        write_u8(writer, 0)
+    }
+}
+
 pub fn read_u16(reader: &mut Read) -> io::Result<u16> {
     let mut bytes = [0; 2];
     reader.read_exact(&mut bytes)?;

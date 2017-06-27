@@ -23,7 +23,7 @@ As a very first step, we will turn on a LED on the core device. Create a file ``
 
 The central part of our code is our ``LED`` class, that derives from :class:`artiq.language.environment.EnvExperiment`. Among other features, ``EnvExperiment`` calls our ``build`` method and provides the ``setattr_device`` method that interfaces to the device database to create the appropriate device drivers and make those drivers accessible as ``self.core`` and ``self.led``. The ``@kernel`` decorator tells the system that the ``run`` method must be compiled for and executed on the core device (instead of being interpreted and executed as regular Python code on the host). The decorator uses ``self.core`` internally, which is why we request the core device using ``setattr_device`` like any other.
 
-Copy the file ``device_db.pyon`` (containing the device database) from the ``examples/master`` folder of ARTIQ into the same directory as ``led.py`` (alternatively, you can use the ``--device-db`` option of ``artiq_run``). You can open PYON database files using a text editor - their contents are in a human-readable format. You will probably want to set the IP address of the core device in ``device_db.pyon`` so that the computer can connect to it (it is the ``host`` parameter of the ``comm`` entry). See :ref:`device-db` for more information. The example device database is designed for the ``nist_clock`` hardware adapter on the KC705; see :ref:`board-ports` for RTIO channel assignments if you need to adapt the device database to a different hardware platform.
+Copy the file ``device_db.py`` (containing the device database) from the ``examples/master`` folder of ARTIQ into the same directory as ``led.py`` (alternatively, you can use the ``--device-db`` option of ``artiq_run``). You will probably want to set the IP address of the core device in ``device_db.py`` so that the computer can connect to it (it is the ``host`` parameter of the ``comm`` entry). See :ref:`device-db` for more information. The example device database is designed for the ``nist_clock`` hardware adapter on the KC705; see :ref:`board-ports` for RTIO channel assignments if you need to adapt the device database to a different hardware platform.
 
 .. note::
     To obtain the examples, you can find where the ARTIQ package is installed on your machine with: ::
@@ -197,3 +197,42 @@ The core device records the real-time I/O waveforms into a circular buffer. It i
                 delay(...)
 
 Afterwards, the recorded data can be extracted and written to a VCD file using ``artiq_coreanalyzer -w rtio.vcd`` (see: :ref:`core-device-rtio-analyzer-tool`). VCD files can be viewed using third-party tools such as GtkWave.
+
+
+DMA
+---
+
+DMA allows you to store fixed sequences of pulses in system memory, and have the DMA core in the FPGA play them back at high speed. Pulse sequences that are too fast for the CPU (i.e. would cause RTIO underflows) can still be generated using DMA. The only modification of the sequence that the DMA core supports is shifting it in time (so it can be played back at any position of the timeline), everything else is fixed at the time of recording the sequence.
+
+Try this: ::
+
+    from artiq.experiment import *
+
+
+    class DMAPulses(EnvExperiment):
+        def build(self):
+            self.setattr_device("core")
+            self.setattr_device("core_dma")
+            self.setattr_device("ttl0")
+
+        @kernel
+        def record(self):
+            with self.core_dma.record("pulses"):
+                # all RTIO operations now go to the "pulses"
+                # DMA buffer, instead of being executed immediately.
+                for i in range(100):
+                    self.ttl0.pulse(100*ns)
+                    delay(100*ns)
+
+        @kernel
+        def run(self):
+            self.core.reset()
+            self.record()
+            # prefetch the address of the DMA buffer
+            # for faster playback trigger
+            pulses_handle = self.core_dma.get_handle("pulses")
+            self.core.break_realtime()
+            while True:
+                # execute RTIO operations in the DMA buffer
+                # each playback advances the timeline by 50*(100+100) ns
+                self.core_dma.playback_handle(pulses_handle)

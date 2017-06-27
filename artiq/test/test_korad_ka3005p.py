@@ -27,7 +27,7 @@ class TestKoradKA3005P(GenericKoradKA3005PTest, GenericControllerCase):
                 "host": "::1",
                 "port": 3256,
                 "command": (sys.executable.replace("\\", "\\\\")
-                            + " -m artiq.frontend.korad_ka3005p_controller "
+                            + " -m artiq.frontend.aqctl_korad_ka3005p "
                             + "-p {port} --simulation")
             }
         }

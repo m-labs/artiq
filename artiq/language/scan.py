@@ -1,7 +1,7 @@
 """
 Implementation and management of scan objects.
 
-A scan object (e.g. :class:`artiq.language.scan.LinearScan`) represents a
+A scan object (e.g. :class:`artiq.language.scan.RangeScan`) represents a
 one-dimensional sweep of a numerical range. Multi-dimensional scans are
 constructed by combining several scan objects, for example using
 :class:`artiq.language.scan.MultiScanManager`.
@@ -27,7 +27,7 @@ from artiq.language import units
 
 
 __all__ = ["ScanObject",
-           "NoScan", "LinearScan", "RandomScan", "ExplicitScan",
+           "NoScan", "RangeScan", "ExplicitScan",
            "Scannable", "MultiScanManager"]
 
 
@@ -59,52 +59,27 @@ class NoScan(ScanObject):
                 "repetitions": self.repetitions}
 
 
-class LinearScan(ScanObject):
-    """A scan object that yields a fixed number of evenly
-    spaced values in a range."""
-    def __init__(self, start, stop, npoints):
+class RangeScan(ScanObject):
+    """A scan object that yields a fixed number of evenly spaced values in a
+    range. If ``randomize`` is True the points are randomly ordered."""
+    def __init__(self, start, stop, npoints, randomize=False, seed=None):
         self.start = start
         self.stop = stop
         self.npoints = npoints
-
-    @portable
-    def _gen(self):
-        if self.npoints == 0:
-            return
-        if self.npoints == 1:
-            yield self.start
-        else:
-            dx = (self.stop - self.start)/(self.npoints - 1)
-            for i in range(self.npoints):
-                yield i*dx + self.start
-
-    @portable
-    def __iter__(self):
-        return self._gen()
-
-    def __len__(self):
-        return self.npoints
-
-    def describe(self):
-        return {"ty": "LinearScan",
-                "start": self.start, "stop": self.stop,
-                "npoints": self.npoints}
-
-
-class RandomScan(ScanObject):
-    """A scan object that yields a fixed number of randomly ordered evenly
-    spaced values in a range."""
-    def __init__(self, start, stop, npoints, seed=None):
-        self.start = start
-        self.stop = stop
-        self.npoints = npoints
+        self.randomize = randomize
         self.seed = seed
-        self.sequence = list(LinearScan(start, stop, npoints))
-        if seed is None:
-            rf = random.random
+
+        if npoints == 0:
+            self.sequence = []
+        if npoints == 1:
+            self.sequence = [self.start]
         else:
-            rf = Random(seed).random
-        random.shuffle(self.sequence, rf)
+            dx = (stop - start)/(npoints - 1)
+            self.sequence = [i*dx + start for i in range(npoints)]
+
+        if randomize:
+            rng = random.Random(seed)
+            random.shuffle(self.sequence, rng.random)
 
     @portable
     def __iter__(self):
@@ -114,9 +89,10 @@ class RandomScan(ScanObject):
         return self.npoints
 
     def describe(self):
-        return {"ty": "RandomScan",
+        return {"ty": "RangeScan",
                 "start": self.start, "stop": self.stop,
                 "npoints": self.npoints,
+                "randomize": self.randomize,
                 "seed": self.seed}
 
 
@@ -138,8 +114,7 @@ class ExplicitScan(ScanObject):
 
 _ty_to_scan = {
     "NoScan": NoScan,
-    "LinearScan": LinearScan,
-    "RandomScan": RandomScan,
+    "RangeScan": RangeScan,
     "ExplicitScan": ExplicitScan
 }
 

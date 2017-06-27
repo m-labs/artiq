@@ -13,6 +13,7 @@ from artiq.compiler.module import Module
 from artiq.compiler.embedding import Stitcher
 from artiq.compiler.targets import OR1KTarget
 
+from artiq.coredevice.comm_kernel import CommKernel, CommKernelDummy
 # Import for side effects (creating the exception classes).
 from artiq.coredevice import exceptions
 
@@ -50,6 +51,7 @@ def rtio_get_counter() -> TInt64:
 class Core:
     """Core device driver.
 
+    :param host: hostname or IP address of the core device.
     :param ref_period: period of the reference clock for the RTIO subsystem.
         On platforms that use clock multiplication and SERDES-based PHYs,
         this is the period after multiplication. For example, with a RTIO core
@@ -61,7 +63,6 @@ class Core:
     :param ref_multiplier: ratio between the RTIO fine timestamp frequency
         and the RTIO coarse timestamp frequency (e.g. SERDES multiplication
         factor).
-    :param comm_device: name of the device used for communications.
     """
 
     kernel_invariants = {
@@ -69,24 +70,32 @@ class Core:
         "external_clock",
     }
 
-    def __init__(self, dmgr, ref_period, external_clock=False,
-                 ref_multiplier=8, comm_device="comm"):
+    def __init__(self, dmgr, host, ref_period, external_clock=False,
+                 ref_multiplier=8):
         self.ref_period = ref_period
         self.external_clock = external_clock
         self.ref_multiplier = ref_multiplier
         self.coarse_ref_period = ref_period*ref_multiplier
-        self.comm = dmgr.get(comm_device)
+        if host is None:
+            self.comm = CommKernelDummy()
+        else:
+            self.comm = CommKernel(host)
 
         self.first_run = True
         self.dmgr = dmgr
         self.core = self
         self.comm.core = self
 
-    def compile(self, function, args, kwargs, set_result=None, attribute_writeback=True):
+    def close(self):
+        self.comm.close()
+
+    def compile(self, function, args, kwargs, set_result=None,
+                attribute_writeback=True, print_as_rpc=True):
         try:
             engine = _DiagnosticEngine(all_errors_are_fatal=True)
 
-            stitcher = Stitcher(engine=engine, core=self, dmgr=self.dmgr)
+            stitcher = Stitcher(engine=engine, core=self, dmgr=self.dmgr,
+                                print_as_rpc=print_as_rpc)
             stitcher.stitch_call(function, args, kwargs, set_result)
             stitcher.finalize()
 

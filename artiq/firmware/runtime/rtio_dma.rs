@@ -3,67 +3,68 @@ use std::vec::Vec;
 use std::string::String;
 use std::btree_map::BTreeMap;
 use std::io::Write;
-use proto::WriteExt;
+
+const ALIGNMENT: usize = 64;
 
 #[derive(Debug)]
 struct Entry {
-    data: Vec<u8>
+    trace: Vec<u8>,
+    padding_len: usize,
+    duration: u64
 }
 
 #[derive(Debug)]
 pub struct Manager {
     entries: BTreeMap<String, Entry>,
-    recording: Vec<u8>
+    recording_name: String,
+    recording_trace: Vec<u8>
 }
 
 impl Manager {
     pub fn new() -> Manager {
         Manager {
             entries: BTreeMap::new(),
-            recording: Vec::new()
+            recording_name: String::new(),
+            recording_trace: Vec::new(),
         }
     }
 
-    pub fn record_start(&mut self) {
-        self.recording.clear();
+    pub fn record_start(&mut self, name: &str) {
+        self.recording_name = String::from(name);
+        self.recording_trace = Vec::new();
+
+        // or we could needlessly OOM replacing a large trace
+        self.entries.remove(name);
     }
 
-    pub fn record_append(&mut self, timestamp: u64, channel: u32,
-                         address: u32, data: &[u32]) {
-        let writer = &mut self.recording;
-        // See gateware/rtio/dma.py.
-        let length = /*length*/1 + /*channel*/3 + /*timestamp*/8 + /*address*/2 +
-                     /*data*/data.len() * 4;
-        writer.write_all(&[
-            (length    >>  0) as u8,
-            (channel   >>  0) as u8,
-            (channel   >>  8) as u8,
-            (channel   >> 16) as u8,
-            (timestamp >>  0) as u8,
-            (timestamp >>  8) as u8,
-            (timestamp >> 16) as u8,
-            (timestamp >> 24) as u8,
-            (timestamp >> 32) as u8,
-            (timestamp >> 40) as u8,
-            (timestamp >> 48) as u8,
-            (timestamp >> 56) as u8,
-            (address   >>  0) as u8,
-            (address   >>  8) as u8,
-        ]).unwrap();
-        for &word in data {
-            writer.write_u32(word).unwrap();
+    pub fn record_append(&mut self, data: &[u8]) {
+        self.recording_trace.write_all(data).unwrap();
+    }
+
+    pub fn record_stop(&mut self, duration: u64) {
+        let mut trace = Vec::new();
+        mem::swap(&mut self.recording_trace, &mut trace);
+        trace.push(0);
+        let data_len = trace.len();
+
+        // Realign.
+        trace.reserve(ALIGNMENT - 1);
+        let padding = ALIGNMENT - trace.as_ptr() as usize % ALIGNMENT;
+        let padding = if padding == ALIGNMENT { 0 } else { padding };
+        for _ in 0..padding {
+            // Vec guarantees that this will not reallocate
+            trace.push(0)
         }
-    }
+        for i in 1..data_len + 1 {
+            trace[data_len + padding - i] = trace[data_len - i]
+        }
 
-    pub fn record_stop(&mut self, name: &str) {
-        let mut recorded = Vec::new();
-        mem::swap(&mut self.recording, &mut recorded);
-        recorded.shrink_to_fit();
-
-        info!("recorded DMA data: {:?}", recorded);
-
-        self.entries.insert(String::from(name), Entry {
-            data: recorded
+        let mut name = String::new();
+        mem::swap(&mut self.recording_name, &mut name);
+        self.entries.insert(name, Entry {
+            trace: trace,
+            padding_len: padding,
+            duration: duration
         });
     }
 
@@ -71,7 +72,11 @@ impl Manager {
         self.entries.remove(name);
     }
 
-    pub fn with_trace<F: FnOnce(Option<&[u8]>) -> R, R>(&self, name: &str, f: F) -> R {
-        f(self.entries.get(name).map(|entry| &entry.data[..]))
+    pub fn with_trace<F, R>(&self, name: &str, f: F) -> R
+            where F: FnOnce(Option<&[u8]>, u64) -> R {
+        match self.entries.get(name) {
+            Some(entry) => f(Some(&entry.trace[entry.padding_len..]), entry.duration),
+            None => f(None, 0)
+        }
     }
 }

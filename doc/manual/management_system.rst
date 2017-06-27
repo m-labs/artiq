@@ -154,3 +154,7 @@ Front-end tool reference
 .. argparse::
    :ref: artiq.frontend.artiq_dashboard.get_argparser
    :prog: artiq_dashboard
+
+.. argparse::
+   :ref: artiq.frontend.artiq_session.get_argparser
+   :prog: artiq_session

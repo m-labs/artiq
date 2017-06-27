@@ -3,6 +3,7 @@ from time import sleep
 
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
+from artiq.coredevice.comm_kernel import RPCReturnValueError
 
 
 class _Roundtrip(EnvExperiment):
@@ -37,6 +38,12 @@ class RoundtripTest(ExperimentCase):
 
     def test_str(self):
         self.assertRoundtrip("foo")
+
+    def test_bytes(self):
+        self.assertRoundtrip(b"foo")
+
+    def test_bytearray(self):
+        self.assertRoundtrip(bytearray(b"foo"))
 
     def test_list(self):
         self.assertRoundtrip([10])
@@ -90,6 +97,12 @@ class _RPCTypes(EnvExperiment):
     def return_str(self) -> TStr:
         return "foo"
 
+    def return_bytes(self) -> TBytes:
+        return b"foo"
+
+    def return_bytearray(self) -> TByteArray:
+        return bytearray(b"foo")
+
     def return_tuple(self) -> TTuple([TInt32, TInt32]):
         return (1, 2)
 
@@ -99,6 +112,9 @@ class _RPCTypes(EnvExperiment):
     def return_range(self) -> TRange32:
         return range(10)
 
+    def return_mismatch(self):
+        return b"foo"
+
     @kernel
     def run_recv(self):
         core_log(self.return_bool())
@@ -106,6 +122,8 @@ class _RPCTypes(EnvExperiment):
         core_log(self.return_int64())
         core_log(self.return_float())
         core_log(self.return_str())
+        core_log(self.return_bytes())
+        core_log(self.return_bytearray())
         core_log(self.return_tuple())
         core_log(self.return_list())
         core_log(self.return_range())
@@ -120,20 +138,31 @@ class _RPCTypes(EnvExperiment):
         self.accept(0x100000000)
         self.accept(1.0)
         self.accept("foo")
+        self.accept(b"foo")
+        self.accept(bytearray(b"foo"))
         self.accept((2, 3))
         self.accept([1, 2])
         self.accept(range(10))
         self.accept(self)
 
-    def run(self):
-        self.run_send()
-        self.run_recv()
+    @kernel
+    def run_mismatch(self):
+        self.return_mismatch()
 
 
 class RPCTypesTest(ExperimentCase):
-    def test_args(self):
+    def test_send(self):
         exp = self.create(_RPCTypes)
-        exp.run()
+        exp.run_send()
+
+    def test_recv(self):
+        exp = self.create(_RPCTypes)
+        exp.run_send()
+
+    def test_mismatch(self):
+        exp = self.create(_RPCTypes)
+        with self.assertRaises(RPCReturnValueError):
+            exp.run_mismatch()
 
 
 class _RPCCalls(EnvExperiment):
@@ -240,7 +269,7 @@ class _Async(EnvExperiment):
 
 class AsyncTest(ExperimentCase):
     def test_args(self):
-        exp = self.create(_RPCTypes)
+        exp = self.create(_Async)
         exp.run()
 
 

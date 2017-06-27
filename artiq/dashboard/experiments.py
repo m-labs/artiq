@@ -294,7 +294,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         priority.valueChanged.connect(update_priority)
 
         flush = QtWidgets.QCheckBox("Flush")
-        flush.setToolTip("Flush the pipeline before starting the experiment")
+        flush.setToolTip("Flush the pipeline (of current- and higher-priority "
+                         "experiments) before starting the experiment")
         self.layout.addWidget(flush, 2, 2, 1, 2)
 
         flush.setChecked(scheduling["flush"])

@@ -117,6 +117,25 @@ To track down ``RTIOUnderflows`` in an experiment there are a few approaches:
     code.
   * The :any:`integrated logic analyzer <core-device-rtio-analyzer-tool>` shows the timeline context that lead to the exception. The analyzer is always active and supports plotting of RTIO slack. RTIO slack is the difference between timeline cursor and wall clock time (``now - rtio_counter``).
 
+Collisions
+----------
+A collision happens when more than one event is submitted on a given channel with the same coarse timestamp, and that channel does not implement replacement behavior or the fine timestamps are different.
+
+Coarse timestamps correspond to the RTIO system clock (typically around 125MHz) whereas fine timestamps correspond to the RTIO SERDES clock (typically around 1GHz). Different channels may have different ratios between the coarse and fine timestamp clock frequencies.
+
+The offending event is discarded and the RTIO core keeps operating.
+
+This error is reported asynchronously via the core device log: for performance reasons with DRTIO, the CPU does not wait for an error report from the satellite after writing an event. Therefore, it is not possible to raise an exception precisely.
+
+Busy errors
+-----------
+
+A busy error happens when at least one output event could not be executed because the channel was already busy executing a previous event.
+
+The offending event was discarded.
+
+This error is reported asynchronously via the core device log.
+
 Input channels and events
 -------------------------
 

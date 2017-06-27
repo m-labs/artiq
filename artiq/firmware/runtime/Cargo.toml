@@ -15,10 +15,10 @@ build_artiq = { path = "../libbuild_artiq" }
 [dependencies]
 byteorder = { version = "1.0", default-features = false }
 cslice = { version = "0.3" }
-log = { version = "0.3", default-features = false, features = ["max_level_debug"] }
+log = { version = "0.3", default-features = false }
 fringe = { version = "= 1.1.0", default-features = false, features = ["alloc"] }
 alloc_artiq = { path = "../liballoc_artiq" }
-std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
+std_artiq = { path = "../libstd_artiq", features = ["alloc", "io_error_alloc"] }
 logger_artiq = { path = "../liblogger_artiq" }
 board = { path = "../libboard", features = ["uart_console"] }
 proto = { path = "../libproto", features = ["log"] }
@@ -32,6 +32,6 @@ features = ["mem"]
 
 [dependencies.smoltcp]
 git = "https://github.com/m-labs/smoltcp"
-rev = "e8ece3e"
+rev = "a4b33c9"
 default-features = false
-features = ["use_alloc", "use_collections", "use_log"]#, "verbose"]
+features = ["alloc", "collections", "log"]#, "verbose"]

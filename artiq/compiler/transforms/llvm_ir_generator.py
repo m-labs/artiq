@@ -1054,7 +1054,7 @@ class LLVMIRGenerator:
                 lloperand = self.map(operand)
                 if i == 0 and insn.op == "printf" or i == 1 and insn.op == "rtio_log":
                     lloperands.append(self.llbuilder.extract_value(lloperand, 0))
-                elif builtins.is_str(operand.type):
+                elif builtins.is_str(operand.type) or builtins.is_bytes(operand.type):
                     lloperands.append(self.llbuilder.extract_value(lloperand, 1))
                     lloperands.append(self.llbuilder.extract_value(lloperand, 0))
                 else:
@@ -1168,6 +1168,10 @@ class LLVMIRGenerator:
             return b"f"
         elif builtins.is_str(typ):
             return b"s"
+        elif builtins.is_bytes(typ):
+            return b"B"
+        elif builtins.is_bytearray(typ):
+            return b"A"
         elif builtins.is_list(typ):
             return b"l" + self._rpc_tag(builtins.get_iterable_elt(typ),
                                         error_handler)
@@ -1434,8 +1438,8 @@ class LLVMIRGenerator:
         elif builtins.is_float(typ):
             assert isinstance(value, float), fail_msg
             return ll.Constant(llty, value)
-        elif builtins.is_str(typ):
-            assert isinstance(value, (str, bytes)), fail_msg
+        elif builtins.is_str(typ) or builtins.is_bytes(typ) or builtins.is_bytearray(typ):
+            assert isinstance(value, (str, bytes, bytearray)), fail_msg
             if isinstance(value, str):
                 as_bytes = value.encode("utf-8")
             else:

@@ -90,8 +90,8 @@ class _OutputManager(Module):
             # Note: replace may be asserted at the same time as collision
             # when addresses are different. In that case, it is a collision.
             self.sync.rsys += replace.eq(self.ev.timestamp == buf.timestamp)
-            # Detect sequence errors on coarse timestamps only
-            # so that they are mutually exclusive with collision errors.
+        # Detect sequence errors on coarse timestamps only
+        # so that they are mutually exclusive with collision errors.
         self.sync.rsys += sequence_error.eq(self.ev.timestamp[fine_ts_width:] <
                                             buf.timestamp[fine_ts_width:])
         if interface.enable_replace:
@@ -104,6 +104,9 @@ class _OutputManager(Module):
                     (self.ev.timestamp[fine_ts_width:] == buf.timestamp[fine_ts_width:])
                     & ((self.ev.timestamp[:fine_ts_width] != buf.timestamp[:fine_ts_width])
                        |different_addresses))
+            else:
+                self.sync.rsys += collision.eq(
+                    (self.ev.timestamp == buf.timestamp) & different_addresses)
         else:
             self.sync.rsys += collision.eq(
                 self.ev.timestamp[fine_ts_width:] == buf.timestamp[fine_ts_width:])
@@ -281,6 +284,18 @@ class LogChannel:
         self.overrides = []
 
 
+class _RelaxedAsyncResetSynchronizer(Module):
+    def __init__(self, cd, async_reset):
+        self.clock_domains.cd_rst = ClockDomain()
+        self.clock_domains.cd_no_rst = ClockDomain(reset_less=True)
+        self.specials += AsyncResetSynchronizer(self.cd_rst, async_reset)
+        self.comb += [
+            self.cd_rst.clk.eq(cd.clk),
+            self.cd_no_rst.clk.eq(cd.clk),
+        ]
+        self.sync.no_rst += cd.rst.eq(self.cd_rst.rst)
+
+
 class Core(Module, AutoCSR):
     def __init__(self, channels, fine_ts_width=None, guard_io_cycles=20):
         if fine_ts_width is None:
@@ -290,11 +305,19 @@ class Core(Module, AutoCSR):
         self.cri = cri.Interface()
         self.reset = CSR()
         self.reset_phy = CSR()
-        self.comb += self.cri.arb_gnt.eq(1)
+        self.async_error = CSR(2)
 
         # Clocking/Reset
         # Create rsys, rio and rio_phy domains based on sys and rtio
         # with reset controlled by CRI.
+        #
+        # The `rio` CD contains logic that is reset with `core.reset()`.
+        # That's state that could unduly affect subsequent experiments,
+        # i.e. input overflows caused by input gates left open, FIFO events far
+        # in the future blocking the experiment, pending RTIO or
+        # wishbone bus transactions, etc.
+        # The `rio_phy` CD contains state that is maintained across
+        # `core.reset()`, i.e. TTL output state, OE, DDS state.
         cmd_reset = Signal(reset=1)
         cmd_reset_phy = Signal(reset=1)
         self.sync += [
@@ -309,23 +332,45 @@ class Core(Module, AutoCSR):
         self.clock_domains.cd_rio_phy = ClockDomain()
         self.comb += [
             self.cd_rsys.clk.eq(ClockSignal()),
-            self.cd_rsys.rst.eq(cmd_reset)
+            self.cd_rsys.rst.eq(cmd_reset),
+            self.cd_rio.clk.eq(ClockSignal("rtio")),
+            self.cd_rio_phy.clk.eq(ClockSignal("rtio"))
         ]
-        self.comb += self.cd_rio.clk.eq(ClockSignal("rtio"))
-        self.specials += AsyncResetSynchronizer(
-            self.cd_rio, cmd_reset)
-        self.comb += self.cd_rio_phy.clk.eq(ClockSignal("rtio"))
-        self.specials += AsyncResetSynchronizer(
-            self.cd_rio_phy, cmd_reset_phy)
+        self.submodules.rars_rio = _RelaxedAsyncResetSynchronizer(
+                self.cd_rio, cmd_reset)
+        self.submodules.rars_rio_phy = _RelaxedAsyncResetSynchronizer(
+                self.cd_rio_phy, cmd_reset_phy)
 
         # Managers
-        self.submodules.counter = RTIOCounter(len(self.cri.o_timestamp) - fine_ts_width)
+        self.submodules.counter = RTIOCounter(len(self.cri.timestamp) - fine_ts_width)
 
-        i_datas, i_timestamps = [], []
+        # Collision is not an asynchronous error with local RTIO, but
+        # we treat it as such for consistency with DRTIO, where collisions
+        # are reported by the satellites.
+        o_underflow = Signal()
+        o_sequence_error = Signal()
+        o_collision = Signal()
+        o_busy = Signal()
+        self.sync.rsys += [
+            If(self.cri.cmd == cri.commands["write"],
+                o_underflow.eq(0),
+                o_sequence_error.eq(0),
+            )
+        ]
+        self.sync += [
+            If(self.async_error.re,
+                If(self.async_error.r[0], o_collision.eq(0)),
+                If(self.async_error.r[1], o_busy.eq(0)),
+            )
+        ]
+
         o_statuses, i_statuses = [], []
+        i_datas, i_timestamps = [], []
+        i_ack = Signal()
         sel = self.cri.chan_sel[:16]
         for n, channel in enumerate(channels):
             if isinstance(channel, LogChannel):
+                o_statuses.append(1)
                 i_datas.append(0)
                 i_timestamps.append(0)
                 i_statuses.append(0)
@@ -342,34 +387,20 @@ class Core(Module, AutoCSR):
                 self.comb += o_manager.ev.data.eq(self.cri.o_data)
             if hasattr(o_manager.ev, "address"):
                 self.comb += o_manager.ev.address.eq(self.cri.o_address)
-            ts_shift = len(self.cri.o_timestamp) - len(o_manager.ev.timestamp)
-            self.comb += o_manager.ev.timestamp.eq(self.cri.o_timestamp[ts_shift:])
+            ts_shift = len(self.cri.timestamp) - len(o_manager.ev.timestamp)
+            self.comb += o_manager.ev.timestamp.eq(self.cri.timestamp[ts_shift:])
 
             self.comb += o_manager.we.eq(selected & (self.cri.cmd == cri.commands["write"]))
 
-            underflow = Signal()
-            sequence_error = Signal()
-            collision = Signal()
-            busy = Signal()
             self.sync.rsys += [
-                If(self.cri.cmd == cri.commands["o_underflow_reset"],
-                   underflow.eq(0)),
-                If(self.cri.cmd == cri.commands["o_sequence_error_reset"],
-                   sequence_error.eq(0)),
-                If(self.cri.cmd == cri.commands["o_collision_reset"],
-                   collision.eq(0)),
-                If(self.cri.cmd == cri.commands["o_busy_reset"],
-                   busy.eq(0)),
-                If(o_manager.underflow, underflow.eq(1)),
-                If(o_manager.sequence_error, sequence_error.eq(1)),
-                If(o_manager.collision, collision.eq(1)),
-                If(o_manager.busy, busy.eq(1))
+                If(o_manager.underflow, o_underflow.eq(1)),
+                If(o_manager.sequence_error, o_sequence_error.eq(1))
             ]
-            o_statuses.append(Cat(~o_manager.writable,
-                                  underflow,
-                                  sequence_error,
-                                  collision,
-                                  busy))
+            self.sync += [
+                If(o_manager.collision, o_collision.eq(1)),
+                If(o_manager.busy, o_busy.eq(1))
+            ]
+            o_statuses.append(o_manager.writable)
 
             if channel.interface.i is not None:
                 i_manager = _InputManager(channel.interface.i, self.counter,
@@ -386,26 +417,49 @@ class Core(Module, AutoCSR):
                 else:
                     i_timestamps.append(0)
 
-                self.comb += i_manager.re.eq(selected & (self.cri.cmd == cri.commands["read"]))
-
                 overflow = Signal()
                 self.sync.rsys += [
-                    If(selected & (self.cri.cmd == cri.commands["i_overflow_reset"]),
+                    If(selected & i_ack,
                        overflow.eq(0)),
                     If(i_manager.overflow,
                        overflow.eq(1))
                 ]
-                i_statuses.append(Cat(~i_manager.readable, overflow))
+                self.comb += i_manager.re.eq(selected & i_ack & ~overflow)
+                i_statuses.append(Cat(i_manager.readable & ~overflow, overflow))
 
             else:
                 i_datas.append(0)
                 i_timestamps.append(0)
                 i_statuses.append(0)
+
+        o_status_raw = Signal()
         self.comb += [
-            self.cri.i_data.eq(Array(i_datas)[sel]),
-            self.cri.i_timestamp.eq(Array(i_timestamps)[sel]),
-            self.cri.o_status.eq(Array(o_statuses)[sel]),
-            self.cri.i_status.eq(Array(i_statuses)[sel])
+            o_status_raw.eq(Array(o_statuses)[sel]),
+            self.cri.o_status.eq(Cat(
+                ~o_status_raw, o_underflow, o_sequence_error)),
+            self.async_error.w.eq(Cat(o_collision, o_busy))
+        ]
+
+        i_status_raw = Signal(2)
+        self.comb += i_status_raw.eq(Array(i_statuses)[sel])
+        input_timeout = Signal.like(self.cri.timestamp)
+        input_pending = Signal()
+        self.sync.rsys += [
+            i_ack.eq(0),
+            If(i_ack,
+                self.cri.i_status.eq(Cat(~i_status_raw[0], i_status_raw[1], 0)),
+                self.cri.i_data.eq(Array(i_datas)[sel]),
+                self.cri.i_timestamp.eq(Array(i_timestamps)[sel]),
+            ),
+            If((self.cri.counter >= input_timeout) | (i_status_raw != 0),
+                If(input_pending, i_ack.eq(1)),
+                input_pending.eq(0)
+            ),
+            If(self.cri.cmd == cri.commands["read"],
+                input_timeout.eq(self.cri.timestamp),
+                input_pending.eq(1),
+                self.cri.i_status.eq(0b100)
+            )
         ]
 
         self.comb += self.cri.counter.eq(self.counter.value_sys << fine_ts_width)

@@ -229,6 +229,9 @@ class _RangeScan(LayoutWidget):
         disable_scroll_wheel(stop)
         self.addWidget(stop, 2, 1)
 
+        randomize = QtWidgets.QCheckBox("Randomize")
+        self.addWidget(randomize, 3, 1)
+
         apply_properties(start)
         start.setPrecision()
         start.setRelativeStep()
@@ -255,15 +258,21 @@ class _RangeScan(LayoutWidget):
             if npoints.value() != value:
                 npoints.setValue(value)
 
+        def update_randomize(value):
+            state["randomize"] = value
+            randomize.setChecked(value)
+
         scanner.startChanged.connect(update_start)
         scanner.numChanged.connect(update_npoints)
         scanner.stopChanged.connect(update_stop)
         start.valueChanged.connect(update_start)
         npoints.valueChanged.connect(update_npoints)
         stop.valueChanged.connect(update_stop)
+        randomize.stateChanged.connect(update_randomize)
         scanner.setStart(state["start"]/scale)
         scanner.setNum(state["npoints"])
         scanner.setStop(state["stop"]/scale)
+        randomize.setChecked(state["randomize"])
 
 
 class _ExplicitScan(LayoutWidget):
@@ -297,16 +306,14 @@ class ScanEntry(LayoutWidget):
         state = argument["state"]
         self.widgets = OrderedDict()
         self.widgets["NoScan"] = _NoScan(procdesc, state["NoScan"])
-        self.widgets["LinearScan"] = _RangeScan(procdesc, state["LinearScan"])
-        self.widgets["RandomScan"] = _RangeScan(procdesc, state["RandomScan"])
+        self.widgets["RangeScan"] = _RangeScan(procdesc, state["RangeScan"])
         self.widgets["ExplicitScan"] = _ExplicitScan(state["ExplicitScan"])
         for widget in self.widgets.values():
             self.stack.addWidget(widget)
 
         self.radiobuttons = OrderedDict()
         self.radiobuttons["NoScan"] = QtWidgets.QRadioButton("No scan")
-        self.radiobuttons["LinearScan"] = QtWidgets.QRadioButton("Linear")
-        self.radiobuttons["RandomScan"] = QtWidgets.QRadioButton("Random")
+        self.radiobuttons["RangeScan"] = QtWidgets.QRadioButton("Range")
         self.radiobuttons["ExplicitScan"] = QtWidgets.QRadioButton("Explicit")
         scan_type = QtWidgets.QButtonGroup()
         for n, b in enumerate(self.radiobuttons.values()):
@@ -334,8 +341,8 @@ class ScanEntry(LayoutWidget):
         state = {
             "selected": "NoScan",
             "NoScan": {"value": 0.0, "repetitions": 1},
-            "LinearScan": {"start": 0.0, "stop": 100.0*scale, "npoints": 10},
-            "RandomScan": {"start": 0.0, "stop": 100.0*scale, "npoints": 10},
+            "RangeScan": {"start": 0.0, "stop": 100.0*scale, "npoints": 10,
+                          "randomize": False},
             "ExplicitScan": {"sequence": []}
         }
         if "default" in procdesc:
@@ -348,10 +355,12 @@ class ScanEntry(LayoutWidget):
                 if ty == "NoScan":
                     state[ty]["value"] = default["value"]
                     state[ty]["repetitions"] = default["repetitions"]
-                elif ty == "LinearScan" or ty == "RandomScan":
+                elif ty == "RangeScan":
                     state[ty]["start"] = default["start"]
                     state[ty]["stop"] = default["stop"]
                     state[ty]["npoints"] = default["npoints"]
+                    state[ty]["randomize"] = default["randomize"]
+                    state[ty]["seed"] = default["seed"]
                 elif ty == "ExplicitScan":
                     state[ty]["sequence"] = default["sequence"]
                 else:

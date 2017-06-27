@@ -100,6 +100,7 @@ _ams101_dac = [
 
 class _NIST_Ions(MiniSoC, AMPSoC):
     mem_map = {
+        "cri_con":       0x10000000,
         "rtio":          0x20000000,
         "rtio_dma":      0x30000000,
         "mailbox":       0x70000000
@@ -144,12 +145,14 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.submodules.rtio_core = rtio.Core(rtio_channels)
         self.csr_devices.append("rtio_core")
         self.submodules.rtio = rtio.KernelInitiator()
-        self.submodules.rtio_dma = rtio.DMA(self.get_native_sdram_if())
+        self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
+            rtio.DMA(self.get_native_sdram_if()))
         self.register_kernel_cpu_csrdevice("rtio")
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
             [self.rtio.cri, self.rtio_dma.cri],
             [self.rtio_core.cri])
+        self.register_kernel_cpu_csrdevice("cri_con")
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
@@ -159,8 +162,8 @@ class _NIST_Ions(MiniSoC, AMPSoC):
             self.crg.cd_sys.clk,
             self.rtio_crg.cd_rtio.clk)
 
-        self.submodules.rtio_analyzer = rtio.Analyzer(
-            self.rtio, self.rtio_core.cri.counter, self.get_native_sdram_if())
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_core.cri,
+                                                      self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
 
 
@@ -177,7 +180,7 @@ class NIST_CLOCK(_NIST_Ions):
         rtio_channels = []
         for i in range(16):
             if i % 4 == 3:
-                phy = ttl_serdes_7series.Inout_8X(platform.request("ttl", i))
+                phy = ttl_serdes_7series.InOut_8X(platform.request("ttl", i))
                 self.submodules += phy
                 rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
             else:
@@ -186,11 +189,11 @@ class NIST_CLOCK(_NIST_Ions):
                 rtio_channels.append(rtio.Channel.from_phy(phy))
 
         for i in range(2):
-            phy = ttl_serdes_7series.Inout_8X(platform.request("pmt", i))
+            phy = ttl_serdes_7series.InOut_8X(platform.request("pmt", i))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
 
-        phy = ttl_serdes_7series.Inout_8X(platform.request("user_sma_gpio_n_33"))
+        phy = ttl_serdes_7series.InOut_8X(platform.request("user_sma_gpio_n_33"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
 
@@ -247,7 +250,7 @@ class NIST_QC2(_NIST_Ions):
 
         # All TTL channels are In+Out capable
         for i in range(40):
-            phy = ttl_serdes_7series.Inout_8X(
+            phy = ttl_serdes_7series.InOut_8X(
                 platform.request("ttl", i))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
@@ -260,7 +263,7 @@ class NIST_QC2(_NIST_Ions):
             clock_generators.append(rtio.Channel.from_phy(phy))
 
         # user SMA on KC705 board
-        phy = ttl_serdes_7series.Inout_8X(platform.request("user_sma_gpio_n_33"))
+        phy = ttl_serdes_7series.InOut_8X(platform.request("user_sma_gpio_n_33"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
 

@@ -33,7 +33,7 @@ def get_argparser():
     ])
 
     group = parser.add_argument_group("databases")
-    group.add_argument("--device-db", default="device_db.pyon",
+    group.add_argument("--device-db", default="device_db.py",
                        help="device database file (default: '%(default)s')")
     group.add_argument("--dataset-db", default="dataset_db.pyon",
                        help="dataset file (default: '%(default)s')")
@@ -134,7 +134,7 @@ def main():
         bind, args.port_logging))
     atexit_register_coroutine(server_logging.stop)
 
-    logger.info("running, bound to %s", bind)
+    print("ARTIQ master is now ready.")
     loop.run_forever()
 
 if __name__ == "__main__":

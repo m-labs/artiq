@@ -194,6 +194,9 @@ class TTuple(Type):
     def __ne__(self, other):
         return not (self == other)
 
+    def __hash__(self):
+        return hash(tuple(self.elts))
+
 class _TPointer(TMono):
     def __init__(self):
         super().__init__("pointer")

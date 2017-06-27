@@ -5,6 +5,7 @@
 from collections import OrderedDict
 from pythonparser import algorithm, diagnostic, ast
 from .. import asttyped, types, builtins
+from .typedtree_printer import TypedtreePrinter
 
 class Inferencer(algorithm.Visitor):
     """
@@ -179,7 +180,10 @@ class Inferencer(algorithm.Visitor):
                 self.engine.process(diag)
 
     def _unify_iterable(self, element, collection):
-        if builtins.is_iterable(collection.type):
+        if builtins.is_bytes(collection.type) or builtins.is_bytearray(collection.type):
+            self._unify(element.type, builtins.get_iterable_elt(collection.type),
+                        element.loc, None)
+        elif builtins.is_iterable(collection.type) and not builtins.is_str(collection.type):
             rhs_type = collection.type.find()
             rhs_wrapped_lhs_type = types.TMono(rhs_type.name, {"elt": element.type})
             self._unify(rhs_wrapped_lhs_type, rhs_type,
@@ -293,7 +297,8 @@ class Inferencer(algorithm.Visitor):
             return coerced_node
         elif isinstance(coerced_node, asttyped.CoerceT):
             node = coerced_node
-            node.type, node.other_value = typ, other_node
+            node.type.unify(typ)
+            node.other_value = other_node
         else:
             node = asttyped.CoerceT(type=typ, value=coerced_node, other_value=other_node,
                                     loc=coerced_node.loc)
@@ -394,7 +399,8 @@ class Inferencer(algorithm.Visitor):
                     self._unify(left.type, right.type,
                                 left.loc, right.loc)
                     return left.type, left.type, right.type
-            elif builtins.is_str(left.type) or builtins.is_str(right.type):
+            elif (builtins.is_str(left.type) or builtins.is_str(right.type) or
+                  builtins.is_bytes(left.type) or builtins.is_bytes(right.type)):
                 self._unify(left.type, right.type,
                             left.loc, right.loc)
                 return left.type, left.type, right.type

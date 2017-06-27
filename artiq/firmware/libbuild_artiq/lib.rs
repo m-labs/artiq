@@ -16,6 +16,7 @@ pub fn git_describe() {
                 .arg("--dirty")
                 .arg("--always")
                 .arg("--long")
+                .arg("--abbrev=8")
                 .output()
                 .ok()
                 .and_then(|o| String::from_utf8(o.stdout).ok())

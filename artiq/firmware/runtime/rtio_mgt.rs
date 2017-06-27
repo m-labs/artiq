@@ -43,7 +43,8 @@ pub mod drtio {
 
     pub fn startup(io: &Io) {
         io.spawn(4096, link_thread);
-        io.spawn(4096, error_thread);
+        io.spawn(4096, local_error_thread);
+        io.spawn(4096, aux_error_thread);
     }
 
     static mut LINK_RUNNING: bool = false;
@@ -144,37 +145,39 @@ pub mod drtio {
         }
     }
 
-    // keep this in sync with error_codes in rt_packets.py
-    fn str_packet_error(err_code: u8) -> &'static str {
-        match err_code {
-            0 => "Received packet of an unknown type",
-            1 => "Satellite reported reception of a packet of an unknown type",
-            2 => "Received truncated packet",
-            3 => "Satellite reported reception of a truncated packet",
-            4 => "Satellite reported write overflow",
-            5 => "Satellite reported write underflow",
-            _ => "Unknown error code"
+    pub fn local_error_thread(io: Io) {
+        loop {
+            unsafe {
+                io.until(|| csr::drtio::protocol_error_read() != 0).unwrap();
+                let errors = csr::drtio::protocol_error_read();
+                if errors & 1 != 0 {
+                    error!("received packet of an unknown type");
+                }
+                if errors & 2 != 0 {
+                    error!("received truncated packet");
+                }
+                if errors & 4 != 0 {
+                    error!("timeout attempting to get remote FIFO space");
+                }
+                csr::drtio::protocol_error_write(errors);
+            }
         }
     }
 
-    fn poll_errors() -> bool {
-        unsafe {
-            if csr::drtio::packet_err_present_read() != 0 {
-                let err_code = csr::drtio::packet_err_code_read();
-                error!("packet error {} ({})", err_code, str_packet_error(err_code));
-                csr::drtio::packet_err_present_write(1)
-            }
-            if csr::drtio::o_fifo_space_timeout_read() != 0 {
-                error!("timeout attempting to get remote FIFO space");
-                csr::drtio::o_fifo_space_timeout_write(1)
+    pub fn aux_error_thread(io: Io) {
+        loop {
+            io.sleep(200).unwrap();
+            if link_is_running() {
+                drtioaux::hw::send(&drtioaux::Packet::RtioErrorRequest).unwrap();
+                match drtioaux::hw::recv_timeout(None) {
+                    Ok(drtioaux::Packet::RtioNoErrorReply) => (),
+                    Ok(drtioaux::Packet::RtioErrorCollisionReply) => error!("RTIO collision (in satellite)"),
+                    Ok(drtioaux::Packet::RtioErrorBusyReply) => error!("RTIO busy (in satellite)"),
+                    Ok(_) => error!("received unexpected aux packet"),
+                    Err(e) => error!("aux packet error ({})", e)
+                }
             }
         }
-        false
-    }
-
-    pub fn error_thread(io: Io) {
-        // HACK
-        io.until(poll_errors).unwrap();
     }
 }
 
@@ -184,6 +187,22 @@ mod drtio {
 
     pub fn startup(_io: &Io) {}
     pub fn init() {}
+}
+
+fn async_error_thread(io: Io) {
+    loop {
+        unsafe {
+            io.until(|| csr::rtio_core::async_error_read() != 0).unwrap();
+            let errors = csr::rtio_core::async_error_read();
+            if errors & 1 != 0 {
+                error!("RTIO collision");
+            }
+            if errors & 2 != 0 {
+                error!("RTIO busy");
+            }
+            csr::rtio_core::async_error_write(errors);
+        }
+    }
 }
 
 pub fn startup(io: &Io) {
@@ -214,7 +233,8 @@ pub fn startup(io: &Io) {
     }
 
     drtio::startup(io);
-    init_core()
+    init_core();
+    io.spawn(4096, async_error_thread);
 }
 
 pub fn init_core() {

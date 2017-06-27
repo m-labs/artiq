@@ -72,14 +72,6 @@ def main():
             "runtime": 0xb00000,
             "storage": 0xb80000,
         },
-        "pipistrello": {
-            "chip": "xc6slx45",
-            "start": "xc6s_program xc6s.tap",
-            "gateware": 0x000000,
-            "bios": 0x170000,
-            "runtime": 0x180000,
-            "storage": 0x200000,
-        },
     }[opts.target]
 
     if opts.dir is None:

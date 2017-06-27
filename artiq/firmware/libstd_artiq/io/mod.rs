@@ -248,7 +248,6 @@
 //! time and may call fewer or more syscalls/library functions.
 
 use core::cmp;
-use std_unicode::str as core_str;
 use core::fmt;
 use core::iter::{Iterator};
 use core::marker::Sized;
@@ -1529,7 +1528,7 @@ impl<R: Read> Iterator for Chars<R> {
             Ok(..) => buf[0],
             Err(e) => return Some(Err(CharsError::Other(e))),
         };
-        let width = core_str::utf8_char_width(first_byte);
+        let width = ::core::str::utf8_char_width(first_byte);
         if width == 1 { return Some(Ok(first_byte as char)) }
         if width == 0 { return Some(Err(CharsError::NotUtf8)) }
         let mut buf = [first_byte, 0, 0, 0];

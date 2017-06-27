@@ -3,7 +3,10 @@ from types import SimpleNamespace
 from migen import *
 from migen.genlib.cdc import ElasticBuffer
 
-from artiq.gateware.drtio import link_layer, rt_packets, iot, rt_controller, aux_controller
+from artiq.gateware.drtio import (link_layer, aux_controller,
+                                  rt_packet_satellite, rt_ios_satellite,
+                                  rt_errors_satellite,
+                                  rt_packet_master, rt_controller_master) 
 
 
 class GenericRXSynchronizer(Module):
@@ -55,19 +58,22 @@ class DRTIOSatellite(Module):
             rx_rt_data=rx_synchronizer.resync(self.link_layer.rx_rt_data)
         )
         self.submodules.link_stats = link_layer.LinkLayerStats(link_layer_sync, "rtio")
-        self.submodules.rt_packets = ClockDomainsRenamer("rtio")(
-            rt_packets.RTPacketSatellite(link_layer_sync))
+        self.submodules.rt_packet = ClockDomainsRenamer("rtio")(
+            rt_packet_satellite.RTPacketSatellite(link_layer_sync))
 
-        self.submodules.iot = iot.IOT(
-            self.rt_packets, channels, fine_ts_width, full_ts_width)
+        self.submodules.ios = rt_ios_satellite.IOS(
+            self.rt_packet, channels, fine_ts_width, full_ts_width)
+
+        self.submodules.rt_errors = rt_errors_satellite.RTErrorsSatellite(
+            self.rt_packet, self.ios)
 
         self.clock_domains.cd_rio = ClockDomain()
         self.clock_domains.cd_rio_phy = ClockDomain()
         self.comb += [
             self.cd_rio.clk.eq(ClockSignal("rtio")),
-            self.cd_rio.rst.eq(self.rt_packets.reset),
+            self.cd_rio.rst.eq(self.rt_packet.reset),
             self.cd_rio_phy.clk.eq(ClockSignal("rtio")),
-            self.cd_rio_phy.rst.eq(self.rt_packets.reset_phy),
+            self.cd_rio_phy.rst.eq(self.rt_packet.reset_phy),
         ]
 
         self.submodules.aux_controller = aux_controller.AuxController(
@@ -75,7 +81,7 @@ class DRTIOSatellite(Module):
 
     def get_csrs(self):
         return (self.link_layer.get_csrs() + self.link_stats.get_csrs() +
-                self.aux_controller.get_csrs())
+                self.rt_errors.get_csrs() + self.aux_controller.get_csrs())
 
 
 class DRTIOMaster(Module):
@@ -85,10 +91,10 @@ class DRTIOMaster(Module):
         self.comb += self.link_layer.rx_ready.eq(transceiver.rx_ready)
 
         self.submodules.link_stats = link_layer.LinkLayerStats(self.link_layer, "rtio_rx")
-        self.submodules.rt_packets = rt_packets.RTPacketMaster(self.link_layer)
-        self.submodules.rt_controller = rt_controller.RTController(
-            self.rt_packets, channel_count, fine_ts_width)
-        self.submodules.rt_manager = rt_controller.RTManager(self.rt_packets)
+        self.submodules.rt_packet = rt_packet_master.RTPacketMaster(self.link_layer)
+        self.submodules.rt_controller = rt_controller_master.RTController(
+            self.rt_packet, channel_count, fine_ts_width)
+        self.submodules.rt_manager = rt_controller_master.RTManager(self.rt_packet)
         self.cri = self.rt_controller.cri
 
         self.submodules.aux_controller = aux_controller.AuxController(

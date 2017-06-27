@@ -1,14 +1,15 @@
 from artiq.language.core import syscall, kernel
 from artiq.language.types import TBool, TInt32, TNone
-
-
-class I2CError(Exception):
-    """Raised when a I2C transaction fails."""
-    pass
+from artiq.coredevice.exceptions import I2CError
 
 
 @syscall(flags={"nounwind", "nowrite"})
 def i2c_start(busno: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+
+@syscall(flags={"nounwind", "nowrite"})
+def i2c_restart(busno: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 
@@ -29,6 +30,9 @@ def i2c_read(busno: TInt32, ack: TBool) -> TInt32:
 
 class PCA9548:
     """Driver for the PCA9548 I2C bus switch.
+
+    I2C transactions not real-time, and are performed by the CPU without
+    involving RTIO.
 
     On the KC705, this chip is used for selecting the I2C buses on the two FMC
     connectors. HPC=1, LPC=2.
@@ -71,6 +75,9 @@ class PCA9548:
 
 class TCA6424A:
     """Driver for the TCA6424A I2C I/O expander.
+
+    I2C transactions not real-time, and are performed by the CPU without
+    involving RTIO.
 
     On the NIST QC2 hardware, this chip is used for switching the directions
     of TTL buffers."""

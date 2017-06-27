@@ -7,6 +7,10 @@ from misoc.interconnect import stream, wishbone
 from artiq.gateware.rtio import cri
 
 
+def _reverse_bytes(s, g):
+    return Cat(reversed(list(s[i*g:(i+1)*g] for i in range(len(s)//g))))
+
+
 class WishboneReader(Module):
     def __init__(self, bus=None):
         if bus is None:
@@ -14,7 +18,7 @@ class WishboneReader(Module):
         self.bus = bus
 
         aw = len(bus.adr)
-        dw = len(bus.dat_w)        
+        dw = len(bus.dat_w)
         self.sink = stream.Endpoint([("address", aw)])
         self.source = stream.Endpoint([("data", dw)])
 
@@ -92,7 +96,7 @@ class RawSlicer(Module):
         #          <data being shifted out>   <new incoming word>
         buf_size =       out_size - 1       +       in_size
         buf = Signal(buf_size*g)
-        self.comb += self.source.eq(buf[:out_size*8])
+        self.comb += self.source.eq(buf[:out_size*g])
 
         level = Signal(max=buf_size+1)
         next_level = Signal(max=buf_size+1)
@@ -104,9 +108,11 @@ class RawSlicer(Module):
 
         self.sync += [
             If(load_buf, Case(level,
-                {i: buf[i*g:(i+in_size)*g].eq(self.sink.data)
+                {i: buf[i*g:(i+in_size)*g].eq(_reverse_bytes(self.sink.data, g))
                  for i in range(out_size)})),
-            If(shift_buf, buf.eq(buf >> self.source_consume*g))
+            If(shift_buf, Case(self.source_consume,
+                {i: buf.eq(buf[i*g:])
+                 for i in range(out_size)})),
         ]
 
         fsm = FSM(reset_state="FETCH")
@@ -238,14 +244,9 @@ class TimeOffset(Module, AutoCSR):
 
 class CRIMaster(Module, AutoCSR):
     def __init__(self):
-        self.arb_req = CSRStorage()
-        self.arb_gnt = CSRStatus()
-
-        self.error_status = CSRStatus(5)  # same encoding as RTIO status
+        self.error_status = CSRStatus(3)  # same encoding as RTIO status
         self.error_underflow_reset = CSR()
         self.error_sequence_error_reset = CSR()
-        self.error_collision_reset = CSR()
-        self.error_busy_reset = CSR()
 
         self.error_channel = CSRStatus(24)
         self.error_timestamp = CSRStatus(64)
@@ -257,14 +258,8 @@ class CRIMaster(Module, AutoCSR):
 
         # # #
 
-        self.comb += [
-            self.cri.arb_req.eq(self.arb_req.storage),
-            self.arb_gnt.status.eq(self.cri.arb_gnt)
-        ]
-
-        error_set = Signal(4)
-        for i, rcsr in enumerate([self.error_underflow_reset, self.error_sequence_error_reset,
-                                  self.error_collision_reset, self.error_busy_reset]):
+        error_set = Signal(2)
+        for i, rcsr in enumerate([self.error_underflow_reset, self.error_sequence_error_reset]):
             # bit 0 is RTIO wait and always 0 here
             bit = i + 1
             self.sync += [
@@ -279,7 +274,7 @@ class CRIMaster(Module, AutoCSR):
 
         self.comb += [
             self.cri.chan_sel.eq(self.sink.channel),
-            self.cri.o_timestamp.eq(self.sink.timestamp),
+            self.cri.timestamp.eq(self.sink.timestamp),
             self.cri.o_address.eq(self.sink.address),
             self.cri.o_data.eq(self.sink.data)
         ]
@@ -314,16 +309,12 @@ class CRIMaster(Module, AutoCSR):
                 NextState("IDLE")
             ),
             If(self.cri.o_status[1], NextState("UNDERFLOW")),
-            If(self.cri.o_status[2], NextState("SEQUENCE_ERROR")),
-            If(self.cri.o_status[3], NextState("COLLISION")),
-            If(self.cri.o_status[4], NextState("BUSY"))
+            If(self.cri.o_status[2], NextState("SEQUENCE_ERROR"))
         )
-        for n, name in enumerate(["UNDERFLOW", "SEQUENCE_ERROR",
-                                  "COLLISION", "BUSY"]):
+        for n, name in enumerate(["UNDERFLOW", "SEQUENCE_ERROR"]):
             fsm.act(name,
                 self.busy.eq(1),
                 error_set.eq(1 << n),
-                self.cri.cmd.eq(cri.commands["o_" + name.lower() + "_reset"]),
                 self.sink.ack.eq(1),
                 NextState("IDLE")
             )

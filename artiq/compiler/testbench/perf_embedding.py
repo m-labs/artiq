@@ -8,6 +8,7 @@ from ..embedding import Stitcher
 from ..targets import OR1KTarget
 from . import benchmark
 
+
 def main():
     if not len(sys.argv) == 2:
         print("Expected exactly one module filename", file=sys.stderr)
@@ -26,7 +27,7 @@ def main():
         testcase_vars = {'__name__': 'testbench'}
         exec(testcase_code, testcase_vars)
 
-    device_db_path = os.path.join(os.path.dirname(sys.argv[1]), "device_db.pyon")
+    device_db_path = os.path.join(os.path.dirname(sys.argv[1]), "device_db.py")
     device_mgr = DeviceManager(DeviceDB(device_db_path))
 
     dataset_db_path = os.path.join(os.path.dirname(sys.argv[1]), "dataset_db.pyon")

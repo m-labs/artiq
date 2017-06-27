@@ -1,7 +1,7 @@
 from artiq.experiment import *
 
 
-class SAWGTest(EnvExperiment):
+class SAWGTestTwoTone(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.setattr_device("led")
@@ -15,7 +15,21 @@ class SAWGTest(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
+        delay(1*ms)
+
         self.ttl_sma.output()
+
+        self.sawg0.reset()
+        self.sawg1.reset()
+        self.sawg2.reset()
+        self.sawg3.reset()
+
+        self.sawg0.config.set_clr(1, 1, 1)
+        delay(10*us)
+        self.sawg0.config.set_out_max(1.)
+        delay(10*us)
+        self.sawg0.config.set_out_min(-1.)
+        delay(10*us)
 
         while True:
             t_up = t_hold = t_down = 800*ns

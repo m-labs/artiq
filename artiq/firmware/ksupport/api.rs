@@ -108,6 +108,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(dma_record_start = ::dma_record_start),
     api!(dma_record_stop = ::dma_record_stop),
     api!(dma_erase = ::dma_erase),
+    api!(dma_retrieve = ::dma_retrieve),
     api!(dma_playback = ::dma_playback),
 
     api!(drtio_get_channel_state = ::rtio::drtio_dbg::get_channel_state),
@@ -116,8 +117,14 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(drtio_get_packet_counts = ::rtio::drtio_dbg::get_packet_counts),
     api!(drtio_get_fifo_space_req_count = ::rtio::drtio_dbg::get_fifo_space_req_count),
 
-    api!(i2c_start = ::i2c_start),
-    api!(i2c_stop = ::i2c_stop),
-    api!(i2c_write = ::i2c_write),
-    api!(i2c_read = ::i2c_read),
+    api!(i2c_start = ::nrt_bus::i2c::start),
+    api!(i2c_restart = ::nrt_bus::i2c::restart),
+    api!(i2c_stop = ::nrt_bus::i2c::stop),
+    api!(i2c_write = ::nrt_bus::i2c::write),
+    api!(i2c_read = ::nrt_bus::i2c::read),
+
+    api!(spi_set_config = ::nrt_bus::spi::set_config),
+    api!(spi_set_xfer = ::nrt_bus::spi::set_xfer),
+    api!(spi_write = ::nrt_bus::spi::write),
+    api!(spi_read = ::nrt_bus::spi::read),
 ];

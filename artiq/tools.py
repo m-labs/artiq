@@ -6,6 +6,7 @@ import collections
 import os
 import atexit
 import string
+import random
 
 import numpy as np
 
@@ -253,3 +254,52 @@ def get_user_config_dir():
     dir = user_config_dir("artiq", "m-labs", major)
     os.makedirs(dir, exist_ok=True)
     return dir
+
+
+class SSHClient:
+    def __init__(self, host):
+        self.host = host
+        self.ssh = None
+        self.sftp = None
+
+        tmpname = "".join([random.Random().choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                           for _ in range(6)])
+        self.tmp = "/tmp/artiq" + tmpname
+
+    def get_ssh(self):
+        if self.ssh is None:
+            import paramiko
+            self.ssh = paramiko.SSHClient()
+            self.ssh.load_system_host_keys()
+            self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            self.ssh.connect(self.host)
+        return self.ssh
+
+    def get_transport(self):
+        return self.get_ssh().get_transport()
+
+    def get_sftp(self):
+        if self.sftp is None:
+            self.sftp = self.get_ssh().open_sftp()
+            self.sftp.mkdir(self.tmp)
+            atexit.register(lambda: self.run_command("rm -rf {tmp}"))
+        return self.sftp
+
+    def spawn_command(self, cmd, get_pty=False, **kws):
+        logger.info("Executing {}".format(cmd))
+        chan = self.get_ssh().get_transport().open_session()
+        if get_pty:
+            chan.get_pty()
+        chan.set_combine_stderr(True)
+        chan.exec_command(cmd.format(tmp=self.tmp, **kws))
+        return chan
+
+    def drain(self, chan):
+        while True:
+            char = chan.recv(1)
+            if char == b"":
+                break
+            sys.stderr.write(char.decode("utf-8", errors='replace'))
+
+    def run_command(self, cmd, **kws):
+        self.drain(self.spawn_command(cmd, **kws))

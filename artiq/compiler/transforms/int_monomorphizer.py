@@ -5,7 +5,7 @@ do not.
 """
 
 from pythonparser import algorithm, diagnostic
-from .. import types, builtins
+from .. import types, builtins, asttyped
 
 class IntMonomorphizer(algorithm.Visitor):
     def __init__(self, engine):
@@ -35,3 +35,13 @@ class IntMonomorphizer(algorithm.Visitor):
             typ = node.type.find()
             if types.is_var(typ["width"]):
                 typ["width"].unify(types.TValue(32))
+
+    def visit_CoerceT(self, node):
+        if isinstance(node.value, asttyped.NumT) and \
+                builtins.is_int(node.type) and \
+                builtins.is_int(node.value.type) and \
+                not types.is_var(node.type["width"]) and \
+                types.is_var(node.value.type["width"]):
+            node.value.type.unify(node.type)
+
+        self.generic_visit(node)

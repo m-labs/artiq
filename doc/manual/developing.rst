@@ -24,6 +24,8 @@ ARTIQ Anaconda development environment
 
            $ git clone --recursive https://github.com/m-labs/artiq ~/artiq-dev/artiq
            $ cd ~/artiq-dev/artiq
+
+       Add ``-b release-X`` to the ``git clone`` command if you are building a stable branch of ARTIQ (the default will fetch the development ``master`` branch).
     3. :ref:`Install Anaconda or Miniconda <install-anaconda>`
     4. Create and activate a conda environment named ``artiq-dev`` and install the ``artiq-dev`` package which pulls in all the packages required to develop ARTIQ::
 
@@ -32,7 +34,7 @@ ARTIQ Anaconda development environment
     5. Add the ARTIQ source tree to the environment's search path::
 
            $ python setup.py develop
-    6. :ref:`Install Xilinx ISE or Vivado <install-xilinx>`
+    6. :ref:`Install Vivado <install-xilinx>`
     7. :ref:`Obtain and install the JTAG SPI flash proxy bitstream <install-bscan-spi>`
     8. :ref:`Configure OpenOCD <setup-openocd>`
     9. :ref:`Build target binaries <build-target-binaries>`
@@ -61,6 +63,8 @@ and the ARTIQ kernels.
 
         $ cd ~/artiq-dev
         $ git clone --recursive https://github.com/m-labs/artiq
+
+    Add ``-b release-X`` to the ``git clone`` command if you are building a stable branch of ARTIQ (the default will fetch the development ``master`` branch).
 
 * Install OpenRISC binutils (or1k-linux-...): ::
 
@@ -96,13 +100,15 @@ and the ARTIQ kernels.
 * Install Rust: ::
 
         $ cd ~/artiq-dev
-        $ git clone -b artiq-1.16.0 https://github.com/m-labs/rust
+        $ git clone -b artiq-1.18.0 https://github.com/m-labs/rust
         $ cd rust
         $ git submodule update --init
         $ mkdir build
         $ cd build
         $ ../configure --prefix=/usr/local/rust-or1k --llvm-root=/usr/local/llvm-or1k --disable-manage-submodules
-        $ sudo make install -j4
+        $ sudo mkdir /usr/local/rust-or1k
+        $ sudo chown $USER.$USER /usr/local/rust-or1k
+        $ make install
 
         $ libs="libcore liballoc libstd_unicode libcollections liblibc_mini libunwind"
         $ rustc="/usr/local/rust-or1k/bin/rustc --target or1k-unknown-none -g -C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -L ."
@@ -125,13 +131,11 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
 .. _install-xilinx:
 
-* Install the FPGA vendor tools (i.e. Xilinx ISE and/or Vivado):
+* Install the FPGA vendor tools (i.e. Vivado):
 
-    * Get Xilinx tools from http://www.xilinx.com/support/download/index.htm. ISE can build gateware bitstreams both for boards using the Spartan-6 (Pipistrello) and 7-series devices (KC705), while Vivado supports only boards using 7-series devices.
+    * Get Vivado from http://www.xilinx.com/support/download/index.htm.
 
-    * The Pipistrello is supported by Webpack, the KC705 is not.
-
-    * During the Xilinx toolchain installation, uncheck ``Install cable drivers`` (they are not required as we use better and open source alternatives).
+    * During the Vivado installation, uncheck ``Install cable drivers`` (they are not required as we use better and open source alternatives).
 
 * Install Migen: ::
 
@@ -149,7 +153,7 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
     The purpose of the flash proxy gateware bitstream is to give programming software fast JTAG access to the flash connected to the FPGA.
 
-    * Pipistrello and KC705:
+    * KC705:
 
         ::
 
@@ -205,15 +209,11 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
 .. _build-target-binaries:
 
-    * For Pipistrello::
-
-        $ python3 -m artiq.gateware.targets.pipistrello
-
     * For KC705::
 
         $ python3 -m artiq.gateware.targets.kc705_dds -H nist_clock # or nist_qc2
 
-    .. note:: Add ``--toolchain ise`` if you wish to use ISE instead of Vivado.
+    .. note:: Add ``--toolchain ise`` if you wish to use ISE instead of Vivado. ISE needs a separate installation step.
 
 * Then, gather the binaries and flash them: ::
 
@@ -222,9 +222,7 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
         $ cp misoc_nist_qcX_<board>/software/bios/bios.bin binaries
         $ cp misoc_nist_qcX_<board>/software/runtime/runtime.fbi binaries
         $ cd binaries
-        $ artiq_flash -d . -t <board>
-
-.. note:: The `-t` option specifies the board your are targeting. Available options are ``kc705`` and ``pipistrello``.
+        $ artiq_flash -d .
 
 * Check that the board boots by running a serial terminal program (you may need to press its FPGA reconfiguration button or power-cycle it to load the gateware bitstream that was newly written into the flash): ::
 

@@ -18,9 +18,6 @@ fn write_sync(writer: &mut Write) -> io::Result<()> {
 
 #[derive(Debug)]
 pub enum Request {
-    Log,
-    LogClear,
-
     SystemInfo,
     SwitchClock(u8),
 
@@ -48,8 +45,6 @@ impl Request {
     pub fn read_from(reader: &mut Read) -> io::Result<Request> {
         read_sync(reader)?;
         Ok(match reader.read_u8()? {
-            1  => Request::Log,
-            2  => Request::LogClear,
             3  => Request::SystemInfo,
             4  => Request::SwitchClock(reader.read_u8()?),
             5  => Request::LoadKernel(reader.read_bytes()?),
@@ -86,8 +81,6 @@ impl Request {
 
 #[derive(Debug)]
 pub enum Reply<'a> {
-    Log(&'a str),
-
     SystemInfo {
         ident: &'a str,
         finished_cleanly: bool
@@ -125,11 +118,6 @@ impl<'a> Reply<'a> {
     pub fn write_to(&self, writer: &mut Write) -> io::Result<()> {
         write_sync(writer)?;
         match *self {
-            Reply::Log(ref log) => {
-                writer.write_u8(1)?;
-                writer.write_string(log)?;
-            },
-
             Reply::SystemInfo { ident, finished_cleanly } => {
                 writer.write_u8(2)?;
                 writer.write(b"AROR")?;

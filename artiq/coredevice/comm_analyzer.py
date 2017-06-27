@@ -23,12 +23,15 @@ class ExceptionType(Enum):
     legacy_reset_falling = 0b000001
     legacy_reset_phy = 0b000010
     legacy_reset_phy_falling = 0b000011
+    legacy_o_underflow_reset = 0b010000
+    legacy_o_sequence_error_reset = 0b010001
+    legacy_o_collision_reset = 0b010010
+    legacy_i_overflow_reset = 0b100000
 
-    o_underflow_reset = 0b010000
-    o_sequence_error_reset = 0b010001
-    o_collision_reset = 0b010010
+    o_underflow = 0b010100
+    o_sequence_error = 0b010101
 
-    i_overflow_reset = 0b100000
+    i_overflow = 0b100001
 
 
 def get_analyzer_dump(host, port=1382):

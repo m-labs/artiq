@@ -61,7 +61,7 @@ class ControllerCase(unittest.TestCase):
             "host": "::1",
             "port": 3253,
             "command": (sys.executable.replace("\\", "\\\\")
-                        + " -m artiq.frontend.lda_controller "
+                        + " -m artiq.frontend.aqctl_lda "
                         + "-p {port} --simulation")
         }
         async def test():

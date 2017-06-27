@@ -78,13 +78,20 @@ class ParallelFIR(Module):
         c_shift = bits_for(floor((1 << w.B - 2) / c_max))
         self.coefficients = cs = [int(round(c*(1 << c_shift)))
                                   for c in coefficients]
+        assert max(bits_for(c) for c in cs) <= w.B
 
         ###
 
         # Delay line: increasing delay
         x = [Signal((w.A, True)) for _ in range(n + p - 1)]
-        x_shift = w.A - width - bits_for(
-            max(cs.count(c) for c in cs if c) - 1)
+        x_shift = w.A - width
+        # reduce by pre-adder gain
+        x_shift -= bits_for(max(cs.count(c) for c in cs if c) - 1)
+        # TODO: reduce by P width limit?
+        assert x_shift + width <= w.A
+
+        assert sum(abs(c)*(1 << w.A - 1) for c in cs) <= (1 << w.P - 1) - 1
+
         for xi, xj in zip(x, self.i[::-1]):
             self.sync += xi.eq(xj << x_shift)
         for xi, xj in zip(x[len(self.i):], x):

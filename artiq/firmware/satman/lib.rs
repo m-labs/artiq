@@ -1,13 +1,13 @@
-#![feature(compiler_builtins_lib)]
+#![feature(compiler_builtins_lib, lang_items)]
 #![no_std]
 
 extern crate compiler_builtins;
 extern crate alloc_artiq;
-#[macro_use]
 extern crate std_artiq as std;
 #[macro_use]
 extern crate log;
 extern crate logger_artiq;
+#[macro_use]
 extern crate board;
 extern crate drtioaux;
 
@@ -16,6 +16,27 @@ fn process_aux_packet(p: &drtioaux::Packet) {
     // and u16 otherwise; hence the `as _` conversion.
     match *p {
         drtioaux::Packet::EchoRequest => drtioaux::hw::send(&drtioaux::Packet::EchoReply).unwrap(),
+
+        drtioaux::Packet::RtioErrorRequest => {
+            let errors;
+            unsafe {
+                errors = board::csr::drtio::rtio_error_read();
+            }
+            if errors & 1 != 0 {
+                unsafe {
+                    board::csr::drtio::rtio_error_write(1);
+                }
+                drtioaux::hw::send(&drtioaux::Packet::RtioErrorCollisionReply).unwrap();
+            } else if errors & 2 != 0 {
+                unsafe {
+                    board::csr::drtio::rtio_error_write(2);
+                }
+                drtioaux::hw::send(&drtioaux::Packet::RtioErrorBusyReply).unwrap();
+            } else {
+                drtioaux::hw::send(&drtioaux::Packet::RtioNoErrorReply).unwrap();
+            }
+        }
+
         drtioaux::Packet::MonitorRequest { channel, probe } => {
             let value;
             #[cfg(has_rtio_moninj)]
@@ -55,6 +76,51 @@ fn process_aux_packet(p: &drtioaux::Packet) {
             let reply = drtioaux::Packet::InjectionStatusReply { value: value };
             drtioaux::hw::send(&reply).unwrap();
         },
+
+        drtioaux::Packet::I2cStartRequest { busno } => {
+            let succeeded = board::i2c::start(busno).is_ok();
+            drtioaux::hw::send(&drtioaux::Packet::I2cBasicReply { succeeded: succeeded }).unwrap();
+        }
+        drtioaux::Packet::I2cRestartRequest { busno } => {
+            let succeeded = board::i2c::restart(busno).is_ok();
+            drtioaux::hw::send(&drtioaux::Packet::I2cBasicReply { succeeded: succeeded }).unwrap();
+        }
+        drtioaux::Packet::I2cStopRequest { busno } => {
+            let succeeded = board::i2c::stop(busno).is_ok();
+            drtioaux::hw::send(&drtioaux::Packet::I2cBasicReply { succeeded: succeeded }).unwrap();
+        }
+        drtioaux::Packet::I2cWriteRequest { busno, data } => {
+            match board::i2c::write(busno, data) {
+                Ok(ack) => drtioaux::hw::send(&drtioaux::Packet::I2cWriteReply { succeeded: true, ack: ack }).unwrap(),
+                Err(_) => drtioaux::hw::send(&drtioaux::Packet::I2cWriteReply { succeeded: false, ack: false }).unwrap()
+            };
+        }
+        drtioaux::Packet::I2cReadRequest { busno, ack } => {
+            match board::i2c::read(busno, ack) {
+                Ok(data) => drtioaux::hw::send(&drtioaux::Packet::I2cReadReply { succeeded: true, data: data }).unwrap(),
+                Err(_) => drtioaux::hw::send(&drtioaux::Packet::I2cReadReply { succeeded: false, data: 0xff }).unwrap()
+            };
+        }
+
+        drtioaux::Packet::SpiSetConfigRequest { busno, flags, write_div, read_div } => {
+            let succeeded = board::spi::set_config(busno, flags, write_div, read_div).is_ok();
+            drtioaux::hw::send(&drtioaux::Packet::SpiBasicReply { succeeded: succeeded }).unwrap();
+        },
+        drtioaux::Packet::SpiSetXferRequest { busno, chip_select, write_length, read_length } => {
+            let succeeded = board::spi::set_xfer(busno, chip_select, write_length, read_length).is_ok();
+            drtioaux::hw::send(&drtioaux::Packet::SpiBasicReply { succeeded: succeeded }).unwrap();
+        }
+        drtioaux::Packet::SpiWriteRequest { busno, data } => {
+            let succeeded = board::spi::write(busno, data).is_ok();
+            drtioaux::hw::send(&drtioaux::Packet::SpiBasicReply { succeeded: succeeded }).unwrap();
+        }
+        drtioaux::Packet::SpiReadRequest { busno } => {
+            match board::spi::read(busno) {
+                Ok(data) => drtioaux::hw::send(&drtioaux::Packet::SpiReadReply { succeeded: true, data: data }).unwrap(),
+                Err(_) => drtioaux::hw::send(&drtioaux::Packet::SpiReadReply { succeeded: false, data: 0 }).unwrap()
+            };
+        }
+
         _ => warn!("received unexpected aux packet {:?}", p)
     }
 }
@@ -65,6 +131,30 @@ fn process_aux_packets() {
         Ok(None) => (),
         Ok(Some(p)) => process_aux_packet(&p),
         Err(e) => warn!("aux packet error ({})", e)
+    }
+}
+
+
+fn process_errors() {
+    let errors;
+    unsafe {
+        errors = board::csr::drtio::protocol_error_read();
+        board::csr::drtio::protocol_error_write(errors);
+    }
+    if errors & 1 != 0 {
+        error!("received packet of an unknown type");
+    }
+    if errors & 2 != 0 {
+        error!("received truncated packet");
+    }
+    if errors & 4 != 0 {
+        error!("write underflow");
+    }
+    if errors & 8 != 0 {
+        error!("write overflow");
+    }
+    if errors & 16 != 0 {
+        error!("write sequence error");
     }
 }
 
@@ -111,10 +201,13 @@ fn startup() {
     board::si5324::setup(&SI5324_SETTINGS).expect("cannot initialize si5324");
 
     loop {
-        while !drtio_link_is_up() {}
+        while !drtio_link_is_up() {
+            process_errors();
+        }
         info!("link is up, switching to recovered clock");
         board::si5324::select_ext_input(true).expect("failed to switch clocks");
         while drtio_link_is_up() {
+            process_errors();
             process_aux_packets();
         }
         info!("link is down, switching to local crystal clock");
@@ -146,6 +239,13 @@ pub extern fn exception_handler(vect: u32, _regs: *const u32, pc: u32, ea: u32) 
 #[no_mangle]
 pub extern fn abort() {
     panic!("aborted")
+}
+
+#[no_mangle]
+#[lang = "panic_fmt"]
+pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
+    println!("panic at {}:{}: {}", file, line, args);
+    loop {}
 }
 
 // Allow linking with crates that are built as -Cpanic=unwind even if we use -Cpanic=abort.

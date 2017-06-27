@@ -331,8 +331,13 @@ class ASTTypedRewriter(algorithm.Transformer):
                              n=node.n, loc=node.loc)
 
     def visit_Str(self, node):
-        return asttyped.StrT(type=builtins.TStr(),
-                             s=node.s,
+        if isinstance(node.s, str):
+            typ = builtins.TStr()
+        elif isinstance(node.s, bytes):
+            typ = builtins.TBytes()
+        else:
+            assert False
+        return asttyped.StrT(type=typ, s=node.s,
                              begin_loc=node.begin_loc, end_loc=node.end_loc, loc=node.loc)
 
     def visit_Name(self, node):

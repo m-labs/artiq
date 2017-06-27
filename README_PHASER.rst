@@ -13,7 +13,7 @@ Ultimately it will be the basis for the ARTIQ Sayma Smart Arbitrary Waveform Gen
 * Full configurability of the AD9154 and AD9516 through SPI with ARTIQ kernel support
 * All SPI registers and register bits exposed as human readable names
 * Parametrized JESD204B core (also capable of operation with eight lanes)
-* The code can be reconfigured. Possible example configurations are: support 2 channels at 1 GHz datarate, support 4 channels at 300 MHz data rate, no interpolation, and using mix mode to stress the second and third Nyquist zones (150-300 MHz and 300-450 MHz).
+* The code can be reconfigured. Possible example configurations are: support 2 channels at 1 GHz datarate, support 4 channels at 300 MHz data rate, no interpolation, and using mix mode to stress the second and third Nyquist zones (150-300 MHz and 300-450 MHz). Please contact M-Labs if you need help with this.
 
 The hardware required is a KC705 with an AD9154-FMC-EBZ plugged into the HPC connector and a low-noise sample rate reference clock.
 
@@ -72,6 +72,8 @@ Setup
 
     python -m artiq.gateware.targets.phaser
 
+* From time to time and on request there may be pre-built binaries in the
+  ``artiq-kc705-phaser`` package on the M-Labs conda package label.
 * Generate an ARTIQ configuration flash image with MAC and IP address (see the
   documentation for ``artiq_mkfs``). Name it ``phaser_config.bin``.
 * Run the following OpenOCD command to flash the ARTIQ phaser design: ::
@@ -89,12 +91,14 @@ Setup
 * Refer to the ARTIQ documentation to configure an IP address and other settings for the transmitter device.
   If the board was running stock ARTIQ before, the settings will be kept.
 * A 300 MHz clock of roughly 10 dBm (0.2 to 3.4 V peak-to-peak into 50 Ohm) must be connected to the AD9154-FMC-EBZ J1. The input is 50 Ohm terminated. The RTIO clock, DAC deviceclock, FPGA deviceclock, and SYSREF are derived from this signal.
+* The RTIO coarse clock (the rate of the RTIO timestamp counter) is 150
+  MHz. The RTIO ``ref_period`` is 1/150 MHz = 5ns/6. The RTIO ``ref_multiplier`` is ``1``. C.f. ``device_db.py`` for both variables. The JED204B DAC data rate and DAC device clock are both 300 MHz. The JESD204B line rate is 6 GHz.
 * Configure an oscilloscope to trigger at 0.5 V on rising edge of ttl_sma (user_gpio_n on the KC705 board). Monitor DAC0 (J17) on the oscilloscope set for 100 mV/div and 200 ns/div.
 * An example device database, several status and test scripts are provided in ``artiq/examples/phaser/``. ::
 
     cd artiq/examples/phaser
 
-* Edit ``device_db.pyon`` to match the hostname or IP address of the core device.
+* Edit ``device_db.py`` to match the hostname or IP address of the core device.
 * Use ``ping`` and ``flterm`` to verify that the core device starts up and boots correctly.
 
 Usage

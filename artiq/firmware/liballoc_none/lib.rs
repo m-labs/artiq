@@ -8,6 +8,11 @@ pub extern "C" fn __rust_allocate(_size: usize, _align: usize) -> *mut u8 {
 }
 
 #[no_mangle]
+pub extern fn __rust_allocate_zeroed(_size: usize, _align: usize) -> *mut u8 {
+    unimplemented!()
+}
+
+#[no_mangle]
 pub extern "C" fn __rust_deallocate(_ptr: *mut u8, _old_size: usize, _align: usize) {
     unimplemented!()
 }

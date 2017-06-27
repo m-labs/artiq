@@ -6,7 +6,6 @@ pub const KERNELCPU_PAYLOAD_ADDRESS: usize = 0x40840000;
 pub const KERNELCPU_LAST_ADDRESS:    usize = 0x4fffffff;
 pub const KSUPPORT_HEADER_SIZE:      usize = 0x80;
 
-#[repr(C)]
 #[derive(Debug, Clone)]
 pub struct Exception<'a> {
     pub name:     &'a str,
@@ -29,19 +28,23 @@ pub enum Message<'a> {
 
     RtioInitRequest,
 
-    DmaRecordStart,
-    DmaRecordAppend {
-        timestamp: u64,
-        channel:   u32,
-        address:   u32,
-        data:      &'a [u32]
+    DmaRecordStart(&'a str),
+    DmaRecordAppend(&'a [u8]),
+    DmaRecordStop {
+        duration:  u64
     },
-    DmaRecordStop(&'a str),
 
-    DmaEraseRequest(&'a str),
+    DmaEraseRequest {
+        name: &'a str
+    },
 
-    DmaPlaybackRequest(&'a str),
-    DmaPlaybackReply(Option<&'a [u8]>),
+    DmaRetrieveRequest {
+        name: &'a str
+    },
+    DmaRetrieveReply {
+        trace:    Option<&'a [u8]>,
+        duration: u64
+    },
 
     DrtioChannelStateRequest { channel: u32 },
     DrtioChannelStateReply { fifo_space: u16, last_timestamp: u64 },
@@ -77,12 +80,21 @@ pub enum Message<'a> {
     CachePutRequest { key: &'a str, value: &'a [i32] },
     CachePutReply   { succeeded: bool },
 
-    I2cStartRequest { busno: u8 },
-    I2cStopRequest { busno: u8 },
-    I2cWriteRequest { busno: u8, data: u8 },
-    I2cWriteReply { ack: bool },
-    I2cReadRequest { busno: u8, ack: bool },
-    I2cReadReply { data: u8 },
+    I2cStartRequest { busno: u32 },
+    I2cRestartRequest { busno: u32 },
+    I2cStopRequest { busno: u32 },
+    I2cWriteRequest { busno: u32, data: u8 },
+    I2cWriteReply { succeeded: bool, ack: bool },
+    I2cReadRequest { busno: u32, ack: bool },
+    I2cReadReply { succeeded: bool, data: u8 },
+    I2cBasicReply { succeeded: bool },
+
+    SpiSetConfigRequest { busno: u32, flags: u8, write_div: u8, read_div: u8 },
+    SpiSetXferRequest { busno: u32, chip_select: u16, write_length: u8, read_length: u8 },
+    SpiWriteRequest { busno: u32, data: u32 },
+    SpiReadRequest { busno: u32 },
+    SpiReadReply { succeeded: bool, data: u32 },
+    SpiBasicReply { succeeded: bool },
 
     Log(fmt::Arguments<'a>),
     LogSlice(&'a str)

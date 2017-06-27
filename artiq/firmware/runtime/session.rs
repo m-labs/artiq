@@ -4,7 +4,6 @@ use std::cell::{Cell, RefCell};
 use std::io::{self, Read, Write};
 use std::error::Error;
 use {config, rtio_mgt, mailbox, rpc_queue, kernel};
-use logger_artiq::BufferLogger;
 use cache::Cache;
 use rtio_dma::Manager as DmaManager;
 use urc::Urc;
@@ -16,6 +15,7 @@ use board;
 use rpc_proto as rpc;
 use session_proto as host;
 use kernel_proto as kern;
+use kern_hwreq;
 
 macro_rules! unexpected {
     ($($arg:tt)*) => {
@@ -115,21 +115,28 @@ fn check_magic(stream: &mut TcpStream) -> io::Result<()> {
 fn host_read(stream: &mut TcpStream) -> io::Result<host::Request> {
     let request = host::Request::read_from(stream)?;
     match &request {
-        &host::Request::LoadKernel(_) => trace!("comm<-host LoadLibrary(...)"),
-        _ => trace!("comm<-host {:?}", request)
+        &host::Request::LoadKernel(_) => debug!("comm<-host LoadLibrary(...)"),
+        _ => debug!("comm<-host {:?}", request)
     }
     Ok(request)
 }
 
 fn host_write(stream: &mut Write, reply: host::Reply) -> io::Result<()> {
-    trace!("comm->host {:?}", reply);
+    debug!("comm->host {:?}", reply);
     reply.write_to(stream)
 }
 
-fn kern_send(io: &Io, request: &kern::Message) -> io::Result<()> {
+pub fn kern_send(io: &Io, request: &kern::Message) -> io::Result<()> {
     match request {
-        &kern::LoadRequest(_) => trace!("comm->kern LoadRequest(...)"),
-        _ => trace!("comm->kern {:?}", request)
+        &kern::LoadRequest(_) => debug!("comm->kern LoadRequest(...)"),
+        &kern::DmaRetrieveReply { trace, duration } => {
+            if trace.map(|data| data.len() > 100).unwrap_or(false) {
+                debug!("comm->kern DmaRetrieveReply {{ trace: ..., duration: {:?} }}", duration)
+            } else {
+                debug!("comm->kern {:?}", request)
+            }
+        }
+        _ => debug!("comm->kern {:?}", request)
     }
     unsafe { mailbox::send(request as *const _ as usize) }
     io.until(mailbox::acknowledged)
@@ -148,9 +155,16 @@ fn kern_recv_notrace<R, F>(io: &Io, f: F) -> io::Result<R>
 
 fn kern_recv_dotrace(reply: &kern::Message) {
     match reply {
-        &kern::Log(_) => trace!("comm<-kern Log(...)"),
-        &kern::LogSlice(_) => trace!("comm<-kern LogSlice(...)"),
-        _ => trace!("comm<-kern {:?}", reply)
+        &kern::Log(_) => debug!("comm<-kern Log(...)"),
+        &kern::LogSlice(_) => debug!("comm<-kern LogSlice(...)"),
+        &kern::DmaRecordAppend(data) => {
+            if data.len() > 100 {
+                debug!("comm<-kern DmaRecordAppend([_; {:#x}])", data.len())
+            } else {
+                debug!("comm<-kern {:?}", reply)
+            }
+        }
+        _ => debug!("comm<-kern {:?}", reply)
     }
 }
 
@@ -163,7 +177,7 @@ fn kern_recv<R, F>(io: &Io, f: F) -> io::Result<R>
     })
 }
 
-fn kern_acknowledge() -> io::Result<()> {
+pub fn kern_acknowledge() -> io::Result<()> {
     mailbox::acknowledge();
     Ok(())
 }
@@ -214,22 +228,6 @@ fn process_host_message(io: &Io,
             })?;
             session.congress.finished_cleanly.set(true);
             Ok(())
-        }
-
-        // artiq_corelog
-        host::Request::Log => {
-            // Logging the packet with the log is inadvisable
-            trace!("comm->host Log(...)");
-            BufferLogger::with_instance(|logger| {
-                logger.extract(|log| {
-                    host::Reply::Log(log).write_to(stream)
-                })
-            })
-        }
-
-        host::Request::LogClear => {
-            BufferLogger::with_instance(|logger| logger.clear());
-            host_write(stream, host::Reply::Log(""))
         }
 
         // artiq_coreconfig
@@ -367,6 +365,9 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
         }
 
         kern_recv_dotrace(request);
+        if kern_hwreq::process_kern_hwreq(io, request)? {
+            return Ok(false)
+        }
         match request {
             &kern::Log(args) => {
                 use std::fmt::Write;
@@ -390,54 +391,30 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
                 kern_acknowledge()
             }
 
-            &kern::RtioInitRequest => {
-                info!("resetting RTIO");
-                rtio_mgt::init_core();
+            &kern::DmaRecordStart(name) => {
+                session.congress.dma_manager.record_start(name);
                 kern_acknowledge()
             }
-
-            &kern::DmaRecordStart => {
-                session.congress.dma_manager.record_start();
+            &kern::DmaRecordAppend(data) => {
+                session.congress.dma_manager.record_append(data);
                 kern_acknowledge()
             }
-            &kern::DmaRecordAppend { timestamp, channel, address, data } => {
-                session.congress.dma_manager.record_append(timestamp, channel, address, data);
+            &kern::DmaRecordStop { duration } => {
+                session.congress.dma_manager.record_stop(duration);
+                board::cache::flush_l2_cache();
                 kern_acknowledge()
             }
-            &kern::DmaRecordStop(name) => {
-                session.congress.dma_manager.record_stop(name);
-                kern_acknowledge()
-            }
-            &kern::DmaEraseRequest(name) => {
+            &kern::DmaEraseRequest { name } => {
                 session.congress.dma_manager.erase(name);
                 kern_acknowledge()
             }
-            &kern::DmaPlaybackRequest(name) => {
-                session.congress.dma_manager.with_trace(name, |trace| {
-                    kern_send(io, &kern::DmaPlaybackReply(trace))
+            &kern::DmaRetrieveRequest { name } => {
+                session.congress.dma_manager.with_trace(name, |trace, duration| {
+                    kern_send(io, &kern::DmaRetrieveReply {
+                        trace:    trace,
+                        duration: duration
+                    })
                 })
-            }
-
-            &kern::DrtioChannelStateRequest { channel } => {
-                let (fifo_space, last_timestamp) = rtio_mgt::drtio_dbg::get_channel_state(channel);
-                kern_send(io, &kern::DrtioChannelStateReply { fifo_space: fifo_space,
-                                                                  last_timestamp: last_timestamp })
-            }
-            &kern::DrtioResetChannelStateRequest { channel } => {
-                rtio_mgt::drtio_dbg::reset_channel_state(channel);
-                kern_acknowledge()
-            }
-            &kern::DrtioGetFifoSpaceRequest { channel } => {
-                rtio_mgt::drtio_dbg::get_fifo_space(channel);
-                kern_acknowledge()
-            }
-            &kern::DrtioPacketCountRequest => {
-                let (tx_cnt, rx_cnt) = rtio_mgt::drtio_dbg::get_packet_counts();
-                kern_send(io, &kern::DrtioPacketCountReply { tx_cnt: tx_cnt, rx_cnt: rx_cnt })
-            }
-            &kern::DrtioFifoSpaceReqCountRequest => {
-                let cnt = rtio_mgt::drtio_dbg::get_fifo_space_req_count();
-                kern_send(io, &kern::DrtioFifoSpaceReqCountReply { cnt: cnt })
             }
 
             &kern::WatchdogSetRequest { ms } => {
@@ -475,44 +452,6 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
             &kern::CachePutRequest { key, value } => {
                 let succeeded = session.congress.cache.put(key, value).is_ok();
                 kern_send(io, &kern::CachePutReply { succeeded: succeeded })
-            }
-
-            #[cfg(has_i2c)]
-            &kern::I2cStartRequest { busno } => {
-                board::i2c::start(busno);
-                kern_acknowledge()
-            }
-            #[cfg(has_i2c)]
-            &kern::I2cStopRequest { busno } => {
-                board::i2c::stop(busno);
-                kern_acknowledge()
-            }
-            #[cfg(has_i2c)]
-            &kern::I2cWriteRequest { busno, data } => {
-                let ack = board::i2c::write(busno, data);
-                kern_send(io, &kern::I2cWriteReply { ack: ack })
-            }
-            #[cfg(has_i2c)]
-            &kern::I2cReadRequest { busno, ack } => {
-                let data = board::i2c::read(busno, ack);
-                kern_send(io, &kern::I2cReadReply { data: data })
-            }
-
-            #[cfg(not(has_i2c))]
-            &kern::I2cStartRequest { .. } => {
-                kern_acknowledge()
-            }
-            #[cfg(not(has_i2c))]
-            &kern::I2cStopRequest { .. } => {
-                kern_acknowledge()
-            }
-            #[cfg(not(has_i2c))]
-            &kern::I2cWriteRequest { .. } => {
-                kern_send(io, &kern::I2cWriteReply { ack: false })
-            }
-            #[cfg(not(has_i2c))]
-            &kern::I2cReadRequest { .. } => {
-                kern_send(io, &kern::I2cReadReply { data: 0xff })
             }
 
             &kern::RunFinished => {
@@ -565,10 +504,10 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
 fn process_kern_queued_rpc(stream: &mut TcpStream,
                            _session: &mut Session) -> io::Result<()> {
     rpc_queue::dequeue(|slice| {
-        trace!("comm<-kern (async RPC)");
+        debug!("comm<-kern (async RPC)");
         let length = NetworkEndian::read_u32(slice) as usize;
         host_write(stream, host::Reply::RpcRequest { async: true })?;
-        trace!("{:?}" ,&slice[4..][..length]);
+        debug!("{:?}", &slice[4..][..length]);
         stream.write(&slice[4..][..length])?;
         Ok(())
     })
@@ -617,7 +556,11 @@ fn flash_kernel_worker(io: &Io,
 
     config::read(config_key, |result| {
         match result {
-            Ok(kernel) if kernel.len() > 0 => unsafe { kern_load(io, &mut session, &kernel) },
+            Ok(kernel) if kernel.len() > 0 => unsafe {
+                // kernel CPU cannot access the SPI flash address space directly,
+                // so make a copy.
+                kern_load(io, &mut session, Vec::from(kernel).as_ref())
+            },
             _ => Err(io::Error::new(io::ErrorKind::NotFound, "kernel not found")),
         }
     })?;
@@ -666,8 +609,6 @@ pub fn thread(io: Io) {
     listener.listen(1381).expect("session: cannot listen");
     info!("accepting network sessions");
 
-    BufferLogger::with_instance(|logger| logger.disable_trace_to_uart());
-
     let congress = Urc::new(RefCell::new(Congress::new()));
 
     let mut kernel_thread = None;
@@ -713,6 +654,8 @@ pub fn thread(io: Io) {
                     Err(err) => {
                         if err.kind() == io::ErrorKind::UnexpectedEof {
                             info!("connection closed");
+                        } else if err.kind() == io::ErrorKind::Interrupted {
+                            info!("kernel interrupted");
                         } else {
                             congress.finished_cleanly.set(false);
                             error!("session aborted: {}", err);

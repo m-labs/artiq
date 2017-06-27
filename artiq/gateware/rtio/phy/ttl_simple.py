@@ -64,7 +64,7 @@ class Input(Module):
         self.probes += [i]
 
 
-class Inout(Module):
+class InOut(Module):
     def __init__(self, pad):
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(2, 2),

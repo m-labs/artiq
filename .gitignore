@@ -6,6 +6,7 @@ __pycache__/
 *.bin
 *.elf
 *.fbi
+*.pcap
 .ipynb_checkpoints
 /doc/manual/_build
 /build
@@ -18,18 +19,14 @@ __pycache__/
 /misoc_*/
 
 /artiq/test/results
-/artiq/examples/master/results
-/artiq/examples/master/last_rid.pyon
-/artiq/examples/master/dataset_db.pyon
-/artiq/examples/sim/results
-/artiq/examples/sim/dataset_db.pyon
+/artiq/examples/*/results
+/artiq/examples/*/last_rid.pyon
+/artiq/examples/*/dataset_db.pyon
 
-# recommended location for testbed
-/run
-# alternatively, when testing ad-hoc experiments at the root:
+# when testing ad-hoc experiments at the root:
 /repository/
 /results
 /last_rid.pyon
 /dataset_db.pyon
-/device_db*.pyon
-/test*.py
+/device_db*.py
+/test*

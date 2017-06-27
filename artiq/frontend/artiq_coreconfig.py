@@ -13,7 +13,7 @@ def get_argparser():
                                                  "configuration tool")
 
     verbosity_args(parser)
-    parser.add_argument("--device-db", default="device_db.pyon",
+    parser.add_argument("--device-db", default="device_db.py",
                        help="device database file (default: '%(default)s')")
 
     subparsers = parser.add_subparsers(dest="action")
@@ -52,7 +52,7 @@ def main():
     init_logger(args)
     device_mgr = DeviceManager(DeviceDB(args.device_db))
     try:
-        comm = device_mgr.get("comm")
+        comm = device_mgr.get("core").comm
         comm.check_system_info()
 
         if args.action == "read":

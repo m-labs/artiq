@@ -5,7 +5,6 @@ import argparse
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.cdc import MultiReg
-from migen.genlib.io import DifferentialInput
 
 from jesd204b.common import (JESD204BTransportSettings,
                              JESD204BPhysicalSettings,
@@ -78,7 +77,6 @@ class _PhaserCRG(Module, AutoCSR):
 class AD9154JESD(Module, AutoCSR):
     def __init__(self, platform):
         self.jreset = CSRStorage(reset=1)
-        self.jsync = CSRStatus()
 
         ps = JESD204BPhysicalSettings(l=4, m=4, n=16, np=16)
         ts = JESD204BTransportSettings(f=2, s=1, k=16, cs=1)
@@ -106,28 +104,22 @@ class AD9154JESD(Module, AutoCSR):
         for i in range(4):
             phy = JESD204BPhyTX(
                 qpll, platform.request("ad9154_jesd", i), fabric_freq)
-            phy.gtx.cd_tx.clk.attr.add("keep")
-            platform.add_period_constraint(phy.gtx.cd_tx.clk, 40*1e9/linerate)
+            phy.transmitter.cd_tx.clk.attr.add("keep")
+            platform.add_period_constraint(phy.transmitter.cd_tx.clk,
+                    40*1e9/linerate)
             platform.add_false_path_constraints(self.cd_jesd.clk,
-                                                phy.gtx.cd_tx.clk)
+                                                phy.transmitter.cd_tx.clk)
             self.phys.append(phy)
         to_jesd = ClockDomainsRenamer("jesd")
         self.submodules.core = to_jesd(JESD204BCoreTX(self.phys, settings,
                                                       converter_data_width=32))
         self.submodules.control = to_jesd(JESD204BCoreTXControl(self.core))
-
-        sync_pads = platform.request("ad9154_sync")
-        jsync = Signal()
-        self.specials += [
-            DifferentialInput(sync_pads.p, sync_pads.n, jsync),
-            MultiReg(jsync, self.jsync.status)
-        ]
+        self.core.register_jsync(platform.request("ad9154_sync"))
 
         self.comb += [
             platform.request("ad9154_txen", 0).eq(1),
             platform.request("ad9154_txen", 1).eq(1),
-            self.core.start.eq(jsync),
-            platform.request("user_led", 3).eq(jsync),
+            platform.request("user_led", 3).eq(self.core.jsync),
         ]
 
         # blinking leds for transceiver reset status
@@ -150,14 +142,20 @@ class AD9154(Module, AutoCSR):
         self.sawgs = [sawg.Channel(width=16, parallelism=2) for i in range(4)]
         self.submodules += self.sawgs
 
+        # self.sawgs[0].connect_y(self.sawgs[1])
+        # self.sawgs[1].connect_y(self.sawgs[0])
+        # self.sawgs[2].connect_y(self.sawgs[3])
+        # self.sawgs[3].connect_y(self.sawgs[2])
+
         for conv, ch in zip(self.jesd.core.sink.flatten(), self.sawgs):
             self.sync.jesd += conv.eq(Cat(ch.o))
 
 
 class Phaser(MiniSoC, AMPSoC):
     mem_map = {
+        "cri_con":       0x10000000,
         "rtio":          0x20000000,
-        # "rtio_dma":      0x30000000,
+        "rtio_dma":      0x30000000,
         "mailbox":       0x70000000,
         "ad9154":        0x50000000,
     }
@@ -203,7 +201,7 @@ class Phaser(MiniSoC, AMPSoC):
 
         rtio_channels = []
 
-        phy = ttl_serdes_7series.Inout_8X(
+        phy = ttl_serdes_7series.InOut_8X(
             platform.request("user_sma_gpio_n"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=128))
@@ -233,16 +231,18 @@ class Phaser(MiniSoC, AMPSoC):
         self.submodules.rtio_core = rtio.Core(rtio_channels)
         self.csr_devices.append("rtio_core")
         self.submodules.rtio = rtio.KernelInitiator()
-        # self.submodules.rtio_dma = rtio.DMA(self.get_native_sdram_if())
+        self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
+            rtio.DMA(self.get_native_sdram_if()))
         self.register_kernel_cpu_csrdevice("rtio")
-        # self.register_kernel_cpu_csrdevice("rtio_dma")
+        self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
-            [self.rtio.cri],  # , self.rtio_dma.cri],
+            [self.rtio.cri, self.rtio_dma.cri],
             [self.rtio_core.cri])
+        self.register_kernel_cpu_csrdevice("cri_con")
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
-        self.submodules.rtio_analyzer = rtio.Analyzer(
-            self.rtio, self.rtio_core.cri.counter, self.get_native_sdram_if())
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_core.cri,
+                                                      self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
 
         platform.add_false_path_constraints(
@@ -251,7 +251,7 @@ class Phaser(MiniSoC, AMPSoC):
             self.crg.cd_sys.clk, self.ad9154.jesd.cd_jesd.clk)
         for phy in self.ad9154.jesd.phys:
             platform.add_false_path_constraints(
-                self.crg.cd_sys.clk, phy.gtx.cd_tx.clk)
+                self.crg.cd_sys.clk, phy.transmitter.cd_tx.clk)
 
 
 def main():

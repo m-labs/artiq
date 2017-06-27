@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 class _H2DMsgType(Enum):
     LOG_REQUEST = 1
     LOG_CLEAR = 2
+    LOG_FILTER = 13
 
     SYSTEM_INFO_REQUEST = 3
     SWITCH_CLOCK = 4
@@ -32,6 +33,8 @@ class _H2DMsgType(Enum):
     FLASH_WRITE_REQUEST = 10
     FLASH_ERASE_REQUEST = 11
     FLASH_REMOVE_REQUEST = 12
+
+    HOTSWAP = 14
 
 
 class _D2HMsgType(Enum):
@@ -56,6 +59,17 @@ class _D2HMsgType(Enum):
 
     WATCHDOG_EXPIRED = 14
     CLOCK_FAILURE = 15
+
+    HOTSWAP_IMMINENT = 16
+
+
+class _LogLevel(Enum):
+    OFF = 0
+    ERROR = 1
+    WARN = 2
+    INFO = 3
+    DEBUG = 4
+    TRACE = 5
 
 
 class UnsupportedDevice(Exception):
@@ -95,8 +109,34 @@ def initialize_connection(host, port):
     return sock
 
 
+class CommKernelDummy:
+    def __init__(self):
+        pass
+
+    def switch_clock(self, external):
+        pass
+
+    def load(self, kernel_library):
+        pass
+
+    def run(self):
+        pass
+
+    def serve(self, embedding_map, symbolizer, demangler):
+        pass
+
+    def check_system_info(self):
+        pass
+
+    def get_log(self):
+        return ""
+
+    def clear_log(self):
+        pass
+
+
 class CommKernel:
-    def __init__(self, dmgr, host, port=1381):
+    def __init__(self, host, port=1381):
         self._read_type = None
         self.host = host
         self.port = port
@@ -244,40 +284,20 @@ class CommKernel:
                                     .format(runtime_id))
 
         gateware_version = self._read_string()
-        if gateware_version.endswith(".dirty"):
-            gateware_version_clean = gateware_version[:-6]
-        else:
-            gateware_version_clean = gateware_version
-        if software_version.endswith(".dirty"):
-            software_version_clean = software_version[:-6]
-        else:
-            software_version_clean = software_version
-        if gateware_version_clean != software_version_clean:
+        if gateware_version != software_version:
             logger.warning("Mismatch between gateware (%s) "
                            "and software (%s) versions",
                            gateware_version, software_version)
 
         finished_cleanly = self._read_bool()
         if not finished_cleanly:
-            logger.warning("Interrupted a running kernel")
+            logger.warning("Previous kernel did not cleanly finish")
 
     def switch_clock(self, external):
         self._write_header(_H2DMsgType.SWITCH_CLOCK)
         self._write_int8(external)
 
         self._read_empty(_D2HMsgType.CLOCK_SWITCH_COMPLETED)
-
-    def get_log(self):
-        self._write_empty(_H2DMsgType.LOG_REQUEST)
-
-        self._read_header()
-        self._read_expect(_D2HMsgType.LOG_REPLY)
-        return self._read_string()
-
-    def clear_log(self):
-        self._write_empty(_H2DMsgType.LOG_CLEAR)
-
-        self._read_empty(_D2HMsgType.LOG_REPLY)
 
     def flash_storage_read(self, key):
         self._write_header(_H2DMsgType.FLASH_READ_REQUEST)
@@ -349,6 +369,10 @@ class CommKernel:
             return Fraction(numerator, denominator)
         elif tag == "s":
             return self._read_string()
+        elif tag == "B":
+            return self._read_bytes()
+        elif tag == "A":
+            return self._read_bytes()
         elif tag == "l":
             length = self._read_int32()
             return [self._receive_rpc_value(embedding_map) for _ in range(length)]
@@ -441,6 +465,14 @@ class CommKernel:
             check(isinstance(value, str) and "\x00" not in value,
                   lambda: "str")
             self._write_string(value)
+        elif tag == "B":
+            check(isinstance(value, bytes),
+                  lambda: "bytes")
+            self._write_bytes(value)
+        elif tag == "A":
+            check(isinstance(value, bytearray),
+                  lambda: "bytearray")
+            self._write_bytes(value)
         elif tag == "l":
             check(isinstance(value, list),
                   lambda: "list")
@@ -461,6 +493,12 @@ class CommKernel:
             tags = tags_copy
         else:
             raise IOError("Unknown RPC value tag: {}".format(repr(tag)))
+
+    def _truncate_message(self, msg, limit=4096):
+        if len(msg) > limit:
+            return msg[0:limit] + "... (truncated)"
+        else:
+            return msg
 
     def _serve_rpc(self, embedding_map):
         async        = self._read_bool()
@@ -486,6 +524,8 @@ class CommKernel:
             self._write_header(_H2DMsgType.RPC_REPLY)
             self._write_bytes(return_tags)
             self._send_rpc_value(bytearray(return_tags), result, result, service)
+        except RPCReturnValueError as exn:
+            raise
         except Exception as exn:
             logger.debug("rpc service: %d %r %r ! %r", service_id, args, kwargs, exn)
 
@@ -494,7 +534,7 @@ class CommKernel:
             if hasattr(exn, "artiq_core_exception"):
                 exn = exn.artiq_core_exception
                 self._write_string(exn.name)
-                self._write_string(exn.message)
+                self._write_string(self._truncate_message(exn.message))
                 for index in range(3):
                     self._write_int64(exn.param[index])
 
@@ -511,8 +551,9 @@ class CommKernel:
                 else:
                     exn_id = embedding_map.store_object(exn_type)
                     self._write_string("{}:{}.{}".format(exn_id,
-                                                         exn_type.__module__, exn_type.__qualname__))
-                self._write_string(str(exn))
+                                                         exn_type.__module__,
+                                                         exn_type.__qualname__))
+                self._write_string(self._truncate_message(str(exn)))
                 for index in range(3):
                     self._write_int64(0)
 

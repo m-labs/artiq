@@ -19,8 +19,9 @@ pub mod uart_console;
 #[cfg(has_spiflash)]
 pub mod spiflash;
 
-#[cfg(has_i2c)]
 pub mod i2c;
+pub mod spi;
+
 #[cfg(has_si5324)]
 pub mod si5324;
 
@@ -34,6 +35,8 @@ pub mod ad9516;
 mod ad9154_reg;
 #[cfg(has_ad9154)]
 pub mod ad9154;
+
+pub mod boot;
 
 #[cfg(feature = "uart_console")]
 pub use uart_console::Console;

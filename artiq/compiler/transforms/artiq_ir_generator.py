@@ -317,7 +317,15 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     self.current_block.append(ir.Return(ir.Constant(None, builtins.TNone())))
             else:
                 if not self.current_block.is_terminated():
+                    if len(self.current_block.predecessors()) != 0:
+                        diag = diagnostic.Diagnostic("error",
+                            "this function must return a value of type {typ} explicitly",
+                            {"typ": types.TypePrinter().name(typ.ret)},
+                            node.keyword_loc)
+                        self.engine.process(diag)
+
                     self.current_block.append(ir.Unreachable())
+
         finally:
             self.name = old_name
             self.current_args = old_args
@@ -1612,7 +1620,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 return self.append(ir.Coerce(arg, node.type))
             else:
                 assert False
-        elif types.is_builtin(typ, "list") or types.is_builtin(typ, "array"):
+        elif (types.is_builtin(typ, "list") or types.is_builtin(typ, "array") or
+              types.is_builtin(typ, "bytearray")):
             if len(node.args) == 0 and len(node.keywords) == 0:
                 length = ir.Constant(0, builtins.TInt32())
                 return self.append(ir.Alloc([length], node.type))
@@ -1717,7 +1726,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             if len(node.args) == 1 and len(node.keywords) == 0:
                 arg = self.visit(node.args[0])
                 arg_mu_float = self.append(ir.Arith(ast.Div(loc=None), arg, self.ref_period))
-                arg_mu = self.append(ir.Coerce(arg_mu_float, builtins.TInt64()))
+                arg_mu = self.append(ir.Builtin("round", [arg_mu_float], builtins.TInt64()))
                 return self.append(ir.Builtin("delay_mu", [arg_mu], builtins.TNone()))
             else:
                 assert False
@@ -1978,6 +1987,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
             elif builtins.is_listish(value.type):
                 if builtins.is_list(value.type):
                     format_string += "["; flush()
+                elif builtins.is_bytes(value.type):
+                    format_string += "bytes(["; flush()
+                elif builtins.is_bytearray(value.type):
+                    format_string += "bytearray(["; flush()
                 elif builtins.is_array(value.type):
                     format_string += "array(["; flush()
                 else:
@@ -2006,7 +2019,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
                 if builtins.is_list(value.type):
                     format_string += "]"
-                elif builtins.is_array(value.type):
+                elif (builtins.is_bytes(value.type) or builtins.is_bytearray(value.type) or
+                      builtins.is_array(value.type)):
                     format_string += "])"
             elif builtins.is_range(value.type):
                 format_string += "range("; flush()

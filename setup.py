@@ -6,8 +6,8 @@ import sys
 import versioneer
 
 
-if sys.version_info[:3] < (3, 5, 2):
-    raise Exception("You need Python 3.5.2+")
+if not (3, 5, 3) <= sys.version_info[:3] < (3, 6, 0):
+    raise Exception("You need Python 3.5.3+ (but not 3.6+)")
 
 
 # Depends on PyQt5, but setuptools cannot check for it.
@@ -19,30 +19,33 @@ requirements = [
 ]
 
 console_scripts = [
-    "artiq_client=artiq.frontend.artiq_client:main",
-    "artiq_compile=artiq.frontend.artiq_compile:main",
-    "artiq_coreanalyzer=artiq.frontend.artiq_coreanalyzer:main",
-    "artiq_coreconfig=artiq.frontend.artiq_coreconfig:main",
-    "artiq_corelog=artiq.frontend.artiq_corelog:main",
-    "artiq_ctlmgr=artiq.frontend.artiq_ctlmgr:main",
-    "artiq_devtool=artiq.frontend.artiq_devtool:main",
-    "artiq_influxdb=artiq.frontend.artiq_influxdb:main",
-    "artiq_master=artiq.frontend.artiq_master:main",
-    "artiq_mkfs=artiq.frontend.artiq_mkfs:main",
-    "artiq_rpctool=artiq.frontend.artiq_rpctool:main",
-    "artiq_run=artiq.frontend.artiq_run:main",
-    "artiq_flash=artiq.frontend.artiq_flash:main",
-    "lda_controller=artiq.frontend.lda_controller:main",
-    "novatech409b_controller=artiq.frontend.novatech409b_controller:main",
-    "korad_ka3005p_controller=artiq.frontend.korad_ka3005p_controller:main",
-    "pdq2_client=artiq.frontend.pdq2_client:main",
-    "pdq2_controller=artiq.frontend.pdq2_controller:main",
-    "thorlabs_tcube_controller=artiq.frontend.thorlabs_tcube_controller:main",
+    "artiq_client = artiq.frontend.artiq_client:main",
+    "artiq_compile = artiq.frontend.artiq_compile:main",
+    "artiq_coreanalyzer = artiq.frontend.artiq_coreanalyzer:main",
+    "artiq_coreconfig = artiq.frontend.artiq_coreconfig:main",
+    "artiq_corelog = artiq.frontend.artiq_corelog:main",
+    "artiq_coreboot = artiq.frontend.artiq_coreboot:main",
+    "artiq_ctlmgr = artiq.frontend.artiq_ctlmgr:main",
+    "artiq_devtool = artiq.frontend.artiq_devtool:main",
+    "artiq_pcap = artiq.frontend.artiq_pcap:main",
+    "artiq_influxdb = artiq.frontend.artiq_influxdb:main",
+    "artiq_master = artiq.frontend.artiq_master:main",
+    "artiq_mkfs = artiq.frontend.artiq_mkfs:main",
+    "artiq_session = artiq.frontend.artiq_session:main",
+    "artiq_rpctool = artiq.frontend.artiq_rpctool:main",
+    "artiq_run = artiq.frontend.artiq_run:main",
+    "artiq_flash = artiq.frontend.artiq_flash:main",
+
+    "aqctl_lda = artiq.frontend.aqctl_lda:main",
+    "aqctl_novatech409b = artiq.frontend.aqctl_novatech409b:main",
+    "aqctl_korad_ka3005p = artiq.frontend.aqctl_korad_ka3005p:main",
+    "aqctl_pdq = artiq.frontend.aqctl_pdq:main",
+    "aqctl_thorlabs_tcube = artiq.frontend.aqctl_thorlabs_tcube:main",
 ]
 
 gui_scripts = [
-    "artiq_browser=artiq.frontend.artiq_browser:main",
-    "artiq_dashboard=artiq.frontend.artiq_dashboard:main",
+    "artiq_browser = artiq.frontend.artiq_browser:main",
+    "artiq_dashboard = artiq.frontend.artiq_dashboard:main",
 ]
 
 setup(

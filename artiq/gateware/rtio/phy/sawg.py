@@ -15,7 +15,17 @@ class Channel(_ChannelPHY):
     def __init__(self, *args, **kwargs):
         _ChannelPHY.__init__(self, *args, **kwargs)
         self.phys = []
-        for i in self.i:
+        cfg = self.i[0]
+        rl = rtlink.Interface(rtlink.OInterface(
+            data_width=len(cfg.data), address_width=len(cfg.addr)))
+        self.comb += [
+            cfg.stb.eq(rl.o.stb),
+            rl.o.busy.eq(~cfg.ack),
+            cfg.data.eq(rl.o.data),
+            cfg.addr.eq(rl.o.address),
+        ]
+        self.phys.append(_Phy(rl, [], []))
+        for i in self.i[1:]:
             rl = rtlink.Interface(rtlink.OInterface(len(i.payload),
                                                     delay=-i.latency))
             self.comb += [

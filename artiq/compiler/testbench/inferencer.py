@@ -3,6 +3,7 @@ from pythonparser import source, diagnostic, algorithm, parse_buffer
 from .. import prelude, types
 from ..transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer, CastMonomorphizer
 from ..transforms import IODelayEstimator
+from ..validators import ConstnessValidator
 
 class Printer(algorithm.Visitor):
     """
@@ -83,6 +84,7 @@ def main():
     parsed, comments = parse_buffer(buf, engine=engine)
     typed = ASTTypedRewriter(engine=engine, prelude=prelude.globals()).visit(parsed)
     Inferencer(engine=engine).visit(typed)
+    ConstnessValidator(engine=engine).visit(typed)
     if monomorphize:
         CastMonomorphizer(engine=engine).visit(typed)
         IntMonomorphizer(engine=engine).visit(typed)

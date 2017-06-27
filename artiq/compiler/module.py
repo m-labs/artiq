@@ -54,7 +54,7 @@ class Module:
         escape_validator = validators.EscapeValidator(engine=self.engine)
         iodelay_estimator = transforms.IODelayEstimator(engine=self.engine,
                                                         ref_period=ref_period)
-        constness = analyses.Constness(engine=self.engine)
+        constness_validator = validators.ConstnessValidator(engine=self.engine)
         artiq_ir_generator = transforms.ARTIQIRGenerator(engine=self.engine,
                                                          module_name=src.name,
                                                          ref_period=ref_period)
@@ -70,7 +70,7 @@ class Module:
         monomorphism_validator.visit(src.typedtree)
         escape_validator.visit(src.typedtree)
         iodelay_estimator.visit_fixpoint(src.typedtree)
-        constness.visit(src.typedtree)
+        constness_validator.visit(src.typedtree)
         devirtualization.visit(src.typedtree)
         self.artiq_ir = artiq_ir_generator.visit(src.typedtree)
         artiq_ir_generator.annotate_calls(devirtualization)

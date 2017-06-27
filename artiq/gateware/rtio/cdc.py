@@ -47,15 +47,16 @@ class RTIOCounter(Module):
 
 
 class BlindTransfer(Module):
-    def __init__(self):
+    def __init__(self, idomain="rio", odomain="rsys"):
         self.i = Signal()
         self.o = Signal()
 
-        ps = PulseSynchronizer("rio", "rsys")
-        ps_ack = PulseSynchronizer("rsys", "rio")
+        ps = PulseSynchronizer(idomain, odomain)
+        ps_ack = PulseSynchronizer(odomain, idomain)
         self.submodules += ps, ps_ack
         blind = Signal()
-        self.sync.rio += [
+        isync = getattr(self.sync, idomain)
+        isync += [
             If(self.i, blind.eq(1)),
             If(ps_ack.o, blind.eq(0))
         ]

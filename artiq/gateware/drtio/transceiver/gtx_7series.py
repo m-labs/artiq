@@ -198,10 +198,6 @@ class GTX_1000BASE_BX10(GTX_20X):
     rtio_clk_freq = 62.5e6
 
 
-class GTX_3G(GTX_20X):
-    rtio_clk_freq = 150e6
-
-
 class RXSynchronizer(Module, AutoCSR):
     """Delays the data received in the rtio_rx by a configurable amount
     so that it meets s/h in the rtio domain, and recapture it in the rtio

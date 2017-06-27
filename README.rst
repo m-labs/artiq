@@ -12,8 +12,7 @@ The system features a high-level programming language that helps describing comp
 
 ARTIQ uses FPGA hardware to perform its time-critical tasks.
 It is designed to be portable to hardware platforms from different vendors and FPGA manufacturers.
-Currently, one configuration of a `low-cost open hardware FPGA board <http://pipistrello.saanlima.com/>`_ and several different configurations of a `high-end FPGA evaluation kit <http://www.xilinx.com/products/boards-and-kits/ek-k7-kc705-g.html>`_ are used and supported.
-Any of these FPGA platforms can be combined with any number of additional peripherals, either already accessible from ARTIQ or made accessible with little effort.
+Currently, several different configurations of a `high-end FPGA evaluation kit <http://www.xilinx.com/products/boards-and-kits/ek-k7-kc705-g.html>`_ are used and supported. This FPGA platform can be combined with any number of additional peripherals, either already accessible from ARTIQ or made accessible with little effort.
 
 Custom hardware components with widely extended capabilities and advanced support for scalable and fully distributed real-time control of experiments `are being designed <https://github.com/m-labs/artiq-hardware>`_.
 
@@ -29,6 +28,9 @@ Technologies employed include `Python <https://www.python.org/>`_, `Migen <https
 Website: https://m-labs.hk/artiq
 
 `Cite ARTIQ <http://dx.doi.org/10.5281/zenodo.51303>`_ as ``Bourdeauducq, Sébastien et al. (2016). ARTIQ 1.0. Zenodo. 10.5281/zenodo.51303``.
+
+License
+=======
 
 Copyright (C) 2014-2017 M-Labs Limited.
 

@@ -54,7 +54,7 @@ fn worker(stream: &mut TcpStream) -> io::Result<()> {
         log_channel: csr::CONFIG_RTIO_LOG_CHANNEL as u8,
         dds_onehot_sel: true  // kept for backward compatibility of analyzer dumps
     };
-    trace!("{:?}", header);
+    debug!("{:?}", header);
 
     header.write_to(stream)?;
     if wraparound {

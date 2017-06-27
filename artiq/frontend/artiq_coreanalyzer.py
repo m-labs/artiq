@@ -15,7 +15,7 @@ def get_argparser():
                                                  "RTIO analysis tool")
 
     verbosity_args(parser)
-    parser.add_argument("--device-db", default="device_db.pyon",
+    parser.add_argument("--device-db", default="device_db.py",
                        help="device database file (default: '%(default)s')")
 
     parser.add_argument("-r", "--read-dump", type=str, default=None,
@@ -43,7 +43,7 @@ def main():
         with open(args.read_dump, "rb") as f:
             dump = f.read()
     else:
-        core_addr = device_mgr.get_desc("comm")["arguments"]["host"]
+        core_addr = device_mgr.get_desc("core")["arguments"]["host"]
         dump = get_analyzer_dump(core_addr)
     decoded_dump = decode_dump(dump)
     if args.print_decoded:

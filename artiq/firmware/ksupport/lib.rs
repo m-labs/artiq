@@ -89,6 +89,7 @@ macro_rules! raise {
 pub mod eh;
 mod api;
 mod rtio;
+mod nrt_bus;
 
 static mut NOW: u64 = 0;
 static mut LIBRARY: Option<Library<'static>> = None;
@@ -220,29 +221,35 @@ extern fn cache_put(key: CSlice<u8>, list: CSlice<i32>) {
     })
 }
 
-extern fn i2c_start(busno: i32) {
-    send(&I2cStartRequest { busno: busno as u8 });
+const DMA_BUFFER_SIZE: usize = 64 * 1024;
+
+struct DmaRecorder {
+    active:   bool,
+    #[allow(dead_code)]
+    padding:  [u8; 3], //https://github.com/rust-lang/rust/issues/41315
+    data_len: usize,
+    buffer:   [u8; DMA_BUFFER_SIZE],
 }
 
-extern fn i2c_stop(busno: i32) {
-    send(&I2cStopRequest { busno: busno as u8 });
-}
+static mut DMA_RECORDER: DmaRecorder = DmaRecorder {
+    active:   false,
+    padding:  [0; 3],
+    data_len: 0,
+    buffer:   [0; DMA_BUFFER_SIZE],
+};
 
-extern fn i2c_write(busno: i32, data: i32) -> bool {
-    send(&I2cWriteRequest { busno: busno as u8, data: data as u8 });
-    recv!(&I2cWriteReply { ack } => ack)
-}
-
-extern fn i2c_read(busno: i32, ack: bool) -> i32 {
-    send(&I2cReadRequest { busno: busno as u8, ack: ack });
-    recv!(&I2cReadReply { data } => data) as i32
-}
-
-static mut DMA_RECORDING: bool = false;
-
-extern fn dma_record_start() {
+fn dma_record_flush() {
     unsafe {
-        if DMA_RECORDING {
+        send(&DmaRecordAppend(&DMA_RECORDER.buffer[..DMA_RECORDER.data_len]));
+        DMA_RECORDER.data_len = 0;
+    }
+}
+
+extern fn dma_record_start(name: CSlice<u8>) {
+    let name = str::from_utf8(name.as_ref()).unwrap();
+
+    unsafe {
+        if DMA_RECORDER.active {
             raise!("DMAError", "DMA is already recording")
         }
 
@@ -252,16 +259,16 @@ extern fn dma_record_start() {
         library.rebind(b"rtio_output_wide",
                        dma_record_output_wide as *const () as u32).unwrap();
 
-        DMA_RECORDING = true;
-        send(&DmaRecordStart);
+        DMA_RECORDER.active = true;
+        send(&DmaRecordStart(name));
     }
 }
 
-extern fn dma_record_stop(name: CSlice<u8>) {
-    let name = str::from_utf8(name.as_ref()).unwrap();
-
+extern fn dma_record_stop(duration: i64) {
     unsafe {
-        if !DMA_RECORDING {
+        dma_record_flush();
+
+        if !DMA_RECORDER.active {
             raise!("DMAError", "DMA is not recording")
         }
 
@@ -271,85 +278,125 @@ extern fn dma_record_stop(name: CSlice<u8>) {
         library.rebind(b"rtio_output_wide",
                        rtio::output_wide as *const () as u32).unwrap();
 
-        DMA_RECORDING = false;
-        send(&DmaRecordStop(name));
+        DMA_RECORDER.active = false;
+        send(&DmaRecordStop {
+            duration: duration as u64
+        });
     }
 }
 
-extern fn dma_record_output(timestamp: i64, channel: i32, address: i32, data: i32) {
-    send(&DmaRecordAppend {
-        timestamp: timestamp as u64,
-        channel:   channel as u32,
-        address:   address as u32,
-        data:      &[data as u32]
-    })
+extern fn dma_record_output(timestamp: i64, channel: i32, address: i32, word: i32) {
+    dma_record_output_wide(timestamp, channel, address, [word].as_c_slice())
 }
 
-extern fn dma_record_output_wide(timestamp: i64, channel: i32, address: i32, data: CSlice<i32>) {
-    assert!(data.len() <= 16); // enforce the hardware limit
-    send(&DmaRecordAppend {
-        timestamp: timestamp as u64,
-        channel:   channel as u32,
-        address:   address as u32,
-        data:      unsafe { mem::transmute::<&[i32], &[u32]>(data.as_ref()) }
-    })
+extern fn dma_record_output_wide(timestamp: i64, channel: i32, address: i32, words: CSlice<i32>) {
+    assert!(words.len() <= 16); // enforce the hardware limit
+
+    // See gateware/rtio/dma.py.
+    let header_length = /*length*/1 + /*channel*/3 + /*timestamp*/8 + /*address*/2;
+    let length = header_length + /*data*/words.len() * 4;
+
+    let header = [
+        (length    >>  0) as u8,
+        (channel   >>  0) as u8,
+        (channel   >>  8) as u8,
+        (channel   >> 16) as u8,
+        (timestamp >>  0) as u8,
+        (timestamp >>  8) as u8,
+        (timestamp >> 16) as u8,
+        (timestamp >> 24) as u8,
+        (timestamp >> 32) as u8,
+        (timestamp >> 40) as u8,
+        (timestamp >> 48) as u8,
+        (timestamp >> 56) as u8,
+        (address   >>  0) as u8,
+        (address   >>  8) as u8,
+    ];
+
+    let mut data = [0; 16 * 4];
+    for (i, &word) in words.as_ref().iter().enumerate() {
+        let part = [
+            (word >>  0) as u8,
+            (word >>  8) as u8,
+            (word >> 16) as u8,
+            (word >> 24) as u8,
+        ];
+        data[i * 4..(i + 1) * 4].copy_from_slice(&part[..]);
+    }
+    let data = &data[..words.len() * 4];
+
+    unsafe {
+        if DMA_RECORDER.buffer.len() - DMA_RECORDER.data_len < length {
+            dma_record_flush()
+        }
+        let mut dst = &mut DMA_RECORDER.buffer[DMA_RECORDER.data_len..
+                                               DMA_RECORDER.data_len + length];
+        dst[..header_length].copy_from_slice(&header[..]);
+        dst[header_length..].copy_from_slice(&data[..]);
+        DMA_RECORDER.data_len += length;
+    }
 }
 
 extern fn dma_erase(name: CSlice<u8>) {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
-    send(&DmaEraseRequest(name));
+    send(&DmaEraseRequest { name: name });
 }
 
-extern fn dma_playback(timestamp: i64, name: CSlice<u8>) {
+#[repr(C)]
+struct DmaTrace {
+    duration: i64,
+    address:  i32,
+}
+
+extern fn dma_retrieve(name: CSlice<u8>) -> DmaTrace {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
-    send(&DmaPlaybackRequest(name));
-    let succeeded = recv!(&DmaPlaybackReply(data) => unsafe {
-        // Here, we take advantage of the fact that DmaPlaybackReply always refers
-        // to an entire heap allocation, which is 4-byte-aligned.
-        let data = match data { Some(bytes) => bytes, None => return false };
-        csr::rtio_dma::base_address_write(data.as_ptr() as u64);
-
-        csr::rtio_dma::time_offset_write(timestamp as u64);
-        csr::rtio_dma::enable_write(1);
-        while csr::rtio_dma::enable_read() != 0 {}
-
-        let status = csr::rtio_dma::error_status_read();
-        let timestamp = csr::rtio_dma::error_timestamp_read();
-        let channel = csr::rtio_dma::error_channel_read();
-        if status & rtio::RTIO_O_STATUS_UNDERFLOW != 0 {
-            csr::rtio_dma::error_underflow_reset_write(1);
-            raise!("RTIOUnderflow",
-                "RTIO underflow at {0} mu, channel {1}",
-                timestamp as i64, channel as i64, 0)
+    send(&DmaRetrieveRequest { name: name });
+    recv!(&DmaRetrieveReply { trace, duration } => {
+        match trace {
+            Some(bytes) => Ok(DmaTrace {
+                address:  bytes.as_ptr() as i32,
+                duration: duration as i64
+            }),
+            None => Err(())
         }
-        if status & rtio::RTIO_O_STATUS_SEQUENCE_ERROR != 0 {
-            csr::rtio_dma::error_sequence_error_reset_write(1);
-            raise!("RTIOSequenceError",
-                "RTIO sequence error at {0} mu, channel {1}",
-                timestamp as i64, channel as i64, 0)
-        }
-        if status & rtio::RTIO_O_STATUS_COLLISION != 0 {
-            csr::rtio_dma::error_collision_reset_write(1);
-            raise!("RTIOCollision",
-                "RTIO collision at {0} mu, channel {1}",
-                timestamp as i64, channel as i64, 0)
-        }
-        if status & rtio::RTIO_O_STATUS_BUSY != 0 {
-            csr::rtio_dma::error_busy_reset_write(1);
-            raise!("RTIOBusy",
-                "RTIO busy on channel {0}",
-                channel as i64, 0, 0)
-        }
-
-        true
-    });
-
-    if !succeeded {
+    }).unwrap_or_else(|()| {
         println!("DMA trace called {:?} not found", name);
         raise!("DMAError",
             "DMA trace not found");
+    })
+}
+
+extern fn dma_playback(timestamp: i64, ptr: i32) {
+    assert!(ptr % 64 == 0);
+
+    unsafe {
+        csr::rtio_dma::base_address_write(ptr as u64);
+        csr::rtio_dma::time_offset_write(timestamp as u64);
+
+        csr::cri_con::selected_write(1);
+        csr::rtio_dma::enable_write(1);
+        while csr::rtio_dma::enable_read() != 0 {}
+        csr::cri_con::selected_write(0);
+
+        let status = csr::rtio_dma::error_status_read();
+        if status != 0 {
+            let timestamp = csr::rtio_dma::error_timestamp_read();
+            let channel = csr::rtio_dma::error_channel_read();
+            if status & rtio::RTIO_O_STATUS_UNDERFLOW != 0 {
+                csr::rtio_dma::error_underflow_reset_write(1);
+                raise!("RTIOUnderflow",
+                    "RTIO underflow at {0} mu, channel {1}",
+                    timestamp as i64, channel as i64, 0)
+            }
+            if status & rtio::RTIO_O_STATUS_SEQUENCE_ERROR != 0 {
+                csr::rtio_dma::error_sequence_error_reset_write(1);
+                raise!("RTIOSequenceError",
+                    "RTIO sequence error at {0} mu, channel {1}",
+                    timestamp as i64, channel as i64, 0)
+            }
+        }
     }
 }
 

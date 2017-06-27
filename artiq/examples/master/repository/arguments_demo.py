@@ -6,7 +6,7 @@ from artiq.experiment import *
 class SubComponent1(HasEnvironment):
     def build(self):
         self.setattr_argument("sc1_scan",
-            Scannable(default=[NoScan(3250), RandomScan(10, 20, 6)],
+            Scannable(default=[NoScan(3250), RangeScan(10, 20, 6, randomize=True)],
                       unit="kHz"),
             "Flux capacitor")
         self.setattr_argument("sc1_enum", EnumerationValue(["1", "2", "3"]),
@@ -24,7 +24,7 @@ class SubComponent2(HasEnvironment):
         self.setattr_argument("sc2_boolean", BooleanValue(False),
                               "Transporter")
         self.setattr_argument("sc2_scan", Scannable(
-                                          default=LinearScan(200, 300, 49)),
+                                          default=RangeScan(200, 300, 49)),
                               "Transporter")
         self.setattr_argument("sc2_enum", EnumerationValue(["3", "4", "5"]),
                               "Transporter")
