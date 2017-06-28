@@ -287,13 +287,13 @@ class LogChannel:
 class _RelaxedAsyncResetSynchronizer(Module):
     def __init__(self, cd, async_reset):
         self.clock_domains.cd_rst = ClockDomain()
-        self.clock_domains.cd_no_rst = ClockDomain(reset_less=True)
+        rst_fan = Signal(reset_less=True)
         self.specials += AsyncResetSynchronizer(self.cd_rst, async_reset)
         self.comb += [
-            self.cd_rst.clk.eq(cd.clk),
-            self.cd_no_rst.clk.eq(cd.clk),
+                self.cd_rst.clk.eq(cd.clk),
+                cd.rst.eq(rst_fan),
         ]
-        self.sync.no_rst += cd.rst.eq(self.cd_rst.rst)
+        self.sync.rst += rst_fan.eq(self.cd_rst.rst)
 
 
 class Core(Module, AutoCSR):
