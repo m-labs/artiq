@@ -17,7 +17,8 @@ class Channel(_ChannelPHY):
         self.phys = []
         cfg = self.i[0]
         rl = rtlink.Interface(rtlink.OInterface(
-            data_width=len(cfg.data), address_width=len(cfg.addr)))
+            data_width=len(cfg.data), address_width=len(cfg.addr),
+            enable_replace=False))
         self.comb += [
             cfg.stb.eq(rl.o.stb),
             rl.o.busy.eq(~cfg.ack),
