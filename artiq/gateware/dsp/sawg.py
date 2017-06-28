@@ -150,7 +150,8 @@ class Channel(Module, SatAddMixin):
         self.i_names = "cfg u a1 f1 p1 a2 f2 p2 f0 p0".split()
         self.i_named = dict(zip(self.i_names, self.i))
         self.y_in = [Signal.like(b.yo[0]) for i in range(parallelism)]
-        self.o = [Signal((width, True)) for i in range(parallelism)]
+        self.o = [Signal((width, True), reset_less=True)
+                for i in range(parallelism)]
         self.widths = widths
         self.orders = orders
         self.parallelism = parallelism
@@ -182,6 +183,8 @@ class Channel(Module, SatAddMixin):
             Cat(b.xi).eq(Cat(hbf[0].o)),
             Cat(b.yi).eq(Cat(hbf[1].o)),
         ]
+        hbf[0].i.reset_less = True
+        hbf[1].i.reset_less = True
         self.sync += [
             hbf[0].i.eq(self.sat_add((a1.xo[0], a2.xo[0]),
                 width=len(hbf[0].i),
