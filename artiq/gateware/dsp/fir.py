@@ -70,7 +70,7 @@ class ParallelFIR(Module):
         # input and output: old to new, decreasing delay
         self.i = [Signal((width, True)) for i in range(p)]
         self.o = [Signal((width, True)) for i in range(p)]
-        self.latency = (n + 1)//2//p + 2
+        self.latency = (n + 1)//2//p + 1
         w = _widths[arch]
 
         c_max = max(abs(c) for c in coefficients)
@@ -83,22 +83,17 @@ class ParallelFIR(Module):
 
         # Delay line: increasing delay
         x = [Signal((w.A, True), reset_less=True) for _ in range(n + p - 1)]
-        x_shift = w.A - width
-        # reduce by pre-adder gain
-        x_shift -= bits_for(max(cs.count(c) for c in cs if c) - 1)
-        # TODO: reduce by P width limit?
-        assert x_shift + width <= w.A
 
         assert sum(abs(c)*(1 << w.A - 1) for c in cs) <= (1 << w.P - 1) - 1
 
         for xi, xj in zip(x, self.i[::-1]):
-            self.sync += xi.eq(xj << x_shift)
+            self.comb += xi.eq(xj)
         for xi, xj in zip(x[len(self.i):], x):
             self.sync += xi.eq(xj)
 
         for delay in range(p):
             o = Signal((w.P, True), reset_less=True)
-            self.comb += self.o[delay].eq(o >> c_shift + x_shift)
+            self.comb += self.o[delay].eq(o >> c_shift)
             # Make products
             for i, c in enumerate(cs):
                 # simplify for halfband and symmetric filters
@@ -117,8 +112,8 @@ class ParallelFIR(Module):
                 self.comb += q.eq(reduce(add, [x[j - delay] for j in js]))
                 self.sync += m.eq(c*q)
             # symmetric rounding
-            if c_shift + x_shift > 1:
-                self.comb += o.eq((1 << c_shift + x_shift - 1) - 1)
+            if c_shift > 1:
+                self.comb += o.eq((1 << c_shift - 1) - 1)
 
 
 class FIR(ParallelFIR):
