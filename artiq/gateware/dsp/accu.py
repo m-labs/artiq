@@ -76,6 +76,8 @@ class PhasedAccu(Module):
         self.submodules += a
         z = [Signal(width) for i in range(parallelism)]
         o = self.o.payload.flatten()
+        for oi in o:
+            oi.reset_less = True
         load = Signal()
         clr = Signal()
         p = Signal.like(self.i.p)
