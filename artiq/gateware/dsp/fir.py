@@ -165,7 +165,7 @@ class ParallelHBFUpsampler(Module):
             self.parallelism *= 2
             hbf = ParallelFIR(coeff, self.parallelism, width, **kwargs)
             self.submodules += hbf
-            self.comb += [a.eq(b) for a, b in zip(hbf.i[::2], i)]
+            self.comb += [a.eq(b) for a, b in zip(hbf.i[1::2], i)]
             i = hbf.o
             self.latency += hbf.latency
         self.o = i
