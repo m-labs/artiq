@@ -80,6 +80,8 @@ class SplineParallelDDS(SplineParallelDUC):
             [eqh(x, a.o.a0) for x in self.xi],
             [y.eq(0) for y in self.yi],
         ]
+        del self.xi
+        del self.yi
 
 
 class Config(Module):
@@ -157,10 +159,10 @@ class Channel(Module, SatAddMixin):
         self.parallelism = parallelism
         self.cordic_gain = a2.gain*b.gain
 
-        self.u.latency += 1
-        b.p.latency += 2
-        b.f.latency += 2
-        a_latency_delta = hbf[0].latency + b.latency + 2
+        self.u.latency += 1  # self.o
+        b.p.latency += 1  # self.o
+        b.f.latency += 1  # self.o
+        a_latency_delta = hbf[0].latency + b.latency + 2  # hbf.i, self.o
         for a in a1, a2:
             a.a.latency += a_latency_delta
             a.p.latency += a_latency_delta
