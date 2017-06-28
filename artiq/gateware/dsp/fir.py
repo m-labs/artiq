@@ -83,7 +83,7 @@ class ParallelFIR(Module):
         ###
 
         # Delay line: increasing delay
-        x = [Signal((w.A, True)) for _ in range(n + p - 1)]
+        x = [Signal((w.A, True), reset_less=True) for _ in range(n + p - 1)]
         x_shift = w.A - width
         # reduce by pre-adder gain
         x_shift -= bits_for(max(cs.count(c) for c in cs if c) - 1)
@@ -98,7 +98,7 @@ class ParallelFIR(Module):
             self.sync += xi.eq(xj)
 
         for delay in range(p):
-            o = Signal((w.P, True))
+            o = Signal((w.P, True), reset_less=True)
             self.comb += self.o[delay].eq(o >> c_shift + x_shift)
             # Make products
             for i, c in enumerate(cs):
