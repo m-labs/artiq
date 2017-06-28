@@ -71,7 +71,6 @@ class ParallelFIR(Module):
         self.i = [Signal((width, True)) for i in range(p)]
         self.o = [Signal((width, True)) for i in range(p)]
         self.latency = (n + 1)//2//p + 2
-        # ... plus one sample
         w = _widths[arch]
 
         c_max = max(abs(c) for c in coefficients)
