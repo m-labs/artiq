@@ -63,7 +63,7 @@ class ParallelFIR(Module):
     :param arch: architecture (default: "DSP48E1").
     """
     def __init__(self, coefficients, parallelism, width=16,
-                 arch="DSP48E1"):
+                 arch="DSP48E1", cull_delays=()):
         self.width = width
         self.parallelism = p = parallelism
         n = len(coefficients)
@@ -95,6 +95,7 @@ class ParallelFIR(Module):
             o = Signal((w.P, True), reset_less=True)
             self.comb += self.o[delay].eq(o >> c_shift)
             # Make products
+            tap = delay
             for i, c in enumerate(cs):
                 # simplify for halfband and symmetric filters
                 if not c or c in cs[:i]:
@@ -103,16 +104,19 @@ class ParallelFIR(Module):
                 m = Signal.like(o)
                 o0, o = o, Signal.like(o)
                 q = Signal.like(x[0])
-                if delay + p <= js[0]:
+                if tap + p <= js[0]:
                     self.sync += o0.eq(o + m)
-                    delay += p
+                    tap += p
                 else:
                     self.comb += o0.eq(o + m)
-                assert js[0] - delay >= 0
-                self.comb += q.eq(reduce(add, [x[j - delay] for j in js]))
+                assert min(js) - tap >= 0
+                js = [j for j in js if (p - 1 - j - tap) % p not in cull_delays]
+                if not js:
+                    continue
+                self.comb += q.eq(reduce(add, [x[j - tap] for j in js]))
                 self.sync += m.eq(c*q)
             # symmetric rounding
-            if c_shift > 1:
+            if c_shift > 1 and delay not in cull_delays:
                 self.comb += o.eq((1 << c_shift - 1) - 1)
 
 
@@ -157,7 +161,8 @@ class ParallelHBFUpsampler(Module):
         i = [self.i]
         for coeff in coefficients:
             self.parallelism *= 2
-            hbf = ParallelFIR(coeff, self.parallelism, width, **kwargs)
+            hbf = ParallelFIR(coeff, self.parallelism, width=width,
+                    cull_delays={0}, **kwargs)
             self.submodules += hbf
             self.comb += [a.eq(b) for a, b in zip(hbf.i[1::2], i)]
             i = hbf.o
