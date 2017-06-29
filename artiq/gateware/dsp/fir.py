@@ -78,13 +78,13 @@ class ParallelFIR(Module):
         self.coefficients = cs = [int(round(c*(1 << c_shift)))
                                   for c in coefficients]
         assert max(bits_for(c) for c in cs) <= w.B
+        max_out = sum(abs(c)*(1 << w.A - 1) for c in cs)
+        assert max_out <= (1 << w.P - 1) - 1, (bits_for(max_out), w)
 
         ###
 
         # Delay line: increasing delay
         x = [Signal((w.A, True), reset_less=True) for _ in range(n + p - 1)]
-
-        assert sum(abs(c)*(1 << w.A - 1) for c in cs) <= (1 << w.P - 1) - 1
 
         for xi, xj in zip(x, self.i[::-1]):
             self.comb += xi.eq(xj)
@@ -110,7 +110,8 @@ class ParallelFIR(Module):
                 else:
                     self.comb += o0.eq(o + m)
                 assert min(js) - tap >= 0
-                js = [j for j in js if (p - 1 - j - tap) % p not in cull_delays]
+                js = [j for j in js
+                        if (p - 1 - j - tap) % p not in cull_delays]
                 if not js:
                     continue
                 self.comb += q.eq(reduce(add, [x[j - tap] for j in js]))
@@ -129,6 +130,7 @@ class FIR(ParallelFIR):
 
 def halfgen4_cascade(rate, width, order=None):
     """Generate coefficients for cascaded half-band filters.
+
     Coefficients are normalized to a gain of two per stage to compensate for
     the zero stuffing.
 
