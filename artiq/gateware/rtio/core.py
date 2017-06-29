@@ -82,9 +82,9 @@ class _OutputManager(Module):
         buf_just_written = Signal()
 
         # Special cases
-        replace = Signal()
-        sequence_error = Signal()
-        collision = Signal()
+        replace = Signal(reset_less=True)
+        sequence_error = Signal(reset_less=True)
+        collision = Signal(reset_less=True)
         any_error = Signal()
         if interface.enable_replace:
             # Note: replace may be asserted at the same time as collision
@@ -164,9 +164,9 @@ class _OutputManager(Module):
 
         # latency compensation
         if interface.delay:
-            counter_rtio = Signal.like(counter.value_rtio)
+            counter_rtio = Signal.like(counter.value_rtio, reset_less=True)
             self.sync.rtio += counter_rtio.eq(counter.value_rtio -
-                                              interface.delay + 1)
+                                              (interface.delay + 1))
         else:
             counter_rtio = counter.value_rtio
 
@@ -223,9 +223,9 @@ class _InputManager(Module):
 
         # latency compensation
         if interface.delay:
-            counter_rtio = Signal.like(counter.value_rtio)
+            counter_rtio = Signal.like(counter.value_rtio, reset_less=True)
             self.sync.rtio += counter_rtio.eq(counter.value_rtio -
-                                              interface.delay + 1)
+                                              (interface.delay + 1))
         else:
             counter_rtio = counter.value_rtio
 
