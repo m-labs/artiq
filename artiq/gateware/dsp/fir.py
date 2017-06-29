@@ -70,7 +70,7 @@ class ParallelFIR(Module):
         # input and output: old to new, decreasing delay
         self.i = [Signal((width, True)) for i in range(p)]
         self.o = [Signal((width, True)) for i in range(p)]
-        self.latency = (n + 1)//2//p + 1
+        self.latency = (n + 1)//2//p + 2
         w = _widths[arch]
 
         c_max = max(abs(c) for c in coefficients)
@@ -93,7 +93,7 @@ class ParallelFIR(Module):
 
         for delay in range(p):
             o = Signal((w.P, True), reset_less=True)
-            self.comb += self.o[delay].eq(o >> c_shift)
+            self.sync += self.o[delay].eq(o >> c_shift)
             # Make products
             tap = delay
             for i, c in enumerate(cs):
