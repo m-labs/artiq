@@ -451,6 +451,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.current_block = head
             old_continue, self.continue_target = self.continue_target, head
             cond = self.visit(node.test)
+            cond = self.coerce_to_bool(cond)
             post_head = self.current_block
 
             break_block = self.add_block("while.break")
