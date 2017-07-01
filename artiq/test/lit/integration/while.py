@@ -53,3 +53,10 @@ while True:
     assert False
 else:
     assert False
+
+while 0:
+    assert False
+
+while 1:
+    assert True
+    break
