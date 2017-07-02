@@ -152,10 +152,10 @@ This should be done after either installation method (conda or source).
 
 .. _flash-mac-ip-addr:
 
-* Set the MAC and IP address in the :ref:`core device configuration flash storage <core-device-flash-storage>`: ::
+* Set the MAC and IP address in the :ref:`core device configuration flash storage <core-device-flash-storage>` (see above for the ``-t`` and ``-m`` options to ``artiq_flash`` that may be required): ::
 
     $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
-    $ artiq_flash -f flash_storage.img proxy storage start
+    $ artiq_flash -t [board] -m [adapter] -f flash_storage.img proxy storage start
 
 * (optional) Flash the idle kernel
 
