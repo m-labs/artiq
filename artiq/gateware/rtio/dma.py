@@ -226,9 +226,9 @@ class TimeOffset(Module, AutoCSR):
 
         # # #
 
-        pipe_ce = Signal()
-        self.sync += \
-            If(pipe_ce,
+        self.sync += [
+            If(self.source.ack, self.source.stb.eq(0)),
+            If(~self.source.stb,
                 self.sink.payload.connect(self.source.payload,
                                           leave_out={"timestamp"}),
                 self.source.payload.timestamp.eq(self.sink.payload.timestamp
@@ -236,10 +236,8 @@ class TimeOffset(Module, AutoCSR):
                 self.source.eop.eq(self.sink.eop),
                 self.source.stb.eq(self.sink.stb)
             )
-        self.comb += [
-            pipe_ce.eq(self.source.ack | ~self.source.stb),
-            self.sink.ack.eq(pipe_ce)
         ]
+        self.comb += self.sink.ack.eq(~self.source.stb)
 
 
 class CRIMaster(Module, AutoCSR):
