@@ -163,7 +163,7 @@ class Channel(Module, SatAddMixin):
         self.u.latency += 1  # self.o
         b.p.latency += 1  # self.o
         b.f.latency += 1  # self.o
-        a_latency_delta = hbf[0].latency + b.latency + 2  # hbf.i, self.o
+        a_latency_delta = hbf[0].latency + b.latency + 3  # hbf.i, self.o
         for a in a1, a2:
             a.a.latency += a_latency_delta
             a.p.latency += a_latency_delta
