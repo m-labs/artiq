@@ -1,5 +1,6 @@
 use std::io::{self, Read};
 use logger_artiq::BufferLogger;
+use log::LogLevelFilter;
 use sched::Io;
 use sched::{TcpListener, TcpStream};
 use board;
@@ -25,9 +26,13 @@ fn worker(mut stream: &mut TcpStream) -> io::Result<()> {
         match Request::read_from(stream)? {
             Request::GetLog => {
                 BufferLogger::with_instance(|logger| {
-                    logger.extract(|log| {
+                    let old_log_level = logger.max_log_level();
+                    logger.set_max_log_level(LogLevelFilter::Off);
+                    let result = logger.extract(|log| {
                         Reply::LogContent(log).write_to(stream)
-                    })
+                    });
+                    logger.set_max_log_level(old_log_level);
+                    result
                 })?;
             },
 
@@ -69,7 +74,7 @@ fn worker(mut stream: &mut TcpStream) -> io::Result<()> {
 }
 
 pub fn thread(io: Io) {
-    let listener = TcpListener::new(&io, 65535);
+    let listener = TcpListener::new(&io, 8192);
     listener.listen(1380).expect("mgmt: cannot listen");
     info!("management interface active");
 

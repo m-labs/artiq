@@ -176,7 +176,7 @@ pub extern fn main() -> i32 {
             panic!("out of memory");
         });
 
-        static mut LOG_BUFFER: [u8; 32768] = [0; 32768];
+        static mut LOG_BUFFER: [u8; 1<<17] = [0; 1<<17];
         logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(startup);
         0
     }

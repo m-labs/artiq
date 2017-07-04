@@ -59,12 +59,24 @@ impl BufferLogger {
         f(self.buffer.borrow_mut().extract())
     }
 
+    pub fn max_log_level(&self) -> LogLevelFilter {
+        self.filter
+            .borrow()
+            .as_ref()
+            .expect("register the logger before touching maximum log level")
+            .get()
+    }
+
     pub fn set_max_log_level(&self, max_level: LogLevelFilter) {
         self.filter
             .borrow()
             .as_ref()
-            .expect("register the logger before setting maximum log level")
+            .expect("register the logger before touching maximum log level")
             .set(max_level)
+    }
+
+    pub fn uart_log_level(&self) -> LogLevelFilter {
+        self.uart_filter.get()
     }
 
     pub fn set_uart_log_level(&self, max_level: LogLevelFilter) {
