@@ -262,8 +262,8 @@ class _DeviceManager:
                 self.core_connection.inject(channel, TTLOverride.en.value, 0)
             else:
                 raise ValueError
-        # override state may have changed
-        widget.refresh_display()
+            # override state may have changed
+            widget.refresh_display()
 
     def setup_ttl_monitoring(self, enable, channel):
         if self.core_connection is not None:
