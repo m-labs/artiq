@@ -68,8 +68,7 @@ class SAWGTest(unittest.TestCase):
         v = int(round((1 << 48) * .1 * self.t))
         self.assertEqual(
             self.rtio_manager.outputs, [
-                (0., 1, 0, int(round(
-                    (1 << self.driver.offset.width - 1)*.9))),
+                (0., 1, 0, int(round(self.driver.offset.scale*.9))),
                 (2.*self.t, 8, 0, int(round(
                     (1 << self.driver.frequency0.width) *
                     self.t/self.channel.parallelism*.1))),

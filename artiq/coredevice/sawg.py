@@ -281,18 +281,18 @@ class SAWG:
         width = 16
         time_width = 16
         cordic_gain = 1.646760258057163  # Cordic(width=16, guard=None).gain
-        cordic_gain *= 1.01  # leave a bit of headroom
+        head_room = 1.001
         self.config = Config(channel_base, self.core, cordic_gain)
         self.offset = Spline(width, time_width, channel_base + 1,
-                             self.core, 2.)
+                             self.core, 2.*head_room)
         self.amplitude1 = Spline(width, time_width, channel_base + 2,
-                                 self.core, 2*cordic_gain**2)
+                                 self.core, 2*head_room*cordic_gain**2)
         self.frequency1 = Spline(3*width, time_width, channel_base + 3,
                                  self.core, 1/self.core.coarse_ref_period)
         self.phase1 = Spline(width, time_width, channel_base + 4,
                              self.core, 1.)
         self.amplitude2 = Spline(width, time_width, channel_base + 5,
-                                 self.core, 2*cordic_gain**2)
+                                 self.core, 2*head_room*cordic_gain**2)
         self.frequency2 = Spline(3*width, time_width, channel_base + 6,
                                  self.core, 1/self.core.coarse_ref_period)
         self.phase2 = Spline(width, time_width, channel_base + 7,
