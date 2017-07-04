@@ -56,6 +56,7 @@ class SplineParallelDUC(Module):
         ]
 
         assert p.latency == 1
+        accu.i.clr.reset_less = True
         self.sync += [
             accu.i.clr.eq(0),
             If(p.i.stb,

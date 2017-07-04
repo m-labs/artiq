@@ -74,14 +74,12 @@ class PhasedAccu(Module):
 
         a = MCM(width, range(parallelism + 1))
         self.submodules += a
-        z = [Signal(width) for i in range(parallelism)]
+        z = [Signal(width, reset_less=True) for i in range(parallelism)]
         o = self.o.payload.flatten()
-        for oi in o:
-            oi.reset_less = True
-        load = Signal()
-        clr = Signal()
+        load = Signal(reset_less=True)
+        clr = Signal(reset_less=True)
         p = Signal.like(self.i.p)
-        f = Signal.like(self.i.f)
+        f = Signal.like(self.i.f, reset_less=True)
         fp = Signal.like(self.i.f)
         self.comb += [
             self.i.ack.eq(self.o.ack),
