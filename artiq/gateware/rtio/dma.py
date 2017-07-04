@@ -230,7 +230,7 @@ class TimeOffset(Module, AutoCSR):
             If(self.source.ack, self.source.stb.eq(0)),
             If(~self.source.stb,
                 self.sink.payload.connect(self.source.payload,
-                                          leave_out={"timestamp"}),
+                                          omit={"timestamp"}),
                 self.source.payload.timestamp.eq(self.sink.payload.timestamp
                                                  + self.time_offset.storage),
                 self.source.eop.eq(self.sink.eop),
