@@ -83,7 +83,8 @@ pub fn thread(io: Io) {
         io.spawn(4096, move |io| {
             let mut stream = TcpStream::from_handle(&io, stream);
             match worker(&mut stream) {
-                Ok(()) => {},
+                Ok(()) => (),
+                Err(ref err) if err.kind() == io::ErrorKind::UnexpectedEof => (),
                 Err(err) => error!("aborted: {}", err)
             }
         });

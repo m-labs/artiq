@@ -466,16 +466,22 @@ impl<'a> TcpStream<'a> {
 
 impl<'a> Read for TcpStream<'a> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-        // fast path
+        // Only borrow the underlying socket for the span of the next statement.
         let result = self.as_lower().recv_slice(buf);
         match result {
+            // Slow path: we need to block until buffer is non-empty.
             Ok(0) | Err(()) => {
-                // slow path
-                if !self.as_lower().may_recv() { return Ok(0) }
-                until!(self, TcpSocketLower, |s| s.can_recv())?;
-                Ok(self.as_lower().recv_slice(buf)
-                       .expect("may_recv implies that data was available"))
+                until!(self, TcpSocketLower, |s| s.can_recv() || !s.may_recv())?;
+                let mut socket = self.as_lower();
+                if socket.may_recv() {
+                    Ok(socket.recv_slice(buf)
+                             .expect("can_recv implies that data was available"))
+                } else {
+                    // This socket will never receive data again.
+                    Ok(0)
+                }
             }
+            // Fast path: we had data in buffer.
             Ok(length) => Ok(length)
         }
     }
@@ -483,16 +489,21 @@ impl<'a> Read for TcpStream<'a> {
 
 impl<'a> Write for TcpStream<'a> {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
-        // fast path
+        // Only borrow the underlying socket for the span of the next statement.
         let result = self.as_lower().send_slice(buf);
         match result {
+            // Slow path: we need to block until buffer is non-full.
             Ok(0) | Err(()) => {
-                // slow path
-                if !self.as_lower().may_send() { return Ok(0) }
-                until!(self, TcpSocketLower, |s| s.can_send())?;
-                Ok(self.as_lower().send_slice(buf)
-                       .expect("may_send implies that data was available"))
+                until!(self, TcpSocketLower, |s| s.can_send() || !s.may_send())?;
+                if self.as_lower().may_send() {
+                    Ok(self.as_lower().send_slice(buf)
+                           .expect("can_send implies that data was available"))
+                } else {
+                    // This socket will never send data again.
+                    Ok(0)
+                }
             }
+            // Fast path: we had space in buffer.
             Ok(length) => Ok(length)
         }
     }
