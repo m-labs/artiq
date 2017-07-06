@@ -263,6 +263,13 @@ class SAWG:
     * :attr:`frequency0`, :attr:`frequency1`, :attr:`frequency2`: in units
       of Hz
 
+    .. note:: The latencies (pipeline depths) of the nine data channels (i.e.
+        all except :attr:`config`) are matched. Equivalent channels (e.g.
+        :attr:`phase1` and :attr:`phase2`) are exactly matched. Channels of
+        different type or functionality (e.g. :attr:`offset` vs
+        :attr:`amplitude1`, DDS vs DUC, :attr:`phase0` vs :attr:`phase1`) are
+        only matched to within one coarse RTIO cycle.
+
     :param channel_base: RTIO channel number of the first channel (amplitude).
         The configuration channel and frequency/phase/amplitude channels are
         then assumed to be successive channels.
