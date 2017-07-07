@@ -9,12 +9,17 @@ class Spline:
 
     One knot of a polynomial basis spline (B-spline) :math:`u(t)`
     is defined by the coefficients :math:`u_n` up to order :math:`n = k`.
-    If the knot is evaluated starting at time :math:`t_0`, the output
-    :math:`u(t)` for :math:`t > t_0, t_0` is:
+    If the coefficients are evaluated starting at time :math:`t_0`,
+    the output :math:`u(t)` for :math:`t > t_0, t_0` is:
 
     .. math::
         u(t) &= \sum_{n=0}^k \frac{u_n}{n!} (t - t_0)^n \\
              &= u_0 + u_1 (t - t_0) + \frac{u_2}{2} (t - t_0)^2 + \dots
+
+    This class contains multiple methods to convert spline knot data from SI
+    to machine units and multiple methods that set the current spline
+    coefficient data. None of these advance the timeline. The :meth:`smooth`
+    method is the only method that advances the timeline.
 
     :param width: Width in bits of the quantity that this spline controls
     :param time_width: Width in bits of the time counter of this spline
@@ -38,19 +43,19 @@ class Spline:
 
     @portable(flags={"fast-math"})
     def to_mu(self, value: TFloat) -> TInt32:
-        """Convert floating point `value` from physical units to 32 bit
+        """Convert floating point ``value`` from physical units to 32 bit
         integer machine units."""
         return int32(round(value*self.scale))
 
     @portable(flags={"fast-math"})
     def from_mu(self, value: TInt32) -> TFloat:
-        """Convert 32 bit integer `value` from machine units to floating point
-        physical units."""
+        """Convert 32 bit integer ``value`` from machine units to floating
+        point physical units."""
         return value/self.scale
 
     @portable(flags={"fast-math"})
     def to_mu64(self, value: TFloat) -> TInt64:
-        """Convert floating point `value` from physical units to 64 bit
+        """Convert floating point ``value`` from physical units to 64 bit
         integer machine units."""
         return int64(round(value*self.scale))
 
@@ -92,7 +97,7 @@ class Spline:
             by the RTIO gateware.
         :param packed: TList(TInt32) list for packed RTIO data. Must be
             pre-allocated. Length in bits is
-            `n*width + (n - 1)*n//2*time_width`
+            ``n*width + (n - 1)*n//2*time_width``
         """
         pos = 0
         for i in range(len(coeff)):
@@ -139,7 +144,7 @@ class Spline:
         RTIO data list.
 
         This is a host-only method that can be used to generate packed
-        spline knot data to be frozen into kernels at compile time.
+        spline coefficient data to be frozen into kernels at compile time.
         """
         n = len(coeff64)
         width = n*self.width + (n - 1)*n//2*self.time_width
@@ -152,7 +157,7 @@ class Spline:
         packed data.
 
         This is a host-only method that can be used to generate packed
-        spline knot data to be frozen into kernels at compile time.
+        spline coefficient data to be frozen into kernels at compile time.
         """
         coeff64 = [int64(0)] * len(coeff)
         self.coeff_to_mu(coeff, coeff64)
@@ -168,7 +173,7 @@ class Spline:
         If more coefficients are supplied than the gateware supports the extra
         coefficients are ignored.
 
-        :param value: List of floating point spline knot coefficients,
+        :param value: List of floating point spline coefficients,
             lowest order (constant) coefficient first. Units are the
             unit of this spline's value times increasing powers of 1/s.
         """
@@ -186,19 +191,20 @@ class Spline:
         """Initiate an interpolated value change.
 
         For zeroth order (step) interpolation, the step is at
-        `start + duration/2`.
+        ``start + duration/2``.
 
         First order interpolation corresponds to a linear value ramp from
-        `start` to `stop` over `duration`.
+        ``start`` to ``stop`` over ``duration``.
 
         The third order interpolation is constrained to have zero first
         order derivative at both `start` and `stop`.
 
         For first order and third order interpolation (linear and cubic)
-        the interpolator needs to be stopped (or fed a new spline knot)
-        explicitly at the stop time.
+        the interpolator needs to be stopped explicitly at the stop time
+        (e.g. by setting spline coefficient data or starting a new
+        :meth:`smooth` interpolation).
 
-        This method advances the timeline by `duration`.
+        This method advances the timeline by ``duration``.
 
         :param start: Initial value of the change. In physical units.
         :param stop: Final value of the change. In physical units.
