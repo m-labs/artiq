@@ -21,6 +21,13 @@ class Config:
 
     Exposes the configurable quantities of a single SAWG channel.
 
+    Access to the configuration registers for a SAWG channel can not
+    be concurrent. There must be at least :attr:_rtio_interval` machine
+    units of delay between accesses. Replacement is not supported and will be
+    lead to an ``RTIOCollision`` as this is likely a programming error.
+    All methods therefore advance the timeline by the duration of one
+    configuration register transfer.
+
     :param channel: RTIO channel number of the channel.
     :param core: Core device.
     """
@@ -53,6 +60,7 @@ class Config:
         :param n: Current value of the counter. Default: ``0``.
         """
         rtio_output(now_mu(), self.channel, _SAWG_DIV, div | (n << 16))
+        delay_mu(self._rtio_interval)
 
     @kernel
     def set_clr(self, clr0: TInt32, clr1: TInt32, clr2: TInt32):
@@ -92,6 +100,7 @@ class Config:
         """
         rtio_output(now_mu(), self.channel, _SAWG_CLR, clr0 |
                 (clr1 << 1) | (clr2 << 2))
+        delay_mu(self._rtio_interval)
 
     @kernel
     def set_iq_en(self, i_enable: TInt32, q_enable: TInt32):
@@ -118,6 +127,7 @@ class Config:
         """
         rtio_output(now_mu(), self.channel, _SAWG_IQ_EN, i_enable |
                 (q_enable << 1))
+        delay_mu(self._rtio_interval)
 
     @kernel
     def set_duc_max_mu(self, limit: TInt32):
@@ -132,21 +142,25 @@ class Config:
         .. seealso:: :meth:`set_duc_max`
         """
         rtio_output(now_mu(), self.channel, _SAWG_DUC_MAX, limit)
+        delay_mu(self._rtio_interval)
 
     @kernel
     def set_duc_min_mu(self, limit: TInt32):
         """.. seealso:: :meth:`set_duc_max_mu`"""
         rtio_output(now_mu(), self.channel, _SAWG_DUC_MIN, limit)
+        delay_mu(self._rtio_interval)
 
     @kernel
     def set_out_max_mu(self, limit: TInt32):
         """.. seealso:: :meth:`set_duc_max_mu`"""
         rtio_output(now_mu(), self.channel, _SAWG_OUT_MAX, limit)
+        delay_mu(self._rtio_interval)
 
     @kernel
     def set_out_min_mu(self, limit: TInt32):
         """.. seealso:: :meth:`set_duc_max_mu`"""
         rtio_output(now_mu(), self.channel, _SAWG_OUT_MIN, limit)
+        delay_mu(self._rtio_interval)
 
     @kernel
     def set_duc_max(self, limit: TFloat):
@@ -321,19 +335,12 @@ class SAWG:
         seven writes to the configuration channel.
         """
         self.config.set_div(0, 0)
-        delay_mu(self.config._rtio_interval)
         self.config.set_clr(1, 1, 1)
-        delay_mu(self.config._rtio_interval)
         self.config.set_iq_en(1, 0)
-        delay_mu(self.config._rtio_interval)
         self.config.set_duc_min(-1.)
-        delay_mu(self.config._rtio_interval)
         self.config.set_duc_max(1.)
-        delay_mu(self.config._rtio_interval)
         self.config.set_out_min(-1.)
-        delay_mu(self.config._rtio_interval)
         self.config.set_out_max(1.)
-        delay_mu(self.config._rtio_interval)
         self.frequency0.set_mu(0)
         self.frequency1.set_mu(0)
         self.frequency2.set_mu(0)
