@@ -182,14 +182,14 @@ class SAWGTest(unittest.TestCase):
 
     def test_smooth_cubic(self):
         ch = self.driver.offset
-        ch.smooth(.1, .2, 13, 3)
+        ch.smooth(.1, .2, 13*self.t, 3)
         ch.set(.2)
         delay(1*self.t)
         out = self.run_channel(self.rtio_manager.outputs)
-        out = sum(out, [])
+        out = out[self.channel.latency + self.channel.u.latency:][:14]
         if False:
             import matplotlib.pyplot as plt
-            plt.plot(out)
+            plt.plot(sum(out, []))
             plt.show()
 
     @unittest.skip("needs artiq.sim.time.TimeManager tweak for "
