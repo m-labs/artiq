@@ -214,6 +214,11 @@ class NIST_CLOCK(_NIST_Ions):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ofifo_depth=4, ififo_depth=4))
+        
+        phy = spi.SPIMaster(sdcard_spi)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(
+            phy, ofifo_depth=4, ififo_depth=4))
 
         for i in range(3):
             phy = spi.SPIMaster(self.platform.request("spi", i))
