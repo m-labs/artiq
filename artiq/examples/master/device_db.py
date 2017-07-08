@@ -137,6 +137,13 @@ device_db = {
         "class": "SPIMaster",
         "arguments": {"channel": 23}
     },
+    
+    "sd_spi": { 
+        "type": "local",
+        "module": "artiq.coredevice.spi",
+        "class": "SPIMaster",
+        "arguments": {"channel": 24}
+    },
 
     "dac0": {
         "type": "local",
