@@ -92,7 +92,7 @@ Setup
   If the board was running stock ARTIQ before, the settings will be kept.
 * A 300 MHz clock of roughly 10 dBm (0.2 to 3.4 V peak-to-peak into 50 Ohm) must be connected to the AD9154-FMC-EBZ J1. The input is 50 Ohm terminated. The RTIO clock, DAC deviceclock, FPGA deviceclock, and SYSREF are derived from this signal.
 * The RTIO coarse clock (the rate of the RTIO timestamp counter) is 150
-  MHz. The RTIO ``ref_period`` is 1/150 MHz = 5ns/6. The RTIO ``ref_multiplier`` is ``1``. C.f. ``device_db.py`` for both variables. The JED204B DAC data rate and DAC device clock are both 300 MHz. The JESD204B line rate is 6 GHz.
+  MHz. The RTIO ``ref_period`` is 1/150 MHz = 5ns/6. The RTIO ``ref_multiplier`` is ``8``. C.f. ``device_db.py`` for both variables. The JED204B DAC data rate and DAC device clock are both 300 MHz. The JESD204B line rate is 6 GHz.
 * Configure an oscilloscope to trigger at 0.5 V on rising edge of ttl_sma (user_gpio_n on the KC705 board). Monitor DAC0 (J17) on the oscilloscope set for 100 mV/div and 200 ns/div.
 * An example device database, several status and test scripts are provided in ``artiq/examples/phaser/``. ::
 
