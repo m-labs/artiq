@@ -137,6 +137,13 @@ device_db = {
         "class": "SPIMaster",
         "arguments": {"channel": 23}
     },
+    
+    "spi_mmc": { 
+        "type": "local",
+        "module": "artiq.coredevice.spi",
+        "class": "SPIMaster",
+        "arguments": {"channel": 26}
+    },
 
     "dac0": {
         "type": "local",
@@ -149,20 +156,20 @@ device_db = {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "DDSChannelAD9914",
-        "arguments": {"bus_channel": 26, "channel": 0},
+        "arguments": {"bus_channel": 27, "channel": 0},
         "comment": "Comments work in DDS panel as well"
     },
     "dds1": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "DDSChannelAD9914",
-        "arguments": {"bus_channel": 26, "channel": 1}
+        "arguments": {"bus_channel": 27, "channel": 1}
     },
     "dds2": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "DDSChannelAD9914",
-        "arguments": {"bus_channel": 26, "channel": 2}
+        "arguments": {"bus_channel": 27, "channel": 2}
     },
 
     "qc_q1_0": {

@@ -97,6 +97,16 @@ _ams101_dac = [
      )
 ]
 
+_sdcard_spi_33 = [
+  ("sdcard_spi_33", 0,
+        Subsignal("miso", Pins("AC20")),
+        Subsignal("clk", Pins("AB23")),
+        Subsignal("mosi", Pins("AB22")),
+        Subsignal("cs_n", Pins("AC21")),
+        IOStandard("LVCMOS33")
+  )
+]
+
 
 class _NIST_Ions(MiniSoC, AMPSoC):
     mem_map = {
@@ -131,6 +141,7 @@ class _NIST_Ions(MiniSoC, AMPSoC):
 
         self.platform.add_extension(_sma33_io)
         self.platform.add_extension(_ams101_dac)
+        self.platform.add_extension(_sdcard_spi_33)
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
@@ -220,7 +231,12 @@ class NIST_CLOCK(_NIST_Ions):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(
                 phy, ofifo_depth=128, ififo_depth=128))
-
+            
+        phy = spi.SPIMaster(platform.request("sdcard_spi_33", 0))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(
+            phy, ofifo_depth=4, ififo_depth=4))
+        
         phy = dds.AD9914(platform.request("dds"), 11, onehot=True)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,
