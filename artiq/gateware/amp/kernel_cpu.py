@@ -2,7 +2,7 @@ from migen import *
 from misoc.interconnect.csr import *
 from misoc.interconnect import wishbone
 from misoc.cores import mor1kx
-from misoc.integration.soc_core import mem_decoder
+from misoc.integration.wb_slaves import WishboneSlaveManager
 
 
 class KernelCPU(Module):
@@ -14,7 +14,7 @@ class KernelCPU(Module):
 
         # # #
 
-        self._wb_slaves = []
+        self._wb_slaves = WishboneSlaveManager(0x80000000)
 
         # CPU core
         self.clock_domains.cd_sys_kernel = ClockDomain()
@@ -31,16 +31,17 @@ class KernelCPU(Module):
 
         # DRAM access
         self.wb_sdram = wishbone.Interface()
-        self.add_wb_slave(mem_decoder(main_mem_origin), self.wb_sdram)
+        self.add_wb_slave(main_mem_origin, 0x10000000, self.wb_sdram)
 
     def get_csrs(self):
         return [self._reset]
 
     def do_finalize(self):
         self.submodules.wishbonecon = wishbone.InterconnectShared(
-            [self.cpu.ibus, self.cpu.dbus], self._wb_slaves, register=True)
+            [self.cpu.ibus, self.cpu.dbus],
+            self._wb_slaves.get_interconnect_slaves(), register=True)
 
-    def add_wb_slave(self, address_decoder, interface):
+    def add_wb_slave(self, origin, length, interface):
         if self.finalized:
             raise FinalizeError
-        self._wb_slaves.append((address_decoder, interface))
+        self._wb_slaves.add(origin, length, interface)

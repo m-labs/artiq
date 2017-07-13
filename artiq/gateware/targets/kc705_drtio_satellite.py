@@ -6,7 +6,6 @@ from migen.build.generic_platform import *
 from misoc.cores import spi as spi_csr
 from misoc.cores import gpio
 from misoc.integration.builder import *
-from misoc.integration.soc_core import mem_decoder
 from misoc.targets.kc705 import BaseSoC, soc_kc705_args, soc_kc705_argdict
 
 from artiq.gateware.ad9154_fmc_ebz import ad9154_fmc_ebz
@@ -61,7 +60,7 @@ class Satellite(BaseSoC):
             self.transceiver, rtio_channels, self.rx_synchronizer)
         self.csr_devices.append("rx_synchronizer")
         self.csr_devices.append("drtio")
-        self.add_wb_slave(mem_decoder(self.mem_map["drtio_aux"]),
+        self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
                           self.drtio.aux_controller.bus)
         self.add_memory_region("drtio_aux", self.mem_map["drtio_aux"] | self.shadow_base, 0x800)
 
