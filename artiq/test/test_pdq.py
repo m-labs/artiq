@@ -17,7 +17,7 @@ class TestPdq(unittest.TestCase):
         self.synth = Synthesizer(3, _test_program)
 
     def test_reset(self):
-        self.dev.write_config(reset=True)
+        self.dev.set_config(reset=True)
         buf = self.dev.dev.getvalue()
         self.assertEqual(buf, b"\xa5\x02\xf8\xe5\xa5\x03")
 
@@ -26,9 +26,9 @@ class TestPdq(unittest.TestCase):
         self.dev.program(_test_program)
 
     def test_cmd_program(self):
-        self.dev.write_config(enable=False)
+        self.dev.set_config(enable=False)
         self.dev.program(_test_program)
-        self.dev.write_config(enable=True, trigger=True)
+        self.dev.set_config(enable=True, trigger=True)
         return self.dev.dev.getvalue()
 
     def test_synth(self):

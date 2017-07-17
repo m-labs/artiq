@@ -43,10 +43,10 @@ def main():
     try:
         if args.reset:
             dev.write(b"")  # flush eop
-            dev.write_config(reset=True)
+            dev.set_config(reset=True)
             time.sleep(.1)
 
-        dev.write_crc(0)
+        dev.set_crc(0)
         dev.checksum = 0
 
         simple_server_loop({"pdq": dev}, bind_address_from_args(args),

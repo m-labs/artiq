@@ -71,8 +71,8 @@ class PDQ(PDQBase):
             assert written == len(msg), (written, len(msg))
         self.crc = crc8(data, self.crc)
 
-    def write_reg(self, adr, data, board):
-        """Write to a configuration register.
+    def set_reg(self, adr, data, board):
+        """Set a register.
 
         Args:
             board (int): Board to write to (0-0xe), 0xf for all boards.

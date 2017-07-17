@@ -294,11 +294,11 @@ class PDQBase:
         self.freq = float(freq)
 
     @portable
-    def write_reg(self, adr, data, board):
+    def set_reg(self, adr, data, board):
         raise NotImplementedError
 
     @portable
-    def read_reg(self, adr, board):
+    def get_reg(self, adr, board):
         raise NotImplementedError
 
     @portable
@@ -310,7 +310,7 @@ class PDQBase:
         raise NotImplementedError
 
     @portable
-    def write_config(self, reset=0, clk2x=0, enable=1,
+    def set_config(self, reset=0, clk2x=0, enable=1,
                      trigger=0, aux_miso=0, aux_dac=0b111, board=0xf):
         """Set the configuration register.
 
@@ -332,51 +332,51 @@ class PDQBase:
         """
         config = ((reset << 0) | (clk2x << 1) | (enable << 2) |
                   (trigger << 3) | (aux_miso << 4) | (aux_dac << 5))
-        self.write_reg(PDQ_ADR_CONFIG, config, board)
+        self.set_reg(PDQ_ADR_CONFIG, config, board)
 
     @portable
-    def read_config(self, board=0xf):
+    def get_config(self, board=0xf):
         """Read configuration register.
 
-        .. seealso: :meth:`write_config`
+        .. seealso: :meth:`set_config`
         """
-        return self.read_reg(PDQ_ADR_CONFIG, board)
+        return self.get_reg(PDQ_ADR_CONFIG, board)
 
     @portable
-    def write_crc(self, crc=0, board=0xf):
+    def set_crc(self, crc=0, board=0xf):
         """Set/reset the checksum register.
 
         Args:
             crc (int): Checksum value to write.
             board (int): Board to write to (0-0xe), 0xf for all boards.
         """
-        self.write_reg(PDQ_ADR_CRC, crc, board)
+        self.set_reg(PDQ_ADR_CRC, crc, board)
 
     @portable
-    def read_crc(self, board=0xf):
+    def get_crc(self, board=0xf):
         """Read checksum register.
 
-        .. seealso:: :meth:`write_crc`
+        .. seealso:: :meth:`set_crc`
         """
-        return self.read_reg(PDQ_ADR_CRC, board)
+        return self.get_reg(PDQ_ADR_CRC, board)
 
     @portable
-    def write_frame(self, frame, board=0xf):
+    def set_frame(self, frame, board=0xf):
         """Set the current frame.
 
         Args:
             frame (int): Frame to select.
             board (int): Board to write to (0-0xe), 0xf for all boards.
         """
-        self.write_reg(PDQ_ADR_FRAME, frame, board)
+        self.set_reg(PDQ_ADR_FRAME, frame, board)
 
     @portable
-    def read_frame(self, board=0xf):
+    def get_frame(self, board=0xf):
         """Read frame selection register.
 
-        .. seealso:: :meth:`write_frame`
+        .. seealso:: :meth:`set_frame`
         """
-        return self.read_reg(PDQ_ADR_FRAME, board)
+        return self.get_reg(PDQ_ADR_FRAME, board)
 
     def program_segments(self, segments, data):
         """Append the wavesynth lines to the given segments.

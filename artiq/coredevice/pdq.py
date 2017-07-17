@@ -57,7 +57,7 @@ class PDQ(PDQBase):
         self.bus.set_xfer(self.chip_select, 16, 0)
 
     @kernel
-    def write_reg(self, adr, data, board):
+    def set_reg(self, adr, data, board):
         """Set a PDQ register.
 
         :param adr: Address of the register (``_PDQ_ADR_CONFIG``,
@@ -69,7 +69,7 @@ class PDQ(PDQBase):
         delay_mu(self.bus.ref_period_mu)  # get to 20ns min cs high
 
     @kernel
-    def read_reg(self, adr, board):
+    def get_reg(self, adr, board):
         """Get a PDQ register.
 
         :param adr: Address of the register (``_PDQ_ADR_CONFIG``,

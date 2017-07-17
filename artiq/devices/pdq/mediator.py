@@ -136,7 +136,7 @@ class _Frame:
             self.pdq.current_frame = self.frame_number
             self.pdq.next_segment = 0
             at_mu(trigger_start_t - self.core.seconds_to_mu(frame_setup))
-            self.pdq.write_frame(self.frame_number)
+            self.pdq.set_frame(self.frame_number)
 
         at_mu(trigger_start_t)
         self.pdq.trigger.pulse(trigger_duration)
@@ -172,7 +172,7 @@ class CompoundPDQ:
             frame._invalidate()
         self.frames.clear()
         for dev in self.pdqs:
-            dev.write_config(reset=0, clk2x=self.clk2x, enable=0, trigger=0,
+            dev.set_config(reset=0, clk2x=self.clk2x, enable=0, trigger=0,
                     aux_miso=self.aux_miso, aux_dac=self.aux_dac, board=0xf)
         self.armed = False
 
@@ -205,7 +205,7 @@ class CompoundPDQ:
             pdq.program(program)
             n += dn
         for pdq in self.pdqs:
-            dev.write_config(reset=0, clk2x=self.clk2x, enable=1, trigger=0,
+            dev.set_config(reset=0, clk2x=self.clk2x, enable=1, trigger=0,
                     aux_miso=self.aux_miso, aux_dac=self.aux_dac, board=0xf)
         self.armed = True
 
@@ -217,6 +217,6 @@ class CompoundPDQ:
         return r
 
     @kernel
-    def write_frame(self, frame):
+    def set_frame(self, frame):
         for pdq in self.pdqs:
-            pdq.write_frame(self.frame_number)
+            pdq.set_frame(self.frame_number)
