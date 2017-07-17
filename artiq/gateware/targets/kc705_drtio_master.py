@@ -53,11 +53,14 @@ class Master(MiniSoC, AMPSoC):
             sys_clk_freq=self.clk_freq,
             clock_div2=True)
 
-        self.submodules.drtio = DRTIOMaster(self.transceiver)
-        self.csr_devices.append("drtio")
+        self.submodules.drtio0 = DRTIOMaster(self.transceiver)
+        self.csr_devices.append("drtio0")
         self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
-                          self.drtio.aux_controller.bus)
-        self.add_memory_region("drtio_aux", self.mem_map["drtio_aux"] | self.shadow_base, 0x800)
+                          self.drtio0.aux_controller.bus)
+        self.add_memory_region("drtio0_aux", self.mem_map["drtio_aux"] | self.shadow_base, 0x800)
+        self.config["has_drtio"] = None
+        self.add_csr_group("drtio", ["drtio0"])
+        self.add_memory_group("drtio_aux", ["drtio0_aux"])
 
         platform.add_extension(ad9154_fmc_ebz)
         ad9154_spi = platform.request("ad9154_spi")
@@ -100,7 +103,7 @@ class Master(MiniSoC, AMPSoC):
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
             [self.rtio.cri, self.rtio_dma.cri],
-            [self.rtio_core.cri, self.drtio.cri])
+            [self.rtio_core.cri, self.drtio0.cri])
         self.register_kernel_cpu_csrdevice("cri_con")
 
 

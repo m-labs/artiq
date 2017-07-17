@@ -15,25 +15,25 @@ fn process_aux_packet(p: &drtioaux::Packet) {
     // In the code below, *_chan_sel_write takes an u8 if there are fewer than 256 channels,
     // and u16 otherwise; hence the `as _` conversion.
     match *p {
-        drtioaux::Packet::EchoRequest => drtioaux::hw::send(&drtioaux::Packet::EchoReply).unwrap(),
+        drtioaux::Packet::EchoRequest => drtioaux::hw::send_link(0, &drtioaux::Packet::EchoReply).unwrap(),
 
         drtioaux::Packet::RtioErrorRequest => {
             let errors;
             unsafe {
-                errors = board::csr::drtio::rtio_error_read();
+                errors = (board::csr::DRTIO[0].rtio_error_read)();
             }
             if errors & 1 != 0 {
                 unsafe {
-                    board::csr::drtio::rtio_error_write(1);
+                    (board::csr::DRTIO[0].rtio_error_write)(1);
                 }
-                drtioaux::hw::send(&drtioaux::Packet::RtioErrorCollisionReply).unwrap();
+                drtioaux::hw::send_link(0, &drtioaux::Packet::RtioErrorCollisionReply).unwrap();
             } else if errors & 2 != 0 {
                 unsafe {
-                    board::csr::drtio::rtio_error_write(2);
+                    (board::csr::DRTIO[0].rtio_error_write)(2);
                 }
-                drtioaux::hw::send(&drtioaux::Packet::RtioErrorBusyReply).unwrap();
+                drtioaux::hw::send_link(0, &drtioaux::Packet::RtioErrorBusyReply).unwrap();
             } else {
-                drtioaux::hw::send(&drtioaux::Packet::RtioNoErrorReply).unwrap();
+                drtioaux::hw::send_link(0, &drtioaux::Packet::RtioNoErrorReply).unwrap();
             }
         }
 
@@ -51,7 +51,7 @@ fn process_aux_packet(p: &drtioaux::Packet) {
                 value = 0;
             }
             let reply = drtioaux::Packet::MonitorReply { value: value as u32 };
-            drtioaux::hw::send(&reply).unwrap();
+            drtioaux::hw::send_link(0, &reply).unwrap();
         },
         drtioaux::Packet::InjectionRequest { channel, overrd, value } => {
             #[cfg(has_rtio_moninj)]
@@ -74,50 +74,50 @@ fn process_aux_packet(p: &drtioaux::Packet) {
                 value = 0;
             }
             let reply = drtioaux::Packet::InjectionStatusReply { value: value };
-            drtioaux::hw::send(&reply).unwrap();
+            drtioaux::hw::send_link(0, &reply).unwrap();
         },
 
         drtioaux::Packet::I2cStartRequest { busno } => {
             let succeeded = board::i2c::start(busno).is_ok();
-            drtioaux::hw::send(&drtioaux::Packet::I2cBasicReply { succeeded: succeeded }).unwrap();
+            drtioaux::hw::send_link(0, &drtioaux::Packet::I2cBasicReply { succeeded: succeeded }).unwrap();
         }
         drtioaux::Packet::I2cRestartRequest { busno } => {
             let succeeded = board::i2c::restart(busno).is_ok();
-            drtioaux::hw::send(&drtioaux::Packet::I2cBasicReply { succeeded: succeeded }).unwrap();
+            drtioaux::hw::send_link(0, &drtioaux::Packet::I2cBasicReply { succeeded: succeeded }).unwrap();
         }
         drtioaux::Packet::I2cStopRequest { busno } => {
             let succeeded = board::i2c::stop(busno).is_ok();
-            drtioaux::hw::send(&drtioaux::Packet::I2cBasicReply { succeeded: succeeded }).unwrap();
+            drtioaux::hw::send_link(0, &drtioaux::Packet::I2cBasicReply { succeeded: succeeded }).unwrap();
         }
         drtioaux::Packet::I2cWriteRequest { busno, data } => {
             match board::i2c::write(busno, data) {
-                Ok(ack) => drtioaux::hw::send(&drtioaux::Packet::I2cWriteReply { succeeded: true, ack: ack }).unwrap(),
-                Err(_) => drtioaux::hw::send(&drtioaux::Packet::I2cWriteReply { succeeded: false, ack: false }).unwrap()
+                Ok(ack) => drtioaux::hw::send_link(0, &drtioaux::Packet::I2cWriteReply { succeeded: true, ack: ack }).unwrap(),
+                Err(_) => drtioaux::hw::send_link(0, &drtioaux::Packet::I2cWriteReply { succeeded: false, ack: false }).unwrap()
             };
         }
         drtioaux::Packet::I2cReadRequest { busno, ack } => {
             match board::i2c::read(busno, ack) {
-                Ok(data) => drtioaux::hw::send(&drtioaux::Packet::I2cReadReply { succeeded: true, data: data }).unwrap(),
-                Err(_) => drtioaux::hw::send(&drtioaux::Packet::I2cReadReply { succeeded: false, data: 0xff }).unwrap()
+                Ok(data) => drtioaux::hw::send_link(0, &drtioaux::Packet::I2cReadReply { succeeded: true, data: data }).unwrap(),
+                Err(_) => drtioaux::hw::send_link(0, &drtioaux::Packet::I2cReadReply { succeeded: false, data: 0xff }).unwrap()
             };
         }
 
         drtioaux::Packet::SpiSetConfigRequest { busno, flags, write_div, read_div } => {
             let succeeded = board::spi::set_config(busno, flags, write_div, read_div).is_ok();
-            drtioaux::hw::send(&drtioaux::Packet::SpiBasicReply { succeeded: succeeded }).unwrap();
+            drtioaux::hw::send_link(0, &drtioaux::Packet::SpiBasicReply { succeeded: succeeded }).unwrap();
         },
         drtioaux::Packet::SpiSetXferRequest { busno, chip_select, write_length, read_length } => {
             let succeeded = board::spi::set_xfer(busno, chip_select, write_length, read_length).is_ok();
-            drtioaux::hw::send(&drtioaux::Packet::SpiBasicReply { succeeded: succeeded }).unwrap();
+            drtioaux::hw::send_link(0, &drtioaux::Packet::SpiBasicReply { succeeded: succeeded }).unwrap();
         }
         drtioaux::Packet::SpiWriteRequest { busno, data } => {
             let succeeded = board::spi::write(busno, data).is_ok();
-            drtioaux::hw::send(&drtioaux::Packet::SpiBasicReply { succeeded: succeeded }).unwrap();
+            drtioaux::hw::send_link(0, &drtioaux::Packet::SpiBasicReply { succeeded: succeeded }).unwrap();
         }
         drtioaux::Packet::SpiReadRequest { busno } => {
             match board::spi::read(busno) {
-                Ok(data) => drtioaux::hw::send(&drtioaux::Packet::SpiReadReply { succeeded: true, data: data }).unwrap(),
-                Err(_) => drtioaux::hw::send(&drtioaux::Packet::SpiReadReply { succeeded: false, data: 0 }).unwrap()
+                Ok(data) => drtioaux::hw::send_link(0, &drtioaux::Packet::SpiReadReply { succeeded: true, data: data }).unwrap(),
+                Err(_) => drtioaux::hw::send_link(0, &drtioaux::Packet::SpiReadReply { succeeded: false, data: 0 }).unwrap()
             };
         }
 
@@ -126,7 +126,7 @@ fn process_aux_packet(p: &drtioaux::Packet) {
 }
 
 fn process_aux_packets() {
-    let pr = drtioaux::hw::recv();
+    let pr = drtioaux::hw::recv_link(0);
     match pr {
         Ok(None) => (),
         Ok(Some(p)) => process_aux_packet(&p),
@@ -138,8 +138,8 @@ fn process_aux_packets() {
 fn process_errors() {
     let errors;
     unsafe {
-        errors = board::csr::drtio::protocol_error_read();
-        board::csr::drtio::protocol_error_write(errors);
+        errors = (board::csr::DRTIO[0].protocol_error_read)();
+        (board::csr::DRTIO[0].protocol_error_write)(errors);
     }
     if errors & 1 != 0 {
         error!("received packet of an unknown type");
@@ -185,7 +185,7 @@ const SI5324_SETTINGS: board::si5324::FrequencySettings
 
 fn drtio_link_is_up() -> bool {
     unsafe {
-        board::csr::drtio::link_status_read() == 1
+        (board::csr::DRTIO[0].link_status_read)() == 1
     }
 }
 
