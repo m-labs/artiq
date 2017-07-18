@@ -55,7 +55,6 @@ async def get_logs(host):
 
 def main():
     args = get_argparser().parse_args()
-    multiline_log_config(logging.DEBUG)
 
     loop = asyncio.get_event_loop()
     try:
@@ -64,6 +63,7 @@ def main():
             server = Server({"corelog": PingTarget()}, None, True)
             loop.run_until_complete(server.start(bind_address_from_args(args), args.port))
             try:
+                multiline_log_config(logging.DEBUG)
                 loop.run_until_complete(server.wait_terminate())
             finally:
                 loop.run_until_complete(server.stop())
