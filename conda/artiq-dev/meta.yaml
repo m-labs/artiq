@@ -43,5 +43,5 @@ requirements:
 
 about:
   home: https://m-labs.hk/artiq
-  license: GPL
+  license: LGPL
   summary: 'ARTIQ development metapackage'

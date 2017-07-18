@@ -19,5 +19,5 @@ requirements:
 
 about:
   home: http://m-labs.hk/artiq
-  license: GPL
+  license: LGPL
   summary: 'Bitstream, BIOS and runtime for NIST_QC1 on the Pipistrello board'
