@@ -94,10 +94,14 @@ impl Log for BufferLogger {
 
     fn log(&self, record: &LogRecord) {
         if self.enabled(record.metadata()) {
+            let timestamp = clock::get_us();
+            let seconds   = timestamp / 1_000_000;
+            let micros    = timestamp % 1_000_000;
+
             let force_uart = match self.buffer.try_borrow_mut() {
                 Ok(mut buffer) => {
-                    writeln!(buffer, "[{:12}us] {:>5}({}): {}",
-                             clock::get_us(), record.level(),
+                    writeln!(buffer, "[{:6}.{:06}s] {:>5}({}): {}",
+                             seconds, micros, record.level(),
                              record.target(), record.args()).unwrap();
                     false
                 }
@@ -109,8 +113,8 @@ impl Log for BufferLogger {
             };
 
             if record.level() <= self.uart_filter.get() || force_uart {
-                writeln!(Console, "[{:12}us] {:>5}({}): {}",
-                         clock::get_us(), record.level(),
+                writeln!(Console, "[{:6}.{:06}s] {:>5}({}): {}",
+                         seconds, micros, record.level(),
                          record.target(), record.args()).unwrap();
             }
         }
