@@ -47,7 +47,7 @@ impl BufferLogger {
         }
     }
 
-    pub fn with_instance<R, F: FnOnce(&BufferLogger) -> R>(f: F) -> R {
+    pub fn with<R, F: FnOnce(&BufferLogger) -> R>(f: F) -> R {
         f(unsafe { mem::transmute::<*const BufferLogger, &BufferLogger>(LOGGER) })
     }
 
@@ -55,8 +55,16 @@ impl BufferLogger {
         self.buffer.borrow_mut().clear()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.buffer.borrow_mut().extract().len() == 0
+    }
+
     pub fn extract<R, F: FnOnce(&str) -> R>(&self, f: F) -> R {
-        f(self.buffer.borrow_mut().extract())
+        let old_log_level = self.max_log_level();
+        self.set_max_log_level(LogLevelFilter::Off);
+        let result = f(self.buffer.borrow_mut().extract());
+        self.set_max_log_level(old_log_level);
+        result
     }
 
     pub fn max_log_level(&self) -> LogLevelFilter {
@@ -98,24 +106,14 @@ impl Log for BufferLogger {
             let seconds   = timestamp / 1_000_000;
             let micros    = timestamp % 1_000_000;
 
-            let force_uart = match self.buffer.try_borrow_mut() {
-                Ok(mut buffer) => {
-                    writeln!(buffer, "[{:6}.{:06}s] {:>5}({}): {}",
-                             seconds, micros, record.level(),
-                             record.target(), record.args()).unwrap();
-                    false
-                }
-                Err(_) => {
-                    // we're trying to log something while sending the log somewhere,
-                    // probably over the network. just let it go to UART.
-                    true
-                }
-            };
+            writeln!(self.buffer.borrow_mut(),
+                     "[{:6}.{:06}s] {:>5}({}): {}", seconds, micros,
+                     record.level(), record.target(), record.args()).unwrap();
 
-            if record.level() <= self.uart_filter.get() || force_uart {
-                writeln!(Console, "[{:6}.{:06}s] {:>5}({}): {}",
-                         seconds, micros, record.level(),
-                         record.target(), record.args()).unwrap();
+            if record.level() <= self.uart_filter.get() {
+                writeln!(Console,
+                         "[{:6}.{:06}s] {:>5}({}): {}", seconds, micros,
+                         record.level(), record.target(), record.args()).unwrap();
             }
         }
     }

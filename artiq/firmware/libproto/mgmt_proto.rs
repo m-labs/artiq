@@ -8,6 +8,7 @@ use log::LogLevelFilter;
 pub enum Request {
     GetLog,
     ClearLog,
+    PullLog,
     #[cfg(feature = "log")]
     SetLogFilter(LogLevelFilter),
     #[cfg(feature = "log")]
@@ -44,6 +45,7 @@ impl Request {
         Ok(match reader.read_u8()? {
             1  => Request::GetLog,
             2  => Request::ClearLog,
+            7  => Request::PullLog,
             #[cfg(feature = "log")]
             3 => Request::SetLogFilter(read_log_level_filter(reader)?),
             #[cfg(feature = "log")]
