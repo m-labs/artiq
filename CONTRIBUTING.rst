@@ -51,7 +51,7 @@ Copyright and Sign-Off
 ----------------------
 
 Authors retain copyright of their contributions to ARTIQ, but whenever possible
-should use the GNU GPL version 3 license for them to be merged.
+should use the GNU LGPL version 3 license for them to be merged.
 
 Works of US government employees are not copyrighted but can also be merged.
 
