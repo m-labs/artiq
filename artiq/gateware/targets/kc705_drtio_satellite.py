@@ -54,11 +54,12 @@ class Satellite(BaseSoC):
             tx_pads=platform.request("sfp_tx"),
             rx_pads=platform.request("sfp_rx"),
             sys_clk_freq=self.clk_freq)
-        self.submodules.rx_synchronizer = gtx_7series.RXSynchronizer(
-            self.transceiver.rtio_clk_freq, initial_phase=180.0)
-        self.submodules.drtio0 = DRTIOSatellite(
-            self.transceiver, rtio_channels, self.rx_synchronizer)
-        self.csr_devices.append("rx_synchronizer")
+        rx0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
+        self.submodules.rx_synchronizer0 = rx0(gtx_7series.RXSynchronizer(
+            self.transceiver.rtio_clk_freq, initial_phase=180.0))
+        self.submodules.drtio0 = rx0(DRTIOSatellite(
+            self.transceiver.channels[0], rtio_channels, self.rx_synchronizer0))
+        self.csr_devices.append("rx_synchronizer0")
         self.csr_devices.append("drtio0")
         self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
                           self.drtio0.aux_controller.bus)
@@ -71,7 +72,7 @@ class Satellite(BaseSoC):
         si5324_clkin = platform.request("si5324_clkin")
         self.specials += \
             Instance("OBUFDS",
-                i_I=ClockSignal("rtio_rx"),
+                i_I=ClockSignal("rtio_rx0"),
                 o_O=si5324_clkin.p, o_OB=si5324_clkin.n
             )
         self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
@@ -89,7 +90,7 @@ class Satellite(BaseSoC):
         self.csr_devices.append("converter_spi")
 
         self.comb += [
-            platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx")),
+            platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx0")),
             platform.request("user_sma_clock_n").eq(ClockSignal("rtio"))
         ]
 

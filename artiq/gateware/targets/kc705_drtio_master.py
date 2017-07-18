@@ -53,7 +53,8 @@ class Master(MiniSoC, AMPSoC):
             sys_clk_freq=self.clk_freq,
             clock_div2=True)
 
-        self.submodules.drtio0 = DRTIOMaster(self.transceiver)
+        self.submodules.drtio0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})(
+            DRTIOMaster(self.transceiver.channels[0]))
         self.csr_devices.append("drtio0")
         self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
                           self.drtio0.aux_controller.bus)
@@ -69,7 +70,7 @@ class Master(MiniSoC, AMPSoC):
         self.csr_devices.append("converter_spi")
 
         self.comb += [
-            platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx")),
+            platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx0")),
             platform.request("user_sma_clock_n").eq(ClockSignal("rtio"))
         ]
 
