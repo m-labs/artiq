@@ -1,3 +1,13 @@
+"""
+Driver for the Smart Arbitrary Waveform Generator (SAWG) on RTIO.
+
+The SAWG is an "improved DDS" built in gateware and interfacing to
+high-speed DACs.
+
+Output event replacement is supported except on the configuration channel.
+"""
+
+
 from artiq.language.types import TInt32, TFloat
 from numpy import int32, int64
 from artiq.language.core import kernel, now_mu

@@ -1,3 +1,11 @@
+"""
+Driver for generic SPI on RTIO.
+
+Output event replacement is not supported and issuing commands at the same
+time is an error.
+"""
+
+
 import numpy
 
 from artiq.language.core import syscall, kernel, portable, now_mu, delay_mu
