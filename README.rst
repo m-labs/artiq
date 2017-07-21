@@ -5,7 +5,7 @@
   :target: https://m-labs.hk/artiq
 
 ARTIQ (Advanced Real-Time Infrastructure for Quantum physics) is the next-generation control system for quantum information experiments.
-It is developed by `M-Labs <https://m-labs.hk>`_ for and in partnership with the `Ion Storage Group at NIST <http://www.nist.gov/pml/div688/grp10/index.cfm>`_ as free software.
+It is developed by `M-Labs <https://m-labs.hk>`_ for and in partnership with the `Ion Storage Group at NIST <https://www.nist.gov/pml/time-and-frequency-division/ion-storage>`_ as free software.
 It is offered to the entire research community as a solution equally applicable to other challenging control tasks outside the field of ion trapping.
 
 The system features a high-level programming language that helps describing complex experiments, which is compiled and executed on dedicated hardware with nanosecond timing resolution and sub-microsecond latency. It includes graphical user interfaces to parametrize and schedule experiments and to visualize and explore the results.
@@ -14,7 +14,7 @@ ARTIQ uses FPGA hardware to perform its time-critical tasks.
 It is designed to be portable to hardware platforms from different vendors and FPGA manufacturers.
 Currently, several different configurations of a `high-end FPGA evaluation kit <http://www.xilinx.com/products/boards-and-kits/ek-k7-kc705-g.html>`_ are used and supported. This FPGA platform can be combined with any number of additional peripherals, either already accessible from ARTIQ or made accessible with little effort.
 
-Custom hardware components with widely extended capabilities and advanced support for scalable and fully distributed real-time control of experiments `are being designed <https://github.com/m-labs/artiq-hardware>`_.
+Custom hardware components with widely extended capabilities and advanced support for scalable and fully distributed real-time control of experiments `are being designed <https://github.com/m-labs/sinara>`_.
 
 ARTIQ and its dependencies are available in the form of `conda packages <https://conda.anaconda.org/m-labs/label/main>`_ for both Linux and Windows.
 Packages containing pre-compiled binary images to be loaded onto the hardware platforms are supplied for each configuration.
