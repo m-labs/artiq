@@ -32,6 +32,9 @@ Executing just ``conda`` should print the help of the ``conda`` command [1]_.
 Installing the ARTIQ packages
 -----------------------------
 
+.. note::
+    On a system with a pre-existing conda installation, it is recommended to update conda to the latest version prior to installing ARTIQ.
+
 First add the conda-forge repository containing ARTIQ dependencies to your conda configuration::
 
     $ conda config --add channels http://conda.anaconda.org/conda-forge/label/main
