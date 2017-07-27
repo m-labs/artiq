@@ -1,8 +1,8 @@
-import os, unittest
+import unittest
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
-from artiq.language.core import (kernel, portable, delay_mu, delay)
-from artiq.language.units import ns, us
+from artiq.language.core import (kernel, delay_mu, delay)
+from artiq.language.units import us
 from artiq.coredevice import spi
 
 
@@ -10,14 +10,13 @@ _SDCARD_SPI_CONFIG = (0*spi.SPI_OFFLINE | 0*spi.SPI_CS_POLARITY |
                       0*spi.SPI_CLK_POLARITY | 0*spi.SPI_CLK_PHASE |
                       0*spi.SPI_LSB_FIRST | 0*spi.SPI_HALF_DUPLEX)
                       
-class CARDTest(EnvExperiment):
+class CardTest(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.setattr_device("spi_mmc")
 
     @kernel
     def run(self):  
-    
         self.core.reset()
         self.core.break_realtime()
         response = 0xff
@@ -54,12 +53,10 @@ class CARDTest(EnvExperiment):
                 sd_response = True
                 break
         self.set_dataset("sd_response", sd_response)
-    
             
  
 class SDTest(ExperimentCase):
     def test(self):
         self.execute(CARDTest)
         self.assertTrue(self.dataset_mgr.get("sd_response"))
-                
-      
+        
