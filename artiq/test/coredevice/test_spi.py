@@ -62,14 +62,4 @@ class SDTest(ExperimentCase):
         self.execute(CARDTest)
         self.assertTrue(self.dataset_mgr.get("sd_response"))
                 
-        
-        
-        
-     
-    
-               
-            
-            
-                
-            
-        
+      
