@@ -131,7 +131,7 @@ fn startup() {
         Ok(log_level_filter) => {
             info!("log level set to {} by `log_level` config key",
                   log_level_filter);
-            logger_artiq::BufferLogger::with_instance(|logger|
+            logger_artiq::BufferLogger::with(|logger|
                 logger.set_max_log_level(log_level_filter));
         }
     }
@@ -143,7 +143,7 @@ fn startup() {
         Ok(uart_log_level_filter) => {
             info!("UART log level set to {} by `uart_log_level` config key",
                   uart_log_level_filter);
-            logger_artiq::BufferLogger::with_instance(|logger|
+            logger_artiq::BufferLogger::with(|logger|
                 logger.set_uart_log_level(uart_log_level_filter));
         }
     }

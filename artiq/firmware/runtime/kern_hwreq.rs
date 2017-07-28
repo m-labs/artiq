@@ -8,8 +8,8 @@ use sched::Io;
 mod drtio_i2c {
     use drtioaux;
 
-    fn basic_reply() -> Result<(), ()> {
-        match drtioaux::hw::recv_timeout(None) {
+    fn basic_reply(nodeno: u8) -> Result<(), ()> {
+        match drtioaux::hw::recv_timeout(nodeno, None) {
             Ok(drtioaux::Packet::I2cBasicReply { succeeded }) => {
                 if succeeded { Ok(()) } else { Err(()) }
             }
@@ -24,31 +24,39 @@ mod drtio_i2c {
         }
     }
 
-    pub fn start(busno: u32) -> Result<(), ()> {
-        let request = drtioaux::Packet::I2cStartRequest { busno: busno as u8 };
-        drtioaux::hw::send(&request).unwrap();
-        basic_reply()
+    pub fn start(nodeno: u8, busno: u8) -> Result<(), ()> {
+        let request = drtioaux::Packet::I2cStartRequest { busno: busno };
+        if drtioaux::hw::send(nodeno, &request).is_err() {
+            return Err(())
+        }
+        basic_reply(nodeno)
     }
 
-    pub fn restart(busno: u32) -> Result<(), ()> {
-        let request = drtioaux::Packet::I2cRestartRequest { busno: busno as u8 };
-        drtioaux::hw::send(&request).unwrap();
-        basic_reply()
+    pub fn restart(nodeno: u8, busno: u8) -> Result<(), ()> {
+        let request = drtioaux::Packet::I2cRestartRequest { busno: busno };
+        if drtioaux::hw::send(nodeno, &request).is_err() {
+            return Err(())
+        }
+        basic_reply(nodeno)
     }
 
-    pub fn stop(busno: u32) -> Result<(), ()> {
-        let request = drtioaux::Packet::I2cStopRequest { busno: busno as u8 };
-        drtioaux::hw::send(&request).unwrap();
-        basic_reply()
+    pub fn stop(nodeno: u8, busno: u8) -> Result<(), ()> {
+        let request = drtioaux::Packet::I2cStopRequest { busno: busno };
+        if drtioaux::hw::send(nodeno, &request).is_err() {
+            return Err(())
+        }
+        basic_reply(nodeno)
     }
 
-    pub fn write(busno: u32, data: u8) -> Result<bool, ()> {
+    pub fn write(nodeno: u8, busno: u8, data: u8) -> Result<bool, ()> {
         let request = drtioaux::Packet::I2cWriteRequest {
-            busno: busno as u8,
+            busno: busno,
             data: data
         };
-        drtioaux::hw::send(&request).unwrap();
-        match drtioaux::hw::recv_timeout(None) {
+        if drtioaux::hw::send(nodeno, &request).is_err() {
+            return Err(())
+        }
+        match drtioaux::hw::recv_timeout(nodeno, None) {
             Ok(drtioaux::Packet::I2cWriteReply { succeeded, ack }) => {
                 if succeeded { Ok(ack) } else { Err(()) }
             }
@@ -63,13 +71,15 @@ mod drtio_i2c {
         }
     }
 
-    pub fn read(busno: u32, ack: bool) -> Result<u8, ()> {
+    pub fn read(nodeno: u8, busno: u8, ack: bool) -> Result<u8, ()> {
         let request = drtioaux::Packet::I2cReadRequest {
-            busno: busno as u8,
+            busno: busno,
             ack: ack
         };
-        drtioaux::hw::send(&request).unwrap();
-        match drtioaux::hw::recv_timeout(None) {
+        if drtioaux::hw::send(nodeno, &request).is_err() {
+            return Err(())
+        }
+        match drtioaux::hw::recv_timeout(nodeno, None) {
             Ok(drtioaux::Packet::I2cReadReply { succeeded, data }) => {
                 if succeeded { Ok(data) } else { Err(()) }
             }
@@ -87,23 +97,23 @@ mod drtio_i2c {
 
 #[cfg(not(has_drtio))]
 mod drtio_i2c {
-    pub fn start(_busno: u32) -> Result<(), ()> {
+    pub fn start(_nodeno: u8, _busno: u8) -> Result<(), ()> {
         Err(())
     }
 
-    pub fn restart(_busno: u32) -> Result<(), ()> {
+    pub fn restart(_nodeno: u8, _busno: u8) -> Result<(), ()> {
         Err(())
     }
 
-    pub fn stop(_busno: u32) -> Result<(), ()> {
+    pub fn stop(_nodeno: u8, _busno: u8) -> Result<(), ()> {
         Err(())
     }
 
-    pub fn write(_busno: u32, _data: u8) -> Result<bool, ()> {
+    pub fn write(_nodeno: u8, _busno: u8, _data: u8) -> Result<bool, ()> {
         Err(())
     }
 
-    pub fn read(_busno: u32, _ack: bool) -> Result<u8, ()> {
+    pub fn read(_nodeno: u8, _busno: u8, _ack: bool) -> Result<u8, ()> {
         Err(())
     }
 }
@@ -113,52 +123,52 @@ mod i2c {
     use super::drtio_i2c;
 
     pub fn start(busno: u32) -> Result<(), ()> {
-        let drtio = busno >> 16;
-        let dev_busno = busno as u8;
-        if drtio == 0 {
-            board::i2c::start(dev_busno)
+        let nodeno = (busno >> 16) as u8;
+        let node_busno = busno as u8;
+        if nodeno == 0 {
+            board::i2c::start(node_busno)
         } else {
-            drtio_i2c::start(busno)
+            drtio_i2c::start(nodeno, node_busno)
         }
     }
 
     pub fn restart(busno: u32) -> Result<(), ()> {
-        let drtio = busno >> 16;
-        let dev_busno = busno as u8;
-        if drtio == 0 {
-            board::i2c::restart(dev_busno)
+        let nodeno = (busno >> 16) as u8;
+        let node_busno = busno as u8;
+        if nodeno == 0 {
+            board::i2c::restart(node_busno)
         } else {
-            drtio_i2c::restart(busno)
+            drtio_i2c::restart(nodeno, node_busno)
         }
     }
 
     pub fn stop(busno: u32) -> Result<(), ()> {
-        let drtio = busno >> 16;
-        let dev_busno = busno as u8;
-        if drtio == 0 {
-            board::i2c::stop(dev_busno)
+        let nodeno = (busno >> 16) as u8;
+        let node_busno = busno as u8;
+        if nodeno == 0 {
+            board::i2c::stop(node_busno)
         } else {
-            drtio_i2c::stop(busno)
+            drtio_i2c::stop(nodeno, node_busno)
         }
     }
 
     pub fn write(busno: u32, data: u8) -> Result<bool, ()> {
-        let drtio = busno >> 16;
-        let dev_busno = busno as u8;
-        if drtio == 0 {
-            board::i2c::write(dev_busno, data)
+        let nodeno = (busno >> 16 )as u8;
+        let node_busno = busno as u8;
+        if nodeno == 0 {
+            board::i2c::write(node_busno, data)
         } else {
-            drtio_i2c::write(busno, data)
+            drtio_i2c::write(nodeno, node_busno, data)
         }
     }
 
     pub fn read(busno: u32, ack: bool) -> Result<u8, ()> {
-        let drtio = busno >> 16;
-        let dev_busno = busno as u8;
-        if drtio == 0 {
-            board::i2c::read(dev_busno, ack)
+        let nodeno = (busno >> 16) as u8;
+        let node_busno = busno as u8;
+        if nodeno == 0 {
+            board::i2c::read(node_busno, ack)
         } else {
-            drtio_i2c::read(busno, ack)
+            drtio_i2c::read(nodeno, node_busno, ack)
         }
     }
 }
@@ -167,8 +177,8 @@ mod i2c {
 mod drtio_spi {
     use drtioaux;
 
-    fn basic_reply() -> Result<(), ()> {
-        match drtioaux::hw::recv_timeout(None) {
+    fn basic_reply(nodeno: u8) -> Result<(), ()> {
+        match drtioaux::hw::recv_timeout(nodeno, None) {
             Ok(drtioaux::Packet::SpiBasicReply { succeeded }) => {
                 if succeeded { Ok(()) } else { Err(()) }
             }
@@ -183,41 +193,49 @@ mod drtio_spi {
         }
     }
 
-    pub fn set_config(busno: u32, flags: u8, write_div: u8, read_div: u8) -> Result<(), ()> {
+    pub fn set_config(nodeno: u8, busno: u8, flags: u8, write_div: u8, read_div: u8) -> Result<(), ()> {
         let request = drtioaux::Packet::SpiSetConfigRequest {
-            busno: busno as u8,
+            busno: busno,
             flags: flags,
             write_div: write_div,
             read_div: read_div
         };
-        drtioaux::hw::send(&request).unwrap();
-        basic_reply()
+        if drtioaux::hw::send(nodeno, &request).is_err() {
+            return Err(())
+        }
+        basic_reply(nodeno)
     }
 
-    pub fn set_xfer(busno: u32, chip_select: u16, write_length: u8, read_length: u8) -> Result<(), ()> {
+    pub fn set_xfer(nodeno: u8, busno: u8, chip_select: u16, write_length: u8, read_length: u8) -> Result<(), ()> {
         let request = drtioaux::Packet::SpiSetXferRequest {
-            busno: busno as u8,
+            busno: busno,
             chip_select: chip_select,
             write_length: write_length,
             read_length: read_length
         };
-        drtioaux::hw::send(&request).unwrap();
-        basic_reply()
+        if drtioaux::hw::send(nodeno, &request).is_err() {
+            return Err(())
+        }
+        basic_reply(nodeno)
     }
 
-    pub fn write(busno: u32, data: u32) -> Result<(), ()> {
+    pub fn write(nodeno: u8, busno: u8, data: u32) -> Result<(), ()> {
         let request = drtioaux::Packet::SpiWriteRequest {
-            busno: busno as u8,
+            busno: busno,
             data: data
         };
-        drtioaux::hw::send(&request).unwrap();
-        basic_reply()
+        if drtioaux::hw::send(nodeno, &request).is_err() {
+            return Err(())
+        }
+        basic_reply(nodeno)
     }
 
-    pub fn read(busno: u32) -> Result<u32, ()> {
-        let request = drtioaux::Packet::SpiReadRequest { busno: busno as u8 };
-        drtioaux::hw::send(&request).unwrap();
-        match drtioaux::hw::recv_timeout(None) {
+    pub fn read(nodeno: u8, busno: u8) -> Result<u32, ()> {
+        let request = drtioaux::Packet::SpiReadRequest { busno: busno };
+        if drtioaux::hw::send(nodeno, &request).is_err() {
+            return Err(())
+        }
+        match drtioaux::hw::recv_timeout(nodeno, None) {
             Ok(drtioaux::Packet::SpiReadReply { succeeded, data }) => {
                 if succeeded { Ok(data) } else { Err(()) }
             }
@@ -235,19 +253,19 @@ mod drtio_spi {
 
 #[cfg(not(has_drtio))]
 mod drtio_spi {
-    pub fn set_config(_busno: u32, _flags: u8, _write_div: u8, _read_div: u8) -> Result<(), ()> {
+    pub fn set_config(_nodeno: u8, _busno: u8, _flags: u8, _write_div: u8, _read_div: u8) -> Result<(), ()> {
         Err(())
     }
 
-    pub fn set_xfer(_busno: u32, _chip_select: u16, _write_length: u8, _read_length: u8) -> Result<(), ()> {
+    pub fn set_xfer(_nodeno: u8, _busno: u8, _chip_select: u16, _write_length: u8, _read_length: u8) -> Result<(), ()> {
         Err(())
     }
 
-    pub fn write(_busno: u32, _data: u32) -> Result<(), ()> {
+    pub fn write(_nodeno: u8, _busno: u8, _data: u32) -> Result<(), ()> {
         Err(())
     }
 
-    pub fn read(_busno: u32) -> Result<u32, ()> {
+    pub fn read(_nodeno: u8, _busno: u8) -> Result<u32, ()> {
         Err(())
     }
 }
@@ -257,42 +275,42 @@ mod spi {
     use super::drtio_spi;
 
     pub fn set_config(busno: u32, flags: u8, write_div: u8, read_div: u8) -> Result<(), ()> {
-        let drtio = busno >> 16;
-        let dev_busno = busno as u8;
-        if drtio == 0 {
-            board::spi::set_config(dev_busno, flags, write_div, read_div)
+        let nodeno = (busno >> 16) as u8;
+        let node_busno = busno as u8;
+        if nodeno == 0 {
+            board::spi::set_config(node_busno, flags, write_div, read_div)
         } else {
-            drtio_spi::set_config(busno, flags, write_div, read_div)
+            drtio_spi::set_config(nodeno, node_busno, flags, write_div, read_div)
         }
     }
 
     pub fn set_xfer(busno: u32, chip_select: u16, write_length: u8, read_length: u8) -> Result<(), ()> {
-        let drtio = busno >> 16;
-        let dev_busno = busno as u8;
-        if drtio == 0 {
-            board::spi::set_xfer(dev_busno, chip_select, write_length, read_length)
+        let nodeno = (busno >> 16) as u8;
+        let node_busno = busno as u8;
+        if nodeno == 0 {
+            board::spi::set_xfer(node_busno, chip_select, write_length, read_length)
         } else {
-            drtio_spi::set_xfer(busno, chip_select, write_length, read_length)
+            drtio_spi::set_xfer(nodeno, node_busno, chip_select, write_length, read_length)
         }
     }
 
     pub fn write(busno: u32, data: u32) -> Result<(), ()> {
-        let drtio = busno >> 16;
-        let dev_busno = busno as u8;
-        if drtio == 0 {
-            board::spi::write(dev_busno, data)
+        let nodeno = (busno >> 16) as u8;
+        let node_busno = busno as u8;
+        if nodeno == 0 {
+            board::spi::write(node_busno, data)
         } else {
-            drtio_spi::write(busno, data)
+            drtio_spi::write(nodeno, node_busno, data)
         }
     }
 
     pub fn read(busno: u32) -> Result<u32, ()> {
-        let drtio = busno >> 16;
-        let dev_busno = busno as u8;
-        if drtio == 0 {
-            board::spi::read(dev_busno)
+        let nodeno = (busno >> 16) as u8;
+        let node_busno = busno as u8;
+        if nodeno == 0 {
+            board::spi::read(node_busno)
         } else {
-            drtio_spi::read(busno)
+            drtio_spi::read(nodeno, node_busno)
         }
     }
 }
@@ -318,12 +336,12 @@ pub fn process_kern_hwreq(io: &Io, request: &kern::Message) -> io::Result<bool> 
             rtio_mgt::drtio_dbg::get_fifo_space(channel);
             kern_acknowledge()
         }
-        &kern::DrtioPacketCountRequest => {
-            let (tx_cnt, rx_cnt) = rtio_mgt::drtio_dbg::get_packet_counts();
+        &kern::DrtioPacketCountRequest { linkno } => {
+            let (tx_cnt, rx_cnt) = rtio_mgt::drtio_dbg::get_packet_counts(linkno);
             kern_send(io, &kern::DrtioPacketCountReply { tx_cnt: tx_cnt, rx_cnt: rx_cnt })
         }
-        &kern::DrtioFifoSpaceReqCountRequest => {
-            let cnt = rtio_mgt::drtio_dbg::get_fifo_space_req_count();
+        &kern::DrtioFifoSpaceReqCountRequest { linkno } => {
+            let cnt = rtio_mgt::drtio_dbg::get_fifo_space_req_count(linkno);
             kern_send(io, &kern::DrtioFifoSpaceReqCountReply { cnt: cnt })
         }
 

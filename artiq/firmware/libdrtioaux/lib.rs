@@ -252,50 +252,49 @@ pub mod hw {
     use super::*;
     use std::io::Cursor;
 
-    const AUX_TX_BASE: usize = board::mem::DRTIO_AUX_BASE;
-    const AUX_TX_SIZE: usize = board::mem::DRTIO_AUX_SIZE/2;
-    const AUX_RX_BASE: usize = AUX_TX_BASE + AUX_TX_SIZE;
-
-    fn rx_has_error() -> bool {
+    fn rx_has_error(linkno: u8) -> bool {
+        let linkno = linkno as usize;
         unsafe {
-            let error = board::csr::drtio::aux_rx_error_read() != 0;
+            let error = (board::csr::DRTIO[linkno].aux_rx_error_read)() != 0;
             if error {
-                board::csr::drtio::aux_rx_error_write(1)
+                (board::csr::DRTIO[linkno].aux_rx_error_write)(1)
             }
             error
         }
     }
 
-    struct RxBuffer(&'static [u8]);
+    struct RxBuffer(u8, &'static [u8]);
 
     impl Drop for RxBuffer {
         fn drop(&mut self) {
             unsafe {
-                board::csr::drtio::aux_rx_present_write(1);
+                (board::csr::DRTIO[self.0 as usize].aux_rx_present_write)(1);
             }
         }
     }
 
-    fn rx_get_buffer() -> Option<RxBuffer> {
+    fn rx_get_buffer(linkno: u8) -> Option<RxBuffer> {
+        let linkidx = linkno as usize;
         unsafe {
-            if board::csr::drtio::aux_rx_present_read() == 1 {
-                let length = board::csr::drtio::aux_rx_length_read();
-                let sl = slice::from_raw_parts(AUX_RX_BASE as *mut u8, length as usize);
-                Some(RxBuffer(sl))
+            if (board::csr::DRTIO[linkidx].aux_rx_present_read)() == 1 {
+                let length = (board::csr::DRTIO[linkidx].aux_rx_length_read)();
+                let base = board::mem::DRTIO_AUX[linkidx].base + board::mem::DRTIO_AUX[linkidx].size/2; 
+                let sl = slice::from_raw_parts(base as *mut u8, length as usize);
+                Some(RxBuffer(linkno, sl))
             } else {
                 None
             }
         }
     }
 
-    pub fn recv() -> io::Result<Option<Packet>> {
-        if rx_has_error() {
+    pub fn recv_link(linkno: u8) -> io::Result<Option<Packet>> {
+        if rx_has_error(linkno) {
             return Err(io::Error::new(io::ErrorKind::Other, "gateware reported error"))
         }
-        let buffer = rx_get_buffer();
+        let buffer = rx_get_buffer(linkno);
         match buffer {
             Some(rxb) => {
-                let slice = rxb.0;
+                let slice = rxb.1;
                 let mut reader = Cursor::new(slice);
 
                 let len = slice.len();
@@ -320,11 +319,11 @@ pub mod hw {
         }
     }
 
-    pub fn recv_timeout(timeout_ms: Option<u64>) -> io::Result<Packet> {
+    pub fn recv_timeout_link(linkno: u8, timeout_ms: Option<u64>) -> io::Result<Packet> {
         let timeout_ms = timeout_ms.unwrap_or(10);
         let limit = board::clock::get_ms() + timeout_ms;
         while board::clock::get_ms() < limit {
-            match recv() {
+            match recv_link(linkno) {
                 Ok(None) => (),
                 Ok(Some(packet)) => return Ok(packet),
                 Err(e) => return Err(e)
@@ -333,22 +332,26 @@ pub mod hw {
         return Err(io::Error::new(io::ErrorKind::TimedOut, "timed out waiting for data"))
     }
 
-    fn tx_get_buffer() -> &'static mut [u8] {
+    fn tx_get_buffer(linkno: u8) -> &'static mut [u8] {
+        let linkno = linkno as usize;
         unsafe {
-            while board::csr::drtio::aux_tx_read() != 0 {}
-            slice::from_raw_parts_mut(AUX_TX_BASE as *mut u8, AUX_TX_SIZE)
+            while (board::csr::DRTIO[linkno].aux_tx_read)() != 0 {}
+            let base = board::mem::DRTIO_AUX[linkno].base;
+            let size = board::mem::DRTIO_AUX[linkno].size/2;
+            slice::from_raw_parts_mut(base as *mut u8, size)
         }
     }
 
-    fn tx_ack_buffer(length: u16) {
+    fn tx_ack_buffer(linkno: u8, length: u16) {
+        let linkno = linkno as usize;
         unsafe {
-            board::csr::drtio::aux_tx_length_write(length);
-            board::csr::drtio::aux_tx_write(1)
+            (board::csr::DRTIO[linkno].aux_tx_length_write)(length);
+            (board::csr::DRTIO[linkno].aux_tx_write)(1)
         }
     }
 
-    pub fn send(packet: &Packet) -> io::Result<()> {
-        let sl = tx_get_buffer();
+    pub fn send_link(linkno: u8, packet: &Packet) -> io::Result<()> {
+        let sl = tx_get_buffer(linkno);
 
         let mut writer = Cursor::new(sl);
         packet.write_to(&mut writer)?;
@@ -366,8 +369,31 @@ pub mod hw {
         write_u32(&mut writer, crc)?;
         len += 4;
 
-        tx_ack_buffer(len as u16);
+        tx_ack_buffer(linkno, len as u16);
 
         Ok(())
+    }
+
+    // TODO: routing
+    fn get_linkno(nodeno: u8) -> io::Result<u8> {
+        if nodeno == 0 || nodeno as usize > board::csr::DRTIO.len() {
+            return Err(io::Error::new(io::ErrorKind::NotFound, "invalid node number"))
+        }
+        Ok(nodeno - 1)
+    }
+
+    pub fn recv(nodeno: u8) -> io::Result<Option<Packet>> {
+        let linkno = get_linkno(nodeno)?;
+        recv_link(linkno)
+    }
+
+    pub fn recv_timeout(nodeno: u8, timeout_ms: Option<u64>) -> io::Result<Packet> {
+        let linkno = get_linkno(nodeno)?;
+        recv_timeout_link(linkno, timeout_ms)
+    }
+
+    pub fn send(nodeno: u8, packet: &Packet) -> io::Result<()> {
+        let linkno = get_linkno(nodeno)?;
+        send_link(linkno, packet)
     }
 }

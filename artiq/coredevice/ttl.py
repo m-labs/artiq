@@ -1,3 +1,11 @@
+"""
+Drivers for TTL signals on RTIO.
+
+TTL channels (including the clock generator) all support output event
+replacement. For example, pulses of "zero" length (e.g. ``on()``
+immediately followed by ``off()``, without a delay) are suppressed.
+"""
+
 import numpy
 
 from artiq.language.core import *

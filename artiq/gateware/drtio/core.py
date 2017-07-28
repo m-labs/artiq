@@ -9,6 +9,22 @@ from artiq.gateware.drtio import (link_layer, aux_controller,
                                   rt_packet_master, rt_controller_master) 
 
 
+class ChannelInterface:
+    def __init__(self, encoder, decoders):
+        self.rx_ready = Signal()
+        self.encoder = encoder
+        self.decoders = decoders
+
+
+class TransceiverInterface:
+    def __init__(self, channel_interfaces):
+        self.clock_domains.cd_rtio = ClockDomain()
+        for i in range(len(channel_interfaces)):
+            name = "rtio_rx" + str(i)
+            setattr(self.clock_domains, "cd_"+name, ClockDomain(name=name))
+        self.channels = channel_interfaces
+
+
 class GenericRXSynchronizer(Module):
     """Simple RX synchronizer based on the portable Migen elastic buffer.
 
@@ -33,14 +49,14 @@ class GenericRXSynchronizer(Module):
 
 
 class DRTIOSatellite(Module):
-    def __init__(self, transceiver, channels, rx_synchronizer=None, fine_ts_width=3, full_ts_width=63):
+    def __init__(self, chanif, channels, rx_synchronizer=None, fine_ts_width=3, full_ts_width=63):
         if rx_synchronizer is None:
             rx_synchronizer = GenericRXSynchronizer()
             self.submodules += rx_synchronizer
 
         self.submodules.link_layer = link_layer.LinkLayer(
-            transceiver.encoder, transceiver.decoders)
-        self.comb += self.link_layer.rx_ready.eq(transceiver.rx_ready)
+            chanif.encoder, chanif.decoders)
+        self.comb += self.link_layer.rx_ready.eq(chanif.rx_ready)
 
         link_layer_sync = SimpleNamespace(
             tx_aux_frame=self.link_layer.tx_aux_frame,
@@ -85,10 +101,10 @@ class DRTIOSatellite(Module):
 
 
 class DRTIOMaster(Module):
-    def __init__(self, transceiver, channel_count=1024, fine_ts_width=3):
+    def __init__(self, chanif, channel_count=1024, fine_ts_width=3):
         self.submodules.link_layer = link_layer.LinkLayer(
-            transceiver.encoder, transceiver.decoders)
-        self.comb += self.link_layer.rx_ready.eq(transceiver.rx_ready)
+            chanif.encoder, chanif.decoders)
+        self.comb += self.link_layer.rx_ready.eq(chanif.rx_ready)
 
         self.submodules.link_stats = link_layer.LinkLayerStats(self.link_layer, "rtio_rx")
         self.submodules.rt_packet = rt_packet_master.RTPacketMaster(self.link_layer)

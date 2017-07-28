@@ -48,7 +48,9 @@ Release notes
 * Experiments scheduled with the "flush pipeline" option now proceed when there
   are lower-priority experiments in the pipeline. Only experiments at the current
   (or higher) priority level are flushed.
-* "pdq2" has been renamed "pdq" (in controller and module names).
+* The PDQ(2/3) driver has been removed and is now being maintained out-of tree
+  at https://github.com/m-labs/pdq. All SPI/USB driver layers, Mediator,
+  CompoundPDQ and examples/documentation has been moved.
 
 
 2.4

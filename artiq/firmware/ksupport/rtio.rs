@@ -182,14 +182,14 @@ pub mod drtio_dbg {
     #[repr(C)]
     pub struct PacketCounts(i32, i32);
 
-    pub extern fn get_packet_counts() -> PacketCounts {
-        send(&DrtioPacketCountRequest);
+    pub extern fn get_packet_counts(linkno: i32) -> PacketCounts {
+        send(&DrtioPacketCountRequest { linkno: linkno as u8 });
         recv!(&DrtioPacketCountReply { tx_cnt, rx_cnt }
               => PacketCounts(tx_cnt as i32, rx_cnt as i32))
     }
 
-    pub extern fn get_fifo_space_req_count() -> i32 {
-        send(&DrtioFifoSpaceReqCountRequest);
+    pub extern fn get_fifo_space_req_count(linkno: i32) -> i32 {
+        send(&DrtioFifoSpaceReqCountRequest { linkno: linkno as u8 });
         recv!(&DrtioFifoSpaceReqCountReply { cnt }
               => cnt as i32)
     }

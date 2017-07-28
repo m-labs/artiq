@@ -8,35 +8,6 @@ Core device logging controller
    :ref: artiq.frontend.aqctl_corelog.get_argparser
    :prog: aqctl_corelog
 
-PDQ2
-----
-
-Protocol
-++++++++
-
-.. automodule:: artiq.devices.pdq.protocol
-    :members:
-
-Driver
-++++++
-
-.. automodule:: artiq.devices.pdq.driver
-    :members:
-
-Mediator
-++++++++
-
-.. automodule:: artiq.devices.pdq.mediator
-    :members:
-
-Controller
-++++++++++
-
-.. argparse::
-   :ref: artiq.frontend.aqctl_pdq.get_argparser
-   :prog: aqctl_pdq
-
-
 Lab Brick Digital Attenuator (LDA)
 ----------------------------------
 

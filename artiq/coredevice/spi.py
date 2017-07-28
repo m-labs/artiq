@@ -1,3 +1,11 @@
+"""
+Driver for generic SPI on RTIO.
+
+Output event replacement is not supported and issuing commands at the same
+time is an error.
+"""
+
+
 import numpy
 
 from artiq.language.core import syscall, kernel, portable, now_mu, delay_mu
@@ -87,7 +95,7 @@ class SPIMaster:
     def set_config(self, flags=0, write_freq=20*MHz, read_freq=20*MHz):
         """Set the configuration register.
 
-        * If ``config.cs_polarity`` == 0 (```cs`` active low, the default),
+        * If ``config.cs_polarity`` == 0 (``cs`` active low, the default),
           "``cs_n`` all deasserted" means "all ``cs_n`` bits high".
         * ``cs_n`` is not mandatory in the pads supplied to the gateware core.
           Framing and chip selection can also be handled independently

@@ -111,6 +111,7 @@ def main():
             client.drain(flterm)
 
         elif action == "connect":
+            transport = client.get_transport()
             def forwarder(port):
                 listener = socket.socket()
                 listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -125,24 +126,24 @@ def main():
                         continue
 
                     try:
-                        remote_stream = client.get_transport() \
-                            .open_channel('direct-tcpip', (args.device, port), peer_addr)
+                        remote_stream = \
+                            transport.open_channel('direct-tcpip', (args.device, port), peer_addr)
                     except Exception as e:
                         logger.exception("Cannot open channel on port %s", port)
                         continue
                     while True:
                         try:
-                            r, w, x = select.select([local_stream, remote_stream], [], [])
+                            r, _, _ = select.select([local_stream, remote_stream], [], [])
                             if local_stream in r:
                                 data = local_stream.recv(65535)
                                 if data == b"":
                                     break
-                                remote_stream.send(data)
+                                remote_stream.sendall(data)
                             if remote_stream in r:
                                 data = remote_stream.recv(65535)
                                 if data == b"":
                                     break
-                                local_stream.send(data)
+                                local_stream.sendall(data)
                         except Exception as e:
                             logger.exception("Forward error on port %s", port)
                             break

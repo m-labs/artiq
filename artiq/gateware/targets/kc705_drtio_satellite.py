@@ -6,7 +6,6 @@ from migen.build.generic_platform import *
 from misoc.cores import spi as spi_csr
 from misoc.cores import gpio
 from misoc.integration.builder import *
-from misoc.integration.soc_core import mem_decoder
 from misoc.targets.kc705 import BaseSoC, soc_kc705_args, soc_kc705_argdict
 
 from artiq.gateware.ad9154_fmc_ebz import ad9154_fmc_ebz
@@ -55,21 +54,25 @@ class Satellite(BaseSoC):
             tx_pads=platform.request("sfp_tx"),
             rx_pads=platform.request("sfp_rx"),
             sys_clk_freq=self.clk_freq)
-        self.submodules.rx_synchronizer = gtx_7series.RXSynchronizer(
-            self.transceiver.rtio_clk_freq, initial_phase=180.0)
-        self.submodules.drtio = DRTIOSatellite(
-            self.transceiver, rtio_channels, self.rx_synchronizer)
-        self.csr_devices.append("rx_synchronizer")
-        self.csr_devices.append("drtio")
-        self.add_wb_slave(mem_decoder(self.mem_map["drtio_aux"]),
-                          self.drtio.aux_controller.bus)
-        self.add_memory_region("drtio_aux", self.mem_map["drtio_aux"] | self.shadow_base, 0x800)
+        rx0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
+        self.submodules.rx_synchronizer0 = rx0(gtx_7series.RXSynchronizer(
+            self.transceiver.rtio_clk_freq, initial_phase=180.0))
+        self.submodules.drtio0 = rx0(DRTIOSatellite(
+            self.transceiver.channels[0], rtio_channels, self.rx_synchronizer0))
+        self.csr_devices.append("rx_synchronizer0")
+        self.csr_devices.append("drtio0")
+        self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
+                          self.drtio0.aux_controller.bus)
+        self.add_memory_region("drtio0_aux", self.mem_map["drtio_aux"] | self.shadow_base, 0x800)
+        self.config["has_drtio"] = None
+        self.add_csr_group("drtio", ["drtio0"])
+        self.add_memory_group("drtio_aux", ["drtio0_aux"])
 
         self.config["RTIO_FREQUENCY"] = str(self.transceiver.rtio_clk_freq/1e6)
         si5324_clkin = platform.request("si5324_clkin")
         self.specials += \
             Instance("OBUFDS",
-                i_I=ClockSignal("rtio_rx"),
+                i_I=ClockSignal("rtio_rx0"),
                 o_O=si5324_clkin.p, o_OB=si5324_clkin.n
             )
         self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
@@ -87,7 +90,7 @@ class Satellite(BaseSoC):
         self.csr_devices.append("converter_spi")
 
         self.comb += [
-            platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx")),
+            platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx0")),
             platform.request("user_sma_clock_n").eq(ClockSignal("rtio"))
         ]
 
