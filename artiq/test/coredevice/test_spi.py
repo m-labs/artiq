@@ -57,5 +57,5 @@ class CardTest(EnvExperiment):
 
 class SDTest(ExperimentCase):
     def test(self):
-        self.execute(CARDTest)
+        self.execute(CardTest)
         self.assertTrue(self.dataset_mgr.get("sd_response"))
