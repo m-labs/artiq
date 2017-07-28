@@ -18,7 +18,7 @@ from artiq import __version__ as artiq_version
 
 __all__ = ["parse_arguments", "elide", "short_format", "file_import",
            "get_experiment", "verbosity_args", "simple_network_args",
-           "init_logger", "bind_address_from_args",
+           "multiline_log_config", "init_logger", "bind_address_from_args",
            "atexit_register_coroutine", "exc_to_warning",
            "asyncio_wait_or_cancel", "TaskObject", "Condition",
            "get_windows_drives", "get_user_config_dir"]

@@ -40,7 +40,6 @@ console_scripts = [
     "aqctl_korad_ka3005p = artiq.frontend.aqctl_korad_ka3005p:main",
     "aqctl_lda = artiq.frontend.aqctl_lda:main",
     "aqctl_novatech409b = artiq.frontend.aqctl_novatech409b:main",
-    "aqctl_pdq = artiq.frontend.aqctl_pdq:main",
     "aqctl_thorlabs_tcube = artiq.frontend.aqctl_thorlabs_tcube:main",
 ]
 
@@ -58,7 +57,7 @@ setup(
     url="https://m-labs.hk/artiq",
     description="Advanced Real-Time Infrastructure for Quantum physics",
     long_description=open("README.rst", encoding="utf-8").read(),
-    license="GPLv3+",
+    license="LGPLv3+",
     classifiers="""\
 Development Status :: 5 - Production/Stable
 Environment :: Console

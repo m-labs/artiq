@@ -6,8 +6,6 @@ use sched::{TcpListener, TcpStream};
 use board::{clock, csr};
 #[cfg(has_drtio)]
 use drtioaux;
-#[cfg(has_drtio)]
-use rtio_mgt;
 
 use moninj_proto::*;
 
@@ -35,32 +33,36 @@ fn read_probe_local(channel: u16, probe: u8) -> u32 {
 }
 
 #[cfg(has_drtio)]
-fn read_probe_drtio(channel: u16, probe: u8) -> u32 {
-    if rtio_mgt::drtio::link_is_running() {
-        let request = drtioaux::Packet::MonitorRequest { channel: channel, probe: probe };
-        drtioaux::hw::send(&request).unwrap();
-        match drtioaux::hw::recv_timeout(None) {
-            Ok(drtioaux::Packet::MonitorReply { value }) => return value,
-            Ok(_) => error!("received unexpected aux packet"),
-            Err(e) => error!("aux packet error ({})", e)
+fn read_probe_drtio(nodeno: u8, channel: u16, probe: u8) -> u32 {
+    let request = drtioaux::Packet::MonitorRequest { channel: channel, probe: probe };
+    match drtioaux::hw::send(nodeno, &request) {
+        Ok(_) => (),
+        Err(e) => {
+            error!("aux packet error ({})", e);
+            return 0;
         }
-        0
-    } else {
-        0
     }
+    match drtioaux::hw::recv_timeout(nodeno, None) {
+        Ok(drtioaux::Packet::MonitorReply { value }) => return value,
+        Ok(_) => error!("received unexpected aux packet"),
+        Err(e) => error!("aux packet error ({})", e)
+    }
+    0
 }
 
 fn read_probe(channel: u32, probe: u8) -> u32 {
+    let nodeno = (channel >> 16) as u8;
+    let node_channel = channel as u16;
     #[cfg(has_rtio_moninj)]
     {
-        if channel & 0xff0000 == 0 {
-            return read_probe_local(channel as u16, probe)
+        if nodeno == 0 {
+            return read_probe_local(node_channel, probe)
         }
     }
     #[cfg(has_drtio)]
     {
-        if channel & 0xff0000 != 0 {
-            return read_probe_drtio(channel as u16, probe)
+        if nodeno != 0 {
+            return read_probe_drtio(nodeno, node_channel, probe)
         }
     }
     error!("read_probe: unrecognized channel number {}", channel);
@@ -77,29 +79,32 @@ fn inject_local(channel: u16, overrd: u8, value: u8) {
 }
 
 #[cfg(has_drtio)]
-fn inject_drtio(channel: u16, overrd: u8, value: u8) {
-    if rtio_mgt::drtio::link_is_running() {
-        let request = drtioaux::Packet::InjectionRequest {
-            channel: channel,
-            overrd: overrd,
-            value: value
-        };
-        drtioaux::hw::send(&request).unwrap();
+fn inject_drtio(nodeno: u8, channel: u16, overrd: u8, value: u8) {
+    let request = drtioaux::Packet::InjectionRequest {
+        channel: channel,
+        overrd: overrd,
+        value: value
+    };
+    match drtioaux::hw::send(nodeno, &request) {
+        Ok(_) => (),
+        Err(e) => error!("aux packet error ({})", e)
     }
 }
 
 fn inject(channel: u32, overrd: u8, value: u8) {
+    let nodeno = (channel >> 16) as u8;
+    let node_channel = channel as u16;
     #[cfg(has_rtio_moninj)]
     {
-        if channel & 0xff0000 == 0 {
-            inject_local(channel as u16, overrd, value);
+        if nodeno == 0 {
+            inject_local(node_channel, overrd, value);
             return
         }
     }
     #[cfg(has_drtio)]
     {
-        if channel & 0xff0000 != 0 {
-            inject_drtio(channel as u16, overrd, value);
+        if nodeno != 0 {
+            inject_drtio(nodeno, node_channel, overrd, value);
             return
         }
     }
@@ -116,35 +121,39 @@ fn read_injection_status_local(channel: u16, overrd: u8) -> u8 {
 }
 
 #[cfg(has_drtio)]
-fn read_injection_status_drtio(channel: u16, overrd: u8) -> u8 {
-    if rtio_mgt::drtio::link_is_running() {
-        let request = drtioaux::Packet::InjectionStatusRequest {
-            channel: channel,
-            overrd: overrd
-        };
-        drtioaux::hw::send(&request).unwrap();
-        match drtioaux::hw::recv_timeout(None) {
-            Ok(drtioaux::Packet::InjectionStatusReply { value }) => return value,
-            Ok(_) => error!("received unexpected aux packet"),
-            Err(e) => error!("aux packet error ({})", e)
+fn read_injection_status_drtio(nodeno: u8, channel: u16, overrd: u8) -> u8 {
+    let request = drtioaux::Packet::InjectionStatusRequest {
+        channel: channel,
+        overrd: overrd
+    };
+    match drtioaux::hw::send(nodeno, &request) {
+        Ok(_) => (),
+        Err(e) => {
+            error!("aux packet error ({})", e);
+            return 0;
         }
-        0
-    } else {
-        0
     }
+    match drtioaux::hw::recv_timeout(nodeno, None) {
+        Ok(drtioaux::Packet::InjectionStatusReply { value }) => return value,
+        Ok(_) => error!("received unexpected aux packet"),
+        Err(e) => error!("aux packet error ({})", e)
+    }
+    0
 }
 
 fn read_injection_status(channel: u32, probe: u8) -> u8 {
+    let nodeno = (channel >> 16) as u8;
+    let node_channel = channel as u16;
     #[cfg(has_rtio_moninj)]
     {
-        if channel & 0xff0000 == 0 {
-            return read_injection_status_local(channel as u16, probe)
+        if nodeno == 0 {
+            return read_injection_status_local(node_channel, probe)
         }
     }
     #[cfg(has_drtio)]
     {
-        if channel & 0xff0000 != 0 {
-            return read_injection_status_drtio(channel as u16, probe)
+        if nodeno != 0 {
+            return read_injection_status_drtio(nodeno, node_channel, probe)
         }
     }
     error!("read_injection_status: unrecognized channel number {}", channel);

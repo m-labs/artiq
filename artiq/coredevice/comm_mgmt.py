@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 class Request(Enum):
     GetLog = 1
     ClearLog = 2
+    PullLog = 7
     SetLogFilter = 3
     SetUartLogFilter = 6
 
@@ -120,6 +121,11 @@ class CommMgmt:
     def clear_log(self):
         self._write_header(Request.ClearLog)
         self._read_expect(Reply.Success)
+
+    def pull_log(self):
+        self._write_header(Request.PullLog)
+        self._read_expect(Reply.LogContent)
+        return self._read_string()
 
     def set_log_level(self, level):
         if level not in LogLevel.__members__:

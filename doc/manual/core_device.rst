@@ -150,7 +150,7 @@ The Phaser adapter is an AD9154-FMC-EBZ, a 4 channel 2.4 GHz DAC on an FMC HPC c
 | 3            | SYNC       | Input        |
 +--------------+------------+--------------+
 
-The SAWG channels start with RTIO channel number 4, each occupying 3 channels.
+The SAWG channels start with RTIO channel number 3, each SAWG channel occupying 10 RTIO channels.
 
 The board has one non-RTIO SPI bus that is accessible through
 :mod:`artiq.coredevice.ad9154`.

@@ -1,3 +1,11 @@
+"""
+Drivers for direct digital synthesis (DDS) chips on RTIO.
+
+Output event replacement is not supported and issuing commands at the same
+time is an error.
+"""
+
+
 from artiq.language.core import *
 from artiq.language.types import *
 from artiq.language.units import *

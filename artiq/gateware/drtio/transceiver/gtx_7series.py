@@ -4,22 +4,26 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from misoc.cores.code_8b10b import Encoder, Decoder
 from misoc.interconnect.csr import *
 
+from artiq.gateware.drtio.core import TransceiverInterface, ChannelInterface
 from artiq.gateware.drtio.transceiver.gtx_7series_init import *
 
 
-class GTX_20X(Module):
+class GTX_20X(Module, TransceiverInterface):
+    # Only one channel is supported.
+    #
     # The transceiver clock on clock_pads must be at the RTIO clock
     # frequency when clock_div2=False, and 2x that frequency when
     # clock_div2=True.
     def __init__(self, clock_pads, tx_pads, rx_pads, sys_clk_freq,
                  clock_div2=False):
-        self.submodules.encoder = ClockDomainsRenamer("rtio")(
+        encoder = ClockDomainsRenamer("rtio")(
             Encoder(2, True))
-        self.decoders = [ClockDomainsRenamer("rtio_rx")(
-            Decoder(True)) for _ in range(2)]
-        self.submodules += self.decoders
+        self.submodules += encoder
+        decoders = [ClockDomainsRenamer("rtio_rx0")(
+            (Decoder(True))) for _ in range(2)]
+        self.submodules += decoders
 
-        self.rx_ready = Signal()
+        TransceiverInterface.__init__(self, [ChannelInterface(encoder, decoders)])
 
         # transceiver direct clock outputs
         # useful to specify clock constraints in a way palatable to Vivado
@@ -137,8 +141,8 @@ class GTX_20X(Module):
                 i_RXSYSCLKSEL=0b00,
                 i_RXOUTCLKSEL=0b010,
                 o_RXOUTCLK=self.rxoutclk,
-                i_RXUSRCLK=ClockSignal("rtio_rx"),
-                i_RXUSRCLK2=ClockSignal("rtio_rx"),
+                i_RXUSRCLK=ClockSignal("rtio_rx0"),
+                i_RXUSRCLK2=ClockSignal("rtio_rx0"),
                 p_RXCDR_CFG=0x03000023FF10100020,
 
                 # RX Clock Correction Attributes
@@ -165,7 +169,6 @@ class GTX_20X(Module):
         tx_reset_deglitched = Signal()
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
-        self.clock_domains.cd_rtio = ClockDomain()
         self.specials += [
             Instance("BUFG", i_I=self.txoutclk, o_O=self.cd_rtio.clk),
             AsyncResetSynchronizer(self.cd_rtio, tx_reset_deglitched)
@@ -173,24 +176,25 @@ class GTX_20X(Module):
         rx_reset_deglitched = Signal()
         rx_reset_deglitched.attr.add("no_retiming")
         self.sync.rtio += rx_reset_deglitched.eq(~rx_init.done)
-        self.clock_domains.cd_rtio_rx = ClockDomain()
         self.specials += [
-            Instance("BUFG", i_I=self.rxoutclk, o_O=self.cd_rtio_rx.clk),
-            AsyncResetSynchronizer(self.cd_rtio_rx, rx_reset_deglitched)
+            Instance("BUFG", i_I=self.rxoutclk, o_O=self.cd_rtio_rx0.clk),
+            AsyncResetSynchronizer(self.cd_rtio_rx0, rx_reset_deglitched)
         ]
 
+        chan = self.channels[0]
         self.comb += [
-            txdata.eq(Cat(self.encoder.output[0], self.encoder.output[1])),
-            self.decoders[0].input.eq(rxdata[:10]),
-            self.decoders[1].input.eq(rxdata[10:])
+            txdata.eq(Cat(chan.encoder.output[0], chan.encoder.output[1])),
+            chan.decoders[0].input.eq(rxdata[:10]),
+            chan.decoders[1].input.eq(rxdata[10:])
         ]
 
-        clock_aligner = BruteforceClockAligner(0b0101111100, self.rtio_clk_freq)
+        clock_aligner = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})(
+            BruteforceClockAligner(0b0101111100, self.rtio_clk_freq))
         self.submodules += clock_aligner
         self.comb += [
             clock_aligner.rxdata.eq(rxdata),
             rx_init.restart.eq(clock_aligner.restart),
-            self.rx_ready.eq(clock_aligner.ready)
+            chan.rx_ready.eq(clock_aligner.ready)
         ]
 
 
@@ -199,7 +203,7 @@ class GTX_1000BASE_BX10(GTX_20X):
 
 
 class RXSynchronizer(Module, AutoCSR):
-    """Delays the data received in the rtio_rx by a configurable amount
+    """Delays the data received in the rtio_rx domain by a configurable amount
     so that it meets s/h in the rtio domain, and recapture it in the rtio
     domain. This has fixed latency.
 

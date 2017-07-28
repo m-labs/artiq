@@ -23,4 +23,4 @@ class DMABlink(EnvExperiment):
         self.record()
         self.core.break_realtime()
         for i in range(5):
-            self.core_dma.replay("blink")
+            self.core_dma.playback("blink")

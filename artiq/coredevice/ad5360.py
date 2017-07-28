@@ -1,3 +1,11 @@
+"""
+Driver for the AD5360 DAC on RTIO.
+
+Output event replacement is not supported and issuing commands at the same
+time is an error.
+"""
+
+
 from artiq.language.core import (kernel, portable, delay_mu, delay)
 from artiq.language.units import ns, us
 from artiq.coredevice import spi
