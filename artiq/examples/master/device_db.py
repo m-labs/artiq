@@ -172,44 +172,6 @@ device_db = {
         "arguments": {"bus_channel": 27, "channel": 2}
     },
 
-    "qc_q1_0": {
-        "type": "controller",
-        # ::1 is the IPv6 localhost address. If this controller is running on a remote machine,
-        # replace it with the IP or hostname of the machine. If using the hostname, make sure
-        # that it always resolves to a network-visible IP address (see documentation).
-        "host": "::1",
-        "port": 4000,
-        "command": "aqctl_pdq -p {port} --bind {bind} --simulation --dump qc_q1_0.bin"
-    },
-    "qc_q1_1": {
-        "type": "controller",
-        "host": "::1",
-        "port": 4001,
-        "command": "aqctl_pdq -p {port} --bind {bind} --simulation --dump qc_q1_1.bin"
-    },
-    "qc_q1_2": {
-        "type": "controller",
-        "host": "::1",
-        "port": 4002,
-        "command": "aqctl_pdq -p {port} --bind {bind} --simulation --dump qc_q1_2.bin"
-    },
-    "qc_q1_3": {
-        "type": "controller",
-        "host": "::1",
-        "port": 4003,
-        "command": "aqctl_pdq -p {port} --bind {bind} --simulation --dump qc_q1_3.bin"
-    },
-    "electrodes": {
-        "type": "local",
-        "module": "artiq.devices.pdq",
-        "class": "CompoundPDQ",
-        "arguments": {
-            "pdq2_devices": ["qc_q1_0", "qc_q1_1", "qc_q1_2", "qc_q1_3"],
-            "trigger_device": "ttl2",
-            "frame_devices": ["ttl4", "ttl5", "ttl6"]
-        }
-    },
-
     "lda": {
         "type": "controller",
         "best_effort": True,
