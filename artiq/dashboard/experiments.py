@@ -562,6 +562,7 @@ class ExperimentManager:
             del self.submission_arguments[expurl]
             dock = _ExperimentDock(self, expurl)
         self.open_experiments[expurl] = dock
+        dock.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.main_window.centralWidget().addSubWindow(dock)
         dock.show()
         dock.sigClosed.connect(partial(self.on_dock_closed, expurl))
