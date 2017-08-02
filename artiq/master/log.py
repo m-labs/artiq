@@ -27,11 +27,9 @@ def log_args(parser):
     group.add_argument("--log-file", default="",
                        help="store logs in rotated files; set the "
                             "base filename")
-    group.add_argument("--log-max-size", type=int, default=1024,
-                       help="maximum size of each log file in KiB "
-                            "(default: %(default)d)")
-    group.add_argument("--log-backup-count", type=int, default=6,
-                       help="number of old log files to keep (.<n> is added "
+    group.add_argument("--log-backup-count", type=int, default=0,
+                       help="number of old log files to keep, or 0 to keep "
+                            "all log files. '.<yy>-<mm>-<dd>' is added "
                             "to the base filename (default: %(default)d)")
 
 
@@ -47,9 +45,9 @@ def init_log(args):
     handlers.append(console_handler)
 
     if args.log_file:
-        file_handler = logging.handlers.RotatingFileHandler(
+        file_handler = logging.handlers.TimedRotatingFileHandler(
             args.log_file,
-            maxBytes=args.log_max_size*1024,
+            when="midnight",
             backupCount=args.log_backup_count)
         file_handler.setFormatter(logging.Formatter(
             "%(asctime)s %(levelname)s:%(source)s:%(name)s:%(message)s"))

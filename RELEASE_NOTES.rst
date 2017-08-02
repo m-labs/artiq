@@ -51,6 +51,7 @@ Release notes
 * The PDQ(2/3) driver has been removed and is now being maintained out-of tree
   at https://github.com/m-labs/pdq. All SPI/USB driver layers, Mediator,
   CompoundPDQ and examples/documentation has been moved.
+* The master now rotates log files at midnight, rather than based on log size.
 
 
 2.4
