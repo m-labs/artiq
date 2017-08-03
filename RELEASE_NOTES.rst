@@ -51,6 +51,8 @@ Release notes
 * The PDQ(2/3) driver has been removed and is now being maintained out-of tree
   at https://github.com/m-labs/pdq. All SPI/USB driver layers, Mediator,
   CompoundPDQ and examples/documentation has been moved.
+* The results keys start_time and run_time are now stored as doubles, rather
+  than ints.
 
 
 2.4

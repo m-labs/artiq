@@ -287,8 +287,8 @@ def main():
                     dataset_mgr.write_hdf5(f)
                     f["artiq_version"] = artiq_version
                     f["rid"] = rid
-                    f["start_time"] = int(start_time)
-                    f["run_time"] = int(run_time)
+                    f["start_time"] = start_time
+                    f["run_time"] = run_time
                     f["expid"] = pyon.encode(expid)
                 put_object({"action": "completed"})
             elif action == "examine":
