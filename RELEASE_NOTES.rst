@@ -51,8 +51,9 @@ Release notes
 * The PDQ(2/3) driver has been removed and is now being maintained out-of tree
   at https://github.com/m-labs/pdq. All SPI/USB driver layers, Mediator,
   CompoundPDQ and examples/documentation has been moved.
-* The results keys start_time and run_time are now stored as doubles, rather
-  than ints.
+* The master now rotates log files at midnight, rather than based on log size.
+* The results keys start_time and run_time are now stored as doubles of UNIX time,
+  rather than ints of local time.
 
 
 2.4
