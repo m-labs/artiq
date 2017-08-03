@@ -53,7 +53,7 @@ Release notes
   CompoundPDQ and examples/documentation has been moved.
 * The master now rotates log files at midnight, rather than based on log size.
 * The results keys start_time and run_time are now stored as doubles of UNIX time,
-  rather than ints of local time.
+  rather than ints. The file names are still based on local time.
 
 
 2.4
