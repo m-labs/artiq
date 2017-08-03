@@ -29,7 +29,7 @@ def log_args(parser):
                             "base filename")
     group.add_argument("--log-backup-count", type=int, default=0,
                        help="number of old log files to keep, or 0 to keep "
-                            "all log files. '.<yy>-<mm>-<dd>' is added "
+                            "all log files. '.<yyyy>-<mm>-<dd>' is added "
                             "to the base filename (default: %(default)d)")
 
 
