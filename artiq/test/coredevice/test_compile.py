@@ -17,7 +17,6 @@ class LOG(EnvExperiment):
         core_log("blahblah123")
 
 
-
 class TestCompile(ExperimentCase):
     def test_compile(self):
         core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
