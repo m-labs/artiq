@@ -23,9 +23,9 @@ class TestCompile(ExperimentCase):
         core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
         mgmt = CommMgmt(core_addr)
         mgmt.clear_log()
+        subprocess.call(["artiq_compile", "-e", "LOG", "-o", "hehe.elf", "test_compile.py"])
+        subprocess.call(["artiq_run", "hehe.elf"]) 
         with tempfile.TemporaryDirectory() as tmp:
-            subprocess.call(["artiq_compile", "-e", "LOG", "-o", "hehe.elf", "test_compile.py"])
-            subprocess.call(["artiq_run", "hehe.elf"])
             shutil.move(os.getcwd() + '\hehe.elf', tmp + '\hehe.elf')
         log = mgmt.get_log()
         self.assertIn("blahblah123", log)
