@@ -507,6 +507,7 @@ class ExperimentsArea(QtWidgets.QMdiArea):
                            exc_info=True)
             dock = _ExperimentDock(self, expurl, {})
             asyncio.ensure_future(dock._recompute_arguments())
+        dock.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.addSubWindow(dock)
         dock.show()
         dock.sigClosed.connect(partial(self.on_dock_closed, dock))

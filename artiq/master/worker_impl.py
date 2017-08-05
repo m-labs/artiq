@@ -242,7 +242,7 @@ def main():
             obj = get_object()
             action = obj["action"]
             if action == "build":
-                start_time = time.localtime()
+                start_time = time.time()
                 rid = obj["rid"]
                 expid = obj["expid"]
                 if obj["wd"] is not None:
@@ -256,9 +256,10 @@ def main():
                 exp = get_exp(experiment_file, expid["class_name"])
                 device_mgr.virtual_devices["scheduler"].set_run_info(
                     rid, obj["pipeline_name"], expid, obj["priority"])
+                start_local_time = time.localtime(start_time)
                 dirname = os.path.join("results",
-                                       time.strftime("%Y-%m-%d", start_time),
-                                       time.strftime("%H", start_time))
+                                   time.strftime("%Y-%m-%d", start_local_time),
+                                   time.strftime("%H", start_local_time))
                 os.makedirs(dirname, exist_ok=True)
                 os.chdir(dirname)
                 argument_mgr = ProcessArgumentManager(expid["arguments"])
@@ -268,7 +269,7 @@ def main():
                 exp_inst.prepare()
                 put_object({"action": "completed"})
             elif action == "run":
-                run_time = time.localtime()
+                run_time = time.time()
                 exp_inst.run()
                 put_object({"action": "completed"})
             elif action == "analyze":
@@ -286,8 +287,8 @@ def main():
                     dataset_mgr.write_hdf5(f)
                     f["artiq_version"] = artiq_version
                     f["rid"] = rid
-                    f["start_time"] = int(time.mktime(start_time))
-                    f["run_time"] = int(time.mktime(run_time))
+                    f["start_time"] = start_time
+                    f["run_time"] = run_time
                     f["expid"] = pyon.encode(expid)
                 put_object({"action": "completed"})
             elif action == "examine":

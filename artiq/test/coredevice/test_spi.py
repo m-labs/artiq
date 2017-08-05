@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import unittest
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
@@ -59,3 +60,4 @@ class SDTest(ExperimentCase):
     def test(self):
         self.execute(CardTest)
         self.assertTrue(self.dataset_mgr.get("sd_response"))
+
