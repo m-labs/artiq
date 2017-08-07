@@ -22,8 +22,8 @@ class TestCompile(ExperimentCase):
         mgmt = CommMgmt(core_addr)
         mgmt.clear_log()
         with tempfile.TemporaryDirectory() as tmp:
-            subprocess.call([sys.executable, "-m", "artiq.frontend.artiq_compile", "-e", "CheckLog", "-o", os.path.join(tmp,"check_log.elf"), __file__])
-            subprocess.call([sys.executable, "-m", "artiq.frontend.artiq_run", os.path.join(tmp,"check_log.elf")])
+            subprocess.call([sys.executable, "-m", "artiq.frontend.artiq_compile", "-e", "CheckLog", "-o", os.path.join(tmp, "check_log.elf"), __file__])
+            subprocess.call([sys.executable, "-m", "artiq.frontend.artiq_run", os.path.join(tmp, "check_log.elf")])
         log = mgmt.get_log()
         self.assertIn("test_artiq_compile", log)
         mgmt.close()
