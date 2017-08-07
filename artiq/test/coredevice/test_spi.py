@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import unittest
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase

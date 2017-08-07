@@ -1,4 +1,5 @@
-import os, shutil
+import os
+import sys
 import subprocess
 import unittest
 import tempfile
@@ -7,25 +8,22 @@ from artiq.test.hardware_testbench import ExperimentCase
 from artiq.experiment import *
 
 
-class LOG(EnvExperiment):
+class CheckLog(EnvExperiment):
     def build(self):
         self.setattr_device("core")
 
     @kernel
     def run(self):
-        self.core.reset()
-        core_log("blahblah123")
-
+        core_log("test_artiq_compile")
 
 class TestCompile(ExperimentCase):
     def test_compile(self):
         core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
         mgmt = CommMgmt(core_addr)
         mgmt.clear_log()
-        subprocess.call(["artiq_compile", "-e", "LOG", "-o", "hehe.elf", "test_compile.py"])
-        subprocess.call(["artiq_run", "hehe.elf"]) 
         with tempfile.TemporaryDirectory() as tmp:
-            shutil.move(os.getcwd() + '\hehe.elf', tmp + '\hehe.elf')
+            subprocess.call([sys.executable, "-m", "artiq.frontend.artiq_compile", "-e", "CheckLog", "-o", os.path.join(tmp,"check_log.elf"), __file__])
+            subprocess.call([sys.executable, "-m", "artiq.frontend.artiq_run", os.path.join(tmp,"check_log.elf")])
         log = mgmt.get_log()
-        self.assertIn("blahblah123", log)
+        self.assertIn("test_artiq_compile", log)
         mgmt.close()
