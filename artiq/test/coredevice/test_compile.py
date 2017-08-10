@@ -7,6 +7,7 @@ from artiq.coredevice.comm_mgmt import CommMgmt
 from artiq.test.hardware_testbench import ExperimentCase
 from artiq.experiment import *
 
+artiq_root = os.getenv("ARTIQ_ROOT")
 
 class CheckLog(EnvExperiment):
     def build(self):
@@ -22,8 +23,11 @@ class TestCompile(ExperimentCase):
         mgmt = CommMgmt(core_addr)
         mgmt.clear_log()
         with tempfile.TemporaryDirectory() as tmp:
-            subprocess.call([sys.executable, "-m", "artiq.frontend.artiq_compile", "-e", "CheckLog", "-o", os.path.join(tmp, "check_log.elf"), __file__])
-            subprocess.call([sys.executable, "-m", "artiq.frontend.artiq_run", os.path.join(tmp, "check_log.elf")])
+            db_path = os.path.join(artiq_root, "device_db.py")
+            subprocess.call([sys.executable, "-m", "artiq.frontend.artiq_compile", "--device-db", db_path,
+                "-e", "CheckLog", "-o", os.path.join(tmp, "check_log.elf"), __file__])
+            subprocess.call([sys.executable, "-m", "artiq.frontend.artiq_run", "--device-db", db_path, 
+                os.path.join(tmp, "check_log.elf")])
         log = mgmt.get_log()
         self.assertIn("test_artiq_compile", log)
         mgmt.close()
