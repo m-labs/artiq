@@ -45,8 +45,6 @@ pub fn git_describe() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let mut f = File::create(out_dir.join("git-describe")).unwrap();
     write!(f, "{}", version).unwrap();
-
-    println!("cargo:rust-cfg=git_describe={:?}", version);
 }
 
 pub fn misoc_cfg() {
