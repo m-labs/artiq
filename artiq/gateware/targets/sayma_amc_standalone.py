@@ -44,6 +44,13 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
             platform.request("user_led", 1)))
         self.csr_devices.append("leds")
 
+        serial_1 = platform.request("serial", 1)
+        serial_rtm = platform.request("serial_rtm")
+        self.comb += [
+            serial_1.tx.eq(serial_rtm.rx),
+            serial_rtm.rx.eq(serial_1.tx)
+        ]
+
         rtio_channels = []
         for i in (2, 3):
             phy = ttl_simple.Output(platform.request("user_led", i))
