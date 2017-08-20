@@ -136,7 +136,7 @@ class ProgrammerSayma(Programmer):
 
             "set XILINX_USER1 0x02",
             "set XILINX_USER2 0x03",
-            "set AMC_DR_LEN 2",
+            "set AMC_DR_LEN 1",
 
             "target create amc_xcu.proxy testee -chain-position amc_xcu.tap",
             "flash bank amc_xcu.spi0 jtagspi 0 0 0 0 amc_xcu.proxy $XILINX_USER1 $AMC_DR_LEN",
