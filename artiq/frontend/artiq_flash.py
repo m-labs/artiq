@@ -185,9 +185,9 @@ def main():
             "proxy_bitfile": "bscan_spi_xcku040_sayma.bit",
             "adapters": [],
             "gateware": (0, 0x000000),
-            "bios":     (1, 0x010000),
-            "runtime":  (1, 0x020000),
-            "storage":  (1, 0x0a0000),
+            "bios":     (1, 0x000000),
+            "runtime":  (1, 0x010000),
+            "storage":  (1, 0x090000),
         },
     }[opts.target]
 
