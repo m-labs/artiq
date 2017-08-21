@@ -1,15 +1,10 @@
-#!/usr/bin/env python3
+from migen import *
 
-from litex.gen import *
+from misoc.interconnect.wishbone import SRAM
+from misoc.interconnect.stream import Converter
 
-import sys
-sys.path.append("../../gateware/")
-
-from amc_rtm_link import packet
-from amc_rtm_link import etherbone
-
-from litex.soc.interconnect.wishbone import SRAM
-from litex.soc.interconnect.stream import Converter
+from artiq.gateware.serwb import packet
+from artiq.gateware.serwb import etherbone
 
 
 class DUT(Module):
@@ -57,6 +52,7 @@ class DUT(Module):
         # expose wishbone slave
         self.wishbone = slave_etherbone.wishbone.bus
 
+
 def main_generator(dut):
     for i in range(8):
         yield from dut.wishbone.write(0x100 + i, i)
@@ -64,5 +60,7 @@ def main_generator(dut):
         data = (yield from dut.wishbone.read(0x100 + i))
         print("0x{:08x}".format(data))
 
-dut = DUT()
-run_simulation(dut, main_generator(dut), vcd_name="sim.vcd")
+
+if __name__ == "__main__":
+    dut = DUT()
+    run_simulation(dut, main_generator(dut), vcd_name="sim.vcd")

@@ -5,7 +5,7 @@ from migen.genlib.misc import BitSlip
 
 from misoc.cores.code_8b10b import Encoder, Decoder
 
-from amc_rtm_link.phy import PhaseDetector
+from artiq.gateware.serwb.phy import PhaseDetector
 
 
 class KUSSerdesPLL(Module):
