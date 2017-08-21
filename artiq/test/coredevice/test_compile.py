@@ -7,7 +7,9 @@ from artiq.coredevice.comm_mgmt import CommMgmt
 from artiq.test.hardware_testbench import ExperimentCase
 from artiq.experiment import *
 
+
 artiq_root = os.getenv("ARTIQ_ROOT")
+
 
 class CheckLog(EnvExperiment):
     def build(self):
@@ -16,6 +18,7 @@ class CheckLog(EnvExperiment):
     @kernel
     def run(self):
         core_log("test_artiq_compile")
+
 
 class TestCompile(ExperimentCase):
     def test_compile(self):
