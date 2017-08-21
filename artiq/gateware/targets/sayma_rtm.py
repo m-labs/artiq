@@ -67,6 +67,7 @@ class SaymaRTM(Module):
         # maybe keep only 3 user-visible modules: serwb PLL, serwb PHY, and serwb core
         # TODO: after this is done, stop exposing internal modules in serwb/__init__.py
         # TODO: avoid having a "serdes" clock domain at the top level, rename to "serwb_serdes" or similar.
+        # TODO: the above also applies to sayma_amc_standalone.py.
 
         # serwb SERDES
         serwb_pll = serwb.s7phy.S7SerdesPLL(125e6, 1.25e9, vco_div=1)
