@@ -35,22 +35,23 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
                          **kwargs)
         AMPSoC.__init__(self)
         platform = self.platform
-        platform.toolchain.bitstream_commands.extend([
-            "set_property BITSTREAM.GENERAL.COMPRESS True [current_design]",
-        ])
+        platform.toolchain.bitstream_commands.append(
+            "set_property BITSTREAM.GENERAL.COMPRESS True [current_design]")
 
         self.submodules.leds = gpio.GPIOOut(Cat(
             platform.request("user_led", 0),
             platform.request("user_led", 1)))
         self.csr_devices.append("leds")
 
+        # forward RTM UART to second FTDI UART channel
         serial_1 = platform.request("serial", 1)
         serial_rtm = platform.request("serial_rtm")
         self.comb += [
             serial_1.tx.eq(serial_rtm.rx),
-            serial_rtm.rx.eq(serial_1.tx)
+            serial_rtm.tx.eq(serial_1.rx)
         ]
 
+        # RTIO
         rtio_channels = []
         for i in (2, 3):
             phy = ttl_simple.Output(platform.request("user_led", i))
@@ -90,6 +91,7 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_core.cri,
                                                       self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
+
 
 def main():
     parser = argparse.ArgumentParser(
