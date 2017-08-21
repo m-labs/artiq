@@ -76,8 +76,6 @@ class SaymaRTM(Module):
         self.submodules += serwb_serdes
         serwb_init = serwb.phy.SerdesSlaveInit(serwb_serdes, taps=32)
         self.submodules += serwb_init
-        serwb_control = serwb.phy.SerdesControl(serwb_init, mode="slave")
-        self.submodules += serwb_control
         self.comb += self.crg.reset.eq(serwb_init.reset)
 
         serwb_serdes.cd_serdes.clk.attr.add("keep")
