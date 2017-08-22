@@ -33,7 +33,7 @@ ARTIQ Anaconda development environment
            $ source activate artiq-dev
     5. Add the ARTIQ source tree to the environment's search path::
 
-           $ python setup.py develop
+           $ pip install -e .
     6. :ref:`Install Vivado <install-xilinx>`
     7. :ref:`Obtain and install the JTAG SPI flash proxy bitstream <install-bscan-spi>`
     8. :ref:`Configure OpenOCD <setup-openocd>`
