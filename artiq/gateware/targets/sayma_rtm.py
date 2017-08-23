@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 
+import os
+
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.build.platforms.sinara import sayma_rtm
 
 from misoc.interconnect import wishbone, stream
+from misoc.interconnect.csr import *
+from misoc.integration.wb_slaves import WishboneSlaveManager
+from misoc.integration.cpu_interface import get_csr_csv
 
 from artiq.gateware import serwb
 
@@ -53,15 +58,27 @@ class CRG(Module):
         self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("clk200"), i_RST=ic_reset)
 
 
+class RTMIdentifier(Module, AutoCSR):
+    def __init__(self):
+        self.identifier = CSRStatus(32)
+        self.comb += self.identifier.status.eq(0x5352544d)  # "SRTM"
+
+
+CSR_RANGE_SIZE = 0x800
+
+
 class SaymaRTM(Module):
+
     def __init__(self, platform):
+        csr_devices = []
+
         self.submodules.crg = CRG(platform)
         self.crg.cd_sys.clk.attr.add("keep")
         clk_freq = 125e6
         platform.add_period_constraint(self.crg.cd_sys.clk, 8.0)
 
-        sram = wishbone.SRAM(8192, init=[0x12345678, 0xbadc0f33, 0xabad1dea, 0xdeadbeef])
-        self.submodules += sram
+        self.submodules.rtm_identifier = RTMIdentifier()
+        csr_devices.append("rtm_identifier")
 
         # TODO: push all those serwb bits into library modules
         # maybe keep only 3 user-visible modules: serwb PLL, serwb PHY, and serwb core
@@ -120,14 +137,32 @@ class SaymaRTM(Module):
             serwb_rx_cdc.source.connect(serwb_depacketizer.sink),
         ]
 
-        # connect serwb to SRAM
-        self.comb += serwb_etherbone.wishbone.bus.connect(sram.bus)
+        # process CSR devices and connect them to serwb
+        self.csr_regions = []
+        wb_slaves = WishboneSlaveManager(0x10000000)
+        for i, name in enumerate(csr_devices):
+            origin = i*CSR_RANGE_SIZE
+            module = getattr(self, name)
+            csrs = module.get_csrs()
+
+            bank = wishbone.CSRBank(csrs)
+            self.submodules += bank
+
+            wb_slaves.add(origin, CSR_RANGE_SIZE, bank.bus)
+            self.csr_regions.append((name, origin, 32, csrs))
+
+        self.submodules += wishbone.Decoder(serwb_etherbone.wishbone.bus,
+                                            wb_slaves.get_interconnect_slaves(),
+                                            register=True)
 
 
 def main():
+    build_dir = "artiq_sayma_rtm"
     platform = sayma_rtm.Platform()
     top = SaymaRTM(platform)
-    platform.build(top, build_dir="artiq_sayma_rtm")
+    with open(os.path.join(build_dir, "sayma_rtm_csr.csv"), "w") as f:
+        f.write(get_csr_csv(top.csr_regions))
+    platform.build(top, build_dir=build_dir)
 
 
 if __name__ == "__main__":
