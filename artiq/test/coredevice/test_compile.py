@@ -29,7 +29,7 @@ class TestCompile(ExperimentCase):
             db_path = os.path.join(artiq_root, "device_db.py")
             subprocess.call([sys.executable, "-m", "artiq.frontend.artiq_compile", "--device-db", db_path,
                 "-e", "CheckLog", "-o", os.path.join(tmp, "check_log.elf"), __file__])
-            subprocess.call([sys.executable, "-m", "artiq.frontend.artiq_run", "--device-db", db_path,
+            subprocess.call([sys.executable, "-m", "artiq.frontend.artiq_run", "--device-db", db_path, 
                 os.path.join(tmp, "check_log.elf")])
         log = mgmt.get_log()
         self.assertIn("test_artiq_compile", log)
