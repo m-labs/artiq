@@ -8,8 +8,7 @@ use fringe::OwnedStack;
 use fringe::generator::{Generator, Yielder, State as GeneratorState};
 
 use smoltcp::wire::IpEndpoint;
-use smoltcp::socket::AsSocket;
-use smoltcp::socket::SocketHandle;
+use smoltcp::socket::{AsSocket, SocketHandle};
 type SocketSet = ::smoltcp::socket::SocketSet<'static, 'static, 'static>;
 
 use board;
@@ -248,6 +247,10 @@ macro_rules! until {
     })
 }
 
+use ::smoltcp::Error as ErrorLower;
+// https://github.com/rust-lang/rust/issues/44057
+// type ErrorLower = ::smoltcp::Error;
+
 type UdpPacketBuffer = ::smoltcp::socket::UdpPacketBuffer<'static>;
 type UdpSocketBuffer = ::smoltcp::socket::UdpSocketBuffer<'static, 'static>;
 type UdpSocketLower  = ::smoltcp::socket::UdpSocket<'static, 'static>;
@@ -280,29 +283,34 @@ impl<'a> UdpSocket<'a> {
                     |sockets| sockets.get_mut(self.handle).as_socket())
     }
 
-    pub fn bind<T: Into<IpEndpoint>>(&self, endpoint: T) {
-        self.as_lower().bind(endpoint)
+    pub fn bind<T: Into<IpEndpoint>>(&self, endpoint: T) -> Result<()> {
+        match self.as_lower().bind(endpoint) {
+            Ok(()) => Ok(()),
+            Err(ErrorLower::Illegal) =>
+                Err(Error::new(ErrorKind::Other, "already listening")),
+            Err(ErrorLower::Unaddressable) =>
+                Err(Error::new(ErrorKind::AddrNotAvailable, "port cannot be zero")),
+            _ => unreachable!()
+        }
     }
 
     pub fn recv_from(&self, buf: &mut [u8]) -> Result<(usize, IpEndpoint)> {
         until!(self, UdpSocketLower, |s| s.can_recv())?;
         match self.as_lower().recv_slice(buf) {
-            Ok(r) => Ok(r),
-            Err(()) => {
-                // No data in the buffer--should never happen after the wait above.
-                unreachable!()
-            }
+            Ok(result) => Ok(result),
+            Err(_) => unreachable!()
         }
     }
 
-    pub fn send_to(&self, buf: &[u8], addr: IpEndpoint) -> Result<usize> {
+    pub fn send_to(&self, buf: &[u8], addr: IpEndpoint) -> Result<()> {
         until!(self, UdpSocketLower, |s| s.can_send())?;
         match self.as_lower().send_slice(buf, addr) {
-            Ok(r) => Ok(r),
-            Err(()) => {
-                // No space in the buffer--should never happen after the wait above.
-                unreachable!()
-            }
+            Ok(()) => Ok(()),
+            Err(ErrorLower::Unaddressable) =>
+                Err(Error::new(ErrorKind::AddrNotAvailable, "unaddressable destination")),
+            Err(ErrorLower::Truncated) =>
+                Err(Error::new(ErrorKind::Other, "packet does not fit in buffer")),
+            Err(_) => unreachable!()
         }
     }
 }
@@ -363,9 +371,14 @@ impl<'a> TcpListener<'a> {
 
     pub fn listen<T: Into<IpEndpoint>>(&self, endpoint: T) -> Result<()> {
         let endpoint = endpoint.into();
-        self.as_lower().listen(endpoint)
-            .map_err(|()| Error::new(ErrorKind::Other,
-                                     "cannot listen: already connected"))?;
+        match self.as_lower().listen(endpoint) {
+            Ok(()) => Ok(()),
+            Err(ErrorLower::Illegal) =>
+                Err(Error::new(ErrorKind::Other, "already listening")),
+            Err(ErrorLower::Unaddressable) =>
+                Err(Error::new(ErrorKind::InvalidInput, "port cannot be zero")),
+            _ => unreachable!()
+        }?;
         self.endpoint.set(endpoint);
         Ok(())
     }
@@ -383,7 +396,10 @@ impl<'a> TcpListener<'a> {
 
         let accepted = self.handle.get();
         self.handle.set(Self::new_lower(self.io, self.buffer_size.get()));
-        self.listen(self.endpoint.get()).unwrap();
+        match self.listen(self.endpoint.get()) {
+            Ok(()) => (),
+            _ => unreachable!()
+        }
         Ok(TcpStream {
             io:     self.io,
             handle: accepted
@@ -470,19 +486,20 @@ impl<'a> Read for TcpStream<'a> {
         let result = self.as_lower().recv_slice(buf);
         match result {
             // Slow path: we need to block until buffer is non-empty.
-            Ok(0) | Err(()) => {
+            Ok(0) => {
                 until!(self, TcpSocketLower, |s| s.can_recv() || !s.may_recv())?;
-                let mut socket = self.as_lower();
-                if socket.may_recv() {
-                    Ok(socket.recv_slice(buf)
-                             .expect("can_recv implies that data was available"))
-                } else {
-                    // This socket will never receive data again.
-                    Ok(0)
+                match self.as_lower().recv_slice(buf) {
+                    Ok(length) => Ok(length),
+                    Err(ErrorLower::Illegal) => Ok(0),
+                    _ => unreachable!()
                 }
             }
             // Fast path: we had data in buffer.
-            Ok(length) => Ok(length)
+            Ok(length) => Ok(length),
+            // Error path: the receive half of the socket is not open.
+            Err(ErrorLower::Illegal) => Ok(0),
+            // No other error may be returned.
+            Err(_) => unreachable!()
         }
     }
 }
@@ -493,18 +510,20 @@ impl<'a> Write for TcpStream<'a> {
         let result = self.as_lower().send_slice(buf);
         match result {
             // Slow path: we need to block until buffer is non-full.
-            Ok(0) | Err(()) => {
+            Ok(0) => {
                 until!(self, TcpSocketLower, |s| s.can_send() || !s.may_send())?;
-                if self.as_lower().may_send() {
-                    Ok(self.as_lower().send_slice(buf)
-                           .expect("can_send implies that data was available"))
-                } else {
-                    // This socket will never send data again.
-                    Ok(0)
+                match self.as_lower().send_slice(buf) {
+                    Ok(length) => Ok(length),
+                    Err(ErrorLower::Illegal) => Ok(0),
+                    _ => unreachable!()
                 }
             }
             // Fast path: we had space in buffer.
-            Ok(length) => Ok(length)
+            Ok(length) => Ok(length),
+            // Error path: the transmit half of the socket is not open.
+            Err(ErrorLower::Illegal) => Ok(0),
+            // No other error may be returned.
+            Err(_) => unreachable!()
         }
     }
 
