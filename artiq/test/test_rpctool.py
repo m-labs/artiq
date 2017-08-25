@@ -1,29 +1,28 @@
 import os, sys
 import asyncio
 import unittest
+
 from artiq.protocols.pc_rpc import Server
 
 class Target:
     def output_value(self):
         return 4125380
 
-class rpctool_test(unittest.TestCase):
+class TestRPCTool(unittest.TestCase):
     async def check_value(self):
-        proc = asyncio.create_subprocess_shell(
-                            sys.executable + " -m artiq.frontend.artiq_rpctool ::1 3249 call output_value", 
-                            stdout = asyncio.subprocess.PIPE,
-                            stderr = None)
-        result = await proc
-        (value, err) = await result.communicate()
+        proc = await asyncio.create_subprocess_exec(
+                            sys.executable, "-m", "artiq.frontend.artiq_rpctool", "::1", "7777", "call", "output_value",
+                            stdout = asyncio.subprocess.PIPE)
+        (value, err) = await proc.communicate()
         self.assertEqual(value.decode('ascii').rstrip(), '4125380')
-        await result.wait()
+        await proc.wait()
 
     async def do_test(self):
         server = Server({"target": Target()}, None, True, True)
-        await server.start("::1", 3249)
+        await server.start("::1", 7777)
         await self.check_value()
         await server.stop()
-        
+
     def test_rpc(self):
         if os.name == "nt":
             loop = asyncio.ProactorEventLoop()
@@ -35,4 +34,3 @@ class rpctool_test(unittest.TestCase):
         finally:
             loop.close()
 
-    
