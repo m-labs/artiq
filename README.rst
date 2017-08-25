@@ -45,3 +45,20 @@ GNU Lesser General Public License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with ARTIQ.  If not, see <http://www.gnu.org/licenses/>.
+
+The ARTIQ manifesto
+===================
+
+The free and open dissemination of methods and results is central to scientific progress.
+The ARTIQ authors, contributors, and supporters consider the free and open exchange of scientific tools to be equally important and have chosen the licensing terms of ARTIQ accordingly.
+ARTIQ, including its gateware, the firmware, and the ARTIQ tools and libraries are licensed as LGPLv3+.
+This ensures that a user of ARTIQ obtains broad rights to use, redistribute, and modify it.
+The following statements are intended to clarify the interpretation and application of the licensing terms:
+
+* There is no requirement to distribute any unmodified, modified, or extended versions of ARTIQ. Only when distributing ARTIQ the source needs to be made available.
+* Unmodified, modified, or extended versions of ARTIQ can be distributed freely under the terms of the LGPLv3+.
+* Your ``Experiments``, ``Applets``, and ARTIQ device drivers are considered "Applications" (see the LGPLv3+) and can be (but don't have to be) distributed under the terms of your choice. The public distribution under a free and open license is encouraged, however.
+* Similarly, distribution and licensing of your experiment data, calibrations, or measurement results is entirely at your discretion.
+* Other features, changes, and additions are considered modifications of ARTIQ and inherit the LGPLv3+. Those include for example adding new RTIO ``Phys``, compiler optimizations, compiler features, ports of the compiler to other target CPUs, dashboard or browser features that are not in applets, as well as scheduler, master and runtime modifications.
+* Analogously to the established practice in the Linux kernel, we do not consider components that are developed and used independently to be modifications of ARTIQ.
+* For example, when developing a ``Phy`` for an independently developed and used gateware component, that gateware component is not considered a modification of ARTIQ (but the ``Phy`` is).
