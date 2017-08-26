@@ -8,6 +8,7 @@ from migen.build.platforms.sinara import sayma_rtm
 
 from misoc.interconnect import wishbone, stream
 from misoc.interconnect.csr import *
+from misoc.cores import spi
 from misoc.integration.wb_slaves import WishboneSlaveManager
 from misoc.integration.cpu_interface import get_csr_csv
 
@@ -79,6 +80,10 @@ class SaymaRTM(Module):
 
         self.submodules.rtm_identifier = RTMIdentifier()
         csr_devices.append("rtm_identifier")
+
+        self.submodules.converter_spi = spi.SPIMaster(platform.request("hmc_spi"))
+        csr_devices.append("converter_spi")
+        self.comb += platform.request("hmc7043_reset").eq(0)
 
         # TODO: push all those serwb bits into library modules
         # maybe keep only 3 user-visible modules: serwb PLL, serwb PHY, and serwb core
