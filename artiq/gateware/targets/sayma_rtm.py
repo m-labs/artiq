@@ -88,6 +88,12 @@ class SaymaRTM(Module):
             platform.request("dac_clk_src_sel").eq(0), # use clk from dac_clk
         ]
 
+        self.comb += [
+            platform.request("ad9154_rst_n").eq(0),
+            platform.request("ad9154_txen", 0).eq(0b11),
+            platform.request("ad9154_txen", 1).eq(0b11)
+        ]
+
         self.submodules.converter_spi = spi.SPIMaster(platform.request("hmc_spi"))
         csr_devices.append("converter_spi")
         self.comb += platform.request("hmc7043_reset").eq(0)
