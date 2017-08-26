@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import os
 
 from migen import *
 
@@ -12,6 +13,7 @@ from misoc.targets.sayma_amc import MiniSoC
 
 from artiq.gateware.amp import AMPSoC, build_artiq_soc
 from artiq.gateware import serwb
+from artiq.gateware import remote_csr
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple
 from artiq import __version__ as artiq_version
@@ -20,9 +22,9 @@ from artiq import __version__ as artiq_version
 class SaymaAMCStandalone(MiniSoC, AMPSoC):
     mem_map = {
         "cri_con":       0x10000000,
-        "rtio":          0x20000000,
-        "rtio_dma":      0x30000000,
-        "serwb":         0x20000000,
+        "rtio":          0x11000000,
+        "rtio_dma":      0x12000000,
+        "serwb":         0x13000000,
         "mailbox":       0x70000000
     }
     mem_map.update(MiniSoC.mem_map)
@@ -156,9 +158,19 @@ def main():
         description="ARTIQ device binary builder / Sayma AMC stand-alone")
     builder_args(parser)
     soc_sdram_args(parser)
+    parser.add_argument("--rtm-csr-csv",
+        default=os.path.join("artiq_sayma_rtm", "sayma_rtm_csr.csv"),
+        help="CSV file listing remote CSRs on RTM (default: %(default)s)")
     args = parser.parse_args()
 
     soc = SaymaAMCStandalone(**soc_sdram_argdict(args))
+
+    remote_csr_regions = remote_csr.get_remote_csr_regions(
+        soc.mem_map["serwb"] | soc.shadow_base,
+        args.rtm_csr_csv)
+    for name, origin, busword, csrs in remote_csr_regions:
+        soc.add_csr_region(name, origin, busword, csrs)
+
     build_artiq_soc(soc, builder_argdict(args))
 
 
