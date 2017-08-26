@@ -81,6 +81,13 @@ class SaymaRTM(Module):
         self.submodules.rtm_identifier = RTMIdentifier()
         csr_devices.append("rtm_identifier")
 
+        # clock mux: 125MHz ext SMA clock to HMC830 input
+        self.comb += [
+            platform.request("clk_src_ext_sel").eq(1), # use ext clk from sma
+            platform.request("ref_clk_src_sel").eq(1),
+            platform.request("dac_clk_src_sel").eq(0), # use clk from dac_clk
+        ]
+
         self.submodules.converter_spi = spi.SPIMaster(platform.request("hmc_spi"))
         csr_devices.append("converter_spi")
         self.comb += platform.request("hmc7043_reset").eq(0)
