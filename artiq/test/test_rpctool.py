@@ -1,12 +1,15 @@
-import os, sys
+import os
+import sys
 import asyncio
 import unittest
 
 from artiq.protocols.pc_rpc import Server
 
+
 class Target:
     def output_value(self):
         return 4125380
+
 
 class TestRPCTool(unittest.TestCase):
     async def check_value(self):
@@ -18,7 +21,7 @@ class TestRPCTool(unittest.TestCase):
         await proc.wait()
 
     async def do_test(self):
-        server = Server({"target": Target()}, None, True, True)
+        server = Server({"target": Target()})
         await server.start("::1", 7777)
         await self.check_value()
         await server.stop()
