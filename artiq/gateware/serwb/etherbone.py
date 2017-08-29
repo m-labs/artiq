@@ -645,6 +645,7 @@ class EtherboneWishboneMaster(Module):
 class EtherboneWishboneSlave(Module):
     def __init__(self):
         self.bus = bus = wishbone.Interface()
+        self.ready = Signal(reset=1)
         self.sink = sink = stream.Endpoint(etherbone_mmap_description(32))
         self.source = source = stream.Endpoint(etherbone_mmap_description(32))
 
@@ -654,10 +655,14 @@ class EtherboneWishboneSlave(Module):
         fsm.act("IDLE",
             sink.ack.eq(1),
             If(bus.stb & bus.cyc,
-                If(bus.we,
-                    NextState("SEND_WRITE")
+                If(self.ready,
+                    If(bus.we,
+                        NextState("SEND_WRITE")
+                    ).Else(
+                        NextState("SEND_READ")
+                    )
                 ).Else(
-                    NextState("SEND_READ")
+                    NextState("SEND_ERROR")
                 )
             )
         )
@@ -694,7 +699,10 @@ class EtherboneWishboneSlave(Module):
                 NextState("IDLE")
             )
         )
-
+        fsm.act("SEND_ERROR",
+            bus.ack.eq(1),
+            bus.err.eq(1)
+        )
 
 # etherbone
 

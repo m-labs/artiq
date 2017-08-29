@@ -86,6 +86,7 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
         self.submodules += serwb_depacketizer, serwb_packetizer
         serwb_etherbone = serwb.etherbone.Etherbone(mode="slave")
         self.submodules += serwb_etherbone
+        self.comb += serwb_etherbone.wishbone.ready.eq(serwb_init.ready)
         serwb_tx_cdc = ClockDomainsRenamer({"write": "sys", "read": "serdes"})(
             stream.AsyncFIFO([("data", 32)], 8))
         self.submodules += serwb_tx_cdc
