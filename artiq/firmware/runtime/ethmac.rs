@@ -30,7 +30,7 @@ impl Device for EthernetDevice {
         limits
     }
 
-    fn receive(&mut self) -> Result<Self::RxBuffer, Error> {
+    fn receive(&mut self, _timestamp: u64) -> Result<Self::RxBuffer, Error> {
         unsafe {
             if csr::ethmac::sram_writer_ev_pending_read() != 0 {
                 let slot   = csr::ethmac::sram_writer_slot_read();
@@ -43,7 +43,7 @@ impl Device for EthernetDevice {
         }
     }
 
-    fn transmit(&mut self, length: usize) -> Result<Self::TxBuffer, Error> {
+    fn transmit(&mut self, _timestamp: u64, length: usize) -> Result<Self::TxBuffer, Error> {
         unsafe {
             if csr::ethmac::sram_reader_ready_read() != 0 {
                 let slot  = csr::ethmac::sram_reader_slot_read();
