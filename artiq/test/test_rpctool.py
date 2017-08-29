@@ -29,9 +29,9 @@ class TestRPCTool(unittest.TestCase):
     def test_rpc(self):
         if os.name == "nt":
             loop = asyncio.ProactorEventLoop()
-            asyncio.set_event_loop(loop)
         else:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         try:
             loop.run_until_complete(self.do_test())
         finally:
