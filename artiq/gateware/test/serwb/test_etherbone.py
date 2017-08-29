@@ -1,3 +1,6 @@
+import unittest
+import random
+
 from migen import *
 
 from misoc.interconnect.wishbone import SRAM
@@ -25,7 +28,7 @@ class DUT(Module):
         master_packetizer = packet.Packetizer()
         self.submodules += master_depacketizer, master_packetizer
         master_etherbone = etherbone.Etherbone(mode="master")
-        master_sram = SRAM(1024, bus=master_etherbone.wishbone.bus)
+        master_sram = SRAM(64, bus=master_etherbone.wishbone.bus)
         self.submodules += master_etherbone, master_sram
         self.comb += [
             master_depacketizer.source.connect(master_etherbone.sink),
@@ -53,14 +56,15 @@ class DUT(Module):
         self.wishbone = slave_etherbone.wishbone.bus
 
 
-def main_generator(dut):
-    for i in range(8):
-        yield from dut.wishbone.write(0x100 + i, i)
-    for i in range(8):
-        data = (yield from dut.wishbone.read(0x100 + i))
-        print("0x{:08x}".format(data))
-
-
-if __name__ == "__main__":
-    dut = DUT()
-    run_simulation(dut, main_generator(dut), vcd_name="sim.vcd")
+class TestEtherbone(unittest.TestCase):
+    def test_write_read_sram(self):
+        dut = DUT()
+        prng = random.Random(1)
+        def generator(dut):
+            datas = [prng.randrange(0, 2**32-1) for i in range(16)]
+            for i in range(16):
+                yield from dut.wishbone.write(i, datas[i])
+            for i in range(16):
+                data = (yield from dut.wishbone.read(i))
+                self.assertEqual(data, datas[i])
+        run_simulation(dut, generator(dut))
