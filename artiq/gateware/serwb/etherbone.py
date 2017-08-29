@@ -667,33 +667,43 @@ class EtherboneWishboneSlave(Module):
             )
         )
         fsm.act("SEND_WRITE",
-            source.stb.eq(1),
-            source.eop.eq(1),
-            source.base_addr[2:].eq(bus.adr),
-            source.count.eq(1),
-            source.be.eq(bus.sel),
-            source.we.eq(1),
-            source.data.eq(bus.dat_w),
-            If(source.stb & source.ack,
-                bus.ack.eq(1),
-                NextState("IDLE")
+            If(~self.ready,
+                NextState("SEND_ERROR")
+            ).Else(
+                source.stb.eq(1),
+                source.eop.eq(1),
+                source.base_addr[2:].eq(bus.adr),
+                source.count.eq(1),
+                source.be.eq(bus.sel),
+                source.we.eq(1),
+                source.data.eq(bus.dat_w),
+                If(source.stb & source.ack,
+                    bus.ack.eq(1),
+                    NextState("IDLE")
+                )
             )
         )
         fsm.act("SEND_READ",
-            source.stb.eq(1),
-            source.eop.eq(1),
-            source.base_addr.eq(0),
-            source.count.eq(1),
-            source.be.eq(bus.sel),
-            source.we.eq(0),
-            source.data[2:].eq(bus.adr),
-            If(source.stb & source.ack,
-                NextState("WAIT_READ")
+            If(~self.ready,
+                NextState("SEND_ERROR")
+            ).Else(
+                source.stb.eq(1),
+                source.eop.eq(1),
+                source.base_addr.eq(0),
+                source.count.eq(1),
+                source.be.eq(bus.sel),
+                source.we.eq(0),
+                source.data[2:].eq(bus.adr),
+                If(source.stb & source.ack,
+                    NextState("WAIT_READ")
+                )
             )
         )
         fsm.act("WAIT_READ",
             sink.ack.eq(1),
-            If(sink.stb & sink.we,
+            If(~self.ready,
+                NextState("SEND_ERROR")
+            ).Elif(sink.stb & sink.we,
                 bus.ack.eq(1),
                 bus.dat_r.eq(sink.data),
                 NextState("IDLE")
