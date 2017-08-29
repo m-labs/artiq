@@ -3,15 +3,17 @@ Developing ARTIQ
 
 We describe two different approaches to creating a development environment for ARTIQ.
 
-The first method uses existing pre-compiled Anaconda packages for the development environment.
-This is fast and convenient because it avoids compiling the entire toolchain but developing individual components within the toolchain requires extra care.
+The first method uses existing pre-compiled Anaconda packages and the ``artiq-dev`` meta-package for the development environment.
+This is fast and convenient because it avoids compiling the entire toolchain.
+Consequently, some ARTIQ developers as well as the buildbot that's used for continuous integration all employ this method to build the ``artiq`` Anaconda packages and the bitstreams.
 It is completely sufficient to develop and tweak the ARTIQ code and to build
 bitstreams.
-Some ARTIQ developers as well as the buildbot employs this method for continuous integration to build the ``artiq`` Anaconda packages and the bitstreams.
 
-The second method builds most components in the toolchain from their sources.
-This takes time and and care to reproduce precisely but it gives absolute control over the components and an immediate handle at developing them.
-Some ARTIQ developers use this method.
+But with the meta-pakage developing individual components within the toolchain requires extra care.
+Consequently, the second method builds most components in the toolchain from their sources.
+This takes time and care to reproduce accurately but it gives absolute control over the components and an immediate handle at developing them.
+Some ARTIQ developers use this second method of building the entire toolchain
+from sources.
 It is only recommended for developers and advanced users.
 
 .. _develop-from-conda:
@@ -38,6 +40,7 @@ ARTIQ Anaconda development environment
     7. :ref:`Obtain and install the JTAG SPI flash proxy bitstream <install-bscan-spi>`
     8. :ref:`Configure OpenOCD <setup-openocd>`
     9. :ref:`Build target binaries <build-target-binaries>`
+    10. :ref:`Flash target binaries <flash-target-binaries>`
 
 .. _install-from-source:
 
@@ -215,14 +218,15 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
     .. note:: Add ``--toolchain ise`` if you wish to use ISE instead of Vivado. ISE needs a separate installation step.
 
+.. _flash-target-binaries:
+
 * Then, gather the binaries and flash them: ::
 
         $ mkdir binaries
         $ cp misoc_nist_qcX_<board>/gateware/top.bit binaries
         $ cp misoc_nist_qcX_<board>/software/bios/bios.bin binaries
         $ cp misoc_nist_qcX_<board>/software/runtime/runtime.fbi binaries
-        $ cd binaries
-        $ artiq_flash -d .
+        $ artiq_flash -d binaries
 
 * Check that the board boots by running a serial terminal program (you may need to press its FPGA reconfiguration button or power-cycle it to load the gateware bitstream that was newly written into the flash): ::
 
