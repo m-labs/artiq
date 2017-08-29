@@ -5,8 +5,6 @@ from migen.genlib.misc import BitSlip
 
 from misoc.cores.code_8b10b import Encoder, Decoder
 
-from artiq.gateware.serwb.phy import PhaseDetector
-
 
 class KUSSerdesPLL(Module):
     def __init__(self, refclk_freq, linerate, vco_div=1):
@@ -228,22 +226,17 @@ class KUSSerdes(Module):
         self.submodules.rx_gearbox = Gearbox(8, "serdes_5x", 40, "serdes")
         self.submodules.rx_bitslip = ClockDomainsRenamer("serdes")(BitSlip(40))
 
-        self.submodules.phase_detector = ClockDomainsRenamer("serdes_5x")(PhaseDetector())
-
-        # 2 serdes for phase detection: 1 master (used for data) / 1 slave
-        serdes_m_i_nodelay = Signal()
-        serdes_s_i_nodelay = Signal()
+        serdes_i_nodelay = Signal()
         self.specials += [
             Instance("IBUFDS_DIFF_OUT",
                 i_I=pads.rx_p,
                 i_IB=pads.rx_n,
-                o_O=serdes_m_i_nodelay,
-                o_OB=serdes_s_i_nodelay
+                o_O=serdes_i_nodelay
             )
         ]
 
-        serdes_m_i_delayed = Signal()
-        serdes_m_q = Signal(8)
+        serdes_i_delayed = Signal()
+        serdes_q = Signal(8)
         self.specials += [
             Instance("IDELAYE3",
                 p_CASCADE="NONE", p_UPDATE_MODE="ASYNC", p_REFCLK_FREQUENCY=200.0,
@@ -256,55 +249,22 @@ class KUSSerdes(Module):
                 i_INC=rx_delay_inc, i_EN_VTC=rx_delay_en_vtc,
                 i_CE=rx_delay_ce,
 
-                i_IDATAIN=serdes_m_i_nodelay, o_DATAOUT=serdes_m_i_delayed
+                i_IDATAIN=serdes_i_nodelay, o_DATAOUT=serdes_i_delayed
             ),
             Instance("ISERDESE3",
                 p_DATA_WIDTH=8,
 
-                i_D=serdes_m_i_delayed,
+                i_D=serdes_i_delayed,
                 i_RST=ResetSignal("serdes"),
                 i_FIFO_RD_CLK=0, i_FIFO_RD_EN=0,
                 i_CLK=ClockSignal("serdes_20x"), i_CLK_B=~ClockSignal("serdes_20x"),
                 i_CLKDIV=ClockSignal("serdes_5x"),
-                o_Q=serdes_m_q
+                o_Q=serdes_q
             )
         ]
-        self.comb += self.phase_detector.mdata.eq(serdes_m_q)
-
-        serdes_s_i_delayed = Signal()
-        serdes_s_q = Signal(8)
-        self.specials += [
-            Instance("IDELAYE3",
-                p_CASCADE="NONE", p_UPDATE_MODE="ASYNC", p_REFCLK_FREQUENCY=200.0,
-                p_IS_CLK_INVERTED=0, p_IS_RST_INVERTED=0,
-                # Note: can't use TIME mode since not reloading DELAY_VALUE on rst...
-				# Got answer from Xilinx, need testing:
-                # https://forums.xilinx.com/xlnx/board/crawl_message?board.id=ultrascale&message.id=4699
-                p_DELAY_FORMAT="COUNT", p_DELAY_SRC="IDATAIN",
-                p_DELAY_TYPE="VARIABLE", p_DELAY_VALUE=50, # 1/4 bit period (ambient temp)
-
-                i_CLK=ClockSignal("serdes_5x"),
-                i_RST=rx_delay_rst, i_LOAD=0,
-                i_INC=rx_delay_inc, i_EN_VTC=rx_delay_en_vtc,
-                i_CE=rx_delay_ce,
-
-                i_IDATAIN=serdes_s_i_nodelay, o_DATAOUT=serdes_s_i_delayed
-            ),
-            Instance("ISERDESE3",
-                p_DATA_WIDTH=8,
-
-                i_D=serdes_s_i_delayed,
-                i_RST=ResetSignal("serdes"),
-                i_FIFO_RD_CLK=0, i_FIFO_RD_EN=0,
-                i_CLK=ClockSignal("serdes_20x"), i_CLK_B=~ClockSignal("serdes_20x"),
-                i_CLKDIV=ClockSignal("serdes_5x"),
-                o_Q=serdes_s_q
-            )
-        ]
-        self.comb += self.phase_detector.sdata.eq(~serdes_s_q)
 
         self.comb += [
-            self.rx_gearbox.i.eq(serdes_m_q),
+            self.rx_gearbox.i.eq(serdes_q),
             self.rx_bitslip.value.eq(rx_bitslip_value),
             self.rx_bitslip.i.eq(self.rx_gearbox.o),
             self.decoders[0].input.eq(self.rx_bitslip.o[0:10]),

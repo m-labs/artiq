@@ -5,8 +5,6 @@ from migen.genlib.misc import BitSlip
 
 from misoc.cores.code_8b10b import Encoder, Decoder
 
-from artiq.gateware.serwb.phy import PhaseDetector
-
 
 class S7SerdesPLL(Module):
     def __init__(self, refclk_freq, linerate, vco_div=1):
@@ -221,22 +219,17 @@ class S7Serdes(Module):
         self.submodules.rx_gearbox = Gearbox(8, "serdes_5x", 40, "serdes")
         self.submodules.rx_bitslip = ClockDomainsRenamer("serdes")(BitSlip(40))
 
-        self.submodules.phase_detector = ClockDomainsRenamer("serdes_5x")(PhaseDetector())
-
-        # 2 serdes for phase detection: 1 master (used for data) / 1 slave
-        serdes_m_i_nodelay = Signal()
-        serdes_s_i_nodelay = Signal()
+        serdes_i_nodelay = Signal()
         self.specials += [
             Instance("IBUFDS_DIFF_OUT",
                 i_I=pads.rx_p,
                 i_IB=pads.rx_n,
-                o_O=serdes_m_i_nodelay,
-                o_OB=serdes_s_i_nodelay
+                o_O=serdes_i_nodelay
             )
         ]
 
-        serdes_m_i_delayed = Signal()
-        serdes_m_q = Signal(8)
+        serdes_i_delayed = Signal()
+        serdes_q = Signal(8)
         self.specials += [
             Instance("IDELAYE2",
                 p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
@@ -249,66 +242,28 @@ class S7Serdes(Module):
                 i_CE=self.rx_delay_ce,
                 i_LDPIPEEN=0, i_INC=self.rx_delay_inc,
 
-                i_IDATAIN=serdes_m_i_nodelay, o_DATAOUT=serdes_m_i_delayed
+                i_IDATAIN=serdes_i_nodelay, o_DATAOUT=serdes_i_delayed
             ),
             Instance("ISERDESE2",
                 p_DATA_WIDTH=8, p_DATA_RATE="DDR",
                 p_SERDES_MODE="MASTER", p_INTERFACE_TYPE="NETWORKING",
                 p_NUM_CE=1, p_IOBDELAY="IFD",
 
-                i_DDLY=serdes_m_i_delayed,
+                i_DDLY=serdes_i_delayed,
                 i_CE1=1,
                 i_RST=ResetSignal("serdes"),
                 i_CLK=ClockSignal("serdes_20x"), i_CLKB=~ClockSignal("serdes_20x"),
                 i_CLKDIV=ClockSignal("serdes_5x"),
                 i_BITSLIP=0,
-                o_Q8=serdes_m_q[0], o_Q7=serdes_m_q[1],
-                o_Q6=serdes_m_q[2], o_Q5=serdes_m_q[3],
-                o_Q4=serdes_m_q[4], o_Q3=serdes_m_q[5],
-                o_Q2=serdes_m_q[6], o_Q1=serdes_m_q[7]
+                o_Q8=serdes_q[0], o_Q7=serdes_q[1],
+                o_Q6=serdes_q[2], o_Q5=serdes_q[3],
+                o_Q4=serdes_q[4], o_Q3=serdes_q[5],
+                o_Q2=serdes_q[6], o_Q1=serdes_q[7]
             )
         ]
-        self.comb += self.phase_detector.mdata.eq(serdes_m_q)
-
-        serdes_s_i_delayed = Signal()
-        serdes_s_q = Signal(8)
-        serdes_s_idelay_value = int(1/(4*pll.linerate)/78e-12) # 1/4 bit period
-        assert serdes_s_idelay_value < 32
-        self.specials += [
-            Instance("IDELAYE2",
-                p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
-                p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE",
-                p_REFCLK_FREQUENCY=200.0, p_PIPE_SEL="FALSE",
-                p_IDELAY_TYPE="VARIABLE", p_IDELAY_VALUE=serdes_s_idelay_value,
-
-                i_C=ClockSignal(),
-                i_LD=self.rx_delay_rst,
-                i_CE=self.rx_delay_ce,
-                i_LDPIPEEN=0, i_INC=self.rx_delay_inc,
-
-                i_IDATAIN=serdes_s_i_nodelay, o_DATAOUT=serdes_s_i_delayed
-            ),
-            Instance("ISERDESE2",
-                p_DATA_WIDTH=8, p_DATA_RATE="DDR",
-                p_SERDES_MODE="MASTER", p_INTERFACE_TYPE="NETWORKING",
-                p_NUM_CE=1, p_IOBDELAY="IFD",
-
-                i_DDLY=serdes_s_i_delayed,
-                i_CE1=1,
-                i_RST=ResetSignal("serdes"),
-                i_CLK=ClockSignal("serdes_20x"), i_CLKB=~ClockSignal("serdes_20x"),
-                i_CLKDIV=ClockSignal("serdes_5x"),
-                i_BITSLIP=0,
-                o_Q8=serdes_s_q[0], o_Q7=serdes_s_q[1],
-                o_Q6=serdes_s_q[2], o_Q5=serdes_s_q[3],
-                o_Q4=serdes_s_q[4], o_Q3=serdes_s_q[5],
-                o_Q2=serdes_s_q[6], o_Q1=serdes_s_q[7]
-            )
-        ]
-        self.comb += self.phase_detector.sdata.eq(~serdes_s_q)
 
         self.comb += [
-            self.rx_gearbox.i.eq(serdes_m_q),
+            self.rx_gearbox.i.eq(serdes_q),
             self.rx_bitslip.value.eq(rx_bitslip_value),
             self.rx_bitslip.i.eq(self.rx_gearbox.o),
             self.decoders[0].input.eq(self.rx_bitslip.o[0:10]),
