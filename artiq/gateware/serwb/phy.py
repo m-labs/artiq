@@ -17,7 +17,7 @@ from artiq.gateware.serwb.s7phy import S7Serdes
 # 6) Link is ready.
 
 class _SerdesMasterInit(Module):
-    def __init__(self, serdes, taps):
+    def __init__(self, serdes, taps, timeout=1024):
         self.reset = Signal()
         self.ready = Signal()
         self.error = Signal()
@@ -31,7 +31,7 @@ class _SerdesMasterInit(Module):
         self.delay_max_found = delay_max_found = Signal()
         self.bitslip = bitslip = Signal(max=40)
 
-        timer = WaitTimer(1024)
+        timer = WaitTimer(timeout)
         self.submodules += timer
 
         self.submodules.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
@@ -157,7 +157,7 @@ class _SerdesMasterInit(Module):
 
 
 class _SerdesSlaveInit(Module, AutoCSR):
-    def __init__(self, serdes, taps):
+    def __init__(self, serdes, taps, timeout=1024):
         self.reset = Signal()
         self.ready = Signal()
         self.error = Signal()
@@ -171,7 +171,7 @@ class _SerdesSlaveInit(Module, AutoCSR):
         self.delay_max_found = delay_max_found = Signal()
         self.bitslip = bitslip = Signal(max=40)
 
-        timer = WaitTimer(1024)
+        timer = WaitTimer(timeout)
         self.submodules += timer
 
         self.comb += self.reset.eq(serdes.rx_idle)
