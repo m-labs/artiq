@@ -6,63 +6,6 @@ from migen.genlib.misc import BitSlip
 from misoc.cores.code_8b10b import Encoder, Decoder
 
 
-class KUSSerdesPLL(Module):
-    def __init__(self, refclk_freq, linerate, vco_div=1):
-        assert refclk_freq == 125e6
-        assert linerate == 1.25e9
-
-        self.lock = Signal()
-        self.refclk = Signal()
-        self.serdes_clk = Signal()
-        self.serdes_20x_clk = Signal()
-        self.serdes_5x_clk = Signal()
-
-        # # #
-
-        #----------------------
-        # refclk:        125MHz
-        # vco:          1250MHz
-        #----------------------
-        # serdes:      31.25MHz
-        # serdes_20x:    625MHz
-        # serdes_5x:  156.25MHz
-        #----------------------
-        self.linerate = linerate
-
-        pll_locked = Signal()
-        pll_fb = Signal()
-        pll_serdes_clk = Signal()
-        pll_serdes_20x_clk = Signal()
-        pll_serdes_5x_clk = Signal()
-        self.specials += [
-            Instance("PLLE2_BASE",
-                p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
-
-                # VCO @ 1.25GHz / vco_div
-                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=8.0,
-                p_CLKFBOUT_MULT=10, p_DIVCLK_DIVIDE=vco_div,
-                i_CLKIN1=self.refclk, i_CLKFBIN=pll_fb,
-                o_CLKFBOUT=pll_fb,
-
-                # 31.25MHz: serdes
-                p_CLKOUT0_DIVIDE=40//vco_div, p_CLKOUT0_PHASE=0.0,
-                o_CLKOUT0=pll_serdes_clk,
-
-                # 625MHz: serdes_20x
-                p_CLKOUT1_DIVIDE=2//vco_div, p_CLKOUT1_PHASE=0.0,
-                o_CLKOUT1=pll_serdes_20x_clk,
-
-                # 156.25MHz: serdes_5x
-                p_CLKOUT2_DIVIDE=8//vco_div, p_CLKOUT2_PHASE=0.0,
-                o_CLKOUT2=pll_serdes_5x_clk
-            ),
-            Instance("BUFG", i_I=pll_serdes_clk, o_O=self.serdes_clk),
-            Instance("BUFG", i_I=pll_serdes_20x_clk, o_O=self.serdes_20x_clk),
-            Instance("BUFG", i_I=pll_serdes_5x_clk, o_O=self.serdes_5x_clk)
-        ]
-        self.specials += MultiReg(pll_locked, self.lock)
-
-
 class KUSSerdes(Module):
     def __init__(self, pll, pads, mode="master"):
         self.tx_data = Signal(32)

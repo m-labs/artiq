@@ -4,6 +4,9 @@ from migen.genlib.misc import WaitTimer
 
 from misoc.interconnect.csr import *
 
+from artiq.gateware.serwb.kusphy import KUSSerdes
+from artiq.gateware.serwb.s7phy import S7Serdes
+
 
 # Master <--> Slave synchronization:
 # 1) Master sends idle pattern (zeroes) to reset Slave.
@@ -13,11 +16,11 @@ from misoc.interconnect.csr import *
 # 5) Slave stops sending K25.5 commas.
 # 6) Link is ready.
 
-class SerdesMasterInit(Module):
+class _SerdesMasterInit(Module):
     def __init__(self, serdes, taps):
         self.reset = Signal()
-        self.error = Signal()
         self.ready = Signal()
+        self.error = Signal()
 
         # # #
 
@@ -72,6 +75,7 @@ class SerdesMasterInit(Module):
                 If(serdes.rx_comma,
                     timer.wait.eq(1),
                     If(timer.done,
+                        timer.wait.eq(0),
                         NextValue(delay_min, delay),
                         NextValue(delay_min_found, 1)
                     )
@@ -82,7 +86,7 @@ class SerdesMasterInit(Module):
                 If(~serdes.rx_comma,
                     NextValue(delay_max, delay),
                     NextValue(delay_max_found, 1),
-                    NextState("RESET_SAMPLING_WINDOW")
+                    NextState("CHECK_SAMPLING_WINDOW")
                 ).Else(
                     NextState("INC_DELAY_BITSLIP")
                 )
@@ -93,12 +97,10 @@ class SerdesMasterInit(Module):
         fsm.act("INC_DELAY_BITSLIP",
             NextState("WAIT_STABLE"),
             If(delay == (taps - 1),
-                If(delay_min_found,
-                    NextState("ERROR")
-                ),
                 If(bitslip == (40 - 1),
-                    NextValue(bitslip, 0)
-                ).Else(    
+                    NextState("ERROR")
+                ).Else(
+                    NextValue(delay_min_found, 0),
                     NextValue(bitslip, bitslip + 1)
                 ),
                 NextValue(delay, 0),
@@ -109,6 +111,17 @@ class SerdesMasterInit(Module):
                 serdes.rx_delay_ce.eq(1)
             ),
             serdes.tx_comma.eq(1)
+        )
+        fsm.act("CHECK_SAMPLING_WINDOW",
+            If((delay_min == 0) |
+               (delay_max == (taps - 1)) |
+               ((delay_max - delay_min) < taps//16),
+               NextValue(delay_min_found, 0),
+               NextValue(delay_max_found, 0),
+               NextState("WAIT_STABLE")
+            ).Else(
+                NextState("RESET_SAMPLING_WINDOW")
+            )
         )
         fsm.act("RESET_SAMPLING_WINDOW",
             NextValue(delay, 0),
@@ -143,7 +156,7 @@ class SerdesMasterInit(Module):
         )
 
 
-class SerdesSlaveInit(Module, AutoCSR):
+class _SerdesSlaveInit(Module, AutoCSR):
     def __init__(self, serdes, taps):
         self.reset = Signal()
         self.ready = Signal()
@@ -199,7 +212,7 @@ class SerdesSlaveInit(Module, AutoCSR):
                 If(~serdes.rx_comma,
                     NextValue(delay_max, delay),
                     NextValue(delay_max_found, 1),
-                    NextState("RESET_SAMPLING_WINDOW")
+                    NextState("CHECK_SAMPLING_WINDOW")
                 ).Else(
                     NextState("INC_DELAY_BITSLIP")
                 )
@@ -210,12 +223,10 @@ class SerdesSlaveInit(Module, AutoCSR):
         fsm.act("INC_DELAY_BITSLIP",
             NextState("WAIT_STABLE"),
             If(delay == (taps - 1),
-                If(delay_min_found,
-                    NextState("ERROR")
-                ),
                 If(bitslip == (40 - 1),
-                    NextValue(bitslip, 0)
-                ).Else(    
+                    NextState("ERROR")
+                ).Else(
+                    NextValue(delay_min_found, 0),
                     NextValue(bitslip, bitslip + 1)
                 ),
                 NextValue(delay, 0),
@@ -226,6 +237,17 @@ class SerdesSlaveInit(Module, AutoCSR):
                 serdes.rx_delay_ce.eq(1)
             ),
             serdes.tx_idle.eq(1)
+        )
+        fsm.act("CHECK_SAMPLING_WINDOW",
+            If((delay_min == 0) |
+               (delay_max == (taps - 1)) |
+               ((delay_max - delay_min) < taps//16),
+               NextValue(delay_min_found, 0),
+               NextValue(delay_max_found, 0),
+               NextState("WAIT_STABLE")
+            ).Else(
+                NextState("RESET_SAMPLING_WINDOW")
+            )
         )
         fsm.act("RESET_SAMPLING_WINDOW",
             NextValue(delay, 0),
@@ -266,7 +288,7 @@ class SerdesSlaveInit(Module, AutoCSR):
         )
 
 
-class SerdesControl(Module, AutoCSR):
+class _SerdesControl(Module, AutoCSR):
     def __init__(self, init, mode="master"):
         if mode == "master":
             self.reset = CSR()
@@ -294,3 +316,79 @@ class SerdesControl(Module, AutoCSR):
             self.delay_max.status.eq(init.delay_max),
             self.bitslip.status.eq(init.bitslip)
         ]
+
+
+class SERWBPLL(Module):
+    def __init__(self, refclk_freq, linerate, vco_div=1):
+        assert refclk_freq == 125e6
+        assert linerate == 1.25e9
+
+        self.lock = Signal()
+        self.refclk = Signal()
+        self.serdes_clk = Signal()
+        self.serdes_20x_clk = Signal()
+        self.serdes_5x_clk = Signal()
+
+        # # #
+
+        #----------------------
+        # refclk:        125MHz
+        # vco:          1250MHz
+        #----------------------
+        # serdes:      31.25MHz
+        # serdes_20x:    625MHz
+        # serdes_5x:  156.25MHz
+        #----------------------
+        self.linerate = linerate
+
+        pll_locked = Signal()
+        pll_fb = Signal()
+        pll_serdes_clk = Signal()
+        pll_serdes_20x_clk = Signal()
+        pll_serdes_5x_clk = Signal()
+        self.specials += [
+            Instance("PLLE2_BASE",
+                p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
+
+                # VCO @ 1.25GHz / vco_div
+                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=8.0,
+                p_CLKFBOUT_MULT=10, p_DIVCLK_DIVIDE=vco_div,
+                i_CLKIN1=self.refclk, i_CLKFBIN=pll_fb,
+                o_CLKFBOUT=pll_fb,
+
+                # 31.25MHz: serdes
+                p_CLKOUT0_DIVIDE=40//vco_div, p_CLKOUT0_PHASE=0.0,
+                o_CLKOUT0=pll_serdes_clk,
+
+                # 625MHz: serdes_20x
+                p_CLKOUT1_DIVIDE=2//vco_div, p_CLKOUT1_PHASE=0.0,
+                o_CLKOUT1=pll_serdes_20x_clk,
+
+                # 156.25MHz: serdes_5x
+                p_CLKOUT2_DIVIDE=8//vco_div, p_CLKOUT2_PHASE=0.0,
+                o_CLKOUT2=pll_serdes_5x_clk
+            ),
+            Instance("BUFG", i_I=pll_serdes_clk, o_O=self.serdes_clk),
+            Instance("BUFG", i_I=pll_serdes_20x_clk, o_O=self.serdes_20x_clk),
+            Instance("BUFG", i_I=pll_serdes_5x_clk, o_O=self.serdes_5x_clk)
+        ]
+        self.specials += MultiReg(pll_locked, self.lock)
+
+
+
+class SERWBPHY(Module, AutoCSR):
+    def __init__(self, device, pll, pads, mode="master"):
+        assert mode in ["master", "slave"]
+        if device[:4] == "xcku":
+            taps = 512
+            self.submodules.serdes = KUSSerdes(pll, pads, mode)
+        elif device[:4] == "xc7a":
+            taps = 32
+            self.submodules.serdes = S7Serdes(pll, pads, mode)
+        else:
+            raise NotImplementedError
+        if mode == "master":
+            self.submodules.init = _SerdesMasterInit(self.serdes, taps)
+        else:
+            self.submodules.init = _SerdesSlaveInit(self.serdes, taps)
+        self.submodules.control = _SerdesControl(self.init, mode)
