@@ -26,7 +26,7 @@ impl Device for EthernetDevice {
     fn limits(&self) -> DeviceLimits {
         let mut limits = DeviceLimits::default();
         limits.max_transmission_unit = 1500;
-        limits.max_burst_size = Some(RX_BUFFERS.len() - 1);
+        limits.max_burst_size = Some(RX_BUFFERS.len());
         limits
     }
 
