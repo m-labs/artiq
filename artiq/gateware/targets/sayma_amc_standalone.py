@@ -69,16 +69,16 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
         self.submodules.serwb_phy = serwb_phy
         self.csr_devices.append("serwb_phy")
 
-        serwb_phy.serdes.cd_serdes.clk.attr.add("keep")
-        serwb_phy.serdes.cd_serdes_20x.clk.attr.add("keep")
-        serwb_phy.serdes.cd_serdes_5x.clk.attr.add("keep")
-        platform.add_period_constraint(serwb_phy.serdes.cd_serdes.clk, 32.0),
-        platform.add_period_constraint(serwb_phy.serdes.cd_serdes_20x.clk, 1.6),
-        platform.add_period_constraint(serwb_phy.serdes.cd_serdes_5x.clk, 6.4)
+        serwb_phy.serdes.cd_serwb_serdes.clk.attr.add("keep")
+        serwb_phy.serdes.cd_serwb_serdes_20x.clk.attr.add("keep")
+        serwb_phy.serdes.cd_serwb_serdes_5x.clk.attr.add("keep")
+        platform.add_period_constraint(serwb_phy.serdes.cd_serwb_serdes.clk, 32.0),
+        platform.add_period_constraint(serwb_phy.serdes.cd_serwb_serdes_20x.clk, 1.6),
+        platform.add_period_constraint(serwb_phy.serdes.cd_serwb_serdes_5x.clk, 6.4)
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            serwb_phy.serdes.cd_serdes.clk,
-            serwb_phy.serdes.cd_serdes_5x.clk)
+            serwb_phy.serdes.cd_serwb_serdes.clk,
+            serwb_phy.serdes.cd_serwb_serdes_5x.clk)
 
         # serwb slave
         serwb_core = serwb.core.SERWBCore(serwb_phy, int(self.clk_freq), mode="slave")

@@ -13,10 +13,10 @@ class SERWBCore(Module):
         packetizer = Packetizer()
         self.submodules += depacketizer, packetizer
         tx_cdc = stream.AsyncFIFO([("data", 32)], 8)
-        tx_cdc = ClockDomainsRenamer({"write": "sys", "read": "serdes"})(tx_cdc)
+        tx_cdc = ClockDomainsRenamer({"write": "sys", "read": "serwb_serdes"})(tx_cdc)
         self.submodules += tx_cdc
         rx_cdc = stream.AsyncFIFO([("data", 32)], 8)
-        rx_cdc = ClockDomainsRenamer({"write": "serdes", "read": "sys"})(rx_cdc)
+        rx_cdc = ClockDomainsRenamer({"write": "serwb_serdes", "read": "sys"})(rx_cdc)
         self.submodules += rx_cdc
         self.comb += [
             # core <--> etherbone

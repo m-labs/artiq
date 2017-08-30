@@ -325,27 +325,27 @@ class SERWBPLL(Module):
 
         self.lock = Signal()
         self.refclk = Signal()
-        self.serdes_clk = Signal()
-        self.serdes_20x_clk = Signal()
-        self.serdes_5x_clk = Signal()
+        self.serwb_serdes_clk = Signal()
+        self.serwb_serdes_20x_clk = Signal()
+        self.serwb_serdes_5x_clk = Signal()
 
         # # #
 
-        #----------------------
-        # refclk:        125MHz
-        # vco:          1250MHz
-        #----------------------
-        # serdes:      31.25MHz
-        # serdes_20x:    625MHz
-        # serdes_5x:  156.25MHz
-        #----------------------
+        #----------------------------
+        # refclk:              125MHz
+        # vco:                1250MHz
+        #----------------------------
+        # serwb_serdes:      31.25MHz
+        # serwb_serdes_20x:    625MHz
+        # serwb_serdes_5x:  156.25MHz
+        #----------------------------
         self.linerate = linerate
 
         pll_locked = Signal()
         pll_fb = Signal()
-        pll_serdes_clk = Signal()
-        pll_serdes_20x_clk = Signal()
-        pll_serdes_5x_clk = Signal()
+        pll_serwb_serdes_clk = Signal()
+        pll_serwb_serdes_20x_clk = Signal()
+        pll_serwb_serdes_5x_clk = Signal()
         self.specials += [
             Instance("PLLE2_BASE",
                 p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
@@ -356,21 +356,21 @@ class SERWBPLL(Module):
                 i_CLKIN1=self.refclk, i_CLKFBIN=pll_fb,
                 o_CLKFBOUT=pll_fb,
 
-                # 31.25MHz: serdes
+                # 31.25MHz: serwb_serdes
                 p_CLKOUT0_DIVIDE=40//vco_div, p_CLKOUT0_PHASE=0.0,
-                o_CLKOUT0=pll_serdes_clk,
+                o_CLKOUT0=pll_serwb_serdes_clk,
 
-                # 625MHz: serdes_20x
+                # 625MHz: serwb_serdes_20x
                 p_CLKOUT1_DIVIDE=2//vco_div, p_CLKOUT1_PHASE=0.0,
-                o_CLKOUT1=pll_serdes_20x_clk,
+                o_CLKOUT1=pll_serwb_serdes_20x_clk,
 
-                # 156.25MHz: serdes_5x
+                # 156.25MHz: serwb_serdes_5x
                 p_CLKOUT2_DIVIDE=8//vco_div, p_CLKOUT2_PHASE=0.0,
-                o_CLKOUT2=pll_serdes_5x_clk
+                o_CLKOUT2=pll_serwb_serdes_5x_clk
             ),
-            Instance("BUFG", i_I=pll_serdes_clk, o_O=self.serdes_clk),
-            Instance("BUFG", i_I=pll_serdes_20x_clk, o_O=self.serdes_20x_clk),
-            Instance("BUFG", i_I=pll_serdes_5x_clk, o_O=self.serdes_5x_clk)
+            Instance("BUFG", i_I=pll_serwb_serdes_clk, o_O=self.serwb_serdes_clk),
+            Instance("BUFG", i_I=pll_serwb_serdes_20x_clk, o_O=self.serwb_serdes_20x_clk),
+            Instance("BUFG", i_I=pll_serwb_serdes_5x_clk, o_O=self.serwb_serdes_5x_clk)
         ]
         self.specials += MultiReg(pll_locked, self.lock)
 
