@@ -106,14 +106,15 @@ fn startup() {
         }
     }
 
-    fn _net_trace_writer<U>(printer: smoltcp::wire::PrettyPrinter<U>)
-            where U: smoltcp::wire::pretty_print::PrettyPrint {
-        print!("\x1b[37m{}\x1b[0m", printer)
-    }
+    // fn _net_trace_writer<U>(timestamp: u64, printer: smoltcp::wire::PrettyPrinter<U>)
+    //         where U: smoltcp::wire::pretty_print::PrettyPrint {
+    //     let seconds = timestamp / 1000;
+    //     let micros  = timestamp % 1000 * 1000;
+    //     print!("\x1b[37m[{:6}.{:06}s]\n{}\x1b[0m", seconds, micros, printer)
+    // }
 
     let net_device = ethmac::EthernetDevice;
-    // let net_device = smoltcp::phy::Tracer::<_, smoltcp::wire::EthernetFrame<&[u8]>>
-    //                                      ::new(net_device, _net_trace_writer);
+    // let net_device = smoltcp::phy::EthernetTracer::new(net_device, _net_trace_writer);
     let arp_cache  = smoltcp::iface::SliceArpCache::new([Default::default(); 8]);
     let mut interface  = smoltcp::iface::EthernetInterface::new(
         Box::new(net_device), Box::new(arp_cache) as Box<smoltcp::iface::ArpCache>,
@@ -156,10 +157,9 @@ fn startup() {
 
         match interface.poll(&mut *borrow_mut!(scheduler.sockets()),
                              board::clock::get_ms()) {
-            Ok(()) => (),
-            Err(smoltcp::Error::Exhausted) => (),
+            Ok(_poll_at) => (),
             Err(smoltcp::Error::Unrecognized) => (),
-            Err(e) => warn!("network error: {}", e)
+            Err(err) => warn!("network error: {}", err)
         }
     }
 }
