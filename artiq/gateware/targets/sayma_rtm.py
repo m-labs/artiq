@@ -98,62 +98,32 @@ class SaymaRTM(Module):
         csr_devices.append("converter_spi")
         self.comb += platform.request("hmc7043_reset").eq(0)
 
-        # TODO: push all those serwb bits into library modules
-        # maybe keep only 3 user-visible modules: serwb PLL, serwb PHY, and serwb core
-        # TODO: after this is done, stop exposing internal modules in serwb/__init__.py
         # TODO: avoid having a "serdes" clock domain at the top level, rename to "serwb_serdes" or similar.
         # TODO: the above also applies to sayma_amc_standalone.py.
 
         # serwb SERDES
-        serwb_pll = serwb.s7phy.S7SerdesPLL(125e6, 1.25e9, vco_div=1)
+        serwb_pll = serwb.phy.SERWBPLL(125e6, 1.25e9, vco_div=1)
         self.submodules += serwb_pll
 
-        serwb_serdes = serwb.s7phy.S7Serdes(serwb_pll, platform.request("amc_rtm_serwb"), mode="slave")
-        self.submodules += serwb_serdes
-        serwb_init = serwb.phy.SerdesSlaveInit(serwb_serdes, taps=32)
-        self.submodules += serwb_init
-        self.comb += self.crg.reset.eq(serwb_init.reset)
+        serwb_pads = platform.request("amc_rtm_serwb")
+        serwb_phy = serwb.phy.SERWBPHY(platform.device, serwb_pll, serwb_pads, mode="slave")
+        self.submodules.serwb_phy = serwb_phy
+        self.comb += self.crg.reset.eq(serwb_phy.init.reset)
 
-        serwb_serdes.cd_serdes.clk.attr.add("keep")
-        serwb_serdes.cd_serdes_20x.clk.attr.add("keep")
-        serwb_serdes.cd_serdes_5x.clk.attr.add("keep")
-        platform.add_period_constraint(serwb_serdes.cd_serdes.clk, 32.0),
-        platform.add_period_constraint(serwb_serdes.cd_serdes_20x.clk, 1.6),
-        platform.add_period_constraint(serwb_serdes.cd_serdes_5x.clk, 6.4)
+        serwb_phy.serdes.cd_serdes.clk.attr.add("keep")
+        serwb_phy.serdes.cd_serdes_20x.clk.attr.add("keep")
+        serwb_phy.serdes.cd_serdes_5x.clk.attr.add("keep")
+        platform.add_period_constraint(serwb_phy.serdes.cd_serdes.clk, 32.0),
+        platform.add_period_constraint(serwb_phy.serdes.cd_serdes_20x.clk, 1.6),
+        platform.add_period_constraint(serwb_phy.serdes.cd_serdes_5x.clk, 6.4)
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            serwb_serdes.cd_serdes.clk,
-            serwb_serdes.cd_serdes_5x.clk)
+            serwb_phy.serdes.cd_serdes.clk,
+            serwb_phy.serdes.cd_serdes_5x.clk)
 
         # serwb master
-        serwb_depacketizer = serwb.packet.Depacketizer(int(clk_freq))
-        serwb_packetizer = serwb.packet.Packetizer()
-        self.submodules += serwb_depacketizer, serwb_packetizer
-        serwb_etherbone = serwb.etherbone.Etherbone(mode="master")
-        self.submodules += serwb_etherbone
-        serwb_tx_cdc = ClockDomainsRenamer({"write": "sys", "read": "serdes"})(
-            stream.AsyncFIFO([("data", 32)], 8))
-        self.submodules += serwb_tx_cdc
-        serwb_rx_cdc = ClockDomainsRenamer({"write": "serdes", "read": "sys"})(
-            stream.AsyncFIFO([("data", 32)], 8))
-        self.submodules += serwb_rx_cdc
-        self.comb += [
-            # core <--> etherbone
-            serwb_depacketizer.source.connect(serwb_etherbone.sink),
-            serwb_etherbone.source.connect(serwb_packetizer.sink),
-
-            # core --> serdes
-            serwb_packetizer.source.connect(serwb_tx_cdc.sink),
-            If(serwb_tx_cdc.source.stb & serwb_init.ready,
-                serwb_serdes.tx_data.eq(serwb_tx_cdc.source.data)
-            ),
-            serwb_tx_cdc.source.ack.eq(serwb_init.ready),
-
-            # serdes --> core
-            serwb_rx_cdc.sink.stb.eq(serwb_init.ready),
-            serwb_rx_cdc.sink.data.eq(serwb_serdes.rx_data),
-            serwb_rx_cdc.source.connect(serwb_depacketizer.sink),
-        ]
+        serwb_core = serwb.core.SERWBCore(serwb_phy, int(clk_freq), mode="master")
+        self.submodules += serwb_core
 
         # process CSR devices and connect them to serwb
         self.csr_regions = []
@@ -169,7 +139,7 @@ class SaymaRTM(Module):
             wb_slaves.add(origin, CSR_RANGE_SIZE, bank.bus)
             self.csr_regions.append((name, origin, 32, csrs))
 
-        self.submodules += wishbone.Decoder(serwb_etherbone.wishbone.bus,
+        self.submodules += wishbone.Decoder(serwb_core.etherbone.wishbone.bus,
                                             wb_slaves.get_interconnect_slaves(),
                                             register=True)
 
